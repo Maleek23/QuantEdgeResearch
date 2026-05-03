@@ -24045,6 +24045,18 @@ Use this checklist before entering any trade:
     }
   });
 
+  // Per-symbol social sentiment (StockTwits + WSB overlay) — used by ticker pages and thesis writer.
+  app.get("/api/automations/social-sentiment/symbol/:symbol", async (req, res) => {
+    try {
+      const { getSymbolSocialSentiment } = await import("./social-sentiment-scanner");
+      const data = await getSymbolSocialSentiment(req.params.symbol);
+      res.json(data);
+    } catch (error) {
+      logger.error("Error getting per-symbol social sentiment", { error });
+      res.status(500).json({ error: "Failed to get per-symbol social sentiment" });
+    }
+  });
+
   // Multi-LLM Validation Service endpoints
   app.get("/api/validation/status", async (_req, res) => {
     try {

@@ -9,6 +9,7 @@
  */
 
 import { logger } from './logger';
+import { getStockTwitsSentiment } from './stocktwits-service';
 
 interface SentimentResult {
   score: number; // 0-100
@@ -69,7 +70,7 @@ class SentimentScorer {
       // Calculate component scores
       const newsScore = this.scoreNews(news);
       const analystScore = this.scoreAnalystRatings(recommendations);
-      const socialScore = this.scoreSocialSentiment(symbol); // Placeholder for now
+      const socialScore = await this.scoreSocialSentiment(symbol);
 
       // Weighted average
       const totalScore = Math.round(
@@ -400,23 +401,60 @@ class SentimentScorer {
   }
 
   /**
-   * Score social media sentiment
-   * Placeholder - would need Twitter/Reddit APIs for real implementation
+   * Score social media sentiment via StockTwits per-symbol stream.
+   * Falls back to neutral 50 if the stream is unavailable or has < 5 msgs.
    */
-  private scoreSocialSentiment(symbol: string): {
+  private async scoreSocialSentiment(symbol: string): Promise<{
     score: number;
     breakdown: any[];
-  } {
-    // TODO: Implement real social sentiment analysis
-    // Would require Twitter API, Reddit API, StockTwits API
+  }> {
+    const st = await getStockTwitsSentiment(symbol);
+
+    if (!st || st.messageCount < 5) {
+      return {
+        score: 50,
+        breakdown: [
+          {
+            category: 'Social Sentiment',
+            value: st ? `${st.messageCount} msgs (low volume)` : 'Unavailable',
+            interpretation: st
+              ? 'Insufficient StockTwits volume for a reliable read'
+              : 'StockTwits stream unavailable'
+          }
+        ]
+      };
+    }
+
+    // Map -100..+100 → 0..100
+    const score = Math.max(0, Math.min(100, Math.round((st.sentimentScore + 100) / 2)));
+    const tagged = st.bullishCount + st.bearishCount;
+    const label =
+      score >= 70 ? 'Strongly Bullish' :
+      score >= 55 ? 'Bullish' :
+      score >= 45 ? 'Neutral' :
+      score >= 30 ? 'Bearish' : 'Strongly Bearish';
 
     return {
-      score: 50,
+      score,
       breakdown: [
         {
-          category: 'Social Sentiment',
-          value: 'Not Available',
-          interpretation: 'Social media sentiment analysis coming soon'
+          category: 'StockTwits Sentiment',
+          value: `${st.bullishCount}🐂 / ${st.bearishCount}🐻 (${tagged}/${st.messageCount} tagged)`,
+          interpretation: label,
+          methodology: {
+            formula: 'score = (bullish / (bullish + bearish)) mapped from [-100,100] to [0,100]',
+            period: st.messageCount,
+            assumptions: [
+              'User-tagged Bullish/Bearish labels reflect retail positioning',
+              'StockTwits skews retail/active trader — anti-signal at extremes',
+              'Crowd sentiment is most predictive when divergent from price'
+            ]
+          }
+        },
+        {
+          category: 'StockTwits Watchers',
+          value: st.totalWatchers ? `${st.totalWatchers.toLocaleString()} watchers` : 'n/a',
+          interpretation: 'Higher watcher counts indicate broader retail awareness'
         }
       ]
     };

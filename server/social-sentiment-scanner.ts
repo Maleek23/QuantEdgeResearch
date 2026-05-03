@@ -10,6 +10,7 @@
  */
 
 import { logger } from './logger';
+import { getStockTwitsSentiment, type StockTwitsSymbolSentiment } from './stocktwits-service';
 
 interface SocialMention {
   id: string;
@@ -585,6 +586,84 @@ export function addTickerToWatch(symbol: string): void {
 export function removeTickerFromWatch(symbol: string): void {
   scannerStatus.settings.watchlist = scannerStatus.settings.watchlist.filter(s => s !== symbol);
   logger.info(`[SOCIAL-SENTIMENT] Removed ${symbol} from watchlist`);
+}
+
+/**
+ * Per-symbol combined social sentiment.
+ *
+ * Pulls live StockTwits data and overlays WSB rank from the most recent
+ * trending fetch. This is the function the per-ticker UI / thesis writer
+ * calls when it needs "what does the crowd think about $XYZ right now".
+ */
+export interface SymbolSocialSentiment {
+  symbol: string;
+  fetchedAt: string;
+  stocktwits: StockTwitsSymbolSentiment | null;
+  wsb: {
+    onTrending: boolean;
+    rank?: number;
+    mentionCount?: number;
+    sentiment?: 'bullish' | 'bearish' | 'neutral';
+    sentimentScore?: number;
+  };
+  composite: {
+    score: number;            // 0..100, blends sources
+    label: 'bullish' | 'bearish' | 'neutral';
+    confidence: 'high' | 'medium' | 'low';
+    reason: string;
+  };
+}
+
+export async function getSymbolSocialSentiment(symbol: string): Promise<SymbolSocialSentiment> {
+  const sym = symbol.toUpperCase().replace(/^\$/, '');
+  const stocktwits = await getStockTwitsSentiment(sym);
+
+  const wsbHit = scannerStatus.wsbTrending.find(t => t.symbol === sym);
+  const wsb = wsbHit
+    ? {
+        onTrending: true,
+        rank: wsbHit.rank,
+        mentionCount: wsbHit.mentionCount,
+        sentiment: wsbHit.sentiment,
+        sentimentScore: wsbHit.sentimentScore,
+      }
+    : { onTrending: false };
+
+  // Composite: 70% StockTwits (per-ticker, real bull/bear tags), 30% WSB rank momentum.
+  // If StockTwits data is missing, fall back to WSB only (low confidence).
+  let score = 50;
+  let confidence: 'high' | 'medium' | 'low' = 'low';
+  let reason = 'no signal';
+
+  if (stocktwits && stocktwits.messageCount >= 5) {
+    // map -100..100 → 0..100
+    const stScore = Math.round((stocktwits.sentimentScore + 100) / 2);
+    if (wsb.onTrending && typeof wsb.sentimentScore === 'number') {
+      const wsbScore = Math.max(0, Math.min(100, 50 + wsb.sentimentScore / 2));
+      score = Math.round(stScore * 0.7 + wsbScore * 0.3);
+    } else {
+      score = stScore;
+    }
+    confidence =
+      stocktwits.messageCount >= 20 ? 'high' : stocktwits.messageCount >= 10 ? 'medium' : 'low';
+    reason = `StockTwits ${stocktwits.bullishCount}🐂/${stocktwits.bearishCount}🐻 over ${stocktwits.messageCount} msgs`;
+    if (wsb.onTrending) reason += `; WSB rank #${wsb.rank}`;
+  } else if (wsb.onTrending && typeof wsb.sentimentScore === 'number') {
+    score = Math.max(0, Math.min(100, 50 + wsb.sentimentScore / 2));
+    confidence = 'low';
+    reason = `WSB only — rank #${wsb.rank} (${wsb.mentionCount} mentions)`;
+  }
+
+  const label: 'bullish' | 'bearish' | 'neutral' =
+    score >= 60 ? 'bullish' : score <= 40 ? 'bearish' : 'neutral';
+
+  return {
+    symbol: sym,
+    fetchedAt: new Date().toISOString(),
+    stocktwits,
+    wsb,
+    composite: { score, label, confidence, reason },
+  };
 }
 
 /**
