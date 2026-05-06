@@ -84,16 +84,27 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize observability FIRST so we capture boot-time errors
+  const { initObservability, captureException } = await import('./observability');
+  await initObservability();
+
   const server = await registerRoutes(app);
 
   // SECURITY: Sanitized error handler - prevents stack trace and internal detail exposure
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    
+
     // Log full error server-side
     import('./logger').then(({ logger }) => {
       logger.error('Express error handler:', err);
     });
+    // Forward to observability (Sentry / webhook / structured log)
+    if (status >= 500) {
+      captureException(err, {
+        context: `${req.method} ${req.originalUrl}`,
+        tags: { method: req.method, status: String(status) },
+      });
+    }
 
     // Send sanitized message to client (never expose stack traces or internal details)
     res.status(status).json({ 
@@ -320,6 +331,15 @@ app.use((req, res, next) => {
     // Tomorrow's Playbook generation happens via the autoIdeaGenerator cron schedule
     // Immediate startup generation was consuming too much CPU/memory on boot
     log('🌙 Evening playbook generation deferred to cron schedule (not run on boot)');
+
+    // 📡 THESIS RADAR — schedule scan + resolve crons (09:35 / 12:00 / 15:55 / 20:00 NY)
+    try {
+      const { scheduleRadarCrons } = await import('./thesis-radar/cron');
+      scheduleRadarCrons();
+      log('📡 Thesis Radar crons scheduled (09:35 forming, 12:00 + 15:55 full, 20:00 resolve)');
+    } catch (e) {
+      log(`⚠ Thesis Radar cron registration failed: ${(e as Error).message}`);
+    }
     
     // Start automated hybrid idea generation (9:45 AM CT on weekdays - 15 min after AI/Quant)
     // (cron already imported above)

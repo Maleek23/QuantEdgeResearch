@@ -45,7 +45,9 @@ import { randomBytes } from "crypto";
 import { getTierLimits, canAccessFeature, TierLimits } from "./tierConfig";
 // LAZY-LOADED: notion-sync — imported via await import() in handlers
 // LAZY-LOADED: paper-trading-service — imported via await import() in handlers
-import { getAutoLottoExitIntelligence, getPortfolioExitIntelligence } from "./position-monitor-service";
+import { getAutoLottoExitIntelligence } from "./position-monitor-service";
+// getPortfolioExitIntelligence was renamed/removed — use getAutoLottoExitIntelligence
+const getPortfolioExitIntelligence = getAutoLottoExitIntelligence;
 import { telemetryService } from "./telemetry-service";
 // LAZY-LOADED: loss-analyzer, signal-attribution — imported via await import() in handlers
 import { getReliabilityGrade, getLetterGrade } from "./grading";
@@ -561,8 +563,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Health check endpoint for Render/uptime monitors (no auth required)
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  /**
+   * /api/client-error — receives client-side errors and forwards to observability.
+   * Used by client/src/lib/observability.ts so the same Sentry/webhook pipeline
+   * catches frontend errors too.
+   */
+  app.post('/api/client-error', async (req, res) => {
+    try {
+      const { captureException } = await import('./observability');
+      const { message, stack, url, userAgent, context, tags, extra } = req.body ?? {};
+      const e = new Error(message || 'unknown client error');
+      e.stack = stack;
+      captureException(e, {
+        context: `client · ${context ?? 'unknown'} · ${url ?? ''}`,
+        tags: { source: 'client', ...tags },
+        extra: { userAgent, ...extra },
+      });
+      res.status(204).end();
+    } catch {
+      // observability must never throw / block client
+      res.status(204).end();
+    }
+  });
+
+  /**
+   * /api/health — real liveness + dependency check.
+   *
+   * Returns 200 if all deps are reachable, 503 if any are degraded.
+   * Designed for uptime monitors (Better Uptime, Pingdom, UptimeRobot).
+   *
+   * Output shape kept stable — monitors parse this. Add new fields, never remove.
+   */
+  app.get('/api/health', async (_req, res) => {
+    const start = Date.now();
+    const checks: Record<string, { ok: boolean; latencyMs?: number; message?: string }> = {};
+
+    // ─── Postgres (Neon) ───
+    try {
+      const t0 = Date.now();
+      const { pool } = await import('./db');
+      await pool.query('SELECT 1');
+      checks.postgres = { ok: true, latencyMs: Date.now() - t0 };
+    } catch (e: any) {
+      checks.postgres = { ok: false, message: e?.message ?? 'unknown' };
+    }
+
+    // ─── Tradier (best-effort, soft-fail — we have CBOE fallback) ───
+    if (process.env.TRADIER_API_KEY) {
+      try {
+        const t0 = Date.now();
+        const r = await fetch('https://api.tradier.com/v1/markets/clock', {
+          headers: { Authorization: `Bearer ${process.env.TRADIER_API_KEY}`, Accept: 'application/json' },
+          signal: AbortSignal.timeout(3000),
+        });
+        checks.tradier = { ok: r.ok, latencyMs: Date.now() - t0, message: r.ok ? undefined : `HTTP ${r.status}` };
+      } catch (e: any) {
+        checks.tradier = { ok: false, message: e?.message ?? 'timeout' };
+      }
+    } else {
+      checks.tradier = { ok: false, message: 'TRADIER_API_KEY unset' };
+    }
+
+    // ─── Process info ───
+    const memMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    const uptimeSec = Math.round(process.uptime());
+
+    // Determine overall status: postgres MUST be up; others can be degraded
+    const pgOk = checks.postgres?.ok === true;
+    const status = pgOk ? 'ok' : 'degraded';
+    const httpStatus = pgOk ? 200 : 503;
+
+    res.status(httpStatus).json({
+      status,
+      timestamp: new Date().toISOString(),
+      uptimeSec,
+      memMb,
+      version: process.env.GIT_SHA ?? 'unknown',
+      env: process.env.NODE_ENV ?? 'unknown',
+      checks,
+      latencyMs: Date.now() - start,
+    });
   });
 
   // SEO: Sitemap.xml endpoint
@@ -27519,12 +27599,336 @@ Use this checklist before entering any trade:
     }
   });
 
+  /**
+   * EARNINGS HUB — automated lotto scanner.
+   *
+   * GET /api/earnings/week                 → next 7-day earnings + ranked lottos
+   * GET /api/earnings/week?days=14         → custom window
+   * GET /api/earnings/week?refresh=1       → force re-scan, ignore cache
+   *
+   * Cache: 30 min (calendar + chains).
+   */
+  /**
+   * EARNINGS → TRADE DESK BRIDGE
+   * One-click handoff: push an earnings-hub lotto into the actual Trade Desk
+   * as a fully-populated trade idea (entry/T1/T2/stop/catalyst/signals).
+   *
+   * POST /api/trade-desk/ideas/from-earnings
+   * body: { symbol, contractStyle?: 'atm'|'otm'|'put' }
+   *
+   * POST /api/trade-desk/ideas/from-earnings/bulk
+   * body: { minScore?, tiers? }       → push all top lottos
+   */
+  app.post("/api/trade-desk/ideas/from-earnings", async (req, res) => {
+    try {
+      const { symbol, contractStyle, customPlan } = req.body ?? {};
+      if (!symbol || typeof symbol !== 'string') {
+        return res.status(400).json({ error: 'symbol required (string)' });
+      }
+      const { createIdeaFromEarnings } = await import('./earnings-to-trade-desk');
+      const result = await createIdeaFromEarnings(symbol, { contractStyle, customPlan });
+      if (!result.ok) return res.status(409).json(result);
+      return res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: 'from-earnings failed', message: e?.message });
+    }
+  });
+
+  app.post("/api/trade-desk/ideas/from-earnings/bulk", async (req, res) => {
+    try {
+      const { minScore, tiers } = req.body ?? {};
+      const { pushAllTopLottosToDesk } = await import('./earnings-to-trade-desk');
+      const result = await pushAllTopLottosToDesk({ minScore, tiers });
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      res.status(500).json({ error: 'bulk-push failed', message: e?.message });
+    }
+  });
+
+  // ──────────── THESIS RADAR ────────────
+  // GET  /api/radar/patterns          → list pattern library
+  // GET  /api/radar/picks             → recent fired picks (with grades)
+  // GET  /api/radar/track-record      → resolved + open picks for accountability
+  // GET  /api/radar/stats             → per-pattern hit rate, avg outcome, days to resolve
+  // POST /api/radar/scan              → trigger full scan (forming + confirmed + preview)
+  // POST /api/radar/scan/forming      → trigger forming-only scan (lighter, intraday)
+  // POST /api/radar/resolve           → trigger resolve pass (post-market cron)
+  app.get("/api/radar/patterns", async (_req, res) => {
+    try {
+      const { listPatterns } = await import('./thesis-radar/pattern-library');
+      res.json({ ok: true, patterns: listPatterns() });
+    } catch (e: any) {
+      res.status(500).json({ error: 'patterns failed', message: e?.message });
+    }
+  });
+
+  app.get("/api/radar/picks", async (req, res) => {
+    try {
+      const { getRecentPicks } = await import('./thesis-radar/track-record');
+      const limit = req.query.limit ? Math.min(500, Number(req.query.limit)) : 50;
+      const picks = await getRecentPicks(limit);
+      res.json({ ok: true, picks });
+    } catch (e: any) {
+      res.status(500).json({ error: 'picks failed', message: e?.message });
+    }
+  });
+
+  app.get("/api/radar/track-record", async (req, res) => {
+    try {
+      const { getTrackRecord } = await import('./thesis-radar/track-record');
+      const patternId = req.query.patternId as string | undefined;
+      const resolvedOnly = req.query.resolvedOnly === '1' || req.query.resolvedOnly === 'true';
+      const limit = req.query.limit ? Math.min(1000, Number(req.query.limit)) : 200;
+      const entries = await getTrackRecord({ patternId: patternId as any, resolvedOnly, limit });
+      res.json({ ok: true, entries });
+    } catch (e: any) {
+      res.status(500).json({ error: 'track-record failed', message: e?.message });
+    }
+  });
+
+  app.get("/api/radar/stats", async (req, res) => {
+    try {
+      const { getPatternStats } = await import('./thesis-radar/track-record');
+      const patternId = req.query.patternId as string | undefined;
+      const stats = await getPatternStats(patternId as any);
+      res.json({ ok: true, stats });
+    } catch (e: any) {
+      res.status(500).json({ error: 'stats failed', message: e?.message });
+    }
+  });
+
+  app.post("/api/radar/scan", async (_req, res) => {
+    try {
+      const { runFullScan } = await import('./thesis-radar/live-scanner');
+      const result = await runFullScan();
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      res.status(500).json({ error: 'scan failed', message: e?.message });
+    }
+  });
+
+  app.post("/api/radar/scan/forming", async (_req, res) => {
+    try {
+      const { runFormingScan } = await import('./thesis-radar/live-scanner');
+      const result = await runFormingScan();
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      res.status(500).json({ error: 'forming scan failed', message: e?.message });
+    }
+  });
+
+  app.post("/api/radar/resolve", async (_req, res) => {
+    try {
+      const { runResolvePass } = await import('./thesis-radar/live-scanner');
+      const { getTradierQuote } = await import('./tradier-api');
+      await runResolvePass(async (sym) => {
+        try {
+          const q = await getTradierQuote(sym);
+          return q?.last ?? null;
+        } catch { return null; }
+      });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ error: 'resolve failed', message: e?.message });
+    }
+  });
+
+  app.get("/api/earnings/week", async (req, res) => {
+    try {
+      const { buildEarningsHub } = await import('./earnings-hub');
+      const days = req.query.days ? Number(req.query.days) : 7;
+      const force = req.query.refresh === '1' || req.query.refresh === 'true';
+      const result = await buildEarningsHub({ daysAhead: Math.max(1, Math.min(30, days)) }, force);
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: 'earnings hub failed', message: e?.message });
+    }
+  });
+
+  /**
+   * EARNINGS CALENDAR — full universe (all ~1500 reports/week).
+   * Lightweight (no chain enrichment, no beat history) so it's fast even at full scale.
+   *
+   * GET /api/earnings/calendar?days=7        → next 7 days, all reporters
+   * GET /api/earnings/calendar?refresh=1     → force re-scan
+   *
+   * Returns: days grouped (with BMO/AMC/TBD sub-groups), plus top-30 by market cap.
+   */
+  app.get("/api/earnings/calendar", async (req, res) => {
+    try {
+      const { buildEarningsCalendar } = await import('./earnings-hub');
+      const days = req.query.days ? Number(req.query.days) : 7;
+      const force = req.query.refresh === '1' || req.query.refresh === 'true';
+      const result = await buildEarningsCalendar({ daysAhead: Math.max(1, Math.min(14, days)) }, force);
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: 'earnings calendar failed', message: e?.message });
+    }
+  });
+
+  /**
+   * LAYER CYCLES — sector-rotation engine.
+   *
+   * GET /api/layers              → all 18 layers + cycle stage + metrics
+   * GET /api/layers/:id          → drill-in for one layer (top movers, full snapshot)
+   * GET /api/layers?refresh=1    → force re-scan, ignore cache
+   *
+   * Cache: 30 min (computation ~30-60s for ~120 tickers).
+   */
+  app.get("/api/layers", async (req, res) => {
+    try {
+      const { computeLayerCycles } = await import('./layer-cycle-engine');
+      const force = req.query.refresh === '1' || req.query.refresh === 'true';
+      const result = await computeLayerCycles(force);
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: 'layer cycle scan failed', message: e?.message });
+    }
+  });
+
+  app.get("/api/layers/:id", async (req, res) => {
+    try {
+      const { getLayerDetail } = await import('./layer-cycle-engine');
+      const layer = await getLayerDetail(req.params.id);
+      if (!layer) return res.status(404).json({ error: 'layer not found', id: req.params.id });
+      res.json(layer);
+    } catch (e: any) {
+      res.status(500).json({ error: 'layer detail failed', message: e?.message });
+    }
+  });
+
+  /**
+   * MOMENTUM RUNNERS — Qullamaggie-style ADR/RVOL scanner for small/mid caps.
+   * Surfaces high-ADR setups under the "look under the right lamppost" thesis.
+   *
+   * GET /api/momentum/runners?maxPrice=100&minAdrPct=4&minRvol=1.2&limit=50
+   */
+  app.get("/api/momentum/runners", async (req, res) => {
+    try {
+      const { scanRunners } = await import('./momentum-adr');
+      const result = await scanRunners({
+        maxPrice:  req.query.maxPrice  ? Number(req.query.maxPrice)  : undefined,
+        minPrice:  req.query.minPrice  ? Number(req.query.minPrice)  : undefined,
+        minAdrPct: req.query.minAdrPct ? Number(req.query.minAdrPct) : undefined,
+        minRvol:   req.query.minRvol   ? Number(req.query.minRvol)   : undefined,
+        minScore:  req.query.minScore  ? Number(req.query.minScore)  : undefined,
+        limit:     req.query.limit     ? Number(req.query.limit)     : undefined,
+        sectors:   req.query.sectors   ? String(req.query.sectors).split(',').filter(Boolean) : undefined,
+      });
+      res.json({ runners: result, scannedAt: Date.now(), count: result.length });
+    } catch (e: any) {
+      res.status(500).json({ error: 'runners scan failed', message: e?.message });
+    }
+  });
+
+  /**
+   * GEX BUCKETS — per-DTE breakdown so each trader workflow gets its own slice.
+   * Returns: { today, week, month, quarter, leaps } each with own walls + flip + dealer-flow.
+   * Use cases: 0DTE pin (today), swing setups (week/month), LEAPS positioning (leaps).
+   */
+  app.get("/api/gex/buckets/:symbol", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || '').toUpperCase().trim();
+      if (!symbol) return res.status(400).json({ error: 'symbol required' });
+
+      const { calculateAggregateGammaExposure } = await import('./gamma-exposure');
+      const { toSnapshot } = await import('./gex-vex-scanner');
+      const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
+
+      // Tradier path first; CBOE fallback for weekends / rate-limit
+      const result = await calculateAggregateGammaExposure(symbol);
+      let snap = result ? toSnapshot(result) : null;
+      if (!snap) snap = await computeGEXFromCBOE(symbol);
+
+      if (!snap) return res.status(404).json({ error: 'No GEX data', symbol });
+
+      return res.json({
+        symbol: snap.symbol,
+        spotPrice: snap.spotPrice,
+        calculatedAt: snap.calculatedAt,
+        source: snap.source,
+        regime: snap.regime,
+        totalGEX: snap.totalGEX,
+        dealerFlowPer1Pct: snap.dealerFlowPer1Pct ?? null,
+        byDte: snap.byDte ?? {},
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: 'buckets failed', message: e?.message });
+    }
+  });
+
+  /**
+   * GEX → TRADE DESK BRIDGE
+   * One-click handoff: takes a symbol + optional workflow, re-fetches the
+   * GEX snapshot server-side (never trusts client levels), and creates a
+   * fully-populated trade idea in the Trade Desk with bias/target/stop/catalyst.
+   *
+   * POST /api/trade-desk/ideas/from-gex
+   * body: { symbol, workflow?: 'all'|'today'|'swing'|'leaps'|'flip'|'posg'|'negg', bias?: 'long'|'short'|'neutral'|'auto' }
+   */
+  app.post("/api/trade-desk/ideas/from-gex", async (req, res) => {
+    try {
+      const { symbol, workflow, bias } = req.body ?? {};
+      if (!symbol || typeof symbol !== 'string') {
+        return res.status(400).json({ error: 'symbol required (string)' });
+      }
+      const { createIdeaFromGEX } = await import('./gex-to-trade-desk');
+      const result = await createIdeaFromGEX(symbol, { workflow, bias });
+      if (!result.ok) {
+        return res.status(409).json(result);
+      }
+      return res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: 'from-gex failed', message: e?.message });
+    }
+  });
+
   /** GEX HUB — market-wide aggregation: top GEX/VEX, sector splits, regimes */
   app.get("/api/gex-vex/hub", requireBetaAccess, async (_req, res) => {
     try {
       const { scanWatchlistConfluence, buildGEXHub, persistTopPlaysAsIdeas } = await import('./gex-vex-scanner');
       const { runIndexScalpScanner } = await import('./index-scalp-engine');
       const scan = await scanWatchlistConfluence({ useCache: true });
+
+      // If primary scan came back empty (weekends, Tradier down), build a
+      // CBOE-only mini-scan so the Hub still renders rather than 500'ing.
+      if (!scan?.rows?.length) {
+        const { bulkComputeGEXFromCBOE } = await import('./gex-cboe-fallback');
+        const fallbackTickers = ['SPY','QQQ','NVDA','AAPL','MSFT','TSLA','META','AMZN','GOOGL','AMD','AVGO','ARM','PLTR','NOK','BB','MP','QCOM','SOUN','SMR','HUT'];
+        const cboeMap = await bulkComputeGEXFromCBOE(fallbackTickers);
+        const cboeRows = Array.from(cboeMap.entries()).map(([sym, snap]) => ({
+          symbol: sym,
+          tier: null,
+          spotPrice: snap.spotPrice,
+          change: 0,
+          changePct: 0,
+          score: Math.min(100, Math.abs(snap.totalGEX) * 30),
+          breakdown: {} as any,
+          scoreTier: 'watch' as const,
+          gammaFlip: snap.gammaFlipPrice,
+          callWall: snap.callWall,
+          putWall: snap.putWall,
+          projection: snap.zeroGammaProjection,
+          maxGammaStrike: snap.maxGammaStrike,
+          totalGEX: snap.totalGEX,
+          totalVEX: snap.totalVEX,
+          regime: snap.regime,
+          sector: 'Mixed',
+          bias: snap.totalGEX > 0 ? 'long' : snap.totalGEX < 0 ? 'short' : 'neutral',
+        }));
+        const fallbackScan = {
+          rows: cboeRows,
+          scannedAt: Date.now(),
+          tickersScanned: fallbackTickers.length,
+          tickersWithData: cboeRows.length,
+          marketRegime: 'choppy' as const,
+          topPick: cboeRows[0]?.symbol || null,
+          errors: [],
+        };
+        const fallbackHub = await buildGEXHub(fallbackScan as any);
+        return res.json({ hub: fallbackHub, scan: fallbackScan, cboeFallback: true });
+      }
+
       const hub = await buildGEXHub(scan);
       // Fire-and-forget: persist best plays + index scalps for Trade Desk
       persistTopPlaysAsIdeas(hub.topPlays).catch(() => {});
@@ -28054,11 +28458,25 @@ Use this checklist before entering any trade:
       const { calculateAggregateGammaExposure } = await import('./gamma-exposure');
       const { scanWatchlistConfluence, toSnapshot } = await import('./gex-vex-scanner');
       const { getCrossValidatedQuote } = await import('./data-quality');
+      const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
 
-      // 1. Get GEX snapshot (spot already cross-validated in gamma-exposure)
-      const gex = await calculateAggregateGammaExposure(symbol);
+      // 1. Try Tradier-first GEX (live data when market open)
+      let gex = await calculateAggregateGammaExposure(symbol);
+
+      // 2. CBOE fallback (works on weekends + after-hours)
+      let cboeFallbackUsed = false;
       if (!gex) {
-        // Serve cached data if available (weekends, after-hours)
+        const cboeSnapshot = await computeGEXFromCBOE(symbol);
+        if (cboeSnapshot) {
+          // Wrap CBOE snapshot in calculateAggregateGammaExposure shape
+          gex = { snapshot: cboeSnapshot, dataQuality: 'cboe_fallback' } as any;
+          cboeFallbackUsed = true;
+          logger.info(`[GEX-TERMINAL] Tradier failed for ${symbol}, using CBOE fallback`);
+        }
+      }
+
+      if (!gex) {
+        // Final fallback: serve cached if available
         const cached = gexTerminalCache.get(symbol);
         if (cached && (Date.now() - cached.cachedAt) < GEX_CACHE_MAX_AGE) {
           logger.info(`[GEX-TERMINAL] Serving cached data for ${symbol} (age: ${((Date.now() - cached.cachedAt) / 60000).toFixed(0)}m)`);
@@ -28066,7 +28484,7 @@ Use this checklist before entering any trade:
         }
         return res.status(503).json({
           error: `Options data unavailable for ${symbol}`,
-          reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
+          reason: 'All data sources failed (Tradier, CBOE, Yahoo). Symbol may not have listed options.',
           symbol,
         });
       }
@@ -29366,6 +29784,260 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error(`[WEEKLY-PATH] Error for ${req.params.symbol}:`, error);
       res.status(500).json({ error: "Failed to compute weekly path projection" });
+    }
+  });
+
+  // ─── Multi-Signal Discovery Engine ──────────────────────────
+  // Unified convergence (squeeze + GEX + IV + range + catalyst) across 250+ tickers
+  app.get('/api/discovery/sleepers', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getDiscoveryFeed } = await import('./multi-signal-discovery');
+      const sector = req.query.sector as string | undefined;
+      const minScore = req.query.minScore ? Number(req.query.minScore) : 50;
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const results = await getDiscoveryFeed({ sector: sector as any, minScore, limit });
+      res.json({ scanned_at: new Date().toISOString(), count: results.length, results });
+    } catch (error: any) {
+      logger.error('[DISCOVERY] Error:', error);
+      res.status(500).json({ error: 'Discovery scan failed', detail: error.message });
+    }
+  });
+
+  app.get('/api/discovery/elite', requireBetaAccess, async (_req: any, res) => {
+    try {
+      const { findEliteSetups } = await import('./multi-signal-discovery');
+      const results = await findEliteSetups();
+      res.json({ scanned_at: new Date().toISOString(), count: results.length, results });
+    } catch (error: any) {
+      logger.error('[DISCOVERY] Elite scan error:', error);
+      res.status(500).json({ error: 'Elite scan failed', detail: error.message });
+    }
+  });
+
+  app.get('/api/discovery/score/:symbol', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { scoreSingleTicker } = await import('./multi-signal-discovery');
+      const result = await scoreSingleTicker(req.params.symbol);
+      if (!result) return res.status(404).json({ error: 'No data for symbol' });
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[DISCOVERY] Score error:', error);
+      res.status(500).json({ error: 'Score failed', detail: error.message });
+    }
+  });
+
+  // ─── Mark Trade Idea as Traded (uses outcomeStatus='open' + appends note) ──
+  app.post('/api/trade-ideas/:id/mark-traded', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { db: database } = await import('./db');
+      const { tradeIdeas: tradeIdeasTable } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const userId = req.user?.id || req.user?.sub;
+      if (!userId) return res.status(401).json({ error: 'Auth required' });
+
+      const tradeId = req.params.id;
+      const actualEntryPrice = req.body?.actualEntryPrice;
+      const positionSize = req.body?.positionSize;
+
+      // Fetch existing analysis to append the trade note (since schema has no
+      // dedicated isTraded/actualEntry fields, we annotate the analysis field)
+      const existing = await database.select().from(tradeIdeasTable).where(eq(tradeIdeasTable.id, tradeId)).limit(1);
+      if (!existing.length) return res.status(404).json({ error: 'Trade idea not found' });
+
+      const tradeNote = `[USER TRADED ${new Date().toISOString()}] entry=${actualEntryPrice ?? 'signal'} size=${positionSize ?? '?'}`;
+      const newAnalysis = `${existing[0].analysis}\n\n${tradeNote}`;
+
+      await database
+        .update(tradeIdeasTable)
+        .set({
+          outcomeStatus: 'open',
+          analysis: newAnalysis
+        })
+        .where(eq(tradeIdeasTable.id, tradeId));
+
+      res.json({ success: true, tradeId, note: tradeNote });
+    } catch (error: any) {
+      logger.error('[MARK-TRADED] Error:', error);
+      res.status(500).json({ error: 'Mark traded failed', detail: error.message });
+    }
+  });
+
+  // ─── Strategy Simulator — backtest convergence engine ───────
+  app.post('/api/strategy-simulator/run', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { runBacktest } = await import('./strategy-simulator');
+      const symbols = req.body?.symbols || ['NOK','BB','MP','QCOM','ARM','AEHR','SOUN','RGTI','HUT','BE'];
+      const result = await runBacktest({
+        symbols,
+        scoreThreshold: req.body?.scoreThreshold || 70,
+        targetPct: req.body?.targetPct || 10,
+        stopPct: req.body?.stopPct || -8,
+        holdMaxDays: req.body?.holdMaxDays || 30
+      });
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[STRATEGY-SIM] Error:', error);
+      res.status(500).json({ error: 'Backtest failed', detail: error.message });
+    }
+  });
+
+  app.post('/api/strategy-simulator/symbol/:symbol', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { simulateSymbol } = await import('./strategy-simulator');
+      const result = await simulateSymbol(req.params.symbol, {
+        symbols: [req.params.symbol],
+        scoreThreshold: req.body?.scoreThreshold || 70,
+        targetPct: req.body?.targetPct || 10,
+        stopPct: req.body?.stopPct || -8,
+        holdMaxDays: req.body?.holdMaxDays || 30
+      });
+      if (!result) return res.status(404).json({ error: 'No data' });
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[STRATEGY-SIM-SINGLE] Error:', error);
+      res.status(500).json({ error: 'Single backtest failed', detail: error.message });
+    }
+  });
+
+  // ─── Positions Live — heat map of user's open trades ─────────
+  app.get('/api/positions/live', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getLivePositions, computePositionsSummary } = await import('./positions-live');
+      const userId = req.user?.id || req.user?.sub;
+      if (!userId) return res.status(401).json({ error: 'Auth required' });
+      const positions = await getLivePositions(userId);
+      const summary = computePositionsSummary(positions);
+      res.json({ asOf: new Date().toISOString(), summary, positions });
+    } catch (error: any) {
+      logger.error('[POSITIONS-LIVE] Error:', error);
+      res.status(500).json({ error: 'Live positions failed', detail: error.message });
+    }
+  });
+
+  // ─── Flow Heatmap — sector treemap + ticker flow detail ──────
+  app.get('/api/flow/heatmap', async (req: any, res) => {
+    try {
+      const { getFlowHeatmap } = await import('./flow-heatmap');
+      const sectors = req.query.sectors
+        ? (req.query.sectors as string).split(',').map(s => s.trim().toUpperCase())
+        : undefined;
+      const topN = req.query.topN ? Number(req.query.topN) : 6;
+      const heatmap = await getFlowHeatmap({ sectors, topNPerSector: topN });
+      res.json(heatmap);
+    } catch (error: any) {
+      logger.error('[FLOW-HEATMAP] Error:', error);
+      res.status(500).json({ error: 'Heatmap fetch failed', detail: error.message });
+    }
+  });
+
+  app.get('/api/flow/heatmap/ticker/:symbol', async (req: any, res) => {
+    try {
+      const { getTickerFlowDetail } = await import('./flow-heatmap');
+      const detail = await getTickerFlowDetail(req.params.symbol);
+      if (!detail) return res.status(404).json({ error: 'No data for symbol' });
+      res.json(detail);
+    } catch (error: any) {
+      logger.error('[FLOW-DETAIL] Error:', error);
+      res.status(500).json({ error: 'Detail fetch failed', detail: error.message });
+    }
+  });
+
+  // ─── Trade Action Engine — "What To Do Now" prompts ──────────
+  app.get('/api/trade-ideas/:id/actions', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getActionsForTrade } = await import('./trade-action-engine');
+      const actions = await getActionsForTrade(req.params.id);
+      res.json({ tradeId: req.params.id, actions });
+    } catch (error: any) {
+      logger.error('[ACTION-ENGINE] Error:', error);
+      res.status(500).json({ error: 'Action generation failed', detail: error.message });
+    }
+  });
+
+  app.get('/api/trade-ideas/actions/all', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { getActionsForAllOpenTrades } = await import('./trade-action-engine');
+      const userId = req.user?.id || req.user?.sub;
+      if (!userId) return res.status(401).json({ error: 'Auth required' });
+      const all = await getActionsForAllOpenTrades(userId);
+      res.json({ count: all.length, results: all });
+    } catch (error: any) {
+      logger.error('[ACTION-ENGINE-BULK] Error:', error);
+      res.status(500).json({ error: 'Bulk action generation failed', detail: error.message });
+    }
+  });
+
+  // ─── Discovery → Trade Desk Auto-Push (the missing bridge) ───
+  // Run discovery scan and push elite setups directly into Trade Desk
+  app.post('/api/discovery/push-to-trade-desk', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { pushEliteSetupsToTradeDesk } = await import('./discovery-to-trade-desk');
+      const minScore = req.body?.minScore || 70;
+      const maxIdeas = req.body?.maxIdeas || 8;
+      const results = await pushEliteSetupsToTradeDesk({ minScore, maxIdeas, pingDiscord: true });
+      res.json({
+        scanned_at: new Date().toISOString(),
+        pushed_count: results.filter(r => r.pushed).length,
+        results
+      });
+    } catch (error: any) {
+      logger.error('[DISCOVERY-PUSH] Error:', error);
+      res.status(500).json({ error: 'Auto-push failed', detail: error.message });
+    }
+  });
+
+  app.post('/api/discovery/push-ticker/:symbol', requireBetaAccess, async (req: any, res) => {
+    try {
+      const { pushSingleTickerToTradeDesk } = await import('./discovery-to-trade-desk');
+      const result = await pushSingleTickerToTradeDesk(req.params.symbol);
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[DISCOVERY-PUSH-SINGLE] Error:', error);
+      res.status(500).json({ error: 'Push failed', detail: error.message });
+    }
+  });
+
+  // ─── Sector Deep Dive — drill into XLK/SMH/etc components ────
+  app.get('/api/market-pulse/sector/:symbol', async (req: any, res) => {
+    try {
+      const { getSectorDeepDive } = await import('./market-pulse');
+      const result = await getSectorDeepDive(req.params.symbol);
+      if (!result) return res.status(404).json({ error: 'Unknown sector ETF' });
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[SECTOR-DEEP] Error:', error);
+      res.status(500).json({ error: 'Sector dive failed', detail: error.message });
+    }
+  });
+
+  // ─── Market Pulse — "Is market red or green today?" ──────────
+  // Powers the dashboard morning context view
+  app.get('/api/market-pulse', async (req: any, res) => {
+    try {
+      const { getMarketPulse } = await import('./market-pulse');
+      const watchlist = req.query.watchlist
+        ? (req.query.watchlist as string).split(',').map(s => s.trim().toUpperCase())
+        : ['NOK','BB','MP','QRVO','CSCO','QCOM','SOUN','PLTR','NVDA','AAPL','AMZN','META','MSFT','GOOGL','TSLA','AMD','TXN','MRVL','ARM','ORCL','INTC'];
+      const pulse = await getMarketPulse(watchlist);
+      res.json(pulse);
+    } catch (error: any) {
+      logger.error('[MARKET-PULSE] Error:', error);
+      res.status(500).json({ error: 'Pulse fetch failed', detail: error.message });
+    }
+  });
+
+  app.get('/api/discovery/universe', async (_req: any, res) => {
+    try {
+      const { DISCOVERY_UNIVERSE } = await import('./multi-signal-discovery');
+      res.json({
+        sectors: Object.keys(DISCOVERY_UNIVERSE),
+        total_tickers: Array.from(new Set(Object.values(DISCOVERY_UNIVERSE).flat())).length,
+        breakdown: Object.fromEntries(
+          Object.entries(DISCOVERY_UNIVERSE).map(([k, v]) => [k, v.length])
+        )
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Universe fetch failed' });
     }
   });
 
