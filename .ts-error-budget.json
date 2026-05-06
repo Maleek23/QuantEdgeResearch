@@ -1,0 +1,6 @@
+{
+  "baseline": 631,
+  "asOf": "2026-05-04",
+  "policy": "Errors may NEVER increase. Goal is monotonic decrease toward 0.",
+  "note": "Rebaselined from 633 → 631 (2 errors fixed)."
+}

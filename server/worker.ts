@@ -176,6 +176,38 @@ function isMarketCurrentlyOpen(): boolean {
     startHeavyServices();
   }, { timezone: 'America/New_York' });
 
+  // ── Cron: Market Regime Monitor (every 30 min during market hours) ──────
+  // Detects when market regime flips (BULL_TREND → CHOP, GREEN → RED, VIX spikes)
+  // and pings Discord with the change.
+  cron.default.schedule('*/30 9-16 * * 1-5', async () => {
+    try {
+      const { detectRegimeChange } = await import('./market-pulse');
+      const { sendDiscordAlert } = await import('./discord-service');
+      const change = await detectRegimeChange();
+      if (change.changed) {
+        log(`🚨 [REGIME] ${change.message.split('\n')[0]}`);
+        await sendDiscordAlert(change.message, 'warn');
+      }
+    } catch (err) {
+      logger.error('[REGIME-MONITOR] Failed:', err);
+    }
+  }, { timezone: 'America/New_York' });
+
+  // ── Cron: Multi-Signal Discovery Scan (every 4 hours during market) ────
+  // Runs the unified convergence engine across 250+ tickers and caches
+  // the top elite (score >= 70) setups for the /api/discovery/elite feed.
+  cron.default.schedule('0 10,14 * * 1-5', async () => {
+    try {
+      log('🔍 [DISCOVERY] Running multi-signal scan + auto-push to Trade Desk...');
+      const { pushEliteSetupsToTradeDesk } = await import('./discovery-to-trade-desk');
+      const results = await pushEliteSetupsToTradeDesk({ minScore: 70, maxIdeas: 8, pingDiscord: true });
+      const pushed = results.filter(r => r.pushed).length;
+      log(`🔍 [DISCOVERY] ${results.length} elite setups found, ${pushed} pushed to Trade Desk`);
+    } catch (err) {
+      logger.error('[DISCOVERY] Scheduled scan failed:', err);
+    }
+  }, { timezone: 'America/New_York' });
+
   // ── Cron: Monday morning weekly watchlist seeder (9 AM ET) ─────────────
   // Auto-populates each authenticated user's "This Week" focus list with
   // the top conviction picks from the past 7 days. Idempotent.

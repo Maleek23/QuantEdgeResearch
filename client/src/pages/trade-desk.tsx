@@ -116,6 +116,9 @@ import { TradeIdeaDetailV2 } from "@/components/trade-idea-detail-v2";
 import { TradePerformanceStats } from "@/components/trade-performance-stats";
 import { TradeIdeasPanel } from "@/components/trade-desk/trade-ideas-panel";
 import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
+import { DiscoveryPicksPanel } from "@/components/trade-desk/DiscoveryPicksPanel";
+import { SignalCard } from "@/components/signal-card";
+import { predictionToSignal, setupToSignal } from "@/components/trade-desk/idea-to-signal";
 
 // Relative time helper for freshness display
 function getRelativeTime(timestamp: string | Date): string {
@@ -741,6 +744,23 @@ function TomorrowSurgersSubPage() {
   };
 
   const renderPredictionCard = (pred: any, idx: number) => {
+    // Wired to canonical Oracle Terminal-style SignalCard.
+    // The hand-rolled card markup below remains as fallback if the adapter
+    // can't produce a usable signal (e.g. missing symbol/spot).
+    try {
+      const signal = predictionToSignal(pred);
+      if (signal.symbol && signal.spot > 0) {
+        return (
+          <SignalCard
+            key={`${pred.symbol}-${idx}`}
+            signal={signal}
+            size="standard"
+            onClick={() => { window.location.href = `/terminal/${pred.symbol}`; }}
+          />
+        );
+      }
+    } catch { /* fall through to legacy renderer */ }
+
     const style = getTierStyle(pred.prediction?.tier);
     const signals = pred.signals || [];
     const topSignals = signals.slice(0, 4);
@@ -1081,6 +1101,22 @@ function BestSetupsSubPage() {
   });
 
   const renderSetupCard = (setup: any) => {
+    // Wired to canonical Oracle Terminal-style SignalCard.
+    // Falls through to legacy if adapter can't produce a usable signal.
+    try {
+      const signal = setupToSignal(setup);
+      if (signal.symbol && signal.spot > 0) {
+        return (
+          <SignalCard
+            key={signal.id}
+            signal={signal}
+            size="full"
+            onClick={() => { window.location.href = `/terminal/${signal.symbol}`; }}
+          />
+        );
+      }
+    } catch { /* fall through to legacy renderer */ }
+
     const grade = displayedGrade(setup);
     const numeric = displayedScore(setup);
     const style = getGradeStyle(grade);
@@ -4042,6 +4078,9 @@ export default function TradeDeskRedesigned() {
         <div className="space-y-3 mt-3">
             {/* PRE-MARKET GAPPERS — overnight movers from weekly + approved universe */}
             <PreMarketGappersCard />
+
+            {/* 🎯 DISCOVERY PICKS — auto-pushed from convergence engine (the bridge) */}
+            <DiscoveryPicksPanel size="standard" maxItems={8} />
 
             {/* TRADE IDEAS — Convictions-style panel with filters, presets, view modes, drawer */}
             <TradeIdeasPanel />

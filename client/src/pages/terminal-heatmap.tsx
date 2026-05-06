@@ -5,15 +5,24 @@
  * Below the toolbar: expiry filters + the full matrix.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { HeatseekerToolbar, type ExposureMode } from '@/components/heatseeker/heatseeker-toolbar';
 import { GEXExpiryMatrix } from '@/components/gex/gex-expiry-matrix';
+import { useStockContext } from '@/contexts/stock-context';
 import { cn } from '@/lib/utils';
 import type { GEXTerminalData } from '../../../shared/gex-types';
 
 export default function TerminalHeatmapPage() {
-  const [symbol, setSymbol] = useState('SPY');
+  const { currentStock } = useStockContext();
+  // Initial symbol from context if Research shell set it, otherwise SPY.
+  const [symbol, setSymbol] = useState(currentStock?.symbol?.toUpperCase() || 'SPY');
+  // Sync local state when global context changes (Research shell switches ticker).
+  useEffect(() => {
+    if (currentStock?.symbol && currentStock.symbol.toUpperCase() !== symbol) {
+      setSymbol(currentStock.symbol.toUpperCase());
+    }
+  }, [currentStock?.symbol]); // eslint-disable-line react-hooks/exhaustive-deps
   const [mode, setMode] = useState<ExposureMode>('gex');
   const [expanded, setExpanded] = useState(false);
 

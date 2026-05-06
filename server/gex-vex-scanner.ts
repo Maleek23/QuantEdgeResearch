@@ -177,6 +177,8 @@ async function getQuoteWithChange(symbol: string): Promise<{ price: number; chan
 }
 
 // ─── Convert gamma-exposure result → GEXSnapshot ──────────
+import { bucketizeMatrix, dealerFlowFromTotalGEX } from './gex-dte-buckets';
+
 export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calculateAggregateGammaExposure>>>): GEXSnapshot {
   const {
     symbol,
@@ -259,6 +261,11 @@ export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calcula
           ? 'neutral'
           : 'transitioning');
 
+  // P0: per-DTE buckets + dealer-flow per 1% move
+  const matrix = (result as any).strikeExpiryMatrix as Array<{ strike: number; dte: number; netGEX: number }> | undefined;
+  const byDte = matrix && matrix.length > 0 ? bucketizeMatrix(matrix, spotPrice) : undefined;
+  const dealerFlowPer1Pct = dealerFlowFromTotalGEX(totalNetGEX);
+
   return {
     symbol,
     spotPrice,
@@ -279,6 +286,8 @@ export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calcula
     source: (dataSource as GEXSnapshot['source']) || 'mixed',
     expirationsUsed: [],
     dataQuality,
+    dealerFlowPer1Pct,
+    byDte,
   };
 }
 
@@ -475,10 +484,19 @@ export async function scanWatchlistConfluence(options?: {
           getQuoteWithChange(symbol),
         ]);
 
-        if (!gex) throw new Error('no_gex_data');
+        // Tradier path failed → fall back to CBOE delayed chain so weekends,
+        // after-hours, and rate-limit storms don't zero out the entire scan.
+        let snap;
+        if (gex) {
+          snap = toSnapshot(gex);
+        } else {
+          const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
+          const cboe = await computeGEXFromCBOE(symbol);
+          if (!cboe) throw new Error('no_gex_data');
+          snap = cboe;
+        }
         if (!quote) throw new Error('no_quote');
 
-        const snap = toSnapshot(gex);
         // Override spot with fresh quote if more recent
         if (quote.price > 0) snap.spotPrice = quote.price;
 
@@ -516,6 +534,8 @@ export async function scanWatchlistConfluence(options?: {
           riskReward: rr,
           dataSource: snap.source,
           calculatedAt: snap.calculatedAt,
+          dealerFlowPer1Pct: snap.dealerFlowPer1Pct,
+          byDte: snap.byDte,
         };
         return row;
       }),

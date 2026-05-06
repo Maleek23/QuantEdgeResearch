@@ -2,6 +2,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { ErrorBoundary } from "./components/error-boundary";
+import { initClientObservability } from "./lib/observability";
+
+// Initialize observability immediately (before any other code can throw)
+void initClientObservability();
 
 // Signal to diagnostic script that the module loaded successfully
 (window as any).__QE_LOADED = true;

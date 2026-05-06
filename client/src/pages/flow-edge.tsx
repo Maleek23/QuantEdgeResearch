@@ -45,11 +45,14 @@ import { cn, safeToFixed, formatVolumeCompact } from "@/lib/utils";
 // Lazy sub-tabs
 const SmartMoneyPage = lazy(() => import("@/pages/smart-money"));
 const GEXScanner = lazy(() => import("@/pages/gex-scanner"));
+const SectorHeatmapInline = lazy(() => import("@/pages/flow-heatmap"));
+import { EngineStatusFooter } from "@/components/gex/EngineStatusFooter";
 
-type FlowTab = 'flow' | 'hub' | 'smart-money';
+type FlowTab = 'flow' | 'hub' | 'smart-money' | 'sector-heatmap';
 
 const FLOW_TABS: { key: FlowTab; label: string; icon: any }[] = [
   { key: 'hub', label: 'GEX Hub', icon: Crosshair },
+  { key: 'sector-heatmap', label: 'Sector Heatmap', icon: Activity },
   { key: 'flow', label: 'Options Flow', icon: Activity },
   { key: 'smart-money', label: 'Smart Money', icon: Users },
 ];
@@ -615,10 +618,17 @@ export default function FlowEdge() {
           )}
         </div>
 
-        {/* GEX Hub Tab — confluence scanner + sector pulse + collapsible heatmap */}
+        {/* GEX Hub Tab — workflow-first scanner (market tape + top plays + 0DTE/SWING/LEAPS/FLIP tabs) */}
         {activeTab === 'hub' && (
           <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div>}>
             <GEXScanner />
+          </Suspense>
+        )}
+
+        {/* Sector Heatmap Tab — moved from standalone page */}
+        {activeTab === 'sector-heatmap' && (
+          <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 animate-spin text-cyan-400" /></div>}>
+            <SectorHeatmapInline />
           </Suspense>
         )}
 
@@ -819,6 +829,7 @@ export default function FlowEdge() {
 
         </>}
       </div>
+      <EngineStatusFooter engineLabel="GEX HUB v2.0" />
     </div>
   );
 }

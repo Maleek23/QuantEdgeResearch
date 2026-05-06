@@ -36,6 +36,7 @@ import { UniversalSearchHero } from "@/components/universal-search-hero";
 import { useAuth } from "@/hooks/useAuth";
 import { getMarketStatus } from "@/lib/market-hours";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
+import { SoundAlertToggle } from "@/components/sound-alert-toggle";
 
 /** Tiny market-status badge for the nav header — replaces hardcoded "LIVE" */
 function MarketStatusBadge() {
@@ -332,6 +333,9 @@ export function GlassHeader() {
                   <Settings className="h-3.5 w-3.5" />
                 </Button>
               </Link>
+
+              {/* Sound + Alert toggles */}
+              <SoundAlertToggle variant="compact" />
 
               {/* User Avatar */}
               <div className="relative" ref={userMenuRef}>

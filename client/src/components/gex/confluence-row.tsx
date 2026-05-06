@@ -3,8 +3,9 @@
  * Clickable to navigate to the per-ticker terminal.
  */
 
-import { Link } from 'wouter';
-import { ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useLocation } from 'wouter';
+import { ExternalLink, Plus, Check, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { componentStyles } from '@/lib/design-tokens';
 import type { ConfluenceRow as ConfluenceRowData } from '../../../../shared/gex-types';
@@ -12,9 +13,43 @@ import type { ConfluenceRow as ConfluenceRowData } from '../../../../shared/gex-
 interface ConfluenceRowProps {
   row: ConfluenceRowData;
   rank: number;
+  /** Active workflow tab — passed through so the idea is tagged with what view created it */
+  workflow?: string;
 }
 
-export function ConfluenceRow({ row, rank }: ConfluenceRowProps) {
+type SendState = 'idle' | 'sending' | 'sent' | 'error';
+
+export function ConfluenceRow({ row, rank, workflow }: ConfluenceRowProps) {
+  const [, setLocation] = useLocation();
+  const [sendState, setSendState] = useState<SendState>('idle');
+
+  const sendToDesk = async (e: React.MouseEvent, navigateAfter = false) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (sendState === 'sending' || sendState === 'sent') return;
+    setSendState('sending');
+    try {
+      const res = await fetch('/api/trade-desk/ideas/from-gex', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: row.symbol, workflow: workflow ?? 'all' }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body.ok) {
+        setSendState('sent');
+        if (navigateAfter) setTimeout(() => setLocation('/trade-desk'), 600);
+        else setTimeout(() => setSendState('idle'), 2200);
+      } else {
+        setSendState('error');
+        setTimeout(() => setSendState('idle'), 2400);
+      }
+    } catch {
+      setSendState('error');
+      setTimeout(() => setSendState('idle'), 2400);
+    }
+  };
+
   const scoreStyle =
     row.scoreTier === 'elite' ? componentStyles.gex.scoreElite
     : row.scoreTier === 'strong' ? componentStyles.gex.scoreStrong
@@ -97,18 +132,42 @@ export function ConfluenceRow({ row, rank }: ConfluenceRowProps) {
           )}
         </div>
 
-        {/* Cross-link cluster: Trade Desk + arrow */}
+        {/* Action cluster: + Idea (creates), TD (opens), arrow (terminal) */}
         <div className="flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={(e) => sendToDesk(e, false)}
+            disabled={sendState === 'sending'}
+            className={cn(
+              'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider transition-colors border',
+              sendState === 'idle'    && 'border-[var(--brand-gold)]/30 text-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/10 hover:border-[var(--brand-gold)]/60',
+              sendState === 'sending' && 'border-border text-muted-foreground cursor-wait',
+              sendState === 'sent'    && 'border-[var(--trade-bullish)]/40 text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10',
+              sendState === 'error'   && 'border-[var(--trade-bearish)]/40 text-[var(--trade-bearish)] bg-[var(--trade-bearish)]/10',
+            )}
+            title={
+              sendState === 'sent'  ? `Idea created for ${row.symbol}` :
+              sendState === 'error' ? 'Failed — try again' :
+              `Create Trade Desk idea from ${row.symbol} GEX${workflow ? ` (${workflow.toUpperCase()})` : ''}`
+            }
+            data-testid={`confluence-row-${row.symbol}-add-idea`}
+          >
+            {sendState === 'sending' && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+            {sendState === 'sent'    && <Check className="w-2.5 h-2.5" />}
+            {sendState === 'error'   && <AlertCircle className="w-2.5 h-2.5" />}
+            {sendState === 'idle'    && <Plus className="w-2.5 h-2.5" />}
+            {sendState === 'sent' ? 'IDEA' : sendState === 'error' ? 'RETRY' : 'IDEA'}
+          </button>
           <button
             type="button"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              window.location.href = `/trade-desk?symbol=${row.symbol}`;
+              setLocation(`/trade-desk?symbol=${row.symbol}`);
             }}
             className={cn(
               'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded',
-              'border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/60',
+              'border border-[var(--brand-cyan)]/30 text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/10 hover:border-[var(--brand-cyan)]/60',
               'text-[9px] font-mono font-bold uppercase tracking-wider transition-colors',
             )}
             title={`Open ${row.symbol} in Trade Desk`}

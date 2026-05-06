@@ -27,10 +27,20 @@ import { ContentDensityProvider } from "@/hooks/use-content-density";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { StockContextProvider } from "@/contexts/stock-context";
 import { lazyWithRetry } from "@/lib/lazy-import";
+import { CommandPalette } from "@/components/command-palette";
+import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 
 // All page imports use lazyWithRetry for automatic chunk-load error recovery.
 // If a deployment changes chunk hashes, stale cached HTML won't crash —
 // the app retries and auto-reloads to pick up the new chunks.
+// ─── 6 PRIMARY SHELLS (new IA) — Home / Hunt / GEX / Research / Positions / Journal ───
+const HomeShell      = lazyWithRetry(() => import("@/pages/shells/pulse-shell"),     "home-shell");
+const HuntShell      = lazyWithRetry(() => import("@/pages/shells/hunt-shell"),      "hunt-shell");
+const GexShell       = lazyWithRetry(() => import("@/pages/shells/gex-shell"),       "gex-shell");
+const ResearchShell  = lazyWithRetry(() => import("@/pages/shells/research-shell"),  "research-shell");
+const PositionsShell = lazyWithRetry(() => import("@/pages/shells/positions-shell"), "positions-shell");
+const JournalShell   = lazyWithRetry(() => import("@/pages/shells/journal-shell"),   "journal-shell");
+
 const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
@@ -58,6 +68,17 @@ const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "pri
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
 const SuccessStories = lazyWithRetry(() => import("@/pages/success-stories"), "success-stories");
 const ChartDatabase = lazyWithRetry(() => import("@/pages/chart-database"), "chart-database");
+const Discovery = lazyWithRetry(() => import("@/pages/discovery"), "discovery");
+const MarketPulse = lazyWithRetry(() => import("@/pages/market-pulse"), "market-pulse");
+const FlowHeatmap = lazyWithRetry(() => import("@/pages/flow-heatmap"), "flow-heatmap");
+const PositionsHeatmap = lazyWithRetry(() => import("@/pages/positions-heatmap"), "positions-heatmap");
+const StrategySimulator = lazyWithRetry(() => import("@/pages/strategy-simulator"), "strategy-simulator");
+const GexDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-dashboard");
+const GexScanner = lazyWithRetry(() => import("@/pages/gex-scanner"), "gex-scanner");
+const Backtest = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
+const ConvictionBacktest = lazyWithRetry(() => import("@/pages/conviction-backtest"), "conviction-backtest");
+const HistoricalIntelligence = lazyWithRetry(() => import("@/pages/historical-intelligence"), "historical-intelligence");
+const WeeklyWatchlist = lazyWithRetry(() => import("@/pages/weekly-watchlist"), "weekly-watchlist");
 const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
 const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 const TradingRules = lazyWithRetry(() => import("@/pages/trading-rules"), "trading-rules");
@@ -171,6 +192,15 @@ function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Switch>
+        {/* ─── 6 PRIMARY SHELLS — new IA (Home / Hunt / GEX / Research / Positions / Journal) ─── */}
+        <Route path="/p"          component={withBetaProtection(HomeShell)} />
+        <Route path="/h"          component={withBetaProtection(HuntShell)} />
+        <Route path="/g"          component={withBetaProtection(GexShell)} />
+        <Route path="/r/:symbol"  component={withBetaProtection(ResearchShell)} />
+        <Route path="/r"          component={withBetaProtection(ResearchShell)} />
+        <Route path="/pos"        component={withBetaProtection(PositionsShell)} />
+        <Route path="/j"          component={withBetaProtection(JournalShell)} />
+
         {/* Core Pages - Smart redirect for logged-in users */}
         <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
@@ -209,6 +239,21 @@ function Router() {
       <Route path="/join-beta" component={JoinBeta} />
       <Route path="/invite/:token">{(params) => <Redirect to={`/invite?code=${params.token}`} />}</Route>
       <Route path="/invite" component={InviteWelcome} />
+      <Route path="/discovery" component={withBetaProtection(Discovery)} />
+      <Route path="/market-pulse" component={withBetaProtection(MarketPulse)} />
+      <Route path="/pulse" component={withBetaProtection(MarketPulse)} />
+      <Route path="/flow-heatmap" component={withBetaProtection(FlowHeatmap)} />
+      <Route path="/heatmap" component={withBetaProtection(FlowHeatmap)} />
+      <Route path="/positions" component={withBetaProtection(PositionsHeatmap)} />
+      <Route path="/positions-heatmap" component={withBetaProtection(PositionsHeatmap)} />
+      <Route path="/simulator" component={withBetaProtection(StrategySimulator)} />
+      <Route path="/strategy-simulator" component={withBetaProtection(StrategySimulator)} />
+      <Route path="/gex-dashboard" component={withBetaProtection(GexDashboard)} />
+      <Route path="/gex-scanner" component={withBetaProtection(GexScanner)} />
+      <Route path="/backtest" component={withBetaProtection(Backtest)} />
+      <Route path="/conviction-backtest" component={withBetaProtection(ConvictionBacktest)} />
+      <Route path="/historical-intelligence" component={withBetaProtection(HistoricalIntelligence)} />
+      <Route path="/weekly-watchlist" component={withBetaProtection(WeeklyWatchlist)} />
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/trade-desk/best-setups" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/trade-journal" component={withBetaProtection(TradeJournalPage)} />
@@ -548,6 +593,9 @@ function App() {
             <RealtimePricesProvider>
               <StockContextProvider>
                 <Router />
+                <CommandPalette />
+                <WhatsNewDrawer />
+                <WhatsNewToast />
                 <Toaster />
               </StockContextProvider>
             </RealtimePricesProvider>

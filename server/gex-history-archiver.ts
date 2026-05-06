@@ -45,6 +45,12 @@ const ARCHIVE_TICKERS = [
   'WMT', 'CAT', 'ABNB', 'SNAP', 'LYFT', 'RBLX',
   // User's watchlist favorites
   'OKLO', 'AAOI', 'MARA', 'RIVN',
+  // Space & aerospace
+  'LUNR', 'RKLB', 'ASTS', 'RDW', 'ACHR', 'JOBY',
+  // Memory / storage
+  'SNDK', 'WDC',
+  // Photonics / optics
+  'LITE', 'COHR',
 ];
 
 interface ArchiveResult {

@@ -9,6 +9,10 @@
     "start": "NODE_ENV=production node dist/web.js",
     "start:worker": "NODE_ENV=production node dist/worker.js",
     "check": "tsc",
+    "ts:budget": "tsx scripts/ts-budget.ts",
+    "ts:budget:diff": "tsx scripts/ts-budget.ts -- --diff",
+    "ts:budget:update": "tsx scripts/ts-budget.ts -- --update",
+    "health": "curl -fsS http://localhost:5000/api/health | (jq . 2>/dev/null || cat)",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

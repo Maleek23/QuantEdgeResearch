@@ -31,6 +31,19 @@ export interface GEXLevel {
   distancePct: number;
 }
 
+/** Per-DTE bucket — a mini-snapshot scoped to a time horizon.
+ *  Lets traders answer: "what does today's pin look like?" vs
+ *  "where are LEAPS dealers parked?" without blending the two. */
+export interface GEXBucketSummary {
+  expirationsCount: number;
+  totalGEX: number;                   // billions
+  callWall: number | null;
+  putWall: number | null;
+  maxGammaStrike: number | null;
+  gammaFlipPrice: number | null;
+  dealerFlowPer1Pct: number;          // dollars
+}
+
 /** Complete GEX/VEX snapshot for a single ticker */
 export interface GEXSnapshot {
   symbol: string;
@@ -62,6 +75,19 @@ export interface GEXSnapshot {
   // Data provenance
   source: 'schwab' | 'tradier' | 'yahoo' | 'mixed' | 'none';
   expirationsUsed: string[];
+
+  // ─── ACTIONABLE FIELDS (P0 — added for trader workflows) ───
+  /** Dollar notional dealers must hedge per 1% spot move. The single most
+   *  actionable GEX number — translates raw gamma into "dealers will buy/sell $X". */
+  dealerFlowPer1Pct?: number;          // in dollars (raw, not billions)
+  /** Per-DTE bucket breakdown — separates 0DTE pin levels from LEAPS positioning */
+  byDte?: {
+    today?: GEXBucketSummary;          // 0-1 DTE
+    week?: GEXBucketSummary;           // 1-7 DTE
+    month?: GEXBucketSummary;          // 7-30 DTE
+    quarter?: GEXBucketSummary;        // 30-90 DTE
+    leaps?: GEXBucketSummary;          // 90+ DTE
+  };
 
   // Data quality (optional — populated when cross-validation layer is used)
   dataQuality?: {
@@ -130,6 +156,11 @@ export interface ConfluenceRow {
   dataSource: 'schwab' | 'tradier' | 'yahoo' | 'mixed' | 'none';
   calculatedAt: number;
   note?: string;
+
+  /** Dollar dealer-flow per 1% spot move (the actionable hedging-flow number) */
+  dealerFlowPer1Pct?: number;
+  /** Per-DTE bucket summaries — drives 0DTE / Swing / LEAPS workflow tabs */
+  byDte?: GEXSnapshot['byDte'];
 }
 
 /** Full scanner response */

@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
+import { MarketPulseWidget } from "@/components/market-pulse-widget";
 
 // ────────────────────────────────────────────────────────────
 // Shared Utilities
@@ -1222,6 +1223,11 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-3 sm:px-5 py-4 relative z-10">
         {/* 2. Welcome + Global Timestamp */}
         <WelcomeHeader />
+
+        {/* 2.4 — Market Pulse Widget (NEW: GREEN/RED + sectors + macro at-a-glance) */}
+        <div className="mb-[var(--section-gap-sm)]">
+          <MarketPulseWidget />
+        </div>
 
         {/* 2.5. Session Action — Pre-market gappers + overnight movers (hero placement) */}
         <SessionAction />

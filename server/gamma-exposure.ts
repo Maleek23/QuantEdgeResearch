@@ -308,12 +308,20 @@ export async function calculateAggregateGammaExposure(
       return null;
     }
 
-    const nearExps = allExps.slice(0, 12);
+    // Fetch a wide window with a hard cap — uncapping fires too many parallel
+    // requests per symbol and Tradier rate-limits the entire scan to zero.
+    // 30 expiries gives ~3 months for daily-expiry symbols; for the LEAPS view
+    // the dedicated buckets/CBOE-fallback endpoint pulls the full chain.
+    const nearExps = allExps.slice(0, 30);
 
-    // 3. Fetch each expiration in parallel with cascade
-    const chainResults = await Promise.all(
-      nearExps.map((exp) => fetchOptionsChain(symbol, exp)),
-    );
+    // 3. Fetch in chunks (concurrency limit) with cascade — keeps under rate-limit
+    const CHUNK = 6;
+    const chainResults: Awaited<ReturnType<typeof fetchOptionsChain>>[] = [];
+    for (let i = 0; i < nearExps.length; i += CHUNK) {
+      const slice = nearExps.slice(i, i + CHUNK);
+      const part = await Promise.all(slice.map((exp) => fetchOptionsChain(symbol, exp)));
+      chainResults.push(...part);
+    }
 
     // 4. Collect all inputs
     const allInputs: OptionInput[] = [];

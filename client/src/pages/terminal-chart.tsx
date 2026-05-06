@@ -11,6 +11,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
+import { useStockContext } from '@/contexts/stock-context';
 import { useQuery } from '@tanstack/react-query';
 import { GEXExpiryMatrix } from '@/components/gex/gex-expiry-matrix';
 import { GEXHeatmapGrid } from '@/components/gex/gex-heatmap-grid';
@@ -19,6 +20,9 @@ import { cn } from '@/lib/utils';
 import { formatGEX, formatGammaPct } from '../../../shared/gex-types';
 import { RefreshCw } from 'lucide-react';
 import type { GEXTerminalData } from '../../../shared/gex-types';
+import { CacheFreshnessIndicator } from '@/components/gex/CacheFreshnessIndicator';
+import { EngineStatusFooter } from '@/components/gex/EngineStatusFooter';
+import { EmptyGexState } from '@/components/gex/EmptyGexState';
 
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -74,9 +78,18 @@ const VIEW_OPTIONS: { value: TerminalView; label: string }[] = [
 // ─── Main Component ──────────────────────────────────────────
 
 export default function TerminalPage() {
-  const [, params] = useRoute('/terminal/:symbol');
-  const [, navigate] = useLocation();
-  const symbol = (params?.symbol || 'SPY').toUpperCase();
+  const [, params]       = useRoute('/terminal/:symbol');
+  const [, paramsRSlash] = useRoute('/r/:symbol');
+  const [, navigate]     = useLocation();
+  const { currentStock } = useStockContext();
+  // Symbol resolution priority: /terminal/:symbol > /r/:symbol > StockContext > SPY fallback.
+  // This lets terminal-chart render correctly whether mounted directly OR inside Research shell.
+  const symbol = (
+    params?.symbol ||
+    paramsRSlash?.symbol ||
+    currentStock?.symbol ||
+    'SPY'
+  ).toUpperCase();
 
   const [view, setView] = useState<TerminalView>('matrix');
   const [exposureMode, setExposureMode] = useState<ExposureMode>('gex');
@@ -286,87 +299,146 @@ export default function TerminalPage() {
             </button>
           )}
 
+          {/* Cache freshness indicator */}
+          {data && (
+            <div className="border-l border-border/30 pl-2 ml-1">
+              <CacheFreshnessIndicator
+                asOf={(data as any).cachedAt || (data as any).snapshot?.calculatedAt || Date.now()}
+                cached={(data as any).cached === true}
+                showLabel
+              />
+            </div>
+          )}
+
           {/* Refresh */}
           <button
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
             className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+            title="Force refresh"
           >
             <RefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin text-amber-400')} />
           </button>
         </div>
       </div>
 
-      {/* ═══ SNAPSHOT STRIP ═══ */}
-      {data && (
-        <div className="flex-shrink-0 border-b border-border/15 bg-[var(--surface-base)] px-4 py-1.5">
-          <div className="flex items-center gap-4 text-[10px] font-mono overflow-x-auto">
-            {/* Regime badge */}
-            <span className={cn(
-              'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border whitespace-nowrap',
-              data.snapshot.regime === 'positive_gamma'
-                ? 'bg-[var(--gex-positive)]/10 border-[var(--gex-positive)]/40 text-[var(--gex-positive)]'
-                : data.snapshot.regime === 'negative_gamma'
-                  ? 'bg-[var(--gex-negative)]/10 border-[var(--gex-negative)]/40 text-[var(--gex-negative)]'
-                  : 'bg-muted border-border text-muted-foreground'
-            )}>
-              {data.snapshot.regime === 'positive_gamma' ? 'POSITIVE Γ' : data.snapshot.regime === 'negative_gamma' ? 'NEGATIVE Γ' : 'NEUTRAL'}
+      {/* ═══ UNIFIED LEVELS STRIP — replaces 2 separate bars ═══
+           Visually links related levels (PUT WALL = MAX Γ = ZERO-Γ when same strike)
+           Color logic: CALL=green | PUT=red | FLIP=amber | MAGNET=cyan          */}
+      {data && (() => {
+        const s = data.snapshot;
+        const spot = s.spotPrice || 0;
+        // Detect "linked levels" — when two metrics point to same strike
+        const linkedPutMaxGamma = s.putWall != null && s.maxGammaStrike != null && s.putWall === s.maxGammaStrike;
+        const linkedTargetMax = s.zeroGammaProjection != null && s.maxGammaStrike != null &&
+                                Math.abs(s.zeroGammaProjection - s.maxGammaStrike) < 1;
+
+        const Pill = ({ label, value, tooltip, color, linked }: { label: string; value: React.ReactNode; tooltip: string; color: string; linked?: boolean }) => (
+          <div className="flex flex-col items-start min-w-0" title={tooltip}>
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50 leading-none">
+              {label}
+              {linked && <span className="ml-1 text-cyan-400/60">●</span>}
             </span>
-
-            <span className="text-muted-foreground/40 whitespace-nowrap">NET {exposureMode.toUpperCase()}</span>
-            <span
-              className={cn(
-                'font-bold tabular-nums whitespace-nowrap px-1 py-0.5',
-                gexFlash === 'up' ? 'text-[var(--trade-bullish)]' : gexFlash === 'down' ? 'text-[var(--trade-bearish)]' : 'text-foreground'
-              )}
-              style={flashStyle(gexFlash)}
-            >
-              {typeof netExposure === 'number' && !isNaN(netExposure) ? formatExposure(netExposure, exposureMode) : '—'}
+            <span className={cn('text-sm font-bold tabular-nums leading-tight font-mono', color)}>
+              {value}
             </span>
-
-            <div className="w-px h-3 bg-border/20 flex-shrink-0" />
-
-            <span className="text-muted-foreground/40 whitespace-nowrap">FLIP</span>
-            <span className="font-bold tabular-nums whitespace-nowrap">{data.snapshot.gammaFlipPrice != null ? `$${data.snapshot.gammaFlipPrice.toFixed(0)}` : '—'}</span>
-
-            <span className="text-muted-foreground/40 whitespace-nowrap">CALL WALL</span>
-            <span className="font-bold text-[var(--gex-positive)] tabular-nums whitespace-nowrap">{data.snapshot.callWall != null ? `$${data.snapshot.callWall.toFixed(0)}` : '—'}</span>
-
-            <span className="text-muted-foreground/40 whitespace-nowrap">PUT WALL</span>
-            <span className="font-bold text-[var(--gex-negative)] tabular-nums whitespace-nowrap">{data.snapshot.putWall != null ? `$${data.snapshot.putWall.toFixed(0)}` : '—'}</span>
-
-            <span className="text-muted-foreground/40 whitespace-nowrap">MAX Γ</span>
-            <span className="font-bold text-amber-400 tabular-nums whitespace-nowrap">★ {data.snapshot.maxGammaStrike != null ? `$${data.snapshot.maxGammaStrike.toFixed(0)}` : '—'}</span>
           </div>
-        </div>
-      )}
+        );
 
-      {/* ═══ ZERO-Γ TARGET — projection magnet ═══ */}
-      {data && data.snapshot.zeroGammaProjection != null && (
-        <div className="flex-shrink-0 border-b border-border/15 bg-[var(--surface-base)] px-4 py-1.5">
-          <div className="flex items-center gap-3 text-[10px] font-mono">
-            <span className="text-[var(--gex-star)] font-bold uppercase whitespace-nowrap">ZERO-Γ TARGET</span>
-            <span className="text-lg font-bold text-[var(--gex-positive)] tabular-nums">
-              ${data.snapshot.zeroGammaProjection.toFixed(2)}
-            </span>
-            {data.snapshot.spotPrice > 0 && (
+        return (
+          <div className="flex-shrink-0 border-b border-border/15 bg-[var(--surface-base)] px-4 py-2">
+            <div className="flex items-center gap-5 overflow-x-auto">
+              {/* Regime badge */}
               <span className={cn(
-                'font-bold tabular-nums',
-                data.snapshot.zeroGammaProjection >= data.snapshot.spotPrice
-                  ? 'text-[var(--trade-bullish)]'
-                  : 'text-[var(--trade-bearish)]'
+                'px-2 py-1 rounded text-[10px] font-bold uppercase border whitespace-nowrap flex-shrink-0',
+                s.regime === 'positive_gamma'
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
+                  : s.regime === 'negative_gamma'
+                    ? 'bg-orange-500/10 border-orange-500/40 text-orange-400'
+                    : 'bg-zinc-700/40 border-zinc-700 text-zinc-400'
               )}>
-                {data.snapshot.zeroGammaProjection >= data.snapshot.spotPrice ? '+' : ''}
-                {(((data.snapshot.zeroGammaProjection - data.snapshot.spotPrice) / data.snapshot.spotPrice) * 100).toFixed(2)}%
+                {s.regime === 'positive_gamma' ? 'Γ POS · pinned' : s.regime === 'negative_gamma' ? 'Γ NEG · squeezy' : 'Γ NEUTRAL'}
               </span>
+
+              {/* Net GEX/VEX */}
+              <Pill
+                label={`NET ${exposureMode.toUpperCase()}`}
+                value={typeof netExposure === 'number' && !isNaN(netExposure) ? formatExposure(netExposure, exposureMode) : '—'}
+                tooltip={`Net dealer ${exposureMode} exposure across all strikes`}
+                color={(netExposure ?? 0) > 0 ? 'text-emerald-400' : (netExposure ?? 0) < 0 ? 'text-orange-400' : 'text-foreground'}
+              />
+
+              <div className="w-px h-7 bg-border/20 flex-shrink-0" />
+
+              {/* CALL WALL — green = bullish ceiling */}
+              <Pill
+                label="Call Wall"
+                value={s.callWall != null ? `$${s.callWall.toFixed(0)}` : <span className="text-zinc-600 italic text-xs">low OI</span>}
+                tooltip="Largest call OI above spot — likely magnet/resistance"
+                color="text-emerald-400"
+              />
+
+              {/* MAGNET (Zero-Γ Target) — cyan, with % from spot */}
+              {s.zeroGammaProjection != null && (
+                <Pill
+                  label="Magnet"
+                  value={
+                    <span className="flex items-baseline gap-1">
+                      <span className="text-cyan-400">${s.zeroGammaProjection.toFixed(0)}</span>
+                      {spot > 0 && (
+                        <span className={cn('text-[10px]', s.zeroGammaProjection >= spot ? 'text-emerald-400' : 'text-red-400')}>
+                          {s.zeroGammaProjection >= spot ? '+' : ''}{(((s.zeroGammaProjection - spot) / spot) * 100).toFixed(1)}%
+                        </span>
+                      )}
+                    </span>
+                  }
+                  tooltip="Zero-Γ projection — price gravitates here from dealer hedging"
+                  color=""
+                  linked={linkedTargetMax}
+                />
+              )}
+
+              {/* FLIP — amber = regime change boundary */}
+              <Pill
+                label="Flip"
+                value={s.gammaFlipPrice != null ? `$${s.gammaFlipPrice.toFixed(0)}` : <span className="text-zinc-600 italic text-xs">none</span>}
+                tooltip="Where dealer gamma flips from + to − (regime boundary)"
+                color="text-amber-400"
+              />
+
+              {/* PUT WALL — red = bearish floor */}
+              <Pill
+                label="Put Wall"
+                value={s.putWall != null ? `$${s.putWall.toFixed(0)}` : <span className="text-zinc-600 italic text-xs">low OI</span>}
+                tooltip="Largest put OI below spot — likely magnet/support"
+                color="text-red-400"
+                linked={linkedPutMaxGamma}
+              />
+
+              {/* MAX Γ — star, only show if NOT same as Put Wall (avoid duplication) */}
+              {!linkedPutMaxGamma && (
+                <Pill
+                  label="Max Γ"
+                  value={<span>★ {s.maxGammaStrike != null ? `$${s.maxGammaStrike.toFixed(0)}` : '—'}</span>}
+                  tooltip="Strike with largest gamma magnitude"
+                  color="text-amber-400"
+                />
+              )}
+            </div>
+
+            {/* Subtle one-liner explaining magnet — only when relevant */}
+            {s.zeroGammaProjection != null && (
+              <div className="text-[9px] text-muted-foreground/30 mt-1 font-mono">
+                Magnet from dealer hedging flow · conf {proj ? `${(proj.confidence * 100).toFixed(0)}%` : '100%'}
+                {(linkedPutMaxGamma || linkedTargetMax) && (
+                  <span className="ml-2 text-cyan-400/60">● = same strike (linked levels confirm magnet)</span>
+                )}
+              </div>
             )}
-            <span className="text-muted-foreground/40">conf {proj ? `${(proj.confidence * 100).toFixed(0)}%` : '100%'}</span>
-            <div className="w-px h-3 bg-border/20 flex-shrink-0" />
-            <span className="text-muted-foreground/30">Magnet target based on dealer hedging flow</span>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ═══ LOADING STATE ═══ */}
       {!data && (
@@ -526,6 +598,7 @@ export default function TerminalPage() {
           </div>
         </div>
       )}
+      <EngineStatusFooter engineLabel={`TERMINAL · ${exposureMode.toUpperCase()}`} />
     </div>
   );
 }
