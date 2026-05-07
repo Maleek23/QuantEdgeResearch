@@ -24,11 +24,14 @@ export async function initClientObservability(): Promise<void> {
     captureException(reason, { context: 'unhandledrejection' });
   });
 
-  // Try Sentry — wrapped because the package may not be installed
+  // Try Sentry — wrapped because the package may not be installed.
+  // The variable + /* @vite-ignore */ defeats Rollup's static-analysis;
+  // without it the build fails when @sentry/react isn't in node_modules.
   const dsn = (import.meta as any).env?.VITE_SENTRY_DSN;
   if (dsn) {
     try {
-      const sentryModule: any = await import('@sentry/react' as any).catch(() => null);
+      const sentryPkg = '@sentry/react';
+      const sentryModule: any = await import(/* @vite-ignore */ sentryPkg).catch(() => null);
       if (sentryModule?.init) {
         sentryModule.init({
           dsn,
