@@ -340,6 +340,15 @@ app.use((req, res, next) => {
     } catch (e) {
       log(`⚠ Thesis Radar cron registration failed: ${(e as Error).message}`);
     }
+
+    // 🪙 BTC BETA TRACKER — 5 intraday scans (09:35 / 11:00 / 13:00 / 15:00 / 15:55 NY)
+    try {
+      const { scheduleBTCTrackerCrons } = await import('./btc-beta-tracker/cron');
+      scheduleBTCTrackerCrons();
+      log('🪙 BTC Beta Tracker crons scheduled (09:35 / 11:00 / 13:00 / 15:00 / 15:55)');
+    } catch (e) {
+      log(`⚠ BTC Beta Tracker cron registration failed: ${(e as Error).message}`);
+    }
     
     // Start automated hybrid idea generation (9:45 AM CT on weekdays - 15 min after AI/Quant)
     // (cron already imported above)

@@ -37,6 +37,22 @@ export interface ChangeEntry {
 export const CHANGELOG: ChangeEntry[] = [
   // ─── Most recent first ───────────────────────────────────────
   {
+    id: '2026-05-10-btc-beta-tracker',
+    date: '2026-05-10',
+    title: 'BTC Beta Tracker — autonomous crypto-equity alerts',
+    blurb: 'Tracks BTC price + key levels + 30/90-day rolling beta on MSTR/COIN/MARA/RIOT/CRCL/CLSK/HUT/BITF/IREN/WULF. Detects 4 patterns: breakout long, breakdown short, divergence alpha, vol regime shift. Auto-pushes A+ signals to Trade Desk every 09:35/11:00/13:00/15:00/15:55 NY. Conviction-graded with full Greeks + thesis explanation.',
+    link: '/api/btc/scan',
+    linkLabel: 'Run BTC scan now',
+    tag: 'feature',
+  },
+  {
+    id: '2026-05-10-radar-priceaction-wired',
+    date: '2026-05-10',
+    title: 'Thesis Radar — price-action grader live',
+    blurb: 'Wired chart-analysis to the Radar fetcher. The conviction agent now grades RSI(14), MACD bullish cross, 20-SMA + 20-EMA reclaim, and distance from 50-DMA — bringing 6 of 9 conviction signals online (was just options flow). DGXX setup pattern fires with full price-action context tomorrow morning.',
+    tag: 'feature',
+  },
+  {
     id: '2026-05-06-thesis-radar-v1',
     date: '2026-05-06',
     title: 'Thesis Radar v1 — find the next DGXX before it gaps',

@@ -259,10 +259,123 @@ export async function fetchTickerData(symbol: string): Promise<Record<string, un
     iv: { ivPercentile: undefined, termStructureRatio: undefined },
     analysts: { newInitiations90d: undefined, consensusUpside: undefined },
     institutional: { recent13fBuyShares: undefined, insiderBuys90dDollars: undefined, whaleNames: [] },
-    priceAction: { aboveSMA20: undefined, aboveEMA20: undefined, rsi14: undefined, pctFrom50DMA: undefined, macdBullishCross: undefined },
+    priceAction: await fetchPriceActionSnapshot(symbol),
   };
 
   return fetched;
+}
+
+// ─── Price-action snapshot (real wiring, v1.2) ─────────────────────
+
+/**
+ * Compute price-action signals (RSI, MACD, SMA/EMA reclaim, distance from MAs)
+ * by reusing the platform's chart-analysis module.
+ *
+ *   - aboveSMA20 / aboveEMA20: spot vs 20-day moving averages
+ *   - rsi14: standard 14-period RSI
+ *   - pctFrom50DMA: % distance from the 50-day SMA
+ *   - macdBullishCross: detected MACD cross-up in the last 3 bars
+ *
+ * Returns undefined fields when chart data is unavailable (the conviction
+ * agent then skips those graders cleanly).
+ */
+async function fetchPriceActionSnapshot(symbol: string): Promise<{
+  aboveSMA20?: boolean;
+  aboveEMA20?: boolean;
+  rsi14?: number;
+  pctFrom50DMA?: number;
+  macdBullishCross?: boolean;
+}> {
+  try {
+    const { fetchOHLCData } = await import('../chart-analysis');
+    const ohlc = await fetchOHLCData(symbol, 'stock');
+    if (!ohlc || !Array.isArray(ohlc.closes) || ohlc.closes.length < 50) return {};
+
+    const closes: number[] = ohlc.closes;
+    const spot = closes[closes.length - 1];
+
+    // SMA 20 + SMA 50
+    const sma = (period: number) => {
+      const window = closes.slice(-period);
+      if (window.length < period) return undefined;
+      return window.reduce((a, b) => a + b, 0) / period;
+    };
+    const sma20 = sma(20);
+    const sma50 = sma(50);
+
+    // EMA 20 (Wilder smoothing)
+    const ema = (period: number) => {
+      if (closes.length < period) return undefined;
+      const k = 2 / (period + 1);
+      let e = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
+      for (let i = period; i < closes.length; i++) e = closes[i] * k + e * (1 - k);
+      return e;
+    };
+    const ema20 = ema(20);
+
+    // RSI 14
+    const rsi = (period: number) => {
+      if (closes.length < period + 1) return undefined;
+      let gains = 0;
+      let losses = 0;
+      for (let i = closes.length - period; i < closes.length; i++) {
+        const ch = closes[i] - closes[i - 1];
+        if (ch > 0) gains += ch;
+        else losses -= ch;
+      }
+      if (gains + losses === 0) return 50;
+      const rs = gains / (losses || 1);
+      return 100 - 100 / (1 + rs);
+    };
+    const rsi14 = rsi(14);
+
+    // MACD bullish cross detection (12,26,9): cross of MACD-line above signal-line
+    const macdBullishCross = (() => {
+      const e12: number[] = [];
+      const e26: number[] = [];
+      const k12 = 2 / 13;
+      const k26 = 2 / 27;
+      let m12 = closes.slice(0, 12).reduce((a, b) => a + b, 0) / 12;
+      let m26 = closes.slice(0, 26).reduce((a, b) => a + b, 0) / 26;
+      for (let i = 12; i < closes.length; i++) {
+        m12 = closes[i] * k12 + m12 * (1 - k12);
+        e12.push(m12);
+      }
+      for (let i = 26; i < closes.length; i++) {
+        m26 = closes[i] * k26 + m26 * (1 - k26);
+        e26.push(m26);
+      }
+      const macdLine: number[] = [];
+      const offset = 26 - 12;
+      for (let i = offset; i < e12.length; i++) macdLine.push(e12[i] - e26[i - offset]);
+      if (macdLine.length < 10) return false;
+      const k9 = 2 / 10;
+      let signal = macdLine.slice(0, 9).reduce((a, b) => a + b, 0) / 9;
+      const signals: number[] = [];
+      for (let i = 9; i < macdLine.length; i++) {
+        signal = macdLine[i] * k9 + signal * (1 - k9);
+        signals.push(signal);
+      }
+      // Look for a bullish cross in the last 3 bars
+      const len = Math.min(macdLine.length, signals.length);
+      for (let i = len - 3; i < len - 1; i++) {
+        if (i < 1) continue;
+        if (macdLine[i - 1] < signals[i - 1] && macdLine[i] >= signals[i]) return true;
+      }
+      return false;
+    })();
+
+    return {
+      aboveSMA20: sma20 != null ? spot > sma20 : undefined,
+      aboveEMA20: ema20 != null ? spot > ema20 : undefined,
+      rsi14,
+      pctFrom50DMA: sma50 != null ? ((spot - sma50) / sma50) * 100 : undefined,
+      macdBullishCross,
+    };
+  } catch (e) {
+    logger.warn(`[SUBSET] price-action snapshot failed for ${symbol}: ${(e as Error).message}`);
+    return {};
+  }
 }
 
 // ─── Options-flow snapshot (real wiring, v1.1) ──────────────────────

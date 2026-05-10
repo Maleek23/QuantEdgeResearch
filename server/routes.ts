@@ -27733,6 +27733,63 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ──────────── BTC BETA TRACKER ────────────
+  // GET  /api/btc/state               → current BTC price + key levels + RSI + vol
+  // GET  /api/btc/positions           → all tracked tickers with their beta/divergence
+  // POST /api/btc/scan                → run full pattern scan (state + positions + signals)
+  // POST /api/btc/push-idea           → body { signalId } → push specific signal to Trade Desk
+  // POST /api/btc/push-all            → push every signal with grade ≥ B+ to Trade Desk
+  app.get("/api/btc/state", async (_req, res) => {
+    try {
+      const { buildBTCState } = await import('./btc-beta-tracker/signal-engine');
+      const state = await buildBTCState();
+      res.json({ ok: true, state });
+    } catch (e: any) {
+      res.status(500).json({ error: 'btc state failed', message: e?.message });
+    }
+  });
+
+  app.get("/api/btc/positions", async (_req, res) => {
+    try {
+      const { buildBetaPosition } = await import('./btc-beta-tracker/signal-engine');
+      const { BTC_UNIVERSE } = await import('@shared/btc-tracker-types');
+      const positions: any[] = [];
+      for (const t of BTC_UNIVERSE) {
+        const p = await buildBetaPosition(t.symbol).catch(() => null);
+        if (p) positions.push(p);
+      }
+      res.json({ ok: true, count: positions.length, positions });
+    } catch (e: any) {
+      res.status(500).json({ error: 'btc positions failed', message: e?.message });
+    }
+  });
+
+  app.post("/api/btc/scan", async (_req, res) => {
+    try {
+      const { scanAllPatterns } = await import('./btc-beta-tracker/signal-engine');
+      const result = await scanAllPatterns();
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      res.status(500).json({ error: 'btc scan failed', message: e?.message });
+    }
+  });
+
+  app.post("/api/btc/push-all", async (_req, res) => {
+    try {
+      const { scanAllPatterns } = await import('./btc-beta-tracker/signal-engine');
+      const { pushAllBTCSignals } = await import('./btc-beta-tracker/trade-idea-generator');
+      const scan = await scanAllPatterns();
+      const result = await pushAllBTCSignals(scan.signals);
+      res.json({
+        ok: true,
+        scan: { btcPrice: scan.state?.price, signalsFired: scan.signals.length },
+        ...result,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: 'btc push-all failed', message: e?.message });
+    }
+  });
+
   app.get("/api/earnings/week", async (req, res) => {
     try {
       const { buildEarningsHub } = await import('./earnings-hub');
