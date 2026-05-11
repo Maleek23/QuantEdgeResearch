@@ -285,6 +285,59 @@ const CATALYST_WHISPER: PatternSpec = {
   ],
 };
 
+// ─── Pattern 6: Gamma Squeeze Detector (UNH-style premium juice) ────
+
+const GAMMA_SQUEEZE_DETECTOR: PatternSpec = {
+  id: 'gamma_squeeze' as any,
+  name: 'Gamma Squeeze — Dealer Short-Gamma Trap',
+  thesis:
+    'Single OTM strike accumulating ≥15% of total chain OI while spot trades within 25% below the strike → dealers are short gamma. Any positive catalyst forces reflexive hedging → cheap penny calls JUICE 50-100x even without strike being hit. Mirror of the UNH 18-pack premium-juice strategy.',
+  horizon: 'days',
+  targetHitRate: 0.35,
+  alertTTLHours: 96,
+  output: 'forming',
+  filters: [
+    {
+      domain: 'options_flow',
+      predicate: 'oi_concentration',
+      params: { strike_offset_pct: 25, min_oi_pct_of_total: 0.15 },
+      explain: 'Single strike holds ≥15% of total chain OI within 25% above spot — dealer short-gamma trap',
+    },
+    {
+      domain: 'options_flow',
+      predicate: 'oi_concentration',
+      params: { min_oi: 5000 },
+      explain: 'Top strike OI ≥5,000 contracts — institutional positioning, not retail noise',
+    },
+    {
+      domain: 'iv',
+      predicate: 'iv_percentile_low',
+      params: { max_percentile: 50 },
+      explain: 'IV percentile ≤50 — call premium is structurally cheap, room for expansion on catalyst',
+    },
+    {
+      domain: 'price',
+      predicate: 'not_extended',
+      params: { max_pct_above_50d_ma: -10 },
+      explain: 'Stock at or below 50-day MA — beaten down = compressed spring + max-pessimism = catalyst loaded',
+    },
+    {
+      domain: 'news',
+      predicate: 'scheduled_catalyst_within',
+      params: { catalyst_types: 'earnings,fda,product_launch,contract_award,investor_day,lawsuit,m_a', max_days: 60 },
+      explain: 'Binary catalyst within 60 days — IV expansion + reflexive hedging triggers',
+    },
+  ],
+  gradedSignals: [
+    'options_flow',
+    'unusual_activity',
+    'iv_skew',
+    'gex_positioning',
+    'news_nlp',
+    'price_action',
+  ],
+};
+
 // ─── Library export ─────────────────────────────────────────────────
 
 export const PATTERN_LIBRARY: Record<string, PatternSpec> = {
@@ -293,6 +346,7 @@ export const PATTERN_LIBRARY: Record<string, PatternSpec> = {
   bottleneck_whisper: BOTTLENECK_WHISPER,
   institutional_accumulation: INSTITUTIONAL_ACCUMULATION,
   catalyst_whisper: CATALYST_WHISPER,
+  gamma_squeeze: GAMMA_SQUEEZE_DETECTOR,
 };
 
 export function getPattern(id: string): PatternSpec | null {

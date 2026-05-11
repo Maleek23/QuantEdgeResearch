@@ -69,7 +69,8 @@ export type PatternId =
   | 'aschenbrenner_2nd_derivative' // first-order layer up + 2nd-derivative flat + cheap IV
   | 'bottleneck_whisper'           // multi-call mention of "constrained" + sub-$5B supplier
   | 'institutional_accumulation'   // Form 4 / 13F whale buys + low IV percentile
-  | 'catalyst_whisper';            // unusual call OI + news scheduled within 30 days
+  | 'catalyst_whisper'             // unusual call OI + news scheduled within 30 days
+  | 'gamma_squeeze';               // OI cluster + low IV + beaten-down stock + binary catalyst
 
 export type PatternHorizon = 'days' | 'weeks' | 'months' | 'quarters';
 

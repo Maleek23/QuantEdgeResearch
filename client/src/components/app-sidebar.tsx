@@ -34,6 +34,8 @@ import {
   Bell,
   Sparkles,
   Zap,
+  Target,
+  Bitcoin,
 } from "lucide-react";
 import { WhatsNewBell } from "@/components/whats-new";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
@@ -105,6 +107,26 @@ const PRIMARY: NavItem[] = [
     match: ["/j", "/performance", "/history", "/backtest", "/simulator", "/conviction-backtest", "/academy", "/learning-dashboard"],
     shortcut: "6",
     hint: "Learning — trade log, metrics, backtests, mistakes",
+  },
+];
+
+// ─── AUTONOMOUS RADARS (new discovery destinations) ─────────────────
+const RADARS: NavItem[] = [
+  {
+    id: "radar",
+    title: "Thesis Radar",
+    icon: Target,
+    href: "/radar",
+    match: ["/radar"],
+    hint: "Autonomous setup discovery — 6 patterns, 5 scans/day",
+  },
+  {
+    id: "btc-radar",
+    title: "BTC Radar",
+    icon: Bitcoin,
+    href: "/btc",
+    match: ["/btc"],
+    hint: "Live BTC beta tracker — MSTR, COIN, MARA, RIOT, CRCL, more",
   },
 ];
 
@@ -181,6 +203,20 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {PRIMARY.map(item => (
+                <NavRow key={item.id} item={item} active={isActive(item, location)} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* RADARS — autonomous discovery */}
+        <SidebarGroup className="py-0">
+          <div className="px-2.5 pb-1 text-[8px] font-mono uppercase tracking-[0.14em] text-sidebar-foreground/30 group-data-[collapsible=icon]:hidden">
+            Radars
+          </div>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-0.5">
+              {RADARS.map(item => (
                 <NavRow key={item.id} item={item} active={isActive(item, location)} />
               ))}
             </SidebarMenu>
