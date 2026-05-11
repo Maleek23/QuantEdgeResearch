@@ -36,6 +36,7 @@ import {
   Zap,
   Target,
   Bitcoin,
+  HelpCircle,
 } from "lucide-react";
 import { WhatsNewBell } from "@/components/whats-new";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
@@ -133,9 +134,10 @@ const RADARS: NavItem[] = [
 // ─── UTILITY (always-visible footer items) ──────────────────────────
 // Note: "What's New" is inserted in the JSX (it's a stateful component, not just a NavItem)
 const UTILITY: NavItem[] = [
-  { id: "watchlists", title: "Watchlists", icon: Star,     href: "/watchlist" },
-  { id: "alerts",     title: "Alerts",     icon: Bell,     href: "/alerts" },
-  { id: "settings",   title: "Settings",   icon: Settings, href: "/settings" },
+  { id: "watchlists", title: "Watchlists", icon: Star,       href: "/watchlist" },
+  { id: "alerts",     title: "Alerts",     icon: Bell,       href: "/alerts" },
+  { id: "how-to",     title: "How to use", icon: HelpCircle, href: "/how-to" },
+  { id: "settings",   title: "Settings",   icon: Settings,   href: "/settings" },
 ];
 
 function isActive(item: NavItem, location: string): boolean {

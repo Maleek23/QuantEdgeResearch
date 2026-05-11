@@ -17,6 +17,7 @@ import { QETabs, type QETabItem, QECard } from '@/components/ui/qe';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { Loader2 } from 'lucide-react';
+import { TodayPicks } from '@/components/today-picks';
 
 const HomePage    = lazy(() => import('@/pages/home'));
 const MarketPulse = lazy(() => import('@/pages/market-pulse'));
@@ -57,7 +58,12 @@ export default function HomeShell() {
 
       <PageErrorBoundary label={`Home · ${tab}`}>
         <Suspense fallback={<Loading />}>
-          {tab === 'dashboard' && <HomePage />}
+          {tab === 'dashboard' && (
+            <div className="space-y-3">
+              <TodayPicks />
+              <HomePage />
+            </div>
+          )}
           {tab === 'pulse'     && <MarketPulse />}
           {tab === 'rotation'  && <RotationMatrix />}
           {tab === 'earnings'  && <EarningsTabs />}

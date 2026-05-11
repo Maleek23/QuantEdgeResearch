@@ -42,6 +42,7 @@ const PositionsShell = lazyWithRetry(() => import("@/pages/shells/positions-shel
 const JournalShell   = lazyWithRetry(() => import("@/pages/shells/journal-shell"),   "journal-shell");
 const RadarPage      = lazyWithRetry(() => import("@/pages/radar"),                  "radar");
 const BTCRadarPage   = lazyWithRetry(() => import("@/pages/btc-radar"),              "btc-radar");
+const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),                 "how-to");
 
 const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
@@ -204,6 +205,7 @@ function Router() {
         <Route path="/j"          component={withBetaProtection(JournalShell)} />
         <Route path="/radar"      component={withBetaProtection(RadarPage)} />
         <Route path="/btc"        component={withBetaProtection(BTCRadarPage)} />
+        <Route path="/how-to"     component={withBetaProtection(HowToPage)} />
 
         {/* Core Pages - Smart redirect for logged-in users */}
         <Route path="/" component={SmartLanding} />
@@ -243,11 +245,13 @@ function Router() {
       <Route path="/join-beta" component={JoinBeta} />
       <Route path="/invite/:token">{(params) => <Redirect to={`/invite?code=${params.token}`} />}</Route>
       <Route path="/invite" component={InviteWelcome} />
-      <Route path="/discovery" component={withBetaProtection(Discovery)} />
-      <Route path="/market-pulse" component={withBetaProtection(MarketPulse)} />
-      <Route path="/pulse" component={withBetaProtection(MarketPulse)} />
-      <Route path="/flow-heatmap" component={withBetaProtection(FlowHeatmap)} />
-      <Route path="/heatmap" component={withBetaProtection(FlowHeatmap)} />
+      {/* DEPRECATED — these routes redirect to canonical destinations to reduce surface area */}
+      <Route path="/discovery"><Redirect to="/h?tab=ai-picks" /></Route>
+      <Route path="/market-pulse"><Redirect to="/p?tab=pulse" /></Route>
+      <Route path="/pulse"><Redirect to="/p?tab=pulse" /></Route>
+      <Route path="/chart-analysis"><Redirect to="/r/SPY?tab=chart" /></Route>
+      <Route path="/flow-heatmap"><Redirect to="/g?tab=flow" /></Route>
+      <Route path="/heatmap"><Redirect to="/g?tab=flow" /></Route>
       <Route path="/positions" component={withBetaProtection(PositionsHeatmap)} />
       <Route path="/positions-heatmap" component={withBetaProtection(PositionsHeatmap)} />
       <Route path="/simulator" component={withBetaProtection(StrategySimulator)} />
@@ -270,7 +274,7 @@ function Router() {
         <Redirect to="/automations" />
       </Route>
       <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
-      <Route path="/chart-analysis"><Redirect to="/command" /></Route>
+      {/* duplicate /chart-analysis already handled above by redirect */}
       <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
       <Route path="/smart-advisor"><Redirect to="/performance" /></Route>
       <Route path="/research">
@@ -468,7 +472,8 @@ function Router() {
         {(params) => <Redirect to={`/terminal/${params.symbol}`} />}
       </Route>
       {/* Flow — options flow + GEX + smart money (tabs) */}
-      <Route path="/flow" component={withBetaProtection(FlowEdge)} />
+      {/* /flow redirects to the GEX & Flow Hub which has the Flow tab */}
+      <Route path="/flow"><Redirect to="/g?tab=flow" /></Route>
       {/* GEX Hub merged into Flow as a tab */}
       <Route path="/gex"><Redirect to="/flow?tab=hub" /></Route>
       {/* OlAlgo Bot — challenge backtest dashboard */}
