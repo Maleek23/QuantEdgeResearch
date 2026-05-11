@@ -107,6 +107,61 @@ function getBaseUrl(apiKey: string): string {
   return isSandboxKey(apiKey) ? TRADIER_SANDBOX_BASE : TRADIER_API_BASE;
 }
 
+// ─── Circuit breaker ─────────────────────────────────────────────────
+// When Tradier auth fails (401) or service is down, repeatedly hammering it
+// floods logs and burns CPU. This breaker trips after 3 consecutive auth
+// failures and stays tripped for 60s, after which it half-opens for one retry.
+//
+// Caller behavior is unchanged — the breaker just short-circuits to null
+// without making the network call (or logging the same error).
+
+let _breakerOpenedAt = 0;
+let _breakerFailures = 0;
+const BREAKER_THRESHOLD = 3;
+const BREAKER_COOLDOWN_MS = 60_000;
+let _lastBreakerLogAt = 0;
+
+function isBreakerOpen(): boolean {
+  if (_breakerOpenedAt === 0) return false;
+  if (Date.now() - _breakerOpenedAt < BREAKER_COOLDOWN_MS) return true;
+  // Cooldown elapsed → half-open: allow one trial request
+  _breakerOpenedAt = 0;
+  _breakerFailures = 0;
+  return false;
+}
+
+function recordBreakerFailure(reason: string): void {
+  _breakerFailures++;
+  if (_breakerFailures >= BREAKER_THRESHOLD && _breakerOpenedAt === 0) {
+    _breakerOpenedAt = Date.now();
+    // Log once per cooldown window to avoid spam
+    const now = Date.now();
+    if (now - _lastBreakerLogAt > BREAKER_COOLDOWN_MS) {
+      _lastBreakerLogAt = now;
+      logger.warn(
+        `[TRADIER] Circuit breaker OPENED after ${_breakerFailures} failures (${reason}). Skipping calls for ${BREAKER_COOLDOWN_MS / 1000}s. Falling back to CBOE/Yahoo.`,
+      );
+    }
+  }
+}
+
+function recordBreakerSuccess(): void {
+  if (_breakerFailures > 0 || _breakerOpenedAt > 0) {
+    logger.info('[TRADIER] Circuit breaker CLOSED — Tradier responding again');
+  }
+  _breakerFailures = 0;
+  _breakerOpenedAt = 0;
+}
+
+export function getTradierBreakerState(): { open: boolean; failures: number; cooldownRemainingMs: number } {
+  return {
+    open: isBreakerOpen(),
+    failures: _breakerFailures,
+    cooldownRemainingMs:
+      _breakerOpenedAt === 0 ? 0 : Math.max(0, BREAKER_COOLDOWN_MS - (Date.now() - _breakerOpenedAt)),
+  };
+}
+
 // Get real-time quote for a stock symbol
 export async function getTradierQuote(symbol: string, apiKey?: string): Promise<TradierQuote | null> {
   const key = apiKey || process.env.TRADIER_API_KEY;
@@ -115,6 +170,9 @@ export async function getTradierQuote(symbol: string, apiKey?: string): Promise<
     logAPIError('Tradier', '/markets/quotes', new Error('API key not configured'));
     return null;
   }
+
+  // Circuit breaker short-circuit — when Tradier auth is dead, skip the call
+  if (isBreakerOpen()) return null;
 
   const startTime = Date.now();
   try {
@@ -127,23 +185,39 @@ export async function getTradierQuote(symbol: string, apiKey?: string): Promise<
     });
 
     if (!response.ok) {
-      logger.error(`Tradier quote error for ${symbol}: ${response.status} ${response.statusText}`);
-      logAPIError('Tradier', '/markets/quotes', new Error(`HTTP ${response.status}: ${response.statusText}`));
+      // Log only the first 3 401s, then breaker silences the spam
+      if (_breakerFailures < BREAKER_THRESHOLD) {
+        logger.error(`Tradier quote error for ${symbol}: ${response.status} ${response.statusText}`);
+        logAPIError('Tradier', '/markets/quotes', new Error(`HTTP ${response.status}: ${response.statusText}`));
+      }
+      recordBreakerFailure(`HTTP ${response.status}`);
       return null;
     }
 
     const data = await response.json();
+    // Tradier sometimes returns HTTP 200 with a {fault:...} body on bad auth
+    if (data?.fault) {
+      if (_breakerFailures < BREAKER_THRESHOLD) {
+        logger.error(`Tradier fault for ${symbol}: ${data.fault.faultstring ?? 'unknown'}`);
+      }
+      recordBreakerFailure(`fault: ${data.fault.faultstring ?? 'unknown'}`);
+      return null;
+    }
     const quote = data.quotes?.quote;
-    
+
     if (!quote || quote.type === 'index') {
       return null;
     }
 
+    recordBreakerSuccess();
     logAPISuccess('Tradier', '/markets/quotes', Date.now() - startTime);
     return quote;
   } catch (error) {
-    logger.error(`Tradier quote fetch error for ${symbol}:`, error);
-    logAPIError('Tradier', '/markets/quotes', error);
+    if (_breakerFailures < BREAKER_THRESHOLD) {
+      logger.error(`Tradier quote fetch error for ${symbol}:`, error);
+      logAPIError('Tradier', '/markets/quotes', error);
+    }
+    recordBreakerFailure((error as Error).message ?? 'network');
     return null;
   }
 }

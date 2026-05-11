@@ -608,15 +608,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       checks.postgres = { ok: false, message: e?.message ?? 'unknown' };
     }
 
-    // ─── Tradier (best-effort, soft-fail — we have CBOE fallback) ───
+    // ─── Tradier (must use AUTHENTICATED endpoint — /markets/clock is public!) ───
+    // Previously used /markets/clock which returns 200 even with invalid auth,
+    // so the check was lying about Tradier health. We now hit /markets/quotes
+    // which requires real auth and returns either 401 OR a {fault:...} body.
     if (process.env.TRADIER_API_KEY) {
       try {
         const t0 = Date.now();
-        const r = await fetch('https://api.tradier.com/v1/markets/clock', {
+        const r = await fetch('https://api.tradier.com/v1/markets/quotes?symbols=SPY', {
           headers: { Authorization: `Bearer ${process.env.TRADIER_API_KEY}`, Accept: 'application/json' },
           signal: AbortSignal.timeout(3000),
         });
-        checks.tradier = { ok: r.ok, latencyMs: Date.now() - t0, message: r.ok ? undefined : `HTTP ${r.status}` };
+        const latencyMs = Date.now() - t0;
+        // Tradier sometimes returns HTTP 200 with a {fault:...} body on bad auth
+        let bodyHasFault = false;
+        let faultDetail: string | undefined;
+        try {
+          const body = await r.json() as { fault?: { faultstring?: string } };
+          if (body?.fault) {
+            bodyHasFault = true;
+            faultDetail = body.fault.faultstring ?? 'unknown fault';
+          }
+        } catch { /* non-JSON response — treat r.ok as truth */ }
+        const ok = r.ok && !bodyHasFault;
+        checks.tradier = {
+          ok,
+          latencyMs,
+          message: ok ? undefined : faultDetail ?? `HTTP ${r.status}`,
+        };
       } catch (e: any) {
         checks.tradier = { ok: false, message: e?.message ?? 'timeout' };
       }
@@ -624,13 +643,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       checks.tradier = { ok: false, message: 'TRADIER_API_KEY unset' };
     }
 
+    // ─── Tradier circuit breaker state ───
+    try {
+      const { getTradierBreakerState } = await import('./tradier-api');
+      const breaker = getTradierBreakerState();
+      checks.tradierBreaker = {
+        ok: !breaker.open,
+        message: breaker.open
+          ? `breaker OPEN — ${Math.round(breaker.cooldownRemainingMs / 1000)}s until retry (${breaker.failures} failures)`
+          : `breaker closed — ${breaker.failures} recent failures`,
+      };
+    } catch { /* ignore */ }
+
     // ─── Process info ───
     const memMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
     const uptimeSec = Math.round(process.uptime());
 
     // Determine overall status: postgres MUST be up; others can be degraded
     const pgOk = checks.postgres?.ok === true;
-    const status = pgOk ? 'ok' : 'degraded';
+    const status = pgOk ? (checks.tradier?.ok ? 'ok' : 'degraded') : 'degraded';
     const httpStatus = pgOk ? 200 : 503;
 
     res.status(httpStatus).json({
