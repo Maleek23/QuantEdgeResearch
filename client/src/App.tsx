@@ -43,6 +43,7 @@ const JournalShell   = lazyWithRetry(() => import("@/pages/shells/journal-shell"
 const RadarPage      = lazyWithRetry(() => import("@/pages/radar"),                  "radar");
 const BTCRadarPage   = lazyWithRetry(() => import("@/pages/btc-radar"),              "btc-radar");
 const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),                 "how-to");
+const AnalyzePage    = lazyWithRetry(() => import("@/pages/analyze"),                "analyze");
 
 const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
@@ -205,6 +206,7 @@ function Router() {
         <Route path="/j"          component={withBetaProtection(JournalShell)} />
         <Route path="/radar"      component={withBetaProtection(RadarPage)} />
         <Route path="/btc"        component={withBetaProtection(BTCRadarPage)} />
+        <Route path="/analyze"    component={withBetaProtection(AnalyzePage)} />
         <Route path="/how-to"     component={withBetaProtection(HowToPage)} />
 
         {/* Core Pages - Smart redirect for logged-in users */}

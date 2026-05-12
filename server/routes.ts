@@ -27821,6 +27821,109 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ──────────── CONTRACT ANALYZER ────────────
+  // POST /api/contract/parse    body: { input: "QCOM 300C 1/27 @ 18.50 x 1" }
+  // POST /api/contract/analyze  body: { input?: text } OR { symbol, strike, expiry, optionType }
+  // Returns a full Bullflow-style graded analysis card.
+  app.post("/api/contract/parse", async (req, res) => {
+    try {
+      const { input } = req.body ?? {};
+      if (!input || typeof input !== 'string') {
+        return res.status(400).json({ error: 'input string required' });
+      }
+      const { parseContractInput, parseOCCSymbol } = await import('./contract-analyzer/parser');
+      // Try OCC first, then human format
+      const spec = parseOCCSymbol(input) ?? parseContractInput(input);
+      if (!spec) {
+        return res.status(422).json({ ok: false, error: 'Could not parse contract from input', input });
+      }
+      return res.json({ ok: true, spec });
+    } catch (e: any) {
+      res.status(500).json({ error: 'parse failed', message: e?.message });
+    }
+  });
+
+  // Push a ContractAnalysis to Trade Desk as an idea
+  app.post("/api/trade-desk/ideas/from-contract-analysis", async (req, res) => {
+    try {
+      const { analysis } = req.body ?? {};
+      if (!analysis || !analysis.spec) {
+        return res.status(400).json({ ok: false, error: 'analysis with spec required' });
+      }
+      const { createAndSaveUniversalIdea } = await import('./universal-idea-generator');
+      const isCall = analysis.spec.optionType === 'call';
+      const idea = {
+        symbol: analysis.spec.symbol,
+        source: 'contract_analyzer' as any,
+        assetType: 'option' as const,
+        direction: (isCall ? 'bullish' : 'bearish') as 'bullish' | 'bearish',
+        currentPrice: analysis.spotAtAnalysis,
+        targetPrice: analysis.plan?.t1,
+        stopLoss: analysis.plan?.invalidation,
+        optionType: analysis.spec.optionType as 'call' | 'put',
+        strikePrice: analysis.spec.strike,
+        expiryDate: analysis.spec.expiry,
+        signals: (analysis.signals ?? []).map((s: any) => ({
+          type: s.source ?? 'analyzer',
+          weight: Math.round((s.score ?? 50) / 10),
+          description: s.label,
+          data: { grade: s.grade, score: s.score },
+        })),
+        holdingPeriod: (analysis.plan?.horizonDays ?? 30) > 90 ? 'position' as const : 'swing' as const,
+        catalyst: `Contract Analyzer · ${analysis.finalGrade} (${analysis.finalScore}/100)`,
+        analysis: [
+          `Auto-pushed from Contract Analyzer at ${new Date().toISOString()}.`,
+          `Synthesis: ${analysis.synthesis}`,
+          `T1 $${analysis.plan?.t1?.toFixed(2)} · T2 $${analysis.plan?.t2?.toFixed(2)} · Stop $${analysis.plan?.invalidation?.toFixed(2)}`,
+        ].join('\n\n'),
+        technicalSignals: [
+          `${analysis.spec.symbol} $${analysis.spec.strike}${isCall ? 'C' : 'P'} ${analysis.spec.expiry}`,
+          `Grade: ${analysis.finalGrade}`,
+        ],
+      };
+      const success = await createAndSaveUniversalIdea(idea);
+      if (success) return res.json({ ok: true });
+      return res.status(409).json({ ok: false, reason: 'Dedup or below confidence threshold' });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: 'push failed', message: e?.message });
+    }
+  });
+
+  app.post("/api/contract/analyze", async (req, res) => {
+    try {
+      const body = req.body ?? {};
+      const { parseContractInput, parseOCCSymbol } = await import('./contract-analyzer/parser');
+      const { analyzeContract } = await import('./contract-analyzer/analyze');
+
+      // Build the ContractSpec from either raw text input OR structured fields
+      let spec = null;
+      if (body.input && typeof body.input === 'string') {
+        spec = parseOCCSymbol(body.input) ?? parseContractInput(body.input);
+      } else if (body.symbol && body.strike && body.expiry && body.optionType) {
+        spec = {
+          symbol: String(body.symbol).toUpperCase(),
+          strike: Number(body.strike),
+          expiry: String(body.expiry),
+          optionType: body.optionType === 'put' ? 'put' as const : 'call' as const,
+          contracts: body.contracts ? Number(body.contracts) : undefined,
+          fillPrice: body.fillPrice ? Number(body.fillPrice) : undefined,
+        };
+      }
+
+      if (!spec) {
+        return res.status(422).json({ ok: false, error: 'Could not parse contract' });
+      }
+
+      const analysis = await analyzeContract(spec);
+      if (!analysis) {
+        return res.status(404).json({ ok: false, error: 'Contract not found in chain (check strike + expiry)', spec });
+      }
+      return res.json({ ok: true, analysis });
+    } catch (e: any) {
+      res.status(500).json({ error: 'analyze failed', message: e?.message });
+    }
+  });
+
   app.get("/api/earnings/week", async (req, res) => {
     try {
       const { buildEarningsHub } = await import('./earnings-hub');

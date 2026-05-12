@@ -37,6 +37,7 @@ import {
   Target,
   Bitcoin,
   HelpCircle,
+  Terminal,
 } from "lucide-react";
 import { WhatsNewBell } from "@/components/whats-new";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
@@ -128,6 +129,14 @@ const RADARS: NavItem[] = [
     href: "/btc",
     match: ["/btc"],
     hint: "Live BTC beta tracker — MSTR, COIN, MARA, RIOT, CRCL, more",
+  },
+  {
+    id: "analyze",
+    title: "Analyze Contract",
+    icon: Terminal,
+    href: "/analyze",
+    match: ["/analyze"],
+    hint: "Bullflow-style A+/B+ graded analysis on any contract",
   },
 ];
 

@@ -37,6 +37,15 @@ export interface ChangeEntry {
 export const CHANGELOG: ChangeEntry[] = [
   // ─── Most recent first ───────────────────────────────────────
   {
+    id: '2026-05-11-contract-analyzer',
+    date: '2026-05-11',
+    title: 'Contract Analyzer — Bullflow-style A+/B+ grading on any contract',
+    blurb: 'Paste "QCOM 300C 1/27 @ $18.50" anywhere → get a terminal-style graded card with 9 signals (moneyness, DTE, delta, theta, IV, OI concentration, price action, catalyst, analyst PT). Includes T1/T2/stop plan + ROI scenarios at ±1σ/2σ + one-click "Push to Trade Desk". Live on /analyze.',
+    link: '/analyze',
+    linkLabel: 'Open Contract Analyzer',
+    tag: 'feature',
+  },
+  {
     id: '2026-05-10-radar-ui-fetchers-complete',
     date: '2026-05-10',
     title: 'Radar UI shipped + all 6 fetchers wired + Gamma Squeeze pattern live',
