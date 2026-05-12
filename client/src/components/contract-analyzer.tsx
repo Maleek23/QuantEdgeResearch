@@ -20,6 +20,7 @@
  */
 import { useState } from 'react';
 import { Loader2, Send, RefreshCw, X } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
 
 interface SignalScore {
   label: string;
@@ -87,12 +88,8 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
     setError(null);
     setAnalysis(null);
     try {
-      const res = await fetch('/api/contract/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ input: i }),
-      });
+      // apiRequest auto-attaches the x-csrf-token header from cookies
+      const res = await apiRequest('POST', '/api/contract/analyze', { input: i });
       const data = await res.json();
       if (!data.ok) {
         setError(data.error ?? 'Analysis failed');
@@ -116,13 +113,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
     setPushing(true);
     setPushResult(null);
     try {
-      // Reuse the universal-idea-generator pattern via a generic ideas endpoint
-      const res = await fetch('/api/trade-desk/ideas/from-contract-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ analysis }),
-      });
+      const res = await apiRequest('POST', '/api/trade-desk/ideas/from-contract-analysis', { analysis });
       const data = await res.json();
       if (data.ok) {
         setPushResult('✓ Idea created in Trade Desk');

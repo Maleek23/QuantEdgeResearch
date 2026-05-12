@@ -26,6 +26,7 @@ import {
   QETabs,
   type QETabItem,
 } from '@/components/ui/qe';
+import { ContractAnalyzer } from '@/components/contract-analyzer';
 
 interface FlowTrade {
   id: string;
@@ -88,6 +89,8 @@ export function FlowTable({ symbol }: FlowTableProps) {
   const [sentiment, setSentiment] = useState<SentimentFilter>('all');
   const [minPremium, setMinPremium] = useState(0);
   const [days, setDays] = useState(7);
+  // Selected trade → opens ContractAnalyzer panel (Bullflow-style row drilldown)
+  const [selectedTrade, setSelectedTrade] = useState<FlowTrade | null>(null);
 
   const params = new URLSearchParams({
     symbol,
@@ -221,11 +224,27 @@ export function FlowTable({ symbol }: FlowTableProps) {
                 </tr>
               </thead>
               <tbody>
-                {trades.map(t => <FlowRow key={t.id} t={t} />)}
+                {trades.map(t => (
+                  <FlowRow
+                    key={t.id}
+                    t={t}
+                    onClick={() => setSelectedTrade(t)}
+                    isSelected={selectedTrade?.id === t.id}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
         </QECard>
+      )}
+
+      {/* Bullflow-style row drilldown — analyzer panel slides in when a row is clicked */}
+      {selectedTrade && (
+        <ContractAnalyzer
+          key={selectedTrade.id}
+          initialInput={`${selectedTrade.symbol} ${selectedTrade.strikePrice}${selectedTrade.optionType === 'call' ? 'C' : 'P'} ${selectedTrade.expirationDate} @ ${selectedTrade.premium}`}
+          onClose={() => setSelectedTrade(null)}
+        />
       )}
     </div>
   );
@@ -233,7 +252,7 @@ export function FlowTable({ symbol }: FlowTableProps) {
 
 // ─── Row + cells ────────────────────────────────────────────────────
 
-function FlowRow({ t }: { t: FlowTrade }) {
+function FlowRow({ t, onClick, isSelected }: { t: FlowTrade; onClick?: () => void; isSelected?: boolean }) {
   const isCall = t.optionType === 'call';
   const cpTone = isCall ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]';
   const sentVariant =
@@ -251,7 +270,13 @@ function FlowRow({ t }: { t: FlowTrade }) {
     : 0;
 
   return (
-    <tr className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+    <tr
+      onClick={onClick}
+      className={cn(
+        'border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer',
+        isSelected && 'bg-[var(--brand-cyan)]/10 border-[var(--brand-cyan)]/40',
+      )}
+    >
       <Td className="text-muted-foreground tabular-nums">{fmtTime(t.detectedAt)}</Td>
       <Td className="font-bold text-foreground tabular-nums">${t.strikePrice}</Td>
       <Td><span className={cn('font-bold', cpTone)}>{isCall ? 'CALL' : 'PUT'}</span></Td>
