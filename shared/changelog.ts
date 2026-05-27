@@ -37,6 +37,15 @@ export interface ChangeEntry {
 export const CHANGELOG: ChangeEntry[] = [
   // ─── Most recent first ───────────────────────────────────────
   {
+    id: '2026-05-27-pm-ah-movers',
+    date: '2026-05-27',
+    title: 'PM / After-Hours / Overnight movers scanner — /movers',
+    blurb: 'New scanner covers the 3 windows when regular market is closed: pre-market gappers (4-9:30am ET), after-hours movers (4-8pm ET), and overnight futures + crypto. Yahoo Finance + CoinGecko feeds, auto-refresh 60s, click any ticker → /r/[ticker]. Closes the gap that QuantEdge was blind outside RTH.',
+    link: '/movers',
+    linkLabel: 'Open Movers',
+    tag: 'feature',
+  },
+  {
     id: '2026-05-11-contract-analyzer',
     date: '2026-05-11',
     title: 'Contract Analyzer — Bullflow-style A+/B+ grading on any contract',

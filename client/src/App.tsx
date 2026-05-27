@@ -44,6 +44,7 @@ const RadarPage      = lazyWithRetry(() => import("@/pages/radar"),             
 const BTCRadarPage   = lazyWithRetry(() => import("@/pages/btc-radar"),              "btc-radar");
 const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),                 "how-to");
 const AnalyzePage    = lazyWithRetry(() => import("@/pages/analyze"),                "analyze");
+const MoversPage     = lazyWithRetry(() => import("@/pages/movers"),                 "movers");
 
 const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
@@ -207,6 +208,7 @@ function Router() {
         <Route path="/radar"      component={withBetaProtection(RadarPage)} />
         <Route path="/btc"        component={withBetaProtection(BTCRadarPage)} />
         <Route path="/analyze"    component={withBetaProtection(AnalyzePage)} />
+        <Route path="/movers"     component={withBetaProtection(MoversPage)} />
         <Route path="/how-to"     component={withBetaProtection(HowToPage)} />
 
         {/* Core Pages - Smart redirect for logged-in users */}

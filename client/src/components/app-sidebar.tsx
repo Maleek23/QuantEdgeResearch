@@ -38,6 +38,7 @@ import {
   Bitcoin,
   HelpCircle,
   Terminal,
+  TrendingUp,
 } from "lucide-react";
 import { WhatsNewBell } from "@/components/whats-new";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
@@ -137,6 +138,14 @@ const RADARS: NavItem[] = [
     href: "/analyze",
     match: ["/analyze"],
     hint: "Bullflow-style A+/B+ graded analysis on any contract",
+  },
+  {
+    id: "movers",
+    title: "PM/AH Movers",
+    icon: TrendingUp,
+    href: "/movers",
+    match: ["/movers"],
+    hint: "Pre-market + after-hours + overnight gappers, futures, crypto",
   },
 ];
 

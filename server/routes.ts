@@ -27821,6 +27821,25 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ──────────── PM / AH / OVERNIGHT MOVERS ────────────
+  // GET /api/movers/premarket   → top gappers in pre-market (4am-9:30am ET)
+  // GET /api/movers/afterhours  → top movers in after-hours (4pm-8pm ET)
+  // GET /api/movers/overnight   → futures + crypto + ADR overnight movers
+  app.get("/api/movers/:window", async (req, res) => {
+    try {
+      const window = req.params.window as 'premarket' | 'afterhours' | 'overnight';
+      if (!['premarket', 'afterhours', 'overnight'].includes(window)) {
+        return res.status(400).json({ error: 'invalid window — use premarket, afterhours, or overnight' });
+      }
+      const limit = req.query.limit ? Math.min(100, Number(req.query.limit)) : 30;
+      const { scanMovers } = await import('./movers/scan');
+      const result = await scanMovers(window, limit);
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      res.status(500).json({ error: 'movers scan failed', message: e?.message });
+    }
+  });
+
   // ──────────── CONTRACT ANALYZER ────────────
   // POST /api/contract/parse    body: { input: "QCOM 300C 1/27 @ 18.50 x 1" }
   // POST /api/contract/analyze  body: { input?: text } OR { symbol, strike, expiry, optionType }
