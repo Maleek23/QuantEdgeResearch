@@ -27821,6 +27821,74 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ──────────── INTRADAY SCANNERS ────────────
+  // GET /api/scans/bull-flags     → bull flag setups (Qullamaggie pole+flag)
+  // GET /api/scans/breakouts      → 20-day high breakouts on volume
+  // GET /api/scans/unusual-flow   → wraps existing options-flow-scanner, ranks
+  // All accept ?watchlistOnly=true and ?minScore=NN
+  app.get("/api/scans/bull-flags", async (req, res) => {
+    try {
+      const { scanIntraday } = await import('./intraday-scanner/scanner-engine');
+      const result = await scanIntraday({
+        pattern: 'bull_flag',
+        minScore: req.query.minScore ? Number(req.query.minScore) : 65,
+        watchlistOnly: req.query.watchlistOnly === 'true' || req.query.watchlistOnly === '1',
+        limit: req.query.limit ? Math.min(100, Number(req.query.limit)) : 30,
+      });
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      res.status(500).json({ error: 'bull-flag scan failed', message: e?.message });
+    }
+  });
+
+  app.get("/api/scans/breakouts", async (req, res) => {
+    try {
+      const { scanIntraday } = await import('./intraday-scanner/scanner-engine');
+      const result = await scanIntraday({
+        pattern: 'breakout_20d',
+        minScore: req.query.minScore ? Number(req.query.minScore) : 65,
+        watchlistOnly: req.query.watchlistOnly === 'true' || req.query.watchlistOnly === '1',
+        limit: req.query.limit ? Math.min(100, Number(req.query.limit)) : 30,
+      });
+      res.json({ ok: true, ...result });
+    } catch (e: any) {
+      res.status(500).json({ error: 'breakout scan failed', message: e?.message });
+    }
+  });
+
+  app.get("/api/scans/unusual-flow", async (req, res) => {
+    try {
+      // Wrap the existing options-flow-scanner output and re-rank by combined score
+      const { getTodayFlows } = await import('./options-flow-scanner');
+      const flows = getTodayFlows();
+      const watchlistOnly = req.query.watchlistOnly === 'true' || req.query.watchlistOnly === '1';
+      const minScore = req.query.minScore ? Number(req.query.minScore) : 70;
+
+      let filtered = flows;
+      if (watchlistOnly) {
+        try {
+          const { db } = await import('./db');
+          const { watchlist } = await import('@shared/schema');
+          const rows = await db.select({ symbol: watchlist.symbol }).from(watchlist);
+          const wlSet = new Set(rows.map((r: any) => r.symbol));
+          filtered = flows.filter(f => wlSet.has(f.symbol));
+        } catch { /* ignore — return all if watchlist unavailable */ }
+      }
+      filtered = filtered.filter(f => f.unusualScore >= minScore);
+      filtered.sort((a, b) => b.unusualScore - a.unusualScore);
+      const limit = req.query.limit ? Math.min(100, Number(req.query.limit)) : 30;
+      res.json({
+        ok: true,
+        pattern: 'unusual_flow',
+        asOf: new Date().toISOString(),
+        flows: filtered.slice(0, limit),
+        summary: { totalScanned: flows.length, matched: filtered.length },
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: 'unusual flow scan failed', message: e?.message });
+    }
+  });
+
   // ──────────── PM / AH / OVERNIGHT MOVERS ────────────
   // GET /api/movers/premarket   → top gappers in pre-market (4am-9:30am ET)
   // GET /api/movers/afterhours  → top movers in after-hours (4pm-8pm ET)

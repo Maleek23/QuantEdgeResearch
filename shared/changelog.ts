@@ -37,6 +37,13 @@ export interface ChangeEntry {
 export const CHANGELOG: ChangeEntry[] = [
   // ─── Most recent first ───────────────────────────────────────
   {
+    id: '2026-05-27-intraday-scanners',
+    date: '2026-05-27',
+    title: 'Intraday Scanners — bull flags, 20-day breakouts, unusual flow',
+    blurb: 'Three new scanners that surface intraday setups on demand. Bull flag (Qullamaggie pole+flag pattern), 20-day high breakouts (volume-confirmed), and unusual options flow (wraps existing flow scanner with watchlist filter). All accept ?watchlistOnly=true to scope to YOUR active tickers. Endpoints: /api/scans/bull-flags /breakouts /unusual-flow.',
+    tag: 'feature',
+  },
+  {
     id: '2026-05-27-pm-ah-movers',
     date: '2026-05-27',
     title: 'PM / After-Hours / Overnight movers scanner — /movers',

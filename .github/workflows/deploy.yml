@@ -16,10 +16,35 @@ jobs:
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
           port: 22
+          # Stop on first error, log every step, never leave half-deployed state.
           script: |
+            set -e
             cd ${{ secrets.PROJECT_PATH }}
-            git pull origin main
-            npm install --production=false
-            npm run build
-            pm2 restart all || npm run start &
-            echo "Deployed at $(date)"
+
+            echo "=== Before pull ==="
+            echo "HEAD: $(git rev-parse --short HEAD)"
+
+            git fetch origin
+            git reset --hard origin/main
+
+            echo "=== After pull ==="
+            echo "HEAD: $(git rev-parse --short HEAD)"
+
+            echo "=== Installing deps ==="
+            npm install --production=false 2>&1 | tail -3
+
+            echo "=== Building ==="
+            npm run build 2>&1 | tail -5
+
+            echo "=== Restarting PM2 ==="
+            pm2 restart quantedge-web --update-env || pm2 start dist/web.js --name quantedge-web
+            pm2 restart quantedge-worker --update-env || pm2 start dist/worker.js --name quantedge-worker
+            pm2 save
+
+            echo "=== Health check ==="
+            sleep 8
+            curl -s -m 10 http://localhost:3000/api/health | head -c 400 || echo "Health check failed"
+
+            echo ""
+            echo "=== Deploy complete at $(date) ==="
+            pm2 list
