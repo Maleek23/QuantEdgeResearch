@@ -1,4 +1,5 @@
 import { logger } from "./logger";
+import { getLetterGrade } from "./grading";
 import { fetchAlphaVantageNews, type NewsArticle } from "./news-service";
 import { getTradierQuote, getTradierHistoryOHLC, getTradierHistory } from "./tradier-api";
 import { fetchCompanyProfile } from "./market-api";
@@ -420,19 +421,8 @@ function calculateMultiFactorScore(
     (marketContext * 0.15)
   );
   
-  let grade = 'C';
-  if (total >= 85) grade = 'A+';
-  else if (total >= 80) grade = 'A';
-  else if (total >= 75) grade = 'A-';
-  else if (total >= 70) grade = 'B+';
-  else if (total >= 65) grade = 'B';
-  else if (total >= 60) grade = 'B-';
-  else if (total >= 55) grade = 'C+';
-  else if (total >= 50) grade = 'C';
-  else if (total >= 45) grade = 'C-';
-  else if (total >= 40) grade = 'D';
-  else grade = 'F';
-  
+  const grade = getLetterGrade(total);
+
   let convictionLevel: 'INSIDER' | 'PRIORITY' | 'WATCH' | 'AVOID' = 'WATCH';
   if (total >= 75) convictionLevel = 'INSIDER';
   else if (total >= 60) convictionLevel = 'PRIORITY';

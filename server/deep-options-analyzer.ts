@@ -11,6 +11,7 @@
  */
 
 import { logger } from './logger';
+import { getLetterGrade } from './grading';
 import { getTradierQuote, getTradierOptionsChain, getTradierHistoryOHLC } from './tradier-api';
 import { analyzeVolatility, type VolatilityAnalysis } from './volatility-analysis-service';
 import { calculateATR } from './technical-indicators';
@@ -284,21 +285,6 @@ function generateVerdict(score: number): 'STRONG_BUY' | 'BUY' | 'HOLD' | 'AVOID'
   if (score >= 45) return 'HOLD';
   if (score >= 30) return 'AVOID';
   return 'STRONG_AVOID';
-}
-
-function getLetterGrade(score: number): string {
-  if (score >= 90) return 'A+';
-  if (score >= 85) return 'A';
-  if (score >= 80) return 'A-';
-  if (score >= 75) return 'B+';
-  if (score >= 70) return 'B';
-  if (score >= 65) return 'B-';
-  if (score >= 60) return 'C+';
-  if (score >= 55) return 'C';
-  if (score >= 50) return 'C-';
-  if (score >= 45) return 'D+';
-  if (score >= 40) return 'D';
-  return 'F';
 }
 
 // =====================================================
