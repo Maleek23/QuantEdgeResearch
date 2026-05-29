@@ -916,23 +916,6 @@ function createSignal(params: SignalParams): SPXSignal {
 async function saveSignalAsTradeIdea(signal: SPXSignal): Promise<void> {
   logger.info(`[SPX-SESSION] 💾 Attempting to save trade idea for ${signal.symbol} ${signal.strategy}...`);
   try {
-    // Check if we already have this idea saved recently (within 30 min)
-    // Match on symbol + source + strategy + direction to prevent duplicates
-    const allIdeas = await storage.getAllTradeIdeas();
-    const recentDuplicate = allIdeas.find(
-      (idea: any) =>
-        idea.symbol === signal.symbol &&
-        idea.source === 'spx_session' &&
-        idea.dataSourceUsed === `SPX_${signal.strategy}` &&
-        idea.direction.toLowerCase() === signal.direction.toLowerCase() &&
-        new Date().getTime() - new Date(idea.timestamp).getTime() < 30 * 60 * 1000
-    );
-
-    if (recentDuplicate) {
-      logger.debug(`[SPX-SESSION] Skipping duplicate trade idea for ${signal.symbol} ${signal.strategy}`);
-      return;
-    }
-
     // Calculate risk/reward ratio
     const risk = Math.abs(signal.entry - signal.stop);
     const reward = Math.abs(signal.target1 - signal.entry);
@@ -969,7 +952,7 @@ async function saveSignalAsTradeIdea(signal: SPXSignal): Promise<void> {
       isLottoPlay: signal.urgency === 'HIGH' && signal.confidence >= 65,
     };
 
-    await storage.createTradeIdea(tradeIdea);
+    await storage.createTradeIdea(tradeIdea, { dedupWindowHours: 0.5 }); // spine 30-min dedup
     logger.info(`[SPX-SESSION] ✅ Saved trade idea: ${signal.symbol} ${signal.strategy} ${signal.direction}`);
   } catch (error) {
     logger.error(`[SPX-SESSION] Failed to save trade idea for ${signal.symbol}:`, error);

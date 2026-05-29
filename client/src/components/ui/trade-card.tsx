@@ -18,6 +18,7 @@ import {
   Clock,
 } from "lucide-react";
 import { cn, safeToFixed, formatRelativeTime, safeNumber } from "@/lib/utils";
+import { ideaSourceMeta, type IdeaSourceTone } from "@shared/idea-sources";
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -92,15 +93,25 @@ function confColor(conf?: number): string {
   return "text-amber-400";
 }
 
+// Desaturated card chips: neutral bg, only text carries the tone color.
+const CARD_TONE_TEXT: Record<IdeaSourceTone, string> = {
+  quant: "text-cyan-400",
+  ai: "text-violet-400",
+  hybrid: "text-blue-400",
+  flow: "text-[var(--trade-bullish)]",
+  news: "text-amber-400",
+  scanner: "text-blue-400",
+  chart: "text-purple-400",
+  lotto: "text-fuchsia-400",
+  social: "text-pink-400",
+  bullish: "text-[var(--trade-bullish)]",
+  neutral: "text-muted-foreground",
+};
+
 function sourceLabel(src?: string): { label: string; color: string } {
-  const s = (src || "").toLowerCase();
-  // Desaturated: neutral bg, only text carries color
-  if (s === "tradingview" || s === "tv") return { label: "TV", color: "text-purple-400 bg-foreground/[0.03] border-foreground/[0.08]" };
-  if (s === "ai") return { label: "AI", color: "text-violet-400 bg-foreground/[0.03] border-foreground/[0.08]" };
-  if (s === "quant") return { label: "QNT", color: "text-cyan-400 bg-foreground/[0.03] border-foreground/[0.08]" };
-  if (s === "flow") return { label: "FLW", color: "text-[var(--trade-bullish)] bg-foreground/[0.03] border-foreground/[0.08]" };
-  if (s === "hybrid") return { label: "HYB", color: "text-blue-400 bg-foreground/[0.03] border-foreground/[0.08]" };
-  return { label: (src || "SCAN").toUpperCase().slice(0, 4), color: "text-muted-foreground bg-foreground/[0.02] border-foreground/[0.06]" };
+  const m = ideaSourceMeta(src);
+  const bg = m.tone === "neutral" ? "bg-foreground/[0.02] border-foreground/[0.06]" : "bg-foreground/[0.03] border-foreground/[0.08]";
+  return { label: m.short, color: `${CARD_TONE_TEXT[m.tone]} ${bg}` };
 }
 
 function computeRR(entry?: number, target?: number, stop?: number): string {

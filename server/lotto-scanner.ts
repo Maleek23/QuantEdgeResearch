@@ -616,28 +616,17 @@ export async function runLottoScanner(): Promise<void> {
     let duplicateCount = 0;
 
     for (const candidate of topCandidates) {
-      // Check for duplicates
-      const existing = await storage.getAllTradeIdeas();
-
-      const isDuplicate = existing.some((idea: any) =>
-        idea.symbol === candidate.underlying &&
-        idea.assetType === 'option' &&
-        idea.source === 'lotto' && 
-        idea.strikePrice === candidate.strike &&
-        idea.optionType === candidate.optionType &&
-        idea.expiryDate === candidate.expiration &&
-        new Date(idea.timestamp).getTime() > Date.now() - 4 * 60 * 60 * 1000 // Within 4 hours
-      );
-
-      if (isDuplicate) {
-        logger.info(`🎰 [LOTTO] Skipping duplicate: ${candidate.underlying} ${candidate.optionType.toUpperCase()} $${candidate.strike}`);
-        duplicateCount++;
-        continue;
-      }
-
       const idea = await generateLottoTradeIdea(candidate);
       if (idea) {
-        const createdIdea = await storage.createTradeIdea(idea);
+        // Spine 4h dedup. If it returns a pre-existing idea (timestamp differs
+        // from the one we just built), it was a duplicate — skip the Discord
+        // alert + auto-execute side-effects below.
+        const createdIdea = await storage.createTradeIdea(idea, { dedupWindowHours: 4 });
+        if (createdIdea.timestamp !== idea.timestamp) {
+          logger.info(`🎰 [LOTTO] Skipping duplicate: ${candidate.underlying} ${candidate.optionType.toUpperCase()} $${candidate.strike}`);
+          duplicateCount++;
+          continue;
+        }
         successCount++;
         
         // 🎯 CONVERGENCE TRACKING: Record lotto play for heat map

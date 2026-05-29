@@ -181,6 +181,7 @@ export {
 
 // Import for use in this file
 import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine } from "@shared/constants";
+import { normalizeIdeaSource } from "@shared/idea-sources";
 import { logger } from "./logger";
 
 // ========================================
@@ -403,6 +404,18 @@ export interface PerformanceStats {
   }[];
 }
 
+/** Options for createTradeIdea. */
+export interface CreateTradeIdeaOptions {
+  /**
+   * When set (> 0), the spine checks for an existing idea with the same setup
+   * (symbol + assetType + direction + source, plus strike/expiry/type for options)
+   * created within this many hours and returns it instead of inserting a duplicate.
+   * Opt-in: scanners pass their cooldown here so they no longer need their own
+   * dedup maps/DB scans. Manual/user entry leaves this unset and always inserts.
+   */
+  dedupWindowHours?: number;
+}
+
 export interface IStorage {
   // User operations (Required for Replit Auth)
   // Reference: blueprint:javascript_log_in_with_replit
@@ -425,7 +438,7 @@ export interface IStorage {
   getAllTradeIdeas(): Promise<TradeIdea[]>;
   getRecentTradeIdeas(hoursBack?: number, limit?: number): Promise<TradeIdea[]>;
   getTradeIdeaById(id: string): Promise<TradeIdea | undefined>;
-  createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea>;
+  createTradeIdea(idea: InsertTradeIdea, opts?: CreateTradeIdeaOptions): Promise<TradeIdea>;
   updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined>;
   deleteTradeIdea(id: string): Promise<boolean>;
   cleanupStaleTradeIdeas(): Promise<number>;
@@ -1496,7 +1509,7 @@ export class MemStorage implements IStorage {
     return this.tradeIdeas.get(id);
   }
 
-  async createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea> {
+  async createTradeIdea(idea: InsertTradeIdea, _opts?: CreateTradeIdeaOptions): Promise<TradeIdea> {
     const id = randomUUID();
     // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
     const cappedConfidence = idea.confidenceScore
@@ -2539,7 +2552,14 @@ export class DatabaseStorage implements IStorage {
     return idea || undefined;
   }
 
-  async createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea> {
+  async createTradeIdea(rawIdea: InsertTradeIdea, opts?: CreateTradeIdeaOptions): Promise<TradeIdea> {
+    // Canonicalize the source spelling (flow→options_flow, quant_signal→quant…)
+    // so dedup keys and stored provenance stay consistent. Synonyms only —
+    // never rewrites the engine identity. See normalizeIdeaSource().
+    const idea: InsertTradeIdea = (rawIdea as any).source
+      ? ({ ...rawIdea, source: normalizeIdeaSource((rawIdea as any).source) } as InsertTradeIdea)
+      : rawIdea;
+
     // 🛡️ Shared validation gate — blocks malformed scanner output BEFORE
     // it reaches the DB. Catches the entire class of bugs we kept fixing
     // downstream (catalyst contradicts direction, target on wrong side of
@@ -2553,6 +2573,20 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Invalid trade idea: ${validation.reason}`);
     }
 
+    // 🔁 Centralized dedup — opt-in via opts.dedupWindowHours. Replaces the
+    // per-feeder cooldown maps and bespoke DB scans each scanner used to keep.
+    // Same setup from the same source inside the window returns the existing
+    // idea instead of inserting a duplicate.
+    if (opts?.dedupWindowHours && opts.dedupWindowHours > 0) {
+      const existing = await this.findRecentDuplicateIdea(idea, opts.dedupWindowHours);
+      if (existing) {
+        logger.debug(
+          `[SPINE-DEDUP] ${(idea as any).source ?? "unknown"} ${idea.symbol} ${idea.direction} within ${opts.dedupWindowHours}h — returning existing ${existing.id}`,
+        );
+        return existing;
+      }
+    }
+
     // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
     const cappedIdea = {
       ...idea,
@@ -2562,6 +2596,33 @@ export class DatabaseStorage implements IStorage {
     };
     const [created] = await db.insert(tradeIdeas).values(cappedIdea as any).returning();
     return created;
+  }
+
+  /**
+   * Finds a recent non-archived idea matching the same setup, for spine dedup.
+   * Keys on symbol + assetType + direction + source; options additionally match
+   * on optionType/strikePrice/expiryDate (a different strike/expiry is a different idea).
+   */
+  private async findRecentDuplicateIdea(
+    idea: InsertTradeIdea,
+    windowHours: number,
+  ): Promise<TradeIdea | undefined> {
+    const cutoffIso = new Date(Date.now() - windowHours * 60 * 60 * 1000).toISOString();
+    const conds = [
+      eq(tradeIdeas.symbol, idea.symbol),
+      eq(tradeIdeas.assetType, idea.assetType as any),
+      eq(tradeIdeas.direction, idea.direction),
+      gte(tradeIdeas.timestamp, cutoffIso),
+      not(eq(tradeIdeas.status, 'archived')),
+    ];
+    if ((idea as any).source) conds.push(eq(tradeIdeas.source, (idea as any).source));
+    if (idea.assetType === 'option') {
+      if (idea.optionType) conds.push(eq(tradeIdeas.optionType, idea.optionType));
+      if (idea.strikePrice != null) conds.push(eq(tradeIdeas.strikePrice, idea.strikePrice));
+      if (idea.expiryDate) conds.push(eq(tradeIdeas.expiryDate, idea.expiryDate));
+    }
+    const [existing] = await db.select().from(tradeIdeas).where(and(...conds)).limit(1);
+    return existing || undefined;
   }
 
   async updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined> {

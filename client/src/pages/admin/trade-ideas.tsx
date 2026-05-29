@@ -48,6 +48,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ideaSourceMeta, type IdeaSourceTone } from "@shared/idea-sources";
 import { format } from "date-fns";
 
 function getCSRFToken(): string | null {
@@ -73,15 +74,20 @@ interface TradeIdea {
   expiresAt?: string;
 }
 
-const sourceLabels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  quant_signal: { label: "Quant Signal", color: "text-purple-400 border-purple-500/20 bg-purple-500/10", icon: <BarChart3 className="h-3 w-3" /> },
-  bot_screener: { label: "Bot Screener", color: "text-cyan-400 border-cyan-500/20 bg-cyan-500/10", icon: <Bot className="h-3 w-3" /> },
-  ai_analysis: { label: "AI Analysis", color: "text-[var(--trade-neutral)] border-amber-500/20 bg-amber-500/10", icon: <Zap className="h-3 w-3" /> },
-  options_flow: { label: "Options Flow", color: "text-[var(--trade-bullish)] border-green-500/20 bg-[var(--trade-bullish)]/10", icon: <TrendingUp className="h-3 w-3" /> },
-  market_scanner: { label: "Market Scanner", color: "text-blue-400 border-blue-500/20 bg-blue-500/10", icon: <Target className="h-3 w-3" /> },
-  sentiment: { label: "Sentiment", color: "text-pink-400 border-pink-500/20 bg-pink-500/10", icon: <Eye className="h-3 w-3" /> },
-  whale_flow: { label: "Whale Flow", color: "text-[var(--trade-bullish)] border-emerald-500/20 bg-emerald-500/10", icon: <TrendingUp className="h-3 w-3" /> },
-  bullish_trend: { label: "Bullish Trend", color: "text-[var(--trade-bullish)] border-green-500/20 bg-[var(--trade-bullish)]/10", icon: <TrendingUp className="h-3 w-3" /> },
+// Source styling keyed by the shared taxonomy's tone token. Labels themselves
+// come from ideaSourceMeta() so they stay consistent with every other surface.
+const ADMIN_TONE: Record<IdeaSourceTone, { color: string; icon: React.ReactNode }> = {
+  quant: { color: "text-purple-400 border-purple-500/20 bg-purple-500/10", icon: <BarChart3 className="h-3 w-3" /> },
+  ai: { color: "text-[var(--trade-neutral)] border-amber-500/20 bg-amber-500/10", icon: <Zap className="h-3 w-3" /> },
+  hybrid: { color: "text-blue-400 border-blue-500/20 bg-blue-500/10", icon: <BarChart3 className="h-3 w-3" /> },
+  flow: { color: "text-[var(--trade-bullish)] border-green-500/20 bg-[var(--trade-bullish)]/10", icon: <TrendingUp className="h-3 w-3" /> },
+  news: { color: "text-amber-400 border-amber-500/20 bg-amber-500/10", icon: <Zap className="h-3 w-3" /> },
+  scanner: { color: "text-blue-400 border-blue-500/20 bg-blue-500/10", icon: <Target className="h-3 w-3" /> },
+  chart: { color: "text-purple-400 border-purple-500/20 bg-purple-500/10", icon: <BarChart3 className="h-3 w-3" /> },
+  lotto: { color: "text-fuchsia-400 border-fuchsia-500/20 bg-fuchsia-500/10", icon: <Zap className="h-3 w-3" /> },
+  social: { color: "text-pink-400 border-pink-500/20 bg-pink-500/10", icon: <Eye className="h-3 w-3" /> },
+  bullish: { color: "text-[var(--trade-bullish)] border-green-500/20 bg-[var(--trade-bullish)]/10", icon: <TrendingUp className="h-3 w-3" /> },
+  neutral: { color: "text-muted-foreground border-muted-foreground/20 bg-muted-foreground/10", icon: <Zap className="h-3 w-3" /> },
 };
 
 function AdminTradeIdeasContent() {
@@ -268,7 +274,7 @@ function AdminTradeIdeasContent() {
                   <SelectItem value="all">All Sources</SelectItem>
                   {uniqueSources.map((source) => (
                     <SelectItem key={source} value={source}>
-                      {sourceLabels[source]?.label || source}
+                      {ideaSourceMeta(source).label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -312,11 +318,8 @@ function AdminTradeIdeasContent() {
                 </TableHeader>
                 <TableBody>
                   {filteredIdeas.slice(0, 50).map((idea) => {
-                    const sourceConfig = sourceLabels[idea.source] || {
-                      label: idea.source,
-                      color: "text-muted-foreground border-muted-foreground/20 bg-muted-foreground/10",
-                      icon: <Zap className="h-3 w-3" />,
-                    };
+                    const sourceMeta = ideaSourceMeta(idea.source);
+                    const sourceConfig = { label: sourceMeta.label, ...ADMIN_TONE[sourceMeta.tone] };
 
                     return (
                       <TableRow key={idea.id} className="border-border">

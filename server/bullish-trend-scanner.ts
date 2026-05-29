@@ -1,16 +1,13 @@
 import { db } from './db';
-import { bullishTrends, tradeIdeas, type BullishTrend, type TrendStrength, type TrendPhase, type TrendCategory } from '@shared/schema';
-import { eq, desc, and, gte } from 'drizzle-orm';
+import { bullishTrends, type BullishTrend, type TrendStrength, type TrendPhase, type TrendCategory } from '@shared/schema';
+import { eq, desc, and } from 'drizzle-orm';
 import { logger } from './logger';
 import { calculateRSI, calculateMACD, calculateSMA } from './technical-indicators';
 import { recordSymbolAttention } from './attention-tracking-service';
 import { calculateSimpleTargets } from './atr-targets';
 import { getScannerUniverse } from './scanner-universe';
 import { getLetterGrade } from './grading';
-
-// Track recently created trade ideas to avoid duplicates
-const recentTradeIdeas = new Map<string, Date>();
-const TRADE_IDEA_COOLDOWN_MS = 8 * 60 * 60 * 1000; // 8 hours between same symbol trade ideas
+import { storage } from './storage';
 
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 const TRADIER_API = "https://api.tradier.com/v1";
@@ -529,32 +526,7 @@ async function generateTradeIdeasFromMomentum(
   for (const trend of highMomentum.slice(0, 8)) { // Top 8 by rank
     try {
       const symbol = trend.symbol;
-      
-      // Check cooldown
-      const lastCreated = recentTradeIdeas.get(symbol);
-      if (lastCreated && Date.now() - lastCreated.getTime() < TRADE_IDEA_COOLDOWN_MS) {
-        logger.debug(`[BULLISH] Skipping ${symbol} - trade idea cooldown`);
-        continue;
-      }
-      
-      // Check if a similar idea exists in the database recently
-      const cutoffTime = new Date(Date.now() - TRADE_IDEA_COOLDOWN_MS).toISOString();
-      const existingIdea = await db.select()
-        .from(tradeIdeas)
-        .where(and(
-          eq(tradeIdeas.symbol, symbol),
-          eq(tradeIdeas.direction, 'long'),
-          eq(tradeIdeas.assetType, 'stock'),
-          gte(tradeIdeas.timestamp, cutoffTime)
-        ))
-        .limit(1);
-      
-      if (existingIdea.length > 0) {
-        logger.debug(`[BULLISH] Skipping ${symbol} - recent idea exists`);
-        recentTradeIdeas.set(symbol, new Date());
-        continue;
-      }
-      
+
       const currentPrice = trend.currentPrice!;
 
       // 📐 ATR-BASED TARGET/STOP — replaces fixed % heuristic
@@ -638,8 +610,7 @@ async function generateTradeIdeasFromMomentum(
         visibility: 'public' as const
       };
       
-      await db.insert(tradeIdeas).values(tradeIdea as any);
-      recentTradeIdeas.set(symbol, now);
+      await storage.createTradeIdea(tradeIdea as any, { dedupWindowHours: 8 }); // spine: validate + cap + 8h dedup
       ideasCreated++;
       
       logger.info(`[BULLISH] Created trade idea: ${symbol} LONG @ $${currentPrice.toFixed(2)} → $${targetPrice.toFixed(2)} [${grade} ${confidence}%]`);

@@ -654,21 +654,6 @@ async function generateBreakoutSignal(
  */
 async function saveBreakoutAsTradeIdea(breakout: ORBBreakout): Promise<void> {
   try {
-    // Check if we already have this idea saved recently
-    const allIdeas = await storage.getAllTradeIdeas();
-    const recentDuplicate = allIdeas.find(
-      (idea: any) =>
-        idea.symbol === breakout.symbol &&
-        idea.source === 'orb_scanner' &&
-        idea.direction.toLowerCase() === breakout.direction.toLowerCase() &&
-        new Date().getTime() - new Date(idea.timestamp).getTime() < 60 * 60 * 1000 // Within 1 hour
-    );
-
-    if (recentDuplicate) {
-      logger.debug(`[ORB] Skipping duplicate trade idea for ${breakout.symbol}`);
-      return;
-    }
-
     // Convert ORB breakout to trade idea format
     const tradeIdea = {
       symbol: breakout.symbol,
@@ -700,7 +685,7 @@ async function saveBreakoutAsTradeIdea(breakout: ORBBreakout): Promise<void> {
       isLottoPlay: breakout.breakoutType === '0DTE' && breakout.confidence >= 65,
     };
 
-    await storage.createTradeIdea(tradeIdea);
+    await storage.createTradeIdea(tradeIdea, { dedupWindowHours: 1 }); // spine 1h dedup
     logger.info(`[ORB] ✅ Saved trade idea: ${breakout.symbol} ${breakout.direction} ${breakout.timeframe}`);
   } catch (error) {
     logger.error(`[ORB] Failed to save trade idea for ${breakout.symbol}:`, error);
