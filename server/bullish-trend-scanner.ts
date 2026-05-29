@@ -6,6 +6,7 @@ import { calculateRSI, calculateMACD, calculateSMA } from './technical-indicator
 import { recordSymbolAttention } from './attention-tracking-service';
 import { calculateSimpleTargets } from './atr-targets';
 import { getScannerUniverse } from './scanner-universe';
+import { getLetterGrade } from './grading';
 
 // Track recently created trade ideas to avoid duplicates
 const recentTradeIdeas = new Map<string, Date>();
@@ -212,6 +213,7 @@ function calculateMomentumScore(data: {
   dayChangePercent: number;
   weekChangePercent: number;
   percentFrom52High: number;
+  relativeStrength?: number; // % out/under-performance vs SPY (month-weighted). Surfaces quiet trend leaders.
 }): number {
   let score = 50;
   
@@ -238,7 +240,16 @@ function calculateMomentumScore(data: {
   
   if (data.percentFrom52High > -5) score += 10;
   else if (data.percentFrom52High > -15) score += 5;
-  
+
+  // 📈 Relative strength vs SPY — rewards quiet outperformers that have no volume/price spike.
+  // This is how mature large-cap uptrends (ORCL, CRM, NOW) earn a score without a breakout day.
+  if (data.relativeStrength !== undefined) {
+    if (data.relativeStrength > 8) score += 12;
+    else if (data.relativeStrength > 4) score += 8;
+    else if (data.relativeStrength > 1) score += 4;
+    else if (data.relativeStrength < -8) score -= 8;
+  }
+
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
@@ -278,14 +289,35 @@ export async function scanBullishTrends(): Promise<BullishTrend[]> {
   const symbols = [...universeSymbols, ...domainOnly];
   logger.info(`[BULLISH] Scanning ${symbols.length} symbols (${watchlistSymbols.size} from watchlist, ${domainOnly.length} domain-specific)`);
   const quotes = await fetchQuotes(symbols);
-  
+
   if (quotes.length === 0) {
     logger.warn('[BULLISH] No quotes fetched');
     return [];
   }
-  
+
+  // 📈 Benchmark for relative strength: fetch SPY once and derive week/month returns.
+  // Quiet leaders (ORCL/CRM/NOW) rarely spike on volume but consistently beat the market —
+  // RS is the signal that lets them surface alongside the loud small-cap movers.
+  let spyWeekChange = 0;
+  let spyMonthChange = 0;
+  try {
+    const spy = await fetchHistoricalData('SPY');
+    if (spy && spy.prices.length >= 22) {
+      const spyPrices = spy.prices;
+      const spyNow = spyPrices[spyPrices.length - 1];
+      const spyWeekAgo = spyPrices[spyPrices.length - 5];
+      const spyMonthAgo = spyPrices[spyPrices.length - 22];
+      spyWeekChange = ((spyNow - spyWeekAgo) / spyWeekAgo) * 100;
+      spyMonthChange = ((spyNow - spyMonthAgo) / spyMonthAgo) * 100;
+    }
+  } catch (err) {
+    logger.debug('[BULLISH] SPY benchmark fetch failed — relative strength disabled this scan', { err });
+  }
+
   const results: BullishTrend[] = [];
-  
+  // Relative strength per symbol (in-memory only — not a bullish_trends column). Used for scoring + the trend-leader gate.
+  const relativeStrengthBySymbol = new Map<string, number>();
+
   for (const quote of quotes) {
     try {
       const historical = await fetchHistoricalData(quote.symbol);
@@ -325,7 +357,12 @@ export async function scanBullishTrends(): Promise<BullishTrend[]> {
       const week52Low = quote.fiftyTwoWeekLow || Math.min(...prices);
       const percentFrom52High = ((currentPrice - week52High) / week52High) * 100;
       const percentFrom52Low = ((currentPrice - week52Low) / week52Low) * 100;
-      
+
+      // Relative strength vs SPY — month-weighted so sustained leaders beat one-week noise.
+      const relativeStrength = (monthChangePercent - spyMonthChange) * 0.6
+        + (weekChangePercent - spyWeekChange) * 0.4;
+      relativeStrengthBySymbol.set(quote.symbol, relativeStrength);
+
       const momentumScore = calculateMomentumScore({
         rsi14,
         priceVsSma20,
@@ -334,7 +371,8 @@ export async function scanBullishTrends(): Promise<BullishTrend[]> {
         volumeRatio,
         dayChangePercent: quote.regularMarketChangePercent,
         weekChangePercent,
-        percentFrom52High
+        percentFrom52High,
+        relativeStrength
       });
       
       const trendStrength = determineTrendStrength(momentumScore);
@@ -438,30 +476,57 @@ export async function scanBullishTrends(): Promise<BullishTrend[]> {
   
   logger.info(`[BULLISH] Scan complete: ${results.length} stocks analyzed`);
   
-  // Generate trade ideas for top momentum stocks (75+ score)
-  await generateTradeIdeasFromMomentum(results);
-  
+  // Generate trade ideas for top momentum stocks (75+ score, or RS-leaders at 70+)
+  await generateTradeIdeasFromMomentum(results, relativeStrengthBySymbol);
+
   return results;
 }
 
 // Generate trade ideas for high-momentum bullish stocks
-async function generateTradeIdeasFromMomentum(trends: BullishTrend[]): Promise<void> {
-  // Filter for high-conviction momentum stocks
-  const highMomentum = trends.filter(t => 
-    t.momentumScore && t.momentumScore >= 75 &&
-    t.currentPrice && t.currentPrice > 1 && // Avoid penny stocks
-    (t.trendPhase === 'breakout' || t.trendPhase === 'momentum') &&
-    t.isAboveMAs // Price above all moving averages
-  );
-  
+async function generateTradeIdeasFromMomentum(
+  trends: BullishTrend[],
+  relativeStrengthBySymbol: Map<string, number> = new Map(),
+): Promise<void> {
+  const rsOf = (t: BullishTrend) => relativeStrengthBySymbol.get(t.symbol) ?? 0;
+
+  // Two qualifying paths into the Trade Desk:
+  //  1. Loud movers — the classic breakout/momentum setup at 75+ (unchanged).
+  //  2. Quiet trend leaders — above all MAs, healthy RSI, beating SPY, at 70+.
+  //     This is what surfaces mature large-cap uptrends (ORCL, CRM, NOW) that
+  //     never print a volume-spike day but quietly outperform the market.
+  const highMomentum = trends.filter(t => {
+    if (!t.currentPrice || t.currentPrice <= 1) return false; // Avoid penny stocks
+    if (!t.momentumScore) return false;
+
+    const loudMover =
+      t.momentumScore >= 75 &&
+      (t.trendPhase === 'breakout' || t.trendPhase === 'momentum') &&
+      t.isAboveMAs;
+
+    const trendLeader =
+      t.momentumScore >= 70 &&
+      t.isAboveMAs &&
+      rsOf(t) > 3 && // meaningfully outperforming SPY
+      !!t.rsi14 && t.rsi14 >= 50 && t.rsi14 < 72 && // not overbought, not weak
+      t.trendPhase !== 'distribution'; // allow accumulation + momentum, exclude rollovers
+
+    return loudMover || trendLeader;
+  });
+
   if (highMomentum.length === 0) {
     logger.debug('[BULLISH] No high-momentum stocks for trade ideas');
     return;
   }
-  
+
+  // Rank by momentum, then by relative strength, so the strongest setups win the
+  // limited slots — NOT whichever symbols happened to be scanned first.
+  highMomentum.sort((a, b) =>
+    (b.momentumScore! - a.momentumScore!) || (rsOf(b) - rsOf(a))
+  );
+
   let ideasCreated = 0;
-  
-  for (const trend of highMomentum.slice(0, 5)) { // Limit to top 5
+
+  for (const trend of highMomentum.slice(0, 8)) { // Top 8 by rank
     try {
       const symbol = trend.symbol;
       
@@ -524,6 +589,7 @@ async function generateTradeIdeasFromMomentum(trends: BullishTrend[]): Promise<v
       }
       
       // Build signals array
+      const rs = relativeStrengthBySymbol.get(symbol) ?? 0;
       const signals: string[] = [];
       if (trend.trendPhase === 'breakout') signals.push('BREAKOUT');
       if (trend.isNewHigh) signals.push('NEW_HIGH');
@@ -531,11 +597,12 @@ async function generateTradeIdeasFromMomentum(trends: BullishTrend[]): Promise<v
       if (trend.rsi14 && trend.rsi14 > 50 && trend.rsi14 < 70) signals.push('RSI_BULLISH');
       if (trend.macdSignal === 'bullish_cross') signals.push('MACD_CROSS');
       if (trend.isAboveMAs) signals.push('ABOVE_MAs');
+      if (rs > 3) signals.push(`RS_LEADER_+${rs.toFixed(0)}`); // outperforming SPY
       signals.push(`MOMENTUM_${trend.momentumScore}`);
-      
+
       // Calculate confidence based on signals
       const confidence = Math.min(95, 70 + (signals.length * 3));
-      const grade = confidence >= 90 ? 'A' : confidence >= 85 ? 'B+' : 'B';
+      const grade = getLetterGrade(confidence);
       
       // Create the trade idea
       const now = new Date();
@@ -552,7 +619,7 @@ async function generateTradeIdeasFromMomentum(trends: BullishTrend[]): Promise<v
         stopLoss,
         riskRewardRatio,
         catalyst: `Bullish momentum scanner: ${trend.trendPhase?.toUpperCase()} phase with ${trend.momentumScore}/100 momentum score`,
-        analysis: `${trend.name} showing strong bullish momentum. ${trend.trendPhase === 'breakout' ? 'Breaking out with ' + (trend.volumeRatio?.toFixed(1) || 'N/A') + 'x volume.' : 'Sustained uptrend momentum.'} RSI: ${trend.rsi14?.toFixed(0) || 'N/A'}, MACD: ${trend.macdSignal || 'neutral'}. ${trend.isNewHigh ? 'Near 52-week high.' : ''} ${trend.isAboveMAs ? 'Trading above all key moving averages.' : ''}`,
+        analysis: `${trend.name} showing strong bullish momentum. ${trend.trendPhase === 'breakout' ? 'Breaking out with ' + (trend.volumeRatio?.toFixed(1) || 'N/A') + 'x volume.' : 'Sustained uptrend momentum.'} RSI: ${trend.rsi14?.toFixed(0) || 'N/A'}, MACD: ${trend.macdSignal || 'neutral'}. ${trend.isNewHigh ? 'Near 52-week high.' : ''} ${trend.isAboveMAs ? 'Trading above all key moving averages.' : ''}${rs > 3 ? ` Outperforming SPY by ${rs.toFixed(0)}% (relative-strength leader).` : ''}`,
         sessionContext: `Market hours - Bullish trend detected by momentum scanner`,
         timestamp: now.toISOString(),
         entryValidUntil,

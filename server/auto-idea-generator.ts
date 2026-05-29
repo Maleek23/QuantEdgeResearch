@@ -1,5 +1,6 @@
 import { logger } from "./logger";
 import { storage } from "./storage";
+import { getLetterGrade } from "./grading";
 import { generateTradeIdeas, validateTradeRisk } from "./ai-service";
 import { shouldBlockSymbol } from "./earnings-service";
 import { enrichOptionIdea } from "./options-enricher";
@@ -628,7 +629,7 @@ Focus on tickers that closed red today — reversal after -3%+ red day is the hi
           source: 'ai',
           isLottoPlay: isLotto,
           confidenceScore: finalConfidence, // Calibrated from historical win rate + R:R + signals
-          probabilityBand: finalConfidence >= 95 ? 'A+' : finalConfidence >= 90 ? 'A' : finalConfidence >= 85 ? 'A-' : finalConfidence >= 80 ? 'B+' : finalConfidence >= 70 ? 'B' : finalConfidence >= 60 ? 'B-' : 'C',
+          probabilityBand: getLetterGrade(finalConfidence),
           qualitySignals: [...qualitySignals, ...(calibrationRecommendation === 'high_conviction' ? ['High Conviction'] : [])],
         });
         savedIdeas.push(tradeIdea);

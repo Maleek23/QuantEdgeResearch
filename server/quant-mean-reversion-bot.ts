@@ -8,6 +8,7 @@
 
 import { logger } from './logger';
 import { storage } from './storage';
+import { getLetterGrade } from './grading';
 import type { InsertTradeIdea } from '@shared/schema';
 import { 
   shouldAllowSessionEntry, 
@@ -412,7 +413,7 @@ async function executeTrade(signal: RSI2Signal): Promise<boolean> {
       riskRewardRatio: riskRewardRatio, // ATR-based R:R
       confidenceScore: adjustedConfidence, // Use adjusted confidence
       qualitySignals: signal.signals,
-      probabilityBand: adjustedConfidence >= 80 ? 'A' : adjustedConfidence >= 70 ? 'B' : 'C',
+      probabilityBand: getLetterGrade(adjustedConfidence),
       holdingPeriod: 'day',
       catalyst: `RSI(2) Mean Reversion: ${signal.rsi2.toFixed(1)}`,
       analysis: `📊 QUANT MEAN-REVERSION BOT\n\n` +

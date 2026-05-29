@@ -51,7 +51,6 @@ const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
 const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "trade-journal");
-const ChartAnalysis = lazyWithRetry(() => import("@/pages/chart-analysis"), "chart-analysis");
 const StockDetailPage = lazyWithRetry(() => import("@/pages/stock-detail"), "stock-detail");
 // REMOVED — Market page consolidated, redirect to /home
 const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
@@ -73,7 +72,6 @@ const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "pri
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
 const SuccessStories = lazyWithRetry(() => import("@/pages/success-stories"), "success-stories");
 const ChartDatabase = lazyWithRetry(() => import("@/pages/chart-database"), "chart-database");
-const Discovery = lazyWithRetry(() => import("@/pages/discovery"), "discovery");
 const MarketPulse = lazyWithRetry(() => import("@/pages/market-pulse"), "market-pulse");
 const FlowHeatmap = lazyWithRetry(() => import("@/pages/flow-heatmap"), "flow-heatmap");
 const PositionsHeatmap = lazyWithRetry(() => import("@/pages/positions-heatmap"), "positions-heatmap");
@@ -82,8 +80,6 @@ const GexDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-d
 const GexScanner = lazyWithRetry(() => import("@/pages/gex-scanner"), "gex-scanner");
 const Backtest = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
 const ConvictionBacktest = lazyWithRetry(() => import("@/pages/conviction-backtest"), "conviction-backtest");
-const HistoricalIntelligence = lazyWithRetry(() => import("@/pages/historical-intelligence"), "historical-intelligence");
-const WeeklyWatchlist = lazyWithRetry(() => import("@/pages/weekly-watchlist"), "weekly-watchlist");
 const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
 const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 const TradingRules = lazyWithRetry(() => import("@/pages/trading-rules"), "trading-rules");
@@ -118,9 +114,7 @@ const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
 const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"), "design-system-test");
 const MarketOutlook = lazyWithRetry(() => import("@/pages/market-outlook"), "market-outlook");
 const TickerPage = lazyWithRetry(() => import("@/pages/ticker"), "ticker");
-const FlowEdge = lazyWithRetry(() => import("@/pages/flow-edge"), "flow-edge");
 const CommandCenterLegacy = lazyWithRetry(() => import("@/pages/command"), "command-legacy");
-const GeopoliticalMatrix = lazyWithRetry(() => import("@/pages/geopolitical-matrix"), "geopolitical-matrix");
 const OlAlgoPage = lazyWithRetry(() => import("@/pages/olalgo"), "olalgo");
 // Terminal — full-screen Skylit-style dedicated pages
 const TerminalChart = lazyWithRetry(() => import("@/pages/terminal-chart"), "terminal-chart");
@@ -141,7 +135,6 @@ function preloadCriticalRoutes() {
   });
   // Defer heavier pages a bit more
   setTimeout(() => {
-    import("@/pages/smart-money").catch(() => {});
     import("@/pages/stock-detail").catch(() => {});
     import("@/pages/trade-desk").catch(() => {});
   }, 4000);
@@ -264,8 +257,7 @@ function Router() {
       <Route path="/gex-scanner" component={withBetaProtection(GexScanner)} />
       <Route path="/backtest" component={withBetaProtection(Backtest)} />
       <Route path="/conviction-backtest" component={withBetaProtection(ConvictionBacktest)} />
-      <Route path="/historical-intelligence" component={withBetaProtection(HistoricalIntelligence)} />
-      <Route path="/weekly-watchlist" component={withBetaProtection(WeeklyWatchlist)} />
+      <Route path="/weekly-watchlist"><Redirect to="/watchlist" /></Route>
       <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/trade-desk/best-setups" component={withBetaProtection(TradeDeskPage)} />
       <Route path="/trade-journal" component={withBetaProtection(TradeJournalPage)} />
@@ -313,7 +305,6 @@ function Router() {
       <Route path="/history/chat" component={withBetaProtection(HistoryPage)} />
       <Route path="/history/research" component={withBetaProtection(HistoryPage)} />
       <Route path="/history" component={withBetaProtection(HistoryPage)} />
-      <Route path="/backtest"><Redirect to="/performance" /></Route>
       <Route path="/performance" component={withBetaProtection(PerformancePage)} />
       <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />
       <Route path="/data-audit">

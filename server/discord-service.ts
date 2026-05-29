@@ -2,6 +2,7 @@
 import type { TradeIdea } from "@shared/schema";
 import { getSignalLabel } from "@shared/constants";
 import { logger } from './logger';
+import { getLetterGrade as canonicalLetterGrade } from './grading';
 import { isOptionsMarketOpen } from './paper-trading-service';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -165,15 +166,11 @@ function markTradeIdeaSent(
   keysToDelete.forEach(k => sentTradeIdeasCache.delete(k));
 }
 
-// Helper to convert confidence score to letter grade
+// Helper to convert confidence score to letter grade.
+// Delegates to the platform-canonical scale so Discord alerts show the SAME
+// grade the app does (was a divergent 7-step ladder).
 function getLetterGrade(score: number): string {
-  if (score >= 95) return 'A+';
-  if (score >= 90) return 'A';
-  if (score >= 85) return 'B+';
-  if (score >= 80) return 'B';
-  if (score >= 75) return 'C+';
-  if (score >= 70) return 'C';
-  return 'D';
+  return canonicalLetterGrade(score);
 }
 
 // Map portfolio IDs to display names and emojis

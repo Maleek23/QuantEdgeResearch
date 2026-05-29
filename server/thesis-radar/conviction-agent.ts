@@ -33,24 +33,15 @@ import type {
   SignalSource,
   RadarPick,
 } from '@shared/thesis-radar-types';
+import { getLetterGrade } from '@shared/grading';
 import { v4 as uuidv4 } from 'uuid';
 
-// ─── Score-to-grade mapping (extends shared/grade-types with +/-) ──
-
+// ─── Score-to-grade mapping ────────────────────────────────────────
+// Delegates to the platform-canonical table in @shared/grading so every
+// module produces the SAME letter for the same score. ExtendedGrade and
+// grading.GradeLetter are the identical 13-letter union (A+ … F).
 export function scoreToExtendedGrade(score: number): ExtendedGrade {
-  if (score >= 95) return 'A+';
-  if (score >= 90) return 'A';
-  if (score >= 85) return 'A-';
-  if (score >= 80) return 'B+';
-  if (score >= 75) return 'B';
-  if (score >= 70) return 'B-';
-  if (score >= 65) return 'C+';
-  if (score >= 60) return 'C';
-  if (score >= 55) return 'C-';
-  if (score >= 50) return 'D+';
-  if (score >= 45) return 'D';
-  if (score >= 40) return 'D-';
-  return 'F';
+  return getLetterGrade(score) as ExtendedGrade;
 }
 
 export function gradeToScore(grade: ExtendedGrade): number {

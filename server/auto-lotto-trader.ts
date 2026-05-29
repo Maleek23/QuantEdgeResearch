@@ -4851,7 +4851,7 @@ export async function runFuturesBotScan(): Promise<void> {
             riskRewardRatio: 2.0, // 4% target / 2% stop
             confidenceScore: bestFuturesOpp.confidence,
             qualitySignals: bestFuturesOpp.signals,
-            probabilityBand: bestFuturesOpp.confidence >= 80 ? 'A' : 'B',
+            probabilityBand: getLetterGrade(bestFuturesOpp.confidence),
             holdingPeriod: 'day',
             catalyst: `Futures Setup: ${bestFuturesOpp.signals.join(', ')}`,
             analysis: `🔮 FUTURES BOT ANALYSIS\n\n${bestFuturesOpp.contractCode} showing ${bestFuturesOpp.direction.toUpperCase()} momentum.\n\nStructure: ${bestFuturesOpp.signals.join(' | ')}`,

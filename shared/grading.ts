@@ -8,20 +8,24 @@
  * - Signal count is SUPPLEMENTARY information, NOT the grade
  * - All UI should display the stored `probabilityBand`, not recalculate
  * 
- * GRADING SCALE (Standard Academic):
+ * GRADING SCALE (Trade-Conviction — the platform standard):
+ * Calibrated for trade-setup scores, NOT academic tests. A setup scoring 80
+ * is a STRONG setup (B+), not a "barely passing" one. This is the same scale
+ * the active modules already use (thesis-radar, contract-analyzer, intraday,
+ * btc-beta) — now centralized here as the single source of truth.
  * - A+ = 95%+   (Exceptional)
- * - A  = 93-94% (Excellent)
- * - A- = 90-92% (Very strong)
- * - B+ = 87-89% (Strong)
- * - B  = 83-86% (Good)
- * - B- = 80-82% (Above average)
- * - C+ = 77-79% (Average+)
- * - C  = 73-76% (Average)
- * - C- = 70-72% (Passing)
- * - D+ = 67-69% (Below average)
- * - D  = 63-66% (Poor)
- * - D- = 60-62% (Minimal pass)
- * - F  = <60%   (Failing)
+ * - A  = 90-94% (Excellent)
+ * - A- = 85-89% (Very strong)
+ * - B+ = 80-84% (Strong)
+ * - B  = 75-79% (Good)
+ * - B- = 70-74% (Above average — lowest "tradeable")
+ * - C+ = 65-69% (Average+)
+ * - C  = 60-64% (Average)
+ * - C- = 55-59% (Passing)
+ * - D+ = 50-54% (Below average)
+ * - D  = 45-49% (Poor)
+ * - D- = 40-44% (Minimal)
+ * - F  = <40%   (Failing)
  */
 
 export type GradeLetter = 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D+' | 'D' | 'D-' | 'F';
@@ -39,17 +43,17 @@ export interface GradeInfo {
  */
 export const GRADE_THRESHOLDS: { min: number; grade: GradeLetter; description: string; tier: GradeInfo['tier'] }[] = [
   { min: 95, grade: 'A+', description: 'Exceptional', tier: 'elite' },
-  { min: 93, grade: 'A', description: 'Excellent', tier: 'elite' },
-  { min: 90, grade: 'A-', description: 'Very strong', tier: 'strong' },
-  { min: 87, grade: 'B+', description: 'Strong', tier: 'strong' },
-  { min: 83, grade: 'B', description: 'Good', tier: 'strong' },
-  { min: 80, grade: 'B-', description: 'Above average', tier: 'average' },
-  { min: 77, grade: 'C+', description: 'Average+', tier: 'average' },
-  { min: 73, grade: 'C', description: 'Average', tier: 'average' },
-  { min: 70, grade: 'C-', description: 'Passing', tier: 'average' },
-  { min: 67, grade: 'D+', description: 'Below average', tier: 'weak' },
-  { min: 63, grade: 'D', description: 'Poor', tier: 'weak' },
-  { min: 60, grade: 'D-', description: 'Minimal pass', tier: 'weak' },
+  { min: 90, grade: 'A', description: 'Excellent', tier: 'elite' },
+  { min: 85, grade: 'A-', description: 'Very strong', tier: 'strong' },
+  { min: 80, grade: 'B+', description: 'Strong', tier: 'strong' },
+  { min: 75, grade: 'B', description: 'Good', tier: 'strong' },
+  { min: 70, grade: 'B-', description: 'Above average', tier: 'average' },
+  { min: 65, grade: 'C+', description: 'Average+', tier: 'average' },
+  { min: 60, grade: 'C', description: 'Average', tier: 'average' },
+  { min: 55, grade: 'C-', description: 'Passing', tier: 'average' },
+  { min: 50, grade: 'D+', description: 'Below average', tier: 'weak' },
+  { min: 45, grade: 'D', description: 'Poor', tier: 'weak' },
+  { min: 40, grade: 'D-', description: 'Minimal', tier: 'weak' },
   { min: 0, grade: 'F', description: 'Failing', tier: 'failing' },
 ];
 
