@@ -73,6 +73,16 @@ function normalizeIdea(raw: any): TradeIdeaCardData {
     optionType: raw.optionType,
     strikePrice: raw.strikePrice ? Number(raw.strikePrice) : null,
     expiryDate: raw.expiryDate,
+    entryPremium: raw.entryPremium != null ? Number(raw.entryPremium) : null,
+    optionDelta: raw.optionDelta != null ? Number(raw.optionDelta) : null,
+    optionGamma: raw.optionGamma != null ? Number(raw.optionGamma) : null,
+    optionTheta: raw.optionTheta != null ? Number(raw.optionTheta) : null,
+    optionVega: raw.optionVega != null ? Number(raw.optionVega) : null,
+    optionIV: raw.optionIV != null ? Number(raw.optionIV) : null,
+    optionOpenInterest: raw.optionOpenInterest != null ? Number(raw.optionOpenInterest) : null,
+    optionVolume: raw.optionVolume != null ? Number(raw.optionVolume) : null,
+    expiryTier: raw.expiryTier ?? null,
+    optionDte: raw.optionDte != null ? Number(raw.optionDte) : null,
     generatedAt: raw.timestamp,
     sector: raw.sector,
     // Conviction enrichment (now populated server-side via best-setups H1+H7)
@@ -331,19 +341,64 @@ function TableView({
   ideas: TradeIdeaCardData[];
   onClick: (idea: TradeIdeaCardData) => void;
 }) {
+  // Collapse duplicate-ticker rows: group by symbol, keep the leader (already
+  // sorted best-first by sortIdeas), roll the rest into an expandable group.
+  // A ticker can carry several confluent setups — one line proves there are
+  // multiple, the chevron reveals each.
+  const groups = useMemo(() => {
+    const map = new Map<string, TradeIdeaCardData[]>();
+    for (const idea of ideas) {
+      const key = idea.symbol;
+      const bucket = map.get(key);
+      if (bucket) bucket.push(idea);
+      else map.set(key, [idea]);
+    }
+    // Preserve the incoming (sorted) order via the first-seen leader.
+    return Array.from(map.values());
+  }, [ideas]);
+
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (sym: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(sym)) next.delete(sym);
+      else next.add(sym);
+      return next;
+    });
+
   return (
     <div className="rounded-lg border border-foreground/10 bg-foreground/[0.02] overflow-hidden">
       <TradeIdeaRowHeader />
       <div className="divide-y divide-foreground/[0.04]">
-        {ideas.map((idea) => (
-          <TradeIdeaCard
-            key={idea.id ?? `${idea.symbol}-${idea.direction}`}
-            idea={idea}
-            variant="row"
-            onClick={() => onClick(idea)}
-            className="rounded-none border-0 border-b border-foreground/[0.04] last:border-b-0"
-          />
-        ))}
+        {groups.map((bucket) => {
+          const leader = bucket[0];
+          const extra = bucket.length - 1;
+          const isOpen = expanded.has(leader.symbol);
+          return (
+            <div key={leader.symbol}>
+              <TradeIdeaCard
+                idea={leader}
+                variant="row"
+                onClick={() => onClick(leader)}
+                groupCount={extra}
+                expanded={isOpen}
+                onToggleGroup={() => toggle(leader.symbol)}
+                className="rounded-none border-0 border-b border-foreground/[0.04] last:border-b-0"
+              />
+              {isOpen &&
+                bucket.slice(1).map((child) => (
+                  <TradeIdeaCard
+                    key={child.id ?? `${child.symbol}-${child.direction}-${child.entryPrice}`}
+                    idea={child}
+                    variant="row"
+                    onClick={() => onClick(child)}
+                    isChild
+                    className="rounded-none border-0 border-b border-foreground/[0.04] last:border-b-0 bg-foreground/[0.015]"
+                  />
+                ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

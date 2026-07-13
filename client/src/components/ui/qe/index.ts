@@ -22,3 +22,12 @@ export { QEBar, type QEBarProps, type QEBarTone, type QEBarSize, type BarSegment
 export { QESection, type QESectionProps } from './section';
 export { QETabs, type QETabsProps, type QETabItem, type QETabsVariant, type QETabsSize } from './tabs';
 export { QEDrawer, type QEDrawerProps } from './drawer';
+
+// Numeric primitives — every number/percent/price/ticker goes through these.
+export { Num, Pct, Price, Ticker, type NumProps, type PctProps, type PriceProps, type TickerProps, type NumTone, type PriceSize } from './num';
+
+// Layout density (spacing axis) — provider + toggle, writes data-density to <html>.
+export { DensityProvider, useDensity, QEDensityToggle, type LayoutDensity } from './density';
+
+// Premium Glass — the platform design language. Frosted surfaces + cyan + glow.
+export { GlassCard, GlassKpi, GlassSignal, FlowChip, GlassMicroLabel, glassSurface, glassMesh, type GlassSignalProps } from './glass';

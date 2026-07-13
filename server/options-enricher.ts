@@ -1,10 +1,28 @@
 // Options Enrichment Utility
 // Converts AI stock-price-based option ideas into real option trades with Tradier pricing
 
-import { getTradierQuote, getTradierOptionsChainsByDTE } from './tradier-api';
+import { fetchCboeChain } from './contract-analyzer/cboe-chain';
 import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { logger } from './logger';
 import type { AITradeIdea } from './ai-service';
+
+/**
+ * Chain row shape this enricher consumes. Sourced from CBOE delayed quotes
+ * (free, no Tradier dependency) via fetchCboeChain, mapped to the legacy
+ * Tradier-option field names the selection logic below already expects.
+ */
+interface EnricherOption {
+  symbol: string;
+  option_type: 'call' | 'put';
+  strike: number;
+  expiration_date: string;
+  bid: number;
+  ask: number;
+  last: number;
+  volume: number;
+  open_interest: number;
+  greeks?: { delta?: number; gamma?: number; theta?: number; vega?: number; mid_iv?: number };
+}
 
 // US Market Holidays 2025-2026 (options don't expire on holidays)
 const MARKET_HOLIDAYS = new Set([
@@ -57,24 +75,40 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
   try {
     logger.info(`[OPTIONS-ENRICH] Processing ${aiIdea.symbol} ${aiIdea.direction} option from AI...`);
 
-    // 1. Get current stock price
-    const quote = await getTradierQuote(aiIdea.symbol);
-    if (!quote || quote.last <= 0) {
-      logger.warn(`[OPTIONS-ENRICH] Failed to get quote for ${aiIdea.symbol}`);
+    // 1+2. PRIMARY SOURCE — CBOE delayed chain (free, no key, no Tradier dependency).
+    // One fetch returns the live spot + the whole chain (every expiry) with greeks.
+    const cboe = await fetchCboeChain(aiIdea.symbol);
+    if (!cboe || cboe.rawChain.length === 0) {
+      logger.warn(`[OPTIONS-ENRICH] No CBOE options chain available for ${aiIdea.symbol}`);
       return null;
     }
-    
-    const stockPrice = quote.last;
-    logger.info(`[OPTIONS-ENRICH] ${aiIdea.symbol} stock price: $${stockPrice.toFixed(2)}`);
 
-    // 2. Fetch options chain across all expirations (multi-expiration coverage)
-    const optionsChain = await getTradierOptionsChainsByDTE(aiIdea.symbol);
-    if (optionsChain.length === 0) {
-      logger.warn(`[OPTIONS-ENRICH] No options chain available for ${aiIdea.symbol}`);
+    const stockPrice = cboe.spot;
+    if (!(stockPrice > 0)) {
+      logger.warn(`[OPTIONS-ENRICH] No spot from CBOE for ${aiIdea.symbol}`);
       return null;
     }
-    
-    logger.info(`[OPTIONS-ENRICH] Fetched ${optionsChain.length} options across multiple expirations for ${aiIdea.symbol}`);
+    logger.info(`[OPTIONS-ENRICH] ${aiIdea.symbol} stock price (CBOE): $${stockPrice.toFixed(2)}`);
+
+    // Map CBOE rawChain → the legacy Tradier-option field names used below.
+    const optionsChain: EnricherOption[] = cboe.rawChain.map(o => {
+      const bid = Number(o.bid ?? 0);
+      const ask = Number(o.ask ?? 0);
+      return {
+        symbol: o.symbol,
+        option_type: o.option_type as 'call' | 'put',
+        strike: o.strike,
+        expiration_date: o.expiration_date,
+        bid,
+        ask,
+        last: ask > 0 || bid > 0 ? (bid + ask) / 2 : 0,
+        volume: Number(o.volume ?? 0),
+        open_interest: Number(o.open_interest ?? 0),
+        greeks: o.greeks,
+      };
+    });
+
+    logger.info(`[OPTIONS-ENRICH] Fetched ${optionsChain.length} CBOE options across multiple expirations for ${aiIdea.symbol}`);
 
     // 3. Determine option type based on AI's direction
     // Direction 'long' = Call, Direction 'short' = Put
@@ -89,11 +123,16 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
       if (!hasBidAsk) return false; // Skip options without live bid/ask
       
       const midPrice = (opt.bid + opt.ask) / 2;
-      
-      return opt.option_type === optionType && 
+
+      // Liquidity gate: CBOE's delayed feed frequently reports volume 0 even on
+      // liquid strikes, so open interest is the real signal (matches the option
+      // engine's "OI is the gate; early-session volume is often 0" philosophy).
+      const isLiquid = (opt.volume ?? 0) > 0 || (opt.open_interest ?? 0) >= 100;
+
+      return opt.option_type === optionType &&
         midPrice > 0 &&
-        opt.volume > 0 &&
-        opt.expiration_date && 
+        isLiquid &&
+        opt.expiration_date &&
         isValidTradingDay(opt.expiration_date);
     });
 
@@ -125,7 +164,11 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
         }
         return hasDelta;
       })
-      .sort((a, b) => (b.volume || 0) - (a.volume || 0)); // Sort by volume descending
+      // Rank by liquidity: open interest is the reliable signal on the CBOE
+      // delayed feed (volume is often 0), with day volume as a tiebreaker.
+      .sort((a, b) =>
+        ((b.open_interest || 0) - (a.open_interest || 0)) ||
+        ((b.volume || 0) - (a.volume || 0)));
 
     if (goodOptions.length === 0) {
       logger.warn(`[OPTIONS-ENRICH] No options with suitable delta for ${aiIdea.symbol} (0DTE excluded for non-lotto)`);

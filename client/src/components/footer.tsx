@@ -87,15 +87,30 @@ function LiveStatsBar() {
     refetchInterval: 120000,
   });
 
-  const { data: regimeData } = useQuery<{ regime: string; vix: number }>({
+  // VIX + regime come from /api/market-pulse — the single trusted macro source
+  // (the real VIX lives here, e.g. 18.74). /api/market-regime returns nested,
+  // often-placeholder values (vix:20, regime under .current) so the footer used
+  // to read undefined → 0.0. Fall back to market-regime's nested shape only if
+  // pulse is unavailable.
+  const { data: pulseData } = useQuery<{ macro?: { vix?: number; vixState?: string }; regime?: { label?: string } }>({
+    queryKey: ["market-pulse"],
+    queryFn: async () => {
+      const res = await fetch("/api/market-pulse");
+      return res.json();
+    },
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  const { data: regimeData } = useQuery<{ current?: string; indicators?: { vix?: number } }>({
     queryKey: ["/api/market-regime"],
     refetchInterval: 60000,
   });
 
   const activeBots = botStatus?.bots?.filter(b => b.status === "active")?.length || 0;
   const watchlistCount = watchlistData?.length || 0;
-  const regime = regimeData?.regime || "Unknown";
-  const vix = regimeData?.vix || 0;
+  const regime = pulseData?.regime?.label || pulseData?.macro?.vixState || regimeData?.current || "Unknown";
+  const vix = pulseData?.macro?.vix ?? regimeData?.indicators?.vix ?? 0;
 
   const getRegimeColor = (r: string) => {
     const lower = r.toLowerCase();

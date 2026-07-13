@@ -648,6 +648,24 @@ function isMarketCurrentlyOpen(): boolean {
   });
   log('🚩 Bull Flag Scanner scheduled (every 30 min during market hours)');
 
+  // Bear Flag / Breakdown Scanner — short-side mirror of the bull-flag scanner.
+  // Without this, every candidate source emits LONG only, so the convictions
+  // feed skews ~39:1 bullish. Runs every 30 min (offset from bull flag),
+  // auto-ingests B+ grade bearish setups to Trade Desk.
+  cron.default.schedule('10,40 * * * *', async () => {
+    try {
+      if (!isMarketHoursForFlow()) return;
+      const { ingestBearFlagIdeas } = await import('./bear-flag-scanner');
+      const ingested = await ingestBearFlagIdeas();
+      if (ingested > 0) {
+        logger.info(`🐻 [BEAR-FLAG-CRON] Auto-ingested ${ingested} bear flag setups to Trade Desk`);
+      }
+    } catch (error: any) {
+      logger.error('🐻 [BEAR-FLAG-CRON] Failed:', error);
+    }
+  });
+  log('🐻 Bear Flag Scanner scheduled (every 30 min during market hours)');
+
   // GEX History Archiver — saves hourly GEX snapshots for historical browsing.
   // This is what enables "scroll through GEX profiles across dates."
   cron.default.schedule('0 * * * *', async () => {

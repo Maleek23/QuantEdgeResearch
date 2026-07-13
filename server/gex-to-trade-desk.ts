@@ -184,24 +184,6 @@ function buildSignals(snap: GEXSnapshot, workflow: GEXWorkflow): IdeaSignal[] {
   return signals;
 }
 
-// ─── Suggested expiry by workflow ──────────────────────────────
-
-function suggestExpiry(snap: GEXSnapshot, workflow: GEXWorkflow): string | undefined {
-  const now = new Date();
-  const addDays = (d: number) => {
-    const x = new Date(now);
-    x.setDate(x.getDate() + d);
-    return x.toISOString().slice(0, 10);
-  };
-  switch (workflow) {
-    case 'today': return addDays(1);   // next-day expiry
-    case 'swing': return addDays(21);  // ~3 weeks
-    case 'leaps': return addDays(180); // 6 months
-    case 'flip':  return addDays(14);  // 2 weeks for vol expansion
-    default:      return addDays(30);
-  }
-}
-
 // ─── Main: snapshot → idea input ───────────────────────────────
 
 export function snapshotToIdeaInput(
@@ -215,21 +197,23 @@ export function snapshotToIdeaInput(
   const levels = computeLevels(snap, bias);
   const signals = buildSignals(snap, workflow);
   const catalyst = buildCatalyst(snap, workflow, bias);
-  const suggestedExpiry = suggestExpiry(snap, workflow);
 
+  // NOTE: We deliberately do NOT specify optionType/strike/expiry here.
+  // Previously this guessed an ATM strike (round(spot)) and an arbitrary
+  // calendar expiry (today + N days) — a contract that often isn't even
+  // listed. Instead we hand the thesis (direction + levels + horizon) to the
+  // universal pipeline, whose attachOptionContract() runs the canonical
+  // option-selection engine against the REAL CBOE chain and picks the optimal
+  // listed strike/expiry with live greeks + entry premium. Single source of
+  // truth for contract selection — no more guessing.
   return {
     symbol: snap.symbol,
     source: 'quant_signal',          // closest existing IdeaSource for GEX-derived ideas
-    assetType: 'option',             // GEX is options-driven
+    assetType: 'option',             // GEX is options-driven (engine attaches the real contract)
     direction,
     currentPrice: snap.spotPrice,
     targetPrice: levels.target,
     stopLoss: levels.stop,
-    optionType: bias === 'short' ? 'put' : 'call',
-    strikePrice: bias === 'long'
-      ? Math.round(snap.spotPrice)
-      : bias === 'short' ? Math.round(snap.spotPrice) : Math.round(snap.spotPrice),
-    expiryDate: suggestedExpiry,
     signals,
     holdingPeriod: workflow === 'today' ? 'day' : workflow === 'leaps' ? 'position' : 'swing',
     catalyst,

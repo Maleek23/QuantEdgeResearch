@@ -802,10 +802,13 @@ export function startBullishTrendScanner(): void {
   );
   
   setInterval(() => {
-    const now = new Date();
-    const hour = now.getHours();
-    const day = now.getDay();
-    
+    // Evaluate the market-hours guard in ET. Production runs on UTC, so raw
+    // getHours() drifts the window to ~5am–1pm ET and the scanner silently
+    // stops re-scanning for the afternoon session.
+    const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const hour = et.getHours();
+    const day = et.getDay();
+
     if (day >= 1 && day <= 5 && hour >= 9 && hour <= 16) {
       scanBullishTrends().catch(err => 
         logger.error('[BULLISH] Scheduled scan failed', { error: err })

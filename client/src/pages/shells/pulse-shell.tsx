@@ -16,10 +16,11 @@ import { lazy, Suspense } from 'react';
 import { QETabs, type QETabItem, QECard } from '@/components/ui/qe';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
+import { RotationBrief } from '@/components/rotation-brief';
 import { Loader2 } from 'lucide-react';
 import { TodayPicks } from '@/components/today-picks';
 
-const HomePage    = lazy(() => import('@/pages/home'));
+const HomePage    = lazy(() => import('@/pages/home-glass'));
 const MarketPulse = lazy(() => import('@/pages/market-pulse'));
 const RotationMatrix = lazy(() => import('@/components/rotation/rotation-matrix').then(m => ({ default: m.RotationMatrix })));
 const EarningsTabs = lazy(() => import('@/components/earnings/earnings-tabs').then(m => ({ default: m.EarningsTabs })));
@@ -31,8 +32,6 @@ const TABS: readonly QETabItem<Tab>[] = [
   { id: 'pulse',     label: 'Pulse',     hint: 'Live market tape — indices, breadth, fear/greed, sectors' },
   { id: 'rotation',  label: 'Rotation',  hint: '18-layer cycle map — early/mid/late stages across the AI buildout' },
   { id: 'earnings',  label: 'Earnings',  hint: 'Auto-scanned earnings lottos with IV / beat history / ROI scenarios' },
-  { id: 'changed',   label: 'Changed',   hint: 'What just shifted — gamma flips, wall breaks, OI builds', disabled: true },
-  { id: 'macro',     label: 'Macro',     hint: 'Fed · DXY · yields · geopolitical signals', disabled: true },
 ];
 
 const VALID_TABS = TABS.map(t => t.id);
@@ -53,6 +52,8 @@ export default function HomeShell() {
           Dashboard, market tape, rotation, earnings, what changed.
         </p>
       </header>
+
+      <RotationBrief />
 
       <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
 

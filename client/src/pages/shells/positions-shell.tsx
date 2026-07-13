@@ -14,11 +14,7 @@ const PositionsHeatmap = lazy(() => import('@/pages/positions-heatmap'));
 type Tab = 'open' | 'heatmap' | 'alerts' | 'exits' | 'closed';
 
 const TABS: readonly QETabItem<Tab>[] = [
-  { id: 'open',    label: 'Open',     hint: 'Active positions table with live P&L (next sprint)', disabled: true },
   { id: 'heatmap', label: 'Heat Map', hint: 'Visual P&L treemap of open book' },
-  { id: 'alerts',  label: 'Alerts',   hint: 'T1 hit, theta critical, stop hit (next sprint)', disabled: true },
-  { id: 'exits',   label: 'Trim/Exit', hint: 'Recommended actions (next sprint)', disabled: true },
-  { id: 'closed',  label: 'Closed',   hint: 'Last 90d closed trades (next sprint)', disabled: true },
 ];
 
 const VALID_TABS = TABS.map(t => t.id);

@@ -213,8 +213,10 @@ export function computeExposures(
     const vol = opt.volume || 0;
     if (oi === 0 && vol === 0) continue;
 
-    // Filter to meaningful strikes (within 25% of spot)
-    if (opt.strike < spotPrice * 0.75 || opt.strike > spotPrice * 1.25) continue;
+    // Filter to meaningful strikes (within 40% of spot). Widened from 25% so
+    // far-OTM strikes (the cheap lottery wings) are available to scroll/expand
+    // in the matrix — the frontend already decides what to show vs collapse.
+    if (opt.strike < spotPrice * 0.6 || opt.strike > spotPrice * 1.4) continue;
 
     const isCall = opt.optionType === 'call';
     const iv = opt.impliedVolatility > 0 ? opt.impliedVolatility : 0.30; // fallback IV

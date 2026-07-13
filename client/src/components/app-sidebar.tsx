@@ -32,13 +32,9 @@ import {
   Settings,
   Star,
   Bell,
-  Sparkles,
   Zap,
   Target,
-  Bitcoin,
   HelpCircle,
-  Terminal,
-  TrendingUp,
 } from "lucide-react";
 import { WhatsNewBell } from "@/components/whats-new";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
@@ -114,6 +110,7 @@ const PRIMARY: NavItem[] = [
 ];
 
 // ─── AUTONOMOUS RADARS (new discovery destinations) ─────────────────
+// Note: BTC, Movers and Analyze now live as tabs inside Hunt/Research.
 const RADARS: NavItem[] = [
   {
     id: "radar",
@@ -122,30 +119,6 @@ const RADARS: NavItem[] = [
     href: "/radar",
     match: ["/radar"],
     hint: "Autonomous setup discovery — 6 patterns, 5 scans/day",
-  },
-  {
-    id: "btc-radar",
-    title: "BTC Radar",
-    icon: Bitcoin,
-    href: "/btc",
-    match: ["/btc"],
-    hint: "Live BTC beta tracker — MSTR, COIN, MARA, RIOT, CRCL, more",
-  },
-  {
-    id: "analyze",
-    title: "Analyze Contract",
-    icon: Terminal,
-    href: "/analyze",
-    match: ["/analyze"],
-    hint: "Bullflow-style A+/B+ graded analysis on any contract",
-  },
-  {
-    id: "movers",
-    title: "PM/AH Movers",
-    icon: TrendingUp,
-    href: "/movers",
-    match: ["/movers"],
-    hint: "Pre-market + after-hours + overnight gappers, futures, crypto",
   },
 ];
 
@@ -239,28 +212,6 @@ export function AppSidebar() {
               {RADARS.map(item => (
                 <NavRow key={item.id} item={item} active={isActive(item, location)} />
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* EDGE AI launcher — placeholder, wires up next sprint */}
-        <SidebarGroup className="py-0">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Edge AI — ask the platform"
-                  className="gap-2.5 px-2.5 py-2 rounded-md text-[13px] border border-dashed border-[var(--brand-gold)]/30 text-[var(--brand-gold)]/80 hover:text-[var(--brand-gold)] hover:bg-[var(--brand-gold)]/5"
-                  data-testid="nav-edge-ai"
-                  onClick={() => { /* TODO: open Edge drawer */ }}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span className="truncate font-mono uppercase tracking-wider text-[11px]">Edge AI</span>
-                  <span className="ml-auto text-[8px] font-mono text-sidebar-foreground/25 group-data-[collapsible=icon]:hidden">
-                    soon
-                  </span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

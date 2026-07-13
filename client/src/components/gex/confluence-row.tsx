@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ExternalLink, Plus, Check, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiRequest } from '@/lib/queryClient';
 import { componentStyles } from '@/lib/design-tokens';
 import type { ConfluenceRow as ConfluenceRowData } from '../../../../shared/gex-types';
 
@@ -29,14 +30,13 @@ export function ConfluenceRow({ row, rank, workflow }: ConfluenceRowProps) {
     if (sendState === 'sending' || sendState === 'sent') return;
     setSendState('sending');
     try {
-      const res = await fetch('/api/trade-desk/ideas/from-gex', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: row.symbol, workflow: workflow ?? 'all' }),
+      // apiRequest attaches the x-csrf-token header (raw fetch was 403'ing).
+      const res = await apiRequest('POST', '/api/trade-desk/ideas/from-gex', {
+        symbol: row.symbol,
+        workflow: workflow ?? 'all',
       });
       const body = await res.json().catch(() => ({}));
-      if (res.ok && body.ok) {
+      if (body.ok) {
         setSendState('sent');
         if (navigateAfter) setTimeout(() => setLocation('/trade-desk'), 600);
         else setTimeout(() => setSendState('idle'), 2200);

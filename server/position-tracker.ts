@@ -293,7 +293,7 @@ class PositionTracker {
         });
 
         // Update in storage
-        await storage.updateTradeIdeaOutcome(position.tradeIdeaId, {
+        await storage.updateTradeIdea(position.tradeIdeaId, {
           outcomeStatus: 'won',
           exitPrice: currentPrice,
           percentGain
@@ -309,7 +309,7 @@ class PositionTracker {
         });
 
         // Update in storage
-        await storage.updateTradeIdeaOutcome(position.tradeIdeaId, {
+        await storage.updateTradeIdea(position.tradeIdeaId, {
           outcomeStatus: 'hit_stop',
           exitPrice: currentPrice,
           percentGain

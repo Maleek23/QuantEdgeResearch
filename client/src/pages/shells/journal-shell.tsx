@@ -20,7 +20,6 @@ const TABS: readonly QETabItem<Tab>[] = [
   { id: 'log',      label: 'Trade Log', hint: 'Every trade you took' },
   { id: 'metrics',  label: 'Metrics',   hint: 'Win rate, avg R, by setup type' },
   { id: 'backtest', label: 'Backtest',  hint: 'Run strategies on historicals' },
-  { id: 'mistakes', label: 'Mistakes',  hint: 'Auto-tagged loss patterns (next sprint)', disabled: true },
   { id: 'academy',  label: 'Academy',   hint: 'Learning content' },
 ];
 

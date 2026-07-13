@@ -1,9 +1,9 @@
 import { storage } from "./storage";
 import { PerformanceValidator } from "./performance-validator";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
-import { getOptionQuote } from "./tradier-api";
+import { fetchCboeChain, findContractMid, type CboeChain } from "./contract-analyzer/cboe-chain";
 import { analyzeLoss } from "./loss-analyzer";
-import { sendGainsToDiscord } from "./discord-service";
+import { backfillContractlessIdeas } from "./universal-idea-generator";
 import type { TradeIdea, InsertTradePriceSnapshot, PriceSnapshotEventType } from "@shared/schema";
 
 /**
@@ -42,10 +42,20 @@ class PerformanceValidationService {
       );
     }
 
+    // Retry contract attachment for any option-intent ideas that saved as stock
+    // (CBOE chain unavailable at creation). Runs on startup + each cycle so the
+    // "save-as-stock, retry later" fallback actually self-heals into real contracts.
+    backfillContractlessIdeas().catch(err =>
+      console.error('❌ Initial contract backfill failed:', err)
+    );
+
     // Then run periodically
     this.intervalId = setInterval(() => {
-      this.validateAllOpenTrades().catch(err => 
+      this.validateAllOpenTrades().catch(err =>
         console.error('❌ Performance validation failed:', err)
+      );
+      backfillContractlessIdeas().catch(err =>
+        console.error('❌ Contract backfill failed:', err)
       );
     }, this.validationIntervalMs);
 
@@ -184,6 +194,31 @@ class PerformanceValidationService {
       // Update database for ideas that need updating
       for (const [ideaId, result] of Array.from(validationResults.entries())) {
         if (result.shouldUpdate) {
+          const ideaForResult = openIdeas.find(i => i.id === ideaId);
+
+          // 💵 REAL OPTION P&L: when an option idea resolves, capture the exit
+          // premium (current contract mid) and compute the actual contract
+          // return off the entry premium. This is what the trader's contract
+          // really did — independent of the stock-level percentGain above.
+          // Never fabricate: only set these when we have BOTH premiums.
+          let exitPremium: number | null = null;
+          let optionPercentGain: number | null = null;
+          if (
+            ideaForResult?.assetType === 'option' &&
+            result.outcomeStatus && result.outcomeStatus !== 'open' &&
+            typeof ideaForResult.entryPremium === 'number' && ideaForResult.entryPremium > 0
+          ) {
+            const livePremium = priceMap.get(`option_${ideaId}`);
+            if (typeof livePremium === 'number' && livePremium >= 0) {
+              exitPremium = Math.round(livePremium * 100) / 100;
+              const rawPct = ((exitPremium - ideaForResult.entryPremium) / ideaForResult.entryPremium) * 100;
+              // direction='short' means the contract was SOLD → profit when premium falls.
+              const signed = ideaForResult.direction === 'short' ? -rawPct : rawPct;
+              optionPercentGain = Math.round(signed * 100) / 100;
+              console.log(`  💵 ${ideaForResult.symbol} option P&L: entry $${ideaForResult.entryPremium} → exit $${exitPremium} = ${optionPercentGain >= 0 ? '+' : ''}${optionPercentGain}%`);
+            }
+          }
+
           await storage.updateTradeIdeaPerformance(ideaId, {
             outcomeStatus: result.outcomeStatus,
             exitPrice: result.exitPrice,
@@ -198,6 +233,9 @@ class PerformanceValidationService {
             // 🎓 EDUCATIONAL: Track what would have happened for missed entries
             missedEntryTheoreticalOutcome: result.missedEntryTheoreticalOutcome,
             missedEntryTheoreticalGain: result.missedEntryTheoreticalGain,
+            // 💵 Real option contract P&L (option ideas only)
+            exitPremium: exitPremium ?? undefined,
+            optionPercentGain: optionPercentGain ?? undefined,
           });
 
           validated++;
@@ -325,42 +363,46 @@ class PerformanceValidationService {
       price: await this.fetchWithRetry(symbol, 'crypto'),
     }));
     
-    // Fetch option prices from Tradier
-    const optionPromises = optionIdeas.map(async (idea) => {
-      try {
-        const quote = await getOptionQuote({
-          underlying: idea.symbol,
-          expiryDate: idea.expiryDate!,
-          optionType: idea.optionType as 'call' | 'put',
-          strike: idea.strikePrice!,
-        });
-        
-        // Use mid price for fair value (average of bid/ask)
-        const price = quote ? (quote.mid > 0 ? quote.mid : quote.last) : null;
-        
-        return {
-          // Use unique key for each option contract
-          symbol: `${idea.symbol}_${idea.expiryDate}_${idea.optionType}_${idea.strikePrice}`,
-          ideaId: idea.id,
-          type: 'option' as const,
-          price,
-        };
-      } catch {
-        return {
-          symbol: idea.symbol,
-          ideaId: idea.id,
-          type: 'option' as const,
-          price: null,
-        };
-      }
+    // OPTIONS — single source of truth: fetch the CBOE chain ONCE per unique
+    // underlying. One call gives us BOTH the underlying spot (for resolving the
+    // stock-level target/stop) AND the contract mid premium (for real option
+    // P&L). This replaces the dead Tradier path.
+    const optionUnderlyings = Array.from(
+      new Set(optionIdeas.map(i => i.symbol.toUpperCase()))
+    );
+    const chainPromises = optionUnderlyings.map(async (sym) => {
+      const chain = await fetchCboeChain(sym).catch(() => null);
+      return { sym, chain };
     });
 
     // Execute all price fetches concurrently
-    const [stockResults, cryptoResults, optionResults] = await Promise.all([
+    const [stockResults, cryptoResults, chainResults] = await Promise.all([
       Promise.all(stockPromises),
       Promise.all(cryptoPromises),
-      Promise.all(optionPromises),
+      Promise.all(chainPromises),
     ]);
+
+    // Index fetched chains by underlying so we can derive spot + premium per idea
+    const chainBySymbol = new Map<string, CboeChain>();
+    for (const { sym, chain } of chainResults) {
+      if (chain) chainBySymbol.set(sym, chain);
+    }
+
+    // Derive per-idea results: spot keyed by symbol (for stock-level
+    // target/stop resolution) + premium keyed by option_<id> (for P&L).
+    const optionResults = optionIdeas.map((idea) => {
+      const chain = chainBySymbol.get(idea.symbol.toUpperCase());
+      if (!chain) {
+        return { symbol: idea.symbol, ideaId: idea.id, spot: null, premium: null };
+      }
+      const premium = findContractMid(
+        chain,
+        idea.optionType as 'call' | 'put',
+        idea.strikePrice!,
+        idea.expiryDate!,
+      );
+      return { symbol: idea.symbol, ideaId: idea.id, spot: chain.spot, premium };
+    });
 
     // Collect results and track success/failure
     let stockSuccess = 0;
@@ -388,10 +430,16 @@ class PerformanceValidationService {
       }
     }
     
-    // For options, store by idea ID since symbols aren't unique
+    // Options: store the underlying SPOT under the symbol key (used to resolve
+    // the stock-level target/stop), and the contract PREMIUM under option_<id>
+    // (used to compute real option P&L). An idea counts as "fetched" only when
+    // we got its premium — that's what the P&L tracker needs.
     for (const result of optionResults) {
-      if (result.price !== null && result.ideaId) {
-        priceMap.set(`option_${result.ideaId}`, result.price);
+      if (result.spot !== null && !priceMap.has(result.symbol)) {
+        priceMap.set(result.symbol, result.spot);
+      }
+      if (result.premium !== null && result.ideaId) {
+        priceMap.set(`option_${result.ideaId}`, result.premium);
         optionSuccess++;
       } else {
         optionFailed++;

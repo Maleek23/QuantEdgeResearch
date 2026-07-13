@@ -60,6 +60,27 @@ interface ContractAnalysis {
     horizonDays: number;
   };
   roiScenarios: { stockPrice: number; contractValue: number; roi: number; pct: number }[];
+  suggestions?: SuggestedContract[];
+  suggestionNote?: string;
+}
+
+interface SuggestedContract {
+  tier: 'conservative' | 'balanced' | 'aggressive';
+  optionType: 'call' | 'put';
+  strike: number;
+  expiry: string;
+  dte: number;
+  delta: number;
+  entryPremium: number;
+  roiAtT1Pct: number;
+  roiAtT2Pct?: number;
+  riskRewardRatio: number;
+  breakeven: number;
+  scaleReachable: boolean;
+  score: number;
+  grade: 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
+  rationale: string;
+  flags: string[];
 }
 
 interface ContractAnalyzerProps {
@@ -280,6 +301,37 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
             </details>
           )}
 
+          {/* Engine-picked stronger contracts (only when graded below B-) */}
+          {analysis.suggestions && analysis.suggestions.length > 0 && (
+            <div className="pt-3 border-t border-border/30 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--brand-cyan)]">
+                  Oracle Upgrade
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground/70">
+                  {analysis.suggestionNote ?? 'Stronger contracts for the same thesis'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {analysis.suggestions.map((s, i) => (
+                  <SuggestionCard
+                    key={i}
+                    s={s}
+                    symbol={analysis.spec.symbol}
+                    onReanalyze={(inp) => { setInput(inp); analyze(inp); }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {analysis.suggestions && analysis.suggestions.length === 0 && analysis.suggestionNote && (
+            <div className="pt-3 border-t border-border/30">
+              <div className="text-[10px] font-mono text-muted-foreground/60">
+                {'> '}{analysis.suggestionNote}
+              </div>
+            </div>
+          )}
+
           {/* Push to Trade Desk */}
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/30">
             {pushResult && (
@@ -304,14 +356,80 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
 
 function GradePill({ grade, large }: { grade: string; large?: boolean }) {
   const color =
+    grade.startsWith('S') ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30' :
     grade.startsWith('A') ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30' :
-    grade.startsWith('B') ? 'bg-blue-500/15 text-blue-500 border-blue-500/30' :
+    grade.startsWith('B') ? 'bg-[var(--brand-cyan)]/15 text-[var(--brand-cyan)] border-[var(--brand-cyan)]/30' :
     grade.startsWith('C') ? 'bg-amber-500/15 text-amber-500 border-amber-500/30' :
     'bg-rose-500/15 text-rose-500 border-rose-500/30';
   return (
     <div className={`font-mono font-bold border rounded ${color} ${large ? 'text-[14px] px-3 py-1 min-w-[44px]' : 'text-[10px] px-1.5 py-0.5 min-w-[28px]'} text-center`}>
       {grade}
     </div>
+  );
+}
+
+// Tier accent colors mirror the Oracle Option Pick card.
+const TIER_STYLE: Record<SuggestedContract['tier'], { accent: string; border: string; bg: string; label: string }> = {
+  conservative: { accent: 'text-emerald-500', border: 'border-emerald-500/40', bg: 'bg-emerald-500/5', label: 'Conservative' },
+  balanced:     { accent: 'text-[var(--brand-cyan)]', border: 'border-[var(--brand-cyan)]/40', bg: 'bg-[var(--brand-cyan)]/5', label: 'Balanced' },
+  aggressive:   { accent: 'text-amber-500', border: 'border-amber-500/40', bg: 'bg-amber-500/5', label: 'Aggressive' },
+};
+
+function fmtExpiry(iso: string): string {
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function SuggestionCard({ s, symbol, onReanalyze }: {
+  s: SuggestedContract;
+  symbol: string;
+  onReanalyze: (input: string) => void;
+}) {
+  const t = TIER_STYLE[s.tier];
+  const cp = s.optionType === 'call' ? 'C' : 'P';
+  const reanalyzeInput = `${symbol} ${s.strike}${cp} ${fmtExpiry(s.expiry)}`;
+  return (
+    <button
+      onClick={() => onReanalyze(reanalyzeInput)}
+      title="Click to analyze this contract"
+      className={`text-left w-full rounded-md border ${t.border} ${t.bg} p-2.5 hover:brightness-110 transition`}
+    >
+      {/* Tier + grade row */}
+      <div className="flex items-center justify-between mb-1.5">
+        <span className={`text-[9px] font-mono uppercase tracking-wider ${t.accent}`}>{t.label}</span>
+        <GradePill grade={s.grade} />
+      </div>
+      {/* Strike · expiry · DTE · delta */}
+      <div className="text-[13px] font-mono font-bold text-foreground">
+        ${s.strike}{cp}
+      </div>
+      <div className="text-[9px] font-mono text-muted-foreground/70 mb-2">
+        {fmtExpiry(s.expiry)} · {s.dte}DTE · Δ{s.delta.toFixed(2)} · ${s.entryPremium.toFixed(2)}
+      </div>
+      {/* Metrics grid */}
+      <div className="grid grid-cols-3 gap-1.5 text-[9px] font-mono">
+        <div>
+          <div className="text-muted-foreground/50 uppercase text-[8px]">ROI@T1</div>
+          <div className={`font-bold ${s.roiAtT1Pct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {s.roiAtT1Pct >= 0 ? '+' : ''}{s.roiAtT1Pct.toFixed(0)}%
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground/50 uppercase text-[8px]">R:R</div>
+          <div className="font-bold text-foreground">{s.riskRewardRatio.toFixed(1)}x</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground/50 uppercase text-[8px]">BE</div>
+          <div className="font-bold text-foreground">${s.breakeven.toFixed(2)}</div>
+        </div>
+      </div>
+      {s.rationale && (
+        <div className="mt-1.5 text-[9px] font-mono text-muted-foreground/60 leading-snug line-clamp-2">
+          {s.rationale}
+        </div>
+      )}
+    </button>
   );
 }
 

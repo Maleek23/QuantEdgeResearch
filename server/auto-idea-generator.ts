@@ -7,6 +7,7 @@ import { enrichOptionIdea } from "./options-enricher";
 import { validateTradeWithChart } from "./chart-analysis";
 import { getMarketContext, getTradingSession, type TradingSession } from "./market-context-service";
 import { recordSymbolAttention } from "./attention-tracking-service";
+import { isApprovedTicker } from "@shared/approved-tickers";
 
 // Penny stock tickers to emphasize during evening "Tomorrow's Playbook" sessions
 const PENNY_STOCK_TICKERS = [
@@ -53,6 +54,32 @@ const SECONDARY_MOVERS = [
   'IONQ', 'RGTI', 'CRWD', 'ZS', 'ASTS', 'RKLB',
   'RIOT', 'MSTR', 'ALGM', 'COHR',
 ];
+
+// ═══════════════════════════════════════════════════════════════
+// ROTATION CANDIDATE POOL — liquid, optionable names per rotation ETF.
+// Lets the generator "follow the money": when the live rotation brief shows
+// money flowing INTO a sector, we surface that sector's leaders into the
+// candidate set so Hunt stops being a chips-only board. Keyed by the ETF the
+// sector-rotation engine reports (XLV health, IGV software, XLF fin, etc.).
+// ═══════════════════════════════════════════════════════════════
+const ROTATION_POOL: Record<string, string[]> = {
+  XLV:  ['LLY', 'UNH', 'NVO', 'MRK', 'ABBV', 'CVS', 'ISRG', 'AMGN', 'GILD', 'ELV', 'HCA', 'MDT'],
+  XBI:  ['VRTX', 'REGN', 'MRNA', 'GILD', 'AMGN'],
+  IGV:  ['MSFT', 'NOW', 'CRM', 'SNOW', 'PANW', 'CRWD', 'ADBE', 'DDOG', 'NET', 'ORCL'],
+  XLK:  ['MSFT', 'AAPL', 'AVGO', 'ORCL', 'CRM', 'NOW', 'AMD', 'QCOM'],
+  XLF:  ['JPM', 'GS', 'BAC', 'MS', 'SCHW', 'COIN', 'SOFI', 'AFRM'],
+  XLE:  ['XOM', 'CVX', 'COP', 'SLB', 'OXY', 'MARA'],
+  XLI:  ['CAT', 'GE', 'BA', 'HON', 'UBER', 'DE'],
+  XLY:  ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'RIVN'],
+  ITA:  ['LMT', 'RTX', 'NOC', 'GD', 'KTOS'],
+  SMH:  ['NVDA', 'AMD', 'AVGO', 'MU', 'ARM', 'MRVL', 'KLAC', 'LRCX'],
+};
+
+const ROTATION_ETF_LABEL: Record<string, string> = {
+  XLV: 'Healthcare', XBI: 'Biotech', IGV: 'Software', XLK: 'Tech',
+  XLF: 'Financials', XLE: 'Energy', XLI: 'Industrials', XLY: 'Cons Disc',
+  ITA: 'Defense', SMH: 'Semis',
+};
 
 // SKIP LIST — lose money on strategy, NEVER suggest these
 const SKIP_TICKERS = new Set([
@@ -293,11 +320,43 @@ class AutoIdeaGenerator {
       const secondaryMovers = SECONDARY_MOVERS.join(', ');
       const skipList = [...SKIP_TICKERS].join(', ');
 
-      let marketContext = `WATCHLIST-FOCUSED TRADING — Generate ideas ONLY from approved tickers.
+      // 💰 FOLLOW THE MONEY — pull the live rotation brief and surface names
+      // from the sector(s) money is flowing INTO. This is what stops Hunt from
+      // being a chips-only board on a healthcare/defensive rotation day.
+      let rotationSection = '';
+      let rotationLeaderTickers: string[] = [];
+      try {
+        const { getSectorRotation } = await import('./sector-rotation');
+        const brief = await getSectorRotation();
+        const inflowLeaders = brief.leaders.filter(l => l.state === 'INFLOW').slice(0, 2);
+        const outflowLaggards = brief.laggards.filter(l => l.state === 'OUTFLOW').slice(0, 2);
+        if (inflowLeaders.length > 0) {
+          const lines: string[] = [];
+          for (const lead of inflowLeaders) {
+            const pool = (ROTATION_POOL[lead.etf] || []).filter(t => !SKIP_TICKERS.has(t) && isApprovedTicker(t));
+            if (!pool.length) continue;
+            rotationLeaderTickers.push(...pool);
+            const label = ROTATION_ETF_LABEL[lead.etf] || lead.name;
+            lines.push(`  • ${label} ${lead.change >= 0 ? '+' : ''}${lead.change.toFixed(1)}% (${lead.relChange >= 0 ? '+' : ''}${lead.relChange.toFixed(1)}% vs SPY): ${pool.slice(0, 8).join(', ')}`);
+          }
+          if (lines.length) {
+            const sessionNote = brief.isStale ? ` [as of ${brief.sessionLabel}]` : '';
+            const outNote = outflowLaggards.length
+              ? `\n⚠️ Money is LEAVING ${outflowLaggards.map(l => `${ROTATION_ETF_LABEL[l.etf] || l.name} ${l.change.toFixed(1)}%`).join(' · ')} — do NOT force longs there even if the chart looks clean.`
+              : '';
+            rotationSection = `\n💰 MONEY-FLOW LEADERS${sessionNote} (pick 1-2 longs from the sector(s) money is rotating INTO — these OVERRIDE the chips-only default):
+${lines.join('\n')}${outNote}\n`;
+          }
+        }
+      } catch (e) {
+        logger.warn('[AUTO-GEN] rotation context unavailable:', e);
+      }
 
-🔒 RULE: You MUST pick ALL ideas from these two lists. DO NOT suggest random tickers.
+      let marketContext = `WATCHLIST-FOCUSED TRADING — Generate ideas from the approved lists below.
+
+🔒 RULE: Pick ideas from the lists below (S-TIER, A-TIER, SECONDARY, MONEY-FLOW LEADERS, INDEX). DO NOT suggest random tickers.
 🚫 NEVER suggest these (lose money): ${skipList}
-
+${rotationSection}
 ⭐ S-TIER (pick 2-3 from here FIRST — highest conviction, best backtested results):
 ${watchlistSTier}
 These are semi equipment, optics, fintech, space — they move 3-20% daily with proven options setups.

@@ -4,7 +4,6 @@
  */
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import html2canvas from "html2canvas";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { Link, useLocation } from "wouter";
@@ -109,14 +108,15 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { TradeIdea, ConvergenceAnalysis } from "@shared/schema";
 import { getGradeStyle } from "@shared/grading";
-import BrokerImport from "@/components/broker-import";
 import { IndexLottoScanner } from "@/components/index-lotto-scanner";
 import { DeepAnalysisPanel } from "@/components/deep-analysis-panel";
 import { TradeIdeaDetailV2 } from "@/components/trade-idea-detail-v2";
 import { TradePerformanceStats } from "@/components/trade-performance-stats";
 import { TradeIdeasPanel } from "@/components/trade-desk/trade-ideas-panel";
+import { FlowImport } from "@/components/trade-desk/flow-import";
 import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
 import { DiscoveryPicksPanel } from "@/components/trade-desk/DiscoveryPicksPanel";
+import { GexBigGainers } from "@/components/gex-big-gainers";
 import { SignalCard } from "@/components/signal-card";
 import { predictionToSignal, setupToSignal } from "@/components/trade-desk/idea-to-signal";
 
@@ -2841,6 +2841,7 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
   const downloadCard = async () => {
     if (!cardRef.current) return;
     try {
+      const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: '#0a0a0a',
         scale: 2,
@@ -2862,19 +2863,44 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
   // Discord share mutation - uses apiRequest for CSRF token
   const shareToDiscord = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest('POST', `/api/trade-ideas/${idea.id}/share-discord`);
+      // Render the visual trade card to a PNG and upload it so Discord shows the
+      // designed card (inline image), not just a text embed.
+      if (!cardRef.current) throw new Error('Card not ready');
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#0a0a0a',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('Could not render card image');
+
+      const optionSuffix = isOption ? `_${idea.optionType?.toUpperCase()}_${idea.strikePrice}` : '';
+      const form = new FormData();
+      form.append('card', blob, `${idea.symbol}${optionSuffix}_${idea.direction}_card.png`);
+
+      const res = await fetch(`/api/trade-ideas/${idea.id}/share-discord-card`, {
+        method: 'POST',
+        body: form,
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Share failed (${res.status})`);
+      }
       return res.json();
     },
     onSuccess: () => {
       toast({
-        title: "Sent to Discord",
-        description: `${idea.symbol} shared to AI Quant Options channel`,
+        title: "Card sent to Discord",
+        description: `${idea.symbol} trade card posted to your channel`,
       });
     },
-    onError: () => {
+    onError: (e: any) => {
       toast({
         title: "Failed to send",
-        description: "Could not share to Discord.",
+        description: e?.message || "Could not share card to Discord.",
         variant: "destructive",
       });
     },
@@ -3024,17 +3050,51 @@ function TradeIdeaCard({ idea, expanded, onToggle, onViewDetails }: {
         <div className="border-t border-border/50 p-4 space-y-3 bg-gray-50 dark:bg-card/40">
           {/* Options Details */}
           {isOption && (idea.strikePrice || idea.expiryDate) && (
-            <div className="flex items-center gap-4 p-2 bg-gray-100 dark:bg-muted/30 rounded-lg text-xs">
-              <div className="flex items-center gap-1">
-                <Target className="w-3 h-3 text-muted-foreground" />
-                <span className="text-muted-foreground">Strike:</span>
-                <span className="font-mono text-foreground">${safeToFixed(idea.strikePrice, 2, '—')}</span>
+            <div className="p-2 bg-gray-100 dark:bg-muted/30 rounded-lg text-xs space-y-2">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-1">
+                  <Target className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">Contract:</span>
+                  <span className="font-mono font-semibold text-foreground">
+                    ${safeToFixed(idea.strikePrice, 0, '—')}{idea.optionType === 'call' ? 'C' : idea.optionType === 'put' ? 'P' : ''}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">Exp:</span>
+                  <span className="font-mono text-foreground">{idea.expiryDate || '—'}</span>
+                </div>
+                {idea.tradeType && (
+                  <span className={`font-mono uppercase text-[9px] px-1.5 py-0.5 rounded border ${
+                    idea.isLottoPlay
+                      ? 'text-amber-500 border-amber-500/40 bg-amber-500/10'
+                      : 'text-cyan-500 border-cyan-500/40 bg-cyan-500/10'
+                  }`}>
+                    {idea.tradeType}
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-muted-foreground" />
-                <span className="text-muted-foreground">Exp:</span>
-                <span className="font-mono text-foreground">{idea.expiryDate || '—'}</span>
-              </div>
+              {/* Greeks — present when the option engine attached a real contract */}
+              {(idea.optionDelta != null || idea.optionIV != null) && (
+                <div className="grid grid-cols-4 gap-2 pt-1 border-t border-border/30 font-mono">
+                  <div>
+                    <div className="text-[8px] uppercase text-muted-foreground/60">Delta</div>
+                    <div className="text-foreground">{safeToFixed(idea.optionDelta, 2, '—')}</div>
+                  </div>
+                  <div>
+                    <div className="text-[8px] uppercase text-muted-foreground/60">Theta/d</div>
+                    <div className="text-foreground">{idea.optionTheta != null ? `-$${Math.abs(idea.optionTheta).toFixed(3)}` : '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[8px] uppercase text-muted-foreground/60">IV</div>
+                    <div className="text-foreground">{idea.optionIV != null ? `${Math.round(idea.optionIV)}%` : '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[8px] uppercase text-muted-foreground/60">Gamma</div>
+                    <div className="text-foreground">{safeToFixed(idea.optionGamma, 3, '—')}</div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -3875,27 +3935,17 @@ export default function TradeDeskRedesigned() {
   // ============================================
   const [showInitialLoader, setShowInitialLoader] = useState(true);
 
+  // Brief branded entry animation — but NEVER block the page on slow data.
+  // After this short window the desk renders and each panel shows its own
+  // loading state (best-setups can take 14–33s; we don't make the page wait).
   useEffect(() => {
-    // Minimum 500ms loading animation for smooth entry
-    const minLoadTime = setTimeout(() => {
-      if (!isLoading) {
-        setShowInitialLoader(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(minLoadTime);
+    const t = setTimeout(() => setShowInitialLoader(false), 600);
+    return () => clearTimeout(t);
   }, []);
 
-  // When data finishes loading after min time, hide loader
-  useEffect(() => {
-    if (!isLoading && showInitialLoader) {
-      const timer = setTimeout(() => setShowInitialLoader(false), 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, showInitialLoader]);
-
-  // Show loading skeleton during initial load
-  if (showInitialLoader || isLoading) {
+  // Full-page skeleton only on the very first paint while data is still cold.
+  // On revisits the data is cached (isLoading false) → instant render.
+  if (showInitialLoader && isLoading) {
     return (
       <div className="min-h-screen bg-[var(--surface-base)]">
         <div className="flex items-center gap-6 px-4 py-2.5 bg-[var(--surface-base)] border-b border-border/50">
@@ -4079,8 +4129,14 @@ export default function TradeDeskRedesigned() {
             {/* PRE-MARKET GAPPERS — overnight movers from weekly + approved universe */}
             <PreMarketGappersCard />
 
+            {/* FLOW IMPORT — paste Bullflow alerts (consumer tier has no API) → engine grades → B- and up */}
+            <FlowImport />
+
             {/* 🎯 DISCOVERY PICKS — auto-pushed from convergence engine (the bridge) */}
             <DiscoveryPicksPanel size="standard" maxItems={8} />
+
+            {/* GEX BIG GAINERS — premium scanner plays running hot + hall-of-fame winners */}
+            <GexBigGainers compact />
 
             {/* TRADE IDEAS — Convictions-style panel with filters, presets, view modes, drawer */}
             <TradeIdeasPanel />

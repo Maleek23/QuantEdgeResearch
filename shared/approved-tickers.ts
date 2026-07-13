@@ -105,11 +105,31 @@ export const SMALL_ACCOUNT_TIER = [
   'QUBT', 'ARQQ',
 ] as const;
 
+// HEALTHCARE TIER — the rotation destination the platform was blind to.
+// When money rotates OUT of chips/tech and INTO defensives (pharma, health
+// insurers, med-devices), Hunt needs names to actually suggest. Before this,
+// the universe was ~100% semis/tech, so a healthcare-rotation day produced
+// zero healthcare ideas — Hunt just kept pushing the bleeding chips.
+//
+// Curated for liquidity + weekly option chains (the user explicitly named
+// LLY, NVO, CVS). Larger-cap and pricier than the chip names, but these are
+// where the money goes in a risk-off / rotation tape.
+export const HEALTHCARE_TIER = [
+  // Pharma
+  'LLY', 'NVO', 'MRK', 'ABBV', 'PFE', 'AMGN', 'GILD', 'BMY',
+  // Health insurers / providers
+  'UNH', 'CVS', 'ELV', 'CI', 'HUM', 'HCA',
+  // Med devices / diagnostics / life-science tools
+  'ISRG', 'MDT', 'ABT', 'TMO', 'DHR',
+  // Large-cap optionable biotech
+  'VRTX', 'REGN', 'MRNA',
+] as const;
+
 // All approved tickers combined
 export const APPROVED_TICKERS: Set<string> = new Set<string>([
   ...MEGA_CAP_TIER,
   ...S_TIER, ...A_TIER, ...INDEX_TICKERS, ...CRYPTO_TICKERS, ...SECONDARY,
-  ...SMALL_ACCOUNT_TIER,
+  ...SMALL_ACCOUNT_TIER, ...HEALTHCARE_TIER,
 ]);
 
 // Skip list: proven money losers
@@ -149,6 +169,9 @@ export function getTier(symbol: string): 'MEGA' | 'S' | 'A' | 'INDEX' | 'SECONDA
   if ((INDEX_TICKERS as readonly string[]).includes(s)) return 'INDEX';
   if ((SECONDARY as readonly string[]).includes(s)) return 'SECONDARY';
   if ((SMALL_ACCOUNT_TIER as readonly string[]).includes(s)) return 'SMALL';
+  // Healthcare names ride the SECONDARY tier for scoring (modest base bonus);
+  // their conviction comes from sector rotation, not a user-validated edge tier.
+  if ((HEALTHCARE_TIER as readonly string[]).includes(s)) return 'SECONDARY';
   return null;
 }
 
@@ -173,6 +196,8 @@ export type Sector =
   | 'quantum'
   | 'robotics'
   | 'biotech'
+  | 'pharma'
+  | 'healthcare'
   | 'ev_mobility'
   | 'other';
 
@@ -220,7 +245,7 @@ export const SECTOR_MAP: Record<string, Sector> = {
   // Newly added secondaries
   CRWV: 'mega_tech', MRVL: 'chips', APP: 'software',
   ORCL: 'mega_tech', SNDK: 'chips', FSLY: 'software',
-  SATL: 'space', LLY: 'other',
+  SATL: 'space',
 
   // Cybersecurity
   CRWD: 'cybersecurity', PANW: 'cybersecurity', ZS: 'cybersecurity', FTNT: 'cybersecurity',
@@ -263,6 +288,17 @@ export const SECTOR_MAP: Record<string, Sector> = {
 
   // Crypto
   BTC: 'crypto', ETH: 'crypto', SOL: 'crypto', DOGE: 'crypto',
+
+  // ── Healthcare rotation tier ──────────────────────────────
+  // Pharma
+  LLY: 'pharma', NVO: 'pharma', MRK: 'pharma', ABBV: 'pharma',
+  PFE: 'pharma', AMGN: 'pharma', GILD: 'pharma', BMY: 'pharma',
+  // Health insurers / providers / med-devices / tools
+  UNH: 'healthcare', CVS: 'healthcare', ELV: 'healthcare', CI: 'healthcare',
+  HUM: 'healthcare', HCA: 'healthcare', ISRG: 'healthcare', MDT: 'healthcare',
+  ABT: 'healthcare', TMO: 'healthcare', DHR: 'healthcare',
+  // Large-cap optionable biotech
+  VRTX: 'biotech', REGN: 'biotech', MRNA: 'biotech',
 };
 
 export function getSector(symbol: string): Sector {
@@ -286,6 +322,8 @@ export const SECTOR_LABELS: Record<Sector, string> = {
   quantum: 'Quantum Computing',
   robotics: 'Robotics / Drones',
   biotech: 'Biotech',
+  pharma: 'Pharma',
+  healthcare: 'Healthcare / Insurers',
   ev_mobility: 'EV / Mobility',
   other: 'Other',
 };

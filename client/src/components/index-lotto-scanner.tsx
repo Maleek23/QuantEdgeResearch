@@ -297,7 +297,11 @@ function LottoPlayCard({ play, onSelect }: { play: LottoPlay; onSelect: () => vo
           ))}
         </div>
 
-        {/* Trade Levels */}
+        {/* Trade Levels — premiums are modeled, not live chain quotes */}
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Premium levels</span>
+          <span className="text-[10px] text-amber-400/80">est. — not live quotes</span>
+        </div>
         <div className="grid grid-cols-4 gap-2 text-xs mb-3">
           <div className="text-center p-1.5 bg-muted/50 rounded">
             <div className="text-muted-foreground">Entry</div>
@@ -318,7 +322,13 @@ function LottoPlayCard({ play, onSelect }: { play: LottoPlay; onSelect: () => vo
         </div>
 
         {/* Thesis Preview */}
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{play.thesis}</p>
+        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{play.thesis}</p>
+
+        {/* Honest disclosure: premiums/returns are modeled estimates */}
+        <p className="text-[10px] text-muted-foreground/60 mb-3 leading-snug">
+          Entry/stop/targets &amp; +{play.potentialReturn}% are modeled from distance-to-strike,
+          not live option quotes. Confirm the real premium on the chain before trading.
+        </p>
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-2 border-t border-border">

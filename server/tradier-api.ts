@@ -539,6 +539,34 @@ export async function getTradierOptionsChain(
   }
 }
 
+// Get the raw list of available option expiration dates (YYYY-MM-DD), nearest first.
+// Additive helper used by the option-selection engine to pick exact DTE windows.
+export async function getTradierOptionExpirations(symbol: string, apiKey?: string): Promise<string[]> {
+  const key = apiKey || process.env.TRADIER_API_KEY;
+  if (!key) {
+    logger.error('Tradier API key not found');
+    return [];
+  }
+  try {
+    const baseUrl = getBaseUrl(key);
+    const resp = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Accept': 'application/json'
+      }
+    });
+    if (!resp.ok) {
+      logger.error(`Tradier expirations error for ${symbol}: ${resp.status}`);
+      return [];
+    }
+    const data = await resp.json();
+    return data.expirations?.date || [];
+  } catch (error) {
+    logger.error(`Tradier expirations fetch error for ${symbol}:`, error);
+    return [];
+  }
+}
+
 // Get options across multiple expiration buckets (weeklies, monthlies, quarterlies, LEAPS)
 export async function getTradierOptionsChainsByDTE(
   symbol: string,

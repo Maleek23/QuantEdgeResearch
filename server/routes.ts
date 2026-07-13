@@ -681,7 +681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { generateSitemap } = await import('./sitemap-generator');
       // Fetch blog slugs for dynamic sitemap
-      const blogPosts = await storage.getAllBlogPosts?.() || [];
+      const blogPosts = await storage.getBlogPosts() || [];
       const slugs = blogPosts.map((post: any) => post.slug).filter(Boolean);
       const sitemap = generateSitemap(slugs);
       res.setHeader('Content-Type', 'application/xml');
@@ -751,36 +751,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
       }
       
-      // Validate invite code for invite-only beta
-      // First try unique invite token from database
-      let validatedInvite = null;
-      if (inviteCode) {
-        // Normalize invite code to lowercase for case-insensitive matching
-        const normalizedInviteCode = inviteCode.trim().toLowerCase();
-        validatedInvite = await storage.redeemBetaInvite(normalizedInviteCode);
-        
-        // Fallback to admin access code for direct admin access
-        if (!validatedInvite) {
-          const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
-          if (inviteCode !== adminCode) {
-            return res.status(403).json({ error: "Invalid or expired invite code. Please check your invite email." });
-          }
-        }
-      } else {
+      // Validate invite code for invite-only beta.
+      // IMPORTANT: validate (non-destructively) BEFORE creating the user, and only
+      // redeem the invite AFTER the user is successfully created. Otherwise a failed
+      // signup (e.g. email already exists) would permanently burn a valid invite.
+      const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
+      let candidateInvite: Awaited<ReturnType<typeof storage.getBetaInviteByToken>> = null;
+      let usingAdminCode = false;
+
+      if (!inviteCode) {
         return res.status(403).json({ error: "Invite code is required. This is an invite-only beta." });
       }
-      
-      // Determine subscription tier (use invite's tier override if available)
-      const tierOverride = validatedInvite?.tierOverride || 'free';
-      
+
+      // Normalize invite code to lowercase for case-insensitive matching
+      const normalizedInviteCode = inviteCode.trim().toLowerCase();
+      candidateInvite = await storage.getBetaInviteByToken(normalizedInviteCode);
+
+      if (candidateInvite) {
+        // Validate the invite is still usable (mirror the checks in redeemBetaInvite)
+        if (candidateInvite.status === 'redeemed') {
+          return res.status(403).json({ error: "This invite code has already been used." });
+        }
+        if (candidateInvite.status === 'revoked') {
+          return res.status(403).json({ error: "This invite code has been revoked." });
+        }
+        if (candidateInvite.expiresAt && new Date(candidateInvite.expiresAt) < new Date()) {
+          return res.status(403).json({ error: "This invite code has expired." });
+        }
+      } else if (inviteCode === adminCode) {
+        usingAdminCode = true;
+      } else {
+        return res.status(403).json({ error: "Invalid or expired invite code. Please check your invite email." });
+      }
+
       const user = await createUser(emailLower, password, firstName, lastName);
-      
+
       if (!user) {
+        // User creation failed — do NOT redeem the invite, so it stays usable.
         return res.status(409).json({ error: "An account with this email already exists" });
       }
-      
+
+      // User created — now atomically redeem the invite (if a real token was used).
+      let validatedInvite = null;
+      if (candidateInvite) {
+        validatedInvite = await storage.redeemBetaInvite(normalizedInviteCode);
+        // Edge case: invite was redeemed by a concurrent request between validation and now.
+        // The account already exists; grant beta via the admin path is not appropriate here,
+        // but we still let the user in with beta access tied to the (now-redeemed) invite.
+        if (!validatedInvite) {
+          validatedInvite = candidateInvite;
+        }
+      }
+
+      // Determine subscription tier (use invite's tier override if available)
+      const tierOverride = validatedInvite?.tierOverride || 'free';
+
       // Update user with beta access and tier if invite had a tier override
-      const hasBetaAccess = !!validatedInvite || (inviteCode === (process.env.ADMIN_ACCESS_CODE || "0065"));
+      const hasBetaAccess = !!validatedInvite || usingAdminCode;
       await storage.updateUser(user.id, { 
         hasBetaAccess,
         betaInviteId: validatedInvite?.id || null,
@@ -795,7 +822,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Store userId in session
       (req.session as any).userId = user.id;
-      
+
+      // Explicitly persist the session before responding so the immediate
+      // follow-up /api/auth/me (triggered by the client on success) sees it.
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+      });
+
       // Fetch the updated user to return with hasBetaAccess properly set
       const updatedUser = await storage.getUser(user.id);
       
@@ -833,12 +866,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Store userId in session
       (req.session as any).userId = user.id;
-      
+
       // Extend session to 30 days if "Remember Me" is checked
       if (rememberMe) {
         req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
       }
-      
+
+      // Explicitly persist the session before responding so the immediate
+      // follow-up /api/auth/me (triggered by the client on success) sees it.
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+      });
+
       // Track login for analytics
       const userAgent = req.headers['user-agent'] || '';
       const isMobile = /mobile|android|iphone|ipad/i.test(userAgent);
@@ -1427,7 +1466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Login as admin user (use ADMIN_EMAIL from env)
-      const adminEmail = process.env.ADMIN_EMAIL || "abdulamlikajisegiri@gmail.com";
+      const adminEmail = process.env.ADMIN_EMAIL || "abdulmalikajisegiri@gmail.com";
       logger.info('[DEV-LOGIN] Looking up user by email', { email: adminEmail });
 
       let user = await storage.getUserByEmail(adminEmail);
@@ -4166,7 +4205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (e.winRate || 0) > (best?.winRate || 0) ? e : best, engines[0]);
 
       // Bot activity - get from paper trading positions
-      const autoLottoPositions = await storage.getPaperPositions(1).catch(() => []);
+      const autoLottoPositions = await storage.getPaperPositionsByPortfolio('1').catch(() => []);
       const closedBotTrades = autoLottoPositions.filter(p => p.status === 'closed');
       const autoLottoStats = {
         trades: closedBotTrades.length,
@@ -4923,6 +4962,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/ta/:symbol — structured technical read (Fib + candlesticks + S/R +
+  // structure + net bias). Single source of truth for the chart overlay (phase 1)
+  // and the conviction TA-confluence layer (phase 2). Never fabricates: if the
+  // upstream provider returns no candles, responds 404 and the UI shows nothing.
+  app.get("/api/ta/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const rawRange = (req.query.range as string) || '6mo';
+      const interval = (req.query.interval as string) || '1d';
+      const rangeMap: Record<string, string> = {
+        '1D': '1d', '5D': '5d', '1M': '1mo', '3M': '3mo', '6M': '6mo', '1Y': '1y', '5Y': '5y',
+        '1d': '1d', '5d': '5d', '1mo': '1mo', '3mo': '3mo', '6mo': '6mo', '1y': '1y', '5y': '5y',
+      };
+      const range = rangeMap[rawRange] || '6mo';
+
+      const { getCachedTARead } = await import("./ta-engine");
+      const ta = await getCachedTARead(symbol, range, interval);
+      if (!ta) {
+        return res.status(404).json({ error: "Not enough candles for technical analysis" });
+      }
+      res.json(ta);
+    } catch (error) {
+      logger.error(`Error computing TA for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to compute technical analysis" });
+    }
+  });
+
   // GET /api/stocks/:symbol/analysts - Get analyst ratings with price targets
   app.get("/api/stocks/:symbol/analysts", async (req, res) => {
     try {
@@ -5077,23 +5143,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ quotes: {} });
       }
       
-      const { fetchTradierQuotes } = await import("./market-data-service");
-      const quotesData = await fetchTradierQuotes(symbolList);
-      
+      // Unified quote source — same getRealtimeBatchQuotes used by convictions,
+      // watchlist, breadth etc. so prices are consistent platform-wide (and it
+      // has a Yahoo fallback when Tradier is down).
+      const quotesMap = await getRealtimeBatchQuotes(
+        symbolList.map((symbol) => ({ symbol, assetType: 'stock' as RTAssetType }))
+      );
+
       const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number }> = {};
       for (const symbol of symbolList) {
-        const q = quotesData[symbol];
-        if (q && q.last) {
+        const q = quotesMap.get(symbol);
+        if (q && q.price) {
           quotes[symbol] = {
             symbol,
-            price: q.last,
+            price: q.price,
             change: q.change || 0,
-            changePercent: q.change_percentage || 0,
-            volume: q.volume || 0
+            changePercent: q.changePercent || 0,
+            volume: q.volume || 0,
           };
         }
       }
-      
+
       res.json({ quotes });
     } catch (error) {
       logger.error("Error fetching batch quotes:", error);
@@ -7665,6 +7735,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Share a RENDERED trade-card IMAGE (PNG) to Discord. The client captures the
+  // card with html2canvas and uploads it as multipart 'card'; we forward it to the
+  // asset-routed webhook as a real file attachment shown inline in an embed.
+  app.post("/api/trade-ideas/:id/share-discord-card", upload.single('card'), isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.file?.buffer) {
+        return res.status(400).json({ error: "No card image uploaded" });
+      }
+      const idea = await storage.getTradeIdeaById(req.params.id);
+      if (!idea) {
+        return res.status(404).json({ error: "Trade idea not found" });
+      }
+
+      const { sendTradeCardImageToDiscord } = await import("./discord-service");
+      const filename = `${idea.symbol}_${idea.direction}_card.png`;
+      const result = await sendTradeCardImageToDiscord(idea, req.file.buffer, filename);
+
+      if (!result.success) {
+        return res.status(502).json({ error: result.error || "Discord upload failed" });
+      }
+      logger.info(`📨 Trade CARD image ${idea.symbol} shared to Discord by user (manual share)`);
+      res.json({ success: true, message: `Shared ${idea.symbol} card to Discord` });
+    } catch (error: any) {
+      logger.error("Failed to share trade card image to Discord:", error);
+      res.status(500).json({ error: "Failed to share card to Discord" });
+    }
+  });
+
   // 🚀 On-demand idea generation - trigger immediate AI idea generation
   app.post("/api/ideas/generate-now", isAuthenticated, ideaGenerationOnDemandLimiter, async (req: any, res) => {
     try {
@@ -7711,6 +7809,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       logger.error('[API] Failed to get generator status:', error);
       res.status(500).json({ error: "Failed to get generator status" });
+    }
+  });
+
+  // Canonical option-premium selection — given a price-action thesis, return up to
+  // 3 risk-tiered contract picks (conservative/balanced/aggressive) ranked by ROI.
+  // Additive surface over server/option-selection-engine.ts; never fabricates prices
+  // and does NOT alter signal generation or existing persistence paths.
+  app.post("/api/options/select", async (req: any, res) => {
+    try {
+      const b = req.body ?? {};
+      const symbol = typeof b.symbol === 'string' ? b.symbol.trim().toUpperCase() : '';
+      const direction =
+        b.direction === 'bearish' ? 'bearish' :
+        b.direction === 'bullish' ? 'bullish' : null;
+      const setupRaw = String(b.setup ?? 'swing').toLowerCase();
+      const setup = (['scalp', 'swing', 'lotto', 'position'].includes(setupRaw) ? setupRaw : 'swing') as
+        'scalp' | 'swing' | 'lotto' | 'position';
+      const entry = Number(b.entry);
+      const stop = Number(b.stop);
+      const t1 = Number(b.t1);
+      const num = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : undefined);
+
+      if (!symbol || !direction || ![entry, stop, t1].every(Number.isFinite)) {
+        return res.status(400).json({
+          error: "Required: symbol, direction ('bullish'|'bearish'), entry, stop, t1. Optional: setup, t2, holdingDays, conviction, asOfSpot.",
+        });
+      }
+
+      const { selectContracts } = await import("./option-selection-engine");
+      const selection = await selectContracts({
+        symbol,
+        direction,
+        setup,
+        entry,
+        stop,
+        t1,
+        t2: num(b.t2),
+        holdingDays: num(b.holdingDays),
+        conviction: num(b.conviction),
+        asOfSpot: num(b.asOfSpot),
+      });
+      return res.json(selection);
+    } catch (error) {
+      logger.error('[OPTIONS-SELECT] selection failed:', error);
+      return res.status(500).json({ error: "Option selection failed" });
     }
   });
 
@@ -9275,6 +9418,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Trade audit error:", error);
       res.status(500).json({ error: "Failed to generate trade audit" });
+    }
+  });
+
+  // GEX Big Gainers — top plays from the GEX scanner that ran (or are running) hot.
+  // A leaderboard, not a hard cutoff: GEX plays are tracked as underlying-stock entries,
+  // so moves are single-/low-double-digit %. Both buckets rank by gain desc and cap at `limit`,
+  // with an optional `threshold` floor (default 0 = any positive gainer). No auth gate.
+  // Two buckets: `live` = still-open plays by peak run-up, `closed` = resolved winners by realized %.
+  app.get("/api/gex/big-gainers", async (req, res) => {
+    try {
+      const parsed = parseFloat(req.query.threshold as string);
+      const threshold = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+      const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+
+      const allIdeas = await storage.getAllTradeIdeas();
+      // String() cast: 'gex_scanner' is written via `as any` and isn't in the IdeaSource union.
+      const gexIdeas = allIdeas.filter(i => String(i.source) === 'gex_scanner');
+
+      // Direction-aware peak run-up from the high/low watermarks the validation service maintains.
+      const peakRunup = (idea: typeof gexIdeas[number]): number => {
+        const entry = idea.entryPrice;
+        if (!entry || entry <= 0) return 0;
+        if (idea.direction === 'short') {
+          const low = idea.lowestPriceReached;
+          if (low == null) return 0;
+          return ((entry - low) / entry) * 100;
+        }
+        const high = idea.highestPriceReached;
+        if (high == null) return 0;
+        return ((high - entry) / entry) * 100;
+      };
+
+      const peakPriceOf = (idea: typeof gexIdeas[number]): number | null =>
+        idea.direction === 'short' ? idea.lowestPriceReached ?? null : idea.highestPriceReached ?? null;
+
+      // Gamma regime parsed from qualitySignals (e.g. "gamma_regime:positive_gamma"); null if absent.
+      const regimeOf = (idea: typeof gexIdeas[number]): string | null => {
+        const sig = (idea.qualitySignals || []).find(s => s.startsWith('gamma_regime:'));
+        return sig ? sig.slice('gamma_regime:'.length) : null;
+      };
+
+      // Direction-consistent, regime-aware one-liner. The raw catalyst can read bullish on a SHORT
+      // (it omits the bias rationale), so the board shows THIS instead — a SHORT never reads as a buy.
+      const rationaleOf = (idea: typeof gexIdeas[number]): string => {
+        const short = idea.direction === 'short';
+        switch (regimeOf(idea)) {
+          case 'positive_gamma':
+            return short ? 'Fade extension — pin down to gamma magnet' : 'Pin up to gamma magnet';
+          case 'negative_gamma':
+            return short ? 'Momentum down to put wall' : 'Momentum up to call wall';
+          case 'transitioning':
+            return short ? 'Lean short into gamma flip' : 'Lean long into gamma flip';
+          default:
+            return short ? 'Short setup — target below entry' : 'Long setup — target above entry';
+        }
+      };
+
+      const live = gexIdeas
+        .filter(i => i.outcomeStatus === 'open')
+        .map(i => ({ idea: i, peakGain: peakRunup(i) }))
+        .filter(x => x.peakGain > 0 && x.peakGain >= threshold)
+        .sort((a, b) => b.peakGain - a.peakGain)
+        .slice(0, limit)
+        .map(({ idea, peakGain }) => ({
+          id: idea.id,
+          symbol: idea.symbol,
+          assetType: idea.assetType,
+          direction: idea.direction,
+          optionType: idea.optionType || null,
+          strikePrice: idea.strikePrice || null,
+          expiryDate: idea.expiryDate || null,
+          entryPrice: idea.entryPrice,
+          targetPrice: idea.targetPrice,
+          peakPrice: peakPriceOf(idea),
+          peakGain: Math.round(peakGain * 10) / 10,
+          regime: regimeOf(idea),
+          rationale: rationaleOf(idea),
+          catalyst: idea.catalyst || null,
+          timestamp: idea.timestamp,
+        }));
+
+      const closed = gexIdeas
+        .filter(i => i.outcomeStatus !== 'open' && (i.percentGain || 0) > 0 && (i.percentGain || 0) >= threshold)
+        .sort((a, b) => (b.percentGain || 0) - (a.percentGain || 0))
+        .slice(0, limit)
+        .map(idea => ({
+          id: idea.id,
+          symbol: idea.symbol,
+          assetType: idea.assetType,
+          direction: idea.direction,
+          optionType: idea.optionType || null,
+          strikePrice: idea.strikePrice || null,
+          expiryDate: idea.expiryDate || null,
+          entryPrice: idea.entryPrice,
+          exitPrice: idea.exitPrice ?? null,
+          percentGain: idea.percentGain != null ? Math.round(idea.percentGain * 10) / 10 : null,
+          outcomeStatus: idea.outcomeStatus,
+          regime: regimeOf(idea),
+          rationale: rationaleOf(idea),
+          catalyst: idea.catalyst || null,
+          timestamp: idea.timestamp,
+          exitDate: idea.exitDate || null,
+        }));
+
+      res.json({
+        success: true,
+        threshold,
+        live,
+        closed,
+        _meta: {
+          endpoint: '/api/gex/big-gainers',
+          description: 'Premium GEX-scanner plays running hot (live) or resolved as winners (closed)',
+          totalGexIdeas: gexIdeas.length,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      logger.error("GEX big-gainers error:", error);
+      res.status(500).json({ error: "Failed to load GEX big gainers" });
     }
   });
 
@@ -11085,7 +11347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Using available data: highestPriceReached, lowestPriceReached, and price snapshots
       const tradeAnalyses = await Promise.all(expiredTrades.map(async (trade) => {
         // Get price snapshots for this trade
-        const snapshots = await storage.getTradePriceSnapshots(trade.id);
+        const snapshots = await storage.getPriceSnapshots(trade.id);
         
         // Find expiration snapshot
         const expirationSnapshot = snapshots?.find(s => s.eventType === 'expired');
@@ -13513,53 +13775,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const symbol of symbols) {
         try {
-          // Fetch current price using Tradier API
-          const quote = await getTradierQuote(symbol);
-          
-          if (!quote || !quote.last) {
-            errors.push({ symbol, error: `Could not fetch price for ${symbol}` });
-            continue;
-          }
-          
-          const currentPrice = quote.last;
-          
-          // Calculate alert prices based on current price
-          const entryAlertPrice = Math.round(currentPrice * 0.97 * 100) / 100;  // 3% below
-          const stopAlertPrice = Math.round(currentPrice * 0.92 * 100) / 100;   // 8% below
-          const targetAlertPrice = Math.round(currentPrice * 1.10 * 100) / 100; // 10% above
-          
-          // Create watchlist item
-          const watchlistData = {
+          // Fetch current price using Tradier API (best-effort — used to seed alert
+          // levels). If the quote feed is down, we still TRACK the ticker; the
+          // Yahoo-based grader will score it on the next cycle. Tracking should
+          // never be blocked by a transient price-feed outage.
+          let quote: Awaited<ReturnType<typeof getTradierQuote>> | null = null;
+          try { quote = await getTradierQuote(symbol); } catch { quote = null; }
+
+          const currentPrice = quote?.last ?? null;
+          const hasPrice = currentPrice != null && Number.isFinite(currentPrice);
+
+          // Alert levels only when we have a real price to anchor them to.
+          const entryAlertPrice = hasPrice ? Math.round(currentPrice! * 0.97 * 100) / 100 : null;  // 3% below
+          const stopAlertPrice = hasPrice ? Math.round(currentPrice! * 0.92 * 100) / 100 : null;    // 8% below
+          const targetAlertPrice = hasPrice ? Math.round(currentPrice! * 1.10 * 100) / 100 : null;  // 10% above
+
+          const watchlistData: any = {
             symbol: symbol.toUpperCase(),
             assetType: 'stock' as const,
             notes: 'User watchlist - momentum tracking',
             addedAt: new Date().toISOString(),
-            alertsEnabled: true,
-            discordAlertsEnabled: true,
+            alertsEnabled: hasPrice,
+            discordAlertsEnabled: hasPrice,
             entryAlertPrice,
             stopAlertPrice,
             targetAlertPrice,
-            targetPrice: currentPrice, // Store reference price
+            ...(hasPrice ? { targetPrice: currentPrice } : {}),
           };
-          
+
           const item = await storage.addToWatchlist(watchlistData);
-          
-          logger.info(`📋 [WATCHLIST] Added ${symbol} at $${currentPrice} with alerts enabled`);
-          
+
+          logger.info(
+            hasPrice
+              ? `📋 [WATCHLIST] Added ${symbol} at $${currentPrice} with alerts enabled`
+              : `📋 [WATCHLIST] Added ${symbol} (price feed unavailable — tracking without alerts, grader will score it)`
+          );
+
           results.push({
             symbol,
             currentPrice,
+            priceUnavailable: !hasPrice,
             entryAlertPrice,
             stopAlertPrice,
             targetAlertPrice,
             id: item.id,
           });
-          
+
         } catch (error: any) {
           errors.push({ symbol, error: error?.message || 'Unknown error' });
         }
       }
-      
+
+      // New symbols joined the universe — refresh the scanner cache and kick off
+      // grading so the freshly-added tickers get ranked without a manual refresh.
+      try { const { invalidateScannerUniverse } = await import("./scanner-universe"); invalidateScannerUniverse(); } catch {}
+      if (results.length > 0) {
+        import("./watchlist-grading-service")
+          .then(({ gradeAllWatchlistItems }) => gradeAllWatchlistItems())
+          .catch((e) => logger.warn(`[WATCHLIST] post-import grading failed: ${e?.message || e}`));
+      }
+
       res.status(201).json({
         success: true,
         added: results.length,
@@ -13736,6 +14011,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'GET /api/watchlist/graded' });
       res.status(500).json({ error: "Failed to fetch graded watchlist" });
+    }
+  });
+
+  // ── PUBLIC read-only watchlist (shareable link for trading groups) ──
+  // No auth: returns a deduped, graded, ranked snapshot safe to share. Only
+  // surfaces ticker + grade + edge rationale + added date — no account data.
+  app.get("/api/public/watchlist", async (_req, res) => {
+    try {
+      const all = await storage.getAllWatchlist();
+      // Dedupe by symbol, keeping the best-graded entry per ticker.
+      const bySymbol = new Map<string, any>();
+      for (const it of all as any[]) {
+        const key = (it.symbol || '').toUpperCase();
+        const existing = bySymbol.get(key);
+        if (!existing || (it.gradeScore ?? -1) > (existing.gradeScore ?? -1)) {
+          bySymbol.set(key, it);
+        }
+      }
+      const tierOrder: Record<string, number> = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5 };
+      const items = Array.from(bySymbol.values())
+        .map((it: any) => {
+          let momentum5d: number | null = null;
+          let upside: number | null = null;
+          let topSignal: string | null = null;
+          try {
+            const g = JSON.parse(it.gradeInputs || '{}');
+            momentum5d = typeof g.momentum5d === 'number' ? g.momentum5d : null;
+            upside = g.fundamentals?.fairValueUpside ?? null;
+            topSignal = Array.isArray(g.signals) && g.signals.length ? g.signals[0] : null;
+          } catch { /* gradeInputs may be absent */ }
+          return {
+            symbol: it.symbol,
+            assetType: it.assetType || 'stock',
+            tier: it.tier ?? null,
+            gradeLetter: it.gradeLetter ?? null,
+            gradeScore: it.gradeScore ?? null,
+            momentum5d,
+            upside,
+            topSignal,
+            thesis: it.weeklyThesis || it.thesis || it.addedReason || it.notes || null,
+            addedAt: it.addedAt ?? null,
+            currentPrice: it.currentPrice ?? null,
+            lastEvaluatedAt: it.lastEvaluatedAt ?? null,
+          };
+        })
+        .sort((a, b) => {
+          const at = a.tier ? tierOrder[a.tier] ?? 6 : 6;
+          const bt = b.tier ? tierOrder[b.tier] ?? 6 : 6;
+          if (at !== bt) return at - bt;
+          return (b.gradeScore || 0) - (a.gradeScore || 0);
+        });
+      // Most recent grading timestamp across the list.
+      const updatedAt = items.reduce<string | null>((acc, it) => {
+        if (it.lastEvaluatedAt && (!acc || it.lastEvaluatedAt > acc)) return it.lastEvaluatedAt;
+        return acc;
+      }, null);
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json({ name: 'QuantEdge Watchlist', updatedAt, count: items.length, items });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/public/watchlist' });
+      res.status(500).json({ error: "Failed to fetch public watchlist" });
     }
   });
 
@@ -15228,7 +15564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid symbol" });
       }
 
-      const validAssets: AssetClass[] = ['stock', 'options', 'futures', 'crypto'];
+      const validAssets: AssetClass[] = ['stocks', 'options', 'futures', 'crypto'];
       if (!validAssets.includes(assetClass)) {
         return res.status(400).json({ error: "Invalid asset class. Use: stock, options, futures, crypto" });
       }
@@ -15248,7 +15584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { assetClass } = req.params;
       const symbolsParam = req.query.symbols as string;
 
-      const validAssets: AssetClass[] = ['stock', 'options', 'futures', 'crypto'];
+      const validAssets: AssetClass[] = ['stocks', 'options', 'futures', 'crypto'];
       if (!validAssets.includes(assetClass as AssetClass)) {
         return res.status(400).json({ error: "Invalid asset class" });
       }
@@ -15869,6 +16205,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'GET /api/bull-flag-scanner' });
       res.status(500).json({ error: "Failed to fetch bull flag setups" });
+    }
+  });
+
+  // ============ Bear Flag / Breakdown Scanner (short-side mirror) ============
+  app.get("/api/bear-flag-scanner", async (req, res) => {
+    try {
+      const { getTopBearFlagSetups } = await import("./bear-flag-scanner");
+      const limit = parseInt(req.query.limit as string) || 15;
+      const setups = await getTopBearFlagSetups(limit);
+
+      logger.info(`[BEAR-FLAG-API] Found ${setups.length} bear flag breakdown setups`);
+      res.json(setups);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/bear-flag-scanner' });
+      res.status(500).json({ error: "Failed to fetch bear flag setups" });
     }
   });
 
@@ -18651,6 +19002,63 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     } catch (error: any) {
       logger.error(`[INDEX-LOTTO] Error:`, error);
       res.status(500).json({ error: error?.message || "Failed to scan index lotto plays" });
+    }
+  });
+
+  // ============================================
+  // EOD Discount Scanner — relative-value option discounts (vol below smile)
+  // ============================================
+  app.get("/api/scanner/eod-discount", async (req, res) => {
+    try {
+      const { scanEodDiscounts } = await import("./eod-discount-scanner");
+
+      // Symbols: explicit ?symbols=A,B,C overrides; otherwise use the scanner universe
+      // (user watchlist first, then approved tickers).
+      let symbols: string[];
+      const explicit = (req.query.symbols as string)?.split(",").map((s) => s.trim()).filter(Boolean);
+      if (explicit && explicit.length > 0) {
+        symbols = explicit;
+      } else {
+        const { getScannerUniverse } = await import("./scanner-universe");
+        const { symbols: universe } = await getScannerUniverse();
+        // Cap the default scan so a cold run doesn't fan out to hundreds of CBOE fetches.
+        symbols = universe.slice(0, Number(req.query.limit) || 40);
+      }
+
+      const side = req.query.side as "call" | "put" | "both" | undefined;
+      const result = await scanEodDiscounts(symbols, {
+        minDiscountPct: req.query.discountPct ? Number(req.query.discountPct) / 100 : undefined,
+        maxResults: req.query.maxResults ? Number(req.query.maxResults) : undefined,
+        side: side === "call" || side === "put" ? side : "both",
+        minDte: req.query.minDte ? Number(req.query.minDte) : undefined,
+        maxDte: req.query.maxDte ? Number(req.query.maxDte) : undefined,
+      });
+      res.json(result);
+    } catch (error: any) {
+      logger.error(`[EOD-DISCOUNT] Error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to scan EOD discounts" });
+    }
+  });
+
+  // Premium-Spectrum Scanner — one ticker, whole chain, every price tier
+  // (cent lottos → $2k deep-ITM LEAPS, all expiries incl. 2027/2028/2029).
+  app.get("/api/scanner/premium-spectrum", async (req, res) => {
+    try {
+      const symbol = (req.query.symbol as string)?.trim();
+      if (!symbol) {
+        return res.status(400).json({ error: "symbol is required" });
+      }
+      const { scanPremiumSpectrum } = await import("./premium-spectrum-scanner");
+      const side = req.query.side === "put" ? "put" : "call";
+      const result = await scanPremiumSpectrum(symbol, {
+        side,
+        perTier: req.query.perTier ? Number(req.query.perTier) : undefined,
+        minOi: req.query.minOi ? Number(req.query.minOi) : undefined,
+      });
+      res.json(result);
+    } catch (error: any) {
+      logger.error(`[PREMIUM-SPECTRUM] Error:`, error);
+      res.status(500).json({ error: error?.message || "Failed to scan premium spectrum" });
     }
   });
 
@@ -22050,7 +22458,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
           optionType: i.optionType || 'call',
           strikePrice: i.strikePrice || 0,
           expiryDate: i.expiryDate || '',
-          reason: (i.keyLevels?.slice(0, 50) || i.aiAnalysis?.slice(0, 50) || 'Technical setup') as string,
+          reason: (i.keyLevels?.slice(0, 50) || i.analysis?.slice(0, 50) || 'Technical setup') as string,
           grade: i.qualitySignals?.length && i.qualitySignals.length >= 5 ? 'A' : 
                  i.qualitySignals?.length && i.qualitySignals.length >= 3 ? 'B+' : 'B'
         })),
@@ -24699,7 +25107,7 @@ Use this checklist before entering any trade:
       try {
         const userId = req.user?.id || req.session?.userId;
         if (userId) {
-          const watchlistItems = await storage.getWatchlistItems(userId);
+          const watchlistItems = await storage.getWatchlistByUser(userId);
           watchlistSymbols = watchlistItems.slice(0, 30).map((w: { symbol: string }) => w.symbol);
         }
       } catch (e) {
@@ -25479,6 +25887,80 @@ Use this checklist before entering any trade:
     }
   });
 
+  // POST /api/broker/analyze - In-depth AI insights + signal correlation for a portfolio.
+  // Numbers are computed deterministically; the LLM only narrates/prioritises them.
+  app.post("/api/broker/analyze", isAuthenticated, async (req: any, res) => {
+    try {
+      const { getUnifiedPortfolio, analyzeUnifiedPortfolio } = await import("./broker-integration");
+      const { correlatePositions, generatePortfolioInsights } = await import("./portfolio-ai-insights");
+      const { brokerType, accountId } = req.body || {};
+
+      if (!brokerType) {
+        return res.status(400).json({ error: "brokerType required" });
+      }
+
+      const sessionId = req.session?.id || req.user?.id || 'default';
+      const idToUse = brokerType === 'tradier' ? (accountId as string) : sessionId;
+      const portfolio = await getUnifiedPortfolio(brokerType, idToUse);
+
+      if (!portfolio || portfolio.positions.length === 0) {
+        return res.status(404).json({ error: "No positions found for this broker. Import first." });
+      }
+
+      const { insights: deterministic } = await analyzeUnifiedPortfolio(portfolio);
+
+      // Correlate holdings against our most-recent active signals.
+      let activeIdeas: any[] = [];
+      try {
+        activeIdeas = await storage.getRecentTradeIdeas(96, 500);
+      } catch { /* correlation is best-effort */ }
+
+      const correlations = correlatePositions(portfolio, activeIdeas);
+      const ai = await generatePortfolioInsights(portfolio, deterministic, correlations);
+
+      res.json({ portfolio, deterministic, ...ai });
+    } catch (error) {
+      logger.error("Error analyzing portfolio", { error });
+      res.status(500).json({ error: "Failed to analyze portfolio" });
+    }
+  });
+
+  // POST /api/broker/import-screenshot - Extract positions from a brokerage screenshot via vision.
+  app.post("/api/broker/import-screenshot", upload.single('screenshot'), isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No screenshot image provided" });
+      }
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ error: "Invalid image type. Use PNG, JPG, GIF, or WebP." });
+      }
+
+      const { extractPositionsFromScreenshot } = await import("./portfolio-ai-insights");
+      const { storeSessionPositions, enrichPositionsWithMarketData } = await import("./broker-integration");
+      const brokerType = (req.body?.brokerType || 'manual');
+
+      const { positions, error } = await extractPositionsFromScreenshot(
+        req.file.buffer,
+        req.file.mimetype,
+        brokerType,
+      );
+
+      if (error || positions.length === 0) {
+        return res.status(422).json({ error: error || "No positions detected in screenshot." });
+      }
+
+      const enriched = await enrichPositionsWithMarketData(positions);
+      const sessionId = req.session?.id || req.user?.id || 'default';
+      storeSessionPositions(sessionId, enriched);
+
+      res.json({ success: true, positionCount: enriched.length, positions: enriched });
+    } catch (error) {
+      logger.error("Error importing screenshot", { error });
+      res.status(500).json({ error: "Failed to import screenshot" });
+    }
+  });
+
   // GET /api/broker/tradier/accounts - Get Tradier accounts (API broker only)
   app.get("/api/broker/tradier/accounts", isAuthenticated, async (_req, res) => {
     try {
@@ -25576,6 +26058,24 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error("Error generating universal trade idea", { error });
       res.status(500).json({ error: "Failed to generate trade idea" });
+    }
+  });
+
+  // POST /api/flow/ingest - Paste Bullflow (or any) options-flow alerts, analyze
+  // each contract through the option engine, and push B-/B-and-up to the Trade Desk.
+  // (The $39.99 Bullflow consumer tier has no API — this is the manual bridge.)
+  app.post("/api/flow/ingest", isAuthenticated, async (req: any, res) => {
+    try {
+      const { text } = req.body || {};
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        return res.status(400).json({ error: "Paste at least one flow alert line in `text`." });
+      }
+      const { ingestFlowText } = await import("./flow-ingest");
+      const result = await ingestFlowText(text);
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      logger.error("Error ingesting flow text", { error });
+      res.status(500).json({ error: "Failed to ingest flow alerts" });
     }
   });
 
@@ -28453,6 +28953,63 @@ Use this checklist before entering any trade:
   });
 
   /**
+   * INDEX SCALP SCANNER — read current live scalps (for UI cards)
+   * =============================================================
+   * Returns today's active 0DTE index scalp ideas (SPX/SPY/QQQ/IWM)
+   * persisted by the scheduler, newest first, plus current session info.
+   * Read-only and cheap — safe to poll on an interval from the client.
+   */
+  app.get("/api/index-scalps", async (_req, res) => {
+    try {
+      const { getScalpSession } = await import('./index-scalp-engine');
+      const session = getScalpSession();
+
+      const all = await storage.getOpenTradeIdeas();
+      const todayET = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+
+      const scalps = all
+        .filter((i: any) => {
+          const ds = i.dataSourceUsed || '';
+          if (i.source !== 'gex_scanner' || !ds.includes('index_scalp')) return false;
+          // Only today's ideas (0DTE relevance)
+          const tsET = new Date(i.timestamp).toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+          return tsET === todayET;
+        })
+        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 12)
+        .map((i: any) => {
+          const setup = (i.dataSourceUsed || '').replace('GEX_index_scalp_', '');
+          const signals: string[] = i.qualitySignals || [];
+          const regime = signals.find((s: string) => s.startsWith('regime:'))?.split(':')[1] || null;
+          return {
+            id: i.id,
+            symbol: i.symbol,
+            bias: i.optionType === 'call' ? 'calls' : 'puts',
+            direction: i.direction,
+            setup,
+            strike: i.strikePrice,
+            expiry: i.expiryDate,
+            spot: i.entryPrice,
+            target: i.targetPrice,
+            stop: i.stopLoss,
+            riskRewardRatio: i.riskRewardRatio,
+            confidence: i.confidenceScore,
+            thesis: i.analysis,
+            catalyst: i.catalyst,
+            regime,
+            isPowerHour: i.sessionContext === 'power_hour',
+            timestamp: i.timestamp,
+          };
+        });
+
+      res.json({ session, scalps, count: scalps.length });
+    } catch (error: any) {
+      logger.error("[INDEX-SCALP] fetch failed", { error: error?.message });
+      res.status(500).json({ error: "Failed to fetch index scalps", message: error?.message });
+    }
+  });
+
+  /**
    * OLALGO BOT — Challenge backtest (Monte Carlo)
    *
    * Runs N seeded simulations of the bot taking real historical trade
@@ -30301,6 +30858,43 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error('[MARKET-PULSE] Error:', error);
       res.status(500).json({ error: 'Pulse fetch failed', detail: error.message });
+    }
+  });
+
+  // Sector rotation / money-flow brief — the staple headline on Hunt/GEX/Home
+  app.get('/api/sector-rotation', async (req: any, res) => {
+    try {
+      const { getSectorRotation } = await import('./sector-rotation');
+      const force = req.query.force === '1' || req.query.force === 'true';
+      const brief = await getSectorRotation(force);
+      res.json(brief);
+    } catch (error: any) {
+      logger.error('[SECTOR-ROTATION] Error:', error);
+      res.status(500).json({ error: 'Rotation fetch failed', detail: error.message });
+    }
+  });
+
+  app.get('/api/rotation-matrix', async (req: any, res) => {
+    try {
+      const { getRotationMatrix } = await import('./sector-rotation');
+      const force = req.query.force === '1' || req.query.force === 'true';
+      const matrix = await getRotationMatrix(force);
+      res.json(matrix);
+    } catch (error: any) {
+      logger.error('[ROTATION-MATRIX] Error:', error);
+      res.status(500).json({ error: 'Rotation matrix fetch failed', detail: error.message });
+    }
+  });
+
+  app.get('/api/leap-tracker', async (req: any, res) => {
+    try {
+      const { getLeapTracker } = await import('./leap-tracker');
+      const force = req.query.force === '1' || req.query.force === 'true';
+      const data = await getLeapTracker(force);
+      res.json(data);
+    } catch (error: any) {
+      logger.error('[LEAP-TRACKER] Error:', error);
+      res.status(500).json({ error: 'LEAP tracker fetch failed', detail: error.message });
     }
   });
 

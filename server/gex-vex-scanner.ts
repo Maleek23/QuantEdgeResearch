@@ -49,6 +49,9 @@ import {
 // ─── Cache ──────────────────────────────────────────────────
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min (larger universe)
 let cachedResult: { data: ConfluenceScanResult; expiresAt: number } | null = null;
+// Dedupe concurrent scans: a 132-ticker scan must never run more than once at a time,
+// no matter how many page loads or background refreshes fire simultaneously.
+let scanInFlight: Promise<ConfluenceScanResult> | null = null;
 
 // ─── Market Session Detection ──────────────────────────────
 export type MarketSession = 'pre_market' | 'open' | 'after_hours' | 'overnight';
@@ -438,17 +441,56 @@ function deriveBias(snap: GEXSnapshot): {
 }
 
 // ─── Main Scanner ──────────────────────────────────────────
-export async function scanWatchlistConfluence(options?: {
-  tickers?: string[];
-  minScore?: number;
-  useCache?: boolean;
-}): Promise<ConfluenceScanResult> {
-  const useCache = options?.useCache !== false;
-  if (useCache && cachedResult && cachedResult.expiresAt > Date.now()) {
-    logger.info('[GEX-SCAN] Returning cached result');
-    return cachedResult.data;
+type ScanOptions = { tickers?: string[]; minScore?: number; useCache?: boolean };
+
+function emptyScan(): ConfluenceScanResult {
+  return {
+    rows: [],
+    scannedAt: Date.now(),
+    tickersScanned: 0,
+    tickersWithData: 0,
+    marketRegime: 'choppy',
+    topPick: null,
+    errors: [],
+  };
+}
+
+// Kick a full scan in the background, deduped so only one ever runs at a time.
+function startBackgroundScan(options?: ScanOptions): void {
+  if (scanInFlight) return;
+  scanInFlight = runFullScan(options)
+    .catch((e: any) => {
+      logger.error('[GEX-SCAN] background scan failed', { error: e?.message });
+      return cachedResult?.data ?? emptyScan();
+    })
+    .finally(() => { scanInFlight = null; });
+}
+
+/**
+ * Hub-facing scan. For the market-wide path it NEVER blocks on the full
+ * 132-ticker scan: it serves cached (even stale) data instantly and refreshes
+ * in the background. On a truly cold cache it returns empty immediately so the
+ * hub endpoint can show its fast CBOE mini-scan while the real scan warms the
+ * cache. Targeted scans (explicit `tickers`) still run fresh and blocking.
+ */
+export async function scanWatchlistConfluence(options?: ScanOptions): Promise<ConfluenceScanResult> {
+  if (options?.tickers && options.tickers.length > 0) {
+    return runFullScan(options);
   }
 
+  const useCache = options?.useCache !== false;
+  if (useCache && cachedResult) {
+    if (cachedResult.expiresAt <= Date.now()) startBackgroundScan(options); // stale → refresh in bg
+    return cachedResult.data; // instant, even if a few minutes old
+  }
+
+  // Cold cache → warm in the background, return empty now so the hub endpoint
+  // serves its fast CBOE mini-scan instead of blocking on the full scan.
+  startBackgroundScan(options);
+  return emptyScan();
+}
+
+async function runFullScan(options?: ScanOptions): Promise<ConfluenceScanResult> {
   const universe: string[] =
     options?.tickers && options.tickers.length > 0
       ? options.tickers.map((t) => t.toUpperCase()).filter((t) => (APPROVED_TICKERS as Set<string>).has(t))
@@ -768,6 +810,24 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
     if (await isTopPlayDuplicate(play.symbol, play.bias)) continue;
 
     const direction = play.bias as 'long' | 'short';
+
+    // SANITY GATE — reject degenerate plays. When the GEX walls land right on
+    // top of spot (e.g. AVGO gapped and the call/put walls clustered within
+    // ~0.2% of price), the target is a sub-1% move and the "swing" idea is
+    // meaningless. Also reject when spot is missing/invalid (price feed down).
+    // Better to surface NOTHING than a confident-looking degenerate signal.
+    const MIN_TARGET_DISTANCE_PCT = 0.008; // 0.8% minimum room to target
+    const effTarget = play.target || play.spotPrice * (direction === 'long' ? 1.03 : 0.97);
+    if (!(play.spotPrice > 0)) {
+      logger.warn(`[GEX-HUB] ⛔ skip ${play.symbol} — invalid spot (price feed unavailable)`);
+      continue;
+    }
+    const targetDistPct = Math.abs(effTarget - play.spotPrice) / play.spotPrice;
+    if (targetDistPct < MIN_TARGET_DISTANCE_PCT) {
+      logger.warn(`[GEX-HUB] ⛔ skip ${play.symbol} — degenerate target (${(targetDistPct * 100).toFixed(2)}% from spot, walls clustered at price)`);
+      continue;
+    }
+
     const aiShape: AITradeIdea = {
       symbol: play.symbol,
       assetType: 'option',

@@ -816,7 +816,10 @@ export default function MarketScanner() {
   const searchString = useSearch();
   const [timeframe, setTimeframe] = useState<string>("day");
   const [category, setCategory] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<string>("movers");
+  // Default to a momentum scanner. The old "movers" and "earnings" sub-tabs were
+  // retired here because they duplicated Hunt's Today overview and Earnings tab;
+  // this view is now the multi-strategy breakout scanner under Momentum → Scanners.
+  const [activeTab, setActiveTab] = useState<string>("breakouts");
   const { toast } = useToast();
 
   // Market-hours-aware polling — aggressive during market, throttled after
@@ -1062,13 +1065,9 @@ export default function MarketScanner() {
   };
 
   return (
-    <div className="min-h-screen p-3 sm:p-4 bg-background">
-      <div className="max-w-[1600px] mx-auto space-y-3">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <h1 className="text-base font-semibold text-foreground tracking-tight" data-testid="page-title">
-            Scanner
-          </h1>
-          
+    <div>
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
           <div className="flex items-center gap-3 flex-wrap">
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger className="w-[180px]" data-testid="category-select">
@@ -1204,19 +1203,7 @@ export default function MarketScanner() {
 
         {/* Main Tab Navigation: Movers vs Day Trade vs Swing vs Social vs Earnings vs Breakouts */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 lg:w-auto lg:inline-flex mb-4 gap-1">
-            <TabsTrigger value="movers" data-testid="tab-movers">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Movers
-            </TabsTrigger>
-            <TabsTrigger value="social" data-testid="tab-social">
-              <Flame className="w-4 h-4 mr-2" />
-              WSB/Social
-            </TabsTrigger>
-            <TabsTrigger value="earnings" data-testid="tab-earnings">
-              <DollarSign className="w-4 h-4 mr-2" />
-              Earnings
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:w-auto lg:inline-flex mb-4 gap-1">
             <TabsTrigger value="breakouts" data-testid="tab-breakouts">
               <Rocket className="w-4 h-4 mr-2" />
               Breakouts
@@ -1236,6 +1223,10 @@ export default function MarketScanner() {
             <TabsTrigger value="bull-flag" data-testid="tab-bull-flag">
               <Flag className="w-4 h-4 mr-2" />
               Bull Flag
+            </TabsTrigger>
+            <TabsTrigger value="social" data-testid="tab-social">
+              <Flame className="w-4 h-4 mr-2" />
+              WSB/Social
             </TabsTrigger>
           </TabsList>
 

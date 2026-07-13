@@ -202,11 +202,19 @@ export async function getRealtimeQuote(
         timestamp: Date.now(),
       });
       logger.info(`[REALTIME-PRICING] Fetched ${assetType} quote for ${symbol}: $${quote.price.toFixed(2)}`);
+    } else if (cached) {
+      // Live fetch returned nothing (provider rate-limit/outage). Serve the last
+      // known price rather than dropping the symbol — keeps the UI consistent
+      // (no disappearing rows / divergent prices) instead of showing a gap.
+      logger.warn(`[REALTIME-PRICING] No fresh data for ${assetType} ${symbol}, serving stale cache (${Math.round((Date.now() - cached.timestamp) / 1000)}s old)`);
+      return cached.quote;
     } else {
       logger.warn(`[REALTIME-PRICING] No data returned for ${assetType} ${symbol}`);
     }
   } catch (error) {
     logger.error(`[REALTIME-PRICING] Error fetching ${assetType} quote for ${symbol}:`, error);
+    // Fall back to stale cache on hard error too.
+    if (cached) return cached.quote;
     return null;
   }
 

@@ -5,7 +5,9 @@
  * Every endpoint, widget, and report MUST use this service for consistency.
  * 
  * Key Principles:
- * 1. OPTIONS EXCLUDED by default (broken validation - compares stock prices to premiums)
+ * 1. OPTIONS counted by REAL contract P&L (optionPercentGain = exit vs entry
+ *    premium). Option ideas WITHOUT a captured contract P&L are still excluded
+ *    (we can't measure them honestly) — but resolved option ideas now count.
  * 2. NEUTRAL trades excluded from win rate (expired, breakeven)
  * 3. Consistent thresholds: ±3% for win/loss classification
  * 4. Tiered output: summary for users, detailed for admin
@@ -108,19 +110,22 @@ export class WinRateService {
       legacyExcluded = beforeFilter - filtered.length;
     }
     
-    // 6. OPTIONS FILTER - CRITICAL
-    // Options are excluded by default because validation is broken
-    // (comparing stock prices to option premiums = meaningless)
+    // 6. OPTIONS FILTER
+    // Options now count by REAL contract P&L (optionPercentGain). We keep option
+    // (and flow/lotto) ideas only when they have a captured contract P&L — those
+    // are the ones we can measure honestly. Option ideas without it (legacy, or
+    // still-open) stay excluded. `includeOptions` forces ALL through (admin view).
     let optionsExcluded = 0;
     if (!filters.includeOptions) {
       const beforeFilter = filtered.length;
-      filtered = filtered.filter(idea => idea.assetType !== 'option');
+      filtered = filtered.filter(idea => {
+        const isOptionish =
+          idea.assetType === 'option' || idea.source === 'flow' || idea.source === 'lotto';
+        if (!isOptionish) return true;
+        // Keep only measurable option ideas (real captured contract P&L).
+        return typeof idea.optionPercentGain === 'number';
+      });
       optionsExcluded = beforeFilter - filtered.length;
-      
-      // Also exclude flow/lotto sources (almost entirely options)
-      filtered = filtered.filter(idea => 
-        idea.source !== 'flow' && idea.source !== 'lotto'
-      );
     }
     
     // 7. Asset type filter
@@ -152,10 +157,10 @@ export class WinRateService {
       bySource,
       byAssetType,
       methodology: {
-        winDefinition: `hit_target OR P&L >= +${CANONICAL_WIN_THRESHOLD}%`,
-        lossDefinition: `hit_stop AND P&L <= -${CANONICAL_LOSS_THRESHOLD}%`,
-        neutralDefinition: 'expired, manual_exit, or |P&L| < 3%',
-        optionsIncluded: filters.includeOptions ?? false,
+        winDefinition: `stocks: hit_target OR P&L >= +${CANONICAL_WIN_THRESHOLD}%; options: contract P&L >= +${CANONICAL_WIN_THRESHOLD}%`,
+        lossDefinition: `stocks: hit_stop AND P&L <= -${CANONICAL_LOSS_THRESHOLD}%; options: contract P&L <= -${CANONICAL_LOSS_THRESHOLD}%`,
+        neutralDefinition: 'expired, manual_exit, |P&L| < 3%, or option without captured contract P&L',
+        optionsIncluded: true, // measured options (real contract P&L) always count now
         legacyIncluded: filters.includeAllVersions ?? false,
       },
       dataQuality: {
@@ -168,23 +173,52 @@ export class WinRateService {
   }
   
   /**
+   * Does this idea carry a REAL captured option contract P&L?
+   * When true, win/loss is judged on the contract return (optionPercentGain),
+   * not the underlying stock move (percentGain).
+   */
+  private static isOptionMeasured(idea: TradeIdea): boolean {
+    return idea.assetType === 'option' && typeof idea.optionPercentGain === 'number';
+  }
+
+  /** The P&L figure that defines this idea's outcome (contract for options, stock otherwise). */
+  private static outcomePnl(idea: TradeIdea): number | null {
+    if (this.isOptionMeasured(idea)) return idea.optionPercentGain!;
+    return idea.percentGain ?? null;
+  }
+
+  /** Win/loss/neutral using real contract P&L for measured options, else stock-level rules. */
+  private static classifyIdea(idea: TradeIdea): 'win' | 'loss' | 'neutral' {
+    if (this.isOptionMeasured(idea)) {
+      const pnl = idea.optionPercentGain!;
+      if (pnl >= CANONICAL_WIN_THRESHOLD) return 'win';
+      if (pnl <= -CANONICAL_LOSS_THRESHOLD) return 'loss';
+      return 'neutral';
+    }
+    if (isRealWin(idea)) return 'win';
+    if (isRealLoss(idea)) return 'loss';
+    return 'neutral';
+  }
+
+  /**
    * Calculate basic stats for a set of trades
    */
   private static calculateStats(ideas: TradeIdea[]): WinRateResult {
-    const wins = ideas.filter(i => isRealWin(i));
-    const losses = ideas.filter(i => isRealLoss(i));
-    const neutral = ideas.filter(i => !isRealWin(i) && !isRealLoss(i));
-    
+    const wins = ideas.filter(i => this.classifyIdea(i) === 'win');
+    const losses = ideas.filter(i => this.classifyIdea(i) === 'loss');
+    const neutral = ideas.filter(i => this.classifyIdea(i) === 'neutral');
+
     const decided = wins.length + losses.length;
     const winRate = decided > 0 ? (wins.length / decided) * 100 : 0;
-    
-    // Calculate average win/loss sizes
+
+    // Calculate average win/loss sizes (uses contract P&L for measured options)
     const winGains = wins
-      .filter(i => i.percentGain !== null)
-      .map(i => i.percentGain!);
+      .map(i => this.outcomePnl(i))
+      .filter((v): v is number => v !== null);
     const lossGains = losses
-      .filter(i => i.percentGain !== null)
-      .map(i => Math.abs(i.percentGain!));
+      .map(i => this.outcomePnl(i))
+      .filter((v): v is number => v !== null)
+      .map(v => Math.abs(v));
     
     const avgWinPct = winGains.length > 0 
       ? winGains.reduce((a, b) => a + b, 0) / winGains.length 

@@ -305,6 +305,11 @@ function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
             <span className="text-[10px] font-mono uppercase tracking-wider text-violet-300">
               Option Play
             </span>
+            {idea.expiryTier && (
+              <span className="ml-auto px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-200 font-bold uppercase tracking-wider text-[9px] font-mono">
+                {idea.expiryTier}{idea.optionDte != null ? ` · ${idea.optionDte}DTE` : ""}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 text-sm font-mono">
             <span className="font-bold text-violet-200 uppercase">
@@ -313,7 +318,59 @@ function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
             <span className="text-foreground">${idea.strikePrice}</span>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">{idea.expiryDate}</span>
+            {idea.entryPremium != null && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-foreground">@ ${idea.entryPremium.toFixed(2)}</span>
+              </>
+            )}
           </div>
+          {/* Greeks */}
+          {(idea.optionDelta != null || idea.optionGamma != null || idea.optionTheta != null || idea.optionVega != null || idea.optionIV != null) && (
+            <div className="mt-2 grid grid-cols-5 gap-1.5">
+              {idea.optionDelta != null && (
+                <div className="text-center">
+                  <div className="text-[8px] font-mono uppercase text-muted-foreground">Delta</div>
+                  <div className="text-[11px] font-mono text-foreground">{idea.optionDelta.toFixed(2)}</div>
+                </div>
+              )}
+              {idea.optionGamma != null && (
+                <div className="text-center">
+                  <div className="text-[8px] font-mono uppercase text-muted-foreground">Gamma</div>
+                  <div className="text-[11px] font-mono text-foreground">{idea.optionGamma.toFixed(3)}</div>
+                </div>
+              )}
+              {idea.optionTheta != null && (
+                <div className="text-center">
+                  <div className="text-[8px] font-mono uppercase text-muted-foreground">Theta</div>
+                  <div className="text-[11px] font-mono text-foreground">{idea.optionTheta.toFixed(2)}</div>
+                </div>
+              )}
+              {idea.optionVega != null && (
+                <div className="text-center">
+                  <div className="text-[8px] font-mono uppercase text-muted-foreground">Vega</div>
+                  <div className="text-[11px] font-mono text-foreground">{idea.optionVega.toFixed(2)}</div>
+                </div>
+              )}
+              {idea.optionIV != null && (
+                <div className="text-center">
+                  <div className="text-[8px] font-mono uppercase text-muted-foreground">IV</div>
+                  <div className="text-[11px] font-mono text-foreground">{idea.optionIV.toFixed(0)}%</div>
+                </div>
+              )}
+            </div>
+          )}
+          {/* Liquidity */}
+          {(idea.optionOpenInterest != null || idea.optionVolume != null) && (
+            <div className="mt-2 flex items-center gap-4 text-[10px] font-mono text-muted-foreground border-t border-violet-500/15 pt-1.5">
+              {idea.optionOpenInterest != null && (
+                <span>OI <span className="text-foreground">{idea.optionOpenInterest.toLocaleString()}</span></span>
+              )}
+              {idea.optionVolume != null && (
+                <span>Vol <span className="text-foreground">{idea.optionVolume.toLocaleString()}</span></span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

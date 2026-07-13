@@ -22,8 +22,19 @@ import {
   scoreToExtendedGrade,
   synthesizeTake,
 } from '../thesis-radar/conviction-agent';
+import {
+  selectFromChain,
+  type RawChainOption,
+  type ContractCandidate,
+  type PriceActionThesis,
+  type SetupType,
+} from '../option-selection-engine';
+import { fetchCboeChain } from './cboe-chain';
 import type { ExtendedGrade, SignalScore } from '@shared/thesis-radar-types';
 import type { ContractSpec } from './parser';
+
+/** A contract graded below B- (score < 70) triggers engine-picked alternatives. */
+const SUGGEST_BELOW_SCORE = 70;
 
 // ─── Output shape ──────────────────────────────────────────────────
 
@@ -54,8 +65,65 @@ export interface ContractAnalysis {
   };
   /** ROI scenarios at expiry */
   roiScenarios: { stockPrice: number; contractValue: number; roi: number; pct: number }[];
+  /**
+   * If the analyzed contract grades below B- (score < 70), the canonical
+   * option-selection engine picks up to 3 stronger contracts (conservative /
+   * balanced / aggressive) for the SAME directional thesis. Empty if the
+   * contract is already strong or no liquid alternative exists.
+   */
+  suggestions?: ContractCandidate[];
+  /** Human note explaining the suggestion block (why shown / why empty). */
+  suggestionNote?: string;
   /** Timestamp */
   analyzedAt: string;
+}
+
+// ─── Better-contract suggestions (canonical engine) ───────────────
+
+/** Map the analyzed contract's DTE to the engine's setup window. */
+function dteToSetup(dte: number): SetupType {
+  if (dte <= 1) return 'scalp';
+  if (dte <= 5) return 'swing';
+  return 'position';
+}
+
+/**
+ * When the pasted contract is weak, ask the SAME engine that powers the Oracle
+ * Option Pick to choose better strikes/expiries for the user's directional
+ * thesis. Runs against the live CBOE chain we already fetched (no Tradier
+ * dependency) via the engine's pure core, so premiums are real, never faked.
+ */
+function suggestBetterContracts(
+  spec: ContractSpec,
+  spot: number,
+  rawChain: RawChainOption[],
+  plan: ContractAnalysis['plan'],
+  finalScore: number,
+): { picks: ContractCandidate[]; note: string } {
+  const thesis: PriceActionThesis = {
+    symbol: spec.symbol,
+    direction: spec.optionType === 'call' ? 'bullish' : 'bearish',
+    setup: dteToSetup(plan.horizonDays),
+    entry: spot,
+    stop: plan.invalidation,
+    t1: plan.t1,
+    t2: plan.t2,
+    conviction: finalScore,
+    asOfSpot: spot,
+  };
+  const sel = selectFromChain(thesis, spot, rawChain);
+  if (sel.status !== 'ok' || sel.picks.length === 0) {
+    return {
+      picks: [],
+      note: sel.note ?? `No liquid ${thesis.direction === 'bullish' ? 'call' : 'put'} found for a stronger ${spec.symbol} setup.`,
+    };
+  }
+  // Only surface picks that actually beat the analyzed contract.
+  const better = sel.picks.filter((p) => p.score > finalScore);
+  if (better.length === 0) {
+    return { picks: sel.picks, note: `Engine picks for the same thesis (similar quality to your contract).` };
+  }
+  return { picks: better, note: `Stronger contracts for the same ${thesis.direction} ${spec.symbol} thesis:` };
 }
 
 // ─── Greeks (Black-Scholes) — reuses pattern from elsewhere ────────
@@ -119,60 +187,84 @@ async function fetchContractFromChain(spec: ContractSpec): Promise<{
   volume: number;
   topStrikeOI: number;
   totalChainOI: number;
+  /** Strike/expiry actually matched (may differ from the request after snapping). */
+  matchedStrike: number;
+  matchedExpiry: string;
+  /** Human note describing any snap that occurred, else null. */
+  adjustNote: string | null;
+  /** The full chain mapped to the engine's RawChainOption shape (for suggestions). */
+  rawChain: RawChainOption[];
 } | null> {
   try {
-    const r = await fetch(
-      `https://cdn.cboe.com/api/global/delayed_quotes/options/${spec.symbol}.json`,
-      { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' } },
+    // Single source of truth for the CBOE fetch + spot derivation + chain map.
+    const chain = await fetchCboeChain(spec.symbol);
+    if (!chain) return null;
+    const { spot, rawChain, totalChainOI, topStrikeOI } = chain;
+
+    // Bucket the contracts of the requested type so we can snap if there's no
+    // exact strike/expiry match (option chains only list specific Fri/strike
+    // combos — a loosely-typed input rarely lands on one exactly).
+    type Row = { exp: string; strike: number; raw: RawChainOption };
+    const sameType: Row[] = rawChain
+      .filter((o) => o.option_type === spec.optionType)
+      .map((o) => ({ exp: o.expiration_date, strike: o.strike, raw: o }));
+    if (sameType.length === 0) return null;
+
+    // Exact match?
+    let target = sameType.find(
+      (row) => row.exp === spec.expiry && Math.abs(row.strike - spec.strike) < 0.01,
     );
-    if (!r.ok) return null;
-    const data = (await r.json()) as { data?: { close?: number; last?: number; options?: any[] } };
-    const d = data.data;
-    if (!d) return null;
-    const spot = (d.close ?? d.last) || 0;
-    if (!spot) return null;
 
-    let target: any = null;
-    let totalChainOI = 0;
-    let topStrikeOI = 0;
-    const occMatch = (occ: string) => {
-      const m = occ.match(/^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/);
-      if (!m) return null;
-      return {
-        sym: m[1],
-        exp: `20${m[2]}-${m[3]}-${m[4]}`,
-        type: m[5] === 'C' ? 'call' : 'put',
-        strike: parseInt(m[6]) / 1000,
-      };
-    };
+    const reqMs = new Date(spec.expiry).getTime();
+    let matchedStrike = spec.strike;
+    let matchedExpiry = spec.expiry;
+    const notes: string[] = [];
 
-    for (const o of d.options ?? []) {
-      const parsed = occMatch(o.option);
-      if (!parsed) continue;
-      const oi = Number(o.open_interest ?? 0);
-      totalChainOI += oi;
-      if (oi > topStrikeOI) topStrikeOI = oi;
-      if (
-        parsed.exp === spec.expiry &&
-        parsed.type === spec.optionType &&
-        Math.abs(parsed.strike - spec.strike) < 0.01
-      ) {
-        target = o;
+    if (!target) {
+      // Snap expiry: nearest LISTED expiration to the requested date.
+      const expiries = Array.from(new Set(sameType.map((r) => r.exp)));
+      let bestExp = expiries[0];
+      let bestExpDiff = Infinity;
+      for (const e of expiries) {
+        const diff = Math.abs(new Date(e).getTime() - reqMs);
+        if (diff < bestExpDiff) { bestExpDiff = diff; bestExp = e; }
       }
+      if (bestExp !== spec.expiry) {
+        notes.push(`expiry ${spec.expiry} not listed → nearest ${bestExp}`);
+      }
+      matchedExpiry = bestExp;
+
+      // Within that expiry, snap strike to the nearest listed strike.
+      const inExp = sameType.filter((r) => r.exp === bestExp);
+      let best = inExp[0];
+      let bestDiff = Infinity;
+      for (const row of inExp) {
+        const diff = Math.abs(row.strike - spec.strike);
+        if (diff < bestDiff) { bestDiff = diff; best = row; }
+      }
+      if (best && Math.abs(best.strike - spec.strike) >= 0.01) {
+        notes.push(`strike $${spec.strike} not listed → nearest $${best.strike}`);
+      }
+      target = best;
+      matchedStrike = best.strike;
     }
 
     if (!target) return null;
-    const mid = (Number(target.bid ?? 0) + Number(target.ask ?? 0)) / 2;
+    const mid = (Number(target.raw.bid ?? 0) + Number(target.raw.ask ?? 0)) / 2;
     return {
       spot,
       contractMid: mid,
-      contractBid: Number(target.bid ?? 0),
-      contractAsk: Number(target.ask ?? 0),
-      iv: Number(target.iv ?? 0),
-      oi: Number(target.open_interest ?? 0),
-      volume: Number(target.volume ?? 0),
+      contractBid: Number(target.raw.bid ?? 0),
+      contractAsk: Number(target.raw.ask ?? 0),
+      iv: Number(target.raw.greeks?.mid_iv ?? 0),
+      oi: Number(target.raw.open_interest ?? 0),
+      volume: Number(target.raw.volume ?? 0),
       topStrikeOI,
       totalChainOI,
+      matchedStrike,
+      matchedExpiry,
+      adjustNote: notes.length > 0 ? `Adjusted to live chain: ${notes.join('; ')}.` : null,
+      rawChain,
     };
   } catch (e) {
     logger.warn(`[CONTRACT-ANALYZER] chain fetch failed: ${(e as Error).message}`);
@@ -476,7 +568,16 @@ export async function analyzeContract(spec: ContractSpec): Promise<ContractAnaly
     statusLines.push(`Chain fetch failed — couldn't locate ${spec.symbol} $${spec.strike}${spec.optionType === 'call' ? 'C' : 'P'} ${spec.expiry}.`);
     return null;
   }
-  statusLines.push(`Target loaded: $${spec.strike}${spec.optionType === 'call' ? 'C' : 'P'} mid $${chain.contractMid.toFixed(2)}, OI ${chain.oi.toLocaleString()}.`);
+
+  // Snap the spec to the strike/expiry actually found in the live chain so
+  // every downstream signal (Greeks, moneyness, DTE, ROI) prices the REAL
+  // contract — never a fabricated strike that isn't listed.
+  if (chain.adjustNote) {
+    spec = { ...spec, strike: chain.matchedStrike, expiry: chain.matchedExpiry };
+    statusLines.push(chain.adjustNote);
+  }
+
+  statusLines.push(`Target loaded: $${spec.strike}${spec.optionType === 'call' ? 'C' : 'P'} ${spec.expiry} — mid $${chain.contractMid.toFixed(2)}, OI ${chain.oi.toLocaleString()}.`);
 
   // Compute greeks
   const dte = Math.max(1, Math.round((new Date(spec.expiry).getTime() - Date.now()) / 86400000));
@@ -526,6 +627,28 @@ export async function analyzeContract(spec: ContractSpec): Promise<ContractAnaly
   const t1 = isCall ? chain.spot * (1 + annualMove * 0.5) : chain.spot * (1 - annualMove * 0.5);
   const t2 = isCall ? chain.spot * (1 + annualMove * 1.0) : chain.spot * (1 - annualMove * 1.0);
   const invalidation = isCall ? chain.spot * 0.93 : chain.spot * 1.07;
+  const plan = {
+    t1,
+    t2,
+    invalidation,
+    horizonDays: dte,
+    sellTriggers: { trim33: 0.5, trim50: 1.0, runner: 2.0 },
+  };
+
+  // If the contract is weak (below B-), ask the canonical engine for stronger
+  // alternatives on the same thesis — the "premium" upgrade path.
+  let suggestions: ContractCandidate[] | undefined;
+  let suggestionNote: string | undefined;
+  if (composite.score < SUGGEST_BELOW_SCORE) {
+    const { picks, note } = suggestBetterContracts(spec, chain.spot, chain.rawChain, plan, composite.score);
+    suggestionNote = note;
+    if (picks.length > 0) {
+      suggestions = picks;
+      statusLines.push(`Grade ${composite.grade} (<B-) — engine surfaced ${picks.length} stronger contract${picks.length > 1 ? 's' : ''} for the same thesis.`);
+    } else {
+      statusLines.push(`Grade ${composite.grade} (<B-) — no liquid upgrade found in the chain.`);
+    }
+  }
 
   return {
     spec,
@@ -543,14 +666,10 @@ export async function analyzeContract(spec: ContractSpec): Promise<ContractAnaly
     finalScore: composite.score,
     synthesis,
     statusLines,
-    plan: {
-      t1,
-      t2,
-      invalidation,
-      horizonDays: dte,
-      sellTriggers: { trim33: 0.5, trim50: 1.0, runner: 2.0 },
-    },
+    plan,
     roiScenarios: buildROIScenarios(chain.spot, spec.strike, chain.iv, dte, spec.optionType, chain.contractMid),
+    suggestions,
+    suggestionNote,
     analyzedAt: new Date().toISOString(),
   };
 }

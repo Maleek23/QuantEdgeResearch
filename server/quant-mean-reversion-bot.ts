@@ -381,7 +381,7 @@ async function executeTrade(signal: RSI2Signal): Promise<boolean> {
     // 🎯 UNIFIED ENTRY GATE - Final check before execution
     const entryGate = await checkUnifiedEntryGate('mean_reversion', signal.confidence);
     if (!entryGate.allowed) {
-      logger.info(`[QUANT-BOT] ⛔ GATE BLOCKED ${signal.symbol}: ${entryGate.reason}`);
+      logger.info(`[QUANT-BOT] ⛔ GATE BLOCKED ${signal.symbol}: ${entryGate.reasons?.join("; ")}`);
       return false;
     }
     
@@ -502,7 +502,7 @@ export async function runQuantBotScan(): Promise<void> {
     // 🎯 UNIFIED ENTRY GATE - Check before execution
     const entryGate = await checkUnifiedEntryGate('mean_reversion', sessionAdjustedConfidence);
     if (!entryGate.allowed) {
-      logger.info(`[QUANT-BOT] ⛔ UNIFIED GATE BLOCKED ${bestSignal.symbol}: ${entryGate.reason}`);
+      logger.info(`[QUANT-BOT] ⛔ UNIFIED GATE BLOCKED ${bestSignal.symbol}: ${entryGate.reasons?.join("; ")}`);
       return;
     }
     

@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Crosshair,
   AlertTriangle,
+  ChevronRight,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -69,10 +70,20 @@ export interface TradeIdeaCardData {
   livePrice?: number | null;
   priceStale?: boolean;
 
-  // Options play
+  // Options play — full contract readout (strike/expiry/premium/greeks/OI/vol)
   optionType?: "call" | "put" | null;
   strikePrice?: number | null;
   expiryDate?: string | null;
+  entryPremium?: number | null;
+  optionDelta?: number | null;
+  optionGamma?: number | null;
+  optionTheta?: number | null;
+  optionVega?: number | null;
+  optionIV?: number | null;
+  optionOpenInterest?: number | null;
+  optionVolume?: number | null;
+  expiryTier?: "0DTE" | "DAILY" | "WEEKLY" | "MONTHLY" | "LEAP" | null;
+  optionDte?: number | null;
 
   // Conviction enrichment (from /api/convictions or /api/trade-ideas?conviction=high)
   convictionScore?: number | null;
@@ -101,6 +112,14 @@ export interface TradeIdeaCardProps {
   onClick?: () => void;
   className?: string;
   "data-testid"?: string;
+  /** Row-variant grouping: number of additional setups rolled up under this ticker (0 = none). */
+  groupCount?: number;
+  /** Whether this group is currently expanded (only meaningful when groupCount > 0). */
+  expanded?: boolean;
+  /** Toggle handler for the group chevron. When provided, clicking the chevron calls this instead of onClick. */
+  onToggleGroup?: () => void;
+  /** Marks this row as a child of an expanded group (indented, dimmer). */
+  isChild?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -579,8 +598,24 @@ export function TradeIdeaCard({
   onClick,
   className,
   "data-testid": testId,
+  groupCount,
+  expanded,
+  onToggleGroup,
+  isChild,
 }: TradeIdeaCardProps) {
-  if (variant === "row") return <RowVariant idea={idea} onClick={onClick} className={className} testId={testId} />;
+  if (variant === "row")
+    return (
+      <RowVariant
+        idea={idea}
+        onClick={onClick}
+        className={className}
+        testId={testId}
+        groupCount={groupCount}
+        expanded={expanded}
+        onToggleGroup={onToggleGroup}
+        isChild={isChild}
+      />
+    );
   if (variant === "compact") return <CompactVariant idea={idea} onClick={onClick} className={className} testId={testId} />;
   return <FullVariant idea={idea} onClick={onClick} className={className} testId={testId} />;
 }
@@ -710,16 +745,46 @@ function FullVariant({
         </div>
       )}
 
-      {/* Option play */}
+      {/* Option play — full contract readout */}
       {idea.optionType && idea.strikePrice && idea.expiryDate && (
-        <div className="mb-3 px-2.5 py-1.5 rounded-md bg-violet-500/8 border border-violet-500/20">
+        <div className="mb-3 px-2.5 py-2 rounded-md bg-violet-500/8 border border-violet-500/20">
           <div className="flex items-center gap-2 text-[10px] font-mono">
             <Target className="w-3 h-3 text-violet-400" />
             <span className="font-bold text-violet-300 uppercase">{idea.optionType}</span>
             <span className="text-foreground">${idea.strikePrice}</span>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground">{idea.expiryDate}</span>
+            {idea.entryPremium != null && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-foreground">@ ${idea.entryPremium.toFixed(2)}</span>
+              </>
+            )}
+            {idea.expiryTier && (
+              <span className="ml-auto px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-200 font-bold uppercase tracking-wider text-[8px]">
+                {idea.expiryTier}{idea.optionDte != null ? ` · ${idea.optionDte}DTE` : ""}
+              </span>
+            )}
           </div>
+          {/* Greeks */}
+          {(idea.optionDelta != null || idea.optionGamma != null || idea.optionTheta != null || idea.optionVega != null || idea.optionIV != null) && (
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] font-mono text-muted-foreground">
+              {idea.optionDelta != null && <span>Δ {idea.optionDelta.toFixed(2)}</span>}
+              {idea.optionGamma != null && <span>Γ {idea.optionGamma.toFixed(3)}</span>}
+              {idea.optionTheta != null && <span>Θ {idea.optionTheta.toFixed(2)}</span>}
+              {idea.optionVega != null && <span>V {idea.optionVega.toFixed(2)}</span>}
+              {idea.optionIV != null && <span>IV {idea.optionIV.toFixed(0)}%</span>}
+            </div>
+          )}
+          {/* Liquidity */}
+          {(idea.optionOpenInterest != null || idea.optionVolume != null) && (
+            <div className="mt-0.5 flex flex-wrap gap-x-3 text-[9px] font-mono text-muted-foreground">
+              {idea.optionOpenInterest != null && <span>OI {idea.optionOpenInterest.toLocaleString()}</span>}
+              {idea.optionVolume != null && <span>Vol {idea.optionVolume.toLocaleString()}</span>}
+            </div>
+          )}
+          {/* Premium risk/reward bar */}
+          <PremiumRiskRewardBar idea={idea} />
         </div>
       )}
 
@@ -901,11 +966,19 @@ function RowVariant({
   onClick,
   className,
   testId,
+  groupCount = 0,
+  expanded = false,
+  onToggleGroup,
+  isChild = false,
 }: {
   idea: TradeIdeaCardData;
   onClick?: () => void;
   className?: string;
   testId?: string;
+  groupCount?: number;
+  expanded?: boolean;
+  onToggleGroup?: () => void;
+  isChild?: boolean;
 }) {
   const band = BAND_STYLES[bandFromIdea(idea)];
   const isLong = idea.direction === "long";
@@ -914,6 +987,21 @@ function RowVariant({
   // U2: render grade as the headline; keep numeric score for tooltip.
   const score = displayedScore(idea);
   const grade = displayedGrade(idea);
+
+  // Option rows are denominated in PREMIUM, not stock price: what you actually
+  // trade is the contract. This is also what differentiates two setups on the
+  // same ticker (a weekly vs a leap share the stock thesis but differ by
+  // strike/premium). Entry → premium paid, Target → delta-projected premium
+  // (est.), Stop → -50% premium. Stock-only ideas keep stock prices.
+  const isOption = !!(idea.optionType && idea.strikePrice != null);
+  const prem = idea.entryPremium;
+  const hasPrem = isOption && prem != null && Number.isFinite(prem) && prem > 0;
+  const projTargetPrem =
+    hasPrem && idea.optionDelta != null && Number.isFinite(idea.optionDelta)
+      ? prem! + Math.abs(idea.optionDelta) * Math.abs(idea.targetPrice - idea.entryPrice)
+      : null;
+  const stopPrem = hasPrem ? prem! * 0.5 : null;
+  const optTag = idea.optionType === "call" ? "C" : "P";
 
   return (
     <div
@@ -925,11 +1013,28 @@ function RowVariant({
         band.border,
         "hover:border-foreground/20",
         onClick && "cursor-pointer",
+        isChild && "opacity-80",
         className,
       )}
     >
       <div className="font-bold text-foreground truncate flex items-center gap-1">
-        <span>{idea.symbol}</span>
+        {groupCount > 0 ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleGroup?.();
+            }}
+            title={expanded ? "Collapse setups" : `Show ${groupCount} more setup${groupCount > 1 ? "s" : ""}`}
+            className="flex items-center gap-0.5 text-cyan-300 hover:text-cyan-200 shrink-0"
+          >
+            <ChevronRight className={cn("w-3 h-3 transition-transform", expanded && "rotate-90")} />
+            <span className="text-[9px] font-bold tabular-nums">+{groupCount}</span>
+          </button>
+        ) : isChild ? (
+          <span className="w-[22px] shrink-0 text-foreground/20 text-right pr-1">↳</span>
+        ) : null}
+        <span className={cn(isChild && "text-muted-foreground")}>{idea.symbol}</span>
         <FreshnessPill idea={idea} />
       </div>
       <div className={cn("uppercase text-[10px] font-bold", dirColor)}>
@@ -941,14 +1046,31 @@ function RowVariant({
       >
         {grade}
       </div>
-      <div className="text-foreground tabular-nums text-right">
-        {fmtPrice(idea.entryPrice)}
+      <div
+        className={cn("tabular-nums text-right", hasPrem ? "text-violet-300" : "text-foreground")}
+        title={
+          hasPrem
+            ? `Entry premium $${prem!.toFixed(2)} · ${idea.optionType?.toUpperCase()} $${idea.strikePrice}`
+            : "Stock entry"
+        }
+      >
+        {hasPrem ? `$${prem!.toFixed(2)}` : fmtPrice(idea.entryPrice)}
       </div>
-      <div className="text-emerald-400 tabular-nums text-right">
-        {fmtPrice(idea.targetPrice)}
+      <div
+        className="text-emerald-400 tabular-nums text-right"
+        title={hasPrem ? `Projected premium at target (est., delta-based)` : "Stock target"}
+      >
+        {hasPrem
+          ? projTargetPrem != null
+            ? `$${projTargetPrem.toFixed(2)}`
+            : "—"
+          : fmtPrice(idea.targetPrice)}
       </div>
-      <div className="text-red-400 tabular-nums text-right">
-        {fmtPrice(idea.stopLoss)}
+      <div
+        className="text-red-400 tabular-nums text-right"
+        title={hasPrem ? `-50% premium stop` : "Stock stop"}
+      >
+        {hasPrem ? `$${stopPrem!.toFixed(2)}` : fmtPrice(idea.stopLoss)}
       </div>
       {(() => {
         const live = computeLiveRR(idea);
@@ -965,9 +1087,23 @@ function RowVariant({
         );
       })()}
       <div className="text-muted-foreground truncate">
-        {idea.optionType
-          ? `${idea.optionType.toUpperCase()} $${idea.strikePrice} ${idea.expiryDate ?? ""}`
-          : (idea.thesis || idea.catalyst || "—")}
+        {isOption ? (
+          <span className="flex items-center gap-1.5">
+            <span className="text-violet-300 font-bold tabular-nums">
+              ${idea.strikePrice}
+              {optTag}
+            </span>
+            {idea.expiryTier && (
+              <span className="px-1 py-px rounded bg-violet-500/15 text-violet-200 text-[8px] font-bold uppercase tracking-wider">
+                {idea.expiryTier}
+                {idea.optionDte != null ? ` ${idea.optionDte}D` : ""}
+              </span>
+            )}
+            <span className="text-muted-foreground/60 truncate">{idea.expiryDate ?? ""}</span>
+          </span>
+        ) : (
+          idea.thesis || idea.catalyst || "—"
+        )}
       </div>
       <div className="text-muted-foreground text-right text-[9px] uppercase">
         {humanHold(idea.holdingPeriod) || "—"}
@@ -979,6 +1115,78 @@ function RowVariant({
 // ─────────────────────────────────────────────────────────────
 // Subcomponents
 // ─────────────────────────────────────────────────────────────
+
+/**
+ * Premium risk/reward bar — visualizes the option premium journey on one axis:
+ *   -50% premium stop (loss)  ←  entry premium  →  projected value at target.
+ *
+ * Projection is a first-order, delta-only estimate:
+ *   ΔPremium ≈ |delta| × |target − entry|  (favorable direction, theta/vega ignored).
+ * Labeled "est." so we never imply a guaranteed payout. Renders only when we
+ * actually have an entry premium and a delta to project from.
+ */
+function PremiumRiskRewardBar({ idea }: { idea: TradeIdeaCardData }) {
+  const entry = idea.entryPremium;
+  const delta = idea.optionDelta;
+  if (entry == null || !Number.isFinite(entry) || entry <= 0) return null;
+  if (delta == null || !Number.isFinite(delta)) return null;
+
+  const stockMove = Math.abs(idea.targetPrice - idea.entryPrice);
+  const projTarget = entry + Math.abs(delta) * stockMove;
+  const stopPrem = entry * 0.5; // -50% premium stop
+
+  const targetGainPct = (projTarget / entry - 1) * 100;
+
+  // Scale domain spans the stop (low) to projected target (high).
+  const domainLo = stopPrem;
+  const domainHi = Math.max(projTarget, entry * 1.05); // guard against flat bars
+  const range = domainHi - domainLo || 1;
+  const pos = (v: number) => Math.max(0, Math.min(100, ((v - domainLo) / range) * 100));
+  const entryPct = pos(entry);
+
+  return (
+    <div className="mt-2 pt-2 border-t border-violet-500/15">
+      <div className="flex items-center justify-between text-[8px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
+        <span>Premium R:R</span>
+        <span className="opacity-60">est. · delta-based</span>
+      </div>
+      {/* Track */}
+      <div className="relative h-2 rounded-full overflow-hidden bg-foreground/5">
+        {/* loss zone: stop → entry */}
+        <div
+          className="absolute inset-y-0 left-0 bg-red-500/40"
+          style={{ width: `${entryPct}%` }}
+        />
+        {/* gain zone: entry → target */}
+        <div
+          className="absolute inset-y-0 bg-emerald-500/45"
+          style={{ left: `${entryPct}%`, right: 0 }}
+        />
+        {/* entry marker */}
+        <div
+          className="absolute inset-y-0 w-0.5 bg-foreground"
+          style={{ left: `${entryPct}%` }}
+          title={`Entry premium $${entry.toFixed(2)}`}
+        />
+      </div>
+      {/* Labels */}
+      <div className="mt-1 flex items-center justify-between text-[9px] font-mono tabular-nums">
+        <span className="text-red-300" title="-50% premium stop">
+          ${stopPrem.toFixed(2)}
+          <span className="text-muted-foreground/60"> stop</span>
+        </span>
+        <span className="text-foreground" title="Entry premium">
+          ${entry.toFixed(2)}
+          <span className="text-muted-foreground/60"> entry</span>
+        </span>
+        <span className="text-emerald-300" title={`Projected at target (${fmtPrice(idea.targetPrice)})`}>
+          ${projTarget.toFixed(2)}
+          <span className="text-muted-foreground/60"> +{targetGainPct.toFixed(0)}%</span>
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function PriceCell({
   label,

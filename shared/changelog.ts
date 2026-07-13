@@ -37,6 +37,29 @@ export interface ChangeEntry {
 export const CHANGELOG: ChangeEntry[] = [
   // ─── Most recent first ───────────────────────────────────────
   {
+    id: '2026-06-05-leap-tracker-fundamentals',
+    date: '2026-06-05',
+    title: 'LEAP Tracker — 52 names + live fundamentals (EPS · revenue · cash)',
+    blurb: 'Expanded the LEAP universe from 29 to 52, adding speculative retail/Twitter names (QUBT, QBTS, IONQ, LAES, SERV, HPE, SOFI, HOOD, ONDS, RKLB, ASTS, OKLO +more) flagged with a SPEC badge. Each pick now carries fundamentals — EPS, revenue, YoY growth, cash, market cap, forward P/E — with a profitability reality-check on speculative names.',
+    link: '/h?tab=leaps',
+    linkLabel: 'Open LEAP Tracker',
+    tag: 'feature',
+  },
+  {
+    id: '2026-06-05-unified-realtime-data',
+    date: '2026-06-05',
+    title: 'Unified real-time data layer — one price, everywhere',
+    blurb: 'Every quote across the platform now flows through a single source of truth with per-asset caching and a stale-cache fallback, so movers, briefings, LEAPs and the option engine no longer show divergent prices under rate-limiting. The option-selection engine also gained a Yahoo fallback so contract picks survive CBOE/Tradier outages.',
+    tag: 'data',
+  },
+  {
+    id: '2026-06-05-whats-new-fix',
+    date: '2026-06-05',
+    title: "What's New now actually opens",
+    blurb: 'Fixed a state-isolation bug where clicking the sidebar bell never opened the drawer. The bell, toast, and drawer now share one store — so this panel you are reading finally works.',
+    tag: 'fix',
+  },
+  {
     id: '2026-05-27-intraday-scanners',
     date: '2026-05-27',
     title: 'Intraday Scanners — bull flags, 20-day breakouts, unusual flow',

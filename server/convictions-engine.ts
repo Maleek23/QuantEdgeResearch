@@ -43,6 +43,7 @@ import { getGexSnapshotBatch, type GexSnapshot } from "./gex-snapshot-service";
 
 export type ConvictionLayerKind =
   | "technical"
+  | "ta"
   | "convergence"
   | "catalyst"
   | "regime"
@@ -100,6 +101,13 @@ export interface ConvictionPick {
   catalyst: string;
   catalystSourceUrl: string | null;
   generatedAt: string;
+
+  /**
+   * Originating engine ('quant' | 'ai' | 'hybrid' | 'flow' | 'news' | 'manual').
+   * Surfaced so the unified cockpit can drive the Trade Desk "mode" tabs
+   * (AI Picks / Flow / Lotto / News / Manual) off the same conviction feed.
+   */
+  source: string;
 }
 
 export interface ConvictionsResponse {
@@ -655,54 +663,125 @@ function scoreGeopoliticalLayer(
   };
 }
 
+/**
+ * SECTOR ROTATION layer — the "follow the money flow" gate.
+ *
+ * This is the single most important sanity check on a directional idea:
+ * you do not go long the sector money is fleeing, no matter how clean the
+ * chart. We measure *relative* rotation (sector ETF vs SPY), so a broad
+ * selloff doesn't punish everything — only the names underperforming the
+ * tape, which is exactly the rotation signal.
+ *
+ * The penalty is deliberately HEAVY (up to ±14) — heavier than any single
+ * bullish layer — so a long in a bleeding sector (e.g. semis −7% pre-market)
+ * cannot survive in the ELITE band. That was the core defect: 15 chips shown
+ * as ELITE BULLISH on the morning the whole group got wrecked.
+ */
 async function scoreSectorLayer(symbol: string, sector: Sector, direction: "long" | "short"): Promise<ConvictionLayer | null> {
-  // Map sector → sector ETF for tape check
-  const sectorEtf: Partial<Record<Sector, string>> = {
-    semi_equipment: "SOXX",
-    chips: "SMH",
-    optics: "SOXX",
-    software: "IGV",
-    mega_tech: "QQQ",
-    fintech: "XLF",
-    energy: "XLE",
-    crypto: "BITO",
-    space: "ITA",
-    index: "SPY",
-  };
-
-  const etf = sectorEtf[sector];
-  if (!etf) return null;
-
   try {
-    const q = (await getTradierQuote(etf)) as { change_percentage?: number } | null;
-    if (!q || typeof q.change_percentage !== "number") return null;
+    const { getRotationForSector } = await import("./sector-rotation");
+    const sig = await getRotationForSector(sector);
+    if (!sig || sig.etf === "SPY") return null;
 
-    const chg = q.change_percentage;
+    const rel = sig.relChange; // sector change minus SPY change, %
     let points = 0;
     let why = "";
 
-    if (direction === "long" && chg > 0.5) {
-      points = 4;
-      why = `${sector} sector ETF ${etf} +${chg.toFixed(1)}%`;
-    } else if (direction === "long" && chg < -0.5) {
-      points = -2;
-      why = `${sector} sector ETF ${etf} ${chg.toFixed(1)}% (headwind)`;
-    } else if (direction === "short" && chg < -0.5) {
-      points = 4;
-      why = `${sector} sector ETF ${etf} ${chg.toFixed(1)}% (weakness)`;
-    } else if (direction === "short" && chg > 0.5) {
-      points = -2;
-      why = `${sector} sector ETF ${etf} +${chg.toFixed(1)}% (against)`;
+    const relStr = `${rel >= 0 ? "+" : ""}${rel.toFixed(1)}% vs SPY`;
+    const chgStr = `${sig.change >= 0 ? "+" : ""}${sig.change.toFixed(1)}%`;
+
+    if (direction === "long") {
+      if (rel <= -INFLOW_GATE) {
+        // OUTFLOW: money leaving this sector. Scale the penalty with severity.
+        points = Math.max(-14, Math.round(rel * 4));
+        why = `🩸 ${sig.name} ${chgStr} (${relStr}) — money rotating OUT, fading longs`;
+      } else if (rel >= INFLOW_GATE) {
+        // INFLOW: tailwind for longs (modest boost — don't let it inflate scores).
+        points = Math.min(8, Math.round(rel * 3));
+        why = `${sig.name} ${chgStr} (${relStr}) — sector catching inflows`;
+      } else {
+        return null;
+      }
     } else {
-      return null;
+      // SHORT: weakness is a tailwind, strength is a headwind.
+      if (rel <= -INFLOW_GATE) {
+        points = Math.min(10, Math.round(-rel * 3));
+        why = `${sig.name} ${chgStr} (${relStr}) — sector bleeding, confirms short`;
+      } else if (rel >= INFLOW_GATE) {
+        points = Math.max(-10, Math.round(-rel * 3));
+        why = `${sig.name} ${chgStr} (${relStr}) — sector bid, fights short`;
+      } else {
+        return null;
+      }
     }
+
+    if (points === 0) return null;
 
     return {
       kind: "sector",
-      label: "Sector Tape",
+      label: "Sector Rotation",
       points,
       why,
-      data: { etf, chg },
+      data: {
+        etf: sig.etf,
+        name: sig.name,
+        change: sig.change,
+        relChange: sig.relChange,
+        fiveDayChange: sig.fiveDayChange,
+        state: sig.state,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Minimum relative move (% vs SPY) to treat as a real inflow/outflow.
+const INFLOW_GATE = 0.4;
+
+/**
+ * TA Confluence layer — folds the structured technical read (Fibonacci position,
+ * candlestick patterns, market structure, EMA/RSI confluence) into the score.
+ *
+ * The existing "technical" layer scores RSI/MACD/trend off fields already on the
+ * idea. THIS layer adds what those didn't have: price sitting at a key Fib, a
+ * confirmed candlestick reversal/continuation, and market-structure (HH/HL).
+ *
+ * The TA engine returns a bias score on a −100..+100 scale (positive = bullish).
+ * We align it to the trade's direction and compress to a modest ±8 layer weight
+ * so it confirms/contradicts rather than dominates. Cached fetch → safe to run
+ * across the whole shortlist. Returns null on no data (never fabricates).
+ */
+async function scoreTALayer(symbol: string, direction: "long" | "short"): Promise<ConvictionLayer | null> {
+  try {
+    const { getCachedTARead } = await import("./ta-engine");
+    const ta = await getCachedTARead(symbol, "6mo", "1d");
+    if (!ta) return null;
+
+    // Align bias to the trade: a bullish read helps a long and hurts a short.
+    const aligned = direction === "long" ? ta.bias.score : -ta.bias.score;
+    const points = Math.round((aligned / 100) * 8);
+    if (points === 0) return null;
+
+    // The most relevant confluence reasons (cap to keep the why one-liner tight).
+    const reasons = ta.bias.confluence.slice(0, 3).join(" · ");
+    const verb = points > 0 ? "confirms" : "contradicts";
+    const why = reasons
+      ? `TA ${verb} ${direction}: ${reasons}`
+      : `TA ${verb} ${direction} (bias ${ta.bias.score})`;
+
+    return {
+      kind: "ta",
+      label: "TA Confluence",
+      points,
+      why,
+      data: {
+        biasScore: ta.bias.score,
+        biasDirection: ta.bias.direction,
+        fibZone: ta.fib?.currentZone ?? null,
+        structure: ta.structure?.trend ?? null,
+        patterns: ta.patterns.filter((p) => p.detected).map((p) => p.name),
+      },
     };
   } catch {
     return null;
@@ -1285,6 +1364,13 @@ export async function revalidateBestSetups(
 
 const _convictionsCache = new Map<string, { data: ConvictionsResponse; expiresAt: number }>();
 const CONVICTIONS_CACHE_TTL_MS = 60_000;
+// How long a stale entry may still be served (instantly) while a fresh build
+// runs in the background. Past this, the next request rebuilds synchronously.
+const CONVICTIONS_STALE_MS = 10 * 60_000;
+// One in-flight build per cache key — concurrent callers share it instead of
+// each kicking off a full (rate-limited, CPU-heavy) rebuild. This is what kills
+// the "cold load takes 10s under request contention" problem.
+const _convictionsInflight = new Map<string, Promise<ConvictionsResponse>>();
 
 /**
  * Returns a cached convictions snapshot (60s TTL) or builds a fresh one.
@@ -1309,19 +1395,42 @@ export async function getCachedConvictions(
   const key = JSON.stringify(merged);
   const now = Date.now();
   const hit = _convictionsCache.get(key);
+
+  // Fresh — serve immediately.
   if (hit && hit.expiresAt > now) {
     return hit.data;
   }
-  const data = await buildConvictions(merged);
-  _convictionsCache.set(key, { data, expiresAt: now + CONVICTIONS_CACHE_TTL_MS });
-  // Bound the cache so distinct option combos don't grow unbounded.
-  if (_convictionsCache.size > 16) {
-    const oldest = Array.from(_convictionsCache.entries()).sort(
-      (a, b) => a[1].expiresAt - b[1].expiresAt,
-    )[0];
-    if (oldest) _convictionsCache.delete(oldest[0]);
+
+  // Build (deduped): all concurrent callers for the same key await one promise.
+  const build = (): Promise<ConvictionsResponse> => {
+    const existing = _convictionsInflight.get(key);
+    if (existing) return existing;
+    const p = buildConvictions(merged)
+      .then((data) => {
+        _convictionsCache.set(key, { data, expiresAt: Date.now() + CONVICTIONS_CACHE_TTL_MS });
+        // Bound the cache so distinct option combos don't grow unbounded.
+        if (_convictionsCache.size > 16) {
+          const oldest = Array.from(_convictionsCache.entries()).sort(
+            (a, b) => a[1].expiresAt - b[1].expiresAt,
+          )[0];
+          if (oldest) _convictionsCache.delete(oldest[0]);
+        }
+        return data;
+      })
+      .finally(() => { _convictionsInflight.delete(key); });
+    _convictionsInflight.set(key, p);
+    return p;
+  };
+
+  // Stale-but-recent — serve stale instantly, refresh in the background so the
+  // NEXT caller gets fresh data and nobody waits on the cold rebuild.
+  if (hit && now - hit.expiresAt < CONVICTIONS_STALE_MS) {
+    void build().catch(() => { /* background refresh; stale already served */ });
+    return hit.data;
   }
-  return data;
+
+  // Cold (no entry, or too stale to trust) — must build synchronously.
+  return build();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1649,8 +1758,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     // quote requests). We'll add them in a second pass below.
 
     const totalPoints = layers.reduce((s, l) => s + l.points, 0);
-    // Sector layer adds up to ±4, analyst layer up to ±6
-    if (totalPoints < minScore - 10) continue;
+    // Second-pass layers can still rescue a borderline candidate:
+    // sector ±4, analyst ±6, TA confluence ±8 → keep a 15pt buffer below minScore.
+    if (totalPoints < minScore - 15) continue;
 
     picks.push({
       ideaId: idea.id,
@@ -1671,10 +1781,11 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       convictionBand: "C",
       layerCount: layers.length,
       layers,
-      thesis: idea.convergenceSignalsJson?.primaryThesis ?? idea.catalyst ?? "",
+      thesis: idea.convergenceSignalsJson?.primaryThesis ?? idea.analysis ?? idea.catalyst ?? "",
       catalyst: idea.catalyst ?? "",
       catalystSourceUrl: idea.catalystSourceUrl ?? null,
       generatedAt: idea.generationTimestamp ?? idea.timestamp,
+      source: idea.source ?? "quant",
     });
   }
 
@@ -1705,12 +1816,18 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   // Sector + analyst enrichment (parallel, capped to top picks)
   await Promise.all(
     topForSector.map(async (p) => {
-      const [sectorLayer, analystSnap] = await Promise.all([
+      const [sectorLayer, analystSnap, taLayer] = await Promise.all([
         scoreSectorLayer(p.symbol, p.sector, p.direction),
         getAnalystSnapshot(p.symbol).catch(() => null),
+        // TA confluence (Fib + candlesticks + structure). Skipped during backtest
+        // replay since it reads live daily candles, not historical-as-of bars.
+        skipLiveRevalidation ? Promise.resolve(null) : scoreTALayer(p.symbol, p.direction),
       ]);
       if (sectorLayer) {
         p.layers.push(sectorLayer);
+      }
+      if (taLayer) {
+        p.layers.push(taLayer);
       }
       // Analyst 12-month targets only matter for position / leap holds.
       // For day / swing trades they're noise — skip entirely.

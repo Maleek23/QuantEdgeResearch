@@ -14,6 +14,17 @@ import {
   getEngineWeight,
   type RegimeAnalysis,
 } from "./ml";
+// Canonical option-selection engine — turns a stock thesis into a concrete
+// option contract (strike/expiry/greeks) so every idea carries a real option.
+import {
+  selectFromChain,
+  type PriceActionThesis,
+  type SetupType,
+  type ExpiryTier,
+  type ContractCandidate,
+} from "./option-selection-engine";
+import { fetchCboeChain, findContractMid } from "./contract-analyzer/cboe-chain";
+import { isApprovedTicker, isSkipTicker } from "@shared/approved-tickers";
 
 /**
  * UNIVERSAL TRADE IDEA GENERATOR
@@ -710,6 +721,114 @@ function getEngineType(source: IdeaSource): string {
   }
 }
 
+/** Map our holding-period vocabulary to the engine's setup/DTE window. */
+function holdingToSetup(holdingPeriod: string): SetupType {
+  if (holdingPeriod === 'day') return 'scalp';
+  if (holdingPeriod === 'position') return 'position';
+  return 'swing';
+}
+
+/**
+ * Map the holding horizon to an explicit expiry tier. This is what keeps the
+ * contract's expiry aligned with the stated hold: a 'day' trade gets DAILY
+ * expiries, a 'swing' gets WEEKLY, a 'position' gets MONTHLY. (LEAP/0DTE are
+ * opt-in per idea, not auto-derived.)
+ */
+function holdingToTier(holdingPeriod: string): ExpiryTier {
+  if (holdingPeriod === 'day') return 'DAILY';
+  if (holdingPeriod === 'position') return 'MONTHLY';
+  return 'WEEKLY';
+}
+
+interface AttachedContract {
+  optionType: 'call' | 'put';
+  strikePrice: number;
+  expiryDate: string;
+  optionDelta: number;
+  optionGamma: number;
+  optionTheta: number;
+  optionVega: number;
+  optionIV: number; // stored as percent to match the schema column comment
+  entryPremium: number; // option mid premium at idea creation (for real P&L tracking)
+  openInterest: number; // contract open interest at selection (liquidity)
+  volume: number;       // contract day volume at selection (liquidity)
+  expiryTier: ExpiryTier; // 0DTE|DAILY|WEEKLY|MONTHLY|LEAP — horizon the expiry was bound to
+  dte: number;            // days-to-expiry of the chosen contract
+  isLottoPlay: boolean;
+  tradeType: 'lotto' | 'swing' | 'mover' | 'scalp';
+  summary: string;
+}
+
+/**
+ * Run a directional stock thesis through the canonical option engine and return
+ * a concrete contract to attach to the idea. Returns null when no live CBOE
+ * chain / liquid contract is found — callers keep the stock-only thesis rather
+ * than fabricate a strike (honesty contract).
+ */
+async function attachOptionContract(args: {
+  symbol: string;
+  direction: 'bullish' | 'bearish';
+  entry: number;
+  stop: number;
+  t1: number;
+  confidence: number;
+  holdingPeriod: string;
+  /** Optional explicit expiry tier (user-selected); else derived from holdingPeriod. */
+  expiryTier?: ExpiryTier;
+}): Promise<AttachedContract | null> {
+  try {
+    const chain = await fetchCboeChain(args.symbol);
+    if (!chain) return null;
+    const thesis: PriceActionThesis = {
+      symbol: args.symbol,
+      direction: args.direction,
+      setup: holdingToSetup(args.holdingPeriod),
+      expiryTier: args.expiryTier ?? holdingToTier(args.holdingPeriod),
+      entry: args.entry,
+      stop: args.stop,
+      t1: args.t1,
+      conviction: args.confidence,
+      asOfSpot: chain.spot,
+    };
+    const sel = selectFromChain(thesis, chain.spot, chain.rawChain);
+    if (sel.status !== 'ok' || sel.picks.length === 0) return null;
+    const pick: ContractCandidate =
+      sel.picks.find((p) => p.tier === sel.recommendedTier) ?? sel.picks[0];
+    const isLotto = pick.delta < 0.30;
+    const tradeType: AttachedContract['tradeType'] = isLotto
+      ? 'lotto'
+      : args.holdingPeriod === 'day'
+        ? 'scalp'
+        : 'swing';
+    const expFmt = pick.expiry.slice(5).replace('-', '/'); // MM/DD
+    const cp = pick.optionType === 'call' ? 'C' : 'P';
+    const summary =
+      `Contract: $${pick.strike}${cp} ${expFmt} @ $${pick.entryPremium.toFixed(2)} ` +
+      `(Δ${pick.delta.toFixed(2)}, ${pick.dte}DTE, grade ${pick.grade}) — ` +
+      `ROI@T1 ${pick.roiAtT1Pct >= 0 ? '+' : ''}${pick.roiAtT1Pct.toFixed(0)}%, R:R ${pick.riskRewardRatio.toFixed(1)}:1`;
+    return {
+      optionType: pick.optionType,
+      strikePrice: pick.strike,
+      expiryDate: pick.expiry,
+      optionDelta: Math.round(pick.delta * 1000) / 1000,
+      optionGamma: Math.round(pick.gamma * 10000) / 10000,
+      optionTheta: Math.round(pick.theta * 1000) / 1000,
+      optionVega: Math.round(pick.vega * 1000) / 1000,
+      optionIV: Math.round(pick.iv * 100),
+      entryPremium: Math.round(pick.entryPremium * 100) / 100,
+      openInterest: Math.round(pick.openInterest ?? 0),
+      volume: Math.round(pick.volume ?? 0),
+      expiryTier: sel.expiryTier,
+      dte: pick.dte,
+      isLottoPlay: isLotto,
+      tradeType,
+      summary,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Universal Trade Idea Generator
  * Creates a trade idea from ANY source with calculated confidence
@@ -900,18 +1019,41 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       }
     }
     
-    const targetPrice = input.targetPrice || (
-      input.direction === 'bullish' 
-        ? currentPrice * targetMultiplier 
-        : currentPrice * (2 - targetMultiplier)
-    );
-    
-    const stopLoss = input.stopLoss || (
-      input.direction === 'bullish'
-        ? currentPrice * stopMultiplier
-        : currentPrice * (2 - stopMultiplier)
-    );
-    
+    // Volatility/timeframe-derived defaults (the "sane" levels).
+    const computedTarget = input.direction === 'bullish'
+      ? currentPrice * targetMultiplier
+      : currentPrice * (2 - targetMultiplier);
+    const computedStop = input.direction === 'bullish'
+      ? currentPrice * stopMultiplier
+      : currentPrice * (2 - stopMultiplier);
+
+    let targetPrice = input.targetPrice || computedTarget;
+    let stopLoss = input.stopLoss || computedStop;
+
+    // ── Sanity clamp ────────────────────────────────────────────────
+    // A source-provided target/stop must imply a REALISTIC move for its
+    // timeframe. Absurd upstream levels — e.g. an option ROI mistaken for a
+    // stock target ("$126 target on a $10 entry") — get replaced by the
+    // volatility default instead of leaking a fake 12× move into the feed.
+    const MAX_TARGET_MOVE: Record<string, number> = { day: 0.25, swing: 0.60, position: 1.50 };
+    const MAX_STOP_MOVE: Record<string, number> = { day: 0.15, swing: 0.25, position: 0.40 };
+    const maxT = MAX_TARGET_MOVE[holdingPeriod] ?? 0.60;
+    const maxS = MAX_STOP_MOVE[holdingPeriod] ?? 0.25;
+    if (currentPrice > 0) {
+      const tMove = Math.abs(targetPrice - currentPrice) / currentPrice;
+      if (tMove > maxT) {
+        logger.warn(
+          `[IDEA] ${input.symbol} target $${targetPrice.toFixed(2)} implies ${(tMove * 100).toFixed(0)}% ` +
+          `move (> ${(maxT * 100).toFixed(0)}% ${holdingPeriod} cap) — using volatility default $${computedTarget.toFixed(2)}`,
+        );
+        targetPrice = computedTarget;
+      }
+      const sMove = Math.abs(stopLoss - currentPrice) / currentPrice;
+      if (sMove > maxS) {
+        stopLoss = computedStop;
+      }
+    }
+
     // Calculate risk/reward ratio
     const potentialGain = input.direction === 'bullish' 
       ? targetPrice - currentPrice 
@@ -944,13 +1086,95 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     const analysis = input.analysis || `${getEngineType(input.source)} signal detected: ${signalDescriptions.slice(0, 3).join(', ')}. ` +
       `${input.direction === 'bullish' ? 'Bullish' : 'Bearish'} setup with ${confidence}% confidence.`;
     
+    // ── Attach a concrete option contract ──────────────────────────
+    // Every directional equity idea should carry a REAL option (strike/expiry/
+    // greeks) picked by the canonical engine — not just stock key levels.
+    // If the caller already specified an exact contract (e.g. the Contract
+    // Analyzer or a flow alert), keep it; otherwise derive one from the chain.
+    let optionType: 'call' | 'put' | null =
+      (input.optionType as 'call' | 'put' | undefined) || null;
+    let strikePrice: number | null = input.strikePrice || null;
+    let expiryDate: string | null = input.expiryDate || null;
+    let optionDelta: number | null = null;
+    let optionGamma: number | null = null;
+    let optionTheta: number | null = null;
+    let optionVega: number | null = null;
+    let optionIV: number | null = null;
+    let entryPremium: number | null = null;
+    let optionOpenInterest: number | null = null;
+    let optionVolume: number | null = null;
+    let expiryTier: ExpiryTier | null = null;
+    let optionDte: number | null = null;
+    let isLottoPlay = false;
+    let tradeType: 'lotto' | 'swing' | 'mover' | 'scalp' = 'swing';
+    let contractSummary: string | null = null;
+    let resolvedAssetType = input.assetType;
+
+    const callerSpecifiedContract = !!(input.optionType && input.strikePrice && input.expiryDate);
+    if (!callerSpecifiedContract && input.assetType !== 'crypto' && input.direction !== 'neutral') {
+      const attached = await attachOptionContract({
+        symbol: input.symbol,
+        direction: input.direction,
+        entry: currentPrice,
+        stop: stopLoss,
+        t1: targetPrice,
+        confidence,
+        holdingPeriod,
+      });
+      if (attached) {
+        optionType = attached.optionType;
+        strikePrice = attached.strikePrice;
+        expiryDate = attached.expiryDate;
+        optionDelta = attached.optionDelta;
+        optionGamma = attached.optionGamma;
+        optionTheta = attached.optionTheta;
+        optionVega = attached.optionVega;
+        optionIV = attached.optionIV;
+        entryPremium = attached.entryPremium;
+        optionOpenInterest = attached.openInterest;
+        optionVolume = attached.volume;
+        expiryTier = attached.expiryTier;
+        optionDte = attached.dte;
+        isLottoPlay = attached.isLottoPlay;
+        tradeType = attached.tradeType;
+        contractSummary = attached.summary;
+        resolvedAssetType = 'option';
+        logger.info(`[UNIVERSAL] Attached contract for ${input.symbol}: ${optionType} $${strikePrice} ${expiryDate} (Δ${optionDelta})`);
+      }
+    } else if (callerSpecifiedContract && optionType && strikePrice && expiryDate) {
+      // Caller already named the exact contract (Contract Analyzer / flow alert).
+      // Capture its live mid as the entry premium so the P&L tracker has a real
+      // cost basis. Never fabricate — leave null if the chain/contract isn't found.
+      try {
+        const chain = await fetchCboeChain(input.symbol);
+        if (chain) {
+          const mid = findContractMid(chain, optionType, strikePrice, expiryDate);
+          if (mid != null) {
+            entryPremium = Math.round(mid * 100) / 100;
+            logger.info(`[UNIVERSAL] Captured entry premium for ${input.symbol} ${optionType} $${strikePrice} ${expiryDate}: $${entryPremium}`);
+          }
+        }
+      } catch (e) {
+        logger.warn(`[UNIVERSAL] Could not capture entry premium for ${input.symbol}: ${e}`);
+      }
+    }
+
+    // SAVE-AS-STOCK FALLBACK: if this was meant to be an option but no concrete
+    // contract could be attached (e.g. CBOE chain unavailable / 429), downgrade to
+    // a stock thesis rather than persisting a contract-less "option". The next scan
+    // for this symbol re-attempts attachment once the chain is reachable.
+    if (resolvedAssetType === 'option' && !(optionType && strikePrice && expiryDate)) {
+      logger.info(`[UNIVERSAL] ${input.symbol}: no option contract attached (chain unavailable) — saving as stock, will retry next cycle`);
+      resolvedAssetType = 'stock';
+    }
+
     // Determine session context based on current time
     const hour = new Date().getHours();
     const sessionContext = hour < 9 ? 'pre-market' : hour < 16 ? 'regular' : 'after-hours';
-    
+
     const idea: InsertTradeIdea = {
       symbol: input.symbol.toUpperCase(),
-      assetType: input.assetType,
+      assetType: resolvedAssetType,
       direction: input.direction === 'bullish' ? 'long' : 'short',
       entryPrice: currentPrice,
       targetPrice,
@@ -961,12 +1185,24 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       holdingPeriod,
       timestamp: new Date().toISOString(),
       sessionContext,
-      
-      // Option fields
-      optionType: input.optionType || null,
-      strikePrice: input.strikePrice || null,
-      expiryDate: input.expiryDate || null,
-      
+
+      // Option fields — concrete contract from the canonical engine
+      optionType,
+      strikePrice,
+      expiryDate,
+      optionDelta,
+      optionGamma,
+      optionTheta,
+      optionVega,
+      optionIV,
+      entryPremium,
+      optionOpenInterest,
+      optionVolume,
+      expiryTier,
+      optionDte,
+      isLottoPlay,
+      tradeType,
+
       // Analysis - use real news catalysts when available. If we have an
       // earnings surprise magnitude, append it in a machine-parseable tag
       // so the convictions catalyst layer can score it.
@@ -981,9 +1217,9 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
         }
         return base;
       })(),
-      analysis,
-      qualitySignals: signalDescriptions,
-      
+      analysis: contractSummary ? `${analysis} ${contractSummary}` : analysis,
+      qualitySignals: contractSummary ? [...signalDescriptions, contractSummary] : signalDescriptions,
+
       // Outcome tracking
       outcomeStatus: 'open',
       
@@ -1012,31 +1248,19 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
  * Generate and save a trade idea from any source
  * Includes database-level deduplication to prevent duplicate ideas
  */
-// WATCHLIST LOCK — only generate ideas for approved tickers
-const APPROVED_TICKERS = new Set([
-  // S-Tier
-  'AAOI','CRCL','OKLO','LUNR','KLAC','SMTC','AEHR','OLED','RMBS','BILL','INTA','MKSI',
-  // A-Tier
-  'LRCX','AFRM','WDC','MU','AMD','TSEM','COIN','ARM','HIMS','ONTO','ENTG','UPST',
-  'DUOL','PATH','MDB','AMBA','COHU','SNOW','NET','FRSH','ESTC','ACLS','ASAN',
-  'SOFI','DDOG','DELL','SHOP','DKNG','MARA','LITE','FN','CIEN','AXTI','BROS',
-  'NBIS','TSLA','AVGO','NFLX','COHR','ALGM',
-  // Index
-  'SPY','QQQ','IWM','XSP','DIA',
-  // Crypto
-  'BTC','ETH','SOL','DOGE',
-]);
-const SKIP_TICKERS = new Set(['AI','GLBE','TOST','CYBR','MNDY','GRAB','SE']);
-
 export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Promise<boolean> {
   const symbol = input.symbol.toUpperCase();
 
-  // WATCHLIST GATE: Block tickers not on approved list
-  if (!APPROVED_TICKERS.has(symbol)) {
+  // WATCHLIST GATE — SINGLE SOURCE OF TRUTH.
+  // Use the SAME broad list the GEX Hub scans (@shared/approved-tickers:
+  // semis + software + quantum + space + nuclear + defense + indices + crypto).
+  // Previously this used a separate narrow ~60-ticker semis-only copy, which
+  // silently blocked every quantum/space/software name the GEX Hub surfaced.
+  if (!isApprovedTicker(symbol)) {
     logger.debug(`[UNIVERSAL] Blocked ${symbol} — not on approved watchlist`);
     return false;
   }
-  if (SKIP_TICKERS.has(symbol)) {
+  if (isSkipTicker(symbol)) {
     logger.debug(`[UNIVERSAL] Blocked ${symbol} — on skip list`);
     return false;
   }
@@ -1074,6 +1298,92 @@ export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Pro
     logger.error(`[UNIVERSAL] Failed to save idea for ${input.symbol}:`, error);
     return false;
   }
+}
+
+/**
+ * CONTRACT BACKFILL — the "retry later" half of the save-as-stock fallback.
+ *
+ * When an option-intent idea can't attach a contract at creation (CBOE chain
+ * unavailable / 429), it's persisted as a bare stock thesis. The 2-hour dedup
+ * then blocks the symbol from regenerating, so the idea would otherwise stay
+ * contract-less for hours. This pass re-attempts attachment IN PLACE: it scans
+ * open, directional, contract-less ideas and upgrades them to real option
+ * contracts via the canonical engine once the chain is reachable again.
+ *
+ * Surgical scope (avoid touching deliberately-stock or user-authored ideas):
+ *   - outcomeStatus 'open' (don't rewrite resolved trades)
+ *   - assetType 'stock' AND no optionType yet
+ *   - direction long/short (engine needs a directional thesis)
+ *   - source NOT manual/chart_analysis (respect explicit user choices)
+ *   - has entry + stop + target (engine inputs)
+ *
+ * Runs sequentially; the fetchCboeChain TTL cache absorbs duplicate symbols.
+ */
+export async function backfillContractlessIdeas(): Promise<{ scanned: number; upgraded: number }> {
+  let scanned = 0;
+  let upgraded = 0;
+  try {
+    const ideas = await storage.getAllTradeIdeas();
+    const candidates = ideas.filter(i =>
+      (i.outcomeStatus ?? 'open') === 'open' &&
+      i.assetType === 'stock' &&
+      !i.optionType &&
+      (i.direction === 'long' || i.direction === 'short') &&
+      i.source !== 'manual' && i.source !== 'chart_analysis' &&
+      typeof i.entryPrice === 'number' &&
+      typeof i.stopLoss === 'number' &&
+      typeof i.targetPrice === 'number'
+    );
+
+    if (candidates.length === 0) return { scanned: 0, upgraded: 0 };
+    logger.info(`[BACKFILL] ${candidates.length} contract-less option-intent idea(s) to retry`);
+
+    for (const idea of candidates) {
+      scanned++;
+      try {
+        const attached = await attachOptionContract({
+          symbol: idea.symbol,
+          direction: idea.direction === 'long' ? 'bullish' : 'bearish',
+          entry: idea.entryPrice as number,
+          stop: idea.stopLoss as number,
+          t1: idea.targetPrice as number,
+          confidence: idea.confidenceScore ?? 60,
+          holdingPeriod: idea.holdingPeriod ?? 'swing',
+        });
+        if (!attached) {
+          logger.debug(`[BACKFILL] ${idea.symbol}: chain still unavailable — leaving as stock`);
+          continue;
+        }
+        await storage.updateTradeIdea(idea.id, {
+          assetType: 'option',
+          optionType: attached.optionType,
+          strikePrice: attached.strikePrice,
+          expiryDate: attached.expiryDate,
+          optionDelta: attached.optionDelta,
+          optionGamma: attached.optionGamma,
+          optionTheta: attached.optionTheta,
+          optionVega: attached.optionVega,
+          optionIV: attached.optionIV,
+          entryPremium: attached.entryPremium,
+          optionOpenInterest: attached.openInterest,
+          optionVolume: attached.volume,
+          expiryTier: attached.expiryTier,
+          optionDte: attached.dte,
+          isLottoPlay: attached.isLottoPlay,
+          tradeType: attached.tradeType,
+          analysis: `${idea.analysis} ${attached.summary}`,
+        });
+        upgraded++;
+        logger.info(`[BACKFILL] ✅ ${idea.symbol}: upgraded to ${attached.optionType} $${attached.strikePrice} ${attached.expiryDate} @ $${attached.entryPremium}`);
+      } catch (e) {
+        logger.warn(`[BACKFILL] ${idea.symbol}: upgrade failed — ${(e as Error).message}`);
+      }
+    }
+  } catch (err) {
+    logger.error('[BACKFILL] Pass failed:', err);
+  }
+  if (upgraded > 0) logger.info(`[BACKFILL] Upgraded ${upgraded}/${scanned} idea(s) to real contracts`);
+  return { scanned, upgraded };
 }
 
 /**

@@ -37,6 +37,13 @@ export interface QETabItem<T extends string = string> {
   disabled?: boolean;
   /** Optional leading icon */
   icon?: ReactNode;
+  /**
+   * Optional cluster label. When ANY item has a group, tabs render as labeled
+   * clusters (tiny group caption + subtle divider between clusters) instead of a
+   * flat strip — calms a long tab bar without nesting navigation. Consecutive
+   * items sharing a group string are drawn together, in declaration order.
+   */
+  group?: string;
 }
 
 export interface QETabsProps<T extends string = string> {
@@ -52,15 +59,16 @@ export interface QETabsProps<T extends string = string> {
   className?: string;
 }
 
+// Active tab — filled accent chip with a soft outer glow (premium segmented look).
 const ACTIVE_VARIANT: Record<QETabsVariant, string> = {
-  cyan:   'border-[var(--brand-cyan)]/50 text-[var(--brand-cyan)] bg-[var(--brand-cyan)]/10',
-  gold:   'border-[var(--brand-gold)]/50 text-[var(--brand-gold)] bg-[var(--brand-gold)]/10',
-  subtle: 'border-foreground/30 text-foreground bg-foreground/5',
+  cyan:   'text-[var(--brand-cyan)] bg-[var(--brand-cyan)]/15 ring-1 ring-[var(--brand-cyan)]/40 shadow-[0_0_12px_-2px_var(--brand-cyan)]',
+  gold:   'text-[var(--brand-gold)] bg-[var(--brand-gold)]/15 ring-1 ring-[var(--brand-gold)]/40 shadow-[0_0_12px_-2px_var(--brand-gold)]',
+  subtle: 'text-foreground bg-foreground/10 ring-1 ring-foreground/20',
 };
 
 const SIZE_PADDING: Record<QETabsSize, string> = {
-  sm: 'px-2 py-0.5 text-[9px]',
-  md: 'px-3 py-1 text-[10px]',
+  sm: 'px-2.5 py-1 text-[9px]',
+  md: 'px-3 py-1.5 text-[10px]',
 };
 
 export function QETabs<T extends string = string>({
@@ -73,41 +81,78 @@ export function QETabs<T extends string = string>({
   rightSlot,
   className,
 }: QETabsProps<T>) {
+  const renderTab = (item: QETabItem<T>) => (
+    <button
+      key={item.id}
+      type="button"
+      disabled={item.disabled}
+      onClick={() => !item.disabled && onChange(item.id)}
+      title={item.hint}
+      className={cn(
+        'font-mono font-bold uppercase rounded-md transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer',
+        SIZE_PADDING[size],
+        item.disabled && 'opacity-40 cursor-not-allowed text-muted-foreground/60',
+        !item.disabled && active === item.id
+          ? ACTIVE_VARIANT[variant]
+          : !item.disabled && 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]',
+      )}
+    >
+      {item.icon}
+      {item.label}
+      {typeof item.count === 'number' && !item.disabled && (
+        <span className="text-muted-foreground/70 font-normal">·{item.count}</span>
+      )}
+      {item.disabled && (
+        <span className="ml-0.5 text-[7px] font-mono uppercase tracking-widest text-muted-foreground/50 px-1 py-0 rounded border border-border/30">
+          soon
+        </span>
+      )}
+    </button>
+  );
+
+  // Grouped layout: when any item declares a group, draw labeled clusters with a
+  // faint divider between them. Calms a long tab bar without nesting navigation.
+  const grouped = items.some((i) => i.group);
+
+  if (grouped) {
+    const clusters: { group: string; items: QETabItem<T>[] }[] = [];
+    for (const item of items) {
+      const g = item.group ?? '';
+      const last = clusters[clusters.length - 1];
+      if (last && last.group === g) last.items.push(item);
+      else clusters.push({ group: g, items: [item] });
+    }
+    return (
+      <div className={cn('flex items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
+        {prefixLabel && (
+          <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60 mx-1.5 self-center">
+            {prefixLabel}
+          </span>
+        )}
+        {clusters.map((cluster, ci) => (
+          <div key={cluster.group || ci} className="flex items-center gap-1">
+            {ci > 0 && <span className="mx-1 h-5 w-px bg-border/40" aria-hidden />}
+            {cluster.group && (
+              <span className="text-[7px] font-mono uppercase tracking-[0.2em] text-muted-foreground/45 mr-0.5 self-center select-none">
+                {cluster.group}
+              </span>
+            )}
+            {cluster.items.map(renderTab)}
+          </div>
+        ))}
+        {rightSlot && <div className="ml-auto">{rightSlot}</div>}
+      </div>
+    );
+  }
+
   return (
-    <div className={cn('flex items-center gap-1 flex-wrap pb-1 border-b border-border/30', className)}>
+    <div className={cn('flex items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
       {prefixLabel && (
-        <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60 mr-1">
+        <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60 mx-1.5">
           {prefixLabel}
         </span>
       )}
-      {items.map(item => (
-        <button
-          key={item.id}
-          type="button"
-          disabled={item.disabled}
-          onClick={() => !item.disabled && onChange(item.id)}
-          title={item.hint}
-          className={cn(
-            'font-mono font-bold uppercase rounded border transition-colors inline-flex items-center gap-1.5',
-            SIZE_PADDING[size],
-            item.disabled && 'opacity-40 cursor-not-allowed border-border/20 text-muted-foreground/60',
-            !item.disabled && active === item.id
-              ? ACTIVE_VARIANT[variant]
-              : !item.disabled && 'border-border/40 text-muted-foreground hover:text-foreground hover:border-border',
-          )}
-        >
-          {item.icon}
-          {item.label}
-          {typeof item.count === 'number' && !item.disabled && (
-            <span className="text-muted-foreground/70 font-normal">·{item.count}</span>
-          )}
-          {item.disabled && (
-            <span className="ml-0.5 text-[7px] font-mono uppercase tracking-widest text-muted-foreground/50 px-1 py-0 rounded border border-border/30">
-              soon
-            </span>
-          )}
-        </button>
-      ))}
+      {items.map(renderTab)}
       {rightSlot && <div className="ml-auto">{rightSlot}</div>}
     </div>
   );

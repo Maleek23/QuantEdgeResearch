@@ -77,7 +77,7 @@ export async function generateWeeklyReport(): Promise<WeeklyReport> {
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
   
   // Fetch all trade ideas from the past week
-  const allIdeas = await storage.getTradeIdeas();
+  const allIdeas = await storage.getAllTradeIdeas();
   const weeklyIdeas = allIdeas.filter(idea => {
     const ideaDate = new Date(idea.timestamp);
     return ideaDate >= weekStart && ideaDate <= weekEnd;

@@ -229,6 +229,56 @@ export async function getYahooOptionsChain(
   }
 }
 
+/**
+ * Engine-oriented chain fetch: returns spot + a wide RawChainOption-compatible
+ * chain across the given expiries with computed greeks. Unlike getYahooOptionsChain
+ * (tuned for GEX/VEX ±15% around spot), this keeps a WIDE strike band so the
+ * option-selection-engine can find deep-ITM LEAP strikes (0.70–0.80 delta sit
+ * well below spot). Used as the engine's fallback when CBOE is rate-limited.
+ */
+export async function getYahooEngineChain(
+  symbol: string,
+  expiries: string[],
+  strikeBandPct = 0.45,
+): Promise<{ spot: number; chain: TradierCompatOption[] }> {
+  const { getBestPrice, getChartLastPrice } = await import('./yahoo-finance-service');
+  const [quote, chartPrice] = await Promise.all([safeQuote(symbol), getChartLastPrice(symbol)]);
+  const spot = chartPrice > 0 ? chartPrice : getBestPrice(quote);
+  if (!(spot > 0)) return { spot: 0, chain: [] };
+
+  const lower = spot * (1 - strikeBandPct);
+  const upper = spot * (1 + strikeBandPct);
+  const chain: TradierCompatOption[] = [];
+
+  for (let i = 0; i < expiries.length; i++) {
+    const exp = expiries[i];
+    if (i > 0) await new Promise((r) => setTimeout(r, 120)); // stagger
+    try {
+      const data = await fetchYahooOptionsRaw(symbol, exp);
+      if (!data) continue;
+      const calls: YahooOptionContract[] = data.options?.[0]?.calls || data.calls || [];
+      const puts: YahooOptionContract[] = data.options?.[0]?.puts || data.puts || [];
+      const expDate = new Date(exp + 'T16:00:00');
+      const tte = Math.max(0.001, (expDate.getTime() - Date.now()) / (365.25 * 86400000));
+      for (const c of calls) {
+        if (c.strike < lower || c.strike > upper) continue;
+        const iv = c.impliedVolatility || 0.3;
+        const g = computeGreeks(spot, c.strike, tte, iv, true);
+        chain.push(buildCompatOption(symbol, c, g, iv, 'call', exp, spot));
+      }
+      for (const p of puts) {
+        if (p.strike < lower || p.strike > upper) continue;
+        const iv = p.impliedVolatility || 0.3;
+        const g = computeGreeks(spot, p.strike, tte, iv, false);
+        chain.push(buildCompatOption(symbol, p, g, iv, 'put', exp, spot));
+      }
+    } catch (e: any) {
+      logger.warn(`[YAHOO-OPT] engine chain ${symbol} ${exp} failed: ${e.message}`);
+    }
+  }
+  return { spot, chain };
+}
+
 // Get all available expiration dates
 export async function getYahooExpirations(symbol: string): Promise<string[]> {
   try {

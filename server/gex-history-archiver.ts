@@ -104,7 +104,7 @@ async function archiveTicker(symbol: string): Promise<boolean> {
         ? ((snapshot.flipPoint - snapshot.spotPrice) / snapshot.spotPrice) * 100
         : null,
       regime: snapshot.regime ?? null,
-      vexRegime: snapshot.vexRegime ?? null,
+      vexRegime: snapshot.regime ?? null,
       netGexSign: snapshot.totalGEX > 0 ? 'positive' : snapshot.totalGEX < 0 ? 'negative' : 'neutral',
       totalGex: snapshot.totalGEX,
       maxGammaStrike: snapshot.maxGammaStrike ?? null,

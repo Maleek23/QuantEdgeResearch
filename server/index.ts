@@ -176,6 +176,19 @@ app.use((req, res, next) => {
     startWatchlistMonitor(5);
     log('🔔 Watchlist Monitor started');
 
+    // GEX hub cache warm-up — fire-and-forget so the first /api/gex-vex/hub visit
+    // hits a warm cache instead of blocking on the 132-ticker scan. The scanner
+    // dedupes + caches internally and serves a CBOE fallback off-hours.
+    (async () => {
+      try {
+        const { scanWatchlistConfluence } = await import('./gex-vex-scanner');
+        await scanWatchlistConfluence({}); // kicks a background full scan
+        log('🔥 GEX hub cache warm-up triggered');
+      } catch (err) {
+        logger.error('[GEX-WARMUP] failed:', err);
+      }
+    })();
+
     // ── Heavy services: ONLY during market hours ─────────────────────────
     // These 20+ services consume massive CPU/memory. They are pointless when
     // the market is closed (no price movement, no volume, no flow).
@@ -212,6 +225,10 @@ app.use((req, res, next) => {
         const { startMorningPreviewScheduler } = await import('./morning-preview-service');
         startMorningPreviewScheduler();
         log('☀️ Morning Preview Scheduler started');
+
+        const { startIndexScalpScheduler } = await import('./index-scalp-engine');
+        startIndexScalpScheduler();
+        log('🎯 Index Scalp Scheduler started (SPX/SPY/QQQ/IWM 0DTE)');
 
         const { startAttentionTrackingService } = await import('./attention-tracking-service');
         startAttentionTrackingService();

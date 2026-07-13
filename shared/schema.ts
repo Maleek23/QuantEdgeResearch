@@ -199,8 +199,15 @@ export const tradeIdeas = pgTable("trade_ideas", {
   
   // Performance Tracking Fields
   outcomeStatus: text("outcome_status").$type<OutcomeStatus>().default('open'), // Tracks if trade worked
-  exitPrice: real("exit_price"), // Actual exit price when closed
+  exitPrice: real("exit_price"), // Actual exit price when closed (STOCK price for the underlying)
   realizedPnL: real("realized_pnl"), // Actual profit/loss in dollars
+  // 🎯 Real OPTION contract P&L (premium-based), distinct from the stock-level
+  // exitPrice/percentGain above. For option ideas the validator records the
+  // actual contract premium at entry and at resolution so the win rate reflects
+  // what the CONTRACT did, not just whether the stock hit its target.
+  entryPremium: real("entry_premium"), // Option mid premium captured at idea creation
+  exitPremium: real("exit_premium"),   // Option mid premium at resolution (target/stop/expiry)
+  optionPercentGain: real("option_percent_gain"), // (exitPremium - entryPremium) / entryPremium * 100
   exitDate: text("exit_date"), // When trade was closed
   outcomeNotes: text("outcome_notes"), // Additional notes about outcome
   resolutionReason: text("resolution_reason").$type<ResolutionReason>(), // How outcome was determined
@@ -262,7 +269,11 @@ export const tradeIdeas = pgTable("trade_ideas", {
   optionGamma: real("option_gamma"), // Delta acceleration (how fast delta changes)
   optionVega: real("option_vega"), // IV sensitivity (price change per 1% IV move)
   optionIV: real("option_iv"), // Implied volatility at entry (%)
-  
+  optionOpenInterest: integer("option_open_interest"), // Contract open interest at selection (liquidity)
+  optionVolume: integer("option_volume"), // Contract day volume at selection (liquidity)
+  expiryTier: text("expiry_tier").$type<'0DTE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'LEAP'>(), // Horizon tier the expiry was bound to (keeps expiry aligned with holding period)
+  optionDte: integer("option_dte"), // Days-to-expiry of the chosen contract at selection
+
   // 🎓 EDUCATIONAL TRACKING - For missed entries (entry window expired before trade placed)
   // These fields track what WOULD HAVE happened - separate from real performance metrics
   missedEntryTheoreticalOutcome: text("missed_entry_theoretical_outcome").$type<'would_have_won' | 'would_have_lost' | 'inconclusive'>(), // What would have happened if entry was made

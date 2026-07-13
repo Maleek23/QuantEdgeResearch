@@ -30,7 +30,7 @@ import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense } from 'react';
 
-import { QETabs, type QETabItem, QECard } from '@/components/ui/qe';
+import { QETabs, type QETabItem } from '@/components/ui/qe';
 import { TickerSwitcher } from '@/components/ticker-switcher';
 import { useTabState } from '@/hooks/use-tab-state';
 import { useStockContext } from '@/contexts/stock-context';
@@ -41,17 +41,16 @@ const TerminalChart    = lazy(() => import('@/pages/terminal-chart'));
 const TerminalHeatmap  = lazy(() => import('@/pages/terminal-heatmap'));
 const OptionsAnalyzer  = lazy(() => import('@/pages/options-analyzer'));
 const FlowTable        = lazy(() => import('@/components/research/flow-table').then(m => ({ default: m.FlowTable })));
+const ContractAnalyzer = lazy(() => import('@/components/contract-analyzer').then(m => ({ default: m.ContractAnalyzer })));
 
-type Tab = 'chart' | 'options' | 'gex' | 'flow' | 'news' | 'setups' | 'analysis';
+type Tab = 'chart' | 'options' | 'gex' | 'flow' | 'analyze';
 
 const TABS: readonly QETabItem<Tab>[] = [
   { id: 'chart',    label: 'Chart',    hint: 'Price + key levels + GEX overlays' },
   { id: 'options',  label: 'Options',  hint: 'Chain · greeks · IV · ROI scenarios' },
   { id: 'gex',      label: 'GEX',      hint: 'Walls · flip · expiry matrix · dealer flow' },
   { id: 'flow',     label: 'Flow',     hint: 'Live unusual options activity — sweeps, blocks, dark pool' },
-  { id: 'news',     label: 'News',     hint: 'Headlines + sentiment + catalysts', disabled: true },
-  { id: 'setups',   label: 'Setups',   hint: 'Active trade ideas tied to this symbol', disabled: true },
-  { id: 'analysis', label: 'Analysis', hint: 'TA + FA combined deep dive', disabled: true },
+  { id: 'analyze',  label: 'Analyze',  hint: 'Paste any contract → Bullflow-style A+/B+ graded analysis' },
 ];
 
 const VALID_TABS = TABS.map(t => t.id);
@@ -126,9 +125,7 @@ export default function ResearchShell() {
             {tab === 'options' && <OptionsAnalyzer />}
             {tab === 'gex'     && <TerminalHeatmap />}
             {tab === 'flow'    && <FlowTable symbol={symbol} />}
-            {(tab === 'news' || tab === 'setups' || tab === 'analysis') && (
-              <ComingSoon tab={tab} symbol={symbol} />
-            )}
+            {tab === 'analyze' && <ContractAnalyzer />}
           </div>
         </Suspense>
       </PageErrorBoundary>
@@ -144,15 +141,3 @@ function Loading() {
   );
 }
 
-function ComingSoon({ tab, symbol }: { tab: string; symbol: string }) {
-  return (
-    <QECard variant="default" padding="lg" className="text-center">
-      <div className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-2">
-        {symbol} · {tab} — coming next sprint
-      </div>
-      <p className="text-xs text-muted-foreground/70 max-w-md mx-auto">
-        Foundation is shipped. Chart / Options / GEX work today; Flow / News / Setups / Analysis ship next.
-      </p>
-    </QECard>
-  );
-}

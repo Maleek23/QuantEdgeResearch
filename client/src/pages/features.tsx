@@ -236,7 +236,7 @@ export default function Features() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                Multi-LLM consensus using Claude, GPT, and Gemini for SEC filings, earnings, and news catalyst analysis.
+                Multi-LLM consensus using Gemini, Groq, and Grok for SEC filings, earnings, and news catalyst analysis.
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">

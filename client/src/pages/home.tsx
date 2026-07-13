@@ -53,6 +53,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
 import { MarketPulseWidget } from "@/components/market-pulse-widget";
+import { IndexScalpsCard } from "@/components/index-scalps-card";
+import { Num, Pct, Price, Ticker } from "@/components/ui/qe";
 
 // ────────────────────────────────────────────────────────────
 // Shared Utilities
@@ -310,9 +312,9 @@ function getSessionPhase(): SessionPhase {
 }
 
 const SESSION_CONFIG: Record<SessionPhase, { label: string; icon: typeof Zap; hint: string; color: string }> = {
-  "pre-market": { label: "PRE-MARKET PREP", icon: Zap, hint: "Overnight gaps, futures bias, and what to watch at the open", color: "text-amber-400" },
+  "pre-market": { label: "PRE-MARKET PREP", icon: Zap, hint: "Overnight gaps, futures bias, and what to watch at the open", color: "text-[var(--trade-neutral)]" },
   "market-open": { label: "MARKET OPEN", icon: Activity, hint: "Intraday movers, regime shifts, and active signals", color: "text-[var(--trade-bullish)]" },
-  "after-hours": { label: "AFTER HOURS", icon: Clock, hint: "Post-close movers, earnings reactions, and overnight setups", color: "text-violet-400" },
+  "after-hours": { label: "AFTER HOURS", icon: Clock, hint: "Post-close movers, earnings reactions, and overnight setups", color: "text-[var(--brand-cyan)]" },
   weekend: { label: "WEEKEND REVIEW", icon: Calendar, hint: "Friday's movers, weekly recap, and next week's watchlist", color: "text-muted-foreground" },
   closed: { label: "OVERNIGHT", icon: Star, hint: "Markets closed — reviewing last session", color: "text-muted-foreground" },
 };
@@ -359,8 +361,8 @@ function SessionAction() {
         {bias && (
           <span className={cn(
             "text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded border",
-            bias === "bullish" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" :
-            bias === "bearish" ? "text-red-400 border-red-500/30 bg-red-500/10" :
+            bias === "bullish" ? "text-[var(--trade-bullish)] border-[var(--trade-bullish)]/30 bg-[var(--trade-bullish)]/10" :
+            bias === "bearish" ? "text-[var(--trade-bearish)] border-[var(--trade-bearish)]/30 bg-[var(--trade-bearish)]/10" :
             "text-muted-foreground border-border bg-muted/30"
           )}>
             Futures {bias}
@@ -373,16 +375,11 @@ function SessionAction() {
         <div className="flex items-center gap-4 mb-2 px-3 py-2 rounded-lg bg-card border border-border/50">
           {topFutures.map((f) => {
             const pct = f.changePercent ?? 0;
-            const isUp = pct >= 0;
             return (
               <div key={f.symbol} className="flex items-center gap-1.5">
-                <span className="text-[10px] font-mono text-muted-foreground/70">{f.symbol}</span>
-                <span className="text-xs font-mono font-semibold text-foreground tabular-nums">
-                  {f.price ? `$${f.price.toLocaleString()}` : "—"}
-                </span>
-                <span className={cn("text-[10px] font-mono font-bold tabular-nums", isUp ? "text-emerald-400" : "text-red-400")}>
-                  {isUp ? "+" : ""}{pct.toFixed(2)}%
-                </span>
+                <Ticker symbol={f.symbol} className="text-[10px] text-muted-foreground/70 font-normal" />
+                <Price value={f.price} className="text-xs" />
+                <Pct value={pct} className="text-[10px] font-bold" />
               </div>
             );
           })}
@@ -411,7 +408,6 @@ function SessionAction() {
 
 function MarketIntelligence() {
   const metricsInterval = useMarketPoll(POLL.METRICS.open, POLL.METRICS.closed);
-  const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
 
   // Briefing
   const { data: briefing, isLoading: briefingLoading, isError: briefingError, refetch: refetchBriefing } = useQuery<{
@@ -435,24 +431,6 @@ function MarketIntelligence() {
   }>({
     queryKey: ["/api/market-regime"],
     refetchInterval: metricsInterval,
-  });
-
-  // Market context (VIX, P/C, A/D)
-  const { data: context } = useQuery<{
-    vix?: number;
-    putCallRatio?: number;
-    advanceDecline?: number;
-  }>({
-    queryKey: ["/api/market-context"],
-    refetchInterval: metricsInterval,
-  });
-
-  // Futures
-  const { data: futures } = useQuery<{
-    symbols?: Array<{ symbol: string; name?: string; price?: number; changePercent?: number }>;
-  }>({
-    queryKey: ["/api/futures"],
-    refetchInterval: priceInterval,
   });
 
   // Outlook (swing setups + high impact alerts)
@@ -484,7 +462,6 @@ function MarketIntelligence() {
   const regimeColor = regimeLabel?.toLowerCase().includes("bull") ? "text-[var(--trade-bullish)]"
     : regimeLabel?.toLowerCase().includes("bear") ? "text-[var(--trade-bearish)]"
     : "text-[var(--trade-neutral)]";
-  const topFutures = (futures?.symbols || []).slice(0, 4);
   const topSwings = outlook?.swingSetups?.slice(0, 3) ?? [];
 
   return (
@@ -515,21 +492,6 @@ function MarketIntelligence() {
               <p className="text-[10px] text-muted-foreground/40">Loading briefing...</p>
             ) : (
               <>
-                {/* Key Levels strip */}
-                {briefing?.keyLevels && (briefing.keyLevels.spy || briefing.keyLevels.qqq || briefing.keyLevels.vix) && (
-                  <div className="flex items-center gap-4 text-xs">
-                    {briefing.keyLevels.spy && (
-                      <div><span className={componentStyles.text.chromeLabel}>SPY</span> <span className={componentStyles.text.dataValue}>${safeToFixed(briefing.keyLevels.spy, 0)}</span></div>
-                    )}
-                    {briefing.keyLevels.qqq && (
-                      <div><span className={componentStyles.text.chromeLabel}>QQQ</span> <span className={componentStyles.text.dataValue}>${safeToFixed(briefing.keyLevels.qqq, 0)}</span></div>
-                    )}
-                    {briefing.keyLevels.vix && (
-                      <div><span className={componentStyles.text.chromeLabel}>VIX</span> <span className={componentStyles.text.dataValue}>{safeToFixed(briefing.keyLevels.vix, 1)}</span></div>
-                    )}
-                  </div>
-                )}
-
                 {/* Trading plan */}
                 {briefing?.tradingPlan && (
                   <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3">{briefing.tradingPlan}</p>
@@ -626,63 +588,9 @@ function MarketIntelligence() {
                     )}
                   </div>
                   {regime?.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{regime.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{regime.description}</p>
                   )}
                 </div>
-
-                {/* Key Metrics */}
-                {context && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {context.vix != null && (
-                      <div className={cn(componentStyles.card.inset, "p-2")}>
-                        <div className={componentStyles.text.chromeLabel}>VIX</div>
-                        <div className={cn(componentStyles.text.dataValue, "text-sm font-bold",
-                          context.vix > 25 ? "text-[var(--trade-bearish)]" : context.vix > 18 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bullish)]"
-                        )}>
-                          {safeToFixed(context.vix, 1)}
-                        </div>
-                      </div>
-                    )}
-                    {context.putCallRatio != null && (
-                      <div className={cn(componentStyles.card.inset, "p-2")}>
-                        <div className={componentStyles.text.chromeLabel}>P/C Ratio</div>
-                        <div className={cn(componentStyles.text.dataValue, "text-sm font-bold")}>{safeToFixed(context.putCallRatio, 2)}</div>
-                      </div>
-                    )}
-                    {context.advanceDecline != null && (
-                      <div className={cn(componentStyles.card.inset, "p-2")}>
-                        <div className={componentStyles.text.chromeLabel}>A/D</div>
-                        <div className={cn(componentStyles.text.dataValue, "text-sm font-bold",
-                          context.advanceDecline >= 1 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                        )}>
-                          {safeToFixed(context.advanceDecline, 2)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Futures */}
-                {topFutures.length > 0 && (
-                  <div>
-                    <div className={cn(componentStyles.text.chromeLabel, "mb-2")}>FUTURES BIAS</div>
-                    <div className="space-y-1.5">
-                      {topFutures.map(f => (
-                        <div key={f.symbol} className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground font-medium">{f.name || f.symbol}</span>
-                          <div className="flex items-center gap-2">
-                            {f.price && <span className={cn(componentStyles.text.dataValue, "text-xs")}>{safeToFixed(f.price, 2)}</span>}
-                            <span className={cn(componentStyles.text.change,
-                              safeNumber(f.changePercent) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                            )}>
-                              {safeNumber(f.changePercent) >= 0 ? "+" : ""}{safeToFixed(f.changePercent, 2)}%
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </CardContent>
@@ -1224,10 +1132,17 @@ export default function HomePage() {
         {/* 2. Welcome + Global Timestamp */}
         <WelcomeHeader />
 
-        {/* 2.4 — Market Pulse Widget (NEW: GREEN/RED + sectors + macro at-a-glance) */}
-        <div className="mb-[var(--section-gap-sm)]">
+        {/* 2.4 — Market Context: color + money flow + macro + GEX */}
+        <SectionReveal className="mb-[var(--section-gap-sm)]">
+          <SectionHeader label="Market Context" action="Full Pulse" actionHref="/pulse" />
           <MarketPulseWidget />
-        </div>
+        </SectionReveal>
+
+        {/* 2.45 — Live 0DTE index scalps (SPX/SPY/QQQ/IWM) from the GEX engine */}
+        <SectionReveal className="mb-[var(--section-gap-sm)]">
+          <SectionHeader label="Index Scalps" action="GEX Hub" actionHref="/gex" />
+          <IndexScalpsCard />
+        </SectionReveal>
 
         {/* 2.5. Session Action — Pre-market gappers + overnight movers (hero placement) */}
         <SessionAction />
@@ -1244,9 +1159,9 @@ export default function HomePage() {
           <TopSignals />
         </SectionReveal>
 
-        {/* 5. Market Pulse — news + earnings + movers */}
+        {/* 5. News & Events — news + earnings + movers */}
         <SectionReveal className="mb-[var(--section-gap-sm)]" delay={0.03}>
-          <SectionHeader label="Market Pulse" />
+          <SectionHeader label="News & Events" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-[var(--card-gap)]">
             <NewsFeed />
             <EarningsCalendar />

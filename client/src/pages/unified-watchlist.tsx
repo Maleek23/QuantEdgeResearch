@@ -24,6 +24,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -54,6 +61,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Calendar,
+  Clock,
+  Share2,
+  Check,
   Zap,
   Wifi,
   WifiOff,
@@ -376,13 +386,166 @@ interface QuoteData {
   changePercent: number;
 }
 
+// Pull the ranking rationale out of the grader's stored inputs so the table can
+// show WHY a ticker scores where it does (momentum, upside-to-target, top signal).
+function parseEdge(item: WatchlistItem): {
+  momentum: number | null;
+  upside: number | null;
+  topSignal: string | null;
+} {
+  try {
+    const gi = item.gradeInputs ? JSON.parse(item.gradeInputs as string) : null;
+    if (!gi) return { momentum: null, upside: null, topSignal: null };
+    return {
+      momentum: typeof gi.momentum5d === "number" ? gi.momentum5d : null,
+      upside: typeof gi.fairValueUpside === "number" ? gi.fairValueUpside : null,
+      topSignal: Array.isArray(gi.signals) && gi.signals.length ? gi.signals[0] : null,
+    };
+  } catch {
+    return { momentum: null, upside: null, topSignal: null };
+  }
+}
+
+// ─── "Today" Tab — what got added recently (daily flow / weekend influx) ───
+// Buckets the watchlist by add-date so a group can see at a glance what's new
+// today, yesterday, and over the weekend without scrolling the full ranking.
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function dayBucketLabel(addedAt: string): string | null {
+  const t = new Date(addedAt).getTime();
+  if (Number.isNaN(t)) return null;
+  const now = new Date();
+  const today = startOfDay(now);
+  const dayMs = 86_400_000;
+  const added = startOfDay(new Date(t));
+  const diffDays = Math.round((today - added) / dayMs);
+  if (diffDays <= 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  // Anything Sat/Sun within the last 7 days rolls up as the weekend influx.
+  const dow = new Date(t).getDay(); // 0 Sun, 6 Sat
+  if (diffDays <= 7 && (dow === 0 || dow === 6)) return "This weekend";
+  if (diffDays <= 7) return new Date(t).toLocaleDateString(undefined, { weekday: "long" });
+  return null; // older than a week — not "recent"
+}
+
+const DAILY_BUCKET_ORDER = ["Today", "Yesterday", "This weekend", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+function DailyTab({ items }: { items: WatchlistItem[] }) {
+  const buckets = useMemo(() => {
+    // Dedupe by symbol, keeping the most recently added entry.
+    const bySymbol = new Map<string, WatchlistItem>();
+    for (const it of items) {
+      const key = (it.symbol || "").toUpperCase();
+      const existing = bySymbol.get(key);
+      const t = it.addedAt ? new Date(it.addedAt).getTime() : 0;
+      const et = existing?.addedAt ? new Date(existing.addedAt).getTime() : -1;
+      if (!existing || t > et) bySymbol.set(key, it);
+    }
+    const tierOrder: Record<string, number> = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5 };
+    const groups = new Map<string, WatchlistItem[]>();
+    for (const it of Array.from(bySymbol.values())) {
+      const label = it.addedAt ? dayBucketLabel(it.addedAt) : null;
+      if (!label) continue;
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label)!.push(it);
+    }
+    for (const arr of Array.from(groups.values())) {
+      arr.sort((a, b) => {
+        const at = a.tier ? tierOrder[a.tier] ?? 6 : 6;
+        const bt = b.tier ? tierOrder[b.tier] ?? 6 : 6;
+        if (at !== bt) return at - bt;
+        return (b.gradeScore || 0) - (a.gradeScore || 0);
+      });
+    }
+    return DAILY_BUCKET_ORDER
+      .filter((l) => groups.has(l))
+      .map((l) => ({ label: l, rows: groups.get(l)! }));
+  }, [items]);
+
+  const total = buckets.reduce((n, b) => n + b.rows.length, 0);
+
+  if (total === 0) {
+    return (
+      <Card className="bg-card/60 border-border p-8 text-center">
+        <Calendar className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+        <h3 className="text-sm font-semibold text-foreground/70 mb-1">Nothing added in the last 7 days</h3>
+        <p className="text-xs text-muted-foreground">
+          New tickers you add (here or in "This Week") show up grouped by day so your group can track the daily flow.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {buckets.map((bucket) => (
+        <Card key={bucket.label} className="bg-card/60 border-border overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border px-4 py-2">
+            <h3 className="text-sm font-semibold text-foreground/90">{bucket.label}</h3>
+            <span className="text-xs font-mono text-muted-foreground">{bucket.rows.length}</span>
+          </div>
+          <div className="divide-y divide-border/40">
+            {bucket.rows.map((item) => {
+              const edge = parseEdge(item);
+              const tier = item.tier || "C";
+              const config = TIER_CONFIG[tier] || { bg: "bg-muted/30", text: "text-muted-foreground", label: tier };
+              return (
+                <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors">
+                  <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded text-xs font-bold", config.bg, config.text)}>
+                    {tier}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Link href={`/stock/${item.symbol}`}>
+                        <span className="font-semibold text-[var(--trade-bullish)] hover:underline cursor-pointer">
+                          {item.symbol}
+                        </span>
+                      </Link>
+                      {item.gradeLetter && (
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {item.gradeLetter}
+                          {item.gradeScore != null ? ` · ${Math.round(item.gradeScore)}` : ""}
+                        </span>
+                      )}
+                    </div>
+                    {edge.topSignal && (
+                      <p className="truncate text-xs text-muted-foreground max-w-[260px]">{edge.topSignal}</p>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {edge.momentum != null && (
+                      <div className={cn("font-mono text-sm", edge.momentum >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
+                        {edge.momentum >= 0 ? "+" : ""}{safeToFixed(edge.momentum, 1)}% 5d
+                      </div>
+                    )}
+                    {item.addedAt && (
+                      <div className="text-[10px] text-muted-foreground/70 font-mono">
+                        {new Date(item.addedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 export default function UnifiedWatchlist() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"weekly" | "default" | "kavout" | "bot">("weekly");
+  // Land on the graded "Overview" ranking by default (best-grade-first).
+  const [activeTab, setActiveTab] = useState<"weekly" | "today" | "default" | "kavout" | "bot">("default");
   const [selectedWatchlist, setSelectedWatchlist] = useState("Main");
   const [searchSymbol, setSearchSymbol] = useState("");
   const [newSymbol, setNewSymbol] = useState("");
-  const [sortColumn, setSortColumn] = useState<string>("symbol");
+  // Default to best-grade-first — the core job of this page is "which of these
+  // should I actually buy", so the ranked list is the landing state.
+  const [sortColumn, setSortColumn] = useState<string>("tier");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const priceInterval = useMarketPoll(POLL.PRICES.open, POLL.PRICES.closed);
@@ -453,6 +616,37 @@ export default function UnifiedWatchlist() {
     },
   });
 
+  // Edit (modify) an item — notes / thesis / target price via PATCH.
+  const [editItem, setEditItem] = useState<WatchlistItem | null>(null);
+  const [editNotes, setEditNotes] = useState("");
+  const [editThesis, setEditThesis] = useState("");
+  const [editTarget, setEditTarget] = useState("");
+  const openEditor = (item: WatchlistItem) => {
+    setEditItem(item);
+    setEditNotes(item.notes || "");
+    setEditThesis(item.thesis || "");
+    setEditTarget(item.targetPrice != null ? String(item.targetPrice) : "");
+  };
+  const editItemMutation = useMutation({
+    mutationFn: async () => {
+      if (!editItem) return;
+      const target = parseFloat(editTarget);
+      return apiRequest('PATCH', `/api/watchlist/${editItem.id}`, {
+        notes: editNotes.trim() || null,
+        thesis: editThesis.trim() || null,
+        targetPrice: Number.isFinite(target) ? target : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
+      toast({ title: "Updated", description: `${editItem?.symbol} saved` });
+      setEditItem(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Re-grade mutation
   const reGradeAllMutation = useMutation({
     mutationFn: async () => {
@@ -468,6 +662,7 @@ export default function UnifiedWatchlist() {
   // Bulk import state + mutation
   const [bulkInput, setBulkInput] = useState("");
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const bulkImportMutation = useMutation({
     mutationFn: async (symbols: string[]) => {
       const res = await apiRequest('POST', '/api/watchlist/batch-add', { symbols });
@@ -492,6 +687,18 @@ export default function UnifiedWatchlist() {
   // Calculate derived data
   const filteredItems = useMemo(() => {
     let items = [...watchlistItems];
+    // Dedupe by symbol — the watchlist can accumulate multiple rows for the
+    // same ticker (repeat adds, bulk imports). Keep one line per ticker,
+    // preferring the best-graded entry so the ranked view stays clean.
+    const bySymbol = new Map<string, WatchlistItem>();
+    for (const it of items) {
+      const key = (it.symbol || '').toUpperCase();
+      const existing = bySymbol.get(key);
+      if (!existing || (it.gradeScore ?? -1) > (existing.gradeScore ?? -1)) {
+        bySymbol.set(key, it);
+      }
+    }
+    items = Array.from(bySymbol.values());
     if (searchSymbol.trim()) {
       const search = searchSymbol.toLowerCase();
       items = items.filter(i =>
@@ -518,8 +725,11 @@ export default function UnifiedWatchlist() {
         bVal = batchQuotes[b.symbol]?.changePercent ?? 0;
       } else if (sortColumn === 'tier') {
         const tierOrder = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5 };
-        aVal = tierOrder[a.tier || 'C'] ?? 3;
-        bVal = tierOrder[b.tier || 'C'] ?? 3;
+        const at = tierOrder[a.tier || 'C'] ?? 3;
+        const bt = tierOrder[b.tier || 'C'] ?? 3;
+        if (at !== bt) return sortDirection === 'asc' ? at - bt : bt - at;
+        // Within the same tier, higher grade score always ranks first.
+        return (b.gradeScore || 0) - (a.gradeScore || 0);
       } else {
         return 0;
       }
@@ -530,6 +740,53 @@ export default function UnifiedWatchlist() {
     });
     return items;
   }, [filteredItems, sortColumn, sortDirection, batchQuotes]);
+
+  // Insights — at-a-glance summary computed from the live watchlist + quotes.
+  // Gives the page some signal instead of just a flat table.
+  const insights = useMemo(() => {
+    const items = sortedItems;
+    const n = items.length;
+    const tierCounts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0, F: 0 };
+    let gradeSum = 0;
+    let gradedN = 0;
+    let bullish = 0;
+    let bearish = 0;
+    let upToday = 0;
+    let downToday = 0;
+    let topGainer: { symbol: string; pct: number } | null = null;
+    let topLoser: { symbol: string; pct: number } | null = null;
+
+    for (const it of items) {
+      const tier = (it.tier || 'C').toUpperCase();
+      if (tier in tierCounts) tierCounts[tier]++;
+      if (typeof it.gradeScore === 'number') { gradeSum += it.gradeScore; gradedN++; }
+      // Inline outlook (don't call getOutlook — it's declared later in this
+      // component and would be in the temporal dead zone during this memo).
+      if (tier === 'S' || tier === 'A') bullish++;
+      else if (tier === 'D' || tier === 'F') bearish++;
+
+      const chg = batchQuotes[it.symbol]?.changePercent;
+      if (typeof chg === 'number') {
+        if (chg > 0) upToday++; else if (chg < 0) downToday++;
+        if (!topGainer || chg > topGainer.pct) topGainer = { symbol: it.symbol, pct: chg };
+        if (!topLoser || chg < topLoser.pct) topLoser = { symbol: it.symbol, pct: chg };
+      }
+    }
+
+    return {
+      n,
+      tierCounts,
+      avgGrade: gradedN ? gradeSum / gradedN : 0,
+      gradedN,
+      bullish,
+      bearish,
+      upToday,
+      downToday,
+      topGainer,
+      topLoser,
+      eliteCount: tierCounts.S + tierCounts.A,
+    };
+  }, [sortedItems, batchQuotes]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -561,8 +818,8 @@ export default function UnifiedWatchlist() {
   }, [tradeIdeas]);
 
   return (
-    <div className="min-h-screen p-3 sm:p-4">
-      <div className="max-w-[1600px] mx-auto space-y-3">
+    <div>
+      <div className="space-y-3">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -576,10 +833,29 @@ export default function UnifiedWatchlist() {
               Watchlist
             </h1>
             <Badge className="bg-emerald-500/20 text-[var(--trade-bullish)] border-0 font-mono">
-              {watchlistItems.length}
+              {new Set(watchlistItems.map(i => (i.symbol || '').toUpperCase())).size}
             </Badge>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10"
+              onClick={async () => {
+                const url = `${window.location.origin}/w`;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setShareCopied(true);
+                  toast({ title: "Share link copied", description: `${url} — read-only, no login needed` });
+                  setTimeout(() => setShareCopied(false), 2000);
+                } catch {
+                  toast({ title: "Share link", description: url });
+                }
+              }}
+            >
+              {shareCopied ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2" />}
+              {shareCopied ? "Copied!" : "Share"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -711,6 +987,10 @@ export default function UnifiedWatchlist() {
                 <Calendar className="w-4 h-4 mr-2" />
                 This Week
               </TabsTrigger>
+              <TabsTrigger value="today" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
+                <Clock className="w-4 h-4 mr-2" />
+                Today
+              </TabsTrigger>
               <TabsTrigger value="default" className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-[var(--trade-bullish)]">
                 <Star className="w-4 h-4 mr-2" />
                 Overview
@@ -745,6 +1025,58 @@ export default function UnifiedWatchlist() {
           </div>
         </motion.div>
 
+        {/* Insights panel — at-a-glance signal on the whole watchlist */}
+        {activeTab === "default" && insights.n > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.07 }}
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2"
+          >
+            <InsightTile
+              icon={<Star className="w-3.5 h-3.5" />}
+              label="Names"
+              value={String(insights.n)}
+              sub={`${insights.gradedN} graded`}
+            />
+            <InsightTile
+              icon={<BarChart3 className="w-3.5 h-3.5" />}
+              label="Avg Grade"
+              value={insights.avgGrade.toFixed(0)}
+              sub={`S+A: ${insights.eliteCount}`}
+              tone={insights.avgGrade >= 70 ? 'bull' : insights.avgGrade >= 50 ? 'cyan' : 'bear'}
+            />
+            <InsightTile
+              icon={<Activity className="w-3.5 h-3.5" />}
+              label="Tiers"
+              value={`${insights.tierCounts.S}·${insights.tierCounts.A}·${insights.tierCounts.B}`}
+              sub="S · A · B"
+              tone="cyan"
+            />
+            <InsightTile
+              icon={insights.upToday >= insights.downToday ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+              label="Today"
+              value={`${insights.upToday}▲ ${insights.downToday}▼`}
+              sub="up / down"
+              tone={insights.upToday >= insights.downToday ? 'bull' : 'bear'}
+            />
+            <InsightTile
+              icon={<ArrowUpRight className="w-3.5 h-3.5" />}
+              label="Top Gainer"
+              value={insights.topGainer ? insights.topGainer.symbol : '—'}
+              sub={insights.topGainer ? `${insights.topGainer.pct >= 0 ? '+' : ''}${insights.topGainer.pct.toFixed(1)}%` : 'no quotes'}
+              tone="bull"
+            />
+            <InsightTile
+              icon={<ArrowDownRight className="w-3.5 h-3.5" />}
+              label="Top Loser"
+              value={insights.topLoser ? insights.topLoser.symbol : '—'}
+              sub={insights.topLoser ? `${insights.topLoser.pct.toFixed(1)}%` : 'no quotes'}
+              tone="bear"
+            />
+          </motion.div>
+        )}
+
         {/* Weekly Tab Content */}
         {activeTab === "weekly" && (
           <motion.div
@@ -756,8 +1088,19 @@ export default function UnifiedWatchlist() {
           </motion.div>
         )}
 
+        {/* Today Tab Content — recent adds grouped by day */}
+        {activeTab === "today" && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <DailyTab items={watchlistItems} />
+          </motion.div>
+        )}
+
         {/* Main Content - Table (Overview / Technical / Moving Averages) */}
-        {activeTab !== "weekly" && <motion.div
+        {(activeTab === "default" || activeTab === "kavout" || activeTab === "bot") && <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -798,7 +1141,7 @@ export default function UnifiedWatchlist() {
                           <ChevronDown className="w-3 h-3" />
                         </div>
                       </TableHead>
-                      <TableHead className="text-right">Market Cap</TableHead>
+                      <TableHead>Edge</TableHead>
                       <TableHead className="text-center">Outlook</TableHead>
                       <TableHead className="text-center cursor-pointer" onClick={() => handleSort('tier')}>
                         <div className="flex items-center justify-center gap-1">
@@ -861,8 +1204,43 @@ export default function UnifiedWatchlist() {
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right text-muted-foreground text-sm">
-                            {getMarketCap(item)}
+                          <TableCell className="text-sm">
+                            {(() => {
+                              const edge = parseEdge(item);
+                              if (edge.momentum == null && edge.upside == null && !edge.topSignal) {
+                                return <span className="text-muted-foreground/50 text-xs">—</span>;
+                              }
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-2 font-mono text-xs">
+                                    {edge.momentum != null && (
+                                      <span
+                                        className={cn(
+                                          edge.momentum >= 0
+                                            ? "text-[var(--trade-bullish)]"
+                                            : "text-[var(--trade-bearish)]",
+                                        )}
+                                        title="5-day momentum"
+                                      >
+                                        {edge.momentum >= 0 ? "+" : ""}
+                                        {safeToFixed(edge.momentum, 1)}% 5d
+                                      </span>
+                                    )}
+                                    {edge.upside != null && (
+                                      <span className="text-cyan-400" title="Upside to analyst target">
+                                        {edge.upside >= 0 ? "+" : ""}
+                                        {safeToFixed(edge.upside, 0)}% tgt
+                                      </span>
+                                    )}
+                                  </div>
+                                  {edge.topSignal && (
+                                    <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">
+                                      {edge.topSignal}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="text-center">
                             {outlook ? (
@@ -902,6 +1280,15 @@ export default function UnifiedWatchlist() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-[var(--brand-cyan)]"
+                                title="Edit notes / thesis / target"
+                                onClick={() => openEditor(item)}
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 className="h-8 w-8 text-[var(--trade-bearish)] hover:text-red-300"
                                 onClick={() => {
                                   if (confirm(`Remove ${item.symbol} from watchlist?`)) {
@@ -922,6 +1309,60 @@ export default function UnifiedWatchlist() {
             )}
           </Card>
         </motion.div>}
+
+        {/* Edit item modal — modify notes / thesis / target */}
+        <Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle className="font-mono">
+                Edit {editItem?.symbol}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Target Price</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 150.00"
+                  value={editTarget}
+                  onChange={(e) => setEditTarget(e.target.value)}
+                  className="mt-1 bg-muted/50 border-border"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Thesis</label>
+                <textarea
+                  placeholder="Why are you watching this?"
+                  value={editThesis}
+                  onChange={(e) => setEditThesis(e.target.value)}
+                  className="mt-1 w-full h-16 px-3 py-2 text-sm bg-muted/50 border border-border rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-[var(--brand-cyan)]"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Notes</label>
+                <textarea
+                  placeholder="Quick notes…"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="mt-1 w-full h-16 px-3 py-2 text-sm bg-muted/50 border border-border rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-[var(--brand-cyan)]"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" className="border-border" onClick={() => setEditItem(null)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-cyan-500 hover:bg-cyan-600"
+                disabled={editItemMutation.isPending}
+                onClick={() => editItemMutation.mutate()}
+              >
+                {editItemMutation.isPending ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Notifications Section */}
         <motion.div
@@ -969,5 +1410,32 @@ export default function UnifiedWatchlist() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+// ─── Insights tile ────────────────────────────────────────────────────
+function InsightTile({
+  icon, label, value, sub, tone = 'default',
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: 'default' | 'bull' | 'bear' | 'cyan';
+}) {
+  const toneClass =
+    tone === 'bull' ? 'text-[var(--trade-bullish)]' :
+    tone === 'bear' ? 'text-[var(--trade-bearish)]' :
+    tone === 'cyan' ? 'text-[var(--brand-cyan)]' :
+    'text-foreground';
+  return (
+    <Card className="p-2.5 bg-muted/30 border-border">
+      <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">
+        <span className={toneClass}>{icon}</span>
+        {label}
+      </div>
+      <div className={cn('mt-1 text-lg font-mono font-bold tabular-nums leading-none', toneClass)}>{value}</div>
+      {sub && <div className="mt-0.5 text-[9px] font-mono text-muted-foreground/50">{sub}</div>}
+    </Card>
   );
 }

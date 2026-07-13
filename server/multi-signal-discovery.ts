@@ -310,7 +310,7 @@ async function scoreTicker(ticker: string): Promise<MultiSignalScore | null> {
     if (gex) {
       const callWall = gex.callWall || gex.maxCallStrike || null;
       const callRoom = callWall ? ((callWall - spot) / spot) * 100 : null;
-      const totalGEX = gex.totalGEX || gex.netGEX || 0;
+      const totalGEX = gex.totalNetGEX || gex.netGEX || 0;
       const hasNeg = totalGEX < 0 || (gex.byExpiry && Object.values(gex.byExpiry).some((g: any) => (g.totalGEX || 0) < 0));
       gexSignal = {
         regime: hasNeg ? 'SQUEEZE-RISK' : (totalGEX > 0 ? 'PINNED-DRIFT' : 'MIXED'),

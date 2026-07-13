@@ -92,12 +92,16 @@ export function displayedScoreBarPct(idea: ScoredIdea | null | undefined): numbe
 // ─────────────────────────────────────────────────────────────
 //
 // Renders a single letter grade (A+ … F with +/- modifiers) for a trade
-// idea. Resolution order:
+// idea. Resolution order (canonical-first, so the grade stays monotonic with
+// displayedScore / sortIdeas, which also prefer convictionScore):
 //
-//   1. If `probabilityBand` is already set on the row (assigned at trade
-//      creation by shared/grading.ts), trust it — it's the legacy canonical.
-//   2. Else if `convictionScore` is set (canonical 13-layer engine, ~0-60
-//      raw), map it through CONVICTION_GRADE_CUTOFFS.
+//   1. If `convictionScore` is set (canonical 13-layer engine, ~0-60 raw),
+//      map it through CONVICTION_GRADE_CUTOFFS. This is the field the table
+//      sorts and scores on, so the headline row can never show a worse grade
+//      than a lower-ranked sibling collapsed under it.
+//   2. Else if `probabilityBand` is set on the row (assigned at trade creation
+//      by shared/grading.ts), trust it — the legacy fallback for ideas that
+//      were never enriched by the convictions engine.
 //   3. Else if `confidenceScore` is set (0-100 legacy scanner), delegate
 //      to the shared `getLetterGrade()` so we share the same threshold
 //      table the rest of the platform uses.
@@ -153,10 +157,15 @@ function isValidGradeString(g: unknown): g is LetterGrade {
  */
 export function displayedGrade(idea: ScoredIdea | null | undefined): LetterGrade {
   if (!idea) return "F";
-  if (isValidGradeString(idea.probabilityBand)) return idea.probabilityBand;
+  // Canonical-first: the grade must derive from the same field the UI scores
+  // and sorts on (displayedScore / sortIdeas prefer convictionScore), so the
+  // letter stays monotonic with the rank. Legacy probabilityBand is only a
+  // fallback for un-enriched ideas — using it first let a higher-conviction
+  // row render a worse grade than a lower-ranked sibling.
   if (typeof idea.convictionScore === "number") {
     return convictionScoreToGrade(idea.convictionScore);
   }
+  if (isValidGradeString(idea.probabilityBand)) return idea.probabilityBand;
   if (typeof idea.confidenceScore === "number") {
     return confidenceToGrade(idea.confidenceScore);
   }

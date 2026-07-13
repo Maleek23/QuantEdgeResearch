@@ -16,6 +16,7 @@ import { TradeTimeline } from './TradeTimeline';
 import { SignalComponents } from './SignalComponents';
 import { TradeGeometry } from './TradeGeometry';
 import { OracleOptionTracker } from './OracleOptionTracker';
+import { OracleOptionPicker } from './OracleOptionPicker';
 
 export function SignalCard({ signal, size = 'standard', onClick, onPushTrade }: SignalCardProps) {
   if (size === 'mini') return <SignalCardMini signal={signal} onClick={onClick} />;
@@ -198,7 +199,7 @@ function SignalCardStandard({ signal, onClick, onPushTrade }: SignalCardProps) {
         </span>
       </div>
 
-      {/* Oracle Option Pick */}
+      {/* Oracle Option Pick — tracked contract (when one is persisted) */}
       {signal.oracleOption && (
         <OracleOptionTracker
           symbol={signal.symbol}
@@ -210,6 +211,20 @@ function SignalCardStandard({ signal, onClick, onPushTrade }: SignalCardProps) {
           pctChange={signal.oracleOption.pctChange}
         />
       )}
+
+      {/* 3-tier contract selector — on-demand, live engine pick */}
+      <div className="mt-2">
+        <OracleOptionPicker
+          symbol={signal.symbol}
+          direction={signal.direction}
+          entry={signal.entry}
+          stop={signal.stop}
+          t1={signal.t1}
+          t2={signal.t2}
+          holdPeriodLabel={signal.holdPeriodLabel}
+          conviction={signal.confidence}
+        />
+      </div>
 
       {/* Action buttons */}
       <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-800">

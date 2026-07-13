@@ -53,6 +53,7 @@ export interface IndexScalpIdea {
 const INDEX_MAP: Record<string, { spx: boolean; strikeInterval: number; multiplier: number }> = {
   SPY: { spx: true, strikeInterval: 5, multiplier: 10 },   // SPY → SPX ($5 strikes)
   QQQ: { spx: false, strikeInterval: 1, multiplier: 1 },   // QQQ direct ($1 strikes)
+  IWM: { spx: false, strikeInterval: 1, multiplier: 1 },   // IWM direct ($1 strikes, Russell)
 };
 
 const FLIP_PROXIMITY_PCT = 0.8;
@@ -81,7 +82,12 @@ export function getScalpSession(): SessionInfo {
   const powerHour = 15 * 60;         // 3:00 PM ET
   const marketClose = 16 * 60;       // 4:00 PM ET
 
-  const isMarketOpen = etMin >= marketOpen && etMin < marketClose;
+  // Weekend guard — getUTCDay 0=Sun, 6=Sat. Without this, any Sat/Sun between
+  // 9:30–4pm ET would falsely report open and run the scanner on dead data.
+  const etDay = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay();
+  const isWeekday = etDay >= 1 && etDay <= 5;
+
+  const isMarketOpen = isWeekday && etMin >= marketOpen && etMin < marketClose;
   const isPowerHour = etMin >= powerHour && etMin < marketClose;
   const isLastHour = isPowerHour;
   const minutesToClose = isMarketOpen ? Math.max(0, marketClose - etMin) : 0;
@@ -166,7 +172,7 @@ function estimatePremiumRange(
 
 // ─── Scalp Setup Builders ───────────────────────────────────
 
-function buildFlipBounce(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea | null {
+export function buildFlipBounce(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea | null {
   const { symbol, spot, flipPoint, callWall, putWall, regime } = snap;
   if (!flipPoint || spot <= 0) return null;
 
@@ -233,7 +239,7 @@ function buildFlipBounce(snap: GexSnapshot, session: SessionInfo): IndexScalpIde
   };
 }
 
-function buildWallFade(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea | null {
+export function buildWallFade(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea | null {
   const { symbol, spot, flipPoint, callWall, putWall, regime } = snap;
   if (regime !== 'positive_gamma' || spot <= 0) return null;
   const config = INDEX_MAP[symbol];
@@ -300,14 +306,17 @@ function buildWallFade(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea 
   return null;
 }
 
-function buildWallBreak(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea | null {
+export function buildWallBreak(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea | null {
   const { symbol, spot, flipPoint, callWall, putWall, regime } = snap;
   if (regime !== 'negative_gamma' || spot <= 0) return null;
   const config = INDEX_MAP[symbol];
   if (!config) return null;
 
-  // Breaking call wall in negative gamma = momentum long
-  if (callWall && spot > callWall * 0.998) {
+  // Breaking call wall in negative gamma = momentum long.
+  // Band-gated to the *moment of break* (just crossed above) so the target
+  // stays above spot — once price extends well past the wall, the
+  // trend-continuation setup takes over instead.
+  if (callWall && spot > callWall * 0.998 && spot < callWall * 1.006) {
     const target = callWall * 1.01;
     const stop = callWall * 0.995;
     const risk = Math.abs(spot - stop);
@@ -332,8 +341,10 @@ function buildWallBreak(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea
     }
   }
 
-  // Breaking put wall in negative gamma = momentum short
-  if (putWall && spot < putWall * 1.002) {
+  // Breaking put wall in negative gamma = momentum short.
+  // Band-gated to the moment of break (just crossed below) so target stays
+  // below spot; deeper extensions are handled by trend-continuation.
+  if (putWall && spot < putWall * 1.002 && spot > putWall * 0.994) {
     const target = putWall * 0.99;
     const stop = putWall * 1.005;
     const risk = Math.abs(stop - spot);
@@ -366,7 +377,7 @@ function buildWallBreak(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea
  * generate a momentum play based on current trend direction
  * when gamma is negative (amplified moves in last hour).
  */
-function buildPowerHourPlay(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea | null {
+export function buildPowerHourPlay(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea | null {
   if (!session.isPowerHour) return null;
   const { symbol, spot, flipPoint, callWall, putWall, regime } = snap;
   if (spot <= 0) return null;
@@ -405,6 +416,79 @@ function buildPowerHourPlay(snap: GexSnapshot, session: SessionInfo): IndexScalp
     thesis: `⚡ POWER HOUR — ${regime} regime, dealers ${isNegGamma ? 'amplifying' : 'dampening'} moves. ${tradeSym} ${bias.toUpperCase()} for ${session.minutesToClose}min sprint to ${aboveFlip ? 'call wall' : 'put wall'}.`,
     isPowerHour: true,
     gammaFlip: flipPoint, callWall, putWall, regime: regime || 'unknown',
+  };
+}
+
+/**
+ * TREND CONTINUATION — the setup that catches sustained directional days.
+ *
+ * Once price has decisively broken a wall in NEGATIVE gamma, dealers keep
+ * hedging in the trend direction (selling into weakness / buying strength),
+ * which is exactly the regime that produces the runaway 0DTE runners. The
+ * proximity setups (flip/wall fade/wall break) all go quiet once spot has
+ * extended past the wall — this one stays live and rides the move with a
+ * tight momentum stop (not the far wall, so R:R stays favourable).
+ *
+ * Fires only when spot is 0.6%–3% beyond a wall (past the wall-break band,
+ * but not so stretched we're chasing the very end of the move).
+ */
+export function buildTrendContinuation(snap: GexSnapshot, session: SessionInfo): IndexScalpIdea | null {
+  const { symbol, spot, flipPoint, callWall, putWall, regime } = snap;
+  if (regime !== 'negative_gamma' || spot <= 0) return null;
+  const config = INDEX_MAP[symbol];
+  if (!config) return null;
+
+  let direction: 'long' | 'short' | null = null;
+  let bias: 'calls' | 'puts' = 'calls';
+  let thesis = '';
+
+  // Downtrend: extended below the put wall
+  if (putWall && spot < putWall * 0.994 && spot > putWall * 0.97) {
+    direction = 'short';
+    bias = 'puts';
+    thesis = `Negative-gamma downtrend — price extended below put wall $${putWall.toFixed(0)}, dealers keep selling into weakness. ${config.spx ? 'SPX' : symbol} PUTS riding momentum.`;
+  }
+  // Uptrend: extended above the call wall
+  else if (callWall && spot > callWall * 1.006 && spot < callWall * 1.03) {
+    direction = 'long';
+    bias = 'calls';
+    thesis = `Negative-gamma uptrend — price extended above call wall $${callWall.toFixed(0)}, dealers keep chasing strength. ${config.spx ? 'SPX' : symbol} CALLS riding momentum.`;
+  }
+
+  if (!direction) return null;
+
+  // Tight momentum stop + extension target (own risk, not the far wall).
+  const stop = direction === 'short' ? spot * 1.004 : spot * 0.996;
+  const target = direction === 'short' ? spot * 0.990 : spot * 1.010;
+
+  const risk = Math.abs(spot - stop);
+  const reward = Math.abs(target - spot);
+  if (risk <= 0 || reward / risk < 1.3) return null;
+
+  const tradeSym = config.spx ? 'SPX' : symbol;
+  const tradeSpot = config.spx ? spot * config.multiplier : spot;
+  const strike = suggestStrike(symbol, spot, bias, session.isPowerHour);
+
+  return {
+    symbol: tradeSym,
+    underlying: symbol,
+    setup: 'wall_break', // shares the momentum lane for dedup/labeling
+    direction,
+    bias,
+    spotPrice: tradeSpot,
+    suggestedStrike: strike,
+    expiryDate: getTodayExpiry(),
+    premiumRange: estimatePremiumRange(tradeSpot, strike, session.isPowerHour),
+    target: config.spx ? target * config.multiplier : target,
+    stop: config.spx ? stop * config.multiplier : stop,
+    riskRewardRatio: +(reward / risk).toFixed(2),
+    confidence: session.isPowerHour ? 74 : 69,
+    thesis: `${session.isPowerHour ? '⚡ ' : ''}${thesis}`,
+    isPowerHour: session.isPowerHour,
+    gammaFlip: flipPoint,
+    callWall,
+    putWall,
+    regime: 'negative_gamma',
   };
 }
 
@@ -476,6 +560,30 @@ async function persistScalp(idea: IndexScalpIdea): Promise<boolean> {
     logger.info(
       `[INDEX-SCALP] ✅ ${idea.symbol} ${idea.bias.toUpperCase()} $${idea.suggestedStrike} 0DTE | ${idea.setup} | ${idea.premiumRange} | ${idea.isPowerHour ? '⚡ POWER HOUR' : 'intraday'}`,
     );
+
+    // Fire a Discord callout for the fresh scalp (gated on DISCORD_WEBHOOK_SPX;
+    // no-ops cleanly if unconfigured). Fire-and-forget — never block persist.
+    import('./discord-service')
+      .then(({ sendIndexScalpToDiscord }) =>
+        sendIndexScalpToDiscord({
+          symbol: idea.symbol,
+          bias: idea.bias,
+          setup: idea.setup,
+          suggestedStrike: idea.suggestedStrike,
+          expiryDate: idea.expiryDate,
+          spotPrice: idea.spotPrice,
+          target: idea.target,
+          stop: idea.stop,
+          riskRewardRatio: idea.riskRewardRatio,
+          confidence: idea.confidence,
+          thesis: idea.thesis,
+          premiumRange: idea.premiumRange,
+          regime: idea.regime,
+          isPowerHour: idea.isPowerHour,
+        }),
+      )
+      .catch((e) => logger.warn(`[INDEX-SCALP] discord callout failed: ${e?.message}`));
+
     return true;
   } catch (err) {
     logger.warn(`[INDEX-SCALP] persist failed: ${(err as Error).message}`);
@@ -517,6 +625,7 @@ export async function runIndexScalpScanner(): Promise<IndexScalpResult> {
       buildFlipBounce(snap, session),
       buildWallFade(snap, session),
       buildWallBreak(snap, session),
+      buildTrendContinuation(snap, session),
       buildPowerHourPlay(snap, session),
     ].filter(Boolean) as IndexScalpIdea[];
 
@@ -531,4 +640,54 @@ export async function runIndexScalpScanner(): Promise<IndexScalpResult> {
   }
 
   return { session, scanned: snaps.size, ideas, persisted };
+}
+
+// ─── Intraday Scheduler ─────────────────────────────────────
+//
+// THE missing wire: before this, the scanner only ran when someone happened
+// to load the GEX Hub. That's why intraday index moves got missed — no one
+// was watching when price ran. This loops it automatically through the whole
+// session: a steady cadence in regular hours, tighter during power hour when
+// 0DTE gamma moves accelerate. Self-gating — runIndexScalpScanner() no-ops
+// when the market is closed, so this is safe to leave running 24/7.
+
+let scalpInterval: ReturnType<typeof setInterval> | null = null;
+
+const REGULAR_CADENCE_MS = 3 * 60 * 1000;  // every 3 min in regular hours
+const POWER_HOUR_CADENCE_MS = 90 * 1000;   // every 90s during power hour
+let lastScalpRunMs = 0;
+
+export function startIndexScalpScheduler(): void {
+  if (scalpInterval) return;
+  logger.info('[INDEX-SCALP] Starting intraday scheduler (3min regular / 90s power hour)...');
+
+  // Tick every 30s; decide whether enough time has elapsed for this session
+  // phase. Cheap when the market is closed (early return inside the scanner).
+  scalpInterval = setInterval(async () => {
+    try {
+      const session = getScalpSession();
+      if (!session.isMarketOpen) return;
+
+      const cadence = session.isPowerHour ? POWER_HOUR_CADENCE_MS : REGULAR_CADENCE_MS;
+      if (Date.now() - lastScalpRunMs < cadence) return;
+      lastScalpRunMs = Date.now();
+
+      const result = await runIndexScalpScanner();
+      if (result.persisted > 0) {
+        logger.info(`[INDEX-SCALP] scheduler persisted ${result.persisted} new scalp idea(s) | session=${result.session.sessionLabel}`);
+      }
+    } catch (err) {
+      logger.warn(`[INDEX-SCALP] scheduler cycle failed: ${(err as Error).message}`);
+    }
+  }, 30 * 1000);
+
+  logger.info('[INDEX-SCALP] Intraday scheduler started');
+}
+
+export function stopIndexScalpScheduler(): void {
+  if (scalpInterval) {
+    clearInterval(scalpInterval);
+    scalpInterval = null;
+  }
+  logger.info('[INDEX-SCALP] Intraday scheduler stopped');
 }

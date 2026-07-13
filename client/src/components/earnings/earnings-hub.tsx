@@ -287,6 +287,27 @@ export function EarningsHub() {
         </div>
       )}
 
+      {/* Empty state — no scored plays (quiet window or option data unavailable) */}
+      {!isLoading && !error && lottos.length === 0 && filtered.length === 0 && (
+        <QECard variant="default" padding="md" className="text-center">
+          <div className="flex flex-col items-center gap-2 py-6">
+            <AlertCircle className="w-5 h-5 text-muted-foreground/60" />
+            <div className="text-xs font-mono text-muted-foreground">
+              No scored earnings plays right now.
+            </div>
+            <div className="text-[10px] font-mono text-muted-foreground/60 max-w-md leading-relaxed">
+              The lotto scanner only scores curated names that report in the next {data ? `${Math.max(1, Math.round((new Date(data.windowEnd).getTime() - new Date(data.windowStart).getTime()) / 86_400_000))}` : '7'} days
+              <span className="block mt-1">
+                and need live option chains. Early-June is a quiet window between Q1 and Q2 prints, and option-chain data (Tradier) is currently unavailable — so there's nothing to score yet.
+              </span>
+              <span className="block mt-1">
+                The <span className="text-[var(--brand-cyan)]">Calendar</span> tab still shows every reporter from the free earnings feed.
+              </span>
+            </div>
+          </div>
+        </QECard>
+      )}
+
       {/* Drill-in drawer */}
       <QEDrawer
         open={!!drilled}

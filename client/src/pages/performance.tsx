@@ -3,7 +3,8 @@ import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Target, Activity, Calendar, Brain, BarChart3, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw, History, Lock, Bot, Info } from "lucide-react";
+import { Download, Target, Activity, Calendar, Brain, BarChart3, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw, History, Lock, Bot, Info, Wallet } from "lucide-react";
+import BrokerImport from "@/components/broker-import";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, subDays, subMonths, startOfDay } from 'date-fns';
@@ -648,7 +649,7 @@ export default function PerformancePage() {
         <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
           <TierGate feature="performance" blur>
             <Tabs defaultValue="overview" className="space-y-3">
-              <TabsList className="grid w-full max-w-lg grid-cols-5">
+              <TabsList className="grid w-full max-w-2xl grid-cols-6">
                 <TabsTrigger value="overview" className="text-[10px] gap-1 font-mono" data-testid="tab-overview">
                   <TrendingUp className="h-3 w-3" />Trends
                 </TabsTrigger>
@@ -663,6 +664,9 @@ export default function PerformancePage() {
                 </TabsTrigger>
                 <TabsTrigger value="audit" className="text-[10px] gap-1 font-mono" data-testid="tab-audit">
                   <Database className="h-3 w-3" />Audit
+                </TabsTrigger>
+                <TabsTrigger value="portfolio" className="text-[10px] gap-1 font-mono" data-testid="tab-portfolio">
+                  <Wallet className="h-3 w-3" />Portfolio
                 </TabsTrigger>
               </TabsList>
 
@@ -794,6 +798,10 @@ export default function PerformancePage() {
                   </Button>
                 </div>
                 <DataIntegrityPanel stats={stats} />
+              </TabsContent>
+
+              <TabsContent value="portfolio" className="space-y-4">
+                <BrokerImport />
               </TabsContent>
             </Tabs>
           </TierGate>

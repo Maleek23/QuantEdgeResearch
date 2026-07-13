@@ -3435,7 +3435,7 @@ export async function runAutonomousBotScan(): Promise<void> {
     // 🎯 HIGH-GRADE TRADE IDEAS: Fetch B+ and higher grade ideas from Trade Desk that haven't been traded
     let highGradeIdeaSymbols: string[] = [];
     try {
-      const recentIdeas = await storage.getTradeIdeas();
+      const recentIdeas = await storage.getAllTradeIdeas();
       const now = Date.now();
       const fourHoursAgo = now - (4 * 60 * 60 * 1000); // Extended to 4 hours for more coverage
       

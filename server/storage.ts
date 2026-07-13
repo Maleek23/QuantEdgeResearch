@@ -443,7 +443,7 @@ export interface IStorage {
   deleteTradeIdea(id: string): Promise<boolean>;
   cleanupStaleTradeIdeas(): Promise<number>;
   findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number, assetType?: string, optionType?: string, strikePrice?: number): Promise<TradeIdea | undefined>;
-  updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain'>>): Promise<TradeIdea | undefined>;
+  updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain' | 'exitPremium' | 'optionPercentGain'>>): Promise<TradeIdea | undefined>;
   getOpenTradeIdeas(): Promise<TradeIdea[]>;
   getTradeIdeasByFilters(filters: { assetType?: string; outcomeStatus?: string; limit?: number }): Promise<TradeIdea[]>;
   getPerformanceStats(): Promise<PerformanceStats>;
@@ -781,7 +781,7 @@ export class MemStorage implements IStorage {
         excerpt: "Master the fundamentals of risk management with a comprehensive guide to calculating and optimizing your risk-reward ratios.",
         content: "Full content here...",
         heroImageUrl: null,
-        category: "Risk Management",
+        category: "risk-management",
         tags: ["Risk", "Basics"],
         authorName: "Quant Edge Labs Team",
         status: "published",
@@ -1446,7 +1446,7 @@ export class MemStorage implements IStorage {
       const result = await db
         .update(tradeIdeas)
         .set({ outcomeStatus: 'expired' })
-        .where(sql`${tradeIdeas.outcomeStatus} = 'open' AND ${tradeIdeas.timestamp} < ${cutoffStale.toISOString()}`)
+        .where(drizzleSql`${tradeIdeas.outcomeStatus} = 'open' AND ${tradeIdeas.timestamp} < ${cutoffStale.toISOString()}`)
         .returning({ id: tradeIdeas.id });
 
       expiredCount = result.length;
@@ -1466,7 +1466,7 @@ export class MemStorage implements IStorage {
     try {
       const result = await db
         .delete(tradeIdeas)
-        .where(sql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
+        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
         .returning({ id: tradeIdeas.id });
 
       deletedCount = result.length;
@@ -1486,7 +1486,7 @@ export class MemStorage implements IStorage {
 
       const result = await db
         .delete(tradeIdeas)
-        .where(sql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
+        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
         .returning({ id: tradeIdeas.id });
 
       for (const { id } of result) {
@@ -1579,7 +1579,7 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain'>>): Promise<TradeIdea | undefined> {
+  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain' | 'exitPremium' | 'optionPercentGain'>>): Promise<TradeIdea | undefined> {
     const existing = this.tradeIdeas.get(id);
     if (!existing) return undefined;
     
@@ -2654,7 +2654,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .update(tradeIdeas)
         .set({ outcomeStatus: 'expired' })
-        .where(sql`${tradeIdeas.outcomeStatus} = 'open' AND ${tradeIdeas.timestamp} < ${cutoffStale.toISOString()}`)
+        .where(drizzleSql`${tradeIdeas.outcomeStatus} = 'open' AND ${tradeIdeas.timestamp} < ${cutoffStale.toISOString()}`)
         .returning({ id: tradeIdeas.id });
       expiredCount = result.length;
     } catch (err) {
@@ -2664,7 +2664,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const result = await db
         .delete(tradeIdeas)
-        .where(sql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
+        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
         .returning({ id: tradeIdeas.id });
       deletedCount = result.length;
     } catch (err) {
@@ -2676,7 +2676,7 @@ export class DatabaseStorage implements IStorage {
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
       const result = await db
         .delete(tradeIdeas)
-        .where(sql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
+        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
         .returning({ id: tradeIdeas.id });
       deletedCount += result.length;
     } catch (err) {
@@ -2732,7 +2732,7 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain'>>): Promise<TradeIdea | undefined> {
+  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached' | 'missedEntryTheoreticalOutcome' | 'missedEntryTheoreticalGain' | 'exitPremium' | 'optionPercentGain'>>): Promise<TradeIdea | undefined> {
     const existing = await this.getTradeIdeaById(id);
     if (!existing) return undefined;
     

@@ -11,7 +11,7 @@
  *   Tracking: `localStorage.qe_changelog_seen` = id of most recent entry the
  *   user has acknowledged (set when drawer opens).
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useSyncExternalStore } from 'react';
 import { useLocation } from 'wouter';
 import { Bell, ArrowRight, X, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -38,7 +38,12 @@ const TAG_LABEL: Record<ChangeTag, string> = {
   ai:       'AI',
 };
 
-// ─── Hook: unread count + open/close ────────────────────────────────
+// ─── Shared store (module-level) ─────────────────────────────────────
+// All three surfaces (bell, toast, drawer) mount independently in
+// different parts of the tree, so the open/seen state MUST be shared —
+// otherwise clicking the bell flips its own local state while the drawer
+// (a separate instance) stays closed forever. useSyncExternalStore keeps
+// every consumer in sync off one source of truth.
 
 function readSeen(): string | null {
   try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
@@ -47,26 +52,41 @@ function writeSeen(id: string) {
   try { localStorage.setItem(STORAGE_KEY, id); } catch { /* ignore */ }
 }
 
-export function useWhatsNew() {
-  const [seenId, setSeenId] = useState<string | null>(readSeen());
-  const [open, setOpen] = useState(false);
+type WNState = { open: boolean; seenId: string | null };
+let wnState: WNState = { open: false, seenId: readSeen() };
+const wnListeners = new Set<() => void>();
 
-  const unread = getUnreadEntries(seenId);
+function wnEmit() {
+  for (const l of wnListeners) l();
+}
+function wnSet(patch: Partial<WNState>) {
+  wnState = { ...wnState, ...patch };
+  wnEmit();
+}
+function wnSubscribe(cb: () => void) {
+  wnListeners.add(cb);
+  return () => { wnListeners.delete(cb); };
+}
+function wnGetSnapshot() {
+  return wnState;
+}
+
+export function useWhatsNew() {
+  const state = useSyncExternalStore(wnSubscribe, wnGetSnapshot, wnGetSnapshot);
+
+  const unread = getUnreadEntries(state.seenId);
   const unreadCount = unread.length;
 
-  // Mark all as seen when drawer opens
   const handleOpen = useCallback(() => {
-    setOpen(true);
     const latest = getMostRecentId();
-    if (latest) {
-      writeSeen(latest);
-      setSeenId(latest);
-    }
+    if (latest) writeSeen(latest);
+    wnSet({ open: true, seenId: latest ?? wnState.seenId });
   }, []);
 
-  const handleClose = useCallback(() => setOpen(false), []);
+  const handleClose = useCallback(() => wnSet({ open: false }), []);
 
-  // ⌘? shortcut to open
+  // ⌘? shortcut to open — registered once at module level would be ideal,
+  // but keeping it here is fine now that handleOpen mutates shared state.
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === '?') {
@@ -78,7 +98,7 @@ export function useWhatsNew() {
     return () => document.removeEventListener('keydown', h);
   }, [handleOpen]);
 
-  return { open, unread, unreadCount, handleOpen, handleClose };
+  return { open: state.open, unread, unreadCount, handleOpen, handleClose };
 }
 
 // ─── Bell button (for sidebar) ──────────────────────────────────────
@@ -92,6 +112,7 @@ export function WhatsNewBell({ collapsed }: { collapsed?: boolean }) {
       title={`What's new${unreadCount > 0 ? ` — ${unreadCount} new` : ''}  (⌘?)`}
       className={cn(
         'relative flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all text-[13px] w-full text-left',
+        'group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0',
         unreadCount > 0
           ? 'text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/5'
           : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/40',
@@ -99,15 +120,18 @@ export function WhatsNewBell({ collapsed }: { collapsed?: boolean }) {
       data-testid="nav-whats-new"
     >
       <Bell className={cn('w-4 h-4 shrink-0', unreadCount > 0 && 'text-[var(--brand-cyan)]')} />
-      {!collapsed && (
-        <span className="truncate font-mono uppercase tracking-wider text-[11px]">What's New</span>
-      )}
+      <span className="truncate font-mono uppercase tracking-wider text-[11px] group-data-[collapsible=icon]:hidden">
+        What's New
+      </span>
       {unreadCount > 0 && (
-        <span className={cn(
-          'absolute right-1 top-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--brand-cyan)] text-black text-[9px] font-bold font-mono flex items-center justify-center',
-          collapsed && 'top-0 right-0 w-3 h-3 min-w-0 p-0',
-        )}>
-          {!collapsed && unreadCount}
+        <span
+          className={cn(
+            'absolute right-1 top-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--brand-cyan)] text-black text-[9px] font-bold font-mono flex items-center justify-center',
+            // In icon-collapsed mode shrink to a corner dot (no number, no overflow)
+            'group-data-[collapsible=icon]:right-0.5 group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:w-2 group-data-[collapsible=icon]:h-2 group-data-[collapsible=icon]:min-w-0 group-data-[collapsible=icon]:px-0',
+          )}
+        >
+          <span className="group-data-[collapsible=icon]:hidden">{unreadCount}</span>
         </span>
       )}
     </button>

@@ -62,6 +62,8 @@ const NESTED_TABS: NavTarget[] = [
   { href: '/h?tab=ai-picks',  label: 'Hunt → AI Picks',  icon: Crosshair, keywords: ['discovery','setups'] },
   { href: '/h?tab=gex',       label: 'Hunt → GEX Setups', icon: Crosshair, keywords: ['gamma','workflow'] },
   { href: '/h?tab=surges',    label: 'Hunt → Surges',     icon: Crosshair, keywords: ['momentum','breakouts'] },
+  { href: '/h?tab=movers',    label: 'Hunt → Movers',     icon: Crosshair, keywords: ['premarket','afterhours','overnight','gappers'] },
+  { href: '/h?tab=btc',       label: 'Hunt → BTC',        icon: Crosshair, keywords: ['bitcoin','crypto','mstr','coin','beta'] },
   { href: '/h?tab=watchlist', label: 'Hunt → Watchlist',  icon: Crosshair, keywords: ['watchlist','saved'] },
   // GEX (market-wide only — per-symbol GEX lives in Research to avoid duplication)
   { href: '/g?tab=hub',       label: 'GEX → Hub',         icon: Zap, keywords: ['scanner','workflow','market-wide'] },
@@ -72,6 +74,7 @@ const NESTED_TABS: NavTarget[] = [
   { href: '/r/SPY?tab=chart',    label: 'Research → Chart',    icon: Microscope, keywords: ['price','levels','candle'] },
   { href: '/r/SPY?tab=options',  label: 'Research → Options',  icon: Microscope, keywords: ['chain','greeks','iv'] },
   { href: '/r/SPY?tab=gex',      label: 'Research → GEX',      icon: Microscope, keywords: ['gamma','walls','flip','per-symbol'] },
+  { href: '/r/SPY?tab=analyze',  label: 'Research → Analyze',  icon: Microscope, keywords: ['contract','grade','bullflow','a+'] },
   // Positions
   { href: '/pos?tab=heatmap', label: 'Positions → Heat Map', icon: Wallet, keywords: ['pnl','treemap'] },
   // Journal
@@ -113,7 +116,14 @@ export function CommandPalette() {
       }
     };
     document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    // Allow any header search button (or other UI) to open the palette without
+    // faking a keyboard event — dispatch `window` event 'qe:open-command-palette'.
+    const openHandler = () => setOpen(true);
+    window.addEventListener('qe:open-command-palette', openHandler);
+    return () => {
+      document.removeEventListener('keydown', handler);
+      window.removeEventListener('qe:open-command-palette', openHandler);
+    };
   }, [setLocation]);
 
   // When search looks like a ticker (1-6 letters, all caps), pressing Enter on
@@ -229,6 +239,10 @@ export function CommandPalette() {
         <CommandSeparator />
 
         <CommandGroup heading="Quick actions">
+          <CommandItem onSelect={() => go('/radar')}>
+            <Crosshair className="w-3.5 h-3.5 mr-2" />
+            <span className="text-xs">Thesis Radar</span>
+          </CommandItem>
           <CommandItem onSelect={() => go('/watchlist')}>
             <Star className="w-3.5 h-3.5 mr-2" />
             <span className="text-xs">Open Watchlists</span>

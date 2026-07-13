@@ -118,6 +118,11 @@ export interface UnifiedPortfolio {
 // In production, this would be stored in database with user association
 const importedPositions = new Map<string, UnifiedPosition[]>();
 
+/** Persist positions for a session (used by CSV and screenshot import paths). */
+export function storeSessionPositions(sessionId: string, positions: UnifiedPosition[]): void {
+  importedPositions.set(sessionId, positions);
+}
+
 /**
  * Parse Webull CSV export
  * Webull format: Symbol, Description, Quantity, Avg Cost, Market Value, etc.

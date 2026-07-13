@@ -9,9 +9,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { CommandRail } from "@/components/command-rail";
-import { AuroraLayoutProvider, useAuroraLayout } from "@/contexts/aurora-layout-context";
-import { GlassHeader } from "@/components/glass-header";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
@@ -19,11 +16,11 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User, Loader2, Search } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
-import { cn } from "@/lib/utils";
 import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-route";
 import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
 import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
 import { ContentDensityProvider } from "@/hooks/use-content-density";
+import { DensityProvider } from "@/components/ui/qe";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { StockContextProvider } from "@/contexts/stock-context";
 import { lazyWithRetry } from "@/lib/lazy-import";
@@ -41,12 +38,10 @@ const ResearchShell  = lazyWithRetry(() => import("@/pages/shells/research-shell
 const PositionsShell = lazyWithRetry(() => import("@/pages/shells/positions-shell"), "positions-shell");
 const JournalShell   = lazyWithRetry(() => import("@/pages/shells/journal-shell"),   "journal-shell");
 const RadarPage      = lazyWithRetry(() => import("@/pages/radar"),                  "radar");
-const BTCRadarPage   = lazyWithRetry(() => import("@/pages/btc-radar"),              "btc-radar");
 const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),                 "how-to");
-const AnalyzePage    = lazyWithRetry(() => import("@/pages/analyze"),                "analyze");
-const MoversPage     = lazyWithRetry(() => import("@/pages/movers"),                 "movers");
 
 const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
+const PublicWatchlist = lazyWithRetry(() => import("@/pages/public-watchlist"), "public-watchlist");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
@@ -76,8 +71,6 @@ const MarketPulse = lazyWithRetry(() => import("@/pages/market-pulse"), "market-
 const FlowHeatmap = lazyWithRetry(() => import("@/pages/flow-heatmap"), "flow-heatmap");
 const PositionsHeatmap = lazyWithRetry(() => import("@/pages/positions-heatmap"), "positions-heatmap");
 const StrategySimulator = lazyWithRetry(() => import("@/pages/strategy-simulator"), "strategy-simulator");
-const GexDashboard = lazyWithRetry(() => import("@/pages/gex-dashboard"), "gex-dashboard");
-const GexScanner = lazyWithRetry(() => import("@/pages/gex-scanner"), "gex-scanner");
 const Backtest = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
 const ConvictionBacktest = lazyWithRetry(() => import("@/pages/conviction-backtest"), "conviction-backtest");
 const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
@@ -90,12 +83,16 @@ const Pricing = lazyWithRetry(() => import("@/pages/pricing"), "pricing");
 const TradeAudit = lazyWithRetry(() => import("@/pages/trade-audit"), "trade-audit");
 const AutomationsPage = lazyWithRetry(() => import("@/pages/automations"), "automations");
 const Features = lazyWithRetry(() => import("@/pages/features"), "features");
+const StyleLab = lazyWithRetry(() => import("@/pages/style-lab"), "style-lab");
+const StyleGlass = lazyWithRetry(() => import("@/pages/style-glass"), "style-glass");
+const HomeGlass = lazyWithRetry(() => import("@/pages/home-glass"), "home-glass");
 // REMOVED — Backtest merged into Performance tab
 const TechnicalGuide = lazyWithRetry(() => import("@/pages/technical-guide"), "technical-guide");
-const MarketScanner = lazyWithRetry(() => import("@/pages/market-scanner"), "market-scanner");
+// MERGED — Market Scanner folded into Hunt → Surges tab
 // MERGED — Bullish Trends absorbed into Market Scanner
 // MERGED — Trading Engine absorbed into Performance
-const UnifiedWatchlist = lazyWithRetry(() => import("@/pages/unified-watchlist"), "unified-watchlist");
+// /watchlist + /watchlist/weekly now redirect into the Hunt shell's Watchlist tab
+// (single canonical surface); the component is loaded lazily by hunt-shell.tsx.
 // REMOVED — Weekly Watchlist tab lives in unified-watchlist, Conviction Backtest in Performance
 const HomePage = lazyWithRetry(() => import("@/pages/home"), "home");
 // REMOVED — AION consolidated out, redirect added below
@@ -105,7 +102,6 @@ const AnalysisPage = lazyWithRetry(() => import("@/pages/analysis"), "analysis")
 const NotFound = lazyWithRetry(() => import("@/pages/not-found"), "not-found");
 const JoinBeta = lazyWithRetry(() => import("@/pages/join-beta"), "join-beta");
 const InviteWelcome = lazyWithRetry(() => import("@/pages/invite-welcome"), "invite-welcome");
-const OptionsAnalyzer = lazyWithRetry(() => import("@/pages/options-analyzer"), "options-analyzer");
 const ForgotPassword = lazyWithRetry(() => import("@/pages/forgot-password"), "forgot-password");
 const ResetPassword = lazyWithRetry(() => import("@/pages/reset-password"), "reset-password");
 const LearningDashboard = lazyWithRetry(() => import("@/pages/learning-dashboard"), "learning-dashboard");
@@ -113,11 +109,10 @@ const LearningDashboard = lazyWithRetry(() => import("@/pages/learning-dashboard
 const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
 const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"), "design-system-test");
 const MarketOutlook = lazyWithRetry(() => import("@/pages/market-outlook"), "market-outlook");
-const TickerPage = lazyWithRetry(() => import("@/pages/ticker"), "ticker");
 const CommandCenterLegacy = lazyWithRetry(() => import("@/pages/command"), "command-legacy");
 const OlAlgoPage = lazyWithRetry(() => import("@/pages/olalgo"), "olalgo");
 // Terminal — full-screen Skylit-style dedicated pages
-const TerminalChart = lazyWithRetry(() => import("@/pages/terminal-chart"), "terminal-chart");
+// MERGED: /terminal/:symbol now redirects to Research (/r/:symbol?tab=chart)
 // MERGED: Heatmap view now lives inside unified terminal-chart.tsx
 // const TerminalHeatmap = lazyWithRetry(() => import("@/pages/terminal-heatmap"), "terminal-heatmap");
 const TerminalTrinity = lazyWithRetry(() => import("@/pages/terminal-trinity"), "terminal-trinity");
@@ -174,9 +169,9 @@ function SmartLanding() {
     return <PageLoader />;
   }
 
-  // If logged in, restore last visited page (or default to /home)
+  // If logged in, restore last visited page (or default to /p — Home)
   if (user) {
-    const lastPage = localStorage.getItem('qe-last-page') || '/home';
+    const lastPage = localStorage.getItem('qe-last-page') || '/p';
     return <Redirect to={lastPage} />;
   }
 
@@ -199,25 +194,32 @@ function Router() {
         <Route path="/pos"        component={withBetaProtection(PositionsShell)} />
         <Route path="/j"          component={withBetaProtection(JournalShell)} />
         <Route path="/radar"      component={withBetaProtection(RadarPage)} />
-        <Route path="/btc"        component={withBetaProtection(BTCRadarPage)} />
-        <Route path="/analyze"    component={withBetaProtection(AnalyzePage)} />
-        <Route path="/movers"     component={withBetaProtection(MoversPage)} />
+        {/* Folded into shells — Movers/BTC → Hunt tabs, Analyze → Research tab */}
+        <Route path="/btc"><Redirect to="/h?tab=btc" /></Route>
+        <Route path="/movers"><Redirect to="/h?tab=movers" /></Route>
+        <Route path="/analyze"><Redirect to="/r/SPY?tab=analyze" /></Route>
         <Route path="/how-to"     component={withBetaProtection(HowToPage)} />
+
+        {/* Public, read-only shared watchlist (no auth) — for trading groups */}
+        <Route path="/w" component={PublicWatchlist} />
 
         {/* Core Pages - Smart redirect for logged-in users */}
         <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
+      <Route path="/style-lab" component={StyleLab} />
+      <Route path="/glass-dashboard" component={StyleGlass} />
+      <Route path="/home-glass" component={HomeGlass} />
         <Route path="/landing" component={Landing} />
       {/* AI Learning Dashboard */}
       <Route path="/learning" component={withBetaProtection(LearningDashboard)} />
 
-      {/* Whale Flow redirects to Smart Money */}
+      {/* Whale Flow → GEX flow heatmap (single hop; chained redirects drop the query param) */}
       <Route path="/whale-flow">
-        <Redirect to="/smart-money" />
+        <Redirect to="/g?tab=heatmap" />
       </Route>
 
       {/* Home Dashboard - Main landing for logged in users */}
-      <Route path="/home" component={withBetaProtection(HomePage)} />
+      <Route path="/home" component={withBetaProtection(HomeGlass)} />
       <Route path="/dashboard">
         <Redirect to="/home" />
       </Route>
@@ -247,14 +249,15 @@ function Router() {
       <Route path="/market-pulse"><Redirect to="/p?tab=pulse" /></Route>
       <Route path="/pulse"><Redirect to="/p?tab=pulse" /></Route>
       <Route path="/chart-analysis"><Redirect to="/r/SPY?tab=chart" /></Route>
-      <Route path="/flow-heatmap"><Redirect to="/g?tab=flow" /></Route>
-      <Route path="/heatmap"><Redirect to="/g?tab=flow" /></Route>
+      <Route path="/flow-heatmap"><Redirect to="/g?tab=heatmap" /></Route>
+      <Route path="/heatmap"><Redirect to="/g?tab=heatmap" /></Route>
       <Route path="/positions" component={withBetaProtection(PositionsHeatmap)} />
       <Route path="/positions-heatmap" component={withBetaProtection(PositionsHeatmap)} />
       <Route path="/simulator" component={withBetaProtection(StrategySimulator)} />
       <Route path="/strategy-simulator" component={withBetaProtection(StrategySimulator)} />
-      <Route path="/gex-dashboard" component={withBetaProtection(GexDashboard)} />
-      <Route path="/gex-scanner" component={withBetaProtection(GexScanner)} />
+      {/* Standalone scanners folded into GEX shell tabs */}
+      <Route path="/gex-dashboard"><Redirect to="/g?tab=analysis" /></Route>
+      <Route path="/gex-scanner"><Redirect to="/g?tab=hub" /></Route>
       <Route path="/backtest" component={withBetaProtection(Backtest)} />
       <Route path="/conviction-backtest" component={withBetaProtection(ConvictionBacktest)} />
       <Route path="/weekly-watchlist"><Redirect to="/watchlist" /></Route>
@@ -271,7 +274,7 @@ function Router() {
       </Route>
       <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
       {/* duplicate /chart-analysis already handled above by redirect */}
-      <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
+      <Route path="/options-analyzer"><Redirect to="/r/SPY?tab=options" /></Route>
       <Route path="/smart-advisor"><Redirect to="/performance" /></Route>
       <Route path="/research">
         <Redirect to="/home" />
@@ -283,24 +286,24 @@ function Router() {
        * external links and shared URLs land on the unified destination.
        */}
       <Route path="/stock/:symbol">
-        {(params) => <Redirect to={`/terminal/${params.symbol}`} />}
+        {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
       </Route>
       <Route path="/stock-legacy/:symbol" component={StockDetailPage} />
       {/* MERGED: Discover → Trade Desk */}
       <Route path="/discover"><Redirect to="/trade-desk" /></Route>
       <Route path="/market-movers">
-        <Redirect to="/market" />
+        <Redirect to="/home" />
       </Route>
-      <Route path="/watchlist" component={withBetaProtection(UnifiedWatchlist)} />
-      <Route path="/watchlist/weekly"><Redirect to="/watchlist" /></Route>
+      <Route path="/watchlist"><Redirect to="/h?tab=watchlist" /></Route>
+      <Route path="/watchlist/weekly"><Redirect to="/h?tab=watchlist" /></Route>
       <Route path="/convictions/backtest"><Redirect to="/performance" /></Route>
       <Route path="/ai-stock-picker">
         <Redirect to="/trade-desk" />
       </Route>
       <Route path="/smart-signals">
-        <Redirect to="/market-scanner" />
+        <Redirect to="/h?tab=surges" />
       </Route>
-      <Route path="/smart-money"><Redirect to="/flow?tab=smart-money" /></Route>
+      <Route path="/smart-money"><Redirect to="/g?tab=heatmap" /></Route>
       <Route path="/portfolio" component={withBetaProtection(PerformancePage)} />
       <Route path="/history/chat" component={withBetaProtection(HistoryPage)} />
       <Route path="/history/research" component={withBetaProtection(HistoryPage)} />
@@ -311,15 +314,16 @@ function Router() {
         <Redirect to="/performance" />
       </Route>
       <Route path="/market"><Redirect to="/home" /></Route>
-      <Route path="/market-scanner" component={withBetaProtection(MarketScanner)} />
+      {/* Market Scanner folded into Hunt → Surges tab */}
+      <Route path="/market-scanner"><Redirect to="/h?tab=surges" /></Route>
       <Route path="/pattern-scanner">
         <Redirect to="/chart-analysis" />
       </Route>
       <Route path="/swing-scanner">
-        <Redirect to="/market-scanner" />
+        <Redirect to="/h?tab=surges" />
       </Route>
-      {/* MERGED: Bullish Trends → Market Scanner */}
-      <Route path="/bullish-trends"><Redirect to="/market-scanner" /></Route>
+      {/* MERGED: Bullish Trends → Hunt Surges */}
+      <Route path="/bullish-trends"><Redirect to="/h?tab=surges" /></Route>
       <Route path="/futures">
         <Redirect to="/trade-desk?tab=futures" />
       </Route>
@@ -440,43 +444,47 @@ function Router() {
        * TERMINAL — full-screen Skylit-style dedicated pages
        * Each tool gets its own page, not crammed into tabs.
        * ═══════════════════════════════════════════════════════════════ */}
-      {/* Terminal heatmap merged into unified terminal — redirect for bookmarks */}
-      <Route path="/terminal/heatmap"><Redirect to="/terminal/SPY" /></Route>
+      {/* ALL per-ticker entry points funnel into the canonical Research home
+          (/r/:symbol). Research's Chart tab IS TerminalChart, Options tab IS
+          OptionsAnalyzer, GEX tab IS TerminalHeatmap — so these are lossless. */}
+      <Route path="/terminal/heatmap"><Redirect to="/r/SPY?tab=gex" /></Route>
       <Route path="/terminal/trinity" component={withBetaProtection(TerminalTrinity)} />
-      <Route path="/terminal/:symbol" component={withBetaProtection(TerminalChart)} />
-      <Route path="/terminal"><Redirect to="/terminal/SPY" /></Route>
-
-      {/* TICKER — per-ticker analytics with tabs */}
-      <Route path="/t/:symbol/:tab" component={withBetaProtection(TickerPage)} />
-      <Route path="/t/:symbol" component={withBetaProtection(TickerPage)} />
-      <Route path="/t"><Redirect to="/t/SPY/chart" /></Route>
-
-      {/* Legacy chart workspace — /command/:symbol still served by the
-          existing GEX command page. The new ticker page mounts the SAME
-          underlying chart workspace, so we keep /command alive as an
-          alias for now and gradually move all internal links to /t/. */}
-      <Route path="/command/:symbol">
-        {(params) => <Redirect to={`/terminal/${params.symbol}`} />}
+      <Route path="/terminal/:symbol">
+        {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
       </Route>
-      <Route path="/command"><Redirect to="/terminal/SPY" /></Route>
+      <Route path="/terminal"><Redirect to="/r/SPY?tab=chart" /></Route>
+
+      {/* TICKER (legacy /t) — folded into Research */}
+      <Route path="/t/:symbol/:tab">
+        {(params) => <Redirect to={`/r/${params.symbol}`} />}
+      </Route>
+      <Route path="/t/:symbol">
+        {(params) => <Redirect to={`/r/${params.symbol}`} />}
+      </Route>
+      <Route path="/t"><Redirect to="/r/SPY" /></Route>
+
+      {/* Legacy chart workspace aliases → Research */}
+      <Route path="/command/:symbol">
+        {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
+      </Route>
+      <Route path="/command"><Redirect to="/r/SPY?tab=chart" /></Route>
       <Route path="/command-legacy" component={withBetaProtection(CommandCenterLegacy)} />
-      {/* Legacy chart routes → redirect into the new ticker page */}
-      <Route path="/projector"><Redirect to="/t/SPY/projection" /></Route>
-      <Route path="/spx"><Redirect to="/t/SPX/chart" /></Route>
+      <Route path="/projector"><Redirect to="/r/SPY?tab=chart" /></Route>
+      <Route path="/spx"><Redirect to="/r/SPX?tab=chart" /></Route>
       <Route path="/gex/:symbol">
-        {(params) => <Redirect to={`/terminal/${params.symbol}`} />}
+        {(params) => <Redirect to={`/r/${params.symbol}?tab=gex`} />}
       </Route>
       {/* Flow — options flow + GEX + smart money (tabs) */}
       {/* /flow redirects to the GEX & Flow Hub which has the Flow tab */}
-      <Route path="/flow"><Redirect to="/g?tab=flow" /></Route>
+      <Route path="/flow"><Redirect to="/g?tab=heatmap" /></Route>
       {/* GEX Hub merged into Flow as a tab */}
-      <Route path="/gex"><Redirect to="/flow?tab=hub" /></Route>
+      <Route path="/gex"><Redirect to="/g?tab=hub" /></Route>
       {/* OlAlgo Bot — challenge backtest dashboard */}
       <Route path="/olalgo" component={withBetaProtection(OlAlgoPage)} />
       {/* Convictions merged into Trade Desk — redirect for back-compat */}
       <Route path="/convictions"><Redirect to="/trade-desk?preset=todays-best" /></Route>
-      <Route path="/scanner/gex"><Redirect to="/flow?tab=hub" /></Route>
-      <Route path="/gex-legacy"><Redirect to="/flow" /></Route>
+      <Route path="/scanner/gex"><Redirect to="/g?tab=hub" /></Route>
+      <Route path="/gex-legacy"><Redirect to="/g?tab=hub" /></Route>
       {/* Geopolitical Reaction Matrix */}
       <Route path="/geopolitical"><Redirect to="/command" /></Route>
       {/* Redirects */}
@@ -532,7 +540,7 @@ function AuthHeader() {
           variant="ghost"
           size="sm"
           className="h-7 px-2 text-[10px] font-mono text-muted-foreground hover:text-foreground gap-1.5 hidden sm:flex"
-          onClick={() => setLocation('/market')}
+          onClick={() => window.dispatchEvent(new Event('qe:open-command-palette'))}
         >
           <Search className="h-3 w-3" />
           Search
@@ -572,7 +580,7 @@ function App() {
   useEffect(() => {
     const path = location.split('?')[0];
     // Only save authenticated app pages (not landing/login/public)
-    const skipPaths = ['/', '/landing', '/login', '/signup', '/invite', '/join-beta'];
+    const skipPaths = ['/', '/w', '/landing', '/login', '/signup', '/invite', '/join-beta'];
     if (!skipPaths.includes(path) && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
       localStorage.setItem('qe-last-page', location);
     }
@@ -586,7 +594,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
+  const publicPages = ['/', '/w', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {
@@ -618,14 +626,19 @@ function App() {
             <StockContextProvider>
               <PreferencesProvider>
                 <ContentDensityProvider>
-                  <SidebarProvider style={style as React.CSSProperties}>
-                    <div className="flex h-screen w-full">
-                      <AppSidebar />
-                      <MainContentWrapper />
-                    </div>
-                  </SidebarProvider>
-                  <AIChatbotPopup />
-                  <Toaster />
+                  <DensityProvider>
+                    <SidebarProvider style={style as React.CSSProperties}>
+                      <div className="flex h-screen w-full">
+                        <AppSidebar />
+                        <MainContentWrapper />
+                      </div>
+                    </SidebarProvider>
+                    <CommandPalette />
+                    <WhatsNewDrawer />
+                    <WhatsNewToast />
+                    <AIChatbotPopup />
+                    <Toaster />
+                  </DensityProvider>
                 </ContentDensityProvider>
               </PreferencesProvider>
             </StockContextProvider>
@@ -633,80 +646,6 @@ function App() {
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
-  );
-}
-
-// Aurora Grid content wrapper - new minimalist layout
-function AuroraContentWrapper() {
-  const { user, logout, isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
-  const [marketStatus, setMarketStatus] = useState({ isOpen: false, statusMessage: 'Checking...' });
-  const { railWidth } = useAuroraLayout();
-  
-  useEffect(() => {
-    const updateStatus = () => {
-      const status = getMarketStatus();
-      setMarketStatus(status);
-    };
-    updateStatus();
-    const interval = setInterval(updateStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
-  
-  const handleLogout = () => {
-    logout();
-    setLocation("/");
-  };
-  
-  const userData = user as { email?: string; firstName?: string } | null;
-
-  return (
-    <div 
-      className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300 relative z-10"
-      style={{ marginLeft: `${railWidth}px` }}
-    >
-      <header className="flex items-center justify-between h-12 px-6 border-b border-border/20 backdrop-blur-md">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <span className={cn(
-              "h-2 w-2 rounded-full",
-              marketStatus.isOpen ? "bg-[var(--trade-bullish)] shadow-[0_0_8px_rgba(74,222,128,0.5)] animate-pulse" : "bg-muted-foreground"
-            )} />
-            <span className="text-muted-foreground">
-              {marketStatus.isOpen ? 'MARKET OPEN' : 'CLOSED'}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {isAuthenticated && userData && (
-            <>
-              <span className="text-xs font-mono text-muted-foreground">
-                {userData.email || userData.firstName || 'User'}
-              </span>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={handleLogout}
-                data-testid="button-logout"
-                className="gap-1.5 text-muted-foreground hover:text-foreground/90"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-          <ThemeToggle />
-        </div>
-      </header>
-      <div className="flex-1 overflow-auto bg-card/50">
-        <main className="min-h-full p-6">
-          <ErrorBoundary>
-            <Suspense fallback={<PageLoader />}>
-              <Router />
-            </Suspense>
-          </ErrorBoundary>
-        </main>
-      </div>
-    </div>
   );
 }
 

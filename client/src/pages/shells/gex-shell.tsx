@@ -16,20 +16,22 @@ import { QETabs, type QETabItem, QECard } from '@/components/ui/qe';
 import { useTabState } from '@/hooks/use-tab-state';
 import { useStockContext } from '@/contexts/stock-context';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
+import { RotationBrief } from '@/components/rotation-brief';
 import { Loader2, ExternalLink } from 'lucide-react';
+import { GexBigGainers } from '@/components/gex-big-gainers';
 
 const GexHub      = lazy(() => import('@/pages/gex-scanner'));
 const TerminalMx  = lazy(() => import('@/pages/terminal-heatmap'));
 const FlowHeatmap = lazy(() => import('@/pages/flow-heatmap'));
 const GexAnalysis = lazy(() => import('@/pages/gex-dashboard'));
 
-type Tab = 'hub' | 'matrix' | 'heatmap' | 'buckets' | 'analysis';
+type Tab = 'hub' | 'gainers' | 'matrix' | 'heatmap' | 'buckets' | 'analysis';
 
 const TABS: readonly QETabItem<Tab>[] = [
   { id: 'hub',      label: 'Hub',        hint: 'Market-wide scanner — top GEX, sectors, top plays' },
+  { id: 'gainers',  label: 'Big Gainers', hint: 'Premium GEX plays running hot now + the hall-of-fame winners' },
   { id: 'matrix',   label: 'Matrix',     hint: 'Strike × expiry browser — fast-switch tickers, compare matrices' },
   { id: 'heatmap',  label: 'Heatmap',    hint: 'Sector GEX heatmap with per-ticker drill' },
-  { id: 'buckets',  label: 'Buckets',    hint: 'Per-DTE explorer: 0DTE / Week / Month / Quarter / LEAPS', disabled: true },
   { id: 'analysis', label: 'Analysis',   hint: 'Gamma growth history + regime tracker' },
 ];
 
@@ -68,6 +70,8 @@ export default function GexShell() {
         </div>
       </header>
 
+      <RotationBrief />
+
       <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
 
       <div className="text-[9px] font-mono text-muted-foreground/60">
@@ -77,6 +81,7 @@ export default function GexShell() {
       <PageErrorBoundary label={`GEX · ${tab}`}>
         <Suspense fallback={<Loading />}>
           {tab === 'hub'      && <GexHub />}
+          {tab === 'gainers'  && <GexBigGainers />}
           {tab === 'matrix'   && <TerminalMx />}
           {tab === 'heatmap'  && <FlowHeatmap />}
           {tab === 'analysis' && <GexAnalysis />}

@@ -784,26 +784,28 @@ export class PerformanceValidator {
             currentPrice || idea.lowestPriceReached || idea.entryPrice
           );
           
+          // Option idea entry/target/stop are STOCK levels — use normalized
+          // direction so a long PUT (bearish) measures the stock move correctly.
           const percentGain = this.calculatePercentGain(
-            idea.direction as 'long' | 'short',
+            this.getNormalizedDirection(idea),
             idea.entryPrice,
             lastKnownPrice
           );
-          
+
           const predictionAccurate = this.checkPredictionAccuracy(
             idea,
             lastKnownPrice,
             highestPrice,
             lowestPrice
           );
-          
+
           const predictionAccuracyPercent = this.calculatePredictionAccuracyPercent(
             idea,
             lastKnownPrice,
             highestPrice,
             lowestPrice
           );
-          
+
           return {
             shouldUpdate: true,
             outcomeStatus: 'expired',
@@ -857,9 +859,9 @@ export class PerformanceValidator {
             currentPrice || idea.lowestPriceReached || idea.entryPrice
           );
           
-          const directionForExpired = idea.assetType === 'option' 
-            ? idea.direction as 'long' | 'short'
-            : this.getNormalizedDirection(idea);
+          // Options resolve on the underlying stock move now (entry/target/stop
+          // are stock levels), so normalize direction for all asset types.
+          const directionForExpired = this.getNormalizedDirection(idea);
           const percentGain = this.calculatePercentGain(
             directionForExpired,
             idea.entryPrice,
@@ -923,9 +925,7 @@ export class PerformanceValidator {
         currentPrice || idea.lowestPriceReached || idea.entryPrice
       );
       
-      const directionFor7Days = idea.assetType === 'option' 
-        ? idea.direction as 'long' | 'short'
-        : this.getNormalizedDirection(idea);
+      const directionFor7Days = this.getNormalizedDirection(idea);
       const percentGain = this.calculatePercentGain(
         directionFor7Days,
         idea.entryPrice,
@@ -974,17 +974,17 @@ export class PerformanceValidator {
       ? Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice)
       : (idea.lowestPriceReached || idea.entryPrice);
 
-    // 🔧 CRITICAL FIX: For OPTIONS, use actual direction (not normalized)
-    // because we're validating PREMIUM prices, not underlying stock movement.
-    // For STOCKS/CRYPTO, use normalized direction for semantic correctness.
+    // 🔧 We now resolve target/stop against the UNDERLYING price for every
+    // asset type — an option idea's entry/target/stop are STOCK levels (the
+    // thesis), and `currentPrice` here is the underlying spot. So normalized
+    // direction is correct for all: a long PUT (bearish) maps to 'short' and
+    // wins when the stock falls to target. Real option P&L (premium-based) is
+    // computed separately by the validation service via entry/exit premium.
     //
     // Example: SHORT PUT (direction='short', optionType='put')
-    //   - Normalized: 'long' (bullish on underlying)  
-    //   - Actual: 'short' (you SELL the option, profit when premium DROPS)
-    //   - We need ACTUAL direction to validate premium movement correctly!
-    const directionForValidation = idea.assetType === 'option' 
-      ? idea.direction as 'long' | 'short'
-      : this.getNormalizedDirection(idea);
+    //   - Normalized: 'long' (bullish on underlying) — correct, profits when
+    //     the stock rises, which is what we measure against target/stop here.
+    const directionForValidation = this.getNormalizedDirection(idea);
 
     // 🎯 CRITICAL FIX: Check INTRADAY highs/lows instead of current price
     // This catches targets that were hit intraday but reversed by EOD
@@ -1250,13 +1250,13 @@ export class PerformanceValidator {
     const results = new Map<string, ValidationResult>();
 
     for (const idea of ideas) {
-      // Get price - for options, look up by idea ID since premiums are stored that way
-      let currentPrice: number | undefined;
-      if (idea.assetType === 'option') {
-        currentPrice = priceMap.get(`option_${idea.id}`);
-      } else {
-        currentPrice = priceMap.get(idea.symbol);
-      }
+      // Resolve target/stop against the UNDERLYING price for every asset type,
+      // options included. An option idea's entry/target/stop are STOCK levels
+      // (the thesis), so we feed the underlying spot here — NOT the premium.
+      // (The premium lives under option_<id> and is used separately by the
+      // service to compute real option P&L.) Comparing premiums to stock levels
+      // was the long-standing bug that excluded options from the win rate.
+      const currentPrice = priceMap.get(idea.symbol);
       
       // Get futures contract if applicable
       const futuresContract = idea.futuresContractCode && contractsMap 

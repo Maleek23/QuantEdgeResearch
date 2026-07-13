@@ -142,9 +142,58 @@ export async function getChartLastPrice(symbol: string): Promise<number> {
 export async function safeQuoteSummary(symbol: string, modules: string[]): Promise<any | null> {
   try {
     const yf = await getYahooFinance();
-    return await yf.quoteSummary(symbol, { modules });
+    const r = await yf.quoteSummary(symbol, { modules });
+    if (r) return r;
   } catch (error: any) {
-    logger.debug(`[YAHOO] Quote summary failed for ${symbol}:`, error.message);
+    logger.debug(`[YAHOO] Quote summary (lib) failed for ${symbol}:`, error.message);
+  }
+  // Library path can fail on schema validation / crumb — fall back to a raw
+  // crumb-authenticated v10 fetch (same auth that keeps the options chain alive).
+  return await quoteSummaryRaw(symbol, modules);
+}
+
+// ─── Crumb-authenticated raw quoteSummary fallback ─────────────────────
+let _qsCrumb: string | null = null;
+let _qsCookie: string | null = null;
+let _qsCrumbAt = 0;
+const QS_CRUMB_TTL = 30 * 60_000;
+const QS_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
+
+async function getQsCrumb(): Promise<{ crumb: string; cookie: string } | null> {
+  if (_qsCrumb && _qsCookie && Date.now() - _qsCrumbAt < QS_CRUMB_TTL) {
+    return { crumb: _qsCrumb, cookie: _qsCookie };
+  }
+  try {
+    const initRes = await fetch('https://fc.yahoo.com', { redirect: 'manual', headers: { 'User-Agent': QS_UA } });
+    const cookieStr = (initRes.headers.getSetCookie?.() || []).map((c) => c.split(';')[0]).join('; ');
+    const crumbRes = await fetch('https://query2.finance.yahoo.com/v1/test/getcrumb', {
+      headers: { 'User-Agent': QS_UA, 'Cookie': cookieStr },
+    });
+    if (!crumbRes.ok) return null;
+    const crumb = await crumbRes.text();
+    if (!crumb || crumb.includes('<') || crumb.length > 50) return null;
+    _qsCrumb = crumb; _qsCookie = cookieStr; _qsCrumbAt = Date.now();
+    return { crumb, cookie: cookieStr };
+  } catch {
+    return null;
+  }
+}
+
+export async function quoteSummaryRaw(symbol: string, modules: string[]): Promise<any | null> {
+  const auth = await getQsCrumb();
+  if (!auth) return null;
+  try {
+    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules.join(',')}&crumb=${encodeURIComponent(auth.crumb)}`;
+    const res = await fetch(url, { headers: { 'User-Agent': QS_UA, 'Cookie': auth.cookie } });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) { _qsCrumb = null; _qsCookie = null; }
+      logger.debug(`[YAHOO] Raw quoteSummary ${res.status} for ${symbol}`);
+      return null;
+    }
+    const data: any = await res.json();
+    return data?.quoteSummary?.result?.[0] ?? null;
+  } catch (e: any) {
+    logger.debug(`[YAHOO] Raw quoteSummary error for ${symbol}: ${e.message}`);
     return null;
   }
 }

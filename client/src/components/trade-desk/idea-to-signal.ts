@@ -109,11 +109,22 @@ export function setupToSignal(setup: any): SignalData {
     else if (spot >= stop) status = 'STOPPED';
   }
 
-  // Oracle option (if option-typed setup)
-  const oracleOption = (setup.assetType === 'option' || setup.optionType) ? {
-    strike: safe(setup.strikePrice ?? setup.strike ?? Math.round(entry)),
-    expiry: setup.expiryDate ?? setup.expiry ?? '',
-    optionType: (setup.optionType?.toLowerCase() ?? (direction === 'BULL' ? 'call' : 'put')) as 'call' | 'put',
+  // Oracle option pick — ONLY when a real persisted contract exists.
+  // Truth-in-advertising: never fabricate a strike (was Math.round(entry)),
+  // expiry, or call/put from direction. If the enricher/engine didn't attach a
+  // real contract, the card simply doesn't render one.
+  const realStrike = safe(setup.strikePrice ?? setup.strike, 0);
+  const realExpiry = setup.expiryDate ?? setup.expiry ?? '';
+  const realOptType = (setup.optionType ?? '').toString().toLowerCase();
+  const hasRealContract =
+    (setup.assetType === 'option' || !!setup.optionType) &&
+    realStrike > 0 &&
+    !!realExpiry &&
+    (realOptType === 'call' || realOptType === 'put');
+  const oracleOption = hasRealContract ? {
+    strike: realStrike,
+    expiry: realExpiry,
+    optionType: realOptType as 'call' | 'put',
     premiumAtIssue: safe(setup.premiumAtIssue ?? setup.premium),
     premiumNow: safe(setup.premiumNow ?? setup.premium),
     pctChange: safe(setup.optionPnlPct),

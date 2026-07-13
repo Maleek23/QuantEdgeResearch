@@ -7,10 +7,18 @@
  *   2. SIGNALS        any patterns currently firing
  *   3. BETA TABLE     all 14 tracked tickers ranked by 30d beta
  *   4. ACTIONS        re-scan + push-all-to-trade-desk buttons
+ *
+ * Styled to the Hunt cockpit aesthetic: CSS-var colors (--trade-bullish/bearish,
+ * --brand-cyan/gold), card-border cards, real TickerLogo. Lives inside HuntShell,
+ * so it owns no outer padding / page <h1>.
  */
 import { useEffect, useState } from 'react';
-import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { Loader2, RefreshCw, Send, TrendingUp, TrendingDown, Bitcoin } from 'lucide-react';
+import { TickerLogo } from '@/components/hunt/cockpit/ticker-logo';
+
+const BULL = 'var(--trade-bullish)';
+const BEAR = 'var(--trade-bearish)';
+const GOLD = 'var(--brand-gold)';
 
 interface BTCState {
   price: number;
@@ -113,74 +121,73 @@ export default function BTCRadarPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12 text-[11px] font-mono text-muted-foreground/60">
-        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        <Loader2 className="h-4 w-4 animate-spin mr-2 text-[var(--brand-cyan)]" />
         Loading BTC tracker…
       </div>
     );
   }
 
   return (
-    <PageErrorBoundary label="BTC Radar">
-      <div className="space-y-3 px-4 py-3">
-        {/* Header */}
-        <header className="flex items-center justify-between">
+    <div className="space-y-3">
+      {/* sub-header + actions (shell already renders the Hunt title) */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Bitcoin className="h-4 w-4" style={{ color: GOLD }} />
           <div>
-            <h1 className="text-lg font-mono font-bold uppercase tracking-widest text-foreground flex items-center gap-2">
-              <Bitcoin className="h-4 w-4 text-amber-500" />
-              BTC Radar
-            </h1>
+            <h2 className="text-base font-mono font-bold uppercase tracking-widest text-foreground">BTC Radar</h2>
             <p className="text-[11px] font-mono text-muted-foreground/70">
               Live BTC + 14 crypto-equity beta tracker — auto-fires on key level breaks.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={runScan}
-              disabled={scanning}
-              className="text-[10px] font-mono px-3 py-1.5 rounded border border-border/40 hover:border-primary/40 hover:bg-muted/30 flex items-center gap-2 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3 w-3 ${scanning ? 'animate-spin' : ''}`} />
-              Run scan
-            </button>
-            <button
-              onClick={pushAll}
-              disabled={pushing}
-              className="text-[10px] font-mono px-3 py-1.5 rounded border border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 flex items-center gap-2 disabled:opacity-50"
-            >
-              <Send className={`h-3 w-3 ${pushing ? 'animate-pulse' : ''}`} />
-              Push A+ to Desk
-            </button>
-          </div>
-        </header>
-
-        {pushResult && (
-          <div className="text-[10px] font-mono text-muted-foreground bg-muted/20 px-3 py-2 rounded border border-border/30">
-            {pushResult}
-          </div>
-        )}
-
-        {/* BTC state */}
-        {state && <BTCStateCard state={state} />}
-
-        {/* Active signals */}
-        {signals.length > 0 && (
-          <section className="space-y-2">
-            <h2 className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
-              Active Signals · {signals.length}
-            </h2>
-            {signals.map(s => <SignalCard key={s.id} signal={s} />)}
-          </section>
-        )}
-
-        {/* Beta table */}
-        <section className="space-y-2">
-          <h2 className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
-            Beta Watchlist · {positions.length} tracked
-          </h2>
-          <BetaTable positions={positions} />
-        </section>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={runScan}
+            disabled={scanning}
+            className="text-[10px] font-mono px-3 py-1.5 rounded-md border border-border/40 text-muted-foreground hover:text-foreground hover:border-border hover:bg-foreground/[0.05] flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            <RefreshCw className={`h-3 w-3 ${scanning ? 'animate-spin' : ''}`} />
+            Run scan
+          </button>
+          <button
+            onClick={pushAll}
+            disabled={pushing}
+            className="text-[10px] font-mono px-3 py-1.5 rounded-md border flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
+            style={{ borderColor: `color-mix(in srgb, ${BULL} 40%, transparent)`, color: BULL }}
+          >
+            <Send className={`h-3 w-3 ${pushing ? 'animate-pulse' : ''}`} />
+            Push A+ to Desk
+          </button>
+        </div>
       </div>
-    </PageErrorBoundary>
+
+      {pushResult && (
+        <div className="text-[10px] font-mono text-muted-foreground bg-foreground/[0.04] px-3 py-2 rounded-md border border-border/30">
+          {pushResult}
+        </div>
+      )}
+
+      {/* BTC state */}
+      {state && <BTCStateCard state={state} />}
+
+      {/* Active signals */}
+      {signals.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+            Active Signals · {signals.length}
+          </h3>
+          {signals.map(s => <SignalCard key={s.id} signal={s} />)}
+        </section>
+      )}
+
+      {/* Beta table */}
+      <section className="space-y-2">
+        <h3 className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+          Beta Watchlist · {positions.length} tracked
+        </h3>
+        <BetaTable positions={positions} />
+      </section>
+    </div>
   );
 }
 
@@ -189,36 +196,26 @@ export default function BTCRadarPage() {
 function BTCStateCard({ state }: { state: BTCState }) {
   const isUp = state.change24h >= 0;
   return (
-    <div className="qe-card border border-border/40 rounded-md p-4">
+    <div className="rounded-lg border border-card-border bg-card p-4">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div>
-          <div className="text-[9px] font-mono uppercase text-muted-foreground/60">BTC</div>
-          <div className="text-2xl font-mono font-bold">${state.price.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-          <div className={`text-[10px] font-mono ${isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
-            {isUp ? '+' : ''}{state.change24h.toFixed(2)}% 24h
+        <div className="flex items-center gap-2.5">
+          <TickerLogo symbol="BTC" size="md" />
+          <div>
+            <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">BTC</div>
+            <div className="text-2xl font-mono font-bold tabular-nums text-foreground">${state.price.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
+            <div className="text-[10px] font-mono tabular-nums" style={{ color: isUp ? BULL : BEAR }}>
+              {isUp ? '+' : ''}{state.change24h.toFixed(2)}% 24h
+            </div>
           </div>
         </div>
+        <Metric label="1H" value={`${state.change1h >= 0 ? '+' : ''}${state.change1h.toFixed(2)}%`} color={state.change1h >= 0 ? BULL : BEAR} />
+        <Metric label="RSI Daily" value={state.rsiDaily.toFixed(0)} color={state.rsiDaily > 70 ? BEAR : state.rsiDaily < 30 ? BULL : 'var(--foreground)'} />
+        <Metric label="Realized Vol 30d" value={`${state.realizedVol30d.toFixed(0)}%`} />
         <div>
-          <div className="text-[9px] font-mono uppercase text-muted-foreground/60">1H</div>
-          <div className={`text-sm font-mono ${state.change1h >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-            {state.change1h >= 0 ? '+' : ''}{state.change1h.toFixed(2)}%
-          </div>
-        </div>
-        <div>
-          <div className="text-[9px] font-mono uppercase text-muted-foreground/60">RSI Daily</div>
-          <div className={`text-sm font-mono ${state.rsiDaily > 70 ? 'text-rose-500' : state.rsiDaily < 30 ? 'text-emerald-500' : 'text-foreground'}`}>
-            {state.rsiDaily.toFixed(0)}
-          </div>
-        </div>
-        <div>
-          <div className="text-[9px] font-mono uppercase text-muted-foreground/60">Realized Vol 30d</div>
-          <div className="text-sm font-mono">{state.realizedVol30d.toFixed(0)}%</div>
-        </div>
-        <div>
-          <div className="text-[9px] font-mono uppercase text-muted-foreground/60">Recent Break</div>
-          <div className="text-sm font-mono">
+          <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">Recent Break</div>
+          <div className="text-sm font-mono mt-0.5">
             {state.recentBreak ? (
-              <span className={state.recentBreak === 'resistance' ? 'text-emerald-500' : 'text-rose-500'}>
+              <span style={{ color: state.recentBreak === 'resistance' ? BULL : BEAR }}>
                 {state.recentBreak} ({state.breakStrength.toFixed(0)})
               </span>
             ) : (
@@ -230,20 +227,20 @@ function BTCStateCard({ state }: { state: BTCState }) {
 
       <div className="mt-4 grid grid-cols-2 gap-4 text-[10px] font-mono">
         <div>
-          <div className="text-muted-foreground/60 mb-1">RESISTANCE</div>
+          <div className="text-muted-foreground/60 mb-1 uppercase tracking-widest text-[9px]">Resistance</div>
           <div className="flex flex-wrap gap-1">
             {state.resistance.map((r, i) => (
-              <span key={i} className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500/80 border border-rose-500/20">
+              <span key={i} className="px-1.5 py-0.5 rounded tabular-nums" style={{ background: `color-mix(in srgb, ${BEAR} 10%, transparent)`, color: BEAR, border: `1px solid color-mix(in srgb, ${BEAR} 22%, transparent)` }}>
                 ${Math.round(r).toLocaleString()}
               </span>
             ))}
           </div>
         </div>
         <div>
-          <div className="text-muted-foreground/60 mb-1">SUPPORT</div>
+          <div className="text-muted-foreground/60 mb-1 uppercase tracking-widest text-[9px]">Support</div>
           <div className="flex flex-wrap gap-1">
             {state.support.map((s, i) => (
-              <span key={i} className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500/80 border border-emerald-500/20">
+              <span key={i} className="px-1.5 py-0.5 rounded tabular-nums" style={{ background: `color-mix(in srgb, ${BULL} 10%, transparent)`, color: BULL, border: `1px solid color-mix(in srgb, ${BULL} 22%, transparent)` }}>
                 ${Math.round(s).toLocaleString()}
               </span>
             ))}
@@ -254,28 +251,42 @@ function BTCStateCard({ state }: { state: BTCState }) {
   );
 }
 
+function Metric({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div>
+      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">{label}</div>
+      <div className="text-sm font-mono tabular-nums mt-0.5" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
+    </div>
+  );
+}
+
 // ─── Signal card ───────────────────────────────────────────────────
 
 function SignalCard({ signal }: { signal: BTCSignal }) {
   const isLong = signal.direction.includes('long');
+  const tone = isLong ? BULL : BEAR;
   return (
-    <div className={`qe-card border rounded-md p-3 space-y-2 ${isLong ? 'border-emerald-500/30' : 'border-rose-500/30'}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {isLong ? <TrendingUp className="h-4 w-4 text-emerald-500" /> : <TrendingDown className="h-4 w-4 text-rose-500" />}
-          <span className="font-mono font-bold text-sm">{signal.symbol}</span>
+    <div
+      className="rounded-lg border bg-card p-3 space-y-2"
+      style={{ borderColor: `color-mix(in srgb, ${tone} 30%, transparent)` }}
+    >
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <TickerLogo symbol={signal.symbol} size="sm" />
+          {isLong ? <TrendingUp className="h-4 w-4" style={{ color: BULL }} /> : <TrendingDown className="h-4 w-4" style={{ color: BEAR }} />}
+          <span className="font-mono font-bold text-sm text-foreground">{signal.symbol}</span>
           <GradePill grade={signal.finalGrade} />
           <span className="text-[10px] font-mono text-muted-foreground/60">{signal.pattern.replace(/_/g, ' ')}</span>
         </div>
-        <div className="text-[10px] font-mono">
+        <div className="text-[10px] font-mono text-muted-foreground/80 tabular-nums">
           {signal.direction.replace(/_/g, ' ')} · ${signal.suggestedStrike} {signal.suggestedExpiry} × {signal.suggestedContracts}
         </div>
       </div>
       <p className="text-[11px] font-mono text-muted-foreground/80 leading-relaxed">{signal.thesis}</p>
-      <div className="flex items-center gap-3 text-[10px] font-mono">
-        <span className="text-emerald-500">T1: ${signal.targets.t1.toFixed(2)}</span>
-        {signal.targets.t2 && <span className="text-emerald-500">T2: ${signal.targets.t2.toFixed(2)}</span>}
-        <span className="text-rose-500">Stop: ${signal.invalidation.toFixed(2)}</span>
+      <div className="flex items-center gap-3 text-[10px] font-mono tabular-nums">
+        <span style={{ color: BULL }}>T1: ${signal.targets.t1.toFixed(2)}</span>
+        {signal.targets.t2 && <span style={{ color: BULL }}>T2: ${signal.targets.t2.toFixed(2)}</span>}
+        <span style={{ color: BEAR }}>Stop: ${signal.invalidation.toFixed(2)}</span>
       </div>
     </div>
   );
@@ -286,7 +297,7 @@ function SignalCard({ signal }: { signal: BTCSignal }) {
 function BetaTable({ positions }: { positions: BTCBetaPosition[] }) {
   if (positions.length === 0) {
     return (
-      <div className="text-[11px] font-mono text-muted-foreground/60 text-center py-8">
+      <div className="text-[11px] font-mono text-muted-foreground/60 text-center py-8 rounded-lg border border-card-border bg-card">
         No beta data yet — click Run scan to fetch.
       </div>
     );
@@ -294,8 +305,8 @@ function BetaTable({ positions }: { positions: BTCBetaPosition[] }) {
   // Sort by absolute beta (highest beta first)
   const sorted = [...positions].sort((a, b) => Math.abs(b.beta30d) - Math.abs(a.beta30d));
   return (
-    <div className="qe-card border border-border/40 rounded-md overflow-hidden">
-      <div className="grid grid-cols-7 gap-2 text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 px-3 py-2 border-b border-border/30 bg-muted/10">
+    <div className="rounded-lg border border-card-border bg-card overflow-hidden">
+      <div className="grid grid-cols-[1.4fr_repeat(6,1fr)] gap-2 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 px-3 py-2 border-b border-border/30 bg-foreground/[0.03]">
         <div>Ticker</div>
         <div className="text-right">Spot</div>
         <div className="text-right">β 30d</div>
@@ -305,20 +316,23 @@ function BetaTable({ positions }: { positions: BTCBetaPosition[] }) {
         <div className="text-right">Divergence Z</div>
       </div>
       {sorted.map(p => (
-        <div key={p.symbol} className="grid grid-cols-7 gap-2 text-[11px] font-mono px-3 py-2 hover:bg-muted/20 border-b border-border/10 last:border-b-0">
-          <div className="font-bold">{p.symbol}</div>
-          <div className="text-right">${p.spot.toFixed(2)}</div>
-          <div className={`text-right ${p.beta30d >= 1.5 ? 'text-emerald-500' : p.beta30d <= 0.5 ? 'text-amber-500' : 'text-foreground'}`}>
+        <div key={p.symbol} className="grid grid-cols-[1.4fr_repeat(6,1fr)] gap-2 text-[11px] font-mono px-3 py-2 hover:bg-foreground/[0.04] border-b border-border/10 last:border-b-0 transition-colors tabular-nums">
+          <div className="flex items-center gap-2 font-bold text-foreground">
+            <TickerLogo symbol={p.symbol} size="sm" />
+            {p.symbol}
+          </div>
+          <div className="text-right text-foreground/90">${p.spot.toFixed(2)}</div>
+          <div className="text-right" style={{ color: p.beta30d >= 1.5 ? BULL : p.beta30d <= 0.5 ? GOLD : 'var(--foreground)' }}>
             {p.beta30d.toFixed(2)}
           </div>
           <div className="text-right text-muted-foreground/70">{p.beta90d.toFixed(2)}</div>
-          <div className={`text-right ${p.r2 >= 0.5 ? 'text-emerald-500' : 'text-muted-foreground/60'}`}>
+          <div className="text-right" style={{ color: p.r2 >= 0.5 ? BULL : 'var(--muted-foreground)' }}>
             {p.r2.toFixed(2)}
           </div>
-          <div className={`text-right ${p.actualMovePct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+          <div className="text-right" style={{ color: p.actualMovePct >= 0 ? BULL : BEAR }}>
             {p.actualMovePct >= 0 ? '+' : ''}{p.actualMovePct.toFixed(2)}%
           </div>
-          <div className={`text-right ${Math.abs(p.divergenceZ) >= 1.5 ? 'text-amber-500 font-bold' : 'text-muted-foreground/70'}`}>
+          <div className="text-right" style={{ color: Math.abs(p.divergenceZ) >= 1.5 ? GOLD : 'var(--muted-foreground)', fontWeight: Math.abs(p.divergenceZ) >= 1.5 ? 700 : 400 }}>
             {p.divergenceZ.toFixed(2)}σ
           </div>
         </div>
@@ -328,13 +342,16 @@ function BetaTable({ positions }: { positions: BTCBetaPosition[] }) {
 }
 
 function GradePill({ grade }: { grade: string }) {
-  const color =
-    grade.startsWith('A') ? 'bg-emerald-500/15 text-emerald-500' :
-    grade.startsWith('B') ? 'bg-blue-500/15 text-blue-500' :
-    grade.startsWith('C') ? 'bg-amber-500/15 text-amber-500' :
-    'bg-rose-500/15 text-rose-500';
+  const tone =
+    grade.startsWith('A') ? BULL :
+    grade.startsWith('B') ? 'var(--brand-cyan)' :
+    grade.startsWith('C') ? GOLD :
+    BEAR;
   return (
-    <div className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${color}`}>
+    <div
+      className="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold"
+      style={{ background: `color-mix(in srgb, ${tone} 15%, transparent)`, color: tone }}
+    >
       {grade}
     </div>
   );

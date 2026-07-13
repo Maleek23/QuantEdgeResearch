@@ -300,6 +300,8 @@ export default function WhaleFlowMonitor() {
   const [flows, setFlows] = useState<WhaleFlow[]>([]);
   const [filter, setFilter] = useState<'ALL' | 'CALLS' | 'PUTS' | 'WHALES'>('ALL');
   const [isLoading, setIsLoading] = useState(true);
+  // True when the rows below are illustrative sample data, not a live feed.
+  const [isDemo, setIsDemo] = useState(false);
 
   // Fetch flows from API
   const fetchFlows = useCallback(async () => {
@@ -330,6 +332,7 @@ export default function WhaleFlowMonitor() {
             sector: f.sector,
           }));
           setFlows(transformedFlows);
+          setIsDemo(false);
         }
       }
     } catch (error) {
@@ -349,6 +352,7 @@ export default function WhaleFlowMonitor() {
   // Generate mock data for demo if no real flows
   useEffect(() => {
     if (!isLoading && flows.length === 0) {
+      setIsDemo(true);
       // Demo data to show UI capabilities
       const mockFlows: WhaleFlow[] = [
         {
@@ -454,7 +458,9 @@ export default function WhaleFlowMonitor() {
             </div>
             <div>
               <CardTitle className="text-lg text-white">Whale Flow Monitor</CardTitle>
-              <p className="text-xs text-muted-foreground">Real-time institutional options flow</p>
+              <p className="text-xs text-muted-foreground">
+                {isDemo ? 'Sample data — no live flow feed connected' : 'Real-time institutional options flow'}
+              </p>
             </div>
           </div>
 
@@ -482,6 +488,14 @@ export default function WhaleFlowMonitor() {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Honest disclosure: these rows are illustrative, not a live feed */}
+        {isDemo && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-300">
+            ⚠ Sample data shown for layout. No live whale-flow feed is connected, so these
+            tickers, strikes and premiums are illustrative — not real institutional orders.
+          </div>
+        )}
+
         {/* Live ticker */}
         <FlowTicker flows={filteredFlows} />
 

@@ -195,11 +195,12 @@ const CHANNEL_HEADERS = {
 
 interface DiscordEmbed {
   title: string;
-  description: string;
+  description?: string;
   color: number;
   fields: { name: string; value: string; inline?: boolean }[];
   footer?: { text: string };
   timestamp?: string;
+  image?: { url: string };
 }
 
 interface DiscordMessage {
@@ -556,6 +557,85 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
     markTradeIdeaSent(idea.symbol, direction, assetType, optionType, strikePrice);
     logger.info(`[DISCORD] Sent trade idea: ${idea.symbol} ${direction} ${assetType} ${optionType || ''} $${strikePrice || ''}`);
   } catch (e) { logger.error(e); }
+}
+
+/**
+ * Resolve the Discord webhook for a trade idea using the same asset-type routing
+ * as sendTradeIdeaToDiscord (options → OPTIONSTRADES, futures → FUTURE_TRADES,
+ * SPX/0DTE → SPX, else QUANTFLOOR). Returns undefined if none configured.
+ */
+function resolveTradeWebhook(idea: TradeIdea): string | undefined {
+  const assetTypeStr = String(idea.assetType || 'stock');
+  const ideaSource = (idea as any).source || '';
+  const isSPXPlay = ideaSource === 'orb_scanner' || ideaSource === 'spx_session' ||
+    (['SPX', 'SPY', 'SPXW'].includes(idea.symbol) && assetTypeStr === 'option');
+  if (isSPXPlay && process.env.DISCORD_WEBHOOK_SPX) return process.env.DISCORD_WEBHOOK_SPX;
+  if (assetTypeStr === 'option') return process.env.DISCORD_WEBHOOK_OPTIONSTRADES;
+  if (assetTypeStr === 'future' || assetTypeStr === 'futures') return process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
+  return process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+}
+
+/**
+ * Post a rendered trade-card IMAGE to Discord as a real file attachment, shown
+ * inline via an embed (attachment:// reference). The image is the visual card the
+ * user composed in the Trade Desk — never fabricated. A compact embed carries the
+ * symbol/direction + entry/target/stop so the message reads well even on mobile.
+ *
+ * Uses Node's global FormData/Blob (Node 18+) to build the multipart body Discord
+ * webhooks require for file uploads.
+ */
+export async function sendTradeCardImageToDiscord(
+  idea: TradeIdea,
+  image: Buffer,
+  filename = 'trade-card.png',
+): Promise<{ success: boolean; channel?: string; error?: string }> {
+  if (DISCORD_DISABLED) return { success: false, error: 'Discord disabled' };
+
+  // A dedicated Trade-Desk card webhook (if set) overrides asset-type routing, so
+  // every manual "Share card" lands in one channel the user picked.
+  const webhookUrl = process.env.DISCORD_WEBHOOK_TRADEDESK_CARD || resolveTradeWebhook(idea);
+  if (!webhookUrl) {
+    logger.warn(`[DISCORD] No webhook configured for ${idea.symbol} (${idea.assetType}) card share`);
+    return { success: false, error: 'No Discord webhook configured for this asset type' };
+  }
+
+  // Normalize the filename Discord will reference (no spaces / odd chars).
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const isLong = String(idea.direction).toLowerCase() === 'long';
+  const opt = idea as any;
+  const contractLine = idea.assetType === 'option' && opt.optionType
+    ? `${opt.optionType.toUpperCase()}${opt.strikePrice ? ` $${opt.strikePrice}` : ''}${opt.expiryDate ? ` exp ${opt.expiryDate}` : ''}`
+    : null;
+
+  const embed: DiscordEmbed = {
+    title: `${isLong ? '🟢' : '🔴'} ${String(idea.direction).toUpperCase()}: ${idea.symbol}${contractLine ? ` · ${contractLine}` : ''}`,
+    color: isLong ? COLORS.LONG : COLORS.SHORT,
+    fields: [
+      { name: '💰 Entry', value: `$${Number(idea.entryPrice).toFixed(2)}`, inline: true },
+      { name: '🎯 Target', value: `$${Number(idea.targetPrice).toFixed(2)}`, inline: true },
+      { name: '🛡️ Stop', value: idea.stopLoss != null ? `$${Number(idea.stopLoss).toFixed(2)}` : 'N/A', inline: true },
+    ],
+    image: { url: `attachment://${safeName}` },
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    const form = new FormData();
+    form.append('payload_json', JSON.stringify({ embeds: [embed] }));
+    form.append('files[0]', new Blob([new Uint8Array(image)], { type: 'image/png' }), safeName);
+
+    const res = await fetch(webhookUrl, { method: 'POST', body: form });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      logger.error(`[DISCORD] Card upload failed (${res.status}) for ${idea.symbol}: ${body.slice(0, 200)}`);
+      return { success: false, error: `Discord rejected the upload (${res.status})` };
+    }
+    logger.info(`[DISCORD] Sent trade CARD image: ${idea.symbol} ${idea.direction} (${idea.assetType})`);
+    return { success: true };
+  } catch (e) {
+    logger.error(`[DISCORD] Card upload threw for ${idea.symbol}:`, e);
+    return { success: false, error: (e as Error).message };
+  }
 }
 
 export async function sendChartAnalysisToDiscord(analysis: any): Promise<boolean> {
@@ -1760,6 +1840,97 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
   }
 }
 
+// ============ INDEX 0DTE SCALP CALLOUTS ============
+// Live SPX/SPY/QQQ/IWM scalp signals from the GEX index-scalp engine.
+// Routes to the SPX channel. Supports a dryRun mode so callout formatting
+// can be verified without posting to the live Discord.
+
+const SCALP_SETUP_LABEL: Record<string, string> = {
+  flip_bounce: 'Flip Bounce',
+  wall_fade: 'Wall Fade',
+  wall_break: 'Wall Break',
+  power_hour: 'Power Hour',
+};
+
+export async function sendIndexScalpToDiscord(
+  scalp: {
+    symbol: string;
+    bias: 'calls' | 'puts';
+    setup: string;
+    suggestedStrike: number;
+    expiryDate: string;
+    spotPrice: number;
+    target: number;
+    stop: number;
+    riskRewardRatio: number;
+    confidence: number;
+    thesis: string;
+    premiumRange: string;
+    regime: string;
+    isPowerHour: boolean;
+  },
+  options?: { dryRun?: boolean },
+): Promise<{ sent: boolean; payload?: any; reason?: string }> {
+  if (DISCORD_DISABLED) return { sent: false, reason: 'discord_disabled' };
+
+  const isCall = scalp.bias === 'calls';
+  const dirEmoji = isCall ? '🟢' : '🔴';
+  const setupLabel = SCALP_SETUP_LABEL[scalp.setup] || scalp.setup;
+  const dec = scalp.symbol === 'SPX' ? 0 : 2;
+  const ph = scalp.isPowerHour ? '⚡ ' : '';
+
+  const embed: DiscordEmbed = {
+    title: `${ph}${dirEmoji} 0DTE ${scalp.symbol} ${scalp.bias.toUpperCase()} — ${setupLabel}`,
+    description: `**${scalp.symbol} $${scalp.suggestedStrike} ${isCall ? 'CALL' : 'PUT'}** · ${scalp.expiryDate}\n${scalp.thesis}`,
+    color: isCall ? COLORS.LONG : COLORS.SHORT,
+    fields: [
+      { name: '💵 Est. Premium', value: scalp.premiumRange, inline: true },
+      { name: '⚖️ R:R', value: `${scalp.riskRewardRatio}:1`, inline: true },
+      { name: '🎚️ Confidence', value: `${scalp.confidence}%`, inline: true },
+      { name: '📍 Spot', value: `$${scalp.spotPrice.toFixed(dec)}`, inline: true },
+      { name: '🎯 Target', value: `$${scalp.target.toFixed(dec)}`, inline: true },
+      { name: '🛡️ Stop', value: `$${scalp.stop.toFixed(dec)}`, inline: true },
+      { name: '🧭 Regime', value: scalp.regime.replace('_', ' '), inline: true },
+      { name: '⏱️ Setup', value: setupLabel, inline: true },
+    ],
+    footer: { text: `Quant Edge Labs • Index Scalp • 0DTE${scalp.isPowerHour ? ' • POWER HOUR' : ''}` },
+    timestamp: new Date().toISOString(),
+  };
+
+  const payload = {
+    content: `${ph}🎯 **0DTE SCALP**: ${scalp.symbol} ${scalp.bias.toUpperCase()} $${scalp.suggestedStrike} — ${setupLabel} (${scalp.riskRewardRatio}:1)`,
+    embeds: [embed],
+  };
+
+  if (options?.dryRun) {
+    logger.info(`[DISCORD] (dry-run) index scalp callout: ${scalp.symbol} ${scalp.bias.toUpperCase()} $${scalp.suggestedStrike}`);
+    return { sent: false, payload, reason: 'dry_run' };
+  }
+
+  const webhookUrl =
+    process.env.DISCORD_WEBHOOK_SPX ||
+    process.env.DISCORD_WEBHOOK_LOTTO ||
+    process.env.DISCORD_WEBHOOK_OPTIONSTRADES ||
+    process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) {
+    logger.warn('[DISCORD] No webhook configured for index scalp callouts (set DISCORD_WEBHOOK_SPX)');
+    return { sent: false, payload, reason: 'no_webhook' };
+  }
+
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    logger.info(`[DISCORD] ✅ Sent index scalp callout: ${scalp.symbol} ${scalp.bias.toUpperCase()} $${scalp.suggestedStrike} [${setupLabel}]`);
+    return { sent: true, payload };
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send index scalp callout: ${e}`);
+    return { sent: false, payload, reason: 'post_failed' };
+  }
+}
+
 // ============ WHALE FLOW ALERTS ============
 // Institutional-level options flow detection ($10k+ per contract)
 
@@ -2065,9 +2236,12 @@ export async function sendDailyPreview(): Promise<{ success: boolean; message: s
 export function shouldSendDailyPreview(): boolean {
   const now = new Date();
   const today = now.toISOString().split('T')[0];
-  const hour = now.getHours();
-  const day = now.getDay();
-  
+  // Evaluate the send window in CT. Production runs on UTC, so raw
+  // getHours()/getDay() would fire this at the wrong time (or never).
+  const ct = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+  const hour = ct.getHours();
+  const day = ct.getDay();
+
   // Only on weekdays, around market open (8-9 AM CT)
   if (day === 0 || day === 6) return false;
   if (hour < 8 || hour > 9) return false;

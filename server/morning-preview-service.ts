@@ -72,23 +72,28 @@ export async function generateMorningPreview(): Promise<MorningPreview> {
   logger.info('[MORNING-PREVIEW] Generating 8:30 AM trading preview...');
   
   try {
-    const yahooFinance = (await import('yahoo-finance2')).default;
     const { getMarketContext } = await import('./market-context-service');
     const { getBotSentimentWatchlist } = await import('./bot-sentiment-watchlist');
     const { getUpcomingCatalysts } = await import('./catalyst-intelligence-service');
-    
-    const [spyQuote, qqqQuote, vixQuote, marketContext, sentimentWatchlist, catalysts] = await Promise.allSettled([
-      yahooFinance.quote('SPY'),
-      yahooFinance.quote('QQQ'),
-      yahooFinance.quote('^VIX'),
+    const { getRealtimeBatchQuotes } = await import('./realtime-pricing-service');
+
+    // Unified quote source (same as movers/watchlist/LEAPs) so key levels are
+    // consistent platform-wide and don't zero out when Yahoo's .quote() crumb fails.
+    const [indexQuotes, marketContext, sentimentWatchlist, catalysts] = await Promise.allSettled([
+      getRealtimeBatchQuotes([
+        { symbol: 'SPY', assetType: 'stock' },
+        { symbol: 'QQQ', assetType: 'stock' },
+        { symbol: '^VIX', assetType: 'stock' },
+      ]),
       getMarketContext(),
       getBotSentimentWatchlist(),
       getUpcomingCatalysts(5)
     ]);
 
-    const spy = spyQuote.status === 'fulfilled' ? (spyQuote.value as any)?.regularMarketPrice || 0 : 0;
-    const qqq = qqqQuote.status === 'fulfilled' ? (qqqQuote.value as any)?.regularMarketPrice || 0 : 0;
-    const vix = vixQuote.status === 'fulfilled' ? (vixQuote.value as any)?.regularMarketPrice || 0 : 0;
+    const quoteMap = indexQuotes.status === 'fulfilled' ? indexQuotes.value : null;
+    const spy = quoteMap?.get('SPY')?.price || 0;
+    const qqq = quoteMap?.get('QQQ')?.price || 0;
+    const vix = quoteMap?.get('^VIX')?.price || 0;
     const context = marketContext.status === 'fulfilled' ? marketContext.value : null;
     const watchlist = sentimentWatchlist.status === 'fulfilled' ? sentimentWatchlist.value : [];
     const todayCatalysts = catalysts.status === 'fulfilled' ? catalysts.value : [];

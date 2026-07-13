@@ -4,14 +4,20 @@
  * Three tabs that scan the curated universe and surface the top % movers
  * in each time window. Click any ticker to jump to /r/[ticker] for analysis.
  *
- * Auto-refresh: every 60s while the window is active.
+ * Auto-refresh: every 60s while the window is active. Lives inside HuntShell,
+ * so it owns no outer padding / page <h1>; styled to the cockpit aesthetic.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, RefreshCw, TrendingUp, TrendingDown, Clock, Moon, Sunrise, Sunset } from 'lucide-react';
+import { QETabs, type QETabItem } from '@/components/ui/qe';
+import { TickerLogo } from '@/components/hunt/cockpit/ticker-logo';
 
 type Window = 'premarket' | 'afterhours' | 'overnight';
+
+const BULL = 'var(--trade-bullish)';
+const BEAR = 'var(--trade-bearish)';
 
 interface MoverQuote {
   symbol: string;
@@ -37,10 +43,10 @@ interface MoversResponse {
   };
 }
 
-const TABS: { id: Window; label: string; icon: any; hint: string }[] = [
-  { id: 'premarket',  label: 'Pre-Market',  icon: Sunrise, hint: '4:00 AM - 9:30 AM ET — yesterday close → PM price' },
-  { id: 'afterhours', label: 'After-Hours', icon: Sunset,  hint: '4:00 PM - 8:00 PM ET — today close → AH price' },
-  { id: 'overnight',  label: 'Overnight',   icon: Moon,    hint: 'Futures (ES/NQ/RTY) + crypto (BTC/ETH/SOL)' },
+const TABS: readonly QETabItem<Window>[] = [
+  { id: 'premarket',  label: 'Pre-Market',  icon: <Sunrise className="h-3 w-3" />, hint: '4:00 AM - 9:30 AM ET — yesterday close → PM price' },
+  { id: 'afterhours', label: 'After-Hours', icon: <Sunset className="h-3 w-3" />,  hint: '4:00 PM - 8:00 PM ET — today close → AH price' },
+  { id: 'overnight',  label: 'Overnight',   icon: <Moon className="h-3 w-3" />,    hint: 'Futures (ES/NQ/RTY) + crypto (BTC/ETH/SOL)' },
 ];
 
 export default function MoversPage() {
@@ -56,42 +62,8 @@ export default function MoversPage() {
   }, []);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-5 space-y-3">
-      <header className="space-y-1">
-        <h1 className="text-lg font-mono font-bold uppercase tracking-widest text-foreground">
-          Movers <span className="text-[var(--brand-cyan)]">·</span>{' '}
-          <span className="text-muted-foreground/70 text-sm normal-case tracking-normal font-normal">
-            PM / AH / Overnight gappers
-          </span>
-        </h1>
-        <p className="text-[11px] font-mono text-muted-foreground/70">
-          Top movers when the regular market is closed. Click any ticker to research.
-        </p>
-      </header>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border/40">
-        {TABS.map(t => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono uppercase tracking-wider border-b-2 transition ${
-                active
-                  ? 'border-[var(--brand-cyan)] text-[var(--brand-cyan)]'
-                  : 'border-transparent text-muted-foreground/70 hover:text-foreground'
-              }`}
-              title={t.hint}
-            >
-              <Icon className="h-3 w-3" />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-
+    <div className="space-y-3">
+      <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="SESSION" />
       <MoversTab window={tab} />
     </div>
   );
@@ -116,24 +88,24 @@ function MoversTab({ window }: { window: Window }) {
   return (
     <div className="space-y-3">
       {/* Header strip */}
-      <div className="flex items-center justify-between px-3 py-2 rounded border border-border/40 bg-muted/10">
+      <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-card-border bg-foreground/[0.03]">
         <div className="flex items-center gap-3 text-[10px] font-mono">
-          <span className="text-muted-foreground/60 uppercase tracking-wider">Last scan:</span>
-          <span className="text-foreground">
+          <span className="text-muted-foreground/60 uppercase tracking-widest">Last scan:</span>
+          <span className="text-foreground tabular-nums">
             {data?.asOf ? new Date(data.asOf).toLocaleTimeString() : '—'}
           </span>
           {data?.summary && (
             <>
               <span className="text-muted-foreground/40">|</span>
-              <span className="text-emerald-500">▲ {data.summary.upGappers}</span>
-              <span className="text-rose-500">▼ {data.summary.downGappers}</span>
+              <span style={{ color: BULL }}>▲ {data.summary.upGappers}</span>
+              <span style={{ color: BEAR }}>▼ {data.summary.downGappers}</span>
               <span className="text-muted-foreground/40">of {data.summary.totalScanned}</span>
             </>
           )}
         </div>
         <button
           onClick={() => refetch()}
-          className="text-[10px] font-mono text-[var(--brand-cyan)] hover:underline flex items-center gap-1"
+          className="text-[10px] font-mono text-[var(--brand-cyan)] hover:underline flex items-center gap-1 cursor-pointer"
         >
           {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
           Refresh
@@ -142,19 +114,22 @@ function MoversTab({ window }: { window: Window }) {
 
       {isLoading && (
         <div className="text-center py-8 text-[11px] font-mono text-muted-foreground/60">
-          <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+          <Loader2 className="h-4 w-4 animate-spin inline mr-2 text-[var(--brand-cyan)]" />
           Scanning universe…
         </div>
       )}
 
       {error && (
-        <div className="text-[11px] font-mono text-rose-500 px-3 py-2 rounded bg-rose-500/10 border border-rose-500/30">
+        <div
+          className="text-[11px] font-mono px-3 py-2 rounded-lg border"
+          style={{ color: BEAR, background: `color-mix(in srgb, ${BEAR} 10%, transparent)`, borderColor: `color-mix(in srgb, ${BEAR} 30%, transparent)` }}
+        >
           ✗ {(error as Error).message}
         </div>
       )}
 
       {!isLoading && gappers.length === 0 && (
-        <div className="text-center py-8 text-[11px] font-mono text-muted-foreground/60">
+        <div className="text-center py-8 text-[11px] font-mono text-muted-foreground/60 rounded-lg border border-card-border bg-card">
           <Clock className="h-4 w-4 inline mr-2" />
           No significant gappers right now (threshold: ±1.5%).
           <div className="mt-1 text-muted-foreground/50">
@@ -166,8 +141,8 @@ function MoversTab({ window }: { window: Window }) {
       {/* Two columns: gainers + losers */}
       {!isLoading && gappers.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <MoverList title="GAINERS" icon={TrendingUp} color="emerald" gappers={ups.slice(0, 20)} />
-          <MoverList title="LOSERS"  icon={TrendingDown} color="rose"    gappers={downs.slice(0, 20)} />
+          <MoverList title="GAINERS" icon={TrendingUp} color={BULL} gappers={ups.slice(0, 20)} />
+          <MoverList title="LOSERS"  icon={TrendingDown} color={BEAR} gappers={downs.slice(0, 20)} />
         </div>
       )}
     </div>
@@ -182,15 +157,14 @@ function MoverList({
 }: {
   title: string;
   icon: any;
-  color: 'emerald' | 'rose';
+  color: string;
   gappers: MoverQuote[];
 }) {
-  const colorClass = color === 'emerald' ? 'text-emerald-500' : 'text-rose-500';
   return (
-    <div className="qe-card border border-border/40 rounded p-2">
+    <div className="rounded-lg border border-card-border bg-card p-2">
       <div className="flex items-center gap-1.5 mb-2 px-1">
-        <Icon className={`h-3.5 w-3.5 ${colorClass}`} />
-        <span className={`text-[11px] font-mono uppercase tracking-wider font-bold ${colorClass}`}>{title}</span>
+        <Icon className="h-3.5 w-3.5" style={{ color }} />
+        <span className="text-[11px] font-mono uppercase tracking-widest font-bold" style={{ color }}>{title}</span>
         <span className="text-[10px] font-mono text-muted-foreground/50 ml-auto">{gappers.length}</span>
       </div>
 
@@ -204,18 +178,19 @@ function MoverList({
             <Link
               key={g.symbol}
               href={`/r/${g.symbol}`}
-              className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/20 transition border border-transparent hover:border-border/20"
+              className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-foreground/[0.04] transition-colors border border-transparent hover:border-border/20"
             >
-              <div className="font-mono font-bold text-[12px] text-foreground min-w-[60px]">
+              <TickerLogo symbol={g.symbol} size="sm" />
+              <div className="font-mono font-bold text-[12px] text-foreground min-w-[56px]">
                 {g.symbol}
               </div>
-              <div className="text-[10px] font-mono text-muted-foreground/70 min-w-[70px]">
+              <div className="text-[10px] font-mono text-muted-foreground/70 min-w-[64px] tabular-nums">
                 ${g.price.toFixed(2)}
               </div>
-              <div className={`text-[11px] font-mono font-bold ${colorClass} min-w-[64px] text-right`}>
+              <div className="text-[11px] font-mono font-bold min-w-[64px] text-right tabular-nums" style={{ color }}>
                 {g.changePct >= 0 ? '+' : ''}{g.changePct.toFixed(2)}%
               </div>
-              <div className="text-[9px] font-mono text-muted-foreground/50 flex-1 truncate ml-2">
+              <div className="text-[9px] font-mono text-muted-foreground/50 flex-1 truncate ml-1">
                 {g.sector ?? ''}
               </div>
             </Link>

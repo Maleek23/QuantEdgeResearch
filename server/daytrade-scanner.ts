@@ -337,7 +337,7 @@ export async function getDayTradeOpportunities(limit: number = 15): Promise<DayT
         // 🎯 UNIFIED ENTRY GATE - Check regime, exhaustion, and session factors
         const entryGate = await checkUnifiedEntryGate('daytrade', adjustedConfidence);
         if (!entryGate.allowed) {
-          logger.debug(`[DAYTRADE] ⛔ GATE BLOCKED ${result.symbol}: ${entryGate.reason}`);
+          logger.debug(`[DAYTRADE] ⛔ GATE BLOCKED ${result.symbol}: ${entryGate.reasons?.join("; ")}`);
           continue; // Skip this opportunity
         }
         

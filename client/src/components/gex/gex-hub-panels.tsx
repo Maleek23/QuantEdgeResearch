@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { Plus, Check, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiRequest } from '@/lib/queryClient';
 import { formatGEX } from '../../../../shared/gex-types';
 import { componentStyles } from '@/lib/design-tokens';
 import type { GEXHubData, TopPlay } from '../../../../shared/gex-types';
@@ -179,14 +180,14 @@ function TopPlayRow({ play, rank }: { play: TopPlay; rank: number }) {
     if (sendState !== 'idle') return;
     setSendState('sending');
     try {
-      const res = await fetch('/api/trade-desk/ideas/from-gex', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: play.symbol, workflow: 'all', bias: play.bias === 'neutral' ? 'auto' : play.bias }),
+      // apiRequest attaches the x-csrf-token header (raw fetch was 403'ing).
+      const res = await apiRequest('POST', '/api/trade-desk/ideas/from-gex', {
+        symbol: play.symbol,
+        workflow: 'all',
+        bias: play.bias === 'neutral' ? 'auto' : play.bias,
       });
       const body = await res.json().catch(() => ({}));
-      setSendState(res.ok && body.ok ? 'sent' : 'error');
+      setSendState(body.ok ? 'sent' : 'error');
       setTimeout(() => setSendState('idle'), 2400);
     } catch {
       setSendState('error');

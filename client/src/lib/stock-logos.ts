@@ -145,32 +145,54 @@ const SYMBOL_TO_DOMAIN: Record<string, string> = {
   CLSK: 'cleanspark.com',
 };
 
+/** Crypto symbols that have a dedicated CoinGecko logo. */
+const CRYPTO_LOGO: Record<string, string> = {
+  BTC: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+  ETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+  SOL: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+};
+
+/** Resolve the best-guess company domain for a ticker. */
+function resolveDomain(upperSymbol: string): string {
+  return SYMBOL_TO_DOMAIN[upperSymbol] ?? `${upperSymbol.toLowerCase()}.com`;
+}
+
 /**
- * Get the logo URL for a stock symbol
+ * Ordered list of logo URLs to try for a symbol.
+ *
+ * Clearbit's free Logo API (logo.clearbit.com) was sunset. We now lead with
+ * Financial Modeling Prep's **ticker-keyed** logo CDN — these are real, crisp
+ * company marks indexed by the exact ticker, so there's no domain-guessing
+ * (NVDA always returns NVIDIA, never a wrong site) and the PNGs are higher-res
+ * than a favicon. Favicon providers (Google 256px, DuckDuckGo) are the backstop;
+ * components walk the list on <img> error before falling back to initials.
  */
-export function getStockLogoUrl(symbol: string): string {
+export function getLogoSources(symbol: string): string[] {
   const upperSymbol = symbol.toUpperCase();
 
-  // Check if we have a known domain mapping
-  const domain = SYMBOL_TO_DOMAIN[upperSymbol];
-  if (domain) {
-    return `https://logo.clearbit.com/${domain}`;
+  // Crypto: CoinGecko first, then a favicon backstop.
+  for (const key of Object.keys(CRYPTO_LOGO)) {
+    if (upperSymbol === key || upperSymbol.includes(key)) {
+      const domain = key === 'BTC' ? 'bitcoin.org' : key === 'ETH' ? 'ethereum.org' : 'solana.com';
+      return [CRYPTO_LOGO[key], `https://icons.duckduckgo.com/ip3/${domain}.ico`];
+    }
   }
 
-  // For crypto symbols, use specific logos
-  if (upperSymbol === 'BTC' || upperSymbol.includes('BTC')) {
-    return 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png';
-  }
-  if (upperSymbol === 'ETH' || upperSymbol.includes('ETH')) {
-    return 'https://assets.coingecko.com/coins/images/279/small/ethereum.png';
-  }
-  if (upperSymbol === 'SOL' || upperSymbol.includes('SOL')) {
-    return 'https://assets.coingecko.com/coins/images/4128/small/solana.png';
-  }
+  const domain = resolveDomain(upperSymbol);
+  return [
+    // ticker-keyed, correct + higher-res
+    `https://financialmodelingprep.com/image-stock/${upperSymbol}.png`,
+    // domain-based favicon fallbacks (256px first for sharpness)
+    `https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=256`,
+    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+  ];
+}
 
-  // Fallback: try to guess the domain from symbol
-  // Many companies use their stock symbol as domain
-  return `https://logo.clearbit.com/${upperSymbol.toLowerCase()}.com`;
+/**
+ * Get the primary logo URL for a stock symbol (first working source).
+ */
+export function getStockLogoUrl(symbol: string): string {
+  return getLogoSources(symbol)[0];
 }
 
 /**
