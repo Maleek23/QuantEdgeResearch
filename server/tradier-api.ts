@@ -707,6 +707,69 @@ export async function getTradierMarketStatus(apiKey?: string): Promise<{
 }
 
 // Find optimal option strike based on current price and direction
+/**
+ * Free fallback strike picker off the CBOE delayed chain — used when Tradier is
+ * unavailable (no key / 401 / empty). Returns the SAME shape as findOptimalStrike,
+ * crucially including a real `lastPrice` (mid premium) so callers that gate on
+ * `optimalStrike.lastPrice` still produce priced option ideas. Picks the nearest
+ * future expiry, then the ~0.35-delta strike (or slightly-OTM by moneyness when
+ * greeks are missing). Returns null if CBOE has nothing usable — never fabricates.
+ */
+async function cboeFallbackStrike(
+  symbol: string,
+  currentPrice: number,
+  direction: 'long' | 'short',
+): Promise<{ strike: number; optionType: 'call' | 'put'; delta?: number; lastPrice?: number } | null> {
+  try {
+    const { fetchCboeChain } = await import('./contract-analyzer/cboe-chain');
+    const chain = await fetchCboeChain(symbol);
+    if (!chain || chain.rawChain.length === 0) return null;
+
+    const optionType: 'call' | 'put' = direction === 'long' ? 'call' : 'put';
+    const typed = chain.rawChain.filter((o) => o.option_type === optionType);
+    if (typed.length === 0) return null;
+
+    // Pick a swing-horizon expiry (>= 5 DTE) so the strike ladder is full and
+    // deltas are sane — the very-front 0-1 DTE weeklies have sparse ladders that
+    // wreck the 0.35-delta match. Fall back to the nearest future expiry, then
+    // the latest listed, so we always return something usable.
+    const dte = (e: string) => Math.round((new Date(`${e}T00:00:00Z`).getTime() - Date.now()) / 86_400_000);
+    const expiries = Array.from(new Set(typed.map((o) => o.expiration_date))).sort();
+    const expiry =
+      expiries.find((e) => dte(e) >= 5) ??
+      expiries.find((e) => dte(e) >= 0) ??
+      expiries[expiries.length - 1];
+    const frontMonth = typed.filter((o) => o.expiration_date === expiry);
+    if (frontMonth.length === 0) return null;
+
+    const hasGreeks = frontMonth.some((o) => Math.abs(o.greeks?.delta ?? 0) > 0.0001);
+    let best;
+    if (hasGreeks) {
+      const targetDelta = direction === 'long' ? 0.35 : -0.35;
+      best = frontMonth.reduce((b, o) =>
+        Math.abs((o.greeks?.delta ?? 0) - targetDelta) < Math.abs((b.greeks?.delta ?? 0) - targetDelta) ? o : b,
+      );
+    } else {
+      // No greeks — pick slightly-OTM by moneyness.
+      const targetStrike = direction === 'long' ? currentPrice * 1.02 : currentPrice * 0.98;
+      best = frontMonth.reduce((b, o) =>
+        Math.abs(o.strike - targetStrike) < Math.abs(b.strike - targetStrike) ? o : b,
+      );
+    }
+
+    const mid = (Number(best.bid ?? 0) + Number(best.ask ?? 0)) / 2;
+    return {
+      strike: best.strike,
+      optionType,
+      delta: best.greeks?.delta || undefined,
+      lastPrice: mid > 0 ? Math.round(mid * 100) / 100 : undefined,
+    };
+  } catch (e) {
+    logger.warn(`⚠️  CBOE fallback strike failed for ${symbol}: ${(e as Error).message}`);
+    return null;
+  }
+}
+
 export async function findOptimalStrike(
   symbol: string,
   currentPrice: number,
@@ -714,13 +777,21 @@ export async function findOptimalStrike(
   apiKey?: string
 ): Promise<{ strike: number; optionType: 'call' | 'put'; delta?: number; lastPrice?: number } | null> {
   const options = await getTradierOptionsChain(symbol, undefined, apiKey);
-  
+
   if (options.length === 0) {
-    // Fallback to simple calculation if no options data
-    const strike = direction === 'long' 
+    // Tradier unavailable (no key / 401 / empty) → fall back to the FREE CBOE
+    // chain so option ideas still get a real strike + premium (~0.35 delta).
+    const cboe = await cboeFallbackStrike(symbol, currentPrice, direction);
+    if (cboe) {
+      logger.info(`📈 [FALLBACK] ${symbol}: Tradier chain empty — used CBOE strike $${cboe.strike}${cboe.lastPrice ? ` @ $${cboe.lastPrice}` : ''}`);
+      return cboe;
+    }
+
+    // Last resort: naive slightly-OTM strike with no premium (unpriced).
+    const strike = direction === 'long'
       ? Number((currentPrice * 1.02).toFixed(2))
       : Number((currentPrice * 0.98).toFixed(2));
-    
+
     return {
       strike,
       optionType: direction === 'long' ? 'call' : 'put',

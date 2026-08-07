@@ -9554,17 +9554,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(engineBreakdownCache.data);
       }
       
-      const filters = { includeOptions: false }; // Exclude options for now
-      
-      // Fetch stats for each engine type
-      const [aiStats, quantStats, hybridStats, flowStats] = await Promise.all([
+      const filters = { includeOptions: false }; // stock engines: stock-level outcomes only
+
+      // Stock engines (ai/quant/hybrid) — stock-level win/loss, unchanged.
+      const [aiStats, quantStats, hybridStats] = await Promise.all([
         storage.getPerformanceStats({ ...filters, source: 'ai' }),
         storage.getPerformanceStats({ ...filters, source: 'quant' }),
         storage.getPerformanceStats({ ...filters, source: 'hybrid' }),
-        storage.getPerformanceStats({ ...filters, source: 'flow' }),
       ]);
-      
-      const mapEngine = (stats: any, name: string) => {
+
+      // FLOW/options: measured by REAL option contract P&L (entry vs exit
+      // premium) via the canonical WinRateService — which counts ONLY option
+      // ideas that carry a captured optionPercentGain. This replaces the old
+      // stock-vs-premium winRate (storage.getPerformanceStats) that compared
+      // the underlying stock price to the option premium and produced false
+      // wins (the bogus ~99.7%). Unmeasured option ideas are excluded, never
+      // scored as wins.
+      // One canonical pass over all ideas; the option asset-type row IS the
+      // honest Flow/options scorecard (winRate, decided count and expectancy all
+      // drawn from the SAME measured-contract population — no mixing).
+      const allIdeasForFlow = await storage.getAllTradeIdeas();
+      const optStats = WinRateService.calculate(allIdeasForFlow, {})
+        .byAssetType.find((c: any) => c.category === 'option')?.stats;
+
+      // Grade sample size: A (50+), B (20-49), C (10-19), D (5-9), F (<5)
+      const gradeFor = (n: number) =>
+        n >= 50 ? "A" : n >= 20 ? "B" : n >= 10 ? "C" : n >= 5 ? "D" : "F";
+
+      const mapEngine = (stats: any) => {
         const s = stats.overall;
         const sampleSize = s.closedIdeas || 0;
         return {
@@ -9573,25 +9590,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           winRate: s.winRate,
           avgPercentGain: s.avgPercentGain,
           sampleSize,
-          // Grade sample size: A (50+), B (20-49), C (10-19), D (5-9), F (<5)
-          sampleGrade: sampleSize >= 50 ? "A" : sampleSize >= 20 ? "B" : sampleSize >= 10 ? "C" : sampleSize >= 5 ? "D" : "F",
+          sampleGrade: gradeFor(sampleSize),
           reliable: sampleSize >= 10,
-          ...(name === 'flow' ? {
-            _note: "Options validation under maintenance — Flow/Lotto ideas excluded from public display due to option premium pricing issues. Not a real 0%.",
-            excludedFromDisplay: true,
-          } : {}),
         };
       };
 
+      const flowDecided = optStats?.decided ?? 0;
+      const flow = {
+        totalIdeas: optStats?.total ?? 0,
+        closedIdeas: flowDecided,
+        winRate: optStats?.winRate ?? 0,
+        // Expectancy = average per-trade contract P&L over decided trades.
+        avgPercentGain: optStats?.expectancy ?? 0,
+        avgWinPct: optStats?.avgWinPct ?? 0,
+        avgLossPct: optStats?.avgLossPct ?? 0,
+        sampleSize: flowDecided,
+        sampleGrade: gradeFor(flowDecided),
+        reliable: flowDecided >= 10,
+        measuredBy: "option_contract_pnl",
+        _note: "Measured by real option contract P&L (entry vs exit premium). Option ideas without a captured contract P&L are excluded — never counted as wins.",
+      };
+
       const data = {
-        ai: mapEngine(aiStats, 'ai'),
-        quant: mapEngine(quantStats, 'quant'),
-        hybrid: mapEngine(hybridStats, 'hybrid'),
-        flow: mapEngine(flowStats, 'flow'),
+        ai: mapEngine(aiStats),
+        quant: mapEngine(quantStats),
+        hybrid: mapEngine(hybridStats),
+        flow,
         _meta: {
-          note: "Hit rates are count-based (wins / decided trades). Options engines (Flow, Lotto) excluded due to validation issues — see flow._note.",
-          optionsExcluded: true,
-          optionsExcludedReason: "Option premium pricing validator compared stock prices to option premiums, generating false wins. Under maintenance.",
+          note: "Hit rates are count-based (wins / decided). Stock engines (AI, Quant, Hybrid) use stock-level target/stop outcomes; Flow/Lotto use real option contract P&L via WinRateService.",
+          optionsMeasuredBy: "contract_pnl",
         },
       };
       

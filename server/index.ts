@@ -338,6 +338,63 @@ app.use((req, res, next) => {
       }, 5000);
     }, { timezone: 'America/New_York' });
 
+    // ── Generator resilience: evening playbook + boot catch-up ────────────
+    // The auto-idea-generator's 5-min interval lives inside startHeavyServices()
+    // (market hours only), and the process drops to lightweight mode at the 4:10
+    // PM ET restart. Two silent gaps this heals:
+    //   1. The 8:30 PM CT "Tomorrow's Playbook" window could NEVER fire — the
+    //      generator isn't running in lightweight mode — so next-day/swing setups
+    //      were never generated in the evening.
+    //   2. Any day the process wasn't alive during a window (sleep/redeploy) was
+    //      silently skipped, leaving the board empty for days (the "stalled since
+    //      <date>" gap).
+    // Both guards are conditional — they never reintroduce unconditional heavy
+    // generation on every boot (removed earlier for CPU), only when there's a real gap.
+    try {
+      const { autoIdeaGenerator } = await import('./auto-idea-generator');
+      const ctOf = (d: Date) => new Date(d.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+
+      // (1) Evening "Tomorrow's Playbook" — lightweight-safe, weekdays 8:30 PM CT.
+      cron.default.schedule('30 20 * * 1-5', () => {
+        log("🌙 Evening playbook cron — generating tomorrow's ideas (relaxed)...");
+        autoIdeaGenerator.forceGenerate(true, true)
+          .then((n) => log(`🌙 Evening playbook: generated ${n} ideas`))
+          .catch((err) => logger.error('❌ Evening playbook generation failed:', err));
+      }, { timezone: 'America/Chicago' });
+      log('🌙 Evening playbook cron scheduled (8:30 PM CT weekdays, lightweight-safe)');
+
+      // (2) Boot catch-up — only when the market is CLOSED (heavy services cover
+      //     the open case), it's a weekday, the first generation window has passed,
+      //     and NOTHING was generated today. One pass so a missed window doesn't
+      //     leave the board dark all day.
+      if (!isMarketCurrentlyOpen()) {
+        const ctNow = ctOf(new Date());
+        const dow = ctNow.getDay();
+        const minutesCT = ctNow.getHours() * 60 + ctNow.getMinutes();
+        const FIRST_WINDOW_MIN = 9 * 60 + 35; // just after the 9:30 AM CT open window
+        if (dow >= 1 && dow <= 5 && minutesCT >= FIRST_WINDOW_MIN) {
+          const { storage } = await import('./storage');
+          const hoursSinceMidnight = Math.ceil(ctNow.getHours() + ctNow.getMinutes() / 60) + 1;
+          const recent = await storage.getRecentTradeIdeas(hoursSinceMidnight, 50);
+          const sameCtDay = (t: Date) =>
+            t.getFullYear() === ctNow.getFullYear() &&
+            t.getMonth() === ctNow.getMonth() &&
+            t.getDate() === ctNow.getDate();
+          const generatedToday = recent.some((i) => sameCtDay(ctOf(new Date(i.timestamp))));
+          if (!generatedToday) {
+            log('🔧 Catch-up: no ideas generated today — running one pass to un-stall the board...');
+            autoIdeaGenerator.forceGenerate(false, false)
+              .then((n) => log(`🔧 Catch-up: generated ${n} ideas`))
+              .catch((err) => logger.error('❌ Catch-up generation failed:', err));
+          } else {
+            log('✅ Catch-up check: ideas already exist for today — no action needed');
+          }
+        }
+      }
+    } catch (e) {
+      logger.error(`⚠ Generator resilience setup failed: ${(e as Error).message}`);
+    }
+
     // Start ML Retraining Service (self-improving models)
     // TODO: Implement ML retraining service
     // const { startMLRetrainingService } = await import('./ml-retraining-service');
