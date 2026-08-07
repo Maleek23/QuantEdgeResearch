@@ -9194,6 +9194,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Grade calibration — the trust test ────────────────────────────────
+  // Groups DECIDED trades by the displayed grade family and reports realized
+  // win rate + expectancy per grade, via the canonical WinRateService (options
+  // judged by real contract P&L). The point: does a higher grade actually
+  // produce a better outcome? If the ranking isn't monotonic, the letters are
+  // not yet predictive and shouldn't be trusted as trade quality.
+  app.get("/api/performance/grade-calibration", async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+
+      // Family = the letter users see. Most decided (historical) ideas carry
+      // probabilityBand (A+/A/A-/B+…); fall back to convictionBand (S/A/B/C).
+      const familyOf = (i: any): string | null => {
+        const pb = String(i.probabilityBand || '').trim().toUpperCase();
+        if (/^[ABCDF]/.test(pb)) return pb[0];
+        const cb = String(i.convictionBand || '').trim().toUpperCase();
+        if (/^[SABC]/.test(cb)) return cb[0];
+        return null;
+      };
+
+      const FAMILIES = ['S', 'A', 'B', 'C', 'D', 'F'];
+      const rows = FAMILIES.map((fam) => {
+        const subset = allIdeas.filter((i: any) => familyOf(i) === fam);
+        if (subset.length === 0) return null;
+        const o = WinRateService.calculate(subset, {}).overall;
+        return {
+          grade: fam,
+          total: subset.length,
+          decided: o.decided,
+          winRate: o.winRate,
+          avgWinPct: o.avgWinPct,
+          avgLossPct: o.avgLossPct,
+          expectancy: o.expectancy,
+          reliable: o.decided >= 20,
+        };
+      }).filter(Boolean) as any[];
+
+      // Monotonicity check across grades with a reliable decided sample: a lower
+      // grade should NOT out-win / out-earn a higher grade (small tolerance).
+      const order = ['S', 'A', 'B', 'C', 'D', 'F'];
+      const reliable = rows
+        .filter((r) => r.reliable)
+        .sort((a, b) => order.indexOf(a.grade) - order.indexOf(b.grade));
+      let winRateMonotonic = true;
+      let expectancyMonotonic = true;
+      for (let k = 1; k < reliable.length; k++) {
+        if (reliable[k].winRate > reliable[k - 1].winRate + 1) winRateMonotonic = false;
+        if (reliable[k].expectancy > reliable[k - 1].expectancy + 0.1) expectancyMonotonic = false;
+      }
+      const gradesArePredictive = reliable.length >= 2 && winRateMonotonic && expectancyMonotonic;
+
+      res.json({
+        rows,
+        calibration: {
+          reliableGradesCompared: reliable.map((r) => r.grade),
+          winRateMonotonic,
+          expectancyMonotonic,
+          gradesArePredictive,
+          verdict:
+            reliable.length < 2
+              ? 'Not enough decided trades per grade to judge yet — let the engine run and re-check.'
+              : gradesArePredictive
+                ? 'Higher grades DO produce better realized outcomes — the grades are earning their letters.'
+                : 'Higher grades do NOT reliably beat lower ones — grade is not yet predictive. Do not treat a high letter as a better trade.',
+        },
+        _meta: {
+          note: 'Realized win rate + expectancy grouped by displayed grade family via the canonical WinRateService (options judged by real contract P&L). Measures whether grade predicts outcome.',
+        },
+      });
+    } catch (error) {
+      logger.error('Grade calibration error:', error);
+      res.status(500).json({ error: 'Failed to compute grade calibration' });
+    }
+  });
+
   // Performance stats cache (5-minute TTL) - separate cache per filter combination
   const performanceStatsCache = new Map<string, { data: any; timestamp: number }>();
   const PERF_STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
