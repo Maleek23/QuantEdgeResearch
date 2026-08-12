@@ -9269,6 +9269,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Layer attribution (step 3 of the engine-trust fix) ────────────────
+  // Per-layer realized outcome for ideas whose scoring breakdown was persisted
+  // (genScoringLayers). A layer whose trades beat baseline is predictive; one at
+  // or below baseline is noise — this is the evidence for reweighting the engine.
+  // Populates as instrumented ideas resolve (empty until then — expected).
+  app.get("/api/performance/layer-attribution", async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const instrumented = allIdeas.filter(
+        (i: any) => Array.isArray(i.genScoringLayers) && i.genScoringLayers.length > 0,
+      );
+      const byLayer = new Map<string, any[]>();
+      for (const idea of instrumented) {
+        const seen = new Set<string>();
+        for (const layer of (idea as any).genScoringLayers) {
+          const kind = layer?.kind;
+          if (!kind || seen.has(kind)) continue; // count each idea once per layer kind
+          seen.add(kind);
+          if (!byLayer.has(kind)) byLayer.set(kind, []);
+          byLayer.get(kind)!.push(idea);
+        }
+      }
+      const baseline = WinRateService.calculate(instrumented, {}).overall;
+      const layers = Array.from(byLayer.entries())
+        .map(([kind, ideas]) => {
+          const o = WinRateService.calculate(ideas, {}).overall;
+          return {
+            layer: kind,
+            ideas: ideas.length,
+            decided: o.decided,
+            winRate: o.winRate,
+            expectancy: o.expectancy,
+            edgeVsBaseline: Math.round((o.expectancy - baseline.expectancy) * 100) / 100,
+            predictive: o.decided >= 20 && o.expectancy > baseline.expectancy + 0.1,
+          };
+        })
+        .sort((a, b) => b.edgeVsBaseline - a.edgeVsBaseline);
+      res.json({
+        instrumentedTotal: instrumented.length,
+        ready: instrumented.length >= 50,
+        baseline: { decided: baseline.decided, winRate: baseline.winRate, expectancy: baseline.expectancy },
+        layers,
+        _meta: {
+          note: 'Per-layer realized outcome for ideas whose breakdown was persisted (genScoringLayers). Layers above baseline are predictive; at/below are noise. Requires the schema migration + a few weeks of resolved instrumented ideas.',
+        },
+      });
+    } catch (error) {
+      logger.error('Layer attribution error:', error);
+      res.status(500).json({ error: 'Failed to compute layer attribution' });
+    }
+  });
+
   // Performance stats cache (5-minute TTL) - separate cache per filter combination
   const performanceStatsCache = new Map<string, { data: any; timestamp: number }>();
   const PERF_STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
