@@ -287,6 +287,15 @@ export const tradeIdeas = pgTable("trade_ideas", {
   // 🎯 DEEP ANALYSIS - Full signal breakdown for transparency (Trade Desk integration)
   // Stores the complete reasoning behind why this trade was generated
   convergenceSignalsJson: jsonb("convergence_signals_json").$type<ConvergenceAnalysis>(), // Full breakdown of all signals
+
+  // 🧪 SCORING INSTRUMENTATION — the 13-layer convictions breakdown is otherwise
+  // computed live at display time and thrown away, so outcomes can never be
+  // attributed back to the layers that fired. These persist the breakdown the
+  // engine assigned, enabling grade-calibration + evidence-based reweighting.
+  // Written by the convictions engine on enrichment; null until it has scored the idea.
+  genConvictionScore: real("gen_conviction_score"),
+  genConvictionBand: text("gen_conviction_band"),
+  genScoringLayers: jsonb("gen_scoring_layers").$type<Array<{ kind: string; points: number; why?: string }>>(),
 }, (table) => [
   // CRITICAL PERFORMANCE INDEXES - Speed up queries without affecting timing
   index("idx_trade_ideas_timestamp").on(table.timestamp), // Fast recent trades lookup

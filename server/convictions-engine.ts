@@ -1898,6 +1898,29 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   deduped.sort((a, b) => b.convictionScore - a.convictionScore);
   const filtered = deduped.filter((p) => p.convictionScore >= minScore).slice(0, limit);
 
+  // 🧪 Persist the scoring breakdown for the surfaced picks so resolved ideas can
+  // be attributed back to the layers that fired (grade-calibration + reweighting).
+  // Fire-and-forget + non-fatal: pre-migration column absence or a transient write
+  // error is swallowed — signal serving must never break over telemetry.
+  void (async () => {
+    try {
+      const { storage } = await import("./storage");
+      await Promise.allSettled(
+        filtered.map((p) =>
+          p.ideaId
+            ? storage.updateTradeIdea(p.ideaId, {
+                genConvictionScore: p.convictionScore,
+                genConvictionBand: p.convictionBand,
+                genScoringLayers: p.layers.map((l) => ({ kind: l.kind, points: l.points, why: l.why })),
+              } as any)
+            : Promise.resolve(),
+        ),
+      );
+    } catch {
+      /* non-fatal telemetry */
+    }
+  })();
+
   return {
     generatedAt: new Date().toISOString(),
     marketContext: {
