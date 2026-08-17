@@ -430,6 +430,43 @@ function scoreCatalystLayer(idea: any, direction: "long" | "short"): ConvictionL
     }
   }
 
+  // ── RISK SIDE (bidirectional) — a catalyst is also uncertainty ──────────
+  // Until now this layer only ever ADDED points. But an event is a two-way
+  // thing: a reason a move could happen AND a reason to stand aside. These two
+  // checks let the layer go NEGATIVE, so a risky setup grades lower.
+
+  // 1) News that CONTRADICTS the trade direction is a headwind, not neutral.
+  let eventRisk = false;
+  if (isNews && newsBias && newsBias !== "neutral") {
+    const misaligned =
+      (direction === "long" && newsBias === "bearish") ||
+      (direction === "short" && newsBias === "bullish");
+    if (misaligned) {
+      points -= 6;
+      eventRisk = true;
+      reasons.push(`Headwind: ${newsBias} news vs ${direction}`);
+    }
+  }
+
+  // 2) An UNRESOLVED binary/high-variance event held through the trade is risk,
+  //    not a reason to size up ("burning cash into the print"). Detect scheduled
+  //    binary events from the catalyst text that still read as ahead (pre / into /
+  //    upcoming / a near date). Past earnings are already scored via earningsBeat,
+  //    so we only fire when the event hasn't happened yet. Penalty scales with how
+  //    long we'd sit through it — position/swing hold through it; day trades often
+  //    exit before. Conservative: requires BOTH a binary keyword AND ahead-framing.
+  const cText = typeof idea.catalyst === "string" ? idea.catalyst.toLowerCase() : "";
+  const BINARY = /\b(earnings|fda|pdufa|adcom|ruling|verdict|court|decision|readout|guidance|fomc|cpi)\b/;
+  const AHEAD = /\b(ahead of|before|into|pre[\s-]|upcoming|expected|scheduled|next week|tomorrow|this week|awaiting)\b/;
+  const earningsAlreadyResolved = idea.earningsBeat === true || idea.earningsBeat === false;
+  if (!earningsAlreadyResolved && BINARY.test(cText) && AHEAD.test(cText)) {
+    const hp = idea.holdingPeriod;
+    const risk = hp === "position" ? 8 : hp === "swing" || hp === "week-ending" ? 6 : 3;
+    points -= risk;
+    eventRisk = true;
+    reasons.push(`Event risk: unresolved binary catalyst ahead (${hp} hold)`);
+  }
+
   if (idea.catalyst && typeof idea.catalyst === "string" && idea.catalyst.length > 0 && points === 0) {
     // Generic catalyst present but not flagged — small boost
     points += 1;
@@ -439,10 +476,10 @@ function scoreCatalystLayer(idea: any, direction: "long" | "short"): ConvictionL
   if (points === 0) return null;
   return {
     kind: "catalyst",
-    label: "Catalyst",
+    label: points < 0 ? "Catalyst Risk" : "Catalyst",
     points,
     why: reasons.join(" · "),
-    data: { isNews, newsBias, earningsBeat, surprisePct },
+    data: { isNews, newsBias, earningsBeat, surprisePct, eventRisk },
   };
 }
 
