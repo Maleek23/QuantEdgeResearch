@@ -13480,6 +13480,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Cash-Secured Put income screener ──────────────────────────────────────
+  // For each ticker, pull the CBOE chain and rank OTM puts by ANNUALIZED premium
+  // yield on capital — the "monthly income" number — alongside the trade-offs
+  // (delta ≈ assignment odds, OTM cushion, breakeven, capital required). This is
+  // a research/ranking surface, not advice: higher yield = higher implied vol =
+  // higher assignment risk. Self-contained (CBOE only); works without the DB.
+  //   GET /api/screener/cash-secured-puts?tickers=AAPL,MSFT&maxDelta=0.30&minDte=20&maxDte=45
+  app.get("/api/screener/cash-secured-puts", async (req, res) => {
+    try {
+      const tickersRaw = String(req.query.tickers || "").trim();
+      if (!tickersRaw) {
+        return res.status(400).json({ error: "Provide ?tickers=AAPL,MSFT (comma-separated)" });
+      }
+      const tickers = tickersRaw.split(",").map((t) => t.trim().toUpperCase()).filter(Boolean).slice(0, 25);
+      const maxDelta = Math.min(0.9, Math.abs(Number(req.query.maxDelta ?? 0.30)) || 0.30);
+      const minDte = Number(req.query.minDte ?? 20);
+      const maxDte = Number(req.query.maxDte ?? 45);
+
+      const { fetchCboeChain } = await import("./contract-analyzer/cboe-chain");
+      const now = Date.now();
+      const DAY = 86_400_000;
+      const dteOf = (exp: string) => Math.round((new Date(`${exp}T00:00:00Z`).getTime() - now) / DAY);
+
+      const results = await Promise.all(
+        tickers.map(async (ticker) => {
+          try {
+            const chain = await fetchCboeChain(ticker);
+            if (!chain || !chain.rawChain.length) return { ticker, error: "no chain / illiquid" };
+            const spot = chain.spot;
+            const cands = chain.rawChain
+              .filter((o) => {
+                if (o.option_type !== "put" || o.strike >= spot) return false;
+                if (!(Number(o.bid ?? 0) > 0)) return false; // real bid — untradeable no-bid strikes inflate the mid
+                const d = Math.abs(o.greeks?.delta ?? 0);
+                if (!(d > 0 && d <= maxDelta)) return false;
+                const dte = dteOf(o.expiration_date);
+                return dte >= minDte && dte <= maxDte;
+              })
+              .map((o) => {
+                const mid = (Number(o.bid ?? 0) + Number(o.ask ?? 0)) / 2;
+                const dte = dteOf(o.expiration_date);
+                const yieldOnCap = o.strike > 0 ? mid / o.strike : 0;
+                return {
+                  strike: o.strike,
+                  expiry: o.expiration_date,
+                  dte,
+                  premium: Math.round(mid * 100) / 100,
+                  delta: Math.round((o.greeks?.delta ?? 0) * 1000) / 1000,
+                  otmPct: Math.round(((spot - o.strike) / spot) * 1000) / 10,
+                  breakeven: Math.round((o.strike - mid) * 100) / 100,
+                  capital: Math.round(o.strike * 100),
+                  cycleYieldPct: Math.round(yieldOnCap * 10000) / 100,
+                  annualizedYieldPct: dte > 0 ? Math.round(yieldOnCap * (365 / dte) * 1000) / 10 : 0,
+                  openInterest: Math.round(Number(o.open_interest ?? 0)),
+                };
+              })
+              .filter((c) => c.premium > 0 && c.openInterest >= 100)
+              .sort((a, b) => b.annualizedYieldPct - a.annualizedYieldPct);
+            return { ticker, spot: Math.round(spot * 100) / 100, best: cands[0] ?? null, alternatives: cands.slice(1, 4) };
+          } catch (e: any) {
+            return { ticker, error: e?.message || "failed" };
+          }
+        }),
+      );
+
+      const ranked = results
+        .filter((r: any) => r.best)
+        .sort((a: any, b: any) => (b.best.annualizedYieldPct || 0) - (a.best.annualizedYieldPct || 0));
+      const noData = results.filter((r: any) => !r.best).map((r: any) => ({ ticker: r.ticker, reason: r.error || "no qualifying puts" }));
+
+      res.json({
+        params: { maxDelta, minDte, maxDte },
+        ranked,
+        noData,
+        _meta: {
+          note: "OTM cash-secured puts ranked by annualized premium yield on capital. Delta ≈ assignment probability; higher yield = higher implied vol = higher risk. CBOE delayed data. Market information only — not investment advice. Next: flag tickers with earnings before expiry (needs DB).",
+        },
+      });
+    } catch (error) {
+      logger.error("CSP screener error:", error);
+      res.status(500).json({ error: "Failed to run CSP screener" });
+    }
+  });
+
   app.post("/api/catalysts", async (req, res) => {
     try {
       const validated = insertCatalystSchema.parse(req.body);
