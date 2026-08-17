@@ -13401,6 +13401,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Catalyst RESEARCH — a per-ticker read that shapes the bull/bear case ──
+  // Turns the ticker's event roadmap into: a forward tilt (does the calendar lean
+  // bull or bear?), and risk flags (unresolved binary events that argue for
+  // sizing down / cash). This is the "stockcatalysts for a ticker, but scored"
+  // surface — same event taxonomy the conviction engine's catalyst layer uses.
+  app.get("/api/catalysts/:symbol/research", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || "").trim().toUpperCase();
+      if (!symbol) return res.status(400).json({ error: "symbol required" });
+
+      const { getCatalystsForSymbol } = await import("./catalyst-intelligence-service");
+      const events = await getCatalystsForSymbol(symbol, 60);
+
+      const now = Date.now();
+      const DAY = 86_400_000;
+      // Binary / high-variance types (coin-flips) drive RISK, not tilt. Extend as
+      // the taxonomy grows (fda, court). Directional types (acquisition, product
+      // launch, insider) lean bull/bear via polarity; sec/gov are informational.
+      const BINARY = new Set(["earnings"]);
+
+      const roadmap = events
+        .map((e: any) => {
+          const d = new Date(e.eventDate).getTime();
+          return {
+            type: e.eventType,
+            title: e.title,
+            date: e.eventDate,
+            daysAway: Math.round((d - now) / DAY),
+            polarity: e.polarity,
+            importance: Math.round(e.signalStrength ?? 0),
+            confidence: e.confidence ?? null,
+            isBinary: BINARY.has(e.eventType),
+          };
+        })
+        .filter((e: any) => Number.isFinite(e.daysAway) && e.daysAway >= 0)
+        .sort((a: any, b: any) => a.daysAway - b.daysAway);
+
+      // Forward tilt: polarity × importance, decayed by horizon (nearer = heavier).
+      let bull = 0;
+      let bear = 0;
+      for (const e of roadmap) {
+        const w = (e.importance || 1) * Math.exp(-e.daysAway / 30);
+        if (e.polarity === "bullish") bull += w;
+        else if (e.polarity === "bearish") bear += w;
+      }
+      const net = bull - bear;
+      const tilt = net > 5 ? "bullish" : net < -5 ? "bearish" : "neutral";
+
+      const nextBinary = roadmap.find((e: any) => e.isBinary) || null;
+
+      res.json({
+        symbol,
+        count: roadmap.length,
+        roadmap,
+        case: {
+          tilt,
+          bullScore: Math.round(bull),
+          bearScore: Math.round(bear),
+          bullFactors: roadmap.filter((e: any) => e.polarity === "bullish").slice(0, 6),
+          bearFactors: roadmap.filter((e: any) => e.polarity === "bearish").slice(0, 6),
+        },
+        risk: {
+          nextBinaryEvent: nextBinary,
+          binaryWithin7d: roadmap.filter((e: any) => e.isBinary && e.daysAway <= 7).length,
+          flag:
+            nextBinary && nextBinary.daysAway <= 3
+              ? `⚠ ${nextBinary.type} in ${nextBinary.daysAway}d — binary event risk; size down / consider cash`
+              : null,
+        },
+        _meta: {
+          note: "Forward-looking synthesis. tilt = Σ polarity × importance × horizon-decay; binary events flagged as risk, not tilt. Empty when the ticker has no tracked catalysts yet.",
+        },
+      });
+    } catch (error) {
+      logger.error("Catalyst research error:", error);
+      res.status(500).json({ error: "Failed to build catalyst research" });
+    }
+  });
+
   app.post("/api/catalysts", async (req, res) => {
     try {
       const validated = insertCatalystSchema.parse(req.body);
