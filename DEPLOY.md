@@ -1,111 +1,44 @@
-# QuantEdge Deployment Guide
+# Deploy — QuantEdge
 
-## Quick Deploy to Render.com (FREE)
+**One host. One DB. One command.** (The old Replit / Render / Hetzner / PM2 configs
+were removed on purpose — this is the only path now.)
 
-### Step 1: Deploy (2 minutes)
-1. Go to [render.com](https://render.com) and sign up (free)
-2. Click **"New +"** → **"Web Service"**
-3. Connect your GitHub repo: `Maleek23/QuantEdgeResearch`
-4. Render will auto-detect the `render.yaml` config
-5. Click **"Create Web Service"**
+- **Host:** Railway
+- **Database:** Neon Postgres — the `ep-dark-cherry` branch (the live one)
+- **Deploy:** `git push origin main` → Railway auto-builds + redeploys
 
-Your app will be live at: `https://quantedge-research.onrender.com`
+## Processes
+The build (`npm run build`) emits two entrypoints:
 
-### Step 2: Add Environment Variables
-In Render dashboard → Your service → **Environment**:
+| Process | Start command | What it is |
+|---|---|---|
+| **web** | `npm run start` → `node dist/web.js` | HTTP API + serves the client |
+| **worker** | `npm run start:worker` → `node dist/worker.js` | scanners, crons, idea generation |
 
-**Required:**
-```
-DATABASE_URL=postgresql://neondb_owner:npg_CsmNx5Si6IoR@ep-restless-mud-aesu2f62.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require
-GEMINI_API_KEY=your_gemini_key
-GROK_API_KEY=your_grok_key
-TRADIER_API_KEY=your_tradier_key
-ADMIN_EMAIL=abdulmalikajisegiri@gmail.com
-ADMIN_ACCESS_CODE=0065
-```
+`railway.json` configures the **web** service. The **worker** is a second Railway
+service in the same project pointing at the same repo. (`Procfile` documents both.)
 
-**Optional (for full features):**
-```
-DISCORD_WEBHOOK_URL=your_discord_webhook
-RESEND_API_KEY=your_resend_key
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_secret
-APP_URL=https://your-domain.com
-```
+## One-time Railway setup
+1. **railway.app** → New Project → **Deploy from GitHub repo** → pick `QuantEdgeResearch`.
+   Railway auto-detects Node, runs `npm run build`, then `npm run start` (the **web** service).
+2. **Add the worker:** same project → **+ New** → **GitHub Repo** (same repo) →
+   set its **Start Command** to `npm run start:worker`.
+3. **Env vars** (both services → Variables) — copy from your local `.env`. The ones that matter:
+   ```
+   DATABASE_URL=<the ep-dark-cherry -pooler Neon string>
+   NODE_ENV=production
+   # + your API keys: ALPHA_VANTAGE_API_KEY, FINNHUB_API_KEY, TWELVE_DATA_API_KEY,
+   #   ADMIN_ACCESS_CODE, ADMIN_PASSWORD, JWT_SECRET, etc.
+   ```
+   Railway can **reference variables across services**, so set them once and share.
+4. Railway gives the web service a public URL. Done.
 
-### Step 3: Add Custom Domain (FREE on Render)
-1. Go to **Settings** → **Custom Domains**
-2. Click **"Add Custom Domain"**
-3. Enter your domain: `quantedge.com` or `app.quantedge.com`
-4. Add the DNS records to your domain provider:
-   - **CNAME**: `quantedge-research.onrender.com`
-   - Or **A Record**: (Render will provide the IP)
-5. Render provides **FREE SSL** automatically!
-
-### Step 4: Update Google OAuth (if using)
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Update **Authorized redirect URIs**:
-   - Add: `https://your-domain.com/api/auth/google/callback`
-3. Update `APP_URL` env var to your new domain
-
----
-
-## Alternative: Railway.app ($5 free credits/month)
-
+## From then on
 ```bash
-# Install Railway CLI
-npm install -g @railway/cli
-
-# Login and deploy
-railway login
-railway init
-railway up
+git push origin main   # Railway rebuilds + redeploys web + worker automatically
 ```
 
-Railway gives you a free subdomain and easy custom domain setup.
-
----
-
-## Alternative: Vercel (Frontend) + Render (Backend)
-
-For better frontend performance:
-1. Deploy frontend to Vercel (free, fast CDN)
-2. Deploy backend to Render
-3. Update frontend API URL to point to Render backend
-
----
-
-## Domain Providers (Cheap)
-- **Namecheap**: ~$10/year for .com
-- **Cloudflare Registrar**: At-cost pricing (~$9/year)
-- **Google Domains**: $12/year (now Squarespace)
-
----
-
-## Monitoring Your Deployment
-
-Render provides:
-- **Logs**: Real-time server logs in dashboard
-- **Metrics**: CPU, memory, request count
-- **Health Checks**: Auto-restart if `/api/health` fails
-- **Auto-Deploy**: Push to GitHub → auto deploys
-
----
-
-## Troubleshooting
-
-**Build fails?**
-- Check Node version (needs 20+)
-- Run `npm install` locally first
-
-**Can't connect to database?**
-- Verify DATABASE_URL is correct
-- Check Neon dashboard for connection pooling
-
-**WebSockets not working?**
-- Render free tier supports WebSockets
-- Check if client is connecting to correct URL
-
-**Rate limited?**
-- Using FREE LLMs: Gemini (1500/day) + Grok ($25/month credits)
-- Add FINNHUB_API_KEY for more market data calls
+## Guardrail (do this once, or it bites you again)
+The last outage was the Neon `ep-dark-cherry` compute **auto-archiving on idle**,
+which dropped the DB and looked like a code failure. In the Neon console → the
+`ep-dark-cherry` branch → **Disable archiving** and **Protect** the branch.

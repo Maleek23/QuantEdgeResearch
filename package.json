@@ -8,6 +8,7 @@
     "build": "vite build && esbuild server/web.ts server/worker.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/web.js",
     "start:worker": "NODE_ENV=production node dist/worker.js",
+    "start:worker": "NODE_ENV=production node dist/worker.js",
     "check": "tsc",
     "ts:budget": "tsx scripts/ts-budget.ts",
     "ts:budget:diff": "tsx scripts/ts-budget.ts -- --diff",
