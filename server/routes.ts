@@ -25135,6 +25135,67 @@ Use this checklist before entering any trade:
   });
 
   // Macro Signals API - VIX regime, sector rotation
+  // ── Cash-gate ─────────────────────────────────────────────────────────────
+  // The traders' #1 ask: "be cash before the print." Returns a board-level risk
+  // level based on proximity to the next HIGH-impact macro event (FOMC, CPI, NFP,
+  // Powell…). The Hunt board shows the banner; the engine can dampen grades when
+  // level === 'cash'. Windows are query-configurable.
+  //   GET /api/macro/cash-gate?cashHours=4&watchHours=24
+  app.get("/api/macro/cash-gate", async (req, res) => {
+    try {
+      const { getUpcomingEvents } = await import("./economic-calendar");
+      const cashHrs = Math.max(0, Number(req.query.cashHours ?? 4));
+      const watchHrs = Math.max(cashHrs, Number(req.query.watchHours ?? 24));
+
+      // Parse "2:00 PM ET" + "YYYY-MM-DD" → epoch ms (ET ≈ UTC-4; ±1h at DST edges
+      // is immaterial for a proximity warning).
+      const etMs = (date: string, time: string): number | null => {
+        const m = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (!m) return null;
+        let h = parseInt(m[1], 10) % 12;
+        if (/PM/i.test(m[3])) h += 12;
+        const t = new Date(`${date}T${String(h).padStart(2, "0")}:${m[2]}:00-04:00`).getTime();
+        return Number.isFinite(t) ? t : null;
+      };
+
+      const now = Date.now();
+      const upcoming = getUpcomingEvents(3)
+        .filter((e: any) => e.importance === "high")
+        .map((e: any) => {
+          const at = etMs(e.date, e.time);
+          const hoursUntil = at != null ? Math.round(((at - now) / 3_600_000) * 10) / 10 : null;
+          return { name: e.name, date: e.date, time: e.time, tradingImpact: e.tradingImpact, at, hoursUntil };
+        })
+        .filter((e: any) => e.hoursUntil != null && e.hoursUntil >= -1) // include events within the last hour
+        .sort((a: any, b: any) => a.hoursUntil - b.hoursUntil);
+
+      const next = upcoming[0] || null;
+      let level: "clear" | "watch" | "cash" = "clear";
+      let message = "No high-impact macro events imminent — normal risk.";
+      if (next && next.hoursUntil <= cashHrs) {
+        level = "cash";
+        message = `⚠ ${next.name} in ${next.hoursUntil.toFixed(1)}h (${next.time}) — event risk. Size down or hold cash.`;
+      } else if (next && next.hoursUntil <= watchHrs) {
+        level = "watch";
+        message = `${next.name} in ~${Math.round(next.hoursUntil)}h (${next.time}) — plan around it.`;
+      }
+
+      res.json({
+        level,
+        active: level !== "clear",
+        dampenGrades: level === "cash",
+        message,
+        nextEvent: next ? { name: next.name, date: next.date, time: next.time, hoursUntil: next.hoursUntil, tradingImpact: next.tradingImpact } : null,
+        upcoming: upcoming.slice(0, 5).map((e: any) => ({ name: e.name, date: e.date, time: e.time, hoursUntil: e.hoursUntil })),
+        params: { cashHours: cashHrs, watchHours: watchHrs },
+        _meta: { note: "Cash-gate = proximity to high-impact macro events from the curated calendar (server/economic-calendar.ts). Keep that calendar current for accuracy." },
+      });
+    } catch (error) {
+      logger.error("Cash-gate error:", error);
+      res.status(500).json({ error: "Failed to compute cash-gate" });
+    }
+  });
+
   app.get("/api/macro/context", isAuthenticated, async (req, res) => {
     try {
       const { MacroSignals } = await import("./macro-signals");
