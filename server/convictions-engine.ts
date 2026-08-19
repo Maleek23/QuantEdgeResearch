@@ -1894,6 +1894,31 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       p.convictionScore >= 30 ? "S" : p.convictionScore >= 22 ? "A" : p.convictionScore >= 15 ? "B" : "C";
   }
 
+  // 🏦 CASH-GATE — "be cash before the print." When a HIGH-impact macro event
+  // (FOMC/CPI/NFP/Powell) is imminent, dampen every grade so fewer/lower-conviction
+  // setups clear the floor into a market-wide coin-flip. Runs before the sort +
+  // minScore filter + instrumentation persist, so the dampening is what's stored.
+  try {
+    const { hasHighImpactEventSoon } = await import("./economic-calendar");
+    const macro = hasHighImpactEventSoon(8);
+    if (macro) {
+      const DAMPEN = 0.65;
+      for (const p of deduped) {
+        p.convictionScore = Math.round(p.convictionScore * DAMPEN);
+        p.convictionBand =
+          p.convictionScore >= 30 ? "S" : p.convictionScore >= 22 ? "A" : p.convictionScore >= 15 ? "B" : "C";
+        p.layers.push({
+          kind: "macro",
+          label: "Macro Risk",
+          points: 0,
+          why: `Cash-gate: ${macro.name} (${macro.time}) imminent — grade dampened ${Math.round((1 - DAMPEN) * 100)}%`,
+        } as any);
+      }
+    }
+  } catch {
+    /* calendar unavailable — no dampening */
+  }
+
   // Final sort + minScore floor + limit
   deduped.sort((a, b) => b.convictionScore - a.convictionScore);
   const filtered = deduped.filter((p) => p.convictionScore >= minScore).slice(0, limit);
