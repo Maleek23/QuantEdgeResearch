@@ -572,6 +572,43 @@ function App() {
     );
   }
 
+  // TERMINAL (/t) — full-bleed, no sidebar. Top-nav only (ADR-0001). Keeps every
+  // provider so nested engines/components still work; the Terminal shell supplies
+  // its own chrome (header + tabs + footer), so AppSidebar/AuthHeader/Footer are dropped.
+  if (locationPath === '/t') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
+          <TooltipProvider>
+            <RealtimePricesProvider>
+              <StockContextProvider>
+                <PreferencesProvider>
+                  <ContentDensityProvider>
+                    <DensityProvider>
+                      <SidebarProvider style={style as React.CSSProperties}>
+                        <div className="h-screen w-full overflow-auto page-atmosphere">
+                          <ErrorBoundary>
+                            <Suspense fallback={<PageLoader />}>
+                              <Router />
+                            </Suspense>
+                          </ErrorBoundary>
+                        </div>
+                      </SidebarProvider>
+                      <CommandPalette />
+                      <WhatsNewDrawer />
+                      <WhatsNewToast />
+                      <Toaster />
+                    </DensityProvider>
+                  </ContentDensityProvider>
+                </PreferencesProvider>
+              </StockContextProvider>
+            </RealtimePricesProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    );
+  }
+
   // Sidebar layout — primary navigation
   return (
     <QueryClientProvider client={queryClient}>
