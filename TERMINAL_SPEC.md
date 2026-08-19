@@ -113,3 +113,65 @@ the engine's reasoning across all tabs.  →  6. Guides + tutor.
 ### One-line version
 QuantEdge has every engine MomoEdge has. The rebuild is **one shell, one grammar (surface + interpreting
 context panel), one motion system** — and *rendering the reasoning the engine already computes.*
+
+---
+
+## Pattern catalog — the granular design + engineering details
+
+### A · UI/UX patterns (reusable components + configs)
+1. **Segmented control** (the workhorse — reused ≥10×): NEW/BEST/CONVICTION · PRICE/FLOW/MAP/TABLE ·
+   CAP/EQUAL · SINGLE/CONFLUENCE · GEX/VEX/OI/VOL/UNUSUAL · DTE 4/8 · ±10/±20/±40 · DEFAULT/ODTE/ΣALL ·
+   1D/1W/1M/YTD · NORM GLOBAL/PER-COL. **One component, everywhere.**
+2. **Live status pills** — STATUS ENGAGED · ● LIVE · LOADING… · `ORACLE ONLINE · UPTIME 00:37:46` (ticking) ·
+   MARKET OPEN/CLOSED. Semantic dot + mono label.
+3. **Data-state stamp** — "Showing Wed Jul 8 close · Market closed" / "stale". Honest freshness on every view.
+4. **HeatCell** — value + background intensity scaled to magnitude, sign→hue (treemap + PRISM matrix).
+5. **Level chips** — inline TRIGGER / WALL / MAGNET / Γ FLIP / ODTE badges anchored to rows.
+6. **Distance "away" badges** — every level shows its distance in **R / % / $** ("0.7R away", "2.5R away").
+   Relative framing is a *pattern*, not an afterthought.
+7. **Standout highlight** — ★ **gold = focus/lead** cell · **cyan = largest**. Draw the eye to the one that matters.
+8. **Component bars** — VALIDITY / PROGRESS / PACE / OVERLAY as 0–100 horizontal bars (decomposed score).
+9. **Arc gauge** — setup/confidence score (72, 96) as a radial dial.
+10. **Structural-range bar** — horizontal gradient w/ positioned markers PUT SUPP → FLIP → MAGNET → CALL WALL + spot dot.
+11. **Split meter** — gravity ↑77% / 23%↓ · P/C bull/bear · breadth bar.
+12. **Price ladder** — vertical STOP/ENTRY/LIVE/T1/T2, each w/ %/$/away, colored by role.
+13. **Sparkline** — Flow Drift 5D mini line (bull vs bear, net).
+14. **Context/regime panel** — right column: an interpreting *sentence* + legend + net figure + HOW TO READ.
+15. **Hover breakdown tooltip** — per cell/row: underlying components (strike → Net GEX, Call/Put OI, Call/Put Γ).
+16. **Unit selector** — explicit `$ Γ / 1% MOVE` (shows the normalization unit).
+17. **Config bar per view** — metric · DTE · range · scope · norm as a parameter row; views are config-driven.
+18. **Honest empty states** — "No single standout — the lead is shared" · "No picks fired yet".
+19. **Preference matrix** — alerts: per-type × per-channel (Push/Sound/In-app/SMS/Email) checkboxes, presets,
+    quiet-hours window, greyed "COMING SOON", locked "required" rows.
+20. **Per-tab GUIDE + in-context tutor** — help lives where you use it.
+
+### B · Engineering patterns (computations / data / config)
+1. **`computeGexStructure(chain)`** → { callWall = argmax +GEX strike, putSupport = argmax −GEX,
+   gammaFlip = zero-crossing, magnet/HVL = high-vol strike, netGEX = Σ }. One primitive feeds GEX + PRISM.
+2. **Dollar-gamma-per-1%-move unit** — perStrike = γ · OI · 100 · spot² · 0.01 · sign. Explicit normalization.
+3. **Matrix normalization modes** — GLOBAL (color vs whole-grid max) vs PER-COL (per-expiration max): `normalize(cells, mode)`.
+4. **Confluence aggregation** — SPX·SPY·QQQ = weighted sum of normalized matrices → composite grid.
+5. **Focus-cell scorer** (★ Heat Seeker) — rank cells by deviation (z-score / |v|/σ) → flag the standout.
+6. **Regime classifier** — state = f(sign(netGEX), |netGEX|, γ-polarity, spot vs flip) → DRIFT / TRANSITION /
+   PINNING, **each mapped to a canned interpreting sentence.** A tiny state machine.
+7. **Gravity split** — P(up) vs P(down) from GEX mass above/below spot.
+8. **Flow-drift series** — cumulative Σ(bull − bear premium) over 5d, per ticker.
+9. **Signal geometry (R-multiples)** — risk = entry−stop; T1_R = (t1−entry)/risk; away = (level−live)/live. Derived.
+10. **Component decomposition** — convictionScore → VALIDITY/PROGRESS/PACE/OVERLAY sub-scores (map the 13 layers).
+11. **Alert-routing schema** — { alertType → { channel → bool } } + presets + quietHours{start,end,on} + locked.
+12. **Parameterized view state** — { metric, dte, range, scope, norm, single|confluence } → persisted; view = pure(config, data).
+13. **Live cadence** — uptime counter + polling/WS per tool; LIVE badges = freshness; stale detection.
+14. **Saved views / watchlist-as-universe** — user-config scan universe + saved filter sets.
+
+### What to rebuild — at the code level
+- **`components/ui/` library** — the 20 patterns above as reusable primitives on the token + motion system
+  (SegmentedControl, StatusPill, DataStamp, HeatCell, LevelChip, AwayBadge, StandoutMark, ComponentBars,
+  Gauge, StructuralRange, SplitMeter, PriceLadder, Sparkline, ContextPanel, BreakdownTooltip, UnitSelect,
+  ConfigBar, EmptyState, PreferenceMatrix, GuideButton).
+- **`lib/quant/` primitives** — computeGexStructure · dollarGammaPer1pct · normalizeMatrix · confluence ·
+  focusScore · classifyRegime→{state,sentence} · gravitySplit · flowDrift · signalGeometry · decomposeConviction.
+- **Config-driven views** — each tab = (viewConfig + data) → render. No bespoke per-page logic.
+
+QuantEdge has the *engines* but computes this ad-hoc per page with no shared primitives, no normalization
+modes, no focus-scorer, no component decomposition, and no shared component library. **That's the rebuild:
+a component library + a primitives library + config-driven views** — not new features.
