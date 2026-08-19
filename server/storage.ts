@@ -2573,15 +2573,23 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Invalid trade idea: ${validation.reason}`);
     }
 
-    // 🔁 Centralized dedup — opt-in via opts.dedupWindowHours. Replaces the
-    // per-feeder cooldown maps and bespoke DB scans each scanner used to keep.
-    // Same setup from the same source inside the window returns the existing
-    // idea instead of inserting a duplicate.
-    if (opts?.dedupWindowHours && opts.dedupWindowHours > 0) {
-      const existing = await this.findRecentDuplicateIdea(idea, opts.dedupWindowHours);
+    // 🔁 Centralized dedup. Now DEFAULT-ON for automated engine sources — the
+    // generators never passed dedupWindowHours, which is how the same setup
+    // (e.g. COHU/COHR) landed 4× and inflated the calibration/audit counts.
+    // Precedence: explicit opts.dedupWindowHours wins (incl. 0 = force insert);
+    // otherwise manual/user/TradingView entries always insert, and every
+    // automated source dedups within a 6h window (same symbol+direction+source).
+    const ALWAYS_INSERT = new Set(["manual", "user", "tradingview"]);
+    const src = String((idea as any).source ?? "").toLowerCase();
+    const dedupWindow =
+      opts?.dedupWindowHours !== undefined
+        ? opts.dedupWindowHours
+        : ALWAYS_INSERT.has(src) ? 0 : 6;
+    if (dedupWindow > 0) {
+      const existing = await this.findRecentDuplicateIdea(idea, dedupWindow);
       if (existing) {
         logger.debug(
-          `[SPINE-DEDUP] ${(idea as any).source ?? "unknown"} ${idea.symbol} ${idea.direction} within ${opts.dedupWindowHours}h — returning existing ${existing.id}`,
+          `[SPINE-DEDUP] ${src || "unknown"} ${idea.symbol} ${idea.direction} within ${dedupWindow}h — returning existing ${existing.id}`,
         );
         return existing;
       }
