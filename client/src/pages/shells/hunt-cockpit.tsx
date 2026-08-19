@@ -32,6 +32,7 @@ import { KeyLevels } from '@/components/hunt/cockpit/key-levels';
 import { SignalRow } from '@/components/hunt/cockpit/signal-row';
 import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
 import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
+import { SignalCard, signalFromPick } from '@/components/signal-card';
 import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
 import {
   tierLabel, directionTone, convictionPercent, LAYER_COLOR, LAYER_TAG,
@@ -521,6 +522,9 @@ export default function HuntCockpit() {
               )}
               <p className="text-[13px] leading-relaxed text-foreground/85">{selected.thesis}</p>
             </CockpitCard>
+
+            {/* ORACLE READOUT — the signal in terminal voice */}
+            <SignalCard key={selected.ideaId} d={signalFromPick(selected)} />
 
             {/* CATALYST */}
             {showCatalyst && (
