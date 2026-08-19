@@ -17,6 +17,7 @@ import { QETabs, type QETabItem, QECard } from '@/components/ui/qe';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { RotationBrief } from '@/components/rotation-brief';
+import { RotationMap } from '@/components/rotation-map';
 import { Loader2 } from 'lucide-react';
 import { TodayPicks } from '@/components/today-picks';
 
@@ -54,6 +55,8 @@ export default function HomeShell() {
       </header>
 
       <RotationBrief />
+
+      <RotationMap className="max-w-sm" />
 
       <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
 
