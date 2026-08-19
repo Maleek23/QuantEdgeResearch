@@ -18,6 +18,7 @@ import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { RotationBrief } from '@/components/rotation-brief';
 import { RotationMap } from '@/components/rotation-map';
+import { OracleOrb } from '@/components/oracle-orb';
 import { Loader2 } from 'lucide-react';
 import { TodayPicks } from '@/components/today-picks';
 
@@ -56,7 +57,10 @@ export default function HomeShell() {
 
       <RotationBrief />
 
-      <RotationMap className="max-w-sm" />
+      <div className="grid gap-3 md:grid-cols-2">
+        <OracleOrb />
+        <RotationMap />
+      </div>
 
       <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
 

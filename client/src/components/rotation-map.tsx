@@ -7,7 +7,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { stagger, pop, hoverLift } from "@/lib/motion";
+import { EASE, SPRING, DUR } from "@/lib/motion";
 
 interface Sector {
   etf: string; name: string; relChange: number; fiveDayChange: number; state: string; rank: number;
@@ -85,40 +85,49 @@ export function RotationMap({ className }: { className?: string }) {
         <QLabel pos="bl" q={QUAD.lagging} />
         <QLabel pos="br" q={QUAD.weakening} />
 
-        {/* bubbles */}
-        <motion.div className="absolute inset-3" variants={stagger}
-                    initial={reduce ? false : "hidden"} animate="show">
-          {sectors.map((s) => {
+        {/* bubbles — position AND size animate live as the rotation data refetches,
+            so sectors glide to their new RS/momentum spot every update, not just on mount. */}
+        <div className="absolute inset-3">
+          {sectors.map((s, i) => {
             const q = quadOf(s.relChange, s.fiveDayChange);
             const c = QUAD[q].color;
             const d = size(s);
+            const glide = reduce ? { duration: 0 } : { type: "spring" as const, stiffness: 120, damping: 22 };
             return (
               <motion.div
                 key={s.etf}
-                variants={pop}
-                whileHover={hoverLift}
                 className="absolute flex items-center gap-1.5"
-                style={{ left: `${posX(s.relChange)}%`, top: `${posY(s.fiveDayChange)}%`, transform: "translate(-50%, -50%)" }}
+                style={{ x: "-50%", y: "-50%" }}
+                initial={reduce ? false : { opacity: 0, scale: 0.55 }}
+                animate={{ opacity: 1, scale: 1, left: `${posX(s.relChange)}%`, top: `${posY(s.fiveDayChange)}%` }}
+                transition={{
+                  opacity: { duration: reduce ? 0 : DUR.base, ease: EASE, delay: reduce ? 0 : i * 0.04 },
+                  scale: reduce ? { duration: 0 } : { ...SPRING, delay: i * 0.04 },
+                  left: glide, top: glide,
+                }}
+                whileHover={reduce ? undefined : { scale: 1.08 }}
                 title={`${s.name} (${s.etf}) · RS ${s.relChange >= 0 ? "+" : ""}${s.relChange.toFixed(2)} vs SPY · 5d ${s.fiveDayChange >= 0 ? "+" : ""}${s.fiveDayChange.toFixed(1)}%`}
               >
-                <span
+                <motion.span
                   className="rounded-full shrink-0"
+                  animate={{ width: d, height: d }}
+                  transition={glide}
                   style={{
-                    width: d, height: d,
                     background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${c} 80%, white), ${c})`,
                     boxShadow: `0 0 14px color-mix(in srgb, ${c} 45%, transparent)`,
+                    transition: "background 400ms ease, box-shadow 400ms ease",
                   }}
                 />
                 <span className="pointer-events-none whitespace-nowrap">
                   <span className="block text-[10px] font-mono font-bold text-foreground/90 leading-none">{s.etf}</span>
-                  <span className="block text-[9px] font-mono leading-none mt-0.5" style={{ color: c }}>
+                  <span className="block text-[9px] font-mono leading-none mt-0.5" style={{ color: c, transition: "color 400ms ease" }}>
                     {s.fiveDayChange >= 0 ? "+" : ""}{s.fiveDayChange.toFixed(1)}%
                   </span>
                 </span>
               </motion.div>
             );
           })}
-        </motion.div>
+        </div>
       </div>
 
       {/* legend */}
