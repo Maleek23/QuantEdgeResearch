@@ -205,13 +205,7 @@ function Router() {
 
         {/* Core Pages - Smart redirect for logged-in users */}
         <Route path="/" component={SmartLanding} />
-      <Route path="/features" component={Features} />
-      <Route path="/style-lab" component={StyleLab} />
-      <Route path="/glass-dashboard" component={StyleGlass} />
-      <Route path="/home-glass" component={HomeGlass} />
-        <Route path="/landing" component={Landing} />
       {/* AI Learning Dashboard */}
-      <Route path="/learning" component={withBetaProtection(LearningDashboard)} />
 
       {/* Whale Flow → GEX flow heatmap (single hop; chained redirects drop the query param) */}
       <Route path="/whale-flow">
@@ -219,7 +213,6 @@ function Router() {
       </Route>
 
       {/* Home Dashboard - Main landing for logged in users */}
-      <Route path="/home" component={withBetaProtection(HomeGlass)} />
       <Route path="/dashboard">
         <Redirect to="/home" />
       </Route>
@@ -232,9 +225,6 @@ function Router() {
       {/* MERGED: Trading Engine → Performance */}
       <Route path="/trading-engine"><Redirect to="/performance" /></Route>
       <Route path="/aion"><Redirect to="/home" /></Route>
-      <Route path="/strategy-playbooks" component={withBetaProtection(StrategyPlaybooks)} />
-      <Route path="/analysis/:symbol" component={withBetaProtection(AnalysisPage)} />
-      <Route path="/analysis" component={withBetaProtection(AnalysisPage)} />
       {/* ML Intelligence consolidated into Trading Engine */}
       <Route path="/historical-intelligence"><Redirect to="/performance" /></Route>
       <Route path="/login" component={Login} />
@@ -246,24 +236,12 @@ function Router() {
       <Route path="/invite" component={InviteWelcome} />
       {/* DEPRECATED — these routes redirect to canonical destinations to reduce surface area */}
       <Route path="/discovery"><Redirect to="/h?tab=ai-picks" /></Route>
-      <Route path="/market-pulse"><Redirect to="/p?tab=pulse" /></Route>
       <Route path="/pulse"><Redirect to="/p?tab=pulse" /></Route>
       <Route path="/chart-analysis"><Redirect to="/r/SPY?tab=chart" /></Route>
-      <Route path="/flow-heatmap"><Redirect to="/g?tab=heatmap" /></Route>
-      <Route path="/heatmap"><Redirect to="/g?tab=heatmap" /></Route>
-      <Route path="/positions" component={withBetaProtection(PositionsHeatmap)} />
-      <Route path="/positions-heatmap" component={withBetaProtection(PositionsHeatmap)} />
-      <Route path="/simulator" component={withBetaProtection(StrategySimulator)} />
-      <Route path="/strategy-simulator" component={withBetaProtection(StrategySimulator)} />
       {/* Standalone scanners folded into GEX shell tabs */}
       <Route path="/gex-dashboard"><Redirect to="/g?tab=analysis" /></Route>
       <Route path="/gex-scanner"><Redirect to="/g?tab=hub" /></Route>
-      <Route path="/backtest" component={withBetaProtection(Backtest)} />
-      <Route path="/conviction-backtest" component={withBetaProtection(ConvictionBacktest)} />
       <Route path="/weekly-watchlist"><Redirect to="/watchlist" /></Route>
-      <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
-      <Route path="/trade-desk/best-setups" component={withBetaProtection(TradeDeskPage)} />
-      <Route path="/trade-journal" component={withBetaProtection(TradeJournalPage)} />
       <Route path="/paper-trading"><Redirect to="/home" /></Route>
       <Route path="/wallet-tracker"><Redirect to="/home" /></Route>
       <Route path="/ct-tracker"><Redirect to="/home" /></Route>
@@ -272,7 +250,6 @@ function Router() {
       <Route path="/watchlist-bot">
         <Redirect to="/automations" />
       </Route>
-      <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
       {/* duplicate /chart-analysis already handled above by redirect */}
       <Route path="/options-analyzer"><Redirect to="/r/SPY?tab=options" /></Route>
       <Route path="/smart-advisor"><Redirect to="/performance" /></Route>
@@ -288,7 +265,6 @@ function Router() {
       <Route path="/stock/:symbol">
         {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
       </Route>
-      <Route path="/stock-legacy/:symbol" component={StockDetailPage} />
       {/* MERGED: Discover → Trade Desk */}
       <Route path="/discover"><Redirect to="/trade-desk" /></Route>
       <Route path="/market-movers">
@@ -304,16 +280,10 @@ function Router() {
         <Redirect to="/h?tab=surges" />
       </Route>
       <Route path="/smart-money"><Redirect to="/g?tab=heatmap" /></Route>
-      <Route path="/portfolio" component={withBetaProtection(PerformancePage)} />
-      <Route path="/history/chat" component={withBetaProtection(HistoryPage)} />
-      <Route path="/history/research" component={withBetaProtection(HistoryPage)} />
-      <Route path="/history" component={withBetaProtection(HistoryPage)} />
-      <Route path="/performance" component={withBetaProtection(PerformancePage)} />
       <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />
       <Route path="/data-audit">
         <Redirect to="/performance" />
       </Route>
-      <Route path="/market"><Redirect to="/home" /></Route>
       {/* Market Scanner folded into Hunt → Surges tab */}
       <Route path="/market-scanner"><Redirect to="/h?tab=surges" /></Route>
       <Route path="/pattern-scanner">
@@ -334,19 +304,10 @@ function Router() {
         {/* Crypto redirects to trade desk with crypto focus */}
         <Redirect to="/trade-desk?asset=crypto" />
       </Route>
-      <Route path="/signal-weights" component={PerformancePage} />
       
       {/* Market Outlook — public (no auth), answers "what's tomorrow look like?" */}
-      <Route path="/outlook" component={MarketOutlook} />
 
       {/* Research & Community Pages */}
-      <Route path="/technical-guide" component={TechnicalGuide} />
-      <Route path="/trading-rules" component={TradingRules} />
-      <Route path="/chart-database" component={ChartDatabase} />
-      <Route path="/success-stories" component={SuccessStories} />
-      <Route path="/academy" component={Academy} />
-      <Route path="/blog" component={Blog} />
-      <Route path="/blog/:slug" component={BlogPost} />
       
       {/* System Pages */}
       <Route path="/settings" component={withBetaProtection(SettingsPage)} />
@@ -356,7 +317,6 @@ function Router() {
       <Route path="/my-account">
         <Redirect to="/settings" />
       </Route>
-      <Route path="/pricing" component={Pricing} />
 
       {/* Admin Pages - Have their own password auth via AdminLayout */}
       <Route path="/admin" component={AdminOverview} />
@@ -381,7 +341,6 @@ function Router() {
       <Route path="/trade-ideas">
         <Redirect to="/trade-desk" />
       </Route>
-      <Route path="/generate-ideas" component={TradeDeskPage} />
       <Route path="/insights">
         <Redirect to="/performance" />
       </Route>
@@ -399,8 +358,6 @@ function Router() {
       <Route path="/learn-more">
         <Redirect to="/" />
       </Route>
-      <Route path="/holographic" component={NotFound} />
-      <Route path="/risk" component={NotFound} />
       
       {/*
        * ═══════════════════════════════════════════════════════════════════
@@ -448,7 +405,6 @@ function Router() {
           (/r/:symbol). Research's Chart tab IS TerminalChart, Options tab IS
           OptionsAnalyzer, GEX tab IS TerminalHeatmap — so these are lossless. */}
       <Route path="/terminal/heatmap"><Redirect to="/r/SPY?tab=gex" /></Route>
-      <Route path="/terminal/trinity" component={withBetaProtection(TerminalTrinity)} />
       <Route path="/terminal/:symbol">
         {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
       </Route>
@@ -468,7 +424,6 @@ function Router() {
         {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
       </Route>
       <Route path="/command"><Redirect to="/r/SPY?tab=chart" /></Route>
-      <Route path="/command-legacy" component={withBetaProtection(CommandCenterLegacy)} />
       <Route path="/projector"><Redirect to="/r/SPY?tab=chart" /></Route>
       <Route path="/spx"><Redirect to="/r/SPX?tab=chart" /></Route>
       <Route path="/gex/:symbol">
@@ -476,11 +431,9 @@ function Router() {
       </Route>
       {/* Flow — options flow + GEX + smart money (tabs) */}
       {/* /flow redirects to the GEX & Flow Hub which has the Flow tab */}
-      <Route path="/flow"><Redirect to="/g?tab=heatmap" /></Route>
       {/* GEX Hub merged into Flow as a tab */}
       <Route path="/gex"><Redirect to="/g?tab=hub" /></Route>
       {/* OlAlgo Bot — challenge backtest dashboard */}
-      <Route path="/olalgo" component={withBetaProtection(OlAlgoPage)} />
       {/* Convictions merged into Trade Desk — redirect for back-compat */}
       <Route path="/convictions"><Redirect to="/trade-desk?preset=todays-best" /></Route>
       <Route path="/scanner/gex"><Redirect to="/g?tab=hub" /></Route>
@@ -491,7 +444,6 @@ function Router() {
       <Route path="/trade-desk-v2"><Redirect to="/trade-desk" /></Route>
 
       {/* Design System Test — admin only */}
-      <Route path="/design-system" component={withAdminProtection(DesignSystemTest)} />
 
       {/* 404 Fallback */}
       <Route component={NotFound} />
