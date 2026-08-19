@@ -45,6 +45,7 @@ let lastResetDate = new Date().toDateString();
 
 // Last successful fetch timestamp
 let lastSuccessfulFetch: Date | null = null;
+let lastRateLimited: Date | null = null;
 
 /**
  * Reset daily API call counter at midnight
@@ -131,11 +132,16 @@ export async function fetchAlphaVantageNews(
 
     const data = await response.json();
 
-    // Check for rate limit response
-    if (data.Note || data['Error Message']) {
-      const errorMsg = data.Note || data['Error Message'];
-      logger.warn(`📰 [NEWS] Alpha Vantage API response: ${errorMsg}`);
+    // Check for rate-limit / error response. Alpha Vantage signals a hit daily
+    // limit via `Information` (newer format), and errors via `Note` /
+    // `Error Message`. Missing `Information` here was the silent-0-articles bug:
+    // the response had no `feed`, so we returned [] but still marked the service
+    // "healthy" (lastSuccessfulFetch set below). Treat all three as a failure.
+    if (data.Note || data['Error Message'] || data.Information) {
+      const errorMsg = data.Note || data['Error Message'] || data.Information;
+      logger.warn(`📰 [NEWS] Alpha Vantage limited/unavailable: ${errorMsg}`);
       logAPIError('Alpha Vantage News', '/query', new Error(errorMsg));
+      lastRateLimited = new Date();
       return [];
     }
 
@@ -308,13 +314,20 @@ export async function fetchBreakingNews(
 export function getNewsServiceStatus() {
   checkAndResetDailyQuota();
   
+  // Alpha Vantage is the source of truth on limits (free tier = 25/day). A recent
+  // `Information` response means we're rate-limited regardless of our own counter.
+  const rateLimited = lastRateLimited ? (Date.now() - lastRateLimited.getTime()) < 60 * 60 * 1000 : false;
+  const fetchedRecently = lastSuccessfulFetch ? (Date.now() - lastSuccessfulFetch.getTime()) < 60 * 60 * 1000 : false;
   return {
     quotaUsed: dailyAPICallCount,
     quotaLimit: 500,
     quotaRemaining: 500 - dailyAPICallCount,
     lastFetch: lastSuccessfulFetch,
+    lastRateLimited,
+    rateLimited,
     cacheSize: seenArticleUUIDs.size,
-    isHealthy: dailyAPICallCount < 500 && (lastSuccessfulFetch ? (Date.now() - lastSuccessfulFetch.getTime()) < 60 * 60 * 1000 : true)
+    // Honest: rate-limited or never-fetched-successfully is NOT healthy.
+    isHealthy: !rateLimited && fetchedRecently,
   };
 }
 
