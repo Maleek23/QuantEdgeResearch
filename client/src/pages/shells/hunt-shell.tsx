@@ -14,6 +14,7 @@ import { QETabs, type QETabItem } from '@/components/ui/qe';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { RotationBrief } from '@/components/rotation-brief';
+import { CashGateBanner } from '@/components/cash-gate-banner';
 import { Loader2 } from 'lucide-react';
 
 const HuntCockpit    = lazy(() => import('@/pages/shells/hunt-cockpit'));
@@ -57,6 +58,8 @@ export default function HuntShell() {
           What to trade today — ranked candidates across every signal source.
         </p>
       </header>
+
+      <CashGateBanner />
 
       <button
         type="button"
