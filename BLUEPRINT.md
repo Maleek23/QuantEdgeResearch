@@ -121,3 +121,27 @@ orphan sweep — safe only with codebase-wide dependency checks + build verifica
 QuantEdge has every piece MomoEdge has, plus Hunt — it's just spread across 120 pages
 and 763 endpoints instead of one connected Terminal. **The work isn't building; it's
 deleting, connecting, and proving the engine.**
+
+---
+
+## 7. MomoEdge design & product language (the target feel)
+From the live site + changelog — the things that make it feel premium, and where
+QuantEdge already has the substance:
+
+| MomoEdge piece | What it is | QuantEdge already has |
+|---|---|---|
+| **Oracle Orb** | central regime centerpiece — risk-on / transition / downtrend; set bias *before* tickers | `marketContext.regime` + `sector-rotation` (needs the orb visual) |
+| **RRG Rotation Map** | sectors on **relative-strength (x) × momentum (y)** quadrants, bubble-sized, quadrant-colored | `/api/sector-rotation` returns `relChange` + `fiveDayChange` — **the exact inputs.** Missing only the chart |
+| **Signal Stream** | ranked signal feed, score-sorted, expandable cards | **Hunt** (ranked convictions) |
+| **PRISM** | strike × expiration matrix · GEX/VEX/OI/VOL/Unusual lenses · SPX·SPY·QQQ confluence · ★Heat Seeker auto-pick | GEX **Matrix** + **Spectrum** scanners |
+| **Flow Feed** | flow w/ filter panel, sort by premium/expiry, saved views | `options-flow-scanner` |
+| **GEX bars** | Wall / Support / Magnet / Trigger, click-to-highlight strike | GEX engine |
+| **Momo** | AI tutor built into every tab, answers follow-ups | AI chatbot exists; not tab-contextual yet |
+| **Changelog cadence** | ships small, visible, weekly — public changelog + blog | none (start one) |
+
+**Signal aesthetic:** MomoEdge presents a trade idea as a **terminal/code readout**
+(`INIT_SIGNAL(...)`, monospace, syntax-highlighted fields, `BREAKOUT_CLASS`, memory log).
+That "AI oracle spoke it" voice is brand, and it's cheap — a card component, not new data.
+
+**Takeaway:** the gap to MomoEdge is **presentation + connection + shipping discipline**,
+not capability. Build order stands: excavate → connect → present in the Oracle/RRG/PRISM voice.
