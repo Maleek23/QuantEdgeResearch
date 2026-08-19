@@ -31,6 +31,7 @@ import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 // If a deployment changes chunk hashes, stale cached HTML won't crash —
 // the app retries and auto-reloads to pick up the new chunks.
 // ─── 6 PRIMARY SHELLS (new IA) — Home / Hunt / GEX / Research / Positions / Journal ───
+const TerminalShell  = lazyWithRetry(() => import("@/pages/shells/terminal-shell"),  "terminal-shell");
 const HomeShell      = lazyWithRetry(() => import("@/pages/shells/pulse-shell"),     "home-shell");
 const HuntShell      = lazyWithRetry(() => import("@/pages/shells/hunt-shell"),      "hunt-shell");
 const GexShell       = lazyWithRetry(() => import("@/pages/shells/gex-shell"),       "gex-shell");
@@ -185,6 +186,8 @@ function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Switch>
+        {/* ─── TERMINAL — the consolidation target: one shell, 5 tabs (Oracle/Flow/Heatmap/GEX/PRISM) ─── */}
+        <Route path="/t"          component={withBetaProtection(TerminalShell)} />
         {/* ─── 6 PRIMARY SHELLS — new IA (Home / Hunt / GEX / Research / Positions / Journal) ─── */}
         <Route path="/p"          component={withBetaProtection(HomeShell)} />
         <Route path="/h"          component={withBetaProtection(HuntShell)} />
