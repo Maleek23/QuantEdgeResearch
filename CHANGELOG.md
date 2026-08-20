@@ -78,6 +78,13 @@ Update this in the same PR as the change.
 - Grades display convictionScore-first (single source of truth for score↔grade).
 
 ### Fixed
+- **Trade levels were fixed percentages.** Every stock idea used `target = entry × 1.08`
+  and `stop = entry × 0.965` — an identical 2.29 R:R for every ticker, volatility ignored
+  (8% is a huge move in MRK and noise in MARA), and the stop placed at an arbitrary price
+  rather than where the thesis is wrong. New `level-engine.ts` derives them from the chart:
+  stop beyond the nearest **recent** swing padded by ATR, T1 at the next real swing (never
+  below a 1.5R minimum), T2 at the following level, plus a written rationale for each.
+  R:R now varies by name (1.5–3.1 across MRK/MARA/CRCL/NVDA) instead of being constant.
 - **The options-flow scan was never scheduled** — it only ran when someone called the API
   by hand, the second reason flow stopped accumulating. Now runs every 15 min during market
   hours (9:45–15:45 ET) in both the worker and the dev process.

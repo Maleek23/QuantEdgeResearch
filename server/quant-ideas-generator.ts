@@ -2,6 +2,7 @@
 // No AI required - uses technical analysis and market patterns
 
 import type { MarketData, Catalyst, InsertTradeIdea } from "@shared/schema";
+import { deriveLevelsFromCloses } from "./level-engine";
 import { formatInTimeZone } from 'date-fns-tz';
 import { 
   calculateRSI, 
@@ -461,8 +462,31 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
 // v3.2: Support BOTH long and short positions with WIDENED stops
 // Research shows mean reversion needs 3-4% stops for stocks (not 2%)
 // CRITICAL: For options, direction determines price levels (CALL vs PUT)
-function calculateLevels(data: MarketData, signal: QuantSignal, assetType?: string, optionType?: 'call' | 'put') {
+function calculateLevels(
+  data: MarketData,
+  signal: QuantSignal,
+  assetType?: string,
+  optionType?: 'call' | 'put',
+  historicalPrices?: number[],
+) {
   const entryPrice = data.currentPrice;
+
+  // Structure + volatility first. The old path below gave EVERY stock the same 8% target
+  // and 3.5% stop — identical 2.29 R:R regardless of chart or volatility, with the stop
+  // at an arbitrary price rather than where the thesis is actually wrong.
+  if (historicalPrices && historicalPrices.length >= 30 && entryPrice > 0) {
+    try {
+      const dir: 'long' | 'short' =
+        signal.direction === 'short' || (assetType === 'option' && optionType === 'put') ? 'short' : 'long';
+      const L = deriveLevelsFromCloses(historicalPrices, entryPrice, dir, { assetType });
+      if (L.riskRewardRatio > 0 && L.stopLoss > 0 && L.targetPrice > 0) {
+        return { entryPrice: L.entryPrice, targetPrice: L.targetPrice, stopLoss: L.stopLoss };
+      }
+    } catch {
+      // fall through to the legacy percentages
+    }
+  }
+
   let targetPrice: number;
   let stopLoss: number;
 
@@ -939,7 +963,7 @@ export async function generateQuantIdeas(
       initialOptionType = signal.direction === 'long' ? 'call' : 'put';
     }
 
-    let levels = calculateLevels(data, normalizedSignal, data.assetType, initialOptionType);
+    let levels = calculateLevels(data, normalizedSignal, data.assetType, initialOptionType, historicalPrices);
     const catalyst = generateCatalyst(data, normalizedSignal, catalysts);
     const analysis = generateAnalysis(data, normalizedSignal);
     
@@ -1074,7 +1098,7 @@ export async function generateQuantIdeas(
       if (assetType === 'option' && data.assetType === 'stock') {
         // Determine option type first (needed for correct price levels)
         const tempOptionType = signal.direction === 'long' ? 'call' : 'put';
-        levels = calculateLevels(data, normalizedSignal, assetType, tempOptionType);
+        levels = calculateLevels(data, normalizedSignal, assetType, tempOptionType, historicalPrices);
         
         // Recalculate R:R with new option levels
         const riskDistance = Math.abs(levels.entryPrice - levels.stopLoss);
