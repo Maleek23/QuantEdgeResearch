@@ -175,3 +175,64 @@ context panel), one motion system** — and *rendering the reasoning the engine 
 QuantEdge has the *engines* but computes this ad-hoc per page with no shared primitives, no normalization
 modes, no focus-scorer, no component decomposition, and no shared component library. **That's the rebuild:
 a component library + a primitives library + config-driven views** — not new features.
+
+---
+
+## Demo-transcript extraction — how the platform is actually TRADED
+Source: the 28-min walkthrough. This is the highest-fidelity spec we have, because it's
+usage, not marketing. Everything below is stated in the demo.
+
+### Trading heuristics the product must encode (not just display)
+1. **"Time is your best friend."** Repeated 5×. Never take the nearest lit expiry — step
+   out a week/month even at higher premium. *Contract Engine must default to buying time
+   and say why.* We currently pick 5–12 DTE by default. **Gap.**
+2. **Premium alone means nothing.** A print only matters if it's *unusual for that ticker*.
+   → score must be premium **relative to that ticker's baseline**, not absolute size.
+3. **Score is not a trigger.** "A low score that actually killed it" (BABA 103C → 4–5×).
+   Score ranks; the chart decides. Below ~75 is usually skipped, but not mechanically.
+4. **Confirm three things before entry:** does the chart have room · is the premium unusual ·
+   is the upside worth it. Also: has the name been heavily sold (rebound potential).
+5. **OPEX distorts everything.** Near a monthly expiry, outstanding gamma is inflated by
+   months-old positions. *Interpretation must be OPEX-aware.* **Gap — we have none.**
+6. **Timing:** heatmap at the open; flow needs ~15–30 min to build (start ~10:00 ET).
+7. **Trade the sector, not the ticker.** One name moving → scan its whole peer group for
+   the best chart in the group.
+
+### Flow card — the exact fields shown
+ticker · strike · expiration · **premium spent** · **% out-of-the-money** · **per-contract
+price** · direction · **score** · sweep/whale/repeat badges · "W" badge · add-to-watchlist.
+*We were missing % OTM and per-contract price.*
+Plus: **market-overview sector flow** panel (bullish vs bearish flow for the day, e.g.
+"QQQ strong bullish flow"), ticker search across the **past 1–2 weeks** of flow.
+
+### Their own admitted gaps = our openings
+- **Whale-exit tracking** — "I have to have unusual showcasing if a whale exited… I want to
+  add a tracker that shows when whales sell." **Not built yet.** Entry without exit is half
+  the story; we could ship this first.
+- **Ask Oracle** — natural-language Q&A over platform data ("what sectors are leading
+  today", "highest flow stock today"). **Planned, not built.** We already run multi-provider AI.
+- **Flow outcome tracking** — he manually recalls that a past card 4–5×'d. Nobody is
+  scoring flow *after the fact*. Ties directly to our WinRateService/calibration moat.
+- Two-person team, admits being overwhelmed. Speed is a real advantage for us.
+
+### Per-tab details previously missed
+- **Oracle:** alert-stream filter **NEW / BEST / CONVICTION**; **T2** (not just T1);
+  profit-taking plan; **history tab** (win rate + active trades); **alerts w/ sounds**;
+  user-configurable **indicators on their chart**.
+- **Heatmap:** **RS = volume traded**; industry column; best/weakest performer reads;
+  filter-by-flow; click cell → per-ticker flow detail; table view.
+- **GEX:** magnet + gamma-flip stated as a *sentence* ("flips positive above 400 — huge
+  momentum flip"); levels + outstanding exposure.
+- **PRISM:** **star badge** = standout node; brightness = probability of hitting; range +
+  strike-count + DTE + metric + scope controls; **0DTE** and **ΣALL** scopes; VEX/OI/VOL/
+  UNUSUAL lenses; **SPY as the market benchmark** before any single-name trade;
+  **confluence** across three tickers.
+- **Cross-cutting:** watchlist → unusual-flow alert → jump to Prism is the alerting loop.
+
+### Build order implied by all of this
+1. Flow scoring + flow cards (their hero, our weakest) — with % OTM, contract price, badges.
+2. **Whale-exit tracker** (their missing piece — leapfrog).
+3. Heatmap best/weakest by industry + filter-by-flow.
+4. Prism star/brightness emphasis + SPY benchmark + scope controls.
+5. Contract Engine: encode "buy time"; OPEX-awareness across GEX/PRISM.
+6. Ask Oracle (NL Q&A) + flow outcome tracking (closes our calibration loop).
