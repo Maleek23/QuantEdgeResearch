@@ -8,6 +8,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { EASE, SPRING, DUR } from "@/lib/motion";
+import { TC } from "@/lib/oracle/trading-colors";
 
 interface Sector {
   etf: string; name: string; relChange: number; fiveDayChange: number; state: string; rank: number;
@@ -43,6 +44,26 @@ export function RotationMap({ className }: { className?: string }) {
     staleTime: 60_000, refetchInterval: 120_000, retry: 1,
   });
 
+  // Rotation is computed on regular-session closes, so overnight it correctly reports
+  // the last close. Rather than just labelling itself "stale", say WHICH session we're in
+  // and when it refreshes — stale data with a clock is information; without one it looks broken.
+  const { data: ext } = useQuery<{ session: 'pre' | 'regular' | 'post' | 'closed' }>({
+    queryKey: ["/api/extended-hours", "rotation-session"],
+    queryFn: async () => {
+      const r = await fetch("/api/extended-hours?limit=1", { credentials: "include" });
+      if (!r.ok) throw new Error("session failed");
+      return r.json();
+    },
+    staleTime: 180_000, refetchInterval: 300_000, retry: 1,
+  });
+  const session = ext?.session;
+  const sessionNote =
+    session === 'regular' ? 'updating live'
+    : session === 'pre' ? 'refreshes at the open · pre-market is live in Oracle'
+    : session === 'post' ? 'settled for the day'
+    : session === 'closed' ? 'refreshes at the next open'
+    : null;
+
   const sectors = data?.sectors ?? [];
   const maxX = Math.max(0.5, ...sectors.map((s) => Math.abs(s.relChange)));
   const maxY = Math.max(0.5, ...sectors.map((s) => Math.abs(s.fiveDayChange)));
@@ -60,6 +81,19 @@ export function RotationMap({ className }: { className?: string }) {
           x · relative strength&nbsp;&nbsp;y · momentum{data?.isStale ? ` · ${data.sessionLabel} · stale` : ""}
         </span>
       </div>
+
+      {(data?.isStale || sessionNote) && (
+        <div className="flex items-center justify-between border-b border-border/30 px-4 py-1.5">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+            {data?.sessionLabel ?? 'last close'}
+          </span>
+          {sessionNote && (
+            <span className="text-[10px] font-mono" style={{ color: session === 'regular' ? TC.bull : TC.warn }}>
+              {sessionNote}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="relative w-full mx-auto" style={{ aspectRatio: "1 / 1", maxWidth: 460 }}>
         {isLoading && (

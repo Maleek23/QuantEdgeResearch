@@ -55,6 +55,25 @@ export function OracleOrb({ className }: { className?: string }) {
     staleTime: 60_000, refetchInterval: 120_000, retry: 1,
   });
 
+  // Which session are we actually in, and who's moving in it? Outside 9:30-16:00 the
+  // regular tape is frozen, so the orb would otherwise show a stale "TRANSITION" all
+  // night while pre-market names gap. This makes the regime honest about its own clock.
+  const { data: ext } = useQuery<{
+    session: 'pre' | 'regular' | 'post' | 'closed';
+    gainers: { symbol: string; changePct: number }[];
+    losers: { symbol: string; changePct: number }[];
+    assetClasses: { key: string; label: string; changePct: number | null; stance: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | null }[];
+    interpretation: string;
+  }>({
+    queryKey: ["/api/extended-hours", "orb"],
+    queryFn: async () => {
+      const r = await fetch("/api/extended-hours?limit=5", { credentials: "include" });
+      if (!r.ok) throw new Error("ext failed");
+      return r.json();
+    },
+    staleTime: 120_000, refetchInterval: 180_000, retry: 1,
+  });
+
   const { data: tape } = useQuery<Record<string, { price: number; changePercent: number }>>({
     queryKey: ["/api/quotes/batch", "regime-classes"],
     queryFn: async () => {
@@ -67,11 +86,19 @@ export function OracleOrb({ className }: { className?: string }) {
     staleTime: 60_000, refetchInterval: 120_000, retry: 1,
   });
 
-  const classReads = CLASSES.map((c) => {
+  // Prefer the extended-hours read (one reliable sweep); fall back to the batch tape.
+  const classReads = (ext?.assetClasses?.length ? ext.assetClasses : CLASSES.map((c) => {
     const q = tape?.[c.symbol];
     const chg = typeof q?.changePercent === "number" ? q.changePercent : null;
-    return { ...c, changePct: chg, stance: chg == null ? null : stanceOf(chg) };
-  });
+    return { key: c.key, label: c.label, changePct: chg, stance: chg == null ? null : stanceOf(chg).label };
+  })).map((c: any) => ({
+    key: c.key,
+    label: c.label,
+    changePct: c.changePct as number | null,
+    stance: c.stance ? (typeof c.stance === 'string'
+      ? { label: c.stance, color: c.stance === 'BULLISH' ? TC.bull : c.stance === 'BEARISH' ? TC.bear : TC.muted }
+      : c.stance) : null,
+  }));
   const known = classReads.filter((c) => c.stance);
   const bullCount = known.filter((c) => c.stance!.label === "BULLISH").length;
   const bearCount = known.filter((c) => c.stance!.label === "BEARISH").length;
@@ -153,6 +180,35 @@ export function OracleOrb({ className }: { className?: string }) {
                     <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">—</span>
                   )}
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* live session + who's moving in it */}
+        {ext && (
+          <div className="w-full px-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                {ext.session === 'pre' ? 'Pre-market' : ext.session === 'post' ? 'After-hours'
+                  : ext.session === 'regular' ? 'Live session' : 'Overnight'}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider"
+                    style={{ color: ext.session === 'regular' ? TC.bull : ext.session === 'closed' ? TC.muted : TC.warn }}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                {ext.session === 'closed' ? 'closed' : 'open'}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {(ext.gainers ?? []).slice(0, 3).map((g) => (
+                <span key={g.symbol} className="text-[10px] font-mono tabular-nums" style={{ color: TC.bull }}>
+                  {g.symbol} +{g.changePct.toFixed(1)}%
+                </span>
+              ))}
+              {(ext.losers ?? []).slice(0, 2).map((l) => (
+                <span key={l.symbol} className="text-[10px] font-mono tabular-nums" style={{ color: TC.bear }}>
+                  {l.symbol} {l.changePct.toFixed(1)}%
+                </span>
               ))}
             </div>
           </div>

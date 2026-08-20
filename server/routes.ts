@@ -4930,15 +4930,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       const range = rangeMap[rawRange] || '1mo';
 
-      // Use Yahoo Finance chart API for OHLC candle data
-      const YahooFinance = (await import('yahoo-finance2')).default;
-      const yahooFinance = new YahooFinance();
+      // Use Yahoo Finance chart API for OHLC candle data.
+      // Behind the shared provider cache: charts are the highest-traffic Yahoo path and
+      // several panels request the same symbol+range at once, which was triggering 429s
+      // and surfacing as "NO DATA" on the chart. Concurrent callers now share one request,
+      // and a stale response is preferable to an empty chart when Yahoo throttles us.
       const includeExtended = interval === '1h' || interval === '5m' || interval === '15m' || interval === '1d';
-      const result = await yahooFinance.chart(symbol, {
-        period1: getChartStartDate(range),
-        interval: interval as any,
-        includePrePost: includeExtended,
-      } as any);
+      const { cachedFetchWithStale } = await import('./provider-cache');
+      const result: any = await cachedFetchWithStale(
+        `yahoo:chart:${symbol}:${range}:${interval}`,
+        60_000,
+        10 * 60_000,
+        async () => {
+          const YahooFinance = (await import('yahoo-finance2')).default;
+          const yahooFinance = new YahooFinance();
+          return yahooFinance.chart(symbol, {
+            period1: getChartStartDate(range),
+            interval: interval as any,
+            includePrePost: includeExtended,
+          } as any);
+        },
+      );
 
       if (!result?.quotes || result.quotes.length === 0) {
         return res.status(404).json({ error: "No historical data found" });

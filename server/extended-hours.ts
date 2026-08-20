@@ -25,6 +25,14 @@ export interface ExtendedQuote {
   isExtended: boolean;
 }
 
+export interface AssetClassRead {
+  key: string;
+  label: string;
+  symbol: string;
+  changePct: number | null;
+  stance: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | null;
+}
+
 export interface ExtendedLeaders {
   generatedAt: string;
   session: Session;
@@ -32,7 +40,29 @@ export interface ExtendedLeaders {
   gainers: ExtendedQuote[];
   losers: ExtendedQuote[];
   mostActive: ExtendedQuote[];
+  /** Per-asset-class regime, on the same reliable chart path as the leaders. */
+  assetClasses: AssetClassRead[];
   interpretation: string;
+}
+
+/**
+ * The regime is read per asset class, not as one index number. These proxies were
+ * previously fetched through the batch-quote service, which silently DROPPED TLT / UUP /
+ * GLD when the providers throttled — leaving three of five classes blank. They now come
+ * from the same chart endpoint the leaders use, which is proving reliable.
+ */
+const ASSET_CLASSES = [
+  { key: 'equities', label: 'EQUITIES', symbol: 'SPY' },
+  { key: 'bonds',    label: 'BONDS',    symbol: 'TLT' },
+  { key: 'dollar',   label: 'DOLLAR',   symbol: 'UUP' },
+  { key: 'metals',   label: 'METALS',   symbol: 'GLD' },
+  { key: 'crypto',   label: 'CRYPTO',   symbol: 'BTC-USD' },
+] as const;
+
+function stanceOf(pct: number): AssetClassRead['stance'] {
+  if (pct > 0.3) return 'BULLISH';
+  if (pct < -0.3) return 'BEARISH';
+  return 'NEUTRAL';
 }
 
 /** Which session a unix-second timestamp falls in, per Yahoo's own period bounds. */
@@ -96,6 +126,8 @@ export async function currentSession(): Promise<Session> {
 
 export async function getExtendedLeaders(symbols: string[], limit = 10): Promise<ExtendedLeaders> {
   const CONCURRENCY = 8;
+  // fold the asset-class proxies into the same sweep so we don't add extra requests
+  symbols = Array.from(new Set([...symbols, ...ASSET_CLASSES.map((c) => c.symbol)]));
   const out: ExtendedQuote[] = [];
   for (let i = 0; i < symbols.length; i += CONCURRENCY) {
     const batch = symbols.slice(i, i + CONCURRENCY);
@@ -121,8 +153,15 @@ export async function getExtendedLeaders(symbols: string[], limit = 10): Promise
       `${session === 'pre' ? ' These are the names declaring themselves before the bell.' : ''}`
     : `${label}: nothing moving on the scanned names.`;
 
+  const bySym = new Map(out.map((q) => [q.symbol, q]));
+  const assetClasses: AssetClassRead[] = ASSET_CLASSES.map((c) => {
+    const q = bySym.get(c.symbol);
+    const changePct = q ? q.changePct : null;
+    return { key: c.key, label: c.label, symbol: c.symbol, changePct, stance: changePct == null ? null : stanceOf(changePct) };
+  });
+
   return {
     generatedAt: new Date().toISOString(),
-    session, scanned: out.length, gainers, losers, mostActive, interpretation,
+    session, scanned: out.length, gainers, losers, mostActive, assetClasses, interpretation,
   };
 }

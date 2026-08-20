@@ -85,6 +85,17 @@ Update this in the same PR as the change.
 - Grades display convictionScore-first (single source of truth for score↔grade).
 
 ### Fixed
+- **Yahoo rate-limit storm broke charts.** `/api/historical-prices` was returning 500 under
+  load (the "NO DATA" chart). New `provider-cache.ts` coalesces concurrent callers for the
+  same key into one upstream request, caches briefly, and serves stale rather than nothing
+  when a provider throttles. Chart endpoint: 500 → 200 in 1.5s, then 1.4ms cached.
+- **Per-asset-class regime was 2/5 blank.** BONDS/DOLLAR/METALS came through the batch-quote
+  service, which silently dropped them when providers throttled. They now ride the same
+  chart sweep as extended hours — all five classes resolve.
+- **Extended hours was an orphan endpoint** — built but wired into nothing. It now drives the
+  Oracle orb (live session badge + pre/post movers + asset-class regime) and the Rotation
+  Map (which now says which session it's showing and when it refreshes, instead of just
+  "stale").
 - **Unreadable type.** 46 instances of 8–9px text and 52 of muted text at ≤55% opacity —
   genuinely illegible on a dark ground. Applied a readability floor across the Terminal:
   nothing below 10px, muted text no fainter than 70%.
