@@ -114,12 +114,15 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
     // CBOE serves delayed quotes via their market data API
     const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${symbol.toUpperCase()}.json`;
 
-    const res = await fetch(url, {
+    // Serialised behind a global limiter: the scanners request ~160 distinct symbols in
+    // bursts, and CBOE answers that with a blanket 429 that kills options pricing entirely.
+    const { rateLimited } = await import('./provider-cache');
+    const res = await rateLimited('cboe', 350, () => fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         'Accept': 'application/json',
       },
-    });
+    }));
 
     if (!res.ok) {
       logger.warn(`[CBOE-OPT] API ${res.status} for ${symbol}`);
@@ -241,3 +244,72 @@ export async function getCBOEExpirations(symbol: string): Promise<string[]> {
 }
 
 logger.info('[CBOE-OPT] CBOE delayed options fallback loaded');
+
+/**
+ * Price ONE specific contract from the delayed CBOE chain.
+ *
+ * The paper bot needs a real premium to fill an options trade. Tradier (the usual source)
+ * returns 401 on an unfunded account, so CBOE's free delayed feed is what we have. It is
+ * delayed and it is a quote rather than a print — both stated on the result so nothing
+ * downstream can mistake it for a live fill.
+ */
+export interface ContractQuote {
+  symbol: string;
+  optionType: 'call' | 'put';
+  strike: number;
+  expirationDate: string;
+  bid: number;
+  ask: number;
+  last: number;
+  /** what we'd realistically pay: mid, falling back to last */
+  mid: number;
+  openInterest: number;
+  volume: number;
+  iv: number;
+  delta: number;
+  spotPrice: number;
+  source: 'cboe_delayed';
+}
+
+export async function getContractQuote(
+  symbol: string,
+  optionType: 'call' | 'put',
+  strike: number,
+  expirationDate: string,
+): Promise<ContractQuote | null> {
+  const chain = await getCBOEOptionsChain(symbol);
+  if (!chain) return null;
+
+  const want = String(expirationDate).slice(0, 10);
+  // Exact contract first; otherwise the nearest strike on the same expiry, since a chain
+  // may not list the precise strike the signal named.
+  const sameExpiry = chain.options.filter(
+    (o: any) => o.option_type === optionType && String(o.expiration_date).slice(0, 10) === want,
+  );
+  if (sameExpiry.length === 0) return null;
+
+  const exact = sameExpiry.find((o: any) => Math.abs(o.strike - strike) < 0.01);
+  const pick = exact ?? sameExpiry.reduce((best: any, o: any) =>
+    Math.abs(o.strike - strike) < Math.abs(best.strike - strike) ? o : best, sameExpiry[0]);
+
+  const bid = Number(pick.bid) || 0;
+  const ask = Number(pick.ask) || 0;
+  const last = Number(pick.last) || 0;
+  const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : (last || ask || bid);
+  if (!mid || mid <= 0) return null;
+
+  return {
+    symbol,
+    optionType,
+    strike: pick.strike,
+    expirationDate: pick.expiration_date,
+    bid, ask, last,
+    mid: Number(mid.toFixed(2)),
+    openInterest: Number(pick.open_interest) || 0,
+    volume: Number(pick.volume) || 0,
+    iv: Number(pick.greeks?.mid_iv) || 0,
+    delta: Number(pick.greeks?.delta) || 0,
+    spotPrice: chain.spotPrice,
+    source: 'cboe_delayed',
+  };
+}

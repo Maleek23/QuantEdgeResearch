@@ -74,7 +74,7 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
       <div className="rounded-xl border border-card-border bg-card overflow-hidden">
         <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
           <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">
-            Quant Bot · paper
+            Quant Bot · paper options
           </span>
           <button
             onClick={() => run.mutate()}
@@ -82,7 +82,7 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
             className="inline-flex cursor-pointer items-center gap-1.5 rounded bg-foreground/10 px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-foreground transition-colors hover:bg-foreground/15 disabled:opacity-60"
           >
             {run.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-            {run.isPending ? 'Running' : 'Run cycle'}
+            {run.isPending ? 'Working' : 'Re-price & manage'}
           </button>
         </div>
 

@@ -73,3 +73,34 @@ export async function cachedFetchWithStale<T>(
 export function providerCacheStats() {
   return { cached: _cache.size, inflight: _inflight.size };
 }
+
+/**
+ * GLOBAL RATE LIMITER — one queue per upstream host.
+ *
+ * Coalescing stops N callers hitting the same URL at once, but it does nothing about the
+ * platform asking a provider for 160 DIFFERENT symbols in a burst. CBOE answers that with
+ * a blanket 429 on every subsequent request — which is why options pricing died even
+ * though the endpoint works fine when approached at a sane pace.
+ *
+ * Each host gets a serialised queue with a minimum spacing between requests. Slower per
+ * call, but it actually completes instead of being throttled to zero.
+ */
+const _queues = new Map<string, Promise<unknown>>();
+const _lastCall = new Map<string, number>();
+
+export async function rateLimited<T>(host: string, minIntervalMs: number, fn: () => Promise<T>): Promise<T> {
+  const prev = _queues.get(host) ?? Promise.resolve();
+
+  const next = prev.then(async () => {
+    const since = Date.now() - (_lastCall.get(host) ?? 0);
+    if (since < minIntervalMs) {
+      await new Promise((r) => setTimeout(r, minIntervalMs - since));
+    }
+    _lastCall.set(host, Date.now());
+    return fn();
+  });
+
+  // keep the chain alive even when a call rejects, so one failure can't wedge the queue
+  _queues.set(host, next.then(() => undefined, () => undefined));
+  return next;
+}

@@ -13,7 +13,7 @@
 import { logger } from './logger';
 import { storage } from './storage';
 import {
-  executeTradeIdea, checkStopsAndTargets, updatePositionPrices,
+  executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closePosition,
   calculatePortfolioValue, recordEquitySnapshot,
   getOpenPositions, getClosedPositions,
 } from './paper-trading-service';
@@ -85,16 +85,56 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
     return { ranAt, portfolioId: '', opened, closed, skipped, openCount: 0, error: 'no portfolio' };
   }
 
-  // 1 — mark to market, then let stops/targets fire. Exits come BEFORE entries so a slot
-  //     freed this cycle can be reused immediately.
+  // ── A cycle, concretely ──────────────────────────────────────────────────
+  // For shares a "cycle" is just re-price and check levels. Options add a clock: every
+  // contract has an expiry, and a position nobody settles would sit in the book forever
+  // claiming value it no longer has. So a cycle is four steps, in this order:
+  //   1. RE-PRICE every open contract from the live chain,
+  //   2. SETTLE anything at or past expiry,
+  //   3. EXIT on the premium stop / target,
+  //   4. ENTER with whatever capacity is left.
+  // Exits precede entries so a slot freed this cycle is reusable immediately.
+
+  // 1 — re-price
   try {
     await updatePositionPrices(portfolio.id);
+  } catch (err) {
+    logger.warn('[QUANT-BOT] re-price failed:', err);
+  }
+
+  // 2 — settle expiries. An option is not a share: at expiry it either has intrinsic
+  //     value or it is worth nothing, and either way it leaves the book.
+  try {
+    const open = await getOpenPositions(portfolio.id);
+    const today = new Date().toISOString().slice(0, 10);
+    for (const pos of open as any[]) {
+      if (!pos.expiryDate || !pos.optionType) continue;
+      if (String(pos.expiryDate).slice(0, 10) > today) continue;
+
+      // Intrinsic value at expiry — everything else (time value) is gone.
+      const spot = Number(pos.underlyingPrice ?? pos.currentUnderlyingPrice ?? 0);
+      const strike = Number(pos.strikePrice ?? 0);
+      let settle = 0;
+      if (spot > 0 && strike > 0) {
+        settle = pos.optionType === 'call'
+          ? Math.max(0, spot - strike)
+          : Math.max(0, strike - spot);
+      }
+      await closePosition(pos.id, Number(settle.toFixed(2)), settle > 0 ? 'expired_itm' : 'expired_worthless');
+      closed.push({ symbol: pos.symbol, reason: settle > 0 ? `expired ITM at $${settle.toFixed(2)}` : 'expired worthless' });
+    }
+  } catch (err) {
+    logger.warn('[QUANT-BOT] expiry settlement failed:', err);
+  }
+
+  // 3 — premium stop / target
+  try {
     const exited = await checkStopsAndTargets(portfolio.id);
     for (const p of exited ?? []) {
       closed.push({ symbol: p.symbol, reason: (p as any).exitReason ?? 'stop/target' });
     }
   } catch (err) {
-    logger.warn('[QUANT-BOT] mark-to-market / exit check failed:', err);
+    logger.warn('[QUANT-BOT] exit check failed:', err);
   }
 
   // 2 — fill free slots with the best available signals
@@ -123,15 +163,49 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         // live premium data, which we don't have (Tradier is unfunded/401). So the bot
         // trades the underlying against those same levels: it measures the SIGNAL, which
         // is the point, instead of failing to fill on a dead options feed.
-        // The live price lives on the API pick, not on the stored row — without passing
-        // it through, the fill falls back to the idea's planned entry and the position
-        // opens already in profit on a stale signal. Paper P&L must start at zero.
-        const base = { ...idea, currentPrice: pick.currentPrice ?? null };
-        const tradeable = idea.assetType === 'option'
-          ? { ...base, assetType: 'stock', optionType: null, strikePrice: null, expiryDate: null }
-          : base;
+        // ── Fill an actual CONTRACT, not the underlying ──────────────────────
+        //
+        // Options are the product. Trading the underlying as a proxy measures whether the
+        // signal was directionally right, but not what the trade would have made — an idea
+        // that's +3% on the stock can be +90% or -100% on the contract. So option ideas
+        // fill on a real premium.
+        //
+        // Every option idea already carries a concrete contract (symbol / type / strike /
+        // expiry). Tradier would be the natural quote source but returns 401 on an unfunded
+        // account, so this uses CBOE's free delayed chain. Delayed, and a mid-quote rather
+        // than a print — recorded as such so the result is never mistaken for a live fill.
+        let tradeable: any;
 
-        if (!pick.currentPrice) { skipped++; continue; }  // no live mark → no honest fill
+        if (idea.assetType === 'option' && idea.strikePrice && idea.expiryDate && idea.optionType) {
+          const { getContractQuote } = await import('./cboe-options-fallback');
+          const q = await getContractQuote(
+            idea.symbol,
+            idea.optionType as 'call' | 'put',
+            Number(idea.strikePrice),
+            String(idea.expiryDate),
+          ).catch(() => null);
+
+          if (!q) { skipped++; continue; }   // no premium → no honest fill
+
+          const premium = q.mid;
+          // Premium-based management: a -50% premium stop and a +100% target are the
+          // desk-standard bracket for a directional long option, and they're expressed in
+          // the same units as the fill so P&L is coherent.
+          tradeable = {
+            ...idea,
+            assetType: 'option',
+            optionType: q.optionType,
+            strikePrice: q.strike,
+            expiryDate: q.expirationDate,
+            currentPrice: premium,
+            entryPrice: premium,
+            targetPrice: Number((premium * 2).toFixed(2)),
+            stopLoss: Number((premium * 0.5).toFixed(2)),
+          };
+        } else {
+          if (!pick.currentPrice) { skipped++; continue; }
+          tradeable = { ...idea, currentPrice: pick.currentPrice, entryPrice: pick.currentPrice };
+        }
 
         const res = await executeTradeIdea(portfolio.id, tradeable as any);
         if (res.success) {
