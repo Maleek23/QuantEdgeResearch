@@ -5163,6 +5163,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET endpoint for batch stock quotes (used by WSB Trending, Social Trends pages)
+  // ── QUANT BOT ────────────────────────────────────────────────────────────
+  // Paper-trades the platform's own signals so the engine builds a real track record.
+  app.get("/api/quant-bot/status", async (_req, res) => {
+    try {
+      const { getBotStatus } = await import("./quant-bot");
+      const status = await getBotStatus();
+      if (!status) return res.status(503).json({ error: "Bot portfolio unavailable" });
+      res.json(status);
+    } catch (error) {
+      logger.error("[API] quant-bot status failed:", error);
+      res.status(500).json({ error: "Failed to read bot status" });
+    }
+  });
+
+  app.post("/api/quant-bot/run", async (_req, res) => {
+    try {
+      const { runBotCycle } = await import("./quant-bot");
+      res.json(await runBotCycle());
+    } catch (error) {
+      logger.error("[API] quant-bot run failed:", error);
+      res.status(500).json({ error: "Bot cycle failed" });
+    }
+  });
+
   // Extended-hours leaders — who is moving pre-market / after-hours, the window the
   // platform used to go completely blind in.
   app.get("/api/extended-hours", async (req, res) => {

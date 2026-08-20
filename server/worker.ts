@@ -176,6 +176,21 @@ function isMarketCurrentlyOpen(): boolean {
     startHeavyServices();
   }, { timezone: 'America/New_York' });
 
+  // ── Cron: Quant Bot cycle (every 10 min, market hours) ────────────────
+  // Takes the best signals into a paper portfolio and manages them against their own
+  // stop/target. This is what turns the engine's opinions into a measurable record.
+  cron.default.schedule('*/10 9-16 * * 1-5', async () => {
+    try {
+      const { runBotCycle } = await import('./quant-bot');
+      const r = await runBotCycle();
+      if (r.opened.length || r.closed.length) {
+        log(`🤖 [QUANT-BOT] +${r.opened.length} opened, -${r.closed.length} closed, ${r.openCount} open`);
+      }
+    } catch (err) {
+      logger.error('[QUANT-BOT] scheduled cycle failed:', err);
+    }
+  }, { timezone: 'America/New_York' });
+
   // ── Cron: Options-flow scan (every 15 min, market hours) ───────────────
   // This was NEVER scheduled — the scanner only ran when someone hit the API by hand,
   // which is why options_flow_history stopped accumulating in Feb 2026. Flow needs to

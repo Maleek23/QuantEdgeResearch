@@ -109,6 +109,8 @@ export interface ConvictionPick {
    * (AI Picks / Flow / Lotto / News / Manual) off the same conviction feed.
    */
   source: string;
+  /** Live price at response time — what P&L / progress are measured against. */
+  currentPrice?: number | null;
 }
 
 export interface ConvictionsResponse {
@@ -1409,6 +1411,45 @@ export async function revalidateBestSetups(
     logger.warn("[BEST-SETUPS] live quote batch failed, keeping ideas without revalidation:", err);
   }
 
+  // The batch quote service silently DROPS symbols when the upstream providers throttle,
+  // and returns nothing at all outside regular hours. Every pick then came back with
+  // currentPrice = null, which is why the board showed "+0.0% P&L" on all 54 signals and
+  // looked frozen: with no live price, P&L is measured entry-vs-entry.
+  //
+  // Fall back to the chart endpoint used by extended-hours — it needs no auth, works
+  // pre/post-market, and is already behind the provider cache.
+  const missing = quoteRequests
+    .map((r) => r.symbol)
+    .filter((sym) => {
+      const q = quoteMap.get(sym);
+      return !q || !Number.isFinite(q.price) || !q.price;
+    });
+
+  if (missing.length > 0) {
+    try {
+      const { fetchExtendedQuote } = await import("./extended-hours");
+      const CONC = 8;
+      let recovered = 0;
+      for (let i = 0; i < missing.length; i += CONC) {
+        const slice = missing.slice(i, i + CONC);
+        const rows = await Promise.all(slice.map((sym) => fetchExtendedQuote(sym)));
+        for (const q of rows) {
+          if (q && Number.isFinite(q.lastPrice) && q.lastPrice > 0) {
+            quoteMap.set(q.symbol, {
+              symbol: q.symbol,
+              price: q.lastPrice,
+              changePercent: q.changePct,
+            } as RealtimeQuote);
+            recovered++;
+          }
+        }
+      }
+      logger.info(`[BEST-SETUPS] quote fallback recovered ${recovered}/${missing.length} live prices`);
+    } catch (err) {
+      logger.warn("[BEST-SETUPS] extended-hours quote fallback failed:", err);
+    }
+  }
+
   // Per-idea revalidation + annotation
   const kept: any[] = [];
   for (const idea of ageGated) {
@@ -1674,6 +1715,43 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       const quoteMap = await getRealtimeBatchQuotes(quoteRequests);
       quoteMap.forEach((q, sym) => liveQuotes.set(sym, q));
 
+      // The batch service silently DROPS symbols when providers throttle and returns
+      // nothing outside regular hours, so every pick came back with currentPrice = null —
+      // which is why the board read "+0.0% P&L" on every signal: with no live price, P&L
+      // is entry measured against itself. Recover the gaps from the chart endpoint used by
+      // extended-hours (no auth, works pre/post, already provider-cached).
+      const missingSyms = quoteRequests
+        .map((r) => r.symbol)
+        .filter((sym) => {
+          const q = liveQuotes.get(sym);
+          return !q || !Number.isFinite(q.price) || !q.price;
+        });
+
+      if (missingSyms.length > 0) {
+        try {
+          const { fetchExtendedQuote } = await import("./extended-hours");
+          const CONC = 8;
+          let recovered = 0;
+          for (let i = 0; i < missingSyms.length; i += CONC) {
+            const slice = missingSyms.slice(i, i + CONC);
+            const rows = await Promise.all(slice.map((sym) => fetchExtendedQuote(sym)));
+            for (const q of rows) {
+              if (q && Number.isFinite(q.lastPrice) && q.lastPrice > 0) {
+                liveQuotes.set(q.symbol, {
+                  symbol: q.symbol,
+                  price: q.lastPrice,
+                  changePercent: q.changePct,
+                } as RealtimeQuote);
+                recovered++;
+              }
+            }
+          }
+          logger.info(`[CONVICTIONS] quote fallback recovered ${recovered}/${missingSyms.length} live prices`);
+        } catch (err) {
+          logger.warn("[CONVICTIONS] extended-hours quote fallback failed:", err);
+        }
+      }
+
       const survivors: any[] = [];
       let rejectCount = 0;
       for (const idea of ageGated as any[]) {
@@ -1898,6 +1976,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       catalystSourceUrl: idea.catalystSourceUrl ?? null,
       generatedAt: idea.generationTimestamp ?? idea.timestamp,
       source: idea.source ?? "quant",
+      // The live price was fetched for revalidation and then never serialised, so every
+      // client computed P&L as entry-vs-entry and the whole board read "+0.0% P&L".
+      currentPrice: liveQuotes.get(idea.symbol)?.price ?? idea.currentPrice ?? null,
     });
   }
 

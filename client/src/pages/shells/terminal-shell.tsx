@@ -31,15 +31,17 @@ const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m =
 const SectorHeatmap = lazy(() => import('@/pages/flow-heatmap'));
 // PRISM = the strike x expiry gamma surface (what the walkthrough actually shows),
 // not the premium-spectrum strike picker that used to sit here.
+const QuantBotBoard = lazy(() => import('@/components/bot/quant-bot-board').then(m => ({ default: m.QuantBotBoard })));
 const PrismBoard    = lazy(() => import('@/components/prism/prism-board').then(m => ({ default: m.PrismBoard })));
 
-type Tab = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism';
+type Tab = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism' | 'bot';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'oracle',  label: 'ORACLE' },
   { id: 'flow',    label: 'FLOW' },
   { id: 'heatmap', label: 'HEATMAP' },
   { id: 'gex',     label: 'GEX' },
   { id: 'prism',   label: 'PRISM' },
+  { id: 'bot',     label: 'BOT' },
 ];
 
 function useUptime() {
@@ -212,6 +214,11 @@ export default function TerminalShell() {
               {tab === 'heatmap' && <div className="mx-auto w-full max-w-[1600px]"><SectorHeatmap /></div>}
               {tab === 'gex' && <div className="mx-auto w-full max-w-[1600px]"><GexShell /></div>}
               {tab === 'prism' && <div className="mx-auto w-full max-w-[1600px]"><PrismBoard /></div>}
+              {tab === 'bot' && (
+                <div className="mx-auto w-full max-w-[1600px]">
+                  <QuantBotBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                </div>
+              )}
             </Suspense>
           </motion.div>
         </AnimatePresence>
