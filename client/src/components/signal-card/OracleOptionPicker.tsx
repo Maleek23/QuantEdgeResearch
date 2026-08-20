@@ -261,13 +261,50 @@ export function OracleOptionPicker({
                 <span className="text-base font-mono font-bold tabular-nums" style={{ color: AMBER }}>${p.entryPremium.toFixed(2)}</span>
               </div>
 
-              {/* Liquidity row — premium / OI / volume / IV */}
+              {/* Liquidity row — premium / OI / volume / IV.
+                  Vol and OI side by side don't say much on their own; the RATIO does.
+                  Volume above open interest means today's activity is NEW positioning
+                  rather than trades against an existing book — which is the definition of
+                  unusual flow, and it tells you whether this contract is where the money
+                  actually went or just the strike our sizer happened to like. */}
               <div className="grid grid-cols-4 gap-1 mt-2 text-[11px]">
                 <Stat label="Bid×Ask" value={`${p.bid.toFixed(2)}×${p.ask.toFixed(2)}`} />
                 <Stat label="OI" value={fmtCompact(p.openInterest)} />
                 <Stat label="Vol" value={fmtCompact(p.volume)} />
                 <Stat label="IV" value={`${(p.iv * 100).toFixed(0)}%`} />
               </div>
+
+              {(() => {
+                const volOi = p.openInterest > 0 ? p.volume / p.openInterest : 0;
+                const unusual = volOi >= 1;      // more traded today than is already open
+                const heavy = volOi >= 2.5;
+                const thin = p.openInterest < 100 || p.volume < 25;
+                const color = heavy ? '#e0a458' : unusual ? 'var(--trade-bullish)' : 'var(--muted-foreground)';
+                return (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Vol/OI</span>
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/[0.07]">
+                      <div className="h-full rounded-full transition-[width] duration-500"
+                           style={{ width: `${Math.min(100, (volOi / 3) * 100)}%`, background: color }} />
+                    </div>
+                    <span className="text-[10px] font-mono tabular-nums" style={{ color }}>
+                      {volOi.toFixed(1)}×
+                    </span>
+                    {heavy ? (
+                      <span className="rounded border px-1 py-px text-[10px] font-mono font-bold tracking-wider"
+                            style={{ color: '#e0a458', borderColor: '#e0a45855', background: '#e0a4581a' }}>
+                        UNUSUAL
+                      </span>
+                    ) : thin ? (
+                      <span className="rounded border px-1 py-px text-[10px] font-mono font-bold tracking-wider"
+                            style={{ color: 'var(--trade-bearish)', borderColor: 'color-mix(in srgb, var(--trade-bearish) 35%, transparent)' }}
+                            title="Low open interest or volume — expect a wide spread and poor fills">
+                        THIN
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })()}
 
               {/* Greeks row */}
               <div className="grid grid-cols-4 gap-1 mt-1.5 text-[11px]">
