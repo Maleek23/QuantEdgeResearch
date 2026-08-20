@@ -19,7 +19,10 @@ import { useStockContext } from '@/contexts/stock-context';
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
 const GexShell      = lazy(() => import('@/pages/shells/gex-shell'));
 const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m => ({ default: m.FlowBoard })));
-const MarketScanner = lazy(() => import('@/pages/market-scanner'));
+// The old flow-heatmap page is the SECTOR TREEMAP with a flow overlay (breadth, net flow,
+// sweeps, whales + per-ticker flow detail). That's the Heatmap surface, not the tape — so
+// it belongs on HEATMAP. Keeping it preserves the strongest part of the old design.
+const SectorHeatmap = lazy(() => import('@/pages/flow-heatmap'));
 const SpectrumScanner = lazy(() => import('@/components/hunt/spectrum-scanner').then(m => ({ default: m.SpectrumScanner })));
 
 type Tab = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism';
@@ -148,7 +151,7 @@ export default function TerminalShell() {
                   <FlowBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
                 </div>
               )}
-              {tab === 'heatmap' && <div className="mx-auto w-full max-w-[1600px]"><MarketScanner /></div>}
+              {tab === 'heatmap' && <div className="mx-auto w-full max-w-[1600px]"><SectorHeatmap /></div>}
               {tab === 'gex' && <div className="mx-auto w-full max-w-[1600px]"><GexShell /></div>}
               {tab === 'prism' && <div className="mx-auto w-full max-w-[1600px] px-4 py-3"><SpectrumScanner /></div>}
             </Suspense>
