@@ -523,7 +523,9 @@ export default function HuntCockpit() {
 
               {/* price ladder + interpretation. Confidence, components, and levels live in the
                   right rail — shown ONCE, not duplicated here. */}
-              <div className="grid gap-2 lg:grid-cols-2">
+              {/* items-start, or the ladder stretches to match the taller Context+Plan
+                  column beside it — that's why a 168px ladder was rendering 604px tall. */}
+              <div className="grid items-start gap-2 lg:grid-cols-2">
                 <PriceLadder pick={selected} live={livePx} />
                 <div className="space-y-2">
                   <ContextPanel

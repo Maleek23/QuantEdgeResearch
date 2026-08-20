@@ -67,3 +67,33 @@ export function riskColor(pctUsed: number): string {
   if (pctUsed >= 40) return TC.warn;
   return TC.muted;
 }
+
+/**
+ * BAND COLOUR — S / A / B / C must be visually distinct.
+ *
+ * Every band was rendering in the same colour, so "ELITE BULLISH" and "MED BULLISH" looked
+ * identical and the grade carried no visual weight at all. Direction still owns green/red,
+ * so the band gets its own ramp: gold for elite (rare, earns attention), cyan for strong,
+ * slate for ordinary, muted for weak. Reading the ramp tells you the tier before you read
+ * the word.
+ */
+export function bandColor(band?: string | null): string {
+  switch ((band ?? '').toUpperCase()) {
+    case 'S': return '#e0a458';                       // gold — elite
+    case 'A': return 'var(--brand-cyan, #22d3ee)';    // cyan — strong
+    case 'B': return '#7aa2f7';                       // slate blue — solid
+    default:  return 'var(--muted-foreground, #8b98a8)';
+  }
+}
+
+/**
+ * Fill colour for a confidence meter, graded by the score itself rather than one flat
+ * accent — so a 90 and a 40 don't look the same length-adjusted.
+ */
+export function confidenceFill(score: number): string {
+  if (score >= 85) return '#e0a458';
+  if (score >= 70) return 'var(--brand-cyan, #22d3ee)';
+  if (score >= 50) return '#7aa2f7';
+  if (score >= 30) return '#8b98a8';
+  return 'var(--trade-bearish, #ef4444)';
+}

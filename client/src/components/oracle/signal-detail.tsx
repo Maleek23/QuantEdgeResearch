@@ -69,11 +69,11 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
   const prices = g.levels.map((l) => l.price);
   const min = Math.min(...prices), max = Math.max(...prices);
   const span = max - min || 1;
-  const y = (p: number) => 6 + (1 - (p - min) / span) * 88;
+  const y = (p: number) => 8 + (1 - (p - min) / span) * 84;
 
   return (
     <Card title="Price Ladder" meta={<span style={{ color: statusColor(g.status) }}>{g.statusLabel}</span>} className={className}>
-      <div className="relative px-4" style={{ height: 236 }}>
+      <div className="relative px-4" style={{ height: 168 }}>
         <div className="absolute left-[42%] top-3 bottom-3 w-px bg-border/60" />
         {g.levels.map((l) => {
           const c = ROLE[l.key].color;
@@ -424,8 +424,8 @@ export function ContextPanel({
 
   return (
     <Card title="Context" meta="what it means" className={className}>
-      <div className="space-y-2.5 px-4 py-3">
-        <p className="text-[12px] leading-relaxed text-foreground/85">
+      <div className="space-y-2 px-4 py-2.5">
+        <p className="text-[12px] leading-snug text-foreground/85">
           <span className="font-mono font-bold" style={{ color: pick.direction === 'long' ? BULL : BEAR }}>{dir} {pick.symbol}</span>
           {' '}— {pick.convictionBand}-band ({bandStrength(pick.convictionBand)}), {pick.layerCount ?? pick.layers?.length ?? 0} layers.
           {' '}R:R 1:{g.rr.toFixed(1)}, risking ${g.risk.toFixed(2)} to make ${g.reward.toFixed(2)} per share.

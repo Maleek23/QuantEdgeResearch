@@ -163,11 +163,27 @@ export function resolveExpiryTier(thesis: PriceActionThesis): ExpiryTier {
   return thesis.expiryTier ?? SETUP_TO_TIER[thesis.setup];
 }
 
+/**
+ * DTE windows — matched to how long the thesis actually needs, not to the cheapest premium.
+ *
+ * These used to put a SWING setup on 2–4 DTE, which contradicts the rule the desk repeats
+ * more than any other: "time is your best friend… if we have a signal that says August, you
+ * can always get September. You buy a month out." A swing thesis is a 1–5 DAY hold; on a
+ * 3-DTE contract theta eats it and you have to be right immediately — that's a lotto with a
+ * swing label on it.
+ *
+ * Each window now gives the thesis room to be right, with the ideal sitting comfortably
+ * past the expected hold rather than on top of it.
+ */
 export const DTE_WINDOWS: Record<SetupType, { min: number; max: number; ideal: number }> = {
-  scalp: { min: 0, max: 1, ideal: 1 },
-  swing: { min: 2, max: 4, ideal: 3 },
-  lotto: { min: 1, max: 5, ideal: 2 },
-  position: { min: 7, max: 30, ideal: 14 },
+  // intraday, but never same-day expiry — 0DTE is a gamma coin-flip, not a scalp
+  scalp: { min: 3, max: 10, ideal: 5 },
+  // 1–5 day hold → roughly a month out, so time decay isn't the counterparty
+  swing: { min: 14, max: 45, ideal: 30 },
+  // explicitly the gamble; short-dated is the point, so it stays short
+  lotto: { min: 1, max: 7, ideal: 3 },
+  // multi-week thesis needs a quarter
+  position: { min: 30, max: 120, ideal: 60 },
 };
 
 /** |delta| bands per tier. Conservative = deep ITM (high delta, low theta burn);

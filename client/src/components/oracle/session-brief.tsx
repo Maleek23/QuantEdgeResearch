@@ -78,12 +78,13 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
       ) : (
         <>
           {data?.interpretation && (
-            <p className="border-b border-border/30 px-4 py-2.5 text-[12px] leading-relaxed text-foreground/85">
+            <p className="line-clamp-2 border-b border-border/30 px-4 py-2 text-[12px] leading-snug text-foreground/85"
+               title={data.interpretation}>
               {data.interpretation}
             </p>
           )}
 
-          <div className="max-h-[248px] overflow-y-auto px-4 py-3">
+          <div className="max-h-[176px] overflow-y-auto px-4 py-2.5">
             <div className="mb-1.5 text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.bull }}>
               Leading
             </div>

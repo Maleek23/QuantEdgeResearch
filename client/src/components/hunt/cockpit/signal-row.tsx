@@ -15,7 +15,7 @@ import { TickerLogo } from './ticker-logo';
 import { tierLabel, convictionPercent, type ConvictionPick } from '@/lib/convictions';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { trackScore } from '@/lib/oracle/score-tracker';
-import { TC, directionColor, pnlColor, statusColor, riskColor } from '@/lib/oracle/trading-colors';
+import { TC, directionColor, pnlColor, statusColor, riskColor, bandColor, confidenceFill } from '@/lib/oracle/trading-colors';
 
 export function SignalRow({
   pick,
@@ -85,7 +85,7 @@ export function SignalRow({
         </span>
 
         <span className="ml-auto flex items-baseline gap-1">
-          <span className="text-[15px] font-mono font-bold leading-none tabular-nums" style={{ color: TC.info }}>{conf}</span>
+          <span className="text-[15px] font-mono font-bold leading-none tabular-nums" style={{ color: confidenceFill(conf) }}>{conf}</span>
           {arrow && (
             <span className="text-[10px] font-mono font-bold tabular-nums" style={{ color: arrowColor }}
                   title={`Rating ${rating.direction === 'up' ? 'up' : 'down'} ${Math.abs(rating.delta)} since first seen ${rating.hoursTracked < 1 ? 'under an hour' : `${Math.round(rating.hoursTracked)}h`} ago`}>
@@ -103,7 +103,7 @@ export function SignalRow({
           <span>{g.progressPct.toFixed(0)}% to T1</span>
         </div>
         <div className="h-1 overflow-hidden rounded-full bg-foreground/8">
-          <div className="h-full rounded-full transition-all" style={{ width: `${g.progressPct}%`, background: TC.info }} />
+          <div className="h-full rounded-full transition-all" style={{ width: `${g.progressPct}%`, background: confidenceFill(conf) }} />
         </div>
       </div>
 
