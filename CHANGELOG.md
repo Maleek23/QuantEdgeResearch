@@ -5,6 +5,13 @@ Update this in the same PR as the change.
 
 ## [Unreleased]
 ### Added
+- **Dynamic scan universe** — the scanner no longer only looks at a static approved list.
+  Every universe rebuild now absorbs the day's movers (most-active / gainers / losers /
+  trending) via the existing Yahoo screener discovery, so names that weren't on anyone's
+  list that morning still get scored. Universe went 162 → 281 live, and MRNA (+177% on the
+  most-active tape) is now in-scope rather than noticed after the fact.
+- **Chart workspace** — every chart has an expand control that opens it full-size over a
+  blurred backdrop (Esc / click-out to close, keyboard timeframes preserved).
 - **Sector leadership engine** (`/api/sector-leadership`) — ranks every sector across the
   162-name universe by a composite of typical move + breadth + standout gap, and surfaces
   **the leading and lagging names inside each group** (the step rotation leaves out: knowing

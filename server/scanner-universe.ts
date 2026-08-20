@@ -57,6 +57,23 @@ export async function getScannerUniverse(): Promise<{
   // Get the static approved-tickers universe
   const approvedSymbols = getAllApprovedSymbols();
 
+  // ── Dynamic discovery tier ────────────────────────────────────────────────
+  // A static list can only ever find what we already knew to look for. The names
+  // that actually pay — MRNA printing +177% on the most-active tape — are exactly
+  // the ones nobody had on a list that morning. So the universe also absorbs today's
+  // movers (most active / gainers / losers / trending) on every rebuild. Failure here
+  // is non-fatal: we just fall back to the static universe.
+  let moverSymbols: string[] = [];
+  try {
+    const { discoverMovers } = await import('./mover-discovery');
+    const movers = await discoverMovers();
+    moverSymbols = movers
+      .map((m: any) => String(m.symbol || '').toUpperCase())
+      .filter((sym) => sym && sym.length <= 6 && /^[A-Z.\-]+$/.test(sym));
+  } catch (err) {
+    logger.warn('[SCANNER-UNIVERSE] Mover discovery unavailable, using static universe:', err);
+  }
+
   // Merge: watchlist first, then approved, deduped
   const seen = new Set<string>();
   const symbols: string[] = [];
@@ -77,8 +94,18 @@ export async function getScannerUniverse(): Promise<{
     }
   }
 
+  // Then whatever the tape surfaced today
+  let freshMovers = 0;
+  for (const sym of moverSymbols) {
+    if (!seen.has(sym)) {
+      seen.add(sym);
+      symbols.push(sym);
+      freshMovers++;
+    }
+  }
+
   logger.info(
-    `[SCANNER-UNIVERSE] Built universe: ${watchlistSymbols.size} watchlist + ${approvedSymbols.length} approved = ${symbols.length} total (deduped)`,
+    `[SCANNER-UNIVERSE] Built universe: ${watchlistSymbols.size} watchlist + ${approvedSymbols.length} approved + ${freshMovers} new movers (${moverSymbols.length} seen) = ${symbols.length} total (deduped)`,
   );
 
   _cachedUniverse = { symbols, watchlistSymbols, expiresAt: now + CACHE_TTL_MS };
