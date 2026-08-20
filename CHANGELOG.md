@@ -5,6 +5,12 @@ Update this in the same PR as the change.
 
 ## [Unreleased]
 ### Added
+- **Sector leadership engine** (`/api/sector-leadership`) — ranks every sector across the
+  162-name universe by a composite of typical move + breadth + standout gap, and surfaces
+  **the leading and lagging names inside each group** (the step rotation leaves out: knowing
+  biotech is bid doesn't tell you which biotech to buy). Also tracks the mega-cap group and
+  market-wide top movers. Uses the **median** name as the group's move, with an explicit
+  skew flag when one outlier is carrying the sector.
 - **Trading colour semantics** (`lib/oracle/trading-colors.ts`) — colour is data, so each
   gets one job: green/red for **direction and P&L only**, amber for waiting/caution, cyan
   for structural info, muted for inert. Non-directional health bars (validity, pace) moved

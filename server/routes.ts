@@ -5131,6 +5131,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET endpoint for batch stock quotes (used by WSB Trending, Social Trends pages)
+  // Sector leadership — which groups lead, and the names carrying them. Answers the
+  // step rotation leaves out: once you know biotech is bid, WHICH biotech name?
+  app.get("/api/sector-leadership", async (_req, res) => {
+    try {
+      const { computeSectorLeadership } = await import("./sector-leadership");
+      const result = await computeSectorLeadership(async (batch: string[]) => {
+        const map = await getRealtimeBatchQuotes(
+          batch.map((symbol) => ({ symbol, assetType: 'stock' as RTAssetType }))
+        );
+        const out: Record<string, any> = {};
+        for (const symbol of batch) {
+          const q = map.get(symbol);
+          if (q && q.price) out[symbol] = { price: q.price, changePercent: q.changePercent };
+        }
+        return out;
+      });
+      res.json(result);
+    } catch (error) {
+      logger.error("[API] Failed to compute sector leadership:", error);
+      res.status(500).json({ error: "Failed to compute sector leadership" });
+    }
+  });
+
   app.get("/api/quotes/batch/:symbols", async (req, res) => {
     try {
       const { symbols } = req.params;
