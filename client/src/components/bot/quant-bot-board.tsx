@@ -19,6 +19,16 @@ interface Position {
   quantity: number; targetPrice?: number; stopLoss?: number; unrealizedPnL?: number;
   unrealizedPnLPercent?: number; realizedPnL?: number; entryReason?: string;
   entryTime?: string; exitReason?: string; status?: string;
+  assetType?: string; optionType?: string | null; strikePrice?: number | null;
+  expiryDate?: string | null;
+}
+
+/** Days until a contract expires — the clock that only options have. */
+function dte(expiry?: string | null): number | null {
+  if (!expiry) return null;
+  const t = Date.parse(expiry);
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, Math.round((t - Date.now()) / 86_400_000));
 }
 interface BotStatus {
   portfolioId: string; name: string;
@@ -145,33 +155,75 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
     ? ((p.currentPrice - p.entryPrice) / p.entryPrice) * 100 * (p.direction === 'short' ? -1 : 1)
     : 0);
   const long = p.direction !== 'short';
+  const isOption = p.assetType === 'option' && !!p.optionType;
+  const mult = isOption ? 100 : 1;
+  const days = dte(p.expiryDate);
+  const cost = p.quantity * p.entryPrice * mult;
+
+  // Distance to the two things that end the trade — the whole risk picture in one line.
+  const toTarget = p.targetPrice && p.currentPrice
+    ? ((p.targetPrice - p.currentPrice) / p.currentPrice) * 100 : null;
+  const toStop = p.stopLoss && p.currentPrice
+    ? ((p.currentPrice - p.stopLoss) / p.currentPrice) * 100 : null;
+
   return (
-    <div className="flex items-center gap-3 px-4 py-2">
-      <button onClick={() => onSelectSymbol?.(p.symbol)}
-        className="cursor-pointer text-[12px] font-mono font-bold tracking-wider text-foreground transition-colors hover:text-[var(--brand-cyan,#22d3ee)]">
-        {p.symbol}
-      </button>
-      <span className="rounded border px-1 py-px text-[10px] font-mono font-bold tracking-wider"
-            style={{ color: long ? TC.bull : TC.bear, borderColor: `${long ? TC.bull : TC.bear}55` }}>
-        {long ? '▲' : '▼'}
-      </span>
-      <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70">
-        {p.quantity} @ ${p.entryPrice?.toFixed(2)}
-        {p.currentPrice ? ` → $${p.currentPrice.toFixed(2)}` : ''}
-      </span>
-      <span className="ml-auto flex items-baseline gap-2">
-        <span className="text-[11px] font-mono font-bold tabular-nums" style={{ color: pnlColor(pnl) }}>
-          {pnl >= 0 ? '+' : ''}{money(pnl)}
-        </span>
-        {!closed && (
-          <span className="text-[10px] font-mono tabular-nums" style={{ color: pnlColor(pct) }}>
-            {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+    <div className="px-4 py-2.5">
+      {/* what it is */}
+      <div className="flex items-baseline gap-2">
+        <button onClick={() => onSelectSymbol?.(p.symbol)}
+          className="cursor-pointer text-[12px] font-mono font-bold tracking-wider text-foreground transition-colors hover:text-[var(--brand-cyan,#22d3ee)]">
+          {p.symbol}
+        </button>
+        {isOption ? (
+          <span className="text-[11px] font-mono tabular-nums" style={{ color: p.optionType === 'call' ? TC.bull : TC.bear }}>
+            ${p.strikePrice}{p.optionType === 'call' ? 'C' : 'P'}
+          </span>
+        ) : (
+          <span className="rounded border px-1 py-px text-[10px] font-mono font-bold tracking-wider"
+                style={{ color: long ? TC.bull : TC.bear, borderColor: `${long ? TC.bull : TC.bear}55` }}>
+            {long ? '▲ SHARES' : '▼ SHARES'}
           </span>
         )}
-        {closed && p.exitReason && (
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{p.exitReason}</span>
+        {isOption && p.expiryDate && (
+          <span className="text-[10px] font-mono tabular-nums"
+                style={{ color: days != null && days <= 2 ? TC.bear : days != null && days <= 7 ? TC.warn : 'var(--muted-foreground)' }}>
+            {String(p.expiryDate).slice(5, 10)}{days != null ? ` · ${days}d left` : ''}
+          </span>
         )}
-      </span>
+        <span className="ml-auto flex items-baseline gap-2">
+          <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: pnlColor(pnl) }}>
+            {pnl >= 0 ? '+' : ''}{money(pnl)}
+          </span>
+          <span className="text-[11px] font-mono tabular-nums" style={{ color: pnlColor(pct) }}>
+            {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+          </span>
+        </span>
+      </div>
+
+      {/* what it cost and where it lives */}
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[10px] font-mono tabular-nums text-muted-foreground/70">
+        <span>
+          {p.quantity} {isOption ? (p.quantity === 1 ? 'contract' : 'contracts') : 'sh'} @ ${p.entryPrice.toFixed(2)}
+          {p.currentPrice ? ` → $${p.currentPrice.toFixed(2)}` : ''}
+        </span>
+        <span>cost {money(cost)}</span>
+        {p.targetPrice != null && (
+          <span style={{ color: TC.bull }}>
+            target ${p.targetPrice.toFixed(2)}{toTarget != null ? ` (${toTarget >= 0 ? '+' : ''}${toTarget.toFixed(0)}%)` : ''}
+          </span>
+        )}
+        {p.stopLoss != null && (
+          <span style={{ color: TC.bear }}>
+            stop ${p.stopLoss.toFixed(2)}{toStop != null ? ` (−${Math.abs(toStop).toFixed(0)}%)` : ''}
+          </span>
+        )}
+        {closed && p.exitReason && <span className="uppercase tracking-wider">{p.exitReason.replace(/_/g, ' ')}</span>}
+      </div>
+
+      {/* why the bot took it */}
+      {p.entryReason && (
+        <div className="mt-1 text-[10px] leading-snug text-muted-foreground/70">{p.entryReason}</div>
+      )}
     </div>
   );
 }

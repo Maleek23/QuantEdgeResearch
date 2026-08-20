@@ -16,6 +16,7 @@ import { OracleOrb } from '@/components/oracle-orb';
 import { RotationMap } from '@/components/rotation-map';
 import { SessionBrief } from '@/components/oracle/session-brief';
 import { EarlyRotationPanel } from '@/components/oracle/early-rotation-panel';
+import { TickerView } from '@/components/oracle/ticker-view';
 import { TerminalGuide } from '@/components/terminal/terminal-guide';
 import { TerminalSettings } from '@/components/terminal/terminal-settings';
 import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/terminal/terminal-alerts';
@@ -203,6 +204,16 @@ export default function TerminalShell() {
                     {/* what to go into the session with — leadership + the names carrying it */}
                     <SessionBrief onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
                   </div>
+                  {/* A searched ticker must actually show something. Panels below render the
+                      SELECTED SIGNAL, so without this a search silently did nothing. */}
+                  {currentStock?.symbol && (
+                    <TickerView
+                      symbol={currentStock.symbol.toUpperCase()}
+                      hasSignal={!!convictions?.picks?.some(
+                        (p) => p.symbol.toUpperCase() === currentStock.symbol.toUpperCase())}
+                      onClear={clearStock}
+                    />
+                  )}
                   <EarlyRotationPanel onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
                   <HuntCockpit />
                 </div>
