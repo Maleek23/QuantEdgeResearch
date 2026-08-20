@@ -4930,25 +4930,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       const range = rangeMap[rawRange] || '1mo';
 
-      // Use Yahoo Finance chart API for OHLC candle data.
-      // Behind the shared provider cache: charts are the highest-traffic Yahoo path and
-      // several panels request the same symbol+range at once, which was triggering 429s
-      // and surfacing as "NO DATA" on the chart. Concurrent callers now share one request,
-      // and a stale response is preferable to an empty chart when Yahoo throttles us.
+      // Yahoo's public v8 chart endpoint, fetched directly.
+      //
+      // We previously went through the yahoo-finance2 library, which authenticates with a
+      // "crumb" and was getting blocked — every chart request 500'd while the SAME symbol
+      // fetched directly returned 200. The plain endpoint needs no auth and is what
+      // sector-rotation and extended-hours already use successfully.
+      //
+      // Behind the provider cache: concurrent callers for one symbol+range share a single
+      // upstream request, and a stale response beats an empty chart when Yahoo throttles.
       const includeExtended = interval === '1h' || interval === '5m' || interval === '15m' || interval === '1d';
       const { cachedFetchWithStale } = await import('./provider-cache');
+      const period1 = Math.floor(getChartStartDate(range).getTime() / 1000);
+      const period2 = Math.floor(Date.now() / 1000);
+
       const result: any = await cachedFetchWithStale(
         `yahoo:chart:${symbol}:${range}:${interval}`,
         60_000,
         10 * 60_000,
         async () => {
-          const YahooFinance = (await import('yahoo-finance2')).default;
-          const yahooFinance = new YahooFinance();
-          return yahooFinance.chart(symbol, {
-            period1: getChartStartDate(range),
-            interval: interval as any,
-            includePrePost: includeExtended,
-          } as any);
+          const url =
+            `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
+            `?period1=${period1}&period2=${period2}&interval=${interval}` +
+            `&includePrePost=${includeExtended}`;
+          const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          if (!r.ok) throw new Error(`yahoo chart ${r.status}`);
+          const body: any = await r.json();
+          const res = body?.chart?.result?.[0];
+          if (!res) throw new Error('yahoo chart: empty result');
+
+          const stamps: number[] = res.timestamp || [];
+          const q = res.indicators?.quote?.[0] || {};
+          // Normalise to the { quotes: [{date, open, high, low, close, volume}] } shape
+          // the rest of this handler already expects.
+          const quotes = stamps.map((t: number, i: number) => ({
+            date: new Date(t * 1000),
+            open: q.open?.[i], high: q.high?.[i], low: q.low?.[i],
+            close: q.close?.[i], volume: q.volume?.[i],
+          }));
+          return { quotes };
         },
       );
 

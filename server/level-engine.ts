@@ -73,7 +73,18 @@ export function findSwings(candles: Candle[], lookback = 3): { highs: number[]; 
 
 const MIN_RR = 1.5;          // never publish a trade that can't pay for its own risk
 const ATR_STOP_MULT = 1.0;   // noise buffer beyond structure
-const MAX_STOP_PCT = 0.08;   // sanity clamp — an 12% stop is not a swing trade
+/**
+ * Sanity clamp on stop distance — but volatility-aware. A flat 8% cap fired constantly on
+ * high-ATR names (MARA, BROS), which pushed T1 to the 1.5R floor and produced a NEW
+ * constant (12%/8%) — the same disease as the fixed percentages it replaced. A stop must
+ * be allowed to sit outside the instrument's own noise: 2.5x ATR, floored at 6% so quiet
+ * names still get a real stop, capped at 15% so nothing becomes untradeable.
+ */
+const MIN_STOP_PCT = 0.06;
+const MAX_STOP_PCT_CAP = 0.15;
+function maxStopPct(atrPct: number): number {
+  return Math.min(MAX_STOP_PCT_CAP, Math.max(MIN_STOP_PCT, (atrPct / 100) * 2.5));
+}
 /**
  * Only swings from the RECENT tape can act as support/resistance. A swing low from five
  * months ago is not where this trade is wrong — using it produced 12%-clamped stops on
@@ -141,11 +152,12 @@ export function deriveLevels(
     target2 = below[1] ?? targetPrice - (spot - targetPrice);
   }
 
-  // clamp an absurd stop, then enforce a minimum payoff
-  const maxDist = spot * MAX_STOP_PCT;
+  // clamp an absurd stop (volatility-aware), then enforce a minimum payoff
+  const maxPct = maxStopPct(atrPct);
+  const maxDist = spot * maxPct;
   if (Math.abs(spot - stopLoss) > maxDist) {
     stopLoss = long ? spot - maxDist : spot + maxDist;
-    notes.push(`stop clamped to ${(MAX_STOP_PCT * 100).toFixed(0)}%`);
+    notes.push(`stop capped at ${(maxPct * 100).toFixed(1)}% (2.5×ATR)`);
   }
 
   const risk = Math.abs(spot - stopLoss);

@@ -85,6 +85,18 @@ Update this in the same PR as the change.
 - Grades display convictionScore-first (single source of truth for score↔grade).
 
 ### Fixed
+- **Charts were 500ing on every symbol.** `/api/historical-prices` went through the
+  `yahoo-finance2` library, which authenticates with a crumb and was being blocked — the
+  same symbol fetched directly returned 200. Switched to Yahoo's public v8 chart endpoint
+  (no auth), behind the provider cache. INTC/ASTS/AMZN/CRCL: 500 → 124 candles each.
+- **Existing ideas still carried the old flat levels.** The level-engine fix only applied to
+  newly generated ideas, so the board still showed 8%/4% on every row. Backfilled 61 open
+  ideas with structure+ATR levels: **0 legacy 4% stops remain**, 40 distinct stop distances
+  (1.7%–15%), R:R spread 1.0–3.67.
+- **The stop clamp had become its own constant.** A flat 8% cap fired on every high-ATR name,
+  pushing T1 to the 1.5R floor and producing a new fixed 12%/8% — the same disease as the
+  percentages it replaced. The cap is now volatility-aware (2.5×ATR, floored 6%, capped 15%),
+  so stops scale: MSFT 5.3%, TSLA 6.3%, AMZN 8.9%, PLTR 10.4%, CRCL 13%, MARA 15%.
 - **Rotation was structurally frozen overnight.** It computed change from daily CLOSES
   only, so the map couldn't move between 16:00 and 09:30 — but rotation happens overnight
   and by the open leadership is often already decided. It now reads intraday bars with
