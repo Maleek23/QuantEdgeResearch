@@ -278,7 +278,14 @@ export async function executeTradeIdea(
       }
     }
 
-    const currentPrice = tradeIdea.entryPrice;
+    // Fill at the LIVE price, not the idea's planned entry.
+    //
+    // Filling at tradeIdea.entryPrice books a gain that never happened: a signal generated
+    // at $80.59 on a name now trading $84.34 opens the position already +4.6% up. That
+    // manufactures P&L out of signal staleness and makes the whole paper record fiction.
+    // A real fill happens at the market, so the record only counts what happened AFTER
+    // the trade was taken.
+    const currentPrice = (tradeIdea as any).currentPrice ?? tradeIdea.entryPrice;
     const multiplier = tradeIdea.assetType === 'option' ? 100 : 1;
     
     let quantity: number;

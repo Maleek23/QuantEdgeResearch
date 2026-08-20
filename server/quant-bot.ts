@@ -29,7 +29,11 @@ export interface BotConfig {
 }
 
 export const DEFAULT_BOT_CONFIG: BotConfig = {
-  minConviction: 25,
+  // convictionScore is a raw CONFLUENCE-POINT sum, not a percent: it tops out around the
+  // high 20s and the bands are S>=30 / A>=22 / B>=15. A threshold of 25 therefore left
+  // only 3 eligible names out of 52. 18 takes solid B/A-band setups without scraping the
+  // bottom of the board.
+  minConviction: 18,
   maxOpen: 10,
   startingCapital: 10_000,
   riskPerTradePct: 2,
@@ -47,7 +51,12 @@ export async function getBotPortfolio(cfg: BotConfig = DEFAULT_BOT_CONFIG) {
     startingCapital: cfg.startingCapital,
     cashBalance: cfg.startingCapital,
     totalValue: cfg.startingCapital,
-    riskPerTrade: cfg.riskPerTradePct,
+    // riskPerTrade is stored as a FRACTION (0.02 = 2%). Passing the percent value made
+    // the sizer read 2 as 200% risk, which then hit the flat $5,000 position cap — two
+    // trades consumed the entire $10k account. A bot that goes all-in on two names isn't
+    // measuring signals.
+    riskPerTrade: cfg.riskPerTradePct / 100,
+    maxPositionSize: Math.round((cfg.startingCapital * 0.15)),
   } as any);
 }
 
@@ -105,9 +114,26 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         .slice(0, slots);
 
       for (const pick of candidates) {
-        const idea = await storage.getTradeIdeaById(pick.ideaId).catch(() => null);
+        const idea: any = await storage.getTradeIdeaById(pick.ideaId).catch(() => null);
         if (!idea) { skipped++; continue; }
-        const res = await executeTradeIdea(portfolio.id, idea as any);
+
+        // Most signals are tagged assetType 'option', but the platform stores the
+        // UNDERLYING stock levels on them — the thesis is on the stock and the Contract
+        // Engine picks the vehicle separately. Paper-trading them as options would need
+        // live premium data, which we don't have (Tradier is unfunded/401). So the bot
+        // trades the underlying against those same levels: it measures the SIGNAL, which
+        // is the point, instead of failing to fill on a dead options feed.
+        // The live price lives on the API pick, not on the stored row — without passing
+        // it through, the fill falls back to the idea's planned entry and the position
+        // opens already in profit on a stale signal. Paper P&L must start at zero.
+        const base = { ...idea, currentPrice: pick.currentPrice ?? null };
+        const tradeable = idea.assetType === 'option'
+          ? { ...base, assetType: 'stock', optionType: null, strikePrice: null, expiryDate: null }
+          : base;
+
+        if (!pick.currentPrice) { skipped++; continue; }  // no live mark → no honest fill
+
+        const res = await executeTradeIdea(portfolio.id, tradeable as any);
         if (res.success) {
           opened.push({
             symbol: pick.symbol,
@@ -115,6 +141,7 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
           });
         } else {
           skipped++;
+          logger.debug(`[QUANT-BOT] skipped ${pick.symbol}: ${res.error ?? 'no fill'}`);
         }
       }
     }
