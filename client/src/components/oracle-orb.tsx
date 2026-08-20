@@ -113,14 +113,17 @@ export function OracleOrb({ className }: { className?: string }) {
         <span className="text-[10px] font-mono text-muted-foreground/60">Market regime</span>
       </div>
 
-      <div className="relative flex flex-col items-center justify-center gap-2.5 py-4">
-        <div className="relative grid place-items-center" style={{ width: 118, height: 118 }}>
+      {/* Horizontal, not stacked. The orb was a tall column of mostly padding in a row
+          that has to sit alongside two other panels — the sphere reads just as well at
+          88px beside the text as it did at 160px above it. */}
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="relative grid shrink-0 place-items-center" style={{ width: 88, height: 88 }}>
           {/* pulsing halo rings */}
           {!reduce && [0, 1].map((i) => (
             <motion.span
               key={i}
               className="absolute rounded-full"
-              style={{ width: 96, height: 96, background: `radial-gradient(circle, color-mix(in srgb, ${r.color} 42%, transparent), transparent 70%)` }}
+              style={{ width: 72, height: 72, background: `radial-gradient(circle, color-mix(in srgb, ${r.color} 42%, transparent), transparent 70%)` }}
               animate={{ scale: [1, 1.4, 1], opacity: [0.55, 0, 0.55] }}
               transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut", delay: i * 1.7 }}
             />
@@ -129,7 +132,7 @@ export function OracleOrb({ className }: { className?: string }) {
           <motion.span
             className="rounded-full grid place-items-center"
             style={{
-              width: 74, height: 74,
+              width: 56, height: 56,
               background: `radial-gradient(circle at 35% 28%, color-mix(in srgb, ${r.color} 72%, white), ${r.color})`,
               boxShadow: `0 0 44px color-mix(in srgb, ${r.color} 55%, transparent)`,
               transition: "background 600ms ease, box-shadow 600ms ease",
@@ -143,27 +146,27 @@ export function OracleOrb({ className }: { className?: string }) {
           </motion.span>
         </div>
 
-        <div className="text-center">
-          <div className="text-[15px] font-mono font-bold tracking-widest" style={{ color: r.color, transition: "color 400ms ease" }}>
+        {/* regime + the per-class read share ONE column beside the sphere. Previously the
+            class grid was a flex SIBLING of this text, so the two overlapped. */}
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-mono font-bold tracking-widest" style={{ color: r.color, transition: "color 400ms ease" }}>
             {r.label}
           </div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60 mt-0.5">
+          <div className="mt-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
             {r.sub} · SPY {spy >= 0 ? "+" : ""}{spy.toFixed(2)}%{data?.isStale ? ` · ${data.sessionLabel} · stale` : ""}
           </div>
-        </div>
 
-        {/* per-asset-class stance — the part a single SPY number hides */}
-        {known.length > 0 && (
-          <div className="w-full px-4">
-            <div className="mb-1.5 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
-              <span>By asset class</span>
-              <span>
-                <span style={{ color: TC.bull }}>{bullCount} bull</span>
-                {" · "}
-                <span style={{ color: TC.bear }}>{bearCount} bear</span>
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+          {known.length > 0 && (
+            <div className="mt-2 border-t border-border/30 pt-1.5">
+              <div className="mb-1 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                <span>By asset class</span>
+                <span>
+                  <span style={{ color: TC.bull }}>{bullCount} bull</span>
+                  {" · "}
+                  <span style={{ color: TC.bear }}>{bearCount} bear</span>
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-x-3 gap-y-0.5">
               {classReads.map((c) => (
                 <div key={c.key} className="flex items-baseline justify-between gap-2">
                   <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/65">{c.label}</span>
@@ -179,15 +182,21 @@ export function OracleOrb({ className }: { className?: string }) {
                   ) : (
                     <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">—</span>
                   )}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      </div>
 
+      {/* Everything below is full-width block content. It was previously sitting INSIDE the
+          horizontal flex row as siblings of the sphere, which is what made the regime text,
+          the asset classes and the movers pile on top of each other. */}
+      <div className="space-y-2 px-3 pb-2.5">
         {/* live session + who's moving in it */}
         {ext && (
-          <div className="w-full px-4">
+          <div className="border-t border-border/30 pt-2">
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
                 {ext.session === 'pre' ? 'Pre-market' : ext.session === 'post' ? 'After-hours'
@@ -215,7 +224,7 @@ export function OracleOrb({ className }: { className?: string }) {
         )}
 
         {data?.headline && (
-          <p className="text-[10px] font-mono text-muted-foreground/70 text-center max-w-[86%] leading-snug px-4">
+          <p className="border-t border-border/30 pt-2 text-[10px] font-mono leading-snug text-muted-foreground/70">
             {data.headline}
           </p>
         )}

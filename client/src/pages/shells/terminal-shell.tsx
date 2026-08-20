@@ -198,7 +198,9 @@ export default function TerminalShell() {
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
                 <div className="mx-auto w-full max-w-[1600px] space-y-2 px-3 py-2">
-                  <div className="grid gap-2 lg:grid-cols-3 md:grid-cols-2">
+                  {/* One row, one height — three panels of different natural sizes were
+                      making the market read taller than the board it sits above. */}
+                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 [&>*]:min-h-0">
                     <OracleOrb />
                     <RotationMap />
                     {/* what to go into the session with — leadership + the names carrying it */}

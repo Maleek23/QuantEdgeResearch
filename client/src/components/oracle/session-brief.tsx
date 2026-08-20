@@ -46,7 +46,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
   const sectors = data?.sectors ?? [];
   // shared scale so every bar on the panel is comparable
   const maxMove = Math.max(0.5, ...sectors.map((x) => Math.abs(x.medianChangePct)));
-  const strong = sectors.slice(0, 4);
+  const strong = sectors.slice(0, 3);
   const weak = sectors.slice(-2).reverse();
 
   return (
@@ -83,7 +83,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
             </p>
           )}
 
-          <div className="px-4 py-3">
+          <div className="max-h-[248px] overflow-y-auto px-4 py-3">
             <div className="mb-1.5 text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.bull }}>
               Leading
             </div>

@@ -95,7 +95,10 @@ export function RotationMap({ className }: { className?: string }) {
         </div>
       )}
 
-      <div className="relative w-full mx-auto" style={{ aspectRatio: "1 / 1", maxWidth: 380 }}>
+      {/* A 1:1 plot is the tallest element on the page for no analytical gain — the axes
+          are relative strength vs momentum, not a shared unit, so the aspect is free.
+          Slightly wide keeps every bubble readable in far less vertical space. */}
+      <div className="relative mx-auto w-full" style={{ aspectRatio: "4 / 3", maxWidth: 300 }}>
         {isLoading && (
           <div className="absolute inset-0 grid place-items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
             reading rotation…
