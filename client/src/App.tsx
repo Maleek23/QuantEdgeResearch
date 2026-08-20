@@ -32,7 +32,6 @@ import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 // the app retries and auto-reloads to pick up the new chunks.
 // ─── 6 PRIMARY SHELLS (new IA) — Home / Hunt / GEX / Research / Positions / Journal ───
 const TerminalShell  = lazyWithRetry(() => import("@/pages/shells/terminal-shell"),  "terminal-shell");
-const ChartLab       = lazyWithRetry(() => import("@/pages/chart-lab"),              "chart-lab");
 const HomeShell      = lazyWithRetry(() => import("@/pages/shells/pulse-shell"),     "home-shell");
 const HuntShell      = lazyWithRetry(() => import("@/pages/shells/hunt-shell"),      "hunt-shell");
 const GexShell       = lazyWithRetry(() => import("@/pages/shells/gex-shell"),       "gex-shell");
@@ -189,8 +188,6 @@ function Router() {
       <Switch>
         {/* ─── TERMINAL — the consolidation target: one shell, 5 tabs (Oracle/Flow/Heatmap/GEX/PRISM) ─── */}
         <Route path="/t"          component={withBetaProtection(TerminalShell)} />
-        {/* Charting POC — public dev route (gate before prod) */}
-        <Route path="/chartlab"   component={ChartLab} />
         {/* ─── 6 PRIMARY SHELLS — new IA (Home / Hunt / GEX / Research / Positions / Journal) ─── */}
         <Route path="/p"          component={withBetaProtection(HomeShell)} />
         <Route path="/h"          component={withBetaProtection(HuntShell)} />
@@ -552,7 +549,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/landing', '/features', '/chartlab', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
+  const publicPages = ['/', '/w', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {

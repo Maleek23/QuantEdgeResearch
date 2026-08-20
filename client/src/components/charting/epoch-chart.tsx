@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 export interface Candle { time: number; open: number; high: number; low: number; close: number }
 export interface Anchor { time: number; price: number }
 export interface Trendline { id: string; a: Anchor; b: Anchor; color?: string; label?: string }
+export interface PriceLevel { price: number; color?: string; label?: string; dashed?: boolean }
 
 // Each timeframe carries both the aggregation bucket (demo/base mode) AND the
 // Yahoo (interval, range) pair used to fetch real candles for any ticker (symbol mode).
@@ -60,6 +61,7 @@ export function EpochChart({
   symbol,
   base,
   trendlines = [],
+  levels = [],
   height = 420,
   initialTf = '1h',
   className,
@@ -69,6 +71,8 @@ export function EpochChart({
   /** Demo/offline mode: a 1-minute base series that coarser TFs aggregate from. */
   base?: Candle[];
   trendlines?: Trendline[];
+  /** Horizontal price levels (entry / stop / target etc.). */
+  levels?: PriceLevel[];
   height?: number;
   initialTf?: TFId;
   className?: string;
@@ -164,7 +168,23 @@ export function EpochChart({
         ctx.fillText(ln.label, x2 + 6, y2 - 6);
       }
     }
-  }, [trendlines]);
+
+    // horizontal price levels (entry / stop / target)
+    for (const lv of levels) {
+      const y = series.priceToCoordinate(lv.price);
+      if (y == null) continue;
+      const color = lv.color ?? '#8b98a8';
+      ctx.strokeStyle = color; ctx.lineWidth = 1;
+      if (lv.dashed) ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      ctx.setLineDash([]);
+      if (lv.label) {
+        ctx.font = '10px ui-monospace, monospace';
+        ctx.fillStyle = color;
+        ctx.fillText(lv.label, 6, y - 4);
+      }
+    }
+  }, [trendlines, levels]);
 
   // keep the latest draw in a ref so the rAF loop never forces a chart rebuild
   const drawRef = useRef(draw);

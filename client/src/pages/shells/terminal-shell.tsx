@@ -92,7 +92,7 @@ export default function TerminalShell() {
           >
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
-                <div className="px-4 py-3 space-y-3">
+                <div className="mx-auto w-full max-w-[1600px] px-4 py-3 space-y-3">
                   <div className="grid gap-3 md:grid-cols-2">
                     <OracleOrb />
                     <RotationMap />
@@ -100,10 +100,10 @@ export default function TerminalShell() {
                   <HuntCockpit />
                 </div>
               )}
-              {tab === 'flow' && <FlowHeatmap />}
-              {tab === 'heatmap' && <MarketScanner />}
-              {tab === 'gex' && <GexShell />}
-              {tab === 'prism' && <div className="px-4 py-3"><SpectrumScanner /></div>}
+              {tab === 'flow' && <div className="mx-auto w-full max-w-[1600px]"><FlowHeatmap /></div>}
+              {tab === 'heatmap' && <div className="mx-auto w-full max-w-[1600px]"><MarketScanner /></div>}
+              {tab === 'gex' && <div className="mx-auto w-full max-w-[1600px]"><GexShell /></div>}
+              {tab === 'prism' && <div className="mx-auto w-full max-w-[1600px] px-4 py-3"><SpectrumScanner /></div>}
             </Suspense>
           </motion.div>
         </AnimatePresence>

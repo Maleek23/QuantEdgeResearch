@@ -12,15 +12,14 @@ Update this in the same PR as the change.
   Confidence Index bars (Conviction/Progress/R:R/Structure), and a Context panel with a
   "what to do now" line — all derived from real ConvictionPick data. Wired into the cockpit.
 - `/t` is now **full-bleed, no sidebar** (top-nav only, ADR-0001).
-- **Charting system POC** (ADR-0002) — `EpochChart` on lightweight-charts v5 with
-  **epoch-anchored trendlines that survive timeframe switches** (projected via fractional
-  logical-index interpolation), a flash-UI TF switcher (keys 1–5), and a live OHLC readout.
-  Demo at `/chartlab` (public dev route — gate before prod).
-- **Universal chart** — `EpochChart` now fetches real OHLC for **any ticker** via
-  `/api/historical-prices` (5m/15m/1h/1D), so the same component drops into any Terminal
-  tab, research view, or idea card. Epoch anchors project via bracketing-bar interpolation
-  (fixed a `logicalToCoordinate` edge bug that pinned lines to x=0 on 1D). `/chartlab` has
-  a ticker box; verified live on real NVDA data across timeframes.
+- **Universal chart** (ADR-0002) — one `EpochChart` on lightweight-charts v5: real OHLC for
+  **any ticker** via `/api/historical-prices` (5m/15m/1h/1D), a flash-UI TF switcher (keys 1–4),
+  live OHLC readout, **epoch-anchored trendlines that survive timeframe switches**, and
+  horizontal price levels (entry/stop/target). **Embedded in the Terminal Oracle cockpit**,
+  replacing the bespoke per-page chart — it's *part of the platform*, not a separate page.
+  The `/chartlab` POC route + file were removed once the chart landed in-platform.
+- **Terminal sizing** — bounded the tab content (`max-w-[1600px]`) and capped the Rotation
+  Map square so the layout no longer explodes on ultrawide monitors.
 - Canonical docs set in `docs/` (Architecture, Onboarding, Runbook, Team) + ADR process + this changelog.
 - Cash-secured-put income screener, catalyst research endpoints, cash-gate grade dampening.
 

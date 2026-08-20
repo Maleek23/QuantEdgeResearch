@@ -34,6 +34,7 @@ import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
 import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
 import { SignalCard, signalFromPick } from '@/components/signal-card';
 import { PriceLadder, ConfidenceBars, ContextPanel } from '@/components/oracle/signal-detail';
+import { EpochChart } from '@/components/charting/epoch-chart';
 import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
 import {
   tierLabel, directionTone, convictionPercent, LAYER_COLOR, LAYER_TAG,
@@ -459,32 +460,19 @@ export default function HuntCockpit() {
                 </div>
               </div>
 
-              {/* chart with range switcher */}
+              {/* chart — the ONE universal EpochChart (epoch-anchored, any ticker,
+                  its own TF switcher) with entry/stop/target as horizontal levels.
+                  Same component used everywhere; no bespoke per-page chart. */}
               <div>
-                <div className="flex items-center justify-end gap-0.5 mb-2">
-                  {RANGES.map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => setRangeId(r.id)}
-                      className={cn(
-                        'px-2 py-1 text-[10px] font-mono rounded transition-colors',
-                        rangeId === r.id ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground/60 hover:text-foreground',
-                      )}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-                <SignalChart
+                <EpochChart
                   symbol={selected.symbol}
-                  range={activeRange.range}
-                  interval={activeRange.interval}
-                  entry={selected.entryPrice}
-                  target={selected.targetPrice}
-                  stop={selected.stopLoss}
-                  tone={tone}
-                  height={280}
-                  fib
+                  initialTf="1D"
+                  height={300}
+                  levels={[
+                    { price: selected.entryPrice, color: '#22d3ee', label: 'ENTRY' },
+                    { price: selected.stopLoss, color: '#ef4444', label: 'STOP', dashed: true },
+                    { price: selected.targetPrice, color: '#22c55e', label: 'T1' },
+                  ]}
                 />
                 <TASummary symbol={selected.symbol} />
               </div>
