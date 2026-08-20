@@ -170,10 +170,15 @@ function SmartLanding() {
     return <PageLoader />;
   }
 
-  // If logged in, restore last visited page (or default to /p — Home)
+  // If logged in, land on the TERMINAL (/t) — the new one-shell design.
+  // We deliberately ignore a stale `qe-last-page` pointing at a legacy shell so the
+  // app stops opening on the old sidebar UI; the legacy routes all still work if you
+  // navigate to them directly. Anything else previously visited is still restored.
   if (user) {
-    const lastPage = localStorage.getItem('qe-last-page') || '/p';
-    return <Redirect to={lastPage} />;
+    const lastPage = localStorage.getItem('qe-last-page');
+    const LEGACY_LANDINGS = ['/p', '/h', '/g', '/r', '/pos', '/j'];
+    const target = !lastPage || LEGACY_LANDINGS.includes(lastPage.split('?')[0]) ? '/t' : lastPage;
+    return <Redirect to={target} />;
   }
 
   // Otherwise show landing page
@@ -535,7 +540,10 @@ function App() {
   useEffect(() => {
     const path = location.split('?')[0];
     // Only save authenticated app pages (not landing/login/public)
-    const skipPaths = ['/', '/w', '/landing', '/login', '/signup', '/invite', '/join-beta'];
+    // Don't remember legacy shells as the landing page — the Terminal (/t) is the front
+    // door now. They remain reachable directly; they just no longer hijack the next visit.
+    const skipPaths = ['/', '/w', '/landing', '/login', '/signup', '/invite', '/join-beta',
+                       '/p', '/h', '/g', '/r', '/pos', '/j'];
     if (!skipPaths.includes(path) && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
       localStorage.setItem('qe-last-page', location);
     }
