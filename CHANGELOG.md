@@ -32,6 +32,16 @@ Update this in the same PR as the change.
 - Grades display convictionScore-first (single source of truth for score↔grade).
 
 ### Fixed
+- **Options-flow ingestion was dead since Feb 2026.** `fetchOptionsChain` was Tradier-only,
+  and the unfunded key returns 401 — so the FLOW tab (the hero product) silently stopped
+  collecting. Now falls back to CBOE, which needs no key. A live scan produces 217 prints.
+- **The CBOE fallback itself was broken** (so every Tradier fallback, GEX included, was dead):
+  CBOE moved the underlying quote fields up one level (`data.quote.*` → `data.*`), and ships
+  contract details only inside the OCC symbol — no `strike` / `expiration_date` / `option_type`
+  fields, and `last_trade_price` not `last_sale_price`. Added `parseOccSymbol()` and made the
+  quote parsing accept both shapes. NVDA now returns 795 contracts w/ spot $218.85.
+- **`underlying_price` was never persisted** on flow rows (0 of 2,462) — so % out-of-the-money
+  could never be computed. The scanner now captures spot from the chain and stores it.
 - Duplicate `start:worker` script in package.json.
 - News rate-limit honesty (`data.Information` now counted); idea dedup defaults.
 

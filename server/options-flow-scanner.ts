@@ -91,6 +91,7 @@ interface OptionsFlow {
   sentiment: 'bullish' | 'bearish' | 'neutral';
   flowType: 'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal';
   unusualScore: number;
+  underlyingPrice: number | null;
   detectedAt: string;
 }
 
@@ -165,11 +166,47 @@ let scannerStatus: ScannerStatus = {
  * Fetch options chain data from Tradier
  * Gets expirations first, then fetches chains for each expiration
  */
+/** Last known spot per symbol for the current scan pass (set by fetchChainWithSpot). */
+const spotBySymbol = new Map<string, number>();
+
+/**
+ * Fetch a chain plus the underlying spot price.
+ *
+ * Tradier is primary, but an inactive/unfunded key returns 401 and used to silently
+ * stop all flow ingestion. CBOE's delayed feed needs no key and already returns a
+ * Tradier-compatible shape *plus* a spot price, so it's the fallback — and the reason
+ * we can finally persist underlyingPrice (needed for % out-of-the-money on flow cards).
+ */
+async function fetchChainWithSpot(symbol: string): Promise<{ options: any[]; spot: number | null }> {
+  const options = await fetchTradierChain(symbol);
+  if (options.length > 0) {
+    return { options, spot: spotBySymbol.get(symbol) ?? null };
+  }
+
+  try {
+    const { getCBOEOptionsChain } = await import('./cboe-options-fallback');
+    const cboe = await getCBOEOptionsChain(symbol);
+    if (cboe && cboe.options.length > 0) {
+      logger.info(`[OPTIONS-FLOW] ${symbol}: Tradier empty — using CBOE fallback (${cboe.options.length} contracts, spot $${cboe.spotPrice.toFixed(2)})`);
+      spotBySymbol.set(symbol, cboe.spotPrice);
+      return { options: cboe.options, spot: cboe.spotPrice };
+    }
+  } catch (e: any) {
+    logger.warn(`[OPTIONS-FLOW] CBOE fallback failed for ${symbol}: ${e?.message}`);
+  }
+
+  return { options: [], spot: null };
+}
+
 async function fetchOptionsChain(symbol: string): Promise<any[]> {
+  return (await fetchChainWithSpot(symbol)).options;
+}
+
+async function fetchTradierChain(symbol: string): Promise<any[]> {
   try {
     const apiKey = process.env.TRADIER_API_KEY;
     if (!apiKey) {
-      logger.warn('[OPTIONS-FLOW] No Tradier API key configured');
+      logger.warn('[OPTIONS-FLOW] No Tradier API key configured — will use CBOE fallback');
       return [];
     }
     
@@ -350,7 +387,7 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
   
   for (const symbol of scannerStatus.settings.watchlist) {
     try {
-      const chain = await fetchOptionsChain(symbol);
+      const { options: chain, spot } = await fetchChainWithSpot(symbol);
       
       for (const option of chain) {
         if (!option.volume || option.volume < 100) continue;
@@ -373,6 +410,7 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
             sentiment: determineSentiment(option),
             flowType: determineFlowType(option, score),
             unusualScore: score,
+            underlyingPrice: spot,
             detectedAt: new Date().toISOString(),
           };
           
@@ -455,6 +493,7 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
             sentiment: flow.sentiment,
             flowType: flow.flowType,
             unusualScore: flow.unusualScore,
+            underlyingPrice: flow.underlyingPrice,
             strategyCategory: classification.strategyCategory,
             dteCategory: classification.dteCategory,
             isLotto: classification.isLotto,
@@ -826,7 +865,7 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
     // Scan ALL watchlist symbols (no limit)
     for (const symbol of symbols) {
       try {
-        const chain = await fetchOptionsChain(symbol);
+        const { options: chain, spot } = await fetchChainWithSpot(symbol);
         
         if (!chain || chain.length === 0) {
           continue;
@@ -873,6 +912,7 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
               sentiment: determineSentiment(option),
               flowType: determineFlowType(option, score),
               unusualScore: score,
+              underlyingPrice: spot,
               detectedAt: new Date().toISOString(),
             };
             
@@ -950,6 +990,7 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
           sentiment: flow.sentiment,
           flowType: flow.flowType,
           unusualScore: flow.unusualScore,
+          underlyingPrice: flow.underlyingPrice,
           strategyCategory: classification.strategyCategory,
           dteCategory: classification.dteCategory,
           isLotto: classification.isLotto,

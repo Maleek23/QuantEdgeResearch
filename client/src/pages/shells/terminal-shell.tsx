@@ -18,7 +18,7 @@ import { useStockContext } from '@/contexts/stock-context';
 
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
 const GexShell      = lazy(() => import('@/pages/shells/gex-shell'));
-const FlowHeatmap   = lazy(() => import('@/pages/flow-heatmap'));
+const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m => ({ default: m.FlowBoard })));
 const MarketScanner = lazy(() => import('@/pages/market-scanner'));
 const SpectrumScanner = lazy(() => import('@/components/hunt/spectrum-scanner').then(m => ({ default: m.SpectrumScanner })));
 
@@ -142,7 +142,12 @@ export default function TerminalShell() {
                   <HuntCockpit />
                 </div>
               )}
-              {tab === 'flow' && <div className="mx-auto w-full max-w-[1600px]"><FlowHeatmap /></div>}
+              {tab === 'flow' && (
+                <div className="mx-auto w-full max-w-[1600px]">
+                  {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it */}
+                  <FlowBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                </div>
+              )}
               {tab === 'heatmap' && <div className="mx-auto w-full max-w-[1600px]"><MarketScanner /></div>}
               {tab === 'gex' && <div className="mx-auto w-full max-w-[1600px]"><GexShell /></div>}
               {tab === 'prism' && <div className="mx-auto w-full max-w-[1600px] px-4 py-3"><SpectrumScanner /></div>}

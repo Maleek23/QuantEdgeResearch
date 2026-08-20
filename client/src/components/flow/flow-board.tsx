@@ -1,0 +1,272 @@
+/**
+ * FLOW BOARD — the FLOW tab. "What is smart money doing?"
+ *
+ * Built to the desk walkthrough: a market-overview strip (bullish vs bearish premium
+ * for the day), the full filter set (score · direction · type · premium size · sweep ·
+ * whale), a ticker search that also reaches back over past sessions, and the flow cards
+ * themselves. Repeats and per-ticker baselines are computed across the loaded tape so
+ * "unusual" means unusual FOR THAT NAME.
+ */
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Search, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { FlowCard } from './flow-card';
+import {
+  scoreFlow, baselinesBySymbol, repeatCounts, contractKey, WHALE_PREMIUM, type FlowPrint,
+} from '@/lib/flow/flow-score';
+
+const CYAN = 'var(--brand-cyan,#22d3ee)';
+const BULL = 'var(--trade-bullish,#22c55e)';
+const BEAR = 'var(--trade-bearish,#ef4444)';
+
+type Dir = 'all' | 'bullish' | 'bearish';
+type Kind = 'all' | 'sweep' | 'block' | 'unusual_volume';
+const MIN_SCORES = [0, 55, 70, 80] as const;
+const MIN_PREMIUM = [0, 100_000, 500_000, 1_000_000] as const;
+
+interface FlowResponse {
+  trades?: any[];
+  stats?: {
+    totalTrades: number; totalValue: number; callCount: number; putCount: number;
+    callPutRatio: number; mostActiveTickers?: any[]; repeatTickers?: any[]; unusualActivity?: any[];
+  };
+}
+
+/** Normalise whatever the API returns into the shape the scorer expects. */
+function toPrint(t: any): FlowPrint | null {
+  const symbol = t?.symbol ?? t?.ticker;
+  if (!symbol) return null;
+  const optionType = (t.optionType ?? t.option_type ?? t.type ?? 'call').toLowerCase() === 'put' ? 'put' : 'call';
+  return {
+    symbol,
+    optionType,
+    strikePrice: Number(t.strikePrice ?? t.strike_price ?? t.strike ?? 0),
+    expirationDate: String(t.expirationDate ?? t.expiration_date ?? t.expiry ?? t.expiryDate ?? ''),
+    volume: Number(t.volume ?? t.size ?? 0),
+    openInterest: t.openInterest ?? t.open_interest ?? null,
+    volumeOIRatio: t.volumeOIRatio ?? t.volume_oi_ratio ?? null,
+    premium: Number(t.premium ?? 0),
+    totalPremium: t.totalPremium ?? t.total_premium ?? null,
+    impliedVolatility: t.impliedVolatility ?? t.implied_volatility ?? null,
+    delta: t.delta ?? null,
+    underlyingPrice: t.underlyingPrice ?? t.underlying_price ?? t.spot ?? null,
+    sentiment: (t.sentiment ?? (optionType === 'call' ? 'bullish' : 'bearish')) as FlowPrint['sentiment'],
+    flowType: (t.flowType ?? t.flow_type ?? 'normal') as FlowPrint['flowType'],
+    unusualScore: t.unusualScore ?? t.unusual_score ?? null,
+    isLotto: t.isLotto ?? t.is_lotto ?? null,
+    detectedAt: t.detectedAt ?? t.detected_at ?? null,
+  };
+}
+
+export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => void }) {
+  const [dir, setDir] = useState<Dir>('all');
+  const [kind, setKind] = useState<Kind>('all');
+  const [minScore, setMinScore] = useState<number>(0);
+  const [minPrem, setMinPrem] = useState<number>(0);
+  const [whaleOnly, setWhaleOnly] = useState(false);
+  const [q, setQ] = useState('');
+  const [days, setDays] = useState(7);
+  const [watched, setWatched] = useState<Set<string>>(new Set());
+
+  const { data, isLoading, isError } = useQuery<FlowResponse>({
+    queryKey: ['/api/options-flow', 'board', days],
+    queryFn: async () => {
+      const r = await fetch(`/api/options-flow?limit=200&days=${days}`, { credentials: 'include' });
+      if (!r.ok) throw new Error('flow failed');
+      return r.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: 1,
+  });
+
+  const prints = useMemo(
+    () => (data?.trades ?? []).map(toPrint).filter(Boolean) as FlowPrint[],
+    [data],
+  );
+
+  const scored = useMemo(() => {
+    const base = baselinesBySymbol(prints);
+    const reps = repeatCounts(prints);
+    return prints
+      .map((p) => ({ print: p, score: scoreFlow(p, { baseline: base[p.symbol], repeatCount: reps[contractKey(p)] }) }))
+      .sort((a, b) => b.score.score - a.score.score);
+  }, [prints]);
+
+  const shown = useMemo(() => scored.filter(({ print: p, score: s }) => {
+    if (dir !== 'all' && p.sentiment !== dir) return false;
+    if (kind !== 'all' && p.flowType !== kind) return false;
+    if (s.score < minScore) return false;
+    if (s.totalPremium < minPrem) return false;
+    if (whaleOnly && !s.isWhale) return false;
+    if (q.trim() && !p.symbol.toUpperCase().includes(q.trim().toUpperCase())) return false;
+    return true;
+  }), [scored, dir, kind, minScore, minPrem, whaleOnly, q]);
+
+  // market overview — bullish vs bearish premium for the session
+  const overview = useMemo(() => {
+    let bull = 0, bear = 0, whales = 0, sweeps = 0;
+    for (const { print: p, score: s } of scored) {
+      if (p.sentiment === 'bullish') bull += s.totalPremium;
+      else if (p.sentiment === 'bearish') bear += s.totalPremium;
+      if (s.isWhale) whales++;
+      if (s.isSweep) sweeps++;
+    }
+    const net = bull - bear;
+    return { bull, bear, net, whales, sweeps, total: scored.length };
+  }, [scored]);
+
+  // Honest freshness: say when the newest print actually landed, never imply "live".
+  const freshness = useMemo(() => {
+    const times = prints.map((p) => (p.detectedAt ? Date.parse(String(p.detectedAt)) : NaN)).filter((n) => !Number.isNaN(n));
+    if (!times.length) return null;
+    const newest = new Date(Math.max(...times));
+    const ageH = (Date.now() - newest.getTime()) / 3_600_000;
+    return {
+      label: newest.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+      stale: ageH > 24,
+      ageDays: Math.floor(ageH / 24),
+    };
+  }, [prints]);
+
+  const toggleWatch = (sym: string) =>
+    setWatched((w) => { const n = new Set(w); n.has(sym) ? n.delete(sym) : n.add(sym); return n; });
+
+  const money = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n.toFixed(0)}`;
+
+  return (
+    <div className="space-y-3 px-4 py-3">
+      {/* ── market overview: where the day's premium went ── */}
+      <div className="rounded-xl border border-card-border bg-card">
+        <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
+          <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">Market Flow</span>
+          <div className="flex items-center gap-2">
+            {freshness && (
+              <span className={cn('text-[10px] font-mono', freshness.stale ? 'text-[#e0a458]' : 'text-muted-foreground/60')}>
+                {freshness.stale ? `last print ${freshness.label} · ${freshness.ageDays}d stale` : `last print ${freshness.label}`}
+              </span>
+            )}
+            <Seg label="Window" value={String(days)} onChange={(v) => setDays(Number(v))}
+                 options={[['1', '1D'], ['7', '1W'], ['30', '1M'], ['200', 'ALL']]} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-px bg-border/20 sm:grid-cols-5">
+          <Stat label="Bullish premium" value={money(overview.bull)} color={BULL} />
+          <Stat label="Bearish premium" value={money(overview.bear)} color={BEAR} />
+          <Stat label="Net" value={`${overview.net >= 0 ? '+' : '−'}${money(Math.abs(overview.net))}`} color={overview.net >= 0 ? BULL : BEAR} />
+          <Stat label="Whales" value={String(overview.whales)} color="#e0a458" />
+          <Stat label="Sweeps" value={String(overview.sweeps)} color={CYAN} />
+        </div>
+        {overview.total > 0 && (
+          <div className="border-t border-border/30 px-4 py-2">
+            <p className="text-[11px] leading-relaxed text-foreground/75">
+              {overview.net >= 0 ? 'Call premium leads' : 'Put premium leads'} by{' '}
+              <b style={{ color: overview.net >= 0 ? BULL : BEAR }}>{money(Math.abs(overview.net))}</b>
+              {' '}across {overview.total} qualifying prints. Premium alone is not a signal — confirm the chart has room before acting.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── filters ── */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-card-border bg-card px-3 py-2">
+        <Seg label="Dir" value={dir} onChange={setDir}
+             options={[['all', 'ALL'], ['bullish', 'BULL'], ['bearish', 'BEAR']]} />
+        <Seg label="Type" value={kind} onChange={setKind}
+             options={[['all', 'ALL'], ['sweep', 'SWEEP'], ['block', 'BLOCK'], ['unusual_volume', 'UNUSUAL']]} />
+        <Seg label="Score" value={String(minScore)} onChange={(v) => setMinScore(Number(v))}
+             options={MIN_SCORES.map((s) => [String(s), s === 0 ? 'ANY' : `${s}+`] as [string, string])} />
+        <Seg label="Premium" value={String(minPrem)} onChange={(v) => setMinPrem(Number(v))}
+             options={MIN_PREMIUM.map((p) => [String(p), p === 0 ? 'ANY' : p >= 1e6 ? '$1M+' : `$${p / 1000}K+`] as [string, string])} />
+        <button
+          onClick={() => setWhaleOnly((w) => !w)}
+          className={cn('cursor-pointer rounded px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors',
+            whaleOnly ? 'bg-[#e0a458]/15 text-[#e0a458]' : 'text-muted-foreground/55 hover:text-foreground')}
+        >
+          Whales ≥$1M
+        </button>
+
+        <div className="relative ml-auto">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="ticker"
+            aria-label="Filter flow by ticker"
+            className="w-28 rounded border border-border/60 bg-background/60 py-1 pl-7 pr-2 text-[11px] font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:border-[var(--brand-cyan,#22d3ee)]"
+          />
+        </div>
+      </div>
+
+      {/* ── the tape ── */}
+      {isLoading ? (
+        <div className="flex h-40 items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/50">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading the tape…
+        </div>
+      ) : isError ? (
+        <Empty title="Flow unavailable" body="The flow feed did not respond. It will retry automatically." />
+      ) : shown.length === 0 ? (
+        <Empty
+          title={prints.length === 0 ? 'No flow yet' : 'Nothing matches those filters'}
+          body={prints.length === 0
+            ? 'No premium-qualifying prints have come across the tape. Flow typically builds through the first 15–30 minutes after the open — start with the Heatmap until it fills in.'
+            : 'Loosen the score, premium, or type filters to see more of the tape.'}
+        />
+      ) : (
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {shown.map(({ print, score }, i) => (
+            <FlowCard
+              key={`${contractKey(print)}-${i}`}
+              print={print}
+              score={score}
+              watched={watched.has(print.symbol)}
+              onWatch={toggleWatch}
+              onSelect={onSelectSymbol}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="bg-card px-3 py-2">
+      <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">{label}</div>
+      <div className="mt-0.5 text-[14px] font-mono font-bold tabular-nums" style={{ color }}>{value}</div>
+    </div>
+  );
+}
+
+function Seg<T extends string>({ label, value, onChange, options }: {
+  label: string; value: T; onChange: (v: T) => void; options: [string, string][];
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/40">{label}</span>
+      <div className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
+        {options.map(([v, l]) => (
+          <button
+            key={v}
+            onClick={() => onChange(v as T)}
+            className={cn('cursor-pointer rounded px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider transition-colors',
+              value === v ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/55 hover:text-foreground')}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Empty({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-xl border border-card-border bg-card px-6 py-10 text-center">
+      <div className="text-[11px] font-mono uppercase tracking-widest text-foreground/70">{title}</div>
+      <p className="mx-auto mt-2 max-w-md text-[11px] leading-relaxed text-muted-foreground/60">{body}</p>
+    </div>
+  );
+}
