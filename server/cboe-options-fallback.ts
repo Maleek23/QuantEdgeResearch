@@ -60,7 +60,51 @@ export function parseOccSymbol(occ: string): { root: string; expirationDate: str
   };
 }
 
+/**
+ * In-flight coalescing + a short TTL cache.
+ *
+ * The boot scanners were requesting the SAME symbol from several call sites at once —
+ * the logs showed PLTR fetched four times and 429'd three times inside one second. CBOE
+ * then rate-limited us, every retry queued, and unrelated endpoints (convictions) stalled
+ * behind the storm. Concurrent callers for a symbol now share ONE request, and repeat
+ * calls inside the TTL are served from memory. Chains are delayed data; a short cache
+ * costs nothing in accuracy.
+ */
+const _cboeInflight = new Map<string, Promise<any>>();
+const _cboeCache = new Map<string, { data: any; expiresAt: number }>();
+const CBOE_TTL_MS = 60_000;
+
 export async function getCBOEOptionsChain(symbol: string): Promise<{
+  options: any[];
+  spotPrice: number;
+  expirations: string[];
+  source: 'cboe';
+} | null> {
+  const key = symbol.toUpperCase();
+  const now = Date.now();
+
+  const cached = _cboeCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.data;
+
+  const inflight = _cboeInflight.get(key);
+  if (inflight) return inflight;
+
+  const p = _fetchCBOEOptionsChain(symbol)
+    .then((data) => {
+      _cboeCache.set(key, { data, expiresAt: Date.now() + CBOE_TTL_MS });
+      if (_cboeCache.size > 300) {
+        const oldest = Array.from(_cboeCache.entries()).sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0];
+        if (oldest) _cboeCache.delete(oldest[0]);
+      }
+      return data;
+    })
+    .finally(() => { _cboeInflight.delete(key); });
+
+  _cboeInflight.set(key, p);
+  return p;
+}
+
+async function _fetchCBOEOptionsChain(symbol: string): Promise<{
   options: any[];
   spotPrice: number;
   expirations: string[];

@@ -85,6 +85,19 @@ Update this in the same PR as the change.
 - Grades display convictionScore-first (single source of truth for score↔grade).
 
 ### Fixed
+- **Unreadable type.** 46 instances of 8–9px text and 52 of muted text at ≤55% opacity —
+  genuinely illegible on a dark ground. Applied a readability floor across the Terminal:
+  nothing below 10px, muted text no fainter than 70%.
+- **Provider rate-limit storm (partial).** Boot scanners were requesting the same symbol
+  from several call sites simultaneously — logs showed PLTR fetched 4× and 429'd 3× within
+  one second — which starved unrelated endpoints and made the app look like it hung. The
+  CBOE fetcher now coalesces concurrent callers into one request with a 60s TTL cache
+  (verified: 6 concurrent calls → 1 request, repeat 0ms). **Yahoo still needs the same
+  treatment** — it currently 500s `/api/historical-prices` under load, which is why charts
+  intermittently show NO DATA.
+- **Extended-hours blindness.** New `/api/extended-hours` reads the pre/post tape via
+  Yahoo's `includePrePost`, ranking gainers/losers/most-active and reporting the live
+  session (pre / regular / post / closed) — the window the platform previously ignored.
 - **`GET /api/preferences` 404'd for anyone without a saved row** — the normal first-run
   state — so the settings UI could never load. It now creates defaults instead.
 - Settings save used a raw `fetch` and was rejected by CSRF (403); now goes through

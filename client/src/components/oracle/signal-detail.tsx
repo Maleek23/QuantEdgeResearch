@@ -165,7 +165,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
                 initial={reduce ? false : { width: 0 }} animate={{ width: `${c.value}%` }}
                 transition={{ duration: DUR.slow, ease: EASE }} />
             </div>
-            <div className="mt-0.5 text-[9px] font-mono text-muted-foreground/45">{c.why}</div>
+            <div className="mt-0.5 text-[10px] font-mono text-muted-foreground/70">{c.why}</div>
           </div>
         ))}
       </div>
@@ -210,16 +210,16 @@ export function RiskReward({ pick, live, className }: { pick: ConvictionPick; li
           <div style={{ width: `${riskShare}%`, background: BEAR }} />
           <div style={{ width: `${100 - riskShare}%`, background: CYAN }} />
         </div>
-        <div className="mt-1 flex justify-between text-[9px] font-mono uppercase tracking-wider text-muted-foreground/55">
+        <div className="mt-1 flex justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
           <span>◀ risk</span><span>reward ▶</span>
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <div>
-            <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">Risk to stop</div>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Risk to stop</div>
             <div className="text-[12px] font-mono font-bold tabular-nums" style={{ color: BEAR }}>−${g.risk.toFixed(2)}</div>
           </div>
           <div>
-            <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">Reward to T1</div>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Reward to T1</div>
             <div className="text-[12px] font-mono font-bold tabular-nums" style={{ color: BULL }}>+${g.reward.toFixed(2)}</div>
           </div>
         </div>
@@ -272,7 +272,7 @@ export function PositionSize({ pick, live, className }: { pick: ConvictionPick; 
           <Mini label="Position cost" value={`$${cost.toFixed(0)}`} />
           <Mini label="Of account" value={`${pctOfAccount.toFixed(1)}%`} color={overAllocated ? TC.bear : undefined} />
         </div>
-        <p className="text-[10px] leading-relaxed text-muted-foreground/55">
+        <p className="text-[10px] leading-relaxed text-muted-foreground/70">
           {overAllocated
             ? `This size costs more than your whole account — the stop is tight relative to price, so scale down or use options.`
             : `Sized so a stop-out costs ${riskPct}% of your $${account.toLocaleString()} account.`}
@@ -285,7 +285,7 @@ export function PositionSize({ pick, live, className }: { pick: ConvictionPick; 
 function Mini({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="rounded border border-border/40 px-2 py-1">
-      <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">{label}</div>
+      <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
       <div className="mt-0.5 text-[12px] font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
     </div>
   );
@@ -305,8 +305,8 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
               <div className="text-[13px] font-mono font-bold tabular-nums text-foreground">${money(p.price)}</div>
               <div className="text-[10px] font-mono text-muted-foreground/65">{p.action}</div>
             </div>
-            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider',
-              p.active ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground/50')}>
+            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider',
+              p.active ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground/70')}>
               {p.active ? 'Active' : 'Pending'}
             </span>
           </div>
@@ -349,7 +349,7 @@ export function ContextPanel({
         </p>
         {pick.thesis && <p className="text-[11px] leading-relaxed text-muted-foreground/75">{pick.thesis}</p>}
         <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
-          <div className="mb-0.5 text-[9px] font-mono uppercase tracking-widest" style={{ color: CYAN }}>What to do now</div>
+          <div className="mb-0.5 text-[10px] font-mono uppercase tracking-widest" style={{ color: CYAN }}>What to do now</div>
           <div className="text-[11px] font-mono text-foreground/85">{todo}</div>
         </div>
       </div>

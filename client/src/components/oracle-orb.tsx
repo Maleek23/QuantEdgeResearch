@@ -128,7 +128,7 @@ export function OracleOrb({ className }: { className?: string }) {
         {/* per-asset-class stance — the part a single SPY number hides */}
         {known.length > 0 && (
           <div className="w-full px-4">
-            <div className="mb-1.5 flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">
+            <div className="mb-1.5 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
               <span>By asset class</span>
               <span>
                 <span style={{ color: TC.bull }}>{bullCount} bull</span>
@@ -142,15 +142,15 @@ export function OracleOrb({ className }: { className?: string }) {
                   <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/65">{c.label}</span>
                   {c.stance ? (
                     <span className="flex items-baseline gap-1.5">
-                      <span className="text-[9px] font-mono tabular-nums text-muted-foreground/45">
+                      <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70">
                         {c.changePct! >= 0 ? "+" : ""}{c.changePct!.toFixed(2)}%
                       </span>
-                      <span className="text-[9px] font-mono font-bold uppercase tracking-wider" style={{ color: c.stance.color }}>
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: c.stance.color }}>
                         {c.stance.label}
                       </span>
                     </span>
                   ) : (
-                    <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/30">—</span>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">—</span>
                   )}
                 </div>
               ))}

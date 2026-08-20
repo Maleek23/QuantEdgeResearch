@@ -102,7 +102,7 @@ export function PrismBoard() {
         <aside className="hidden xl:block rounded-xl border border-card-border bg-card overflow-hidden self-start">
           <div className="flex items-center justify-between border-b border-border/40 px-3 py-2.5">
             <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">Ranked</span>
-            <span className="text-[9px] font-mono text-muted-foreground/55">
+            <span className="text-[10px] font-mono text-muted-foreground/70">
               {hub?.hub?.totalTickers ? `${hub.hub.totalTickers} scanned` : 'dealer positioning'}
             </span>
           </div>
@@ -112,7 +112,7 @@ export function PrismBoard() {
               className="flex w-full cursor-pointer items-center justify-between border-b border-border/30 px-3 py-2 text-left transition-colors hover:bg-foreground/5"
             >
               <span className="text-[11px] font-mono font-bold tracking-wider" style={{ color: CYAN }}>SPY</span>
-              <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">benchmark</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">benchmark</span>
             </button>
             {plays.map((p, i) => {
               const active = p.symbol.toUpperCase() === symbol;
@@ -127,11 +127,11 @@ export function PrismBoard() {
                     active && 'bg-foreground/[0.06]',
                   )}
                 >
-                  <span className="w-4 shrink-0 text-[9px] font-mono tabular-nums text-muted-foreground/40">{i + 1}</span>
+                  <span className="w-4 shrink-0 text-[10px] font-mono tabular-nums text-muted-foreground/70">{i + 1}</span>
                   <span className={cnx('text-[11px] font-mono font-bold tracking-wider', active ? 'text-[var(--brand-cyan,#22d3ee)]' : 'text-foreground/85')}>
                     {p.symbol}
                   </span>
-                  <span className="ml-auto text-[9px] font-mono uppercase tracking-wider" style={{ color: neg ? BEAR : BULL }}>
+                  <span className="ml-auto text-[10px] font-mono uppercase tracking-wider" style={{ color: neg ? BEAR : BULL }}>
                     {neg ? '−γ' : '+γ'}
                   </span>
                   <span className="w-6 text-right text-[11px] font-mono font-bold tabular-nums" style={{ color: (p.playScore ?? 0) >= 80 ? '#e0a458' : 'var(--foreground)' }}>
@@ -141,7 +141,7 @@ export function PrismBoard() {
               );
             })}
             {plays.length === 0 && (
-              <div className="px-3 py-6 text-center text-[9px] font-mono uppercase tracking-widest text-muted-foreground/40">
+              <div className="px-3 py-6 text-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
                 scanning…
               </div>
             )}
@@ -158,7 +158,7 @@ export function PrismBoard() {
           </div>
 
           {isLoading ? (
-            <div className="flex h-72 items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/50">
+            <div className="flex h-72 items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading the surface…
             </div>
           ) : isError || !snap || matrix.length === 0 ? (
@@ -195,7 +195,7 @@ export function PrismBoard() {
 
                 {/* call vs put share of the surface */}
                 <div>
-                  <div className="mb-1 flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60">
+                  <div className="mb-1 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
                     <span style={{ color: BULL }}>calls {read.callShare.toFixed(0)}%</span>
                     <span style={{ color: BEAR }}>{(100 - read.callShare).toFixed(0)}% puts</span>
                   </div>
@@ -221,7 +221,7 @@ export function PrismBoard() {
                 {/* buy-time nudge — the desk's most repeated rule */}
                 {read.up && read.up.dte <= 7 && (
                   <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
-                    <div className="mb-0.5 text-[9px] font-mono uppercase tracking-widest text-[#e0a458]">Time is your best friend</div>
+                    <div className="mb-0.5 text-[10px] font-mono uppercase tracking-widest text-[#e0a458]">Time is your best friend</div>
                     <div className="text-[11px] leading-relaxed text-foreground/80">
                       The strongest node sits only {read.up.dte}d out. Consider the same strike on a later
                       expiry — you pay more premium, but the thesis gets room to play out.
@@ -229,20 +229,20 @@ export function PrismBoard() {
                   </div>
                 )}
 
-                <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground/50">
+                <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground/70">
                   Lit-up nodes mark likely support, resistance and magnets — they are levels, not entries.
                   Confirm on the chart before trading.
                 </p>
               </div>
             ) : (
-              <div className="px-4 py-6 text-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/45">
+              <div className="px-4 py-6 text-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
                 no reading yet
               </div>
             )}
           </div>
 
           <div className="rounded-xl border border-card-border bg-card px-4 py-3">
-            <div className="mb-1.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">How to read</div>
+            <div className="mb-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60">How to read</div>
             <ul className="space-y-1 text-[11px] leading-relaxed text-muted-foreground/70">
               <li><b style={{ color: BULL }}>Green</b> = call side · <b style={{ color: BEAR }}>red</b> = put side.</li>
               <li>Brighter cell = more exposure at that strike.</li>
@@ -259,7 +259,7 @@ export function PrismBoard() {
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="rounded-lg border border-border/40 px-2.5 py-1.5">
-      <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">{label}</div>
+      <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
       <div className="mt-0.5 text-[13px] font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
     </div>
   );
@@ -268,9 +268,9 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
 function Level({ label, strike, expiry, dte, color }: { label: string; strike: number; expiry: string; dte: number; color: string }) {
   return (
     <div className="flex items-baseline justify-between gap-2 border-t border-border/30 pt-2">
-      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60">{label}</span>
+      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">{label}</span>
       <span className="text-[11px] font-mono tabular-nums" style={{ color }}>
-        ${strike} <span className="text-muted-foreground/50">· {expiry} · {dte}d</span>
+        ${strike} <span className="text-muted-foreground/70">· {expiry} · {dte}d</span>
       </span>
     </div>
   );

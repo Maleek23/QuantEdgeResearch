@@ -287,7 +287,7 @@ export function EpochChart({
               onClick={() => setExpanded(true)}
               title="Expand chart"
               aria-label="Expand chart"
-              className="mr-1 cursor-pointer rounded p-1 text-muted-foreground/55 transition-colors hover:bg-foreground/10 hover:text-foreground"
+              className="mr-1 cursor-pointer rounded p-1 text-muted-foreground/70 transition-colors hover:bg-foreground/10 hover:text-foreground"
             >
               <Maximize2 className="h-3.5 w-3.5" />
             </button>
@@ -299,7 +299,7 @@ export function EpochChart({
               title={`${t.label} · press ${i + 1}`}
               className={cn(
                 'px-2 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors',
-                tf === t.id ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/55 hover:text-foreground',
+                tf === t.id ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground',
               )}
             >
               {t.label}
@@ -329,7 +329,7 @@ export function EpochChart({
               >
                 <div className="flex items-center justify-between border-b border-border/40 px-4 py-2">
                   <span className="text-[12px] font-mono font-bold tracking-widest text-foreground">
-                    {symbol ?? 'DEMO'} <span className="text-muted-foreground/45">· chart workspace</span>
+                    {symbol ?? 'DEMO'} <span className="text-muted-foreground/70">· chart workspace</span>
                   </span>
                   <button
                     onClick={() => setExpanded(false)}
@@ -351,7 +351,7 @@ export function EpochChart({
                     className="border-0"
                   />
                 </div>
-                <div className="border-t border-border/40 px-4 py-1.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground/45">
+                <div className="border-t border-border/40 px-4 py-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
                   Esc or click outside to close · keys 1–4 switch timeframe
                 </div>
               </motion.div>
@@ -365,7 +365,7 @@ export function EpochChart({
       <div ref={wrapRef} className="relative w-full" style={{ height }}>
         <canvas ref={overlayRef} className="absolute inset-0 pointer-events-none z-10" />
         {symbol && (isLoading || isError || data.length === 0) && (
-          <div className="absolute inset-0 z-20 grid place-items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/50">
+          <div className="absolute inset-0 z-20 grid place-items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
             {isError ? 'no data' : isLoading ? 'loading…' : 'no candles'}
           </div>
         )}

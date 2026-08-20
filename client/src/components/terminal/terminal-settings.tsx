@@ -101,7 +101,7 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
             </div>
 
             {isLoading ? (
-              <div className="flex h-40 items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" /></div>
+              <div className="flex h-40 items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground/70" /></div>
             ) : (
               <div className="space-y-5 px-4 py-4">
                 {/* ── risk: the settings that change the numbers ── */}
@@ -116,7 +116,7 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                     <NumInput value={draft.defaultOptionsBudget ?? 0} onChange={(v) => set('defaultOptionsBudget', v)} prefix="$" step={50} />
                   </Field>
                   <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
-                    <div className="text-[9px] font-mono uppercase tracking-widest" style={{ color: TC.info }}>Risk budget</div>
+                    <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.info }}>Risk budget</div>
                     <div className="mt-0.5 text-[12px] font-mono text-foreground/85">
                       <b className="tabular-nums">${risk$.toFixed(0)}</b> per trade — every signal will size to this.
                     </div>
@@ -133,7 +133,7 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                           <button key={a} onClick={() => set('preferredAssets',
                             on ? (draft.preferredAssets ?? []).filter((x) => x !== a) : [...(draft.preferredAssets ?? []), a])}
                             className={cn('cursor-pointer rounded px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors',
-                              on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground/55 hover:text-foreground')}>
+                              on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground/70 hover:text-foreground')}>
                             {a}
                           </button>
                         );
@@ -183,7 +183,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
     <div>
       <div className="mb-2 flex items-baseline gap-2">
         <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
-        {hint && <span className="text-[9px] font-mono text-muted-foreground/45">{hint}</span>}
+        {hint && <span className="text-[10px] font-mono text-muted-foreground/70">{hint}</span>}
       </div>
       <div className="space-y-2.5">{children}</div>
     </div>
@@ -204,13 +204,13 @@ function NumInput({ value, onChange, prefix, suffix, step = 1, max }: {
 }) {
   return (
     <span className="flex items-center gap-1 rounded border border-border/60 bg-background/60 px-2 py-1">
-      {prefix && <span className="text-[10px] font-mono text-muted-foreground/50">{prefix}</span>}
+      {prefix && <span className="text-[10px] font-mono text-muted-foreground/70">{prefix}</span>}
       <input
         type="number" value={value} step={step} max={max} min={0}
         onChange={(e) => onChange(Math.max(0, Number(e.target.value)))}
         className="w-20 bg-transparent text-right text-[11px] font-mono tabular-nums text-foreground outline-none"
       />
-      {suffix && <span className="text-[10px] font-mono text-muted-foreground/50">{suffix}</span>}
+      {suffix && <span className="text-[10px] font-mono text-muted-foreground/70">{suffix}</span>}
     </span>
   );
 }
@@ -221,7 +221,7 @@ function Seg<T extends string>({ options, value, onChange }: { options: readonly
       {options.map((o) => (
         <button key={o} onClick={() => onChange(o)}
           className={cn('cursor-pointer rounded px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider transition-colors',
-            value === o ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/55 hover:text-foreground')}>
+            value === o ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}>
           {o}
         </button>
       ))}

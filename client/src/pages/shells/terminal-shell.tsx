@@ -81,7 +81,7 @@ export default function TerminalShell() {
         <div className="flex items-center gap-4 px-4 h-12">
           <span className="font-mono text-[13px] font-bold tracking-widest text-foreground shrink-0">
             QUANT<span className="text-[var(--brand-cyan,#22d3ee)]">EDGE</span>
-            <span className="text-muted-foreground/50"> // TERMINAL</span>
+            <span className="text-muted-foreground/70"> // TERMINAL</span>
           </span>
           <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-[var(--trade-bullish,#22c55e)] shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" /> Engaged
@@ -118,7 +118,7 @@ export default function TerminalShell() {
               className="hidden md:flex items-center gap-1"
             >
               <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/70" />
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}

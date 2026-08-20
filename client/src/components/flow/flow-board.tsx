@@ -182,13 +182,13 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
         <button
           onClick={() => setWhaleOnly((w) => !w)}
           className={cn('cursor-pointer rounded px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors',
-            whaleOnly ? 'bg-[#e0a458]/15 text-[#e0a458]' : 'text-muted-foreground/55 hover:text-foreground')}
+            whaleOnly ? 'bg-[#e0a458]/15 text-[#e0a458]' : 'text-muted-foreground/70 hover:text-foreground')}
         >
           Whales ≥$1M
         </button>
 
         <div className="relative ml-auto">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/70" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -201,7 +201,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
 
       {/* ── the tape ── */}
       {isLoading ? (
-        <div className="flex h-40 items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/50">
+        <div className="flex h-40 items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading the tape…
         </div>
       ) : isError ? (
@@ -234,7 +234,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="bg-card px-3 py-2">
-      <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">{label}</div>
+      <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
       <div className="mt-0.5 text-[14px] font-mono font-bold tabular-nums" style={{ color }}>{value}</div>
     </div>
   );
@@ -245,14 +245,14 @@ function Seg<T extends string>({ label, value, onChange, options }: {
 }) {
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/40">{label}</span>
+      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{label}</span>
       <div className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
         {options.map(([v, l]) => (
           <button
             key={v}
             onClick={() => onChange(v as T)}
             className={cn('cursor-pointer rounded px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider transition-colors',
-              value === v ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/55 hover:text-foreground')}
+              value === v ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}
           >
             {l}
           </button>

@@ -5131,6 +5131,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET endpoint for batch stock quotes (used by WSB Trending, Social Trends pages)
+  // Extended-hours leaders — who is moving pre-market / after-hours, the window the
+  // platform used to go completely blind in.
+  app.get("/api/extended-hours", async (req, res) => {
+    try {
+      const { getExtendedLeaders } = await import("./extended-hours");
+      const { getAllApprovedSymbols } = await import("../shared/approved-tickers");
+      const limit = Math.min(Number(req.query.limit) || 10, 25);
+      // A bounded, liquid slice — extended-hours quotes are one request per symbol.
+      const universe = ['SPY', 'QQQ', ...getAllApprovedSymbols().slice(0, 60)];
+      const result = await getExtendedLeaders(Array.from(new Set(universe)), limit);
+      res.json(result);
+    } catch (error) {
+      logger.error("[API] Failed to fetch extended-hours leaders:", error);
+      res.status(500).json({ error: "Failed to fetch extended-hours leaders" });
+    }
+  });
+
   // Sector leadership — which groups lead, and the names carrying them. Answers the
   // step rotation leaves out: once you know biotech is bid, WHICH biotech name?
   app.get("/api/sector-leadership", async (_req, res) => {

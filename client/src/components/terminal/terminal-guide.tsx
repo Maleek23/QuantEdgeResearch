@@ -129,13 +129,13 @@ export function TerminalGuide({ tab, open, onClose }: { tab: TabId; open: boolea
               ))}
 
               <div className="mt-4 rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2.5">
-                <div className="mb-0.5 text-[9px] font-mono uppercase tracking-widest text-[var(--brand-cyan,#22d3ee)]">
+                <div className="mb-0.5 text-[10px] font-mono uppercase tracking-widest text-[var(--brand-cyan,#22d3ee)]">
                   Next step
                 </div>
                 <div className="text-[11px] font-mono text-foreground/85">{g.next}</div>
               </div>
 
-              <p className="pt-2 text-[10px] leading-relaxed text-muted-foreground/50">
+              <p className="pt-2 text-[10px] leading-relaxed text-muted-foreground/70">
                 Educational only — not investment advice. Confirm every signal against your own risk plan.
               </p>
             </div>
