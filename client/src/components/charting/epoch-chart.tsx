@@ -38,6 +38,28 @@ const TFS = [
 ] as const;
 type TFId = typeof TFS[number]['id'];
 
+/**
+ * Is this bar outside the US regular session (09:30–16:00 ET)?
+ *
+ * Extended-hours bars behave differently — thin liquidity, wider spreads, gaps that fill
+ * on the open — so reading them as if they were regular-session prints is misleading.
+ * We already request them (includePrePost), we just never distinguished them. Shading is
+ * essentially free because the overlay canvas is already drawn every frame.
+ *
+ * ET offset is derived from the browser's own timezone database, so DST is handled.
+ */
+export function isExtendedHours(epochSec: number): boolean {
+  const d = new Date(epochSec * 1000);
+  const et = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short',
+  }).formatToParts(d);
+  const get = (t: string) => et.find((p) => p.type === t)?.value ?? '';
+  const wd = get('weekday');
+  if (wd === 'Sat' || wd === 'Sun') return true;
+  const mins = Number(get('hour')) * 60 + Number(get('minute'));
+  return mins < 9 * 60 + 30 || mins >= 16 * 60;
+}
+
 /** Aggregate 1-minute candles into a coarser timeframe by epoch bucket. */
 export function aggregate(base: Candle[], bucketSec: number): Candle[] {
   if (bucketSec <= 60) return base;
@@ -164,6 +186,25 @@ export function EpochChart({
       const frac = Math.max(0, Math.min(1, (epoch - bars[i].time) / span));
       return (ci as number) + ((cj as number) - (ci as number)) * frac;
     };
+    // ── shade extended-hours spans (drawn first, so drawings sit on top) ──
+    // Daily bars have no intraday session to speak of, so only mark intraday timeframes.
+    if (tf !== '1D' && bars.length > 1) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(224, 164, 88, 0.055)';
+      let runStart: number | null = null;
+      for (let k = 0; k < bars.length; k++) {
+        const ext = isExtendedHours(bars[k].time);
+        if (ext && runStart === null) runStart = bars[k].time;
+        if ((!ext || k === bars.length - 1) && runStart !== null) {
+          const endTime = ext ? bars[k].time : bars[Math.max(k - 1, 0)].time;
+          const xa = xOf(runStart), xb = xOf(endTime);
+          if (xa != null && xb != null && xb > xa) ctx.fillRect(xa, 0, xb - xa, h);
+          runStart = null;
+        }
+      }
+      ctx.restore();
+    }
+
     for (const ln of trendlines) {
       const x1 = xOf(ln.a.time);
       const y1 = series.priceToCoordinate(ln.a.price);
@@ -202,7 +243,7 @@ export function EpochChart({
         ctx.fillText(lv.label, 6, y - 4);
       }
     }
-  }, [trendlines, levels]);
+  }, [trendlines, levels, tf]);
 
   // keep the latest draw in a ref so the rAF loop never forces a chart rebuild
   const drawRef = useRef(draw);
@@ -282,6 +323,12 @@ export function EpochChart({
           )}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
+          {tf !== '1D' && (
+            <span className="mr-2 hidden items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 sm:inline-flex">
+              <span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(224,164,88,0.25)' }} />
+              ext hours
+            </span>
+          )}
           {expandable && (
             <button
               onClick={() => setExpanded(true)}

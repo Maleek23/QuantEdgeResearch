@@ -5,6 +5,13 @@ Update this in the same PR as the change.
 
 ## [Unreleased]
 ### Added
+- **Extended-hours candles are marked on charts.** Intraday charts now shade pre/post-market
+  spans (with a legend swatch) — those bars are thin, wide-spread and gap-prone, and reading
+  them as regular-session prints is misleading. Drawn on the existing overlay, so it costs
+  nothing extra.
+- **Confidence Index shows its arithmetic.** Signal Components now states the maths —
+  `9 layers · +41 −8 = 33` — lists every layer with its reason (previously capped at 6, so
+  layers were silently hidden), and names what is arguing against the setup.
 - **Personalization is reachable.** The `user_preferences` table, provider and endpoints
   already existed and were entirely unexposed — every user saw an identical, un-tunable
   terminal. Added a Settings panel in the Terminal chrome (account size, max risk per trade,

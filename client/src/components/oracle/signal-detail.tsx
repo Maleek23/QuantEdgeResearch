@@ -9,6 +9,7 @@
  *   ProfitPlan     — the scale-out rungs (40% at T1 + trail to entry, 60% at T2).
  *   ContextPanel   — the interpreting sentence + what to do now.
  */
+import { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { convictionPercent, bandStrength, type ConvictionPick } from '@/lib/convictions';
 import { computeGeometry, type SignalGeometry, type Level } from '@/lib/oracle/signal-geometry';
@@ -129,6 +130,17 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
 
   const rating = trackScore(pick.ideaId, setup);
   const arrow = rating.direction === 'up' ? '▲' : rating.direction === 'down' ? '▼' : null;
+  const [showMath, setShowMath] = useState(false);
+
+  // The confluence layers ARE the score — this is the arithmetic behind the number.
+  // Sorted by absolute impact so the layers that actually decided it read first, and
+  // split into what helped vs what hurt, because a 34 built on +41/−7 is a different
+  // trade from a 34 built on +34/0.
+  const layers = [...(pick.layers ?? [])].sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
+  const helped = layers.filter((l) => l.points > 0);
+  const hurt = layers.filter((l) => l.points < 0);
+  const plus = helped.reduce((s, l) => s + l.points, 0);
+  const minus = hurt.reduce((s, l) => s + l.points, 0);
 
   return (
     <Card
@@ -153,6 +165,58 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
         <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
           {pick.convictionBand}-band · {bandStrength(pick.convictionBand)} · {pick.layerCount ?? pick.layers?.length ?? 0} layers
         </div>
+        {/* how the score was built */}
+        <button
+          onClick={() => setShowMath((v) => !v)}
+          className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2 transition-colors hover:bg-foreground/[0.06]"
+          aria-expanded={showMath}
+        >
+          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+            How this score was built
+          </span>
+          <span className="flex items-baseline gap-1.5 font-mono tabular-nums">
+            <span className="text-[11px]" style={{ color: TC.bull }}>+{plus}</span>
+            {minus < 0 && <span className="text-[11px]" style={{ color: TC.bear }}>{minus}</span>}
+            <span className="text-[10px] text-muted-foreground/70">= {pick.convictionScore}</span>
+            <span className="text-[10px] text-muted-foreground/70">{showMath ? '▲' : '▼'}</span>
+          </span>
+        </button>
+
+        {showMath && (
+          <motion.div
+            initial={reduce ? false : { height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            transition={{ duration: DUR.base, ease: EASE }}
+            className="space-y-2 overflow-hidden"
+          >
+            {helped.length > 0 && (
+              <div>
+                <div className="mb-1 text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.bull }}>
+                  Supporting · +{plus}
+                </div>
+                <div className="space-y-1">
+                  {helped.map((l, i) => <LayerRow key={`h${i}`} layer={l} />)}
+                </div>
+              </div>
+            )}
+            {hurt.length > 0 && (
+              <div>
+                <div className="mb-1 text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.bear }}>
+                  Working against · {minus}
+                </div>
+                <div className="space-y-1">
+                  {hurt.map((l, i) => <LayerRow key={`x${i}`} layer={l} />)}
+                </div>
+              </div>
+            )}
+            <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+              {hurt.length === 0
+                ? 'Nothing is currently arguing against this setup.'
+                : `${hurt.length} layer${hurt.length > 1 ? 's are' : ' is'} arguing against it — read those before sizing up.`}
+            </p>
+          </motion.div>
+        )}
+
         {g.components.map((c) => (
           <div key={c.key}>
             <div className="mb-1 flex items-center justify-between">
@@ -279,6 +343,26 @@ export function PositionSize({ pick, live, className }: { pick: ConvictionPick; 
         </p>
       </div>
     </Card>
+  );
+}
+
+function LayerRow({ layer }: { layer: { label?: string; kind?: string; points: number; why?: string } }) {
+  const pos = layer.points >= 0;
+  return (
+    <div className="flex items-start gap-2">
+      <span className="w-7 shrink-0 text-right text-[11px] font-mono font-bold tabular-nums"
+            style={{ color: pos ? TC.bull : TC.bear }}>
+        {pos ? '+' : ''}{layer.points}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10px] font-mono uppercase tracking-wider text-foreground/80">
+          {layer.label ?? layer.kind}
+        </span>
+        {layer.why && (
+          <span className="block text-[10px] leading-relaxed text-muted-foreground/70">{layer.why}</span>
+        )}
+      </span>
+    </div>
   );
 }
 
