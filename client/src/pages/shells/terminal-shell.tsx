@@ -24,7 +24,9 @@ const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m =
 // sweeps, whales + per-ticker flow detail). That's the Heatmap surface, not the tape — so
 // it belongs on HEATMAP. Keeping it preserves the strongest part of the old design.
 const SectorHeatmap = lazy(() => import('@/pages/flow-heatmap'));
-const SpectrumScanner = lazy(() => import('@/components/hunt/spectrum-scanner').then(m => ({ default: m.SpectrumScanner })));
+// PRISM = the strike x expiry gamma surface (what the walkthrough actually shows),
+// not the premium-spectrum strike picker that used to sit here.
+const PrismBoard    = lazy(() => import('@/components/prism/prism-board').then(m => ({ default: m.PrismBoard })));
 
 type Tab = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism';
 const TABS: { id: Tab; label: string }[] = [
@@ -173,7 +175,7 @@ export default function TerminalShell() {
               )}
               {tab === 'heatmap' && <div className="mx-auto w-full max-w-[1600px]"><SectorHeatmap /></div>}
               {tab === 'gex' && <div className="mx-auto w-full max-w-[1600px]"><GexShell /></div>}
-              {tab === 'prism' && <div className="mx-auto w-full max-w-[1600px] px-4 py-3"><SpectrumScanner /></div>}
+              {tab === 'prism' && <div className="mx-auto w-full max-w-[1600px]"><PrismBoard /></div>}
             </Suspense>
           </motion.div>
         </AnimatePresence>

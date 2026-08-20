@@ -18,6 +18,11 @@ Update this in the same PR as the change.
   horizontal price levels (entry/stop/target). **Embedded in the Terminal Oracle cockpit**,
   replacing the bespoke per-page chart — it's *part of the platform*, not a separate page.
   The `/chartlab` POC route + file were removed once the chart landed in-platform.
+- **PRISM rebuilt to the desk spec** — the strike × expiry gamma surface (green calls /
+  red puts, brighter = more exposure) driven by the shared ticker and defaulting to SPY as
+  the market benchmark, with an interpreting panel: spot, net GEX, call wall, put support,
+  call-vs-put share, a positive/negative-gamma sentence, the strongest node above and below
+  spot, and a "time is your best friend" nudge when that node is near-dated.
 - **Terminal utility cluster** — a ticker search in the Terminal chrome that sets the
   shared stock context (search once, every tab follows it, per the desk workflow), an
   active-ticker chip, and a **per-tab GUIDE drawer** (Oracle/Flow/Heatmap/GEX/PRISM) whose
