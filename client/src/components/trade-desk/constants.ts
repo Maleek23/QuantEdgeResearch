@@ -74,7 +74,7 @@ export function classifyTimeframe(idea: { expiryDate?: string | null; holdingPer
   if (!expiry) {
     return idea.holdingPeriod === 'day' ? '0dte' : 'swing';
   }
-  const dte = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
+  const dte = daysToExpiry(expiry) ?? 0;
   if (dte <= 0) return '0dte';
   if (dte <= 7) return 'weekly';
   return 'swing';

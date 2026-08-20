@@ -7,6 +7,7 @@
  * and lets the user choose. Premiums are live (never fabricated); empty/illiquid
  * results render an honest note instead of a fake strike.
  */
+import { parseMarketDate } from '@/lib/market-date';
 import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -118,7 +119,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 
 function fmtExpiry(expiry: string): string {
   try {
-    const d = new Date(expiry);
+    const d = parseMarketDate(expiry) ?? new Date(expiry);
     if (!isNaN(d.getTime())) return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {}
   return expiry;

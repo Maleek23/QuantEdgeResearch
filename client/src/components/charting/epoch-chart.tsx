@@ -30,11 +30,17 @@ export interface PriceLevel { price: number; color?: string; label?: string; das
 
 // Each timeframe carries both the aggregation bucket (demo/base mode) AND the
 // Yahoo (interval, range) pair used to fetch real candles for any ticker (symbol mode).
+// Four timeframes was too narrow to actually work a chart: no intraday scalp view, and
+// nothing above a year for reading a base or a multi-year range. Yahoo serves all of these
+// from the same endpoint, so the extra coverage is free.
 const TFS = [
-  { id: '5m',  label: '5m',  sec: 300,   yInterval: '5m',  yRange: '5d' },
-  { id: '15m', label: '15m', sec: 900,   yInterval: '15m', yRange: '5d' },
-  { id: '1h',  label: '1h',  sec: 3600,  yInterval: '1h',  yRange: '1mo' },
-  { id: '1D',  label: '1D',  sec: 86400, yInterval: '1d',  yRange: '1y' },
+  { id: '1m',  label: '1m',  sec: 60,     yInterval: '1m',  yRange: '1d'  },
+  { id: '5m',  label: '5m',  sec: 300,    yInterval: '5m',  yRange: '5d'  },
+  { id: '15m', label: '15m', sec: 900,    yInterval: '15m', yRange: '5d'  },
+  { id: '1h',  label: '1h',  sec: 3600,   yInterval: '1h',  yRange: '1mo' },
+  { id: '4h',  label: '4h',  sec: 14400,  yInterval: '1h',  yRange: '3mo' },
+  { id: '1D',  label: '1D',  sec: 86400,  yInterval: '1d',  yRange: '1y'  },
+  { id: '1W',  label: '1W',  sec: 604800, yInterval: '1wk', yRange: '5y'  },
 ] as const;
 type TFId = typeof TFS[number]['id'];
 
@@ -143,7 +149,11 @@ export function EpochChart({
   });
 
   const data = useMemo(() => {
-    if (symbol) return fetched ?? [];
+    if (symbol) {
+      const raw = fetched ?? [];
+      // Yahoo has no native 4h bar, so build it from the hourly series by epoch bucket.
+      return tf === '4h' ? aggregate(raw, tfCfg.sec) : raw;
+    }
     if (base) return aggregate(base, tfCfg.sec);
     return [];
   }, [symbol, fetched, base, tfCfg.sec]);
@@ -297,7 +307,7 @@ export function EpochChart({
   // keyboard TF switch (flash UI)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const i = ['1', '2', '3', '4', '5'].indexOf(e.key);
+      const i = ['1', '2', '3', '4', '5', '6', '7'].indexOf(e.key);
       if (i >= 0 && TFS[i]) setTf(TFS[i].id);
     };
     window.addEventListener('keydown', onKey);
@@ -343,7 +353,7 @@ export function EpochChart({
             <button
               key={t.id}
               onClick={() => setTf(t.id)}
-              title={`${t.label} · press ${i + 1}`}
+              title={i < 9 ? `${t.label} · press ${i + 1}` : t.label}
               className={cn(
                 'px-2 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors',
                 tf === t.id ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground',
@@ -399,7 +409,7 @@ export function EpochChart({
                   />
                 </div>
                 <div className="border-t border-border/40 px-4 py-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
-                  Esc or click outside to close · keys 1–4 switch timeframe
+                  Esc or click outside to close · keys 1–7 switch timeframe
                 </div>
               </motion.div>
             </motion.div>

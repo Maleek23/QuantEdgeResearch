@@ -1,3 +1,4 @@
+import { parseMarketDate } from '@/lib/market-date';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ function getDteCategory(expiryDate: string | null | undefined): { label: string;
   if (!expiryDate) return null;
 
   const now = new Date();
-  const expiry = new Date(expiryDate);
+  const expiry = parseMarketDate(expiryDate) ?? new Date(expiryDate);
   const diffMs = expiry.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 

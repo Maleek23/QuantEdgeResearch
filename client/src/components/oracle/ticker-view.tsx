@@ -185,8 +185,11 @@ export function TickerView({ symbol, hasSignal, onClear }: {
       {/* POSSIBLE TRADES — a grade is an opinion; this is what you could actually put on.
           Only shown when the engine has a directional read, because a contract ladder with
           no thesis behind it is just a chain. */}
+      {/* Scaled down: in the lookup the contracts are a supporting answer to "what could I
+          put on", not the main event — the chart and the grade are. */}
       {graded && (graded.direction === 'long' || graded.direction === 'short') && (
-        <div className="border-t border-border/40 p-2">
+        <div className="border-t border-border/40 p-2 [&_*]:!leading-tight">
+          <div className="origin-top scale-[0.82] -mb-[14%]">
           <OracleOptionPicker
             key={`${symbol}-${graded.direction}`}
             autoLoad
@@ -198,6 +201,7 @@ export function TickerView({ symbol, hasSignal, onClear }: {
             holdPeriodLabel={graded.holdingPeriod}
             conviction={graded.convictionScore}
           />
+          </div>
         </div>
       )}
 

@@ -5,6 +5,7 @@
  * Visual indicators for momentum, time decay, and risk zones
  */
 
+import { parseMarketDate } from '@/lib/market-date';
 import { Clock, TrendingUp, TrendingDown, Zap, AlertTriangle, Target, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -66,7 +67,7 @@ export function MLTimingIndicator({
   const timeDecay = expiryDate && assetType === 'option'
     ? (() => {
         const now = new Date().getTime();
-        const expiry = new Date(expiryDate).getTime();
+        const expiry = (parseMarketDate(expiryDate) ?? new Date(expiryDate)).getTime();
         const totalTime = expiry - Date.now();
         const daysLeft = totalTime / (1000 * 60 * 60 * 24);
 

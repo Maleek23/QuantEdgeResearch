@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { TC, pnlColor } from '@/lib/oracle/trading-colors';
 import { apiRequest } from '@/lib/queryClient';
 import { RangeBar, DecayBar, Meter } from '@/components/viz';
+import { daysToExpiry, formatExpiry } from '@/lib/market-date';
 
 interface Position {
   id: string; symbol: string; direction: string; entryPrice: number; currentPrice?: number;
@@ -25,12 +26,7 @@ interface Position {
 }
 
 /** Days until a contract expires — the clock that only options have. */
-function dte(expiry?: string | null): number | null {
-  if (!expiry) return null;
-  const t = Date.parse(expiry);
-  if (Number.isNaN(t)) return null;
-  return Math.max(0, Math.round((t - Date.now()) / 86_400_000));
-}
+const dte = (expiry?: string | null) => daysToExpiry(expiry);
 interface BotStatus {
   portfolioId: string; name: string;
   startingCapital: number; cashBalance: number; totalValue: number;
@@ -191,7 +187,7 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
         {isOption && p.expiryDate && (
           <span className="text-[10px] font-mono tabular-nums"
                 style={{ color: days != null && days <= 2 ? TC.bear : days != null && days <= 7 ? TC.warn : 'var(--muted-foreground)' }}>
-            {String(p.expiryDate).slice(5, 10)}{days != null ? ` · ${days}d left` : ''}
+            {formatExpiry(p.expiryDate)}{days != null ? ` · ${days}d left` : ''}
           </span>
         )}
         <span className="ml-auto flex items-baseline gap-2">

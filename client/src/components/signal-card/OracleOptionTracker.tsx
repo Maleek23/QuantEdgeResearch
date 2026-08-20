@@ -22,7 +22,7 @@ export function OracleOptionTracker({
 
   const fmtExpiry = (() => {
     try {
-      const d = new Date(expiry);
+      const d = parseMarketDate(expiry) ?? new Date(expiry);
       if (!isNaN(d.getTime())) {
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       }
