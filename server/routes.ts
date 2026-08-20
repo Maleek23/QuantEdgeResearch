@@ -17117,14 +17117,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User Preferences Routes
-  app.get("/api/preferences", async (_req, res) => {
+  app.get("/api/preferences", async (req: any, res) => {
     try {
-      const prefs = await storage.getUserPreferences();
+      let prefs = await storage.getUserPreferences();
+      // A user with no saved preferences is the NORMAL first-run state, not an error.
+      // 404ing here meant the settings UI could never load, which is why none of the
+      // personalization in this table was ever reachable. Create the defaults instead.
       if (!prefs) {
-        return res.status(404).json({ error: "Preferences not found" });
+        const userId = req.user?.id || req.user?.claims?.sub || 'default';
+        prefs = await storage.updateUserPreferences({ userId });
       }
       res.json(prefs);
     } catch (error) {
+      logger.error("[API] Failed to fetch/create preferences:", error);
       res.status(500).json({ error: "Failed to fetch preferences" });
     }
   });

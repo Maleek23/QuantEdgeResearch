@@ -9,12 +9,13 @@
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Loader2, BookOpen, Search, X } from 'lucide-react';
+import { Loader2, BookOpen, Search, X, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
 import { OracleOrb } from '@/components/oracle-orb';
 import { RotationMap } from '@/components/rotation-map';
 import { TerminalGuide } from '@/components/terminal/terminal-guide';
+import { TerminalSettings } from '@/components/terminal/terminal-settings';
 import { useStockContext } from '@/contexts/stock-context';
 
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
@@ -66,6 +67,7 @@ export default function TerminalShell() {
   }, [location]);
 
   const [guideOpen, setGuideOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const reduce = useReducedMotion();
   const uptime = useUptime();
@@ -137,6 +139,15 @@ export default function TerminalShell() {
             )}
 
             <button
+              onClick={() => setSettingsOpen(true)}
+              aria-label="Open settings"
+              title="Settings"
+              className="inline-flex cursor-pointer items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+            </button>
+
+            <button
               onClick={() => setGuideOpen(true)}
               aria-label={`Open ${tab} guide`}
               className="inline-flex cursor-pointer items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
@@ -182,6 +193,7 @@ export default function TerminalShell() {
       </main>
 
       <TerminalGuide tab={tab} open={guideOpen} onClose={() => setGuideOpen(false)} />
+      <TerminalSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* ── footer ── */}
       <footer className="border-t border-border/50 px-4 h-8 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">

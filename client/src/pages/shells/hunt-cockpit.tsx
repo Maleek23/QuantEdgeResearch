@@ -32,7 +32,7 @@ import { KeyLevels } from '@/components/hunt/cockpit/key-levels';
 import { SignalRow } from '@/components/hunt/cockpit/signal-row';
 import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
 import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
-import { PriceLadder, ContextPanel, ProfitPlan, TradeGeometry, RiskReward, geometryFor } from '@/components/oracle/signal-detail';
+import { PriceLadder, ContextPanel, ProfitPlan, TradeGeometry, RiskReward, PositionSize, geometryFor } from '@/components/oracle/signal-detail';
 import { EpochChart } from '@/components/charting/epoch-chart';
 import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
 import {
@@ -588,6 +588,7 @@ export default function HuntCockpit() {
               <ComponentBars layers={selected.layers} />
             </CockpitCard>
 
+            <PositionSize pick={selected} live={livePx} />
             <TradeGeometry pick={selected} live={livePx} />
             <RiskReward pick={selected} live={livePx} />
 

@@ -13,6 +13,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { convictionPercent, bandStrength, type ConvictionPick } from '@/lib/convictions';
 import { computeGeometry, type SignalGeometry, type Level } from '@/lib/oracle/signal-geometry';
 import { trackScore } from '@/lib/oracle/score-tracker';
+import { useUserPrefs } from '@/components/terminal/terminal-settings';
 import { TC, healthColor, statusColor } from '@/lib/oracle/trading-colors';
 import { EASE, DUR } from '@/lib/motion';
 import { cn } from '@/lib/utils';
@@ -224,6 +225,69 @@ export function RiskReward({ pick, live, className }: { pick: ConvictionPick; li
         </div>
       </div>
     </Card>
+  );
+}
+
+// ───────────────────────────────────────────────────────────── PositionSize ──
+
+/**
+ * What this trade means for YOUR account. A signal that says "risk $3.37 per share" is
+ * abstract; "38 shares, $128 at risk, 1.0% of the account" is a decision. Sized from the
+ * user's own account size and max-risk setting — the reason those settings exist.
+ */
+export function PositionSize({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
+  const g = geometryFor(pick, live);
+  const { data: prefs } = useUserPrefs();
+
+  const account = prefs?.accountSize ?? 0;
+  const riskPct = prefs?.maxRiskPerTrade ?? 1;
+  const riskBudget = (account * riskPct) / 100;
+
+  if (!account || g.risk <= 0) {
+    return (
+      <Card title="Position Size" meta="your account" className={className}>
+        <div className="px-4 py-3 text-[11px] leading-relaxed text-muted-foreground/60">
+          Set your account size and max risk in Settings and every signal will size itself.
+        </div>
+      </Card>
+    );
+  }
+
+  const shares = Math.floor(riskBudget / g.risk);
+  const cost = shares * (live || pick.entryPrice);
+  const pctOfAccount = account > 0 ? (cost / account) * 100 : 0;
+  const rewardAtT1 = shares * g.reward;
+  const overAllocated = pctOfAccount > 100;
+
+  return (
+    <Card title="Position Size" meta="your account" className={className}>
+      <div className="space-y-2 px-4 py-3">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[24px] font-mono font-bold leading-none tabular-nums" style={{ color: TC.info }}>{shares}</span>
+          <span className="text-[11px] font-mono text-muted-foreground/60">shares</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Mini label="Risking" value={`$${Math.min(riskBudget, shares * g.risk).toFixed(0)}`} color={TC.bear} />
+          <Mini label="Reward at T1" value={`+$${rewardAtT1.toFixed(0)}`} color={TC.bull} />
+          <Mini label="Position cost" value={`$${cost.toFixed(0)}`} />
+          <Mini label="Of account" value={`${pctOfAccount.toFixed(1)}%`} color={overAllocated ? TC.bear : undefined} />
+        </div>
+        <p className="text-[10px] leading-relaxed text-muted-foreground/55">
+          {overAllocated
+            ? `This size costs more than your whole account — the stop is tight relative to price, so scale down or use options.`
+            : `Sized so a stop-out costs ${riskPct}% of your $${account.toLocaleString()} account.`}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function Mini({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="rounded border border-border/40 px-2 py-1">
+      <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">{label}</div>
+      <div className="mt-0.5 text-[12px] font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
+    </div>
   );
 }
 

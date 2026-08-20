@@ -5,6 +5,13 @@ Update this in the same PR as the change.
 
 ## [Unreleased]
 ### Added
+- **Personalization is reachable.** The `user_preferences` table, provider and endpoints
+  already existed and were entirely unexposed — every user saw an identical, un-tunable
+  terminal. Added a Settings panel in the Terminal chrome (account size, max risk per trade,
+  options budget, asset types, holding horizon, default view, density, animations).
+- **Position sizing per signal** — each signal now says what it means for *your* account:
+  share count, dollars at risk, reward at T1, position cost and % of account, sized from
+  your own risk settings. Change risk 1% → 2% and every signal re-sizes.
 - **Dynamic scan universe** — the scanner no longer only looks at a static approved list.
   Every universe rebuild now absorbs the day's movers (most-active / gainers / losers /
   trending) via the existing Yahoo screener discovery, so names that weren't on anyone's
@@ -78,6 +85,10 @@ Update this in the same PR as the change.
 - Grades display convictionScore-first (single source of truth for score↔grade).
 
 ### Fixed
+- **`GET /api/preferences` 404'd for anyone without a saved row** — the normal first-run
+  state — so the settings UI could never load. It now creates defaults instead.
+- Settings save used a raw `fetch` and was rejected by CSRF (403); now goes through
+  `apiRequest`.
 - **Trade levels were fixed percentages.** Every stock idea used `target = entry × 1.08`
   and `stop = entry × 0.965` — an identical 2.29 R:R for every ticker, volatility ignored
   (8% is a huge move in MRK and noise in MARA), and the stop placed at an arbitrary price
