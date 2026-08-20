@@ -55,6 +55,7 @@ export type ConvictionLayerKind =
   | "freshness"
   | "weekly"
   | "premarket"
+  | "compression"
   | "gex";
 
 export interface ConvictionLayer {
@@ -789,6 +790,51 @@ const INFLOW_GATE = 0.4;
  * so it confirms/contradicts rather than dominates. Cached fetch → safe to run
  * across the whole shortlist. Returns null on no data (never fabricates).
  */
+/**
+ * Compression layer — Darvas-style consolidation + TTM Squeeze.
+ *
+ * "Consolidation creates opportunity because the market is storing energy." A tested,
+ * tight range is a coiled spring with definable risk, and it's the setup that rewards
+ * waiting rather than chasing. Compression is directionless, so this only pays out when
+ * price is pressing the side that would CONFIRM the trade — and goes negative when the
+ * name is coiled at the wrong end, because that breakout runs against us.
+ *
+ * Capped at ±6 so it supports a thesis instead of creating one. Null on thin data.
+ */
+async function scoreCompressionLayer(symbol: string, direction: "long" | "short"): Promise<ConvictionLayer | null> {
+  try {
+    const { analyzeCompression, compressionPoints } = await import("./compression-engine");
+    const r = await fetch(
+      `http://127.0.0.1:${process.env.PORT || 5000}/api/historical-prices/${encodeURIComponent(symbol)}?range=6mo&interval=1d`,
+    );
+    if (!r.ok) return null;
+    const body = await r.json();
+    const candles = body?.data ?? [];
+    if (!Array.isArray(candles) || candles.length < 40) return null;
+
+    const read = analyzeCompression(candles);
+    const scored = compressionPoints(read, direction);
+    if (!scored) return null;
+
+    return {
+      kind: "compression",
+      label: "Compression",
+      points: scored.points,
+      why: scored.why,
+      data: {
+        quality: read.quality,
+        boxHigh: read.boxHigh,
+        boxLow: read.boxLow,
+        boxWidthPct: read.boxWidthPct,
+        squeezeBars: read.squeezeBars,
+        positionInBox: read.positionInBox,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function scoreTALayer(symbol: string, direction: "long" | "short"): Promise<ConvictionLayer | null> {
   try {
     const { getCachedTARead } = await import("./ta-engine");
@@ -1882,18 +1928,23 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   // Sector + analyst enrichment (parallel, capped to top picks)
   await Promise.all(
     topForSector.map(async (p) => {
-      const [sectorLayer, analystSnap, taLayer] = await Promise.all([
+      const [sectorLayer, analystSnap, taLayer, compressionLayer] = await Promise.all([
         scoreSectorLayer(p.symbol, p.sector, p.direction),
         getAnalystSnapshot(p.symbol).catch(() => null),
         // TA confluence (Fib + candlesticks + structure). Skipped during backtest
         // replay since it reads live daily candles, not historical-as-of bars.
         skipLiveRevalidation ? Promise.resolve(null) : scoreTALayer(p.symbol, p.direction),
+        // Darvas box + TTM squeeze. Same live-candle caveat as the TA layer.
+        skipLiveRevalidation ? Promise.resolve(null) : scoreCompressionLayer(p.symbol, p.direction),
       ]);
       if (sectorLayer) {
         p.layers.push(sectorLayer);
       }
       if (taLayer) {
         p.layers.push(taLayer);
+      }
+      if (compressionLayer) {
+        p.layers.push(compressionLayer);
       }
       // Analyst 12-month targets only matter for position / leap holds.
       // For day / swing trades they're noise — skip entirely.

@@ -11,7 +11,7 @@
 export type ConvictionLayerKind =
   | 'technical' | 'convergence' | 'catalyst' | 'regime' | 'breadth'
   | 'geopolitical' | 'fundamental' | 'analyst' | 'sector' | 'freshness'
-  | 'weekly' | 'premarket' | 'gex';
+  | 'weekly' | 'premarket' | 'compression' | 'gex';
 
 export interface ConvictionLayer {
   kind: ConvictionLayerKind;
@@ -149,6 +149,7 @@ export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
   freshness:    'FRSH',
   weekly:       'WKLY',
   premarket:    'PREM',
+  compression:  'COIL',
   gex:          'GEX',
 };
 
@@ -170,6 +171,7 @@ export const LAYER_COLOR: Record<ConvictionLayerKind, string> = {
   freshness:    '#fb7185', // rose
   weekly:       '#fde047', // yellow
   premarket:    '#c084fc', // purple
+  compression:  '#e0a458', // amber — stored energy, not yet directional
   gex:          '#5eead4', // teal-light
 };
 

@@ -5,6 +5,13 @@ Update this in the same PR as the change.
 
 ## [Unreleased]
 ### Added
+- **Compression layer — Darvas box + TTM Squeeze — now scores.** A tested, tight range is a
+  coiled spring with definable risk, and the engine had no concept of it. New
+  `compression-engine.ts` detects consolidation (tight vs the instrument's own ATR *and*
+  in absolute terms, with multiple tested edges) and squeeze (Bollinger inside Keltner).
+  Because compression is directionless it only earns points when price presses the side
+  that would confirm the trade — and goes **negative** when the name is coiled at the wrong
+  end. Live: 8 of 55 picks carry it (VRTX +3 at 98% up the range, BWXT −3 wrong end).
 - **Extended-hours candles are marked on charts.** Intraday charts now shade pre/post-market
   spans (with a legend swatch) — those bars are thin, wide-spread and gap-prone, and reading
   them as regular-session prints is misleading. Drawn on the existing overlay, so it costs
