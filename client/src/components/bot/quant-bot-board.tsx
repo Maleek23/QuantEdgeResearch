@@ -13,6 +13,7 @@ import { Loader2, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TC, pnlColor } from '@/lib/oracle/trading-colors';
 import { apiRequest } from '@/lib/queryClient';
+import { RangeBar, DecayBar, Meter } from '@/components/viz';
 
 interface Position {
   id: string; symbol: string; direction: string; entryPrice: number; currentPrice?: number;
@@ -161,10 +162,13 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
   const cost = p.quantity * p.entryPrice * mult;
 
   // Distance to the two things that end the trade — the whole risk picture in one line.
-  const toTarget = p.targetPrice && p.currentPrice
-    ? ((p.targetPrice - p.currentPrice) / p.currentPrice) * 100 : null;
-  const toStop = p.stopLoss && p.currentPrice
-    ? ((p.currentPrice - p.stopLoss) / p.currentPrice) * 100 : null;
+  // how far the position has travelled entry -> target
+  const progressPct = (() => {
+    if (!p.targetPrice || !p.currentPrice) return 0;
+    const span = p.targetPrice - p.entryPrice;
+    const done = p.currentPrice - p.entryPrice;
+    return span !== 0 ? Math.max(0, Math.min(100, (done / span) * 100)) : 0;
+  })();
 
   return (
     <div className="px-4 py-2.5">
@@ -200,25 +204,36 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
         </span>
       </div>
 
-      {/* what it cost and where it lives */}
-      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[10px] font-mono tabular-nums text-muted-foreground/70">
+      {/* size + cost, kept terse — the bars carry the risk picture */}
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 text-[10px] font-mono tabular-nums text-muted-foreground/70">
         <span>
           {p.quantity} {isOption ? (p.quantity === 1 ? 'contract' : 'contracts') : 'sh'} @ ${p.entryPrice.toFixed(2)}
-          {p.currentPrice ? ` → $${p.currentPrice.toFixed(2)}` : ''}
         </span>
         <span>cost {money(cost)}</span>
-        {p.targetPrice != null && (
-          <span style={{ color: TC.bull }}>
-            target ${p.targetPrice.toFixed(2)}{toTarget != null ? ` (${toTarget >= 0 ? '+' : ''}${toTarget.toFixed(0)}%)` : ''}
-          </span>
-        )}
-        {p.stopLoss != null && (
-          <span style={{ color: TC.bear }}>
-            stop ${p.stopLoss.toFixed(2)}{toStop != null ? ` (−${Math.abs(toStop).toFixed(0)}%)` : ''}
-          </span>
-        )}
         {closed && p.exitReason && <span className="uppercase tracking-wider">{p.exitReason.replace(/_/g, ' ')}</span>}
       </div>
+
+      {/* WHERE THE TRADE LIVES — stop / entry / now / target on one axis */}
+      {!closed && p.stopLoss != null && p.targetPrice != null && p.currentPrice != null && (
+        <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_120px]">
+          <RangeBar
+            stop={p.stopLoss}
+            entry={p.entryPrice}
+            current={p.currentPrice}
+            target={p.targetPrice}
+          />
+          {isOption && days != null ? (
+            <DecayBar daysLeft={days} totalDays={30} />
+          ) : (
+            <Meter
+              value={progressPct}
+              label="To target"
+              right={`${progressPct.toFixed(0)}%`}
+              color={TC.info}
+            />
+          )}
+        </div>
+      )}
 
       {/* why the bot took it */}
       {p.entryReason && (

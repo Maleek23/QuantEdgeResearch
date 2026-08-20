@@ -198,14 +198,9 @@ export default function TerminalShell() {
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
                 <div className="mx-auto w-full max-w-[1600px] px-4 py-3 space-y-3">
-                  <div className="grid gap-3 lg:grid-cols-3 md:grid-cols-2">
-                    <OracleOrb />
-                    <RotationMap />
-                    {/* what to go into the session with — leadership + the names carrying it */}
-                    <SessionBrief onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                  </div>
-                  {/* A searched ticker must actually show something. Panels below render the
-                      SELECTED SIGNAL, so without this a search silently did nothing. */}
+                  {/* A searched ticker is what you just asked for, so it leads. Every panel
+                      below renders the SELECTED SIGNAL, which is why searching a name with
+                      no signal used to change nothing on screen. */}
                   {currentStock?.symbol && (
                     <TickerView
                       symbol={currentStock.symbol.toUpperCase()}
@@ -214,6 +209,13 @@ export default function TerminalShell() {
                       onClear={clearStock}
                     />
                   )}
+
+                  <div className="grid gap-3 lg:grid-cols-3 md:grid-cols-2">
+                    <OracleOrb />
+                    <RotationMap />
+                    {/* what to go into the session with — leadership + the names carrying it */}
+                    <SessionBrief onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                  </div>
                   <EarlyRotationPanel onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
                   <HuntCockpit />
                 </div>

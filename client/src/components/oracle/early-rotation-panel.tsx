@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TC } from '@/lib/oracle/trading-colors';
+import { CoilBar } from '@/components/viz';
 
 interface Candidate {
   symbol: string; sector: string; sectorStrength: number; sectorMedianPct: number;
@@ -82,8 +83,18 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
                     <span className="mt-0.5 block text-[10px] font-mono text-muted-foreground/70">
                       {c.coiled === 'strong' ? 'tightly coiled' : 'coiling'}
                       {c.distanceToBreakoutPct != null && ` · ${c.distanceToBreakoutPct.toFixed(1)}% to the ceiling`}
-                      {c.boxHigh != null && ` · box $${c.boxLow?.toFixed(2)}–$${c.boxHigh.toFixed(2)}`}
                     </span>
+
+                    {/* where price sits inside its range — pressing the ceiling is the setup */}
+                    {c.boxLow != null && c.boxHigh != null && (
+                      <span className="mt-1.5 block">
+                        <CoilBar
+                          low={c.boxLow}
+                          high={c.boxHigh}
+                          current={c.boxHigh - ((c.distanceToBreakoutPct ?? 0) / 100) * c.boxHigh}
+                        />
+                      </span>
+                    )}
                   </span>
                 </button>
               ))}

@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TC } from '@/lib/oracle/trading-colors';
+import { DivergingBar, Meter } from '@/components/viz';
 
 interface LeaderName { symbol: string; changePct: number; isMega?: boolean }
 interface SectorStrength {
@@ -43,6 +44,8 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
   });
 
   const sectors = data?.sectors ?? [];
+  // shared scale so every bar on the panel is comparable
+  const maxMove = Math.max(0.5, ...sectors.map((x) => Math.abs(x.medianChangePct)));
   const strong = sectors.slice(0, 4);
   const weak = sectors.slice(-2).reverse();
 
@@ -86,7 +89,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
             </div>
             <div className="space-y-2">
               {strong.map((s) => (
-                <SectorRow key={s.key} s={s} names={s.leaders} onSelectSymbol={onSelectSymbol} />
+                <SectorRow key={s.key} s={s} names={s.leaders} onSelectSymbol={onSelectSymbol} maxMove={maxMove} />
               ))}
             </div>
 
@@ -95,7 +98,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
             </div>
             <div className="space-y-2">
               {weak.map((s) => (
-                <SectorRow key={s.key} s={s} names={s.laggards} onSelectSymbol={onSelectSymbol} />
+                <SectorRow key={s.key} s={s} names={s.laggards} onSelectSymbol={onSelectSymbol} maxMove={maxMove} />
               ))}
             </div>
 
@@ -127,8 +130,8 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
   );
 }
 
-function SectorRow({ s, names, onSelectSymbol }: {
-  s: SectorStrength; names: LeaderName[]; onSelectSymbol?: (sym: string) => void;
+function SectorRow({ s, names, onSelectSymbol, maxMove }: {
+  s: SectorStrength; names: LeaderName[]; onSelectSymbol?: (sym: string) => void; maxMove: number;
 }) {
   const up = s.medianChangePct >= 0;
   return (
@@ -139,9 +142,21 @@ function SectorRow({ s, names, onSelectSymbol }: {
           <span style={{ color: up ? TC.bull : TC.bear }}>
             {up ? '+' : ''}{s.medianChangePct.toFixed(2)}%
           </span>
-          <span className="text-muted-foreground/70">{s.breadthPct.toFixed(0)}% green</span>
           {s.isSkewed && <span style={{ color: TC.warn }} title="One name is carrying this group">thin</span>}
         </span>
+      </div>
+
+      {/* move vs the rest of the board, drawn from centre so direction reads instantly */}
+      <div className="mt-1"><DivergingBar value={s.medianChangePct} max={maxMove} height={5} /></div>
+
+      {/* breadth — how much of the group is participating, not just the average */}
+      <div className="mt-1">
+        <Meter
+          value={s.breadthPct}
+          right={`${s.breadthPct.toFixed(0)}% participating`}
+          color={s.breadthPct >= 60 ? TC.bull : s.breadthPct >= 40 ? TC.warn : TC.bear}
+          height={4}
+        />
       </div>
       <div className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5">
         {names.slice(0, 3).map((n) => (
