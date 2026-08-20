@@ -6,7 +6,8 @@
  *
  * This is the consolidation target for AUDIT.md / BLUEPRINT.md / TERMINAL_SPEC.md.
  */
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'wouter';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Loader2, BookOpen, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -41,8 +42,27 @@ function useUptime() {
   return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
 }
 
+const isTab = (v: string | null): v is Tab => !!v && TABS.some((t) => t.id === v);
+
 export default function TerminalShell() {
-  const [tab, setTab] = useState<Tab>('oracle');
+  // Tab lives in the URL (?tab=gex) so it's deep-linkable, shareable, survives a reload,
+  // and lets legacy routes redirect straight to the right surface.
+  const [location, setLocation] = useLocation();
+  const urlTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+  const [tab, setTabState] = useState<Tab>(isTab(urlTab) ? urlTab : 'oracle');
+
+  const setTab = useCallback((next: Tab) => {
+    setTabState(next);
+    const path = window.location.pathname;
+    setLocation(next === 'oracle' ? path : `${path}?tab=${next}`, { replace: true });
+  }, [setLocation]);
+
+  // Follow back/forward and external navigations that change ?tab=
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    setTabState((cur) => (isTab(t) ? t : 'oracle') === cur ? cur : (isTab(t) ? t : 'oracle'));
+  }, [location]);
+
   const [guideOpen, setGuideOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const reduce = useReducedMotion();

@@ -194,9 +194,13 @@ function Router() {
         {/* ─── TERMINAL — the consolidation target: one shell, 5 tabs (Oracle/Flow/Heatmap/GEX/PRISM) ─── */}
         <Route path="/t"          component={withBetaProtection(TerminalShell)} />
         {/* ─── 6 PRIMARY SHELLS — new IA (Home / Hunt / GEX / Research / Positions / Journal) ─── */}
-        <Route path="/p"          component={withBetaProtection(HomeShell)} />
-        <Route path="/h"          component={withBetaProtection(HuntShell)} />
-        <Route path="/g"          component={withBetaProtection(GexShell)} />
+        {/* Legacy shells now live as Terminal tabs — redirect so the old sidebar UI
+            can't keep opening from a bookmark or an open tab. The pages themselves are
+            still mounted inside the Terminal; nothing was deleted. */}
+        <Route path="/p"><Redirect to="/t" /></Route>
+        <Route path="/h"><Redirect to="/t" /></Route>
+        <Route path="/g"><Redirect to="/t?tab=gex" /></Route>
+        {/* Kept as-is — Research / Positions / Journal aren't folded into the Terminal yet. */}
         <Route path="/r/:symbol"  component={withBetaProtection(ResearchShell)} />
         <Route path="/r"          component={withBetaProtection(ResearchShell)} />
         <Route path="/pos"        component={withBetaProtection(PositionsShell)} />
