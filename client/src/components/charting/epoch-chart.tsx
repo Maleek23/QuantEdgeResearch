@@ -16,6 +16,9 @@
  * a real /api candle endpoint later — the epoch-anchoring is identical).
  */
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Maximize2, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { createChart, CandlestickSeries, type IChartApi, type ISeriesApi, type UTCTimestamp } from 'lightweight-charts';
 import { cn } from '@/lib/utils';
@@ -64,6 +67,7 @@ export function EpochChart({
   levels = [],
   height = 420,
   initialTf = '1h',
+  expandable = true,
   className,
 }: {
   /** When set, fetches real candles for this ticker per timeframe (any ticker). */
@@ -75,6 +79,8 @@ export function EpochChart({
   levels?: PriceLevel[];
   height?: number;
   initialTf?: TFId;
+  /** Show the expand control. False for the instance already inside the modal. */
+  expandable?: boolean;
   className?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -84,6 +90,18 @@ export function EpochChart({
   const dataRef = useRef<Candle[]>([]);
   const [tf, setTf] = useState<TFId>(initialTf);
   const [hover, setHover] = useState<Candle | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  // Esc closes the expanded view — expected of anything that takes over the screen.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpanded(false); };
+    window.addEventListener('keydown', onKey);
+    // don't let the page scroll behind the overlay
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [expanded]);
 
   const tfCfg = TFS.find((t) => t.id === tf)!;
 
@@ -264,6 +282,16 @@ export function EpochChart({
           )}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
+          {expandable && (
+            <button
+              onClick={() => setExpanded(true)}
+              title="Expand chart"
+              aria-label="Expand chart"
+              className="mr-1 cursor-pointer rounded p-1 text-muted-foreground/55 transition-colors hover:bg-foreground/10 hover:text-foreground"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+          )}
           {TFS.map((t, i) => (
             <button
               key={t.id}
@@ -279,6 +307,59 @@ export function EpochChart({
           ))}
         </div>
       </div>
+
+      {/* full-screen workspace — the chart gets the whole surface, background blurred */}
+      {expandable && typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md"
+              style={{ background: 'color-mix(in srgb, var(--background,#0a0a0a) 78%, transparent)' }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={() => setExpanded(false)}
+              role="dialog"
+              aria-label={`${symbol ?? 'Chart'} expanded`}
+            >
+              <motion.div
+                className="w-full max-w-[1500px] rounded-xl border border-card-border bg-card shadow-2xl"
+                initial={{ scale: 0.98, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.98, y: 8 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-border/40 px-4 py-2">
+                  <span className="text-[12px] font-mono font-bold tracking-widest text-foreground">
+                    {symbol ?? 'DEMO'} <span className="text-muted-foreground/45">· chart workspace</span>
+                  </span>
+                  <button
+                    onClick={() => setExpanded(false)}
+                    aria-label="Close expanded chart"
+                    className="cursor-pointer rounded p-1 text-muted-foreground/60 transition-colors hover:bg-foreground/10 hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="p-2">
+                  <EpochChart
+                    symbol={symbol}
+                    base={base}
+                    trendlines={trendlines}
+                    levels={levels}
+                    initialTf={tf}
+                    height={Math.max(420, Math.round(window.innerHeight * 0.68))}
+                    expandable={false}
+                    className="border-0"
+                  />
+                </div>
+                <div className="border-t border-border/40 px-4 py-1.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground/45">
+                  Esc or click outside to close · keys 1–4 switch timeframe
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
 
       {/* chart + epoch-anchored overlay */}
       <div ref={wrapRef} className="relative w-full" style={{ height }}>
