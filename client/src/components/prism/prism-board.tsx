@@ -17,6 +17,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { GEXExpiryMatrix } from '@/components/gex/gex-expiry-matrix';
+import { StructuralRange, GravitySplit } from '@/components/viz';
 import { useStockContext } from '@/contexts/stock-context';
 import { cn as cnx } from '@/lib/utils';
 import type { StrikeExpiryCell, GEXSnapshot } from '@shared/gex-types';
