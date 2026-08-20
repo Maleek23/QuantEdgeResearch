@@ -26,6 +26,8 @@ export interface BotConfig {
   maxOpen: number;         // concurrent positions
   startingCapital: number;
   riskPerTradePct: number;
+  /** refuse a signal that has already travelled this far entry -> T1 (chase guard) */
+  maxProgressPct: number;
 }
 
 export const DEFAULT_BOT_CONFIG: BotConfig = {
@@ -37,6 +39,8 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   maxOpen: 10,
   startingCapital: 10_000,
   riskPerTradePct: 2,
+  // Past ~35% of the way to T1 the remaining reward no longer justifies the same risk.
+  maxProgressPct: 35,
 };
 
 /** The bot trades one dedicated portfolio; create it on first run. */
@@ -147,9 +151,47 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
       const board = await getCachedConvictions({});
       const heldSymbols = new Set(open.map((p) => p.symbol));
 
+      // ── Trade exactly what the board publishes, in the same order ────────────
+      //
+      // If the bot holds names the board isn't showing, the track record measures a
+      // different strategy than the one on screen and proves nothing about the signals.
+      // So: same list, same ranking, same rules the UI displays — plus the two gates the
+      // board already shows and the bot was ignoring.
+      const chaseGuard = (p: any) => {
+        // How far price has already travelled entry -> T1. The board renders this as
+        // "39% to T1". Entering there is the chase the desk warns about: the risk is the
+        // same but most of the reward is gone, so the R:R the signal advertises is a lie
+        // by the time we'd fill.
+        const live = p.currentPrice;
+        if (!live || !p.entryPrice || !p.targetPrice) return 0;
+        const span = p.direction === 'long' ? p.targetPrice - p.entryPrice : p.entryPrice - p.targetPrice;
+        const done = p.direction === 'long' ? live - p.entryPrice : p.entryPrice - live;
+        return span > 0 ? (done / span) * 100 : 0;
+      };
+
+      const triggered = (p: any) => {
+        // PENDING TRIGGER means price hasn't reached the entry yet. The board says so;
+        // buying anyway means taking a trade the signal hasn't actually called.
+        const live = p.currentPrice;
+        if (!live || !p.entryPrice) return false;
+        return p.direction === 'long' ? live >= p.entryPrice : live <= p.entryPrice;
+      };
+
+      const stoppedOut = (p: any) => {
+        const live = p.currentPrice;
+        if (!live || !p.stopLoss) return false;
+        return p.direction === 'long' ? live <= p.stopLoss : live >= p.stopLoss;
+      };
+
       const candidates = (board.picks ?? [])
         .filter((p) => p.convictionScore >= cfg.minConviction)
         .filter((p) => !heldSymbols.has(p.symbol))
+        .filter((p) => {
+          if (!triggered(p)) { skipped++; return false; }          // pending trigger
+          if (stoppedOut(p)) { skipped++; return false; }          // already invalidated
+          if (chaseGuard(p) > cfg.maxProgressPct) { skipped++; return false; } // chasing
+          return true;
+        })
         .sort((a, b) => b.convictionScore - a.convictionScore)
         .slice(0, slots);
 
