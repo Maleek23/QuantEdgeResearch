@@ -8,9 +8,15 @@
  * This is the fallback surface — the chart plus a live quote for any ticker, whether or
  * not the engine has an opinion on it, and it says plainly when there's no signal.
  */
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { EpochChart } from '@/components/charting/epoch-chart';
+import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
+import { EASE, DUR } from '@/lib/motion';
+import { cn } from '@/lib/utils';
 import { TC, pnlColor } from '@/lib/oracle/trading-colors';
 import { ScoreDial, RangeBar, StackedBar, Pill } from '@/components/viz';
 import { convictionPercent, bandStrength, type ConvictionPick } from '@/lib/convictions';
@@ -20,9 +26,26 @@ interface Ext {
   changePct: number; session: string; isExtended: boolean;
 }
 
+/**
+ * Rendered as an OVERLAY, not inline.
+ *
+ * Inline it pushed the whole board down and read as though the terminal had navigated
+ * somewhere — a lookup is a detour, not a new home. Over a blurred backdrop it's obvious
+ * you're inspecting one name and can dismiss back to the board.
+ */
 export function TickerView({ symbol, hasSignal, onClear }: {
   symbol: string; hasSignal: boolean; onClear?: () => void;
 }) {
+  const reduce = useReducedMotion();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClear?.(); };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [onClear]);
+
   // Search should GRADE the ticker, not just draw it. The convictions endpoint can score
   // any symbol on demand (?symbol=), so a lookup returns the engine's actual opinion —
   // score, band, layers and levels — rather than leaving you to eyeball a chart.
@@ -49,8 +72,8 @@ export function TickerView({ symbol, hasSignal, onClear }: {
     staleTime: 60_000, retry: 1,
   });
 
-  return (
-    <div className="rounded-xl border border-card-border bg-card overflow-hidden">
+  const body = (
+    <div className="rounded-xl border border-card-border bg-card overflow-hidden shadow-2xl">
       <div className="flex items-center gap-3 border-b border-border/40 px-4 py-2.5">
         <span className="text-[14px] font-mono font-bold tracking-wider text-foreground">{symbol}</span>
         {q && (
@@ -158,6 +181,60 @@ export function TickerView({ symbol, hasSignal, onClear }: {
           )}
         </div>
       </div>
+
+      {/* POSSIBLE TRADES — a grade is an opinion; this is what you could actually put on.
+          Only shown when the engine has a directional read, because a contract ladder with
+          no thesis behind it is just a chain. */}
+      {graded && (graded.direction === 'long' || graded.direction === 'short') && (
+        <div className="border-t border-border/40 p-2">
+          <OracleOptionPicker
+            key={`${symbol}-${graded.direction}`}
+            autoLoad
+            symbol={symbol}
+            direction={graded.direction === 'long' ? 'BULL' : 'BEAR'}
+            entry={graded.entryPrice}
+            stop={graded.stopLoss}
+            t1={graded.targetPrice}
+            holdPeriodLabel={graded.holdingPeriod}
+            conviction={graded.convictionScore}
+          />
+        </div>
+      )}
+
+      {!graded && !grading && (
+        <p className="border-t border-border/30 px-4 py-2 text-[11px] leading-relaxed text-muted-foreground/70">
+          No setup on {symbol}, so there are no trades to suggest. GEX and PRISM are following
+          this ticker if you want to read the structure yourself.
+        </p>
+      )}
     </div>
+  );
+
+  if (typeof document === 'undefined') return body;
+
+  return createPortal(
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[90] overflow-y-auto backdrop-blur-md"
+        style={{ background: 'color-mix(in srgb, var(--background,#0a0a0a) 76%, transparent)' }}
+        initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: DUR.fast }}
+        onClick={() => onClear?.()}
+        role="dialog" aria-label={`${symbol} lookup`}
+      >
+        <motion.div
+          className="mx-auto my-6 w-full max-w-[1200px] px-4"
+          initial={reduce ? false : { scale: 0.985, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.985, y: 10 }}
+          transition={{ duration: DUR.base, ease: EASE }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {body}
+          <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+            Esc or click outside to return to the board
+          </p>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body,
   );
 }

@@ -198,18 +198,6 @@ export default function TerminalShell() {
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
                 <div className="mx-auto w-full max-w-[1600px] space-y-2 px-3 py-2">
-                  {/* A searched ticker is what you just asked for, so it leads. Every panel
-                      below renders the SELECTED SIGNAL, which is why searching a name with
-                      no signal used to change nothing on screen. */}
-                  {currentStock?.symbol && (
-                    <TickerView
-                      symbol={currentStock.symbol.toUpperCase()}
-                      hasSignal={!!convictions?.picks?.some(
-                        (p) => p.symbol.toUpperCase() === currentStock.symbol.toUpperCase())}
-                      onClear={clearStock}
-                    />
-                  )}
-
                   <div className="grid gap-2 lg:grid-cols-3 md:grid-cols-2">
                     <OracleOrb />
                     <RotationMap />
@@ -238,6 +226,17 @@ export default function TerminalShell() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Ticker lookup — an overlay above whichever tab you're on, not a panel wedged
+          into the page. Searching is a detour; it shouldn't rearrange the board. */}
+      {currentStock?.symbol && (
+        <TickerView
+          symbol={currentStock.symbol.toUpperCase()}
+          hasSignal={!!convictions?.picks?.some(
+            (p) => p.symbol.toUpperCase() === currentStock.symbol.toUpperCase())}
+          onClear={clearStock}
+        />
+      )}
 
       <TerminalGuide tab={tab} open={guideOpen} onClose={() => setGuideOpen(false)} />
       <TerminalSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
