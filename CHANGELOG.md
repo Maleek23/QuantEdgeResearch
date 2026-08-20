@@ -12,6 +12,10 @@ Update this in the same PR as the change.
   Confidence Index bars (Conviction/Progress/R:R/Structure), and a Context panel with a
   "what to do now" line — all derived from real ConvictionPick data. Wired into the cockpit.
 - `/t` is now **full-bleed, no sidebar** (top-nav only, ADR-0001).
+- **Charting system POC** (ADR-0002) — `EpochChart` on lightweight-charts v5 with
+  **epoch-anchored trendlines that survive timeframe switches** (projected via fractional
+  logical-index interpolation), a flash-UI TF switcher (keys 1–5), and a live OHLC readout.
+  Demo at `/chartlab` (public dev route — gate before prod).
 - Canonical docs set in `docs/` (Architecture, Onboarding, Runbook, Team) + ADR process + this changelog.
 - Cash-secured-put income screener, catalyst research endpoints, cash-gate grade dampening.
 
