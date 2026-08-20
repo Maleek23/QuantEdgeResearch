@@ -16,19 +16,21 @@
  * a real /api candle endpoint later — the epoch-anchoring is identical).
  */
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { createChart, CandlestickSeries, type IChartApi, type ISeriesApi, type UTCTimestamp, type Logical } from 'lightweight-charts';
+import { useQuery } from '@tanstack/react-query';
+import { createChart, CandlestickSeries, type IChartApi, type ISeriesApi, type UTCTimestamp } from 'lightweight-charts';
 import { cn } from '@/lib/utils';
 
 export interface Candle { time: number; open: number; high: number; low: number; close: number }
 export interface Anchor { time: number; price: number }
 export interface Trendline { id: string; a: Anchor; b: Anchor; color?: string; label?: string }
 
+// Each timeframe carries both the aggregation bucket (demo/base mode) AND the
+// Yahoo (interval, range) pair used to fetch real candles for any ticker (symbol mode).
 const TFS = [
-  { id: '1m', label: '1m', sec: 60 },
-  { id: '5m', label: '5m', sec: 300 },
-  { id: '15m', label: '15m', sec: 900 },
-  { id: '30m', label: '30m', sec: 1800 },
-  { id: '1h', label: '1h', sec: 3600 },
+  { id: '5m',  label: '5m',  sec: 300,   yInterval: '5m',  yRange: '5d' },
+  { id: '15m', label: '15m', sec: 900,   yInterval: '15m', yRange: '5d' },
+  { id: '1h',  label: '1h',  sec: 3600,  yInterval: '1h',  yRange: '1mo' },
+  { id: '1D',  label: '1D',  sec: 86400, yInterval: '1d',  yRange: '1y' },
 ] as const;
 type TFId = typeof TFS[number]['id'];
 
@@ -54,46 +56,21 @@ export function aggregate(base: Candle[], bucketSec: number): Candle[] {
   return out;
 }
 
-/**
- * Convert an absolute epoch to a *fractional* logical index over the current bars,
- * interpolating between the two bracketing bars (and extrapolating past the edges by
- * the local bar spacing). This is what makes an epoch anchor resolve on ANY timeframe
- * — even when it falls between bars — where timeScale().timeToCoordinate(time) would
- * return null for a non-bar time. Feed the result to timeScale().logicalToCoordinate().
- */
-function epochToLogical(bars: Candle[], epoch: number): number | null {
-  const n = bars.length;
-  if (n === 0) return null;
-  if (n === 1) return 0;
-  if (epoch <= bars[0].time) {
-    const step = bars[1].time - bars[0].time || 1;
-    return (epoch - bars[0].time) / step;
-  }
-  if (epoch >= bars[n - 1].time) {
-    const step = bars[n - 1].time - bars[n - 2].time || 1;
-    return n - 1 + (epoch - bars[n - 1].time) / step;
-  }
-  let lo = 0, hi = n - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (bars[mid].time <= epoch) lo = mid + 1; else hi = mid;
-  }
-  const i = lo - 1; // bars[i].time <= epoch < bars[i+1].time
-  const span = bars[i + 1].time - bars[i].time || 1;
-  return i + (epoch - bars[i].time) / span;
-}
-
 export function EpochChart({
-  symbol = 'DEMO',
+  symbol,
   base,
   trendlines = [],
   height = 420,
+  initialTf = '1h',
   className,
 }: {
+  /** When set, fetches real candles for this ticker per timeframe (any ticker). */
   symbol?: string;
-  base: Candle[];              // 1-minute base series; other TFs aggregate from it
+  /** Demo/offline mode: a 1-minute base series that coarser TFs aggregate from. */
+  base?: Candle[];
   trendlines?: Trendline[];
   height?: number;
+  initialTf?: TFId;
   className?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -101,13 +78,31 @@ export function EpochChart({
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const dataRef = useRef<Candle[]>([]);
-  const [tf, setTf] = useState<TFId>('5m');
+  const [tf, setTf] = useState<TFId>(initialTf);
   const [hover, setHover] = useState<Candle | null>(null);
 
+  const tfCfg = TFS.find((t) => t.id === tf)!;
+
+  // Real data path — fetch OHLC for any ticker at the current timeframe.
+  const { data: fetched, isLoading, isError } = useQuery<Candle[]>({
+    queryKey: ['/api/historical-prices', symbol, tf],
+    queryFn: async () => {
+      const r = await fetch(`/api/historical-prices/${symbol}?range=${tfCfg.yRange}&interval=${tfCfg.yInterval}`, { credentials: 'include' });
+      if (!r.ok) throw new Error('history failed');
+      const b = await r.json();
+      return (b?.data ?? []) as Candle[];
+    },
+    enabled: !!symbol,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    retry: 1,
+  });
+
   const data = useMemo(() => {
-    const sec = TFS.find((t) => t.id === tf)!.sec;
-    return aggregate(base, sec);
-  }, [base, tf]);
+    if (symbol) return fetched ?? [];
+    if (base) return aggregate(base, tfCfg.sec);
+    return [];
+  }, [symbol, fetched, base, tfCfg.sec]);
 
   // ── draw the epoch-anchored overlay (runs every animation frame) ──
   const draw = useCallback(() => {
@@ -125,9 +120,27 @@ export function EpochChart({
     ctx.clearRect(0, 0, w, h);
     const ts = chart.timeScale();
     const bars = dataRef.current;
-    const xOf = (epoch: number) => {
-      const lg = epochToLogical(bars, epoch);
-      return lg == null ? null : ts.logicalToCoordinate(lg as Logical);
+    // Project an absolute epoch to an x-coordinate by interpolating between the two
+    // bracketing bars' own coordinates. timeToCoordinate is reliable on real bar times
+    // (returns null only for a between-bars time), so bracket + lerp gives a correct x
+    // on ANY timeframe — unlike logicalToCoordinate, which misprojects fractional
+    // logicals near the series edge.
+    const xOf = (epoch: number): number | null => {
+      const n = bars.length;
+      if (!n) return null;
+      let i: number;
+      if (epoch <= bars[0].time) i = 0;
+      else if (epoch >= bars[n - 1].time) i = n - 1;
+      else { let lo = 0, hi = n - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (bars[m].time <= epoch) lo = m + 1; else hi = m; } i = lo - 1; }
+      const j = Math.min(i + 1, n - 1);
+      const ci = ts.timeToCoordinate(bars[i].time as UTCTimestamp);
+      const cj = ts.timeToCoordinate(bars[j].time as UTCTimestamp);
+      if (ci == null && cj == null) return null;
+      if (ci == null) return cj as number;
+      if (cj == null || i === j) return ci as number;
+      const span = bars[j].time - bars[i].time || 1;
+      const frac = Math.max(0, Math.min(1, (epoch - bars[i].time) / span));
+      return (ci as number) + ((cj as number) - (ci as number)) * frac;
     };
     for (const ln of trendlines) {
       const x1 = xOf(ln.a.time);
@@ -152,6 +165,10 @@ export function EpochChart({
       }
     }
   }, [trendlines]);
+
+  // keep the latest draw in a ref so the rAF loop never forces a chart rebuild
+  const drawRef = useRef(draw);
+  useEffect(() => { drawRef.current = draw; }, [draw]);
 
   // ── init chart once ──
   useEffect(() => {
@@ -180,14 +197,14 @@ export function EpochChart({
 
     // keep overlay in sync every frame
     let raf = 0;
-    const loop = () => { draw(); raf = requestAnimationFrame(loop); };
+    const loop = () => { drawRef.current(); raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
 
     const ro = new ResizeObserver(() => { chart.applyOptions({ width: wrap.clientWidth, height }); });
     ro.observe(wrap);
 
     return () => { cancelAnimationFrame(raf); ro.disconnect(); chart.remove(); chartRef.current = null; seriesRef.current = null; };
-  }, [height, draw]);
+  }, [height]);
 
   // ── push data on TF / data change; keep the visible range feel ──
   useEffect(() => {
@@ -216,7 +233,7 @@ export function EpochChart({
       {/* flash-UI header: symbol + OHLC readout (left) · TF switcher (right) */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[12px] font-mono font-bold tracking-widest text-foreground">{symbol}</span>
+          <span className="text-[12px] font-mono font-bold tracking-widest text-foreground">{symbol ?? 'DEMO'}</span>
           {readout && (
             <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 truncate">
               O <b className="text-foreground/80">{readout.open?.toFixed(2)}</b>{'  '}
@@ -246,6 +263,11 @@ export function EpochChart({
       {/* chart + epoch-anchored overlay */}
       <div ref={wrapRef} className="relative w-full" style={{ height }}>
         <canvas ref={overlayRef} className="absolute inset-0 pointer-events-none z-10" />
+        {symbol && (isLoading || isError || data.length === 0) && (
+          <div className="absolute inset-0 z-20 grid place-items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/50">
+            {isError ? 'no data' : isLoading ? 'loading…' : 'no candles'}
+          </div>
+        )}
       </div>
     </div>
   );

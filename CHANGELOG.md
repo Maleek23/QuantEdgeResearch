@@ -16,6 +16,11 @@ Update this in the same PR as the change.
   **epoch-anchored trendlines that survive timeframe switches** (projected via fractional
   logical-index interpolation), a flash-UI TF switcher (keys 1–5), and a live OHLC readout.
   Demo at `/chartlab` (public dev route — gate before prod).
+- **Universal chart** — `EpochChart` now fetches real OHLC for **any ticker** via
+  `/api/historical-prices` (5m/15m/1h/1D), so the same component drops into any Terminal
+  tab, research view, or idea card. Epoch anchors project via bracketing-bar interpolation
+  (fixed a `logicalToCoordinate` edge bug that pinned lines to x=0 on 1D). `/chartlab` has
+  a ticker box; verified live on real NVDA data across timeframes.
 - Canonical docs set in `docs/` (Architecture, Onboarding, Runbook, Team) + ADR process + this changelog.
 - Cash-secured-put income screener, catalyst research endpoints, cash-gate grade dampening.
 
