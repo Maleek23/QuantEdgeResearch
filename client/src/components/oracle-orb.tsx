@@ -113,14 +113,14 @@ export function OracleOrb({ className }: { className?: string }) {
         <span className="text-[10px] font-mono text-muted-foreground/60">Market regime</span>
       </div>
 
-      <div className="relative flex flex-col items-center justify-center py-8 gap-4">
-        <div className="relative grid place-items-center" style={{ width: 160, height: 160 }}>
+      <div className="relative flex flex-col items-center justify-center gap-2.5 py-4">
+        <div className="relative grid place-items-center" style={{ width: 118, height: 118 }}>
           {/* pulsing halo rings */}
           {!reduce && [0, 1].map((i) => (
             <motion.span
               key={i}
               className="absolute rounded-full"
-              style={{ width: 130, height: 130, background: `radial-gradient(circle, color-mix(in srgb, ${r.color} 42%, transparent), transparent 70%)` }}
+              style={{ width: 96, height: 96, background: `radial-gradient(circle, color-mix(in srgb, ${r.color} 42%, transparent), transparent 70%)` }}
               animate={{ scale: [1, 1.4, 1], opacity: [0.55, 0, 0.55] }}
               transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut", delay: i * 1.7 }}
             />
@@ -129,7 +129,7 @@ export function OracleOrb({ className }: { className?: string }) {
           <motion.span
             className="rounded-full grid place-items-center"
             style={{
-              width: 100, height: 100,
+              width: 74, height: 74,
               background: `radial-gradient(circle at 35% 28%, color-mix(in srgb, ${r.color} 72%, white), ${r.color})`,
               boxShadow: `0 0 44px color-mix(in srgb, ${r.color} 55%, transparent)`,
               transition: "background 600ms ease, box-shadow 600ms ease",

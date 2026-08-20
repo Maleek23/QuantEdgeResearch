@@ -54,6 +54,10 @@ export default function HuntCockpit() {
   const [rangeId, setRangeId] = useState<typeof RANGES[number]['id']>('1mo');
   const [mode, setMode] = useState<CockpitMode>('all');
   const [streamFilter, setStreamFilter] = useState<'new' | 'best' | 'conviction'>('conviction');
+  // Two searches, two different verbs. The one in the terminal chrome LOADS and grades any
+  // ticker; this one only FILTERS the signals already on the board. Conflating them made
+  // searching feel broken — you'd type a name and not know which behaviour you'd get.
+  const [listFilter, setListFilter] = useState('');
   const [sharingDiscord, setSharingDiscord] = useState(false);
   const subjectRef = useRef<HTMLElement>(null);
 
@@ -227,7 +231,9 @@ export default function HuntCockpit() {
       return [...openPicks].sort((a, b) => geometryFor(b, px(b)).progressPct - geometryFor(a, px(a)).progressPct);
     }
     return [...openPicks].sort((a, b) => b.convictionScore - a.convictionScore);
-  })();
+  })().filter((p) =>
+    !listFilter.trim() || p.symbol.toUpperCase().includes(listFilter.trim().toUpperCase()),
+  );
 
   const selected: ConvictionPick | undefined =
     shown.find((p) => p.ideaId === selectedId) ?? shown[0] ?? picks[0];
@@ -373,6 +379,15 @@ export default function HuntCockpit() {
             {/* the NEW count now lives on the NEW tab of the stream filter below, so this
                 row just carries the open count + mark-seen (no competing toggle). */}
             <div className="flex items-center gap-1.5">
+              <div className="relative">
+                <input
+                  value={listFilter}
+                  onChange={(e) => setListFilter(e.target.value)}
+                  placeholder="filter"
+                  aria-label="Filter signals"
+                  className="w-16 rounded border border-border/50 bg-background/50 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:w-24 focus:border-[var(--brand-cyan)]"
+                />
+              </div>
               {newCount > 0 && (
                 <button
                   onClick={markSeen}

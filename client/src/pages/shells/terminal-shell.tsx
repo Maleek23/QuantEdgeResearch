@@ -197,7 +197,7 @@ export default function TerminalShell() {
           >
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
-                <div className="mx-auto w-full max-w-[1600px] px-4 py-3 space-y-3">
+                <div className="mx-auto w-full max-w-[1600px] space-y-2 px-3 py-2">
                   {/* A searched ticker is what you just asked for, so it leads. Every panel
                       below renders the SELECTED SIGNAL, which is why searching a name with
                       no signal used to change nothing on screen. */}
@@ -210,7 +210,7 @@ export default function TerminalShell() {
                     />
                   )}
 
-                  <div className="grid gap-3 lg:grid-cols-3 md:grid-cols-2">
+                  <div className="grid gap-2 lg:grid-cols-3 md:grid-cols-2">
                     <OracleOrb />
                     <RotationMap />
                     {/* what to go into the session with — leadership + the names carrying it */}

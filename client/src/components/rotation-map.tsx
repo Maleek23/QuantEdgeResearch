@@ -95,7 +95,7 @@ export function RotationMap({ className }: { className?: string }) {
         </div>
       )}
 
-      <div className="relative w-full mx-auto" style={{ aspectRatio: "1 / 1", maxWidth: 460 }}>
+      <div className="relative w-full mx-auto" style={{ aspectRatio: "1 / 1", maxWidth: 380 }}>
         {isLoading && (
           <div className="absolute inset-0 grid place-items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
             reading rotation…

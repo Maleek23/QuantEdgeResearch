@@ -151,3 +151,90 @@ export function DivergingBar({ value, max, height = 6, className }: { value: num
     </div>
   );
 }
+
+/**
+ * SCORE DIAL — a compact radial for a 0–100 rating.
+ * A number alone gives no sense of scale; an arc shows how full the tank is at a glance.
+ */
+export function ScoreDial({
+  value, size = 56, label, delta, className,
+}: { value: number; size?: number; label?: string; delta?: number | null; className?: string }) {
+  const v = clamp(value);
+  const r = (size - 8) / 2;
+  const c = 2 * Math.PI * r;
+  const color = v >= 70 ? TC.bull : v >= 45 ? TC.warn : TC.bear;
+  return (
+    <div className={cn('relative grid place-items-center', className)} style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={4}
+                stroke="color-mix(in srgb, var(--foreground) 10%, transparent)" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={4} stroke={color}
+                strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c - (v / 100) * c}
+                style={{ transition: 'stroke-dashoffset 600ms ease' }} />
+      </svg>
+      <span className="absolute flex flex-col items-center leading-none">
+        <span className="font-mono text-[15px] font-bold tabular-nums" style={{ color }}>{Math.round(v)}</span>
+        {label && <span className="mt-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{label}</span>}
+      </span>
+      {delta != null && delta !== 0 && (
+        <span className="absolute -right-1 -top-1 font-mono text-[10px] font-bold tabular-nums"
+              style={{ color: delta > 0 ? TC.bull : TC.bear }}>
+          {delta > 0 ? '▲' : '▼'}{Math.abs(delta)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * STACKED BAR — parts of a whole (e.g. supporting vs opposing conviction points).
+ * Shows composition, which a single total hides.
+ */
+export function StackedBar({
+  segments, height = 8, className,
+}: { segments: { value: number; color: string; label?: string }[]; height?: number; className?: string }) {
+  const total = segments.reduce((s, x) => s + Math.abs(x.value), 0) || 1;
+  return (
+    <div className={cn('flex w-full overflow-hidden rounded-full bg-foreground/[0.07]', className)} style={{ height }}>
+      {segments.map((s, i) => (
+        <div key={i} title={s.label}
+             style={{ width: `${(Math.abs(s.value) / total) * 100}%`, background: s.color }} />
+      ))}
+    </div>
+  );
+}
+
+/** SPARKLINE — a tiny trend, no axes. For "what has this been doing" at a glance. */
+export function Sparkline({
+  values, width = 88, height = 24, color, className,
+}: { values: number[]; width?: number; height?: number; color?: string; className?: string }) {
+  if (!values || values.length < 2) return null;
+  const lo = Math.min(...values), hi = Math.max(...values);
+  const span = hi - lo || 1;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * width;
+    const y = height - ((v - lo) / span) * height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const up = values[values.length - 1] >= values[0];
+  const stroke = color ?? (up ? TC.bull : TC.bear);
+  return (
+    <svg width={width} height={height} className={className} aria-hidden>
+      <polyline points={pts} fill="none" stroke={stroke} strokeWidth={1.5}
+                strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** PILL — a compact labelled chip. The spec-chip pattern used across the terminal. */
+export function Pill({
+  children, color, className,
+}: { children: React.ReactNode; color?: string; className?: string }) {
+  const c = color ?? TC.info;
+  return (
+    <span className={cn('rounded border px-1.5 py-px font-mono text-[10px] font-bold uppercase tracking-wider', className)}
+          style={{ color: c, borderColor: `color-mix(in srgb, ${c} 40%, transparent)`, background: `color-mix(in srgb, ${c} 10%, transparent)` }}>
+      {children}
+    </span>
+  );
+}
