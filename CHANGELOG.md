@@ -18,6 +18,10 @@ Update this in the same PR as the change.
   horizontal price levels (entry/stop/target). **Embedded in the Terminal Oracle cockpit**,
   replacing the bespoke per-page chart — it's *part of the platform*, not a separate page.
   The `/chartlab` POC route + file were removed once the chart landed in-platform.
+- **GEX rankings feed PRISM** — the ranked board (dealer-positioning scan, 39 tickers with
+  play score and ±γ polarity) now sits beside the surface: pick a ranked name and PRISM
+  loads it. PRISM defaults to the top-ranked play rather than a hardcoded ticker, with SPY
+  pinned as the explicit benchmark read.
 - **PRISM rebuilt to the desk spec** — the strike × expiry gamma surface (green calls /
   red puts, brighter = more exposure) driven by the shared ticker and defaulting to SPY as
   the market benchmark, with an interpreting panel: spot, net GEX, call wall, put support,
