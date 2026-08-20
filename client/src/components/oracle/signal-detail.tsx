@@ -1,115 +1,119 @@
 /**
- * ORACLE signal-detail widgets — the MomoEdge grammar over QuantEdge's real pick data.
+ * ORACLE signal detail — every panel is driven by lib/oracle/signal-geometry, so the
+ * numbers on screen are derived once and stay consistent across panels.
  *
- *   PriceLadder     — vertical STOP / ENTRY / LIVE / T1 rungs, each with $, signed %,
- *                     and distance "away" from the live price. Placement is by price,
- *                     so it's direction-agnostic (a short's target simply sits lower).
- *   ConfidenceBars  — four honest, derived sub-scores (Conviction / Progress / R:R /
- *                     Structure) as animated bars + a band-anchored setup number.
- *   ContextPanel    — the interpreting sentence(s): what the numbers mean + WHAT TO DO NOW.
- *
- * Nothing here invents intelligence; every value is derived from the ConvictionPick the
- * engine already produced. Motion comes from the shared system.
+ *   PriceLadder    — STOP / ENTRY / LIVE / T1 / T2, each with $, signed %, and R away.
+ *   ConfidenceBars — VALIDITY / PROGRESS / PACE / OVERLAY.
+ *   TradeGeometry  — distance to each level in R + how much of the horizon is spent.
+ *   RiskReward     — R:R at entry with the actual dollar risk and reward per share.
+ *   ProfitPlan     — the scale-out rungs (40% at T1 + trail to entry, 60% at T2).
+ *   ContextPanel   — the interpreting sentence + what to do now.
  */
 import { motion, useReducedMotion } from 'framer-motion';
 import { convictionPercent, bandStrength, type ConvictionPick } from '@/lib/convictions';
+import { computeGeometry, type SignalGeometry, type Level } from '@/lib/oracle/signal-geometry';
 import { EASE, DUR } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
-const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
+const BULL = 'var(--trade-bullish,#22c55e)';
+const BEAR = 'var(--trade-bearish,#ef4444)';
+const CYAN = 'var(--brand-cyan,#22d3ee)';
+const GOLD = '#e0a458';
+
 const money = (n: number) => (n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 0 }) : n.toFixed(2));
 
-/** How far live has travelled entry → target (direction-aware), 0–100. */
-function progressPct(p: ConvictionPick, live: number) {
-  if (!live || !p.entryPrice || !p.targetPrice) return 0;
-  const span = p.direction === 'long' ? p.targetPrice - p.entryPrice : p.entryPrice - p.targetPrice;
-  const done = p.direction === 'long' ? live - p.entryPrice : p.entryPrice - live;
-  if (span <= 0) return 0;
-  return clamp((done / span) * 100);
+/** Build geometry from a pick + live price. Shared by every panel below. */
+export function geometryFor(pick: ConvictionPick, live: number): SignalGeometry {
+  return computeGeometry({
+    direction: pick.direction,
+    entryPrice: pick.entryPrice,
+    targetPrice: pick.targetPrice,
+    stopLoss: pick.stopLoss,
+    live: live || pick.currentPrice || pick.entryPrice,
+    riskRewardRatio: pick.riskRewardRatio,
+    holdingPeriod: pick.holdingPeriod,
+    generatedAt: pick.generatedAt,
+    convictionScore: pick.convictionScore,
+  });
+}
+
+const ROLE: Record<Level['key'], { color: string }> = {
+  t2:    { color: BULL },
+  t1:    { color: BULL },
+  live:  { color: CYAN },
+  entry: { color: 'var(--foreground,#e6edf3)' },
+  stop:  { color: BEAR },
+};
+
+function Card({ title, meta, children, className }: { title: string; meta?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
+      <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
+        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
+        {meta && <span className="text-[10px] font-mono text-muted-foreground/60">{meta}</span>}
+      </div>
+      {children}
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────── PriceLadder ──
 
-type Role = 'target' | 'live' | 'entry' | 'stop';
-const ROLE: Record<Role, { color: string; label: string }> = {
-  target: { color: 'var(--trade-bullish, #22c55e)', label: 'TARGET · T1' },
-  live:   { color: 'var(--brand-cyan, #22d3ee)',    label: 'LIVE' },
-  entry:  { color: 'var(--foreground, #e6edf3)',    label: 'ENTRY' },
-  stop:   { color: 'var(--trade-bearish, #ef4444)', label: 'STOP' },
-};
-
 export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
   const reduce = useReducedMotion();
-  const rungs = ([
-    { role: 'target' as Role, price: pick.targetPrice },
-    { role: 'live' as Role,   price: live },
-    { role: 'entry' as Role,  price: pick.entryPrice },
-    { role: 'stop' as Role,   price: pick.stopLoss },
-  ]).filter((r) => Number.isFinite(r.price) && r.price > 0);
-
-  const prices = rungs.map((r) => r.price);
+  const g = geometryFor(pick, live);
+  const prices = g.levels.map((l) => l.price);
   const min = Math.min(...prices), max = Math.max(...prices);
   const span = max - min || 1;
-  const y = (p: number) => 8 + (1 - (p - min) / span) * 84; // % from top; padded 8/8
-  const rel = (p: number) => (live > 0 ? ((p - live) / live) * 100 : 0);
-
-  const ordered = [...rungs].sort((a, b) => b.price - a.price);
+  const y = (p: number) => 6 + (1 - (p - min) / span) * 88;
 
   return (
-    <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">Price Ladder</span>
-        <span className="text-[10px] font-mono text-muted-foreground/60">stop · entry · live · target</span>
-      </div>
-      <div className="relative px-4" style={{ height: 200 }}>
-        {/* spine */}
-        <div className="absolute left-[46%] top-3 bottom-3 w-px bg-border/60" />
-        {ordered.map((r) => {
-          const meta = ROLE[r.role];
-          const pct = rel(r.price);
-          const isLive = r.role === 'live';
+    <Card title="Price Ladder" meta={<span style={{ color: g.status === 'pending_trigger' ? GOLD : CYAN }}>{g.statusLabel}</span>} className={className}>
+      <div className="relative px-4" style={{ height: 236 }}>
+        <div className="absolute left-[42%] top-3 bottom-3 w-px bg-border/60" />
+        {g.levels.map((l) => {
+          const c = ROLE[l.key].color;
+          const isLive = l.key === 'live';
           return (
             <motion.div
-              key={r.role}
+              key={l.key}
               className="absolute left-4 right-4 flex items-center"
-              style={{ top: `${y(r.price)}%`, transform: 'translateY(-50%)' }}
+              style={{ top: `${y(l.price)}%`, transform: 'translateY(-50%)' }}
               initial={reduce ? false : { opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: DUR.base, ease: EASE }}
             >
-              {/* label (left of spine) */}
-              <div className="w-[42%] pr-3 text-right">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: meta.color }}>
-                  {meta.label}
-                </span>
+              <div className="w-[38%] pr-3 text-right">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: c }}>{l.label}</span>
               </div>
-              {/* dot on spine */}
               <span className="relative grid place-items-center" style={{ width: 16 }}>
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: meta.color, boxShadow: `0 0 10px color-mix(in srgb, ${meta.color} 60%, transparent)` }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: c, boxShadow: `0 0 10px color-mix(in srgb, ${c} 60%, transparent)` }} />
                 {isLive && !reduce && (
-                  <motion.span
-                    className="absolute h-2.5 w-2.5 rounded-full"
-                    style={{ background: meta.color }}
+                  <motion.span className="absolute h-2.5 w-2.5 rounded-full" style={{ background: c }}
                     animate={{ scale: [1, 2.4, 1], opacity: [0.6, 0, 0.6] }}
-                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-                  />
+                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }} />
                 )}
               </span>
-              {/* price + distance (right of spine) */}
-              <div className="flex-1 pl-3 flex items-baseline gap-2">
-                <span className="text-[13px] font-mono font-bold tabular-nums text-foreground">${money(r.price)}</span>
-                {!isLive && (
-                  <span className="text-[10px] font-mono tabular-nums" style={{ color: pct >= 0 ? 'var(--trade-bullish,#22c55e)' : 'var(--trade-bearish,#ef4444)' }}>
-                    {pct >= 0 ? '+' : ''}{pct.toFixed(1)}% · {Math.abs(pct).toFixed(1)}% away
+              <div className="flex-1 pl-3 flex items-baseline gap-2 flex-wrap">
+                <span className="text-[13px] font-mono font-bold tabular-nums text-foreground">${money(l.price)}</span>
+                {isLive ? (
+                  <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: g.pnlPct >= 0 ? BULL : BEAR }}>
+                    {g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(2)}% P&L
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70">
+                    <span style={{ color: l.pctFromLive >= 0 ? BULL : BEAR }}>
+                      {l.pctFromLive >= 0 ? '+' : ''}{l.pctFromLive.toFixed(2)}%
+                    </span>
+                    {' · '}{l.rAway.toFixed(1)}R away
                   </span>
                 )}
-                {isLive && <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">current</span>}
               </div>
             </motion.div>
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -117,44 +121,112 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
 
 export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
   const reduce = useReducedMotion();
-  const conviction = convictionPercent(pick.convictionScore);
-  const progress = progressPct(pick, live);
-  const rr = clamp(((pick.riskRewardRatio ?? 0) / 3) * 100); // 3:1 reads as full
-  const structure = clamp(((pick.layerCount ?? pick.layers?.length ?? 0) / 13) * 100);
-
-  const bars = [
-    { label: 'CONVICTION', v: conviction, hint: `${pick.convictionBand}-band · ${bandStrength(pick.convictionBand)}` },
-    { label: 'PROGRESS',   v: progress,   hint: 'entry → target' },
-    { label: 'RISK / REWARD', v: rr,      hint: `1 : ${(pick.riskRewardRatio ?? 0).toFixed(1)}` },
-    { label: 'STRUCTURE',  v: structure,  hint: `${pick.layerCount ?? pick.layers?.length ?? 0} layers` },
-  ];
+  const g = geometryFor(pick, live);
+  const setup = convictionPercent(pick.convictionScore);
 
   return (
-    <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">Confidence Index</span>
-        <span className="text-[13px] font-mono font-bold tabular-nums" style={{ color: 'var(--brand-cyan,#22d3ee)' }}>{conviction}</span>
-      </div>
+    <Card title="Confidence Index" meta={<span className="text-[13px] font-bold tabular-nums" style={{ color: CYAN }}>{setup}</span>} className={className}>
       <div className="px-4 py-3 space-y-2.5">
-        {bars.map((b) => (
-          <div key={b.label}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{b.label}</span>
-              <span className="text-[10px] font-mono tabular-nums text-muted-foreground/50">{b.hint}</span>
+        <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
+          {pick.convictionBand}-band · {bandStrength(pick.convictionBand)} · {pick.layerCount ?? pick.layers?.length ?? 0} layers
+        </div>
+        {g.components.map((c) => (
+          <div key={c.key}>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{c.label}</span>
+              <span className="text-[10px] font-mono tabular-nums" style={{ color: c.value >= 60 ? BULL : c.value >= 30 ? GOLD : BEAR }}>{c.value}</span>
             </div>
-            <div className="h-1.5 rounded-full bg-foreground/8 overflow-hidden">
-              <motion.div
-                className="h-full rounded-full"
-                style={{ background: 'linear-gradient(90deg, color-mix(in srgb, var(--brand-cyan,#22d3ee) 55%, transparent), var(--brand-cyan,#22d3ee))' }}
-                initial={reduce ? false : { width: 0 }}
-                animate={{ width: `${b.v}%` }}
-                transition={{ duration: DUR.slow, ease: EASE }}
-              />
+            <div className="h-1.5 overflow-hidden rounded-full bg-foreground/8">
+              <motion.div className="h-full rounded-full"
+                style={{ background: c.value >= 60 ? BULL : c.value >= 30 ? GOLD : BEAR }}
+                initial={reduce ? false : { width: 0 }} animate={{ width: `${c.value}%` }}
+                transition={{ duration: DUR.slow, ease: EASE }} />
             </div>
+            <div className="mt-0.5 text-[9px] font-mono text-muted-foreground/45">{c.why}</div>
           </div>
         ))}
       </div>
+    </Card>
+  );
+}
+
+// ──────────────────────────────────────────────── TradeGeometry + RiskReward ──
+
+export function TradeGeometry({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
+  const g = geometryFor(pick, live);
+  const row = (label: string, value: string, color?: string) => (
+    <div key={label} className="flex items-baseline justify-between gap-2">
+      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">{label}</span>
+      <span className="text-[11px] font-mono tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</span>
     </div>
+  );
+  const byKey = (k: Level['key']) => g.levels.find((l) => l.key === k);
+  return (
+    <Card title="Trade Geometry" className={className}>
+      <div className="space-y-1.5 px-4 py-3">
+        {row('Stop loss', `${byKey('stop')?.rAway.toFixed(1)}R away`, BEAR)}
+        {row('T1 target', `${byKey('t1')?.rAway.toFixed(1)}R away`, BULL)}
+        {row('T2 target', `${byKey('t2')?.rAway.toFixed(1)}R away`, BULL)}
+        {row('Horizon', `${g.horizonUsedPct.toFixed(0)}% used · ${g.daysHeld.toFixed(1)}/${g.horizonDays}d`)}
+      </div>
+    </Card>
+  );
+}
+
+export function RiskReward({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
+  const g = geometryFor(pick, live);
+  const riskShare = (g.risk / (g.risk + g.reward)) * 100;
+  return (
+    <Card title="Risk / Reward" meta="at entry" className={className}>
+      <div className="px-4 py-3">
+        <div className="mb-2 flex items-baseline gap-1">
+          <span className="text-[26px] font-mono font-bold leading-none tabular-nums" style={{ color: CYAN }}>{g.rr.toFixed(2)}</span>
+          <span className="text-[12px] font-mono text-muted-foreground/60">: 1</span>
+        </div>
+        <div className="flex h-1.5 overflow-hidden rounded-full">
+          <div style={{ width: `${riskShare}%`, background: BEAR }} />
+          <div style={{ width: `${100 - riskShare}%`, background: CYAN }} />
+        </div>
+        <div className="mt-1 flex justify-between text-[9px] font-mono uppercase tracking-wider text-muted-foreground/55">
+          <span>◀ risk</span><span>reward ▶</span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <div>
+            <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">Risk to stop</div>
+            <div className="text-[12px] font-mono font-bold tabular-nums" style={{ color: BEAR }}>−${g.risk.toFixed(2)}</div>
+          </div>
+          <div>
+            <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">Reward to T1</div>
+            <div className="text-[12px] font-mono font-bold tabular-nums" style={{ color: BULL }}>+${g.reward.toFixed(2)}</div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────── ProfitPlan ──
+
+export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
+  const g = geometryFor(pick, live);
+  return (
+    <Card title="Profit Taking Plan" className={className}>
+      <div className="divide-y divide-border/30">
+        {g.plan.map((p) => (
+          <div key={p.rung} className="flex items-center gap-3 px-4 py-2.5">
+            <span className="w-6 shrink-0 text-[10px] font-mono font-bold tracking-wider" style={{ color: CYAN }}>{p.rung}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-mono font-bold tabular-nums text-foreground">${money(p.price)}</div>
+              <div className="text-[10px] font-mono text-muted-foreground/65">{p.action}</div>
+            </div>
+            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider',
+              p.active ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground/50')}>
+              {p.active ? 'Active' : 'Pending'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -162,50 +234,39 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
 
 export function ContextPanel({
   pick, live, regime, preferredDirection, className,
-}: {
-  pick: ConvictionPick; live: number; regime?: string; preferredDirection?: string; className?: string;
-}) {
+}: { pick: ConvictionPick; live: number; regime?: string; preferredDirection?: string; className?: string }) {
+  const g = geometryFor(pick, live);
   const dir = pick.direction === 'long' ? 'Long' : 'Short';
-  const awayEntry = pick.entryPrice > 0 && live > 0 ? ((live - pick.entryPrice) / pick.entryPrice) * 100 : 0;
-  const belowAbove = live < pick.entryPrice ? 'below' : 'above';
-  const prog = progressPct(pick, live);
-
-  // regime alignment (honest — only if we know the regime)
   const aligns = preferredDirection ? preferredDirection.toLowerCase().includes(pick.direction) : undefined;
 
-  // what-to-do-now, derived from where live sits
   const todo = (() => {
-    const past = pick.direction === 'long' ? live >= pick.entryPrice : live <= pick.entryPrice;
-    const nearStop = pick.direction === 'long' ? live <= pick.stopLoss * 1.01 : live >= pick.stopLoss * 0.99;
-    if (nearStop) return 'Near invalidation — live is at the stop. Bias is broken here.';
-    if (!past) return `Waiting for entry — live is ${Math.abs(awayEntry).toFixed(1)}% ${belowAbove} the ${pick.entryPrice ? '$' + money(pick.entryPrice) : 'trigger'}.`;
-    if (prog >= 90) return 'At target — manage the runner or trim into T1.';
-    return `In play — ${prog.toFixed(0)}% of the way to T1.`;
+    switch (g.status) {
+      case 'invalidated': return 'Stop is hit — the thesis is broken. Stand down.';
+      case 'near_stop':   return `Near invalidation — only ${g.levels.find(l => l.key === 'stop')?.rAway.toFixed(1)}R from the stop.`;
+      case 'pending_trigger': {
+        const e = g.levels.find(l => l.key === 'entry');
+        return `Waiting for entry — ${Math.abs(e?.pctFromLive ?? 0).toFixed(1)}% away at $${money(pick.entryPrice)}.`;
+      }
+      case 'at_target':   return 'At T1 — scale out 40% and trail the stop to entry.';
+      default:            return `In play — ${g.progressPct.toFixed(0)}% of the way to T1, ${g.horizonUsedPct.toFixed(0)}% of the horizon spent.`;
+    }
   })();
 
   return (
-    <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">Context</span>
-        <span className="text-[10px] font-mono text-muted-foreground/60">what it means</span>
-      </div>
-      <div className="px-4 py-3 space-y-2.5">
+    <Card title="Context" meta="what it means" className={className}>
+      <div className="space-y-2.5 px-4 py-3">
         <p className="text-[12px] leading-relaxed text-foreground/85">
-          <span className="font-mono font-bold" style={{ color: pick.direction === 'long' ? 'var(--trade-bullish,#22c55e)' : 'var(--trade-bearish,#ef4444)' }}>{dir} {pick.symbol}</span>
-          {' '}— {pick.convictionBand}-band ({bandStrength(pick.convictionBand)}), {pick.layerCount ?? pick.layers?.length ?? 0} layers aligned.
-          {' '}Risk:reward 1:{(pick.riskRewardRatio ?? 0).toFixed(1)}.
-          {aligns !== undefined && regime && (
-            <> {regime} regime {aligns ? 'favors' : 'works against'} {pick.direction}s.</>
-          )}
+          <span className="font-mono font-bold" style={{ color: pick.direction === 'long' ? BULL : BEAR }}>{dir} {pick.symbol}</span>
+          {' '}— {pick.convictionBand}-band ({bandStrength(pick.convictionBand)}), {pick.layerCount ?? pick.layers?.length ?? 0} layers.
+          {' '}R:R 1:{g.rr.toFixed(1)}, risking ${g.risk.toFixed(2)} to make ${g.reward.toFixed(2)} per share.
+          {aligns !== undefined && regime && <> {regime} regime {aligns ? 'favors' : 'works against'} {pick.direction}s.</>}
         </p>
-        {pick.thesis && (
-          <p className="text-[11px] leading-relaxed text-muted-foreground/75">{pick.thesis}</p>
-        )}
+        {pick.thesis && <p className="text-[11px] leading-relaxed text-muted-foreground/75">{pick.thesis}</p>}
         <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
-          <div className="text-[9px] font-mono uppercase tracking-widest text-[var(--brand-cyan,#22d3ee)] mb-0.5">What to do now</div>
+          <div className="mb-0.5 text-[9px] font-mono uppercase tracking-widest" style={{ color: CYAN }}>What to do now</div>
           <div className="text-[11px] font-mono text-foreground/85">{todo}</div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

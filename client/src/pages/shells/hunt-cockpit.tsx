@@ -32,7 +32,7 @@ import { KeyLevels } from '@/components/hunt/cockpit/key-levels';
 import { SignalRow } from '@/components/hunt/cockpit/signal-row';
 import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
 import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
-import { PriceLadder, ContextPanel } from '@/components/oracle/signal-detail';
+import { PriceLadder, ContextPanel, ProfitPlan, TradeGeometry, RiskReward } from '@/components/oracle/signal-detail';
 import { EpochChart } from '@/components/charting/epoch-chart';
 import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
 import {
@@ -271,6 +271,8 @@ export default function HuntCockpit() {
   }
 
   const tone = selected ? directionTone(selected.direction) : 'bull';
+  // One live price for every geometry panel, so the ladder / geometry / R:R agree.
+  const livePx = quote?.price ?? selected?.currentPrice ?? selected?.entryPrice ?? 0;
   const toneColor = tone === 'bull' ? 'var(--trade-bullish)' : 'var(--trade-bearish)';
   const activeRange = RANGES.find((r) => r.id === rangeId)!;
 
@@ -460,13 +462,16 @@ export default function HuntCockpit() {
               {/* price ladder + interpretation. Confidence, components, and levels live in the
                   right rail — shown ONCE, not duplicated here. */}
               <div className="grid gap-2 lg:grid-cols-2">
-                <PriceLadder pick={selected} live={quote?.price ?? selected.currentPrice ?? selected.entryPrice} />
-                <ContextPanel
-                  pick={selected}
-                  live={quote?.price ?? selected.currentPrice ?? selected.entryPrice}
-                  regime={data?.marketContext?.regime}
-                  preferredDirection={data?.marketContext?.preferredDirection}
-                />
+                <PriceLadder pick={selected} live={livePx} />
+                <div className="space-y-2">
+                  <ContextPanel
+                    pick={selected}
+                    live={livePx}
+                    regime={data?.marketContext?.regime}
+                    preferredDirection={data?.marketContext?.preferredDirection}
+                  />
+                  <ProfitPlan pick={selected} live={livePx} />
+                </div>
               </div>
 
               <TASummary symbol={selected.symbol} />
@@ -535,6 +540,9 @@ export default function HuntCockpit() {
             <CockpitCard title="Signal Components">
               <ComponentBars layers={selected.layers} />
             </CockpitCard>
+
+            <TradeGeometry pick={selected} live={livePx} />
+            <RiskReward pick={selected} live={livePx} />
 
             {data?.marketContext && (
               <CockpitCard title="Market Context">

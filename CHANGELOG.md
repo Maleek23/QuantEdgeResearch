@@ -5,6 +5,16 @@ Update this in the same PR as the change.
 
 ## [Unreleased]
 ### Added
+- **Oracle signal geometry engine** (`lib/oracle/signal-geometry.ts`) — one pure module that
+  derives everything the signal view shows: R-multiples, **T2** (a second target at 2× the T1
+  R-multiple — we never had one), progress entry→T1, pace vs horizon spent, drawdown, status
+  (PENDING TRIGGER / IN PLAY / AT TARGET / NEAR STOP / INVALIDATED), the VALIDITY / PROGRESS /
+  PACE / OVERLAY sub-scores, and the scale-out plan. Validated against the reference terminal:
+  risk \$33.00, reward \$37.00, R:R 1.12, PENDING TRIGGER, −2.30% P&L, T1 +11.99%·1.4R,
+  STOP −6.24%·0.7R — all exact matches.
+- **Oracle panels rebuilt on it** — Price Ladder now carries T2 and R-away per rung; new
+  Trade Geometry, Risk/Reward (with dollar risk + reward per share) and Profit Taking Plan
+  panels; every panel reads one shared live price so the numbers can't disagree.
 - **Terminal (`/t`)** — one shell, five tabs (Oracle · Flow · Heatmap · GEX · PRISM) with a
   shared motion system, sliding tab underline, live uptime, wired to the real engines.
 - Oracle Orb (market-regime centerpiece) and Rotation Map (RRG) components.
