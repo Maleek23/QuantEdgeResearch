@@ -16,6 +16,9 @@ import { OracleOrb } from '@/components/oracle-orb';
 import { RotationMap } from '@/components/rotation-map';
 import { TerminalGuide } from '@/components/terminal/terminal-guide';
 import { TerminalSettings } from '@/components/terminal/terminal-settings';
+import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/terminal/terminal-alerts';
+import { useQuery } from '@tanstack/react-query';
+import type { ConvictionsResponse } from '@/lib/convictions';
 import { useStockContext } from '@/contexts/stock-context';
 
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
@@ -68,6 +71,20 @@ export default function TerminalShell() {
 
   const [guideOpen, setGuideOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+
+  // Alerts watch the same conviction feed the Oracle tab renders, so they fire on any
+  // tab — the point of an alert is that it reaches you when you are NOT looking at it.
+  const { data: convictions } = useQuery<ConvictionsResponse>({
+    queryKey: ['/api/convictions', 'alerts'],
+    queryFn: async () => {
+      const r = await fetch('/api/convictions', { credentials: 'include' });
+      if (!r.ok) throw new Error('convictions failed');
+      return r.json();
+    },
+    staleTime: 60_000, refetchInterval: 90_000, retry: 1,
+  });
+  const alerts = useSignalAlerts(convictions?.picks);
   const [draft, setDraft] = useState('');
   const reduce = useReducedMotion();
   const uptime = useUptime();
@@ -138,6 +155,11 @@ export default function TerminalShell() {
               </span>
             )}
 
+            <AlertBell
+              unread={alerts.unread}
+              onClick={() => { setAlertsOpen(true); alerts.setUnread(0); }}
+            />
+
             <button
               onClick={() => setSettingsOpen(true)}
               aria-label="Open settings"
@@ -194,6 +216,14 @@ export default function TerminalShell() {
 
       <TerminalGuide tab={tab} open={guideOpen} onClose={() => setGuideOpen(false)} />
       <TerminalSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <TerminalAlerts
+        open={alertsOpen}
+        onClose={() => setAlertsOpen(false)}
+        feed={alerts.feed}
+        setFeed={alerts.setFeed}
+        prefs={alerts.prefs}
+        update={alerts.update}
+      />
 
       {/* ── footer ── */}
       <footer className="border-t border-border/50 px-4 h-8 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">

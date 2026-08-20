@@ -5,6 +5,13 @@ Update this in the same PR as the change.
 
 ## [Unreleased]
 ### Added
+- **Alerts.** In-app alerts that fire on what CHANGED, not on what is: trigger confirmed,
+  T1 hit, danger zone, invalidation, rating moves, high conviction (90+). Each is a
+  transition detected against the signal geometry the platform already computes, so nothing
+  new is inferred — the changes were simply being thrown away. Bell + unread badge in the
+  Terminal chrome, a persistent feed, per-type toggles, quiet hours, and sound (reusing the
+  existing Web Audio beeps). Alerts run on every tab, since the point of an alert is to
+  reach you when you're not looking at that screen.
 - **Compression layer — Darvas box + TTM Squeeze — now scores.** A tested, tight range is a
   coiled spring with definable risk, and the engine had no concept of it. New
   `compression-engine.ts` detects consolidation (tight vs the instrument's own ATR *and*
