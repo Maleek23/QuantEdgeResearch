@@ -40,6 +40,8 @@ export interface SectorStrength {
 
 export interface SectorLeadershipResult {
   generatedAt: string;
+  /** which session the prices came from — pre / regular / post / closed */
+  session: string;
   universeSize: number;
   quoted: number;
   benchmarkChangePct: number | null;
@@ -69,9 +71,11 @@ async function quoteAll(symbols: string[], fetchQuotes: (batch: string[]) => Pro
 
 export async function computeSectorLeadership(
   fetchQuotes: (symbols: string[]) => Promise<Record<string, any>>,
+  opts: { session?: string } = {},
 ): Promise<SectorLeadershipResult> {
   const universe = getAllApprovedSymbols();
   const quotes = await quoteAll([...universe, 'SPY'], fetchQuotes);
+  const session = opts.session ?? 'regular';
 
   const spy = quotes['SPY'];
   const benchmarkChangePct = typeof spy?.changePercent === 'number' ? spy.changePercent : null;
@@ -136,8 +140,11 @@ export async function computeSectorLeadership(
   const megaCaps = all.filter((n) => n.isMega).sort((a, b) => b.changePct - a.changePct);
 
   const top = sectors[0], bottom = sectors[sectors.length - 1];
+  const sessionWord =
+    session === 'pre' ? 'Pre-market' : session === 'post' ? 'After-hours'
+    : session === 'closed' ? 'Overnight' : 'Today';
   const interpretation = top && bottom
-    ? `${top.label} leads (typical name ${top.medianChangePct >= 0 ? '+' : ''}${top.medianChangePct.toFixed(2)}%, ${top.breadthPct.toFixed(0)}% green)` +
+    ? `${sessionWord}: ${top.label} leads (typical name ${top.medianChangePct >= 0 ? '+' : ''}${top.medianChangePct.toFixed(2)}%, ${top.breadthPct.toFixed(0)}% green)` +
       `${top.leaders[0] ? `, led by ${top.leaders[0].symbol} ${top.leaders[0].changePct >= 0 ? '+' : ''}${top.leaders[0].changePct.toFixed(1)}%` : ''}` +
       `${top.isSkewed ? ' — but the move is concentrated in one name, so the group is thinner than it looks' : ''}. ` +
       `${bottom.label} is weakest (${bottom.medianChangePct >= 0 ? '+' : ''}${bottom.medianChangePct.toFixed(2)}%). ` +
@@ -146,6 +153,7 @@ export async function computeSectorLeadership(
 
   return {
     generatedAt: new Date().toISOString(),
+    session,
     universeSize: universe.length,
     quoted,
     benchmarkChangePct,

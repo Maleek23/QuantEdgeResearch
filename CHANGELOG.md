@@ -5,6 +5,13 @@ Update this in the same PR as the change.
 
 ## [Unreleased]
 ### Added
+- **Session Brief on the Oracle tab** — sector leadership and the names carrying each group,
+  surfaced instead of sitting in an endpoint. Click any ticker to load it across the tabs.
+- **Sector leadership is session-aware.** Outside 09:30–16:00 it read regular quotes, i.e.
+  yesterday's close — stale exactly when you're deciding what to do at the open. It now reads
+  the extended-hours tape in pre/post/overnight, so pre-market leadership is visible before
+  the bell. Live at 08:25 ET: Biotech leads (typical +6.46%, MRNA +151.6%), Fintech
+  (COIN +15.8%), Crypto (ETH +19.2%); Semi Equipment weakest (−6.96%, AEHR −14.8%).
 - **Alerts.** In-app alerts that fire on what CHANGED, not on what is: trigger confirmed,
   T1 hit, danger zone, invalidation, rating moves, high conviction (90+). Each is a
   transition detected against the signal geometry the platform already computes, so nothing

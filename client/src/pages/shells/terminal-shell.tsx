@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
 import { OracleOrb } from '@/components/oracle-orb';
 import { RotationMap } from '@/components/rotation-map';
+import { SessionBrief } from '@/components/oracle/session-brief';
 import { TerminalGuide } from '@/components/terminal/terminal-guide';
 import { TerminalSettings } from '@/components/terminal/terminal-settings';
 import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/terminal/terminal-alerts';
@@ -193,9 +194,11 @@ export default function TerminalShell() {
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
                 <div className="mx-auto w-full max-w-[1600px] px-4 py-3 space-y-3">
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-3 lg:grid-cols-3 md:grid-cols-2">
                     <OracleOrb />
                     <RotationMap />
+                    {/* what to go into the session with — leadership + the names carrying it */}
+                    <SessionBrief onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
                   </div>
                   <HuntCockpit />
                 </div>

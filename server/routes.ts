@@ -5185,17 +5185,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/sector-leadership", async (_req, res) => {
     try {
       const { computeSectorLeadership } = await import("./sector-leadership");
+      const { currentSession, fetchExtendedQuote } = await import("./extended-hours");
+
+      // Which prices are we allowed to trust right now? Outside 09:30–16:00 the regular
+      // batch quotes are just yesterday's close, so sector leadership computed from them
+      // is stale — exactly when a trader is trying to work out what to do at the open.
+      // Pre/post sessions therefore read the extended-hours tape instead.
+      const session = await currentSession();
+      const extended = session === 'pre' || session === 'post' || session === 'closed';
+
       const result = await computeSectorLeadership(async (batch: string[]) => {
+        const out: Record<string, any> = {};
+
+        if (extended) {
+          const CONC = 8;
+          for (let i = 0; i < batch.length; i += CONC) {
+            const slice = batch.slice(i, i + CONC);
+            const rows = await Promise.all(slice.map((sym) => fetchExtendedQuote(sym)));
+            for (const q of rows) {
+              if (q) out[q.symbol] = { price: q.lastPrice, changePercent: q.changePct };
+            }
+          }
+          return out;
+        }
+
         const map = await getRealtimeBatchQuotes(
           batch.map((symbol) => ({ symbol, assetType: 'stock' as RTAssetType }))
         );
-        const out: Record<string, any> = {};
         for (const symbol of batch) {
           const q = map.get(symbol);
           if (q && q.price) out[symbol] = { price: q.price, changePercent: q.changePercent };
         }
         return out;
-      });
+      }, { session });
       res.json(result);
     } catch (error) {
       logger.error("[API] Failed to compute sector leadership:", error);
