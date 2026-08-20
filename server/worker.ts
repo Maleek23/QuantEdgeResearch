@@ -176,6 +176,22 @@ function isMarketCurrentlyOpen(): boolean {
     startHeavyServices();
   }, { timezone: 'America/New_York' });
 
+  // ── Cron: Options-flow scan (every 15 min, market hours) ───────────────
+  // This was NEVER scheduled — the scanner only ran when someone hit the API by hand,
+  // which is why options_flow_history stopped accumulating in Feb 2026. Flow needs to
+  // build through the session (the desk only starts reading it ~10:00 ET), so we scan
+  // from 9:45 to 15:45 and let the rows accumulate.
+  cron.default.schedule('*/15 9-15 * * 1-5', async () => {
+    try {
+      const { scanOptionsFlow, setOptionsFlowActive, getOptionsFlowStatus } = await import('./options-flow-scanner');
+      if (!getOptionsFlowStatus().isActive) setOptionsFlowActive(true);
+      const flows = await scanOptionsFlow();
+      log(`💸 [FLOW] scan complete — ${flows.length} qualifying prints`);
+    } catch (err) {
+      logger.error('[FLOW] Scheduled scan failed:', err);
+    }
+  }, { timezone: 'America/New_York' });
+
   // ── Cron: Market Regime Monitor (every 30 min during market hours) ──────
   // Detects when market regime flips (BULL_TREND → CHOP, GREEN → RED, VIX spikes)
   // and pings Discord with the change.

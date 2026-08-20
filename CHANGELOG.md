@@ -32,6 +32,12 @@ Update this in the same PR as the change.
 - Grades display convictionScore-first (single source of truth for score↔grade).
 
 ### Fixed
+- **The options-flow scan was never scheduled** — it only ran when someone called the API
+  by hand, the second reason flow stopped accumulating. Now runs every 15 min during market
+  hours (9:45–15:45 ET) in both the worker and the dev process.
+- **The old design kept loading** because `/p` `/h` `/g` still rendered the legacy shells, so
+  a bookmark or open tab never redirected. They now redirect into the Terminal, and the
+  Terminal tab is deep-linkable via `?tab=`.
 - **Options-flow ingestion was dead since Feb 2026.** `fetchOptionsChain` was Tradier-only,
   and the unfunded key returns 401 — so the FLOW tab (the hero product) silently stopped
   collecting. Now falls back to CBOE, which needs no key. A live scan produces 217 prints.

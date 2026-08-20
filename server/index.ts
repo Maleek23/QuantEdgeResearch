@@ -323,6 +323,20 @@ app.use((req, res, next) => {
       startHeavyServices();
     }, { timezone: 'America/New_York' });
 
+    // ── Cron: Options-flow scan (every 15 min, market hours) ─────────────
+    // Mirrors the worker's schedule so flow also accumulates in dev (this single
+    // process is web + worker locally; prod runs server/worker.ts instead).
+    cron.default.schedule('*/15 9-15 * * 1-5', async () => {
+      try {
+        const { scanOptionsFlow, setOptionsFlowActive, getOptionsFlowStatus } = await import('./options-flow-scanner');
+        if (!getOptionsFlowStatus().isActive) setOptionsFlowActive(true);
+        const flows = await scanOptionsFlow();
+        log(`💸 [FLOW] scan complete — ${flows.length} qualifying prints`);
+      } catch (err) {
+        logger.error('[FLOW] Scheduled scan failed:', err);
+      }
+    }, { timezone: 'America/New_York' });
+
     // ── Cron: Restart process at market close to free all memory ──────────
     // At 4:10 PM ET, we gracefully exit. PM2 auto-restarts the process,
     // which comes back up in lightweight mode (no heavy services).
