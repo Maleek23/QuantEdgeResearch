@@ -151,10 +151,16 @@ export const EXPIRY_TIERS: Record<
 };
 
 /** Map a legacy SetupType to its default expiry tier (when none is given). */
+/**
+ * A swing thesis is a 1–5 DAY hold, and it was mapped to WEEKLY (5–12 DTE) — so the trade
+ * and the contract expired at roughly the same time, leaving no room to be early. The desk
+ * rule is the opposite: "if we have a signal that says August, you can always get
+ * September. You buy a month out." Swing now defaults to MONTHLY.
+ */
 export const SETUP_TO_TIER: Record<SetupType, ExpiryTier> = {
-  scalp: 'DAILY',
-  swing: 'WEEKLY',
-  lotto: 'WEEKLY',
+  scalp: 'WEEKLY',      // was DAILY (1–3 DTE) — even a day trade shouldn't fight theta
+  swing: 'MONTHLY',     // was WEEKLY — the change that matters
+  lotto: 'WEEKLY',      // explicitly the gamble
   position: 'MONTHLY',
 };
 
@@ -175,6 +181,28 @@ export function resolveExpiryTier(thesis: PriceActionThesis): ExpiryTier {
  * Each window now gives the thesis room to be right, with the ideal sitting comfortably
  * past the expected hold rather than on top of it.
  */
+/**
+ * SHORT-DATED GATE — near-expiry contracts are conviction-gated, not freely available.
+ *
+ * Under roughly a week, theta and gamma dominate: you have to be right about direction AND
+ * timing, with no room to be early. That's an acceptable trade on a setup the engine is
+ * genuinely confident in, and a bad one on anything marginal — which is most of the board.
+ *
+ * So the floor moves with conviction rather than being fixed: weak setups are pushed out to
+ * expiries that let them be wrong for a few days and still work.
+ */
+export const SHORT_DTE_THRESHOLD = 7;
+export const SHORT_DTE_MIN_CONVICTION = 75;
+
+/** Minimum DTE this thesis has earned. Low conviction buys time whether it wants to or not. */
+export function minDteForConviction(conviction?: number | null): number {
+  const c = conviction ?? 0;
+  if (c >= 85) return 1;    // elite — allowed right up to expiry if it wants
+  if (c >= 75) return 5;    // high — short-dated permitted
+  if (c >= 60) return 14;   // decent — at least two weeks
+  return 21;                // marginal — a marginal read needs room to be wrong
+}
+
 export const DTE_WINDOWS: Record<SetupType, { min: number; max: number; ideal: number }> = {
   // intraday, but never same-day expiry — 0DTE is a gamma coin-flip, not a scalp
   scalp: { min: 3, max: 10, ideal: 5 },
@@ -581,7 +609,23 @@ export function selectFromChain(
 ): ContractSelection {
   const optionType: 'call' | 'put' = thesis.direction === 'bullish' ? 'call' : 'put';
   const expiryTier = resolveExpiryTier(thesis);
-  const win = EXPIRY_TIERS[expiryTier];
+  const tierWin = EXPIRY_TIERS[expiryTier];
+
+  // Short-dated is conviction-gated. Under ~a week you must be right on direction AND
+  // timing with no room to be early — fine on a setup the engine is genuinely confident
+  // in, bad on a marginal one, and most of the board is marginal. So the floor rises as
+  // conviction falls: a weak read is pushed out to an expiry that lets it be wrong for a
+  // few days and still work.
+  const dteFloor = minDteForConviction(thesis.conviction);
+  const gated = dteFloor > tierWin.min;
+  const win = gated
+    ? {
+        ...tierWin,
+        min: dteFloor,
+        max: Math.max(tierWin.max, dteFloor + 14),
+        ideal: Math.max(tierWin.ideal, dteFloor + 5),
+      }
+    : tierWin;
   const base = {
     symbol: thesis.symbol,
     direction: thesis.direction,
@@ -591,6 +635,9 @@ export function selectFromChain(
     asOf: new Date().toISOString(),
     expiryTier,
     dteWindow: { min: win.min, max: win.max },
+    dteGateNote: gated
+      ? `Conviction ${Math.round(thesis.conviction ?? 0)} — short-dated withheld, minimum ${dteFloor} DTE`
+      : undefined,
   };
 
   const fullPool = normalizeAndFilter(rawOptions, optionType);

@@ -18,6 +18,7 @@ import { useUserPrefs } from '@/components/terminal/terminal-settings';
 import { TC, healthColor, statusColor } from '@/lib/oracle/trading-colors';
 import { EASE, DUR } from '@/lib/motion';
 import { cn } from '@/lib/utils';
+import { RangeBar } from '@/components/viz';
 
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
@@ -66,56 +67,64 @@ function Card({ title, meta, children, className }: { title: string; meta?: Reac
 export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
   const reduce = useReducedMotion();
   const g = geometryFor(pick, live);
-  const prices = g.levels.map((l) => l.price);
-  const min = Math.min(...prices), max = Math.max(...prices);
-  const span = max - min || 1;
-  const y = (p: number) => 8 + (1 - (p - min) / span) * 84;
 
+  // Laid out in normal flow, not absolutely positioned inside a fixed-height box.
+  // The old version placed each rung by price within a set height, so squeezing the card
+  // clipped ENTRY and STOP straight off the bottom — the two levels you least want hidden.
+  // Flow layout can't clip: the card is exactly as tall as its rungs need.
   return (
     <Card title="Price Ladder" meta={<span style={{ color: statusColor(g.status) }}>{g.statusLabel}</span>} className={className}>
-      <div className="relative px-4" style={{ height: 168 }}>
-        <div className="absolute left-[42%] top-3 bottom-3 w-px bg-border/60" />
+      <div className="divide-y divide-border/20">
         {g.levels.map((l) => {
           const c = ROLE[l.key].color;
           const isLive = l.key === 'live';
           return (
             <motion.div
               key={l.key}
-              className="absolute left-4 right-4 flex items-center"
-              style={{ top: `${y(l.price)}%`, transform: 'translateY(-50%)' }}
-              initial={reduce ? false : { opacity: 0, x: -6 }}
+              className={cn('flex items-center gap-3 px-4 py-1.5', isLive && 'bg-foreground/[0.04]')}
+              initial={reduce ? false : { opacity: 0, x: -4 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: DUR.base, ease: EASE }}
             >
-              <div className="w-[38%] pr-3 text-right">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: c }}>{l.label}</span>
-              </div>
-              <span className="relative grid place-items-center" style={{ width: 16 }}>
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: c, boxShadow: `0 0 10px color-mix(in srgb, ${c} 60%, transparent)` }} />
+              <span className="relative grid w-4 shrink-0 place-items-center">
+                <span className="h-2 w-2 rounded-full" style={{ background: c, boxShadow: `0 0 8px color-mix(in srgb, ${c} 55%, transparent)` }} />
                 {isLive && !reduce && (
-                  <motion.span className="absolute h-2.5 w-2.5 rounded-full" style={{ background: c }}
+                  <motion.span className="absolute h-2 w-2 rounded-full" style={{ background: c }}
                     animate={{ scale: [1, 2.4, 1], opacity: [0.6, 0, 0.6] }}
                     transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }} />
                 )}
               </span>
-              <div className="flex-1 pl-3 flex items-baseline gap-2 flex-wrap">
-                <span className="text-[13px] font-mono font-bold tabular-nums text-foreground">${money(l.price)}</span>
+
+              <span className="w-12 shrink-0 text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: c }}>
+                {l.label}
+              </span>
+
+              <span className="text-[13px] font-mono font-bold tabular-nums text-foreground">
+                ${money(l.price)}
+              </span>
+
+              <span className="ml-auto text-right text-[10px] font-mono tabular-nums">
                 {isLive ? (
-                  <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: g.pnlPct >= 0 ? BULL : BEAR }}>
+                  <span style={{ color: g.pnlPct >= 0 ? BULL : BEAR }}>
                     {g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(2)}% P&L
                   </span>
                 ) : (
-                  <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70">
+                  <>
                     <span style={{ color: l.pctFromLive >= 0 ? BULL : BEAR }}>
                       {l.pctFromLive >= 0 ? '+' : ''}{l.pctFromLive.toFixed(2)}%
                     </span>
-                    {' · '}{l.rAway.toFixed(1)}R away
-                  </span>
+                    <span className="text-muted-foreground/70"> · {l.rAway.toFixed(1)}R</span>
+                  </>
                 )}
-              </div>
+              </span>
             </motion.div>
           );
         })}
+      </div>
+
+      {/* the same levels as one axis, so distance reads spatially too */}
+      <div className="border-t border-border/30 px-4 py-2.5">
+        <RangeBar stop={pick.stopLoss} entry={pick.entryPrice} current={live || pick.entryPrice} target={pick.targetPrice} />
       </div>
     </Card>
   );
