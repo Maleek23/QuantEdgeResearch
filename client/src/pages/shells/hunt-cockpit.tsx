@@ -32,8 +32,7 @@ import { KeyLevels } from '@/components/hunt/cockpit/key-levels';
 import { SignalRow } from '@/components/hunt/cockpit/signal-row';
 import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
 import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
-import { SignalCard, signalFromPick } from '@/components/signal-card';
-import { PriceLadder, ConfidenceBars, ContextPanel } from '@/components/oracle/signal-detail';
+import { PriceLadder, ContextPanel } from '@/components/oracle/signal-detail';
 import { EpochChart } from '@/components/charting/epoch-chart';
 import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
 import {
@@ -445,37 +444,32 @@ export default function HuntCockpit() {
                 </div>
               </div>
 
-              {/* trade levels — the price ladder + the interpreting panels (MomoEdge grammar
-                  over real pick data). Ladder left, confidence + context right. */}
+              {/* THE CHART is the focus of the analysis — prominent, right under the header.
+                  One universal EpochChart (epoch-anchored, any ticker) with entry/stop/target. */}
+              <EpochChart
+                symbol={selected.symbol}
+                initialTf="1D"
+                height={340}
+                levels={[
+                  { price: selected.entryPrice, color: '#22d3ee', label: 'ENTRY' },
+                  { price: selected.stopLoss, color: '#ef4444', label: 'STOP', dashed: true },
+                  { price: selected.targetPrice, color: '#22c55e', label: 'T1' },
+                ]}
+              />
+
+              {/* price ladder + interpretation. Confidence, components, and levels live in the
+                  right rail — shown ONCE, not duplicated here. */}
               <div className="grid gap-2 lg:grid-cols-2">
                 <PriceLadder pick={selected} live={quote?.price ?? selected.currentPrice ?? selected.entryPrice} />
-                <div className="space-y-2">
-                  <ConfidenceBars pick={selected} live={quote?.price ?? selected.currentPrice ?? selected.entryPrice} />
-                  <ContextPanel
-                    pick={selected}
-                    live={quote?.price ?? selected.currentPrice ?? selected.entryPrice}
-                    regime={data?.marketContext?.regime}
-                    preferredDirection={data?.marketContext?.preferredDirection}
-                  />
-                </div>
+                <ContextPanel
+                  pick={selected}
+                  live={quote?.price ?? selected.currentPrice ?? selected.entryPrice}
+                  regime={data?.marketContext?.regime}
+                  preferredDirection={data?.marketContext?.preferredDirection}
+                />
               </div>
 
-              {/* chart — the ONE universal EpochChart (epoch-anchored, any ticker,
-                  its own TF switcher) with entry/stop/target as horizontal levels.
-                  Same component used everywhere; no bespoke per-page chart. */}
-              <div>
-                <EpochChart
-                  symbol={selected.symbol}
-                  initialTf="1D"
-                  height={300}
-                  levels={[
-                    { price: selected.entryPrice, color: '#22d3ee', label: 'ENTRY' },
-                    { price: selected.stopLoss, color: '#ef4444', label: 'STOP', dashed: true },
-                    { price: selected.targetPrice, color: '#22c55e', label: 'T1' },
-                  ]}
-                />
-                <TASummary symbol={selected.symbol} />
-              </div>
+              <TASummary symbol={selected.symbol} />
             </CockpitCard>
 
             {/* CONTRACT ENGINE — the actionable trade. Renders its own QE-styled
@@ -494,33 +488,11 @@ export default function HuntCockpit() {
               />
             )}
 
-            {/* THESIS */}
+            {/* THESIS — the reasoning in prose. The layer-by-layer breakdown lives once,
+                in the right rail's Signal Components (no duplicate chips here). */}
             <CockpitCard title="Signal Thesis" meta="Conviction Reasoning">
-              {selected.layers.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {[...selected.layers]
-                    .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
-                    .map((layer, i) => {
-                      const c = LAYER_COLOR[layer.kind] ?? 'var(--brand-cyan)';
-                      return (
-                        <span
-                          key={`${layer.kind}-${i}`}
-                          className="inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border"
-                          style={{ color: c, borderColor: `${c}40`, background: `${c}1a` }}
-                          title={layer.why}
-                        >
-                          {LAYER_TAG[layer.kind]}
-                          <span className="opacity-70">{layer.points >= 0 ? '+' : ''}{layer.points}</span>
-                        </span>
-                      );
-                    })}
-                </div>
-              )}
               <p className="text-[13px] leading-relaxed text-foreground/85">{selected.thesis}</p>
             </CockpitCard>
-
-            {/* ORACLE READOUT — the signal in terminal voice */}
-            <SignalCard key={selected.ideaId} d={signalFromPick(selected)} />
 
             {/* CATALYST */}
             {showCatalyst && (
@@ -562,15 +534,6 @@ export default function HuntCockpit() {
 
             <CockpitCard title="Signal Components">
               <ComponentBars layers={selected.layers} />
-            </CockpitCard>
-
-            <CockpitCard title="Key Levels" meta={quote ? `Spot $${quote.price.toFixed(2)}` : undefined}>
-              <KeyLevels
-                spot={quote?.price}
-                entry={selected.entryPrice}
-                target={selected.targetPrice}
-                stop={selected.stopLoss}
-              />
             </CockpitCard>
 
             {data?.marketContext && (
