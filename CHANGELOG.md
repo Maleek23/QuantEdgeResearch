@@ -5,6 +5,20 @@ Update this in the same PR as the change.
 
 ## [Unreleased]
 ### Added
+- **Trading colour semantics** (`lib/oracle/trading-colors.ts`) — colour is data, so each
+  gets one job: green/red for **direction and P&L only**, amber for waiting/caution, cyan
+  for structural info, muted for inert. Non-directional health bars (validity, pace) moved
+  off green/red — a strong **bearish** setup was rendering green and reading as bullish.
+- **Rating deltas with arrows** — conviction scores move, so signal cards and the
+  Confidence Index now show ▲/▼ with the point change. Backed by an observed-score tracker
+  rather than invented history; the tooltip states exactly what the delta measures.
+- **Alert-stream cards rebuilt as live positions** — direction, live P&L, days held,
+  lifecycle status, a T1 progress bar, a hold/horizon bar, and drawdown.
+- **NEW / BEST / CONVICTION** stream filter (BEST = furthest toward T1) plus a
+  **CLOSED TODAY** section for signals that hit target or stopped out.
+- **Per-asset-class regime** on the Oracle orb — equities, bonds, dollar, metals and crypto
+  each read separately with a bull/bear tally, instead of one SPY number standing in for
+  "the market".
 - **Oracle signal geometry engine** (`lib/oracle/signal-geometry.ts`) — one pure module that
   derives everything the signal view shows: R-multiples, **T2** (a second target at 2× the T1
   R-multiple — we never had one), progress entry→T1, pace vs horizon spent, drawdown, status

@@ -1,92 +1,127 @@
 /**
- * SignalRow — a single card in the left "ACTIVE SIGNALS" rail.
- * Logo + ticker + direction pill · R:R · big conviction number + tier + sparkline.
- * Selected row gets a colored left border (the MOMO selection treatment).
+ * SignalRow — one card in the ALERT STREAM.
+ *
+ * A signal is not a static score; it's a position moving through time. So the card
+ * reads like a live trade: direction, live P&L, how long it's been open, how far it
+ * has travelled toward T1, how much of its time budget is gone, and whether the
+ * rating has moved since we started watching it.
+ *
+ * Colour discipline (lib/oracle/trading-colors): green/red mean direction and P&L
+ * only. Progress and time are structural, so they use cyan/amber — otherwise a strong
+ * BEARISH setup renders green and reads as bullish.
  */
 import { cn } from '@/lib/utils';
 import { TickerLogo } from './ticker-logo';
-import { tierLabel, directionTone, convictionPercent, type ConvictionPick } from '@/lib/convictions';
+import { tierLabel, convictionPercent, type ConvictionPick } from '@/lib/convictions';
+import { geometryFor } from '@/components/oracle/signal-detail';
+import { trackScore } from '@/lib/oracle/score-tracker';
+import { TC, directionColor, pnlColor, statusColor, riskColor } from '@/lib/oracle/trading-colors';
 
 export function SignalRow({
   pick,
   selected,
   isNew = false,
+  live,
+  closed = false,
   onClick,
 }: {
   pick: ConvictionPick;
   selected: boolean;
   isNew?: boolean;
+  /** live price for P&L + progress; falls back to the pick's own price */
+  live?: number;
+  closed?: boolean;
   onClick: () => void;
 }) {
-  const tone = directionTone(pick.direction);
-  const color = tone === 'bull' ? 'var(--trade-bullish)' : 'var(--trade-bearish)';
+  const color = directionColor(pick.direction);
   const dirWord = pick.direction === 'long' ? 'BULL' : 'BEAR';
   const conf = convictionPercent(pick.convictionScore);
+  const px = live ?? pick.currentPrice ?? pick.entryPrice;
+  const g = geometryFor(pick, px);
+  const rating = trackScore(pick.ideaId, conf);
+
+  const arrow = rating.direction === 'up' ? '▲' : rating.direction === 'down' ? '▼' : null;
+  const arrowColor = rating.direction === 'up' ? TC.bull : TC.bear;
 
   return (
     <button
       onClick={onClick}
       className={cn(
-        'w-full text-left rounded-lg border p-3 transition-all cursor-pointer',
+        'w-full cursor-pointer rounded-lg border p-2.5 text-left transition-all',
+        closed && 'opacity-60',
         selected
-          ? 'bg-foreground/[0.05] border-l-[3px]'
+          ? 'border-l-[3px] bg-foreground/[0.05]'
           : isNew
-            ? 'bg-card border-[var(--brand-cyan)]/40 hover:border-[var(--brand-cyan)]/60'
-            : 'bg-card border-card-border hover:border-foreground/20',
+            ? 'border-[var(--brand-cyan)]/40 bg-card hover:border-[var(--brand-cyan)]/60'
+            : 'border-card-border bg-card hover:border-foreground/20',
       )}
-      style={
-        selected
-          ? { borderColor: 'var(--card-border)', borderLeftColor: color, boxShadow: `inset 6px 0 16px -10px ${color}` }
-          : undefined
-      }
+      style={selected ? { borderColor: 'var(--card-border)', borderLeftColor: color, boxShadow: `inset 6px 0 16px -10px ${color}` } : undefined}
       data-testid={`signal-row-${pick.symbol}`}
     >
-      {/* top row: identity (left) + conviction number (right) fill the width */}
-      <div className="flex items-center gap-2.5">
-        <TickerLogo symbol={pick.symbol} size="md" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-mono font-bold tracking-wide text-foreground">{pick.symbol}</span>
-            <span
-              className="text-[9px] font-mono font-bold px-1 py-px rounded"
-              style={{ color, background: `color-mix(in srgb, ${color} 12%, transparent)` }}
-            >
-              {pick.direction === 'long' ? '▲' : '▼'} {dirWord}
+      {/* line 1 — who, which way, P&L, age */}
+      <div className="flex items-center gap-2">
+        <TickerLogo symbol={pick.symbol} size="sm" />
+        <span className="text-[13px] font-mono font-bold tracking-wider text-foreground">{pick.symbol}</span>
+        <span className="rounded border px-1 py-px text-[9px] font-mono font-bold tracking-wider"
+              style={{ color, borderColor: `${color}55`, background: `${color}14` }}>
+          {pick.direction === 'long' ? '▲' : '▼'} {dirWord}
+        </span>
+
+        <span className="ml-auto text-[11px] font-mono font-bold tabular-nums" style={{ color: pnlColor(g.pnlPct) }}>
+          {g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(1)}% P&L
+        </span>
+        <span className="text-[9px] font-mono tabular-nums text-muted-foreground/45">
+          {g.daysHeld < 1 ? '<1d' : `${Math.round(g.daysHeld)}d`}
+        </span>
+      </div>
+
+      {/* line 2 — status + rating with its arrow */}
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: closed ? TC.muted : statusColor(g.status) }}>
+          {closed ? 'CLOSED' : g.statusLabel}
+        </span>
+        <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/40">
+          {pick.holdingPeriod} · R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}
+        </span>
+
+        <span className="ml-auto flex items-baseline gap-1">
+          <span className="text-[15px] font-mono font-bold leading-none tabular-nums" style={{ color: TC.info }}>{conf}</span>
+          {arrow && (
+            <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: arrowColor }}
+                  title={`Rating ${rating.direction === 'up' ? 'up' : 'down'} ${Math.abs(rating.delta)} since first seen ${rating.hoursTracked < 1 ? 'under an hour' : `${Math.round(rating.hoursTracked)}h`} ago`}>
+              {arrow}{Math.abs(rating.delta)}
             </span>
-            {isNew && (
-              <span className="inline-flex items-center gap-0.5 text-[8px] font-mono font-bold uppercase tracking-wider px-1 py-px rounded text-[var(--brand-cyan)] bg-[var(--brand-cyan)]/12 border border-[var(--brand-cyan)]/30">
-                <span className="h-1 w-1 rounded-full bg-[var(--brand-cyan)]" />
-                NEW
-              </span>
-            )}
-          </div>
-          <div className="text-[10px] font-mono text-muted-foreground/60 truncate capitalize">
-            {pick.holdingPeriod} · R:R {pick.riskRewardRatio?.toFixed(1) ?? '—'}
-          </div>
+          )}
+        </span>
+        <span className="text-[8px] font-mono uppercase tracking-wider text-muted-foreground/45">{tierLabel(pick)}</span>
+      </div>
+
+      {/* line 3 — progress toward T1 (structural: cyan, not green) */}
+      <div className="mt-2">
+        <div className="mb-0.5 flex items-center justify-between text-[8px] font-mono uppercase tracking-wider text-muted-foreground/45">
+          <span>T1</span>
+          <span>{g.progressPct.toFixed(0)}% to T1</span>
         </div>
-        <div className="text-right shrink-0">
-          <div
-            className="text-[26px] font-mono font-bold tabular-nums leading-none"
-            style={{ color, textShadow: selected ? `0 0 14px ${color}66` : undefined }}
-          >
-            {conf}
-          </div>
-          <div className="text-[8px] font-mono font-bold uppercase tracking-widest mt-1" style={{ color }}>
-            {tierLabel(pick)}
-          </div>
+        <div className="h-1 overflow-hidden rounded-full bg-foreground/8">
+          <div className="h-full rounded-full transition-all" style={{ width: `${g.progressPct}%`, background: TC.info }} />
         </div>
       </div>
 
-      {/* conviction strength bar — instant (no network), fills the card and
-          gives every row the same footer instead of 40 slow chart fetches */}
-      <div className="mt-2.5 flex items-center gap-2">
-        <div className="h-1 flex-1 rounded-full bg-foreground/10 overflow-hidden">
-          <div
-            className="h-full rounded-full transition-[width] duration-500"
-            style={{ width: `${conf}%`, background: color }}
-          />
+      {/* line 4 — time budget + drawdown */}
+      <div className="mt-1.5">
+        <div className="mb-0.5 flex items-center justify-between text-[8px] font-mono uppercase tracking-wider text-muted-foreground/45">
+          <span>Hold</span>
+          <span>
+            {g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/{g.horizonDays}d
+            {g.drawdownPct > 0.05 && (
+              <span className="ml-1.5" style={{ color: riskColor(g.drawdownPct * 10) }}>{g.drawdownPct.toFixed(1)}% DD</span>
+            )}
+          </span>
         </div>
-        <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/50 shrink-0">conf</span>
+        <div className="h-1 overflow-hidden rounded-full bg-foreground/8">
+          <div className="h-full rounded-full transition-all"
+               style={{ width: `${g.horizonUsedPct}%`, background: g.horizonUsedPct >= 80 ? TC.bear : g.horizonUsedPct >= 50 ? TC.warn : TC.muted }} />
+        </div>
       </div>
     </button>
   );

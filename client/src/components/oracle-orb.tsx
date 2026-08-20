@@ -10,6 +10,28 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { TC } from "@/lib/oracle/trading-colors";
+
+/**
+ * The regime is not one number. The desk reads each asset class separately —
+ * "neutral on everything outside of crypto... bullish on the dollar" — because a
+ * bid in bonds or gold while equities chop is the whole story. Each proxy is a
+ * liquid ETF so the read is live and honest.
+ */
+const CLASSES = [
+  { key: 'equities', label: 'EQUITIES', symbol: 'SPY',     invert: false },
+  { key: 'bonds',    label: 'BONDS',    symbol: 'TLT',     invert: false },
+  { key: 'dollar',   label: 'DOLLAR',   symbol: 'UUP',     invert: false },
+  { key: 'metals',   label: 'METALS',   symbol: 'GLD',     invert: false },
+  { key: 'crypto',   label: 'CRYPTO',   symbol: 'BTC-USD', invert: false },
+] as const;
+
+/** A move is only a stance once it clears the noise band. */
+function stanceOf(changePct: number): { label: 'BULLISH' | 'BEARISH' | 'NEUTRAL'; color: string } {
+  if (changePct > 0.3) return { label: 'BULLISH', color: TC.bull };
+  if (changePct < -0.3) return { label: 'BEARISH', color: TC.bear };
+  return { label: 'NEUTRAL', color: TC.muted };
+}
 
 interface RotationData {
   spyChange: number; headline?: string; sessionLabel?: string; isStale?: boolean;
@@ -32,6 +54,27 @@ export function OracleOrb({ className }: { className?: string }) {
     },
     staleTime: 60_000, refetchInterval: 120_000, retry: 1,
   });
+
+  const { data: tape } = useQuery<Record<string, { price: number; changePercent: number }>>({
+    queryKey: ["/api/quotes/batch", "regime-classes"],
+    queryFn: async () => {
+      const syms = CLASSES.map((c) => c.symbol).join(",");
+      const res = await fetch(`/api/quotes/batch/${syms}`, { credentials: "include" });
+      if (!res.ok) throw new Error("tape failed");
+      const body = await res.json();
+      return body?.quotes ?? body;
+    },
+    staleTime: 60_000, refetchInterval: 120_000, retry: 1,
+  });
+
+  const classReads = CLASSES.map((c) => {
+    const q = tape?.[c.symbol];
+    const chg = typeof q?.changePercent === "number" ? q.changePercent : null;
+    return { ...c, changePct: chg, stance: chg == null ? null : stanceOf(chg) };
+  });
+  const known = classReads.filter((c) => c.stance);
+  const bullCount = known.filter((c) => c.stance!.label === "BULLISH").length;
+  const bearCount = known.filter((c) => c.stance!.label === "BEARISH").length;
 
   const spy = data?.spyChange ?? 0;
   const r = regimeOf(spy);
@@ -81,6 +124,39 @@ export function OracleOrb({ className }: { className?: string }) {
             {r.sub} · SPY {spy >= 0 ? "+" : ""}{spy.toFixed(2)}%{data?.isStale ? ` · ${data.sessionLabel} · stale` : ""}
           </div>
         </div>
+
+        {/* per-asset-class stance — the part a single SPY number hides */}
+        {known.length > 0 && (
+          <div className="w-full px-4">
+            <div className="mb-1.5 flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">
+              <span>By asset class</span>
+              <span>
+                <span style={{ color: TC.bull }}>{bullCount} bull</span>
+                {" · "}
+                <span style={{ color: TC.bear }}>{bearCount} bear</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+              {classReads.map((c) => (
+                <div key={c.key} className="flex items-baseline justify-between gap-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/65">{c.label}</span>
+                  {c.stance ? (
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="text-[9px] font-mono tabular-nums text-muted-foreground/45">
+                        {c.changePct! >= 0 ? "+" : ""}{c.changePct!.toFixed(2)}%
+                      </span>
+                      <span className="text-[9px] font-mono font-bold uppercase tracking-wider" style={{ color: c.stance.color }}>
+                        {c.stance.label}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/30">—</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {data?.headline && (
           <p className="text-[10px] font-mono text-muted-foreground/70 text-center max-w-[86%] leading-snug px-4">

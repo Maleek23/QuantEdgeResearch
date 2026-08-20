@@ -12,6 +12,8 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { convictionPercent, bandStrength, type ConvictionPick } from '@/lib/convictions';
 import { computeGeometry, type SignalGeometry, type Level } from '@/lib/oracle/signal-geometry';
+import { trackScore } from '@/lib/oracle/score-tracker';
+import { TC, healthColor, statusColor } from '@/lib/oracle/trading-colors';
 import { EASE, DUR } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
@@ -68,7 +70,7 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
   const y = (p: number) => 6 + (1 - (p - min) / span) * 88;
 
   return (
-    <Card title="Price Ladder" meta={<span style={{ color: g.status === 'pending_trigger' ? GOLD : CYAN }}>{g.statusLabel}</span>} className={className}>
+    <Card title="Price Ladder" meta={<span style={{ color: statusColor(g.status) }}>{g.statusLabel}</span>} className={className}>
       <div className="relative px-4" style={{ height: 236 }}>
         <div className="absolute left-[42%] top-3 bottom-3 w-px bg-border/60" />
         {g.levels.map((l) => {
@@ -124,8 +126,28 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
   const g = geometryFor(pick, live);
   const setup = convictionPercent(pick.convictionScore);
 
+  const rating = trackScore(pick.ideaId, setup);
+  const arrow = rating.direction === 'up' ? '▲' : rating.direction === 'down' ? '▼' : null;
+
   return (
-    <Card title="Confidence Index" meta={<span className="text-[13px] font-bold tabular-nums" style={{ color: CYAN }}>{setup}</span>} className={className}>
+    <Card
+      title="Confidence Index"
+      meta={
+        <span className="flex items-baseline gap-1">
+          <span className="text-[13px] font-bold tabular-nums" style={{ color: TC.info }}>{setup}</span>
+          {arrow && (
+            <span
+              className="text-[10px] font-mono font-bold tabular-nums"
+              style={{ color: rating.direction === 'up' ? TC.bull : TC.bear }}
+              title={`Rating ${rating.direction} ${Math.abs(rating.delta)} pts since first seen ${rating.hoursTracked < 1 ? 'under an hour' : `${Math.round(rating.hoursTracked)}h`} ago`}
+            >
+              {arrow}{Math.abs(rating.delta)}
+            </span>
+          )}
+        </span>
+      }
+      className={className}
+    >
       <div className="px-4 py-3 space-y-2.5">
         <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
           {pick.convictionBand}-band · {bandStrength(pick.convictionBand)} · {pick.layerCount ?? pick.layers?.length ?? 0} layers
@@ -134,11 +156,11 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
           <div key={c.key}>
             <div className="mb-1 flex items-center justify-between">
               <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{c.label}</span>
-              <span className="text-[10px] font-mono tabular-nums" style={{ color: c.value >= 60 ? BULL : c.value >= 30 ? GOLD : BEAR }}>{c.value}</span>
+              <span className="text-[10px] font-mono tabular-nums" style={{ color: healthColor(c.value) }}>{c.value}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-foreground/8">
               <motion.div className="h-full rounded-full"
-                style={{ background: c.value >= 60 ? BULL : c.value >= 30 ? GOLD : BEAR }}
+                style={{ background: healthColor(c.value) }}
                 initial={reduce ? false : { width: 0 }} animate={{ width: `${c.value}%` }}
                 transition={{ duration: DUR.slow, ease: EASE }} />
             </div>

@@ -32,7 +32,7 @@ import { KeyLevels } from '@/components/hunt/cockpit/key-levels';
 import { SignalRow } from '@/components/hunt/cockpit/signal-row';
 import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
 import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
-import { PriceLadder, ContextPanel, ProfitPlan, TradeGeometry, RiskReward } from '@/components/oracle/signal-detail';
+import { PriceLadder, ContextPanel, ProfitPlan, TradeGeometry, RiskReward, geometryFor } from '@/components/oracle/signal-detail';
 import { EpochChart } from '@/components/charting/epoch-chart';
 import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
 import {
@@ -53,6 +53,7 @@ export default function HuntCockpit() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rangeId, setRangeId] = useState<typeof RANGES[number]['id']>('1mo');
   const [mode, setMode] = useState<CockpitMode>('all');
+  const [streamFilter, setStreamFilter] = useState<'new' | 'best' | 'conviction'>('conviction');
   const [sharingDiscord, setSharingDiscord] = useState(false);
   const subjectRef = useRef<HTMLElement>(null);
 
@@ -189,7 +190,6 @@ export default function HuntCockpit() {
     try { const v = localStorage.getItem(SEEN_KEY); return v ? new Date(v).getTime() : Date.now(); }
     catch { return Date.now(); }
   });
-  const [newOnly, setNewOnly] = useState(false);
   const isNew = (p: ConvictionPick) => {
     const t = new Date(p.generatedAt).getTime();
     return Number.isFinite(t) && t > baselineSeen;
@@ -207,7 +207,27 @@ export default function HuntCockpit() {
   useEffect(() => () => {
     try { localStorage.setItem(SEEN_KEY, new Date().toISOString()); } catch { /* private mode */ }
   }, []);
-  const shown = newOnly ? picks.filter(isNew) : picks;
+  // ALERT STREAM filter — the three reads the desk actually uses:
+  //   NEW        = just fired, nothing else earned yet
+  //   BEST       = furthest along toward T1 (already working)
+  //   CONVICTION = highest rated regardless of progress
+  // A signal is "closed" once price has resolved it — target reached or stop taken out.
+  // The convictions feed only returns open ideas, so we classify by geometry rather than
+  // inventing a status the backend doesn't track yet.
+  const closedToday = picks.filter((p) => {
+    const st = geometryFor(p, p.currentPrice ?? p.entryPrice).status;
+    return st === 'at_target' || st === 'invalidated';
+  });
+  const openPicks = picks.filter((p) => !closedToday.includes(p));
+
+  const shown = (() => {
+    if (streamFilter === 'new') return openPicks.filter(isNew);
+    const px = (p: ConvictionPick) => p.currentPrice ?? p.entryPrice;
+    if (streamFilter === 'best') {
+      return [...openPicks].sort((a, b) => geometryFor(b, px(b)).progressPct - geometryFor(a, px(a)).progressPct);
+    }
+    return [...openPicks].sort((a, b) => b.convictionScore - a.convictionScore);
+  })();
 
   const selected: ConvictionPick | undefined =
     shown.find((p) => p.ideaId === selectedId) ?? shown[0] ?? picks[0];
@@ -350,48 +370,75 @@ export default function HuntCockpit() {
         >
           <div className="sticky top-0 z-10 -mx-1 px-2 py-1.5 bg-background/95 backdrop-blur flex items-center justify-between gap-2">
             <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">Active Signals</span>
+            {/* the NEW count now lives on the NEW tab of the stream filter below, so this
+                row just carries the open count + mark-seen (no competing toggle). */}
             <div className="flex items-center gap-1.5">
               {newCount > 0 && (
-                <>
-                  <button
-                    onClick={() => setNewOnly((v) => !v)}
-                    title={newOnly ? 'Show all signals' : 'Show only new signals'}
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider border transition-colors',
-                      newOnly
-                        ? 'bg-[var(--brand-cyan)] text-background border-[var(--brand-cyan)]'
-                        : 'bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)] border-[var(--brand-cyan)]/30 hover:bg-[var(--brand-cyan)]/20',
-                    )}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                    {newCount} new
-                  </button>
-                  <button
-                    onClick={markSeen}
-                    title="Mark all as seen"
-                    className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50 hover:text-foreground transition-colors"
-                  >
-                    seen
-                  </button>
-                </>
+                <button
+                  onClick={markSeen}
+                  title="Mark all as seen"
+                  className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50 transition-colors hover:text-foreground"
+                >
+                  seen
+                </button>
               )}
-              <span className="text-[10px] font-mono text-[var(--brand-cyan)]">{picks.length} open</span>
+              <span className="text-[10px] font-mono text-[var(--brand-cyan)]">{openPicks.length} open</span>
             </div>
           </div>
-          {shown.length === 0 && newOnly ? (
+          {/* NEW / BEST / CONVICTION */}
+          <div className="mb-2 flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
+            {([['new', 'NEW'], ['best', 'BEST'], ['conviction', 'CONVICTION']] as const).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setStreamFilter(id)}
+                className={cn(
+                  'flex-1 cursor-pointer rounded px-2 py-1 text-[9px] font-mono uppercase tracking-wider transition-colors',
+                  streamFilter === id ? 'bg-foreground/10 text-[var(--brand-cyan)]' : 'text-muted-foreground/55 hover:text-foreground',
+                )}
+                data-testid={`stream-filter-${id}`}
+              >
+                {label}{id === 'new' && newCount > 0 ? ` ${newCount}` : ''}
+              </button>
+            ))}
+          </div>
+
+          {shown.length === 0 ? (
             <div className="px-2 py-6 text-center text-[10px] font-mono text-muted-foreground/60">
-              No new signals right now — <button onClick={() => setNewOnly(false)} className="text-[var(--brand-cyan)] hover:underline">show all {picks.length}</button>
+              {streamFilter === 'new'
+                ? <>No new signals right now — <button onClick={() => setStreamFilter('conviction')} className="text-[var(--brand-cyan)] hover:underline">show all {picks.length}</button></>
+                : 'No signals match.'}
             </div>
           ) : (
             shown.map((p) => (
               <SignalRow
                 key={p.ideaId}
                 pick={p}
+                live={p.currentPrice ?? undefined}
                 selected={selected?.ideaId === p.ideaId}
                 isNew={isNew(p)}
                 onClick={() => setSelectedId(p.ideaId)}
               />
             ))
+          )}
+
+          {/* CLOSED TODAY — signals that already resolved, kept visible for the record */}
+          {closedToday.length > 0 && (
+            <div className="mt-3">
+              <div className="mb-1.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/40">
+                Closed today · {closedToday.length}
+              </div>
+              <div className="space-y-1.5">
+                {closedToday.map((p) => (
+                  <SignalRow
+                    key={p.ideaId}
+                    pick={p}
+                    closed
+                    selected={selected?.ideaId === p.ideaId}
+                    onClick={() => setSelectedId(p.ideaId)}
+                  />
+                ))}
+              </div>
+            </div>
           )}
         </aside>
 
