@@ -18,6 +18,10 @@ Update this in the same PR as the change.
   horizontal price levels (entry/stop/target). **Embedded in the Terminal Oracle cockpit**,
   replacing the bespoke per-page chart — it's *part of the platform*, not a separate page.
   The `/chartlab` POC route + file were removed once the chart landed in-platform.
+- **Terminal utility cluster** — a ticker search in the Terminal chrome that sets the
+  shared stock context (search once, every tab follows it, per the desk workflow), an
+  active-ticker chip, and a **per-tab GUIDE drawer** (Oracle/Flow/Heatmap/GEX/PRISM) whose
+  content is the real workflow: what the tab answers, how to read it, and what it hands to next.
 - **Terminal sizing** — bounded the tab content (`max-w-[1600px]`) and capped the Rotation
   Map square so the layout no longer explodes on ultrawide monitors.
 - Canonical docs set in `docs/` (Architecture, Onboarding, Runbook, Team) + ADR process + this changelog.

@@ -8,11 +8,13 @@
  */
 import { lazy, Suspense, useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Loader2, BookOpen } from 'lucide-react';
+import { Loader2, BookOpen, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
 import { OracleOrb } from '@/components/oracle-orb';
 import { RotationMap } from '@/components/rotation-map';
+import { TerminalGuide } from '@/components/terminal/terminal-guide';
+import { useStockContext } from '@/contexts/stock-context';
 
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
 const GexShell      = lazy(() => import('@/pages/shells/gex-shell'));
@@ -38,8 +40,12 @@ function useUptime() {
 
 export default function TerminalShell() {
   const [tab, setTab] = useState<Tab>('oracle');
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [draft, setDraft] = useState('');
   const reduce = useReducedMotion();
   const uptime = useUptime();
+  // One ticker for the whole terminal: search once, every tab follows it.
+  const { currentStock, setCurrentStock, clearStock } = useStockContext();
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -74,9 +80,45 @@ export default function TerminalShell() {
             ))}
           </nav>
 
-          <button className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 hover:text-foreground shrink-0">
-            <BookOpen className="h-3.5 w-3.5" /> Guide
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* ticker search — sets the shared symbol every tab reads */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const sym = draft.trim().toUpperCase();
+                if (sym) { setCurrentStock({ symbol: sym }); setDraft(''); }
+              }}
+              className="hidden md:flex items-center gap-1"
+            >
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/50" />
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="ticker"
+                  aria-label="Search ticker"
+                  className="w-28 rounded border border-border/60 bg-background/60 py-1 pl-7 pr-2 text-[11px] font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:border-[var(--brand-cyan,#22d3ee)]"
+                />
+              </div>
+            </form>
+
+            {currentStock?.symbol && (
+              <span className="hidden md:inline-flex items-center gap-1 rounded-full border border-[var(--brand-cyan,#22d3ee)]/40 bg-[var(--brand-cyan,#22d3ee)]/10 px-2 py-0.5 text-[10px] font-mono font-bold tracking-wider text-[var(--brand-cyan,#22d3ee)]">
+                {currentStock.symbol}
+                <button onClick={clearStock} aria-label="Clear ticker" className="cursor-pointer opacity-70 transition-opacity hover:opacity-100">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+
+            <button
+              onClick={() => setGuideOpen(true)}
+              aria-label={`Open ${tab} guide`}
+              className="inline-flex cursor-pointer items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+            >
+              <BookOpen className="h-3.5 w-3.5" /> Guide
+            </button>
+          </div>
         </div>
       </header>
 
@@ -108,6 +150,8 @@ export default function TerminalShell() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      <TerminalGuide tab={tab} open={guideOpen} onClose={() => setGuideOpen(false)} />
 
       {/* ── footer ── */}
       <footer className="border-t border-border/50 px-4 h-8 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
