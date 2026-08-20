@@ -1216,6 +1216,35 @@ function revalidateOne(
   direction: "long" | "short",
   quote: RealtimeQuote | undefined,
 ): RevalidationResult {
+  // 0. Level coherence — reject geometrically impossible ideas outright.
+  //
+  // The write-time gate validates levels on CREATE, but rows can still end up
+  // incoherent afterwards (entry refreshed against a stale target/stop, a scanner
+  // writing from a snapshot whose spot disagrees with the stored entry). Live rows
+  // exist with a LONG target BELOW entry and a stop ABOVE it — e.g. IBM entry
+  // $236.72 / target $105 / stop $240, published with an R:R of 40. Those must never
+  // reach a user, whatever wrote them, so the read path re-checks the geometry.
+  {
+    const e = Number(idea.entryPrice), t = Number(idea.targetPrice), st = Number(idea.stopLoss);
+    if (Number.isFinite(e) && Number.isFinite(t) && Number.isFinite(st) && e > 0) {
+      const wrongSide =
+        direction === "long" ? (t <= e || st >= e) : (t >= e || st <= e);
+      if (wrongSide) {
+        return {
+          quote,
+          reject: true,
+          rejectReason: `incoherent levels for ${direction}: entry ${e} target ${t} stop ${st}`,
+        };
+      }
+      const rr = Math.abs(t - e) / Math.max(Math.abs(e - st), 1e-9);
+      // An R:R this extreme means the levels disagree with each other, not that we
+      // found a 40-bagger.
+      if (rr > 15) {
+        return { quote, reject: true, rejectReason: `implausible R:R ${rr.toFixed(1)} — levels disagree` };
+      }
+    }
+  }
+
   // 1. Catalyst/direction contradiction — always reject
   if (catalystContradictsDirection(idea, direction)) {
     return {

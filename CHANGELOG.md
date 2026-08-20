@@ -85,6 +85,16 @@ Update this in the same PR as the change.
 - Grades display convictionScore-first (single source of truth for score↔grade).
 
 ### Fixed
+- **Rotation was structurally frozen overnight.** It computed change from daily CLOSES
+  only, so the map couldn't move between 16:00 and 09:30 — but rotation happens overnight
+  and by the open leadership is often already decided. It now reads intraday bars with
+  pre/post included and takes the latest print, measured against the prior regular close.
+  Live: `isStale` went true → **false**, SPY +0.21% (frozen) → −1.3%, XBI +7.67%.
+- **Published ideas with impossible levels.** Live rows existed with a LONG target BELOW
+  entry and a stop ABOVE it — IBM entry \$236.72 / target \$105 / stop \$240, shipped with
+  an R:R of 40. The write-time gate validates on create, but rows can go incoherent
+  afterwards. Added a read-time coherence guard that rejects wrong-side levels and
+  implausible R:R (>15). Verified: 0 incoherent picks now surface.
 - **Yahoo rate-limit storm broke charts.** `/api/historical-prices` was returning 500 under
   load (the "NO DATA" chart). New `provider-cache.ts` coalesces concurrent callers for the
   same key into one upstream request, caches briefly, and serves stale rather than nothing

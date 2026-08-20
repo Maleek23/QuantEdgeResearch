@@ -125,35 +125,51 @@ interface RawQuote {
 
 async function fetchQuote(symbol: string): Promise<RawQuote | null> {
   try {
-    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?range=5d&interval=1d&includePrePost=true`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    // Rotation does not stop at 16:00. Money rotates through the overnight and
+    // pre-market session, and by the open the leadership is often already decided.
+    // Reading only daily CLOSES froze this map every night, so we read INTRADAY bars
+    // with pre/post included and take the most recent print — which is the live price
+    // during the regular session and the extended-hours price outside it.
+    const intradayUrl =
+      `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?range=5d&interval=15m&includePrePost=true`;
+    const r = await fetch(intradayUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     const j: any = await r.json();
     const res = j?.chart?.result?.[0];
     if (!res) return null;
     const m = res.meta;
-    const closes: number[] = (res.indicators?.quote?.[0]?.close || []).filter((c: any) => c != null);
-    if (closes.length < 2) return null;
 
-    const last = closes[closes.length - 1];
-    const prev = closes[closes.length - 2];
-    const first = closes[0];
-    const change = +(((last - prev) / prev) * 100).toFixed(2);
-    const fiveDayChange = +(((last - first) / first) * 100).toFixed(2);
+    const closes: number[] = res.indicators?.quote?.[0]?.close || [];
+    const stamps: number[] = res.timestamp || [];
 
-    const regNow = m.regularMarketPrice ?? last;
-    const preMarketChange =
-      m.preMarketPrice && regNow
-        ? +(((m.preMarketPrice - regNow) / regNow) * 100).toFixed(2)
-        : null;
+    // most recent bar that actually printed (this is the extended-hours price at night)
+    let i = closes.length - 1;
+    while (i >= 0 && (closes[i] == null || !Number.isFinite(closes[i]))) i--;
+    if (i < 0) return null;
+    const last = Number(closes[i]);
+    const sessionAtMs = (stamps[i] ?? m.regularMarketTime ?? 0) * 1000;
 
-    const sessionAtMs = m.regularMarketTime
-      ? m.regularMarketTime * 1000
-      : (res.timestamp?.[res.timestamp.length - 1] ?? 0) * 1000;
+    // baseline = the last completed regular-session close, so an overnight move reads
+    // as a gap against yesterday rather than against itself.
+    const prevClose = Number(m.chartPreviousClose ?? m.previousClose ?? 0);
+    const regNow = Number(m.regularMarketPrice ?? last);
+    if (!prevClose) return null;
+
+    const change = +(((last - prevClose) / prevClose) * 100).toFixed(2);
+
+    // extended-hours delta: how far the latest print has moved past the regular close
+    const extendedChange =
+      regNow && last !== regNow ? +(((last - regNow) / regNow) * 100).toFixed(2) : null;
+
+    // five-day momentum from the same series (first available print in the window)
+    let f = 0;
+    while (f < closes.length && (closes[f] == null || !Number.isFinite(closes[f]))) f++;
+    const first = f < closes.length ? Number(closes[f]) : last;
+    const fiveDayChange = first ? +(((last - first) / first) * 100).toFixed(2) : 0;
 
     return {
       symbol,
       change,
-      preMarketChange,
+      preMarketChange: extendedChange,
       fiveDayChange,
       marketState: m.marketState || '',
       sessionAtMs,
@@ -163,6 +179,7 @@ async function fetchQuote(symbol: string): Promise<RawQuote | null> {
     return null;
   }
 }
+
 
 /**
  * Derive an honest session label + stale flag from the latest bar time.
