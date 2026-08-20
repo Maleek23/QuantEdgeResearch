@@ -38,6 +38,8 @@ export interface AlertEvent {
 export interface AlertPrefs {
   enabled: Record<AlertType, boolean>;
   sound: boolean;
+  /** also post fired alerts to the configured Discord webhook */
+  discord: boolean;
   quietHours: { on: boolean; start: number; end: number }; // local hours, 0–23
   /** only alert on tickers in the watchlist */
   watchlistOnly: boolean;
@@ -60,6 +62,7 @@ export const DEFAULT_ALERT_PREFS: AlertPrefs = {
     danger_zone: true, invalidated: true, rating_jump: false, high_conviction: true,
   },
   sound: true,
+  discord: false,
   quietHours: { on: false, start: 22, end: 7 },
   watchlistOnly: false,
   minConviction: 0,

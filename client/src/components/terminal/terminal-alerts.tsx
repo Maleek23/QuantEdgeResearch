@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Bell, X, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiRequest } from '@/lib/queryClient';
 import { EASE, DUR } from '@/lib/motion';
 import { TC } from '@/lib/oracle/trading-colors';
 import { AlertSounds } from '@/components/sound-alert-toggle';
@@ -35,6 +36,12 @@ export function useSignalAlerts(picks: ConvictionPick[] | undefined) {
 
     setFeed(loadFeed());
     setUnread((n) => n + fired.length);
+
+    // Push the same events to Discord when enabled — the bell only works while you're
+    // looking at the terminal, which is exactly when you least need telling.
+    if (prefs.discord) {
+      apiRequest('POST', '/api/alerts/relay', { events: fired }).catch(() => { /* non-fatal */ });
+    }
 
     if (prefs.sound) {
       // one sound per batch, chosen by the most urgent event in it
@@ -128,6 +135,19 @@ export function TerminalAlerts({
                     </button>
                   );
                 })}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Send to Discord</span>
+                <button
+                  onClick={() => update({ ...prefs, discord: !prefs.discord })}
+                  role="switch" aria-checked={prefs.discord} aria-label="Send alerts to Discord"
+                  className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
+                    prefs.discord ? 'bg-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/15')}
+                >
+                  <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all',
+                    prefs.discord ? 'left-[18px]' : 'left-0.5')} />
+                </button>
               </div>
 
               <div className="mt-3 flex items-center justify-between">

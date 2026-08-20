@@ -5163,6 +5163,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET endpoint for batch stock quotes (used by WSB Trending, Social Trends pages)
+  // Alert relay — the in-app bell only reaches you while you're looking at the terminal.
+  // This posts the same events to Discord so they reach you when you're not.
+  app.post("/api/alerts/relay", async (req, res) => {
+    try {
+      const events = Array.isArray(req.body?.events) ? req.body.events : [];
+      if (events.length === 0) return res.json({ sent: 0 });
+
+      const { sendDiscordAlert } = await import("./discord-service");
+      // One message per batch, not per event — a stream of separate pings is noise.
+      const lines = events.slice(0, 10).map((e: any) => {
+        const icon = e.tone === 'bad' ? '🔻' : e.tone === 'good' ? '🟢' : '🔵';
+        return `${icon} **${e.title}** — ${e.detail}`;
+      });
+      const more = events.length > 10 ? `\n_…and ${events.length - 10} more_` : '';
+      await sendDiscordAlert(`**QuantEdge alerts**\n${lines.join('\n')}${more}`, 'info');
+      res.json({ sent: events.length });
+    } catch (error) {
+      logger.error("[API] alert relay failed:", error);
+      res.status(500).json({ error: "Failed to relay alerts" });
+    }
+  });
+
+  // Early rotation — sectors taking inflows crossed with names still coiled inside them.
+  app.get("/api/early-rotation", async (_req, res) => {
+    try {
+      const { findEarlyRotation } = await import("./early-rotation");
+      const lead = await fetch(`http://127.0.0.1:${process.env.PORT || 5000}/api/sector-leadership`)
+        .then((r) => r.json())
+        .catch(() => null);
+      if (!lead) return res.status(503).json({ error: "Leadership unavailable" });
+
+      const result = await findEarlyRotation(lead, async (symbol: string) => {
+        const r = await fetch(
+          `http://127.0.0.1:${process.env.PORT || 5000}/api/historical-prices/${encodeURIComponent(symbol)}?range=6mo&interval=1d`,
+        );
+        if (!r.ok) return [];
+        return (await r.json())?.data ?? [];
+      });
+      res.json(result);
+    } catch (error) {
+      logger.error("[API] early-rotation failed:", error);
+      res.status(500).json({ error: "Failed to compute early rotation" });
+    }
+  });
+
   // ── QUANT BOT ────────────────────────────────────────────────────────────
   // Paper-trades the platform's own signals so the engine builds a real track record.
   app.get("/api/quant-bot/status", async (_req, res) => {
