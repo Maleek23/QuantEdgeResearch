@@ -8,6 +8,10 @@ Update this in the same PR as the change.
 - **Terminal (`/t`)** — one shell, five tabs (Oracle · Flow · Heatmap · GEX · PRISM) with a
   shared motion system, sliding tab underline, live uptime, wired to the real engines.
 - Oracle Orb (market-regime centerpiece) and Rotation Map (RRG) components.
+- Oracle **signal-detail widgets** — Price Ladder (stop/entry/live/target with %/$/away),
+  Confidence Index bars (Conviction/Progress/R:R/Structure), and a Context panel with a
+  "what to do now" line — all derived from real ConvictionPick data. Wired into the cockpit.
+- `/t` is now **full-bleed, no sidebar** (top-nav only, ADR-0001).
 - Canonical docs set in `docs/` (Architecture, Onboarding, Runbook, Team) + ADR process + this changelog.
 - Cash-secured-put income screener, catalyst research endpoints, cash-gate grade dampening.
 

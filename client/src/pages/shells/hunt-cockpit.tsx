@@ -33,6 +33,7 @@ import { SignalRow } from '@/components/hunt/cockpit/signal-row';
 import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
 import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
 import { SignalCard, signalFromPick } from '@/components/signal-card';
+import { PriceLadder, ConfidenceBars, ContextPanel } from '@/components/oracle/signal-detail';
 import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
 import {
   tierLabel, directionTone, convictionPercent, LAYER_COLOR, LAYER_TAG,
@@ -443,12 +444,19 @@ export default function HuntCockpit() {
                 </div>
               </div>
 
-              {/* trade levels — uniform 2×2 grid, readable even in a narrow center */}
-              <div className="grid grid-cols-2 gap-2">
-                <StatTile label="Entry" value={fmt(selected.entryPrice)} tone="cyan" />
-                <StatTile label="Stop" value={fmt(selected.stopLoss)} tone="bear" />
-                <StatTile label="Target · T1" value={fmt(selected.targetPrice)} tone="bull" />
-                <StatTile label="R : R" value={`1 : ${selected.riskRewardRatio?.toFixed(1) ?? '—'}`} />
+              {/* trade levels — the price ladder + the interpreting panels (MomoEdge grammar
+                  over real pick data). Ladder left, confidence + context right. */}
+              <div className="grid gap-2 lg:grid-cols-2">
+                <PriceLadder pick={selected} live={quote?.price ?? selected.currentPrice ?? selected.entryPrice} />
+                <div className="space-y-2">
+                  <ConfidenceBars pick={selected} live={quote?.price ?? selected.currentPrice ?? selected.entryPrice} />
+                  <ContextPanel
+                    pick={selected}
+                    live={quote?.price ?? selected.currentPrice ?? selected.entryPrice}
+                    regime={data?.marketContext?.regime}
+                    preferredDirection={data?.marketContext?.preferredDirection}
+                  />
+                </div>
               </div>
 
               {/* chart with range switcher */}
