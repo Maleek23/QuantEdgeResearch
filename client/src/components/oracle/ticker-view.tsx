@@ -14,7 +14,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { EpochChart } from '@/components/charting/epoch-chart';
-import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
+import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { EASE, DUR } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { TC, pnlColor } from '@/lib/oracle/trading-colors';
@@ -75,24 +75,24 @@ export function TickerView({ symbol, hasSignal, onClear }: {
   const body = (
     <div className="rounded-xl border border-card-border bg-card overflow-hidden shadow-2xl">
       <div className="flex items-center gap-3 border-b border-border/40 px-4 py-2.5">
-        <span className="text-[14px] font-mono font-bold tracking-wider text-foreground">{symbol}</span>
+        <span className="text-lead font-mono font-bold tracking-wider text-foreground">{symbol}</span>
         {q && (
           <span className="flex items-baseline gap-2">
-            <span className="text-[13px] font-mono font-bold tabular-nums text-foreground">
+            <span className="text-value font-mono font-bold tabular-nums text-foreground">
               ${q.lastPrice.toFixed(2)}
             </span>
-            <span className="text-[11px] font-mono tabular-nums" style={{ color: pnlColor(q.changePct) }}>
+            <span className="text-meta font-mono tabular-nums" style={{ color: pnlColor(q.changePct) }}>
               {q.changePct >= 0 ? '+' : ''}{q.changePct.toFixed(2)}%
             </span>
             {q.isExtended && (
-              <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: TC.warn }}>
+              <span className="text-label font-mono uppercase tracking-wider" style={{ color: TC.warn }}>
                 {q.session === 'pre' ? 'pre-market' : 'after-hours'}
               </span>
             )}
           </span>
         )}
         <span className="ml-auto flex items-center gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">
             {hasSignal ? 'signal below' : 'no active signal'}
           </span>
           {onClear && (
@@ -119,7 +119,7 @@ export function TickerView({ symbol, hasSignal, onClear }: {
         {/* THE GRADE — what the engine thinks of this ticker, on demand */}
         <div className="flex flex-col gap-2 rounded-lg border border-border/40 p-3">
           {grading ? (
-            <div className="grid h-full place-items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+            <div className="grid h-full place-items-center text-label font-mono uppercase tracking-widest text-muted-foreground/70">
               grading…
             </div>
           ) : graded ? (
@@ -133,7 +133,7 @@ export function TickerView({ symbol, hasSignal, onClear }: {
                     </Pill>
                     <Pill color={TC.warn}>{graded.convictionBand}-BAND</Pill>
                   </div>
-                  <div className="mt-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                  <div className="mt-1 text-label font-mono uppercase tracking-wider text-muted-foreground/70">
                     {bandStrength(graded.convictionBand)} · {graded.layerCount} layers
                   </div>
                 </div>
@@ -145,7 +145,7 @@ export function TickerView({ symbol, hasSignal, onClear }: {
                 const minus = Math.abs((graded.layers ?? []).filter((l) => l.points < 0).reduce((s, l) => s + l.points, 0));
                 return (
                   <div>
-                    <div className="mb-1 flex justify-between text-[10px] font-mono tabular-nums">
+                    <div className="mb-1 flex justify-between text-label font-mono tabular-nums">
                       <span style={{ color: TC.bull }}>+{plus} for</span>
                       <span style={{ color: TC.bear }}>{minus > 0 ? `−${minus} against` : 'nothing against'}</span>
                     </div>
@@ -165,15 +165,15 @@ export function TickerView({ symbol, hasSignal, onClear }: {
                   target={graded.targetPrice}
                 />
               </div>
-              <div className="text-[10px] font-mono tabular-nums text-muted-foreground/70">
+              <div className="text-label font-mono tabular-nums text-muted-foreground/70">
                 R:R 1:{(graded.riskRewardRatio ?? 0).toFixed(1)} · {graded.holdingPeriod}
               </div>
             </>
           ) : (
             <div className="grid h-full place-items-center px-2 text-center">
               <div>
-                <div className="text-[11px] font-mono uppercase tracking-widest text-foreground/80">Not graded</div>
-                <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground/70">
+                <div className="text-meta font-mono uppercase tracking-widest text-foreground/80">Not graded</div>
+                <p className="mt-1.5 text-label leading-relaxed text-muted-foreground/70">
                   The engine has no setup on {symbol} — it didn't clear the layers. Chart only.
                 </p>
               </div>
@@ -190,7 +190,7 @@ export function TickerView({ symbol, hasSignal, onClear }: {
       {graded && (graded.direction === 'long' || graded.direction === 'short') && (
         <div className="border-t border-border/40 p-2 [&_*]:!leading-tight">
           <div className="origin-top scale-[0.82] -mb-[14%]">
-          <OracleOptionPicker
+          <ContractEngine
             key={`${symbol}-${graded.direction}`}
             autoLoad
             symbol={symbol}
@@ -206,7 +206,7 @@ export function TickerView({ symbol, hasSignal, onClear }: {
       )}
 
       {!graded && !grading && (
-        <p className="border-t border-border/30 px-4 py-2 text-[11px] leading-relaxed text-muted-foreground/70">
+        <p className="border-t border-border/30 px-4 py-2 text-meta leading-relaxed text-muted-foreground/70">
           No setup on {symbol}, so there are no trades to suggest. GEX and PRISM are following
           this ticker if you want to read the structure yourself.
         </p>
@@ -233,7 +233,7 @@ export function TickerView({ symbol, hasSignal, onClear }: {
           onClick={(e) => e.stopPropagation()}
         >
           {body}
-          <p className="mt-2 text-center text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+          <p className="mt-2 text-center text-label font-mono uppercase tracking-wider text-muted-foreground/70">
             Esc or click outside to return to the board
           </p>
         </motion.div>

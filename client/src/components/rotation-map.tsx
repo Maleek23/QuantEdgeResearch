@@ -76,19 +76,19 @@ export function RotationMap({ className }: { className?: string }) {
   return (
     <div className={cn("rounded-xl border border-card-border bg-card overflow-hidden", className)}>
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">Rotation Map</span>
-        <span className="text-[10px] font-mono text-muted-foreground/60">
+        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Rotation Map</span>
+        <span className="text-label font-mono text-muted-foreground/60">
           x · relative strength&nbsp;&nbsp;y · momentum{data?.isStale ? ` · ${data.sessionLabel} · stale` : ""}
         </span>
       </div>
 
       {(data?.isStale || sessionNote) && (
         <div className="flex items-center justify-between border-b border-border/30 px-4 py-1.5">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">
             {data?.sessionLabel ?? 'last close'}
           </span>
           {sessionNote && (
-            <span className="text-[10px] font-mono" style={{ color: session === 'regular' ? TC.bull : TC.warn }}>
+            <span className="text-label font-mono" style={{ color: session === 'regular' ? TC.bull : TC.warn }}>
               {sessionNote}
             </span>
           )}
@@ -100,12 +100,12 @@ export function RotationMap({ className }: { className?: string }) {
           Slightly wide keeps every bubble readable in far less vertical space. */}
       <div className="relative mx-auto w-full" style={{ aspectRatio: "16 / 11", maxWidth: 280 }}>
         {isLoading && (
-          <div className="absolute inset-0 grid place-items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+          <div className="absolute inset-0 grid place-items-center text-label font-mono uppercase tracking-widest text-muted-foreground/70">
             reading rotation…
           </div>
         )}
         {isError && (
-          <div className="absolute inset-0 grid place-items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+          <div className="absolute inset-0 grid place-items-center text-label font-mono uppercase tracking-widest text-muted-foreground/70">
             rotation unavailable
           </div>
         )}
@@ -156,8 +156,8 @@ export function RotationMap({ className }: { className?: string }) {
                   }}
                 />
                 <span className="pointer-events-none whitespace-nowrap">
-                  <span className="block text-[10px] font-mono font-bold text-foreground/90 leading-none">{s.etf}</span>
-                  <span className="block text-[10px] font-mono leading-none mt-0.5" style={{ color: c, transition: "color 400ms ease" }}>
+                  <span className="block text-label font-mono font-bold text-foreground/90 leading-none">{s.etf}</span>
+                  <span className="block text-label font-mono leading-none mt-0.5" style={{ color: c, transition: "color 400ms ease" }}>
                     {s.fiveDayChange >= 0 ? "+" : ""}{s.fiveDayChange.toFixed(1)}%
                   </span>
                 </span>
@@ -170,7 +170,7 @@ export function RotationMap({ className }: { className?: string }) {
       {/* legend */}
       <div className="flex items-center justify-center gap-4 py-2 border-t border-border/40 flex-wrap">
         {Object.values(QUAD).map((q) => (
-          <span key={q.label} className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+          <span key={q.label} className="inline-flex items-center gap-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70">
             <span className="h-2 w-2 rounded-full" style={{ background: q.color }} /> {q.label}
           </span>
         ))}
@@ -186,8 +186,8 @@ function QLabel({ pos, q }: { pos: "tl" | "tr" | "bl" | "br"; q: { label: string
   }[pos];
   return (
     <div className={cn("absolute pointer-events-none", place)}>
-      <div className="text-[10px] font-mono font-bold uppercase tracking-widest" style={{ color: q.color }}>{q.label}</div>
-      <div className="text-[10px] font-mono uppercase tracking-wide text-muted-foreground/70">{q.sub}</div>
+      <div className="text-label font-mono font-bold uppercase tracking-widest" style={{ color: q.color }}>{q.label}</div>
+      <div className="text-label font-mono uppercase tracking-wide text-muted-foreground/70">{q.sub}</div>
     </div>
   );
 }

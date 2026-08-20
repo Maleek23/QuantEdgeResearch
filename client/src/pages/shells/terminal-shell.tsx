@@ -101,11 +101,11 @@ export default function TerminalShell() {
       {/* ── persistent chrome ── */}
       <header className="sticky top-0 z-20 border-b border-border/50 bg-background/95 backdrop-blur">
         <div className="flex items-center gap-4 px-4 h-12">
-          <span className="font-mono text-[13px] font-bold tracking-widest text-foreground shrink-0">
+          <span className="font-mono text-value font-bold tracking-widest text-foreground shrink-0">
             QUANT<span className="text-[var(--brand-cyan,#22d3ee)]">EDGE</span>
             <span className="text-muted-foreground/70"> // TERMINAL</span>
           </span>
-          <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-[var(--trade-bullish,#22c55e)] shrink-0">
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-label font-mono uppercase tracking-wider text-[var(--trade-bullish,#22c55e)] shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" /> Engaged
           </span>
 
@@ -115,7 +115,7 @@ export default function TerminalShell() {
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  'relative px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest transition-colors whitespace-nowrap',
+                  'relative px-3 py-1.5 text-meta font-mono uppercase tracking-widest transition-colors whitespace-nowrap',
                   tab === t.id ? 'text-foreground' : 'text-muted-foreground/60 hover:text-foreground',
                 )}
                 data-testid={`terminal-tab-${t.id}`}
@@ -146,13 +146,13 @@ export default function TerminalShell() {
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="ticker"
                   aria-label="Search ticker"
-                  className="w-28 rounded border border-border/60 bg-background/60 py-1 pl-7 pr-2 text-[11px] font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:border-[var(--brand-cyan,#22d3ee)]"
+                  className="w-28 rounded border border-border/60 bg-background/60 py-1 pl-7 pr-2 text-meta font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:border-[var(--brand-cyan,#22d3ee)]"
                 />
               </div>
             </form>
 
             {currentStock?.symbol && (
-              <span className="hidden md:inline-flex items-center gap-1 rounded-full border border-[var(--brand-cyan,#22d3ee)]/40 bg-[var(--brand-cyan,#22d3ee)]/10 px-2 py-0.5 text-[10px] font-mono font-bold tracking-wider text-[var(--brand-cyan,#22d3ee)]">
+              <span className="hidden md:inline-flex items-center gap-1 rounded-full border border-[var(--brand-cyan,#22d3ee)]/40 bg-[var(--brand-cyan,#22d3ee)]/10 px-2 py-0.5 text-label font-mono font-bold tracking-wider text-[var(--brand-cyan,#22d3ee)]">
                 {currentStock.symbol}
                 <button onClick={clearStock} aria-label="Clear ticker" className="cursor-pointer opacity-70 transition-opacity hover:opacity-100">
                   <X className="h-3 w-3" />
@@ -169,7 +169,7 @@ export default function TerminalShell() {
               onClick={() => setSettingsOpen(true)}
               aria-label="Open settings"
               title="Settings"
-              className="inline-flex cursor-pointer items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+              className="inline-flex cursor-pointer items-center gap-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
             </button>
@@ -177,7 +177,7 @@ export default function TerminalShell() {
             <button
               onClick={() => setGuideOpen(true)}
               aria-label={`Open ${tab} guide`}
-              className="inline-flex cursor-pointer items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+              className="inline-flex cursor-pointer items-center gap-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
             >
               <BookOpen className="h-3.5 w-3.5" /> Guide
             </button>
@@ -252,7 +252,7 @@ export default function TerminalShell() {
       />
 
       {/* ── footer ── */}
-      <footer className="border-t border-border/50 px-4 h-8 flex items-center gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
+      <footer className="border-t border-border/50 px-4 h-8 flex items-center gap-3 text-label font-mono uppercase tracking-wider text-muted-foreground/60">
         <span className="inline-flex items-center gap-1.5 text-[var(--trade-bullish,#22c55e)]">
           <span className="h-1.5 w-1.5 rounded-full bg-current" /> Online
         </span>

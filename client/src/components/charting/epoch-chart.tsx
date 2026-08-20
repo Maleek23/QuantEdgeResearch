@@ -322,9 +322,9 @@ export function EpochChart({
       {/* flash-UI header: symbol + OHLC readout (left) · TF switcher (right) */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[12px] font-mono font-bold tracking-widest text-foreground">{symbol ?? 'DEMO'}</span>
+          <span className="text-body font-mono font-bold tracking-widest text-foreground">{symbol ?? 'DEMO'}</span>
           {readout && (
-            <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70 truncate">
+            <span className="text-label font-mono tabular-nums text-muted-foreground/70 truncate">
               O <b className="text-foreground/80">{readout.open?.toFixed(2)}</b>{'  '}
               H <b className="text-foreground/80">{readout.high?.toFixed(2)}</b>{'  '}
               L <b className="text-foreground/80">{readout.low?.toFixed(2)}</b>{'  '}
@@ -334,7 +334,7 @@ export function EpochChart({
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           {tf !== '1D' && (
-            <span className="mr-2 hidden items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 sm:inline-flex">
+            <span className="mr-2 hidden items-center gap-1 text-label font-mono uppercase tracking-wider text-muted-foreground/70 sm:inline-flex">
               <span className="h-2 w-2 rounded-sm" style={{ background: 'rgba(224,164,88,0.25)' }} />
               ext hours
             </span>
@@ -355,7 +355,7 @@ export function EpochChart({
               onClick={() => setTf(t.id)}
               title={i < 9 ? `${t.label} · press ${i + 1}` : t.label}
               className={cn(
-                'px-2 py-1 text-[10px] font-mono uppercase tracking-wider rounded transition-colors',
+                'px-2 py-1 text-label font-mono uppercase tracking-wider rounded transition-colors',
                 tf === t.id ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground',
               )}
             >
@@ -385,7 +385,7 @@ export function EpochChart({
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between border-b border-border/40 px-4 py-2">
-                  <span className="text-[12px] font-mono font-bold tracking-widest text-foreground">
+                  <span className="text-body font-mono font-bold tracking-widest text-foreground">
                     {symbol ?? 'DEMO'} <span className="text-muted-foreground/70">· chart workspace</span>
                   </span>
                   <button
@@ -408,7 +408,7 @@ export function EpochChart({
                     className="border-0"
                   />
                 </div>
-                <div className="border-t border-border/40 px-4 py-1.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                <div className="border-t border-border/40 px-4 py-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70">
                   Esc or click outside to close · keys 1–7 switch timeframe
                 </div>
               </motion.div>
@@ -422,7 +422,7 @@ export function EpochChart({
       <div ref={wrapRef} className="relative w-full" style={{ height }}>
         <canvas ref={overlayRef} className="absolute inset-0 pointer-events-none z-10" />
         {symbol && (isLoading || isError || data.length === 0) && (
-          <div className="absolute inset-0 z-20 grid place-items-center text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+          <div className="absolute inset-0 z-20 grid place-items-center text-label font-mono uppercase tracking-widest text-muted-foreground/70">
             {isError ? 'no data' : isLoading ? 'loading…' : 'no candles'}
           </div>
         )}

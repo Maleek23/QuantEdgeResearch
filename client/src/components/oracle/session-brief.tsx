@@ -52,10 +52,10 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
   return (
     <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
       <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">
+        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">
           Session Brief
         </span>
-        <span className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground/70">
+        <span className="flex items-center gap-2 text-label font-mono text-muted-foreground/70">
           {data && (
             <>
               <span style={{ color: data.session === 'regular' ? TC.bull : TC.warn }}>
@@ -68,24 +68,24 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
       </div>
 
       {isLoading ? (
-        <div className="flex h-32 items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+        <div className="flex h-32 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading leadership…
         </div>
       ) : isError || sectors.length === 0 ? (
-        <div className="px-6 py-8 text-center text-[11px] leading-relaxed text-muted-foreground/70">
+        <div className="px-6 py-8 text-center text-meta leading-relaxed text-muted-foreground/70">
           Leadership unavailable right now. It will refresh automatically.
         </div>
       ) : (
         <>
           {data?.interpretation && (
-            <p className="line-clamp-2 border-b border-border/30 px-4 py-2 text-[12px] leading-snug text-foreground/85"
+            <p className="line-clamp-2 border-b border-border/30 px-4 py-2 text-body leading-snug text-foreground/85"
                title={data.interpretation}>
               {data.interpretation}
             </p>
           )}
 
           <div className="max-h-[176px] overflow-y-auto px-4 py-2.5">
-            <div className="mb-1.5 text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.bull }}>
+            <div className="mb-1.5 text-label font-mono uppercase tracking-widest" style={{ color: TC.bull }}>
               Leading
             </div>
             <div className="space-y-2">
@@ -94,7 +94,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
               ))}
             </div>
 
-            <div className="mb-1.5 mt-3 text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.bear }}>
+            <div className="mb-1.5 mt-3 text-label font-mono uppercase tracking-widest" style={{ color: TC.bear }}>
               Under pressure
             </div>
             <div className="space-y-2">
@@ -105,13 +105,13 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
 
             {(data?.megaCaps?.length ?? 0) > 0 && (
               <div className="mt-3 border-t border-border/30 pt-2.5">
-                <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+                <div className="mb-1 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
                   Mega caps
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1">
                   {data!.megaCaps.map((m) => (
                     <button key={m.symbol} onClick={() => onSelectSymbol?.(m.symbol)}
-                      className="cursor-pointer text-[10px] font-mono tabular-nums transition-opacity hover:opacity-70"
+                      className="cursor-pointer text-label font-mono tabular-nums transition-opacity hover:opacity-70"
                       style={{ color: m.changePct >= 0 ? TC.bull : TC.bear }}>
                       {m.symbol} {m.changePct >= 0 ? '+' : ''}{m.changePct.toFixed(1)}%
                     </button>
@@ -120,7 +120,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
               </div>
             )}
 
-            <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground/70">
+            <p className="mt-3 text-label leading-relaxed text-muted-foreground/70">
               Trade continuation in the leaders, or look for reversals in the laggards. Confirm on the
               chart before acting — leadership says where to look, not what to buy.
             </p>
@@ -138,8 +138,8 @@ function SectorRow({ s, names, onSelectSymbol, maxMove }: {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[11px] font-mono uppercase tracking-wider text-foreground/85">{s.label}</span>
-        <span className="flex items-baseline gap-2 text-[10px] font-mono tabular-nums">
+        <span className="text-meta font-mono uppercase tracking-wider text-foreground/85">{s.label}</span>
+        <span className="flex items-baseline gap-2 text-label font-mono tabular-nums">
           <span style={{ color: up ? TC.bull : TC.bear }}>
             {up ? '+' : ''}{s.medianChangePct.toFixed(2)}%
           </span>
@@ -162,7 +162,7 @@ function SectorRow({ s, names, onSelectSymbol, maxMove }: {
       <div className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5">
         {names.slice(0, 3).map((n) => (
           <button key={n.symbol} onClick={() => onSelectSymbol?.(n.symbol)}
-            className="cursor-pointer text-[10px] font-mono tabular-nums transition-opacity hover:opacity-70"
+            className="cursor-pointer text-label font-mono tabular-nums transition-opacity hover:opacity-70"
             style={{ color: n.changePct >= 0 ? TC.bull : TC.bear }}>
             {n.symbol} {n.changePct >= 0 ? '+' : ''}{n.changePct.toFixed(1)}%
           </button>

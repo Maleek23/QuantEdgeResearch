@@ -91,8 +91,8 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
           >
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/40 bg-card px-4 py-3">
               <div>
-                <div className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground">Settings</div>
-                <div className="text-[10px] font-mono text-muted-foreground/60">how the terminal works for you</div>
+                <div className="text-meta font-mono font-bold uppercase tracking-widest text-foreground">Settings</div>
+                <div className="text-label font-mono text-muted-foreground/60">how the terminal works for you</div>
               </div>
               <button onClick={onClose} aria-label="Close settings"
                 className="cursor-pointer rounded p-1 text-muted-foreground/70 transition-colors hover:text-foreground">
@@ -116,8 +116,8 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                     <NumInput value={draft.defaultOptionsBudget ?? 0} onChange={(v) => set('defaultOptionsBudget', v)} prefix="$" step={50} />
                   </Field>
                   <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
-                    <div className="text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.info }}>Risk budget</div>
-                    <div className="mt-0.5 text-[12px] font-mono text-foreground/85">
+                    <div className="text-label font-mono uppercase tracking-widest" style={{ color: TC.info }}>Risk budget</div>
+                    <div className="mt-0.5 text-body font-mono text-foreground/85">
                       <b className="tabular-nums">${risk$.toFixed(0)}</b> per trade — every signal will size to this.
                     </div>
                   </div>
@@ -132,7 +132,7 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                         return (
                           <button key={a} onClick={() => set('preferredAssets',
                             on ? (draft.preferredAssets ?? []).filter((x) => x !== a) : [...(draft.preferredAssets ?? []), a])}
-                            className={cn('cursor-pointer rounded px-2 py-1 text-[10px] font-mono uppercase tracking-wider transition-colors',
+                            className={cn('cursor-pointer rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
                               on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground/70 hover:text-foreground')}>
                             {a}
                           </button>
@@ -161,13 +161,13 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                 <button
                   onClick={() => save.mutate(draft)}
                   disabled={save.isPending}
-                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[var(--brand-cyan,#22d3ee)] px-3 py-2 text-[11px] font-mono font-bold uppercase tracking-wider text-background transition-opacity disabled:opacity-60"
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[var(--brand-cyan,#22d3ee)] px-3 py-2 text-meta font-mono font-bold uppercase tracking-wider text-background transition-opacity disabled:opacity-60"
                 >
                   {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : null}
                   {save.isPending ? 'Saving' : saved ? 'Saved' : 'Save settings'}
                 </button>
                 {save.isError && (
-                  <p className="text-[10px] font-mono" style={{ color: TC.bear }}>Could not save — {String((save.error as Error)?.message).slice(0, 90)}</p>
+                  <p className="text-label font-mono" style={{ color: TC.bear }}>Could not save — {String((save.error as Error)?.message).slice(0, 90)}</p>
                 )}
               </div>
             )}
@@ -182,8 +182,8 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   return (
     <div>
       <div className="mb-2 flex items-baseline gap-2">
-        <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
-        {hint && <span className="text-[10px] font-mono text-muted-foreground/70">{hint}</span>}
+        <span className="text-label font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
+        {hint && <span className="text-label font-mono text-muted-foreground/70">{hint}</span>}
       </div>
       <div className="space-y-2.5">{children}</div>
     </div>
@@ -193,7 +193,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-[11px] font-mono text-muted-foreground/70">{label}</span>
+      <span className="text-meta font-mono text-muted-foreground/70">{label}</span>
       {children}
     </div>
   );
@@ -204,13 +204,13 @@ function NumInput({ value, onChange, prefix, suffix, step = 1, max }: {
 }) {
   return (
     <span className="flex items-center gap-1 rounded border border-border/60 bg-background/60 px-2 py-1">
-      {prefix && <span className="text-[10px] font-mono text-muted-foreground/70">{prefix}</span>}
+      {prefix && <span className="text-label font-mono text-muted-foreground/70">{prefix}</span>}
       <input
         type="number" value={value} step={step} max={max} min={0}
         onChange={(e) => onChange(Math.max(0, Number(e.target.value)))}
-        className="w-20 bg-transparent text-right text-[11px] font-mono tabular-nums text-foreground outline-none"
+        className="w-20 bg-transparent text-right text-meta font-mono tabular-nums text-foreground outline-none"
       />
-      {suffix && <span className="text-[10px] font-mono text-muted-foreground/70">{suffix}</span>}
+      {suffix && <span className="text-label font-mono text-muted-foreground/70">{suffix}</span>}
     </span>
   );
 }
@@ -220,7 +220,7 @@ function Seg<T extends string>({ options, value, onChange }: { options: readonly
     <span className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
       {options.map((o) => (
         <button key={o} onClick={() => onChange(o)}
-          className={cn('cursor-pointer rounded px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider transition-colors',
+          className={cn('cursor-pointer rounded px-2 py-0.5 text-label font-mono uppercase tracking-wider transition-colors',
             value === o ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}>
           {o}
         </button>

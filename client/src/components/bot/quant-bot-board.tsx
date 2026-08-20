@@ -57,7 +57,7 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
 
   if (isLoading) {
     return (
-      <div className="flex h-48 items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+      <div className="flex h-48 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
         <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading the bot…
       </div>
     );
@@ -65,8 +65,8 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
   if (isError || !data) {
     return (
       <div className="rounded-xl border border-card-border bg-card px-6 py-10 text-center">
-        <div className="text-[11px] font-mono uppercase tracking-widest text-foreground/80">Bot unavailable</div>
-        <p className="mx-auto mt-2 max-w-md text-[11px] leading-relaxed text-muted-foreground/70">
+        <div className="text-meta font-mono uppercase tracking-widest text-foreground/80">Bot unavailable</div>
+        <p className="mx-auto mt-2 max-w-md text-meta leading-relaxed text-muted-foreground/70">
           The paper portfolio could not be read. It will retry automatically.
         </p>
       </div>
@@ -80,13 +80,13 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
       {/* the record */}
       <div className="rounded-xl border border-card-border bg-card overflow-hidden">
         <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-          <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">
+          <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">
             Quant Bot · paper options
           </span>
           <button
             onClick={() => run.mutate()}
             disabled={run.isPending}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded bg-foreground/10 px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-foreground transition-colors hover:bg-foreground/15 disabled:opacity-60"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded bg-foreground/10 px-2 py-1 text-label font-mono uppercase tracking-wider text-foreground transition-colors hover:bg-foreground/15 disabled:opacity-60"
           >
             {run.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
             {run.isPending ? 'Working' : 'Re-price & manage'}
@@ -106,7 +106,7 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
         </div>
 
         <div className="border-t border-border/30 px-4 py-2">
-          <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+          <p className="text-meta leading-relaxed text-muted-foreground/70">
             {decided === 0
               ? `No trades have closed yet, so there is no win rate to report. The bot takes signals scoring ${data.config.minConviction}+ and holds up to ${data.config.maxOpen} at once, exiting on the signal's own stop or target.`
               : `${data.winCount}W / ${data.lossCount}L across ${decided} closed trades. This is the engine's own record — every position came from a published signal and exited on its own stop or target.`}
@@ -138,8 +138,8 @@ function Section({ title, count, children }: { title: string; count: number; chi
   return (
     <div className="rounded-xl border border-card-border bg-card overflow-hidden">
       <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
-        <span className="text-[10px] font-mono text-muted-foreground/70">{count}</span>
+        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
+        <span className="text-label font-mono text-muted-foreground/70">{count}</span>
       </div>
       <div className="divide-y divide-border/25">{children}</div>
     </div>
@@ -171,37 +171,37 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
       {/* what it is */}
       <div className="flex items-baseline gap-2">
         <button onClick={() => onSelectSymbol?.(p.symbol)}
-          className="cursor-pointer text-[12px] font-mono font-bold tracking-wider text-foreground transition-colors hover:text-[var(--brand-cyan,#22d3ee)]">
+          className="cursor-pointer text-body font-mono font-bold tracking-wider text-foreground transition-colors hover:text-[var(--brand-cyan,#22d3ee)]">
           {p.symbol}
         </button>
         {isOption ? (
-          <span className="text-[11px] font-mono tabular-nums" style={{ color: p.optionType === 'call' ? TC.bull : TC.bear }}>
+          <span className="text-meta font-mono tabular-nums" style={{ color: p.optionType === 'call' ? TC.bull : TC.bear }}>
             ${p.strikePrice}{p.optionType === 'call' ? 'C' : 'P'}
           </span>
         ) : (
-          <span className="rounded border px-1 py-px text-[10px] font-mono font-bold tracking-wider"
+          <span className="rounded border px-1 py-px text-label font-mono font-bold tracking-wider"
                 style={{ color: long ? TC.bull : TC.bear, borderColor: `${long ? TC.bull : TC.bear}55` }}>
             {long ? '▲ SHARES' : '▼ SHARES'}
           </span>
         )}
         {isOption && p.expiryDate && (
-          <span className="text-[10px] font-mono tabular-nums"
+          <span className="text-label font-mono tabular-nums"
                 style={{ color: days != null && days <= 2 ? TC.bear : days != null && days <= 7 ? TC.warn : 'var(--muted-foreground)' }}>
             {formatExpiry(p.expiryDate)}{days != null ? ` · ${days}d left` : ''}
           </span>
         )}
         <span className="ml-auto flex items-baseline gap-2">
-          <span className="text-[12px] font-mono font-bold tabular-nums" style={{ color: pnlColor(pnl) }}>
+          <span className="text-body font-mono font-bold tabular-nums" style={{ color: pnlColor(pnl) }}>
             {pnl >= 0 ? '+' : ''}{money(pnl)}
           </span>
-          <span className="text-[11px] font-mono tabular-nums" style={{ color: pnlColor(pct) }}>
+          <span className="text-meta font-mono tabular-nums" style={{ color: pnlColor(pct) }}>
             {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
           </span>
         </span>
       </div>
 
       {/* size + cost, kept terse — the bars carry the risk picture */}
-      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 text-[10px] font-mono tabular-nums text-muted-foreground/70">
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 text-label font-mono tabular-nums text-muted-foreground/70">
         <span>
           {p.quantity} {isOption ? (p.quantity === 1 ? 'contract' : 'contracts') : 'sh'} @ ${p.entryPrice.toFixed(2)}
         </span>
@@ -233,7 +233,7 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
 
       {/* why the bot took it */}
       {p.entryReason && (
-        <div className="mt-1 text-[10px] leading-snug text-muted-foreground/70">{p.entryReason}</div>
+        <div className="mt-1 text-label leading-snug text-muted-foreground/70">{p.entryReason}</div>
       )}
     </div>
   );
@@ -242,12 +242,12 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="bg-card px-3 py-2">
-      <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
-      <div className="mt-0.5 text-[14px] font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
+      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
+      <div className="mt-0.5 text-lead font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
     </div>
   );
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="px-4 py-6 text-center text-[11px] leading-relaxed text-muted-foreground/70">{text}</div>;
+  return <div className="px-4 py-6 text-center text-meta leading-relaxed text-muted-foreground/70">{text}</div>;
 }

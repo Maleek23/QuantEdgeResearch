@@ -1,5 +1,5 @@
 /**
- * OracleOptionPicker — 3-tier contract selector
+ * ContractEngine — 3-tier contract selector
  * ===============================================
  * On-demand surface over the canonical option-selection engine
  * (POST /api/options/select). Given a signal's price-action thesis, fetches up
@@ -125,7 +125,7 @@ function fmtExpiry(expiry: string): string {
   return expiry;
 }
 
-export function OracleOptionPicker({
+export function ContractEngine({
   symbol, direction, entry, stop, t1, t2, holdPeriodLabel, conviction, autoLoad, onSelect,
 }: Props) {
   const [selection, setSelection] = useState<EngineSelection | null>(null);

@@ -121,6 +121,36 @@ export default {
         bearish: "var(--trade-bearish)",
         neutral: "var(--trade-neutral)",
       },
+      /**
+       * TERMINAL TYPE SCALE.
+       *
+       * Components were using ad-hoc pixel values from 10px to 26px — eight sizes with no
+       * relationship to each other, so nothing lined up and every new panel invented its
+       * own hierarchy. These are the only sizes a dense trading surface needs, named by
+       * ROLE so the choice is obvious at the call site:
+       *   label  10  — uppercase micro labels (the floor; nothing smaller is readable)
+       *   meta   11  — secondary values, units, annotations
+       *   body   12  — prose and descriptions
+       *   value  13  — the primary number in a row
+       *   lead   15  — an emphasised figure
+       *   hero   20  — a panel's headline number
+       *   mega   26  — the one number a card exists to show
+       */
+      fontSize: {
+        label: ['10px', { lineHeight: '1.35' }],
+        meta:  ['11px', { lineHeight: '1.4'  }],
+        body:  ['12px', { lineHeight: '1.55' }],
+        value: ['13px', { lineHeight: '1.3'  }],
+        lead:  ['15px', { lineHeight: '1.25' }],
+        hero:  ['20px', { lineHeight: '1.15' }],
+        mega:  ['26px', { lineHeight: '1.05' }],
+      },
+      /** Density steps for a data-dense surface — tighter than Tailwind's defaults. */
+      spacing: {
+        'card-x': '0.875rem',  // 14px — horizontal card padding
+        'card-y': '0.625rem',  // 10px — vertical card padding
+        'row-y':  '0.375rem',  // 6px  — between rows in a list
+      },
       fontFamily: {
         sans: ["var(--font-sans)"],
         serif: ["var(--font-serif)"],

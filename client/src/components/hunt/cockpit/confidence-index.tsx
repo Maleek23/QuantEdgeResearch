@@ -1,5 +1,5 @@
 /**
- * ConvictionGauge — the hero radial (semicircle) gauge. MOMO's "CONFIDENCE INDEX".
+ * ConfidenceIndex — the hero radial (semicircle) gauge. MOMO's "CONFIDENCE INDEX".
  * Pure SVG arc, score 0-100. Bold + colorful: gradient value arc, layered glow,
  * a glowing end-cap dot, and a big tabular score — the loud hero of the rail.
  */
@@ -26,7 +26,7 @@ function arcPath(cx: number, cy: number, r: number, fromDeg: number, toDeg: numb
   return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y}`;
 }
 
-export function ConvictionGauge({
+export function ConfidenceIndex({
   score,
   tone = 'bull',
   tierLabel,

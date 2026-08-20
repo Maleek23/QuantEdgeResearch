@@ -61,7 +61,7 @@ export function RangeBar({
       </div>
 
       {showTicks && (
-        <div className="mt-1 flex justify-between text-[10px] font-mono tabular-nums">
+        <div className="mt-1 flex justify-between text-label font-mono tabular-nums">
           <span style={{ color: TC.bear }}>{stop.toFixed(2)}</span>
           <span className="text-muted-foreground/70">entry {entry.toFixed(2)}</span>
           <span style={{ color: TC.bull }}>{target.toFixed(2)}</span>
@@ -82,8 +82,8 @@ export function Meter({
     <div className={cn('w-full', className)}>
       {(label || right) && (
         <div className="mb-1 flex items-baseline justify-between">
-          {label && <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{label}</span>}
-          {right && <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70">{right}</span>}
+          {label && <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</span>}
+          {right && <span className="text-label font-mono tabular-nums text-muted-foreground/70">{right}</span>}
         </div>
       )}
       <div className="w-full overflow-hidden rounded-full bg-foreground/[0.07]" style={{ height }}>
@@ -104,8 +104,8 @@ export function DecayBar({ daysLeft, totalDays = 30, className }: { daysLeft: nu
   return (
     <div className={cn('w-full', className)}>
       <div className="mb-1 flex items-baseline justify-between">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Time left</span>
-        <span className="text-[10px] font-mono tabular-nums" style={{ color }}>{daysLeft}d</span>
+        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Time left</span>
+        <span className="text-label font-mono tabular-nums" style={{ color }}>{daysLeft}d</span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.07]">
         <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: color }} />
@@ -129,7 +129,7 @@ export function CoilBar({ low, high, current, className }: { low: number; high: 
         <div className="absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-2 ring-background"
              style={{ left: `calc(${pos}% - 5px)`, background: color }} />
       </div>
-      <div className="mt-1 flex justify-between text-[10px] font-mono tabular-nums text-muted-foreground/70">
+      <div className="mt-1 flex justify-between text-label font-mono tabular-nums text-muted-foreground/70">
         <span>{low.toFixed(2)}</span>
         <span style={{ color }}>{pos.toFixed(0)}% up the range</span>
         <span>{high.toFixed(2)}</span>
@@ -173,11 +173,11 @@ export function ScoreDial({
                 style={{ transition: 'stroke-dashoffset 600ms ease' }} />
       </svg>
       <span className="absolute flex flex-col items-center leading-none">
-        <span className="font-mono text-[15px] font-bold tabular-nums" style={{ color }}>{Math.round(v)}</span>
-        {label && <span className="mt-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{label}</span>}
+        <span className="font-mono text-lead font-bold tabular-nums" style={{ color }}>{Math.round(v)}</span>
+        {label && <span className="mt-0.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</span>}
       </span>
       {delta != null && delta !== 0 && (
-        <span className="absolute -right-1 -top-1 font-mono text-[10px] font-bold tabular-nums"
+        <span className="absolute -right-1 -top-1 font-mono text-label font-bold tabular-nums"
               style={{ color: delta > 0 ? TC.bull : TC.bear }}>
           {delta > 0 ? '▲' : '▼'}{Math.abs(delta)}
         </span>
@@ -232,9 +232,84 @@ export function Pill({
 }: { children: React.ReactNode; color?: string; className?: string }) {
   const c = color ?? TC.info;
   return (
-    <span className={cn('rounded border px-1.5 py-px font-mono text-[10px] font-bold uppercase tracking-wider', className)}
+    <span className={cn('rounded border px-1.5 py-px font-mono text-label font-bold uppercase tracking-wider', className)}
           style={{ color: c, borderColor: `color-mix(in srgb, ${c} 40%, transparent)`, background: `color-mix(in srgb, ${c} 10%, transparent)` }}>
       {children}
     </span>
+  );
+}
+
+/**
+ * STRUCTURAL RANGE — put support ── flip ── spot ── call wall on one axis.
+ *
+ * These four numbers describe a cage: where dealers defend, where gamma flips sign, and
+ * where price actually is inside it. As a list of stats you have to hold four prices in
+ * your head and compare them; as one axis you see immediately whether spot is pinned
+ * mid-range, pressing a wall, or through the flip and into a different regime.
+ */
+export function StructuralRange({
+  putWall, callWall, spot, flip, magnet, height = 10, className,
+}: {
+  putWall?: number | null; callWall?: number | null; spot: number;
+  flip?: number | null; magnet?: number | null; height?: number; className?: string;
+}) {
+  const pts = [putWall, callWall, spot, flip, magnet].filter((v): v is number => typeof v === 'number' && v > 0);
+  if (pts.length < 2) return null;
+  const lo = Math.min(...pts), hi = Math.max(...pts);
+  const span = hi - lo || 1;
+  const pos = (v: number) => clamp(((v - lo) / span) * 100);
+
+  const inCage = putWall != null && callWall != null && spot > putWall && spot < callWall;
+
+  return (
+    <div className={cn('w-full', className)}>
+      <div className="relative w-full rounded-full" style={{
+        height,
+        background: `linear-gradient(90deg,
+          color-mix(in srgb, ${TC.bear} 30%, transparent),
+          color-mix(in srgb, var(--foreground) 6%, transparent) 50%,
+          color-mix(in srgb, ${TC.bull} 30%, transparent))`,
+      }}>
+        {/* gamma flip — the regime boundary, so it's a hard line not a dot */}
+        {flip != null && flip > 0 && (
+          <div className="absolute -top-1 -bottom-1 w-px" style={{ left: `${pos(flip)}%`, background: TC.warn }} title={`γ flip $${flip}`} />
+        )}
+        {/* magnet / max-gamma strike */}
+        {magnet != null && magnet > 0 && (
+          <div className="absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45"
+               style={{ left: `calc(${pos(magnet)}% - 3px)`, background: TC.warn }} title={`magnet $${magnet}`} />
+        )}
+        {/* spot */}
+        <div className="absolute rounded-full ring-2 ring-background"
+             style={{ left: `calc(${pos(spot)}% - ${height / 2}px)`, top: -1, width: height + 2, height: height + 2, background: TC.info }}
+             title={`spot $${spot.toFixed(2)}`} />
+      </div>
+
+      <div className="mt-1 flex justify-between text-label font-mono tabular-nums">
+        <span style={{ color: TC.bear }}>{putWall ? `$${putWall}` : '—'}<span className="ml-1 text-muted-foreground/70">put</span></span>
+        <span className="text-muted-foreground/70">{inCage ? 'inside the range' : 'outside the walls'}</span>
+        <span style={{ color: TC.bull }}><span className="mr-1 text-muted-foreground/70">call</span>{callWall ? `$${callWall}` : '—'}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * GRAVITY SPLIT — how exposure divides above vs below spot.
+ * Reads as a pull: which side dealers are positioned to defend harder.
+ */
+export function GravitySplit({ upPct, height = 8, className }: { upPct: number; height?: number; className?: string }) {
+  const up = clamp(upPct);
+  return (
+    <div className={cn('w-full', className)}>
+      <div className="flex w-full overflow-hidden rounded-full" style={{ height }}>
+        <div style={{ width: `${up}%`, background: TC.bull }} />
+        <div style={{ width: `${100 - up}%`, background: TC.bear }} />
+      </div>
+      <div className="mt-1 flex justify-between text-label font-mono tabular-nums">
+        <span style={{ color: TC.bull }}>↑ {up.toFixed(0)}%</span>
+        <span style={{ color: TC.bear }}>{(100 - up).toFixed(0)}% ↓</span>
+      </div>
+    </div>
   );
 }

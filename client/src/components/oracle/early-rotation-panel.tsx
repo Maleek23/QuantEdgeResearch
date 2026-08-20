@@ -39,23 +39,23 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
   return (
     <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
       <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">
+        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">
           Early Rotation
         </span>
-        <span className="text-[10px] font-mono text-muted-foreground/70">coiled inside inflows</span>
+        <span className="text-label font-mono text-muted-foreground/70">coiled inside inflows</span>
       </div>
 
       {isLoading ? (
-        <div className="flex h-28 items-center justify-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+        <div className="flex h-28 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> screening…
         </div>
       ) : isError || !data ? (
-        <div className="px-5 py-8 text-center text-[11px] leading-relaxed text-muted-foreground/70">
+        <div className="px-5 py-8 text-center text-meta leading-relaxed text-muted-foreground/70">
           Screen unavailable. It will retry automatically.
         </div>
       ) : (
         <>
-          <p className="border-b border-border/30 px-4 py-2.5 text-[12px] leading-relaxed text-foreground/85">
+          <p className="border-b border-border/30 px-4 py-2.5 text-body leading-relaxed text-foreground/85">
             {data.interpretation}
           </p>
 
@@ -67,20 +67,20 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
                   onClick={() => onSelectSymbol?.(c.symbol)}
                   className="flex w-full cursor-pointer items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-foreground/[0.04]"
                 >
-                  <span className="w-7 shrink-0 pt-0.5 text-[11px] font-mono font-bold tabular-nums"
+                  <span className="w-7 shrink-0 pt-0.5 text-meta font-mono font-bold tabular-nums"
                         style={{ color: c.coiled === 'strong' ? TC.warn : TC.info }}>
                     {c.score}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline gap-2">
-                      <span className="text-[12px] font-mono font-bold tracking-wider text-foreground">{c.symbol}</span>
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{c.sector}</span>
-                      <span className="ml-auto text-[10px] font-mono tabular-nums"
+                      <span className="text-body font-mono font-bold tracking-wider text-foreground">{c.symbol}</span>
+                      <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{c.sector}</span>
+                      <span className="ml-auto text-label font-mono tabular-nums"
                             style={{ color: c.changePct >= 0 ? TC.bull : TC.bear }}>
                         {c.changePct >= 0 ? '+' : ''}{c.changePct.toFixed(1)}% today
                       </span>
                     </span>
-                    <span className="mt-0.5 block text-[10px] font-mono text-muted-foreground/70">
+                    <span className="mt-0.5 block text-label font-mono text-muted-foreground/70">
                       {c.coiled === 'strong' ? 'tightly coiled' : 'coiling'}
                       {c.distanceToBreakoutPct != null && ` · ${c.distanceToBreakoutPct.toFixed(1)}% to the ceiling`}
                     </span>
@@ -101,7 +101,7 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
             </div>
           )}
 
-          <p className="border-t border-border/30 px-4 py-2 text-[10px] leading-relaxed text-muted-foreground/70">
+          <p className="border-t border-border/30 px-4 py-2 text-label leading-relaxed text-muted-foreground/70">
             These are setups, not entries — the range still has to break. Ranked by room left,
             not by what has already moved.
           </p>

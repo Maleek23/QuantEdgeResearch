@@ -24,14 +24,14 @@ import { QETabs } from '@/components/ui/qe';
 import { COCKPIT_MODES, matchesMode, type CockpitMode } from '@/components/hunt/cockpit/cockpit-modes';
 
 import { TickerLogo } from '@/components/hunt/cockpit/ticker-logo';
-import { ConvictionGauge } from '@/components/hunt/cockpit/conviction-gauge';
+import { ConfidenceIndex } from '@/components/hunt/cockpit/confidence-index';
 import { SignalChart } from '@/components/hunt/cockpit/signal-chart';
 import { TASummary } from '@/components/hunt/cockpit/ta-summary';
-import { ComponentBars } from '@/components/hunt/cockpit/component-bars';
+import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { KeyLevels } from '@/components/hunt/cockpit/key-levels';
 import { SignalRow } from '@/components/hunt/cockpit/signal-row';
 import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
-import { OracleOptionPicker } from '@/components/signal-card/OracleOptionPicker';
+import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { PriceLadder, ContextPanel, ProfitPlan, TradeGeometry, RiskReward, PositionSize, geometryFor } from '@/components/oracle/signal-detail';
 import { EpochChart } from '@/components/charting/epoch-chart';
 import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
@@ -544,7 +544,7 @@ export default function HuntCockpit() {
             {/* CONTRACT ENGINE — the actionable trade. Renders its own QE-styled
                 card (same chrome as everything else now). */}
             {(selected.direction === 'long' || selected.direction === 'short') && (
-              <OracleOptionPicker
+              <ContractEngine
                 key={selected.ideaId}
                 autoLoad
                 symbol={selected.symbol}
@@ -593,7 +593,7 @@ export default function HuntCockpit() {
         {selected && (
           <aside ref={railRef} className="space-y-3 lg:sticky lg:top-3 self-start">
             <CockpitCard title="Confidence Index" meta={<span className="text-[var(--brand-cyan)]">Live</span>}>
-              <ConvictionGauge
+              <ConfidenceIndex
                 score={convictionPercent(selected.convictionScore)}
                 tone={tone}
                 tierLabel={tierLabel(selected)}
@@ -602,7 +602,7 @@ export default function HuntCockpit() {
             </CockpitCard>
 
             <CockpitCard title="Signal Components">
-              <ComponentBars layers={selected.layers} />
+              <SignalComponents layers={selected.layers} />
             </CockpitCard>
 
             <PositionSize pick={selected} live={livePx} />

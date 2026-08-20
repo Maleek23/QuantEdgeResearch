@@ -61,44 +61,44 @@ export function SignalRow({
       {/* line 1 — who, which way, P&L, age */}
       <div className="flex items-center gap-2">
         <TickerLogo symbol={pick.symbol} size="sm" />
-        <span className="text-[13px] font-mono font-bold tracking-wider text-foreground">{pick.symbol}</span>
-        <span className="rounded border px-1 py-px text-[10px] font-mono font-bold tracking-wider"
+        <span className="text-value font-mono font-bold tracking-wider text-foreground">{pick.symbol}</span>
+        <span className="rounded border px-1 py-px text-label font-mono font-bold tracking-wider"
               style={{ color, borderColor: `${color}55`, background: `${color}14` }}>
           {pick.direction === 'long' ? '▲' : '▼'} {dirWord}
         </span>
 
-        <span className="ml-auto text-[11px] font-mono font-bold tabular-nums" style={{ color: pnlColor(g.pnlPct) }}>
+        <span className="ml-auto text-meta font-mono font-bold tabular-nums" style={{ color: pnlColor(g.pnlPct) }}>
           {g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(1)}% P&L
         </span>
-        <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70">
+        <span className="text-label font-mono tabular-nums text-muted-foreground/70">
           {g.daysHeld < 1 ? '<1d' : `${Math.round(g.daysHeld)}d`}
         </span>
       </div>
 
       {/* line 2 — status + rating with its arrow */}
       <div className="mt-1.5 flex items-center gap-2">
-        <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: closed ? TC.muted : statusColor(g.status) }}>
+        <span className="text-label font-mono uppercase tracking-wider" style={{ color: closed ? TC.muted : statusColor(g.status) }}>
           {closed ? 'CLOSED' : g.statusLabel}
         </span>
-        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">
           {pick.holdingPeriod} · R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}
         </span>
 
         <span className="ml-auto flex items-baseline gap-1">
-          <span className="text-[15px] font-mono font-bold leading-none tabular-nums" style={{ color: confidenceFill(conf) }}>{conf}</span>
+          <span className="text-lead font-mono font-bold leading-none tabular-nums" style={{ color: confidenceFill(conf) }}>{conf}</span>
           {arrow && (
-            <span className="text-[10px] font-mono font-bold tabular-nums" style={{ color: arrowColor }}
+            <span className="text-label font-mono font-bold tabular-nums" style={{ color: arrowColor }}
                   title={`Rating ${rating.direction === 'up' ? 'up' : 'down'} ${Math.abs(rating.delta)} since first seen ${rating.hoursTracked < 1 ? 'under an hour' : `${Math.round(rating.hoursTracked)}h`} ago`}>
               {arrow}{Math.abs(rating.delta)}
             </span>
           )}
         </span>
-        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{tierLabel(pick)}</span>
+        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{tierLabel(pick)}</span>
       </div>
 
       {/* line 3 — progress toward T1 (structural: cyan, not green) */}
       <div className="mt-2">
-        <div className="mb-0.5 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+        <div className="mb-0.5 flex items-center justify-between text-label font-mono uppercase tracking-wider text-muted-foreground/70">
           <span>T1</span>
           <span>{g.progressPct.toFixed(0)}% to T1</span>
         </div>
@@ -109,7 +109,7 @@ export function SignalRow({
 
       {/* line 4 — time budget + drawdown */}
       <div className="mt-1.5">
-        <div className="mb-0.5 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+        <div className="mb-0.5 flex items-center justify-between text-label font-mono uppercase tracking-wider text-muted-foreground/70">
           <span>Hold</span>
           <span>
             {g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/{g.horizonDays}d

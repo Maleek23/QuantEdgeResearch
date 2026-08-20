@@ -16,7 +16,7 @@ import { TradeTimeline } from './TradeTimeline';
 import { SignalComponents } from './SignalComponents';
 import { TradeGeometry } from './TradeGeometry';
 import { OracleOptionTracker } from './OracleOptionTracker';
-import { OracleOptionPicker } from './OracleOptionPicker';
+import { ContractEngine } from './ContractEngine';
 
 export function SignalCard({ signal, size = 'standard', onClick, onPushTrade }: SignalCardProps) {
   if (size === 'mini') return <SignalCardMini signal={signal} onClick={onClick} />;
@@ -214,7 +214,7 @@ function SignalCardStandard({ signal, onClick, onPushTrade }: SignalCardProps) {
 
       {/* 3-tier contract selector — on-demand, live engine pick */}
       <div className="mt-2">
-        <OracleOptionPicker
+        <ContractEngine
           symbol={signal.symbol}
           direction={signal.direction}
           entry={signal.entry}

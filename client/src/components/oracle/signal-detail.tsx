@@ -54,8 +54,8 @@ function Card({ title, meta, children, className }: { title: string; meta?: Reac
   return (
     <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
       <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
-        {meta && <span className="text-[10px] font-mono text-muted-foreground/60">{meta}</span>}
+        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
+        {meta && <span className="text-label font-mono text-muted-foreground/60">{meta}</span>}
       </div>
       {children}
     </div>
@@ -95,15 +95,15 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
                 )}
               </span>
 
-              <span className="w-12 shrink-0 text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: c }}>
+              <span className="w-12 shrink-0 text-label font-mono font-bold uppercase tracking-wider" style={{ color: c }}>
                 {l.label}
               </span>
 
-              <span className="text-[13px] font-mono font-bold tabular-nums text-foreground">
+              <span className="text-value font-mono font-bold tabular-nums text-foreground">
                 ${money(l.price)}
               </span>
 
-              <span className="ml-auto text-right text-[10px] font-mono tabular-nums">
+              <span className="ml-auto text-right text-label font-mono tabular-nums">
                 {isLive ? (
                   <span style={{ color: g.pnlPct >= 0 ? BULL : BEAR }}>
                     {g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(2)}% P&L
@@ -156,10 +156,10 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
       title="Confidence Index"
       meta={
         <span className="flex items-baseline gap-1">
-          <span className="text-[13px] font-bold tabular-nums" style={{ color: TC.info }}>{setup}</span>
+          <span className="text-value font-bold tabular-nums" style={{ color: TC.info }}>{setup}</span>
           {arrow && (
             <span
-              className="text-[10px] font-mono font-bold tabular-nums"
+              className="text-label font-mono font-bold tabular-nums"
               style={{ color: rating.direction === 'up' ? TC.bull : TC.bear }}
               title={`Rating ${rating.direction} ${Math.abs(rating.delta)} pts since first seen ${rating.hoursTracked < 1 ? 'under an hour' : `${Math.round(rating.hoursTracked)}h`} ago`}
             >
@@ -171,7 +171,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
       className={className}
     >
       <div className="px-4 py-3 space-y-2.5">
-        <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
+        <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">
           {pick.convictionBand}-band · {bandStrength(pick.convictionBand)} · {pick.layerCount ?? pick.layers?.length ?? 0} layers
         </div>
         {/* how the score was built */}
@@ -180,14 +180,14 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
           className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2 transition-colors hover:bg-foreground/[0.06]"
           aria-expanded={showMath}
         >
-          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+          <span className="text-label font-mono uppercase tracking-widest text-muted-foreground/70">
             How this score was built
           </span>
           <span className="flex items-baseline gap-1.5 font-mono tabular-nums">
-            <span className="text-[11px]" style={{ color: TC.bull }}>+{plus}</span>
-            {minus < 0 && <span className="text-[11px]" style={{ color: TC.bear }}>{minus}</span>}
-            <span className="text-[10px] text-muted-foreground/70">= {pick.convictionScore}</span>
-            <span className="text-[10px] text-muted-foreground/70">{showMath ? '▲' : '▼'}</span>
+            <span className="text-meta" style={{ color: TC.bull }}>+{plus}</span>
+            {minus < 0 && <span className="text-meta" style={{ color: TC.bear }}>{minus}</span>}
+            <span className="text-label text-muted-foreground/70">= {pick.convictionScore}</span>
+            <span className="text-label text-muted-foreground/70">{showMath ? '▲' : '▼'}</span>
           </span>
         </button>
 
@@ -200,7 +200,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
           >
             {helped.length > 0 && (
               <div>
-                <div className="mb-1 text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.bull }}>
+                <div className="mb-1 text-label font-mono uppercase tracking-widest" style={{ color: TC.bull }}>
                   Supporting · +{plus}
                 </div>
                 <div className="space-y-1">
@@ -210,7 +210,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
             )}
             {hurt.length > 0 && (
               <div>
-                <div className="mb-1 text-[10px] font-mono uppercase tracking-widest" style={{ color: TC.bear }}>
+                <div className="mb-1 text-label font-mono uppercase tracking-widest" style={{ color: TC.bear }}>
                   Working against · {minus}
                 </div>
                 <div className="space-y-1">
@@ -218,7 +218,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
                 </div>
               </div>
             )}
-            <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+            <p className="text-label leading-relaxed text-muted-foreground/70">
               {hurt.length === 0
                 ? 'Nothing is currently arguing against this setup.'
                 : `${hurt.length} layer${hurt.length > 1 ? 's are' : ' is'} arguing against it — read those before sizing up.`}
@@ -229,8 +229,8 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
         {g.components.map((c) => (
           <div key={c.key}>
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{c.label}</span>
-              <span className="text-[10px] font-mono tabular-nums" style={{ color: healthColor(c.value) }}>{c.value}</span>
+              <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{c.label}</span>
+              <span className="text-label font-mono tabular-nums" style={{ color: healthColor(c.value) }}>{c.value}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-foreground/8">
               <motion.div className="h-full rounded-full"
@@ -238,7 +238,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
                 initial={reduce ? false : { width: 0 }} animate={{ width: `${c.value}%` }}
                 transition={{ duration: DUR.slow, ease: EASE }} />
             </div>
-            <div className="mt-0.5 text-[10px] font-mono text-muted-foreground/70">{c.why}</div>
+            <div className="mt-0.5 text-label font-mono text-muted-foreground/70">{c.why}</div>
           </div>
         ))}
       </div>
@@ -252,8 +252,8 @@ export function TradeGeometry({ pick, live, className }: { pick: ConvictionPick;
   const g = geometryFor(pick, live);
   const row = (label: string, value: string, color?: string) => (
     <div key={label} className="flex items-baseline justify-between gap-2">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">{label}</span>
-      <span className="text-[11px] font-mono tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</span>
+      <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">{label}</span>
+      <span className="text-meta font-mono tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</span>
     </div>
   );
   const byKey = (k: Level['key']) => g.levels.find((l) => l.key === k);
@@ -276,24 +276,24 @@ export function RiskReward({ pick, live, className }: { pick: ConvictionPick; li
     <Card title="Risk / Reward" meta="at entry" className={className}>
       <div className="px-4 py-3">
         <div className="mb-2 flex items-baseline gap-1">
-          <span className="text-[26px] font-mono font-bold leading-none tabular-nums" style={{ color: CYAN }}>{g.rr.toFixed(2)}</span>
-          <span className="text-[12px] font-mono text-muted-foreground/60">: 1</span>
+          <span className="text-mega font-mono font-bold leading-none tabular-nums" style={{ color: CYAN }}>{g.rr.toFixed(2)}</span>
+          <span className="text-body font-mono text-muted-foreground/60">: 1</span>
         </div>
         <div className="flex h-1.5 overflow-hidden rounded-full">
           <div style={{ width: `${riskShare}%`, background: BEAR }} />
           <div style={{ width: `${100 - riskShare}%`, background: CYAN }} />
         </div>
-        <div className="mt-1 flex justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+        <div className="mt-1 flex justify-between text-label font-mono uppercase tracking-wider text-muted-foreground/70">
           <span>◀ risk</span><span>reward ▶</span>
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Risk to stop</div>
-            <div className="text-[12px] font-mono font-bold tabular-nums" style={{ color: BEAR }}>−${g.risk.toFixed(2)}</div>
+            <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Risk to stop</div>
+            <div className="text-body font-mono font-bold tabular-nums" style={{ color: BEAR }}>−${g.risk.toFixed(2)}</div>
           </div>
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Reward to T1</div>
-            <div className="text-[12px] font-mono font-bold tabular-nums" style={{ color: BULL }}>+${g.reward.toFixed(2)}</div>
+            <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Reward to T1</div>
+            <div className="text-body font-mono font-bold tabular-nums" style={{ color: BULL }}>+${g.reward.toFixed(2)}</div>
           </div>
         </div>
       </div>
@@ -319,7 +319,7 @@ export function PositionSize({ pick, live, className }: { pick: ConvictionPick; 
   if (!account || g.risk <= 0) {
     return (
       <Card title="Position Size" meta="your account" className={className}>
-        <div className="px-4 py-3 text-[11px] leading-relaxed text-muted-foreground/60">
+        <div className="px-4 py-3 text-meta leading-relaxed text-muted-foreground/60">
           Set your account size and max risk in Settings and every signal will size itself.
         </div>
       </Card>
@@ -336,8 +336,8 @@ export function PositionSize({ pick, live, className }: { pick: ConvictionPick; 
     <Card title="Position Size" meta="your account" className={className}>
       <div className="space-y-2 px-4 py-3">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[24px] font-mono font-bold leading-none tabular-nums" style={{ color: TC.info }}>{shares}</span>
-          <span className="text-[11px] font-mono text-muted-foreground/60">shares</span>
+          <span className="text-hero font-mono font-bold leading-none tabular-nums" style={{ color: TC.info }}>{shares}</span>
+          <span className="text-meta font-mono text-muted-foreground/60">shares</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Mini label="Risking" value={`$${Math.min(riskBudget, shares * g.risk).toFixed(0)}`} color={TC.bear} />
@@ -345,7 +345,7 @@ export function PositionSize({ pick, live, className }: { pick: ConvictionPick; 
           <Mini label="Position cost" value={`$${cost.toFixed(0)}`} />
           <Mini label="Of account" value={`${pctOfAccount.toFixed(1)}%`} color={overAllocated ? TC.bear : undefined} />
         </div>
-        <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+        <p className="text-label leading-relaxed text-muted-foreground/70">
           {overAllocated
             ? `This size costs more than your whole account — the stop is tight relative to price, so scale down or use options.`
             : `Sized so a stop-out costs ${riskPct}% of your $${account.toLocaleString()} account.`}
@@ -359,16 +359,16 @@ function LayerRow({ layer }: { layer: { label?: string; kind?: string; points: n
   const pos = layer.points >= 0;
   return (
     <div className="flex items-start gap-2">
-      <span className="w-7 shrink-0 text-right text-[11px] font-mono font-bold tabular-nums"
+      <span className="w-7 shrink-0 text-right text-meta font-mono font-bold tabular-nums"
             style={{ color: pos ? TC.bull : TC.bear }}>
         {pos ? '+' : ''}{layer.points}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-mono uppercase tracking-wider text-foreground/80">
+        <span className="block text-label font-mono uppercase tracking-wider text-foreground/80">
           {layer.label ?? layer.kind}
         </span>
         {layer.why && (
-          <span className="block text-[10px] leading-relaxed text-muted-foreground/70">{layer.why}</span>
+          <span className="block text-label leading-relaxed text-muted-foreground/70">{layer.why}</span>
         )}
       </span>
     </div>
@@ -378,8 +378,8 @@ function LayerRow({ layer }: { layer: { label?: string; kind?: string; points: n
 function Mini({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="rounded border border-border/40 px-2 py-1">
-      <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
-      <div className="mt-0.5 text-[12px] font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
+      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
+      <div className="mt-0.5 text-body font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
     </div>
   );
 }
@@ -393,12 +393,12 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
       <div className="divide-y divide-border/30">
         {g.plan.map((p) => (
           <div key={p.rung} className="flex items-center gap-3 px-4 py-2.5">
-            <span className="w-6 shrink-0 text-[10px] font-mono font-bold tracking-wider" style={{ color: CYAN }}>{p.rung}</span>
+            <span className="w-6 shrink-0 text-label font-mono font-bold tracking-wider" style={{ color: CYAN }}>{p.rung}</span>
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-mono font-bold tabular-nums text-foreground">${money(p.price)}</div>
-              <div className="text-[10px] font-mono text-muted-foreground/65">{p.action}</div>
+              <div className="text-value font-mono font-bold tabular-nums text-foreground">${money(p.price)}</div>
+              <div className="text-label font-mono text-muted-foreground/65">{p.action}</div>
             </div>
-            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider',
+            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-label font-mono uppercase tracking-wider',
               p.active ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground/70')}>
               {p.active ? 'Active' : 'Pending'}
             </span>
@@ -434,16 +434,16 @@ export function ContextPanel({
   return (
     <Card title="Context" meta="what it means" className={className}>
       <div className="space-y-2 px-4 py-2.5">
-        <p className="text-[12px] leading-snug text-foreground/85">
+        <p className="text-body leading-snug text-foreground/85">
           <span className="font-mono font-bold" style={{ color: pick.direction === 'long' ? BULL : BEAR }}>{dir} {pick.symbol}</span>
           {' '}— {pick.convictionBand}-band ({bandStrength(pick.convictionBand)}), {pick.layerCount ?? pick.layers?.length ?? 0} layers.
           {' '}R:R 1:{g.rr.toFixed(1)}, risking ${g.risk.toFixed(2)} to make ${g.reward.toFixed(2)} per share.
           {aligns !== undefined && regime && <> {regime} regime {aligns ? 'favors' : 'works against'} {pick.direction}s.</>}
         </p>
-        {pick.thesis && <p className="text-[11px] leading-relaxed text-muted-foreground/75">{pick.thesis}</p>}
+        {pick.thesis && <p className="text-meta leading-relaxed text-muted-foreground/75">{pick.thesis}</p>}
         <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
-          <div className="mb-0.5 text-[10px] font-mono uppercase tracking-widest" style={{ color: CYAN }}>What to do now</div>
-          <div className="text-[11px] font-mono text-foreground/85">{todo}</div>
+          <div className="mb-0.5 text-label font-mono uppercase tracking-widest" style={{ color: CYAN }}>What to do now</div>
+          <div className="text-meta font-mono text-foreground/85">{todo}</div>
         </div>
       </div>
     </Card>

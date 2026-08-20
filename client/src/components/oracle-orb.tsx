@@ -109,8 +109,8 @@ export function OracleOrb({ className }: { className?: string }) {
   return (
     <div className={cn("rounded-xl border border-card-border bg-card overflow-hidden", className)}>
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground/80">Oracle</span>
-        <span className="text-[10px] font-mono text-muted-foreground/60">Market regime</span>
+        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Oracle</span>
+        <span className="text-label font-mono text-muted-foreground/60">Market regime</span>
       </div>
 
       {/* Horizontal, not stacked. The orb was a tall column of mostly padding in a row
@@ -140,7 +140,7 @@ export function OracleOrb({ className }: { className?: string }) {
             animate={reduce ? {} : { scale: [1, 1.05, 1] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           >
-            <span className="text-[12px] font-mono font-bold tracking-widest text-white" style={{ textShadow: "0 1px 6px rgba(0,0,0,.45)" }}>
+            <span className="text-body font-mono font-bold tracking-widest text-white" style={{ textShadow: "0 1px 6px rgba(0,0,0,.45)" }}>
               {r.label.split("-")[0]}
             </span>
           </motion.span>
@@ -149,16 +149,16 @@ export function OracleOrb({ className }: { className?: string }) {
         {/* regime + the per-class read share ONE column beside the sphere. Previously the
             class grid was a flex SIBLING of this text, so the two overlapped. */}
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-mono font-bold tracking-widest" style={{ color: r.color, transition: "color 400ms ease" }}>
+          <div className="text-lead font-mono font-bold tracking-widest" style={{ color: r.color, transition: "color 400ms ease" }}>
             {r.label}
           </div>
-          <div className="mt-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+          <div className="mt-0.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70">
             {r.sub} · SPY {spy >= 0 ? "+" : ""}{spy.toFixed(2)}%{data?.isStale ? ` · ${data.sessionLabel} · stale` : ""}
           </div>
 
           {known.length > 0 && (
             <div className="mt-2 border-t border-border/30 pt-1.5">
-              <div className="mb-1 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+              <div className="mb-1 flex items-center justify-between text-label font-mono uppercase tracking-wider text-muted-foreground/70">
                 <span>By asset class</span>
                 <span>
                   <span style={{ color: TC.bull }}>{bullCount} bull</span>
@@ -169,18 +169,18 @@ export function OracleOrb({ className }: { className?: string }) {
               <div className="grid grid-cols-1 gap-x-3 gap-y-0.5">
               {classReads.map((c) => (
                 <div key={c.key} className="flex items-baseline justify-between gap-2">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/65">{c.label}</span>
+                  <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/65">{c.label}</span>
                   {c.stance ? (
                     <span className="flex items-baseline gap-1.5">
-                      <span className="text-[10px] font-mono tabular-nums text-muted-foreground/70">
+                      <span className="text-label font-mono tabular-nums text-muted-foreground/70">
                         {c.changePct! >= 0 ? "+" : ""}{c.changePct!.toFixed(2)}%
                       </span>
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: c.stance.color }}>
+                      <span className="text-label font-mono font-bold uppercase tracking-wider" style={{ color: c.stance.color }}>
                         {c.stance.label}
                       </span>
                     </span>
                   ) : (
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">—</span>
+                    <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">—</span>
                   )}
                   </div>
                 ))}
@@ -198,11 +198,11 @@ export function OracleOrb({ className }: { className?: string }) {
         {ext && (
           <div className="border-t border-border/30 pt-2">
             <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+              <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">
                 {ext.session === 'pre' ? 'Pre-market' : ext.session === 'post' ? 'After-hours'
                   : ext.session === 'regular' ? 'Live session' : 'Overnight'}
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider"
+              <span className="inline-flex items-center gap-1.5 text-label font-mono uppercase tracking-wider"
                     style={{ color: ext.session === 'regular' ? TC.bull : ext.session === 'closed' ? TC.muted : TC.warn }}>
                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
                 {ext.session === 'closed' ? 'closed' : 'open'}
@@ -210,12 +210,12 @@ export function OracleOrb({ className }: { className?: string }) {
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1">
               {(ext.gainers ?? []).slice(0, 3).map((g) => (
-                <span key={g.symbol} className="text-[10px] font-mono tabular-nums" style={{ color: TC.bull }}>
+                <span key={g.symbol} className="text-label font-mono tabular-nums" style={{ color: TC.bull }}>
                   {g.symbol} +{g.changePct.toFixed(1)}%
                 </span>
               ))}
               {(ext.losers ?? []).slice(0, 2).map((l) => (
-                <span key={l.symbol} className="text-[10px] font-mono tabular-nums" style={{ color: TC.bear }}>
+                <span key={l.symbol} className="text-label font-mono tabular-nums" style={{ color: TC.bear }}>
                   {l.symbol} {l.changePct.toFixed(1)}%
                 </span>
               ))}
@@ -224,7 +224,7 @@ export function OracleOrb({ className }: { className?: string }) {
         )}
 
         {data?.headline && (
-          <p className="border-t border-border/30 pt-2 text-[10px] font-mono leading-snug text-muted-foreground/70">
+          <p className="border-t border-border/30 pt-2 text-label font-mono leading-snug text-muted-foreground/70">
             {data.headline}
           </p>
         )}
