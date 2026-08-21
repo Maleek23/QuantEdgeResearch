@@ -178,6 +178,29 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
     logger.warn('[QUANT-BOT] signal alerts failed:', err);
   }
 
+  // OPEX awareness. An IWM $296P was held into monthly expiration and settled
+  // worthless because nothing in the cycle knew the date mattered. Contracts
+  // expiring INTO the monthly are flagged before the roll/exit passes run, so the
+  // decision is made with the calendar in view rather than after the fact.
+  try {
+    const { getOpexContext } = await import('@shared/opex-calendar');
+    const opex = getOpexContext();
+    if (opex.isOpexDay || opex.isOpexWeek) {
+      const open = await getOpenPositions(portfolio.id);
+      const atRisk = open.filter(
+        (p: any) => p.assetType === 'option' && p.expiryDate && String(p.expiryDate).slice(0, 10) <= opex.thisMonth,
+      );
+      if (atRisk.length) {
+        logger.warn(
+          `[QUANT-BOT] ${opex.label}: ${atRisk.length} position(s) expire on or before ${opex.thisMonth} — ` +
+          atRisk.map((p: any) => `${p.symbol} $${p.strikePrice}${String(p.optionType)[0].toUpperCase()}`).join(', '),
+        );
+      }
+    }
+  } catch (err) {
+    logger.warn('[QUANT-BOT] opex check failed:', err);
+  }
+
   // 3.5 — gap magnets. A static stop and target cannot see that the underlying has
   // a high-confidence unfilled gap sitting below a position that is well in profit.
   // MARA ran to +159% with a gap 12.4% under it on a name that has filled 100% of

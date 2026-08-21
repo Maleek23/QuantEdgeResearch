@@ -109,8 +109,23 @@ export function OracleOrb({ className }: { className?: string }) {
   const bullCount = known.filter((c) => c.stance!.label === "BULLISH").length;
   const bearCount = known.filter((c) => c.stance!.label === "BEARISH").length;
 
-  const spy = data?.spyChange ?? 0;
+  // The regime MUST be computed from the same equities number this panel displays.
+  // It previously read spyChange from one endpoint while the asset-class row read
+  // SPY from another, so the card could say "RISK-OFF · SPY −1.34%" directly above
+  // "EQUITIES +0.44% BULLISH" — the same fact, two sources, opposite conclusions,
+  // presented as one coherent read. Whatever the row shows is now what the orb
+  // judges, and spyChange is only a fallback for when the class read is missing.
+  const equitiesRead = classReads.find((c) => c.key === 'equities')?.changePct;
+  const spy = equitiesRead ?? data?.spyChange ?? 0;
   const r = regimeOf(spy);
+
+  // "3 bull · 0 bear" beside a RISK-OFF orb still reads as a contradiction even
+  // when both are technically right: the orb is a single-asset call and the tally
+  // is a breadth call. When they point opposite ways, say so rather than letting
+  // the reader reconcile it.
+  const toneConflict = known.length >= 3 && (
+    (spy < -0.3 && bullCount > bearCount) || (spy > 0.3 && bearCount > bullCount)
+  );
 
   return (
     <PanelFrame
@@ -162,8 +177,14 @@ export function OracleOrb({ className }: { className?: string }) {
             {r.label}
           </div>
           <div className="mt-0.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70">
-            {r.sub} · SPY {spy >= 0 ? "+" : ""}{spy.toFixed(2)}%{data?.isStale ? ` · ${data.sessionLabel} · stale` : ""}
+            {r.sub} · Equities {spy >= 0 ? "+" : ""}{spy.toFixed(2)}%{data?.isStale ? ` · ${data.sessionLabel} · stale` : ""}
           </div>
+          {toneConflict && (
+            <div className="ui-prose mt-1 text-label leading-snug" style={{ color: TC.warn }}>
+              Equities and the wider tape disagree — {bullCount} of {known.length} classes are
+              {spy < 0 ? ' green while the index is red' : ' red while the index is green'}. Breadth is not confirming the index.
+            </div>
+          )}
 
           {known.length > 0 && (
             <div className="mt-2 border-t border-border/30 pt-1.5">

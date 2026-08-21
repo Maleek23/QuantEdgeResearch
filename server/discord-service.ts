@@ -567,6 +567,13 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
 function resolveTradeWebhook(idea: TradeIdea): string | undefined {
   const assetTypeStr = String(idea.assetType || 'stock');
   const ideaSource = (idea as any).source || '';
+
+  // Board signals go to their own channel. Checked FIRST: routing them by asset
+  // type scattered them across the options and futures channels alongside manual
+  // pushes, so there was no single place to watch what the board actually said.
+  if (ideaSource === 'oracle-signal' && process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS) {
+    return process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS;
+  }
   const isSPXPlay = ideaSource === 'orb_scanner' || ideaSource === 'spx_session' ||
     (['SPX', 'SPY', 'SPXW'].includes(idea.symbol) && assetTypeStr === 'option');
   if (isSPXPlay && process.env.DISCORD_WEBHOOK_SPX) return process.env.DISCORD_WEBHOOK_SPX;
@@ -1704,7 +1711,9 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
   }
   
   // Premium options alerts go to OPTIONSTRADES channel, not QUANTFLOOR
-  const webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  // Bot fills are a separate stream from hand-pushed option trades — mixing them
+  // makes it impossible to tell what the bot did on its own.
+  const webhookUrl = process.env.DISCORD_WEBHOOK_BOT_ENTRIES || process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   
   try {

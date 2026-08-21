@@ -16,6 +16,7 @@ import { PanelFrame } from '@/components/oracle/panel-frame';
 import { TC } from '@/lib/oracle/trading-colors';
 import { DivergingBar, ParticipationStrip, robustMax } from '@/components/viz';
 
+import { getOpexContext } from '@shared/opex-calendar';
 interface LeaderName { symbol: string; changePct: number; isMega?: boolean }
 interface SectorStrength {
   key: string; label: string; medianChangePct: number; breadthPct: number;
@@ -50,6 +51,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
   // content is why expanding it didn't reveal what you'd expect. Render everything;
   // PanelFrame owns the height.
 
+  const opex = getOpexContext();
   const sectors = data?.sectors ?? [];
   // Shared scale so every bar is comparable — but robust, not the raw max. One
   // outlier group (crypto routinely runs 10x the rest) was setting the axis and
@@ -89,6 +91,22 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
         </div>
       ) : (
         <>
+          {/* Expiration context sits ABOVE the interpretation. A monthly OPEX changes
+              how every option on the board behaves, and the platform used to say
+              nothing — an IWM put was held into one and settled worthless with no
+              warning that the date mattered. */}
+          {opex.label && (
+            <div
+              className="border-b border-border/30 px-4 py-2"
+              style={{ background: `color-mix(in srgb, ${TC.warn} 8%, transparent)` }}
+            >
+              <div className="text-label ui-eyebrow" style={{ color: TC.warn }}>{opex.label}</div>
+              {opex.note && (
+                <p className="ui-prose mt-1 text-label leading-snug text-muted-foreground">{opex.note}</p>
+              )}
+            </div>
+          )}
+
           {data?.interpretation && (
             <p className="ui-prose border-b border-border/30 px-4 py-2 text-body leading-snug text-foreground/85"
                title={data.interpretation}>
