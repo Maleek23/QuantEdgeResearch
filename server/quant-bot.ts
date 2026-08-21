@@ -304,8 +304,44 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         return p.direction === 'long' ? live <= p.stopLoss : live >= p.stopLoss;
       };
 
+      // THE DAY IS A FILTER TOO. The board grades setups; nothing graded the tape,
+      // so the bot would buy a conviction-30 call into a thin, negative-gamma OPEX
+      // session and lose on direction, vol and chop at once — none of which the
+      // setup's score knows about. Sitting in cash is a position, and this is the
+      // only place the bot can take it.
+      let tapeGate: { verdict: string; headline: string } | null = null;
+      try {
+        const { getTapeConditions } = await import('./tape-conditions');
+        const tape = await getTapeConditions();
+        tapeGate = { verdict: tape.verdict, headline: tape.headline };
+
+        if (tape.verdict === 'sit_out') {
+          logger.warn(`[QUANT-BOT] SIT OUT (tape ${tape.score}) — no entries this cycle. ${tape.headline}`);
+          tape.signals.filter((x) => x.points < 0).forEach((x) => logger.warn(`  ${x.label}: ${x.detail}`));
+          skipped += (board.picks ?? []).length;
+          // openCount is computed after this block, so count the book directly.
+          const held = await getOpenPositions(portfolio.id);
+          return {
+            ranAt, portfolioId: portfolio.id, opened, closed,
+            skipped, openCount: held.length, gapWatch,
+          };
+        }
+      } catch (err) {
+        // A missing tape read must not stop the bot trading — it just loses the gate.
+        logger.warn('[QUANT-BOT] tape read failed, proceeding without the gate:', err);
+      }
+
+      // On a SELECTIVE tape only take what is genuinely strong. The threshold moves
+      // with conditions rather than the bot pretending every day is the same.
+      const minConviction = tapeGate?.verdict === 'selective'
+        ? Math.max(cfg.minConviction, 26)
+        : cfg.minConviction;
+      if (minConviction !== cfg.minConviction) {
+        logger.info(`[QUANT-BOT] selective tape — conviction floor raised ${cfg.minConviction} -> ${minConviction}`);
+      }
+
       const candidates = (board.picks ?? [])
-        .filter((p) => p.convictionScore >= cfg.minConviction)
+        .filter((p) => p.convictionScore >= minConviction)
         .filter((p) => !heldSymbols.has(p.symbol))
         .filter((p) => {
           if (!triggered(p)) { skipped++; return false; }          // pending trigger

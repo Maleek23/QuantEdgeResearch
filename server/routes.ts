@@ -13953,6 +13953,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── TAPE — is today a day to be buying premium at all? ─────────────────────
+  // The board grades setups; this grades the DAY. A good setup bought into a
+  // thin, negative-gamma, high-vol session loses on direction, vol and chop at
+  // once, and none of that is visible in the setup's own score.
+  app.get("/api/tape", async (_req, res) => {
+    try {
+      const { getTapeConditions } = await import("./tape-conditions");
+      const tape = await getTapeConditions();
+      res.json({
+        ...tape,
+        _meta: {
+          note:
+            "Verdicts are deliberately blunt — TRADE, SELECTIVE, SIT OUT — because a nuanced score gets rationalised away at 9:31am. Thresholds are asymmetric on purpose: sitting out a good day costs an opportunity, trading a bad one costs money. The bot uses this as a hard gate on entries and raises its conviction floor on a selective tape.",
+        },
+      });
+    } catch (error) {
+      logger.error("Tape conditions error:", error);
+      res.status(500).json({ error: "Failed to read tape conditions" });
+    }
+  });
+
   // ── GAP SCAN — where the magnets are, across the whole universe ────────────
   // Ranked on EVIDENCE rather than gap size: a name with an open gap is only
   // interesting when it has a history of filling them. Sector ETFs are scanned as
