@@ -92,7 +92,7 @@ export function TrackRecord({ className }: { className?: string }) {
             {expPositive ? '+' : ''}{o.expectancy.toFixed(2)}%
           </span>
         </div>
-        <p className="mt-1 text-label font-mono leading-snug text-muted-foreground">
+        <p className="mt-1 ui-prose text-label leading-snug text-muted-foreground">
           {expPositive
             ? `A ${o.winRate.toFixed(1)}% hit rate paying ${payoff ? payoff.toFixed(2) : '—'}:1 nets out positive before costs. Commissions and slippage come out of this.`
             : `A ${o.winRate.toFixed(1)}% hit rate paying ${payoff ? payoff.toFixed(2) : '—'}:1 does not cover its losers. This is before commissions and slippage, which make it worse.`}
@@ -119,7 +119,7 @@ export function TrackRecord({ className }: { className?: string }) {
           <Legend color={TC.bear} label="losses" value={o.losses} />
           <Legend color={TC.muted} label="neutral" value={o.neutral} />
         </div>
-        <p className="mt-2 text-label font-mono leading-snug text-muted-foreground">
+        <p className="mt-2 ui-prose text-label leading-snug text-muted-foreground">
           Neutral = expired, manually exited, or moved less than 3% either way. They are
           excluded from the win rate but shown here, because a rate quoted on the decided
           subset alone reads far better than the record actually is.
@@ -160,7 +160,7 @@ export function TrackRecord({ className }: { className?: string }) {
                     />
                   </div>
                   {bad && (
-                    <div className="mt-1 text-label font-mono leading-snug" style={{ color: TC.warn }}>
+                    <div className="mt-1 ui-prose text-label leading-snug" style={{ color: TC.warn }}>
                       Most of these expire before hitting a target or a stop — the window is
                       short relative to the {h.avgTargetPct != null ? `${h.avgTargetPct}% ` : ''}move being asked for,
                       so the win rate above is computed on a small fraction of them.

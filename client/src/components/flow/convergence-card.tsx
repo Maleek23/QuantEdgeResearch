@@ -143,7 +143,7 @@ export function ConvergenceCard({ className }: { className?: string }) {
           convergence unavailable
         </div>
       ) : signals.length === 0 ? (
-        <div className="px-4 py-8 text-center text-label font-mono leading-relaxed text-muted-foreground">
+        <div className="px-4 py-8 text-center ui-prose text-label leading-relaxed text-muted-foreground">
           No symbol currently has both a directional flow lean and a readable gamma regime.
         </div>
       ) : (
@@ -186,7 +186,7 @@ export function ConvergenceCard({ className }: { className?: string }) {
                   <FlipAxis spot={s.spotPrice} flip={s.gexFlipPoint} bias={s.gexBias} />
                 </div>
 
-                <div className="mt-1 text-label font-mono leading-snug text-muted-foreground">{s.reasoning}</div>
+                <div className="mt-1 ui-prose text-label leading-snug text-muted-foreground">{s.reasoning}</div>
               </motion.button>
             );
           })}

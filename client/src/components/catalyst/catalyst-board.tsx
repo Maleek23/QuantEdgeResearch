@@ -242,7 +242,7 @@ export function CatalystBoard() {
       )}
 
       {data._meta?.note && (
-        <p className="px-1 text-label font-mono leading-relaxed text-muted-foreground">{data._meta.note}</p>
+        <p className="px-1 ui-prose text-label leading-relaxed text-muted-foreground">{data._meta.note}</p>
       )}
     </div>
   );

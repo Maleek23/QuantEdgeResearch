@@ -55,7 +55,7 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
         </div>
       ) : (
         <>
-          <p className="border-b border-border/30 px-4 py-2.5 text-body leading-relaxed text-foreground/85">
+          <p className="ui-prose border-b border-border/30 px-4 py-2.5 text-body leading-relaxed text-foreground/85">
             {data.interpretation}
           </p>
 
@@ -112,7 +112,7 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
             </>
           )}
 
-          <p className="border-t border-border/30 px-4 py-2 text-label leading-relaxed text-muted-foreground">
+          <p className="ui-prose border-t border-border/30 px-4 py-2 text-label leading-relaxed text-muted-foreground">
             These are setups, not entries — the range still has to break, and most of these
             will never produce a graded signal. Ranked by room left, not by what has already moved.
           </p>

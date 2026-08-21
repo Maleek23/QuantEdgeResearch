@@ -151,7 +151,7 @@ export function ContractValuePanel({
       {v.notes.length > 0 && (
         <ul className="space-y-0.5 pt-0.5">
           {v.notes.slice(0, 3).map((n, i) => (
-            <li key={i} className="text-label font-mono leading-snug text-muted-foreground">· {n}</li>
+            <li key={i} className="ui-prose text-label leading-snug text-muted-foreground">· {n}</li>
           ))}
         </ul>
       )}

@@ -137,13 +137,30 @@ export default {
        *   mega   26  — the one number a card exists to show
        */
       fontSize: {
-        label: ['10px', { lineHeight: '1.35' }],
-        meta:  ['11px', { lineHeight: '1.4'  }],
-        body:  ['12px', { lineHeight: '1.55' }],
-        value: ['13px', { lineHeight: '1.3'  }],
-        lead:  ['15px', { lineHeight: '1.25' }],
-        hero:  ['20px', { lineHeight: '1.15' }],
-        mega:  ['26px', { lineHeight: '1.05' }],
+        /**
+         * ROLE-NAMED TYPE SCALE.
+         *
+         * The previous scale ran 10 / 11 / 12 / 13 / 15 / 20 / 26. Four of its seven
+         * steps sat within 3px of each other, which the eye cannot separate — so a
+         * label, a caption, a sentence and a price all landed at effectively the same
+         * size, and no amount of careful usage could build hierarchy out of it. The
+         * page had one volume because the scale only had one.
+         *
+         * This one steps at roughly 1.2x and never repeats a size. Adjacent roles are
+         * now visibly different, which is the entire job of a scale. Sizes also rise
+         * across the board: 10px grey-on-black was illegible in practice.
+         *
+         * Tracking is set per role rather than per usage — small uppercase needs
+         * opening up, large display type needs tightening, and doing that inline was
+         * how 1,279 scattered `uppercase` declarations happened.
+         */
+        label: ['11px', { lineHeight: '1.45', letterSpacing: '0.06em' }],  /* eyebrows, captions */
+        meta:  ['13px', { lineHeight: '1.45', letterSpacing: '0.02em' }],  /* secondary text */
+        body:  ['15px', { lineHeight: '1.6'  }],                           /* prose — reads at arm's length */
+        value: ['17px', { lineHeight: '1.25', letterSpacing: '-0.01em' }], /* data readouts */
+        lead:  ['21px', { lineHeight: '1.2',  letterSpacing: '-0.015em' }],/* panel headline number */
+        hero:  ['30px', { lineHeight: '1.1',  letterSpacing: '-0.02em' }],
+        mega:  ['44px', { lineHeight: '1.02', letterSpacing: '-0.03em' }],
       },
       /** Density steps for a data-dense surface — tighter than Tailwind's defaults. */
       spacing: {

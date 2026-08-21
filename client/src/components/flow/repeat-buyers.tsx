@@ -112,7 +112,7 @@ export function RepeatBuyers({ className }: { className?: string }) {
           it describes past positioning, and the rows alone cannot say which. */}
       {data && (!data.coverage.current || !data.coverage.sufficient) && (
         <div
-          className="border-b border-border/30 px-4 py-2 text-label font-mono leading-snug"
+          className="border-b border-border/30 px-4 py-2 ui-prose text-label leading-snug"
           style={{ color: TC.warn, background: `color-mix(in srgb, ${TC.warn} 8%, transparent)` }}
         >
           {data.coverage.note}
@@ -128,7 +128,7 @@ export function RepeatBuyers({ className }: { className?: string }) {
           repeat flow unavailable
         </div>
       ) : data.contracts.length === 0 ? (
-        <div className="px-4 py-8 text-center text-label font-mono leading-relaxed text-muted-foreground">
+        <div className="px-4 py-8 text-center ui-prose text-label leading-relaxed text-muted-foreground">
           {mode === 'buyers'
             ? 'No contract has been bought on more than one captured session yet.'
             : 'No large position has been closed down across the captured sessions. Contracts near expiry are excluded — open interest collapses there regardless of conviction.'}
@@ -166,7 +166,7 @@ export function RepeatBuyers({ className }: { className?: string }) {
                   <OiGrowth from={c.days[0].openInterest} to={c.days[c.days.length - 1].openInterest} />
                 </div>
 
-                <div className="mt-1 text-label font-mono leading-snug text-muted-foreground">{c.why}</div>
+                <div className="mt-1 ui-prose text-label leading-snug text-muted-foreground">{c.why}</div>
               </motion.button>
             );
           })}

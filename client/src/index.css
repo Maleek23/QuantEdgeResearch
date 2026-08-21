@@ -2032,3 +2032,43 @@ button:not([disabled]):active,
     }
   }
 }
+/* ─────────────────────────────────────────────────────────────────────────
+   TYPE ROLES — which face does what.
+
+   The UI had 2,941 `font-mono` declarations, so every sentence, label and
+   heading was set in a typeface designed for columns of digits. Mono is
+   excellent at making numbers align and terrible at carrying a sentence: the
+   even widths that let a price column line up are the same widths that stop
+   word-shapes forming, which is why a paragraph of it reads as a wall.
+
+   Three roles, and the rule is simply which one a thing IS:
+     .ui-data     numbers, tickers, anything that benefits from aligning
+     .ui-eyebrow  a section's name — small, tracked, quiet
+     .ui-prose    language meant to be read as language
+
+   IBM Plex Sans is already loaded and was going entirely unused.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.ui-data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+.ui-eyebrow {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-weight: 600;
+}
+
+/* Prose sets in the sans face at a normal case. Sentence case is not a style
+   preference here: ALL-CAPS removes ascenders and descenders, which are the
+   cues used to recognise a word without reading it letter by letter. Fine for
+   a three-word label, punishing for an explanation. */
+.ui-prose {
+  font-family: var(--font-sans);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}

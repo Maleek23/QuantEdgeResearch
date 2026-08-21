@@ -90,7 +90,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
       ) : (
         <>
           {data?.interpretation && (
-            <p className="border-b border-border/30 px-4 py-2 text-body leading-snug text-foreground/85"
+            <p className="ui-prose border-b border-border/30 px-4 py-2 text-body leading-snug text-foreground/85"
                title={data.interpretation}>
               {data.interpretation}
             </p>
@@ -132,7 +132,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
               </div>
             )}
 
-            <p className="mt-3 text-label leading-relaxed text-muted-foreground">
+            <p className="ui-prose mt-3 text-label leading-relaxed text-muted-foreground">
               Trade continuation in the leaders, or look for reversals in the laggards. Confirm on the
               chart before acting — leadership says where to look, not what to buy.
             </p>
