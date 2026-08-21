@@ -13953,6 +13953,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── ENTRY TIMING — when to act, decided on the ticker's own clock ──────────
+  // The board says WHAT, the tape gate says WHETHER, this says WHEN. It never
+  // says buy; it says whether the clock is with you or against you on this name.
+  app.get("/api/ticker/:symbol/timing", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || "").trim().toUpperCase();
+      if (!symbol) return res.status(400).json({ error: "symbol required" });
+
+      const { evaluateEntryTiming } = await import("./entry-timing");
+      const { yahooChart } = await import("./yahoo-client");
+
+      const j = await yahooChart(symbol, { range: "2y", interval: "1d" });
+      const result = j?.chart?.result?.[0];
+      const q = result?.indicators?.quote?.[0];
+      if (!result || !q) return res.status(404).json({ error: `No price history for ${symbol}` });
+
+      const bars = (result.timestamp || [])
+        .map((t: number, i: number) => ({
+          time: t, open: q.open?.[i], high: q.high?.[i], low: q.low?.[i], close: q.close?.[i],
+        }))
+        .filter((b: any) => [b.open, b.high, b.low, b.close].every((v: any) => Number.isFinite(v)));
+
+      res.json({
+        symbol,
+        ...evaluateEntryTiming(bars, symbol),
+        _meta: {
+          note:
+            "Decided from this ticker's own overnight/intraday split over two years, not a general rule. A name that earns its return between the close and the open is one where an intraday round trip fights the structure regardless of how good the read was.",
+        },
+      });
+    } catch (error) {
+      logger.error("Entry timing error:", error);
+      res.status(500).json({ error: "Failed to evaluate entry timing" });
+    }
+  });
+
   // ── TAPE — is today a day to be buying premium at all? ─────────────────────
   // The board grades setups; this grades the DAY. A good setup bought into a
   // thin, negative-gamma, high-vol session loses on direction, vol and chop at
