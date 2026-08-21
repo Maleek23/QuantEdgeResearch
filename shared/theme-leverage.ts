@@ -53,6 +53,15 @@ export interface LeverageResult {
   /** Which side the driver's own trend makes this a candidate for. */
   side: 'long' | 'short' | 'none';
   /**
+   * Is the gap to the driver WIDENING or closing? This is what separates a name
+   * that has merely lagged from one that is genuinely decoupling.
+   */
+  residualTrend: 'widening' | 'converging' | 'flat';
+  /** True when the name is RISING against a falling driver, and pulling away. */
+  decoupling: boolean;
+  /** True when a rising driver is leaving this name behind — explicitly not a long. */
+  breakingDown: boolean;
+  /**
    * Composite 0-100, and it only means something WITH `side`. High = tracks the
    * driver, carries real torque, and has not yet delivered the move the driver
    * has already made.
@@ -144,14 +153,70 @@ export function measureLeverage(
       : 0;
     const lag = Math.min(1, dislocation / 30);
 
+    // Is the residual widening or closing? Walk the cumulative gap and regress it
+    // on time. A LAGGARD's gap is stable or closing — it will catch up, so fade
+    // it. A DECOUPLER's gap widens — the relationship is breaking down and the
+    // name is going its own way, which is the "most of crypto struggled, this one
+    // stood out" setup and is a reason to be WITH it, not against it. Without
+    // this the two are arithmetically identical and get opposite treatment.
+    const gapSeries: number[] = [];
+    {
+      let cd = 1, cc = 1;
+      const dr = dRet.slice(-n), cr = cRet.slice(-n);
+      for (let t = 0; t < n; t++) {
+        cd *= 1 + dr[t];
+        cc *= 1 + cr[t];
+        gapSeries.push((cc - 1) * 100 - (cd - 1) * 100 * beta);
+      }
+    }
+    const half = Math.floor(gapSeries.length / 2);
+    const gapEarly = gapSeries.slice(0, half).reduce((s2, v) => s2 + v, 0) / Math.max(1, half);
+    const gapLate = gapSeries.slice(half).reduce((s2, v) => s2 + v, 0) / Math.max(1, gapSeries.length - half);
+    const gapDelta = Math.abs(gapLate) - Math.abs(gapEarly);
+    const residualTrend: LeverageResult['residualTrend'] =
+      gapDelta > 3 ? 'widening' : gapDelta < -3 ? 'converging' : 'flat';
+
+    // Holding up against a falling driver, and pulling further away as it falls.
+    // DECOUPLING requires the name to be genuinely going the other way, not merely
+    // falling more slowly. A miner down 6.8% while gold is down 12% is still a
+    // miner going down; calling that a long because it "outperformed" is how you
+    // buy the best-looking thing in a bear market. The Hyperliquid shape — most
+    // of the sector struggling while ONE name rises — needs actual strength.
+    const decoupling =
+      tracks && driverMovePct < 0 && residualPct > 8
+      && residualTrend === 'widening' && actualMovePct > 0;
+
+    // And the mirror image, which is the same error pointed the other way: a
+    // WIDENING negative gap against a RISING driver is a name breaking down, not
+    // a laggard about to catch up. MSTR down 3.6% while its driver rose 19.5%,
+    // gap widening, was scoring as the top long. A catch-up trade is a bet on
+    // convergence, so it may only be taken when the gap is actually converging.
+    const breakingDown = tracks && driverMovePct > 0 && residualPct < -8 && residualTrend === 'widening';
+
     // Tracking now outweighs raw torque; a levered name you cannot rely on to
     // follow the driver is not a levered play on the driver.
-    const catchUpScore = side === 'none'
+    const catchUpScore = side === 'none' || breakingDown
       ? 0
-      : Math.round((r2 * 0.45 + torque * 0.2 + lag * 0.35) * 100);
+      : decoupling
+        // Scored on the strength of the divergence from its sector, not on
+        // unspent move — there is no reversion being bet on here.
+        ? Math.round((r2 * 0.3 + torque * 0.15 + Math.min(1, residualPct / 40) * 0.55) * 100)
+        // A catch-up is a bet on convergence, so a widening gap forfeits it.
+        : residualTrend === 'widening'
+          ? Math.round((r2 * 0.45 + torque * 0.2) * 100 * 0.4)
+          : Math.round((r2 * 0.45 + torque * 0.2 + lag * 0.35) * 100);
+
 
     const read = !tracks
       ? `Does not track the driver (R² ${r2.toFixed(2)}). A ${beta.toFixed(1)}x beta here is unrelated volatility, not leverage.`
+      : breakingDown
+        ? `Driver ${driverMovePct.toFixed(0)}% and rising, but this did ${actualMovePct.toFixed(0)}% and the gap is `
+          + `WIDENING. This is not a laggard waiting to catch up — the relationship is breaking down and it is `
+          + `being left behind. Not a long.`
+      : decoupling
+        ? `Driver ${driverMovePct.toFixed(0)}% and falling, but this did ${actualMovePct.toFixed(0)}% against `
+          + `${impliedMovePct.toFixed(0)}% implied and the gap is WIDENING. Not a laggard — it is decoupling. `
+          + `Relative strength against its own sector is a reason to be with it, not to fade it.`
       : side === 'none'
         ? `Tracks at ${beta.toFixed(1)}x, but the driver has only moved ${driverMovePct.toFixed(1)}% — `
           + `there is no trend to be levered to yet.`
@@ -170,7 +235,9 @@ export function measureLeverage(
       actualMovePct: Math.round(actualMovePct * 10) / 10,
       impliedMovePct: Math.round(impliedMovePct * 10) / 10,
       residualPct: Math.round(residualPct * 10) / 10,
-      side, catchUpScore, read,
+      side: decoupling ? 'long' : side,
+      residualTrend, decoupling, breakingDown,
+      catchUpScore, read,
     });
   }
 
