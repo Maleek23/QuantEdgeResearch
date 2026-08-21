@@ -172,8 +172,21 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
   // the same expensive thing on its own schedule and drift out of step with it.
   try {
     const { alertNewSignals } = await import('./signal-alerts');
-    const conv = await (await import('./convictions-engine')).peekConvictions();
-    if (conv?.data?.picks?.length) await alertNewSignals(conv.data.picks as any);
+    // peekConvictions() is a CACHE-ONLY read that returns null on a cold cache and
+    // never computes. Using it here meant alerts fired only if a human had loaded
+    // the Oracle page in this same process since the last restart — otherwise this
+    // block silently did nothing, with no error and no log. Signals scored 92 and
+    // were never announced anywhere. getCachedConvictions() builds on a miss.
+    const { getCachedConvictions } = await import('./convictions-engine');
+    const board = await getCachedConvictions();
+    const picks = board?.picks ?? [];
+    if (picks.length) {
+      const sent = await alertNewSignals(picks as any);
+      logger.info(`[QUANT-BOT] board has ${picks.length} pick(s); announced ${sent}`);
+    } else {
+      // Silence has to be loud. An empty board is a real condition worth seeing.
+      logger.warn('[QUANT-BOT] conviction board returned 0 picks — nothing to announce');
+    }
   } catch (err) {
     logger.warn('[QUANT-BOT] signal alerts failed:', err);
   }

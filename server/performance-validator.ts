@@ -1,5 +1,6 @@
 import { TradeIdea, FuturesContract } from "@shared/schema";
 import { format } from "date-fns";
+import { resolveBarriers } from '@shared/barrier-resolution';
 import { formatInTimeZone } from "date-fns-tz";
 import { CANONICAL_LOSS_THRESHOLD } from "@shared/constants";
 
@@ -990,11 +991,18 @@ export class PerformanceValidator {
     // This catches targets that were hit intraday but reversed by EOD
     // For LONG trades: Check if highest price reached >= target
     // For SHORT trades: Check if lowest price reached <= target
-    const targetHit = directionForValidation === 'long'
-      ? highestPrice >= idea.targetPrice
-      : lowestPrice <= idea.targetPrice;
+    // Both barriers are decided in ONE place by ONE rule, and any tie we cannot
+    // order goes to the stop. Previously target was tested first and won every
+    // both-touched case by evaluation order alone. See shared/barrier-resolution.ts.
+    const barrier = resolveBarriers({
+      direction: directionForValidation as 'long' | 'short',
+      target: idea.targetPrice,
+      stop: idea.stopLoss,
+      highest: highestPrice,
+      lowest: lowestPrice,
+    });
 
-    if (targetHit) {
+    if (barrier.outcome === 'hit_target') {
       const percentGain = this.calculatePercentGain(
         directionForValidation,
         idea.entryPrice,
@@ -1044,55 +1052,20 @@ export class PerformanceValidator {
     // 🎯 CRITICAL FIX: Check INTRADAY highs/lows for stops too
     // For LONG trades: Check if lowest price reached <= stop
     // For SHORT trades: Check if highest price reached >= stop
-    const stopHit = directionForValidation === 'long'
-      ? lowestPrice <= idea.stopLoss
-      : highestPrice >= idea.stopLoss;
-
-    if (stopHit) {
+    if (barrier.outcome === 'hit_stop') {
       const percentGain = this.calculatePercentGain(
         directionForValidation,
         idea.entryPrice,
         idea.stopLoss
       );
       
-      // 🎯 MINIMUM LOSS THRESHOLD CHECK
-      // If loss is below threshold (e.g., -0.1%, -0.4%), treat as breakeven/expired
-      // This prevents noise-level stop-outs from counting as real losses
-      const absLoss = Math.abs(percentGain);
-      if (absLoss < CANONICAL_LOSS_THRESHOLD) {
-        console.log(`📊 [VALIDATION] ${idea.symbol} stop touched but loss too small (${percentGain.toFixed(2)}% < ${CANONICAL_LOSS_THRESHOLD}% threshold) - marking as BREAKEVEN`);
-        
-        const predictionAccurate = this.checkPredictionAccuracy(
-          idea,
-          currentPrice || lowestPrice,
-          highestPrice,
-          lowestPrice
-        );
-        
-        const predictionAccuracyPercent = this.calculatePredictionAccuracyPercent(
-          idea,
-          currentPrice || lowestPrice,
-          highestPrice,
-          lowestPrice
-        );
-        
-        return {
-          shouldUpdate: true,
-          outcomeStatus: 'expired', // Breakeven = expired, not a real loss
-          exitPrice: idea.stopLoss,
-          percentGain,
-          realizedPnL: 0,
-          resolutionReason: 'auto_breakeven', // New resolution reason
-          exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
-          actualHoldingTimeMinutes: holdingTimeMinutes,
-          predictionAccurate,
-          predictionAccuracyPercent,
-          predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
-          highestPriceReached: highestPrice,
-          lowestPriceReached: lowestPrice,
-        };
-      }
-      
+      // The minimum-loss threshold that used to live here rewrote any touched
+      // stop worth less than CANONICAL_LOSS_THRESHOLD (3%) into 'expired'. No
+      // equivalent threshold existed on the target side, so small losses were
+      // erased while small wins counted in full. The B band places its stops
+      // 1.2% from entry — every one of its stop-outs fell under the 3% bar and
+      // vanished, which is the whole of its 47-target / 1-stop record. A touched
+      // barrier is now a touched barrier on both sides.
       // Calculate futures P&L if applicable
       let realizedPnL = 0;
       if (idea.assetType === 'future' && idea.futuresMultiplier && idea.futuresTickSize) {
