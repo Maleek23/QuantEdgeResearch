@@ -97,7 +97,7 @@ export function scoreFlow(p: FlowPrint, opts: { baseline?: number; repeatCount?:
   // 2 · Aggression (max 16)
   if (isSweep) c.push({ label: 'SWEEP', points: 16, why: 'Took liquidity across exchanges — urgency' });
   else if (p.flowType === 'block') c.push({ label: 'BLOCK', points: 9, why: 'Single negotiated block' });
-  else if (p.flowType === 'dark_pool') c.push({ label: 'DARK POOL', points: 7, why: 'Off-exchange print' });
+  else if (p.flowType === 'dark_pool') c.push({ label: 'HIGH SCORE', points: 7, why: 'Legacy bucket — not an off-exchange print' });
 
   // 3 · Repeats (max 14)
   if (isRepeat) c.push({ label: 'REPEATER', points: 14, why: `${repeatCount} hits on this contract — conviction` });

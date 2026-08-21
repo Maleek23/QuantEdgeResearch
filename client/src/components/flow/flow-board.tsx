@@ -15,6 +15,8 @@ import { FlowCard } from './flow-card';
 import {
   scoreFlow, baselinesBySymbol, repeatCounts, contractKey, WHALE_PREMIUM, type FlowPrint,
 } from '@/lib/flow/flow-score';
+import { RepeatBuyers } from './repeat-buyers';
+import { ConvergenceCard } from './convergence-card';
 
 const CYAN = 'var(--brand-cyan,#22d3ee)';
 const BULL = 'var(--trade-bullish,#22c55e)';
@@ -137,6 +139,17 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
 
   return (
     <div className="space-y-3 px-4 py-3">
+      {/* Repeat buyers sit ABOVE the tape. A single large print is ambiguous — it
+          can be a hedge, a roll, a spread leg, or a close — but the same contract
+          accumulated across sessions is the one flow read that is hard to explain
+          away, so it should not be something you scroll to find. */}
+      <div className="grid items-start gap-3 lg:grid-cols-2">
+        <RepeatBuyers />
+        {/* Flow alone is a candidate; gamma is what says whether the move gets
+            amplified or absorbed. Side by side, because that is the order he uses. */}
+        <ConvergenceCard />
+      </div>
+
       {/* ── market overview: where the day's premium went ── */}
       <div className="rounded-xl border border-card-border bg-card">
         <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
