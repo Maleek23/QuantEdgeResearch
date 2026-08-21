@@ -78,7 +78,29 @@ function pctReturns(v: number[]): number[] {
   return out;
 }
 
-/** OLS slope and R² of y on x. */
+/**
+ * Below this return standard deviation a series carries no usable variation and
+ * any regression on it is noise amplified by division. The case that matters is
+ * not a genuinely calm stock — it is a STALE FEED. Repeated prices from a frozen
+ * quote produce near-zero variance, and this platform has had frozen prices, so
+ * the failure is live rather than theoretical. Guarding on `sxx === 0` did not
+ * catch it: a variance of 2e-33 is not zero, and it sailed through to produce a
+ * confident, meaningless beta.
+ */
+export const MIN_RETURN_STDDEV = 1e-5;
+
+/** Fraction of consecutive bars allowed to repeat before a series is called stale. */
+export const MAX_REPEAT_FRAC = 0.5;
+
+/** True when a series looks frozen rather than merely quiet. */
+export function isStale(v: number[]): boolean {
+  if (v.length < 5) return true;
+  let repeats = 0;
+  for (let i = 1; i < v.length; i++) if (v[i] === v[i - 1]) repeats++;
+  return repeats / (v.length - 1) > MAX_REPEAT_FRAC;
+}
+
+/** OLS slope and R² of y on x. Rejects degenerate inputs rather than fitting them. */
 function regress(x: number[], y: number[]): { beta: number; r2: number } {
   const n = Math.min(x.length, y.length);
   if (n < 20) return { beta: NaN, r2: NaN };
@@ -91,7 +113,9 @@ function regress(x: number[], y: number[]): { beta: number; r2: number } {
     const dx = xs[i] - mx, dy = ys[i] - my;
     sxy += dx * dy; sxx += dx * dx; syy += dy * dy;
   }
-  if (sxx === 0 || syy === 0) return { beta: NaN, r2: NaN };
+  // Reject on standard deviation, not on exact zero — see MIN_RETURN_STDDEV.
+  const sdx = Math.sqrt(sxx / n), sdy = Math.sqrt(syy / n);
+  if (!(sdx > MIN_RETURN_STDDEV) || !(sdy > MIN_RETURN_STDDEV)) return { beta: NaN, r2: NaN };
   const beta = sxy / sxx;
   const r = sxy / Math.sqrt(sxx * syy);
   return { beta, r2: r * r };
@@ -108,7 +132,9 @@ export function measureLeverage(
   candidates: LeverageInput[],
 ): LeverageResult[] {
   const dRet = pctReturns(driverCloses);
-  if (dRet.length < 20) return [];
+  // A frozen driver cannot be levered to, and quietly returning betas against one
+  // is worse than returning nothing.
+  if (dRet.length < 20 || isStale(driverCloses)) return [];
 
   const driverMovePct =
     driverCloses[0] > 0
@@ -120,7 +146,7 @@ export function measureLeverage(
   for (const c of candidates) {
     const cRet = pctReturns(c.closes);
     const n = Math.min(dRet.length, cRet.length);
-    if (n < 20) continue;
+    if (n < 20 || isStale(c.closes)) continue;
 
     const { beta, r2 } = regress(dRet.slice(-n), cRet.slice(-n));
     if (!Number.isFinite(beta) || !Number.isFinite(r2)) continue;

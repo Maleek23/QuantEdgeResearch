@@ -100,8 +100,21 @@ export function pivotHighs(bars: Bar[], k = 3): number[] {
   return idx;
 }
 
-/** Ignore pivots further apart than this — they are not the same swing. */
-export const MAX_PIVOT_SPAN = 60;
+/**
+ * Ignore pivots further apart than this — they are not the same swing.
+ *
+ * This is measured in BARS, which means it says something different on every
+ * timeframe: 60 bars is about nine sessions of hourly data but roughly three
+ * months of daily, where ordinary swings run longer than that. Hardcoded at 60
+ * it silently discarded valid daily divergences — an audit caught it dropping a
+ * textbook one (lower low 87.40 -> 84.50 against RSI 0.0 -> 4.5) purely because
+ * the pivots sat 62 bars apart.
+ *
+ * The default is now generous and callers scanning short intervals should pass
+ * something tighter. A dropped signal that never appears is worse than a loose
+ * one you can score down.
+ */
+export const MAX_PIVOT_SPAN = 120;
 /** And closer than this, where it is just noise. */
 export const MIN_PIVOT_SPAN = 5;
 
@@ -118,7 +131,12 @@ function score(priceSepPct: number, momGap: number, barsSince: number): number {
  * Regular bullish: price lower low, momentum higher low  — sellers exhausting.
  * Regular bearish: price higher high, momentum lower high — buyers exhausting.
  */
-export function findDivergences(bars: Bar[], k = 3, rsiPeriod = 14): Divergence[] {
+export function findDivergences(
+  bars: Bar[],
+  k = 3,
+  rsiPeriod = 14,
+  maxSpan = MAX_PIVOT_SPAN,
+): Divergence[] {
   if (bars.length < rsiPeriod + k * 2 + 5) return [];
   const closes = bars.map((b) => b.close);
   const mom = rsi(closes, rsiPeriod);
@@ -129,7 +147,7 @@ export function findDivergences(bars: Bar[], k = 3, rsiPeriod = 14): Divergence[
   for (let i = lows.length - 1; i > 0; i--) {
     const b = lows[i], a = lows[i - 1];
     const span = b - a;
-    if (span < MIN_PIVOT_SPAN || span > MAX_PIVOT_SPAN) continue;
+    if (span < MIN_PIVOT_SPAN || span > maxSpan) continue;
     if (!Number.isFinite(mom[a]) || !Number.isFinite(mom[b])) continue;
 
     if (bars[b].low < bars[a].low && mom[b] > mom[a]) {
@@ -157,7 +175,7 @@ export function findDivergences(bars: Bar[], k = 3, rsiPeriod = 14): Divergence[
   for (let i = highs.length - 1; i > 0; i--) {
     const b = highs[i], a = highs[i - 1];
     const span = b - a;
-    if (span < MIN_PIVOT_SPAN || span > MAX_PIVOT_SPAN) continue;
+    if (span < MIN_PIVOT_SPAN || span > maxSpan) continue;
     if (!Number.isFinite(mom[a]) || !Number.isFinite(mom[b])) continue;
 
     if (bars[b].high > bars[a].high && mom[b] < mom[a]) {
