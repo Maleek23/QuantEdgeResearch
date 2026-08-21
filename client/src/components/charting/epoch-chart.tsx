@@ -28,6 +28,14 @@ export interface Anchor { time: number; price: number }
 export interface Trendline { id: string; a: Anchor; b: Anchor; color?: string; label?: string }
 export interface PriceLevel { price: number; color?: string; label?: string; dashed?: boolean }
 
+/**
+ * A price BAND rather than a line — used for unfilled gaps, which are regions
+ * where no trading happened, not single levels. Drawing a gap as one line would
+ * misrepresent it: the whole significance of a gap is the width of the untraded
+ * zone, because there are no positions inside it to slow price down.
+ */
+export interface PriceZone { from: number; to: number; color?: string; label?: string }
+
 // Each timeframe carries both the aggregation bucket (demo/base mode) AND the
 // Yahoo (interval, range) pair used to fetch real candles for any ticker (symbol mode).
 // Four timeframes was too narrow to actually work a chart: no intraday scalp view, and
@@ -93,6 +101,7 @@ export function EpochChart({
   base,
   trendlines = [],
   levels = [],
+  zones = [],
   height = 420,
   initialTf = '1h',
   expandable = true,
@@ -105,6 +114,8 @@ export function EpochChart({
   trendlines?: Trendline[];
   /** Horizontal price levels (entry / stop / target etc.). */
   levels?: PriceLevel[];
+  /** Shaded price bands (unfilled gaps). Drawn under the levels. */
+  zones?: PriceZone[];
   height?: number;
   initialTf?: TFId;
   /** Show the expand control. False for the instance already inside the modal. */
@@ -238,6 +249,32 @@ export function EpochChart({
       }
     }
 
+    // shaded zones first, so price levels and labels draw on top of them
+    for (const z of zones) {
+      const yA = series.priceToCoordinate(z.from);
+      const yB = series.priceToCoordinate(z.to);
+      if (yA == null || yB == null) continue;
+      const top = Math.min(yA, yB);
+      const height = Math.abs(yB - yA);
+      const color = z.color ?? '#8b98a8';
+      ctx.fillStyle = `color-mix(in srgb, ${color} 14%, transparent)`;
+      ctx.fillRect(0, top, w, height);
+      // Edges matter more than the fill — the near edge is where price first
+      // interacts with the zone, so outline it rather than relying on a wash.
+      ctx.strokeStyle = `color-mix(in srgb, ${color} 55%, transparent)`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(0, top); ctx.lineTo(w, top);
+      ctx.moveTo(0, top + height); ctx.lineTo(w, top + height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (z.label) {
+        ctx.font = '10px ui-monospace, monospace';
+        ctx.fillStyle = color;
+        ctx.fillText(z.label, 6, top + height / 2 + 3);
+      }
+    }
+
     // horizontal price levels (entry / stop / target)
     for (const lv of levels) {
       const y = series.priceToCoordinate(lv.price);
@@ -253,7 +290,7 @@ export function EpochChart({
         ctx.fillText(lv.label, 6, y - 4);
       }
     }
-  }, [trendlines, levels, tf]);
+  }, [trendlines, levels, zones, tf]);
 
   // keep the latest draw in a ref so the rAF loop never forces a chart rebuild
   const drawRef = useRef(draw);
@@ -402,6 +439,7 @@ export function EpochChart({
                     base={base}
                     trendlines={trendlines}
                     levels={levels}
+                    zones={zones}
                     initialTf={tf}
                     height={Math.max(420, Math.round(window.innerHeight * 0.68))}
                     expandable={false}
