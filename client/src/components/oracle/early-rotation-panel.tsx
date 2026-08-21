@@ -42,7 +42,7 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
         <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">
           Early Rotation
         </span>
-        <span className="text-label font-mono text-muted-foreground/70">coiled inside inflows</span>
+        <span className="text-label font-mono text-muted-foreground">watchlist · not signals</span>
       </div>
 
       {isLoading ? (
@@ -60,6 +60,16 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
           </p>
 
           {data.candidates.length > 0 && (
+            <>
+              {/* The score column was an unlabelled integer next to a ticker, which
+                  reads as a grade — the one thing it is not. Name it, and say what
+                  moves it, before the first row. */}
+              <div className="flex items-center gap-3 border-b border-border/30 px-4 py-1.5">
+                <span className="w-7 shrink-0 text-label font-mono uppercase tracking-wider text-muted-foreground">Ready</span>
+                <span className="text-label font-mono text-muted-foreground">
+                  sector inflow + how tightly it's coiled + how close to the breakout — minus whatever already moved today
+                </span>
+              </div>
             <div className="divide-y divide-border/25">
               {data.candidates.slice(0, 6).map((c) => (
                 <button
@@ -99,11 +109,12 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
                 </button>
               ))}
             </div>
+            </>
           )}
 
-          <p className="border-t border-border/30 px-4 py-2 text-label leading-relaxed text-muted-foreground/70">
-            These are setups, not entries — the range still has to break. Ranked by room left,
-            not by what has already moved.
+          <p className="border-t border-border/30 px-4 py-2 text-label leading-relaxed text-muted-foreground">
+            These are setups, not entries — the range still has to break, and most of these
+            will never produce a graded signal. Ranked by room left, not by what has already moved.
           </p>
         </>
       )}
