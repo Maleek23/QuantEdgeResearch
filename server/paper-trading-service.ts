@@ -517,8 +517,13 @@ async function fetchCurrentPrice(
       });
       
       if (quote) {
-        // Use mid price for most accurate current value, fallback to last
-        const price = quote.mid > 0 ? quote.mid : quote.last;
+        // Mark to BID, not mid. These are long positions and the exit path fills
+        // at the bid (see closePosition), so marking the open book at mid while
+        // closing it at bid overstates every unrealized gain by half the spread.
+        // On the $0.05-$1.00 premium this bot actually trades that is 5-10% of
+        // the position. Open and closed have to be valued by the same rule or the
+        // two halves of the book cannot be compared to each other.
+        const price = quote.bid > 0 ? quote.bid : (quote.mid > 0 ? quote.mid : quote.last);
         if (price > 0) {
           logger.info(`📊 [PAPER] Option price for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${price.toFixed(2)} (bid: $${quote.bid}, ask: $${quote.ask})`);
           return price;
