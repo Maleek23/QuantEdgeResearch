@@ -161,7 +161,7 @@ const SURGE_WATCH_UNIVERSE = [
   
   // Crypto/Mining - Volatility plays
   'COIN', 'MARA', 'RIOT', 'BITF', 'HIVE', 'CLSK', 'WULF', 'CORZ', 'IREN', 'HUT',
-  'BTBT', 'CIFR', 'ARBK', 'GREE', 'MSTR', 'SQ', 'PYPL', 'AFRM', 'NU', 'HOOD',
+  'BTBT', 'CIFR', 'ARBK', 'GREE', 'MSTR', 'XYZ', 'PYPL', 'AFRM', 'NU', 'HOOD',
   
   // EV/Auto - Sector plays
   'TSLA', 'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'FSR', 'GOEV', 'NKLA', 'HYLN',
@@ -177,7 +177,7 @@ const SURGE_WATCH_UNIVERSE = [
   
   // Growth/Tech - FOMO plays
   'SOFI', 'UPST', 'ONDAS', 'ZETA', 'HIMS', 'DOCS', 'TDOC', 'AMWL', 'LVGO', 'CERT',
-  'SMCI', 'DELL', 'HPE', 'PSTG', 'NTAP', 'WDC', 'STX', 'PANW', 'OKTA', 'FTNT',
+  'SMCI', 'DELL', 'HPE', 'NTAP', 'WDC', 'STX', 'PANW', 'OKTA', 'FTNT',
   
   // Biotech/Health - Catalyst plays
   'MRNA', 'BNTX', 'NVAX', 'ARKG', 'XBI', 'SGEN', 'VRTX', 'REGN', 'ILMN', 'EXAS',
@@ -186,7 +186,7 @@ const SURGE_WATCH_UNIVERSE = [
   'SLV', 'PSLV', 'AGI', 'AG', 'PAAS', 'HL', 'EXK', 'MAG', 'FSM', 'WPM', // Silver
   'GLD', 'IAU', 'GDX', 'GDXJ', 'GOLD', 'NEM', 'AEM', 'KGC', 'FNV', 'RGLD', // Gold
   'COPX', 'CPER', 'FCX', 'SCCO', 'TECK', 'RIO', 'BHP', 'VALE', // Copper & Base metals
-  'USO', 'XLE', 'OXY', 'COP', 'DVN', 'PXD', 'EOG', 'FANG', 'HES', 'MRO' // Oil & Energy
+  'USO', 'XLE', 'OXY', 'COP', 'DVN', 'EOG', 'FANG', 'HES', 'MRO' // Oil & Energy
 ];
 
 export async function discoverBreakoutCandidates(): Promise<BreakoutCandidate[]> {
@@ -468,7 +468,7 @@ export async function detectPreBreakout(): Promise<BreakoutCandidate[]> {
     const priorityTickers = [
       'ARM', 'NVDA', 'AMD', 'SMCI', 'AVGO', 'TSM', 'ASML', 'MRVL', 'MU', 'QCOM',
       'RKLB', 'OKLO', 'NNE', 'SMR', 'IONQ', 'PLTR', 'COIN', 'MSTR', 'MARA',
-      'SOFI', 'HOOD', 'UPST', 'AFRM', 'SQ', 'NET', 'CRWD', 'ZS', 'SNOW', 'DDOG'
+      'SOFI', 'HOOD', 'UPST', 'AFRM', 'XYZ', 'NET', 'CRWD', 'ZS', 'SNOW', 'DDOG'
     ];
     
     for (const symbol of priorityTickers) {

@@ -33,6 +33,7 @@ import { SignalRow } from '@/components/hunt/cockpit/signal-row';
 import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
 import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { PriceLadder, ContextPanel, ProfitPlan, TradeGeometry, RiskReward, PositionSize, geometryFor } from '@/components/oracle/signal-detail';
+import { SignalTimingBadge, SignalTimingNotice } from '@/components/oracle/signal-timing-badge';
 import { EpochChart } from '@/components/charting/epoch-chart';
 import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
 import {
@@ -46,6 +47,35 @@ const RANGES = [
   { id: '3mo', label: '1W', range: '3mo', interval: '1d' },
   { id: '6mo', label: '1M', range: '6mo', interval: '1wk' },
 ] as const;
+
+/**
+ * Unfilled gaps for the selected ticker, drawn on the chart as shaded bands.
+ * Untraded zones act as magnets — nobody holds a position inside them, so there
+ * is no supply or demand shelf to slow price down. Cached hard: gaps only change
+ * when a new daily bar prints.
+ */
+function useGapZones(symbol: string) {
+  const { data } = useQuery<{ unfilled: any[]; stats: any } | null>({
+    queryKey: ['/api/gaps', symbol],
+    queryFn: async () => {
+      const r = await fetch(`/api/gaps/${symbol}?range=2y`, { credentials: 'include' });
+      if (!r.ok) return null;
+      return r.json();
+    },
+    staleTime: 60 * 60_000,
+    retry: 0,
+    enabled: !!symbol,
+  });
+
+  const zones = (data?.unfilled ?? []).slice(0, 3).map((g: any) => ({
+    from: Math.min(g.from, g.to),
+    to: Math.max(g.from, g.to),
+    color: g.direction === 'up' ? '#22c55e' : '#ef4444',
+    label: `GAP ${g.distancePct >= 0 ? '+' : ''}${Number(g.distancePct).toFixed(1)}%`,
+  }));
+
+  return { zones, stats: data?.stats ?? null };
+}
 
 export default function HuntCockpit() {
   const [, setLocation] = useLocation();
@@ -206,7 +236,9 @@ export default function HuntCockpit() {
     const now = Date.now();
     try { localStorage.setItem(SEEN_KEY, new Date(now).toISOString()); } catch { /* private mode */ }
     setBaselineSeen(now);
-    setNewOnly(false);
+    // Marking everything seen drops newCount to 0, so leaving the stream on 'new'
+    // would strand the user on an empty list. Fall back to the default ranking.
+    setStreamFilter('conviction');
   };
   useEffect(() => () => {
     try { localStorage.setItem(SEEN_KEY, new Date().toISOString()); } catch { /* private mode */ }
@@ -237,6 +269,9 @@ export default function HuntCockpit() {
 
   const selected: ConvictionPick | undefined =
     shown.find((p) => p.ideaId === selectedId) ?? shown[0] ?? picks[0];
+
+  // Unfilled gaps for the selected ticker — drawn as bands on the chart below.
+  const { zones: gapZones } = useGapZones(selected?.symbol ?? '');
 
   // Live quote for the selected ticker's header price.
   const { data: quote } = useQuery<{ price: number; change: number; changePct: number }>({
@@ -488,8 +523,13 @@ export default function HuntCockpit() {
                         {selected.holdingPeriod}
                       </span>
                     </div>
-                    <div className="text-[11px] font-mono text-muted-foreground/60 capitalize mt-0.5 truncate">
-                      {selected.sector}{selected.optionType ? ` · ${selected.optionType.toUpperCase()}${selected.strikePrice ? ` $${selected.strikePrice}` : ''}` : ''}
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <span className="text-meta font-mono text-muted-foreground capitalize truncate">
+                        {selected.sector}{selected.optionType ? ` · ${selected.optionType.toUpperCase()}${selected.strikePrice ? ` $${selected.strikePrice}` : ''}` : ''}
+                      </span>
+                      {/* When it fired matters as much as what it says — a call published
+                          at 4:00pm ET can't be filled until the next open. */}
+                      <SignalTimingBadge generatedAt={selected.generatedAt} showCaveat={false} />
                     </div>
                   </div>
                 </div>
@@ -508,12 +548,17 @@ export default function HuntCockpit() {
                 </div>
               </div>
 
+              {/* Say it plainly before the user sizes a position off an entry the market
+                  has already left behind. Renders nothing when the signal is clean. */}
+              <SignalTimingNotice generatedAt={selected.generatedAt} />
+
               {/* THE CHART is the focus of the analysis — prominent, right under the header.
                   One universal EpochChart (epoch-anchored, any ticker) with entry/stop/target. */}
               <EpochChart
                 symbol={selected.symbol}
                 initialTf="1D"
                 height={340}
+                zones={gapZones}
                 levels={[
                   { price: selected.entryPrice, color: '#22d3ee', label: 'ENTRY' },
                   { price: selected.stopLoss, color: '#ef4444', label: 'STOP', dashed: true },

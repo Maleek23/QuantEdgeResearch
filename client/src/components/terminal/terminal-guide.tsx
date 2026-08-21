@@ -9,7 +9,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { EASE, DUR } from '@/lib/motion';
 
-export type TabId = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism';
+export type TabId = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism' | 'catalyst' | 'bot';
 
 interface Guide {
   title: string;
@@ -76,6 +76,31 @@ export const GUIDES: Record<TabId, Guide> = {
       'Check SPY here for overall market direction before committing to a single-name trade.',
     ],
     next: 'Bring the chosen strike back to ORACLE’s Contract Engine to size the trade.',
+  },
+  catalyst: {
+    title: 'Catalyst Guide',
+    question: 'Does the calendar agree with the call?',
+    read: [
+      'This page joins our tracked events to the signals we publish — it is not a news feed to browse.',
+      'CONFLICTS lead on purpose: these are signals whose events point AGAINST the direction we called. Read the thesis again before sizing.',
+      'BINARY EVENT RISK means a coin-flip (earnings) lands before the trade is meant to be done. It is not directional — it argues for a smaller position or waiting.',
+      'CONFLUENCE is the calendar agreeing with the setup. It reinforces a thesis; it never creates one on its own.',
+      'UNCLAIMED are strong catalysts on tickers with no live signal — the watchlist for what to look at next.',
+      'An empty section means no TRACKED event landed inside the horizon. It does not mean no catalyst exists.',
+    ],
+    next: 'Click any row to load that ticker, then go to ORACLE to read the full setup.',
+  },
+  bot: {
+    title: 'Bot Guide',
+    question: 'What would these signals have done?',
+    read: [
+      'The bot paper-trades the board’s own published signals in OPTIONS, using the same strikes the Contract Engine picks.',
+      'Every fill and every mark is a real quote pulled at that moment — nothing is simulated or back-filled.',
+      'Marks come from the CBOE delayed chain, so open P&L is roughly 15 minutes behind. It is a fair mark, not an execution price.',
+      'Win rate stays blank until positions actually close. A number before then would be made up.',
+      'Open positions re-price on each cycle; expired contracts settle at intrinsic value.',
+    ],
+    next: 'Compare the bot’s entries against ORACLE — they are the same signals, so divergence means something broke.',
   },
 };
 

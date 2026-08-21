@@ -9488,6 +9488,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const performanceStatsCache = new Map<string, { data: any; timestamp: number }>();
   const PERF_STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   
+  // ── TRACK RECORD BY HORIZON ───────────────────────────────────────────────
+  // The headline expectancy hides the actual problem. Day-horizon signals resolve
+  // (0-31% expire); swing-horizon signals do not (80-89% expire) regardless of
+  // conviction band. That is a horizon-calibration issue, not a signal-quality one,
+  // and averaging the two together makes it invisible.
+  app.get("/api/performance/by-horizon", async (_req, res) => {
+    try {
+      const rows: any = await db.execute(sql`
+        select
+          coalesce(holding_period, 'unspecified') as horizon,
+          count(*) n,
+          count(*) filter (where outcome_status = 'hit_target') tgt,
+          count(*) filter (where outcome_status = 'hit_stop')   stp,
+          count(*) filter (where outcome_status = 'expired')    exp,
+          round(avg(abs(target_price - entry_price) / nullif(entry_price, 0) * 100)::numeric, 1) avg_target_pct
+        from trade_ideas
+        where outcome_status in ('hit_target','hit_stop','expired')
+          and entry_price > 0
+        group by 1
+        having count(*) >= 5
+        order by count(*) desc
+      `);
+
+      const horizons = (rows.rows ?? rows).map((r: any) => {
+        const tgt = Number(r.tgt), stp = Number(r.stp), exp = Number(r.exp), n = Number(r.n);
+        const decided = tgt + stp;
+        return {
+          horizon: r.horizon,
+          total: n,
+          hitTarget: tgt,
+          hitStop: stp,
+          expired: exp,
+          expiredPct: n ? Math.round((exp / n) * 100) : 0,
+          // Rate on DECIDED only, with the expired count carried alongside so the
+          // number can't be read without seeing how much it excludes.
+          decided,
+          winRateDecided: decided ? Math.round((tgt / decided) * 1000) / 10 : null,
+          avgTargetPct: r.avg_target_pct != null ? Number(r.avg_target_pct) : null,
+        };
+      });
+
+      res.json({
+        horizons,
+        _meta: {
+          note:
+            "winRateDecided counts only trades that tagged a target or a stop. Read it next to expiredPct: a horizon that expires 89% of the time has a win rate computed on a tenth of its signals, which says more about the evaluation window than about the edge.",
+        },
+      });
+    } catch (error) {
+      logger.error("Horizon performance error:", error);
+      res.status(500).json({ error: "Failed to compute horizon breakdown" });
+    }
+  });
+
   app.get("/api/performance/stats", async (req, res) => {
     try {
       const now = Date.now();
@@ -13616,6 +13670,469 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── REPEAT BUYERS — the same contract accumulated across sessions ──────────
+  // The strongest read available from flow: one large print is ambiguous (hedge,
+  // roll, spread leg, or a close), but the SAME strike and expiry being added to
+  // day after day is somebody building a position whose thesis survived another
+  // session. Ranked on open-interest growth, not premium — see server/repeat-flow.ts.
+  app.get("/api/flow/repeats", async (req, res) => {
+    try {
+      const minDays = Math.max(2, Math.min(10, Number(req.query.minDays) || 2));
+      const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 40));
+      const { getRepeatFlow } = await import("./repeat-flow");
+      const report = await getRepeatFlow(minDays, limit);
+      res.json({
+        ...report,
+        _meta: {
+          note:
+            "Ranked by open-interest growth, never by premium. Our flow rows are end-of-day chain aggregates, so premium is everything traded at that strike that day, not a single order — it cannot tell accumulation from churn. Open interest can: rising OI means contracts were opened and HELD. Check coverage.current before trusting these as today's positioning.",
+        },
+      });
+    } catch (error) {
+      logger.error("Repeat flow error:", error);
+      res.status(500).json({ error: "Failed to compute repeat flow" });
+    }
+  });
+
+  // ── LEVEL HIT-RATE — do "lit up" gamma levels actually get traded to? ──────
+  // The walkthrough asserts "the ones that are lit up have the higher chances of
+  // hitting". That is a measurable claim, so this measures it against the ticker's
+  // own archived snapshots instead of restating it. Empty until GEX history
+  // accumulates — the archiver runs hourly during market hours.
+  app.get("/api/gex/level-hits/:symbol", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || "").trim().toUpperCase();
+      if (!symbol) return res.status(400).json({ error: "symbol required" });
+
+      const { getLevelHitRate } = await import("./level-hit-rate");
+      const { rateLimited } = await import("./provider-cache");
+
+      const chart: any = await rateLimited("yahoo", 1200, async () => {
+        for (const host of ["query2", "query1"]) {
+          const r = await fetch(
+            `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?range=1y&interval=1d`,
+            { headers: { "User-Agent": "Mozilla/5.0" } },
+          );
+          if (r.ok) return r.json();
+        }
+        return null;
+      });
+      const result = chart?.chart?.result?.[0];
+      const q = result?.indicators?.quote?.[0];
+      const bars = (result?.timestamp || [])
+        .map((t: number, i: number) => ({ time: t, high: q?.high?.[i], low: q?.low?.[i] }))
+        .filter((b: any) => Number.isFinite(b.high) && Number.isFinite(b.low));
+
+      const report = await getLevelHitRate(symbol, bars);
+      res.json({
+        ...report,
+        _meta: {
+          note:
+            "A level counts as HIT only when price actually traded through it — the session high reached up to it, or the low reached down to it. Not 'closed near', not 'within a percent'. Levels already within 0.25% of spot at snapshot time are excluded, because a level at the money is not a prediction. Each level gets 5 sessions to prove itself, and levels without 5 sessions of future data yet are not counted at all.",
+        },
+      });
+    } catch (error) {
+      logger.error("Level hit-rate error:", error);
+      res.status(500).json({ error: "Failed to compute level hit rate" });
+    }
+  });
+
+  // ── REVERSAL — is the move exhausting, and has it actually turned? ─────────
+  // Two separate questions, deliberately not merged: exhaustion is a condition
+  // (stretched, oversold, diverging) and can persist for weeks; a turn is price
+  // doing something a continuation would not. Exhaustion alone never grades above
+  // WATCH, because "oversold" describes the past, not the next bar.
+  //   GET /api/reversal/:symbol?direction=bullish
+  app.get("/api/reversal/:symbol", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || "").trim().toUpperCase();
+      if (!symbol) return res.status(400).json({ error: "symbol required" });
+      const direction = String(req.query.direction || "bullish") === "bearish" ? "bearish" : "bullish";
+
+      const { analyzeReversal } = await import("@shared/reversal-engine");
+      const { rateLimited } = await import("./provider-cache");
+
+      const chart: any = await rateLimited("yahoo", 1200, async () => {
+        for (const host of ["query2", "query1"]) {
+          const r = await fetch(
+            `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?range=1y&interval=1d`,
+            { headers: { "User-Agent": "Mozilla/5.0" } },
+          );
+          if (r.ok) return r.json();
+        }
+        return null;
+      });
+
+      const result = chart?.chart?.result?.[0];
+      const q = result?.indicators?.quote?.[0];
+      if (!result || !q) return res.status(404).json({ error: `No price history for ${symbol}` });
+
+      const bars = (result.timestamp || [])
+        .map((t: number, i: number) => ({
+          time: t, open: q.open?.[i], high: q.high?.[i], low: q.low?.[i], close: q.close?.[i], volume: q.volume?.[i],
+        }))
+        .filter((b: any) => [b.open, b.high, b.low, b.close].every((v: any) => Number.isFinite(v)));
+
+      const report = analyzeReversal(bars, direction as 'bullish' | 'bearish');
+      if (!report) return res.status(422).json({ error: "Not enough history (needs ~60 daily bars)" });
+
+      res.json({
+        symbol,
+        spot: bars[bars.length - 1]?.close ?? null,
+        ...report,
+        _meta: {
+          note:
+            "EXHAUSTION and TURN are counted separately on purpose. Exhaustion (stretched from the mean, RSI extreme, momentum divergence, volume climax) is a condition that can persist — a stock can stay oversold the whole way down — so it grades no higher than WATCH on its own. A TURN (a fresh reclaim of the broken level, or a higher low / lower high) is price doing something a continuation would not. SETUP and CONFIRMED both require a turn. Conditions and levels, not a recommendation.",
+        },
+      });
+    } catch (error) {
+      logger.error("Reversal analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze reversal" });
+    }
+  });
+
+  // ── WHALE EXITS — large positions being CLOSED ────────────────────────────
+  // The mirror of the repeat-buyer read. Falling open interest on a contract that
+  // is NOT near expiry means the position is coming off. Contracts inside three
+  // sessions of expiry are excluded: OI collapses there regardless of conviction,
+  // and including them made 7 of 8 "exits" pure expiry artefacts.
+  app.get("/api/flow/exits", async (req, res) => {
+    try {
+      const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 30));
+      const { getWhaleExits } = await import("./repeat-flow");
+      const { exits, coverage } = await getWhaleExits(2, limit);
+      res.json({
+        exits, coverage,
+        _meta: {
+          note:
+            "Falling open interest away from expiry = a position being closed. Requires at least 500 contracts open to begin with and at least 15% of them gone, because a small drift on a large book is not somebody leaving. Premium is ignored entirely — it cannot distinguish opening from closing.",
+        },
+      });
+    } catch (error) {
+      logger.error("Whale exits error:", error);
+      res.status(500).json({ error: "Failed to compute whale exits" });
+    }
+  });
+
+  // ── GAPS — unfilled zones, and this ticker's own fill base rate ────────────
+  // Untraded price zones act as magnets because no position was opened inside
+  // them: there's no supply or demand shelf to slow price down. The fill RATE is
+  // measured from the ticker's own history rather than assumed, because "gaps
+  // always fill" is folklore and the real number varies by name.
+  //   GET /api/gaps/:symbol?range=2y
+  app.get("/api/gaps/:symbol", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || "").trim().toUpperCase();
+      if (!symbol) return res.status(400).json({ error: "symbol required" });
+      const range = ["1y", "2y", "5y"].includes(String(req.query.range)) ? String(req.query.range) : "2y";
+
+      const { analyzeGaps } = await import("@shared/gap-engine");
+      const { rateLimited } = await import("./provider-cache");
+
+      const chart: any = await rateLimited("yahoo", 1200, async () => {
+        for (const host of ["query2", "query1"]) {
+          const r = await fetch(
+            `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?range=${range}&interval=1d`,
+            { headers: { "User-Agent": "Mozilla/5.0" } },
+          );
+          if (r.ok) return r.json();
+        }
+        return null;
+      });
+
+      const result = chart?.chart?.result?.[0];
+      const q = result?.indicators?.quote?.[0];
+      if (!result || !q) return res.status(404).json({ error: `No price history for ${symbol}` });
+
+      const bars = (result.timestamp || [])
+        .map((t: number, i: number) => ({
+          time: t, open: q.open?.[i], high: q.high?.[i], low: q.low?.[i], close: q.close?.[i], volume: q.volume?.[i],
+        }))
+        .filter((b: any) => [b.open, b.high, b.low, b.close].every((v: any) => Number.isFinite(v)));
+
+      const report = analyzeGaps(bars, symbol);
+      if (!report) return res.status(422).json({ error: "Not enough history to analyze gaps" });
+
+      res.json({
+        ...report,
+        bars: bars.length,
+        range,
+        _meta: {
+          note:
+            "A gap is a zone where no trading occurred (prior high below the next low, or prior low above the next high). Gaps under 0.35% are ignored as noise. A gap counts as FILLED only when price fully retraces the untraded zone — a wick clipping the near edge does not count. The fill rate is this ticker's own history, not a general rule, and sampleConfidence flags when there are too few completed gaps to lean on it. Levels, not predictions.",
+        },
+      });
+    } catch (error) {
+      logger.error("Gap analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze gaps" });
+    }
+  });
+
+  // ── CONTRACT VALUE — is the option cheap for the move our signal expects? ──
+  // The board says WHERE price is going; this says whether the contract expressing
+  // that view is worth its premium. Compares the ±1σ move implied by the option's
+  // own IV against the move our target actually needs, then checks that spread and
+  // theta won't eat the difference. Research, not advice — every verdict shows its
+  // inputs so the assumption is visible.
+  //   GET /api/contract-value/:symbol?strike=220&type=call&expiry=2026-09-18&target=255
+  app.get("/api/contract-value/:symbol", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || "").trim().toUpperCase();
+      const strike = Number(req.query.strike);
+      const optionType = String(req.query.type || "call").toLowerCase() as 'call' | 'put';
+      const expiry = String(req.query.expiry || "").slice(0, 10);
+      const target = req.query.target != null ? Number(req.query.target) : null;
+
+      if (!symbol || !Number.isFinite(strike) || !expiry || (optionType !== 'call' && optionType !== 'put')) {
+        return res.status(400).json({ error: "Require symbol, ?strike=, ?type=call|put, ?expiry=YYYY-MM-DD" });
+      }
+
+      const { getContractQuote } = await import("./cboe-options-fallback");
+      const { assessContract } = await import("./contract-value");
+      const { rateLimited } = await import("./provider-cache");
+
+      const quote = await getContractQuote(symbol, optionType, strike, expiry);
+      if (!quote) {
+        return res.status(404).json({ error: `No chain data for ${symbol} ${optionType} $${strike} ${expiry}` });
+      }
+
+      // Daily closes for realized vol. Yahoo rate-limits hard when our scanners are
+      // running, so this goes through the shared per-host limiter like everything else.
+      let closes: number[] = [];
+      let spot = 0;
+      try {
+        const chart: any = await rateLimited('yahoo', 1200, async () => {
+          for (const host of ['query2', 'query1']) {
+            const r = await fetch(
+              `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?range=3mo&interval=1d`,
+              { headers: { 'User-Agent': 'Mozilla/5.0' } },
+            );
+            if (r.ok) return r.json();
+          }
+          return null;
+        });
+        const result = chart?.chart?.result?.[0];
+        if (result) {
+          closes = (result.indicators?.quote?.[0]?.close || []).filter((c: any) => Number.isFinite(c));
+          spot = result.meta?.regularMarketPrice ?? 0;
+        }
+      } catch { /* realized vol is optional — the priced-in-move read still works */ }
+
+      if (!spot) spot = (quote as any).underlyingPrice ?? 0;
+      if (!spot) return res.status(502).json({ error: "Could not resolve a spot price" });
+
+      const DAY = 86_400_000;
+      const dte = Math.max(0, Math.round((new Date(`${expiry}T12:00:00Z`).getTime() - Date.now()) / DAY));
+
+      const value = assessContract({
+        spot, strike, optionType,
+        iv: quote.iv, dte,
+        bid: quote.bid, ask: quote.ask, mid: quote.mid,
+        theta: (quote as any).theta ?? null,
+        closes,
+        targetPrice: target,
+        entryPrice: spot,
+      });
+
+      res.json({
+        symbol, strike, optionType, expiry, dte, spot,
+        quote: { bid: quote.bid, ask: quote.ask, mid: quote.mid, iv: quote.iv, openInterest: quote.openInterest, volume: quote.volume },
+        value,
+        _meta: {
+          quoteSource: 'cboe',
+          delayed: true,
+          note:
+            "Expected move = spot × IV × √(dte/365), the ±1σ the option is priced for. 'juiced' requires ALL of: target exceeds the priced-in move by >15%, IV is not rich vs realized, and the bid/ask is ≤15% of mid. Realized vol needs ~21 daily closes; without it the IV comparison is omitted rather than guessed. Delayed CBOE marks — research only, not an execution price.",
+        },
+      });
+    } catch (error) {
+      logger.error("Contract value error:", error);
+      res.status(500).json({ error: "Failed to assess contract" });
+    }
+  });
+
+  // ── CATALYST BOARD — catalysts crossed against the signals we're publishing ─
+  // A catalyst calendar on its own is a news feed. The value is the JOIN: for every
+  // live conviction pick, does its event roadmap AGREE with the direction we called,
+  // ARGUE AGAINST it, or drop a binary coin-flip inside the holding window?
+  //   • confluence — catalyst polarity matches the signal. Reinforces the thesis.
+  //   • conflict   — catalyst polarity opposes it. The most valuable row on the page:
+  //                  it's the one that says "we may be on the wrong side of the news".
+  //   • eventRisk  — a binary event (earnings) lands before the signal's horizon is up.
+  //                  Not directional; it's a reason to size down or wait.
+  //   • unclaimed  — a strong catalyst on a ticker with no signal. Where to look next.
+  // Registered BEFORE /api/catalysts/:symbol so "board" isn't swallowed as a ticker.
+  app.get("/api/catalysts/board", async (_req, res) => {
+    try {
+      const { peekConvictions } = await import("./convictions-engine");
+      const { getUpcomingCatalysts, getCatalystsForSymbol } = await import("./catalyst-intelligence-service");
+      // Earnings are the missing half. catalyst_events holds only PAST SEC filings,
+      // so a forward-looking board found nothing on every signal; the Nasdaq calendar
+      // supplies the scheduled binary events that actually sit inside a trade horizon.
+      const { getEarningsBySymbol } = await import("./earnings-calendar");
+
+      // PEEK, never build. This endpoint annotates the board; it must not be able to
+      // trigger a multi-minute conviction rebuild and hang the tab that called it.
+      const peek = peekConvictions();
+      const [upcoming, earnings] = await Promise.all([
+        getUpcomingCatalysts(200).catch(() => [] as any[]),
+        getEarningsBySymbol(30).catch(() => new Map()),
+      ]);
+
+      if (!peek) {
+        return res.json({
+          generatedAt: new Date().toISOString(),
+          signalsScanned: 0, symbolsWithCatalysts: 0,
+          confluence: [], conflict: [], eventRisk: [], unclaimed: [],
+          warming: true,
+          _meta: { note: "Signals are still warming up — open ORACLE once, then come back. This view reads the board's cache and never rebuilds it." },
+        });
+      }
+
+      const picks: any[] = (peek.data as any)?.picks ?? [];
+      const now = Date.now();
+      const DAY = 86_400_000;
+      const BINARY = new Set(["earnings"]);
+
+      // Holding horizon in days — how far ahead an event still matters for this trade.
+      const horizonOf = (hp: string | null | undefined): number => {
+        const h = String(hp ?? "").toLowerCase();
+        if (h.includes("scalp") || h.includes("day")) return 2;
+        if (h.includes("swing")) return 10;
+        if (h.includes("position") || h.includes("long")) return 45;
+        return 10;
+      };
+
+      // Only look up catalysts for symbols we actually publish — 406 events across the
+      // whole universe, but a handful of picks. Dedupe so one symbol = one query.
+      const symbols = Array.from(new Set(picks.map((p) => String(p.symbol || "").toUpperCase()).filter(Boolean)));
+      const perSymbol = new Map<string, any[]>();
+      await Promise.all(
+        symbols.map(async (sym) => {
+          try {
+            perSymbol.set(sym, await getCatalystsForSymbol(sym, 40));
+          } catch {
+            perSymbol.set(sym, []);
+          }
+        }),
+      );
+
+      const confluence: any[] = [];
+      const conflict: any[] = [];
+      const eventRisk: any[] = [];
+
+      for (const p of picks) {
+        const sym = String(p.symbol || "").toUpperCase();
+        const horizon = horizonOf(p.holdingPeriod);
+        // Merge the scheduled earnings report in as a first-class event. Polarity is
+        // deliberately 'neutral': an earnings date tells you variance is coming, not
+        // which way, so it must drive RISK and never the directional tilt.
+        const earn = earnings.get(sym);
+        const earningsEvents = earn
+          ? [{
+              type: 'earnings',
+              title: `Earnings ${earn.session === 'pre' ? 'before the open' : earn.session === 'post' ? 'after the close' : ''}`.trim(),
+              date: earn.date,
+              daysAway: earn.daysAway,
+              polarity: 'neutral' as const,
+              importance: 90,
+              isBinary: true,
+            }]
+          : [];
+
+        const events = [...earningsEvents, ...(perSymbol.get(sym) ?? [])
+          .map((e: any) => ({
+            type: e.eventType,
+            title: e.title,
+            date: e.eventDate,
+            daysAway: Math.round((new Date(e.eventDate).getTime() - now) / DAY),
+            polarity: e.polarity,
+            importance: Math.round(e.signalStrength ?? 0),
+            isBinary: BINARY.has(e.eventType),
+          }))
+          .filter((e: any) => Number.isFinite(e.daysAway) && e.daysAway >= 0)];
+
+        if (!events.length) continue;
+
+        const base = {
+          symbol: sym,
+          direction: p.direction,
+          convictionScore: p.convictionScore,
+          holdingPeriod: p.holdingPeriod,
+          entryPrice: p.entryPrice,
+          currentPrice: p.currentPrice ?? null,
+          generatedAt: p.generatedAt,
+          horizonDays: horizon,
+        };
+
+        // Directional agreement, weighted by importance and nearness.
+        const wanted = p.direction === "long" ? "bullish" : "bearish";
+        const opposed = p.direction === "long" ? "bearish" : "bullish";
+        const inWindow = events.filter((e: any) => e.daysAway <= Math.max(horizon, 14));
+
+        const agreeing = inWindow.filter((e: any) => e.polarity === wanted);
+        const opposing = inWindow.filter((e: any) => e.polarity === opposed);
+        const weight = (list: any[]) =>
+          Math.round(list.reduce((s, e) => s + (e.importance || 1) * Math.exp(-e.daysAway / 30), 0));
+
+        if (agreeing.length) {
+          confluence.push({ ...base, events: agreeing.slice(0, 4), score: weight(agreeing), count: agreeing.length });
+        }
+        if (opposing.length) {
+          conflict.push({ ...base, events: opposing.slice(0, 4), score: weight(opposing), count: opposing.length });
+        }
+
+        // Binary events that land BEFORE the trade is meant to be done.
+        const binaries = events.filter((e: any) => e.isBinary && e.daysAway <= horizon);
+        if (binaries.length) {
+          const next = binaries[0];
+          eventRisk.push({
+            ...base,
+            event: next,
+            note: `${next.type} in ${next.daysAway}d, inside a ${horizon}d ${p.holdingPeriod ?? "swing"} horizon`,
+          });
+        }
+      }
+
+      // Strong catalysts on tickers we are NOT trading — the "what did we miss" list.
+      const held = new Set(symbols);
+      const unclaimed = (upcoming as any[])
+        .map((e: any) => ({
+          symbol: String(e.ticker || "").toUpperCase(),
+          type: e.eventType,
+          title: e.title,
+          date: e.eventDate,
+          daysAway: Math.round((new Date(e.eventDate).getTime() - now) / DAY),
+          polarity: e.polarity,
+          importance: Math.round(e.signalStrength ?? 0),
+        }))
+        .filter((e: any) => e.symbol && !held.has(e.symbol) && Number.isFinite(e.daysAway) && e.daysAway >= 0 && e.daysAway <= 30)
+        .sort((a: any, b: any) => b.importance - a.importance || a.daysAway - b.daysAway)
+        .slice(0, 24);
+
+      confluence.sort((a, b) => b.score - a.score);
+      conflict.sort((a, b) => b.score - a.score);
+      eventRisk.sort((a, b) => a.event.daysAway - b.event.daysAway);
+
+      res.json({
+        generatedAt: new Date().toISOString(),
+        signalsScanned: picks.length,
+        symbolsWithCatalysts: Array.from(perSymbol.values()).filter((v) => v.length).length,
+        confluence,
+        conflict,
+        eventRisk,
+        unclaimed,
+        _meta: {
+          note:
+            "Catalysts joined to live conviction picks. 'conflict' = tracked events whose polarity opposes the direction we published; it is a flag to re-read the thesis, not an automatic exit. Binary events (earnings) are counted as risk, never as directional tilt. Empty sections mean no tracked catalyst fell inside the horizon — not that none exists.",
+        },
+      });
+    } catch (error) {
+      logger.error("Catalyst board error:", error);
+      res.status(500).json({ error: "Failed to build catalyst board" });
+    }
+  });
+
   // ── Catalyst RESEARCH — a per-ticker read that shapes the bull/bear case ──
   // Turns the ticker's event roadmap into: a forward tilt (does the calendar lean
   // bull or bear?), and risk flags (unresolved binary events that argue for
@@ -14088,10 +14605,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (symbols.length > 0) {
         try {
           const { getRealtimeBatchQuotes } = await import('./realtime-pricing-service');
-          const reqs = items.map(i => ({
-            symbol: i.symbol,
-            assetType: ((i.assetType as string) || 'stock') as 'stock' | 'crypto' | 'option' | 'futures',
-          }));
+          // Watchlist rows carry the UNDERLYING symbol; an 'option' assetType here would
+          // ask for a contract quote on a bare ticker and always miss. Price the underlying.
+          const reqs = items.map(i => {
+            const at = ((i.assetType as string) || 'stock').toLowerCase();
+            return {
+              symbol: i.symbol,
+              assetType: (at === 'option' ? 'stock' : at) as 'stock' | 'crypto' | 'option' | 'futures',
+            };
+          });
           const quotes = await getRealtimeBatchQuotes(reqs);
           quotes.forEach((q, sym) => priceMap.set(sym, { price: q.price, changePercent: q.changePercent }));
         } catch (err) {
@@ -30407,7 +30929,7 @@ Use this checklist before entering any trade:
         return res.status(400).json({ error: "Symbol is required" });
       }
       
-      const { getTradierOptionsChains, getTradierQuote } = await import("./tradier-api");
+      const { getTradierOptionsChainsByDTE, getTradierQuote } = await import("./tradier-api");
       const { constructVolatilitySurface, analyzeSkew } = await import("./options-quant");
       
       // Get current stock price
@@ -30419,7 +30941,7 @@ Use this checklist before entering any trade:
       const spotPrice = quote.last || quote.bid || 100;
       
       // Get options chains
-      const chains = await getTradierOptionsChains(symbol.toUpperCase());
+      const chains = await getTradierOptionsChainsByDTE(symbol.toUpperCase());
       if (!chains || chains.length === 0) {
         return res.status(404).json({ error: "No options data found" });
       }

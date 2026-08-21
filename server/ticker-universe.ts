@@ -12,7 +12,7 @@ export const MEGA_CAP_TECH = [
   'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'AVGO', 'ORCL',
   'ADBE', 'CRM', 'CSCO', 'ACN', 'IBM', 'INTC', 'TXN', 'QCOM', 'NOW', 'INTU',
   'AMD', 'MU', 'AMAT', 'LRCX', 'ADI', 'NFLX', 'PYPL', 'UBER', 'ABNB', 'SHOP',
-  'SQ', 'SNAP', 'PINS', 'TWTR', 'ZM'
+  'XYZ', 'SNAP', 'PINS', 'TWTR', 'ZM'
 ];
 
 // === 💵 FINANCIALS (40) ===
@@ -58,8 +58,7 @@ export const CONSUMER_STAPLES = [
 
 // === ⚡ ENERGY (35) ===
 export const ENERGY = [
-  'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'MPC', 'VLO', 'PSX', 'OXY', 'PXD',
-  'DVN', 'FANG', 'HAL', 'BKR', 'MRO', 'APA', 'OVV', 'EQT', 'AR', 'RRC',
+  'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'MPC', 'VLO', 'PSX', 'OXY', 'DVN', 'FANG', 'HAL', 'BKR', 'MRO', 'APA', 'OVV', 'EQT', 'AR', 'RRC',
   'SWN', 'CHK', 'CTRA', 'MTDR', 'PR', 'CHRD', 'SM', 'PDCE', 'GPOR', 'MGY',
   'VTLE', 'ESTE', 'TRGP', 'WMB', 'KMI'
 ];
@@ -227,7 +226,7 @@ export const STREAMING_MEDIA = [
 
 // === 🏗️ CONSTRUCTION & HOUSING (15) ===
 export const CONSTRUCTION_HOUSING = [
-  'DHI', 'LEN', 'PHM', 'NVR', 'TOL', 'KBH', 'TMHC', 'MHO', 'CCS', 'MTH',
+  'DHI', 'TPH', 'LEN', 'PHM', 'NVR', 'TOL', 'KBH', 'TMHC', 'MHO', 'CCS', 'MTH',
   'MDC', 'BLD', 'BLDR', 'IBP'
 ];
 

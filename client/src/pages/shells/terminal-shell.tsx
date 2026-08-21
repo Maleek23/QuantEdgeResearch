@@ -34,15 +34,23 @@ const SectorHeatmap = lazy(() => import('@/pages/flow-heatmap'));
 // PRISM = the strike x expiry gamma surface (what the walkthrough actually shows),
 // not the premium-spectrum strike picker that used to sit here.
 const QuantBotBoard = lazy(() => import('@/components/bot/quant-bot-board').then(m => ({ default: m.QuantBotBoard })));
+// The board's own historical record. Lives beside the bot because both answer the
+// same question — what have these signals actually done — and it was unreachable
+// after the sidebar was removed.
+const TrackRecord   = lazy(() => import('@/components/bot/track-record').then(m => ({ default: m.TrackRecord })));
 const PrismBoard    = lazy(() => import('@/components/prism/prism-board').then(m => ({ default: m.PrismBoard })));
+// CATALYST — the event calendar joined to the signals we publish, so a call and the
+// news pointing the other way land on the same screen instead of two separate ones.
+const CatalystBoard = lazy(() => import('@/components/catalyst/catalyst-board').then(m => ({ default: m.CatalystBoard })));
 
-type Tab = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism' | 'bot';
+type Tab = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism' | 'catalyst' | 'bot';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'oracle',  label: 'ORACLE' },
   { id: 'flow',    label: 'FLOW' },
   { id: 'heatmap', label: 'HEATMAP' },
   { id: 'gex',     label: 'GEX' },
   { id: 'prism',   label: 'PRISM' },
+  { id: 'catalyst', label: 'CATALYST' },
   { id: 'bot',     label: 'BOT' },
 ];
 
@@ -219,8 +227,13 @@ export default function TerminalShell() {
               {tab === 'heatmap' && <div className="mx-auto w-full max-w-[1600px]"><SectorHeatmap /></div>}
               {tab === 'gex' && <div className="mx-auto w-full max-w-[1600px]"><GexShell /></div>}
               {tab === 'prism' && <div className="mx-auto w-full max-w-[1600px]"><PrismBoard /></div>}
+              {tab === 'catalyst' && <div className="mx-auto w-full max-w-[1600px]"><CatalystBoard /></div>}
               {tab === 'bot' && (
-                <div className="mx-auto w-full max-w-[1600px]">
+                <div className="mx-auto w-full max-w-[1600px] space-y-3 px-3 py-2">
+                  {/* The published record sits ABOVE the live bot: what these signals
+                      have historically done is the context for anything the bot is
+                      doing right now. */}
+                  <TrackRecord />
                   <QuantBotBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
                 </div>
               )}

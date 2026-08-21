@@ -420,7 +420,11 @@ function Router() {
       <Route path="/terminal/:symbol">
         {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
       </Route>
-      <Route path="/terminal"><Redirect to="/r/SPY?tab=chart" /></Route>
+      {/* /terminal is the name users type and the name on the nav — it must land on the
+          consolidated Terminal, not the legacy per-ticker Research page. This redirect
+          predates the Terminal shell and was quietly sending everyone to the old
+          sidebar design, which is why localhost kept "showing old designs". */}
+      <Route path="/terminal"><Redirect to="/t" /></Route>
 
       {/* TICKER (legacy /t) — folded into Research */}
       <Route path="/t/:symbol/:tab">

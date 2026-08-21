@@ -373,8 +373,8 @@ export default function Landing() {
                 transition={{ duration: 0.5, delay: 0.1 }}
                 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold mb-5 leading-[1.08] tracking-tight"
               >
-                The platform that finds{' '}
-                <span className="text-[var(--trade-bullish)]">your edge</span>
+                One terminal for{' '}
+                <span className="text-[var(--trade-bullish)]">options research</span>
               </motion.h1>
 
               <motion.p
@@ -383,7 +383,9 @@ export default function Landing() {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="text-base text-muted-foreground max-w-lg mb-8 leading-relaxed"
               >
-                14-layer confluence scoring across Technical, Flow, Sentiment, Quant, Convergence, and GEX. When layers align, we signal.
+                Signals scored across 15 independent layers, with the levels, the contract, and the reason
+                it fired on the same screen. Every number is computed from live data — and when a number
+                is delayed or missing, it says so instead of guessing.
               </motion.p>
 
               <motion.div
@@ -490,17 +492,17 @@ export default function Landing() {
 
         {/* ── Feature 1: Trade Desk ────────────────────────── */}
         <FeatureSection
-          label="TRADE DESK"
+          label="ORACLE"
           labelColor="text-[var(--trade-bullish)]"
-          headline="AI-scored trade ideas, not noise."
-          description="Every idea is graded by a 14-layer confluence engine. Entry, target, stop, risk/reward, and conviction band — computed and ranked before you see it. Filter by direction, hold period, source, and grade."
+          headline="A signal, and the reason it fired."
+          description="Fifteen independent layers score every setup — technicals, compression, sector rotation, catalysts, regime, gamma and more. Levels come from actual market structure: the stop sits under a real swing low padded by ATR, and the target is prior structure, not a round percentage. Each signal shows which layers agreed and which argued against it."
           screenshot="/screenshots/trade-desk.png"
-          screenshotAlt="Trade Desk showing AI-scored trade ideas"
+          screenshotAlt="Oracle board showing scored signals with levels and conviction"
           bullets={[
-            "14-layer conviction scoring (S / A+ / A / B+ / B)",
-            "Entry, target, stop, and R:R on every idea",
-            "Filter by squeeze, breakout, momentum, GEX, earnings",
-            "Card, compact, table, and focus view modes",
+            "15-layer conviction score, banded S / A / B / C",
+            "Stops from swing structure + ATR, targets at prior structure",
+            "Minimum 1.5R or the target is moved out — and it tells you it did",
+            "Every signal timestamped by market session, so a call fired after the close reads as stale",
           ]}
         />
 
@@ -508,18 +510,18 @@ export default function Landing() {
 
         {/* ── Feature 2: GEX Hub ───────────────────────────── */}
         <FeatureSection
-          label="GEX HUB"
+          label="FLOW"
           labelColor="text-[var(--brand-gold)]"
-          headline="Market-wide gamma exposure at a glance."
-          description="See the entire market's GEX and VEX positioning in one view. Top positive GEX (call-wall heavy pins), top negative GEX (volatile breakout candidates), and top movers — all ranked and scored."
+          headline="Who keeps buying, and does gamma back them?"
+          description="Options flow scored on unusual size, sweeps, volume against open interest, and repetition. The repeat-buyer tracker ranks on open-interest growth rather than premium — because premium can't tell accumulation from churn, but contracts still open at the close can. Each candidate is then checked against the gamma regime: flow says someone is positioned, gamma says whether dealers amplify or absorb the move."
           screenshot="/screenshots/gex-hub.png"
-          screenshotAlt="GEX Hub showing market-wide gamma exposure"
+          screenshotAlt="Flow board with repeat buyers and flow-gamma convergence"
           reverse
           bullets={[
-            "Market Net GEX and VEX in real-time",
-            "Regime classification (pin, breakout, transition)",
-            "Top positive, negative, and mover rankings",
-            "Filter by index, sector, score threshold",
+            "Repeat buyers ranked by open-interest growth, not premium",
+            "Flow × gamma: does dealer positioning back the trade?",
+            "Sweep, block and unusual-volume classes — labelled as inferred, because they are",
+            "Filter by score, direction, premium, and type",
           ]}
         />
 
@@ -527,17 +529,17 @@ export default function Landing() {
 
         {/* ── Feature 3: GEX Terminal ──────────────────────── */}
         <FeatureSection
-          label="GEX TERMINAL"
+          label="GEX + PRISM"
           labelColor="text-cyan-400"
-          headline="Per-ticker gamma profile, decoded."
-          description="Deep-dive into any ticker's options-derived positioning. GEX profile shows strike-by-strike gamma exposure, key levels (HVL, call wall, put wall), and dealer hedging flow. Tabs for GEX, VEX, Profile, Matrix, and Levels."
+          headline="Where dealers have to hedge."
+          description="Strike-by-strike gamma exposure for any ticker, plus the full strike × expiry surface in PRISM. Below the gamma flip dealers amplify moves; above it they dampen them — which is why the flip, the call wall and the put wall behave as levels. Computed from the CBOE chain, which needs no brokerage account."
           screenshot="/screenshots/gex-terminal.png"
-          screenshotAlt="GEX Terminal showing SPY gamma exposure profile"
+          screenshotAlt="Per-ticker gamma exposure with flip, call wall and put wall"
           bullets={[
-            "Strike-by-strike GEX visualization",
-            "Key levels: HVL, call wall, put wall, zero gamma",
-            "Multi-ticker tabs (SPY, TSLA, QQQ, NVDA, AAPL)",
-            "GEX, VEX, Profile, Matrix, and Levels views",
+            "Gamma flip, call wall, put wall as tradeable levels",
+            "Strike × expiry gamma surface (PRISM)",
+            "Per-DTE buckets — today, this week, this month",
+            "Any ticker with a listed chain, not a fixed list",
           ]}
         />
 
@@ -545,18 +547,18 @@ export default function Landing() {
 
         {/* ── Feature 4: Watchlist ──────────────────────────── */}
         <FeatureSection
-          label="WATCHLIST"
+          label="CATALYST"
           labelColor="text-purple-400"
-          headline="Your tickers, always scored."
-          description="Live prices, conviction scores, and thesis notes for every symbol you track. Weekly auto-seeded watchlist surfaces the best setups automatically. Technical, overview, and moving average views built in."
+          headline="When the calendar disagrees with the call."
+          description="Tracked events joined to the signals we publish, and it leads with CONFLICTS — signals whose upcoming events point against the direction we called. Binary events landing inside a trade's horizon are flagged as risk, never as direction, because earnings are a coin flip that argues for sizing down rather than for a side."
           screenshot="/screenshots/watchlist.png"
-          screenshotAlt="Watchlist showing tracked tickers with scores"
+          screenshotAlt="Catalyst board showing conflicts between events and signals"
           reverse
           bullets={[
-            "Live price + change with conviction bands",
-            "Auto-seeded weekly picks from scanner",
-            "Technical, overview, and moving average tabs",
-            "Bulk import, export, and manual add",
+            "Conflicts first — the row that saves money",
+            "Binary event risk inside the holding window",
+            "Unfilled gap zones drawn on the chart, with the ticker's own fill rate",
+            "Empty sections say \"no tracked event\", never \"nothing to worry about\"",
           ]}
         />
 
@@ -564,19 +566,60 @@ export default function Landing() {
 
         {/* ── Feature 5: Index Mode ────────────────────────── */}
         <FeatureSection
-          label="INDEX MODE"
+          label="QUANT BOT"
           labelColor="text-[var(--brand-teal)]"
-          headline="All major indices, one terminal."
-          description="SPY, QQQ, IWM, DIA, SPXW — all five indices' GEX and VEX profiles in a single expandable view. Compare gamma regimes across the market to spot divergences and convergences."
+          headline="The board, paper-traded in options."
+          description="The bot trades the same signals the board publishes, in contracts rather than shares, using the strikes the contract engine picks. Fills and marks are real quotes pulled at that moment — nothing is simulated or back-filled, and win rate stays blank until trades actually close, because a number before then would be invented."
           screenshot="/screenshots/index-mode.png"
-          screenshotAlt="Index Mode showing multi-index GEX comparison"
+          screenshotAlt="Quant Bot paper-trading published signals in options"
           bullets={[
-            "SPY, QQQ, IWM, DIA, SPXW side by side",
-            "Expandable per-index detail panels",
-            "GEX and VEX toggle views",
-            "Cross-index regime comparison",
+            "Trades options, not shares — the same strikes the board publishes",
+            "Every fill and mark is a real quote at that moment",
+            "Marks are ~15-min delayed CBOE — a fair mark, not an execution price",
+            "No win rate until trades close. No back-filled history.",
           ]}
         />
+
+        <SectionDivider />
+
+        {/* ── What this is not ─────────────────────────────────
+            A landing page that only lists capabilities teaches people to expect
+            things the product does not do. Stating the limits here is not modesty;
+            it is the same standard the app itself holds to, where a delayed mark
+            is labelled delayed and an empty section says why it is empty. */}
+        <SectionReveal className="px-6 py-16 max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
+              STRAIGHT ANSWERS
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-2 mb-2">What this is, and what it isn't.</h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              {
+                t: 'Research, not advice',
+                d: 'It computes levels, scores and base rates and shows the method behind each one. It does not tell you what to buy, and nobody here is a licensed advisor.',
+              },
+              {
+                t: 'Options marks are delayed',
+                d: 'Contract prices come from the free CBOE chain, roughly 15 minutes behind. That is fair for marking and research, and not good enough for an execution price. The app says which is which.',
+              },
+              {
+                t: 'A score is a ranking, not a verdict',
+                d: 'Fifteen layers agreeing means the setup is worth your attention. It does not mean the trade works. Every signal shows the layers that argued against it too.',
+              },
+              {
+                t: 'No invented track record',
+                d: 'The paper-trading bot starts with no history and reports no win rate until real trades close. Nothing is back-filled to look good.',
+              },
+            ].map((x) => (
+              <div key={x.t} className="rounded-xl border border-card-border bg-card px-4 py-3.5">
+                <div className="text-sm font-semibold text-foreground">{x.t}</div>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{x.d}</p>
+              </div>
+            ))}
+          </div>
+        </SectionReveal>
 
         <SectionDivider />
 
@@ -600,8 +643,8 @@ export default function Landing() {
               </div>
               <ul className="space-y-2 text-sm">
                 {[
-                  "14-layer confluence scoring",
-                  "Real-time market data",
+                  "15-layer conviction scoring",
+                  "Live market data (options marks ~15-min delayed)",
                   "5 AI trade ideas per day",
                   "Basic charting tools",
                   "Market scanner access",

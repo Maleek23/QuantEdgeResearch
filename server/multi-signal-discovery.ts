@@ -27,26 +27,31 @@ import { getCatalystsForSymbol } from './catalyst-intelligence-service';
 // ═══════════════════════════════════════════════════════════════
 
 export const DISCOVERY_UNIVERSE = {
-  semis_megacap: ["NVDA","AVGO","AMD","ARM","MU","ORCL","TSM","ASML","QCOM","TXN","ADI","NXPI","ON","MCHP","SWKS","QRVO","MRVL","INTC","SMCI","DELL","HPE"],
+  semis_megacap: ["NVDA","AVGO","AMD","ARM","MU","ORCL","TSM","ASML","QCOM","TXN","ADI","NXPI","ON","MCHP","SWKS","QRVO","MRVL","INTC","SMCI","DELL","HPE","MPWR","TER","GFS","LSCC","WOLF","SITM","RMBS"],
   semis_cap_equipment: ["KLAC","LRCX","AMAT","ENTG","UCTT","ICHR","ACMR","CAMT","ONTO","AEHR","AMKR","KLIC","COHU","ACLS","FORM"],
-  ai_infrastructure: ["DLR","EQIX","COR","AMT","CRWV","NBIS","ALAB","CRDO","ANET","NTAP","PSTG","VRT","MOD","TT","CHX","IRM"],
+  ai_infrastructure: ["DLR","EQIX","COR","AMT","CRWV","NBIS","ALAB","CRDO","ANET","NTAP", "PSTG","VRT","MOD","TT","IRM","MSFT","GOOGL","AMZN","META"],
   ai_data_center_power: ["BE","GEV","ETN","POWL","PSIX","CMI","GNRC","MTZ","PRIM","STRL","EME","NVT","HUBB","ROK","EMR","DOV","PH","ITT","CARR","JCI"],
   nuclear_uranium: ["SMR","OKLO","NNE","CEG","VST","TLN","NEE","CCJ","UEC","UUUU","DNN","URG","NXE","BWXT","LEU","ASPI"],
-  voice_ai_software: ["SOUN","AI","PATH","APPN","PLTR","RDDT","TEM","RXRX","ABCL","ABSI","NOW","DDOG","CRM","SNOW","DUOL","MDB","NET","CRWD","PANW","ZS"],
+  voice_ai_software: ["SOUN","AI","PATH","APPN","PLTR","RDDT","TEM","RXRX","ABCL","ABSI","NOW","DDOG","CRM","SNOW","DUOL","MDB","NET","CRWD","PANW","ZS","AAPL","TSLA","NFLX"],
   consumer_coils: ["KO","SBUX","QSR","MO","TGT","WMT","COST","DG","TJX","ROST","NKE","LULU","DECK"],
-  fintech_stablecoin: ["JPM","V","MA","HOOD","COIN","CRCL","SOFI","UPST","GLXY","MSTR","SQ","PYPL"],
+  fintech_stablecoin: ["JPM","V","MA","HOOD","COIN","CRCL","SOFI","UPST","GLXY","MSTR","XYZ","PYPL"],
   biotech_catalysts: ["SMMT","VKTX","NTLA","BEAM","CRSP","RXRX","ABCL","BMY","TEM","HIMS","BHVN","EDIT","PRME","CGEM","IMVT"],
   energy_lng: ["XOM","CVX","FANG","DVN","OXY","EOG","SLB","HAL","LNG","FLNG","ENB","ET","MPC","VLO","TTE"],
   materials_critical: ["MP","UAMY","USAR","LAC","SGML","FCX","SCCO","TECK","NEM","GOLD","AEM","CCJ"],
   industrials_defense: ["CAT","DE","URI","WAB","TXT","RTX","NOC","LMT","HEI","TDG","KTOS","HII","AVAV","RCAT","AXON"],
   insurance: ["ALL","TRV","PGR","CB","AIG","MET","PRU","HIG","AFL"],
-  rate_cut_homebuilders: ["TPH","DHI","LEN","KBH","TOL","HD","LOW","BLDR","NVR","PHM"],
+  rate_cut_homebuilders: ["DHI", "TPH","LEN","KBH","TOL","HD","LOW","BLDR","NVR","PHM"],
   crypto_ai_pivot: ["MSTR","HUT","IREN","WULF","CIFR","MARA","RIOT","CLSK","BTDR","HIVE"],
   space_drones: ["RKLB","ASTS","LUNR","RDW","PL","BKSY","KTOS","AVAV","RCAT","ONDS","SATL","SIDU"],
   china_adrs: ["BABA","BIDU","JD","PDD","NIO","XPEV","LI","KC","ZTO","MOMO","FUTU","TIGR"],
   evtol_autonomy: ["ACHR","JOBY","AUR","PONY","WRD","MBLY","RIVN","LCID","UBER","LYFT"],
   quantum_photonics: ["IONQ","RGTI","QBTS","QUBT","ARQQ","LWLG","POET","PLAB","COHR","LITE"],
-  telecom_ai: ["NOK","ERIC","T","VZ","TMUS","CSCO","JNPR","AKAM","CCI"],
+  // Index and sector ETFs. Deliberately their own group: they are not a "sector"
+  // to rotate into, they are the most liquid options books listed — which is
+  // exactly what a small account wants, because spread is a bigger drag on a
+  // one-contract position than on a hundred.
+  index_and_vol: ["SPY","QQQ","IWM","DIA","SMH","SOXL","XLK","TLT","GLD"],
+  telecom_ai: ["NOK","ERIC","T","VZ","TMUS","CSCO","AKAM","CCI"],
 };
 
 export type DiscoverySector = keyof typeof DISCOVERY_UNIVERSE;

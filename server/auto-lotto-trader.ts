@@ -1449,7 +1449,7 @@ const DAY_TRADE_TICKERS = [
   // Crypto-adjacent
   'MSTR', 'COIN', 'HOOD', 'MARA', 'RIOT',
   // Fintech
-  'AFRM', 'SQ', 'PYPL', 'UPST',
+  'AFRM', 'XYZ', 'PYPL', 'UPST',
   // SaaS & Cloud
   'CRM', 'SHOP', 'DDOG', 'NET', 'ZS', 'PANW', 'ADBE', 'NOW', 'WDAY',
   // EVs & Clean energy
@@ -1473,14 +1473,14 @@ const SWING_TRADE_TICKERS = [
   'ADI', 'NXPI', 'ON', 'MCHP', 'STML', 'GFS', 'INTC', 'TSM', 'AMD',
   // Financials
   'JPM', 'GS', 'MS', 'V', 'MA', 'AXP', 'BAC', 'WFC', 'C', 'BLK',
-  'PYPL', 'SQ', 'COIN', 'HOOD', 'UPST', 'AFRM', 'LC', 'PINS', 'SNAP',
+  'PYPL', 'XYZ', 'COIN', 'HOOD', 'UPST', 'AFRM', 'LC', 'PINS', 'SNAP',
   'SCHW', 'IBKR', 'TROW', 'MET', 'PRU', 'AIG', 'CB', 'PGR', 'TRV', 'ALL',
   // Healthcare & Biotech
   'LLY', 'UNH', 'JNJ', 'ABBV', 'MRK', 'PFE', 'TMO', 'ABT', 'DHR', 'ISRG',
   'MRNA', 'BNTX', 'REGN', 'VRTX', 'GILD', 'AMGN', 'BIIB', 'BMY', 'CVS', 'ELV',
   'HUM', 'CI', 'CNC', 'MOH', 'HCA', 'SYK', 'BSX', 'EW', 'ZBH', 'BAX',
   // Energy & Industrials
-  'XOM', 'CVX', 'OXY', 'SLB', 'HAL', 'COP', 'EOG', 'PXD', 'MPC', 'PSX',
+  'XOM', 'CVX', 'OXY', 'SLB', 'HAL', 'COP', 'EOG', 'MPC', 'PSX',
   'BA', 'GE', 'HON', 'CAT', 'DE', 'LMT', 'RTX', 'NOC', 'GD', 'TDG',
   'UPS', 'FDX', 'UNP', 'CSX', 'NSC', 'WM', 'RSG', 'EMR', 'ETN', 'ITW',
   // Consumer Discretionary & Retail
@@ -1491,8 +1491,7 @@ const SWING_TRADE_TICKERS = [
   'DIS', 'NFLX', 'CMCSA', 'CHTR', 'TMUS', 'VZ', 'T', 'SNAP',
   'BABA', 'JD', 'PDD', 'BIDU', 'NIO', 'XPEV', 'LI', 'BILI', 'TME', 'KWEB',
   // Defensive & Utilities
-  'PG', 'KO', 'PEP', 'PM', 'MO', 'MDLZ', 'CL', 'KMB', 'GIS', 'K',
-  'NEE', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'XEL', 'ED', 'PEG', 'WEC'
+  'PG', 'KO', 'PEP', 'PM', 'MO', 'MDLZ', 'CL', 'KMB', 'GIS', 'K', 'NEE', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'XEL', 'ED', 'PEG', 'WEC'
 ];
 
 // Expanded Scannable Universe (A-Z high liquidity tickers)
@@ -1506,8 +1505,8 @@ const EXPANDED_SCAN_UNIVERSE = [
   'GD', 'GE', 'GEN', 'GILD', 'GIS', 'GL', 'GLW', 'GM', 'GNRC', 'GOOG', 'GOOGL', 'GPC', 'GPN', 'GRMN', 'GS', 'GWRE', 'GWW',
   'HAL', 'HAS', 'HBAN', 'HCA', 'HD', 'HES', 'HIG', 'HII', 'HLT', 'HOLX', 'HON', 'HOOD', 'HPE', 'HPQ', 'HRL', 'HSIC', 'HST', 'HSY', 'HUM', 'HWM',
   'IBM', 'ICE', 'IDXX', 'IEX', 'IFF', 'ILMN', 'INCY', 'INTC', 'INTU', 'INVH', 'IONQ', 'IP', 'IPG', 'IQV', 'IR', 'IRM', 'ISRG', 'IT', 'ITW', 'IVZ',
-  'JBHT', 'JCI', 'JD', 'JKHY', 'JJSF', 'JNJ', 'JNPR', 'JPM', 'JWN',
-  'K', 'KDP', 'KEY', 'KEYS', 'KHC', 'KIM', 'KLAC', 'KMB', 'KMI', 'KMX', 'KO', 'KR', 'KWEB',
+  'JBHT', 'JCI', 'JD', 'JKHY', 'JJSF', 'JNJ', 'JPM', 'JWN',
+  'KDP', 'KEY', 'KEYS', 'KHC', 'KIM', 'KLAC', 'KMB', 'KMI', 'KMX', 'KO', 'KR', 'KWEB',
   'L', 'LDOS', 'LEN', 'LH', 'LHX', 'LI', 'LIN', 'LKQ', 'LLY', 'LMT', 'LNC', 'LNT', 'LOW', 'LRCX', 'LULU', 'LUNR', 'LUV', 'LVS', 'LW', 'LYB', 'LYV',
   'M', 'MA', 'MAA', 'MAR', 'MARA', 'MAS', 'MCD', 'MCHP', 'MCK', 'MCO', 'MDLZ', 'MDT', 'MET', 'META', 'MGM', 'MHK', 'MKC', 'MKTX', 'MLM', 'MMC', 'MMM', 'MNST', 'MO', 'MOH', 'MOS', 'MPC', 'MPWR', 'MRK', 'MRNA', 'MRO', 'MRVL', 'MS', 'MSCI', 'MSFT', 'MSI', 'MSTR', 'MTB', 'MTCH', 'MTD', 'MU',
   'NCLH', 'NDAQ', 'NDSN', 'NEE', 'NEM', 'NET', 'NFLX', 'NI', 'NKE', 'NIO', 'NNE', 'NOC', 'NOW', 'NRG', 'NSC', 'NTAP', 'NTRS', 'NUE', 'NVDA', 'NVR', 'NWL', 'NWS', 'NXPI',
@@ -1515,7 +1514,7 @@ const EXPANDED_SCAN_UNIVERSE = [
   'PANW', 'PARA', 'PAYX', 'PAYC', 'PBI', 'PCAR', 'PCG', 'PDD', 'PEG', 'PEP', 'PFE', 'PFG', 'PG', 'PGR', 'PH', 'PHM', 'PKG', 'PLD', 'PLTR', 'PM', 'PNC', 'PNR', 'PNW', 'POOL', 'PPG', 'PPL', 'PRU', 'PSA', 'PSX', 'PTC', 'PWR', 'PYPL',
   'QCOM', 'QRVO', 'QUBT', 'QBTS',
   'RCL', 'RDW', 'RE', 'REG', 'REGN', 'RF', 'RHI', 'RJF', 'RL', 'RMD', 'ROK', 'ROL', 'ROP', 'ROST', 'RSG', 'RTX', 'RVTY', 'RWD', 'RKLB',
-  'S', 'SBAC', 'SBUX', 'SCHW', 'SE', 'SEE', 'SHW', 'SIRI', 'SIVB', 'SJM', 'SLB', 'SNA', 'SNAP', 'SNPS', 'SNOW', 'SO', 'SOFI', 'SOL', 'SPG', 'SPGI', 'SPLK', 'SPR', 'SPY', 'SQ', 'SRE', 'STE', 'STT', 'STX', 'STZ', 'SWK', 'SWKS', 'SYF', 'SYK', 'SYY',
+  'S', 'SBAC', 'SBUX', 'SCHW', 'SE', 'SEE', 'SHW', 'SIRI', 'SIVB', 'SJM', 'SLB', 'SNA', 'SNAP', 'SNPS', 'SNOW', 'SO', 'SOFI', 'SOL', 'SPG', 'SPGI', 'SPLK', 'SPR', 'SPY', 'XYZ', 'SRE', 'STE', 'STT', 'STX', 'STZ', 'SWK', 'SWKS', 'SYF', 'SYK', 'SYY',
   'T', 'TAP', 'TDG', 'TDY', 'TECH', 'TEL', 'TER', 'TFC', 'TFX', 'TGT', 'TJX', 'TMO', 'TMUS', 'TROW', 'TRV', 'TRMB', 'TSLA', 'TSN', 'TT', 'TTWO', 'TXN', 'TXT', 'TYL',
   'UAL', 'UDR', 'UHS', 'ULTA', 'UNH', 'UNP', 'UPS', 'URI', 'USB',
   'V', 'VFC', 'VLO', 'VMC', 'VRSK', 'VRSN', 'VRTX', 'VTR', 'VTRS', 'VZ',
