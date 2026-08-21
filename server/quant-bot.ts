@@ -245,8 +245,16 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
             stopLoss: Number((premium * 0.5).toFixed(2)),
           };
         } else {
-          if (!pick.currentPrice) { skipped++; continue; }
-          tradeable = { ...idea, currentPrice: pick.currentPrice, entryPrice: pick.currentPrice };
+          // OPTIONS ONLY. This used to fall back to buying the underlying as shares
+          // whenever an idea lacked a concrete contract, which is how UEC (134 shares,
+          // $1,494) and INTA (37 shares, $1,486) ended up as nearly a third of the
+          // account. Shares measure a different thing: an idea that is +3% on the
+          // stock can be +90% or -100% on the contract, so mixing the two makes the
+          // bot's record meaningless for the question it exists to answer.
+          //
+          // A signal with no contract is simply not tradeable by this bot. Skip it.
+          skipped++;
+          continue;
         }
 
         const res = await executeTradeIdea(portfolio.id, tradeable as any);
