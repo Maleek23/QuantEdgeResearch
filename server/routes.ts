@@ -14025,6 +14025,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── DISCOVERY — names nobody put on the list ───────────────────────────────
+  // Every other scanner reads the curated allowlist, so it can only re-rank what
+  // someone already thought of. That is why the gold complex produced nothing
+  // until it was added by hand, and why ASST was invisible while it ran 148%.
+  // This starts outside the list instead: broad screeners for candidates, a hard
+  // tradeability gate, then the same engines everything else is judged by.
+  app.get("/api/discovery", async (req, res) => {
+    try {
+      const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
+      const { runDiscovery } = await import("./discovery-scanner");
+      const result = await runDiscovery({ limit });
+      res.json({
+        ...result,
+        _meta: {
+          note:
+            "Candidates are NOT auto-added to the universe — this returns a ranked promotion list with its evidence and a human decides, because a screen that silently rewrites its own universe cannot be audited. `bias` states the direction the evidence points; `watch` means it earned attention without the chart taking a side. The funnel counts are returned so a silent zero is explainable, and the liquid-to-analysed drop is a deliberate shortlist cap rather than a filter.",
+        },
+      });
+    } catch (error) {
+      logger.error("Discovery scan error:", error);
+      res.status(500).json({ error: "Discovery scan failed" });
+    }
+  });
+
   // ── GAP SCAN — where the magnets are, across the whole universe ────────────
   // Ranked on EVIDENCE rather than gap size: a name with an open gap is only
   // interesting when it has a history of filling them. Sector ETFs are scanned as

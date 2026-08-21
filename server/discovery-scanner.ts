@@ -58,6 +58,11 @@ export interface DiscoveryCandidate {
   /** Relative strength against the broad market, in beta-adjusted points. */
   residualVsSpy: number | null;
   betaToSpy: number | null;
+  /**
+   * Which way the evidence points. 'watch' means it earned attention without the
+   * chart taking a side — that is a real and common answer, not a missing one.
+   */
+  bias: 'long' | 'short' | 'watch';
   score: number;
   why: string;
 }
@@ -110,7 +115,8 @@ export async function runDiscovery(opts: { limit?: number } = {}): Promise<Disco
       seen.set(r.symbol, {
         symbol: r.symbol, price: r.price, changePct: r.changePct, volume: r.volume,
         dollarVolume: r.price * r.volume, foundVia: [screen],
-        divergence: null, residualVsSpy: null, betaToSpy: null, score: 0, why: '',
+        divergence: null, residualVsSpy: null, betaToSpy: null,
+        bias: 'watch', score: 0, why: '',
       });
     }
   }
@@ -156,16 +162,39 @@ export async function runDiscovery(opts: { limit?: number } = {}): Promise<Disco
     // Score: a fresh bullish divergence is the strongest single read, breadth of
     // appearance is corroboration, and outperformance the market cannot explain
     // is the part that says this is the NAME rather than the tape.
-    const divScore = c.divergence?.kind === 'bullish' ? c.divergence.strength : 0;
+    // Direction comes from the divergence when there is one, and the strength of
+    // the read has to be measured on the side it actually points. Scoring only
+    // bullish divergences meant a bearish name could still rank on breadth and
+    // alpha alone, and then sit in a list that reads as buy candidates. A signal
+    // whose direction is unstated is worse than no signal.
+    c.bias = c.divergence?.kind === 'bullish' ? 'long'
+      : c.divergence?.kind === 'bearish' ? 'short'
+      : 'watch';
+
+    const divScore = c.divergence?.strength ?? 0;
     const breadth = Math.min(1, (c.foundVia.length - 1) / 2) * 100;
-    const alpha = c.residualVsSpy != null ? Math.min(100, Math.max(0, c.residualVsSpy)) : 0;
+    // Outperformance the market cannot explain supports a LONG. For a short it is
+    // evidence against, so it is read with the sign the bias implies rather than
+    // always counted as a positive.
+    const alphaRaw = c.residualVsSpy ?? 0;
+    const alpha = c.bias === 'short'
+      ? Math.min(100, Math.max(0, -alphaRaw))
+      : Math.min(100, Math.max(0, alphaRaw));
     c.score = Math.round(divScore * 0.45 + breadth * 0.2 + alpha * 0.35);
 
     const bits: string[] = [];
     if (c.divergence) bits.push(`${c.divergence.kind} divergence (${c.divergence.strength}) ${c.divergence.barsAgo} bars ago`);
     if (c.foundVia.length > 1) bits.push(`on ${c.foundVia.length} screens`);
     if (c.residualVsSpy != null && Math.abs(c.residualVsSpy) > 5) {
-      bits.push(`${c.residualVsSpy > 0 ? '+' : ''}${c.residualVsSpy.toFixed(0)}pts vs what SPY explains`);
+      // State plainly when the alpha cuts AGAINST the direction. It contributes
+      // nothing to the score in that case, but printing "+47pts" beside a short
+      // reads as supporting evidence for the exact opposite of the call.
+      const supports = c.bias === 'short' ? c.residualVsSpy < 0 : c.residualVsSpy > 0;
+      const sign = c.residualVsSpy > 0 ? '+' : '';
+      bits.push(
+        `${sign}${c.residualVsSpy.toFixed(0)}pts vs what SPY explains`
+        + (c.bias !== 'watch' && !supports ? ' (cuts against the call)' : ''),
+      );
     }
     bits.push(`$${(c.dollarVolume / 1e6).toFixed(0)}M traded`);
     c.why = bits.join(' · ');
