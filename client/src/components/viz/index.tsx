@@ -346,3 +346,37 @@ export function GravitySplit({ upPct, height = 8, className }: { upPct: number; 
     </div>
   );
 }
+
+/**
+ * PARTICIPATION STRIP — what share of a group is moving together.
+ *
+ * Deliberately NOT a filled bar. Breadth sat directly under a diverging move bar
+ * in identical green, so every sector row showed two same-coloured bars of similar
+ * length meaning completely different things: one directional, one not. The eye
+ * read them as a pair of magnitudes and could separate neither.
+ *
+ * Ten discrete ticks instead. Participation is a proportion of a countable set, so
+ * a segmented strip states that honestly, and being a different visual FORM — not
+ * just a different colour — means it can never be mistaken for the move above it.
+ * Neutral by default, because breadth has no direction of its own.
+ */
+export function ParticipationStrip({
+  pct, height = 4, className,
+}: { pct: number; height?: number; className?: string }) {
+  const filled = Math.round(clamp(pct) / 10);
+  return (
+    <div className={cn('flex w-full items-center gap-[3px]', className)} style={{ height }}>
+      {Array.from({ length: 10 }, (_, i) => (
+        <span
+          key={i}
+          className="flex-1 rounded-[1px]"
+          style={{
+            height,
+            background: i < filled ? 'var(--foreground)' : 'currentColor',
+            opacity: i < filled ? 0.55 : 0.1,
+          }}
+        />
+      ))}
+    </div>
+  );
+}

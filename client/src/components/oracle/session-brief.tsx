@@ -14,7 +14,7 @@ import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PanelFrame } from '@/components/oracle/panel-frame';
 import { TC } from '@/lib/oracle/trading-colors';
-import { DivergingBar, Meter, robustMax } from '@/components/viz';
+import { DivergingBar, ParticipationStrip, robustMax } from '@/components/viz';
 
 interface LeaderName { symbol: string; changePct: number; isMega?: boolean }
 interface SectorStrength {
@@ -164,14 +164,15 @@ function SectorRow({ s, names, onSelectSymbol, maxMove }: {
       {/* move vs the rest of the board, drawn from centre so direction reads instantly */}
       <div className="mt-1"><DivergingBar value={s.medianChangePct} max={maxMove} height={5} /></div>
 
-      {/* breadth — how much of the group is participating, not just the average */}
-      <div className="mt-1">
-        <Meter
-          value={s.breadthPct}
-          right={`${s.breadthPct.toFixed(0)}% participating`}
-          color={s.breadthPct >= 60 ? TC.bull : s.breadthPct >= 40 ? TC.warn : TC.bear}
-          height={4}
-        />
+      {/* Breadth — how much of the group is moving together, not just the average.
+          A segmented strip rather than a second filled bar: it sits directly under
+          the move bar, and two green bars of similar length meaning different things
+          is unreadable no matter how correct the widths are. */}
+      <div className="mt-1.5 flex items-center gap-2">
+        <ParticipationStrip pct={s.breadthPct} className="flex-1 text-foreground" />
+        <span className="shrink-0 text-label font-mono tabular-nums text-muted-foreground">
+          {s.breadthPct.toFixed(0)}% of group
+        </span>
       </div>
       <div className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5">
         {names.slice(0, 3).map((n) => (
