@@ -11,6 +11,8 @@ import { parseMarketDate } from '@/lib/market-date';
 import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { useQuery } from '@tanstack/react-query';
+import { ContractValuePanel } from './contract-value-panel';
 
 type Tier = 'conservative' | 'balanced' | 'aggressive';
 
@@ -125,11 +127,38 @@ function fmtExpiry(expiry: string): string {
   return expiry;
 }
 
+/**
+ * Daily closes for the underlying, used for the realized-vol comparison inside
+ * ContractValuePanel. Fetched once per symbol and shared across all three tiers —
+ * the alternative is three identical requests for the same history. Failure is
+ * non-fatal: without it the panel drops the IV-vs-realized line and still shows
+ * the priced-in-move comparison, which is the primary read.
+ */
+function useUnderlyingCloses(symbol: string) {
+  const { data } = useQuery<number[]>({
+    queryKey: ['/api/historical-prices', symbol, 'contract-value'],
+    queryFn: async () => {
+      const r = await fetch(`/api/historical-prices/${symbol}?range=3mo&interval=1d`, { credentials: 'include' });
+      if (!r.ok) return [];
+      const j = await r.json();
+      const rows = Array.isArray(j) ? j : (j?.data ?? []);
+      return rows
+        .map((c: any) => Number(c?.close ?? c?.c ?? c))
+        .filter((n: number) => Number.isFinite(n) && n > 0);
+    },
+    staleTime: 15 * 60_000,
+    retry: 0,
+    enabled: !!symbol,
+  });
+  return data ?? [];
+}
+
 export function ContractEngine({
   symbol, direction, entry, stop, t1, t2, holdPeriodLabel, conviction, autoLoad, onSelect,
 }: Props) {
   const [selection, setSelection] = useState<EngineSelection | null>(null);
   const [chosen, setChosen] = useState<Tier | null>(null);
+  const closes = useUnderlyingCloses(symbol);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -326,9 +355,28 @@ export function ContractEngine({
               </div>
 
               {isChosen && (
-                <p className="text-[10px] font-mono text-muted-foreground/80 mt-2 leading-snug border-t border-border/30 pt-2">
-                  {p.rationale}
-                </p>
+                <>
+                  {/* Only on the selected tier — this is the cost read for the contract
+                      you're actually weighing, and showing it three times would bury it. */}
+                  <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                    <ContractValuePanel
+                      spot={selection.spot}
+                      strike={p.strike}
+                      optionType={p.optionType}
+                      iv={p.iv}
+                      dte={p.dte}
+                      bid={p.bid}
+                      ask={p.ask}
+                      mid={p.mid}
+                      theta={p.theta}
+                      targetPrice={t1}
+                      closes={closes}
+                    />
+                  </div>
+                  <p className="text-[10px] font-mono text-muted-foreground/80 mt-2 leading-snug border-t border-border/30 pt-2">
+                    {p.rationale}
+                  </p>
+                </>
               )}
             </button>
           );
