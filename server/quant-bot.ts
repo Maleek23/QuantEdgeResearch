@@ -80,6 +80,36 @@ export interface BotRunResult {
  * One bot cycle: mark positions to market, take exits the signal itself defined, then
  * fill any remaining slots with the best signals available.
  */
+
+/**
+ * Announce a closed position. Every exit route funnels through here — stop, target,
+ * expiry settlement, gap magnet — so an exit reason can never be reported one way
+ * in the log and another way in Discord. A notification failure must never roll
+ * back a real close, hence the swallow.
+ */
+async function announceExit(pos: any, exitPrice: number, reason: string): Promise<void> {
+  try {
+    const { sendBotTradeExitToDiscord } = await import('./discord-service');
+    const mult = pos.assetType === 'option' ? 100 : 1;
+    const pnl = (exitPrice - Number(pos.entryPrice)) * Number(pos.quantity) * mult;
+    await sendBotTradeExitToDiscord({
+      symbol: pos.symbol,
+      assetType: pos.assetType ?? 'option',
+      optionType: pos.optionType ?? null,
+      strikePrice: pos.strikePrice ?? null,
+      entryPrice: Number(pos.entryPrice),
+      exitPrice,
+      quantity: Number(pos.quantity),
+      realizedPnL: pnl,
+      exitReason: reason,
+      portfolio: 'Quant Bot',
+      source: 'quant-bot',
+    });
+  } catch (err: any) {
+    logger.warn(`[QUANT-BOT] exit alert failed for ${pos?.symbol}: ${err?.message ?? err}`);
+  }
+}
+
 export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<BotRunResult> {
   const ranAt = new Date().toISOString();
   const opened: BotRunResult['opened'] = [];
@@ -128,11 +158,24 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
           ? Math.max(0, spot - strike)
           : Math.max(0, strike - spot);
       }
-      await closePosition(pos.id, Number(settle.toFixed(2)), settle > 0 ? 'expired_itm' : 'expired_worthless');
+      const settlePx = Number(settle.toFixed(2));
+      await closePosition(pos.id, settlePx, settle > 0 ? 'expired_itm' : 'expired_worthless');
+      await announceExit(pos, settlePx, settle > 0 ? `expired ITM at $${settlePx.toFixed(2)}` : 'expired worthless');
       closed.push({ symbol: pos.symbol, reason: settle > 0 ? `expired ITM at $${settle.toFixed(2)}` : 'expired worthless' });
     }
   } catch (err) {
     logger.warn('[QUANT-BOT] expiry settlement failed:', err);
+  }
+
+  // Announce anything the board has newly published. Piggy-backs on the bot cycle
+  // because it already holds a fresh conviction set; a separate cron would rebuild
+  // the same expensive thing on its own schedule and drift out of step with it.
+  try {
+    const { alertNewSignals } = await import('./signal-alerts');
+    const conv = await (await import('./convictions-engine')).peekConvictions();
+    if (conv?.data?.picks?.length) await alertNewSignals(conv.data.picks as any);
+  } catch (err) {
+    logger.warn('[QUANT-BOT] signal alerts failed:', err);
   }
 
   // 3.5 — gap magnets. A static stop and target cannot see that the underlying has
@@ -176,6 +219,7 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
       logger.info(describeGapExit(pos.symbol, signal));
       const mark = Number(pos.currentPrice ?? pos.entryPrice);
       await closePosition(pos.id, mark, 'gap_magnet');
+      await announceExit(pos, mark, `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%`);
       closed.push({ symbol: pos.symbol, reason: `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%` });
       gapWatch.push({ symbol: pos.symbol, level: signal.gapLevel ?? 0 });
     }
@@ -187,7 +231,9 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
   try {
     const exited = await checkStopsAndTargets(portfolio.id);
     for (const p of exited ?? []) {
-      closed.push({ symbol: p.symbol, reason: (p as any).exitReason ?? 'stop/target' });
+      const reason = (p as any).exitReason ?? 'stop/target';
+      closed.push({ symbol: p.symbol, reason });
+      await announceExit(p, Number((p as any).exitPrice ?? 0), reason);
     }
   } catch (err) {
     logger.warn('[QUANT-BOT] exit check failed:', err);
@@ -315,6 +361,33 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
             symbol: pick.symbol,
             reason: `${pick.convictionBand}-band ${pick.convictionScore} · R:R 1:${(pick.riskRewardRatio ?? 0).toFixed(1)}`,
           });
+
+          // Alert the entry. sendBotTradeEntryToDiscord has existed the whole time
+          // and nothing ever called it from here, so the bot has been trading
+          // silently — you only found out what it did by opening the page.
+          // Never let a notification failure roll back a real fill.
+          try {
+            const { sendBotTradeEntryToDiscord } = await import('./discord-service');
+            await sendBotTradeEntryToDiscord({
+              symbol: pick.symbol,
+              assetType: 'option',
+              optionType: (tradeable as any).optionType ?? null,
+              strikePrice: (tradeable as any).strikePrice ?? null,
+              expiryDate: (tradeable as any).expiryDate ?? null,
+              entryPrice: Number((tradeable as any).entryPrice ?? 0),
+              quantity: Number(res.position?.quantity ?? 1),
+              targetPrice: pick.targetPrice ?? null,
+              stopLoss: pick.stopLoss ?? null,
+              confidence: pick.convictionScore ?? null,
+              riskRewardRatio: pick.riskRewardRatio ?? null,
+              analysis: pick.thesis ?? null,
+              signals: (pick.layers ?? []).filter((l: any) => l.points > 0).slice(0, 4).map((l: any) => l.why).filter(Boolean),
+              portfolio: 'Quant Bot',
+              source: 'quant-bot',
+            });
+          } catch (err: any) {
+            logger.warn(`[QUANT-BOT] entry alert failed for ${pick.symbol}: ${err?.message ?? err}`);
+          }
         } else {
           skipped++;
           logger.debug(`[QUANT-BOT] skipped ${pick.symbol}: ${res.error ?? 'no fill'}`);
