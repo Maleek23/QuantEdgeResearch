@@ -37,6 +37,9 @@ export interface ConvictionPick {
 
   optionType: 'call' | 'put' | null;
   strikePrice: number | null;
+  /** Premium per contract at signal time. Null when the idea is not an option. */
+  entryPremium: number | null;
+  optionDte: number | null;
   expiryDate: string | null;
 
   convictionScore: number;

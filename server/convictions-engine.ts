@@ -75,6 +75,9 @@ export interface ConvictionPick {
   // Options fields (optional)
   optionType: "call" | "put" | null;
   strikePrice: number | null;
+  /** Premium per contract at signal time — lets the client size contracts. */
+  entryPremium: number | null;
+  optionDte: number | null;
   expiryDate: string | null;
 
   /** Total conviction score 0-100 (sum of layer points, capped). */
@@ -2018,6 +2021,13 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       riskRewardRatio: idea.riskRewardRatio,
       optionType: (idea.optionType as "call" | "put" | null) ?? null,
       strikePrice: idea.strikePrice ?? null,
+      // The contract's premium. Without this the client cannot tell an option
+      // signal from a stock one, so Position Size fell back to sizing SHARES on
+      // option ideas — a BMY $65C read "76 shares, $5,128, 51.3% of account" for a
+      // trade whose real cost is one contract. 449 of 534 option ideas already had
+      // it stored; it simply was never serialised.
+      entryPremium: idea.entryPremium != null ? Number(idea.entryPremium) : null,
+      optionDte: idea.optionDte != null ? Number(idea.optionDte) : null,
       expiryDate: idea.expiryDate ?? null,
       convictionScore: 0, // filled below
       convictionBand: "C",
