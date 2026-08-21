@@ -10,10 +10,11 @@
  * pre-market leadership is visible while it still matters — before the bell.
  */
 import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PanelFrame } from '@/components/oracle/panel-frame';
 import { TC } from '@/lib/oracle/trading-colors';
-import { DivergingBar, Meter } from '@/components/viz';
+import { DivergingBar, Meter, robustMax } from '@/components/viz';
 
 interface LeaderName { symbol: string; changePct: number; isMega?: boolean }
 interface SectorStrength {
@@ -43,19 +44,30 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
     staleTime: 120_000, refetchInterval: 180_000, retry: 1,
   });
 
+  // No local collapse state. This panel used to clip itself THREE ways — a 2-line
+  // clamp on the summary, a 176px inner scrollbar, and only 5 of N groups rendered —
+  // and then PanelFrame clipped it again on top. Two systems truncating the same
+  // content is why expanding it didn't reveal what you'd expect. Render everything;
+  // PanelFrame owns the height.
+
   const sectors = data?.sectors ?? [];
-  // shared scale so every bar on the panel is comparable
-  const maxMove = Math.max(0.5, ...sectors.map((x) => Math.abs(x.medianChangePct)));
-  const strong = sectors.slice(0, 3);
-  const weak = sectors.slice(-2).reverse();
+  // Shared scale so every bar is comparable — but robust, not the raw max. One
+  // outlier group (crypto routinely runs 10x the rest) was setting the axis and
+  // flattening every other bar to an unreadable nub.
+  const maxMove = robustMax(sectors.map((x) => x.medianChangePct));
+  const strong = sectors.filter((x) => x.medianChangePct >= 0);
+  const weak = sectors.filter((x) => x.medianChangePct < 0).reverse();
+  // What the collapsed view can't fit — used to label the expand control with
+  // something specific instead of the word "More".
+  const hiddenCount = Math.max(0, sectors.length - 5);
 
   return (
-    <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
-      <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">
-          Session Brief
-        </span>
-        <span className="flex items-center gap-2 text-label font-mono text-muted-foreground/70">
+    <PanelFrame
+      title="Session Brief"
+      className={className}
+      moreLabel={hiddenCount > 0 ? `+${hiddenCount} groups` : undefined}
+      right={
+        <span className="flex items-center gap-2 text-label font-mono text-muted-foreground">
           {data && (
             <>
               <span style={{ color: data.session === 'regular' ? TC.bull : TC.warn }}>
@@ -65,8 +77,8 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
             </>
           )}
         </span>
-      </div>
-
+      }
+    >
       {isLoading ? (
         <div className="flex h-32 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading leadership…
@@ -78,13 +90,13 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
       ) : (
         <>
           {data?.interpretation && (
-            <p className="line-clamp-2 border-b border-border/30 px-4 py-2 text-body leading-snug text-foreground/85"
+            <p className="border-b border-border/30 px-4 py-2 text-body leading-snug text-foreground/85"
                title={data.interpretation}>
               {data.interpretation}
             </p>
           )}
 
-          <div className="max-h-[176px] overflow-y-auto px-4 py-2.5">
+          <div className="px-4 py-2.5">
             <div className="mb-1.5 text-label font-mono uppercase tracking-widest" style={{ color: TC.bull }}>
               Leading
             </div>
@@ -120,14 +132,16 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
               </div>
             )}
 
-            <p className="mt-3 text-label leading-relaxed text-muted-foreground/70">
+            <p className="mt-3 text-label leading-relaxed text-muted-foreground">
               Trade continuation in the leaders, or look for reversals in the laggards. Confirm on the
               chart before acting — leadership says where to look, not what to buy.
             </p>
           </div>
+
+
         </>
       )}
-    </div>
+    </PanelFrame>
   );
 }
 

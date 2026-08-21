@@ -10,6 +10,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { PanelFrame } from "@/components/oracle/panel-frame";
 import { TC } from "@/lib/oracle/trading-colors";
 
 /**
@@ -38,9 +39,14 @@ interface RotationData {
 }
 
 function regimeOf(spy: number) {
-  if (spy > 0.3) return { label: "RISK-ON", color: "var(--trade-bullish, #22c55e)", sub: "Buyers in control" };
-  if (spy < -0.3) return { label: "RISK-OFF", color: "var(--trade-bearish, #ef4444)", sub: "Defense on" };
-  return { label: "TRANSITION", color: "#d4a72c", sub: "No clear edge" };
+  // `short` is what goes INSIDE the 56px sphere and must stay ~3-5 characters.
+  // It used to be derived as label.split("-")[0], which broke twice over: it made
+  // "TRANSITION" render as all ten characters spilling out of the circle, and it
+  // collapsed RISK-ON and RISK-OFF to the same word "RISK" — so the one piece of
+  // text in the centrepiece told you nothing that the colour hadn't already said.
+  if (spy > 0.3) return { label: "RISK-ON", short: "ON", color: "var(--trade-bullish, #22c55e)", sub: "Buyers in control" };
+  if (spy < -0.3) return { label: "RISK-OFF", short: "OFF", color: "var(--trade-bearish, #ef4444)", sub: "Defense on" };
+  return { label: "TRANSITION", short: "MIXED", color: "#d4a72c", sub: "No clear edge" };
 }
 
 export function OracleOrb({ className }: { className?: string }) {
@@ -107,11 +113,11 @@ export function OracleOrb({ className }: { className?: string }) {
   const r = regimeOf(spy);
 
   return (
-    <div className={cn("rounded-xl border border-card-border bg-card overflow-hidden", className)}>
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40">
-        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Oracle</span>
-        <span className="text-label font-mono text-muted-foreground/60">Market regime</span>
-      </div>
+    <PanelFrame
+      title="Oracle"
+      right={<span className="text-label font-mono text-muted-foreground">Market regime</span>}
+      className={className}
+    >
 
       {/* Horizontal, not stacked. The orb was a tall column of mostly padding in a row
           that has to sit alongside two other panels — the sphere reads just as well at
@@ -140,8 +146,11 @@ export function OracleOrb({ className }: { className?: string }) {
             animate={reduce ? {} : { scale: [1, 1.05, 1] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           >
-            <span className="text-body font-mono font-bold tracking-widest text-white" style={{ textShadow: "0 1px 6px rgba(0,0,0,.45)" }}>
-              {r.label.split("-")[0]}
+            <span
+              className="text-meta font-mono font-bold tracking-wider text-white leading-none"
+              style={{ textShadow: "0 1px 6px rgba(0,0,0,.45)" }}
+            >
+              {r.short}
             </span>
           </motion.span>
         </div>
@@ -224,11 +233,11 @@ export function OracleOrb({ className }: { className?: string }) {
         )}
 
         {data?.headline && (
-          <p className="border-t border-border/30 pt-2 text-label font-mono leading-snug text-muted-foreground/70">
+          <p className="border-t border-border/30 pt-2 text-label font-mono leading-snug text-muted-foreground">
             {data.headline}
           </p>
         )}
       </div>
-    </div>
+    </PanelFrame>
   );
 }

@@ -141,15 +141,48 @@ export function CoilBar({ low, high, current, className }: { low: number; high: 
 /** DIVERGING BAR — a signed value drawn from a centre line (sector strength, net flow). */
 export function DivergingBar({ value, max, height = 6, className }: { value: number; max: number; height?: number; className?: string }) {
   const m = Math.max(Math.abs(max), 0.01);
-  const pct = clamp((Math.abs(value) / m) * 50, 0, 50);
+  const raw = (Math.abs(value) / m) * 50;
+  const pct = clamp(raw, 0, 50);
   const pos = value >= 0;
+  // A value past the scale is pinned at the edge, so it must SAY it's pinned —
+  // otherwise a 13x outlier and a merely-large value draw the same full bar.
+  const overflows = raw > 50.5;
+  const color = pos ? TC.bull : TC.bear;
   return (
     <div className={cn('relative w-full rounded-full bg-foreground/[0.07]', className)} style={{ height }}>
       <div className="absolute top-0 bottom-0 w-px bg-foreground/25" style={{ left: '50%' }} />
       <div className="absolute top-0 bottom-0 rounded-full"
-           style={{ left: pos ? '50%' : `${50 - pct}%`, width: `${pct}%`, background: pos ? TC.bull : TC.bear }} />
+           style={{ left: pos ? '50%' : `${50 - pct}%`, width: `${pct}%`, background: color }} />
+      {overflows && (
+        <div
+          className="absolute top-0 bottom-0"
+          style={{
+            [pos ? 'right' : 'left']: 0,
+            width: 5,
+            // hatched cap = "this ran past the edge of the scale"
+            background: `repeating-linear-gradient(90deg, ${color} 0 1px, transparent 1px 3px)`,
+          }}
+          title={`Off the scale — ${value.toFixed(2)} vs a ${m.toFixed(2)} axis`}
+        />
+      )}
     </div>
   );
+}
+
+/**
+ * A max that one outlier can't destroy.
+ *
+ * Using the raw maximum means a single extreme member sets the axis for everyone:
+ * with Crypto at +6.9% against a field of ±0.5%, every other group rendered as a
+ * 2-4% sliver and the panel showed six bars that all looked like zero. Scaling to
+ * a high percentile instead keeps the typical values readable; whatever exceeds it
+ * is pinned and hatched rather than silently flattening the rest.
+ */
+export function robustMax(values: number[], floor = 0.5, percentile = 0.8): number {
+  const abs = values.map((v) => Math.abs(v)).filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
+  if (!abs.length) return floor;
+  const idx = Math.min(abs.length - 1, Math.floor(abs.length * percentile));
+  return Math.max(floor, abs[idx]);
 }
 
 /**

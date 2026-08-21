@@ -39,6 +39,24 @@ export interface SectorFlow {
   change: number;        // effective change now (pre-mkt if PRE, else today) %
   relChange: number;     // change minus SPY change (relative rotation) %
   fiveDayChange: number; // 5-day momentum %
+  /**
+   * TRUE RRG COORDINATES — both centred on 0.
+   *
+   * rsRatio    = how strong the sector is RELATIVE TO SPY versus its own recent
+   *              norm. Positive means it's outperforming more than it usually does.
+   * rsMomentum = whether that relative strength is BUILDING or FADING (the rate of
+   *              change of rsRatio).
+   *
+   * These replace (relChange, fiveDayChange) as the plot axes. Those two were both
+   * measures of recent performance — today's move is literally a component of the
+   * 5-day move — so they correlated near-perfectly, every sector collapsed onto a
+   * diagonal, and the IMPROVING / WEAKENING quadrants could never populate. Strength
+   * and the *direction* of strength are genuinely independent, which is the entire
+   * premise of a rotation graph: a sector can be strong but fading, or weak but
+   * turning up. Null when there isn't enough daily history to compute them.
+   */
+  rsRatio: number | null;
+  rsMomentum: number | null;
   state: FlowState;
   rank: number;          // 1 = strongest inflow
 }
@@ -239,6 +257,67 @@ function classify(relChange: number): FlowState {
 let _cache: { at: number; brief: RotationBrief } | null = null;
 const TTL_MS = 3 * 60 * 1000; // 3 min — rotation shifts intraday but not by the second
 
+
+/** Daily closes for the RS computation. Cached hard — this data changes once a day. */
+async function fetchDailyCloses(symbol: string): Promise<number[]> {
+  const { cachedFetch } = await import('./provider-cache');
+  return cachedFetch(`rrg:${symbol}`, 6 * 60 * 60 * 1000, async () => {
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?range=6mo&interval=1d`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) return [];
+    const j: any = await r.json();
+    const closes: number[] = j?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+    return closes.filter((c: any) => Number.isFinite(c) && c > 0);
+  });
+}
+
+const RS_NORM_WINDOW = 40;  // trading days the ratio is normalised against (~2 months)
+const RS_MOM_LOOKBACK = 10; // days over which we measure whether RS is building
+
+/**
+ * JdK-style RS-Ratio / RS-Momentum, simplified but faithful to the construction.
+ *
+ * ratio(t)      = sector(t) / benchmark(t)          — raw relative strength
+ * rsRatio(t)    = ratio(t) / mean(ratio, N) − 1     — strength vs its OWN norm
+ * rsMomentum(t) = rsRatio(t) − rsRatio(t − k)       — is that strength building?
+ *
+ * Normalising against the sector's own recent average is what makes the axes
+ * comparable across sectors: without it, an ETF that structurally trades at a
+ * higher ratio to SPY would sit permanently on one side of the chart regardless
+ * of whether anything was actually rotating.
+ */
+function computeRs(
+  sectorCloses: number[],
+  benchCloses: number[],
+): { rsRatio: number; rsMomentum: number } | null {
+  const n = Math.min(sectorCloses.length, benchCloses.length);
+  if (n < RS_NORM_WINDOW + RS_MOM_LOOKBACK + 1) return null;
+
+  // Align from the right — the two series may start on different dates.
+  const sec = sectorCloses.slice(-n);
+  const ben = benchCloses.slice(-n);
+  const ratio = sec.map((v, i) => v / ben[i]).filter((v) => Number.isFinite(v) && v > 0);
+  if (ratio.length < RS_NORM_WINDOW + RS_MOM_LOOKBACK + 1) return null;
+
+  const rsAt = (idx: number): number | null => {
+    const start = idx - RS_NORM_WINDOW + 1;
+    if (start < 0) return null;
+    const win = ratio.slice(start, idx + 1);
+    const mean = win.reduce((a, b) => a + b, 0) / win.length;
+    if (!(mean > 0)) return null;
+    return (ratio[idx] / mean - 1) * 100;
+  };
+
+  const now = rsAt(ratio.length - 1);
+  const then = rsAt(ratio.length - 1 - RS_MOM_LOOKBACK);
+  if (now == null || then == null) return null;
+
+  return {
+    rsRatio: +now.toFixed(2),
+    rsMomentum: +(now - then).toFixed(2),
+  };
+}
+
 export async function getSectorRotation(force = false): Promise<RotationBrief> {
   if (!force && _cache && Date.now() - _cache.at < TTL_MS) return _cache.brief;
 
@@ -246,6 +325,13 @@ export async function getSectorRotation(force = false): Promise<RotationBrief> {
     fetchQuote(BENCHMARK),
     ...ROTATION_ETFS.map(e => fetchQuote(e.symbol)),
   ]);
+
+  // Daily history for the RRG axes. Heavily cached (6h) because daily closes only
+  // change once a day, so this costs one round of requests per session, not per view.
+  const benchDaily = await fetchDailyCloses(BENCHMARK).catch(() => [] as number[]);
+  const sectorDaily = await Promise.all(
+    ROTATION_ETFS.map(e => fetchDailyCloses(e.symbol).catch(() => [] as number[])),
+  );
 
   // Session timing — use the freshest bar across all fetched ETFs.
   const allQuotes = [spy, ...rest].filter((q): q is RawQuote => !!q);
@@ -261,12 +347,15 @@ export async function getSectorRotation(force = false): Promise<RotationBrief> {
       const meta = ROTATION_ETFS[i];
       const chg = effectiveChange(q);
       const relChange = +(chg - spyChange).toFixed(2);
+      const rs = benchDaily.length ? computeRs(sectorDaily[i] ?? [], benchDaily) : null;
       return {
         etf: meta.symbol,
         name: meta.name,
         change: chg,
         relChange,
         fiveDayChange: q.fiveDayChange,
+        rsRatio: rs?.rsRatio ?? null,
+        rsMomentum: rs?.rsMomentum ?? null,
         state: classify(relChange),
         rank: 0,
       } as SectorFlow;
