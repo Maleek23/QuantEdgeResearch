@@ -126,10 +126,37 @@ export const HEALTHCARE_TIER = [
 ] as const;
 
 // All approved tickers combined
+
+// PRECIOUS METALS TIER — the gold/silver complex.
+//
+// Added because the platform was structurally blind to it: the universe was
+// chips, software and fintech, so an entire asset class that trades on its own
+// cycle produced zero signals no matter what it did. A cross-asset system that
+// cannot see gold is not cross-asset.
+//
+// Three groups, and they behave differently enough that the distinction matters:
+//   GLD / SLV      the metals themselves — the beta every miner is levered to.
+//   GDX/GDXJ/SILJ  sector proxies, liquid, real option chains.
+//   the miners      operating leverage on the metal. A junior at 3x leverage moves
+//                   30% on a 10% gold move, in both directions.
+//
+// CAUTION for anything that trades these: the juniors here (HYMC, GAU, THM, MTA)
+// are small and several have thin or no weekly option chains. They belong to the
+// cash/thesis side of the platform, NOT to the weekly-premium bot, which will
+// find no fillable contract and should skip them rather than reach for shares.
+export const PRECIOUS_METALS_TIER = [
+  // Metal beta
+  'GLD', 'SLV',
+  // Sector proxies — liquid, optionable
+  'GDX', 'GDXJ', 'SILJ',
+  // Miners
+  'MUX', 'HL', 'MTA', 'HYMC', 'GAU', 'THM', 'AG', 'CDE',
+] as const;
+
 export const APPROVED_TICKERS: Set<string> = new Set<string>([
   ...MEGA_CAP_TIER,
   ...S_TIER, ...A_TIER, ...INDEX_TICKERS, ...CRYPTO_TICKERS, ...SECONDARY,
-  ...SMALL_ACCOUNT_TIER, ...HEALTHCARE_TIER,
+  ...SMALL_ACCOUNT_TIER, ...HEALTHCARE_TIER, ...PRECIOUS_METALS_TIER,
 ]);
 
 // Skip list: proven money losers
@@ -199,6 +226,7 @@ export type Sector =
   | 'pharma'
   | 'healthcare'
   | 'ev_mobility'
+  | 'precious_metals'
   | 'other';
 
 export const SECTOR_MAP: Record<string, Sector> = {
@@ -299,6 +327,13 @@ export const SECTOR_MAP: Record<string, Sector> = {
   ABT: 'healthcare', TMO: 'healthcare', DHR: 'healthcare',
   // Large-cap optionable biotech
   VRTX: 'biotech', REGN: 'biotech', MRNA: 'biotech',
+
+  // Precious metals — metal beta, sector proxies, then the miners levered to it
+  GLD: 'precious_metals', SLV: 'precious_metals',
+  GDX: 'precious_metals', GDXJ: 'precious_metals', SILJ: 'precious_metals',
+  MUX: 'precious_metals', HL: 'precious_metals', MTA: 'precious_metals',
+  HYMC: 'precious_metals', GAU: 'precious_metals', THM: 'precious_metals',
+  AG: 'precious_metals', CDE: 'precious_metals',
 };
 
 export function getSector(symbol: string): Sector {
@@ -325,5 +360,6 @@ export const SECTOR_LABELS: Record<Sector, string> = {
   pharma: 'Pharma',
   healthcare: 'Healthcare / Insurers',
   ev_mobility: 'EV / Mobility',
+  precious_metals: 'Gold / Silver',
   other: 'Other',
 };
