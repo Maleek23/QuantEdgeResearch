@@ -13953,6 +13953,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── GAP SCAN — where the magnets are, across the whole universe ────────────
+  // Ranked on EVIDENCE rather than gap size: a name with an open gap is only
+  // interesting when it has a history of filling them. Sector ETFs are scanned as
+  // first-class tickers because "does XLE fill its gaps" is the same question and
+  // nobody asks it of a sector.
+  app.get("/api/scan/gaps", async (req, res) => {
+    try {
+      const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 40));
+      const force = req.query.force === '1';
+      const { scanGaps } = await import("./gap-scanner");
+      const out = await scanGaps({ limit, force });
+      res.json(out);
+    } catch (error) {
+      logger.error("Gap scan error:", error);
+      res.status(500).json({ error: "Failed to scan gaps" });
+    }
+  });
+
   // ── GAPS — unfilled zones, and this ticker's own fill base rate ────────────
   // Untraded price zones act as magnets because no position was opened inside
   // them: there's no supply or demand shelf to slow price down. The fill RATE is
