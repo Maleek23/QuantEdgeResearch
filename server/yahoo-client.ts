@@ -109,3 +109,58 @@ export async function yahooQuote(symbol: string): Promise<YahooQuote | null> {
 export function yahooBackoffRemainingMs(): number {
   return Math.max(0, _throttled429Until - Date.now());
 }
+
+/**
+ * Yahoo's predefined screeners — the only candidate source on hand that returns
+ * names we have NOT already thought of. Everything else in the platform reads
+ * from a curated allowlist, which by construction can only re-rank what someone
+ * already added. Discovery has to begin somewhere outside that.
+ *
+ * Uses the same limiter, cache and 429 back-off as every other call here.
+ */
+export async function yahooScreener(
+  screenId: string,
+  count = 50,
+): Promise<Array<{ symbol: string; price: number; changePct: number; volume: number; marketCap: number | null }>> {
+  if (Date.now() < _throttled429Until) {
+    logger.debug(`[YAHOO] backing off, skipping screener ${screenId}`);
+    return [];
+  }
+
+  const key = `yahoo:screener:${screenId}:${count}`;
+  const j = await cachedFetch(key, 5 * 60_000, async () =>
+    rateLimited('yahoo', MIN_GAP_MS, async () => {
+      for (const host of HOSTS) {
+        try {
+          const r = await fetch(
+            `https://${host}.finance.yahoo.com/v1/finance/screener/predefined/saved`
+              + `?scrIds=${encodeURIComponent(screenId)}&count=${count}`,
+            { headers: { 'User-Agent': 'Mozilla/5.0' } },
+          );
+          if (r.status === 429) {
+            _throttled429Until = Date.now() + 30_000;
+            logger.warn(`[YAHOO] 429 on screener ${screenId} — backing off 30s`);
+            return null;
+          }
+          if (!r.ok) continue;
+          const body = await r.json();
+          if (body?.finance?.result?.[0]) return body;
+        } catch {
+          // try the other host
+        }
+      }
+      return null;
+    }),
+  );
+
+  const quotes = j?.finance?.result?.[0]?.quotes ?? [];
+  return quotes
+    .filter((q: any) => q?.symbol)
+    .map((q: any) => ({
+      symbol: String(q.symbol).toUpperCase(),
+      price: Number(q.regularMarketPrice ?? 0),
+      changePct: Number(q.regularMarketChangePercent ?? 0),
+      volume: Number(q.regularMarketVolume ?? 0),
+      marketCap: Number.isFinite(q.marketCap) ? Number(q.marketCap) : null,
+    }));
+}
