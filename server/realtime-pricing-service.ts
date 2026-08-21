@@ -101,7 +101,25 @@ async function fetchCryptoQuote(symbol: string): Promise<RealtimeQuote | null> {
   return null;
 }
 
+/** OCC symbol: root + YYMMDD + C/P + 8-digit strike, e.g. NVDA260918C00220000. */
+const OCC_RE = /^[A-Z]{1,6}\d{6}[CP]\d{8}$/;
+
 async function fetchOptionQuote(symbol: string): Promise<RealtimeQuote | null> {
+  // Callers were passing bare underlyings ("AMZN") with assetType 'option', so every
+  // lookup asked the quote API for a contract that doesn't exist — 411 of 412 in one
+  // batch — and logged "No data returned", which reads like a provider outage rather
+  // than a malformed request. A bare ticker names no strike and no expiry, so there is
+  // no contract to price: fail immediately and say why, instead of burning a network
+  // call per position and blaming the vendor.
+  if (!OCC_RE.test(symbol.toUpperCase())) {
+    logger.warn(
+      `[REALTIME-PRICING] "${symbol}" is not an OCC option symbol (expected e.g. NVDA260918C00220000). ` +
+      `Something upstream classified an underlying as an option — pass the contract symbol, ` +
+      `or route it as a stock quote.`,
+    );
+    return null;
+  }
+
   const quote = await getOptionQuote({ occSymbol: symbol });
   if (quote) {
     return {

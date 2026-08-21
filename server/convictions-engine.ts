@@ -1395,13 +1395,16 @@ export async function revalidateBestSetups(
 
   if (ageGated.length === 0) return { kept: [], diagnostics };
 
-  // Batch live quote fetch
+  // Batch live quote fetch. Same mapping as the revalidation path below: an idea's
+  // symbol is the underlying, so an "option" idea still needs the UNDERLYING quote —
+  // asking for an option named "AMZN" resolves to nothing.
   const validAssetTypes = new Set(["stock", "crypto", "option", "futures"]);
   const quoteRequests = ageGated.map((idea: any) => {
     const at = typeof idea.assetType === "string" ? idea.assetType.toLowerCase() : "stock";
+    const resolved = validAssetTypes.has(at) ? (at === "option" ? "stock" : at) : "stock";
     return {
       symbol: idea.symbol,
-      assetType: (validAssetTypes.has(at) ? at : "stock") as "stock" | "crypto" | "option" | "futures",
+      assetType: resolved as "stock" | "crypto" | "option" | "futures",
     };
   });
   let quoteMap = new Map<string, RealtimeQuote>();
@@ -1534,6 +1537,32 @@ const _convictionsInflight = new Map<string, Promise<ConvictionsResponse>>();
  * minScore / weeklyUserId / weeklyOnly) so per-user weekly boosts are
  * preserved without cross-contamination.
  */
+/**
+ * Non-blocking read of the convictions cache. Returns whatever is already there —
+ * fresh OR stale — and null when the cache is cold. Never triggers a build.
+ *
+ * Secondary surfaces (the catalyst board, anything that merely ANNOTATES the
+ * picks) must use this rather than getCachedConvictions: on a cold cache the full
+ * build takes minutes, and a tab that hangs for minutes is worse than a tab that
+ * honestly says the board is still warming up. The Oracle tab drives the actual
+ * build; everyone else rides its cache.
+ */
+export function peekConvictions(
+  opts: BuildConvictionsOptions = {},
+): { data: ConvictionsResponse; stale: boolean } | null {
+  const merged: BuildConvictionsOptions = {
+    lookbackHours: opts.lookbackHours ?? 96,
+    limit: opts.limit ?? 500,
+    watchlistOnly: opts.watchlistOnly ?? false,
+    minScore: opts.minScore ?? 0,
+    weeklyUserId: opts.weeklyUserId,
+    weeklyOnly: opts.weeklyOnly ?? false,
+  };
+  const hit = _convictionsCache.get(JSON.stringify(merged));
+  if (!hit) return null;
+  return { data: hit.data, stale: hit.expiresAt <= Date.now() };
+}
+
 export async function getCachedConvictions(
   opts: BuildConvictionsOptions = {},
 ): Promise<ConvictionsResponse> {
@@ -1705,11 +1734,23 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   if (!skipLiveRevalidation && ageGated.length > 0) {
     try {
       const validAssetTypes = new Set(["stock", "crypto", "option", "futures"]);
+      // A trade idea's `symbol` is ALWAYS the underlying ("AMZN"), but `assetType` is
+      // "option" whenever the idea is expressed as a contract. Passing both asked the
+      // quote service for an option named "AMZN" — which is not an OCC symbol, so it
+      // could never resolve, and a batch of 412 returned 1. Every options-based idea
+      // therefore had no live price at all.
+      //
+      // The underlying quote is also the CORRECT one here: entry, stop and targets all
+      // come from the level engine, which derives them from underlying candles. Contract
+      // pricing is a separate concern (Contract Engine / paper positions), keyed by OCC
+      // symbol. So options map to a stock quote; crypto and futures stay as they are.
+      const quoteAssetType = (at: string) => (at === "option" ? "stock" : at);
       const quoteRequests = ageGated.map((idea: any) => {
         const at = typeof idea.assetType === "string" ? idea.assetType.toLowerCase() : "stock";
+        const resolved = validAssetTypes.has(at) ? quoteAssetType(at) : "stock";
         return {
           symbol: idea.symbol,
-          assetType: (validAssetTypes.has(at) ? at : "stock") as "stock" | "crypto" | "option" | "futures",
+          assetType: resolved as "stock" | "crypto" | "option" | "futures",
         };
       });
       const quoteMap = await getRealtimeBatchQuotes(quoteRequests);

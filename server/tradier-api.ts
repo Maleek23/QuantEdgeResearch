@@ -253,6 +253,17 @@ export function buildOptionSymbol(
  * Fetch current option quote (premium/price) from Tradier
  * Can accept either OCC symbol or individual components
  */
+export interface OptionMark {
+  last: number;
+  bid: number;
+  ask: number;
+  mid: number;
+  /** Which venue actually answered. Never inferred — always the real one. */
+  source: 'tradier' | 'cboe';
+  /** True when the mark is the ~15-min delayed CBOE chain. */
+  delayed: boolean;
+}
+
 export async function getOptionQuote(
   params: {
     occSymbol?: string;
@@ -263,21 +274,58 @@ export async function getOptionQuote(
   },
   apiKey?: string
 ): Promise<{ last: number; bid: number; ask: number; mid: number } | null> {
+  const m = await resolveOptionMark(params, apiKey);
+  if (!m) return null;
+  const { source, delayed, ...quote } = m;
+  return quote;
+}
+
+/**
+ * The universal option mark. Resolves Tradier first, CBOE delayed chain second,
+ * and reports which one answered so callers can label a delayed price instead of
+ * implying it's live. Returns null only when NEITHER venue has a price — never a
+ * stock price, and never a zero-row masquerading as a $0.00 contract.
+ */
+export async function getOptionMark(params: {
+  occSymbol?: string;
+  underlying?: string;
+  expiryDate?: string;
+  optionType?: 'call' | 'put';
+  strike?: number;
+}): Promise<OptionMark | null> {
+  return resolveOptionMark(params);
+}
+
+async function resolveOptionMark(
+  params: {
+    occSymbol?: string;
+    underlying?: string;
+    expiryDate?: string;
+    optionType?: 'call' | 'put';
+    strike?: number;
+  },
+  apiKey?: string
+): Promise<OptionMark | null> {
   const key = apiKey || process.env.TRADIER_API_KEY;
-  if (!key) {
-    logger.error('Tradier API key not found');
-    return null;
-  }
 
   // Build OCC symbol if not provided
   let optionSymbol = params.occSymbol;
   if (!optionSymbol && params.underlying && params.expiryDate && params.optionType && params.strike) {
     optionSymbol = buildOptionSymbol(params.underlying, params.expiryDate, params.optionType, params.strike);
   }
-  
+
   if (!optionSymbol) {
     logger.error('Option quote requires either occSymbol or all components (underlying, expiryDate, optionType, strike)');
     return null;
+  }
+
+  // A missing/unfunded Tradier key used to return null here, and every one of the
+  // ~13 call sites treated null as "hold the last price" — which is why paper
+  // positions, the bot, and the realtime pricing service all froze at their entry
+  // premium and reported a permanent +0.0%. Tradier is now the PREFERRED source,
+  // not the only one: if it can't answer, fall through to the CBOE delayed chain.
+  if (!key) {
+    return cboeOptionQuote(optionSymbol, params);
   }
 
   try {
@@ -290,29 +338,74 @@ export async function getOptionQuote(
     });
 
     if (!response.ok) {
-      // Don't log errors for expected cases like expired options
-      return null;
+      // 401 = unfunded/expired key, 4xx/5xx = outage. Either way Tradier can't price
+      // this contract right now, and a stale mark is worse than a delayed one.
+      return cboeOptionQuote(optionSymbol, params);
     }
 
     const data = await response.json();
     const quote = data.quotes?.quote;
-    
+
     if (!quote) {
-      return null;
+      return cboeOptionQuote(optionSymbol, params);
     }
 
-    // Return pricing info
     const last = quote.last || 0;
     const bid = quote.bid || 0;
     const ask = quote.ask || 0;
     const mid = (bid + ask) / 2;
-    
-    return { last, bid, ask, mid };
+
+    // A quote that came back all zeros is not a price — it's an empty row for a
+    // contract Tradier doesn't cover. Treat it as a miss rather than marking the
+    // position to $0.00 and booking a fabricated -100%.
+    if (mid <= 0 && last <= 0) {
+      return cboeOptionQuote(optionSymbol, params);
+    }
+
+    return { last, bid, ask, mid, source: 'tradier', delayed: false };
   } catch (error) {
-    // Silent fail for option quotes - they may be expired or invalid
+    return cboeOptionQuote(optionSymbol, params);
+  }
+}
+
+/**
+ * Delayed-chain fallback. CBOE publishes the full chain with no auth, so it works
+ * on an unfunded account — the trade-off is a ~15-minute delay, which is correct
+ * for marking paper positions and research, and NOT good enough for a live fill.
+ * Callers that need real-time execution prices must check `source`/`delayed` on
+ * getOptionMark() rather than using this transparently.
+ */
+async function cboeOptionQuote(
+  occSymbol: string,
+  params: { underlying?: string; expiryDate?: string; optionType?: 'call' | 'put'; strike?: number },
+): Promise<OptionMark | null> {
+  try {
+    // Prefer the caller's decomposed fields; fall back to parsing the OCC symbol.
+    let underlying = params.underlying;
+    let expiry = params.expiryDate;
+    let optionType = params.optionType;
+    let strike = params.strike;
+
+    if (!underlying || !expiry || !optionType || !strike) {
+      const parsed = parseOptionSymbol(occSymbol);
+      if (!parsed) return null;
+      underlying = underlying || parsed.underlying;
+      expiry = expiry || parsed.expiry;
+      optionType = optionType || parsed.optionType;
+      strike = strike || parsed.strike;
+    }
+
+    const { getContractQuote } = await import('./cboe-options-fallback');
+    const q = await getContractQuote(underlying, optionType, strike, expiry);
+    if (!q || !(q.mid > 0)) return null;
+
+    return { last: q.last ?? q.mid, bid: q.bid, ask: q.ask, mid: q.mid, source: 'cboe', delayed: true };
+  } catch {
     return null;
   }
 }
+
+
 
 // Get historical price data
 export async function getTradierHistory(

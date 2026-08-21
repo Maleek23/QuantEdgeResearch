@@ -525,7 +525,29 @@ async function fetchCurrentPrice(
         }
       }
       
-      // If quote fails, use fallback price (entry price or current price) - NEVER stock price
+      // Tradier is the primary option quote source and returns 401 on an unfunded account,
+      // so this path was ALWAYS falling through to the entry price — which is why every
+      // paper option position sat at exactly +$0.00 / +0.0% and the bot looked frozen.
+      // A position that can't be marked to market can't be managed: stops and targets
+      // never trigger either. CBOE's delayed chain needs no key and prices the same
+      // contract, so try it before giving up.
+      try {
+        const { getContractQuote } = await import('./cboe-options-fallback');
+        const cboe = await getContractQuote(
+          optionDetails.underlying,
+          optionDetails.optionType,
+          optionDetails.strike,
+          optionDetails.expiryDate,
+        );
+        if (cboe && cboe.mid > 0) {
+          logger.info(`📊 [PAPER] CBOE mark for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${cboe.mid.toFixed(2)} (bid $${cboe.bid} / ask $${cboe.ask}, delayed)`);
+          return cboe.mid;
+        }
+      } catch (err: any) {
+        logger.warn(`📊 [PAPER] CBOE fallback failed for ${symbol}: ${err?.message}`);
+      }
+
+      // Genuinely no mark available — hold the last known value rather than inventing one.
       logger.warn(`📊 [PAPER] No option quote for ${symbol} ${optionDetails.optionType?.toUpperCase()} $${optionDetails.strike} exp ${optionDetails.expiryDate} - using fallback: $${fallbackPrice?.toFixed(2) || 'null'}`);
       return fallbackPrice || null;
     } else {
