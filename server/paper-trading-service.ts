@@ -597,7 +597,10 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
         const multiplier = position.assetType === 'option' ? 100 : 1;
         const directionMultiplier = position.direction === 'long' ? 1 : -1;
         
-        const unrealizedPnL = (currentPrice - position.entryPrice) * position.quantity * multiplier * directionMultiplier;
+        // Same rule as closePaperPosition: a bought option is long the contract,
+        // so a put's unrealised P&L must NOT be inverted by the underlying thesis.
+        const pnlSign = position.assetType === 'option' ? 1 : directionMultiplier;
+        const unrealizedPnL = (currentPrice - position.entryPrice) * position.quantity * multiplier * pnlSign;
         const unrealizedPnLPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100 * directionMultiplier;
 
         // SMART TRAILING STOP: Update high water mark and trailing stop

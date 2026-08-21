@@ -4109,7 +4109,19 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    const directionMultiplier = position.direction === 'long' ? 1 : -1;
+    // A BOUGHT option is a LONG position in the contract regardless of whether it
+    // is a call or a put. You pay the premium and profit if the premium rises; the
+    // bearish view is already expressed by owning the put, and inverting the P&L on
+    // top of that double-counts it.
+    //
+    // `direction` on these rows records the thesis about the UNDERLYING, not the
+    // side of the instrument, so feeding it in as a sign flipped every put: an IWM
+    // $296P bought at 0.49 and expiring worthless was stored as +$147 instead of
+    // −$147, and the bot reported a 100% win rate on a total loss.
+    //
+    // Stocks and futures keep the flip — there `direction` really is the side.
+    const isBoughtOption = position.assetType === 'option';
+    const directionMultiplier = isBoughtOption ? 1 : (position.direction === 'long' ? 1 : -1);
     const priceDiff = exitPrice - position.entryPrice;
     
     // For futures: P&L = price difference * multiplier * contracts
