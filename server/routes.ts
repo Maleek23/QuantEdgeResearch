@@ -13737,6 +13737,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── BASE RATES — what this specific ticker actually tends to do ────────────
+  // Same method as the gap engine: answer with the name's own record rather than
+  // a rule of thumb. Every rate carries its sample count and is withheld below ten
+  // observations — a 100% rate on four samples is a coincidence, not a tendency.
+  app.get("/api/ticker/:symbol/base-rates", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || "").trim().toUpperCase();
+      if (!symbol) return res.status(400).json({ error: "symbol required" });
+
+      const { computeBaseRates } = await import("@shared/ticker-base-rates");
+      const { analyzeGaps } = await import("@shared/gap-engine");
+      const { rateLimited } = await import("./provider-cache");
+
+      const chart: any = await rateLimited("yahoo", 1200, async () => {
+        for (const host of ["query2", "query1"]) {
+          const r = await fetch(
+            `https://${host}.finance.yahoo.com/v8/finance/chart/${symbol}?range=2y&interval=1d`,
+            { headers: { "User-Agent": "Mozilla/5.0" } },
+          );
+          if (r.ok) return r.json();
+        }
+        return null;
+      });
+      const result = chart?.chart?.result?.[0];
+      const q = result?.indicators?.quote?.[0];
+      if (!result || !q) return res.status(404).json({ error: `No price history for ${symbol}` });
+
+      const bars = (result.timestamp || [])
+        .map((t: number, i: number) => ({
+          time: t, open: q.open?.[i], high: q.high?.[i], low: q.low?.[i], close: q.close?.[i], volume: q.volume?.[i],
+        }))
+        .filter((b: any) => [b.open, b.high, b.low, b.close].every((v: any) => Number.isFinite(v)));
+
+      const report = computeBaseRates(bars, symbol);
+      if (!report) return res.status(422).json({ error: "Not enough history (needs ~60 daily bars)" });
+
+      // The gap fill rate belongs in the same list — it is the original of this kind.
+      const gaps = analyzeGaps(bars, symbol);
+      const rates = [...report.rates];
+      if (gaps && gaps.stats.fillRate != null) {
+        rates.unshift({
+          key: 'gapFill',
+          label: 'Gaps that eventually fill',
+          value: `${(gaps.stats.fillRate * 100).toFixed(0)}%`,
+          samples: gaps.stats.total,
+          confidence: gaps.stats.sampleConfidence === 'good' ? 'good' : gaps.stats.sampleConfidence === 'moderate' ? 'moderate' : 'low',
+          read:
+            `${gaps.stats.filled} of ${gaps.stats.total} past gaps filled` +
+            (gaps.stats.medianBarsToFill != null ? `, median ${gaps.stats.medianBarsToFill} sessions.` : '.') +
+            (gaps.nearestBelow ? ` One is open ${Math.abs(gaps.nearestBelow.distancePct ?? 0).toFixed(1)}% below at $${gaps.nearestBelow.nearEdge.toFixed(2)}.` : ''),
+        });
+      }
+
+      res.json({ ...report, rates, _meta: { note: report.note } });
+    } catch (error) {
+      logger.error("Base rates error:", error);
+      res.status(500).json({ error: "Failed to compute base rates" });
+    }
+  });
+
   // ── TICKER READ — conditions on any symbol, signal or not ─────────────────
   // Searching a ticker with no published setup returned "No signal yet" and a
   // chart. Plenty is knowable without a setup having cleared the layers, and
