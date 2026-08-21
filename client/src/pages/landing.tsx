@@ -28,6 +28,7 @@ import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { BorderBeam } from "@/components/magicui/border-beam";
 
 import { CONVICTION_LAYERS, CONVICTION_LAYER_COUNT, CONVICTION_LAYER_NOTE } from '@shared/conviction-layers';
+import { InstrumentPanel } from '@/components/landing/instrument-panel';
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -258,7 +259,7 @@ function LiveStats() {
   return (
     <div className="grid grid-cols-3 gap-8 max-w-md">
       <div>
-        <NumberTicker value={15} className="text-3xl font-mono font-bold text-foreground" />
+        <NumberTicker value={CONVICTION_LAYER_COUNT} className="text-3xl font-mono font-bold text-foreground" />
         <div className="text-xs text-muted-foreground mt-0.5">Layers</div>
       </div>
       <div>
@@ -450,7 +451,7 @@ export default function Landing() {
               transition={{ duration: 0.7, delay: 0.3 }}
               className="hidden lg:block"
             >
-              <ProductShot src="/screenshots/gex-terminal.png" alt="QuantEdge GEX Terminal" />
+              <InstrumentPanel className="w-full" />
             </motion.div>
           </div>
 

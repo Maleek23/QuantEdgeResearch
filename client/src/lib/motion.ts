@@ -47,3 +47,44 @@ export const hoverLift = { scale: 1.06, transition: { duration: DUR.fast, ease: 
 
 /** Tap feedback. */
 export const tapPress = { scale: 0.97 };
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE SIGNATURE — how a number arrives.
+
+   A count-up is slot-machine motion: it makes the number look like it is being
+   won. Wrong for an instrument, and badly wrong for a product whose headline
+   figure is a negative expectancy.
+
+   A real readout SETTLES. The needle swings past the value, comes back, and
+   damps to rest. Same physics as a moving-coil meter, and it reads as a
+   measurement rather than a reward. This is the one motion idea the whole
+   design is built on, so it lives here and everything else stays quiet.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/** Underdamped spring — visible overshoot, then rest. The instrument's needle. */
+export const SETTLE: Transition = { type: "spring", stiffness: 90, damping: 11, mass: 1 };
+
+/** Heavier settle for large display figures, so the hero number is not twitchy. */
+export const SETTLE_HEAVY: Transition = { type: "spring", stiffness: 60, damping: 13, mass: 1.4 };
+
+/**
+ * Page-load order. One orchestrated sequence beats scattered reveals: the frame
+ * arrives, then the structure inside it, then the values land last — the same
+ * order a real instrument powers up in.
+ */
+export const bootSequence: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.15 } },
+};
+
+/** Chrome and rules — they draw themselves in rather than fading. */
+export const drawIn: Variants = {
+  hidden: { opacity: 0, scaleX: 0.82 },
+  show: { opacity: 1, scaleX: 1, transition: { duration: DUR.slow, ease: EASE } },
+};
+
+/** A value arriving at rest. Use with SETTLE for anything numeric. */
+export const settleIn: Variants = {
+  hidden: { opacity: 0, y: -6 },
+  show: { opacity: 1, y: 0, transition: SETTLE },
+};
