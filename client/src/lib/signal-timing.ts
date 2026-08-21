@@ -1,3 +1,4 @@
+import { USER_TIMEZONE, getTimezoneAbbreviation } from '@/lib/timezone';
 /**
  * SIGNAL TIMING — when a signal actually fired, and whether that moment was tradeable.
  *
@@ -113,14 +114,22 @@ export function signalTiming(generatedAt: string | Date | null | undefined, now:
 
   const bornIn = sessionAt(d);
   const sessionsSince = sessionsElapsed(d, now);
-  const clock = d.toLocaleTimeString('en-US', { timeZone: ET, hour: 'numeric', minute: '2-digit' }).toLowerCase();
+
+  // Session CLASSIFICATION stays in ET — that is when the market is actually open,
+  // and it does not change because the reader lives somewhere else. The DISPLAYED
+  // clock is the reader's own zone, because "4:00 pm ET" makes someone in Chicago
+  // do arithmetic to work out whether they were at their desk.
+  const clock = d
+    .toLocaleTimeString('en-US', { timeZone: USER_TIMEZONE, hour: 'numeric', minute: '2-digit' })
+    .toLowerCase();
+  const tzAbbr = getTimezoneAbbreviation();
 
   const sessionWord =
     bornIn === 'regular' ? '' :
     bornIn === 'pre' ? ' · pre-market' :
     bornIn === 'post' ? ' · after close' : ' · market closed';
 
-  const label = `${clock} ET${sessionWord}`;
+  const label = `${clock} ${tzAbbr}${sessionWord}`;
 
   let caveat: string | null = null;
   let standing: SignalTiming['standing'] = 'live';

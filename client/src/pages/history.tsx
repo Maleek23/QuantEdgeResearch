@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { PageShell, PageHeader } from '@/components/template/page-shell';
 import {
   MessageSquare,
   FileText,
@@ -89,15 +90,12 @@ export default function History() {
 
   return (
     <>
-      <div className="min-h-screen relative z-10 pb-20">
-        <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-6"
-        >
-          <h1 className="text-base font-semibold text-foreground/95">History</h1>
+      <PageShell width="page">
+        <PageHeader
+          eyebrow="Record"
+          title="History"
+          description="Every idea the board has published, and what happened to it."
+          actions={
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -108,7 +106,8 @@ export default function History() {
               data-testid="input-search-history"
             />
           </div>
-        </motion.div>
+          }
+        />
 
         {/* Tabs */}
         <motion.div
@@ -261,8 +260,7 @@ export default function History() {
             </TabsContent>
           </Tabs>
         </motion.div>
-      </div>
-    </div>
+      </PageShell>
     </>
   );
 }
