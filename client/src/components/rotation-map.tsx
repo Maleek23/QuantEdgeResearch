@@ -94,7 +94,15 @@ function layoutLabels(points: { etf: string; x: number; y: number }[]) {
   return sides.map((p) => ({ ...p, labelY: placed[p.etf] ?? p.y }));
 }
 
-export function RotationMap({ className }: { className?: string }) {
+export function RotationMap({
+  className,
+  collapsedHeight,
+}: {
+  className?: string;
+  /** Override the shared panel height. The landing page gives the plot full room;
+      inside the Terminal it stays flush with the two panels beside it. */
+  collapsedHeight?: number;
+}) {
   const reduce = useReducedMotion();
   const { data, isLoading, isError } = useQuery<RotationData>({
     queryKey: ["/api/sector-rotation"],
@@ -161,6 +169,7 @@ export function RotationMap({ className }: { className?: string }) {
     <PanelFrame
       title="Rotation Map"
       className={className}
+      collapsedHeight={collapsedHeight}
       right={
         <span className="text-label font-mono text-muted-foreground">
           x · rel strength&nbsp;&nbsp;y · building{data?.isStale ? " · stale" : ""}

@@ -29,6 +29,7 @@ import { BorderBeam } from "@/components/magicui/border-beam";
 
 import { CONVICTION_LAYERS, CONVICTION_LAYER_COUNT, CONVICTION_LAYER_NOTE } from '@shared/conviction-layers';
 import { InstrumentPanel } from '@/components/landing/instrument-panel';
+import { RotationMap } from '@/components/rotation-map';
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -458,7 +459,12 @@ export default function Landing() {
               transition={{ duration: 0.7, delay: 0.3 }}
               className="hidden lg:block"
             >
-              <InstrumentPanel className="w-full" />
+              {/* The REAL component, live. Not a screenshot and not a diagram: the previous
+                  hero was an invented "instrument panel" I drew, and the section images
+                  below it are captures of the old amber sidebar app that no longer exists.
+                  Neither was the product. /api/sector-rotation is public, so this renders
+                  the same RotationMap the Terminal renders, against the same live data. */}
+              <RotationMap className="w-full" collapsedHeight={520} />
             </motion.div>
           </div>
 
