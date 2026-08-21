@@ -30,6 +30,8 @@ import { BorderBeam } from "@/components/magicui/border-beam";
 import { CONVICTION_LAYERS, CONVICTION_LAYER_COUNT, CONVICTION_LAYER_NOTE } from '@shared/conviction-layers';
 import { InstrumentPanel } from '@/components/landing/instrument-panel';
 import { RotationMap } from '@/components/rotation-map';
+import { EarlyRotationPanel } from '@/components/oracle/early-rotation-panel';
+import { SessionBrief } from '@/components/oracle/session-brief';
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -128,24 +130,39 @@ function MarketTicker() {
 }
 
 // ─── Product Screenshot with browser chrome ─────────────────────
-function ProductShot({ src, alt }: { src: string; alt: string }) {
+/**
+ * A product shot, or the product itself.
+ *
+ * Every PNG under /screenshots was captured from the old amber sidebar build. That
+ * app does not exist any more: the palette is different, the navigation is
+ * different, and several of the surfaces pictured were removed. Showing them made
+ * the page advertise a product nobody can sign up for.
+ *
+ * Where a component's data endpoint is public, the real component renders instead
+ * — same code as the Terminal, live data, nothing to keep in sync. Where it is
+ * not, this shows an honest placeholder rather than a picture of something else.
+ * A gap is better than a misrepresentation.
+ */
+function ProductShot({ live, alt }: { live?: React.ReactNode; alt: string }) {
   return (
     <div className="relative rounded-xl border border-border/60 overflow-hidden bg-card shadow-2xl shadow-black/30">
-      {/* Browser chrome bar */}
       <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/50">
         <div className="flex gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]/50" />
           <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]/50" />
           <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]/50" />
         </div>
-        <span className="text-[9px] font-mono text-muted-foreground/50 ml-2">quantedgelab.net</span>
+        <span className="ui-data text-[9px] text-muted-foreground ml-2">quantedgelab.net</span>
       </div>
-      <img
-        src={src}
-        alt={alt}
-        loading="lazy"
-        className="w-full h-auto block"
-      />
+      {live ? (
+        <div className="[&_.rounded-xl]:rounded-none [&_.rounded-xl]:border-0">{live}</div>
+      ) : (
+        <div className="grid h-[220px] place-items-center px-6 text-center">
+          <p className="ui-prose text-[12px] leading-relaxed text-muted-foreground">
+            {alt} — shown inside the app. Sign in to see it with live data.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -156,20 +173,21 @@ interface FeatureSectionProps {
   labelColor: string;
   headline: string;
   description: string;
-  screenshot: string;
+  screenshot?: string;
+  live?: React.ReactNode;
   screenshotAlt: string;
   reverse?: boolean;
   bullets?: string[];
 }
 
-function FeatureSection({ label, labelColor, headline, description, screenshot, screenshotAlt, reverse, bullets }: FeatureSectionProps) {
+function FeatureSection({ label, labelColor, headline, description, live, screenshotAlt, reverse, bullets }: FeatureSectionProps) {
   return (
     <SectionReveal className="px-6 py-16 md:py-24 max-w-7xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         {/* Screenshot (shown first on reversed) */}
         {reverse && (
           <div className="hidden lg:block">
-            <ProductShot src={screenshot} alt={screenshotAlt} />
+            <ProductShot live={live} alt={screenshotAlt} />
           </div>
         )}
 
@@ -199,11 +217,11 @@ function FeatureSection({ label, labelColor, headline, description, screenshot, 
         {/* Screenshot (shown second on non-reversed, or mobile fallback for reversed) */}
         {!reverse ? (
           <div>
-            <ProductShot src={screenshot} alt={screenshotAlt} />
+            <ProductShot live={live} alt={screenshotAlt} />
           </div>
         ) : (
           <div className="lg:hidden">
-            <ProductShot src={screenshot} alt={screenshotAlt} />
+            <ProductShot live={live} alt={screenshotAlt} />
           </div>
         )}
       </div>
@@ -523,8 +541,8 @@ export default function Landing() {
           label="ORACLE"
           labelColor="text-[var(--trade-bullish)]"
           headline="A signal, and the reason it fired."
-          description="{`${CONVICTION_LAYER_COUNT} independent layers score every setup`} — technicals, compression, sector rotation, catalysts, regime, gamma and more. Levels come from actual market structure: the stop sits under a real swing low padded by ATR, and the target is prior structure, not a round percentage. Each signal shows which layers agreed and which argued against it."
-          screenshot="/screenshots/trade-desk.png"
+          description={`${CONVICTION_LAYER_COUNT} independent layers score every setup — technicals, compression, sector rotation, catalysts, regime, gamma and more. Levels come from actual market structure: the stop sits under a real swing low padded by ATR, and the target is prior structure, not a round percentage. Each signal shows which layers agreed and which argued against it.`}
+          live={<EarlyRotationPanel />}
           screenshotAlt="Oracle board showing scored signals with levels and conviction"
           bullets={[
             `${CONVICTION_LAYER_COUNT}-layer conviction score, banded S / A / B / C`,
@@ -542,7 +560,7 @@ export default function Landing() {
           labelColor="text-[var(--brand-gold)]"
           headline="Who keeps buying, and does gamma back them?"
           description="Options flow scored on unusual size, sweeps, volume against open interest, and repetition. The repeat-buyer tracker ranks on open-interest growth rather than premium — because premium can't tell accumulation from churn, but contracts still open at the close can. Each candidate is then checked against the gamma regime: flow says someone is positioned, gamma says whether dealers amplify or absorb the move."
-          screenshot="/screenshots/gex-hub.png"
+          
           screenshotAlt="Flow board with repeat buyers and flow-gamma convergence"
           reverse
           bullets={[
@@ -561,7 +579,7 @@ export default function Landing() {
           labelColor="text-cyan-400"
           headline="Where dealers have to hedge."
           description="Strike-by-strike gamma exposure for any ticker, plus the full strike × expiry surface in PRISM. Below the gamma flip dealers amplify moves; above it they dampen them — which is why the flip, the call wall and the put wall behave as levels. Computed from the CBOE chain, which needs no brokerage account."
-          screenshot="/screenshots/gex-terminal.png"
+          
           screenshotAlt="Per-ticker gamma exposure with flip, call wall and put wall"
           bullets={[
             "Gamma flip, call wall, put wall as tradeable levels",
@@ -579,7 +597,7 @@ export default function Landing() {
           labelColor="text-purple-400"
           headline="When the calendar disagrees with the call."
           description="Tracked events joined to the signals we publish, and it leads with CONFLICTS — signals whose upcoming events point against the direction we called. Binary events landing inside a trade's horizon are flagged as risk, never as direction, because earnings are a coin flip that argues for sizing down rather than for a side."
-          screenshot="/screenshots/watchlist.png"
+          live={<SessionBrief />}
           screenshotAlt="Catalyst board showing conflicts between events and signals"
           reverse
           bullets={[
@@ -598,7 +616,7 @@ export default function Landing() {
           labelColor="text-[var(--brand-teal)]"
           headline="The board, paper-traded in options."
           description="The bot trades the same signals the board publishes, in contracts rather than shares, using the strikes the contract engine picks. Fills and marks are real quotes pulled at that moment — nothing is simulated or back-filled, and win rate stays blank until trades actually close, because a number before then would be invented."
-          screenshot="/screenshots/index-mode.png"
+          
           screenshotAlt="Quant Bot paper-trading published signals in options"
           bullets={[
             "Trades options, not shares — the same strikes the board publishes",
