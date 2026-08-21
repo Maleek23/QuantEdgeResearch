@@ -16,6 +16,7 @@ import { optionsFlowHistory } from '@shared/schema';
 import { eq, desc, gte, and, sql } from 'drizzle-orm';
 import { getTradierQuote, getTradierOptionsChain } from './tradier-api';
 
+import { marketDateET } from '@shared/market-day';
 // ═══════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════
@@ -113,7 +114,82 @@ function computeKeyLevels(data: GEXHeatmapData): GEXKeyLevels {
 // FETCH GEX DATA (reuse existing heatmap logic from routes.ts)
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * GEX for the convergence read.
+ *
+ * This used to go straight to Tradier, which returns 401 on an unfunded account —
+ * so fetchGEXData returned null for EVERY symbol and getTopConvergenceSignals
+ * silently produced an empty list. The whole convergence feature was dead, and
+ * dead quietly: no error surfaced, it just always found nothing.
+ *
+ * CBOE's chain needs no auth and already powers the GEX tab, so try it first and
+ * keep Tradier only as a secondary path for whenever that key is funded again.
+ */
+
+/** Adapt the live CBOE GEX snapshot into the heatmap shape this module expects. */
+async function fetchGEXFromCBOE(symbol: string): Promise<GEXHeatmapData | null> {
+  try {
+    const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
+    const snap = await computeGEXFromCBOE(symbol);
+    if (!snap || !(snap.spotPrice > 0) || !Array.isArray(snap.levels) || snap.levels.length === 0) return null;
+
+    const strikes = snap.levels.map((l: any) => Number(l.strike)).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+    if (!strikes.length) return null;
+
+    // computeKeyLevels aggregates heatmap[expiry][strike]; the CBOE snapshot is
+    // already summed across expiries, so present it as a single synthetic column.
+    // aggregateGex sums over expiries either way, so the maths is unchanged.
+    const column: Record<string, number> = {};
+    for (const l of snap.levels as any[]) column[String(l.strike)] = Number(l.netGEX) || 0;
+
+    // The snapshot's own gammaFlipPrice is unreliable — it returns 230 for SPY at
+    // $762, i.e. outside the strike ladder entirely. A flip point that isn't in the
+    // ladder is not a regime boundary, and passing it through produced a bogus
+    // Long/Short Gamma call; dropping it left the regime Neutral and every symbol
+    // NO_SIGNAL. So derive it from the ladder instead, which is the actual
+    // definition: walk strikes upward accumulating net GEX and take the level where
+    // the running total changes sign — below it dealers are short gamma and amplify
+    // moves, above it they're long gamma and dampen them.
+    const rawFlip = Number(snap.gammaFlipPrice);
+    let flipPoint: number | null =
+      Number.isFinite(rawFlip) && rawFlip >= strikes[0] && rawFlip <= strikes[strikes.length - 1]
+        ? rawFlip
+        : null;
+
+    if (flipPoint == null) {
+      const ladder = [...(snap.levels as any[])]
+        .map((l) => ({ strike: Number(l.strike), gex: Number(l.netGEX) || 0 }))
+        .filter((l) => Number.isFinite(l.strike))
+        .sort((a, b) => a.strike - b.strike);
+      let cum = 0;
+      let prevCum = 0;
+      for (const lvl of ladder) {
+        prevCum = cum;
+        cum += lvl.gex;
+        if (prevCum !== 0 && Math.sign(cum) !== Math.sign(prevCum)) {
+          flipPoint = lvl.strike;
+          break;
+        }
+      }
+    }
+
+    return {
+      spotPrice: snap.spotPrice,
+      strikes,
+      expirations: ['aggregate'],
+      heatmap: { aggregate: column },
+      flipPoint,
+      maxGammaStrike: Number(snap.maxGammaStrike) || strikes[Math.floor(strikes.length / 2)],
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchGEXData(symbol: string): Promise<GEXHeatmapData | null> {
+  const viaCboe = await fetchGEXFromCBOE(symbol);
+  if (viaCboe) return viaCboe;
+
   try {
     const apiKey = process.env.TRADIER_API_KEY;
     if (!apiKey) return null;
@@ -203,7 +279,7 @@ async function fetchGEXData(symbol: string): Promise<GEXHeatmapData | null> {
 async function fetchRecentFlow(symbol: string, hours = 8) {
   try {
     const cutoff = new Date(Date.now() - hours * 3600000);
-    const today = new Date().toISOString().split('T')[0];
+    const today = marketDateET(); // ET market date — NOT the UTC date
 
     const flows = await db.select()
       .from(optionsFlowHistory)
@@ -339,7 +415,7 @@ export async function computeConvergenceSignal(symbol: string): Promise<Converge
  */
 export async function getTopConvergenceSignals(limit = 5): Promise<ConvergenceSignal[]> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = marketDateET(); // ET market date — NOT the UTC date
 
     // Get most active tickers from today's flow
     const activeResult = await db.select({

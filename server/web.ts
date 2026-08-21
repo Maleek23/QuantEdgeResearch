@@ -202,6 +202,52 @@ app.use((req, res, next) => {
       spxStarted = false;
     }, { timezone: 'America/New_York' });
 
+    // ── Cron: Options-flow scan (every 15 min, market hours) ──────────────
+    //
+    // This belongs to worker.ts, which owns all background jobs. But railway.json
+    // sets startCommand to `npm run start` — i.e. dist/web.js ONLY — so the worker
+    // process the Procfile declares is never actually started in production. The
+    // result was that flow accumulated solely when someone happened to be running
+    // the dev server: 3 captured sessions across six months, which in turn left the
+    // repeat-buyer tracker with almost nothing to compare.
+    //
+    // Rather than silently depend on a second process that isn't running, the web
+    // process scans too. If a real worker service is ever added, set
+    // DISABLE_WEB_FLOW_CRON=1 here so the two don't both scan the same window.
+    if (process.env.DISABLE_WEB_FLOW_CRON !== '1') {
+      cron.default.schedule('*/15 9-15 * * 1-5', async () => {
+        try {
+          const { scanOptionsFlow, setOptionsFlowActive, getOptionsFlowStatus } = await import('./options-flow-scanner');
+          if (!getOptionsFlowStatus().isActive) setOptionsFlowActive(true);
+          const flows = await scanOptionsFlow();
+          log(`💸 [FLOW] scan complete — ${flows.length} qualifying prints`);
+        } catch (err) {
+          logger.error('[FLOW] Scheduled scan failed:', err);
+        }
+      }, { timezone: 'America/New_York' });
+      log('💸 [WEB] Options-flow scan scheduled (every 15m, market hours)');
+
+      // GEX history archiver — same story as the flow scan: it is scheduled only in
+      // worker.ts, which production never starts, so gex_snapshots has sat at 0 rows
+      // and there is no history to browse or to measure levels against. Hourly,
+      // market hours, matching the worker's cadence.
+      cron.default.schedule('0 * * * *', async () => {
+        try {
+          const nowEt = Number(
+            new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false })
+              .format(new Date()),
+          );
+          if (nowEt < 9 || nowEt > 16) return;
+          const { archiveGexSnapshots } = await import('./gex-history-archiver');
+          const result = await archiveGexSnapshots();
+          logger.info(`📸 [GEX-ARCHIVE] Hourly snapshot: ${result.archived} symbols archived`);
+        } catch (err) {
+          logger.error('[GEX-ARCHIVE] Scheduled archive failed:', err);
+        }
+      }, { timezone: 'America/New_York' });
+      log('📸 [WEB] GEX history archiver scheduled (hourly, market hours)');
+    }
+
     log('✅ [WEB] Process ready — serving HTTP + WebSocket + SPX scanners');
   });
 })();

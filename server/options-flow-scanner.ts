@@ -15,6 +15,7 @@ import { db } from './db';
 import { optionsFlowHistory, watchlist, FlowStrategyCategory, FlowDteCategory } from '@shared/schema';
 import { eq, desc, gte, inArray, and, sql } from 'drizzle-orm';
 
+import { marketDateET } from '@shared/market-day';
 /**
  * Classify a flow by strategy category and DTE horizon
  * Identifies lotto plays (whale OTM calls/puts) vs institutional blocks
@@ -347,14 +348,21 @@ function determineFlowType(option: any, score: number): OptionsFlow['flowType'] 
   const premium = calculatePremium(option);
   const volumeOI = (option.volume || 0) / (option.open_interest || 1);
   
-  // Block trade: $500k+ premium on single strike (institutional)
+  // IMPORTANT: these labels are INFERRED from end-of-day chain aggregates (a strike's
+  // total volume, open interest and premium), not read from the tape. We do not have
+  // per-trade time-and-sales, so "block" here means "a lot of premium traded at this
+  // strike today", not "one institution printed one order". Treat them as activity
+  // classes, not order types.
+  //
+  // Block-like: heavy premium concentrated on a single strike.
   if (premium >= 500000) return 'block';
-  // Sweep: High volume relative to OI (aggressive buying)
+  // Sweep-like: volume far exceeding existing OI — aggressive NEW positioning.
   if (volumeOI > 5) return 'sweep';
-  // Unusual volume: Volume exceeds 2x OI
+  // Unusual volume: volume above 2x OI.
   if (volumeOI > 2) return 'unusual_volume';
-  // Dark pool: High score but not matching other criteria
-  if (score >= 70) return 'dark_pool';
+  // Everything else is normal activity. This used to return 'dark_pool' for any
+  // leftover with score >= 70, which was simply false: nothing here observes
+  // off-exchange prints, so the badge asserted a data source we do not have.
   return 'normal';
 }
 
@@ -442,7 +450,7 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
         .from(watchlist);
       const watchlistSet = new Set(allWatchlistSymbols.map(w => w.symbol.toUpperCase()));
       
-      const today = new Date().toISOString().split('T')[0];
+      const today = marketDateET(); // ET market date — NOT the UTC date
       
       // Persist flows meeting quality criteria: premium >= $10k OR unusualScore >= 65
       // Lowered from $50k/$75 to capture more educational flow data
@@ -941,7 +949,7 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
     
     // Persist to database
     let savedCount = 0;
-    const today = new Date().toISOString().split('T')[0];
+    const today = marketDateET(); // ET market date — NOT the UTC date
     
     // Get existing flows for deduplication
     const existingFlows = await db.select({
