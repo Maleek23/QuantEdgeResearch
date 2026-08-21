@@ -304,9 +304,18 @@ export function RiskReward({ pick, live, className }: { pick: ConvictionPick; li
 // ───────────────────────────────────────────────────────────── PositionSize ──
 
 /**
- * What this trade means for YOUR account. A signal that says "risk $3.37 per share" is
- * abstract; "38 shares, $128 at risk, 1.0% of the account" is a decision. Sized from the
- * user's own account size and max-risk setting — the reason those settings exist.
+ * What this trade means for YOUR account.
+ *
+ * Sized in the vehicle actually being traded. This used to size every signal in
+ * SHARES, including option signals, which produced "76 shares · $5,041 · 50.4% of
+ * account" on a $10k account for a trade whose real cost was one $2.36 contract —
+ * $236. It made a normal position look like half the account and it priced the
+ * wrong instrument entirely.
+ *
+ * For an option signal the risk per unit is the PREMIUM at risk per contract, not
+ * the distance to the underlying stop: the most a long option can lose is what was
+ * paid for it. Contracts are sized off a -50% premium stop, which is the same stop
+ * the Contract Engine quotes, so the two agree.
  */
 export function PositionSize({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
   const g = geometryFor(pick, live);
@@ -326,29 +335,48 @@ export function PositionSize({ pick, live, className }: { pick: ConvictionPick; 
     );
   }
 
-  const shares = Math.floor(riskBudget / g.risk);
-  const cost = shares * (live || pick.entryPrice);
+  // Is this signal expressed as a contract? Then size contracts, not shares.
+  const premium = Number((pick as any).entryPremium ?? (pick as any).contractPrice ?? 0);
+  const isOption = !!(pick.optionType && pick.strikePrice && premium > 0);
+
+  // A long option's risk is the premium, and the engine's own stop is -50% of it.
+  const PREMIUM_STOP = 0.5;
+  const riskPerUnit = isOption ? premium * PREMIUM_STOP * 100 : g.risk;
+  const costPerUnit = isOption ? premium * 100 : (live || pick.entryPrice);
+
+  const units = Math.max(0, Math.floor(riskBudget / Math.max(riskPerUnit, 0.01)));
+  const cost = units * costPerUnit;
   const pctOfAccount = account > 0 ? (cost / account) * 100 : 0;
-  const rewardAtT1 = shares * g.reward;
+
+  // Reward at T1 in the same vehicle: the geometry's reward is an underlying move,
+  // so for contracts it is expressed against the premium the engine projected.
+  const projectedAtT1 = Number((pick as any).projectedAtT1 ?? 0);
+  const rewardAtT1 = isOption
+    ? (projectedAtT1 > 0 ? (projectedAtT1 - premium) * 100 * units : 0)
+    : units * g.reward;
+
   const overAllocated = pctOfAccount > 100;
+  const unitLabel = isOption ? (units === 1 ? 'contract' : 'contracts') : 'shares';
 
   return (
     <Card title="Position Size" meta="your account" className={className}>
       <div className="space-y-2 px-4 py-3">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-hero font-mono font-bold leading-none tabular-nums" style={{ color: TC.info }}>{shares}</span>
-          <span className="text-meta font-mono text-muted-foreground/60">shares</span>
+          <span className="text-hero font-mono font-bold leading-none tabular-nums" style={{ color: TC.info }}>{units}</span>
+          <span className="text-meta font-mono text-muted-foreground">{unitLabel}</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Mini label="Risking" value={`$${Math.min(riskBudget, shares * g.risk).toFixed(0)}`} color={TC.bear} />
-          <Mini label="Reward at T1" value={`+$${rewardAtT1.toFixed(0)}`} color={TC.bull} />
+          <Mini label="Risking" value={`$${Math.min(riskBudget, units * riskPerUnit).toFixed(0)}`} color={TC.bear} />
+          <Mini label="Reward at T1" value={rewardAtT1 > 0 ? `+$${rewardAtT1.toFixed(0)}` : '—'} color={TC.bull} />
           <Mini label="Position cost" value={`$${cost.toFixed(0)}`} />
           <Mini label="Of account" value={`${pctOfAccount.toFixed(1)}%`} color={overAllocated ? TC.bear : undefined} />
         </div>
         <p className="text-label leading-relaxed text-muted-foreground/70">
           {overAllocated
-            ? `This size costs more than your whole account — the stop is tight relative to price, so scale down or use options.`
-            : `Sized so a stop-out costs ${riskPct}% of your $${account.toLocaleString()} account.`}
+            ? `This size costs more than your whole account — scale down.`
+            : isOption
+              ? `${units} ${unitLabel} at $${premium.toFixed(2)}. Sized so a −50% premium stop costs ${riskPct}% of your $${account.toLocaleString()} account.`
+              : `Sized so a stop-out costs ${riskPct}% of your $${account.toLocaleString()} account.`}
         </p>
       </div>
     </Card>

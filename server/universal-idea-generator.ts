@@ -802,10 +802,18 @@ async function attachOptionContract(args: {
         : 'swing';
     const expFmt = pick.expiry.slice(5).replace('-', '/'); // MM/DD
     const cp = pick.optionType === 'call' ? 'C' : 'P';
+    // Stamped as the contract AT SIGNAL TIME, not as a live recommendation.
+    // The Contract Engine re-picks against the current chain every time the signal
+    // is opened, so this frozen string was appearing beside a different strike and
+    // expiry — a BMY signal showed "$66C 08/28, 8DTE" in the thesis while the engine
+    // recommended $65C 09/18, 28DTE. Two contracts on one screen, with nothing
+    // saying which to trade. Dating it resolves that: this is what the setup looked
+    // like when it fired, and the engine is the authority on what to buy now.
     const summary =
-      `Contract: $${pick.strike}${cp} ${expFmt} @ $${pick.entryPremium.toFixed(2)} ` +
+      `At signal: $${pick.strike}${cp} ${expFmt} @ $${pick.entryPremium.toFixed(2)} ` +
       `(Δ${pick.delta.toFixed(2)}, ${pick.dte}DTE, grade ${pick.grade}) — ` +
-      `ROI@T1 ${pick.roiAtT1Pct >= 0 ? '+' : ''}${pick.roiAtT1Pct.toFixed(0)}%, R:R ${pick.riskRewardRatio.toFixed(1)}:1`;
+      `ROI@T1 ${pick.roiAtT1Pct >= 0 ? '+' : ''}${pick.roiAtT1Pct.toFixed(0)}%, R:R ${pick.riskRewardRatio.toFixed(1)}:1. ` +
+      `The Contract Engine re-picks against the live chain.`;
     return {
       optionType: pick.optionType,
       strikePrice: pick.strike,
