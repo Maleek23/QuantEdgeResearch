@@ -41,22 +41,11 @@ import { getGexSnapshotBatch, type GexSnapshot } from "./gex-snapshot-service";
 // Public types
 // ─────────────────────────────────────────────────────────────
 
-export type ConvictionLayerKind =
-  | "technical"
-  | "ta"
-  | "convergence"
-  | "catalyst"
-  | "regime"
-  | "breadth"
-  | "geopolitical"
-  | "fundamental"
-  | "analyst"
-  | "sector"
-  | "freshness"
-  | "weekly"
-  | "premarket"
-  | "compression"
-  | "gex";
+// Re-exported from the canonical list so the engine and the marketing copy can
+// never disagree about how many layers exist. The old hand-typed union omitted
+// "macro", which was already being emitted onto layers.
+export type { ConvictionLayerKind } from "@shared/conviction-layers";
+import type { ConvictionLayerKind } from "@shared/conviction-layers";
 
 export interface ConvictionLayer {
   kind: ConvictionLayerKind;

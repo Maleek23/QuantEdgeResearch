@@ -27,6 +27,7 @@ import { NumberTicker } from "@/components/magicui/number-ticker";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { BorderBeam } from "@/components/magicui/border-beam";
 
+import { CONVICTION_LAYERS, CONVICTION_LAYER_COUNT, CONVICTION_LAYER_NOTE } from '@shared/conviction-layers';
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -209,18 +210,14 @@ function FeatureSection({ label, labelColor, headline, description, screenshot, 
 }
 
 // ─── Engine convergence strip ───────────────────────────────────
-const engines = [
-  { id: 'TCH', name: 'Technical', icon: LineChart },
-  { id: 'FND', name: 'Fundamental', icon: BarChart3 },
-  { id: 'SNT', name: 'Sentiment', icon: Eye },
-  { id: 'FLW', name: 'Flow', icon: Activity },
-  { id: 'CAT', name: 'Catalyst', icon: Brain },
-  { id: 'QNT', name: 'Quant', icon: Cpu },
-];
+// Was a hand-written array of six from an older taxonomy — Sentiment and Quant
+// are not layers the engine has — sitting under a heading that claimed fourteen,
+// on a page whose hero claimed fifteen. All three now come from one list.
+const engines = CONVICTION_LAYERS.map((l) => ({ id: l.short, name: l.label, blurb: l.blurb }));
 
 function EngineStrip() {
   return (
-    <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
       {engines.map((e, i) => (
         <motion.div
           key={e.id}
@@ -230,9 +227,11 @@ function EngineStrip() {
           transition={{ duration: 0.3, delay: i * 0.06 }}
           className="p-3 rounded-lg bg-card border border-border text-center"
         >
-          <e.icon className="w-5 h-5 text-[var(--trade-bullish)] mx-auto mb-1.5" />
-          <div className="text-xs font-bold text-foreground">{e.id}</div>
-          <div className="text-[10px] text-muted-foreground">{e.name}</div>
+          {/* No icon. Sixteen icons is sixteen pieces of decoration competing with
+              sixteen labels — the code is the identifier and the name does the work. */}
+          <div className="ui-data text-xs font-bold text-[var(--brand-cyan)]">{e.id}</div>
+          <div className="text-[11px] text-foreground mt-0.5">{e.name}</div>
+          <div className="ui-prose text-[10px] leading-snug text-muted-foreground mt-1">{e.blurb}</div>
         </motion.div>
       ))}
     </div>
@@ -398,7 +397,7 @@ export default function Landing() {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="text-base text-muted-foreground max-w-lg mb-8 leading-relaxed"
               >
-                Signals scored across 15 independent layers, with the levels, the contract, and the reason
+                {`Signals scored across ${CONVICTION_LAYER_COUNT} independent layers,`} with the levels, the contract, and the reason
                 it fired on the same screen. Every number is computed from live data — and when a number
                 is delayed or missing, it says so instead of guessing.
               </motion.p>
@@ -495,9 +494,9 @@ export default function Landing() {
         <SectionReveal className="px-6 py-16 max-w-7xl mx-auto">
           <div className="text-center mb-8">
             <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--brand-cyan)]">CONVERGENCE</span>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-2 mb-3">14 Layers. One Signal.</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-2 mb-3">{CONVICTION_LAYER_COUNT} layers. One signal.</h2>
             <p className="text-sm text-muted-foreground max-w-xl mx-auto">
-              Every stock is scored across 14 independent analysis layers. Only when they converge do we signal.
+              {`Every setup is scored across ${CONVICTION_LAYER_COUNT} independent layers. ${CONVICTION_LAYER_NOTE}`}
             </p>
           </div>
           <EngineStrip />
@@ -510,11 +509,11 @@ export default function Landing() {
           label="ORACLE"
           labelColor="text-[var(--trade-bullish)]"
           headline="A signal, and the reason it fired."
-          description="Fifteen independent layers score every setup — technicals, compression, sector rotation, catalysts, regime, gamma and more. Levels come from actual market structure: the stop sits under a real swing low padded by ATR, and the target is prior structure, not a round percentage. Each signal shows which layers agreed and which argued against it."
+          description="{`${CONVICTION_LAYER_COUNT} independent layers score every setup`} — technicals, compression, sector rotation, catalysts, regime, gamma and more. Levels come from actual market structure: the stop sits under a real swing low padded by ATR, and the target is prior structure, not a round percentage. Each signal shows which layers agreed and which argued against it."
           screenshot="/screenshots/trade-desk.png"
           screenshotAlt="Oracle board showing scored signals with levels and conviction"
           bullets={[
-            "15-layer conviction score, banded S / A / B / C",
+            `${CONVICTION_LAYER_COUNT}-layer conviction score, banded S / A / B / C`,
             "Stops from swing structure + ATR, targets at prior structure",
             "Minimum 1.5R or the target is moved out — and it tells you it did",
             "Every signal timestamped by market session, so a call fired after the close reads as stale",
@@ -621,7 +620,7 @@ export default function Landing() {
               },
               {
                 t: 'A score is a ranking, not a verdict',
-                d: 'Fifteen layers agreeing means the setup is worth your attention. It does not mean the trade works. Every signal shows the layers that argued against it too.',
+                d: '{`${CONVICTION_LAYER_COUNT} layers agreeing means the setup is worth your attention.`} It does not mean the trade works. Every signal shows the layers that argued against it too.',
               },
               {
                 t: 'No invented track record',
@@ -658,7 +657,7 @@ export default function Landing() {
               </div>
               <ul className="space-y-2 text-sm">
                 {[
-                  "15-layer conviction scoring",
+                  `${CONVICTION_LAYER_COUNT}-layer conviction scoring`,
                   "Live market data (options marks ~15-min delayed)",
                   "5 AI trade ideas per day",
                   "Basic charting tools",
