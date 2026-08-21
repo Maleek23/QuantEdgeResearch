@@ -254,37 +254,44 @@ function LiveStats() {
   });
   const decided = perf?.overall?.decided ?? 0;
   const winRate = perf?.overall?.winRate ?? 0;
-  const expectancy = perf?.overall?.expectancy;
+
+  // Expectancy is deliberately NOT shown here. Measured twice a few hours apart it
+  // read −0.36% and then +4.45%, because the underlying set of resolved trades grew
+  // between calls; flipping one filter moves it again to +6.07%. A figure that
+  // unstable cannot be a headline, and putting it here would be the same species of
+  // overclaim as the 76.3% win rate this page used to print. It belongs inside the
+  // app, next to the filters that determine it.
 
   return (
-    <div className="grid grid-cols-3 gap-8 max-w-md">
-      <div>
-        <NumberTicker value={CONVICTION_LAYER_COUNT} className="text-3xl font-mono font-bold text-foreground" />
-        <div className="text-xs text-muted-foreground mt-0.5">Layers</div>
-      </div>
-      <div>
+    <div className="max-w-md">
+      {/* ONE number, not a row of three. A three-tile stat strip is the default
+          hero furniture and it flattens everything to equal weight — the layer
+          count is a fact about the machine, the win rate is a claim about results,
+          and they were being presented as peers. The claim gets the size. */}
+      <div className="flex items-baseline gap-3">
         {winRate > 0 ? (
-          <NumberTicker value={Math.round(winRate * 10) / 10} suffix="%" className="text-3xl font-mono font-bold text-foreground" />
+          <NumberTicker
+            value={Math.round(winRate * 10) / 10}
+            suffix="%"
+            className="ui-data text-[44px] leading-none font-bold text-foreground"
+          />
         ) : (
-          <span className="text-3xl font-mono font-bold text-foreground">&mdash;</span>
+          <span className="ui-data text-[44px] leading-none font-bold text-foreground">&mdash;</span>
         )}
-        <div className="text-xs text-muted-foreground mt-0.5">Win rate{decided > 0 ? ` · ${decided} decided` : ''}</div>
+        <span className="ui-eyebrow text-[11px] text-muted-foreground">win rate</span>
       </div>
-      {/* The expectancy is negative and it is shown anyway, at the same size as
-          everything else. Nothing in this category prints this number, which is
-          precisely why it is the most credible thing on the page. */}
-      <div>
-        {expectancy != null ? (
-          <span
-            className="text-3xl font-mono font-bold"
-            style={{ color: expectancy >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}
-          >
-            {expectancy >= 0 ? '+' : '−'}{Math.abs(expectancy).toFixed(2)}%
-          </span>
-        ) : (
-          <span className="text-3xl font-mono font-bold text-foreground">&mdash;</span>
-        )}
-        <div className="text-xs text-muted-foreground mt-0.5">Expectancy / trade</div>
+
+      {/* The qualifier sits directly under the number rather than beside it, so the
+          rate cannot be read without the count that produced it. */}
+      <p className="ui-prose mt-2 text-[13px] leading-snug text-muted-foreground">
+        {decided > 0
+          ? `Across ${decided} decided trades. Trades that resolved neither way are counted as neutral and excluded, not quietly dropped to raise the number.`
+          : 'No decided trades yet. A rate before trades close would be invented.'}
+      </p>
+
+      <div className="mt-4 flex items-center gap-2">
+        <span className="ui-data text-[13px] font-bold text-[var(--brand-cyan)]">{CONVICTION_LAYER_COUNT}</span>
+        <span className="ui-prose text-[13px] text-muted-foreground">independent layers score every setup</span>
       </div>
     </div>
   );

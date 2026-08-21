@@ -601,7 +601,7 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
         // so a put's unrealised P&L must NOT be inverted by the underlying thesis.
         const pnlSign = position.assetType === 'option' ? 1 : directionMultiplier;
         const unrealizedPnL = (currentPrice - position.entryPrice) * position.quantity * multiplier * pnlSign;
-        const unrealizedPnLPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100 * directionMultiplier;
+        const unrealizedPnLPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100 * pnlSign;
 
         // SMART TRAILING STOP: Update high water mark and trailing stop
         const updateData: Record<string, any> = {

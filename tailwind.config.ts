@@ -47,6 +47,36 @@ export default {
         'price-lg': ['1.5rem', { lineHeight: '1.75rem', letterSpacing: '-0.03em' }],
       },
       colors: {
+        /**
+         * PALETTE OVERRIDE — emerald / green / teal are remapped onto Cold Read.
+         *
+         * The app carries ~1,200 `bg-emerald-500` / `text-teal-400` style classes
+         * accumulated over its life. Rewriting them by hand is a mechanical sweep
+         * across a hundred files with real risk of breaking layout, and it would
+         * miss every file added afterwards. Remapping the ramps instead means every
+         * existing usage resolves to the approved palette without touching a single
+         * component, and any new `emerald-500` someone types lands in the system
+         * rather than outside it.
+         *
+         * The scales stay perceptually ordered so the -400 / -500 / -600 variants
+         * still read as lighter and darker rather than collapsing to one value.
+         */
+        emerald: {
+          50: '#EEF3F0', 100: '#D8E4DD', 200: '#B4CDC0', 300: '#93B7A2',
+          400: '#7FAA8C', 500: '#6E9E7A', // Moss — the approved "up"
+          600: '#5C8567', 700: '#4A6B53', 800: '#384F3E', 900: '#26352A', 950: '#161E19',
+        },
+        green: {
+          50: '#EEF3F0', 100: '#D8E4DD', 200: '#B4CDC0', 300: '#93B7A2',
+          400: '#7FAA8C', 500: '#6E9E7A',
+          600: '#5C8567', 700: '#4A6B53', 800: '#384F3E', 900: '#26352A', 950: '#161E19',
+        },
+        teal: {
+          50: '#EAF5FA', 100: '#CFE9F5', 200: '#A8D7EE', 300: '#8ECFE9',
+          400: '#83CAE7', 500: '#78C6E8', // Ice Signal — the approved accent
+          600: '#5AA6C6', 700: '#42839F', 800: '#2F6076', 900: '#1F404F', 950: '#132A34',
+        },
+
         // Flat / base colors (regular buttons)
         background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",
