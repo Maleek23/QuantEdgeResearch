@@ -217,6 +217,8 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
             entry={p.entryPrice}
             current={p.currentPrice}
             target={p.targetPrice}
+            quantity={p.quantity}
+            multiplier={isOption ? 100 : 1}
           />
           {isOption && days != null ? (
             <DecayBar daysLeft={days} totalDays={30} />

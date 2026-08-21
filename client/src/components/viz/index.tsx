@@ -9,6 +9,7 @@
  * red is always the losing side, green the winning side, cyan is structural, amber is time
  * running out. Consistency is what makes a glance reliable.
  */
+import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { TC } from '@/lib/oracle/trading-colors';
 
@@ -21,10 +22,22 @@ const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
  */
 export function RangeBar({
   stop, entry, current, target, height = 8, showTicks = true, className,
+  /** Contracts held — turns the hover readout into real dollars, not just a price. */
+  quantity,
+  /** 100 for options, 1 for shares. */
+  multiplier = 1,
 }: {
   stop: number; entry: number; current: number; target: number;
   height?: number; showTicks?: boolean; className?: string;
+  quantity?: number;
+  multiplier?: number;
 }) {
+  // Hover scrubbing. The bar already encoded the range but you could not read a
+  // value off it — you could see the position was somewhere between the stop and
+  // the target without knowing what any point on it was worth. Pointing at the bar
+  // now answers "what is this worth if premium gets here", which is the question
+  // being asked when someone looks at it.
+  const [hoverPct, setHoverPct] = React.useState<number | null>(null);
   const lo = Math.min(stop, entry, current, target);
   const hi = Math.max(stop, entry, current, target);
   const span = hi - lo || 1;
@@ -32,13 +45,54 @@ export function RangeBar({
 
   const long = target > stop;
   const stopPos = pos(stop), entryPos = pos(entry), curPos = pos(current), tgtPos = pos(target);
+
+  // Map a hover position back to the price it represents, then to P&L at that price.
+  const hoverPrice = hoverPct == null ? null : lo + (hoverPct / 100) * span;
+  const hoverPnlPct = hoverPrice == null || entry <= 0 ? null : ((hoverPrice - entry) / entry) * 100;
+  const hoverPnl =
+    hoverPrice == null || !quantity ? null : (hoverPrice - entry) * quantity * multiplier;
   // risk side runs from the stop to entry; reward side entry to target
   const riskFrom = Math.min(stopPos, entryPos), riskTo = Math.max(stopPos, entryPos);
   const rewFrom = Math.min(entryPos, tgtPos), rewTo = Math.max(entryPos, tgtPos);
 
   return (
     <div className={cn('w-full', className)}>
-      <div className="relative w-full rounded-full bg-foreground/[0.07]" style={{ height }}>
+      {/* Readout sits ABOVE the bar so the cursor never covers the answer. */}
+      <div className="mb-1 flex h-4 items-baseline justify-between text-label font-mono tabular-nums">
+        {hoverPrice != null ? (
+          <>
+            <span className="text-foreground">${hoverPrice.toFixed(2)}</span>
+            <span style={{ color: (hoverPnlPct ?? 0) >= 0 ? TC.bull : TC.bear }}>
+              {(hoverPnlPct ?? 0) >= 0 ? '+' : ''}{(hoverPnlPct ?? 0).toFixed(0)}%
+              {hoverPnl != null && (
+                <span className="ml-1.5">
+                  {hoverPnl >= 0 ? '+' : '−'}${Math.abs(hoverPnl).toFixed(0)}
+                </span>
+              )}
+            </span>
+          </>
+        ) : (
+          <span className="text-muted-foreground/50">hover the bar to price it</span>
+        )}
+      </div>
+
+      <div
+        className="relative w-full cursor-crosshair rounded-full bg-foreground/[0.07]"
+        style={{ height }}
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          if (r.width <= 0) return;
+          setHoverPct(clamp(((e.clientX - r.left) / r.width) * 100));
+        }}
+        onMouseLeave={() => setHoverPct(null)}
+      >
+        {/* the scrub line — drawn first so the real markers stay on top */}
+        {hoverPct != null && (
+          <div
+            className="pointer-events-none absolute top-[-3px] bottom-[-3px] w-px bg-foreground/45"
+            style={{ left: `${hoverPct}%` }}
+          />
+        )}
         {/* risk zone */}
         <div className="absolute top-0 bottom-0 rounded-full"
              style={{ left: `${riskFrom}%`, width: `${riskTo - riskFrom}%`, background: `color-mix(in srgb, ${TC.bear} 30%, transparent)` }} />
