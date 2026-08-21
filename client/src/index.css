@@ -215,12 +215,12 @@ button:not([disabled]):active,
   --terminal-text-muted: #a3a3a3;
 
   /* --- Trading semantic colors (same both modes) --- */
-  --trade-bullish: #10b981;
-  --trade-bullish-bg: rgba(16, 185, 129, 0.06);
-  --trade-bullish-bg-subtle: rgba(16, 185, 129, 0.03);
-  --trade-bearish: #ef4444;
-  --trade-bearish-bg: rgba(239, 68, 68, 0.06);
-  --trade-bearish-bg-subtle: rgba(239, 68, 68, 0.03);
+  --trade-bullish: #6E9E7A;  /* Moss — direction without the casino */
+  --trade-bullish-bg: rgba(110, 158, 122, 0.06);
+  --trade-bullish-bg-subtle: rgba(110, 158, 122, 0.03);
+  --trade-bearish: #B5705F;  /* Clay — a fault light, not a catastrophe */
+  --trade-bearish-bg: rgba(181, 112, 95, 0.06);
+  --trade-bearish-bg-subtle: rgba(181, 112, 95, 0.03);
   --trade-neutral: #f59e0b;
   --trade-neutral-bg: rgba(245, 158, 11, 0.06);
   --trade-neutral-bg-subtle: rgba(245, 158, 11, 0.03);
@@ -233,7 +233,7 @@ button:not([disabled]):active,
   --confidence-low: #f59e0b;
 
   /* --- Brand accents --- */
-  --brand-cyan: #22d3ee;
+  --brand-cyan: #78C6E8;  /* Ice Signal — reports, never sells */
   --brand-teal: #14b8a6;
   --brand-blue: #3b82f6;
   --brand-gold: #f59e0b;
@@ -269,9 +269,9 @@ button:not([disabled]):active,
   --projection-glow-soft: rgba(6, 182, 212, 0.15);
 
   /* --- Typography --- */
-  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace;
+  --font-mono: 'Spline Sans Mono', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace;
 
   /* --- Layout --- */
   --radius: 0.5rem;
@@ -322,15 +322,22 @@ button:not([disabled]):active,
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .08);
 
-  /* --- Core palette (OLED-friendly near-black) --- */
-  --background: 0 0% 4%;
-  --foreground: 0 0% 100%;
-  --border: 0 0% 13%;
+  /* --- Core palette: "Cold Read" ------------------------------------------
+     Every value here used to be `0 0%` — pure neutral grey, no hue at all.
+     That is most of why the UI read as generic: a hueless base is the default
+     any dark theme falls back to, and it makes an acid accent the only thing
+     carrying identity. These carry a navy cast instead, so the surface reads
+     as evidence rather than console, and the accent no longer has to shout to
+     be seen against it.
+     Deep Navy #0E1420 · Slate #161E2C · Cold Light #D6DEE8 */
+  --background: 220 39% 9%;
+  --foreground: 213 28% 87%;
+  --border: 218 25% 20%;
 
   /* --- Cards --- */
-  --card: 0 0% 7%;
-  --card-foreground: 0 0% 96%;
-  --card-border: 0 0% 13%;
+  --card: 218 33% 13%;
+  --card-foreground: 213 28% 87%;
+  --card-border: 218 25% 20%;
 
   /* --- Sidebar --- */
   --sidebar: 0 0% 5%;
@@ -353,7 +360,7 @@ button:not([disabled]):active,
   --secondary: 0 0% 11%;
   --secondary-foreground: 0 0% 80%;
   --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 45%;
+  --muted-foreground: 213 15% 45%;
   --accent: 160 84% 39%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
@@ -388,12 +395,12 @@ button:not([disabled]):active,
   --terminal-text-muted: #525252;
 
   /* --- Trading semantic (same values, desaturated bg for dark mode) --- */
-  --trade-bullish: #10b981;
-  --trade-bullish-bg: rgba(16, 185, 129, 0.08);
-  --trade-bullish-bg-subtle: rgba(16, 185, 129, 0.04);
-  --trade-bearish: #ef4444;
-  --trade-bearish-bg: rgba(239, 68, 68, 0.08);
-  --trade-bearish-bg-subtle: rgba(239, 68, 68, 0.04);
+  --trade-bullish: #6E9E7A;  /* Moss — direction without the casino */
+  --trade-bullish-bg: rgba(110, 158, 122, 0.08);
+  --trade-bullish-bg-subtle: rgba(110, 158, 122, 0.04);
+  --trade-bearish: #B5705F;  /* Clay — a fault light, not a catastrophe */
+  --trade-bearish-bg: rgba(181, 112, 95, 0.08);
+  --trade-bearish-bg-subtle: rgba(181, 112, 95, 0.04);
   --trade-neutral: #f59e0b;
   --trade-neutral-bg: rgba(245, 158, 11, 0.08);
   --trade-neutral-bg-subtle: rgba(245, 158, 11, 0.04);
@@ -428,9 +435,9 @@ button:not([disabled]):active,
   --projection-glow-soft: rgba(103, 232, 249, 0.22);
 
   /* --- Typography --- */
-  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: Georgia, serif;
-  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace;
+  --font-mono: 'Spline Sans Mono', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace;
 
   /* --- Layout --- */
   --radius: 0.5rem;
@@ -544,7 +551,7 @@ button:not([disabled]):active,
 
 /* Monospace Typography */
 .font-terminal {
-  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
+  font-family: 'Spline Sans Mono', 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
   letter-spacing: -0.02em;
 }
 
@@ -564,7 +571,7 @@ button:not([disabled]):active,
 .badge-bearish {
   background: var(--trade-bearish-bg);
   color: var(--trade-bearish);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(181, 112, 95, 0.3);
   padding: 0.125rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.625rem;
@@ -605,7 +612,7 @@ button:not([disabled]):active,
   border: 1px solid var(--terminal-border);
   border-radius: 0.5rem;
   padding: 0.625rem 0.875rem;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Spline Sans Mono', monospace;
   font-size: 0.875rem;
   color: var(--terminal-text);
   transition: all 0.2s ease;
@@ -719,29 +726,29 @@ button:not([disabled]):active,
 /* Graph Grid Background - Tech-minimalist pattern */
 .graph-grid {
   background-image:
-    linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(110, 158, 122, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 158, 122, 0.03) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
 .graph-grid-subtle {
   background-image:
-    linear-gradient(rgba(16, 185, 129, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(16, 185, 129, 0.02) 1px, transparent 1px);
+    linear-gradient(rgba(110, 158, 122, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 158, 122, 0.02) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 /* Emerald Grid — 60px cells matching login page pattern */
 .emerald-grid {
   background-image:
-    linear-gradient(rgba(16, 185, 129, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(16, 185, 129, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(110, 158, 122, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 158, 122, 0.07) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 
 /* Dot grid background for dashboard pages */
 .dot-grid {
-  background-image: radial-gradient(circle, rgba(16, 185, 129, 0.07) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(110, 158, 122, 0.07) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -780,8 +787,8 @@ button:not([disabled]):active,
 
 /* Data badge - for displaying key metrics */
 .data-badge {
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(110, 158, 122, 0.1);
+  border: 1px solid rgba(110, 158, 122, 0.3);
   font-family: var(--font-mono);
 }
 
@@ -791,21 +798,21 @@ button:not([disabled]):active,
   font-size: 0.875rem;
   letter-spacing: 0.02em;
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(110, 158, 122, 0.2);
 }
 
 /* Quant card with left accent - Dark mode */
 .dark .quant-card {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-left: 2px solid rgba(16, 185, 129, 0.5);
+  border-left: 2px solid rgba(110, 158, 122, 0.5);
 }
 
 /* Quant card with left accent - Light mode */
 .quant-card {
   background: rgba(0, 0, 0, 0.02);
   border: 1px solid rgba(0, 0, 0, 0.06);
-  border-left: 2px solid rgba(16, 185, 129, 0.6);
+  border-left: 2px solid rgba(110, 158, 122, 0.6);
 }
 
 /* Glass subtle - for badges/pills - Dark mode */
@@ -1344,11 +1351,11 @@ button:not([disabled]):active,
 
   /* Directional price tick flash — green/red background fade for live data */
   @keyframes price-flash-up {
-    0% { background-color: rgba(16, 185, 129, 0.25); }
+    0% { background-color: rgba(110, 158, 122, 0.25); }
     100% { background-color: transparent; }
   }
   @keyframes price-flash-down {
-    0% { background-color: rgba(239, 68, 68, 0.25); }
+    0% { background-color: rgba(181, 112, 95, 0.25); }
     100% { background-color: transparent; }
   }
   .price-tick-up {
@@ -2046,7 +2053,7 @@ button:not([disabled]):active,
      .ui-eyebrow  a section's name — small, tracked, quiet
      .ui-prose    language meant to be read as language
 
-   IBM Plex Sans is already loaded and was going entirely unused.
+   Space Grotesk is loaded for this and carries every non-numeric role.
    ───────────────────────────────────────────────────────────────────────── */
 
 .ui-data {
