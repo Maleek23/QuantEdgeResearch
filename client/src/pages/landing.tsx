@@ -241,35 +241,50 @@ function EngineStrip() {
 
 // ─── Live stats from API ────────────────────────────────────────
 function LiveStats() {
-  const { data: perf } = useQuery<{ totalTrades?: number; winRate?: number }>({
-    queryKey: ["/api/performance/stats"],
+  // CANONICAL endpoint, not /api/performance/stats. That one calls an older
+  // storage calculation and reports a 76.3% win rate; WinRateService, which
+  // applies P&L thresholds and counts trades resolving neither way as neutral,
+  // reports 38.8%. Both numbers come from the same platform and the flattering
+  // one was the one feeding the homepage. On a product whose entire pitch is
+  // that it reports honestly, advertising the wrong one is disqualifying.
+  const { data: perf } = useQuery<{ overall?: { decided?: number; winRate?: number; expectancy?: number } }>({
+    queryKey: ["/api/performance/unified-win-rate"],
     staleTime: 300000,
     retry: 1,
   });
-  const totalTrades = perf?.totalTrades || 0;
-  const winRate = perf?.winRate || 0;
+  const decided = perf?.overall?.decided ?? 0;
+  const winRate = perf?.overall?.winRate ?? 0;
+  const expectancy = perf?.overall?.expectancy;
 
   return (
     <div className="grid grid-cols-3 gap-8 max-w-md">
       <div>
-        <NumberTicker value={6} className="text-3xl font-mono font-bold text-foreground" />
+        <NumberTicker value={15} className="text-3xl font-mono font-bold text-foreground" />
         <div className="text-xs text-muted-foreground mt-0.5">Layers</div>
       </div>
       <div>
-        {totalTrades > 0 ? (
-          <NumberTicker value={totalTrades} className="text-3xl font-mono font-bold text-foreground" />
-        ) : (
-          <span className="text-3xl font-mono font-bold text-foreground">&mdash;</span>
-        )}
-        <div className="text-xs text-muted-foreground mt-0.5">Trades</div>
-      </div>
-      <div>
         {winRate > 0 ? (
-          <NumberTicker value={Math.round(winRate)} suffix="%" className="text-3xl font-mono font-bold text-foreground" />
+          <NumberTicker value={Math.round(winRate * 10) / 10} suffix="%" className="text-3xl font-mono font-bold text-foreground" />
         ) : (
           <span className="text-3xl font-mono font-bold text-foreground">&mdash;</span>
         )}
-        <div className="text-xs text-muted-foreground mt-0.5">Win Rate</div>
+        <div className="text-xs text-muted-foreground mt-0.5">Win rate{decided > 0 ? ` · ${decided} decided` : ''}</div>
+      </div>
+      {/* The expectancy is negative and it is shown anyway, at the same size as
+          everything else. Nothing in this category prints this number, which is
+          precisely why it is the most credible thing on the page. */}
+      <div>
+        {expectancy != null ? (
+          <span
+            className="text-3xl font-mono font-bold"
+            style={{ color: expectancy >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}
+          >
+            {expectancy >= 0 ? '+' : '−'}{Math.abs(expectancy).toFixed(2)}%
+          </span>
+        ) : (
+          <span className="text-3xl font-mono font-bold text-foreground">&mdash;</span>
+        )}
+        <div className="text-xs text-muted-foreground mt-0.5">Expectancy / trade</div>
       </div>
     </div>
   );
@@ -374,7 +389,7 @@ export default function Landing() {
                 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold mb-5 leading-[1.08] tracking-tight"
               >
                 One terminal for{' '}
-                <span className="text-[var(--trade-bullish)]">options research</span>
+                <span className="text-[var(--brand-cyan)]">options research</span>
               </motion.h1>
 
               <motion.p
@@ -397,8 +412,8 @@ export default function Landing() {
                 <ShimmerButton
                   onClick={() => setWaitlistOpen(true)}
                   className="h-11 px-7 text-sm font-semibold"
-                  shimmerColor="rgba(20, 184, 166, 0.3)"
-                  background="linear-gradient(135deg, #0d9488, #14b8a6)"
+                  shimmerColor="rgba(120, 198, 232, 0.3)"
+                  background="linear-gradient(135deg, #3E7FA6, #78C6E8)"
                 >
                   Start Free
                   <ArrowRight className="w-4 h-4 ml-2" />
@@ -663,7 +678,7 @@ export default function Landing() {
 
             {/* Pro */}
             <div className="rounded-xl bg-card border-2 border-[var(--brand-teal)]/40 p-6 space-y-5 relative overflow-hidden">
-              <BorderBeam colorFrom="#14b8a6" colorTo="#06b6d4" size={120} duration={8} borderWidth={1.5} />
+              <BorderBeam colorFrom="#78C6E8" colorTo="#6E9E7A" size={120} duration={8} borderWidth={1.5} />
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Pro</h3>
@@ -711,7 +726,7 @@ export default function Landing() {
           <div className="flex items-center justify-center gap-4">
             <ShimmerButton
               onClick={() => setWaitlistOpen(true)}
-              shimmerColor="#10b981"
+              shimmerColor="#6E9E7A"
               background="rgba(16, 185, 129, 0.15)"
               className="px-8 py-3 text-base font-bold text-white"
             >

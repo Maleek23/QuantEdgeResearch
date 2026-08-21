@@ -226,21 +226,21 @@ button:not([disabled]):active,
   --trade-neutral-bg-subtle: rgba(245, 158, 11, 0.03);
 
   /* --- AI / Confidence --- */
-  --ai-primary: #10b981;
+  --ai-primary: #6E9E7A;
   --ai-secondary: #3b82f6;
-  --confidence-high: #10b981;
+  --confidence-high: #6E9E7A;
   --confidence-medium: #3b82f6;
   --confidence-low: #f59e0b;
 
   /* --- Brand accents --- */
   --brand-cyan: #78C6E8;  /* Ice Signal — reports, never sells */
-  --brand-teal: #14b8a6;
+  --brand-teal: #78C6E8;  /* Ice Signal — was #14b8a6 acid teal, the last of the old accent */
   --brand-blue: #3b82f6;
   --brand-gold: #f59e0b;
 
   /* --- Grade system --- */
   --grade-s: #22d3ee;
-  --grade-a: #10b981;
+  --grade-a: #6E9E7A;
   --grade-b: #60a5fa;
   --grade-c: #f59e0b;
   --grade-d: #f97316;
@@ -406,9 +406,9 @@ button:not([disabled]):active,
   --trade-neutral-bg-subtle: rgba(245, 158, 11, 0.04);
 
   /* --- AI / Confidence --- */
-  --ai-primary: #10b981;
+  --ai-primary: #6E9E7A;
   --ai-secondary: #3b82f6;
-  --confidence-high: #10b981;
+  --confidence-high: #6E9E7A;
   --confidence-medium: #3b82f6;
   --confidence-low: #f59e0b;
 
@@ -595,7 +595,7 @@ button:not([disabled]):active,
 }
 
 .confidence-bar-fill.high {
-  background: linear-gradient(to right, #14b8a6, #10b981);
+  background: linear-gradient(to right, #78C6E8, #6E9E7A);
 }
 
 .confidence-bar-fill.medium {
