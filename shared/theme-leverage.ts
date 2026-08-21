@@ -50,7 +50,13 @@ export interface LeverageResult {
   impliedMovePct: number;
   /** actual − implied. Negative = has not delivered its leverage yet. */
   residualPct: number;
-  /** Composite 0-100. High = real tracking, real torque, and lagging. */
+  /** Which side the driver's own trend makes this a candidate for. */
+  side: 'long' | 'short' | 'none';
+  /**
+   * Composite 0-100, and it only means something WITH `side`. High = tracks the
+   * driver, carries real torque, and has not yet delivered the move the driver
+   * has already made.
+   */
   catchUpScore: number;
   read: string;
 }
@@ -85,6 +91,9 @@ function regress(x: number[], y: number[]): { beta: number; r2: number } {
 /** Minimum R² below which "leverage" is really just unrelated volatility. */
 export const MIN_TRACKING_R2 = 0.25;
 
+/** Below this the driver has no trend worth levering into, either way. */
+export const MIN_DRIVER_MOVE_PCT = 3;
+
 export function measureLeverage(
   driverCloses: number[],
   candidates: LeverageInput[],
@@ -114,21 +123,44 @@ export function measureLeverage(
     const residualPct = actualMovePct - impliedMovePct;
 
     // Torque only counts when the relationship is real, so beta is gated on R².
-    // Then reward the lag: a name that tracks and has NOT moved is the setup.
     const tracks = r2 >= MIN_TRACKING_R2;
     const torque = tracks ? Math.min(1, Math.abs(beta) / 3) : 0;
-    const lag = residualPct < 0 ? Math.min(1, Math.abs(residualPct) / 30) : 0;
-    const catchUpScore = Math.round((r2 * 0.35 + torque * 0.3 + lag * 0.35) * 100);
+
+    // DIRECTION FIRST. Torque is not a virtue on its own — high beta to a FALLING
+    // driver is the worst thing to own, not the best. The driver's own trend
+    // decides which side is even on the table, and an undecided driver offers
+    // neither. Getting this wrong ranked the most-levered name in a sinking
+    // sector as the top idea, which is exactly backwards.
+    const side: LeverageResult['side'] =
+      !tracks || Math.abs(driverMovePct) < MIN_DRIVER_MOVE_PCT ? 'none'
+      : driverMovePct > 0 ? 'long' : 'short';
+
+    // "Has not caught up" also flips with the driver. In a RISING driver the
+    // laggard has under-delivered (residual < 0). In a FALLING driver the name
+    // that has not yet fallen (residual > 0) is the one with room left to give.
+    const dislocation =
+      side === 'long' ? Math.max(0, -residualPct)
+      : side === 'short' ? Math.max(0, residualPct)
+      : 0;
+    const lag = Math.min(1, dislocation / 30);
+
+    // Tracking now outweighs raw torque; a levered name you cannot rely on to
+    // follow the driver is not a levered play on the driver.
+    const catchUpScore = side === 'none'
+      ? 0
+      : Math.round((r2 * 0.45 + torque * 0.2 + lag * 0.35) * 100);
 
     const read = !tracks
       ? `Does not track the driver (R² ${r2.toFixed(2)}). A ${beta.toFixed(1)}x beta here is unrelated volatility, not leverage.`
-      : residualPct < -8
-        ? `${beta.toFixed(1)}x the driver and tracks it (R² ${r2.toFixed(2)}), but has delivered `
-          + `${actualMovePct.toFixed(0)}% against ${impliedMovePct.toFixed(0)}% implied — ${Math.abs(residualPct).toFixed(0)} points behind.`
-        : residualPct > 8
-          ? `${beta.toFixed(1)}x and tracking, already ${residualPct.toFixed(0)} points AHEAD of what the driver justifies. `
-            + `The move has been made.`
-          : `${beta.toFixed(1)}x the driver, tracking closely, priced about where the driver puts it.`;
+      : side === 'none'
+        ? `Tracks at ${beta.toFixed(1)}x, but the driver has only moved ${driverMovePct.toFixed(1)}% — `
+          + `there is no trend to be levered to yet.`
+        : dislocation > 8
+          ? `${beta.toFixed(1)}x and tracking (R² ${r2.toFixed(2)}). Driver ${driverMovePct.toFixed(0)}%, `
+            + `this did ${actualMovePct.toFixed(0)}% against ${impliedMovePct.toFixed(0)}% implied — `
+            + `${dislocation.toFixed(0)} points of the move still unspent, on the ${side} side.`
+          : `${beta.toFixed(1)}x and tracking, but it has already delivered its leverage `
+            + `(${actualMovePct.toFixed(0)}% vs ${impliedMovePct.toFixed(0)}% implied). The move has been made.`;
 
     out.push({
       symbol: c.symbol,
@@ -138,7 +170,7 @@ export function measureLeverage(
       actualMovePct: Math.round(actualMovePct * 10) / 10,
       impliedMovePct: Math.round(impliedMovePct * 10) / 10,
       residualPct: Math.round(residualPct * 10) / 10,
-      catchUpScore, read,
+      side, catchUpScore, read,
     });
   }
 
