@@ -1,6 +1,7 @@
 import { logger } from './logger';
 import { fetchStockPrice, fetchCryptoPrice, fetchYahooFinancePrice } from './market-api';
 import { getTradierQuote, getOptionQuote } from './tradier-api';
+import { yahooQuote } from './yahoo-client';
 import { getFuturesPrice, getFuturesPrices } from './futures-data-service';
 
 export interface RealtimeQuote {
@@ -63,6 +64,28 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
     }
   }
 
+  // Tradier is 401 on an unfunded account, so Yahoo is not a fallback here — it is
+  // the only source. It was being called from 37 unthrottled places at once, which
+  // earned us a 429 and froze every price on the board. Everything now goes through
+  // the one throttled client with a short cache and a real back-off.
+  const yq = await yahooQuote(symbol);
+  if (yq) {
+    return {
+      symbol: yq.symbol,
+      name: yq.symbol,
+      price: yq.price,
+      change: yq.change,
+      changePercent: yq.changePercent,
+      high: yq.price,
+      low: yq.price,
+      volume: yq.volume,
+      lastUpdate: new Date(yq.at),
+      assetType: 'stock',
+    };
+  }
+
+  // Last resort: the legacy multi-source path. Kept because it reaches providers
+  // the client does not, but it is no longer the first thing tried.
   const marketData = await fetchStockPrice(symbol);
   if (marketData) {
     return {
