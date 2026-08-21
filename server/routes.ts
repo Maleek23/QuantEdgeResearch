@@ -13953,6 +13953,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── SECTORS — the ticker engines, pointed at the sector itself ────────────
+  // Rotation says money is moving INTO a group. It does not say whether that group
+  // is coiled, stretched, or sitting above a gap it historically fills — which is
+  // what decides whether the rotation is tradeable.
+  app.get("/api/sectors/analysis", async (req, res) => {
+    try {
+      const limit = Math.max(1, Math.min(20, Number(req.query.limit) || 16));
+      const { analyzeSectors } = await import("./sector-analysis");
+      res.json(await analyzeSectors(limit));
+    } catch (error) {
+      logger.error("Sector analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze sectors" });
+    }
+  });
+
   // ── ENTRY TIMING — when to act, decided on the ticker's own clock ──────────
   // The board says WHAT, the tape gate says WHETHER, this says WHEN. It never
   // says buy; it says whether the clock is with you or against you on this name.
