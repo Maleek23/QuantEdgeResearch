@@ -434,3 +434,164 @@ export function ParticipationStrip({
     </div>
   );
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * LIVENESS
+ *
+ * The board was accurate and completely still. Numbers replaced themselves
+ * between polls with no transition, so a screen that had just updated looked
+ * identical to one that had been frozen for an hour — and a terminal you cannot
+ * tell is live is a terminal you do not trust.
+ *
+ * What makes a real trading screen feel alive is not decoration. It is that a
+ * changing number ANNOUNCES the change: it flashes the direction it moved and
+ * travels to its new value instead of teleporting. That is the whole trick, and
+ * it carries information — you catch the move peripherally, without reading.
+ *
+ * Both primitives honour prefers-reduced-motion by dropping straight to the
+ * final value, because a flashing screen is genuinely painful for some people.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const on = () => setReduced(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return reduced;
+}
+
+/** Eases a number toward its target over `ms`, on rAF. */
+function useTweened(target: number, ms = 420): number {
+  const reduced = usePrefersReducedMotion();
+  const [shown, setShown] = React.useState(target);
+  const fromRef = React.useRef(target);
+  const rafRef = React.useRef<number>();
+
+  React.useEffect(() => {
+    if (reduced || !Number.isFinite(target)) { setShown(target); return; }
+    const from = fromRef.current;
+    if (from === target) return;
+    const start = performance.now();
+    const step = (t: number) => {
+      const p = Math.min(1, (t - start) / ms);
+      // easeOutCubic — fast departure, soft landing. Reads as momentum.
+      const e = 1 - Math.pow(1 - p, 3);
+      setShown(from + (target - from) * e);
+      if (p < 1) rafRef.current = requestAnimationFrame(step);
+      else fromRef.current = target;
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [target, ms, reduced]);
+
+  React.useEffect(() => { if (reduced) fromRef.current = target; }, [target, reduced]);
+  return reduced ? target : shown;
+}
+
+/**
+ * A number that announces its own change: tints green on a rise, red on a fall,
+ * and travels to the new value rather than snapping.
+ */
+export function LiveValue({
+  value,
+  format,
+  className,
+  flashMs = 700,
+  tween = true,
+}: {
+  value: number;
+  format?: (n: number) => string;
+  className?: string;
+  flashMs?: number;
+  /** Off for values where an intermediate number would be a lie (counts, ids). */
+  tween?: boolean;
+}) {
+  const reduced = usePrefersReducedMotion();
+  const [dir, setDir] = React.useState<'up' | 'down' | null>(null);
+  const prev = React.useRef(value);
+
+  React.useEffect(() => {
+    if (!Number.isFinite(value) || value === prev.current) return;
+    setDir(value > prev.current ? 'up' : 'down');
+    prev.current = value;
+    const id = setTimeout(() => setDir(null), flashMs);
+    return () => clearTimeout(id);
+  }, [value, flashMs]);
+
+  const tweened = useTweened(tween ? value : prev.current, 420);
+  const shown = tween && !reduced ? tweened : value;
+  const text = format ? format(shown) : String(Math.round(shown * 100) / 100);
+
+  return (
+    <span
+      className={cn(
+        'inline-block rounded-[3px] px-1 -mx-1 transition-colors duration-500 tabular-nums',
+        dir === 'up' && 'bg-emerald-500/20 text-emerald-300',
+        dir === 'down' && 'bg-rose-500/20 text-rose-300',
+        className,
+      )}
+      style={{ transitionDuration: dir ? '90ms' : `${flashMs}ms` }}
+    >
+      {text}
+    </span>
+  );
+}
+
+/**
+ * Proof the screen is still connected: a pulsing dot and an age that actually
+ * counts up, going amber then red as the data gets old. A static "LIVE" badge
+ * claims freshness; this one demonstrates it.
+ */
+export function Heartbeat({
+  since,
+  staleAfterSec = 90,
+  label = 'LIVE',
+  className,
+}: {
+  /** When the data last arrived. */
+  since: Date | number | null | undefined;
+  staleAfterSec?: number;
+  label?: string;
+  className?: string;
+}) {
+  const [, force] = React.useReducer((n: number) => n + 1, 0);
+  React.useEffect(() => {
+    const id = setInterval(force, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const ms = since ? Date.now() - new Date(since).getTime() : NaN;
+  const sec = Math.max(0, Math.floor(ms / 1000));
+  const stale = !Number.isFinite(sec) || sec > staleAfterSec;
+  const dead = !Number.isFinite(sec) || sec > staleAfterSec * 4;
+
+  const age = !Number.isFinite(sec)
+    ? 'no data'
+    : sec < 60 ? `${sec}s ago`
+    : sec < 3600 ? `${Math.floor(sec / 60)}m ago`
+    : `${Math.floor(sec / 3600)}h ago`;
+
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 text-[10px] tracking-wider', className)}>
+      <span className="relative flex h-1.5 w-1.5">
+        {!stale && (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+        )}
+        <span
+          className={cn(
+            'relative inline-flex h-1.5 w-1.5 rounded-full',
+            dead ? 'bg-rose-500' : stale ? 'bg-amber-400' : 'bg-emerald-400',
+          )}
+        />
+      </span>
+      <span className={cn(dead ? 'text-rose-400' : stale ? 'text-amber-400' : 'text-emerald-400')}>
+        {label}
+      </span>
+      <span className="text-muted-foreground/70">{age}</span>
+    </span>
+  );
+}

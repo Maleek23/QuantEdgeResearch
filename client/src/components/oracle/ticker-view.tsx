@@ -18,7 +18,7 @@ import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { EASE, DUR } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { TC, pnlColor } from '@/lib/oracle/trading-colors';
-import { ScoreDial, RangeBar, StackedBar, Pill } from '@/components/viz';
+import { ScoreDial, RangeBar, StackedBar, Pill, LiveValue } from '@/components/viz';
 import { convictionPercent, bandStrength, type ConvictionPick } from '@/lib/convictions';
 
 import { TickerRead } from './ticker-read';
@@ -79,9 +79,11 @@ export function TickerView({ symbol, hasSignal, onClear }: {
         <span className="text-lead font-mono font-bold tracking-wider text-foreground">{symbol}</span>
         {q && (
           <span className="flex items-baseline gap-2">
-            <span className="text-value font-mono font-bold tabular-nums text-foreground">
-              ${q.lastPrice.toFixed(2)}
-            </span>
+            <LiveValue
+              value={q.lastPrice}
+              format={(n) => `$${n.toFixed(2)}`}
+              className="text-value font-mono font-bold text-foreground"
+            />
             <span className="text-meta font-mono tabular-nums" style={{ color: pnlColor(q.changePct) }}>
               {q.changePct >= 0 ? '+' : ''}{q.changePct.toFixed(2)}%
             </span>
