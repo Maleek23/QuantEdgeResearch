@@ -81,6 +81,21 @@ export class WinRateService {
     
     // 1. Exclude buggy/test trades
     filtered = filtered.filter(idea => !idea.excludeFromTraining);
+
+    // 1b. Exclude rows whose own geometry is impossible.
+    //
+    // A GOOGL option idea was stored with entry $10.80, stop $9.90 (an 8% stop) and
+    // target $45.36 — an R:R of 38:1 — and then scored hit_target with the exit
+    // recorded at exactly the target. That is one fabricated win in the record. The
+    // cause is mixed units: entry and stop written in contract premium while the
+    // target was written against a different scale, which happened on 4 of 411
+    // option ideas.
+    //
+    // Rather than trust outcome_status on a row that cannot be true, drop it. This
+    // rewrites nothing in the database — it stops impossible geometry from being
+    // counted as evidence either way, which is the conservative direction: a real
+    // setup with a genuine 38:1 payoff does not exist, so nothing legitimate is lost.
+    filtered = filtered.filter(idea => !this.hasImpossibleGeometry(idea));
     
     // 2. Date filtering
     if (filters.startDate || filters.endDate) {
@@ -203,6 +218,35 @@ export class WinRateService {
   /**
    * Calculate basic stats for a set of trades
    */
+
+  /**
+   * True when a row's entry/stop/target cannot describe a real trade.
+   *
+   * Two independent checks, because a unit mismatch can show up as either an
+   * absurd payoff or an absurd target distance depending on which field was
+   * written in the wrong scale.
+   */
+  private static hasImpossibleGeometry(idea: any): boolean {
+    const entry = Number(idea.entryPrice);
+    const target = Number(idea.targetPrice);
+    const stop = Number(idea.stopLoss);
+    if (!(entry > 0) || !(target > 0) || !(stop > 0)) return false; // nothing to judge
+
+    const reward = Math.abs(target - entry);
+    const risk = Math.abs(entry - stop);
+    if (risk <= 0) return true; // a stop at the entry is not a stop
+
+    // No listed setup pays 15:1 off a stop that tight. Beyond this the number is a
+    // units bug, not an opportunity.
+    if (reward / risk > 15) return true;
+
+    // A target more than 3x the entry means the two fields are measured on
+    // different scales — premium against underlying, almost always.
+    if (target > entry * 3) return true;
+
+    return false;
+  }
+
   private static calculateStats(ideas: TradeIdea[]): WinRateResult {
     const wins = ideas.filter(i => this.classifyIdea(i) === 'win');
     const losses = ideas.filter(i => this.classifyIdea(i) === 'loss');
