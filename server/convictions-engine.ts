@@ -719,29 +719,51 @@ async function scoreSectorLayer(symbol: string, sector: Sector, direction: "long
     const relStr = `${rel >= 0 ? "+" : ""}${rel.toFixed(1)}% vs SPY`;
     const chgStr = `${sig.change >= 0 ? "+" : ""}${sig.change.toFixed(1)}%`;
 
-    if (direction === "long") {
-      if (rel <= -INFLOW_GATE) {
-        // OUTFLOW: money leaving this sector. Scale the penalty with severity.
-        points = Math.max(-14, Math.round(rel * 4));
-        why = `🩸 ${sig.name} ${chgStr} (${relStr}) — money rotating OUT, fading longs`;
-      } else if (rel >= INFLOW_GATE) {
-        // INFLOW: tailwind for longs (modest boost — don't let it inflate scores).
-        points = Math.min(8, Math.round(rel * 3));
-        why = `${sig.name} ${chgStr} (${relStr}) — sector catching inflows`;
-      } else {
-        return null;
-      }
+    // HEADWIND vs TAILWIND, applied the same way on both sides.
+    //
+    // The asymmetry is deliberate and kept: trading against rotation is worse than
+    // riding it, and the board runs heavily long, so a headwind is weighted harder
+    // than an equivalent tailwind. What changed is the SHAPE.
+    //
+    // The old curve multiplied linearly and clipped at −14, which it reached at
+    // −3.5% relative. Beyond that the layer stopped carrying information: a sector
+    // down 3.5% against SPY and one down 10% both scored −14, so "leaning against
+    // you" and "actively collapsing" were indistinguishable. It also fired at full
+    // strength on a single −3.5% day that might be noise.
+    //
+    // A saturating curve keeps the same worst case but approaches it gradually, so
+    // severity still registers all the way out and a marginal day no longer maxes
+    // the penalty. The short side used a symmetric ±10 for no stated reason; one
+    // philosophy now applies to both.
+    const HEADWIND_MAX = 14;   // worst case against the position
+    const TAILWIND_MAX = 8;    // best case for it — deliberately smaller
+    const HALF = 2.0;          // % relative at which half the maximum is reached
+
+    /**
+     * Saturating magnitude — max * m/(m + HALF). Zero at zero, half of `max` at
+     * HALF, and approaching `max` asymptotically without ever reaching it. That
+     * last property is the point: the layer keeps distinguishing −5% from −12%
+     * instead of clipping both to the same number, and no single day can max it.
+     */
+    const curve = (magnitude: number, max: number) =>
+      Math.round(max * (magnitude / (magnitude + HALF)));
+
+    const against = direction === "long" ? rel <= -INFLOW_GATE : rel >= INFLOW_GATE;
+    const withUs = direction === "long" ? rel >= INFLOW_GATE : rel <= -INFLOW_GATE;
+    const mag = Math.abs(rel);
+
+    if (against) {
+      points = -Math.min(HEADWIND_MAX, curve(mag, HEADWIND_MAX));
+      why = direction === "long"
+        ? `🩸 ${sig.name} ${chgStr} (${relStr}) — money rotating OUT, fading longs`
+        : `${sig.name} ${chgStr} (${relStr}) — sector bid, fights short`;
+    } else if (withUs) {
+      points = Math.min(TAILWIND_MAX, curve(mag, TAILWIND_MAX));
+      why = direction === "long"
+        ? `${sig.name} ${chgStr} (${relStr}) — sector catching inflows`
+        : `${sig.name} ${chgStr} (${relStr}) — sector bleeding, confirms short`;
     } else {
-      // SHORT: weakness is a tailwind, strength is a headwind.
-      if (rel <= -INFLOW_GATE) {
-        points = Math.min(10, Math.round(-rel * 3));
-        why = `${sig.name} ${chgStr} (${relStr}) — sector bleeding, confirms short`;
-      } else if (rel >= INFLOW_GATE) {
-        points = Math.max(-10, Math.round(-rel * 3));
-        why = `${sig.name} ${chgStr} (${relStr}) — sector bid, fights short`;
-      } else {
-        return null;
-      }
+      return null;
     }
 
     if (points === 0) return null;
