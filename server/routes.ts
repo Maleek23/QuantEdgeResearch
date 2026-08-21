@@ -13737,6 +13737,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── READ-THROUGHS — events on OTHER tickers that move this one ─────────────
+  // A per-company calendar answers "what is happening to META". The useful
+  // question is "what moves META", and the answer is often on someone else's
+  // ticker — NVDA's print is a verdict on the AI compute story META trades on.
+  app.get("/api/ticker/:symbol/read-throughs", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || "").trim().toUpperCase();
+      if (!symbol) return res.status(400).json({ error: "symbol required" });
+
+      const { findReadThroughs } = await import("./catalyst-readthrough");
+      const { getEarningsBySymbol } = await import("./earnings-calendar");
+
+      const earnings = await getEarningsBySymbol(30);
+      const own = earnings.get(symbol) ?? null;
+      const links = findReadThroughs(symbol, earnings as any, 10);
+
+      res.json({
+        symbol,
+        ownEarnings: own,
+        readThroughs: links,
+        _meta: {
+          note:
+            "Bellwether links are asymmetric on purpose: NVDA moves ANET, ANET does not move NVDA. Peer links are same-sector prints inside 21 days. This covers scheduled EARNINGS only — legal calendars, regulatory deadlines and product launches need curation or a news pipeline and are not inferable from price data.",
+        },
+      });
+    } catch (error) {
+      logger.error("Read-through error:", error);
+      res.status(500).json({ error: "Failed to compute read-throughs" });
+    }
+  });
+
   // ── BASE RATES — what this specific ticker actually tends to do ────────────
   // Same method as the gap engine: answer with the name's own record rather than
   // a rule of thumb. Every rate carries its sample count and is withheld below ten
