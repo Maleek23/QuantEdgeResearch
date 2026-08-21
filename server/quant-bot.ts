@@ -71,6 +71,8 @@ export interface BotRunResult {
   closed: { symbol: string; reason: string }[];
   skipped: number;
   openCount: number;
+  /** Levels the bot exited on. A later fill clears the name for re-entry. */
+  gapWatch: { symbol: string; level: number }[];
   error?: string;
 }
 
@@ -82,11 +84,13 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
   const ranAt = new Date().toISOString();
   const opened: BotRunResult['opened'] = [];
   const closed: BotRunResult['closed'] = [];
+  // Levels we exited on, so a later fill can flip the name back to a candidate.
+  const gapWatch: { symbol: string; level: number }[] = [];
   let skipped = 0;
 
   const portfolio: any = await getBotPortfolio(cfg);
   if (!portfolio?.id) {
-    return { ranAt, portfolioId: '', opened, closed, skipped, openCount: 0, error: 'no portfolio' };
+    return { ranAt, portfolioId: '', opened, closed, skipped, openCount: 0, gapWatch: [], error: 'no portfolio' };
   }
 
   // ── A cycle, concretely ──────────────────────────────────────────────────
@@ -129,6 +133,54 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
     }
   } catch (err) {
     logger.warn('[QUANT-BOT] expiry settlement failed:', err);
+  }
+
+  // 3.5 — gap magnets. A static stop and target cannot see that the underlying has
+  // a high-confidence unfilled gap sitting below a position that is well in profit.
+  // MARA ran to +159% with a gap 12.4% under it on a name that has filled 100% of
+  // 31 past gaps in a median of 3 sessions, and the bot held it back to +74%
+  // because nothing consulted that. This banks the gain and records the level, so
+  // the fill becomes a re-entry trigger rather than just a loss avoided.
+  try {
+    const { evaluateGapExit, describeGapExit } = await import('./gap-aware-exits');
+    const { rateLimited } = await import('./provider-cache');
+    const stillOpen = await getOpenPositions(portfolio.id);
+
+    for (const pos of stillOpen) {
+      if (pos.assetType !== 'option') continue;
+      const cost = Number(pos.entryPrice) * Number(pos.quantity) * 100;
+      const gainPct = cost > 0 ? (Number(pos.unrealizedPnL ?? 0) / cost) * 100 : 0;
+      if (gainPct < 40) continue;   // cheap pre-filter before any network call
+
+      const chart: any = await rateLimited('yahoo', 1200, async () => {
+        const r = await fetch(
+          `https://query2.finance.yahoo.com/v8/finance/chart/${pos.symbol}?range=2y&interval=1d`,
+          { headers: { 'User-Agent': 'Mozilla/5.0' } },
+        );
+        return r.ok ? r.json() : null;
+      });
+      const res = chart?.chart?.result?.[0];
+      const q = res?.indicators?.quote?.[0];
+      if (!res || !q) continue;
+      const bars = (res.timestamp || [])
+        .map((t: number, i: number) => ({
+          time: t, open: q.open?.[i], high: q.high?.[i], low: q.low?.[i], close: q.close?.[i], volume: q.volume?.[i],
+        }))
+        .filter((b: any) => [b.open, b.high, b.low, b.close].every((v: any) => Number.isFinite(v)));
+
+      // A long call is threatened by a gap below; a long put by one above.
+      const dir = pos.optionType === 'put' ? 'short' : 'long';
+      const signal = evaluateGapExit(bars, gainPct, dir as 'long' | 'short');
+      if (signal.action !== 'scale_out') continue;
+
+      logger.info(describeGapExit(pos.symbol, signal));
+      const mark = Number(pos.currentPrice ?? pos.entryPrice);
+      await closePosition(pos.id, mark, 'gap_magnet');
+      closed.push({ symbol: pos.symbol, reason: `gap magnet at $${signal.gapLevel?.toFixed(2)} — banked +${gainPct.toFixed(0)}%` });
+      gapWatch.push({ symbol: pos.symbol, level: signal.gapLevel ?? 0 });
+    }
+  } catch (err) {
+    logger.warn('[QUANT-BOT] gap-exit check failed:', err);
   }
 
   // 3 — premium stop / target
@@ -278,7 +330,22 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
 
   const openCount = (await getOpenPositions(portfolio.id)).length;
   logger.info(`[QUANT-BOT] cycle: +${opened.length} opened, -${closed.length} closed, ${openCount} open`);
-  return { ranAt, portfolioId: portfolio.id, opened, closed, skipped, openCount };
+  // Persist the levels we left on. A gap exit is only half the trade the bot was
+  // missing — the other half is noticing when that gap fills, because at that point
+  // the reason for leaving is gone. This does NOT re-enter on its own: the
+  // conviction engine still has to publish a fresh signal. It only clears the block,
+  // which is the difference between a rule and a hunch.
+  if (gapWatch.length) {
+    try {
+      const { setBotGapWatch } = await import('./gap-aware-exits');
+      await setBotGapWatch(gapWatch);
+      logger.info(`[QUANT-BOT] watching ${gapWatch.length} gap level(s) for re-entry`);
+    } catch (err) {
+      logger.warn('[QUANT-BOT] could not persist gap watch:', err);
+    }
+  }
+
+  return { ranAt, portfolioId: portfolio.id, opened, closed, skipped, openCount, gapWatch };
 }
 
 export interface BotStatus {

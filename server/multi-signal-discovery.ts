@@ -50,6 +50,11 @@ export const DISCOVERY_UNIVERSE = {
   // to rotate into, they are the most liquid options books listed — which is
   // exactly what a small account wants, because spread is a bigger drag on a
   // one-contract position than on a hundred.
+  // Large-cap pharma and healthcare. Distinct from biotech_catalysts, which is
+  // binary-event driven small caps — these are liquid, optionable names that
+  // trend and rotate, and they were absent entirely apart from BMY.
+  pharma_large_cap: ["LLY","MRK","PFE","ABBV","AMGN","GILD","VRTX","REGN","BIIB","ZTS","JNJ"],
+  healthcare_services: ["UNH","ELV","CI","HCA","MCK","ISRG","DXCM","IDXX"],
   index_and_vol: ["SPY","QQQ","IWM","DIA","SMH","SOXL","XLK","TLT","GLD"],
   telecom_ai: ["NOK","ERIC","T","VZ","TMUS","CSCO","AKAM","CCI"],
 };
