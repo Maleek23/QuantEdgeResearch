@@ -123,6 +123,9 @@ const SECTOR_TO_ETF: Record<Sector, string | null> = {
   pharma: 'XLV',
   healthcare: 'XLV',
   ev_mobility: 'XLY',
+  // GDX is the miners' own tape — the right benchmark for the complex, and a
+  // far better read on it than any broad-market sector ETF would give.
+  precious_metals: 'GDX',
   crypto: null,   // no clean ETF in universe — skip rather than fabricate
   index: 'SPY',
   other: null,
