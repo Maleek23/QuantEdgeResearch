@@ -13737,6 +13737,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── TICKER READ — conditions on any symbol, signal or not ─────────────────
+  // Searching a ticker with no published setup returned "No signal yet" and a
+  // chart. Plenty is knowable without a setup having cleared the layers, and
+  // saying none of it makes the platform look empty rather than careful.
+  // Returns separate dimensions and NO composite grade — see server/ticker-read.ts.
+  app.get("/api/ticker/:symbol/read", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || "").trim().toUpperCase();
+      if (!symbol) return res.status(400).json({ error: "symbol required" });
+
+      const { buildTickerRead } = await import("./ticker-read");
+      const { rateLimited } = await import("./provider-cache");
+
+      const fetchBars = async (sym: string) => {
+        const chart: any = await rateLimited("yahoo", 1200, async () => {
+          for (const host of ["query2", "query1"]) {
+            const r = await fetch(
+              `https://${host}.finance.yahoo.com/v8/finance/chart/${sym}?range=1y&interval=1d`,
+              { headers: { "User-Agent": "Mozilla/5.0" } },
+            );
+            if (r.ok) return r.json();
+          }
+          return null;
+        });
+        const result = chart?.chart?.result?.[0];
+        const q = result?.indicators?.quote?.[0];
+        if (!result || !q) return [];
+        return (result.timestamp || [])
+          .map((t: number, i: number) => ({
+            time: t, open: q.open?.[i], high: q.high?.[i], low: q.low?.[i], close: q.close?.[i], volume: q.volume?.[i],
+          }))
+          .filter((b: any) => [b.open, b.high, b.low, b.close].every((v: any) => Number.isFinite(v)));
+      };
+
+      const [bars, spyBars] = await Promise.all([fetchBars(symbol), fetchBars("SPY")]);
+      if (bars.length < 60) {
+        return res.status(422).json({ error: `Not enough price history for ${symbol}` });
+      }
+
+      const read = await buildTickerRead(symbol, bars, spyBars);
+      if (!read) return res.status(422).json({ error: "Could not build a read" });
+      res.json(read);
+    } catch (error) {
+      logger.error("Ticker read error:", error);
+      res.status(500).json({ error: "Failed to build ticker read" });
+    }
+  });
+
   // ── REVERSAL — is the move exhausting, and has it actually turned? ─────────
   // Two separate questions, deliberately not merged: exhaustion is a condition
   // (stretched, oversold, diverging) and can persist for weeks; a turn is price

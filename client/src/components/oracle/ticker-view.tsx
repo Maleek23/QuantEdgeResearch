@@ -21,6 +21,7 @@ import { TC, pnlColor } from '@/lib/oracle/trading-colors';
 import { ScoreDial, RangeBar, StackedBar, Pill } from '@/components/viz';
 import { convictionPercent, bandStrength, type ConvictionPick } from '@/lib/convictions';
 
+import { TickerRead } from './ticker-read';
 interface Ext {
   symbol: string; lastPrice: number; previousClose: number;
   changePct: number; session: string; isExtended: boolean;
@@ -170,23 +171,12 @@ export function TickerView({ symbol, hasSignal, onClear }: {
               </div>
             </>
           ) : (
-            <div className="grid h-full place-items-center px-2 text-center">
-              <div>
-                <div className="text-meta font-mono uppercase tracking-widest text-foreground/80">No signal yet</div>
-                {/* "Not graded — it didn't clear the layers" reads like the lookup failed.
-                    It didn't: the screener and the conviction engine are separate, and a
-                    name can be a perfectly good watchlist candidate with no graded setup.
-                    Say which engine said what, and what would change it. */}
-                <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">
-                  {symbol} isn't on the signal board — the conviction engine needs enough
-                  layers to agree before it publishes a setup, and {symbol} hasn't got there.
-                </p>
-                <p className="mt-1.5 text-label leading-relaxed text-muted-foreground">
-                  That's normal for a watchlist name: Early Rotation flags what's coiling,
-                  which usually comes first. Use the chart to watch the level — if it breaks
-                  and the layers line up, it'll appear on the board on its own.
-                </p>
-              </div>
+            <div className="h-full overflow-y-auto px-2 py-1">
+              {/* No published setup is not the same as nothing to say. The conviction
+                  engine needs enough layers to agree before it publishes; plenty is
+                  still knowable from price and the chain in the meantime, so this
+                  shows conditions rather than an apology for their absence. */}
+              <TickerRead symbol={symbol} />
             </div>
           )}
         </div>
