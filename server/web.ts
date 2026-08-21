@@ -17,6 +17,10 @@
 
 import "dotenv/config";
 import { runStartupCheck } from "./startup-check";
+import { installProcessGuard } from "./process-guard";
+
+// Before anything else can throw: an unpaid API bill must not take the app down.
+installProcessGuard("web");
 
 // Run environment check immediately after loading .env
 runStartupCheck();

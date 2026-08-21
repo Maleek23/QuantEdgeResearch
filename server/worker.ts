@@ -19,6 +19,10 @@
  */
 
 import "dotenv/config";
+import { installProcessGuard } from "./process-guard";
+
+// Before anything else can throw: an unpaid API bill must not take the app down.
+installProcessGuard("worker");
 import { runStartupCheck } from "./startup-check";
 runStartupCheck();
 
