@@ -1655,15 +1655,49 @@ export async function getCachedConvictions(
  */
 export async function warmConvictions(reason = 'scheduled'): Promise<number> {
   const t0 = Date.now();
+
+  // WARM THE KEYS THE UI ACTUALLY ASKS FOR, not just the defaults.
+  //
+  // The cache is keyed on the full options fingerprint, and the first version of
+  // this warmed getCachedConvictions() with no arguments — limit 500, minScore 0.
+  // The Hunt cockpit requests limit=40&minScore=10, which is a DIFFERENT key, so
+  // it still met a cold cache and sat on a spinner for the full two-minute build.
+  // Warming the wrong key is indistinguishable from not warming at all.
+  //
+  // weeklyUserId is in the key too, so a logged-in user gets their own entry that
+  // a generic warm can never fill. Each known user therefore gets their shape
+  // warmed as well.
+  const shapes: BuildConvictionsOptions[] = [
+    {},                                                  // bot, alerts, catalyst board
+    { limit: 40, minScore: 10, watchlistOnly: false },    // Hunt cockpit, logged out
+  ];
+
   try {
-    const data = await getCachedConvictions();
-    const n = data?.picks?.length ?? 0;
-    logger.info(`[CONVICTIONS] warm (${reason}): ${n} picks in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-    return n;
-  } catch (err: any) {
-    logger.warn(`[CONVICTIONS] warm (${reason}) failed: ${err?.message ?? err}`);
-    return 0;
+    const { db } = await import('./db');
+    const { sql } = await import('drizzle-orm');
+    const r: any = await db.execute(sql`select id from users limit 5`);
+    for (const u of (r.rows ?? r)) {
+      shapes.push({ limit: 40, minScore: 10, watchlistOnly: false, weeklyUserId: String(u.id) });
+    }
+  } catch {
+    // No user list is survivable; the logged-out shape still gets warmed.
   }
+
+  let total = 0;
+  for (const shape of shapes) {
+    try {
+      const data = await getCachedConvictions(shape);
+      total += data?.picks?.length ?? 0;
+    } catch (err: any) {
+      logger.warn(`[CONVICTIONS] warm shape ${JSON.stringify(shape)} failed: ${err?.message ?? err}`);
+    }
+  }
+
+  logger.info(
+    `[CONVICTIONS] warm (${reason}): ${shapes.length} shapes, ${total} picks total, `
+    + `${((Date.now() - t0) / 1000).toFixed(1)}s`,
+  );
+  return total;
 }
 
 // ─────────────────────────────────────────────────────────────
