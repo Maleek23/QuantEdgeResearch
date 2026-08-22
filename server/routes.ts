@@ -5647,6 +5647,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Registered BEFORE /api/futures/:symbol, because Express matches in registration
+  // order. With the parameterised route first this was unreachable: a request
+  // for /api/futures/contracts was answered by the :param handler treating the literal
+  // segment as an id, returning 200 with empty data. A shadowed route fails
+  // silently and reads as a feature with no data rather than one that cannot
+  // be reached.
+  app.get("/api/futures/contracts", async (_req, res) => {
+    try {
+      // Get all NQ and GC contracts
+      const nqContracts = await storage.getFuturesContractsByRoot('NQ');
+      const gcContracts = await storage.getFuturesContractsByRoot('GC');
+      const allContracts = [...nqContracts, ...gcContracts];
+      
+      logger.info(`[FUTURES-API] Fetched ${allContracts.length} futures contracts (${nqContracts.length} NQ, ${gcContracts.length} GC)`);
+      res.json(allContracts);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/futures/contracts' });
+      res.status(500).json({ error: "Failed to fetch futures contracts" });
+    }
+  });
+
+  // Registered BEFORE /api/futures/:symbol, because Express matches in registration
+  // order. With the parameterised route first this was unreachable: a request
+  // for /api/futures/prices was answered by the :param handler treating the literal
+  // segment as an id, returning 200 with empty data. A shadowed route fails
+  // silently and reads as a feature with no data rather than one that cannot
+  // be reached.
+  app.get("/api/futures/prices", async (req, res) => {
+    try {
+      const codesParam = req.query.codes as string;
+      
+      if (!codesParam) {
+        return res.status(400).json({ error: "Missing 'codes' query parameter. Example: ?codes=NQH25,GCJ25" });
+      }
+      
+      const contractCodes = codesParam.split(',').map(code => code.trim().toUpperCase());
+      
+      // Import futures data service (dynamic to avoid circular deps)
+      const { getFuturesPrices } = await import("./futures-data-service");
+      
+      const pricesMap = await getFuturesPrices(contractCodes);
+      
+      // Convert Map to object for JSON response
+      const pricesObj: Record<string, number> = {};
+      pricesMap.forEach((price, contractCode) => {
+        pricesObj[contractCode] = price;
+      });
+      
+      logger.info(`[FUTURES-API] Fetched ${pricesMap.size} prices for contracts: ${contractCodes.join(', ')}`);
+      res.json(pricesObj);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/futures/prices' });
+      res.status(500).json({ error: "Failed to fetch futures prices" });
+    }
+  });
+
   app.get("/api/futures/:symbol", requireTier('canTradeFutures'), async (req, res) => {
     try {
       const { fetchFuturesQuote } = await import("./market-api");
@@ -15744,6 +15800,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get personal edge for a specific symbol
+  // Registered BEFORE /api/personal-edge/:symbol, because Express matches in registration
+  // order. With the parameterised route first this was unreachable: a request
+  // for /api/personal-edge/missed-opportunities was answered by the :param handler treating the literal
+  // segment as an id, returning 200 with empty data. A shadowed route fails
+  // silently and reads as a feature with no data rather than one that cannot
+  // be reached.
+  app.get("/api/personal-edge/missed-opportunities", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: "Authentication required" });
+      
+      const { limit } = req.query;
+      const { personalEdgeService } = await import('./personal-edge-service');
+      const opportunities = await personalEdgeService.getMissedOpportunities(userId, limit ? parseInt(limit as string) : 5);
+      res.json(opportunities);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/personal-edge/missed-opportunities' });
+      res.status(500).json({ error: "Failed to fetch missed opportunities" });
+    }
+  });
+
   app.get("/api/personal-edge/:symbol", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user?.id;
@@ -15760,20 +15837,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get missed opportunities
-  app.get("/api/personal-edge/missed-opportunities", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) return res.status(401).json({ error: "Authentication required" });
-      
-      const { limit } = req.query;
-      const { personalEdgeService } = await import('./personal-edge-service');
-      const opportunities = await personalEdgeService.getMissedOpportunities(userId, limit ? parseInt(limit as string) : 5);
-      res.json(opportunities);
-    } catch (error) {
-      logError(error as Error, { context: 'GET /api/personal-edge/missed-opportunities' });
-      res.status(500).json({ error: "Failed to fetch missed opportunities" });
-    }
-  });
 
   // Update personal edge for all watchlist items
   app.post("/api/personal-edge/recalculate", isAuthenticated, async (req: any, res) => {
@@ -17697,20 +17760,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Futures Contracts Routes
-  app.get("/api/futures/contracts", async (_req, res) => {
-    try {
-      // Get all NQ and GC contracts
-      const nqContracts = await storage.getFuturesContractsByRoot('NQ');
-      const gcContracts = await storage.getFuturesContractsByRoot('GC');
-      const allContracts = [...nqContracts, ...gcContracts];
-      
-      logger.info(`[FUTURES-API] Fetched ${allContracts.length} futures contracts (${nqContracts.length} NQ, ${gcContracts.length} GC)`);
-      res.json(allContracts);
-    } catch (error) {
-      logError(error as Error, { context: 'GET /api/futures/contracts' });
-      res.status(500).json({ error: "Failed to fetch futures contracts" });
-    }
-  });
 
   app.get("/api/futures/contracts/:rootSymbol", async (req, res) => {
     try {
@@ -17750,34 +17799,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/futures/prices", async (req, res) => {
-    try {
-      const codesParam = req.query.codes as string;
-      
-      if (!codesParam) {
-        return res.status(400).json({ error: "Missing 'codes' query parameter. Example: ?codes=NQH25,GCJ25" });
-      }
-      
-      const contractCodes = codesParam.split(',').map(code => code.trim().toUpperCase());
-      
-      // Import futures data service (dynamic to avoid circular deps)
-      const { getFuturesPrices } = await import("./futures-data-service");
-      
-      const pricesMap = await getFuturesPrices(contractCodes);
-      
-      // Convert Map to object for JSON response
-      const pricesObj: Record<string, number> = {};
-      pricesMap.forEach((price, contractCode) => {
-        pricesObj[contractCode] = price;
-      });
-      
-      logger.info(`[FUTURES-API] Fetched ${pricesMap.size} prices for contracts: ${contractCodes.join(', ')}`);
-      res.json(pricesObj);
-    } catch (error) {
-      logError(error as Error, { context: 'GET /api/futures/prices' });
-      res.status(500).json({ error: "Failed to fetch futures prices" });
-    }
-  });
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CRYPTO BOT MANAGEMENT
@@ -26811,6 +26832,48 @@ Use this checklist before entering any trade:
   });
 
   // GET /api/catalysts/:symbol - Get catalysts for specific symbol
+  // Registered BEFORE /api/catalysts/:symbol, because Express matches in registration
+  // order. With the parameterised route first this was unreachable: a request
+  // for /api/catalysts/high-impact was answered by the :param handler treating the literal
+  // segment as an id, returning 200 with empty data. A shadowed route fails
+  // silently and reads as a feature with no data rather than one that cannot
+  // be reached.
+  app.get("/api/catalysts/high-impact", async (_req, res) => {
+    try {
+      const { fetchAllCatalysts } = await import("./catalyst-tracker-service");
+      const feed = await fetchAllCatalysts();
+
+      res.json({
+        catalysts: feed.highImpact,
+        count: feed.highImpact.length,
+        lastUpdated: feed.lastUpdated
+      });
+    } catch (error) {
+      logger.error("Error fetching high-impact catalysts", { error });
+      res.status(500).json({ error: "Failed to fetch catalysts" });
+    }
+  });
+
+  // Registered BEFORE /api/catalysts/:symbol, because Express matches in registration
+  // order. With the parameterised route first this was unreachable: a request
+  // for /api/catalysts/upcoming was answered by the :param handler treating the literal
+  // segment as an id, returning 200 with empty data. A shadowed route fails
+  // silently and reads as a feature with no data rather than one that cannot
+  // be reached.
+  app.get("/api/catalysts/upcoming", requireTier('canAccessCatalystScoring'), async (req, res) => {
+    try {
+      const { getUpcomingCatalysts } = await import("./catalyst-intelligence-service");
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      const catalysts = await getUpcomingCatalysts(limit);
+      
+      res.json({ catalysts });
+    } catch (error: any) {
+      logger.error("Error fetching upcoming catalysts", { error });
+      res.status(500).json({ error: "Failed to fetch upcoming catalysts" });
+    }
+  });
+
   app.get("/api/catalysts/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
@@ -26831,21 +26894,6 @@ Use this checklist before entering any trade:
   });
 
   // GET /api/catalysts/high-impact - Get only high-impact catalysts
-  app.get("/api/catalysts/high-impact", async (_req, res) => {
-    try {
-      const { fetchAllCatalysts } = await import("./catalyst-tracker-service");
-      const feed = await fetchAllCatalysts();
-
-      res.json({
-        catalysts: feed.highImpact,
-        count: feed.highImpact.length,
-        lastUpdated: feed.lastUpdated
-      });
-    } catch (error) {
-      logger.error("Error fetching high-impact catalysts", { error });
-      res.status(500).json({ error: "Failed to fetch catalysts" });
-    }
-  });
 
   // ============================================
   // CONVERGENCE ENGINE - Multi-source signal correlation
@@ -27611,19 +27659,6 @@ Use this checklist before entering any trade:
   });
 
   // GET /api/catalysts/upcoming - Get upcoming/active catalysts across all symbols
-  app.get("/api/catalysts/upcoming", requireTier('canAccessCatalystScoring'), async (req, res) => {
-    try {
-      const { getUpcomingCatalysts } = await import("./catalyst-intelligence-service");
-      const limit = parseInt(req.query.limit as string) || 20;
-      
-      const catalysts = await getUpcomingCatalysts(limit);
-      
-      res.json({ catalysts });
-    } catch (error: any) {
-      logger.error("Error fetching upcoming catalysts", { error });
-      res.status(500).json({ error: "Failed to fetch upcoming catalysts" });
-    }
-  });
 
   // POST /api/catalysts/refresh - Refresh catalysts for specified tickers
   app.post("/api/catalysts/refresh", requireTier('canAccessCatalystScoring'), async (req, res) => {
@@ -31588,6 +31623,24 @@ Use this checklist before entering any trade:
   });
 
   // GET /api/audit/:auditId - Get analysis audit by ID
+  // Registered BEFORE /api/audit/:auditId, because Express matches in registration
+  // order. With the parameterised route first this was unreachable: a request
+  // for /api/audit/consistency-check was answered by the :param handler treating the literal
+  // segment as an id, returning 200 with empty data. A shadowed route fails
+  // silently and reads as a feature with no data rather than one that cannot
+  // be reached.
+  app.get("/api/audit/consistency-check", async (req, res) => {
+    try {
+      const { analysisLogger } = await import('./analysis-logger');
+      const result = await analysisLogger.checkConsistency();
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error(`Consistency check error:`, error);
+      res.status(500).json({ error: "Failed to check consistency" });
+    }
+  });
+
   app.get("/api/audit/:auditId", async (req, res) => {
     try {
       const { auditId } = req.params;
@@ -31640,17 +31693,6 @@ Use this checklist before entering any trade:
   });
 
   // GET /api/audit/consistency-check - Verify logic consistency
-  app.get("/api/audit/consistency-check", async (req, res) => {
-    try {
-      const { analysisLogger } = await import('./analysis-logger');
-      const result = await analysisLogger.checkConsistency();
-
-      res.json(result);
-    } catch (error: any) {
-      logger.error(`Consistency check error:`, error);
-      res.status(500).json({ error: "Failed to check consistency" });
-    }
-  });
 
   // ===== UNIVERSAL SEARCH ROUTES =====
 
