@@ -223,7 +223,8 @@ async function fetchLearnedWeights(): Promise<Map<string, number>> {
 }
 
 interface QuantSignal {
-  type: 'rsi2_mean_reversion' | 'vwap_cross' | 'volume_spike' | 'rsi2_short_reversion';
+  type: 'rsi2_mean_reversion' | 'vwap_cross' | 'volume_spike' | 'rsi2_short_reversion'
+    | 'vwap_rejection' | 'distribution_spike';
   strength: 'strong' | 'moderate' | 'weak';
   direction: 'long' | 'short';  // v3.2: BOTH long and short positions (mean reversion both ways)
   rsiValue?: number;
@@ -429,6 +430,29 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
       };
     }
   }
+
+  // 🆕 VWAP REJECTION — the short mirror of the cross above.
+  //
+  // Long had three independent generators (RSI2, VWAP cross, volume spike) and
+  // short had exactly one, gated on rsi2 > 90 AND price below BOTH the 50 and
+  // 200-day averages. Measured across the universe that conjunction holds for 3%
+  // of names, because "ripped up over two days" and "in a downtrend" rarely
+  // coincide — which is why the scanner produced 3 shorts in 594 ideas and the
+  // board could not express a bearish view at all.
+  //
+  // Same institutional-flow logic, opposite side: price sitting just UNDER VWAP
+  // on elevated volume is distribution, where the cross above it is accumulation.
+  if (currentPrice < vwap && currentPrice > vwap * 0.98 && volumeRatio >= 1.5 && currentPrice < sma200) {
+    detectedSignals.push('VWAP_REJECTION');
+    if (!primarySignal) {
+      primarySignal = {
+        type: 'vwap_rejection',
+        strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
+        direction: 'short',
+        vwapValue: vwap
+      };
+    }
+  }
   
   // PRIORITY 3: Volume Spike (MOMENTUM signal - works in ALL regimes)
   // Early institutional flow detection - catches accumulation before big moves
@@ -440,6 +464,25 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
         type: 'volume_spike',
         strength: volumeRatio >= 5 ? 'strong' : 'moderate',
         direction: 'long'
+      };
+    }
+  }
+
+  // 🆕 DISTRIBUTION SPIKE — the short mirror of the volume spike above.
+  //
+  // Same read, opposite side: heavy volume on a small DOWN move below the 200-day
+  // average is supply being worked off, exactly as heavy volume on a small up move
+  // above it is accumulation. Mirroring the thresholds rather than inventing new
+  // ones keeps the two sides comparable, which matters because any future
+  // measurement of long-vs-short performance is meaningless if the two were
+  // generated under different rules.
+  if (volumeRatio >= 3 && priceChange <= 0 && priceChange > -1.5 && currentPrice < sma200) {
+    detectedSignals.push('DISTRIBUTION_SPIKE');
+    if (!primarySignal) {
+      primarySignal = {
+        type: 'distribution_spike',
+        strength: volumeRatio >= 5 ? 'strong' : 'moderate',
+        direction: 'short'
       };
     }
   }
@@ -538,8 +581,12 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
     return `RSI(2) extreme overbought at ${rsiValue.toFixed(0)} - mean reversion SHORT setup below 200-day MA`;
   } else if (signal.type === 'vwap_cross') {
     return `Price crossing above VWAP - institutional buying detected with ${volumeRatio}x volume`;
+  } else if (signal.type === 'vwap_rejection') {
+    return `Price rejected under VWAP - institutional distribution with ${volumeRatio}x volume`;
   } else if (signal.type === 'volume_spike') {
     return `Institutional accumulation - ${volumeRatio}x volume spike with minimal price move`;
+  } else if (signal.type === 'distribution_spike') {
+    return `Institutional distribution - ${volumeRatio}x volume with price failing to hold`;
   } else {
     return `Technical setup confirmed - ${volumeRatio}x volume`;
   }
@@ -564,10 +611,18 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
     return `Price crossing above VWAP (${signal.vwapValue?.toFixed(2) || 'N/A'}) with ${volumeRatio.toFixed(1)}x volume indicates institutional buying. ` +
            `VWAP is the most widely used indicator by professional day traders (80%+ win rate). ` +
            `Institutional accumulation suggests upside continuation with volume confirmation.`;
+  } else if (signal.type === 'vwap_rejection') {
+    return `Price sitting just below VWAP (${signal.vwapValue?.toFixed(2) || 'N/A'}) on ${volumeRatio.toFixed(1)}x volume, beneath the 200-day average. ` +
+           `The mirror of the VWAP cross: supply being worked off at a level buyers cannot reclaim. ` +
+           `Same institutional-flow read, opposite side.`;
   } else if (signal.type === 'volume_spike') {
     return `Volume spike (${volumeRatio.toFixed(1)}x average) with minimal price movement indicates early institutional accumulation. ` +
            `Smart money positioning BEFORE big moves - classic early entry pattern. ` +
            `Target ${signal.strength === 'strong' ? '8-10%' : '6-8%'} move as accumulation completes.`;
+  } else if (signal.type === 'distribution_spike') {
+    return `Volume spike (${volumeRatio.toFixed(1)}x average) on a small DOWN move below the 200-day average. ` +
+           `Heavy supply absorbed without price recovering is distribution, the same read as accumulation inverted. ` +
+           `Thresholds deliberately mirror the long side so the two are comparable.`;
   }
 
   return `Quantitative setup confirmed with ${volumeRatio.toFixed(1)}x volume and favorable risk/reward ratio.`;
@@ -610,6 +665,17 @@ function calculateConfidenceScore(
     // Volume Spike had 0% WR in testing - LOWEST score
     score = signal.strength === 'strong' ? 50 : 45;
     qualitySignals.push('Volume Spike Early Entry');
+  } else if (signal.type === 'vwap_rejection') {
+    // NEW and unmeasured. Scored below its long counterpart on purpose: there is
+    // no live evidence for it yet, and a new signal that arrives pre-trusted is
+    // how an unproven idea gets sized like a proven one.
+    score = signal.strength === 'strong' ? 52 : 47;
+    qualitySignals.push('VWAP Rejection (unproven)');
+  } else if (signal.type === 'distribution_spike') {
+    // Likewise unmeasured, and its long mirror scored 0% WR in testing, so this
+    // starts at the bottom of the range.
+    score = signal.strength === 'strong' ? 46 : 42;
+    qualitySignals.push('Distribution Spike (unproven)');
   }
 
   // v3.4: REMOVED R:R bonuses - diagnostic data showed INVERSE correlation

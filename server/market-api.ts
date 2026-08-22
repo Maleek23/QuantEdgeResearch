@@ -768,10 +768,23 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
     // MEMORY-OPTIMIZED STRATEGY:
     // Reduced from 6 categories to 3 most important ones to prevent rate limiting
     // Count reduced from 250 to 50-100 to reduce memory usage
+    // Two of the three original categories were GAINERS screens and there was no
+    // losers screen at all, so the candidate pool was structurally bullish: a
+    // stock in a downtrend setting up short could never enter it. That is the
+    // real reason this scanner produced 3 shorts in 594 ideas — not the signal
+    // logic, which finds short setups at a 5.8% rate in backtest, but the fact
+    // that it was never shown a single short candidate to evaluate.
+    //
+    // A scanner that only looks at what is going up can only ever tell you to buy.
     const categories = [
       { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=100', retries: 2 },
       { name: 'smallCapsGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=small_cap_gainers&count=50', retries: 2 },
-      { name: 'dayGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=50', retries: 1 }
+      { name: 'dayGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=50', retries: 1 },
+      // day_losers is the only losers screen Yahoo actually publishes — there is
+      // no small_cap_losers to mirror small_cap_gainers, and asking for one
+      // returns an error rather than an empty list. Count raised to 100 so the
+      // single bearish source carries comparable weight to the two bullish ones.
+      { name: 'dayLosers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_losers&count=100', retries: 2 }
     ];
     
     for (let catIdx = 0; catIdx < categories.length; catIdx++) {
@@ -884,12 +897,29 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
         // CORE FILTERS: Unusual volume + healthy price action
         // RELAXED from 3x to 2x volume (catch more opportunities)
         const hasUnusualVolume = volumeRatio >= 2.0;           // 2x+ average volume (above-average interest)
-        const isBullish = gem.changePercent >= 0;               // Only bullish (exclude selloffs)
-        const notTooLate = gem.changePercent < 15.0;           // Skip stocks that already rallied >15% (was 10%, now more lenient)
-        
-        // GAP-AND-FADE FILTER: Price must be within 10% of day high
-        // RELAXED from 95% to 90% (allow stocks with minor pullbacks)
-        const nearDayHigh = (gem.currentPrice / gem.dayHigh) >= 0.90;
+        // DIRECTION-SYMMETRIC. This block used to open with
+        //   const isBullish = gem.changePercent >= 0;   // Only bullish (exclude selloffs)
+        // and that single line was, on its own, why this platform could not
+        // short. The signal logic finds short setups at a 5.8% rate in backtest,
+        // but every declining stock was discarded here before any of it ran —
+        // which is how 456 backtestable short signals became 3 stored ideas out
+        // of 594. Adding a losers screen upstream changed nothing while this
+        // stood; the candidates arrived and were dropped one step later.
+        //
+        // A scanner that only looks at what is going up can only tell you to buy.
+        //
+        // The bearish branch is the exact mirror: not yet extended, and holding
+        // near the day's LOW rather than its high — because a name that sold off
+        // and then bounced back into the middle of its range is the short
+        // equivalent of the gap-and-fade this already rejects on the long side.
+        const pct = gem.changePercent;
+        const isBullishSetup = pct >= 0 && pct < 15.0
+          && !!gem.dayHigh && gem.dayHigh > 0
+          && (gem.currentPrice / gem.dayHigh) >= 0.90;
+        const isBearishSetup = pct <= 0 && pct > -15.0
+          && !!gem.dayLow && gem.dayLow > 0
+          && (gem.currentPrice / gem.dayLow) <= 1.10;
+        const directionalSetup = isBullishSetup || isBearishSetup;
         
         // ADAPTIVE APPROACH: Accept 0-10% bullish moves, let quant engine decide strategy
         // - 0-2%: Early accumulation (RSI, MACD)
@@ -898,7 +928,7 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
         // - Rejected: Stock that gapped +15%, faded to +4% (currentPrice/dayHigh < 95%)
         // - Rejected: Stock with -2% = selloff (bearish)
         // - Rejected: Stock missing dayHigh = can't verify gap-and-fade
-        return hasUnusualVolume && isBullish && notTooLate && nearDayHigh;
+        return hasUnusualVolume && directionalSetup;
       })
       .map(gem => {
         // Use avgVolume if available, otherwise use current volume (same as filter)
@@ -915,17 +945,18 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
         
         // Price change component (0-40 points): Balanced across phases
         // Early accumulation (0-2%): Slight preference (38-40 points)
-        if (gem.changePercent < 0.5) score += 40;
-        else if (gem.changePercent < 1.0) score += 39;
-        else if (gem.changePercent < 1.5) score += 39;
-        else if (gem.changePercent < 2.0) score += 38;
+        const move = Math.abs(gem.changePercent);
+        if (move < 0.5) score += 40;
+        else if (move < 1.0) score += 39;
+        else if (move < 1.5) score += 39;
+        else if (move < 2.0) score += 38;
         // Breakout phase (2-5%): Competitive score (35-37 points)
-        else if (gem.changePercent < 3.0) score += 37;
-        else if (gem.changePercent < 4.0) score += 36;
-        else if (gem.changePercent < 5.0) score += 35;
+        else if (move < 3.0) score += 37;
+        else if (move < 4.0) score += 36;
+        else if (move < 5.0) score += 35;
         // Strong momentum (5-10%): Still competitive (32-34 points)
-        else if (gem.changePercent < 7.0) score += 34;
-        else if (gem.changePercent < 10.0) score += 32;
+        else if (move < 7.0) score += 34;
+        else if (move < 10.0) score += 32;
         
         return { ...gem, volumeRatio, score };
       })
