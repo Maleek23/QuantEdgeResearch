@@ -2005,6 +2005,12 @@ app.use((req, res, next) => {
       try {
         const { warmConvictions } = await import("./convictions-engine");
         await warmConvictions("boot");
+        // early-rotation measured 13.8s cold and is the slowest thing on the
+        // first page load. Warming it here means the first visitor after a
+        // restart gets the cached answer instead of paying for it.
+        void fetch(`http://127.0.0.1:${process.env.PORT || 5000}/api/early-rotation`)
+          .then(() => log("🔥 early-rotation cache warmed"))
+          .catch(() => { /* best effort; the route still works cold */ });
         // Refresh ahead of the 5-minute TTL so the entry is replaced before it
         // can expire and nobody ever meets a cold cache.
         setInterval(() => { void warmConvictions("interval"); }, 4 * 60_000);

@@ -5186,20 +5186,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Early rotation — sectors taking inflows crossed with names still coiled inside them.
+  // Measured at 13.8 SECONDS on a cold call, for 2KB of output — and it was the
+  // single thing standing between a page shell that renders in 300ms and a
+  // usable screen. Two reasons, both here: one sequential candle fetch per
+  // candidate symbol, and each of those is an HTTP round trip the process makes
+  // back to ITSELF, so every name pays a full request cycle on top of the
+  // throttled upstream fetch underneath it.
+  //
+  // Cached rather than rewritten, because the answer barely moves: "which groups
+  // are being bought, and which names inside them are still coiled" is not a
+  // second-to-second question, and recomputing it on every page load was pure
+  // waste. Warmed on boot alongside the conviction board so the first visitor
+  // after a restart does not pay for it either.
   app.get("/api/early-rotation", async (_req, res) => {
     try {
-      const { findEarlyRotation } = await import("./early-rotation");
-      const lead = await fetch(`http://127.0.0.1:${process.env.PORT || 5000}/api/sector-leadership`)
-        .then((r) => r.json())
-        .catch(() => null);
-      if (!lead) return res.status(503).json({ error: "Leadership unavailable" });
+      const { cachedFetch } = await import("./provider-cache");
+      const result = await cachedFetch("early-rotation:v1", 5 * 60_000, async () => {
+        const { findEarlyRotation } = await import("./early-rotation");
+        const lead = await fetch(`http://127.0.0.1:${process.env.PORT || 5000}/api/sector-leadership`)
+          .then((r) => r.json())
+          .catch(() => null);
+        if (!lead) throw new Error("Leadership unavailable");
 
-      const result = await findEarlyRotation(lead, async (symbol: string) => {
-        const r = await fetch(
-          `http://127.0.0.1:${process.env.PORT || 5000}/api/historical-prices/${encodeURIComponent(symbol)}?range=6mo&interval=1d`,
-        );
-        if (!r.ok) return [];
-        return (await r.json())?.data ?? [];
+        return findEarlyRotation(lead, async (symbol: string) => {
+          const r = await fetch(
+            `http://127.0.0.1:${process.env.PORT || 5000}/api/historical-prices/${encodeURIComponent(symbol)}?range=6mo&interval=1d`,
+          );
+          if (!r.ok) return [];
+          return (await r.json())?.data ?? [];
+        });
       });
       res.json(result);
     } catch (error) {
@@ -5251,8 +5266,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Sector leadership — which groups lead, and the names carrying them. Answers the
   // step rotation leaves out: once you know biotech is bid, WHICH biotech name?
+  // 6.0s measured on the first page load, and early-rotation calls it too, so the
+  // cost was being paid twice. Sector leadership is a read on where money is
+  // moving across the whole tape — it does not change materially inside a
+  // minute, and recomputing it per request was the second-largest thing standing
+  // between the page shell and a usable screen.
   app.get("/api/sector-leadership", async (_req, res) => {
     try {
+      const { cachedFetch } = await import("./provider-cache");
+      const cachedResult = await cachedFetch("sector-leadership:v1", 90_000, async () => {
       const { computeSectorLeadership } = await import("./sector-leadership");
       const { currentSession, fetchExtendedQuote } = await import("./extended-hours");
 
@@ -5287,7 +5309,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         return out;
       }, { session });
-      res.json(result);
+        return result;
+      });
+      res.json(cachedResult);
     } catch (error) {
       logger.error("[API] Failed to compute sector leadership:", error);
       res.status(500).json({ error: "Failed to compute sector leadership" });
