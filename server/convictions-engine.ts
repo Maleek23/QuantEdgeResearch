@@ -1533,7 +1533,18 @@ export async function revalidateBestSetups(
 // ─────────────────────────────────────────────────────────────
 
 const _convictionsCache = new Map<string, { data: ConvictionsResponse; expiresAt: number }>();
-const CONVICTIONS_CACHE_TTL_MS = 60_000;
+/**
+ * MUST exceed the build time. A measured cold build is ~137s, and this was set
+ * to 60s — so the entry expired more than twice as fast as it could possibly be
+ * regenerated, and the engine lived in permanent rebuild: every minute it went
+ * stale, a 137s refresh started, and it was stale again before that refresh
+ * landed. That burned CPU and Yahoo rate limit continuously and still left the
+ * board reading "still warming up" to anyone who arrived on a cold process.
+ *
+ * Five minutes is comfortably longer than the build, so a refresh finishes and
+ * the entry is genuinely fresh for a while afterwards.
+ */
+const CONVICTIONS_CACHE_TTL_MS = 5 * 60_000;
 // How long a stale entry may still be served (instantly) while a fresh build
 // runs in the background. Past this, the next request rebuilds synchronously.
 const CONVICTIONS_STALE_MS = 10 * 60_000;
@@ -1627,6 +1638,32 @@ export async function getCachedConvictions(
 
   // Cold (no entry, or too stale to trust) — must build synchronously.
   return build();
+}
+
+
+/**
+ * Build the board once, ahead of anyone asking for it.
+ *
+ * The cold build takes over two minutes, so whoever arrives first on a fresh
+ * process either waits that out or is told the signals are "still warming up".
+ * Neither is acceptable as the normal experience, and both were: nothing
+ * populated this cache on boot, so every restart put the platform back into that
+ * state until a human happened to open the Oracle tab.
+ *
+ * Called at startup and on a schedule. Failures are logged and swallowed — a
+ * warm-up that cannot complete must not prevent the process from serving.
+ */
+export async function warmConvictions(reason = 'scheduled'): Promise<number> {
+  const t0 = Date.now();
+  try {
+    const data = await getCachedConvictions();
+    const n = data?.picks?.length ?? 0;
+    logger.info(`[CONVICTIONS] warm (${reason}): ${n} picks in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    return n;
+  } catch (err: any) {
+    logger.warn(`[CONVICTIONS] warm (${reason}) failed: ${err?.message ?? err}`);
+    return 0;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────

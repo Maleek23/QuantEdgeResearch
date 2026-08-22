@@ -252,6 +252,28 @@ app.use((req, res, next) => {
       log('📸 [WEB] GEX history archiver scheduled (hourly, market hours)');
     }
 
+    // Warm the conviction board immediately, then keep it warm.
+    //
+    // A cold build takes over two minutes, so without this the first person to
+    // load the platform after any restart either waits it out or is told the
+    // signals are "still warming up". That was the normal experience, because
+    // nothing populated the cache on boot — it only filled when a human happened
+    // to open the Oracle tab, and every restart reset it.
+    //
+    // Deliberately not awaited: the process must serve immediately, and the
+    // board arrives when it arrives.
+    void (async () => {
+      try {
+        const { warmConvictions } = await import('./convictions-engine');
+        await warmConvictions('boot');
+        // Refresh ahead of the 5-minute TTL so the entry is replaced before it
+        // can expire, and nobody ever meets a cold cache.
+        setInterval(() => { void warmConvictions('interval'); }, 4 * 60_000);
+      } catch (err) {
+        logger.warn('[WEB] conviction warm-up failed to start:', err);
+      }
+    })();
+
     log('✅ [WEB] Process ready — serving HTTP + WebSocket + SPX scanners');
   });
 })();
