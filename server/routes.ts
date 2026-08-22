@@ -14015,6 +14015,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── AFTER HOURS — where tomorrow's gap is actually decided ─────────────────
+  // AAOI fell 13% in a post session while the board still carried it as a LONG
+  // and nothing said a word. Every piece needed already existed — extended-hours
+  // quotes, the board, the gap engine — none were connected. A gap is not a
+  // 09:30 event; it is the priced-in result of a move that happened while the
+  // tape was shut.
+  app.get("/api/after-hours", async (req, res) => {
+    try {
+      const threshold = Math.max(1, Number(req.query.threshold) || 4);
+      const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 25));
+      const { scanAfterHoursMovers } = await import("./after-hours-movers");
+      const result = await scanAfterHoursMovers({ threshold, limit });
+      res.json({
+        ...result,
+        _meta: {
+          note:
+            "CONFLICT means the board holds a direction the tape just contradicted while closed — the most valuable row here, because the board has not seen it yet. EXPOSURE is an open position that cannot be managed until the open. Deliberately does NOT guess WHY a name moved: the earnings calendar covers 14% of the universe, so an explanation would usually be a guess, and a confident wrong reason is worse than an honest pointer. If boardAvailable is false the board cache was cold and no conflict could be detected.",
+        },
+      });
+    } catch (error) {
+      logger.error("[API] after-hours scan failed:", error);
+      res.status(500).json({ error: "After-hours scan failed" });
+    }
+  });
+
   // ── DISCOVERY — names nobody put on the list ───────────────────────────────
   // Every other scanner reads the curated allowlist, so it can only re-rank what
   // someone already thought of. That is why the gold complex produced nothing
