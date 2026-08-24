@@ -1,0 +1,188 @@
+/**
+ * SIGNAL GRID — the whole book at once, filterable and sortable.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHY A SECOND VIEW AT ALL
+ * ═══════════════════════════════════════════════════════════════════════════
+ * The cockpit is built around ONE selected signal — 244px rail, subject, right
+ * rail — and it is very good at "tell me everything about HCA". It is bad at
+ * "which of these 40 should I open", because the rail shows about six rows, so
+ * comparing the book means scrolling a narrow column and holding the previous
+ * rows in your head.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHAT THE FIRST VERSION GOT WRONG
+ * ═══════════════════════════════════════════════════════════════════════════
+ * It rendered 40 cards with no way to reduce them, which just moved the problem:
+ * a wall of 40 is not more answerable than a column of 40, it is only wider. A
+ * board view without filters is a screenshot.
+ *
+ * It also showed the signal's STATIC facts — entry, stop, T1, R:R — which are
+ * fixed the moment the idea is published. The question you actually ask while
+ * scanning is "is this one working", and that is a LIVE reading: how far it has
+ * travelled toward T1, whether it triggered, how much of its time budget is
+ * gone, and how deep it has been under water. All of that already exists in
+ * `geometryFor`, which the rail uses and this view previously ignored.
+ *
+ * So every card now carries the same live geometry the rail computes, and the
+ * filter bar reduces the set before you read any of it.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * COLOUR RULE
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Direction sets card tone and nothing else may — a card tinted for "high
+ * conviction" would spend the directional colours on a quality axis. The one
+ * exception is deliberate: a layer arguing AGAINST the trade renders clay even
+ * on a bullish card, because that disagreement is the most useful thing on the
+ * card and must not be tinted away.
+ */
+import { useMemo } from 'react';
+import { RecordCard } from '@/components/templates/surfaces';
+import { Distribution } from '@/components/templates/charts';
+import { KeyValue, KeyValueRow, type Tone } from '@/components/templates/kit';
+import { convictionPercent, type ConvictionPick } from '@/lib/convictions';
+import { geometryFor } from '@/components/oracle/signal-detail';
+import { CONVICTION_LAYERS } from '@shared/conviction-layers';
+import { cn } from '@/lib/utils';
+
+const dirTone = (d: string): Tone => (d === 'long' ? 'bull' : 'bear');
+const shortFor = (kind: string) =>
+  CONVICTION_LAYERS.find((l) => l.kind === kind)?.short ?? kind.slice(0, 3).toUpperCase();
+
+export function SignalGrid({
+  picks, selectedId, onSelect, live,
+}: {
+  /** ALREADY FILTERED. The reduction lives in signal-filters.tsx and is shared
+   *  with the rail, so this component renders exactly what it is handed. It used
+   *  to own six pieces of filter state, which meant the same question had two
+   *  answers depending on which view you were in. */
+  picks: ConvictionPick[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  live?: Map<string, number>;
+}) {
+  // Geometry once per pick — the card and its progress bar need the same numbers.
+  const filtered = useMemo(
+    () =>
+      picks.map((p) => {
+        const px = live?.get(p.symbol) ?? p.currentPrice ?? p.entryPrice;
+        return { p, g: geometryFor(p, px) };
+      }),
+    [picks, live],
+  );
+
+  return (
+    <div className="space-y-3">
+      {filtered.length === 0 ? (
+        <p className="py-10 text-center font-mono text-[11px] text-muted-foreground">
+          Nothing matches these filters.
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {filtered.map(({ p, g }) => {
+            const conf = convictionPercent(p.convictionScore);
+            const pending = /pending|trigger/i.test(g.statusLabel ?? '');
+            const against = (p.layers ?? []).filter((l) => l.points < 0);
+
+            const contributing = (p.layers ?? [])
+              .filter((l) => l.points !== 0)
+              .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+              .slice(0, 4);
+
+            return (
+              <RecordCard
+                key={p.ideaId}
+                ticker={p.symbol}
+                badge={`${p.convictionBand} · ${conf}%`}
+                /* The badge carries BAND and CONVICTION — a quality axis. Moss
+                   and clay are reserved for direction, so a confident short was
+                   rendering clay and reading as a warning. Cyan is the
+                   structural colour; the side is carried by the ▲BULL/▼BEAR line
+                   and by P&L in the footer. */
+                badgeTone="structural" 
+                tone={dirTone(p.direction)}
+                id={`${p.direction === 'long' ? '▲ BULL' : '▼ BEAR'} · ${p.holdingPeriod}`}
+                title={p.thesis?.split('.')[0] ?? p.symbol}
+                className={selectedId === p.ideaId ? 'ring-1 ring-[color:var(--brand-cyan)]' : undefined}
+                onClick={() => onSelect(p.ideaId)}
+                footLeft={`${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(1)}% P&L`}
+                footRight={p.optionDte != null ? `${p.optionDte}d` : 'no contract'}
+              >
+                {/* STATE — the live reading, which the static levels cannot give. */}
+                <div className="mb-3 flex items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-wider">
+                  <span
+                    className="rounded-[2px] px-1.5 py-0.5"
+                    style={{
+                      color: pending ? 'var(--brand-gold)' : 'var(--brand-cyan)',
+                      background: `color-mix(in srgb, ${pending ? 'var(--brand-gold)' : 'var(--brand-cyan)'} 12%, transparent)`,
+                    }}
+                  >
+                    {g.statusLabel}
+                  </span>
+                  <span className="text-muted-foreground/70">
+                    {g.horizonUsedPct.toFixed(0)}% of {g.horizonDays}d used
+                  </span>
+                </div>
+
+                {/* progress entry → T1, with drawdown shown against it */}
+                <div>
+                  <div className="mb-1 flex items-baseline justify-between font-mono text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                    <span>{g.progressPct.toFixed(0)}% to T1</span>
+                    {g.drawdownPct > 0 && (
+                      <span style={{ color: 'var(--trade-bearish)' }}>{g.drawdownPct.toFixed(1)}% DD</span>
+                    )}
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-[1px] bg-foreground/[0.06]">
+                    <div
+                      className="h-full rounded-[1px] transition-[width] duration-700 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
+                      style={{
+                        width: `${Math.max(0, Math.min(100, g.progressPct))}%`,
+                        background: 'var(--brand-cyan)',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {contributing.length > 0 && (
+                  <div className="mt-3">
+                    <Distribution
+                      items={contributing.map((l, index) => ({
+                        id: `${l.kind}-${index}`,
+                        label: shortFor(l.kind),
+                        value: Math.abs(l.points),
+                        tone: (l.points < 0 ? 'bear' : dirTone(p.direction)) as Tone,
+                        note: `${l.points > 0 ? '+' : ''}${l.points}`,
+                      }))}
+                    />
+                    <p className={cn(
+                      'mt-1.5 font-mono text-[9px]',
+                      against.length ? 'text-[color:var(--trade-bearish)]' : 'text-muted-foreground/70',
+                    )}>
+                      {against.length
+                        ? `${against.length} layer${against.length > 1 ? 's' : ''} arguing against`
+                        : 'nothing arguing against'}
+                    </p>
+                  </div>
+                )}
+
+                <KeyValueRow className="mt-4">
+                  <KeyValue k="Entry" v={`$${p.entryPrice?.toFixed(2) ?? '—'}`} />
+                  <KeyValue k="Stop" v={`$${p.stopLoss?.toFixed(2) ?? '—'}`} tone="bear" />
+                  <KeyValue k="T1" v={`$${p.targetPrice?.toFixed(2) ?? '—'}`} tone="bull" />
+                  <KeyValue
+                    k="R:R"
+                    v={p.riskRewardRatio ? `${p.riskRewardRatio.toFixed(1)}:1` : '—'}
+                    /* Above 5R the target is essentially never reached — the
+                       2.5R+ cohort measured +0.023R across 245 trades. Flagged
+                       amber rather than celebrated as a big number. */
+                    tone={p.riskRewardRatio && p.riskRewardRatio > 5 ? 'time' : undefined}
+                  />
+                </KeyValueRow>
+              </RecordCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

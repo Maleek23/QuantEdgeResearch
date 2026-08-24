@@ -4,9 +4,10 @@
  * payload (already verified accurate). Motion comes entirely from @/lib/motion so
  * it moves like everything else in the redesigned Terminal.
  */
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
+import { Heartbeat } from "@/components/viz";
 import { cn } from "@/lib/utils";
 import { EASE, SPRING, DUR } from "@/lib/motion";
 import { TC } from "@/lib/oracle/trading-colors";
@@ -19,6 +20,8 @@ interface Sector {
 }
 interface RotationData {
   sectors: Sector[]; spyChange: number; sessionLabel: string; isStale: boolean;
+  /** Server-side compute time. Heartbeat reads this, never the client fetch time. */
+  asOf?: string;
 }
 
 const QUAD = {
@@ -37,73 +40,23 @@ function quadOf(x: number, y: number): QuadKey {
 }
 
 
-/**
- * LABEL DE-COLLISION.
- *
- * Relative strength and 5-day momentum are usually highly correlated, so on most
- * days the 15 sectors collapse onto a near-diagonal line rather than spreading
- * across four quadrants. When five ETFs land within a few percent of each other
- * their labels stack into an unreadable smear — which is exactly what the plot
- * was doing at its old 280px cap.
- *
- * Fix in two parts: give the plot real width, and lay the labels out properly.
- * Each label is assigned to the side its bubble leans toward (so the cluster fans
- * outward instead of inward), then a 1-D greedy pass pushes same-side labels apart
- * until they clear a minimum gap. A label pushed off its bubble gets a connector
- * line, so displacement never costs you the ability to tell which dot it names.
- */
-const LABEL_GAP = 10; // % of plot height — one label row plus breathing room
-
-function layoutLabels(points: { etf: string; x: number; y: number }[]) {
-  // Labels go in two fixed GUTTERS at the edges of the plot, not floating beside
-  // their dots. Two earlier attempts failed for the same underlying reason: when
-  // the sectors lie on a diagonal, any label placed adjacent to its dot lands on
-  // the next dot up the line — offsetting sideways or alternating sides just moves
-  // the collision around. Parking labels at the edges takes them out of the bubble
-  // band entirely, and a leader line preserves which dot each one names.
-  // Side is chosen by which edge the dot is already nearer, so leaders never cross
-  // the plot.
-  const sides = points.map((p) => ({ ...p, side: p.x >= 50 ? ('right' as const) : ('left' as const) }));
-
-  // The corners carry the quadrant captions (LEADING / LAGGING / …), so the label
-  // band stops short of the top and bottom rather than stacking on top of them.
-  const TOP = 14;
-  const BOTTOM = 90;
-
-  const placed: Record<string, number> = {};
-  for (const side of ['left', 'right'] as const) {
-    const group = sides.filter((p) => p.side === side).sort((a, b) => a.y - b.y);
-    let lastY = -Infinity;
-    for (const p of group) {
-      // Never place a label above the previous one plus a full gap.
-      const y = Math.max(p.y, lastY + LABEL_GAP, TOP);
-      placed[p.etf] = y;
-      lastY = y;
-    }
-    // If the greedy pass ran past the bottom, slide the whole group back up so
-    // nothing escapes the plot rather than clipping the last few. Compressing the
-    // gap is the fallback when even a flush stack cannot fit the available band.
-    const overflow = lastY - BOTTOM;
-    if (overflow > 0) {
-      const span = BOTTOM - TOP;
-      const gap = Math.min(LABEL_GAP, span / Math.max(1, group.length - 1));
-      group.forEach((p, i) => { placed[p.etf] = TOP + i * gap; });
-    }
-  }
-
-  return sides.map((p) => ({ ...p, labelY: placed[p.etf] ?? p.y }));
-}
-
 export function RotationMap({
   className,
   collapsedHeight,
+  expanded = false,
+  onFocus,
 }: {
   className?: string;
   /** Override the shared panel height. The landing page gives the plot full room;
       inside the Terminal it stays flush with the two panels beside it. */
   collapsedHeight?: number;
+  /** Full-screen drilldown: use the available column instead of the compact cap. */
+  expanded?: boolean;
+  onFocus?: () => void;
 }) {
   const reduce = useReducedMotion();
+  const [selectedEtf, setSelectedEtf] = useState<string | null>(null);
+  const [hoveredEtf, setHoveredEtf] = useState<string | null>(null);
   const { data, isLoading, isError } = useQuery<RotationData>({
     queryKey: ["/api/sector-rotation"],
     queryFn: async () => {
@@ -146,30 +99,41 @@ export function RotationMap({
   const maxX = Math.max(0.5, ...sectors.map((s) => Math.abs(rsX(s))));
   const maxY = Math.max(0.5, ...sectors.map((s) => Math.abs(rsY(s))));
   const maxMag = Math.max(1, ...sectors.map((s) => Math.hypot(rsX(s), rsY(s))));
-  // value → 0..100% within the plot, centre (0) = 50%, 1.25x padding off the edges.
+  // Every sector owns its bubble. Labels live inside those bubbles; no side lists
+  // competing with the map and no connector-web trying to repair that mistake.
   const posX = (v: number) => 50 + (v / (maxX * 1.25)) * 50;
   const posY = (v: number) => 100 - (50 + (v / (maxY * 1.25)) * 50); // invert: +momentum = top
-  const size = (s: Sector) => 14 + (Math.hypot(rsX(s), rsY(s)) / maxMag) * 20;
+  // The expanded map is a reading surface, not simply the compact card made
+  // wider. Fixed 14–34px dots become illegible across a 1,400px dialog, so it
+  // earns its extra room with a genuinely larger interaction target.
+  const size = (s: Sector) => expanded
+    ? 30 + (Math.hypot(rsX(s), rsY(s)) / maxMag) * 46
+    : 14 + (Math.hypot(rsX(s), rsY(s)) / maxMag) * 20;
 
-  // Positions first, then the label layout pass over them.
-  const laidOut = layoutLabels(
-    sectors.map((s) => ({ etf: s.etf, x: posX(rsX(s)), y: posY(rsY(s)) })),
-  ).map((p) => {
-    const s = sectors.find((x) => x.etf === p.etf)!;
+  const laidOut = sectors.map((s) => {
     return {
-      ...p,
+      etf: s.etf,
+      x: posX(rsX(s)),
+      y: posY(rsY(s)),
       quad: quadOf(rsX(s), rsY(s)),
       d: size(s),
-      mom: rsX(s),
+      sector: s,
+      rs: rsX(s),
+      momentum: rsY(s),
       tooltip: `${s.name} (${s.etf}) · RS ${rsX(s) >= 0 ? "+" : ""}${rsX(s).toFixed(2)} vs its norm · momentum ${rsY(s) >= 0 ? "+" : ""}${rsY(s).toFixed(2)} · today ${s.relChange >= 0 ? "+" : ""}${s.relChange.toFixed(2)}% vs SPY`,
     };
   });
+  // Hover is a temporary glance; click pins a sector so its full identity and
+  // readout stay visible after the pointer leaves the dense plot.
+  const activeEtf = hoveredEtf ?? selectedEtf;
 
   return (
     <PanelFrame
       title="Rotation Map"
       className={className}
       collapsedHeight={collapsedHeight}
+      forceExpanded={expanded}
+      onFocus={onFocus}
       right={
         <span className="text-label font-mono text-muted-foreground">
           x · rel strength&nbsp;&nbsp;y · building{data?.isStale ? " · stale" : ""}
@@ -182,11 +146,14 @@ export function RotationMap({
           <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">
             {data?.sessionLabel ?? 'last close'}
           </span>
-          {sessionNote && (
-            <span className="text-label font-mono" style={{ color: session === 'regular' ? TC.bull : TC.warn }}>
-              {sessionNote}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {sessionNote && (
+              <span className="text-label font-mono" style={{ color: session === 'regular' ? TC.bull : TC.warn }}>
+                {sessionNote}
+              </span>
+            )}
+            <Heartbeat since={data?.asOf} staleAfterSec={900} />
+          </div>
         </div>
       )}
 
@@ -195,7 +162,7 @@ export function RotationMap({
           Slightly wide keeps every bubble readable in far less vertical space. */}
       {/* The old 280px cap saved vertical space and cost readability: 15 labelled
           points on a correlated diagonal cannot fit in 280px. Fill the column. */}
-      <div className="relative mx-auto w-full" style={{ aspectRatio: "16 / 10", maxWidth: 560 }}>
+      <div className="relative mx-auto w-full" style={{ aspectRatio: "16 / 10", maxWidth: expanded ? undefined : 560 }}>
         {isLoading && (
           <div className="absolute inset-0 grid place-items-center text-label font-mono uppercase tracking-widest text-muted-foreground/70">
             reading rotation…
@@ -263,46 +230,42 @@ export function RotationMap({
         {/* bubbles — position AND size animate live as the rotation data refetches,
             so sectors glide to their new RS/momentum spot every update, not just on mount. */}
         <div className="absolute inset-x-12 inset-y-6">
-          {/* Bubbles and labels are laid out SEPARATELY: the dot marks the true
-              RS/momentum coordinate and never moves, while the label is allowed to
-              slide along its side to escape a neighbour. A connector line ties a
-              displaced label back to its dot. */}
-          <svg className="absolute inset-0 h-full w-full pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
-            {laidOut.map((p) => {
-              return (
-                <line
-                  key={`ldr-${p.etf}`}
-                  x1={p.x} y1={p.y}
-                  x2={p.side === "right" ? 100 : 0} y2={p.labelY}
-                  stroke="currentColor"
-                  className="text-muted-foreground"
-                  strokeWidth={0.25}
-                  opacity={0.5}
-                  vectorEffect="non-scaling-stroke"
-                />
-              );
-            })}
-          </svg>
-
-          {/* the dots — true position, always */}
+          {/* Tickers live inside their real positions. The map stays a field, not
+              a list drawn around a field; hover or click supplies the full read. */}
           {laidOut.map((p, i) => {
             const c = QUAD[p.quad].color;
             const glide = reduce ? { duration: 0 } : { type: "spring" as const, stiffness: 120, damping: 22 };
+            const isActive = activeEtf === p.etf;
             return (
               <motion.span
                 key={`dot-${p.etf}`}
-                className="absolute rounded-full"
+                className="absolute cursor-crosshair rounded-full"
                 style={{ x: "-50%", y: "-50%" }}
                 initial={reduce ? false : { opacity: 0, scale: 0.55 }}
-                animate={{ opacity: 1, scale: 1, left: `${p.x}%`, top: `${p.y}%`, width: p.d, height: p.d }}
+                animate={{ opacity: activeEtf && !isActive ? 0.48 : 1, scale: isActive ? 1.18 : 1, left: `${p.x}%`, top: `${p.y}%`, width: p.d, height: p.d }}
                 transition={{
                   opacity: { duration: reduce ? 0 : DUR.base, ease: EASE, delay: reduce ? 0 : i * 0.04 },
                   scale: reduce ? { duration: 0 } : { ...SPRING, delay: i * 0.04 },
                   left: glide, top: glide, width: glide, height: glide,
                 }}
                 whileHover={reduce ? undefined : { scale: 1.15 }}
+                onHoverStart={() => setHoveredEtf(p.etf)}
+                onHoverEnd={() => setHoveredEtf(null)}
+                onFocus={() => setHoveredEtf(p.etf)}
+                onBlur={() => setHoveredEtf(null)}
+                onClick={() => setSelectedEtf((current) => current === p.etf ? null : p.etf)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedEtf((current) => current === p.etf ? null : p.etf);
+                  }
+                }}
                 title={p.tooltip}
+                role="button"
+                tabIndex={0}
+                aria-label={p.tooltip}
               >
+                {isActive && !reduce && <motion.span className="absolute -inset-2 rounded-full border" style={{ borderColor: c }} initial={{ opacity: 0.65, scale: 0.65 }} animate={{ opacity: 0, scale: 1.75 }} transition={{ duration: 0.85, repeat: Infinity }} />}
                 <span
                   className="block h-full w-full rounded-full"
                   style={{
@@ -311,41 +274,47 @@ export function RotationMap({
                     transition: "background 400ms ease, box-shadow 400ms ease",
                   }}
                 />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 grid place-items-center font-mono font-bold leading-none text-[var(--background)]"
+                  style={{
+                    fontSize: expanded
+                      ? p.d >= 60 ? '13px' : p.d >= 42 ? '11px' : '9px'
+                      : p.d >= 28 ? '9px' : p.d >= 20 ? '8px' : '7px',
+                    textShadow: '0 1px 2px rgba(0,0,0,.65)',
+                  }}
+                >
+                  {p.etf}
+                </span>
               </motion.span>
             );
           })}
 
-          {/* the labels — nudged to stay legible */}
-          {laidOut.map((p, i) => {
-            const c = QUAD[p.quad].color;
-            const glide = reduce ? { duration: 0 } : { type: "spring" as const, stiffness: 120, damping: 22 };
+          {activeEtf && (() => {
+            const active = laidOut.find((p) => p.etf === activeEtf);
+            if (!active) return null;
+            const tone = QUAD[active.quad].color;
             return (
               <motion.div
-                key={`lbl-${p.etf}`}
-                className="absolute pointer-events-none whitespace-nowrap"
-                style={{
-                  y: "-50%",
-                  x: p.side === "right" ? 0 : "-100%",
-                  textAlign: p.side === "right" ? "left" : "right",
-                }}
-                initial={reduce ? false : { opacity: 0 }}
-                animate={{
-                  opacity: 1,
-                  left: p.side === "right" ? "100%" : "0%",
-                  top: `${p.labelY}%`,
-                }}
-                transition={{
-                  opacity: { duration: reduce ? 0 : DUR.base, ease: EASE, delay: reduce ? 0 : i * 0.04 },
-                  left: glide, top: glide,
-                }}
+                initial={reduce ? false : { opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={reduce ? { duration: 0 } : { duration: 0.16, ease: EASE }}
+                className="pointer-events-none absolute left-1/2 top-1/2 z-10 min-w-[148px] -translate-x-1/2 -translate-y-1/2 rounded-md border border-card-border bg-card/95 px-3 py-2 shadow-xl backdrop-blur"
+                style={{ boxShadow: `0 8px 26px color-mix(in srgb, ${tone} 18%, transparent)` }}
               >
-                <span className="block text-label font-mono font-bold text-foreground leading-none">{p.etf}</span>
-                <span className="block text-label font-mono leading-none mt-0.5" style={{ color: c, transition: "color 400ms ease" }}>
-                  {p.mom >= 0 ? "+" : ""}{p.mom.toFixed(1)}%
-                </span>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-mono text-[12px] font-bold text-foreground">{active.etf}</span>
+                  <span className="font-mono text-[9px] uppercase tracking-wider" style={{ color: tone }}>{QUAD[active.quad].label}</span>
+                </div>
+                <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">{active.sector.name}</div>
+                <div className="mt-1 grid grid-cols-3 gap-2 font-mono text-[9px] tabular-nums text-muted-foreground">
+                  <span>RS <b className="font-semibold" style={{ color: tone }}>{active.rs >= 0 ? '+' : ''}{active.rs.toFixed(1)}</b></span>
+                  <span>mom <b className="font-semibold" style={{ color: tone }}>{active.momentum >= 0 ? '+' : ''}{active.momentum.toFixed(1)}</b></span>
+                  <span>day <b className="font-semibold" style={{ color: active.sector.relChange >= 0 ? TC.bull : TC.bear }}>{active.sector.relChange >= 0 ? '+' : ''}{active.sector.relChange.toFixed(1)}%</b></span>
+                </div>
               </motion.div>
             );
-          })}
+          })()}
         </div>
       </div>
 

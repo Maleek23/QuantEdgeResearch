@@ -71,6 +71,16 @@ interface Props {
   /** Fetch contracts on mount instead of waiting for a button click. */
   autoLoad?: boolean;
   onSelect?: (pick: EnginePick) => void;
+  /**
+   * Fires whenever the ACTIVE pick changes — on resolve (with the engine's own
+   * recommended tier) and on every user tier change after that.
+   *
+   * `onSelect` only fires on a click, so a caller wanting to show the trade
+   * before the user touches anything had no way to learn what it is. That is
+   * what left the cockpit's hero asserting the signal's stored strike while the
+   * engine recommended a different one 1,190px below.
+   */
+  onResolve?: (pick: EnginePick | null) => void;
 }
 
 function labelToSetup(label?: string): 'scalp' | 'swing' | 'lotto' | 'position' {
@@ -154,7 +164,7 @@ function useUnderlyingCloses(symbol: string) {
 }
 
 export function ContractEngine({
-  symbol, direction, entry, stop, t1, t2, holdPeriodLabel, conviction, autoLoad, onSelect,
+  symbol, direction, entry, stop, t1, t2, holdPeriodLabel, conviction, autoLoad, onSelect, onResolve,
 }: Props) {
   const [selection, setSelection] = useState<EngineSelection | null>(null);
   const [chosen, setChosen] = useState<Tier | null>(null);
@@ -179,6 +189,15 @@ export function ContractEngine({
       setChosen(data.recommendedTier);
     },
   });
+
+  // Report the ACTIVE pick upward. Runs on resolve (chosen defaults to the
+  // engine's recommendedTier) and again whenever the user switches tier, so a
+  // parent can show the live trade without duplicating the fetch.
+  const activePick = selection?.picks.find((p) => p.tier === chosen) ?? null;
+  useEffect(() => {
+    onResolve?.(activePick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePick?.strike, activePick?.expiry, activePick?.tier]);
 
   const { mutate } = mutation;
   // Auto-fetch contracts on mount / when the thesis changes (per-ticker reload).

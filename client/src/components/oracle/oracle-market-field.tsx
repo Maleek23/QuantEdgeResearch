@@ -1,0 +1,191 @@
+/**
+ * ORACLE MARKET PULSE
+ *
+ * The first Oracle decision is where participation is moving. This panel owns
+ * that read; the RRG beside it owns the spatial explanation. Neither repeats
+ * the other's information.
+ */
+import { useQuery } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { PanelFrame } from '@/components/oracle/panel-frame';
+import { TC } from '@/lib/oracle/trading-colors';
+import { MarketStream, useRealtimeStatus } from '@/components/oracle/market-stream';
+
+interface Sector {
+  etf: string;
+  name: string;
+  change: number;
+  relChange: number;
+}
+
+interface RotationFeed {
+  sessionLabel: string;
+  isStale: boolean;
+  spyChange: number;
+  leaders: Sector[];
+  laggards: Sector[];
+}
+
+interface AssetClass { key: string; label: string; changePct: number }
+interface ExtendedFeed { assetClasses?: AssetClass[]; interpretation?: string }
+
+const signed = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
+
+function marketRead(spyChange: number, assets: AssetClass[]) {
+  const advancing = assets.filter((asset) => asset.changePct > 0).length;
+  const declining = assets.filter((asset) => asset.changePct < 0).length;
+  if (spyChange >= 0.25 && advancing >= declining) {
+    return { label: 'Risk-on', detail: 'buyers in control', tone: TC.bull };
+  }
+  if (spyChange <= -0.25 && declining >= advancing) {
+    return { label: 'Risk-off', detail: 'defense in control', tone: TC.bear };
+  }
+  return { label: 'Balanced', detail: 'no broad edge', tone: TC.warn };
+}
+
+function AssetRow({ asset }: { asset: AssetClass }) {
+  const tone = asset.changePct > 0 ? TC.bull : asset.changePct < 0 ? TC.bear : 'var(--muted-foreground)';
+  const state = asset.changePct > 0.08 ? 'BULLISH' : asset.changePct < -0.08 ? 'BEARISH' : 'NEUTRAL';
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-2 border-b border-border/25 py-1.5 font-mono text-[10px] tabular-nums last:border-b-0">
+      <span className="truncate uppercase tracking-[0.1em] text-muted-foreground/75">{asset.label}</span>
+      <span className="font-semibold" style={{ color: tone }}>{signed(asset.changePct)}</span>
+      <span className="text-[9px] font-bold tracking-[0.1em]" style={{ color: tone }}>{state}</span>
+    </div>
+  );
+}
+
+export function OracleMarketField({
+  className,
+  collapsedHeight,
+  expanded = false,
+  onFocus,
+}: {
+  className?: string;
+  collapsedHeight?: number;
+  expanded?: boolean;
+  /** Opens this reading in the screen-sized Oracle workbench. */
+  onFocus?: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const { data } = useQuery<RotationFeed>({
+    queryKey: ['/api/sector-rotation', 'oracle-market-pulse'],
+    queryFn: async () => {
+      const response = await fetch('/api/sector-rotation', { credentials: 'include' });
+      if (!response.ok) throw new Error('rotation unavailable');
+      return response.json();
+    },
+    staleTime: 120_000,
+    retry: 1,
+  });
+  const { data: extended } = useQuery<ExtendedFeed>({
+    queryKey: ['/api/extended-hours', 'oracle-market-pulse'],
+    queryFn: async () => {
+      const response = await fetch('/api/extended-hours', { credentials: 'include' });
+      if (!response.ok) throw new Error('extended-hours unavailable');
+      return response.json();
+    },
+    staleTime: 120_000,
+    retry: 1,
+  });
+  const { data: realtime } = useRealtimeStatus();
+
+  if (!data) return null;
+
+  const assets = extended?.assetClasses ?? [];
+  const read = marketRead(data.spyChange, assets);
+  const destination = expanded ? data.leaders : data.leaders.slice(0, 2);
+  const source = expanded ? data.laggards : data.laggards.slice(0, 2);
+  // SPY remains an honest cash-equity close outside market hours. The cyan orbit
+  // only wakes when the ES socket is genuinely fresh; it means the related index
+  // future is streaming, not that Friday's SPY quote is ticking.
+  const es = realtime?.prices?.futures?.ES;
+  const esLive = !!es && es.ageSeconds <= 30;
+
+  return (
+    <PanelFrame
+      title="Market Pulse"
+      className={cn('h-full', className)}
+      collapsedHeight={collapsedHeight}
+      forceExpanded={expanded}
+      onFocus={onFocus}
+      right={
+        <span className="font-mono text-[10px] font-medium text-muted-foreground/65">
+          {data.sessionLabel}{data.isStale ? ' · stale' : ' · live'}
+        </span>
+      }
+    >
+      <div className="flex min-h-[350px] flex-col px-4 py-3">
+        <div className="grid grid-cols-[1fr_auto] items-center gap-4 border-b border-border/35 pb-3">
+          <div>
+            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: read.tone }}>{read.label}</div>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground/60">{read.detail}</p>
+          </div>
+          <motion.div
+            aria-label={`SPY cash ${signed(data.spyChange)}${esLive ? `; ES futures live, ${es!.ageSeconds} seconds old` : ''}`}
+            className="relative grid h-[84px] w-[84px] place-items-center rounded-full border font-mono tabular-nums"
+            style={{ borderColor: `color-mix(in srgb, ${read.tone} 70%, transparent)`, background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${read.tone} 34%, transparent), color-mix(in srgb, ${read.tone} 8%, transparent) 58%, transparent 72%)`, boxShadow: `0 0 28px color-mix(in srgb, ${read.tone} 26%, transparent)` }}
+            animate={reduceMotion ? undefined : { scale: [1, 1.025, 1] }}
+            transition={reduceMotion ? undefined : { duration: 3.8, ease: 'easeInOut', repeat: Infinity }}
+          >
+            {esLive && !reduceMotion && (
+              <>
+                <motion.span
+                  aria-hidden="true"
+                  className="absolute -inset-2 rounded-full border border-[var(--brand-cyan)]/40"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 8, ease: 'linear', repeat: Infinity }}
+                  style={{ borderStyle: 'dashed' }}
+                />
+                <motion.span
+                  key={`es-pulse-${es!.price}`}
+                  aria-hidden="true"
+                  className="absolute -inset-3 rounded-full border border-[var(--brand-cyan)]"
+                  initial={{ opacity: 0.7, scale: 0.72 }}
+                  animate={{ opacity: 0, scale: 1.24 }}
+                  transition={{ duration: 1.15, ease: 'easeOut' }}
+                />
+              </>
+            )}
+            {esLive && (
+              <span className="absolute top-2 inline-flex items-center gap-1 text-[7px] font-bold tracking-[0.13em] text-[var(--brand-cyan)]">
+                <span className="h-1 w-1 rounded-full bg-[var(--brand-cyan)]" /> ES LIVE
+              </span>
+            )}
+            <span className="text-[17px] font-bold tracking-tight" style={{ color: read.tone }}>{signed(data.spyChange)}</span>
+            <span className="absolute bottom-[13px] text-[8px] font-bold tracking-[0.14em] text-muted-foreground/65">SPY CASH</span>
+          </motion.div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-x-5">
+          {assets.map((asset) => <AssetRow key={asset.key} asset={asset} />)}
+        </div>
+
+        <MarketStream className="mt-3" />
+
+        <div className="mt-3 border-t border-border/35 pt-3">
+          <div className="mb-2 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em]">
+            <span className="text-muted-foreground/60">Rotation now</span>
+          </div>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 font-mono text-[10px] leading-relaxed">
+            <div className="min-w-0">
+              <span className="block text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground/55">Out of</span>
+              {source.map((sector) => (
+                <span key={sector.etf} className="mr-2 inline-block font-semibold" style={{ color: TC.bear }} title={`${sector.name} · ${signed(sector.relChange)} vs SPY`}>{sector.name} {signed(sector.change)}</span>
+              ))}
+            </div>
+            <span className="pt-3 text-muted-foreground/35">→</span>
+            <div className="min-w-0 text-right">
+              <span className="block text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground/55">Into</span>
+              {destination.map((sector) => (
+                <span key={sector.etf} className="ml-2 inline-block font-semibold" style={{ color: TC.bull }} title={`${sector.name} · ${signed(sector.relChange)} vs SPY`}>{sector.name} {signed(sector.change)}</span>
+              ))}
+            </div>
+          </div>
+          {extended?.interpretation && <p className="mt-2 line-clamp-2 font-mono text-[9px] leading-relaxed text-muted-foreground/55">{extended.interpretation}</p>}
+        </div>
+      </div>
+    </PanelFrame>
+  );
+}

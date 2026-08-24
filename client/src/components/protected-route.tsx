@@ -256,7 +256,7 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-slate-950 to-slate-900">
         <div className="text-center">
-          <h1 className="text-6xl font-bold text-muted-foreground/50 mb-4">404</h1>
+          <h1 className="text-6xl font-bold text-muted-foreground/60 mb-4">404</h1>
           <h2 className="text-xl font-semibold text-foreground mb-2">Page Not Found</h2>
           <p className="text-muted-foreground mb-6">
             The page you're looking for doesn't exist.

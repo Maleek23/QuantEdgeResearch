@@ -124,7 +124,7 @@ export function HeatseekerToolbar({
               'px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider rounded transition-colors whitespace-nowrap',
               t === symbol
                 ? 'bg-foreground/10 text-foreground ring-1 ring-foreground/20'
-                : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/10'
+                : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/10'
             )}
           >
             {t}
@@ -136,7 +136,7 @@ export function HeatseekerToolbar({
             value={customInput}
             onChange={e => setCustomInput(e.target.value)}
             placeholder="+"
-            className="w-10 px-1.5 py-1 text-[10px] font-mono font-bold uppercase text-center bg-transparent border border-border/30 rounded text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-[var(--gex-positive)]/50 focus:w-16 transition-all"
+            className="w-10 px-1.5 py-1 text-[10px] font-mono font-bold uppercase text-center bg-transparent border border-border/30 rounded text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-[var(--gex-positive)]/50 focus:w-16 transition-all"
           />
         </form>
       </div>
@@ -176,7 +176,7 @@ export function HeatseekerToolbar({
           )}
 
           {/* Nav arrows */}
-          <button type="button" onClick={handlePrev} className="p-0.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
+          <button type="button" onClick={handlePrev} className="p-0.5 text-muted-foreground/60 hover:text-muted-foreground transition-colors">
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
 
@@ -185,7 +185,7 @@ export function HeatseekerToolbar({
             <span className="font-bold text-foreground">{symbol}</span>
             {spotPrice !== undefined && (
               <>
-                <span className="text-muted-foreground/40">•</span>
+                <span className="text-muted-foreground/60">•</span>
                 <span className="text-foreground tabular-nums">${spotPrice.toFixed(2)}</span>
                 {priceChange !== undefined && (
                   <span className={cn('tabular-nums', isUp ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]')}>
@@ -205,7 +205,7 @@ export function HeatseekerToolbar({
           </div>
 
           {/* Nav arrows */}
-          <button type="button" onClick={handleNext} className="p-0.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
+          <button type="button" onClick={handleNext} className="p-0.5 text-muted-foreground/60 hover:text-muted-foreground transition-colors">
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -224,7 +224,7 @@ export function HeatseekerToolbar({
                     'px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
                     interval === iv
                       ? 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
-                      : 'text-muted-foreground/50 hover:text-muted-foreground'
+                      : 'text-muted-foreground/60 hover:text-muted-foreground'
                   )}
                 >
                   {iv}
@@ -239,7 +239,7 @@ export function HeatseekerToolbar({
               type="button"
               onClick={onRefresh}
               disabled={isFetching}
-              className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+              className="p-1 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
             >
               <RefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin text-amber-400')} />
             </button>

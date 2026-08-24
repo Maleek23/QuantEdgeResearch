@@ -180,7 +180,12 @@ button:not([disabled]):active,
   --secondary: 0 0% 96%;
   --secondary-foreground: 0 0% 20%;
   --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 45%;
+  /* 45% → 36%. Light mode cannot be fixed by this token alone: alpha composites
+     toward WHITE here, so every suffix loses contrast fast (at 36%, /70 reaches
+     only 3.33:1). Darkening helps the full-opacity case (4.76 → 6.71:1); the
+     real remedy is dropping alpha suffixes in favour of discrete tiers, which
+     is a wider sweep than this change. */
+  --muted-foreground: 0 0% 36%;
   --accent: 160 84% 95%;
   --accent-foreground: 160 84% 30%;
   --destructive: 0 84% 60%;
@@ -360,7 +365,18 @@ button:not([disabled]):active,
   --secondary: 0 0% 11%;
   --secondary-foreground: 0 0% 80%;
   --muted: 0 0% 10%;
-  --muted-foreground: 213 15% 45%;
+  /* Raised 45% → 70%. Measured on the live Oracle board, 437 text nodes at
+     ≤12px were failing 3:1 against the card; the 11px tier bottomed out at
+     1.58:1 and the 9px tier averaged 2.75:1. Root cause was this token being
+     already-muted and then halved again by ~825 `text-muted-foreground/NN`
+     opacity suffixes.
+
+     The reference site avoids this by starting from WHITE and reducing alpha
+     (#fff9 = 7.1:1, #ffffff80 = 5.3:1, #fff6 = 3.8:1) rather than starting from
+     a mid-grey. At 70% this token reads 7.71:1 at full opacity — their body
+     tier — and 3.65:1 at /60, their faintest. Foreground is 12.16:1, so the
+     hierarchy step is preserved rather than flattened. */
+  --muted-foreground: 213 15% 70%;
   --accent: 160 84% 39%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;

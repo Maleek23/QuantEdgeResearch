@@ -347,7 +347,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setShowAdminLogin(!showAdminLogin)}
-              className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors w-full text-center"
+              className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors w-full text-center"
             >
               Admin access
             </button>

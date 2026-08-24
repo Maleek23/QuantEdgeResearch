@@ -20,19 +20,34 @@ import { RotationBrief } from '@/components/rotation-brief';
 import { Loader2, ExternalLink } from 'lucide-react';
 import { GexBigGainers } from '@/components/gex-big-gainers';
 
-const GexHub      = lazy(() => import('@/pages/gex-scanner'));
-const TerminalMx  = lazy(() => import('@/pages/terminal-heatmap'));
+const Prism       = lazy(() => import('@/components/prism/prism-board').then(m => ({ default: m.PrismBoard })));
 const FlowHeatmap = lazy(() => import('@/pages/flow-heatmap'));
 const GexAnalysis = lazy(() => import('@/pages/gex-dashboard'));
 
-type Tab = 'hub' | 'gainers' | 'matrix' | 'heatmap' | 'buckets' | 'analysis';
+type Tab = 'prism' | 'gainers' | 'heatmap' | 'analysis';
 
+/**
+ * Hub and Matrix are gone, folded into Prism rather than deleted.
+ *
+ * Traced by endpoint: Hub (gex-scanner) read /api/gex-vex/hub, Matrix
+ * (terminal-heatmap) read /api/gex-vex/terminal/:sym, and PrismBoard reads BOTH —
+ * showing the ranked rail that was Hub beside the surface that was Matrix, plus
+ * the interpretation neither had. Prism was never a peer of those two; it was
+ * already their union, reached by a different door.
+ *
+ * Buckets is also gone: it rendered a "coming next sprint" placeholder. The
+ * endpoint it names is still live, so building it is a real task — but an empty
+ * tab in the nav is a promise the product does not keep.
+ */
 const TABS: readonly QETabItem<Tab>[] = [
-  { id: 'hub',      label: 'Hub',        hint: 'Market-wide scanner — top GEX, sectors, top plays' },
+  { id: 'prism',    label: 'Prism',      hint: 'Ranked board + the strike × expiry surface, in 2D or 3D' },
   { id: 'gainers',  label: 'Big Gainers', hint: 'Premium GEX plays running hot now + the hall-of-fame winners' },
-  { id: 'matrix',   label: 'Matrix',     hint: 'Strike × expiry browser — fast-switch tickers, compare matrices' },
-  { id: 'heatmap',  label: 'Heatmap',    hint: 'Sector GEX heatmap with per-ticker drill' },
-  { id: 'analysis', label: 'Analysis',   hint: 'Gamma growth history + regime tracker' },
+  { id: 'heatmap',  label: 'Heatmap',    hint: 'Flow heatmap with per-ticker drill' },
+  // "Analysis" undersold this badly. gex-dashboard derives a per-ticker trade
+  // plan — anchor, gamma flip, defense lines, a 1-5 rating, entry zone, target
+  // and sniper signals. It is the actionable surface in this shell, not a
+  // reference tab, and the label should say so.
+  { id: 'analysis', label: 'Trade Plan', hint: 'Per-ticker: anchor, flip, defense lines, entry, target' },
 ];
 
 // NOTE: "Per-Symbol GEX" intentionally lives in RESEARCH (/r/:sym?tab=gex)
@@ -41,7 +56,7 @@ const TABS: readonly QETabItem<Tab>[] = [
 const VALID_TABS = TABS.map(t => t.id);
 
 export default function GexShell() {
-  const [tab, setTab] = useTabState<Tab>('hub', VALID_TABS);
+  const [tab, setTab] = useTabState<Tab>('prism', VALID_TABS);
   const [, setLocation] = useLocation();
   const { currentStock } = useStockContext();
   // Last symbol the user looked at (from Research). Falls back to SPY.
@@ -57,7 +72,7 @@ export default function GexShell() {
           <p className="text-[11px] font-mono text-muted-foreground/70">
             Market-wide gamma — scanner, expiry matrix, sector heatmap, regime analysis.
           </p>
-          <p className="text-[10px] font-mono text-muted-foreground/50 mt-0.5">
+          <p className="text-[10px] font-mono text-muted-foreground/60 mt-0.5">
             For per-ticker deep dive (chart + options + GEX) →{' '}
             <button
               type="button"
@@ -80,22 +95,10 @@ export default function GexShell() {
 
       <PageErrorBoundary label={`GEX · ${tab}`}>
         <Suspense fallback={<Loading />}>
-          {tab === 'hub'      && <GexHub />}
+          {tab === 'prism'    && <Prism />}
           {tab === 'gainers'  && <GexBigGainers />}
-          {tab === 'matrix'   && <TerminalMx />}
           {tab === 'heatmap'  && <FlowHeatmap />}
           {tab === 'analysis' && <GexAnalysis />}
-          {tab === 'buckets'  && (
-            <QECard variant="default" padding="lg" className="text-center">
-              <div className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-2">
-                Per-DTE Buckets — coming next sprint
-              </div>
-              <p className="text-xs text-muted-foreground/70 max-w-md mx-auto">
-                Endpoint is live (<code className="text-[var(--brand-cyan)]">/api/gex/buckets/:symbol</code>) —
-                visual cards for 0DTE / Week / Month / Quarter / LEAPS ship next.
-              </p>
-            </QECard>
-          )}
         </Suspense>
       </PageErrorBoundary>
     </div>

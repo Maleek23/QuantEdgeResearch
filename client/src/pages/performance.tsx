@@ -134,7 +134,7 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Hit Rate</p>
             <span className="text-[10px] text-muted-foreground/60 font-mono">n={overall.decided}</span>
             <span className="group relative inline-block">
-              <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+              <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
               <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-48 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
                 Count-based: wins / decided trades. Excludes &#177;3% breakeven trades.
               </span>

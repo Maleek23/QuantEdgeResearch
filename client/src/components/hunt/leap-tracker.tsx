@@ -13,6 +13,11 @@ import { useState } from 'react';
 import { Loader2, Telescope, TrendingUp, ShieldCheck, Waves, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { QECard, QEPill, type QEPillVariant } from '@/components/ui/qe';
+import { Segmented } from '@/components/templates/charts';
+import { KitStyles } from '@/components/templates/kit';
+import { LeapGrid } from './leap-grid';
+import { useUserPrefs } from '@/components/terminal/terminal-settings';
+import { sizingFor } from '@shared/sizing';
 
 type LeapGrade = 'S' | 'A' | 'B' | 'C';
 type Quadrant = 'leading' | 'improving' | 'weakening' | 'lagging';
@@ -140,10 +145,17 @@ function LeapRow({ p }: { p: LeapPick }) {
           <PillarBar sector={p.sectorScore} trend={p.trendScore} contract={p.contractScore} />
         </div>
 
-        {/* Contract one-liner */}
-        <div className="text-right shrink-0 w-32">
+        {/* Contract one-liner. Premium and DTE belong on the COLLAPSED row: a
+            LEAP is chosen on what it costs and how much time it buys, and both
+            were previously only visible after expanding — so the list could not
+            be scanned for the thing it exists to rank. */}
+        <div className="text-right shrink-0 w-40">
           <div className="font-mono text-[11px] text-zinc-200 tabular-nums">
             ${p.strike}C <span className="text-zinc-500">{p.expiry.slice(0, 7)}</span>
+          </div>
+          <div className="font-mono text-[11px] tabular-nums text-zinc-100">
+            ${p.entryPremium.toFixed(2)}
+            <span className="text-zinc-500"> · {p.dte}d</span>
           </div>
           <div className="font-mono text-[10px] text-emerald-400 tabular-nums">
             {fmtPct(p.roiAtT1Pct, 0)} <span className="text-zinc-600">@ +30%</span>
@@ -259,7 +271,31 @@ function MiniBadge({ ok, label, icon }: { ok: boolean; label: string; icon: Reac
 
 export function LeapTracker({ className }: { className?: string }) {
   const { data, isLoading, isError } = useLeapTracker();
+  const { data: prefs } = useUserPrefs();
   const [minGrade, setMinGrade] = useState<LeapGrade>('B');
+  const [view, setView] = useState<'list' | 'grid'>('list');
+  const [affordableOnly, setAffordableOnly] = useState(false);
+  /**
+   * LEAPS budget, editable, separate from the per-trade risk rule.
+   *
+   * The account's `maxRiskPerTrade` (2% here = $200) is the right ceiling for a
+   * weekly, where the premium really can go to zero. It is the wrong ceiling for
+   * a Δ0.70 LEAP held 12-18 months, which is a stock REPLACEMENT — you are not
+   * risking the full premium the way you are on a lottery ticket, and sizing it
+   * by that rule makes literally every LEAP on the board unbuyable (measured:
+   * 0 of 26 at $200).
+   *
+   * Rather than invent a LEAPS-specific risk percentage, this is just a number
+   * the user sets. Defaults to the per-trade budget so nothing changes silently.
+   */
+  const [budgetInput, setBudgetInput] = useState<number | null>(null);
+
+  // Same ladder the cockpit's Risk panel uses, so the two boards cannot disagree
+  // about what this account can buy. LEAPS are always long-dated, so this always
+  // resolves to the ALLOCATION basis (defaultCapitalPerIdea) rather than the
+  // per-trade risk rule — which is the whole reason 0 of 26 were buyable before.
+  const ladderBudget = sizingFor(400, prefs as any).budget;
+  const perTradeBudget = budgetInput ?? ladderBudget;
 
   if (isLoading) {
     return (
@@ -283,12 +319,24 @@ export function LeapTracker({ className }: { className?: string }) {
 
   const order: LeapGrade[] = ['S', 'A', 'B', 'C'];
   const cutoff = order.indexOf(minGrade);
-  const picks = data.picks.filter((p) => order.indexOf(p.grade) <= cutoff);
+  const graded = data.picks.filter((p) => order.indexOf(p.grade) <= cutoff);
+
+  // AFFORDABILITY. Measured on the live board: median contract cost $4,712,
+  // range $106–$29,580. On a $1,500 per-trade budget only 16 of 52 are buyable,
+  // so by default this board spends most of its space on trades the account
+  // cannot take. The filter is off by default — hiding picks silently would be
+  // worse — but the count is always stated so the gap is visible.
+  const affordable = perTradeBudget > 0
+    ? graded.filter((p) => p.entryPremium * 100 <= perTradeBudget)
+    : graded;
+  const picks = affordableOnly ? affordable : graded;
+  const unaffordable = graded.length - affordable.length;
   const sCount = data.picks.filter((p) => p.grade === 'S').length;
   const aCount = data.picks.filter((p) => p.grade === 'A').length;
 
   return (
     <div className={cn('space-y-3', className)}>
+      <KitStyles />
       {/* Header */}
       <div className="flex items-center gap-2 flex-wrap">
         <Telescope className="h-4 w-4 text-[var(--brand-cyan,#22d3ee)]" />
@@ -315,6 +363,34 @@ export function LeapTracker({ className }: { className?: string }) {
         <span className="text-[10px] font-mono text-zinc-500">
           Stock-replacement calls — secular leaders in inflowing sectors, deep-ITM &amp; liquid
         </span>
+        {/* Budget gate. The count is separated from the amount — glued together
+            they rendered as "≤ $2000" when the real reading was "≤ $200 · 0". */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[9px] uppercase tracking-wider text-zinc-500">Budget</span>
+          <span className="flex items-center rounded border border-zinc-700 px-1.5 py-0.5 font-mono text-[10px] text-zinc-300">
+            $
+            <input
+              type="number"
+              value={perTradeBudget || ''}
+              onChange={(e) => setBudgetInput(Number(e.target.value) || 0)}
+              className="w-16 bg-transparent outline-none tabular-nums"
+              aria-label="Max cost of one LEAP contract"
+            />
+          </span>
+          <button
+            onClick={() => setAffordableOnly((v) => !v)}
+            title={`Show only LEAPS where one contract costs $${perTradeBudget.toLocaleString()} or less`}
+            className={cn(
+              'rounded border px-2 py-0.5 font-mono text-[10px] transition-colors cursor-pointer',
+              affordableOnly
+                ? 'border-cyan-500/30 bg-cyan-500/20 text-cyan-300'
+                : 'border-zinc-700 text-zinc-400 hover:text-zinc-200',
+            )}
+          >
+            affordable · {affordable.length}
+          </button>
+        </div>
+
         <div className="ml-auto flex items-center gap-1">
           <span className="text-[9px] uppercase tracking-wider text-zinc-600 mr-1">Min grade</span>
           {(['S', 'A', 'B', 'C'] as LeapGrade[]).map((gr) => (
@@ -332,15 +408,36 @@ export function LeapTracker({ className }: { className?: string }) {
         </div>
       </div>
 
-      {/* Picks */}
-      <div className="space-y-1.5">
-        {picks.length === 0
-          ? <div className="text-[11px] font-mono text-zinc-600 py-4 text-center">No {minGrade}+ LEAPS right now — loosen the grade filter.</div>
-          : picks.map((p) => <LeapRow key={p.symbol} p={p} />)}
+      {/* Picks — LIST for scanning 52 in rank order, GRID for comparing the
+          shortlist's contracts side by side. Both render the same filtered set;
+          the toggle is the reference site's .hp-switch doing real work. */}
+      <div className="flex justify-end">
+        <Segmented
+          options={[{ value: 'list' as const, label: 'List' }, { value: 'grid' as const, label: 'Grid' }]}
+          value={view}
+          onChange={setView}
+        />
       </div>
+
+      {picks.length === 0 ? (
+        <div className="text-[11px] font-mono text-zinc-600 py-4 text-center">
+          No {minGrade}+ LEAPS right now — loosen the grade filter.
+        </div>
+      ) : view === 'list' ? (
+        <div className="space-y-1.5">
+          {picks.map((p) => <LeapRow key={p.symbol} p={p} />)}
+        </div>
+      ) : (
+        <LeapGrid picks={picks} />
+      )}
 
       {/* Footnote */}
       <div className="text-[9px] font-mono text-zinc-600 leading-snug">
+        {perTradeBudget > 0 && unaffordable > 0 && !affordableOnly && (
+          <span className="block mb-1 text-[var(--brand-gold)]">
+            {unaffordable} of {graded.length} cost more than one contract of your ${perTradeBudget.toLocaleString()} per-trade budget.
+          </span>
+        )}
         Grade = Sector rotation (30) + name trend (30) + contract quality (40). ROI modeled at a +30% underlying move via Black-Scholes off the live mid. Not advice.
       </div>
     </div>

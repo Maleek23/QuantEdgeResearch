@@ -117,10 +117,22 @@ export function directionTone(direction: 'long' | 'short'): 'bull' | 'bear' {
 export function convictionPercent(score: number): number {
   const s = Math.max(0, score);
   let pct: number;
-  if (s >= 30)      pct = 86 + ((s - 30) / 15) * 13; // S · ELITE
-  else if (s >= 22) pct = 72 + ((s - 22) / 8) * 14;  // A · STRONG
-  else if (s >= 15) pct = 58 + ((s - 15) / 7) * 14;  // B · HIGH
-  else              pct = 30 + (s / 15) * 28;         // C · MED
+  // Thresholds MUST track BAND_CUTOFFS in server/convictions-engine.ts (S 25 / A 19
+  // / B 13). They were left at the old 30/22/15 when the server was retuned, which
+  // put the displayed percentage and the displayed band on different scales — the
+  // card could show an "A" next to a percentage computed as if it were a B.
+  // Each segment starts exactly where the previous one ends, so the curve is
+  // continuous: 13→58, 19→72, 25→86.
+  if (s >= 25)      pct = 86 + ((s - 25) / 10) * 13; // S · ELITE
+  else if (s >= 19) pct = 72 + ((s - 19) / 6) * 14;  // A · STRONG
+  else if (s >= 13) pct = 58 + ((s - 13) / 6) * 14;  // B · HIGH
+  // C band now starts at 0, not 30. The old floor meant a raw score of 0 —
+  // including the several signals whose layers sum NEGATIVE and get clamped to
+  // zero (measured: SPY, QQQ, IWM, APLD, CLSK) — rendered as "30%". A signal the
+  // engine scored net-negative was being shown as thirty percent confident, and
+  // no signal in the system could ever display as weak.
+  // Upper bands are untouched: 15 still maps to 58, so S/A/B read exactly as before.
+  else              pct = (s / 13) * 58;              // C · MED — 0 → 0%, 13 → 58%
   return Math.round(Math.max(0, Math.min(99, pct)));
 }
 

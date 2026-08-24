@@ -5237,6 +5237,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // moving across the whole tape — it does not change materially inside a
   // minute, and recomputing it per request was the second-largest thing standing
   // between the page shell and a usable screen.
+  /**
+   * STRONGEST MOVERS, with a real market-cap floor.
+   *
+   * The leadership scan already groups the universe by industry and carries real
+   * session moves, but it has never carried market cap — so a "biggest movers
+   * above $1B" screen could not be answered. The platform's only cap data was a
+   * hand-maintained 85-symbol `capTier` list that covered 12 of a recent top-32.
+   *
+   * Caps come from Finnhub (free tier, 60/min, 12h cache). When no key is set
+   * the endpoint still returns the ranked movers with `marketCap: null` and
+   * `capVerified: false` — the screen degrades to "cap unknown" rather than
+   * silently dropping names it cannot measure, which would look like the filter
+   * worked.
+   *
+   * Query: ?limit=32&minCap=1000000000
+   */
+  app.get("/api/movers/ranked", async (req, res) => {
+    try {
+      const limit = Math.min(200, Math.max(1, Number(req.query.limit ?? 32)));
+      const minCap = Math.max(0, Number(req.query.minCap ?? 0));
+
+      const { getMarketCaps, isFinnhubConfigured } = await import("./finnhub-adapter");
+
+      // Reuse /api/sector-leadership rather than rebuilding its quote fetcher.
+      // That fetcher is ~60 lines inline in the route below — it picks between
+      // extended-hours and regular quotes by session, with its own concurrency
+      // control — and a second copy here would drift the moment either changed.
+      // The endpoint is cached for 90s, so this is a cheap in-process hop and
+      // both screens are guaranteed to describe the same session.
+      const port = process.env.PORT || 3000;
+      const leadRes = await fetch(`http://127.0.0.1:${port}/api/sector-leadership`);
+      if (!leadRes.ok) {
+        return res.status(503).json({ error: "leadership scan unavailable" });
+      }
+      const lead: any = await leadRes.json();
+
+      // Crypto tickers are not equities and cannot carry a market cap the way
+      // this screen means it — they ranked in the top 32 and had to be excluded
+      // by hand, so they are excluded here instead.
+      const NOT_EQUITY = new Set(["BTC", "ETH", "SOL", "XRP", "BTC-USD", "ETH-USD"]);
+
+      const seen = new Map<string, any>();
+      for (const g of lead.sectors ?? []) {
+        for (const side of ["leaders", "laggards"] as const) {
+          for (const m of g[side] ?? []) {
+            if (NOT_EQUITY.has(m.symbol)) continue;
+            seen.set(m.symbol, {
+              symbol: m.symbol,
+              price: m.price,
+              changePct: m.changePct,
+              group: g.label,
+              groupStance: g.stance,
+            });
+          }
+        }
+      }
+
+      // Rank on ABSOLUTE move — a −13% breakdown is as strong a move as +13%,
+      // and a screen that only ranked gainers would hide every short setup.
+      const ranked = Array.from(seen.values()).sort(
+        (a, b) => Math.abs(b.changePct) - Math.abs(a.changePct),
+      );
+
+      // Resolve caps for a generous slice so the floor can actually bite before
+      // the limit is applied — filtering after slicing would return fewer than
+      // `limit` names whenever anything was screened out.
+      const pool = ranked.slice(0, Math.min(ranked.length, limit * 3));
+      const caps = await getMarketCaps(pool.map((r) => r.symbol));
+
+      const withCaps = pool.map((r) => {
+        const cap = caps.get(r.symbol) ?? null;
+        return { ...r, marketCap: cap, capVerified: cap != null };
+      });
+
+      const passing = minCap > 0
+        ? withCaps.filter((r) => r.marketCap != null && r.marketCap >= minCap)
+        : withCaps;
+
+      const rows = passing.slice(0, limit);
+      const unverified = withCaps.filter((r) => !r.capVerified).length;
+
+      res.json({
+        session: lead.session,
+        benchmarkChangePct: lead.benchmarkChangePct,
+        universeSize: lead.universeSize,
+        quoted: lead.quoted,
+        capSource: isFinnhubConfigured() ? "finnhub" : "none",
+        minCap,
+        // Stated, never silent: how many candidates could not be measured.
+        unverifiedCaps: unverified,
+        excludedNonEquity: Array.from(NOT_EQUITY).filter((s) => ranked.every((r) => r.symbol !== s) === false),
+        count: rows.length,
+        rows,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: "movers ranking failed", details: e?.message ?? String(e) });
+    }
+  });
+
   app.get("/api/sector-leadership", async (_req, res) => {
     try {
       const { cachedFetch } = await import("./provider-cache");
@@ -5922,14 +6021,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { searchSymbolLookup } = await import('./tradier-api');
-      const tradierResults = await searchSymbolLookup(query);
-      
+      let tradierResults: { symbol: string; description: string; type?: string }[] = [];
+      try {
+        tradierResults = (await searchSymbolLookup(query)) || [];
+      } catch {
+        tradierResults = [];
+      }
+
       // Map to standardized search result format
-      const stockResults = (tradierResults || []).map((r: { symbol: string; description: string; type?: string }) => ({
+      let stockResults = tradierResults.map((r: { symbol: string; description: string; type?: string }) => ({
         symbol: r.symbol,
         name: r.description || r.symbol,
         type: r.type === 'option' ? 'option' : 'stock' as const,
       }));
+
+      // FALLBACK. This branch is the only source of equity results, and it is the
+      // one thing here that depends on Tradier — so when that token is unapproved
+      // the whole stock half of search goes quiet while crypto and futures keep
+      // working, because those come from hardcoded maps below. Searching NVDA
+      // returned [] while BTC and ES returned matches, which reads as "we do not
+      // have that ticker" rather than "the upstream is down".
+      //
+      // universalSearch is already the engine behind /api/search and needs no
+      // brokerage credentials, so it is the natural degradation path.
+      if (stockResults.length === 0) {
+        try {
+          const { universalSearch } = await import('./search-service');
+          const fallback = await universalSearch(query, ['stocks'] as any);
+          stockResults = (fallback?.results || [])
+            .filter((r: any) => r.symbol)
+            .slice(0, 10)
+            .map((r: any) => ({
+              symbol: r.symbol,
+              name: r.companyName || r.name || r.symbol,
+              type: 'stock' as const,
+            }));
+        } catch (fallbackError) {
+          logger.warn(`search/symbols fallback failed for "${query}": ${String(fallbackError)}`);
+        }
+      }
 
       // Add crypto matches
       const cryptoMap: Record<string, string> = {
@@ -7035,6 +7165,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // always return matching scores for the same idea (single source of truth).
       const data = await getCachedConvictions(buildOpts);
 
+      // Persist a sparse, auditable checkpoint for each live signal. This is
+      // intentionally asynchronous: the screen should never wait on an audit
+      // write, and the writer itself rate-limits each idea to one point / 15m.
+      // The cockpit will only draw the points that made it into this table.
+      void import('./signal-trajectory-service')
+        .then(({ recordSignalTrajectory }) => recordSignalTrajectory(data.picks))
+        .catch((err) => logger.warn('[TRAJECTORY] checkpoint write failed:', err));
+
       const meta = {
         _meta: {
           dataSource: "convictions_engine",
@@ -7073,6 +7211,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("[API] Convictions backtest error:", error);
       res.status(500).json({ error: "Failed to run conviction backtest" });
+    }
+  });
+
+  // Recorded scanner/validator checkpoints for the cockpit trajectory. The
+  // current live quote stays client-side; this route is deliberately history
+  // only so a first visit never manufactures a line from one price.
+  app.get('/api/convictions/:ideaId/trajectory', requireBetaAccess, async (req, res) => {
+    try {
+      const snapshots = await storage.getPriceSnapshots(req.params.ideaId);
+      res.json({ snapshots: snapshots.reverse() });
+    } catch (error) {
+      logger.error('[TRAJECTORY] failed to read checkpoints:', error);
+      res.status(500).json({ error: 'Could not load recorded checkpoints' });
     }
   });
 
@@ -9630,6 +9781,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // UNIFIED WIN RATE ENDPOINT - Single Source of Truth
   // Uses WinRateService for consistent calculations across platform
   // ============================================================
+  /**
+   * Both outcome models on the SAME trades, side by side.
+   *
+   * v1 (canonical, on the marketing page): win = hit_target OR P&L >= +3%;
+   * loss = hit_stop AND P&L <= -3%; everything else neutral and EXCLUDED.
+   * v2: win = reached T1; loss = hit stop OR ran out of time; unresolved = open only.
+   *
+   * Deliberately additive. The public 44.5% keeps its definition until these two
+   * have been compared on real trades — quietly redefining a number that is
+   * printed on the landing page is exactly the failure the page itself warns about.
+   */
+  /**
+   * Current manufactured target vs a structural one, on the SAME live signals.
+   *
+   * Read-only. Publishes nothing, changes no target. It exists so the swap can be
+   * judged on real symbols before it happens — 83% of the book carries a target at
+   * an exact round R multiple, so changing the source blind would be the largest
+   * unverified change in the system.
+   */
+  app.get("/api/targets/compare", async (req, res) => {
+    try {
+      const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 8));
+      const { findStructuralTargets } = await import("./structural-targets");
+
+      const base = `http://127.0.0.1:${process.env.PORT || 5000}`;
+      const getJson = async (path: string) => {
+        try {
+          const r = await fetch(base + path);
+          return r.ok ? await r.json() : null;
+        } catch { return null; }
+      };
+
+      const conv: any = await getJson(`/api/convictions?limit=${limit}&minScore=0`);
+      const picks: any[] = conv?.picks ?? [];
+
+      const rows = [];
+      for (const p of picks) {
+        const spot = p.currentPrice ?? p.entryPrice;
+        if (!spot) continue;
+        const report = await findStructuralTargets(p.symbol, spot, p.direction === 'short' ? 'short' : 'long', {
+          fetchGaps: (s) => getJson(`/api/gaps/${s}`),
+          fetchGamma: (s) => getJson(`/api/gex/buckets/${s}`),
+        });
+
+        const currentT1 = p.targetPrice;
+        const risk = p.stopLoss != null ? Math.abs(spot - p.stopLoss) : null;
+        const currentRR = risk && currentT1 != null ? Math.abs(currentT1 - spot) / risk : null;
+        // Test the ratio the idea was PUBLISHED with, not one recomputed from today's
+        // spot. Price moves after publication, so a target that was exactly 2.5R at
+        // signal time reads as 2.29R now — recomputing would hide the very signature
+        // being looked for. An exact .0/.5 multiple is a target that was computed
+        // rather than found.
+        const publishedRR = p.riskRewardRatio;
+        const manufactured =
+          publishedRR != null &&
+          Math.abs(publishedRR * 2 - Math.round(publishedRR * 2)) < 0.02;
+
+        const structRR =
+          risk && report.primary ? Math.abs(report.primary.price - spot) / risk : null;
+
+        rows.push({
+          symbol: p.symbol,
+          direction: p.direction,
+          spot: +spot.toFixed(2),
+          current: {
+            t1: currentT1,
+            rr: currentRR == null ? null : +currentRR.toFixed(2),
+            publishedRR,
+            looksManufactured: manufactured,
+          },
+          structural: report.primary
+            ? {
+                t1: +report.primary.price.toFixed(2),
+                rr: structRR == null ? null : +structRR.toFixed(2),
+                source: report.primary.source,
+                label: report.primary.label,
+                baseRate: report.primary.baseRate,
+                baseRateSample: report.primary.baseRateSample,
+                medianBarsToReach: report.primary.medianBarsToReach,
+              }
+            : null,
+          note: report.note,
+          otherLevels: report.candidates.slice(1, 3).map((c) => `${c.price} (${c.source})`),
+        });
+      }
+
+      const withStructure = rows.filter((r) => r.structural).length;
+      const manufacturedCount = rows.filter((r) => r.current.looksManufactured).length;
+
+      res.json({
+        checked: rows.length,
+        currentTargetsThatLookManufactured: manufacturedCount,
+        signalsWithAStructuralAlternative: withStructure,
+        rows,
+        note:
+          'READ ONLY — proposes, never publishes. baseRate is the symbol\'s own measured gap-fill history; ' +
+          'gamma walls return null rather than an invented confidence. Where structural is null there is no ' +
+          'destination within 25%, which is a reason to pass on the trade rather than to manufacture a target.',
+      });
+    } catch (error) {
+      logger.error("targets/compare error:", error);
+      res.status(500).json({ error: "Failed to compare targets" });
+    }
+  });
+
+  app.get("/api/performance/win-rate-compare", async (_req, res) => {
+    try {
+      const { classifyOutcomeV2, realisedR, classifyTrade } = await import("@shared/constants");
+      const ideas = await storage.getAllTradeIdeas();
+
+      const v1 = { win: 0, loss: 0, neutral: 0 };
+      const v2 = { win: 0, loss: 0, unresolved: 0 };
+      const rs: number[] = [];
+      const lossReasons: Record<string, number> = {};
+
+      for (const idea of ideas as any[]) {
+        v1[classifyTrade(idea)] += 1;
+
+        const o = classifyOutcomeV2(idea);
+        v2[o] += 1;
+        if (o === 'loss') {
+          const st = (idea.outcomeStatus || '(none)').trim().toLowerCase();
+          lossReasons[st] = (lossReasons[st] || 0) + 1;
+        }
+        const r = realisedR(idea);
+        if (r !== null) rs.push(r);
+      }
+
+      const v1Decided = v1.win + v1.loss;
+      const v2Decided = v2.win + v2.loss;
+      const expectancyR = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null;
+
+      res.json({
+        totalIdeas: ideas.length,
+        v1: {
+          ...v1,
+          decided: v1Decided,
+          winRate: v1Decided ? +(100 * v1.win / v1Decided).toFixed(1) : null,
+          excluded: v1.neutral,
+        },
+        v2: {
+          ...v2,
+          decided: v2Decided,
+          winRate: v2Decided ? +(100 * v2.win / v2Decided).toFixed(1) : null,
+          lossBreakdown: lossReasons,
+        },
+        expectancyR: expectancyR === null ? null : +expectancyR.toFixed(3),
+        rSampleSize: rs.length,
+        // The headline is not the win rate. It is coverage: how much of what this
+        // engine publishes ever gets an outcome written back at all.
+        coverage: {
+          measured: v2.win + v2.loss,
+          unresolved: v2.unresolved,
+          pctMeasured: ideas.length ? +(100 * (v2.win + v2.loss) / ideas.length).toFixed(1) : 0,
+        },
+        note:
+          'v1 excludes every trade that did not move 3%. v2 counts a measured timeout as a loss ' +
+          'but leaves UNMEASURED expiries unresolved — 268 of 367 expired ideas carry percentGain ' +
+          '0.00 with a null currentPrice, which is a default that was never written, not a result. ' +
+          'Neither win rate means much until coverage is fixed.',
+      });
+    } catch (error) {
+      logger.error("win-rate-compare error:", error);
+      res.status(500).json({ error: "Failed to compare win rate models" });
+    }
+  });
+
   app.get("/api/performance/unified-win-rate", async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
@@ -17553,6 +17871,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'GET /api/bear-flag-scanner' });
       res.status(500).json({ error: "Failed to fetch bear flag setups" });
+    }
+  });
+
+  /**
+   * Manual bear-flag ingest. Every other scanner has a trigger — /api/btc/scan,
+   * /api/bullish-trends/scan, /api/automations/<bot>/scan — and the short side had
+   * none, so the only way bearish ideas ever reached the feed was the worker
+   * cron, which does not run outside production. That made the board's
+   * 40-long / 0-short split look like a market read rather than a plumbing gap.
+   *
+   * Also the only way to verify the path outside market hours: the cron gates on
+   * isMarketHoursForFlow(), so on a weekend there is otherwise nothing to observe.
+   */
+  app.post("/api/bear-flag-scanner/ingest", async (_req, res) => {
+    try {
+      const { ingestBearFlagIdeas } = await import("./bear-flag-scanner");
+      const ingested = await ingestBearFlagIdeas();
+      logger.info(`[BEAR-FLAG-API] Manual ingest added ${ingested} bearish setups`);
+      res.json({ success: true, ingested });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/bear-flag-scanner/ingest' });
+      res.status(500).json({ error: "Bear flag ingest failed" });
     }
   });
 
@@ -26122,9 +26462,10 @@ Use this checklist before entering any trade:
   //   GET /api/macro/cash-gate?cashHours=4&watchHours=24
   app.get("/api/macro/cash-gate", async (req, res) => {
     try {
-      const { getUpcomingEvents } = await import("./economic-calendar");
+      const { getUpcomingEvents, getCalendarCoverage } = await import("./economic-calendar");
       const cashHrs = Math.max(0, Number(req.query.cashHours ?? 4));
       const watchHrs = Math.max(cashHrs, Number(req.query.watchHours ?? 24));
+      const calendar = getCalendarCoverage();
 
       // Parse "2:00 PM ET" + "YYYY-MM-DD" → epoch ms (ET ≈ UTC-4; ±1h at DST edges
       // is immaterial for a proximity warning).
@@ -26149,9 +26490,11 @@ Use this checklist before entering any trade:
         .sort((a: any, b: any) => a.hoursUntil - b.hoursUntil);
 
       const next = upcoming[0] || null;
-      let level: "clear" | "watch" | "cash" = "clear";
+      let level: "clear" | "watch" | "cash" | "unavailable" = calendar.current ? "clear" : "unavailable";
       let message = "No high-impact macro events imminent — normal risk.";
-      if (next && next.hoursUntil <= cashHrs) {
+      if (!calendar.current) {
+        message = `Macro calendar needs refresh — current coverage ends ${calendar.lastDate ?? 'unknown'}. No event-risk all-clear is implied.`;
+      } else if (next && next.hoursUntil <= cashHrs) {
         level = "cash";
         message = `⚠ ${next.name} in ${next.hoursUntil.toFixed(1)}h (${next.time}) — event risk. Size down or hold cash.`;
       } else if (next && next.hoursUntil <= watchHrs) {
@@ -26161,13 +26504,14 @@ Use this checklist before entering any trade:
 
       res.json({
         level,
-        active: level !== "clear",
+        active: level === "watch" || level === "cash",
         dampenGrades: level === "cash",
         message,
         nextEvent: next ? { name: next.name, date: next.date, time: next.time, hoursUntil: next.hoursUntil, tradingImpact: next.tradingImpact } : null,
         upcoming: upcoming.slice(0, 5).map((e: any) => ({ name: e.name, date: e.date, time: e.time, hoursUntil: e.hoursUntil })),
         params: { cashHours: cashHrs, watchHours: watchHrs },
-        _meta: { note: "Cash-gate = proximity to high-impact macro events from the curated calendar (server/economic-calendar.ts). Keep that calendar current for accuracy." },
+        calendar,
+        _meta: { note: "Cash-gate only returns clear/watch/cash while the curated economic calendar covers today. An unavailable calendar never means risk is clear." },
       });
     } catch (error) {
       logger.error("Cash-gate error:", error);

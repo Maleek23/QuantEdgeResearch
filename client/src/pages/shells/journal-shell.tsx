@@ -1,23 +1,37 @@
 /**
  * JOURNAL — "How do I get better"
  *
- * Tabs: Trade Log | Metrics | Backtest | Mistakes | Academy
+ * Tabs: Trade Log | History | Metrics | Backtest | Academy
  */
 import { lazy, Suspense } from 'react';
-import { QETabs, type QETabItem, QECard } from '@/components/ui/qe';
+import { QETabs, type QETabItem } from '@/components/ui/qe';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { Loader2 } from 'lucide-react';
 
 const Performance       = lazy(() => import('@/pages/performance'));
+const TradeJournal      = lazy(() => import('@/pages/trade-journal'));
 const History           = lazy(() => import('@/pages/history'));
 const StrategySim       = lazy(() => import('@/pages/strategy-simulator'));
 const Academy           = lazy(() => import('@/pages/academy'));
 
-type Tab = 'log' | 'metrics' | 'backtest' | 'mistakes' | 'academy';
+type Tab = 'log' | 'history' | 'metrics' | 'backtest' | 'academy';
 
+/**
+ * Trade Log pointed at pages/history.tsx, which renders /api/ai/chat/history and
+ * /api/research-history — your AI chats and research runs, under a tab whose own
+ * hint read "Every trade you took". The actual trade log, pages/trade-journal.tsx,
+ * was orphaned with six live /api/journal/* endpoints and no way in.
+ *
+ * Trade Log now shows trades. The chat/research history keeps its own tab rather
+ * than being deleted, since it was the only door to those two endpoints.
+ *
+ * The 'mistakes' tab is gone — it rendered ComingSoon and was not in this array
+ * anyway, so it was an unreachable branch advertising a feature that does not exist.
+ */
 const TABS: readonly QETabItem<Tab>[] = [
   { id: 'log',      label: 'Trade Log', hint: 'Every trade you took' },
+  { id: 'history',  label: 'History',   hint: 'Past AI chats and research runs' },
   { id: 'metrics',  label: 'Metrics',   hint: 'Win rate, avg R, by setup type' },
   { id: 'backtest', label: 'Backtest',  hint: 'Run strategies on historicals' },
   { id: 'academy',  label: 'Academy',   hint: 'Learning content' },
@@ -41,10 +55,10 @@ export default function JournalShell() {
 
       <PageErrorBoundary label={`Journal · ${tab}`}>
         <Suspense fallback={<Loading />}>
-          {tab === 'log'      && <History />}
+          {tab === 'log'      && <TradeJournal />}
+          {tab === 'history'  && <History />}
           {tab === 'metrics'  && <Performance />}
           {tab === 'backtest' && <StrategySim />}
-          {tab === 'mistakes' && <ComingSoon tab="Mistakes" />}
           {tab === 'academy'  && <Academy />}
         </Suspense>
       </PageErrorBoundary>
@@ -57,15 +71,5 @@ function Loading() {
     <div className="flex items-center justify-center h-48">
       <Loader2 className="w-4 h-4 animate-spin text-[var(--brand-cyan)]" />
     </div>
-  );
-}
-
-function ComingSoon({ tab }: { tab: string }) {
-  return (
-    <QECard variant="default" padding="lg" className="text-center">
-      <div className="text-sm font-mono uppercase tracking-widest text-muted-foreground mb-2">
-        {tab} — coming next sprint
-      </div>
-    </QECard>
   );
 }

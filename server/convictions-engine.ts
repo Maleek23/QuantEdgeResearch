@@ -283,6 +283,41 @@ function scoreQualitySignalsLayer(idea: any, direction: "long" | "short"): Convi
  * Watchlist tier layer — being on the proven backtested watchlist is
  * itself a form of conviction. S-tier names earn more than secondary.
  */
+/**
+ * BAND CUTOFFS — retuned 22 Aug 2026, after the Watchlist Tier layer stopped scoring.
+ *
+ * The old cutoffs (S=30 / A=22 / B=15) were set when that layer contributed up to
+ * 10 points, and the comment said so outright: "S = 30+ (technical + tier +
+ * convergence + regime + sector all firing)". With tier removed, the observed
+ * maximum across 88 live picks was 29 — S had become mathematically unreachable.
+ *
+ * Refitted against the real distribution rather than by subtracting 10, because the
+ * tier layer never contributed a flat 10: it paid 8 for S-tier names, 5 for A, 4 for
+ * mega-caps, 3 for index ETFs, 2 for secondary and 0 for everything else. A uniform
+ * shift would have over-corrected most of the board.
+ *
+ * Anchored to percentiles of that distribution (n=88, max 29, median 12.5):
+ *   S = 25  → top ~5%   — elite should be rare enough to mean something
+ *   A = 19  → top ~22%
+ *   B = 13  → top ~48%
+ *   C = the rest
+ *
+ * ⚠️ Fitted to a WEEKEND snapshot with stale data — several picks were carrying a
+ * Freshness penalty of -6 for being ~29h old, and Yahoo was rate-limiting. Live
+ * intraday scores should run higher, which would push more names into S than the
+ * ~5% intended. Re-measure on a trading day and adjust these three numbers; that is
+ * the only edit required, and it is why they are named constants in one place
+ * instead of two inline ternaries that had already been duplicated.
+ */
+const BAND_CUTOFFS = { S: 25, A: 19, B: 13 } as const;
+
+function bandFor(score: number): "S" | "A" | "B" | "C" {
+  return score >= BAND_CUTOFFS.S ? "S"
+       : score >= BAND_CUTOFFS.A ? "A"
+       : score >= BAND_CUTOFFS.B ? "B"
+       : "C";
+}
+
 function scoreTierLayer(symbol: string, riskRewardRatio: number): ConvictionLayer | null {
   const tier = getTier(symbol);
   if (!tier) return null;
@@ -315,19 +350,45 @@ function scoreTierLayer(symbol: string, riskRewardRatio: number): ConvictionLaye
   }
 
   const reasons = [label];
-  if (typeof riskRewardRatio === "number" && riskRewardRatio >= 2.5) {
-    points += 2;
-    reasons.push(`R:R ${riskRewardRatio.toFixed(1)}×`);
-  } else if (typeof riskRewardRatio === "number" && riskRewardRatio >= 2.0) {
-    points += 1;
+  if (typeof riskRewardRatio === "number" && riskRewardRatio >= 2.0) {
     reasons.push(`R:R ${riskRewardRatio.toFixed(1)}×`);
   }
+
+  // ── SCORES ZERO ON PURPOSE. Kept as visible CONTEXT, not as evidence. ──
+  //
+  // This layer used to award up to 10 points (8 for S-tier + 2 for R:R ≥ 2.5).
+  // Bands are S=30 / A=22 / B=15, so that was a THIRD of the way to ELITE handed
+  // over before a single piece of market evidence was read. Two separate defects:
+  //
+  //   1. CIRCULAR. Watchlist tier records that WE like a symbol. Adding a ticker
+  //      to the S-tier list raised its conviction score by 8 with no change in
+  //      the tape — the engine rewarding its owner's preference and calling the
+  //      result confidence. It inflated hardest on exactly the names already
+  //      carrying the most bias, which is the worst place to add any.
+  //
+  //   2. R:R WAS DOUBLE-COUNTED, and gameable. R:R is a property of the PLAN, set
+  //      by where the target is put — and targets are not always structural (the
+  //      bear-flag scanner still uses `price * (1 - min(bounce*2, 15)/100)`, a
+  //      flat percentage). Scoring R:R meant conviction could be raised by moving
+  //      the target further away. Confidence should never be a function of an
+  //      output we chose ourselves.
+  //
+  // The tier still SHOWS — knowing a name is S-tier is useful routing information
+  // — it just no longer votes. Deleting the layer outright would have hidden that
+  // context; zeroing it keeps the fact and removes the vote.
+  //
+  // ⚠️ Bands were tuned assuming this contributed ("S = 30+ (technical + tier +
+  // convergence + regime + sector all firing)"). Every watchlist name now scores
+  // up to 10 lower, so some S-band signals become A. That is the correction, not
+  // a regression — but the thresholds deserve a fresh look against real output.
+  const SCORING_POINTS = 0;
+  void points; // retained above so the tier mapping stays readable
 
   return {
     kind: "fundamental", // re-using the fundamental kind for tier (no separate UI bucket needed)
     label: "Watchlist Tier",
-    points,
-    why: reasons.join(" · "),
+    points: SCORING_POINTS,
+    why: `${reasons.join(" · ")} · context only, not scored`,
     data: { tier },
   };
 }
@@ -1045,11 +1106,24 @@ function scoreGexLayer(
   direction: "long" | "short",
   snap: GexSnapshot | undefined,
 ): ConvictionLayer | null {
-  if (!snap || snap.flipDistancePct === null || !snap.regime) return null;
+  if (!snap || !snap.regime) return null;
 
-  // Are we above or below the flip? If flipDistancePct > 0, the flip is
-  // ABOVE spot, meaning spot is BELOW the flip → "below flip".
-  const aboveFlip = snap.flipDistancePct < 0;
+  /**
+   * A NULL FLIP IS A READING, NOT A GAP.
+   *
+   * This used to require flipDistancePct !== null and discard everything else.
+   * But a symbol whose whole gamma curve sits on one side has no crossing —
+   * measured on SPY: totalGEX −4.42B, regime negative_gamma, flip = null. That
+   * is the most decisive negative-gamma book on the board, and it was the one
+   * reading being thrown away.
+   *
+   * When there is no flip, "above/below flip" is answered by the regime itself:
+   * an all-negative curve means spot is effectively below any flip that would
+   * exist, and an all-positive curve means the opposite.
+   */
+  const aboveFlip = snap.flipDistancePct !== null
+    ? snap.flipDistancePct < 0
+    : snap.regime === 'positive_gamma';
   const isPositive = snap.regime === "positive_gamma";
   const isNegative = snap.regime === "negative_gamma";
   if (!isPositive && !isNegative) return null; // neutral / transitioning — skip
@@ -1153,9 +1227,14 @@ function scoreGexLayer(
   else if (snap.vexRegime === "vol_headwind" && points > 0) vexMod = -1;
 
   const finalPoints = points + wallMod + vexMod;
+  // With no flip there is no distance to quote — say "no flip in the chain"
+  // rather than printing a fabricated 0.0%.
   const flipDir = aboveFlip ? "above flip" : "below flip";
+  const flipPhrase = snap.flipDistancePct !== null
+    ? `${flipDir} by ${Math.abs(snap.flipDistancePct).toFixed(1)}%`
+    : "no flip in the chain — curve is one-sided";
   const why =
-    `${label} (${snap.regime.replace("_", " ")}, ${flipDir} by ${Math.abs(snap.flipDistancePct).toFixed(1)}%${wallNote})`;
+    `${label} (${snap.regime.replace("_", " ")}, ${flipPhrase}${wallNote})`;
 
   return {
     kind: "gex",
@@ -2175,17 +2254,12 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     }),
   );
 
-  // Final scoring + band assignment.
-  // Bands tuned to realistic point yield:
-  //   S = 30+ (technical + tier + convergence + regime + sector all firing)
-  //   A = 22+ (4-5 layers strongly aligned)
-  //   B = 15+ (3 layers aligned)
-  //   C = below
+  // Final scoring + band assignment. See BAND_CUTOFFS above.
   for (const p of deduped) {
     const total = p.layers.reduce((s, l) => s + l.points, 0);
     p.convictionScore = Math.max(0, Math.min(100, total));
     p.convictionBand =
-      p.convictionScore >= 30 ? "S" : p.convictionScore >= 22 ? "A" : p.convictionScore >= 15 ? "B" : "C";
+bandFor(p.convictionScore);
   }
 
   // 🏦 CASH-GATE — "be cash before the print." When a HIGH-impact macro event
@@ -2200,7 +2274,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       for (const p of deduped) {
         p.convictionScore = Math.round(p.convictionScore * DAMPEN);
         p.convictionBand =
-          p.convictionScore >= 30 ? "S" : p.convictionScore >= 22 ? "A" : p.convictionScore >= 15 ? "B" : "C";
+    bandFor(p.convictionScore);
         p.layers.push({
           kind: "macro",
           label: "Macro Risk",

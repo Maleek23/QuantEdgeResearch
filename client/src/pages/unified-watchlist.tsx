@@ -257,7 +257,7 @@ function ThisWeekTab() {
           </div>
         ) : weeklyItems.length === 0 ? (
           <div className="p-8 text-center">
-            <Calendar className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+            <Calendar className="h-10 w-10 mx-auto text-muted-foreground/60 mb-3" />
             <h3 className="text-sm font-semibold text-foreground/70 mb-1">No tickers this week</h3>
             <p className="text-xs text-muted-foreground mb-3">
               Click "Auto-seed" to populate from top convictions, or add tickers manually.
@@ -469,7 +469,7 @@ function DailyTab({ items }: { items: WatchlistItem[] }) {
   if (total === 0) {
     return (
       <Card className="bg-card/60 border-border p-8 text-center">
-        <Calendar className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+        <Calendar className="h-10 w-10 mx-auto text-muted-foreground/60 mb-3" />
         <h3 className="text-sm font-semibold text-foreground/70 mb-1">Nothing added in the last 7 days</h3>
         <p className="text-xs text-muted-foreground">
           New tickers you add (here or in "This Week") show up grouped by day so your group can track the daily flow.
@@ -931,7 +931,7 @@ export default function UnifiedWatchlist() {
                 PASTE SYMBOLS FROM TRADINGVIEW OR ANY SOURCE
               </div>
               <textarea
-                className="w-full h-20 px-3 py-2 text-sm font-mono bg-background border border-border rounded-md resize-none placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--brand-teal)]"
+                className="w-full h-20 px-3 py-2 text-sm font-mono bg-background border border-border rounded-md resize-none placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-[var(--brand-teal)]"
                 placeholder="AAPL, TSLA, NVDA, MSFT&#10;or one per line..."
                 value={bulkInput}
                 onChange={(e) => setBulkInput(e.target.value)}
@@ -1113,7 +1113,7 @@ export default function UnifiedWatchlist() {
               </div>
             ) : sortedItems.length === 0 ? (
               <div className="p-12 text-center">
-                <Star className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <Star className="h-12 w-12 mx-auto text-muted-foreground/60 mb-4" />
                 <h3 className="text-lg font-semibold text-foreground/80 mb-2">No symbols in watchlist</h3>
                 <p className="text-sm text-muted-foreground">Add symbols using the search bar above</p>
               </div>
@@ -1208,7 +1208,7 @@ export default function UnifiedWatchlist() {
                             {(() => {
                               const edge = parseEdge(item);
                               if (edge.momentum == null && edge.upside == null && !edge.topSignal) {
-                                return <span className="text-muted-foreground/50 text-xs">—</span>;
+                                return <span className="text-muted-foreground/60 text-xs">—</span>;
                               }
                               return (
                                 <div className="flex flex-col gap-0.5">
@@ -1403,7 +1403,7 @@ export default function UnifiedWatchlist() {
 
             {/* Empty State */}
             <div className="p-12 text-center">
-              <Bell className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <Bell className="h-12 w-12 mx-auto text-muted-foreground/60 mb-4" />
               <p className="text-muted-foreground">No notifications yet. Add stocks to receive alerts.</p>
             </div>
           </Card>
@@ -1435,7 +1435,7 @@ function InsightTile({
         {label}
       </div>
       <div className={cn('mt-1 text-lg font-mono font-bold tabular-nums leading-none', toneClass)}>{value}</div>
-      {sub && <div className="mt-0.5 text-[9px] font-mono text-muted-foreground/50">{sub}</div>}
+      {sub && <div className="mt-0.5 text-[9px] font-mono text-muted-foreground/60">{sub}</div>}
     </Card>
   );
 }

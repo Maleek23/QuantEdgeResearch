@@ -72,7 +72,7 @@ export function RangeBar({
             </span>
           </>
         ) : (
-          <span className="text-muted-foreground/50">hover the bar to price it</span>
+          <span className="text-muted-foreground/60">hover the bar to price it</span>
         )}
       </div>
 
@@ -552,12 +552,14 @@ export function Heartbeat({
   label = 'LIVE',
   className,
 }: {
-  /** When the data last arrived. */
-  since: Date | number | null | undefined;
+  /** When the data last arrived. ISO string is the common case — every live
+   *  endpoint here returns one (generatedAt / asOf / calculatedAt / scannedAt). */
+  since: Date | number | string | null | undefined;
   staleAfterSec?: number;
   label?: string;
   className?: string;
 }) {
+  const reduced = usePrefersReducedMotion();
   const [, force] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => {
     const id = setInterval(force, 1000);
@@ -578,7 +580,11 @@ export function Heartbeat({
   return (
     <span className={cn('inline-flex items-center gap-1.5 text-[10px] tracking-wider', className)}>
       <span className="relative flex h-1.5 w-1.5">
-        {!stale && (
+        {/* The ping is the one looping animation allowed on a data surface, because
+            it encodes freshness rather than decorating it. It still stops under
+            prefers-reduced-motion — the dot colour and the counting age already
+            carry the whole meaning, so nothing is lost by dropping the pulse. */}
+        {!stale && !reduced && (
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
         )}
         <span

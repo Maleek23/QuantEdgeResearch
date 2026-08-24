@@ -66,14 +66,12 @@ const AdminTradeIdeas = lazyWithRetry(() => import("@/pages/admin/trade-ideas"),
 const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
-const SuccessStories = lazyWithRetry(() => import("@/pages/success-stories"), "success-stories");
 const ChartDatabase = lazyWithRetry(() => import("@/pages/chart-database"), "chart-database");
 const MarketPulse = lazyWithRetry(() => import("@/pages/market-pulse"), "market-pulse");
 const FlowHeatmap = lazyWithRetry(() => import("@/pages/flow-heatmap"), "flow-heatmap");
 const PositionsHeatmap = lazyWithRetry(() => import("@/pages/positions-heatmap"), "positions-heatmap");
 const StrategySimulator = lazyWithRetry(() => import("@/pages/strategy-simulator"), "strategy-simulator");
 const Backtest = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
-const ConvictionBacktest = lazyWithRetry(() => import("@/pages/conviction-backtest"), "conviction-backtest");
 const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
 const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 const TradingRules = lazyWithRetry(() => import("@/pages/trading-rules"), "trading-rules");
@@ -84,8 +82,6 @@ const Pricing = lazyWithRetry(() => import("@/pages/pricing"), "pricing");
 const TradeAudit = lazyWithRetry(() => import("@/pages/trade-audit"), "trade-audit");
 const AutomationsPage = lazyWithRetry(() => import("@/pages/automations"), "automations");
 const Features = lazyWithRetry(() => import("@/pages/features"), "features");
-const StyleLab = lazyWithRetry(() => import("@/pages/style-lab"), "style-lab");
-const StyleGlass = lazyWithRetry(() => import("@/pages/style-glass"), "style-glass");
 const HomeGlass = lazyWithRetry(() => import("@/pages/home-glass"), "home-glass");
 // REMOVED — Backtest merged into Performance tab
 const TechnicalGuide = lazyWithRetry(() => import("@/pages/technical-guide"), "technical-guide");
@@ -97,9 +93,7 @@ const TechnicalGuide = lazyWithRetry(() => import("@/pages/technical-guide"), "t
 // REMOVED — Weekly Watchlist tab lives in unified-watchlist, Conviction Backtest in Performance
 const HomePage = lazyWithRetry(() => import("@/pages/home"), "home");
 // REMOVED — AION consolidated out, redirect added below
-const StrategyPlaybooks = lazyWithRetry(() => import("@/pages/strategy-playbooks"), "strategy-playbooks");
 // REMOVED — Historical Intelligence merged into Performance tab
-const AnalysisPage = lazyWithRetry(() => import("@/pages/analysis"), "analysis");
 const NotFound = lazyWithRetry(() => import("@/pages/not-found"), "not-found");
 const JoinBeta = lazyWithRetry(() => import("@/pages/join-beta"), "join-beta");
 const InviteWelcome = lazyWithRetry(() => import("@/pages/invite-welcome"), "invite-welcome");
@@ -174,6 +168,14 @@ function SmartLanding() {
   // We deliberately ignore a stale `qe-last-page` pointing at a legacy shell so the
   // app stops opening on the old sidebar UI; the legacy routes all still work if you
   // navigate to them directly. Anything else previously visited is still restored.
+  // ?preview=landing renders the marketing page even while signed in. Without it
+  // the landing page is unreachable to anyone with a session — which is everyone
+  // who works on it — so the only way to check a change was to log out. Read-only
+  // escape hatch: it changes nothing but which component renders.
+  if (user && new URLSearchParams(window.location.search).get('preview') === 'landing') {
+    return <Landing />;
+  }
+
   if (user) {
     const lastPage = localStorage.getItem('qe-last-page');
     const LEGACY_LANDINGS = ['/p', '/h', '/g', '/r', '/pos', '/j'];
@@ -211,6 +213,42 @@ function Router() {
         <Route path="/movers"><Redirect to="/h?tab=movers" /></Route>
         <Route path="/analyze"><Redirect to="/r/SPY?tab=analyze" /></Route>
         <Route path="/how-to"     component={withBetaProtection(HowToPage)} />
+
+        {/* ─── RESTORED ROUTES ───────────────────────────────────────────────
+            These four paths had NO <Route> while 28 <Redirect>s and roughly 25
+            nav links pointed at them, so every one of those landed on NotFound.
+            /trade-desk was the worst: login.tsx:62 and :87 send you there after
+            a successful sign-in, which meant signing in ended on a 404.
+
+            The pages themselves were fine the whole time — imported, building,
+            and backed by live endpoints. Only the routes were missing, lost when
+            the router was collapsed to shells and the targets were never
+            repointed. Restoring the route is the small fix; deleting the pages
+            would have been the expensive one. */}
+        <Route path="/trade-desk"  component={withBetaProtection(TradeDeskPage)} />
+        <Route path="/performance" component={withBetaProtection(PerformancePage)} />
+        <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
+        {/* HOME IS THE TERMINAL. Confirmed by the owner, against two rival
+            candidates that both call themselves the dashboard in their own headers:
+            pages/home.tsx ("Command Center", 1,186 lines) and pages/home-glass.tsx
+            ("the real dashboard in the chosen design language"). Neither is. The
+            product is /t — Terminal ORACLE: regime, rotation map, session brief,
+            early rotation, the live signal board and the signal card.
+
+            So /home is a redirect, not a page, and the other two stay unrouted.
+            Three files claiming to be the dashboard is how this drifted in the
+            first place; only one of them is reachable now, and it is the right one. */}
+        <Route path="/home"><Redirect to="/t" /></Route>
+
+        {/* Public marketing routes that had links but no <Route>. /pricing is the
+            worst of these: protected-route.tsx:201, kavout-sidebar.tsx:162 and
+            ai-chatbot-popup.tsx:300 all send users there to upgrade, and all three
+            hit NotFound — the entire paid-conversion path was a dead end. Blog had
+            the mirror problem: /admin/blog is routed, so posts could be authored
+            but never read. */}
+        <Route path="/pricing"    component={Pricing} />
+        <Route path="/blog/:slug" component={BlogPost} />
+        <Route path="/blog"       component={Blog} />
 
         {/* Public, read-only shared watchlist (no auth) — for trading groups */}
         <Route path="/w" component={PublicWatchlist} />
@@ -512,7 +550,7 @@ function AuthHeader() {
         >
           <Search className="h-3 w-3" />
           Search
-          <kbd className="ml-1 px-1 py-0 text-[8px] bg-muted rounded border border-border text-muted-foreground/50">⌘K</kbd>
+          <kbd className="ml-1 px-1 py-0 text-[8px] bg-muted rounded border border-border text-muted-foreground/60">⌘K</kbd>
         </Button>
         {isAuthenticated && userData && (
           <>
@@ -588,10 +626,23 @@ function App() {
     );
   }
 
-  // TERMINAL (/t) — full-bleed, no sidebar. Top-nav only (ADR-0001). Keeps every
-  // provider so nested engines/components still work; the Terminal shell supplies
-  // its own chrome (header + tabs + footer), so AppSidebar/AuthHeader/Footer are dropped.
-  if (locationPath === '/t') {
+  // FULL-BLEED SHELLS — the current design. No AppSidebar, no AuthHeader, no global
+  // Footer; each of these shells supplies its own header and tabs, so the sidebar was
+  // redundant chrome stacked on top of chrome.
+  //
+  // /t was the only route in here, which meant the Terminal was the only surface in
+  // the new design and everything else still rendered the old left-sidebar layout.
+  // That split was doing real damage: the evidence rail links a signal to
+  // /r/:symbol, so validating a call threw you out of the new product and into the
+  // old one mid-task. Research already draws its own symbol header and its own
+  // Chart/Options/GEX/Flow/Analyze tabs — it was never missing chrome, it was
+  // wearing two sets.
+  //
+  // Matching /r and /r/:symbol as a prefix, not an equality, so per-ticker routes
+  // are included.
+  const isFullBleedShell = locationPath === '/t' || locationPath === '/r' || locationPath.startsWith('/r/');
+
+  if (isFullBleedShell) {
     return (
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">

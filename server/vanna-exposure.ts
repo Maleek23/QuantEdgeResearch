@@ -18,6 +18,7 @@ import { logger } from './logger';
 import { getTradierOptionsChain, getTradierQuote } from './tradier-api';
 import { getYahooOptionsChain, getYahooExpirations } from './yahoo-options-fallback';
 import { safeQuote } from './yahoo-finance-service';
+import { tradierBase } from './tradier-api';
 
 // Approximate vanna from delta + gamma when not provided by API
 // Vanna ≈ (delta / spot) * (1 - delta) / IV  (simplified approximation)
@@ -158,7 +159,7 @@ export async function calculateAggregateVEX(symbol: string): Promise<VannaExposu
     const apiKey = process.env.TRADIER_API_KEY;
     if (apiKey) {
       try {
-        const baseUrl = 'https://api.tradier.com/v1';
+        const baseUrl = tradierBase();
         const expRes = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
           headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
         });

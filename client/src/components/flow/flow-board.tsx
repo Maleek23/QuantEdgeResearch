@@ -139,18 +139,8 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
 
   return (
     <div className="space-y-3 px-4 py-3">
-      {/* Repeat buyers sit ABOVE the tape. A single large print is ambiguous — it
-          can be a hedge, a roll, a spread leg, or a close — but the same contract
-          accumulated across sessions is the one flow read that is hard to explain
-          away, so it should not be something you scroll to find. */}
-      <div className="grid items-start gap-3 lg:grid-cols-2">
-        <RepeatBuyers />
-        {/* Flow alone is a candidate; gamma is what says whether the move gets
-            amplified or absorbed. Side by side, because that is the order he uses. */}
-        <ConvergenceCard />
-      </div>
-
-      {/* ── market overview: where the day's premium went ── */}
+      {/* 1. Market first: a trader needs to know where premium is leaning before
+          deciding which individual print is worth opening. */}
       <div className="rounded-xl border border-card-border bg-card">
         <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
           <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Market Flow</span>
@@ -240,6 +230,21 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
           ))}
         </div>
       )}
+
+      {/* 4. Follow-through is evidence about the tape, not the tape's starting
+          point. Repeats answer "is this accumulating?" and convergence answers
+          "does dealer positioning agree?" — both matter only after a print is in view. */}
+      <section className="border-t border-border/60 pt-3">
+        <div className="mb-2 flex items-center gap-3">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80">Follow-through</span>
+          <span className="h-px flex-1 bg-border/60" />
+          <span className="font-mono text-[10px] text-muted-foreground/65">accumulation × dealer context</span>
+        </div>
+        <div className="grid items-start gap-3 lg:grid-cols-2">
+          <RepeatBuyers />
+          <ConvergenceCard />
+        </div>
+      </section>
     </div>
   );
 }

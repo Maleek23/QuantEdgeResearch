@@ -107,6 +107,25 @@ function getBaseUrl(apiKey: string): string {
   return isSandboxKey(apiKey) ? TRADIER_SANDBOX_BASE : TRADIER_API_BASE;
 }
 
+/**
+ * THE base URL for every Tradier call in the codebase.
+ *
+ * `TRADIER_USE_SANDBOX` was honoured by four files and ignored by eight, which
+ * hardcoded `https://api.tradier.com/v1` — including gamma-exposure.ts, the path
+ * the whole GEX layer depends on. So flipping to sandbox did not actually move
+ * the calls that matter: they kept hitting production and kept 401-ing on a
+ * token that has not been approved for market data.
+ *
+ * A sandbox token is a real fallback, not a toy. Quotes are delayed, but option
+ * CHAIN structure — strikes, expiries, open interest, greeks — is what GEX needs,
+ * and OI only updates once a day anyway. Delayed chains beat no chains.
+ *
+ * Exported so nothing has to hardcode a host again.
+ */
+export function tradierBase(): string {
+  return process.env.TRADIER_USE_SANDBOX === 'true' ? TRADIER_SANDBOX_BASE : TRADIER_API_BASE;
+}
+
 // ─── Circuit breaker ─────────────────────────────────────────────────
 // When Tradier auth fails (401) or service is down, repeatedly hammering it
 // floods logs and burns CPU. This breaker trips after 3 consecutive auth

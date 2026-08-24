@@ -119,7 +119,7 @@ export function MarketPulseWidget() {
               {data.marketColor}
             </span>
           </div>
-          <span className="text-[10px] text-muted-foreground/50 font-mono">view full →</span>
+          <span className="text-[10px] text-muted-foreground/60 font-mono">view full →</span>
         </div>
 
         {data.narrative && (

@@ -119,7 +119,7 @@ export function SpectrumScanner() {
               placeholder="Enter a ticker (NVDA, QUBT, SOFI…) — full chain, every price tier"
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && run()}
-              className="flex-1 px-2 py-1.5 bg-card border border-border rounded text-foreground text-[13px] font-mono focus:border-[var(--brand-cyan)]/50 outline-none uppercase placeholder:normal-case placeholder:text-muted-foreground/40"
+              className="flex-1 px-2 py-1.5 bg-card border border-border rounded text-foreground text-[13px] font-mono focus:border-[var(--brand-cyan)]/50 outline-none uppercase placeholder:normal-case placeholder:text-muted-foreground/60"
             />
           </div>
           <div className="flex items-center gap-1">
@@ -163,9 +163,9 @@ export function SpectrumScanner() {
 
       {!symbol && (
         <QECard variant="default" padding="lg" className="text-center text-[11px] font-mono text-muted-foreground space-y-2">
-          <Search className="w-6 h-6 mx-auto text-muted-foreground/30" />
+          <Search className="w-6 h-6 mx-auto text-muted-foreground/60" />
           <div>Enter a ticker above to scan its full option spectrum.</div>
-          <div className="text-muted-foreground/50">From cent lottery tickets to $1-2k deep-ITM LEAPS — ranked by risk-adjusted edge.</div>
+          <div className="text-muted-foreground/60">From cent lottery tickets to $1-2k deep-ITM LEAPS — ranked by risk-adjusted edge.</div>
         </QECard>
       )}
 
@@ -222,7 +222,7 @@ export function SpectrumScanner() {
             <TierSection key={g.tier} group={g} onRowClick={(sym) => setLocation(`/r/${sym}`)} />
           ))}
 
-          <div className="text-[9px] font-mono text-muted-foreground/40 pt-1 space-y-0.5">
+          <div className="text-[9px] font-mono text-muted-foreground/60 pt-1 space-y-0.5">
             {data.notes.map((n, i) => <div key={i}>{n}</div>)}
           </div>
         </>
@@ -264,7 +264,7 @@ function TierSection({ group, onRowClick }: { group: TierGroup; onRowClick: (sym
           <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground">{group.label}</span>
           <span className="text-[9px] font-mono text-muted-foreground/60">{group.blurb}</span>
         </div>
-        <span className="text-[9px] font-mono text-muted-foreground/50">{group.contracts.length}</span>
+        <span className="text-[9px] font-mono text-muted-foreground/60">{group.contracts.length}</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[10px] font-mono border-collapse min-w-max">
@@ -299,7 +299,7 @@ function TierSection({ group, onRowClick }: { group: TierGroup; onRowClick: (sym
                       ${c.strike} {c.optionType.toUpperCase()}
                     </Td>
                     <Td align="right" className="text-muted-foreground">{c.expiry.slice(2)} · {c.dte}d</Td>
-                    <Td align="right" className="text-foreground tabular-nums">${c.mid.toFixed(2)} <span className="text-muted-foreground/50">(${c.premiumDollars})</span></Td>
+                    <Td align="right" className="text-foreground tabular-nums">${c.mid.toFixed(2)} <span className="text-muted-foreground/60">(${c.premiumDollars})</span></Td>
                     <Td align="right" className={cn('tabular-nums', c.pop >= 0.4 ? 'text-[var(--trade-bullish)]' : c.pop >= 0.15 ? 'text-foreground' : 'text-muted-foreground/60')}>{(c.pop * 100).toFixed(0)}%</Td>
                     <Td align="right" className="tabular-nums text-[var(--brand-cyan)]">{c.leverage.toFixed(1)}x</Td>
                     <Td align="right" className="tabular-nums text-muted-foreground">{(c.breakevenMovePct * 100).toFixed(1)}%</Td>
@@ -312,7 +312,7 @@ function TierSection({ group, onRowClick }: { group: TierGroup; onRowClick: (sym
                         <QEPill variant={GRADE_TONE[c.grade]}>{c.grade}</QEPill>
                       </div>
                     </Td>
-                    <Td align="right"><ChevronDown className={cn('w-3 h-3 text-muted-foreground/50 transition-transform', isOpen && 'rotate-180')} /></Td>
+                    <Td align="right"><ChevronDown className={cn('w-3 h-3 text-muted-foreground/60 transition-transform', isOpen && 'rotate-180')} /></Td>
                   </tr>
                   {isOpen && (
                     <tr className="border-b border-border/30 bg-muted/10">
@@ -352,7 +352,7 @@ function TierSection({ group, onRowClick }: { group: TierGroup; onRowClick: (sym
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <span className="text-muted-foreground/50 uppercase tracking-wider">{label}</span>
+      <span className="text-muted-foreground/60 uppercase tracking-wider">{label}</span>
       <span className="text-muted-foreground/90 tabular-nums">{value}</span>
     </span>
   );

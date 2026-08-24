@@ -91,7 +91,7 @@ export default function ActiveSignalsList({ ideas, isLoading, isWeekend, onRefre
           </button>
           <button
             onClick={() => onRefresh()}
-            className="text-muted-foreground/50 hover:text-muted-foreground p-1 rounded-md hover:bg-muted/40"
+            className="text-muted-foreground/60 hover:text-muted-foreground p-1 rounded-md hover:bg-muted/40"
             title="Refresh"
           >
             <RefreshCw className="w-3 h-3" />

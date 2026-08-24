@@ -25,6 +25,7 @@ import {
   type ExposureSnapshot,
   type StrikeExpiryCell,
 } from './options-exposures';
+import { tradierBase } from './tradier-api';
 
 // ─── Legacy-compat types ───────────────────────────────────
 
@@ -155,7 +156,7 @@ async function fetchExpirationsCascade(symbol: string): Promise<string[]> {
   try {
     const apiKey = process.env.TRADIER_API_KEY;
     if (apiKey) {
-      const baseUrl = 'https://api.tradier.com/v1';
+      const baseUrl = tradierBase();
       const res = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
         headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
       });

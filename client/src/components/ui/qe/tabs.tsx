@@ -103,7 +103,7 @@ export function QETabs<T extends string = string>({
         <span className="text-muted-foreground/70 font-normal">·{item.count}</span>
       )}
       {item.disabled && (
-        <span className="ml-0.5 text-[7px] font-mono uppercase tracking-widest text-muted-foreground/50 px-1 py-0 rounded border border-border/30">
+        <span className="ml-0.5 text-[7px] font-mono uppercase tracking-widest text-muted-foreground/60 px-1 py-0 rounded border border-border/30">
           soon
         </span>
       )}
@@ -133,7 +133,7 @@ export function QETabs<T extends string = string>({
           <div key={cluster.group || ci} className="flex items-center gap-1">
             {ci > 0 && <span className="mx-1 h-5 w-px bg-border/40" aria-hidden />}
             {cluster.group && (
-              <span className="text-[7px] font-mono uppercase tracking-[0.2em] text-muted-foreground/45 mr-0.5 self-center select-none">
+              <span className="text-[7px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 mr-0.5 self-center select-none">
                 {cluster.group}
               </span>
             )}

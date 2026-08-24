@@ -170,7 +170,7 @@ export function EarningsCalendar() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search ticker or name…"
-              className="w-44 px-2 py-0.5 bg-card border border-border rounded text-foreground placeholder:text-muted-foreground/50 focus:border-[var(--brand-cyan)]/50 outline-none"
+              className="w-44 px-2 py-0.5 bg-card border border-border rounded text-foreground placeholder:text-muted-foreground/60 focus:border-[var(--brand-cyan)]/50 outline-none"
             />
           </div>
 

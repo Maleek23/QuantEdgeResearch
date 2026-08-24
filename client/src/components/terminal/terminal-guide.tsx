@@ -9,7 +9,13 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { EASE, DUR } from '@/lib/motion';
 
-export type TabId = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism' | 'catalyst' | 'bot';
+/**
+ * Mirrors the Tab union in pages/shells/terminal-shell.tsx. It had already drifted —
+ * still listing 'heatmap' and 'prism' after both were folded into GEX — which is what
+ * a second copy of a type always does eventually. Kept in sync by hand for now; the
+ * real fix is for the shell to export its Tab type and this to import it.
+ */
+export type TabId = 'oracle' | 'flow' | 'gex' | 'leaps' | 'catalyst' | 'bot';
 
 interface Guide {
   title: string;
@@ -43,17 +49,6 @@ export const GUIDES: Record<TabId, Guide> = {
     ],
     next: 'Take a flow hit into PRISM to see whether the strike lines up with gamma.',
   },
-  heatmap: {
-    title: 'Heatmap Guide',
-    question: 'Where is money rotating?',
-    read: [
-      'Start the day here. Cells are sized by market cap and colored by change, so leadership is visible at a glance.',
-      'Read the best performers to see which industries are leading, and the weakest to see what is under pressure.',
-      'Ask one question: is the market trending, rotating, or reversing? That decides continuation vs reversal setups.',
-      'Re-check during the session — leadership changes, and rotation mid-day changes the plan.',
-    ],
-    next: 'Once you know the leading sector, go to FLOW to see where the premium is going.',
-  },
   gex: {
     title: 'GEX Guide',
     question: 'Where does price pin or push?',
@@ -65,17 +60,16 @@ export const GUIDES: Record<TabId, Guide> = {
     ],
     next: 'Use these levels as targets and invalidation on the chart in ORACLE.',
   },
-  prism: {
-    title: 'Prism Guide',
-    question: 'What does the whole options surface say?',
+  leaps: {
+    title: 'LEAPS Guide',
+    question: 'What is worth owning for the next year?',
     read: [
-      'The matrix is strike (rows) by expiration (columns). Green is call side, red is put side.',
-      'Positive means more call flow at that strike; negative means more put flow. Brighter cells carry more weight.',
-      'The lit-up nodes are the levels that matter — likely support, resistance, and magnets.',
-      'Pick the strongest node in the direction of your thesis, then buy enough time for it to play out rather than the nearest expiry.',
-      'Check SPY here for overall market direction before committing to a single-name trade.',
+      'Every signal on the board is capped at 45 days — swing setups resolve to 25-45 DTE and lotto setups to 5-12. This tab is the only place a 6-to-24 month thesis appears.',
+      'These are scanned and graded separately from the signal board: sector trend, price trend, and contract quality, scored to S/A/B/C.',
+      'ROI@T1 is the projected return on PREMIUM at the target, not on the stock. It is modelled with Black-Scholes against the real quoted mid, decayed to the target date.',
+      'Long-dated contracts carry less theta per day but far more vega — a drop in implied volatility hurts a LEAP more than a weekly, and that is not modelled here.',
     ],
-    next: 'Bring the chosen strike back to ORACLE’s Contract Engine to size the trade.',
+    next: 'Cross-check the name in GEX: a LEAP strike above the long-dated call wall is fighting dealer positioning for a year.',
   },
   catalyst: {
     title: 'Catalyst Guide',

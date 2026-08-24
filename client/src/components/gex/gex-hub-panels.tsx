@@ -74,19 +74,19 @@ function MarketTape({ hub }: { hub: GEXHubData }) {
     <div className={cn(componentStyles.card.default, 'px-3 py-2')}>
       <div className="flex items-center gap-3 flex-wrap text-[10px] font-mono">
         <span className={cn('font-bold uppercase tracking-widest', sess.tone)}>{sess.text}</span>
-        <span className="text-muted-foreground/40">·</span>
+        <span className="text-muted-foreground/60">·</span>
         <span className="text-muted-foreground uppercase tracking-widest text-[9px]">NET GEX</span>
         <span className={cn('font-bold tabular-nums', gexTone)}>{formatGEX(hub.marketNetGEX)}</span>
-        <span className="text-muted-foreground/40">·</span>
+        <span className="text-muted-foreground/60">·</span>
         <span className="text-muted-foreground uppercase tracking-widest text-[9px]">NET VEX</span>
         <span className={cn('font-bold tabular-nums', vexTone)}>{formatVEX(hub.marketNetVEX)}</span>
-        <span className="text-muted-foreground/40">·</span>
+        <span className="text-muted-foreground/60">·</span>
         <span className="text-muted-foreground uppercase tracking-widest text-[9px]">REGIME</span>
         <span className="flex items-center gap-1 tabular-nums">
           <span className="text-[var(--gex-positive)]">{rd.positive_gamma}+</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span className="text-[var(--gex-negative)]">{rd.negative_gamma}−</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span className="text-muted-foreground">{rd.neutral}n</span>
         </span>
         {/* Slim regime bar */}

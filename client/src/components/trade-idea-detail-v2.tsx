@@ -329,12 +329,12 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
             <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">Strategy</h3>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>{strategyName}</span>
-              <span className="text-muted-foreground/50">|</span>
+              <span className="text-muted-foreground/60">|</span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {relativeTime(idea.timestamp || '')}
               </span>
-              <span className="text-muted-foreground/50">|</span>
+              <span className="text-muted-foreground/60">|</span>
               <span>{(idea as any).source || 'scanner'}</span>
             </div>
           </div>

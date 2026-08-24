@@ -28,10 +28,17 @@ import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { BorderBeam } from "@/components/magicui/border-beam";
 
 import { CONVICTION_LAYERS, CONVICTION_LAYER_COUNT, CONVICTION_LAYER_NOTE } from '@shared/conviction-layers';
-import { InstrumentPanel } from '@/components/landing/instrument-panel';
 import { RotationMap } from '@/components/rotation-map';
 import { EarlyRotationPanel } from '@/components/oracle/early-rotation-panel';
 import { SessionBrief } from '@/components/oracle/session-brief';
+import { PredictiveArc } from '@/components/landing/predictive-arc';
+import { ScrollStack, type StackItem } from '@/components/landing/scroll-stack';
+import { LayerFamilies } from '@/components/landing/layer-families';
+import { GapShowcase } from '@/components/landing/gap-showcase';
+import { ToolCards } from '@/components/landing/tool-cards';
+import { RepeatBuyers } from '@/components/flow/repeat-buyers';
+import { PrismBoard } from '@/components/prism/prism-board';
+import { QuantBotBoard } from '@/components/bot/quant-bot-board';
 const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -46,6 +53,56 @@ function SectionReveal({ children, className, delay = 0 }: { children: React.Rea
     >
       {children}
     </motion.section>
+  );
+}
+
+/**
+ * LIGHT BAND — the alternating-ground rhythm, borrowed from the reference site.
+ *
+ * Measured on funda.ai: seven sections trading off #0A0F0E and #FAFAF7. That
+ * alternation is what stops a long page reading as one endless surface, and it is
+ * the main structural difference that remained after the typography was matched.
+ *
+ * Applied ONLY to text sections. The board sections stay dark on purpose — Oracle,
+ * the scroll stack and Catalyst all render live product surfaces that are dark by
+ * design, and dropping a dark terminal board onto an off-white ground makes the
+ * product look pasted in. The reference gets away with full alternation because it
+ * ships no product screenshots at all: zero images across all seven of its sections.
+ *
+ * Implemented by overriding the palette TOKENS on a wrapper rather than restyling
+ * children. Every descendant already reads --foreground / --muted-foreground /
+ * --card / --border, so the whole band flips with no per-element edits and nothing
+ * downstream has to know it is on a light ground.
+ *
+ * The neutral is warm (#FAFAF7, not #FFFFFF) and the ink is cool — the same
+ * off-white the reference uses, which reads as chosen rather than as the default
+ * white a browser hands you.
+ */
+function LightBand({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="relative"
+      style={{
+        // Exact values read from the reference's own stylesheet rather than
+        // matched by eye — they run a paired light/dark scale under one set of
+        // token names, which is what lets them alternate grounds without
+        // restyling anything:
+        //   --paper #fafaf7  --paper-2 #f3f3ee  --ink #0a0f0e  --ink-2 #1a211f
+        //   --line  #d9dddb  --line-2  #e5e8e6  --slate #4a5754  --slate-2 #6f7a77
+        // My first pass guessed #12161a ink and #e4e4de line. Theirs is greener
+        // and slightly darker, which is the same accent-bias their near-black has.
+        background: '#fafaf7',
+        ['--foreground' as any]: '#0a0f0e',
+        ['--muted-foreground' as any]: '#6f7a77',
+        ['--card' as any]: '#ffffff',
+        ['--card-border' as any]: '#e5e8e6',
+        ['--border' as any]: '#d9dddb',
+        ['--surface-base' as any]: '#fafaf7',
+        color: '#0a0f0e',
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -155,7 +212,21 @@ function ProductShot({ live, alt }: { live?: React.ReactNode; alt: string }) {
         <span className="ui-data text-[9px] text-muted-foreground ml-2">quantedgelab.net</span>
       </div>
       {live ? (
-        <div className="[&_.rounded-xl]:rounded-none [&_.rounded-xl]:border-0">{live}</div>
+        /* Capped to a preview height. PrismBoard and QuantBotBoard render their
+           full surface — measured at 1703px and 1641px — which next to a short
+           text column leaves the section mostly dead space. The cap plus a fade
+           reads as "this continues inside the app", which is true, rather than
+           pretending the surface ends here. Scrollable, so the whole board is
+           still reachable on the page. */
+        <div
+          className="relative max-h-[560px] overflow-y-auto [&_.rounded-xl]:rounded-none [&_.rounded-xl]:border-0"
+          style={{
+            maskImage: 'linear-gradient(to bottom, black 82%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 82%, transparent 100%)',
+          }}
+        >
+          {live}
+        </div>
       ) : (
         <div className="grid h-[220px] place-items-center px-6 text-center">
           <p className="ui-prose text-[12px] leading-relaxed text-muted-foreground">
@@ -229,34 +300,6 @@ function FeatureSection({ label, labelColor, headline, description, live, screen
   );
 }
 
-// ─── Engine convergence strip ───────────────────────────────────
-// Was a hand-written array of six from an older taxonomy — Sentiment and Quant
-// are not layers the engine has — sitting under a heading that claimed fourteen,
-// on a page whose hero claimed fifteen. All three now come from one list.
-const engines = CONVICTION_LAYERS.map((l) => ({ id: l.short, name: l.label, blurb: l.blurb }));
-
-function EngineStrip() {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-      {engines.map((e, i) => (
-        <motion.div
-          key={e.id}
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.3, delay: i * 0.06 }}
-          className="p-3 rounded-lg bg-card border border-border text-center"
-        >
-          {/* No icon. Sixteen icons is sixteen pieces of decoration competing with
-              sixteen labels — the code is the identifier and the name does the work. */}
-          <div className="ui-data text-xs font-bold text-[var(--brand-cyan)]">{e.id}</div>
-          <div className="text-[11px] text-foreground mt-0.5">{e.name}</div>
-          <div className="ui-prose text-[10px] leading-snug text-muted-foreground mt-1">{e.blurb}</div>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
 
 // ─── Live stats from API ────────────────────────────────────────
 function LiveStats() {
@@ -316,6 +359,62 @@ function LiveStats() {
   );
 }
 
+// ─── The three surfaces carried by the scroll stack ─────────────
+// Every board here is the real component against its own live, public endpoint:
+// /api/flow/repeats, /api/gex-vex/terminal, /api/quant-bot/status. If one of
+// these ever needs a picture instead, that is the signal the section should be
+// cut rather than illustrated.
+const STACK_ITEMS: StackItem[] = [
+  {
+    id: 'flow',
+    label: 'FLOW',
+    labelClass: 'text-[var(--brand-gold)]',
+    headline: 'Who keeps buying, and does gamma back them?',
+    description:
+      "Options flow scored on unusual size, sweeps, volume against open interest, and repetition. The repeat-buyer tracker ranks on open-interest growth rather than premium — because premium can't tell accumulation from churn, but contracts still open at the close can.",
+    bullets: [
+      'Repeat buyers ranked by open-interest growth, not premium',
+      'Flow \u00d7 gamma: does dealer positioning back the trade?',
+      'Sweep, block and unusual-volume classes — labelled as inferred, because they are',
+      'Buyers and exits are the same read run in opposite directions',
+    ],
+    board: <RepeatBuyers />,
+  },
+  {
+    id: 'gex',
+    label: 'GEX + PRISM',
+    labelClass: 'text-cyan-400',
+    headline: 'Where dealers have to hedge.',
+    description:
+      'Strike-by-strike gamma exposure for any ticker, plus the full strike \u00d7 expiry surface in PRISM. Below the gamma flip dealers amplify moves; above it they dampen them — which is why the flip, the call wall and the put wall behave as levels. Computed from the CBOE chain, which needs no brokerage account.',
+    bullets: [
+      'Gamma flip, call wall, put wall as tradeable levels',
+      'Strike \u00d7 expiry gamma surface (PRISM)',
+      'Per-DTE buckets — today, this week, this month',
+      'Any ticker with a listed chain, not a fixed list',
+    ],
+    board: <PrismBoard />,
+  },
+  {
+    id: 'bot',
+    label: 'QUANT BOT',
+    labelClass: 'text-[var(--brand-teal)]',
+    headline: 'The board, paper-traded in options.',
+    description:
+      'The bot trades the same signals the board publishes, in contracts rather than shares, using the strikes the contract engine picks. Fills and marks are real quotes pulled at that moment — nothing is simulated or back-filled.',
+    bullets: [
+      'Trades options, not shares — the same strikes the board publishes',
+      // The hero prints the platform-wide rate and this board prints its own.
+      // Both are true of different samples, so the page names the difference
+      // rather than letting a reader find it and distrust both.
+      "The win rate here is this bot's own closed-trade record, not the platform-wide rate in the hero",
+      'Marks are ~15-min delayed CBOE — a fair mark, not an execution price',
+      'No win rate until trades close. No back-filled history.',
+    ],
+    board: <QuantBotBoard />,
+  },
+];
+
 // ─── Main Landing Page ──────────────────────────────────────────
 export default function Landing() {
   const [, setLocation] = useLocation();
@@ -329,7 +428,7 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--surface-base)] text-foreground overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--surface-base)] text-foreground overflow-x-clip">
 
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--surface-base)]/80 backdrop-blur-md border-b border-border">
@@ -394,8 +493,39 @@ export default function Landing() {
       <main className="pt-24">
 
         {/* ── Hero ─────────────────────────────────────────── */}
-        <section className="px-6 py-16 md:py-24 max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        {/* Procedural atmosphere, not a product depiction. Ported from ThreeUI
+            (MIT) and re-toned to Ice Signal. This replaced a generated raster
+            still: measured by decile, that image was 0.0% bright across its top
+            and bottom 30% — mostly void — and shipped at 91KB static. This is
+            ~4KB, animates, follows the theme toggle, and honours reduced-motion.
+            The product on this page is the live RotationMap to the right. */}
+        <section className="relative px-6 py-16 md:py-24 max-w-7xl mx-auto">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-0 z-0 h-full w-screen -translate-x-1/2 overflow-hidden"
+          >
+            <PredictiveArc
+              className="h-full w-full"
+              /* Pushed below the copy and dialled well down. Both reference
+                 sites for this page get their premium feel from restraint, not
+                 intensity — the field should register as depth, never compete
+                 with the headline or the live board. */
+              options={{ spacing: 6, dotSize: 5, brightness: 0.45, speed: 0.5, archPeak: 0.72 }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                maskImage:
+                  'radial-gradient(ellipse 70% 75% at 50% 40%, transparent 30%, black 85%)',
+                WebkitMaskImage:
+                  'radial-gradient(ellipse 70% 75% at 50% 40%, transparent 30%, black 85%)',
+                background: 'var(--surface-base)',
+              }}
+            />
+            {/* Bottom fade, so the field dissolves into the next section. */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[var(--surface-base)]/40 via-transparent to-[var(--surface-base)]" />
+          </div>
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left — Text */}
             <div>
               <motion.div
@@ -412,9 +542,22 @@ export default function Landing() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
-                className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold mb-5 leading-[1.08] tracking-tight"
+                /* Light and large, not bold and medium.
+                   Measured against the reference: its headline is 92px at weight
+                   300 with -0.03em tracking. This was 56px at weight 700 — nearly
+                   half the size and more than twice the weight, which is why the
+                   two read as different classes of product before you get to the
+                   words. Bold-at-56 shouts; light-at-88 is confident enough not to.
+                   Space Grotesk Light 300 is now loaded in index.html — without it
+                   the browser would synthesize a fake light and it would look
+                   smeared. */
+                className="text-5xl sm:text-6xl lg:text-[5.5rem] font-light mb-6 leading-[1.04] tracking-[-0.03em]"
               >
                 One terminal for{' '}
+                {/* Ice Signal stays. The reference uses a mint green, but
+                    --brand-cyan is this product's identity and its own token
+                    comment defines the job: "reports, never sells". Borrow the
+                    typography, not someone else's colour. */}
                 <span className="text-[var(--brand-cyan)]">options research</span>
               </motion.h1>
 
@@ -456,7 +599,7 @@ export default function Landing() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="text-[11px] text-muted-foreground/50 mb-8"
+                className="text-[11px] text-muted-foreground/60 mb-8"
               >
                 Free forever. No credit card required.
               </motion.p>
@@ -491,7 +634,7 @@ export default function Landing() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5 }}
-            className="mt-12 max-w-xl mx-auto lg:mx-0"
+            className="relative z-10 mt-12 max-w-xl mx-auto lg:mx-0"
           >
             <div className="relative flex items-center bg-card/80 border border-border rounded-lg overflow-hidden focus-within:border-[var(--trade-bullish)]/50 transition-colors">
               <Search className="w-4 h-4 text-muted-foreground ml-3 flex-shrink-0" />
@@ -522,19 +665,23 @@ export default function Landing() {
 
         <SectionDivider />
 
-        {/* ── Engine convergence ────────────────────────────── */}
-        <SectionReveal className="px-6 py-16 max-w-7xl mx-auto">
-          <div className="text-center mb-8">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--brand-cyan)]">CONVERGENCE</span>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-2 mb-3">{CONVICTION_LAYER_COUNT} layers. One signal.</h2>
-            <p className="text-sm text-muted-foreground max-w-xl mx-auto">
-              {`Every setup is scored across ${CONVICTION_LAYER_COUNT} independent layers. ${CONVICTION_LAYER_NOTE}`}
-            </p>
-          </div>
-          <EngineStrip />
-        </SectionReveal>
+        {/* The reference's chart section, rebuilt to its measured spec but driven by
+            a real series and this symbol's own gap history — see gap-showcase.tsx
+            for why the data matters more than the curve. */}
+        <GapShowcase />
 
-        <SectionDivider />
+        {/* Was a 4x4 grid of 16 identical chips. Sixteen same-sized tiles give the
+            reader no order to read in and no shape to hold on to — the fix was
+            grouping, not styling. See components/landing/layer-families.tsx. */}
+        <LightBand>
+          <LayerFamilies />
+        </LightBand>
+
+        {/* The reference site's card anatomy — schematic diagram on the face, a
+            second face underneath that fades in on hover carrying the real
+            numbers. See tool-cards.tsx; the hover reveal is the part that never
+            shows up in a screenshot. */}
+        <ToolCards />
 
         {/* ── Feature 1: Trade Desk ────────────────────────── */}
         <FeatureSection
@@ -554,42 +701,11 @@ export default function Landing() {
 
         <SectionDivider />
 
-        {/* ── Feature 2: GEX Hub ───────────────────────────── */}
-        <FeatureSection
-          label="FLOW"
-          labelColor="text-[var(--brand-gold)]"
-          headline="Who keeps buying, and does gamma back them?"
-          description="Options flow scored on unusual size, sweeps, volume against open interest, and repetition. The repeat-buyer tracker ranks on open-interest growth rather than premium — because premium can't tell accumulation from churn, but contracts still open at the close can. Each candidate is then checked against the gamma regime: flow says someone is positioned, gamma says whether dealers amplify or absorb the move."
-          
-          screenshotAlt="Flow board with repeat buyers and flow-gamma convergence"
-          reverse
-          bullets={[
-            "Repeat buyers ranked by open-interest growth, not premium",
-            "Flow × gamma: does dealer positioning back the trade?",
-            "Sweep, block and unusual-volume classes — labelled as inferred, because they are",
-            "Filter by score, direction, premium, and type",
-          ]}
-        />
-
-        <SectionDivider />
-
-        {/* ── Feature 3: GEX Terminal ──────────────────────── */}
-        <FeatureSection
-          label="GEX + PRISM"
-          labelColor="text-cyan-400"
-          headline="Where dealers have to hedge."
-          description="Strike-by-strike gamma exposure for any ticker, plus the full strike × expiry surface in PRISM. Below the gamma flip dealers amplify moves; above it they dampen them — which is why the flip, the call wall and the put wall behave as levels. Computed from the CBOE chain, which needs no brokerage account."
-          
-          screenshotAlt="Per-ticker gamma exposure with flip, call wall and put wall"
-          bullets={[
-            "Gamma flip, call wall, put wall as tradeable levels",
-            "Strike × expiry gamma surface (PRISM)",
-            "Per-DTE buckets — today, this week, this month",
-            "Any ticker with a listed chain, not a fixed list",
-          ]}
-        />
-
-        <SectionDivider />
+        {/* ── Three surfaces, one section ──────────────────
+            Was three FeatureSections differing mainly by a `reverse` boolean.
+            The copy column pins and the real boards advance beside it, so this
+            section has a shape none of the others do. */}
+        <ScrollStack items={STACK_ITEMS} />
 
         {/* ── Feature 4: Watchlist ──────────────────────────── */}
         <FeatureSection
@@ -610,24 +726,7 @@ export default function Landing() {
 
         <SectionDivider />
 
-        {/* ── Feature 5: Index Mode ────────────────────────── */}
-        <FeatureSection
-          label="QUANT BOT"
-          labelColor="text-[var(--brand-teal)]"
-          headline="The board, paper-traded in options."
-          description="The bot trades the same signals the board publishes, in contracts rather than shares, using the strikes the contract engine picks. Fills and marks are real quotes pulled at that moment — nothing is simulated or back-filled, and win rate stays blank until trades actually close, because a number before then would be invented."
-          
-          screenshotAlt="Quant Bot paper-trading published signals in options"
-          bullets={[
-            "Trades options, not shares — the same strikes the board publishes",
-            "Every fill and mark is a real quote at that moment",
-            "Marks are ~15-min delayed CBOE — a fair mark, not an execution price",
-            "No win rate until trades close. No back-filled history.",
-          ]}
-        />
-
-        <SectionDivider />
-
+        <LightBand>
         {/* ── What this is not ─────────────────────────────────
             A landing page that only lists capabilities teaches people to expect
             things the product does not do. Stating the limits here is not modesty;
@@ -652,7 +751,7 @@ export default function Landing() {
               },
               {
                 t: 'A score is a ranking, not a verdict',
-                d: '{`${CONVICTION_LAYER_COUNT} layers agreeing means the setup is worth your attention.`} It does not mean the trade works. Every signal shows the layers that argued against it too.',
+                d: `${CONVICTION_LAYER_COUNT} layers agreeing means the setup is worth your attention. It does not mean the trade works. Every signal shows the layers that argued against it too.`,
               },
               {
                 t: 'No invented track record',
@@ -668,6 +767,7 @@ export default function Landing() {
         </SectionReveal>
 
         <SectionDivider />
+        </LightBand>
 
         {/* ── Pricing ──────────────────────────────────────── */}
         <SectionReveal className="px-6 py-16 max-w-5xl mx-auto">

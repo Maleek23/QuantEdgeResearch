@@ -785,14 +785,9 @@ export default function SettingsPage() {
                     <Bot className="h-3.5 w-3.5" /> Automations
                   </Button>
                 </Link>
-                <Link href="/history">
+                <Link href="/j?tab=log">
                   <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
                     <Clock className="h-3.5 w-3.5" /> History
-                  </Button>
-                </Link>
-                <Link href="/strategy-playbooks">
-                  <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
-                    <FileText className="h-3.5 w-3.5" /> Strategy Playbooks
                   </Button>
                 </Link>
                 <Link href="/options-analyzer">

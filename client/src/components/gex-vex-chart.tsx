@@ -240,7 +240,7 @@ export function GEXVEXChart({
 
   if (chartData.length === 0) {
     return (
-      <div className="flex items-center justify-center text-muted-foreground/50 font-mono text-sm" style={{ height }}>
+      <div className="flex items-center justify-center text-muted-foreground/60 font-mono text-sm" style={{ height }}>
         No chart data
       </div>
     );
@@ -452,7 +452,7 @@ export function GEXVEXChart({
               }}
             />
             <span className="text-muted-foreground font-mono font-medium">${lvl.price.toFixed(0)}</span>
-            <span className="text-muted-foreground/50">{lvl.label}</span>
+            <span className="text-muted-foreground/60">{lvl.label}</span>
           </div>
         ))}
         {projectionTarget && (
@@ -469,7 +469,7 @@ export function GEXVEXChart({
             <span className="text-muted-foreground/60 font-mono">
               ${projectionRange.lowerBound.toFixed(0)}-${projectionRange.upperBound.toFixed(0)} range
             </span>
-            <span className="text-muted-foreground/40">
+            <span className="text-muted-foreground/60">
               ({projectionRange.behavior.replace('_', '-').toLowerCase()})
             </span>
           </div>
@@ -480,7 +480,7 @@ export function GEXVEXChart({
             <span className="text-amber-400/70 font-mono">
               ${expectedMove.impliedDailyRange.low.toFixed(0)}-${expectedMove.impliedDailyRange.high.toFixed(0)} EM
             </span>
-            <span className="text-muted-foreground/40">
+            <span className="text-muted-foreground/60">
               (±${expectedMove.daily.toFixed(1)} VIX-implied)
             </span>
           </div>

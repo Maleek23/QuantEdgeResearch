@@ -32,6 +32,18 @@ export interface DerivedLevels {
   rationale: string;
   /** true when entry sits away from spot — the idea needs a trigger before it's live */
   requiresTrigger: boolean;
+  /**
+   * false when T1 was STRETCHED to satisfy MIN_RR rather than taken from real
+   * structure. Measured on this book: the 2.5R+ cohort is 245 trades returning
+   * +0.023R — essentially nothing — while 2.0-2.49R returns +0.749R on 27. A
+   * bigger ratio was not a better trade, because the ratio was being met by moving
+   * the target rather than by finding a level price actually trades to.
+   *
+   * A target that exists only to satisfy a floor is a number, not a destination.
+   * Consumers should treat targetIsStructural === false as a REACHABILITY warning
+   * and grade the setup down, rather than rewarding it for the ratio it invented.
+   */
+  targetIsStructural: boolean;
 }
 
 const round2 = (n: number) => Number(n.toFixed(2));
@@ -162,7 +174,9 @@ export function deriveLevels(
 
   const risk = Math.abs(spot - stopLoss);
   let reward = Math.abs(targetPrice - spot);
+  let targetIsStructural = true;
   if (risk > 0 && reward / risk < MIN_RR) {
+    targetIsStructural = false;
     targetPrice = long ? spot + risk * MIN_RR : spot - risk * MIN_RR;
     reward = risk * MIN_RR;
     notes.push(`T1 pushed to the ${MIN_RR}R minimum — nearest structure was too close to pay for the risk`);
@@ -180,6 +194,7 @@ export function deriveLevels(
     method,
     rationale: notes.join(' · '),
     requiresTrigger: false,
+    targetIsStructural,
   };
 }
 

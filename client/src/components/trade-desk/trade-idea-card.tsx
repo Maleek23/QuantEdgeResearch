@@ -714,7 +714,7 @@ function FullVariant({
                 <div className={cn("text-sm font-mono font-semibold tabular-nums", live.color)}>
                   {live.label}
                 </div>
-                <div className="text-[8px] font-mono text-muted-foreground/50 tabular-nums line-through">
+                <div className="text-[8px] font-mono text-muted-foreground/60 tabular-nums line-through">
                   {idea.riskRewardRatio.toFixed(1)}×
                 </div>
               </div>

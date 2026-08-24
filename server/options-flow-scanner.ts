@@ -9,6 +9,7 @@
  */
 
 import { logger } from './logger';
+import { tradierBase } from './tradier-api';
 import { storage } from './storage';
 import { recordSymbolAttention } from './attention-tracking-service';
 import { db } from './db';
@@ -213,7 +214,7 @@ async function fetchTradierChain(symbol: string): Promise<any[]> {
     
     // Step 1: Get available expirations first (REQUIRED by Tradier)
     const expResponse = await fetch(
-      `https://api.tradier.com/v1/markets/options/expirations?symbol=${symbol}`,
+      `${tradierBase()}/markets/options/expirations?symbol=${symbol}`,
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -240,7 +241,7 @@ async function fetchTradierChain(symbol: string): Promise<any[]> {
     
     for (const expiration of nearTermExpirations) {
       const response = await fetch(
-        `https://api.tradier.com/v1/markets/options/chains?symbol=${symbol}&expiration=${expiration}&greeks=true`,
+        `${tradierBase()}/markets/options/chains?symbol=${symbol}&expiration=${expiration}&greeks=true`,
         {
           headers: {
             'Authorization': `Bearer ${apiKey}`,

@@ -132,10 +132,49 @@ export class UniversalAnalysisEngine {
         import('./catalysts-scorer')
       ]);
 
-      // Fetch basic stock info
-      const { default: YahooFinance } = await import('yahoo-finance2');
-      const yahooFinance = new YahooFinance();
-      const quote = await yahooFinance.quote(symbol);
+      /**
+       * Basic stock info, with a fallback.
+       *
+       * This single call was unguarded while every scorer below it carries a
+       * .catch() — so a Yahoo 429 did not degrade the analysis, it destroyed it,
+       * and on-demand grading returned "Failed to get crumb, status 429" instead
+       * of a grade. Yahoo is rate-limiting persistently right now.
+       *
+       * Finnhub covers the same fields for the purpose this quote serves here
+       * (price and name), is on a separate quota, and is already configured.
+       */
+      let quote: any = null;
+      try {
+        const { default: YahooFinance } = await import('yahoo-finance2');
+        const yahooFinance = new YahooFinance();
+        quote = await yahooFinance.quote(symbol);
+      } catch (err: any) {
+        try {
+          const { getFinnhubQuote, getCompanyProfile } = await import('./finnhub-adapter');
+          const [fq, prof] = await Promise.all([
+            getFinnhubQuote(symbol),
+            getCompanyProfile(symbol).catch(() => null),
+          ]);
+          if (fq) {
+            quote = {
+              symbol,
+              regularMarketPrice: fq.price,
+              regularMarketChangePercent: fq.changePct,
+              longName: prof?.name ?? symbol,
+              marketCap: prof?.marketCap ?? null,
+              _source: 'finnhub',
+            };
+          }
+        } catch { /* both sources down — fall through to the null guard */ }
+
+        if (!quote) {
+          // Say WHICH sources failed. "Failed to get crumb" told the user
+          // nothing they could act on.
+          throw new Error(
+            `No quote available for ${symbol} — Yahoo failed (${err?.message ?? 'unknown'}) and Finnhub returned nothing.`,
+          );
+        }
+      }
 
       // Run all scorers in parallel
       const [

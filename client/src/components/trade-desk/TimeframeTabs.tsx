@@ -32,7 +32,7 @@ export default function TimeframeTabs({ active, onChange, counts }: Props) {
           {TIMEFRAME_LABELS[tf]}
           <span className={cn(
             "ml-1 text-[9px] tabular-nums",
-            active === tf ? "text-foreground/70" : "text-muted-foreground/50"
+            active === tf ? "text-foreground/70" : "text-muted-foreground/60"
           )}>
             {counts[tf]}
           </span>

@@ -4,8 +4,10 @@
  *
  *   PriceLadder    — STOP / ENTRY / LIVE / T1 / T2, each with $, signed %, and R away.
  *   ConfidenceBars — VALIDITY / PROGRESS / PACE / OVERLAY.
- *   TradeGeometry  — distance to each level in R + how much of the horizon is spent.
- *   RiskReward     — R:R at entry with the actual dollar risk and reward per share.
+ *   RiskPanel      — size, R:R, level distances in R, and horizon spent, in one
+ *                    card. Merged from three (Position Size / Trade Geometry /
+ *                    Risk / Reward) that shared `geometryFor` and restated the
+ *                    same ratio three ways across 649px.
  *   ProfitPlan     — the scale-out rungs (40% at T1 + trail to entry, 60% at T2).
  *   ContextPanel   — the interpreting sentence + what to do now.
  */
@@ -18,7 +20,11 @@ import { useUserPrefs } from '@/components/terminal/terminal-settings';
 import { TC, healthColor, statusColor } from '@/lib/oracle/trading-colors';
 import { EASE, DUR } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import { RangeBar } from '@/components/viz';
+import { Readout } from '@/components/templates/kit';
+import { sizingFor } from '@shared/sizing';
+import { LiveValue } from '@/components/viz';
+import { GapMagnets } from './gap-magnets';
+import { SignalTrajectory } from '@/components/hunt/cockpit/signal-trajectory';
 
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
@@ -50,6 +56,57 @@ const ROLE: Record<Level['key'], { color: string }> = {
   stop:  { color: BEAR },
 };
 
+/**
+ * The live trade read as one physical path: hard stop → entry → T1 → T2.
+ * The bead is the only animated element because it is the only number that
+ * changes. Recorded checkpoints below it are fetched from the audit trail,
+ * so the page never turns one current quote into a fictional history.
+ */
+function TradeVector({ pick, live }: { pick: ConvictionPick; live: number }) {
+  const reduce = useReducedMotion();
+  const g = geometryFor(pick, live);
+  const min = Math.min(pick.stopLoss, pick.entryPrice, pick.targetPrice, g.t2);
+  const max = Math.max(pick.stopLoss, pick.entryPrice, pick.targetPrice, g.t2);
+  const span = Math.max(max - min, Math.abs(max) * 0.01, 0.01);
+  const x = (price: number) => Math.max(1, Math.min(99, ((price - min) / span) * 100));
+  const points = [
+    { label: 'STOP', price: pick.stopLoss, color: BEAR },
+    { label: 'ENTRY', price: pick.entryPrice, color: 'var(--foreground)' },
+    { label: 'T1', price: pick.targetPrice, color: BULL },
+    { label: 'T2', price: g.t2, color: BULL },
+  ];
+
+  return (
+    <div className="border-t border-border/30 px-4 py-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/75">Live trade vector</span>
+        <span className="font-mono text-[10px] tabular-nums" style={{ color: g.pnlPct >= 0 ? BULL : BEAR }}>
+          {g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(2)}% from entry
+        </span>
+      </div>
+      <div className="relative h-12">
+        <div className="absolute left-0 right-0 top-5 h-px bg-border/70" />
+        <div className="absolute top-5 h-px bg-[var(--brand-cyan)]/60" style={{ left: `${x(pick.entryPrice)}%`, width: `${Math.max(0, x(live) - x(pick.entryPrice))}%` }} />
+        {points.map((point) => (
+          <div key={point.label} className="absolute top-0 -translate-x-1/2 text-center" style={{ left: `${x(point.price)}%` }}>
+            <span className="block h-3 w-px mx-auto" style={{ background: point.color }} />
+            <span className="mt-1 block font-mono text-[8px] font-bold uppercase tracking-[0.11em]" style={{ color: point.color }}>{point.label}</span>
+            <span className="block font-mono text-[8px] tabular-nums text-muted-foreground/65">${money(point.price)}</span>
+          </div>
+        ))}
+        <motion.span
+          className="absolute top-[15px] block h-3 w-3 -translate-x-1/2 rounded-full border-2 border-card bg-[var(--brand-cyan)]"
+          animate={{ left: `${x(live)}%` }}
+          transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 175, damping: 22 }}
+          style={{ boxShadow: '0 0 0 3px color-mix(in srgb, var(--brand-cyan) 18%, transparent), 0 0 12px color-mix(in srgb, var(--brand-cyan) 46%, transparent)' }}
+          title={`Live $${money(live)}`}
+        />
+      </div>
+      <SignalTrajectory ideaId={pick.ideaId} live={live} />
+    </div>
+  );
+}
+
 function Card({ title, meta, children, className }: { title: string; meta?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
@@ -79,12 +136,25 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
           const c = ROLE[l.key].color;
           const isLive = l.key === 'live';
           return (
+            /* `layout` is the whole point of this rung being a motion element.
+               levels are sorted by price (signal-geometry.ts), so when price
+               crosses T1 or breaks ENTRY the LIVE rung genuinely changes index —
+               it climbs or falls through the ladder. Without layout that reorder
+               was an instant swap and the single most meaningful event on the
+               card passed unseen. With it, LIVE slides between rungs and the
+               move reads as a move.
+
+               This is Tier 1 motion under viz/MOTION.md: it fires because the
+               data changed, and it encodes WHICH WAY. Off under reduced motion,
+               where the reordered list still tells the truth, just without the
+               travel. */
             <motion.div
               key={l.key}
+              layout={!reduce}
               className={cn('flex items-center gap-3 px-4 py-1.5', isLive && 'bg-foreground/[0.04]')}
               initial={reduce ? false : { opacity: 0, x: -4 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: DUR.base, ease: EASE }}
+              transition={{ duration: DUR.base, ease: EASE, layout: { duration: 0.45, ease: EASE } }}
             >
               <span className="relative grid w-4 shrink-0 place-items-center">
                 <span className="h-2 w-2 rounded-full" style={{ background: c, boxShadow: `0 0 8px color-mix(in srgb, ${c} 55%, transparent)` }} />
@@ -100,7 +170,13 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
               </span>
 
               <span className="text-value font-mono font-bold tabular-nums text-foreground">
-                ${money(l.price)}
+                {isLive ? (
+                  /* Only LIVE ticks; the other rungs are fixed plan levels and a
+                     flash on them would imply a change that never happened. */
+                  <LiveValue value={l.price} format={(n) => `$${money(n)}`} />
+                ) : (
+                  <>${money(l.price)}</>
+                )}
               </span>
 
               <span className="ml-auto text-right text-label font-mono tabular-nums">
@@ -122,10 +198,11 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
         })}
       </div>
 
-      {/* the same levels as one axis, so distance reads spatially too */}
-      <div className="border-t border-border/30 px-4 py-2.5">
-        <RangeBar stop={pick.stopLoss} entry={pick.entryPrice} current={live || pick.entryPrice} target={pick.targetPrice} />
-      </div>
+      <TradeVector pick={pick} live={live || pick.entryPrice} />
+
+      {/* Market structure, kept below the plan levels rather than mixed into them.
+          See gap-magnets.tsx for why they are not rungs. */}
+      <GapMagnets symbol={pick.symbol} />
     </Card>
   );
 }
@@ -246,110 +323,76 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
   );
 }
 
-// ──────────────────────────────────────────────── TradeGeometry + RiskReward ──
-
-export function TradeGeometry({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
-  const g = geometryFor(pick, live);
-  const row = (label: string, value: string, color?: string) => (
-    <div key={label} className="flex items-baseline justify-between gap-2">
-      <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">{label}</span>
-      <span className="text-meta font-mono tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</span>
-    </div>
-  );
-  const byKey = (k: Level['key']) => g.levels.find((l) => l.key === k);
-  return (
-    <Card title="Trade Geometry" className={className}>
-      <div className="space-y-1.5 px-4 py-3">
-        {row('Stop loss', `${byKey('stop')?.rAway.toFixed(1)}R away`, BEAR)}
-        {row('T1 target', `${byKey('t1')?.rAway.toFixed(1)}R away`, BULL)}
-        {row('T2 target', `${byKey('t2')?.rAway.toFixed(1)}R away`, BULL)}
-        {row('Horizon', `${g.horizonUsedPct.toFixed(0)}% used · ${g.daysHeld.toFixed(1)}/${g.horizonDays}d`)}
-      </div>
-    </Card>
-  );
-}
-
-export function RiskReward({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
-  const g = geometryFor(pick, live);
-  const riskShare = (g.risk / (g.risk + g.reward)) * 100;
-  return (
-    <Card title="Risk / Reward" meta="at entry" className={className}>
-      <div className="px-4 py-3">
-        <div className="mb-2 flex items-baseline gap-1">
-          <span className="text-mega font-mono font-bold leading-none tabular-nums" style={{ color: CYAN }}>{g.rr.toFixed(2)}</span>
-          <span className="text-body font-mono text-muted-foreground/60">: 1</span>
-        </div>
-        <div className="flex h-1.5 overflow-hidden rounded-full">
-          <div style={{ width: `${riskShare}%`, background: BEAR }} />
-          <div style={{ width: `${100 - riskShare}%`, background: CYAN }} />
-        </div>
-        <div className="mt-1 flex justify-between text-label font-mono uppercase tracking-wider text-muted-foreground/70">
-          <span>◀ risk</span><span>reward ▶</span>
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div>
-            <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Risk to stop</div>
-            <div className="text-body font-mono font-bold tabular-nums" style={{ color: BEAR }}>−${g.risk.toFixed(2)}</div>
-          </div>
-          <div>
-            <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Reward to T1</div>
-            <div className="text-body font-mono font-bold tabular-nums" style={{ color: BULL }}>+${g.reward.toFixed(2)}</div>
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-// ───────────────────────────────────────────────────────────── PositionSize ──
+// ────────────────────────────────────────────────────────────────── RiskPanel ──
 
 /**
- * What this trade means for YOUR account.
+ * RISK PANEL — position size, geometry and reward in ONE card.
  *
- * Sized in the vehicle actually being traded. This used to size every signal in
- * SHARES, including option signals, which produced "76 shares · $5,041 · 50.4% of
- * account" on a $10k account for a trade whose real cost was one $2.36 contract —
- * $236. It made a normal position look like half the account and it priced the
- * wrong instrument entirely.
+ * ═══════════════════════════════════════════════════════════════════════════
+ * WHAT THIS REPLACES, AND WHY
+ * ═══════════════════════════════════════════════════════════════════════════
+ * The cockpit's right column carried three separate cards — Position Size (296px),
+ * Trade Geometry (160px) and Risk / Reward (193px) — 649px answering one
+ * question: how much do I put on, and what do I get for it.
  *
- * For an option signal the risk per unit is the PREMIUM at risk per contract, not
- * the distance to the underlying stop: the most a long option can lose is what was
- * paid for it. Contracts are sized off a -50% premium stop, which is the same stop
- * the Contract Engine quotes, so the two agree.
+ * They all read the same `geometryFor(pick, live)`, and the overlap was literal
+ * rather than thematic. Measured on HCA:
+ *
+ *     Risk / Reward     "2.00 : 1"
+ *     Trade Geometry    "T1 target — 2.0R away"     ← the same number, restated
+ *     Position Size     "Risking $0 / Reward at T1" ← the same ratio × units
+ *
+ * A reader who notices they are the same wonders which one is authoritative. A
+ * reader who does not notice believes there is more evidence here than there is.
+ * Three cards also implies three subjects, so the eye searches for a distinction
+ * that was never there.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE ORDER IS THE QUESTION ORDER
+ * ═══════════════════════════════════════════════════════════════════════════
+ *   1. how many can I take        → size, or the reason it is zero
+ *   2. what do I risk and make    → per unit, then for this position
+ *   3. where are the levels       → stop / T1 / T2 as R
+ *   4. how long have I got        → horizon consumed
+ *
+ * Nothing is dropped. Every number the three cards showed is here, each stated
+ * exactly once, including the zero-size explanation — which is the most valuable
+ * copy in the old set and the easiest thing to lose in a merge.
  */
-export function PositionSize({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
+export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
   const g = geometryFor(pick, live);
   const { data: prefs } = useUserPrefs();
 
   const account = prefs?.accountSize ?? 0;
-  const riskPct = prefs?.maxRiskPerTrade ?? 1;
-  const riskBudget = (account * riskPct) / 100;
+  /**
+   * Budget and stop rule come from the DTE ladder rather than one flat 2%. A
+   * 0DTE and a 390-day LEAP were sized by the same rule, which made every
+   * long-dated contract read "too big for this account" — arithmetically right,
+   * practically useless. See shared/sizing.ts.
+   */
+  const rule = sizingFor((pick as any).optionDte, prefs as any);
+  const riskBudget = rule.budget;
 
-  if (!account || g.risk <= 0) {
-    return (
-      <Card title="Position Size" meta="your account" className={className}>
-        <div className="px-4 py-3 text-meta leading-relaxed text-muted-foreground/60">
-          Set your account size and max risk in Settings and every signal will size itself.
-        </div>
-      </Card>
-    );
-  }
+  const byKey = (k: Level['key']) => g.levels.find((l) => l.key === k);
+  const riskShare = (g.risk / (g.risk + g.reward)) * 100;
 
   // Is this signal expressed as a contract? Then size contracts, not shares.
   const premium = Number((pick as any).entryPremium ?? (pick as any).contractPrice ?? 0);
   const isOption = !!(pick.optionType && pick.strikePrice && premium > 0);
 
-  // A long option's risk is the premium, and the engine's own stop is -50% of it.
-  const PREMIUM_STOP = 0.5;
-  const riskPerUnit = isOption ? premium * PREMIUM_STOP * 100 : g.risk;
+  // Short-dated: risk is the premium under the −50% stop. Long-dated: the
+  // ladder returns null because a LEAP is managed on the underlying's level, so
+  // the whole premium is the exposure and no stop is invented for it.
+  const riskPerUnit = isOption
+    ? (rule.premiumStopPct != null ? premium * rule.premiumStopPct * 100 : premium * 100)
+    : g.risk;
   const costPerUnit = isOption ? premium * 100 : (live || pick.entryPrice);
 
-  const units = Math.max(0, Math.floor(riskBudget / Math.max(riskPerUnit, 0.01)));
+  const sized = account > 0 && g.risk > 0;
+  const units = sized ? Math.max(0, Math.floor(riskBudget / Math.max(riskPerUnit, 0.01))) : 0;
   const cost = units * costPerUnit;
   const pctOfAccount = account > 0 ? (cost / account) * 100 : 0;
 
-  // Reward at T1 in the same vehicle: the geometry's reward is an underlying move,
-  // so for contracts it is expressed against the premium the engine projected.
   const projectedAtT1 = Number((pick as any).projectedAtT1 ?? 0);
   const rewardAtT1 = isOption
     ? (projectedAtT1 > 0 ? (projectedAtT1 - premium) * 100 * units : 0)
@@ -358,28 +401,85 @@ export function PositionSize({ pick, live, className }: { pick: ConvictionPick; 
   const overAllocated = pctOfAccount > 100;
   const unitLabel = isOption ? (units === 1 ? 'contract' : 'contracts') : 'shares';
 
+  // Rendered through the shared Readout so the whole rail is one block repeated,
+  // not four bespoke panels — see templates/kit.tsx for why that is the actual
+  // difference between this rail and the signal grid.
   return (
-    <Card title="Position Size" meta="your account" className={className}>
-      <div className="space-y-2 px-4 py-3">
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-hero font-mono font-bold leading-none tabular-nums" style={{ color: TC.info }}>{units}</span>
-          <span className="text-meta font-mono text-muted-foreground">{unitLabel}</span>
+    <Readout
+      title="Risk & Size"
+      meta={sized ? (rule.basis === 'allocation' ? 'allocation' : 'risk budget') : 'at entry'}
+      value={sized ? units : g.rr.toFixed(2)}
+      qualifier={sized ? `${unitLabel} · ${g.rr.toFixed(2)}:1` : ': 1 — set account size to size it'}
+      valueTone={sized && units === 0 ? 'time' : 'structural'}
+      className={className}
+    >
+      <div className="space-y-3">
+
+        {/* the split bar — the one thing in the old Risk/Reward card that was
+            genuinely visual rather than another restatement of the ratio */}
+        <div>
+          <div className="flex h-1.5 overflow-hidden rounded-full">
+            <div style={{ width: `${riskShare}%`, background: BEAR }} />
+            <div style={{ width: `${100 - riskShare}%`, background: CYAN }} />
+          </div>
+          <div className="mt-1 flex justify-between text-label font-mono uppercase tracking-wider text-muted-foreground/70">
+            <span>◀ risk</span><span>reward ▶</span>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Mini label="Risking" value={`$${Math.min(riskBudget, units * riskPerUnit).toFixed(0)}`} color={TC.bear} />
-          <Mini label="Reward at T1" value={rewardAtT1 > 0 ? `+$${rewardAtT1.toFixed(0)}` : '—'} color={TC.bull} />
-          <Mini label="Position cost" value={`$${cost.toFixed(0)}`} />
-          <Mini label="Of account" value={`${pctOfAccount.toFixed(1)}%`} color={overAllocated ? TC.bear : undefined} />
+
+        {/* 2 · WHAT IT COSTS — per unit always; for the position only once sized */}
+        <div className="grid grid-cols-2 gap-2 border-t border-border/30 pt-2.5">
+          <Mini label="Risk to stop" value={`−$${g.risk.toFixed(2)}`} color={TC.bear} />
+          <Mini label="Reward to T1" value={`+$${g.reward.toFixed(2)}`} color={TC.bull} />
+          {sized && units > 0 && (
+            <>
+              <Mini label="Position cost" value={`$${cost.toFixed(0)}`} />
+              <Mini label="Of account" value={`${pctOfAccount.toFixed(1)}%`} color={overAllocated ? TC.bear : undefined} />
+              <Mini label="Risking" value={`$${Math.min(riskBudget, units * riskPerUnit).toFixed(0)}`} color={TC.bear} />
+              <Mini label="Reward at T1" value={rewardAtT1 > 0 ? `+$${rewardAtT1.toFixed(0)}` : '—'} color={TC.bull} />
+            </>
+          )}
         </div>
-        <p className="text-label leading-relaxed text-muted-foreground/70">
-          {overAllocated
-            ? `This size costs more than your whole account — scale down.`
-            : isOption
-              ? `${units} ${unitLabel} at $${premium.toFixed(2)}. Sized so a −50% premium stop costs ${riskPct}% of your $${account.toLocaleString()} account.`
-              : `Sized so a stop-out costs ${riskPct}% of your $${account.toLocaleString()} account.`}
-        </p>
+
+        {/* 3 · THE LEVELS — as R, which is the only notation that survives a
+               change of instrument */}
+        <div className="grid grid-cols-3 gap-2 border-t border-border/30 pt-2.5">
+          <Mini label="Stop" value={`${byKey('stop')?.rAway.toFixed(1)}R`} color={BEAR} />
+          <Mini label="T1" value={`${byKey('t1')?.rAway.toFixed(1)}R`} color={BULL} />
+          <Mini label="T2" value={`${byKey('t2')?.rAway.toFixed(1)}R`} color={BULL} />
+        </div>
+
+        {/* 4 · TIME */}
+        <div className="flex items-baseline justify-between gap-2 border-t border-border/30 pt-2.5">
+          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">Horizon</span>
+          <span className="text-meta font-mono tabular-nums text-foreground">
+            {g.horizonUsedPct.toFixed(0)}% used · {g.daysHeld.toFixed(1)}/{g.horizonDays}d
+          </span>
+        </div>
+
+        {/* The zero is a real answer, not a blank — and the amount it is out by is
+            the useful part, because it says how far off the account is. Carried
+            over verbatim from PositionSize; losing it in the merge would have been
+            the one genuine regression available here. */}
+        {sized && (units === 0 || overAllocated) && (
+          <p className="text-label leading-relaxed text-muted-foreground/70 border-t border-border/30 pt-2.5">
+            {units === 0 && isOption
+              ? `Too big for this account. One contract costs $${costPerUnit.toFixed(0)} and commits $${riskPerUnit.toFixed(0)} — ${(riskPerUnit / Math.max(riskBudget, 0.01)).toFixed(1)}× your $${riskBudget.toFixed(0)} ${rule.basis === 'allocation' ? 'per-idea capital' : 'options budget'}. Look at a cheaper strike or further expiry.`
+              : units === 0
+                ? `Too big for this account. One share risks $${riskPerUnit.toFixed(2)} against a $${riskBudget.toFixed(0)} budget.`
+                : `This size costs more than your whole account — scale down.`}
+          </p>
+        )}
+
+        {sized && units > 0 && !overAllocated && (
+          <p className="text-label leading-relaxed text-muted-foreground/70 border-t border-border/30 pt-2.5">
+            {isOption
+              ? `${units} ${unitLabel} at $${premium.toFixed(2)}. ${rule.why}`
+              : `Sized against your $${account.toLocaleString()} account.`}
+          </p>
+        )}
       </div>
-    </Card>
+    </Readout>
   );
 }
 

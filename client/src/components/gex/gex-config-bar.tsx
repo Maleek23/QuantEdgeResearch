@@ -96,7 +96,7 @@ function matchesPreset(exp: ExpiryEntry, preset: ExpiryPreset): boolean {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[8px] font-mono text-muted-foreground/40 uppercase tracking-widest mr-1 select-none shrink-0">
+    <span className="text-[8px] font-mono text-muted-foreground/60 uppercase tracking-widest mr-1 select-none shrink-0">
       {children}
     </span>
   );
@@ -122,7 +122,7 @@ function Pill({
         size === 'small' ? 'px-1.5 py-0.5 text-[8px]' : 'px-1.5 py-0.5 text-[9px]',
         active
           ? 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
-          : 'text-muted-foreground/50 hover:text-muted-foreground',
+          : 'text-muted-foreground/60 hover:text-muted-foreground',
       )}
     >
       {children}
@@ -214,7 +214,7 @@ export function GEXConfigBar({
                   ? m === 'vex'
                     ? 'bg-violet-400/15 text-violet-400'
                     : 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
-                  : 'text-muted-foreground/50 hover:text-muted-foreground',
+                  : 'text-muted-foreground/60 hover:text-muted-foreground',
               )}
             >
               {m.toUpperCase()}
@@ -284,7 +284,7 @@ export function GEXConfigBar({
                       'px-1.5 py-0.5 text-[8px] font-mono rounded transition-colors',
                       isVisible
                         ? 'bg-[var(--gex-positive)]/10 text-[var(--gex-positive)]'
-                        : 'text-muted-foreground/30 hover:text-muted-foreground/50',
+                        : 'text-muted-foreground/60 hover:text-muted-foreground/60',
                     )}
                   >
                     {exp.label}

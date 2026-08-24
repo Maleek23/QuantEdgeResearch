@@ -46,6 +46,31 @@ const ECONOMIC_EVENTS_2026: EconomicEvent[] = [
 ];
 
 /**
+ * The cash gate changes grading, so an incomplete calendar must never be
+ * presented as "clear". This is deliberately derived from the actual schedule
+ * rather than a hand-maintained version number.
+ */
+export interface CalendarCoverage {
+  source: 'curated';
+  current: boolean;
+  firstDate: string | null;
+  lastDate: string | null;
+}
+
+export function getCalendarCoverage(now: Date = new Date()): CalendarCoverage {
+  const dates = ECONOMIC_EVENTS_2026.map((event) => event.date).sort();
+  const firstDate = dates[0] ?? null;
+  const lastDate = dates.at(-1) ?? null;
+  const today = now.toISOString().slice(0, 10);
+  return {
+    source: 'curated',
+    current: !!firstDate && !!lastDate && today >= firstDate && today <= lastDate,
+    firstDate,
+    lastDate,
+  };
+}
+
+/**
  * Get upcoming economic events within the specified number of days
  */
 export function getUpcomingEvents(days: number = 7): EconomicEvent[] {

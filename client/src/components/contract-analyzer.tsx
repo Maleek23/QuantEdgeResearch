@@ -179,7 +179,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && analyze()}
-            className="flex-1 bg-muted/20 border border-border/40 rounded px-3 py-1.5 text-[11px] font-mono text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-[var(--brand-cyan)]/60"
+            className="flex-1 bg-muted/20 border border-border/40 rounded px-3 py-1.5 text-[11px] font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-[var(--brand-cyan)]/60"
           />
           <button
             onClick={() => analyze()}
@@ -410,17 +410,17 @@ function SuggestionCard({ s, symbol, onReanalyze }: {
       {/* Metrics grid */}
       <div className="grid grid-cols-3 gap-1.5 text-[9px] font-mono">
         <div>
-          <div className="text-muted-foreground/50 uppercase text-[8px]">ROI@T1</div>
+          <div className="text-muted-foreground/60 uppercase text-[8px]">ROI@T1</div>
           <div className={`font-bold ${s.roiAtT1Pct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
             {s.roiAtT1Pct >= 0 ? '+' : ''}{s.roiAtT1Pct.toFixed(0)}%
           </div>
         </div>
         <div>
-          <div className="text-muted-foreground/50 uppercase text-[8px]">R:R</div>
+          <div className="text-muted-foreground/60 uppercase text-[8px]">R:R</div>
           <div className="font-bold text-foreground">{s.riskRewardRatio.toFixed(1)}x</div>
         </div>
         <div>
-          <div className="text-muted-foreground/50 uppercase text-[8px]">BE</div>
+          <div className="text-muted-foreground/60 uppercase text-[8px]">BE</div>
           <div className="font-bold text-foreground">${s.breakeven.toFixed(2)}</div>
         </div>
       </div>

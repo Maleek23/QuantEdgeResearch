@@ -80,7 +80,7 @@ function GainRow({
   return (
     <div className="flex items-center justify-between gap-2 py-1.5 border-b border-border/40 last:border-0" data-testid={`gex-gainer-row-${rank}`}>
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-[10px] font-mono text-muted-foreground/50 w-4 tabular-nums">{rank}</span>
+        <span className="text-[10px] font-mono text-muted-foreground/60 w-4 tabular-nums">{rank}</span>
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-mono font-semibold text-foreground truncate">{label}</span>
@@ -98,7 +98,7 @@ function GainRow({
         <div className="text-sm font-mono font-bold tabular-nums text-[var(--trade-bullish)]">
           +{safeToFixed(gain, 1, '0.0')}%
         </div>
-        {gainLabel && <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50">{gainLabel}</div>}
+        {gainLabel && <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60">{gainLabel}</div>}
       </div>
     </div>
   );
@@ -118,7 +118,7 @@ function Bucket({
       <div className="flex items-center gap-1.5 mb-1.5">
         <span className={accent}>{icon}</span>
         <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-muted-foreground">{title}</span>
-        <span className="text-[10px] font-mono text-muted-foreground/50 tabular-nums">({count})</span>
+        <span className="text-[10px] font-mono text-muted-foreground/60 tabular-nums">({count})</span>
       </div>
       {children}
     </div>
@@ -146,7 +146,7 @@ export function GexBigGainers({ compact = false }: { compact?: boolean }) {
           <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground">GEX Big Gainers</span>
         </div>
         {data && (
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
             {data.threshold > 0 ? `≥${safeToFixed(data.threshold, 0, '0')}%` : 'top movers'}
           </span>
         )}

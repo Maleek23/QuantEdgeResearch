@@ -94,7 +94,7 @@ export function TodayPicks() {
             <Clock className="h-3 w-3" />
             No A/B-grade picks in the last 24h.
           </div>
-          <div className="mt-1 text-muted-foreground/50">
+          <div className="mt-1 text-muted-foreground/60">
             Next scan: {nextScanTime()}
           </div>
         </div>
@@ -118,7 +118,7 @@ export function TodayPicks() {
               <div className="text-[10px] font-mono text-muted-foreground/60 flex-1 truncate">
                 {p.patternId.replace(/_/g, ' ')}
               </div>
-              <ChevronRight className="h-3 w-3 text-muted-foreground/40" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
             </Link>
           ))}
         </div>

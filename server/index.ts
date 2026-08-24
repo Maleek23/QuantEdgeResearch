@@ -222,6 +222,7 @@ app.use((req, res, next) => {
         startBullishTrendScanner();
         log('📈 Bullish Trend Scanner started');
 
+
         const { startMorningPreviewScheduler } = await import('./morning-preview-service');
         startMorningPreviewScheduler();
         log('☀️ Morning Preview Scheduler started');
@@ -314,6 +315,54 @@ app.use((req, res, next) => {
     } else {
       log('🌙 Market is CLOSED — running in lightweight mode (HTTP + prices only)');
       log('🌙 Heavy services will auto-start at 9:25 AM ET on next market day');
+    }
+
+    // ── FLAG INGEST — bull + bear flag setups into the convictions feed ──
+    // Registered here, NOT inside startHeavyServices(), and deliberately not
+    // gated on market hours.
+    //
+    // Two separate reasons this was invisible before:
+    //   1. ingestBullFlagIdeas / ingestBearFlagIdeas are called only in
+    //      worker.ts, and `npm run dev` never starts that process.
+    //   2. Everything else here hangs off startHeavyServices(), which only runs
+    //      while the market is open — so on a weekend nothing even schedules.
+    //
+    // Symptom: a conviction board reading 40 LONG / 0 SHORT, which looks like a
+    // market read but is really "the only short-side source never runs". Called
+    // directly, bear-flag returned 20 setups (RBLX 92, QCOM 83, KLAC 80).
+    //
+    // Weekends are allowed on purpose. These scanners score DAILY bars — a bear
+    // flag is the same shape on Saturday as it was at Friday's close — so there
+    // is nothing about a closed market that makes the setup invalid. Blocking
+    // weekend generation only meant you could not prepare before Monday.
+    //
+    // Off in production, where worker.ts already schedules these: the ingestion
+    // dedupe cache is an in-process Map, so two processes would not dedupe
+    // against each other. This has to be either/or, never a race.
+    const FLAG_INGEST_IN_WEB =
+      process.env.FLAG_INGEST_IN_WEB === 'true' ||
+      (process.env.FLAG_INGEST_IN_WEB !== 'false' && process.env.NODE_ENV !== 'production');
+
+    if (FLAG_INGEST_IN_WEB) {
+      const flagCron = await import('node-cron');
+
+      flagCron.default.schedule('5,35 * * * *', async () => {
+        try {
+          const { ingestBullFlagIdeas } = await import('./bull-flag-scanner');
+          const n = await ingestBullFlagIdeas();
+          if (n > 0) log(`🚩 Bull flag: ingested ${n}`);
+        } catch (e) { logger.error('Bull flag ingest failed', e as Error); }
+      });
+
+      flagCron.default.schedule('10,40 * * * *', async () => {
+        try {
+          const { ingestBearFlagIdeas } = await import('./bear-flag-scanner');
+          const n = await ingestBearFlagIdeas();
+          if (n > 0) log(`🐻 Bear flag: ingested ${n} — the short side of the board`);
+        } catch (e) { logger.error('Bear flag ingest failed', e as Error); }
+      });
+
+      log('🚩🐻 Flag ingest scheduled (weekends included — daily-bar setups do not expire at the close)');
     }
 
     // ── Cron: Start heavy services at market open (9:25 AM ET weekdays) ──

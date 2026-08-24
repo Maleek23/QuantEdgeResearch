@@ -126,7 +126,7 @@ export function UserPerformanceSummary() {
                   <p className="text-sm text-muted-foreground uppercase tracking-wider">Hit Rate</p>
                   <span className="text-xs text-muted-foreground/60 font-mono">n={totalDecided}</span>
                   <span className="group relative inline-block">
-                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
                     <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-52 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
                       Count-based: wins / decided trades. Excludes &#177;3% breakeven trades, expired, and open positions.
                     </span>

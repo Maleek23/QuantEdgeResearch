@@ -14,8 +14,10 @@
  * empty states.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
+import { EvidenceRail } from '@/components/evidence-rail';
 import { Loader2, AlertTriangle, ArrowUpRight, Camera } from 'lucide-react';
 import { SiDiscord } from 'react-icons/si';
 import { cn } from '@/lib/utils';
@@ -24,7 +26,6 @@ import { QETabs } from '@/components/ui/qe';
 import { COCKPIT_MODES, matchesMode, type CockpitMode } from '@/components/hunt/cockpit/cockpit-modes';
 
 import { TickerLogo } from '@/components/hunt/cockpit/ticker-logo';
-import { ConfidenceIndex } from '@/components/hunt/cockpit/confidence-index';
 import { SignalChart } from '@/components/hunt/cockpit/signal-chart';
 import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
@@ -32,10 +33,16 @@ import { KeyLevels } from '@/components/hunt/cockpit/key-levels';
 import { SignalRow } from '@/components/hunt/cockpit/signal-row';
 import { KpiStrip } from '@/components/hunt/cockpit/kpi-strip';
 import { ContractEngine } from '@/components/contract-engine/contract-engine';
-import { PriceLadder, ContextPanel, ProfitPlan, TradeGeometry, RiskReward, PositionSize, geometryFor } from '@/components/oracle/signal-detail';
+import { TradeStrip, type TradeStripPick } from '@/components/oracle/trade-strip';
+import { SignalGrid } from '@/components/hunt/cockpit/signal-grid';
+import { useSignalFilters, applyFilters, SignalFilterBar } from '@/components/hunt/cockpit/signal-filters';
+import { Segmented } from '@/components/templates/charts';
+import { Readout, BandScale } from '@/components/templates/kit';
+import { PriceLadder, ContextPanel, ProfitPlan, RiskPanel, geometryFor } from '@/components/oracle/signal-detail';
 import { SignalTimingBadge, SignalTimingNotice } from '@/components/oracle/signal-timing-badge';
 import { EpochChart } from '@/components/charting/epoch-chart';
-import { displayedGrade, gradeColorClass } from '@/lib/conviction-display';
+import { bandColor } from '@/lib/oracle/trading-colors';
+import { Heartbeat, LiveValue } from '@/components/viz';
 import {
   tierLabel, directionTone, convictionPercent, LAYER_COLOR, LAYER_TAG,
   type ConvictionPick, type ConvictionsResponse,
@@ -47,6 +54,44 @@ const RANGES = [
   { id: '3mo', label: '1W', range: '3mo', interval: '1d' },
   { id: '6mo', label: '1M', range: '6mo', interval: '1wk' },
 ] as const;
+
+/** The on-demand analyser's real response. Unlike a published ConvictionPick it
+ * has no scanner-owned entry/stop/target, so it must never be rendered as one. */
+interface OnDemandAnalysis {
+  symbol: string;
+  name?: string;
+  overall?: {
+    grade?: string;
+    score?: number;
+    tier?: string;
+    recommendation?: string;
+    confidence?: string;
+  };
+  components?: Record<string, { score?: number; grade?: string; weight?: number }>;
+  timeHorizons?: Record<string, {
+    signal?: string;
+    confidence?: number;
+    timeframe?: string;
+    entry?: number;
+    exit?: number;
+    targetPrice?: number;
+  }>;
+  insights?: {
+    strengths?: string[];
+    weaknesses?: string[];
+    catalysts?: string[];
+    risks?: string[];
+  };
+}
+
+interface GradedTicker {
+  symbol: string;
+  text: string;
+  grade?: string | null;
+  score?: number | null;
+  name?: string | null;
+  analysis?: OnDemandAnalysis;
+}
 
 /**
  * Unfilled gaps for the selected ticker, drawn on the chart as shaded bands.
@@ -83,11 +128,115 @@ export default function HuntCockpit() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rangeId, setRangeId] = useState<typeof RANGES[number]['id']>('1mo');
   const [mode, setMode] = useState<CockpitMode>('all');
+  // ONE reduction for both lenses. Previously the rail had a ticker box and
+  // NEW/BEST/CONVICTION while the grid had side/band/state/sort — so switching
+  // view discarded whatever the reader had narrowed to.
+  const { filters, set: setFilter, reset: resetFilters, active: filtersActive } = useSignalFilters();
+  const [grading, setGrading] = useState<string | null>(null);
+  const [graded, setGraded] = useState<GradedTicker | null>(null);
+  // An arbitrary ticker can be genuinely analysed without being a scanner-
+  // published trade. Keep that distinction in the data model, but give it the
+  // same place in the active stream and the same centre-stage interaction.
+  const [onDemandFocused, setOnDemandFocused] = useState(false);
+  const [confidenceInfoOpen, setConfidenceInfoOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState<string | null>(null);
+
+  /**
+   * Grade a ticker the book does not carry. /api/analyze/:symbol already scores
+   * an arbitrary symbol on demand — it was simply unreachable from the UI, so
+   * searching a name we had not published returned an empty list and stopped.
+   *
+   * It shares the options/quote feed with everything else, so while Yahoo is
+   * rate-limiting it will fail — and it says so rather than rendering a blank
+   * card that reads like "no setup here".
+   */
+  /**
+   * Put a graded off-book ticker on the watchlist.
+   *
+   * Grading answered "what does the platform think of NOK" but the answer
+   * evaporated on the next keystroke. The watchlist is what the scanners read,
+   * so adding it there is what actually makes the platform start tracking the
+   * name — which is the point of having asked.
+   *
+   * The grade travels with it in `notes`, so the entry records what the read was
+   * WHEN it was added rather than looking like an unexplained ticker later.
+   */
+  const addGradedToWatchlist = async () => {
+    if (!graded) return;
+    setAdding(true);
+    try {
+      // apiRequest, not raw fetch — every mutating endpoint here is CSRF-guarded
+      // and a bare fetch is rejected with "CSRF validation failed".
+      const r = await apiRequest('POST', '/api/watchlist', {
+        symbol: graded.symbol,
+        assetType: 'stock',
+        category: 'active',
+        notes: `Graded on demand ${new Date().toISOString().slice(0, 10)}: ` +
+               `${graded.grade ?? '—'}${graded.score != null ? ` · ${graded.score}` : ''}`,
+      });
+      if (!r.ok) {
+        const b = await r.json().catch(() => ({}));
+        setAdded(b?.error ? `Couldn't add: ${b.error}` : `Couldn't add ${graded.symbol}.`);
+      } else {
+        setAdded(`${graded.symbol} added to watchlist — scanners pick it up on the next run.`);
+      }
+    } catch (e: any) {
+      setAdded(`Couldn't add ${graded.symbol}: ${e?.message ?? 'request failed'}`);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const gradeTicker = async (symbol: string) => {
+    setGrading(symbol);
+    setGraded(null);
+    setOnDemandFocused(false);
+    setAdded(null);
+    try {
+      const r = await fetch(`/api/analyze/${encodeURIComponent(symbol)}`, { credentials: 'include' });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        // Yahoo's crumb endpoint returns a raw provider error under load. That is
+        // an infrastructure condition, not a verdict on the ticker; never make it
+        // read like QuantEdge rejected the setup.
+        const retryNote = r.status === 429
+          ? 'Market quote provider is rate-limited. This is not a grade — retry once the live quote refreshes.'
+          : null;
+        setGraded({ symbol, text: retryNote || body?.details || body?.error || 'Analysis unavailable.' });
+      } else {
+        // /api/analyze nests its verdict under `overall`, not at the root —
+        // reading the flat fields returned "no grade" on a perfectly good
+        // response. Root fallbacks are kept for other shapes.
+        const o = body.overall ?? {};
+        const score = o.score ?? body.convictionScore ?? body.score ?? null;
+        const grade = o.grade ?? body.convictionBand ?? body.grade ?? null;
+        const rec = o.recommendation ?? body.direction ?? null;
+        const conf = o.confidence ?? null;
+        const name = body.name ? ` (${body.name})` : '';
+        setGraded({
+          symbol, grade, score, name: body.name ?? null, analysis: body as OnDemandAnalysis,
+          text: score != null || grade != null
+            ? `${symbol}${name}: ${grade ?? '—'}${score != null ? ` · ${score}` : ''}` +
+              `${rec ? ` · ${String(rec).toUpperCase()}` : ''}${conf ? ` · ${String(conf).toLowerCase()} confidence` : ''}`
+            : `${symbol} analysed, but the response carried no grade.`,
+        });
+        setSelectedId(null);
+        setOnDemandFocused(true);
+      }
+    } catch (e: any) {
+      setGraded({ symbol, text: e?.message ?? 'Request failed.' });
+    } finally {
+      setGrading(null);
+    }
+  };
   const [streamFilter, setStreamFilter] = useState<'new' | 'best' | 'conviction'>('conviction');
+  // Cockpit is the live ranked stream; Grid is the comparison lens. This state
+  // lives before the derived book so each lens can own its correct sort order.
+  const [view, setView] = useState<'cockpit' | 'grid'>('cockpit');
   // Two searches, two different verbs. The one in the terminal chrome LOADS and grades any
   // ticker; this one only FILTERS the signals already on the board. Conflating them made
   // searching feel broken — you'd type a name and not know which behaviour you'd get.
-  const [listFilter, setListFilter] = useState('');
   const [sharingDiscord, setSharingDiscord] = useState(false);
   const subjectRef = useRef<HTMLElement>(null);
 
@@ -100,6 +249,13 @@ export default function HuntCockpit() {
   const listRef = useRef<HTMLElement>(null);
   const railRef = useRef<HTMLElement>(null);
   const [capturing, setCapturing] = useState(false);
+
+  // An analysed name is inserted at the top of this scroll rail. Without this,
+  // a reader who had been deep in a 40-name stream would land on its evidence
+  // canvas while the row that selected it stayed above the visible rail.
+  useEffect(() => {
+    if (onDemandFocused) listRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [onDemandFocused]);
 
   const shareBoard = async () => {
     const node = captureRef.current;
@@ -199,6 +355,31 @@ export default function HuntCockpit() {
   });
 
   const allPicks = data?.picks ?? [];
+  // One bounded quote stream for the entire 40-name book. Before this only the
+  // selected subject had a quote, leaving the other 39 cards permanently static.
+  const signalSymbols = useMemo(
+    () => [...new Set(allPicks.map((p) => p.symbol.toUpperCase()).filter(Boolean))].slice(0, 50),
+    [allPicks],
+  );
+  const { data: quoteBook, dataUpdatedAt: quoteBookUpdatedAt } = useQuery<{
+    quotes?: Record<string, { price: number; change: number; changePercent: number }>;
+  }>({
+    queryKey: ['/api/quotes/batch', 'cockpit-book', signalSymbols.join(',')],
+    queryFn: async () => {
+      const res = await fetch(`/api/quotes/batch/${signalSymbols.join(',')}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('book quotes failed');
+      return res.json();
+    },
+    enabled: signalSymbols.length > 0,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
+    retry: 1,
+  });
+  const liveBySymbol = useMemo(
+    () => new Map(Object.entries(quoteBook?.quotes ?? {}).map(([symbol, q]) => [symbol.toUpperCase(), q.price])),
+    [quoteBook],
+  );
+  const priceFor = (p: ConvictionPick) => liveBySymbol.get(p.symbol.toUpperCase()) ?? p.currentPrice ?? p.entryPrice;
   // Per-mode counts for the tab badges.
   const modeCounts = useMemo(() => {
     const counts: Record<CockpitMode, number> = { all: 0, 'ai-picks': 0, flow: 0, lotto: 0, news: 0, manual: 0 };
@@ -251,30 +432,30 @@ export default function HuntCockpit() {
   // The convictions feed only returns open ideas, so we classify by geometry rather than
   // inventing a status the backend doesn't track yet.
   const closedToday = picks.filter((p) => {
-    const st = geometryFor(p, p.currentPrice ?? p.entryPrice).status;
+    const st = geometryFor(p, priceFor(p)).status;
     return st === 'at_target' || st === 'invalidated';
   });
   const openPicks = picks.filter((p) => !closedToday.includes(p));
 
-  const shown = (() => {
-    if (streamFilter === 'new') return openPicks.filter(isNew);
-    const px = (p: ConvictionPick) => p.currentPrice ?? p.entryPrice;
-    if (streamFilter === 'best') {
-      return [...openPicks].sort((a, b) => geometryFor(b, px(b)).progressPct - geometryFor(a, px(a)).progressPct);
-    }
-    return [...openPicks].sort((a, b) => b.convictionScore - a.convictionScore);
-  })().filter((p) =>
-    !listFilter.trim() || p.symbol.toUpperCase().includes(listFilter.trim().toUpperCase()),
-  );
+  // NEW stays a separate axis — it is a "since you last looked" flag, not a
+  // property of the signal, so it does not belong in the shared filter model.
+  const streamBase = streamFilter === 'new' ? openPicks.filter(isNew) : openPicks;
+  // BEST is now live progress, not a button that only changes its highlight.
+  // Motion layout in SignalRow turns quote-driven sort changes into visible rank travel.
+  const effectiveFilters = view === 'cockpit'
+    ? { ...filters, sort: (streamFilter === 'best' ? 'progress' : 'conviction') as typeof filters.sort }
+    : filters;
+  const shown = applyFilters(streamBase, effectiveFilters, (p) => geometryFor(p, priceFor(p)));
 
   const selected: ConvictionPick | undefined =
     shown.find((p) => p.ideaId === selectedId) ?? shown[0] ?? picks[0];
+  const onDemand = onDemandFocused ? graded?.analysis : null;
 
   // Unfilled gaps for the selected ticker — drawn as bands on the chart below.
   const { zones: gapZones } = useGapZones(selected?.symbol ?? '');
 
   // Live quote for the selected ticker's header price.
-  const { data: quote } = useQuery<{ price: number; change: number; changePct: number }>({
+  const { data: selectedQuote } = useQuery<{ symbol: string; price: number; change: number; changePct: number }>({
     queryKey: ['/api/quotes/batch', selected?.symbol],
     queryFn: async () => {
       const res = await fetch(`/api/quotes/batch/${selected!.symbol}`, { credentials: 'include' });
@@ -282,13 +463,28 @@ export default function HuntCockpit() {
       const body = await res.json();
       const q = body?.quotes?.[selected!.symbol];
       if (!q) throw new Error('no quote');
-      return { price: q.price, change: q.change, changePct: q.changePercent };
+      return { symbol: selected!.symbol.toUpperCase(), price: q.price, change: q.change, changePct: q.changePercent };
     },
     enabled: !!selected?.symbol,
     staleTime: 15_000,
     refetchInterval: 30_000,
     retry: 1,
   });
+  // TanStack keeps the prior query result during a key change. That is useful
+  // for many lists, but fatal on a trade card: UEC must never briefly show
+  // HCA's price while its own quote arrives. The live book quote is a correct
+  // immediate fallback; the per-symbol quote only joins once its symbol agrees.
+  const quote = selectedQuote?.symbol === selected?.symbol.toUpperCase() ? selectedQuote : undefined;
+
+  // The engine's active pick, lifted so the hero can show the trade without a
+  // second fetch. Reset per signal — otherwise the previous ticker's contract
+  // renders under the new one's header for as long as the refetch takes.
+  // COCKPIT = one signal in depth. GRID = the whole book side by side. The rail
+  // shows ~6 rows, so every comparative question about 40 signals was a scrolling
+  // exercise; this is the same lens pair as LEAPS list/grid.
+  const [enginePick, setEnginePick] = useState<TradeStripPick | null>(null);
+  useEffect(() => { setEnginePick(null); }, [selectedId]);
+  const engineRef = useRef<HTMLDivElement>(null);
 
   const kpis = useMemo(() => {
     const avg = picks.length
@@ -296,16 +492,20 @@ export default function HuntCockpit() {
       : 0;
     const top = picks.length ? Math.max(...picks.map((p) => p.convictionScore)) : 0;
     const longs = picks.filter((p) => p.direction === 'long').length;
-    const mc = data?.marketContext;
     return [
       { label: 'Active Signals', value: String(picks.length), tone: 'neutral' as const },
       { label: 'Avg Conf', value: avg ? `${convictionPercent(avg)}%` : '—', tone: 'bull' as const },
       { label: 'Top Conf', value: top ? `${convictionPercent(top)}%` : '—', tone: 'bull' as const },
       { label: 'Long / Short', value: `${longs} / ${picks.length - longs}`, tone: 'muted' as const },
-      ...(mc ? [{ label: 'Regime', value: mc.regime?.toUpperCase() ?? '—', tone: 'neutral' as const }] : []),
-      ...(mc?.vixLevel ? [{ label: 'VIX', value: mc.vixLevel.toFixed(1), tone: 'muted' as const }] : []),
+      // Regime and VIX deliberately NOT here. This strip measures the BOOK — how
+      // many signals, how confident, which way they lean — and every entry should
+      // change when the book changes. Regime is a market fact: it was printing the
+      // identical value the Market Context panel shows ~1,400px below, so the same
+      // word appeared twice on one screen with nothing to say which was
+      // authoritative. It reads once now, in the panel that explains it alongside
+      // risk sentiment, bias, breadth and geopolitical risk.
     ];
-  }, [picks, data]);
+  }, [picks]);
 
   if (isLoading) {
     return (
@@ -333,7 +533,14 @@ export default function HuntCockpit() {
 
   const tone = selected ? directionTone(selected.direction) : 'bull';
   // One live price for every geometry panel, so the ladder / geometry / R:R agree.
-  const livePx = quote?.price ?? selected?.currentPrice ?? selected?.entryPrice ?? 0;
+  const livePx = quote?.price ?? (selected ? priceFor(selected) : 0);
+
+  // Headline numbers for the rail's Readout blocks. Net contribution is the
+  // arithmetic behind the score: a 29 built on +36/−7 is a different trade from
+  // a 29 with nothing against it, and only the net makes that visible up top.
+  const netPoints = (selected?.layers ?? []).reduce((n, l) => n + (l.points ?? 0), 0);
+  const plusPoints = (selected?.layers ?? []).filter((l) => (l.points ?? 0) > 0).reduce((n, l) => n + l.points, 0);
+  const minusPoints = (selected?.layers ?? []).filter((l) => (l.points ?? 0) < 0).reduce((n, l) => n + l.points, 0);
   const toneColor = tone === 'bull' ? 'var(--trade-bullish)' : 'var(--trade-bearish)';
   const activeRange = RANGES.find((r) => r.id === rangeId)!;
 
@@ -401,33 +608,66 @@ export default function HuntCockpit() {
         </div>
       ) : (
       <div ref={captureRef} className="space-y-3">
-      <KpiStrip items={kpis} />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1"><KpiStrip items={kpis} /></div>
+        {signalSymbols.length > 0 && (
+          <Heartbeat
+            since={quoteBookUpdatedAt || null}
+            staleAfterSec={45}
+            label={quoteBook ? `QUOTES ${liveBySymbol.size}/${signalSymbols.length}` : 'QUOTE FEED'}
+            className="shrink-0"
+          />
+        )}
+        <Segmented
+          options={[
+            { value: 'cockpit' as const, label: 'Cockpit' },
+            { value: 'grid' as const, label: 'Grid' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_300px] gap-3 items-start">
+      {view === 'grid' ? (
+        <div className="space-y-3">
+          <SignalFilterBar
+            filters={filters} set={setFilter} reset={resetFilters} active={filtersActive}
+            picks={openPicks} shownCount={shown.length} suggestFrom={allPicks}
+            onGradeTicker={gradeTicker} grading={!!grading}
+          />
+          {graded && !graded.analysis && <p className="px-1 font-mono text-[11px] text-[var(--brand-cyan)]">{graded.text}</p>}
+          <SignalGrid
+            picks={shown}
+            selectedId={selectedId}
+            live={liveBySymbol}
+            onSelect={(id) => { setSelectedId(id); setView('cockpit'); }}
+          />
+        </div>
+      ) : (
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
         {/* ─── LEFT: signal list ─────────────────────────────── */}
+        {/* Sticky column, full viewport height, scrolls inside itself.
+            Two wrong versions before this one. It was max-h-[44vh] — a stubby box
+            that cut off mid-card. Removing the cap entirely was worse: 40 signal
+            rows made the column taller than everything beside it and the page
+            grew to its length, so the detail pane and analytics rail were
+            stranded above acres of empty space.
+            The list is a NAVIGATION rail, not page content — it should behave
+            like one: pinned, as tall as the screen, never taller. */}
         <aside
           ref={listRef}
-          className="space-y-2 max-h-[44vh] overflow-y-auto lg:max-h-[calc(100vh-180px)] pr-1 -mr-1"
+          className="space-y-2 pr-1 -mr-1 lg:sticky lg:top-3 lg:h-[calc(100vh-7.5rem)] lg:overflow-y-auto"
         >
           <div className="sticky top-0 z-10 -mx-1 px-2 py-1.5 bg-background/95 backdrop-blur flex items-center justify-between gap-2">
             <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">Active Signals</span>
             {/* the NEW count now lives on the NEW tab of the stream filter below, so this
                 row just carries the open count + mark-seen (no competing toggle). */}
             <div className="flex items-center gap-1.5">
-              <div className="relative">
-                <input
-                  value={listFilter}
-                  onChange={(e) => setListFilter(e.target.value)}
-                  placeholder="filter"
-                  aria-label="Filter signals"
-                  className="w-16 rounded border border-border/50 bg-background/50 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:w-24 focus:border-[var(--brand-cyan)]"
-                />
-              </div>
               {newCount > 0 && (
                 <button
                   onClick={markSeen}
                   title="Mark all as seen"
-                  className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50 transition-colors hover:text-foreground"
+                  className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
                 >
                   seen
                 </button>
@@ -435,6 +675,24 @@ export default function HuntCockpit() {
               <span className="text-[10px] font-mono text-[var(--brand-cyan)]">{openPicks.length} open</span>
             </div>
           </div>
+          {/* The same filter model the grid uses, stacked for a 244px column.
+              The rail's lone ticker box is gone — it was one axis of a six-axis
+              model, and having it here while side/band/state lived only on the
+              grid is what made switching views throw the reduction away. */}
+          <SignalFilterBar
+            compact
+            filters={filters} set={setFilter} reset={resetFilters} active={filtersActive}
+            picks={openPicks} shownCount={shown.length} suggestFrom={allPicks}
+            onGradeTicker={gradeTicker} grading={!!grading}
+          />
+          {graded?.analysis ? (
+            <AnalysedSignalRow
+              analysis={graded.analysis}
+              selected={!!onDemand}
+              onClick={() => { setSelectedId(null); setOnDemandFocused(true); }}
+            />
+          ) : graded ? <p className="px-1 pb-1 font-mono text-[10px] leading-relaxed text-[var(--brand-cyan)]">{graded.text}</p> : null}
+
           {/* NEW / BEST / CONVICTION */}
           <div className="mb-2 flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
             {([['new', 'NEW'], ['best', 'BEST'], ['conviction', 'CONVICTION']] as const).map(([id, label]) => (
@@ -443,7 +701,7 @@ export default function HuntCockpit() {
                 onClick={() => setStreamFilter(id)}
                 className={cn(
                   'flex-1 cursor-pointer rounded px-2 py-1 text-[9px] font-mono uppercase tracking-wider transition-colors',
-                  streamFilter === id ? 'bg-foreground/10 text-[var(--brand-cyan)]' : 'text-muted-foreground/55 hover:text-foreground',
+                  streamFilter === id ? 'bg-foreground/10 text-[var(--brand-cyan)]' : 'text-muted-foreground/60 hover:text-foreground',
                 )}
                 data-testid={`stream-filter-${id}`}
               >
@@ -456,17 +714,21 @@ export default function HuntCockpit() {
             <div className="px-2 py-6 text-center text-[10px] font-mono text-muted-foreground/60">
               {streamFilter === 'new'
                 ? <>No new signals right now — <button onClick={() => setStreamFilter('conviction')} className="text-[var(--brand-cyan)] hover:underline">show all {picks.length}</button></>
-                : 'No signals match.'}
+                : filters.query
+                  ? graded?.analysis
+                    ? `${filters.query.trim().toUpperCase()} has no published scanner signal. Its analysed record is above.`
+                    : `No published ${filters.query.trim().toUpperCase()} signal in this book.`
+                  : 'No signals match.'}
             </div>
           ) : (
             shown.map((p) => (
               <SignalRow
                 key={p.ideaId}
                 pick={p}
-                live={p.currentPrice ?? undefined}
+                live={priceFor(p)}
                 selected={selected?.ideaId === p.ideaId}
                 isNew={isNew(p)}
-                onClick={() => setSelectedId(p.ideaId)}
+                onClick={() => { setOnDemandFocused(false); setSelectedId(p.ideaId); }}
               />
             ))
           )}
@@ -474,7 +736,7 @@ export default function HuntCockpit() {
           {/* CLOSED TODAY — signals that already resolved, kept visible for the record */}
           {closedToday.length > 0 && (
             <div className="mt-3">
-              <div className="mb-1.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/40">
+              <div className="mb-1.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">
                 Closed today · {closedToday.length}
               </div>
               <div className="space-y-1.5">
@@ -482,9 +744,10 @@ export default function HuntCockpit() {
                   <SignalRow
                     key={p.ideaId}
                     pick={p}
+                    live={priceFor(p)}
                     closed
                     selected={selected?.ideaId === p.ideaId}
-                    onClick={() => setSelectedId(p.ideaId)}
+                    onClick={() => { setOnDemandFocused(false); setSelectedId(p.ideaId); }}
                   />
                 ))}
               </div>
@@ -493,7 +756,16 @@ export default function HuntCockpit() {
         </aside>
 
         {/* ─── CENTER: subject ───────────────────────────────── */}
-        {selected && (
+        {onDemand && (
+          <OnDemandSubject
+            analysis={onDemand}
+            onWatch={addGradedToWatchlist}
+            watching={adding}
+            watchStatus={added}
+          />
+        )}
+
+        {!onDemand && selected && (
           <main ref={subjectRef} className="space-y-3 min-w-0">
             {/* HERO — identity · live price · levels · chart in ONE card so the
                 subject reads as a single unit instead of four stacked boxes. */}
@@ -505,13 +777,19 @@ export default function HuntCockpit() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-2xl font-mono font-bold tracking-wide text-foreground">{selected.symbol}</h2>
+                      {/* There is one authoritative quality label: the Conviction
+                          band. A second B+/A- conversion of the same score made
+                          an S-band / 89 signal look self-contradictory. */}
                       <span
-                        className={cn(
-                          'text-[11px] font-mono font-bold px-1.5 py-0.5 rounded border',
-                          gradeColorClass(displayedGrade(selected)),
-                        )}
+                        title="Signal evidence band — combines the scored conviction layers, not the selected options contract."
+                        className="rounded border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.11em]"
+                        style={{
+                          color: bandColor(selected.convictionBand),
+                          borderColor: `color-mix(in srgb, ${bandColor(selected.convictionBand)} 42%, transparent)`,
+                          background: `color-mix(in srgb, ${bandColor(selected.convictionBand)} 10%, transparent)`,
+                        }}
                       >
-                        {displayedGrade(selected)}
+                        {selected.convictionBand} band · {convictionPercent(selected.convictionScore)}
                       </span>
                       <span
                         className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
@@ -535,7 +813,9 @@ export default function HuntCockpit() {
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-2xl font-mono font-bold tabular-nums text-foreground leading-none">
-                    {quote ? `$${quote.price.toFixed(2)}` : '—'}
+                    {Number.isFinite(livePx) && livePx > 0
+                      ? <LiveValue key={selected.symbol} value={livePx} format={(n) => `$${n.toFixed(2)}`} />
+                      : '—'}
                   </div>
                   {quote && (
                     <div
@@ -548,6 +828,22 @@ export default function HuntCockpit() {
                 </div>
               </div>
 
+              {/* THE TRADE — lifted out of the Contract Engine 1,190px below.
+                  Two reasons: the most actionable fact on the page was under the
+                  fold, and the header above was printing the idea's STORED strike
+                  while the engine had re-selected a different one against the live
+                  chain. The strip shows the live pick and names the disagreement
+                  when there is one. See oracle/trade-strip.tsx. */}
+              {(selected.direction === 'long' || selected.direction === 'short') && (
+                <TradeStrip
+                  pick={enginePick}
+                  publishedStrike={selected.strikePrice}
+                  publishedType={selected.optionType}
+                  direction={selected.direction}
+                  onJump={() => engineRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                />
+              )}
+
               {/* Say it plainly before the user sizes a position off an entry the market
                   has already left behind. Renders nothing when the signal is clean. */}
               <SignalTimingNotice generatedAt={selected.generatedAt} />
@@ -555,6 +851,7 @@ export default function HuntCockpit() {
               {/* THE CHART is the focus of the analysis — prominent, right under the header.
                   One universal EpochChart (epoch-anchored, any ticker) with entry/stop/target. */}
               <EpochChart
+                key={selected.ideaId}
                 symbol={selected.symbol}
                 initialTf="1D"
                 height={340}
@@ -589,9 +886,11 @@ export default function HuntCockpit() {
             {/* CONTRACT ENGINE — the actionable trade. Renders its own QE-styled
                 card (same chrome as everything else now). */}
             {(selected.direction === 'long' || selected.direction === 'short') && (
+              <div ref={engineRef}>
               <ContractEngine
                 key={selected.ideaId}
                 autoLoad
+                onResolve={(p) => setEnginePick(p as TradeStripPick | null)}
                 symbol={selected.symbol}
                 direction={selected.direction === 'long' ? 'BULL' : 'BEAR'}
                 entry={selected.entryPrice}
@@ -600,6 +899,7 @@ export default function HuntCockpit() {
                 holdPeriodLabel={selected.holdingPeriod}
                 conviction={selected.convictionScore}
               />
+              </div>
             )}
 
             {/* THESIS — the reasoning in prose. The layer-by-layer breakdown lives once,
@@ -625,39 +925,110 @@ export default function HuntCockpit() {
               </CockpitCard>
             )}
 
-            <button
-              onClick={() => setLocation(`/r/${selected.symbol}?tab=chart`)}
-              className="inline-flex items-center gap-1.5 text-[11px] font-mono text-[var(--brand-cyan)] hover:underline"
-            >
-              Open {selected.symbol} in Research <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
+            {/* Was a single link to the chart tab — the only bridge from a signal
+                to the evidence for it. Now every evidence surface, symbol-bound,
+                so validating a call does not mean leaving it and retyping the
+                ticker. See components/evidence-rail.tsx. */}
+            <EvidenceRail symbol={selected.symbol} className="pt-1" />
           </main>
         )}
 
         {/* ─── RIGHT: analytics ──────────────────────────────── */}
-        {selected && (
+        {/* Four panels, ONE block. The cockpit was rendering 55 panels across 15
+            distinct footprints while the grid rendered 40 cards across 1 — and
+            that difference, not styling, is why the grid reads faster. Repeating
+            units teach the eye once; unique shapes make it re-learn at every
+            panel. See templates/kit.tsx → Readout.
+
+            The frame and grammar are shared (header · headline value · bars ·
+            detail · one line of prose). The DETAIL stays bespoke, because
+            flattening Signal Components into "big number + bars" would delete
+            its per-layer explanations, which are the best writing here. */}
+        {onDemand ? (
+          <OnDemandEvidenceRail analysis={onDemand} />
+        ) : selected && (
           <aside ref={railRef} className="space-y-3 lg:sticky lg:top-3 self-start">
-            <CockpitCard title="Confidence Index" meta={<span className="text-[var(--brand-cyan)]">Live</span>}>
-              <ConfidenceIndex
-                score={convictionPercent(selected.convictionScore)}
-                tone={tone}
-                tierLabel={tierLabel(selected)}
-                caption={`Band ${selected.convictionBand} · ${selected.layerCount} layers`}
+            <Readout
+              title="Confidence"
+              meta={<span className="text-[var(--brand-cyan)]">Live</span>}
+              value={convictionPercent(selected.convictionScore)}
+              qualifier={tierLabel(selected)}
+              /* CYAN, not the direction colour. Moss and clay mean DIRECTION —
+                 "direction without the casino" / "a fault light". Conviction is a
+                 quality reading on a different axis entirely, so tinting it by
+                 side made a well-evidenced short render clay, which reads as
+                 "this is bad" when it means "we are very sure about this". The
+                 side is already stated by the ▲BULL chip and the P&L. */
+              valueTone="structural"
+              note={`Band ${selected.convictionBand} · ${selected.layerCount} layers scored`}
+            >
+              {/* Was a radial gauge drawing the same number stated 40px above it,
+                  under four stacked glow filters. This shows what the numeral
+                  cannot: distance to the next band. Floors mirror
+                  lib/convictions.ts → convictionPercent, which is itself pinned
+                  to BAND_CUTOFFS on the server. */}
+              <BandScale
+                value={convictionPercent(selected.convictionScore)}
+                bands={[
+                  { label: 'C', floor: 0 },
+                  { label: 'B', floor: 58 },
+                  { label: 'A', floor: 72 },
+                  { label: 'S', floor: 86 },
+                ]}
+                tone="structural"
               />
-            </CockpitCard>
+              <div className="border-t border-border/45 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfidenceInfoOpen((open) => !open)}
+                  className="flex w-full items-center justify-between font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/75 transition-colors hover:text-[var(--brand-cyan)]"
+                  aria-expanded={confidenceInfoOpen}
+                >
+                  <span>How this grade works</span>
+                  <span aria-hidden className="text-[var(--brand-cyan)]">{confidenceInfoOpen ? '−' : '+'}</span>
+                </button>
+                {confidenceInfoOpen && (
+                  <div className="mt-2 grid gap-px border border-border/45 bg-border/45">
+                    <p className="bg-card px-2.5 py-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground/85">
+                      This is an evidence index, not a probability of profit. The score combines independent layers that agree—or disagree—on direction.
+                    </p>
+                    <p className="bg-card px-2.5 py-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground/85">
+                      Bands: C &lt;58 · B 58–71 · A 72–85 · S 86+. This setup has {selected.layerCount} scored layers; open Signal Components to inspect each one.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Readout>
 
-            <CockpitCard title="Signal Components">
-              <SignalComponents layers={selected.layers} />
-            </CockpitCard>
+            <Readout
+              title="Signal Components"
+              meta={`${selected.layerCount} layers`}
+              value={netPoints >= 0 ? `+${netPoints}` : String(netPoints)}
+              qualifier={`+${plusPoints} / ${minusPoints} across ${selected.layerCount}`}
+              valueTone={netPoints >= 0 ? 'bull' : 'bear'}
+              /* No `note` here on purpose: SignalComponents already ends with
+                 this exact sentence, and its version NAMES the dissenting
+                 layers — strictly more useful than the count. Two copies of one
+                 sentence 600px apart is the duplication this refactor exists to
+                 remove, not to introduce. */
+            >
+              <SignalComponents layers={selected.layers} showSummary={false} />
+            </Readout>
 
-            <PositionSize pick={selected} live={livePx} />
-            <TradeGeometry pick={selected} live={livePx} />
-            <RiskReward pick={selected} live={livePx} />
+            {/* Was three cards — Position Size, Trade Geometry, Risk/Reward —
+                totalling 649px to answer one question, with the 2.00 ratio
+                printed three separate ways. See signal-detail.tsx → RiskPanel. */}
+            <RiskPanel pick={selected} live={livePx} />
 
             {data?.marketContext && (
-              <CockpitCard title="Market Context">
+              <Readout
+                title="Market Context"
+                value={data.marketContext.regime?.toUpperCase() ?? '—'}
+                qualifier="regime"
+                valueTone="structural"
+                note={data.breadth?.interpretation}
+              >
                 <div className="space-y-2">
-                  <ContextRow label="Regime" value={data.marketContext.regime?.toUpperCase() ?? '—'} />
                   <ContextRow label="Risk" value={data.marketContext.riskSentiment?.toUpperCase() ?? '—'} />
                   <ContextRow
                     label="Bias"
@@ -678,16 +1049,12 @@ export default function HuntCockpit() {
                     />
                   )}
                 </div>
-                {data.breadth?.interpretation && (
-                  <p className="text-[10px] font-mono text-muted-foreground/60 mt-3 leading-snug border-t border-border/30 pt-2">
-                    {data.breadth.interpretation}
-                  </p>
-                )}
-              </CockpitCard>
+              </Readout>
             )}
           </aside>
         )}
       </div>
+      )}
       </div>
       )}
     </div>
@@ -695,6 +1062,191 @@ export default function HuntCockpit() {
 }
 
 // ─── small inline pieces ────────────────────────────────────────────────────
+
+/**
+ * An analysed ticker belongs in the same stream as published signals. It is not
+ * a trade row in disguise: it deliberately has no Entry → T1 path because the
+ * universal analyser did not publish one. Clicking it opens the evidence canvas.
+ */
+function AnalysedSignalRow({
+  analysis,
+  selected,
+  onClick,
+}: {
+  analysis: OnDemandAnalysis;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const overall = analysis.overall ?? {};
+  const grade = overall.grade ?? overall.tier ?? '—';
+  const score = overall.score;
+  const gradeTone = gradeToneFor(grade);
+  const components = Object.entries(analysis.components ?? {})
+    .filter(([, component]) => typeof component?.score === 'number')
+    .sort(([, a], [, b]) => (b.score ?? 0) - (a.score ?? 0));
+  const recommendation = overall.recommendation?.replace(/_/g, ' ') ?? 'ANALYSED';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'group relative w-full overflow-hidden rounded-[4px] border px-3 py-3 text-left transition-[border-color,background-color] duration-200',
+        selected
+          ? 'border-l-[3px] border-[var(--brand-cyan)] bg-[var(--brand-cyan)]/[0.08]'
+          : 'border-[var(--brand-cyan)]/45 bg-card hover:border-[var(--brand-cyan)]/75 hover:bg-[var(--brand-cyan)]/[0.045]',
+      )}
+      data-testid={`on-demand-read-${analysis.symbol}`}
+    >
+      <div className="flex items-start gap-2">
+        <TickerLogo symbol={analysis.symbol} size="sm" />
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-[14px] font-bold tracking-[0.08em] text-foreground">{analysis.symbol}</span>
+            <span className="font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--brand-cyan)]">Analysed</span>
+          </div>
+          <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/75">
+            {recommendation} · {overall.confidence?.toLowerCase() ?? 'unrated'}
+          </p>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="font-mono text-[22px] font-bold leading-none tabular-nums" style={{ color: gradeTone }}>{score ?? '—'}</p>
+          <p className="mt-1 font-mono text-[8px] font-bold uppercase tracking-[0.15em]" style={{ color: gradeTone }}>{grade} grade</p>
+        </div>
+      </div>
+
+      <div className="mt-3 border-t border-border/45 pt-2">
+        <div className="flex items-center gap-1" aria-label="Seven analysis dimensions">
+          {components.slice(0, 7).map(([key, component]) => {
+            const value = Math.max(0, Math.min(100, component.score ?? 0));
+            return <span key={key} title={`${componentLabel(key)} ${Math.round(value)}`} className="h-[3px] flex-1 bg-foreground/[0.08]">
+              <span className="block h-full bg-[var(--brand-cyan)]" style={{ width: `${value}%` }} />
+            </span>;
+          })}
+        </div>
+        <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground/65">
+          {components.length} evidence dimensions · open analysis →
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function OnDemandSubject({ analysis, onWatch, watching, watchStatus }: {
+  analysis: OnDemandAnalysis;
+  onWatch: () => void;
+  watching: boolean;
+  watchStatus: string | null;
+}) {
+  const overall = analysis.overall ?? {};
+  const components = Object.entries(analysis.components ?? {})
+    .filter(([, value]) => typeof value?.score === 'number')
+    .sort(([, a], [, b]) => (b.score ?? 0) - (a.score ?? 0));
+  const horizons = Object.entries(analysis.timeHorizons ?? {});
+  const insights = analysis.insights ?? {};
+  const positives = [...(insights.strengths ?? []), ...(insights.catalysts ?? [])].slice(0, 4);
+  const risks = [...(insights.weaknesses ?? []), ...(insights.risks ?? [])].slice(0, 4);
+
+  return (
+    <main className="min-w-0 space-y-3">
+      <CockpitCard bodyClassName="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <TickerLogo symbol={analysis.symbol} size="lg" />
+            <div>
+              <div className="flex items-baseline gap-2">
+                <h2 className="font-mono text-2xl font-bold tracking-wide text-foreground">{analysis.symbol}</h2>
+                <span className="border border-[var(--brand-cyan)]/45 bg-[var(--brand-cyan)]/10 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--brand-cyan)]">Analysed</span>
+              </div>
+              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.09em] text-muted-foreground/75">
+                {overall.recommendation?.replace(/_/g, ' ') ?? 'No directional call'} · {overall.confidence?.toLowerCase() ?? 'unrated'} confidence
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-mono text-3xl font-bold leading-none tabular-nums" style={{ color: gradeToneFor(overall.grade ?? overall.tier ?? '') }}>{overall.score ?? '—'}</p>
+            <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground/75">{overall.grade ?? overall.tier ?? '—'} grade</p>
+          </div>
+        </div>
+
+        <EpochChart symbol={analysis.symbol} initialTf="1D" height={340} />
+
+        <div className="grid gap-px border border-border/45 bg-border/45 sm:grid-cols-3">
+          {horizons.length > 0 ? horizons.map(([key, horizon]) => (
+            <div key={key} className="bg-card px-3 py-3">
+              <p className="font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-[var(--brand-cyan)]">{key}</p>
+              <p className="mt-1 font-mono text-[12px] font-bold uppercase text-foreground">{horizon.signal ?? 'No call'}</p>
+              <p className="mt-1 font-mono text-[10px] tabular-nums text-muted-foreground/70">
+                {typeof horizon.confidence === 'number' ? `${Math.round(horizon.confidence)} confidence` : horizon.timeframe ?? 'Timeframe unavailable'}
+              </p>
+            </div>
+          )) : <p className="bg-card px-3 py-3 font-mono text-[11px] text-muted-foreground/70">The analysis returned no horizon calls.</p>}
+        </div>
+      </CockpitCard>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <CockpitCard title="Evidence distribution" meta={`${components.length} dimensions`}>
+          <div className="space-y-3">
+            {components.map(([key, component]) => {
+              const score = Math.max(0, Math.min(100, component.score ?? 0));
+              return <div key={key} className="grid grid-cols-[82px_minmax(0,1fr)_30px] items-center gap-3">
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/80">{componentLabel(key)}</span>
+                <span className="h-[4px] bg-foreground/[0.08]"><span className="block h-full bg-[var(--brand-cyan)]" style={{ width: `${score}%` }} /></span>
+                <span className="text-right font-mono text-[11px] font-bold tabular-nums text-foreground">{Math.round(score)}</span>
+              </div>;
+            })}
+          </div>
+        </CockpitCard>
+        <CockpitCard title="What changed the grade" meta="Actual analysis output">
+          <div className="space-y-3">
+            {positives.length > 0 && <InsightList title="Supporting" items={positives} tone="bull" />}
+            {risks.length > 0 && <InsightList title="Against" items={risks} tone="bear" />}
+            {positives.length === 0 && risks.length === 0 && <p className="font-mono text-[11px] text-muted-foreground/70">No written insights returned for this analysis.</p>}
+          </div>
+          <div className="mt-4 border-t border-border/45 pt-3">
+            <button type="button" onClick={onWatch} disabled={watching || !!watchStatus} className="border border-[var(--brand-cyan)]/45 px-2.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--brand-cyan)] transition-colors hover:bg-[var(--brand-cyan)]/10 disabled:opacity-60">
+              {watching ? 'Adding…' : watchStatus ? 'Watching' : '+ Add to watchlist'}
+            </button>
+            {watchStatus && <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground/75">{watchStatus}</p>}
+          </div>
+        </CockpitCard>
+      </div>
+    </main>
+  );
+}
+
+function OnDemandEvidenceRail({ analysis }: { analysis: OnDemandAnalysis }) {
+  const overall = analysis.overall ?? {};
+  const score = Math.max(0, Math.min(100, overall.score ?? 0));
+  const components = Object.entries(analysis.components ?? {}).filter(([, value]) => typeof value?.score === 'number');
+  return (
+    <aside className="space-y-3 self-start lg:sticky lg:top-3">
+      <Readout title="Analysis grade" meta={<span className="text-[var(--brand-cyan)]">On demand</span>} value={score} qualifier={`${overall.grade ?? overall.tier ?? '—'} · ${overall.recommendation?.replace(/_/g, ' ') ?? 'ANALYSED'}`} valueTone="structural" note="Evidence index, not a probability of profit.">
+        <BandScale value={score} bands={[{ label: 'D', floor: 0 }, { label: 'C', floor: 50 }, { label: 'B', floor: 60 }, { label: 'A', floor: 70 }, { label: 'S', floor: 85 }]} tone="structural" />
+      </Readout>
+      <Readout title="Coverage" value={components.length} qualifier="dimensions returned" valueTone="structural" note="No scanner entry, target, contract, or rank has been fabricated for this read." />
+    </aside>
+  );
+}
+
+function InsightList({ title, items, tone }: { title: string; items: string[]; tone: 'bull' | 'bear' }) {
+  const color = tone === 'bull' ? 'var(--trade-bullish)' : 'var(--trade-bearish)';
+  return <div>
+    <p className="mb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.13em]" style={{ color }}>{title}</p>
+    <ul className="space-y-1.5">{items.map((item, i) => <li key={`${item}-${i}`} className="font-mono text-[10px] leading-relaxed text-muted-foreground/85">{item}</li>)}</ul>
+  </div>;
+}
+
+function componentLabel(key: string) {
+  return key === 'ml' ? 'ML' : key === 'orderFlow' ? 'Flow' : key;
+}
+
+function gradeToneFor(grade: string) {
+  return /^S/i.test(grade) ? '#e0a458'
+    : /^A/i.test(grade) ? 'var(--brand-cyan)'
+      : /^B/i.test(grade) ? '#7aa2f7'
+        : 'var(--muted-foreground)';
+}
 
 const STAT_TONE: Record<string, string> = {
   cyan: 'var(--brand-cyan)',

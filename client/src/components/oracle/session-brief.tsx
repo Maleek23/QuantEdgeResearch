@@ -10,11 +10,13 @@
  * pre-market leadership is visible while it still matters — before the bell.
  */
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Heartbeat } from '@/components/viz';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PanelFrame } from '@/components/oracle/panel-frame';
 import { TC } from '@/lib/oracle/trading-colors';
 import { DivergingBar, ParticipationStrip, robustMax } from '@/components/viz';
+import { useRealtimeStatus } from '@/components/oracle/market-stream';
 
 import { getOpexContext } from '@shared/opex-calendar';
 interface LeaderName { symbol: string; changePct: number; isMega?: boolean }
@@ -24,17 +26,54 @@ interface SectorStrength {
   stance: 'leading' | 'improving' | 'weakening' | 'lagging';
 }
 interface Leadership {
+  /** Server-side generation time; see viz/MOTION.md on why fetch time is not used. */
+  generatedAt?: string;
   session: string; quoted: number; universeSize: number;
   benchmarkChangePct: number | null;
   sectors: SectorStrength[]; megaCaps: LeaderName[];
   interpretation: string;
 }
 
+interface MacroGate {
+  level: 'clear' | 'watch' | 'cash' | 'unavailable';
+  message: string;
+  nextEvent: { name: string; date: string; time: string; hoursUntil: number | null; tradingImpact?: string } | null;
+  calendar?: { current: boolean; lastDate: string | null };
+}
+
 const SESSION_LABEL: Record<string, string> = {
   pre: 'Pre-market', regular: 'Live session', post: 'After-hours', closed: 'Overnight',
 };
 
-export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (s: string) => void; className?: string }) {
+function cashHandoffCopy(session: string) {
+  const eastern = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const weekend = eastern.getDay() === 0 || eastern.getDay() === 6;
+  if (weekend) {
+    return {
+      label: 'Weekend handoff',
+      text: `Cash equities are closed. ${SESSION_LABEL[session] ?? session} is the last stock-market reading; futures and crypto stay live without being blended into stock leadership.`,
+    };
+  }
+  return {
+    label: 'Cash equities closed',
+    text: `${SESSION_LABEL[session] ?? session} is the latest cash-equity read. Rotation and sector leadership stay anchored to that session; live futures and crypto are shown in Market Pulse, not blended into stock rankings.`,
+  };
+}
+
+export function SessionBrief({
+  onSelectSymbol,
+  className,
+  collapsedHeight,
+  expanded = false,
+  onFocus,
+}: {
+  onSelectSymbol?: (s: string) => void;
+  className?: string;
+  /** Lets the Oracle market stage align the tape with its neighbouring live views. */
+  collapsedHeight?: number;
+  expanded?: boolean;
+  onFocus?: () => void;
+}) {
   const { data, isLoading, isError } = useQuery<Leadership>({
     queryKey: ['/api/sector-leadership'],
     queryFn: async () => {
@@ -45,13 +84,23 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
     staleTime: 120_000, refetchInterval: 180_000, retry: 1,
   });
 
-  // No local collapse state. This panel used to clip itself THREE ways — a 2-line
-  // clamp on the summary, a 176px inner scrollbar, and only 5 of N groups rendered —
-  // and then PanelFrame clipped it again on top. Two systems truncating the same
-  // content is why expanding it didn't reveal what you'd expect. Render everything;
-  // PanelFrame owns the height.
+  // This is a tape, not a summary card: render every group and let the compact
+  // stage scroll through them. Full-card focus is the only expansion path.
 
   const opex = getOpexContext();
+  const { data: realtime } = useRealtimeStatus();
+  const macroGate = useQuery<MacroGate>({
+    queryKey: ['/api/macro/cash-gate'],
+    queryFn: async () => {
+      const r = await fetch('/api/macro/cash-gate', { credentials: 'include' });
+      if (!r.ok) throw new Error('cash gate failed');
+      return r.json();
+    },
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
+    retry: 1,
+  });
+  const handoff = data ? cashHandoffCopy(data.session) : null;
   const sectors = data?.sectors ?? [];
   // Shared scale so every bar is comparable — but robust, not the raw max. One
   // outlier group (crypto routinely runs 10x the rest) was setting the axis and
@@ -59,15 +108,15 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
   const maxMove = robustMax(sectors.map((x) => x.medianChangePct));
   const strong = sectors.filter((x) => x.medianChangePct >= 0);
   const weak = sectors.filter((x) => x.medianChangePct < 0).reverse();
-  // What the collapsed view can't fit — used to label the expand control with
-  // something specific instead of the word "More".
-  const hiddenCount = Math.max(0, sectors.length - 5);
-
   return (
     <PanelFrame
       title="Session Brief"
       className={className}
-      moreLabel={hiddenCount > 0 ? `+${hiddenCount} groups` : undefined}
+      collapsedHeight={collapsedHeight}
+      forceExpanded={expanded}
+      onFocus={onFocus}
+      scrollable={!expanded}
+      inlineToggle={false}
       right={
         <span className="flex items-center gap-2 text-label font-mono text-muted-foreground">
           {data && (
@@ -76,6 +125,7 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
                 {SESSION_LABEL[data.session] ?? data.session}
               </span>
               <span>· {data.quoted}/{data.universeSize} names</span>
+              <Heartbeat since={data.generatedAt} staleAfterSec={900} className="ml-1" />
             </>
           )}
         </span>
@@ -91,6 +141,19 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
         </div>
       ) : (
         <>
+          {data && data.session !== 'regular' && (
+            <div className="border-b border-border/30 px-4 py-2.5" style={{ background: `color-mix(in srgb, ${TC.info} 6%, transparent)` }}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-label ui-eyebrow" style={{ color: TC.info }}>{handoff?.label}</span>
+                <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground/65">
+                  {realtime?.futures?.connected ? `${realtime.futures.symbols ?? 0} futures streams` : 'futures unavailable'} · {realtime?.coinbase?.connected ? `${realtime.coinbase.symbols ?? 0} crypto streams` : 'crypto unavailable'}
+                </span>
+              </div>
+              <p className="ui-prose mt-1 text-label leading-snug text-muted-foreground">
+                {handoff?.text}
+              </p>
+            </div>
+          )}
           {/* Expiration context sits ABOVE the interpretation. A monthly OPEX changes
               how every option on the board behaves, and the platform used to say
               nothing — an IWM put was held into one and settled worthless with no
@@ -106,6 +169,8 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
               )}
             </div>
           )}
+
+          {macroGate.data && <EventRiskLine gate={macroGate.data} />}
 
           {data?.interpretation && (
             <p className="ui-prose border-b border-border/30 px-4 py-2 text-body leading-snug text-foreground/85"
@@ -160,6 +225,35 @@ export function SessionBrief({ onSelectSymbol, className }: { onSelectSymbol?: (
         </>
       )}
     </PanelFrame>
+  );
+}
+
+function EventRiskLine({ gate }: { gate: MacroGate }) {
+  // A server that predates calendar coverage metadata is unverified too. Never
+  // translate an absent check into green just because the old endpoint said clear.
+  const unavailable = gate.level === 'unavailable' || !gate.calendar || gate.calendar.current === false;
+  const cash = gate.level === 'cash';
+  const watch = gate.level === 'watch';
+  const tone = unavailable || watch ? TC.warn : cash ? TC.bear : TC.bull;
+  const label = unavailable ? 'Macro coverage' : cash ? 'Cash-gate' : watch ? 'Event watch' : 'Event risk';
+  const detail = unavailable
+    ? `Calendar ends ${gate.calendar?.lastDate ?? 'before today'} — no all-clear implied.`
+    : gate.nextEvent
+      ? `${gate.nextEvent.name} · ${gate.nextEvent.time}`
+      : 'No high-impact print is imminent.';
+
+  return (
+    <div
+      className="flex items-start gap-2 border-b border-border/30 px-4 py-2"
+      style={{ background: `color-mix(in srgb, ${tone} ${unavailable ? 8 : cash ? 12 : 5}%, transparent)` }}
+      role={cash ? 'alert' : 'status'}
+    >
+      {unavailable || cash ? <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" style={{ color: tone }} /> : <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />}
+      <div className="min-w-0">
+        <div className="text-label ui-eyebrow" style={{ color: tone }}>{label}</div>
+        <p className="ui-prose mt-0.5 text-label leading-snug text-muted-foreground">{detail}</p>
+      </div>
+    </div>
   );
 }
 

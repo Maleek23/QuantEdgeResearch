@@ -330,7 +330,7 @@ export function MorningBrief() {
                     <div className="text-[12px] font-mono font-bold tabular-nums" style={{ color: pctColor(m.changePercent) }}>
                       {signed(m.changePercent, 1)}
                     </div>
-                    <div className="text-[9px] font-mono text-muted-foreground/50 tabular-nums">${m.price?.toFixed(2) ?? '—'}</div>
+                    <div className="text-[9px] font-mono text-muted-foreground/60 tabular-nums">${m.price?.toFixed(2) ?? '—'}</div>
                   </div>
                 </button>
               ))}
@@ -364,7 +364,7 @@ export function MorningBrief() {
                 ))}
               </ul>
             ) : (
-              <p className="text-[11px] font-mono text-muted-foreground/50">No major scheduled catalysts.</p>
+              <p className="text-[11px] font-mono text-muted-foreground/60">No major scheduled catalysts.</p>
             )}
           </div>
         </div>
@@ -420,7 +420,7 @@ function SectorColumn({
                 </div>
               </div>
               <div className="flex items-center justify-between pl-7 mt-0.5">
-                <span className="text-[8px] font-mono uppercase tracking-wider text-muted-foreground/50">5d {signed(s.performance5d, 1)}</span>
+                <span className="text-[8px] font-mono uppercase tracking-wider text-muted-foreground/60">5d {signed(s.performance5d, 1)}</span>
                 <FlowTag flow={s.flow} />
               </div>
             </button>
@@ -488,7 +488,7 @@ function BasketTile({
               {signed(leader.q.changePercent, 1)}
             </span>
           </button>
-        ) : <span className="text-[10px] font-mono text-muted-foreground/40">no data</span>}
+        ) : <span className="text-[10px] font-mono text-muted-foreground/60">no data</span>}
         {laggard && laggard.symbol !== leader?.symbol && (
           <button onClick={() => onPick(laggard.symbol)} className="flex items-center gap-1.5 min-w-0 cursor-pointer group shrink-0">
             <span className="text-[10px] font-mono font-bold tabular-nums" style={{ color: pctColor(laggard.q.changePercent) }}>
@@ -499,7 +499,7 @@ function BasketTile({
           </button>
         )}
       </div>
-      <div className="text-[8px] font-mono uppercase tracking-wider text-muted-foreground/40 mt-1">{count} names · equal-weight</div>
+      <div className="text-[8px] font-mono uppercase tracking-wider text-muted-foreground/60 mt-1">{count} names · equal-weight</div>
     </div>
   );
 }
@@ -510,7 +510,7 @@ function PulseTile({ label, value, sub, tone }: { label: string; value: string; 
     <div className="rounded-lg border border-card-border bg-card/60 px-3 py-2">
       <div className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60">{label}</div>
       <div className="text-base font-mono font-bold tabular-nums leading-tight" style={{ color }}>{value}</div>
-      {sub && <div className="text-[8px] font-mono uppercase tracking-wider text-muted-foreground/50 capitalize">{sub}</div>}
+      {sub && <div className="text-[8px] font-mono uppercase tracking-wider text-muted-foreground/60 capitalize">{sub}</div>}
     </div>
   );
 }

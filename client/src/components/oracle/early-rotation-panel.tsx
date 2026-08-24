@@ -7,6 +7,7 @@
  * tops the leaderboard, the trade is gone.
  */
 import { useQuery } from '@tanstack/react-query';
+import { Heartbeat } from '@/components/viz';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TC } from '@/lib/oracle/trading-colors';
@@ -19,6 +20,8 @@ interface Candidate {
   distanceToBreakoutPct: number | null; why: string;
 }
 interface EarlyRotation {
+  /** Server-side generation time. Heartbeat reads this, never the fetch time. */
+  generatedAt?: string;
   session: string;
   sectorsRotatingIn: { key: string; label: string; medianChangePct: number; breadthPct: number }[];
   candidates: Candidate[];
@@ -42,7 +45,10 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
         <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">
           Early Rotation
         </span>
-        <span className="text-label font-mono text-muted-foreground">watchlist · not signals</span>
+        <div className="flex items-center gap-3">
+          <Heartbeat since={data?.generatedAt} staleAfterSec={900} />
+          <span className="text-label font-mono text-muted-foreground">watchlist · not signals</span>
+        </div>
       </div>
 
       {isLoading ? (

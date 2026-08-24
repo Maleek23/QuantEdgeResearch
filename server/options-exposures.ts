@@ -22,6 +22,17 @@
 
 import { logger } from './logger';
 
+/**
+ * Gamma concentration cut-offs, on net/gross in [-1, 1].
+ *
+ * Provisional pending a full trading-day sample — set deliberately WIDE so the
+ * layer starts scoring the clearly one-sided books first rather than every
+ * symbol at once. Each computed snapshot logs its concentration so the cut can
+ * be tightened against real spread instead of guessed twice.
+ */
+const CONC_CUT = 0.25;
+const CONC_NEUTRAL = 0.08;
+
 // ─── Types ──────────────────────────────────────────────────
 
 export interface OptionInput {
@@ -82,6 +93,20 @@ export interface ExposureSnapshot {
 
   // Regime
   regime: 'positive_gamma' | 'negative_gamma' | 'neutral' | 'transitioning';
+  /**
+   * Net GEX as a share of the symbol's OWN gross gamma, in [-1, 1].
+   *
+   * The absolute regime thresholds (±$0.5B) are index-scale. Measured on live
+   * CBOE chains: AAPL — a multi-trillion-dollar company — produces net GEX of
+   * +0.26B, and DIA +0.44B, so both land in "transitioning" and the conviction
+   * engine's GEX layer skips them. Every single name fails the same way, which
+   * is why that layer scored 0 of 92 published ideas.
+   *
+   * net/gross is dimensionless and self-scaling: +1 means every strike's gamma
+   * points the same way, 0 means dealers are balanced. It compares SPY and a
+   * small cap on the same footing without needing market cap or history.
+   */
+  gammaConcentration: number;
   vexRegime: 'vol_tailwind' | 'vol_headwind' | 'vol_neutral';
 
   // Key structural levels
@@ -329,7 +354,7 @@ export function computeExposures(
   if (strikes.length === 0) {
     return {
       symbol, spotPrice, calculatedAt: Date.now(),
-      totalGEX: 0, totalVEX: 0, totalDEX: 0, totalCharm: 0,
+      totalGEX: 0, totalVEX: 0, totalDEX: 0, totalCharm: 0, gammaConcentration: 0,
       callGEX: 0, putGEX: 0, putCallGEXRatio: 0,
       regime: 'neutral', vexRegime: 'vol_neutral',
       gammaFlipPrice: null, vannaFlipPrice: null,
@@ -407,11 +432,21 @@ export function computeExposures(
   // In negative gamma regime → breaks toward flip
   const zeroGammaProjection = totalGEX > 0 ? maxGammaStrike : gammaFlipPrice;
 
-  // Regimes
+  // How one-sided is dealer gamma, relative to this symbol's own book?
+  const grossGEX = strikes.reduce((sum, s) => sum + Math.abs(s.netGEX), 0);
+  const gammaConcentration = grossGEX > 0 ? totalGEX / grossGEX : 0;
+
+  // Regimes — absolute OR relative.
+  //
+  // The absolute bar is kept so index readings do not move: SPY at −4.42B stays
+  // negative_gamma exactly as before. The relative bar is what lets a single
+  // name qualify at all, since none of them reach ±$0.5B.
+  //
+  // CONC_CUT is set from measurement, not taste — see the logged distribution.
   const regime: ExposureSnapshot['regime'] =
-    totalGEX > 0.5 ? 'positive_gamma'
-    : totalGEX < -0.5 ? 'negative_gamma'
-    : Math.abs(totalGEX) < 0.2 ? 'neutral'
+    (totalGEX > 0.5 || gammaConcentration > CONC_CUT) ? 'positive_gamma'
+    : (totalGEX < -0.5 || gammaConcentration < -CONC_CUT) ? 'negative_gamma'
+    : Math.abs(gammaConcentration) < CONC_NEUTRAL ? 'neutral'
     : 'transitioning';
 
   // VEX regime: positive VEX = vol tailwind (higher vol = higher price via vanna)
@@ -428,12 +463,12 @@ export function computeExposures(
     `GEX=${totalGEX.toFixed(2)}B VEX=${totalVEX.toFixed(1)}M DEX=${totalDEX.toFixed(2)}B ` +
     `flip=$${gammaFlipPrice || '—'} vflip=$${vannaFlipPrice || '—'} ` +
     `maxγ=$${maxGammaStrike} maxV=$${maxVannaStrike} ` +
-    `regime=${regime}/${vexRegime} vannaComputed=${vannaComputedCount}`,
+    `conc=${gammaConcentration.toFixed(3)} regime=${regime}/${vexRegime} vannaComputed=${vannaComputedCount}`,
   );
 
   return {
     symbol, spotPrice, calculatedAt: Date.now(),
-    totalGEX, totalVEX, totalDEX, totalCharm,
+    totalGEX, totalVEX, totalDEX, totalCharm, gammaConcentration,
     callGEX, putGEX,
     putCallGEXRatio: callGEX > 0 ? putGEX / callGEX : 0,
     regime, vexRegime,

@@ -60,7 +60,7 @@ export function SignalStrengthBars({ signals, className }: SignalStrengthBarsPro
                     "flex items-center justify-center w-7 h-7 rounded transition-all",
                     isActive 
                       ? "bg-primary/20 text-primary border-2 border-primary/50 shadow-sm shadow-primary/20" 
-                      : "bg-muted/30 text-muted-foreground/30 border border-muted"
+                      : "bg-muted/30 text-muted-foreground/60 border border-muted"
                   )}
                   data-testid={`signal-${signalConfig.label.toLowerCase()}`}
                 >

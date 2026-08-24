@@ -13,7 +13,7 @@ import { Loader2, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TC, pnlColor } from '@/lib/oracle/trading-colors';
 import { apiRequest } from '@/lib/queryClient';
-import { RangeBar, DecayBar, Meter } from '@/components/viz';
+import { RangeBar, DecayBar, Meter, LiveValue } from '@/components/viz';
 import { daysToExpiry, formatExpiry } from '@/lib/market-date';
 
 interface Position {
@@ -94,10 +94,10 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
         </div>
 
         <div className="grid grid-cols-2 gap-px bg-border/20 sm:grid-cols-5">
-          <Stat label="Equity" value={money(data.totalValue)} />
-          <Stat label="P&L" value={`${data.totalPnL >= 0 ? '+' : ''}${money(data.totalPnL)}`} color={pnlColor(data.totalPnL)} />
-          <Stat label="Return" value={`${data.totalPnLPercent >= 0 ? '+' : ''}${data.totalPnLPercent.toFixed(2)}%`} color={pnlColor(data.totalPnLPercent)} />
-          <Stat label="Cash" value={money(data.cashBalance)} />
+          <Stat label="Equity" live={data.totalValue} format={money} />
+          <Stat label="P&L" live={data.totalPnL} format={(n) => `${n >= 0 ? '+' : ''}${money(n)}`} color={pnlColor(data.totalPnL)} />
+          <Stat label="Return" live={data.totalPnLPercent} format={(n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`} color={pnlColor(data.totalPnLPercent)} />
+          <Stat label="Cash" live={data.cashBalance} format={money} />
           <Stat
             label="Win rate"
             value={data.winRate == null ? '—' : `${data.winRate.toFixed(0)}%`}
@@ -241,11 +241,33 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
+/**
+ * A stat tile. Pass `live` (the raw number) and `format` for figures that move
+ * while you are watching — LiveValue tweens to the new value and flashes the
+ * direction it went, so a change registers without you having to diff it by eye.
+ * Pass plain `value` for anything that is a claim rather than a tick: a win rate
+ * tweening through intermediate percentages would be inventing readings the
+ * engine never produced. See viz/MOTION.md.
+ */
+function Stat({
+  label,
+  value,
+  live,
+  format,
+  color,
+}: {
+  label: string;
+  value?: string;
+  live?: number;
+  format?: (n: number) => string;
+  color?: string;
+}) {
   return (
     <div className="bg-card px-3 py-2">
       <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
-      <div className="mt-0.5 text-lead font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
+      <div className="mt-0.5 text-lead font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>
+        {live !== undefined ? <LiveValue value={live} format={format} /> : value}
+      </div>
     </div>
   );
 }

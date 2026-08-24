@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CONVICTION_LAYER_COUNT } from "@shared/conviction-layers";
 import { SEOHead } from "@/components/seo-head";
 import { Link } from "wouter";
 import profileImage from "@assets/malikpic_1760579415191.jpg";
@@ -35,12 +36,6 @@ const engines = [
     icon: Eye,
     color: "from-amber-500 to-amber-600",
     description: "Track unusual options activity, smart money positioning, and institutional hedging patterns in real-time."
-  },
-  {
-    name: "Dark Pool Layer",
-    icon: Shield,
-    color: "from-red-500 to-red-600",
-    description: "Monitor off-exchange trading activity and large block transactions to identify institutional accumulation or distribution."
   },
   {
     name: "Convergence Layer",
@@ -74,7 +69,7 @@ const values = [
 ];
 
 const stats = [
-  { value: "6", label: "Analysis Layers", suffix: "" },
+  { value: String(CONVICTION_LAYER_COUNT), label: "Conviction Layers", suffix: "" },
   { value: "300", label: "Data Sources", suffix: "+" },
   { value: "8000", label: "Stocks Covered", suffix: "+" },
   { value: "24/7", label: "Market Monitoring", suffix: "" },
@@ -84,7 +79,7 @@ const milestones = [
   { year: "2024 Q1", event: "Research & Development begins" },
   { year: "2024 Q2", event: "Technical & Fundamental engines deployed" },
   { year: "2024 Q3", event: "Sentiment analysis integration" },
-  { year: "2024 Q4", event: "Options Flow & Dark Pool tracking added" },
+  { year: "2024 Q4", event: "Options flow tracking added" },
   { year: "2025 Q1", event: "Convergence Engine & Beta Launch" },
 ];
 
@@ -168,8 +163,8 @@ export default function About() {
             <CardContent className="p-4">
               <p className="text-muted-foreground leading-relaxed">
                 Financial markets generate millions of data points daily. Individual traders can't
-                possibly track technical patterns, fundamental changes, sentiment shifts, options flow,
-                and dark pool activity simultaneously. Institutions have entire teams for this.
+                possibly track technical patterns, fundamental changes, sentiment shifts, options flow
+                and dealer gamma positioning simultaneously. Institutions have entire teams for this.
                 <strong className="text-foreground"> We built QuantEdge to level the playing field.</strong>
               </p>
               <p className="text-muted-foreground leading-relaxed mt-4">
@@ -181,13 +176,13 @@ export default function About() {
           </Card>
         </section>
 
-        {/* The 6 Analysis Layers */}
+        {/* Conviction layers — count comes from shared/conviction-layers.ts */}
         <section className="space-y-6">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <h2 className="text-2xl font-semibold">The 6 Analysis Layers</h2>
+            <h2 className="text-2xl font-semibold">{CONVICTION_LAYER_COUNT} Conviction Layers</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {engines.map((engine, i) => (

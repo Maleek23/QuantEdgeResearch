@@ -104,7 +104,7 @@ function ScalpRow({ s }: { s: Scalp }) {
       <div className="mt-1.5 flex items-center gap-3 text-[10px] font-mono tabular-nums text-muted-foreground">
         <span>
           ${s.strike}
-          <span className="text-muted-foreground/50"> {s.bias === 'calls' ? 'C' : 'P'}</span>
+          <span className="text-muted-foreground/60"> {s.bias === 'calls' ? 'C' : 'P'}</span>
         </span>
         <span className="inline-flex items-center gap-1">
           <Target className="h-3 w-3 text-[var(--trade-bullish)]/70" />
@@ -149,7 +149,7 @@ export function IndexScalpsCard({ className }: { className?: string }) {
         )}
         <Link
           href="/gex"
-          className="ml-auto text-[10px] font-mono text-muted-foreground/50 hover:text-[var(--brand-cyan)]"
+          className="ml-auto text-[10px] font-mono text-muted-foreground/60 hover:text-[var(--brand-cyan)]"
         >
           GEX hub →
         </Link>
@@ -163,7 +163,7 @@ export function IndexScalpsCard({ className }: { className?: string }) {
           </span>
         </div>
       ) : isError ? (
-        <div className="py-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/50">
+        <div className="py-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60">
           Scalp feed unavailable
         </div>
       ) : !data?.session.isMarketOpen ? (

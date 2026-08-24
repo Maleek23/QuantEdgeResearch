@@ -7,7 +7,8 @@
  *
  *   cash  → red banner   ("size down / hold cash")
  *   watch → amber strip  ("plan around it")
- *   clear → a calm one-line "all clear" chip (so the check is visibly working)
+ *   clear → a calm one-line "all clear" chip (only with current calendar coverage)
+ *   unavailable → amber coverage warning, never a fabricated all-clear
  *
  * Data is only as current as server/economic-calendar.ts — see the endpoint note.
  */
@@ -15,7 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Clock, ShieldCheck, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type Level = 'clear' | 'watch' | 'cash';
+type Level = 'clear' | 'watch' | 'cash' | 'unavailable';
 
 interface CashGate {
   level: Level;
@@ -24,6 +25,7 @@ interface CashGate {
   message: string;
   nextEvent: { name: string; date: string; time: string; hoursUntil: number | null; tradingImpact?: string } | null;
   upcoming: Array<{ name: string; date: string; time: string; hoursUntil: number | null }>;
+  calendar?: { current: boolean; firstDate: string | null; lastDate: string | null; source: string };
 }
 
 export function CashGateBanner({ className }: { className?: string }) {
@@ -48,6 +50,25 @@ export function CashGateBanner({ className }: { className?: string }) {
     );
   }
   if (isError || !data) return null;
+
+  // An older server response without coverage metadata is also unverified. A
+  // missing field cannot be allowed to turn into a reassuring green all-clear.
+  if (data.level === 'unavailable' || !data.calendar || !data.calendar.current) {
+    return (
+      <div
+        className={cn('flex items-center gap-2 rounded-lg border px-3 py-2', className)}
+        style={{
+          borderColor: 'color-mix(in srgb, var(--trade-neutral) 45%, transparent)',
+          background: 'color-mix(in srgb, var(--trade-neutral) 10%, transparent)',
+        }}
+        role="status"
+      >
+        <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--trade-neutral)]" />
+        <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--trade-neutral)]">Event coverage</span>
+        <span className="text-[11px] font-mono text-muted-foreground/85">calendar needs refresh — no all-clear implied</span>
+      </div>
+    );
+  }
 
   // ── CLEAR: calm confirmation the gate is watching ──
   if (data.level === 'clear') {

@@ -129,7 +129,7 @@ export function MetricCard({ metric, index, colorScheme = "cyan" }: MetricCardPr
           {hasResearchData && (
             <ChevronDown
               className={cn(
-                "h-4 w-4 text-muted-foreground/50 transition-transform shrink-0",
+                "h-4 w-4 text-muted-foreground/60 transition-transform shrink-0",
                 isExpanded && "rotate-180"
               )}
             />

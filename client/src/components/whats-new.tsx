@@ -237,7 +237,7 @@ export function WhatsNewDrawer() {
             </div>
           </div>
         ))}
-        <div className="text-center text-[9px] font-mono text-muted-foreground/40 pt-2 border-t border-border/30">
+        <div className="text-center text-[9px] font-mono text-muted-foreground/60 pt-2 border-t border-border/30">
           That's it for now. Check back when the cyan badge lights up.
         </div>
       </div>

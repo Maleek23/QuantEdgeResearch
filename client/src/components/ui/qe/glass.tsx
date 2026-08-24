@@ -64,7 +64,7 @@ export function GlassKpi({ label, value, sub, color }: { label: string; value: s
     <GlassCard className="px-3 py-2">
       <GlassMicroLabel>{label}</GlassMicroLabel>
       <div className="mt-0.5 text-lg font-mono font-bold tabular-nums leading-none" style={{ color: color || 'hsl(var(--foreground))' }}>{value}</div>
-      {sub && <div className="mt-0.5 text-[9px] text-muted-foreground/50">{sub}</div>}
+      {sub && <div className="mt-0.5 text-[9px] text-muted-foreground/60">{sub}</div>}
     </GlassCard>
   );
 }
