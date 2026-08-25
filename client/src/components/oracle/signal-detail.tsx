@@ -13,7 +13,7 @@
  */
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { convictionPercent, bandStrength, type ConvictionPick } from '@/lib/convictions';
+import { clarifyOracleNarrative, bandStrength, type ConvictionPick } from '@/lib/convictions';
 import { computeGeometry, type SignalGeometry, type Level } from '@/lib/oracle/signal-geometry';
 import { trackScore } from '@/lib/oracle/score-tracker';
 import { useUserPrefs } from '@/components/terminal/terminal-settings';
@@ -45,14 +45,17 @@ export function geometryFor(pick: ConvictionPick, live: number): SignalGeometry 
     holdingPeriod: pick.holdingPeriod,
     generatedAt: pick.generatedAt,
     convictionScore: pick.convictionScore,
+    lifecycleState: pick.lifecycleState,
   });
 }
 
 const ROLE: Record<Level['key'], { color: string }> = {
   t2:    { color: BULL },
   t1:    { color: BULL },
+  // ENTRY is the frozen, structural reference from the published signal.
+  // Cyan is deliberately reserved for that reference throughout the terminal.
   live:  { color: CYAN },
-  entry: { color: 'var(--foreground,#e6edf3)' },
+  entry: { color: CYAN },
   stop:  { color: BEAR },
 };
 
@@ -65,28 +68,47 @@ const ROLE: Record<Level['key'], { color: string }> = {
 function TradeVector({ pick, live }: { pick: ConvictionPick; live: number }) {
   const reduce = useReducedMotion();
   const g = geometryFor(pick, live);
-  const min = Math.min(pick.stopLoss, pick.entryPrice, pick.targetPrice, g.t2);
-  const max = Math.max(pick.stopLoss, pick.entryPrice, pick.targetPrice, g.t2);
+  const awaitingTrigger = g.status === 'pending_trigger';
+  const triggerDistancePct = pick.entryPrice > 0
+    ? Math.abs(((live - pick.entryPrice) / pick.entryPrice) * 100)
+    : 0;
+  const triggerSide = pick.direction === 'long' ? 'below' : 'above';
+  const levelPrices = [pick.stopLoss, pick.entryPrice, pick.targetPrice, ...(g.t2 != null ? [g.t2] : [])];
+  const min = Math.min(...levelPrices);
+  const max = Math.max(...levelPrices);
   const span = Math.max(max - min, Math.abs(max) * 0.01, 0.01);
   const x = (price: number) => Math.max(1, Math.min(99, ((price - min) / span) * 100));
   const points = [
     { label: 'STOP', price: pick.stopLoss, color: BEAR },
-    { label: 'ENTRY', price: pick.entryPrice, color: 'var(--foreground)' },
+    { label: awaitingTrigger ? 'TRIGGER' : 'ENTRY', price: pick.entryPrice, color: CYAN },
     { label: 'T1', price: pick.targetPrice, color: BULL },
-    { label: 'T2', price: g.t2, color: BULL },
+    ...(g.t2 != null ? [{ label: 'T2', price: g.t2, color: BULL }] : []),
   ];
+  const liveColor = g.pnlPct > 0.001 ? BULL : g.pnlPct < -0.001 ? BEAR : CYAN;
 
   return (
     <div className="border-t border-border/30 px-4 py-3">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/75">Live trade vector</span>
-        <span className="font-mono text-[10px] tabular-nums" style={{ color: g.pnlPct >= 0 ? BULL : BEAR }}>
-          {g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(2)}% from entry
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/75">
+          {awaitingTrigger ? 'Entry trigger watch' : 'Live trade vector'}
+        </span>
+        <span className="font-mono text-[10px] tabular-nums" style={{ color: awaitingTrigger ? GOLD : g.pnlPct >= 0 ? BULL : BEAR }}>
+          {awaitingTrigger
+            ? `${triggerDistancePct.toFixed(2)}% ${triggerSide} trigger · no position`
+            : `${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(2)}% from entry`}
         </span>
       </div>
       <div className="relative h-12">
         <div className="absolute left-0 right-0 top-5 h-px bg-border/70" />
-        <div className="absolute top-5 h-px bg-[var(--brand-cyan)]/60" style={{ left: `${x(pick.entryPrice)}%`, width: `${Math.max(0, x(live) - x(pick.entryPrice))}%` }} />
+        <div
+          className="absolute top-5 h-px"
+          style={{
+            background: liveColor,
+            left: `${Math.min(x(pick.entryPrice), x(live))}%`,
+            width: `${Math.abs(x(live) - x(pick.entryPrice))}%`,
+            opacity: 0.7,
+          }}
+        />
         {points.map((point) => (
           <div key={point.label} className="absolute top-0 -translate-x-1/2 text-center" style={{ left: `${x(point.price)}%` }}>
             <span className="block h-3 w-px mx-auto" style={{ background: point.color }} />
@@ -95,10 +117,10 @@ function TradeVector({ pick, live }: { pick: ConvictionPick; live: number }) {
           </div>
         ))}
         <motion.span
-          className="absolute top-[15px] block h-3 w-3 -translate-x-1/2 rounded-full border-2 border-card bg-[var(--brand-cyan)]"
+          className="absolute top-[15px] block h-3 w-3 -translate-x-1/2 rounded-full border-2 border-card"
           animate={{ left: `${x(live)}%` }}
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 175, damping: 22 }}
-          style={{ boxShadow: '0 0 0 3px color-mix(in srgb, var(--brand-cyan) 18%, transparent), 0 0 12px color-mix(in srgb, var(--brand-cyan) 46%, transparent)' }}
+          style={{ background: liveColor, boxShadow: `0 0 0 3px color-mix(in srgb, ${liveColor} 18%, transparent), 0 0 12px color-mix(in srgb, ${liveColor} 46%, transparent)` }}
           title={`Live $${money(live)}`}
         />
       </div>
@@ -124,6 +146,14 @@ function Card({ title, meta, children, className }: { title: string; meta?: Reac
 export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
   const reduce = useReducedMotion();
   const g = geometryFor(pick, live);
+  const awaitingTrigger = g.status === 'pending_trigger';
+  const triggerDistancePct = pick.entryPrice > 0
+    ? Math.abs((((live || pick.entryPrice) - pick.entryPrice) / pick.entryPrice) * 100)
+    : 0;
+  const triggerSide = pick.direction === 'long' ? 'below' : 'above';
+  const liveColor = g.pnlPct > 0.001 ? BULL : g.pnlPct < -0.001 ? BEAR : CYAN;
+  const atEntry = Math.abs((live || pick.entryPrice) - pick.entryPrice) <= Math.max(Math.abs(pick.entryPrice) * 0.0001, 0.01);
+  const planLevels = g.levels.filter((level) => level.key !== 'live');
 
   // Laid out in normal flow, not absolutely positioned inside a fixed-height box.
   // The old version placed each rung by price within a set height, so squeezing the card
@@ -131,10 +161,32 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
   // Flow layout can't clip: the card is exactly as tall as its rungs need.
   return (
     <Card title="Price Ladder" meta={<span style={{ color: statusColor(g.status) }}>{g.statusLabel}</span>} className={className}>
+      {/* LIVE is a changing quote. Before the gate fires, the cyan level is a
+          TRIGGER—not an executed entry. Keeping this distinction explicit stops
+          an unfilled plan being read as a position. */}
+      <div className="flex items-center justify-between gap-3 border-b border-border/35 bg-foreground/[0.025] px-4 py-2.5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-label font-mono font-bold uppercase tracking-[0.13em]" style={{ color: liveColor }}>
+            <span className="relative h-1.5 w-1.5 rounded-full" style={{ background: liveColor }}>
+              {!reduce && <motion.span className="absolute inset-0 rounded-full" style={{ background: liveColor }} animate={{ scale: [1, 2.5, 1], opacity: [0.7, 0, 0.7] }} transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }} />}
+            </span>
+            Live quote
+          </div>
+          <div className="mt-0.5 text-label font-mono text-muted-foreground/65">
+            {awaitingTrigger
+              ? `${triggerDistancePct.toFixed(2)}% ${triggerSide} trigger · not entered`
+              : atEntry ? 'At recorded entry' : `${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(2)}% versus entry`}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-value font-mono font-bold tabular-nums" style={{ color: liveColor }}><LiveValue value={live || pick.entryPrice} format={(n) => `$${money(n)}`} /></div>
+          <div className="text-label font-mono tabular-nums text-muted-foreground/60">{awaitingTrigger ? 'TRIGGER' : 'ENTRY'} ${money(pick.entryPrice)} · fixed</div>
+        </div>
+      </div>
       <div className="divide-y divide-border/20">
-        {g.levels.map((l) => {
+        {planLevels.map((l) => {
           const c = ROLE[l.key].color;
-          const isLive = l.key === 'live';
+          const favorableFromLive = pick.direction === 'short' ? l.price <= (live || pick.entryPrice) : l.price >= (live || pick.entryPrice);
           return (
             /* `layout` is the whole point of this rung being a motion element.
                levels are sorted by price (signal-geometry.ts), so when price
@@ -151,47 +203,32 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
             <motion.div
               key={l.key}
               layout={!reduce}
-              className={cn('flex items-center gap-3 px-4 py-1.5', isLive && 'bg-foreground/[0.04]')}
+              className={cn('flex items-center gap-3 px-4 py-1.5', l.key === 'entry' && 'bg-[var(--brand-cyan)]/[0.035]')}
               initial={reduce ? false : { opacity: 0, x: -4 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: DUR.base, ease: EASE, layout: { duration: 0.45, ease: EASE } }}
             >
               <span className="relative grid w-4 shrink-0 place-items-center">
                 <span className="h-2 w-2 rounded-full" style={{ background: c, boxShadow: `0 0 8px color-mix(in srgb, ${c} 55%, transparent)` }} />
-                {isLive && !reduce && (
-                  <motion.span className="absolute h-2 w-2 rounded-full" style={{ background: c }}
-                    animate={{ scale: [1, 2.4, 1], opacity: [0.6, 0, 0.6] }}
-                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }} />
-                )}
               </span>
 
               <span className="w-12 shrink-0 text-label font-mono font-bold uppercase tracking-wider" style={{ color: c }}>
-                {l.label}
+                {l.key === 'entry' && awaitingTrigger ? 'TRIGGER' : l.label}
               </span>
 
               <span className="text-value font-mono font-bold tabular-nums text-foreground">
-                {isLive ? (
-                  /* Only LIVE ticks; the other rungs are fixed plan levels and a
-                     flash on them would imply a change that never happened. */
-                  <LiveValue value={l.price} format={(n) => `$${money(n)}`} />
-                ) : (
-                  <>${money(l.price)}</>
-                )}
+                ${money(l.price)}
               </span>
 
               <span className="ml-auto text-right text-label font-mono tabular-nums">
-                {isLive ? (
-                  <span style={{ color: g.pnlPct >= 0 ? BULL : BEAR }}>
-                    {g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(2)}% P&L
+                <>
+                  <span style={{ color: l.key === 'entry' ? CYAN : favorableFromLive ? BULL : BEAR }}>
+                    {l.key === 'entry'
+                      ? awaitingTrigger ? 'Waiting' : 'Recorded'
+                      : `${l.pctFromLive >= 0 ? '+' : ''}${l.pctFromLive.toFixed(2)}%`}
                   </span>
-                ) : (
-                  <>
-                    <span style={{ color: l.pctFromLive >= 0 ? BULL : BEAR }}>
-                      {l.pctFromLive >= 0 ? '+' : ''}{l.pctFromLive.toFixed(2)}%
-                    </span>
-                    <span className="text-muted-foreground/70"> · {l.rAway.toFixed(1)}R</span>
-                  </>
-                )}
+                  <span className="text-muted-foreground/70"> · {l.key === 'entry' ? '0.0' : l.rAway.toFixed(1)}R</span>
+                </>
               </span>
             </motion.div>
           );
@@ -212,9 +249,7 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
 export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
   const reduce = useReducedMotion();
   const g = geometryFor(pick, live);
-  const setup = convictionPercent(pick.convictionScore);
-
-  const rating = trackScore(pick.ideaId, setup);
+  const rating = trackScore(pick.ideaId, pick.convictionScore);
   const arrow = rating.direction === 'up' ? '▲' : rating.direction === 'down' ? '▼' : null;
   const [showMath, setShowMath] = useState(false);
 
@@ -230,10 +265,10 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
 
   return (
     <Card
-      title="Confidence Index"
+      title="Evidence grade"
       meta={
         <span className="flex items-baseline gap-1">
-          <span className="text-value font-bold tabular-nums" style={{ color: TC.info }}>{setup}</span>
+          <span className="text-value font-bold" style={{ color: TC.info }}>{pick.convictionBand}</span>
           {arrow && (
             <span
               className="text-label font-mono font-bold tabular-nums"
@@ -249,7 +284,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
     >
       <div className="px-4 py-3 space-y-2.5">
         <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">
-          {pick.convictionBand}-band · {bandStrength(pick.convictionBand)} · {pick.layerCount ?? pick.layers?.length ?? 0} layers
+          +{pick.convictionScore} net evidence · {bandStrength(pick.convictionBand)} · {pick.layerCount ?? pick.layers?.length ?? 0} active layers
         </div>
         {/* how the score was built */}
         <button
@@ -443,10 +478,15 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
 
         {/* 3 · THE LEVELS — as R, which is the only notation that survives a
                change of instrument */}
-        <div className="grid grid-cols-3 gap-2 border-t border-border/30 pt-2.5">
+        <div className={cn(
+          "grid gap-2 border-t border-border/30 pt-2.5",
+          g.t2 != null ? "grid-cols-3" : "grid-cols-2",
+        )}>
           <Mini label="Stop" value={`${byKey('stop')?.rAway.toFixed(1)}R`} color={BEAR} />
           <Mini label="T1" value={`${byKey('t1')?.rAway.toFixed(1)}R`} color={BULL} />
-          <Mini label="T2" value={`${byKey('t2')?.rAway.toFixed(1)}R`} color={BULL} />
+          {g.t2 != null && (
+            <Mini label="T2" value={`${byKey('t2')?.rAway.toFixed(1)}R`} color={BULL} />
+          )}
         </div>
 
         {/* 4 · TIME */}
@@ -554,7 +594,7 @@ export function ContextPanel({
         const e = g.levels.find(l => l.key === 'entry');
         return `Waiting for entry — ${Math.abs(e?.pctFromLive ?? 0).toFixed(1)}% away at $${money(pick.entryPrice)}.`;
       }
-      case 'at_target':   return 'At T1 — scale out 40% and trail the stop to entry.';
+      case 'at_target':   return 'At T1 — structural milestone reached. Reassess the thesis; this is not an automatic partial fill.';
       default:            return `In play — ${g.progressPct.toFixed(0)}% of the way to T1, ${g.horizonUsedPct.toFixed(0)}% of the horizon spent.`;
     }
   })();
@@ -568,7 +608,7 @@ export function ContextPanel({
           {' '}R:R 1:{g.rr.toFixed(1)}, risking ${g.risk.toFixed(2)} to make ${g.reward.toFixed(2)} per share.
           {aligns !== undefined && regime && <> {regime} regime {aligns ? 'favors' : 'works against'} {pick.direction}s.</>}
         </p>
-        {pick.thesis && <p className="text-meta leading-relaxed text-muted-foreground/75">{pick.thesis}</p>}
+        {pick.thesis && <p className="text-meta leading-relaxed text-muted-foreground/75">{clarifyOracleNarrative(pick.thesis)}</p>}
         <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
           <div className="mb-0.5 text-label font-mono uppercase tracking-widest" style={{ color: CYAN }}>What to do now</div>
           <div className="text-meta font-mono text-foreground/85">{todo}</div>

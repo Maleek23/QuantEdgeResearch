@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { resolveBarriers } from '@shared/barrier-resolution';
 import { formatInTimeZone } from "date-fns-tz";
 import { CANONICAL_LOSS_THRESHOLD } from "@shared/constants";
+import { isOutcomeEligible, readOracleExecutionAudit } from "@shared/oracle-lifecycle";
 
 // 📊 REALISTIC TRADING COSTS: Applied to performance calculations
 // These model real-world execution costs that reduce backtest performance
@@ -521,35 +522,13 @@ export class PerformanceValidator {
     };
   }
 
-  /**
-   * Normalize trade direction considering both direction field and option type
-   * This ensures correct validation for both stocks and options
-   * 
-   * Rules:
-   * - Stocks: direction field directly indicates bullish (long) vs bearish (short)
-   * - Options: {long call, short put} = bullish, {long put, short call} = bearish
-   * 
-   * @returns 'long' for bullish trades, 'short' for bearish trades
-   */
+  /** Return the canonical direction of the underlying thesis. */
   static getNormalizedDirection(idea: TradeIdea): 'long' | 'short' {
-    // For non-option assets, use direction field directly
-    if (idea.assetType !== 'option' || !idea.optionType) {
-      return idea.direction as 'long' | 'short';
-    }
-
-    // For options, normalize based on direction + option type combination
-    if (idea.direction === 'long' && idea.optionType === 'call') {
-      return 'long';  // Long call = bullish (price goes up)
-    } else if (idea.direction === 'long' && idea.optionType === 'put') {
-      return 'short'; // Long put = bearish (price goes down)
-    } else if (idea.direction === 'short' && idea.optionType === 'call') {
-      return 'short'; // Short call = bearish (price goes down)
-    } else if (idea.direction === 'short' && idea.optionType === 'put') {
-      return 'long';  // Short put = bullish (price goes up)
-    }
-
-    // Fallback to direction field if unable to normalize
-    return idea.direction as 'long' | 'short';
+    // QuantEdge's bot buys calls and puts; it does not write contracts.
+    // `direction="short"` + `optionType="put"` therefore means a bearish
+    // underlying thesis expressed with a bought put, NOT a bullish short put.
+    // Re-deriving direction from optionType inverted every bearish barrier.
+    return idea.direction === 'short' ? 'short' : 'long';
   }
 
   /**
@@ -564,6 +543,15 @@ export class PerformanceValidator {
       return { shouldUpdate: false };
     }
 
+    // A research plan is not a trade. Older scanners wrote an entry price at
+    // publication and the validator then treated the first later quote as an
+    // entered position. That made a missed plan look like a stop/target result
+    // and poisoned both the history and score calibration. Only a recorded
+    // trigger or paper/broker execution may receive an outcome.
+    if (!isOutcomeEligible(idea.convergenceSignalsJson)) {
+      return { shouldUpdate: false };
+    }
+
     const timezone = 'America/Chicago';
     const now = new Date();
     const createdAt = new Date(idea.timestamp);
@@ -575,7 +563,11 @@ export class PerformanceValidator {
     // 🚨 CRITICAL CHECK: Has the entry window closed?
     // If entryValidUntil has passed, mark as expired but ALSO track what WOULD have happened (educational)
     // IMPORTANT: Real metrics (outcomeStatus, percentGain) stay at expired/0 to preserve win rate accuracy
-    if (idea.entryValidUntil) {
+    // An entry window governs a plan waiting for a trigger. Once execution is
+    // recorded it is historical context, not a reason to expire a live
+    // position (the old order of these checks was expiring paper trades).
+    const executionAudit = readOracleExecutionAudit(idea.convergenceSignalsJson);
+    if (idea.entryValidUntil && executionAudit?.state !== 'triggered' && executionAudit?.state !== 'executed') {
       try {
         const entryValidUntilDate = this.parseExitByDate(idea.entryValidUntil, createdAt);
         

@@ -17,6 +17,7 @@ import {
 } from '@/lib/flow/flow-score';
 import { RepeatBuyers } from './repeat-buyers';
 import { ConvergenceCard } from './convergence-card';
+import { TerminalPageHeader } from '@/components/templates/terminal-page';
 
 const CYAN = 'var(--brand-cyan,#22d3ee)';
 const BULL = 'var(--trade-bullish,#22c55e)';
@@ -138,12 +139,20 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
   const money = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n.toFixed(0)}`;
 
   return (
-    <div className="space-y-3 px-4 py-3">
+    <div className="space-y-4 px-4 py-4 md:px-5">
+      <TerminalPageHeader
+        eyebrow="Options activity"
+        title="Flow"
+        description="Follow unusual options-chain activity from aggregate premium to contract-level evidence. Bias and pattern labels are inferred."
+        live={!freshness?.stale}
+        status={freshness?.stale ? 'historical snapshot' : `${shown.length} contract observations`}
+        tone={freshness?.stale ? 'time' : 'structural'}
+      />
       {/* 1. Market first: a trader needs to know where premium is leaning before
           deciding which individual print is worth opening. */}
       <div className="rounded-xl border border-card-border bg-card">
         <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-          <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Market Flow</span>
+          <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Chain activity</span>
           <div className="flex items-center gap-2">
             {freshness && (
               <span className={cn('text-label font-mono', freshness.stale ? 'text-[#e0a458]' : 'text-muted-foreground/60')}>
@@ -158,15 +167,15 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
           <Stat label="Bullish premium" value={money(overview.bull)} color={BULL} />
           <Stat label="Bearish premium" value={money(overview.bear)} color={BEAR} />
           <Stat label="Net" value={`${overview.net >= 0 ? '+' : '−'}${money(Math.abs(overview.net))}`} color={overview.net >= 0 ? BULL : BEAR} />
-          <Stat label="Whales" value={String(overview.whales)} color="#e0a458" />
-          <Stat label="Sweeps" value={String(overview.sweeps)} color={CYAN} />
+          <Stat label="≥$1M premium" value={String(overview.whales)} color="#e0a458" />
+          <Stat label="Sweep-like" value={String(overview.sweeps)} color={CYAN} />
         </div>
         {overview.total > 0 && (
           <div className="border-t border-border/30 px-4 py-2">
             <p className="text-meta leading-relaxed text-foreground/75">
               {overview.net >= 0 ? 'Call premium leads' : 'Put premium leads'} by{' '}
               <b style={{ color: overview.net >= 0 ? BULL : BEAR }}>{money(Math.abs(overview.net))}</b>
-              {' '}across {overview.total} qualifying prints. Premium alone is not a signal — confirm the chart has room before acting.
+              {' '}across {overview.total} contract observations. This feed infers bias from chain activity; it does not observe execution side, opening/closing intent, or true OPRA sweeps.
             </p>
           </div>
         )}
@@ -176,8 +185,8 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-card-border bg-card px-3 py-2">
         <Seg label="Dir" value={dir} onChange={setDir}
              options={[['all', 'ALL'], ['bullish', 'BULL'], ['bearish', 'BEAR']]} />
-        <Seg label="Type" value={kind} onChange={setKind}
-             options={[['all', 'ALL'], ['sweep', 'SWEEP'], ['block', 'BLOCK'], ['unusual_volume', 'UNUSUAL']]} />
+        <Seg label="Pattern" value={kind} onChange={setKind}
+             options={[['all', 'ALL'], ['sweep', 'SWEEP-LIKE'], ['block', 'BLOCK-LIKE'], ['unusual_volume', 'UNUSUAL']]} />
         <Seg label="Score" value={String(minScore)} onChange={(v) => setMinScore(Number(v))}
              options={MIN_SCORES.map((s) => [String(s), s === 0 ? 'ANY' : `${s}+`] as [string, string])} />
         <Seg label="Premium" value={String(minPrem)} onChange={(v) => setMinPrem(Number(v))}
@@ -187,7 +196,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
           className={cn('cursor-pointer rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
             whaleOnly ? 'bg-[#e0a458]/15 text-[#e0a458]' : 'text-muted-foreground/70 hover:text-foreground')}
         >
-          Whales ≥$1M
+          Premium ≥$1M
         </button>
 
         <div className="relative ml-auto">
@@ -211,9 +220,9 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
         <Empty title="Flow unavailable" body="The flow feed did not respond. It will retry automatically." />
       ) : shown.length === 0 ? (
         <Empty
-          title={prints.length === 0 ? 'No flow yet' : 'Nothing matches those filters'}
+          title={prints.length === 0 ? 'No chain activity yet' : 'Nothing matches those filters'}
           body={prints.length === 0
-            ? 'No premium-qualifying prints have come across the tape. Flow typically builds through the first 15–30 minutes after the open — start with the Heatmap until it fills in.'
+            ? 'No premium-qualified contract observations are available for this window. Activity usually builds through the first 15–30 minutes after the open.'
             : 'Loosen the score, premium, or type filters to see more of the tape.'}
         />
       ) : (

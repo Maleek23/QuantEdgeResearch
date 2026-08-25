@@ -83,7 +83,7 @@ export function FlowCard({
             {score.isSweep && (
               <span className="inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-label font-mono font-bold tracking-wider"
                     style={{ color: CYAN, borderColor: `${'#22d3ee'}40`, background: '#22d3ee1a' }}>
-                <Zap className="h-2.5 w-2.5" /> SWEEP
+                <Zap className="h-2.5 w-2.5" /> SWEEP-LIKE
               </span>
             )}
             {score.isRepeat && (
@@ -117,7 +117,7 @@ export function FlowCard({
           label={score.pctOtm != null && score.pctOtm < 0 ? 'In the money' : 'Out the money'}
           value={score.pctOtm != null ? `${score.pctOtm >= 0 ? '' : ''}${score.pctOtm.toFixed(1)}%` : '—'}
         />
-        <Cell label="Direction" value={print.sentiment.toUpperCase()} color={tone} />
+        <Cell label="Inferred bias" value={print.sentiment.toUpperCase()} color={tone} />
       </div>
 
       {/* score breakdown — why it ranked here */}
@@ -141,7 +141,7 @@ export function FlowCard({
             ))}
           </div>
           <p className="mt-2 text-label leading-relaxed text-muted-foreground/70">
-            Score ranks — it is not a trigger. Confirm the chart has room before acting.
+            Score ranks aggregate chain activity; it is not proof of buyer/seller intent and it is not a trigger.
           </p>
         </motion.div>
       )}

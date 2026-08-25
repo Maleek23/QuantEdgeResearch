@@ -90,9 +90,24 @@ export async function yahooQuote(symbol: string): Promise<YahooQuote | null> {
   const m = res?.meta;
   if (!m) return null;
 
-  const price = Number(m.regularMarketPrice ?? m.previousClose);
+  // `regularMarketPrice` freezes at yesterday's close outside regular hours.
+  // The final non-null 1m chart bar is the real latest print in pre/post market;
+  // use it so the terminal does not pretend a moving tape is static.
+  const closes: unknown[] = res.indicators?.quote?.[0]?.close ?? [];
+  const timestamps: unknown[] = res.timestamp ?? [];
+  const volumes: unknown[] = res.indicators?.quote?.[0]?.volume ?? [];
+  let index = closes.length - 1;
+  while (index >= 0 && !Number.isFinite(Number(closes[index]))) index--;
+
+  const chartPrice = index >= 0 ? Number(closes[index]) : NaN;
+  const price = Number.isFinite(chartPrice) && chartPrice > 0
+    ? chartPrice
+    : Number(m.regularMarketPrice ?? m.previousClose);
   const prev = Number(m.chartPreviousClose ?? m.previousClose ?? price);
   if (!(price > 0)) return null;
+
+  const barAt = Number(timestamps[index]);
+  const barVolume = Number(volumes[index]);
 
   return {
     symbol: symbol.toUpperCase(),
@@ -100,8 +115,10 @@ export async function yahooQuote(symbol: string): Promise<YahooQuote | null> {
     previousClose: prev,
     change: price - prev,
     changePercent: prev > 0 ? ((price - prev) / prev) * 100 : 0,
-    volume: Number(m.regularMarketVolume ?? 0),
-    at: Date.now(),
+    volume: Number.isFinite(barVolume) ? barVolume : Number(m.regularMarketVolume ?? 0),
+    // Preserve the market's timestamp. Consumer UI uses this to distinguish a
+    // fresh print from a fresh HTTP response that happened to contain old data.
+    at: Number.isFinite(barAt) && barAt > 0 ? barAt * 1000 : Date.now(),
   };
 }
 

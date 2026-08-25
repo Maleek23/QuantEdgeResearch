@@ -15,7 +15,7 @@ import { EASE, DUR } from '@/lib/motion';
  * a second copy of a type always does eventually. Kept in sync by hand for now; the
  * real fix is for the shell to export its Tab type and this to import it.
  */
-export type TabId = 'oracle' | 'flow' | 'gex' | 'leaps' | 'catalyst' | 'bot';
+export type TabId = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot';
 
 interface Guide {
   title: string;
@@ -36,6 +36,18 @@ export const GUIDES: Record<TabId, Guide> = {
       'Contract Engine turns the level plan into an actual strike: conservative / balanced / aggressive with ROI and R:R.',
     ],
     next: 'Confirm structure in GEX or PRISM before you size in.',
+  },
+  chart: {
+    title: 'Chart Lab Guide',
+    question: 'Does price confirm the idea?',
+    read: [
+      'Search any ticker once. The same symbol follows you through Chart, Flow, GEX, LEAPS and Catalyst.',
+      'Candles are the execution view; line mode removes intrabar noise when you are reading longer structure.',
+      'Published Oracle entry, stop and T1 levels are fixed overlays. Live price moves; the original plan does not silently move with it.',
+      'Change timeframe before changing the thesis. A valid daily setup can look broken on five-minute noise, and an intraday trigger can disappear on a weekly chart.',
+      'No published signal means the chart remains research—not an invented trade plan.',
+    ],
+    next: 'Validate the same ticker against Flow and GEX, then return to Oracle for execution context.',
   },
   flow: {
     title: 'Flow Guide',
@@ -70,6 +82,17 @@ export const GUIDES: Record<TabId, Guide> = {
       'Long-dated contracts carry less theta per day but far more vega — a drop in implied volatility hurts a LEAP more than a weekly, and that is not modelled here.',
     ],
     next: 'Cross-check the name in GEX: a LEAP strike above the long-dated call wall is fighting dealer positioning for a year.',
+  },
+  crypto: {
+    title: 'Crypto Guide',
+    question: 'What is crypto doing, and which equity actually expresses it?',
+    read: [
+      'BTC and ETH are the underlying market read: their 24-hour range, daily RSI, realized volatility, and history describe crypto itself, not an equity trade.',
+      'The proxy board distinguishes direct wrappers, treasury exposure, exchanges, and miners. They can all move differently from the asset underneath.',
+      'A measured beta appears only when the historical relationship can be calculated. “Relationship read pending” is intentionally not a number.',
+      'Open a proxy to evaluate its own chart, structure, gamma, option-chain spread, open interest, and expiry. BTC moving is never enough by itself.',
+    ],
+    next: 'Use the ticker workup to turn a crypto thesis into a specific, liquid options trade—or reject it.',
   },
   catalyst: {
     title: 'Catalyst Guide',

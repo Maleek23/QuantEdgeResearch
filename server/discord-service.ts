@@ -511,7 +511,11 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
   const isSPXPlay = ideaSource === 'orb_scanner' || ideaSource === 'spx_session' ||
     (['SPX', 'SPY', 'SPXW'].includes(idea.symbol) && assetTypeStr === 'option');
 
-  if (isSPXPlay && process.env.DISCORD_WEBHOOK_SPX) {
+  if (ideaSource === 'oracle-signal' && process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS) {
+    // Oracle is the published research stream. Keep it separate from generic
+    // options traffic so a reader can distinguish a called signal from a bot fill.
+    webhookUrl = process.env.DISCORD_WEBHOOK_ORACLE_SIGNALS;
+  } else if (isSPXPlay && process.env.DISCORD_WEBHOOK_SPX) {
     // SPX/0DTE plays go to dedicated SPX channel
     webhookUrl = process.env.DISCORD_WEBHOOK_SPX;
   } else if (assetTypeStr === 'option') {
@@ -530,8 +534,9 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
     const isLong = idea.direction === 'long';
     const isTVSignal = ideaSource === 'tradingview';
     const color = isTVSignal ? 0xa855f7 : (isLong ? COLORS.LONG : COLORS.SHORT); // Purple for TV signals
-    const titleEmoji = isTVSignal ? '📺' : (isLong ? '🟢' : '🔴');
-    const titlePrefix = isTVSignal ? 'TV SIGNAL' : idea.direction.toUpperCase();
+    const isOracleSignal = ideaSource === 'oracle-signal';
+    const titleEmoji = isTVSignal ? '📺' : isOracleSignal ? '✦' : (isLong ? '🟢' : '🔴');
+    const titlePrefix = isTVSignal ? 'TV SIGNAL' : isOracleSignal ? 'ORACLE SIGNAL' : idea.direction.toUpperCase();
     const embed: DiscordEmbed = {
       title: `${titleEmoji} ${titlePrefix}: ${idea.symbol} ${idea.direction.toUpperCase()}`,
       description: idea.analysis || 'New trade idea detected.',
@@ -539,7 +544,8 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
       fields: [
         { name: '💰 Entry', value: `$${idea.entryPrice.toFixed(2)}`, inline: true },
         { name: '🎯 Target', value: `$${idea.targetPrice.toFixed(2)}`, inline: true },
-        { name: '🛡️ Stop', value: idea.stopLoss ? `$${idea.stopLoss.toFixed(2)}` : 'N/A', inline: true }
+        { name: '🛡️ Stop', value: idea.stopLoss ? `$${idea.stopLoss.toFixed(2)}` : 'N/A', inline: true },
+        ...(isOracleSignal ? [{ name: '🧠 Confidence', value: `${Number((idea as any).confidenceScore ?? 0)}/100`, inline: true }] : []),
       ],
       footer: isTVSignal ? { text: `TradingView Strategy Signal • ${(idea as any).sessionContext || 'v15'}` } : undefined,
       timestamp: new Date().toISOString()

@@ -7,8 +7,9 @@
  * tops the leaderboard, the trade is gone.
  */
 import { useQuery } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Heartbeat } from '@/components/viz';
-import { Loader2 } from 'lucide-react';
+import { ArrowUpRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TC } from '@/lib/oracle/trading-colors';
 import { CoilBar } from '@/components/viz';
@@ -17,6 +18,8 @@ interface Candidate {
   symbol: string; sector: string; sectorStrength: number; sectorMedianPct: number;
   changePct: number; score: number; coiled: 'strong' | 'developing';
   boxHigh: number | null; boxLow: number | null;
+  positionInBox?: number;
+  squeezeBars?: number;
   distanceToBreakoutPct: number | null; why: string;
 }
 interface EarlyRotation {
@@ -29,6 +32,7 @@ interface EarlyRotation {
 }
 
 export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymbol?: (s: string) => void; className?: string }) {
+  const reduce = useReducedMotion();
   const { data, isLoading, isError } = useQuery<EarlyRotation>({
     queryKey: ['/api/early-rotation'],
     queryFn: async () => {
@@ -36,18 +40,22 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
       if (!r.ok) throw new Error('early rotation failed');
       return r.json();
     },
-    staleTime: 300_000, refetchInterval: 600_000, retry: 1,
+    // This screen is a developing-setup scan, not a price ticker. Two minutes
+    // gives sector leadership time to settle without leaving a fresh market
+    // session looking frozen for ten minutes.
+    staleTime: 60_000, refetchInterval: 120_000, retry: 1,
   });
 
   return (
-    <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
-      <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">
-          Early Rotation
-        </span>
+    <div className={cn('qe-rotation-candidates overflow-hidden rounded-xl border border-card-border bg-card', className)}>
+      <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3 md:px-5">
+        <div>
+          <span className="font-sans text-[12px] font-semibold text-foreground/90">Candidate field</span>
+          <span className="ml-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/65">before a signal</span>
+        </div>
         <div className="flex items-center gap-3">
           <Heartbeat since={data?.generatedAt} staleAfterSec={900} />
-          <span className="text-label font-mono text-muted-foreground">watchlist · not signals</span>
+          <span className="hidden font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:inline">not tradeable yet</span>
         </div>
       </div>
 
@@ -61,66 +69,77 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
         </div>
       ) : (
         <>
-          <p className="ui-prose border-b border-border/30 px-4 py-2.5 text-body leading-relaxed text-foreground/85">
-            {data.interpretation}
-          </p>
+          <div className="flex flex-col gap-3 border-b border-border/30 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-5">
+            <p className="ui-prose max-w-3xl text-[13px] leading-relaxed text-foreground/82">
+              {data.interpretation}
+            </p>
+            <div className="flex shrink-0 items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/75">
+              <span className="text-[var(--brand-cyan)]">sector inflow</span>
+              <span>→</span>
+              <span className="text-[var(--brand-gold)]">compression</span>
+              <span>→</span>
+              <span className="text-[var(--trade-bullish)]">breakout</span>
+            </div>
+          </div>
 
           {data.candidates.length > 0 && (
             <>
-              {/* The score column was an unlabelled integer next to a ticker, which
-                  reads as a grade — the one thing it is not. Name it, and say what
-                  moves it, before the first row. */}
-              <div className="flex items-center gap-3 border-b border-border/30 px-4 py-1.5">
-                <span className="w-7 shrink-0 text-label font-mono uppercase tracking-wider text-muted-foreground">Ready</span>
-                <span className="text-label font-mono text-muted-foreground">
-                  sector inflow + how tightly it's coiled + how close to the breakout — minus whatever already moved today
-                </span>
-              </div>
-            <div className="divide-y divide-border/25">
-              {data.candidates.slice(0, 6).map((c) => (
-                <button
+            <div
+              className="qe-candidate-field grid gap-px bg-border/35"
+              style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(230px, 100%), 1fr))' }}
+            >
+              {data.candidates.slice(0, 6).map((c, index) => (
+                <motion.button
                   key={c.symbol}
+                  layout
+                  initial={reduce ? false : { opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={reduce ? { duration: 0 } : { duration: .32, delay: index * .045 }}
                   onClick={() => onSelectSymbol?.(c.symbol)}
-                  className="flex w-full cursor-pointer items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-foreground/[0.04]"
+                  className="qe-candidate-node group relative min-h-[154px] cursor-pointer overflow-hidden bg-card px-3.5 py-3.5 text-left transition-colors hover:bg-foreground/[0.035] md:px-4"
                 >
-                  <span className="w-7 shrink-0 pt-0.5 text-meta font-mono font-bold tabular-nums"
-                        style={{ color: c.coiled === 'strong' ? TC.warn : TC.info }}>
-                    {c.score}
+                  <span className="absolute right-3 top-3 font-mono text-[10px] tabular-nums text-muted-foreground/55">{String(index + 1).padStart(2, '0')}</span>
+                  <span className="flex items-start justify-between gap-3 pr-7">
+                    <span>
+                      <span className="block font-mono text-[15px] font-bold tracking-[0.06em] text-foreground">{c.symbol}</span>
+                      <span className="mt-0.5 block truncate font-sans text-[12px] text-muted-foreground">{c.sector}</span>
+                    </span>
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-baseline gap-2">
-                      <span className="text-body font-mono font-bold tracking-wider text-foreground">{c.symbol}</span>
-                      <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{c.sector}</span>
-                      <span className="ml-auto text-label font-mono tabular-nums"
-                            style={{ color: c.changePct >= 0 ? TC.bull : TC.bear }}>
-                        {c.changePct >= 0 ? '+' : ''}{c.changePct.toFixed(1)}% today
-                      </span>
-                    </span>
-                    <span className="mt-0.5 block text-label font-mono text-muted-foreground/70">
-                      {c.coiled === 'strong' ? 'tightly coiled' : 'coiling'}
-                      {c.distanceToBreakoutPct != null && ` · ${c.distanceToBreakoutPct.toFixed(1)}% to the ceiling`}
-                    </span>
 
-                    {/* where price sits inside its range — pressing the ceiling is the setup */}
+                  <span className="mt-4 flex items-end justify-between gap-3">
+                    <span>
+                      <span className="block font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/65">to trigger</span>
+                      <span className="mt-0.5 block font-mono text-[17px] font-bold tabular-nums text-foreground">{c.distanceToBreakoutPct?.toFixed(1) ?? '—'}%</span>
+                    </span>
+                    <span className="text-right font-mono text-[11px] tabular-nums">
+                      <span className="block" style={{ color: TC.bull }}>{c.sectorMedianPct >= 0 ? '+' : ''}{c.sectorMedianPct.toFixed(1)}% group</span>
+                      <span className="mt-1 block" style={{ color: c.changePct >= 0 ? TC.bull : TC.bear }}>{c.changePct >= 0 ? '+' : ''}{c.changePct.toFixed(1)}% today</span>
+                    </span>
+                  </span>
+
+                    {/* This is a range, not a progress bar: left is support, right is
+                        the trigger. The marker is the actual position in the box. */}
                     {c.boxLow != null && c.boxHigh != null && (
-                      <span className="mt-1.5 block">
+                      <span className="mt-3 block transition-transform duration-200 group-hover:scale-y-110">
                         <CoilBar
                           low={c.boxLow}
                           high={c.boxHigh}
-                          current={c.boxHigh - ((c.distanceToBreakoutPct ?? 0) / 100) * c.boxHigh}
+                          current={c.boxLow + (c.boxHigh - c.boxLow) * (c.positionInBox ?? 0.5)}
                         />
                       </span>
                     )}
+                  <span className="mt-2 flex items-center justify-between font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground/70">
+                    <span style={{ color: c.coiled === 'strong' ? TC.warn : TC.info }}>{c.coiled === 'strong' ? 'tight coil' : 'forming'}</span>
+                    <span className="inline-flex items-center gap-1 transition-colors group-hover:text-[var(--brand-cyan)]">inspect <ArrowUpRight className="h-3 w-3" /></span>
                   </span>
-                </button>
+                </motion.button>
               ))}
             </div>
             </>
           )}
 
-          <p className="ui-prose border-t border-border/30 px-4 py-2 text-label leading-relaxed text-muted-foreground">
-            These are setups, not entries — the range still has to break, and most of these
-            will never produce a graded signal. Ranked by room left, not by what has already moved.
+          <p className="ui-prose border-t border-border/30 px-4 py-3 text-[11px] leading-relaxed text-muted-foreground md:px-5">
+            Watch candidates are ranked by inflow, compression and room left. They enter the active book only after a real trigger and corroborating evidence.
           </p>
         </>
       )}

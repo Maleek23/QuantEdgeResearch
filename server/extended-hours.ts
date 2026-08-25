@@ -20,6 +20,10 @@ export interface ExtendedQuote {
   previousClose: number;
   changePct: number;
   session: Session;
+  /** UTC time of the last real print. A quote is never "live" without this. */
+  asOf: string;
+  /** The print belongs to the current US market session and is fresh enough to use. */
+  isCurrent: boolean;
   volume: number;
   /** true when the print came from outside the regular session */
   isExtended: boolean;
@@ -35,7 +39,11 @@ export interface AssetClassRead {
 
 export interface ExtendedLeaders {
   generatedAt: string;
+  /** Timestamp of the newest print in this sweep, not the fetch time. */
+  asOf: string | null;
   session: Session;
+  /** All quotes are historic relative to the market clock; do not call this tape live. */
+  isStale: boolean;
   scanned: number;
   gainers: ExtendedQuote[];
   losers: ExtendedQuote[];
@@ -76,6 +84,44 @@ function sessionAt(ts: number, periods: any): Session {
   return 'closed';
 }
 
+/**
+ * Yahoo keeps a currentTradingPeriod schedule in chart metadata after the bars
+ * themselves have gone stale. On a Sunday that schedule can label Friday's final
+ * print "post". The market clock and the print must therefore agree before a
+ * response is allowed to represent the current tape.
+ */
+function easternParts(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  return {
+    day: get('weekday'),
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    minutes: Number(get('hour')) * 60 + Number(get('minute')),
+  };
+}
+
+function scheduledSession(now = new Date()): Session {
+  const eastern = easternParts(now);
+  if (eastern.day === 'Sat' || eastern.day === 'Sun') return 'closed';
+  if (eastern.minutes >= 4 * 60 && eastern.minutes < 9 * 60 + 30) return 'pre';
+  if (eastern.minutes >= 9 * 60 + 30 && eastern.minutes < 16 * 60) return 'regular';
+  if (eastern.minutes >= 16 * 60 && eastern.minutes < 20 * 60) return 'post';
+  return 'closed';
+}
+
+function printIsCurrent(timestamp: number | undefined, now = new Date()) {
+  if (!timestamp || scheduledSession(now) === 'closed') return false;
+  const printAt = new Date(timestamp * 1000);
+  const sameEasternDate = easternParts(printAt).date === easternParts(now).date;
+  // Five-minute bars may lag slightly; anything beyond twenty minutes is history.
+  const fresh = now.getTime() - printAt.getTime() <= 20 * 60 * 1000;
+  return sameEasternDate && fresh;
+}
+
 export async function fetchExtendedQuote(symbol: string): Promise<ExtendedQuote | null> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
@@ -100,7 +146,9 @@ export async function fetchExtendedQuote(symbol: string): Promise<ExtendedQuote 
     const lastPrice = i >= 0 ? Number(closes[i]) : Number(meta.regularMarketPrice ?? 0);
     if (!lastPrice) return null;
 
-    const barSession = i >= 0 ? sessionAt(ts[i], meta.currentTradingPeriod) : 'closed';
+    const barAt = i >= 0 ? ts[i] : undefined;
+    const barSession = barAt ? sessionAt(barAt, meta.currentTradingPeriod) : 'closed';
+    const isCurrent = printIsCurrent(barAt);
     const volume = i >= 0 ? Number(vols[i] ?? 0) : 0;
 
     return {
@@ -108,9 +156,11 @@ export async function fetchExtendedQuote(symbol: string): Promise<ExtendedQuote 
       lastPrice,
       previousClose,
       changePct: ((lastPrice - previousClose) / previousClose) * 100,
-      session: barSession,
+      session: isCurrent ? barSession : 'closed',
+      asOf: barAt ? new Date(barAt * 1000).toISOString() : new Date().toISOString(),
+      isCurrent,
       volume,
-      isExtended: barSession === 'pre' || barSession === 'post',
+      isExtended: isCurrent && (barSession === 'pre' || barSession === 'post'),
     };
   } catch (e: any) {
     logger.warn(`[EXT-HOURS] ${symbol}: ${e?.message}`);
@@ -137,6 +187,8 @@ export async function getExtendedLeaders(symbols: string[], limit = 10): Promise
 
   const session = out.find((q) => q.symbol === 'SPY')?.session
     ?? (out.length ? out[0].session : 'closed');
+  const asOf = out.reduce<string | null>((latest, quote) => !latest || quote.asOf > latest ? quote.asOf : latest, null);
+  const isStale = !out.some((quote) => quote.isCurrent);
 
   const ranked = [...out].sort((a, b) => b.changePct - a.changePct);
   const gainers = ranked.filter((q) => q.changePct > 0).slice(0, limit);
@@ -146,7 +198,9 @@ export async function getExtendedLeaders(symbols: string[], limit = 10): Promise
   const label = session === 'pre' ? 'Pre-market'
               : session === 'post' ? 'After-hours'
               : session === 'regular' ? 'Regular session' : 'Market closed';
-  const interpretation = gainers.length
+  const interpretation = isStale
+    ? asOf ? `Market closed — the latest scanned print is from ${new Date(asOf).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}.` : 'Market closed — no current extended-hours tape.'
+    : gainers.length
     ? `${label}: ${gainers[0].symbol} leads ${gainers[0].changePct >= 0 ? '+' : ''}${gainers[0].changePct.toFixed(1)}%` +
       `${gainers[1] ? `, then ${gainers[1].symbol} ${gainers[1].changePct >= 0 ? '+' : ''}${gainers[1].changePct.toFixed(1)}%` : ''}` +
       `${losers[0] ? `. Weakest is ${losers[0].symbol} ${losers[0].changePct.toFixed(1)}%` : ''}.` +
@@ -161,7 +215,7 @@ export async function getExtendedLeaders(symbols: string[], limit = 10): Promise
   });
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt: new Date().toISOString(), asOf, isStale,
     session, scanned: out.length, gainers, losers, mostActive, assetClasses, interpretation,
   };
 }

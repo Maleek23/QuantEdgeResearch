@@ -102,9 +102,9 @@ function applyMLCalibration(rawConfidence: number): number {
   try {
     const calibration = calibrateConfidence(rawConfidence);
     // Only apply adjustment if it's meaningful (not default 1.0)
-    if (calibration.adjustment !== 1.0) {
-      const adjusted = Math.round(rawConfidence * calibration.adjustment);
-      logger.debug(`[UNIVERSAL-IDEA] Calibration: ${rawConfidence}% -> ${adjusted}% (${calibration.recommendation})`);
+    if (calibration.adjustmentFactor !== 1.0) {
+      const adjusted = Math.round(rawConfidence * calibration.adjustmentFactor);
+      logger.debug(`[UNIVERSAL-IDEA] Calibration: ${rawConfidence}% -> ${adjusted}%`);
       return Math.max(40, Math.min(94, adjusted)); // Keep within bounds
     }
     return rawConfidence;
@@ -330,6 +330,7 @@ const SOURCE_BASE_CONFIDENCE: Record<IdeaSource, number> = {
   'manual': 35,             // Manual - minimal base
   'bot_screener': 58,       // Bot screener - higher base
   'surge_detection': 55,    // Surge detection - momentum-based, higher base
+  'tradingview': 52,        // Chart-derived evidence, not a trade by itself
 };
 
 // Signal type weights
@@ -625,45 +626,14 @@ async function getMLConfidenceEnhancement(
     return { boost: 0, signal: null };
   }
   
-  try {
-    const { predictPriceDirection } = await import('./ml-intelligence-service');
-    const { fetchOHLCData } = await import('./chart-analysis');
-    
-    let priceData = prices;
-    if (!priceData || priceData.length < 20) {
-      const ohlc = await fetchOHLCData(symbol, '1d', 60);
-      priceData = ohlc?.closes;
-    }
-    
-    if (!priceData || priceData.length < 20) {
-      logger.debug(`[UNIVERSAL-IDEA] ML enhancement skipped for ${symbol} - insufficient price data (${priceData?.length || 0} points < 20 required)`);
-      return { boost: 0, signal: null };
-    }
-    
-    const volumes: number[] = []; // No fake volume data — ML service handles missing volumes
-    const mlPrediction = await predictPriceDirection(symbol, priceData, volumes, '1d');
-    
-    const mlDirection = mlPrediction.direction;
-    
-    if (mlDirection === direction || (mlDirection === 'bullish' && direction === 'bullish') || (mlDirection === 'bearish' && direction === 'bearish')) {
-      const mlBoost = Math.min(10, Math.max(0, (mlPrediction.confidence - 50) / 5));
-      return { 
-        boost: mlBoost, 
-        signal: `ML: ${mlDirection} ${mlPrediction.confidence.toFixed(0)}% (+${mlBoost.toFixed(0)})` 
-      };
-    } else if (mlDirection !== 'neutral' && mlDirection !== direction) {
-      const mlPenalty = Math.min(10, Math.max(0, (mlPrediction.confidence - 50) / 5));
-      return { 
-        boost: -mlPenalty, 
-        signal: `ML: ${mlDirection} CONFLICT (-${mlPenalty.toFixed(0)})` 
-      };
-    }
-    
-    return { boost: 0, signal: null };
-  } catch (error) {
-    logger.debug(`[UNIVERSAL-IDEA] ML enhancement skipped for ${symbol}`);
-    return { boost: 0, signal: null };
-  }
+  // The optional prediction module is absent in this deployment.  A failed
+  // dynamic import was neither evidence nor a prediction; it was just an
+  // opaque runtime failure. Keep it neutral until a real model is installed
+  // and validated against execution-proven outcomes.
+  void symbol;
+  void direction;
+  void prices;
+  return { boost: 0, signal: null };
 }
 
 // getLetterGrade imported from ./grading (shared/grading.ts contract)
@@ -811,7 +781,7 @@ async function attachOptionContract(args: {
     // like when it fired, and the engine is the authority on what to buy now.
     const summary =
       `At signal: $${pick.strike}${cp} ${expFmt} @ $${pick.entryPremium.toFixed(2)} ` +
-      `(Δ${pick.delta.toFixed(2)}, ${pick.dte}DTE, grade ${pick.grade}) — ` +
+      `(Δ${pick.delta.toFixed(2)}, ${pick.dte}DTE, contract quality ${pick.grade}) — ` +
       `ROI@T1 ${pick.roiAtT1Pct >= 0 ? '+' : ''}${pick.roiAtT1Pct.toFixed(0)}%, R:R ${pick.riskRewardRatio.toFixed(1)}:1. ` +
       `The Contract Engine re-picks against the live chain.`;
     return {
@@ -989,60 +959,23 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     // Determine holding period
     const holdingPeriod = determineHoldingPeriod(input);
     
-    // Calculate target and stop if not provided
-    // OPTIONS need MUCH larger moves to be profitable (50-100%+) due to:
-    // - Theta decay (time value loss)
-    // - Bid/ask spread (5-15% loss on entry/exit)
-    // - Leverage means need bigger underlying moves
-    // STOCKS use smaller targets (3-8%)
-    // CRYPTO volatile so use moderate targets (5-15%)
-    
-    let targetMultiplier: number;
-    let stopMultiplier: number;
-    
-    if (input.assetType === 'option') {
-      // OPTIONS: Targets are on the UNDERLYING STOCK price, not option premium
-      // Options provide leverage, so a 3% stock move = 15-30% option move
-      // Day trade: Target 2-3% stock move (options gain 15-25%)
-      // Swing: Target 5-8% stock move (options gain 30-50%)
-      // Position: Target 10-15% stock move (options gain 50-100%+)
-      targetMultiplier = holdingPeriod === 'day' ? 1.03 : holdingPeriod === 'swing' ? 1.07 : 1.12;
-      // Stop losses should protect capital - allow 2-5% adverse move before exit
-      stopMultiplier = holdingPeriod === 'day' ? 0.97 : holdingPeriod === 'swing' ? 0.95 : 0.92;
-    } else if (input.assetType === 'crypto') {
-      // CRYPTO: More volatile, moderate targets
-      targetMultiplier = holdingPeriod === 'day' ? 1.05 : holdingPeriod === 'swing' ? 1.12 : 1.25;
-      stopMultiplier = holdingPeriod === 'day' ? 0.95 : holdingPeriod === 'swing' ? 0.90 : 0.85;
-    } else {
-      // STOCKS/FUTURES: ATR-aware targets (not fixed %)
-      // High-vol stocks (semis, optics) move 3-10% daily — need wider targets
-      // Low-vol stocks move 1-3% — tighter targets
-      const isHighVol = ['AAOI','SMTC','AEHR','LUNR','OKLO','IONQ','RGTI','TSLA','MARA','CLSK','RIOT','ARM'].includes(input.symbol);
-      if (isHighVol) {
-        targetMultiplier = holdingPeriod === 'day' ? 1.05 : holdingPeriod === 'swing' ? 1.12 : 1.20;
-        stopMultiplier = holdingPeriod === 'day' ? 0.97 : holdingPeriod === 'swing' ? 0.95 : 0.92;
-      } else {
-        targetMultiplier = holdingPeriod === 'day' ? 1.03 : holdingPeriod === 'swing' ? 1.08 : 1.15;
-        stopMultiplier = holdingPeriod === 'day' ? 0.98 : holdingPeriod === 'swing' ? 0.96 : 0.93;
-      }
+    // A scanner can discover a ticker without discovering a trade. Fixed
+    // percentage target/stop defaults made that distinction disappear: every
+    // name received a plausible-looking 2R ladder whether or not the chart had
+    // an actual destination or invalidation. Discovery stays useful, but it
+    // cannot be published as an Oracle plan until a source supplies both levels.
+    if (typeof input.targetPrice !== 'number' || typeof input.stopLoss !== 'number') {
+      logger.info(`[IDEA] ${input.symbol}: coverage only — missing structural target or invalidation`);
+      return null;
     }
-    
-    // Volatility/timeframe-derived defaults (the "sane" levels).
-    const computedTarget = input.direction === 'bullish'
-      ? currentPrice * targetMultiplier
-      : currentPrice * (2 - targetMultiplier);
-    const computedStop = input.direction === 'bullish'
-      ? currentPrice * stopMultiplier
-      : currentPrice * (2 - stopMultiplier);
 
-    let targetPrice = input.targetPrice || computedTarget;
-    let stopLoss = input.stopLoss || computedStop;
+    const targetPrice = input.targetPrice;
+    const stopLoss = input.stopLoss;
 
     // ── Sanity clamp ────────────────────────────────────────────────
-    // A source-provided target/stop must imply a REALISTIC move for its
-    // timeframe. Absurd upstream levels — e.g. an option ROI mistaken for a
-    // stock target ("$126 target on a $10 entry") — get replaced by the
-    // volatility default instead of leaking a fake 12× move into the feed.
+    // A source-provided target/stop must imply a realistic move for its
+    // timeframe. Reject an absurd upstream level — do not quietly replace it
+    // with another invented percentage.
     const MAX_TARGET_MOVE: Record<string, number> = { day: 0.25, swing: 0.60, position: 1.50 };
     const MAX_STOP_MOVE: Record<string, number> = { day: 0.15, swing: 0.25, position: 0.40 };
     const maxT = MAX_TARGET_MOVE[holdingPeriod] ?? 0.60;
@@ -1050,16 +983,24 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     if (currentPrice > 0) {
       const tMove = Math.abs(targetPrice - currentPrice) / currentPrice;
       if (tMove > maxT) {
-        logger.warn(
-          `[IDEA] ${input.symbol} target $${targetPrice.toFixed(2)} implies ${(tMove * 100).toFixed(0)}% ` +
-          `move (> ${(maxT * 100).toFixed(0)}% ${holdingPeriod} cap) — using volatility default $${computedTarget.toFixed(2)}`,
-        );
-        targetPrice = computedTarget;
+        logger.warn(`[IDEA] ${input.symbol}: target implies ${(tMove * 100).toFixed(0)}% (> ${(maxT * 100).toFixed(0)}% ${holdingPeriod} cap)`);
+        return null;
       }
       const sMove = Math.abs(stopLoss - currentPrice) / currentPrice;
       if (sMove > maxS) {
-        stopLoss = computedStop;
+        logger.warn(`[IDEA] ${input.symbol}: stop implies ${(sMove * 100).toFixed(0)}% (> ${(maxS * 100).toFixed(0)}% ${holdingPeriod} cap)`);
+        return null;
       }
+    }
+
+    const levelsPointCorrectly = input.direction === 'bullish'
+      ? targetPrice > currentPrice && stopLoss < currentPrice
+      : input.direction === 'bearish'
+        ? targetPrice < currentPrice && stopLoss > currentPrice
+        : false;
+    if (!levelsPointCorrectly) {
+      logger.warn(`[IDEA] ${input.symbol}: target/stop do not agree with ${input.direction} direction`);
+      return null;
     }
 
     // Calculate risk/reward ratio

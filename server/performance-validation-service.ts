@@ -212,9 +212,9 @@ class PerformanceValidationService {
             if (typeof livePremium === 'number' && livePremium >= 0) {
               exitPremium = Math.round(livePremium * 100) / 100;
               const rawPct = ((exitPremium - ideaForResult.entryPremium) / ideaForResult.entryPremium) * 100;
-              // direction='short' means the contract was SOLD → profit when premium falls.
-              const signed = ideaForResult.direction === 'short' ? -rawPct : rawPct;
-              optionPercentGain = Math.round(signed * 100) / 100;
+              // Calls and puts are bought. `direction` describes the underlying
+              // thesis, not the side of the option contract.
+              optionPercentGain = Math.round(rawPct * 100) / 100;
               console.log(`  💵 ${ideaForResult.symbol} option P&L: entry $${ideaForResult.entryPremium} → exit $${exitPremium} = ${optionPercentGain >= 0 ? '+' : ''}${optionPercentGain}%`);
             }
           }

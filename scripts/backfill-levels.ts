@@ -64,9 +64,9 @@ async function main() {
     const L = deriveLevels(candles, spot, dir, { assetType: r.asset_type });
 
     // never write something the read-path would reject
-    const coherent = dir === 'long'
+    const coherent = L.targetPrice != null && (dir === 'long'
       ? L.targetPrice > L.entryPrice && L.stopLoss < L.entryPrice
-      : L.targetPrice < L.entryPrice && L.stopLoss > L.entryPrice;
+      : L.targetPrice < L.entryPrice && L.stopLoss > L.entryPrice);
     if (!coherent || !L.riskRewardRatio || L.riskRewardRatio > 15) { rejected++; continue; }
 
     const oldT = ((target - entry) / entry * 100).toFixed(1);

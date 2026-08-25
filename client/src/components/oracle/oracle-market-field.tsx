@@ -28,7 +28,13 @@ interface RotationFeed {
 }
 
 interface AssetClass { key: string; label: string; changePct: number }
-interface ExtendedFeed { assetClasses?: AssetClass[]; interpretation?: string }
+interface ExtendedFeed {
+  assetClasses?: AssetClass[];
+  interpretation?: string;
+  session?: 'pre' | 'regular' | 'post' | 'closed';
+  isStale?: boolean;
+  asOf?: string | null;
+}
 
 const signed = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
 
@@ -42,6 +48,17 @@ function marketRead(spyChange: number, assets: AssetClass[]) {
     return { label: 'Risk-off', detail: 'defense in control', tone: TC.bear };
   }
   return { label: 'Balanced', detail: 'no broad edge', tone: TC.warn };
+}
+
+/** A provider's session label is not enough: only show an extended tape when the US cash clock is open. */
+function cashTapeOpenNow() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  if (get('weekday') === 'Sat' || get('weekday') === 'Sun') return false;
+  const minutes = Number(get('hour')) * 60 + Number(get('minute'));
+  return minutes >= 4 * 60 && minutes < 20 * 60;
 }
 
 function AssetRow({ asset }: { asset: AssetClass }) {
@@ -76,7 +93,8 @@ export function OracleMarketField({
       if (!response.ok) throw new Error('rotation unavailable');
       return response.json();
     },
-    staleTime: 120_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
     retry: 1,
   });
   const { data: extended } = useQuery<ExtendedFeed>({
@@ -86,15 +104,22 @@ export function OracleMarketField({
       if (!response.ok) throw new Error('extended-hours unavailable');
       return response.json();
     },
-    staleTime: 120_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
     retry: 1,
   });
   const { data: realtime } = useRealtimeStatus();
 
   if (!data) return null;
 
-  const assets = extended?.assetClasses ?? [];
-  const read = marketRead(data.spyChange, assets);
+  // Never blend a historic 1d Yahoo bar into a current cash-market verdict. The
+  // server sends isStale too; the local clock is a belt-and-suspenders guard for
+  // clients still talking to an older server during HMR.
+  const extendedCurrent = !!extended && extended.session !== 'closed' && !extended.isStale && cashTapeOpenNow();
+  const assets = extendedCurrent ? extended.assetClasses ?? [] : [];
+  const read = data.isStale || !extendedCurrent
+    ? { label: 'Last cash read', detail: `${data.sessionLabel} · cash market closed`, tone: TC.info }
+    : marketRead(data.spyChange, assets);
   const destination = expanded ? data.leaders : data.leaders.slice(0, 2);
   const source = expanded ? data.laggards : data.laggards.slice(0, 2);
   // SPY remains an honest cash-equity close outside market hours. The cyan orbit
@@ -158,15 +183,17 @@ export function OracleMarketField({
           </motion.div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-x-5">
-          {assets.map((asset) => <AssetRow key={asset.key} asset={asset} />)}
-        </div>
+        {assets.length > 0 && (
+          <div className="mt-3 grid grid-cols-2 gap-x-5">
+            {assets.map((asset) => <AssetRow key={asset.key} asset={asset} />)}
+          </div>
+        )}
 
         <MarketStream className="mt-3" />
 
         <div className="mt-3 border-t border-border/35 pt-3">
           <div className="mb-2 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em]">
-            <span className="text-muted-foreground/60">Rotation now</span>
+            <span className="text-muted-foreground/60">Cash rotation</span>
           </div>
           <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 font-mono text-[10px] leading-relaxed">
             <div className="min-w-0">
@@ -183,7 +210,7 @@ export function OracleMarketField({
               ))}
             </div>
           </div>
-          {extended?.interpretation && <p className="mt-2 line-clamp-2 font-mono text-[9px] leading-relaxed text-muted-foreground/55">{extended.interpretation}</p>}
+          {extendedCurrent && extended?.interpretation && <p className="mt-2 line-clamp-2 font-mono text-[9px] leading-relaxed text-muted-foreground/55">{extended.interpretation}</p>}
         </div>
       </div>
     </PanelFrame>

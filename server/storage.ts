@@ -113,6 +113,7 @@ import type {
   InsertGexSnapshot,
 } from "@shared/schema";
 import { db } from "./db";
+import { recordPaperExecution } from "@shared/oracle-lifecycle";
 import { eq, and, or, gte, lte, desc, isNull, not, sql as drizzleSql } from "drizzle-orm";
 import {
   tradeIdeas,
@@ -2608,8 +2609,10 @@ export class DatabaseStorage implements IStorage {
 
   /**
    * Finds a recent non-archived idea matching the same setup, for spine dedup.
-   * Keys on symbol + assetType + direction + source; options additionally match
-   * on optionType/strikePrice/expiryDate (a different strike/expiry is a different idea).
+   * Keys on symbol + assetType + direction + source. A quant scan's contract is
+   * selected from a changing option chain, so a different strike/expiry is a
+   * contract refresh—not a new thesis. Other option sources retain leg-level
+   * matching because an explicitly chosen contract can be the thing being tracked.
    */
   private async findRecentDuplicateIdea(
     idea: InsertTradeIdea,
@@ -2624,7 +2627,9 @@ export class DatabaseStorage implements IStorage {
       not(eq(tradeIdeas.status, 'archived')),
     ];
     if ((idea as any).source) conds.push(eq(tradeIdeas.source, (idea as any).source));
-    if (idea.assetType === 'option') {
+    const source = String((idea as any).source ?? '').toLowerCase();
+    const contractIsPartOfIdentity = idea.assetType === 'option' && source !== 'quant';
+    if (contractIsPartOfIdentity) {
       if (idea.optionType) conds.push(eq(tradeIdeas.optionType, idea.optionType));
       if (idea.strikePrice != null) conds.push(eq(tradeIdeas.strikePrice, idea.strikePrice));
       if (idea.expiryDate) conds.push(eq(tradeIdeas.expiryDate, idea.expiryDate));
@@ -4064,6 +4069,24 @@ export class DatabaseStorage implements IStorage {
       status: (position.status ?? 'open') as PaperTradeStatus,
     };
     const [created] = await db.insert(paperPositionsTable).values(insertData).returning();
+
+    // Paper positions are the execution ledger. Mark the linked Oracle idea
+    // here, at the single shared persistence boundary, so every bot/manual
+    // path has the same proof-of-entry semantics.
+    if (created.tradeIdeaId) {
+      const [idea] = await db.select().from(tradeIdeas).where(eq(tradeIdeas.id, created.tradeIdeaId)).limit(1);
+      if (idea) {
+        await db.update(tradeIdeas)
+          .set({
+            convergenceSignalsJson: recordPaperExecution(idea.convergenceSignalsJson, {
+              price: created.entryPrice,
+              at: created.entryTime,
+              paperPositionId: created.id,
+            }) as any,
+          })
+          .where(eq(tradeIdeas.id, idea.id));
+      }
+    }
     return created;
   }
 

@@ -755,7 +755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // IMPORTANT: validate (non-destructively) BEFORE creating the user, and only
       // redeem the invite AFTER the user is successfully created. Otherwise a failed
       // signup (e.g. email already exists) would permanently burn a valid invite.
-      const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
+      const adminCode = process.env.ADMIN_ACCESS_CODE;
       let candidateInvite: Awaited<ReturnType<typeof storage.getBetaInviteByToken>> = null;
       let usingAdminCode = false;
 
@@ -778,7 +778,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (candidateInvite.expiresAt && new Date(candidateInvite.expiresAt) < new Date()) {
           return res.status(403).json({ error: "This invite code has expired." });
         }
-      } else if (inviteCode === adminCode) {
+      } else if (adminCode && inviteCode === adminCode) {
         usingAdminCode = true;
       } else {
         return res.status(403).json({ error: "Invalid or expired invite code. Please check your invite email." });
@@ -1455,12 +1455,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
     try {
       const accessCode = req.body.accessCode;
-      const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
+      const adminCode = process.env.ADMIN_ACCESS_CODE;
 
       logger.info('[DEV-LOGIN] Attempting login', { accessCode: accessCode ? '***' : 'missing' });
 
-      // Also accept "0065" as a backup code
-      if (accessCode !== adminCode && accessCode !== "0065") {
+      if (!adminCode) {
+        logger.error('[DEV-LOGIN] ADMIN_ACCESS_CODE is not configured');
+        return res.status(503).json({ error: "Admin login is not configured" });
+      }
+
+      if (accessCode !== adminCode) {
         logger.warn('[DEV-LOGIN] Invalid access code');
         return res.status(401).json({ error: "Invalid access code" });
       }
@@ -1594,6 +1598,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'auth/user' });
       res.status(200).json(null);
+    }
+  });
+
+  /** Current-user identity editing. Keep email/auth-provider fields immutable here. */
+  app.patch("/api/auth/me", async (req: Request, res: Response) => {
+    try {
+      let userId = (req.session as any)?.userId;
+      if (!userId && req.user) userId = (req.user as any).claims?.sub;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+      const cleanName = (value: unknown) =>
+        typeof value === 'string' ? value.trim().slice(0, 80) || null : undefined;
+      const firstName = cleanName(req.body?.firstName);
+      const lastName = cleanName(req.body?.lastName);
+      const patch: { firstName?: string | null; lastName?: string | null } = {};
+      if (firstName !== undefined) patch.firstName = firstName;
+      if (lastName !== undefined) patch.lastName = lastName;
+
+      const updated = await storage.updateUser(userId, patch);
+      if (!updated) return res.status(404).json({ error: 'User not found' });
+      res.json(sanitizeUser(updated));
+    } catch (error) {
+      logError(error as Error, { context: 'auth/profile-update' });
+      res.status(500).json({ error: 'Failed to update profile' });
     }
   });
 
@@ -1801,7 +1829,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Authentication Routes with JWT
   app.post("/api/admin/verify-code", adminLimiter, (req, res) => {
     try {
-      const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
+      const adminCode = process.env.ADMIN_ACCESS_CODE;
+      if (!adminCode) {
+        logger.error('CRITICAL: ADMIN_ACCESS_CODE environment variable not set');
+        return res.status(503).json({ error: 'Admin login is not configured' });
+      }
       if (req.body.code === adminCode) {
         logger.info('Admin access code verified', { ip: req.ip });
         res.json({ success: true });
@@ -5146,7 +5178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/early-rotation", async (_req, res) => {
     try {
       const { cachedFetch } = await import("./provider-cache");
-      const result = await cachedFetch("early-rotation:v1", 5 * 60_000, async () => {
+      const result = await cachedFetch("early-rotation:v1", 2 * 60_000, async () => {
         const { findEarlyRotation } = await import("./early-rotation");
         const lead = await fetch(`http://127.0.0.1:${process.env.PORT || 5000}/api/sector-leadership`)
           .then((r) => r.json())
@@ -5195,11 +5227,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { getBotStatus } = await import("./quant-bot");
       const status = await getBotStatus();
-      if (!status) return res.status(503).json({ error: "Bot portfolio unavailable" });
+      if (!status) {
+        return res.status(503).json({
+          error: "Paper execution ledger is not initialized",
+          code: "PAPER_LEDGER_NOT_INITIALIZED",
+          retryable: false,
+        });
+      }
       res.json(status);
     } catch (error) {
       logger.error("[API] quant-bot status failed:", error);
-      res.status(500).json({ error: "Failed to read bot status" });
+      res.status(503).json({
+        error: "Paper execution ledger is temporarily unavailable",
+        code: "PAPER_LEDGER_READ_FAILED",
+        retryable: true,
+      });
     }
   });
 
@@ -5343,12 +5385,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { computeSectorLeadership } = await import("./sector-leadership");
       const { currentSession, fetchExtendedQuote } = await import("./extended-hours");
 
-      // Which prices are we allowed to trust right now? Outside 09:30–16:00 the regular
-      // batch quotes are just yesterday's close, so sector leadership computed from them
-      // is stale — exactly when a trader is trying to work out what to do at the open.
-      // Pre/post sessions therefore read the extended-hours tape instead.
+      // Which prices are we allowed to trust right now? Only an active pre/post
+      // session earns the extended-hours path. A closed market must stay anchored
+      // to the last cash close; treating a historic Friday bar as Sunday "post" is
+      // worse than showing a clearly-labelled handoff.
       const session = await currentSession();
-      const extended = session === 'pre' || session === 'post' || session === 'closed';
+      const extended = session === 'pre' || session === 'post';
 
       const result = await computeSectorLeadership(async (batch: string[]) => {
         const out: Record<string, any> = {};
@@ -5402,7 +5444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         symbolList.map((symbol) => ({ symbol, assetType: 'stock' as RTAssetType }))
       );
 
-      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number }> = {};
+      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number; asOf: string }> = {};
       for (const symbol of symbolList) {
         const q = quotesMap.get(symbol);
         if (q && q.price) {
@@ -5412,6 +5454,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             change: q.change || 0,
             changePercent: q.changePercent || 0,
             volume: q.volume || 0,
+            // Source timestamp, not API-response time. The client can therefore
+            // show an honest stale marker when Yahoo has not printed a new tick.
+            asOf: q.lastUpdate.toISOString(),
           };
         }
       }
@@ -9945,6 +9990,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("win-rate-compare error:", error);
       res.status(500).json({ error: "Failed to compare win rate models" });
+    }
+  });
+
+  /**
+   * OUTCOME MODEL v2 — the terminal's single performance ledger.
+   *
+   * This intentionally does not reuse /performance/stats or WinRateService. Those
+   * endpoints answer older, filtered questions (including a ±3% stock threshold
+   * and option-only subsets). A trader needs one answer to a simpler question:
+   * did the published thesis resolve, and did we actually capture the result?
+   *
+   * The client leads with coverage instead of hiding the unresolved population.
+   * A number here is therefore safe to compare over time only when its coverage is
+   * shown beside it.
+   */
+  app.get("/api/performance/outcome-model", async (_req, res) => {
+    try {
+      const { classifyOutcomeV2, realisedR } = await import("@shared/constants");
+      const allIdeas = await storage.getAllTradeIdeas();
+      const ideas = allIdeas.filter((idea) => !idea.excludeFromTraining);
+
+      type Counts = { win: number; loss: number; unresolved: number; rValues: number[] };
+      const empty = (): Counts => ({ win: 0, loss: 0, unresolved: 0, rValues: [] });
+      const totals = empty();
+      const bySource = new Map<string, Counts>();
+      let measuredTimeouts = 0;
+      let unmeasuredTimeouts = 0;
+
+      for (const idea of ideas as any[]) {
+        const outcome = classifyOutcomeV2(idea);
+        totals[outcome] += 1;
+        const r = realisedR(idea);
+        if (r !== null) totals.rValues.push(r);
+
+        const source = idea.source || 'unknown';
+        const sourceTotals = bySource.get(source) || empty();
+        sourceTotals[outcome] += 1;
+        if (r !== null) sourceTotals.rValues.push(r);
+        bySource.set(source, sourceTotals);
+
+        const status = String(idea.outcomeStatus || '').toLowerCase();
+        if (status === 'expired' || status === 'timeout' || status === 'closed_horizon') {
+          if (outcome === 'unresolved') unmeasuredTimeouts += 1;
+          else measuredTimeouts += 1;
+        }
+      }
+
+      const decided = totals.win + totals.loss;
+      const winRate = decided ? +(totals.win / decided * 100).toFixed(1) : null;
+      const averageR = totals.rValues.length
+        ? +(totals.rValues.reduce((sum, value) => sum + value, 0) / totals.rValues.length).toFixed(3)
+        : null;
+
+      const sources = Array.from(bySource.entries())
+        .map(([source, counts]) => {
+          const sourceDecided = counts.win + counts.loss;
+          return {
+            source,
+            total: sourceDecided + counts.unresolved,
+            win: counts.win,
+            loss: counts.loss,
+            unresolved: counts.unresolved,
+            decided: sourceDecided,
+            winRate: sourceDecided ? +(counts.win / sourceDecided * 100).toFixed(1) : null,
+            averageR: counts.rValues.length
+              ? +(counts.rValues.reduce((sum, value) => sum + value, 0) / counts.rValues.length).toFixed(3)
+              : null,
+            rSampleSize: counts.rValues.length,
+          };
+        })
+        .sort((a, b) => b.total - a.total);
+
+      res.json({
+        model: 'Outcome model v2',
+        totalPublished: ideas.length,
+        outcomes: {
+          win: totals.win,
+          loss: totals.loss,
+          unresolved: totals.unresolved,
+          decided,
+          winRate,
+        },
+        coverage: {
+          measured: decided,
+          unresolved: totals.unresolved,
+          pctMeasured: ideas.length ? +(decided / ideas.length * 100).toFixed(1) : 0,
+        },
+        expectancy: {
+          averageR,
+          sampleSize: totals.rValues.length,
+          definition: 'Realised contract/underlying P&L ÷ 50% premium risk. Null when no outcome P&L was written.',
+        },
+        bySource: sources,
+        dataQuality: {
+          excludedFromTraining: allIdeas.length - ideas.length,
+          measuredTimeouts,
+          unmeasuredTimeouts,
+        },
+        methodology: {
+          win: 'Target reached, or a measured closed/expired trade with positive realised P&L.',
+          loss: 'Stop reached, or a measured closed/expired trade with negative realised P&L.',
+          unresolved: 'Open, or a timeout/close without a real P&L written back. Unresolved trades are not included in win rate or R.',
+        },
+        asOf: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("outcome-model error:", error);
+      res.status(500).json({ error: "Failed to build outcome model" });
     }
   });
 
@@ -20876,6 +21029,73 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   });
 
   // =============================================
+  // LIQUID-NAME REVERSAL PUBLISHER
+  // =============================================
+  // Unlike the index-only session scanner, this watches liquid single names
+  // (including TSLA) and writes only a CONFIRMED VWAP reversal with a real,
+  // liquid same-day CBOE contract. The endpoint accepts no arbitrary ticker
+  // universe, so it cannot be used to turn the scanner into a quote hammer.
+  app.get("/api/scanner/liquid-reversals/status", async (_req, res) => {
+    const { isLiquidReversalSession, LIQUID_REVERSAL_UNIVERSE } = await import('./liquid-reversal-publisher');
+    res.json({
+      marketOpen: isLiquidReversalSession(),
+      cadence: '5m during 10:00–15:15 ET weekdays',
+      universe: LIQUID_REVERSAL_UNIVERSE,
+      contractRule: 'same-day CBOE bid + ask, <=20% spread, OI >=100 or volume >=25',
+      confirmationRule: 'VWAP reclaim/rejection + 5m follow-through + RSI + volume context',
+    });
+  });
+
+  app.post("/api/scanner/liquid-reversals/run", marketDataLimiter, async (req, res) => {
+    try {
+      const { LIQUID_REVERSAL_UNIVERSE, runLiquidReversalPublisher } = await import('./liquid-reversal-publisher');
+      const requested = Array.isArray(req.body?.symbols)
+        ? req.body.symbols.map((value: unknown) => String(value).toUpperCase())
+        : LIQUID_REVERSAL_UNIVERSE;
+      const allowed = requested.filter((symbol: string) => (LIQUID_REVERSAL_UNIVERSE as readonly string[]).includes(symbol));
+      if (!allowed.length) {
+        return res.status(400).json({ error: `Symbols must be in the liquid reversal universe: ${LIQUID_REVERSAL_UNIVERSE.join(', ')}` });
+      }
+      const result = await runLiquidReversalPublisher(allowed);
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[LIQUID-REVERSAL] manual scan failed:', error);
+      res.status(500).json({ error: error?.message || 'Liquid reversal scan failed' });
+    }
+  });
+
+  // Real two-leg quote plan for an existing directional thesis. This remains a
+  // planner until spread legs are first-class persisted position fields; storing
+  // only the long leg as a "signal" would lie about both max loss and payoff.
+  app.get("/api/options/debit-spread/:symbol", marketDataLimiter, async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || '').toUpperCase();
+      const direction = String(req.query.direction || 'long').toLowerCase();
+      if (!/^[A-Z.]{1,10}$/.test(symbol) || (direction !== 'long' && direction !== 'short')) {
+        return res.status(400).json({ error: 'Use a valid symbol and direction=long|short.' });
+      }
+      const targetRaw = Number(req.query.target);
+      const minDte = Number(req.query.minDte);
+      const maxDte = Number(req.query.maxDte);
+      const maxRisk = Number(req.query.maxRisk);
+      const { planDebitSpread } = await import('./debit-spread-planner');
+      const plan = await planDebitSpread({
+        symbol,
+        direction: direction as 'long' | 'short',
+        targetPrice: Number.isFinite(targetRaw) && targetRaw > 0 ? targetRaw : null,
+        minDte: Number.isFinite(minDte) && minDte > 0 ? minDte : undefined,
+        maxDte: Number.isFinite(maxDte) && maxDte > 0 ? maxDte : undefined,
+        maxRiskDollars: Number.isFinite(maxRisk) && maxRisk > 0 ? maxRisk : undefined,
+      });
+      if (!plan) return res.status(404).json({ error: 'No liquid debit spread found from the delayed CBOE chain.' });
+      res.json(plan);
+    } catch (error: any) {
+      logger.error('[DEBIT-SPREAD] planner failed:', error);
+      res.status(500).json({ error: error?.message || 'Debit spread planning failed' });
+    }
+  });
+
+  // =============================================
   // SPX COMMAND CENTER - Aggregated Dashboard
   // =============================================
 
@@ -27406,6 +27626,56 @@ Use this checklist before entering any trade:
     }
   });
 
+  /**
+   * On-demand research queue. This is deliberately a scan, not a bulk insert:
+   * each symbol must produce a live, evidence-backed thesis before the
+   * universal idea generator is allowed to persist it into Active Signals.
+   */
+  app.post("/api/convergence/analyze-batch", async (req, res) => {
+    const rawSymbols: unknown[] = Array.isArray(req.body?.symbols) ? req.body.symbols : [];
+    const symbols: string[] = [...new Set<string>(rawSymbols
+      .map((symbol: unknown) => String(symbol || '').trim().toUpperCase())
+      .filter((symbol: string) => /^[A-Z.]{1,10}$/.test(symbol)))]
+      .slice(0, 10);
+
+    if (!symbols.length) {
+      return res.status(400).json({ error: "Provide 1–10 valid symbols" });
+    }
+
+    try {
+      const { isApprovedTicker } = await import("@shared/approved-tickers");
+      const { analyzeSymbolOnDemand } = await import("./convergence-engine");
+      const results: Array<{ symbol: string; persisted: boolean; score?: number; message: string }> = [];
+
+      // Keep calls sequential. Quote, options and news sources are rate-limited;
+      // parallel fan-out would make a blank board look like a passed scan.
+      for (const symbol of symbols) {
+        if (!isApprovedTicker(symbol)) {
+          results.push({ symbol, persisted: false, message: "Not in the approved scan universe" });
+          continue;
+        }
+
+        const result = await analyzeSymbolOnDemand(symbol);
+        results.push({
+          symbol,
+          persisted: Boolean(result.success && result.tradeIdea),
+          score: result.convergenceAnalysis?.convergenceScore,
+          message: result.message,
+        });
+      }
+
+      res.json({
+        success: true,
+        requested: symbols.length,
+        persisted: results.filter((result) => result.persisted).length,
+        results,
+      });
+    } catch (error) {
+      logger.error("Error running on-demand convergence batch", { error });
+      res.status(500).json({ error: "Failed to run convergence batch" });
+    }
+  });
+
   // POST /api/convergence/scan-overnight - Manually trigger overnight catalyst scan
   app.post("/api/convergence/scan-overnight", requireAdminJWT, async (_req, res) => {
     try {
@@ -29980,6 +30250,17 @@ Use this checklist before entering any trade:
   });
 
   // ──────────── BTC BETA TRACKER ────────────
+  // CRYPTO PULSE is deliberately separate from the beta scanner: BTC/ETH spot
+  // context should survive even when a free equity-history provider is throttled.
+  app.get('/api/crypto/pulse', async (_req, res) => {
+    try {
+      const { getCryptoPulse } = await import('./crypto-pulse');
+      res.json(await getCryptoPulse());
+    } catch (e: any) {
+      res.status(503).json({ error: 'crypto pulse unavailable', message: e?.message });
+    }
+  });
+
   // GET  /api/btc/state               → current BTC price + key levels + RSI + vol
   // GET  /api/btc/positions           → all tracked tickers with their beta/divergence
   // POST /api/btc/scan                → run full pattern scan (state + positions + signals)

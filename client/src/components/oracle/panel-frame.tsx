@@ -76,9 +76,9 @@ export function PanelFrame({
   const canToggle = inlineToggle && !forceExpanded && (overflows || expanded);
 
   return (
-    <div className={cn('flex flex-col rounded-xl border border-card-border bg-card overflow-hidden', className)}>
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-4 py-2.5">
-        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
+    <div className={cn('qe-panel-frame flex flex-col overflow-hidden rounded-xl border border-card-border bg-card', className)}>
+      <div className="qe-panel-head flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-4 py-3">
+        <span className="qe-panel-title font-sans text-[12px] font-semibold tracking-[0.015em] text-foreground/90">{title}</span>
         <div className="flex items-center gap-2.5 min-w-0">
           {right}
           {onFocus && (
@@ -88,7 +88,7 @@ export function PanelFrame({
               onClick={onFocus}
               title={focusLabel ? `Expand ${focusLabel}` : `Expand ${title}`}
               aria-label={focusLabel ? `Expand ${focusLabel}` : `Expand ${title}`}
-              className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-label font-mono uppercase tracking-wider text-[var(--brand-cyan)]/85 transition-colors hover:text-foreground"
+              className="qe-panel-action inline-flex shrink-0 cursor-pointer items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--brand-cyan)]/85 transition-colors hover:text-foreground"
             >
               <span className="hidden sm:inline">Expand</span><Maximize2 className="h-3 w-3" />
             </button>

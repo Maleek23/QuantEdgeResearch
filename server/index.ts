@@ -17,6 +17,7 @@ import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligen
 import { initializeRealtimePrices, getRealtimeStatus } from "./realtime-price-service";
 import { initializeBotNotificationService } from "./bot-notification-service";
 import { initializeWeeklyTracker } from "./weekly-tracker";
+import { reconcileOpenPaperExecutions, repairImpossibleRecentOutcomes } from "./oracle-lifecycle-reconciler";
 import { securityHeaders } from "./security";
 import { csrfMiddleware, validateCSRF } from "./csrf";
 
@@ -38,7 +39,11 @@ app.use(compression({
 app.get("/health", (req: Request, res: Response) => {
   const realtimeStatus = getRealtimeStatus();
   const overallStatus = realtimeStatus.isHealthy ? "OK" : "DEGRADED";
-  res.status(realtimeStatus.isHealthy ? 200 : 503).json({
+  // This is a liveness endpoint, not a claim that every market-data vendor is
+  // available. Returning 503 here made the preview/deployment layer treat a
+  // fully serving terminal as offline whenever one optional stock feed was
+  // degraded. The payload still exposes the source-quality truth to clients.
+  res.status(200).json({
     status: overallStatus,
     timestamp: new Date().toISOString(),
     realtimePrices: realtimeStatus,
@@ -133,6 +138,15 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
 
+    // Make the execution ledger authoritative before any price validator runs.
+    // A paper position proves a fill; a published signal alone never does.
+    try {
+      await reconcileOpenPaperExecutions();
+      await repairImpossibleRecentOutcomes();
+    } catch (error) {
+      logger.error("[ORACLE LIFECYCLE] Execution reconciliation failed", error);
+    }
+
     // ========================================================================
     // MARKET-HOURS-AWARE SERVICE MANAGEMENT
     // Problem: 20+ background services consume 2.2GB RAM + 118% CPU, blocking
@@ -176,18 +190,12 @@ app.use((req, res, next) => {
     startWatchlistMonitor(5);
     log('🔔 Watchlist Monitor started');
 
-    // GEX hub cache warm-up — fire-and-forget so the first /api/gex-vex/hub visit
-    // hits a warm cache instead of blocking on the 132-ticker scan. The scanner
-    // dedupes + caches internally and serves a CBOE fallback off-hours.
-    (async () => {
-      try {
-        const { scanWatchlistConfluence } = await import('./gex-vex-scanner');
-        await scanWatchlistConfluence({}); // kicks a background full scan
-        log('🔥 GEX hub cache warm-up triggered');
-      } catch (err) {
-        logger.error('[GEX-WARMUP] failed:', err);
-      }
-    })();
+    // Do not scan the full GEX universe at boot. It says "fire and forget",
+    // but 136 option-chain fetches still saturate Node's request work and make
+    // the Oracle board time out before its persisted signals can render. The
+    // GEX endpoint owns its own cache warm-up on first use; startup must make
+    // the actual terminal usable first, especially off-hours.
+    log('🧊 GEX universe warm-up deferred until the GEX view is requested');
 
     // ── Heavy services: ONLY during market hours ─────────────────────────
     // These 20+ services consume massive CPU/memory. They are pointless when
@@ -230,6 +238,13 @@ app.use((req, res, next) => {
         const { startIndexScalpScheduler } = await import('./index-scalp-engine');
         startIndexScalpScheduler();
         log('🎯 Index Scalp Scheduler started (SPX/SPY/QQQ/IWM 0DTE)');
+
+        // TSLA/NVDA/etc. are deliberately separate from the index scalp engine:
+        // they need a confirmed intraday price reversal plus a real liquid same-day
+        // contract, rather than an index gamma-level proxy.
+        const { startLiquidReversalPublisher } = await import('./liquid-reversal-publisher');
+        startLiquidReversalPublisher();
+        log('↩️ Liquid-name Reversal Publisher started (confirmed VWAP + real 0DTE contract)');
 
         const { startAttentionTrackingService } = await import('./attention-tracking-service');
         startAttentionTrackingService();
@@ -409,6 +424,7 @@ app.use((req, res, next) => {
       // Stop SPX scanners gracefully first
       import('./spx-orb-scanner').then(m => m.stopORBScanner()).catch(() => {});
       import('./spx-session-scanner').then(m => m.stopSessionScanner()).catch(() => {});
+      import('./liquid-reversal-publisher').then(m => m.stopLiquidReversalPublisher()).catch(() => {});
       // Give 5s for graceful shutdown, then exit (PM2 will restart)
       setTimeout(() => {
         log('🔄 Exiting for PM2 restart (lightweight mode)...');
@@ -816,25 +832,27 @@ app.use((req, res, next) => {
         const dayOfWeek = nowCT.getDay();
         const dateKey = nowCT.toISOString().split('T')[0];
 
-        // DEVELOPMENT MODE: Allow weekend testing
-        // PRODUCTION MODE: Only weekdays
-        const isDevelopment = process.env.NODE_ENV !== 'production';
-        if (!isDevelopment && (dayOfWeek === 0 || dayOfWeek === 6)) {
+        // Publishing must follow the same calendar in every environment. Letting
+        // development run on weekends and every thirty minutes turned a single
+        // thesis into a stream of near-duplicate ideas whenever a contract was
+        // re-selected from the chain.
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
           return;
         }
 
-        // DEVELOPMENT MODE: Run every 30 minutes for testing
-        // PRODUCTION MODE: Run at 9:35 AM CT and 1:00 PM CT only
-        const isQuantTime = isDevelopment
-          ? (minute >= 0 && minute < 5) || (minute >= 30 && minute < 35) // Every 30 min in dev
-          : ((hour === 9 && minute >= 35 && minute < 40) || (hour === 13 && minute >= 0 && minute < 5)); // Scheduled times in prod
+        // Two deliberate publication windows. Manual scanner endpoints remain
+        // available for local testing; the automated publisher must not generate
+        // a new board merely because a developer refreshed the page.
+        const isQuantTime =
+          (hour === 9 && minute >= 35 && minute < 40) ||
+          (hour === 13 && minute >= 0 && minute < 5);
 
         if (!isQuantTime) {
           return;
         }
 
-        // In production, only run morning session once per day
-        if (!isDevelopment && lastQuantRunDate === dateKey && hour === 9) {
+        // Run the morning window once per session in every environment.
+        if (lastQuantRunDate === dateKey && hour === 9) {
           return; // Already ran morning session today
         }
         
@@ -959,12 +977,13 @@ app.use((req, res, next) => {
     
     log('📊 Quant Generator started - will generate ideas at 9:35 AM CT + 1:00 PM CT weekdays');
     
-    // ONE-TIME STARTUP TRIGGER: Generate quant ideas immediately on server start
-    // DISABLED IN PRODUCTION to prevent memory exhaustion and rate limiting on Render
-    const SKIP_STARTUP_SCANS = process.env.NODE_ENV === 'production';
+    // The board is persisted. Starting a server is not evidence for a new trade,
+    // so startup never publishes another round of quant ideas. Use the explicit
+    // scanner endpoint when a deliberate manual scan is needed.
+    const SKIP_STARTUP_SCANS = true;
 
     if (SKIP_STARTUP_SCANS) {
-      logger.info('🚀 [QUANT-STARTUP] Skipping startup scans in production (memory optimization)');
+      logger.info('🚀 [QUANT-STARTUP] Skipping startup publication; persisted signals remain the source of truth');
     }
 
     (async () => {

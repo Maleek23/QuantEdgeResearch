@@ -273,15 +273,6 @@ function isMarketCurrentlyOpen(): boolean {
     }
   }, { timezone: 'America/New_York' });
 
-  // ── Cron: Restart process at market close to free memory ───────────────
-  cron.default.schedule('10 16 * * 1-5', () => {
-    log('🌙 Market closed — restarting process to free memory...');
-    setTimeout(() => {
-      log('🔄 Exiting for PM2 restart (lightweight mode)...');
-      process.exit(0);
-    }, 5000);
-  }, { timezone: 'America/New_York' });
-
   // ====================================================================
   // ALL CRON JOBS (from original index.ts)
   // These use dynamic imports and have their own market-hours guards.

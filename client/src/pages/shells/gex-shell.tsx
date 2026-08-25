@@ -19,6 +19,7 @@ import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { RotationBrief } from '@/components/rotation-brief';
 import { Loader2, ExternalLink } from 'lucide-react';
 import { GexBigGainers } from '@/components/gex-big-gainers';
+import { TerminalPageHeader } from '@/components/templates/terminal-page';
 
 const Prism       = lazy(() => import('@/components/prism/prism-board').then(m => ({ default: m.PrismBoard })));
 const FlowHeatmap = lazy(() => import('@/pages/flow-heatmap'));
@@ -63,27 +64,22 @@ export default function GexShell() {
   const lastSymbol = (currentStock?.symbol || 'SPY').toUpperCase();
 
   return (
-    <div className="space-y-3 px-4 py-3">
-      <header className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-lg font-mono font-bold uppercase tracking-widest text-foreground">
-            GEX <span className="text-[var(--brand-cyan)]">Hub</span>
-          </h1>
-          <p className="text-[11px] font-mono text-muted-foreground/70">
-            Market-wide gamma — scanner, expiry matrix, sector heatmap, regime analysis.
-          </p>
-          <p className="text-[10px] font-mono text-muted-foreground/60 mt-0.5">
-            For per-ticker deep dive (chart + options + GEX) →{' '}
-            <button
-              type="button"
-              className="text-[var(--brand-cyan)] hover:underline inline-flex items-center gap-0.5"
-              onClick={() => setLocation(`/r/${lastSymbol}?tab=gex`)}
-            >
-              Research → {lastSymbol} <ExternalLink className="w-2.5 h-2.5" />
-            </button>
-          </p>
-        </div>
-      </header>
+    <div className="space-y-4 px-4 py-4 md:px-5">
+      <TerminalPageHeader
+        eyebrow="Dealer positioning"
+        title="GEX Hub"
+        description="Start with the ranked market, then inspect the true strike × expiry exposure surface."
+        status={`${lastSymbol} focus`}
+        actions={(
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--brand-cyan)]/25 bg-[var(--brand-cyan)]/5 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[0.11em] text-[var(--brand-cyan)] transition-colors hover:border-[var(--brand-cyan)]/55"
+            onClick={() => setLocation(`/r/${lastSymbol}?tab=gex`)}
+          >
+            Research {lastSymbol} <ExternalLink className="h-3 w-3" />
+          </button>
+        )}
+      />
 
       <RotationBrief />
 

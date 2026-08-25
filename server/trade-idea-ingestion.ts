@@ -13,7 +13,12 @@
  * - Auto-Lotto Bot (options opportunities)
  */
 
-import { createAndSaveUniversalIdea, IdeaSignal, IdeaSource } from "./universal-idea-generator";
+import {
+  createAndSaveUniversalIdea,
+  IdeaSignal,
+  IdeaSource,
+  type UniversalIdeaInput,
+} from "./universal-idea-generator";
 import { getSymbolAdjustment } from "./loss-analyzer-service";
 import { logger } from "./logger";
 
@@ -61,89 +66,12 @@ export interface IngestionInput {
   strikePrice?: number;
   expiryDate?: string;
   sourceMetadata?: Record<string, any>;
-}
-
-// Options profit targets based on DTE (Days To Expiry)
-// Options are leveraged instruments - we need MEANINGFUL moves to profit
-const OPTIONS_MIN_TARGET_BY_DTE: Record<string, number> = {
-  '0dte': 50,      // Same-day expiry: need 50%+ target
-  '1dte': 50,      // 1-day expiry: need 50%+ target
-  'weekly': 35,    // 2-7 DTE: need 35%+ target
-  'biweekly': 30,  // 8-14 DTE: need 30%+ target
-  'monthly': 25,   // 15-30 DTE: need 25%+ target
-  'leaps': 20,     // 30+ DTE: need 20%+ target
-};
-
-/**
- * Calculate DTE category from expiry date
- */
-function getDTECategory(expiryDate?: string): string {
-  if (!expiryDate) return 'weekly'; // Default to weekly
-
-  const expiry = new Date(expiryDate);
-  const now = new Date();
-  const dte = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (dte <= 0) return '0dte';
-  if (dte === 1) return '1dte';
-  if (dte <= 7) return 'weekly';
-  if (dte <= 14) return 'biweekly';
-  if (dte <= 30) return 'monthly';
-  return 'leaps';
-}
-
-/**
- * Calculate profit target percentage from entry and target
- */
-function calculateProfitTarget(entry?: number, target?: number, direction?: string): number {
-  if (!entry || !target || entry === 0) return 0;
-
-  const isLong = !direction || direction === 'bullish';
-  if (isLong) {
-    return ((target - entry) / entry) * 100;
-  } else {
-    return ((entry - target) / entry) * 100;
-  }
-}
-
-/**
- * Validate options profit targets meet minimum thresholds
- * Returns adjusted target if too low, or null to reject
- */
-function validateOptionsTarget(
-  input: IngestionInput
-): { valid: boolean; adjustedTarget?: number; reason?: string; minRequired: number } {
-  const dteCategory = getDTECategory(input.expiryDate);
-  const minTarget = OPTIONS_MIN_TARGET_BY_DTE[dteCategory] || 30;
-
-  // Calculate current profit target
-  const entry = input.suggestedEntry || input.currentPrice;
-  const target = input.suggestedTarget || input.targetPrice;
-  const currentTarget = calculateProfitTarget(entry, target, input.direction);
-
-  if (currentTarget >= minTarget) {
-    return { valid: true, minRequired: minTarget };
-  }
-
-  // Target too low - calculate what target price would meet minimum
-  if (entry && entry > 0) {
-    const isLong = !input.direction || input.direction === 'bullish';
-    const multiplier = isLong ? (1 + minTarget / 100) : (1 - minTarget / 100);
-    const adjustedTarget = entry * multiplier;
-
-    return {
-      valid: false,
-      adjustedTarget,
-      reason: `Options target ${currentTarget.toFixed(1)}% below ${minTarget}% minimum for ${dteCategory.toUpperCase()}`,
-      minRequired: minTarget,
-    };
-  }
-
-  return {
-    valid: false,
-    reason: `Cannot validate options target - missing entry price`,
-    minRequired: minTarget,
-  };
+  /**
+   * Structured evidence for the detailed inspector. This is intentionally
+   * forwarded untouched to the universal generator; ingestion is the common
+   * path used by scanner-backed ideas.
+   */
+  convergenceAnalysis?: UniversalIdeaInput['convergenceAnalysis'];
 }
 
 export interface IngestionResult {
@@ -200,6 +128,36 @@ function markIngested(symbol: string, source: IdeaSource, assetType?: string): v
 export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionResult> {
   const symbol = input.symbol.toUpperCase();
   const source = input.source;
+
+  // Broad-universe reads are useful coverage, but they are not trade plans.
+  // A liquid, well-known ticker plus a moving quote is one observation, not a
+  // triggered setup with an invalidation and a structural destination. Keep
+  // this hard gate here as a backstop even if a caller bypasses the scanner.
+  const scannerType = String(input.sourceMetadata?.scannerType || '');
+  if (scannerType === 'popular_tickers' || scannerType === 'popular_tickers_options') {
+    return {
+      success: false,
+      reason: 'Coverage-only read — needs an independent trigger, invalidation, and structural target before publication',
+      symbol,
+      source,
+    };
+  }
+
+  // The broad market scanner is a discovery source. Its quote/volume movers
+  // used to fall through to the universal generator, which silently invented
+  // percentage-based entries, stops, and targets. Require the scanner that is
+  // publishing an Oracle plan to state the structure it is trading instead.
+  if (
+    (source === 'market_scanner' || source === 'bullish_trend') &&
+    (typeof input.targetPrice !== 'number' || typeof input.stopLoss !== 'number')
+  ) {
+    return {
+      success: false,
+      reason: 'Discovery-only read — a published signal needs a measured target and invalidation, not generator defaults',
+      symbol,
+      source,
+    };
+  }
   
   // Gate 1: Deduplication (includes asset type to allow both stock AND option for same symbol)
   if (isDuplicate(symbol, source, input.assetType)) {
@@ -266,39 +224,10 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
     };
   }
 
-  // Gate 5: Options profit target validation
-  // Options MUST have meaningful profit targets based on DTE
-  if (input.assetType === 'option' || input.optionType) {
-    const targetValidation = validateOptionsTarget(input);
-
-    if (!targetValidation.valid) {
-      // If target is too low, we can either:
-      // 1. Reject the idea entirely
-      // 2. Adjust the target to meet minimum (we'll do this)
-
-      if (targetValidation.adjustedTarget) {
-        logger.info(`[INGESTION] 📈 Adjusting ${symbol} option target to meet ${targetValidation.minRequired}% minimum`);
-        // Upgrade the target to meet minimum requirements
-        if (input.direction === 'bullish') {
-          input.suggestedTarget = targetValidation.adjustedTarget;
-          input.targetPrice = targetValidation.adjustedTarget;
-        } else {
-          input.suggestedTarget = targetValidation.adjustedTarget;
-          input.targetPrice = targetValidation.adjustedTarget;
-        }
-      } else {
-        // Can't adjust - reject the idea
-        logger.warn(`[INGESTION] ⚠️ Rejecting ${symbol} option: ${targetValidation.reason}`);
-        return {
-          success: false,
-          reason: targetValidation.reason || 'Options target below minimum',
-          symbol,
-          source,
-          confidence: estimatedConfidence
-        };
-      }
-    }
-  }
+  // Price targets describe the underlying's structural destination. They must
+  // never be stretched to force a desired option-premium return: delta, IV and
+  // time decide premium ROI, and the Contract Engine calculates that separately.
+  // A small but real support/resistance level is valid; a 25% invented T1 is not.
 
   // All gates passed - create the idea
   try {
@@ -310,14 +239,19 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
       signals: input.signals,
       holdingPeriod: input.holdingPeriod,
       currentPrice: input.currentPrice,
-      targetPrice: input.targetPrice,
-      stopLoss: input.stopLoss,
+      // Some scanners use suggested* to distinguish a chart-level proposal
+      // from a confirmed trade. Once a source has cleared publication gates,
+      // preserve those measured levels instead of replacing them with the
+      // generator's percentage fallback.
+      targetPrice: input.targetPrice ?? input.suggestedTarget,
+      stopLoss: input.stopLoss ?? input.suggestedStop,
       catalyst: input.catalyst,
       analysis: input.analysis,
       technicalSignals: input.technicalSignals,
       optionType: input.optionType,
       strikePrice: input.strikePrice,
       expiryDate: input.expiryDate,
+      convergenceAnalysis: input.convergenceAnalysis,
     });
     
     if (success) {

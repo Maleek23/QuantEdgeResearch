@@ -209,7 +209,7 @@ function Router() {
         <Route path="/j"          component={withBetaProtection(JournalShell)} />
         <Route path="/radar"      component={withBetaProtection(RadarPage)} />
         {/* Folded into shells — Movers/BTC → Hunt tabs, Analyze → Research tab */}
-        <Route path="/btc"><Redirect to="/h?tab=btc" /></Route>
+        <Route path="/btc"><Redirect to="/t?tab=crypto" /></Route>
         <Route path="/movers"><Redirect to="/h?tab=movers" /></Route>
         <Route path="/analyze"><Redirect to="/r/SPY?tab=analyze" /></Route>
         <Route path="/how-to"     component={withBetaProtection(HowToPage)} />
@@ -350,10 +350,7 @@ function Router() {
       <Route path="/futures-research">
         <Redirect to="/trade-desk?tab=futures" />
       </Route>
-      <Route path="/crypto">
-        {/* Crypto redirects to trade desk with crypto focus */}
-        <Redirect to="/trade-desk?asset=crypto" />
-      </Route>
+      <Route path="/crypto"><Redirect to="/t?tab=crypto" /></Route>
       
       {/* Market Outlook — public (no auth), answers "what's tomorrow look like?" */}
 

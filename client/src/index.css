@@ -479,6 +479,25 @@ button:not([disabled]):active,
   --shadow-2xl: 0 25px 50px -12px hsl(222 47% 2% / 0.8);
 }
 
+/* Night is the low-luminance terminal setting. Semantic direction colours and
+   type remain unchanged; only the evidence surfaces step down for long sessions. */
+.dark.terminal-night {
+  --background: 222 47% 5%;
+  --card: 220 42% 8%;
+  --card-border: 218 25% 16%;
+  --popover: 222 47% 6%;
+  --secondary: 220 35% 9%;
+  --muted: 220 32% 8%;
+  --surface-base: #080d16;
+  --surface-raised: #0d1420;
+  --surface-overlay: rgba(8, 13, 22, .92);
+  --surface-glass: rgba(8, 13, 22, .78);
+  --terminal-bg: #080d16;
+  --terminal-bg-secondary: #0d1420;
+  --terminal-bg-tertiary: #121b29;
+  --terminal-border: #1d2a3b;
+}
+
 /* ========================================
    TERMINAL CARD COMPONENT STYLES
    ======================================== */
@@ -2094,4 +2113,307 @@ button:not([disabled]):active,
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   QUANTEDGE TERMINAL SYSTEM
+
+   A scoped shell language for the product surfaces. The terminal had dozens
+   of locally-correct cards but no shared hierarchy, so every border competed
+   equally. These rules make the page read top-down: chrome → market context →
+   active work → developing work. Directional colour remains data-only.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.qe-terminal {
+  position: relative;
+  isolation: isolate;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at 50% -12%, color-mix(in srgb, var(--brand-cyan) 7%, transparent), transparent 34rem),
+    var(--background);
+}
+
+.qe-terminal::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  opacity: .18;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--foreground) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--foreground) 3%, transparent) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.qe-terminal-chrome {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--brand-cyan) 10%, transparent), 0 12px 36px rgb(0 0 0 / .18);
+}
+
+.qe-market-stage,
+.qe-oracle-section {
+  position: relative;
+}
+
+.qe-market-stage {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: 16px;
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--brand-cyan) 4%, transparent), transparent 32%),
+    color-mix(in srgb, var(--card) 94%, transparent);
+  box-shadow: 0 22px 80px rgb(0 0 0 / .16);
+}
+
+.qe-oracle-section {
+  padding-top: 4px;
+}
+
+.qe-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px 16px;
+}
+
+.qe-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 8px 2px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.qe-page-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(28px, 2.3vw, 40px);
+  line-height: 1;
+  font-weight: 590;
+  letter-spacing: -.035em;
+  color: var(--foreground);
+}
+
+.qe-page-copy {
+  margin: 0;
+  max-width: 720px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.qe-oracle-section > .qe-section-head {
+  padding-inline: 4px;
+}
+
+.qe-section-eyebrow {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.qe-section-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(20px, 1.65vw, 28px);
+  line-height: 1.08;
+  font-weight: 590;
+  letter-spacing: -.025em;
+  color: var(--foreground);
+}
+
+.qe-section-copy {
+  margin: 0;
+  max-width: 700px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--muted-foreground) 88%, transparent);
+}
+
+.qe-section-state {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--brand-cyan) 22%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-cyan) 5%, transparent);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--brand-cyan) 82%, var(--foreground));
+}
+
+.qe-context-current {
+  position: relative;
+  height: 1px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.qe-context-current span {
+  position: absolute;
+  top: 0;
+  left: -24%;
+  width: 24%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-cyan), transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--brand-cyan) 72%, transparent);
+  animation: qe-current 5.8s cubic-bezier(.45, 0, .55, 1) infinite;
+}
+
+@keyframes qe-current {
+  0% { transform: translateX(0); opacity: 0; }
+  12% { opacity: .85; }
+  82% { opacity: .85; }
+  100% { transform: translateX(520%); opacity: 0; }
+}
+
+.qe-market-grid {
+  display: grid;
+  align-items: stretch;
+  gap: 1px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.qe-market-panel.qe-panel-frame {
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--card) 97%, transparent);
+  box-shadow: none;
+}
+
+.qe-panel-frame {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--foreground) 1.5%, transparent), transparent 36%),
+    var(--card);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 2.5%, transparent);
+}
+
+.qe-panel-head {
+  min-height: 43px;
+  background: color-mix(in srgb, var(--background) 22%, transparent);
+}
+
+.qe-panel-title {
+  text-rendering: geometricPrecision;
+}
+
+.qe-panel-action svg {
+  transition: transform 180ms ease;
+}
+
+.qe-panel-action:hover svg {
+  transform: translate(1px, -1px) scale(1.06);
+}
+
+.qe-rotation-candidates {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 2.5%, transparent);
+}
+
+.qe-candidate-field {
+  position: relative;
+}
+
+.qe-candidate-node::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  content: '';
+  background: var(--brand-cyan);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--brand-cyan) 70%, transparent);
+  transition: width 260ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.qe-candidate-node:hover::before,
+.qe-candidate-node:focus-visible::before {
+  width: 100%;
+}
+
+.qe-focus-overlay {
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--brand-cyan) 8%, transparent), transparent 42%),
+    color-mix(in srgb, var(--background) 72%, transparent);
+}
+
+.qe-focus-panel {
+  box-shadow: 0 32px 110px rgb(0 0 0 / .58), 0 0 0 1px color-mix(in srgb, var(--brand-cyan) 7%, transparent);
+}
+
+.qe-module-page {
+  min-height: calc(100dvh - 88px);
+}
+
+@media (min-width: 1280px) {
+  .qe-market-grid {
+    grid-template-columns: minmax(280px, .78fr) minmax(480px, 1.18fr) minmax(330px, .94fr);
+  }
+}
+
+@media (max-width: 1279px) and (min-width: 768px) {
+  .qe-market-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .qe-market-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 767px) {
+  .qe-terminal::before {
+    background-size: 48px 48px;
+  }
+
+  .qe-market-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qe-section-head {
+    align-items: flex-start;
+    padding: 15px 14px 13px;
+  }
+
+  .qe-page-head {
+    align-items: flex-start;
+    padding: 4px 0 12px;
+  }
+
+  .qe-page-title {
+    font-size: 28px;
+  }
+
+  .qe-page-copy {
+    display: none;
+  }
+
+  .qe-section-title {
+    font-size: 20px;
+  }
+
+  .qe-section-copy {
+    display: none;
+  }
+
+  .qe-section-state {
+    padding: 6px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qe-context-current span {
+    display: none;
+    animation: none;
+  }
 }

@@ -1,6 +1,6 @@
 import { logger } from './logger';
 import { fetchStockPrice, fetchCryptoPrice, fetchYahooFinancePrice } from './market-api';
-import { getTradierQuote, getOptionQuote } from './tradier-api';
+import { getTradierQuote, getOptionMark } from './tradier-api';
 import { yahooQuote } from './yahoo-client';
 import { getFuturesPrice, getFuturesPrices } from './futures-data-service';
 
@@ -15,6 +15,10 @@ export interface RealtimeQuote {
   volume: number;
   lastUpdate: Date;
   assetType: string;
+  /** Market-data provenance for consumers that must distinguish a mark from a fill. */
+  source?: string;
+  /** True when the venue reports a delayed chain rather than a realtime mark. */
+  delayed?: boolean;
 }
 
 export type AssetType = 'stock' | 'crypto' | 'option' | 'futures';
@@ -143,7 +147,7 @@ async function fetchOptionQuote(symbol: string): Promise<RealtimeQuote | null> {
     return null;
   }
 
-  const quote = await getOptionQuote({ occSymbol: symbol });
+  const quote = await getOptionMark({ occSymbol: symbol });
   if (quote) {
     return {
       symbol: symbol.toUpperCase(),
@@ -156,6 +160,8 @@ async function fetchOptionQuote(symbol: string): Promise<RealtimeQuote | null> {
       volume: 0,
       lastUpdate: new Date(),
       assetType: 'option',
+      source: quote.source,
+      delayed: quote.delayed,
     };
   }
   return null;

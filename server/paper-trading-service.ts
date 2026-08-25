@@ -616,8 +616,9 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
           unrealizedPnLPercent,
         };
         
-        // Track highest price for trailing stops (for both long and short positions)
-        const isLong = position.direction === 'long';
+        // Bought calls and puts are both long premium positions. `direction`
+        // remains the underlying thesis and must not invert put management.
+        const isLong = position.assetType === 'option' || position.direction === 'long';
         const currentHWM = position.highWaterMark || position.entryPrice;
         const entryPrice = position.entryPrice;
         
@@ -699,7 +700,7 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
     for (const position of openPositions) {
       if (!position.currentPrice) continue;
 
-      const isLong = position.direction === 'long';
+      const isLong = position.assetType === 'option' || position.direction === 'long';
       let shouldClose = false;
       let exitReason = '';
       

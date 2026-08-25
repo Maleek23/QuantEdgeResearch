@@ -40,7 +40,7 @@ import { useMemo } from 'react';
 import { RecordCard } from '@/components/templates/surfaces';
 import { Distribution } from '@/components/templates/charts';
 import { KeyValue, KeyValueRow, type Tone } from '@/components/templates/kit';
-import { convictionPercent, type ConvictionPick } from '@/lib/convictions';
+import type { ConvictionPick } from '@/lib/convictions';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { CONVICTION_LAYERS } from '@shared/conviction-layers';
 import { cn } from '@/lib/utils';
@@ -80,7 +80,6 @@ export function SignalGrid({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map(({ p, g }) => {
-            const conf = convictionPercent(p.convictionScore);
             const pending = /pending|trigger/i.test(g.statusLabel ?? '');
             const against = (p.layers ?? []).filter((l) => l.points < 0);
 
@@ -93,7 +92,7 @@ export function SignalGrid({
               <RecordCard
                 key={p.ideaId}
                 ticker={p.symbol}
-                badge={`${p.convictionBand} · ${conf}%`}
+                badge={`${p.convictionBand} · ${p.convictionScore > 0 ? '+' : ''}${p.convictionScore} evidence`}
                 /* The badge carries BAND and CONVICTION — a quality axis. Moss
                    and clay are reserved for direction, so a confident short was
                    rendering clay and reading as a warning. Cyan is the
@@ -105,7 +104,9 @@ export function SignalGrid({
                 title={p.thesis?.split('.')[0] ?? p.symbol}
                 className={selectedId === p.ideaId ? 'ring-1 ring-[color:var(--brand-cyan)]' : undefined}
                 onClick={() => onSelect(p.ideaId)}
-                footLeft={`${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(1)}% P&L`}
+                footLeft={pending
+                  ? `${g.progressPct.toFixed(0)}% to trigger`
+                  : `${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(1)}% P&L`}
                 footRight={p.optionDte != null ? `${p.optionDte}d` : 'no contract'}
               >
                 {/* STATE — the live reading, which the static levels cannot give. */}

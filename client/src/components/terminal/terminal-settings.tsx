@@ -11,11 +11,12 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { X, Check, Loader2 } from 'lucide-react';
+import { X, Check, Loader2, Moon, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiRequest } from '@/lib/queryClient';
 import { EASE, DUR } from '@/lib/motion';
 import { TC } from '@/lib/oracle/trading-colors';
+import { useTheme } from '@/components/theme-provider';
 
 export interface UserPrefs {
   accountSize: number;
@@ -26,6 +27,7 @@ export interface UserPrefs {
   layoutDensity: 'compact' | 'comfortable' | 'spacious';
   animationsEnabled: boolean;
   defaultViewMode: 'card' | 'table';
+  theme?: 'dark' | 'night';
 }
 
 const ASSETS = ['stock', 'option', 'crypto', 'futures'] as const;
@@ -51,6 +53,7 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
   const { data, isLoading } = useUserPrefs();
   const [draft, setDraft] = useState<Partial<UserPrefs>>({});
   const [saved, setSaved] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => { if (data) setDraft(data); }, [data]);
   useEffect(() => {
@@ -74,6 +77,10 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
   });
 
   const set = <K extends keyof UserPrefs>(k: K, v: UserPrefs[K]) => setDraft((d) => ({ ...d, [k]: v }));
+  const setAppearance = (next: 'dark' | 'night') => {
+    setTheme(next);
+    set('theme', next);
+  };
   const risk$ = ((draft.accountSize ?? 0) * (draft.maxRiskPerTrade ?? 0)) / 100;
 
   return (
@@ -150,6 +157,20 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
 
                 {/* ── how it reads ── */}
                 <Section title="Display">
+                  <Field label="Appearance">
+                    <span className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
+                      <button onClick={() => setAppearance('dark')}
+                        className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
+                          theme !== 'night' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}>
+                        <Monitor className="h-3 w-3" /> Terminal
+                      </button>
+                      <button onClick={() => setAppearance('night')}
+                        className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
+                          theme === 'night' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}>
+                        <Moon className="h-3 w-3" /> Night
+                      </button>
+                    </span>
+                  </Field>
                   <Field label="Density">
                     <Seg options={DENSITIES} value={draft.layoutDensity ?? 'comfortable'} onChange={(v) => set('layoutDensity', v as any)} />
                   </Field>

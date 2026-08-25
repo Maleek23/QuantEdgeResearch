@@ -1,3 +1,5 @@
+import { convictionDisplayPercent } from '@shared/conviction-display';
+
 /**
  * Client-side types + helpers for the convictions ("signals") feed.
  *
@@ -9,7 +11,7 @@
  */
 
 export type ConvictionLayerKind =
-  | 'technical' | 'convergence' | 'catalyst' | 'regime' | 'breadth'
+  | 'technical' | 'ta' | 'convergence' | 'catalyst' | 'regime' | 'breadth' | 'macro'
   | 'geopolitical' | 'fundamental' | 'analyst' | 'sector' | 'freshness'
   | 'weekly' | 'premarket' | 'compression' | 'gex';
 
@@ -46,6 +48,9 @@ export interface ConvictionPick {
   convictionBand: 'S' | 'A' | 'B' | 'C';
   layerCount: number;
   layers: ConvictionLayer[];
+  /** Frozen evidence grade at first publication. */
+  publishedConvictionScore: number | null;
+  publishedConvictionBand: 'S' | 'A' | 'B' | 'C' | null;
 
   thesis: string;
   catalyst: string;
@@ -57,6 +62,9 @@ export interface ConvictionPick {
 
   /** Added dynamically by the API at response time when available. */
   currentPrice?: number;
+
+  /** A plan becomes live only after a trigger or recorded execution. */
+  lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
 }
 
 export interface ConvictionsResponse {
@@ -115,25 +123,24 @@ export function directionTone(direction: 'long' | 'short'): 'bull' | 'bear' {
  * same input → same output, strictly increasing with score.
  */
 export function convictionPercent(score: number): number {
-  const s = Math.max(0, score);
-  let pct: number;
-  // Thresholds MUST track BAND_CUTOFFS in server/convictions-engine.ts (S 25 / A 19
-  // / B 13). They were left at the old 30/22/15 when the server was retuned, which
-  // put the displayed percentage and the displayed band on different scales — the
-  // card could show an "A" next to a percentage computed as if it were a B.
-  // Each segment starts exactly where the previous one ends, so the curve is
-  // continuous: 13→58, 19→72, 25→86.
-  if (s >= 25)      pct = 86 + ((s - 25) / 10) * 13; // S · ELITE
-  else if (s >= 19) pct = 72 + ((s - 19) / 6) * 14;  // A · STRONG
-  else if (s >= 13) pct = 58 + ((s - 13) / 6) * 14;  // B · HIGH
-  // C band now starts at 0, not 30. The old floor meant a raw score of 0 —
-  // including the several signals whose layers sum NEGATIVE and get clamped to
-  // zero (measured: SPY, QQQ, IWM, APLD, CLSK) — rendered as "30%". A signal the
-  // engine scored net-negative was being shown as thirty percent confident, and
-  // no signal in the system could ever display as weak.
-  // Upper bands are untouched: 15 still maps to 58, so S/A/B read exactly as before.
-  else              pct = (s / 13) * 58;              // C · MED — 0 → 0%, 13 → 58%
-  return Math.round(Math.max(0, Math.min(99, pct)));
+  return convictionDisplayPercent(score);
+}
+
+/**
+ * Older persisted ideas called three unrelated measurements a "grade": the
+ * whole-signal evidence band, the chart-pattern detector, and the option pick.
+ * Keep old records readable without rewriting their audit history.
+ */
+export function clarifyOracleNarrative(text: string): string {
+  return text
+    .replace(
+      /((?:Bull Flag Pullback|Bear Flag Breakdown))\s*—\s*([SABC][+-]?) grade \((\d+)\/100\)\./gi,
+      '$1 · pattern quality $3/100 ($2).',
+    )
+    .replace(
+      /(At signal:[^\n]*?\b)grade\s+([SABC][+-]?)(\))/gi,
+      '$1contract quality $2$3',
+    );
 }
 
 /** e.g. "ELITE BULLISH" / "STRONG BEARISH" */
@@ -153,10 +160,12 @@ export function toneColor(tone: Tone): string {
 
 export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
   technical:    'TECH',
+  ta:           'SIG',
   convergence:  'CONV',
   catalyst:     'CTLY',
   regime:       'RGME',
   breadth:      'BRTH',
+  macro:        'MAC',
   geopolitical: 'GEO',
   fundamental:  'FUND',
   analyst:      'ANLY',
@@ -175,10 +184,12 @@ export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
  */
 export const LAYER_COLOR: Record<ConvictionLayerKind, string> = {
   technical:    '#22d3ee', // cyan
+  ta:           '#38bdf8', // blue — named chart setup
   convergence:  '#a78bfa', // violet
   catalyst:     '#fbbf24', // amber
   regime:       '#34d399', // emerald
   breadth:      '#2dd4bf', // teal
+  macro:        '#e0a458', // amber — event/time risk
   geopolitical: '#fb923c', // orange
   fundamental:  '#60a5fa', // blue
   analyst:      '#818cf8', // indigo

@@ -57,7 +57,10 @@ app.use(compression({
 app.get("/health", (req: Request, res: Response) => {
   const realtimeStatus = getRealtimeStatus();
   const overallStatus = realtimeStatus.isHealthy ? "OK" : "DEGRADED";
-  res.status(realtimeStatus.isHealthy ? 200 : 503).json({
+  // Railway needs process liveness, not a promise that every optional market
+  // feed is currently perfect. Keep HTTP 200 while reporting feed quality in
+  // the payload so the terminal can degrade honestly without being restarted.
+  res.status(200).json({
     status: overallStatus,
     timestamp: new Date().toISOString(),
     process: "web",

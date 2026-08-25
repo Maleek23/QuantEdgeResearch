@@ -25,6 +25,7 @@
 
 import { db } from "./db";
 import { tradeIdeas, type ConvergenceAnalysis } from "@shared/schema";
+import { readOracleExecutionAudit, type OracleLifecycleState } from "@shared/oracle-lifecycle";
 import { gte, desc } from "drizzle-orm";
 import { logger } from "./logger";
 import { getMarketContext, type MarketContext } from "./market-context-service";
@@ -36,6 +37,36 @@ import { getAnalystSnapshot, type AnalystSnapshot } from "./analyst-data-service
 import { getRealtimeBatchQuotes, type RealtimeQuote } from "./realtime-pricing-service";
 import { getPreMarketBatch, type PreMarketSnapshot } from "./pre-market-service";
 import { getGexSnapshotBatch, type GexSnapshot } from "./gex-snapshot-service";
+import { isUSMarketOpen } from "@shared/market-calendar";
+
+/**
+ * The Oracle board must remain usable while slower context services are
+ * rebuilding their own caches.  Let those services finish in the background,
+ * but never make a human wait behind a 120-name breadth calculation.
+ */
+function within<T>(promise: Promise<T>, fallback: T, timeoutMs = 900): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), timeoutMs);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      () => { clearTimeout(timer); resolve(fallback); },
+    );
+  });
+}
+
+function neutralMarketContext(isOpen: boolean): MarketContext {
+  return {
+    regime: "ranging",
+    riskSentiment: "neutral",
+    preferredDirection: "BOTH",
+    score: 50,
+    shouldTrade: isOpen,
+    reasons: ["Market context is refreshing — no live regime adjustment applied"],
+    spyData: null,
+    vixLevel: null,
+    timestamp: new Date(),
+  };
+}
 
 // ─────────────────────────────────────────────────────────────
 // Public types
@@ -88,6 +119,14 @@ export interface ConvictionPick {
   layerCount: number;
   layers: ConvictionLayer[];
 
+  /**
+   * Evidence score captured the first time this published plan was graded.
+   * This is deliberately distinct from `convictionScore`, which is the live
+   * re-grade used to rank today's board as context and price change.
+   */
+  publishedConvictionScore: number | null;
+  publishedConvictionBand: "S" | "A" | "B" | "C" | null;
+
   /** Top-line thesis the user reads first. */
   thesis: string;
 
@@ -103,6 +142,8 @@ export interface ConvictionPick {
   source: string;
   /** Live price at response time — what P&L / progress are measured against. */
   currentPrice?: number | null;
+  /** A published plan is not an executed position. Derived from the durable audit. */
+  lifecycleState: OracleLifecycleState;
 }
 
 export interface ConvictionsResponse {
@@ -404,16 +445,23 @@ function scoreConvergenceLayer(conv: ConvergenceAnalysis | null | undefined, dir
 
   if (aligned.length === 0) return null;
 
-  // Each aligned signal worth ~3 points, capped at 18 (6 signals)
-  const points = Math.min(18, aligned.length * 3);
+  // Convergence is agreement between independent evidence SOURCES, not the
+  // number of indicators one scanner ran over the same OHLCV series. Before
+  // this gate, a bear-flag scanner could submit eleven daily-chart checks and
+  // receive the same 18-point boost as price action + options flow + sector +
+  // catalyst all agreeing. That made a single pattern look like a complete
+  // thesis. One source gets no convergence credit; the other conviction layers
+  // (sector, GEX, breadth, catalyst, regime) have to earn it.
   const sources = Array.from(new Set(aligned.map((s) => s.source)));
+  if (sources.length < 2) return null;
+  const points = Math.min(16, sources.length * 4);
 
   return {
     kind: "convergence",
-    label: `Convergence ${aligned.length}×`,
+    label: `Convergence ${sources.length} sources`,
     points,
-    why: `${aligned.length} aligned signals: ${sources.slice(0, 4).join(", ")}${sources.length > 4 ? "…" : ""}`,
-    data: { signalCount: aligned.length, sources, primaryThesis: conv.primaryThesis },
+    why: `${sources.length} independent sources agree: ${sources.slice(0, 4).join(", ")}${sources.length > 4 ? "…" : ""}`,
+    data: { signalCount: aligned.length, sourceCount: sources.length, sources, primaryThesis: conv.primaryThesis },
   };
 }
 
@@ -523,12 +571,8 @@ function scoreCatalystLayer(idea: any, direction: "long" | "short"): ConvictionL
     reasons.push(`Event risk: unresolved binary catalyst ahead (${hp} hold)`);
   }
 
-  if (idea.catalyst && typeof idea.catalyst === "string" && idea.catalyst.length > 0 && points === 0) {
-    // Generic catalyst present but not flagged — small boost
-    points += 1;
-    reasons.push("Catalyst tagged");
-  }
-
+  // A scanner setup description is not an event catalyst. Technical patterns
+  // already score in Signals/Technical; generic free text earns no extra point.
   if (points === 0) return null;
   return {
     kind: "catalyst",
@@ -1272,18 +1316,34 @@ function scoreFreshnessLayer(
   const reasons: string[] = [];
   let points = 0;
 
+  // Freshness has to match the thesis horizon. The old fixed 2/6/12-hour
+  // thresholds treated a five-day swing exactly like an intraday scalp, so a
+  // sound Friday swing reopened Monday with a -6 "very stale" penalty before
+  // the market had given it another tradable session. These are calendar-hour
+  // guardrails; price revalidation below remains the authority on whether the
+  // original entry has actually become invalid or chased.
+  const horizon = `${idea.holdingPeriod ?? ""} ${idea.tradeType ?? ""} ${idea.researchHorizon ?? ""}`.toLowerCase();
+  const [freshUntil, staleAt, veryStaleAt] =
+    /position|leap|long|thematic|multi[_ -]?week|month/.test(horizon)
+      ? [168, 504, 1080]
+      : /swing|short[_ -]?swing/.test(horizon)
+        ? [24, 72, 120]
+        : /week-ending|overnight/.test(horizon)
+          ? [12, 36, 96]
+          : [2, 6, 12];
+
   // Age decay — pure time penalty
-  if (ageH < 2) {
+  if (ageH < freshUntil) {
     points += 0;
-  } else if (ageH < 6) {
+  } else if (ageH < staleAt) {
     points -= 2;
-    reasons.push(`${ageH.toFixed(1)}h old`);
-  } else if (ageH < 12) {
+    reasons.push(`${ageH.toFixed(1)}h into ${idea.holdingPeriod ?? "trade"} horizon`);
+  } else if (ageH < veryStaleAt) {
     points -= 4;
-    reasons.push(`${ageH.toFixed(1)}h old (stale)`);
+    reasons.push(`${ageH.toFixed(1)}h into ${idea.holdingPeriod ?? "trade"} horizon (stale)`);
   } else {
     points -= 6;
-    reasons.push(`${ageH.toFixed(0)}h old (very stale)`);
+    reasons.push(`${ageH.toFixed(0)}h into ${idea.holdingPeriod ?? "trade"} horizon (very stale)`);
   }
 
   // Pre-market rescue — overnight tape agrees with the thesis, so the
@@ -1814,6 +1874,14 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   const skipLiveRevalidation = opts.skipLiveRevalidation ?? false;
   const weeklyUserId = opts.weeklyUserId;
   const weeklyOnly = opts.weeklyOnly ?? false;
+  // The persisted Oracle plan is the source of truth. Live data enriches it;
+  // it must never be allowed to turn a page load into a fan-out of hundreds of
+  // provider calls.  Outside cash hours, stock/option quotes are either stale
+  // or unavailable anyway, so retain the plan and label it with its recorded
+  // timestamp instead of pretending an overnight price check is live.
+  const cashMarketOpen = isUSMarketOpen().isOpen;
+  const liveCandidateLimit = Math.max(limit * 2, 40);
+  const deepEnrichmentLimit = Math.max(limit, 16);
 
   // Pull this user's weekly watchlist set if requested. We use a Set for O(1)
   // membership checks during scoring + filtering.
@@ -1834,15 +1902,15 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
 
   // Fetch market context, geopolitical matrix, breadth, and recent ideas in parallel
   const [marketCtx, geoMatrix, breadth, rawIdeas] = await Promise.all([
-    getMarketContext().catch((err) => {
+    within(getMarketContext(), neutralMarketContext(cashMarketOpen)).catch((err) => {
       logger.warn("[CONVICTIONS] market context failed:", err);
-      return null;
+      return neutralMarketContext(cashMarketOpen);
     }),
-    getScenarioMatrix().catch((err) => {
+    within(getScenarioMatrix(), null).catch((err) => {
       logger.warn("[CONVICTIONS] geo matrix failed:", err);
       return null;
     }),
-    getMarketBreadth().catch((err) => {
+    within(getMarketBreadth(), null).catch((err) => {
       logger.warn("[CONVICTIONS] breadth failed:", err);
       return null;
     }),
@@ -1856,6 +1924,25 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       .limit(skipLiveRevalidation ? 20000 : 500),
   ]);
 
+  // An idea with a terminal outcome is historical evidence, not an active
+  // candidate. Leaving hit_stop / expired rows in this pool allowed old setups
+  // such as COHR to be rescored as "elite" merely because a new quote had not
+  // crossed their stop a second time.
+  const activeIdeas = rawIdeas.filter((idea: any) => {
+    if (idea.outcomeStatus && idea.outcomeStatus !== "open") return false;
+
+    // Preserve old momentum rows as audit history, but do not let the legacy
+    // quote-only publisher masquerade as an active Oracle plan. It had no
+    // structural trigger/target model and can be recognised exactly by its
+    // own catalyst text; real breakout/flag ideas are unaffected.
+    const isLegacyMomentumPlaceholder =
+      idea.source === "quant" &&
+      typeof idea.catalyst === "string" &&
+      idea.catalyst.startsWith("Bullish momentum scanner:") &&
+      !idea.convergenceSignalsJson;
+    return !isLegacyMomentumPlaceholder;
+  });
+
   // Include ideas for approved tickers OR user watchlist symbols
   let userWatchlistSymbols: Set<string> | null = null;
   try {
@@ -1864,10 +1951,10 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     userWatchlistSymbols = ws;
   } catch {}
   let watchlistFiltered = watchlistOnly
-    ? rawIdeas.filter((idea: any) =>
+    ? activeIdeas.filter((idea: any) =>
         isApprovedTicker(idea.symbol) || userWatchlistSymbols?.has(idea.symbol.toUpperCase()),
       )
-    : rawIdeas;
+    : activeIdeas;
 
   // Hard restrict to weekly watchlist tickers if requested
   if (weeklyOnly && weeklySymbols) {
@@ -1894,8 +1981,18 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   // Live re-validation — fetch one batch quote pass for every surviving
   // candidate, then hard-reject contradictions / stopped-out / chase entries.
   const liveQuotes = new Map<string, RealtimeQuote>();
-  let revalidated = ageGated as any[];
-  if (!skipLiveRevalidation && ageGated.length > 0) {
+  // Choose the only candidates that could plausibly be returned before any
+  // network work. This is intentionally deterministic: score, then recency.
+  // It prevents a 500-name DB slice from becoming 500 quote/GEX requests.
+  const rankedForLive = [...(ageGated as any[])].sort((a, b) => {
+    const scoreDelta = Number(b.confidenceScore ?? 0) - Number(a.confidenceScore ?? 0);
+    if (scoreDelta !== 0) return scoreDelta;
+    return new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime();
+  }).slice(0, liveCandidateLimit);
+  // Backtest replay deliberately needs the entire historical pool; the cap is
+  // a live-serving guard only.
+  let revalidated = skipLiveRevalidation ? (ageGated as any[]) : rankedForLive;
+  if (!skipLiveRevalidation && cashMarketOpen && rankedForLive.length > 0) {
     try {
       const validAssetTypes = new Set(["stock", "crypto", "option", "futures"]);
       // A trade idea's `symbol` is ALWAYS the underlying ("AMZN"), but `assetType` is
@@ -1909,7 +2006,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       // pricing is a separate concern (Contract Engine / paper positions), keyed by OCC
       // symbol. So options map to a stock quote; crypto and futures stay as they are.
       const quoteAssetType = (at: string) => (at === "option" ? "stock" : at);
-      const quoteRequests = ageGated.map((idea: any) => {
+      const quoteRequests = rankedForLive.map((idea: any) => {
         const at = typeof idea.assetType === "string" ? idea.assetType.toLowerCase() : "stock";
         const resolved = validAssetTypes.has(at) ? quoteAssetType(at) : "stock";
         return {
@@ -1959,7 +2056,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
 
       const survivors: any[] = [];
       let rejectCount = 0;
-      for (const idea of ageGated as any[]) {
+      for (const idea of rankedForLive) {
         const dir: "long" | "short" =
           typeof idea.targetPrice === "number" && typeof idea.entryPrice === "number"
             ? idea.targetPrice > idea.entryPrice
@@ -1995,9 +2092,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   // ideas can't be re-validated against today's pre-market tape).
   const preMarketBySymbol = new Map<string, PreMarketSnapshot>();
   const gexBySymbol = new Map<string, GexSnapshot>();
-  if (!skipLiveRevalidation && candidates.length > 0) {
+  if (!skipLiveRevalidation && cashMarketOpen && candidates.length > 0) {
     const symbols = Array.from(
-      new Set((candidates as any[]).map((c) => c.symbol).filter(Boolean)),
+      new Set((candidates as any[]).slice(0, deepEnrichmentLimit).map((c) => c.symbol).filter(Boolean)),
     );
     // Run pre-market and GEX batches in parallel — both are independent.
     // GEX is the more expensive of the two (options-chain fetch per symbol),
@@ -2043,24 +2140,6 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
         interpretation: breadth.interpretation,
       }
     : null;
-
-  if (!marketCtx) {
-    return {
-      generatedAt: new Date().toISOString(),
-      marketContext: {
-        regime: "unknown",
-        riskSentiment: "neutral",
-        preferredDirection: "BOTH",
-        score: 50,
-        vixLevel: null,
-        reasons: ["market context unavailable"],
-      },
-      breadth: breadthResponse,
-      geopolitical: { risk: "NORMAL", activeScenarios: [] },
-      totalCandidatesScanned: candidates.length,
-      picks: [],
-    };
-  }
 
   const geo = {
     risk: geoMatrix?.currentConditions.geopoliticalRisk ?? "NORMAL",
@@ -2183,6 +2262,13 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       convictionBand: "C",
       layerCount: layers.length,
       layers,
+      publishedConvictionScore:
+        idea.genConvictionScore != null ? Number(idea.genConvictionScore) : null,
+      publishedConvictionBand:
+        idea.genConvictionBand === "S" || idea.genConvictionBand === "A" ||
+        idea.genConvictionBand === "B" || idea.genConvictionBand === "C"
+          ? idea.genConvictionBand
+          : null,
       thesis: idea.convergenceSignalsJson?.primaryThesis ?? idea.analysis ?? idea.catalyst ?? "",
       catalyst: idea.catalyst ?? "",
       catalystSourceUrl: idea.catalystSourceUrl ?? null,
@@ -2191,6 +2277,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       // The live price was fetched for revalidation and then never serialised, so every
       // client computed P&L as entry-vs-entry and the whole board read "+0.0% P&L".
       currentPrice: liveQuotes.get(idea.symbol)?.price ?? idea.currentPrice ?? null,
+      lifecycleState: readOracleExecutionAudit(idea.convergenceSignalsJson)?.state ?? "pending_trigger",
     });
   }
 
@@ -2216,19 +2303,20 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     const bSum = b.layers.reduce((s, l) => s + l.points, 0);
     return bSum - aSum;
   });
-  const topForSector = deduped.slice(0, Math.min(limit * 2, deduped.length));
+  const topForSector = deduped.slice(0, Math.min(deepEnrichmentLimit, deduped.length));
 
   // Sector + analyst enrichment (parallel, capped to top picks)
-  await Promise.all(
-    topForSector.map(async (p) => {
+  if (!skipLiveRevalidation) {
+    await Promise.all(
+      topForSector.map(async (p) => {
       const [sectorLayer, analystSnap, taLayer, compressionLayer] = await Promise.all([
         scoreSectorLayer(p.symbol, p.sector, p.direction),
         getAnalystSnapshot(p.symbol).catch(() => null),
         // TA confluence (Fib + candlesticks + structure). Skipped during backtest
         // replay since it reads live daily candles, not historical-as-of bars.
-        skipLiveRevalidation ? Promise.resolve(null) : scoreTALayer(p.symbol, p.direction),
+        scoreTALayer(p.symbol, p.direction),
         // Darvas box + TTM squeeze. Same live-candle caveat as the TA layer.
-        skipLiveRevalidation ? Promise.resolve(null) : scoreCompressionLayer(p.symbol, p.direction),
+        scoreCompressionLayer(p.symbol, p.direction),
       ]);
       if (sectorLayer) {
         p.layers.push(sectorLayer);
@@ -2251,8 +2339,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
         }
       }
       p.layerCount = p.layers.length;
-    }),
-  );
+      }),
+    );
+  }
 
   // Final scoring + band assignment. See BAND_CUTOFFS above.
   for (const p of deduped) {
@@ -2300,7 +2389,7 @@ bandFor(p.convictionScore);
       const { storage } = await import("./storage");
       await Promise.allSettled(
         filtered.map((p) =>
-          p.ideaId
+          p.ideaId && p.publishedConvictionScore == null
             ? storage.updateTradeIdea(p.ideaId, {
                 genConvictionScore: p.convictionScore,
                 genConvictionBand: p.convictionBand,

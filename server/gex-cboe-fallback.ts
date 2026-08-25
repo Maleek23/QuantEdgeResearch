@@ -90,8 +90,11 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       contractList.push({ expirationDate, strike, cp: cp as 'C' | 'P', oi, gamma });
       netGammaSum += oi * gamma * (cp === 'P' ? -1 : 1);
 
-      // GEX = OI × gamma × spot² × 100 (convert to dollars per 1% move)
-      const gexContribution = oi * gamma * spot * spot * 100;
+      // GEX in dollars per 1% underlying move.
+      // The 100-share contract multiplier and the 0.01 move cancel, so adding
+      // another ×100 here would inflate the fallback exposure by two orders of
+      // magnitude relative to the canonical options-exposures implementation.
+      const gexContribution = oi * gamma * spot * spot;
       // VEX = OI × vega × spot × 100 (vanna proxy via vega)
       const vexContribution = oi * vega * spot * 100;
 

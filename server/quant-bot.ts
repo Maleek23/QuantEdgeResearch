@@ -3,15 +3,16 @@
  *
  * Everything upstream produces opinions; nothing was recording whether they worked. The
  * bot closes that loop: it takes the highest-conviction signals into a paper portfolio,
- * manages them against their own stop/target, and books the result. That produces the one
- * number that actually matters — did this engine make money — and feeds grade calibration
- * with real outcomes instead of assumptions.
+ * manages them against their own stop/target, and books the result. It is a paper-execution
+ * ledger — one source of calibration evidence, never a replacement for the platform outcome
+ * model or a signal's 0–100 evidence grade.
  *
  * Rules are deliberately mechanical. A bot that second-guesses the signal is no longer
  * measuring the signal.
  */
 import { logger } from './logger';
 import { storage } from './storage';
+import { convictionDisplayPercent } from '@shared/conviction-display';
 import {
   executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closePosition,
   calculatePortfolioValue, recordEquitySnapshot,
@@ -43,10 +44,16 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   maxProgressPct: 35,
 };
 
-/** The bot trades one dedicated portfolio; create it on first run. */
-export async function getBotPortfolio(cfg: BotConfig = DEFAULT_BOT_CONFIG) {
-  const all = await storage.getAllPaperPortfolios().catch(() => [] as any[]);
+/** Read the dedicated portfolio without changing account state. */
+async function findBotPortfolio() {
+  const all = await storage.getAllPaperPortfolios();
   const existing = Array.isArray(all) ? all.find((p: any) => p.name === BOT_PORTFOLIO_NAME) : null;
+  return existing ?? null;
+}
+
+/** The bot trades one dedicated portfolio; create it only when a cycle is explicitly run. */
+export async function getBotPortfolio(cfg: BotConfig = DEFAULT_BOT_CONFIG) {
+  const existing = await findBotPortfolio();
   if (existing) return existing;
 
   return storage.createPaperPortfolio({
@@ -383,21 +390,26 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         // fill on a real premium.
         //
         // Every option idea already carries a concrete contract (symbol / type / strike /
-        // expiry). Tradier would be the natural quote source but returns 401 on an unfunded
-        // account, so this uses CBOE's free delayed chain. Delayed, and a mid-quote rather
-        // than a print — recorded as such so the result is never mistaken for a live fill.
+        // expiry). A delayed chain is useful research data, but it is not an executable
+        // fill. New bot entries therefore require a non-delayed provider mark. Existing
+        // delayed paper positions remain visible for audit, but the ledger cannot create
+        // more false-precision entries while the realtime provider is unavailable.
         let tradeable: any;
 
         if (idea.assetType === 'option' && idea.strikePrice && idea.expiryDate && idea.optionType) {
-          const { getContractQuote } = await import('./cboe-options-fallback');
-          const q = await getContractQuote(
-            idea.symbol,
-            idea.optionType as 'call' | 'put',
-            Number(idea.strikePrice),
-            String(idea.expiryDate),
-          ).catch(() => null);
+          const { getOptionMark } = await import('./tradier-api');
+          const q = await getOptionMark({
+            underlying: idea.symbol,
+            optionType: idea.optionType as 'call' | 'put',
+            strike: Number(idea.strikePrice),
+            expiryDate: String(idea.expiryDate),
+          }).catch(() => null);
 
-          if (!q) { skipped++; continue; }   // no premium → no honest fill
+          if (!q || q.delayed) {
+            skipped++;
+            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: ${q ? `${q.source} mark is delayed` : 'no contract mark'}`);
+            continue;
+          }
 
           const premium = q.mid;
           // Premium-based management: a -50% premium stop and a +100% target are the
@@ -406,9 +418,9 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
           tradeable = {
             ...idea,
             assetType: 'option',
-            optionType: q.optionType,
-            strikePrice: q.strike,
-            expiryDate: q.expirationDate,
+            optionType: idea.optionType,
+            strikePrice: Number(idea.strikePrice),
+            expiryDate: String(idea.expiryDate),
             currentPrice: premium,
             entryPrice: premium,
             targetPrice: Number((premium * 2).toFixed(2)),
@@ -450,7 +462,9 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
               quantity: Number(res.position?.quantity ?? 1),
               targetPrice: pick.targetPrice ?? null,
               stopLoss: pick.stopLoss ?? null,
-              confidence: pick.convictionScore ?? null,
+              // Bot entry grades use the same 0–100 confidence index the
+              // terminal displays, never the raw confluence-point total.
+              confidence: convictionDisplayPercent(pick.convictionScore ?? 0),
               riskRewardRatio: pick.riskRewardRatio ?? null,
               analysis: pick.thesis ?? null,
               signals: (pick.layers ?? []).filter((l: any) => l.points > 0).slice(0, 4).map((l: any) => l.why).filter(Boolean),
@@ -501,32 +515,31 @@ export interface BotStatus {
   totalValue: number;
   totalPnL: number;
   totalPnLPercent: number;
-  winCount: number;
-  lossCount: number;
-  winRate: number | null;
+  /** All closed exits, before the UI limits the rendered history to 25 rows. */
+  closedCount: number;
   openPositions: any[];
   closedPositions: any[];
   config: BotConfig;
 }
 
 export async function getBotStatus(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<BotStatus | null> {
-  const portfolio: any = await getBotPortfolio(cfg);
+  // A GET must never create a portfolio or disguise a storage failure as an empty $10k book.
+  // The explicit "Re-price & manage" cycle remains the only place that may create one.
+  const portfolio: any = await findBotPortfolio();
   if (!portfolio?.id) return null;
 
   try { await updatePositionPrices(portfolio.id); } catch { /* stale marks are still usable */ }
 
+  // These are the execution ledger. If any cannot be read, the caller must show an
+  // unavailable state rather than inventing an empty portfolio from fallback values.
   const [open, closedAll, value] = await Promise.all([
-    getOpenPositions(portfolio.id).catch(() => []),
-    getClosedPositions(portfolio.id).catch(() => []),
-    calculatePortfolioValue(portfolio.id).catch(() => null),
+    getOpenPositions(portfolio.id),
+    getClosedPositions(portfolio.id),
+    calculatePortfolioValue(portfolio.id),
   ]);
 
   const startingCapital = portfolio.startingCapital ?? cfg.startingCapital;
   const totalValue = value?.totalValue ?? portfolio.totalValue ?? startingCapital;
-
-  const wins = closedAll.filter((p: any) => (p.realizedPnL ?? 0) > 0).length;
-  const losses = closedAll.filter((p: any) => (p.realizedPnL ?? 0) <= 0).length;
-  const decided = wins + losses;
 
   return {
     portfolioId: portfolio.id,
@@ -538,10 +551,7 @@ export async function getBotStatus(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise
     // starting capital — that captures realised and unrealised together.
     totalPnL: totalValue - startingCapital,
     totalPnLPercent: startingCapital > 0 ? ((totalValue - startingCapital) / startingCapital) * 100 : 0,
-    winCount: wins,
-    lossCount: losses,
-    // Honest: no win rate until something has actually closed.
-    winRate: decided > 0 ? (wins / decided) * 100 : null,
+    closedCount: closedAll.length,
     openPositions: open,
     closedPositions: closedAll.slice(0, 25),
     config: cfg,

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "dark" | "light" | "system";
+export type Theme = "dark" | "night" | "light" | "system";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -33,7 +33,7 @@ export function ThemeProvider({
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove("light", "dark");
+    root.classList.remove("light", "dark", "terminal-night");
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
@@ -42,6 +42,13 @@ export function ThemeProvider({
         : "light";
 
       root.classList.add(systemTheme);
+      return;
+    }
+
+    // Night is not a second fake dark theme: it inherits the semantic dark
+    // palette, then narrows the surfaces for a lower-luminance desk setting.
+    if (theme === "night") {
+      root.classList.add("dark", "terminal-night");
       return;
     }
 

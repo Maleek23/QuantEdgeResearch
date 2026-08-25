@@ -9,7 +9,7 @@
  *    premium). Option ideas WITHOUT a captured contract P&L are still excluded
  *    (we can't measure them honestly) — but resolved option ideas now count.
  * 2. NEUTRAL trades excluded from win rate (expired, breakeven)
- * 3. Consistent thresholds: ±3% for win/loss classification
+ * 3. A target/stop event is decisive; ±3% applies only when an outcome status is absent
  * 4. Tiered output: summary for users, detailed for admin
  */
 
@@ -173,8 +173,8 @@ export class WinRateService {
       byAssetType,
       methodology: {
         winDefinition: `stocks: hit_target OR P&L >= +${CANONICAL_WIN_THRESHOLD}%; options: contract P&L >= +${CANONICAL_WIN_THRESHOLD}%`,
-        lossDefinition: `stocks: hit_stop AND P&L <= -${CANONICAL_LOSS_THRESHOLD}%; options: contract P&L <= -${CANONICAL_LOSS_THRESHOLD}%`,
-        neutralDefinition: 'expired, manual_exit, |P&L| < 3%, or option without captured contract P&L',
+        lossDefinition: `stocks: hit_stop OR P&L <= -${CANONICAL_LOSS_THRESHOLD}% when no status exists; options: contract P&L <= -${CANONICAL_LOSS_THRESHOLD}%`,
+        neutralDefinition: 'expired, manual_exit, status-less |P&L| < 3%, or option without captured contract P&L',
         optionsIncluded: true, // measured options (real contract P&L) always count now
         legacyIncluded: filters.includeAllVersions ?? false,
       },

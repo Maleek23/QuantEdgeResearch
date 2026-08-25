@@ -567,7 +567,7 @@ export async function ingestBullFlagIdeas(): Promise<number> {
           currentPrice: setup.currentPrice,
           targetPrice: setup.targetPrice,
           stopLoss: setup.stopLoss,
-          catalyst: `🚩 Bull Flag Pullback — ${setup.grade} grade (${setup.score}/100). ${setup.reason}`,
+          catalyst: `🚩 Bull Flag Pullback · pattern quality ${setup.score}/100 (${setup.grade}). ${setup.reason}`,
           analysis: `Bull flag pattern detected. Prior leg: +${setup.priorLegPercent.toFixed(0)}%, pullback: -${setup.pullbackPercent.toFixed(1)}%. ` +
             `RSI: ${setup.rsi14.toFixed(0)}, EMA stacking: ${setup.ema20 > setup.ema50 ? 'yes' : 'no'}. ` +
             `Signals: ${setup.signals.join(', ')}`,

@@ -5,12 +5,16 @@
  * Import this everywhere instead of inline copies.
  */
 
-// MEGA-CAP TIER — FAANG + mega-cap tech the platform must always cover.
+// MEGA-CAP TIER — price-discovery names the platform must always cover.
 // These are the names the broader market reacts to; even if user doesn't
 // trade them daily, scanners need them for breadth, regime, and GEX context.
 // NOTE: NVDA is intentionally excluded (proven 0% WR per user backtest).
+// TSLA belongs here despite also being a higher-beta A-tier-style setup: its
+// index/options impact means it must receive the same always-on coverage as
+// the other market-moving mega caps. This is coverage metadata, not a score
+// bonus and does not manufacture a signal.
 export const MEGA_CAP_TIER = [
-  'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN',
+  'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA',
 ] as const;
 
 // S-Tier: highest conviction, best backtested results
@@ -25,7 +29,7 @@ export const A_TIER = [
   'HIMS', 'ONTO', 'ENTG', 'UPST', 'DUOL', 'PATH', 'MDB',
   'AMBA', 'COHU', 'SNOW', 'NET', 'FRSH', 'ESTC', 'ACLS', 'ASAN',
   'SOFI', 'DDOG', 'DELL', 'SHOP', 'DKNG', 'MARA', 'BROS',
-  'LITE', 'FN', 'CIEN', 'AXTI', 'NBIS', 'TSLA', 'AVGO', 'NFLX',
+  'LITE', 'FN', 'CIEN', 'AXTI', 'NBIS', 'AVGO', 'NFLX',
   'COHR', 'ALGM',
 ] as const;
 
@@ -60,6 +64,11 @@ export const SECONDARY = [
   'KTOS', 'LMT',
   // Nuclear / Energy renaissance
   'CEG', 'VST',
+
+  // Requested research queue — these names must be eligible for the same
+  // evidence gates as every other scanner candidate. Inclusion here means
+  // "scan and grade", never "publish an automatic long".
+  'BE', 'FCEL', 'COPX',
 ] as const;
 
 // SMALL ACCOUNT TIER — cheap, high-vol, catalyst-driven names where
@@ -89,6 +98,10 @@ export const SMALL_ACCOUNT_TIER = [
   'HOOD', 'OPEN', 'CHWY', 'PTON',
   // Meme / high-vol catalyst names
   'BB', 'GME', 'AMC',
+
+  // Crypto-treasury / high-beta names. They remain evidence-gated: a BTC move
+  // alone is not a directional stock signal.
+  'ASST', 'BMNR',
 
   // ── Emerging gems (Apr 2026) ──────────────────────────────
   // Uranium / nuclear fuel (supply squeeze + SMR demand)
@@ -264,7 +277,7 @@ export const SECTOR_MAP: Record<string, Sector> = {
   CLSK: 'space',
 
   // Energy / mining
-  MARA: 'energy',
+  MARA: 'energy', BE: 'energy', FCEL: 'energy', COPX: 'other',
 
   // Index ETFs
   SPY: 'index', QQQ: 'index', IWM: 'index', XSP: 'index', DIA: 'index',
@@ -294,6 +307,7 @@ export const SECTOR_MAP: Record<string, Sector> = {
   SOUN: 'ai_infra', IONQ: 'quantum', RGTI: 'quantum',
   BBAI: 'ai_infra', QBTS: 'quantum',
   RIOT: 'crypto', WULF: 'crypto', BTBT: 'crypto', IREN: 'crypto',
+  ASST: 'crypto', BMNR: 'crypto',
   NIO: 'ev_mobility', RIVN: 'ev_mobility', LCID: 'ev_mobility',
   JOBY: 'ev_mobility', ACHR: 'ev_mobility',
   SMR: 'energy', NNE: 'energy', BWXT: 'energy',

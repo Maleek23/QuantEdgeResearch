@@ -6,8 +6,9 @@
  * The platform computed all of this and left it in an endpoint nobody surfaced, so at
  * 08:25 with the open an hour away the screen said nothing useful.
  *
- * Session-aware by design: outside 09:30–16:00 this reads the extended-hours tape, so
- * pre-market leadership is visible while it still matters — before the bell.
+ * Session-aware by design: a real pre/post tape is shown while it is active; after the
+ * session closes the brief stays anchored to the last cash read instead of inventing a
+ * weekend stock tape.
  */
 import { useQuery } from '@tanstack/react-query';
 import { Heartbeat } from '@/components/viz';
@@ -42,7 +43,7 @@ interface MacroGate {
 }
 
 const SESSION_LABEL: Record<string, string> = {
-  pre: 'Pre-market', regular: 'Live session', post: 'After-hours', closed: 'Overnight',
+  pre: 'Pre-market', regular: 'Live session', post: 'After-hours', closed: 'Last cash close',
 };
 
 function cashHandoffCopy(session: string) {
@@ -81,7 +82,7 @@ export function SessionBrief({
       if (!r.ok) throw new Error('leadership failed');
       return r.json();
     },
-    staleTime: 120_000, refetchInterval: 180_000, retry: 1,
+    staleTime: 30_000, refetchInterval: 60_000, retry: 1,
   });
 
   // This is a tape, not a summary card: render every group and let the compact
@@ -96,8 +97,8 @@ export function SessionBrief({
       if (!r.ok) throw new Error('cash gate failed');
       return r.json();
     },
-    staleTime: 5 * 60_000,
-    refetchInterval: 10 * 60_000,
+    staleTime: 60_000,
+    refetchInterval: 2 * 60_000,
     retry: 1,
   });
   const handoff = data ? cashHandoffCopy(data.session) : null;
@@ -125,7 +126,11 @@ export function SessionBrief({
                 {SESSION_LABEL[data.session] ?? data.session}
               </span>
               <span>· {data.quoted}/{data.universeSize} names</span>
-              <Heartbeat since={data.generatedAt} staleAfterSec={900} className="ml-1" />
+              {data.session === 'closed' ? (
+                <span className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground/55">cash closed</span>
+              ) : (
+                <Heartbeat since={data.generatedAt} staleAfterSec={900} className="ml-1" />
+              )}
             </>
           )}
         </span>

@@ -40,7 +40,18 @@ export function SignalRow({
   const conf = convictionPercent(pick.convictionScore);
   const px = live ?? pick.currentPrice ?? pick.entryPrice;
   const g = geometryFor(pick, px);
-  const rating = trackScore(pick.ideaId, conf);
+  // A pending plan has not entered. Its live price is useful only as a distance
+  // to the trigger; presenting it as P&L or a "trade path" makes a watch look
+  // like an open position (and was the source of the MSFT confusion).
+  const awaitingTrigger = !closed && g.status === 'pending_trigger';
+  const triggerDistancePct = pick.entryPrice > 0
+    ? Math.abs(((px - pick.entryPrice) / pick.entryPrice) * 100)
+    : 0;
+  const triggerSide = pick.direction === 'long' ? 'below' : 'above';
+  // Rank movement follows the raw signed evidence total. The old transformed
+  // 0–99 display looked like a calibrated probability even though it was only a
+  // band-normalisation. Keep that transform for colour interpolation, not copy.
+  const rating = trackScore(pick.ideaId, pick.convictionScore);
 
   const reduce = useReducedMotion();
   const arrow = rating.direction === 'up' ? '▲' : rating.direction === 'down' ? '▼' : null;
@@ -101,8 +112,9 @@ export function SignalRow({
         </div>
 
         <div className="shrink-0 border-l border-border/45 pl-2.5 text-right">
-          <div className="flex items-baseline justify-end gap-1">
-            <span className="font-mono text-[22px] font-bold leading-none tabular-nums" style={{ color: bandColor(pick.convictionBand) }}>{conf}</span>
+          <div className="flex items-baseline justify-end gap-1.5">
+            <span className="font-mono text-[22px] font-bold leading-none" style={{ color: bandColor(pick.convictionBand) }}>{pick.convictionBand}</span>
+            <span className="font-mono text-[9px] font-bold tabular-nums text-muted-foreground/75">+{pick.convictionScore}</span>
             {arrow && (
               <span className="font-mono text-[9px] font-bold tabular-nums" style={{ color: arrowColor }}
                     title={`Rating ${rating.direction === 'up' ? 'up' : 'down'} ${Math.abs(rating.delta)} since first seen ${rating.hoursTracked < 1 ? 'under an hour' : `${Math.round(rating.hoursTracked)}h`} ago`}>
@@ -111,51 +123,81 @@ export function SignalRow({
             )}
           </div>
           <span className="mt-1 block font-mono text-[8px] font-bold uppercase tracking-[0.15em]" style={{ color: bandColor(pick.convictionBand) }}>
-            {pick.convictionBand} evidence
+            evidence
           </span>
         </div>
       </div>
 
-      {/* One live path, not a mini dashboard. The moving dot is the live price
-          position between the published entry and first target. */}
+      {/* A pending signal is a PLAN, never P&L. Only an entered signal earns a
+          moving trade path from entry to T1. */}
       <div className="mt-3 border-t border-border/45 pt-2.5">
-        <div className="mb-1.5 flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
-          <span>Trade path</span>
-          <span style={{ color: pnlColor(g.pnlPct) }}>
-            <LiveValue
-              value={g.pnlPct}
-              tween={false}
-              className="font-mono text-[8px] font-bold uppercase tracking-[0.14em]"
-              format={(n) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}% live`}
-            />
-          </span>
-        </div>
-        <div className="mb-1 flex items-center justify-between font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/55">
-          <span>entry</span><span>T1</span>
-        </div>
-        <div className="relative h-[3px] bg-foreground/[0.09]">
-          <motion.div
-            className="absolute inset-y-0 left-0"
-            animate={{ width: `${g.progressPct}%` }}
-            transition={reduce ? { duration: 0 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            style={{ background: confidenceFill(conf) }}
-          />
-          <motion.span
-            className="absolute top-1/2 block h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background"
-            animate={{ left: `${Math.max(1, Math.min(99, g.progressPct))}%` }}
-            transition={reduce ? { duration: 0 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            style={{ background: confidenceFill(conf), boxShadow: `0 0 0 2px ${confidenceFill(conf)}33` }}
-          />
-          <span className="absolute right-0 top-1/2 h-2.5 w-px -translate-y-1/2 bg-foreground/65" />
-        </div>
-        <div className="mt-2 flex items-center justify-between font-mono text-[9px] font-semibold uppercase tracking-[0.1em]">
-          <span className="tabular-nums text-muted-foreground/70">{g.progressPct.toFixed(0)}% to target</span>
-          <span className="tabular-nums text-muted-foreground/70">R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}</span>
-          <span className="tabular-nums" style={{ color: g.horizonUsedPct >= 80 ? TC.bear : g.horizonUsedPct >= 50 ? TC.warn : TC.muted }}>
-            {g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/{g.horizonDays}d
-            {g.drawdownPct > 0.05 && <span className="ml-1">· {g.drawdownPct.toFixed(1)}% DD</span>}
-          </span>
-        </div>
+        {awaitingTrigger ? (
+          <>
+            <div className="mb-2 flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
+              <span>Entry gate · no position</span>
+              <span className="tabular-nums text-[var(--brand-gold)]">
+                {triggerDistancePct.toFixed(1)}% {triggerSide} trigger
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-px border border-border/45 bg-border/45">
+              <div className="bg-card px-2 py-1.5">
+                <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/60">live</span>
+                <span className="mt-0.5 block font-mono text-[10px] font-bold tabular-nums text-foreground">${px.toFixed(2)}</span>
+              </div>
+              <div className="bg-card px-2 py-1.5">
+                <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/60">trigger</span>
+                <span className="mt-0.5 block font-mono text-[10px] font-bold tabular-nums text-[var(--brand-cyan)]">${pick.entryPrice.toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between font-mono text-[9px] font-semibold uppercase tracking-[0.1em]">
+              <span className="text-muted-foreground/70">T1 after entry</span>
+              <span className="tabular-nums text-muted-foreground/70">R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}</span>
+              <span className="tabular-nums" style={{ color: g.horizonUsedPct >= 80 ? TC.bear : g.horizonUsedPct >= 50 ? TC.warn : TC.muted }}>
+                {g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/{g.horizonDays}d plan
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
+              <span>Trade path · entered</span>
+              <span style={{ color: pnlColor(g.pnlPct) }}>
+                <LiveValue
+                  value={g.pnlPct}
+                  tween={false}
+                  className="font-mono text-[8px] font-bold uppercase tracking-[0.14em]"
+                  format={(n) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}% live`}
+                />
+              </span>
+            </div>
+            <div className="mb-1 flex items-center justify-between font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/55">
+              <span>entry</span><span>T1</span>
+            </div>
+            <div className="relative h-[3px] bg-foreground/[0.09]">
+              <motion.div
+                className="absolute inset-y-0 left-0"
+                animate={{ width: `${g.progressPct}%` }}
+                transition={reduce ? { duration: 0 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                style={{ background: confidenceFill(conf) }}
+              />
+              <motion.span
+                className="absolute top-1/2 block h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background"
+                animate={{ left: `${Math.max(1, Math.min(99, g.progressPct))}%` }}
+                transition={reduce ? { duration: 0 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                style={{ background: confidenceFill(conf), boxShadow: `0 0 0 2px ${confidenceFill(conf)}33` }}
+              />
+              <span className="absolute right-0 top-1/2 h-2.5 w-px -translate-y-1/2 bg-foreground/65" />
+            </div>
+            <div className="mt-2 flex items-center justify-between font-mono text-[9px] font-semibold uppercase tracking-[0.1em]">
+              <span className="tabular-nums text-muted-foreground/70">{g.progressPct.toFixed(0)}% to target</span>
+              <span className="tabular-nums text-muted-foreground/70">R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}</span>
+              <span className="tabular-nums" style={{ color: g.horizonUsedPct >= 80 ? TC.bear : g.horizonUsedPct >= 50 ? TC.warn : TC.muted }}>
+                {g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/{g.horizonDays}d
+                {g.drawdownPct > 0.05 && <span className="ml-1">· {g.drawdownPct.toFixed(1)}% DD</span>}
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </motion.button>
   );

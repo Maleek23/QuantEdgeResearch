@@ -292,7 +292,9 @@ export const tradeIdeas = pgTable("trade_ideas", {
   // computed live at display time and thrown away, so outcomes can never be
   // attributed back to the layers that fired. These persist the breakdown the
   // engine assigned, enabling grade-calibration + evidence-based reweighting.
-  // Written by the convictions engine on enrichment; null until it has scored the idea.
+  // Written once by the convictions engine on first enrichment; null until it
+  // has scored the idea. Never overwrite these with a later live re-grade —
+  // entry quality and current opportunity quality answer different questions.
   genConvictionScore: real("gen_conviction_score"),
   genConvictionBand: text("gen_conviction_band"),
   genScoringLayers: jsonb("gen_scoring_layers").$type<Array<{ kind: string; points: number; why?: string }>>(),

@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { QECard, QEPill, type QEPillVariant } from '@/components/ui/qe';
 import { Segmented } from '@/components/templates/charts';
 import { KitStyles } from '@/components/templates/kit';
+import { TerminalPageHeader } from '@/components/templates/terminal-page';
 import { LeapGrid } from './leap-grid';
 import { useUserPrefs } from '@/components/terminal/terminal-settings';
 import { sizingFor } from '@shared/sizing';
@@ -335,33 +336,21 @@ export function LeapTracker({ className }: { className?: string }) {
   const aCount = data.picks.filter((p) => p.grade === 'A').length;
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('space-y-4 px-4 py-4 md:px-5', className)}>
       <KitStyles />
-      {/* Header */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Telescope className="h-4 w-4 text-[var(--brand-cyan,#22d3ee)]" />
-        <span className="text-[12px] font-mono font-bold uppercase tracking-widest text-zinc-200">LEAP Tracker</span>
-        <span
-          className={cn(
-            'rounded px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider',
-            data.isStale ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' : 'bg-emerald-500/15 text-emerald-400',
-          )}
-        >
-          {data.isStale ? `${data.sessionLabel} · stale` : data.sessionLabel}
-        </span>
-        <span className="text-[10px] font-mono text-zinc-500">
-          {data.qualified}/{data.scanned} with liquid LEAPS · {sCount} A+ · {aCount} strong
-        </span>
-        <span className={cn('ml-auto text-[11px] font-mono tabular-nums', data.spyChange >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
-          SPY {fmtPct(data.spyChange, 2)}
-        </span>
-      </div>
+      <TerminalPageHeader
+        eyebrow="Long-horizon opportunities"
+        title="LEAPS"
+        description="Stock-replacement calls ranked by business quality, structural trend and real contract value."
+        status={`${data.qualified}/${data.scanned} liquid · ${sCount} S · ${aCount} A`}
+        tone={data.isStale ? 'time' : 'structural'}
+      />
 
       {/* Subtitle + grade filter */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-card-border bg-card px-3 py-2.5">
         <Waves className="h-3 w-3 text-zinc-600" />
         <span className="text-[10px] font-mono text-zinc-500">
-          Stock-replacement calls — secular leaders in inflowing sectors, deep-ITM &amp; liquid
+          {data.sessionLabel}{data.isStale ? ' · stale' : ''} · SPY {fmtPct(data.spyChange, 2)}
         </span>
         {/* Budget gate. The count is separated from the amount — glued together
             they rendered as "≤ $2000" when the real reading was "≤ $200 · 0". */}

@@ -9,7 +9,11 @@
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Loader2, BookOpen, Search, X, SlidersHorizontal } from 'lucide-react';
+import {
+  Activity, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3, Loader2,
+  LogOut, Moon, MoreHorizontal, Radar, Search, SlidersHorizontal,
+  TrendingUp, UserRound, X,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
 import { RotationMap } from '@/components/rotation-map';
@@ -25,6 +29,13 @@ import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/termina
 import { useQuery } from '@tanstack/react-query';
 import type { ConvictionsResponse } from '@/lib/convictions';
 import { useStockContext } from '@/contexts/stock-context';
+import { useTheme } from '@/components/theme-provider';
+import { useAuth } from '@/hooks/useAuth';
+import { TrackRecord } from '@/components/bot/track-record';
+import { KitStyles } from '@/components/templates/kit';
+import { TerminalPageHeader, TerminalSectionHeader } from '@/components/templates/terminal-page';
+import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
+import { ChartLab } from '@/components/charting/chart-lab';
 
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
 const GexShell      = lazy(() => import('@/pages/shells/gex-shell'));
@@ -35,15 +46,12 @@ const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m =
 // PRISM = the strike x expiry gamma surface (what the walkthrough actually shows),
 // not the premium-spectrum strike picker that used to sit here.
 const QuantBotBoard = lazy(() => import('@/components/bot/quant-bot-board').then(m => ({ default: m.QuantBotBoard })));
-// The board's own historical record. Lives beside the bot because both answer the
-// same question — what have these signals actually done — and it was unreachable
-// after the sidebar was removed.
-const TrackRecord   = lazy(() => import('@/components/bot/track-record').then(m => ({ default: m.TrackRecord })));
 // CATALYST — the event calendar joined to the signals we publish, so a call and the
 // news pointing the other way land on the same screen instead of two separate ones.
 const CatalystBoard = lazy(() => import('@/components/catalyst/catalyst-board').then(m => ({ default: m.CatalystBoard })));
+const CryptoTerminal = lazy(() => import('@/components/crypto/crypto-terminal').then(m => ({ default: m.CryptoTerminal })));
 
-type Tab = 'oracle' | 'flow' | 'gex' | 'leaps' | 'catalyst' | 'bot';
+type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot';
 /**
  * Two tabs removed here, both by measurement rather than taste.
  *
@@ -58,6 +66,7 @@ type Tab = 'oracle' | 'flow' | 'gex' | 'leaps' | 'catalyst' | 'bot';
  */
 const TABS: { id: Tab; label: string }[] = [
   { id: 'oracle',  label: 'ORACLE' },
+  { id: 'chart',   label: 'CHART' },
   { id: 'flow',    label: 'FLOW' },
   { id: 'gex',     label: 'GEX' },
   // LEAPS was fully built and completely unreachable. /api/leap-tracker returns 200
@@ -71,9 +80,24 @@ const TABS: { id: Tab; label: string }[] = [
   // and NOTHING maps to the LEAP tier), so this is the only surface in the product
   // where a 6-24 month thesis can appear at all.
   { id: 'leaps',   label: 'LEAPS' },
+  { id: 'crypto',  label: 'CRYPTO' },
   { id: 'catalyst', label: 'CATALYST' },
   { id: 'bot',     label: 'BOT' },
 ];
+
+const MOBILE_PRIMARY: Tab[] = ['oracle', 'chart', 'flow', 'gex'];
+const MOBILE_MORE: Tab[] = ['crypto', 'catalyst', 'bot'];
+
+function MobileTabIcon({ tab }: { tab: Tab }) {
+  if (tab === 'oracle') return <Radar className="h-[18px] w-[18px]" />;
+  if (tab === 'chart') return <CandlestickChart className="h-[18px] w-[18px]" />;
+  if (tab === 'flow') return <Activity className="h-[18px] w-[18px]" />;
+  if (tab === 'gex') return <Grid3X3 className="h-[18px] w-[18px]" />;
+  if (tab === 'leaps') return <TrendingUp className="h-[18px] w-[18px]" />;
+  if (tab === 'crypto') return <Bitcoin className="h-[18px] w-[18px]" />;
+  if (tab === 'catalyst') return <CalendarDays className="h-[18px] w-[18px]" />;
+  return <Bot className="h-[18px] w-[18px]" />;
+}
 
 function useUptime() {
   const [s, setS] = useState(0);
@@ -134,8 +158,11 @@ export default function TerminalShell() {
 
   const [guideOpen, setGuideOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [marketFocus, setMarketFocus] = useState<MarketFocus | null>(null);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   // Alerts watch the same conviction feed the Oracle tab renders, so they fire on any
   // tab — the point of an alert is that it reaches you when you are NOT looking at it.
@@ -149,26 +176,58 @@ export default function TerminalShell() {
     staleTime: 60_000, refetchInterval: 90_000, retry: 1,
   });
   const alerts = useSignalAlerts(convictions?.picks);
-  const [draft, setDraft] = useState('');
   const reduce = useReducedMotion();
   const uptime = useUptime();
   // One ticker for the whole terminal: search once, every tab follows it.
   const { currentStock, setCurrentStock, clearStock } = useStockContext();
+  const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const { data: health } = useQuery<{
+    status?: string;
+    dependencies?: { tradier?: boolean; postgres?: { ok?: boolean } };
+  }>({
+    queryKey: ['/api/health', 'terminal-chrome'],
+    queryFn: async () => {
+      const response = await fetch('/api/health', { credentials: 'include' });
+      if (!response.ok) throw new Error('health unavailable');
+      return response.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: 0,
+  });
+  const night = theme === 'night';
+  const dataPartial = health?.status === 'degraded' || health?.dependencies?.tradier === false;
+  const accountLabel = user?.firstName || user?.email?.split('@')[0] || 'Account';
+  const accountInitial = accountLabel.slice(0, 1).toUpperCase();
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="qe-terminal min-h-screen flex flex-col bg-background">
+      <KitStyles />
       {/* ── persistent chrome ── */}
-      <header className="sticky top-0 z-20 border-b border-border/50 bg-background/95 backdrop-blur">
-        <div className="flex items-center gap-4 px-4 h-12">
-          <span className="font-mono text-value font-bold tracking-widest text-foreground shrink-0">
+      <header className="qe-terminal-chrome sticky top-0 z-20 border-b border-border/50 bg-background/95 backdrop-blur">
+        <div className="flex h-14 items-center gap-4 px-4 lg:px-5">
+          <span className="shrink-0 font-mono text-[13px] font-bold tracking-[0.16em] text-foreground">
             QUANT<span className="text-[var(--brand-cyan,#22d3ee)]">EDGE</span>
-            <span className="text-muted-foreground/70"> // TERMINAL</span>
+            <span className="hidden text-muted-foreground/70 sm:inline"> // TERMINAL</span>
           </span>
-          <span className="hidden sm:inline-flex items-center gap-1.5 text-label font-mono uppercase tracking-wider text-[var(--trade-bullish,#22c55e)] shrink-0">
+          <span className="hidden shrink-0 items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--trade-bullish,#22c55e)] sm:inline-flex">
             <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" /> Engaged
           </span>
 
-          <nav className="flex-1 flex items-center justify-center gap-0.5 overflow-x-auto">
+          <span
+            className="hidden shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[8px] font-bold uppercase tracking-[0.13em] lg:inline-flex"
+            style={{
+              color: dataPartial ? 'var(--brand-gold)' : 'var(--brand-cyan)',
+              borderColor: dataPartial ? 'color-mix(in srgb, var(--brand-gold) 35%, transparent)' : 'color-mix(in srgb, var(--brand-cyan) 30%, transparent)',
+              background: dataPartial ? 'color-mix(in srgb, var(--brand-gold) 7%, transparent)' : 'color-mix(in srgb, var(--brand-cyan) 6%, transparent)',
+            }}
+            title={dataPartial ? 'Some premium and chain-dependent reads are unavailable' : 'Primary data dependencies are healthy'}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-current" /> {dataPartial ? 'Data partial' : 'Data ready'}
+          </span>
+
+          <nav className="hidden flex-1 items-center justify-center gap-0.5 overflow-x-auto md:flex">
             {TABS.map((t) => (
               <button
                 key={t.id}
@@ -189,35 +248,21 @@ export default function TerminalShell() {
           </nav>
 
           <div className="flex items-center gap-2 shrink-0">
-            {/* ticker search — sets the shared symbol every tab reads */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const sym = draft.trim().toUpperCase();
-                if (sym) { setCurrentStock({ symbol: sym }); setDraft(''); }
-              }}
-              className="hidden md:flex items-center gap-1"
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen((open) => !open)}
+              aria-label="Search ticker"
+              aria-expanded={mobileSearchOpen}
+              className="grid h-8 w-8 place-items-center rounded border border-border/55 text-muted-foreground transition-colors hover:text-foreground md:hidden"
             >
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/70" />
-                <input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="ticker"
-                  aria-label="Search ticker"
-                  className="w-28 rounded border border-border/60 bg-background/60 py-1 pl-7 pr-2 text-meta font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:border-[var(--brand-cyan,#22d3ee)]"
-                />
-              </div>
-            </form>
-
-            {currentStock?.symbol && (
-              <span className="hidden md:inline-flex items-center gap-1 rounded-full border border-[var(--brand-cyan,#22d3ee)]/40 bg-[var(--brand-cyan,#22d3ee)]/10 px-2 py-0.5 text-label font-mono font-bold tracking-wider text-[var(--brand-cyan,#22d3ee)]">
-                {currentStock.symbol}
-                <button onClick={clearStock} aria-label="Clear ticker" className="cursor-pointer opacity-70 transition-opacity hover:opacity-100">
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
+              <Search className="h-4 w-4" />
+            </button>
+            <div className="hidden md:block">
+              <TerminalTickerSearch
+                value={currentStock?.symbol}
+                onSelect={(result) => setCurrentStock({ symbol: result.symbol, name: result.name })}
+              />
+            </div>
 
             <AlertBell
               unread={alerts.unread}
@@ -228,25 +273,95 @@ export default function TerminalShell() {
               onClick={() => setSettingsOpen(true)}
               aria-label="Open settings"
               title="Settings"
-              className="inline-flex cursor-pointer items-center gap-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+              className="hidden cursor-pointer items-center gap-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground md:inline-flex"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
             </button>
 
             <button
+              onClick={() => setTheme(night ? 'dark' : 'night')}
+              aria-label={night ? 'Use terminal appearance' : 'Use night appearance'}
+              title={night ? 'Terminal appearance' : 'Night appearance'}
+              className={cn('hidden h-7 w-7 cursor-pointer items-center justify-center rounded border text-muted-foreground/75 transition-colors hover:text-foreground md:inline-flex',
+                night ? 'border-[var(--brand-cyan)]/55 bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)]' : 'border-border/50')}
+            >
+              <Moon className="h-3.5 w-3.5" />
+            </button>
+
+            <div className="relative">
+              <button
+                onClick={() => setAccountOpen((open) => !open)}
+                aria-label="Open account menu"
+                aria-expanded={accountOpen}
+                className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border border-border/60 bg-foreground/5 font-mono text-[10px] font-bold text-foreground transition-colors hover:border-[var(--brand-cyan)]"
+              >
+                {accountInitial}
+              </button>
+              <AnimatePresence>
+                {accountOpen && (
+                  <motion.div
+                    className="absolute right-0 top-9 z-40 w-52 rounded-lg border border-border/70 bg-card p-1.5 shadow-xl shadow-black/30"
+                    initial={reduce ? false : { opacity: 0, y: -4, scale: .98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: .98 }}
+                    transition={{ duration: DUR.fast, ease: EASE }}
+                  >
+                    <div className="border-b border-border/45 px-2.5 py-2 font-mono">
+                      <div className="truncate text-[11px] font-bold text-foreground">{accountLabel}</div>
+                      <div className="truncate text-[9px] text-muted-foreground/65">{user?.email ?? 'Guest terminal'}</div>
+                    </div>
+                    <button onClick={() => { setAccountOpen(false); setSettingsOpen(true); }} className="mt-1 flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
+                      <UserRound className="h-3.5 w-3.5" /> Preferences & risk
+                    </button>
+                    <button onClick={() => { setAccountOpen(false); setLocation('/settings'); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
+                      <SlidersHorizontal className="h-3.5 w-3.5" /> Full account settings
+                    </button>
+                    {user && <button onClick={() => { setAccountOpen(false); logout(); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-[var(--trade-bearish)] transition-colors hover:bg-[var(--trade-bearish)]/10">
+                      <LogOut className="h-3.5 w-3.5" /> Sign out
+                    </button>}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <button
               onClick={() => setGuideOpen(true)}
               aria-label={`Open ${tab} guide`}
-              className="inline-flex cursor-pointer items-center gap-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+              className="hidden cursor-pointer items-center gap-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground lg:inline-flex"
             >
               <BookOpen className="h-3.5 w-3.5" /> Guide
             </button>
           </div>
         </div>
+        <AnimatePresence initial={false}>
+          {mobileSearchOpen && (
+            <motion.div
+              className="border-t border-border/45 px-3 py-2 md:hidden"
+              initial={reduce ? false : { opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={reduce ? undefined : { opacity: 0, height: 0 }}
+            >
+              <TerminalTickerSearch
+                compact
+                value={currentStock?.symbol}
+                onSelect={(result) => {
+                  setCurrentStock({ symbol: result.symbol, name: result.name });
+                  setMobileSearchOpen(false);
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* ── tab content (cross-fades) ── */}
-      <main className="flex-1 min-h-0">
-        <AnimatePresence mode="wait">
+      <main className="min-h-0 flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
+        {/* Some market modules keep long-lived subscriptions and nested layout
+            animations. `mode="wait"` can leave the outgoing module mounted at
+            opacity 0 while it waits for every descendant to finish exiting,
+            producing a blank terminal after a tab change. Sync keeps the handoff
+            animated without allowing one module to block the next. */}
+        <AnimatePresence mode="sync" initial={false}>
           <motion.div
             key={tab}
             initial={reduce ? false : { opacity: 0, y: 8 }}
@@ -256,42 +371,89 @@ export default function TerminalShell() {
           >
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
-                <div className="mx-auto w-full max-w-[1600px] space-y-3 px-3 py-2">
+                <div className="qe-oracle-page mx-auto w-full max-w-[1680px] space-y-6 px-3 py-4 md:px-5 lg:py-5">
                   {/* 1. One market stage, three distinct readings: broad participation,
                       real relative rotation, and the names carrying that tape. */}
-                  <div className="grid items-stretch gap-3 xl:grid-cols-[minmax(240px,0.78fr)_minmax(420px,1.08fr)_minmax(300px,0.9fr)]">
-                    <OracleMarketField className="h-full" collapsedHeight={420} onFocus={() => setMarketFocus('pulse')} />
-                    <RotationMap className="h-full" collapsedHeight={420} onFocus={() => setMarketFocus('rotation')} />
-                    <SessionBrief className="h-full" collapsedHeight={420} onFocus={() => setMarketFocus('brief')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                  </div>
+                  <section className="qe-market-stage">
+                    <TerminalSectionHeader
+                      eyebrow="01 · Market intelligence"
+                      title="Read the tape before the trade."
+                      description="Participation, relative rotation and leadership—one connected market view."
+                      live={!dataPartial}
+                      meta={dataPartial ? 'partial feed' : 'context updating'}
+                    />
+                    {!dataPartial && <div className="qe-context-current" aria-hidden="true"><span /></div>}
+                    <div className="qe-market-grid">
+                      <OracleMarketField className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('pulse')} />
+                      <RotationMap className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('rotation')} />
+                      <SessionBrief className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('brief')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                    </div>
+                  </section>
 
                   {/* 2. The current trade book is the page's primary object. */}
-                  <HuntCockpit />
+                  <section className="qe-oracle-section">
+                    <TerminalSectionHeader
+                      eyebrow="02 · Active book"
+                      title="Ranked opportunities."
+                      description="Select a ticker to connect price, evidence, levels and execution."
+                      meta="ranked book"
+                    />
+                    <HuntCockpit />
+                  </section>
 
                   {/* 3. Candidates inside incoming groups are the next action layer.
                       It is a setup queue, not another market summary. */}
-                  <div className="border-t border-border/60 pt-3">
+                  <section className="qe-oracle-section">
+                    <TerminalSectionHeader
+                      eyebrow="03 · Developing"
+                      title="Setups before the trigger."
+                      description="Coiled names inside groups already receiving money."
+                      meta="watch · not signals"
+                    />
                     <EarlyRotationPanel onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                  </div>
+                  </section>
 
                 </div>
               )}
+              {tab === 'chart' && <ChartLab />}
               {tab === 'flow' && (
-                <div className="mx-auto w-full max-w-[1600px]">
+                <div className="qe-module-page mx-auto w-full max-w-[1680px]">
                   {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it */}
                   <FlowBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
                 </div>
               )}
-              {tab === 'gex' && <div className="mx-auto w-full max-w-[1600px]"><GexShell /></div>}
-              {tab === 'leaps' && <div className="mx-auto w-full max-w-[1600px]"><LeapTracker /></div>}
-              {tab === 'catalyst' && <div className="mx-auto w-full max-w-[1600px]"><CatalystBoard /></div>}
+              {tab === 'gex' && <div className="qe-module-page mx-auto w-full max-w-[1680px]"><GexShell /></div>}
+              {tab === 'leaps' && <div className="qe-module-page mx-auto w-full max-w-[1680px]"><LeapTracker /></div>}
+              {tab === 'crypto' && <CryptoTerminal onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
+              {tab === 'catalyst' && (
+                <div className="qe-module-page mx-auto w-full max-w-[1680px] space-y-4 px-4 py-4 md:px-5">
+                  <TerminalPageHeader
+                    eyebrow="Event intelligence"
+                    title="Catalyst"
+                    description="Cross the event calendar against the active book—conflicts first, then confluence and developing ideas."
+                    status="signal-linked calendar"
+                    tone="time"
+                  />
+                  <CatalystBoard />
+                </div>
+              )}
               {tab === 'bot' && (
-                <div className="mx-auto w-full max-w-[1600px] space-y-3 px-3 py-2">
-                  {/* The published record sits ABOVE the live bot: what these signals
-                      have historically done is the context for anything the bot is
-                      doing right now. */}
-                  <TrackRecord />
-                  <QuantBotBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                <div className="qe-module-page mx-auto w-full max-w-[1680px] space-y-4 px-4 py-4 md:px-5">
+                  <TerminalPageHeader
+                    eyebrow="Paper execution"
+                    title="Bot"
+                    description="A separate execution ledger for the platform's own published option signals—not another confidence board."
+                    status={dataPartial ? 'pricing constrained' : 'ledger connected'}
+                    tone={dataPartial ? 'time' : 'bull'}
+                  />
+                  {/* The paper portfolio is the page's primary object. Oracle outcomes
+                      are below it because a signal close is not a bot close. */}
+                  <Suspense fallback={<Fallback />}>
+                    <QuantBotBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                  </Suspense>
+                  <div className="border-t border-border/60 pt-3">
+                    <TrackRecord />
+                  </div>
                 </div>
               )}
             </Suspense>
@@ -299,13 +461,95 @@ export default function TerminalShell() {
         </AnimatePresence>
       </main>
 
+      {/* Mobile instrument dock. The four daily workflows stay one tap away;
+          secondary modules live in a compact sheet instead of seven cramped tabs. */}
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/65 bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
+        <nav className="grid h-16 grid-cols-5 px-1" aria-label="Terminal sections">
+          {MOBILE_PRIMARY.map((id) => {
+            const label = TABS.find((item) => item.id === id)?.label ?? id;
+            const active = tab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => { setMobileMoreOpen(false); setTab(id); }}
+                className={cn(
+                  'relative flex min-w-0 flex-col items-center justify-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] transition-colors',
+                  active ? 'text-[var(--brand-cyan)]' : 'text-muted-foreground/70',
+                )}
+              >
+                {active && <motion.span layoutId="mobile-terminal-active" className="absolute inset-x-4 top-0 h-px bg-[var(--brand-cyan)]" />}
+                <MobileTabIcon tab={id} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMobileMoreOpen((open) => !open)}
+            aria-expanded={mobileMoreOpen}
+            className={cn(
+              'relative flex flex-col items-center justify-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] transition-colors',
+              MOBILE_MORE.includes(tab) || mobileMoreOpen ? 'text-[var(--brand-cyan)]' : 'text-muted-foreground/70',
+            )}
+          >
+            {MOBILE_MORE.includes(tab) && <motion.span layoutId="mobile-terminal-active" className="absolute inset-x-4 top-0 h-px bg-[var(--brand-cyan)]" />}
+            <MoreHorizontal className="h-[18px] w-[18px]" />
+            <span>More</span>
+          </button>
+        </nav>
+      </div>
+
+      <AnimatePresence>
+        {mobileMoreOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Close section menu"
+              className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm md:hidden"
+              initial={reduce ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={reduce ? undefined : { opacity: 0 }}
+              onClick={() => setMobileMoreOpen(false)}
+            />
+            <motion.div
+              className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 overflow-hidden rounded-xl border border-border/75 bg-card shadow-2xl md:hidden"
+              initial={reduce ? false : { opacity: 0, y: 16, scale: .98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduce ? undefined : { opacity: 0, y: 12, scale: .98 }}
+              transition={{ duration: DUR.fast, ease: EASE }}
+            >
+              <div className="border-b border-border/50 px-4 py-3">
+                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">More instruments</p>
+              </div>
+              <div className="grid grid-cols-3 gap-px bg-border/50">
+                {MOBILE_MORE.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => { setMobileMoreOpen(false); setTab(id); }}
+                    className={cn(
+                      'flex min-h-20 flex-col items-center justify-center gap-2 bg-card font-mono text-[10px] font-bold uppercase tracking-wider transition-colors',
+                      tab === id ? 'text-[var(--brand-cyan)]' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <MobileTabIcon tab={id} />
+                    {TABS.find((item) => item.id === id)?.label}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Each live market view has a full-screen focus mode. The stage stays comparable
           at a glance; a reader can then inspect one real source without it becoming
           a taller card inside the scrolling Oracle book. */}
       <AnimatePresence>
         {tab === 'oracle' && marketFocus && (
           <motion.div
-            className="fixed inset-0 z-[60] grid place-items-center bg-background/55 p-3 backdrop-blur-md md:p-6"
+            className="qe-focus-overlay fixed inset-0 z-[60] grid place-items-center bg-background/55 p-3 backdrop-blur-md md:p-6"
             initial={reduce ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={reduce ? undefined : { opacity: 0 }}
@@ -315,7 +559,7 @@ export default function TerminalShell() {
               role="dialog"
               aria-modal="true"
               aria-label={`${MARKET_FOCUS_COPY[marketFocus].title} full view`}
-              className="flex max-h-[calc(100dvh-24px)] w-full max-w-[1480px] flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xl shadow-black/50"
+              className="qe-focus-panel flex max-h-[calc(100dvh-24px)] w-full max-w-[1480px] flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xl shadow-black/50"
               initial={reduce ? false : { opacity: 0, y: 18, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={reduce ? undefined : { opacity: 0, y: 10, scale: 0.99 }}
@@ -348,7 +592,7 @@ export default function TerminalShell() {
 
       {/* Ticker lookup — an overlay above whichever tab you're on, not a panel wedged
           into the page. Searching is a detour; it shouldn't rearrange the board. */}
-      {currentStock?.symbol && (
+      {currentStock?.symbol && tab !== 'chart' && (
         <TickerView
           symbol={currentStock.symbol.toUpperCase()}
           hasSignal={!!convictions?.picks?.some(

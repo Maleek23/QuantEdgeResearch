@@ -94,7 +94,7 @@ export const CANONICAL_WIN_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_WIN_PERCENT;
  * 
  * CANONICAL DEFINITIONS:
  * - WIN: hit_target OR (closed with P&L >= +3%)
- * - LOSS: hit_stop AND (P&L <= -3%)
+ * - LOSS: hit_stop (a configured stop defines the loss; stop distance varies)
  * - NEUTRAL: expired, manual_exit, breakeven (|P&L| < 3%) - excluded from win rate
  */
 
@@ -119,11 +119,12 @@ export function isRealWin(idea: { outcomeStatus?: string | null; percentGain?: n
 }
 
 /**
- * Check if a trade is a "real loss" - hit stop with >= 3% loss
+ * Check if a trade is a "real loss".
  * Works with any object that has outcomeStatus and percentGain properties
  * 
  * A trade is a real loss if:
- * - It hit stop AND lost >= 3%
+ * - It hit its configured stop. A 2% stop is still a loss; applying a universal
+ *   3% P&L floor was silently converting valid stopped trades into neutrals.
  * 
  * Expired trades are EXCLUDED from loss calculations (they are separate from hit_stop).
  * This matches the documented methodology in replit.md.
@@ -132,15 +133,11 @@ export function isRealLoss(idea: { outcomeStatus?: string | null; percentGain?: 
   const status = (idea.outcomeStatus || '').trim().toLowerCase();
   
   // Only count hit_stop as losses - expired trades are excluded
-  if (status !== 'hit_stop') return false;
-  
-  // Check if the loss exceeds the threshold
-  if (idea.percentGain !== null && idea.percentGain !== undefined) {
-    return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-  }
-  
-  // For hit_stop without percentGain data, count as loss (legacy behavior)
-  return true;
+  if (status === 'hit_stop') return true;
+
+  // Historic rows without an outcome event can still be measured by their P&L.
+  // Expired/manual statuses remain unresolved under this legacy classifier.
+  return !status && idea.percentGain != null && idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
 }
 
 /**
@@ -275,7 +272,7 @@ export function classifyTrade(idea: { outcomeStatus?: string | null; percentGain
  * Used by auto-resolved trade endpoints
  * 
  * A trade is a real loss if:
- * - It was auto-resolved by stop hit AND lost >= 3%
+ * - It was auto-resolved by stop hit.
  * 
  * Expired trades are EXCLUDED from loss calculations.
  * This matches the documented methodology in replit.md.
@@ -284,15 +281,9 @@ export function isRealLossByResolution(idea: { resolutionReason?: string | null;
   const reason = idea.resolutionReason;
   
   // Only count stop hits as losses - expired trades are excluded
-  if (reason !== 'auto_stop_hit') return false;
-  
-  // Check if the loss exceeds the threshold
-  if (idea.percentGain !== null && idea.percentGain !== undefined) {
-    return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-  }
-  
-  // For stop hit without percentGain data, count as loss (legacy behavior)
-  return true;
+  if (reason === 'auto_stop_hit') return true;
+
+  return !reason && idea.percentGain != null && idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
 }
 
 /**

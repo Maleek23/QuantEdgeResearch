@@ -45,16 +45,16 @@
  * non-directional one. A component that renders a P&L must pass a tone; a
  * component that renders a label must not.
  */
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 
-export type Tone = 'structural' | 'bull' | 'bear' | 'time' | 'muted';
+export type Tone = "structural" | "bull" | "bear" | "time" | "muted";
 
 export const TONE_VAR: Record<Tone, string> = {
-  structural: 'var(--brand-cyan)',
-  bull: 'var(--trade-bullish)',
-  bear: 'var(--trade-bearish)',
-  time: 'var(--brand-gold)',
-  muted: 'var(--muted-foreground)',
+  structural: "var(--brand-cyan)",
+  bull: "var(--trade-bullish)",
+  bear: "var(--trade-bearish)",
+  time: "var(--brand-gold)",
+  muted: "var(--muted-foreground)",
 };
 
 /** Emit once per page. Every animation in the kit lives here so nothing duplicates. */
@@ -97,13 +97,22 @@ export function KitStyles() {
  * the same label with a 28px glowing rule in front of it reads as a channel
  * marker on an instrument. One pseudo-element's difference.
  */
-export function Eyebrow({ children, tone = 'structural', className }: {
-  children: React.ReactNode; tone?: Tone; className?: string;
+export function Eyebrow({
+  children,
+  tone = "structural",
+  className,
+}: {
+  children: React.ReactNode;
+  tone?: Tone;
+  className?: string;
 }) {
   const c = TONE_VAR[tone];
   return (
     <span
-      className={cn('flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em]', className)}
+      className={cn(
+        "flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em]",
+        className,
+      )}
       style={{ color: c }}
     >
       <i
@@ -117,11 +126,20 @@ export function Eyebrow({ children, tone = 'structural', className }: {
 }
 
 /** LIVE DOT — a pulsing status pip. Only render when something is genuinely live. */
-export function LiveDot({ tone = 'structural', className }: { tone?: Tone; className?: string }) {
+export function LiveDot({
+  tone = "structural",
+  className,
+}: {
+  tone?: Tone;
+  className?: string;
+}) {
   return (
     <i
       aria-hidden
-      className={cn('qk-live-dot inline-block h-2 w-2 shrink-0 rounded-full', className)}
+      className={cn(
+        "qk-live-dot inline-block h-2 w-2 shrink-0 rounded-full",
+        className,
+      )}
       style={{ background: TONE_VAR[tone] }}
     />
   );
@@ -132,15 +150,28 @@ export function LiveDot({ tone = 'structural', className }: { tone?: Tone; class
  * Signals "streaming" without a spinner. Heights are fixed by design: this is a
  * status ornament, not a chart, and giving it fake data would make it a lie.
  */
-export function EqBars({ tone = 'structural', className }: { tone?: Tone; className?: string }) {
+export function EqBars({
+  tone = "structural",
+  className,
+}: {
+  tone?: Tone;
+  className?: string;
+}) {
   const heights = [40, 80, 55, 95, 65];
   return (
-    <span aria-hidden className={cn('qk-eq flex h-3.5 items-end gap-[2px]', className)}>
+    <span
+      aria-hidden
+      className={cn("qk-eq flex h-3.5 items-end gap-[2px]", className)}
+    >
       {heights.map((h, i) => (
         <i
           key={i}
           className="w-[2px] rounded-[1px]"
-          style={{ height: `${h}%`, background: TONE_VAR[tone], animationDelay: `${i * 150}ms` }}
+          style={{
+            height: `${h}%`,
+            background: TONE_VAR[tone],
+            animationDelay: `${i * 150}ms`,
+          }}
         />
       ))}
     </span>
@@ -148,24 +179,43 @@ export function EqBars({ tone = 'structural', className }: { tone?: Tone; classN
 }
 
 /** CHIP — pill with an optional lit dot and a primary state. Their `.fv2-cov-chip`. */
-export function Chip({ children, active, dot, tone = 'structural', onClick, title }: {
-  children: React.ReactNode; active?: boolean; dot?: boolean; tone?: Tone;
-  onClick?: () => void; title?: string;
+export function Chip({
+  children,
+  active,
+  dot,
+  tone = "structural",
+  onClick,
+  title,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+  dot?: boolean;
+  tone?: Tone;
+  onClick?: () => void;
+  title?: string;
 }) {
   const c = TONE_VAR[tone];
-  const Tag = onClick ? 'button' : 'span';
+  const Tag = onClick ? "button" : "span";
   return (
     <Tag
       onClick={onClick}
       title={title}
       className={cn(
-        'inline-flex items-center rounded-full border px-4 py-[9px] font-mono text-[11px] uppercase tracking-[0.08em] transition-all duration-[250ms]',
+        "inline-flex items-center rounded-full border px-4 py-[9px] font-mono text-[11px] uppercase tracking-[0.08em] transition-all duration-[250ms]",
         active
-          ? 'border-current'
-          : 'border-border bg-foreground/[0.02] text-muted-foreground hover:border-current',
-        onClick && 'cursor-pointer',
+          ? "border-current"
+          : "border-border bg-foreground/[0.02] text-muted-foreground hover:border-current",
+        onClick && "cursor-pointer",
       )}
-      style={active ? { color: c, background: `color-mix(in srgb, ${c} 8%, transparent)`, borderColor: `color-mix(in srgb, ${c} 40%, transparent)` } : undefined}
+      style={
+        active
+          ? {
+              color: c,
+              background: `color-mix(in srgb, ${c} 8%, transparent)`,
+              borderColor: `color-mix(in srgb, ${c} 40%, transparent)`,
+            }
+          : undefined
+      }
     >
       {dot && (
         <i
@@ -184,13 +234,25 @@ export function Chip({ children, active, dot, tone = 'structural', onClick, titl
  * Stacked, never inline: an inline `KEY: value` makes the eye read the label
  * first every time, which is backwards once you know what the labels are.
  */
-export function KeyValue({ k, v, tone, className }: { k: string; v: string; tone?: Tone; className?: string }) {
+export function KeyValue({
+  k,
+  v,
+  tone,
+  className,
+}: {
+  k: string;
+  v: string;
+  tone?: Tone;
+  className?: string;
+}) {
   return (
-    <div className={cn('flex flex-col gap-0.5', className)}>
-      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">{k}</span>
+    <div className={cn("flex flex-col gap-0.5", className)}>
+      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">
+        {k}
+      </span>
       <span
         className="font-mono text-[13px] font-medium tabular-nums"
-        style={{ color: tone ? TONE_VAR[tone] : 'var(--foreground)' }}
+        style={{ color: tone ? TONE_VAR[tone] : "var(--foreground)" }}
       >
         {v}
       </span>
@@ -198,9 +260,20 @@ export function KeyValue({ k, v, tone, className }: { k: string; v: string; tone
   );
 }
 
-export function KeyValueRow({ children, className }: { children: React.ReactNode; className?: string }) {
+export function KeyValueRow({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={cn('mt-auto flex flex-wrap gap-x-6 gap-y-3 border-t border-dashed border-border pt-5', className)}>
+    <div
+      className={cn(
+        "mt-auto flex flex-wrap gap-x-6 gap-y-3 border-t border-dashed border-border pt-5",
+        className,
+      )}
+    >
       {children}
     </div>
   );
@@ -215,18 +288,24 @@ export function KeyValueRow({ children, className }: { children: React.ReactNode
  * single most common tell of a generated layout, and this component will happily
  * produce that if pointed at the wrong content.
  */
-export function GhostNumeral({ n, tone = 'structural' }: { n: number | string; tone?: Tone }) {
+export function GhostNumeral({
+  n,
+  tone = "structural",
+}: {
+  n: number | string;
+  tone?: Tone;
+}) {
   return (
     <span
       aria-hidden
       className={cn(
-        'pointer-events-none absolute right-7 top-6 select-none font-light leading-none tracking-[-0.04em]',
-        'text-[96px] text-foreground/[0.07] transition-colors duration-[400ms]',
+        "pointer-events-none absolute right-7 top-6 select-none font-light leading-none tracking-[-0.04em]",
+        "text-[96px] text-foreground/[0.07] transition-colors duration-[400ms]",
       )}
-      style={{ ['--gn' as string]: TONE_VAR[tone] }}
+      style={{ ["--gn" as string]: TONE_VAR[tone] }}
     >
       <span className="transition-colors duration-[400ms] group-hover:text-[color:var(--gn)] group-hover:opacity-20">
-        {typeof n === 'number' ? String(n).padStart(2, '0') : n}
+        {typeof n === "number" ? String(n).padStart(2, "0") : n}
       </span>
     </span>
   );
@@ -238,26 +317,42 @@ export function GhostNumeral({ n, tone = 'structural' }: { n: number | string; t
  * physical rather than as a selection state, which matters in a list where
  * nothing is actually selectable.
  */
-export function PillarRow({ n, title, desc, tone = 'structural', onClick }: {
-  n: number | string; title: string; desc?: string; tone?: Tone; onClick?: () => void;
+export function PillarRow({
+  n,
+  title,
+  desc,
+  tone = "structural",
+  onClick,
+}: {
+  n: number | string;
+  title: string;
+  desc?: string;
+  tone?: Tone;
+  onClick?: () => void;
 }) {
   return (
     <div
       onClick={onClick}
       className={cn(
-        'grid grid-cols-[28px_1fr] gap-4 border-b border-border py-[18px] transition-[padding-left] duration-300 hover:pl-2',
-        onClick && 'cursor-pointer',
+        "grid grid-cols-[28px_1fr] gap-4 border-b border-border py-[18px] transition-[padding-left] duration-300 hover:pl-2",
+        onClick && "cursor-pointer",
       )}
     >
       <span
         className="pt-[3px] font-mono text-[11px] font-medium tracking-[0.12em]"
         style={{ color: TONE_VAR[tone] }}
       >
-        {typeof n === 'number' ? String(n).padStart(2, '0') : n}
+        {typeof n === "number" ? String(n).padStart(2, "0") : n}
       </span>
       <div>
-        <p className="mb-1 text-base font-medium leading-[1.4] tracking-[-0.005em] text-foreground">{title}</p>
-        {desc && <p className="text-[13px] leading-[1.6] text-muted-foreground">{desc}</p>}
+        <p className="mb-1 text-base font-medium leading-[1.4] tracking-[-0.005em] text-foreground">
+          {title}
+        </p>
+        {desc && (
+          <p className="text-[13px] leading-[1.6] text-muted-foreground">
+            {desc}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -272,21 +367,34 @@ export function PillarRow({ n, title, desc, tone = 'structural', onClick }: {
  * the data and gone at the margins, so it registers as a surface rather than as
  * structure the content sits inside.
  */
-export function BoardFrame({ title, right, children, className }: {
-  title?: string; right?: React.ReactNode; children: React.ReactNode; className?: string;
+export function BoardFrame({
+  title,
+  right,
+  children,
+  className,
+}: {
+  title?: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className={cn('relative overflow-hidden rounded border border-border bg-foreground/[0.02] p-6 sm:p-9', className)}>
+    <div
+      className={cn(
+        "relative overflow-hidden rounded border border-border bg-foreground/[0.02] p-6 sm:p-9",
+        className,
+      )}
+    >
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
-            'linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)',
-          backgroundSize: '56px 56px',
+            "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
+          backgroundSize: "56px 56px",
           opacity: 0.35,
-          WebkitMaskImage: 'radial-gradient(#000 0%, transparent 80%)',
-          maskImage: 'radial-gradient(#000 0%, transparent 80%)',
+          WebkitMaskImage: "radial-gradient(#000 0%, transparent 80%)",
+          maskImage: "radial-gradient(#000 0%, transparent 80%)",
         }}
       />
       {(title || right) && (
@@ -305,8 +413,12 @@ export function BoardFrame({ title, right, children, className }: {
 }
 
 /** LEGEND — the three-swatch escalating scale used beside a matrix. */
-export function IntensityLegend({ labels = ['low', 'mid', 'high'], tone = 'structural' }: {
-  labels?: [string, string, string] | string[]; tone?: Tone;
+export function IntensityLegend({
+  labels = ["low", "mid", "high"],
+  tone = "structural",
+}: {
+  labels?: [string, string, string] | string[];
+  tone?: Tone;
 }) {
   const c = TONE_VAR[tone];
   const steps = [0.18, 0.45, 1];
@@ -319,7 +431,10 @@ export function IntensityLegend({ labels = ['low', 'mid', 'high'], tone = 'struc
             style={{
               background: `color-mix(in srgb, ${c} ${s * 100}%, transparent)`,
               borderColor: `color-mix(in srgb, ${c} ${Math.min(100, s * 120)}%, transparent)`,
-              boxShadow: s === 1 ? `0 0 10px color-mix(in srgb, ${c} 70%, transparent)` : undefined,
+              boxShadow:
+                s === 1
+                  ? `0 0 10px color-mix(in srgb, ${c} 70%, transparent)`
+                  : undefined,
             }}
           />
           {labels[i]}
@@ -345,16 +460,24 @@ export function IntensityLegend({ labels = ['low', 'mid', 'high'], tone = 'struc
  * Deliberately NOT a heading: these mark demotions, not chapters, so they read at
  * label scale and let the panel titles underneath stay the loudest text.
  */
-export function SectionRule({ label, note, className }: {
-  label: string; note?: string; className?: string;
+export function SectionRule({
+  label,
+  note,
+  className,
+}: {
+  label: string;
+  note?: string;
+  className?: string;
 }) {
   return (
-    <div className={cn('flex items-center gap-3 pt-3', className)}>
+    <div className={cn("flex items-center gap-3 pt-3", className)}>
       <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
         {label}
       </span>
       {note && (
-        <span className="font-mono text-[10px] text-muted-foreground/60">{note}</span>
+        <span className="font-mono text-[10px] text-muted-foreground/60">
+          {note}
+        </span>
       )}
       <span aria-hidden className="h-px flex-1 bg-border" />
     </div>
@@ -400,8 +523,15 @@ export function SectionRule({ label, note, className }: {
  * instrument.
  */
 export function Readout({
-  title, meta, value, qualifier, valueTone = 'structural',
-  bars, children, note, className,
+  title,
+  meta,
+  value,
+  qualifier,
+  valueTone = "structural",
+  bars,
+  children,
+  note,
+  className,
 }: {
   title: string;
   meta?: React.ReactNode;
@@ -419,12 +549,21 @@ export function Readout({
   className?: string;
 }) {
   return (
-    <section className={cn('overflow-hidden rounded-[4px] border border-card-border bg-card/[0.9]', className)}>
+    <section
+      className={cn(
+        "overflow-hidden rounded-[4px] border border-card-border bg-card/[0.9]",
+        className,
+      )}
+    >
       <div className="flex items-center justify-between gap-2 border-b border-border/50 px-4 py-3">
         <span className="font-mono text-[11px] font-bold uppercase tracking-[0.13em] text-foreground/90">
           {title}
         </span>
-        {meta && <span className="font-mono text-[10px] font-medium text-muted-foreground/80">{meta}</span>}
+        {meta && (
+          <span className="font-mono text-[10px] font-medium text-muted-foreground/80">
+            {meta}
+          </span>
+        )}
       </div>
 
       <div className="space-y-3 px-4 py-3.5">
@@ -488,25 +627,33 @@ export function Readout({
  * rail, rather than a dashboard gauge imported from a different design language.
  */
 export function BandScale({
-  value, bands, tone = 'structural', className,
+  value,
+  bands,
+  tone = "structural",
+  className,
+  max = 100,
 }: {
-  /** Current score on the same 0-100 scale as the band floors. */
+  /** Current score on the same scale as the band floors. */
   value: number;
   /** Ordered LOW → HIGH, each with the floor at which that band begins. */
   bands: { label: string; floor: number }[];
   tone?: Tone;
   className?: string;
+  /** Ceiling for the instrument. Defaults to the old 0–100 index scale. */
+  max?: number;
 }) {
   if (!bands.length) return null;
-  const max = 100;
   const sorted = [...bands].sort((a, b) => a.floor - b.floor);
-  const activeIdx = sorted.reduce((acc, b, i) => (value >= b.floor ? i : acc), 0);
+  const activeIdx = sorted.reduce(
+    (acc, b, i) => (value >= b.floor ? i : acc),
+    0,
+  );
   const next = sorted[activeIdx + 1];
   const pos = Math.max(0, Math.min(100, (value / max) * 100));
   const c = TONE_VAR[tone];
 
   return (
-    <div className={cn('min-w-0', className)}>
+    <div className={cn("min-w-0", className)}>
       <div className="relative h-1.5 overflow-hidden rounded-[1px] bg-foreground/[0.06]">
         {sorted.map((b, i) => {
           const start = (b.floor / max) * 100;
@@ -520,9 +667,9 @@ export function BandScale({
                 width: `${end - start}%`,
                 // Only the achieved bands carry colour. Tinting the ones above
                 // would imply the signal had reached them.
-                background: i <= activeIdx ? c : 'transparent',
+                background: i <= activeIdx ? c : "transparent",
                 opacity: i === activeIdx ? 1 : 0.28,
-                borderLeft: i > 0 ? '1px solid var(--card)' : undefined,
+                borderLeft: i > 0 ? "1px solid var(--card)" : undefined,
               }}
             />
           );
@@ -538,8 +685,13 @@ export function BandScale({
       <div className="mt-1.5 flex items-baseline justify-between font-mono text-[9px] uppercase tracking-[0.12em]">
         <span className="flex gap-2">
           {sorted.map((b, i) => (
-            <span key={b.label} style={{ color: i === activeIdx ? c : undefined }}
-              className={i === activeIdx ? 'font-bold' : 'text-muted-foreground/70'}>
+            <span
+              key={b.label}
+              style={{ color: i === activeIdx ? c : undefined }}
+              className={
+                i === activeIdx ? "font-bold" : "text-muted-foreground/70"
+              }
+            >
               {b.label}
             </span>
           ))}
@@ -547,7 +699,7 @@ export function BandScale({
         <span className="text-muted-foreground/70">
           {next
             ? `${Math.max(0, Math.ceil(next.floor - value))} to ${next.label}`
-            : 'top band'}
+            : "top band"}
         </span>
       </div>
     </div>

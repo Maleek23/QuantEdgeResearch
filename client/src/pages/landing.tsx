@@ -1,24 +1,14 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   ArrowRight,
   Search,
-  Brain,
-  Activity,
-  Target,
-  Radar,
-  BarChart3,
-  Eye,
-  LineChart,
-  Cpu,
-  Zap,
 } from "lucide-react";
 import { useState as useReactState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { WaitlistPopup } from "@/components/waitlist-popup";
@@ -27,8 +17,9 @@ import { NumberTicker } from "@/components/magicui/number-ticker";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { BorderBeam } from "@/components/magicui/border-beam";
 
-import { CONVICTION_LAYERS, CONVICTION_LAYER_COUNT, CONVICTION_LAYER_NOTE } from '@shared/conviction-layers';
+import { CONVICTION_LAYER_COUNT } from '@shared/conviction-layers';
 import { RotationMap } from '@/components/rotation-map';
+import { OracleMarketField } from '@/components/oracle/oracle-market-field';
 import { EarlyRotationPanel } from '@/components/oracle/early-rotation-panel';
 import { SessionBrief } from '@/components/oracle/session-brief';
 import { PredictiveArc } from '@/components/landing/predictive-arc';
@@ -309,13 +300,12 @@ function LiveStats() {
   // reports 38.8%. Both numbers come from the same platform and the flattering
   // one was the one feeding the homepage. On a product whose entire pitch is
   // that it reports honestly, advertising the wrong one is disqualifying.
-  const { data: perf } = useQuery<{ overall?: { decided?: number; winRate?: number; expectancy?: number } }>({
+  const { data: perf } = useQuery<{ overall?: { decided?: number } }>({
     queryKey: ["/api/performance/unified-win-rate"],
     staleTime: 300000,
     retry: 1,
   });
   const decided = perf?.overall?.decided ?? 0;
-  const winRate = perf?.overall?.winRate ?? 0;
 
   // Expectancy is deliberately NOT shown here. Measured twice a few hours apart it
   // read −0.36% and then +4.45%, because the underlying set of resolved trades grew
@@ -326,34 +316,145 @@ function LiveStats() {
 
   return (
     <div className="max-w-md">
-      {/* ONE number, not a row of three. A three-tile stat strip is the default
-          hero furniture and it flattens everything to equal weight — the layer
-          count is a fact about the machine, the win rate is a claim about results,
-          and they were being presented as peers. The claim gets the size. */}
+      {/* Resolved sample size is a fact. A win-rate headline is not useful until
+          the coverage and outcome model are stable enough to defend it. */}
       <div className="flex items-baseline gap-3">
-        {winRate > 0 ? (
+        {decided > 0 ? (
           <NumberTicker
-            value={Math.round(winRate * 10) / 10}
-            suffix="%"
+            value={decided}
             className="ui-data text-[44px] leading-none font-bold text-foreground"
           />
         ) : (
           <span className="ui-data text-[44px] leading-none font-bold text-foreground">&mdash;</span>
         )}
-        <span className="ui-eyebrow text-[11px] text-muted-foreground">win rate</span>
+        <span className="ui-eyebrow text-[11px] text-muted-foreground">resolved outcomes</span>
       </div>
 
       {/* The qualifier sits directly under the number rather than beside it, so the
           rate cannot be read without the count that produced it. */}
       <p className="ui-prose mt-2 text-[13px] leading-snug text-muted-foreground">
         {decided > 0
-          ? `Across ${decided} decided trades. Trades that resolved neither way are counted as neutral and excluded, not quietly dropped to raise the number.`
-          : 'No decided trades yet. A rate before trades close would be invented.'}
+          ? 'The public record shows the measured sample first. Win rate and expectancy stay inside Performance beside their coverage and filters.'
+          : 'Outcome validation is not available. The page will not turn missing history into a performance claim.'}
       </p>
 
       <div className="mt-4 flex items-center gap-2">
         <span className="ui-data text-[13px] font-bold text-[var(--brand-cyan)]">{CONVICTION_LAYER_COUNT}</span>
         <span className="ui-prose text-[13px] text-muted-foreground">independent layers score every setup</span>
+      </div>
+    </div>
+  );
+}
+
+type LandingMarketView = 'pulse' | 'rotation' | 'brief';
+
+const LANDING_MARKET_VIEWS: Array<{ id: LandingMarketView; label: string; cue: string }> = [
+  { id: 'pulse', label: 'Pulse', cue: 'Participation' },
+  { id: 'rotation', label: 'Rotation', cue: 'Relative strength' },
+  { id: 'brief', label: 'Brief', cue: 'Leadership' },
+];
+
+/**
+ * The hero's product moment. These are the same three live instruments Oracle
+ * uses to answer the market question in order; the segmented control changes
+ * the evidence surface instead of swapping decorative illustrations.
+ */
+function LandingMarketStage() {
+  const [view, setView] = useReactState<LandingMarketView>('rotation');
+  const reduceMotion = useReducedMotion();
+  const active = LANDING_MARKET_VIEWS.find((item) => item.id === view)!;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-[0_32px_90px_-50px_rgba(120,198,232,.45)] backdrop-blur-xl">
+      <div className="flex flex-col gap-3 border-b border-border/60 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 px-1">
+          <div className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--brand-cyan)]">Live market instrument</div>
+          <div className="mt-0.5 text-sm font-semibold text-foreground">{active.cue}</div>
+        </div>
+        <div className="grid grid-cols-3 rounded-lg border border-border/70 bg-background/55 p-1" role="tablist" aria-label="Market evidence view">
+          {LANDING_MARKET_VIEWS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={view === item.id}
+              onClick={() => setView(item.id)}
+              className={cn(
+                'relative isolate rounded-md px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] transition-colors',
+                view === item.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {view === item.id && (
+                <motion.span
+                  layoutId="landing-market-tab"
+                  className="absolute inset-0 -z-10 rounded-md border border-[var(--brand-cyan)]/25 bg-[var(--brand-cyan)]/10"
+                  transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+                />
+              )}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative h-[430px] sm:h-[500px]">
+        <AnimatePresence mode="sync" initial={false}>
+          <motion.div
+            key={view}
+            initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.992 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reduceMotion ? undefined : { opacity: 0, y: -8, scale: 0.996 }}
+            transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-0 overflow-hidden [&>section]:h-full [&>section]:rounded-none [&>section]:border-0"
+          >
+            {view === 'pulse' && <OracleMarketField className="h-full" collapsedHeight={500} />}
+            {view === 'rotation' && <RotationMap className="h-full" collapsedHeight={500} />}
+            {view === 'brief' && <SessionBrief className="h-full" collapsedHeight={500} />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
+    </div>
+  );
+}
+
+const HERO_PROCESS = [
+  { step: '01', label: 'Regime', detail: 'risk + breadth' },
+  { step: '02', label: 'Rotation', detail: 'capital movement' },
+  { step: '03', label: 'Setup', detail: 'ticker evidence' },
+  { step: '04', label: 'Contract', detail: 'premium + liquidity' },
+  { step: '05', label: 'Position', detail: 'trigger → outcome' },
+] as const;
+
+/** The product's actual top-down decision path, not a decorative feature row. */
+function HeroProcess() {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <div className="mb-8 overflow-x-auto rounded-xl border border-border/70 bg-card/45 p-1.5 backdrop-blur-md">
+      <div className="relative grid min-w-[560px] grid-cols-5 overflow-hidden rounded-lg">
+        {!reduceMotion && (
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 z-0 w-28 bg-gradient-to-r from-transparent via-[var(--brand-cyan)]/10 to-transparent blur-xl"
+            initial={{ x: -120 }}
+            animate={{ x: 640 }}
+            transition={{ duration: 5.5, repeat: Infinity, repeatDelay: 1.2, ease: 'linear' }}
+          />
+        )}
+        {HERO_PROCESS.map((item, index) => (
+          <div
+            key={item.label}
+            className={cn(
+              'relative z-10 min-w-0 px-3 py-3',
+              index > 0 && 'border-l border-border/60',
+            )}
+          >
+            <div className="font-mono text-[8px] font-bold tracking-[0.16em] text-[var(--brand-cyan)]/80">{item.step}</div>
+            <div className="mt-1 text-[12px] font-semibold text-foreground">{item.label}</div>
+            <div className="mt-0.5 whitespace-nowrap font-mono text-[8px] uppercase tracking-[0.08em] text-muted-foreground">{item.detail}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -386,12 +487,12 @@ const STACK_ITEMS: StackItem[] = [
     labelClass: 'text-cyan-400',
     headline: 'Where dealers have to hedge.',
     description:
-      'Strike-by-strike gamma exposure for any ticker, plus the full strike \u00d7 expiry surface in PRISM. Below the gamma flip dealers amplify moves; above it they dampen them — which is why the flip, the call wall and the put wall behave as levels. Computed from the CBOE chain, which needs no brokerage account.',
+      'Strike-by-strike gamma exposure for any ticker, plus the full strike \u00d7 expiry surface in PRISM. Concentrated call and put exposure identify the levels where dealer hedging may matter. The estimated flip remains a visual reference and is excluded from rankings.',
     bullets: [
-      'Gamma flip, call wall, put wall as tradeable levels',
+      'Call wall and put support derived from the listed chain',
       'Strike \u00d7 expiry gamma surface (PRISM)',
       'Per-DTE buckets — today, this week, this month',
-      'Any ticker with a listed chain, not a fixed list',
+      'Estimated flip labelled as a reference, never scored as fact',
     ],
     board: <PrismBoard />,
   },
@@ -401,14 +502,14 @@ const STACK_ITEMS: StackItem[] = [
     labelClass: 'text-[var(--brand-teal)]',
     headline: 'The board, paper-traded in options.',
     description:
-      'The bot trades the same signals the board publishes, in contracts rather than shares, using the strikes the contract engine picks. Fills and marks are real quotes pulled at that moment — nothing is simulated or back-filled.',
+      'The paper ledger follows the same contracts the board publishes. A new position is allowed only when the provider returns a non-delayed mark; delayed CBOE fallback quotes remain research context, not pretend fills.',
     bullets: [
       'Trades options, not shares — the same strikes the board publishes',
       // The hero prints the platform-wide rate and this board prints its own.
       // Both are true of different samples, so the page names the difference
       // rather than letting a reader find it and distrust both.
       "The win rate here is this bot's own closed-trade record, not the platform-wide rate in the hero",
-      'Marks are ~15-min delayed CBOE — a fair mark, not an execution price',
+      'Delayed marks are visible for audit but cannot open a new position',
       'No win rate until trades close. No back-filled history.',
     ],
     board: <QuantBotBoard />,
@@ -422,6 +523,12 @@ export default function Landing() {
   const [searchQuery, setSearchQuery] = useReactState('');
   const { isAuthenticated, user } = useAuth();
   const hasBetaAccess = user?.hasBetaAccess || false;
+  const canOpenTerminal = isAuthenticated && hasBetaAccess;
+
+  const handlePrimaryAction = () => {
+    if (canOpenTerminal) setLocation('/t');
+    else setWaitlistOpen(true);
+  };
 
   const handleSearch = () => {
     if (searchQuery) setLocation(`/stock/${searchQuery.toUpperCase()}`);
@@ -441,9 +548,10 @@ export default function Landing() {
 
           <nav className="hidden md:flex items-center gap-1">
             {[
-              { label: 'Trade Desk', href: '/trade-desk' },
-              { label: 'Scanner', href: '/market-scanner' },
-              { label: 'GEX', href: '/flow' },
+              { label: 'Oracle', href: '/t' },
+              { label: 'Flow', href: '/t?tab=flow' },
+              { label: 'GEX', href: '/t?tab=gex' },
+              { label: 'LEAPS', href: '/t?tab=leaps' },
             ].map((item) => (
               <Link key={item.label} href={item.href}>
                 <span className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-white hover:bg-white/5 transition-all cursor-pointer">
@@ -460,7 +568,7 @@ export default function Landing() {
             <ThemeToggle />
             {isAuthenticated ? (
               hasBetaAccess ? (
-                <Link href="/home">
+                <Link href="/t">
                   <Button size="sm" className="bg-emerald-600 hover:bg-[var(--trade-bullish)] text-white px-5">
                     Open App
                   </Button>
@@ -499,7 +607,7 @@ export default function Landing() {
             and bottom 30% — mostly void — and shipped at 91KB static. This is
             ~4KB, animates, follows the theme toggle, and honours reduced-motion.
             The product on this page is the live RotationMap to the right. */}
-        <section className="relative px-6 py-16 md:py-24 max-w-7xl mx-auto">
+        <section className="relative px-6 py-12 md:py-16 max-w-7xl mx-auto">
           <div
             aria-hidden
             className="pointer-events-none absolute left-1/2 top-0 z-0 h-full w-screen -translate-x-1/2 overflow-hidden"
@@ -535,7 +643,7 @@ export default function Landing() {
                 className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--trade-bullish)]/30 bg-[var(--trade-bullish)]/5 mb-5"
               >
                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)] animate-pulse" />
-                <span className="text-[10px] font-mono font-semibold text-[var(--trade-bullish)] uppercase tracking-wider">Quantitative Trading Platform</span>
+                <span className="text-[10px] font-mono font-semibold text-[var(--trade-bullish)] uppercase tracking-wider">QuantEdge // Market intelligence</span>
               </motion.div>
 
               <motion.h1
@@ -551,14 +659,15 @@ export default function Landing() {
                    Space Grotesk Light 300 is now loaded in index.html — without it
                    the browser would synthesize a fake light and it would look
                    smeared. */
-                className="text-5xl sm:text-6xl lg:text-[5.5rem] font-light mb-6 leading-[1.04] tracking-[-0.03em]"
+                className="text-5xl sm:text-[3.5rem] lg:text-[3.75rem] font-light mb-5 leading-[1.02] tracking-[-0.035em]"
               >
-                One terminal for{' '}
+                From market regime
+                <br />
                 {/* Ice Signal stays. The reference uses a mint green, but
                     --brand-cyan is this product's identity and its own token
                     comment defines the job: "reports, never sells". Borrow the
                     typography, not someone else's colour. */}
-                <span className="text-[var(--brand-cyan)]">options research</span>
+                <span className="text-[var(--brand-cyan)]">to the contract.</span>
               </motion.h1>
 
               <motion.p
@@ -567,10 +676,18 @@ export default function Landing() {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="text-base text-muted-foreground max-w-lg mb-8 leading-relaxed"
               >
-                {`Signals scored across ${CONVICTION_LAYER_COUNT} independent layers,`} with the levels, the contract, and the reason
-                it fired on the same screen. Every number is computed from live data — and when a number
-                is delayed or missing, it says so instead of guessing.
+                QuantEdge follows capital from regime to sector to ticker to contract, then tracks whether
+                the thesis triggered, stalled, or broke. Every score exposes what agrees, what conflicts,
+                and what must happen before entry.
               </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.26 }}
+              >
+                <HeroProcess />
+              </motion.div>
 
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
@@ -579,12 +696,12 @@ export default function Landing() {
                 className="flex items-center gap-3 mb-6"
               >
                 <ShimmerButton
-                  onClick={() => setWaitlistOpen(true)}
+                  onClick={handlePrimaryAction}
                   className="h-11 px-7 text-sm font-semibold"
                   shimmerColor="rgba(120, 198, 232, 0.3)"
                   background="linear-gradient(135deg, #3E7FA6, #78C6E8)"
                 >
-                  Start Free
+                  {canOpenTerminal ? 'Open Terminal' : 'Request Access'}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </ShimmerButton>
                 <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
@@ -601,7 +718,7 @@ export default function Landing() {
                 transition={{ delay: 0.4 }}
                 className="text-[11px] text-muted-foreground/60 mb-8"
               >
-                Free forever. No credit card required.
+                Private beta · live evidence, explicit data freshness, no fabricated fills.
               </motion.p>
 
               <motion.div
@@ -613,19 +730,14 @@ export default function Landing() {
               </motion.div>
             </div>
 
-            {/* Right — Product screenshot */}
+            {/* Right — the live Oracle market stage. */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, delay: 0.3 }}
-              className="hidden lg:block"
+              className="min-w-0"
             >
-              {/* The REAL component, live. Not a screenshot and not a diagram: the previous
-                  hero was an invented "instrument panel" I drew, and the section images
-                  below it are captures of the old amber sidebar app that no longer exists.
-                  Neither was the product. /api/sector-rotation is public, so this renders
-                  the same RotationMap the Terminal renders, against the same live data. */}
-              <RotationMap className="w-full" collapsedHeight={520} />
+              <LandingMarketStage />
             </motion.div>
           </div>
 
@@ -688,13 +800,13 @@ export default function Landing() {
           label="ORACLE"
           labelColor="text-[var(--trade-bullish)]"
           headline="A signal, and the reason it fired."
-          description={`${CONVICTION_LAYER_COUNT} independent layers score every setup — technicals, compression, sector rotation, catalysts, regime, gamma and more. Levels come from actual market structure: the stop sits under a real swing low padded by ATR, and the target is prior structure, not a round percentage. Each signal shows which layers agreed and which argued against it.`}
+          description={`${CONVICTION_LAYER_COUNT} independent layers score every setup — technicals, compression, sector rotation, catalysts, regime, gamma and more. Levels come from actual market structure: the stop sits beyond observed invalidation with an ATR buffer, and T1 remains the nearest support or resistance even when that makes the trade unattractive. Each signal shows which layers agreed and which argued against it.`}
           live={<EarlyRotationPanel />}
           screenshotAlt="Oracle board showing scored signals with levels and conviction"
           bullets={[
             `${CONVICTION_LAYER_COUNT}-layer conviction score, banded S / A / B / C`,
             "Stops from swing structure + ATR, targets at prior structure",
-            "Minimum 1.5R or the target is moved out — and it tells you it did",
+            "Poor geometry stays poor — targets are never stretched to manufacture R:R",
             "Every signal timestamped by market session, so a call fired after the close reads as stale",
           ]}
         />
@@ -769,79 +881,28 @@ export default function Landing() {
         <SectionDivider />
         </LightBand>
 
-        {/* ── Pricing ──────────────────────────────────────── */}
-        <SectionReveal className="px-6 py-16 max-w-5xl mx-auto">
-          <div className="text-center mb-8">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--brand-gold)]">PRICING</span>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mt-2 mb-2">Simple pricing, serious edge.</h2>
-            <p className="text-sm text-muted-foreground">Start free. Upgrade when you're ready.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Free */}
-            <div className="rounded-xl bg-card border border-border p-6 space-y-5">
+        {/* The product is still a private beta. Showing a polished two-tier
+            pricing table implied a commercial plan and data entitlements that
+            do not exist yet. One honest access surface is stronger. */}
+        <SectionReveal className="px-6 py-20 max-w-5xl mx-auto">
+          <div className="relative overflow-hidden rounded-2xl border border-[var(--brand-cyan)]/25 bg-card px-6 py-10 sm:px-10">
+            <BorderBeam colorFrom="#78C6E8" colorTo="#6E9E7A" size={150} duration={10} borderWidth={1.25} />
+            <div className="grid gap-8 md:grid-cols-[1.2fr_.8fr] md:items-end">
               <div>
-                <h3 className="text-lg font-bold text-foreground">Free</h3>
-                <div className="flex items-baseline gap-1 mt-1">
-                  <span className="text-3xl font-bold text-foreground font-mono">$0</span>
-                  <span className="text-muted-foreground text-sm">/month</span>
-                </div>
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--brand-cyan)]">PRIVATE BETA</span>
+                <h2 className="mt-3 max-w-2xl text-3xl font-light leading-tight tracking-[-0.025em] text-foreground sm:text-4xl">
+                  Use the live terminal. Help shape what becomes paid.
+                </h2>
+                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                  Beta access is free while signal validation, live-data coverage and the execution ledger are being measured. Pro pricing will be published only after the entitlements are real.
+                </p>
               </div>
-              <ul className="space-y-2 text-sm">
-                {[
-                  `${CONVICTION_LAYER_COUNT}-layer conviction scoring`,
-                  "Live market data (options marks ~15-min delayed)",
-                  "5 AI trade ideas per day",
-                  "Basic charting tools",
-                  "Market scanner access",
-                  "Community Discord",
-                ].map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-foreground/80">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Button onClick={() => setWaitlistOpen(true)} className="w-full bg-muted text-foreground hover:bg-muted/80">
-                Get Started Free
-              </Button>
-            </div>
-
-            {/* Pro */}
-            <div className="rounded-xl bg-card border-2 border-[var(--brand-teal)]/40 p-6 space-y-5 relative overflow-hidden">
-              <BorderBeam colorFrom="#78C6E8" colorTo="#6E9E7A" size={120} duration={8} borderWidth={1.5} />
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">Pro</h3>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-3xl font-bold text-foreground font-mono">$29</span>
-                    <span className="text-muted-foreground text-sm">/month</span>
-                  </div>
-                </div>
-                <Badge className="bg-[var(--brand-teal)]/15 text-[var(--brand-teal)] border border-[var(--brand-teal)]/30 text-[10px] font-semibold">
-                  COMING SOON
-                </Badge>
+              <div className="flex flex-col gap-3 md:items-end">
+                <Button onClick={handlePrimaryAction} className="h-11 w-full bg-[var(--brand-cyan)] px-7 text-sm font-bold text-slate-950 hover:bg-[var(--brand-cyan)]/90 md:w-auto">
+                  {canOpenTerminal ? 'Open Terminal' : 'Request beta access'}
+                </Button>
+                <span className="font-mono text-[10px] text-muted-foreground">No card · data delays labelled</span>
               </div>
-              <ul className="space-y-2 text-sm">
-                {[
-                  "Everything in Free",
-                  "Unlimited AI trade ideas",
-                  "Options flow & dark pool data",
-                  "TradingView webhook integration",
-                  "GEX Terminal & Index Mode",
-                  "Priority Discord channel",
-                  "Custom watchlist alerts",
-                  "Export & API access",
-                ].map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-foreground/80">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-teal)]" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Button onClick={() => setWaitlistOpen(true)} className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white border-0">
-                Join Waitlist
-              </Button>
             </div>
           </div>
         </SectionReveal>
@@ -850,18 +911,18 @@ export default function Landing() {
 
         {/* ── Final CTA ────────────────────────────────────── */}
         <SectionReveal className="px-6 py-20 max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-foreground mb-4">Ready to trade smarter?</h2>
+          <h2 className="text-3xl font-light tracking-[-0.025em] text-foreground mb-4">See the market, then the setup, then the contract.</h2>
           <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-            Join traders using quantitative signals to find high-conviction setups.
+            Open the same live terminal shown on this page. No mock dashboard and no hidden methodology.
           </p>
           <div className="flex items-center justify-center gap-4">
             <ShimmerButton
-              onClick={() => setWaitlistOpen(true)}
+              onClick={handlePrimaryAction}
               shimmerColor="#6E9E7A"
               background="rgba(16, 185, 129, 0.15)"
               className="px-8 py-3 text-base font-bold text-white"
             >
-              Get Started Free
+              Open QuantEdge
               <ArrowRight className="w-4 h-4 ml-2 inline-block" />
             </ShimmerButton>
             <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer">
