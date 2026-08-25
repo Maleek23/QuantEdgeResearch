@@ -652,7 +652,10 @@ export const optionsFlowHistory = pgTable("options_flow_history", {
   delta: real("delta"),
   
   underlyingPrice: real("underlying_price"),
-  sentiment: text("sentiment").$type<'bullish' | 'bearish' | 'neutral'>().notNull(),
+  // 'unknown' is a real, expected value — a chain snapshot cannot distinguish a
+  // buyer from a seller, and contract type alone gets the sign wrong on both
+  // selling cases. Stored as text, so widening the union needs no migration.
+  sentiment: text("sentiment").$type<'bullish' | 'bearish' | 'neutral' | 'unknown'>().notNull(),
   flowType: text("flow_type").$type<'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal'>().notNull(),
   unusualScore: real("unusual_score").notNull(),
   

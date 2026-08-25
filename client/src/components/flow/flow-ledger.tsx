@@ -45,7 +45,8 @@ export function FlowLedger({
               const key = `${print.symbol}-${print.optionType}-${print.strikePrice}-${print.expirationDate}-${index}`;
               const open = expanded === key;
               const bull = print.sentiment === 'bullish';
-              const tone = print.sentiment === 'neutral' ? 'var(--brand-cyan)' : bull ? 'var(--trade-bullish)' : 'var(--trade-bearish)';
+              const measured = print.sentiment === 'bullish' || print.sentiment === 'bearish';
+              const tone = !measured ? 'var(--brand-cyan)' : bull ? 'var(--trade-bullish)' : 'var(--trade-bearish)';
               const volOi = print.volumeOIRatio ?? (print.openInterest ? print.volume / Math.max(1, print.openInterest) : null);
               const observed = print.detectedAt ? new Date(print.detectedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—';
               return (
@@ -57,7 +58,7 @@ export function FlowLedger({
                     <td className="px-3 py-2 text-right text-muted-foreground/50">{index + 1}</td>
                     <td className="px-3 py-2"><button type="button" onClick={(event) => { event.stopPropagation(); onSelect?.(print.symbol); }} className="text-[12px] font-bold tracking-wide text-foreground hover:text-[var(--brand-cyan)]">{print.symbol}</button></td>
                     <td className="px-3 py-2"><span className="font-semibold" style={{ color: tone }}>${print.strikePrice}{print.optionType === 'call' ? 'C' : 'P'}</span><span className="ml-2 text-muted-foreground">{expiry(print.expirationDate)}</span></td>
-                    <td className="px-3 py-2 font-semibold" style={{ color: tone }}>{print.sentiment === 'bullish' ? '▲ BULL' : print.sentiment === 'bearish' ? '▼ BEAR' : '◆ NEUTRAL'}</td>
+                    <td className="px-3 py-2 font-semibold" style={{ color: tone }}>{print.sentiment === 'bullish' ? '▲ BULL' : print.sentiment === 'bearish' ? '▼ BEAR' : print.sentiment === 'unknown' ? '· UNVERIFIED' : '◆ NEUTRAL'}</td>
                     <td className="px-3 py-2"><div className="flex items-center gap-1.5">{score.isWhale && <Tag tone="gold">WHALE</Tag>}{score.isSweep && <Tag tone="cyan">SWEEP</Tag>}{score.isRepeat && <Tag tone="bull">REPEAT</Tag>}{!score.isWhale && !score.isSweep && !score.isRepeat && <span className="uppercase text-muted-foreground">{print.flowType.replace('_', ' ')}</span>}</div></td>
                     <td className="px-3 py-2"><div className="flex items-center gap-2"><div className="h-1.5 w-16 overflow-hidden rounded-full bg-foreground/[0.08]"><div className="h-full rounded-full bg-gradient-to-r from-[var(--brand-cyan)] to-[var(--trade-bullish)]" style={{ width: `${score.score}%` }} /></div><b className="text-[12px] text-foreground">{score.score}</b><span className="text-muted-foreground">{score.tier}</span></div></td>
                     <td className="px-3 py-2 text-right font-semibold text-foreground">{money(score.totalPremium)}</td>

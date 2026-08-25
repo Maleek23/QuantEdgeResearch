@@ -55,7 +55,10 @@ function toPrint(t: any): FlowPrint | null {
     impliedVolatility: t.impliedVolatility ?? t.implied_volatility ?? null,
     delta: t.delta ?? null,
     underlyingPrice: t.underlyingPrice ?? t.underlying_price ?? t.spot ?? null,
-    sentiment: (t.sentiment ?? (optionType === 'call' ? 'bullish' : 'bearish')) as FlowPrint['sentiment'],
+    // No fallback. This used to default to call->bullish / put->bearish, which made
+    // the overview's "bullish vs bearish premium" nothing more than call vs put
+    // premium wearing a directional label. Absent a measured bias, say so.
+    sentiment: (t.sentiment ?? 'unknown') as FlowPrint['sentiment'],
     flowType: (t.flowType ?? t.flow_type ?? 'normal') as FlowPrint['flowType'],
     unusualScore: t.unusualScore ?? t.unusual_score ?? null,
     isLotto: t.isLotto ?? t.is_lotto ?? null,
@@ -109,17 +112,28 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
     return true;
   }), [scored, dir, kind, minScore, minPrem, whaleOnly, q]);
 
-  // market overview — bullish vs bearish premium for the session
+  // Session premium split.
+  //
+  // `bull`/`bear` only accumulate premium whose direction was actually MEASURED
+  // (sentiment set from the tape). Snapshot-sourced prints land in `unclassified`
+  // instead of being silently counted as conviction — a $1M call print that was
+  // SOLD is bearish, and nothing in a chain snapshot can tell us which it was.
+  // callPrem/putPrem are reported separately and honestly as what they are.
   const overview = useMemo(() => {
-    let bull = 0, bear = 0, whales = 0, sweeps = 0;
+    let bull = 0, bear = 0, unclassified = 0, callPrem = 0, putPrem = 0, whales = 0, sweeps = 0;
     for (const { print: p, score: s } of scored) {
       if (p.sentiment === 'bullish') bull += s.totalPremium;
       else if (p.sentiment === 'bearish') bear += s.totalPremium;
+      else if (p.sentiment === 'unknown') unclassified += s.totalPremium;
+      if (p.optionType === 'call') callPrem += s.totalPremium; else putPrem += s.totalPremium;
       if (s.isWhale) whales++;
       if (s.isSweep) sweeps++;
     }
     const net = bull - bear;
-    return { bull, bear, net, whales, sweeps, total: scored.length };
+    const measuredPct = (bull + bear + unclassified) > 0
+      ? (bull + bear) / (bull + bear + unclassified) * 100
+      : 0;
+    return { bull, bear, net, unclassified, callPrem, putPrem, measuredPct, whales, sweeps, total: scored.length };
   }, [scored]);
 
   // Honest freshness: say when the newest print actually landed, never imply "live".
@@ -166,18 +180,28 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
           </div>
         </div>
         <div className="grid grid-cols-2 gap-px bg-border/20 sm:grid-cols-5">
-          <Stat label="Bullish premium" value={money(overview.bull)} color={BULL} />
-          <Stat label="Bearish premium" value={money(overview.bear)} color={BEAR} />
-          <Stat label="Net" value={`${overview.net >= 0 ? '+' : '−'}${money(Math.abs(overview.net))}`} color={overview.net >= 0 ? BULL : BEAR} />
+          {/* Labelled as what they measure. These were "Bullish premium" / "Bearish
+              premium", but with no execution side the split is call vs put and
+              nothing more — the disclaimer below already said so. */}
+          <Stat label="Call premium" value={money(overview.callPrem)} color={BULL} />
+          <Stat label="Put premium" value={money(overview.putPrem)} color={BEAR} />
+          <Stat
+            label="Direction measured"
+            value={`${overview.measuredPct.toFixed(0)}%`}
+            color={overview.measuredPct > 0 ? CYAN : 'var(--muted-foreground)'}
+          />
           <Stat label="≥$1M premium" value={String(overview.whales)} color="#e0a458" />
           <Stat label="Sweep-like" value={String(overview.sweeps)} color={CYAN} />
         </div>
         {overview.total > 0 && (
           <div className="border-t border-border/30 px-4 py-2">
             <p className="text-meta leading-relaxed text-foreground/75">
-              {overview.net >= 0 ? 'Call premium leads' : 'Put premium leads'} by{' '}
-              <b style={{ color: overview.net >= 0 ? BULL : BEAR }}>{money(Math.abs(overview.net))}</b>
-              {' '}across {overview.total} contract observations. This feed infers bias from chain activity; it does not observe execution side, opening/closing intent, or true OPRA sweeps.
+              {overview.callPrem >= overview.putPrem ? 'Call premium leads' : 'Put premium leads'} by{' '}
+              <b style={{ color: overview.callPrem >= overview.putPrem ? BULL : BEAR }}>{money(Math.abs(overview.callPrem - overview.putPrem))}</b>
+              {' '}across {overview.total} contract observations.{' '}
+              {overview.measuredPct === 0
+                ? 'Direction is NOT measured on this feed: a chain snapshot cannot tell a buyer from a seller, and selling calls is bearish while selling puts is bullish. Call-vs-put premium is activity, not conviction — do not read it as a directional signal.'
+                : 'Only prints whose execution side was observed on the tape count toward a directional read; the rest are activity, not conviction.'}
             </p>
           </div>
         )}
@@ -185,8 +209,13 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
 
       {/* ── filters ── */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-card-border bg-card px-3 py-2">
+        {/* With no measured execution side there is nothing to filter BULL/BEAR on —
+            offering the chips anyway just returns an empty tape and reads as broken.
+            They come back automatically once a tape source sets a real bias. */}
         <Seg label="Dir" value={dir} onChange={setDir}
-             options={[['all', 'ALL'], ['bullish', 'BULL'], ['bearish', 'BEAR']]} />
+             options={overview.measuredPct > 0
+               ? [['all', 'ALL'], ['bullish', 'BULL'], ['bearish', 'BEAR']]
+               : [['all', 'ALL']]} />
         <Seg label="Pattern" value={kind} onChange={setKind}
              options={[['all', 'ALL'], ['sweep', 'SWEEP-LIKE'], ['block', 'BLOCK-LIKE'], ['unusual_volume', 'UNUSUAL']]} />
         <Seg label="Score" value={String(minScore)} onChange={(v) => setMinScore(Number(v))}

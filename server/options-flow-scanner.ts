@@ -91,7 +91,14 @@ interface OptionsFlow {
   premium: number;
   impliedVolatility: number;
   delta: number;
-  sentiment: 'bullish' | 'bearish' | 'neutral';
+  /**
+   * Directional read. 'unknown' is a first-class answer: from a chain snapshot we
+   * cannot tell a buyer from a seller, and SELLING calls is bearish while SELLING
+   * puts is bullish — so contract type alone gets the sign wrong half the time.
+   */
+  sentiment: 'bullish' | 'bearish' | 'neutral' | 'unknown';
+  /** How `sentiment` was arrived at, so no consumer has to guess how much to trust it. */
+  biasBasis: 'tape' | 'none';
   flowType: 'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal';
   unusualScore: number;
   underlyingPrice: number | null;
@@ -371,15 +378,20 @@ function determineFlowType(option: any, score: number): OptionsFlow['flowType'] 
 /**
  * Determine sentiment
  */
-function determineSentiment(option: any): OptionsFlow['sentiment'] {
-  const delta = option.greeks?.delta || 0;
-  const optionType = option.option_type;
-  
-  // Calls with positive delta = bullish
-  // Puts with negative delta = bearish
-  if (optionType === 'call' && delta > 0.3) return 'bullish';
-  if (optionType === 'put' && delta < -0.3) return 'bearish';
-  return 'neutral';
+function determineSentiment(_option: any): OptionsFlow['sentiment'] {
+  // Deliberately NOT derived from delta or call/put.
+  //
+  // The old rule was `call && delta > 0.3 -> bullish`, which is really just "is this
+  // a call" — every near-the-money call clears 0.3 by definition. It says nothing
+  // about who was aggressive, and it is backwards on the two selling cases:
+  //   selling calls  = bearish  (was graded bullish)
+  //   selling puts   = bullish  (was graded bearish)
+  //
+  // Direction requires the trade price against the NBBO at execution. A chain
+  // snapshot has neither, so the honest answer is that we do not know. When a
+  // tick-level source is wired in, classify aggression there and set biasBasis
+  // to 'tape'.
+  return 'unknown';
 }
 
 /**
@@ -418,6 +430,7 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
             impliedVolatility: option.greeks?.mid_iv || 0,
             delta: option.greeks?.delta || 0,
             sentiment: determineSentiment(option),
+            biasBasis: 'none',
             flowType: determineFlowType(option, score),
             unusualScore: score,
             underlyingPrice: spot,
@@ -920,6 +933,7 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
               impliedVolatility: option.greeks?.mid_iv || 0,
               delta: option.greeks?.delta || 0,
               sentiment: determineSentiment(option),
+              biasBasis: 'none',
               flowType: determineFlowType(option, score),
               unusualScore: score,
               underlyingPrice: spot,

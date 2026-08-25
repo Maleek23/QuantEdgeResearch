@@ -28,7 +28,8 @@ export interface FlowPrint {
   impliedVolatility?: number | null;
   delta?: number | null;
   underlyingPrice?: number | null;
-  sentiment: 'bullish' | 'bearish' | 'neutral';
+  /** 'unknown' when direction could not be measured from the tape — see biasBasis. */
+  sentiment: 'bullish' | 'bearish' | 'neutral' | 'unknown';
   flowType: 'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal';
   unusualScore?: number | null;
   isLotto?: boolean | null;

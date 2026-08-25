@@ -44,7 +44,10 @@ export function FlowCard({
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion();
   const bullish = print.sentiment === 'bullish';
-  const tone = print.sentiment === 'neutral' ? CYAN : bullish ? BULL : BEAR;
+  // 'unknown' must not fall through to BEAR. An unmeasured bias is not a bearish
+  // one — colouring it red would be the same lie in the opposite direction.
+  const measured = print.sentiment === 'bullish' || print.sentiment === 'bearish';
+  const tone = !measured ? CYAN : bullish ? BULL : BEAR;
 
   return (
     <motion.div
@@ -117,7 +120,11 @@ export function FlowCard({
           label={score.pctOtm != null && score.pctOtm < 0 ? 'In the money' : 'Out the money'}
           value={score.pctOtm != null ? `${score.pctOtm >= 0 ? '' : ''}${score.pctOtm.toFixed(1)}%` : '—'}
         />
-        <Cell label="Inferred bias" value={print.sentiment.toUpperCase()} color={tone} />
+        <Cell
+          label={print.sentiment === 'unknown' ? 'Bias' : 'Measured bias'}
+          value={print.sentiment === 'unknown' ? 'NOT MEASURABLE' : print.sentiment.toUpperCase()}
+          color={tone}
+        />
       </div>
 
       {/* score breakdown — why it ranked here */}
