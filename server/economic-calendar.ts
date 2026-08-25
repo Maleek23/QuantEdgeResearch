@@ -51,10 +51,77 @@ const ECONOMIC_EVENTS_2026: EconomicEvent[] = [
  * rather than a hand-maintained version number.
  */
 export interface CalendarCoverage {
-  source: 'curated';
+  source: 'curated' | 'finnhub';
   current: boolean;
   firstDate: string | null;
   lastDate: string | null;
+}
+
+type FinnhubCalendarRow = {
+  country?: string;
+  date?: string;
+  time?: string;
+  event?: string;
+  impact?: string;
+  actual?: number | string | null;
+  estimate?: number | string | null;
+  prev?: number | string | null;
+};
+
+let liveCache: { expiresAt: number; events: EconomicEvent[] } | null = null;
+
+/**
+ * Live-provider-first calendar. The previous service silently stopped at
+ * 2026-04-10, yet downstream screens still looked like a functioning calendar.
+ * Finnhub's economic calendar is used when the account has access; otherwise we
+ * return no events and let the UI say the source is unavailable. We never roll
+ * old dates forward or manufacture a recurring release date.
+ */
+export async function getVerifiedUpcomingEvents(days = 7): Promise<{
+  events: EconomicEvent[];
+  coverage: CalendarCoverage;
+}> {
+  const now = new Date();
+  const curatedCoverage = getCalendarCoverage(now);
+  if (curatedCoverage.current) {
+    return { events: getUpcomingEvents(days), coverage: curatedCoverage };
+  }
+
+  if (liveCache && liveCache.expiresAt > Date.now()) {
+    return {
+      events: liveCache.events,
+      coverage: { source: 'finnhub', current: liveCache.events.length > 0, firstDate: liveCache.events[0]?.date ?? null, lastDate: liveCache.events.at(-1)?.date ?? null },
+    };
+  }
+
+  const key = process.env.FINNHUB_API_KEY?.trim();
+  if (!key) return { events: [], coverage: curatedCoverage };
+
+  const date = (value: Date) => value.toISOString().slice(0, 10);
+  const end = new Date(now.getTime() + days * 86_400_000);
+  try {
+    const response = await fetch(`https://finnhub.io/api/v1/calendar/economic?from=${date(now)}&to=${date(end)}&token=${encodeURIComponent(key)}`);
+    if (!response.ok) {
+      logger.warn(`[ECON-CAL] Finnhub calendar unavailable (${response.status}); stale curated dates will not be shown`);
+      liveCache = { expiresAt: Date.now() + 15 * 60_000, events: [] };
+      return { events: [], coverage: curatedCoverage };
+    }
+    const payload = await response.json() as { economicCalendar?: FinnhubCalendarRow[] };
+    const events = (payload.economicCalendar ?? [])
+      .filter((row) => row.country === 'US' && row.date && row.event)
+      .map((row): EconomicEvent => {
+        const impact = String(row.impact ?? '').toLowerCase();
+        const importance: EconomicEvent['importance'] = impact.includes('high') ? 'high' : impact.includes('medium') ? 'medium' : 'low';
+        const facts = [row.estimate != null ? `Forecast ${row.estimate}` : null, row.prev != null ? `Previous ${row.prev}` : null].filter(Boolean).join(' · ');
+        return { name: row.event!, date: row.date!.slice(0, 10), time: row.time ? `${row.time} ET` : 'Time TBD', importance, description: facts || 'Verified US economic release', tradingImpact: facts || undefined };
+      })
+      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+    liveCache = { expiresAt: Date.now() + 15 * 60_000, events };
+    return { events, coverage: { source: 'finnhub', current: events.length > 0, firstDate: events[0]?.date ?? null, lastDate: events.at(-1)?.date ?? null } };
+  } catch (error) {
+    logger.warn(`[ECON-CAL] live provider failed: ${(error as Error).message}`);
+    return { events: [], coverage: curatedCoverage };
+  }
 }
 
 export function getCalendarCoverage(now: Date = new Date()): CalendarCoverage {

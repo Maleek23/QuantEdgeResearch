@@ -34,6 +34,8 @@ interface ExtendedFeed {
   session?: 'pre' | 'regular' | 'post' | 'closed';
   isStale?: boolean;
   asOf?: string | null;
+  gainers?: Array<{ symbol: string; changePct: number; asOf: string; isCurrent: boolean }>;
+  losers?: Array<{ symbol: string; changePct: number; asOf: string; isCurrent: boolean }>;
 }
 
 const signed = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
@@ -78,12 +80,14 @@ export function OracleMarketField({
   collapsedHeight,
   expanded = false,
   onFocus,
+  onSelectSymbol,
 }: {
   className?: string;
   collapsedHeight?: number;
   expanded?: boolean;
   /** Opens this reading in the screen-sized Oracle workbench. */
   onFocus?: () => void;
+  onSelectSymbol?: (symbol: string) => void;
 }) {
   const reduceMotion = useReducedMotion();
   const { data } = useQuery<RotationFeed>({
@@ -190,6 +194,29 @@ export function OracleMarketField({
         )}
 
         <MarketStream className="mt-3" />
+
+        {extendedCurrent && ((extended?.gainers?.length ?? 0) > 0 || (extended?.losers?.length ?? 0) > 0) && (
+          <div className="mt-3 border-y border-border/35 py-2">
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground/60">
+              <span>Pre-market leaders</span>
+              <span className="text-[var(--brand-cyan)]">live tape · not signals</span>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {[...(extended?.gainers ?? []).slice(0, 5), ...(extended?.losers ?? []).slice(0, 3)].map((quote) => (
+                <button
+                  type="button"
+                  key={quote.symbol}
+                  onClick={() => onSelectSymbol?.(quote.symbol)}
+                  className="group flex shrink-0 items-center gap-2 border border-border/45 bg-foreground/[0.025] px-2 py-1.5 font-mono transition-colors hover:border-[var(--brand-cyan)]/55 hover:bg-[var(--brand-cyan)]/[0.06]"
+                  title={`${quote.symbol} ${signed(quote.changePct)} pre-market · click to inspect`}
+                >
+                  <span className="text-[10px] font-bold tracking-[0.08em] text-foreground">{quote.symbol}</span>
+                  <span className="text-[10px] font-semibold tabular-nums" style={{ color: quote.changePct >= 0 ? TC.bull : TC.bear }}>{signed(quote.changePct)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-3 border-t border-border/35 pt-3">
           <div className="mb-2 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em]">

@@ -69,7 +69,10 @@ async function asset(symbol: 'BTC' | 'ETH', name: string): Promise<CryptoPulseAs
     symbol,
     name,
     price: quote.currentPrice,
-    change24h: quote.changePercent,
+    // Some crypto quote fallbacks return a real spot with a zeroed change field.
+    // A literal 0.00% beside a moving 24/7 asset is worse than missing data, so
+    // derive the move from the verified daily history when the quote omits it.
+    change24h: quote.changePercent !== 0 ? quote.changePercent : (percentFrom(closes, 1) ?? 0),
     high24h: quote.high24h ?? null,
     low24h: quote.low24h ?? null,
     rsi14d: rsi(closes),

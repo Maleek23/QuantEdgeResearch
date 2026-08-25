@@ -27,6 +27,7 @@ import { ScrollStack, type StackItem } from '@/components/landing/scroll-stack';
 import { LayerFamilies } from '@/components/landing/layer-families';
 import { GapShowcase } from '@/components/landing/gap-showcase';
 import { ToolCards } from '@/components/landing/tool-cards';
+import { CryptoMarketShowcase } from '@/components/landing/crypto-market-showcase';
 import { RepeatBuyers } from '@/components/flow/repeat-buyers';
 import { PrismBoard } from '@/components/prism/prism-board';
 import { QuantBotBoard } from '@/components/bot/quant-bot-board';
@@ -781,6 +782,8 @@ export default function Landing() {
             a real series and this symbol's own gap history — see gap-showcase.tsx
             for why the data matters more than the curve. */}
         <GapShowcase />
+
+        <CryptoMarketShowcase />
 
         {/* Was a 4x4 grid of 16 identical chips. Sixteen same-sized tiles give the
             reader no order to read in and no shape to hold on to — the fix was

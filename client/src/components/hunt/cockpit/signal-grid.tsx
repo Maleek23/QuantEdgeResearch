@@ -121,7 +121,9 @@ export function SignalGrid({
                     {g.statusLabel}
                   </span>
                   <span className="text-muted-foreground/70">
-                    {g.horizonUsedPct.toFixed(0)}% of {g.horizonDays}d used
+                    {p.optionDte != null || p.expiryDate
+                      ? `${g.horizonUsedPct.toFixed(0)}% of ${g.horizonDays}d used`
+                      : 'timing pending contract'}
                   </span>
                 </div>
 

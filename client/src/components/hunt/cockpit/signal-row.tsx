@@ -153,7 +153,9 @@ export function SignalRow({
               <span className="text-muted-foreground/70">T1 after entry</span>
               <span className="tabular-nums text-muted-foreground/70">R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}</span>
               <span className="tabular-nums" style={{ color: g.horizonUsedPct >= 80 ? TC.bear : g.horizonUsedPct >= 50 ? TC.warn : TC.muted }}>
-                {g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/{g.horizonDays}d plan
+                {pick.optionDte != null || pick.expiryDate
+                  ? `${g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/${g.horizonDays}d plan`
+                  : 'timing pending'}
               </span>
             </div>
           </>
@@ -192,7 +194,9 @@ export function SignalRow({
               <span className="tabular-nums text-muted-foreground/70">{g.progressPct.toFixed(0)}% to target</span>
               <span className="tabular-nums text-muted-foreground/70">R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}</span>
               <span className="tabular-nums" style={{ color: g.horizonUsedPct >= 80 ? TC.bear : g.horizonUsedPct >= 50 ? TC.warn : TC.muted }}>
-                {g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/{g.horizonDays}d
+                {pick.optionDte != null || pick.expiryDate
+                  ? `${g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/${g.horizonDays}d`
+                  : 'timing pending'}
                 {g.drawdownPct > 0.05 && <span className="ml-1">· {g.drawdownPct.toFixed(1)}% DD</span>}
               </span>
             </div>

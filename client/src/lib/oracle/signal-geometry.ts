@@ -25,6 +25,10 @@ export interface GeomInput {
   live: number;
   riskRewardRatio?: number | null;
   holdingPeriod?: string | null;
+  /** Contract time remaining when the signal was published. */
+  optionDte?: number | null;
+  /** Absolute expiry lets the UI recompute time remaining after publication. */
+  expiryDate?: string | null;
   generatedAt?: string | null;
   convictionScore?: number | null;
   /** Derived from the signal's execution ledger, never inferred from spot. */
@@ -60,6 +64,7 @@ export interface SignalGeometry {
   pnlPct: number;               // direction-aware, from entry
   daysHeld: number;
   horizonDays: number;
+  horizonBasis: string;
   horizonUsedPct: number;
   drawdownPct: number;          // adverse excursion from entry (0 if none)
   status: SignalStatus;
@@ -71,13 +76,36 @@ export interface SignalGeometry {
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 
 /** Max days the thesis is given, by holding period. */
-export function horizonDaysFor(holdingPeriod?: string | null): number {
-  switch ((holdingPeriod || '').toLowerCase()) {
-    case 'day': return 1;
-    case 'swing': return 5;
-    case 'week-ending': return 5;
-    case 'position': return 30;
-    default: return 10;
+export function horizonDaysFor(
+  holdingPeriod?: string | null,
+  optionDte?: number | null,
+  expiryDate?: string | null,
+): { days: number; basis: string } {
+  const remainingDte = expiryDate
+    ? Math.max(0, Math.ceil((Date.parse(expiryDate) - Date.now()) / 86_400_000))
+    : optionDte ?? null;
+  const period = (holdingPeriod || '').toLowerCase();
+
+  switch (period) {
+    case 'day': return { days: 1, basis: 'intraday plan' };
+    case 'week-ending': return { days: Math.max(1, Math.min(5, remainingDte ?? 5)), basis: remainingDte != null ? `${remainingDte}DTE contract` : 'week-ending plan' };
+    case 'swing': {
+      // A swing plan should exit with time still left on the option. Half the
+      // available DTE (capped at 15 sessions) creates a real management window
+      // without pretending every 10DTE and 25DTE contract is the same 5-day bet.
+      const days = remainingDte != null ? Math.max(3, Math.min(15, Math.round(remainingDte * 0.5))) : 5;
+      return { days, basis: remainingDte != null ? `${remainingDte}DTE contract` : 'setup default · no contract' };
+    }
+    case 'position': {
+      const days = remainingDte != null ? Math.max(20, Math.min(120, Math.round(remainingDte * 0.65))) : 30;
+      return { days, basis: remainingDte != null ? `${remainingDte}DTE contract` : 'position plan' };
+    }
+    case 'leap':
+    case 'leaps': {
+      const days = remainingDte != null ? Math.max(90, Math.min(365, Math.round(remainingDte * 0.65))) : 180;
+      return { days, basis: remainingDte != null ? `${remainingDte}DTE contract` : 'LEAPS plan' };
+    }
+    default: return { days: remainingDte != null ? Math.max(3, Math.min(30, Math.round(remainingDte * 0.5))) : 10, basis: remainingDte != null ? `${remainingDte}DTE contract` : 'unclassified setup' };
   }
 }
 
@@ -120,7 +148,8 @@ export function computeGeometry(i: GeomInput): SignalGeometry {
   // time
   const started = i.generatedAt ? Date.parse(i.generatedAt) : NaN;
   const daysHeld = Number.isNaN(started) ? 0 : Math.max(0, (Date.now() - started) / 86_400_000);
-  const horizonDays = horizonDaysFor(i.holdingPeriod);
+  const horizonPlan = horizonDaysFor(i.holdingPeriod, i.optionDte, i.expiryDate);
+  const horizonDays = horizonPlan.days;
   const horizonUsedPct = clamp((daysHeld / horizonDays) * 100);
 
   // adverse excursion: how far it went against us from entry
@@ -178,7 +207,7 @@ export function computeGeometry(i: GeomInput): SignalGeometry {
 
   return {
     risk, reward, rr, t2, levels, progressPct, pnlPct,
-    daysHeld, horizonDays, horizonUsedPct, drawdownPct,
+    daysHeld, horizonDays, horizonBasis: horizonPlan.basis, horizonUsedPct, drawdownPct,
     status, statusLabel, components, plan,
   };
 }

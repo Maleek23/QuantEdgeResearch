@@ -166,10 +166,29 @@ export const PRECIOUS_METALS_TIER = [
   'MUX', 'HL', 'MTA', 'HYMC', 'GAU', 'THM', 'AG', 'CDE',
 ] as const;
 
+// OIL COMPLEX — crude benchmarks, liquid sector proxies and the public
+// companies through which an options trader can express the thesis.
+//
+// CL/BZ futures are intentionally not placed in APPROVED_TICKERS: this set is
+// consumed by equity/options scanners. Universal search resolves those futures
+// separately, while these names receive the platform's normal evidence gates.
+// Leveraged/path-dependent products (UCO, SCO, GUSH, DRIP) also stay out of the
+// core universe; flow can observe them, but Oracle should not grade them as if
+// they were ordinary swing vehicles.
+export const OIL_COMPLEX_TIER = [
+  // Tradable crude and industry proxies
+  'USO', 'BNO', 'XLE', 'XOP', 'OIH',
+  // Integrated majors and exploration / production
+  'XOM', 'CVX', 'COP', 'OXY', 'EOG', 'FANG', 'DVN',
+  // Oilfield services and refiners
+  'SLB', 'HAL', 'VLO', 'MPC', 'PSX',
+] as const;
+
 export const APPROVED_TICKERS: Set<string> = new Set<string>([
   ...MEGA_CAP_TIER,
   ...S_TIER, ...A_TIER, ...INDEX_TICKERS, ...CRYPTO_TICKERS, ...SECONDARY,
   ...SMALL_ACCOUNT_TIER, ...HEALTHCARE_TIER, ...PRECIOUS_METALS_TIER,
+  ...OIL_COMPLEX_TIER,
 ]);
 
 // Skip list: proven money losers
@@ -212,6 +231,9 @@ export function getTier(symbol: string): 'MEGA' | 'S' | 'A' | 'INDEX' | 'SECONDA
   // Healthcare names ride the SECONDARY tier for scoring (modest base bonus);
   // their conviction comes from sector rotation, not a user-validated edge tier.
   if ((HEALTHCARE_TIER as readonly string[]).includes(s)) return 'SECONDARY';
+  // Oil coverage is a market-complex lane, not a historical edge tier. Its
+  // conviction must come from price, crude, sector, macro and catalyst data.
+  if ((OIL_COMPLEX_TIER as readonly string[]).includes(s)) return 'SECONDARY';
   return null;
 }
 
@@ -278,6 +300,11 @@ export const SECTOR_MAP: Record<string, Sector> = {
 
   // Energy / mining
   MARA: 'energy', BE: 'energy', FCEL: 'energy', COPX: 'other',
+  // Oil complex — crude proxies, producers, services and refiners
+  USO: 'energy', BNO: 'energy', XLE: 'energy', XOP: 'energy', OIH: 'energy',
+  XOM: 'energy', CVX: 'energy', COP: 'energy', OXY: 'energy', EOG: 'energy',
+  FANG: 'energy', DVN: 'energy', SLB: 'energy', HAL: 'energy', VLO: 'energy',
+  MPC: 'energy', PSX: 'energy',
 
   // Index ETFs
   SPY: 'index', QQQ: 'index', IWM: 'index', XSP: 'index', DIA: 'index',

@@ -122,7 +122,8 @@ export function detectAlerts(picks: ConvictionPick[], prefs: AlertPrefs): AlertE
     const g = computeGeometry({
       direction: p.direction, entryPrice: p.entryPrice, targetPrice: p.targetPrice,
       stopLoss: p.stopLoss, live, riskRewardRatio: p.riskRewardRatio,
-      holdingPeriod: p.holdingPeriod, generatedAt: p.generatedAt, convictionScore: p.convictionScore,
+      holdingPeriod: p.holdingPeriod, optionDte: p.optionDte, expiryDate: p.expiryDate,
+      generatedAt: p.generatedAt, convictionScore: p.convictionScore,
     });
     const prev = seen[p.ideaId];
 

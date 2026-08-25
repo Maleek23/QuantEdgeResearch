@@ -44,6 +44,7 @@ export function MarketStream({ className }: { className?: string }) {
   const quotes = [
     ['ES', data?.prices?.futures?.ES],
     ['NQ', data?.prices?.futures?.NQ],
+    ['CL', data?.prices?.futures?.CL],
     ['BTC', data?.prices?.crypto?.BTC],
     ['ETH', data?.prices?.crypto?.ETH],
   ] as const;
@@ -61,9 +62,9 @@ export function MarketStream({ className }: { className?: string }) {
           </span>
           Overnight stream
         </span>
-        <span className="tabular-nums text-muted-foreground/55">{active}/4 fresh</span>
+        <span className="tabular-nums text-muted-foreground/55">{active}/{quotes.length} fresh</span>
       </div>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         {quotes.map(([symbol, quote]) => {
           const fresh = quote && quote.ageSeconds <= 30;
           return (

@@ -2376,9 +2376,39 @@ bandFor(p.convictionScore);
     /* calendar unavailable — no dampening */
   }
 
+  /**
+   * ACTIVE-BOOK DIRECTION CONFLICTS
+   *
+   * Separate scanners can legitimately notice opposite possibilities in one
+   * ticker (for example: an intact bear flag now, then a gap-fill reversal
+   * later). They are not, however, two simultaneous active trades when they
+   * share the same holding horizon. The old symbol+direction dedupe preserved
+   * both and made the Oracle board say LONG and SHORT at once.
+   *
+   * Keep one direction per symbol+horizon: the stronger final evidence score.
+   * A future reversal-state model can retain the loser as a developing thesis;
+   * until then, presenting it as an equal active signal is less truthful than
+   * omitting it from this execution board. Different horizons remain separate
+   * so a short-term hedge can coexist with a genuine long-term position thesis.
+   */
+  const horizonWinners = new Map<string, ConvictionPick>();
+  for (const pick of deduped) {
+    const horizon = String(pick.holdingPeriod || pick.tradeType || 'swing').toLowerCase();
+    const key = `${pick.symbol.toUpperCase()}::${horizon}`;
+    const current = horizonWinners.get(key);
+    if (!current || pick.convictionScore > current.convictionScore) {
+      horizonWinners.set(key, pick);
+    } else if (pick.convictionScore === current.convictionScore) {
+      const pickTime = new Date(pick.generatedAt ?? 0).getTime();
+      const currentTime = new Date(current.generatedAt ?? 0).getTime();
+      if (pickTime > currentTime) horizonWinners.set(key, pick);
+    }
+  }
+  const deconflicted = Array.from(horizonWinners.values());
+
   // Final sort + minScore floor + limit
-  deduped.sort((a, b) => b.convictionScore - a.convictionScore);
-  const filtered = deduped.filter((p) => p.convictionScore >= minScore).slice(0, limit);
+  deconflicted.sort((a, b) => b.convictionScore - a.convictionScore);
+  const filtered = deconflicted.filter((p) => p.convictionScore >= minScore).slice(0, limit);
 
   // 🧪 Persist the scoring breakdown for the surfaced picks so resolved ideas can
   // be attributed back to the layers that fired (grade-calibration + reweighting).

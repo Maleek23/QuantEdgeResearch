@@ -1,17 +1,17 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowUpRight, Bitcoin, CircleDollarSign, ExternalLink, Link2, Loader2, Radio, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE } from '@/lib/motion';
 
-type Asset = {
+export type CryptoPulseAsset = {
   symbol: 'BTC' | 'ETH'; name: string; price: number; change24h: number;
   high24h: number | null; low24h: number | null; rsi14d: number | null;
   realizedVol30d: number | null; change7d: number | null; change30d: number | null;
   closes: Array<{ timestamp: number; close: number }>;
 };
-type Pulse = { asOf: string; assets: Asset[] };
+type Pulse = { asOf: string; assets: CryptoPulseAsset[] };
 type BetaPosition = { symbol: string; beta30d: number; r2: number; divergenceZ: number; actualMovePct: number; predictedMovePct: number };
 
 const BTC_PROXIES = [
@@ -80,8 +80,8 @@ export function CryptoTerminal({ onSelectSymbol }: { onSelectSymbol: (symbol: st
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        {btc && <AssetRead asset={btc} accent="var(--brand-gold)" reduce={reduce} />}
-        {eth && <AssetRead asset={eth} accent="var(--brand-cyan)" reduce={reduce} />}
+        {btc && <CryptoAssetRead asset={btc} accent="var(--brand-gold)" reduce={reduce} />}
+        {eth && <CryptoAssetRead asset={eth} accent="var(--brand-cyan)" reduce={reduce} />}
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.28fr_0.72fr]">
@@ -108,7 +108,7 @@ export function CryptoTerminal({ onSelectSymbol }: { onSelectSymbol: (symbol: st
   );
 }
 
-function AssetRead({ asset, accent, reduce }: { asset: Asset; accent: string; reduce: boolean | null }) {
+export function CryptoAssetRead({ asset, accent, reduce }: { asset: CryptoPulseAsset; accent: string; reduce: boolean | null }) {
   const up = asset.change24h >= 0;
   const rsiLabel = asset.rsi14d == null ? 'data pending' : asset.rsi14d >= 70 ? 'extended' : asset.rsi14d <= 30 ? 'washed out' : 'balanced';
   return <article className="overflow-hidden rounded-xl border border-border/70 bg-card">
@@ -116,7 +116,7 @@ function AssetRead({ asset, accent, reduce }: { asset: Asset; accent: string; re
       <div className="flex items-center gap-2.5"><div className="grid h-8 w-8 place-items-center rounded-lg border border-border/60" style={{ color: accent, background: `color-mix(in srgb, ${accent} 10%, transparent)` }}>{asset.symbol === 'BTC' ? <Bitcoin className="h-4 w-4" /> : <CircleDollarSign className="h-4 w-4" />}</div><div><p className="font-mono text-[10px] font-bold tracking-[0.14em] text-muted-foreground">{asset.symbol} · {asset.name}</p><p className="mt-0.5 font-mono text-2xl font-bold tabular-nums text-foreground">${fmtPrice(asset.price)}</p></div></div>
       <div className="text-right"><p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">24h</p><p className="mt-0.5 font-mono text-base font-bold tabular-nums" style={{ color: up ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}>{pct(asset.change24h)}</p></div>
     </div>
-    <div className="mt-3 px-4 md:px-5"><Sparkline points={asset.closes.map((point) => point.close)} accent={accent} reduce={reduce} /></div>
+    <div className="mt-3 px-4 md:px-5"><CryptoSparkline points={asset.closes} accent={accent} reduce={reduce} /></div>
     <div className="grid grid-cols-2 border-t border-border/55 sm:grid-cols-4">
       <DataCell label="7d" value={pct(asset.change7d)} tone={asset.change7d} />
       <DataCell label="30d" value={pct(asset.change30d)} tone={asset.change30d} />
@@ -130,9 +130,30 @@ function AssetRead({ asset, accent, reduce }: { asset: Asset; accent: string; re
   </article>;
 }
 
-function ProxyGroup({ label, items, base, measured, onSelect }: { label: string; items: typeof BTC_PROXIES; base?: Asset; measured: Map<string, BetaPosition>; onSelect: (symbol: string) => void }) {
+function ProxyGroup({ label, items, base, measured, onSelect }: { label: string; items: typeof BTC_PROXIES; base?: CryptoPulseAsset; measured: Map<string, BetaPosition>; onSelect: (symbol: string) => void }) {
   return <div className="border-b border-border/55 last:border-b-0"><div className="flex items-center justify-between bg-foreground/[0.025] px-4 py-2.5"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</span>{base && <span className="font-mono text-[10px] tabular-nums text-muted-foreground/70">underlying {pct(base.change24h)}</span>}</div>{items.map((item) => { const relation = measured.get(item.symbol); return <button key={item.symbol} onClick={() => onSelect(item.symbol)} className="group grid w-full grid-cols-[1fr_auto] items-center gap-3 border-t border-border/40 px-4 py-3 text-left transition-colors first:border-t-0 hover:bg-[var(--brand-cyan)]/[0.045]"><span><span className="font-mono text-sm font-bold tracking-wide text-foreground">{item.symbol}</span><span className="ml-2 font-mono text-[10px] uppercase tracking-wider text-[var(--brand-cyan)]/90">{item.label}</span><span className="mt-0.5 block text-xs text-muted-foreground/75">{item.note}</span></span><span className="flex items-center gap-2 text-right"><span className="hidden font-mono text-[10px] text-muted-foreground/65 sm:block">{relation ? `β ${relation.beta30d.toFixed(2)} · r² ${relation.r2.toFixed(2)}` : 'relationship read pending'}</span><ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-[var(--brand-cyan)]" /></span></button>; })}</div>;
 }
 function NarrativeStep({ index, title, detail }: { index: string; title: string; detail: string }) { return <div className="grid grid-cols-[26px_1fr] gap-3"><span className="pt-0.5 font-mono text-[10px] font-bold text-[var(--brand-cyan)]">{index}</span><div><p className="text-sm font-semibold text-foreground">{title}</p><p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{detail}</p></div></div>; }
 function DataCell({ label, value, tone }: { label: string; value: string; tone?: number | null }) { return <div className="border-r border-border/55 px-4 py-3 last:border-r-0"><p className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground/60">{label}</p><p className="mt-1 font-mono text-xs font-bold tabular-nums" style={{ color: tone == null ? 'var(--foreground)' : tone >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}>{value}</p></div>; }
-function Sparkline({ points, accent, reduce }: { points: number[]; accent: string; reduce: boolean | null }) { const bounds = points.length > 1 ? { min: Math.min(...points), max: Math.max(...points) } : null; const path = bounds && bounds.max !== bounds.min ? points.map((point, index) => `${index ? 'L' : 'M'} ${(index / (points.length - 1)) * 100} ${44 - ((point - bounds.min) / (bounds.max - bounds.min)) * 36}`).join(' ') : ''; return <svg viewBox="0 0 100 48" preserveAspectRatio="none" className="h-20 w-full overflow-visible" aria-label="60 day price trace"><defs><linearGradient id={`crypto-fill-${accent.includes('gold') ? 'btc' : 'eth'}`} x1="0" y1="0" x2="0" y2="1"><stop stopColor={accent} stopOpacity=".22"/><stop offset="1" stopColor={accent} stopOpacity="0"/></linearGradient></defs><path d="M0 44H100" stroke="var(--border)" strokeOpacity=".55" strokeWidth=".5"/><motion.path d={path ? `${path} L 100 48 L 0 48 Z` : ''} fill={`url(#crypto-fill-${accent.includes('gold') ? 'btc' : 'eth'})`} initial={reduce ? false : { opacity: 0 }} animate={{ opacity: .8 }} transition={{ duration: .55, ease: EASE }} /><motion.path d={path} fill="none" stroke={accent} strokeWidth="1.25" vectorEffect="non-scaling-stroke" initial={reduce ? false : { pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: .9, ease: EASE }} /></svg>; }
+
+/** The exact Crypto-terminal trace, enhanced only with pointer inspection. */
+export function CryptoSparkline({ points, accent, reduce }: { points: CryptoPulseAsset['closes']; accent: string; reduce: boolean | null }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const values = points.map((point) => point.close);
+  const bounds = values.length > 1 ? { min: Math.min(...values), max: Math.max(...values) } : null;
+  const coords = bounds && bounds.max !== bounds.min ? values.map((point, index) => ({ x: (index / (values.length - 1)) * 100, y: 44 - ((point - bounds.min) / (bounds.max - bounds.min)) * 36 })) : [];
+  const path = coords.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ');
+  const focusIndex = hovered ?? Math.max(0, points.length - 1);
+  const focus = coords[focusIndex];
+  const point = points[focusIndex];
+  return <div className="relative" onPointerLeave={() => setHovered(null)}>
+    <svg viewBox="0 0 100 48" preserveAspectRatio="none" className="h-20 w-full overflow-visible touch-none" aria-label="60 day price trace" onPointerMove={(event) => { const box = event.currentTarget.getBoundingClientRect(); setHovered(Math.max(0, Math.min(points.length - 1, Math.round(((event.clientX - box.left) / box.width) * (points.length - 1))))); }}>
+      <defs><linearGradient id={`crypto-fill-${accent.includes('gold') ? 'btc' : 'eth'}`} x1="0" y1="0" x2="0" y2="1"><stop stopColor={accent} stopOpacity=".22"/><stop offset="1" stopColor={accent} stopOpacity="0"/></linearGradient></defs>
+      <path d="M0 44H100" stroke="var(--border)" strokeOpacity=".55" strokeWidth=".5"/>
+      <motion.path d={path ? `${path} L 100 48 L 0 48 Z` : ''} fill={`url(#crypto-fill-${accent.includes('gold') ? 'btc' : 'eth'})`} initial={reduce ? false : { opacity: 0 }} animate={{ opacity: .8 }} transition={{ duration: .55, ease: EASE }} />
+      <motion.path d={path} fill="none" stroke={accent} strokeWidth="1.25" vectorEffect="non-scaling-stroke" initial={reduce ? false : { pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: .9, ease: EASE }} />
+      {focus && <><line x1={focus.x} x2={focus.x} y1="5" y2="45" stroke={accent} strokeOpacity={hovered == null ? 0 : .6} strokeWidth=".45" vectorEffect="non-scaling-stroke"/><circle cx={focus.x} cy={focus.y} r="1.5" fill="var(--card)" stroke={accent} strokeWidth=".8" vectorEffect="non-scaling-stroke"/></>}
+    </svg>
+    {point && hovered != null && <div className="pointer-events-none absolute right-0 top-0 rounded border border-border/60 bg-background/90 px-2 py-1 font-mono text-[9px] tabular-nums text-foreground backdrop-blur">${fmtPrice(point.close)} · {new Date(point.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>}
+  </div>;
+}

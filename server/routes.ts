@@ -5262,8 +5262,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getExtendedLeaders } = await import("./extended-hours");
       const { getAllApprovedSymbols } = await import("../shared/approved-tickers");
       const limit = Math.min(Number(req.query.limit) || 10, 25);
-      // A bounded, liquid slice — extended-hours quotes are one request per symbol.
-      const universe = ['SPY', 'QQQ', ...getAllApprovedSymbols().slice(0, 60)];
+      // Extended-hours quotes are one request per symbol, so keep the sweep
+      // bounded—but never let array order decide whether the market's primary
+      // leadership proxies are visible. SOXX was outside slice(0, 60), which
+      // made a real semiconductor gap disappear from the pre-market read.
+      const sessionCore = [
+        'SPY', 'QQQ', 'IWM',
+        'SOXX', 'SMH', 'XLK', 'IGV', 'XBI', 'XLE', 'XLF', 'XLI', 'XLU', 'XLY',
+        'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA',
+      ];
+      const universe = [...sessionCore, ...getAllApprovedSymbols().filter((symbol) => !sessionCore.includes(symbol)).slice(0, 60)];
       const result = await getExtendedLeaders(Array.from(new Set(universe)), limit);
       res.json(result);
     } catch (error) {
@@ -6170,8 +6178,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: 'future' as const,
         }));
 
+      // "oil" is a market-complex query, not a ticker. Keep the futures result
+      // and add the liquid equity/options vehicles users can actually trade.
+      const oilAliases = [
+        { symbol: 'USO', name: 'WTI crude oil ETF' },
+        { symbol: 'BNO', name: 'Brent crude oil ETF' },
+        { symbol: 'XLE', name: 'Energy majors ETF' },
+        { symbol: 'XOP', name: 'Oil & gas producers ETF' },
+        { symbol: 'OIH', name: 'Oil services ETF' },
+      ];
+      const oilResults = /\b(OIL|CRUDE|WTI|BRENT)\b/.test(query)
+        ? oilAliases.map((item) => ({ ...item, type: 'stock' as const }))
+        : [];
+
       // Combine and limit results - prioritize exact matches
-      const allResults = [...stockResults.slice(0, 10), ...cryptoResults.slice(0, 5), ...futuresResults.slice(0, 5)];
+      const allResults = [
+        ...futuresResults.slice(0, 5),
+        ...oilResults,
+        ...stockResults.slice(0, 10),
+        ...cryptoResults.slice(0, 5),
+      ].filter((result, index, all) => all.findIndex((item) => item.symbol === result.symbol) === index);
       res.json(allResults.slice(0, 15));
     } catch (error) {
       logger.error('Global symbol search error:', error);
@@ -6509,7 +6535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Economic Calendar - Upcoming macro events
   app.get("/api/economic-calendar", async (req, res) => {
     try {
-      const { getUpcomingEvents, getTodayEvents, getMonthEvents } = await import('./economic-calendar');
+      const { getVerifiedUpcomingEvents, getMonthEvents } = await import('./economic-calendar');
       const days = parseInt(req.query?.days as string) || 14;
       const month = req.query?.month as string; // format: YYYY-MM
 
@@ -6519,9 +6545,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ events, month });
       }
 
-      const upcoming = getUpcomingEvents(days);
-      const today = getTodayEvents();
-      res.json({ upcoming, today, totalUpcoming: upcoming.length });
+      const verified = await getVerifiedUpcomingEvents(days);
+      const marketToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      const today = verified.events.filter((event) => event.date === marketToday);
+      res.json({ upcoming: verified.events, today, totalUpcoming: verified.events.length, coverage: verified.coverage });
     } catch (error: any) {
       logger.error("[ECON-CAL] API error:", error);
       res.json({ upcoming: [], today: [], totalUpcoming: 0 });

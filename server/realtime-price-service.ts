@@ -135,7 +135,9 @@ export function initializeCoinbaseWebSocket(): void {
 let futuresPollingInterval: NodeJS.Timeout | null = null;
 
 async function pollFuturesPrices(): Promise<void> {
-  const symbols = { NQ: 'NQ=F', ES: 'ES=F', GC: 'GC=F' };
+  // Cross-asset tape: indices establish risk appetite, gold reads safety/rates,
+  // and crude is the inflation/geopolitical input the energy complex trades on.
+  const symbols = { NQ: 'NQ=F', ES: 'ES=F', GC: 'GC=F', CL: 'CL=F' };
   
   for (const [rootSymbol, yahooSymbol] of Object.entries(symbols)) {
     try {

@@ -18,6 +18,7 @@ import {
 import { RepeatBuyers } from './repeat-buyers';
 import { ConvergenceCard } from './convergence-card';
 import { TerminalPageHeader } from '@/components/templates/terminal-page';
+import { FlowLedger } from './flow-ledger';
 
 const CYAN = 'var(--brand-cyan,#22d3ee)';
 const BULL = 'var(--trade-bullish,#22c55e)';
@@ -71,6 +72,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
   const [q, setQ] = useState('');
   const [days, setDays] = useState(7);
   const [watched, setWatched] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<'tape' | 'cards'>('tape');
 
   const { data, isLoading, isError } = useQuery<FlowResponse>({
     queryKey: ['/api/options-flow', 'board', days],
@@ -209,6 +211,11 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
             className="w-28 rounded border border-border/60 bg-background/60 py-1 pl-7 pr-2 text-meta font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:border-[var(--brand-cyan,#22d3ee)]"
           />
         </div>
+        <div className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
+          {(['tape', 'cards'] as const).map((next) => (
+            <button key={next} type="button" onClick={() => setView(next)} className={cn('rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors', view === next ? 'bg-foreground/10 text-[var(--brand-cyan)]' : 'text-muted-foreground/70 hover:text-foreground')}>{next}</button>
+          ))}
+        </div>
       </div>
 
       {/* ── the tape ── */}
@@ -225,6 +232,8 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
             ? 'No premium-qualified contract observations are available for this window. Activity usually builds through the first 15–30 minutes after the open.'
             : 'Loosen the score, premium, or type filters to see more of the tape.'}
         />
+      ) : view === 'tape' ? (
+        <FlowLedger rows={shown} watched={watched} onWatch={toggleWatch} onSelect={onSelectSymbol} />
       ) : (
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           {shown.map(({ print, score }, i) => (

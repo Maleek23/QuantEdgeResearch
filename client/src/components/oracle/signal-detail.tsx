@@ -43,6 +43,8 @@ export function geometryFor(pick: ConvictionPick, live: number): SignalGeometry 
     live: live || pick.currentPrice || pick.entryPrice,
     riskRewardRatio: pick.riskRewardRatio,
     holdingPeriod: pick.holdingPeriod,
+    optionDte: pick.optionDte,
+    expiryDate: pick.expiryDate,
     generatedAt: pick.generatedAt,
     convictionScore: pick.convictionScore,
     lifecycleState: pick.lifecycleState,
@@ -492,8 +494,9 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
         {/* 4 · TIME */}
         <div className="flex items-baseline justify-between gap-2 border-t border-border/30 pt-2.5">
           <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">Horizon</span>
-          <span className="text-meta font-mono tabular-nums text-foreground">
+          <span className="text-right text-meta font-mono tabular-nums text-foreground" title={`Management window derived from ${g.horizonBasis}`}>
             {g.horizonUsedPct.toFixed(0)}% used · {g.daysHeld.toFixed(1)}/{g.horizonDays}d
+            <span className="ml-1 text-[8px] text-muted-foreground/55">({g.horizonBasis})</span>
           </span>
         </div>
 

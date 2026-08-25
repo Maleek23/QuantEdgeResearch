@@ -384,7 +384,7 @@ export default function TerminalShell() {
                     />
                     {!dataPartial && <div className="qe-context-current" aria-hidden="true"><span /></div>}
                     <div className="qe-market-grid">
-                      <OracleMarketField className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('pulse')} />
+                      <OracleMarketField className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('pulse')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
                       <RotationMap className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('rotation')} />
                       <SessionBrief className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('brief')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
                     </div>
@@ -581,7 +581,7 @@ export default function TerminalShell() {
                 </button>
               </div>
               <div className="min-h-0 overflow-y-auto p-3 md:p-5">
-                {marketFocus === 'pulse' && <OracleMarketField expanded />}
+                {marketFocus === 'pulse' && <OracleMarketField expanded onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
                 {marketFocus === 'rotation' && <RotationMap expanded />}
                 {marketFocus === 'brief' && <SessionBrief expanded onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
               </div>
