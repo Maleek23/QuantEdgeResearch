@@ -99,6 +99,19 @@ function MarketTape({ hub }: { hub: GEXHubData }) {
           {hub.totalTickers} tickers
         </span>
       </div>
+      {/* Every gamma-exposure number on this surface rests on one unverifiable
+          assumption: that dealers are short the puts and long the calls retail
+          holds. We never observe dealer inventory. The magnitude of exposure at
+          a strike is measured from open interest and is solid; the SIGN of the
+          dealer's position is inferred. Say so once, prominently, rather than
+          letting a directional read look like an observation. */}
+      <div className="mt-1.5 flex items-start gap-1.5 border-t border-border/30 pt-1.5 text-[9px] font-mono leading-relaxed text-muted-foreground/55">
+        <span className="text-[var(--gex-flip)]">MODEL</span>
+        <span>
+          Dealer sign is an assumption, not an observation — inventory is never
+          reported. Magnitude at each strike is the reliable read.
+        </span>
+      </div>
       {isOff && hub.futures && hub.futures.length > 0 && (
         <div className="flex items-center gap-3 mt-1.5 pt-1.5 border-t border-border/30 text-[9px] font-mono">
           <span className="uppercase tracking-widest text-muted-foreground/60">FUTURES</span>

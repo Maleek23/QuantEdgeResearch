@@ -31,6 +31,52 @@ function expLabel(iso: string) {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+
+/**
+ * Word band beside the number. "84" means nothing without knowing where the bar
+ * sits; STRONG / MODERATE / WEAK is the read a desk actually uses.
+ */
+function scoreBand(n: number): string {
+  if (n >= 80) return 'STRONG';
+  if (n >= 65) return 'MODERATE';
+  if (n >= 50) return 'LIGHT';
+  return 'WEAK';
+}
+
+/** Titled group inside the expanded card. */
+function Block({ title, children, muted }: { title: string; children: React.ReactNode; muted?: boolean }) {
+  return (
+    <div className="mt-3 first:mt-0">
+      <div className={cn(
+        'mb-1.5 text-label font-mono uppercase tracking-widest',
+        muted ? 'text-muted-foreground/45' : 'text-muted-foreground/60',
+      )}>
+        {title}
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">{children}</div>
+    </div>
+  );
+}
+
+/** One label/value pair. `dim` marks a field we cannot populate yet. */
+function KV({ k, v, color, strong, dim }: { k: string; v: string; color?: string; strong?: boolean; dim?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="truncate text-label font-mono uppercase tracking-wider text-muted-foreground/55">{k}</div>
+      <div
+        className={cn(
+          'truncate font-mono tabular-nums',
+          strong ? 'text-[13px] font-bold' : 'text-[11px]',
+          dim && 'italic text-muted-foreground/40',
+        )}
+        style={color && !dim ? { color } : undefined}
+      >
+        {v}
+      </div>
+    </div>
+  );
+}
+
 export function FlowCard({
   print, score, onWatch, watched, onSelect, className,
 }: {
@@ -48,6 +94,12 @@ export function FlowCard({
   // one — colouring it red would be the same lie in the opposite direction.
   const measured = print.sentiment === 'bullish' || print.sentiment === 'bearish';
   const tone = !measured ? CYAN : bullish ? BULL : BEAR;
+  const volOi = print.volumeOIRatio ?? (print.openInterest ? print.volume / Math.max(1, print.openInterest) : null);
+  // IV arrives as either a fraction (0.38) or already-percent (38). One source
+  // does each, so normalise rather than rendering 0.4% next to 84.7%.
+  const ivPct = print.impliedVolatility != null
+    ? print.impliedVolatility * (print.impliedVolatility > 3 ? 1 : 100)
+    : null;
 
   return (
     <motion.div
@@ -105,8 +157,10 @@ export function FlowCard({
             <span className="text-lead font-mono font-bold leading-none tabular-nums" style={{ color: TIER_COLOR[score.tier] }}>
               {score.score}
             </span>
+            {/* Word band next to the tier letter: "84 · STRONG" reads without
+                having to know the tier scale. */}
             <span className="mt-0.5 flex items-center gap-0.5 text-label font-mono uppercase tracking-wider text-muted-foreground/60">
-              {score.tier}-tier <ChevronDown className={cn('h-2.5 w-2.5 transition-transform', open && 'rotate-180')} />
+              {scoreBand(score.score)} <ChevronDown className={cn('h-2.5 w-2.5 transition-transform', open && 'rotate-180')} />
             </span>
           </button>
         </div>
@@ -147,6 +201,51 @@ export function FlowCard({
               </div>
             ))}
           </div>
+          {/* ── CONTRACT ─────────────────────────────────────────────
+              Everything identifying the position. Every field here comes from
+              the chain and is therefore real. */}
+          <Block title="Contract">
+            <KV k="Strike" v={`$${print.strikePrice}`} />
+            <KV k="Expiry" v={expLabel(print.expirationDate)} />
+            <KV k="DTE" v={score.dte != null ? `${score.dte}D` : '—'} />
+            <KV k="Moneyness" v={score.pctOtm != null ? (score.pctOtm < 0 ? 'ITM' : `${score.pctOtm.toFixed(1)}% OTM`) : '—'} />
+            <KV k="Type" v={print.optionType.toUpperCase()} color={print.optionType === 'call' ? BULL : BEAR} />
+            <KV k="Spot" v={print.underlyingPrice != null ? `$${print.underlyingPrice.toFixed(2)}` : '—'} />
+            {/* Two different numbers that both get called "contract price". Show
+                both: what one contract cost, and the quoted per-share option price
+                (contracts are 100 shares). */}
+            <KV k="Premium / contract" v={`$${score.perContract.toFixed(0)}`} />
+            <KV k="Option price" v={`$${(score.perContract / 100).toFixed(2)}`} />
+            <KV k="Observed" v={print.detectedAt ? new Date(print.detectedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET' : '—'} />
+          </Block>
+
+          {/* ── EXECUTION ────────────────────────────────────────────
+              Deliberately kept visible while empty. These are the fields that
+              decide whether flow is a signal, and leaving the slots in place
+              means the layout does not shift when a tape source fills them —
+              and that the absence is legible rather than silently omitted. */}
+          <Block title="Execution" muted>
+            <KV k="Entry vs NBBO" v="NOT MEASURED" dim />
+            <KV k="Direction" v="NOT MEASURED" dim />
+            <KV k="Sweep %" v="NOT MEASURED" dim />
+            <KV k="Order type" v="NOT MEASURED" dim />
+          </Block>
+
+          {/* ── SIZE & CONTEXT ───────────────────────────────────────
+              Chain-derived aggregates. Size/OI above 1 means the day's volume
+              exceeded the standing position — consistent with opening, though
+              not proof of it without OI settlement the next morning. */}
+          <Block title="Size & context">
+            <KV k="Total premium" v={money(score.totalPremium)} strong />
+            <KV k="Contracts" v={print.volume.toLocaleString()} />
+            <KV k="Open interest" v={print.openInterest ? print.openInterest.toLocaleString() : '—'} />
+            <KV k="Size / OI" v={volOi != null ? `${volOi.toFixed(2)}x` : '—'} color={volOi != null && volOi > 1 ? CYAN : undefined} />
+            <KV k="Implied vol" v={ivPct != null ? `${ivPct.toFixed(1)}%` : '—'} />
+            <KV k="Delta" v={print.delta != null ? print.delta.toFixed(3) : '—'} />
+            <KV k="Pattern" v={print.flowType.replace(/_/g, ' ').toUpperCase()} />
+            <KV k="Score band" v={scoreBand(score.score)} color={TIER_COLOR[score.tier]} />
+          </Block>
+
           <p className="mt-2 text-label leading-relaxed text-muted-foreground/70">
             Score ranks aggregate chain activity; it is not proof of buyer/seller intent and it is not a trigger.
           </p>

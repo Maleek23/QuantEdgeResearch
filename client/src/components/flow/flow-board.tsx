@@ -133,7 +133,26 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
     const measuredPct = (bull + bear + unclassified) > 0
       ? (bull + bear) / (bull + bear + unclassified) * 100
       : 0;
-    return { bull, bear, net, unclassified, callPrem, putPrem, measuredPct, whales, sweeps, total: scored.length };
+
+    // Rate of change, not just level. $374M of premium means nothing without
+    // knowing whether that is building or fading — the prints carry detectedAt,
+    // so compare the last hour against the hour before it. Only computed when
+    // BOTH windows have prints; a comparison against an empty prior hour is a
+    // meaningless percentage, so it stays null and the UI omits it.
+    const now = Date.now();
+    let lastHour = 0, priorHour = 0, lastHourN = 0, priorHourN = 0;
+    for (const { print: p, score: sc } of scored) {
+      const t = p.detectedAt ? new Date(p.detectedAt).getTime() : NaN;
+      if (Number.isNaN(t)) continue;
+      const ageMin = (now - t) / 60_000;
+      if (ageMin <= 60) { lastHour += sc.totalPremium; lastHourN++; }
+      else if (ageMin <= 120) { priorHour += sc.totalPremium; priorHourN++; }
+    }
+    const hourDeltaPct = (lastHourN > 0 && priorHourN > 0 && priorHour > 0)
+      ? ((lastHour - priorHour) / priorHour) * 100
+      : null;
+
+    return { bull, bear, net, unclassified, callPrem, putPrem, measuredPct, whales, sweeps, hourDeltaPct, total: scored.length };
   }, [scored]);
 
   // Honest freshness: say when the newest print actually landed, never imply "live".
@@ -179,10 +198,17 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
                  options={[['1', '1D'], ['7', '1W'], ['30', '1M'], ['200', 'ALL']]} />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-px bg-border/20 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-px bg-border/20 sm:grid-cols-3 lg:grid-cols-6">
           {/* Labelled as what they measure. These were "Bullish premium" / "Bearish
               premium", but with no execution side the split is call vs put and
               nothing more — the disclaimer below already said so. */}
+          <Stat
+            label="Last hour vs prior"
+            value={overview.hourDeltaPct == null
+              ? 'n/a'
+              : `${overview.hourDeltaPct >= 0 ? '▲' : '▼'}${Math.abs(overview.hourDeltaPct).toFixed(1)}%`}
+            color={overview.hourDeltaPct == null ? 'var(--muted-foreground)' : overview.hourDeltaPct >= 0 ? BULL : BEAR}
+          />
           <Stat label="Call premium" value={money(overview.callPrem)} color={BULL} />
           <Stat label="Put premium" value={money(overview.putPrem)} color={BEAR} />
           <Stat
