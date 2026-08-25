@@ -478,14 +478,13 @@ function scoreCatalystLayer(idea: any, direction: "long" | "short"): ConvictionL
     typeof idea.catalyst === "string"
       ? idea.catalyst.match(/\[surprise=([+-]?\d+(?:\.\d+)?)%\]/)
       : null;
-  const surprisePctRaw =
-    typeof idea.earningsSurprisePct === "number"
-      ? idea.earningsSurprisePct
-      : typeof idea.sourceMetadata?.earningsSurprisePct === "number"
-        ? idea.sourceMetadata.earningsSurprisePct
-        : inlineMatch
-          ? parseFloat(inlineMatch[1])
-          : null;
+  // Only the inline tag is real. This used to try idea.earningsSurprisePct first
+  // and idea.sourceMetadata?.earningsSurprisePct second — NEITHER column exists on
+  // trade_ideas (verified against shared/schema.ts), and the `as any` row typing
+  // hid it, so both reads were permanently undefined and every idea outside
+  // universal-idea-generator silently fell through to the flat score. The tag is
+  // written by server/universal-idea-generator.ts as `[surprise=+X%]`.
+  const surprisePctRaw = inlineMatch ? parseFloat(inlineMatch[1]) : null;
   const surprisePct = Number.isFinite(surprisePctRaw) ? (surprisePctRaw as number) : null;
 
   const reasons: string[] = [];
@@ -2092,15 +2091,22 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   // ideas can't be re-validated against today's pre-market tape).
   const preMarketBySymbol = new Map<string, PreMarketSnapshot>();
   const gexBySymbol = new Map<string, GexSnapshot>();
-  if (!skipLiveRevalidation && cashMarketOpen && candidates.length > 0) {
+  if (!skipLiveRevalidation && candidates.length > 0) {
     const symbols = Array.from(
       new Set((candidates as any[]).slice(0, deepEnrichmentLimit).map((c) => c.symbol).filter(Boolean)),
     );
     // Run pre-market and GEX batches in parallel — both are independent.
     // GEX is the more expensive of the two (options-chain fetch per symbol),
     // so it gets a generous concurrency budget but is heavily cached (5min).
+    //
+    // These used to share one `cashMarketOpen` gate, which silenced GEX on every
+    // pre-market, post-market and weekend board — precisely when the board is
+    // consulted for planning. Only the pre-market snapshot actually needs the
+    // session to be live; gamma exposure is computed from the option chain, and
+    // the CBOE path resolves after hours. Split the gate so each keeps only the
+    // condition it needs.
     const [pmRes, gexRes] = await Promise.allSettled([
-      getPreMarketBatch(symbols),
+      cashMarketOpen ? getPreMarketBatch(symbols) : Promise.resolve(new Map()),
       getGexSnapshotBatch(symbols),
     ]);
     if (pmRes.status === "fulfilled") {

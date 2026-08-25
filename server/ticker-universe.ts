@@ -347,6 +347,35 @@ export const PREMIUM_WATCHLIST = [
   'SBUX', 'NKE', 'DIS', 'NFLX'
 ];
 
+/**
+ * USER CORE WATCHLIST — the operator's own names.
+ *
+ * Kept separate from PREMIUM_WATCHLIST on purpose: that list feeds Best Setups
+ * and premium alerting, and silently doubling it would change those surfaces
+ * too. This one exists so the idea generator always quotes these regardless of
+ * what a screener happened to surface that day.
+ *
+ * Why it matters: before this, APP, CRCL, ASST, CRWV, WDC, SNDK and SATL were
+ * not in getFullUniverse() at all. CRCL still produced 25 ideas and ASST 11 —
+ * but only because both were Yahoo day-gainers those sessions. On a quiet day
+ * for a name, it simply vanished from the board. Coverage by luck is not
+ * coverage.
+ */
+export const USER_CORE_WATCHLIST = [
+  // Persistent core — carried week to week
+  'PLTR', 'CRWV', 'ARM', 'MRVL', 'TSLA', 'ORCL', 'AMD', 'CRCL',
+  'APP', 'SMH', 'WDC', 'SNDK', 'FSLY', 'SATL',
+  // Highest-conviction backtested tier
+  'AAOI', 'OKLO', 'LUNR', 'KLAC', 'SMTC', 'AEHR', 'OLED', 'RMBS',
+  'BILL', 'INTA', 'MKSI',
+  // Second tier
+  'LRCX', 'AFRM', 'MU', 'TSEM', 'COIN', 'HIMS', 'ONTO', 'ENTG',
+  'UPST', 'DUOL', 'PATH', 'MDB', 'AMBA', 'COHU', 'SNOW', 'NET',
+  'FRSH', 'ESTC', 'ACLS', 'ASAN', 'QCOM',
+  // Recent live plays worth keeping quoted
+  'MARA', 'ASST',
+];
+
 // Lotto-eligible tickers (penny stocks with liquid options)
 export const LOTTO_ELIGIBLE = [
   // Quantum pennies

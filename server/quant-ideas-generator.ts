@@ -14,7 +14,7 @@ import {
   analyzeRSI2MeanReversion
 } from './technical-indicators';
 import { discoverHiddenCryptoGems, discoverStockGems, discoverPennyStocks, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
-import { PREMIUM_WATCHLIST } from './ticker-universe';
+import { PREMIUM_WATCHLIST, USER_CORE_WATCHLIST } from './ticker-universe';
 import { passesShortDiscipline, isBtcProxy } from './short-discipline';
 import { logger } from './logger';
 import { shouldBlockSymbol } from './earnings-service';
@@ -925,7 +925,10 @@ export async function generateQuantIdeas(
   const discoveredSymbols = new Set(
     [...discoveredStockData, ...discoveredCryptoData].map(d => d.symbol.toUpperCase())
   );
-  const coreSymbols = PREMIUM_WATCHLIST.filter(s => !discoveredSymbols.has(s.toUpperCase()));
+  // The operator's own names go in alongside the platform's premium list. Deduped
+  // because the two overlap (MARA, ARM, TSLA, PLTR, AMD are on both).
+  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST].map(x => x.toUpperCase())));
+  const coreSymbols = curated.filter(s => !discoveredSymbols.has(s));
   const coreData: MarketData[] = [];
   if (marketOpen && coreSymbols.length > 0) {
     try {
