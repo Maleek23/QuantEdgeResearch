@@ -1,6 +1,7 @@
 import { logger } from './logger';
 import { formatInTimeZone } from 'date-fns-tz';
 import { storage } from './storage';
+import { postDiscordWebhook } from './discord-service';
 
 interface MorningPreview {
   marketOutlook: 'bullish' | 'bearish' | 'neutral';
@@ -54,7 +55,7 @@ async function sendToDiscord(preview: MorningPreview): Promise<void> {
   };
 
   try {
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

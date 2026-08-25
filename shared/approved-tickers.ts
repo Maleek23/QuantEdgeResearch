@@ -282,7 +282,9 @@ export const SECTOR_MAP: Record<string, Sector> = {
   AAPL: 'mega_tech', MSFT: 'mega_tech', GOOGL: 'mega_tech',
   META: 'mega_tech', AMZN: 'mega_tech',
   TSLA: 'mega_tech', AVGO: 'mega_tech', NFLX: 'mega_tech',
-  NBIS: 'mega_tech', SMCI: 'mega_tech', DELL: 'mega_tech', PLTR: 'mega_tech',
+  // SMCI (AI servers) and NBIS (AI cloud) are infrastructure suppliers, not mega
+  // caps. DELL and PLTR stay: both are large-cap and trade with the complex.
+  SMCI: 'ai_infra', NBIS: 'ai_infra', DELL: 'mega_tech', PLTR: 'mega_tech',
 
   // Fintech
   BILL: 'fintech', AFRM: 'fintech', SOFI: 'fintech', UPST: 'fintech',
@@ -294,12 +296,15 @@ export const SECTOR_MAP: Record<string, Sector> = {
   ASAN: 'software', SHOP: 'software', INTA: 'software', DKNG: 'software',
   CRCL: 'software', BROS: 'software',
 
-  // Space / nuclear
-  LUNR: 'space', OKLO: 'space', RKLB: 'space', ASTS: 'space',
-  CLSK: 'space',
+  // Space
+  LUNR: 'space', RKLB: 'space', ASTS: 'space',
+  // Oklo is a small modular reactor company, not a launch/satellite name. It sat
+  // in 'space' next to SMR/NNE/LEU in 'energy', so on a nuclear day the sector
+  // read split across two groups and "Space / Aero" was led by a reactor stock.
+  OKLO: 'energy',
 
-  // Energy / mining
-  MARA: 'energy', BE: 'energy', FCEL: 'energy', COPX: 'other',
+  // Energy
+  BE: 'energy', FCEL: 'energy', COPX: 'other',
   // Oil complex — crude proxies, producers, services and refiners
   USO: 'energy', BNO: 'energy', XLE: 'energy', XOP: 'energy', OIH: 'energy',
   XOM: 'energy', CVX: 'energy', COP: 'energy', OXY: 'energy', EOG: 'energy',
@@ -311,7 +316,10 @@ export const SECTOR_MAP: Record<string, Sector> = {
   SMH: 'index', XLK: 'index', SOXX: 'index', EWY: 'index',
 
   // Newly added secondaries
-  CRWV: 'mega_tech', MRVL: 'chips', APP: 'software',
+  // CoreWeave is an AI cloud, not a mega cap — it sat in Mega-Cap Tech alongside
+  // AAPL/MSFT/GOOGL, which is why that group's top movers read SMCI/CRWV rather
+  // than the mega caps the label promises.
+  CRWV: 'ai_infra', MRVL: 'chips', APP: 'software',
   ORCL: 'mega_tech', SNDK: 'chips', FSLY: 'software',
   SATL: 'space',
 
@@ -335,6 +343,20 @@ export const SECTOR_MAP: Record<string, Sector> = {
   BBAI: 'ai_infra', QBTS: 'quantum',
   RIOT: 'crypto', WULF: 'crypto', BTBT: 'crypto', IREN: 'crypto',
   ASST: 'crypto', BMNR: 'crypto',
+  // Bitcoin miners, treasury proxies and spot vehicles. These were scattered
+  // across 'energy' (MARA), 'space' (CLSK) and 'other' (everything else), so the
+  // Crypto group measured a 6-name subset of a ~29-name complex: on a miner day
+  // it reported "100% green" while MARA was dragging Energy and CLSK was the top
+  // mover in Space / Aero. Direction on all of these follows BTC — see
+  // BTC_PROXIES in server/short-discipline.ts, which this list mirrors.
+  MARA: 'crypto', CLSK: 'crypto', HUT: 'crypto', CIFR: 'crypto',
+  CORZ: 'crypto', BITF: 'crypto', BTDR: 'crypto', GREE: 'crypto',
+  HIVE: 'crypto', SDIG: 'crypto', ARBK: 'crypto', CAN: 'crypto',
+  MSTR: 'crypto', SMLR: 'crypto', GLXY: 'crypto', BKKT: 'crypto',
+  IBIT: 'crypto', FBTC: 'crypto', GBTC: 'crypto', BITO: 'crypto',
+  BITX: 'crypto', WGMI: 'crypto', BLOK: 'crypto',
+  // COIN deliberately stays 'fintech' — it is grouped with BILL/AFRM/SOFI/UPST
+  // in the trading watchlist, and moving it would fight that read.
   NIO: 'ev_mobility', RIVN: 'ev_mobility', LCID: 'ev_mobility',
   JOBY: 'ev_mobility', ACHR: 'ev_mobility',
   SMR: 'energy', NNE: 'energy', BWXT: 'energy',

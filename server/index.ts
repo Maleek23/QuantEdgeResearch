@@ -17,7 +17,7 @@ import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligen
 import { initializeRealtimePrices, getRealtimeStatus } from "./realtime-price-service";
 import { initializeBotNotificationService } from "./bot-notification-service";
 import { initializeWeeklyTracker } from "./weekly-tracker";
-import { reconcileOpenPaperExecutions, repairImpossibleRecentOutcomes } from "./oracle-lifecycle-reconciler";
+import { reconcileOpenPaperExecutions, repairImpossibleRecentOutcomes, observeTriggeredIdeas } from "./oracle-lifecycle-reconciler";
 import { securityHeaders } from "./security";
 import { csrfMiddleware, validateCSRF } from "./csrf";
 
@@ -143,8 +143,26 @@ app.use((req, res, next) => {
     try {
       await reconcileOpenPaperExecutions();
       await repairImpossibleRecentOutcomes();
+      await observeTriggeredIdeas();
     } catch (error) {
       logger.error("[ORACLE LIFECYCLE] Execution reconciliation failed", error);
+    }
+
+    // A trigger is only useful if it is noticed while it matters. Every two
+    // minutes on weekdays, compare open setups against live price and advance
+    // the ones whose entry has actually traded.
+    try {
+      const triggerCron = await import('node-cron');
+      triggerCron.default.schedule('*/2 * * * 1-5', async () => {
+        try {
+          await observeTriggeredIdeas();
+        } catch (error) {
+          logger.error("[ORACLE LIFECYCLE] Trigger observation failed", error);
+        }
+      });
+      log('🎯 Trigger observer started — open setups checked against live price every 2 min');
+    } catch (error) {
+      logger.error("[ORACLE LIFECYCLE] Could not schedule trigger observer", error);
     }
 
     // ========================================================================
@@ -420,6 +438,11 @@ app.use((req, res, next) => {
     // At 4:10 PM ET, we gracefully exit. PM2 auto-restarts the process,
     // which comes back up in lightweight mode (no heavy services).
     cron.default.schedule('10 16 * * 1-5', () => {
+      const hasProcessSupervisor = Boolean(process.env.pm_id || process.env.PM2_HOME || process.env.RAILWAY_ENVIRONMENT);
+      if (!hasProcessSupervisor) {
+        log('🌙 Market closed — keeping local preview alive (no process supervisor detected).');
+        return;
+      }
       log('🌙 Market closed — restarting process to free memory...');
       // Stop SPX scanners gracefully first
       import('./spx-orb-scanner').then(m => m.stopORBScanner()).catch(() => {});

@@ -5,6 +5,7 @@ import { logger } from './logger';
 import { calculateRSI, calculateMACD, calculateSMA } from './technical-indicators';
 import { recordSymbolAttention } from './attention-tracking-service';
 import { getScannerUniverse } from './scanner-universe';
+import { postDiscordWebhook } from './discord-service';
 
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 const TRADIER_API = "https://api.tradier.com/v1";
@@ -660,7 +661,7 @@ export async function sendBreakoutAlerts(): Promise<void> {
         }]
       };
       
-      await fetch(webhookUrl, {
+      await postDiscordWebhook(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(message)

@@ -23,6 +23,7 @@ import { sendPositionAlert } from './sms-notification-service';
 import { storage } from './storage';
 import { buildOptionSymbol } from './tradier-api';
 import { selfLearning } from './self-learning-service';
+import { validateEntryTiming } from './entry-timing-validator';
 
 // ============================================
 // USER TRADING RULES (Your $700 account rules)
@@ -238,14 +239,17 @@ async function validateSignalForExecution(signal: TradeDeskSignal): Promise<{
     return { valid: false, reason: `Band ${signal.probabilityBand} not in approved bands` };
   }
 
-  // CRITICAL: Check entry timing - don't chase moves that already happened
-  const { validateEntryTiming } = require('./entry-timing-validator');
+  // CRITICAL: Check entry timing - don't chase moves that already happened.
+  // NOTE: `changePercent` is the underlying's day move and `premium` the contract
+  // cost — TradeDeskSignal carries neither, so both are passed as 0 and the
+  // chase/expensive-premium checks are inert. Wiring a live quote in here is the
+  // next step; until then only the predictive-signal check does real work.
   const timingCheck = validateEntryTiming(
     signal.symbol,
-    signal.direction === 'bullish' ? 'call' : 'put',
-    signal.underlyingPrice ? ((signal.underlyingPrice / signal.strikePrice) - 1) * 100 : 0,
+    signal.optionType ?? (signal.direction === 'long' ? 'call' : 'put'),
+    0,
     signal.qualitySignals,
-    signal.premium || 0
+    0
   );
 
   if (!timingCheck.allowed) {
@@ -257,7 +261,9 @@ async function validateSignalForExecution(signal: TradeDeskSignal): Promise<{
     symbol: signal.symbol,
     confidenceScore: signal.confidenceScore,
     source: 'trade_desk', // All signals from Trade Desk
-    direction: signal.direction === 'bullish' ? 'long' : 'short',
+    // `direction` is already 'long' | 'short'. Comparing it to 'bullish' was always
+    // false, so every signal reached the ML filter labelled short.
+    direction: signal.direction,
   });
 
   if (!mlCheck.take) {
@@ -807,7 +813,9 @@ async function executorLoop(): Promise<void> {
   const skipReasons: Record<string, number> = {};
 
   for (const signal of signals) {
-    const validation = validateSignalForExecution(signal);
+    // validateSignalForExecution is async. Reading .valid off the un-awaited promise
+    // gave undefined, so every signal fell into the skip branch as "unknown".
+    const validation = await validateSignalForExecution(signal);
     if (validation.valid) {
       validCount++;
       await executeSignal(signal);

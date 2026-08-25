@@ -98,7 +98,10 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: true, // refresh when user returns to tab
+      // Each live surface owns an explicit interval. Refetching every stale query
+      // when the browser regains focus produced a request stampede across pages.
+      refetchOnWindowFocus: false,
+      refetchIntervalInBackground: false,
       refetchOnReconnect: true, // refresh when network comes back
       refetchOnMount: true, // refresh when navigating to a page
       staleTime: 2 * 60 * 1000, // 2 minutes — prevents redundant refetches on navigation

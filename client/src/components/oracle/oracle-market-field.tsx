@@ -40,6 +40,21 @@ interface ExtendedFeed {
 
 const signed = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
 
+/**
+ * Same wording the server puts in `interpretation`, so the strip's heading cannot
+ * disagree with the sentence printed directly beneath it. The heading used to be
+ * hardcoded "Pre-market leaders", which read as pre-market data at 11:45 ET while
+ * the line under it correctly said "Regular session".
+ */
+function sessionLeadersLabel(session: ExtendedFeed['session']) {
+  switch (session) {
+    case 'pre': return 'Pre-market leaders';
+    case 'post': return 'After-hours leaders';
+    case 'regular': return 'Session leaders';
+    default: return 'Latest leaders';
+  }
+}
+
 function marketRead(spyChange: number, assets: AssetClass[]) {
   const advancing = assets.filter((asset) => asset.changePct > 0).length;
   const declining = assets.filter((asset) => asset.changePct < 0).length;
@@ -198,7 +213,7 @@ export function OracleMarketField({
         {extendedCurrent && ((extended?.gainers?.length ?? 0) > 0 || (extended?.losers?.length ?? 0) > 0) && (
           <div className="mt-3 border-y border-border/35 py-2">
             <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground/60">
-              <span>Pre-market leaders</span>
+              <span>{sessionLeadersLabel(extended?.session)}</span>
               <span className="text-[var(--brand-cyan)]">live tape · not signals</span>
             </div>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -208,7 +223,7 @@ export function OracleMarketField({
                   key={quote.symbol}
                   onClick={() => onSelectSymbol?.(quote.symbol)}
                   className="group flex shrink-0 items-center gap-2 border border-border/45 bg-foreground/[0.025] px-2 py-1.5 font-mono transition-colors hover:border-[var(--brand-cyan)]/55 hover:bg-[var(--brand-cyan)]/[0.06]"
-                  title={`${quote.symbol} ${signed(quote.changePct)} pre-market · click to inspect`}
+                  title={`${quote.symbol} ${signed(quote.changePct)} ${extended?.session === 'regular' ? 'today' : extended?.session === 'post' ? 'after-hours' : 'pre-market'} · click to inspect`}
                 >
                   <span className="text-[10px] font-bold tracking-[0.08em] text-foreground">{quote.symbol}</span>
                   <span className="text-[10px] font-semibold tabular-nums" style={{ color: quote.changePct >= 0 ? TC.bull : TC.bear }}>{signed(quote.changePct)}</span>

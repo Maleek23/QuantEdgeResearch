@@ -20,22 +20,25 @@ import { RotationMap } from '@/components/rotation-map';
 import { SessionBrief } from '@/components/oracle/session-brief';
 import { EarlyRotationPanel } from '@/components/oracle/early-rotation-panel';
 import { OracleMarketField } from '@/components/oracle/oracle-market-field';
-import { TickerView } from '@/components/oracle/ticker-view';
-import { TerminalGuide } from '@/components/terminal/terminal-guide';
 import { LiveStatsBar } from '@/components/footer';
 const LeapTracker = lazy(() => import('@/components/hunt/leap-tracker').then(m => ({ default: m.LeapTracker })));
-import { TerminalSettings } from '@/components/terminal/terminal-settings';
 import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/terminal/terminal-alerts';
 import { useQuery } from '@tanstack/react-query';
 import type { ConvictionsResponse } from '@/lib/convictions';
 import { useStockContext } from '@/contexts/stock-context';
 import { useTheme } from '@/components/theme-provider';
 import { useAuth } from '@/hooks/useAuth';
-import { TrackRecord } from '@/components/bot/track-record';
 import { KitStyles } from '@/components/templates/kit';
 import { TerminalPageHeader, TerminalSectionHeader } from '@/components/templates/terminal-page';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
-import { ChartLab } from '@/components/charting/chart-lab';
+// Non-default tabs and closed overlays must not tax Oracle's first paint. Keeping
+// these as static imports made charting, bot analytics and settings code part of
+// every terminal visit even when the user never opened those surfaces.
+const TickerView = lazy(() => import('@/components/oracle/ticker-view').then(m => ({ default: m.TickerView })));
+const TerminalGuide = lazy(() => import('@/components/terminal/terminal-guide').then(m => ({ default: m.TerminalGuide })));
+const TerminalSettings = lazy(() => import('@/components/terminal/terminal-settings').then(m => ({ default: m.TerminalSettings })));
+const TrackRecord = lazy(() => import('@/components/bot/track-record').then(m => ({ default: m.TrackRecord })));
+const ChartLab = lazy(() => import('@/components/charting/chart-lab').then(m => ({ default: m.ChartLab })));
 
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
 const GexShell      = lazy(() => import('@/pages/shells/gex-shell'));
@@ -86,7 +89,19 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 const MOBILE_PRIMARY: Tab[] = ['oracle', 'chart', 'flow', 'gex'];
-const MOBILE_MORE: Tab[] = ['crypto', 'catalyst', 'bot'];
+// LEAPS was missing from BOTH lists, so the long-dated engine was unreachable on
+// phones — the same "fully built and completely unreachable" bug the TABS comment
+// above describes, reintroduced for mobile only. Every tab in TABS must appear in
+// exactly one of these two arrays; the assertion below fails the build if not.
+const MOBILE_MORE: Tab[] = ['leaps', 'crypto', 'catalyst', 'bot'];
+
+if (import.meta.env.DEV) {
+  const reachable = new Set<Tab>([...MOBILE_PRIMARY, ...MOBILE_MORE]);
+  const orphaned = TABS.filter((t) => !reachable.has(t.id)).map((t) => t.label);
+  if (orphaned.length > 0) {
+    console.error(`[terminal-shell] Tabs unreachable on mobile: ${orphaned.join(', ')}`);
+  }
+}
 
 function MobileTabIcon({ tab }: { tab: Tab }) {
   if (tab === 'oracle') return <Radar className="h-[18px] w-[18px]" />;
@@ -522,7 +537,7 @@ export default function TerminalShell() {
               <div className="border-b border-border/50 px-4 py-3">
                 <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">More instruments</p>
               </div>
-              <div className="grid grid-cols-3 gap-px bg-border/50">
+              <div className="grid grid-cols-2 gap-px bg-border/50">
                 {MOBILE_MORE.map((id) => (
                   <button
                     key={id}
@@ -601,8 +616,16 @@ export default function TerminalShell() {
         />
       )}
 
-      <TerminalGuide tab={tab} open={guideOpen} onClose={() => setGuideOpen(false)} />
-      <TerminalSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {guideOpen && (
+        <Suspense fallback={null}>
+          <TerminalGuide tab={tab} open onClose={() => setGuideOpen(false)} />
+        </Suspense>
+      )}
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <TerminalSettings open onClose={() => setSettingsOpen(false)} />
+        </Suspense>
+      )}
       <TerminalAlerts
         open={alertsOpen}
         onClose={() => setAlertsOpen(false)}

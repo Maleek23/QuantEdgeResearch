@@ -10,6 +10,7 @@ import { getTradierQuote, getTradierHistoryOHLC } from './tradier-api';
 import { logger } from './logger';
 import { storage } from './storage';
 import { formatInTimeZone } from 'date-fns-tz';
+import { postDiscordWebhook } from './discord-service';
 
 // TRUE SUB-PENNY STOCKS ($0.0001 - $0.20 range)
 // These are OTC/Pink Sheets with extreme volatility potential
@@ -442,7 +443,7 @@ export async function sendPennyScanToDiscord(candidates: PennyMoonshotCandidate[
       embeds: [embed]
     };
     
-    const response = await fetch(webhookUrl, {
+    const response = await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(message),
@@ -617,7 +618,7 @@ async function sendSubPennyScanToDiscord(candidates: PennyMoonshotCandidate[]): 
     message += '⚠️ **EXTREME RISK - OTC/Pink Sheets - Trade MICRO positions only!**\n';
     message += `_Scanned at ${nowCT} CT_`;
     
-    const response = await fetch(webhookUrl, {
+    const response = await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: message }),

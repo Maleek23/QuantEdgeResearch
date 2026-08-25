@@ -17,6 +17,7 @@ import { optionsFlowHistory, watchlist, FlowStrategyCategory, FlowDteCategory } 
 import { eq, desc, gte, inArray, and, sql } from 'drizzle-orm';
 
 import { marketDateET } from '@shared/market-day';
+import { postDiscordWebhook } from './discord-service';
 /**
  * Classify a flow by strategy category and DTE horizon
  * Identifies lotto plays (whale OTM calls/puts) vs institutional blocks
@@ -628,7 +629,7 @@ async function sendFlowAlerts(flows: OptionsFlow[]): Promise<void> {
       }),
     ].join('\n');
 
-    await fetch(webhook, {
+    await postDiscordWebhook(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

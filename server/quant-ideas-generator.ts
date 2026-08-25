@@ -14,6 +14,8 @@ import {
   analyzeRSI2MeanReversion
 } from './technical-indicators';
 import { discoverHiddenCryptoGems, discoverStockGems, discoverPennyStocks, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
+import { PREMIUM_WATCHLIST } from './ticker-universe';
+import { passesShortDiscipline, isBtcProxy } from './short-discipline';
 import { logger } from './logger';
 import { shouldBlockSymbol } from './earnings-service';
 import { enrichOptionIdea } from './options-enricher';
@@ -911,23 +913,78 @@ export async function generateQuantIdeas(
     lastUpdated: now.toISOString(),
   }));
 
-  // 🔥 PRIORITIZE DISCOVERED GEMS: Use dynamic discovery instead of static database symbols
-  // Only use database symbols as fallback if discovery fails
-  const totalPennyStocks = discoveredStockData.filter(d => d.assetType === 'penny_stock').length;
-  logger.info(`💎 Using ${discoveredStockData.length} discovered stocks (${totalPennyStocks} penny stocks <$5) + ${discoveredCryptoData.length} discovered cryptos`);
-  
-  const combinedData = [...discoveredStockData, ...discoveredCryptoData];
-  
-  // Only add database symbols as fallback if we didn't get enough from discovery
-  if (combinedData.length < count * 2) {
-    logger.info('📊 Adding fallback symbols from database...');
-    marketData.forEach(d => {
-      // Skip if we already have this symbol from discovery
-      if (!combinedData.some(gem => gem.symbol === d.symbol)) {
-        combinedData.push(d);
-      }
-    });
+  // 🎯 CURATED CORE — discovery is only ever Yahoo's screener output for the day
+  // (most_actives / gainers / losers). A liquid name that is moving but misses
+  // those lists was never a candidate at all: MARA on a crypto-miner day, META on
+  // a 1% day. The `marketData` fallback below could not rescue them either,
+  // because getAllMarketData() returns an empty table — so the pool was 100%
+  // screener output. Quote the curated watchlist every run instead, and let those
+  // names compete on the same gem score as a discovered gem. This is deliberately
+  // the ~50-name PREMIUM_WATCHLIST, not the full universe: a board built from
+  // hundreds of unrelated tickers has no edge.
+  const discoveredSymbols = new Set(
+    [...discoveredStockData, ...discoveredCryptoData].map(d => d.symbol.toUpperCase())
+  );
+  const coreSymbols = PREMIUM_WATCHLIST.filter(s => !discoveredSymbols.has(s.toUpperCase()));
+  const coreData: MarketData[] = [];
+  if (marketOpen && coreSymbols.length > 0) {
+    try {
+      const { getRealtimeBatchQuotes } = await import('./realtime-pricing-service');
+      const coreQuotes = await getRealtimeBatchQuotes(
+        coreSymbols.map(symbol => ({ symbol, assetType: 'stock' as const }))
+      );
+      coreQuotes.forEach((q, symbol) => {
+        if (!Number.isFinite(q.price) || q.price <= 0) return;
+        coreData.push({
+          id: `core-${symbol}`,
+          symbol,
+          assetType: q.price < 5 ? 'penny_stock' : 'stock',
+          currentPrice: q.price,
+          changePercent: Number.isFinite(q.changePercent) ? q.changePercent : 0,
+          volume: Number.isFinite(q.volume) ? q.volume : 0,
+          marketCap: null,
+          session: 'rth' as const,
+          timestamp: now.toISOString(),
+          high24h: null,
+          low24h: null,
+          high52Week: null,
+          low52Week: null,
+          // No average-volume source on this path. Null scores 0 on the volume
+          // component, which is the honest answer — inventing a ratio here would
+          // hand every curated name points it has not earned.
+          avgVolume: null,
+          dataSource: 'live' as const,
+          lastUpdated: now.toISOString(),
+        });
+      });
+      logger.info(`  ✓ Curated core: ${coreData.length}/${coreSymbols.length} watchlist names quoted`);
+    } catch (err) {
+      logger.warn('  ⚠️  Curated core quotes failed; continuing with discovery only:', err);
+    }
   }
+
+  // BTC's own session move, fetched once. Short discipline needs it to decide
+  // whether a bearish call on a miner is following bitcoin or fighting it.
+  let btcChangePercent: number | null = null;
+  try {
+    const btc = await fetchCryptoPrice('BTC');
+    if (btc && Number.isFinite(btc.changePercent)) btcChangePercent = btc.changePercent;
+  } catch {
+    /* leave null — discipline treats unknown as "not a breakdown" */
+  }
+  logger.info(`  ✓ BTC reference: ${btcChangePercent === null ? 'unknown' : `${btcChangePercent >= 0 ? '+' : ''}${btcChangePercent.toFixed(2)}%`}`);
+
+  const totalPennyStocks = discoveredStockData.filter(d => d.assetType === 'penny_stock').length;
+  logger.info(`💎 Using ${discoveredStockData.length} discovered stocks (${totalPennyStocks} penny stocks <$5) + ${discoveredCryptoData.length} discovered cryptos + ${coreData.length} curated core`);
+
+  const combinedData = [...discoveredStockData, ...discoveredCryptoData, ...coreData];
+
+  // Persisted market_data rows, when the table is populated, are additive.
+  marketData.forEach(d => {
+    if (!combinedData.some(gem => gem.symbol === d.symbol)) {
+      combinedData.push(d);
+    }
+  });
 
   // Separate by asset type for balanced iteration
   const stockData = combinedData.filter(d => d.assetType === 'stock').sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
@@ -981,7 +1038,8 @@ export async function generateQuantIdeas(
     noSignal: 0,
     lowQuality: 0,
     quotaFull: 0,
-    chartRejected: 0
+    chartRejected: 0,
+    shortDisciplineRejected: 0
   };
 
   // Analyze each market data point
@@ -1027,6 +1085,29 @@ export async function generateQuantIdeas(
       };
       // Determine option type based on ORIGINAL signal direction
       initialOptionType = signal.direction === 'long' ? 'call' : 'put';
+    }
+
+    // 🚫 SHORT DISCIPLINE — bearish intent needs a reason that is not the chart.
+    // Test the ORIGINAL signal, not normalizedSignal: an option idea has already
+    // had its direction rewritten to 'long' above, with the bearish view carried
+    // by optionType 'put'. Checking only `direction === 'short'` would wave every
+    // bearish put through.
+    const isBearishIdea = signal.direction === 'short' || initialOptionType === 'put';
+    if (isBearishIdea) {
+      // A real dated event, not generateCatalyst()'s prose — that function always
+      // returns a string, so a non-empty catalyst proves nothing.
+      const hasEventCatalyst = catalysts.some(
+        c => c.symbol?.toUpperCase() === data.symbol.toUpperCase()
+      );
+      if (!passesShortDiscipline({
+        symbol: data.symbol,
+        direction: 'short',
+        hasEventCatalyst,
+        btcChangePercent,
+      })) {
+        dataQuality.shortDisciplineRejected++;
+        continue;
+      }
     }
 
     let levels = calculateLevels(data, normalizedSignal, data.assetType, initialOptionType, historicalPrices);
@@ -1559,6 +1640,7 @@ export async function generateQuantIdeas(
   logger.info(`   ❌ Low quality (filters): ${dataQuality.lowQuality}`);
   logger.info(`   📈 Chart rejected: ${dataQuality.chartRejected}`);
   logger.info(`   ⛔ Quota full (rejected): ${dataQuality.quotaFull}`);
+  logger.info(`   🚫 Shorts rejected (no catalyst / BTC proxy): ${dataQuality.shortDisciplineRejected}`);
   logger.info(`   ✅ Ideas generated: ${ideas.length}`);
   
   // Warn if target distribution was not met
@@ -1594,6 +1676,20 @@ export async function generateQuantIdeas(
 
       const isPositiveCatalyst = catalyst.impact === 'high' || catalyst.eventType === 'earnings';
       const direction: 'long' | 'short' = isPositiveCatalyst ? 'long' : 'short';
+
+      // This branch used to short anything whose catalyst was merely not high-impact
+      // — the absence of good news is not a bearish thesis. A BTC proxy in
+      // particular follows bitcoin, not a low-impact headline.
+      if (direction === 'short' && !passesShortDiscipline({
+        symbol: catalyst.symbol,
+        direction: 'short',
+        // The event exists (we are iterating catalysts), but a low-impact one is
+        // not a reason to be short on its own.
+        hasEventCatalyst: catalyst.impact === 'medium' || catalyst.impact === 'high',
+        btcChangePercent,
+      })) {
+        continue;
+      }
       
       // Apply asset-type-specific targets (stocks: 8%, crypto: 12%, options: 25%)
       const assetMultiplier = symbolData.assetType === 'crypto' ? 1.5 :

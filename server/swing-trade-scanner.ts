@@ -1,5 +1,6 @@
 import { logger } from "./logger";
 import { storage } from "./storage";
+import { postDiscordWebhook } from './discord-service';
 
 interface SwingOpportunity {
   symbol: string;
@@ -407,7 +408,7 @@ export async function sendSwingToDiscord(opp: SwingOpportunity): Promise<boolean
       return false;
     }
     
-    const response = await fetch(webhookUrl, {
+    const response = await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] })

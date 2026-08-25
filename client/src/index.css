@@ -2417,3 +2417,29 @@ button:not([disabled]):active,
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   iOS focus-zoom guard.
+
+   Mobile Safari zooms the entire page when a text field with a computed
+   font-size below 16px receives focus, and it does not zoom back out. The
+   terminal's search inputs are 10px mono, so tapping the ticker box on an
+   iPhone left the whole board magnified and off-centre.
+
+   Raising the font-size only for coarse pointers keeps the desktop density
+   intact. Clamping maximum-scale in the viewport meta would also stop the zoom,
+   but it disables pinch-to-zoom for everyone, which is an accessibility
+   regression — this is the version that costs nothing.
+--------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="number"],
+  input[type="password"],
+  input:not([type]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}

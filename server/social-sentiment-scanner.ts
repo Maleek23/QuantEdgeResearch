@@ -10,6 +10,7 @@
  */
 
 import { logger } from './logger';
+import { postDiscordWebhook } from './discord-service';
 
 interface SocialMention {
   id: string;
@@ -515,7 +516,7 @@ async function sendTrendingAlerts(trending: TrendingTicker[]): Promise<void> {
       }),
     ].join('\n');
 
-    await fetch(webhook, {
+    await postDiscordWebhook(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

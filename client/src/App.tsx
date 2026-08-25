@@ -118,16 +118,11 @@ function preloadCriticalRoutes() {
   // Use requestIdleCallback (or setTimeout fallback) to avoid blocking initial paint
   const schedule = typeof requestIdleCallback !== "undefined" ? requestIdleCallback : (fn: () => void) => setTimeout(fn, 2000);
   schedule(() => {
-    // Preload the most-visited authenticated pages
-    import("@/pages/home").catch(() => {});
-    import("@/pages/trade-desk").catch(() => {});
-    import("@/pages/market-scanner").catch(() => {});
+    // Warm only the canonical terminal shell. The previous list downloaded three
+    // legacy/heavy pages (including an unrouted Home) immediately after first paint,
+    // competing with the live Oracle requests the user was actually waiting for.
+    import("@/pages/shells/terminal-shell").catch(() => {});
   });
-  // Defer heavier pages a bit more
-  setTimeout(() => {
-    import("@/pages/stock-detail").catch(() => {});
-    import("@/pages/trade-desk").catch(() => {});
-  }, 4000);
 }
 
 function PageLoader() {

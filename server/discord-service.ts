@@ -5,9 +5,61 @@ import { logger } from './logger';
 import { getLetterGrade as canonicalLetterGrade } from './grading';
 import { isOptionsMarketOpen } from './paper-trading-service';
 import { formatInTimeZone } from 'date-fns-tz';
+import { createHash } from 'node:crypto';
 
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
 const DISCORD_DISABLED = false;
+
+// One boundary for every Discord publisher. Historically each scanner called its
+// webhook directly, so enabling several workers multiplied the channel volume.
+// Limits are per webhook/channel: important bot traffic in #quantbot does not
+// consume the research channel's allowance.
+const DISCORD_WINDOW_MS = 10 * 60 * 1000;
+const DISCORD_MAX_PER_WINDOW = Math.max(1, Number(process.env.DISCORD_MAX_PER_10_MIN ?? 6));
+const DISCORD_MIN_INTERVAL_MS = Math.max(0, Number(process.env.DISCORD_MIN_INTERVAL_MS ?? 4_000));
+const DISCORD_DUPLICATE_TTL_MS = 6 * 60 * 60 * 1000;
+const webhookTraffic = new Map<string, { sentAt: number[]; signatures: Map<string, number> }>();
+
+function messageSignature(init?: RequestInit): string | null {
+  if (typeof init?.body !== 'string') return null;
+  try {
+    const payload = JSON.parse(init.body);
+    // Discord timestamps change on every build and previously defeated exact-body
+    // dedupe. They do not change the meaning of an alert.
+    for (const embed of payload?.embeds ?? []) delete embed.timestamp;
+    return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+  } catch {
+    return createHash('sha256').update(init.body).digest('hex');
+  }
+}
+
+export async function postDiscordWebhook(webhookUrl: string, init?: RequestInit): Promise<Response> {
+  const now = Date.now();
+  const state = webhookTraffic.get(webhookUrl) ?? { sentAt: [], signatures: new Map<string, number>() };
+  state.sentAt = state.sentAt.filter((at) => now - at < DISCORD_WINDOW_MS);
+  for (const [signature, at] of state.signatures) if (now - at >= DISCORD_DUPLICATE_TTL_MS) state.signatures.delete(signature);
+  const signature = messageSignature(init);
+
+  if (signature && state.signatures.has(signature)) {
+    logger.info('[DISCORD] duplicate suppressed at webhook boundary');
+    webhookTraffic.set(webhookUrl, state);
+    return new Response(null, { status: 204 });
+  }
+  const lastSent = state.sentAt.at(-1) ?? 0;
+  if (state.sentAt.length >= DISCORD_MAX_PER_WINDOW || now - lastSent < DISCORD_MIN_INTERVAL_MS) {
+    logger.warn(`[DISCORD] rate gate suppressed send (${state.sentAt.length}/${DISCORD_MAX_PER_WINDOW} in 10m)`);
+    webhookTraffic.set(webhookUrl, state);
+    return new Response(null, { status: 204 });
+  }
+
+  const response = await fetch(webhookUrl, init);
+  if (response.ok) {
+    state.sentAt.push(now);
+    if (signature) state.signatures.set(signature, now);
+    webhookTraffic.set(webhookUrl, state);
+  }
+  return response;
+}
 
 // OPTIONS PLAY RELEVANCE VALIDATION
 // Prevents sending outdated, expired, or stale options alerts
@@ -341,7 +393,7 @@ export async function sendBotTradeEntryToDiscord(trade: {
       embeds: [embed]
     };
 
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(message),
@@ -439,7 +491,7 @@ export async function sendBotTradeExitToDiscord(exit: {
       footer: { text: `Quant Edge Labs • ${meta.name}` }
     };
 
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -550,7 +602,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
       footer: isTVSignal ? { text: `TradingView Strategy Signal • ${(idea as any).sessionContext || 'v15'}` } : undefined,
       timestamp: new Date().toISOString()
     };
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -637,7 +689,7 @@ export async function sendTradeCardImageToDiscord(
     form.append('payload_json', JSON.stringify({ embeds: [embed] }));
     form.append('files[0]', new Blob([new Uint8Array(image)], { type: 'image/png' }), safeName);
 
-    const res = await fetch(webhookUrl, { method: 'POST', body: form });
+    const res = await postDiscordWebhook(webhookUrl, { method: 'POST', body: form });
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       logger.error(`[DISCORD] Card upload failed (${res.status}) for ${idea.symbol}: ${body.slice(0, 200)}`);
@@ -667,7 +719,7 @@ export async function sendChartAnalysisToDiscord(analysis: any): Promise<boolean
       ],
       timestamp: new Date().toISOString()
     };
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
@@ -746,7 +798,7 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     };
     
     // Send to lotto channel only
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
@@ -800,7 +852,7 @@ export async function sendBatchTradeIdeasToDiscord(ideas: TradeIdea[], source: s
       fields: [],
       timestamp: new Date().toISOString()
     };
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
@@ -816,7 +868,7 @@ export async function sendDiscordAlert(content: string, type: 'info' | 'warn' | 
 
   try {
     const color = type === 'error' ? COLORS.SHORT : type === 'warn' ? 0xf59e0b : 0x3b82f6;
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -878,7 +930,7 @@ export async function sendWeeklyWatchlistToDiscord(items: any[]): Promise<void> 
       timestamp: new Date().toISOString()
     };
 
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
@@ -916,7 +968,7 @@ export async function sendNextWeekPicksToDiscord(picks: any[], range: any): Prom
       timestamp: new Date().toISOString()
     };
 
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
@@ -967,7 +1019,7 @@ export async function sendDailySummaryToDiscord(ideas: any[]): Promise<void> {
       timestamp: new Date().toISOString()
     };
 
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -999,7 +1051,7 @@ export async function sendReportNotificationToDiscord(report: any): Promise<void
       ],
       timestamp: new Date().toISOString()
     };
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
@@ -1025,7 +1077,7 @@ export async function sendFuturesTradesToDiscord(ideas: any[]): Promise<void> {
       timestamp: new Date().toISOString()
     };
     
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
@@ -1331,7 +1383,7 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
       return `${emoji} **${i.symbol}** ${priceStr}`;
     }).join('\n');
     
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -1425,7 +1477,7 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
       if (now - ts > FLOW_ALERT_COOLDOWN_MS) flowAlertCooldown.delete(sym);
     });
     
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
@@ -1557,7 +1609,7 @@ export async function sendMarketMoversAlertToDiscord(movers: {
       timestamp: new Date().toISOString()
     };
     
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),
@@ -1652,7 +1704,7 @@ export async function sendPreMoveAlertToDiscord(signal: {
       timestamp: signal.timestamp.toISOString()
     };
     
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -1838,7 +1890,7 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
       timestamp: new Date().toISOString()
     };
     
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -1933,7 +1985,7 @@ export async function sendIndexScalpToDiscord(
   }
 
   try {
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -2028,7 +2080,7 @@ export async function sendWhaleFlowAlertToDiscord(whale: {
       timestamp: new Date().toISOString()
     };
 
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2101,7 +2153,7 @@ export async function sendConvergenceAlertToDiscord(signal: {
       timestamp: new Date().toISOString(),
     };
 
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2221,7 +2273,7 @@ export async function sendDailyPreview(): Promise<{ success: boolean; message: s
       timestamp: new Date().toISOString()
     };
     
-    await fetch(webhookUrl, {
+    await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 

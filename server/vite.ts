@@ -33,7 +33,9 @@ export async function setupVite(app: Express, server: Server) {
       ...viteLogger,
       error: (msg, options) => {
         viteLogger.error(msg, options);
-        process.exit(1);
+        // A source edit can briefly be invalid while it is being written. Vite can
+        // recover on the next edit; killing Express here makes the whole preview
+        // vanish and, unlike PM2, the preview launcher does not restart it.
       },
     },
     server: serverOptions,

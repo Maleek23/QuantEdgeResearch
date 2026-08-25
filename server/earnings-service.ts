@@ -106,6 +106,43 @@ async function getEarningsData(): Promise<EarningsEvent[]> {
  * @param symbol - Stock symbol to check
  * @returns true if earnings are within 2 days, false otherwise
  */
+/**
+ * Per-symbol earnings date from Yahoo, cached.
+ *
+ * The bulk Alpha Vantage calendar is the primary source, but that key is capped
+ * at 25 calls/day and once it is spent the endpoint returns a rate-limit notice
+ * that parses into a single junk row. The calendar then reports ~0 events and
+ * every earnings check silently answers "no earnings" — which is how a name with
+ * a print two days out looked clean. Yahoo answers per symbol and is not capped.
+ */
+const symbolEarningsCache = new Map<string, { date: Date | null; fetchedAt: number }>();
+const SYMBOL_EARNINGS_TTL_MS = 6 * 60 * 60 * 1000;
+
+export async function getEarningsDate(symbol: string): Promise<Date | null> {
+  const key = symbol.toUpperCase();
+  const cached = symbolEarningsCache.get(key);
+  if (cached && Date.now() - cached.fetchedAt < SYMBOL_EARNINGS_TTL_MS) return cached.date;
+
+  let date: Date | null = null;
+  try {
+    const { safeQuoteSummary } = await import('./yahoo-finance-service');
+    const data = await safeQuoteSummary(key, ['calendarEvents']);
+    const raw = data?.calendarEvents?.earnings?.earningsDate?.[0];
+    // yahoo-finance2 returns a Date; the raw v10 path returns { raw: <epoch> }.
+    const parsed =
+      raw instanceof Date ? raw
+      : typeof raw === 'number' ? new Date(raw * 1000)
+      : typeof raw?.raw === 'number' ? new Date(raw.raw * 1000)
+      : null;
+    if (parsed && !Number.isNaN(parsed.getTime())) date = parsed;
+  } catch (error) {
+    logger.debug(`[EARNINGS] Yahoo lookup failed for ${symbol}`);
+  }
+
+  symbolEarningsCache.set(key, { date, fetchedAt: Date.now() });
+  return date;
+}
+
 export async function hasUpcomingEarnings(symbol: string): Promise<boolean> {
   const earningsData = await getEarningsData();
   const now = new Date();
@@ -113,12 +150,12 @@ export async function hasUpcomingEarnings(symbol: string): Promise<boolean> {
   const threeDaysFromNow = addDays(now, 3);
 
   const symbolUpper = symbol.toUpperCase();
-  
+
   for (const event of earningsData) {
     if (event.symbol.toUpperCase() === symbolUpper) {
       try {
         const reportDate = parseISO(event.reportDate);
-        
+
         // Check if earnings are within next 3 days (was 2 days - too risky)
         if (isAfter(reportDate, now) && isBefore(reportDate, threeDaysFromNow)) {
           logger.info(`📅 EARNINGS ALERT: ${symbol} has earnings on ${event.reportDate} (within 3 days - IV crush risk)`);
@@ -128,6 +165,14 @@ export async function hasUpcomingEarnings(symbol: string): Promise<boolean> {
         logger.warn(`⚠️ Invalid earnings date for ${symbol}: ${event.reportDate}`);
       }
     }
+  }
+
+  // Calendar had nothing for this symbol — confirm against Yahoo before calling it
+  // clean, because "not in the calendar" and "no earnings" are not the same thing.
+  const yahooDate = await getEarningsDate(symbolUpper);
+  if (yahooDate && isAfter(yahooDate, now) && isBefore(yahooDate, threeDaysFromNow)) {
+    logger.info(`📅 EARNINGS ALERT: ${symbol} has earnings on ${yahooDate.toISOString().slice(0, 10)} (Yahoo, within 3 days - IV crush risk)`);
+    return true;
   }
 
   return false;

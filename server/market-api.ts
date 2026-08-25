@@ -309,17 +309,52 @@ export async function fetchCryptoPriceFromYahoo(symbol: string): Promise<Externa
   }
 }
 
+// Uncached, this is called per-surface for the same handful of index symbols
+// (^VIX, VIX, SPX) many times a minute. Yahoo answers 429, and because the 429s
+// come from this endpoint they also poison the historical fetches that share the
+// host. A short TTL collapses the storm without making any price staler than the
+// quote cadence the UI already polls at.
+// Two separate maps on purpose. `yahooQuoteCache` is the fresh-price cache;
+// `yahooQuoteCooldown` records when a symbol last failed. A failure must NOT
+// evict the last good price — VIX going to 0.0 on the footer is worse than VIX
+// being 30 seconds old — so on a throttle we suppress the retry but keep serving
+// the last real quote we actually received.
+const yahooQuoteCache = new Map<string, { data: ExternalMarketData; timestamp: number }>();
+const yahooQuoteCooldown = new Map<string, number>();
+const YAHOO_QUOTE_TTL = 30 * 1000;
+const YAHOO_QUOTE_ERROR_TTL = 60 * 1000;
+/** Beyond this a cached quote is too old to pass off as a price. */
+const YAHOO_QUOTE_STALE_MAX = 10 * 60 * 1000;
+
 export async function fetchYahooFinancePrice(
   symbol: string
 ): Promise<ExternalMarketData | null> {
   const startTime = Date.now();
+  const cacheKey = symbol.toUpperCase();
+  const memo = yahooQuoteCache.get(cacheKey);
+  if (memo && Date.now() - memo.timestamp < YAHOO_QUOTE_TTL) return memo.data;
+
+  // Inside the cooldown after a failure: do not re-hit Yahoo. Serve the last good
+  // price if it is still recent enough to be meaningful, otherwise admit we have
+  // nothing rather than inventing a number.
+  const failedAt = yahooQuoteCooldown.get(cacheKey);
+  if (failedAt && Date.now() - failedAt < YAHOO_QUOTE_ERROR_TTL) {
+    if (memo && Date.now() - memo.timestamp < YAHOO_QUOTE_STALE_MAX) return memo.data;
+    return null;
+  }
+
   try {
     const response = await fetch(
       `${YAHOO_FINANCE_API}/${symbol}?interval=1d&range=1d`
     );
 
     if (!response.ok) {
+      // Retrying a 429 immediately is what turned one throttled symbol into a
+      // sustained error stream — and the noise starved the historical fetches
+      // that share this host.
+      yahooQuoteCooldown.set(cacheKey, Date.now());
       logAPIError('Yahoo Finance', `/chart/${symbol}`, new Error(`HTTP ${response.status}`));
+      if (memo && Date.now() - memo.timestamp < YAHOO_QUOTE_STALE_MAX) return memo.data;
       return null;
     }
 
@@ -327,6 +362,7 @@ export async function fetchYahooFinancePrice(
     const result = jsonData?.chart?.result?.[0];
     
     if (!result || !result.meta) {
+      yahooQuoteCooldown.set(cacheKey, Date.now());
       logAPIError('Yahoo Finance', `/chart/${symbol}`, new Error('No data returned'));
       return null;
     }
@@ -353,9 +389,11 @@ export async function fetchYahooFinancePrice(
     };
     
     // Cache the result
+    yahooQuoteCache.set(cacheKey, { data: marketData, timestamp: Date.now() });
+    yahooQuoteCooldown.delete(cacheKey);
     const { apiCache } = await import('./api-cache');
     apiCache.set('quote', symbol, marketData, 'yahoo_finance');
-    
+
     return marketData;
   } catch (error) {
     logger.error(`Error fetching Yahoo Finance price for ${symbol}:`, error);
@@ -618,7 +656,10 @@ export async function fetchHistoricalPrices(
     const tradierKey = process.env.TRADIER_API_KEY;
     if (tradierKey) {
       try {
-        const prices = await getTradierHistory(symbol, periods, tradierKey);
+        // Deliberately NOT forwarding the key: getTradierHistory reads the same
+        // env var itself, and an explicit key marks the call as "caller's own
+        // token", which exempts it from the platform circuit breaker.
+        const prices = await getTradierHistory(symbol, periods);
         if (prices.length > 0) {
           logger.info(`✅ Fetched ${prices.length} real historical prices for ${symbol} (Tradier)`);
           return prices;
@@ -660,8 +701,18 @@ export async function fetchHistoricalPrices(
       }
     }
 
-    // Final fallback: Yahoo Finance (UNLIMITED, always available)
+    // Final fallback: Yahoo Finance. "UNLIMITED, always available" was optimistic —
+    // the bare chart endpoint answers 429 once the scanners are warm, and with
+    // Tradier 401 and Alpha Vantage capped at 25 calls/day that left EVERY symbol
+    // with no history and the generator publishing nothing at all. Try the shared
+    // crumb-authenticated client first, then the raw endpoint.
     logger.info(`Trying Yahoo Finance for ${symbol} historical data...`);
+    const { safeChartCloses } = await import('./yahoo-finance-service');
+    const libraryCloses = await safeChartCloses(symbol, periods);
+    if (libraryCloses.length > 0) {
+      logger.info(`✅ Fetched ${libraryCloses.length} real historical prices for ${symbol} (Yahoo lib)`);
+      return libraryCloses.slice(-periods);
+    }
     return await fetchYahooHistoricalPrices(symbol, periods);
   } catch (error) {
     logger.error(`Error fetching historical prices for ${symbol}:`, error);
