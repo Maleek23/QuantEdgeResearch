@@ -188,6 +188,37 @@ class PerformanceValidationService {
         console.log(`  ✓ Fetched ${contractsMap.size}/${futuresContractCodes.size} contracts successfully`);
       }
       
+      // Enrich extremes from REAL daily bars before judging barriers. The
+      // tracked highest/lowestPriceReached only advanced at 5-minute polls, so
+      // a spike that touched a barrier BETWEEN polls (or during a dev restart)
+      // never existed as far as resolution was concerned — wins and losses
+      // both undercounted, silently. Today's bar high/low from the candle
+      // feed captures the full session regardless of poll timing.
+      try {
+        const { fetchCandlesBatch } = await import('./historical-candles');
+        const symbols = Array.from(new Set(openIdeas.map(i => i.symbol.toUpperCase())));
+        const candles = await fetchCandlesBatch(symbols, '5d', '1d', 8);
+        const today = new Date().toISOString().slice(0, 10);
+        let enriched = 0;
+        for (const idea of openIdeas) {
+          const bars = candles.get(idea.symbol.toUpperCase()) ?? [];
+          const todayBar = bars[bars.length - 1];
+          if (!todayBar) continue;
+          const barDay = new Date(todayBar.time * 1000).toISOString().slice(0, 10);
+          if (barDay !== today) continue;
+          if (Number.isFinite(todayBar.high) && todayBar.high > 0) {
+            idea.highestPriceReached = Math.max(idea.highestPriceReached ?? -Infinity, todayBar.high);
+            enriched++;
+          }
+          if (Number.isFinite(todayBar.low) && todayBar.low > 0) {
+            idea.lowestPriceReached = Math.min(idea.lowestPriceReached ?? Infinity, todayBar.low);
+          }
+        }
+        if (enriched > 0) console.log(`  📏 Extremes enriched from daily bars for ${enriched} idea(s)`);
+      } catch (err: any) {
+        console.warn('  ⚠️ Bar-extreme enrichment failed (continuing with poll extremes):', err?.message);
+      }
+
       // Validate each idea with contract metadata
       const validationResults = PerformanceValidator.validateBatch(openIdeas, priceMap, contractsMap);
 
