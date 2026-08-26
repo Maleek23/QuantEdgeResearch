@@ -1,19 +1,28 @@
 /**
  * NexusPriceChart — the CHART tab's engine as a drop-in component.
  *
- * One chart everywhere: the cockpit, ticker views and any panel that needs
- * price now render the SAME interactive canvas the CHART tab uses — real
- * OHLCV, timeframe bar, candles/line toggle, MA20/50, volume, crosshair with
- * OHLCV tooltip, published levels, gap zones, outlier-wick clamping with the
- * on-chart disclosure. Prop-compatible with the EpochChart callsites it
- * replaces (symbol / initialTf / height / levels / zones).
+ * One chart everywhere: CHART, the cockpit, GEX and any panel that needs price
+ * render the SAME interactive canvas — real OHLCV, timeframe bar, candles/line
+ * toggle, MA20/50, volume, crosshair with OHLCV tooltip, published levels, gap
+ * zones, outlier-wick clamping with the on-chart disclosure.
+ *
+ * Interaction model (the "can't scroll to see other bars" fix):
+ *   wheel        zoom in/out, anchored on the bar under the cursor
+ *   drag         pan through history
+ *   double-click reset to the full range
+ *   ⤢            expand into a modal over a blurred backdrop
+ *
+ * Pan/zoom is a windowed VIEW over the real series — never resampled, never
+ * interpolated: `span` bars ending `offset` bars before the latest.
  */
 import { useEffect, useRef, useState } from 'react';
 import {
   drawChart, useCandles, TF_CONFIG,
   type Candle, type Level, type Zone,
-} from '@/components/charting/chart-lab-nexus';
+} from '@/components/charting/chart-engine';
 import '@/styles/nexus.css';
+
+const MIN_SPAN = 15;
 
 export function NexusPriceChart({
   symbol,
@@ -21,24 +30,43 @@ export function NexusPriceChart({
   height = 340,
   levels = [],
   zones = [],
+  fill = false,
+  expandable = true,
+  onHoverCandle,
 }: {
   symbol: string;
   initialTf?: keyof typeof TF_CONFIG;
   height?: number;
   levels?: (Level & { dashed?: boolean })[];
   zones?: Zone[];
+  /** Fill the parent (flex:1) instead of a fixed height — for page layouts. */
+  fill?: boolean;
+  /** Show the ⤢ button that opens the blurred-backdrop modal. */
+  expandable?: boolean;
+  /** Hovered (or latest) candle — for external OHLC readouts. */
+  onHoverCandle?: (c: Candle | null) => void;
 }) {
   const [tf, setTf] = useState<keyof typeof TF_CONFIG>(
     TF_CONFIG[initialTf] ? initialTf : '1D',
   );
   const [type, setType] = useState<'candles' | 'line'>('candles');
+  const [expanded, setExpanded] = useState(false);
   const { data: series, isLoading, isError } = useCandles(symbol, tf);
-  const candles = series?.bars;
+  const all = series?.bars;
+
+  /* windowed view over the series: span bars, ending `offset` bars before now */
+  const [view, setView] = useState<{ span: number | null; offset: number }>({ span: null, offset: 0 });
+  useEffect(() => { setView({ span: null, offset: 0 }); }, [symbol, tf]);
+  const len = all?.length ?? 0;
+  const span = view.span == null ? len : Math.min(view.span, len);
+  const offset = Math.min(view.offset, Math.max(0, len - span));
+  const candles = all ? all.slice(Math.max(0, len - span - offset), len - offset) : undefined;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const mouse = useRef({ x: -1, y: -1 });
+  const pan = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
 
   const redraw = () => {
     const canvas = canvasRef.current;
@@ -50,9 +78,10 @@ export function NexusPriceChart({
       mouseX: mouse.current.x,
       mouseY: mouse.current.y,
       onHover: (c: Candle | null, x: number, y: number) => {
+        onHoverCandle?.(c ?? (candles ? candles[candles.length - 1] : null));
         const tip = tipRef.current; const wrap = wrapRef.current;
         if (!tip || !wrap) return;
-        if (!c) { tip.classList.remove('show'); return; }
+        if (!c || pan.current?.moved) { tip.classList.remove('show'); return; }
         const d = new Date(c.time);
         tip.querySelector('[data-tip=time]')!.textContent = d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
         tip.querySelector('[data-tip=o]')!.textContent = c.open.toFixed(2);
@@ -73,10 +102,7 @@ export function NexusPriceChart({
     });
   };
 
-  useEffect(() => {
-    redraw();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, type, tf, levels, zones]);
+  useEffect(() => { redraw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [candles, type, tf, levels, zones]);
   useEffect(() => {
     const onResize = () => redraw();
     window.addEventListener('resize', onResize);
@@ -84,8 +110,32 @@ export function NexusPriceChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles, type, tf, levels, zones]);
 
-  return (
-    <div ref={wrapRef} className="chart-canvas-wrap" style={{ height, flex: 'none', borderRadius: 6, border: '1px solid var(--nx-border, rgba(79,209,197,0.08))' }}>
+  /* wheel zoom — native listener so preventDefault actually stops page scroll */
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!all || all.length < MIN_SPAN) return;
+      e.preventDefault();
+      setView((v) => {
+        const curSpan = v.span == null ? all.length : Math.min(v.span, all.length);
+        const factor = e.deltaY > 0 ? 1.25 : 0.8;
+        const nextSpan = Math.round(Math.max(MIN_SPAN, Math.min(all.length, curSpan * factor)));
+        if (nextSpan >= all.length) return { span: null, offset: 0 };
+        // anchor: keep the bar under the cursor roughly in place
+        const rect = el.getBoundingClientRect();
+        const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const anchor = all.length - v.offset - Math.round((1 - frac) * curSpan);
+        const nextOffset = Math.max(0, Math.min(all.length - nextSpan, all.length - anchor - Math.round(frac * nextSpan)));
+        return { span: nextSpan, offset: nextOffset };
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [all]);
+
+  const chartBody = (
+    <>
       {isLoading ? (
         <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
           loading {symbol} · {TF_CONFIG[tf].label}…
@@ -97,30 +147,51 @@ export function NexusPriceChart({
       ) : (
         <canvas
           ref={canvasRef}
+          style={{ cursor: pan.current ? 'grabbing' : 'crosshair' }}
+          onMouseDown={(e) => {
+            pan.current = { startX: e.clientX, startOffset: offset, moved: false };
+          }}
           onMouseMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             mouse.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            if (pan.current && all) {
+              const dx = e.clientX - pan.current.startX;
+              if (Math.abs(dx) > 3) pan.current.moved = true;
+              const barW = rect.width / Math.max(1, span);
+              const dBars = Math.round(dx / barW);
+              setView((v) => ({
+                span: v.span,
+                offset: Math.max(0, Math.min(len - span, pan.current!.startOffset + dBars)),
+              }));
+            }
             redraw();
           }}
-          onMouseLeave={() => { mouse.current = { x: -1, y: -1 }; redraw(); }}
+          onMouseUp={() => { pan.current = null; redraw(); }}
+          onMouseLeave={() => { pan.current = null; mouse.current = { x: -1, y: -1 }; redraw(); }}
+          onDoubleClick={() => setView({ span: null, offset: 0 })}
         />
       )}
 
-      {/* compact TF bar + type toggle, same controls as the CHART tab */}
       <div className="timeframe-bar" style={{ top: 8, left: 8 }}>
         {(Object.keys(TF_CONFIG) as (keyof typeof TF_CONFIG)[]).map((k) => (
           <button key={k} className={`tf-btn${tf === k ? ' active' : ''}`} style={{ padding: '3px 8px' }} onClick={() => setTf(k)}>{k}</button>
         ))}
       </div>
-      <div className="chart-type-toggle" style={{ position: 'absolute', top: 8, right: 8, zIndex: 3 }}>
+      <div className="chart-type-toggle" style={{ position: 'absolute', top: 8, right: 8, zIndex: 3, display: 'flex', gap: 2 }}>
         {(['candles', 'line'] as const).map((t) => (
           <button key={t} className={`chart-type-btn${type === t ? ' active' : ''}`} onClick={() => setType(t)}>{t}</button>
         ))}
+        {expandable && !expanded && (
+          <button className="chart-type-btn" title="Expand" onClick={() => setExpanded(true)}>⤢</button>
+        )}
       </div>
 
       <div className="chart-info-overlay" style={{ bottom: 8, left: 8, padding: '4px 8px' }}>
         <span>TF <b>{TF_CONFIG[tf].label}</b></span>
-        <span>BARS <b>{candles?.length ?? 0}</b></span>
+        <span>BARS <b>{candles?.length ?? 0}{view.span != null ? ` / ${len}` : ''}</b></span>
+        {view.span != null
+          ? <span style={{ color: 'var(--cyan-bright)' }}>drag · wheel · dbl-click resets</span>
+          : <span>wheel zoom · drag pan</span>}
         {(series?.clampedWicks ?? 0) > 0 && (
           <span style={{ color: 'var(--amber)' }}>{series!.clampedWicks} OUTLIER WICK{series!.clampedWicks === 1 ? '' : 'S'} CLAMPED</span>
         )}
@@ -134,6 +205,53 @@ export function NexusPriceChart({
         <div className="row"><span className="k">Close</span><span className="v" data-tip="c">—</span></div>
         <div className="row"><span className="k">Volume</span><span className="v" data-tip="v">—</span></div>
       </div>
-    </div>
+    </>
   );
+
+  return (
+    <>
+      <div
+        ref={wrapRef}
+        className="chart-canvas-wrap"
+        style={fill
+          ? { flex: 1, minHeight: 0, position: 'relative' }
+          : { height, flex: 'none', borderRadius: 6, border: '1px solid var(--nx-border, rgba(79,209,197,0.08))' }}
+      >
+        {chartBody}
+      </div>
+
+      {/* mini-expand: same chart, big, over a blurred backdrop. A separate
+          instance so the small one keeps its own view when this closes. */}
+      {expanded && (
+        <div className="chart-modal" onClick={(e) => { if (e.target === e.currentTarget) setExpanded(false); }}>
+          <div className="chart-modal-box">
+            <div className="chart-modal-head">
+              <span className="chart-modal-title">{symbol} · price</span>
+              <button className="chart-modal-close" onClick={() => setExpanded(false)}>ESC ✕</button>
+            </div>
+            <div className="chart-modal-body">
+              <NexusPriceChart
+                symbol={symbol}
+                initialTf={tf}
+                levels={levels}
+                zones={zones}
+                fill
+                expandable={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      {expanded && <EscClose onClose={() => setExpanded(false)} />}
+    </>
+  );
+}
+
+function EscClose({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return null;
 }

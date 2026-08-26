@@ -1,0 +1,635 @@
+/**
+ * GEX HUB — the fourth reference mock, wired.
+ *
+ * Layout and classes are the mock's. Every slot reads the real feed:
+ *
+ *   ranked list       /api/gex-vex/hub topPlays — playScore, ±γ from
+ *                     isNegativeGamma, SPY tagged benchmark
+ *   spot card         /api/gex-vex/terminal/:sym snapshot + the tape's quote
+ *                     for the day change; flip price only when it exists
+ *   money flow        /api/sector-rotation laggards → leaders
+ *   matrix            strikeExpiryMatrix — real strikes × real expiries; cell
+ *                     intensity from a robust max (hot/mega are relative to
+ *                     THIS book, not invented bands); GEX/VEX toggle switches
+ *                     the measured field; DTE chips carry real counts
+ *   3D                the existing GammaSurface — already the honest surface
+ *                     (LISTED mode, overflow ticks); VEX view maps the same
+ *                     real matrix through netVEX
+ *   context rail      snapshot walls + matrix-derived gravity and strongest
+ *                     nodes; the model note is verbatim (the mock copied ours)
+ *   ⌘K search         /api/search/symbols — the real universal index, selects
+ *                     into the shared stock context so every tab follows
+ *
+ * The mock's genGEX() random matrix, spot jitter and looping countdown do not
+ * ship — same rule as every board before it.
+ */
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import { useStockContext } from '@/contexts/stock-context';
+import { useColResize } from '@/lib/use-col-resize';
+import { GammaSurface } from '@/components/prism/gamma-surface';
+import { robustMax } from '@/components/viz';
+import type { StrikeExpiryCell, GEXSnapshot } from '@shared/gex-types';
+import '@/styles/nexus.css';
+
+const q = (path: string) => async () => {
+  const r = await fetch(path, { credentials: 'include' });
+  if (!r.ok) throw new Error(`${path} failed`);
+  return r.json();
+};
+
+interface TopPlay {
+  symbol: string; sector?: string; spotPrice?: number; playScore?: number;
+  conviction?: string; regime?: string; bias?: string; callWall?: number; putWall?: number;
+  isNegativeGamma?: boolean; insight?: string;
+}
+interface HubPayload { hub?: { topPlays?: TopPlay[]; totalScanned?: number }; generatedAt?: string }
+interface TerminalData { symbol: string; snapshot: GEXSnapshot; strikeExpiryMatrix: StrikeExpiryCell[]; generatedAt?: string }
+interface Sector { etf: string; name: string; change: number }
+interface RotationPayload { leaders?: Sector[]; laggards?: Sector[]; sectors?: Sector[]; sessionLabel?: string }
+interface EHQuote { symbol: string; lastPrice: number; changePct: number }
+interface EHPayload { session?: string; gainers?: EHQuote[]; losers?: EHQuote[]; mostActive?: EHQuote[] }
+interface SearchResult { symbol: string; name?: string; type?: string }
+
+const DTE_BUCKETS = [
+  { id: 'all', label: 'ALL', test: (_d: number) => true },
+  { id: '0-7', label: '0–7d', test: (d: number) => d <= 7 },
+  { id: '7-30', label: '7–30d', test: (d: number) => d > 7 && d <= 30 },
+  { id: '30-90', label: '30–90d', test: (d: number) => d > 30 && d <= 90 },
+  { id: '90+', label: '90d+', test: (d: number) => d > 90 },
+] as const;
+type BucketId = typeof DTE_BUCKETS[number]['id'];
+
+/** Adaptive magnitude formatter — the feed's units drive the suffix. */
+function makeFmt(maxAbs: number) {
+  if (maxAbs >= 1e9) return (v: number) => `${v < 0 ? '-' : ''}$${(Math.abs(v) / 1e9).toFixed(1)}B`;
+  if (maxAbs >= 1e6) return (v: number) => `${v < 0 ? '-' : ''}$${(Math.abs(v) / 1e6).toFixed(1)}M`;
+  if (maxAbs >= 1e3) return (v: number) => `${v < 0 ? '-' : ''}$${(Math.abs(v) / 1e3).toFixed(0)}K`;
+  return (v: number) => `${v < 0 ? '-' : ''}${Math.abs(v).toFixed(2)}`;
+}
+
+export function GexHubNexus() {
+  const [, setLocation] = useLocation();
+  const { currentStock, setCurrentStock } = useStockContext();
+  const symbol = (currentStock?.symbol || 'SPY').toUpperCase();
+
+  const [view3d, setView3d] = useState(false);
+  const [metric, setMetric] = useState<'gex' | 'vex'>('gex');
+  const [bucket, setBucket] = useState<BucketId>('all');
+  const [showAbove, setShowAbove] = useState(false);
+  const [showBelow, setShowBelow] = useState(false);
+  const leftRail = useColResize('nx-gex-left', 320, { sign: 1, min: 240, max: 520 });
+  const rightRail = useColResize('nx-gex-right', 320, { sign: -1, min: 240, max: 520 });
+
+  const { data: hub } = useQuery<HubPayload>({
+    queryKey: ['/api/gex-vex/hub', 'nexus'], queryFn: q('/api/gex-vex/hub'),
+    staleTime: 120_000, refetchInterval: 180_000, retry: 1,
+  });
+  const { data: term, isLoading: termLoading } = useQuery<TerminalData>({
+    queryKey: ['/api/gex-vex/terminal', symbol, 'nexus'],
+    queryFn: q(`/api/gex-vex/terminal/${symbol}?interval=15m&lookback=5`),
+    staleTime: 60_000, refetchInterval: 120_000, retry: 1,
+  });
+  const { data: rotation } = useQuery<RotationPayload>({
+    queryKey: ['/api/sector-rotation', 'nexus'], queryFn: q('/api/sector-rotation'),
+    staleTime: 120_000, refetchInterval: 180_000, retry: 1,
+  });
+  const { data: eh } = useQuery<EHPayload>({
+    queryKey: ['/api/extended-hours', 'nexus'], queryFn: q('/api/extended-hours'),
+    staleTime: 60_000, refetchInterval: 120_000, retry: 1,
+  });
+
+  const plays = hub?.hub?.topPlays ?? [];
+  const snap = term?.snapshot;
+  const matrix = term?.strikeExpiryMatrix ?? [];
+  const spot = snap?.spotPrice ?? 0;
+
+  const quoteBySym = useMemo(() => {
+    const m = new Map<string, EHQuote>();
+    for (const list of [eh?.mostActive, eh?.gainers, eh?.losers]) {
+      for (const t of list ?? []) if (!m.has(t.symbol) && Number.isFinite(t.changePct)) m.set(t.symbol, t);
+    }
+    return m;
+  }, [eh]);
+  const spotQ = quoteBySym.get(symbol);
+
+  /* ── matrix shaping — all real cells, windowed around spot ── */
+  const valOf = (c: StrikeExpiryCell) => (metric === 'vex' ? (c.netVEX ?? 0) : c.netGEX);
+
+  const shaped = useMemo(() => {
+    const cells = matrix.filter((c) => Number.isFinite(c.strike) && Number.isFinite(c.dte));
+    const expiryAll = [...new Map(cells.map((c) => [c.dte, c.expiryLabel] as const)).entries()]
+      .sort((a, b) => a[0] - b[0]);
+    const bucketDef = DTE_BUCKETS.find((b) => b.id === bucket)!;
+    const expiries = expiryAll.filter(([d]) => bucketDef.test(d));
+    const bucketCounts = Object.fromEntries(
+      DTE_BUCKETS.map((b) => [b.id, expiryAll.filter(([d]) => b.test(d)).length]),
+    ) as Record<BucketId, number>;
+
+    const strikesAll = [...new Set(cells.map((c) => c.strike))].sort((a, b) => b - a);
+    const WINDOW = 12;
+    const nearestIdx = strikesAll.reduce((best, s, i) =>
+      Math.abs(s - spot) < Math.abs(strikesAll[best] - spot) ? i : best, 0);
+    const from = showAbove ? 0 : Math.max(0, nearestIdx - WINDOW);
+    const to = showBelow ? strikesAll.length : Math.min(strikesAll.length, nearestIdx + WINDOW + 1);
+    const strikes = strikesAll.slice(from, to);
+    const hiddenAbove = from;
+    const hiddenBelow = strikesAll.length - to;
+
+    const byKey = new Map<string, StrikeExpiryCell>();
+    cells.forEach((c) => byKey.set(`${c.strike}|${c.dte}`, c));
+
+    const vals = cells.map((c) => Math.abs(valOf(c)));
+    const rMax = robustMax(vals, 1e-9, 0.985);
+    const trueMax = Math.max(...vals, 0);
+    const fmt = makeFmt(trueMax);
+
+    /* strongest listed nodes above / below spot — the context rail's read */
+    let above: StrikeExpiryCell | null = null; let below: StrikeExpiryCell | null = null;
+    for (const c of cells) {
+      if (c.strike > spot && (!above || Math.abs(valOf(c)) > Math.abs(valOf(above)))) above = c;
+      if (c.strike < spot && (!below || Math.abs(valOf(c)) > Math.abs(valOf(below)))) below = c;
+    }
+    /* gravity: call-side vs put-side share of total |exposure| */
+    let pos = 0; let neg = 0;
+    for (const c of cells) { const v = valOf(c); if (v >= 0) pos += v; else neg += -v; }
+    const callPct = pos + neg > 0 ? Math.round((pos / (pos + neg)) * 100) : null;
+
+    return { expiries, expiryAll, bucketCounts, strikes, hiddenAbove, hiddenBelow, byKey, rMax, fmt, above, below, callPct, total: cells.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matrix, bucket, showAbove, showBelow, spot, metric]);
+
+  const cellClass = (v: number) => {
+    if (v === 0) return '';
+    const a = Math.abs(v);
+    let cls = v > 0 ? 'call' : 'put';
+    if (a >= shaped.rMax) cls += ' mega';
+    else if (a >= shaped.rMax * 0.25) cls += ' hot';
+    return cls;
+  };
+
+  /* ── ⌘K search — the real universal index ── */
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [cursor, setCursor] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { data: results = [], isFetching: searching } = useQuery<SearchResult[]>({
+    queryKey: ['/api/search/symbols', query.trim().toUpperCase()],
+    queryFn: async () => {
+      const r = await fetch(`/api/search/symbols?q=${encodeURIComponent(query.trim().toUpperCase())}`, { credentials: 'include' });
+      if (!r.ok) return [];
+      const body = await r.json();
+      return Array.isArray(body) ? body : body.results ?? [];
+    },
+    enabled: searchOpen && query.trim().length > 0,
+    staleTime: 60_000, retry: 0,
+  });
+  const shownResults: SearchResult[] = query.trim()
+    ? results
+    : plays.slice(0, 10).map((p) => ({ symbol: p.symbol, name: p.sector, type: 'ranked' }));
+
+  useEffect(() => {
+    // Capture phase + stopPropagation: while the hub is mounted, ⌘K belongs to
+    // ITS search — the legacy global command palette must not also open.
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        e.stopPropagation();
+        setSearchOpen((o) => !o); setQuery(''); setCursor(0);
+      }
+      if (e.key === 'Escape') setSearchOpen(false);
+    };
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => window.removeEventListener('keydown', onKey, { capture: true });
+  }, []);
+  useEffect(() => { if (searchOpen) setTimeout(() => inputRef.current?.focus(), 40); }, [searchOpen]);
+
+  const pick = (sym: string) => {
+    setCurrentStock({ symbol: sym.toUpperCase() });
+    setSearchOpen(false);
+  };
+
+  const sessionLabel = eh?.session === 'pre' ? 'Pre-market' : eh?.session === 'post' ? 'After hours' : eh?.session === 'regular' ? 'Live' : 'Last close';
+  const negGamma = plays.find((p) => p.symbol === symbol)?.isNegativeGamma;
+  const laggards = (rotation?.laggards ?? []).slice(0, 3);
+  const leaders = (rotation?.leaders ?? []).slice(0, 3);
+
+  return (
+    <div className="gexlab">
+      <div
+        className={`main${leftRail.dragging || rightRail.dragging ? ' nx-dragging' : ''}`}
+        style={{ ['--nx-gexl' as string]: `${leftRail.width}px`, ['--nx-gexr' as string]: `${rightRail.width}px` }}
+      >
+        <div className={`nx-resize${leftRail.dragging ? ' active' : ''}`} style={{ left: leftRail.width }} title="Drag to resize · double-click to expand" {...leftRail.handleProps} />
+        <div className={`nx-resize${rightRail.dragging ? ' active' : ''}`} style={{ right: rightRail.width - 4, marginLeft: 0 }} title="Drag to resize · double-click to expand" {...rightRail.handleProps} />
+
+        {/* ══════════ LEFT — FOCUS + RANKED ══════════ */}
+        <div className="col col-left">
+          <div className="sec-head">
+            <div className="sec-num">Dealer positioning</div>
+            <div className="sec-title">GEX Hub</div>
+            <div className="sec-sub">Start with the ranked market, then inspect the true strike × expiry exposure surface.</div>
+            <div className="sec-meta">
+              <span className="tag cyan">{symbol} focus</span>
+              <span className="tag amber">{sessionLabel}</span>
+              <button className="focus-action" style={{ marginLeft: 'auto' }} onClick={() => { setSearchOpen(true); setQuery(''); setCursor(0); }}>
+                ⌘K SEARCH →
+              </button>
+            </div>
+          </div>
+
+          <div className="focus-card">
+            <div className="focus-head">
+              <div className="focus-label">Money flow · {rotation?.sessionLabel ?? 'session'}</div>
+              <button className="focus-action" onClick={() => setLocation('/t?tab=flow')}>VIEW →</button>
+            </div>
+            <div className="spot-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div className="spot-ticker">{symbol}</div>
+                  <div className="spot-price">{spot ? `$${spot.toFixed(2)}` : '—'}</div>
+                  {spotQ ? (
+                    <div className="spot-chg" style={{ color: spotQ.changePct >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                      {spotQ.changePct >= 0 ? '+' : ''}{spotQ.changePct.toFixed(2)}%
+                    </div>
+                  ) : (
+                    <div className="spot-chg" style={{ color: 'var(--text-mute)' }}>chg —</div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', fontSize: 10, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
+                  <div>{symbol === 'SPY' ? 'benchmark' : 'focus'}</div>
+                  <div style={{ color: snap?.gammaFlipPrice ? 'var(--cyan-bright)' : 'var(--text-mute)', marginTop: 2 }}>
+                    {snap?.gammaFlipPrice ? `flip $${Math.round(snap.gammaFlipPrice)}` : 'no flip in range'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flow-wrap">
+              <div className="flow-side">
+                <div className="flow-side-label">Out of</div>
+                {laggards.map((s) => (
+                  <div className="flow-item" key={s.etf}><span className="sym">{s.name}</span><span className="val out">{s.change.toFixed(1)}%</span></div>
+                ))}
+                {!laggards.length && <div className="flow-item"><span className="sym" style={{ color: 'var(--text-mute)' }}>no read yet</span></div>}
+              </div>
+              <div className="flow-arrow">→</div>
+              <div className="flow-side">
+                <div className="flow-side-label">Into</div>
+                {leaders.map((s) => (
+                  <div className="flow-item" key={s.etf}><span className="sym">{s.name}</span><span className="val in">+{s.change.toFixed(1)}%</span></div>
+                ))}
+                {!leaders.length && <div className="flow-item"><span className="sym" style={{ color: 'var(--text-mute)' }}>no read yet</span></div>}
+              </div>
+            </div>
+          </div>
+
+          <div className="ranked">
+            <div className="ranked-head">
+              <div className="ranked-label">Ranked · GEX surface</div>
+              <div className="ranked-count">{hub?.hub?.totalScanned ?? plays.length} scanned</div>
+            </div>
+            <div className="ranked-list">
+              {plays.map((p, i) => (
+                <div
+                  key={p.symbol}
+                  className={`ranked-item${p.symbol === 'SPY' ? ' benchmark' : ''}${p.symbol === symbol ? ' active' : ''}`}
+                  onClick={() => setCurrentStock({ symbol: p.symbol })}
+                >
+                  <div className="ranked-num">{i + 1}</div>
+                  <div>
+                    <span className="ranked-sym">{p.symbol}</span>
+                    {p.symbol === 'SPY' && <span className="ranked-bench">benchmark</span>}
+                  </div>
+                  <div className={`ranked-gamma ${p.isNegativeGamma ? 'neg' : 'pos'}`}>{p.isNegativeGamma ? '−γ' : '+γ'}</div>
+                  <div className="ranked-score">{p.playScore ?? '—'}</div>
+                </div>
+              ))}
+              {!plays.length && (
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)', padding: '8px 0' }}>
+                  hub scan loading…
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ══════════ CENTER — PRISM ══════════ */}
+        <div className="col prism-area">
+          <div className="prism-header">
+            <div className="prism-eyebrow">Prism · {symbol}</div>
+            <div className="prism-title-row">
+              <div className="prism-title">Strike × Expiry Surface</div>
+              <div className="prism-badge"><span className="dot" />{termLoading ? 'loading…' : `${shaped.total} listed cells`}</div>
+            </div>
+            <div className="prism-desc">Ranked board + the strike × expiry surface, in 2D or 3D. Green = calls · Red = puts · Brighter cells carry more exposure.</div>
+          </div>
+
+          <div className="prism-controls">
+            <div className="view-toggle">
+              {(['2d', '3d'] as const).map((v) => (
+                <button key={v} className={`view-btn${(v === '3d') === view3d ? ' active' : ''}`} style={{ background: (v === '3d') === view3d ? undefined : 'transparent', border: 'none' }} onClick={() => setView3d(v === '3d')}>{v.toUpperCase()}</button>
+              ))}
+            </div>
+            <div className="view-toggle">
+              {(['gex', 'vex'] as const).map((m) => (
+                <button key={m} className={`view-btn${metric === m ? ' active' : ''}`} style={{ background: metric === m ? undefined : 'transparent', border: 'none' }} onClick={() => setMetric(m)}>{m.toUpperCase()}</button>
+              ))}
+            </div>
+            <div className="filter-sep" />
+            <div className="filter-group">
+              <span className="filter-label">DTE</span>
+              <div className="filter-chips">
+                {DTE_BUCKETS.map((b) => (
+                  <button key={b.id} className={`filter-chip${bucket === b.id ? ' active' : ''}`} onClick={() => setBucket(b.id)}>
+                    {b.label} <span className="n">·{shaped.bucketCounts[b.id]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="expiry-selector">
+              <div className="expiry-btn">
+                {shaped.expiries.length} of {shaped.expiryAll.length} expiries
+                {shaped.expiryAll.length > 0 && ` · max ${shaped.expiryAll[shaped.expiryAll.length - 1][1]} (${shaped.expiryAll[shaped.expiryAll.length - 1][0]}d)`}
+              </div>
+            </div>
+          </div>
+
+          {view3d ? (
+            <div className="three-wrap">
+              {/* GammaSurface is already the honest 3D: LISTED mode for absent
+                  cells, overflow ticks past the robust max. VEX maps the same
+                  real matrix through netVEX. */}
+              <GammaSurface
+                className="h-full w-full"
+                points={(metric === 'vex' ? matrix.map((c) => ({ ...c, netGEX: c.netVEX ?? 0 })) : matrix) as any}
+                spot={spot}
+                symbol={symbol}
+                callWall={snap?.callWall}
+                putWall={snap?.putWall}
+                flipPrice={snap?.gammaFlipPrice ?? null}
+              />
+            </div>
+          ) : (
+            <div className="matrix-wrap">
+              {shaped.hiddenAbove > 0 && !showAbove && (
+                <div className="expand-row" onClick={() => setShowAbove(true)}>
+                  <span>▲ {shaped.hiddenAbove} strikes above · click to expand</span>
+                </div>
+              )}
+              {termLoading ? (
+                <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+                  reading the surface…
+                </div>
+              ) : !shaped.strikes.length ? (
+                <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)' }}>
+                  no listed cells for {symbol}
+                </div>
+              ) : (
+                <table className="matrix">
+                  <thead>
+                    <tr>
+                      <th className="sticky-col">STRIKE</th>
+                      {shaped.expiries.map(([dte, label]) => <th key={dte}>{label}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shaped.strikes.map((strike) => {
+                      const dist = strike - spot;
+                      const pct = spot > 0 ? ((dist / spot) * 100).toFixed(1) : '0';
+                      const isSpot = Math.abs(dist) < (spot * 0.0008 + 0.01);
+                      const rowCls = isSpot ? 'spot' : dist > 0 ? 'above' : 'below';
+                      return (
+                        <tr key={strike} className="strike-row">
+                          <td className={`sticky-col ${rowCls}`}>
+                            ${strike}
+                            {!isSpot && <span className="pct">{dist > 0 ? '+' : ''}{pct}%</span>}
+                            {snap?.putWall === strike && <span className="star" title="put support">★</span>}
+                            {snap?.callWall === strike && <span style={{ color: 'var(--cyan)', marginLeft: 3 }} title="call wall">⊙</span>}
+                          </td>
+                          {shaped.expiries.map(([dte]) => {
+                            const cell = shaped.byKey.get(`${strike}|${dte}`);
+                            const v = cell ? valOf(cell) : null;
+                            return (
+                              <td key={dte}>
+                                {/* Absent = the chain never listed it — an empty cell,
+                                    not a zero (the value/zero/missing rule). */}
+                                {v == null || v === 0
+                                  ? <div className="cell" />
+                                  : <div className={`cell ${cellClass(v)}`} title={`$${strike} · ${cell!.expiryLabel} · ${metric.toUpperCase()} ${v.toFixed(4)}`}>{shaped.fmt(v)}</div>}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {shaped.hiddenBelow > 0 && !showBelow && (
+                <div className="expand-row" onClick={() => setShowBelow(true)}>
+                  <span>▼ {shaped.hiddenBelow} strikes below · click to expand</span>
+                </div>
+              )}
+              {(showAbove || showBelow) && (
+                <div className="expand-row" onClick={() => { setShowAbove(false); setShowBelow(false); }}>
+                  <span>collapse to the spot window</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ══════════ RIGHT — CONTEXT ══════════ */}
+        <div className="col col-right">
+          <div className="sec-head">
+            <div className="sec-num">Context</div>
+            <div className="sec-title">What it means.</div>
+            <div className="sec-sub">Key levels, gravity and model assumptions for {symbol}.</div>
+          </div>
+
+          <div className="context-card">
+            <div className="context-head">
+              <div className="context-label">Key levels</div>
+              <div style={{ fontSize: 9.5, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol} · {sessionLabel.toLowerCase()}</div>
+            </div>
+            <div className="context-grid">
+              <div className="context-item">
+                <div className="context-k">Spot</div>
+                <div className="context-v cyan">{spot ? `$${spot.toFixed(2)}` : '—'}</div>
+                <div className="context-sub">{sessionLabel.toLowerCase()}</div>
+              </div>
+              <div className="context-item">
+                <div className="context-k">Gamma regime</div>
+                {negGamma == null ? (
+                  <div className="context-v" style={{ color: 'var(--text-mute)' }}>—</div>
+                ) : (
+                  <>
+                    <div className={`context-v ${negGamma ? 'red' : 'green'}`}>{negGamma ? '−γ' : '+γ'}</div>
+                    <div className="context-sub">{negGamma ? 'negative gamma' : 'positive gamma'}</div>
+                  </>
+                )}
+              </div>
+              <div className="context-item">
+                <div className="context-k">Call wall</div>
+                <div className="context-v green">{snap?.callWall ? `$${snap.callWall}` : '—'}</div>
+                <div className="context-sub">resistance</div>
+              </div>
+              <div className="context-item">
+                <div className="context-k">Put support</div>
+                <div className="context-v red">{snap?.putWall ? `$${snap.putWall}` : '—'}</div>
+                <div className="context-sub">floor</div>
+              </div>
+              {snap?.callWall != null && snap?.putWall != null && (
+                <div className="context-item full">
+                  <div className="context-k">Structural range</div>
+                  <div className="context-v amber">${snap.putWall} put → ${snap.callWall} call</div>
+                  <div className="context-sub">
+                    {spot > snap.putWall && spot < snap.callWall ? 'inside the range' : spot >= snap.callWall ? 'above the call wall' : 'below put support'}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="gravity-card">
+            <div className="context-head">
+              <div className="context-label">Gravity · call vs put exposure</div>
+            </div>
+            {shaped.callPct == null ? (
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>no listed exposure yet</div>
+            ) : (
+              <>
+                <div
+                  className="gravity-bar"
+                  style={{ background: `linear-gradient(90deg, var(--red) 0%, var(--red) ${100 - shaped.callPct}%, var(--panel-hi) ${100 - shaped.callPct}%, var(--panel-hi) ${100 - shaped.callPct + 2}%, var(--green) ${100 - shaped.callPct + 2}%, var(--green) 100%)` }}
+                >
+                  {spot > 0 && snap?.putWall != null && snap?.callWall != null && snap.callWall > snap.putWall && (
+                    <div
+                      className="gravity-marker"
+                      title={`spot $${spot.toFixed(2)} within the wall range`}
+                      style={{ left: `${Math.max(2, Math.min(98, ((spot - snap.putWall) / (snap.callWall - snap.putWall)) * 100))}%` }}
+                    />
+                  )}
+                </div>
+                <div className="gravity-labels">
+                  <div className="puts">↓ {100 - shaped.callPct}% puts</div>
+                  <div className="calls">{shaped.callPct}% calls ↑</div>
+                </div>
+                <div className="gravity-pct">
+                  {negGamma
+                    ? <span className="down">Negative gamma</span>
+                    : <span className="up">Positive gamma</span>}
+                  {' '}— {negGamma ? 'dealer hedging can amplify moves' : 'dealer hedging dampens moves'}
+                </div>
+                <div className="gravity-note">
+                  {negGamma
+                    ? <>Dealer hedging can <b>amplify whichever side confirms first</b>. Use the walls as structure, not as a ceiling and floor.</>
+                    : <>Expect price to <b>drift and pin</b> between levels rather than trend hard. Dealers sell into rallies and buy into dips to stay delta-neutral.</>}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="insight-card">
+            <div className="context-head">
+              <div className="context-label">Strongest nodes · {metric.toUpperCase()}</div>
+            </div>
+            {shaped.above ? (
+              <div className="insight-item bull">
+                <div className="insight-k">Above spot</div>
+                <div className="insight-v">${shaped.above.strike} · {shaped.above.expiryLabel} · {shaped.above.dte}d</div>
+                <div className="insight-desc">Largest listed {metric.toUpperCase()} node above. <b>A level, not an entry.</b></div>
+              </div>
+            ) : (
+              <div className="insight-item note"><div className="insight-desc">No listed node above spot.</div></div>
+            )}
+            {shaped.below ? (
+              <div className="insight-item bear">
+                <div className="insight-k">Below spot</div>
+                <div className="insight-v">${shaped.below.strike} · {shaped.below.expiryLabel} · {shaped.below.dte}d</div>
+                <div className="insight-desc">
+                  Largest listed node below.{shaped.below.dte <= 1 ? <> <b>0–1DTE — pin risk elevated into the close.</b></> : null}
+                </div>
+              </div>
+            ) : (
+              <div className="insight-item note"><div className="insight-desc">No listed node below spot.</div></div>
+            )}
+            {(shaped.above?.dte ?? 99) <= 5 && (
+              <div className="insight-item note">
+                <div className="insight-k">Time is your friend</div>
+                <div className="insight-v">Same strike, later expiry</div>
+                <div className="insight-desc">The strongest node sits only {shaped.above!.dte}d out. Consider the same strike on a later expiry — you pay more premium, but the thesis gets room to play out.</div>
+              </div>
+            )}
+          </div>
+
+          <div className="model-note">
+            <b>Model ·</b> Dealer sign is an assumption, not an observation — inventory is never reported. Magnitude at each strike is the reliable read. Nodes are levels, not entries. Confirm on the chart before trading.
+          </div>
+
+          <div className="disclaimer">
+            Educational only · not investment advice.<br />
+            Nodes are levels, not entries.
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════ ⌘K SEARCH — real universal index ══════════ */}
+      {searchOpen && (
+        <div className="search-modal" onClick={(e) => { if (e.target === e.currentTarget) setSearchOpen(false); }}>
+          <div className="search-box">
+            <div className="search-input-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+              <input
+                ref={inputRef}
+                className="search-input"
+                placeholder="Search any ticker…"
+                value={query}
+                onChange={(e) => { setQuery(e.target.value.toUpperCase()); setCursor(0); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setCursor((c) => Math.min(shownResults.length - 1, c + 1)); }
+                  if (e.key === 'ArrowUp') { e.preventDefault(); setCursor((c) => Math.max(0, c - 1)); }
+                  if (e.key === 'Enter') {
+                    const sel = shownResults[cursor] ?? (query.trim() ? { symbol: query.trim() } : null);
+                    if (sel) pick(sel.symbol);
+                  }
+                }}
+              />
+              <span className="search-kbd">ESC</span>
+            </div>
+            <div className="search-results">
+              <div className="search-group">{query.trim() ? (searching ? 'searching…' : `${shownResults.length} matches`) : 'Ranked board'}</div>
+              {shownResults.map((r, i) => {
+                const qte = quoteBySym.get(r.symbol);
+                return (
+                  <div key={`${r.symbol}-${i}`} className={`search-item${i === cursor ? ' active' : ''}`} onMouseEnter={() => setCursor(i)} onClick={() => pick(r.symbol)}>
+                    <div className="search-sym">{r.symbol}</div>
+                    <div className="search-name">{r.name ?? `${r.symbol} · ${r.type ?? 'equity'}`}</div>
+                    <div className="search-price">{qte ? `$${qte.lastPrice.toFixed(2)}` : ''}</div>
+                    {qte
+                      ? <div className={`search-chg ${qte.changePct >= 0 ? 'up' : 'down'}`}>{qte.changePct >= 0 ? '+' : ''}{qte.changePct.toFixed(1)}%</div>
+                      : <div />}
+                  </div>
+                );
+              })}
+              {query.trim() && !searching && !shownResults.length && (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-mute)', fontSize: 12 }}>
+                  No results for “{query}” — Enter opens it directly.
+                </div>
+              )}
+            </div>
+            <div className="search-footer">
+              <span><kbd>↑↓</kbd> navigate</span>
+              <span><kbd>↵</kbd> select</span>
+              <span><kbd>esc</kbd> close</span>
+              <span style={{ marginLeft: 'auto', color: 'var(--cyan)' }}>universal ticker index</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default GexHubNexus;

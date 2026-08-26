@@ -47,6 +47,9 @@ const ChartLab = lazy(() => import('@/components/charting/chart-lab-nexus').then
 
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
 const NexusBoard    = lazy(() => import('@/pages/nexus').then(m => ({ default: m.NexusBoard })));
+// GEX = the reference GEX Hub mock, wired. The prior GexShell (gainers/
+// heatmap/trade-plan subtabs) stays in the tree at pages/shells/gex-shell.
+const GexHub        = lazy(() => import('@/components/gex/gex-hub-nexus').then(m => ({ default: m.GexHubNexus })));
 const GexShell      = lazy(() => import('@/pages/shells/gex-shell'));
 const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m => ({ default: m.FlowBoard })));
 // The old flow-heatmap page is the SECTOR TREEMAP with a flow overlay (breadth, net flow,
@@ -398,7 +401,7 @@ export default function TerminalShell() {
               {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it.
                   Full-bleed: the FLOW mock owns its own two-column layout. */}
               {tab === 'flow' && <FlowBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
-              {tab === 'gex' && <div className="qe-module-page mx-auto w-full max-w-[1680px]"><GexShell /></div>}
+              {tab === 'gex' && <GexHub />}
               {tab === 'leaps' && <div className="qe-module-page mx-auto w-full max-w-[1680px]"><LeapTracker /></div>}
               {tab === 'crypto' && <CryptoTerminal onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
               {tab === 'catalyst' && (
