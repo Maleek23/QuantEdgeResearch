@@ -8,6 +8,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { CanonFreshness } from '@/components/canon';
 import { PanelFrame } from '@/components/oracle/panel-frame';
 import { TC } from '@/lib/oracle/trading-colors';
 import { MarketStream, useRealtimeStatus } from '@/components/oracle/market-stream';
@@ -22,6 +23,9 @@ interface Sector {
 interface RotationFeed {
   sessionLabel: string;
   isStale: boolean;
+  /** The server has always sent this; the interface just never declared it, so
+      the panel could only render a stale/live boolean instead of a real age. */
+  asOf?: string | null;
   spyChange: number;
   leaders: Sector[];
   laggards: Sector[];
@@ -155,8 +159,12 @@ export function OracleMarketField({
       forceExpanded={expanded}
       onFocus={onFocus}
       right={
-        <span className="font-mono text-[10px] font-medium text-muted-foreground/65">
-          {data.sessionLabel}{data.isStale ? ' · stale' : ' · live'}
+        <span className="inline-flex items-center gap-2 font-mono text-[10px] font-medium text-muted-foreground/65">
+          {data.sessionLabel}
+          {/* "· stale" told you the state but never how stale. Canon renders the
+              actual age, which is the difference between a reader trusting the
+              panel and a reader guessing. */}
+          <CanonFreshness asOf={data.asOf ?? null} showLabel={!!data.asOf} />
         </span>
       }
     >

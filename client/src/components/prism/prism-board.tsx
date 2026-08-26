@@ -23,6 +23,7 @@ import { GammaSurface } from './gamma-surface';
 import { Heartbeat } from '@/components/viz';
 import { cn as cnx } from '@/lib/utils';
 import type { StrikeExpiryCell, GEXSnapshot } from '@shared/gex-types';
+import { CanonModelNote } from '@/components/canon';
 
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
@@ -259,19 +260,12 @@ export function PrismBoard() {
                     : 'Negative gamma — dealer hedging amplifies moves. Expect bigger swings and follow-through once a level breaks.'}
                 </p>
 
-                {/* Both readings above depend on knowing which side the dealer is
-                    on, and dealer inventory is never reported — it is inferred from
-                    the standard assumption that customers are net long options.
-                    Exposure SIZE at a strike comes from open interest and is
-                    measured; the sign is a model. State which half is which, or a
-                    directional inference reads as an observation. */}
-                <div className="mt-2 flex items-start gap-2 rounded border border-[var(--gex-flip)]/25 bg-[var(--gex-flip)]/[0.05] px-2.5 py-1.5">
-                  <span className="mt-px font-mono text-label font-bold uppercase tracking-wider text-[var(--gex-flip)]">Model</span>
-                  <span className="text-label leading-relaxed text-muted-foreground/80">
-                    Dealer sign is an assumption, not an observation — inventory is
-                    never reported. Magnitude at each strike is the reliable read.
-                  </span>
-                </div>
+                {/* Promoted to the canonical note so this disclosure reads
+                    identically wherever a model assumption is in play. */}
+                <CanonModelNote className="mt-2">
+                  Dealer sign is an assumption, not an observation — inventory is
+                  never reported. Magnitude at each strike is the reliable read.
+                </CanonModelNote>
 
                 {read.up && (
                   <Level label="Strongest node above" strike={read.up.strike} expiry={read.up.expiryLabel} dte={read.up.dte} color={BULL} />

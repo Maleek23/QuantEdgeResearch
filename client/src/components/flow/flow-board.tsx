@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CanonModelNote } from '@/components/canon';
 import { FlowCard } from './flow-card';
 import {
   scoreFlow, baselinesBySymbol, repeatCounts, contractKey, WHALE_PREMIUM, type FlowPrint,
@@ -226,9 +227,16 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
               <b style={{ color: overview.callPrem >= overview.putPrem ? BULL : BEAR }}>{money(Math.abs(overview.callPrem - overview.putPrem))}</b>
               {' '}across {overview.total} contract observations.{' '}
               {overview.measuredPct === 0
-                ? 'Direction is NOT measured on this feed: a chain snapshot cannot tell a buyer from a seller, and selling calls is bearish while selling puts is bullish. Call-vs-put premium is activity, not conviction — do not read it as a directional signal.'
-                : 'Only prints whose execution side was observed on the tape count toward a directional read; the rest are activity, not conviction.'}
+                ? 'Call-vs-put premium is activity, not conviction.'
+                : 'Only prints whose execution side was observed on the tape count toward a directional read.'}
             </p>
+            {overview.measuredPct === 0 && (
+              <CanonModelNote tone="gap" className="mt-2">
+                Direction is not measured on this feed. A chain snapshot cannot tell a
+                buyer from a seller, and selling calls is bearish while selling puts is
+                bullish — so the side of this premium is unknown, not neutral.
+              </CanonModelNote>
+            )}
           </div>
         )}
       </div>
