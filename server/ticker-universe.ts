@@ -279,7 +279,15 @@ export function getFullUniverse(): string[] {
     ...STREAMING_MEDIA,
     ...CONSTRUCTION_HOUSING,
     ...MAJOR_ETFS,
-    ...LEVERAGED_ETFS
+    ...LEVERAGED_ETFS,
+    // The operator's own lists were NEVER part of the "full" universe — CRCL
+    // sat on USER_CORE_WATCHLIST while the pattern engine (which sweeps this
+    // function's output) could not see it. Caught by a live pipeline trace on
+    // 2026-08-26: "full universe: 761 names | CRCL in it: false". The names
+    // the operator explicitly watches belong in every universal sweep, by
+    // definition of the word full.
+    ...USER_CORE_WATCHLIST,
+    ...PREMIUM_WATCHLIST
   ]);
   return Array.from(allTickers);
 }

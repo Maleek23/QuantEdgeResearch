@@ -5522,7 +5522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/patterns/scan", async (req, res) => {
     try {
       const { getPatternHits, scanUniversePatterns } = await import("./pattern-engine");
-      void scanUniversePatterns(); // refresh in background if stale; serves cache now
+      void scanUniversePatterns(req.query.force === "1"); // ?force=1 resweeps now; else refresh only if stale
       const state = getPatternHits();
       const sym = typeof req.query.symbol === "string" ? req.query.symbol.toUpperCase() : null;
       const pattern = typeof req.query.pattern === "string" ? req.query.pattern : null;
