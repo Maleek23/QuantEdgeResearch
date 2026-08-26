@@ -109,3 +109,15 @@ export function passesShortDiscipline(input: ShortDisciplineInput): boolean {
   }
   return verdict.allowed;
 }
+
+/**
+ * What counts as the EVENT a short requires. The catalysts table holds every
+ * ticker-tagged news row, including multi-ticker roundups and opinion pieces —
+ * measured live: META carried a Constellation Energy guidance piece as its
+ * "catalyst". A mention is not an event. classifyImpact() already grades rows
+ * (high = earnings/FDA/M&A/guidance on the actual name, not a roundup), so the
+ * gate delegates to that grade instead of re-deriving it.
+ */
+export function isSubstantiveEventCatalyst(row: { impact?: string | null }): boolean {
+  return row.impact === 'high';
+}

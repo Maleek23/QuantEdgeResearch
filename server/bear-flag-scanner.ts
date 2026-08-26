@@ -626,16 +626,18 @@ export async function ingestBearFlagIdeas(): Promise<number> {
     // pattern-short PUT while gapping UP pre-market. Every bearish idea now
     // needs a real catalyst row for its symbol, with the BTC-proxy carve-out
     // handled inside passesShortDiscipline.
-    const { passesShortDiscipline } = await import("./short-discipline");
+    const { passesShortDiscipline, isSubstantiveEventCatalyst } = await import("./short-discipline");
     const { storage } = await import("./storage");
-    let activeCatalysts: { symbol?: string | null }[] = [];
+    let activeCatalysts: { symbol?: string | null; impact?: string | null }[] = [];
     try { activeCatalysts = await storage.getActiveCatalysts(); } catch { /* no catalyst feed → every short fails the gate, which is the safe side */ }
     let disciplineRejected = 0;
     let ingested = 0;
 
     for (const setup of setups) {
       const hasEventCatalyst = activeCatalysts.some(
-        (c) => c.symbol?.toUpperCase() === setup.symbol.toUpperCase(),
+        (c) => c.symbol?.toUpperCase() === setup.symbol.toUpperCase()
+          // A mention is not an event — only impact:'high' rows qualify.
+          && isSubstantiveEventCatalyst(c as any),
       );
       if (!passesShortDiscipline({ symbol: setup.symbol, direction: 'short', hasEventCatalyst, btcChangePercent: null })) {
         disciplineRejected++;

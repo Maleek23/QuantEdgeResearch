@@ -15,7 +15,7 @@ import {
 } from './technical-indicators';
 import { discoverHiddenCryptoGems, discoverStockGems, discoverPennyStocks, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 import { PREMIUM_WATCHLIST, USER_CORE_WATCHLIST } from './ticker-universe';
-import { passesShortDiscipline, isBtcProxy } from './short-discipline';
+import { passesShortDiscipline, isBtcProxy, isSubstantiveEventCatalyst } from './short-discipline';
 import { logger } from './logger';
 import { shouldBlockSymbol } from './earnings-service';
 import { enrichOptionIdea } from './options-enricher';
@@ -1107,6 +1107,9 @@ export async function generateQuantIdeas(
       // returns a string, so a non-empty catalyst proves nothing.
       const hasEventCatalyst = catalysts.some(
         c => c.symbol?.toUpperCase() === data.symbol.toUpperCase()
+          // A mention is not an event — only impact:'high' rows qualify
+          // (earnings/FDA/M&A/guidance on the name itself, not a roundup).
+          && isSubstantiveEventCatalyst(c as any)
       );
       if (!passesShortDiscipline({
         symbol: data.symbol,
