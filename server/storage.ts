@@ -1704,15 +1704,11 @@ export class MemStorage implements IStorage {
     const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_target');
     
-    // Audit: Canonical Loss Threshold consistency
-    const CANONICAL_LOSS_THRESHOLD = 3.0; 
-    const lostIdeas = closedIdeas.filter((idea) => {
-      if (idea.outcomeStatus !== 'hit_stop') return false;
-      if (idea.percentGain !== null && idea.percentGain !== undefined) {
-        return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-      }
-      return true;
-    });
+    // A touched stop is a loss, full stop. The shared isRealLoss already says
+    // so — this local re-implementation kept applying a 3% P&L floor that the
+    // barrier layer had already removed, so a 1.2%-stop band's stop-outs
+    // vanished from the stats while its wins counted in full.
+    const lostIdeas = closedIdeas.filter((idea) => isRealLoss(idea));
     
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
     // Same floor as DatabaseStorage — the in-memory path must not report a rate
@@ -2965,27 +2961,17 @@ export class DatabaseStorage implements IStorage {
     const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
     const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter(i => i.outcomeStatus === 'hit_target');
-    // 🎯 MINIMUM LOSS THRESHOLD: Only count as loss if percentGain is below -3%
-    const lostIdeas = closedIdeas.filter(i => {
-      if (i.outcomeStatus !== 'hit_stop') return false;
-      if (i.percentGain !== null && i.percentGain !== undefined) {
-        return i.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-      }
-      return true;
-    });
+    // A touched stop is a loss — the shared isRealLoss classifier, not a local
+    // 3% floor. The floor survived here after being removed from the barrier
+    // layer, silently erasing small stop-outs from every reported rate.
+    const lostIdeas = closedIdeas.filter(i => isRealLoss(i));
     const expiredIdeas = closedIdeas.filter(i => i.outcomeStatus === 'expired' || i.outcomeStatus === 'manual_exit');
 
     const calculateAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
     
-    // Helper function to filter real losses (above threshold)
-    const isRealLoss = (idea: TradeIdea) => {
-      if (idea.outcomeStatus !== 'hit_stop') return false;
-      if (idea.percentGain !== null && idea.percentGain !== undefined) {
-        return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-      }
-      return true;
-    };
-    
+    // (the shared isRealLoss from @shared/constants classifies losses here —
+    // the local shadow that re-imposed the 3% floor is gone)
+
     const closedGains = closedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
     const closedHoldingTimes = closedIdeas.filter(i => i.actualHoldingTimeMinutes !== null).map(i => i.actualHoldingTimeMinutes!);
 

@@ -1937,12 +1937,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allIdeas = await storage.getAllTradeIdeas();
       
       // Apply canonical filters: exclude corrupted trades, options, flow/lotto
-      const cleanIdeas = storage.applyCanonicalPerformanceFilters(allIdeas);
+      // Module-level helpers, not storage methods — calling them as methods was
+      // a TypeError that 500'd this endpoint since the helpers moved.
+      const cleanIdeas = applyCanonicalPerformanceFilters(allIdeas);
       
       // Get decided trades (wins + real losses) using canonical methodology
-      const decidedTrades = storage.getDecidedTrades(cleanIdeas, { includeAllVersions: true });
+      const decidedTrades = getDecidedTrades(cleanIdeas, { includeAllVersions: true });
       const wins = decidedTrades.filter((i: any) => i.outcomeStatus === 'hit_target');
-      const realLosses = decidedTrades.filter((i: any) => storage.isRealLoss(i));
+      const realLosses = decidedTrades.filter((i: any) => isRealLoss(i));
       
       // Active = published AND outcome is open/pending
       const activeIdeas = allIdeas.filter((i: any) => 
