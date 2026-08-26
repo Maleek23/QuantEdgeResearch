@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CanonModelNote, scoreBand } from '@/components/canon';
+import { useColResize } from '@/lib/use-col-resize';
 import '@/styles/nexus.css';
 import { FlowCard } from './flow-card';
 import {
@@ -175,7 +176,11 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
 
   const money = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n.toFixed(0)}`;
 
+  // Follow-through rail: drag its border left to widen, double-click to expand.
+  const rail = useColResize('nx-flow-side', 300, { sign: -1, min: 240, max: 620 });
+
   /* table sort — premium / score / time, desc */
+
   const [sortKey, setSortKey] = useState<'score' | 'premium' | 'time'>('score');
   const sorted = useMemo(() => {
     const arr = [...shown];
@@ -200,7 +205,16 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
 
   return (
     <div className="flowlab">
-      <div className="main">
+      <div
+        className={`main${rail.dragging ? ' nx-dragging' : ''}`}
+        style={{ ['--nx-side' as string]: `${rail.width}px` }}
+      >
+        <div
+          className={`nx-resize${rail.dragging ? ' active' : ''}`}
+          style={{ right: rail.width - 4, marginLeft: 0 }}
+          title="Drag to resize · double-click to expand"
+          {...rail.handleProps}
+        />
         {/* ══════════ FLOW AREA ══════════ */}
         <div className="flow-area">
           <div className="flow-header">

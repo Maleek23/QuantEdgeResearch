@@ -193,7 +193,7 @@ function useGapZones(symbol: string) {
   return { zones, stats: data?.stats ?? null };
 }
 
-export default function HuntCockpit() {
+export default function HuntCockpit({ initialView }: { initialView?: "grid" | "scanner" | "cockpit" } = {}) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -323,7 +323,7 @@ export default function HuntCockpit() {
   >("conviction");
   // Cockpit is the live ranked stream; Grid is the comparison lens. This state
   // lives before the derived book so each lens can own its correct sort order.
-  const [view, setView] = useState<"grid" | "scanner" | "cockpit">("grid");
+  const [view, setView] = useState<"grid" | "scanner" | "cockpit">(initialView ?? "grid");
   // Two searches, two different verbs. The one in the terminal chrome LOADS and grades any
   // ticker; this one only FILTERS the signals already on the board. Conflating them made
   // searching feel broken — you'd type a name and not know which behaviour you'd get.

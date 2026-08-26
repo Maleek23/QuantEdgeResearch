@@ -26,6 +26,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
+import { useColResize } from '@/lib/use-col-resize';
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
 import type { ConvictionPick, ConvictionsResponse } from '@/lib/convictions';
 import '@/styles/nexus.css';
@@ -413,6 +414,8 @@ export function ChartLabBoard() {
   const [showCrosshair, setShowCrosshair] = useState(true);
   const [showLevels, setShowLevels] = useState(true);
   const [instrumentOpen, setInstrumentOpen] = useState(false);
+  // Sidebar rail: drag its border left to widen, double-click to expand.
+  const rail = useColResize('nx-chart-side', 300, { sign: -1, min: 240, max: 620 });
 
   const { data: series, isLoading, isError, dataUpdatedAt } = useCandles(symbol, tf);
   const candles = series?.bars;
@@ -563,7 +566,16 @@ export function ChartLabBoard() {
 
   return (
     <div className="chartlab">
-      <div className="main">
+      <div
+        className={`main${rail.dragging ? ' nx-dragging' : ''}`}
+        style={{ ['--nx-side' as string]: `${rail.width}px` }}
+      >
+        <div
+          className={`nx-resize${rail.dragging ? ' active' : ''}`}
+          style={{ right: rail.width - 4, marginLeft: 0 }}
+          title="Drag to resize · double-click to expand"
+          {...rail.handleProps}
+        />
         {/* ══════════ CHART AREA ══════════ */}
         <div className="chart-area">
           <div className="chart-header">

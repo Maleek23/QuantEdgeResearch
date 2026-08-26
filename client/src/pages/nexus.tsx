@@ -36,14 +36,18 @@
  * The mock's price-jitter loop does not run: prices move when the feed moves.
  * Its filter buttons, which only toggled classes, now actually filter.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { useTheme } from '@/components/theme-provider';
+import { useColResize } from '@/lib/use-col-resize';
 import type { ConvictionPick, ConvictionsResponse } from '@/lib/convictions';
 import quantEdgeLogoUrl from '@assets/q_1767502987714.png';
+// The cockpit — the deep single-signal read — mounts on demand behind the
+// board's view toggle. Same component the old Active Book used.
+const HuntCockpit = lazy(() => import('@/pages/shells/hunt-cockpit'));
 import '@/styles/nexus.css';
 
 /* ════════════════════════════════════════════════════════════════
@@ -440,6 +444,12 @@ export function NexusBoard() {
   }, [extended.data]);
 
   /* signals — the live book through the mock's filter bar, which now filters */
+  // GRID is the mock's card wall; SCANNER and COCKPIT are the working views the
+  // desk asked back in — HuntCockpit owns those, mounted with its own filters.
+  const [bookView, setBookView] = useState<'grid' | 'scanner' | 'cockpit'>('grid');
+  // Draggable rails: drag the border, double-click to cycle default ↔ expanded.
+  const leftRail = useColResize('nx-rail-left', 320, { sign: 1, min: 220, max: 560 });
+  const rightRail = useColResize('nx-rail-right', 340, { sign: -1, min: 220, max: 560 });
   const [side, setSide] = useState<'all' | 'long' | 'short'>('all');
   const [band, setBand] = useState<'all' | 'S' | 'A' | 'B' | 'C'>('all');
   const [sort, setSort] = useState<'conviction' | 'rr' | 'newest'>('conviction');
@@ -511,7 +521,23 @@ export function NexusBoard() {
       <canvas id="bgCanvas" ref={bgRef} />
 
       {/* ============ MAIN ============ */}
-      <div className="main">
+      <div
+        className={`main${leftRail.dragging || rightRail.dragging ? ' nx-dragging' : ''}`}
+        style={{ ['--nx-left' as string]: `${leftRail.width}px`, ['--nx-right' as string]: `${rightRail.width}px` }}
+      >
+        {/* draggable borders — drag to resize, double-click to expand */}
+        <div
+          className={`nx-resize${leftRail.dragging ? ' active' : ''}`}
+          style={{ left: leftRail.width }}
+          title="Drag to resize · double-click to expand"
+          {...leftRail.handleProps}
+        />
+        <div
+          className={`nx-resize${rightRail.dragging ? ' active' : ''}`}
+          style={{ right: rightRail.width - 4, marginLeft: 0 }}
+          title="Drag to resize · double-click to expand"
+          {...rightRail.handleProps}
+        />
         {/* LEFT — MARKET INTEL */}
         <div className="col col-left">
           <div className="sec-head">
@@ -662,10 +688,34 @@ export function NexusBoard() {
             <div className="sec-meta">
               <span className="tag cyan">ranked book</span>
               <span className="tag mute">· {picks.length}</span>
-              {/* This board IS the front tab now — no second oracle to open. */}
+              <div className="view-toggle" style={{ marginLeft: 'auto' }}>
+                {(['grid', 'scanner', 'cockpit'] as const).map((v) => (
+                  <button
+                    key={v}
+                    className={`view-btn${bookView === v ? ' active' : ''}`}
+                    style={{ background: bookView === v ? undefined : 'transparent', border: 'none' }}
+                    onClick={() => setBookView(v)}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
+          {bookView !== 'grid' ? (
+            <Suspense fallback={
+              <div style={{ padding: 40, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+                loading {bookView}…
+              </div>
+            }>
+              {/* key forces a fresh mount so initialView takes effect on switch */}
+              <div style={{ padding: '12px 16px' }}>
+                <HuntCockpit key={bookView} initialView={bookView} />
+              </div>
+            </Suspense>
+          ) : (
+          <>
           <div className="stats-bar">
             <div className="stat-box">
               <div className="stat-label">Active Signals</div>
@@ -805,6 +855,8 @@ export function NexusBoard() {
               </p>
             )}
           </div>
+          </>
+          )}
         </div>
 
         {/* RIGHT — DEVELOPING */}
