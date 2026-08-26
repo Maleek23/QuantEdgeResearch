@@ -20,6 +20,7 @@
  * The mock's price jitter and looping countdown do not ship.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { openWorkup as openWorkupModal } from '@/lib/workup-bus';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
@@ -236,7 +237,7 @@ export function CryptoNexus() {
 
   const openWorkup = (sym: string) => {
     setCurrentStock({ symbol: sym });
-    setLocation('/t?tab=chart');
+    openWorkupModal(sym); // the universal dossier, over this tab
   };
 
   const SpotCard = ({ a, kind }: { a?: CryptoAsset; kind: 'btc' | 'eth' }) => {

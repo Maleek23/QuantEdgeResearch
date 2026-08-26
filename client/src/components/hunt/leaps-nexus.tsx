@@ -11,6 +11,7 @@
  * do not ship.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { openWorkup } from '@/lib/workup-bus';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
@@ -229,7 +230,7 @@ export function LeapsNexus() {
                     </div>
                   </div>
                   <div className="action-block">
-                    <button className="action-btn" onClick={(e) => { e.stopPropagation(); research(l.symbol); }}>Research</button>
+                    <button className="action-btn" onClick={(e) => { e.stopPropagation(); openWorkup(l.symbol); }}>Research</button>
                     <button className="action-detail" onClick={(e) => { e.stopPropagation(); setCurrentStock({ symbol: l.symbol }); setLocation('/t?tab=gex'); }}>View surface →</button>
                   </div>
                 </div>

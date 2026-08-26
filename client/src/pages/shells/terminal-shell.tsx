@@ -8,6 +8,7 @@
  */
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
+import { onWorkup } from '@/lib/workup-bus';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Activity, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3, Loader2,
@@ -67,6 +68,8 @@ const CatalystBoard = lazy(() => import('@/components/catalyst/catalyst-board').
 const CryptoTerminal = lazy(() => import('@/components/crypto/crypto-nexus').then(m => ({ default: m.CryptoNexus })));
 // BOT = the seventh reference mock: the real automation layer, reported honestly.
 const BotNexus = lazy(() => import('@/components/bot/bot-nexus').then(m => ({ default: m.BotNexus })));
+// The universal ticker workup — any symbol click, any tab, opens this dossier.
+const TickerWorkup = lazy(() => import('@/components/workup/ticker-workup').then(m => ({ default: m.TickerWorkup })));
 
 type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot';
 /**
@@ -181,6 +184,7 @@ export default function TerminalShell() {
     setLocation(next === 'oracle' ? path : `${path}?tab=${next}`, { replace: true });
   }, [setLocation]);
 
+
   // Follow back/forward and external navigations that change ?tab=
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
@@ -211,6 +215,10 @@ export default function TerminalShell() {
   const uptime = useUptime();
   // One ticker for the whole terminal: search once, every tab follows it.
   const { currentStock, setCurrentStock, clearStock } = useStockContext();
+  // Universal workup: any board fires openWorkup(sym) on the bus. It lands in
+  // the same stock context the legacy lookup used, so ONE overlay contract
+  // serves every click site.
+  useEffect(() => onWorkup((sym) => setCurrentStock({ symbol: sym })), [setCurrentStock]);
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
   const { data: health } = useQuery<{
@@ -427,6 +435,7 @@ export default function TerminalShell() {
         </AnimatePresence>
       </main>
 
+
       {/* Mobile instrument dock. The four daily workflows stay one tap away;
           secondary modules live in a compact sheet instead of seven cramped tabs. */}
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/65 bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
@@ -558,13 +567,17 @@ export default function TerminalShell() {
 
       {/* Ticker lookup — an overlay above whichever tab you're on, not a panel wedged
           into the page. Searching is a detour; it shouldn't rearrange the board. */}
+      {/* The ticker workup replaced the legacy TickerView lookup here — same
+          contract (overlay above whichever tab you're on, searching is a
+          detour), now the full dossier. TickerView stays in the tree. */}
       {currentStock?.symbol && tab !== 'chart' && (
-        <TickerView
-          symbol={currentStock.symbol.toUpperCase()}
-          hasSignal={!!convictions?.picks?.some(
-            (p) => p.symbol.toUpperCase() === currentStock.symbol.toUpperCase())}
-          onClear={clearStock}
-        />
+        <Suspense fallback={null}>
+          <TickerWorkup
+            symbol={currentStock.symbol.toUpperCase()}
+            onClose={clearStock}
+            onNavigate={(t, sym) => { setCurrentStock({ symbol: sym }); setTab(t as Tab); }}
+          />
+        </Suspense>
       )}
 
       {guideOpen && (

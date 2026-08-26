@@ -8,6 +8,7 @@
  * "unusual" means unusual FOR THAT NAME.
  */
 import { useMemo, useState } from 'react';
+import { openWorkup } from '@/lib/workup-bus';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -397,7 +398,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
                         : p.flowType === 'block' ? 'block'
                           : p.flowType === 'unusual_volume' ? 'unusual' : 'normal';
                     return (
-                      <tr key={`${contractKey(p)}-${i}`} onClick={() => onSelectSymbol?.(p.symbol)}>
+                      <tr key={`${contractKey(p)}-${i}`} onClick={() => { onSelectSymbol?.(p.symbol); openWorkup(p.symbol); }}>
                         <td className="row-num">{i + 1}</td>
                         <td className="ticker">{p.symbol}</td>
                         <td className="contract">${p.strikePrice} {p.optionType === 'call' ? 'C' : 'P'} · {p.expirationDate || '—'}</td>

@@ -37,6 +37,7 @@
  * Its filter buttons, which only toggled classes, now actually filter.
  */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { openWorkup } from '@/lib/workup-bus';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
@@ -890,7 +891,7 @@ export function NexusBoard() {
                 <button
                   className="heat-cell"
                   key={s.etf}
-                  onClick={() => setCurrentStock({ symbol: s.etf })}
+                  onClick={() => { setCurrentStock({ symbol: s.etf }); openWorkup(s.etf); }}
                   title={`${s.name} · ${s.change >= 0 ? '+' : ''}${s.change.toFixed(2)}% — click to focus ${s.etf}`}
                   style={{ background: heatColor(s.change), color: Math.abs(s.change) > 2 ? '#fff' : 'rgba(255,255,255,0.85)' }}
                 >
@@ -915,7 +916,7 @@ export function NexusBoard() {
                     className={`watch-item${symbol === focusSym ? ' active' : ''}`}
                     key={symbol}
                     title={`Set ${symbol} as the terminal's focus symbol — CHART, GEX and FLOW follow it`}
-                    onClick={() => setCurrentStock({ symbol })}
+                    onClick={() => { setCurrentStock({ symbol }); openWorkup(symbol); }}
                   >
                     <div className="watch-sym">{symbol}</div>
                     <div className="watch-name" />

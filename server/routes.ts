@@ -14228,6 +14228,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── WORKUP PEERS — same-sector names from the real scan universe ──────────
+  // The ticker-universe already groups the scan lists by sector; this reverses
+  // that mapping for one symbol. Editorial grouping, honestly labeled — it is
+  // the universe's own taxonomy, not a market-cap-ranked peer model.
+  app.get("/api/peers/:symbol", async (req, res) => {
+    try {
+      const sym = String(req.params.symbol || "").toUpperCase();
+      const { getSectorTickers } = await import("./ticker-universe");
+      // getSectorTickers' own slug vocabulary (getUniverseStats uses display
+      // names, not these slugs — do not swap them). Catch-all buckets like
+      // topvolume/momentum lose to any thematic bucket via the size sort.
+      const sectors = ["tech", "financials", "healthcare", "industrials", "consumer", "energy", "utilities", "real_estate", "communication", "quantum", "nuclear", "ai", "space", "ev", "crypto", "semiconductors", "optics", "defense", "cannabis", "commodities", "gaming", "ecommerce", "momentum", "china", "smallcap", "topvolume", "banks", "telecom", "biotech", "media", "construction", "etfs"];
+      const found: { sector: string; peers: string[] }[] = [];
+      for (const sector of sectors) {
+        const tickers = getSectorTickers(sector).map((t) => t.toUpperCase());
+        if (tickers.includes(sym)) {
+          found.push({ sector, peers: tickers.filter((t) => t !== sym).slice(0, 8) });
+        }
+      }
+      // Prefer the most specific (smallest) sector bucket the symbol lives in.
+      found.sort((a, b) => a.peers.length - b.peers.length);
+      const best = found[0] ?? null;
+      res.json({ symbol: sym, sector: best?.sector ?? null, peers: best?.peers.slice(0, 5) ?? [] });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to resolve peers" });
+    }
+  });
+
   // ── CRYPTO SENTIMENT — the two feeds the crypto tab disclosed as missing ──
   // Fear & Greed from alternative.me and BTC dominance from CoinGecko's global
   // endpoint. Both free, no key. Cached 30 min; each side degrades to null
