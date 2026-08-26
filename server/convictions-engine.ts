@@ -2152,6 +2152,31 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     activeScenarios: geoMatrix?.currentConditions.activeScenarios ?? [],
   };
 
+  // Short discipline at the LAST mile. The producers are gated, but this loop
+  // re-scores STORED candidates every warm cycle — so a pre-gate short (or any
+  // scanner that forgets the rule) resurfaces on the signals grid forever. The
+  // engine is the door to the board; the door checks the rule itself. A row's
+  // `catalyst` text never counts — generateCatalyst() always returns prose and
+  // a bear-flag pattern is not an event — only an impact:'high' catalyst row
+  // within the gate's window qualifies.
+  let symbolsWithEvent = new Set<string>();
+  try {
+    const { isSubstantiveEventCatalyst } = await import("./short-discipline");
+    const { storage } = await import("./storage");
+    const activeCatalysts = await storage.getActiveCatalysts();
+    symbolsWithEvent = new Set(
+      activeCatalysts
+        .filter((c: any) => isSubstantiveEventCatalyst(c))
+        .map((c: any) => String(c.symbol ?? "").toUpperCase())
+        .filter(Boolean),
+    );
+  } catch (err) {
+    // Missing catalyst feed fails CLOSED for shorts — an empty set blocks them.
+    logger.warn("[CONVICTIONS] catalyst feed unavailable — short discipline fails closed:", err);
+  }
+  const { passesShortDiscipline } = await import("./short-discipline");
+  let disciplineDropped = 0;
+
   // Build picks (sector layer needs async fetches — Promise.all per pick)
   const picks: ConvictionPick[] = [];
 
@@ -2162,6 +2187,15 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
           ? "long"
           : "short"
         : (idea.direction as "long" | "short") || "long";
+
+    if (direction === "short") {
+      const allowed = passesShortDiscipline({
+        symbol: idea.symbol,
+        direction: "short",
+        hasEventCatalyst: symbolsWithEvent.has(String(idea.symbol ?? "").toUpperCase()),
+      });
+      if (!allowed) { disciplineDropped++; continue; }
+    }
 
     const sector = getSector(idea.symbol);
     const layers: ConvictionLayer[] = [];
@@ -2300,6 +2334,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       const exSum = existing.layers.reduce((s, l) => s + l.points, 0);
       if (sum > exSum) dedupMap.set(key, p);
     }
+  }
+  if (disciplineDropped > 0) {
+    logger.info(`[CONVICTIONS] short discipline dropped ${disciplineDropped} pattern-short candidate${disciplineDropped === 1 ? '' : 's'} (no impact:high event on file)`);
   }
   const deduped: ConvictionPick[] = Array.from(dedupMap.values());
 
