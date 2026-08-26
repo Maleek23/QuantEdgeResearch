@@ -85,6 +85,15 @@ export const PERFORMANCE_THRESHOLDS = {
  * Trades below these thresholds are considered "breakeven/neutral"
  */
 export const CANONICAL_LOSS_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_LOSS_PERCENT;
+
+/**
+ * The clean-era baseline. On this date the stats layer's loss classifier was
+ * unified with the barrier layer (a touched stop counts everywhere), the
+ * engine-level short gate landed, and the gap_continuation + real-avg-volume
+ * signal repairs shipped. Rates computed across this boundary mix two
+ * different measurement regimes — cohort tracking starts here.
+ */
+export const OUTCOME_BASELINE_DATE = '2026-08-26';
 export const CANONICAL_WIN_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_WIN_PERCENT;
 
 /**

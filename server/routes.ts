@@ -9708,6 +9708,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // (genScoringLayers). A layer whose trades beat baseline is predictive; one at
   // or below baseline is noise — this is the evidence for reweighting the engine.
   // Populates as instrumented ideas resolve (empty until then — expected).
+  // ── BY-SIGNAL COHORTS — does each signal template earn its place? ─────────
+  // Every quant idea persists the signal labels that fired (qualitySignals),
+  // so new templates (gap_continuation, the volume-unlocked VWAP/spike paths)
+  // are trackable as cohorts from the day they shipped. Cohorts start at the
+  // clean-era baseline by default — rates across that boundary mix two
+  // measurement regimes. An idea with two labels counts in both cohorts; the
+  // payload says so rather than pretending the cohorts are disjoint.
+  app.get("/api/performance/by-signal", async (req, res) => {
+    try {
+      const { isRealWin, isRealLoss, reportableRate, OUTCOME_BASELINE_DATE, MIN_REPORTABLE_SAMPLE } = await import('@shared/constants');
+      const since = typeof req.query.since === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.since)
+        ? req.query.since : OUTCOME_BASELINE_DATE;
+      const all = await storage.getAllTradeIdeas();
+      const pool = all.filter((i: any) =>
+        !i.excludeFromTraining &&
+        typeof i.timestamp === 'string' && i.timestamp.slice(0, 10) >= since &&
+        Array.isArray(i.qualitySignals) && i.qualitySignals.length > 0);
+
+      const cohorts = new Map<string, any[]>();
+      for (const idea of pool) {
+        for (const label of idea.qualitySignals as string[]) {
+          // Historical-adjustment annotations are bookkeeping, not templates.
+          if (typeof label !== 'string' || label.startsWith('Historical:')) continue;
+          if (!cohorts.has(label)) cohorts.set(label, []);
+          cohorts.get(label)!.push(idea);
+        }
+      }
+
+      const signals = [...cohorts.entries()].map(([signal, ideas]) => {
+        const open = ideas.filter((i: any) => (i.outcomeStatus ?? 'open') === 'open').length;
+        const wins = ideas.filter((i: any) => isRealWin(i));
+        const losses = ideas.filter((i: any) => isRealLoss(i));
+        const decided = wins.length + losses.length;
+        const gains = [...wins, ...losses].map((i: any) => i.percentGain).filter((g: any) => Number.isFinite(g));
+        const avgGain = gains.length ? gains.reduce((a: number, b: number) => a + b, 0) / gains.length : null;
+        return {
+          signal,
+          total: ideas.length,
+          open,
+          wins: wins.length,
+          losses: losses.length,
+          decided,
+          winRate: reportableRate(wins.length, decided),
+          avgPercentGain: avgGain,
+        };
+      }).sort((a, b) => b.total - a.total);
+
+      res.json({
+        since,
+        baseline: OUTCOME_BASELINE_DATE,
+        sampleFloor: MIN_REPORTABLE_SAMPLE,
+        ideasInWindow: pool.length,
+        signals,
+        _meta: {
+          note: 'Cohorts overlap: an idea whose scoring fired two templates counts in both. winRate is null under the sample floor — the count is the honest read until then. Rates never span the baseline: before it, the stats layer erased sub-3% stop-outs.',
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to compute by-signal cohorts' });
+    }
+  });
+
   app.get("/api/performance/layer-attribution", async (_req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
