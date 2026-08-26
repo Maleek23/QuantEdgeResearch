@@ -292,12 +292,70 @@ async function fetchLearnedWeights(): Promise<Map<string, number>> {
 
 interface QuantSignal {
   type: 'rsi2_mean_reversion' | 'vwap_cross' | 'volume_spike' | 'rsi2_short_reversion'
-    | 'vwap_rejection' | 'distribution_spike' | 'gap_continuation' | 'inside_coil';
+    | 'vwap_rejection' | 'distribution_spike' | 'gap_continuation' | 'inside_coil'
+    | 'flow_conviction';
   gapPercent?: number;
   strength: 'strong' | 'moderate' | 'weak';
   direction: 'long' | 'short';  // v3.2: BOTH long and short positions (mean reversion both ways)
   rsiValue?: number;
   vwapValue?: number;
+  /** flow_conviction only: dominant-side premium in dollars and its skew ratio. */
+  flowPremium?: number;
+  flowSkew?: number;
+}
+
+// ── OPTIONS-FLOW CONVICTION ─────────────────────────────────────────────────
+// The flow scanner watched CRM print a $1.26M call sweep and the cockpit never
+// heard about it — prints fed a display panel and stopped. This bridge
+// aggregates the session's prints per symbol and lets a decisively one-sided
+// tape SEED a candidate through the same funnel as every other signal.
+//
+// Honesty constraint carried over from the scanner: a chain snapshot cannot
+// tell buyers from sellers, so premium skew alone can get the sign wrong.
+// Qualification therefore requires (a) dominant-side premium >= $500k,
+// (b) skew >= 2:1 over the other side, and (c) NO contradiction from the
+// prints that do carry a tape-based sentiment read. Detection seeds candidacy;
+// scoring, R:R, and the short gate still decide its fate.
+interface FlowAgg {
+  callPrem: number; putPrem: number;
+  tapeBull: number; tapeBear: number;
+  sweeps: number; prints: number;
+}
+let flowAggBySymbol = new Map<string, FlowAgg>();
+
+function buildFlowAggregates(flows: Array<{ symbol: string; optionType: string; premium: number; sentiment: string; biasBasis: string; flowType: string }>): void {
+  flowAggBySymbol = new Map();
+  for (const f of flows) {
+    const sym = f.symbol.toUpperCase();
+    const agg = flowAggBySymbol.get(sym) ?? { callPrem: 0, putPrem: 0, tapeBull: 0, tapeBear: 0, sweeps: 0, prints: 0 };
+    if (f.optionType === 'call') agg.callPrem += f.premium; else agg.putPrem += f.premium;
+    if (f.biasBasis === 'tape') {
+      if (f.sentiment === 'bullish') agg.tapeBull++;
+      else if (f.sentiment === 'bearish') agg.tapeBear++;
+    }
+    if (f.flowType === 'sweep' || f.flowType === 'block') agg.sweeps++;
+    agg.prints++;
+    flowAggBySymbol.set(sym, agg);
+  }
+}
+
+const FLOW_MIN_PREMIUM = 500_000;
+const FLOW_MIN_SKEW = 2;
+
+function flowConvictionFor(symbol: string): { direction: 'long' | 'short'; premium: number; skew: number; sweeps: number } | null {
+  const agg = flowAggBySymbol.get(symbol.toUpperCase());
+  if (!agg) return null;
+  const dominant = agg.callPrem >= agg.putPrem ? 'long' : 'short';
+  const domPrem = Math.max(agg.callPrem, agg.putPrem);
+  const otherPrem = Math.min(agg.callPrem, agg.putPrem);
+  if (domPrem < FLOW_MIN_PREMIUM) return null;
+  const skew = otherPrem > 0 ? domPrem / otherPrem : Infinity;
+  if (skew < FLOW_MIN_SKEW) return null;
+  // Tape-based reads, where they exist, must not contradict the premium skew.
+  const tapeNet = agg.tapeBull - agg.tapeBear;
+  if (dominant === 'long' && tapeNet < 0) return null;
+  if (dominant === 'short' && tapeNet > 0) return null;
+  return { direction: dominant, premium: domPrem, skew, sweeps: agg.sweeps };
 }
 
 interface MultiTimeframeAnalysis {
@@ -450,6 +508,27 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
         direction: gapPct > 0 ? 'long' : 'short',
         gapPercent: gapPct,
       };
+    }
+  }
+
+  // PRIORITY 0.25: FLOW CONVICTION — the session's options tape is decisively
+  // one-sided on this name (>=$500k dominant premium, >=2:1 skew, no tape-read
+  // contradiction). Institutional prints are evidence the price-only signals
+  // cannot see; a put-heavy tape produces a SHORT candidate that still has to
+  // clear the event-catalyst gate downstream.
+  {
+    const flow = flowConvictionFor(data.symbol);
+    if (flow) {
+      detectedSignals.push(flow.direction === 'long' ? 'FLOW_CALLS' : 'FLOW_PUTS');
+      if (!primarySignal) {
+        primarySignal = {
+          type: 'flow_conviction',
+          strength: flow.premium >= 1_500_000 || flow.skew >= 4 ? 'strong' : 'moderate',
+          direction: flow.direction,
+          flowPremium: flow.premium,
+          flowSkew: flow.skew,
+        };
+      }
     }
   }
 
@@ -713,6 +792,9 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
     return `Session gap ${g >= 0 ? '+' : ''}${g.toFixed(1)}% — gap treated as a leading direction signal (operator rule)`;
   } else if (signal.type === 'inside_coil') {
     return `Inside-bar coil — 3+ sessions compressed inside one range in bullish structure; compression resolves`;
+  } else if (signal.type === 'flow_conviction') {
+    const p = signal.flowPremium ?? 0;
+    return `Options tape ${signal.direction === 'long' ? 'call' : 'put'}-heavy — $${(p / 1e6).toFixed(1)}M dominant premium at ${(signal.flowSkew ?? 0) === Infinity ? 'one-sided' : `${(signal.flowSkew ?? 0).toFixed(1)}:1`} skew`;
   } else {
     return `Technical setup confirmed - ${volumeRatio}x volume`;
   }
@@ -751,6 +833,15 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
            `Thresholds deliberately mirror the long side so the two are comparable.`;
   }
 
+  if (signal.type === 'flow_conviction') {
+    const p = signal.flowPremium ?? 0;
+    const side = signal.direction === 'long' ? 'call' : 'put';
+    return `Session options tape is decisively ${side}-heavy: $${(p / 1e6).toFixed(1)}M dominant premium at ` +
+           `${(signal.flowSkew ?? 0) === Infinity ? 'fully one-sided' : `${(signal.flowSkew ?? 0).toFixed(1)}:1`} skew, with no tape-read contradiction. ` +
+           `Caveat stated plainly: a chain snapshot cannot distinguish buyers from sellers, so skew is evidence, not proof — ` +
+           `which is why this signal seeds a candidate for the funnel instead of asserting a conclusion.`;
+  }
+
   return `Quantitative setup confirmed with ${volumeRatio.toFixed(1)}x volume and favorable risk/reward ratio.`;
 }
 
@@ -775,7 +866,13 @@ function calculateConfidenceScore(
   // Removed ALL bonuses (R:R, volume) - they were inverse predictors
   let score = 0;
   
-  if (signal.type === 'inside_coil') {
+  if (signal.type === 'flow_conviction') {
+    // NEW and unmeasured — institutional tape is strong evidence but the
+    // buyer/seller ambiguity is real, so it starts below the proven signals
+    // until the by-signal cohort earns it a higher base.
+    score = signal.strength === 'strong' ? 56 : 50;
+    qualitySignals.push('Flow Conviction (options tape)');
+  } else if (signal.type === 'inside_coil') {
     // NEW and unmeasured — untrusted like every newborn template.
     score = signal.strength === 'strong' ? 54 : 50;
     qualitySignals.push('Inside-Bar Coil');
@@ -1085,7 +1182,18 @@ export async function generateQuantIdeas(
     const { getPatternHits } = await import('./pattern-engine');
     patternSymbols = Array.from(new Set(getPatternHits().hits.map((h) => h.symbol))).slice(0, 60);
   } catch { /* engine not warmed yet — pool unchanged */ }
-  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST, ...neighborhood, ...patternSymbols].map(x => x.toUpperCase())));
+  // Flow prints seed candidacy the same way pattern hits do: aggregate the
+  // session's tape once per batch, and any name with a QUALIFYING one-sided
+  // tape joins the pool even if no list ever mentioned it — a $2M print on an
+  // unlisted name deserves a scan, not a display panel.
+  let flowSymbols: string[] = [];
+  try {
+    const { getTodayFlows } = await import('./options-flow-scanner');
+    buildFlowAggregates(getTodayFlows() as any);
+    flowSymbols = Array.from(flowAggBySymbol.keys()).filter((s) => flowConvictionFor(s) != null).slice(0, 40);
+    if (flowSymbols.length) logger.info(`  ✓ Flow conviction: ${flowSymbols.length} name(s) with a qualifying one-sided tape — ${flowSymbols.slice(0, 8).join(', ')}${flowSymbols.length > 8 ? '…' : ''}`);
+  } catch { /* scanner not warmed — pool unchanged */ }
+  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST, ...neighborhood, ...patternSymbols, ...flowSymbols].map(x => x.toUpperCase())));
   logger.info(`  \u2713 Scan pool: ${curated.length} names (core+premium plus ${new Set(neighborhood).size} sector-neighborhood names from the operator's own buckets)`);
   const coreSymbols = curated.filter(s => !discoveredSymbols.has(s));
   const coreData: MarketData[] = [];

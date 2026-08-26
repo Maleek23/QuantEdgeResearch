@@ -278,6 +278,80 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
     logger.warn('[QUANT-BOT] gap-exit check failed:', err);
   }
 
+  // 3.7 — thesis check. The operator's rule, verbatim: "bot should be able to
+  // take profit and switch thesis when the intelligence does." A bracket knows
+  // two prices; it cannot know that the board now publishes the OPPOSITE
+  // direction on a held name, or that the session's options tape turned
+  // decisively against it. Two independent triggers, both evidence-gated:
+  //   • BOARD FLIP — the conviction board's current pick on this symbol points
+  //     the other way at or above the bot's own entry floor. The board is the
+  //     strategy; holding against it measures nothing.
+  //   • FLOW REVERSAL — >=$750k of dominant premium against the position at
+  //     >=2:1 skew, with no tape-read contradiction (same honesty bar the
+  //     generator's flow signal uses — skew alone can't tell buyer from seller,
+  //     so the threshold is higher here than for entries).
+  // Green positions bank the gain; red ones stop the bleeding. Either way the
+  // exit reason names the evidence so the ledger can score this rule later.
+  try {
+    const { getCachedConvictions } = await import('./convictions-engine');
+    const board = await getCachedConvictions();
+    const byOppDir = new Map<string, any>();
+    for (const p of board?.picks ?? []) byOppDir.set(`${p.symbol}:${p.direction}`, p);
+
+    let flowAgainst: Map<string, { prem: number; skew: number }> | null = null;
+    try {
+      const { getTodayFlows } = await import('./options-flow-scanner');
+      flowAgainst = new Map();
+      const agg = new Map<string, { call: number; put: number; tapeNet: number }>();
+      for (const f of getTodayFlows() as any[]) {
+        const a = agg.get(f.symbol) ?? { call: 0, put: 0, tapeNet: 0 };
+        if (f.optionType === 'call') a.call += f.premium; else a.put += f.premium;
+        if (f.biasBasis === 'tape') a.tapeNet += f.sentiment === 'bullish' ? 1 : f.sentiment === 'bearish' ? -1 : 0;
+        agg.set(f.symbol, a);
+      }
+      for (const [sym, a] of agg) {
+        const dom = a.call >= a.put ? 'call' : 'put';
+        const domPrem = Math.max(a.call, a.put);
+        const skew = Math.min(a.call, a.put) > 0 ? domPrem / Math.min(a.call, a.put) : Infinity;
+        if (domPrem < 750_000 || skew < 2) continue;
+        if (dom === 'call' && a.tapeNet < 0) continue;
+        if (dom === 'put' && a.tapeNet > 0) continue;
+        flowAgainst.set(`${sym}:${dom === 'call' ? 'long' : 'short'}`, { prem: domPrem, skew });
+      }
+    } catch { /* scanner cold — board flip still runs */ }
+
+    const held = await getOpenPositions(portfolio.id);
+    for (const pos of held as any[]) {
+      const thesis = pos.optionType === 'put' ? 'short' : 'long';
+      const opposite = thesis === 'long' ? 'short' : 'long';
+      const mark = Number(pos.currentPrice ?? pos.entryPrice);
+      if (!Number.isFinite(mark) || mark <= 0) continue;
+      const cost = Number(pos.entryPrice) * Number(pos.quantity) * 100;
+      const pnlPct = cost > 0 ? (Number(pos.unrealizedPnL ?? 0) / cost) * 100 : 0;
+      const pnlWord = pnlPct >= 0 ? `banked +${pnlPct.toFixed(0)}%` : `cut at ${pnlPct.toFixed(0)}%`;
+
+      const flip = byOppDir.get(`${pos.symbol}:${opposite}`);
+      if (flip && flip.convictionScore >= cfg.minConviction) {
+        await closePosition(pos.id, mark, 'thesis_flip');
+        const why = `board flipped ${opposite.toUpperCase()} on ${pos.symbol} (score ${flip.convictionScore}) — ${pnlWord}`;
+        await announceExit(pos, mark, why);
+        closed.push({ symbol: pos.symbol, reason: why });
+        continue;
+      }
+
+      const fx = flowAgainst?.get(`${pos.symbol}:${opposite}`);
+      if (fx) {
+        await closePosition(pos.id, mark, 'flow_reversal');
+        const skewStr = fx.skew === Infinity ? 'one-sided' : `${fx.skew.toFixed(1)}:1`;
+        const why = `options tape turned against it — $${(fx.prem / 1e6).toFixed(1)}M ${opposite === 'long' ? 'call' : 'put'} premium at ${skewStr} — ${pnlWord}`;
+        await announceExit(pos, mark, why);
+        closed.push({ symbol: pos.symbol, reason: why });
+      }
+    }
+  } catch (err) {
+    logger.warn('[QUANT-BOT] thesis check failed:', err);
+  }
+
   // 3 — premium stop / target
   try {
     const exited = await checkStopsAndTargets(portfolio.id);
