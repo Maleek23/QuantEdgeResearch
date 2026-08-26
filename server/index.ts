@@ -148,6 +148,24 @@ app.use((req, res, next) => {
       logger.error("[ORACLE LIFECYCLE] Execution reconciliation failed", error);
     }
 
+    // The economic calendar was a hand-typed array whose last entry was
+    // 2026-04-10, so the cash gate had run blind since April. FRED publishes
+    // forward release dates for CPI, payrolls, PCE, PPI, GDP, retail sales,
+    // JOLTS and industrial production, free and public-domain. Warm it at boot
+    // and refresh twice a day — release schedules move rarely, and the fetch
+    // falls back to the curated array if it fails.
+    try {
+      const { refreshFredCalendar } = await import('./economic-calendar');
+      await refreshFredCalendar(true);
+      const econCron = await import('node-cron');
+      econCron.default.schedule('0 5,17 * * *', () => {
+        void refreshFredCalendar(true).catch((error) =>
+          logger.error('[ECON-CAL] scheduled FRED refresh failed', error));
+      });
+    } catch (error) {
+      logger.error('[ECON-CAL] FRED calendar init failed — curated calendar remains in use', error);
+    }
+
     // A trigger is only useful if it is noticed while it matters. Every two
     // minutes on weekdays, compare open setups against live price and advance
     // the ones whose entry has actually traded.
