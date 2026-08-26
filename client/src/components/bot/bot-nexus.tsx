@@ -27,6 +27,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useColResize } from '@/lib/use-col-resize';
+import { openWorkup } from '@/lib/workup-bus';
 import { Heartbeat } from '@/components/viz';
 import '@/styles/nexus.css';
 
@@ -42,6 +43,21 @@ interface CatalystsRecent { asOf?: string; count?: number; catalysts?: { symbol?
 interface PerfPayload {
   overall?: { openIdeas?: number; closedIdeas?: number };
   segmentedWinRates?: Record<string, { winRate: number | null; wins: number; losses: number; decided: number }>;
+}
+interface PaperPosition {
+  id: string; symbol: string; assetType?: string; optionType?: string | null;
+  strikePrice?: number | null; expiryDate?: string | null;
+  entryPrice: number; currentPrice?: number | null; quantity?: number;
+  targetPrice?: number | null; stopLoss?: number | null;
+  useTrailingStop?: boolean; trailingStopPercent?: number | null;
+  unrealizedPnL?: number | null; unrealizedPnLPercent?: number | null;
+  entryTime?: string;
+}
+interface QuantBotStatus {
+  name?: string; startingCapital?: number; cashBalance?: number; totalValue?: number;
+  totalPnL?: number; totalPnLPercent?: number; closedCount?: number;
+  openPositions?: PaperPosition[];
+  config?: { minConviction?: number; maxOpen?: number; riskPerTradePct?: number };
 }
 interface CryptoPulse { asOf?: string }
 interface RealtimePayload { coinbase?: { connected?: boolean }; futures?: { connected?: boolean } }
@@ -113,6 +129,7 @@ export function BotNexus() {
   const { data: perf } = useQuery<PerfPayload>({ queryKey: ['/api/performance/stats', 'bot'], queryFn: fetchJson('/api/performance/stats'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
   const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'bot'], queryFn: fetchJson('/api/crypto/pulse'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
   const { data: realtime } = useQuery<RealtimePayload>({ queryKey: ['/api/realtime-status', 'bot'], queryFn: fetchJson('/api/realtime-status'), refetchInterval: 30_000, staleTime: 20_000, retry: 1 });
+  const { data: book } = useQuery<QuantBotStatus>({ queryKey: ['/api/quant-bot/status', 'bot'], queryFn: fetchJson('/api/quant-bot/status'), refetchInterval: 60_000, staleTime: 30_000, retry: 1 });
 
   /* ── the real jobs, status from their own output freshness ── */
   const lastFlow = flow?.trades?.length ? flow.trades.reduce<string | undefined>((m, t) => (!m || (t.detectedAt && t.detectedAt > m) ? t.detectedAt : m), undefined) : undefined;
@@ -301,6 +318,46 @@ export function BotNexus() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* PAPER BOOK — what the bot is actually holding */}
+        <div className="book-section">
+          <div className="book-head">
+            <div className="book-label">Paper book · what the bot holds</div>
+            <div className="book-meta">
+              <span>Value <b>{book?.totalValue != null ? `$` + book.totalValue.toLocaleString() : `—`}</b></span>
+              <span>Cash <b>{book?.cashBalance != null ? `$` + book.cashBalance.toLocaleString() : `—`}</b></span>
+              <span>P&L <b style={{ color: (book?.totalPnL ?? 0) >= 0 ? `var(--green)` : `var(--red)` }}>{(book?.totalPnL ?? 0) >= 0 ? `+` : ``}{`$` + String(book?.totalPnL ?? 0)} ({(book?.totalPnLPercent ?? 0).toFixed(2)}%)</b></span>
+              <span>{book?.closedCount ?? 0} closed · floor {book?.config?.minConviction ?? `—`} · max {book?.config?.maxOpen ?? `—`} · {book?.config?.riskPerTradePct ?? `—`}%/trade</span>
+            </div>
+          </div>
+          {(book?.openPositions ?? []).map((p) => {
+            const pnl = p.unrealizedPnLPercent ?? 0;
+            const up = pnl >= 0;
+            const contract = p.assetType === `option` && p.strikePrice != null
+              ? `$` + p.strikePrice + (p.optionType ?? `c`).charAt(0).toUpperCase() + ` ` + (p.expiryDate ? new Date(p.expiryDate).toLocaleDateString([], { month: `short`, day: `numeric` }) : ``) + ` · ` + (p.quantity ?? 1) + `x @ $` + p.entryPrice
+              : (p.quantity ?? 1) + `x @ $` + p.entryPrice;
+            return (
+              <div className="book-pos" key={p.id} style={{ [`--pos-accent` as string]: up ? `var(--green)` : `var(--red)` }} onClick={() => openWorkup(p.symbol)} title="Open the ticker workup">
+                <div>
+                  <div className="bp-sym">{p.symbol}</div>
+                  <div className="bp-contract">{contract}</div>
+                </div>
+                <div className="bp-brackets">
+                  {p.targetPrice != null && <span className="t">T ${p.targetPrice}</span>}
+                  {p.stopLoss != null && <span className="s">S ${p.stopLoss}</span>}
+                  {p.useTrailingStop && <span className="tr">trail {p.trailingStopPercent ?? `—`}%</span>}
+                </div>
+                <div className="bp-kv">now<b>{p.currentPrice != null ? `$` + p.currentPrice : `—`}</b></div>
+                <div className="bp-kv">held<b>{p.entryTime ? Math.max(0, Math.round((Date.now() - Date.parse(p.entryTime)) / 86_400_000)) + `d` : `—`}</b></div>
+                <div className={up ? `bp-pnl up` : `bp-pnl down`}>{up ? `+` : ``}{pnl.toFixed(1)}%</div>
+                <div className="bp-kv">P&L $<b style={{ color: up ? `var(--green)` : `var(--red)` }}>{(p.unrealizedPnL ?? 0) >= 0 ? `+` : ``}{p.unrealizedPnL ?? 0}</b></div>
+              </div>
+            );
+          })}
+          {(book?.openPositions ?? []).length === 0 && (
+            <div className="book-empty">Flat — the bot holds nothing. Entries require conviction ≥ {book?.config?.minConviction ?? `—`} and pass the same gates as the board.</div>
+          )}
         </div>
 
         {/* RULES = the real gates */}
