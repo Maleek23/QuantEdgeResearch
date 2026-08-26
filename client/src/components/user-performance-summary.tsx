@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Target, TrendingUp, Zap, Award, Bot, Activity, BarChart3, Brain, CheckCircle, XCircle, AlertTriangle, Info } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
+import { CanonRate } from "@/components/canon";
 
 interface EngineMetrics {
   tradesWon: number;
@@ -247,9 +248,15 @@ export function UserPerformanceSummary() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Hit Rate</p>
-                <p className={cn("text-xl font-bold font-mono", getWinRateColor(botData.overall.winRate))}>
-                  {safeToFixed(botData.overall.winRate, 0)}%
-                </p>
+                {/* Was `${winRate}%`, which printed a red 0% for a bot that had
+                    taken zero trades — the card's own TRADES 0 · W/L 0/0 said so
+                    in the same row. CanonRate suppresses the percentage below the
+                    sample floor and says which kind of "no number" this is. */}
+                <CanonRate
+                  className="text-xl"
+                  wins={botData.overall.wins}
+                  decided={botData.overall.wins + botData.overall.losses}
+                />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">W/L</p>

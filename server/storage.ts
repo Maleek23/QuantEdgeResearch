@@ -181,7 +181,7 @@ export {
 } from "@shared/constants";
 
 // Import for use in this file
-import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine } from "@shared/constants";
+import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine, reportableRate } from "@shared/constants";
 import { normalizeIdeaSource } from "@shared/idea-sources";
 import { logger } from "./logger";
 
@@ -346,10 +346,23 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+/**
+ * `winRate` is null when the segment's sample cannot support one — see
+ * reportableRate in @shared/constants. It was 0 in that case, which the equities
+ * segment published as a red 0% off a single decided trade. The counts are
+ * always present, so a suppressed rate still shows its sample.
+ */
+export interface SegmentedWinRate {
+  winRate: number | null;
+  wins: number;
+  losses: number;
+  decided: number;
+}
+
 export interface SegmentedWinRates {
-  equities: { winRate: number; wins: number; losses: number; decided: number };
-  options: { winRate: number; wins: number; losses: number; decided: number };
-  overall: { winRate: number; wins: number; losses: number; decided: number };
+  equities: SegmentedWinRate;
+  options: SegmentedWinRate;
+  overall: SegmentedWinRate;
 }
 
 export interface PerformanceStats {
@@ -360,7 +373,21 @@ export interface PerformanceStats {
     wonIdeas: number;
     lostIdeas: number;
     expiredIdeas: number;
-    winRate: number; // Market win rate: hit_target / (hit_target + hit_stop)
+    /**
+     * Market win rate: hit_target / (hit_target + hit_stop).
+     *
+     * NOTE: this is computed over ALL trades (segmentedWinRates.overall), while
+     * wonIdeas/lostIdeas/closedIdeas above describe the FILTERED set — options are
+     * excluded from those unless includeOptions is set. The two populations are
+     * different on purpose, which is why the payload reads `wonIdeas: 0,
+     * lostIdeas: 1, winRate: 64.9` and is not self-contradicting once you know
+     * that. Render it with winRateDecided beside it, never with closedIdeas.
+     *
+     * Null when the sample is below MIN_REPORTABLE_SAMPLE.
+     */
+    winRate: number | null;
+    /** Sample behind winRate — a DIFFERENT population from closedIdeas. */
+    winRateDecided: number;
     quantAccuracy: number; // Weighted prediction accuracy (confidence-weighted avg progress toward target)
     directionalAccuracy: number; // % of trades that moved at least 25% toward target
     avgPercentGain: number;
@@ -384,7 +411,9 @@ export interface PerformanceStats {
     totalIdeas: number;
     wonIdeas: number;
     lostIdeas: number;
-    winRate: number;
+    /** Null when the sample cannot support a rate — see reportableRate. */
+    winRate: number | null;
+    decided: number;
     avgPercentGain: number;
   }[];
   byAssetType: {
@@ -1686,8 +1715,10 @@ export class MemStorage implements IStorage {
     });
     
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
-    const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
-    
+    // Same floor as DatabaseStorage — the in-memory path must not report a rate
+    // the real one would suppress, or dev and prod disagree about what is knowable.
+    const winRate = reportableRate(wonIdeas.length, decidedIdeas);
+
     // Enhanced Audit: Average Profit vs Average Loss (Risk/Reward)
     const avgWin = wonIdeas.length > 0 ? wonIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / wonIdeas.length : 0;
     const avgLoss = lostIdeas.length > 0 ? lostIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / lostIdeas.length : 0;
@@ -1701,6 +1732,7 @@ export class MemStorage implements IStorage {
         lostIdeas: lostIdeas.length,
         expiredIdeas: closedIdeas.filter(i => i.outcomeStatus === 'expired').length,
         winRate,
+        winRateDecided: decidedIdeas,
         quantAccuracy: 0,
         directionalAccuracy: 0,
         avgPercentGain: closedIdeas.length > 0 ? closedIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / closedIdeas.length : 0,
@@ -2973,7 +3005,12 @@ export class DatabaseStorage implements IStorage {
         totalIdeas: sourceAllIdeas.length, // Show ALL ideas (open + closed)
         wonIdeas: sourceWon.length,
         lostIdeas: sourceLost.length,
-        winRate: sourceDecided > 0 ? (sourceWon.length / sourceDecided) * 100 : 0,
+        // Null, not 0, when the sample cannot carry a rate. `gex_scanner` was
+        // shipping `winRate: 0` beside `wonIdeas: 0, lostIdeas: 0` — a scanner
+        // that had never resolved a trade, reported as one that never wins.
+        // `decided` travels with it so the reader sees the sample, not just a gap.
+        winRate: reportableRate(sourceWon.length, sourceDecided),
+        decided: sourceDecided,
         avgPercentGain: calculateAvg(sourceGains),
       };
     }).sort((a, b) => b.totalIdeas - a.totalIdeas); // Sort by total trades descending
@@ -3235,7 +3272,7 @@ export class DatabaseStorage implements IStorage {
       const losses = closedIdeas.filter(i => isRealLoss(i)).length;
       const decided = wins + losses;
       return {
-        winRate: decided > 0 ? Math.round((wins / decided) * 1000) / 10 : 0,
+        winRate: reportableRate(wins, decided),
         wins,
         losses,
         decided
@@ -3274,6 +3311,7 @@ export class DatabaseStorage implements IStorage {
         lostIdeas: lostIdeas.length,
         expiredIdeas: expiredIdeas.length,
         winRate: overallStats.winRate, // Use unified segmented methodology
+        winRateDecided: overallStats.decided, // the sample this rate is actually over
         quantAccuracy,
         directionalAccuracy,
         avgPercentGain: calculateAvg(closedGains),

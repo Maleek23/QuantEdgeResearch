@@ -20,6 +20,7 @@
  */
 import { cn } from '@/lib/utils';
 import { displayedGrade, type LetterGrade, type ScoredIdea } from '@/lib/conviction-display';
+import { MIN_REPORTABLE_SAMPLE } from '@shared/constants';
 
 export type ScoreBand = 'STRONG' | 'MODERATE' | 'LIGHT' | 'WEAK';
 
@@ -113,7 +114,7 @@ export function CanonGrade({ idea, className }: { idea: ScoredIdea; className?: 
 export function CanonRate({
   wins,
   decided,
-  minSample = 30,
+  minSample = MIN_REPORTABLE_SAMPLE,
   label,
   className,
 }: {
@@ -124,12 +125,20 @@ export function CanonRate({
   className?: string;
 }) {
   if (decided < minSample) {
+    // "Nothing has resolved" and "too few to report" both suppress the number,
+    // but they are different states and the reader is told which one this is.
+    // The old rendering collapsed both into a red 0%, which reads as a verdict.
+    const nothingDecided = decided <= 0;
     return (
       <span
         className={cn('font-mono text-label italic text-muted-foreground/55', className)}
-        title={`${decided} decided — below the ${minSample} needed to report a rate`}
+        title={
+          nothingDecided
+            ? 'No trade has resolved yet — there is no rate to report, which is not the same as 0%'
+            : `${decided} decided — below the ${minSample} needed to report a rate`
+        }
       >
-        not yet measurable (n={decided})
+        {nothingDecided ? 'no decided trades yet' : `not yet measurable (n=${decided})`}
       </span>
     );
   }

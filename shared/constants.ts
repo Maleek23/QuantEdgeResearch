@@ -88,6 +88,53 @@ export const CANONICAL_LOSS_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_LOSS_PERCENT;
 export const CANONICAL_WIN_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_WIN_PERCENT;
 
 /**
+ * SAMPLE FLOOR — below this many decided trades, a rate is not reported.
+ *
+ * Not a style rule. `wins / decided` is defined for any decided > 0 and the
+ * platform printed it at every size, which produced statements it had no
+ * evidence for:
+ *
+ *   Auto-Lotto Bot   HIT RATE 0%   beside   TRADES 0 · W/L 0/0
+ *   equities         0%            off      one decided trade
+ *   gex_scanner      winRate 0     off      zero decided trades
+ *   dashboard pie    Losses 100%   off      zero decided trades
+ *
+ * None of those engines had lost anything. Each had simply not resolved a trade
+ * yet, and 0% is read as a verdict — the worst possible one — where the honest
+ * statement is "not enough trades to say". Losing money on a bot you switched
+ * off because it showed 0% is a real cost of a formatting decision.
+ *
+ * 30 is the conventional floor where a proportion's normal approximation starts
+ * behaving, and it is the number canon/score.tsx already defaults CanonRate to.
+ * It lives here so the client and the server cannot drift apart on it.
+ *
+ * The rule is only about REPORTING. Rates are still computed and stored; the
+ * counts are always shown, so a small sample stays visible as a sample rather
+ * than disappearing.
+ */
+export const MIN_REPORTABLE_SAMPLE = 30;
+
+/**
+ * A win rate, or null when the sample cannot support one.
+ *
+ * Returns null in two distinct cases that must not be conflated with 0%:
+ *   decided === 0                    nothing has resolved — no rate exists
+ *   decided < MIN_REPORTABLE_SAMPLE  too few to report, though a rate exists
+ *
+ * Callers render the counts either way, so the distinction survives: "0 of 0"
+ * and "0 of 1" read differently even though both suppress the percentage.
+ */
+export function reportableRate(
+  wins: number,
+  decided: number,
+  minSample: number = MIN_REPORTABLE_SAMPLE,
+): number | null {
+  if (!Number.isFinite(wins) || !Number.isFinite(decided)) return null;
+  if (decided <= 0 || decided < minSample) return null;
+  return Math.round((wins / decided) * 1000) / 10;
+}
+
+/**
  * UNIFIED WIN/LOSS CLASSIFICATION
  * 
  * These functions are the SINGLE SOURCE OF TRUTH for determining outcomes.

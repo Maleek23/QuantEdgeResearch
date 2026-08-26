@@ -22465,8 +22465,11 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       // Check 2: Win rate consistency
       const rawWins = closedIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
       const rawWinRate = closedIdeas.length > 0 ? (rawWins / closedIdeas.length) * 100 : 0;
+      // Null when the sample is below the reporting floor — that is suppression,
+      // not disagreement, so the consistency check passes vacuously rather than
+      // flagging a "discrepancy" against a number that was deliberately withheld.
       const perfWinRate = stats.overall.winRate;
-      const winRateMatch = Math.abs(rawWinRate - perfWinRate) < 0.1; // Within 0.1%
+      const winRateMatch = perfWinRate === null || Math.abs(rawWinRate - perfWinRate) < 0.1; // Within 0.1%
       
       // Check 3: Missing outcome data
       const missingData = closedIdeas.filter(i => 
@@ -22493,7 +22496,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         errors.push(`Count mismatch: Found ${closedCount} closed ideas but performance stats show ${statsClosedCount}`);
       }
       
-      if (!winRateMatch) {
+      if (!winRateMatch && perfWinRate !== null) {
         warnings.push(`Win rate discrepancy: Raw calculation ${rawWinRate.toFixed(2)}% vs Performance stats ${perfWinRate.toFixed(2)}%`);
       }
       
@@ -22518,7 +22521,9 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
           totalTrades: totalCount,
           closedTrades: closedCount,
           openTrades: totalCount - closedCount,
-          overallWinRate: perfWinRate.toFixed(2) + '%',
+          overallWinRate: perfWinRate === null
+            ? `not reportable (n=${stats.overall.winRateDecided})`
+            : perfWinRate.toFixed(2) + '%',
         },
         checks: {
           totalTradeCount: { 
@@ -22531,11 +22536,11 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
             expected: statsClosedCount, 
             actual: closedCount 
           },
-          winRateConsistency: { 
-            match: winRateMatch, 
-            perfWinRate: perfWinRate.toFixed(2), 
+          winRateConsistency: {
+            match: winRateMatch,
+            perfWinRate: perfWinRate === null ? null : perfWinRate.toFixed(2),
             rawWinRate: rawWinRate.toFixed(2),
-            difference: Math.abs(rawWinRate - perfWinRate).toFixed(2)
+            difference: perfWinRate === null ? null : Math.abs(rawWinRate - perfWinRate).toFixed(2)
           },
           missingOutcomeData: { 
             count: missingData.length, 

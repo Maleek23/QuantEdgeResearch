@@ -125,14 +125,17 @@ export function CrossValidationPanel() {
     severity: expiredIdeas === perfExpired ? 'success' : 'error'
   });
 
-  // Validate win rate calculation
+  // Validate win rate calculation. A null rate is suppression (sample below the
+  // reporting floor), not a wrong number — the check passes vacuously rather than
+  // computing Math.abs(x - null) = NaN and flagging a phantom mismatch.
   const expectedWinRate = wonIdeas > 0 || lostIdeas > 0 ? (wonIdeas / (wonIdeas + lostIdeas)) * 100 : 0;
   const actualWinRate = performanceStats.overall.winRate;
-  const winRateValid = Math.abs(expectedWinRate - actualWinRate) < 0.01;
+  const winRateValid = actualWinRate === null || Math.abs(expectedWinRate - actualWinRate) < 0.01;
   validations.push({
     metric: 'Market Win Rate',
     expected: `${safeToFixed(expectedWinRate, 1)}%`,
-    actual: `${safeToFixed(actualWinRate, 1)}%`,
+    // safeToFixed(null) prints '0.0' — spell suppression out instead.
+    actual: actualWinRate === null ? 'suppressed (small n)' : `${safeToFixed(actualWinRate, 1)}%`,
     source: 'Calculated vs Performance Stats',
     valid: winRateValid,
     severity: winRateValid ? 'success' : 'error'
