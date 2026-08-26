@@ -895,8 +895,8 @@ app.use((req, res, next) => {
     
     log('🔀 Hybrid Generator started - will generate ideas at 9:45 AM CT weekdays (15 min after AI/Quant)');
     
-    // Start automated quant idea generation (9:35 AM CT on weekdays - 5 min after AI)
-    let lastQuantRunDate: string | null = null;
+    // Rolling quant idea generation — every 15 minutes across the session.
+    let lastQuantRunAt = 0;
     let isQuantGenerating = false;
     
     cron.default.schedule('*/5 * * * *', async () => {
@@ -913,39 +913,29 @@ app.use((req, res, next) => {
         const dayOfWeek = nowCT.getDay();
         const dateKey = nowCT.toISOString().split('T')[0];
 
-        // Publishing must follow the same calendar in every environment. Letting
-        // development run on weekends and every thirty minutes turned a single
-        // thesis into a stream of near-duplicate ideas whenever a contract was
-        // re-selected from the chain.
         if (dayOfWeek === 0 || dayOfWeek === 6) {
           return;
         }
 
-        // Two deliberate publication windows. Manual scanner endpoints remain
-        // available for local testing; the automated publisher must not generate
-        // a new board merely because a developer refreshed the page.
-        // Four windows, not two: a board that publishes at 9:35 and 13:00 CT
-        // structurally cannot react to anything that happens mid-morning or
-        // into the close — the operator watched a 9:58 ET reversal print +539%
-        // before the FIRST window even ran. Dedup (findSimilarTradeIdea + open
-        // position check) keeps extra windows from becoming near-duplicates.
-        const isQuantTime =
-          (hour === 9 && minute >= 35 && minute < 40) ||
-          (hour === 10 && minute >= 30 && minute < 35) ||
-          (hour === 13 && minute >= 0 && minute < 5) ||
-          (hour === 14 && minute >= 30 && minute < 35);
-
-        if (!isQuantTime) {
+        // ROLLING, not windowed. The windows (originally two, briefly four)
+        // existed because continuous generation once sprayed near-duplicates —
+        // a dedup problem treated as a cadence law. Dedup is real now
+        // (findSimilarTradeIdea, open-position skip, intra-batch symbol set),
+        // so time-gating is pure lag: the operator watched a 9:58 ET setup
+        // print +539% while the board waited for its 10:35 window. The
+        // publisher now sweeps every 15 minutes from 9:35 CT to 14:55 CT; a
+        // sweep with nothing genuinely new publishes nothing, which is the
+        // dedup doing the windows' old job correctly.
+        const sinceOpen = (hour > 9 || (hour === 9 && minute >= 35)) && (hour < 14 || (hour === 14 && minute <= 55));
+        if (!sinceOpen) {
+          return;
+        }
+        if (Date.now() - lastQuantRunAt < 14 * 60 * 1000) {
           return;
         }
 
-        // Run the morning window once per session in every environment.
-        if (lastQuantRunDate === dateKey && hour === 9) {
-          return; // Already ran morning session today
-        }
-        
         isQuantGenerating = true;
-        if (hour === 9) lastQuantRunDate = dateKey;
+        lastQuantRunAt = Date.now();
         
         logger.info(`📊 [QUANT-CRON] Starting automated quant generation at ${hour}:${minute.toString().padStart(2, '0')} CT`);
         
