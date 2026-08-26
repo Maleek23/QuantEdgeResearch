@@ -14228,6 +14228,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── EARNINGS CALENDAR — the feed the catalyst board actually joins on ─────
+  // /api/earnings/upcoming imports ./earnings-service, which returns nothing;
+  // the board's real dates come from ./earnings-calendar (Nasdaq calendar,
+  // 6h cache). Expose that same service directly for the CATALYST tab.
+  app.get("/api/earnings/calendar", async (req, res) => {
+    try {
+      const { getUpcomingEarnings } = await import("./earnings-calendar");
+      const days = Math.min(21, Math.max(1, parseInt(String(req.query.days)) || 7));
+      const events = await getUpcomingEarnings(days);
+      res.json({ asOf: new Date().toISOString(), days, count: events.length, events });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch earnings calendar" });
+    }
+  });
+
   // ── WORKUP PEERS — same-sector names from the real scan universe ──────────
   // The ticker-universe already groups the scan lists by sector; this reverses
   // that mapping for one symbol. Editorial grouping, honestly labeled — it is
