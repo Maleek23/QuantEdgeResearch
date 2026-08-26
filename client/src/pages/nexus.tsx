@@ -568,7 +568,10 @@ export function NexusBoard() {
               <div className="intel-value">{patterns.data ? `${patterns.data.hits.length} hits · ${patterns.data.scanned} scanned` : 'warming…'}</div>
             </div>
             {(['inside_coil', 'bull_flag', 'breakout_watch', 'bear_flag'] as const).map((pat) => {
-              const rows = (patterns.data?.hits ?? []).filter((h) => h.pattern === pat).slice(0, 8);
+              // Operator-core names pin to the front of each group — CRCL's
+              // bull flag was hit #40 of 157 and invisible behind the 8-chip cap.
+              const rows = (patterns.data?.hits ?? []).filter((h) => h.pattern === pat)
+                .sort((a, b) => Number((b as any).core ?? false) - Number((a as any).core ?? false)).slice(0, 8);
               if (!rows.length) return null;
               const label = pat === 'inside_coil' ? 'Coils' : pat === 'bull_flag' ? 'Bull flags' : pat === 'breakout_watch' ? '52w-high watch' : 'Bear flags';
               return (

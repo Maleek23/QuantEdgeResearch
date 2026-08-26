@@ -32,6 +32,8 @@ import { logger } from './logger';
 
 export interface PatternHit {
   symbol: string;
+  /** On the operator's core watchlist — consumers pin these first. */
+  core?: boolean;
   pattern: 'inside_coil' | 'nr7' | 'bull_flag' | 'bear_flag' | 'breakout_watch';
   bias: 'long' | 'short' | 'neutral';
   detectedAt: string;
@@ -175,6 +177,8 @@ export async function scanUniversePatterns(force = false): Promise<void> {
     const { getFullUniverse } = await import('./ticker-universe');
     const { fetchCandlesBatch } = await import('./historical-candles');
     const universe = Array.from(new Set(getFullUniverse().map((t: string) => t.toUpperCase())));
+    const { USER_CORE_WATCHLIST } = await import('./ticker-universe');
+    const coreSet = new Set(USER_CORE_WATCHLIST.map((t: string) => t.toUpperCase()));
     logger.info(`[PATTERN-ENGINE] sweeping ${universe.length} names on real daily bars…`);
     const hits: PatternHit[] = [];
     let scanned = 0; let failed = 0;
@@ -187,7 +191,7 @@ export async function scanUniversePatterns(force = false): Promise<void> {
           const bars = (candles.get(sym) ?? []).filter((b: Bar) => Number.isFinite(b.close) && b.close > 0);
           if (bars.length < 60) { failed++; continue; }
           scanned++;
-          hits.push(...detect(sym, bars as Bar[]));
+          hits.push(...detect(sym, bars as Bar[]).map((h) => ({ ...h, core: coreSet.has(sym) })));
         }
       } catch (err: any) {
         failed += slice.length;
