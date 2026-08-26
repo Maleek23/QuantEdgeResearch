@@ -41,7 +41,9 @@ const TickerView = lazy(() => import('@/components/oracle/ticker-view').then(m =
 const TerminalGuide = lazy(() => import('@/components/terminal/terminal-guide').then(m => ({ default: m.TerminalGuide })));
 const TerminalSettings = lazy(() => import('@/components/terminal/terminal-settings').then(m => ({ default: m.TerminalSettings })));
 const TrackRecord = lazy(() => import('@/components/bot/track-record').then(m => ({ default: m.TrackRecord })));
-const ChartLab = lazy(() => import('@/components/charting/chart-lab').then(m => ({ default: m.ChartLab })));
+// CHART = the reference Chart Lab mock, wired (chart-lab-nexus). The prior
+// EpochChart-based lab stays in the tree at charting/chart-lab.tsx.
+const ChartLab = lazy(() => import('@/components/charting/chart-lab-nexus').then(m => ({ default: m.ChartLabBoard })));
 
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
 const NexusBoard    = lazy(() => import('@/pages/nexus').then(m => ({ default: m.NexusBoard })));

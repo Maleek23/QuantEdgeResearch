@@ -1090,3 +1090,180 @@
    liveness claim. The lead item's Heartbeat says how old it actually is. */
 .nexus-vars .ticker-track.stale{animation-play-state:paused;opacity:.55}
 .nexus-vars .ticker-track:hover{animation-play-state:paused}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHART LAB — the second reference mock's main area, verbatim.
+   Chrome (topbar/tape/bottombar) is the shell's; this is the chart
+   area + right sidebar only. Shared classes (.sec-head, .tag,
+   .watch-*, .sys-*) already exist above and are not repeated.
+   ═══════════════════════════════════════════════════════════════ */
+.nexus-vars .chartlab{position:relative;height:calc(100dvh - 98px);display:flex;flex-direction:column}
+.nexus-vars .chartlab .main{display:grid;grid-template-columns:1fr 300px;overflow:hidden;position:relative;z-index:2;flex:1;min-height:0}
+.nexus-vars .chart-area{display:flex;flex-direction:column;border-right:1px solid var(--nx-border);overflow:hidden}
+.nexus-vars .chart-header{
+  padding:18px 24px 14px;
+  border-bottom:1px solid var(--nx-border);
+  background:rgba(6,7,10,0.85);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+.nexus-vars .chart-eyebrow{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--cyan);
+  letter-spacing:1.5px;margin-bottom:4px;
+  text-shadow:0 0 8px rgba(79,209,197,0.4);
+  text-transform:uppercase;font-weight:600;
+}
+.nexus-vars .chart-title-row{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.nexus-vars .chart-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:22px;font-weight:700;letter-spacing:-0.02em;
+  background:linear-gradient(135deg, #fff 0%, var(--cyan-bright) 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.nexus-vars .chart-badge{
+  padding:3px 8px;
+  background:rgba(245,182,66,0.08);
+  border:1px solid rgba(245,182,66,0.2);
+  border-radius:4px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:9.5px;color:var(--amber);
+  letter-spacing:0.5px;font-weight:600;
+  display:flex;align-items:center;gap:5px;
+}
+.nexus-vars .chart-badge.has-signal{
+  background:rgba(79,209,197,0.08);
+  border-color:rgba(79,209,197,0.25);
+  color:var(--cyan-bright);
+}
+.nexus-vars .chart-badge .dot{width:4px;height:4px;border-radius:50%;background:currentColor;box-shadow:0 0 4px currentColor;animation:nexus-pulse 1.8s infinite}
+.nexus-vars .chart-desc{font-size:12px;color:var(--text-dim);line-height:1.55;max-width:720px}
+.nexus-vars .instrument-bar{
+  padding:10px 24px;border-bottom:1px solid var(--nx-border);
+  display:flex;align-items:center;gap:16px;
+  background:var(--bg-2);flex-wrap:wrap;position:relative;z-index:6;
+}
+.nexus-vars .instrument-label{font-size:9.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.nexus-vars .instrument-selector{
+  display:flex;align-items:center;gap:8px;padding:5px 12px;
+  background:rgba(79,209,197,0.06);border:1px solid rgba(79,209,197,0.2);
+  border-radius:5px;cursor:pointer;transition:all 0.2s;position:relative;
+}
+.nexus-vars .instrument-selector:hover{border-color:var(--cyan-dim);background:rgba(79,209,197,0.1)}
+.nexus-vars .instrument-sym{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;color:var(--cyan-bright)}
+.nexus-vars .instrument-chevron{color:var(--text-mute);transition:transform 0.2s}
+.nexus-vars .instrument-menu{
+  position:absolute;top:calc(100% + 6px);left:0;z-index:50;
+  min-width:180px;max-height:280px;overflow-y:auto;
+  background:rgba(10,12,17,0.97);backdrop-filter:blur(16px);
+  border:1px solid var(--nx-border-hi);border-radius:6px;
+  box-shadow:0 12px 32px rgba(0,0,0,0.5);
+}
+.nexus-vars .instrument-menu button{
+  display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;
+  padding:7px 12px;background:none;border:none;cursor:pointer;
+  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--text);
+  border-bottom:1px dashed rgba(79,209,197,0.06);
+}
+.nexus-vars .instrument-menu button:hover{background:rgba(79,209,197,0.08);color:var(--cyan-bright)}
+.nexus-vars .ohlc{display:flex;gap:14px;font-family:'JetBrains Mono',monospace;font-size:11px;margin-left:auto}
+.nexus-vars .ohlc-item{display:flex;gap:5px;align-items:center}
+.nexus-vars .ohlc-label{color:var(--text-mute);font-size:9.5px;text-transform:uppercase;letter-spacing:0.5px}
+.nexus-vars .ohlc-val{color:var(--text);font-weight:600}
+.nexus-vars .ohlc-val.up{color:var(--green)}
+.nexus-vars .ohlc-val.down{color:var(--red)}
+.nexus-vars .chart-type-toggle{display:flex;gap:2px;padding:2px;background:var(--panel-solid);border:1px solid var(--nx-border);border-radius:4px}
+.nexus-vars .chart-type-btn{
+  padding:3px 9px;font-size:10px;color:var(--text-dim);cursor:pointer;border-radius:3px;
+  font-weight:600;letter-spacing:0.5px;text-transform:uppercase;transition:all 0.2s;
+  background:none;border:none;font-family:inherit;
+}
+.nexus-vars .chart-type-btn.active{background:rgba(79,209,197,0.15);color:var(--cyan-bright);box-shadow:inset 0 0 0 1px rgba(79,209,197,0.3)}
+.nexus-vars .ext-hours{font-size:9.5px;color:var(--amber);font-family:'JetBrains Mono',monospace;padding:2px 7px;background:rgba(245,182,66,0.08);border:1px solid rgba(245,182,66,0.2);border-radius:3px;letter-spacing:0.5px}
+.nexus-vars .chart-canvas-wrap{
+  flex:1;position:relative;
+  background:radial-gradient(ellipse at 50% 0%, rgba(79,209,197,0.04), transparent 60%), var(--bg);
+  overflow:hidden;
+}
+.nexus-vars .chart-canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.nexus-vars .timeframe-bar{
+  position:absolute;top:14px;left:14px;display:flex;gap:3px;padding:3px;
+  background:rgba(10,12,17,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--nx-border);border-radius:6px;z-index:3;
+}
+.nexus-vars .tf-btn{
+  padding:5px 11px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;
+  color:var(--text-dim);cursor:pointer;border-radius:4px;transition:all 0.2s;letter-spacing:0.3px;
+  background:none;border:none;
+}
+.nexus-vars .tf-btn:hover{color:var(--text);background:rgba(79,209,197,0.05)}
+.nexus-vars .tf-btn.active{background:rgba(79,209,197,0.15);color:var(--cyan-bright);box-shadow:inset 0 0 0 1px rgba(79,209,197,0.3);text-shadow:0 0 6px rgba(79,209,197,0.4)}
+.nexus-vars .chart-controls{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:5px;z-index:3}
+.nexus-vars .chart-ctrl{
+  width:30px;height:30px;background:rgba(10,12,17,0.85);backdrop-filter:blur(16px);
+  border:1px solid var(--nx-border);border-radius:5px;color:var(--text-dim);cursor:pointer;
+  display:grid;place-items:center;transition:all 0.2s;
+}
+.nexus-vars .chart-ctrl:hover{color:var(--cyan);border-color:var(--cyan-dim)}
+.nexus-vars .chart-ctrl.active{color:var(--cyan);border-color:var(--cyan-dim);background:rgba(79,209,197,0.1)}
+.nexus-vars .chart-info-overlay{
+  position:absolute;bottom:14px;left:14px;display:flex;gap:14px;
+  font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);z-index:3;
+  padding:7px 11px;background:rgba(10,12,17,0.85);backdrop-filter:blur(16px);
+  border:1px solid var(--nx-border);border-radius:5px;
+}
+.nexus-vars .chart-info-overlay span b{color:var(--cyan-bright);font-weight:600}
+.nexus-vars .crosshair-tip{
+  position:absolute;padding:8px 11px;background:rgba(10,12,17,0.95);backdrop-filter:blur(16px);
+  border:1px solid var(--nx-border-hi);border-radius:5px;
+  font-family:'JetBrains Mono',monospace;font-size:10.5px;pointer-events:none;z-index:4;
+  opacity:0;transition:opacity 0.15s;box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:160px;
+}
+.nexus-vars .crosshair-tip.show{opacity:1}
+.nexus-vars .crosshair-tip .row{display:flex;justify-content:space-between;gap:12px;padding:1px 0}
+.nexus-vars .crosshair-tip .k{color:var(--text-mute)}
+.nexus-vars .crosshair-tip .v{color:var(--text);font-weight:600}
+.nexus-vars .crosshair-tip .v.up{color:var(--green)}
+.nexus-vars .crosshair-tip .v.down{color:var(--red)}
+.nexus-vars .chartlab .sidebar{display:flex;flex-direction:column;overflow-y:auto;background:rgba(6,7,10,0.6)}
+.nexus-vars .summary{padding:14px 16px;border-bottom:1px solid var(--nx-border)}
+.nexus-vars .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.nexus-vars .summary-card{
+  padding:10px 12px;background:linear-gradient(135deg, var(--panel-solid), var(--panel-2));
+  border:1px solid var(--nx-border);border-radius:6px;position:relative;overflow:hidden;
+}
+.nexus-vars .summary-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg, transparent, var(--cyan), transparent);opacity:0.3}
+.nexus-vars .summary-label{font-size:9px;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.nexus-vars .summary-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;letter-spacing:-0.3px}
+.nexus-vars .summary-val.up{color:var(--green);text-shadow:0 0 6px rgba(61,220,151,0.3)}
+.nexus-vars .summary-val.down{color:var(--red);text-shadow:0 0 6px rgba(255,84,112,0.3)}
+.nexus-vars .summary-sub{font-size:9.5px;color:var(--text-mute);margin-top:2px;font-family:'JetBrains Mono',monospace}
+.nexus-vars .levels-section{padding:14px 16px;border-bottom:1px solid var(--nx-border)}
+.nexus-vars .levels-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.nexus-vars .levels-title{font-size:10px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.2px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.nexus-vars .level-row{
+  display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;
+  padding:6px 0;border-bottom:1px dashed rgba(79,209,197,0.06);
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+}
+.nexus-vars .level-row:last-child{border-bottom:none}
+.nexus-vars .level-name{color:var(--text-dim);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600}
+.nexus-vars .level-bar{height:4px;background:rgba(79,209,197,0.08);border-radius:2px;overflow:hidden;position:relative}
+.nexus-vars .level-bar-fill{position:absolute;top:0;bottom:0;left:0;border-radius:2px;transition:width 0.8s cubic-bezier(.2,.8,.2,1)}
+.nexus-vars .level-bar-fill.support{background:linear-gradient(90deg, var(--cyan), var(--green));box-shadow:0 0 6px var(--cyan)}
+.nexus-vars .level-bar-fill.resist{background:linear-gradient(90deg, var(--amber), var(--red));box-shadow:0 0 6px var(--amber)}
+.nexus-vars .level-val{color:var(--text);font-weight:600;text-align:right}
+/* light re-grounds for the chart lab */
+.nexus-vars.light .chart-header{background:rgba(242,245,249,0.85)}
+.nexus-vars.light .chart-title{background:linear-gradient(135deg, #121826 0%, var(--cyan) 115%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.nexus-vars.light .chart-canvas-wrap{background:radial-gradient(ellipse at 50% 0%, rgba(13,148,136,0.05), transparent 60%), var(--bg)}
+.nexus-vars.light .timeframe-bar,
+.nexus-vars.light .chart-controls .chart-ctrl,
+.nexus-vars.light .chart-info-overlay,
+.nexus-vars.light .crosshair-tip,
+.nexus-vars.light .instrument-menu{background:rgba(255,255,255,0.92)}
+.nexus-vars.light .chartlab .sidebar{background:rgba(242,245,249,0.6)}
+@media(max-width:1100px){
+  .nexus-vars .chartlab .main{grid-template-columns:1fr}
+  .nexus-vars .chartlab .sidebar{display:none}
+}
