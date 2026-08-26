@@ -32,6 +32,8 @@ import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 // the app retries and auto-reloads to pick up the new chunks.
 // ─── 6 PRIMARY SHELLS (new IA) — Home / Hunt / GEX / Research / Positions / Journal ───
 const TerminalShell  = lazyWithRetry(() => import("@/pages/shells/terminal-shell"),  "terminal-shell");
+// NEXUS — the operator's reference terminal, used as authored and wired to the real feeds.
+const NexusPage      = lazyWithRetry(() => import("@/pages/nexus"),                  "nexus");
 const HomeShell      = lazyWithRetry(() => import("@/pages/shells/pulse-shell"),     "home-shell");
 const HuntShell      = lazyWithRetry(() => import("@/pages/shells/hunt-shell"),      "hunt-shell");
 const GexShell       = lazyWithRetry(() => import("@/pages/shells/gex-shell"),       "gex-shell");
@@ -190,6 +192,7 @@ function Router() {
       <Switch>
         {/* ─── TERMINAL — the consolidation target: one shell, 5 tabs (Oracle/Flow/Heatmap/GEX/PRISM) ─── */}
         <Route path="/t"          component={withBetaProtection(TerminalShell)} />
+        <Route path="/nexus"      component={withBetaProtection(NexusPage)} />
         {/* ─── 6 PRIMARY SHELLS — new IA (Home / Hunt / GEX / Research / Positions / Journal) ─── */}
         {/* Legacy shells now live as Terminal tabs — redirect so the old sidebar UI
             can't keep opening from a bookmark or an open tab. The pages themselves are
@@ -632,7 +635,7 @@ function App() {
   //
   // Matching /r and /r/:symbol as a prefix, not an equality, so per-ticker routes
   // are included.
-  const isFullBleedShell = locationPath === '/t' || locationPath === '/r' || locationPath.startsWith('/r/');
+  const isFullBleedShell = locationPath === '/t' || locationPath === '/nexus' || locationPath === '/r' || locationPath.startsWith('/r/');
 
   if (isFullBleedShell) {
     return (
