@@ -2524,3 +2524,11 @@
 .landing .reveal.visible{opacity:1;transform:translateY(0)}
 @media (max-width: 960px){.landing .hero-grid{grid-template-columns:1fr;gap:40px}.landing .lterminal{transform:none}.landing .modules-grid{grid-template-columns:repeat(2,1fr)}.landing .feature{grid-template-columns:1fr;gap:30px}.landing .feature.reverse{direction:ltr}.landing .workflow-grid{grid-template-columns:repeat(2,1fr)}.landing .pricing-grid{grid-template-columns:1fr}.landing .stats-grid{grid-template-columns:repeat(2,1fr);gap:24px}.landing .lnav-links{display:none}}
 @media (max-width: 560px){.landing .modules-grid{grid-template-columns:1fr}.landing .workflow-grid{grid-template-columns:1fr}.landing section{padding:70px 0}.landing .hero{padding:110px 0 60px}}
+
+/* landing — the mock's hover states, restored (they were trimmed in the first pass) */
+.landing .lmodule::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%, var(--mod-color, var(--cyan)), transparent 60%);opacity:0;transition:opacity 0.3s;pointer-events:none}
+.landing .lmodule:hover::after{opacity:0.08}
+.landing .lmodule:hover::before{opacity:0.8}
+.landing .lmodule-icon{box-shadow:0 0 16px rgba(79,209,197,0.1)}
+.landing .workflow-grid::before{content:'';position:absolute;top:28px;left:10%;right:10%;height:1px;background:linear-gradient(90deg, transparent, var(--cyan) 20%, var(--cyan) 80%, transparent);opacity:0.3;z-index:0}
+.landing .lterminal-status .dot{animation:pulse 1.5s infinite}

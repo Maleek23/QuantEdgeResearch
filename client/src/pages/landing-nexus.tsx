@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import { convictionDisplayPercent } from '@shared/conviction-display';
 import '@/styles/nexus.css';
 
 interface Bar { time: number; open: number; high: number; low: number; close: number }
@@ -189,7 +190,7 @@ function SigCard({ p }: { p: Pick }) {
       <div className="lsig-head">
         <div className="lsig-ticker">{p.symbol}</div>
         <div className="lsig-band" style={{ background: `${bandColor}26`, color: bandColor, border: `1px solid ${bandColor}4d` }}>{band}</div>
-        <div className="lsig-ev">+<b>{Math.round(p.convictionScore ?? 0)}</b> evidence{pnl != null && <span style={{ marginLeft: 8, color: pnl >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%</span>}</div>
+        <div className="lsig-ev"><b>{convictionDisplayPercent(p.convictionScore ?? 0)}</b>/100 evidence{pnl != null && <span style={{ marginLeft: 8, color: pnl >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%</span>}</div>
       </div>
       <div className="lsig-type">
         <span className={`dir ${dir === 'short' ? 'bear' : 'bull'}`}>{dir === 'short' ? '▼ BEAR' : '▲ BULL'}</span>
@@ -211,6 +212,7 @@ export default function LandingNexus() {
   const { data: conv } = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'landing'], queryFn: fetchJson('/api/convictions?limit=40&minScore=10'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
   const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'landing'], queryFn: fetchJson('/api/crypto/pulse'), staleTime: 300_000, retry: 1 });
   const { data: patterns } = useQuery<{ hits?: unknown[]; scanned?: number }>({ queryKey: ['/api/patterns/scan', 'landing'], queryFn: fetchJson('/api/patterns/scan'), staleTime: 600_000, retry: 1 });
+  const { data: ideasMeta } = useQuery<{ total?: number; last24h?: number }>({ queryKey: ['/api/trade-ideas/debug/raw', 'landing'], queryFn: fetchJson('/api/trade-ideas/debug/raw'), staleTime: 600_000, retry: 1 });
   const spyIntra = useDaily('SPY', '1d', '5m');
   const spyDaily = useDaily('SPY', '5d', '1d');
   const [tapePaused, setTapePaused] = useState(false);
@@ -224,8 +226,12 @@ export default function LandingNexus() {
   const top2 = [...picks].sort((a, b) => (b.convictionScore ?? 0) - (a.convictionScore ?? 0)).slice(0, 2);
   const longs = picks.filter((p) => (p.direction ?? 'long') !== 'short').length;
   const shorts = picks.length - longs;
-  const topScore = Math.round(top2[0]?.convictionScore ?? 0);
-  const avgScore = picks.length ? Math.round(picks.reduce((a, p) => a + (p.convictionScore ?? 0), 0) / picks.length) : 0;
+  // Raw confluence points are NOT percentages — the shared display transform
+  // maps them onto the 0-100 confidence index every product surface uses.
+  // "17/100" was raw points wearing a percent sign; that class of units lie
+  // is exactly what this platform exists to kill.
+  const topScore = convictionDisplayPercent(top2[0]?.convictionScore ?? 0);
+  const avgScore = picks.length ? Math.round(picks.reduce((a, p) => a + convictionDisplayPercent(p.convictionScore ?? 0), 0) / picks.length) : 0;
 
   const sectors = rotation?.sectors ?? [];
   const flows = useMemo(() => {
@@ -375,9 +381,9 @@ export default function LandingNexus() {
         <div className="container">
           <div className="stats-grid">
             <div className="stat-item reveal">
-              <div className="lstat-val">{picks.length}</div>
-              <div className="lstat-label">Signals in play right now</div>
-              <div className="lstat-sub">re-ranked every 4 minutes</div>
+              <div className="lstat-val">{(ideasMeta?.total ?? 0).toLocaleString()}</div>
+              <div className="lstat-label">Signals generated & outcome-tracked</div>
+              <div className="lstat-sub">{ideasMeta?.last24h ?? 0} in the last 24h · {picks.length} in play now</div>
             </div>
             <div className="stat-item reveal">
               <div className="lstat-val">{sectors.length}</div>

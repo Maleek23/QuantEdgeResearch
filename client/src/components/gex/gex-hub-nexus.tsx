@@ -43,6 +43,7 @@ interface TopPlay {
   symbol: string; sector?: string; spotPrice?: number; playScore?: number;
   conviction?: string; regime?: string; bias?: string; callWall?: number; putWall?: number;
   isNegativeGamma?: boolean; insight?: string;
+  totalVEX?: number; vexSignal?: string; gammaFlip?: number | null; flipDistancePct?: number | null;
 }
 interface HubPayload { hub?: { topPlays?: TopPlay[]; totalScanned?: number }; generatedAt?: string }
 interface TerminalData { symbol: string; snapshot: GEXSnapshot; strikeExpiryMatrix: StrikeExpiryCell[]; generatedAt?: string }
@@ -80,7 +81,13 @@ const DUST_M = 0.001; // < $1K of exposure
 export function GexHubNexus() {
   const [, setLocation] = useLocation();
   const { currentStock, setCurrentStock } = useStockContext();
-  const symbol = (currentStock?.symbol || 'SPY').toUpperCase();
+  // The hub's OWN anchor. Its search and ranked list re-anchor THIS, never the
+  // global stock context — since the workup took over that contract, setting it
+  // from here popped the dossier over the hub on every click. The universal
+  // search (top right) owns the popup; the hub's controls own the hub.
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const symbol = (anchor ?? currentStock?.symbol ?? 'SPY').toUpperCase();
+  const [rankMode, setRankMode] = useState<'gex' | 'vex'>('gex');
 
   const [view3d, setView3d] = useState(false);
   const [metric, setMetric] = useState<'gex' | 'vex'>('gex');
@@ -218,7 +225,7 @@ export function GexHubNexus() {
   useEffect(() => { if (searchOpen) setTimeout(() => inputRef.current?.focus(), 40); }, [searchOpen]);
 
   const pick = (sym: string) => {
-    setCurrentStock({ symbol: sym.toUpperCase() });
+    setAnchor(sym.toUpperCase());
     setSearchOpen(false);
   };
 
@@ -277,6 +284,35 @@ export function GexHubNexus() {
                 </div>
               </div>
             </div>
+            {/* Dealer structure rail — the flip/wall geometry, drawn not implied.
+                putWall … gammaFlip … callWall on a price axis with the live spot
+                marker; below-flip territory is negative-gamma red. */}
+            {snap && (snap.putWall || snap.callWall || snap.gammaFlipPrice) && (() => {
+              const pts = [snap.putWall, snap.gammaFlipPrice, snap.callWall, spot].filter((v): v is number => Number.isFinite(v as number));
+              const lo = Math.min(...pts) * 0.995; const hi = Math.max(...pts) * 1.005;
+              const X = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
+              const flip = snap.gammaFlipPrice;
+              return (
+                <div style={{ margin: '10px 0 4px', padding: '14px 10px 4px', position: 'relative' }}>
+                  <div style={{ position: 'relative', height: 6, borderRadius: 3, background: flip != null ? `linear-gradient(90deg, rgba(255,84,112,0.35) ${X(flip)}, rgba(61,220,151,0.3) ${X(flip)})` : 'rgba(79,209,197,0.15)' }}>
+                    {snap.putWall != null && <div title={`Put wall $${snap.putWall}`} style={{ position: 'absolute', left: X(snap.putWall), top: -4, width: 2, height: 14, background: 'var(--red)', boxShadow: '0 0 6px var(--red)' }} />}
+                    {flip != null && <div title={`Gamma flip $${flip}`} style={{ position: 'absolute', left: X(flip), top: -6, width: 2, height: 18, background: 'var(--amber)', boxShadow: '0 0 8px var(--amber)' }} />}
+                    {snap.callWall != null && <div title={`Call wall $${snap.callWall}`} style={{ position: 'absolute', left: X(snap.callWall), top: -4, width: 2, height: 14, background: 'var(--green)', boxShadow: '0 0 6px var(--green)' }} />}
+                    {spot != null && <div title={`Spot $${spot.toFixed(2)}`} style={{ position: 'absolute', left: X(spot), top: -3, width: 8, height: 12, borderRadius: 2, background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,0.7)', transform: 'translateX(-4px)' }} />}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)' }}>
+                    <span style={{ color: 'var(--red)' }}>P {snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}</span>
+                    <span style={{ color: 'var(--amber)' }}>flip {flip != null ? `$${Math.round(flip)}` : '—'}</span>
+                    <span style={{ color: 'var(--green)' }}>C {snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-dim)' }}>
+                    <span>{snap.regime ?? '—'}</span>
+                    {snap.volatilityRegime && <span>· {snap.volatilityRegime}</span>}
+                    {snap.zeroGammaProjection != null && <span>· 0γ proj ${Math.round(snap.zeroGammaProjection)}</span>}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="flow-wrap">
               <div className="flow-side">
                 <div className="flow-side-label">Out of</div>
@@ -298,23 +334,35 @@ export function GexHubNexus() {
 
           <div className="ranked">
             <div className="ranked-head">
-              <div className="ranked-label">Ranked · GEX surface</div>
-              <div className="ranked-count">{hub?.hub?.totalScanned ?? plays.length} scanned</div>
+              <div className="ranked-label">Ranked · {rankMode === 'gex' ? 'GEX surface' : 'VEX surface'}</div>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                {(['gex', 'vex'] as const).map((m) => (
+                  <button key={m} onClick={() => setRankMode(m)}
+                    style={{ padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: 0.5, background: rankMode === m ? 'rgba(245,182,66,0.15)' : 'transparent', color: rankMode === m ? 'var(--amber)' : 'var(--text-mute)', border: rankMode === m ? '1px solid rgba(245,182,66,0.3)' : '1px solid var(--nx-border)' }}>
+                    {m}
+                  </button>
+                ))}
+                <div className="ranked-count" style={{ marginLeft: 6 }}>{hub?.hub?.totalScanned ?? plays.length} scanned</div>
+              </div>
             </div>
             <div className="ranked-list">
-              {plays.map((p, i) => (
+              {(rankMode === 'gex' ? plays : [...plays].sort((a, b) => Math.abs(b.totalVEX ?? 0) - Math.abs(a.totalVEX ?? 0))).map((p, i) => (
                 <div
                   key={p.symbol}
                   className={`ranked-item${p.symbol === 'SPY' ? ' benchmark' : ''}${p.symbol === symbol ? ' active' : ''}`}
-                  onClick={() => setCurrentStock({ symbol: p.symbol })}
+                  onClick={() => setAnchor(p.symbol)}
                 >
                   <div className="ranked-num">{i + 1}</div>
                   <div>
                     <span className="ranked-sym">{p.symbol}</span>
                     {p.symbol === 'SPY' && <span className="ranked-bench">benchmark</span>}
                   </div>
-                  <div className={`ranked-gamma ${p.isNegativeGamma ? 'neg' : 'pos'}`}>{p.isNegativeGamma ? '−γ' : '+γ'}</div>
-                  <div className="ranked-score">{p.playScore ?? '—'}</div>
+                  {rankMode === 'gex'
+                    ? <div className={`ranked-gamma ${p.isNegativeGamma ? 'neg' : 'pos'}`}>{p.isNegativeGamma ? '−γ' : '+γ'}</div>
+                    : <div className={`ranked-gamma ${(p.totalVEX ?? 0) < 0 ? 'neg' : 'pos'}`}>{(p.vexSignal ?? 'V').slice(0, 4)}</div>}
+                  {rankMode === 'gex'
+                    ? <div className="ranked-score">{p.playScore ?? '—'}</div>
+                    : <div className="ranked-score" title="total VEX">{p.totalVEX != null ? `${(p.totalVEX / 1e6) >= 1000 ? (p.totalVEX / 1e9).toFixed(1) + 'B' : (p.totalVEX / 1e6).toFixed(0) + 'M'}` : '—'}</div>}
                 </div>
               ))}
               {!plays.length && (
