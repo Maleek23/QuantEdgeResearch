@@ -1433,7 +1433,18 @@ export class MemStorage implements IStorage {
 
   // AUTO-CLEANUP: Remove stale trades to free memory AND update database
   async cleanupStaleTradeIdeas(): Promise<number> {
-    const RETENTION_DAYS = 7; // Keep closed/won/lost trades for 7 days
+    // RETENTION: archive, never delete.
+    //
+    // This was 7 days, hard delete. A platform cannot demonstrate an edge while
+    // erasing its own outcomes every week — it caps the observable sample at
+    // whatever closed in the last seven days, which is why the whole track record
+    // began on 2026-08-18 and why no source has enough decided trades to clear a
+    // significance bar. Closed trades ARE the product's evidence; they are the
+    // cheapest rows in the table and the only ones that answer "does this work".
+    //
+    // Size was the original concern. That is a read-side problem: exclude
+    // archived rows where payload matters, and keep the history.
+    const RETENTION_DAYS = 365; // archive after a year; never delete
     const STALE_HOURS = 48; // Expire open trades older than 48 hours (was 72)
     const cutoffClosed = new Date();
     cutoffClosed.setDate(cutoffClosed.getDate() - RETENTION_DAYS);
@@ -1467,8 +1478,9 @@ export class MemStorage implements IStorage {
     // Delete old closed/won/lost/expired trades from database
     try {
       const result = await db
-        .delete(tradeIdeas)
-        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
+        .update(tradeIdeas)
+        .set({ archived: true })
+        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()} AND ${tradeIdeas.archived} = false`)
         .returning({ id: tradeIdeas.id });
 
       deletedCount = result.length;
@@ -1481,22 +1493,30 @@ export class MemStorage implements IStorage {
       logger.error('[CLEANUP] Failed to delete old trades from database:', err);
     }
 
-    // Also delete expired options from database
+    // Archive rather than delete — see the twin of this block in DatabaseStorage.
+    // An expired contract is a COMPLETED trade with a known outcome, which makes
+    // it the single most valuable row in the table for measuring whether the
+    // platform works. Deleting it on expiry destroys the track record on a
+    // rolling basis.
     try {
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
       const result = await db
-        .delete(tradeIdeas)
-        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
+        .update(tradeIdeas)
+        .set({ archived: true })
+        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()} AND ${tradeIdeas.archived} = false`)
         .returning({ id: tradeIdeas.id });
 
       for (const { id } of result) {
-        this.tradeIdeas.delete(id);
+        const existing = this.tradeIdeas.get(id);
+        if (existing) this.tradeIdeas.set(id, { ...existing, archived: true } as any);
       }
-      deletedCount += result.length;
+      if (result.length > 0) {
+        logger.info(`[CLEANUP] Archived ${result.length} expired-contract idea(s) — retained for performance history`);
+      }
     } catch (err) {
-      logger.error('[CLEANUP] Failed to delete expired options from database:', err);
+      logger.error('[CLEANUP] Failed to archive expired options:', err);
     }
 
     const totalAffected = expiredCount + deletedCount;
@@ -2667,7 +2687,18 @@ export class DatabaseStorage implements IStorage {
 
   // AUTO-CLEANUP: Remove stale trades from database
   async cleanupStaleTradeIdeas(): Promise<number> {
-    const RETENTION_DAYS = 7;
+    // RETENTION: archive, never delete.
+    //
+    // This was 7 days, hard delete. A platform cannot demonstrate an edge while
+    // erasing its own outcomes every week — it caps the observable sample at
+    // whatever closed in the last seven days, which is why the whole track record
+    // began on 2026-08-18 and why no source has enough decided trades to clear a
+    // significance bar. Closed trades ARE the product's evidence; they are the
+    // cheapest rows in the table and the only ones that answer "does this work".
+    //
+    // Size was the original concern. That is a read-side problem: exclude
+    // archived rows where payload matters, and keep the history.
+    const RETENTION_DAYS = 365; // archive after a year; never delete
     const STALE_HOURS = 48;
     const cutoffClosed = new Date();
     cutoffClosed.setDate(cutoffClosed.getDate() - RETENTION_DAYS);
@@ -2690,24 +2721,38 @@ export class DatabaseStorage implements IStorage {
 
     try {
       const result = await db
-        .delete(tradeIdeas)
-        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
+        .update(tradeIdeas)
+        .set({ archived: true })
+        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()} AND ${tradeIdeas.archived} = false`)
         .returning({ id: tradeIdeas.id });
       deletedCount = result.length;
     } catch (err) {
       logger.error('[CLEANUP] Failed to delete old trades from database:', err);
     }
 
+    // ARCHIVE, never delete. This pass used to hard-delete every row whose
+    // contract expiry had passed, with NO status filter — resolved history
+    // included. Measured 2026-08-25: 223 of 312 rows with an expiry were inside
+    // a 14-day window and 105 of those were CLOSED ideas, so roughly ten days of
+    // this running would have destroyed most of the platform's track record on a
+    // rolling basis. An expired contract is exactly the row you most want to keep:
+    // it is a completed trade with a known outcome.
+    //
+    // The intent was payload size, which is a read concern. Solve it by excluding
+    // archived rows at the read, not by deleting the evidence.
     try {
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
       const result = await db
-        .delete(tradeIdeas)
-        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
+        .update(tradeIdeas)
+        .set({ archived: true })
+        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()} AND ${tradeIdeas.archived} = false`)
         .returning({ id: tradeIdeas.id });
-      deletedCount += result.length;
+      if (result.length > 0) {
+        logger.info(`[CLEANUP] Archived ${result.length} expired-contract idea(s) — retained for performance history`);
+      }
     } catch (err) {
-      logger.error('[CLEANUP] Failed to delete expired options from database:', err);
+      logger.error('[CLEANUP] Failed to archive expired options:', err);
     }
 
     const totalAffected = expiredCount + deletedCount;
