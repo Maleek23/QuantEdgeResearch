@@ -14214,6 +14214,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // The base /api/catalysts route filters to UPCOMING events, but the news
+  // ingest writes past-dated rows — so consumers saw "0 of 282" and the feed
+  // read as empty. This is the recency window the short-discipline gate
+  // actually uses (past 72h + next 14d), exposed for the automation surface
+  // and the catalyst tab.
+  app.get("/api/catalysts/recent", async (_req, res) => {
+    try {
+      const catalysts = await storage.getActiveCatalysts();
+      res.json({ asOf: new Date().toISOString(), count: catalysts.length, catalysts: catalysts.slice(0, 100) });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch recent catalysts" });
+    }
+  });
+
+  // ── CRYPTO SENTIMENT — the two feeds the crypto tab disclosed as missing ──
+  // Fear & Greed from alternative.me and BTC dominance from CoinGecko's global
+  // endpoint. Both free, no key. Cached 30 min; each side degrades to null
+  // independently so one provider's outage never fabricates the other's read.
+  let cryptoSentimentCache: { at: number; payload: any } | null = null;
+  app.get("/api/crypto/sentiment", async (_req, res) => {
+    try {
+      if (cryptoSentimentCache && Date.now() - cryptoSentimentCache.at < 30 * 60_000) {
+        return res.json(cryptoSentimentCache.payload);
+      }
+      const [fngRes, globalRes] = await Promise.allSettled([
+        fetch("https://api.alternative.me/fng/?limit=1", { signal: AbortSignal.timeout(8000) }),
+        fetch("https://api.coingecko.com/api/v3/global", { signal: AbortSignal.timeout(8000) }),
+      ]);
+      let fearGreed: { value: number; label: string; asOf: string } | null = null;
+      if (fngRes.status === "fulfilled" && fngRes.value.ok) {
+        const j = await fngRes.value.json();
+        const row = j?.data?.[0];
+        const v = Number(row?.value);
+        if (Number.isFinite(v) && row?.value_classification) {
+          fearGreed = { value: v, label: String(row.value_classification), asOf: new Date(Number(row.timestamp) * 1000).toISOString() };
+        }
+      }
+      let btcDominance: number | null = null;
+      if (globalRes.status === "fulfilled" && globalRes.value.ok) {
+        const j = await globalRes.value.json();
+        const v = Number(j?.data?.market_cap_percentage?.btc);
+        if (Number.isFinite(v)) btcDominance = v;
+      }
+      const payload = { asOf: new Date().toISOString(), fearGreed, btcDominance };
+      // Only cache when at least one side answered — a double failure should retry.
+      if (fearGreed || btcDominance != null) cryptoSentimentCache = { at: Date.now(), payload };
+      res.json(payload);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch crypto sentiment" });
+    }
+  });
+
   // ── REPEAT BUYERS — the same contract accumulated across sessions ──────────
   // The strongest read available from flow: one large print is ambiguous (hedge,
   // roll, spread leg, or a close), but the SAME strike and expiry being added to

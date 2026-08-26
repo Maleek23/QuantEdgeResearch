@@ -39,6 +39,11 @@ interface RealtimePayload {
   coinbase?: { connected?: boolean };
   futures?: { connected?: boolean };
 }
+interface SentimentPayload {
+  asOf?: string;
+  fearGreed?: { value: number; label: string; asOf: string } | null;
+  btcDominance?: number | null;
+}
 
 const BTC_PROXIES = [
   { sym: 'IBIT', type: 'spot ETF', desc: 'Direct BTC wrapper — tightest correlation, lowest idiosyncratic risk.' },
@@ -200,6 +205,17 @@ export function CryptoNexus() {
       return r.json();
     },
     refetchInterval: 30_000, staleTime: 20_000, retry: 1,
+  });
+  // Fear & Greed (alternative.me) + BTC dominance (CoinGecko) — the two feeds
+  // this tab previously disclosed as missing. Server-cached 30 min.
+  const { data: sentiment } = useQuery<SentimentPayload>({
+    queryKey: ['/api/crypto/sentiment', 'nexus'],
+    queryFn: async () => {
+      const r = await fetch('/api/crypto/sentiment', { credentials: 'include' });
+      if (!r.ok) throw new Error('sentiment failed');
+      return r.json();
+    },
+    staleTime: 15 * 60_000, refetchInterval: 30 * 60_000, retry: 1,
   });
 
   const btc = pulse?.assets?.find((a) => a.symbol === 'BTC');
@@ -413,11 +429,37 @@ export function CryptoNexus() {
           <div className="fear-greed" style={{ padding: '14px 16px', borderBottom: '1px solid var(--nx-border)' }}>
             <div className="correlation-head">
               <div className="correlation-label">Crypto Fear &amp; Greed</div>
+              {sentiment?.fearGreed && (
+                <div style={{ fontSize: 9.5, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>alternative.me</div>
+              )}
             </div>
-            {/* No feed carries this index. An unmeasured meter stays unmeasured —
-                the mock's random-walk needle does not ship. */}
-            <div style={{ padding: '14px 0 6px', textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontStyle: 'italic', color: 'var(--text-mute)' }}>
-              NOT MEASURED — no sentiment feed connected
+            {sentiment?.fearGreed ? (() => {
+              const fg = sentiment.fearGreed!;
+              const color = fg.value >= 75 ? 'var(--red)' : fg.value >= 55 ? 'var(--amber)' : fg.value >= 45 ? 'var(--text-dim)' : fg.value >= 25 ? 'var(--btc-bright)' : 'var(--green)';
+              return (
+                <div style={{ padding: '10px 0 4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 22, fontWeight: 700, color }}>{fg.value}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color }}>{fg.label}</span>
+                  </div>
+                  <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'linear-gradient(90deg, var(--green), var(--amber) 50%, var(--red))', opacity: 0.9 }}>
+                    <div style={{ position: 'absolute', top: -3, left: `calc(${Math.min(100, Math.max(0, fg.value))}% - 2px)`, width: 4, height: 12, borderRadius: 2, background: '#fff', boxShadow: '0 0 6px rgba(255,255,255,0.6)' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)' }}>
+                    <span>fear</span><span>greed</span>
+                  </div>
+                </div>
+              );
+            })() : (
+              <div style={{ padding: '14px 0 6px', textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontStyle: 'italic', color: 'var(--text-mute)' }}>
+                NOT MEASURED — sentiment feed unreachable
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, padding: '7px 10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 10.5 }}>
+              <span style={{ color: 'var(--text-dim)' }}>BTC dominance</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: sentiment?.btcDominance != null ? 'var(--btc-bright)' : 'var(--text-mute)' }}>
+                {sentiment?.btcDominance != null ? `${sentiment.btcDominance.toFixed(1)}%` : '—'}
+              </span>
             </div>
           </div>
 
