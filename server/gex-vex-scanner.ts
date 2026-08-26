@@ -1003,6 +1003,8 @@ export async function buildGEXHub(scan: ConfluenceScanResult): Promise<GEXHubDat
     scannedAt: scan.scannedAt,
     marketRegime: scan.marketRegime,
     totalTickers: rows.length,
+    attempted: rows.length + (scan.errors?.length ?? 0),
+    failedSymbols: (scan.errors ?? []).map((e) => e.symbol),
     topPositiveGEX,
     topNegativeGEX,
     topVEX,

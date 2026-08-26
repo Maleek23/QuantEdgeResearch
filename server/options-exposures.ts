@@ -286,6 +286,15 @@ export function computeExposures(
     // For puts: dealer long → dealer's vanna positive contribution
     // Note: VEX uses /1e6 (not /1e9 like GEX) because vanna×S produces values
     // ~250x smaller than gamma×S² — using /1e9 makes most VEX values sub-threshold.
+    //
+    // KNOWN INCONSISTENCY (audited 2026-08-26): GEX above assumes dealers are
+    // LONG calls / SHORT puts (calls +, puts −); this VEX sign assumes the
+    // OPPOSITE dealer book (calls −, puts +). Each is a defensible convention
+    // alone, but together the two surfaces tell contradictory dealer stories.
+    // Every vexSignal label and insight string downstream is calibrated to
+    // THIS sign, so flipping it here without re-deriving all of those would
+    // silently invert their meaning — do that as one deliberate pass, not a
+    // drive-by. Until then: treat net VEX as a put-minus-call vanna tilt.
     const vexContribution = (isCall ? -1 : 1) * effectiveOI * vanna! * MULT * spotPrice * weight / 1e6;
 
     // DEX (delta exposure)

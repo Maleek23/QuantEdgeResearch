@@ -241,6 +241,27 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
     }
   } catch { /* rotation optional */ }
 
+  // ── cockpit signal — NOT a duplicate brain, an absorbed one ───────────────
+  // The conviction board is the funnel's PUBLISHED book: stored candidates,
+  // 14-layer scoring, tracked outcomes. Quantinum is the on-demand superset
+  // for any symbol; when the board already has a live pick on this name, that
+  // verdict joins the dossier as one more evidence layer, so the two systems
+  // reference each other instead of dueling.
+  try {
+    const { getCachedConvictions } = await import('./convictions-engine');
+    const board = await getCachedConvictions();
+    const pick: any = (board?.picks ?? []).find((p: any) => p.symbol === sym);
+    if (pick) {
+      const dirLong = pick.direction !== 'short';
+      const pts = (pick.convictionScore >= 40 ? 6 : pick.convictionScore >= 25 ? 4 : 2) * (dirLong ? 1 : -1);
+      layers.push({
+        kind: 'cockpit', label: 'Cockpit signal', points: pts,
+        why: `board publishes ${dirLong ? 'LONG' : 'SHORT'} at conviction ${pick.convictionScore}${pick.grade ? ` (${pick.grade})` : ''} — the funnel's own live pick on this name`,
+        source: 'conviction board',
+      });
+    }
+  } catch { /* board cold — dossier stands on the other engines */ }
+
   // ── market tape ───────────────────────────────────────────────────────────
   try {
     const { getTapeConditions } = await import('./tape-conditions');

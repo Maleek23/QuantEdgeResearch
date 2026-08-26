@@ -222,6 +222,14 @@ export interface GEXHubData {
   scannedAt: number;
   marketRegime: ConfluenceScanResult['marketRegime'];
   totalTickers: number;
+  /**
+   * Coverage disclosure — totalTickers is SUCCESSES, not the universe. When
+   * chains providers degrade (Tradier 401, CBOE 429 storms) most of the
+   * universe fails its fetch; these fields make that visible instead of the
+   * ranked board implying completeness it doesn't have.
+   */
+  attempted?: number;
+  failedSymbols?: string[];
 
   /** Top 6 by net positive GEX (call wall heavy / pin candidates) */
   topPositiveGEX: HubLeaderRow[];

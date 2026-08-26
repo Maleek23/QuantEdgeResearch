@@ -45,7 +45,7 @@ interface TopPlay {
   isNegativeGamma?: boolean; insight?: string;
   totalVEX?: number; vexSignal?: string; gammaFlip?: number | null; flipDistancePct?: number | null;
 }
-interface HubPayload { hub?: { topPlays?: TopPlay[]; totalScanned?: number }; generatedAt?: string }
+interface HubPayload { hub?: { topPlays?: TopPlay[]; totalScanned?: number; totalTickers?: number; attempted?: number; failedSymbols?: string[] }; generatedAt?: string }
 interface TerminalData { symbol: string; snapshot: GEXSnapshot; strikeExpiryMatrix: StrikeExpiryCell[]; generatedAt?: string }
 interface Sector { etf: string; name: string; change: number }
 interface RotationPayload { leaders?: Sector[]; laggards?: Sector[]; sectors?: Sector[]; sessionLabel?: string }
@@ -343,7 +343,16 @@ export function GexHubNexus() {
                     {m}
                   </button>
                 ))}
-                <div className="ranked-count" style={{ marginLeft: 6 }}>{hub?.hub?.totalScanned ?? plays.length} scanned</div>
+                <div
+                  className="ranked-count"
+                  style={{ marginLeft: 6, color: (hub?.hub?.failedSymbols?.length ?? 0) > 0 ? 'var(--amber)' : undefined }}
+                  title={(hub?.hub?.failedSymbols?.length ?? 0) > 0
+                    ? `chains failed for: ${hub!.hub!.failedSymbols!.slice(0, 20).join(', ')}${hub!.hub!.failedSymbols!.length > 20 ? '…' : ''}`
+                    : 'every attempted name scanned'}
+                >
+                  {hub?.hub?.totalTickers ?? hub?.hub?.totalScanned ?? plays.length}
+                  {hub?.hub?.attempted != null && hub.hub.attempted !== (hub.hub.totalTickers ?? 0) ? `/${hub.hub.attempted}` : ''} scanned
+                </div>
               </div>
             </div>
             <div className="ranked-list">
