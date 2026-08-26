@@ -243,6 +243,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
   const { data: econ } = useQuery<EconPayload>({ queryKey: ['/api/economic-calendar', 'wu'], queryFn: fetchJson('/api/economic-calendar'), staleTime: 600_000, retry: 1, enabled: INDEX_ETFS.has(symbol) });
   const { data: spyHist } = useDaily('SPY', '3mo', 'wu-corr');
   const { data: qqqHist } = useDaily('QQQ', '3mo', 'wu-corr');
+  const { data: shortInt } = useQuery<{ shortPercentOfFloat: number | null; shortRatio: number | null; squeezeContext: string }>({ queryKey: ['/api/short-interest', symbol], queryFn: fetchJson(`/api/short-interest/${symbol}`), staleTime: 3600_000, retry: 1 });
   const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'wu'], queryFn: fetchJson('/api/crypto/pulse'), staleTime: 300_000, retry: 1 });
 
   const bars = yearly?.data ?? [];
@@ -502,6 +503,13 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                 <div className="ql-stat"><div className="ql-stat-k">RSI · 14</div><div className="ql-stat-v">{stats.rsi != null ? Math.round(stats.rsi) : '—'}</div></div>
                 <div className="ql-stat"><div className="ql-stat-k">ATR · 14</div><div className="ql-stat-v">{stats.atr != null ? fmtPrice(stats.atr) : '—'}</div></div>
                 <div className="ql-stat"><div className="ql-stat-k">Vol / 20d avg</div><div className={`ql-stat-v${stats.volAvg != null && stats.volAvg >= 1.3 ? ' up' : ''}`}>{stats.volAvg != null ? `${stats.volAvg.toFixed(1)}×` : '—'}</div></div>
+                <div className="ql-stat" title={`Squeeze context: ${shortInt?.squeezeContext ?? 'unknown'} — exchange-reported, twice-monthly cycle`}>
+                  <div className="ql-stat-k">Short % float</div>
+                  <div className="ql-stat-v" style={{ color: (shortInt?.shortPercentOfFloat ?? 0) >= 0.15 ? 'var(--red)' : (shortInt?.shortPercentOfFloat ?? 0) >= 0.08 ? 'var(--amber)' : undefined }}>
+                    {shortInt?.shortPercentOfFloat != null ? `${(shortInt.shortPercentOfFloat * 100).toFixed(1)}%` : '—'}
+                    {shortInt?.shortRatio != null && <span style={{ fontSize: 8.5, color: 'var(--text-mute)', marginLeft: 4 }}>{shortInt.shortRatio.toFixed(1)}d cover</span>}
+                  </div>
+                </div>
                 <div className="ql-stat"><div className="ql-stat-k">MA 20</div><div className="ql-stat-v cyan">{fmtPrice(stats.ma20)}</div></div>
                 <div className="ql-stat"><div className="ql-stat-k">52w H</div><div className="ql-stat-v up">{fmtPrice(stats.h52)}</div></div>
                 <div className="ql-stat"><div className="ql-stat-k">52w L</div><div className="ql-stat-v down">{fmtPrice(stats.l52)}</div></div>

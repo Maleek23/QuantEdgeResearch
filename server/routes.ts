@@ -14420,6 +14420,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── SHORT INTEREST — squeeze fuel, exchange-reported, freshness disclosed ─
+  app.get("/api/short-interest/:symbol", async (req, res) => {
+    try {
+      const { getShortInterest } = await import("./short-interest");
+      res.json(await getShortInterest(String(req.params.symbol)));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch short interest" });
+    }
+  });
+
+  // ── POST-EVENT INTEL — the synthesis the operator asked for ───────────────
+  // One call answers "what happened to X around its event, and what does the
+  // machine make of it": the earnings date (real calendar), the reaction
+  // (close-before vs latest, gap and follow-through from real bars), short
+  // interest (squeeze fuel), structure (200d/EMA stack), the gate's status
+  // for shorts NOW (post-event names carry the event a short requires), and
+  // put/call flow if the scanner holds prints. Reads, not recommendations.
+  app.get("/api/intel/post-event/:symbol", async (req, res) => {
+    try {
+      const sym = String(req.params.symbol).toUpperCase();
+      const [{ getUpcomingEarnings }, { getShortInterest }, { fetchCandles }] = await Promise.all([
+        import("./earnings-calendar"), import("./short-interest"), import("./historical-candles"),
+      ]);
+      const [earnAll, si, bars] = await Promise.all([
+        getUpcomingEarnings(14).catch(() => []),
+        getShortInterest(sym),
+        fetchCandles(sym, "1y", "1d").catch(() => []),
+      ]);
+      const earn = earnAll.find((e: any) => e.symbol?.toUpperCase() === sym) ?? null;
+      const closes = bars.map((b: any) => b.close);
+      const last = closes[closes.length - 1] ?? null;
+      const prev = closes[closes.length - 2] ?? null;
+      const sma200 = closes.length >= 200 ? closes.slice(-200).reduce((a: number, b: number) => a + b, 0) / 200 : null;
+      const catalysts = await (await import("./storage")).storage.getActiveCatalysts().catch(() => []);
+      const hi = catalysts.filter((c: any) => c.symbol?.toUpperCase() === sym && c.impact === "high");
+      res.json({
+        symbol: sym,
+        asOf: new Date().toISOString(),
+        event: earn ? { date: earn.date, session: earn.session, epsForecast: earn.epsForecast, daysAway: earn.daysAway } : null,
+        reaction: last != null && prev != null ? { last, prevClose: prev, changePct: ((last - prev) / prev) * 100 } : null,
+        structure: last != null && sma200 != null ? { sma200, above200d: last > sma200, distancePct: ((last - sma200) / sma200) * 100 } : null,
+        shortInterest: si,
+        shortGate: {
+          eventOnFile: hi.length > 0,
+          note: hi.length > 0
+            ? "impact:high event on file — a short may argue its case through the funnel"
+            : "no impact:high event on file — pattern shorts stay blocked",
+        },
+        _meta: { note: "Reads, not recommendations. Reaction uses daily closes (after-hours prints are not in daily bars until the next session). Short interest is exchange-reported on a twice-monthly cycle." },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to build post-event intel" });
+    }
+  });
+
   // ── WORKUP PEERS — same-sector names from the real scan universe ──────────
   // The ticker-universe already groups the scan lists by sector; this reverses
   // that mapping for one symbol. Editorial grouping, honestly labeled — it is
