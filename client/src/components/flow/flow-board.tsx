@@ -175,23 +175,29 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
   const money = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n.toFixed(0)}`;
 
   return (
-    <div className="space-y-4 px-4 py-4 md:px-5">
-      <TerminalPageHeader
-        eyebrow="Options activity"
-        title="Flow"
-        description="Follow unusual options-chain activity from aggregate premium to contract-level evidence. Bias and pattern labels are inferred."
-        live={!freshness?.stale}
-        status={freshness?.stale ? 'historical snapshot' : `${shown.length} contract observations`}
-        tone={freshness?.stale ? 'time' : 'structural'}
-      />
+    <div>
+      {/* The reference section header — same copy, his .sec-head grammar. */}
+      <div className="sec-head">
+        <div className="sec-num">OPTIONS ACTIVITY</div>
+        <div className="sec-title">Flow</div>
+        <div className="sec-sub">Follow unusual options-chain activity from aggregate premium to contract-level evidence. Bias and pattern labels are inferred.</div>
+        <div className="sec-meta">
+          <span className={cn('tag', freshness?.stale ? 'warn' : 'live')}>
+            <span className="dot" />
+            {freshness?.stale ? 'historical snapshot' : 'live'}
+          </span>
+          <span className="tag mute">{shown.length} contract observations</span>
+        </div>
+      </div>
+
       {/* 1. Market first: a trader needs to know where premium is leaning before
           deciding which individual print is worth opening. */}
-      <div className="rounded-xl border border-card-border bg-card">
-        <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-          <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Chain activity</span>
+      <div className="intel-block">
+        <div className="intel-head">
+          <div className="intel-label">Chain activity</div>
           <div className="flex items-center gap-2">
             {freshness && (
-              <span className={cn('text-label font-mono', freshness.stale ? 'text-[#e0a458]' : 'text-muted-foreground/60')}>
+              <span className="intel-value" style={freshness.stale ? { color: 'var(--amber)' } : undefined}>
                 {freshness.stale ? `last print ${freshness.label} · ${freshness.ageDays}d stale` : `last print ${freshness.label}`}
               </span>
             )}
@@ -199,7 +205,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
                  options={[['1', '1D'], ['7', '1W'], ['30', '1M'], ['200', 'ALL']]} />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-px bg-border/20 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="stats-bar" style={{ padding: 0, border: 0, gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
           {/* Labelled as what they measure. These were "Bullish premium" / "Bearish
               premium", but with no execution side the split is call vs put and
               nothing more — the disclaimer below already said so. */}
@@ -221,7 +227,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
           <Stat label="Sweep-like" value={String(overview.sweeps)} color={CYAN} />
         </div>
         {overview.total > 0 && (
-          <div className="border-t border-border/30 px-4 py-2">
+          <div className="pt-2">
             <p className="text-meta leading-relaxed text-foreground/75">
               {overview.callPrem >= overview.putPrem ? 'Call premium leads' : 'Put premium leads'} by{' '}
               <b style={{ color: overview.callPrem >= overview.putPrem ? BULL : BEAR }}>{money(Math.abs(overview.callPrem - overview.putPrem))}</b>
@@ -241,8 +247,8 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
         )}
       </div>
 
-      {/* ── filters ── */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-card-border bg-card px-3 py-2">
+      {/* ── filters — the reference .filters bar ── */}
+      <div className="filters" style={{ position: 'static' }}>
         {/* With no measured execution side there is nothing to filter BULL/BEAR on —
             offering the chips anyway just returns an empty tape and reads as broken.
             They come back automatically once a tape source sets a real bias. */}
@@ -250,38 +256,43 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
              options={overview.measuredPct > 0
                ? [['all', 'ALL'], ['bullish', 'BULL'], ['bearish', 'BEAR']]
                : [['all', 'ALL']]} />
+        <div className="filter-sep" />
         <Seg label="Pattern" value={kind} onChange={setKind}
              options={[['all', 'ALL'], ['sweep', 'SWEEP-LIKE'], ['block', 'BLOCK-LIKE'], ['unusual_volume', 'UNUSUAL']]} />
+        <div className="filter-sep" />
         <Seg label="Score" value={String(minScore)} onChange={(v) => setMinScore(Number(v))}
              options={MIN_SCORES.map((s) => [String(s), s === 0 ? 'ANY' : `${s}+`] as [string, string])} />
+        <div className="filter-sep" />
         <Seg label="Premium" value={String(minPrem)} onChange={(v) => setMinPrem(Number(v))}
              options={MIN_PREMIUM.map((p) => [String(p), p === 0 ? 'ANY' : p >= 1e6 ? '$1M+' : `$${p / 1000}K+`] as [string, string])} />
         <button
           onClick={() => setWhaleOnly((w) => !w)}
-          className={cn('cursor-pointer rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-            whaleOnly ? 'bg-[#e0a458]/15 text-[#e0a458]' : 'text-muted-foreground/70 hover:text-foreground')}
+          className={cn('filter-btn', whaleOnly && 'active')}
+          style={whaleOnly ? { color: 'var(--amber)', borderColor: 'rgba(245,182,66,0.35)', background: 'rgba(245,182,66,0.1)', boxShadow: '0 0 8px rgba(245,182,66,0.15)' } : undefined}
         >
           Premium ≥$1M
         </button>
 
         <div className="relative ml-auto">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground/70" />
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2" style={{ color: 'var(--text-mute)' }} />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="ticker"
             aria-label="Filter flow by ticker"
-            className="w-28 rounded border border-border/60 bg-background/60 py-1 pl-7 pr-2 text-meta font-mono uppercase tracking-wider text-foreground outline-none transition-colors focus:border-[var(--brand-cyan,#22d3ee)]"
+            className="filter-btn w-28 pl-7 uppercase outline-none"
+            style={{ cursor: 'text' }}
           />
         </div>
-        <div className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
+        <div className="view-toggle">
           {(['tape', 'cards'] as const).map((next) => (
-            <button key={next} type="button" onClick={() => setView(next)} className={cn('rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors', view === next ? 'bg-foreground/10 text-[var(--brand-cyan)]' : 'text-muted-foreground/70 hover:text-foreground')}>{next}</button>
+            <button key={next} type="button" onClick={() => setView(next)} className={cn('view-btn', view === next && 'active')} style={{ background: view === next ? undefined : 'transparent', border: 'none' }}>{next}</button>
           ))}
         </div>
       </div>
 
       {/* ── the tape ── */}
+      <div className="space-y-4 px-4 py-4 md:px-5">
       {isLoading ? (
         <div className="flex h-40 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading the tape…
@@ -326,32 +337,34 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
           <ConvergenceCard />
         </div>
       </section>
+      </div>
     </div>
   );
 }
 
+/* The reference stats-bar tile — same measured values, his .stat-box shell. */
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="bg-card px-3 py-2">
-      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
-      <div className="mt-0.5 text-lead font-mono font-bold tabular-nums" style={{ color }}>{value}</div>
+    <div className="stat-box">
+      <div className="stat-label">{label}</div>
+      <div className="stat-val" style={{ color }}>{value}</div>
     </div>
   );
 }
 
+/* The reference filter group — .filter-label + .filter-btn(.active). */
 function Seg<T extends string>({ label, value, onChange, options }: {
   label: string; value: T; onChange: (v: T) => void; options: [string, string][];
 }) {
   return (
-    <div className="flex items-center gap-1">
-      <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</span>
-      <div className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
+    <div className="filter-group">
+      <span className="filter-label">{label}</span>
+      <div className="flex items-center gap-1">
         {options.map(([v, l]) => (
           <button
             key={v}
             onClick={() => onChange(v as T)}
-            className={cn('cursor-pointer rounded px-1.5 py-0.5 text-label font-mono uppercase tracking-wider transition-colors',
-              value === v ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}
+            className={cn('filter-btn', value === v && 'active')}
           >
             {l}
           </button>
