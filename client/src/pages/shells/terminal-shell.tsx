@@ -246,7 +246,8 @@ export default function TerminalShell() {
             <span className="dot" />{dataPartial ? 'Data partial' : 'Data ready'}
           </div>
 
-          <nav className="nav-tabs hidden flex-1 justify-center overflow-x-auto md:flex">
+          {/* His nav sits LEFT, immediately after the chips — not centered. */}
+          <nav className="nav-tabs hidden overflow-x-auto md:flex">
             {TABS.map((t) => (
               <button
                 key={t.id}
@@ -259,54 +260,46 @@ export default function TerminalShell() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setMobileSearchOpen((open) => !open)}
-              aria-label="Search ticker"
-              aria-expanded={mobileSearchOpen}
-              className="grid h-8 w-8 place-items-center rounded border border-border/55 text-muted-foreground transition-colors hover:text-foreground md:hidden"
-            >
-              <Search className="h-4 w-4" />
-            </button>
-            <div className="hidden md:block">
-              <TerminalTickerSearch
-                value={currentStock?.symbol}
-                onSelect={(result) => setCurrentStock({ symbol: result.symbol, name: result.name })}
-              />
-            </div>
+          <div className="top-spacer" />
 
-            <AlertBell
-              unread={alerts.unread}
-              onClick={() => { setAlertsOpen(true); alerts.setUnread(0); }}
+          {/* His search box — same typeahead engine, his shell around it. */}
+          <button
+            type="button"
+            onClick={() => setMobileSearchOpen((open) => !open)}
+            aria-label="Search ticker"
+            aria-expanded={mobileSearchOpen}
+            className="grid h-8 w-8 place-items-center rounded border border-border/55 text-muted-foreground transition-colors hover:text-foreground md:hidden"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          <div className="hidden md:block">
+            <TerminalTickerSearch
+              variant="nexus"
+              value={currentStock?.symbol}
+              onSelect={(result) => setCurrentStock({ symbol: result.symbol, name: result.name })}
             />
+          </div>
 
-            <button
-              onClick={() => setSettingsOpen(true)}
-              aria-label="Open settings"
-              title="Settings"
-              className="hidden cursor-pointer items-center gap-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground md:inline-flex"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-            </button>
-
-            <button
-              onClick={() => setTheme(nextTheme)}
-              aria-label={nexusLight ? 'Switch to dark' : 'Switch to light'}
-              title={nexusLight ? 'Switch to dark' : 'Switch to light'}
-              className="mode-toggle hidden md:flex"
-            >
-              {nexusLight ? '☾ dark' : '☀ light'}
-            </button>
-
-            <div className="relative">
+          {/* His user-chip. Everything the mock's header doesn't show — alerts,
+              settings, guide, the ☀/☾ — lives in this menu, so the bar itself
+              stays pixel-true to the reference. */}
+          <div className="relative">
               <button
                 onClick={() => setAccountOpen((open) => !open)}
                 aria-label="Open account menu"
                 aria-expanded={accountOpen}
-                className="grid h-7 w-7 cursor-pointer place-items-center rounded-full border border-border/60 bg-foreground/5 font-mono text-[10px] font-bold text-foreground transition-colors hover:border-[var(--brand-cyan)]"
+                className="user-chip"
               >
-                {accountInitial}
+                <div className="user-avatar">{accountInitial}</div>
+                <span className="user-name hidden lg:inline">{accountLabel}</span>
+                {alerts.unread > 0 && (
+                  <span
+                    className="grid h-4 min-w-4 place-items-center rounded-full px-1 font-mono text-[9px] font-bold"
+                    style={{ background: 'rgba(79,209,197,0.15)', color: 'var(--cyan-bright)', border: '1px solid rgba(79,209,197,0.3)' }}
+                  >
+                    {alerts.unread}
+                  </span>
+                )}
               </button>
               <AnimatePresence>
                 {accountOpen && (
@@ -321,7 +314,19 @@ export default function TerminalShell() {
                       <div className="truncate text-[11px] font-bold text-foreground">{accountLabel}</div>
                       <div className="truncate text-[9px] text-muted-foreground/65">{user?.email ?? 'Guest terminal'}</div>
                     </div>
-                    <button onClick={() => { setAccountOpen(false); setSettingsOpen(true); }} className="mt-1 flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
+                    {/* Controls the reference header doesn't carry — parked here
+                        so the bar matches it exactly. */}
+                    <button onClick={() => { setAccountOpen(false); setAlertsOpen(true); alerts.setUnread(0); }} className="mt-1 flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
+                      <Activity className="h-3.5 w-3.5" /> Alerts{alerts.unread > 0 ? ` · ${alerts.unread}` : ''}
+                    </button>
+                    <button onClick={() => { setAccountOpen(false); setGuideOpen(true); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
+                      <BookOpen className="h-3.5 w-3.5" /> Guide
+                    </button>
+                    <button onClick={() => setTheme(nextTheme)} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
+                      {nexusLight ? <Moon className="h-3.5 w-3.5" /> : <span className="grid h-3.5 w-3.5 place-items-center text-[11px] leading-none">☀</span>}
+                      {nexusLight ? 'Dark mode' : 'Light mode'}
+                    </button>
+                    <button onClick={() => { setAccountOpen(false); setSettingsOpen(true); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
                       <UserRound className="h-3.5 w-3.5" /> Preferences & risk
                     </button>
                     <button onClick={() => { setAccountOpen(false); setLocation('/settings'); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
@@ -333,15 +338,6 @@ export default function TerminalShell() {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
-
-            <button
-              onClick={() => setGuideOpen(true)}
-              aria-label={`Open ${tab} guide`}
-              className="hidden cursor-pointer items-center gap-1.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground lg:inline-flex"
-            >
-              <BookOpen className="h-3.5 w-3.5" /> Guide
-            </button>
           </div>
         </div>
         <AnimatePresence initial={false}>

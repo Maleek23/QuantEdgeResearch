@@ -1085,3 +1085,8 @@
   .nexus-embed .col-right{display:block}
   .nexus-embed .sec-head{position:static}
 }
+
+/* A stale feed must not move — a scrolling tape of hours-old prices is a false
+   liveness claim. The lead item's Heartbeat says how old it actually is. */
+.nexus-vars .ticker-track.stale{animation-play-state:paused;opacity:.55}
+.nexus-vars .ticker-track:hover{animation-play-state:paused}

@@ -82,42 +82,49 @@ export function TickerTape({ className }: { className?: string }) {
   if (!quotes.length) {
     // No feed → an empty quiet strip, not an invented one.
     return (
-      <div className={cn('qe-tape', className)}>
-        <span className="px-4 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/50">
+      <div className={cn('ticker-tape', className)} style={{ minHeight: 28 }}>
+        <span style={{ padding: '0 16px', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-mute)' }}>
           quote tape · no data
         </span>
       </div>
     );
   }
 
+  /* The reference marquee, exactly — .ticker-tape > .ticker-track > .ticker-item.
+     The session and the feed's honest age ride as the track's lead item instead
+     of a side chip, so the information survives without changing his layout. */
+  const lead = (i: number) => (
+    <div key={`lead-${i}`} className="ticker-item">
+      <span className="ticker-price" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        {sessionLabel(data?.session)}
+        <Heartbeat since={feedTimestamp(data)} staleAfterSec={900} />
+      </span>
+      <span className="ticker-sep">·</span>
+    </div>
+  );
   const item = (q: EHQuote, i: number) => (
-    <span key={`${q.symbol}-${i}`} className="qe-tape-item">
-      <b>{q.symbol.replace('-USD', '')}</b>
-      <span className="qe-tape-price">
+    <div key={`${q.symbol}-${i}`} className="ticker-item">
+      <span className="ticker-sym">{q.symbol.replace('-USD', '')}</span>
+      <span className="ticker-price">
         {q.lastPrice >= 1000 ? q.lastPrice.toLocaleString('en-US', { maximumFractionDigits: 0 }) : q.lastPrice.toFixed(2)}
       </span>
-      <span
-        style={{ color: q.changePct >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}
-      >
+      <span className={cn('ticker-chg', q.changePct >= 0 ? 'up' : 'down')}>
         {q.changePct >= 0 ? '+' : ''}
         {q.changePct.toFixed(2)}%
       </span>
-      <span className="text-border">·</span>
-    </span>
+      <span className="ticker-sep">·</span>
+    </div>
   );
 
   return (
-    <div className={cn('qe-tape', className)} aria-label="quote tape">
-      <div className="qe-tape-session">
-        <span>{sessionLabel(data?.session)}</span>
-        <Heartbeat since={feedTimestamp(data)} staleAfterSec={900} />
-      </div>
-      <div className="qe-tape-viewport">
-        {/* Two copies for the seamless wrap; the animation moves -50%. */}
-        <div className={cn('qe-tape-track', data?.isStale && 'qe-tape-track-stale')}>
-          {quotes.map(item)}
-          {quotes.map((q, i) => item(q, i + quotes.length))}
-        </div>
+    <div className={cn('ticker-tape', className)} style={{ minHeight: 28 }} aria-label="quote tape">
+      {/* Two copies for the seamless wrap; the animation moves -50%. A stale
+          feed pauses — motion is a liveness claim (MOTION.md). */}
+      <div className={cn('ticker-track', data?.isStale && 'stale')}>
+        {lead(0)}
+        {quotes.map(item)}
+        {lead(1)}
+        {quotes.map((q, i) => item(q, i + quotes.length))}
       </div>
     </div>
   );

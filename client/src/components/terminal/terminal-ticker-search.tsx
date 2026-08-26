@@ -13,10 +13,14 @@ export function TerminalTickerSearch({
   value,
   onSelect,
   compact = false,
+  variant,
 }: {
   value?: string;
   onSelect: (result: SearchResult) => void;
   compact?: boolean;
+  /** 'nexus' renders the reference terminal's .search shell (svg + input +
+   *  ⌘K chip) around the same typeahead engine. Look changes; logic doesn't. */
+  variant?: 'nexus';
 }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -57,10 +61,16 @@ export function TerminalTickerSearch({
   return (
     <div ref={root} className="relative">
       <div className={cn(
-        'flex items-center rounded border border-border/60 bg-background/65 transition-colors focus-within:border-[var(--brand-cyan)]',
-        compact ? 'h-9' : 'h-8',
+        variant === 'nexus'
+          ? 'search'
+          : 'flex items-center rounded border border-border/60 bg-background/65 transition-colors focus-within:border-[var(--brand-cyan)]',
+        variant !== 'nexus' && (compact ? 'h-9' : 'h-8'),
       )}>
-        <Search className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground/65" />
+        {variant === 'nexus' ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        ) : (
+          <Search className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground/65" />
+        )}
         {value && !query && (
           <span className="ml-2 rounded-sm bg-[var(--brand-cyan)]/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-[var(--brand-cyan)]">
             {value}
@@ -82,15 +92,18 @@ export function TerminalTickerSearch({
           placeholder={value ? 'switch ticker' : 'search any ticker'}
           aria-label="Search any ticker"
           className={cn(
-            'min-w-0 flex-1 bg-transparent px-2 font-mono text-[10px] uppercase tracking-wider text-foreground outline-none placeholder:text-muted-foreground/45',
-            compact ? 'w-40' : 'w-32 lg:w-44',
+            variant === 'nexus'
+              ? undefined /* the .search shell styles its input */
+              : 'min-w-0 flex-1 bg-transparent px-2 font-mono text-[10px] uppercase tracking-wider text-foreground outline-none placeholder:text-muted-foreground/45',
+            variant !== 'nexus' && (compact ? 'w-40' : 'w-32 lg:w-44'),
           )}
         />
         {query && (
-          <button type="button" onClick={() => setQuery('')} className="mr-2 text-muted-foreground/60 hover:text-foreground">
+          <button type="button" onClick={() => setQuery('')} className={variant === 'nexus' ? 'text-inherit' : 'mr-2 text-muted-foreground/60 hover:text-foreground'} style={variant === 'nexus' ? { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)' } : undefined}>
             <X className="h-3 w-3" />
           </button>
         )}
+        {variant === 'nexus' && !query && <span className="search-kbd">⌘K</span>}
       </div>
 
       {open && q && (
