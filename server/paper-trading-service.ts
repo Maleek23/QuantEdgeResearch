@@ -297,7 +297,14 @@ export async function executeTradeIdea(
       // 2. Hard cap of $60 per trade (small account friendly)
       // 3. Available cash balance
       const percentBasedMax = portfolio.cashBalance * MAX_PERCENT_PER_TRADE;
-      const maxAllowedSpend = Math.min(percentBasedMax, MAX_DOLLAR_PER_TRADE, portfolio.cashBalance);
+      // The flat $250 cap was small-account protection acting as a universal
+      // ceiling: the 100K clean-era book was refused a $655 MSFT contract by a
+      // rule written for a $2K lotto account. The dollar cap now scales with
+      // the book (3% of cash) and the flat figure survives only as the FLOOR
+      // of that scale — tiny accounts keep their guardrail, real books can
+      // buy one contract of the board they exist to measure.
+      const scaledDollarCap = Math.max(MAX_DOLLAR_PER_TRADE, portfolio.cashBalance * 0.03);
+      const maxAllowedSpend = Math.min(percentBasedMax, scaledDollarCap, portfolio.cashBalance);
       
       const contractCost = currentPrice * 100;
       

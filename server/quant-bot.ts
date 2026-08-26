@@ -19,7 +19,15 @@ import {
   getOpenPositions, getClosedPositions,
 } from './paper-trading-service';
 
-const BOT_PORTFOLIO_NAME = 'Quant Bot';
+// The 10K book could not buy ONE contract of the board it measures: at 1-2%
+// risk its premium ceiling was ~$250 while MSFT's conservative call cost $655
+// and LITE's $2,865 — every fill died at the position sizer after passing
+// every other gate. Options are lumpy; the account must afford the lumps.
+// New clean-era book at 100K (1% risk ≈ $1K → ceiling ~$2.5K covers the
+// board's actual premiums). The old 'Quant Bot' 10K book stays in the DB
+// untouched for audit; this name creates a fresh ledger aligned with
+// OUTCOME_BASELINE_DATE.
+const BOT_PORTFOLIO_NAME = 'Quant Bot · 100K';
 const BOT_USER = 'system-quant-bot';
 
 export interface BotConfig {
@@ -38,7 +46,7 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   // bottom of the board.
   minConviction: 18,
   maxOpen: 10,
-  startingCapital: 10_000,
+  startingCapital: 100_000,
   riskPerTradePct: 2,
   // Past ~35% of the way to T1 the remaining reward no longer justifies the same risk.
   maxProgressPct: 35,
