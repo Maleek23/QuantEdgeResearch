@@ -1801,6 +1801,10 @@ export async function generateQuantIdeas(
       const catalystDate = new Date(c.timestamp);
       return catalystDate >= now || (now.getTime() - catalystDate.getTime()) < 24 * 60 * 60 * 1000;
     });
+  // One catalyst idea per symbol per batch — three NVDA articles are one
+  // thesis, not three trades; the DB duplicate check runs before any save so a
+  // single batch could triple itself.
+  const catalystBatchSymbols = new Set<string>();
 
     for (const catalyst of recentCatalysts) {
       if (ideas.length >= count) break;
@@ -1872,11 +1876,24 @@ export async function generateQuantIdeas(
       );
       const probabilityBand = getProbabilityBand(confidenceScore);
 
-      // Skip if below quality threshold - STRICT A minimum (90+) for ALL ideas (v2.3.0+)
-      if (confidenceScore < 90) {
-        logger.info(`Filtered out catalyst idea for ${catalyst.symbol} - below A grade threshold (score: ${confidenceScore})`);
+      // The old floor here was 90 -- set in v2.3.0 when scores ran high, then
+      // v3.4 recalibrated base scores DOWN to ~45-65 and nobody moved the bar.
+      // A 90-floor on a 50-point scale sealed this entire path: no catalyst-
+      // driven idea has published since the recalibration ('score: 45' filtered
+      // hundreds of times). Floor is now 50, which is not arbitrary: the signal
+      // scores 'strong'(50) only when catalyst.impact === 'high' -- so this
+      // publishes exactly the impact:high-backed ideas, the platform's standing
+      // catalyst bar, and nothing weaker. They arrive as C-band with honest
+      // labels and earn their cohort record like every other template.
+      if (confidenceScore < 50) {
+        logger.info(`Filtered out catalyst idea for ${catalyst.symbol} - below impact:high bar (score: ${confidenceScore})`);
         continue;
       }
+      // Distinct cohort label -- without it these rode in the volume-spike
+      // cohort and neither path could be measured on its own.
+      qualitySignals.push('Catalyst-Driven (news)');
+      if (catalystBatchSymbols.has(catalyst.symbol.toUpperCase())) continue;
+      catalystBatchSymbols.add(catalyst.symbol.toUpperCase());
 
       // Check for duplicate ideas before creating
       if (storage) {
