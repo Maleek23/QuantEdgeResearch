@@ -30,6 +30,8 @@ import { useStockContext } from '@/contexts/stock-context';
 import { useTheme } from '@/components/theme-provider';
 import { useAuth } from '@/hooks/useAuth';
 import { KitStyles } from '@/components/templates/kit';
+import quantEdgeLogoUrl from '@assets/q_1767502987714.png';
+import '@/styles/nexus.css';
 import { TerminalPageHeader, TerminalSectionHeader } from '@/components/templates/terminal-page';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
 // Non-default tabs and closed overlays must not tax Oracle's first paint. Keeping
@@ -236,47 +238,35 @@ export default function TerminalShell() {
   const accountInitial = accountLabel.slice(0, 1).toUpperCase();
 
   return (
-    <div className="qe-terminal min-h-screen flex flex-col bg-background">
+    <div className={cn('qe-terminal nexus-vars min-h-screen flex flex-col', theme === 'nexus-light' && 'light')}>
       <KitStyles />
-      {/* ── persistent chrome ── */}
-      <header className="qe-terminal-chrome sticky top-0 z-20 border-b border-border/50 bg-background/95 backdrop-blur">
-        <div className="flex h-14 items-center gap-4 px-4 lg:px-5">
-          <span className="shrink-0 font-mono text-[13px] font-bold tracking-[0.16em] text-foreground">
-            QUANT<span className="text-[var(--brand-cyan,#22d3ee)]">EDGE</span>
-            <span className="hidden text-muted-foreground/70 sm:inline"> // TERMINAL</span>
-          </span>
-          <span className="hidden shrink-0 items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--trade-bullish,#22c55e)] sm:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" /> Engaged
-          </span>
-
-          <span
-            className="hidden shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[8px] font-bold uppercase tracking-[0.13em] lg:inline-flex"
-            style={{
-              color: dataPartial ? 'var(--brand-gold)' : 'var(--brand-cyan)',
-              borderColor: dataPartial ? 'color-mix(in srgb, var(--brand-gold) 35%, transparent)' : 'color-mix(in srgb, var(--brand-cyan) 30%, transparent)',
-              background: dataPartial ? 'color-mix(in srgb, var(--brand-gold) 7%, transparent)' : 'color-mix(in srgb, var(--brand-cyan) 6%, transparent)',
-            }}
+      {/* ── persistent chrome — the reference terminal's topbar, verbatim
+             classes from styles/nexus.css. Every tab wears it. ── */}
+      <header className="sticky top-0 z-20">
+        <div className="topbar" style={{ minHeight: 44 }}>
+          <div className="brand">
+            <img className="brand-logo" src={quantEdgeLogoUrl} alt="Quant Edge Labs" />
+            <span className="brand-name">QUANTEDGE</span>
+            <span className="brand-slash">{'//'}</span>
+            <span className="brand-sub hidden sm:inline">TERMINAL</span>
+          </div>
+          <div className="status-chip ok hidden sm:flex"><span className="dot" />Engaged</div>
+          <div
+            className={cn('status-chip hidden lg:flex', dataPartial ? 'warn' : 'ok')}
             title={dataPartial ? 'Some premium and chain-dependent reads are unavailable' : 'Primary data dependencies are healthy'}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-current" /> {dataPartial ? 'Data partial' : 'Data ready'}
-          </span>
+            <span className="dot" />{dataPartial ? 'Data partial' : 'Data ready'}
+          </div>
 
-          <nav className="hidden flex-1 items-center justify-center gap-0.5 overflow-x-auto md:flex">
+          <nav className="nav-tabs hidden flex-1 justify-center overflow-x-auto md:flex">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={cn(
-                  'relative px-3 py-1.5 text-meta font-mono uppercase tracking-widest transition-colors whitespace-nowrap',
-                  tab === t.id ? 'text-foreground' : 'text-muted-foreground/60 hover:text-foreground',
-                )}
+                className={cn('nav-tab', tab === t.id && 'active')}
                 data-testid={`terminal-tab-${t.id}`}
               >
                 {t.label}
-                {tab === t.id && (
-                  <motion.span layoutId="terminal-tab-underline"
-                    className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-[var(--brand-cyan,#22d3ee)]" />
-                )}
               </button>
             ))}
           </nav>
@@ -661,25 +651,23 @@ export default function TerminalShell() {
         update={alerts.update}
       />
 
-      {/* ── footer ── */}
-      <footer className="border-t border-border/50 px-4 h-8 flex items-center gap-3 text-label font-mono uppercase tracking-wider text-muted-foreground/60">
-        <span className="inline-flex items-center gap-1.5 text-[var(--trade-bullish,#22c55e)]">
-          <span className="h-1.5 w-1.5 rounded-full bg-current" /> Online
-        </span>
-        <span className="tabular-nums">Uptime {uptime}</span>
-        {/* The same live status strip the rest of the app footers show — bots
-            running, watchlist size, VIX. Imported rather than reimplemented so
-            the two footers cannot drift apart. */}
-        <span className="hidden md:inline-flex items-center normal-case tracking-normal">
+      {/* ── footer — the reference bottombar. Same real content as before:
+             LiveStatsBar (bots/watchlist/VIX) and the market line (session ·
+             SPY · BTC · next poll · clock) ride inside his chrome. ── */}
+      <footer className="bottombar" style={{ minHeight: 26 }}>
+        <div className="bb-item"><span className="dot" /><b>{tab.toUpperCase()}</b> engaged</div>
+        <div className="bb-sep" />
+        <div className="bb-item">Uptime <b className="tabular-nums">{uptime}</b></div>
+        <div className="bb-sep hidden md:block" />
+        <span className="hidden items-center md:inline-flex">
           <LiveStatsBar />
         </span>
-        {/* The reference bottom bar's market line: session · SPY · BTC · next
-            poll · clock. Real quotes off the same tape query, and the countdown
-            counts to the query's actual next refetch — not a looping prop. */}
-        <span className="ml-auto hidden items-center lg:inline-flex">
+        <div className="bb-spacer" />
+        <span className="hidden items-center lg:inline-flex">
           <FooterMarketLine className="text-[10px]" />
         </span>
-        <span className="hidden sm:inline lg:ml-3">Educational only · not investment advice</span>
+        <div className="bb-sep hidden sm:block" />
+        <div className="bb-item hidden sm:flex">Educational only · not investment advice</div>
       </footer>
     </div>
   );
