@@ -73,7 +73,7 @@ function RadarPreview({ symbol, note, x, y }: { symbol: string; note: string; x:
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', fontWeight: 600 }}>1mo · real bars</span>
       </div>
       <Spark bars={(data?.data ?? []).map((b) => ({ time: b.time, close: b.close }))} color="#4fd1c5" height={54} />
-      <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: 'var(--text-dim)', lineHeight: 1.5 }}>{note}</div>
+      <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-dim)', lineHeight: 1.5 }}>{note}</div>
     </div>
   );
 }
@@ -677,7 +677,7 @@ export function NexusBoard() {
               );
             })}
             {patterns.data && patterns.data.hits.length === 0 && (
-              <div style={{ fontSize: 10.5, color: 'var(--text-mute)', fontStyle: 'italic', padding: '6px 0' }}>Sweep pending — first pass runs ~3 min after boot.</div>
+              <div style={{ fontSize: 10, color: 'var(--text-mute)', fontStyle: 'italic', padding: '6px 0' }}>Sweep pending — first pass runs ~3 min after boot.</div>
             )}
             {radarPrev && <RadarPreview {...radarPrev} />}
             {expandSec && (
@@ -782,7 +782,7 @@ export function NexusBoard() {
                   </div>
                   {(patterns.data?.hits ?? []).filter((h) => radarBrowse === 'all' || h.pattern === radarBrowse).slice(0, 120).map((h) => (
                     <div key={`${h.pattern}-${h.symbol}`} onClick={() => { setRadarBrowse(null); setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
-                      style={{ display: 'grid', gridTemplateColumns: '64px 110px 1fr', gap: 10, alignItems: 'center', padding: '7px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5 }}>
+                      style={{ display: 'grid', gridTemplateColumns: '64px 110px 1fr', gap: 10, alignItems: 'center', padding: '7px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
                       <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text)' }}>{h.symbol}</b>
                       <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 9 }}>{h.pattern.replace('_', ' ')}</span>
                       <span style={{ color: 'var(--text-dim)' }}>{h.note}</span>
@@ -1067,7 +1067,7 @@ export function NexusBoard() {
                         : 'timing pending contract'}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', margin: '6px 0 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5 }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', margin: '6px 0 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 9 }} onClick={(e) => e.stopPropagation()}>
                     {[
                       ['WORKUP', () => openWorkup(p.symbol)],
                       [watchState[p.symbol] ? `WATCH ${watchState[p.symbol]}` : 'WATCH', () => addToWatch(p.symbol)],
@@ -1086,13 +1086,13 @@ export function NexusBoard() {
                       }],
                     ].map(([label, fn]) => (
                       <button key={String(label)} onClick={fn as () => void}
-                        style={{ padding: '2px 7px', borderRadius: 3, background: 'transparent', border: '1px solid var(--nx-border)', color: 'var(--text-mute)', cursor: 'pointer', letterSpacing: 0.5, fontWeight: 700, fontFamily: 'inherit', fontSize: 8.5, transition: 'all 0.15s' }}
+                        style={{ padding: '2px 7px', borderRadius: 3, background: 'transparent', border: '1px solid var(--nx-border)', color: 'var(--text-mute)', cursor: 'pointer', letterSpacing: 0.5, fontWeight: 700, fontFamily: 'inherit', fontSize: 9, transition: 'all 0.15s' }}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--cyan-dim)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
                         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--nx-border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-mute)'; }}>
                         {String(label)}
                       </button>
                     ))}
-                    {botVerdicts[p.ideaId] && <span style={{ color: 'var(--amber)', fontSize: 8.5 }}>{botVerdicts[p.ideaId]}</span>}
+                    {botVerdicts[p.ideaId] && <span style={{ color: 'var(--amber)', fontSize: 9 }}>{botVerdicts[p.ideaId]}</span>}
                   </div>
                   <div className="progress-wrap">
                     <div className="progress-label">
@@ -1192,7 +1192,7 @@ export function NexusBoard() {
                     <span style={{ color: 'var(--cyan-bright)', fontWeight: 700 }}>watch</span>
                   </div>
                 ))}
-                <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', fontStyle: 'italic' }}>watch · not signals — pre-trigger picks + live compressions, click for the workup</div>
+                <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', fontStyle: 'italic' }}>watch · not signals — pre-trigger picks + live compressions, click for the workup</div>
               </div>
             );
           })()}

@@ -419,7 +419,7 @@ export function CryptoNexus() {
           <div className="correlation">
             <div className="correlation-head">
               <div className="correlation-label">Proxy correlation · ~30d</div>
-              <div style={{ fontSize: 9.5, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>daily log returns</div>
+              <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>daily log returns</div>
             </div>
             <div className="correlation-list">
               {['IBIT', 'MSTR', 'MARA', 'COIN', 'RIOT'].map((s) => <CorrRow key={s} sym={s} underlying={btc} />)}
@@ -431,7 +431,7 @@ export function CryptoNexus() {
             <div className="correlation-head">
               <div className="correlation-label">Crypto Fear &amp; Greed</div>
               {sentiment?.fearGreed && (
-                <div style={{ fontSize: 9.5, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>alternative.me</div>
+                <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>alternative.me</div>
               )}
             </div>
             {sentiment?.fearGreed ? (() => {
@@ -441,12 +441,12 @@ export function CryptoNexus() {
                 <div style={{ padding: '10px 0 4px' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 22, fontWeight: 700, color }}>{fg.value}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color }}>{fg.label}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color }}>{fg.label}</span>
                   </div>
                   <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'linear-gradient(90deg, var(--green), var(--amber) 50%, var(--red))', opacity: 0.9 }}>
                     <div style={{ position: 'absolute', top: -3, left: `calc(${Math.min(100, Math.max(0, fg.value))}% - 2px)`, width: 4, height: 12, borderRadius: 2, background: '#fff', boxShadow: '0 0 6px rgba(255,255,255,0.6)' }} />
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>
                     <span>fear</span><span>greed</span>
                   </div>
                 </div>
@@ -456,7 +456,7 @@ export function CryptoNexus() {
                 NOT MEASURED — sentiment feed unreachable
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, padding: '7px 10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 10.5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, padding: '7px 10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 10 }}>
               <span style={{ color: 'var(--text-dim)' }}>BTC dominance</span>
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: sentiment?.btcDominance != null ? 'var(--btc-bright)' : 'var(--text-mute)' }}>
                 {sentiment?.btcDominance != null ? `${sentiment.btcDominance.toFixed(1)}%` : '—'}

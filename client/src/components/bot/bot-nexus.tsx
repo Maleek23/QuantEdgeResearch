@@ -490,7 +490,7 @@ export function BotNexus() {
           </div>
           <div className="perf-chart" style={{ display: 'grid', placeItems: 'center' }}>
             {/* No daily P&L series is tracked — a curve here would be a random walk. */}
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
               NOT MEASURED — no daily P&L series;<br />outcomes are tracked per idea
             </div>
           </div>
@@ -557,7 +557,7 @@ export function BotNexus() {
                 { price: replay.stopLoss, color: '#ff5470', label: 'would-be stop' },
                 { price: replay.targetPrice, color: '#3ddc97', label: 'would-be target' },
               ]} />
-            <div style={{ marginTop: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: 'var(--text-dim)' }}>
+            <div style={{ marginTop: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }}>
               Replay verdict: <b style={{ color: replay.outcome === 'hit_target' ? 'var(--red)' : replay.outcome === 'hit_stop' ? 'var(--green)' : 'var(--amber)' }}>
                 {replay.outcome === 'hit_target' ? `target touched first — the gate COST ${replay.wouldBePercent?.toFixed(1)}%` : replay.outcome === 'hit_stop' ? `stop touched first — the gate SAVED ${Math.abs(replay.wouldBePercent ?? 0).toFixed(1)}%` : 'neither barrier touched yet — still open'}
               </b> · daily-bar granularity; both-touched ties go to the stop, same rule as live validation.

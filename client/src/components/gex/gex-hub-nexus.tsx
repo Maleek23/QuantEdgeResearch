@@ -301,12 +301,12 @@ export function GexHubNexus() {
                     {snap.callWall != null && <div title={`Call wall $${snap.callWall}`} style={{ position: 'absolute', left: X(snap.callWall), top: -4, width: 2, height: 14, background: 'var(--green)', boxShadow: '0 0 6px var(--green)' }} />}
                     {spot != null && <div title={`Spot $${spot.toFixed(2)}`} style={{ position: 'absolute', left: X(spot), top: -3, width: 8, height: 12, borderRadius: 2, background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,0.7)', transform: 'translateX(-4px)' }} />}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>
                     <span style={{ color: 'var(--red)' }}>P {snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}</span>
                     <span style={{ color: 'var(--amber)' }}>flip {flip != null ? `$${Math.round(flip)}` : '—'}</span>
                     <span style={{ color: 'var(--green)' }}>C {snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-dim)' }}>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-dim)' }}>
                     <span>{snap.regime ?? '—'}</span>
                     {snap.volatilityRegime && <span>· {snap.volatilityRegime}</span>}
                     {snap.zeroGammaProjection != null && <span>· 0γ proj ${Math.round(snap.zeroGammaProjection)}</span>}
@@ -515,7 +515,7 @@ export function GexHubNexus() {
           <div className="context-card">
             <div className="context-head">
               <div className="context-label">Key levels</div>
-              <div style={{ fontSize: 9.5, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol} · {sessionLabel.toLowerCase()}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol} · {sessionLabel.toLowerCase()}</div>
             </div>
             <div className="context-grid">
               <div className="context-item">
@@ -663,11 +663,11 @@ export function GexHubNexus() {
                 [`share of ${drill.expiryLabel} expiry`, expiryTotal !== 0 ? `${((v / expiryTotal) * 100).toFixed(0)}% of ${fmtM(expiryTotal)}` : '—'],
               ].map(([k, val2]) => (
                 <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px dashed rgba(79,209,197,0.08)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
-                  <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 9.5, letterSpacing: 0.5 }}>{k}</span>
+                  <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 9, letterSpacing: 0.5 }}>{k}</span>
                   <span style={{ fontWeight: 700 }}>{val2}</span>
                 </div>
               ))}
-              <div style={{ marginTop: 10, fontSize: 9.5, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", fontStyle: 'italic' }}>listed-chain node · esc or click away to close</div>
+              <div style={{ marginTop: 10, fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", fontStyle: 'italic' }}>listed-chain node · esc or click away to close</div>
             </div>
           </div>
         );

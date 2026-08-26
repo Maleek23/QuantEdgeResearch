@@ -368,7 +368,7 @@ export function GEXVEXChart({
                   value: shortLabel,
                   position: 'right',
                   fill: color,
-                  fontSize: 8,
+                  fontSize: 9,
                   fontFamily: 'monospace',
                   fontWeight: 600,
                 }}

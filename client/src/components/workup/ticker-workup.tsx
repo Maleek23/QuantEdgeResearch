@@ -469,7 +469,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                       <span>{evTotal >= 0 ? '+' : ''}<b>{evTotal}</b> evidence</span>
                       <div className="signal-card-bar"><div className="signal-card-bar-fill" style={{ width: `${Math.min(100, Math.abs(evTotal) / 70 * 100)}%` }} /></div>
                     </div>
-                    <div style={{ marginTop: 8, display: 'flex', gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: 'var(--text-dim)' }}>
+                    <div style={{ marginTop: 8, display: 'flex', gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-dim)' }}>
                       <span>{layers.length} layers scored</span>
                       <span>·</span>
                       <span style={{ color: against ? 'var(--amber)' : 'var(--green)' }}>{against} against</span>
@@ -507,7 +507,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                   <div className="ql-stat-k">Short % float</div>
                   <div className="ql-stat-v" style={{ color: (shortInt?.shortPercentOfFloat ?? 0) >= 0.15 ? 'var(--red)' : (shortInt?.shortPercentOfFloat ?? 0) >= 0.08 ? 'var(--amber)' : undefined }}>
                     {shortInt?.shortPercentOfFloat != null ? `${(shortInt.shortPercentOfFloat * 100).toFixed(1)}%` : '—'}
-                    {shortInt?.shortRatio != null && <span style={{ fontSize: 8.5, color: 'var(--text-mute)', marginLeft: 4 }}>{shortInt.shortRatio.toFixed(1)}d cover</span>}
+                    {shortInt?.shortRatio != null && <span style={{ fontSize: 9, color: 'var(--text-mute)', marginLeft: 4 }}>{shortInt.shortRatio.toFixed(1)}d cover</span>}
                   </div>
                 </div>
                 <div className="ql-stat"><div className="ql-stat-k">MA 20</div><div className="ql-stat-v cyan">{fmtPrice(stats.ma20)}</div></div>
@@ -525,7 +525,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: 'var(--event)' }}>{relTime(highImpact[0].timestamp)}</div>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>{(highImpact[0].title ?? highImpact[0].description ?? '').slice(0, 90)}</div>
-                  <div style={{ marginTop: 8, padding: '4px 8px', background: 'rgba(255,84,112,0.08)', border: '1px solid rgba(255,84,112,0.2)', borderRadius: 4, fontSize: 9.5, color: 'var(--red)', fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase' }}>⚠ EVENT RISK · SIZE DOWN</div>
+                  <div style={{ marginTop: 8, padding: '4px 8px', background: 'rgba(255,84,112,0.08)', border: '1px solid rgba(255,84,112,0.2)', borderRadius: 4, fontSize: 9, color: 'var(--red)', fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase' }}>⚠ EVENT RISK · SIZE DOWN</div>
                 </div>
               ) : (
                 <div className="wu-empty">No high-impact event on file.<br />Forward earnings dates are not yet fed.</div>
@@ -589,7 +589,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                             );
                           })}
                         </div>
-                        <div style={{ marginTop: 10, padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 10.5, color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                        <div style={{ marginTop: 10, padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 10, color: 'var(--text-dim)', fontStyle: 'italic' }}>
                           {against ? `${against} layer${against !== 1 ? 's' : ''} arguing against — hover a row for its reasoning` : 'no layers arguing against — hover a row for its reasoning'}
                         </div>
                       </>
@@ -720,7 +720,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                       </div>
                     ))}
                   </div>
-                  <div style={{ marginTop: 12, padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 10.5, color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                  <div style={{ marginTop: 12, padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 10, color: 'var(--text-dim)', fontStyle: 'italic' }}>
                     These are the platform's real gates evaluated against {symbol}'s live data — nothing here executes. No broker is connected.
                   </div>
                 </div>

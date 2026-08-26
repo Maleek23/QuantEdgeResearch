@@ -327,7 +327,7 @@ export function ChartLabBoard() {
           <div className="levels-section">
             <div className="levels-head">
               <div className="levels-title">QuantEdge Levels</div>
-              <div style={{ fontSize: 9.5, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol}</div>
             </div>
             {levelRows.length ? levelRows.map((l) => (
               <div className="level-row" key={l.label}>
