@@ -65,6 +65,8 @@ const QuantBotBoard = lazy(() => import('@/components/bot/quant-bot-board').then
 const CatalystBoard = lazy(() => import('@/components/catalyst/catalyst-board').then(m => ({ default: m.CatalystBoard })));
 // CRYPTO = the sixth reference mock, wired. Prior CryptoTerminal stays in tree.
 const CryptoTerminal = lazy(() => import('@/components/crypto/crypto-nexus').then(m => ({ default: m.CryptoNexus })));
+// BOT = the seventh reference mock: the real automation layer, reported honestly.
+const BotNexus = lazy(() => import('@/components/bot/bot-nexus').then(m => ({ default: m.BotNexus })));
 
 type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot';
 /**
@@ -419,25 +421,7 @@ export default function TerminalShell() {
                   <CatalystBoard />
                 </div>
               )}
-              {tab === 'bot' && (
-                <div className="qe-module-page mx-auto w-full max-w-[1680px] space-y-4 px-4 py-4 md:px-5">
-                  <TerminalPageHeader
-                    eyebrow="Paper execution"
-                    title="Bot"
-                    description="A separate execution ledger for the platform's own published option signals—not another confidence board."
-                    status={dataPartial ? 'pricing constrained' : 'ledger connected'}
-                    tone={dataPartial ? 'time' : 'bull'}
-                  />
-                  {/* The paper portfolio is the page's primary object. Oracle outcomes
-                      are below it because a signal close is not a bot close. */}
-                  <Suspense fallback={<Fallback />}>
-                    <QuantBotBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                  </Suspense>
-                  <div className="border-t border-border/60 pt-3">
-                    <TrackRecord />
-                  </div>
-                </div>
-              )}
+              {tab === 'bot' && <BotNexus />}
             </Suspense>
           </motion.div>
         </AnimatePresence>
