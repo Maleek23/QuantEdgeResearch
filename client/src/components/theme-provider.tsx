@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-export type Theme = "dark" | "night" | "nexus" | "light" | "system";
+export type Theme = "dark" | "night" | "nexus" | "nexus-light" | "light" | "system";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -33,7 +33,7 @@ export function ThemeProvider({
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove("light", "dark", "terminal-night", "terminal-nexus");
+    root.classList.remove("light", "dark", "terminal-night", "terminal-nexus", "terminal-nexus-light");
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
@@ -57,6 +57,13 @@ export function ThemeProvider({
     // night: inherit dark's semantics, override the tokens.
     if (theme === "nexus") {
       root.classList.add("dark", "terminal-nexus");
+      return;
+    }
+
+    // The day-shift half of the reference palette: light ground, same accent
+    // hues at contrast-correct luminance.
+    if (theme === "nexus-light") {
+      root.classList.add("light", "terminal-nexus-light");
       return;
     }
 

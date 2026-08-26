@@ -2788,3 +2788,51 @@ button:not([disabled]):active,
 @media (prefers-reduced-motion: reduce) {
   .qe-kpi-tile:hover { transform: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   NEXUS LIGHT — the day-shift half of the reference palette.
+   Same accent hues as .terminal-nexus, at luminance that holds contrast on a
+   light ground: teal-cyan stays the identity, bull/bear stay the reference's
+   green/red family, borders keep the cyan tint. Inherits the base light
+   tokens and overrides only what carries the look.
+   ═══════════════════════════════════════════════════════════════ */
+.light.terminal-nexus-light {
+  --background: 210 33% 96%;        /* #f2f5f9 */
+  --foreground: 222 30% 10%;        /* #121826 */
+  --border: 174 30% 82%;
+  --card: 0 0% 100%;
+  --card-border: 174 30% 84%;
+  --muted-foreground: 220 14% 38%;
+  --accent: 174 84% 29%;            /* #0d9488 — the cyan family, darkened to read */
+  --ring: 174 84% 29%;
+
+  --brand-cyan: #0d9488;
+  --brand-teal: #0d9488;
+  --brand-blue: #2563eb;
+  --brand-gold: #b45309;
+
+  --trade-bullish: #059669;
+  --trade-bullish-bg: rgba(5, 150, 105, .08);
+  --trade-bullish-bg-subtle: rgba(5, 150, 105, .04);
+  --trade-bearish: #e11d48;
+  --trade-bearish-bg: rgba(225, 29, 72, .08);
+  --trade-bearish-bg-subtle: rgba(225, 29, 72, .04);
+  --trade-neutral: #b45309;
+  --trade-neutral-bg: rgba(180, 83, 9, .08);
+  --trade-neutral-bg-subtle: rgba(180, 83, 9, .04);
+
+  --grade-s: #059669;
+  --grade-a: #0d9488;
+  --grade-b: #b45309;
+  --grade-c: #64748b;
+  --grade-d: #c2410c;
+  --grade-f: #e11d48;
+
+  --font-sans: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Spline Sans Mono', Menlo, Monaco, 'Courier New', monospace;
+}
+/* The CRT overlay reads as grime on a light ground — vignette only, faint. */
+.light.terminal-nexus-light .qe-terminal::before { display: none; }
+.light.terminal-nexus-light .qe-terminal::after {
+  background: radial-gradient(ellipse at center, transparent 55%, rgb(15 23 42 / .08) 100%);
+}

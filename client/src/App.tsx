@@ -176,7 +176,7 @@ function SmartLanding() {
   if (user) {
     const lastPage = localStorage.getItem('qe-last-page');
     const LEGACY_LANDINGS = ['/p', '/h', '/g', '/r', '/pos', '/j'];
-    const target = !lastPage || LEGACY_LANDINGS.includes(lastPage.split('?')[0]) ? '/t' : lastPage;
+    const target = !lastPage || LEGACY_LANDINGS.includes(lastPage.split('?')[0]) ? '/nexus' : lastPage;
     return <Redirect to={target} />;
   }
 
@@ -604,7 +604,7 @@ function App() {
   if (isPublicPage) {
     return (
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
+        <ThemeProvider defaultTheme="nexus" storageKey="quantedge-theme">
           <TooltipProvider>
             <RealtimePricesProvider>
               <StockContextProvider>
@@ -640,7 +640,7 @@ function App() {
   if (isFullBleedShell) {
     return (
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
+        <ThemeProvider defaultTheme="nexus" storageKey="quantedge-theme">
           <TooltipProvider>
             <RealtimePricesProvider>
               <StockContextProvider>
@@ -674,7 +674,7 @@ function App() {
   // Sidebar layout — primary navigation
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
+      <ThemeProvider defaultTheme="nexus" storageKey="quantedge-theme">
         <TooltipProvider>
           <RealtimePricesProvider>
             <StockContextProvider>

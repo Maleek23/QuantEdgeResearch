@@ -41,7 +41,9 @@ import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
 import { geometryFor } from '@/components/oracle/signal-detail';
+import { useTheme } from '@/components/theme-provider';
 import type { ConvictionPick, ConvictionsResponse } from '@/lib/convictions';
+import quantEdgeLogoUrl from '@assets/q_1767502987714.png';
 
 /* ════════════════════════════════════════════════════════════════
    THE MOCK'S STYLESHEET, VERBATIM (body → .nexus-root only).
@@ -1019,6 +1021,80 @@ const NEXUS_CSS = `
   .nexus-root .main{grid-template-columns:260px 1fr}
   .nexus-root .col-right{display:none}
 }
+
+/* ── the real logo in the brand slot, wearing the mark's glow ── */
+.nexus-root .brand-logo{
+  width:24px;height:24px;border-radius:5px;object-fit:contain;
+  background:var(--bg-2);
+  box-shadow:0 0 20px rgba(79,209,197,0.5), inset 0 0 6px rgba(79,209,197,0.3);
+}
+.nexus-root .mode-toggle{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 9px;border-radius:4px;cursor:pointer;
+  background:rgba(14,17,23,0.6);border:1px solid var(--border);
+  color:var(--text-dim);font-family:inherit;font-size:10.5px;font-weight:600;
+  letter-spacing:0.5px;text-transform:uppercase;transition:all 0.2s;
+  backdrop-filter:blur(10px);
+}
+.nexus-root .mode-toggle:hover{color:var(--cyan-bright);border-color:var(--border-hi)}
+
+/* ═══════════ LIGHT — day shift, same layout, same hue family ═══════════
+   His variable names, re-valued: everything downstream that reads --bg,
+   --panel-solid, --cyan etc. flips with one class. */
+.nexus-root.light{
+  --bg:#f2f5f9;
+  --bg-2:#e7ecf3;
+  --panel:rgba(255,255,255,0.72);
+  --panel-solid:#ffffff;
+  --panel-2:#f2f5f9;
+  --panel-hi:#e7ecf3;
+  --border:rgba(13,148,136,0.16);
+  --border-hi:rgba(13,148,136,0.32);
+  --border-glow:rgba(13,148,136,0.4);
+  --text:#121826;
+  --text-dim:#46536b;
+  --text-mute:#8a94a6;
+  --cyan:#0d9488;
+  --cyan-bright:#0f766e;
+  --cyan-dim:#99e6dd;
+  --green:#059669;
+  --red:#e11d48;
+  --amber:#b45309;
+  --purple:#7c3aed;
+  --blue:#2563eb;
+  --pink:#db2777;
+}
+/* Surfaces the mock hardcodes as dark rgba — re-grounded for light. */
+.nexus-root.light::before{opacity:.35}
+.nexus-root.light::after{background:radial-gradient(ellipse at center, transparent 55%, rgba(15,23,42,0.08) 100%)}
+.nexus-root.light #bgCanvas{opacity:0.22}
+.nexus-root.light .topbar{background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.85))}
+.nexus-root.light .ticker-tape{background:linear-gradient(90deg, var(--bg-2), rgba(255,255,255,0.9), var(--bg-2))}
+.nexus-root.light .ticker-tape::before{background:linear-gradient(90deg, var(--bg-2), transparent)}
+.nexus-root.light .ticker-tape::after{background:linear-gradient(270deg, var(--bg-2), transparent)}
+.nexus-root.light .sec-head{background:rgba(242,245,249,0.85)}
+.nexus-root.light .sec-title,
+.nexus-root.light .brand-name{
+  background:linear-gradient(135deg, #121826 0%, var(--cyan) 115%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.nexus-root.light .pulse-ticker{
+  background:linear-gradient(135deg, #121826, var(--cyan));
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.nexus-root.light .filters{background:rgba(242,245,249,0.75)}
+.nexus-root.light .search,
+.nexus-root.light .user-chip,
+.nexus-root.light .mode-toggle{background:rgba(255,255,255,0.75)}
+.nexus-root.light .sig-chart{background:rgba(13,148,136,0.05)}
+.nexus-root.light .sig-status,
+.nexus-root.light .ev-chip{background:rgba(13,148,136,0.05)}
+.nexus-root.light .quad-wrap{background:linear-gradient(135deg, rgba(255,255,255,0.85), rgba(242,245,249,0.9))}
+.nexus-root.light .bottombar{background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.95))}
+.nexus-root.light .sys-status{background:linear-gradient(180deg, rgba(231,236,243,0.5), transparent)}
+.nexus-root.light .brand-logo{background:transparent;box-shadow:0 0 14px rgba(13,148,136,0.35)}
 `;
 
 /* ════════════════════════════════════════════════════════════════
@@ -1192,8 +1268,12 @@ function quadPointsFrom(sectors: Sector[]) {
 }
 
 /** Rotation quadrant — the mock's drawQuad verbatim, fed real sector positions. */
-function useQuadCanvas(ref: React.RefObject<HTMLCanvasElement>, sectors: Sector[]) {
+function useQuadCanvas(ref: React.RefObject<HTMLCanvasElement>, sectors: Sector[], light = false) {
   const pointsRef = useRef<ReturnType<typeof quadPointsFrom>>([]);
+  // The label colour rides a ref so the running rAF loop picks up a theme flip
+  // without tearing the canvas down.
+  const labelRef = useRef('#fff');
+  useEffect(() => { labelRef.current = light ? '#121826' : '#fff'; }, [light]);
   useEffect(() => { pointsRef.current = quadPointsFrom(sectors); }, [sectors]);
   useEffect(() => {
     const quadCanvas = ref.current;
@@ -1252,7 +1332,7 @@ function useQuadCanvas(ref: React.RefObject<HTMLCanvasElement>, sectors: Sector[
         quadCtx!.beginPath();
         quadCtx!.arc(px, py, 7 + (still ? 0 : Math.sin(t * 0.004 + s.phase) * 1), 0, Math.PI * 2);
         quadCtx!.stroke();
-        quadCtx!.fillStyle = '#fff';
+        quadCtx!.fillStyle = labelRef.current;
         quadCtx!.font = '700 8.5px "JetBrains Mono", monospace';
         quadCtx!.textAlign = 'center';
         quadCtx!.fillText(s.sym, px, py - 12);
@@ -1332,9 +1412,10 @@ function WatchSpark({ symbol, up }: { symbol: string; up: boolean }) {
    PAGE
    ════════════════════════════════════════════════════════════════ */
 
+/* Nexus IS the oracle now — no separate Oracle entry. The old board keeps its
+   code but the front door is this page. */
 const NAV_TABS = [
   { label: 'Nexus', href: '/nexus' },
-  { label: 'Oracle', href: '/t?tab=oracle' },
   { label: 'Chart', href: '/t?tab=chart' },
   { label: 'Flow', href: '/t?tab=flow' },
   { label: 'GEX', href: '/t?tab=gex' },
@@ -1362,6 +1443,8 @@ const fmtPrice = (n: number, money = false) =>
 
 export default function NexusPage() {
   const [, setLocation] = useLocation();
+  const { theme, setTheme } = useTheme();
+  const light = theme === 'nexus-light';
   const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health } = useNexusData();
 
   useEffect(() => { document.title = 'QUANTEDGE // NEXUS'; }, []);
@@ -1382,7 +1465,7 @@ export default function NexusPage() {
   const bgRef = useRef<HTMLCanvasElement>(null);
   const quadRef = useRef<HTMLCanvasElement>(null);
   useBgCanvas(bgRef);
-  useQuadCanvas(quadRef, rotation.data?.sectors ?? []);
+  useQuadCanvas(quadRef, rotation.data?.sectors ?? [], light);
 
   /* stream rows — real prices; flash only when a price actually changed */
   const fut = realtime.data?.prices?.futures ?? {};
@@ -1480,14 +1563,15 @@ export default function NexusPage() {
     b === 'S' ? '#3ddc97' : b === 'A' ? '#4fd1c5' : b === 'B' ? '#f5b642' : '#8b93a3';
 
   return (
-    <div className="nexus-root">
+    <div className={`nexus-root${light ? ' light' : ''}`}>
       <style dangerouslySetInnerHTML={{ __html: NEXUS_CSS }} />
       <canvas id="bgCanvas" ref={bgRef} />
 
       {/* ============ TOP BAR ============ */}
       <div className="topbar">
         <div className="brand">
-          <div className="brand-mark" />
+          {/* The actual mark, wearing the mock's glow. */}
+          <img className="brand-logo" src={quantEdgeLogoUrl} alt="Quant Edge Labs" />
           <span className="brand-name">QUANTEDGE</span>
           <span className="brand-slash">{'//'}</span>
           <span className="brand-sub">NEXUS</span>
@@ -1508,6 +1592,16 @@ export default function NexusPage() {
         </div>
 
         <div className="top-spacer" />
+
+        {/* dark blue ↔ light. Persists through the same theme system as the
+            rest of the app, so the choice follows the user everywhere. */}
+        <button
+          className="mode-toggle"
+          onClick={() => setTheme(light ? 'nexus' : 'nexus-light')}
+          title={light ? 'Switch to dark' : 'Switch to light'}
+        >
+          {light ? '☾ dark' : '☀ light'}
+        </button>
 
         <button className="user-chip" onClick={() => setLocation('/t')} title="Back to the terminal">
           <div className="user-avatar">Q</div>

@@ -69,7 +69,7 @@ type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst'
  * One page, two routes, one misleading label.
  */
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'oracle',  label: 'ORACLE' },
+  { id: 'oracle',  label: 'NEXUS' },
   { id: 'chart',   label: 'CHART' },
   { id: 'flow',    label: 'FLOW' },
   { id: 'gex',     label: 'GEX' },
@@ -160,10 +160,24 @@ export default function TerminalShell() {
   const urlTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
   const [tab, setTabState] = useState<Tab>(resolveTab(urlTab));
 
+  // Landing on /t bare (or ?tab=oracle) means landing on the front page — and
+  // the front page is NEXUS now. Bookmarks to the other tabs are untouched.
+  useEffect(() => {
+    if (resolveTab(urlTab) === 'oracle') setLocation('/nexus', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setTab = useCallback((next: Tab) => {
+    // NEXUS is the new front page. The Oracle board's code stays, but the tab
+    // that used to open it now opens /nexus — the operator's call: "nexus is
+    // the new oracle".
+    if (next === 'oracle') {
+      setLocation('/nexus');
+      return;
+    }
     setTabState(next);
     const path = window.location.pathname;
-    setLocation(next === 'oracle' ? path : `${path}?tab=${next}`, { replace: true });
+    setLocation(`${path}?tab=${next}`, { replace: true });
   }, [setLocation]);
 
   // Follow back/forward and external navigations that change ?tab=
