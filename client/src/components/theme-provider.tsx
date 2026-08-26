@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-export type Theme = "dark" | "night" | "light" | "system";
+export type Theme = "dark" | "night" | "nexus" | "light" | "system";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -33,7 +33,7 @@ export function ThemeProvider({
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove("light", "dark", "terminal-night");
+    root.classList.remove("light", "dark", "terminal-night", "terminal-nexus");
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
@@ -49,6 +49,14 @@ export function ThemeProvider({
     // palette, then narrows the surfaces for a lower-luminance desk setting.
     if (theme === "night") {
       root.classList.add("dark", "terminal-night");
+      return;
+    }
+
+    // Nexus is the operator's reference-terminal palette, verbatim — teal-cyan
+    // accents, saturated bull/bear, cyan-tinted borders. Same mechanism as
+    // night: inherit dark's semantics, override the tokens.
+    if (theme === "nexus") {
+      root.classList.add("dark", "terminal-nexus");
       return;
     }
 

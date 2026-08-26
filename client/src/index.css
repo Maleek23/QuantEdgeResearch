@@ -498,6 +498,130 @@ button:not([disabled]):active,
   --terminal-border: #1d2a3b;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   NEXUS — the operator's reference-terminal palette, verbatim.
+
+   Every hex below is lifted straight from the reference mock's :root —
+   --cyan:#4fd1c5, --green:#3ddc97, --red:#ff5470, --amber:#f5b642,
+   --bg:#06070a, --panel-solid:#0e1117, cyan-tinted borders — mapped onto
+   this app's token names. That is the whole point of the token system: the
+   look is a palette assignment, not a fork of the components. Where a token
+   is an HSL triplet (shadcn convention) the value is the same colour
+   converted; where it is a literal, the mock's literal is used unchanged.
+
+   Bands map exactly as the mock's band-S/A/B/C chips: S green, A cyan,
+   B amber, C dim. Note what that swaps: dark's moss/clay ("direction
+   without the casino") become the mock's saturated green/red here. That is
+   the reference's deliberate look and this theme reproduces it faithfully —
+   the default theme keeps the muted read.
+   ═══════════════════════════════════════════════════════════════ */
+.dark.terminal-nexus {
+  /* core surfaces — #06070a / #0a0c11 / #0e1117 / #131720 */
+  --background: 225 25% 3%;
+  --foreground: 218 31% 93%;        /* #e8ecf3 */
+  --border: 187 30% 10%;            /* rgba(79,209,197,.08) composited on bg */
+  --card: 220 24% 7%;               /* #0e1117 */
+  --card-foreground: 218 31% 93%;
+  --card-border: 187 30% 12%;
+  --popover: 220 24% 7%;
+  --popover-foreground: 218 31% 93%;
+  --secondary: 222 25% 10%;         /* #131720 */
+  --secondary-foreground: 220 12% 59%;
+  --muted: 222 25% 10%;
+  --muted-foreground: 220 12% 59%;  /* #8b93a3 */
+  --accent: 174 59% 56%;            /* #4fd1c5 */
+  --accent-foreground: 225 25% 3%;
+  --destructive: 350 100% 66%;      /* #ff5470 */
+  --destructive-foreground: 0 0% 100%;
+  --input: 220 24% 7%;
+  --ring: 174 59% 56%;
+
+  --surface-base: #06070a;
+  --surface-raised: #0a0c11;
+  --surface-overlay: rgba(10, 12, 17, .92);
+  --surface-glass: rgba(14, 17, 23, .72);       /* mock --panel */
+  --surface-glass-border: rgba(79, 209, 197, .18); /* mock --border-hi */
+  --terminal-bg: #0e1117;
+  --terminal-bg-secondary: #0a0c11;
+  --terminal-bg-tertiary: #131720;
+  --terminal-border: rgba(79, 209, 197, .08);   /* mock --border */
+  --terminal-border-hover: rgba(79, 209, 197, .18);
+  --terminal-text: #e8ecf3;
+  --terminal-text-secondary: #8b93a3;
+  --terminal-text-muted: #525a6b;
+
+  /* brand accents — the mock's cyan family */
+  --brand-cyan: #4fd1c5;
+  --brand-teal: #4fd1c5;
+  --brand-blue: #60a5fa;
+  --brand-gold: #f5b642;
+
+  /* trading semantics — the mock's saturated pair */
+  --trade-bullish: #3ddc97;
+  --trade-bullish-bg: rgba(61, 220, 151, .08);
+  --trade-bullish-bg-subtle: rgba(61, 220, 151, .04);
+  --trade-bearish: #ff5470;
+  --trade-bearish-bg: rgba(255, 84, 112, .08);
+  --trade-bearish-bg-subtle: rgba(255, 84, 112, .04);
+  --trade-neutral: #f5b642;
+  --trade-neutral-bg: rgba(245, 182, 66, .08);
+  --trade-neutral-bg-subtle: rgba(245, 182, 66, .04);
+
+  /* bands — exactly the mock's band-S/A/B/C chip colours */
+  --grade-s: #3ddc97;
+  --grade-a: #4fd1c5;
+  --grade-b: #f5b642;
+  --grade-c: #8b93a3;
+  --grade-d: #f97316;
+  --grade-f: #ff5470;
+
+  --ai-primary: #4fd1c5;
+  --ai-secondary: #60a5fa;
+  --confidence-high: #3ddc97;
+  --confidence-medium: #60a5fa;
+  --confidence-low: #f5b642;
+
+  --glow-cyan: rgba(79, 209, 197, .08);
+  --glow-blue: rgba(96, 165, 250, .06);
+  --glow-teal: rgba(79, 209, 197, .15);
+  --projection-glow: #6ee7db;                   /* mock --cyan-bright */
+  --projection-glow-soft: rgba(110, 231, 219, .22);
+
+  /* charts — the mock's accent family: blue, green, amber, red, purple */
+  --chart-1: 213 94% 68%;
+  --chart-2: 154 72% 55%;
+  --chart-3: 39 89% 61%;
+  --chart-4: 350 100% 66%;
+  --chart-5: 255 92% 76%;
+
+  /* the mock's type: Inter body, JetBrains Mono figures */
+  --font-sans: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Spline Sans Mono', Menlo, Monaco, 'Courier New', monospace;
+}
+
+/* The mock sets its display type — brand, section titles, card tickers — in
+   Space Grotesk while the body runs Inter. Same split here. */
+.terminal-nexus .qe-ov2-title,
+.terminal-nexus .qe-page-title {
+  font-family: 'Space Grotesk', var(--font-sans);
+}
+
+/* The mock's glow signature, scoped to the theme so the default stays quiet:
+   the section eyebrow, the tape symbols and the heartbeat all carry the soft
+   cyan bloom that defines its look. */
+.terminal-nexus .qe-ov2-num {
+  text-shadow: 0 0 8px rgba(79, 209, 197, .4);
+}
+.terminal-nexus .qe-tape-item b {
+  text-shadow: 0 0 10px rgba(79, 209, 197, .25);
+}
+.terminal-nexus .qe-kpi-tile::before {
+  opacity: .45;
+}
+.terminal-nexus .qe-sig-card:hover {
+  box-shadow: 0 8px 24px rgb(0 0 0 / .4), 0 0 0 1px rgba(79, 209, 197, .18);
+}
+
 /* ========================================
    TERMINAL CARD COMPONENT STYLES
    ======================================== */

@@ -12,7 +12,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Activity, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3, Loader2,
   LogOut, Moon, MoreHorizontal, Radar, Search, SlidersHorizontal,
-  TrendingUp, UserRound, X,
+  TrendingUp, UserRound, X, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
@@ -213,6 +213,10 @@ export default function TerminalShell() {
     retry: 0,
   });
   const night = theme === 'night';
+  const nexus = theme === 'nexus';
+  // dark → night → nexus → dark. One button, three appearances; the settings
+  // panel has the labelled picker for choosing directly.
+  const nextTheme = night ? 'nexus' as const : nexus ? 'dark' as const : 'night' as const;
   const dataPartial = health?.status === 'degraded' || health?.dependencies?.tradier === false;
   const accountLabel = user?.firstName || user?.email?.split('@')[0] || 'Account';
   const accountInitial = accountLabel.slice(0, 1).toUpperCase();
@@ -295,13 +299,13 @@ export default function TerminalShell() {
             </button>
 
             <button
-              onClick={() => setTheme(night ? 'dark' : 'night')}
-              aria-label={night ? 'Use terminal appearance' : 'Use night appearance'}
-              title={night ? 'Terminal appearance' : 'Night appearance'}
+              onClick={() => setTheme(nextTheme)}
+              aria-label={`Use ${nextTheme} appearance`}
+              title={`Switch to ${nextTheme} appearance`}
               className={cn('hidden h-7 w-7 cursor-pointer items-center justify-center rounded border text-muted-foreground/75 transition-colors hover:text-foreground md:inline-flex',
-                night ? 'border-[var(--brand-cyan)]/55 bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)]' : 'border-border/50')}
+                (night || nexus) ? 'border-[var(--brand-cyan)]/55 bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)]' : 'border-border/50')}
             >
-              <Moon className="h-3.5 w-3.5" />
+              {nexus ? <Zap className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
             </button>
 
             <div className="relative">
