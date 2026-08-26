@@ -118,3 +118,4 @@ vite.config.ts.*
 # 🔒 API keys and secrets
 # 🔒 Database content
 .claude/worktrees/
+server/data/discipline-ledger.jsonl

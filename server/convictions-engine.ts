@@ -2194,7 +2194,23 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
         direction: "short",
         hasEventCatalyst: symbolsWithEvent.has(String(idea.symbol ?? "").toUpperCase()),
       });
-      if (!allowed) { disciplineDropped++; continue; }
+      if (!allowed) {
+        disciplineDropped++;
+        // Shadow-track the block so the gate itself gets measured — is the
+        // discipline saving money or costing money? One entry per symbol/day.
+        try {
+          const { recordBlockedShort } = await import("./discipline-ledger");
+          void recordBlockedShort({
+            symbol: idea.symbol,
+            entryPrice: Number(idea.entryPrice) || 0,
+            stopLoss: Number(idea.stopLoss) || 0,
+            targetPrice: Number(idea.targetPrice) || 0,
+            reason: "short without an event catalyst — technical pattern only",
+            source: String(idea.source ?? "unknown"),
+          });
+        } catch { /* the ledger never blocks the build */ }
+        continue;
+      }
     }
 
     const sector = getSector(idea.symbol);

@@ -9708,6 +9708,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // (genScoringLayers). A layer whose trades beat baseline is predictive; one at
   // or below baseline is noise — this is the evidence for reweighting the engine.
   // Populates as instrumented ideas resolve (empty until then — expected).
+  // ── DISCIPLINE LEDGER — the short gate under the same referee ─────────────
+  // Every gate-blocked short is shadow-recorded and replayed here against real
+  // daily bars from the block date: which barrier a SHORT would have touched
+  // first (target below, stop above; both-touched ties go to the stop, same
+  // rule as live validation). "saved" = blocked shorts that would have hit
+  // their stop; "cost" = blocked shorts that would have hit their target. The
+  // gate keeps its job only while saved outweighs cost.
+  app.get("/api/discipline/ledger", async (_req, res) => {
+    try {
+      const { getLedger } = await import("./discipline-ledger");
+      const { resolveBarriers } = await import("@shared/barrier-resolution");
+      const { fetchCandles } = await import("./historical-candles");
+      const raw = await getLedger();
+      const bySymbol = new Map<string, typeof raw>();
+      for (const e of raw) {
+        if (!bySymbol.has(e.symbol)) bySymbol.set(e.symbol, []);
+        bySymbol.get(e.symbol)!.push(e);
+      }
+      const out: any[] = [];
+      for (const [symbol, list] of Array.from(bySymbol.entries())) {
+        let bars: { time: number; high: number; low: number; close: number }[] = [];
+        try { bars = await fetchCandles(symbol, "3mo", "1d") as any[]; } catch { /* no bars → unreplayable */ }
+        for (const e of list) {
+          const blockedDay = e.blockedAt.slice(0, 10);
+          const since = bars.filter((b) => new Date(b.time * 1000).toISOString().slice(0, 10) >= blockedDay);
+          if (since.length === 0) {
+            out.push({ ...e, replay: "no bars yet", outcome: "open", wouldBePercent: null });
+            continue;
+          }
+          const highest = Math.max(...since.map((b) => b.high));
+          const lowest = Math.min(...since.map((b) => b.low));
+          const barrier = resolveBarriers({ direction: "short", target: e.targetPrice, stop: e.stopLoss, highest, lowest });
+          const last = since[since.length - 1].close;
+          const exit = barrier.outcome === "hit_target" ? e.targetPrice : barrier.outcome === "hit_stop" ? e.stopLoss : last;
+          // Short P&L: entry above exit is a gain.
+          const wouldBePercent = e.entryPrice > 0 ? ((e.entryPrice - exit) / e.entryPrice) * 100 : null;
+          out.push({ ...e, outcome: barrier.outcome, wouldBePercent, lastPrice: last });
+        }
+      }
+      const decided = out.filter((r) => r.outcome === "hit_target" || r.outcome === "hit_stop");
+      const cost = decided.filter((r) => r.outcome === "hit_target");   // blocked winner
+      const saved = decided.filter((r) => r.outcome === "hit_stop");    // blocked loser
+      const sum = (rows: any[]) => rows.reduce((a, r) => a + (Number.isFinite(r.wouldBePercent) ? r.wouldBePercent : 0), 0);
+      res.json({
+        asOf: new Date().toISOString(),
+        totalBlocked: out.length,
+        decided: decided.length,
+        blockedWinners: cost.length,
+        blockedLosers: saved.length,
+        netWouldBePercent: Math.round(sum(decided) * 100) / 100,
+        entries: out.sort((a, b) => b.blockedAt.localeCompare(a.blockedAt)),
+        _meta: {
+          note: "Shadow trades — never published, never in the win rate. Replayed on daily bars, so intraday sequencing inside one bar is unknowable; both-barriers-in-one-bar ties go to the stop, matching live validation. netWouldBePercent > 0 means the gate is BLOCKING profitable shorts; sustained positive is the signal to revisit the rule, not to ignore the ledger.",
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to build discipline ledger" });
+    }
+  });
+
   // ── BY-SIGNAL COHORTS — does each signal template earn its place? ─────────
   // Every quant idea persists the signal labels that fired (qualitySignals),
   // so new templates (gap_continuation, the volume-unlocked VWAP/spike paths)
