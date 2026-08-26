@@ -1076,7 +1076,16 @@ export async function generateQuantIdeas(
     const overlap = bucket.filter(t => coreSet.has(t)).length;
     if (overlap >= 3) neighborhood.push(...bucket);
   }
-  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST, ...neighborhood].map(x => x.toUpperCase())));
+  // Universal coverage: the pattern engine sweeps the FULL universe on real
+  // OHLC and its hits join the scan pool — a name nobody listed (ABBV's
+  // four-day coil) still reaches the funnel the day it prints a pattern.
+  // Detection seeds candidacy; every gate and filter still applies.
+  let patternSymbols: string[] = [];
+  try {
+    const { getPatternHits } = await import('./pattern-engine');
+    patternSymbols = Array.from(new Set(getPatternHits().hits.map((h) => h.symbol))).slice(0, 60);
+  } catch { /* engine not warmed yet — pool unchanged */ }
+  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST, ...neighborhood, ...patternSymbols].map(x => x.toUpperCase())));
   logger.info(`  \u2713 Scan pool: ${curated.length} names (core+premium plus ${new Set(neighborhood).size} sector-neighborhood names from the operator's own buckets)`);
   const coreSymbols = curated.filter(s => !discoveredSymbols.has(s));
   const coreData: MarketData[] = [];

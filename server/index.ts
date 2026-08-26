@@ -174,6 +174,16 @@ app.use((req, res, next) => {
       void runNewsIngest();
       newsCron.default.schedule('*/30 * * * 1-5', () => { void runNewsIngest(); });
       log('📰 News catalyst ingest started — rotating watchlist slice every 30 min');
+
+      // Full-universe pattern sweep — daily bars, so twice a day is plenty.
+      // First sweep 3 min after boot (let quotes/candles warm), then every 12h.
+      setTimeout(() => {
+        void import('./pattern-engine').then(m => m.scanUniversePatterns()).catch(() => {});
+      }, 3 * 60 * 1000);
+      setInterval(() => {
+        void import('./pattern-engine').then(m => m.scanUniversePatterns()).catch(() => {});
+      }, 12 * 60 * 60 * 1000);
+      log('📐 Pattern engine scheduled — full-universe sweep on real OHLC');
     } catch (error) {
       logger.error('[NEWS] could not schedule catalyst ingest', error);
     }

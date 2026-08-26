@@ -14352,6 +14352,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── PATTERN ENGINE — full-universe chart pattern scan, real OHLC ──────────
+  app.get("/api/patterns/scan", async (req, res) => {
+    try {
+      const { getPatternHits, scanUniversePatterns } = await import("./pattern-engine");
+      void scanUniversePatterns(); // refresh in background if stale; serves cache now
+      const state = getPatternHits();
+      const sym = typeof req.query.symbol === "string" ? req.query.symbol.toUpperCase() : null;
+      const pattern = typeof req.query.pattern === "string" ? req.query.pattern : null;
+      let hits = state.hits;
+      if (sym) hits = hits.filter((h) => h.symbol === sym);
+      if (pattern) hits = hits.filter((h) => h.pattern === pattern);
+      res.json({ ...state, hits, _meta: { note: "Detection only — selection, gating and publishing stay with the funnel. Bear-side hits are context; the short gate owns that conversation." } });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to read pattern scan" });
+    }
+  });
+
   // ── EARNINGS CALENDAR — the feed the catalyst board actually joins on ─────
   // /api/earnings/upcoming imports ./earnings-service, which returns nothing;
   // the board's real dates come from ./earnings-calendar (Nasdaq calendar,
