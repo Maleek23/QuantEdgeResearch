@@ -56,6 +56,18 @@ interface FlowTrade {
   flowType?: string; unusualScore?: number; detectedAt?: string;
 }
 interface PeersPayload { symbol: string; sector: string | null; peers: string[] }
+
+interface QuantinumDossier {
+  symbol: string; asOf: string;
+  price: { last: number | null; changePercent: number | null };
+  layers: { kind: string; label: string; points: number; why: string; source: string }[];
+  unavailable: string[];
+  bullPoints: number; bearPoints: number;
+  lean: 'bullish' | 'bearish' | 'mixed' | 'quiet';
+  confidence: number;
+  shortGate: { open: boolean; why: string };
+  suggestions: { symbol: string; why: string }[];
+}
 interface EconPayload { upcoming?: { name: string; date: string; time?: string; importance?: string; description?: string }[] }
 interface CryptoPulse { assets?: { symbol: string; closes?: { timestamp: number; close: number }[] }[] }
 
@@ -208,8 +220,20 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertPrice, setAlertPrice] = useState('');
   const [alertState, setAlertState] = useState<'idle' | 'armed' | 'fail'>('idle');
+  // Quantinum runs on demand (multi-engine, multi-second) — never auto-fired.
+  const [qtm, setQtm] = useState<QuantinumDossier | null>(null);
+  const [qtmState, setQtmState] = useState<'idle' | 'running' | 'fail'>('idle');
+  const runQuantinum = async () => {
+    setQtmState('running');
+    try {
+      const r = await fetch(`/api/quantinum/${symbol}`, { credentials: 'include' });
+      if (!r.ok) throw new Error(String(r.status));
+      setQtm(await r.json());
+      setQtmState('idle');
+    } catch { setQtmState('fail'); }
+  };
 
-  useEffect(() => { setTab('overview'); setWatched('idle'); }, [symbol]);
+  useEffect(() => { setTab('overview'); setWatched('idle'); setQtm(null); setQtmState('idle'); }, [symbol]);
   // Keyboard: esc closes, ←/→ cycle tabs, ↑/↓ hop through the peer list —
   // the dossier browses like a dossier, not like a webpage.
   const peersRef = useRef<string[]>([]);
@@ -456,6 +480,59 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
 
           {/* LEFT */}
           <div className="workup-left">
+            <div className="ql-section">
+              <div className="ql-label" style={{ color: 'var(--purple, #a78bfa)' }}><span className="dot" />Quantinum Intelligence</div>
+              {!qtm ? (
+                <button
+                  className="wa-btn"
+                  style={{ width: '100%', justifyContent: 'center', padding: '8px 0', fontSize: 10, letterSpacing: 0.8 }}
+                  onClick={runQuantinum}
+                  disabled={qtmState === 'running'}
+                  title="Run every engine on this name — evidence layers with signed points, missing feeds named"
+                >
+                  {qtmState === 'running' ? 'RUNNING ENGINES…' : qtmState === 'fail' ? 'FAILED — RETRY' : '◈ RUN FULL BREAKDOWN'}
+                </button>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderRadius: 6, background: qtm.lean === 'bullish' ? 'rgba(52,211,153,0.07)' : qtm.lean === 'bearish' ? 'rgba(255,84,112,0.07)' : 'rgba(148,163,184,0.06)', border: `1px solid ${qtm.lean === 'bullish' ? 'rgba(52,211,153,0.25)' : qtm.lean === 'bearish' ? 'rgba(255,84,112,0.25)' : 'var(--nx-border)'}` }}>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: qtm.lean === 'bullish' ? 'var(--green)' : qtm.lean === 'bearish' ? 'var(--red)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                      {qtm.lean === 'bullish' ? '▲' : qtm.lean === 'bearish' ? '▼' : '◆'} {qtm.lean}
+                    </div>
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }} title="Display index over evidence weight — not a probability">
+                      {qtm.confidence}/100 · +{qtm.bullPoints}/−{qtm.bearPoints}
+                    </div>
+                  </div>
+                  {qtm.layers.map((l, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }} title={`${l.why} — ${l.source}`}>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, minWidth: 24, textAlign: 'right', color: l.points > 0 ? 'var(--green)' : l.points < 0 ? 'var(--red)' : 'var(--text-mute)' }}>
+                        {l.points > 0 ? `+${l.points}` : l.points}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                        <b>{l.label}</b> · <span style={{ color: 'var(--text-dim)' }}>{l.why}</span>
+                      </span>
+                    </div>
+                  ))}
+                  {qtm.unavailable.length > 0 && (
+                    <div style={{ fontSize: 9, color: 'var(--text-mute)', lineHeight: 1.5 }} title={qtm.unavailable.join(' · ')}>
+                      NOT MEASURED: {qtm.unavailable.map((u) => u.split(' (')[0]).join(' · ')}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: qtm.shortGate.open ? 'var(--amber)' : 'var(--text-mute)' }}>
+                    SHORT GATE: {qtm.shortGate.open ? 'OPEN' : 'blocked'} — {qtm.shortGate.why}
+                  </div>
+                  {qtm.suggestions.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                      {qtm.suggestions.map((s) => (
+                        <button key={s.symbol} className="wa-btn" style={{ padding: '2px 7px', fontSize: 9 }} title={s.why} onClick={() => openWorkup(s.symbol)}>
+                          {s.symbol}{s.why.includes('pattern') ? ' ◆' : ''}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="ql-section">
               <div className="ql-label cyan"><span className="dot" />Oracle signal</div>
               <div className="signal-card">

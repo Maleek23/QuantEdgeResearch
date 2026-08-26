@@ -14430,6 +14430,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── QUANTINUM INTELLIGENCE — every engine on any symbol, on demand ────────
+  // The universal search's brain: layer-by-layer evidence with signed points,
+  // the same disclosure standards as the cockpit, for a name nobody listed.
+  app.get("/api/quantinum/:symbol", async (req, res) => {
+    try {
+      const { getQuantinumDossier } = await import("./quantinum-intelligence");
+      res.json(await getQuantinumDossier(String(req.params.symbol)));
+    } catch (error) {
+      logger.error("[QUANTINUM] dossier failed:", error);
+      res.status(500).json({ error: "Quantinum dossier failed" });
+    }
+  });
+
   // ── POST-EVENT INTEL — the synthesis the operator asked for ───────────────
   // One call answers "what happened to X around its event, and what does the
   // machine make of it": the earnings date (real calendar), the reaction
