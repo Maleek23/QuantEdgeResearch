@@ -1,6 +1,7 @@
 import type { AssetType } from "@shared/schema";
 import { getTradierQuote, getTradierHistory } from './tradier-api';
 import { logger } from './logger';
+import { massiveEnabled, fetchDailyCloses as fetchMassiveDailyCloses } from './massive-market-data';
 import { logAPIError, logAPISuccess } from './monitoring-service';
 import { getCryptoPrice as getRealtimeCryptoPrice, getFuturesPrice as getRealtimeFuturesPrice } from './realtime-price-service';
 import { marketData as multiSourceMarketData, getStockPrice as getMultiSourcePrice } from './multi-source-market-data';
@@ -650,6 +651,19 @@ export async function fetchHistoricalPrices(
       
       logger.info(`✅ Fetched ${prices.length} real historical prices for ${symbol} (crypto)`);
       return prices;
+    }
+
+    // Massive first. The chain below it — Tradier, Alpha Vantage, Yahoo — was
+    // simultaneously 401, quota-exhausted and 429 on 2026-08-25, which left every
+    // candidate in the generator with no history and published an empty board.
+    // Massive has unlimited calls on the paid tier and 5 years of history, so it
+    // belongs ahead of three sources that each fail for a different reason.
+    if (massiveEnabled()) {
+      const closes = await fetchMassiveDailyCloses(symbol, periods);
+      if (closes.length > 0) {
+        logger.info(`✅ Fetched ${closes.length} real historical prices for ${symbol} (Massive)`);
+        return closes;
+      }
     }
 
     // Try Tradier first for stock historical data (unlimited)

@@ -930,7 +930,13 @@ export async function generateQuantIdeas(
   const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST].map(x => x.toUpperCase())));
   const coreSymbols = curated.filter(s => !discoveredSymbols.has(s));
   const coreData: MarketData[] = [];
-  if (marketOpen && coreSymbols.length > 0) {
+  // NOT gated on marketOpen. Screener-based discovery genuinely needs a live
+  // session — a day-gainers list is meaningless at 8pm — but the curated list is
+  // fixed, its quotes resolve after hours, and Massive serves 5y of history
+  // regardless. Gating it meant the entire stock universe was empty outside cash
+  // hours: a 20:28 run produced 15 candidates, all crypto, and zero ideas. That
+  // is precisely when a board gets built for the next session.
+  if (coreSymbols.length > 0) {
     try {
       const { getRealtimeBatchQuotes } = await import('./realtime-pricing-service');
       const coreQuotes = await getRealtimeBatchQuotes(
