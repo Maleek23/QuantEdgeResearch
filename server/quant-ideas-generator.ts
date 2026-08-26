@@ -29,7 +29,14 @@ import { historicalIntelligenceService } from './historical-intelligence-service
 // re-fetching ninety histories every 4-minute cycle would be pure waste. When
 // history is unavailable the value stays null, which still scores 0 on the
 // volume component: unavailable stays unearned, it does not become 1.0×.
-const avgVolCache = new Map<string, { at: number; avg: number | null }>();
+const avgVolCache = new Map<string, { at: number; avg: number | null; bars: { time: number; open: number; high: number; low: number; close: number }[] }>();
+// Real recent OHLC for pattern detection — the same candles the avg-volume
+// fetch already downloads. The analyzer previously faked highs/lows as
+// closes +/-1%, which makes bar-range patterns (inside bars, coils)
+// structurally undetectable. These are the real bars, cached with the volume.
+export function getRecentBars(symbol: string): { time: number; open: number; high: number; low: number; close: number }[] {
+  return avgVolCache.get(symbol.toUpperCase())?.bars ?? [];
+}
 const AVG_VOL_TTL_MS = 24 * 60 * 60 * 1000;
 async function getAvgVolumes20d(symbols: string[]): Promise<Map<string, number | null>> {
   const out = new Map<string, number | null>();
@@ -52,11 +59,12 @@ async function getAvgVolumes20d(symbols: string[]): Promise<Map<string, number |
         const complete = bars.filter((b) => new Date(b.time * 1000).toISOString().slice(0, 10) !== today);
         const last20 = complete.slice(-20);
         const avg = last20.length >= 10 ? last20.reduce((a, b) => a + b.volume, 0) / last20.length : null;
-        avgVolCache.set(sym, { at: now, avg });
+        const recent = (candles.get(sym) ?? []).slice(-10).map((x) => ({ time: x.time, open: x.open, high: x.high, low: x.low, close: x.close }));
+        avgVolCache.set(sym, { at: now, avg, bars: recent });
         out.set(sym, avg);
       }
     } catch {
-      for (const sym of stale) out.set(sym, null);
+      for (const sym of stale) { out.set(sym, null); if (!avgVolCache.has(sym)) avgVolCache.set(sym, { at: now, avg: null, bars: [] }); }
     }
   }
   return out;
@@ -284,7 +292,7 @@ async function fetchLearnedWeights(): Promise<Map<string, number>> {
 
 interface QuantSignal {
   type: 'rsi2_mean_reversion' | 'vwap_cross' | 'volume_spike' | 'rsi2_short_reversion'
-    | 'vwap_rejection' | 'distribution_spike' | 'gap_continuation';
+    | 'vwap_rejection' | 'distribution_spike' | 'gap_continuation' | 'inside_coil';
   gapPercent?: number;
   strength: 'strong' | 'moderate' | 'weak';
   direction: 'long' | 'short';  // v3.2: BOTH long and short positions (mean reversion both ways)
@@ -442,6 +450,37 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
         direction: gapPct > 0 ? 'long' : 'short',
         gapPercent: gapPct,
       };
+    }
+  }
+
+  // PRIORITY 0.5: INSIDE-BAR COIL — 3+ consecutive sessions inside one mother
+  // bar's range is compression, and compression resolves. Detected on REAL
+  // OHLC from the candle cache (the +/-1% synthetic highs/lows used elsewhere
+  // cannot see bar-range patterns — ABBV's 4-day coil was invisible until the
+  // operator pointed at it on a chart). Long-side only, and only in bullish
+  // structure (above the 200-day): a coil under highs is accumulation until
+  // it breaks; a coil in a downtrend is a bear flag and the short gate owns
+  // that conversation. Requires the coil to still be UNBROKEN — once price
+  // closes outside the mother range the setup is spent, not fresh.
+  {
+    const bars = getRecentBars(data.symbol);
+    if (bars.length >= 5 && currentPrice > sma200) {
+      // walk back: find the most recent mother bar with >=3 inside bars after it
+      for (let m = bars.length - 5; m >= Math.max(0, bars.length - 8); m--) {
+        const mother = bars[m];
+        const after = bars.slice(m + 1);
+        if (after.length >= 3 && after.every((x) => x.high <= mother.high && x.low >= mother.low)) {
+          detectedSignals.push('INSIDE_COIL');
+          if (!primarySignal) {
+            primarySignal = {
+              type: 'inside_coil',
+              strength: after.length >= 4 ? 'strong' : 'moderate',
+              direction: 'long',
+            };
+          }
+          break;
+        }
+      }
     }
   }
 
@@ -672,6 +711,8 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
   } else if (signal.type === 'gap_continuation') {
     const g = signal.gapPercent ?? 0;
     return `Session gap ${g >= 0 ? '+' : ''}${g.toFixed(1)}% — gap treated as a leading direction signal (operator rule)`;
+  } else if (signal.type === 'inside_coil') {
+    return `Inside-bar coil — 3+ sessions compressed inside one range in bullish structure; compression resolves`;
   } else {
     return `Technical setup confirmed - ${volumeRatio}x volume`;
   }
@@ -734,7 +775,11 @@ function calculateConfidenceScore(
   // Removed ALL bonuses (R:R, volume) - they were inverse predictors
   let score = 0;
   
-  if (signal.type === 'gap_continuation') {
+  if (signal.type === 'inside_coil') {
+    // NEW and unmeasured — untrusted like every newborn template.
+    score = signal.strength === 'strong' ? 54 : 50;
+    qualitySignals.push('Inside-Bar Coil');
+  } else if (signal.type === 'gap_continuation') {
     // NEW and unmeasured — arrives untrusted like vwap_rejection did. Scored
     // between the proven RSI(2) and the failed volume_spike until it has a
     // decided sample of its own to argue with.
