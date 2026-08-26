@@ -2532,3 +2532,10 @@
 .landing .lmodule-icon{box-shadow:0 0 16px rgba(79,209,197,0.1)}
 .landing .workflow-grid::before{content:'';position:absolute;top:28px;left:10%;right:10%;height:1px;background:linear-gradient(90deg, transparent, var(--cyan) 20%, var(--cyan) 80%, transparent);opacity:0.3;z-index:0}
 .landing .lterminal-status .dot{animation:pulse 1.5s infinite}
+
+/* Reduced motion — design brief §10: kill ambient loops for users who ask.
+   Canvas animations are JS-driven; the CSS layer stops every declared loop. */
+@media (prefers-reduced-motion: reduce){
+  .nexus-vars *, .landing *{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}
+  .landing .ltape-track, .nexus-root .ticker-track, .qe-terminal .ticker-track{animation:none !important;transform:none !important}
+}

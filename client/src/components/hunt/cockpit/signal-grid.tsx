@@ -37,6 +37,7 @@
  * card and must not be tinted away.
  */
 import { useMemo, useState } from 'react';
+import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
 import { openWorkup } from '@/lib/workup-bus';
 import { RecordCard } from '@/components/templates/surfaces';
@@ -98,7 +99,7 @@ export function SignalGrid({
   const addWatch = async (sym: string) => {
     setWatched((w) => ({ ...w, [sym]: '…' }));
     try {
-      const r = await fetch('/api/watchlist', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym }) });
+      const r = await apiRequest('POST', '/api/watchlist', { symbol: sym });
       setWatched((w) => ({ ...w, [sym]: r.ok ? '✓' : '✗' }));
     } catch { setWatched((w) => ({ ...w, [sym]: '✗' })); }
   };

@@ -184,6 +184,18 @@ app.use((req, res, next) => {
         void import('./pattern-engine').then(m => m.scanUniversePatterns()).catch(() => {});
       }, 12 * 60 * 60 * 1000);
       log('📐 Pattern engine scheduled — full-universe sweep on real OHLC');
+
+      // Level-cross alert sweep — every 3 min during cash hours. Quotes come
+      // from the same realtime service everything else uses; a cross fires
+      // once and converts to triggered.
+      setInterval(() => {
+        const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const mins = et.getHours() * 60 + et.getMinutes();
+        const wd = et.getDay();
+        if (wd === 0 || wd === 6 || mins < 9 * 60 + 30 || mins > 16 * 60) return;
+        void import('./price-alerts').then(m => m.checkAlerts()).catch(() => {});
+      }, 3 * 60 * 1000);
+      log('🔔 Level-cross alert sweep scheduled (3m, cash hours)');
     } catch (error) {
       logger.error('[NEWS] could not schedule catalyst ingest', error);
     }

@@ -24,6 +24,8 @@ import '@/styles/nexus.css';
 
 const MIN_SPAN = 15;
 
+const SYNC_BUS = new Map<string, Set<(t: number | null) => void>>();
+
 export function NexusPriceChart({
   symbol,
   initialTf = '1D',
@@ -33,6 +35,7 @@ export function NexusPriceChart({
   fill = false,
   expandable = true,
   onHoverCandle,
+  syncGroup,
 }: {
   symbol: string;
   initialTf?: keyof typeof TF_CONFIG;
@@ -45,6 +48,9 @@ export function NexusPriceChart({
   expandable?: boolean;
   /** Hovered (or latest) candle — for external OHLC readouts. */
   onHoverCandle?: (c: Candle | null) => void;
+  /** Charts sharing a group share a crosshair: hovering one marks the same
+   *  time on the others. */
+  syncGroup?: string;
 }) {
   const [tf, setTf] = useState<keyof typeof TF_CONFIG>(
     TF_CONFIG[initialTf] ? initialTf : '1D',
@@ -67,6 +73,24 @@ export function NexusPriceChart({
   const tipRef = useRef<HTMLDivElement>(null);
   const mouse = useRef({ x: -1, y: -1 });
   const pan = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
+  const touch = useRef<{ x: number; offset: number; dist: number | null; span: number } | null>(null);
+  const syncTime = useRef<number | null>(null);
+  const publishSync = (t: number | null) => {
+    if (!syncGroup) return;
+    const set = SYNC_BUS.get(syncGroup);
+    if (!set) return;
+    set.forEach((fn) => { if (fn !== syncListener.current) fn(t); });
+  };
+  const syncListener = useRef<(t: number | null) => void>(() => {});
+  useEffect(() => {
+    if (!syncGroup) return;
+    const fn = (t: number | null) => { syncTime.current = t; redraw(); };
+    syncListener.current = fn;
+    if (!SYNC_BUS.has(syncGroup)) SYNC_BUS.set(syncGroup, new Set());
+    SYNC_BUS.get(syncGroup)!.add(fn);
+    return () => { SYNC_BUS.get(syncGroup)?.delete(fn); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncGroup]);
 
   const redraw = () => {
     const canvas = canvasRef.current;
@@ -77,8 +101,10 @@ export function NexusPriceChart({
       zones,
       mouseX: mouse.current.x,
       mouseY: mouse.current.y,
+      syncTime: syncTime.current,
       onHover: (c: Candle | null, x: number, y: number) => {
         onHoverCandle?.(c ?? (candles ? candles[candles.length - 1] : null));
+        publishSync(c?.time ?? null);
         const tip = tipRef.current; const wrap = wrapRef.current;
         if (!tip || !wrap) return;
         if (!c || pan.current?.moved) { tip.classList.remove('show'); return; }
@@ -153,7 +179,37 @@ export function NexusPriceChart({
       ) : (
         <canvas
           ref={canvasRef}
-          style={{ cursor: pan.current ? 'grabbing' : 'crosshair' }}
+          style={{ cursor: pan.current ? 'grabbing' : 'crosshair', touchAction: 'none' }}
+          onTouchStart={(e) => {
+            if (!all) return;
+            if (e.touches.length === 2) {
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              touch.current = { x: 0, offset, dist: Math.hypot(dx, dy), span };
+            } else if (e.touches.length === 1) {
+              touch.current = { x: e.touches[0].clientX, offset, dist: null, span };
+            }
+          }}
+          onTouchMove={(e) => {
+            const t0 = touch.current;
+            if (!t0 || !all) return;
+            e.preventDefault();
+            if (e.touches.length === 2 && t0.dist != null) {
+              // pinch: scale the visible span around the current window
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              const scale = t0.dist / Math.max(20, Math.hypot(dx, dy));
+              const nextSpan = Math.round(Math.min(all.length, Math.max(20, t0.span * scale)));
+              setView((v) => ({ span: nextSpan, offset: Math.min(v.offset, Math.max(0, all.length - nextSpan)) }));
+            } else if (e.touches.length === 1 && t0.dist == null) {
+              const wrap = wrapRef.current;
+              const width = wrap?.clientWidth || 1;
+              const perPx = span / width;
+              const delta = Math.round((e.touches[0].clientX - t0.x) * perPx);
+              setView((v) => ({ ...v, offset: Math.max(0, Math.min(Math.max(0, all.length - span), t0.offset + delta)) }));
+            }
+          }}
+          onTouchEnd={() => { touch.current = null; }}
           onMouseDown={(e) => {
             pan.current = { startX: e.clientX, startOffset: offset, moved: false };
           }}

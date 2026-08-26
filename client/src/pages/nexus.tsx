@@ -37,6 +37,7 @@
  * Its filter buttons, which only toggled classes, now actually filter.
  */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { apiRequest } from '@/lib/queryClient';
 import { openWorkup } from '@/lib/workup-bus';
 import { Spark } from '@/components/charting/spark';
 import { useLocation } from 'wouter';
@@ -434,6 +435,7 @@ export function NexusBoard() {
   const light = theme === 'nexus-light';
   const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns } = useNexusData();
   const [radarPrev, setRadarPrev] = useState<{ symbol: string; note: string; x: number; y: number } | null>(null);
+  const [radarBrowse, setRadarBrowse] = useState<string | null>(null); // pattern filter or 'all'
   // Quick-actions on the book's cards. The Bot? verdict runs the bot's own
   // entry rules for this symbol right now — absence stops being a mystery.
   const botStatus = useQuery<{ openPositions?: { symbol: string }[]; config?: { minConviction?: number; maxProgressPct?: number } }>({
@@ -446,7 +448,7 @@ export function NexusBoard() {
   const addToWatch = async (sym: string) => {
     setWatchState((w) => ({ ...w, [sym]: '…' }));
     try {
-      const r = await fetch('/api/watchlist', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym }) });
+      const r = await apiRequest('POST', '/api/watchlist', { symbol: sym });
       setWatchState((w) => ({ ...w, [sym]: r.ok ? '✓' : '✗' }));
     } catch { setWatchState((w) => ({ ...w, [sym]: '✗' })); }
   };
@@ -557,7 +559,28 @@ export function NexusBoard() {
   const spyChange = rotation.data?.spyChange;
   const dataPartial = health.data?.dataPartial ?? true;
   const vix = pulse.data?.macro?.vix;
-  const watchSyms = (watchlist.data ?? []).slice(0, 10);
+  // Watchlist order is the operator's, not the API's: drag to reorder, the
+  // order persists per device (localStorage — a display preference, not data).
+  const [watchOrder, setWatchOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('nx-watch-order') ?? '[]'); } catch { return []; }
+  });
+  const dragSym = useRef<string | null>(null);
+  const watchSyms = useMemo(() => {
+    const base = (watchlist.data ?? []).slice(0, 10);
+    if (!watchOrder.length) return base;
+    const rank = new Map(watchOrder.map((sym, i) => [sym, i]));
+    return [...base].sort((x, y) => (rank.get(x.symbol) ?? 99) - (rank.get(y.symbol) ?? 99));
+  }, [watchlist.data, watchOrder]);
+  const dropOn = (target: string) => {
+    const from = dragSym.current;
+    dragSym.current = null;
+    if (!from || from === target) return;
+    const syms = watchSyms.map((w) => w.symbol);
+    const next = syms.filter((x) => x !== from);
+    next.splice(next.indexOf(target), 0, from);
+    setWatchOrder(next);
+    try { localStorage.setItem('nx-watch-order', JSON.stringify(next)); } catch { /* ignore */ }
+  };
   const quoteBySym = useMemo(() => {
     const m = new Map<string, EHQuote>();
     for (const list of [extended.data?.gainers, extended.data?.losers, extended.data?.mostActive]) {
@@ -607,7 +630,7 @@ export function NexusBoard() {
           <div className="intel-block">
             <div className="intel-head">
               <div className="intel-label">Pattern Radar</div>
-              <div className="intel-value">{patterns.data ? `${patterns.data.hits.length} hits · ${patterns.data.scanned} scanned` : 'warming…'}</div>
+              <div className="intel-value" style={{ cursor: 'pointer' }} title="Open the full pattern browser" onClick={() => setRadarBrowse('all')}>{patterns.data ? `${patterns.data.hits.length} hits · ${patterns.data.scanned} scanned ⤢` : 'warming…'}</div>
             </div>
             {(['inside_coil', 'bull_flag', 'breakout_watch', 'bear_flag'] as const).map((pat) => {
               // Operator-core names pin to the front of each group — CRCL's
@@ -639,6 +662,26 @@ export function NexusBoard() {
               <div style={{ fontSize: 10.5, color: 'var(--text-mute)', fontStyle: 'italic', padding: '6px 0' }}>Sweep pending — first pass runs ~3 min after boot.</div>
             )}
             {radarPrev && <RadarPreview {...radarPrev} />}
+            {radarBrowse && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 88, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center' }} onClick={() => setRadarBrowse(null)}>
+                <div style={{ width: 'min(720px, 92vw)', maxHeight: '80vh', overflow: 'auto', background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 12, padding: 18 }} onClick={(ev) => ev.stopPropagation()}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 15, marginRight: 'auto' }}>Pattern browser · {patterns.data?.hits.length ?? 0} hits</div>
+                    {['all', 'inside_coil', 'bull_flag', 'bear_flag', 'breakout_watch', 'nr7'].map((f) => (
+                      <button key={f} onClick={() => setRadarBrowse(f)} style={{ padding: '3px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', background: radarBrowse === f ? 'rgba(79,209,197,0.15)' : 'transparent', color: radarBrowse === f ? 'var(--cyan-bright)' : 'var(--text-mute)', border: '1px solid var(--nx-border)' }}>{f.replace('_', ' ')}</button>
+                    ))}
+                  </div>
+                  {(patterns.data?.hits ?? []).filter((h) => radarBrowse === 'all' || h.pattern === radarBrowse).slice(0, 120).map((h) => (
+                    <div key={`${h.pattern}-${h.symbol}`} onClick={() => { setRadarBrowse(null); setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
+                      style={{ display: 'grid', gridTemplateColumns: '64px 110px 1fr', gap: 10, alignItems: 'center', padding: '7px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5 }}>
+                      <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text)' }}>{h.symbol}</b>
+                      <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 9 }}>{h.pattern.replace('_', ' ')}</span>
+                      <span style={{ color: 'var(--text-dim)' }}>{h.note}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="intel-block">
@@ -1034,6 +1077,10 @@ export function NexusBoard() {
                   <div
                     className={`watch-item${symbol === focusSym ? ' active' : ''}`}
                     key={symbol}
+                    draggable
+                    onDragStart={() => { dragSym.current = symbol; }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => dropOn(symbol)}
                     title={`Set ${symbol} as the terminal's focus symbol — CHART, GEX and FLOW follow it`}
                     onClick={() => { setCurrentStock({ symbol }); openWorkup(symbol); }}
                   >

@@ -31,6 +31,7 @@
  * navigation). Watch is a real watchlist POST.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
 import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
 import { openWorkup } from '@/lib/workup-bus';
@@ -204,13 +205,35 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
 }) {
   const [tab, setTab] = useState<WuTab>('overview');
   const [watched, setWatched] = useState<'idle' | 'saving' | 'done' | 'fail'>('idle');
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertPrice, setAlertPrice] = useState('');
+  const [alertState, setAlertState] = useState<'idle' | 'armed' | 'fail'>('idle');
 
   useEffect(() => { setTab('overview'); setWatched('idle'); }, [symbol]);
+  // Keyboard: esc closes, ←/→ cycle tabs, ↑/↓ hop through the peer list —
+  // the dossier browses like a dossier, not like a webpage.
+  const peersRef = useRef<string[]>([]);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    const TABS: WuTab[] = ['overview', 'chart', 'options', 'events', 'bot'];
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        setTab((t) => TABS[(TABS.indexOf(t) + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length]);
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const list = peersRef.current;
+        if (!list.length) return;
+        e.preventDefault();
+        const cur = list.indexOf(symbol);
+        const next = list[(cur + (e.key === 'ArrowDown' ? 1 : list.length - 1) + list.length) % list.length];
+        if (next) openWorkup(next);
+      }
+    };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true } as any);
-  }, [onClose]);
+  }, [onClose, symbol]);
 
   const { data: yearly } = useDaily(symbol, '1y', 'wu');
   const { data: conv } = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'wu'], queryFn: fetchJson('/api/convictions?limit=60'), staleTime: 120_000, retry: 1 });
@@ -314,11 +337,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
     if (watched !== 'idle') return;
     setWatched('saving');
     try {
-      const r = await fetch('/api/watchlist', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol }),
-      });
+      const r = await apiRequest('POST', '/api/watchlist', { symbol });
       setWatched(r.ok ? 'done' : 'fail');
     } catch { setWatched('fail'); }
   };
@@ -332,6 +351,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
   const gradeClass = band ? band.toLowerCase().charAt(0) : 'none';
   const dir = (pick?.direction ?? '').toLowerCase();
   const sectorLabel = peers?.sector ? peers.sector.replace(/_/g, ' ') : null;
+  useEffect(() => { peersRef.current = peers?.peers ?? []; }, [peers]);
 
   const num = (v: number | string | undefined) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
 
@@ -396,6 +416,29 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
               {watched === 'done' ? 'Watching' : watched === 'saving' ? '…' : watched === 'fail' ? 'Failed' : 'Watch'}
             </button>
+            {alertOpen ? (
+              <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                <input autoFocus value={alertPrice} onChange={(e) => setAlertPrice(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Escape') { setAlertOpen(false); return; }
+                    if (e.key !== 'Enter') return;
+                    const px2 = Number(alertPrice);
+                    if (!Number.isFinite(px2) || px2 <= 0) { setAlertState('fail'); return; }
+                    try {
+                      const r = await apiRequest('POST', '/api/alerts/level', { symbol, price: px2 });
+                      setAlertState(r.ok ? 'armed' : 'fail');
+                    } catch { setAlertState('fail'); }
+                    setAlertOpen(false);
+                  }}
+                  placeholder="level $" style={{ width: 84, background: 'var(--bg-2)', border: '1px solid var(--nx-border-hi)', borderRadius: 5, color: 'var(--text)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, padding: '6px 8px', outline: 'none' }} />
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>↵ arm</span>
+              </span>
+            ) : (
+              <button className={`wa-btn${alertState === 'armed' ? ' done' : ''}`} title="Alert when price crosses a level — fires once, relayed to Discord"
+                onClick={() => { setAlertPrice(price != null ? String(Math.round(price * 100) / 100) : ''); setAlertOpen(true); }}>
+                {alertState === 'armed' ? 'Alert ✓' : alertState === 'fail' ? 'Alert ✗' : 'Alert'}
+              </button>
+            )}
             <button className="wa-btn" onClick={() => { onNavigate?.('gex', symbol); onClose(); }} title="Open the full GEX surface">GEX</button>
             <button className="wa-btn primary" onClick={() => { onNavigate?.('chart', symbol); onClose(); }} title="Open the full chart lab">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
@@ -735,7 +778,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
           <div className="wf-sep" />
           <div className="wf-item">Gates <span className="hl">{botRules.length}</span> bound</div>
           <div className="wf-spacer" />
-          <div className="wf-item">esc to close</div>
+          <div className="wf-item">esc close · ←→ tabs · ↑↓ peers</div>
         </div>
       </div>
     </div>

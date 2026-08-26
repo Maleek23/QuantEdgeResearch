@@ -1286,7 +1286,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
 
                     {/* THE CHART is the focus of the analysis — prominent, right under the header.
                   One universal EpochChart (epoch-anchored, any ticker) with entry/stop/target. */}
-                    <NexusPriceChart
+                    <NexusPriceChart syncGroup="cockpit"
                       key={selected.ideaId}
                       symbol={selected.symbol}
                       initialTf="1D"
@@ -1806,7 +1806,7 @@ function OnDemandSubject({
           </div>
         </div>
 
-        <NexusPriceChart symbol={analysis.symbol} initialTf="1D" height={340} />
+        <NexusPriceChart syncGroup="cockpit" symbol={analysis.symbol} initialTf="1D" height={340} />
 
         <div className="grid gap-px border border-border/45 bg-border/45 sm:grid-cols-3">
           {horizons.length > 0 ? (
@@ -1960,7 +1960,7 @@ function TickerReadSubject({
           </div>
         </div>
 
-        <NexusPriceChart symbol={analysis.symbol} initialTf="1D" height={340} />
+        <NexusPriceChart syncGroup="cockpit" symbol={analysis.symbol} initialTf="1D" height={340} />
 
         <div className="grid gap-px border border-border/45 bg-border/45 sm:grid-cols-3">
           <div className="bg-card px-3 py-3">

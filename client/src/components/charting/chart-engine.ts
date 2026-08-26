@@ -109,6 +109,9 @@ export interface DrawOpts {
   zones?: Zone[];
   mouseX: number;
   mouseY: number;
+  /** A sibling chart's hovered candle time — draws a synced dashed cursor
+   *  when the local mouse is outside this plot. */
+  syncTime?: number | null;
   onHover: (c: Candle | null, x: number, y: number) => void;
 }
 
@@ -250,6 +253,25 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   if (inPlot) {
     const idx = Math.floor((opts.mouseX - padding.left) / candleW);
     if (idx >= 0 && idx < candles.length) hoveredIdx = idx;
+  }
+
+  // Synced cursor from a sibling chart (cockpit crosshair sync): when the
+  // local mouse is elsewhere, mark the sibling's hovered TIME on this chart's
+  // own axis — nearest candle, dashed, unobtrusive.
+  if (!inPlot && opts.syncTime != null && candles.length > 1) {
+    let best = -1; let bestD = Infinity;
+    for (let i = 0; i < candles.length; i++) {
+      const d = Math.abs(candles[i].time - opts.syncTime);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    if (best >= 0) {
+      const sx = padding.left + best * candleW + candleW / 2;
+      ctx.strokeStyle = 'rgba(110,231,219,0.35)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath(); ctx.moveTo(sx, padding.top); ctx.lineTo(sx, padding.top + priceH); ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
 
   // Candles or line

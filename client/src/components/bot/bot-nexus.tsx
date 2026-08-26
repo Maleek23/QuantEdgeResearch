@@ -28,6 +28,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useColResize } from '@/lib/use-col-resize';
 import { openWorkup } from '@/lib/workup-bus';
+import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
 import { Heartbeat } from '@/components/viz';
 import '@/styles/nexus.css';
 
@@ -59,6 +60,8 @@ interface QuantBotStatus {
   openPositions?: PaperPosition[];
   config?: { minConviction?: number; maxOpen?: number; riskPerTradePct?: number };
 }
+interface LedgerEntry { symbol: string; blockedAt: string; entryPrice: number; stopLoss: number; targetPrice: number; reason: string; outcome?: string; wouldBePercent?: number | null; lastPrice?: number }
+interface LedgerPayload { totalBlocked?: number; decided?: number; blockedWinners?: number; blockedLosers?: number; netWouldBePercent?: number; entries?: LedgerEntry[] }
 interface CryptoPulse { asOf?: string }
 interface RealtimePayload { coinbase?: { connected?: boolean }; futures?: { connected?: boolean } }
 
@@ -119,6 +122,7 @@ export function BotNexus() {
   const [ruleTab, setRuleTab] = useState<'all' | 'gates' | 'signals' | 'disclosure'>('all');
   const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState('');
+  const [replay, setReplay] = useState<LedgerEntry | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const { data: conv } = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'bot'], queryFn: fetchJson('/api/convictions?limit=12'), refetchInterval: 120_000, staleTime: 60_000, retry: 1 });
@@ -129,6 +133,7 @@ export function BotNexus() {
   const { data: perf } = useQuery<PerfPayload>({ queryKey: ['/api/performance/stats', 'bot'], queryFn: fetchJson('/api/performance/stats'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
   const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'bot'], queryFn: fetchJson('/api/crypto/pulse'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
   const { data: realtime } = useQuery<RealtimePayload>({ queryKey: ['/api/realtime-status', 'bot'], queryFn: fetchJson('/api/realtime-status'), refetchInterval: 30_000, staleTime: 20_000, retry: 1 });
+  const { data: ledger } = useQuery<LedgerPayload>({ queryKey: ['/api/discipline/ledger', 'bot'], queryFn: fetchJson('/api/discipline/ledger'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
   const { data: book } = useQuery<QuantBotStatus>({ queryKey: ['/api/quant-bot/status', 'bot'], queryFn: fetchJson('/api/quant-bot/status'), refetchInterval: 60_000, staleTime: 30_000, retry: 1 });
 
   /* ── the real jobs, status from their own output freshness ── */
@@ -360,6 +365,42 @@ export function BotNexus() {
           )}
         </div>
 
+        {/* SHADOW LEDGER — what the short gate blocked, replayed on real bars */}
+        <div className="book-section">
+          <div className="book-head">
+            <div className="book-label" style={{ color: 'var(--amber)' }}>Shadow ledger · what the gate blocked</div>
+            <div className="book-meta">
+              <span>{ledger?.totalBlocked ?? 0} blocked</span>
+              <span>{ledger?.decided ?? 0} decided</span>
+              <span>saved <b style={{ color: 'var(--green)' }}>{ledger?.blockedLosers ?? 0}</b> · cost <b style={{ color: 'var(--red)' }}>{ledger?.blockedWinners ?? 0}</b></span>
+              <span>net wouldBe <b style={{ color: (ledger?.netWouldBePercent ?? 0) > 0 ? 'var(--red)' : 'var(--green)' }}>{(ledger?.netWouldBePercent ?? 0) >= 0 ? '+' : ''}{(ledger?.netWouldBePercent ?? 0).toFixed(2)}%</b></span>
+            </div>
+          </div>
+          {(ledger?.entries ?? []).slice(0, 8).map((e2) => {
+            const oc = e2.outcome ?? 'open';
+            const up = (e2.wouldBePercent ?? 0) >= 0;
+            return (
+              <div className="book-pos" key={`${e2.symbol}-${e2.blockedAt}`} style={{ ['--pos-accent' as string]: oc === 'hit_target' ? 'var(--red)' : oc === 'hit_stop' ? 'var(--green)' : 'var(--amber)' }}>
+                <div>
+                  <div className="bp-sym">{e2.symbol}</div>
+                  <div className="bp-contract">short blocked {new Date(e2.blockedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} @ ${e2.entryPrice}</div>
+                </div>
+                <div className="bp-brackets">
+                  <span className="t">T ${e2.targetPrice}</span>
+                  <span className="s">S ${e2.stopLoss}</span>
+                </div>
+                <div className="bp-kv">outcome<b>{oc === 'hit_target' ? 'won (cost us)' : oc === 'hit_stop' ? 'lost (saved us)' : 'open'}</b></div>
+                <div className={`bp-pnl ${up ? 'up' : 'down'}`}>{e2.wouldBePercent != null ? `${up ? '+' : ''}${e2.wouldBePercent.toFixed(1)}%` : '—'}</div>
+                <div className="bp-kv">
+                  <button onClick={() => setReplay(e2)} style={{ padding: '3px 9px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, letterSpacing: 0.5 }}>REPLAY</button>
+                </div>
+                <div className="bp-kv" />
+              </div>
+            );
+          })}
+          {(ledger?.entries ?? []).length === 0 && <div className="book-empty">No blocks recorded yet — entries appear the first time the gate refuses a short.</div>}
+        </div>
+
         {/* RULES = the real gates */}
         <div className="rules-section">
           <div className="rules-head">
@@ -497,6 +538,33 @@ export function BotNexus() {
           Automation does not remove risk — it enforces discipline.
         </div>
       </div>
+
+      {/* BARRIER REPLAY — the blocked short drawn on the real chart */}
+      {replay && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 88, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center' }} onClick={() => setReplay(null)}>
+          <div style={{ width: 'min(860px, 92vw)', background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 12, padding: 18, boxShadow: '0 30px 80px rgba(0,0,0,0.7)' }} onClick={(ev) => ev.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16 }}>
+                {replay.symbol} · blocked short, replayed
+              </div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }}>
+                blocked {new Date(replay.blockedAt).toLocaleString()} · {replay.reason}
+              </div>
+            </div>
+            <NexusPriceChart key={`replay-${replay.symbol}`} symbol={replay.symbol} initialTf="1D" height={340} expandable={false}
+              levels={[
+                { price: replay.entryPrice, color: '#4fd1c5', label: 'blocked entry' },
+                { price: replay.stopLoss, color: '#ff5470', label: 'would-be stop' },
+                { price: replay.targetPrice, color: '#3ddc97', label: 'would-be target' },
+              ]} />
+            <div style={{ marginTop: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: 'var(--text-dim)' }}>
+              Replay verdict: <b style={{ color: replay.outcome === 'hit_target' ? 'var(--red)' : replay.outcome === 'hit_stop' ? 'var(--green)' : 'var(--amber)' }}>
+                {replay.outcome === 'hit_target' ? `target touched first — the gate COST ${replay.wouldBePercent?.toFixed(1)}%` : replay.outcome === 'hit_stop' ? `stop touched first — the gate SAVED ${Math.abs(replay.wouldBePercent ?? 0).toFixed(1)}%` : 'neither barrier touched yet — still open'}
+              </b> · daily-bar granularity; both-touched ties go to the stop, same rule as live validation.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ⌘K */}
       {searchOpen && (

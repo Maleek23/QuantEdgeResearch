@@ -5144,6 +5144,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET endpoint for batch stock quotes (used by WSB Trending, Social Trends pages)
   // Alert relay — the in-app bell only reaches you while you're looking at the terminal.
   // This posts the same events to Discord so they reach you when you're not.
+  // ── LEVEL-CROSS ALERTS — "tell me when X trades through P" ────────────────
+  app.post("/api/alerts/level", async (req, res) => {
+    try {
+      const symbol = String(req.body?.symbol ?? "").toUpperCase();
+      const price = Number(req.body?.price);
+      if (!symbol || !Number.isFinite(price) || price <= 0) {
+        return res.status(400).json({ error: "symbol and a positive price are required" });
+      }
+      const { addAlert } = await import("./price-alerts");
+      const { getRealtimeQuote } = await import("./realtime-pricing-service");
+      const q = await getRealtimeQuote(symbol, "stock").catch(() => null);
+      const alert = await addAlert(symbol, price, Number((q as any)?.price) || null);
+      res.json({ ok: true, alert });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to arm alert" });
+    }
+  });
+  app.get("/api/alerts/level", async (_req, res) => {
+    try {
+      const { listAlerts } = await import("./price-alerts");
+      res.json({ alerts: await listAlerts() });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to list alerts" });
+    }
+  });
+  app.delete("/api/alerts/level/:id", async (req, res) => {
+    try {
+      const { removeAlert } = await import("./price-alerts");
+      res.json({ ok: await removeAlert(String(req.params.id)) });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to remove alert" });
+    }
+  });
+
   app.post("/api/alerts/relay", async (req, res) => {
     try {
       const events = Array.isArray(req.body?.events) ? req.body.events : [];
