@@ -38,6 +38,7 @@
  */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { openWorkup } from '@/lib/workup-bus';
+import { Spark } from '@/components/charting/spark';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
@@ -51,6 +52,30 @@ import quantEdgeLogoUrl from '@assets/q_1767502987714.png';
 // board's view toggle. Same component the old Active Book used.
 const HuntCockpit = lazy(() => import('@/pages/shells/hunt-cockpit'));
 import '@/styles/nexus.css';
+
+/** Radar hover-preview: the pattern\'s real 1mo series + its defining levels.
+ *  Interaction reveals measured data (interactivity plan rule #1). */
+function RadarPreview({ symbol, note, x, y }: { symbol: string; note: string; x: number; y: number }) {
+  const { data } = useQuery<{ data?: { time: number; close: number }[] }>({
+    queryKey: ['/api/historical-prices', symbol, '1mo', 'radar'],
+    queryFn: async () => {
+      const r = await fetch(`/api/historical-prices/${symbol}?range=1mo&interval=1d`, { credentials: 'include' });
+      if (!r.ok) throw new Error('bars failed');
+      return r.json();
+    },
+    staleTime: 300_000, retry: 1,
+  });
+  return (
+    <div style={{ position: 'fixed', left: Math.min(x, window.innerWidth - 250), top: y + 14, width: 236, zIndex: 90, background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 8, padding: 10, boxShadow: '0 16px 40px rgba(0,0,0,0.6)', pointerEvents: 'none' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 13 }}>
+        {symbol}
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', fontWeight: 600 }}>1mo · real bars</span>
+      </div>
+      <Spark bars={(data?.data ?? []).map((b) => ({ time: b.time, close: b.close }))} color="#4fd1c5" height={54} />
+      <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: 'var(--text-dim)', lineHeight: 1.5 }}>{note}</div>
+    </div>
+  );
+}
 
 /* ════════════════════════════════════════════════════════════════
    THE MOCK'S STYLESHEET, VERBATIM (body → .nexus-root only).
@@ -408,6 +433,23 @@ export function NexusBoard() {
   const focusSym = currentStock?.symbol?.toUpperCase();
   const light = theme === 'nexus-light';
   const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns } = useNexusData();
+  const [radarPrev, setRadarPrev] = useState<{ symbol: string; note: string; x: number; y: number } | null>(null);
+  // Quick-actions on the book's cards. The Bot? verdict runs the bot's own
+  // entry rules for this symbol right now — absence stops being a mystery.
+  const botStatus = useQuery<{ openPositions?: { symbol: string }[]; config?: { minConviction?: number; maxProgressPct?: number } }>({
+    queryKey: ['/api/quant-bot/status', 'nexus'], queryFn: q('/api/quant-bot/status'),
+    staleTime: 60_000, retry: 1,
+  });
+  const heldByBot = useMemo(() => new Set((botStatus.data?.openPositions ?? []).map((x) => x.symbol)), [botStatus.data]);
+  const [botVerdicts, setBotVerdicts] = useState<Record<string, string>>({});
+  const [watchState, setWatchState] = useState<Record<string, string>>({});
+  const addToWatch = async (sym: string) => {
+    setWatchState((w) => ({ ...w, [sym]: '…' }));
+    try {
+      const r = await fetch('/api/watchlist', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym }) });
+      setWatchState((w) => ({ ...w, [sym]: r.ok ? '✓' : '✗' }));
+    } catch { setWatchState((w) => ({ ...w, [sym]: '✗' })); }
+  };
 
   useEffect(() => { document.title = 'QUANTEDGE // NEXUS'; }, []);
 
@@ -581,8 +623,10 @@ export function NexusBoard() {
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {rows.map((h) => (
-                      <button key={`${pat}-${h.symbol}`} title={h.note}
-                        onClick={() => { setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
+                      <button key={`${pat}-${h.symbol}`}
+                        onMouseEnter={(e) => setRadarPrev({ symbol: h.symbol, note: h.note, x: (e.currentTarget as HTMLElement).getBoundingClientRect().left, y: (e.currentTarget as HTMLElement).getBoundingClientRect().bottom })}
+                        onMouseLeave={() => setRadarPrev(null)}
+                        onClick={() => { setRadarPrev(null); setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
                         style={{ padding: '3px 8px', background: 'var(--panel-hi)', border: `1px solid ${h.bias === 'short' ? 'rgba(255,84,112,0.3)' : h.bias === 'long' ? 'rgba(61,220,151,0.3)' : 'var(--nx-border)'}`, borderRadius: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text-dim)', cursor: 'pointer' }}>
                         {h.symbol}
                       </button>
@@ -594,6 +638,7 @@ export function NexusBoard() {
             {patterns.data && patterns.data.hits.length === 0 && (
               <div style={{ fontSize: 10.5, color: 'var(--text-mute)', fontStyle: 'italic', padding: '6px 0' }}>Sweep pending — first pass runs ~3 min after boot.</div>
             )}
+            {radarPrev && <RadarPreview {...radarPrev} />}
           </div>
 
           <div className="intel-block">
@@ -866,6 +911,33 @@ export function NexusBoard() {
                         ? `${g.horizonUsedPct.toFixed(0)}% of ${g.horizonDays}d used`
                         : 'timing pending contract'}
                     </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', margin: '6px 0 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5 }} onClick={(e) => e.stopPropagation()}>
+                    {[
+                      ['WORKUP', () => openWorkup(p.symbol)],
+                      [watchState[p.symbol] ? `WATCH ${watchState[p.symbol]}` : 'WATCH', () => addToWatch(p.symbol)],
+                      ['BOT?', () => {
+                        const floor = botStatus.data?.config?.minConviction ?? 18;
+                        const maxProg = botStatus.data?.config?.maxProgressPct ?? 35;
+                        const px = quoteBySym.get(p.symbol)?.lastPrice ?? p.currentPrice ?? p.entryPrice ?? 0;
+                        let verdict: string;
+                        if (heldByBot.has(p.symbol)) verdict = 'held by the bot ✓';
+                        else if ((p.convictionScore ?? 0) < floor) verdict = `below bot floor (${p.convictionScore} < ${floor})`;
+                        else if (pending) verdict = 'pending trigger — no front-running its own entry';
+                        else if (p.direction === 'long' ? px <= (p.stopLoss ?? 0) : px >= (p.stopLoss ?? Infinity)) verdict = 'invalidated — stop already traded';
+                        else if (g.progressPct > maxProg) verdict = `chase guard (${g.progressPct.toFixed(0)}% > ${maxProg}%)`;
+                        else verdict = 'qualifies — fills next 10-min cycle (mark + sizing permitting)';
+                        setBotVerdicts((v) => ({ ...v, [p.ideaId]: v[p.ideaId] ? '' : verdict }));
+                      }],
+                    ].map(([label, fn]) => (
+                      <button key={String(label)} onClick={fn as () => void}
+                        style={{ padding: '2px 7px', borderRadius: 3, background: 'transparent', border: '1px solid var(--nx-border)', color: 'var(--text-mute)', cursor: 'pointer', letterSpacing: 0.5, fontWeight: 700, fontFamily: 'inherit', fontSize: 8.5, transition: 'all 0.15s' }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--cyan-dim)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--nx-border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-mute)'; }}>
+                        {String(label)}
+                      </button>
+                    ))}
+                    {botVerdicts[p.ideaId] && <span style={{ color: 'var(--amber)', fontSize: 8.5 }}>{botVerdicts[p.ideaId]}</span>}
                   </div>
                   <div className="progress-wrap">
                     <div className="progress-label">

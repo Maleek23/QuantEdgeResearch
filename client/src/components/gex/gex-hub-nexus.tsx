@@ -88,6 +88,7 @@ export function GexHubNexus() {
   const [anchor, setAnchor] = useState<string | null>(null);
   const symbol = (anchor ?? currentStock?.symbol ?? 'SPY').toUpperCase();
   const [rankMode, setRankMode] = useState<'gex' | 'vex'>('gex');
+  const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
 
   const [view3d, setView3d] = useState(false);
   const [metric, setMetric] = useState<'gex' | 'vex'>('gex');
@@ -479,7 +480,7 @@ export function GexHubNexus() {
                                   ? <div className="cell" />
                                   : Math.abs(v) < DUST_M
                                     ? <div className="cell" title={`$${strike} · ${cell!.expiryLabel} · ${metric.toUpperCase()} ${fmtM(v)} (dust)`} />
-                                    : <div className={`cell ${cellClass(v)}`} title={`$${strike} · ${cell!.expiryLabel} · ${metric.toUpperCase()} ${fmtM(v)}`}>{fmtM(v)}</div>}
+                                    : <div className={`cell ${cellClass(v)}`} style={{ cursor: 'pointer' }} title={`$${strike} · ${cell!.expiryLabel} · ${metric.toUpperCase()} ${fmtM(v)} — click to drill in`} onClick={(e) => { e.stopPropagation(); setDrill(cell!); }}>{fmtM(v)}</div>}
                               </td>
                             );
                           })}
@@ -639,6 +640,38 @@ export function GexHubNexus() {
       </div>
 
       {/* ══════════ ⌘K SEARCH — real universal index ══════════ */}
+      {drill && (() => {
+        const strikeCells = matrix.filter((m) => m.strike === drill.strike);
+        const expiryCells = matrix.filter((m) => m.dte === drill.dte);
+        const val = (c: StrikeExpiryCell) => metric === 'vex' ? (c.netVEX ?? 0) : c.netGEX;
+        const strikeTotal = strikeCells.reduce((a, c) => a + val(c), 0);
+        const expiryTotal = expiryCells.reduce((a, c) => a + val(c), 0);
+        const v = val(drill);
+        const dist = spot ? ((drill.strike - spot) / spot) * 100 : null;
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center' }} onClick={() => setDrill(null)}>
+            <div style={{ width: 320, background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 10, padding: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16 }}>{symbol} ${drill.strike}</div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }}>{drill.expiryLabel} · {drill.dte}d</div>
+              </div>
+              {[
+                ['net GEX', fmtM(drill.netGEX)],
+                ['net VEX', fmtM(drill.netVEX ?? 0)],
+                ['vs spot', dist != null ? `${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%` : '—'],
+                [`share of $${drill.strike} strike`, strikeTotal !== 0 ? `${((v / strikeTotal) * 100).toFixed(0)}% of ${fmtM(strikeTotal)}` : '—'],
+                [`share of ${drill.expiryLabel} expiry`, expiryTotal !== 0 ? `${((v / expiryTotal) * 100).toFixed(0)}% of ${fmtM(expiryTotal)}` : '—'],
+              ].map(([k, val2]) => (
+                <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px dashed rgba(79,209,197,0.08)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
+                  <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 9.5, letterSpacing: 0.5 }}>{k}</span>
+                  <span style={{ fontWeight: 700 }}>{val2}</span>
+                </div>
+              ))}
+              <div style={{ marginTop: 10, fontSize: 9.5, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", fontStyle: 'italic' }}>listed-chain node · esc or click away to close</div>
+            </div>
+          </div>
+        );
+      })()}
       {searchOpen && (
         <div className="search-modal" onClick={(e) => { if (e.target === e.currentTarget) setSearchOpen(false); }}>
           <div className="search-box">

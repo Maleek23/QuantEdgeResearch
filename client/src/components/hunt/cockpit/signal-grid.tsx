@@ -36,7 +36,9 @@
  * on a bullish card, because that disagreement is the most useful thing on the
  * card and must not be tinted away.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { openWorkup } from '@/lib/workup-bus';
 import { RecordCard } from '@/components/templates/surfaces';
 import { Distribution } from '@/components/templates/charts';
 import { KeyValue, KeyValueRow, type Tone } from '@/components/templates/kit';
@@ -63,6 +65,44 @@ export function SignalGrid({
   onSelect: (id: string) => void;
   live?: Map<string, number>;
 }) {
+  // Bot's live book + config — powers the per-card "Bot?" verdict, which runs
+  // the same rules the bot itself runs (floor, trigger, invalidation, chase)
+  // and answers in one line instead of leaving absence a mystery.
+  const { data: bot } = useQuery<{ openPositions?: { symbol: string }[]; config?: { minConviction?: number; maxProgressPct?: number } }>({
+    queryKey: ['/api/quant-bot/status', 'grid'],
+    queryFn: async () => {
+      const r = await fetch('/api/quant-bot/status', { credentials: 'include' });
+      if (!r.ok) throw new Error('bot status failed');
+      return r.json();
+    },
+    staleTime: 60_000, retry: 1,
+  });
+  const held = useMemo(() => new Set((bot?.openPositions ?? []).map((p) => p.symbol)), [bot]);
+  const [verdicts, setVerdicts] = useState<Record<string, string>>({});
+  const [watched, setWatched] = useState<Record<string, string>>({});
+
+  const botVerdict = (p: ConvictionPick, px: number, pending: boolean): string => {
+    const floor = bot?.config?.minConviction ?? 18;
+    const maxProg = bot?.config?.maxProgressPct ?? 35;
+    if (held.has(p.symbol)) return 'held by the bot ✓';
+    if ((p.convictionScore ?? 0) < floor) return `below bot floor (${p.convictionScore} < ${floor})`;
+    if (pending) return 'pending trigger — bot won\'t front-run its own entry';
+    if (p.direction === 'long' ? px <= (p.stopLoss ?? 0) : px >= (p.stopLoss ?? Infinity)) return 'invalidated — stop already traded';
+    const span = p.direction === 'long' ? (p.targetPrice ?? 0) - (p.entryPrice ?? 0) : (p.entryPrice ?? 0) - (p.targetPrice ?? 0);
+    const done = p.direction === 'long' ? px - (p.entryPrice ?? 0) : (p.entryPrice ?? 0) - px;
+    const prog = span > 0 ? (done / span) * 100 : 0;
+    if (prog > maxProg) return `chase guard (${prog.toFixed(0)}% to T1 gone > ${maxProg}%)`;
+    return 'qualifies — fills on the next 10-min cycle (mark + sizing permitting)';
+  };
+
+  const addWatch = async (sym: string) => {
+    setWatched((w) => ({ ...w, [sym]: '…' }));
+    try {
+      const r = await fetch('/api/watchlist', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym }) });
+      setWatched((w) => ({ ...w, [sym]: r.ok ? '✓' : '✗' }));
+    } catch { setWatched((w) => ({ ...w, [sym]: '✗' })); }
+  };
+
   // Geometry once per pick — the card and its progress bar need the same numbers.
   const filtered = useMemo(
     () =>
@@ -136,6 +176,17 @@ export function SignalGrid({
                     reference card's mini chart, minus its Math.random() series.
                     Renders a quiet dash when history is missing, never a fake
                     curve. */}
+                {/* QUICK ACTIONS — interaction reveals measured data: the Bot?
+                    verdict runs the bot's own rules for THIS symbol right now. */}
+                <div className="mb-2 flex items-center gap-1.5 font-mono text-[9px]" onClick={(e) => e.stopPropagation()}>
+                  {([['Workup', () => openWorkup(p.symbol)], [watched[p.symbol] ? `Watch ${watched[p.symbol]}` : 'Watch', () => addWatch(p.symbol)], ['Bot?', () => setVerdicts((vv) => ({ ...vv, [p.ideaId]: vv[p.ideaId] ? '' : botVerdict(p, live?.get(p.symbol) ?? p.currentPrice ?? p.entryPrice ?? 0, pending) }))]] as const).map(([label, fn]) => (
+                    <button key={label as string} onClick={fn as () => void}
+                      className="rounded-[3px] border border-border/60 px-1.5 py-0.5 uppercase tracking-wider text-muted-foreground transition-colors hover:border-[color:var(--brand-cyan)] hover:text-foreground">
+                      {label}
+                    </button>
+                  ))}
+                  {verdicts[p.ideaId] && <span className="ml-1 normal-case tracking-normal text-[9px] text-[color:var(--brand-gold)]">{verdicts[p.ideaId]}</span>}
+                </div>
                 <div className="mb-3 h-9 overflow-hidden rounded-[3px] bg-black/20">
                   <Sparkline symbol={p.symbol} tone={p.direction === 'long' ? 'bull' : 'bear'} width="100%" height={36} />
                 </div>
