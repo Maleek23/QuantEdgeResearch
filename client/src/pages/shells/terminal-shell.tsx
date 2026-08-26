@@ -395,12 +395,9 @@ export default function TerminalShell() {
                 </div>
               )}
               {tab === 'chart' && <ChartLab />}
-              {tab === 'flow' && (
-                <div className="qe-module-page mx-auto w-full max-w-[1680px]">
-                  {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it */}
-                  <FlowBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                </div>
-              )}
+              {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it.
+                  Full-bleed: the FLOW mock owns its own two-column layout. */}
+              {tab === 'flow' && <FlowBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
               {tab === 'gex' && <div className="qe-module-page mx-auto w-full max-w-[1680px]"><GexShell /></div>}
               {tab === 'leaps' && <div className="qe-module-page mx-auto w-full max-w-[1680px]"><LeapTracker /></div>}
               {tab === 'crypto' && <CryptoTerminal onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}

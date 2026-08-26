@@ -9,23 +9,24 @@
  */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CanonModelNote } from '@/components/canon';
+import { CanonModelNote, scoreBand } from '@/components/canon';
+import '@/styles/nexus.css';
 import { FlowCard } from './flow-card';
 import {
   scoreFlow, baselinesBySymbol, repeatCounts, contractKey, WHALE_PREMIUM, type FlowPrint,
 } from '@/lib/flow/flow-score';
 import { RepeatBuyers } from './repeat-buyers';
 import { ConvergenceCard } from './convergence-card';
-import { TerminalPageHeader } from '@/components/templates/terminal-page';
-import { FlowLedger } from './flow-ledger';
 
 const CYAN = 'var(--brand-cyan,#22d3ee)';
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
 
-type Dir = 'all' | 'bullish' | 'bearish';
+// Dir filters on optionType — call vs put IS measured on this feed, unlike
+// buyer-vs-seller, which stays unclaimed (4ce5213).
+type Dir = 'all' | 'call' | 'put';
 type Kind = 'all' | 'sweep' | 'block' | 'unusual_volume';
 const MIN_SCORES = [0, 55, 70, 80] as const;
 const MIN_PREMIUM = [0, 100_000, 500_000, 1_000_000] as const;
@@ -104,7 +105,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
   }, [prints]);
 
   const shown = useMemo(() => scored.filter(({ print: p, score: s }) => {
-    if (dir !== 'all' && p.sentiment !== dir) return false;
+    if (dir !== 'all' && p.optionType !== dir) return false;
     if (kind !== 'all' && p.flowType !== kind) return false;
     if (s.score < minScore) return false;
     if (s.totalPremium < minPrem) return false;
@@ -174,201 +175,276 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
 
   const money = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n.toFixed(0)}`;
 
-  return (
-    <div>
-      {/* The reference section header — same copy, his .sec-head grammar. */}
-      <div className="sec-head">
-        <div className="sec-num">OPTIONS ACTIVITY</div>
-        <div className="sec-title">Flow</div>
-        <div className="sec-sub">Follow unusual options-chain activity from aggregate premium to contract-level evidence. Bias and pattern labels are inferred.</div>
-        <div className="sec-meta">
-          <span className={cn('tag', freshness?.stale ? 'warn' : 'live')}>
-            <span className="dot" />
-            {freshness?.stale ? 'historical snapshot' : 'live'}
-          </span>
-          <span className="tag mute">{shown.length} contract observations</span>
-        </div>
-      </div>
+  /* table sort — premium / score / time, desc */
+  const [sortKey, setSortKey] = useState<'score' | 'premium' | 'time'>('score');
+  const sorted = useMemo(() => {
+    const arr = [...shown];
+    if (sortKey === 'premium') arr.sort((a, b) => b.score.totalPremium - a.score.totalPremium);
+    else if (sortKey === 'time') arr.sort((a, b) => String(b.print.detectedAt ?? '').localeCompare(String(a.print.detectedAt ?? '')));
+    return arr; // 'score' is the scorer's own order
+  }, [shown, sortKey]);
 
-      {/* 1. Market first: a trader needs to know where premium is leaning before
-          deciding which individual print is worth opening. */}
-      <div className="intel-block">
-        <div className="intel-head">
-          <div className="intel-label">Chain activity</div>
-          <div className="flex items-center gap-2">
-            {freshness && (
-              <span className="intel-value" style={freshness.stale ? { color: 'var(--amber)' } : undefined}>
-                {freshness.stale ? `last print ${freshness.label} · ${freshness.ageDays}d stale` : `last print ${freshness.label}`}
+  const dteOf = (p: FlowPrint): number | null => {
+    const t = Date.parse(p.expirationDate);
+    if (Number.isNaN(t)) return null;
+    return Math.max(0, Math.round((t - Date.now()) / 86_400_000));
+  };
+  /* OTM distance, signed toward profit: calls above spot and puts below spot are
+     positive. Null spot → dash, never a guess. */
+  const otmOf = (p: FlowPrint): number | null => {
+    if (p.underlyingPrice == null || !Number.isFinite(p.underlyingPrice) || p.underlyingPrice <= 0) return null;
+    const raw = ((p.strikePrice - p.underlyingPrice) / p.underlyingPrice) * 100;
+    return p.optionType === 'call' ? raw : -raw;
+  };
+  const bandClass = (n: number) => scoreBand(n).toLowerCase();
+
+  return (
+    <div className="flowlab">
+      <div className="main">
+        {/* ══════════ FLOW AREA ══════════ */}
+        <div className="flow-area">
+          <div className="flow-header">
+            <div className="flow-eyebrow">Options activity</div>
+            <div className="flow-title-row">
+              <div className="flow-title">Flow</div>
+              <span className={cn('tag', freshness?.stale ? 'warn' : 'live')} style={freshness?.stale ? { background: 'rgba(245,182,66,0.1)', color: 'var(--amber)', border: '1px solid rgba(245,182,66,0.25)' } : undefined}>
+                <span className="dot" />
+                {freshness ? (freshness.stale ? `historical · last print ${freshness.label}` : `last print ${freshness.label}`) : 'no prints'}
               </span>
-            )}
-            <Seg label="Window" value={String(days)} onChange={(v) => setDays(Number(v))}
-                 options={[['1', '1D'], ['7', '1W'], ['30', '1M'], ['200', 'ALL']]} />
+            </div>
+            <div className="flow-desc">Follow unusual options-chain activity from aggregate premium to contract-level evidence. Bias and pattern labels are inferred.</div>
           </div>
-        </div>
-        <div className="stats-bar" style={{ padding: 0, border: 0, gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
-          {/* Labelled as what they measure. These were "Bullish premium" / "Bearish
-              premium", but with no execution side the split is call vs put and
-              nothing more — the disclaimer below already said so. */}
-          <Stat
-            label="Last hour vs prior"
-            value={overview.hourDeltaPct == null
-              ? 'n/a'
-              : `${overview.hourDeltaPct >= 0 ? '▲' : '▼'}${Math.abs(overview.hourDeltaPct).toFixed(1)}%`}
-            color={overview.hourDeltaPct == null ? 'var(--muted-foreground)' : overview.hourDeltaPct >= 0 ? BULL : BEAR}
-          />
-          <Stat label="Call premium" value={money(overview.callPrem)} color={BULL} />
-          <Stat label="Put premium" value={money(overview.putPrem)} color={BEAR} />
-          <Stat
-            label="Direction measured"
-            value={`${overview.measuredPct.toFixed(0)}%`}
-            color={overview.measuredPct > 0 ? CYAN : 'var(--muted-foreground)'}
-          />
-          <Stat label="≥$1M premium" value={String(overview.whales)} color="#e0a458" />
-          <Stat label="Sweep-like" value={String(overview.sweeps)} color={CYAN} />
-        </div>
-        {overview.total > 0 && (
-          <div className="pt-2">
-            <p className="text-meta leading-relaxed text-foreground/75">
-              {overview.callPrem >= overview.putPrem ? 'Call premium leads' : 'Put premium leads'} by{' '}
-              <b style={{ color: overview.callPrem >= overview.putPrem ? BULL : BEAR }}>{money(Math.abs(overview.callPrem - overview.putPrem))}</b>
-              {' '}across {overview.total} contract observations.{' '}
-              {overview.measuredPct === 0
-                ? 'Call-vs-put premium is activity, not conviction.'
-                : 'Only prints whose execution side was observed on the tape count toward a directional read.'}
-            </p>
-            {overview.measuredPct === 0 && (
-              <CanonModelNote tone="gap" className="mt-2">
+
+          {/* The mock's six stat-cards — same measured values as before, including
+              the honest sixth: Direction is n/a until a tape source measures it. */}
+          <div className="stats-bar">
+            <div className="stat-card">
+              <div className="stat-label">Contract obs</div>
+              <div className="stat-val cyan">{overview.total}</div>
+              <div className="stat-sub">
+                {overview.hourDeltaPct == null
+                  ? `window ${days === 200 ? 'all' : `${days}d`}`
+                  : `${overview.hourDeltaPct >= 0 ? '▲' : '▼'}${Math.abs(overview.hourDeltaPct).toFixed(1)}% vs prior hr`}
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Call premium</div>
+              <div className="stat-val green">{money(overview.callPrem)}</div>
+              <div className="stat-sub">
+                {overview.callPrem >= overview.putPrem
+                  ? `leads by ${money(overview.callPrem - overview.putPrem)}`
+                  : `trails by ${money(overview.putPrem - overview.callPrem)}`}
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Put premium</div>
+              <div className="stat-val red">{money(overview.putPrem)}</div>
+              <div className="stat-sub">activity ≠ conviction</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">≥$1M premium</div>
+              <div className="stat-val">{overview.whales}</div>
+              <div className="stat-sub">{overview.total > 0 ? `${Math.round((overview.whales / overview.total) * 100)}% of obs` : '—'}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Sweep-like</div>
+              <div className="stat-val cyan">{overview.sweeps}</div>
+              <div className="stat-sub">aggressive pattern</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Direction</div>
+              {overview.measuredPct > 0 ? (
+                <>
+                  <div className="stat-val cyan">{overview.measuredPct.toFixed(0)}%</div>
+                  <div className="stat-sub">of premium measured</div>
+                </>
+              ) : (
+                <>
+                  <div className="stat-val" style={{ color: 'var(--text-mute)' }}>n/a</div>
+                  <div className="stat-sub">not measured</div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {overview.measuredPct === 0 && overview.total > 0 && (
+            <div style={{ padding: '8px 24px 0' }}>
+              <CanonModelNote tone="gap">
                 Direction is not measured on this feed. A chain snapshot cannot tell a
                 buyer from a seller, and selling calls is bearish while selling puts is
                 bullish — so the side of this premium is unknown, not neutral.
               </CanonModelNote>
+            </div>
+          )}
+
+          {/* ── filters — the mock's select bar. Dir is CALL/PUT: measured. ── */}
+          <div className="filters-bar">
+            <div className="filter-group">
+              <span className="filter-label">Dir</span>
+              <select className="filter-select" value={dir} onChange={(e) => setDir(e.target.value as Dir)}>
+                <option value="all">ALL</option>
+                <option value="call">CALL</option>
+                <option value="put">PUT</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <span className="filter-label">Pattern</span>
+              <select className="filter-select" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
+                <option value="all">ALL</option>
+                <option value="sweep">SWEEP-LIKE</option>
+                <option value="block">BLOCK-LIKE</option>
+                <option value="unusual_volume">UNUSUAL</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <span className="filter-label">Score</span>
+              <select className="filter-select" value={String(minScore)} onChange={(e) => setMinScore(Number(e.target.value))}>
+                {MIN_SCORES.map((v) => <option key={v} value={v}>{v === 0 ? 'ANY' : `${v}+`}</option>)}
+              </select>
+            </div>
+            <div className="filter-group">
+              <span className="filter-label">Premium</span>
+              <select className="filter-select" value={String(minPrem)} onChange={(e) => setMinPrem(Number(e.target.value))}>
+                {MIN_PREMIUM.map((v) => <option key={v} value={v}>{v === 0 ? 'ANY' : v >= 1e6 ? '$1M+' : `$${v / 1000}K+`}</option>)}
+              </select>
+            </div>
+            <div className="filter-group">
+              <span className="filter-label">Window</span>
+              <select className="filter-select" value={String(days)} onChange={(e) => setDays(Number(e.target.value))}>
+                <option value="1">1D</option>
+                <option value="7">1W</option>
+                <option value="30">1M</option>
+                <option value="200">ALL</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <span className="filter-label">Ticker</span>
+              <input
+                className="filter-select"
+                style={{ width: 90, cursor: 'text', textTransform: 'uppercase' }}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="any"
+                aria-label="Filter flow by ticker"
+              />
+            </div>
+            <div className="view-toggle">
+              {(['tape', 'cards'] as const).map((next) => (
+                <button
+                  key={next}
+                  type="button"
+                  onClick={() => setView(next)}
+                  className={cn('view-btn', view === next && 'active')}
+                  style={{ background: view === next ? undefined : 'transparent', border: 'none' }}
+                >
+                  {next === 'tape' ? 'Table' : 'Cards'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── the tape — the mock's table ── */}
+          <div className="table-wrap">
+            {isLoading ? (
+              <div className="flex h-40 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading the tape…
+              </div>
+            ) : isError ? (
+              <Empty title="Flow unavailable" body="The flow feed did not respond. It will retry automatically." />
+            ) : sorted.length === 0 ? (
+              <Empty
+                title={prints.length === 0 ? 'No chain activity yet' : 'Nothing matches those filters'}
+                body={prints.length === 0
+                  ? 'No premium-qualified contract observations are available for this window. Activity usually builds through the first 15–30 minutes after the open.'
+                  : 'Loosen the score, premium, or type filters to see more of the tape.'}
+              />
+            ) : view === 'tape' ? (
+              <table className="flow-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Symbol</th>
+                    <th>Contract</th>
+                    <th>Pattern</th>
+                    <th className={cn('sortable', sortKey === 'score' && 'text-[var(--cyan)]')} onClick={() => setSortKey('score')}>Score {sortKey === 'score' ? '▾' : ''}</th>
+                    <th className={cn('sortable', sortKey === 'premium' && 'text-[var(--cyan)]')} onClick={() => setSortKey('premium')}>Premium {sortKey === 'premium' ? '▾' : ''}</th>
+                    <th>Vol / OI</th>
+                    <th>OTM</th>
+                    <th>DTE</th>
+                    <th className={cn('sortable', sortKey === 'time' && 'text-[var(--cyan)]')} onClick={() => setSortKey('time')}>Time {sortKey === 'time' ? '▾' : ''}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map(({ print: p, score: sc }, i) => {
+                    const dte = dteOf(p);
+                    const otm = otmOf(p);
+                    const pattern = sc.isWhale ? 'whale'
+                      : p.flowType === 'sweep' ? 'sweep'
+                        : p.flowType === 'block' ? 'block'
+                          : p.flowType === 'unusual_volume' ? 'unusual' : 'normal';
+                    return (
+                      <tr key={`${contractKey(p)}-${i}`} onClick={() => onSelectSymbol?.(p.symbol)}>
+                        <td className="row-num">{i + 1}</td>
+                        <td className="ticker">{p.symbol}</td>
+                        <td className="contract">${p.strikePrice} {p.optionType === 'call' ? 'C' : 'P'} · {p.expirationDate || '—'}</td>
+                        <td><span className={`bias ${pattern}`}>{pattern === 'unusual' ? 'unusual' : pattern}</span></td>
+                        <td><span className={`score ${bandClass(sc.score)}`}>{sc.score}</span></td>
+                        <td className="premium">{money(sc.totalPremium)}</td>
+                        <td className="vol-oi">
+                          {p.volume.toLocaleString()} / {p.openInterest != null ? p.openInterest.toLocaleString() : '—'}
+                          {p.volumeOIRatio != null && <span className="ratio"> · {p.volumeOIRatio.toFixed(1)}x</span>}
+                        </td>
+                        <td>
+                          {otm == null
+                            ? <span className="otm" style={{ color: 'var(--text-mute)' }}>—</span>
+                            : <span className={cn('otm', otm >= 0 ? 'pos' : 'neg')}>{otm >= 0 ? '+' : ''}{otm.toFixed(1)}%</span>}
+                        </td>
+                        <td className="dte">{dte != null ? `${dte}d` : '—'}</td>
+                        <td className="time">{p.detectedAt ? new Date(p.detectedAt).toTimeString().slice(0, 8) : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="grid gap-2 p-4 md:grid-cols-2 xl:grid-cols-3">
+                {sorted.map(({ print, score }, i) => (
+                  <FlowCard
+                    key={`${contractKey(print)}-${i}`}
+                    print={print}
+                    score={score}
+                    watched={watched.has(print.symbol)}
+                    onWatch={toggleWatch}
+                    onSelect={onSelectSymbol}
+                  />
+                ))}
+              </div>
             )}
           </div>
-        )}
-      </div>
-
-      {/* ── filters — the reference .filters bar ── */}
-      <div className="filters" style={{ position: 'static' }}>
-        {/* With no measured execution side there is nothing to filter BULL/BEAR on —
-            offering the chips anyway just returns an empty tape and reads as broken.
-            They come back automatically once a tape source sets a real bias. */}
-        <Seg label="Dir" value={dir} onChange={setDir}
-             options={overview.measuredPct > 0
-               ? [['all', 'ALL'], ['bullish', 'BULL'], ['bearish', 'BEAR']]
-               : [['all', 'ALL']]} />
-        <div className="filter-sep" />
-        <Seg label="Pattern" value={kind} onChange={setKind}
-             options={[['all', 'ALL'], ['sweep', 'SWEEP-LIKE'], ['block', 'BLOCK-LIKE'], ['unusual_volume', 'UNUSUAL']]} />
-        <div className="filter-sep" />
-        <Seg label="Score" value={String(minScore)} onChange={(v) => setMinScore(Number(v))}
-             options={MIN_SCORES.map((s) => [String(s), s === 0 ? 'ANY' : `${s}+`] as [string, string])} />
-        <div className="filter-sep" />
-        <Seg label="Premium" value={String(minPrem)} onChange={(v) => setMinPrem(Number(v))}
-             options={MIN_PREMIUM.map((p) => [String(p), p === 0 ? 'ANY' : p >= 1e6 ? '$1M+' : `$${p / 1000}K+`] as [string, string])} />
-        <button
-          onClick={() => setWhaleOnly((w) => !w)}
-          className={cn('filter-btn', whaleOnly && 'active')}
-          style={whaleOnly ? { color: 'var(--amber)', borderColor: 'rgba(245,182,66,0.35)', background: 'rgba(245,182,66,0.1)', boxShadow: '0 0 8px rgba(245,182,66,0.15)' } : undefined}
-        >
-          Premium ≥$1M
-        </button>
-
-        <div className="relative ml-auto">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2" style={{ color: 'var(--text-mute)' }} />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="ticker"
-            aria-label="Filter flow by ticker"
-            className="filter-btn w-28 pl-7 uppercase outline-none"
-            style={{ cursor: 'text' }}
-          />
         </div>
-        <div className="view-toggle">
-          {(['tape', 'cards'] as const).map((next) => (
-            <button key={next} type="button" onClick={() => setView(next)} className={cn('view-btn', view === next && 'active')} style={{ background: view === next ? undefined : 'transparent', border: 'none' }}>{next}</button>
-          ))}
-        </div>
-      </div>
 
-      {/* ── the tape ── */}
-      <div className="space-y-4 px-4 py-4 md:px-5">
-      {isLoading ? (
-        <div className="flex h-40 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading the tape…
+        {/* ══════════ SIDEBAR — follow-through ══════════ */}
+        <div className="sidebar">
+          <div className="sec-head">
+            <div className="sec-num">Follow-through</div>
+            <div className="sec-title">After the print.</div>
+            <div className="sec-sub">Repeats answer "is this accumulating?"; convergence answers "does dealer positioning agree?"</div>
+            <div className="sec-meta">
+              <span className="tag cyan">FLOW</span>
+              <span className="tag mute">accumulation × dealer context</span>
+            </div>
+          </div>
+          <div className="follow-section">
+            <RepeatBuyers />
+          </div>
+          <div className="gamma-section">
+            <ConvergenceCard />
+          </div>
+          <div className="disclaimer">
+            Educational only · not investment advice.<br />
+            Pattern labels are inferred from chain activity.
+          </div>
         </div>
-      ) : isError ? (
-        <Empty title="Flow unavailable" body="The flow feed did not respond. It will retry automatically." />
-      ) : shown.length === 0 ? (
-        <Empty
-          title={prints.length === 0 ? 'No chain activity yet' : 'Nothing matches those filters'}
-          body={prints.length === 0
-            ? 'No premium-qualified contract observations are available for this window. Activity usually builds through the first 15–30 minutes after the open.'
-            : 'Loosen the score, premium, or type filters to see more of the tape.'}
-        />
-      ) : view === 'tape' ? (
-        <FlowLedger rows={shown} watched={watched} onWatch={toggleWatch} onSelect={onSelectSymbol} />
-      ) : (
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-          {shown.map(({ print, score }, i) => (
-            <FlowCard
-              key={`${contractKey(print)}-${i}`}
-              print={print}
-              score={score}
-              watched={watched.has(print.symbol)}
-              onWatch={toggleWatch}
-              onSelect={onSelectSymbol}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* 4. Follow-through is evidence about the tape, not the tape's starting
-          point. Repeats answer "is this accumulating?" and convergence answers
-          "does dealer positioning agree?" — both matter only after a print is in view. */}
-      <section className="border-t border-border/60 pt-3">
-        <div className="mb-2 flex items-center gap-3">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80">Follow-through</span>
-          <span className="h-px flex-1 bg-border/60" />
-          <span className="font-mono text-[10px] text-muted-foreground/65">accumulation × dealer context</span>
-        </div>
-        <div className="grid items-start gap-3 lg:grid-cols-2">
-          <RepeatBuyers />
-          <ConvergenceCard />
-        </div>
-      </section>
-      </div>
-    </div>
-  );
-}
-
-/* The reference stats-bar tile — same measured values, his .stat-box shell. */
-function Stat({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="stat-box">
-      <div className="stat-label">{label}</div>
-      <div className="stat-val" style={{ color }}>{value}</div>
-    </div>
-  );
-}
-
-/* The reference filter group — .filter-label + .filter-btn(.active). */
-function Seg<T extends string>({ label, value, onChange, options }: {
-  label: string; value: T; onChange: (v: T) => void; options: [string, string][];
-}) {
-  return (
-    <div className="filter-group">
-      <span className="filter-label">{label}</span>
-      <div className="flex items-center gap-1">
-        {options.map(([v, l]) => (
-          <button
-            key={v}
-            onClick={() => onChange(v as T)}
-            className={cn('filter-btn', value === v && 'active')}
-          >
-            {l}
-          </button>
-        ))}
       </div>
     </div>
   );
@@ -376,9 +452,9 @@ function Seg<T extends string>({ label, value, onChange, options }: {
 
 function Empty({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-xl border border-card-border bg-card px-6 py-10 text-center">
-      <div className="text-meta font-mono uppercase tracking-widest text-foreground/70">{title}</div>
-      <p className="mx-auto mt-2 max-w-md text-meta leading-relaxed text-muted-foreground/60">{body}</p>
+    <div className="px-6 py-12 text-center">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-widest text-foreground/80">{title}</p>
+      <p className="ui-prose mx-auto mt-2 max-w-md text-[12px] leading-relaxed text-muted-foreground">{body}</p>
     </div>
   );
 }
