@@ -1016,7 +1016,23 @@ export async function generateQuantIdeas(
   );
   // The operator's own names go in alongside the platform's premium list. Deduped
   // because the two overlap (MARA, ARM, TSLA, PLTR, AMD are on both).
-  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST].map(x => x.toUpperCase())));
+  // Sector-neighborhood expansion: the operator's core list defines which
+  // universe buckets they actually trade -- when three or more core names live
+  // in a bucket (optics, semiconductors, ...), the WHOLE bucket joins the scan
+  // pool. COHR sat one bucket over from LITE and had never been evaluated once:
+  // the generator's only eyes were Yahoo's meme-tilted screeners plus 58
+  // curated names, so entire neighborhoods the operator trades were invisible.
+  const { getSectorTickers } = await import('./ticker-universe');
+  const SECTOR_SLUGS = ['tech', 'financials', 'healthcare', 'industrials', 'consumer', 'energy', 'utilities', 'communication', 'quantum', 'nuclear', 'ai', 'space', 'ev', 'crypto', 'semiconductors', 'optics', 'defense', 'gaming', 'ecommerce', 'banks', 'telecom', 'media'];
+  const coreSet = new Set(USER_CORE_WATCHLIST.map(x => x.toUpperCase()));
+  const neighborhood: string[] = [];
+  for (const slug of SECTOR_SLUGS) {
+    const bucket = getSectorTickers(slug).map(t => t.toUpperCase());
+    const overlap = bucket.filter(t => coreSet.has(t)).length;
+    if (overlap >= 3) neighborhood.push(...bucket);
+  }
+  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST, ...neighborhood].map(x => x.toUpperCase())));
+  logger.info(`  \u2713 Scan pool: ${curated.length} names (core+premium plus ${new Set(neighborhood).size} sector-neighborhood names from the operator's own buckets)`);
   const coreSymbols = curated.filter(s => !discoveredSymbols.has(s));
   const coreData: MarketData[] = [];
   // NOT gated on marketOpen. Screener-based discovery genuinely needs a live
