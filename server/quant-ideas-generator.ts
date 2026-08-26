@@ -62,6 +62,26 @@ async function getAvgVolumes20d(symbols: string[]): Promise<Map<string, number |
   return out;
 }
 
+/**
+ * Volume ratio that compares like with like. Day volume against a FULL-session
+ * average is only meaningful at the close — at 10:40 AM two hours of volume
+ * divided by a 20-day full-day average reads 0.2x and a genuinely active name
+ * gets filtered as "insufficient volume" (WDC, +gap, died exactly this way the
+ * day real averages landed). Normalize the average by the fraction of the cash
+ * session elapsed; outside cash hours the comparison is unmeasurable and the
+ * honest neutral is 1 (no signal points, no filter kill — same as before real
+ * averages existed).
+ */
+function sessionVolumeRatio(volume: number | null | undefined, avgVolume: number | null | undefined): number {
+  if (!volume || !avgVolume || avgVolume <= 0) return 1;
+  const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const mins = et.getHours() * 60 + et.getMinutes();
+  const open = 9 * 60 + 30, close = 16 * 60;
+  if (mins < open || et.getDay() === 0 || et.getDay() === 6) return 1; // pre-market/weekend: unmeasurable
+  const elapsed = Math.min(1, Math.max(0.1, (mins - open) / (close - open)));
+  return volume / (avgVolume * elapsed);
+}
+
 // Timing windows based on proven day-trading patterns
 interface SignalStack {
   rsiValue?: number;
@@ -380,7 +400,7 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   const currentPrice = data.currentPrice;
   const volume = data.volume || 0;
   const avgVolume = data.avgVolume || volume;
-  const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
+  const volumeRatio = sessionVolumeRatio(volume, avgVolume);
   
   // Calculate CRITICAL 200-day MA (trend filter for directional alignment)
   const sma200 = calculateSMA(historicalPrices, 200);
@@ -660,7 +680,7 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
 // Generate analysis for trade idea
 // v3.2: Support BOTH long and short signals
 function generateAnalysis(data: MarketData, signal: QuantSignal): string {
-  const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
+  const volumeRatio = sessionVolumeRatio(data.volume, data.avgVolume);
 
   if (signal.type === 'rsi2_mean_reversion') {
     const rsiValue = signal.rsiValue || 50;
@@ -708,7 +728,7 @@ function calculateConfidenceScore(
   riskRewardRatio: number
 ): { score: number; signals: string[] } {
   const qualitySignals: string[] = [];
-  const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
+  const volumeRatio = sessionVolumeRatio(data.volume, data.avgVolume);
 
   // v3.4: RECALIBRATED - Base scores lowered to match actual performance
   // Removed ALL bonuses (R:R, volume) - they were inverse predictors
@@ -821,7 +841,7 @@ function calculateGemScore(data: MarketData): number {
   
   // Volume strength (0-30 points)
   if (data.volume && data.avgVolume) {
-    const volumeRatio = data.volume / data.avgVolume;
+    const volumeRatio = sessionVolumeRatio(data.volume, data.avgVolume);
     if (volumeRatio >= 3) {
       score += 30;
     } else if (volumeRatio >= 2) {
@@ -1273,7 +1293,7 @@ export async function generateQuantIdeas(
     }
 
     // 3. Volume must meet asset-specific thresholds
-    const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
+    const volumeRatio = sessionVolumeRatio(data.volume, data.avgVolume);
     // v3.5: RELAXED volume filter to allow more trades (was 1.0x for stocks)
     const minVolume = data.assetType === 'crypto' ? 0.3 : 0.5; // Allow lower volume
     if (volumeRatio < minVolume) {
