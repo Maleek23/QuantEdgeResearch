@@ -1190,6 +1190,21 @@ export async function generateQuantIdeas(
         btcChangePercent,
       })) {
         dataQuality.shortDisciplineRejected++;
+        // Shadow-track the block with real levels so the ledger can replay it —
+        // the gate is measured, not exempt. Levels computed only on this doomed
+        // path; the published path computes its own below.
+        try {
+          const shadowLevels = calculateLevels(data, normalizedSignal, data.assetType, initialOptionType, historicalPrices);
+          const { recordBlockedShort } = await import('./discipline-ledger');
+          void recordBlockedShort({
+            symbol: data.symbol,
+            entryPrice: Number(shadowLevels.entryPrice) || 0,
+            stopLoss: Number(shadowLevels.stopLoss) || 0,
+            targetPrice: Number(shadowLevels.targetPrice) || 0,
+            reason: 'short without an event catalyst — technical pattern only',
+            source: 'quant',
+          });
+        } catch { /* ledger never blocks generation */ }
         continue;
       }
     }
