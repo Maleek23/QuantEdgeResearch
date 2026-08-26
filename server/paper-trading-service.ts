@@ -228,7 +228,7 @@ async function getMarketContext(): Promise<{ spyDown: boolean; spyChange: number
 export async function executeTradeIdea(
   portfolioId: string,
   tradeIdea: TradeIdea,
-  options?: { maxQuantity?: number }
+  options?: { maxQuantity?: number; riskFraction?: number }
 ): Promise<ExecuteTradeResult> {
   try {
     const portfolio = await storage.getPaperPortfolioById(portfolioId);
@@ -343,7 +343,10 @@ export async function executeTradeIdea(
       
       logger.info(`📊 [POSITION-SIZE] ${tradeIdea.symbol}: ${quantity} contracts @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)} (${(positionCost / portfolio.cashBalance * 100).toFixed(1)}% of cash, limit: $${maxAllowedSpend.toFixed(0)})`);
     } else {
-      const riskPerTrade = portfolio.riskPerTrade || 0.02;
+      // Callers may size down per-fill (the bot halves risk on a selective
+      // tape instead of refusing to trade — caution expressed in dollars,
+      // not in a starved sample).
+      const riskPerTrade = options?.riskFraction ?? (portfolio.riskPerTrade || 0.02);
       const riskAmount = portfolio.cashBalance * riskPerTrade;
       const stopDistance = Math.abs(currentPrice - tradeIdea.stopLoss);
       

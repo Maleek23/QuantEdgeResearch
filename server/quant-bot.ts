@@ -351,13 +351,17 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         logger.warn('[QUANT-BOT] tape read failed, proceeding without the gate:', err);
       }
 
-      // On a SELECTIVE tape only take what is genuinely strong. The threshold moves
-      // with conditions rather than the bot pretending every day is the same.
-      const minConviction = tapeGate?.verdict === 'selective'
-        ? Math.max(cfg.minConviction, 26)
-        : cfg.minConviction;
-      if (minConviction !== cfg.minConviction) {
-        logger.info(`[QUANT-BOT] selective tape — conviction floor raised ${cfg.minConviction} -> ${minConviction}`);
+      // A SELECTIVE tape used to raise the conviction floor 18 -> 26, which on a
+      // board scoring 30/25/14/12 admitted exactly one name — a paper ledger
+      // that exists to MEASURE signals was starving its own sample. Caution now
+      // costs dollars instead of data: the floor stays put and position risk is
+      // halved. Same respect for the tape read, twice the decided outcomes.
+      const minConviction = cfg.minConviction;
+      const riskFraction = tapeGate?.verdict === 'selective'
+        ? (cfg.riskPerTradePct / 100) / 2
+        : cfg.riskPerTradePct / 100;
+      if (tapeGate?.verdict === 'selective') {
+        logger.info(`[QUANT-BOT] selective tape — half size (${(riskFraction * 100).toFixed(1)}%/trade), floor unchanged at ${minConviction}`);
       }
 
       const candidates = (board.picks ?? [])
@@ -405,10 +409,20 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
             expiryDate: String(idea.expiryDate),
           }).catch(() => null);
 
-          if (!q || q.delayed) {
+          if (!q) {
             skipped++;
-            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: ${q ? `${q.source} mark is delayed` : 'no contract mark'}`);
+            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no contract mark from any source`);
             continue;
+          }
+          // A delayed mark fills — DISCLOSED, not refused. This is a paper
+          // measurement ledger: with the realtime provider dead, refusing
+          // 15-minute-delayed CBOE mids meant zero fills and zero learning
+          // (the operator watched a full board go untraded). The fill is
+          // stamped with its mark source so delayed-mark cohorts can be
+          // separated in any later analysis; false precision is prevented by
+          // labeling, not by an empty ledger.
+          if (q.delayed) {
+            logger.info(`[QUANT-BOT] ${idea.symbol}: filling on ${q.source} delayed mark (disclosed)`);
           }
 
           const premium = q.mid;
@@ -417,6 +431,7 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
           // the same units as the fill so P&L is coherent.
           tradeable = {
             ...idea,
+            catalyst: `[mark: ${q.source}${q.delayed ? ' · 15m delayed' : ''}] ${idea.catalyst ?? ''}`.trim(),
             assetType: 'option',
             optionType: idea.optionType,
             strikePrice: Number(idea.strikePrice),
@@ -439,7 +454,7 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
           continue;
         }
 
-        const res = await executeTradeIdea(portfolio.id, tradeable as any);
+        const res = await executeTradeIdea(portfolio.id, tradeable as any, { riskFraction });
         if (res.success) {
           opened.push({
             symbol: pick.symbol,
