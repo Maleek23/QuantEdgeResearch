@@ -619,9 +619,28 @@ export async function ingestBearFlagIdeas(): Promise<number> {
   try {
     const setups = await getTopBearFlagSetups(10);
     const { ingestTradeIdea } = await import("./trade-idea-ingestion");
+    // SHORT DISCIPLINE — the same gate quant-ideas-generator applies, which this
+    // producer was walking straight past. A bear flag is a PATTERN, not an event:
+    // the operator's rule is no shorts without a dated catalyst ("that's how u
+    // get burnt"), and the live book proved the hole — META was carrying a
+    // pattern-short PUT while gapping UP pre-market. Every bearish idea now
+    // needs a real catalyst row for its symbol, with the BTC-proxy carve-out
+    // handled inside passesShortDiscipline.
+    const { passesShortDiscipline } = await import("./short-discipline");
+    const { storage } = await import("./storage");
+    let activeCatalysts: { symbol?: string | null }[] = [];
+    try { activeCatalysts = await storage.getActiveCatalysts(); } catch { /* no catalyst feed → every short fails the gate, which is the safe side */ }
+    let disciplineRejected = 0;
     let ingested = 0;
 
     for (const setup of setups) {
+      const hasEventCatalyst = activeCatalysts.some(
+        (c) => c.symbol?.toUpperCase() === setup.symbol.toUpperCase(),
+      );
+      if (!passesShortDiscipline({ symbol: setup.symbol, direction: 'short', hasEventCatalyst, btcChangePercent: null })) {
+        disciplineRejected++;
+        continue;
+      }
       // Bearish setups are structurally rarer and score lower in a bull tape
       // than long pullbacks, so the short side uses a C-grade gate (≥55) vs the
       // bull scanner's B-gate (≥65). They still enter the feed at their TRUE
@@ -698,6 +717,7 @@ export async function ingestBearFlagIdeas(): Promise<number> {
     if (ingested > 0) {
       logger.info(`[BEAR-FLAG] 📤 Auto-ingested ${ingested} bear flag setups to Trade Desk`);
     }
+    if (disciplineRejected > 0) logger.info(`[BearFlag] short discipline rejected ${disciplineRejected} pattern-shorts with no dated catalyst`);
     return ingested;
   } catch (err) {
     logger.error('[BEAR-FLAG] Ingest error:', err);

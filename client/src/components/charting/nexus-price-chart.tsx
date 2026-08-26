@@ -119,7 +119,13 @@ export function NexusPriceChart({
       e.preventDefault();
       setView((v) => {
         const curSpan = v.span == null ? all.length : Math.min(v.span, all.length);
-        const factor = e.deltaY > 0 ? 1.25 : 0.8;
+        // Delta-proportional zoom. The old fixed 1.25x step compounded per
+        // EVENT, and a trackpad fires dozens of small-delta events per flick —
+        // one gesture blew through the whole range. exp(delta·k) makes a small
+        // trackpad delta a small zoom and a full wheel notch (~100) about 16%;
+        // line-mode wheels (deltaMode 1) are normalised to pixels first.
+        const delta = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+        const factor = Math.exp(Math.max(-160, Math.min(160, delta)) * 0.0015);
         const nextSpan = Math.round(Math.max(MIN_SPAN, Math.min(all.length, curSpan * factor)));
         if (nextSpan >= all.length) return { span: null, offset: 0 };
         // anchor: keep the bar under the cursor roughly in place

@@ -22,7 +22,9 @@ import { EarlyRotationPanel } from '@/components/oracle/early-rotation-panel';
 import { OracleMarketField } from '@/components/oracle/oracle-market-field';
 import { TickerTape, SectorHeatmap, WatchlistRail, SystemStatusBlock, FooterMarketLine } from '@/components/oracle/oracle-rails';
 import { LiveStatsBar } from '@/components/footer';
-const LeapTracker = lazy(() => import('@/components/hunt/leap-tracker').then(m => ({ default: m.LeapTracker })));
+// LEAPS = the fifth reference mock, wired. The prior LeapTracker stays at
+// components/hunt/leap-tracker.
+const LeapTracker = lazy(() => import('@/components/hunt/leaps-nexus').then(m => ({ default: m.LeapsNexus })));
 import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/terminal/terminal-alerts';
 import { useQuery } from '@tanstack/react-query';
 import type { ConvictionsResponse } from '@/lib/convictions';
@@ -402,7 +404,7 @@ export default function TerminalShell() {
                   Full-bleed: the FLOW mock owns its own two-column layout. */}
               {tab === 'flow' && <FlowBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
               {tab === 'gex' && <GexHub />}
-              {tab === 'leaps' && <div className="qe-module-page mx-auto w-full max-w-[1680px]"><LeapTracker /></div>}
+              {tab === 'leaps' && <LeapTracker />}
               {tab === 'crypto' && <CryptoTerminal onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
               {tab === 'catalyst' && (
                 <div className="qe-module-page mx-auto w-full max-w-[1680px] space-y-4 px-4 py-4 md:px-5">
