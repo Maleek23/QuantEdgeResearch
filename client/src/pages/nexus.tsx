@@ -365,18 +365,6 @@ function WatchSpark({ symbol, up }: { symbol: string; up: boolean }) {
    PAGE
    ════════════════════════════════════════════════════════════════ */
 
-/* Nexus IS the oracle now — no separate Oracle entry. The old board keeps its
-   code but the front door is this page. */
-const NAV_TABS = [
-  { label: 'Nexus', href: '/nexus' },
-  { label: 'Chart', href: '/t?tab=chart' },
-  { label: 'Flow', href: '/t?tab=flow' },
-  { label: 'GEX', href: '/t?tab=gex' },
-  { label: 'Leaps', href: '/t?tab=leaps' },
-  { label: 'Crypto', href: '/t?tab=crypto' },
-  { label: 'Catalyst', href: '/t?tab=catalyst' },
-  { label: 'Bot', href: '/t?tab=bot' },
-];
 
 const STREAM_ORDER = [
   { sym: 'ES', kind: 'futures' as const },
@@ -394,7 +382,7 @@ const fmtPrice = (n: number, money = false) =>
     : n >= 1000 ? n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
       : n.toFixed(2);
 
-export default function NexusPage() {
+export function NexusBoard() {
   const [, setLocation] = useLocation();
   const { theme, setTheme } = useTheme();
   const light = theme === 'nexus-light';
@@ -516,69 +504,11 @@ export default function NexusPage() {
     b === 'S' ? '#3ddc97' : b === 'A' ? '#4fd1c5' : b === 'B' ? '#f5b642' : '#8b93a3';
 
   return (
-    <div className={`nexus-root nexus-vars${light ? ' light' : ''}`}>
+    /* Embedded in the terminal shell — the shell's root carries .nexus-vars
+       (and .light), its topbar carries the nav, its footer the bottombar. This
+       renders only the board: ambient canvas + the three-column main. */
+    <div className="nexus-embed">
       <canvas id="bgCanvas" ref={bgRef} />
-
-      {/* ============ TOP BAR ============ */}
-      <div className="topbar">
-        <div className="brand">
-          {/* The actual mark, wearing the mock's glow. */}
-          <img className="brand-logo" src={quantEdgeLogoUrl} alt="Quant Edge Labs" />
-          <span className="brand-name">QUANTEDGE</span>
-          <span className="brand-slash">{'//'}</span>
-          <span className="brand-sub">NEXUS</span>
-        </div>
-        <div className="status-chip ok"><span className="dot" />Engaged</div>
-        {dataPartial && <div className="status-chip warn"><span className="dot" />Data partial</div>}
-
-        <div className="nav-tabs">
-          {NAV_TABS.map((t) => (
-            <button
-              key={t.label}
-              className={`nav-tab${t.label === 'Nexus' ? ' active' : ''}`}
-              onClick={() => { if (t.label !== 'Nexus') setLocation(t.href); }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="top-spacer" />
-
-        {/* dark blue ↔ light. Persists through the same theme system as the
-            rest of the app, so the choice follows the user everywhere. */}
-        <button
-          className="mode-toggle"
-          onClick={() => setTheme(light ? 'nexus' : 'nexus-light')}
-          title={light ? 'Switch to dark' : 'Switch to light'}
-        >
-          {light ? '☾ dark' : '☀ light'}
-        </button>
-
-        <button className="user-chip" onClick={() => setLocation('/t')} title="Back to the terminal">
-          <div className="user-avatar">Q</div>
-          <span className="user-name">terminal</span>
-        </button>
-      </div>
-
-      {/* ============ TICKER TAPE ============ */}
-      <div className="ticker-tape">
-        <div className="ticker-track">
-          {[...tapeQuotes, ...tapeQuotes].map((t, i) => (
-            <div className="ticker-item" key={`${t.symbol}-${i}`}>
-              <span className="ticker-sym">{t.symbol.replace('-USD', '')}</span>
-              <span className="ticker-price">{fmtPrice(t.lastPrice)}</span>
-              <span className={`ticker-chg ${t.changePct >= 0 ? 'up' : 'down'}`}>
-                {t.changePct >= 0 ? '+' : ''}{t.changePct.toFixed(2)}%
-              </span>
-              <span className="ticker-sep">·</span>
-            </div>
-          ))}
-          {!tapeQuotes.length && (
-            <div className="ticker-item"><span className="ticker-price">quote tape · no data</span></div>
-          )}
-        </div>
-      </div>
 
       {/* ============ MAIN ============ */}
       <div className="main">
@@ -732,7 +662,7 @@ export default function NexusPage() {
             <div className="sec-meta">
               <span className="tag cyan">ranked book</span>
               <span className="tag mute">· {picks.length}</span>
-              <button className="sec-action" onClick={() => setLocation('/t?tab=oracle')}>↗ Open in Oracle</button>
+              {/* This board IS the front tab now — no second oracle to open. */}
             </div>
           </div>
 
@@ -958,21 +888,8 @@ export default function NexusPage() {
         </div>
       </div>
 
-      {/* ============ BOTTOM BAR ============ */}
-      <div className="bottombar">
-        <div className="bb-item"><span className="dot" /><b>NEXUS</b> engaged</div>
-        <div className="bb-sep" />
-        <div className="bb-item">Feed <span className="hl">{dataPartial ? 'partial' : 'connected'}</span></div>
-        <div className="bb-sep" />
-        <div className="bb-item">Session <b>{sessionWord(extended.data?.session)}</b></div>
-        {es && (<><div className="bb-sep" /><div className="bb-item">ES <span className="hl">{fmtPrice(es.price)}</span></div></>)}
-        {vix != null && (<><div className="bb-sep" /><div className="bb-item">VIX <span style={{ color: 'var(--amber)' }}>{vix.toFixed(1)}</span></div></>)}
-        {btc && (<><div className="bb-sep" /><div className="bb-item">BTC <span className="hl">{fmtPrice(btc.price, true)}</span></div></>)}
-        <div className="bb-spacer" />
-        <div className="bb-item"><span className="dot amber" />stream age <b>{es ? `${es.ageSeconds}s` : '—'}</b></div>
-        <div className="bb-sep" />
-        <div className="bb-item">{clock}</div>
-      </div>
     </div>
   );
 }
+
+export default NexusBoard;

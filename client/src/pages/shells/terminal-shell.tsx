@@ -44,6 +44,7 @@ const TrackRecord = lazy(() => import('@/components/bot/track-record').then(m =>
 const ChartLab = lazy(() => import('@/components/charting/chart-lab').then(m => ({ default: m.ChartLab })));
 
 const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
+const NexusBoard    = lazy(() => import('@/pages/nexus').then(m => ({ default: m.NexusBoard })));
 const GexShell      = lazy(() => import('@/pages/shells/gex-shell'));
 const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m => ({ default: m.FlowBoard })));
 // The old flow-heatmap page is the SECTOR TREEMAP with a flow overlay (breadth, net flow,
@@ -162,24 +163,12 @@ export default function TerminalShell() {
   const urlTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
   const [tab, setTabState] = useState<Tab>(resolveTab(urlTab));
 
-  // Landing on /t bare (or ?tab=oracle) means landing on the front page — and
-  // the front page is NEXUS now. Bookmarks to the other tabs are untouched.
-  useEffect(() => {
-    if (resolveTab(urlTab) === 'oracle') setLocation('/nexus', { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const setTab = useCallback((next: Tab) => {
-    // NEXUS is the new front page. The Oracle board's code stays, but the tab
-    // that used to open it now opens /nexus — the operator's call: "nexus is
-    // the new oracle".
-    if (next === 'oracle') {
-      setLocation('/nexus');
-      return;
-    }
     setTabState(next);
     const path = window.location.pathname;
-    setLocation(`${path}?tab=${next}`, { replace: true });
+    // 'oracle' is the id, NEXUS is the surface: the front tab renders the
+    // NEXUS board INSIDE this shell — one chrome, one nav, no second page.
+    setLocation(next === 'oracle' ? path : `${path}?tab=${next}`, { replace: true });
   }, [setLocation]);
 
   // Follow back/forward and external navigations that change ?tab=
@@ -228,11 +217,10 @@ export default function TerminalShell() {
     refetchInterval: 60_000,
     retry: 0,
   });
-  const night = theme === 'night';
-  const nexus = theme === 'nexus';
-  // dark → night → nexus → dark. One button, three appearances; the settings
-  // panel has the labelled picker for choosing directly.
-  const nextTheme = night ? 'nexus' as const : nexus ? 'dark' as const : 'night' as const;
+  const nexusLight = theme === 'nexus-light';
+  // The chrome button is the ☀/☾ from the reference topbar: dark blue ↔ light.
+  // Night/dark remain reachable from the settings panel's labelled picker.
+  const nextTheme = nexusLight ? 'nexus' as const : 'nexus-light' as const;
   const dataPartial = health?.status === 'degraded' || health?.dependencies?.tradier === false;
   const accountLabel = user?.firstName || user?.email?.split('@')[0] || 'Account';
   const accountInitial = accountLabel.slice(0, 1).toUpperCase();
@@ -304,12 +292,11 @@ export default function TerminalShell() {
 
             <button
               onClick={() => setTheme(nextTheme)}
-              aria-label={`Use ${nextTheme} appearance`}
-              title={`Switch to ${nextTheme} appearance`}
-              className={cn('hidden h-7 w-7 cursor-pointer items-center justify-center rounded border text-muted-foreground/75 transition-colors hover:text-foreground md:inline-flex',
-                (night || nexus) ? 'border-[var(--brand-cyan)]/55 bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)]' : 'border-border/50')}
+              aria-label={nexusLight ? 'Switch to dark' : 'Switch to light'}
+              title={nexusLight ? 'Switch to dark' : 'Switch to light'}
+              className="mode-toggle hidden md:flex"
             >
-              {nexus ? <Zap className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              {nexusLight ? '☾ dark' : '☀ light'}
             </button>
 
             <div className="relative">
@@ -401,49 +388,12 @@ export default function TerminalShell() {
           >
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
-                /* ORACLE V2 — the reference terminal's grammar: a fixed viewport,
-                   three columns, each scrolling itself. Market intel narrows to a
-                   left rail, the book owns the centre, and the developing queue
-                   shares the right rail with the sector heatmap, watchlist and
-                   system status. Below xl it stacks and scrolls normally — the
-                   reference hides its rails on small screens, which throws the
-                   information away; stacking keeps it. Same three sections, same
-                   copy, same components — recomposed, not rewritten. */
-                <div className="qe-oracle-v2">
-                  {/* ── 01 · market intel rail ── */}
-                  <div className="qe-ov2-col">
-                    <div className="qe-ov2-head">
-                      <div className="qe-ov2-num">01 · Market intelligence</div>
-                      <div className="qe-ov2-title">Read the tape before the trade.</div>
-                      <div className="qe-ov2-sub">Participation, relative rotation and leadership—one connected market view.</div>
-                    </div>
-                    <OracleMarketField className="border-b border-border/50" collapsedHeight={430} onFocus={() => setMarketFocus('pulse')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                    <RotationMap className="border-b border-border/50" collapsedHeight={380} onFocus={() => setMarketFocus('rotation')} />
-                    <SessionBrief collapsedHeight={430} onFocus={() => setMarketFocus('brief')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                  </div>
-
-                  {/* ── 02 · the book — the page's primary object ── */}
-                  <div className="qe-ov2-col">
-                    <div className="qe-ov2-head">
-                      <div className="qe-ov2-num">02 · Active book</div>
-                      <div className="qe-ov2-title">Ranked opportunities.</div>
-                      <div className="qe-ov2-sub">Select a ticker to connect price, evidence, levels and execution.</div>
-                    </div>
-                    <HuntCockpit />
-                  </div>
-
-                  {/* ── 03 · developing rail ── */}
-                  <div className="qe-ov2-col">
-                    <div className="qe-ov2-head">
-                      <div className="qe-ov2-num">03 · Developing</div>
-                      <div className="qe-ov2-title">Setups before the trigger.</div>
-                      <div className="qe-ov2-sub">Coiled names inside groups already receiving money.</div>
-                    </div>
-                    <EarlyRotationPanel compact onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                    <SectorHeatmap className="border-t border-border/50" onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                    <WatchlistRail onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                    <SystemStatusBlock />
-                  </div>
+                /* NEXUS — the reference board, embedded. The shell owns the
+                   chrome (topbar/nav/tape/footer); this renders only the
+                   three-column main. The previous Oracle v2 layout this
+                   replaces lives at 4598bc1 if it is ever wanted back. */
+                <div className="nexus-embed-host">
+                  <NexusBoard />
                 </div>
               )}
               {tab === 'chart' && <ChartLab />}

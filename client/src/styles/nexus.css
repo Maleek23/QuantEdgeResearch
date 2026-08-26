@@ -53,7 +53,8 @@
   grid-template-columns:1fr;
   position:relative;
 }
-.nexus-root #bgCanvas{
+.nexus-root #bgCanvas,
+.nexus-vars #bgCanvas{
   position:fixed;inset:0;z-index:0;
   pointer-events:none;
   opacity:0.55;
@@ -1063,3 +1064,24 @@
 .nexus-vars.light .bottombar{background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.95))}
 .nexus-vars.light .sys-status{background:linear-gradient(180deg, rgba(231,236,243,0.5), transparent)}
 .nexus-vars.light .brand-logo{background:transparent;box-shadow:0 0 14px rgba(13,148,136,0.35)}
+
+/* ═══════════ EMBEDDED BOARD — the shell hosts the chrome ═══════════
+   .nexus-embed is the board without its own topbar/tape/bottombar: it fills
+   the viewport minus the shell chrome (topbar 44 + tape 28 + footer 26) and
+   lets the three columns keep their own scroll. Below md the shell hides the
+   tape and shows the mobile tab bar, so the board falls back to stacked
+   natural-scroll columns instead of a fixed grid. */
+.nexus-embed{
+  position:relative;
+  height:calc(100dvh - 98px);
+  display:flex;
+  flex-direction:column;
+}
+.nexus-embed .main{flex:1;min-height:0}
+@media(max-width:767px){
+  .nexus-embed{height:auto}
+  .nexus-embed .main{display:block;overflow:visible}
+  .nexus-embed .col{overflow:visible;border-right:none;border-bottom:1px solid var(--nx-border)}
+  .nexus-embed .col-right{display:block}
+  .nexus-embed .sec-head{position:static}
+}
