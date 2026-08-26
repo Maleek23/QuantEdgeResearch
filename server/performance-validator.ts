@@ -4,6 +4,7 @@ import { resolveBarriers } from '@shared/barrier-resolution';
 import { formatInTimeZone } from "date-fns-tz";
 import { CANONICAL_LOSS_THRESHOLD } from "@shared/constants";
 import { isOutcomeEligible, readOracleExecutionAudit } from "@shared/oracle-lifecycle";
+import { isOptionScaleIncoherent, optionScaleReason } from "@shared/option-unit-guard";
 
 // 📊 REALISTIC TRADING COSTS: Applied to performance calculations
 // These model real-world execution costs that reduce backtest performance
@@ -549,6 +550,24 @@ export class PerformanceValidator {
     // and poisoned both the history and score calibration. Only a recorded
     // trigger or paper/broker execution may receive an outcome.
     if (!isOutcomeEligible(idea.convergenceSignalsJson)) {
+      return { shouldUpdate: false };
+    }
+
+    // An option row whose barriers are premium cannot be resolved against the
+    // underlying, and this validator only ever has underlying prices. Refuse.
+    //
+    // Placed HERE, at the top, rather than at the resolveBarriers call, because
+    // there are three separate paths below that each write an outcome — the
+    // missed-entry branch, the option-expiry branch and the barrier branch — and
+    // guarding only the comparison would leave the other two writing in the
+    // wrong units. Returning early covers all three.
+    //
+    // It computes nothing. Every alternative considered here replaced a
+    // fabricated win with a COMPUTED substitute — settle-at-intrinsic, or a
+    // zero-bid rule that latches a permanent -100% off a transient quote — and
+    // those carry no fingerprint at all, which makes them worse than the bug
+    // they replace. Writing nothing fails visibly, as missing coverage.
+    if (isOptionScaleIncoherent(idea as any)) {
       return { shouldUpdate: false };
     }
 

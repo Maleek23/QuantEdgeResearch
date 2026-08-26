@@ -1,3 +1,4 @@
+import { isOptionScaleIncoherent } from './option-unit-guard';
 /**
  * Shared constants for consistent terminology across the platform
  * Use these labels everywhere instead of hardcoding strings
@@ -189,6 +190,11 @@ export interface OutcomeV2Input {
   percentGain?: number | null;
   /** Contract P&L when the idea was expressed as an option — preferred over percentGain. */
   optionPercentGain?: number | null;
+  /** Below here: needed to tell a MEASURED outcome from an unmeasurable one. */
+  assetType?: string | null;
+  entryPrice?: number | null;
+  strikePrice?: number | null;
+  resolutionReason?: string | null;
 }
 
 /**
@@ -197,6 +203,27 @@ export interface OutcomeV2Input {
  */
 export function classifyOutcomeV2(idea: OutcomeV2Input): OutcomeV2 {
   const status = (idea.outcomeStatus || '').trim().toLowerCase();
+
+  // UNMEASURABLE COMES FIRST — ahead of the status check, because a status word
+  // is what these rows are wrong about.
+  //
+  // Two populations were being laundered into wins here:
+  //
+  //   1. Unit-corrupted options. 18 rows recorded hit_target because premium
+  //      barriers were compared against underlying spot, which made the target
+  //      unreachable-to-miss. All 18 were gex_scanner, all 18 were wins, and
+  //      they alone produced a live 18W/0L/100%/+1.189R on the outcome-model
+  //      endpoint.
+  //
+  //   2. Plans that were never entered. A missed_entry row carries a real
+  //      percentGain for a trade nobody took. Scoring those counted 21W/7L for
+  //      positions that never existed.
+  //
+  // Both are 'unresolved'. That is not a hedge — it is the only true statement
+  // available, and it shows up as missing coverage, which is a number you can
+  // put on screen and act on.
+  if (isOptionScaleIncoherent(idea)) return 'unresolved';
+  if ((idea.resolutionReason || '').toLowerCase().includes('missed_entry')) return 'unresolved';
 
   if (status === 'hit_target') return 'win';
   if (status === 'hit_stop') return 'loss';
