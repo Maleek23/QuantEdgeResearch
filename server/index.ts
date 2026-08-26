@@ -924,9 +924,16 @@ app.use((req, res, next) => {
         // Two deliberate publication windows. Manual scanner endpoints remain
         // available for local testing; the automated publisher must not generate
         // a new board merely because a developer refreshed the page.
+        // Four windows, not two: a board that publishes at 9:35 and 13:00 CT
+        // structurally cannot react to anything that happens mid-morning or
+        // into the close — the operator watched a 9:58 ET reversal print +539%
+        // before the FIRST window even ran. Dedup (findSimilarTradeIdea + open
+        // position check) keeps extra windows from becoming near-duplicates.
         const isQuantTime =
           (hour === 9 && minute >= 35 && minute < 40) ||
-          (hour === 13 && minute >= 0 && minute < 5);
+          (hour === 10 && minute >= 30 && minute < 35) ||
+          (hour === 13 && minute >= 0 && minute < 5) ||
+          (hour === 14 && minute >= 30 && minute < 35);
 
         if (!isQuantTime) {
           return;

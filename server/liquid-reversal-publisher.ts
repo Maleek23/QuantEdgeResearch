@@ -19,6 +19,11 @@ import type { InsertTradeIdea, TradeIdea } from '@shared/schema';
 
 export const LIQUID_REVERSAL_UNIVERSE = [
   'TSLA', 'NVDA', 'AMD', 'META', 'AMZN', 'AAPL', 'MSFT', 'GOOGL', 'COIN', 'PLTR',
+  // Commodity ETFs + high-liquidity weeklies — GLD and USO intraday moves were
+  // structurally invisible (no intraday engine watched any commodity), and the
+  // reversal logic needs nothing symbol-specific: liquid same-day contracts
+  // exist for all of these. 16 names at a 5-minute cycle stays cheap.
+  'GLD', 'SLV', 'USO', 'AVGO', 'NFLX', 'MU',
 ] as const;
 
 type Direction = 'long' | 'short';
@@ -237,7 +242,23 @@ function buildConfirmedReversal(symbol: string, bars: Bar[]): ConfirmedReversal 
 }
 
 async function selectSameDayContract(symbol: string, direction: Direction): Promise<LiquidContract | null> {
-  const chain = await getCBOEOptionsChain(symbol);
+  // CBOE first (keyless), Yahoo second — on 2026-08-26 CBOE 429'd under load
+  // during the exact window META printed a +539% reversal call, and a confirmed
+  // reversal with no readable chain publishes nothing. One fallback is the
+  // difference between "engine fired" and "engine watched".
+  let chain = await getCBOEOptionsChain(symbol);
+  if (!chain || !chain.options?.length) {
+    try {
+      const { getYahooOptionsChain } = await import('./yahoo-options-fallback');
+      const { getRealtimeQuote } = await import('./realtime-pricing-service');
+      const opts = await getYahooOptionsChain(symbol);
+      const spotQ = await getRealtimeQuote(symbol, 'stock').catch(() => null);
+      const spot = Number((spotQ as any)?.price);
+      if (opts?.length && Number.isFinite(spot) && spot > 0) {
+        chain = { options: opts as any[], spotPrice: spot } as any;
+      }
+    } catch { /* both sources down — honestly no contract */ }
+  }
   if (!chain) return null;
   const expiryDate = easternParts().date;
   const optionType = direction === 'long' ? 'call' : 'put';
