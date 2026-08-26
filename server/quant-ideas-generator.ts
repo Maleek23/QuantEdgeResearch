@@ -24,6 +24,44 @@ import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennySto
 import { historicalIntelligenceService } from './historical-intelligence-service';
 
 // v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
+// Real 20-day average volume for the curated path, from the same candle feed
+// the charts use. Cached a day per symbol — average volume moves slowly, and
+// re-fetching ninety histories every 4-minute cycle would be pure waste. When
+// history is unavailable the value stays null, which still scores 0 on the
+// volume component: unavailable stays unearned, it does not become 1.0×.
+const avgVolCache = new Map<string, { at: number; avg: number | null }>();
+const AVG_VOL_TTL_MS = 24 * 60 * 60 * 1000;
+async function getAvgVolumes20d(symbols: string[]): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>();
+  const stale: string[] = [];
+  const now = Date.now();
+  for (const sym of symbols) {
+    const hit = avgVolCache.get(sym);
+    if (hit && now - hit.at < AVG_VOL_TTL_MS) out.set(sym, hit.avg);
+    else stale.push(sym);
+  }
+  if (stale.length > 0) {
+    try {
+      const { fetchCandlesBatch } = await import('./historical-candles');
+      const candles = await fetchCandlesBatch(stale, '3mo', '1d', 8);
+      const today = new Date().toISOString().slice(0, 10);
+      for (const sym of stale) {
+        const bars = (candles.get(sym) ?? []).filter((b) => Number.isFinite(b.volume) && b.volume > 0);
+        // Exclude today's partial session — a 10 AM half-day of volume would
+        // drag the average and flatter every ratio computed against it.
+        const complete = bars.filter((b) => new Date(b.time * 1000).toISOString().slice(0, 10) !== today);
+        const last20 = complete.slice(-20);
+        const avg = last20.length >= 10 ? last20.reduce((a, b) => a + b.volume, 0) / last20.length : null;
+        avgVolCache.set(sym, { at: now, avg });
+        out.set(sym, avg);
+      }
+    } catch {
+      for (const sym of stale) out.set(sym, null);
+    }
+  }
+  return out;
+}
+
 // Timing windows based on proven day-trading patterns
 interface SignalStack {
   rsiValue?: number;
@@ -973,6 +1011,10 @@ export async function generateQuantIdeas(
       const coreQuotes = await getRealtimeBatchQuotes(
         coreSymbols.map(symbol => ({ symbol, assetType: 'stock' as const }))
       );
+      // Real 20d average volume unlocks the volume-gated signals (VWAP flow,
+      // volume spike) for watchlist names — until now avgVolume was null here,
+      // so the entire curated path could only ever qualify via RSI(2).
+      const avgVols = await getAvgVolumes20d(Array.from(coreQuotes.keys()));
       coreQuotes.forEach((q, symbol) => {
         if (!Number.isFinite(q.price) || q.price <= 0) return;
         coreData.push({
@@ -989,10 +1031,9 @@ export async function generateQuantIdeas(
           low24h: null,
           high52Week: null,
           low52Week: null,
-          // No average-volume source on this path. Null scores 0 on the volume
-          // component, which is the honest answer — inventing a ratio here would
-          // hand every curated name points it has not earned.
-          avgVolume: null,
+          // Real 20d average from completed daily bars, or null when history is
+          // unavailable — null still scores 0: unavailable stays unearned.
+          avgVolume: avgVols.get(symbol) ?? null,
           dataSource: 'live' as const,
           lastUpdated: now.toISOString(),
         });
