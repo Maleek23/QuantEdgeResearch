@@ -1,4 +1,4 @@
-# Platform Interactivity Plan
+# Platform Interactivity Plan — ✅ SHIPPED IN FULL 2026-08-26
 _2026-08-26 · follows docs/DESIGN_SYSTEM.md · every item must work on real data or not ship_
 
 ## Already interactive (inventory — don't rebuild)
@@ -10,7 +10,7 @@ _2026-08-26 · follows docs/DESIGN_SYSTEM.md · every item must work on real dat
 - Filters that filter: FLOW dir/sort, LEAPS budget/grade, CATALYST impact, BOT rule tabs, board bands
 - Tape: pauses + labels itself when stale; landing tape pauses on hover
 
-## P0 — highest leverage, do next
+## P0 — highest leverage — ✅ shipped (47bf939)
 1. **Radar chip hover-preview** — hovering a Pattern Radar chip shows a mini real-series
    spark + the pattern's levels in a popover (the landing Spark component is reusable).
    Today a chip needs a click-through to see anything.
@@ -21,7 +21,7 @@ _2026-08-26 · follows docs/DESIGN_SYSTEM.md · every item must work on real dat
    "why not the bot?" (runs the audit-table logic for that one symbol — the machinery
    from today's board-vs-book audit, surfaced as UI).
 
-## P1 — depth
+## P1 — depth — ✅ shipped (5f9bbbf)
 4. **Crosshair sync in cockpit** — the three cockpit charts share one crosshair/time
    cursor (one pub-sub on hover time; chart engine already exposes hover).
 5. **Workup keyboard nav** — ←/→ cycle tabs, ↑/↓ cycle the related-peers list.
@@ -30,7 +30,7 @@ _2026-08-26 · follows docs/DESIGN_SYSTEM.md · every item must work on real dat
 7. **Level-cross alerts** — "alert me at X" on any chart level; the bot's alert relay
    already exists server-side, needs the UI affordance + wiring.
 
-## P2 — polish
+## P2 — polish — ✅ shipped (5f9bbbf); typography sweep lives as its own task chip
 8. Drag-to-reorder watchlist (persist order).
 9. Radar group expand ("+149 more") into a full-screen pattern browser with sort/filter.
 10. Mobile touch: pinch-zoom on charts, swipe between workup tabs.
