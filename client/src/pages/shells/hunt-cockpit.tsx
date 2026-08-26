@@ -882,7 +882,7 @@ export default function HuntCockpit() {
         <div ref={captureRef} className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="min-w-0 flex-1">
-              <KpiStrip items={kpis} />
+              <KpiStrip items={kpis} boxed />
             </div>
             {signalSymbols.length > 0 && (
               <Heartbeat

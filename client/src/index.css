@@ -2569,3 +2569,98 @@ button:not([disabled]):active,
 }
 .qe-tape-item b { color: var(--foreground); font-weight: 700; letter-spacing: .02em; }
 .qe-tape-price { color: var(--muted-foreground); }
+
+/* ── Oracle v2 · atmosphere ─────────────────────────────────────
+   The reference mock's CRT treatment: scanlines + vignette. Ported as pure
+   static CSS — zero JS, zero rAF — because the treatment is the look, not the
+   motion. Colour rides --brand-cyan so themes keep authority. z-30 sits above
+   content and the sticky header but below dropdowns (z-40) and dialogs. */
+.qe-terminal::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    color-mix(in srgb, var(--brand-cyan) 1.5%, transparent) 0px,
+    color-mix(in srgb, var(--brand-cyan) 1.5%, transparent) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+.qe-terminal::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 42%, rgb(0 0 0 / .38) 100%);
+}
+
+/* Section titles take the mock's white→cyan gradient; the eyebrow gets its glow. */
+.qe-ov2-title {
+  background: linear-gradient(135deg, var(--foreground) 0%, var(--brand-cyan) 115%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.qe-ov2-num {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--brand-cyan) 40%, transparent);
+}
+
+/* ── signal card finish ──────────────────────────────────────────
+   Band stripe on the left edge (colour set per-card via --band-color from the
+   --grade-* tokens), and the mock's hover lift. Direction still owns the card
+   tone; the stripe carries the QUALITY axis, same split as the badge. */
+.qe-sig-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--band-color, var(--brand-cyan));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--band-color, var(--brand-cyan)) 60%, transparent);
+  opacity: .85;
+}
+.qe-sig-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .qe-sig-card:hover { transform: none; }
+}
+
+/* ── boxed KPI tiles (mock's stats-bar) ─────────────────────────── */
+.qe-kpi-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.qe-kpi-tile {
+  position: relative;
+  overflow: hidden;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: 6px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--foreground) 2.5%, transparent), transparent 60%),
+    var(--card);
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s;
+}
+.qe-kpi-tile::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-cyan), transparent);
+  opacity: .3;
+}
+.qe-kpi-tile:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--brand-cyan) 25%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .qe-kpi-tile:hover { transform: none; }
+}

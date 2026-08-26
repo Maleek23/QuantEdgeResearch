@@ -20,7 +20,7 @@ import { RotationMap } from '@/components/rotation-map';
 import { SessionBrief } from '@/components/oracle/session-brief';
 import { EarlyRotationPanel } from '@/components/oracle/early-rotation-panel';
 import { OracleMarketField } from '@/components/oracle/oracle-market-field';
-import { TickerTape, SectorHeatmap, WatchlistRail, SystemStatusBlock } from '@/components/oracle/oracle-rails';
+import { TickerTape, SectorHeatmap, WatchlistRail, SystemStatusBlock, FooterMarketLine } from '@/components/oracle/oracle-rails';
 import { LiveStatsBar } from '@/components/footer';
 const LeapTracker = lazy(() => import('@/components/hunt/leap-tracker').then(m => ({ default: m.LeapTracker })));
 import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/terminal/terminal-alerts';
@@ -655,7 +655,13 @@ export default function TerminalShell() {
         <span className="hidden md:inline-flex items-center normal-case tracking-normal">
           <LiveStatsBar />
         </span>
-        <span className="ml-auto hidden sm:inline">Educational only · not investment advice</span>
+        {/* The reference bottom bar's market line: session · SPY · BTC · next
+            poll · clock. Real quotes off the same tape query, and the countdown
+            counts to the query's actual next refetch — not a looping prop. */}
+        <span className="ml-auto hidden items-center lg:inline-flex">
+          <FooterMarketLine className="text-[10px]" />
+        </span>
+        <span className="hidden sm:inline lg:ml-3">Educational only · not investment advice</span>
       </footer>
     </div>
   );

@@ -12,6 +12,7 @@
  * Colour comes from tokens (--trade-*, --brand-*, --grade-*), never from the
  * mock's hex palette. That is the "keep our theme" half of the instruction.
  */
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Heartbeat } from '@/components/viz';
 import { feedTimestamp } from '@/components/canon/use-feed-freshness';
@@ -369,5 +370,91 @@ export function SystemStatusBlock({ className }: { className?: string }) {
         Past setups do not guarantee future results.
       </p>
     </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+   FOOTER MARKET LINE — the reference bottom bar's session · index · BTC ·
+   countdown · clock, on real data. The countdown is not theater: it counts to
+   the tape query's actual next refetch (dataUpdatedAt + interval), so it is a
+   true statement about when the screen polls again. The clock is wall time.
+   ──────────────────────────────────────────────────────────────── */
+
+const TAPE_REFETCH_MS = 120_000;
+
+function useNowTick(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+export function FooterMarketLine({ className }: { className?: string }) {
+  const { data, dataUpdatedAt } = useQuery<EHPayload>({
+    queryKey: ['/api/extended-hours', 'oracle-tape'],
+    queryFn: async () => {
+      const r = await fetch('/api/extended-hours', { credentials: 'include' });
+      if (!r.ok) throw new Error('extended-hours failed');
+      return r.json();
+    },
+    staleTime: 60_000,
+    refetchInterval: TAPE_REFETCH_MS,
+    retry: 1,
+  });
+  const now = useNowTick();
+
+  // assetClasses rows carry only the day change (lastPrice is null by design on
+  // that list), while the same symbol appears in mostActive WITH a level. Prefer
+  // the row that has the price, fall back to the change-only one.
+  const bySym = new Map<string, EHQuote>();
+  for (const list of [data?.mostActive, data?.gainers, data?.losers, data?.assetClasses]) {
+    for (const q of list ?? []) {
+      const prev = bySym.get(q.symbol);
+      if (!prev || (!Number.isFinite(prev.lastPrice) && Number.isFinite(q.lastPrice))) {
+        bySym.set(q.symbol, q);
+      }
+    }
+  }
+  const spy = bySym.get('SPY');
+  const btc = bySym.get('BTC-USD');
+
+  const nextIn = dataUpdatedAt ? Math.max(0, Math.ceil((dataUpdatedAt + TAPE_REFETCH_MS - now) / 1000)) : null;
+  const clock = new Date(now).toTimeString().slice(0, 8);
+
+  const Quote = ({ label, q, money }: { label: string; q?: EHQuote; money?: boolean }) => {
+    if (!q || !Number.isFinite(q.changePct)) return null;
+    const hasLevel = Number.isFinite(q.lastPrice);
+    return (
+      <span className="inline-flex items-center gap-1.5 tabular-nums">
+        {label}{' '}
+        {/* When the feed carries only the day change (assetClasses rows), show
+            the change alone rather than inventing a level. */}
+        {hasLevel && (
+          <b className="text-[var(--brand-cyan)]">
+            {money ? `$${Math.round(q.lastPrice).toLocaleString()}` : q.lastPrice.toFixed(2)}
+          </b>
+        )}
+        <span style={{ color: q.changePct >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}>
+          {q.changePct >= 0 ? '+' : ''}
+          {q.changePct.toFixed(1)}%
+        </span>
+      </span>
+    );
+  };
+
+  return (
+    <span className={cn('inline-flex items-center gap-3 font-mono', className)}>
+      <span className="text-muted-foreground/70">{sessionLabel(data?.session).toLowerCase()}</span>
+      <Quote label="SPY" q={spy} />
+      <Quote label="BTC" q={btc} money />
+      {nextIn != null && (
+        <span className="hidden tabular-nums text-muted-foreground/60 lg:inline">
+          next poll {nextIn}s
+        </span>
+      )}
+      <span className="tabular-nums text-muted-foreground/70">{clock}</span>
+    </span>
   );
 }

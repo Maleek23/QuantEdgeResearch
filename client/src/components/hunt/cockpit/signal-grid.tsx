@@ -43,6 +43,8 @@ import { KeyValue, KeyValueRow, type Tone } from '@/components/templates/kit';
 import type { ConvictionPick } from '@/lib/convictions';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { CONVICTION_LAYERS } from '@shared/conviction-layers';
+import { Sparkline } from './sparkline';
+import { tierColor } from '@/components/canon';
 import { cn } from '@/lib/utils';
 
 const dirTone = (d: string): Tone => (d === 'long' ? 'bull' : 'bear');
@@ -98,11 +100,14 @@ export function SignalGrid({
                    rendering clay and reading as a warning. Cyan is the
                    structural colour; the side is carried by the ▲BULL/▼BEAR line
                    and by P&L in the footer. */
-                badgeTone="structural" 
+                badgeTone="structural"
                 tone={dirTone(p.direction)}
                 id={`${p.direction === 'long' ? '▲ BULL' : '▼ BEAR'} · ${p.holdingPeriod}`}
                 title={p.thesis?.split('.')[0] ?? p.symbol}
-                className={selectedId === p.ideaId ? 'ring-1 ring-[color:var(--brand-cyan)]' : undefined}
+                className={cn('qe-sig-card', selectedId === p.ideaId && 'ring-1 ring-[color:var(--brand-cyan)]')}
+                /* Edge stripe carries the quality axis (band → --grade-* token),
+                   leaving moss/clay free to keep meaning direction. */
+                style={{ ['--band-color' as string]: tierColor(p.convictionBand) }}
                 onClick={() => onSelect(p.ideaId)}
                 footLeft={pending
                   ? `${g.progressPct.toFixed(0)}% to trigger`
@@ -125,6 +130,14 @@ export function SignalGrid({
                       ? `${g.horizonUsedPct.toFixed(0)}% of ${g.horizonDays}d used`
                       : 'timing pending contract'}
                   </span>
+                </div>
+
+                {/* Real 5d closes, the same Sparkline the rail lists use — the
+                    reference card's mini chart, minus its Math.random() series.
+                    Renders a quiet dash when history is missing, never a fake
+                    curve. */}
+                <div className="mb-3 h-9 overflow-hidden rounded-[3px] bg-black/20">
+                  <Sparkline symbol={p.symbol} tone={p.direction === 'long' ? 'bull' : 'bear'} width="100%" height={36} />
                 </div>
 
                 {/* progress entry → T1, with drawdown shown against it */}

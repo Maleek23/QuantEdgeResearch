@@ -43,7 +43,7 @@ import { type Tone, TONE_VAR } from './kit';
 
 export function RecordCard({
   ticker, badge, badgeTone, id, title, footLeft, footRight, tone = 'structural',
-  onClick, href, children, className,
+  onClick, href, children, className, style,
 }: {
   ticker: string;
   badge?: string;
@@ -59,6 +59,9 @@ export function RecordCard({
   /** Optional body between title and footer — a Spark, a Distribution. */
   children?: React.ReactNode;
   className?: string;
+  /** Merged after the card's own --rc var — for per-card CSS custom properties
+   *  (e.g. --band-color driving the signal-grid edge stripe). */
+  style?: React.CSSProperties;
 }) {
   const c = TONE_VAR[tone];
   const bc = TONE_VAR[badgeTone ?? tone];
@@ -75,7 +78,7 @@ export function RecordCard({
         'hover:-translate-y-0.5 motion-reduce:hover:translate-y-0',
         className,
       )}
-      style={{ ['--rc' as string]: c }}
+      style={{ ['--rc' as string]: c, ...style }}
     >
       {/* 135° wash — light crossing the surface, not a background swap */}
       <span
