@@ -70,6 +70,8 @@ const CryptoTerminal = lazy(() => import('@/components/crypto/crypto-nexus').the
 const BotNexus = lazy(() => import('@/components/bot/bot-nexus').then(m => ({ default: m.BotNexus })));
 // The universal ticker workup — any symbol click, any tab, opens this dossier.
 const TickerWorkup = lazy(() => import('@/components/workup/ticker-workup').then(m => ({ default: m.TickerWorkup })));
+// CATALYST = composed from docs/DESIGN_SYSTEM.md (no mock). Prior CatalystBoard stays in tree.
+const CatalystNexus = lazy(() => import('@/components/catalyst/catalyst-nexus').then(m => ({ default: m.CatalystNexus })));
 
 type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot';
 /**
@@ -417,18 +419,7 @@ export default function TerminalShell() {
               {tab === 'gex' && <GexHub />}
               {tab === 'leaps' && <LeapTracker />}
               {tab === 'crypto' && <CryptoTerminal />}
-              {tab === 'catalyst' && (
-                <div className="qe-module-page mx-auto w-full max-w-[1680px] space-y-4 px-4 py-4 md:px-5">
-                  <TerminalPageHeader
-                    eyebrow="Event intelligence"
-                    title="Catalyst"
-                    description="Cross the event calendar against the active book—conflicts first, then confluence and developing ideas."
-                    status="signal-linked calendar"
-                    tone="time"
-                  />
-                  <CatalystBoard />
-                </div>
-              )}
+              {tab === 'catalyst' && <CatalystNexus />}
               {tab === 'bot' && <BotNexus />}
             </Suspense>
           </motion.div>
