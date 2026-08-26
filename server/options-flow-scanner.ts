@@ -216,6 +216,21 @@ async function fetchChainWithSpot(symbol: string): Promise<{ options: any[]; spo
     logger.warn(`[OPTIONS-FLOW] CBOE fallback failed for ${symbol}: ${e?.message}`);
   }
 
+  // Third leg: Yahoo, already Tradier-shaped (the GEX path lives on it). With
+  // the Tradier key dead (401 on prod AND sandbox, 2026-08-26) and CBOE
+  // 429-limited, one working fallback is the difference between a thin cycle
+  // and a blind one.
+  try {
+    const { getYahooOptionsChain } = await import('./yahoo-options-fallback');
+    const yh = await getYahooOptionsChain(symbol);
+    if (yh && yh.length > 0) {
+      logger.info(`[OPTIONS-FLOW] ${symbol}: CBOE empty — using Yahoo fallback (${yh.length} contracts)`);
+      return { options: yh, spot: spotBySymbol.get(symbol) ?? null };
+    }
+  } catch (e: any) {
+    logger.warn(`[OPTIONS-FLOW] Yahoo fallback failed for ${symbol}: ${e?.message}`);
+  }
+
   return { options: [], spot: null };
 }
 
@@ -417,8 +432,25 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
   scannerStatus.lastScan = new Date().toISOString();
   
   const unusualFlows: OptionsFlow[] = [];
-  
-  for (const symbol of scannerStatus.settings.watchlist) {
+
+  // Earnings-aware priority: names reporting within 3 days are exactly where
+  // the loudest flow concentrates (CRWD on its report day was scanned with the
+  // same priority as a sleepy ETF — and missed when providers thinned the
+  // cycle). Scan them FIRST so rate limits and provider failures eat the quiet
+  // tail of the list, never the hot head.
+  let scanOrder = [...scannerStatus.settings.watchlist];
+  try {
+    const { getEarningsBySymbol } = await import('./earnings-calendar');
+    const earnMap = await getEarningsBySymbol(3);
+    const hot = scanOrder.filter((sym) => earnMap.has(sym.toUpperCase()));
+    if (hot.length > 0) {
+      const cold = scanOrder.filter((sym) => !earnMap.has(sym.toUpperCase()));
+      scanOrder = [...hot, ...cold];
+      logger.info(`[OPTIONS-FLOW] earnings priority: ${hot.length} name(s) reporting within 3d scanned first (${hot.slice(0, 8).join(', ')}${hot.length > 8 ? ', …' : ''})`);
+    }
+  } catch { /* calendar unavailable — original order stands */ }
+
+  for (const symbol of scanOrder) {
     try {
       const { options: chain, spot } = await fetchChainWithSpot(symbol);
       
