@@ -17,6 +17,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { formatGEX } from '../../../../shared/gex-types';
 import { componentStyles } from '@/lib/design-tokens';
 import type { GEXHubData, TopPlay } from '../../../../shared/gex-types';
+import { CanonFreshness } from '@/components/canon';
 
 function formatVEX(v: number): string {
   const sign = v >= 0 ? '+' : '−';
@@ -40,12 +41,15 @@ function formatDealerFlow(usd: number | undefined | null): string {
 
 interface GEXHubPanelsProps {
   hub: GEXHubData;
+  /** Server's own generatedAt. Threaded from the route rather than derived from
+      the fetch, so the age shown is the data's, not the request's. */
+  generatedAt?: string | null;
 }
 
-export function GEXHubPanels({ hub }: GEXHubPanelsProps) {
+export function GEXHubPanels({ hub, generatedAt }: GEXHubPanelsProps) {
   return (
     <div className="space-y-3 mb-3">
-      <MarketTape hub={hub} />
+      <MarketTape hub={hub} generatedAt={generatedAt} />
       {hub.topPlays && hub.topPlays.length > 0 && <TopPlaysPanel plays={hub.topPlays} />}
     </div>
   );
@@ -62,7 +66,7 @@ const SESSION_LABEL: Record<string, { text: string; tone: string }> = {
   overnight:   { text: 'OVERNIGHT',   tone: 'text-muted-foreground' },
 };
 
-function MarketTape({ hub }: { hub: GEXHubData }) {
+function MarketTape({ hub, generatedAt }: { hub: GEXHubData; generatedAt?: string | null }) {
   const sess = SESSION_LABEL[hub.session || 'open'] ?? SESSION_LABEL.open;
   const isOff = hub.session && hub.session !== 'open';
   const gexTone = hub.marketNetGEX >= 0 ? 'text-[var(--gex-positive)]' : 'text-[var(--gex-negative)]';
@@ -95,8 +99,11 @@ function MarketTape({ hub }: { hub: GEXHubData }) {
           <span style={{ width: `${(rd.negative_gamma / total) * 100}%`, backgroundColor: 'var(--gex-negative)', opacity: 0.7 }} />
           <span style={{ width: `${(rd.transitioning / total) * 100}%`, backgroundColor: 'var(--gex-flip)', opacity: 0.7 }} />
         </span>
-        <span className="text-muted-foreground/60 text-[9px] ml-auto">
+        <span className="ml-auto flex items-center gap-2 text-[9px] text-muted-foreground/60">
           {hub.totalTickers} tickers
+          {/* The hub polls but never said how old it was. Age comes from the
+              server's generatedAt, never the fetch — see viz/MOTION.md. */}
+          <CanonFreshness since={generatedAt ?? null} staleAfterSec={300} />
         </span>
       </div>
       {/* Every gamma-exposure number on this surface rests on one unverifiable

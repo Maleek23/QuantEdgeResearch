@@ -15,3 +15,4 @@ export { CanonFreshness } from './freshness';
 export { CanonScore, CanonGrade, CanonRate, scoreBand, gradeColor, bandColor, tierColor, tierBadgeStyle, type ScoreBand } from './score';
 export { CanonLevelBadge, LEVEL_LABELS, levelColor, type LevelRole } from './level';
 export { CanonModelNote } from './model-note';
+export { feedTimestamp, lacksTimestamp } from './use-feed-freshness';

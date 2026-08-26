@@ -30727,14 +30727,17 @@ Use this checklist before entering any trade:
           errors: [],
         };
         const fallbackHub = await buildGEXHub(fallbackScan as any);
-        return res.json({ hub: fallbackHub, scan: fallbackScan, cboeFallback: true });
+        // generatedAt so the Hub can show a real age. MOTION.md forbids dating a
+        // panel by the client's fetch time — a cached response can be hours old
+        // while the fetch is seconds old — so the age has to come from here.
+        return res.json({ hub: fallbackHub, scan: fallbackScan, cboeFallback: true, generatedAt: new Date().toISOString() });
       }
 
       const hub = await buildGEXHub(scan);
       // Fire-and-forget: persist best plays + index scalps for Trade Desk
       persistTopPlaysAsIdeas(hub.topPlays).catch(() => {});
       runIndexScalpScanner().catch(() => {});
-      res.json({ hub, scan });
+      res.json({ hub, scan, generatedAt: new Date().toISOString() });
     } catch (error: any) {
       logger.error("GEX hub error", { error: error?.message });
       res.status(500).json({ error: "Hub build failed", message: error?.message });

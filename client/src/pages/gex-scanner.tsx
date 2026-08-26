@@ -30,6 +30,8 @@ import type {
 
 interface HubResponse {
   hub: GEXHubData;
+  /** Server-sent, so the Hub can show the data's age rather than the fetch's. */
+  generatedAt?: string | null;
   scan: ConfluenceScanResult;
 }
 
@@ -179,7 +181,7 @@ export default function GEXScannerPage() {
       </div>
 
       {/* ─── HUB CHROME (tape + top plays only) ─── */}
-      {hub && <GEXHubPanels hub={hub} />}
+      {hub && <GEXHubPanels hub={hub} generatedAt={data?.generatedAt ?? null} />}
 
       {/* ─── WORKFLOW TABS — distinct data slices ─── */}
       <div className="flex items-center gap-1 flex-wrap pb-1 border-b border-border/30">
