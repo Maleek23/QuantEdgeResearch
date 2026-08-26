@@ -159,6 +159,17 @@ const DEFAULT_OPTIONS_WATCHLIST = [
   'DWAC', 'DKNG',
 ];
 
+// The hand-typed list above froze in time — CRCL and SNDK, both on the
+// operator's own core watchlist, were absent because they listed after it was
+// written, so their prints ($1.2M CRCL put, $1.7M SNDK sweep on 2026-08-26)
+// were structurally invisible. The operator's core list is a living input;
+// union it in so a name they trade can never be missing from flow coverage.
+import { USER_CORE_WATCHLIST } from './ticker-universe';
+const OPTIONS_WATCHLIST = Array.from(new Set([
+  ...DEFAULT_OPTIONS_WATCHLIST,
+  ...USER_CORE_WATCHLIST.map((t) => t.toUpperCase()),
+]));
+
 let scannerStatus: ScannerStatus = {
   isActive: true,  // Scanners run by default via cron schedules
   lastScan: null,
@@ -167,7 +178,7 @@ let scannerStatus: ScannerStatus = {
   settings: {
     minPremium: 50000, // Lowered to $50k minimum premium (better for smaller flows)
     minVolumeOIRatio: 1.5, // Lowered threshold for unusual volume
-    watchlist: DEFAULT_OPTIONS_WATCHLIST,
+    watchlist: OPTIONS_WATCHLIST,
     alertThreshold: 70, // Slightly lower threshold to catch more activity
   },
 };
