@@ -935,7 +935,8 @@ app.use((req, res, next) => {
         const dayOfWeek = nowCT.getDay();
         const dateKey = nowCT.toISOString().split('T')[0];
 
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
+        // Saturday is the only dead zone; Sunday evening onward is next-session prep.
+        if (dayOfWeek === 6 || (dayOfWeek === 0 && hour < 15)) {
           return;
         }
 
@@ -945,15 +946,19 @@ app.use((req, res, next) => {
         // (findSimilarTradeIdea, open-position skip, intra-batch symbol set),
         // so time-gating is pure lag: the operator watched a 9:58 ET setup
         // print +539% while the board waited for its 10:35 window. The
-        // publisher now sweeps every 15 minutes from 9:35 CT to 14:55 CT; a
-        // sweep with nothing genuinely new publishes nothing, which is the
-        // dedup doing the windows' old job correctly.
+        // publisher now sweeps every 15 minutes from 9:35 CT to 14:55 CT — and
+        // OFF-HOURS it keeps working at a 2-hour cadence ("signals can be
+        // generated overnight"): curated quotes resolve after hours, an
+        // after-hours earnings blast shows up in changePercent, and an
+        // overnight idea publishes as PENDING TRIGGER for the next session.
+        // Every gate (dedup, chase guard, short discipline) applies unchanged.
         const sinceOpen = (hour > 9 || (hour === 9 && minute >= 35)) && (hour < 14 || (hour === 14 && minute <= 55));
-        if (!sinceOpen) {
+        const minGapMs = sinceOpen ? 14 * 60 * 1000 : 2 * 60 * 60 * 1000;
+        if (Date.now() - lastQuantRunAt < minGapMs) {
           return;
         }
-        if (Date.now() - lastQuantRunAt < 14 * 60 * 1000) {
-          return;
+        if (!sinceOpen) {
+          logger.info('🌙 [QUANT-CRON] overnight prep sweep — next-session board, pending triggers');
         }
 
         isQuantGenerating = true;

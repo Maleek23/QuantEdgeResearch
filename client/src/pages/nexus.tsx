@@ -1113,8 +1113,8 @@ export function NexusBoard() {
                   <div className="ev-note">
                     {against.length ? `${against.length} layer${against.length > 1 ? 's' : ''} arguing against` : 'nothing arguing against'}
                   </div>
-                  <div className="sig-levels">
-                    <div className="level"><div className="level-label">Entry</div><div className="level-val entry">${p.entryPrice?.toFixed(2) ?? '—'}</div></div>
+                  <div className="sig-levels" title={(p as any).levelBasis === 'contract' ? 'Levels are the option contract\'s PREMIUM, not share prices' : undefined}>
+                    <div className="level"><div className="level-label" style={(p as any).levelBasis === 'contract' ? { color: 'var(--amber)' } : undefined}>{(p as any).levelBasis === 'contract' ? 'PREM' : 'Entry'}</div><div className="level-val entry">${p.entryPrice?.toFixed(2) ?? '—'}</div></div>
                     <div className="level"><div className="level-label">Stop</div><div className="level-val stop">${p.stopLoss?.toFixed(2) ?? '—'}</div></div>
                     <div className="level"><div className="level-label">T1</div><div className="level-val t1">${p.targetPrice?.toFixed(2) ?? '—'}</div></div>
                     <div className="level"><div className="level-label">R:R</div><div className="level-val rr">{p.riskRewardRatio ? `${p.riskRewardRatio.toFixed(1)}:1` : '—'}</div></div>

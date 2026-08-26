@@ -559,8 +559,8 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
             </div>
 
             <div className="ql-section">
-              <div className="ql-label">Key levels</div>
-              <div className="ql-levels">
+              <div className="ql-label">Key levels{(pick as any)?.levelBasis === 'contract' ? ' · contract premium' : ''}</div>
+              <div className="ql-levels" title={(pick as any)?.levelBasis === 'contract' ? 'These levels are the option contract\'s premium, not share prices' : undefined}>
                 {pick ? (
                   <>
                     <div className="ql-level"><div className="ql-level-name" style={{ color: 'var(--cyan-bright)' }}>Entry</div><div className="ql-level-bar"><div className="ql-level-fill entry" style={{ width: '50%' }} /></div><div className="ql-level-val">{fmtPrice(pick.entryPrice)}</div></div>

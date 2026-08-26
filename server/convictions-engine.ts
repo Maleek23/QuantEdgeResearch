@@ -95,6 +95,8 @@ export interface ConvictionPick {
   sector: Sector;
   direction: "long" | "short";
   assetType: string;
+  /** What the entry/stop/target are priced in: option-contract premium or the underlying's shares. */
+  levelBasis?: "contract" | "underlying";
   holdingPeriod: string;
   tradeType: string | null;
 
@@ -2306,6 +2308,16 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       riskRewardRatio: idea.riskRewardRatio,
       optionType: (idea.optionType as "call" | "put" | null) ?? null,
       strikePrice: idea.strikePrice ?? null,
+      // Which instrument the entry/stop/target are priced in. Option ideas the
+      // Contract Engine enriched carry PREMIUM levels (entry $2.10 on a $175
+      // stock); rendering those unlabeled beside share-priced rows made a
+      // routine +100% premium target read as an absurd chart call. Heuristic:
+      // a strike far above the entry means the levels are the contract's.
+      levelBasis:
+        idea.strikePrice != null && idea.optionType != null &&
+        Number(idea.entryPrice) > 0 && Number(idea.entryPrice) < Number(idea.strikePrice) * 0.5
+          ? ("contract" as const)
+          : ("underlying" as const),
       // The contract's premium. Without this the client cannot tell an option
       // signal from a stock one, so Position Size fell back to sizing SHARES on
       // option ideas — a BMY $65C read "76 shares, $5,128, 51.3% of account" for a
