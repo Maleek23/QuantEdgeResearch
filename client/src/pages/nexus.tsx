@@ -43,6 +43,7 @@ import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { useTheme } from '@/components/theme-provider';
 import { useColResize } from '@/lib/use-col-resize';
+import { useStockContext } from '@/contexts/stock-context';
 import type { ConvictionPick, ConvictionsResponse } from '@/lib/convictions';
 import quantEdgeLogoUrl from '@assets/q_1767502987714.png';
 // The cockpit — the deep single-signal read — mounts on demand behind the
@@ -389,6 +390,8 @@ const fmtPrice = (n: number, money = false) =>
 export function NexusBoard() {
   const [, setLocation] = useLocation();
   const { theme, setTheme } = useTheme();
+  const { currentStock, setCurrentStock } = useStockContext();
+  const focusSym = currentStock?.symbol?.toUpperCase();
   const light = theme === 'nexus-light';
   const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health } = useNexusData();
 
@@ -711,7 +714,7 @@ export function NexusBoard() {
             }>
               {/* key forces a fresh mount so initialView takes effect on switch */}
               <div style={{ padding: '12px 16px' }}>
-                <HuntCockpit key={bookView} initialView={bookView} />
+                <HuntCockpit key={bookView} initialView={bookView} lockedView />
               </div>
             </Suspense>
           ) : (
@@ -887,7 +890,8 @@ export function NexusBoard() {
                 <button
                   className="heat-cell"
                   key={s.etf}
-                  title={`${s.name} · ${s.change >= 0 ? '+' : ''}${s.change.toFixed(2)}%`}
+                  onClick={() => setCurrentStock({ symbol: s.etf })}
+                  title={`${s.name} · ${s.change >= 0 ? '+' : ''}${s.change.toFixed(2)}% — click to focus ${s.etf}`}
                   style={{ background: heatColor(s.change), color: Math.abs(s.change) > 2 ? '#fff' : 'rgba(255,255,255,0.85)' }}
                 >
                   {s.etf}
@@ -907,7 +911,12 @@ export function NexusBoard() {
                 const wq = quoteBySym.get(symbol);
                 const up = wq != null && wq.changePct >= 0;
                 return (
-                  <div className="watch-item" key={symbol}>
+                  <div
+                    className={`watch-item${symbol === focusSym ? ' active' : ''}`}
+                    key={symbol}
+                    title={`Set ${symbol} as the terminal's focus symbol — CHART, GEX and FLOW follow it`}
+                    onClick={() => setCurrentStock({ symbol })}
+                  >
                     <div className="watch-sym">{symbol}</div>
                     <div className="watch-name" />
                     <WatchSpark symbol={symbol} up={wq ? up : true} />

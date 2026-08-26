@@ -61,7 +61,8 @@ import {
   SignalTimingBadge,
   SignalTimingNotice,
 } from "@/components/oracle/signal-timing-badge";
-import { EpochChart } from "@/components/charting/epoch-chart";
+// The CHART tab's engine, everywhere a chart appears — one interactive chart.
+import { NexusPriceChart } from "@/components/charting/nexus-price-chart";
 import { bandColor } from "@/lib/oracle/trading-colors";
 import { Heartbeat, LiveValue } from "@/components/viz";
 import {
@@ -193,7 +194,7 @@ function useGapZones(symbol: string) {
   return { zones, stats: data?.stats ?? null };
 }
 
-export default function HuntCockpit({ initialView }: { initialView?: "grid" | "scanner" | "cockpit" } = {}) {
+export default function HuntCockpit({ initialView, lockedView }: { initialView?: "grid" | "scanner" | "cockpit"; lockedView?: boolean } = {}) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -896,15 +897,19 @@ export default function HuntCockpit({ initialView }: { initialView?: "grid" | "s
                 className="shrink-0"
               />
             )}
-            <Segmented
-              options={[
-                { value: "grid" as const, label: "Grid" },
-                { value: "scanner" as const, label: "Scanner" },
-                { value: "cockpit" as const, label: "Cockpit" },
-              ]}
-              value={view}
-              onChange={setView}
-            />
+            {/* When the NEXUS board's own toggle owns the view, a second one here
+                just fights it — two controls, one state, endless confusion. */}
+            {!lockedView && (
+              <Segmented
+                options={[
+                  { value: "grid" as const, label: "Grid" },
+                  { value: "scanner" as const, label: "Scanner" },
+                  { value: "cockpit" as const, label: "Cockpit" },
+                ]}
+                value={view}
+                onChange={setView}
+              />
+            )}
           </div>
 
           {view !== "cockpit" ? (
@@ -1281,7 +1286,7 @@ export default function HuntCockpit({ initialView }: { initialView?: "grid" | "s
 
                     {/* THE CHART is the focus of the analysis — prominent, right under the header.
                   One universal EpochChart (epoch-anchored, any ticker) with entry/stop/target. */}
-                    <EpochChart
+                    <NexusPriceChart
                       key={selected.ideaId}
                       symbol={selected.symbol}
                       initialTf="1D"
@@ -1801,7 +1806,7 @@ function OnDemandSubject({
           </div>
         </div>
 
-        <EpochChart symbol={analysis.symbol} initialTf="1D" height={340} />
+        <NexusPriceChart symbol={analysis.symbol} initialTf="1D" height={340} />
 
         <div className="grid gap-px border border-border/45 bg-border/45 sm:grid-cols-3">
           {horizons.length > 0 ? (
@@ -1955,7 +1960,7 @@ function TickerReadSubject({
           </div>
         </div>
 
-        <EpochChart symbol={analysis.symbol} initialTf="1D" height={340} />
+        <NexusPriceChart symbol={analysis.symbol} initialTf="1D" height={340} />
 
         <div className="grid gap-px border border-border/45 bg-border/45 sm:grid-cols-3">
           <div className="bg-card px-3 py-3">

@@ -1419,3 +1419,19 @@
 @media(max-width:1279px){
   .nexus-vars .nexus-embed .nx-resize{display:none}
 }
+
+/* ── topbar overflow at desk widths ───────────────────────────────
+   The mock never handled narrow windows: chips wrapped, the search floated
+   over the nav, tabs clipped off. Let the bar wrap cleanly, let the nav rail
+   scroll, and shed the decorative chips before anything functional. */
+.nexus-vars .topbar{flex-wrap:wrap;row-gap:4px;padding-top:5px;padding-bottom:5px}
+.nexus-vars .topbar .nav-tabs{min-width:0;flex:0 1 auto;overflow-x:auto;scrollbar-width:none}
+.nexus-vars .topbar .nav-tabs::-webkit-scrollbar{display:none}
+.nexus-vars .topbar .search{width:clamp(150px,16vw,240px);min-width:0}
+@media(max-width:1560px){
+  .nexus-vars .topbar .brand-sub{display:none}
+  .nexus-vars .topbar .status-chip{display:none}
+}
+@media(max-width:1200px){
+  .nexus-vars .topbar .user-name{display:none}
+}

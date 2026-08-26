@@ -35,13 +35,13 @@ import '@/styles/nexus.css';
    DATA
    ──────────────────────────────────────────────────────────────── */
 
-interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number }
+export interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number }
 interface HistoryResponse { symbol: string; range: string; data: Candle[] }
 interface EHQuote { symbol: string; lastPrice: number; changePct: number }
 interface EHPayload { session?: string; gainers?: EHQuote[]; losers?: EHQuote[]; mostActive?: EHQuote[] }
 
 /** TF → the feed's real range/interval pair. No 4h — the feed has no 4h bars. */
-const TF_CONFIG: Record<string, { range: string; interval: string; label: string }> = {
+export const TF_CONFIG: Record<string, { range: string; interval: string; label: string }> = {
   '1m': { range: '1d', interval: '1m', label: '1M' },
   '5m': { range: '1d', interval: '5m', label: '5M' },
   '15m': { range: '1d', interval: '15m', label: '15M' },
@@ -65,9 +65,9 @@ const WICK_TOLERANCE: Record<string, number> = {
   '1m': 0.015, '5m': 0.02, '15m': 0.02, '1h': 0.025, '1D': 0.08, '1W': 0.15,
 };
 
-interface CandleSeries { bars: Candle[]; clampedWicks: number }
+export interface CandleSeries { bars: Candle[]; clampedWicks: number }
 
-function useCandles(symbol: string, tf: string) {
+export function useCandles(symbol: string, tf: string) {
   const cfg = TF_CONFIG[tf];
   const tol = WICK_TOLERANCE[tf] ?? 0.05;
   return useQuery<CandleSeries>({
@@ -98,14 +98,15 @@ function useCandles(symbol: string, tf: string) {
   });
 }
 
-interface Level { price: number; color: string; label: string }
+export interface Level { price: number; color: string; label: string }
+export interface Zone { from: number; to: number; color?: string; label?: string }
 
 /* ────────────────────────────────────────────────────────────────
    THE MOCK'S CHART ENGINE — drawChart/calcMA verbatim, parameterised on the
    things React owns (canvas el, data, options) instead of module globals.
    ──────────────────────────────────────────────────────────────── */
 
-function calcMA(data: Candle[], period: number): (number | null)[] {
+export function calcMA(data: Candle[], period: number): (number | null)[] {
   const result: (number | null)[] = [];
   for (let i = 0; i < data.length; i++) {
     if (i < period - 1) { result.push(null); continue; }
@@ -116,18 +117,20 @@ function calcMA(data: Candle[], period: number): (number | null)[] {
   return result;
 }
 
-interface DrawOpts {
+export interface DrawOpts {
   type: 'candles' | 'line';
   tf: string;
   showCrosshair: boolean;
   showLevels: boolean;
   levels: Level[];
+  /** Shaded price bands (e.g. unfilled gaps) drawn under the levels. */
+  zones?: Zone[];
   mouseX: number;
   mouseY: number;
   onHover: (c: Candle | null, x: number, y: number) => void;
 }
 
-function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opts: DrawOpts) {
+export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opts: DrawOpts) {
   const ctx = chartCanvas.getContext('2d');
   if (!ctx) return;
   const rect = chartCanvas.getBoundingClientRect();
@@ -184,6 +187,22 @@ function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opts: Draw
       ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
     ctx.fillText(label, x, h - padding.bottom + 16);
+  }
+
+  // Shaded zones (gap bands etc.) under everything else
+  for (const z of opts.zones ?? []) {
+    const top = Math.max(z.from, z.to); const bot = Math.min(z.from, z.to);
+    if (bot > max || top < min) continue;
+    const y1 = padding.top + ((max - Math.min(top, max)) / priceRange) * priceH;
+    const y2 = padding.top + ((max - Math.max(bot, min)) / priceRange) * priceH;
+    ctx.fillStyle = (z.color ?? '#f5b642') + '14';
+    ctx.fillRect(padding.left, y1, chartW, Math.max(1, y2 - y1));
+    if (z.label) {
+      ctx.fillStyle = (z.color ?? '#f5b642') + '99';
+      ctx.font = '700 8px "JetBrains Mono", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(z.label, w - padding.right - 4, y1 + 9);
+    }
   }
 
   // Published levels — the real ones, drawn the mock's way
