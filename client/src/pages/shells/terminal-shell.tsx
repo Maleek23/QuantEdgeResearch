@@ -20,6 +20,7 @@ import { RotationMap } from '@/components/rotation-map';
 import { SessionBrief } from '@/components/oracle/session-brief';
 import { EarlyRotationPanel } from '@/components/oracle/early-rotation-panel';
 import { OracleMarketField } from '@/components/oracle/oracle-market-field';
+import { TickerTape, SectorHeatmap, WatchlistRail, SystemStatusBlock } from '@/components/oracle/oracle-rails';
 import { LiveStatsBar } from '@/components/footer';
 const LeapTracker = lazy(() => import('@/components/hunt/leap-tracker').then(m => ({ default: m.LeapTracker })));
 import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/terminal/terminal-alerts';
@@ -369,6 +370,12 @@ export default function TerminalShell() {
         </AnimatePresence>
       </header>
 
+      {/* ── quote tape — real movers from the extended-hours scan, labelled by
+          session. Hidden on small screens where 28px of marquee is noise. */}
+      <div className="hidden md:block">
+        <TickerTape />
+      </div>
+
       {/* ── tab content (cross-fades) ── */}
       <main className="min-h-0 flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
         {/* Some market modules keep long-lived subscriptions and nested layout
@@ -386,48 +393,49 @@ export default function TerminalShell() {
           >
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
-                <div className="qe-oracle-page mx-auto w-full max-w-[1680px] space-y-6 px-3 py-4 md:px-5 lg:py-5">
-                  {/* 1. One market stage, three distinct readings: broad participation,
-                      real relative rotation, and the names carrying that tape. */}
-                  <section className="qe-market-stage">
-                    <TerminalSectionHeader
-                      eyebrow="01 · Market intelligence"
-                      title="Read the tape before the trade."
-                      description="Participation, relative rotation and leadership—one connected market view."
-                      live={!dataPartial}
-                      meta={dataPartial ? 'partial feed' : 'context updating'}
-                    />
-                    {!dataPartial && <div className="qe-context-current" aria-hidden="true"><span /></div>}
-                    <div className="qe-market-grid">
-                      <OracleMarketField className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('pulse')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                      <RotationMap className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('rotation')} />
-                      <SessionBrief className="qe-market-panel h-full" collapsedHeight={420} onFocus={() => setMarketFocus('brief')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                /* ORACLE V2 — the reference terminal's grammar: a fixed viewport,
+                   three columns, each scrolling itself. Market intel narrows to a
+                   left rail, the book owns the centre, and the developing queue
+                   shares the right rail with the sector heatmap, watchlist and
+                   system status. Below xl it stacks and scrolls normally — the
+                   reference hides its rails on small screens, which throws the
+                   information away; stacking keeps it. Same three sections, same
+                   copy, same components — recomposed, not rewritten. */
+                <div className="qe-oracle-v2">
+                  {/* ── 01 · market intel rail ── */}
+                  <div className="qe-ov2-col">
+                    <div className="qe-ov2-head">
+                      <div className="qe-ov2-num">01 · Market intelligence</div>
+                      <div className="qe-ov2-title">Read the tape before the trade.</div>
+                      <div className="qe-ov2-sub">Participation, relative rotation and leadership—one connected market view.</div>
                     </div>
-                  </section>
+                    <OracleMarketField className="border-b border-border/50" collapsedHeight={430} onFocus={() => setMarketFocus('pulse')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                    <RotationMap className="border-b border-border/50" collapsedHeight={380} onFocus={() => setMarketFocus('rotation')} />
+                    <SessionBrief collapsedHeight={430} onFocus={() => setMarketFocus('brief')} onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                  </div>
 
-                  {/* 2. The current trade book is the page's primary object. */}
-                  <section className="qe-oracle-section">
-                    <TerminalSectionHeader
-                      eyebrow="02 · Active book"
-                      title="Ranked opportunities."
-                      description="Select a ticker to connect price, evidence, levels and execution."
-                      meta="ranked book"
-                    />
+                  {/* ── 02 · the book — the page's primary object ── */}
+                  <div className="qe-ov2-col">
+                    <div className="qe-ov2-head">
+                      <div className="qe-ov2-num">02 · Active book</div>
+                      <div className="qe-ov2-title">Ranked opportunities.</div>
+                      <div className="qe-ov2-sub">Select a ticker to connect price, evidence, levels and execution.</div>
+                    </div>
                     <HuntCockpit />
-                  </section>
+                  </div>
 
-                  {/* 3. Candidates inside incoming groups are the next action layer.
-                      It is a setup queue, not another market summary. */}
-                  <section className="qe-oracle-section">
-                    <TerminalSectionHeader
-                      eyebrow="03 · Developing"
-                      title="Setups before the trigger."
-                      description="Coiled names inside groups already receiving money."
-                      meta="watch · not signals"
-                    />
-                    <EarlyRotationPanel onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
-                  </section>
-
+                  {/* ── 03 · developing rail ── */}
+                  <div className="qe-ov2-col">
+                    <div className="qe-ov2-head">
+                      <div className="qe-ov2-num">03 · Developing</div>
+                      <div className="qe-ov2-title">Setups before the trigger.</div>
+                      <div className="qe-ov2-sub">Coiled names inside groups already receiving money.</div>
+                    </div>
+                    <EarlyRotationPanel compact onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                    <SectorHeatmap className="border-t border-border/50" onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                    <WatchlistRail onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />
+                    <SystemStatusBlock />
+                  </div>
                 </div>
               )}
               {tab === 'chart' && <ChartLab />}

@@ -31,7 +31,21 @@ interface EarlyRotation {
   interpretation: string;
 }
 
-export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymbol?: (s: string) => void; className?: string }) {
+export function EarlyRotationPanel({
+  onSelectSymbol,
+  className,
+  compact,
+}: {
+  onSelectSymbol?: (s: string) => void;
+  className?: string;
+  /**
+   * The panel lives in a ~300px rail in the Oracle v2 layout, where Tailwind's
+   * viewport breakpoints still see a wide screen and lay the interpretation and
+   * legend side by side — squeezing the prose to one word per line. Compact
+   * keeps the stacked (narrow) arrangement regardless of viewport width.
+   */
+  compact?: boolean;
+}) {
   const reduce = useReducedMotion();
   const { data, isLoading, isError } = useQuery<EarlyRotation>({
     queryKey: ['/api/early-rotation'],
@@ -47,8 +61,8 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
   });
 
   return (
-    <div className={cn('qe-rotation-candidates overflow-hidden rounded-xl border border-card-border bg-card', className)}>
-      <div className="flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3 md:px-5">
+    <div className={cn('qe-rotation-candidates overflow-hidden bg-card', !compact && 'rounded-xl border border-card-border', className)}>
+      <div className={cn('flex items-center justify-between gap-3 border-b border-border/40 px-4 py-3', !compact && 'md:px-5')}>
         <div>
           <span className="font-sans text-[12px] font-semibold text-foreground/90">Candidate field</span>
           <span className="ml-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/65">before a signal</span>
@@ -69,7 +83,7 @@ export function EarlyRotationPanel({ onSelectSymbol, className }: { onSelectSymb
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-3 border-b border-border/30 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-5">
+          <div className={cn('flex flex-col gap-3 border-b border-border/30 px-4 py-3', !compact && 'md:flex-row md:items-center md:justify-between md:px-5')}>
             <p className="ui-prose max-w-3xl text-[13px] leading-relaxed text-foreground/82">
               {data.interpretation}
             </p>
