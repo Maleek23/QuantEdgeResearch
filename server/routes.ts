@@ -5518,6 +5518,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PATTERN DETECTION API - Advanced technical analysis
   // ============================================
   
+  // ── PATTERN ENGINE — full-universe chart pattern scan, real OHLC ──────────
+  app.get("/api/patterns/scan", async (req, res) => {
+    try {
+      const { getPatternHits, scanUniversePatterns } = await import("./pattern-engine");
+      void scanUniversePatterns(); // refresh in background if stale; serves cache now
+      const state = getPatternHits();
+      const sym = typeof req.query.symbol === "string" ? req.query.symbol.toUpperCase() : null;
+      const pattern = typeof req.query.pattern === "string" ? req.query.pattern : null;
+      let hits = state.hits;
+      if (sym) hits = hits.filter((h) => h.symbol === sym);
+      if (pattern) hits = hits.filter((h) => h.pattern === pattern);
+      res.json({ ...state, hits, _meta: { note: "Detection only — selection, gating and publishing stay with the funnel. Bear-side hits are context; the short gate owns that conversation." } });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to read pattern scan" });
+    }
+  });
+
+  // (registered ABOVE the legacy :symbol param route — Express would otherwise
+  //  match 'scan' as a symbol and 400 it)
   app.get("/api/patterns/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
@@ -14349,23 +14368,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ asOf: new Date().toISOString(), count: catalysts.length, catalysts: catalysts.slice(0, 100) });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch recent catalysts" });
-    }
-  });
-
-  // ── PATTERN ENGINE — full-universe chart pattern scan, real OHLC ──────────
-  app.get("/api/patterns/scan", async (req, res) => {
-    try {
-      const { getPatternHits, scanUniversePatterns } = await import("./pattern-engine");
-      void scanUniversePatterns(); // refresh in background if stale; serves cache now
-      const state = getPatternHits();
-      const sym = typeof req.query.symbol === "string" ? req.query.symbol.toUpperCase() : null;
-      const pattern = typeof req.query.pattern === "string" ? req.query.pattern : null;
-      let hits = state.hits;
-      if (sym) hits = hits.filter((h) => h.symbol === sym);
-      if (pattern) hits = hits.filter((h) => h.pattern === pattern);
-      res.json({ ...state, hits, _meta: { note: "Detection only — selection, gating and publishing stay with the funnel. Bear-side hits are context; the short gate owns that conversation." } });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to read pattern scan" });
     }
   });
 

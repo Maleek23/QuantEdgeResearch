@@ -94,6 +94,19 @@ function useNexusData() {
     queryKey: ['/api/realtime-status', 'nexus'], queryFn: q('/api/realtime-status'),
     refetchInterval: 5_000, staleTime: 4_000, retry: 1,
   });
+  // Pattern Radar — the full-universe engine's raw detections. Visible even
+  // when the funnel declines them: detection and selection are separate jobs,
+  // and the operator sees both.
+  const patterns = useQuery<{ asOf: string | null; scanned: number; hits: { symbol: string; pattern: string; bias: string; note: string; levels: Record<string, number> }[] }>({
+    queryKey: ['/api/patterns/scan', 'nexus'],
+    queryFn: async () => {
+      const r = await fetch('/api/patterns/scan', { credentials: 'include' });
+      if (!r.ok) throw new Error('patterns failed');
+      return r.json();
+    },
+    refetchInterval: 600_000, staleTime: 300_000, retry: 1,
+  });
+
   const rotation = useQuery<RotationPayload>({
     queryKey: ['/api/sector-rotation', 'nexus'], queryFn: q('/api/sector-rotation'),
     refetchInterval: 180_000, staleTime: 120_000, retry: 1,
@@ -121,7 +134,7 @@ function useNexusData() {
     queryKey: ['/api/health', 'terminal-chrome'], queryFn: q('/api/health'),
     refetchInterval: 120_000, staleTime: 60_000, retry: 1,
   });
-  return { realtime, rotation, extended, convictions, flow, watchlist, pulse, health };
+  return { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns };
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -394,7 +407,7 @@ export function NexusBoard() {
   const { currentStock, setCurrentStock } = useStockContext();
   const focusSym = currentStock?.symbol?.toUpperCase();
   const light = theme === 'nexus-light';
-  const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health } = useNexusData();
+  const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns } = useNexusData();
 
   useEffect(() => { document.title = 'QUANTEDGE // NEXUS'; }, []);
 
@@ -547,6 +560,37 @@ export function NexusBoard() {
           <div className="sec-head">
             <div className="sec-num">01 · MARKET INTELLIGENCE</div>
             <div className="sec-sub">Read the tape before the trade. Participation, relative rotation and leadership — one connected market view.</div>
+          </div>
+
+          <div className="intel-block">
+            <div className="intel-head">
+              <div className="intel-label">Pattern Radar</div>
+              <div className="intel-value">{patterns.data ? `${patterns.data.hits.length} hits · ${patterns.data.scanned} scanned` : 'warming…'}</div>
+            </div>
+            {(['inside_coil', 'bull_flag', 'breakout_watch', 'bear_flag'] as const).map((pat) => {
+              const rows = (patterns.data?.hits ?? []).filter((h) => h.pattern === pat).slice(0, 8);
+              if (!rows.length) return null;
+              const label = pat === 'inside_coil' ? 'Coils' : pat === 'bull_flag' ? 'Bull flags' : pat === 'breakout_watch' ? '52w-high watch' : 'Bear flags';
+              return (
+                <div key={pat} style={{ marginBottom: 8 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 0.8, margin: '6px 0 4px' }}>
+                    {label} · {(patterns.data?.hits ?? []).filter((h) => h.pattern === pat).length}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {rows.map((h) => (
+                      <button key={`${pat}-${h.symbol}`} title={h.note}
+                        onClick={() => { setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
+                        style={{ padding: '3px 8px', background: 'var(--panel-hi)', border: `1px solid ${h.bias === 'short' ? 'rgba(255,84,112,0.3)' : h.bias === 'long' ? 'rgba(61,220,151,0.3)' : 'var(--nx-border)'}`, borderRadius: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text-dim)', cursor: 'pointer' }}>
+                        {h.symbol}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {patterns.data && patterns.data.hits.length === 0 && (
+              <div style={{ fontSize: 10.5, color: 'var(--text-mute)', fontStyle: 'italic', padding: '6px 0' }}>Sweep pending — first pass runs ~3 min after boot.</div>
+            )}
           </div>
 
           <div className="intel-block">
