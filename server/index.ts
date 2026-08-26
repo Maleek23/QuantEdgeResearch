@@ -148,6 +148,36 @@ app.use((req, res, next) => {
       logger.error("[ORACLE LIFECYCLE] Execution reconciliation failed", error);
     }
 
+    // News → catalysts. The catalysts table this fills had ZERO rows, which made
+    // hasEventCatalyst permanently false, left short-discipline unable to ever
+    // see the event a short requires, and gave the convictions catalyst layer
+    // nothing to score. The platform's own catalyst producer writes a different
+    // table (catalyst_events) than the one consumers read, so it could never
+    // fill. Massive's ticker-news endpoint is on the free tier and carries
+    // per-ticker sentiment. Runs every 30 minutes on weekdays.
+    try {
+      const newsCron = await import('node-cron');
+      const runNewsIngest = async () => {
+        try {
+          const { ingestNewsCatalysts } = await import('./polygon-news-service');
+          const { USER_CORE_WATCHLIST, PREMIUM_WATCHLIST } = await import('./ticker-universe');
+          // Free tier is ~5 req/min, so take a rotating slice rather than the
+          // whole list on every pass.
+          const pool = Array.from(new Set([...USER_CORE_WATCHLIST, ...PREMIUM_WATCHLIST]));
+          const slice = 12;
+          const offset = Math.floor(Date.now() / (30 * 60 * 1000)) % Math.max(1, Math.ceil(pool.length / slice));
+          await ingestNewsCatalysts(pool.slice(offset * slice, offset * slice + slice));
+        } catch (error) {
+          logger.error('[NEWS] catalyst ingest failed', error);
+        }
+      };
+      void runNewsIngest();
+      newsCron.default.schedule('*/30 * * * 1-5', () => { void runNewsIngest(); });
+      log('📰 News catalyst ingest started — rotating watchlist slice every 30 min');
+    } catch (error) {
+      logger.error('[NEWS] could not schedule catalyst ingest', error);
+    }
+
     // The economic calendar was a hand-typed array whose last entry was
     // 2026-04-10, so the cash gate had run blind since April. FRED publishes
     // forward release dates for CPI, payrolls, PCE, PPI, GDP, retail sales,
@@ -904,7 +934,7 @@ app.use((req, res, next) => {
         
         const { generateQuantIdeas } = await import('./quant-ideas-generator');
         const marketData = await storage.getAllMarketData();
-        const catalysts = await storage.getAllCatalysts();
+        const catalysts = await storage.getActiveCatalysts();
         
         // Generate 10 quant ideas across different sectors
         const quantIdeas = await generateQuantIdeas(marketData, catalysts, 10, storage, true);
@@ -1036,7 +1066,7 @@ app.use((req, res, next) => {
         const { generateQuantIdeas } = await import('./quant-ideas-generator');
         const { storage: quantStorage } = await import('./storage');
         const marketData = await quantStorage.getAllMarketData();
-        const catalysts = await quantStorage.getAllCatalysts();
+        const catalysts = await quantStorage.getActiveCatalysts();
         
         // Generate 15 quant ideas across different sectors
         const quantIdeas = await generateQuantIdeas(marketData, catalysts, 15, quantStorage, true);

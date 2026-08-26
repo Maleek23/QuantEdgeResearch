@@ -453,6 +453,7 @@ export interface IStorage {
   getAllCatalysts(): Promise<Catalyst[]>;
   getCatalystsBySymbol(symbol: string): Promise<Catalyst[]>;
   createCatalyst(catalyst: InsertCatalyst): Promise<Catalyst>;
+  getActiveCatalysts(lookbackHours?: number, lookaheadDays?: number): Promise<Catalyst[]>;
 
   // Watchlist
   getAllWatchlist(): Promise<WatchlistItem[]>;
@@ -1710,6 +1711,19 @@ export class MemStorage implements IStorage {
   // Catalyst Methods
   async getAllCatalysts(): Promise<Catalyst[]> {
     return Array.from(this.catalysts.values());
+  }
+
+  /** In-memory mirror of the DB accessor — same window, no query. */
+  async getActiveCatalysts(lookbackHours = 72, lookaheadDays = 14): Promise<Catalyst[]> {
+    const now = Date.now();
+    const from = now - lookbackHours * 3600_000;
+    const to = now + lookaheadDays * 86_400_000;
+    return Array.from(this.catalysts.values())
+      .filter((c) => {
+        const t = Date.parse(c.timestamp);
+        return Number.isFinite(t) && t >= from && t <= to;
+      })
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 
   async getCatalystsBySymbol(symbol: string): Promise<Catalyst[]> {
@@ -3262,6 +3276,30 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(catalystsTable)
       .where(eq(catalystsTable.symbol, symbol))
       .orderBy(desc(catalystsTable.timestamp));
+  }
+
+  /**
+   * Catalysts an ENGINE should consider — a recent window plus the upcoming one.
+   *
+   * getAllCatalysts is deliberately forward-only because it backs a UI feed
+   * labelled "upcoming events". That is right for a scheduled earnings date and
+   * wrong for news: a story published two hours ago is the most actionable
+   * catalyst there is, and a forward-only filter makes every news row invisible
+   * to the scoring engine the moment it is written.
+   *
+   * Kept as a separate accessor rather than widening getAllCatalysts, so the
+   * "upcoming" feed does not silently start showing yesterday's headlines.
+   */
+  async getActiveCatalysts(lookbackHours = 72, lookaheadDays = 14): Promise<Catalyst[]> {
+    const now = Date.now();
+    const from = now - lookbackHours * 60 * 60 * 1000;
+    const to = now + lookaheadDays * 24 * 60 * 60 * 1000;
+
+    const all = await db.select().from(catalystsTable).orderBy(desc(catalystsTable.timestamp));
+    return all.filter((catalyst) => {
+      const t = Date.parse(catalyst.timestamp);
+      return Number.isFinite(t) && t >= from && t <= to;
+    });
   }
 
   async createCatalyst(catalyst: InsertCatalyst): Promise<Catalyst> {
