@@ -63,7 +63,8 @@ const QuantBotBoard = lazy(() => import('@/components/bot/quant-bot-board').then
 // CATALYST — the event calendar joined to the signals we publish, so a call and the
 // news pointing the other way land on the same screen instead of two separate ones.
 const CatalystBoard = lazy(() => import('@/components/catalyst/catalyst-board').then(m => ({ default: m.CatalystBoard })));
-const CryptoTerminal = lazy(() => import('@/components/crypto/crypto-terminal').then(m => ({ default: m.CryptoTerminal })));
+// CRYPTO = the sixth reference mock, wired. Prior CryptoTerminal stays in tree.
+const CryptoTerminal = lazy(() => import('@/components/crypto/crypto-nexus').then(m => ({ default: m.CryptoNexus })));
 
 type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot';
 /**
@@ -405,7 +406,7 @@ export default function TerminalShell() {
               {tab === 'flow' && <FlowBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
               {tab === 'gex' && <GexHub />}
               {tab === 'leaps' && <LeapTracker />}
-              {tab === 'crypto' && <CryptoTerminal onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
+              {tab === 'crypto' && <CryptoTerminal />}
               {tab === 'catalyst' && (
                 <div className="qe-module-page mx-auto w-full max-w-[1680px] space-y-4 px-4 py-4 md:px-5">
                   <TerminalPageHeader

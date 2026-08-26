@@ -1705,3 +1705,112 @@
 .nexus-vars.light .leaps-header{background:rgba(242,245,249,0.85)}
 .nexus-vars.light .leaps-title{background:linear-gradient(135deg,#121826,#b45309);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 @media(max-width:1100px){.nexus-vars .leapslab .main{grid-template-columns:1fr}.nexus-vars .leapslab .col-right{display:none}}
+
+/* ═══════════════════════════════════════════════════════════════
+   CRYPTO — the sixth reference mock. BTC gold / ETH violet accents.
+   ═══════════════════════════════════════════════════════════════ */
+.nexus-vars{--btc:#f7931a;--btc-bright:#ffb547;--btc-dim:#a66310;--eth:#8b7ee0;--eth-bright:#a89df0;--eth-dim:#5d54a3}
+.nexus-vars .cryptolab{position:relative;height:calc(100dvh - 98px);display:flex;flex-direction:column}
+.nexus-vars .cryptolab .main{display:grid;grid-template-columns:minmax(0,1fr) var(--nx-side,320px);overflow:hidden;position:relative;z-index:2;flex:1;min-height:0}
+.nexus-vars .crypto-area{display:flex;flex-direction:column;overflow-y:auto;border-right:1px solid var(--nx-border)}
+.nexus-vars .crypto-header{padding:20px 28px 16px;border-bottom:1px solid var(--nx-border);background:rgba(6,7,10,0.88);backdrop-filter:blur(16px)}
+.nexus-vars .crypto-eyebrow{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--btc-bright);letter-spacing:1.5px;margin-bottom:4px;text-shadow:0 0 8px rgba(247,147,26,0.4);text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:8px}
+.nexus-vars .crypto-eyebrow::before{content:'';width:18px;height:1px;background:var(--btc)}
+.nexus-vars .crypto-title-row{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.nexus-vars .crypto-title{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.02em;background:linear-gradient(135deg, #fff, var(--btc-bright));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.nexus-vars .crypto-desc{font-size:12px;color:var(--text-dim);line-height:1.55;max-width:900px}
+.nexus-vars .crypto-desc b{color:var(--btc-bright);font-weight:600}
+.nexus-vars .crypto-desc .eth{color:var(--eth-bright)}
+.nexus-vars .crypto-meta{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.nexus-vars .tag.btc{background:rgba(247,147,26,0.1);color:var(--btc-bright);border:1px solid rgba(247,147,26,0.25);box-shadow:0 0 8px rgba(247,147,26,0.15)}
+.nexus-vars .tag.eth{background:rgba(139,126,224,0.1);color:var(--eth-bright);border:1px solid rgba(139,126,224,0.25);box-shadow:0 0 8px rgba(139,126,224,0.15)}
+.nexus-vars .spot-section{padding:18px 28px;border-bottom:1px solid var(--nx-border);background:var(--bg)}
+.nexus-vars .spot-label{font-size:10px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.2px;font-weight:600;font-family:'JetBrains Mono',monospace;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.nexus-vars .spot-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.nexus-vars .crypto-spot-card{background:linear-gradient(135deg, var(--panel-solid), var(--panel-2));border:1px solid var(--nx-border);border-radius:10px;padding:18px;position:relative;overflow:hidden;transition:all 0.25s}
+.nexus-vars .crypto-spot-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;opacity:0.6}
+.nexus-vars .crypto-spot-card.btc::before{background:linear-gradient(90deg, transparent, var(--btc), transparent)}
+.nexus-vars .crypto-spot-card.eth::before{background:linear-gradient(90deg, transparent, var(--eth), transparent)}
+.nexus-vars .crypto-spot-card:hover{border-color:var(--nx-border-hi);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.nexus-vars .crypto-spot-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.nexus-vars .spot-icon{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:16px;color:white;flex-shrink:0}
+.nexus-vars .spot-icon.btc{background:linear-gradient(135deg, var(--btc), var(--btc-bright));box-shadow:0 0 20px rgba(247,147,26,0.4)}
+.nexus-vars .spot-icon.eth{background:linear-gradient(135deg, var(--eth), var(--eth-bright));box-shadow:0 0 20px rgba(139,126,224,0.4)}
+.nexus-vars .spot-name{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;letter-spacing:-0.01em}
+.nexus-vars .spot-sub{font-size:10px;color:var(--text-mute);font-family:'JetBrains Mono',monospace;letter-spacing:0.3px}
+.nexus-vars .crypto-spot-price{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;letter-spacing:-0.03em;margin-bottom:6px}
+.nexus-vars .crypto-spot-card.btc .crypto-spot-price{background:linear-gradient(135deg, #fff, var(--btc-bright));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.nexus-vars .crypto-spot-card.eth .crypto-spot-price{background:linear-gradient(135deg, #fff, var(--eth-bright));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.nexus-vars .mini-chart{height:48px;margin:8px 0 12px}
+.nexus-vars .mini-chart canvas{width:100%;height:100%;display:block}
+.nexus-vars .spot-perf{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.nexus-vars .perf-item{padding:8px 10px;background:rgba(0,0,0,0.25);border:1px solid var(--nx-border);border-radius:5px}
+.nexus-vars .perf-label{font-size:9px;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.nexus-vars .perf-val{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700}
+.nexus-vars .perf-val.up{color:var(--green);text-shadow:0 0 4px rgba(61,220,151,0.3)}
+.nexus-vars .perf-val.down{color:var(--red);text-shadow:0 0 4px rgba(255,84,112,0.3)}
+.nexus-vars .spot-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:12px;border-top:1px dashed rgba(79,209,197,0.1)}
+.nexus-vars .stat-item{display:flex;flex-direction:column;gap:2px}
+.nexus-vars .stat-k{font-size:9px;color:var(--text-mute);text-transform:uppercase;letter-spacing:0.8px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.nexus-vars .stat-v{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px}
+.nexus-vars .rsi-pill{padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase}
+.nexus-vars .rsi-pill.ext{background:rgba(255,84,112,0.12);color:var(--red);border:1px solid rgba(255,84,112,0.25)}
+.nexus-vars .rsi-pill.ok{background:rgba(61,220,151,0.1);color:var(--green);border:1px solid rgba(61,220,151,0.2)}
+.nexus-vars .rsi-bar{height:3px;background:rgba(79,209,197,0.08);border-radius:2px;overflow:hidden;margin-top:4px}
+.nexus-vars .rsi-fill{height:100%;border-radius:2px;transition:width 0.8s}
+.nexus-vars .rsi-fill.ext{background:linear-gradient(90deg, var(--amber), var(--red));box-shadow:0 0 6px var(--red)}
+.nexus-vars .rsi-fill.ok{background:linear-gradient(90deg, var(--cyan), var(--green));box-shadow:0 0 6px var(--green)}
+.nexus-vars .proxy-section{padding:18px 28px;border-bottom:1px solid var(--nx-border);background:var(--bg)}
+.nexus-vars .proxy-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.nexus-vars .proxy-label{font-size:10px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.2px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.nexus-vars .proxy-sub{font-size:10.5px;color:var(--text-dim);font-family:'JetBrains Mono',monospace}
+.nexus-vars .proxy-group{margin-bottom:16px}
+.nexus-vars .proxy-group-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--nx-border)}
+.nexus-vars .proxy-group-sym{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700}
+.nexus-vars .proxy-group-sym.btc{color:var(--btc-bright);text-shadow:0 0 8px rgba(247,147,26,0.3)}
+.nexus-vars .proxy-group-sym.eth{color:var(--eth-bright);text-shadow:0 0 8px rgba(139,126,224,0.3)}
+.nexus-vars .proxy-group-chg{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px}
+.nexus-vars .proxy-group-chg.up{color:var(--green);background:rgba(61,220,151,0.1);border:1px solid rgba(61,220,151,0.2)}
+.nexus-vars .proxy-group-chg.down{color:var(--red);background:rgba(255,84,112,0.1);border:1px solid rgba(255,84,112,0.2)}
+.nexus-vars .proxy-group-label{font-size:10px;color:var(--text-mute);font-family:'JetBrains Mono',monospace;letter-spacing:0.5px;margin-left:auto}
+.nexus-vars .proxy-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:10px}
+.nexus-vars .proxy-card{background:linear-gradient(135deg, var(--panel-solid), var(--panel-2));border:1px solid var(--nx-border);border-radius:8px;padding:14px;position:relative;overflow:hidden;transition:all 0.25s;cursor:pointer}
+.nexus-vars .proxy-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--proxy-color, var(--cyan));box-shadow:0 0 6px var(--proxy-color, var(--cyan));opacity:0.8}
+.nexus-vars .proxy-card:hover{border-color:var(--nx-border-hi);transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,0.4)}
+.nexus-vars .proxy-card:hover .proxy-arrow{transform:translateX(3px);color:var(--cyan-bright)}
+.nexus-vars .proxy-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.nexus-vars .proxy-sym{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;color:var(--text)}
+.nexus-vars .proxy-type{font-size:9px;color:var(--text-mute);padding:2px 6px;background:rgba(79,209,197,0.05);border:1px solid var(--nx-border);border-radius:3px;font-family:'JetBrains Mono',monospace;letter-spacing:0.3px;text-transform:uppercase;font-weight:600}
+.nexus-vars .proxy-arrow{color:var(--text-mute);margin-left:auto;transition:all 0.2s;font-size:12px}
+.nexus-vars .proxy-desc{font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:10px;min-height:32px}
+.nexus-vars .proxy-status{display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(0,0,0,0.25);border:1px solid var(--nx-border);border-radius:4px;font-size:10px;color:var(--amber);font-family:'JetBrains Mono',monospace;letter-spacing:0.3px}
+.nexus-vars .proxy-status.measured{color:var(--cyan-bright)}
+.nexus-vars .how-section{padding:18px 28px;background:var(--bg)}
+.nexus-vars .how-label{font-size:10px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.2px;font-weight:600;font-family:'JetBrains Mono',monospace;margin-bottom:14px}
+.nexus-vars .how-steps{display:grid;grid-template-columns:repeat(3, 1fr);gap:12px}
+.nexus-vars .how-step{padding:14px;background:linear-gradient(135deg, var(--panel-solid), var(--panel-2));border:1px solid var(--nx-border);border-radius:8px;transition:all 0.25s}
+.nexus-vars .how-step:hover{border-color:var(--nx-border-hi);transform:translateY(-1px)}
+.nexus-vars .how-num{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg, var(--btc), var(--eth));display:grid;place-items:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:white;margin-bottom:10px;box-shadow:0 0 16px rgba(247,147,26,0.25)}
+.nexus-vars .how-step .how-title{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;margin-bottom:6px;letter-spacing:-0.01em;color:var(--text);text-transform:none}
+.nexus-vars .how-desc{font-size:11px;color:var(--text-dim);line-height:1.55}
+.nexus-vars .how-desc b{color:var(--text);font-weight:600}
+.nexus-vars .how-warning{margin-top:14px;padding:10px 14px;background:rgba(245,182,66,0.04);border:1px solid rgba(245,182,66,0.15);border-radius:6px;font-size:11px;color:var(--text-dim);line-height:1.55;font-style:italic;display:flex;gap:10px;align-items:flex-start}
+.nexus-vars .how-warning svg{color:var(--amber);flex-shrink:0;margin-top:1px}
+.nexus-vars .how-warning b{color:var(--amber);font-style:normal;font-weight:600}
+.nexus-vars .summary-card.btc::before{background:linear-gradient(90deg, transparent, var(--btc), transparent)}
+.nexus-vars .summary-card.eth::before{background:linear-gradient(90deg, transparent, var(--eth), transparent)}
+.nexus-vars .summary-val.btc{color:var(--btc-bright);text-shadow:0 0 6px rgba(247,147,26,0.3)}
+.nexus-vars .summary-val.eth{color:var(--eth-bright);text-shadow:0 0 6px rgba(139,126,224,0.3)}
+.nexus-vars .correlation{padding:14px 16px;border-bottom:1px solid var(--nx-border)}
+.nexus-vars .correlation-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.nexus-vars .correlation-label{font-size:10px;color:var(--text-mute);text-transform:uppercase;letter-spacing:1.2px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.nexus-vars .correlation-list{display:flex;flex-direction:column;gap:6px}
+.nexus-vars .corr-item{display:grid;grid-template-columns:38px 1fr auto;gap:8px;align-items:center;padding:6px 8px;background:rgba(0,0,0,0.2);border:1px solid var(--nx-border);border-radius:4px;font-size:10.5px}
+.nexus-vars .corr-sym{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;color:var(--text)}
+.nexus-vars .corr-bar{height:3px;background:rgba(79,209,197,0.08);border-radius:2px;overflow:hidden}
+.nexus-vars .corr-fill{height:100%;border-radius:2px}
+.nexus-vars .corr-fill.high{background:linear-gradient(90deg, var(--green), var(--cyan));box-shadow:0 0 4px var(--green)}
+.nexus-vars .corr-fill.med{background:linear-gradient(90deg, var(--amber), var(--btc));box-shadow:0 0 4px var(--amber)}
+.nexus-vars .corr-fill.low{background:linear-gradient(90deg, var(--text-dim), var(--text-mute))}
+.nexus-vars .corr-val{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--text);min-width:32px;text-align:right}
+@media(max-width:1100px){.nexus-vars .cryptolab .main{grid-template-columns:1fr}.nexus-vars .cryptolab .col-right{display:none}.nexus-vars .spot-grid{grid-template-columns:1fr}.nexus-vars .how-steps{grid-template-columns:1fr}}
