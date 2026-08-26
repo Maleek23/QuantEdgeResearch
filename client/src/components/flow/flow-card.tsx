@@ -14,6 +14,7 @@ import { Star, ChevronDown, Zap, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
 import type { FlowPrint, FlowScore } from '@/lib/flow/flow-score';
+import { scoreBand } from '@/components/canon';
 
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
@@ -31,17 +32,6 @@ function expLabel(iso: string) {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-
-/**
- * Word band beside the number. "84" means nothing without knowing where the bar
- * sits; STRONG / MODERATE / WEAK is the read a desk actually uses.
- */
-function scoreBand(n: number): string {
-  if (n >= 80) return 'STRONG';
-  if (n >= 65) return 'MODERATE';
-  if (n >= 50) return 'LIGHT';
-  return 'WEAK';
-}
 
 /** Titled group inside the expanded card. */
 function Block({ title, children, muted }: { title: string; children: React.ReactNode; muted?: boolean }) {

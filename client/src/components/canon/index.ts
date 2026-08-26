@@ -12,6 +12,6 @@
  */
 export { CanonValue, CanonCoverage, valueStateOf, type ValueState } from './value';
 export { CanonFreshness, freshnessOf, ageLabel, type FreshnessLevel } from './freshness';
-export { CanonScore, CanonGrade, CanonRate, scoreBand, gradeColor, bandColor, type ScoreBand } from './score';
+export { CanonScore, CanonGrade, CanonRate, scoreBand, gradeColor, bandColor, tierColor, tierBadgeStyle, type ScoreBand } from './score';
 export { CanonLevelBadge, LEVEL_LABELS, levelColor, type LevelRole } from './level';
 export { CanonModelNote } from './model-note';

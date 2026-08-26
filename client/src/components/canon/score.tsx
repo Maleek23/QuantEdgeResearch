@@ -143,3 +143,35 @@ export function CanonRate({
     </span>
   );
 }
+
+/**
+ * Tier colour, S through F, from the --grade-* tokens.
+ *
+ * Replaces three near-identical TIER_COLORS maps (symbol-journey-modal,
+ * elite-setups-grid, performance-attribution) that were each half-migrated —
+ * some entries referenced --trade-bullish while their neighbours hardcoded
+ * purple-400 / cyan-400 / orange-400 — and that disagreed on coverage, with
+ * elite-setups-grid defining only S/A/B so a C-tier row fell through to a grey
+ * default that read as "no grade" rather than "low grade".
+ */
+export function tierColor(tier: string | null | undefined): string {
+  switch ((tier ?? '').toUpperCase().charAt(0)) {
+    case 'S': return 'var(--grade-s)';
+    case 'A': return 'var(--grade-a)';
+    case 'B': return 'var(--grade-b)';
+    case 'C': return 'var(--grade-c)';
+    case 'D': return 'var(--grade-d)';
+    case 'F': return 'var(--grade-f)';
+    default: return 'var(--muted-foreground)';
+  }
+}
+
+/** Inline style for a tier badge — text, border and fill from one token. */
+export function tierBadgeStyle(tier: string | null | undefined): React.CSSProperties {
+  const c = tierColor(tier);
+  return {
+    color: c,
+    borderColor: `color-mix(in srgb, ${c} 40%, transparent)`,
+    backgroundColor: `color-mix(in srgb, ${c} 18%, transparent)`,
+  };
+}

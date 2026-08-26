@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FlowPrint, FlowScore } from '@/lib/flow/flow-score';
+import { scoreBand } from '@/components/canon';
 
 const money = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n.toFixed(0)}`;
 const expiry = (iso: string) => {
@@ -60,7 +61,7 @@ export function FlowLedger({
                     <td className="px-3 py-2"><span className="font-semibold" style={{ color: tone }}>${print.strikePrice}{print.optionType === 'call' ? 'C' : 'P'}</span><span className="ml-2 text-muted-foreground">{expiry(print.expirationDate)}</span></td>
                     <td className="px-3 py-2 font-semibold" style={{ color: tone }}>{print.sentiment === 'bullish' ? '▲ BULL' : print.sentiment === 'bearish' ? '▼ BEAR' : print.sentiment === 'unknown' ? '· UNVERIFIED' : '◆ NEUTRAL'}</td>
                     <td className="px-3 py-2"><div className="flex items-center gap-1.5">{score.isWhale && <Tag tone="gold">WHALE</Tag>}{score.isSweep && <Tag tone="cyan">SWEEP</Tag>}{score.isRepeat && <Tag tone="bull">REPEAT</Tag>}{!score.isWhale && !score.isSweep && !score.isRepeat && <span className="uppercase text-muted-foreground">{print.flowType.replace('_', ' ')}</span>}</div></td>
-                    <td className="px-3 py-2"><div className="flex items-center gap-2"><div className="h-1.5 w-16 overflow-hidden rounded-full bg-foreground/[0.08]"><div className="h-full rounded-full bg-gradient-to-r from-[var(--brand-cyan)] to-[var(--trade-bullish)]" style={{ width: `${score.score}%` }} /></div><b className="text-[12px] text-foreground">{score.score}</b><span className="text-muted-foreground">{score.score >= 80 ? 'STRONG' : score.score >= 65 ? 'MODERATE' : score.score >= 50 ? 'LIGHT' : 'WEAK'}</span></div></td>
+                    <td className="px-3 py-2"><div className="flex items-center gap-2"><div className="h-1.5 w-16 overflow-hidden rounded-full bg-foreground/[0.08]"><div className="h-full rounded-full bg-gradient-to-r from-[var(--brand-cyan)] to-[var(--trade-bullish)]" style={{ width: `${score.score}%` }} /></div><b className="text-[12px] text-foreground">{score.score}</b><span className="text-muted-foreground">{scoreBand(score.score)}</span></div></td>
                     <td className="px-3 py-2 text-right font-semibold text-foreground">{money(score.totalPremium)}</td>
                     <td className="px-3 py-2 text-right">{print.volume.toLocaleString()} / {print.openInterest?.toLocaleString() ?? '—'}{volOi != null && <span className="ml-1.5 text-muted-foreground">{volOi.toFixed(1)}×</span>}</td>
                     <td className="px-3 py-2 text-right">{score.pctOtm == null ? '—' : `${score.pctOtm >= 0 ? '+' : ''}${score.pctOtm.toFixed(1)}%`}</td>
