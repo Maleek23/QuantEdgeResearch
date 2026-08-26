@@ -1180,7 +1180,12 @@ export async function generateQuantIdeas(
   let patternSymbols: string[] = [];
   try {
     const { getPatternHits } = await import('./pattern-engine');
-    patternSymbols = Array.from(new Set(getPatternHits().hits.map((h) => h.symbol))).slice(0, 60);
+    // The 2000-name sweep produces ~1700 hits; the pool injection takes the
+    // directional ones (flags, coils, breakout watches — core names first,
+    // then by liquidity rank) and leaves bare NR7 compressions to the radar.
+    const hits = getPatternHits().hits.filter((h) => h.pattern !== 'nr7');
+    const ordered = [...hits.filter((h) => h.core), ...hits.filter((h) => !h.core)];
+    patternSymbols = Array.from(new Set(ordered.map((h) => h.symbol))).slice(0, 80);
   } catch { /* engine not warmed yet — pool unchanged */ }
   // Flow prints seed candidacy the same way pattern hits do: aggregate the
   // session's tape once per batch, and any name with a QUALIFYING one-sided
@@ -1193,7 +1198,16 @@ export async function generateQuantIdeas(
     flowSymbols = Array.from(flowAggBySymbol.keys()).filter((s) => flowConvictionFor(s) != null).slice(0, 40);
     if (flowSymbols.length) logger.info(`  ✓ Flow conviction: ${flowSymbols.length} name(s) with a qualifying one-sided tape — ${flowSymbols.slice(0, 8).join(', ')}${flowSymbols.length > 8 ? '…' : ''}`);
   } catch { /* scanner not warmed — pool unchanged */ }
-  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST, ...neighborhood, ...patternSymbols, ...flowSymbols].map(x => x.toUpperCase())));
+  // Whole-market movers from the liquid universe (top-2000 by dollar volume):
+  // the SNDK-class runners no curated list contained. Real day-over-day change
+  // from grouped session data — zero extra quota, and every gate still applies.
+  let moverSymbols: string[] = [];
+  try {
+    const { getLiquidMovers } = await import('./liquid-universe');
+    moverSymbols = getLiquidMovers(3, 50e6, 60).map((m) => m.symbol);
+    if (moverSymbols.length) logger.info(`  ✓ Liquid movers: ${moverSymbols.length} whole-market name(s) moving ≥3% on ≥$50M/day — ${moverSymbols.slice(0, 8).join(', ')}${moverSymbols.length > 8 ? '…' : ''}`);
+  } catch { /* universe cold — pool unchanged */ }
+  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST, ...neighborhood, ...patternSymbols, ...flowSymbols, ...moverSymbols].map(x => x.toUpperCase())));
   logger.info(`  \u2713 Scan pool: ${curated.length} names (core+premium plus ${new Set(neighborhood).size} sector-neighborhood names from the operator's own buckets)`);
   const coreSymbols = curated.filter(s => !discoveredSymbols.has(s));
   const coreData: MarketData[] = [];

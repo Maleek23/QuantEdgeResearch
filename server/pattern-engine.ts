@@ -176,15 +176,45 @@ export async function scanUniversePatterns(force = false): Promise<void> {
   try {
     const { getFullUniverse } = await import('./ticker-universe');
     const { fetchCandlesBatch } = await import('./historical-candles');
-    const universe = Array.from(new Set(getFullUniverse().map((t: string) => t.toUpperCase())));
+    const { getLiquidSymbols, getUniverseBars, warmLiquidUniverse } = await import('./liquid-universe');
+    // The operator's rule: top-2000 liquid names UNIVERSALLY, plus every
+    // curated list. The liquid set's bars come from grouped-daily calls (~70
+    // requests for the whole market); only curated stragglers outside it pay
+    // the per-symbol fetch. A cold universe is warmed HERE rather than trusted
+    // to boot ordering — the first boot sweep raced the 45s warm timer and
+    // covered only the curated 673.
+    if (getLiquidSymbols().length === 0) await warmLiquidUniverse();
+    const liquid = getLiquidSymbols();
+    const universe = Array.from(new Set([...getFullUniverse(), ...liquid].map((t: string) => t.toUpperCase())));
     const { USER_CORE_WATCHLIST } = await import('./ticker-universe');
     const coreSet = new Set(USER_CORE_WATCHLIST.map((t: string) => t.toUpperCase()));
-    logger.info(`[PATTERN-ENGINE] sweeping ${universe.length} names on real daily bars…`);
+    logger.info(`[PATTERN-ENGINE] sweeping ${universe.length} names (${liquid.length} liquid + curated) on real daily bars…`);
     const hits: PatternHit[] = [];
     let scanned = 0; let failed = 0;
+
+    // Fast path: whole-market bars assembled from grouped sessions.
+    const grouped = liquid.length ? await getUniverseBars(70) : new Map();
+    const curatedSet = new Set(getFullUniverse().map((t: string) => t.toUpperCase()));
+    const remaining: string[] = [];
+    for (const sym of universe) {
+      const gb = grouped.get(sym);
+      if (gb && gb.length >= 60) {
+        scanned++;
+        hits.push(...detect(sym, gb as Bar[]).map((h) => ({ ...h, core: coreSet.has(sym) })));
+      } else if (curatedSet.has(sym)) {
+        // Only curated names earn the per-symbol fallback — a liquid-only name
+        // with thin grouped coverage is counted unreadable, not allowed to
+        // stampede thousands of per-symbol fetches.
+        remaining.push(sym);
+      } else {
+        failed++;
+      }
+    }
+
+    // Per-symbol fallback for curated names the grouped set didn't cover.
     const CHUNK = 40;
-    for (let i = 0; i < universe.length; i += CHUNK) {
-      const slice = universe.slice(i, i + CHUNK);
+    for (let i = 0; i < remaining.length; i += CHUNK) {
+      const slice = remaining.slice(i, i + CHUNK);
       try {
         const candles = await fetchCandlesBatch(slice, '1y', '1d', 8);
         for (const sym of slice) {

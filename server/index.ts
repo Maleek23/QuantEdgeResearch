@@ -175,6 +175,16 @@ app.use((req, res, next) => {
       newsCron.default.schedule('*/30 * * * 1-5', () => { void runNewsIngest(); });
       log('📰 News catalyst ingest started — rotating watchlist slice every 30 min');
 
+      // Liquid universe — top-2000 by dollar volume from ONE grouped-daily
+      // call. Disk snapshot loads immediately so a restart isn't blind; the
+      // fresh warm lands before the first pattern sweep, and a daily refresh
+      // keeps the ranking current. The operator's rule: top-2000, everywhere.
+      void import('./liquid-universe').then(async (lu) => {
+        await lu.loadLiquidUniverseFromDisk();
+        setTimeout(() => { void lu.warmLiquidUniverse(); }, 45 * 1000);
+        setInterval(() => { void lu.warmLiquidUniverse(); }, 24 * 60 * 60 * 1000);
+      }).catch(() => {});
+
       // Full-universe pattern sweep — daily bars, so twice a day is plenty.
       // First sweep 3 min after boot (let quotes/candles warm), then every 12h.
       setTimeout(() => {
