@@ -302,6 +302,21 @@ export async function calculateAggregateGammaExposure(
       return null;
     }
 
+    // 1.5 — Massive chain snapshot: the whole chain (greeks, IV, OI, volume)
+    // in one OPRA-fed call. Entitlement-gated: silently unavailable until the
+    // operator's Options Starter subscription activates, at which point this
+    // becomes the primary leg and the per-expiry fetch storm below becomes
+    // the fallback. See server/massive-options.ts.
+    try {
+      const { getMassiveChainInputs } = await import('./massive-options');
+      const massiveInputs = await getMassiveChainInputs(symbol);
+      if (massiveInputs && massiveInputs.length >= 10) {
+        const snap = computeExposures(symbol, cq.bestPrice, massiveInputs, ['massive-chain']);
+        logger.info(`[GEX-AGG] ${symbol}: Massive chain snapshot — ${massiveInputs.length} contracts, one call`);
+        return snapshotToLegacy(snap, `Aggregate (massive chain)`, 'mixed', cq);
+      }
+    } catch { /* fall through to the cascade */ }
+
     // 2. Get expirations
     const allExps = await fetchExpirationsCascade(symbol);
     if (allExps.length === 0) {
