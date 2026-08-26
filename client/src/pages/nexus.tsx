@@ -437,6 +437,10 @@ export function NexusBoard() {
   const [radarPrev, setRadarPrev] = useState<{ symbol: string; note: string; x: number; y: number } | null>(null);
   const [radarBrowse, setRadarBrowse] = useState<string | null>(null); // pattern filter or 'all'
   const [printsExpanded, setPrintsExpanded] = useState(false);
+  // THE expand — the terminal's signature ⤢-to-blurred-modal, on every rail
+  // section. The operator asked roughly fifty times; inline toggles are not it.
+  const [expandSec, setExpandSec] = useState<null | 'prints' | 'watch' | 'heat' | 'quad' | 'pulse' | 'dev'>(null);
+  const bigQuadRef = useRef<HTMLCanvasElement>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addSym, setAddSym] = useState('');
   // Quick-actions on the book's cards. The Bot? verdict runs the bot's own
@@ -445,6 +449,11 @@ export function NexusBoard() {
     queryKey: ['/api/quant-bot/status', 'nexus'], queryFn: q('/api/quant-bot/status'),
     staleTime: 60_000, retry: 1,
   });
+  const pulseSpyQ = useQuery<{ data?: { time: number; close: number }[] }>({
+    queryKey: ['/api/historical-prices', 'SPY', '1d5m', 'nexus'], queryFn: q('/api/historical-prices/SPY?range=1d&interval=5m'),
+    staleTime: 120_000, refetchInterval: 300_000, retry: 1, enabled: expandSec === 'pulse',
+  });
+  const pulseSpy = pulseSpyQ.data?.data;
   const heldByBot = useMemo(() => new Set((botStatus.data?.openPositions ?? []).map((x) => x.symbol)), [botStatus.data]);
   const [botVerdicts, setBotVerdicts] = useState<Record<string, string>>({});
   const [watchState, setWatchState] = useState<Record<string, string>>({});
@@ -475,6 +484,7 @@ export function NexusBoard() {
   const quadRef = useRef<HTMLCanvasElement>(null);
   useBgCanvas(bgRef);
   useQuadCanvas(quadRef, rotation.data?.sectors ?? [], light);
+  useQuadCanvas(bigQuadRef, rotation.data?.sectors ?? [], light);
 
   /* stream rows — real prices; flash only when a price actually changed */
   const fut = realtime.data?.prices?.futures ?? {};
@@ -574,6 +584,11 @@ export function NexusBoard() {
     const rank = new Map(watchOrder.map((sym, i) => [sym, i]));
     return [...base].sort((x, y) => (rank.get(x.symbol) ?? 99) - (rank.get(y.symbol) ?? 99));
   }, [watchlist.data, watchOrder]);
+  const Ex = ({ id }: { id: NonNullable<typeof expandSec> }) => (
+    <button title="Expand" onClick={(e) => { e.stopPropagation(); setExpandSec(id); }}
+      style={{ marginLeft: 6, width: 16, height: 16, display: 'inline-grid', placeItems: 'center', background: 'transparent', border: '1px solid var(--nx-border)', borderRadius: 3, color: 'var(--text-mute)', cursor: 'pointer', fontSize: 9, lineHeight: 1 }}>⤢</button>
+  );
+
   const dropOn = (target: string) => {
     const from = dragSym.current;
     dragSym.current = null;
@@ -665,6 +680,97 @@ export function NexusBoard() {
               <div style={{ fontSize: 10.5, color: 'var(--text-mute)', fontStyle: 'italic', padding: '6px 0' }}>Sweep pending — first pass runs ~3 min after boot.</div>
             )}
             {radarPrev && <RadarPreview {...radarPrev} />}
+            {expandSec && (
+              <div className="chart-modal" onClick={() => setExpandSec(null)}>
+                <div className="chart-modal-box" style={{ maxWidth: 980, maxHeight: '86vh', margin: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid var(--nx-border)' }}>
+                    <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 15 }}>
+                      {expandSec === 'prints' ? 'Flow Prints' : expandSec === 'watch' ? 'Watchlist' : expandSec === 'heat' ? 'Sector Heatmap' : expandSec === 'quad' ? 'Rotation Map' : expandSec === 'dev' ? 'Candidate field' : 'Market Pulse'}
+                    </div>
+                    <button onClick={() => setExpandSec(null)} style={{ background: 'transparent', border: '1px solid var(--nx-border)', borderRadius: 4, color: 'var(--text-dim)', cursor: 'pointer', width: 26, height: 26 }}>✕</button>
+                  </div>
+                  <div style={{ flex: 1, overflow: 'auto', padding: 18 }}>
+                    {expandSec === 'prints' && (
+                      <div>
+                        {(flow.data?.trades ?? []).map((t) => (
+                          <div key={t.id} onClick={() => { setExpandSec(null); setCurrentStock({ symbol: t.symbol }); openWorkup(t.symbol); }}
+                            style={{ display: 'grid', gridTemplateColumns: '90px 70px 1fr auto auto', gap: 12, alignItems: 'center', padding: '8px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>
+                            <span style={{ color: 'var(--text-mute)' }}>{new Date(t.detectedAt).toTimeString().slice(0, 8)}</span>
+                            <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13 }}>{t.symbol}</b>
+                            <span style={{ color: 'var(--text-dim)' }}>${t.strikePrice} strike · ${Math.round(t.totalPremium / 1000)}k premium</span>
+                            <span style={{ color: t.optionType === 'call' ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{t.optionType.toUpperCase()}</span>
+                            <span style={{ color: 'var(--text-mute)', fontSize: 10 }}>workup →</span>
+                          </div>
+                        ))}
+                        {!(flow.data?.trades ?? []).length && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-mute)', fontStyle: 'italic' }}>No prints in the window.</div>}
+                      </div>
+                    )}
+                    {expandSec === 'watch' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                        {watchSyms.map(({ symbol }) => {
+                          const wq = quoteBySym.get(symbol);
+                          return (
+                            <div key={symbol} onClick={() => { setExpandSec(null); setCurrentStock({ symbol }); openWorkup(symbol); }}
+                              style={{ padding: 12, background: 'rgba(0,0,0,0.25)', border: '1px solid var(--nx-border)', borderRadius: 6, cursor: 'pointer' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14 }}>{symbol}</b>
+                                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: wq && wq.changePct < 0 ? 'var(--red)' : 'var(--green)' }}>{wq ? `${wq.changePct >= 0 ? '+' : ''}${wq.changePct.toFixed(2)}%` : '—'}</span>
+                              </div>
+                              <WatchSpark symbol={symbol} up={!wq || wq.changePct >= 0} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {expandSec === 'heat' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                        {sectors.map((s2) => (
+                          <button key={s2.etf} onClick={() => { setExpandSec(null); setCurrentStock({ symbol: s2.etf }); openWorkup(s2.etf); }}
+                            style={{ padding: '18px 8px', borderRadius: 6, border: 'none', cursor: 'pointer', background: heatColor(s2.change), color: Math.abs(s2.change) > 2 ? '#fff' : 'rgba(255,255,255,0.9)', fontFamily: "'JetBrains Mono',monospace" }}>
+                            <div style={{ fontWeight: 700, fontSize: 14 }}>{s2.etf}</div>
+                            <div style={{ fontSize: 10, opacity: 0.85 }}>{s2.name}</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{s2.change >= 0 ? '+' : ''}{s2.change.toFixed(2)}%</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {expandSec === 'quad' && (
+                      <div style={{ position: 'relative', height: '62vh', background: 'linear-gradient(rgba(79,209,197,0.05) 1px, transparent 1px),linear-gradient(90deg, rgba(79,209,197,0.05) 1px, transparent 1px)', backgroundSize: '25% 25%', borderRadius: 8, overflow: 'hidden' }}>
+                        <canvas ref={bigQuadRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+                        <div style={{ position: 'absolute', top: 10, left: 14, color: 'var(--green)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>LEADING</div>
+                        <div style={{ position: 'absolute', top: 10, right: 14, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>IMPROVING</div>
+                        <div style={{ position: 'absolute', bottom: 10, left: 14, color: 'var(--amber)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>WEAKENING</div>
+                        <div style={{ position: 'absolute', bottom: 10, right: 14, color: 'var(--red)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>LAGGING</div>
+                      </div>
+                    )}
+                    {expandSec === 'pulse' && (
+                      <div>
+                        <div style={{ marginBottom: 14 }}>
+                          <Spark bars={(pulseSpy ?? []).map((b2) => ({ time: b2.time, close: b2.close }))} color="#4fd1c5" height={220} label="SPY intraday" />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+                          {streamRows.map((r) => (
+                            <div key={r.sym} style={{ padding: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid var(--nx-border)', borderRadius: 6, fontFamily: "'JetBrains Mono',monospace" }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <b>{r.sym}</b>
+                                <span style={{ color: r.dirUp === false ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{r.dirUp == null ? '—' : r.dirUp ? '▲' : '▼'}</span>
+                              </div>
+                              <div style={{ fontSize: 12, marginTop: 4 }}>{r.price != null ? (r.sym === 'BTC' || r.sym === 'ETH' ? `$${Math.round(r.price).toLocaleString()}` : `$${r.price.toFixed(2)}`) : 'no level'}</div>
+                              <div style={{ fontSize: 9, color: r.age != null && r.age <= 60 ? 'var(--green)' : 'var(--amber)', marginTop: 2 }}>{r.age != null ? `${Math.round(r.age)}s ago` : 'age unknown'}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {expandSec === 'dev' && (
+                      <div style={{ color: 'var(--text-dim)', fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>
+                        The candidate field's full set renders in the rail — this expands as the set grows. Pre-trigger picks and live compressions, all clickable to their workups.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {radarBrowse && (
               <div style={{ position: 'fixed', inset: 0, zIndex: 88, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center' }} onClick={() => setRadarBrowse(null)}>
                 <div style={{ width: 'min(720px, 92vw)', maxHeight: '80vh', overflow: 'auto', background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 12, padding: 18 }} onClick={(ev) => ev.stopPropagation()}>
@@ -689,7 +795,7 @@ export function NexusBoard() {
 
           <div className="intel-block">
             <div className="intel-head">
-              <div className="intel-label">Market Pulse</div>
+              <div className="intel-label">Market Pulse<Ex id="pulse" /></div>
               <div className="intel-value">{rotation.data?.sessionLabel ?? '—'}</div>
             </div>
             <div className="pulse-card">
@@ -762,7 +868,7 @@ export function NexusBoard() {
           {/* Rotation Map */}
           <div className="intel-block">
             <div className="intel-head">
-              <div className="intel-label">Rotation Map</div>
+              <div className="intel-label">Rotation Map<Ex id="quad" /></div>
               <div className="intel-value">{rotation.data?.sessionLabel ?? '—'}</div>
             </div>
             <div className="quad-wrap">
@@ -789,7 +895,7 @@ export function NexusBoard() {
               seller is not, and is not claimed. */}
           <div className="tape">
             <div className="intel-head">
-              <div className="intel-label">Flow Prints</div>
+              <div className="intel-label">Flow Prints<Ex id="prints" /></div>
               <div className="intel-value" style={{ cursor: 'pointer' }} title="Expand / collapse the print list"
                 onClick={() => setPrintsExpanded((x) => !x)}>
                 {printsExpanded ? `${(flow.data?.trades ?? []).length} prints · collapse ▲` : '15-min delayed · expand ▼'}
@@ -1067,7 +1173,7 @@ export function NexusBoard() {
             return (
               <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--nx-border)' }}>
                 <div className="intel-head" style={{ marginBottom: 8 }}>
-                  <div className="intel-label">Candidate field</div>
+                  <div className="intel-label">Candidate field<Ex id="dev" /></div>
                   <div className="intel-value">{total} developing</div>
                 </div>
                 {pendingPicks.map(({ p, g }) => (
@@ -1093,7 +1199,7 @@ export function NexusBoard() {
 
           <div className="heatmap-section">
             <div className="intel-head">
-              <div className="intel-label">Sector Heatmap</div>
+              <div className="intel-label">Sector Heatmap<Ex id="heat" /></div>
               <div className="intel-value">{rotation.data?.sessionLabel ?? '1D % chg'}</div>
             </div>
             <div className="heatmap">
@@ -1114,7 +1220,7 @@ export function NexusBoard() {
 
           <div className="watch-section">
             <div className="watch-head">
-              <div className="watch-title">Watchlist</div>
+              <div className="watch-title">Watchlist<Ex id="watch" /></div>
               <div className="watch-count" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {watchSyms.length ? `${watchSyms.length} names` : ''}
                 {addOpen ? (
