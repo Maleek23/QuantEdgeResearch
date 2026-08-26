@@ -12,7 +12,11 @@ import { useQuery } from '@tanstack/react-query';
    DATA
    ──────────────────────────────────────────────────────────────── */
 
-export interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number }
+export interface Candle {
+  time: number; open: number; high: number; low: number; close: number; volume: number;
+  /** Set by useCandles when a bad-tick wick was clamped on that side. */
+  clampedLow?: boolean; clampedHigh?: boolean;
+}
 interface HistoryResponse { symbol: string; range: string; data: Candle[] }
 export interface EHQuote { symbol: string; lastPrice: number; changePct: number }
 export interface EHPayload { session?: string; gainers?: EHQuote[]; losers?: EHQuote[]; mostActive?: EHQuote[] }
@@ -61,10 +65,11 @@ export function useCandles(symbol: string, tf: string) {
         const bodyLo = Math.min(c.open, c.close);
         const bodyHi = Math.max(c.open, c.close);
         let { low, high } = c;
-        if (low < bodyLo * (1 - tol)) { low = bodyLo * (1 - tol); clampedWicks++; }
-        if (high > bodyHi * (1 + tol)) { high = bodyHi * (1 + tol); clampedWicks++; }
+        let clampedLow = false; let clampedHigh = false;
+        if (low < bodyLo * (1 - tol)) { low = bodyLo * (1 - tol); clampedLow = true; clampedWicks++; }
+        if (high > bodyHi * (1 + tol)) { high = bodyHi * (1 + tol); clampedHigh = true; clampedWicks++; }
         // The feed's time is epoch SECONDS; the drawing code labels with Date(ms).
-        return { ...c, low, high, time: c.time * 1000 };
+        return { ...c, low, high, clampedLow, clampedHigh, time: c.time * 1000 };
       });
       if (bars.length < 2) throw new Error(body.error ?? 'history empty');
       return { bars, clampedWicks };
@@ -126,8 +131,13 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
 
   let min = Infinity; let max = -Infinity; let maxVol = 0;
   candles.forEach((c) => {
-    if (c.low < min) min = c.low;
-    if (c.high > max) max = c.high;
+    // A clamped side is a bad tick: it may not set the scale, or three broken
+    // prints flatten every real bar (measured on QQQ 1h). Its wick is drawn
+    // to the plot edge below instead — off-scale, stated as such.
+    const lo = c.clampedLow ? Math.min(c.open, c.close) : c.low;
+    const hi = c.clampedHigh ? Math.max(c.open, c.close) : c.high;
+    if (lo < min) min = lo;
+    if (hi > max) max = hi;
     if (c.volume > maxVol) maxVol = c.volume;
   });
   const span = max - min;
@@ -251,8 +261,8 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
       const color = isUp ? '#3ddc97' : '#ff5470';
       const openY = padding.top + ((max - c.open) / priceRange) * priceH;
       const closeY = padding.top + ((max - c.close) / priceRange) * priceH;
-      const highY = padding.top + ((max - c.high) / priceRange) * priceH;
-      const lowY = padding.top + ((max - c.low) / priceRange) * priceH;
+      const highY = c.clampedHigh ? padding.top : padding.top + ((max - c.high) / priceRange) * priceH;
+      const lowY = c.clampedLow ? padding.top + priceH : padding.top + ((max - c.low) / priceRange) * priceH;
       ctx.strokeStyle = color;
       ctx.lineWidth = 1;
       ctx.beginPath();

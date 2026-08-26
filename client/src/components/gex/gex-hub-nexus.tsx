@@ -61,13 +61,21 @@ const DTE_BUCKETS = [
 ] as const;
 type BucketId = typeof DTE_BUCKETS[number]['id'];
 
-/** Adaptive magnitude formatter — the feed's units drive the suffix. */
-function makeFmt(maxAbs: number) {
-  if (maxAbs >= 1e9) return (v: number) => `${v < 0 ? '-' : ''}$${(Math.abs(v) / 1e9).toFixed(1)}B`;
-  if (maxAbs >= 1e6) return (v: number) => `${v < 0 ? '-' : ''}$${(Math.abs(v) / 1e6).toFixed(1)}M`;
-  if (maxAbs >= 1e3) return (v: number) => `${v < 0 ? '-' : ''}$${(Math.abs(v) / 1e3).toFixed(0)}K`;
-  return (v: number) => `${v < 0 ? '-' : ''}${Math.abs(v).toFixed(2)}`;
-}
+/**
+ * The matrix values are denominated in $MILLIONS — the same convention the
+ * snapshot's own formatter uses ($-5.48 renders $5.5B at the hub level).
+ * Verified against the live feed: SPY's dominant node is 80.14 → $80.1M at
+ * $766 AUG 28. Values under one thousand dollars are dust: rendered as an
+ * empty cell that still answers on hover, so "visually nothing" never turns
+ * into "claimed zero".
+ */
+const fmtM = (v: number) => {
+  const a = Math.abs(v); const sign = v < 0 ? '-' : '';
+  if (a >= 1000) return `${sign}$${(a / 1000).toFixed(1)}B`;
+  if (a >= 1) return `${sign}$${a.toFixed(1)}M`;
+  return `${sign}$${(a * 1000).toFixed(0)}K`;
+};
+const DUST_M = 0.001; // < $1K of exposure
 
 export function GexHubNexus() {
   const [, setLocation] = useLocation();
@@ -142,8 +150,6 @@ export function GexHubNexus() {
 
     const vals = cells.map((c) => Math.abs(valOf(c)));
     const rMax = robustMax(vals, 1e-9, 0.985);
-    const trueMax = Math.max(...vals, 0);
-    const fmt = makeFmt(trueMax);
 
     /* strongest listed nodes above / below spot — the context rail's read */
     let above: StrikeExpiryCell | null = null; let below: StrikeExpiryCell | null = null;
@@ -154,9 +160,15 @@ export function GexHubNexus() {
     /* gravity: call-side vs put-side share of total |exposure| */
     let pos = 0; let neg = 0;
     for (const c of cells) { const v = valOf(c); if (v >= 0) pos += v; else neg += -v; }
-    const callPct = pos + neg > 0 ? Math.round((pos / (pos + neg)) * 100) : null;
+    // One decimal, clamped off the poles: with a single node holding ~99% of
+    // exposure, integer rounding printed "0% puts / 100% calls" — but puts
+    // EXIST, they are just dwarfed. 0% is a claim of absence; 0.2% is a
+    // measurement. (Same lesson as the robust max on the gamma surface.)
+    const callPct = pos + neg > 0
+      ? Math.min(99.9, Math.max(0.1, (pos / (pos + neg)) * 100))
+      : null;
 
-    return { expiries, expiryAll, bucketCounts, strikes, hiddenAbove, hiddenBelow, byKey, rMax, fmt, above, below, callPct, total: cells.length };
+    return { expiries, expiryAll, bucketCounts, strikes, hiddenAbove, hiddenBelow, byKey, rMax, above, below, callPct, total: cells.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matrix, bucket, showAbove, showBelow, spot, metric]);
 
@@ -413,10 +425,13 @@ export function GexHubNexus() {
                             return (
                               <td key={dte}>
                                 {/* Absent = the chain never listed it — an empty cell,
-                                    not a zero (the value/zero/missing rule). */}
+                                    not a zero (the value/zero/missing rule). Dust
+                                    (<$1K) shows no text but still answers on hover. */}
                                 {v == null || v === 0
                                   ? <div className="cell" />
-                                  : <div className={`cell ${cellClass(v)}`} title={`$${strike} · ${cell!.expiryLabel} · ${metric.toUpperCase()} ${v.toFixed(4)}`}>{shaped.fmt(v)}</div>}
+                                  : Math.abs(v) < DUST_M
+                                    ? <div className="cell" title={`$${strike} · ${cell!.expiryLabel} · ${metric.toUpperCase()} ${fmtM(v)} (dust)`} />
+                                    : <div className={`cell ${cellClass(v)}`} title={`$${strike} · ${cell!.expiryLabel} · ${metric.toUpperCase()} ${fmtM(v)}`}>{fmtM(v)}</div>}
                               </td>
                             );
                           })}
@@ -513,8 +528,8 @@ export function GexHubNexus() {
                   )}
                 </div>
                 <div className="gravity-labels">
-                  <div className="puts">↓ {100 - shaped.callPct}% puts</div>
-                  <div className="calls">{shaped.callPct}% calls ↑</div>
+                  <div className="puts">↓ {(100 - shaped.callPct).toFixed(1)}% puts</div>
+                  <div className="calls">{shaped.callPct.toFixed(1)}% calls ↑</div>
                 </div>
                 <div className="gravity-pct">
                   {negGamma
