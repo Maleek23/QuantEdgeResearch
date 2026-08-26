@@ -530,8 +530,12 @@ export function LiveValue({
     <span
       className={cn(
         'inline-block rounded-[3px] px-1 -mx-1 transition-colors duration-500 tabular-nums',
-        dir === 'up' && 'bg-emerald-500/20 text-emerald-300',
-        dir === 'down' && 'bg-rose-500/20 text-rose-300',
+        // Tokens, not raw Tailwind: a rising price must be the same green as a
+        // bullish badge, and emerald-300 is not --trade-bullish. This is the
+        // single most-repeated motion in the terminal, so a mismatch here reads
+        // as two different products.
+        dir === 'up' && 'bg-[color-mix(in_srgb,var(--trade-bullish)_20%,transparent)] text-[var(--trade-bullish)]',
+        dir === 'down' && 'bg-[color-mix(in_srgb,var(--trade-bearish)_20%,transparent)] text-[var(--trade-bearish)]',
         className,
       )}
       style={{ transitionDuration: dir ? '90ms' : `${flashMs}ms` }}
@@ -585,16 +589,14 @@ export function Heartbeat({
             prefers-reduced-motion — the dot colour and the counting age already
             carry the whole meaning, so nothing is lost by dropping the pulse. */}
         {!stale && !reduced && (
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70" style={{ background: 'var(--trade-bullish)' }} />
         )}
         <span
-          className={cn(
-            'relative inline-flex h-1.5 w-1.5 rounded-full',
-            dead ? 'bg-rose-500' : stale ? 'bg-amber-400' : 'bg-emerald-400',
-          )}
+          className="relative inline-flex h-1.5 w-1.5 rounded-full"
+          style={{ background: dead ? 'var(--trade-bearish)' : stale ? 'var(--brand-gold)' : 'var(--trade-bullish)' }}
         />
       </span>
-      <span className={cn(dead ? 'text-rose-400' : stale ? 'text-amber-400' : 'text-emerald-400')}>
+      <span style={{ color: dead ? 'var(--trade-bearish)' : stale ? 'var(--brand-gold)' : 'var(--trade-bullish)' }}>
         {label}
       </span>
       <span className="text-muted-foreground/70">{age}</span>

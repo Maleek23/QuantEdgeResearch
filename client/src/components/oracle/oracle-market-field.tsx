@@ -164,7 +164,7 @@ export function OracleMarketField({
           {/* "· stale" told you the state but never how stale. Canon renders the
               actual age, which is the difference between a reader trusting the
               panel and a reader guessing. */}
-          <CanonFreshness asOf={data.asOf ?? null} showLabel={!!data.asOf} />
+          <CanonFreshness since={data.asOf ?? null} label={data.isStale ? "STALE" : "LIVE"} />
         </span>
       }
     >
