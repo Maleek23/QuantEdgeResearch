@@ -37,7 +37,7 @@
  * Its filter buttons, which only toggled classes, now actually filter.
  */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { openWorkup } from '@/lib/workup-bus';
 import { Spark } from '@/components/charting/spark';
 import { useLocation } from 'wouter';
@@ -436,6 +436,9 @@ export function NexusBoard() {
   const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns } = useNexusData();
   const [radarPrev, setRadarPrev] = useState<{ symbol: string; note: string; x: number; y: number } | null>(null);
   const [radarBrowse, setRadarBrowse] = useState<string | null>(null); // pattern filter or 'all'
+  const [printsExpanded, setPrintsExpanded] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSym, setAddSym] = useState('');
   // Quick-actions on the book's cards. The Bot? verdict runs the bot's own
   // entry rules for this symbol right now — absence stops being a mystery.
   const botStatus = useQuery<{ openPositions?: { symbol: string }[]; config?: { minConviction?: number; maxProgressPct?: number } }>({
@@ -787,11 +790,14 @@ export function NexusBoard() {
           <div className="tape">
             <div className="intel-head">
               <div className="intel-label">Flow Prints</div>
-              <div className="intel-value">15-min delayed</div>
+              <div className="intel-value" style={{ cursor: 'pointer' }} title="Expand / collapse the print list"
+                onClick={() => setPrintsExpanded((x) => !x)}>
+                {printsExpanded ? `${(flow.data?.trades ?? []).length} prints · collapse ▲` : '15-min delayed · expand ▼'}
+              </div>
             </div>
-            <div className="tape-list">
-              {(flow.data?.trades ?? []).slice(0, 10).map((t) => (
-                <div className="tape-row" key={t.id}>
+            <div className="tape-list" style={printsExpanded ? { maxHeight: 380, overflowY: 'auto' } : undefined}>
+              {(flow.data?.trades ?? []).slice(0, printsExpanded ? 200 : 10).map((t) => (
+                <div className="tape-row" key={t.id} style={{ cursor: 'pointer' }} title={`Open ${t.symbol} workup`} onClick={() => { setCurrentStock({ symbol: t.symbol }); openWorkup(t.symbol); }}>
                   <span className="tape-time">{new Date(t.detectedAt).toTimeString().slice(0, 8)}</span>
                   <span className="tape-sym">{t.symbol}</span>
                   <span className="tape-price">${t.strikePrice} × ${Math.round(t.totalPremium / 1000)}k</span>
@@ -1034,14 +1040,56 @@ export function NexusBoard() {
             <div className="sec-meta"><span className="tag mute">watch · not signals</span></div>
           </div>
 
-          <div className="dev-empty">
-            <div className="dev-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-            </div>
-            <div className="dev-title">Candidate field</div>
-            <div className="dev-desc">Screening for names coiling inside leading groups. A signal will surface here when evidence crosses threshold.</div>
-            <div className="dev-state"><span className="dot" />screening…</div>
-          </div>
+          {/* CANDIDATE FIELD — finally real. Two measured sources, no theater:
+              picks whose trigger has not printed (the board's own pending set)
+              and pattern-engine coils/NR7 in bullish structure. Watch, not
+              signals — clicking opens the workup, nothing here is graded. */}
+          {(() => {
+            const pendingPicks = picks
+              .map((p) => ({ p, g: geometryFor(p, quoteBySym.get(p.symbol)?.lastPrice ?? p.currentPrice ?? p.entryPrice ?? 0) }))
+              .filter(({ g }) => /pending|trigger/i.test(g.statusLabel ?? ''))
+              .slice(0, 4);
+            const coilHits = (patterns.data?.hits ?? [])
+              .filter((h) => (h.pattern === 'inside_coil' || h.pattern === 'nr7') && h.bias !== 'short')
+              .filter((h) => !pendingPicks.some(({ p }) => p.symbol === h.symbol))
+              .slice(0, 5);
+            const total = pendingPicks.length + coilHits.length;
+            if (!total) return (
+              <div className="dev-empty">
+                <div className="dev-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                </div>
+                <div className="dev-title">Candidate field</div>
+                <div className="dev-desc">No pre-trigger picks and no live coils this sweep — empty means measured-empty, not broken.</div>
+                <div className="dev-state"><span className="dot" />screening…</div>
+              </div>
+            );
+            return (
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--nx-border)' }}>
+                <div className="intel-head" style={{ marginBottom: 8 }}>
+                  <div className="intel-label">Candidate field</div>
+                  <div className="intel-value">{total} developing</div>
+                </div>
+                {pendingPicks.map(({ p, g }) => (
+                  <div key={`pp-${p.ideaId}`} onClick={() => { setCurrentStock({ symbol: p.symbol }); openWorkup(p.symbol); }}
+                    style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
+                    <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12 }}>{p.symbol}</b>
+                    <span style={{ color: 'var(--text-dim)' }}>awaiting trigger · entry ${p.entryPrice?.toFixed(2)}</span>
+                    <span style={{ color: 'var(--amber)', fontWeight: 700 }}>{(p.convictionScore ?? 0)}pt</span>
+                  </div>
+                ))}
+                {coilHits.map((h) => (
+                  <div key={`ch-${h.pattern}-${h.symbol}`} onClick={() => { setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
+                    style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
+                    <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12 }}>{h.symbol}</b>
+                    <span style={{ color: 'var(--text-dim)' }} title={h.note}>{h.pattern === 'inside_coil' ? 'coiling' : 'NR7 compression'} · {h.note.slice(0, 30)}…</span>
+                    <span style={{ color: 'var(--cyan-bright)', fontWeight: 700 }}>watch</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', fontStyle: 'italic' }}>watch · not signals — pre-trigger picks + live compressions, click for the workup</div>
+              </div>
+            );
+          })()}
 
           <div className="heatmap-section">
             <div className="intel-head">
@@ -1067,7 +1115,25 @@ export function NexusBoard() {
           <div className="watch-section">
             <div className="watch-head">
               <div className="watch-title">Watchlist</div>
-              <div className="watch-count">{watchSyms.length ? `${watchSyms.length} names` : ''}</div>
+              <div className="watch-count" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {watchSyms.length ? `${watchSyms.length} names` : ''}
+                {addOpen ? (
+                  <input autoFocus value={addSym} onChange={(e) => setAddSym(e.target.value.toUpperCase())}
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Escape') { setAddOpen(false); setAddSym(''); return; }
+                      if (e.key !== 'Enter' || !addSym.trim()) return;
+                      try {
+                        await apiRequest('POST', '/api/watchlist', { symbol: addSym.trim() });
+                        queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
+                      } catch { /* row simply won't appear */ }
+                      setAddOpen(false); setAddSym('');
+                    }}
+                    placeholder="SYM ↵" style={{ width: 62, background: 'var(--bg-2)', border: '1px solid var(--nx-border-hi)', borderRadius: 3, color: 'var(--text)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, padding: '2px 6px', outline: 'none' }} />
+                ) : (
+                  <button title="Add a ticker to the watchlist" onClick={() => setAddOpen(true)}
+                    style={{ width: 18, height: 18, borderRadius: 3, background: 'rgba(79,209,197,0.08)', border: '1px solid var(--nx-border-hi)', color: 'var(--cyan-bright)', cursor: 'pointer', fontSize: 12, lineHeight: 1, display: 'grid', placeItems: 'center' }}>+</button>
+                )}
+              </div>
             </div>
             <div>
               {watchSyms.map(({ symbol }) => {
