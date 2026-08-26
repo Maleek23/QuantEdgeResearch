@@ -226,7 +226,8 @@ async function fetchLearnedWeights(): Promise<Map<string, number>> {
 
 interface QuantSignal {
   type: 'rsi2_mean_reversion' | 'vwap_cross' | 'volume_spike' | 'rsi2_short_reversion'
-    | 'vwap_rejection' | 'distribution_spike';
+    | 'vwap_rejection' | 'distribution_spike' | 'gap_continuation';
+  gapPercent?: number;
   strength: 'strong' | 'moderate' | 'weak';
   direction: 'long' | 'short';  // v3.2: BOTH long and short positions (mean reversion both ways)
   rsiValue?: number;
@@ -365,6 +366,27 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   const detectedSignals: string[] = [];
   let primarySignal: QuantSignal | null = null;
   
+  // PRIORITY 0: GAP CONTINUATION — the operator's standing rule, finally at the
+  // generation layer: a strong session gap is a LEADING direction signal, not a
+  // scoring afterthought. Every prior signal needed a volume ratio or a trend
+  // filter that a gapping mega-cap fresh out of a downtrend fails — META +4%
+  // pre-market was invisible to the board because nothing here could SEE a gap.
+  // Threshold 3%: below that, changePercent is session noise, not a statement.
+  // Down-gaps produce short signals that must still clear the event-catalyst
+  // gate downstream — the gap seeds the candidate, discipline decides its fate.
+  const gapPct = data.changePercent;
+  if (Number.isFinite(gapPct) && Math.abs(gapPct) >= 3) {
+    detectedSignals.push(gapPct > 0 ? 'GAP_UP' : 'GAP_DOWN');
+    if (!primarySignal) {
+      primarySignal = {
+        type: 'gap_continuation',
+        strength: Math.abs(gapPct) >= 5 ? 'strong' : 'moderate',
+        direction: gapPct > 0 ? 'long' : 'short',
+        gapPercent: gapPct,
+      };
+    }
+  }
+
   // PRIORITY 1: RSI(2) Mean Reversion with 200-day MA Trend Filter + REGIME FILTER
   // Based on Larry Connors RSI(2) research (targeting 55-65% live)
   // v3.5: TIGHTENED regime filter - ADX < 25 instead of 30 (reduces choppy market trades)
@@ -589,6 +611,9 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
     return `Institutional accumulation - ${volumeRatio}x volume spike with minimal price move`;
   } else if (signal.type === 'distribution_spike') {
     return `Institutional distribution - ${volumeRatio}x volume with price failing to hold`;
+  } else if (signal.type === 'gap_continuation') {
+    const g = signal.gapPercent ?? 0;
+    return `Session gap ${g >= 0 ? '+' : ''}${g.toFixed(1)}% — gap treated as a leading direction signal (operator rule)`;
   } else {
     return `Technical setup confirmed - ${volumeRatio}x volume`;
   }
@@ -651,7 +676,13 @@ function calculateConfidenceScore(
   // Removed ALL bonuses (R:R, volume) - they were inverse predictors
   let score = 0;
   
-  if (signal.type === 'rsi2_mean_reversion') {
+  if (signal.type === 'gap_continuation') {
+    // NEW and unmeasured — arrives untrusted like vwap_rejection did. Scored
+    // between the proven RSI(2) and the failed volume_spike until it has a
+    // decided sample of its own to argue with.
+    score = signal.strength === 'strong' ? 58 : 52;
+    qualitySignals.push('Gap Continuation (operator rule)');
+  } else if (signal.type === 'rsi2_mean_reversion') {
     // Actual performance: ~30-60% WR (not 75-91% from old research)
     score = signal.strength === 'strong' ? 65 : 60;
     qualitySignals.push('RSI(2) Mean Reversion');
