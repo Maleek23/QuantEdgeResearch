@@ -41,7 +41,8 @@ const JournalShell   = lazyWithRetry(() => import("@/pages/shells/journal-shell"
 const RadarPage      = lazyWithRetry(() => import("@/pages/radar"),                  "radar");
 const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),                 "how-to");
 
-const Landing = lazyWithRetry(() => import("@/pages/landing"), "landing");
+// The tenth reference mock: the wired marketing page. Prior landing stays at @/pages/landing.
+const Landing = lazyWithRetry(() => import("@/pages/landing-nexus"), "landing");
 const PublicWatchlist = lazyWithRetry(() => import("@/pages/public-watchlist"), "public-watchlist");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
