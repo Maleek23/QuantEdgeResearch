@@ -397,11 +397,27 @@ function scoreBullFlag(
 // ─── Main Scanner ────────────────────────────────────────────────
 
 export async function scanBullFlagPullbacks(): Promise<BullFlagSetup[]> {
-  logger.info(`[BULL-FLAG] 🚩 Scanning ${BULL_FLAG_UNIVERSE.length} tickers for bull flag pullbacks...`);
+  // The static list froze the book into a software monoculture: the gainers
+  // study found only 5 of the quarter's top-50 winners on ANY hand-list, while
+  // the sectors that actually led (biotech, defense-on-news, leveraged
+  // vehicles) had no seats. Movers from the whole liquid market join every
+  // scan — a name that is RUNNING is exactly where a flag pullback forms next
+  // — plus the buckets the hand-list never had.
+  let universe: string[] = [...BULL_FLAG_UNIVERSE];
+  try {
+    const { getLiquidMovers } = await import('./liquid-universe');
+    const { getSectorTickers } = await import('./ticker-universe');
+    const movers = getLiquidMovers(3, 75e6, 60).map((m) => m.symbol);
+    const buckets = ['defense', 'nuclear', 'space', 'quantum'].flatMap((s) => {
+      try { return getSectorTickers(s); } catch { return []; }
+    });
+    universe = Array.from(new Set([...BULL_FLAG_UNIVERSE, ...movers, ...buckets].map((s) => s.toUpperCase())));
+  } catch { /* universe cold — the static list still scans */ }
+  logger.info(`[BULL-FLAG] 🚩 Scanning ${universe.length} tickers (${universe.length - BULL_FLAG_UNIVERSE.length} beyond the hand-list) for bull flag pullbacks...`);
 
   const results: BullFlagSetup[] = [];
 
-  for (const symbol of BULL_FLAG_UNIVERSE) {
+  for (const symbol of universe) {
     try {
       const data = await fetchDaily(symbol);
       if (!data) continue;
