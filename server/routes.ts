@@ -14459,6 +14459,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── IDEA LEDGER — everything the engine produced, graded, beyond the book ─
+  // The active book shows ~13 live picks; the ledger shows the recent record:
+  // published ideas with their scores, signal types, and OUTCOMES where the
+  // validator has decided them. The operator asked "do we have a list of other
+  // trade ideas + grades" — this is that list, honest statuses included.
+  app.get("/api/ideas/ledger", async (req, res) => {
+    try {
+      const limit = Math.min(60, Number(req.query.limit) || 30);
+      const rows = await storage.getRecentTradeIdeas(72, 500);
+      const ledger = rows
+        .filter((i: any) => i.status === 'published')
+        .sort((a: any, b: any) => Date.parse(b.generationTimestamp ?? b.timestamp) - Date.parse(a.generationTimestamp ?? a.timestamp))
+        .slice(0, limit)
+        .map((i: any) => ({
+          id: i.id,
+          symbol: i.symbol,
+          direction: i.direction,
+          assetType: i.assetType,
+          signal: (Array.isArray(i.qualitySignals) && i.qualitySignals[0]) || i.signalType || 'quant',
+          score: i.confidenceScore ?? i.genConvictionScore ?? null,
+          entryPrice: i.entryPrice, targetPrice: i.targetPrice, stopLoss: i.stopLoss,
+          riskRewardRatio: i.riskRewardRatio ?? null,
+          outcome: i.outcomeStatus ?? 'open',
+          onDemand: typeof i.analysis === 'string' && i.analysis.includes('Analyzed on demand'),
+          at: i.generationTimestamp ?? i.timestamp,
+        }));
+      res.json({ ledger, window: '72h', note: 'published ideas only; outcome = validator verdict where decided' });
+    } catch (error) {
+      logger.error("[LEDGER] failed:", error);
+      res.status(500).json({ error: "Ledger failed" });
+    }
+  });
+
   // ── ON-DEMAND ENGINE — any searched symbol through the same pipeline ──────
   // "Doesn't need to trigger except it finds one": a found setup publishes
   // into the cockpit book like any cron idea; a quiet chart says so honestly.
@@ -31125,6 +31158,15 @@ Use this checklist before entering any trade:
           errors: [],
         };
         const fallbackHub = await buildGEXHub(fallbackScan as any);
+        // The mini-scan must not impersonate the full sweep: without this the
+        // rail read "20/20 scanned" — completeness theater through a side
+        // door. attempted stays the REAL universe size so the fraction is
+        // honest while the background scan warms.
+        (fallbackHub as any).miniScan = true;
+        try {
+          const { APPROVED_TICKERS } = await import('@shared/approved-tickers');
+          (fallbackHub as any).attempted = (APPROVED_TICKERS as Set<string>).size;
+        } catch { /* label alone still marks it */ }
         // generatedAt so the Hub can show a real age. MOTION.md forbids dating a
         // panel by the client's fetch time — a cached response can be hours old
         // while the fetch is seconds old — so the age has to come from here.

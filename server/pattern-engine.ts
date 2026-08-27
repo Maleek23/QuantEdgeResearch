@@ -36,11 +36,18 @@ export interface PatternHit {
   core?: boolean;
   pattern: 'inside_coil' | 'nr7' | 'bull_flag' | 'bear_flag' | 'breakout_watch';
   bias: 'long' | 'short' | 'neutral';
+  /**
+   * Flags only. Bulkowski's measured record: tight flags (shallow retrace off
+   * a strong pole) succeed ~85%; LOOSE flags fail ~55% — a coin flip. A loose
+   * flag therefore keeps its shape label but has its bias DEMOTED to neutral:
+   * the pattern is real, its direction claim is not evidence-grade.
+   */
+  quality?: 'tight' | 'loose';
   detectedAt: string;
   /** Bar arithmetic that defines the pattern — the proof, not decoration. */
   levels: Record<string, number>;
   note: string;
-  context: { above200d: boolean | null; ema20AboveEma50: boolean | null; last: number };
+  context: { above200d: boolean | null; ema20AboveEma50: boolean | null; last: number; pctFromHigh?: number | null };
 }
 
 interface Bar { time: number; open: number; high: number; low: number; close: number; volume?: number }
@@ -65,10 +72,19 @@ function detect(symbol: string, bars: Bar[]): PatternHit[] {
   const sma200 = closes.length >= 200 ? closes.slice(-200).reduce((a, b) => a + b, 0) / 200 : null;
   const e20 = ema(closes.slice(-120), 20);
   const e50 = ema(closes.slice(-160), 50);
+  // Proximity to the window high — George & Hwang (2004): nearness to the
+  // 52-week high predicts returns better than standard momentum, the most
+  // replicated ranking signal in this space. The liquid fast path carries ~70
+  // sessions, curated names a full year, so this is the AVAILABLE-window high,
+  // negative = below it.
+  const windowHigh = Math.max(...bars.slice(-252).map((b) => b.high));
+  const pctFromHigh = windowHigh > 0 ? ((last - windowHigh) / windowHigh) * 100 : null;
+
   const context = {
     above200d: sma200 != null ? last > sma200 : null,
     ema20AboveEma50: e20 > e50,
     last,
+    pctFromHigh: pctFromHigh != null ? Number(pctFromHigh.toFixed(1)) : null,
   };
 
   // ── inside_coil: mother bar + >=3 consecutive inside sessions, unbroken ──
@@ -122,10 +138,11 @@ function detect(symbol: string, bars: Bar[]): PatternHit[] {
         const retrace = (poleEndBar.high - driftLow) / (poleEndBar.high - poleLow);
         const driftHigh = Math.max(...drift.map((b) => b.high));
         if (retrace > 0 && retrace <= 0.5 && driftHigh <= poleEndBar.high * 1.01 && last > driftLow) {
+          const tight = retrace <= 0.34 && poleRise >= 0.2;
           hits.push({
-            symbol, pattern: 'bull_flag', bias: 'long', detectedAt: now,
+            symbol, pattern: 'bull_flag', bias: tight ? 'long' : 'neutral', quality: tight ? 'tight' : 'loose', detectedAt: now,
             levels: { poleLow, poleHigh: poleEndBar.high, flagLow: driftLow, retracePct: Math.round(retrace * 100) },
-            note: `pole +${(poleRise * 100).toFixed(0)}% then ${driftLen}-bar drift retracing ${(retrace * 100).toFixed(0)}%`,
+            note: `pole +${(poleRise * 100).toFixed(0)}% then ${driftLen}-bar drift retracing ${(retrace * 100).toFixed(0)}%${tight ? ' · tight' : ' · loose — direction unproven (measured ~coin-flip class)'}`,
             context,
           });
         }
@@ -137,10 +154,11 @@ function detect(symbol: string, bars: Bar[]): PatternHit[] {
         const retrace = (driftHigh - poleEndBar.low) / (poleHigh - poleEndBar.low);
         const driftLow = Math.min(...drift.map((b) => b.low));
         if (retrace > 0 && retrace <= 0.5 && driftLow >= poleEndBar.low * 0.99 && last < driftHigh) {
+          const tight = retrace <= 0.34 && poleDrop >= 0.2;
           hits.push({
-            symbol, pattern: 'bear_flag', bias: 'short', detectedAt: now,
+            symbol, pattern: 'bear_flag', bias: tight ? 'short' : 'neutral', quality: tight ? 'tight' : 'loose', detectedAt: now,
             levels: { poleHigh, poleLow: poleEndBar.low, flagHigh: driftHigh, retracePct: Math.round(retrace * 100) },
-            note: `pole -${(poleDrop * 100).toFixed(0)}% then ${driftLen}-bar bounce retracing ${(retrace * 100).toFixed(0)}%`,
+            note: `pole -${(poleDrop * 100).toFixed(0)}% then ${driftLen}-bar bounce retracing ${(retrace * 100).toFixed(0)}%${tight ? ' · tight' : ' · loose — direction unproven (measured ~coin-flip class)'}`,
             context,
           });
         }

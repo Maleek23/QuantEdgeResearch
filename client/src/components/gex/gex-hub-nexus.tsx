@@ -45,7 +45,7 @@ interface TopPlay {
   isNegativeGamma?: boolean; insight?: string;
   totalVEX?: number; vexSignal?: string; gammaFlip?: number | null; flipDistancePct?: number | null;
 }
-interface HubPayload { hub?: { topPlays?: TopPlay[]; totalScanned?: number; totalTickers?: number; attempted?: number; failedSymbols?: string[] }; generatedAt?: string }
+interface HubPayload { hub?: { topPlays?: TopPlay[]; totalScanned?: number; totalTickers?: number; attempted?: number; failedSymbols?: string[]; miniScan?: boolean }; generatedAt?: string }
 interface TerminalData { symbol: string; snapshot: GEXSnapshot; strikeExpiryMatrix: StrikeExpiryCell[]; generatedAt?: string }
 interface Sector { etf: string; name: string; change: number }
 interface RotationPayload { leaders?: Sector[]; laggards?: Sector[]; sectors?: Sector[]; sessionLabel?: string }
@@ -350,8 +350,10 @@ export function GexHubNexus() {
                     ? `chains failed for: ${hub!.hub!.failedSymbols!.slice(0, 20).join(', ')}${hub!.hub!.failedSymbols!.length > 20 ? '…' : ''}`
                     : 'every attempted name scanned'}
                 >
+                  {hub?.hub?.miniScan ? 'mini-scan ' : ''}
                   {hub?.hub?.totalTickers ?? hub?.hub?.totalScanned ?? plays.length}
                   {hub?.hub?.attempted != null && hub.hub.attempted !== (hub.hub.totalTickers ?? 0) ? `/${hub.hub.attempted}` : ''} scanned
+                  {hub?.hub?.miniScan ? ' · full sweep warming' : ''}
                 </div>
               </div>
             </div>

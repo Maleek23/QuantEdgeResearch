@@ -520,7 +520,13 @@ export function NexusBoard() {
   /* signals — the live book through the mock's filter bar, which now filters */
   // GRID is the mock's card wall; SCANNER and COCKPIT are the working views the
   // desk asked back in — HuntCockpit owns those, mounted with its own filters.
-  const [bookView, setBookView] = useState<'grid' | 'scanner' | 'cockpit'>('grid');
+  const [bookView, setBookView] = useState<'grid' | 'scanner' | 'cockpit' | 'ledger'>('grid');
+  // Idea ledger — everything published in the last 72h beyond the active book,
+  // with the validator's verdicts where decided. Fetched only when the view opens.
+  const ledgerQ = useQuery<{ ledger: Array<{ id: string; symbol: string; direction: string; signal: string; score: number | null; entryPrice: number; targetPrice: number; riskRewardRatio: number | null; outcome: string; onDemand: boolean; at: string }> }>({
+    queryKey: ['/api/ideas/ledger', 'nexus'], queryFn: q('/api/ideas/ledger?limit=40'),
+    staleTime: 120_000, retry: 1, enabled: bookView === 'ledger',
+  });
   // Draggable rails: drag the border, double-click to cycle default ↔ expanded.
   const leftRail = useColResize('nx-rail-left', 320, { sign: 1, min: 220, max: 560 });
   const rightRail = useColResize('nx-rail-right', 340, { sign: -1, min: 220, max: 560 });
@@ -940,7 +946,7 @@ export function NexusBoard() {
               <span className="tag cyan">ranked book</span>
               <span className="tag mute">· {picks.length}</span>
               <div className="view-toggle" style={{ marginLeft: 'auto' }}>
-                {(['grid', 'scanner', 'cockpit'] as const).map((v) => (
+                {(['grid', 'scanner', 'cockpit', 'ledger'] as const).map((v) => (
                   <button
                     key={v}
                     className={`view-btn${bookView === v ? ' active' : ''}`}
@@ -954,7 +960,36 @@ export function NexusBoard() {
             </div>
           </div>
 
-          {bookView !== 'grid' ? (
+          {bookView === 'ledger' ? (
+            <div style={{ padding: '12px 16px' }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                Everything published · last 72h · validator verdicts where decided · click → workup
+              </div>
+              {(ledgerQ.data?.ledger ?? []).map((r) => {
+                const oc = r.outcome === 'hit_target' ? { c: 'var(--green)', t: 'HIT T1' }
+                  : r.outcome === 'hit_stop' ? { c: 'var(--red)', t: 'STOPPED' }
+                  : r.outcome === 'expired' ? { c: 'var(--text-mute)', t: 'EXPIRED' }
+                  : { c: 'var(--cyan-bright)', t: 'OPEN' };
+                return (
+                  <div key={r.id} onClick={() => openWorkup(r.symbol)}
+                    style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '6px 4px', borderBottom: '1px solid var(--nx-border, rgba(148,163,184,0.08))', cursor: 'pointer' }}>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', minWidth: 56 }}>{new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, minWidth: 52 }}>{r.symbol}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: r.direction === 'short' ? 'var(--red)' : 'var(--green)', minWidth: 42 }}>{r.direction === 'short' ? '▼ BEAR' : '▲ BULL'}</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.signal}{r.onDemand ? ' · on-demand' : ''}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)', minWidth: 46, textAlign: 'right' }}>{r.score != null ? `${r.score}` : '—'}{r.riskRewardRatio != null ? ` · ${r.riskRewardRatio}R` : ''}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, color: oc.c, minWidth: 58, textAlign: 'right' }}>{oc.t}</span>
+                  </div>
+                );
+              })}
+              {ledgerQ.isFetching && !(ledgerQ.data?.ledger ?? []).length && (
+                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>reading the ledger…</div>
+              )}
+              {!ledgerQ.isFetching && !(ledgerQ.data?.ledger ?? []).length && (
+                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>nothing published in the last 72h</div>
+              )}
+            </div>
+          ) : bookView !== 'grid' ? (
             <Suspense fallback={
               <div style={{ padding: 40, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                 loading {bookView}…

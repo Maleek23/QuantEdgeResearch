@@ -162,8 +162,18 @@ app.use((req, res, next) => {
           const { ingestNewsCatalysts } = await import('./polygon-news-service');
           const { USER_CORE_WATCHLIST, PREMIUM_WATCHLIST } = await import('./ticker-universe');
           // Free tier is ~5 req/min, so take a rotating slice rather than the
-          // whole list on every pass.
-          const pool = Array.from(new Set([...USER_CORE_WATCHLIST, ...PREMIUM_WATCHLIST]));
+          // whole list on every pass. LIQUID MOVERS join the pool: without
+          // them, impact:high rows were never written for ~1,900 of the 2,000
+          // universe names, so the short gate could NEVER open on them — a
+          // legitimate post-event short on an unlisted name was blocked
+          // forever, not until its event landed. Movers are exactly where
+          // events live, so they earn the news slots first.
+          let moverSyms: string[] = [];
+          try {
+            const { getLiquidMovers } = await import('./liquid-universe');
+            moverSyms = getLiquidMovers(4, 100e6, 24).map((m) => m.symbol);
+          } catch { /* universe cold — curated pool alone */ }
+          const pool = Array.from(new Set([...moverSyms, ...USER_CORE_WATCHLIST, ...PREMIUM_WATCHLIST]));
           const slice = 12;
           const offset = Math.floor(Date.now() / (30 * 60 * 1000)) % Math.max(1, Math.ceil(pool.length / slice));
           await ingestNewsCatalysts(pool.slice(offset * slice, offset * slice + slice));

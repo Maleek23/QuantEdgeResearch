@@ -1183,7 +1183,10 @@ export async function generateQuantIdeas(
     // The 2000-name sweep produces ~1700 hits; the pool injection takes the
     // directional ones (flags, coils, breakout watches — core names first,
     // then by liquidity rank) and leaves bare NR7 compressions to the radar.
-    const hits = getPatternHits().hits.filter((h) => h.pattern !== 'nr7');
+    // Loose flags are excluded from pool injection outright — Bulkowski's
+    // measured record puts them at a coin flip, and the pool is for candidates
+    // with a directional claim worth testing.
+    const hits = getPatternHits().hits.filter((h) => h.pattern !== 'nr7' && h.quality !== 'loose');
     const ordered = [...hits.filter((h) => h.core), ...hits.filter((h) => !h.core)];
     patternSymbols = Array.from(new Set(ordered.map((h) => h.symbol))).slice(0, 80);
   } catch { /* engine not warmed yet — pool unchanged */ }
