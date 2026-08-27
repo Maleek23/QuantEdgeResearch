@@ -5,7 +5,7 @@
  * comparison risk is real: consistency across windows + n is the filter.
  */
 import 'dotenv/config';
-import { loadLiquidUniverseFromDisk, getUniverseBars } from './server/liquid-universe';
+import { loadLiquidUniverseFromDisk, getUniverseBars } from '../server/liquid-universe';
 
 type Sig = (b: { o: number; h: number; l: number; c: number; v: number }[], i: number) => boolean;
 

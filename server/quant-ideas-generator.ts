@@ -293,7 +293,7 @@ async function fetchLearnedWeights(): Promise<Map<string, number>> {
 interface QuantSignal {
   type: 'rsi2_mean_reversion' | 'vwap_cross' | 'volume_spike' | 'rsi2_short_reversion'
     | 'vwap_rejection' | 'distribution_spike' | 'gap_continuation' | 'inside_coil'
-    | 'flow_conviction' | 'breakout_watch';
+    | 'flow_conviction' | 'breakout_watch' | 'volume_thrust';
   gapPercent?: number;
   strength: 'strong' | 'moderate' | 'weak';
   direction: 'long' | 'short';  // v3.2: BOTH long and short positions (mean reversion both ways)
@@ -569,6 +569,23 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
     }
   }
 
+  // PRIORITY 0.45: VOLUME THRUST — >=2.5x the 20d average on an UP day. The
+  // signal battery's only 3/3 winner: beat its window baseline in an up-tape
+  // (+7.7%, 86%w), a down-tape (+10.6%), and a strong-tape (+3.9%, 74%w),
+  // with a monotone dose-response (1.5x and 2x each failed a window; 2.5x+
+  // passed all). Distinct from volume_spike, which wants a spike WITHOUT a
+  // move (accumulation); thrust wants the move confirmed.
+  if (volumeRatio >= 2.5 && Number.isFinite(gapPct) && gapPct > 0) {
+    detectedSignals.push('VOLUME_THRUST');
+    if (!primarySignal) {
+      primarySignal = {
+        type: 'volume_thrust',
+        strength: volumeRatio >= 3.5 ? 'strong' : 'moderate',
+        direction: 'long',
+      };
+    }
+  }
+
   // PRIORITY 0.5: INSIDE-BAR COIL — 3+ consecutive sessions inside one mother
   // bar's range is compression, and compression resolves. Detected on REAL
   // OHLC from the candle cache (the +/-1% synthetic highs/lows used elsewhere
@@ -834,6 +851,8 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
     return `Options tape ${signal.direction === 'long' ? 'call' : 'put'}-heavy — $${(p / 1e6).toFixed(1)}M dominant premium at ${(signal.flowSkew ?? 0) === Infinity ? 'one-sided' : `${(signal.flowSkew ?? 0).toFixed(1)}:1`} skew`;
   } else if (signal.type === 'breakout_watch') {
     return `Within 3% of the window high on a rising 20d average — proximity effect (George & Hwang), 72% forward win rate in our own out-of-sample test`;
+  } else if (signal.type === 'volume_thrust') {
+    return `${Number(volumeRatio).toFixed(1)}x average volume on an up day — the signal battery's only 3/3-regime winner (+3.9% to +10.6% forward means)`;
   } else {
     return `Technical setup confirmed - ${volumeRatio}x volume`;
   }
@@ -917,6 +936,12 @@ function calculateConfidenceScore(
     // the top of the unproven band; its cohort decides from here.
     score = signal.strength === 'strong' ? 58 : 54;
     qualitySignals.push('52w-High Proximity (George-Hwang)');
+  } else if (signal.type === 'volume_thrust') {
+    // The battery's only 3/3 winner across three regimes (see research/
+    // signal-battery-r2.ts). Small n (66 across windows) — starts mid-band;
+    // the live cohort takes it from here.
+    score = signal.strength === 'strong' ? 58 : 54;
+    qualitySignals.push('Volume Thrust ≥2.5x (battery 3/3)');
   } else if (signal.type === 'inside_coil') {
     // NEW and unmeasured — untrusted like every newborn template.
     score = signal.strength === 'strong' ? 54 : 50;
