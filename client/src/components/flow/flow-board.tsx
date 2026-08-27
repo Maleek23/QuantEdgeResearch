@@ -403,7 +403,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
                         <td className="ticker">{p.symbol}</td>
                         <td className="contract">${p.strikePrice} {p.optionType === 'call' ? 'C' : 'P'} · {p.expirationDate || '—'}</td>
                         <td><span className={`bias ${pattern}`}>{pattern === 'unusual' ? 'unusual' : pattern}</span></td>
-                        <td><span className={`score ${bandClass(sc.score)}`}>{sc.score}</span></td>
+                        <td><span className={`score ${bandClass(sc.score)}`} title={`base 38\n${sc.components.map((x) => `${x.points >= 0 ? '+' : ''}${x.points} ${x.label} — ${x.why}`).join('\n')}`}>{sc.score}</span></td>
                         <td className="premium">{money(sc.totalPremium)}</td>
                         <td className="vol-oi">
                           {p.volume.toLocaleString()} / {p.openInterest != null ? p.openInterest.toLocaleString() : '—'}

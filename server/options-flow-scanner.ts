@@ -326,46 +326,65 @@ function calculatePremium(option: any): number {
  * Calculate unusual score for an option
  * Scores based on: volume/OI, premium size, IV, delta, and DTE
  */
+// The operator caught the old formula grading a $172K sweep on a zero-OI
+// QBTS strike at 95 while NVDA's $19.5M whale sat at 80. Three diseases:
+// vol/OI divided by (OI||1) so a FRESHLY LISTED strike (OI 0 = calendar
+// mechanics, not whales) hit the ratio jackpot; premium points saturated at
+// $1M so size literally could not win; and IV points paid +15 to expensive-
+// vol junk while institutional SPY flow collected 0. Rebuilt: monotonic in
+// premium (log-ish steps to $10M), ratio only counts against a REAL baseline
+// (OI >= 100), absolute contract volume earns its own points, IV pays
+// nothing. Max 100 = $10M+ premium, >=10x ratio on real OI, 50k contracts,
+// ATM, near-dated.
 function calculateUnusualScore(option: any): number {
   let score = 0;
   const volume = option.volume || 0;
-  const openInterest = option.open_interest || 1;
-  
+  const openInterest = option.open_interest || 0;
+
   // Skip if no volume
   if (volume === 0) return 0;
-  
-  // Volume/OI ratio (max 30 points) - key indicator of unusual activity
-  const volumeOI = volume / openInterest;
-  if (volumeOI > 5) score += 30;
-  else if (volumeOI > 3) score += 25;
-  else if (volumeOI > 2) score += 20;
-  else if (volumeOI > 1.5) score += 15;
-  else if (volumeOI > 1) score += 10;
-  
-  // Premium size (max 30 points) - huge money indicator
+
+  // Volume/OI ratio (max 25) — meaningful only against an established
+  // baseline. A near-zero-OI strike gets a flat 8: real activity, unmeasurable
+  // unusualness.
+  if (openInterest >= 100) {
+    const volumeOI = volume / openInterest;
+    if (volumeOI > 10) score += 25;
+    else if (volumeOI > 5) score += 20;
+    else if (volumeOI > 3) score += 15;
+    else if (volumeOI > 2) score += 10;
+    else if (volumeOI > 1.5) score += 6;
+    else if (volumeOI > 1) score += 3;
+  } else if (volume >= 500) {
+    score += 8;
+  }
+
+  // Premium size (max 35) — monotonic to $10M so size can actually win.
   const premium = calculatePremium(option);
-  if (premium > 1000000) score += 30;      // $1M+ = major institutional
-  else if (premium > 500000) score += 25;  // $500k+
-  else if (premium > 250000) score += 20;  // $250k+
-  else if (premium > 100000) score += 15;  // $100k+
-  else if (premium > 50000) score += 10;   // $50k+
-  else if (premium > 25000) score += 5;    // $25k+
-  
-  // IV percentile (max 15 points) - high IV = expected move
-  const iv = option.greeks?.mid_iv || 0;
-  if (iv > 1.0) score += 15;
-  else if (iv > 0.8) score += 12;
-  else if (iv > 0.6) score += 10;
-  else if (iv > 0.4) score += 5;
-  
-  // Delta exposure (max 15 points) - ATM options most valuable
+  if (premium >= 10_000_000) score += 35;
+  else if (premium >= 5_000_000) score += 30;
+  else if (premium >= 2_000_000) score += 26;
+  else if (premium >= 1_000_000) score += 22;
+  else if (premium >= 500_000) score += 17;
+  else if (premium >= 250_000) score += 12;
+  else if (premium >= 100_000) score += 7;
+  else if (premium >= 50_000) score += 3;
+
+  // Absolute volume (max 15) — 67k contracts is loud even at 1.1x OI.
+  if (volume >= 50_000) score += 15;
+  else if (volume >= 20_000) score += 12;
+  else if (volume >= 10_000) score += 9;
+  else if (volume >= 5_000) score += 6;
+  else if (volume >= 1_000) score += 3;
+
+  // Delta / moneyness (max 15) - ATM is where conviction trades
   const delta = Math.abs(option.greeks?.delta || 0);
-  if (delta > 0.4 && delta < 0.6) score += 15; // ATM sweet spot
-  else if (delta > 0.3 && delta < 0.7) score += 12;
-  else if (delta > 0.2) score += 8;
-  else if (delta > 0.1) score += 5;
-  
-  // Time to expiry bonus for near-term (max 10 points)
+  if (delta > 0.4 && delta < 0.6) score += 15;
+  else if (delta > 0.3 && delta < 0.7) score += 10;
+  else if (delta > 0.2) score += 6;
+  else if (delta > 0.1) score += 3;
+
+  // Time to expiry (max 10) - near-dated flow is the actionable kind
   const expiry = new Date(option.expiration_date);
   const daysToExpiry = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   if (daysToExpiry <= 2) score += 10;  // 0-2 DTE highest urgency
@@ -381,8 +400,9 @@ function calculateUnusualScore(option: any): number {
  */
 function determineFlowType(option: any, score: number): OptionsFlow['flowType'] {
   const premium = calculatePremium(option);
-  const volumeOI = (option.volume || 0) / (option.open_interest || 1);
-  
+  const oi = option.open_interest || 0;
+  const volumeOI = oi > 0 ? (option.volume || 0) / oi : 0;
+
   // IMPORTANT: these labels are INFERRED from end-of-day chain aggregates (a strike's
   // total volume, open interest and premium), not read from the tape. We do not have
   // per-trade time-and-sales, so "block" here means "a lot of premium traded at this
@@ -391,10 +411,12 @@ function determineFlowType(option: any, score: number): OptionsFlow['flowType'] 
   //
   // Block-like: heavy premium concentrated on a single strike.
   if (premium >= 500000) return 'block';
-  // Sweep-like: volume far exceeding existing OI — aggressive NEW positioning.
-  if (volumeOI > 5) return 'sweep';
-  // Unusual volume: volume above 2x OI.
-  if (volumeOI > 2) return 'unusual_volume';
+  // Sweep-like: volume far exceeding an ESTABLISHED baseline. A near-zero-OI
+  // strike cannot claim aggression from its ratio — that is a freshly listed
+  // contract, and the old rule stamped every one of them "sweep".
+  if (oi >= 100 && volumeOI > 5) return 'sweep';
+  // Unusual volume: above 2x a real baseline, or heavy volume on a fresh strike.
+  if ((oi >= 100 && volumeOI > 2) || (oi < 100 && (option.volume || 0) >= 1000)) return 'unusual_volume';
   // Everything else is normal activity. This used to return 'dark_pool' for any
   // leftover with score >= 70, which was simply false: nothing here observes
   // off-exchange prints, so the badge asserted a data source we do not have.

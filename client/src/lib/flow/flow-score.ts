@@ -84,19 +84,32 @@ export function scoreFlow(p: FlowPrint, opts: { baseline?: number; repeatCount?:
 
   const c: ScoreComponent[] = [];
 
-  // 1 · Size RELATIVE to the ticker's own baseline (max 30)
+  // 1 · Size (max 30) — the LARGER of relative-to-baseline and absolute
+  // premium points. Relative alone let a $172K print on a sleepy name outrank
+  // a $19.5M NVDA whale (small names have small medians); absolute alone
+  // misses genuinely unusual size on quiet tickers. Size can now win either way.
   const baseline = opts.baseline && opts.baseline > 0 ? opts.baseline : null;
+  const absPts = Math.round(clamp(Math.log10(Math.max(totalPremium, 1_000) / 50_000) * 12, 0, 30));
   if (baseline) {
     const x = totalPremium / baseline;
-    const pts = Math.round(clamp(Math.log2(Math.max(x, 0.25)) * 8, -6, 30));
-    c.push({ label: 'UNUSUAL SIZE', points: pts, why: `${x.toFixed(1)}× this ticker's typical print` });
+    const relPts = Math.round(clamp(Math.log2(Math.max(x, 0.25)) * 8, -6, 30));
+    if (relPts >= absPts) {
+      c.push({ label: 'UNUSUAL SIZE', points: relPts, why: `${x.toFixed(1)}× this ticker's typical print` });
+    } else {
+      c.push({ label: 'PREMIUM', points: absPts, why: `$${(totalPremium / 1e6).toFixed(1)}M total premium — size speaks for itself` });
+    }
   } else {
-    const pts = Math.round(clamp(Math.log10(Math.max(totalPremium, 1_000) / 50_000) * 14, 0, 24));
-    c.push({ label: 'PREMIUM', points: pts, why: `$${(totalPremium / 1000).toFixed(0)}k total premium` });
+    c.push({ label: 'PREMIUM', points: absPts, why: `$${(totalPremium / 1000).toFixed(0)}k total premium` });
   }
 
+  // A freshly listed strike has near-zero OI: its vol/OI ratio is calendar
+  // mechanics, not aggression, and a 'sweep' label derived from that ratio is
+  // unverifiable. Gate both on a real baseline.
+  const oiBaseline = (p.openInterest ?? 0) >= 100;
+
   // 2 · Aggression (max 16)
-  if (isSweep) c.push({ label: 'SWEEP', points: 16, why: 'Took liquidity across exchanges — urgency' });
+  if (isSweep && oiBaseline) c.push({ label: 'SWEEP', points: 16, why: 'Took liquidity across exchanges — urgency' });
+  else if (isSweep) c.push({ label: 'SWEEP?', points: 5, why: 'Sweep-like ratio on a near-zero-OI strike — freshly listed, aggression unverifiable' });
   else if (p.flowType === 'block') c.push({ label: 'BLOCK', points: 9, why: 'Single negotiated block' });
   else if (p.flowType === 'dark_pool') c.push({ label: 'HIGH SCORE', points: 7, why: 'Legacy bucket — not an off-exchange print' });
 
@@ -104,11 +117,13 @@ export function scoreFlow(p: FlowPrint, opts: { baseline?: number; repeatCount?:
   if (isRepeat) c.push({ label: 'REPEATER', points: 14, why: `${repeatCount} hits on this contract — conviction` });
   else if (repeatCount === 2) c.push({ label: 'REPEAT', points: 6, why: '2 hits on this contract' });
 
-  // 4 · New positioning vs existing OI (max 14)
-  const vOI = p.volumeOIRatio ?? (p.openInterest ? p.volume / Math.max(p.openInterest, 1) : null);
-  if (vOI != null) {
+  // 4 · New positioning vs existing OI (max 14) — only against a real baseline
+  if (oiBaseline) {
+    const vOI = p.volumeOIRatio ?? (p.volume / Math.max(p.openInterest ?? 1, 1));
     const pts = Math.round(clamp((vOI - 0.5) * 10, -4, 14));
     c.push({ label: 'VOL / OI', points: pts, why: `${vOI.toFixed(1)}× open interest — ${vOI >= 1 ? 'new positioning' : 'inside existing OI'}` });
+  } else {
+    c.push({ label: 'VOL / OI', points: 0, why: 'near-zero OI — no baseline to measure against' });
   }
 
   // 5 · Time: "time is your best friend" — reward room, penalise same-week gambles (max 12)
