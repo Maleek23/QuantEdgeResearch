@@ -220,6 +220,26 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertPrice, setAlertPrice] = useState('');
   const [alertState, setAlertState] = useState<'idle' | 'armed' | 'fail'>('idle');
+  // On-demand engine run — the SAME pipeline the publisher runs, for this one
+  // name. Publishes into the cockpit book when it finds a qualifying setup.
+  const [engineState, setEngineState] = useState<'idle' | 'running' | 'done' | 'fail'>('idle');
+  const [engineResult, setEngineResult] = useState<any>(null);
+  const runEngine = async () => {
+    setEngineState('running');
+    try {
+      const r = await apiRequest('POST', `/api/engine/analyze/${symbol}`, {});
+      const d = await r.json();
+      setEngineResult(d);
+      setEngineState('done');
+      if (d?.published) {
+        // The pick now exists in the book — refresh the conviction queries.
+        const { queryClient } = await import('@/lib/queryClient');
+        queryClient.invalidateQueries({ queryKey: ['/api/convictions'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/convictions', 'wu'] });
+      }
+    } catch { setEngineState('fail'); }
+  };
+
   // Quantinum runs on demand (multi-engine, multi-second) — never auto-fired.
   const [qtm, setQtm] = useState<QuantinumDossier | null>(null);
   const [qtmState, setQtmState] = useState<'idle' | 'running' | 'fail'>('idle');
@@ -233,7 +253,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
     } catch { setQtmState('fail'); }
   };
 
-  useEffect(() => { setTab('overview'); setWatched('idle'); setQtm(null); setQtmState('idle'); }, [symbol]);
+  useEffect(() => { setTab('overview'); setWatched('idle'); setQtm(null); setQtmState('idle'); setEngineState('idle'); setEngineResult(null); }, [symbol]);
   // Keyboard: esc closes, ←/→ cycle tabs, ↑/↓ hop through the peer list —
   // the dossier browses like a dossier, not like a webpage.
   const peersRef = useRef<string[]>([]);
@@ -553,7 +573,30 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                     </div>
                   </>
                 ) : (
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'center', padding: '6px 0' }}>No signal · not in the current conviction book</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 0' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'center' }}>No signal · not in the current conviction book</div>
+                    {engineState !== 'done' ? (
+                      <button
+                        className="wa-btn"
+                        style={{ justifyContent: 'center', padding: '6px 0', fontSize: 10, letterSpacing: 0.8 }}
+                        disabled={engineState === 'running'}
+                        onClick={runEngine}
+                        title="Run the SAME engine the publisher runs — every detector, every gate — on this name right now. A found setup publishes into the book; a quiet chart says so."
+                      >
+                        {engineState === 'running' ? 'ENGINE RUNNING…' : engineState === 'fail' ? 'FAILED — RETRY' : '⚙ RUN ENGINE ON THIS NAME'}
+                      </button>
+                    ) : engineResult?.published ? (
+                      <div style={{ fontSize: 10.5, color: 'var(--green)', textAlign: 'center' }}>
+                        ✓ {engineResult.idea?.signal} {engineResult.idea?.direction?.toUpperCase()} published — score {engineResult.idea?.score}, R:R {engineResult.idea?.riskRewardRatio}:1. Board refreshing…
+                      </div>
+                    ) : engineResult?.blocked ? (
+                      <div style={{ fontSize: 10.5, color: 'var(--amber)', lineHeight: 1.45 }}>{engineResult.blocked}</div>
+                    ) : (
+                      <div style={{ fontSize: 10.5, color: 'var(--text-dim)', lineHeight: 1.45 }} title={`checked: ${(engineResult?.checked ?? []).join(', ')}`}>
+                        {engineResult?.reason ?? 'engine ran — no qualifying setup'}{engineResult?.idea ? ` (found ${engineResult.idea.signal} but ${engineResult.reason?.includes('R:R') ? 'below the R:R floor' : 'not publishable'})` : ''}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

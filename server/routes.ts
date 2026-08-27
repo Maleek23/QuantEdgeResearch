@@ -14459,6 +14459,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── ON-DEMAND ENGINE — any searched symbol through the same pipeline ──────
+  // "Doesn't need to trigger except it finds one": a found setup publishes
+  // into the cockpit book like any cron idea; a quiet chart says so honestly.
+  app.post("/api/engine/analyze/:symbol", async (req, res) => {
+    try {
+      const { analyzeSymbolOnDemand } = await import("./quant-ideas-generator");
+      res.json(await analyzeSymbolOnDemand(String(req.params.symbol), storage as any));
+    } catch (error) {
+      logger.error("[ON-DEMAND] engine run failed:", error);
+      res.status(500).json({ error: "Engine run failed" });
+    }
+  });
+
   // ── SYSTEM PULSE — the machine narrating its own real work ────────────────
   app.get("/api/pulse", async (req, res) => {
     try {

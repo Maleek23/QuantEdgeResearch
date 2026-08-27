@@ -2132,3 +2132,160 @@ export async function generateQuantIdeas(
 
   return ideas;
 }
+
+// ─── ON-DEMAND: any searched symbol through the SAME engine ─────────────────
+// The operator's rule, verbatim: "anyone I search can go through the engine —
+// it just doesn't need to trigger except it finds one." This runs the exact
+// per-symbol pipeline the 15-minute publisher runs — same detectors, same
+// short gate, same levels, same scoring — for ONE name, on demand from the
+// workup. A found setup publishes into the cockpit book like any other idea;
+// a quiet chart returns an honest "no setup" with what was checked.
+export async function analyzeSymbolOnDemand(
+  symbol: string,
+  storage: { createTradeIdea: (i: any) => Promise<any>; getActiveCatalysts: () => Promise<Catalyst[]> },
+): Promise<{
+  found: boolean;
+  published?: boolean;
+  blocked?: string;
+  idea?: { symbol: string; direction: string; signal: string; score: number; entryPrice: number; targetPrice: number; stopLoss: number; riskRewardRatio: number; analysis: string };
+  checked: string[];
+  reason?: string;
+}> {
+  const sym = symbol.toUpperCase();
+  const checked = ['gap continuation', 'flow conviction', 'inside coil', 'RSI(2) reversion', 'VWAP flow', 'volume spike'];
+
+  // Live quote + 20d average volume (which also warms the coil-bar cache).
+  const { getRealtimeQuote } = await import('./realtime-pricing-service');
+  const quote: any = await getRealtimeQuote(sym, 'stock');
+  if (!quote || !Number.isFinite(quote.price) || quote.price <= 0) {
+    return { found: false, checked, reason: 'no live quote for this symbol' };
+  }
+  const avgVols = await getAvgVolumes20d([sym]);
+
+  // Session flow aggregates so flow_conviction can fire on demand too.
+  try {
+    const { getTodayFlows } = await import('./options-flow-scanner');
+    buildFlowAggregates(getTodayFlows() as any);
+  } catch { /* scanner cold — the other detectors still run */ }
+
+  const now = new Date();
+  const data: MarketData = {
+    id: `ondemand-${sym}`,
+    symbol: sym,
+    assetType: quote.price < 5 ? 'penny_stock' : 'stock',
+    currentPrice: quote.price,
+    priceChange: quote.change ?? null,
+    changePercent: Number.isFinite(quote.changePercent) ? quote.changePercent : 0,
+    volume: quote.volume ?? 0,
+    marketCap: null,
+    session: 'rth' as const,
+    timestamp: now.toISOString(),
+    high24h: null, low24h: null, high52Week: null, low52Week: null,
+    avgVolume: avgVols.get(sym) ?? null,
+    dataSource: 'live' as const,
+    lastUpdated: now.toISOString(),
+  } as any;
+
+  const historicalPrices = await fetchHistoricalPrices(sym, data.assetType, 60, process.env.ALPHA_VANTAGE_API_KEY);
+  if (historicalPrices.length === 0) {
+    return { found: false, checked, reason: 'no historical data — engine cannot analyze' };
+  }
+
+  const signal = analyzeMarketData(data, historicalPrices);
+  if (!signal) {
+    return { found: false, checked, reason: 'engine ran every detector — no qualifying setup on this chart right now' };
+  }
+
+  // Same short gate the publisher applies — with the same shadow-ledger record.
+  const catalysts = await storage.getActiveCatalysts().catch(() => [] as Catalyst[]);
+  if (signal.direction === 'short') {
+    const hasEventCatalyst = catalysts.some(
+      (c) => c.symbol?.toUpperCase() === sym && isSubstantiveEventCatalyst(c as any),
+    );
+    let btcChangePercent: number | null = null;
+    try {
+      const btc = await fetchCryptoPrice('BTC');
+      if (btc && Number.isFinite(btc.changePercent)) btcChangePercent = btc.changePercent;
+    } catch { /* unknown is not a breakdown */ }
+    if (!passesShortDiscipline({ symbol: sym, direction: 'short', hasEventCatalyst, btcChangePercent })) {
+      try {
+        const levels = calculateLevels(data, signal, data.assetType, undefined, historicalPrices);
+        const { recordBlockedShort } = await import('./discipline-ledger');
+        void recordBlockedShort({
+          symbol: sym,
+          entryPrice: Number(levels.entryPrice) || 0,
+          stopLoss: Number(levels.stopLoss) || 0,
+          targetPrice: Number(levels.targetPrice) || 0,
+          reason: 'short without an event catalyst — technical pattern only',
+          source: 'quant',
+        });
+      } catch { /* ledger never blocks */ }
+      return {
+        found: true,
+        blocked: `engine found a ${signal.type.replace(/_/g, ' ')} SHORT — blocked by the discipline gate (no event catalyst); recorded to the shadow ledger`,
+        checked,
+      };
+    }
+  }
+
+  const levels = calculateLevels(data, signal, data.assetType, undefined, historicalPrices);
+  if (levels.targetPrice == null) {
+    return { found: true, published: false, checked, reason: `engine found a ${signal.type.replace(/_/g, ' ')} but the chart offers no reachable target — coverage only, nothing published` };
+  }
+  const target = levels.targetPrice;
+  const riskDistance = Math.abs(levels.entryPrice - levels.stopLoss);
+  const rewardDistance = Math.abs(target - levels.entryPrice);
+  let riskRewardRatio = riskDistance > 0 ? rewardDistance / riskDistance : 0;
+  if (!isFinite(riskRewardRatio) || isNaN(riskRewardRatio)) riskRewardRatio = 0;
+  riskRewardRatio = Math.min(riskRewardRatio, 99.9);
+
+  const { score, signals: qualitySignals } = calculateConfidenceScore(data, signal, riskRewardRatio);
+  const analysis = generateAnalysis(data, signal);
+  const catalystText = generateCatalyst(data, signal, catalysts);
+
+  const result = {
+    symbol: sym,
+    direction: signal.direction as string,
+    signal: signal.type.replace(/_/g, ' '),
+    score: Math.round(score),
+    entryPrice: levels.entryPrice,
+    targetPrice: target,
+    stopLoss: levels.stopLoss,
+    riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+    analysis,
+  };
+
+  // Publish into the SAME book the cron publishes to. R:R floor matches the
+  // publisher's bar; below it the setup is reported but not published.
+  if (riskRewardRatio < 1.5) {
+    return { found: true, published: false, idea: result, checked, reason: `R:R ${riskRewardRatio.toFixed(1)} below the 1.5 publish floor — reported, not published` };
+  }
+
+  const idea: InsertTradeIdea = {
+    symbol: sym,
+    assetType: data.assetType,
+    direction: signal.direction,
+    holdingPeriod: 'swing',
+    entryPrice: levels.entryPrice,
+    targetPrice: target,
+    stopLoss: levels.stopLoss,
+    riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+    catalyst: catalystText,
+    analysis: `${analysis} (Analyzed on demand from the workup — same engine, same gates.)`,
+    timestamp: now.toISOString(),
+    liquidityWarning: levels.entryPrice < 5,
+    source: 'quant',
+    confidenceScore: Math.round(score),
+    qualitySignals,
+    engineVersion: QUANT_ENGINE_VERSION,
+    generationTimestamp: now.toISOString(),
+  } as InsertTradeIdea;
+
+  await storage.createTradeIdea({ ...idea, status: 'published' });
+  try {
+    const { pulse } = await import('./system-pulse');
+    pulse('quant', `on-demand: ${sym} ${signal.direction.toUpperCase()} ${signal.type.replace(/_/g, ' ')} published from the workup (score ${Math.round(score)})`);
+  } catch { /* decoration */ }
+
+  return { found: true, published: true, idea: result, checked };
+}
