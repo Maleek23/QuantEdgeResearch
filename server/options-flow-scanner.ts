@@ -1027,6 +1027,10 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
     allFlows.sort((a, b) => b.premium - a.premium);
     
     logger.info(`[OPTIONS-FLOW] Scan complete: ${symbols.length} symbols, ${symbolsWithVolume} with volume, ${totalOptionsScanned} options checked, ${allFlows.length} flows found`);
+    try {
+      const { pulse } = await import('./system-pulse');
+      pulse('flow', `flow scan: ${symbols.length} chains read, ${allFlows.length} qualifying prints`);
+    } catch { /* pulse is decoration */ }
     
     // Persist to database
     let savedCount = 0;

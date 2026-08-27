@@ -230,6 +230,10 @@ export async function scanUniversePatterns(force = false): Promise<void> {
     }
     cache = { at: Date.now(), hits, scanned, failed };
     logger.info(`[PATTERN-ENGINE] sweep done in ${Math.round((Date.now() - started) / 1000)}s — ${hits.length} hits across ${scanned} scanned (${failed} unreadable)`);
+    try {
+      const { pulse } = await import('./system-pulse');
+      pulse('pattern', `pattern sweep: ${scanned} names read, ${hits.length} live patterns`);
+    } catch { /* pulse is decoration, never load-bearing */ }
   } finally {
     scanning = false;
   }

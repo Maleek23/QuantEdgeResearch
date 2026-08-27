@@ -60,6 +60,10 @@ export async function addAlert(symbol: string, price: number, currentPrice: numb
   alerts.push(alert);
   await persistAll();
   logger.info(`[PRICE-ALERT] armed ${alert.symbol} ${direction} $${price}`);
+  try {
+    const { pulse } = await import('./system-pulse');
+    pulse('alert', `alert armed: ${alert.symbol} crossing ${direction} $${price}`);
+  } catch { /* pulse is decoration */ }
   return alert;
 }
 
@@ -98,6 +102,10 @@ export async function checkAlerts(): Promise<number> {
       fired++;
       lines.push(`🔔 **${a.symbol}** crossed ${a.direction} $${a.price} — now $${px.toFixed(2)}`);
       logger.info(`[PRICE-ALERT] fired ${a.symbol} ${a.direction} $${a.price} @ $${px.toFixed(2)}`);
+      try {
+        const { pulse } = await import('./system-pulse');
+        pulse('alert', `🔔 ${a.symbol} crossed ${a.direction} $${a.price} — now $${px.toFixed(2)}`);
+      } catch { /* pulse is decoration */ }
     }
     if (fired) {
       await persistAll();

@@ -184,6 +184,7 @@ app.use((req, res, next) => {
         setTimeout(() => { void lu.warmLiquidUniverse(); }, 45 * 1000);
         setInterval(() => { void lu.warmLiquidUniverse(); }, 24 * 60 * 60 * 1000);
       }).catch(() => {});
+      void import('./system-pulse').then((sp) => sp.pulse('system', 'engines online — publisher, pattern sweep, flow scan, bot, alerts all scheduled')).catch(() => {});
 
       // Full-universe pattern sweep — daily bars, so twice a day is plenty.
       // First sweep 3 min after boot (let quotes/candles warm), then every 12h.
@@ -1009,6 +1010,10 @@ app.use((req, res, next) => {
         
         if (savedIdeas.length > 0) {
           logger.info(`✅ [QUANT-CRON] Generated ${savedIdeas.length} quant trade ideas`);
+          try {
+            const { pulse } = await import('./system-pulse');
+            pulse('quant', `${sinceOpen ? 'sweep' : '🌙 overnight sweep'} published ${savedIdeas.length} idea(s): ${savedIdeas.slice(0, 5).map((s: any) => s.symbol).join(', ')}${savedIdeas.length > 5 ? '…' : ''}`);
+          } catch { /* pulse is decoration */ }
           const { sendBatchSummaryToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
           
           // 🚀 AUTO-EXECUTE: Actually enter trades, not just generate ideas!

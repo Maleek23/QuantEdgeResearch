@@ -37,6 +37,7 @@ import quantEdgeLogoUrl from '@assets/q_1767502987714.png';
 import '@/styles/nexus.css';
 import { TerminalPageHeader, TerminalSectionHeader } from '@/components/templates/terminal-page';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
+import { SystemPulse } from '@/components/terminal/system-pulse';
 // Non-default tabs and closed overlays must not tax Oracle's first paint. Keeping
 // these as static imports made charting, bot analytics and settings code part of
 // every terminal visit even when the user never opened those surfaces.
@@ -596,7 +597,9 @@ export default function TerminalShell() {
       <footer className="bottombar" style={{ minHeight: 26 }}>
         <div className="bb-item"><span className="dot" /><b>{tab.toUpperCase()}</b> engaged</div>
         <div className="bb-sep" />
-        <div className="bb-item">Uptime <b className="tabular-nums">{uptime}</b></div>
+        <SystemPulse />
+        <div className="bb-sep hidden md:block" />
+        <div className="bb-item hidden md:flex">Uptime <b className="tabular-nums">{uptime}</b></div>
         <div className="bb-sep hidden md:block" />
         <span className="hidden items-center md:inline-flex">
           <LiveStatsBar />

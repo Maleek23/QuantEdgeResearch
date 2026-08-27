@@ -586,6 +586,14 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
 
   const openCount = (await getOpenPositions(portfolio.id)).length;
   logger.info(`[QUANT-BOT] cycle: +${opened.length} opened, -${closed.length} closed, ${openCount} open`);
+  try {
+    const { pulse } = await import('./system-pulse');
+    if (opened.length || closed.length) {
+      pulse('bot', `bot: ${opened.length ? `opened ${opened.map((o) => o.symbol).join(', ')}` : ''}${opened.length && closed.length ? ' · ' : ''}${closed.length ? `closed ${closed.map((c) => c.symbol).join(', ')}` : ''} — ${openCount} open`);
+    } else {
+      pulse('bot', `bot cycle: book re-priced, ${openCount} position(s) held, nothing new qualified`);
+    }
+  } catch { /* pulse is decoration */ }
   // Persist the levels we left on. A gap exit is only half the trade the bot was
   // missing — the other half is noticing when that gap fills, because at that point
   // the reason for leaving is gone. This does NOT re-enter on its own: the

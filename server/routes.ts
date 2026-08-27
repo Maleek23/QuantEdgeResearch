@@ -14430,6 +14430,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── SYSTEM PULSE — the machine narrating its own real work ────────────────
+  app.get("/api/pulse", async (req, res) => {
+    try {
+      const { getPulse } = await import("./system-pulse");
+      const since = Number(req.query.since) || 0;
+      res.json({ events: getPulse(since) });
+    } catch {
+      res.json({ events: [] });
+    }
+  });
+
   // ── QUANTINUM INTELLIGENCE — every engine on any symbol, on demand ────────
   // The universal search's brain: layer-by-layer evidence with signed points,
   // the same disclosure standards as the cockpit, for a name nobody listed.

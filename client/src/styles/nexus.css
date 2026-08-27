@@ -2544,3 +2544,8 @@
   .nexus-vars *, .landing *{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important}
   .landing .ltape-track, .nexus-root .ticker-track, .qe-terminal .ticker-track{animation:none !important;transform:none !important}
 }
+
+/* SYSTEM PULSE — the bottombar heartbeat. Slide-in fires only when a REAL new
+   event arrives (design law: no synthetic motion). Reduced-motion kills it via
+   the global rule above. */
+@keyframes pulse-slide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}

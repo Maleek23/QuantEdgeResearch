@@ -56,6 +56,10 @@ export async function warmLiquidUniverse(): Promise<number> {
     await fs.mkdir(path.dirname(DISK), { recursive: true }).catch(() => {});
     await fs.writeFile(DISK, JSON.stringify({ at: rankedAt, rows: ranked }), 'utf8').catch(() => {});
     logger.info(`[LIQUID-UNIVERSE] ranked ${rows.length} tradeable names, kept top ${ranked.length} (floor $${(ranked[ranked.length - 1]?.dollarVolume / 1e6).toFixed(0)}M/day)`);
+    try {
+      const { pulse } = await import('./system-pulse');
+      pulse('universe', `liquid universe refreshed: ${rows.length} names ranked, top ${ranked.length} kept`);
+    } catch { /* pulse is decoration */ }
     return ranked.length;
   } catch (err: any) {
     logger.warn(`[LIQUID-UNIVERSE] warm failed: ${err?.message} — consumers fall back to curated sets`);

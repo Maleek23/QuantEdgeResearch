@@ -64,6 +64,10 @@ export async function recordBlockedShort(e: Omit<BlockedShort, 'blockedAt'>): Pr
     await fs.mkdir(LEDGER_DIR, { recursive: true });
     await fs.appendFile(LEDGER_PATH, JSON.stringify(entry) + '\n', 'utf8');
     logger.info(`[DISCIPLINE-LEDGER] recorded blocked short ${e.symbol} @ ${e.entryPrice} (${e.reason})`);
+    try {
+      const { pulse } = await import('./system-pulse');
+      pulse('gate', `gate blocked ${e.symbol} short — ${e.reason} (shadow ledger will score it)`);
+    } catch { /* pulse is decoration */ }
   } catch (err) {
     logger.warn('[DISCIPLINE-LEDGER] append failed:', err);
   }
