@@ -6128,6 +6128,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
+      // FIRST SOURCE: the liquid universe — 12k+ ranked US names already in
+      // memory. Instant, provider-independent, ordered by real liquidity, and
+      // each hit carries the session's actual change. The operator asked
+      // "where is the search engine" while the primary source was a dead
+      // broker token; the platform's own universe answers before any network.
+      let liquidHits: Array<{ symbol: string; changePct: number | null; dollarVolume: number }> = [];
+      try {
+        const { searchLiquid } = await import('./liquid-universe');
+        liquidHits = searchLiquid(query, 8);
+      } catch { /* universe cold — network sources below */ }
+
       const { searchSymbolLookup } = await import('./tradier-api');
       let tradierResults: { symbol: string; description: string; type?: string }[] = [];
       try {
@@ -6137,11 +6148,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Map to standardized search result format
-      let stockResults = tradierResults.map((r: { symbol: string; description: string; type?: string }) => ({
-        symbol: r.symbol,
-        name: r.description || r.symbol,
-        type: r.type === 'option' ? 'option' : 'stock' as const,
-      }));
+      const seen = new Set(liquidHits.map((h) => h.symbol));
+      let stockResults = [
+        ...liquidHits.map((h) => ({
+          symbol: h.symbol,
+          name: h.changePct != null ? `${h.changePct >= 0 ? '+' : ''}${h.changePct.toFixed(1)}% today · $${(h.dollarVolume / 1e6).toFixed(0)}M traded` : `$${(h.dollarVolume / 1e6).toFixed(0)}M traded`,
+          type: 'stock' as const,
+          changePct: h.changePct,
+        })),
+        ...tradierResults
+          .filter((r) => !seen.has(r.symbol))
+          .map((r: { symbol: string; description: string; type?: string }) => ({
+            symbol: r.symbol,
+            name: r.description || r.symbol,
+            type: r.type === 'option' ? 'option' : 'stock' as const,
+          })),
+      ];
 
       // FALLBACK. This branch is the only source of equity results, and it is the
       // one thing here that depends on Tradier — so when that token is unapproved
@@ -6153,19 +6175,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // universalSearch is already the engine behind /api/search and needs no
       // brokerage credentials, so it is the natural degradation path.
       if (stockResults.length === 0) {
+        // Name search ("SALESFORCE" → CRM). Yahoo's search endpoint needs no
+        // crumb and answers company names; the yahoo-finance2 wrapper's static
+        // API broke in v3 (same class as the regime-classifier fix), so this
+        // calls the endpoint directly.
         try {
-          const { universalSearch } = await import('./search-service');
-          const fallback = await universalSearch(query, ['stocks'] as any);
-          stockResults = (fallback?.results || [])
-            .filter((r: any) => r.symbol)
-            .slice(0, 10)
-            .map((r: any) => ({
-              symbol: r.symbol,
-              name: r.companyName || r.name || r.symbol,
+          const r = await fetch(
+            `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0`,
+            { headers: { 'User-Agent': 'Mozilla/5.0' } },
+          );
+          const body: any = r.ok ? await r.json() : null;
+          stockResults = (body?.quotes || [])
+            .filter((x: any) => x.symbol && (x.quoteType === 'EQUITY' || x.quoteType === 'ETF'))
+            .slice(0, 8)
+            .map((x: any) => ({
+              symbol: String(x.symbol).toUpperCase(),
+              name: x.shortname || x.longname || x.symbol,
               type: 'stock' as const,
             }));
         } catch (fallbackError) {
-          logger.warn(`search/symbols fallback failed for "${query}": ${String(fallbackError)}`);
+          logger.warn(`search/symbols name fallback failed for "${query}": ${String(fallbackError)}`);
         }
       }
 

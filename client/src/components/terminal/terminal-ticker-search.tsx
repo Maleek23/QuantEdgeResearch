@@ -7,6 +7,8 @@ interface SearchResult {
   symbol: string;
   name?: string;
   type?: 'stock' | 'crypto' | 'futures' | string;
+  /** Real session change from the liquid universe, when the symbol is ranked. */
+  changePct?: number | null;
 }
 
 export function TerminalTickerSearch({
@@ -26,6 +28,20 @@ export function TerminalTickerSearch({
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(0);
   const root = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // The chip has advertised ⌘K since the mock landed; nothing ever bound it.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const q = query.trim().toUpperCase();
   const { data = [], isFetching } = useQuery<SearchResult[]>({
@@ -77,6 +93,7 @@ export function TerminalTickerSearch({
           </span>
         )}
         <input
+          ref={inputRef}
           value={query}
           onFocus={() => setOpen(true)}
           onChange={(event) => { setQuery(event.target.value.toUpperCase()); setOpen(true); }}
@@ -124,7 +141,12 @@ export function TerminalTickerSearch({
               )}
             >
               <span className="w-14 font-mono text-[12px] font-bold tracking-wider text-foreground">{result.symbol}</span>
-              <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{result.name ?? result.symbol}</span>
+              <span
+                className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground"
+                style={result.changePct != null ? { color: result.changePct >= 0 ? 'var(--green, #34d399)' : 'var(--red, #ff5470)' } : undefined}
+              >
+                {result.name ?? result.symbol}
+              </span>
               <span className="font-mono text-[8px] uppercase tracking-widest text-[var(--brand-cyan)]/75">{result.type ?? 'stock'}</span>
             </button>
           )) : !isFetching ? (

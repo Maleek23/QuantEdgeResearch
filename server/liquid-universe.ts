@@ -90,6 +90,24 @@ export function liquidUniverseStatus(): { size: number; asOf: string | null } {
 }
 
 /**
+ * Instant symbol search over the ranked universe — prefix matches first
+ * (ordered by liquidity), then substring matches. Carries the real session
+ * change so search results can show live context, not bare letters.
+ */
+export function searchLiquid(q: string, limit = 8): Array<{ symbol: string; changePct: number | null; dollarVolume: number }> {
+  const Q = q.toUpperCase();
+  if (!Q) return [];
+  const prefix: RankedRow[] = [];
+  const infix: RankedRow[] = [];
+  for (const r of ranked) {
+    if (r.symbol.startsWith(Q)) prefix.push(r);
+    else if (r.symbol.includes(Q)) infix.push(r);
+    if (prefix.length >= limit) break;
+  }
+  return [...prefix, ...infix].slice(0, limit).map((r) => ({ symbol: r.symbol, changePct: r.changePct, dollarVolume: r.dollarVolume }));
+}
+
+/**
  * Whole-market movers: |day change| >= minChangePct with dollar volume >=
  * minDollarVol. This is where the missed runners live — computed from data
  * already in hand, zero extra quota.
