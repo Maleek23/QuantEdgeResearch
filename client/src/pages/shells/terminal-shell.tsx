@@ -38,6 +38,7 @@ import '@/styles/nexus.css';
 import { TerminalPageHeader, TerminalSectionHeader } from '@/components/templates/terminal-page';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
 import { SystemPulse } from '@/components/terminal/system-pulse';
+import { CommandPalette } from '@/components/terminal/command-palette';
 // Non-default tabs and closed overlays must not tax Oracle's first paint. Keeping
 // these as static imports made charting, bot analytics and settings code part of
 // every terminal visit even when the user never opened those surfaces.
@@ -198,6 +199,18 @@ export default function TerminalShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // ⌘K from anywhere in the terminal opens the palette.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const [marketFocus, setMarketFocus] = useState<MarketFocus | null>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -293,12 +306,25 @@ export default function TerminalShell() {
           >
             <Search className="h-4 w-4" />
           </button>
+          {/* Desktop search is a ⌘K PALETTE TRIGGER, not an inline dropdown —
+              same .search chrome the mock drew, but clicking it (or ⌘K from
+              anywhere) opens the command palette. */}
           <div className="hidden md:block">
-            <TerminalTickerSearch
-              variant="nexus"
-              value={currentStock?.symbol}
-              onSelect={(result) => setCurrentStock({ symbol: result.symbol, name: result.name })}
-            />
+            <button
+              type="button"
+              className="search"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Open command palette"
+              style={{ cursor: 'pointer', background: 'transparent' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+              {currentStock?.symbol ? (
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 0.8, color: 'var(--cyan-bright, #22d3ee)' }}>{currentStock.symbol}</span>
+              ) : (
+                <span style={{ fontSize: 10.5, color: 'var(--text-mute)' }}>search any ticker</span>
+              )}
+              <span className="search-kbd">⌘K</span>
+            </button>
           </div>
 
           {/* His user-chip. Everything the mock's header doesn't show — alerts,
@@ -589,6 +615,13 @@ export default function TerminalShell() {
         setFeed={alerts.setFeed}
         prefs={alerts.prefs}
         update={alerts.update}
+      />
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onTicker={(symbol, name) => setCurrentStock({ symbol, name })}
+        onTab={(t) => setTab(t as Tab)}
       />
 
       {/* ── footer — the reference bottombar. Same real content as before:

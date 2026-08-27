@@ -656,7 +656,10 @@ function App() {
                           </ErrorBoundary>
                         </div>
                       </SidebarProvider>
-                      <CommandPalette />
+                      {/* No legacy CommandPalette here: the terminal shell owns
+                          ⌘K with its own palette (liquid-universe search + tab
+                          jumps). Mounting both stacked two palettes on one
+                          keystroke. */}
                       <WhatsNewDrawer />
                       <WhatsNewToast />
                       <Toaster />

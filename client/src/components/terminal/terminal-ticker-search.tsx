@@ -29,19 +29,8 @@ export function TerminalTickerSearch({
   const [cursor, setCursor] = useState(0);
   const root = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // The chip has advertised ⌘K since the mock landed; nothing ever bound it.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        inputRef.current?.focus();
-        setOpen(true);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  // ⌘K is owned by the shell's CommandPalette; this inline variant stays for
+  // mobile and embedded uses without competing for the binding.
 
   const q = query.trim().toUpperCase();
   const { data = [], isFetching } = useQuery<SearchResult[]>({
