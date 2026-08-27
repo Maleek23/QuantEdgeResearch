@@ -266,3 +266,7 @@ export function getPatternHits(): { asOf: string | null; hits: PatternHit[]; sca
     scanning,
   };
 }
+
+// Exported for measurement scripts — the edge tester runs detect() on
+// held-out history to score pattern classes out of sample.
+export { detect as detectPatterns };
