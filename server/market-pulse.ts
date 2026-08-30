@@ -298,7 +298,10 @@ export async function getMarketPulse(watchlist: string[] = []): Promise<MarketPu
 
   // Regime
   const spy = indices.find(i => i.symbol === 'SPY');
-  const greenSectors = sectors.filter(s => s.change > 0).length / sectors.length;
+  // No sectors resolved means breadth is unknown, not zero-wide. 0/0 is NaN, and
+  // NaN silently loses every comparison in classifyRegime — the regime it lands on
+  // then reads as measured when nothing was.
+  const greenSectors = sectors.length ? sectors.filter(s => s.change > 0).length / sectors.length : 0;
   const regime = classifyRegime(spy?.change || 0, macro.vix, greenSectors);
 
   // Watchlist movers
@@ -315,11 +318,21 @@ export async function getMarketPulse(watchlist: string[] = []): Promise<MarketPu
   if (spyChg > 0.3 && qqqChg > 0.3) marketColor = 'GREEN';
   else if (spyChg < -0.3 && qqqChg < -0.3) marketColor = 'RED';
 
-  // Narrative
+  // Narrative — leadership is only claimed when sectors actually resolved. When
+  // every quote fails, `sectors` is empty and reading [0].name threw, taking the
+  // whole pulse down with a 500; an unmeasured tape should say so and still return
+  // the indices, macro and movers that did resolve. One sector is a leader with
+  // nothing to lag it, so both ends are named only when they are different rows.
+  const signed = (n: number) => `${n > 0 ? '+' : ''}${n}%`;
   const topSector = sectors[0];
-  const bottomSector = sectors[sectors.length - 1];
+  const bottomSector = sectors.length > 1 ? sectors[sectors.length - 1] : undefined;
+  const leadership = topSector && bottomSector
+    ? `${topSector.name} leading (${signed(topSector.change)}), ${bottomSector.name} lagging (${signed(bottomSector.change)}). `
+    : topSector
+      ? `${topSector.name} leading (${signed(topSector.change)}) — only sector measured. `
+      : 'Sector leadership unmeasured — no sector quotes resolved. ';
   const narrative = `Market ${marketColor === 'GREEN' ? '🟢' : marketColor === 'RED' ? '🔴' : '🟡'}. ` +
-    `${topSector.name} leading (+${topSector.change}%), ${bottomSector.name} lagging (${bottomSector.change}%). ` +
+    leadership +
     `VIX ${macro.vix.toFixed(1)} ${macro.vixState.toLowerCase()}, ${macro.riskTone}. ` +
     `Regime: ${regime.label.replace('_', ' ').toLowerCase()}.`;
 
