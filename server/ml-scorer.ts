@@ -13,6 +13,17 @@ interface MLResult {
     interpretation: string;
   }[];
   confidence: number;
+  /**
+   * False when the scorer produced no reading at all.
+   *
+   * This stub returned score 50 and carried its full 10% weight in
+   * CATEGORY_WEIGHTS, which is not neutral — it pulled every grade toward 50 by
+   * a tenth. A genuinely strong name scoring 85 across six real categories came
+   * out at 81.5 purely because a seventh had nothing to say. The engine now
+   * renormalises over available categories instead of counting a non-reading as
+   * a vote for the middle.
+   */
+  available?: boolean;
 }
 
 export const mlScorer = {
@@ -24,6 +35,7 @@ export const mlScorer = {
         { category: 'ML Prediction', value: 'neutral', interpretation: 'ML scoring not yet available' },
       ],
       confidence: 0,
+      available: false,
     };
   }
 };

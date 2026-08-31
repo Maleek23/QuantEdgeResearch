@@ -1012,24 +1012,60 @@ function maxAgeHoursForIdea(idea: any): number {
   else if (hp.includes("position") || hp.includes("long")) cap = 96;
   else cap = 24; // unknown → swing default
 
-  // Weekend extension: market is closed Sat+Sun (~48h). If we're currently in
-  // a weekend window, extend the cap so Friday's ideas survive until Monday
-  // pre-market. Without this, day ideas (6h cap) die Saturday morning and
-  // swing ideas (36h cap) die Sunday afternoon — leaving Trade Desk empty.
-  const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-  const day = nowET.getDay(); // 0=Sun, 6=Sat
-  const hour = nowET.getHours();
-  const isWeekend = day === 0 || day === 6;
-  // Also cover Friday after-hours (after 8pm ET) and Monday pre-market (before 4am ET)
-  const isFridayEvening = day === 5 && hour >= 20;
-  const isMondayEarlyAM = day === 1 && hour < 4;
-
-  if (isWeekend || isFridayEvening || isMondayEarlyAM) {
-    // Add ~52h buffer (Fri 8pm → Mon 4am ≈ 56h, with margin)
-    cap += 52;
-  }
-
+  /**
+   * The caps above are MARKET hours, and ideaAgeHours now measures market hours
+   * too, so no weekend patch is needed here.
+   *
+   * The previous version added a +52h buffer only while the clock was inside a
+   * weekend window — Sat, Sun, Friday after 8pm ET, or Monday before 4am ET.
+   * The moment Monday passed 04:00 ET the buffer vanished, so Friday's swing
+   * ideas (36h cap) were suddenly ~75h old and every one of them was culled
+   * before Monday's open. Observed 2026-08-31 at 12:44 ET: "age cap removed 7
+   * stale ideas (kept 1)", and the board rendered empty for the whole session
+   * behind a message blaming an unrelated database migration.
+   *
+   * Counting only market hours makes the cap mean what it says: a 36h swing
+   * idea survives roughly five trading sessions' worth of clock, and a weekend
+   * costs it nothing, whatever day it is read on.
+   */
   return cap;
+}
+
+/**
+ * Hours elapsed between two instants, counting only Mon-Fri.
+ *
+ * A calendar hour over a weekend is not an hour of market exposure — nothing
+ * can move against the idea while the market is shut — so ageing it by wall
+ * clock punishes a Friday signal for the sole crime of being read on a Monday.
+ * Weekday hours are counted whole (including overnight) because the caps were
+ * written against that scale; only Saturday and Sunday are excluded.
+ */
+function marketHoursBetween(startMs: number, endMs: number): number {
+  if (!(endMs > startMs)) return 0;
+
+  const HOUR = 3_600_000;
+  const DAY = 24 * HOUR;
+
+  // Walk day boundaries in ET so a weekend is identified by the market's
+  // calendar, not the server's locale.
+  const etDay = (ms: number): number =>
+    new Date(new Date(ms).toLocaleString("en-US", { timeZone: "America/New_York" })).getDay();
+
+  let hours = 0;
+  let cursor = startMs;
+  // Cap the walk so a corrupt timestamp cannot spin: 400 days is far past any
+  // cap and still bounded.
+  const limit = Math.min(endMs, startMs + 400 * DAY);
+
+  while (cursor < limit) {
+    const nextBoundary = Math.min(cursor + DAY, limit);
+    const d = etDay(cursor);
+    if (d !== 0 && d !== 6) {
+      hours += (nextBoundary - cursor) / HOUR;
+    }
+    cursor = nextBoundary;
+  }
+  return hours;
 }
 
 /**
@@ -1040,7 +1076,8 @@ function ideaAgeHours(idea: any): number {
   if (!ts) return 0;
   const t = new Date(ts).getTime();
   if (!Number.isFinite(t)) return 0;
-  return (Date.now() - t) / 3_600_000;
+  // Market hours, not wall clock — see maxAgeHoursForIdea.
+  return marketHoursBetween(t, Date.now());
 }
 
 /**

@@ -99,8 +99,27 @@ export function PrismBoard() {
     }
     const total = callMass + putMass;
     const callShare = total > 0 ? (callMass / total) * 100 : 50;
-    const positive = (snap.totalGEX ?? 0) >= 0;
-    return { up, down, callShare, positive, spot };
+    /**
+     * Read the regime from the field the API actually sends.
+     *
+     * This was `(snap.totalGEX ?? 0) >= 0`. The snapshot has no `totalGEX` —
+     * the field is `totalNetGEX` — so the expression was always
+     * `undefined ?? 0` → `0 >= 0` → TRUE, and this panel printed "Positive
+     * gamma — dealer hedging dampens moves" on every symbol forever, including
+     * SPY at −4.5B while the header chip beside it correctly read
+     * negative_gamma and the split beneath it read 77% puts. Three answers to
+     * one question on a single screen.
+     *
+     * Prefer the server's own `regime` string, which already applies the
+     * absolute-and-relative thresholds, and fall back to the net figure only if
+     * regime is absent. Never fall back to a literal that silently reads as
+     * positive.
+     */
+    const net = snap.totalNetGEX ?? snap.totalGEX ?? null;
+    const positive = snap.regime
+      ? snap.regime === 'positive_gamma'
+      : net != null ? net >= 0 : callShare >= 50;
+    return { up, down, callShare, positive, spot, net };
   }, [snap, matrix]);
 
   return (
@@ -226,7 +245,7 @@ export function PrismBoard() {
               <div className="space-y-2.5 px-4 py-3">
                 <div className="grid grid-cols-2 divide-x divide-y divide-border/45 border border-border/45">
                   <Stat label="Spot" value={`$${snap.spotPrice.toFixed(2)}`} />
-                  <Stat label="Net GEX" value={fmtGex(snap.totalGEX ?? 0)} color={read.positive ? BULL : BEAR} />
+                  <Stat label="Net GEX" value={read.net != null ? fmtGex(read.net) : '—'} color={read.positive ? BULL : BEAR} />
                   <Stat label="Call wall" value={snap.callWall ? `$${snap.callWall}` : '—'} color={BULL} />
                   <Stat label="Put support" value={snap.putWall ? `$${snap.putWall}` : '—'} color={BEAR} />
                 </div>

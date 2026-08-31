@@ -24,6 +24,20 @@ export interface ConvictionLayer {
 }
 
 export interface ConvictionPick {
+  /**
+   * Present and true when this row is something the bot ACTUALLY HOLDS, merged
+   * in past every entry filter — see server/bot-held-picks.ts. Held rows carry
+   * live P&L instead of a conviction score, because they were never scored for
+   * entry and showing a number there would invite a false comparison against
+   * candidates that were.
+   */
+  isBotHeld?: boolean;
+  botOwner?: string;
+  quantity?: number;
+  unrealizedPnl?: number | null;
+  unrealizedPnlPercent?: number | null;
+  heldSince?: string | null;
+
   ideaId: string;
   symbol: string;
   sector: string;

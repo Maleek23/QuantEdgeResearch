@@ -55,15 +55,44 @@ class OrderFlowScorer {
     try {
       logger.info(`[OrderFlowScorer] Scoring ${symbol}`);
 
+      /**
+       * Volume comes from Polygon bars, not a Yahoo quote.
+       *
+       * The old first line was `await yahooFinance.quote(symbol)` with no catch,
+       * so a 429 threw before any component ran and the whole scorer returned 50
+       * / "Order flow data unavailable". The insider and institutional calls
+       * below were already written to degrade (`.catch(() => null)`); only the
+       * quote could kill the scorer, and it was the one part replaceable from a
+       * source that works.
+       *
+       * shortPercentOfFloat has no free replacement, so that component (15% of
+       * the weight) stays unavailable — and now says so in the breakdown rather
+       * than scoring 0% short interest as if it were a reading.
+       */
+      const { getBars } = await import('./market-data-fallback');
+      const bars = await getBars(symbol, 60);
+
+      let quote: any = {};
+      if (bars.length >= 21) {
+        const recent = bars.slice(-21);
+        quote = {
+          volume: recent[recent.length - 1].volume,
+          averageVolume: Math.round(recent.reduce((a, b) => a + b.volume, 0) / recent.length),
+        };
+      }
+
       const { default: YahooFinance } = await import('yahoo-finance2');
       const yahooFinance = new YahooFinance();
-      // yahooFinance is already instantiated
-      const quote = await yahooFinance.quote(symbol);
 
-      // Fetch institutional holders and insider transactions
+      // Insider / institutional have no free replacement. They already degraded
+      // to null on failure; that behaviour is unchanged.
       const [holders, insiderTransactions] = await Promise.allSettled([
         yahooFinance.quoteSummary(symbol, {
-          modules: ['institutionalHolders', 'insiderHolders']
+          // 'institutionalHolders' is NOT a valid module in this yahoo-finance2
+          // version — the schema rejects the whole call, so this pair returned
+          // null on every symbol even when Yahoo was healthy. The real name is
+          // 'institutionOwnership'. This was masked by the .catch(() => null).
+          modules: ['institutionOwnership', 'insiderHolders']
         }).catch(() => null),
         yahooFinance.quoteSummary(symbol, {
           modules: ['insiderTransactions']
@@ -185,9 +214,33 @@ class OrderFlowScorer {
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
+    /**
+     * yahoo-finance2 already parses startDate into a Date. The old code did
+     * `new Date((t.startDate || t.date) * 1000)` — multiplying a Date by 1000
+     * gives epoch-millis × 1000, i.e. the year 58576, so EVERY row passed the
+     * ">= threeMonthsAgo" test and the three-month window was never applied.
+     * That is why the breakdown read a constant "150 sells" for NVDA, AFRM and
+     * WDAY alike: 150 is Yahoo's page size, not a measurement.
+     *
+     * Handle both shapes — a Date, and an epoch-seconds number if the upstream
+     * parsing ever changes.
+     */
+    const asDate = (v: any): Date | null => {
+      if (v instanceof Date) return v;
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        // Seconds vs milliseconds: anything below ~1e12 is seconds.
+        return new Date(v < 1e12 ? v * 1000 : v);
+      }
+      if (typeof v === 'string') {
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      return null;
+    };
+
     const recentTransactions = transactions.filter((t: any) => {
-      const transactionDate = new Date((t.startDate || t.date) * 1000);
-      return transactionDate >= threeMonthsAgo;
+      const transactionDate = asDate(t.startDate ?? t.date);
+      return transactionDate !== null && transactionDate >= threeMonthsAgo;
     });
 
     if (recentTransactions.length === 0) {
@@ -208,19 +261,56 @@ class OrderFlowScorer {
     let buyValue = 0;
     let sellValue = 0;
 
+    /**
+     * Only open-market trades signal anything. Everything else is compensation
+     * plumbing and must not be counted as a sell.
+     *
+     * The old test was `includes('buy') || includes('purchase')`, with an ELSE
+     * that swept every remaining row into `sells`. Yahoo's actual text for NVDA
+     * over this window: 42 "Stock Award(Grant)", 20 "Stock Gift", and the rest
+     * "Sale at price ...". Not one row contains "buy" or "purchase" — insiders
+     * receive shares by grant, they do not buy them — so grants and gifts were
+     * being reported as insider selling. Combined with the broken date filter
+     * above, "0 buys, 150 sells" was routine payroll rendered as a bearish
+     * signal, identically on every symbol.
+     *
+     * Rows that are neither a purchase nor a sale are now excluded from both
+     * counts rather than defaulting to one side.
+     */
+    let ignored = 0;
     recentTransactions.forEach((t: any) => {
-      const isBuy = t.transactionText?.toLowerCase().includes('buy') ||
-                    t.transactionText?.toLowerCase().includes('purchase');
+      const text = String(t.transactionText ?? '').toLowerCase();
+      const isBuy = text.includes('purchase') || text.includes('buy');
+      const isSell = text.includes('sale') || text.includes('sold') || text.includes('sell');
       const value = (t.shares || 0) * (t.value || 0);
 
       if (isBuy) {
         buys++;
         buyValue += value;
-      } else {
+      } else if (isSell) {
         sells++;
         sellValue += value;
+      } else {
+        // Grants, awards, gifts, option exercises, conversions.
+        ignored++;
       }
     });
+
+    // Every row was compensation plumbing — no open-market conviction either way.
+    if (buys === 0 && sells === 0) {
+      return {
+        score: 50,
+        breakdown: [
+          {
+            category: 'Insider Transactions (3mo)',
+            value: '0 open-market',
+            interpretation: ignored > 0
+              ? `${ignored} grant/gift/exercise rows only — no buys or sells`
+              : 'No recent insider activity'
+          }
+        ]
+      };
+    }
 
     // ===== STATISTICAL ANALYSIS OF INSIDER ACTIVITY =====
 
@@ -370,7 +460,7 @@ class OrderFlowScorer {
     score: number;
     breakdown: any[];
   } {
-    if (!holdersData || !holdersData.institutionalHolders) {
+    if (!holdersData || !holdersData.institutionOwnership) {
       return {
         score: 50,
         breakdown: [
@@ -383,7 +473,7 @@ class OrderFlowScorer {
       };
     }
 
-    const institutions = holdersData.institutionalHolders.holders || [];
+    const institutions = holdersData.institutionOwnership.ownershipList || [];
 
     if (institutions.length === 0) {
       return {
@@ -454,6 +544,15 @@ class OrderFlowScorer {
     score: number;
     breakdown: any[];
   } {
+    // No free source carries short float. Absent is neutral AND labelled — a
+    // missing field used to read through as 0% and score like genuinely low
+    // short interest.
+    if (quote.shortPercentOfFloat == null) {
+      return {
+        score: 50,
+        breakdown: [{ category: 'Short Interest', value: 'N/A', interpretation: 'No short float source available' }]
+      };
+    }
     const shortPercent = quote.shortPercentOfFloat || 0;
 
     let score = 50;

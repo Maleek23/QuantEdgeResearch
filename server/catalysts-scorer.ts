@@ -66,8 +66,48 @@ class CatalystsScorer {
         }).catch(() => null)
       ]);
 
-      const calendar = calendarData.status === 'fulfilled' ? calendarData.value : null;
+      let calendar: any = calendarData.status === 'fulfilled' ? calendarData.value : null;
       const earnings = earningsHistory.status === 'fulfilled' ? earningsHistory.value : null;
+
+      /**
+       * Finnhub backfills the earnings date when Yahoo has none.
+       *
+       * This scorer is 40%-weighted on the next earnings date and read it only
+       * from Yahoo's calendarEvents. With Yahoo 429ing it reported "No upcoming
+       * earnings data" on ADSK, WDAY and AFRM on 2026-08-27 — the afternoon all
+       * three reported. A catalyst scorer blind to the catalyst is the worst
+       * failure in the engine, because earnings is precisely when it is read.
+       *
+       * Finnhub's /calendar/earnings is free and returns the before/after-close
+       * flag Yahoo's field does not, so an AMC print is distinguishable from a
+       * BMO one — which is what decides whether a position held overnight is
+       * exposed to the report.
+       */
+      if (!calendar?.calendarEvents?.earnings?.earningsDate?.[0]) {
+        try {
+          const { getNextEarningsDate } = await import('./finnhub-adapter');
+          const fh = await getNextEarningsDate(symbol);
+          if (fh?.date) {
+            // 'amc' reports after the close, so stamp it in the evening; 'bmo'
+            // before the open. The hour matters for same-day expiries.
+            const when = new Date(`${fh.date}T${fh.hour === 'bmo' ? '13:00' : '20:30'}:00Z`);
+            calendar = {
+              ...(calendar ?? {}),
+              calendarEvents: {
+                ...(calendar?.calendarEvents ?? {}),
+                earnings: {
+                  ...(calendar?.calendarEvents?.earnings ?? {}),
+                  earningsDate: [when],
+                  epsEstimate: fh.epsEstimate ?? undefined,
+                },
+              },
+            };
+            logger.info(`[CatalystsScorer] ${symbol} earnings from Finnhub: ${fh.date} ${fh.hour || 'time n/a'}`);
+          }
+        } catch (e: any) {
+          logger.debug(`[CatalystsScorer] Finnhub earnings lookup failed for ${symbol}: ${e?.message ?? e}`);
+        }
+      }
 
       // Calculate component scores
       const earningsScore = this.scoreEarnings(calendar, earnings);
@@ -139,8 +179,25 @@ class CatalystsScorer {
     }
 
     // Calculate days until earnings
-    const daysUntil = Math.floor(
-      (new Date(earningsDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    /**
+     * Calendar days, not elapsed hours.
+     *
+     * The old form floored (earningsDate - now) / 86400000, so an AMC print
+     * happening TONIGHT read as "1 days ago" the moment the clock passed the
+     * stamped time by a few minutes — ADSK, WDAY and AFRM all showed that on
+     * 2026-08-27, the afternoon they reported. Flooring a small negative gives
+     * -1, and the scorer then treated an imminent catalyst as a past one.
+     *
+     * Comparing dates at midnight makes "today" mean today, which is the only
+     * reading a trader can act on.
+     */
+    const midnight = (d: Date) => {
+      const x = new Date(d);
+      x.setHours(0, 0, 0, 0);
+      return x.getTime();
+    };
+    const daysUntil = Math.round(
+      (midnight(new Date(earningsDate)) - midnight(new Date())) / (1000 * 60 * 60 * 24)
     );
 
     let score = 50;
@@ -155,6 +212,9 @@ class CatalystsScorer {
         score = 50;
         interpretation = 'No imminent catalysts';
       }
+    } else if (daysUntil === 0) {
+      score = 62;
+      interpretation = 'Earnings TODAY - binary event, position accordingly';
     } else if (daysUntil <= 7) {
       score = 60; // Upcoming earnings in 1 week (anticipation)
       interpretation = 'Earnings this week - high volatility expected';
@@ -178,9 +238,10 @@ class CatalystsScorer {
       breakdown: [
         {
           category: 'Next Earnings',
-          value: daysUntil >= 0 ?
-            `In ${daysUntil} days` :
-            `${Math.abs(daysUntil)} days ago`,
+          value: daysUntil === 0 ? 'TODAY' :
+            daysUntil > 0 ?
+            `In ${daysUntil} day${daysUntil === 1 ? '' : 's'}` :
+            `${Math.abs(daysUntil)} day${daysUntil === -1 ? '' : 's'} ago`,
           interpretation
         },
         {

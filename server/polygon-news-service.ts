@@ -114,10 +114,28 @@ async function fetchNewsForSymbol(symbol: string, key: string, limit: number): P
  * Returns the number of rows written. Never throws — a news outage must not take
  * down the scan that calls it.
  */
+/**
+ * Company names for the headline test — a story about Amazon rarely writes
+ * "AMZN". Only the names common enough in headlines to matter; the insight
+ * test below catches the rest.
+ */
+const COMPANY_ALIASES: Record<string, string[]> = {
+  AAPL: ['APPLE'], MSFT: ['MICROSOFT'], AMZN: ['AMAZON'], GOOGL: ['ALPHABET', 'GOOGLE'],
+  META: ['META', 'FACEBOOK'], NVDA: ['NVIDIA'], TSLA: ['TESLA'], AMD: ['ADVANCED MICRO'],
+  INTC: ['INTEL'], NFLX: ['NETFLIX'], ORCL: ['ORACLE'], CRM: ['SALESFORCE'],
+  SNOW: ['SNOWFLAKE'], PLTR: ['PALANTIR'], SHOP: ['SHOPIFY'], PATH: ['UIPATH'],
+  WDAY: ['WORKDAY'], ADSK: ['AUTODESK'], AFRM: ['AFFIRM'], QCOM: ['QUALCOMM'],
+  MU: ['MICRON'], AVGO: ['BROADCOM'], TSM: ['TAIWAN SEMICONDUCTOR', 'TSMC'],
+  JNJ: ['JOHNSON'], ABBV: ['ABBVIE'], INTU: ['INTUIT'], NET: ['CLOUDFLARE'],
+  PANW: ['PALO ALTO'], MDB: ['MONGODB'], DKS: ["DICK'S", 'DICKS'], WDC: ['WESTERN DIGITAL'],
+  COIN: ['COINBASE'], HOOD: ['ROBINHOOD'], SOFI: ['SOFI'], BKNG: ['BOOKING'],
+};
+
 export async function ingestNewsCatalysts(
   symbols: string[],
   opts: { perSymbol?: number; maxAgeHours?: number } = {},
 ): Promise<number> {
+  let skippedIrrelevant = 0;
   const key = process.env.POLYGON_API_KEY?.trim();
   if (!key) {
     logger.debug('[NEWS] POLYGON_API_KEY not set — skipping news catalyst ingest');
@@ -169,6 +187,68 @@ export async function ingestNewsCatalysts(
       const insight = (article.insights ?? []).find(
         (i) => i.ticker?.toUpperCase() === sym,
       );
+      /**
+       * Reject articles this ticker is only MENTIONED in.
+       *
+       * Polygon returns any article whose ticker list includes the symbol, so a
+       * roundup naming twelve companies is ingested twelve times — once per
+       * ticker — as if it were news about each. Measured across the live table
+       * before this check: 1,926 catalyst rows, of which 84% did not name their
+       * own ticker in the headline and 26% carried an insight that literally
+       * said "mentioned in passing" or "no direct impact".
+       *
+       * Real examples that were scoring as catalysts:
+       *   SNOW ← "If Amazon Is a Top Growth Stock, Then Why Does It Trade..."
+       *   QCOM ← "TSMC Stock Will Soar ... Thanks to Nvidia's Historic Quarter"
+       *   NVDA ← "Why Super Micro Computer Rallied Today"
+       *
+       * That is not a scoring problem, it is a wrong-input problem: the
+       * catalyst layer was reading other companies' news and attributing it
+       * here. A ticker whose own news is 84% about someone else cannot have its
+       * direction informed by news at all.
+       *
+       * Two independent tests, either of which keeps the article:
+       *   1. the ticker (or its company name) appears in the HEADLINE, or
+       *   2. Polygon's per-ticker insight exists AND does not describe a
+       *      passing mention.
+       */
+      const insightText = `${insight?.sentiment_reasoning ?? ''}`.toLowerCase();
+      const isPassingMention =
+        /mentioned (in|as|alongside)|no direct impact|in context of|only briefly/.test(insightText);
+      const titleUpper = title.toUpperCase();
+      const namedInHeadline =
+        titleUpper.includes(sym) ||
+        (COMPANY_ALIASES[sym] ?? []).some((a) => titleUpper.includes(a.toUpperCase()));
+
+      /**
+       * The headline test is MANDATORY. A first attempt allowed an article
+       * through whenever Polygon supplied a per-ticker insight and its
+       * reasoning did not literally say "mentioned in passing" — which turned
+       * out to be almost never. Of fourteen rows accepted under that rule, ONE
+       * named its own company; "Avahi Ranks No. 13 on CRN's Fast Growth 150"
+       * was filed under AMZN six times and a Vanguard ETF piece under both AMZN
+       * and NVDA.
+       *
+       * Polygon attaches an insight to every ticker it tags, so the presence of
+       * one proves nothing about relevance. The headline is the only reliable
+       * signal that an article is ABOUT a company rather than merely listing
+       * it.
+       *
+       * This is strict on purpose. It will drop the occasional real story whose
+       * headline names neither the ticker nor the company — that is the correct
+       * trade. A catalyst that never names the company is not a catalyst for
+       * it, and the cost of the old behaviour was a news layer that was 84%
+       * other companies' news.
+       */
+      if (!namedInHeadline) {
+        skippedIrrelevant++;
+        continue;
+      }
+      if (isPassingMention) {
+        skippedIrrelevant++;
+        continue;
+      }
+
       const opinion = isOpinionPiece(title);
       const eventType = opinion ? 'news' : classifyEvent(title);
       const impact = opinion ? 'low' : classifyImpact(article, eventType, !!insight);
@@ -208,7 +288,9 @@ export async function ingestNewsCatalysts(
   }
 
   if (written > 0 || failed > 0) {
-    logger.info(`[NEWS] ingested ${written} catalyst${written === 1 ? '' : 's'} from ${symbols.length} symbols${failed ? ` (${failed} fetch failure${failed === 1 ? '' : 's'})` : ''}`);
+    // Say what was DROPPED, not just what landed. Silent filtering is how the
+    // table filled with 84% other-companies' news without anyone noticing.
+    logger.info(`[NEWS] ingested ${written} catalyst${written === 1 ? '' : 's'} from ${symbols.length} symbols${failed ? ` (${failed} fetch failure${failed === 1 ? '' : 's'})` : ''}${skippedIrrelevant ? ` · ${skippedIrrelevant} rejected as passing mentions` : ''}`);
   }
   return written;
 }

@@ -206,8 +206,58 @@ export function getAllApprovedSymbols(): string[] {
 /**
  * Check if a ticker is on the approved watchlist
  */
+/**
+ * Names the platform may publish ideas on.
+ *
+ * WHAT THIS USED TO BE, AND WHY IT WAS WRONG
+ * A closed 197-symbol hand-list. Every producer ultimately calls this, so it
+ * was the final gate on the whole platform — and it blocked NVDA. Traced on a
+ * live sweep 2026-08-31:
+ *
+ *   2,000  liquid universe
+ *     831  bull-flag setups found
+ *     712  passed the R:R gate
+ *      32  tier-selected for ingest
+ *       3  survived THIS function
+ *
+ * Twenty-nine S/A/B-tier setups — BKNG at 12.75:1, AXON, NTAP, SLM, HPE, TEM —
+ * died here, behind the message "Universal idea generator returned null
+ * (possibly blocked by loss analyzer)", which named the wrong cause and hedged
+ * about it. That is the mechanical reason a full trading day produced eleven
+ * tickers.
+ *
+ * WHAT IT IS NOW
+ * A whitelist exists to keep illiquid junk off the board. The liquid universe
+ * already does that job, and does it with live data: top 2,000 by dollar
+ * volume, rebuilt daily. So membership is: on the hand-list (always allowed,
+ * nothing that worked before can break) OR in the liquid universe — minus the
+ * explicit SKIP list, which stays authoritative either way.
+ *
+ * The universe is injected rather than imported because this module is shared
+ * with the client, which has no access to server-side universe state. Until the
+ * server calls setLiquidUniverse() the old 197-name behaviour applies exactly,
+ * so nothing changes for any caller that has not opted in.
+ *
+ * APPROVED_TICKERS_STRICT=true restores the closed list.
+ */
+let liquidUniverse: Set<string> | null = null;
+
+/** Server-side: hand the live liquid universe to the approval check. */
+export function setLiquidUniverse(symbols: string[]): void {
+  liquidUniverse = new Set(symbols.map((s) => s.toUpperCase()));
+}
+
+export function getApprovalUniverseSize(): number {
+  return liquidUniverse ? liquidUniverse.size + APPROVED_TICKERS.size : APPROVED_TICKERS.size;
+}
+
 export function isApprovedTicker(symbol: string): boolean {
-  return APPROVED_TICKERS.has(symbol.toUpperCase());
+  const s = symbol.toUpperCase();
+  // The skip list is a deny list and outranks everything.
+  if (SKIP_TICKERS.has(s)) return false;
+  if (APPROVED_TICKERS.has(s)) return true;
+  if (typeof process !== 'undefined' && process.env?.APPROVED_TICKERS_STRICT === 'true') return false;
+  return liquidUniverse != null && liquidUniverse.has(s);
 }
 
 /**

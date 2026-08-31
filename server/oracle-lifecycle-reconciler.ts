@@ -44,12 +44,35 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
   });
   if (pending.length === 0) return 0;
 
-  const symbols = Array.from(new Set(pending.map((i) => i.symbol).filter(Boolean)));
+  /**
+   * Ask for each row under ITS OWN asset class.
+   *
+   * This used to hardcode `assetType: "stock"` for every pending row. That is
+   * right for option rows — entry/stop/target are underlying levels, so an
+   * option is priced off its equity, never an OCC symbol — but it was applied
+   * to crypto too, and the pricing service has a separate crypto path. Asking
+   * for JUP and TRUMP as stocks returned no quote, every time, so those rows
+   * could never be observed as triggered and sat at PENDING TRIGGER
+   * indefinitely — reading as "never entered" no matter what the coin did.
+   *
+   * Options and futures still resolve to the underlying equity symbol; only
+   * crypto changes behaviour.
+   */
+  const assetOf = (t: string | null | undefined): "stock" | "crypto" =>
+    String(t ?? "").toLowerCase() === "crypto" ? "crypto" : "stock";
+
+  const byName = new Map<string, "stock" | "crypto">();
+  for (const i of pending) {
+    if (!i.symbol) continue;
+    // A symbol seen as crypto anywhere is priced as crypto.
+    const a = assetOf((i as any).assetType);
+    if (a === "crypto" || !byName.has(i.symbol)) byName.set(i.symbol, a);
+  }
+
+  const symbols = Array.from(byName.keys());
   const { getRealtimeBatchQuotes } = await import("./realtime-pricing-service");
   const quotes = await getRealtimeBatchQuotes(
-    // Entry/stop/target are underlying levels even for contract ideas, so an
-    // option row is priced off its underlying, never an OCC symbol.
-    symbols.map((symbol) => ({ symbol, assetType: "stock" as const })),
+    symbols.map((symbol) => ({ symbol, assetType: byName.get(symbol)! })),
   );
 
   const nowIso = new Date().toISOString();
@@ -205,4 +228,115 @@ export async function repairImpossibleRecentOutcomes(hoursBack = 72): Promise<nu
     logger.warn(`[ORACLE LIFECYCLE] Reopened ${repaired} mathematically impossible automatic outcome${repaired === 1 ? "" : "s"}`);
   }
   return repaired;
+}
+
+/**
+ * HORIZON EXPIRY
+ *
+ * An idea has a stated horizon and the platform already computes it — the
+ * cockpit renders "37% of 5d used" on every card. Nothing ever enforced it.
+ *
+ * Measured on the live book, 2026-08-27:
+ *   122 open ideas
+ *     13 carried entry_valid_until — and ALL 13 had already passed, still open
+ *    109 carried no expiry at all
+ *     16 were holding_period='day' with an average age of 22 HOURS
+ *     19 of 40 distinct symbols had been open longer than 24h, oldest 46h
+ *
+ * That is why the same names cycle: the scanners keep re-finding setups that
+ * were valid two days ago, and nothing retires the originals. The duplicate
+ * gate stops the re-publishing; this retires what is already stale.
+ *
+ * Horizons mirror lib/oracle/signal-geometry.ts → horizonDaysFor, so a card
+ * showing "100% of 5d used" and this pass agree by construction rather than by
+ * coincidence.
+ *
+ * Deliberately NON-DESTRUCTIVE: rows are marked expired, never deleted. An
+ * expired idea is still a record of what was published and is still needed to
+ * score the book honestly — 156 rows already carry that status.
+ *
+ * Only untriggered/open ideas expire. An idea that has TRIGGERED is a live
+ * position in the user's mind; retiring it out from under them because a clock
+ * ran out would be worse than leaving it stale.
+ */
+const HORIZON_DAYS: Record<string, number> = {
+  day: 1,
+  swing: 5,
+  'week-ending': 5,
+  position: 30,
+};
+const DEFAULT_HORIZON_DAYS = 10;
+
+/**
+ * Calendar days to allow for N sessions — weekends are not trading time.
+ *
+ * No blanket +1 buffer: a first pass added one and gave a DAY trade three
+ * calendar days, so the 16 day-ideas sitting at an average age of 22 hours all
+ * survived. The buffer only makes sense for multi-session horizons, where a
+ * weekend can legitimately fall inside the window.
+ */
+function sessionsToCalendarDays(sessions: number): number {
+  if (sessions <= 1) return 1;
+  return Math.ceil(sessions * 1.45);
+}
+
+/**
+ * A DAY idea is scoped to ONE SESSION, so elapsed hours are the wrong test —
+ * one published at 14:00 is dead at that day's close, 22 hours later but well
+ * short of any 24h threshold. The honest question is whether its session has
+ * ended, which is a DATE comparison.
+ */
+function dayIdeaSessionEnded(publishedMs: number, nowMs: number): boolean {
+  const d = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  return d(publishedMs) !== d(nowMs);
+}
+
+export async function expireStaleIdeas(): Promise<number> {
+  const rows = await db
+    .select()
+    .from(tradeIdeas)
+    .where(and(
+      eq(tradeIdeas.outcomeStatus, "open"),
+      eq(tradeIdeas.archived, false),
+    ))
+    .limit(2000);
+
+  let expired = 0;
+  const now = Date.now();
+
+  for (const idea of rows as any[]) {
+    const started = Date.parse(idea.timestamp);
+    if (!Number.isFinite(started)) continue;
+
+    // Never retire something the user is treating as live.
+    const state = readOracleExecutionAudit(idea.convergenceSignalsJson)?.state;
+    if (state === "executed") continue;
+
+    const hp = String(idea.holdingPeriod ?? "").toLowerCase();
+    const sessions = HORIZON_DAYS[hp] ?? DEFAULT_HORIZON_DAYS;
+    const ageDays = (now - started) / 86_400_000;
+
+    const stale = hp === "day"
+      ? dayIdeaSessionEnded(started, now)
+      : ageDays > sessionsToCalendarDays(sessions);
+    if (!stale) continue;
+
+    await db.update(tradeIdeas)
+      .set({
+        // outcome_status is the lifecycle field — `status` only accepts
+        // draft/published/archived, and every "open" query in the codebase
+        // keys off outcome_status, so this alone retires the row.
+        outcomeStatus: "expired",
+        // Say WHY, so a later audit can tell a horizon expiry from a stop-out.
+        analysis: `${idea.analysis ?? ""}\n\n[HORIZON EXPIRY] ${hp || "unspecified"} idea published ` +
+          `${ageDays.toFixed(1)}d ago, past its ${sessions}-session horizon. Never resolved to target or stop.`,
+      })
+      .where(eq(tradeIdeas.id, idea.id));
+    expired++;
+  }
+
+  if (expired > 0) {
+    logger.info(`[ORACLE LIFECYCLE] ⏳ Expired ${expired} ideas past their stated horizon`);
+  }
+  return expired;
 }

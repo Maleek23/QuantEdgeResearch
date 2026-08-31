@@ -17,7 +17,13 @@ import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligen
 import { initializeRealtimePrices, getRealtimeStatus } from "./realtime-price-service";
 import { initializeBotNotificationService } from "./bot-notification-service";
 import { initializeWeeklyTracker } from "./weekly-tracker";
-import { reconcileOpenPaperExecutions, repairImpossibleRecentOutcomes, observeTriggeredIdeas } from "./oracle-lifecycle-reconciler";
+import { reconcileOpenPaperExecutions, repairImpossibleRecentOutcomes, observeTriggeredIdeas, expireStaleIdeas } from "./oracle-lifecycle-reconciler";
+import { acquireSchedulerLock, releaseSchedulerLock } from "./scheduler-lock";
+
+/** Thrown to skip a leader-only block without dressing it up as an error. */
+class SkipOnFollower extends Error {
+  constructor() { super("follower — skipped"); this.name = "SkipOnFollower"; }
+}
 import { securityHeaders } from "./security";
 import { csrfMiddleware, validateCSRF } from "./csrf";
 
@@ -138,14 +144,37 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
 
+    /**
+     * Decide leadership BEFORE anything schedules or reconciles.
+     *
+     * Every background job below writes to one shared database. A second
+     * process running them — a rolling-deploy overlap, a second instance, an
+     * orphaned `tsx watch` — publishes the same signals twice, and two
+     * processes racing the ingestion dedup both see "no existing row" and both
+     * insert. Followers serve HTTP and nothing else.
+     *
+     * See server/scheduler-lock.ts. A single-instance deployment is unaffected:
+     * it simply wins the lock.
+     */
+    const isLeader = await acquireSchedulerLock();
+    if (!isLeader) {
+      log('👥 Follower instance — serving HTTP only, background jobs belong to the leader');
+    }
+
     // Make the execution ledger authoritative before any price validator runs.
     // A paper position proves a fill; a published signal alone never does.
+    // Leader-only: these mutate shared rows, so two processes doing it race.
     try {
+      if (!isLeader) throw new SkipOnFollower();
       await reconcileOpenPaperExecutions();
       await repairImpossibleRecentOutcomes();
       await observeTriggeredIdeas();
+      // Retire ideas past their own stated horizon — see expireStaleIdeas.
+      await expireStaleIdeas();
     } catch (error) {
-      logger.error("[ORACLE LIFECYCLE] Execution reconciliation failed", error);
+      if (!(error instanceof SkipOnFollower)) {
+        logger.error("[ORACLE LIFECYCLE] Execution reconciliation failed", error);
+      }
     }
 
     // News → catalysts. The catalysts table this fills had ZERO rows, which made
@@ -156,7 +185,7 @@ app.use((req, res, next) => {
     // fill. Massive's ticker-news endpoint is on the free tier and carries
     // per-ticker sentiment. Runs every 30 minutes on weekdays.
     try {
-      const newsCron = await import('node-cron');
+      const newsCron = await import('./guarded-cron');
       const runNewsIngest = async () => {
         try {
           const { ingestNewsCatalysts } = await import('./polygon-news-service');
@@ -230,7 +259,7 @@ app.use((req, res, next) => {
     try {
       const { refreshFredCalendar } = await import('./economic-calendar');
       await refreshFredCalendar(true);
-      const econCron = await import('node-cron');
+      const econCron = await import('./guarded-cron');
       econCron.default.schedule('0 5,17 * * *', () => {
         void refreshFredCalendar(true).catch((error) =>
           logger.error('[ECON-CAL] scheduled FRED refresh failed', error));
@@ -243,10 +272,11 @@ app.use((req, res, next) => {
     // minutes on weekdays, compare open setups against live price and advance
     // the ones whose entry has actually traded.
     try {
-      const triggerCron = await import('node-cron');
+      const triggerCron = await import('./guarded-cron');
       triggerCron.default.schedule('*/2 * * * 1-5', async () => {
         try {
           await observeTriggeredIdeas();
+          await expireStaleIdeas();
         } catch (error) {
           logger.error("[ORACLE LIFECYCLE] Trigger observation failed", error);
         }
@@ -468,7 +498,7 @@ app.use((req, res, next) => {
       (process.env.FLAG_INGEST_IN_WEB !== 'false' && process.env.NODE_ENV !== 'production');
 
     if (FLAG_INGEST_IN_WEB) {
-      const flagCron = await import('node-cron');
+      const flagCron = await import('./guarded-cron');
 
       flagCron.default.schedule('5,35 * * * *', async () => {
         try {
@@ -486,11 +516,31 @@ app.use((req, res, next) => {
         } catch (e) { logger.error('Bear flag ingest failed', e as Error); }
       });
 
-      log('🚩🐻 Flag ingest scheduled (weekends included — daily-bar setups do not expire at the close)');
+
+      /**
+       * Base reclaims — the setup a flag scanner structurally cannot see.
+       *
+       * A bull flag requires a strong prior leg UP, so every name that sold off
+       * hard and is now turning back up fails it by shape, not on merit. ORCL
+       * sat on the core watchlist with 180 sessions of bars and had produced
+       * zero ideas in the platform's history for exactly that reason.
+       * See server/base-reclaim-scanner.ts.
+       *
+       * Offset from the flag scans so the three sweeps do not collide.
+       */
+      flagCron.default.schedule('20,50 * * * *', async () => {
+        try {
+          const { ingestBaseReclaimIdeas } = await import('./base-reclaim-scanner');
+          const n = await ingestBaseReclaimIdeas();
+          if (n > 0) log(`🔄 Base reclaim: ingested ${n}`);
+        } catch (e) { logger.error('Base reclaim ingest failed', e as Error); }
+      });
+
+      log('🚩🐻🔄 Flag + base-reclaim ingest scheduled (weekends included — daily-bar setups do not expire at the close)');
     }
 
     // ── Cron: Start heavy services at market open (9:25 AM ET weekdays) ──
-    const cron = await import('node-cron');
+    const cron = await import('./guarded-cron');
     cron.default.schedule('25 9 * * 1-5', () => {
       log('⏰ Market open cron triggered — starting heavy services...');
       startHeavyServices();
@@ -2209,3 +2259,17 @@ app.use((req, res, next) => {
 
   });
 })();
+
+/**
+ * Hand the scheduler lock back on a clean shutdown.
+ *
+ * Postgres releases a session advisory lock when the connection dies anyway, so
+ * this is not required for correctness — but on a rolling deploy it lets the
+ * incoming instance take over immediately instead of idling as a follower until
+ * the old connection is reaped.
+ */
+for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(sig, () => {
+    void releaseSchedulerLock().finally(() => process.exit(0));
+  });
+}

@@ -98,6 +98,92 @@ function isDuplicate(symbol: string, source: IdeaSource, assetType?: string): bo
 }
 
 /**
+ * The dedup gate, but asked of the DATABASE rather than of process memory.
+ *
+ * `recentIngestions` above is a Map. It dies with the process, so every restart
+ * hands the next scan a clean slate and the whole book is republished. Measured
+ * in the live table on 2026-08-27: AFRM held 8 open rows from source `quant`
+ * across a 15-hour window, AMZN 7, SNOW/SHOP/NET/DKS 6 each — 82 duplicate rows
+ * out of 122 open ideas. A 4-hour cooldown over 15 hours should permit about
+ * four; the extra ones are restarts.
+ *
+ * The in-memory map is kept as a fast path — it answers without a query when
+ * the process HAS seen the symbol. This only runs when the map says "no", which
+ * is exactly the case a restart fabricates.
+ *
+ * An OPEN idea on the same symbol and source is a duplicate regardless of age:
+ * republishing a name that is already live in the book is never useful, and the
+ * cooldown was only ever a proxy for "is this already on the board".
+ */
+async function isDuplicateInDb(symbol: string, source: IdeaSource): Promise<boolean> {
+  try {
+    const { db } = await import('./db');
+    const { sql } = await import('drizzle-orm');
+    const r: any = await db.execute(sql`
+      select 1 from trade_ideas
+      where upper(symbol) = ${symbol.toUpperCase()}
+        and source = ${source}
+        and (status = 'active' or outcome_status = 'open')
+      limit 1`);
+    return ((r.rows ?? r) as any[]).length > 0;
+  } catch {
+    // A failed lookup must not block publication — fall back to the map.
+    return false;
+  }
+}
+
+/**
+ * Is this symbol already held in the same DIRECTION, from ANY producer?
+ *
+ * isDuplicateInDb above keys on (symbol, source), which stops one scanner
+ * re-entering its own name but does nothing across producers. Measured on the
+ * live book 2026-08-27: AFRM held 11 open call rows, SNOW 8, AMZN 8, SHOP 8,
+ * PANW 7 — the bull-flag scanner, the quant generator and the mover discovery
+ * each entering the same setup independently and each seeing an empty result
+ * for its own source.
+ *
+ * That is not eleven ideas, it is one idea counted eleven times, and it
+ * corrupts everything downstream: position sizing, the win-rate denominator,
+ * and any per-symbol concentration limit.
+ *
+ * Direction is part of the key on purpose — a long and a short on the same
+ * symbol are genuinely different views (and may be a deliberate hedge), so
+ * those are still allowed through.
+ */
+async function isSymbolAlreadyHeld(
+  symbol: string,
+  direction: string | undefined,
+): Promise<{ held: boolean; existingSource?: string; n?: number }> {
+  try {
+    const { db } = await import('./db');
+    const { sql } = await import('drizzle-orm');
+
+    // Normalise the many spellings the producers use into long / short.
+    const d = String(direction ?? '').toLowerCase();
+    const side = /bear|short|put|down/.test(d) ? 'short' : 'long';
+
+    const r: any = await db.execute(sql`
+      select source, direction, count(*)::int as n
+      from trade_ideas
+      where upper(symbol) = ${symbol.toUpperCase()}
+        and (status = 'active' or outcome_status = 'open')
+      group by source, direction`);
+
+    const rows = (r.rows ?? r) as any[];
+    for (const row of rows) {
+      const rd = String(row.direction ?? '').toLowerCase();
+      const rside = /bear|short|put|down/.test(rd) ? 'short' : 'long';
+      if (rside === side) {
+        return { held: true, existingSource: String(row.source), n: Number(row.n) };
+      }
+    }
+    return { held: false };
+  } catch {
+    return { held: false };
+  }
+}
+
+/**
  * Mark a symbol as recently ingested
  */
 function markIngested(symbol: string, source: IdeaSource, assetType?: string): void {
@@ -164,6 +250,34 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
     return {
       success: false,
       reason: `Duplicate - ${symbol} ${input.assetType || 'stock'} from ${source} already ingested recently`,
+      symbol,
+      source
+    };
+  }
+
+  // Survives restarts, which the in-memory map above does not.
+  if (await isDuplicateInDb(symbol, source)) {
+    markIngested(symbol, source, input.assetType);
+    return {
+      success: false,
+      reason: `Duplicate - ${symbol} from ${source} is already OPEN in the book`,
+      symbol,
+      source
+    };
+  }
+
+  // Cross-producer: already held on this side by ANY source. See
+  // isSymbolAlreadyHeld — the per-source check above cannot see other scanners.
+  const held = await isSymbolAlreadyHeld(symbol, input.direction);
+  if (held.held) {
+    markIngested(symbol, source, input.assetType);
+    logger.info(
+      `[INGESTION] ⛔ Blocked ${symbol} from ${source}: already held ` +
+      `(${held.n} open row${held.n === 1 ? '' : 's'} from ${held.existingSource})`,
+    );
+    return {
+      success: false,
+      reason: `Already held - ${symbol} has ${held.n} open row(s) from ${held.existingSource}`,
       symbol,
       source
     };

@@ -403,30 +403,98 @@ export async function scanBullFlagPullbacks(): Promise<BullFlagSetup[]> {
   // vehicles) had no seats. Movers from the whole liquid market join every
   // scan — a name that is RUNNING is exactly where a flag pullback forms next
   // — plus the buckets the hand-list never had.
+  /**
+   * Scan the WHOLE liquid universe, not a hand-typed list.
+   *
+   * This used to scan BULL_FLAG_UNIVERSE (90 symbols someone typed out) plus
+   * that day's 3% movers and four sector buckets — 183 names. The bars for all
+   * 2,000 liquid names were already loaded in memory one line later, so the
+   * limit bought nothing: it just decided in advance which tickers were allowed
+   * to be found.
+   *
+   * ORCL is the case that exposed it. It sits in USER_CORE_WATCHLIST, it has
+   * 180 sessions of bars in the universe, and it had produced zero ideas in the
+   * platform's entire history — not rejected on merit, never evaluated, because
+   * nobody had typed it into the array. JNJ, DKS and COPX were missing the same
+   * way, and the bot ended up holding all three from other paths.
+   *
+   * This is the mechanical cause of the recurring "why is it always the same
+   * software names" problem: the hand-list is software-heavy, so the output was
+   * software-heavy no matter what the market did.
+   *
+   * The universe is already liquidity-ranked (top 2,000 by dollar volume), so
+   * scanning it whole is a wider net, not a dirtier one. Bars are in memory; the
+   * extra work is pure computation in a scheduled job.
+   *
+   * BULL_FLAG_UNIVERSE is kept and unioned in, so nothing that used to be
+   * scanned can drop out if the universe is cold or a name falls out of the
+   * liquidity cut.
+   */
   let universe: string[] = [...BULL_FLAG_UNIVERSE];
   try {
-    const { getLiquidMovers } = await import('./liquid-universe');
+    const { getLiquidSymbols, loadLiquidUniverseFromDisk } = await import('./liquid-universe');
     const { getSectorTickers } = await import('./ticker-universe');
-    const movers = getLiquidMovers(3, 75e6, 60).map((m) => m.symbol);
+    if (getLiquidSymbols().length === 0) await loadLiquidUniverseFromDisk();
+    const liquid = getLiquidSymbols();
     const buckets = ['defense', 'nuclear', 'space', 'quantum'].flatMap((s) => {
       try { return getSectorTickers(s); } catch { return []; }
     });
-    universe = Array.from(new Set([...BULL_FLAG_UNIVERSE, ...movers, ...buckets].map((s) => s.toUpperCase())));
+    universe = Array.from(new Set([...BULL_FLAG_UNIVERSE, ...liquid, ...buckets].map((s) => s.toUpperCase())));
   } catch { /* universe cold — the static list still scans */ }
   logger.info(`[BULL-FLAG] 🚩 Scanning ${universe.length} tickers (${universe.length - BULL_FLAG_UNIVERSE.length} beyond the hand-list) for bull flag pullbacks...`);
 
   const results: BullFlagSetup[] = [];
 
+  /**
+   * Bars come from the LIQUID UNIVERSE first, Yahoo second.
+   *
+   * fetchDaily() below hits query1.finance.yahoo.com per symbol. Yahoo has been
+   * returning 429 persistently, and fetchDaily swallows it (`if (!res.ok)
+   * return null`), so the scan completed "successfully" with 0 setups on every
+   * run — indistinguishable from a genuinely quiet market.
+   *
+   * getUniverseBars() reads Polygon grouped-daily: one request per session
+   * covers 2000+ names, so it is both more reliable and far cheaper than 190
+   * per-symbol fetches. It is the same source every backtest in research/ runs
+   * on, which means the scanner and the research finally see identical bars —
+   * previously they did not, and a rule validated on one could silently behave
+   * differently on the other.
+   */
+  let uniBars: Map<string, { open: number; high: number; low: number; close: number; volume: number }[]> = new Map();
+  try {
+    const { getUniverseBars, loadLiquidUniverseFromDisk, getLiquidSymbols } = await import('./liquid-universe');
+    // getUniverseBars returns empty when the ranked list is cold — it keys off
+    // getLiquidSymbols(). The research scripts always loaded it explicitly; this
+    // scanner never did, so the first attempt returned bars for 0 names.
+    if (getLiquidSymbols().length === 0) await loadLiquidUniverseFromDisk();
+    uniBars = await getUniverseBars(180) as any;
+    logger.info(`[BULL-FLAG] bars from liquid universe for ${uniBars.size} names`);
+  } catch (e: any) {
+    logger.warn(`[BULL-FLAG] universe bars unavailable (${e?.message ?? e}) — falling back to Yahoo per symbol`);
+  }
+
   for (const symbol of universe) {
     try {
-      const data = await fetchDaily(symbol);
-      if (!data) continue;
+      let closes: number[] = [];
+      let highs: number[] = [];
+      let lows: number[] = [];
+      let volumes: number[] = [];
 
-      const quotes = data.indicators?.quote?.[0];
-      const closes: number[] = (quotes?.close || []).filter((p: any) => p != null);
-      const highs: number[] = (quotes?.high || []).filter((p: any) => p != null);
-      const lows: number[] = (quotes?.low || []).filter((p: any) => p != null);
-      const volumes: number[] = (quotes?.volume || []).filter((v: any) => v != null);
+      const ub = uniBars.get(symbol.toUpperCase());
+      if (ub && ub.length >= 50) {
+        closes = ub.map((b) => b.close).filter((p) => p != null);
+        highs = ub.map((b) => b.high).filter((p) => p != null);
+        lows = ub.map((b) => b.low).filter((p) => p != null);
+        volumes = ub.map((b) => b.volume).filter((v) => v != null);
+      } else {
+        const data = await fetchDaily(symbol);
+        if (!data) continue;
+        const quotes = data.indicators?.quote?.[0];
+        closes = (quotes?.close || []).filter((p: any) => p != null);
+        highs = (quotes?.high || []).filter((p: any) => p != null);
+        lows = (quotes?.low || []).filter((p: any) => p != null);
+        volumes = (quotes?.volume || []).filter((v: any) => v != null);
+      }
 
       if (closes.length < 50) continue;
 
@@ -559,14 +627,105 @@ export async function getTopBullFlagSetups(limit = 15): Promise<BullFlagSetup[]>
 /**
  * Auto-ingest high-scoring bull flag setups to Trade Desk
  */
+/**
+ * Sector-diversified pick of the ranked setups.
+ *
+ * A straight top-10 by score returns the same names every scan, and the reason
+ * is structural rather than a bug: pattern QUALITY is what the score measures,
+ * and mature software names with long clean uptrends produce textbook flags.
+ * A name up 165% in a session is vertical, not flagging, so it never reaches
+ * the cut no matter how large the universe grows.
+ *
+ * Measured on 2026-08-27, top 10 of 53 setups:
+ *   NET 92 · MDB 92 · W 92 · SHOP 92 · AFRM 90 · SNOW 88 · NOW 86 · ACHR 85
+ *   · LITE 84 · ZS 82   — seven of ten from the software hand-list.
+ *
+ * Expanding the universe was necessary but not sufficient. This caps how many
+ * slots any one sector can take, so the board shows the best flag in each of
+ * several groups rather than the ten best flags overall — which is the same
+ * list week after week.
+ */
+/**
+ * Symbol → sector. BullFlagSetup carries no sector of its own, so it is resolved
+ * from the two maps that already exist: MOVERS_UNIVERSE (hand-classified) and
+ * the sector buckets the scanner already pulls its universe from. Anything
+ * unmatched falls back to its own symbol, which means an unclassified name is
+ * treated as its own sector and never crowds a real one out.
+ */
+let SECTOR_OF: Map<string, string> | null = null;
+function sectorOf(symbol: string): string {
+  if (!SECTOR_OF) {
+    SECTOR_OF = new Map();
+    try {
+      const { MOVERS_UNIVERSE } = require('@shared/movers-types');
+      for (const m of MOVERS_UNIVERSE) SECTOR_OF.set(String(m.symbol).toUpperCase(), String(m.sector));
+    } catch { /* map stays partial */ }
+    try {
+      const { getSectorTickers } = require('./ticker-universe');
+      for (const sec of ['defense', 'nuclear', 'space', 'quantum', 'biotech', 'pharma']) {
+        for (const t of (getSectorTickers(sec) ?? [])) {
+          const k = String(t).toUpperCase();
+          if (!SECTOR_OF.has(k)) SECTOR_OF.set(k, sec);
+        }
+      }
+    } catch { /* map stays partial */ }
+  }
+  return SECTOR_OF.get(symbol.toUpperCase()) ?? `~${symbol.toUpperCase()}`;
+}
+
+function diversifyBySector(setups: BullFlagSetup[], limit: number, perSector: number): BullFlagSetup[] {
+  const seen = new Map<string, number>();
+  const out: BullFlagSetup[] = [];
+  const overflow: BullFlagSetup[] = [];
+  for (const s of setups) {
+    const sec = sectorOf(s.symbol).toLowerCase();
+    const n = seen.get(sec) ?? 0;
+    if (n < perSector) {
+      seen.set(sec, n + 1);
+      out.push(s);
+      if (out.length >= limit) return out;
+    } else {
+      overflow.push(s);
+    }
+  }
+  // Backfill from the sectors that were capped, so a thin scan still fills the
+  // board rather than publishing three ideas because everything was one sector.
+  for (const s of overflow) {
+    if (out.length >= limit) break;
+    out.push(s);
+  }
+  return out;
+}
+
 export async function ingestBullFlagIdeas(): Promise<number> {
   try {
-    const setups = await getTopBullFlagSetups(10);
+    /**
+     * Tiered selection replaces the flat `diversifyBySector(ranked, 18, 3)`.
+     *
+     * That cut took the 18 highest scores and silently dropped the rest. On the
+     * 2026-08-31 sweep that meant 831 found, 570 eligible, 18 taken and 552
+     * discarded — including 229 S/A-tier setups and 411 with R:R >= 2.0. BKNG
+     * scored 91 with 12.75:1 reward-to-risk and never reached the board.
+     *
+     * Tiers give each quality band its own quota, so a run of 92s cannot
+     * consume every slot, and R:R is now gated ABOVE score — see
+     * server/ingest-policy.ts. Everything is env-tunable.
+     */
+    const ranked = await getTopBullFlagSetups(900);
+    const { selectForIngest, logPolicy } = await import('./ingest-policy');
+    logPolicy('BULL-FLAG');
+    const { picked, report } = selectForIngest(ranked as any, sectorOf);
+    const setups = picked as any as typeof ranked;
+    logger.info(`[BULL-FLAG] ${report}`);
+    logger.info(`[BULL-FLAG] taking: ${setups.map((s: any) => `${s.symbol}(${s.tier}/${s.score})`).join(' ')}`);
     const { ingestTradeIdea } = await import("./trade-idea-ingestion");
     let ingested = 0;
 
     for (const setup of setups) {
-      if (setup.score < 65) break; // Only B+ setups get auto-ingested
+      // Tier minimums already enforce the floor (see ingest-policy); a `break`
+      // here would also be wrong now that the list is tier-ordered, not
+      // score-ordered.
+      if (setup.score < 65) continue;
 
       try {
         const result = await ingestTradeIdea({

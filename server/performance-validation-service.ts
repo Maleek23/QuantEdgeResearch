@@ -241,7 +241,45 @@ class PerformanceValidationService {
           ) {
             const livePremium = priceMap.get(`option_${ideaId}`);
             if (typeof livePremium === 'number' && livePremium >= 0) {
-              exitPremium = Math.round(livePremium * 100) / 100;
+              /**
+               * Floor the exit premium at intrinsic value.
+               *
+               * An option cannot be worth less than what it is worth if
+               * exercised right now. When the quoted premium is below intrinsic,
+               * the quote is stale — not a bargain.
+               *
+               * This is not hypothetical. AFRM's $77 09/04 call was entered at
+               * $4.55, hit its target with the underlying at $88.92 (intrinsic
+               * $11.92, a 162% contract return), and was recorded as +14.95%.
+               * The validator had priced the exit at $5.22, which was the
+               * PRE-EARNINGS close from the previous session's chain: equity
+               * options stop trading at 16:15 ET, so an overnight gap leaves
+               * every quote in the chain stale while the underlying has moved.
+               *
+               * Reporting 15% on a 162% trade is worse than reporting nothing —
+               * it makes a working signal look mediocre and poisons every
+               * win-rate and expectancy number computed downstream.
+               */
+              const strike = Number((ideaForResult as any).strikePrice);
+              const isCall = String((ideaForResult as any).optionType ?? '').toLowerCase().startsWith('c');
+              const underlyingExit = Number(result.exitPrice);
+
+              let effective = livePremium;
+              if (Number.isFinite(strike) && strike > 0 && Number.isFinite(underlyingExit) && underlyingExit > 0) {
+                const intrinsic = isCall
+                  ? Math.max(0, underlyingExit - strike)
+                  : Math.max(0, strike - underlyingExit);
+                if (intrinsic > livePremium) {
+                  console.log(
+                    `  ⚠️  ${ideaForResult.symbol} quoted exit premium $${livePremium.toFixed(2)} is below ` +
+                    `intrinsic $${intrinsic.toFixed(2)} (underlying ${underlyingExit}, strike ${strike}) — ` +
+                    `stale chain, using intrinsic`,
+                  );
+                  effective = intrinsic;
+                }
+              }
+
+              exitPremium = Math.round(effective * 100) / 100;
               const rawPct = ((exitPremium - ideaForResult.entryPremium) / ideaForResult.entryPremium) * 100;
               // Calls and puts are bought. `direction` describes the underlying
               // thesis, not the side of the option contract.

@@ -31,7 +31,7 @@ import {
 
 export type ThesisDirection = 'bullish' | 'bearish';
 export type SetupType = 'scalp' | 'swing' | 'lotto' | 'position';
-export type SelectionTier = 'conservative' | 'balanced' | 'aggressive';
+export type SelectionTier = 'starter' | 'conservative' | 'balanced' | 'aggressive';
 export type EngineGrade = 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
 
 /**
@@ -235,6 +235,28 @@ export const DTE_WINDOWS: Record<SetupType, { min: number; max: number; ideal: n
 /** |delta| bands per tier. Conservative = deep ITM (high delta, low theta burn);
  *  balanced = ATM; aggressive = OTM convexity. */
 export const TIER_DELTA: Record<SelectionTier, { min: number; ideal: number; max: number }> = {
+  /**
+   * STARTER — the cheapest contract that still expresses the thesis.
+   *
+   * Added because the three tiers below are unbuyable on a small account. ORCL
+   * priced 2026-08-31 at spot $149: conservative $2,153/contract, balanced
+   * $1,115, aggressive $550. On a $1,000 account at 2% risk, even the
+   * aggressive tier risks $275 — 13x the budget.
+   *
+   * The obvious workaround is worse than the problem. ORCL had contracts at
+   * $61-$94, but they were $230-$370 strikes on a $149 stock: delta 0.03-0.06
+   * with 21-59% spreads. A $240 call cannot reach a $182 target, so it does not
+   * express the thesis at all — it is a lottery ticket that loses a third of
+   * its value to the spread on entry.
+   *
+   * So the floor is delta, not price. 0.15 is the lowest delta that still
+   * tracks the underlying meaningfully; below that the contract stops being a
+   * proxy for the move. This tier finds the cheapest contract at or above that
+   * floor, and if none exists it is simply omitted — an unaffordable setup
+   * should read as "not for this account", never as a cheap substitute that
+   * cannot win.
+   */
+  starter: { min: 0.15, ideal: 0.20, max: 0.30 },
   conservative: { min: 0.60, ideal: 0.68, max: 0.80 },
   balanced: { min: 0.42, ideal: 0.50, max: 0.58 },
   aggressive: { min: 0.22, ideal: 0.30, max: 0.40 },
@@ -711,7 +733,7 @@ export function selectFromChain(
   // a tier has no distinct strike left, we SKIP that tier rather than emit an
   // identical duplicate row — showing the same contract under two tiers is
   // misleading. Result: collapse to as many tiers as there are real choices.
-  const tiers: SelectionTier[] = ['conservative', 'balanced', 'aggressive'];
+  const tiers: SelectionTier[] = ['conservative', 'balanced', 'aggressive', 'starter'];
   const used = new Set<string>();
   const picks: ContractCandidate[] = [];
   for (const tier of tiers) {

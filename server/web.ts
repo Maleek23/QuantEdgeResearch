@@ -16,6 +16,7 @@
  */
 
 import "dotenv/config";
+import { acquireSchedulerLock, releaseSchedulerLock } from "./scheduler-lock";
 import { runStartupCheck } from "./startup-check";
 import { installProcessGuard } from "./process-guard";
 
@@ -193,8 +194,33 @@ app.use((req, res, next) => {
     log('📈 Starting SPX scanners in 5s...');
     setTimeout(() => startSPXScanners(), 5000);
 
+    /**
+     * The web tier schedules only when there is no worker tier.
+     *
+     * The comment further down explains why worker jobs were copied here at
+     * all: production started dist/web.js only, so the worker's jobs never ran.
+     * That workaround is correct while web is the only process — and wrong the
+     * moment a worker is actually deployed, because then both tiers run the
+     * three schedules they share — market-open, the quarter-hourly market-hours
+     * sweep, and the hourly archive — and everything they produce lands twice.
+     *
+     * WORKER_ENABLED=true on the web service means "a worker owns the jobs" and
+     * web schedules nothing. Left unset, web takes the scheduler lock instead,
+     * which preserves today's single-process behaviour while still stopping a
+     * SECOND web instance from duplicating the work.
+     */
+    const workerTierRuns = process.env.WORKER_ENABLED === 'true';
+    if (workerTierRuns) {
+      log('👥 WORKER_ENABLED=true — background jobs belong to the worker tier, web schedules nothing');
+    } else {
+      const webIsLeader = await acquireSchedulerLock();
+      if (!webIsLeader) {
+        log('👥 Another instance holds the scheduler lock — this web process schedules nothing');
+      }
+    }
+
     // Cron: Start SPX scanners at market open
-    const cron = await import('node-cron');
+    const cron = await import('./guarded-cron');
     cron.default.schedule('25 9 * * 1-5', () => {
       log('⏰ Market open — starting SPX scanners...');
       startSPXScanners();
@@ -280,3 +306,7 @@ app.use((req, res, next) => {
     log('✅ [WEB] Process ready — serving HTTP + WebSocket + SPX scanners');
   });
 })();
+
+for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(sig, () => { void releaseSchedulerLock().finally(() => process.exit(0)); });
+}

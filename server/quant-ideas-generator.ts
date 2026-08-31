@@ -492,6 +492,7 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   
   // 🆕 v3.5: Calculate 50-day MA (intermediate trend filter - prevents false signals in downtrends)
   const sma50 = calculateSMA(historicalPrices, 50);
+  const sma20 = calculateSMA(historicalPrices, 20);
   
   // Calculate RSI(2) - SHORT period for mean reversion (NOT standard RSI(14))
   const rsi2 = calculateRSI(historicalPrices, 2);
@@ -576,13 +577,57 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   // passed all). Distinct from volume_spike, which wants a spike WITHOUT a
   // move (accumulation); thrust wants the move confirmed.
   if (volumeRatio >= 2.5 && Number.isFinite(gapPct) && gapPct > 0) {
-    detectedSignals.push('VOLUME_THRUST');
-    if (!primarySignal) {
-      primarySignal = {
-        type: 'volume_thrust',
-        strength: volumeRatio >= 3.5 ? 'strong' : 'moderate',
-        direction: 'long',
-      };
+    /**
+     * ── CALIBRATION, Aug 27 (research/optimize3.ts, research/final-sim.ts) ──
+     *
+     * The 3/3 result above was measured at n=22 and n=17. Pooled across the full
+     * 260-bar history on 1959 names the same rule is +0.48% edge, not the +7.7%
+     * those windows showed — the direction held, the magnitude did not. The 41%
+     * win rate beside a +10.6% mean in window B was the tell: two outliers
+     * carried seventeen trades.
+     *
+     * Re-measured with n in the hundreds, the filters below take it from +0.48%
+     * to +2.67% edge, positive in all five time slices:
+     *
+     *   thrust alone              +0.48%
+     *   + above 20d SMA           +0.70%
+     *   + below 90% of 52w high   +2.12%   ← biggest single lever
+     *   + above 50d SMA           +2.61%
+     *   + NOT a strong close      +2.67%
+     *
+     * The near-high gate is the finding, and it is counter-intuitive: thrust
+     * pays on names with ROOM. The identical thrust within 10% of the 52-week
+     * high scores +0.01 and fails a slice. signal-battery.ts saw the same thing
+     * from the other direction — vol_thrust_near_high went +4.53%/82%w then
+     * −2.20%/25%w and was correctly never promoted.
+     *
+     * NOT a strong close: a bar closing in the top 20% of its range has already
+     * paid out. Excluding it costs a little edge and buys 5/5 slice stability.
+     */
+    const bars = getRecentBars(data.symbol);
+    const hi52 = bars.length ? Math.max(...bars.slice(-252).map((b) => b.high)) : null;
+    const roomBelowHigh = hi52 != null && hi52 > 0 ? currentPrice / hi52 < 0.90 : false;
+    const last = bars.length ? bars[bars.length - 1] : null;
+    const barRange = last ? last.high - last.low : 0;
+    const strongClose = last && barRange > 0 ? (last.close - last.low) / barRange >= 0.8 : false;
+    const trendOk = currentPrice > sma50 && (sma20 == null || currentPrice > sma20);
+
+    if (roomBelowHigh && trendOk && !strongClose) {
+      detectedSignals.push('VOLUME_THRUST');
+      if (!primarySignal) {
+        primarySignal = {
+          type: 'volume_thrust',
+          // 3.5x is NOT stronger on the measured data — thrust3.0 scores +2.13%
+          // against thrust2.5's +2.67%. Tier on the room-below-high instead,
+          // which is the axis that actually separated.
+          strength: hi52 != null && currentPrice / hi52 < 0.80 ? 'strong' : 'moderate',
+          direction: 'long',
+        };
+      }
+    } else {
+      logger.info(
+        `  ${data.symbol}: VOLUME_THRUST gated — room=${roomBelowHigh} trend=${trendOk} strongClose=${strongClose}`,
+      );
     }
   }
 

@@ -7319,7 +7319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use the cached/shared snapshot so this endpoint and best-setups
       // always return matching scores for the same idea (single source of truth).
-      const data = await getCachedConvictions(buildOpts);
+      let data = await getCachedConvictions(buildOpts);
 
       // Persist a sparse, auditable checkpoint for each live signal. This is
       // intentionally asynchronous: the screen should never wait on an audit
@@ -7329,11 +7329,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .then(({ recordSignalTrajectory }) => recordSignalTrajectory(data.picks))
         .catch((err) => logger.warn('[TRAJECTORY] checkpoint write failed:', err));
 
+      /**
+       * Anything the bot HOLDS goes on the board, past every entry filter.
+       *
+       * See server/bot-held-picks.ts. Briefly: the cockpit was showing 4 of the
+       * bot's 11 open positions, because held inventory was being re-judged by
+       * the rules for opening a new position. NET was up $1,650 and invisible.
+       *
+       * Merged after the build so no gate above can remove them, and placed
+       * first so inventory reads before candidates.
+       */
+      let picksWithHeld = data.picks;
+      let botHeldCount = 0;
+      try {
+        const { getBotHeldPicks, mergeBotHeld } = await import("./bot-held-picks");
+        const held = await getBotHeldPicks();
+        botHeldCount = held.length;
+        picksWithHeld = mergeBotHeld(data.picks, held) as typeof data.picks;
+      } catch (err: any) {
+        logger.warn(`[API] bot-held merge skipped: ${err?.message ?? err}`);
+      }
+      data = { ...data, picks: picksWithHeld };
+
       const meta = {
         _meta: {
           dataSource: "convictions_engine",
           cachedAt: new Date().toISOString(),
           picksCount: data.picks?.length ?? 0,
+          botHeldCount,
         },
       };
 
@@ -8370,6 +8393,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('[OPTIONS-SELECT] selection failed:', error);
       return res.status(500).json({ error: "Option selection failed" });
+    }
+  });
+
+  /**
+   * ADD A TICKER TO THE ACTIVE BOOK, ON DEMAND.
+   *
+   * The operator has asked for this repeatedly. What existed was a "grade this
+   * ticker" call (/api/analyze/:symbol, read-only) and a "+ watchlist" button —
+   * neither of which puts anything on the board. The scanners were the only
+   * writers, so a name they did not find could not be traded from the UI at all.
+   *
+   * This runs the same pipeline a scanner does, so the idea is scored, levelled
+   * and lifecycle-managed identically — it is not a second class of row. The
+   * only difference is the source tag, which keeps manual adds auditable and
+   * separable from scanner output when the record is graded later.
+   *
+   * The APPROVED_TICKERS whitelist is bypassed HERE and only here: the operator
+   * naming a symbol is a stronger signal than a 197-row static list, and that
+   * list is why the board could not publish W, ETSY, ASML or ADSK. Bypassing it
+   * for an explicit human request does not widen what the scanners may publish.
+   *
+   * POST /api/trade-ideas/add  { symbol, direction?, holdingPeriod?, note? }
+   */
+  app.post("/api/trade-ideas/add", async (req: any, res) => {
+    try {
+      const symbol = String(req.body?.symbol ?? "").toUpperCase().trim();
+      if (!/^[A-Z.\-]{1,6}$/.test(symbol)) {
+        return res.status(400).json({ error: "bad symbol" });
+      }
+      const direction = String(req.body?.direction ?? "bullish").toLowerCase() === "bearish"
+        ? "bearish" : "bullish";
+      const holdingPeriod = String(req.body?.holdingPeriod ?? "swing");
+
+      // Live price first — an idea levelled off a stale quote is the bug that
+      // put SWKS on the board at $1.52 against a real $66.80.
+      let price = 0;
+      try {
+        const { getFinnhubQuote } = await import("./finnhub-adapter");
+        const q = await getFinnhubQuote(symbol);
+        if (q?.price) price = q.price;
+      } catch { /* fall through */ }
+      if (!price) {
+        return res.status(422).json({ error: `no live price for ${symbol} — refusing to publish an unlevelled idea` });
+      }
+
+      const { ingestTradeIdea } = await import("./trade-idea-ingestion");
+      const result = await ingestTradeIdea({
+        source: "manual",
+        symbol,
+        assetType: "stock",
+        direction,
+        holdingPeriod,
+        currentPrice: price,
+        signals: [{ type: "operator_add", weight: 12, description: req.body?.note || "Added by operator" }],
+        catalyst: `Operator add${req.body?.note ? " · " + String(req.body.note).slice(0, 140) : ""}`,
+        analysis: `Manually added to the active book at $${price.toFixed(2)}. Levels and score come from the same pipeline the scanners use.`,
+      } as any);
+
+      res.json({
+        ok: !!result.success,
+        symbol,
+        direction,
+        price,
+        reason: result.reason,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: "add failed", details: e?.message ?? String(e) });
     }
   });
 

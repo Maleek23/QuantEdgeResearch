@@ -6,6 +6,49 @@ import { CANONICAL_LOSS_THRESHOLD } from "@shared/constants";
 import { isOutcomeEligible, readOracleExecutionAudit } from "@shared/oracle-lifecycle";
 import { isOptionScaleIncoherent, optionScaleReason } from "@shared/option-unit-guard";
 
+/**
+ * REALISED P&L PER CONTRACT — for options and shares, not just futures.
+ *
+ * Every close outside the futures branch wrote `realizedPnL: 0`. Measured on the
+ * live book: 0 of 190 resolved trades carried a P&L, against a book that is 117
+ * options and 5 stocks and ZERO futures. So the platform recorded whether a
+ * price level printed and never what it cost or made — which is why the record
+ * could produce a win rate (25%) and an R multiple (−0.31) but no dollar answer,
+ * on a system whose stated purpose is profit.
+ *
+ * Options are priced off the premium pair when both ends exist. When the exit
+ * premium is unknown the underlying move is converted through delta, which is an
+ * ESTIMATE and is flagged as such rather than presented as a fill — a modelled
+ * number that looks like a realised one is worse than a null.
+ */
+export function computeRealisedPnl(idea: any, exitPrice: number): { pnl: number; basis: string } | null {
+  const entry = Number(idea.entryPrice);
+  if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(exitPrice)) return null;
+  const sign = String(idea.direction) === 'short' ? -1 : 1;
+
+  const entryPrem = Number(idea.entryPremium);
+  const exitPrem = Number(idea.exitPremium);
+  const isOption = !!(idea.optionType && idea.strikePrice);
+
+  if (isOption && entryPrem > 0 && Number.isFinite(exitPrem) && exitPrem >= 0) {
+    // Both premium legs known — this is a real per-contract result.
+    return { pnl: (exitPrem - entryPrem) * 100, basis: 'premium' };
+  }
+
+  if (isOption && entryPrem > 0) {
+    // Estimate through delta. Labelled, never passed off as a fill.
+    const delta = Number(idea.optionDelta ?? idea.delta ?? 0.5);
+    const underlyingMove = (exitPrice - entry) * sign;
+    const est = underlyingMove * Math.abs(delta) * 100;
+    // A long option cannot lose more than the premium paid.
+    const floored = Math.max(est, -entryPrem * 100);
+    return { pnl: floored, basis: 'delta_estimate' };
+  }
+
+  // Shares: one contract's worth of stock so the unit matches the option case.
+  return { pnl: (exitPrice - entry) * sign * 100, basis: 'shares_per_100' };
+}
+
 // 📊 REALISTIC TRADING COSTS: Applied to performance calculations
 // These model real-world execution costs that reduce backtest performance
 export const TRADING_COSTS = {
@@ -1022,6 +1065,11 @@ export class PerformanceValidator {
 
       // Calculate futures P&L if applicable
       let realizedPnL = 0;
+      // Non-futures now price too — see computeRealisedPnl.
+      if (idea.assetType !== 'future') {
+        const r = computeRealisedPnl(idea, idea.targetPrice);
+        if (r) realizedPnL = Math.round(r.pnl * 100) / 100;
+      }
       if (idea.assetType === 'future' && idea.futuresMultiplier && idea.futuresTickSize) {
         // 🔧 BUG FIX: Calculate futures P&L correctly (multiply by multiplier ONCE, not twice)
         const directionSign = idea.direction === 'long' ? 1 : -1;
@@ -1079,6 +1127,10 @@ export class PerformanceValidator {
       // barrier is now a touched barrier on both sides.
       // Calculate futures P&L if applicable
       let realizedPnL = 0;
+      if (idea.assetType !== 'future') {
+        const r = computeRealisedPnl(idea, idea.stopLoss);
+        if (r) realizedPnL = Math.round(r.pnl * 100) / 100;
+      }
       if (idea.assetType === 'future' && idea.futuresMultiplier && idea.futuresTickSize) {
         // 🔧 BUG FIX: Calculate futures P&L correctly (multiply by multiplier ONCE, not twice)
         const directionSign = idea.direction === 'long' ? 1 : -1;

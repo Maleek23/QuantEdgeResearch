@@ -49,6 +49,8 @@ export interface GammaExposureResult {
   spotPrice: number;
   expiration: string;
   totalNetGEX: number;
+  /** Alias of totalNetGEX — see the emit site for why both names ship. */
+  totalGEX?: number;
   flipPoint: number | null;
   maxGammaStrike: number;
   strikes: GammaByStrike[];
@@ -212,7 +214,25 @@ function snapshotToLegacy(
     symbol: snap.symbol,
     spotPrice: snap.spotPrice,
     expiration: expirationLabel,
+    /**
+     * Emitted under BOTH names on purpose.
+     *
+     * The wire has always carried `totalNetGEX`, but shared/gex-types.ts
+     * declares the field as `totalGEX`, so six client components read
+     * `snapshot.totalGEX` and got `undefined` — with no type error, because the
+     * type agreed with them and the server did not.
+     *
+     * The visible symptom was prism-board's `(snap.totalGEX ?? 0) >= 0`
+     * evaluating `0 >= 0` on every symbol, so that panel printed "Positive
+     * gamma — dealer hedging dampens moves" for SPY at −4.5B, directly beneath
+     * a split reading 77% puts and beside a chip reading negative_gamma.
+     *
+     * Renaming either side alone breaks the other, so both are sent. The type
+     * is now true of the payload, which is what lets the compiler catch the
+     * next one of these.
+     */
     totalNetGEX: snap.totalGEX,
+    totalGEX: snap.totalGEX,
     flipPoint: snap.gammaFlipPrice,
     maxGammaStrike: snap.maxGammaStrike,
     strikes,

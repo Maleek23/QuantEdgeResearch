@@ -865,7 +865,50 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       logger.warn(`[UNIVERSAL] Could not fetch price for ${input.symbol}`);
       return null;
     }
-    
+
+    /**
+     * ── LEVELS ARE A MATCHED SET ─────────────────────────────────────────
+     *
+     * A scanner that supplies targetPrice/stopLoss computed them FROM its own
+     * currentPrice. Re-fetching a price here and writing THAT as the entry,
+     * while passing the scanner's target through untouched, splits one trade
+     * across two price sources and two moments.
+     *
+     * Measured in the live book on 2026-08-27 — bull-flag caps its target at
+     * entry x 1.25, so the stored target divided by 1.25 recovers the entry the
+     * scanner actually used:
+     *
+     *   WDC    stored entry $20.60   target $127.22  → scanner entry was $101.78
+     *   SWKS   stored entry  $1.52   target  $70.98  → scanner entry was  $56.78
+     *   AEIS   stored entry $14.30   target $326.22  → scanner entry was $260.98
+     *
+     * which published as 133R, 91R and 44R — targets needing +517%, +4554% and
+     * +2181%. 20 of 122 open ideas carried R:R above 5 from this alone.
+     *
+     * So when a scanner hands us a complete set, its own price wins: the levels
+     * are only coherent against the price they were derived from. And if that
+     * price has since drifted materially from the live one, the setup is STALE
+     * — publishing it would put a real stop at a fictional distance — so it is
+     * rejected rather than silently re-anchored.
+     */
+    const scannerPrice = Number(input.currentPrice);
+    const hasMatchedLevels =
+      Number.isFinite(scannerPrice) && scannerPrice > 0 &&
+      (input.targetPrice != null || input.stopLoss != null);
+
+    if (hasMatchedLevels) {
+      const drift = Math.abs(price - scannerPrice) / scannerPrice;
+      if (drift > 0.15) {
+        logger.warn(
+          `[UNIVERSAL] ${input.symbol}: REJECTED — scanner priced this at ` +
+          `$${scannerPrice.toFixed(2)} but live is $${price.toFixed(2)} ` +
+          `(${(drift * 100).toFixed(0)}% drift). Levels would not match the entry.`,
+        );
+        return null;
+      }
+      price = scannerPrice;
+    }
+
     // Ensure we have a valid price
     const currentPrice: number = price;
     
@@ -1125,6 +1168,21 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       symbol: input.symbol.toUpperCase(),
       assetType: resolvedAssetType,
       direction: input.direction === 'bullish' ? 'long' : 'short',
+      /**
+       * SOURCE WAS NEVER WRITTEN.
+       *
+       * This object omitted `source`, so the schema default ('quant') applied to
+       * every idea from every producer — bull-flag, GEX, spx-session, manual
+       * operator adds, all of them stored as 'quant'. The column has been
+       * uniform since it was added, which means:
+       *   • no producer could ever be graded separately
+       *   • the ingestion dedup keys on (symbol, source), so it was really
+       *     keying on symbol alone and could not tell a manual add from a
+       *     scanner republish
+       *   • "82 duplicate rows, all source=quant" read as one scanner
+       *     misbehaving when it was actually every scanner sharing one label
+       */
+      source: input.source,
       entryPrice: currentPrice,
       targetPrice,
       stopLoss,
@@ -1205,7 +1263,17 @@ export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Pro
   // semis + software + quantum + space + nuclear + defense + indices + crypto).
   // Previously this used a separate narrow ~60-ticker semis-only copy, which
   // silently blocked every quantum/space/software name the GEX Hub surfaced.
-  if (!isApprovedTicker(symbol)) {
+  /**
+   * The whitelist gates SCANNERS, not the operator.
+   *
+   * A person naming a symbol is a stronger signal than a 197-row static list —
+   * and that list is why the board could not publish W, ETSY, ASML, IRDM or S
+   * even after the bull-flag scanner started finding them. The skip list below
+   * still applies to everything: it holds names that are broken or untradeable,
+   * which is a different claim from "not on our list".
+   */
+  const isOperatorAdd = String((input as any).source ?? '') === 'manual';
+  if (!isOperatorAdd && !isApprovedTicker(symbol)) {
     logger.debug(`[UNIVERSAL] Blocked ${symbol} — not on approved watchlist`);
     return false;
   }

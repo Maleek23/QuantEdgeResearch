@@ -14,7 +14,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
 import { ContractValuePanel } from './contract-value-panel';
 
-type Tier = 'conservative' | 'balanced' | 'aggressive';
+type Tier = 'starter' | 'conservative' | 'balanced' | 'aggressive';
 
 interface EnginePick {
   tier: Tier;
@@ -102,6 +102,10 @@ function labelToSetup(label?: string): 'scalp' | 'swing' | 'lotto' | 'position' 
 // other panel instead of introducing a second palette.
 const AMBER = '#f59e0b';
 const TIER_STYLE: Record<Tier, { color: string; label: string }> = {
+  // Muted violet — deliberately outside the bullish/cyan/amber trio, because
+  // STARTER is an affordability answer, not a conviction level. It should not
+  // read as "more aggressive than aggressive".
+  starter: { color: '#a78bfa', label: 'STARTER' },
   conservative: { color: 'var(--trade-bullish)', label: 'CONSERVATIVE' },
   balanced: { color: 'var(--brand-cyan)', label: 'BALANCED' },
   aggressive: { color: AMBER, label: 'AGGRESSIVE' },
@@ -168,6 +172,27 @@ export function ContractEngine({
 }: Props) {
   const [selection, setSelection] = useState<EngineSelection | null>(null);
   const [chosen, setChosen] = useState<Tier | null>(null);
+  /**
+   * Which tiers are expanded.
+   *
+   * Four tiers of full detail is roughly 120 lines of numbers before you reach
+   * anything else on the page, and three of them are alternatives you are not
+   * taking. Collapsed rows keep the comparison that matters — strike, expiry,
+   * premium, grade — and hide the greeks, liquidity and value blocks until
+   * asked for.
+   *
+   * `null` means "not chosen yet": the recommended tier is open and the rest
+   * are shut. Once the operator expands or collapses anything, their choice is
+   * respected and the default stops applying.
+   */
+  const [expanded, setExpanded] = useState<Record<string, boolean> | null>(null);
+  const isExpanded = (tier: Tier, recommended: boolean) =>
+    expanded ? !!expanded[tier] : recommended;
+  const toggleExpanded = (tier: Tier, recommended: boolean) =>
+    setExpanded((prev) => {
+      const base = prev ?? { [tier]: recommended };
+      return { ...base, [tier]: !(prev ? !!prev[tier] : recommended) };
+    });
   const closes = useUnderlyingCloses(symbol);
 
   const mutation = useMutation({
@@ -279,8 +304,28 @@ export function ContractEngine({
                 boxShadow: isChosen ? `inset 3px 0 14px -8px ${st.color}` : undefined,
               }}
             >
-              <div className="flex items-center justify-between mb-1.5">
+              <div
+                className="flex items-center justify-between mb-1.5"
+                onClick={(e) => { e.stopPropagation(); toggleExpanded(p.tier, isRecommended); }}
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded(p.tier, isRecommended)}
+                aria-label={`${st.label} tier details`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault(); e.stopPropagation();
+                    toggleExpanded(p.tier, isRecommended);
+                  }
+                }}
+              >
                 <div className="flex items-center gap-2">
+                  <span
+                    aria-hidden
+                    className="font-mono text-[9px] text-muted-foreground/60 transition-transform"
+                    style={{ transform: isExpanded(p.tier, isRecommended) ? 'rotate(90deg)' : 'none' }}
+                  >
+                    ▶
+                  </span>
                   <span className="text-[10px] font-mono font-bold tracking-widest" style={{ color: st.color }}>{st.label}</span>
                   {isRecommended && (
                     <span
@@ -309,6 +354,16 @@ export function ContractEngine({
                 <span className="text-base font-mono font-bold tabular-nums" style={{ color: AMBER }}>${p.entryPremium.toFixed(2)}</span>
               </div>
 
+              {/*
+                Everything below is DETAIL — greeks, liquidity, contract value,
+                rationale. Collapsed by default on every tier except the
+                recommended one, so four tiers no longer push ~120 lines of
+                numbers between the operator and the rest of the page. The
+                identity row above (strike, expiry, premium, grade) always stays
+                visible, because that is what the tiers are compared on.
+              */}
+              {isExpanded(p.tier, isRecommended) && (
+                <>
               {/* Liquidity row — premium / OI / volume / IV.
                   Vol and OI side by side don't say much on their own; the RATIO does.
                   Volume above open interest means today's activity is NEW positioning
@@ -395,6 +450,8 @@ export function ContractEngine({
                   <p className="text-[10px] font-mono text-muted-foreground/80 mt-2 leading-snug border-t border-border/30 pt-2">
                     {p.rationale}
                   </p>
+                </>
+              )}
                 </>
               )}
             </button>

@@ -450,12 +450,33 @@ export function selectBearFlagTargets(
 // ─── Main Scanner ────────────────────────────────────────────────
 
 export async function scanBearFlagBreakdowns(): Promise<BearFlagSetup[]> {
-  logger.info(`[BEAR-FLAG] 🐻 Scanning ${BEAR_FLAG_UNIVERSE.length} tickers for bear flag breakdowns...`);
+  /**
+   * Scan the liquid universe, not a hand-typed list.
+   *
+   * An audit of all 23 producers found 20 capped to hand-written arrays while
+   * the 2,000-name liquid universe sat loaded in memory. ORCL was the case that
+   * exposed it: on the core watchlist, 180 sessions of bars available, and zero
+   * ideas in the platform's history — never rejected, never evaluated, because
+   * nobody had typed it into an array.
+   *
+   * The hand list is unioned in, so nothing that used to be scanned drops out
+   * when the universe is cold.
+   */
+  let bearUniverse: string[] = [...BEAR_FLAG_UNIVERSE];
+  try {
+    const { getLiquidSymbols, loadLiquidUniverseFromDisk } = await import('./liquid-universe');
+    if (getLiquidSymbols().length === 0) await loadLiquidUniverseFromDisk();
+    const liquid = getLiquidSymbols();
+    if (liquid.length > 0) {
+      bearUniverse = Array.from(new Set([...BEAR_FLAG_UNIVERSE, ...liquid].map((x) => x.toUpperCase())));
+    }
+  } catch { /* cold universe — the hand list still scans */ }
+  logger.info(`[BEAR-FLAG] 🐻 Scanning ${bearUniverse.length} tickers for bear flag breakdowns...`);
 
   const results: BearFlagSetup[] = [];
   const funnel = { data: 0, downtrend: 0, bounce: 0, scored: 0 };
 
-  for (const symbol of BEAR_FLAG_UNIVERSE) {
+  for (const symbol of bearUniverse) {
     try {
       const data = await fetchDaily(symbol);
       if (!data) continue;

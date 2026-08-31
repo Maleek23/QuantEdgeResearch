@@ -383,18 +383,35 @@ export function computeExposures(
   const callGEX = strikes.reduce((sum, s) => sum + Math.max(0, s.callGEX), 0);
   const putGEX = Math.abs(strikes.reduce((sum, s) => sum + Math.min(0, s.putGEX), 0));
 
-  // Find gamma flip (where cumulative gamma crosses zero)
+  /**
+   * Gamma flip — the crossing NEAREST SPOT, not the first one found.
+   *
+   * The old loop walked strikes ascending and `break`-ed on the first sign
+   * change of cumulative gamma. Strikes start ~15% below spot where netGEX is
+   * order 1e-9 — pure noise — so the very first jitter down there won. Measured
+   * on SPY 2026-08-31 (spot 766.28): it reported a flip of 656, the second
+   * strike in the book, while the real crossing sat at 753. A flip 14% below
+   * spot is not a level anyone can trade, and it made the regime read
+   * nonsensically against it.
+   *
+   * Collect every crossing, then take the one closest to spot. Far-OTM noise
+   * still produces crossings; it just no longer outranks the real one.
+   */
   let gammaFlipPrice: number | null = null;
-  let cumGamma = 0;
-  let prevSign = 0;
-  for (const s of strikes) {
-    cumGamma += s.netGEX;
-    const sign = Math.sign(cumGamma);
-    if (prevSign !== 0 && sign !== prevSign) {
-      gammaFlipPrice = s.strike;
-      break;
+  {
+    const crossings: number[] = [];
+    let cumGamma = 0;
+    let prevSign = 0;
+    for (const s of strikes) {
+      cumGamma += s.netGEX;
+      const sign = Math.sign(cumGamma);
+      if (prevSign !== 0 && sign !== 0 && sign !== prevSign) crossings.push(s.strike);
+      if (sign !== 0) prevSign = sign;
     }
-    prevSign = sign;
+    if (crossings.length > 0) {
+      gammaFlipPrice = crossings.reduce((best, k) =>
+        Math.abs(k - spotPrice) < Math.abs(best - spotPrice) ? k : best, crossings[0]);
+    }
   }
 
   // Vanna flip (where cumulative VEX crosses zero)
@@ -427,14 +444,61 @@ export function computeExposures(
     }
   }
 
-  // Walls
+  /**
+   * Walls — measured on the RELEVANT LEG, not on net gamma.
+   *
+   * A call wall is where dealers are short calls: as price rises into it they
+   * must sell to stay hedged, so it acts as resistance. That is a property of
+   * CALL gamma alone. The old code filtered on `netGEX > 0`, which subtracts
+   * put gamma at the same strike — so the strike carrying the most calls is
+   * excluded outright whenever puts happen to dominate it.
+   *
+   * SPY 2026-08-31 (spot 766.28) is the clean example. Strike 766 held the
+   * largest call gamma in the book (+0.955) but netted −1.512 because its put
+   * gamma was −2.467, so the `netGEX > 0` filter threw it away and the function
+   * returned 780 — a strike with negligible call gamma. The reported wall was
+   * not where the calls were.
+   *
+   * The put wall had the mirror problem: filtering on the most-negative netGEX
+   * lands on whatever strike puts dominate most, which is almost always the
+   * money. It returned 766 against a spot of 766.28 — 0.04% away. "Support is
+   * exactly here" is not a level, it is a restatement of the spot price.
+   *
+   * Walls are also required to stand clear of spot. A wall inside the noise
+   * band around the money tells you nothing you cannot see on the tape.
+   */
+  /**
+   * Walls are ranked by OPEN INTEREST, not by gamma.
+   *
+   * Gamma is a bell curve centred on spot: dGamma/dStrike peaks at the money and
+   * decays either side. So "the strike above spot with the most gamma" is
+   * arithmetically forced to be the FIRST strike above spot, whatever the book
+   * looks like. It is not a level — it is the spot price with extra steps, and
+   * it moves every time price ticks.
+   *
+   * Open interest is not spot-centred. It accumulates at round numbers and at
+   * strikes people actually sold, and it stays there while price travels toward
+   * it. That is what makes a wall readable.
+   *
+   * Measured 2026-08-31, gamma-ranked vs OI-ranked call wall:
+   *
+   *   SPY    767  (+0.09%, 2,826 OI)   vs   785  (+2.44%, 37,955 OI)
+   *   QQQ    716  (+0.12%, 2,994 OI)   vs   745  (+4.18%, 21,629 OI)
+   *   TSLA 367.5  (+0.11%, 1,731 OI)   vs   400  (+8.96%, 12,507 OI)
+   *
+   * The OI walls carry 10-15x the open interest and sit far enough away to
+   * trade against. The gamma walls all sit within 0.12% of spot.
+   *
+   * maxGammaStrike is kept separately above — that one IS the gamma peak, and
+   * it is the right number for a pin, just not for a wall.
+   */
   const callWall = strikes
-    .filter((s) => s.strike > spotPrice && s.netGEX > 0)
-    .sort((a, b) => b.netGEX - a.netGEX)[0]?.strike ?? null;
+    .filter((s) => s.strike > spotPrice && s.callOI > 0)
+    .sort((a, b) => b.callOI - a.callOI)[0]?.strike ?? null;
 
   const putWall = strikes
-    .filter((s) => s.strike < spotPrice && s.netGEX < 0)
-    .sort((a, b) => a.netGEX - b.netGEX)[0]?.strike ?? null;
+    .filter((s) => s.strike < spotPrice && s.putOI > 0)
+    .sort((a, b) => b.putOI - a.putOI)[0]?.strike ?? null;
 
   // Zero-gamma projection
   // In positive gamma regime → price magnetizes to max gamma

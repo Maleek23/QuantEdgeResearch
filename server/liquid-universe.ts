@@ -40,8 +40,48 @@ export async function warmLiquidUniverse(): Promise<number> {
   try {
     const today = await fetchGroupedDaily();
     if (today.size === 0) throw new Error('grouped daily empty');
-    // Previous session for a real day-over-day change (grouped is cached per day).
-    const prev = await fetchGroupedDaily(new Date(Date.now() - 86_400_000 * 1)).catch(() => new Map());
+    /**
+     * Previous SESSION — not "yesterday".
+     *
+     * This used to be `new Date(Date.now() - 86_400_000)`, one calendar day
+     * back. On a Monday that is Sunday, after a holiday it is the holiday, and
+     * when the grouped endpoint snaps to the last available date it returns the
+     * SAME session — in which case `pb.c !== c` is false and changePct is
+     * written as null regardless.
+     *
+     * The result: every one of the 2000 cached rows carried changePct: null, so
+     * getLiquidMovers() — which filters on `changePct != null` — returned ZERO
+     * names at every threshold, including gap>=1%. The bull-flag scanner's
+     * universe expansion therefore never ran once, and it fell back to the
+     * hand-list on every scan. That list holds 17 software names, which is why
+     * the board reads as a SaaS monoculture: the scanner was not finding
+     * software, it was handed software.
+     *
+     * Walk back until a session with a genuinely different close set is found,
+     * skipping weekends the same way getUniverseBars does below.
+     */
+    let prev: Map<string, any> = new Map();
+    for (let back = 1; back <= 6 && prev.size === 0; back++) {
+      const d = new Date(Date.now() - 86_400_000 * back);
+      const dow = d.getUTCDay();
+      if (dow === 0 || dow === 6) continue;
+      const candidate = await fetchGroupedDaily(d).catch(() => new Map());
+      if (candidate.size === 0) continue;
+      // Guard against the endpoint snapping to today's session.
+      let differs = 0, checked = 0;
+      for (const [sym, b] of today.entries()) {
+        const pb: any = candidate.get(sym);
+        if (!pb) continue;
+        checked++;
+        if (pb.c !== (b as any).c) differs++;
+        if (checked >= 50) break;
+      }
+      if (checked > 0 && differs / checked < 0.5) continue; // same session, keep walking
+      prev = candidate as Map<string, any>;
+    }
+    if (prev.size === 0) {
+      logger.warn('[LIQUID-UNIVERSE] no prior session found — changePct will be null and movers will be empty');
+    }
     const rows: RankedRow[] = [];
     for (const [sym, b] of today.entries()) {
       const c = (b as any).c ?? 0; const v = (b as any).v ?? 0;
@@ -55,6 +95,7 @@ export async function warmLiquidUniverse(): Promise<number> {
     rankedAt = Date.now();
     await fs.mkdir(path.dirname(DISK), { recursive: true }).catch(() => {});
     await fs.writeFile(DISK, JSON.stringify({ at: rankedAt, rows: ranked }), 'utf8').catch(() => {});
+    await publishUniverseToApprovalGate();
     logger.info(`[LIQUID-UNIVERSE] ranked ${rows.length} tradeable names, kept top ${ranked.length} (floor $${(ranked[ranked.length - 1]?.dollarVolume / 1e6).toFixed(0)}M/day)`);
     try {
       const { pulse } = await import('./system-pulse');
@@ -75,6 +116,7 @@ export async function loadLiquidUniverseFromDisk(): Promise<void> {
     if (Array.isArray(raw?.rows) && raw.rows.length) {
       ranked = raw.rows;
       rankedAt = raw.at ?? 0;
+      await publishUniverseToApprovalGate();
       logger.info(`[LIQUID-UNIVERSE] loaded ${ranked.length} names from disk (as of ${new Date(rankedAt).toISOString()})`);
     }
   } catch { /* first boot — warm will populate */ }
@@ -83,6 +125,37 @@ export async function loadLiquidUniverseFromDisk(): Promise<void> {
 /** Top-N liquid symbols. Sync read of the warmed set; [] when cold (never fabricated). */
 export function getLiquidSymbols(n = TOP_N): string[] {
   return ranked.slice(0, n).map((r) => r.symbol);
+}
+
+/**
+ * Publish the universe to the approval gate.
+ *
+ * shared/approved-tickers.ts is the final gate every producer passes through,
+ * and it was a closed 197-symbol hand-list that blocked NVDA. It cannot import
+ * server state (the client uses it too), so the universe is pushed in here
+ * instead — called from both load paths below, so the gate widens the moment
+ * the universe is warm and stays exactly as it was if it never is.
+ */
+async function publishUniverseToApprovalGate(): Promise<void> {
+  try {
+    /**
+     * Dynamic ESM import, NOT require().
+     *
+     * The first version used require(), which under tsx resolves to a DIFFERENT
+     * module instance than the ESM `import` every other file uses. The call
+     * succeeded and logged "approval gate widened to 2000 liquid names" while
+     * isApprovedTicker('NVDA') stayed false — the state landed on a copy nobody
+     * reads. A log line is not proof the state took.
+     */
+    const mod = await import('@shared/approved-tickers');
+    if (typeof (mod as any)?.setLiquidUniverse === 'function') {
+      const syms = ranked.map((r) => r.symbol);
+      (mod as any).setLiquidUniverse(syms);
+      logger.info(`[LIQUID-UNIVERSE] approval gate widened to ${syms.length} liquid names`);
+    }
+  } catch (err: any) {
+    logger.warn(`[LIQUID-UNIVERSE] could not widen approval gate: ${err?.message ?? err}`);
+  }
 }
 
 export function liquidUniverseStatus(): { size: number; asOf: string | null } {

@@ -53,6 +53,10 @@ export interface GEXSnapshot {
 
   // Aggregate exposures
   totalGEX: number;       // net dealer gamma exposure ($/1% move, billions)
+  /** Same value as totalGEX. The wire has always used this name; both are sent
+   *  so neither the six components reading totalGEX nor anything reading
+   *  totalNetGEX silently receives undefined. See server/gamma-exposure.ts. */
+  totalNetGEX?: number;
   totalVEX: number;       // net dealer vanna exposure (billions)
   callGEX: number;
   putGEX: number;

@@ -211,11 +211,32 @@ function scoreSwingOpportunity(
  * Scan for swing trade opportunities
  */
 export async function scanSwingOpportunities(): Promise<SwingOpportunity[]> {
-  logger.info(`[SWING] 🔍 Scanning ${SWING_TICKERS.length} tickers for swing opportunities...`);
+  /**
+   * Scan the liquid universe, not a hand-typed list.
+   *
+   * An audit of all 23 producers found 20 capped to hand-written arrays while
+   * the 2,000-name liquid universe sat loaded in memory. ORCL was the case that
+   * exposed it: on the core watchlist, 180 sessions of bars available, and zero
+   * ideas in the platform's history — never rejected, never evaluated, because
+   * nobody had typed it into an array.
+   *
+   * The hand list is unioned in, so nothing that used to be scanned drops out
+   * when the universe is cold.
+   */
+  let swingUniverse: string[] = [...SWING_TICKERS];
+  try {
+    const { getLiquidSymbols, loadLiquidUniverseFromDisk } = await import('./liquid-universe');
+    if (getLiquidSymbols().length === 0) await loadLiquidUniverseFromDisk();
+    const liquid = getLiquidSymbols();
+    if (liquid.length > 0) {
+      swingUniverse = Array.from(new Set([...SWING_TICKERS, ...liquid].map((x) => x.toUpperCase())));
+    }
+  } catch { /* cold universe — the hand list still scans */ }
+  logger.info(`[SWING] 🔍 Scanning ${swingUniverse.length} tickers for swing opportunities...`);
   
   const opportunities: SwingOpportunity[] = [];
   
-  for (const symbol of SWING_TICKERS) {
+  for (const symbol of swingUniverse) {
     try {
       const data = await fetchDailyData(symbol);
       if (!data) continue;

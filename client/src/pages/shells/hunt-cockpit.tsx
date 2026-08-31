@@ -498,8 +498,21 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
       if (!res.ok) throw new Error("convictions failed");
       return res.json();
     },
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    /**
+     * Poll fast enough that a moving position actually looks like it is moving.
+     *
+     * At a 60s interval with a 30s staleTime, a bot position that ran from
+     * −$50 to +$1,650 arrived as a single silent re-render — the number was
+     * correct and the change was invisible. 15s matches roughly how often the
+     * mark-to-market job rewrites unrealized_pnl, so most polls carry real
+     * movement rather than burning a request on identical data.
+     *
+     * refetchOnWindowFocus catches the common case of coming back to the tab
+     * after a while and wanting the truth immediately.
+     */
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
     retry: 1,
   });
 
@@ -623,7 +636,25 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
   // A signal is "closed" once price has resolved it — target reached or stop taken out.
   // The convictions feed only returns open ideas, so we classify by geometry rather than
   // inventing a status the backend doesn't track yet.
+  /**
+   * A position the bot HOLDS is never "closed today".
+   *
+   * Geometry is computed by comparing a live price against entryPrice. For a
+   * bot-held option row those two are in DIFFERENT UNITS — entryPrice is the
+   * premium paid ($9.70 for PANW), priceFor() returns the underlying (~$410) —
+   * so progress came out at +3840%, tripped the >=95% at_target rule, and
+   * eleven open positions rendered under "Closed today · 13" while the bot log
+   * said "10 position(s) held". The same mismatch produced the +10355% and
+   * +16249% figures, and the constant R:R 2.0 (paper targets are stored at 2x
+   * premium, stops at 0.5x).
+   *
+   * Held rows carry their own truth — status is 'open' in paper_positions and
+   * P&L is marked to market — so they are excluded from this derivation rather
+   * than having their geometry patched. Entry geometry does not describe a
+   * position you are already in.
+   */
   const closedToday = picks.filter((p) => {
+    if ((p as any).isBotHeld) return false;
     const st = geometryFor(p, priceFor(p)).status;
     return st === "at_target" || st === "invalidated";
   });
@@ -775,10 +806,19 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
               ? "Could not load signals right now."
               : "This signal book has no published records yet."}
           </p>
+          {/*
+            This used to assert that a Neon → Supabase migration had not run.
+            That was a guess dressed as a diagnosis: the database holds 600
+            ideas, and the real cause of an empty board is almost always that
+            candidates aged out or no scan has published since boot. Naming a
+            cause we have not checked sends the reader to fix the wrong thing.
+            Say what is true — the board is empty — and why that can happen,
+            without claiming to know which reason applies.
+          */}
           <p className="text-[11px] font-mono text-muted-foreground/60">
-            Your prior Neon signal history has not been imported into this Supabase
-            database. We do not pad the board with invented trades; new signals appear
-            only when a live scanner publishes evidence that clears the gate.
+            {isError
+              ? "The signals endpoint did not respond. The book is unchanged — this is a display failure, not an empty book."
+              : "Nothing has cleared the gate in this window. Scanners publish on a cycle and candidates retire at their holding-period age cap, so the board can be legitimately empty right after a restart or early in a session. We do not pad it with invented trades."}
           </p>
         </div>
       </div>

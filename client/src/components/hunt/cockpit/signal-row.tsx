@@ -14,6 +14,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { TickerLogo } from './ticker-logo';
 import { convictionPercent, type ConvictionPick } from '@/lib/convictions';
+import { LivePnl } from './live-pnl';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { trackScore } from '@/lib/oracle/score-tracker';
 import { TC, directionColor, pnlColor, statusColor, bandColor, confidenceFill } from '@/lib/oracle/trading-colors';
@@ -111,6 +112,25 @@ export function SignalRow({
           </div>
         </div>
 
+        {/*
+          A held position shows P&L where a candidate shows its conviction band.
+          It was never scored for entry, so printing a band here would invite a
+          comparison against candidates that were — see server/bot-held-picks.ts.
+        */}
+        {pick.isBotHeld ? (
+          <div className="shrink-0 border-l border-border/45 pl-2.5 text-right">
+            <div className="font-mono text-[22px] font-bold leading-none">
+              <LivePnl value={pick.unrealizedPnl ?? 0} />
+            </div>
+            <span
+              className="mt-1 block font-mono text-[8px] font-bold uppercase tracking-[0.15em]"
+              style={{ color: 'var(--brand-gold)' }}
+              title={`Held by ${pick.botOwner ?? 'bot'}${pick.quantity ? ` · ${pick.quantity}x` : ''} — shown regardless of entry filters`}
+            >
+              BOT · {pick.quantity ?? 1}x
+            </span>
+          </div>
+        ) : (
         <div className="shrink-0 border-l border-border/45 pl-2.5 text-right">
           <div className="flex items-baseline justify-end gap-1.5">
             <span className="font-mono text-[22px] font-bold leading-none" style={{ color: bandColor(pick.convictionBand) }}>{pick.convictionBand}</span>
@@ -126,12 +146,50 @@ export function SignalRow({
             evidence
           </span>
         </div>
+        )}
       </div>
 
       {/* A pending signal is a PLAN, never P&L. Only an entered signal earns a
           moving trade path from entry to T1. */}
       <div className="mt-3 border-t border-border/45 pt-2.5">
-        {awaitingTrigger ? (
+        {/*
+          A held position gets a POSITION panel, not entry geometry.
+          The trade-path bar below measures progress from entryPrice toward T1
+          using a live price — but for a bot-held option, entryPrice is the
+          premium paid and the live price is the underlying. Those units do not
+          compare, which is what produced "+10355.4% live" and a progress bar
+          pinned at 100%. What matters for something you own is the contract,
+          the size, and what it is worth now.
+        */}
+        {pick.isBotHeld ? (
+          <>
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
+              <span>Position · held</span>
+              <span style={{ color: 'var(--brand-gold)' }}>{pick.botOwner ?? 'bot'}</span>
+            </div>
+            <div className="flex items-baseline justify-between font-mono text-[10px]">
+              <span className="text-foreground/85">
+                {pick.strikePrice != null
+                  ? `$${pick.strikePrice}${String(pick.optionType ?? '').charAt(0).toUpperCase()}`
+                  : 'shares'}
+                {pick.expiryDate ? ` · ${String(pick.expiryDate).slice(0, 10)}` : ''}
+              </span>
+              <span className="tabular-nums text-muted-foreground/75">
+                {pick.quantity ?? 1}x @ ${Number(pick.entryPremium ?? pick.entryPrice ?? 0).toFixed(2)}
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between font-mono text-[9px] font-semibold uppercase tracking-[0.1em]">
+              <span className="text-muted-foreground/70">unrealised</span>
+              <span
+                className="tabular-nums"
+                style={{ color: (pick.unrealizedPnlPercent ?? 0) >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}
+              >
+                {(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}
+                {Number(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%
+              </span>
+            </div>
+          </>
+        ) : awaitingTrigger ? (
           <>
             <div className="mb-2 flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
               <span>Entry gate · no position</span>

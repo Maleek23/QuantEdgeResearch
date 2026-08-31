@@ -27,27 +27,31 @@ class QuantitativeScorer {
     try {
       logger.info(`[QuantScorer] Scoring ${symbol}`);
 
-      const { default: YahooFinance } = await import('yahoo-finance2');
-      const yahooFinance = new YahooFinance();
-      // yahooFinance is already instantiated
-
-      // Fetch historical data for calculations
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 6); // 6 months of data
-
-      const historical = await yahooFinance.historical(symbol, {
-        period1: startDate.toISOString().split('T')[0],
-        period2: endDate.toISOString().split('T')[0],
-        interval: '1d'
-      });
+      /**
+       * Bars and quotes come from the shared fallback, not Yahoo directly.
+       *
+       * This scorer called yahoo-finance2 and threw on any failure, which meant
+       * a 429 returned the default 50 with "Data unavailable" — and the engine
+       * then blended that placeholder into an overall grade as if it were a
+       * reading. On ADSK five of seven scorers were doing this at once and the
+       * result still presented as a considered C/57.
+       *
+       * See server/market-data-fallback.ts: Polygon bars → Yahoo, Finnhub
+       * quotes → Yahoo.
+       */
+      const { getBars, getQuote } = await import('./market-data-fallback');
+      const historical = await getBars(symbol, 180);
 
       if (!historical || historical.length < 30) {
         throw new Error('Insufficient historical data');
       }
 
-      const quote = await yahooFinance.quote(symbol);
-      const spyQuote = await yahooFinance.quote('SPY'); // S&P 500 benchmark
+      const q = await getQuote(symbol);
+      const spyQ = await getQuote('SPY');
+      // Beta is not carried by either fallback source; 1.0 is the neutral
+      // assumption and is stated rather than silently defaulted.
+      const quote: any = { regularMarketPrice: q?.price ?? 0, beta: 1.0 };
+      const spyQuote: any = { regularMarketPrice: spyQ?.price ?? 0 };
 
       // Calculate metrics
       const volatility = this.calculateVolatility(historical);

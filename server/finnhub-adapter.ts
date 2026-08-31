@@ -135,3 +135,93 @@ export async function getFinnhubQuote(symbol: string): Promise<{ price: number; 
   if (!d || typeof d.c !== 'number' || d.c <= 0) return null;
   return { price: d.c, changePct: typeof d.dp === 'number' ? d.dp : 0 };
 }
+
+/**
+ * Next scheduled earnings date, from Finnhub's free earnings calendar.
+ *
+ * The catalysts scorer read this only from Yahoo's `calendarEvents`, so when
+ * Yahoo 429'd it reported "No upcoming earnings data" — including on ADSK,
+ * WDAY and AFRM on the afternoon they all reported. A catalyst scorer that
+ * cannot see the catalyst is the worst single failure in the engine, because
+ * earnings is exactly when the score is consulted.
+ *
+ * `hour` is 'bmo' | 'amc' | '' — the before/after-close flag, which decides
+ * whether a day trade published this morning survives the print.
+ */
+export async function getNextEarningsDate(
+  symbol: string
+): Promise<{ date: string; hour: string; epsEstimate: number | null } | null> {
+  const from = new Date();
+  const to = new Date();
+  to.setDate(to.getDate() + 120);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+  const d = await get(
+    `/calendar/earnings?from=${iso(from)}&to=${iso(to)}&symbol=${encodeURIComponent(symbol.toUpperCase())}`
+  );
+  const rows: any[] = d?.earningsCalendar ?? [];
+  if (!rows.length) return null;
+
+  // Finnhub returns ascending by date, but sort rather than trust it.
+  rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const next = rows[0];
+  if (!next?.date) return null;
+  return {
+    date: next.date,
+    hour: String(next.hour ?? ''),
+    epsEstimate: typeof next.epsEstimate === 'number' ? next.epsEstimate : null,
+  };
+}
+
+/**
+ * The ten ratios grade-calculator.ts actually reads, from Finnhub /stock/metric.
+ *
+ * WHY A THIRD SOURCE
+ * fundamental-data-provider has exactly two, and both are dead:
+ *   Yahoo quoteSummary   429
+ *   Alpha Vantage        "standard API rate limit is 25 requests per day"
+ * so getFundamentals() returned null and the fundamental scorer emitted a bare
+ * 50 with an EMPTY breakdown — no error, no "unavailable", just a number. That
+ * is the most misleading of the placeholder failures because nothing in the
+ * output distinguishes it from a genuine middling grade.
+ *
+ * /stock/metric?metric=all is free tier, returns 133 fields, and covers all ten
+ * ratios the calculator consumes.
+ *
+ * UNITS: Finnhub reports margins and growth as PERCENTAGES (62.97 = 62.97%),
+ * which is the convention grade-calculator already expects — verified against
+ * its threshold constants, not assumed.
+ */
+export async function getFinnhubRatios(symbol: string): Promise<{
+  peRatio: number | null; pbRatio: number | null; pegRatio: number | null;
+  priceToSales: number | null; roe: number | null; netMargin: number | null;
+  debtToEquity: number | null; currentRatio: number | null;
+  revenueGrowthYoY: number | null; epsGrowthYoY: number | null;
+} | null> {
+  const d = await get(`/stock/metric?symbol=${encodeURIComponent(symbol.toUpperCase())}&metric=all`);
+  const m = d?.metric;
+  if (!m) return null;
+
+  const num = (v: any): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+  const out = {
+    peRatio: num(m.peTTM) ?? num(m.peBasicExclExtraTTM),
+    pbRatio: num(m.pbQuarterly) ?? num(m.pb),
+    pegRatio: num(m.pegTTM),
+    priceToSales: num(m.psTTM) ?? num(m.psAnnual),
+    roe: num(m.roeTTM) ?? num(m.roeRfy),
+    netMargin: num(m.netProfitMarginTTM) ?? num(m.netProfitMarginAnnual),
+    // Finnhub's key is literally "totalDebt/totalEquityQuarterly" — the slash is
+    // part of the field name, so it must be indexed, not dotted.
+    debtToEquity: num(m['totalDebt/totalEquityQuarterly']) ?? num(m['totalDebt/totalEquityAnnual']),
+    currentRatio: num(m.currentRatioQuarterly) ?? num(m.currentRatioAnnual),
+    revenueGrowthYoY: num(m.revenueGrowthTTMYoy) ?? num(m.revenueGrowthQuarterlyYoy),
+    epsGrowthYoY: num(m.epsGrowthTTMYoy) ?? num(m.epsGrowthQuarterlyYoy),
+  };
+
+  // All-null means the symbol resolved but carries no fundamentals (an ETF, a
+  // recent listing). Treat that as no data rather than ten null ratios, which
+  // would score as if every metric were genuinely absent.
+  if (Object.values(out).every((v) => v == null)) return null;
+  return out;
+}
