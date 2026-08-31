@@ -37,6 +37,7 @@ export interface BotHeldPick {
   strikePrice: number | null;
   expiryDate: string | null;
   entryPremium: number | null;
+  /** Underlying-space levels from the originating idea. Null when unknown. */
   entryPrice: number | null;
   targetPrice: number | null;
   stopLoss: number | null;
@@ -56,14 +57,37 @@ export interface BotHeldPick {
 /** Every open bot position, shaped like a conviction pick. */
 export async function getBotHeldPicks(): Promise<BotHeldPick[]> {
   try {
+    /**
+     * Pull the UNDERLYING levels from the originating idea, not the position.
+     *
+     * paper_positions stores entry/target/stop as PREMIUM for an option row
+     * ($3.03 / $6.06 / $1.51 on an AAPL call). Every consumer downstream —
+     * signal geometry, the price ladder, the Contract Engine — treats those
+     * fields as underlying prices and compares them against a live underlying
+     * quote.
+     *
+     * The first version of this file put the premium in entryPrice. The result
+     * on AAPL: "+10363.95% versus entry", a ladder reading AT TARGET, and the
+     * Contract Engine correctly but uselessly reporting "Target $6.06 is on the
+     * WRONG SIDE for a call from $317.05" while grading every tier F.
+     *
+     * The originating trade_idea holds the real underlying levels, so join to
+     * it. When a position has no originating idea (the bot bought from a path
+     * that never published one — COPX, DKS, QCOM), the level fields are left
+     * NULL rather than filled with premium. A missing level renders as unknown;
+     * a wrong one renders as a confident lie.
+     */
     const r: any = await db.execute(sql`
       SELECT pp.id, pp.symbol, pp.asset_type, pp.direction, pp.option_type,
              pp.strike_price, pp.expiry_date, pp.entry_price, pp.quantity,
-             pp.target_price, pp.stop_loss, pp.unrealized_pnl,
-             pp.unrealized_pnl_percent, pp.entry_time, pp.trade_idea_id,
-             po.user_id AS bot_owner
+             pp.unrealized_pnl, pp.unrealized_pnl_percent, pp.entry_time,
+             pp.trade_idea_id, po.user_id AS bot_owner,
+             ti.entry_price  AS idea_entry,
+             ti.target_price AS idea_target,
+             ti.stop_loss    AS idea_stop
       FROM paper_positions pp
       JOIN paper_portfolios po ON po.id = pp.portfolio_id
+      LEFT JOIN trade_ideas ti ON ti.id = pp.trade_idea_id
       WHERE pp.status = 'open'
       ORDER BY pp.symbol`);
 
@@ -81,11 +105,13 @@ export async function getBotHeldPicks(): Promise<BotHeldPick[]> {
         optionType: x.option_type ?? null,
         strikePrice: x.strike_price != null ? Number(x.strike_price) : null,
         expiryDate: x.expiry_date ? String(x.expiry_date) : null,
-        // For an option the entry is a PREMIUM, not an underlying level.
+        // The premium lives in its own field and never in a level field.
         entryPremium: isOption && x.entry_price != null ? Number(x.entry_price) : null,
-        entryPrice: x.entry_price != null ? Number(x.entry_price) : null,
-        targetPrice: x.target_price != null ? Number(x.target_price) : null,
-        stopLoss: x.stop_loss != null ? Number(x.stop_loss) : null,
+        // Levels are underlying-space, sourced from the originating idea. Null
+        // when unknown — see the query comment.
+        entryPrice: x.idea_entry != null ? Number(x.idea_entry) : (isOption ? null : Number(x.entry_price)),
+        targetPrice: x.idea_target != null ? Number(x.idea_target) : null,
+        stopLoss: x.idea_stop != null ? Number(x.idea_stop) : null,
         quantity: Number(x.quantity ?? 1),
         unrealizedPnl: x.unrealized_pnl != null ? Number(x.unrealized_pnl) : null,
         unrealizedPnlPercent: pnlPct,
