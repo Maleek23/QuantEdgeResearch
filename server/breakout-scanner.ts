@@ -362,7 +362,29 @@ export async function scanMultipleSymbols(
 export async function scanStocksForBreakouts(
   config: Partial<ScannerConfig> = {}
 ): Promise<BreakoutSignal[]> {
-  return scanMultipleSymbols(STOCK_WATCHLIST, config);
+  /**
+   * Scan the liquid universe, not a 30-symbol hand list.
+   *
+   * STOCK_WATCHLIST holds 30 tickers. A breakout scanner restricted to 30 names
+   * cannot find a breakout in the other 1,970 liquid names, so its output was
+   * never a read on the market — it was a read on that list.
+   *
+   * Same defect as bull-flag-scanner had (90 hand-typed names against 2,000
+   * with bars loaded). See the comment there for the ORCL case that exposed it.
+   *
+   * The hand list is unioned in so nothing that used to be scanned drops out
+   * when the universe is cold.
+   */
+  let universe: string[] = STOCK_WATCHLIST;
+  try {
+    const { getLiquidSymbols, loadLiquidUniverseFromDisk } = await import('./liquid-universe');
+    if (getLiquidSymbols().length === 0) await loadLiquidUniverseFromDisk();
+    const liquid = getLiquidSymbols();
+    if (liquid.length > 0) {
+      universe = Array.from(new Set([...STOCK_WATCHLIST, ...liquid].map((x) => x.toUpperCase())));
+    }
+  } catch { /* cold universe — the hand list still scans */ }
+  return scanMultipleSymbols(universe, config);
 }
 
 // Scan all crypto

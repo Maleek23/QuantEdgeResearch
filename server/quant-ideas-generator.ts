@@ -14,6 +14,8 @@ import {
   analyzeRSI2MeanReversion
 } from './technical-indicators';
 import { discoverHiddenCryptoGems, discoverStockGems, discoverPennyStocks, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
+import { PREMIUM_WATCHLIST, USER_CORE_WATCHLIST } from './ticker-universe';
+import { passesShortDiscipline, isBtcProxy, isSubstantiveEventCatalyst } from './short-discipline';
 import { logger } from './logger';
 import { shouldBlockSymbol } from './earnings-service';
 import { enrichOptionIdea } from './options-enricher';
@@ -22,6 +24,72 @@ import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennySto
 import { historicalIntelligenceService } from './historical-intelligence-service';
 
 // v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
+// Real 20-day average volume for the curated path, from the same candle feed
+// the charts use. Cached a day per symbol — average volume moves slowly, and
+// re-fetching ninety histories every 4-minute cycle would be pure waste. When
+// history is unavailable the value stays null, which still scores 0 on the
+// volume component: unavailable stays unearned, it does not become 1.0×.
+const avgVolCache = new Map<string, { at: number; avg: number | null; bars: { time: number; open: number; high: number; low: number; close: number }[] }>();
+// Real recent OHLC for pattern detection — the same candles the avg-volume
+// fetch already downloads. The analyzer previously faked highs/lows as
+// closes +/-1%, which makes bar-range patterns (inside bars, coils)
+// structurally undetectable. These are the real bars, cached with the volume.
+export function getRecentBars(symbol: string): { time: number; open: number; high: number; low: number; close: number }[] {
+  return avgVolCache.get(symbol.toUpperCase())?.bars ?? [];
+}
+const AVG_VOL_TTL_MS = 24 * 60 * 60 * 1000;
+async function getAvgVolumes20d(symbols: string[]): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>();
+  const stale: string[] = [];
+  const now = Date.now();
+  for (const sym of symbols) {
+    const hit = avgVolCache.get(sym);
+    if (hit && now - hit.at < AVG_VOL_TTL_MS) out.set(sym, hit.avg);
+    else stale.push(sym);
+  }
+  if (stale.length > 0) {
+    try {
+      const { fetchCandlesBatch } = await import('./historical-candles');
+      const candles = await fetchCandlesBatch(stale, '3mo', '1d', 8);
+      const today = new Date().toISOString().slice(0, 10);
+      for (const sym of stale) {
+        const bars = (candles.get(sym) ?? []).filter((b) => Number.isFinite(b.volume) && b.volume > 0);
+        // Exclude today's partial session — a 10 AM half-day of volume would
+        // drag the average and flatter every ratio computed against it.
+        const complete = bars.filter((b) => new Date(b.time * 1000).toISOString().slice(0, 10) !== today);
+        const last20 = complete.slice(-20);
+        const avg = last20.length >= 10 ? last20.reduce((a, b) => a + b.volume, 0) / last20.length : null;
+        const recent = (candles.get(sym) ?? []).slice(-10).map((x) => ({ time: x.time, open: x.open, high: x.high, low: x.low, close: x.close }));
+        avgVolCache.set(sym, { at: now, avg, bars: recent });
+        out.set(sym, avg);
+      }
+    } catch {
+      for (const sym of stale) { out.set(sym, null); if (!avgVolCache.has(sym)) avgVolCache.set(sym, { at: now, avg: null, bars: [] }); }
+    }
+  }
+  return out;
+}
+
+/**
+ * Volume ratio that compares like with like. Day volume against a FULL-session
+ * average is only meaningful at the close — at 10:40 AM two hours of volume
+ * divided by a 20-day full-day average reads 0.2x and a genuinely active name
+ * gets filtered as "insufficient volume" (WDC, +gap, died exactly this way the
+ * day real averages landed). Normalize the average by the fraction of the cash
+ * session elapsed; outside cash hours the comparison is unmeasurable and the
+ * honest neutral is 1 (no signal points, no filter kill — same as before real
+ * averages existed).
+ */
+function sessionVolumeRatio(volume: number | null | undefined, avgVolume: number | null | undefined): number {
+  if (!volume || !avgVolume || avgVolume <= 0) return 1;
+  const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const mins = et.getHours() * 60 + et.getMinutes();
+  const open = 9 * 60 + 30, close = 16 * 60;
+  if (mins < open || et.getDay() === 0 || et.getDay() === 6) return 1; // pre-market/weekend: unmeasurable
+  const elapsed = Math.min(1, Math.max(0.1, (mins - open) / (close - open)));
+  return volume / (avgVolume * elapsed);
+}
+
 // Timing windows based on proven day-trading patterns
 interface SignalStack {
   rsiValue?: number;
@@ -224,11 +292,89 @@ async function fetchLearnedWeights(): Promise<Map<string, number>> {
 
 interface QuantSignal {
   type: 'rsi2_mean_reversion' | 'vwap_cross' | 'volume_spike' | 'rsi2_short_reversion'
-    | 'vwap_rejection' | 'distribution_spike';
+    | 'vwap_rejection' | 'distribution_spike' | 'gap_continuation' | 'inside_coil'
+    | 'flow_conviction' | 'breakout_watch' | 'volume_thrust';
+  gapPercent?: number;
   strength: 'strong' | 'moderate' | 'weak';
   direction: 'long' | 'short';  // v3.2: BOTH long and short positions (mean reversion both ways)
   rsiValue?: number;
   vwapValue?: number;
+  /** flow_conviction only: dominant-side premium in dollars and its skew ratio. */
+  flowPremium?: number;
+  flowSkew?: number;
+}
+
+// ── OPTIONS-FLOW CONVICTION ─────────────────────────────────────────────────
+// The flow scanner watched CRM print a $1.26M call sweep and the cockpit never
+// heard about it — prints fed a display panel and stopped. This bridge
+// aggregates the session's prints per symbol and lets a decisively one-sided
+// tape SEED a candidate through the same funnel as every other signal.
+//
+// Honesty constraint carried over from the scanner: a chain snapshot cannot
+// tell buyers from sellers, so premium skew alone can get the sign wrong.
+// Qualification therefore requires (a) dominant-side premium >= $500k,
+// (b) skew >= 2:1 over the other side, and (c) NO contradiction from the
+// prints that do carry a tape-based sentiment read. Detection seeds candidacy;
+// scoring, R:R, and the short gate still decide its fate.
+interface FlowAgg {
+  callPrem: number; putPrem: number;
+  tapeBull: number; tapeBear: number;
+  sweeps: number; prints: number;
+}
+let flowAggBySymbol = new Map<string, FlowAgg>();
+
+function buildFlowAggregates(flows: Array<{ symbol: string; optionType: string; premium: number; sentiment: string; biasBasis: string; flowType: string }>): void {
+  flowAggBySymbol = new Map();
+  for (const f of flows) {
+    const sym = f.symbol.toUpperCase();
+    const agg = flowAggBySymbol.get(sym) ?? { callPrem: 0, putPrem: 0, tapeBull: 0, tapeBear: 0, sweeps: 0, prints: 0 };
+    if (f.optionType === 'call') agg.callPrem += f.premium; else agg.putPrem += f.premium;
+    if (f.biasBasis === 'tape') {
+      if (f.sentiment === 'bullish') agg.tapeBull++;
+      else if (f.sentiment === 'bearish') agg.tapeBear++;
+    }
+    if (f.flowType === 'sweep' || f.flowType === 'block') agg.sweeps++;
+    agg.prints++;
+    flowAggBySymbol.set(sym, agg);
+  }
+}
+
+const FLOW_MIN_PREMIUM = 500_000;
+const FLOW_MIN_SKEW = 2;
+
+// ── 52-WEEK-HIGH PROXIMITY (George & Hwang 2004) ────────────────────────────
+// The gainers study was unambiguous: 50 of the top-50 three-month winners
+// broke to new window highs during their runs, and our own out-of-sample test
+// put breakout_watch at a 72% forward win rate vs the 63% universe baseline —
+// the most replicated signal in the literature, finally allowed to SCORE
+// instead of just decorating the radar. Populated from the pattern engine's
+// sweep each batch; symbol → pct from window high (negative = below).
+let breakoutProximity = new Map<string, number | null>();
+
+async function buildBreakoutSet(): Promise<void> {
+  breakoutProximity = new Map();
+  try {
+    const { getPatternHits } = await import('./pattern-engine');
+    for (const h of getPatternHits().hits) {
+      if (h.pattern === 'breakout_watch') breakoutProximity.set(h.symbol, h.context?.pctFromHigh ?? null);
+    }
+  } catch { /* engine cold — detector simply doesn't fire */ }
+}
+
+function flowConvictionFor(symbol: string): { direction: 'long' | 'short'; premium: number; skew: number; sweeps: number } | null {
+  const agg = flowAggBySymbol.get(symbol.toUpperCase());
+  if (!agg) return null;
+  const dominant = agg.callPrem >= agg.putPrem ? 'long' : 'short';
+  const domPrem = Math.max(agg.callPrem, agg.putPrem);
+  const otherPrem = Math.min(agg.callPrem, agg.putPrem);
+  if (domPrem < FLOW_MIN_PREMIUM) return null;
+  const skew = otherPrem > 0 ? domPrem / otherPrem : Infinity;
+  if (skew < FLOW_MIN_SKEW) return null;
+  // Tape-based reads, where they exist, must not contradict the premium skew.
+  const tapeNet = agg.tapeBull - agg.tapeBear;
+  if (dominant === 'long' && tapeNet < 0) return null;
+  if (dominant === 'short' && tapeNet > 0) return null;
+  return { direction: dominant, premium: domPrem, skew, sweeps: agg.sweeps };
 }
 
 interface MultiTimeframeAnalysis {
@@ -339,13 +485,14 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   const currentPrice = data.currentPrice;
   const volume = data.volume || 0;
   const avgVolume = data.avgVolume || volume;
-  const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
+  const volumeRatio = sessionVolumeRatio(volume, avgVolume);
   
   // Calculate CRITICAL 200-day MA (trend filter for directional alignment)
   const sma200 = calculateSMA(historicalPrices, 200);
   
   // 🆕 v3.5: Calculate 50-day MA (intermediate trend filter - prevents false signals in downtrends)
   const sma50 = calculateSMA(historicalPrices, 50);
+  const sma20 = calculateSMA(historicalPrices, 20);
   
   // Calculate RSI(2) - SHORT period for mean reversion (NOT standard RSI(14))
   const rsi2 = calculateRSI(historicalPrices, 2);
@@ -363,6 +510,158 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   const detectedSignals: string[] = [];
   let primarySignal: QuantSignal | null = null;
   
+  // PRIORITY 0: GAP CONTINUATION — the operator's standing rule, finally at the
+  // generation layer: a strong session gap is a LEADING direction signal, not a
+  // scoring afterthought. Every prior signal needed a volume ratio or a trend
+  // filter that a gapping mega-cap fresh out of a downtrend fails — META +4%
+  // pre-market was invisible to the board because nothing here could SEE a gap.
+  // Threshold 3%: below that, changePercent is session noise, not a statement.
+  // Down-gaps produce short signals that must still clear the event-catalyst
+  // gate downstream — the gap seeds the candidate, discipline decides its fate.
+  const gapPct = data.changePercent;
+  if (Number.isFinite(gapPct) && Math.abs(gapPct) >= 3) {
+    detectedSignals.push(gapPct > 0 ? 'GAP_UP' : 'GAP_DOWN');
+    if (!primarySignal) {
+      primarySignal = {
+        type: 'gap_continuation',
+        strength: Math.abs(gapPct) >= 5 ? 'strong' : 'moderate',
+        direction: gapPct > 0 ? 'long' : 'short',
+        gapPercent: gapPct,
+      };
+    }
+  }
+
+  // PRIORITY 0.25: FLOW CONVICTION — the session's options tape is decisively
+  // one-sided on this name (>=$500k dominant premium, >=2:1 skew, no tape-read
+  // contradiction). Institutional prints are evidence the price-only signals
+  // cannot see; a put-heavy tape produces a SHORT candidate that still has to
+  // clear the event-catalyst gate downstream.
+  {
+    const flow = flowConvictionFor(data.symbol);
+    if (flow) {
+      detectedSignals.push(flow.direction === 'long' ? 'FLOW_CALLS' : 'FLOW_PUTS');
+      if (!primarySignal) {
+        primarySignal = {
+          type: 'flow_conviction',
+          strength: flow.premium >= 1_500_000 || flow.skew >= 4 ? 'strong' : 'moderate',
+          direction: flow.direction,
+          flowPremium: flow.premium,
+          flowSkew: flow.skew,
+        };
+      }
+    }
+  }
+
+  // PRIORITY 0.4: 52W-HIGH BREAKOUT WATCH — within 3% of the window high on a
+  // rising 20d average (detected by the pattern sweep). George & Hwang's
+  // proximity effect, and the only class that covered 50/50 of the last
+  // quarter's top gainers. Long-only by construction.
+  {
+    const prox = breakoutProximity.get(data.symbol);
+    if (prox !== undefined) {
+      detectedSignals.push('BREAKOUT_WATCH');
+      if (!primarySignal) {
+        primarySignal = {
+          type: 'breakout_watch',
+          strength: prox != null && prox > -1.5 ? 'strong' : 'moderate',
+          direction: 'long',
+        };
+      }
+    }
+  }
+
+  // PRIORITY 0.45: VOLUME THRUST — >=2.5x the 20d average on an UP day. The
+  // signal battery's only 3/3 winner: beat its window baseline in an up-tape
+  // (+7.7%, 86%w), a down-tape (+10.6%), and a strong-tape (+3.9%, 74%w),
+  // with a monotone dose-response (1.5x and 2x each failed a window; 2.5x+
+  // passed all). Distinct from volume_spike, which wants a spike WITHOUT a
+  // move (accumulation); thrust wants the move confirmed.
+  if (volumeRatio >= 2.5 && Number.isFinite(gapPct) && gapPct > 0) {
+    /**
+     * ── CALIBRATION, Aug 27 (research/optimize3.ts, research/final-sim.ts) ──
+     *
+     * The 3/3 result above was measured at n=22 and n=17. Pooled across the full
+     * 260-bar history on 1959 names the same rule is +0.48% edge, not the +7.7%
+     * those windows showed — the direction held, the magnitude did not. The 41%
+     * win rate beside a +10.6% mean in window B was the tell: two outliers
+     * carried seventeen trades.
+     *
+     * Re-measured with n in the hundreds, the filters below take it from +0.48%
+     * to +2.67% edge, positive in all five time slices:
+     *
+     *   thrust alone              +0.48%
+     *   + above 20d SMA           +0.70%
+     *   + below 90% of 52w high   +2.12%   ← biggest single lever
+     *   + above 50d SMA           +2.61%
+     *   + NOT a strong close      +2.67%
+     *
+     * The near-high gate is the finding, and it is counter-intuitive: thrust
+     * pays on names with ROOM. The identical thrust within 10% of the 52-week
+     * high scores +0.01 and fails a slice. signal-battery.ts saw the same thing
+     * from the other direction — vol_thrust_near_high went +4.53%/82%w then
+     * −2.20%/25%w and was correctly never promoted.
+     *
+     * NOT a strong close: a bar closing in the top 20% of its range has already
+     * paid out. Excluding it costs a little edge and buys 5/5 slice stability.
+     */
+    const bars = getRecentBars(data.symbol);
+    const hi52 = bars.length ? Math.max(...bars.slice(-252).map((b) => b.high)) : null;
+    const roomBelowHigh = hi52 != null && hi52 > 0 ? currentPrice / hi52 < 0.90 : false;
+    const last = bars.length ? bars[bars.length - 1] : null;
+    const barRange = last ? last.high - last.low : 0;
+    const strongClose = last && barRange > 0 ? (last.close - last.low) / barRange >= 0.8 : false;
+    const trendOk = currentPrice > sma50 && (sma20 == null || currentPrice > sma20);
+
+    if (roomBelowHigh && trendOk && !strongClose) {
+      detectedSignals.push('VOLUME_THRUST');
+      if (!primarySignal) {
+        primarySignal = {
+          type: 'volume_thrust',
+          // 3.5x is NOT stronger on the measured data — thrust3.0 scores +2.13%
+          // against thrust2.5's +2.67%. Tier on the room-below-high instead,
+          // which is the axis that actually separated.
+          strength: hi52 != null && currentPrice / hi52 < 0.80 ? 'strong' : 'moderate',
+          direction: 'long',
+        };
+      }
+    } else {
+      logger.info(
+        `  ${data.symbol}: VOLUME_THRUST gated — room=${roomBelowHigh} trend=${trendOk} strongClose=${strongClose}`,
+      );
+    }
+  }
+
+  // PRIORITY 0.5: INSIDE-BAR COIL — 3+ consecutive sessions inside one mother
+  // bar's range is compression, and compression resolves. Detected on REAL
+  // OHLC from the candle cache (the +/-1% synthetic highs/lows used elsewhere
+  // cannot see bar-range patterns — ABBV's 4-day coil was invisible until the
+  // operator pointed at it on a chart). Long-side only, and only in bullish
+  // structure (above the 200-day): a coil under highs is accumulation until
+  // it breaks; a coil in a downtrend is a bear flag and the short gate owns
+  // that conversation. Requires the coil to still be UNBROKEN — once price
+  // closes outside the mother range the setup is spent, not fresh.
+  {
+    const bars = getRecentBars(data.symbol);
+    if (bars.length >= 5 && currentPrice > sma200) {
+      // walk back: find the most recent mother bar with >=3 inside bars after it
+      for (let m = bars.length - 5; m >= Math.max(0, bars.length - 8); m--) {
+        const mother = bars[m];
+        const after = bars.slice(m + 1);
+        if (after.length >= 3 && after.every((x) => x.high <= mother.high && x.low >= mother.low)) {
+          detectedSignals.push('INSIDE_COIL');
+          if (!primarySignal) {
+            primarySignal = {
+              type: 'inside_coil',
+              strength: after.length >= 4 ? 'strong' : 'moderate',
+              direction: 'long',
+            };
+          }
+          break;
+        }
+      }
+    }
+  }
+
   // PRIORITY 1: RSI(2) Mean Reversion with 200-day MA Trend Filter + REGIME FILTER
   // Based on Larry Connors RSI(2) research (targeting 55-65% live)
   // v3.5: TIGHTENED regime filter - ADX < 25 instead of 30 (reduces choppy market trades)
@@ -587,6 +886,18 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
     return `Institutional accumulation - ${volumeRatio}x volume spike with minimal price move`;
   } else if (signal.type === 'distribution_spike') {
     return `Institutional distribution - ${volumeRatio}x volume with price failing to hold`;
+  } else if (signal.type === 'gap_continuation') {
+    const g = signal.gapPercent ?? 0;
+    return `Session gap ${g >= 0 ? '+' : ''}${g.toFixed(1)}% — gap treated as a leading direction signal (operator rule)`;
+  } else if (signal.type === 'inside_coil') {
+    return `Inside-bar coil — 3+ sessions compressed inside one range in bullish structure; compression resolves`;
+  } else if (signal.type === 'flow_conviction') {
+    const p = signal.flowPremium ?? 0;
+    return `Options tape ${signal.direction === 'long' ? 'call' : 'put'}-heavy — $${(p / 1e6).toFixed(1)}M dominant premium at ${(signal.flowSkew ?? 0) === Infinity ? 'one-sided' : `${(signal.flowSkew ?? 0).toFixed(1)}:1`} skew`;
+  } else if (signal.type === 'breakout_watch') {
+    return `Within 3% of the window high on a rising 20d average — proximity effect (George & Hwang), 72% forward win rate in our own out-of-sample test`;
+  } else if (signal.type === 'volume_thrust') {
+    return `${Number(volumeRatio).toFixed(1)}x average volume on an up day — the signal battery's only 3/3-regime winner (+3.9% to +10.6% forward means)`;
   } else {
     return `Technical setup confirmed - ${volumeRatio}x volume`;
   }
@@ -595,7 +906,7 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
 // Generate analysis for trade idea
 // v3.2: Support BOTH long and short signals
 function generateAnalysis(data: MarketData, signal: QuantSignal): string {
-  const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
+  const volumeRatio = sessionVolumeRatio(data.volume, data.avgVolume);
 
   if (signal.type === 'rsi2_mean_reversion') {
     const rsiValue = signal.rsiValue || 50;
@@ -625,6 +936,15 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
            `Thresholds deliberately mirror the long side so the two are comparable.`;
   }
 
+  if (signal.type === 'flow_conviction') {
+    const p = signal.flowPremium ?? 0;
+    const side = signal.direction === 'long' ? 'call' : 'put';
+    return `Session options tape is decisively ${side}-heavy: $${(p / 1e6).toFixed(1)}M dominant premium at ` +
+           `${(signal.flowSkew ?? 0) === Infinity ? 'fully one-sided' : `${(signal.flowSkew ?? 0).toFixed(1)}:1`} skew, with no tape-read contradiction. ` +
+           `Caveat stated plainly: a chain snapshot cannot distinguish buyers from sellers, so skew is evidence, not proof — ` +
+           `which is why this signal seeds a candidate for the funnel instead of asserting a conclusion.`;
+  }
+
   return `Quantitative setup confirmed with ${volumeRatio.toFixed(1)}x volume and favorable risk/reward ratio.`;
 }
 
@@ -643,13 +963,41 @@ function calculateConfidenceScore(
   riskRewardRatio: number
 ): { score: number; signals: string[] } {
   const qualitySignals: string[] = [];
-  const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
+  const volumeRatio = sessionVolumeRatio(data.volume, data.avgVolume);
 
   // v3.4: RECALIBRATED - Base scores lowered to match actual performance
   // Removed ALL bonuses (R:R, volume) - they were inverse predictors
   let score = 0;
   
-  if (signal.type === 'rsi2_mean_reversion') {
+  if (signal.type === 'flow_conviction') {
+    // NEW and unmeasured — institutional tape is strong evidence but the
+    // buyer/seller ambiguity is real, so it starts below the proven signals
+    // until the by-signal cohort earns it a higher base.
+    score = signal.strength === 'strong' ? 56 : 50;
+    qualitySignals.push('Flow Conviction (options tape)');
+  } else if (signal.type === 'breakout_watch') {
+    // Externally replicated (George & Hwang 2004) AND validated on our own
+    // universe out of sample (72% forward win vs 63% baseline) — starts at
+    // the top of the unproven band; its cohort decides from here.
+    score = signal.strength === 'strong' ? 58 : 54;
+    qualitySignals.push('52w-High Proximity (George-Hwang)');
+  } else if (signal.type === 'volume_thrust') {
+    // The battery's only 3/3 winner across three regimes (see research/
+    // signal-battery-r2.ts). Small n (66 across windows) — starts mid-band;
+    // the live cohort takes it from here.
+    score = signal.strength === 'strong' ? 58 : 54;
+    qualitySignals.push('Volume Thrust ≥2.5x (battery 3/3)');
+  } else if (signal.type === 'inside_coil') {
+    // NEW and unmeasured — untrusted like every newborn template.
+    score = signal.strength === 'strong' ? 54 : 50;
+    qualitySignals.push('Inside-Bar Coil');
+  } else if (signal.type === 'gap_continuation') {
+    // NEW and unmeasured — arrives untrusted like vwap_rejection did. Scored
+    // between the proven RSI(2) and the failed volume_spike until it has a
+    // decided sample of its own to argue with.
+    score = signal.strength === 'strong' ? 58 : 52;
+    qualitySignals.push('Gap Continuation (operator rule)');
+  } else if (signal.type === 'rsi2_mean_reversion') {
     // Actual performance: ~30-60% WR (not 75-91% from old research)
     score = signal.strength === 'strong' ? 65 : 60;
     qualitySignals.push('RSI(2) Mean Reversion');
@@ -750,7 +1098,7 @@ function calculateGemScore(data: MarketData): number {
   
   // Volume strength (0-30 points)
   if (data.volume && data.avgVolume) {
-    const volumeRatio = data.volume / data.avgVolume;
+    const volumeRatio = sessionVolumeRatio(data.volume, data.avgVolume);
     if (volumeRatio >= 3) {
       score += 30;
     } else if (volumeRatio >= 2) {
@@ -911,23 +1259,144 @@ export async function generateQuantIdeas(
     lastUpdated: now.toISOString(),
   }));
 
-  // 🔥 PRIORITIZE DISCOVERED GEMS: Use dynamic discovery instead of static database symbols
-  // Only use database symbols as fallback if discovery fails
-  const totalPennyStocks = discoveredStockData.filter(d => d.assetType === 'penny_stock').length;
-  logger.info(`💎 Using ${discoveredStockData.length} discovered stocks (${totalPennyStocks} penny stocks <$5) + ${discoveredCryptoData.length} discovered cryptos`);
-  
-  const combinedData = [...discoveredStockData, ...discoveredCryptoData];
-  
-  // Only add database symbols as fallback if we didn't get enough from discovery
-  if (combinedData.length < count * 2) {
-    logger.info('📊 Adding fallback symbols from database...');
-    marketData.forEach(d => {
-      // Skip if we already have this symbol from discovery
-      if (!combinedData.some(gem => gem.symbol === d.symbol)) {
-        combinedData.push(d);
-      }
-    });
+  // 🎯 CURATED CORE — discovery is only ever Yahoo's screener output for the day
+  // (most_actives / gainers / losers). A liquid name that is moving but misses
+  // those lists was never a candidate at all: MARA on a crypto-miner day, META on
+  // a 1% day. The `marketData` fallback below could not rescue them either,
+  // because getAllMarketData() returns an empty table — so the pool was 100%
+  // screener output. Quote the curated watchlist every run instead, and let those
+  // names compete on the same gem score as a discovered gem. This is deliberately
+  // the ~50-name PREMIUM_WATCHLIST, not the full universe: a board built from
+  // hundreds of unrelated tickers has no edge.
+  const discoveredSymbols = new Set(
+    [...discoveredStockData, ...discoveredCryptoData].map(d => d.symbol.toUpperCase())
+  );
+  // The operator's own names go in alongside the platform's premium list. Deduped
+  // because the two overlap (MARA, ARM, TSLA, PLTR, AMD are on both).
+  // Sector-neighborhood expansion: the operator's core list defines which
+  // universe buckets they actually trade -- when three or more core names live
+  // in a bucket (optics, semiconductors, ...), the WHOLE bucket joins the scan
+  // pool. COHR sat one bucket over from LITE and had never been evaluated once:
+  // the generator's only eyes were Yahoo's meme-tilted screeners plus 58
+  // curated names, so entire neighborhoods the operator trades were invisible.
+  const { getSectorTickers } = await import('./ticker-universe');
+  const SECTOR_SLUGS = ['tech', 'financials', 'healthcare', 'industrials', 'consumer', 'energy', 'utilities', 'communication', 'quantum', 'nuclear', 'ai', 'space', 'ev', 'crypto', 'semiconductors', 'optics', 'defense', 'gaming', 'ecommerce', 'banks', 'telecom', 'media'];
+  const coreSet = new Set(USER_CORE_WATCHLIST.map(x => x.toUpperCase()));
+  const neighborhood: string[] = [];
+  for (const slug of SECTOR_SLUGS) {
+    const bucket = getSectorTickers(slug).map(t => t.toUpperCase());
+    const overlap = bucket.filter(t => coreSet.has(t)).length;
+    if (overlap >= 3) neighborhood.push(...bucket);
   }
+  // Universal coverage: the pattern engine sweeps the FULL universe on real
+  // OHLC and its hits join the scan pool — a name nobody listed (ABBV's
+  // four-day coil) still reaches the funnel the day it prints a pattern.
+  // Detection seeds candidacy; every gate and filter still applies.
+  let patternSymbols: string[] = [];
+  try {
+    const { getPatternHits } = await import('./pattern-engine');
+    // The 2000-name sweep produces ~1700 hits; the pool injection takes the
+    // directional ones (flags, coils, breakout watches — core names first,
+    // then by liquidity rank) and leaves bare NR7 compressions to the radar.
+    // Loose flags are excluded from pool injection outright — Bulkowski's
+    // measured record puts them at a coin flip, and the pool is for candidates
+    // with a directional claim worth testing.
+    const hits = getPatternHits().hits.filter((h) => h.pattern !== 'nr7' && h.quality !== 'loose');
+    const ordered = [...hits.filter((h) => h.core), ...hits.filter((h) => !h.core)];
+    patternSymbols = Array.from(new Set(ordered.map((h) => h.symbol))).slice(0, 80);
+  } catch { /* engine not warmed yet — pool unchanged */ }
+  // Flow prints seed candidacy the same way pattern hits do: aggregate the
+  // session's tape once per batch, and any name with a QUALIFYING one-sided
+  // tape joins the pool even if no list ever mentioned it — a $2M print on an
+  // unlisted name deserves a scan, not a display panel.
+  await buildBreakoutSet();
+  let flowSymbols: string[] = [];
+  try {
+    const { getTodayFlows } = await import('./options-flow-scanner');
+    buildFlowAggregates(getTodayFlows() as any);
+    flowSymbols = Array.from(flowAggBySymbol.keys()).filter((s) => flowConvictionFor(s) != null).slice(0, 40);
+    if (flowSymbols.length) logger.info(`  ✓ Flow conviction: ${flowSymbols.length} name(s) with a qualifying one-sided tape — ${flowSymbols.slice(0, 8).join(', ')}${flowSymbols.length > 8 ? '…' : ''}`);
+  } catch { /* scanner not warmed — pool unchanged */ }
+  // Whole-market movers from the liquid universe (top-2000 by dollar volume):
+  // the SNDK-class runners no curated list contained. Real day-over-day change
+  // from grouped session data — zero extra quota, and every gate still applies.
+  let moverSymbols: string[] = [];
+  try {
+    const { getLiquidMovers } = await import('./liquid-universe');
+    moverSymbols = getLiquidMovers(3, 50e6, 60).map((m) => m.symbol);
+    if (moverSymbols.length) logger.info(`  ✓ Liquid movers: ${moverSymbols.length} whole-market name(s) moving ≥3% on ≥$50M/day — ${moverSymbols.slice(0, 8).join(', ')}${moverSymbols.length > 8 ? '…' : ''}`);
+  } catch { /* universe cold — pool unchanged */ }
+  const curated = Array.from(new Set([...PREMIUM_WATCHLIST, ...USER_CORE_WATCHLIST, ...neighborhood, ...patternSymbols, ...flowSymbols, ...moverSymbols].map(x => x.toUpperCase())));
+  logger.info(`  \u2713 Scan pool: ${curated.length} names (core+premium plus ${new Set(neighborhood).size} sector-neighborhood names from the operator's own buckets)`);
+  const coreSymbols = curated.filter(s => !discoveredSymbols.has(s));
+  const coreData: MarketData[] = [];
+  // NOT gated on marketOpen. Screener-based discovery genuinely needs a live
+  // session — a day-gainers list is meaningless at 8pm — but the curated list is
+  // fixed, its quotes resolve after hours, and Massive serves 5y of history
+  // regardless. Gating it meant the entire stock universe was empty outside cash
+  // hours: a 20:28 run produced 15 candidates, all crypto, and zero ideas. That
+  // is precisely when a board gets built for the next session.
+  if (coreSymbols.length > 0) {
+    try {
+      const { getRealtimeBatchQuotes } = await import('./realtime-pricing-service');
+      const coreQuotes = await getRealtimeBatchQuotes(
+        coreSymbols.map(symbol => ({ symbol, assetType: 'stock' as const }))
+      );
+      // Real 20d average volume unlocks the volume-gated signals (VWAP flow,
+      // volume spike) for watchlist names — until now avgVolume was null here,
+      // so the entire curated path could only ever qualify via RSI(2).
+      const avgVols = await getAvgVolumes20d(Array.from(coreQuotes.keys()));
+      coreQuotes.forEach((q, symbol) => {
+        if (!Number.isFinite(q.price) || q.price <= 0) return;
+        coreData.push({
+          id: `core-${symbol}`,
+          symbol,
+          assetType: q.price < 5 ? 'penny_stock' : 'stock',
+          currentPrice: q.price,
+          changePercent: Number.isFinite(q.changePercent) ? q.changePercent : 0,
+          volume: Number.isFinite(q.volume) ? q.volume : 0,
+          marketCap: null,
+          session: 'rth' as const,
+          timestamp: now.toISOString(),
+          high24h: null,
+          low24h: null,
+          high52Week: null,
+          low52Week: null,
+          // Real 20d average from completed daily bars, or null when history is
+          // unavailable — null still scores 0: unavailable stays unearned.
+          avgVolume: avgVols.get(symbol) ?? null,
+          dataSource: 'live' as const,
+          lastUpdated: now.toISOString(),
+        });
+      });
+      logger.info(`  ✓ Curated core: ${coreData.length}/${coreSymbols.length} watchlist names quoted`);
+    } catch (err) {
+      logger.warn('  ⚠️  Curated core quotes failed; continuing with discovery only:', err);
+    }
+  }
+
+  // BTC's own session move, fetched once. Short discipline needs it to decide
+  // whether a bearish call on a miner is following bitcoin or fighting it.
+  let btcChangePercent: number | null = null;
+  try {
+    const btc = await fetchCryptoPrice('BTC');
+    if (btc && Number.isFinite(btc.changePercent)) btcChangePercent = btc.changePercent;
+  } catch {
+    /* leave null — discipline treats unknown as "not a breakdown" */
+  }
+  logger.info(`  ✓ BTC reference: ${btcChangePercent === null ? 'unknown' : `${btcChangePercent >= 0 ? '+' : ''}${btcChangePercent.toFixed(2)}%`}`);
+
+  const totalPennyStocks = discoveredStockData.filter(d => d.assetType === 'penny_stock').length;
+  logger.info(`💎 Using ${discoveredStockData.length} discovered stocks (${totalPennyStocks} penny stocks <$5) + ${discoveredCryptoData.length} discovered cryptos + ${coreData.length} curated core`);
+
+  const combinedData = [...discoveredStockData, ...discoveredCryptoData, ...coreData];
+
+  // Persisted market_data rows, when the table is populated, are additive.
+  marketData.forEach(d => {
+    if (!combinedData.some(gem => gem.symbol === d.symbol)) {
+      combinedData.push(d);
+    }
+  });
 
   // Separate by asset type for balanced iteration
   const stockData = combinedData.filter(d => d.assetType === 'stock').sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
@@ -981,7 +1450,8 @@ export async function generateQuantIdeas(
     noSignal: 0,
     lowQuality: 0,
     quotaFull: 0,
-    chartRejected: 0
+    chartRejected: 0,
+    shortDisciplineRejected: 0
   };
 
   // Analyze each market data point
@@ -1027,6 +1497,47 @@ export async function generateQuantIdeas(
       };
       // Determine option type based on ORIGINAL signal direction
       initialOptionType = signal.direction === 'long' ? 'call' : 'put';
+    }
+
+    // 🚫 SHORT DISCIPLINE — bearish intent needs a reason that is not the chart.
+    // Test the ORIGINAL signal, not normalizedSignal: an option idea has already
+    // had its direction rewritten to 'long' above, with the bearish view carried
+    // by optionType 'put'. Checking only `direction === 'short'` would wave every
+    // bearish put through.
+    const isBearishIdea = signal.direction === 'short' || initialOptionType === 'put';
+    if (isBearishIdea) {
+      // A real dated event, not generateCatalyst()'s prose — that function always
+      // returns a string, so a non-empty catalyst proves nothing.
+      const hasEventCatalyst = catalysts.some(
+        c => c.symbol?.toUpperCase() === data.symbol.toUpperCase()
+          // A mention is not an event — only impact:'high' rows qualify
+          // (earnings/FDA/M&A/guidance on the name itself, not a roundup).
+          && isSubstantiveEventCatalyst(c as any)
+      );
+      if (!passesShortDiscipline({
+        symbol: data.symbol,
+        direction: 'short',
+        hasEventCatalyst,
+        btcChangePercent,
+      })) {
+        dataQuality.shortDisciplineRejected++;
+        // Shadow-track the block with real levels so the ledger can replay it —
+        // the gate is measured, not exempt. Levels computed only on this doomed
+        // path; the published path computes its own below.
+        try {
+          const shadowLevels = calculateLevels(data, normalizedSignal, data.assetType, initialOptionType, historicalPrices);
+          const { recordBlockedShort } = await import('./discipline-ledger');
+          void recordBlockedShort({
+            symbol: data.symbol,
+            entryPrice: Number(shadowLevels.entryPrice) || 0,
+            stopLoss: Number(shadowLevels.stopLoss) || 0,
+            targetPrice: Number(shadowLevels.targetPrice) || 0,
+            reason: 'short without an event catalyst — technical pattern only',
+            source: 'quant',
+          });
+        } catch { /* ledger never blocks generation */ }
+        continue;
+      }
     }
 
     let levels = calculateLevels(data, normalizedSignal, data.assetType, initialOptionType, historicalPrices);
@@ -1093,7 +1604,7 @@ export async function generateQuantIdeas(
     }
 
     // 3. Volume must meet asset-specific thresholds
-    const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
+    const volumeRatio = sessionVolumeRatio(data.volume, data.avgVolume);
     // v3.5: RELAXED volume filter to allow more trades (was 1.0x for stocks)
     const minVolume = data.assetType === 'crypto' ? 0.3 : 0.5; // Allow lower volume
     if (volumeRatio < minVolume) {
@@ -1559,6 +2070,7 @@ export async function generateQuantIdeas(
   logger.info(`   ❌ Low quality (filters): ${dataQuality.lowQuality}`);
   logger.info(`   📈 Chart rejected: ${dataQuality.chartRejected}`);
   logger.info(`   ⛔ Quota full (rejected): ${dataQuality.quotaFull}`);
+  logger.info(`   🚫 Shorts rejected (no catalyst / BTC proxy): ${dataQuality.shortDisciplineRejected}`);
   logger.info(`   ✅ Ideas generated: ${ideas.length}`);
   
   // Warn if target distribution was not met
@@ -1584,6 +2096,10 @@ export async function generateQuantIdeas(
       const catalystDate = new Date(c.timestamp);
       return catalystDate >= now || (now.getTime() - catalystDate.getTime()) < 24 * 60 * 60 * 1000;
     });
+  // One catalyst idea per symbol per batch — three NVDA articles are one
+  // thesis, not three trades; the DB duplicate check runs before any save so a
+  // single batch could triple itself.
+  const catalystBatchSymbols = new Set<string>();
 
     for (const catalyst of recentCatalysts) {
       if (ideas.length >= count) break;
@@ -1594,6 +2110,20 @@ export async function generateQuantIdeas(
 
       const isPositiveCatalyst = catalyst.impact === 'high' || catalyst.eventType === 'earnings';
       const direction: 'long' | 'short' = isPositiveCatalyst ? 'long' : 'short';
+
+      // This branch used to short anything whose catalyst was merely not high-impact
+      // — the absence of good news is not a bearish thesis. A BTC proxy in
+      // particular follows bitcoin, not a low-impact headline.
+      if (direction === 'short' && !passesShortDiscipline({
+        symbol: catalyst.symbol,
+        direction: 'short',
+        // The event exists (we are iterating catalysts), but a low-impact one is
+        // not a reason to be short on its own.
+        hasEventCatalyst: catalyst.impact === 'medium' || catalyst.impact === 'high',
+        btcChangePercent,
+      })) {
+        continue;
+      }
       
       // Apply asset-type-specific targets (stocks: 8%, crypto: 12%, options: 25%)
       const assetMultiplier = symbolData.assetType === 'crypto' ? 1.5 :
@@ -1641,11 +2171,24 @@ export async function generateQuantIdeas(
       );
       const probabilityBand = getProbabilityBand(confidenceScore);
 
-      // Skip if below quality threshold - STRICT A minimum (90+) for ALL ideas (v2.3.0+)
-      if (confidenceScore < 90) {
-        logger.info(`Filtered out catalyst idea for ${catalyst.symbol} - below A grade threshold (score: ${confidenceScore})`);
+      // The old floor here was 90 -- set in v2.3.0 when scores ran high, then
+      // v3.4 recalibrated base scores DOWN to ~45-65 and nobody moved the bar.
+      // A 90-floor on a 50-point scale sealed this entire path: no catalyst-
+      // driven idea has published since the recalibration ('score: 45' filtered
+      // hundreds of times). Floor is now 50, which is not arbitrary: the signal
+      // scores 'strong'(50) only when catalyst.impact === 'high' -- so this
+      // publishes exactly the impact:high-backed ideas, the platform's standing
+      // catalyst bar, and nothing weaker. They arrive as C-band with honest
+      // labels and earn their cohort record like every other template.
+      if (confidenceScore < 50) {
+        logger.info(`Filtered out catalyst idea for ${catalyst.symbol} - below impact:high bar (score: ${confidenceScore})`);
         continue;
       }
+      // Distinct cohort label -- without it these rode in the volume-spike
+      // cohort and neither path could be measured on its own.
+      qualitySignals.push('Catalyst-Driven (news)');
+      if (catalystBatchSymbols.has(catalyst.symbol.toUpperCase())) continue;
+      catalystBatchSymbols.add(catalyst.symbol.toUpperCase());
 
       // Check for duplicate ideas before creating
       if (storage) {
@@ -1707,4 +2250,162 @@ export async function generateQuantIdeas(
   }
 
   return ideas;
+}
+
+// ─── ON-DEMAND: any searched symbol through the SAME engine ─────────────────
+// The operator's rule, verbatim: "anyone I search can go through the engine —
+// it just doesn't need to trigger except it finds one." This runs the exact
+// per-symbol pipeline the 15-minute publisher runs — same detectors, same
+// short gate, same levels, same scoring — for ONE name, on demand from the
+// workup. A found setup publishes into the cockpit book like any other idea;
+// a quiet chart returns an honest "no setup" with what was checked.
+export async function analyzeSymbolOnDemand(
+  symbol: string,
+  storage: { createTradeIdea: (i: any) => Promise<any>; getActiveCatalysts: () => Promise<Catalyst[]> },
+): Promise<{
+  found: boolean;
+  published?: boolean;
+  blocked?: string;
+  idea?: { symbol: string; direction: string; signal: string; score: number; entryPrice: number; targetPrice: number; stopLoss: number; riskRewardRatio: number; analysis: string };
+  checked: string[];
+  reason?: string;
+}> {
+  const sym = symbol.toUpperCase();
+  const checked = ['gap continuation', 'flow conviction', 'inside coil', 'RSI(2) reversion', 'VWAP flow', 'volume spike'];
+
+  // Live quote + 20d average volume (which also warms the coil-bar cache).
+  const { getRealtimeQuote } = await import('./realtime-pricing-service');
+  const quote: any = await getRealtimeQuote(sym, 'stock');
+  if (!quote || !Number.isFinite(quote.price) || quote.price <= 0) {
+    return { found: false, checked, reason: 'no live quote for this symbol' };
+  }
+  const avgVols = await getAvgVolumes20d([sym]);
+
+  // Session flow aggregates so flow_conviction can fire on demand too.
+  try {
+    const { getTodayFlows } = await import('./options-flow-scanner');
+    buildFlowAggregates(getTodayFlows() as any);
+  } catch { /* scanner cold — the other detectors still run */ }
+  await buildBreakoutSet();
+
+  const now = new Date();
+  const data: MarketData = {
+    id: `ondemand-${sym}`,
+    symbol: sym,
+    assetType: quote.price < 5 ? 'penny_stock' : 'stock',
+    currentPrice: quote.price,
+    priceChange: quote.change ?? null,
+    changePercent: Number.isFinite(quote.changePercent) ? quote.changePercent : 0,
+    volume: quote.volume ?? 0,
+    marketCap: null,
+    session: 'rth' as const,
+    timestamp: now.toISOString(),
+    high24h: null, low24h: null, high52Week: null, low52Week: null,
+    avgVolume: avgVols.get(sym) ?? null,
+    dataSource: 'live' as const,
+    lastUpdated: now.toISOString(),
+  } as any;
+
+  const historicalPrices = await fetchHistoricalPrices(sym, data.assetType, 60, process.env.ALPHA_VANTAGE_API_KEY);
+  if (historicalPrices.length === 0) {
+    return { found: false, checked, reason: 'no historical data — engine cannot analyze' };
+  }
+
+  const signal = analyzeMarketData(data, historicalPrices);
+  if (!signal) {
+    return { found: false, checked, reason: 'engine ran every detector — no qualifying setup on this chart right now' };
+  }
+
+  // Same short gate the publisher applies — with the same shadow-ledger record.
+  const catalysts = await storage.getActiveCatalysts().catch(() => [] as Catalyst[]);
+  if (signal.direction === 'short') {
+    const hasEventCatalyst = catalysts.some(
+      (c) => c.symbol?.toUpperCase() === sym && isSubstantiveEventCatalyst(c as any),
+    );
+    let btcChangePercent: number | null = null;
+    try {
+      const btc = await fetchCryptoPrice('BTC');
+      if (btc && Number.isFinite(btc.changePercent)) btcChangePercent = btc.changePercent;
+    } catch { /* unknown is not a breakdown */ }
+    if (!passesShortDiscipline({ symbol: sym, direction: 'short', hasEventCatalyst, btcChangePercent })) {
+      try {
+        const levels = calculateLevels(data, signal, data.assetType, undefined, historicalPrices);
+        const { recordBlockedShort } = await import('./discipline-ledger');
+        void recordBlockedShort({
+          symbol: sym,
+          entryPrice: Number(levels.entryPrice) || 0,
+          stopLoss: Number(levels.stopLoss) || 0,
+          targetPrice: Number(levels.targetPrice) || 0,
+          reason: 'short without an event catalyst — technical pattern only',
+          source: 'quant',
+        });
+      } catch { /* ledger never blocks */ }
+      return {
+        found: true,
+        blocked: `engine found a ${signal.type.replace(/_/g, ' ')} SHORT — blocked by the discipline gate (no event catalyst); recorded to the shadow ledger`,
+        checked,
+      };
+    }
+  }
+
+  const levels = calculateLevels(data, signal, data.assetType, undefined, historicalPrices);
+  if (levels.targetPrice == null) {
+    return { found: true, published: false, checked, reason: `engine found a ${signal.type.replace(/_/g, ' ')} but the chart offers no reachable target — coverage only, nothing published` };
+  }
+  const target = levels.targetPrice;
+  const riskDistance = Math.abs(levels.entryPrice - levels.stopLoss);
+  const rewardDistance = Math.abs(target - levels.entryPrice);
+  let riskRewardRatio = riskDistance > 0 ? rewardDistance / riskDistance : 0;
+  if (!isFinite(riskRewardRatio) || isNaN(riskRewardRatio)) riskRewardRatio = 0;
+  riskRewardRatio = Math.min(riskRewardRatio, 99.9);
+
+  const { score, signals: qualitySignals } = calculateConfidenceScore(data, signal, riskRewardRatio);
+  const analysis = generateAnalysis(data, signal);
+  const catalystText = generateCatalyst(data, signal, catalysts);
+
+  const result = {
+    symbol: sym,
+    direction: signal.direction as string,
+    signal: signal.type.replace(/_/g, ' '),
+    score: Math.round(score),
+    entryPrice: levels.entryPrice,
+    targetPrice: target,
+    stopLoss: levels.stopLoss,
+    riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+    analysis,
+  };
+
+  // Publish into the SAME book the cron publishes to. R:R floor matches the
+  // publisher's bar; below it the setup is reported but not published.
+  if (riskRewardRatio < 1.5) {
+    return { found: true, published: false, idea: result, checked, reason: `R:R ${riskRewardRatio.toFixed(1)} below the 1.5 publish floor — reported, not published` };
+  }
+
+  const idea: InsertTradeIdea = {
+    symbol: sym,
+    assetType: data.assetType,
+    direction: signal.direction,
+    holdingPeriod: 'swing',
+    entryPrice: levels.entryPrice,
+    targetPrice: target,
+    stopLoss: levels.stopLoss,
+    riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+    catalyst: catalystText,
+    analysis: `${analysis} (Analyzed on demand from the workup — same engine, same gates.)`,
+    timestamp: now.toISOString(),
+    liquidityWarning: levels.entryPrice < 5,
+    source: 'quant',
+    confidenceScore: Math.round(score),
+    qualitySignals,
+    engineVersion: QUANT_ENGINE_VERSION,
+    generationTimestamp: now.toISOString(),
+  } as InsertTradeIdea;
+
+  await storage.createTradeIdea({ ...idea, status: 'published' });
+  try {
+    const { pulse } = await import('./system-pulse');
+    pulse('quant', `on-demand: ${sym} ${signal.direction.toUpperCase()} ${signal.type.replace(/_/g, ' ')} published from the workup (score ${Math.round(score)})`);
+  } catch { /* decoration */ }
+
+  return { found: true, published: true, idea: result, checked };
 }

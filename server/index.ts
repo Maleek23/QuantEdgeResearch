@@ -17,6 +17,13 @@ import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligen
 import { initializeRealtimePrices, getRealtimeStatus } from "./realtime-price-service";
 import { initializeBotNotificationService } from "./bot-notification-service";
 import { initializeWeeklyTracker } from "./weekly-tracker";
+import { reconcileOpenPaperExecutions, repairImpossibleRecentOutcomes, observeTriggeredIdeas, expireStaleIdeas } from "./oracle-lifecycle-reconciler";
+import { acquireSchedulerLock, releaseSchedulerLock } from "./scheduler-lock";
+
+/** Thrown to skip a leader-only block without dressing it up as an error. */
+class SkipOnFollower extends Error {
+  constructor() { super("follower — skipped"); this.name = "SkipOnFollower"; }
+}
 import { securityHeaders } from "./security";
 import { csrfMiddleware, validateCSRF } from "./csrf";
 
@@ -38,7 +45,11 @@ app.use(compression({
 app.get("/health", (req: Request, res: Response) => {
   const realtimeStatus = getRealtimeStatus();
   const overallStatus = realtimeStatus.isHealthy ? "OK" : "DEGRADED";
-  res.status(realtimeStatus.isHealthy ? 200 : 503).json({
+  // This is a liveness endpoint, not a claim that every market-data vendor is
+  // available. Returning 503 here made the preview/deployment layer treat a
+  // fully serving terminal as offline whenever one optional stock feed was
+  // degraded. The payload still exposes the source-quality truth to clients.
+  res.status(200).json({
     status: overallStatus,
     timestamp: new Date().toISOString(),
     realtimePrices: realtimeStatus,
@@ -133,6 +144,148 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
 
+    /**
+     * Decide leadership BEFORE anything schedules or reconciles.
+     *
+     * Every background job below writes to one shared database. A second
+     * process running them — a rolling-deploy overlap, a second instance, an
+     * orphaned `tsx watch` — publishes the same signals twice, and two
+     * processes racing the ingestion dedup both see "no existing row" and both
+     * insert. Followers serve HTTP and nothing else.
+     *
+     * See server/scheduler-lock.ts. A single-instance deployment is unaffected:
+     * it simply wins the lock.
+     */
+    const isLeader = await acquireSchedulerLock();
+    if (!isLeader) {
+      log('👥 Follower instance — serving HTTP only, background jobs belong to the leader');
+    }
+
+    // Make the execution ledger authoritative before any price validator runs.
+    // A paper position proves a fill; a published signal alone never does.
+    // Leader-only: these mutate shared rows, so two processes doing it race.
+    try {
+      if (!isLeader) throw new SkipOnFollower();
+      await reconcileOpenPaperExecutions();
+      await repairImpossibleRecentOutcomes();
+      await observeTriggeredIdeas();
+      // Retire ideas past their own stated horizon — see expireStaleIdeas.
+      await expireStaleIdeas();
+    } catch (error) {
+      if (!(error instanceof SkipOnFollower)) {
+        logger.error("[ORACLE LIFECYCLE] Execution reconciliation failed", error);
+      }
+    }
+
+    // News → catalysts. The catalysts table this fills had ZERO rows, which made
+    // hasEventCatalyst permanently false, left short-discipline unable to ever
+    // see the event a short requires, and gave the convictions catalyst layer
+    // nothing to score. The platform's own catalyst producer writes a different
+    // table (catalyst_events) than the one consumers read, so it could never
+    // fill. Massive's ticker-news endpoint is on the free tier and carries
+    // per-ticker sentiment. Runs every 30 minutes on weekdays.
+    try {
+      const newsCron = await import('./guarded-cron');
+      const runNewsIngest = async () => {
+        try {
+          const { ingestNewsCatalysts } = await import('./polygon-news-service');
+          const { USER_CORE_WATCHLIST, PREMIUM_WATCHLIST } = await import('./ticker-universe');
+          // Free tier is ~5 req/min, so take a rotating slice rather than the
+          // whole list on every pass. LIQUID MOVERS join the pool: without
+          // them, impact:high rows were never written for ~1,900 of the 2,000
+          // universe names, so the short gate could NEVER open on them — a
+          // legitimate post-event short on an unlisted name was blocked
+          // forever, not until its event landed. Movers are exactly where
+          // events live, so they earn the news slots first.
+          let moverSyms: string[] = [];
+          try {
+            const { getLiquidMovers } = await import('./liquid-universe');
+            moverSyms = getLiquidMovers(4, 100e6, 24).map((m) => m.symbol);
+          } catch { /* universe cold — curated pool alone */ }
+          const pool = Array.from(new Set([...moverSyms, ...USER_CORE_WATCHLIST, ...PREMIUM_WATCHLIST]));
+          const slice = 12;
+          const offset = Math.floor(Date.now() / (30 * 60 * 1000)) % Math.max(1, Math.ceil(pool.length / slice));
+          await ingestNewsCatalysts(pool.slice(offset * slice, offset * slice + slice));
+        } catch (error) {
+          logger.error('[NEWS] catalyst ingest failed', error);
+        }
+      };
+      void runNewsIngest();
+      newsCron.default.schedule('*/30 * * * 1-5', () => { void runNewsIngest(); });
+      log('📰 News catalyst ingest started — rotating watchlist slice every 30 min');
+
+      // Liquid universe — top-2000 by dollar volume from ONE grouped-daily
+      // call. Disk snapshot loads immediately so a restart isn't blind; the
+      // fresh warm lands before the first pattern sweep, and a daily refresh
+      // keeps the ranking current. The operator's rule: top-2000, everywhere.
+      void import('./liquid-universe').then(async (lu) => {
+        await lu.loadLiquidUniverseFromDisk();
+        setTimeout(() => { void lu.warmLiquidUniverse(); }, 45 * 1000);
+        setInterval(() => { void lu.warmLiquidUniverse(); }, 24 * 60 * 60 * 1000);
+      }).catch(() => {});
+      void import('./system-pulse').then((sp) => sp.pulse('system', 'engines online — publisher, pattern sweep, flow scan, bot, alerts all scheduled')).catch(() => {});
+
+      // Full-universe pattern sweep — daily bars, so twice a day is plenty.
+      // First sweep 3 min after boot (let quotes/candles warm), then every 12h.
+      setTimeout(() => {
+        void import('./pattern-engine').then(m => m.scanUniversePatterns()).catch(() => {});
+      }, 3 * 60 * 1000);
+      setInterval(() => {
+        void import('./pattern-engine').then(m => m.scanUniversePatterns()).catch(() => {});
+      }, 12 * 60 * 60 * 1000);
+      log('📐 Pattern engine scheduled — full-universe sweep on real OHLC');
+
+      // Level-cross alert sweep — every 3 min during cash hours. Quotes come
+      // from the same realtime service everything else uses; a cross fires
+      // once and converts to triggered.
+      setInterval(() => {
+        const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const mins = et.getHours() * 60 + et.getMinutes();
+        const wd = et.getDay();
+        if (wd === 0 || wd === 6 || mins < 9 * 60 + 30 || mins > 16 * 60) return;
+        void import('./price-alerts').then(m => m.checkAlerts()).catch(() => {});
+      }, 3 * 60 * 1000);
+      log('🔔 Level-cross alert sweep scheduled (3m, cash hours)');
+    } catch (error) {
+      logger.error('[NEWS] could not schedule catalyst ingest', error);
+    }
+
+    // The economic calendar was a hand-typed array whose last entry was
+    // 2026-04-10, so the cash gate had run blind since April. FRED publishes
+    // forward release dates for CPI, payrolls, PCE, PPI, GDP, retail sales,
+    // JOLTS and industrial production, free and public-domain. Warm it at boot
+    // and refresh twice a day — release schedules move rarely, and the fetch
+    // falls back to the curated array if it fails.
+    try {
+      const { refreshFredCalendar } = await import('./economic-calendar');
+      await refreshFredCalendar(true);
+      const econCron = await import('./guarded-cron');
+      econCron.default.schedule('0 5,17 * * *', () => {
+        void refreshFredCalendar(true).catch((error) =>
+          logger.error('[ECON-CAL] scheduled FRED refresh failed', error));
+      });
+    } catch (error) {
+      logger.error('[ECON-CAL] FRED calendar init failed — curated calendar remains in use', error);
+    }
+
+    // A trigger is only useful if it is noticed while it matters. Every two
+    // minutes on weekdays, compare open setups against live price and advance
+    // the ones whose entry has actually traded.
+    try {
+      const triggerCron = await import('./guarded-cron');
+      triggerCron.default.schedule('*/2 * * * 1-5', async () => {
+        try {
+          await observeTriggeredIdeas();
+          await expireStaleIdeas();
+        } catch (error) {
+          logger.error("[ORACLE LIFECYCLE] Trigger observation failed", error);
+        }
+      });
+      log('🎯 Trigger observer started — open setups checked against live price every 2 min');
+    } catch (error) {
+      logger.error("[ORACLE LIFECYCLE] Could not schedule trigger observer", error);
+    }
+
     // ========================================================================
     // MARKET-HOURS-AWARE SERVICE MANAGEMENT
     // Problem: 20+ background services consume 2.2GB RAM + 118% CPU, blocking
@@ -176,18 +329,12 @@ app.use((req, res, next) => {
     startWatchlistMonitor(5);
     log('🔔 Watchlist Monitor started');
 
-    // GEX hub cache warm-up — fire-and-forget so the first /api/gex-vex/hub visit
-    // hits a warm cache instead of blocking on the 132-ticker scan. The scanner
-    // dedupes + caches internally and serves a CBOE fallback off-hours.
-    (async () => {
-      try {
-        const { scanWatchlistConfluence } = await import('./gex-vex-scanner');
-        await scanWatchlistConfluence({}); // kicks a background full scan
-        log('🔥 GEX hub cache warm-up triggered');
-      } catch (err) {
-        logger.error('[GEX-WARMUP] failed:', err);
-      }
-    })();
+    // Do not scan the full GEX universe at boot. It says "fire and forget",
+    // but 136 option-chain fetches still saturate Node's request work and make
+    // the Oracle board time out before its persisted signals can render. The
+    // GEX endpoint owns its own cache warm-up on first use; startup must make
+    // the actual terminal usable first, especially off-hours.
+    log('🧊 GEX universe warm-up deferred until the GEX view is requested');
 
     // ── Heavy services: ONLY during market hours ─────────────────────────
     // These 20+ services consume massive CPU/memory. They are pointless when
@@ -222,6 +369,7 @@ app.use((req, res, next) => {
         startBullishTrendScanner();
         log('📈 Bullish Trend Scanner started');
 
+
         const { startMorningPreviewScheduler } = await import('./morning-preview-service');
         startMorningPreviewScheduler();
         log('☀️ Morning Preview Scheduler started');
@@ -229,6 +377,13 @@ app.use((req, res, next) => {
         const { startIndexScalpScheduler } = await import('./index-scalp-engine');
         startIndexScalpScheduler();
         log('🎯 Index Scalp Scheduler started (SPX/SPY/QQQ/IWM 0DTE)');
+
+        // TSLA/NVDA/etc. are deliberately separate from the index scalp engine:
+        // they need a confirmed intraday price reversal plus a real liquid same-day
+        // contract, rather than an index gamma-level proxy.
+        const { startLiquidReversalPublisher } = await import('./liquid-reversal-publisher');
+        startLiquidReversalPublisher();
+        log('↩️ Liquid-name Reversal Publisher started (confirmed VWAP + real 0DTE contract)');
 
         const { startAttentionTrackingService } = await import('./attention-tracking-service');
         startAttentionTrackingService();
@@ -316,8 +471,76 @@ app.use((req, res, next) => {
       log('🌙 Heavy services will auto-start at 9:25 AM ET on next market day');
     }
 
+    // ── FLAG INGEST — bull + bear flag setups into the convictions feed ──
+    // Registered here, NOT inside startHeavyServices(), and deliberately not
+    // gated on market hours.
+    //
+    // Two separate reasons this was invisible before:
+    //   1. ingestBullFlagIdeas / ingestBearFlagIdeas are called only in
+    //      worker.ts, and `npm run dev` never starts that process.
+    //   2. Everything else here hangs off startHeavyServices(), which only runs
+    //      while the market is open — so on a weekend nothing even schedules.
+    //
+    // Symptom: a conviction board reading 40 LONG / 0 SHORT, which looks like a
+    // market read but is really "the only short-side source never runs". Called
+    // directly, bear-flag returned 20 setups (RBLX 92, QCOM 83, KLAC 80).
+    //
+    // Weekends are allowed on purpose. These scanners score DAILY bars — a bear
+    // flag is the same shape on Saturday as it was at Friday's close — so there
+    // is nothing about a closed market that makes the setup invalid. Blocking
+    // weekend generation only meant you could not prepare before Monday.
+    //
+    // Off in production, where worker.ts already schedules these: the ingestion
+    // dedupe cache is an in-process Map, so two processes would not dedupe
+    // against each other. This has to be either/or, never a race.
+    const FLAG_INGEST_IN_WEB =
+      process.env.FLAG_INGEST_IN_WEB === 'true' ||
+      (process.env.FLAG_INGEST_IN_WEB !== 'false' && process.env.NODE_ENV !== 'production');
+
+    if (FLAG_INGEST_IN_WEB) {
+      const flagCron = await import('./guarded-cron');
+
+      flagCron.default.schedule('5,35 * * * *', async () => {
+        try {
+          const { ingestBullFlagIdeas } = await import('./bull-flag-scanner');
+          const n = await ingestBullFlagIdeas();
+          if (n > 0) log(`🚩 Bull flag: ingested ${n}`);
+        } catch (e) { logger.error('Bull flag ingest failed', e as Error); }
+      });
+
+      flagCron.default.schedule('10,40 * * * *', async () => {
+        try {
+          const { ingestBearFlagIdeas } = await import('./bear-flag-scanner');
+          const n = await ingestBearFlagIdeas();
+          if (n > 0) log(`🐻 Bear flag: ingested ${n} — the short side of the board`);
+        } catch (e) { logger.error('Bear flag ingest failed', e as Error); }
+      });
+
+
+      /**
+       * Base reclaims — the setup a flag scanner structurally cannot see.
+       *
+       * A bull flag requires a strong prior leg UP, so every name that sold off
+       * hard and is now turning back up fails it by shape, not on merit. ORCL
+       * sat on the core watchlist with 180 sessions of bars and had produced
+       * zero ideas in the platform's history for exactly that reason.
+       * See server/base-reclaim-scanner.ts.
+       *
+       * Offset from the flag scans so the three sweeps do not collide.
+       */
+      flagCron.default.schedule('20,50 * * * *', async () => {
+        try {
+          const { ingestBaseReclaimIdeas } = await import('./base-reclaim-scanner');
+          const n = await ingestBaseReclaimIdeas();
+          if (n > 0) log(`🔄 Base reclaim: ingested ${n}`);
+        } catch (e) { logger.error('Base reclaim ingest failed', e as Error); }
+      });
+
+      log('🚩🐻🔄 Flag + base-reclaim ingest scheduled (weekends included — daily-bar setups do not expire at the close)');
+    }
+
     // ── Cron: Start heavy services at market open (9:25 AM ET weekdays) ──
-    const cron = await import('node-cron');
+    const cron = await import('./guarded-cron');
     cron.default.schedule('25 9 * * 1-5', () => {
       log('⏰ Market open cron triggered — starting heavy services...');
       startHeavyServices();
@@ -356,10 +579,16 @@ app.use((req, res, next) => {
     // At 4:10 PM ET, we gracefully exit. PM2 auto-restarts the process,
     // which comes back up in lightweight mode (no heavy services).
     cron.default.schedule('10 16 * * 1-5', () => {
+      const hasProcessSupervisor = Boolean(process.env.pm_id || process.env.PM2_HOME || process.env.RAILWAY_ENVIRONMENT);
+      if (!hasProcessSupervisor) {
+        log('🌙 Market closed — keeping local preview alive (no process supervisor detected).');
+        return;
+      }
       log('🌙 Market closed — restarting process to free memory...');
       // Stop SPX scanners gracefully first
       import('./spx-orb-scanner').then(m => m.stopORBScanner()).catch(() => {});
       import('./spx-session-scanner').then(m => m.stopSessionScanner()).catch(() => {});
+      import('./liquid-reversal-publisher').then(m => m.stopLiquidReversalPublisher()).catch(() => {});
       // Give 5s for graceful shutdown, then exit (PM2 will restart)
       setTimeout(() => {
         log('🔄 Exiting for PM2 restart (lightweight mode)...');
@@ -749,8 +978,8 @@ app.use((req, res, next) => {
     
     log('🔀 Hybrid Generator started - will generate ideas at 9:45 AM CT weekdays (15 min after AI/Quant)');
     
-    // Start automated quant idea generation (9:35 AM CT on weekdays - 5 min after AI)
-    let lastQuantRunDate: string | null = null;
+    // Rolling quant idea generation — every 15 minutes across the session.
+    let lastQuantRunAt = 0;
     let isQuantGenerating = false;
     
     cron.default.schedule('*/5 * * * *', async () => {
@@ -767,36 +996,40 @@ app.use((req, res, next) => {
         const dayOfWeek = nowCT.getDay();
         const dateKey = nowCT.toISOString().split('T')[0];
 
-        // DEVELOPMENT MODE: Allow weekend testing
-        // PRODUCTION MODE: Only weekdays
-        const isDevelopment = process.env.NODE_ENV !== 'production';
-        if (!isDevelopment && (dayOfWeek === 0 || dayOfWeek === 6)) {
+        // Saturday is the only dead zone; Sunday evening onward is next-session prep.
+        if (dayOfWeek === 6 || (dayOfWeek === 0 && hour < 15)) {
           return;
         }
 
-        // DEVELOPMENT MODE: Run every 30 minutes for testing
-        // PRODUCTION MODE: Run at 9:35 AM CT and 1:00 PM CT only
-        const isQuantTime = isDevelopment
-          ? (minute >= 0 && minute < 5) || (minute >= 30 && minute < 35) // Every 30 min in dev
-          : ((hour === 9 && minute >= 35 && minute < 40) || (hour === 13 && minute >= 0 && minute < 5)); // Scheduled times in prod
-
-        if (!isQuantTime) {
+        // ROLLING, not windowed. The windows (originally two, briefly four)
+        // existed because continuous generation once sprayed near-duplicates —
+        // a dedup problem treated as a cadence law. Dedup is real now
+        // (findSimilarTradeIdea, open-position skip, intra-batch symbol set),
+        // so time-gating is pure lag: the operator watched a 9:58 ET setup
+        // print +539% while the board waited for its 10:35 window. The
+        // publisher now sweeps every 15 minutes from 9:35 CT to 14:55 CT — and
+        // OFF-HOURS it keeps working at a 2-hour cadence ("signals can be
+        // generated overnight"): curated quotes resolve after hours, an
+        // after-hours earnings blast shows up in changePercent, and an
+        // overnight idea publishes as PENDING TRIGGER for the next session.
+        // Every gate (dedup, chase guard, short discipline) applies unchanged.
+        const sinceOpen = (hour > 9 || (hour === 9 && minute >= 35)) && (hour < 14 || (hour === 14 && minute <= 55));
+        const minGapMs = sinceOpen ? 14 * 60 * 1000 : 2 * 60 * 60 * 1000;
+        if (Date.now() - lastQuantRunAt < minGapMs) {
           return;
         }
-
-        // In production, only run morning session once per day
-        if (!isDevelopment && lastQuantRunDate === dateKey && hour === 9) {
-          return; // Already ran morning session today
+        if (!sinceOpen) {
+          logger.info('🌙 [QUANT-CRON] overnight prep sweep — next-session board, pending triggers');
         }
-        
+
         isQuantGenerating = true;
-        if (hour === 9) lastQuantRunDate = dateKey;
+        lastQuantRunAt = Date.now();
         
         logger.info(`📊 [QUANT-CRON] Starting automated quant generation at ${hour}:${minute.toString().padStart(2, '0')} CT`);
         
         const { generateQuantIdeas } = await import('./quant-ideas-generator');
         const marketData = await storage.getAllMarketData();
-        const catalysts = await storage.getAllCatalysts();
+        const catalysts = await storage.getActiveCatalysts();
         
         // Generate 10 quant ideas across different sectors
         const quantIdeas = await generateQuantIdeas(marketData, catalysts, 10, storage, true);
@@ -837,6 +1070,10 @@ app.use((req, res, next) => {
         
         if (savedIdeas.length > 0) {
           logger.info(`✅ [QUANT-CRON] Generated ${savedIdeas.length} quant trade ideas`);
+          try {
+            const { pulse } = await import('./system-pulse');
+            pulse('quant', `${sinceOpen ? 'sweep' : '🌙 overnight sweep'} published ${savedIdeas.length} idea(s): ${savedIdeas.slice(0, 5).map((s: any) => s.symbol).join(', ')}${savedIdeas.length > 5 ? '…' : ''}`);
+          } catch { /* pulse is decoration */ }
           const { sendBatchSummaryToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
           
           // 🚀 AUTO-EXECUTE: Actually enter trades, not just generate ideas!
@@ -910,12 +1147,13 @@ app.use((req, res, next) => {
     
     log('📊 Quant Generator started - will generate ideas at 9:35 AM CT + 1:00 PM CT weekdays');
     
-    // ONE-TIME STARTUP TRIGGER: Generate quant ideas immediately on server start
-    // DISABLED IN PRODUCTION to prevent memory exhaustion and rate limiting on Render
-    const SKIP_STARTUP_SCANS = process.env.NODE_ENV === 'production';
+    // The board is persisted. Starting a server is not evidence for a new trade,
+    // so startup never publishes another round of quant ideas. Use the explicit
+    // scanner endpoint when a deliberate manual scan is needed.
+    const SKIP_STARTUP_SCANS = true;
 
     if (SKIP_STARTUP_SCANS) {
-      logger.info('🚀 [QUANT-STARTUP] Skipping startup scans in production (memory optimization)');
+      logger.info('🚀 [QUANT-STARTUP] Skipping startup publication; persisted signals remain the source of truth');
     }
 
     (async () => {
@@ -927,7 +1165,7 @@ app.use((req, res, next) => {
         const { generateQuantIdeas } = await import('./quant-ideas-generator');
         const { storage: quantStorage } = await import('./storage');
         const marketData = await quantStorage.getAllMarketData();
-        const catalysts = await quantStorage.getAllCatalysts();
+        const catalysts = await quantStorage.getActiveCatalysts();
         
         // Generate 15 quant ideas across different sectors
         const quantIdeas = await generateQuantIdeas(marketData, catalysts, 15, quantStorage, true);
@@ -2021,3 +2259,17 @@ app.use((req, res, next) => {
 
   });
 })();
+
+/**
+ * Hand the scheduler lock back on a clean shutdown.
+ *
+ * Postgres releases a session advisory lock when the connection dies anyway, so
+ * this is not required for correctness — but on a rolling deploy it lets the
+ * incoming instance take over immediately instead of idling as a follower until
+ * the old connection is reaped.
+ */
+for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(sig, () => {
+    void releaseSchedulerLock().finally(() => process.exit(0));
+  });
+}

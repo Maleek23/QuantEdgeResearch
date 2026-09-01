@@ -72,7 +72,7 @@ export function RangeBar({
             </span>
           </>
         ) : (
-          <span className="text-muted-foreground/50">hover the bar to price it</span>
+          <span className="text-muted-foreground/60">hover the bar to price it</span>
         )}
       </div>
 
@@ -530,8 +530,12 @@ export function LiveValue({
     <span
       className={cn(
         'inline-block rounded-[3px] px-1 -mx-1 transition-colors duration-500 tabular-nums',
-        dir === 'up' && 'bg-emerald-500/20 text-emerald-300',
-        dir === 'down' && 'bg-rose-500/20 text-rose-300',
+        // Tokens, not raw Tailwind: a rising price must be the same green as a
+        // bullish badge, and emerald-300 is not --trade-bullish. This is the
+        // single most-repeated motion in the terminal, so a mismatch here reads
+        // as two different products.
+        dir === 'up' && 'bg-[color-mix(in_srgb,var(--trade-bullish)_20%,transparent)] text-[var(--trade-bullish)]',
+        dir === 'down' && 'bg-[color-mix(in_srgb,var(--trade-bearish)_20%,transparent)] text-[var(--trade-bearish)]',
         className,
       )}
       style={{ transitionDuration: dir ? '90ms' : `${flashMs}ms` }}
@@ -552,12 +556,14 @@ export function Heartbeat({
   label = 'LIVE',
   className,
 }: {
-  /** When the data last arrived. */
-  since: Date | number | null | undefined;
+  /** When the data last arrived. ISO string is the common case — every live
+   *  endpoint here returns one (generatedAt / asOf / calculatedAt / scannedAt). */
+  since: Date | number | string | null | undefined;
   staleAfterSec?: number;
   label?: string;
   className?: string;
 }) {
+  const reduced = usePrefersReducedMotion();
   const [, force] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => {
     const id = setInterval(force, 1000);
@@ -578,17 +584,19 @@ export function Heartbeat({
   return (
     <span className={cn('inline-flex items-center gap-1.5 text-[10px] tracking-wider', className)}>
       <span className="relative flex h-1.5 w-1.5">
-        {!stale && (
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+        {/* The ping is the one looping animation allowed on a data surface, because
+            it encodes freshness rather than decorating it. It still stops under
+            prefers-reduced-motion — the dot colour and the counting age already
+            carry the whole meaning, so nothing is lost by dropping the pulse. */}
+        {!stale && !reduced && (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-70" style={{ background: 'var(--trade-bullish)' }} />
         )}
         <span
-          className={cn(
-            'relative inline-flex h-1.5 w-1.5 rounded-full',
-            dead ? 'bg-rose-500' : stale ? 'bg-amber-400' : 'bg-emerald-400',
-          )}
+          className="relative inline-flex h-1.5 w-1.5 rounded-full"
+          style={{ background: dead ? 'var(--trade-bearish)' : stale ? 'var(--brand-gold)' : 'var(--trade-bullish)' }}
         />
       </span>
-      <span className={cn(dead ? 'text-rose-400' : stale ? 'text-amber-400' : 'text-emerald-400')}>
+      <span style={{ color: dead ? 'var(--trade-bearish)' : stale ? 'var(--brand-gold)' : 'var(--trade-bullish)' }}>
         {label}
       </span>
       <span className="text-muted-foreground/70">{age}</span>

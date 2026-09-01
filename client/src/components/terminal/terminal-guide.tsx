@@ -9,7 +9,13 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { EASE, DUR } from '@/lib/motion';
 
-export type TabId = 'oracle' | 'flow' | 'heatmap' | 'gex' | 'prism' | 'catalyst' | 'bot';
+/**
+ * Mirrors the Tab union in pages/shells/terminal-shell.tsx. It had already drifted —
+ * still listing 'heatmap' and 'prism' after both were folded into GEX — which is what
+ * a second copy of a type always does eventually. Kept in sync by hand for now; the
+ * real fix is for the shell to export its Tab type and this to import it.
+ */
+export type TabId = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot';
 
 interface Guide {
   title: string;
@@ -31,6 +37,18 @@ export const GUIDES: Record<TabId, Guide> = {
     ],
     next: 'Confirm structure in GEX or PRISM before you size in.',
   },
+  chart: {
+    title: 'Chart Lab Guide',
+    question: 'Does price confirm the idea?',
+    read: [
+      'Search any ticker once. The same symbol follows you through Chart, Flow, GEX, LEAPS and Catalyst.',
+      'Candles are the execution view; line mode removes intrabar noise when you are reading longer structure.',
+      'Published Oracle entry, stop and T1 levels are fixed overlays. Live price moves; the original plan does not silently move with it.',
+      'Change timeframe before changing the thesis. A valid daily setup can look broken on five-minute noise, and an intraday trigger can disappear on a weekly chart.',
+      'No published signal means the chart remains research—not an invented trade plan.',
+    ],
+    next: 'Validate the same ticker against Flow and GEX, then return to Oracle for execution context.',
+  },
   flow: {
     title: 'Flow Guide',
     question: 'What is smart money doing?',
@@ -43,17 +61,6 @@ export const GUIDES: Record<TabId, Guide> = {
     ],
     next: 'Take a flow hit into PRISM to see whether the strike lines up with gamma.',
   },
-  heatmap: {
-    title: 'Heatmap Guide',
-    question: 'Where is money rotating?',
-    read: [
-      'Start the day here. Cells are sized by market cap and colored by change, so leadership is visible at a glance.',
-      'Read the best performers to see which industries are leading, and the weakest to see what is under pressure.',
-      'Ask one question: is the market trending, rotating, or reversing? That decides continuation vs reversal setups.',
-      'Re-check during the session — leadership changes, and rotation mid-day changes the plan.',
-    ],
-    next: 'Once you know the leading sector, go to FLOW to see where the premium is going.',
-  },
   gex: {
     title: 'GEX Guide',
     question: 'Where does price pin or push?',
@@ -65,17 +72,27 @@ export const GUIDES: Record<TabId, Guide> = {
     ],
     next: 'Use these levels as targets and invalidation on the chart in ORACLE.',
   },
-  prism: {
-    title: 'Prism Guide',
-    question: 'What does the whole options surface say?',
+  leaps: {
+    title: 'LEAPS Guide',
+    question: 'What is worth owning for the next year?',
     read: [
-      'The matrix is strike (rows) by expiration (columns). Green is call side, red is put side.',
-      'Positive means more call flow at that strike; negative means more put flow. Brighter cells carry more weight.',
-      'The lit-up nodes are the levels that matter — likely support, resistance, and magnets.',
-      'Pick the strongest node in the direction of your thesis, then buy enough time for it to play out rather than the nearest expiry.',
-      'Check SPY here for overall market direction before committing to a single-name trade.',
+      'Every signal on the board is capped at 45 days — swing setups resolve to 25-45 DTE and lotto setups to 5-12. This tab is the only place a 6-to-24 month thesis appears.',
+      'These are scanned and graded separately from the signal board: sector trend, price trend, and contract quality, scored to S/A/B/C.',
+      'ROI@T1 is the projected return on PREMIUM at the target, not on the stock. It is modelled with Black-Scholes against the real quoted mid, decayed to the target date.',
+      'Long-dated contracts carry less theta per day but far more vega — a drop in implied volatility hurts a LEAP more than a weekly, and that is not modelled here.',
     ],
-    next: 'Bring the chosen strike back to ORACLE’s Contract Engine to size the trade.',
+    next: 'Cross-check the name in GEX: a LEAP strike above the long-dated call wall is fighting dealer positioning for a year.',
+  },
+  crypto: {
+    title: 'Crypto Guide',
+    question: 'What is crypto doing, and which equity actually expresses it?',
+    read: [
+      'BTC and ETH are the underlying market read: their 24-hour range, daily RSI, realized volatility, and history describe crypto itself, not an equity trade.',
+      'The proxy board distinguishes direct wrappers, treasury exposure, exchanges, and miners. They can all move differently from the asset underneath.',
+      'A measured beta appears only when the historical relationship can be calculated. “Relationship read pending” is intentionally not a number.',
+      'Open a proxy to evaluate its own chart, structure, gamma, option-chain spread, open interest, and expiry. BTC moving is never enough by itself.',
+    ],
+    next: 'Use the ticker workup to turn a crypto thesis into a specific, liquid options trade—or reject it.',
   },
   catalyst: {
     title: 'Catalyst Guide',

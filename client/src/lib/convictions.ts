@@ -1,3 +1,5 @@
+import { convictionDisplayPercent } from '@shared/conviction-display';
+
 /**
  * Client-side types + helpers for the convictions ("signals") feed.
  *
@@ -9,7 +11,7 @@
  */
 
 export type ConvictionLayerKind =
-  | 'technical' | 'convergence' | 'catalyst' | 'regime' | 'breadth'
+  | 'technical' | 'ta' | 'convergence' | 'catalyst' | 'regime' | 'breadth' | 'macro'
   | 'geopolitical' | 'fundamental' | 'analyst' | 'sector' | 'freshness'
   | 'weekly' | 'premarket' | 'compression' | 'gex';
 
@@ -22,6 +24,20 @@ export interface ConvictionLayer {
 }
 
 export interface ConvictionPick {
+  /**
+   * Present and true when this row is something the bot ACTUALLY HOLDS, merged
+   * in past every entry filter — see server/bot-held-picks.ts. Held rows carry
+   * live P&L instead of a conviction score, because they were never scored for
+   * entry and showing a number there would invite a false comparison against
+   * candidates that were.
+   */
+  isBotHeld?: boolean;
+  botOwner?: string;
+  quantity?: number;
+  unrealizedPnl?: number | null;
+  unrealizedPnlPercent?: number | null;
+  heldSince?: string | null;
+
   ideaId: string;
   symbol: string;
   sector: string;
@@ -46,6 +62,9 @@ export interface ConvictionPick {
   convictionBand: 'S' | 'A' | 'B' | 'C';
   layerCount: number;
   layers: ConvictionLayer[];
+  /** Frozen evidence grade at first publication. */
+  publishedConvictionScore: number | null;
+  publishedConvictionBand: 'S' | 'A' | 'B' | 'C' | null;
 
   thesis: string;
   catalyst: string;
@@ -57,6 +76,9 @@ export interface ConvictionPick {
 
   /** Added dynamically by the API at response time when available. */
   currentPrice?: number;
+
+  /** A plan becomes live only after a trigger or recorded execution. */
+  lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
 }
 
 export interface ConvictionsResponse {
@@ -115,13 +137,24 @@ export function directionTone(direction: 'long' | 'short'): 'bull' | 'bear' {
  * same input → same output, strictly increasing with score.
  */
 export function convictionPercent(score: number): number {
-  const s = Math.max(0, score);
-  let pct: number;
-  if (s >= 30)      pct = 86 + ((s - 30) / 15) * 13; // S · ELITE
-  else if (s >= 22) pct = 72 + ((s - 22) / 8) * 14;  // A · STRONG
-  else if (s >= 15) pct = 58 + ((s - 15) / 7) * 14;  // B · HIGH
-  else              pct = 30 + (s / 15) * 28;         // C · MED
-  return Math.round(Math.max(0, Math.min(99, pct)));
+  return convictionDisplayPercent(score);
+}
+
+/**
+ * Older persisted ideas called three unrelated measurements a "grade": the
+ * whole-signal evidence band, the chart-pattern detector, and the option pick.
+ * Keep old records readable without rewriting their audit history.
+ */
+export function clarifyOracleNarrative(text: string): string {
+  return text
+    .replace(
+      /((?:Bull Flag Pullback|Bear Flag Breakdown))\s*—\s*([SABC][+-]?) grade \((\d+)\/100\)\./gi,
+      '$1 · pattern quality $3/100 ($2).',
+    )
+    .replace(
+      /(At signal:[^\n]*?\b)grade\s+([SABC][+-]?)(\))/gi,
+      '$1contract quality $2$3',
+    );
 }
 
 /** e.g. "ELITE BULLISH" / "STRONG BEARISH" */
@@ -141,10 +174,12 @@ export function toneColor(tone: Tone): string {
 
 export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
   technical:    'TECH',
+  ta:           'SIG',
   convergence:  'CONV',
   catalyst:     'CTLY',
   regime:       'RGME',
   breadth:      'BRTH',
+  macro:        'MAC',
   geopolitical: 'GEO',
   fundamental:  'FUND',
   analyst:      'ANLY',
@@ -163,10 +198,12 @@ export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
  */
 export const LAYER_COLOR: Record<ConvictionLayerKind, string> = {
   technical:    '#22d3ee', // cyan
+  ta:           '#38bdf8', // blue — named chart setup
   convergence:  '#a78bfa', // violet
   catalyst:     '#fbbf24', // amber
   regime:       '#34d399', // emerald
   breadth:      '#2dd4bf', // teal
+  macro:        '#e0a458', // amber — event/time risk
   geopolitical: '#fb923c', // orange
   fundamental:  '#60a5fa', // blue
   analyst:      '#818cf8', // indigo

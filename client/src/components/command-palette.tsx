@@ -192,7 +192,7 @@ export function CommandPalette() {
                 {t.hint && (
                   <span className="ml-2 text-[10px] text-muted-foreground/70">{t.hint}</span>
                 )}
-                <span className="ml-auto text-[9px] font-mono text-muted-foreground/40">
+                <span className="ml-auto text-[9px] font-mono text-muted-foreground/60">
                   ⌘{i + 1}
                 </span>
               </CommandItem>
@@ -213,7 +213,7 @@ export function CommandPalette() {
               >
                 <Icon className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
                 <span className="text-xs">{t.label}</span>
-                <ArrowRight className="ml-auto w-3 h-3 text-muted-foreground/40" />
+                <ArrowRight className="ml-auto w-3 h-3 text-muted-foreground/60" />
               </CommandItem>
             );
           })}
@@ -231,7 +231,7 @@ export function CommandPalette() {
               <TrendingUp className="w-3.5 h-3.5 mr-2 text-[var(--brand-gold)]" />
               <span className="font-mono text-sm font-bold">{sym}</span>
               <span className="ml-2 text-[10px] text-muted-foreground/70">Research</span>
-              <span className="ml-auto text-[9px] font-mono text-muted-foreground/40">/r/{sym}</span>
+              <span className="ml-auto text-[9px] font-mono text-muted-foreground/60">/r/{sym}</span>
             </CommandItem>
           ))}
         </CommandGroup>

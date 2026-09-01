@@ -20,6 +20,8 @@ training-data/
 # Signal intelligence (derived from proprietary data)
 server/signal-*.ts
 !server/signal-attribution.ts
+# Production alert delivery is orchestration, not proprietary signal logic.
+!server/signal-alerts.ts
 
 # ============ SENSITIVE DATA ============
 # Environment variables and secrets
@@ -27,6 +29,7 @@ server/signal-*.ts
 .env.local
 .env.production
 .env.development
+.env.supabase
 *.pem
 *.key
 
@@ -68,6 +71,7 @@ server/public
 .vite/
 .turbo/
 .parcel-cache/
+.firecrawl/
 
 # ============ EDITOR & OS ============
 # IDE files
@@ -114,3 +118,4 @@ vite.config.ts.*
 # 🔒 API keys and secrets
 # 🔒 Database content
 .claude/worktrees/
+server/data/discipline-ledger.jsonl

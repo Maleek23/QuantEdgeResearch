@@ -411,7 +411,7 @@ function FlowSignalsSection() {
           <p className="text-xs text-muted-foreground flex items-center gap-2">
             Institutional flow aligned with gamma exposure
             {data?.timestamp && (
-              <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/50")}>
+              <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/60")}>
                 · {getRelativeTime(data.timestamp)}
               </span>
             )}
@@ -4011,13 +4011,13 @@ export default function TradeDeskRedesigned() {
               return <span className={color}>{label}</span>;
             })()}
             {/* Date filter indicator */}
-            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/50")}>
+            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/60")}>
               {serverDateFilter === 'today' ? 'TODAY' : serverDateFilter === 'week' ? 'PAST WEEK' : 'ALL TIME'}
             </span>
           </div>
           <div className="flex items-center gap-3">
             {/* Global data timestamp */}
-            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/50 tabular-nums")}>
+            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/60 tabular-nums")}>
               {new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true })} ET
             </span>
             {/* Generate Ideas Dropdown */}
@@ -4109,7 +4109,7 @@ export default function TradeDeskRedesigned() {
               </button>
             );
           })}
-          <span className="ml-auto text-[9px] text-muted-foreground/50 font-mono tabular-nums">{filteredIdeas.length} ideas</span>
+          <span className="ml-auto text-[9px] text-muted-foreground/60 font-mono tabular-nums">{filteredIdeas.length} ideas</span>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="ml-2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors hidden lg:flex"

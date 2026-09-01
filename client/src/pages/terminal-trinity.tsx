@@ -50,7 +50,7 @@ function IndexRow({ symbol, mode }: { symbol: string; mode: ExposureMode }) {
           expanded && 'border-b border-border/20 bg-[var(--surface-base)]/30',
         )}
       >
-        <div className="text-muted-foreground/50">
+        <div className="text-muted-foreground/60">
           {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </div>
         <div className="w-16">
@@ -75,7 +75,7 @@ function IndexRow({ symbol, mode }: { symbol: string; mode: ExposureMode }) {
             <button type="button" onClick={(e) => { e.stopPropagation(); refetch(); }} className="text-muted-foreground hover:text-foreground transition-colors">RETRY</button>
           </div>
         ) : (
-          <div className="flex-1 text-[9px] font-mono text-muted-foreground/40 uppercase tracking-widest animate-pulse">Loading...</div>
+          <div className="flex-1 text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest animate-pulse">Loading...</div>
         )}
         {regime && (
           <div className={cn(

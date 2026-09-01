@@ -4,10 +4,8 @@ import { eq, desc, and } from 'drizzle-orm';
 import { logger } from './logger';
 import { calculateRSI, calculateMACD, calculateSMA } from './technical-indicators';
 import { recordSymbolAttention } from './attention-tracking-service';
-import { calculateSimpleTargets } from './atr-targets';
 import { getScannerUniverse } from './scanner-universe';
-import { getLetterGrade } from './grading';
-import { storage } from './storage';
+import { postDiscordWebhook } from './discord-service';
 
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 const TRADIER_API = "https://api.tradier.com/v1";
@@ -515,114 +513,16 @@ async function generateTradeIdeasFromMomentum(
     return;
   }
 
-  // Rank by momentum, then by relative strength, so the strongest setups win the
-  // limited slots — NOT whichever symbols happened to be scanned first.
-  highMomentum.sort((a, b) =>
-    (b.momentumScore! - a.momentumScore!) || (rsOf(b) - rsOf(a))
+  // Momentum/relative strength is a coverage observation, not an executable
+  // trade plan. This path formerly persisted percentage/ATR defaults straight
+  // into Oracle, which made a name such as MSFT appear "entered" even when
+  // its own read still contained a bearish MACD and no structural target.
+  // Keep the underlying bullishTrends records for the coverage lane; only a
+  // structure-aware publisher may promote one into Active Signals.
+  logger.info(
+    `[BULLISH] ${highMomentum.length} momentum leaders retained as coverage; ` +
+    '0 trade ideas published (requires trigger, invalidation, and structural target)',
   );
-
-  let ideasCreated = 0;
-
-  for (const trend of highMomentum.slice(0, 8)) { // Top 8 by rank
-    try {
-      const symbol = trend.symbol;
-
-      const currentPrice = trend.currentPrice!;
-
-      // 📐 ATR-BASED TARGET/STOP — replaces fixed % heuristic
-      // Pulls 60-day Yahoo history and uses close-to-close volatility for ATR estimate.
-      // Falls back gracefully if history unavailable.
-      let targetPrice: number;
-      let stopLoss: number;
-      let riskRewardRatio: number;
-      try {
-        const histForTargets = await fetchHistoricalData(symbol, '3mo');
-        const closes = histForTargets?.prices || [];
-        if (closes.length >= 14) {
-          const targets = calculateSimpleTargets({
-            currentPrice,
-            closes,
-            direction: 'long',
-            holdingPeriod: 'swing',
-          });
-          targetPrice = targets.target;
-          stopLoss = targets.stop;
-          riskRewardRatio = targets.riskRewardRatio;
-        } else {
-          throw new Error('insufficient history');
-        }
-      } catch {
-        // Hard fallback — momentum-tier % targets
-        const targetPercent = trend.momentumScore! >= 85 ? 0.05 : 0.03;
-        const stopPercent = 0.02;
-        targetPrice = currentPrice * (1 + targetPercent);
-        stopLoss = currentPrice * (1 - stopPercent);
-        riskRewardRatio = targetPercent / stopPercent;
-      }
-      
-      // Build signals array
-      const rs = relativeStrengthBySymbol.get(symbol) ?? 0;
-      const signals: string[] = [];
-      if (trend.trendPhase === 'breakout') signals.push('BREAKOUT');
-      if (trend.isNewHigh) signals.push('NEW_HIGH');
-      if (trend.isHighVolume) signals.push('HIGH_VOLUME');
-      if (trend.rsi14 && trend.rsi14 > 50 && trend.rsi14 < 70) signals.push('RSI_BULLISH');
-      if (trend.macdSignal === 'bullish_cross') signals.push('MACD_CROSS');
-      if (trend.isAboveMAs) signals.push('ABOVE_MAs');
-      if (rs > 3) signals.push(`RS_LEADER_+${rs.toFixed(0)}`); // outperforming SPY
-      signals.push(`MOMENTUM_${trend.momentumScore}`);
-
-      // Calculate confidence based on signals
-      const confidence = Math.min(95, 70 + (signals.length * 3));
-      const grade = getLetterGrade(confidence);
-      
-      // Create the trade idea
-      const now = new Date();
-      const entryValidUntil = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(); // 2 hours
-      const exitBy = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(); // 5 days (swing)
-      
-      const tradeIdea = {
-        symbol,
-        assetType: 'stock' as const,
-        direction: 'long',
-        holdingPeriod: 'swing' as const,
-        entryPrice: currentPrice,
-        targetPrice,
-        stopLoss,
-        riskRewardRatio,
-        catalyst: `Bullish momentum scanner: ${trend.trendPhase?.toUpperCase()} phase with ${trend.momentumScore}/100 momentum score`,
-        analysis: `${trend.name} showing strong bullish momentum. ${trend.trendPhase === 'breakout' ? 'Breaking out with ' + (trend.volumeRatio?.toFixed(1) || 'N/A') + 'x volume.' : 'Sustained uptrend momentum.'} RSI: ${trend.rsi14?.toFixed(0) || 'N/A'}, MACD: ${trend.macdSignal || 'neutral'}. ${trend.isNewHigh ? 'Near 52-week high.' : ''} ${trend.isAboveMAs ? 'Trading above all key moving averages.' : ''}${rs > 3 ? ` Outperforming SPY by ${rs.toFixed(0)}% (relative-strength leader).` : ''}`,
-        sessionContext: `Market hours - Bullish trend detected by momentum scanner`,
-        timestamp: now.toISOString(),
-        entryValidUntil,
-        exitBy,
-        source: 'quant' as const,
-        status: 'published' as const,
-        confidenceScore: confidence,
-        qualitySignals: signals,
-        probabilityBand: grade,
-        rsiValue: trend.rsi14 || null,
-        volumeRatio: trend.volumeRatio || null,
-        priceVs52WeekHigh: trend.percentFrom52High || null,
-        priceVs52WeekLow: trend.percentFrom52Low || null,
-        dataSourceUsed: 'tradier',
-        isPublic: true,
-        visibility: 'public' as const
-      };
-      
-      await storage.createTradeIdea(tradeIdea as any, { dedupWindowHours: 8 }); // spine: validate + cap + 8h dedup
-      ideasCreated++;
-      
-      logger.info(`[BULLISH] Created trade idea: ${symbol} LONG @ $${currentPrice.toFixed(2)} → $${targetPrice.toFixed(2)} [${grade} ${confidence}%]`);
-      
-    } catch (error) {
-      logger.debug(`[BULLISH] Error creating trade idea for ${trend.symbol}`, { error });
-    }
-  }
-  
-  if (ideasCreated > 0) {
-    logger.info(`[BULLISH] Generated ${ideasCreated} new trade ideas from momentum scan`);
-  }
 }
 
 export async function getBullishTrends(): Promise<BullishTrend[]> {
@@ -761,7 +661,7 @@ export async function sendBreakoutAlerts(): Promise<void> {
         }]
       };
       
-      await fetch(webhookUrl, {
+      await postDiscordWebhook(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(message)

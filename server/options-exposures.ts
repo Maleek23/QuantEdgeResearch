@@ -22,6 +22,17 @@
 
 import { logger } from './logger';
 
+/**
+ * Gamma concentration cut-offs, on net/gross in [-1, 1].
+ *
+ * Provisional pending a full trading-day sample — set deliberately WIDE so the
+ * layer starts scoring the clearly one-sided books first rather than every
+ * symbol at once. Each computed snapshot logs its concentration so the cut can
+ * be tightened against real spread instead of guessed twice.
+ */
+const CONC_CUT = 0.25;
+const CONC_NEUTRAL = 0.08;
+
 // ─── Types ──────────────────────────────────────────────────
 
 export interface OptionInput {
@@ -82,6 +93,20 @@ export interface ExposureSnapshot {
 
   // Regime
   regime: 'positive_gamma' | 'negative_gamma' | 'neutral' | 'transitioning';
+  /**
+   * Net GEX as a share of the symbol's OWN gross gamma, in [-1, 1].
+   *
+   * The absolute regime thresholds (±$0.5B) are index-scale. Measured on live
+   * CBOE chains: AAPL — a multi-trillion-dollar company — produces net GEX of
+   * +0.26B, and DIA +0.44B, so both land in "transitioning" and the conviction
+   * engine's GEX layer skips them. Every single name fails the same way, which
+   * is why that layer scored 0 of 92 published ideas.
+   *
+   * net/gross is dimensionless and self-scaling: +1 means every strike's gamma
+   * points the same way, 0 means dealers are balanced. It compares SPY and a
+   * small cap on the same footing without needing market cap or history.
+   */
+  gammaConcentration: number;
   vexRegime: 'vol_tailwind' | 'vol_headwind' | 'vol_neutral';
 
   // Key structural levels
@@ -261,6 +286,15 @@ export function computeExposures(
     // For puts: dealer long → dealer's vanna positive contribution
     // Note: VEX uses /1e6 (not /1e9 like GEX) because vanna×S produces values
     // ~250x smaller than gamma×S² — using /1e9 makes most VEX values sub-threshold.
+    //
+    // KNOWN INCONSISTENCY (audited 2026-08-26): GEX above assumes dealers are
+    // LONG calls / SHORT puts (calls +, puts −); this VEX sign assumes the
+    // OPPOSITE dealer book (calls −, puts +). Each is a defensible convention
+    // alone, but together the two surfaces tell contradictory dealer stories.
+    // Every vexSignal label and insight string downstream is calibrated to
+    // THIS sign, so flipping it here without re-deriving all of those would
+    // silently invert their meaning — do that as one deliberate pass, not a
+    // drive-by. Until then: treat net VEX as a put-minus-call vanna tilt.
     const vexContribution = (isCall ? -1 : 1) * effectiveOI * vanna! * MULT * spotPrice * weight / 1e6;
 
     // DEX (delta exposure)
@@ -329,7 +363,7 @@ export function computeExposures(
   if (strikes.length === 0) {
     return {
       symbol, spotPrice, calculatedAt: Date.now(),
-      totalGEX: 0, totalVEX: 0, totalDEX: 0, totalCharm: 0,
+      totalGEX: 0, totalVEX: 0, totalDEX: 0, totalCharm: 0, gammaConcentration: 0,
       callGEX: 0, putGEX: 0, putCallGEXRatio: 0,
       regime: 'neutral', vexRegime: 'vol_neutral',
       gammaFlipPrice: null, vannaFlipPrice: null,
@@ -349,18 +383,35 @@ export function computeExposures(
   const callGEX = strikes.reduce((sum, s) => sum + Math.max(0, s.callGEX), 0);
   const putGEX = Math.abs(strikes.reduce((sum, s) => sum + Math.min(0, s.putGEX), 0));
 
-  // Find gamma flip (where cumulative gamma crosses zero)
+  /**
+   * Gamma flip — the crossing NEAREST SPOT, not the first one found.
+   *
+   * The old loop walked strikes ascending and `break`-ed on the first sign
+   * change of cumulative gamma. Strikes start ~15% below spot where netGEX is
+   * order 1e-9 — pure noise — so the very first jitter down there won. Measured
+   * on SPY 2026-08-31 (spot 766.28): it reported a flip of 656, the second
+   * strike in the book, while the real crossing sat at 753. A flip 14% below
+   * spot is not a level anyone can trade, and it made the regime read
+   * nonsensically against it.
+   *
+   * Collect every crossing, then take the one closest to spot. Far-OTM noise
+   * still produces crossings; it just no longer outranks the real one.
+   */
   let gammaFlipPrice: number | null = null;
-  let cumGamma = 0;
-  let prevSign = 0;
-  for (const s of strikes) {
-    cumGamma += s.netGEX;
-    const sign = Math.sign(cumGamma);
-    if (prevSign !== 0 && sign !== prevSign) {
-      gammaFlipPrice = s.strike;
-      break;
+  {
+    const crossings: number[] = [];
+    let cumGamma = 0;
+    let prevSign = 0;
+    for (const s of strikes) {
+      cumGamma += s.netGEX;
+      const sign = Math.sign(cumGamma);
+      if (prevSign !== 0 && sign !== 0 && sign !== prevSign) crossings.push(s.strike);
+      if (sign !== 0) prevSign = sign;
     }
-    prevSign = sign;
+    if (crossings.length > 0) {
+      gammaFlipPrice = crossings.reduce((best, k) =>
+        Math.abs(k - spotPrice) < Math.abs(best - spotPrice) ? k : best, crossings[0]);
+    }
   }
 
   // Vanna flip (where cumulative VEX crosses zero)
@@ -393,25 +444,82 @@ export function computeExposures(
     }
   }
 
-  // Walls
+  /**
+   * Walls — measured on the RELEVANT LEG, not on net gamma.
+   *
+   * A call wall is where dealers are short calls: as price rises into it they
+   * must sell to stay hedged, so it acts as resistance. That is a property of
+   * CALL gamma alone. The old code filtered on `netGEX > 0`, which subtracts
+   * put gamma at the same strike — so the strike carrying the most calls is
+   * excluded outright whenever puts happen to dominate it.
+   *
+   * SPY 2026-08-31 (spot 766.28) is the clean example. Strike 766 held the
+   * largest call gamma in the book (+0.955) but netted −1.512 because its put
+   * gamma was −2.467, so the `netGEX > 0` filter threw it away and the function
+   * returned 780 — a strike with negligible call gamma. The reported wall was
+   * not where the calls were.
+   *
+   * The put wall had the mirror problem: filtering on the most-negative netGEX
+   * lands on whatever strike puts dominate most, which is almost always the
+   * money. It returned 766 against a spot of 766.28 — 0.04% away. "Support is
+   * exactly here" is not a level, it is a restatement of the spot price.
+   *
+   * Walls are also required to stand clear of spot. A wall inside the noise
+   * band around the money tells you nothing you cannot see on the tape.
+   */
+  /**
+   * Walls are ranked by OPEN INTEREST, not by gamma.
+   *
+   * Gamma is a bell curve centred on spot: dGamma/dStrike peaks at the money and
+   * decays either side. So "the strike above spot with the most gamma" is
+   * arithmetically forced to be the FIRST strike above spot, whatever the book
+   * looks like. It is not a level — it is the spot price with extra steps, and
+   * it moves every time price ticks.
+   *
+   * Open interest is not spot-centred. It accumulates at round numbers and at
+   * strikes people actually sold, and it stays there while price travels toward
+   * it. That is what makes a wall readable.
+   *
+   * Measured 2026-08-31, gamma-ranked vs OI-ranked call wall:
+   *
+   *   SPY    767  (+0.09%, 2,826 OI)   vs   785  (+2.44%, 37,955 OI)
+   *   QQQ    716  (+0.12%, 2,994 OI)   vs   745  (+4.18%, 21,629 OI)
+   *   TSLA 367.5  (+0.11%, 1,731 OI)   vs   400  (+8.96%, 12,507 OI)
+   *
+   * The OI walls carry 10-15x the open interest and sit far enough away to
+   * trade against. The gamma walls all sit within 0.12% of spot.
+   *
+   * maxGammaStrike is kept separately above — that one IS the gamma peak, and
+   * it is the right number for a pin, just not for a wall.
+   */
   const callWall = strikes
-    .filter((s) => s.strike > spotPrice && s.netGEX > 0)
-    .sort((a, b) => b.netGEX - a.netGEX)[0]?.strike ?? null;
+    .filter((s) => s.strike > spotPrice && s.callOI > 0)
+    .sort((a, b) => b.callOI - a.callOI)[0]?.strike ?? null;
 
   const putWall = strikes
-    .filter((s) => s.strike < spotPrice && s.netGEX < 0)
-    .sort((a, b) => a.netGEX - b.netGEX)[0]?.strike ?? null;
+    .filter((s) => s.strike < spotPrice && s.putOI > 0)
+    .sort((a, b) => b.putOI - a.putOI)[0]?.strike ?? null;
 
   // Zero-gamma projection
   // In positive gamma regime → price magnetizes to max gamma
   // In negative gamma regime → breaks toward flip
   const zeroGammaProjection = totalGEX > 0 ? maxGammaStrike : gammaFlipPrice;
 
-  // Regimes
+  // How one-sided is dealer gamma, relative to this symbol's own book?
+  const grossGEX = strikes.reduce((sum, s) => sum + Math.abs(s.netGEX), 0);
+  const gammaConcentration = grossGEX > 0 ? totalGEX / grossGEX : 0;
+
+  // Regimes — absolute OR relative.
+  //
+  // The absolute bar is kept so index readings do not move: SPY at −4.42B stays
+  // negative_gamma exactly as before. The relative bar is what lets a single
+  // name qualify at all, since none of them reach ±$0.5B.
+  //
+  // CONC_CUT is set from measurement, not taste — see the logged distribution.
   const regime: ExposureSnapshot['regime'] =
-    totalGEX > 0.5 ? 'positive_gamma'
-    : totalGEX < -0.5 ? 'negative_gamma'
-    : Math.abs(totalGEX) < 0.2 ? 'neutral'
+    (totalGEX > 0.5 || gammaConcentration > CONC_CUT) ? 'positive_gamma'
+    : (totalGEX < -0.5 || gammaConcentration < -CONC_CUT) ? 'negative_gamma'
+    : Math.abs(gammaConcentration) < CONC_NEUTRAL ? 'neutral'
     : 'transitioning';
 
   // VEX regime: positive VEX = vol tailwind (higher vol = higher price via vanna)
@@ -428,12 +536,12 @@ export function computeExposures(
     `GEX=${totalGEX.toFixed(2)}B VEX=${totalVEX.toFixed(1)}M DEX=${totalDEX.toFixed(2)}B ` +
     `flip=$${gammaFlipPrice || '—'} vflip=$${vannaFlipPrice || '—'} ` +
     `maxγ=$${maxGammaStrike} maxV=$${maxVannaStrike} ` +
-    `regime=${regime}/${vexRegime} vannaComputed=${vannaComputedCount}`,
+    `conc=${gammaConcentration.toFixed(3)} regime=${regime}/${vexRegime} vannaComputed=${vannaComputedCount}`,
   );
 
   return {
     symbol, spotPrice, calculatedAt: Date.now(),
-    totalGEX, totalVEX, totalDEX, totalCharm,
+    totalGEX, totalVEX, totalDEX, totalCharm, gammaConcentration,
     callGEX, putGEX,
     putCallGEXRatio: callGEX > 0 ? putGEX / callGEX : 0,
     regime, vexRegime,

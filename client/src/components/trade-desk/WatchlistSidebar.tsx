@@ -86,7 +86,7 @@ export default function WatchlistSidebar({ watchlist, selectedSymbol, onSelect }
       <div className="px-1.5 py-2">
         <h3 className="text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.12em] mb-2 font-mono px-1.5">
           Watchlist
-          <span className="ml-1 text-muted-foreground/50 font-normal tabular-nums">{watchlist.length}</span>
+          <span className="ml-1 text-muted-foreground/60 font-normal tabular-nums">{watchlist.length}</span>
         </h3>
 
         {selectedSymbol && (

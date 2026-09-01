@@ -29,6 +29,7 @@ import { calculateRSI, calculateEMA } from './technical-indicators';
 import { db } from './db';
 import { ivSnapshots } from '@shared/schema';
 import { desc, eq, and } from 'drizzle-orm';
+import { tradierBase } from './tradier-api';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -195,7 +196,7 @@ async function computePCR(symbol: string = 'SPY'): Promise<PCRData | null> {
     const key = process.env.TRADIER_API_KEY;
     if (!key) return null;
 
-    const baseUrl = 'https://api.tradier.com/v1';
+    const baseUrl = tradierBase();
     const expRes = await fetch(`${baseUrl}/markets/options/expirations?symbol=${tradierSym}`, {
       headers: { 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' },
     });

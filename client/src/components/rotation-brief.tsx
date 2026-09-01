@@ -95,8 +95,8 @@ export function RotationBrief({ className }: { className?: string }) {
   if (isError || !data) {
     return (
       <div className={cn('flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2', className)}>
-        <Waves className="h-3 w-3 text-muted-foreground/50" />
-        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/50">Money flow unavailable</span>
+        <Waves className="h-3 w-3 text-muted-foreground/60" />
+        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60">Money flow unavailable</span>
       </div>
     );
   }

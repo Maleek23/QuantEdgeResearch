@@ -81,6 +81,10 @@ export function faultCounts(): Record<string, number> {
 }
 
 export function installProcessGuard(processName: string): void {
+  // PM2/Railway can replace an exited process. The local preview launcher cannot:
+  // exiting there makes the site disappear until somebody manually starts it again.
+  const hasProcessSupervisor = Boolean(process.env.pm_id || process.env.PM2_HOME || process.env.RAILWAY_ENVIRONMENT);
+
   process.on('unhandledRejection', (reason: unknown) => {
     const kind = classifyFault(reason);
     const storm = record(kind);
@@ -91,9 +95,11 @@ export function installProcessGuard(processName: string): void {
     if (kind === 'bug' && reason instanceof Error && reason.stack) {
       logger.error(reason.stack);
     }
-    if (storm) {
+    if (storm && hasProcessSupervisor) {
       logger.error(`[GUARD:${processName}] ${STORM_THRESHOLD}+ faults in a minute — wedged, exiting for a clean restart.`);
       process.exit(1);
+    } else if (storm) {
+      logger.error(`[GUARD:${processName}] fault storm detected; local preview has no supervisor, so the process will stay alive.`);
     }
   });
 
@@ -109,9 +115,11 @@ export function installProcessGuard(processName: string): void {
     // recover from and staying up is strictly better. A genuine bug may have
     // left things inconsistent, but a trading dashboard that vanishes is worse
     // than one serving slightly stale data, so we stay up and make it loud.
-    if (storm) {
+    if (storm && hasProcessSupervisor) {
       logger.error(`[GUARD:${processName}] fault storm — exiting for a clean restart.`);
       process.exit(1);
+    } else if (storm) {
+      logger.error(`[GUARD:${processName}] fault storm detected; local preview has no supervisor, so the process will stay alive.`);
     }
   });
 

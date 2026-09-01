@@ -137,6 +137,31 @@ export async function getChartLastPrice(symbol: string): Promise<number> {
 }
 
 /**
+ * Daily closing prices, oldest first.
+ *
+ * The raw query1 chart endpoint rate-limits hard once several scanners are
+ * running — it answers 429 and callers that treat that as "no data" silently
+ * lose their entire candidate pool. The library path carries the cookie/crumb
+ * the rest of this service maintains, so it survives where a bare fetch does
+ * not. Returns [] on failure; callers must not fabricate prices from it.
+ */
+export async function safeChartCloses(symbol: string, days: number): Promise<number[]> {
+  const period1 = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  try {
+    const yf = await getYahooFinance();
+    const res = await yf.chart(symbol, { period1, interval: '1d' });
+    const closes = (res?.quotes ?? [])
+      .map((q: any) => q?.close)
+      .filter((c: unknown): c is number => typeof c === 'number' && Number.isFinite(c) && c > 0);
+    if (closes.length > 0) return closes;
+    logger.debug(`[YAHOO] chart returned no closes for ${symbol}`);
+  } catch (error: any) {
+    logger.debug(`[YAHOO] chart failed for ${symbol}: ${error?.message ?? 'unknown'}`);
+  }
+  return [];
+}
+
+/**
  * Safe quote summary fetch
  */
 export async function safeQuoteSummary(symbol: string, modules: string[]): Promise<any | null> {

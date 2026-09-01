@@ -49,13 +49,13 @@ export default function PerformanceStrip({ performance, closedTrades }: Props) {
         </div>
         <div className="data-strip-item">
           <span className="text-[var(--trade-bullish)] font-mono font-semibold text-data-xs">{wins}W</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span className="text-[var(--trade-bearish)] font-mono font-semibold text-data-xs">{losses}L</span>
         </div>
         <div className="data-strip-item">
           <span className="data-strip-label">Avg</span>
           <span className="text-[var(--trade-bullish)] font-mono font-semibold text-data-xs">+{avgWinPct}%</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span className="text-[var(--trade-bearish)] font-mono font-semibold text-data-xs">{avgLossPct}%</span>
         </div>
       </div>

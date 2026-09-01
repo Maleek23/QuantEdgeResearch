@@ -98,7 +98,7 @@ export function TickerOverviewTab({ data, symbol }: TickerOverviewTabProps) {
               <p className="text-[10px] text-muted-foreground mt-1">Zero-gamma magnet — price gravitates here</p>
             </>
           ) : (
-            <div className="text-sm text-muted-foreground/40">No projection available</div>
+            <div className="text-sm text-muted-foreground/60">No projection available</div>
           )}
         </div>
       </div>
@@ -133,7 +133,7 @@ export function TickerOverviewTab({ data, symbol }: TickerOverviewTabProps) {
                     )}
                   </div>
                 ) : (
-                  <span className="text-xs text-muted-foreground/40">—</span>
+                  <span className="text-xs text-muted-foreground/60">—</span>
                 )}
               </div>
             );

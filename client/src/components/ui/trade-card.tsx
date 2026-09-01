@@ -264,12 +264,12 @@ function FullCard({ data, onClick, className }: Omit<TradeCardProps, "variant">)
             { label: "R:R", value: null, color: "text-cyan-400" },
           ].map(({ label, value, color }) => (
             <div key={label} className="text-center">
-              <div className="text-[7px] text-muted-foreground/50 uppercase font-mono tracking-wider">{label}</div>
+              <div className="text-[7px] text-muted-foreground/60 uppercase font-mono tracking-wider">{label}</div>
               <div className={cn("font-mono tabular-nums font-medium", color)}>
                 {label === "R:R" ? `${rr}:1` : value ? `$${safeToFixed(value, 2)}` : "--"}
               </div>
               {label === "Entry" && contractCost && (
-                <div className="text-[7px] text-muted-foreground/40 font-mono tabular-nums">${contractCost.toFixed(0)}/ct</div>
+                <div className="text-[7px] text-muted-foreground/60 font-mono tabular-nums">${contractCost.toFixed(0)}/ct</div>
               )}
             </div>
           ))}
@@ -286,7 +286,7 @@ function FullCard({ data, onClick, className }: Omit<TradeCardProps, "variant">)
         )}
 
         {/* ── Row 5: Timestamp + Source ── */}
-        <div className="flex items-center justify-between mt-1.5 text-[7px] text-muted-foreground/40 font-mono">
+        <div className="flex items-center justify-between mt-1.5 text-[7px] text-muted-foreground/60 font-mono">
           <span className="flex items-center gap-0.5">
             <Clock className="w-2 h-2" />
             {formatRelativeTime(timestamp)}
@@ -344,7 +344,7 @@ function CompactCard({ data, onClick, className }: Omit<TradeCardProps, "variant
               <span className="text-muted-foreground">${safeToFixed(entryPrice, 2)}</span>
             )}
           </div>
-          <span className="text-[8px] text-muted-foreground/40 font-mono">{formatRelativeTime(timestamp)}</span>
+          <span className="text-[8px] text-muted-foreground/60 font-mono">{formatRelativeTime(timestamp)}</span>
         </div>
       </div>
     </CardShell>
@@ -386,7 +386,7 @@ function RowCard({ data, onClick, className }: Omit<TradeCardProps, "variant">) 
         {/* Prices */}
         <div className="flex items-center gap-3 flex-1 text-[10px] font-mono tabular-nums">
           <div>
-            <span className="text-[7px] text-muted-foreground/40 uppercase block">Entry</span>
+            <span className="text-[7px] text-muted-foreground/60 uppercase block">Entry</span>
             <span className="text-foreground font-medium">{entryPrice ? `$${safeToFixed(entryPrice, 2)}` : "--"}</span>
           </div>
           <div>
@@ -417,7 +417,7 @@ function RowCard({ data, onClick, className }: Omit<TradeCardProps, "variant">) 
         </div>
 
         {/* Time */}
-        <span className="text-[8px] text-muted-foreground/30 font-mono min-w-[25px] text-right">
+        <span className="text-[8px] text-muted-foreground/60 font-mono min-w-[25px] text-right">
           {formatRelativeTime(timestamp)}
         </span>
       </div>

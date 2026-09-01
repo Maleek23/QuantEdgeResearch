@@ -245,11 +245,11 @@ export function InteractivePriceChart({
         {/* Chart visualization placeholder */}
         <div className="absolute inset-0 flex items-center justify-center opacity-50 group-hover:opacity-30 transition-opacity">
           <div className="text-center space-y-2">
-            <Activity className="h-12 w-12 text-muted-foreground/50 mx-auto animate-pulse" />
+            <Activity className="h-12 w-12 text-muted-foreground/60 mx-auto animate-pulse" />
             <p className="text-sm text-muted-foreground/70 font-semibold">
               Interactive Chart Ready
             </p>
-            <p className="text-xs text-muted-foreground/50">
+            <p className="text-xs text-muted-foreground/60">
               Hover to see crosshair • Click to analyze
             </p>
           </div>

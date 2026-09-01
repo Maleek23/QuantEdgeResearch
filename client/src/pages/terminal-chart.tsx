@@ -272,7 +272,7 @@ export default function TerminalPage() {
                   'px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded transition-colors',
                   view === v.value
                     ? 'bg-[var(--gex-positive)]/15 text-[var(--gex-positive)]'
-                    : 'text-muted-foreground/50 hover:text-muted-foreground'
+                    : 'text-muted-foreground/60 hover:text-muted-foreground'
                 )}
               >
                 {v.label}
@@ -315,7 +315,7 @@ export default function TerminalPage() {
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+            className="p-1 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
             title="Force refresh"
           >
             <RefreshCw className={cn('w-3.5 h-3.5', isFetching && 'animate-spin text-amber-400')} />
@@ -336,7 +336,7 @@ export default function TerminalPage() {
 
         const Pill = ({ label, value, tooltip, color, linked }: { label: string; value: React.ReactNode; tooltip: string; color: string; linked?: boolean }) => (
           <div className="flex flex-col items-start min-w-0" title={tooltip}>
-            <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50 leading-none">
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground/60 leading-none">
               {label}
               {linked && <span className="ml-1 text-cyan-400/60">●</span>}
             </span>
@@ -429,7 +429,7 @@ export default function TerminalPage() {
 
             {/* Subtle one-liner explaining magnet — only when relevant */}
             {s.zeroGammaProjection != null && (
-              <div className="text-[9px] text-muted-foreground/30 mt-1 font-mono">
+              <div className="text-[9px] text-muted-foreground/60 mt-1 font-mono">
                 Magnet from dealer hedging flow · conf {proj ? `${(proj.confidence * 100).toFixed(0)}%` : '100%'}
                 {(linkedPutMaxGamma || linkedTargetMax) && (
                   <span className="ml-2 text-cyan-400/60">● = same strike (linked levels confirm magnet)</span>
@@ -561,7 +561,7 @@ export default function TerminalPage() {
                         isNear && 'bg-[var(--projection-glow)]/5'
                       )}
                     >
-                      <span className="text-[10px] font-mono text-muted-foreground/40 w-5 text-right tabular-nums">{i + 1}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground/60 w-5 text-right tabular-nums">{i + 1}</span>
                       <div className="w-40"><GEXLevelBadge level={lvl} /></div>
                       <div className="flex-1">
                         <div className="h-3 bg-black/30 rounded-full overflow-hidden">

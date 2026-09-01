@@ -394,7 +394,7 @@ export function GEXExpiryMatrix({
               );
             });
           })()}
-          <span className="text-[9px] text-muted-foreground/40 mx-1">|</span>
+          <span className="text-[9px] text-muted-foreground/60 mx-1">|</span>
           <select
             value={dtePreset === 'single' ? (singleExpiry ?? '') : ''}
             onChange={(e) => {
@@ -416,7 +416,7 @@ export function GEXExpiryMatrix({
               </option>
             ))}
           </select>
-          <span className="text-[8px] font-mono text-muted-foreground/40 ml-auto">
+          <span className="text-[8px] font-mono text-muted-foreground/60 ml-auto">
             {filteredExpiries.length} of {expiries.length} expiries
             {expiryInfo.length > 0 && (
               <span className="ml-2 text-muted-foreground/60">
@@ -437,7 +437,7 @@ export function GEXExpiryMatrix({
               'px-2 py-0.5 text-[8px] font-mono font-bold uppercase rounded border transition-colors whitespace-nowrap flex-shrink-0',
               internalWeek === 'all'
                 ? 'border-[var(--gex-positive)]/30 text-[var(--gex-positive)] bg-[var(--gex-positive)]/10'
-                : 'border-transparent text-muted-foreground/40 hover:text-muted-foreground hover:border-border/20'
+                : 'border-transparent text-muted-foreground/60 hover:text-muted-foreground hover:border-border/20'
             )}
           >
             ALL · {expiries.length}
@@ -457,7 +457,7 @@ export function GEXExpiryMatrix({
                   'px-2 py-0.5 text-[8px] font-mono font-bold rounded border transition-colors whitespace-nowrap flex-shrink-0',
                   internalWeek === wk.key
                     ? accent
-                    : 'border-transparent text-muted-foreground/40 hover:text-muted-foreground hover:border-border/20'
+                    : 'border-transparent text-muted-foreground/60 hover:text-muted-foreground hover:border-border/20'
                 )}
                 title={`${wk.expLabels.length} ${wk.expLabels.length === 1 ? 'expiry' : 'expiries'} · ${wk.expLabels.join(', ')}`}
               >
@@ -521,7 +521,7 @@ export function GEXExpiryMatrix({
               <tr className="border-b border-border/10">
                 <td
                   colSpan={filteredExpiries.length + 1}
-                  className="py-1.5 px-2 text-center text-[9px] font-mono text-muted-foreground/50 cursor-pointer hover:text-muted-foreground hover:bg-muted/10 transition-colors"
+                  className="py-1.5 px-2 text-center text-[9px] font-mono text-muted-foreground/60 cursor-pointer hover:text-muted-foreground hover:bg-muted/10 transition-colors"
                   onClick={() => setExpanded(true)}
                 >
                   ▲ {hiddenAbove} strikes above · click to expand
@@ -623,7 +623,7 @@ export function GEXExpiryMatrix({
               <tr>
                 <td
                   colSpan={filteredExpiries.length + 1}
-                  className="py-1.5 px-2 text-center text-[9px] font-mono text-muted-foreground/50 cursor-pointer hover:text-muted-foreground hover:bg-muted/10 transition-colors"
+                  className="py-1.5 px-2 text-center text-[9px] font-mono text-muted-foreground/60 cursor-pointer hover:text-muted-foreground hover:bg-muted/10 transition-colors"
                   onClick={() => setExpanded(true)}
                 >
                   ▼ {hiddenBelow} strikes below · click to expand

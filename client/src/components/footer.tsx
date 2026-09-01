@@ -76,7 +76,13 @@ function MarketStatusIndicator() {
   );
 }
 
-function LiveStatsBar() {
+/**
+ * Exported so the Terminal footer can render the same live status rather than
+ * growing a second copy of it. One component, one set of queries, one truth —
+ * two footers computing "how many bots are running" independently is how they
+ * end up disagreeing.
+ */
+export function LiveStatsBar() {
   const { data: botStatus } = useQuery<{ bots: { name: string; status: string }[] }>({
     queryKey: ["/api/automations/status"],
     refetchInterval: 60000,

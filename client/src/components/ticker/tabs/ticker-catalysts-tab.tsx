@@ -144,21 +144,21 @@ export function TickerCatalystsTab({ symbol }: TickerCatalystsTabProps) {
                   <p className="text-xs font-medium text-foreground leading-snug line-clamp-2 group-hover:text-[var(--brand-teal)] transition-colors">
                     {article.title}
                   </p>
-                  <ExternalLink className="w-3 h-3 text-muted-foreground/40 shrink-0 mt-0.5" />
+                  <ExternalLink className="w-3 h-3 text-muted-foreground/60 shrink-0 mt-0.5" />
                 </div>
                 {article.summary && (
                   <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">{article.summary}</p>
                 )}
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="text-[9px] text-muted-foreground">{article.source}</span>
-                  <span className="text-muted-foreground/30">·</span>
+                  <span className="text-muted-foreground/60">·</span>
                   <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
                     <Clock className="w-2.5 h-2.5" />
                     {timeAgo(article.publishedAt)}
                   </span>
                   {article.sentiment && (
                     <>
-                      <span className="text-muted-foreground/30">·</span>
+                      <span className="text-muted-foreground/60">·</span>
                       <span className={cn('text-[8px] px-1.5 py-0.5 rounded border font-mono font-semibold', sentimentColor(article.sentiment))}>
                         {article.sentiment}
                       </span>

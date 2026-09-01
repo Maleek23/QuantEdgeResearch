@@ -9,6 +9,7 @@
  */
 
 import { logger } from './logger';
+import { tradierBase } from './tradier-api';
 import { storage } from './storage';
 import { recordSymbolAttention } from './attention-tracking-service';
 import { db } from './db';
@@ -16,6 +17,7 @@ import { optionsFlowHistory, watchlist, FlowStrategyCategory, FlowDteCategory } 
 import { eq, desc, gte, inArray, and, sql } from 'drizzle-orm';
 
 import { marketDateET } from '@shared/market-day';
+import { postDiscordWebhook } from './discord-service';
 /**
  * Classify a flow by strategy category and DTE horizon
  * Identifies lotto plays (whale OTM calls/puts) vs institutional blocks
@@ -89,7 +91,14 @@ interface OptionsFlow {
   premium: number;
   impliedVolatility: number;
   delta: number;
-  sentiment: 'bullish' | 'bearish' | 'neutral';
+  /**
+   * Directional read. 'unknown' is a first-class answer: from a chain snapshot we
+   * cannot tell a buyer from a seller, and SELLING calls is bearish while SELLING
+   * puts is bullish — so contract type alone gets the sign wrong half the time.
+   */
+  sentiment: 'bullish' | 'bearish' | 'neutral' | 'unknown';
+  /** How `sentiment` was arrived at, so no consumer has to guess how much to trust it. */
+  biasBasis: 'tape' | 'none';
   flowType: 'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal';
   unusualScore: number;
   underlyingPrice: number | null;
@@ -150,6 +159,17 @@ const DEFAULT_OPTIONS_WATCHLIST = [
   'DWAC', 'DKNG',
 ];
 
+// The hand-typed list above froze in time — CRCL and SNDK, both on the
+// operator's own core watchlist, were absent because they listed after it was
+// written, so their prints ($1.2M CRCL put, $1.7M SNDK sweep on 2026-08-26)
+// were structurally invisible. The operator's core list is a living input;
+// union it in so a name they trade can never be missing from flow coverage.
+import { USER_CORE_WATCHLIST } from './ticker-universe';
+const OPTIONS_WATCHLIST = Array.from(new Set([
+  ...DEFAULT_OPTIONS_WATCHLIST,
+  ...USER_CORE_WATCHLIST.map((t) => t.toUpperCase()),
+]));
+
 let scannerStatus: ScannerStatus = {
   isActive: true,  // Scanners run by default via cron schedules
   lastScan: null,
@@ -158,7 +178,7 @@ let scannerStatus: ScannerStatus = {
   settings: {
     minPremium: 50000, // Lowered to $50k minimum premium (better for smaller flows)
     minVolumeOIRatio: 1.5, // Lowered threshold for unusual volume
-    watchlist: DEFAULT_OPTIONS_WATCHLIST,
+    watchlist: OPTIONS_WATCHLIST,
     alertThreshold: 70, // Slightly lower threshold to catch more activity
   },
 };
@@ -196,6 +216,21 @@ async function fetchChainWithSpot(symbol: string): Promise<{ options: any[]; spo
     logger.warn(`[OPTIONS-FLOW] CBOE fallback failed for ${symbol}: ${e?.message}`);
   }
 
+  // Third leg: Yahoo, already Tradier-shaped (the GEX path lives on it). With
+  // the Tradier key dead (401 on prod AND sandbox, 2026-08-26) and CBOE
+  // 429-limited, one working fallback is the difference between a thin cycle
+  // and a blind one.
+  try {
+    const { getYahooOptionsChain } = await import('./yahoo-options-fallback');
+    const yh = await getYahooOptionsChain(symbol);
+    if (yh && yh.length > 0) {
+      logger.info(`[OPTIONS-FLOW] ${symbol}: CBOE empty — using Yahoo fallback (${yh.length} contracts)`);
+      return { options: yh, spot: spotBySymbol.get(symbol) ?? null };
+    }
+  } catch (e: any) {
+    logger.warn(`[OPTIONS-FLOW] Yahoo fallback failed for ${symbol}: ${e?.message}`);
+  }
+
   return { options: [], spot: null };
 }
 
@@ -213,7 +248,7 @@ async function fetchTradierChain(symbol: string): Promise<any[]> {
     
     // Step 1: Get available expirations first (REQUIRED by Tradier)
     const expResponse = await fetch(
-      `https://api.tradier.com/v1/markets/options/expirations?symbol=${symbol}`,
+      `${tradierBase()}/markets/options/expirations?symbol=${symbol}`,
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -240,7 +275,7 @@ async function fetchTradierChain(symbol: string): Promise<any[]> {
     
     for (const expiration of nearTermExpirations) {
       const response = await fetch(
-        `https://api.tradier.com/v1/markets/options/chains?symbol=${symbol}&expiration=${expiration}&greeks=true`,
+        `${tradierBase()}/markets/options/chains?symbol=${symbol}&expiration=${expiration}&greeks=true`,
         {
           headers: {
             'Authorization': `Bearer ${apiKey}`,
@@ -291,46 +326,65 @@ function calculatePremium(option: any): number {
  * Calculate unusual score for an option
  * Scores based on: volume/OI, premium size, IV, delta, and DTE
  */
+// The operator caught the old formula grading a $172K sweep on a zero-OI
+// QBTS strike at 95 while NVDA's $19.5M whale sat at 80. Three diseases:
+// vol/OI divided by (OI||1) so a FRESHLY LISTED strike (OI 0 = calendar
+// mechanics, not whales) hit the ratio jackpot; premium points saturated at
+// $1M so size literally could not win; and IV points paid +15 to expensive-
+// vol junk while institutional SPY flow collected 0. Rebuilt: monotonic in
+// premium (log-ish steps to $10M), ratio only counts against a REAL baseline
+// (OI >= 100), absolute contract volume earns its own points, IV pays
+// nothing. Max 100 = $10M+ premium, >=10x ratio on real OI, 50k contracts,
+// ATM, near-dated.
 function calculateUnusualScore(option: any): number {
   let score = 0;
   const volume = option.volume || 0;
-  const openInterest = option.open_interest || 1;
-  
+  const openInterest = option.open_interest || 0;
+
   // Skip if no volume
   if (volume === 0) return 0;
-  
-  // Volume/OI ratio (max 30 points) - key indicator of unusual activity
-  const volumeOI = volume / openInterest;
-  if (volumeOI > 5) score += 30;
-  else if (volumeOI > 3) score += 25;
-  else if (volumeOI > 2) score += 20;
-  else if (volumeOI > 1.5) score += 15;
-  else if (volumeOI > 1) score += 10;
-  
-  // Premium size (max 30 points) - huge money indicator
+
+  // Volume/OI ratio (max 25) — meaningful only against an established
+  // baseline. A near-zero-OI strike gets a flat 8: real activity, unmeasurable
+  // unusualness.
+  if (openInterest >= 100) {
+    const volumeOI = volume / openInterest;
+    if (volumeOI > 10) score += 25;
+    else if (volumeOI > 5) score += 20;
+    else if (volumeOI > 3) score += 15;
+    else if (volumeOI > 2) score += 10;
+    else if (volumeOI > 1.5) score += 6;
+    else if (volumeOI > 1) score += 3;
+  } else if (volume >= 500) {
+    score += 8;
+  }
+
+  // Premium size (max 35) — monotonic to $10M so size can actually win.
   const premium = calculatePremium(option);
-  if (premium > 1000000) score += 30;      // $1M+ = major institutional
-  else if (premium > 500000) score += 25;  // $500k+
-  else if (premium > 250000) score += 20;  // $250k+
-  else if (premium > 100000) score += 15;  // $100k+
-  else if (premium > 50000) score += 10;   // $50k+
-  else if (premium > 25000) score += 5;    // $25k+
-  
-  // IV percentile (max 15 points) - high IV = expected move
-  const iv = option.greeks?.mid_iv || 0;
-  if (iv > 1.0) score += 15;
-  else if (iv > 0.8) score += 12;
-  else if (iv > 0.6) score += 10;
-  else if (iv > 0.4) score += 5;
-  
-  // Delta exposure (max 15 points) - ATM options most valuable
+  if (premium >= 10_000_000) score += 35;
+  else if (premium >= 5_000_000) score += 30;
+  else if (premium >= 2_000_000) score += 26;
+  else if (premium >= 1_000_000) score += 22;
+  else if (premium >= 500_000) score += 17;
+  else if (premium >= 250_000) score += 12;
+  else if (premium >= 100_000) score += 7;
+  else if (premium >= 50_000) score += 3;
+
+  // Absolute volume (max 15) — 67k contracts is loud even at 1.1x OI.
+  if (volume >= 50_000) score += 15;
+  else if (volume >= 20_000) score += 12;
+  else if (volume >= 10_000) score += 9;
+  else if (volume >= 5_000) score += 6;
+  else if (volume >= 1_000) score += 3;
+
+  // Delta / moneyness (max 15) - ATM is where conviction trades
   const delta = Math.abs(option.greeks?.delta || 0);
-  if (delta > 0.4 && delta < 0.6) score += 15; // ATM sweet spot
-  else if (delta > 0.3 && delta < 0.7) score += 12;
-  else if (delta > 0.2) score += 8;
-  else if (delta > 0.1) score += 5;
-  
-  // Time to expiry bonus for near-term (max 10 points)
+  if (delta > 0.4 && delta < 0.6) score += 15;
+  else if (delta > 0.3 && delta < 0.7) score += 10;
+  else if (delta > 0.2) score += 6;
+  else if (delta > 0.1) score += 3;
+
+  // Time to expiry (max 10) - near-dated flow is the actionable kind
   const expiry = new Date(option.expiration_date);
   const daysToExpiry = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   if (daysToExpiry <= 2) score += 10;  // 0-2 DTE highest urgency
@@ -346,8 +400,9 @@ function calculateUnusualScore(option: any): number {
  */
 function determineFlowType(option: any, score: number): OptionsFlow['flowType'] {
   const premium = calculatePremium(option);
-  const volumeOI = (option.volume || 0) / (option.open_interest || 1);
-  
+  const oi = option.open_interest || 0;
+  const volumeOI = oi > 0 ? (option.volume || 0) / oi : 0;
+
   // IMPORTANT: these labels are INFERRED from end-of-day chain aggregates (a strike's
   // total volume, open interest and premium), not read from the tape. We do not have
   // per-trade time-and-sales, so "block" here means "a lot of premium traded at this
@@ -356,10 +411,12 @@ function determineFlowType(option: any, score: number): OptionsFlow['flowType'] 
   //
   // Block-like: heavy premium concentrated on a single strike.
   if (premium >= 500000) return 'block';
-  // Sweep-like: volume far exceeding existing OI — aggressive NEW positioning.
-  if (volumeOI > 5) return 'sweep';
-  // Unusual volume: volume above 2x OI.
-  if (volumeOI > 2) return 'unusual_volume';
+  // Sweep-like: volume far exceeding an ESTABLISHED baseline. A near-zero-OI
+  // strike cannot claim aggression from its ratio — that is a freshly listed
+  // contract, and the old rule stamped every one of them "sweep".
+  if (oi >= 100 && volumeOI > 5) return 'sweep';
+  // Unusual volume: above 2x a real baseline, or heavy volume on a fresh strike.
+  if ((oi >= 100 && volumeOI > 2) || (oi < 100 && (option.volume || 0) >= 1000)) return 'unusual_volume';
   // Everything else is normal activity. This used to return 'dark_pool' for any
   // leftover with score >= 70, which was simply false: nothing here observes
   // off-exchange prints, so the badge asserted a data source we do not have.
@@ -369,15 +426,20 @@ function determineFlowType(option: any, score: number): OptionsFlow['flowType'] 
 /**
  * Determine sentiment
  */
-function determineSentiment(option: any): OptionsFlow['sentiment'] {
-  const delta = option.greeks?.delta || 0;
-  const optionType = option.option_type;
-  
-  // Calls with positive delta = bullish
-  // Puts with negative delta = bearish
-  if (optionType === 'call' && delta > 0.3) return 'bullish';
-  if (optionType === 'put' && delta < -0.3) return 'bearish';
-  return 'neutral';
+function determineSentiment(_option: any): OptionsFlow['sentiment'] {
+  // Deliberately NOT derived from delta or call/put.
+  //
+  // The old rule was `call && delta > 0.3 -> bullish`, which is really just "is this
+  // a call" — every near-the-money call clears 0.3 by definition. It says nothing
+  // about who was aggressive, and it is backwards on the two selling cases:
+  //   selling calls  = bearish  (was graded bullish)
+  //   selling puts   = bullish  (was graded bearish)
+  //
+  // Direction requires the trade price against the NBBO at execution. A chain
+  // snapshot has neither, so the honest answer is that we do not know. When a
+  // tick-level source is wired in, classify aggression there and set biasBasis
+  // to 'tape'.
+  return 'unknown';
 }
 
 /**
@@ -392,8 +454,25 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
   scannerStatus.lastScan = new Date().toISOString();
   
   const unusualFlows: OptionsFlow[] = [];
-  
-  for (const symbol of scannerStatus.settings.watchlist) {
+
+  // Earnings-aware priority: names reporting within 3 days are exactly where
+  // the loudest flow concentrates (CRWD on its report day was scanned with the
+  // same priority as a sleepy ETF — and missed when providers thinned the
+  // cycle). Scan them FIRST so rate limits and provider failures eat the quiet
+  // tail of the list, never the hot head.
+  let scanOrder = [...scannerStatus.settings.watchlist];
+  try {
+    const { getEarningsBySymbol } = await import('./earnings-calendar');
+    const earnMap = await getEarningsBySymbol(3);
+    const hot = scanOrder.filter((sym) => earnMap.has(sym.toUpperCase()));
+    if (hot.length > 0) {
+      const cold = scanOrder.filter((sym) => !earnMap.has(sym.toUpperCase()));
+      scanOrder = [...hot, ...cold];
+      logger.info(`[OPTIONS-FLOW] earnings priority: ${hot.length} name(s) reporting within 3d scanned first (${hot.slice(0, 8).join(', ')}${hot.length > 8 ? ', …' : ''})`);
+    }
+  } catch { /* calendar unavailable — original order stands */ }
+
+  for (const symbol of scanOrder) {
     try {
       const { options: chain, spot } = await fetchChainWithSpot(symbol);
       
@@ -416,6 +495,7 @@ export async function scanOptionsFlow(): Promise<OptionsFlow[]> {
             impliedVolatility: option.greeks?.mid_iv || 0,
             delta: option.greeks?.delta || 0,
             sentiment: determineSentiment(option),
+            biasBasis: 'none',
             flowType: determineFlowType(option, score),
             unusualScore: score,
             underlyingPrice: spot,
@@ -627,7 +707,7 @@ async function sendFlowAlerts(flows: OptionsFlow[]): Promise<void> {
       }),
     ].join('\n');
 
-    await fetch(webhook, {
+    await postDiscordWebhook(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -918,6 +998,7 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
               impliedVolatility: option.greeks?.mid_iv || 0,
               delta: option.greeks?.delta || 0,
               sentiment: determineSentiment(option),
+              biasBasis: 'none',
               flowType: determineFlowType(option, score),
               unusualScore: score,
               underlyingPrice: spot,
@@ -946,6 +1027,10 @@ export async function scanWatchlistForFlows(): Promise<{ scanned: number; flowsF
     allFlows.sort((a, b) => b.premium - a.premium);
     
     logger.info(`[OPTIONS-FLOW] Scan complete: ${symbols.length} symbols, ${symbolsWithVolume} with volume, ${totalOptionsScanned} options checked, ${allFlows.length} flows found`);
+    try {
+      const { pulse } = await import('./system-pulse');
+      pulse('flow', `flow scan: ${symbols.length} chains read, ${allFlows.length} qualifying prints`);
+    } catch { /* pulse is decoration */ }
     
     // Persist to database
     let savedCount = 0;

@@ -279,7 +279,15 @@ export function getFullUniverse(): string[] {
     ...STREAMING_MEDIA,
     ...CONSTRUCTION_HOUSING,
     ...MAJOR_ETFS,
-    ...LEVERAGED_ETFS
+    ...LEVERAGED_ETFS,
+    // The operator's own lists were NEVER part of the "full" universe — CRCL
+    // sat on USER_CORE_WATCHLIST while the pattern engine (which sweeps this
+    // function's output) could not see it. Caught by a live pipeline trace on
+    // 2026-08-26: "full universe: 761 names | CRCL in it: false". The names
+    // the operator explicitly watches belong in every universal sweep, by
+    // definition of the word full.
+    ...USER_CORE_WATCHLIST,
+    ...PREMIUM_WATCHLIST
   ]);
   return Array.from(allTickers);
 }
@@ -345,6 +353,35 @@ export const PREMIUM_WATCHLIST = [
   'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'AMD',
   // Popular retail
   'SBUX', 'NKE', 'DIS', 'NFLX'
+];
+
+/**
+ * USER CORE WATCHLIST — the operator's own names.
+ *
+ * Kept separate from PREMIUM_WATCHLIST on purpose: that list feeds Best Setups
+ * and premium alerting, and silently doubling it would change those surfaces
+ * too. This one exists so the idea generator always quotes these regardless of
+ * what a screener happened to surface that day.
+ *
+ * Why it matters: before this, APP, CRCL, ASST, CRWV, WDC, SNDK and SATL were
+ * not in getFullUniverse() at all. CRCL still produced 25 ideas and ASST 11 —
+ * but only because both were Yahoo day-gainers those sessions. On a quiet day
+ * for a name, it simply vanished from the board. Coverage by luck is not
+ * coverage.
+ */
+export const USER_CORE_WATCHLIST = [
+  // Persistent core — carried week to week
+  'PLTR', 'CRWV', 'ARM', 'MRVL', 'TSLA', 'ORCL', 'AMD', 'CRCL',
+  'APP', 'SMH', 'WDC', 'SNDK', 'FSLY', 'SATL',
+  // Highest-conviction backtested tier
+  'AAOI', 'OKLO', 'LUNR', 'KLAC', 'SMTC', 'AEHR', 'OLED', 'RMBS',
+  'BILL', 'INTA', 'MKSI',
+  // Second tier
+  'LRCX', 'AFRM', 'MU', 'TSEM', 'COIN', 'HIMS', 'ONTO', 'ENTG',
+  'UPST', 'DUOL', 'PATH', 'MDB', 'AMBA', 'COHU', 'SNOW', 'NET',
+  'FRSH', 'ESTC', 'ACLS', 'ASAN', 'QCOM',
+  // Recent live plays worth keeping quoted
+  'MARA', 'ASST',
 ];
 
 // Lotto-eligible tickers (penny stocks with liquid options)

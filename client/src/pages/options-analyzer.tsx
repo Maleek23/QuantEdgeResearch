@@ -651,7 +651,7 @@ export default function OptionsAnalyzer() {
               ) : (
                 <Card>
                   <CardContent className="p-8 text-center">
-                    <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground/60 mb-4" />
                     <h3 className="text-lg font-medium mb-2">Select an Option</h3>
                     <p className="text-sm text-muted-foreground">
                       Click "Analyze" on any option to see deep analysis including Greeks, IV metrics, price scenarios, and risk/reward scoring.
@@ -1123,7 +1123,7 @@ function VolatilitySurfacePanel({
     return (
       <Card>
         <CardContent className="p-12 text-center">
-          <BarChart3 className="h-16 w-16 mx-auto text-muted-foreground/50 mb-6" />
+          <BarChart3 className="h-16 w-16 mx-auto text-muted-foreground/60 mb-6" />
           <h2 className="text-xl font-semibold mb-3">Enter a Symbol First</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
             Search for a symbol in the Options Chain tab to view its volatility surface.

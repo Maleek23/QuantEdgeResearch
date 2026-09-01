@@ -49,6 +49,24 @@ const POPULAR_STOCKS = [
   { symbol: 'RIVN', name: 'Rivian Automotive', exchange: 'NASDAQ', sector: 'Automotive' },
   { symbol: 'LCID', name: 'Lucid Group Inc.', exchange: 'NASDAQ', sector: 'Automotive' },
   { symbol: 'NIO', name: 'NIO Inc.', exchange: 'NYSE', sector: 'Automotive' },
+  // Oil complex — searchable by symbol, company name, or the words oil/crude.
+  { symbol: 'USO', name: 'United States Oil Fund · WTI crude proxy', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'BNO', name: 'United States Brent Oil Fund · Brent crude proxy', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'XLE', name: 'Energy Select Sector SPDR Fund · oil majors', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'XOP', name: 'SPDR Oil & Gas Exploration and Production ETF', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'OIH', name: 'VanEck Oil Services ETF', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'XOM', name: 'Exxon Mobil Corporation · integrated oil', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'CVX', name: 'Chevron Corporation · integrated oil', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'COP', name: 'ConocoPhillips · oil producer', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'OXY', name: 'Occidental Petroleum · oil producer', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'EOG', name: 'EOG Resources · oil producer', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'FANG', name: 'Diamondback Energy · oil producer', exchange: 'NASDAQ', sector: 'Oil / Energy' },
+  { symbol: 'DVN', name: 'Devon Energy · oil producer', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'SLB', name: 'SLB · oilfield services', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'HAL', name: 'Halliburton · oilfield services', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'VLO', name: 'Valero Energy · oil refiner', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'MPC', name: 'Marathon Petroleum · oil refiner', exchange: 'NYSE', sector: 'Oil / Energy' },
+  { symbol: 'PSX', name: 'Phillips 66 · oil refiner', exchange: 'NYSE', sector: 'Oil / Energy' },
 ];
 
 // Comprehensive crypto mapping

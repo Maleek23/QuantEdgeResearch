@@ -180,7 +180,12 @@ button:not([disabled]):active,
   --secondary: 0 0% 96%;
   --secondary-foreground: 0 0% 20%;
   --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 45%;
+  /* 45% → 36%. Light mode cannot be fixed by this token alone: alpha composites
+     toward WHITE here, so every suffix loses contrast fast (at 36%, /70 reaches
+     only 3.33:1). Darkening helps the full-opacity case (4.76 → 6.71:1); the
+     real remedy is dropping alpha suffixes in favour of discrete tiers, which
+     is a wider sweep than this change. */
+  --muted-foreground: 0 0% 36%;
   --accent: 160 84% 95%;
   --accent-foreground: 160 84% 30%;
   --destructive: 0 84% 60%;
@@ -360,7 +365,18 @@ button:not([disabled]):active,
   --secondary: 0 0% 11%;
   --secondary-foreground: 0 0% 80%;
   --muted: 0 0% 10%;
-  --muted-foreground: 213 15% 45%;
+  /* Raised 45% → 70%. Measured on the live Oracle board, 437 text nodes at
+     ≤12px were failing 3:1 against the card; the 11px tier bottomed out at
+     1.58:1 and the 9px tier averaged 2.75:1. Root cause was this token being
+     already-muted and then halved again by ~825 `text-muted-foreground/NN`
+     opacity suffixes.
+
+     The reference site avoids this by starting from WHITE and reducing alpha
+     (#fff9 = 7.1:1, #ffffff80 = 5.3:1, #fff6 = 3.8:1) rather than starting from
+     a mid-grey. At 70% this token reads 7.71:1 at full opacity — their body
+     tier — and 3.65:1 at /60, their faintest. Foreground is 12.16:1, so the
+     hierarchy step is preserved rather than flattened. */
+  --muted-foreground: 213 15% 70%;
   --accent: 160 84% 39%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
@@ -461,6 +477,149 @@ button:not([disabled]):active,
   --shadow-lg: 0 10px 24px -4px hsl(222 47% 2% / 0.6), 0 8px 16px -4px hsl(222 47% 2% / 0.4);
   --shadow-xl: 0 20px 40px -6px hsl(222 47% 2% / 0.7), 0 12px 24px -8px hsl(222 47% 2% / 0.5);
   --shadow-2xl: 0 25px 50px -12px hsl(222 47% 2% / 0.8);
+}
+
+/* Night is the low-luminance terminal setting. Semantic direction colours and
+   type remain unchanged; only the evidence surfaces step down for long sessions. */
+.dark.terminal-night {
+  --background: 222 47% 5%;
+  --card: 220 42% 8%;
+  --card-border: 218 25% 16%;
+  --popover: 222 47% 6%;
+  --secondary: 220 35% 9%;
+  --muted: 220 32% 8%;
+  --surface-base: #080d16;
+  --surface-raised: #0d1420;
+  --surface-overlay: rgba(8, 13, 22, .92);
+  --surface-glass: rgba(8, 13, 22, .78);
+  --terminal-bg: #080d16;
+  --terminal-bg-secondary: #0d1420;
+  --terminal-bg-tertiary: #121b29;
+  --terminal-border: #1d2a3b;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NEXUS — the operator's reference-terminal palette, verbatim.
+
+   Every hex below is lifted straight from the reference mock's :root —
+   --cyan:#4fd1c5, --green:#3ddc97, --red:#ff5470, --amber:#f5b642,
+   --bg:#06070a, --panel-solid:#0e1117, cyan-tinted borders — mapped onto
+   this app's token names. That is the whole point of the token system: the
+   look is a palette assignment, not a fork of the components. Where a token
+   is an HSL triplet (shadcn convention) the value is the same colour
+   converted; where it is a literal, the mock's literal is used unchanged.
+
+   Bands map exactly as the mock's band-S/A/B/C chips: S green, A cyan,
+   B amber, C dim. Note what that swaps: dark's moss/clay ("direction
+   without the casino") become the mock's saturated green/red here. That is
+   the reference's deliberate look and this theme reproduces it faithfully —
+   the default theme keeps the muted read.
+   ═══════════════════════════════════════════════════════════════ */
+.dark.terminal-nexus {
+  /* core surfaces — #06070a / #0a0c11 / #0e1117 / #131720 */
+  --background: 225 25% 3%;
+  --foreground: 218 31% 93%;        /* #e8ecf3 */
+  --border: 187 30% 10%;            /* rgba(79,209,197,.08) composited on bg */
+  --card: 220 24% 7%;               /* #0e1117 */
+  --card-foreground: 218 31% 93%;
+  --card-border: 187 30% 12%;
+  --popover: 220 24% 7%;
+  --popover-foreground: 218 31% 93%;
+  --secondary: 222 25% 10%;         /* #131720 */
+  --secondary-foreground: 220 12% 59%;
+  --muted: 222 25% 10%;
+  --muted-foreground: 220 12% 59%;  /* #8b93a3 */
+  --accent: 174 59% 56%;            /* #4fd1c5 */
+  --accent-foreground: 225 25% 3%;
+  --destructive: 350 100% 66%;      /* #ff5470 */
+  --destructive-foreground: 0 0% 100%;
+  --input: 220 24% 7%;
+  --ring: 174 59% 56%;
+
+  --surface-base: #06070a;
+  --surface-raised: #0a0c11;
+  --surface-overlay: rgba(10, 12, 17, .92);
+  --surface-glass: rgba(14, 17, 23, .72);       /* mock --panel */
+  --surface-glass-border: rgba(79, 209, 197, .18); /* mock --border-hi */
+  --terminal-bg: #0e1117;
+  --terminal-bg-secondary: #0a0c11;
+  --terminal-bg-tertiary: #131720;
+  --terminal-border: rgba(79, 209, 197, .08);   /* mock --border */
+  --terminal-border-hover: rgba(79, 209, 197, .18);
+  --terminal-text: #e8ecf3;
+  --terminal-text-secondary: #8b93a3;
+  --terminal-text-muted: #525a6b;
+
+  /* brand accents — the mock's cyan family */
+  --brand-cyan: #4fd1c5;
+  --brand-teal: #4fd1c5;
+  --brand-blue: #60a5fa;
+  --brand-gold: #f5b642;
+
+  /* trading semantics — the mock's saturated pair */
+  --trade-bullish: #3ddc97;
+  --trade-bullish-bg: rgba(61, 220, 151, .08);
+  --trade-bullish-bg-subtle: rgba(61, 220, 151, .04);
+  --trade-bearish: #ff5470;
+  --trade-bearish-bg: rgba(255, 84, 112, .08);
+  --trade-bearish-bg-subtle: rgba(255, 84, 112, .04);
+  --trade-neutral: #f5b642;
+  --trade-neutral-bg: rgba(245, 182, 66, .08);
+  --trade-neutral-bg-subtle: rgba(245, 182, 66, .04);
+
+  /* bands — exactly the mock's band-S/A/B/C chip colours */
+  --grade-s: #3ddc97;
+  --grade-a: #4fd1c5;
+  --grade-b: #f5b642;
+  --grade-c: #8b93a3;
+  --grade-d: #f97316;
+  --grade-f: #ff5470;
+
+  --ai-primary: #4fd1c5;
+  --ai-secondary: #60a5fa;
+  --confidence-high: #3ddc97;
+  --confidence-medium: #60a5fa;
+  --confidence-low: #f5b642;
+
+  --glow-cyan: rgba(79, 209, 197, .08);
+  --glow-blue: rgba(96, 165, 250, .06);
+  --glow-teal: rgba(79, 209, 197, .15);
+  --projection-glow: #6ee7db;                   /* mock --cyan-bright */
+  --projection-glow-soft: rgba(110, 231, 219, .22);
+
+  /* charts — the mock's accent family: blue, green, amber, red, purple */
+  --chart-1: 213 94% 68%;
+  --chart-2: 154 72% 55%;
+  --chart-3: 39 89% 61%;
+  --chart-4: 350 100% 66%;
+  --chart-5: 255 92% 76%;
+
+  /* the mock's type: Inter body, JetBrains Mono figures */
+  --font-sans: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Spline Sans Mono', Menlo, Monaco, 'Courier New', monospace;
+}
+
+/* The mock sets its display type — brand, section titles, card tickers — in
+   Space Grotesk while the body runs Inter. Same split here. */
+.terminal-nexus .qe-ov2-title,
+.terminal-nexus .qe-page-title {
+  font-family: 'Space Grotesk', var(--font-sans);
+}
+
+/* The mock's glow signature, scoped to the theme so the default stays quiet:
+   the section eyebrow, the tape symbols and the heartbeat all carry the soft
+   cyan bloom that defines its look. */
+.terminal-nexus .qe-ov2-num {
+  text-shadow: 0 0 8px rgba(79, 209, 197, .4);
+}
+.terminal-nexus .qe-tape-item b {
+  text-shadow: 0 0 10px rgba(79, 209, 197, .25);
+}
+.terminal-nexus .qe-kpi-tile::before {
+  opacity: .45;
+}
+.terminal-nexus .qe-sig-card:hover {
+  box-shadow: 0 8px 24px rgb(0 0 0 / .4), 0 0 0 1px rgba(79, 209, 197, .18);
 }
 
 /* ========================================
@@ -1899,7 +2058,7 @@ button:not([disabled]):active,
   }
 
   .text-mobile-lg {
-    font-size: 17px;
+    font-size:16px;
     line-height: 24px;
   }
 
@@ -2078,4 +2237,602 @@ button:not([disabled]):active,
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   QUANTEDGE TERMINAL SYSTEM
+
+   A scoped shell language for the product surfaces. The terminal had dozens
+   of locally-correct cards but no shared hierarchy, so every border competed
+   equally. These rules make the page read top-down: chrome → market context →
+   active work → developing work. Directional colour remains data-only.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.qe-terminal {
+  position: relative;
+  isolation: isolate;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at 50% -12%, color-mix(in srgb, var(--brand-cyan) 7%, transparent), transparent 34rem),
+    var(--background);
+}
+
+.qe-terminal::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  opacity: .18;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--foreground) 3%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--foreground) 3%, transparent) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.qe-terminal-chrome {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--brand-cyan) 10%, transparent), 0 12px 36px rgb(0 0 0 / .18);
+}
+
+.qe-market-stage,
+.qe-oracle-section {
+  position: relative;
+}
+
+.qe-market-stage {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: 16px;
+  background:
+    linear-gradient(150deg, color-mix(in srgb, var(--brand-cyan) 4%, transparent), transparent 32%),
+    color-mix(in srgb, var(--card) 94%, transparent);
+  box-shadow: 0 22px 80px rgb(0 0 0 / .16);
+}
+
+.qe-oracle-section {
+  padding-top: 4px;
+}
+
+.qe-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px 16px;
+}
+
+.qe-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 8px 2px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.qe-page-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(28px, 2.3vw, 40px);
+  line-height: 1;
+  font-weight: 590;
+  letter-spacing: -.035em;
+  color: var(--foreground);
+}
+
+.qe-page-copy {
+  margin: 0;
+  max-width: 720px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.qe-oracle-section > .qe-section-head {
+  padding-inline: 4px;
+}
+
+.qe-section-eyebrow {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.qe-section-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(20px, 1.65vw, 28px);
+  line-height: 1.08;
+  font-weight: 590;
+  letter-spacing: -.025em;
+  color: var(--foreground);
+}
+
+.qe-section-copy {
+  margin: 0;
+  max-width: 700px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--muted-foreground) 88%, transparent);
+}
+
+.qe-section-state {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--brand-cyan) 22%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-cyan) 5%, transparent);
+  font-family: var(--font-mono);
+  font-size:9px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--brand-cyan) 82%, var(--foreground));
+}
+
+.qe-context-current {
+  position: relative;
+  height: 1px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.qe-context-current span {
+  position: absolute;
+  top: 0;
+  left: -24%;
+  width: 24%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-cyan), transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--brand-cyan) 72%, transparent);
+  animation: qe-current 5.8s cubic-bezier(.45, 0, .55, 1) infinite;
+}
+
+@keyframes qe-current {
+  0% { transform: translateX(0); opacity: 0; }
+  12% { opacity: .85; }
+  82% { opacity: .85; }
+  100% { transform: translateX(520%); opacity: 0; }
+}
+
+.qe-market-grid {
+  display: grid;
+  align-items: stretch;
+  gap: 1px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.qe-market-panel.qe-panel-frame {
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--card) 97%, transparent);
+  box-shadow: none;
+}
+
+.qe-panel-frame {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--foreground) 1.5%, transparent), transparent 36%),
+    var(--card);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 2.5%, transparent);
+}
+
+.qe-panel-head {
+  min-height: 43px;
+  background: color-mix(in srgb, var(--background) 22%, transparent);
+}
+
+.qe-panel-title {
+  text-rendering: geometricPrecision;
+}
+
+.qe-panel-action svg {
+  transition: transform 180ms ease;
+}
+
+.qe-panel-action:hover svg {
+  transform: translate(1px, -1px) scale(1.06);
+}
+
+.qe-rotation-candidates {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 2.5%, transparent);
+}
+
+.qe-candidate-field {
+  position: relative;
+}
+
+.qe-candidate-node::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  content: '';
+  background: var(--brand-cyan);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--brand-cyan) 70%, transparent);
+  transition: width 260ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.qe-candidate-node:hover::before,
+.qe-candidate-node:focus-visible::before {
+  width: 100%;
+}
+
+.qe-focus-overlay {
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--brand-cyan) 8%, transparent), transparent 42%),
+    color-mix(in srgb, var(--background) 72%, transparent);
+}
+
+.qe-focus-panel {
+  box-shadow: 0 32px 110px rgb(0 0 0 / .58), 0 0 0 1px color-mix(in srgb, var(--brand-cyan) 7%, transparent);
+}
+
+.qe-module-page {
+  min-height: calc(100dvh - 88px);
+}
+
+@media (min-width: 1280px) {
+  .qe-market-grid {
+    grid-template-columns: minmax(280px, .78fr) minmax(480px, 1.18fr) minmax(330px, .94fr);
+  }
+}
+
+@media (max-width: 1279px) and (min-width: 768px) {
+  .qe-market-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .qe-market-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 767px) {
+  .qe-terminal::before {
+    background-size: 48px 48px;
+  }
+
+  .qe-market-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .qe-section-head {
+    align-items: flex-start;
+    padding: 15px 14px 13px;
+  }
+
+  .qe-page-head {
+    align-items: flex-start;
+    padding: 4px 0 12px;
+  }
+
+  .qe-page-title {
+    font-size: 28px;
+  }
+
+  .qe-page-copy {
+    display: none;
+  }
+
+  .qe-section-title {
+    font-size: 20px;
+  }
+
+  .qe-section-copy {
+    display: none;
+  }
+
+  .qe-section-state {
+    padding: 6px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qe-context-current span {
+    display: none;
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   iOS focus-zoom guard.
+
+   Mobile Safari zooms the entire page when a text field with a computed
+   font-size below 16px receives focus, and it does not zoom back out. The
+   terminal's search inputs are 10px mono, so tapping the ticker box on an
+   iPhone left the whole board magnified and off-centre.
+
+   Raising the font-size only for coarse pointers keeps the desktop density
+   intact. Clamping maximum-scale in the viewport meta would also stop the zoom,
+   but it disables pinch-to-zoom for everyone, which is an accessibility
+   regression — this is the version that costs nothing.
+--------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="number"],
+  input[type="password"],
+  input:not([type]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ORACLE V2 — fixed-viewport three-column terminal.
+   Structure carbon-copied from the operator's reference mock; colour stays on
+   tokens. Desktop (≥1280px) pins the page to the viewport and each column
+   scrolls itself, the defining move of the reference. Below that the columns
+   stack and the page scrolls normally — the mock simply hides its rails on
+   small screens, which throws information away; stacking keeps it.
+   ════════════════════════════════════════════════════════════════ */
+
+.qe-oracle-v2 {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 1280px) {
+  .qe-oracle-v2 {
+    /* header 56px + tape 28px + footer 32px */
+    height: calc(100dvh - 116px);
+    display: grid;
+    grid-template-columns: minmax(292px, 330px) minmax(0, 1fr) minmax(292px, 340px);
+    overflow: hidden;
+  }
+  .qe-ov2-col {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-right: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  }
+  .qe-ov2-col:last-child { border-right: 0; }
+}
+
+/* Column section header — compact, sticky inside its own column. */
+.qe-ov2-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.qe-ov2-num {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--brand-cyan);
+  margin-bottom: 3px;
+}
+.qe-ov2-title {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -.02em;
+  color: var(--foreground);
+  margin-bottom: 2px;
+}
+.qe-ov2-sub {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+/* ── quote tape ─────────────────────────────────────────────── */
+.qe-tape {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--card) 80%, transparent);
+  overflow: hidden;
+}
+.qe-tape-session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 0 12px;
+  height: 100%;
+  border-right: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.qe-tape-viewport {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  /* soft edges, as in the reference */
+  mask-image: linear-gradient(90deg, transparent, black 3%, black 97%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 3%, black 97%, transparent);
+}
+.qe-tape-track {
+  display: inline-flex;
+  gap: 22px;
+  padding: 0 16px;
+  white-space: nowrap;
+  animation: qe-tape-scroll 70s linear infinite;
+  will-change: transform;
+}
+.qe-tape-viewport:hover .qe-tape-track { animation-play-state: paused; }
+/* A stale feed must not move. Motion is a liveness claim (MOTION.md), and a
+   scrolling tape of hours-old prices is a false one. */
+.qe-tape-track-stale { animation-play-state: paused; opacity: .55; }
+@keyframes qe-tape-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qe-tape-track { animation: none; }
+  .qe-tape-viewport { overflow-x: auto; }
+}
+.qe-tape-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size:10px;
+}
+.qe-tape-item b { color: var(--foreground); font-weight: 700; letter-spacing: .02em; }
+.qe-tape-price { color: var(--muted-foreground); }
+
+/* ── Oracle v2 · atmosphere ─────────────────────────────────────
+   The reference mock's CRT treatment: scanlines + vignette. Ported as pure
+   static CSS — zero JS, zero rAF — because the treatment is the look, not the
+   motion. Colour rides --brand-cyan so themes keep authority. z-30 sits above
+   content and the sticky header but below dropdowns (z-40) and dialogs. */
+.qe-terminal::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    color-mix(in srgb, var(--brand-cyan) 1.5%, transparent) 0px,
+    color-mix(in srgb, var(--brand-cyan) 1.5%, transparent) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+.qe-terminal::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 42%, rgb(0 0 0 / .38) 100%);
+}
+
+/* Section titles take the mock's white→cyan gradient; the eyebrow gets its glow. */
+.qe-ov2-title {
+  background: linear-gradient(135deg, var(--foreground) 0%, var(--brand-cyan) 115%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.qe-ov2-num {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--brand-cyan) 40%, transparent);
+}
+
+/* ── signal card finish ──────────────────────────────────────────
+   Band stripe on the left edge (colour set per-card via --band-color from the
+   --grade-* tokens), and the mock's hover lift. Direction still owns the card
+   tone; the stripe carries the QUALITY axis, same split as the badge. */
+.qe-sig-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--band-color, var(--brand-cyan));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--band-color, var(--brand-cyan)) 60%, transparent);
+  opacity: .85;
+}
+.qe-sig-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .qe-sig-card:hover { transform: none; }
+}
+
+/* ── boxed KPI tiles (mock's stats-bar) ─────────────────────────── */
+.qe-kpi-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.qe-kpi-tile {
+  position: relative;
+  overflow: hidden;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: 6px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--foreground) 2.5%, transparent), transparent 60%),
+    var(--card);
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s;
+}
+.qe-kpi-tile::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-cyan), transparent);
+  opacity: .3;
+}
+.qe-kpi-tile:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--brand-cyan) 25%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .qe-kpi-tile:hover { transform: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NEXUS LIGHT — the day-shift half of the reference palette.
+   Same accent hues as .terminal-nexus, at luminance that holds contrast on a
+   light ground: teal-cyan stays the identity, bull/bear stay the reference's
+   green/red family, borders keep the cyan tint. Inherits the base light
+   tokens and overrides only what carries the look.
+   ═══════════════════════════════════════════════════════════════ */
+.light.terminal-nexus-light {
+  --background: 210 33% 96%;        /* #f2f5f9 */
+  --foreground: 222 30% 10%;        /* #121826 */
+  --border: 174 30% 82%;
+  --card: 0 0% 100%;
+  --card-border: 174 30% 84%;
+  --muted-foreground: 220 14% 38%;
+  --accent: 174 84% 29%;            /* #0d9488 — the cyan family, darkened to read */
+  --ring: 174 84% 29%;
+
+  --brand-cyan: #0d9488;
+  --brand-teal: #0d9488;
+  --brand-blue: #2563eb;
+  --brand-gold: #b45309;
+
+  --trade-bullish: #059669;
+  --trade-bullish-bg: rgba(5, 150, 105, .08);
+  --trade-bullish-bg-subtle: rgba(5, 150, 105, .04);
+  --trade-bearish: #e11d48;
+  --trade-bearish-bg: rgba(225, 29, 72, .08);
+  --trade-bearish-bg-subtle: rgba(225, 29, 72, .04);
+  --trade-neutral: #b45309;
+  --trade-neutral-bg: rgba(180, 83, 9, .08);
+  --trade-neutral-bg-subtle: rgba(180, 83, 9, .04);
+
+  --grade-s: #059669;
+  --grade-a: #0d9488;
+  --grade-b: #b45309;
+  --grade-c: #64748b;
+  --grade-d: #c2410c;
+  --grade-f: #e11d48;
+
+  --font-sans: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Spline Sans Mono', Menlo, Monaco, 'Courier New', monospace;
+}
+/* The CRT overlay reads as grime on a light ground — vignette only, faint. */
+.light.terminal-nexus-light .qe-terminal::before { display: none; }
+.light.terminal-nexus-light .qe-terminal::after {
+  background: radial-gradient(ellipse at center, transparent 55%, rgb(15 23 42 / .08) 100%);
 }

@@ -30,6 +30,8 @@ import type {
 
 interface HubResponse {
   hub: GEXHubData;
+  /** Server-sent, so the Hub can show the data's age rather than the fetch's. */
+  generatedAt?: string | null;
   scan: ConfluenceScanResult;
 }
 
@@ -179,7 +181,7 @@ export default function GEXScannerPage() {
       </div>
 
       {/* ─── HUB CHROME (tape + top plays only) ─── */}
-      {hub && <GEXHubPanels hub={hub} />}
+      {hub && <GEXHubPanels hub={hub} generatedAt={data?.generatedAt ?? null} />}
 
       {/* ─── WORKFLOW TABS — distinct data slices ─── */}
       <div className="flex items-center gap-1 flex-wrap pb-1 border-b border-border/30">
@@ -208,7 +210,7 @@ export default function GEXScannerPage() {
             </button>
           );
         })}
-        <span className="text-[8px] font-mono text-muted-foreground/40 mx-1">|</span>
+        <span className="text-[8px] font-mono text-muted-foreground/60 mx-1">|</span>
         <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60 mr-1">
           SORT
         </span>
@@ -227,7 +229,7 @@ export default function GEXScannerPage() {
             {s.label}
           </button>
         ))}
-        <span className="text-[8px] font-mono text-muted-foreground/40 ml-auto tabular-nums">
+        <span className="text-[8px] font-mono text-muted-foreground/60 ml-auto tabular-nums">
           {visibleRows.length} rows
         </span>
       </div>

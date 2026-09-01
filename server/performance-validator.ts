@@ -3,6 +3,51 @@ import { format } from "date-fns";
 import { resolveBarriers } from '@shared/barrier-resolution';
 import { formatInTimeZone } from "date-fns-tz";
 import { CANONICAL_LOSS_THRESHOLD } from "@shared/constants";
+import { isOutcomeEligible, readOracleExecutionAudit } from "@shared/oracle-lifecycle";
+import { isOptionScaleIncoherent, optionScaleReason } from "@shared/option-unit-guard";
+
+/**
+ * REALISED P&L PER CONTRACT — for options and shares, not just futures.
+ *
+ * Every close outside the futures branch wrote `realizedPnL: 0`. Measured on the
+ * live book: 0 of 190 resolved trades carried a P&L, against a book that is 117
+ * options and 5 stocks and ZERO futures. So the platform recorded whether a
+ * price level printed and never what it cost or made — which is why the record
+ * could produce a win rate (25%) and an R multiple (−0.31) but no dollar answer,
+ * on a system whose stated purpose is profit.
+ *
+ * Options are priced off the premium pair when both ends exist. When the exit
+ * premium is unknown the underlying move is converted through delta, which is an
+ * ESTIMATE and is flagged as such rather than presented as a fill — a modelled
+ * number that looks like a realised one is worse than a null.
+ */
+export function computeRealisedPnl(idea: any, exitPrice: number): { pnl: number; basis: string } | null {
+  const entry = Number(idea.entryPrice);
+  if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(exitPrice)) return null;
+  const sign = String(idea.direction) === 'short' ? -1 : 1;
+
+  const entryPrem = Number(idea.entryPremium);
+  const exitPrem = Number(idea.exitPremium);
+  const isOption = !!(idea.optionType && idea.strikePrice);
+
+  if (isOption && entryPrem > 0 && Number.isFinite(exitPrem) && exitPrem >= 0) {
+    // Both premium legs known — this is a real per-contract result.
+    return { pnl: (exitPrem - entryPrem) * 100, basis: 'premium' };
+  }
+
+  if (isOption && entryPrem > 0) {
+    // Estimate through delta. Labelled, never passed off as a fill.
+    const delta = Number(idea.optionDelta ?? idea.delta ?? 0.5);
+    const underlyingMove = (exitPrice - entry) * sign;
+    const est = underlyingMove * Math.abs(delta) * 100;
+    // A long option cannot lose more than the premium paid.
+    const floored = Math.max(est, -entryPrem * 100);
+    return { pnl: floored, basis: 'delta_estimate' };
+  }
+
+  // Shares: one contract's worth of stock so the unit matches the option case.
+  return { pnl: (exitPrice - entry) * sign * 100, basis: 'shares_per_100' };
+}
 
 // 📊 REALISTIC TRADING COSTS: Applied to performance calculations
 // These model real-world execution costs that reduce backtest performance
@@ -521,35 +566,13 @@ export class PerformanceValidator {
     };
   }
 
-  /**
-   * Normalize trade direction considering both direction field and option type
-   * This ensures correct validation for both stocks and options
-   * 
-   * Rules:
-   * - Stocks: direction field directly indicates bullish (long) vs bearish (short)
-   * - Options: {long call, short put} = bullish, {long put, short call} = bearish
-   * 
-   * @returns 'long' for bullish trades, 'short' for bearish trades
-   */
+  /** Return the canonical direction of the underlying thesis. */
   static getNormalizedDirection(idea: TradeIdea): 'long' | 'short' {
-    // For non-option assets, use direction field directly
-    if (idea.assetType !== 'option' || !idea.optionType) {
-      return idea.direction as 'long' | 'short';
-    }
-
-    // For options, normalize based on direction + option type combination
-    if (idea.direction === 'long' && idea.optionType === 'call') {
-      return 'long';  // Long call = bullish (price goes up)
-    } else if (idea.direction === 'long' && idea.optionType === 'put') {
-      return 'short'; // Long put = bearish (price goes down)
-    } else if (idea.direction === 'short' && idea.optionType === 'call') {
-      return 'short'; // Short call = bearish (price goes down)
-    } else if (idea.direction === 'short' && idea.optionType === 'put') {
-      return 'long';  // Short put = bullish (price goes up)
-    }
-
-    // Fallback to direction field if unable to normalize
-    return idea.direction as 'long' | 'short';
+    // QuantEdge's bot buys calls and puts; it does not write contracts.
+    // `direction="short"` + `optionType="put"` therefore means a bearish
+    // underlying thesis expressed with a bought put, NOT a bullish short put.
+    // Re-deriving direction from optionType inverted every bearish barrier.
+    return idea.direction === 'short' ? 'short' : 'long';
   }
 
   /**
@@ -564,6 +587,33 @@ export class PerformanceValidator {
       return { shouldUpdate: false };
     }
 
+    // A research plan is not a trade. Older scanners wrote an entry price at
+    // publication and the validator then treated the first later quote as an
+    // entered position. That made a missed plan look like a stop/target result
+    // and poisoned both the history and score calibration. Only a recorded
+    // trigger or paper/broker execution may receive an outcome.
+    if (!isOutcomeEligible(idea.convergenceSignalsJson)) {
+      return { shouldUpdate: false };
+    }
+
+    // An option row whose barriers are premium cannot be resolved against the
+    // underlying, and this validator only ever has underlying prices. Refuse.
+    //
+    // Placed HERE, at the top, rather than at the resolveBarriers call, because
+    // there are three separate paths below that each write an outcome — the
+    // missed-entry branch, the option-expiry branch and the barrier branch — and
+    // guarding only the comparison would leave the other two writing in the
+    // wrong units. Returning early covers all three.
+    //
+    // It computes nothing. Every alternative considered here replaced a
+    // fabricated win with a COMPUTED substitute — settle-at-intrinsic, or a
+    // zero-bid rule that latches a permanent -100% off a transient quote — and
+    // those carry no fingerprint at all, which makes them worse than the bug
+    // they replace. Writing nothing fails visibly, as missing coverage.
+    if (isOptionScaleIncoherent(idea as any)) {
+      return { shouldUpdate: false };
+    }
+
     const timezone = 'America/Chicago';
     const now = new Date();
     const createdAt = new Date(idea.timestamp);
@@ -575,7 +625,11 @@ export class PerformanceValidator {
     // 🚨 CRITICAL CHECK: Has the entry window closed?
     // If entryValidUntil has passed, mark as expired but ALSO track what WOULD have happened (educational)
     // IMPORTANT: Real metrics (outcomeStatus, percentGain) stay at expired/0 to preserve win rate accuracy
-    if (idea.entryValidUntil) {
+    // An entry window governs a plan waiting for a trigger. Once execution is
+    // recorded it is historical context, not a reason to expire a live
+    // position (the old order of these checks was expiring paper trades).
+    const executionAudit = readOracleExecutionAudit(idea.convergenceSignalsJson);
+    if (idea.entryValidUntil && executionAudit?.state !== 'triggered' && executionAudit?.state !== 'executed') {
       try {
         const entryValidUntilDate = this.parseExitByDate(idea.entryValidUntil, createdAt);
         
@@ -1011,6 +1065,11 @@ export class PerformanceValidator {
 
       // Calculate futures P&L if applicable
       let realizedPnL = 0;
+      // Non-futures now price too — see computeRealisedPnl.
+      if (idea.assetType !== 'future') {
+        const r = computeRealisedPnl(idea, idea.targetPrice);
+        if (r) realizedPnL = Math.round(r.pnl * 100) / 100;
+      }
       if (idea.assetType === 'future' && idea.futuresMultiplier && idea.futuresTickSize) {
         // 🔧 BUG FIX: Calculate futures P&L correctly (multiply by multiplier ONCE, not twice)
         const directionSign = idea.direction === 'long' ? 1 : -1;
@@ -1068,6 +1127,10 @@ export class PerformanceValidator {
       // barrier is now a touched barrier on both sides.
       // Calculate futures P&L if applicable
       let realizedPnL = 0;
+      if (idea.assetType !== 'future') {
+        const r = computeRealisedPnl(idea, idea.stopLoss);
+        if (r) realizedPnL = Math.round(r.pnl * 100) / 100;
+      }
       if (idea.assetType === 'future' && idea.futuresMultiplier && idea.futuresTickSize) {
         // 🔧 BUG FIX: Calculate futures P&L correctly (multiply by multiplier ONCE, not twice)
         const directionSign = idea.direction === 'long' ? 1 : -1;

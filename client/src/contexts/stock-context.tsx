@@ -16,7 +16,15 @@ interface StockContextValue {
 const StockContext = createContext<StockContextValue | undefined>(undefined);
 
 export function StockContextProvider({ children }: { children: ReactNode }) {
-  const [currentStock, setCurrentStockState] = useState<StockInfo | null>(null);
+  const [currentStock, setCurrentStockState] = useState<StockInfo | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = sessionStorage.getItem("quantedge_current_stock");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
 
   const setCurrentStock = useCallback((stock: StockInfo | null) => {
     setCurrentStockState(stock);

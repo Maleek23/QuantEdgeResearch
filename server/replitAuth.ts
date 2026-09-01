@@ -8,6 +8,7 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 import { storage } from "./storage";
 import { logger, logError } from "./logger";
 
@@ -39,7 +40,10 @@ export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
+    // Do not create connect-pg-simple's own default 15-connection pool. The
+    // hosted Supabase pool is capped at 15, so a second pool exhausted all
+    // clients and made normal login/page requests fail.
+    pool,
     createTableIfMissing: false,
     ttl: sessionTtl,
     tableName: "sessions",
@@ -110,7 +114,33 @@ async function upsertUser(
 
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
-  app.use(getSession());
+  const sessionMiddleware = getSession();
+  // A bad/stale session row must never turn a normal page navigation into a raw
+  // 500 response. This can happen when a browser presents an old connect.sid
+  // while the session store is briefly unavailable; a clean request then works,
+  // which is an especially confusing failure for the person already signed in.
+  // Continue as anonymous for this request. Protected routes still require a
+  // real userId and will return 401; we do not grant access or invent a session.
+  app.use((req, res, next) => {
+    sessionMiddleware(req, res, (error?: unknown) => {
+      if (!error) return next();
+      logger.error('Session store unavailable; serving request anonymously', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // express-session may have already begun writing response headers before
+      // its backing store reports a pool error. Passing that response on to
+      // Vite made Vite try to set CORS headers a second time, which crashed the
+      // dev server with "Cannot set headers after they are sent". End this one
+      // failed request cleanly; the next request can use the anonymous path.
+      if (res.headersSent) {
+        if (!res.writableEnded) res.end();
+        return;
+      }
+      (req as any).session = {};
+      (req as any).sessionID = undefined;
+      return next();
+    });
+  });
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -122,13 +152,10 @@ export async function setupAuth(app: Express) {
   if (!replitAuthAvailable) {
     logger.warn('Replit Auth not available - REPL_ID not configured. Skipping Replit OIDC setup.');
     
-    // Register placeholder routes that inform users Replit Auth is not available
-    app.get("/api/login", (req, res) => {
-      res.status(503).json({ 
-        message: "Replit Auth not available in this environment",
-        suggestion: "Use Google OAuth or email authentication instead"
-      });
-    });
+    // Legacy links and old browser tabs may still point at the former Replit
+    // entry point. A JSON 503 leaves a person stranded on an error page even
+    // though this deployment has working Google + email authentication.
+    app.get("/api/login", (_req, res) => res.redirect('/login'));
     
     app.get("/api/callback", (req, res) => {
       res.redirect('/signup?error=replit_auth_unavailable');
@@ -152,13 +179,8 @@ export async function setupAuth(app: Express) {
       error: (error as Error).message 
     });
     
-    // Register fallback routes
-    app.get("/api/login", (req, res) => {
-      res.status(503).json({ 
-        message: "Replit Auth initialization failed",
-        suggestion: "Use Google OAuth or email authentication instead"
-      });
-    });
+    // Do not surface provider setup failure as a raw API response to users.
+    app.get("/api/login", (_req, res) => res.redirect('/login'));
     app.get("/api/callback", (req, res) => res.redirect('/signup?error=replit_auth_failed'));
     app.get("/api/logout", (req, res) => req.logout(() => res.redirect('/')));
     return;

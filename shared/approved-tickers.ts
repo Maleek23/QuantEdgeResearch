@@ -5,12 +5,16 @@
  * Import this everywhere instead of inline copies.
  */
 
-// MEGA-CAP TIER — FAANG + mega-cap tech the platform must always cover.
+// MEGA-CAP TIER — price-discovery names the platform must always cover.
 // These are the names the broader market reacts to; even if user doesn't
 // trade them daily, scanners need them for breadth, regime, and GEX context.
 // NOTE: NVDA is intentionally excluded (proven 0% WR per user backtest).
+// TSLA belongs here despite also being a higher-beta A-tier-style setup: its
+// index/options impact means it must receive the same always-on coverage as
+// the other market-moving mega caps. This is coverage metadata, not a score
+// bonus and does not manufacture a signal.
 export const MEGA_CAP_TIER = [
-  'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN',
+  'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA',
 ] as const;
 
 // S-Tier: highest conviction, best backtested results
@@ -25,7 +29,7 @@ export const A_TIER = [
   'HIMS', 'ONTO', 'ENTG', 'UPST', 'DUOL', 'PATH', 'MDB',
   'AMBA', 'COHU', 'SNOW', 'NET', 'FRSH', 'ESTC', 'ACLS', 'ASAN',
   'SOFI', 'DDOG', 'DELL', 'SHOP', 'DKNG', 'MARA', 'BROS',
-  'LITE', 'FN', 'CIEN', 'AXTI', 'NBIS', 'TSLA', 'AVGO', 'NFLX',
+  'LITE', 'FN', 'CIEN', 'AXTI', 'NBIS', 'AVGO', 'NFLX',
   'COHR', 'ALGM',
 ] as const;
 
@@ -60,6 +64,11 @@ export const SECONDARY = [
   'KTOS', 'LMT',
   // Nuclear / Energy renaissance
   'CEG', 'VST',
+
+  // Requested research queue — these names must be eligible for the same
+  // evidence gates as every other scanner candidate. Inclusion here means
+  // "scan and grade", never "publish an automatic long".
+  'BE', 'FCEL', 'COPX',
 ] as const;
 
 // SMALL ACCOUNT TIER — cheap, high-vol, catalyst-driven names where
@@ -89,6 +98,10 @@ export const SMALL_ACCOUNT_TIER = [
   'HOOD', 'OPEN', 'CHWY', 'PTON',
   // Meme / high-vol catalyst names
   'BB', 'GME', 'AMC',
+
+  // Crypto-treasury / high-beta names. They remain evidence-gated: a BTC move
+  // alone is not a directional stock signal.
+  'ASST', 'BMNR',
 
   // ── Emerging gems (Apr 2026) ──────────────────────────────
   // Uranium / nuclear fuel (supply squeeze + SMR demand)
@@ -153,10 +166,29 @@ export const PRECIOUS_METALS_TIER = [
   'MUX', 'HL', 'MTA', 'HYMC', 'GAU', 'THM', 'AG', 'CDE',
 ] as const;
 
+// OIL COMPLEX — crude benchmarks, liquid sector proxies and the public
+// companies through which an options trader can express the thesis.
+//
+// CL/BZ futures are intentionally not placed in APPROVED_TICKERS: this set is
+// consumed by equity/options scanners. Universal search resolves those futures
+// separately, while these names receive the platform's normal evidence gates.
+// Leveraged/path-dependent products (UCO, SCO, GUSH, DRIP) also stay out of the
+// core universe; flow can observe them, but Oracle should not grade them as if
+// they were ordinary swing vehicles.
+export const OIL_COMPLEX_TIER = [
+  // Tradable crude and industry proxies
+  'USO', 'BNO', 'XLE', 'XOP', 'OIH',
+  // Integrated majors and exploration / production
+  'XOM', 'CVX', 'COP', 'OXY', 'EOG', 'FANG', 'DVN',
+  // Oilfield services and refiners
+  'SLB', 'HAL', 'VLO', 'MPC', 'PSX',
+] as const;
+
 export const APPROVED_TICKERS: Set<string> = new Set<string>([
   ...MEGA_CAP_TIER,
   ...S_TIER, ...A_TIER, ...INDEX_TICKERS, ...CRYPTO_TICKERS, ...SECONDARY,
   ...SMALL_ACCOUNT_TIER, ...HEALTHCARE_TIER, ...PRECIOUS_METALS_TIER,
+  ...OIL_COMPLEX_TIER,
 ]);
 
 // Skip list: proven money losers
@@ -174,8 +206,58 @@ export function getAllApprovedSymbols(): string[] {
 /**
  * Check if a ticker is on the approved watchlist
  */
+/**
+ * Names the platform may publish ideas on.
+ *
+ * WHAT THIS USED TO BE, AND WHY IT WAS WRONG
+ * A closed 197-symbol hand-list. Every producer ultimately calls this, so it
+ * was the final gate on the whole platform — and it blocked NVDA. Traced on a
+ * live sweep 2026-08-31:
+ *
+ *   2,000  liquid universe
+ *     831  bull-flag setups found
+ *     712  passed the R:R gate
+ *      32  tier-selected for ingest
+ *       3  survived THIS function
+ *
+ * Twenty-nine S/A/B-tier setups — BKNG at 12.75:1, AXON, NTAP, SLM, HPE, TEM —
+ * died here, behind the message "Universal idea generator returned null
+ * (possibly blocked by loss analyzer)", which named the wrong cause and hedged
+ * about it. That is the mechanical reason a full trading day produced eleven
+ * tickers.
+ *
+ * WHAT IT IS NOW
+ * A whitelist exists to keep illiquid junk off the board. The liquid universe
+ * already does that job, and does it with live data: top 2,000 by dollar
+ * volume, rebuilt daily. So membership is: on the hand-list (always allowed,
+ * nothing that worked before can break) OR in the liquid universe — minus the
+ * explicit SKIP list, which stays authoritative either way.
+ *
+ * The universe is injected rather than imported because this module is shared
+ * with the client, which has no access to server-side universe state. Until the
+ * server calls setLiquidUniverse() the old 197-name behaviour applies exactly,
+ * so nothing changes for any caller that has not opted in.
+ *
+ * APPROVED_TICKERS_STRICT=true restores the closed list.
+ */
+let liquidUniverse: Set<string> | null = null;
+
+/** Server-side: hand the live liquid universe to the approval check. */
+export function setLiquidUniverse(symbols: string[]): void {
+  liquidUniverse = new Set(symbols.map((s) => s.toUpperCase()));
+}
+
+export function getApprovalUniverseSize(): number {
+  return liquidUniverse ? liquidUniverse.size + APPROVED_TICKERS.size : APPROVED_TICKERS.size;
+}
+
 export function isApprovedTicker(symbol: string): boolean {
-  return APPROVED_TICKERS.has(symbol.toUpperCase());
+  const s = symbol.toUpperCase();
+  // The skip list is a deny list and outranks everything.
+  if (SKIP_TICKERS.has(s)) return false;
+  if (APPROVED_TICKERS.has(s)) return true;
+  if (typeof process !== 'undefined' && process.env?.APPROVED_TICKERS_STRICT === 'true') return false;
+  return liquidUniverse != null && liquidUniverse.has(s);
 }
 
 /**
@@ -199,6 +281,9 @@ export function getTier(symbol: string): 'MEGA' | 'S' | 'A' | 'INDEX' | 'SECONDA
   // Healthcare names ride the SECONDARY tier for scoring (modest base bonus);
   // their conviction comes from sector rotation, not a user-validated edge tier.
   if ((HEALTHCARE_TIER as readonly string[]).includes(s)) return 'SECONDARY';
+  // Oil coverage is a market-complex lane, not a historical edge tier. Its
+  // conviction must come from price, crude, sector, macro and catalyst data.
+  if ((OIL_COMPLEX_TIER as readonly string[]).includes(s)) return 'SECONDARY';
   return null;
 }
 
@@ -247,7 +332,9 @@ export const SECTOR_MAP: Record<string, Sector> = {
   AAPL: 'mega_tech', MSFT: 'mega_tech', GOOGL: 'mega_tech',
   META: 'mega_tech', AMZN: 'mega_tech',
   TSLA: 'mega_tech', AVGO: 'mega_tech', NFLX: 'mega_tech',
-  NBIS: 'mega_tech', SMCI: 'mega_tech', DELL: 'mega_tech', PLTR: 'mega_tech',
+  // SMCI (AI servers) and NBIS (AI cloud) are infrastructure suppliers, not mega
+  // caps. DELL and PLTR stay: both are large-cap and trade with the complex.
+  SMCI: 'ai_infra', NBIS: 'ai_infra', DELL: 'mega_tech', PLTR: 'mega_tech',
 
   // Fintech
   BILL: 'fintech', AFRM: 'fintech', SOFI: 'fintech', UPST: 'fintech',
@@ -259,19 +346,30 @@ export const SECTOR_MAP: Record<string, Sector> = {
   ASAN: 'software', SHOP: 'software', INTA: 'software', DKNG: 'software',
   CRCL: 'software', BROS: 'software',
 
-  // Space / nuclear
-  LUNR: 'space', OKLO: 'space', RKLB: 'space', ASTS: 'space',
-  CLSK: 'space',
+  // Space
+  LUNR: 'space', RKLB: 'space', ASTS: 'space',
+  // Oklo is a small modular reactor company, not a launch/satellite name. It sat
+  // in 'space' next to SMR/NNE/LEU in 'energy', so on a nuclear day the sector
+  // read split across two groups and "Space / Aero" was led by a reactor stock.
+  OKLO: 'energy',
 
-  // Energy / mining
-  MARA: 'energy',
+  // Energy
+  BE: 'energy', FCEL: 'energy', COPX: 'other',
+  // Oil complex — crude proxies, producers, services and refiners
+  USO: 'energy', BNO: 'energy', XLE: 'energy', XOP: 'energy', OIH: 'energy',
+  XOM: 'energy', CVX: 'energy', COP: 'energy', OXY: 'energy', EOG: 'energy',
+  FANG: 'energy', DVN: 'energy', SLB: 'energy', HAL: 'energy', VLO: 'energy',
+  MPC: 'energy', PSX: 'energy',
 
   // Index ETFs
   SPY: 'index', QQQ: 'index', IWM: 'index', XSP: 'index', DIA: 'index',
   SMH: 'index', XLK: 'index', SOXX: 'index', EWY: 'index',
 
   // Newly added secondaries
-  CRWV: 'mega_tech', MRVL: 'chips', APP: 'software',
+  // CoreWeave is an AI cloud, not a mega cap — it sat in Mega-Cap Tech alongside
+  // AAPL/MSFT/GOOGL, which is why that group's top movers read SMCI/CRWV rather
+  // than the mega caps the label promises.
+  CRWV: 'ai_infra', MRVL: 'chips', APP: 'software',
   ORCL: 'mega_tech', SNDK: 'chips', FSLY: 'software',
   SATL: 'space',
 
@@ -294,6 +392,21 @@ export const SECTOR_MAP: Record<string, Sector> = {
   SOUN: 'ai_infra', IONQ: 'quantum', RGTI: 'quantum',
   BBAI: 'ai_infra', QBTS: 'quantum',
   RIOT: 'crypto', WULF: 'crypto', BTBT: 'crypto', IREN: 'crypto',
+  ASST: 'crypto', BMNR: 'crypto',
+  // Bitcoin miners, treasury proxies and spot vehicles. These were scattered
+  // across 'energy' (MARA), 'space' (CLSK) and 'other' (everything else), so the
+  // Crypto group measured a 6-name subset of a ~29-name complex: on a miner day
+  // it reported "100% green" while MARA was dragging Energy and CLSK was the top
+  // mover in Space / Aero. Direction on all of these follows BTC — see
+  // BTC_PROXIES in server/short-discipline.ts, which this list mirrors.
+  MARA: 'crypto', CLSK: 'crypto', HUT: 'crypto', CIFR: 'crypto',
+  CORZ: 'crypto', BITF: 'crypto', BTDR: 'crypto', GREE: 'crypto',
+  HIVE: 'crypto', SDIG: 'crypto', ARBK: 'crypto', CAN: 'crypto',
+  MSTR: 'crypto', SMLR: 'crypto', GLXY: 'crypto', BKKT: 'crypto',
+  IBIT: 'crypto', FBTC: 'crypto', GBTC: 'crypto', BITO: 'crypto',
+  BITX: 'crypto', WGMI: 'crypto', BLOK: 'crypto',
+  // COIN deliberately stays 'fintech' — it is grouped with BILL/AFRM/SOFI/UPST
+  // in the trading watchlist, and moving it would fight that read.
   NIO: 'ev_mobility', RIVN: 'ev_mobility', LCID: 'ev_mobility',
   JOBY: 'ev_mobility', ACHR: 'ev_mobility',
   SMR: 'energy', NNE: 'energy', BWXT: 'energy',

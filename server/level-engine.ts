@@ -11,9 +11,9 @@
  *             can't take it out. If structure is missing, fall back to a pure ATR stop.
  *   • ENTRY — spot when price is already in position; otherwise the reclaim/trigger level,
  *             which is what makes "PENDING TRIGGER" mean something.
- *   • T1    — the next real obstacle (prior swing high/low). Never closer than a minimum
- *             R multiple, so we don't publish trades that can't pay for their own risk.
- *   • T2    — the following structural level, or a 2R extension.
+ *   • T1    — the next real obstacle (prior swing high/low). If the chart has no
+ *             visible destination, it returns null rather than manufacturing one.
+ *   • T2    — the following structural level when one exists; never a 2R extension.
  *
  * Every result carries `method` + `rationale` so the UI can say WHY a level is there.
  */
@@ -23,8 +23,8 @@ export interface Candle { time: number; open: number; high: number; low: number;
 export interface DerivedLevels {
   entryPrice: number;
   stopLoss: number;
-  targetPrice: number;   // T1
-  target2: number;       // T2
+  targetPrice: number | null;   // T1, only when structural
+  target2: number | null;       // T2, only when structural
   riskRewardRatio: number;
   atr: number;
   atrPct: number;
@@ -32,6 +32,8 @@ export interface DerivedLevels {
   rationale: string;
   /** true when entry sits away from spot — the idea needs a trigger before it's live */
   requiresTrigger: boolean;
+  /** A target is structural when it came from an observed swing level. */
+  targetIsStructural: boolean;
 }
 
 const round2 = (n: number) => Number(n.toFixed(2));
@@ -71,7 +73,6 @@ export function findSwings(candles: Candle[], lookback = 3): { highs: number[]; 
   return { highs, lows };
 }
 
-const MIN_RR = 1.5;          // never publish a trade that can't pay for its own risk
 const ATR_STOP_MULT = 1.0;   // noise buffer beyond structure
 /**
  * Sanity clamp on stop distance — but volatility-aware. A flat 8% cap fired constantly on
@@ -112,9 +113,20 @@ export function deriveLevels(
 
   let method: DerivedLevels['method'] = 'structure';
   let stopLoss: number;
-  let targetPrice: number;
-  let target2: number;
+  let targetPrice: number | null;
+  let target2: number | null;
+  let t1Structural = true;
   const notes: string[] = [];
+
+  // T1 is a TAKE-PROFIT, not a destination (operator: "isn't this take
+  // profits?"). A name in a fresh run often has no structure overhead except
+  // the old top 20%+ away; publishing that as T1 made every extended idea's
+  // target look unreachable — and the outcome tracker judged trades against a
+  // multi-week level. So: structure within reach (3.5×ATR) stays T1; farther
+  // structure DEMOTES to T2 and T1 becomes a 2×ATR take-profit, labeled as
+  // such — a volatility unit, not an invented chart level dressed up as one.
+  const T1_REACH_ATR = 3.5;
+  const T1_ATR_MULT = 2;
 
   if (long) {
     // stop under the nearest swing low BELOW spot, padded by ATR
@@ -129,11 +141,22 @@ export function deriveLevels(
       stopLoss = spot - (atr > 0 ? atr * 2 : spot * 0.035);
       notes.push(atr > 0 ? 'no nearby swing low — 2×ATR stop' : 'insufficient history — fixed 3.5% stop');
     }
-    // T1 at the next swing high ABOVE spot
+    // T1 at the next swing high ABOVE spot — when it's within reach
     const above = highs.filter((h) => h > spot).sort((a, b) => a - b);
-    targetPrice = above[0] ?? spot + Math.max(buffer * 2, spot * 0.08);
-    if (above[0]) notes.push(`T1 at prior swing high $${round2(above[0])}`);
-    target2 = above[1] ?? targetPrice + (targetPrice - spot);
+    const nearest = above[0] ?? null;
+    if (nearest != null && (atr <= 0 || nearest - spot <= atr * T1_REACH_ATR)) {
+      targetPrice = nearest;
+      target2 = above[1] ?? null;
+      notes.push(`T1 at prior swing high $${round2(nearest)}`);
+    } else if (atr > 0) {
+      targetPrice = spot + atr * T1_ATR_MULT;
+      target2 = nearest;
+      t1Structural = false;
+      notes.push(`T1 take-profit at ${T1_ATR_MULT}×ATR (nearest structure ${nearest != null ? `$${round2(nearest)} demoted to T2 — beyond ${T1_REACH_ATR}×ATR` : 'none overhead'})`);
+    } else {
+      targetPrice = nearest;
+      target2 = above[1] ?? null;
+    }
   } else {
     const above = highs
       .filter((h) => h > spot && (atr <= 0 || h - spot <= atr * MAX_STOP_ATR))
@@ -147,12 +170,24 @@ export function deriveLevels(
       notes.push(atr > 0 ? 'no nearby swing high — 2×ATR stop' : 'insufficient history — fixed 3.5% stop');
     }
     const below = lows.filter((l) => l < spot).sort((a, b) => b - a);
-    targetPrice = below[0] ?? spot - Math.max(buffer * 2, spot * 0.08);
-    if (below[0]) notes.push(`T1 at prior swing low $${round2(below[0])}`);
-    target2 = below[1] ?? targetPrice - (spot - targetPrice);
+    const nearest = below[0] ?? null;
+    if (nearest != null && (atr <= 0 || spot - nearest <= atr * T1_REACH_ATR)) {
+      targetPrice = nearest;
+      target2 = below[1] ?? null;
+      notes.push(`T1 at prior swing low $${round2(nearest)}`);
+    } else if (atr > 0) {
+      targetPrice = spot - atr * T1_ATR_MULT;
+      target2 = nearest;
+      t1Structural = false;
+      notes.push(`T1 take-profit at ${T1_ATR_MULT}×ATR (nearest structure ${nearest != null ? `$${round2(nearest)} demoted to T2 — beyond ${T1_REACH_ATR}×ATR` : 'none below'})`);
+    } else {
+      targetPrice = nearest;
+      target2 = below[1] ?? null;
+    }
   }
 
-  // clamp an absurd stop (volatility-aware), then enforce a minimum payoff
+  // Clamp an absurd stop (volatility-aware). The reward is not stretched to
+  // satisfy a desired ratio: the target must remain an observed level.
   const maxPct = maxStopPct(atrPct);
   const maxDist = spot * maxPct;
   if (Math.abs(spot - stopLoss) > maxDist) {
@@ -161,25 +196,21 @@ export function deriveLevels(
   }
 
   const risk = Math.abs(spot - stopLoss);
-  let reward = Math.abs(targetPrice - spot);
-  if (risk > 0 && reward / risk < MIN_RR) {
-    targetPrice = long ? spot + risk * MIN_RR : spot - risk * MIN_RR;
-    reward = risk * MIN_RR;
-    notes.push(`T1 pushed to the ${MIN_RR}R minimum — nearest structure was too close to pay for the risk`);
-    target2 = long ? spot + risk * MIN_RR * 2 : spot - risk * MIN_RR * 2;
-  }
+  const reward = targetPrice != null ? Math.abs(targetPrice - spot) : 0;
+  if (targetPrice == null) notes.push('no next structural target — coverage only');
 
   return {
     entryPrice: round2(spot),
     stopLoss: round2(stopLoss),
-    targetPrice: round2(targetPrice),
-    target2: round2(target2),
+    targetPrice: targetPrice == null ? null : round2(targetPrice),
+    target2: target2 == null ? null : round2(target2),
     riskRewardRatio: risk > 0 ? Number((reward / risk).toFixed(2)) : 0,
     atr: round2(atr),
     atrPct: Number(atrPct.toFixed(2)),
     method,
     rationale: notes.join(' · '),
     requiresTrigger: false,
+    targetIsStructural: targetPrice != null && t1Structural,
   };
 }
 

@@ -3,12 +3,12 @@
  *
  * Dedicated scanner for the most-traded stocks (TSLA, AMD, NVDA, AAPL, META, etc.)
  * Unlike other scanners that wait for surges or unusual activity, this scanner
- * PROACTIVELY analyzes popular tickers for trade opportunities.
+ * PROACTIVELY monitors popular tickers for coverage changes.
  *
- * Generates BOTH stock AND options ideas:
- * - Stock swing trades
- * - Weekly options (calls/puts)
- * - Lotto plays (cheap OTM options)
+ * This is intentionally a coverage scanner, not an idea publisher. A moving
+ * quote or a liquid name tells Oracle where to look; it does not establish an
+ * entry, invalidation, or structural target. Dedicated structure, flow, GEX,
+ * and catalyst scanners can publish only after their own gates are satisfied.
  *
  * Runs every 2 hours during market hours to ensure coverage of major tickers.
  */
@@ -69,6 +69,27 @@ interface TickerAnalysis {
   suggestedTarget: number;
   suggestedStop: number;
   weeklyTrend: number; // % change over the week
+}
+
+export interface PopularCoverageRead {
+  symbol: string;
+  bias: 'bullish' | 'bearish';
+  observedAt: string;
+  price: number;
+  weeklyTrend: number;
+  observations: Array<{ type: string; description: string }>;
+  summary: string;
+  nextStep: string;
+}
+
+const latestCoverage = new Map<string, PopularCoverageRead>();
+
+/** Latest broad-market reads for the coverage lane. Never trade instructions. */
+export function getPopularTickerCoverage(symbols?: string[]): PopularCoverageRead[] {
+  const requested = symbols?.map(symbol => symbol.toUpperCase());
+  return Array.from(latestCoverage.values())
+    .filter(read => !requested || requested.includes(read.symbol))
+    .sort((a, b) => b.observedAt.localeCompare(a.observedAt));
 }
 
 interface OptionSetup {
@@ -504,8 +525,7 @@ async function findOptionPlays(analysis: TickerAnalysis): Promise<OptionSetup[]>
 }
 
 /**
- * Scan popular tickers for trade opportunities
- * Generates BOTH stock AND option ideas
+ * Scan popular tickers for coverage. This does not create active signals.
  */
 export async function scanPopularTickers(): Promise<number> {
   // Merge user watchlist (priority) + static popular tickers
@@ -515,7 +535,7 @@ export async function scanPopularTickers(): Promise<number> {
   const allSymbols = [...universeSymbols, ...extraPopular];
   logger.info(`[POPULAR-SCANNER] Starting scan of ${allSymbols.length} tickers (${watchlistSymbols.size} from watchlist)...`);
 
-  let ideasGenerated = 0;
+  let coverageReads = 0;
   const processedSymbols = new Set<string>();
 
   for (const symbol of allSymbols) {
@@ -533,67 +553,18 @@ export async function scanPopularTickers(): Promise<number> {
 
       if (!analysis) continue;
 
-      // 1. Generate STOCK idea
-      const stockInput: IngestionInput = {
-        source: 'market_scanner',
+      latestCoverage.set(analysis.symbol, {
         symbol: analysis.symbol,
-        assetType: 'stock',
-        direction: analysis.direction,
-        signals: analysis.signals,
-        holdingPeriod: 'swing',
-        currentPrice: analysis.currentPrice,
-        suggestedTarget: analysis.suggestedTarget,
-        suggestedStop: analysis.suggestedStop,
-        catalyst: analysis.catalyst,
-        analysis: analysis.analysis,
-        sourceMetadata: {
-          scannerType: 'popular_tickers',
-          scanTimestamp: new Date().toISOString(),
-          confidence: analysis.confidence,
-        },
-      };
-
-      const stockResult = await ingestTradeIdea(stockInput);
-      if (stockResult.success) {
-        ideasGenerated++;
-        logger.info(`[POPULAR-SCANNER] ✅ STOCK ${analysis.direction.toUpperCase()} idea for ${analysis.symbol}`);
-      }
-
-      // 2. Generate OPTION ideas
-      const optionPlays = await findOptionPlays(analysis);
-
-      for (const option of optionPlays) {
-        const optionInput: IngestionInput = {
-          source: 'market_scanner',
-          symbol: option.symbol,
-          assetType: 'option',
-          direction: option.direction,
-          signals: analysis.signals,
-          holdingPeriod: option.dte <= 7 ? 'day' : 'swing',
-          currentPrice: option.entryPrice,
-          suggestedEntry: option.entryPrice,
-          suggestedTarget: option.targetPrice,
-          suggestedStop: option.stopLoss,
-          catalyst: option.catalyst,
-          analysis: option.analysis,
-          optionType: option.optionType,
-          strikePrice: option.strikePrice,
-          expiryDate: option.expiryDate,
-          sourceMetadata: {
-            scannerType: 'popular_tickers_options',
-            dte: option.dte,
-            isLotto: option.isLotto,
-            confidence: option.confidence,
-          },
-        };
-
-        const optionResult = await ingestTradeIdea(optionInput);
-        if (optionResult.success) {
-          ideasGenerated++;
-          const lottoTag = option.isLotto ? ' (LOTTO)' : '';
-          logger.info(`[POPULAR-SCANNER] ✅ ${option.optionType.toUpperCase()} $${option.strikePrice} exp ${option.expiryDate}${lottoTag} for ${option.symbol}`);
-        }
-      }
+        bias: analysis.direction,
+        observedAt: new Date().toISOString(),
+        price: analysis.currentPrice,
+        weeklyTrend: analysis.weeklyTrend,
+        observations: analysis.signals.map(({ type, description }) => ({ type, description })),
+        summary: analysis.analysis,
+        nextStep: 'Coverage only — wait for a structure, flow, GEX, or catalyst scanner to define trigger, invalidation, and structural target.',
+      });
+      coverageReads++;
+      logger.debug(`[POPULAR-SCANNER] ◌ COVERAGE ${analysis.symbol} ${analysis.direction.toUpperCase()} — not published as a trade`);
 
       // Small delay to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -602,8 +573,8 @@ export async function scanPopularTickers(): Promise<number> {
     }
   }
 
-  logger.info(`[POPULAR-SCANNER] Scan complete: ${ideasGenerated} ideas (stocks + options) from ${processedSymbols.size} tickers`);
-  return ideasGenerated;
+  logger.info(`[POPULAR-SCANNER] Scan complete: ${coverageReads} coverage reads from ${processedSymbols.size} tickers; 0 trade ideas published`);
+  return coverageReads;
 }
 
 /**

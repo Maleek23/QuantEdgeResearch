@@ -109,7 +109,7 @@ export function AIInsightsPanel({
                       stroke="currentColor"
                       strokeWidth="4"
                       fill="none"
-                      className="text-muted-foreground/50"
+                      className="text-muted-foreground/60"
                     />
                     <circle
                       cx="32"

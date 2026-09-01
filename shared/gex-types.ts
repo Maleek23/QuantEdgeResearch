@@ -53,6 +53,10 @@ export interface GEXSnapshot {
 
   // Aggregate exposures
   totalGEX: number;       // net dealer gamma exposure ($/1% move, billions)
+  /** Same value as totalGEX. The wire has always used this name; both are sent
+   *  so neither the six components reading totalGEX nor anything reading
+   *  totalNetGEX silently receives undefined. See server/gamma-exposure.ts. */
+  totalNetGEX?: number;
   totalVEX: number;       // net dealer vanna exposure (billions)
   callGEX: number;
   putGEX: number;
@@ -222,6 +226,14 @@ export interface GEXHubData {
   scannedAt: number;
   marketRegime: ConfluenceScanResult['marketRegime'];
   totalTickers: number;
+  /**
+   * Coverage disclosure — totalTickers is SUCCESSES, not the universe. When
+   * chains providers degrade (Tradier 401, CBOE 429 storms) most of the
+   * universe fails its fetch; these fields make that visible instead of the
+   * ranked board implying completeness it doesn't have.
+   */
+  attempted?: number;
+  failedSymbols?: string[];
 
   /** Top 6 by net positive GEX (call wall heavy / pin candidates) */
   topPositiveGEX: HubLeaderRow[];

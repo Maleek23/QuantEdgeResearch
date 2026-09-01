@@ -107,6 +107,25 @@ function getBaseUrl(apiKey: string): string {
   return isSandboxKey(apiKey) ? TRADIER_SANDBOX_BASE : TRADIER_API_BASE;
 }
 
+/**
+ * THE base URL for every Tradier call in the codebase.
+ *
+ * `TRADIER_USE_SANDBOX` was honoured by four files and ignored by eight, which
+ * hardcoded `https://api.tradier.com/v1` — including gamma-exposure.ts, the path
+ * the whole GEX layer depends on. So flipping to sandbox did not actually move
+ * the calls that matter: they kept hitting production and kept 401-ing on a
+ * token that has not been approved for market data.
+ *
+ * A sandbox token is a real fallback, not a toy. Quotes are delayed, but option
+ * CHAIN structure — strikes, expiries, open interest, greeks — is what GEX needs,
+ * and OI only updates once a day anyway. Delayed chains beat no chains.
+ *
+ * Exported so nothing has to hardcode a host again.
+ */
+export function tradierBase(): string {
+  return process.env.TRADIER_USE_SANDBOX === 'true' ? TRADIER_SANDBOX_BASE : TRADIER_API_BASE;
+}
+
 // ─── Circuit breaker ─────────────────────────────────────────────────
 // When Tradier auth fails (401) or service is down, repeatedly hammering it
 // floods logs and burns CPU. This breaker trips after 3 consecutive auth
@@ -117,11 +136,13 @@ function getBaseUrl(apiKey: string): string {
 
 let _breakerOpenedAt = 0;
 let _breakerFailures = 0;
+let _disabledForBoot = false;
 const BREAKER_THRESHOLD = 3;
 const BREAKER_COOLDOWN_MS = 60_000;
 let _lastBreakerLogAt = 0;
 
 function isBreakerOpen(): boolean {
+  if (_disabledForBoot) return true;
   if (_breakerOpenedAt === 0) return false;
   if (Date.now() - _breakerOpenedAt < BREAKER_COOLDOWN_MS) return true;
   // Cooldown elapsed → half-open: allow one trial request
@@ -151,6 +172,17 @@ function recordBreakerSuccess(): void {
   }
   _breakerFailures = 0;
   _breakerOpenedAt = 0;
+}
+
+// The breaker tracks the health of the PLATFORM market-data key. A caller that
+// supplies its own token — a user's connected brokerage account — must never be
+// short-circuited (or counted against the breaker) because our key is dead.
+function skipTradier(apiKey?: string): boolean {
+  return !apiKey && isBreakerOpen();
+}
+
+function noteTradierFailure(apiKey: string | undefined, reason: string): void {
+  if (!apiKey) recordBreakerFailure(reason);
 }
 
 export function getTradierBreakerState(): { open: boolean; failures: number; cooldownRemainingMs: number } {
@@ -328,6 +360,11 @@ async function resolveOptionMark(
     return cboeOptionQuote(optionSymbol, params);
   }
 
+  // Breaker open → the round-trip is already known to fail. Go straight to CBOE.
+  if (skipTradier(apiKey)) {
+    return cboeOptionQuote(optionSymbol, params);
+  }
+
   try {
     const baseUrl = getBaseUrl(key);
     const response = await fetch(`${baseUrl}/markets/quotes?symbols=${optionSymbol}`, {
@@ -340,6 +377,7 @@ async function resolveOptionMark(
     if (!response.ok) {
       // 401 = unfunded/expired key, 4xx/5xx = outage. Either way Tradier can't price
       // this contract right now, and a stale mark is worse than a delayed one.
+      noteTradierFailure(apiKey, `HTTP ${response.status}`);
       return cboeOptionQuote(optionSymbol, params);
     }
 
@@ -419,6 +457,8 @@ export async function getTradierHistory(
     return [];
   }
 
+  if (skipTradier(apiKey)) return [];
+
   try {
     const baseUrl = getBaseUrl(key);
     const endDate = new Date();
@@ -440,6 +480,7 @@ export async function getTradierHistory(
 
     if (!response.ok) {
       logger.error(`Tradier history error for ${symbol}: ${response.status}`);
+      noteTradierFailure(apiKey, `HTTP ${response.status}`);
       return [];
     }
 
@@ -521,8 +562,9 @@ export async function getTradierHistoryOHLC(
 ): Promise<{ opens: number[]; highs: number[]; lows: number[]; closes: number[]; dates: string[] } | null> {
   const key = apiKey || process.env.TRADIER_API_KEY;
   
-  // Try Tradier first if key available
-  if (key) {
+  // Try Tradier first if key available — unless the breaker already knows it is down,
+  // in which case Yahoo is the answer and the round-trip is pure latency.
+  if (key && !skipTradier(apiKey)) {
     try {
       const baseUrl = getBaseUrl(key);
       const endDate = new Date();
@@ -558,6 +600,7 @@ export async function getTradierHistoryOHLC(
         }
       } else {
         logger.warn(`Tradier OHLC history error for ${symbol}: ${response.status}, trying Yahoo Finance`);
+        noteTradierFailure(apiKey, `HTTP ${response.status}`);
       }
     } catch (error) {
       logger.warn(`Tradier OHLC fetch error for ${symbol}, trying Yahoo Finance:`, error);
@@ -580,9 +623,13 @@ export async function getTradierOptionsChain(
     return [];
   }
 
+  // Every scanner calls this per symbol. Without the breaker check a rejected token
+  // produced hundreds of identical 401s a minute for the whole life of the process.
+  if (skipTradier(apiKey)) return [];
+
   try {
     const baseUrl = getBaseUrl(key);
-    
+
     // If no expiration provided, get the nearest expiration
     let targetExpiration = expiration;
     if (!targetExpiration) {
@@ -599,6 +646,8 @@ export async function getTradierOptionsChain(
         if (expirations.length > 0) {
           targetExpiration = expirations[0]; // First expiration (nearest)
         }
+      } else {
+        noteTradierFailure(apiKey, `HTTP ${expResponse.status}`);
       }
     }
 
@@ -619,6 +668,7 @@ export async function getTradierOptionsChain(
 
     if (!response.ok) {
       logger.error(`Tradier options chain error for ${symbol}: ${response.status}`);
+      noteTradierFailure(apiKey, `HTTP ${response.status}`);
       return [];
     }
 
@@ -640,6 +690,8 @@ export async function getTradierOptionExpirations(symbol: string, apiKey?: strin
     logger.error('Tradier API key not found');
     return [];
   }
+  if (skipTradier(apiKey)) return [];
+
   try {
     const baseUrl = getBaseUrl(key);
     const resp = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
@@ -650,6 +702,7 @@ export async function getTradierOptionExpirations(symbol: string, apiKey?: strin
     });
     if (!resp.ok) {
       logger.error(`Tradier expirations error for ${symbol}: ${resp.status}`);
+      noteTradierFailure(apiKey, `HTTP ${resp.status}`);
       return [];
     }
     const data = await resp.json();
@@ -671,9 +724,11 @@ export async function getTradierOptionsChainsByDTE(
     return [];
   }
 
+  if (skipTradier(apiKey)) return [];
+
   try {
     const baseUrl = getBaseUrl(key);
-    
+
     // 1. Get all available expirations
     const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
       headers: {
@@ -684,6 +739,7 @@ export async function getTradierOptionsChainsByDTE(
 
     if (!expResponse.ok) {
       logger.error(`Tradier expirations error for ${symbol}: ${expResponse.status}`);
+      noteTradierFailure(apiKey, `HTTP ${expResponse.status}`);
       return [];
     }
 
@@ -771,6 +827,8 @@ export async function getTradierMarketStatus(apiKey?: string): Promise<{
     return null;
   }
 
+  if (skipTradier(apiKey)) return null;
+
   try {
     const baseUrl = getBaseUrl(key);
     const response = await fetch(`${baseUrl}/markets/clock`, {
@@ -782,6 +840,7 @@ export async function getTradierMarketStatus(apiKey?: string): Promise<{
 
     if (!response.ok) {
       logger.error(`Tradier market clock error: ${response.status}`);
+      noteTradierFailure(apiKey, `HTTP ${response.status}`);
       return null;
     }
 
@@ -929,6 +988,7 @@ export async function findOptimalStrike(
 export async function validateTradierAPI(): Promise<boolean> {
   const key = process.env.TRADIER_API_KEY;
   if (!key) {
+    _disabledForBoot = true;
     logger.warn('⚠️  Tradier API key not configured');
     logger.warn('   → Options trading DISABLED until valid key is provided');
     logger.warn('   → Only stock shares and crypto will be generated');
@@ -948,6 +1008,10 @@ export async function validateTradierAPI(): Promise<boolean> {
     });
 
     if (!response.ok) {
+      // Authentication failures do not heal during a process lifetime. Permanently
+      // short-circuit this boot instead of allowing hundreds of concurrent scanners
+      // to retry the same rejected token every circuit-breaker cooldown.
+      if (response.status === 401 || response.status === 403) _disabledForBoot = true;
       logger.error(`❌ Tradier API validation failed: ${response.status} ${response.statusText}`);
       logger.error('   → Options trading DISABLED - invalid or expired API key');
       logger.error('   → Get a valid key at: https://tradier.com/individuals/api-access');
@@ -956,6 +1020,7 @@ export async function validateTradierAPI(): Promise<boolean> {
     }
 
     logger.info('✅ Tradier API connected successfully');
+    _disabledForBoot = false;
     logger.info('   → Options trading available with real-time data');
     logAPISuccess('Tradier', 'validate', Date.now() - startTime);
     return true;
@@ -980,6 +1045,8 @@ export async function searchSymbolLookup(query: string, apiKey?: string): Promis
     return [];
   }
 
+  if (skipTradier(apiKey)) return [];
+
   const startTime = Date.now();
   try {
     const baseUrl = getBaseUrl(key);
@@ -992,6 +1059,7 @@ export async function searchSymbolLookup(query: string, apiKey?: string): Promis
 
     if (!response.ok) {
       logger.warn(`Tradier lookup error for "${query}": ${response.status}`);
+      noteTradierFailure(apiKey, `HTTP ${response.status}`);
       return [];
     }
 

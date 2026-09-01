@@ -135,7 +135,9 @@ export function initializeCoinbaseWebSocket(): void {
 let futuresPollingInterval: NodeJS.Timeout | null = null;
 
 async function pollFuturesPrices(): Promise<void> {
-  const symbols = { NQ: 'NQ=F', ES: 'ES=F', GC: 'GC=F' };
+  // Cross-asset tape: indices establish risk appetite, gold reads safety/rates,
+  // and crude is the inflation/geopolitical input the energy complex trades on.
+  const symbols = { NQ: 'NQ=F', ES: 'ES=F', GC: 'GC=F', CL: 'CL=F' };
   
   for (const [rootSymbol, yahooSymbol] of Object.entries(symbols)) {
     try {
@@ -221,6 +223,7 @@ export function getAllFuturesPrices(): Map<string, PriceCache> {
 }
 
 export function getRealtimeStatus(): {
+  isHealthy: boolean;
   coinbase: { connected: boolean; symbols: number; lastUpdate: Date | null };
   futures: { connected: boolean; symbols: number; lastUpdate: Date | null };
 } {
@@ -239,14 +242,28 @@ export function getRealtimeStatus(): {
     }
   });
   
+  const freshnessCutoff = Date.now() - 60_000;
+  const coinbaseConnected =
+    coinbaseWs?.readyState === WebSocket.OPEN &&
+    coinbaseLastUpdate !== null &&
+    coinbaseLastUpdate.getTime() >= freshnessCutoff;
+  const futuresConnected =
+    futuresPollingInterval !== null &&
+    futuresLastUpdate !== null &&
+    futuresLastUpdate.getTime() >= freshnessCutoff;
+
   return {
+    // Health means both live lanes are connected and have produced a recent
+    // observation. HTTP liveness remains 200 even when this is false; callers
+    // can use the per-lane fields below to show honest source quality.
+    isHealthy: coinbaseConnected && futuresConnected,
     coinbase: {
-      connected: coinbaseWs?.readyState === WebSocket.OPEN,
+      connected: coinbaseConnected,
       symbols: cryptoPrices.size,
       lastUpdate: coinbaseLastUpdate
     },
     futures: {
-      connected: futuresPollingInterval !== null,
+      connected: futuresConnected,
       symbols: futuresPrices.size,
       lastUpdate: futuresLastUpdate
     }

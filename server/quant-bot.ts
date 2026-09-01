@@ -3,22 +3,31 @@
  *
  * Everything upstream produces opinions; nothing was recording whether they worked. The
  * bot closes that loop: it takes the highest-conviction signals into a paper portfolio,
- * manages them against their own stop/target, and books the result. That produces the one
- * number that actually matters — did this engine make money — and feeds grade calibration
- * with real outcomes instead of assumptions.
+ * manages them against their own stop/target, and books the result. It is a paper-execution
+ * ledger — one source of calibration evidence, never a replacement for the platform outcome
+ * model or a signal's 0–100 evidence grade.
  *
  * Rules are deliberately mechanical. A bot that second-guesses the signal is no longer
  * measuring the signal.
  */
 import { logger } from './logger';
 import { storage } from './storage';
+import { convictionDisplayPercent } from '@shared/conviction-display';
 import {
   executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closePosition,
   calculatePortfolioValue, recordEquitySnapshot,
   getOpenPositions, getClosedPositions,
 } from './paper-trading-service';
 
-const BOT_PORTFOLIO_NAME = 'Quant Bot';
+// The 10K book could not buy ONE contract of the board it measures: at 1-2%
+// risk its premium ceiling was ~$250 while MSFT's conservative call cost $655
+// and LITE's $2,865 — every fill died at the position sizer after passing
+// every other gate. Options are lumpy; the account must afford the lumps.
+// New clean-era book at 100K (1% risk ≈ $1K → ceiling ~$2.5K covers the
+// board's actual premiums). The old 'Quant Bot' 10K book stays in the DB
+// untouched for audit; this name creates a fresh ledger aligned with
+// OUTCOME_BASELINE_DATE.
+const BOT_PORTFOLIO_NAME = 'Quant Bot · 100K';
 const BOT_USER = 'system-quant-bot';
 
 export interface BotConfig {
@@ -37,16 +46,22 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   // bottom of the board.
   minConviction: 18,
   maxOpen: 10,
-  startingCapital: 10_000,
+  startingCapital: 100_000,
   riskPerTradePct: 2,
   // Past ~35% of the way to T1 the remaining reward no longer justifies the same risk.
   maxProgressPct: 35,
 };
 
-/** The bot trades one dedicated portfolio; create it on first run. */
-export async function getBotPortfolio(cfg: BotConfig = DEFAULT_BOT_CONFIG) {
-  const all = await storage.getAllPaperPortfolios().catch(() => [] as any[]);
+/** Read the dedicated portfolio without changing account state. */
+async function findBotPortfolio() {
+  const all = await storage.getAllPaperPortfolios();
   const existing = Array.isArray(all) ? all.find((p: any) => p.name === BOT_PORTFOLIO_NAME) : null;
+  return existing ?? null;
+}
+
+/** The bot trades one dedicated portfolio; create it only when a cycle is explicitly run. */
+export async function getBotPortfolio(cfg: BotConfig = DEFAULT_BOT_CONFIG) {
+  const existing = await findBotPortfolio();
   if (existing) return existing;
 
   return storage.createPaperPortfolio({
@@ -263,6 +278,80 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
     logger.warn('[QUANT-BOT] gap-exit check failed:', err);
   }
 
+  // 3.7 — thesis check. The operator's rule, verbatim: "bot should be able to
+  // take profit and switch thesis when the intelligence does." A bracket knows
+  // two prices; it cannot know that the board now publishes the OPPOSITE
+  // direction on a held name, or that the session's options tape turned
+  // decisively against it. Two independent triggers, both evidence-gated:
+  //   • BOARD FLIP — the conviction board's current pick on this symbol points
+  //     the other way at or above the bot's own entry floor. The board is the
+  //     strategy; holding against it measures nothing.
+  //   • FLOW REVERSAL — >=$750k of dominant premium against the position at
+  //     >=2:1 skew, with no tape-read contradiction (same honesty bar the
+  //     generator's flow signal uses — skew alone can't tell buyer from seller,
+  //     so the threshold is higher here than for entries).
+  // Green positions bank the gain; red ones stop the bleeding. Either way the
+  // exit reason names the evidence so the ledger can score this rule later.
+  try {
+    const { getCachedConvictions } = await import('./convictions-engine');
+    const board = await getCachedConvictions();
+    const byOppDir = new Map<string, any>();
+    for (const p of board?.picks ?? []) byOppDir.set(`${p.symbol}:${p.direction}`, p);
+
+    let flowAgainst: Map<string, { prem: number; skew: number }> | null = null;
+    try {
+      const { getTodayFlows } = await import('./options-flow-scanner');
+      flowAgainst = new Map();
+      const agg = new Map<string, { call: number; put: number; tapeNet: number }>();
+      for (const f of getTodayFlows() as any[]) {
+        const a = agg.get(f.symbol) ?? { call: 0, put: 0, tapeNet: 0 };
+        if (f.optionType === 'call') a.call += f.premium; else a.put += f.premium;
+        if (f.biasBasis === 'tape') a.tapeNet += f.sentiment === 'bullish' ? 1 : f.sentiment === 'bearish' ? -1 : 0;
+        agg.set(f.symbol, a);
+      }
+      for (const [sym, a] of agg) {
+        const dom = a.call >= a.put ? 'call' : 'put';
+        const domPrem = Math.max(a.call, a.put);
+        const skew = Math.min(a.call, a.put) > 0 ? domPrem / Math.min(a.call, a.put) : Infinity;
+        if (domPrem < 750_000 || skew < 2) continue;
+        if (dom === 'call' && a.tapeNet < 0) continue;
+        if (dom === 'put' && a.tapeNet > 0) continue;
+        flowAgainst.set(`${sym}:${dom === 'call' ? 'long' : 'short'}`, { prem: domPrem, skew });
+      }
+    } catch { /* scanner cold — board flip still runs */ }
+
+    const held = await getOpenPositions(portfolio.id);
+    for (const pos of held as any[]) {
+      const thesis = pos.optionType === 'put' ? 'short' : 'long';
+      const opposite = thesis === 'long' ? 'short' : 'long';
+      const mark = Number(pos.currentPrice ?? pos.entryPrice);
+      if (!Number.isFinite(mark) || mark <= 0) continue;
+      const cost = Number(pos.entryPrice) * Number(pos.quantity) * 100;
+      const pnlPct = cost > 0 ? (Number(pos.unrealizedPnL ?? 0) / cost) * 100 : 0;
+      const pnlWord = pnlPct >= 0 ? `banked +${pnlPct.toFixed(0)}%` : `cut at ${pnlPct.toFixed(0)}%`;
+
+      const flip = byOppDir.get(`${pos.symbol}:${opposite}`);
+      if (flip && flip.convictionScore >= cfg.minConviction) {
+        await closePosition(pos.id, mark, 'thesis_flip');
+        const why = `board flipped ${opposite.toUpperCase()} on ${pos.symbol} (score ${flip.convictionScore}) — ${pnlWord}`;
+        await announceExit(pos, mark, why);
+        closed.push({ symbol: pos.symbol, reason: why });
+        continue;
+      }
+
+      const fx = flowAgainst?.get(`${pos.symbol}:${opposite}`);
+      if (fx) {
+        await closePosition(pos.id, mark, 'flow_reversal');
+        const skewStr = fx.skew === Infinity ? 'one-sided' : `${fx.skew.toFixed(1)}:1`;
+        const why = `options tape turned against it — $${(fx.prem / 1e6).toFixed(1)}M ${opposite === 'long' ? 'call' : 'put'} premium at ${skewStr} — ${pnlWord}`;
+        await announceExit(pos, mark, why);
+        closed.push({ symbol: pos.symbol, reason: why });
+      }
+    }
+  } catch (err) {
+    logger.warn('[QUANT-BOT] thesis check failed:', err);
+  }
+
   // 3 — premium stop / target
   try {
     const exited = await checkStopsAndTargets(portfolio.id);
@@ -344,13 +433,17 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         logger.warn('[QUANT-BOT] tape read failed, proceeding without the gate:', err);
       }
 
-      // On a SELECTIVE tape only take what is genuinely strong. The threshold moves
-      // with conditions rather than the bot pretending every day is the same.
-      const minConviction = tapeGate?.verdict === 'selective'
-        ? Math.max(cfg.minConviction, 26)
-        : cfg.minConviction;
-      if (minConviction !== cfg.minConviction) {
-        logger.info(`[QUANT-BOT] selective tape — conviction floor raised ${cfg.minConviction} -> ${minConviction}`);
+      // A SELECTIVE tape used to raise the conviction floor 18 -> 26, which on a
+      // board scoring 30/25/14/12 admitted exactly one name — a paper ledger
+      // that exists to MEASURE signals was starving its own sample. Caution now
+      // costs dollars instead of data: the floor stays put and position risk is
+      // halved. Same respect for the tape read, twice the decided outcomes.
+      const minConviction = cfg.minConviction;
+      const riskFraction = tapeGate?.verdict === 'selective'
+        ? (cfg.riskPerTradePct / 100) / 2
+        : cfg.riskPerTradePct / 100;
+      if (tapeGate?.verdict === 'selective') {
+        logger.info(`[QUANT-BOT] selective tape — half size (${(riskFraction * 100).toFixed(1)}%/trade), floor unchanged at ${minConviction}`);
       }
 
       const candidates = (board.picks ?? [])
@@ -383,21 +476,36 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         // fill on a real premium.
         //
         // Every option idea already carries a concrete contract (symbol / type / strike /
-        // expiry). Tradier would be the natural quote source but returns 401 on an unfunded
-        // account, so this uses CBOE's free delayed chain. Delayed, and a mid-quote rather
-        // than a print — recorded as such so the result is never mistaken for a live fill.
+        // expiry). A delayed chain is useful research data, but it is not an executable
+        // fill. New bot entries therefore require a non-delayed provider mark. Existing
+        // delayed paper positions remain visible for audit, but the ledger cannot create
+        // more false-precision entries while the realtime provider is unavailable.
         let tradeable: any;
 
         if (idea.assetType === 'option' && idea.strikePrice && idea.expiryDate && idea.optionType) {
-          const { getContractQuote } = await import('./cboe-options-fallback');
-          const q = await getContractQuote(
-            idea.symbol,
-            idea.optionType as 'call' | 'put',
-            Number(idea.strikePrice),
-            String(idea.expiryDate),
-          ).catch(() => null);
+          const { getOptionMark } = await import('./tradier-api');
+          const q = await getOptionMark({
+            underlying: idea.symbol,
+            optionType: idea.optionType as 'call' | 'put',
+            strike: Number(idea.strikePrice),
+            expiryDate: String(idea.expiryDate),
+          }).catch(() => null);
 
-          if (!q) { skipped++; continue; }   // no premium → no honest fill
+          if (!q) {
+            skipped++;
+            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no contract mark from any source`);
+            continue;
+          }
+          // A delayed mark fills — DISCLOSED, not refused. This is a paper
+          // measurement ledger: with the realtime provider dead, refusing
+          // 15-minute-delayed CBOE mids meant zero fills and zero learning
+          // (the operator watched a full board go untraded). The fill is
+          // stamped with its mark source so delayed-mark cohorts can be
+          // separated in any later analysis; false precision is prevented by
+          // labeling, not by an empty ledger.
+          if (q.delayed) {
+            logger.info(`[QUANT-BOT] ${idea.symbol}: filling on ${q.source} delayed mark (disclosed)`);
+          }
 
           const premium = q.mid;
           // Premium-based management: a -50% premium stop and a +100% target are the
@@ -405,10 +513,11 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
           // the same units as the fill so P&L is coherent.
           tradeable = {
             ...idea,
+            catalyst: `[mark: ${q.source}${q.delayed ? ' · 15m delayed' : ''}] ${idea.catalyst ?? ''}`.trim(),
             assetType: 'option',
-            optionType: q.optionType,
-            strikePrice: q.strike,
-            expiryDate: q.expirationDate,
+            optionType: idea.optionType,
+            strikePrice: Number(idea.strikePrice),
+            expiryDate: String(idea.expiryDate),
             currentPrice: premium,
             entryPrice: premium,
             targetPrice: Number((premium * 2).toFixed(2)),
@@ -427,7 +536,7 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
           continue;
         }
 
-        const res = await executeTradeIdea(portfolio.id, tradeable as any);
+        const res = await executeTradeIdea(portfolio.id, tradeable as any, { riskFraction });
         if (res.success) {
           opened.push({
             symbol: pick.symbol,
@@ -450,7 +559,9 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
               quantity: Number(res.position?.quantity ?? 1),
               targetPrice: pick.targetPrice ?? null,
               stopLoss: pick.stopLoss ?? null,
-              confidence: pick.convictionScore ?? null,
+              // Bot entry grades use the same 0–100 confidence index the
+              // terminal displays, never the raw confluence-point total.
+              confidence: convictionDisplayPercent(pick.convictionScore ?? 0),
               riskRewardRatio: pick.riskRewardRatio ?? null,
               analysis: pick.thesis ?? null,
               signals: (pick.layers ?? []).filter((l: any) => l.points > 0).slice(0, 4).map((l: any) => l.why).filter(Boolean),
@@ -475,6 +586,14 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
 
   const openCount = (await getOpenPositions(portfolio.id)).length;
   logger.info(`[QUANT-BOT] cycle: +${opened.length} opened, -${closed.length} closed, ${openCount} open`);
+  try {
+    const { pulse } = await import('./system-pulse');
+    if (opened.length || closed.length) {
+      pulse('bot', `bot: ${opened.length ? `opened ${opened.map((o) => o.symbol).join(', ')}` : ''}${opened.length && closed.length ? ' · ' : ''}${closed.length ? `closed ${closed.map((c) => c.symbol).join(', ')}` : ''} — ${openCount} open`);
+    } else {
+      pulse('bot', `bot cycle: book re-priced, ${openCount} position(s) held, nothing new qualified`);
+    }
+  } catch { /* pulse is decoration */ }
   // Persist the levels we left on. A gap exit is only half the trade the bot was
   // missing — the other half is noticing when that gap fills, because at that point
   // the reason for leaving is gone. This does NOT re-enter on its own: the
@@ -501,32 +620,31 @@ export interface BotStatus {
   totalValue: number;
   totalPnL: number;
   totalPnLPercent: number;
-  winCount: number;
-  lossCount: number;
-  winRate: number | null;
+  /** All closed exits, before the UI limits the rendered history to 25 rows. */
+  closedCount: number;
   openPositions: any[];
   closedPositions: any[];
   config: BotConfig;
 }
 
 export async function getBotStatus(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<BotStatus | null> {
-  const portfolio: any = await getBotPortfolio(cfg);
+  // A GET must never create a portfolio or disguise a storage failure as an empty $10k book.
+  // The explicit "Re-price & manage" cycle remains the only place that may create one.
+  const portfolio: any = await findBotPortfolio();
   if (!portfolio?.id) return null;
 
   try { await updatePositionPrices(portfolio.id); } catch { /* stale marks are still usable */ }
 
+  // These are the execution ledger. If any cannot be read, the caller must show an
+  // unavailable state rather than inventing an empty portfolio from fallback values.
   const [open, closedAll, value] = await Promise.all([
-    getOpenPositions(portfolio.id).catch(() => []),
-    getClosedPositions(portfolio.id).catch(() => []),
-    calculatePortfolioValue(portfolio.id).catch(() => null),
+    getOpenPositions(portfolio.id),
+    getClosedPositions(portfolio.id),
+    calculatePortfolioValue(portfolio.id),
   ]);
 
   const startingCapital = portfolio.startingCapital ?? cfg.startingCapital;
   const totalValue = value?.totalValue ?? portfolio.totalValue ?? startingCapital;
-
-  const wins = closedAll.filter((p: any) => (p.realizedPnL ?? 0) > 0).length;
-  const losses = closedAll.filter((p: any) => (p.realizedPnL ?? 0) <= 0).length;
-  const decided = wins + losses;
 
   return {
     portfolioId: portfolio.id,
@@ -538,10 +656,7 @@ export async function getBotStatus(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise
     // starting capital — that captures realised and unrealised together.
     totalPnL: totalValue - startingCapital,
     totalPnLPercent: startingCapital > 0 ? ((totalValue - startingCapital) / startingCapital) * 100 : 0,
-    winCount: wins,
-    lossCount: losses,
-    // Honest: no win rate until something has actually closed.
-    winRate: decided > 0 ? (wins / decided) * 100 : null,
+    closedCount: closedAll.length,
     openPositions: open,
     closedPositions: closedAll.slice(0, 25),
     config: cfg,

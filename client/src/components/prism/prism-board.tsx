@@ -19,8 +19,11 @@ import { Loader2 } from 'lucide-react';
 import { GEXExpiryMatrix } from '@/components/gex/gex-expiry-matrix';
 import { StructuralRange, GravitySplit } from '@/components/viz';
 import { useStockContext } from '@/contexts/stock-context';
+import { GammaSurface } from './gamma-surface';
+import { Heartbeat } from '@/components/viz';
 import { cn as cnx } from '@/lib/utils';
 import type { StrikeExpiryCell, GEXSnapshot } from '@shared/gex-types';
+import { CanonModelNote } from '@/components/canon';
 
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
@@ -60,6 +63,10 @@ export function PrismBoard() {
 
   // Default to the highest-ranked name, not a hardcoded ticker. SPY is one click away as
   // the market-benchmark read, which is how the desk uses it — a destination, not a default.
+  // 2D stays the default view. The surface is the better projection of this data,
+  // but the flat matrix is the proven read and works without a GPU — so it is what
+  // loads, and 3D is a deliberate switch rather than something imposed.
+  const [view, setView] = useState<'2d' | '3d'>('2d');
   const symbol = (currentStock?.symbol || plays[0]?.symbol || 'SPY').toUpperCase();
   const select = (s: string) => setCurrentStock({ symbol: s.toUpperCase() });
 
@@ -92,18 +99,37 @@ export function PrismBoard() {
     }
     const total = callMass + putMass;
     const callShare = total > 0 ? (callMass / total) * 100 : 50;
-    const positive = (snap.totalGEX ?? 0) >= 0;
-    return { up, down, callShare, positive, spot };
+    /**
+     * Read the regime from the field the API actually sends.
+     *
+     * This was `(snap.totalGEX ?? 0) >= 0`. The snapshot has no `totalGEX` —
+     * the field is `totalNetGEX` — so the expression was always
+     * `undefined ?? 0` → `0 >= 0` → TRUE, and this panel printed "Positive
+     * gamma — dealer hedging dampens moves" on every symbol forever, including
+     * SPY at −4.5B while the header chip beside it correctly read
+     * negative_gamma and the split beneath it read 77% puts. Three answers to
+     * one question on a single screen.
+     *
+     * Prefer the server's own `regime` string, which already applies the
+     * absolute-and-relative thresholds, and fall back to the net figure only if
+     * regime is absent. Never fall back to a literal that silently reads as
+     * positive.
+     */
+    const net = snap.totalNetGEX ?? snap.totalGEX ?? null;
+    const positive = snap.regime
+      ? snap.regime === 'positive_gamma'
+      : net != null ? net >= 0 : callShare >= 50;
+    return { up, down, callShare, positive, spot, net };
   }, [snap, matrix]);
 
   return (
     <div className="space-y-3 px-4 py-3">
-      <div className="grid gap-3 xl:grid-cols-[220px_1fr_320px] lg:grid-cols-[1fr_320px]">
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[236px_minmax(0,1fr)_328px]">
         {/* ── ranked board: GEX hub rankings, hand off into the surface ── */}
-        <aside className="hidden xl:block rounded-xl border border-card-border bg-card overflow-hidden self-start">
-          <div className="flex items-center justify-between border-b border-border/40 px-3 py-2.5">
-            <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Ranked</span>
-            <span className="text-label font-mono text-muted-foreground/70">
+        <aside className="hidden self-start overflow-hidden rounded-[4px] border border-card-border bg-card/[0.9] xl:block">
+          <div className="flex items-center justify-between border-b border-border/50 px-3 py-3">
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.13em] text-foreground/90">Ranked</span>
+            <span className="font-mono text-[10px] font-medium text-muted-foreground/80">
               {hub?.hub?.totalTickers ? `${hub.hub.totalTickers} scanned` : 'dealer positioning'}
             </span>
           </div>
@@ -112,8 +138,8 @@ export function PrismBoard() {
               onClick={() => select('SPY')}
               className="flex w-full cursor-pointer items-center justify-between border-b border-border/30 px-3 py-2 text-left transition-colors hover:bg-foreground/5"
             >
-              <span className="text-meta font-mono font-bold tracking-wider" style={{ color: CYAN }}>SPY</span>
-              <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">benchmark</span>
+              <span className="font-mono text-[12px] font-bold tracking-[0.08em]" style={{ color: CYAN }}>SPY</span>
+              <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.11em] text-muted-foreground/70">benchmark</span>
             </button>
             {plays.map((p, i) => {
               const active = p.symbol.toUpperCase() === symbol;
@@ -124,18 +150,18 @@ export function PrismBoard() {
                   onClick={() => select(p.symbol)}
                   title={p.insight}
                   className={cnx(
-                    'flex w-full cursor-pointer items-center gap-2 border-b border-border/20 px-3 py-1.5 text-left transition-colors hover:bg-foreground/5',
+                    'flex w-full cursor-pointer items-center gap-2 border-b border-border/30 px-3 py-2 text-left transition-colors hover:bg-foreground/[0.035]',
                     active && 'bg-foreground/[0.06]',
                   )}
                 >
-                  <span className="w-4 shrink-0 text-label font-mono tabular-nums text-muted-foreground/70">{i + 1}</span>
-                  <span className={cnx('text-meta font-mono font-bold tracking-wider', active ? 'text-[var(--brand-cyan,#22d3ee)]' : 'text-foreground/85')}>
+                  <span className="w-4 shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground/70">{i + 1}</span>
+                  <span className={cnx('font-mono text-[12px] font-bold tracking-[0.07em]', active ? 'text-[var(--brand-cyan,#22d3ee)]' : 'text-foreground/85')}>
                     {p.symbol}
                   </span>
-                  <span className="ml-auto text-label font-mono uppercase tracking-wider" style={{ color: neg ? BEAR : BULL }}>
+                  <span className="ml-auto font-mono text-[9px] font-bold uppercase tracking-[0.09em]" style={{ color: neg ? BEAR : BULL }}>
                     {neg ? '−γ' : '+γ'}
                   </span>
-                  <span className="w-6 text-right text-meta font-mono font-bold tabular-nums" style={{ color: (p.playScore ?? 0) >= 80 ? '#e0a458' : 'var(--foreground)' }}>
+                  <span className="w-6 text-right font-mono text-[12px] font-bold tabular-nums" style={{ color: (p.playScore ?? 0) >= 80 ? '#e0a458' : 'var(--foreground)' }}>
                     {p.playScore ?? '—'}
                   </span>
                 </button>
@@ -150,12 +176,30 @@ export function PrismBoard() {
         </aside>
 
         {/* ── the surface ── */}
-        <div className="rounded-xl border border-card-border bg-card overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-            <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">
+        <div className="overflow-hidden rounded-[4px] border border-card-border bg-card/[0.9]">
+          <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.13em] text-foreground/90">
               Prism · <span className="text-[var(--brand-cyan,#22d3ee)]">{symbol}</span>
             </span>
-            <span className="text-label font-mono text-muted-foreground/60">strike × expiry · green calls · red puts</span>
+            <div className="flex items-center gap-2">
+              <Heartbeat since={snap?.calculatedAt} staleAfterSec={600} />
+              <span className="hidden font-mono text-[10px] font-medium text-muted-foreground/70 sm:inline">strike × expiry · green calls · red puts</span>
+              <div className="flex overflow-hidden rounded border border-border/50">
+                {(['2d', '3d'] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={`px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] transition-colors ${
+                      view === v
+                        ? 'bg-[var(--brand-cyan)]/15 text-[var(--brand-cyan)]'
+                        : 'text-muted-foreground/60 hover:text-foreground/80'
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {isLoading ? (
@@ -172,24 +216,36 @@ export function PrismBoard() {
             </div>
           ) : (
             <div className="p-2">
-              <GEXExpiryMatrix matrix={matrix} snapshot={snap} />
+              {view === '2d' ? (
+                <GEXExpiryMatrix matrix={matrix} snapshot={snap} />
+              ) : (
+                <GammaSurface
+                  className="h-[420px] w-full"
+                  points={matrix as any}
+                  spot={snap.spotPrice}
+                  symbol={symbol}
+                  callWall={snap.callWall}
+                  putWall={snap.putWall}
+                  flipPrice={snap.gammaFlipPrice ?? null}
+                />
+              )}
             </div>
           )}
         </div>
 
         {/* ── the interpretation ── */}
         <aside className="space-y-3">
-          <div className="rounded-xl border border-card-border bg-card overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-              <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Context</span>
-              <span className="text-label font-mono text-muted-foreground/60">what it means</span>
+          <div className="overflow-hidden rounded-[4px] border border-card-border bg-card/[0.9]">
+            <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.13em] text-foreground/90">Context</span>
+              <span className="font-mono text-[10px] font-medium text-muted-foreground/70">what it means</span>
             </div>
 
             {snap && read ? (
               <div className="space-y-2.5 px-4 py-3">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 divide-x divide-y divide-border/45 border border-border/45">
                   <Stat label="Spot" value={`$${snap.spotPrice.toFixed(2)}`} />
-                  <Stat label="Net GEX" value={fmtGex(snap.totalGEX ?? 0)} color={read.positive ? BULL : BEAR} />
+                  <Stat label="Net GEX" value={read.net != null ? fmtGex(read.net) : '—'} color={read.positive ? BULL : BEAR} />
                   <Stat label="Call wall" value={snap.callWall ? `$${snap.callWall}` : '—'} color={BULL} />
                   <Stat label="Put support" value={snap.putWall ? `$${snap.putWall}` : '—'} color={BEAR} />
                 </div>
@@ -223,6 +279,13 @@ export function PrismBoard() {
                     : 'Negative gamma — dealer hedging amplifies moves. Expect bigger swings and follow-through once a level breaks.'}
                 </p>
 
+                {/* Promoted to the canonical note so this disclosure reads
+                    identically wherever a model assumption is in play. */}
+                <CanonModelNote className="mt-2">
+                  Dealer sign is an assumption, not an observation — inventory is
+                  never reported. Magnitude at each strike is the reliable read.
+                </CanonModelNote>
+
                 {read.up && (
                   <Level label="Strongest node above" strike={read.up.strike} expiry={read.up.expiryLabel} dte={read.up.dte} color={BULL} />
                 )}
@@ -232,19 +295,19 @@ export function PrismBoard() {
 
                 {/* buy-time nudge — the desk's most repeated rule */}
                 {read.up && read.up.dte <= 7 && (
-                  <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
-                    <div className="mb-0.5 text-label font-mono uppercase tracking-widest text-[#e0a458]">Time is your best friend</div>
-                    <div className="text-meta leading-relaxed text-foreground/80">
+                  <div className="border-l-2 border-[#e0a458] bg-[#e0a458]/[0.04] px-3 py-2.5">
+                    <div className="mb-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.11em] text-[#e0a458]">Time is your best friend</div>
+                    <div className="font-mono text-[10px] font-medium leading-relaxed text-foreground/85">
                       The strongest node sits only {read.up.dte}d out. Consider the same strike on a later
                       expiry — you pay more premium, but the thesis gets room to play out.
                     </div>
                   </div>
                 )}
 
-                <p className="pt-1 text-label leading-relaxed text-muted-foreground/70">
-                  Lit-up nodes mark likely support, resistance and magnets — they are levels, not entries.
-                  Confirm on the chart before trading.
-                </p>
+                <div className="border-t border-border/45 pt-2.5 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground/80">
+                  <span style={{ color: BULL }}>Green</span> = call side · <span style={{ color: BEAR }}>red</span> = put side · brighter cells carry more exposure.<br />
+                  Nodes are levels, not entries. Confirm on the chart before trading.
+                </div>
               </div>
             ) : (
               <div className="px-4 py-6 text-center text-label font-mono uppercase tracking-widest text-muted-foreground/70">
@@ -253,15 +316,6 @@ export function PrismBoard() {
             )}
           </div>
 
-          <div className="rounded-xl border border-card-border bg-card px-4 py-3">
-            <div className="mb-1.5 text-label font-mono uppercase tracking-widest text-muted-foreground/60">How to read</div>
-            <ul className="space-y-1 text-meta leading-relaxed text-muted-foreground/70">
-              <li><b style={{ color: BULL }}>Green</b> = call side · <b style={{ color: BEAR }}>red</b> = put side.</li>
-              <li>Brighter cell = more exposure at that strike.</li>
-              <li>Pick the strongest node in your direction, then buy enough time.</li>
-              <li>Check <b style={{ color: CYAN }}>SPY</b> first for market direction.</li>
-            </ul>
-          </div>
         </aside>
       </div>
     </div>
@@ -270,9 +324,9 @@ export function PrismBoard() {
 
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="rounded-lg border border-border/40 px-2.5 py-1.5">
-      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
-      <div className="mt-0.5 text-value font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
+    <div className="px-3 py-2.5">
+      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground/75">{label}</div>
+      <div className="mt-1 font-mono text-[14px] font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
     </div>
   );
 }

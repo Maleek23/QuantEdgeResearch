@@ -19,6 +19,7 @@
  */
 
 import "dotenv/config";
+import { acquireSchedulerLock, releaseSchedulerLock } from "./scheduler-lock";
 import { installProcessGuard } from "./process-guard";
 
 // Before anything else can throw: an unpaid API bill must not take the app down.
@@ -173,8 +174,25 @@ function isMarketCurrentlyOpen(): boolean {
     log('🌙 Heavy services will auto-start at 9:25 AM ET on next market day');
   }
 
+  /**
+   * The worker is the scheduler tier. Take the lock before scheduling anything.
+   *
+   * Without it, two worker instances — a rolling deploy overlap, an autoscaler,
+   * a forgotten process — each register all 35 jobs below against one shared
+   * database and publish every signal twice. Two processes racing the ingestion
+   * dedup both read "no existing row" and both insert, so the duplicate check
+   * cannot catch it.
+   *
+   * A follower worker serves nothing and schedules nothing; guarded-cron turns
+   * each schedule() into a logged no-op. See server/scheduler-lock.ts.
+   */
+  const workerIsLeader = await acquireSchedulerLock();
+  if (!workerIsLeader) {
+    log('👥 Another worker holds the scheduler lock — this one will not schedule jobs');
+  }
+
   // ── Cron: Start heavy services at market open ──────────────────────────
-  const cron = await import('node-cron');
+  const cron = await import('./guarded-cron');
   cron.default.schedule('25 9 * * 1-5', () => {
     log('⏰ Market open cron triggered — starting heavy services...');
     startHeavyServices();
@@ -271,15 +289,6 @@ function isMarketCurrentlyOpen(): boolean {
     } catch (err) {
       logger.error('[WEEKLY-SEED] Monday cron failed:', err);
     }
-  }, { timezone: 'America/New_York' });
-
-  // ── Cron: Restart process at market close to free memory ───────────────
-  cron.default.schedule('10 16 * * 1-5', () => {
-    log('🌙 Market closed — restarting process to free memory...');
-    setTimeout(() => {
-      log('🔄 Exiting for PM2 restart (lightweight mode)...');
-      process.exit(0);
-    }, 5000);
   }, { timezone: 'America/New_York' });
 
   // ====================================================================
@@ -683,6 +692,24 @@ function isMarketCurrentlyOpen(): boolean {
   });
   log('🚩 Bull Flag Scanner scheduled (every 30 min during market hours)');
 
+  // Base reclaims — see server/base-reclaim-scanner.ts. A flag scanner cannot
+  // express "sold off hard, now reclaiming", which is why ORCL never produced
+  // an idea despite sitting on the core watchlist with full bar history.
+  cron.default.schedule('20,50 * * * *', async () => {
+    try {
+      if (!isMarketHoursForFlow()) return;
+      const { ingestBaseReclaimIdeas } = await import('./base-reclaim-scanner');
+      const ingested = await ingestBaseReclaimIdeas();
+      if (ingested > 0) {
+        logger.info(`🔄 [BASE-RECLAIM-CRON] Auto-ingested ${ingested} base reclaim setups`);
+      }
+    } catch (error: any) {
+      logger.error('🔄 [BASE-RECLAIM-CRON] Failed:', error);
+    }
+  });
+  log('🔄 Base Reclaim Scanner scheduled (every 30 min during market hours)');
+
+
   // Bear Flag / Breakdown Scanner — short-side mirror of the bull-flag scanner.
   // Without this, every candidate source emits LONG only, so the convictions
   // feed skews ~39:1 bullish. Runs every 30 min (offset from bull flag),
@@ -994,3 +1021,8 @@ function isMarketCurrentlyOpen(): boolean {
   log('✅ [WORKER] All cron jobs scheduled. Process ready.');
   log('✅ [WORKER] Heavy services will start/stop based on market hours.');
 })();
+
+// Hand the lock back on a clean shutdown so a redeploy takes over immediately.
+for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(sig, () => { void releaseSchedulerLock().finally(() => process.exit(0)); });
+}

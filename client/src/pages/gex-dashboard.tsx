@@ -623,7 +623,7 @@ function SniperSignalsPanel({ data }: { data: GEXHeatmapData }) {
   if (signals.length === 0) {
     return (
       <Card className="bg-card/60 border-border/50 p-6 text-center">
-        <Crosshair className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+        <Crosshair className="w-8 h-8 text-muted-foreground/60 mx-auto mb-2" />
         <p className="text-sm text-muted-foreground">No sniper signals detected</p>
         <p className="text-[10px] text-muted-foreground/70 mt-1">Signals generate when extreme GEX concentrations appear near spot</p>
       </Card>

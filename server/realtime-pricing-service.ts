@@ -1,6 +1,6 @@
 import { logger } from './logger';
 import { fetchStockPrice, fetchCryptoPrice, fetchYahooFinancePrice } from './market-api';
-import { getTradierQuote, getOptionQuote } from './tradier-api';
+import { getTradierQuote, getOptionMark } from './tradier-api';
 import { yahooQuote } from './yahoo-client';
 import { getFuturesPrice, getFuturesPrices } from './futures-data-service';
 
@@ -15,6 +15,10 @@ export interface RealtimeQuote {
   volume: number;
   lastUpdate: Date;
   assetType: string;
+  /** Market-data provenance for consumers that must distinguish a mark from a fill. */
+  source?: string;
+  /** True when the venue reports a delayed chain rather than a realtime mark. */
+  delayed?: boolean;
 }
 
 export type AssetType = 'stock' | 'crypto' | 'option' | 'futures';
@@ -84,6 +88,23 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
     };
   }
 
+  /**
+   * Cash indices are not equities, so no equity path can ever price them.
+   *
+   * SPX, NDX, RUT and VIX have no shares to quote — Tradier, Yahoo and the
+   * legacy path all return nothing, forever. An open SPX idea therefore never
+   * got a live price, the lifecycle reconciler could never observe its trigger,
+   * and it sat at PENDING TRIGGER indefinitely regardless of where the index
+   * actually went.
+   *
+   * CBOE serves index levels free under an underscore-prefixed symbol
+   * (`_SPX.json`), 15-minute delayed. Delayed is fine here: the reconciler also
+   * consults persisted highs/lows, so a trigger that traded between polls is
+   * still caught.
+   */
+  const idx = await fetchIndexQuote(symbol);
+  if (idx) return idx;
+
   // Last resort: the legacy multi-source path. Kept because it reaches providers
   // the client does not, but it is no longer the first thing tried.
   const marketData = await fetchStockPrice(symbol);
@@ -103,6 +124,39 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
   }
 
   return null;
+}
+
+/** Cash indices CBOE publishes under an underscore prefix. Not tradeable equities. */
+const CASH_INDICES = new Set(['SPX', 'NDX', 'RUT', 'VIX', 'DJX', 'XSP']);
+
+async function fetchIndexQuote(symbol: string): Promise<RealtimeQuote | null> {
+  const sym = symbol.toUpperCase().replace(/^\^/, '');
+  if (!CASH_INDICES.has(sym)) return null;
+  try {
+    const res = await fetch(`https://cdn.cboe.com/api/global/delayed_quotes/options/_${sym}.json`);
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    const d = j?.data;
+    const price = Number(d?.current_price);
+    if (!Number.isFinite(price) || price <= 0) return null;
+    const prev = Number(d?.prev_day_close);
+    const change = Number.isFinite(prev) && prev > 0 ? price - prev : 0;
+    logger.info(`[REALTIME-PRICING] Index quote for ${sym}: ${price} (CBOE, delayed)`);
+    return {
+      symbol: sym,
+      name: sym,
+      price,
+      change,
+      changePercent: Number.isFinite(prev) && prev > 0 ? (change / prev) * 100 : 0,
+      high: price,
+      low: price,
+      volume: 0,
+      lastUpdate: new Date(),
+      assetType: 'stock',
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function fetchCryptoQuote(symbol: string): Promise<RealtimeQuote | null> {
@@ -143,7 +197,7 @@ async function fetchOptionQuote(symbol: string): Promise<RealtimeQuote | null> {
     return null;
   }
 
-  const quote = await getOptionQuote({ occSymbol: symbol });
+  const quote = await getOptionMark({ occSymbol: symbol });
   if (quote) {
     return {
       symbol: symbol.toUpperCase(),
@@ -156,6 +210,8 @@ async function fetchOptionQuote(symbol: string): Promise<RealtimeQuote | null> {
       volume: 0,
       lastUpdate: new Date(),
       assetType: 'option',
+      source: quote.source,
+      delayed: quote.delayed,
     };
   }
   return null;

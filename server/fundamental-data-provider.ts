@@ -42,9 +42,76 @@ export class FundamentalDataProvider {
         return avData;
       }
 
+      /**
+       * Third fallback: Finnhub.
+       *
+       * Both sources above are currently dead — Yahoo answers 429 and Alpha
+       * Vantage's free tier is 25 requests/day and exhausted. With no third
+       * source this method returned null, and the fundamental scorer then
+       * emitted 50 with an EMPTY breakdown: a number with nothing behind it and
+       * no marker saying so.
+       *
+       * Finnhub covers the ten ratios grade-calculator.ts reads. It does not
+       * carry statements, so those stay empty — the scorer weights ratios and
+       * tolerates that, but anything added later that walks incomeStatement
+       * must check length rather than assume it is populated.
+       */
+      const fhData = await this.fetchFromFinnhub(symbol);
+      if (fhData) {
+        this.setCache(cacheKey, fhData);
+        return fhData;
+      }
+
       return null;
     } catch (error) {
       console.error(`Error fetching fundamentals for ${symbol}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch ratios from Finnhub (third fallback — see getFundamentals).
+   *
+   * Returns ratios and profile only. Statements are left empty because the free
+   * tier does not carry them; callers must not assume they are populated.
+   */
+  private async fetchFromFinnhub(symbol: string): Promise<CompanyFundamentals | null> {
+    try {
+      const { getFinnhubRatios, getCompanyProfile } = await import('./finnhub-adapter');
+      const [r, prof] = await Promise.all([
+        getFinnhubRatios(symbol),
+        getCompanyProfile(symbol).catch(() => null),
+      ]);
+      if (!r) return null;
+
+      const ratios: FinancialRatios = {
+        peRatio: r.peRatio, pbRatio: r.pbRatio, pegRatio: r.pegRatio,
+        priceToSales: r.priceToSales, evToEbitda: null,
+        grossMargin: null, operatingMargin: null, netMargin: r.netMargin,
+        roe: r.roe, roa: null, roic: null,
+        currentRatio: r.currentRatio, quickRatio: null,
+        debtToEquity: r.debtToEquity, interestCoverage: null,
+        revenueGrowthYoY: r.revenueGrowthYoY, revenueGrowthQoQ: null,
+        epsGrowthYoY: r.epsGrowthYoY,
+        dividendYield: null, payoutRatio: null, dividendGrowth: null,
+      };
+
+      return {
+        profile: {
+          symbol: symbol.toUpperCase(),
+          companyName: prof?.name ?? symbol.toUpperCase(),
+          exchange: '', sector: null, industry: prof?.industry ?? null,
+          description: null, website: null, ceo: null, employees: null,
+          marketCap: prof?.marketCap ?? null, country: null,
+        },
+        ratios,
+        incomeStatement: [],
+        balanceSheet: [],
+        cashFlow: [],
+        lastUpdated: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error(`Finnhub fundamentals failed for ${symbol}:`, error);
       return null;
     }
   }

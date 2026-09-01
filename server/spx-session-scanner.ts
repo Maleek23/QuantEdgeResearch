@@ -952,6 +952,49 @@ async function saveSignalAsTradeIdea(signal: SPXSignal): Promise<void> {
       isLottoPlay: signal.urgency === 'HIGH' && signal.confidence >= 65,
     };
 
+    /**
+     * One OPEN idea per (symbol, side) — the same rule every other producer follows.
+     *
+     * This scanner writes through storage.createTradeIdea directly rather than
+     * ingestTradeIdea, so the cross-source "already held" check in
+     * server/trade-idea-ingestion.ts never applied to it. Its only guard was the
+     * 30-minute window below, which stops a burst but not accumulation: over
+     * five days it published SPY 22x, IWM 22x and QQQ 21x — 65 rows, 39% of the
+     * entire board, for three tickers.
+     *
+     * That is not 65 ideas. It is three ideas re-stated hourly, and it crowds
+     * every single-name setup off a board the operator reads by scrolling.
+     *
+     * The 30-minute window is kept for genuine intraday re-entry AFTER a
+     * position closes. What is blocked is stacking a second open position on a
+     * side already held.
+     */
+    const sideNow = /bear|short|put|down/i.test(String(signal.direction ?? '')) ? 'short' : 'long';
+    try {
+      const { db } = await import('./db');
+      const { sql } = await import('drizzle-orm');
+      const held: any = await db.execute(sql`
+        select direction from trade_ideas
+        where upper(symbol) = ${String(signal.symbol).toUpperCase()}
+          and source = 'spx_session'
+          and (status = 'active' or outcome_status = 'open')`);
+      const rows = (held.rows ?? held) as any[];
+      const clash = rows.some((r) => {
+        const s = /bear|short|put|down/i.test(String(r.direction ?? '')) ? 'short' : 'long';
+        return s === sideNow;
+      });
+      if (clash) {
+        logger.info(
+          `[SPX-SESSION] ⛔ ${signal.symbol} ${sideNow} already open — not stacking another`,
+        );
+        return;
+      }
+    } catch (err) {
+      // A failed lookup must not block publication; fall through to the
+      // 30-minute window, which is the behaviour that existed before.
+      logger.debug(`[SPX-SESSION] held-check failed for ${signal.symbol}: ${(err as any)?.message ?? err}`);
+    }
+
     await storage.createTradeIdea(tradeIdea, { dedupWindowHours: 0.5 }); // spine 30-min dedup
     logger.info(`[SPX-SESSION] ✅ Saved trade idea: ${signal.symbol} ${signal.strategy} ${signal.direction}`);
   } catch (error) {

@@ -101,7 +101,7 @@ export function FlowImport() {
             onChange={(e) => setText(e.target.value)}
             placeholder={PLACEHOLDER}
             rows={4}
-            className="w-full rounded-lg bg-background/60 border border-border/40 p-2 text-xs font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--brand-cyan)]/40 resize-y"
+            className="w-full rounded-lg bg-background/60 border border-border/40 p-2 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-[var(--brand-cyan)]/40 resize-y"
           />
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono text-muted-foreground/60">
@@ -119,7 +119,7 @@ export function FlowImport() {
               </div>
               {result.items.map((it, i) => (
                 <div key={i} className="flex items-center gap-2 text-[11px] font-mono">
-                  <span className={cn("w-6 shrink-0", it.pushed ? "text-emerald-400" : "text-muted-foreground/50")}>
+                  <span className={cn("w-6 shrink-0", it.pushed ? "text-emerald-400" : "text-muted-foreground/60")}>
                     {it.pushed ? "✓" : "·"}
                   </span>
                   <span className="w-28 shrink-0 truncate text-foreground">

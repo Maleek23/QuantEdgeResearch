@@ -196,7 +196,7 @@ export function HeaderNav() {
                         "flex items-center gap-2 w-full cursor-pointer transition-colors",
                         isActive(item.href)
                           ? "text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]"
-                          : "text-muted-foreground/50 dark:text-foreground/80 hover:text-[var(--trade-bullish)] dark:hover:text-[var(--trade-bullish)]"
+                          : "text-muted-foreground/60 dark:text-foreground/80 hover:text-[var(--trade-bullish)] dark:hover:text-[var(--trade-bullish)]"
                       )}
                       data-testid={`nav-${item.id}`}
                     >

@@ -25,6 +25,7 @@ import {
   type ExposureSnapshot,
   type StrikeExpiryCell,
 } from './options-exposures';
+import { tradierBase } from './tradier-api';
 
 // ─── Legacy-compat types ───────────────────────────────────
 
@@ -48,6 +49,8 @@ export interface GammaExposureResult {
   spotPrice: number;
   expiration: string;
   totalNetGEX: number;
+  /** Alias of totalNetGEX — see the emit site for why both names ship. */
+  totalGEX?: number;
   flipPoint: number | null;
   maxGammaStrike: number;
   strikes: GammaByStrike[];
@@ -155,7 +158,7 @@ async function fetchExpirationsCascade(symbol: string): Promise<string[]> {
   try {
     const apiKey = process.env.TRADIER_API_KEY;
     if (apiKey) {
-      const baseUrl = 'https://api.tradier.com/v1';
+      const baseUrl = tradierBase();
       const res = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
         headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
       });
@@ -211,7 +214,25 @@ function snapshotToLegacy(
     symbol: snap.symbol,
     spotPrice: snap.spotPrice,
     expiration: expirationLabel,
+    /**
+     * Emitted under BOTH names on purpose.
+     *
+     * The wire has always carried `totalNetGEX`, but shared/gex-types.ts
+     * declares the field as `totalGEX`, so six client components read
+     * `snapshot.totalGEX` and got `undefined` — with no type error, because the
+     * type agreed with them and the server did not.
+     *
+     * The visible symptom was prism-board's `(snap.totalGEX ?? 0) >= 0`
+     * evaluating `0 >= 0` on every symbol, so that panel printed "Positive
+     * gamma — dealer hedging dampens moves" for SPY at −4.5B, directly beneath
+     * a split reading 77% puts and beside a chip reading negative_gamma.
+     *
+     * Renaming either side alone breaks the other, so both are sent. The type
+     * is now true of the payload, which is what lets the compiler catch the
+     * next one of these.
+     */
     totalNetGEX: snap.totalGEX,
+    totalGEX: snap.totalGEX,
     flipPoint: snap.gammaFlipPrice,
     maxGammaStrike: snap.maxGammaStrike,
     strikes,
@@ -300,6 +321,21 @@ export async function calculateAggregateGammaExposure(
       logger.warn(`[GEX-AGG] No valid spot price for ${symbol}`);
       return null;
     }
+
+    // 1.5 — Massive chain snapshot: the whole chain (greeks, IV, OI, volume)
+    // in one OPRA-fed call. Entitlement-gated: silently unavailable until the
+    // operator's Options Starter subscription activates, at which point this
+    // becomes the primary leg and the per-expiry fetch storm below becomes
+    // the fallback. See server/massive-options.ts.
+    try {
+      const { getMassiveChainInputs } = await import('./massive-options');
+      const massiveInputs = await getMassiveChainInputs(symbol);
+      if (massiveInputs && massiveInputs.length >= 10) {
+        const snap = computeExposures(symbol, cq.bestPrice, massiveInputs, ['massive-chain']);
+        logger.info(`[GEX-AGG] ${symbol}: Massive chain snapshot — ${massiveInputs.length} contracts, one call`);
+        return snapshotToLegacy(snap, `Aggregate (massive chain)`, 'mixed', cq);
+      }
+    } catch { /* fall through to the cascade */ }
 
     // 2. Get expirations
     const allExps = await fetchExpirationsCascade(symbol);

@@ -644,7 +644,7 @@ function SectionNav({ sections }: { sections: SectionNavItem[] }) {
               className={cn(
                 'flex items-center gap-2 px-3 py-1.5 rounded-md border font-mono text-[10px] tracking-widest uppercase transition-all whitespace-nowrap',
                 isDisabled
-                  ? 'border-border/30 text-muted-foreground/40 cursor-not-allowed'
+                  ? 'border-border/30 text-muted-foreground/60 cursor-not-allowed'
                   : isActive
                     ? 'border-[var(--brand-teal)] bg-[var(--brand-teal)]/15 text-[var(--brand-teal)]'
                     : 'border-border bg-[var(--surface-raised)] text-muted-foreground hover:text-foreground hover:border-[var(--brand-teal)]/40',

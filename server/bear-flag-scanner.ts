@@ -65,6 +65,8 @@ export interface BearFlagSetup {
   entryPrice: number;
   targetPrice: number;
   targetPercent: number;
+  stretchTargetPrice: number | null;
+  targetRationale: string;
   stopLoss: number;
   stopLossPercent: number;
   holdDays: number;
@@ -397,15 +399,84 @@ function scoreBearFlag(
   return { score: Math.min(100, score), signals };
 }
 
+/**
+ * A prior cycle low is useful context, but it is usually too far away to call
+ * the first take-profit after a large relief bounce.  The first target is the
+ * nearest confirmed pivot support beneath spot; the cycle low remains a
+ * labelled stretch objective so the UI can show the full thesis without
+ * pretending the whole move is equally likely.
+ */
+export function selectBearFlagTargets(
+  lows: number[],
+  currentPrice: number,
+  priorCycleLow: number,
+): Pick<BearFlagSetup, 'targetPrice' | 'targetPercent' | 'stretchTargetPrice' | 'targetRationale'> {
+  const windowStart = Math.max(2, lows.length - 45);
+  const pivots: number[] = [];
+
+  for (let i = windowStart; i < lows.length - 2; i++) {
+    const price = lows[i];
+    if (!Number.isFinite(price) || price <= 0 || price >= currentPrice) continue;
+
+    const isPivot =
+      price < lows[i - 1] &&
+      price < lows[i - 2] &&
+      price <= lows[i + 1] &&
+      price <= lows[i + 2];
+    const distancePercent = ((currentPrice - price) / currentPrice) * 100;
+
+    // Ignore tiny one-day noise immediately beneath spot. A first target
+    // should represent a tradable support test, not the next few cents.
+    if (isPivot && distancePercent >= 1) pivots.push(price);
+  }
+
+  const supportsBeforeCycleLow = pivots
+    .filter((price) => price > priorCycleLow)
+    .sort((a, b) => b - a);
+  const targetPrice = supportsBeforeCycleLow[0] ?? priorCycleLow;
+  const targetPercent = ((currentPrice - targetPrice) / currentPrice) * 100;
+  const stretchTargetPrice = targetPrice > priorCycleLow * 1.01 ? priorCycleLow : null;
+
+  return {
+    targetPrice,
+    targetPercent,
+    stretchTargetPrice,
+    targetRationale: supportsBeforeCycleLow.length > 0
+      ? 'Nearest confirmed swing support'
+      : 'Prior cycle low — no nearer confirmed support',
+  };
+}
+
 // ─── Main Scanner ────────────────────────────────────────────────
 
 export async function scanBearFlagBreakdowns(): Promise<BearFlagSetup[]> {
-  logger.info(`[BEAR-FLAG] 🐻 Scanning ${BEAR_FLAG_UNIVERSE.length} tickers for bear flag breakdowns...`);
+  /**
+   * Scan the liquid universe, not a hand-typed list.
+   *
+   * An audit of all 23 producers found 20 capped to hand-written arrays while
+   * the 2,000-name liquid universe sat loaded in memory. ORCL was the case that
+   * exposed it: on the core watchlist, 180 sessions of bars available, and zero
+   * ideas in the platform's history — never rejected, never evaluated, because
+   * nobody had typed it into an array.
+   *
+   * The hand list is unioned in, so nothing that used to be scanned drops out
+   * when the universe is cold.
+   */
+  let bearUniverse: string[] = [...BEAR_FLAG_UNIVERSE];
+  try {
+    const { getLiquidSymbols, loadLiquidUniverseFromDisk } = await import('./liquid-universe');
+    if (getLiquidSymbols().length === 0) await loadLiquidUniverseFromDisk();
+    const liquid = getLiquidSymbols();
+    if (liquid.length > 0) {
+      bearUniverse = Array.from(new Set([...BEAR_FLAG_UNIVERSE, ...liquid].map((x) => x.toUpperCase())));
+    }
+  } catch { /* cold universe — the hand list still scans */ }
+  logger.info(`[BEAR-FLAG] 🐻 Scanning ${bearUniverse.length} tickers for bear flag breakdowns...`);
 
   const results: BearFlagSetup[] = [];
   const funnel = { data: 0, downtrend: 0, bounce: 0, scored: 0 };
 
-  for (const symbol of BEAR_FLAG_UNIVERSE) {
+  for (const symbol of bearUniverse) {
     try {
       const data = await fetchDaily(symbol);
       if (!data) continue;
@@ -470,11 +541,17 @@ export async function scanBearFlagBreakdowns(): Promise<BearFlagSetup[]> {
       else if (score >= 65) grade = 'B';
       else if (score >= 55) grade = 'C';
 
-      // ── Targets (downside continuation) ──
-      const targetPercent = flag.bouncePercent > 10
-        ? Math.min(flag.bouncePercent * 1.5, 25)
-        : Math.min(flag.bouncePercent * 2, 15);
-      const targetPrice = currentPrice * (1 - targetPercent / 100);
+      // ── Structural target hierarchy ──────────────────────────────────────
+      // The low that started the relief bounce is a continuation objective,
+      // not automatically T1. Use the nearest confirmed support first and keep
+      // the old cycle low as stretch context.
+      const priorCycleLow = currentPrice - flag.bounceFromLow;
+      const {
+        targetPrice,
+        targetPercent,
+        stretchTargetPrice,
+        targetRationale,
+      } = selectBearFlagTargets(lows, currentPrice, priorCycleLow);
 
       // Stop: above the flag high (bounce resistance)
       const flagHighs = highs.slice(-(Math.min(flag.flagDays || 5, 15)));
@@ -515,6 +592,8 @@ export async function scanBearFlagBreakdowns(): Promise<BearFlagSetup[]> {
         entryPrice: currentPrice,
         targetPrice,
         targetPercent,
+        stretchTargetPrice,
+        targetRationale,
         stopLoss,
         stopLossPercent,
         holdDays,
@@ -561,9 +640,30 @@ export async function ingestBearFlagIdeas(): Promise<number> {
   try {
     const setups = await getTopBearFlagSetups(10);
     const { ingestTradeIdea } = await import("./trade-idea-ingestion");
+    // SHORT DISCIPLINE — the same gate quant-ideas-generator applies, which this
+    // producer was walking straight past. A bear flag is a PATTERN, not an event:
+    // the operator's rule is no shorts without a dated catalyst ("that's how u
+    // get burnt"), and the live book proved the hole — META was carrying a
+    // pattern-short PUT while gapping UP pre-market. Every bearish idea now
+    // needs a real catalyst row for its symbol, with the BTC-proxy carve-out
+    // handled inside passesShortDiscipline.
+    const { passesShortDiscipline, isSubstantiveEventCatalyst } = await import("./short-discipline");
+    const { storage } = await import("./storage");
+    let activeCatalysts: { symbol?: string | null; impact?: string | null }[] = [];
+    try { activeCatalysts = await storage.getActiveCatalysts(); } catch { /* no catalyst feed → every short fails the gate, which is the safe side */ }
+    let disciplineRejected = 0;
     let ingested = 0;
 
     for (const setup of setups) {
+      const hasEventCatalyst = activeCatalysts.some(
+        (c) => c.symbol?.toUpperCase() === setup.symbol.toUpperCase()
+          // A mention is not an event — only impact:'high' rows qualify.
+          && isSubstantiveEventCatalyst(c as any),
+      );
+      if (!passesShortDiscipline({ symbol: setup.symbol, direction: 'short', hasEventCatalyst, btcChangePercent: null })) {
+        disciplineRejected++;
+        continue;
+      }
       // Bearish setups are structurally rarer and score lower in a bull tape
       // than long pullbacks, so the short side uses a C-grade gate (≥55) vs the
       // bull scanner's B-gate (≥65). They still enter the feed at their TRUE
@@ -576,24 +676,60 @@ export async function ingestBearFlagIdeas(): Promise<number> {
         setup.flagDays <= 3 && setup.rsi14 >= 55 ? 'day' : 'swing';
 
       try {
+        // Keep the pattern evidence atomic.  `bear_flag_0` / `bear_flag_1`
+        // made the UI say "bear flag" repeatedly while hiding whether the
+        // actual support was trend, momentum, volume, or structure.  These are
+        // still all derived from the same OHLCV feed; the convictions engine
+        // must earn cross-source convergence later from sector, GEX, breadth,
+        // catalyst, etc.  A long checklist is not independent confirmation.
+        const evidence = buildBearishEvidence(setup);
         const result = await ingestTradeIdea({
           source: 'market_scanner',
           symbol: setup.symbol,
           assetType: 'stock',
           direction: 'bearish',
-          signals: setup.signals.map((sig, i) => ({
-            type: `bear_flag_${i}`,
-            weight: Math.min(15, Math.round(setup.score / 7)),
-            description: sig,
-          })),
+          signals: evidence,
           holdingPeriod,
           currentPrice: setup.currentPrice,
           targetPrice: setup.targetPrice,
           stopLoss: setup.stopLoss,
-          catalyst: `🐻 Bear Flag Breakdown — ${setup.grade} grade (${setup.score}/100). ${setup.reason}`,
+          catalyst: `🐻 Bear Flag Breakdown · pattern quality ${setup.score}/100 (${setup.grade}). ${setup.reason}`,
           analysis: `Bear flag pattern detected. Prior down leg: -${setup.priorLegPercent.toFixed(0)}%, bounce: +${setup.bouncePercent.toFixed(1)}%. ` +
             `RSI: ${setup.rsi14.toFixed(0)}, EMA stacking: ${setup.ema20 < setup.ema50 ? 'bearish (20<50)' : 'neutral'}. ` +
+            `First support: $${setup.targetPrice.toFixed(2)} (${setup.targetRationale}). ` +
+            (setup.stretchTargetPrice ? `Prior cycle-low stretch: $${setup.stretchTargetPrice.toFixed(2)}. ` : '') +
             `Signals: ${setup.signals.join(', ')}`,
+          convergenceAnalysis: {
+            signals: evidence.map((signal) => ({
+              // One source on purpose: these are distinct technical tests,
+              // but not independent data sources.
+              source: 'daily_ohlcv',
+              type: signal.type,
+              direction: 'bearish' as const,
+              weight: signal.weight,
+              confidence: setup.score,
+              description: signal.description,
+              data: signal.data,
+              timestamp: new Date().toISOString(),
+            })),
+            convergenceScore: setup.score,
+            signalCount: evidence.length,
+            primaryThesis: `Bearish continuation candidate: ${setup.reason}`,
+            technicalSummary: `Prior leg -${setup.priorLegPercent.toFixed(0)}%, relief bounce +${setup.bouncePercent.toFixed(1)}%, RSI ${setup.rsi14.toFixed(0)}.`,
+            riskFactors: [
+              'This is a daily-chart thesis, not an executed breakdown.',
+              'A fresh rejection or close below the flag floor is required before entry.',
+            ],
+            keyLevels: [
+              { type: 'entry_context', price: setup.entryPrice, label: 'Scanner reference' },
+              { type: 'first_support', price: setup.targetPrice, label: setup.targetRationale },
+              ...(setup.stretchTargetPrice
+                ? [{ type: 'continuation_objective', price: setup.stretchTargetPrice, label: 'Prior cycle low · stretch, not T1' }]
+                : []),
+              { type: 'invalidation', price: setup.stopLoss, label: 'Flag-high invalidation' },
+            ],
+            generatedAt: new Date().toISOString(),
+          },
         });
         if (result.success) ingested++;
       } catch {
@@ -604,9 +740,61 @@ export async function ingestBearFlagIdeas(): Promise<number> {
     if (ingested > 0) {
       logger.info(`[BEAR-FLAG] 📤 Auto-ingested ${ingested} bear flag setups to Trade Desk`);
     }
+    if (disciplineRejected > 0) logger.info(`[BearFlag] short discipline rejected ${disciplineRejected} pattern-shorts with no dated catalyst`);
     return ingested;
   } catch (err) {
     logger.error('[BEAR-FLAG] Ingest error:', err);
     return 0;
   }
+}
+
+/**
+ * Translate each observed bear-flag criterion into a stable, inspectable
+ * evidence item. We deliberately do not use the scanner's aggregate /100 as
+ * the weight for every item: that duplicated the same score 8–11 times and
+ * created an inflated confidence number.
+ */
+function buildBearishEvidence(setup: BearFlagSetup): Array<{
+  type: string;
+  weight: number;
+  description: string;
+  data?: Record<string, number | boolean>;
+}> {
+  return setup.signals.flatMap((description) => {
+    if (/prior down leg|prior downtrend/i.test(description)) {
+      return [{ type: 'BEAR_TREND_STRUCTURE', weight: 5, description, data: { priorLegPercent: setup.priorLegPercent } }];
+    }
+    if (/relief bounce|shallow bounce|extended bounce/i.test(description)) {
+      return [{ type: 'BEAR_RELIEF_RALLY', weight: 4, description, data: { bouncePercent: setup.bouncePercent } }];
+    }
+    if (/EMA 20 < EMA 50/i.test(description)) {
+      return [{ type: 'BEAR_EMA_STACK', weight: 4, description, data: { ema20BelowEma50: true } }];
+    }
+    if (/RSI /i.test(description)) {
+      return [{ type: 'BEAR_RSI_RESET', weight: 3, description, data: { rsi14: setup.rsi14 } }];
+    }
+    if (/Volume declining/i.test(description)) {
+      return [{ type: 'BEAR_DISTRIBUTION_VOLUME', weight: 4, description, data: { volumeDeclining: setup.flagVolumeDecline } }];
+    }
+    if (/52wk high/i.test(description)) {
+      return [{ type: 'BEAR_52W_DAMAGE', weight: 3, description }];
+    }
+    if (/MACD/i.test(description)) {
+      return [{ type: 'MACD_BEARISH_CROSS', weight: 4, description, data: { macdBelowZero: setup.macdBelowZero, histogram: setup.macdHistogram } }];
+    }
+    if (/50 SMA/i.test(description)) {
+      return [{ type: 'RESISTANCE_REJECTION', weight: 4, description }];
+    }
+    if (/200 SMA/i.test(description)) {
+      return [{ type: 'BEAR_LONG_TERM_TREND', weight: 4, description }];
+    }
+    if (/Bollinger/i.test(description)) {
+      return [{ type: 'BEAR_COMPRESSION', weight: 3, description }];
+    }
+    if (/bear-flag shape/i.test(description)) {
+      return [{ type: 'BEAR_FLAG', weight: 4, description, data: { flagDays: setup.flagDays, tightness: setup.flagTightness } }];
+    }
+    // A new criterion should remain visible rather than silently disappearing.
+    return [{ type: 'BEAR_TECHNICAL_CONTEXT', weight: 2, description }];
+  });
 }

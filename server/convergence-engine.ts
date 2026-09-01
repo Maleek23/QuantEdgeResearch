@@ -27,6 +27,7 @@ import { fetchBreakingNews } from './news-service';
 import { getUpcomingCatalysts, fetchGovernmentContractsForTicker, getCatalystsForSymbol } from './catalyst-intelligence-service';
 import { scanForPreMoveSignals, HIGH_PROFILE_TICKERS, DEFENSE_TICKERS } from './pre-move-detection-service';
 import { getTradierQuote } from './tradier-api';
+import { fetchStockPrice } from './market-api';
 import { createAndSaveUniversalIdea, type IdeaSignal } from './universal-idea-generator';
 import { sendDiscordAlert } from './discord-service';
 
@@ -97,6 +98,27 @@ const SIGNAL_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 // Cooldown for convergence alerts
 const convergenceAlertCooldown = new Map<string, number>();
 const CONVERGENCE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+
+/**
+ * On-demand research cannot equate one broker credential with market data.
+ * Tradier is preferred because it carries option-ready fields; when its token
+ * is absent, expired, or rate-limited, use the platform's multi-source/Yahoo
+ * path so a ticker can still be graded honestly from a live underlying quote.
+ */
+async function getAnalysisQuote(symbol: string) {
+  const tradierQuote = await getTradierQuote(symbol).catch(() => null);
+  if (tradierQuote?.last && tradierQuote.last > 0) return tradierQuote;
+
+  const fallback = await fetchStockPrice(symbol);
+  if (!fallback?.currentPrice || fallback.currentPrice <= 0) return null;
+
+  return {
+    last: fallback.currentPrice,
+    volume: fallback.volume || 0,
+    average_volume: fallback.avgVolume || fallback.volume || 0,
+    change_percentage: fallback.changePercent || 0,
+  };
+}
 
 // ============================================
 // SIGNAL REGISTRATION
@@ -830,7 +852,7 @@ export async function analyzeSymbolOnDemand(symbol: string): Promise<{
 
   try {
     // Get current price
-    const quote = await getTradierQuote(upperSymbol);
+    const quote = await getAnalysisQuote(upperSymbol);
     if (!quote || !quote.last) {
       return { success: false, message: 'Unable to fetch quote for symbol' };
     }
@@ -942,9 +964,16 @@ export async function analyzeSymbolOnDemand(symbol: string): Promise<{
     }
 
     const sources = new Set(signals.map(s => s.source));
-    const convergenceScore = signals.length > 0
+    // Confidence answers a different question from evidence coverage. A single
+    // 85-confidence source is still a one-source observation, not an 89/100
+    // converged trade. Keep the read useful, but cap incomplete evidence below
+    // the first actionable band.
+    const rawScore = signals.length > 0 && totalWeight > 0
       ? Math.min(95, Math.round((weightedConf / totalWeight) * (1 + sources.size * 0.05)))
-      : 50; // Base score if no signals
+      : 0;
+    const convergenceScore = sources.size >= MIN_CONVERGENCE_FOR_IDEA
+      ? rawScore
+      : Math.min(59, rawScore);
 
     // Build deep analysis
     const convergenceAnalysis = {
@@ -1007,6 +1036,18 @@ export async function analyzeSymbolOnDemand(symbol: string): Promise<{
         weight: signals.length * 3,
         description: `${signals.length} signal sources analyzed`,
       });
+    }
+
+    // On-demand reads are useful before a thesis converges, but only independent
+    // agreement may enter Active Signals. This keeps a ticker search from
+    // manufacturing a high-score card from a quote alone.
+    if (sources.size < MIN_CONVERGENCE_FOR_IDEA) {
+      logger.info(`[CONVERGENCE] ${upperSymbol} held as observation: ${sources.size} independent source(s)`);
+      return {
+        success: true,
+        convergenceAnalysis,
+        message: `Research complete: ${sources.size} independent source${sources.size === 1 ? '' : 's'} observed. Awaiting ${MIN_CONVERGENCE_FOR_IDEA - sources.size} more confirmation source${MIN_CONVERGENCE_FOR_IDEA - sources.size === 1 ? '' : 's'} before publication.`,
+      };
     }
 
     // Create and save the trade idea

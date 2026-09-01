@@ -11,12 +11,10 @@
  * polarity. Numbers sit beside the shape, never instead of it.
  */
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { AlertTriangle, CalendarClock, Sparkles, Telescope } from 'lucide-react';
-import { EASE, DUR } from '@/lib/motion';
+import { useState } from 'react';
 import { TC, directionColor } from '@/lib/oracle/trading-colors';
-import { SignalTimingBadge } from '@/components/oracle/signal-timing-badge';
 import { useStockContext } from '@/contexts/stock-context';
+import { CatalystCalendarLedger } from './catalyst-calendar-ledger';
 
 interface CatEvent {
   type: string; title: string; date: string; daysAway: number;
@@ -56,60 +54,87 @@ function HorizonBar({ daysAway, window = 30 }: { daysAway: number; window?: numb
   );
 }
 
-function SectionHead({
-  icon: Icon, title, blurb, count, tone,
-}: { icon: any; title: string; blurb: string; count: number; tone: string }) {
-  return (
-    <div className="flex items-start gap-2.5 border-b border-border/40 px-4 py-2.5">
-      <Icon className="h-4 w-4 shrink-0 mt-0.5" style={{ color: tone }} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <span className="text-meta font-mono font-bold uppercase tracking-widest" style={{ color: tone }}>{title}</span>
-          <span className="text-label font-mono tabular-nums text-muted-foreground">{count}</span>
-        </div>
-        <div className="text-label font-mono text-muted-foreground mt-0.5">{blurb}</div>
-      </div>
-    </div>
-  );
-}
+type ImpactKind = 'conflict' | 'risk' | 'confluence' | 'watch';
+type ImpactRow = {
+  kind: ImpactKind;
+  symbol: string;
+  direction?: 'long' | 'short';
+  convictionScore?: number;
+  holdingPeriod?: string | null;
+  event: CatEvent;
+  note?: string;
+};
 
-function EventLine({ e }: { e: CatEvent }) {
-  const c = polarityColor(e.polarity);
-  return (
-    <div className="flex items-center gap-2 min-w-0 py-0.5">
-      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: c }} />
-      <span className="text-label font-mono uppercase tracking-wider shrink-0" style={{ color: c }}>{e.type}</span>
-      <span className="text-label text-muted-foreground truncate flex-1 min-w-0">{e.title}</span>
-      <div className="w-24 shrink-0"><HorizonBar daysAway={e.daysAway} /></div>
-    </div>
-  );
-}
+const IMPACT_META: Record<ImpactKind, { label: string; color: string; action: string }> = {
+  conflict: { label: 'CONFLICT', color: TC.bear, action: 'REVIEW' },
+  risk: { label: 'EVENT RISK', color: TC.warn, action: 'SIZE DOWN' },
+  confluence: { label: 'CONFLUENCE', color: TC.bull, action: 'CONFIRMS' },
+  watch: { label: 'NO SIGNAL', color: TC.info, action: 'ANALYSE' },
+};
 
-function CatalystSignalCard({ row, tone, children }: { row: SignalRow; tone: string; children?: React.ReactNode }) {
+function ImpactLedger({ rows }: { rows: ImpactRow[] }) {
   const { setCurrentStock } = useStockContext();
-  const dir = directionColor(row.direction);
+  const [filter, setFilter] = useState<ImpactKind | 'all'>('all');
+  const visible = filter === 'all' ? rows : rows.filter((row) => row.kind === filter);
+  const counts = (['conflict', 'risk', 'confluence', 'watch'] as ImpactKind[])
+    .reduce((acc, kind) => ({ ...acc, [kind]: rows.filter((row) => row.kind === kind).length }), {} as Record<ImpactKind, number>);
+
   return (
-    <motion.button
-      onClick={() => setCurrentStock({ symbol: row.symbol })}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: DUR.base, ease: EASE }}
-      className="w-full cursor-pointer rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-foreground/[0.03]"
-      style={{ borderColor: `color-mix(in srgb, ${tone} 26%, transparent)`, background: `color-mix(in srgb, ${tone} 5%, transparent)` }}
-    >
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-body font-mono font-bold tracking-wide text-foreground">{row.symbol}</span>
-        <span className="text-label font-mono font-bold px-1.5 py-0.5 rounded"
-              style={{ color: dir, background: `color-mix(in srgb, ${dir} 12%, transparent)` }}>
-          {row.direction === 'long' ? '▲ LONG' : '▼ SHORT'}
-        </span>
-        <span className="text-label font-mono text-muted-foreground capitalize">
-          {row.holdingPeriod ?? 'swing'} · {row.horizonDays}d horizon
-        </span>
-        <span className="ml-auto"><SignalTimingBadge generatedAt={row.generatedAt} showCaveat={false} /></span>
+    <section className="overflow-hidden rounded-lg border border-card-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5">
+        <div>
+          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.13em] text-foreground/85">Signal impact</div>
+          <div className="mt-0.5 text-[9px] text-muted-foreground">How the verified calendar changes the active book.</div>
+        </div>
+        <div className="flex items-center gap-1 rounded-md border border-border/50 bg-muted/20 p-0.5">
+          {(['all', 'conflict', 'risk', 'confluence', 'watch'] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => setFilter(kind)}
+              className={`rounded px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-wide transition-colors ${filter === kind ? 'bg-foreground/[0.09] text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              {kind === 'all' ? `All ${rows.length}` : `${IMPACT_META[kind].label} ${counts[kind]}`}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="mt-1.5 space-y-0.5">{children}</div>
-    </motion.button>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[880px] border-collapse font-mono tabular-nums">
+          <thead className="bg-muted/35 text-[9px] uppercase tracking-[0.12em] text-muted-foreground/70">
+            <tr className="border-b border-border/50">
+              <th className="px-3 py-2 text-left">Ticker</th>
+              <th className="px-3 py-2 text-left">Impact</th>
+              <th className="px-3 py-2 text-left">Oracle side</th>
+              <th className="px-3 py-2 text-left">Verified event</th>
+              <th className="px-3 py-2 text-left">Distance</th>
+              <th className="px-3 py-2 text-right">Response</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((row, index) => {
+              const meta = IMPACT_META[row.kind];
+              const dir = row.direction ? directionColor(row.direction) : TC.muted;
+              return (
+                <tr
+                  key={`${row.kind}-${row.symbol}-${row.event.date}-${index}`}
+                  onClick={() => setCurrentStock({ symbol: row.symbol })}
+                  className="cursor-pointer border-b border-border/30 text-[10px] transition-colors last:border-b-0 odd:bg-foreground/[0.008] hover:bg-foreground/[0.04]"
+                >
+                  <td className="px-3 py-2.5"><span className="text-[12px] font-bold text-foreground">{row.symbol}</span>{row.convictionScore != null && <span className="ml-2 text-muted-foreground">{row.convictionScore}</span>}</td>
+                  <td className="px-3 py-2.5"><span className="inline-flex items-center gap-1.5 font-semibold" style={{ color: meta.color }}><span className="h-1.5 w-1.5 rounded-full bg-current" />{meta.label}</span></td>
+                  <td className="px-3 py-2.5" style={{ color: dir }}>{row.direction ? `${row.direction === 'long' ? '▲' : '▼'} ${row.direction.toUpperCase()} · ${row.holdingPeriod ?? 'swing'}` : '—'}</td>
+                  <td className="max-w-[360px] px-3 py-2.5"><div className="truncate font-semibold text-foreground/85">{row.event.title}</div><div className="mt-0.5 truncate text-[9px] text-muted-foreground">{row.note || `${row.event.type} · ${row.event.polarity}`}</div></td>
+                  <td className="w-32 px-3 py-2.5"><HorizonBar daysAway={row.event.daysAway} /></td>
+                  <td className="px-3 py-2.5 text-right font-semibold" style={{ color: meta.color }}>{meta.action} ↗</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {!visible.length && <div className="px-4 py-10 text-center font-mono text-[10px] text-muted-foreground">No rows in this view.</div>}
+    </section>
   );
 }
 
@@ -143,9 +168,21 @@ export function CatalystBoard() {
   const malformed = !Array.isArray(data.conflict);
 
   const nothing = !conflict.length && !confluence.length && !eventRisk.length && !unclaimed.length;
+  const activeSymbols = new Set([
+    ...conflict.map((row) => row.symbol),
+    ...confluence.map((row) => row.symbol),
+    ...eventRisk.map((row) => row.symbol),
+  ]);
+  const impactRows = ([
+    ...conflict.flatMap((row) => (row.events ?? []).map((event) => ({ kind: 'conflict' as const, symbol: row.symbol, direction: row.direction, convictionScore: row.convictionScore, holdingPeriod: row.holdingPeriod, event }))),
+    ...eventRisk.flatMap((row) => row.event ? [{ kind: 'risk' as const, symbol: row.symbol, direction: row.direction, convictionScore: row.convictionScore, holdingPeriod: row.holdingPeriod, event: row.event, note: row.note }] : []),
+    ...confluence.flatMap((row) => (row.events ?? []).map((event) => ({ kind: 'confluence' as const, symbol: row.symbol, direction: row.direction, convictionScore: row.convictionScore, holdingPeriod: row.holdingPeriod, event }))),
+    ...unclaimed.map((event) => ({ kind: 'watch' as const, symbol: event.symbol, event })),
+  ] as ImpactRow[]).sort((a, b) => a.event.daysAway - b.event.daysAway || (b.convictionScore ?? 0) - (a.convictionScore ?? 0));
 
   return (
     <div className="space-y-3">
+      <CatalystCalendarLedger activeSymbols={activeSymbols} />
       {/* Coverage stated plainly, so an empty section reads as "no tracked event",
           not "nothing to worry about". */}
       <div className="flex items-center justify-between rounded-xl border border-card-border bg-card px-4 py-2.5 flex-wrap gap-2">
@@ -174,91 +211,12 @@ export function CatalystBoard() {
         </div>
       )}
 
-      {/* CONFLICT LEADS — the calendar disagreeing with our own call is the single
-          most useful thing here, so it sits first regardless of length. */}
-      {conflict.length > 0 && (
-        <section className="rounded-xl border border-card-border bg-card overflow-hidden">
-          <SectionHead
-            icon={AlertTriangle} tone={TC.bear} count={conflict.length}
-            title="Conflicts"
-            blurb="Tracked events point AGAINST the direction we published — re-read the thesis before sizing"
-          />
-          <div className="p-3 space-y-2">
-            {conflict.map((r) => (
-              <CatalystSignalCard key={`cf-${r.symbol}`} row={r} tone={TC.bear}>
-                {(r.events ?? []).map((e, i) => <EventLine key={i} e={e} />)}
-              </CatalystSignalCard>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {eventRisk.length > 0 && (
-        <section className="rounded-xl border border-card-border bg-card overflow-hidden">
-          <SectionHead
-            icon={CalendarClock} tone={TC.warn} count={eventRisk.length}
-            title="Binary Event Risk"
-            blurb="A coin-flip event lands before the trade is meant to be done — not directional, a reason to size down"
-          />
-          <div className="p-3 space-y-2">
-            {eventRisk.map((r) => (
-              <CatalystSignalCard key={`er-${r.symbol}`} row={r} tone={TC.warn}>
-                {r.event && <EventLine e={r.event} />}
-                {r.note && <div className="text-label font-mono text-muted-foreground mt-0.5">{r.note}</div>}
-              </CatalystSignalCard>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {confluence.length > 0 && (
-        <section className="rounded-xl border border-card-border bg-card overflow-hidden">
-          <SectionHead
-            icon={Sparkles} tone={TC.bull} count={confluence.length}
-            title="Confluence"
-            blurb="The calendar agrees with the direction we called — reinforces, never replaces, the setup"
-          />
-          <div className="p-3 space-y-2">
-            {confluence.map((r) => (
-              <CatalystSignalCard key={`co-${r.symbol}`} row={r} tone={TC.bull}>
-                {(r.events ?? []).map((e, i) => <EventLine key={i} e={e} />)}
-              </CatalystSignalCard>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {unclaimed.length > 0 && (
-        <section className="rounded-xl border border-card-border bg-card overflow-hidden">
-          <SectionHead
-            icon={Telescope} tone={TC.info} count={unclaimed.length}
-            title="Unclaimed"
-            blurb="Strong catalysts on tickers with no live signal — where to look next"
-          />
-          <div className="p-3 grid gap-1.5 sm:grid-cols-2">
-            {unclaimed.map((e, i) => <UnclaimedRow key={`${e.symbol}-${i}`} e={e} />)}
-          </div>
-        </section>
-      )}
+      {!nothing && <ImpactLedger rows={impactRows} />}
 
       {data._meta?.note && (
         <p className="px-1 ui-prose text-label leading-relaxed text-muted-foreground">{data._meta.note}</p>
       )}
     </div>
-  );
-}
-
-function UnclaimedRow({ e }: { e: CatEvent & { symbol: string } }) {
-  const { setCurrentStock } = useStockContext();
-  return (
-    <button
-      onClick={() => setCurrentStock({ symbol: e.symbol })}
-      className="flex items-center gap-2 rounded-lg border border-border/50 px-2.5 py-2 text-left transition-colors hover:bg-foreground/[0.03] cursor-pointer min-w-0"
-    >
-      <span className="text-meta font-mono font-bold text-foreground shrink-0 w-14">{e.symbol}</span>
-      <span className="text-label font-mono uppercase tracking-wider shrink-0" style={{ color: polarityColor(e.polarity) }}>{e.type}</span>
-      <div className="flex-1 min-w-0"><HorizonBar daysAway={e.daysAway} /></div>
-    </button>
   );
 }
 

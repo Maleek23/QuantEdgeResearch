@@ -96,7 +96,7 @@ function PicksTab() {
   if (!picks || picks.length === 0) {
     return (
       <EmptyState
-        icon={<Eye className="h-8 w-8 text-muted-foreground/40" />}
+        icon={<Eye className="h-8 w-8 text-muted-foreground/60" />}
         title="No picks fired yet"
         message="Cron runs at 09:35, 12:00, 15:55 ET on weekdays. Check back after the next scan, or trigger one manually with the Re-scan button."
       />
@@ -265,7 +265,7 @@ function TrackTab() {
   if (stats.length === 0) {
     return (
       <EmptyState
-        icon={<History className="h-8 w-8 text-muted-foreground/40" />}
+        icon={<History className="h-8 w-8 text-muted-foreground/60" />}
         title="No resolved picks yet"
         message="Track record builds as picks fire and the daily resolve cron marks outcomes. Check back after a few weeks of operation."
       />

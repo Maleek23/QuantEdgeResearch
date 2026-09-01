@@ -1,7 +1,19 @@
 /**
- * HOME — Premium Glass, dense. The real dashboard in the chosen design language,
- * bound to LIVE data (market-pulse, convictions, sector-rotation), composed
- * entirely from the canonical glass kit (@/components/ui/qe).
+ * GLASS REFERENCE — kept deliberately unrouted. Read this before deleting it.
+ *
+ * This is NOT the home page. Home is the Terminal (/t → ORACLE): regime, rotation
+ * map, session brief, early rotation, the live signal board and the signal card.
+ * Three separate files each described themselves as the dashboard — this one,
+ * pages/home.tsx ("Command Center"), and the Terminal — which is how the router
+ * drifted in the first place. The owner settled it: the Terminal is home.
+ *
+ * This file survives as the canonical reference implementation of the glass design
+ * language — every primitive in @/components/ui/qe, exercised against live
+ * endpoints (market-pulse, convictions, sector-rotation) rather than mock data.
+ * That makes it the thing to read when restyling any other surface, which is worth
+ * more than the page ever was. It is unrouted, so it costs nothing in the bundle.
+ *
+ * Delete it only if the glass language is abandoned — not because it looks orphaned.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';

@@ -150,7 +150,7 @@ function Step({ time, actions }: { time: string; actions: { url: string; label: 
       <div className="space-y-1.5">
         {actions.map((a, i) => (
           <Link key={i} href={a.url} className="flex items-center gap-2 text-[11px] font-mono hover:bg-muted/30 px-2 py-1 rounded transition">
-            <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
+            <ArrowRight className="h-3 w-3 text-muted-foreground/60" />
             <span className="text-foreground min-w-[200px]">{a.label}</span>
             <span className="text-muted-foreground/60">{a.why}</span>
           </Link>
@@ -166,7 +166,7 @@ function PageCard({ icon: Icon, url, title, desc }: { icon: any; url: string; ti
       <div className="flex items-center gap-2 mb-1">
         <Icon className="h-3.5 w-3.5 text-[var(--brand-cyan)]" />
         <div className="text-[12px] font-mono font-bold uppercase">{title}</div>
-        <div className="text-[10px] font-mono text-muted-foreground/50">{url}</div>
+        <div className="text-[10px] font-mono text-muted-foreground/60">{url}</div>
       </div>
       <p className="text-[10px] font-mono text-muted-foreground/70">{desc}</p>
     </Link>

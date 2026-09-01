@@ -113,6 +113,7 @@ import type {
   InsertGexSnapshot,
 } from "@shared/schema";
 import { db } from "./db";
+import { recordPaperExecution } from "@shared/oracle-lifecycle";
 import { eq, and, or, gte, lte, desc, isNull, not, sql as drizzleSql } from "drizzle-orm";
 import {
   tradeIdeas,
@@ -180,7 +181,7 @@ export {
 } from "@shared/constants";
 
 // Import for use in this file
-import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine } from "@shared/constants";
+import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine, reportableRate } from "@shared/constants";
 import { normalizeIdeaSource } from "@shared/idea-sources";
 import { logger } from "./logger";
 
@@ -345,10 +346,23 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+/**
+ * `winRate` is null when the segment's sample cannot support one — see
+ * reportableRate in @shared/constants. It was 0 in that case, which the equities
+ * segment published as a red 0% off a single decided trade. The counts are
+ * always present, so a suppressed rate still shows its sample.
+ */
+export interface SegmentedWinRate {
+  winRate: number | null;
+  wins: number;
+  losses: number;
+  decided: number;
+}
+
 export interface SegmentedWinRates {
-  equities: { winRate: number; wins: number; losses: number; decided: number };
-  options: { winRate: number; wins: number; losses: number; decided: number };
-  overall: { winRate: number; wins: number; losses: number; decided: number };
+  equities: SegmentedWinRate;
+  options: SegmentedWinRate;
+  overall: SegmentedWinRate;
 }
 
 export interface PerformanceStats {
@@ -359,7 +373,21 @@ export interface PerformanceStats {
     wonIdeas: number;
     lostIdeas: number;
     expiredIdeas: number;
-    winRate: number; // Market win rate: hit_target / (hit_target + hit_stop)
+    /**
+     * Market win rate: hit_target / (hit_target + hit_stop).
+     *
+     * NOTE: this is computed over ALL trades (segmentedWinRates.overall), while
+     * wonIdeas/lostIdeas/closedIdeas above describe the FILTERED set — options are
+     * excluded from those unless includeOptions is set. The two populations are
+     * different on purpose, which is why the payload reads `wonIdeas: 0,
+     * lostIdeas: 1, winRate: 64.9` and is not self-contradicting once you know
+     * that. Render it with winRateDecided beside it, never with closedIdeas.
+     *
+     * Null when the sample is below MIN_REPORTABLE_SAMPLE.
+     */
+    winRate: number | null;
+    /** Sample behind winRate — a DIFFERENT population from closedIdeas. */
+    winRateDecided: number;
     quantAccuracy: number; // Weighted prediction accuracy (confidence-weighted avg progress toward target)
     directionalAccuracy: number; // % of trades that moved at least 25% toward target
     avgPercentGain: number;
@@ -383,7 +411,9 @@ export interface PerformanceStats {
     totalIdeas: number;
     wonIdeas: number;
     lostIdeas: number;
-    winRate: number;
+    /** Null when the sample cannot support a rate — see reportableRate. */
+    winRate: number | null;
+    decided: number;
     avgPercentGain: number;
   }[];
   byAssetType: {
@@ -452,6 +482,7 @@ export interface IStorage {
   getAllCatalysts(): Promise<Catalyst[]>;
   getCatalystsBySymbol(symbol: string): Promise<Catalyst[]>;
   createCatalyst(catalyst: InsertCatalyst): Promise<Catalyst>;
+  getActiveCatalysts(lookbackHours?: number, lookaheadDays?: number): Promise<Catalyst[]>;
 
   // Watchlist
   getAllWatchlist(): Promise<WatchlistItem[]>;
@@ -1431,7 +1462,18 @@ export class MemStorage implements IStorage {
 
   // AUTO-CLEANUP: Remove stale trades to free memory AND update database
   async cleanupStaleTradeIdeas(): Promise<number> {
-    const RETENTION_DAYS = 7; // Keep closed/won/lost trades for 7 days
+    // RETENTION: archive, never delete.
+    //
+    // This was 7 days, hard delete. A platform cannot demonstrate an edge while
+    // erasing its own outcomes every week — it caps the observable sample at
+    // whatever closed in the last seven days, which is why the whole track record
+    // began on 2026-08-18 and why no source has enough decided trades to clear a
+    // significance bar. Closed trades ARE the product's evidence; they are the
+    // cheapest rows in the table and the only ones that answer "does this work".
+    //
+    // Size was the original concern. That is a read-side problem: exclude
+    // archived rows where payload matters, and keep the history.
+    const RETENTION_DAYS = 365; // archive after a year; never delete
     const STALE_HOURS = 48; // Expire open trades older than 48 hours (was 72)
     const cutoffClosed = new Date();
     cutoffClosed.setDate(cutoffClosed.getDate() - RETENTION_DAYS);
@@ -1465,8 +1507,9 @@ export class MemStorage implements IStorage {
     // Delete old closed/won/lost/expired trades from database
     try {
       const result = await db
-        .delete(tradeIdeas)
-        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
+        .update(tradeIdeas)
+        .set({ archived: true })
+        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()} AND ${tradeIdeas.archived} = false`)
         .returning({ id: tradeIdeas.id });
 
       deletedCount = result.length;
@@ -1479,22 +1522,30 @@ export class MemStorage implements IStorage {
       logger.error('[CLEANUP] Failed to delete old trades from database:', err);
     }
 
-    // Also delete expired options from database
+    // Archive rather than delete — see the twin of this block in DatabaseStorage.
+    // An expired contract is a COMPLETED trade with a known outcome, which makes
+    // it the single most valuable row in the table for measuring whether the
+    // platform works. Deleting it on expiry destroys the track record on a
+    // rolling basis.
     try {
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
       const result = await db
-        .delete(tradeIdeas)
-        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
+        .update(tradeIdeas)
+        .set({ archived: true })
+        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()} AND ${tradeIdeas.archived} = false`)
         .returning({ id: tradeIdeas.id });
 
       for (const { id } of result) {
-        this.tradeIdeas.delete(id);
+        const existing = this.tradeIdeas.get(id);
+        if (existing) this.tradeIdeas.set(id, { ...existing, archived: true } as any);
       }
-      deletedCount += result.length;
+      if (result.length > 0) {
+        logger.info(`[CLEANUP] Archived ${result.length} expired-contract idea(s) — retained for performance history`);
+      }
     } catch (err) {
-      logger.error('[CLEANUP] Failed to delete expired options from database:', err);
+      logger.error('[CLEANUP] Failed to archive expired options:', err);
     }
 
     const totalAffected = expiredCount + deletedCount;
@@ -1653,19 +1704,17 @@ export class MemStorage implements IStorage {
     const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_target');
     
-    // Audit: Canonical Loss Threshold consistency
-    const CANONICAL_LOSS_THRESHOLD = 3.0; 
-    const lostIdeas = closedIdeas.filter((idea) => {
-      if (idea.outcomeStatus !== 'hit_stop') return false;
-      if (idea.percentGain !== null && idea.percentGain !== undefined) {
-        return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-      }
-      return true;
-    });
+    // A touched stop is a loss, full stop. The shared isRealLoss already says
+    // so — this local re-implementation kept applying a 3% P&L floor that the
+    // barrier layer had already removed, so a 1.2%-stop band's stop-outs
+    // vanished from the stats while its wins counted in full.
+    const lostIdeas = closedIdeas.filter((idea) => isRealLoss(idea));
     
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
-    const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
-    
+    // Same floor as DatabaseStorage — the in-memory path must not report a rate
+    // the real one would suppress, or dev and prod disagree about what is knowable.
+    const winRate = reportableRate(wonIdeas.length, decidedIdeas);
+
     // Enhanced Audit: Average Profit vs Average Loss (Risk/Reward)
     const avgWin = wonIdeas.length > 0 ? wonIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / wonIdeas.length : 0;
     const avgLoss = lostIdeas.length > 0 ? lostIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / lostIdeas.length : 0;
@@ -1679,6 +1728,7 @@ export class MemStorage implements IStorage {
         lostIdeas: lostIdeas.length,
         expiredIdeas: closedIdeas.filter(i => i.outcomeStatus === 'expired').length,
         winRate,
+        winRateDecided: decidedIdeas,
         quantAccuracy: 0,
         directionalAccuracy: 0,
         avgPercentGain: closedIdeas.length > 0 ? closedIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / closedIdeas.length : 0,
@@ -1709,6 +1759,19 @@ export class MemStorage implements IStorage {
   // Catalyst Methods
   async getAllCatalysts(): Promise<Catalyst[]> {
     return Array.from(this.catalysts.values());
+  }
+
+  /** In-memory mirror of the DB accessor — same window, no query. */
+  async getActiveCatalysts(lookbackHours = 72, lookaheadDays = 14): Promise<Catalyst[]> {
+    const now = Date.now();
+    const from = now - lookbackHours * 3600_000;
+    const to = now + lookaheadDays * 86_400_000;
+    return Array.from(this.catalysts.values())
+      .filter((c) => {
+        const t = Date.parse(c.timestamp);
+        return Number.isFinite(t) && t >= from && t <= to;
+      })
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
 
   async getCatalystsBySymbol(symbol: string): Promise<Catalyst[]> {
@@ -2608,8 +2671,10 @@ export class DatabaseStorage implements IStorage {
 
   /**
    * Finds a recent non-archived idea matching the same setup, for spine dedup.
-   * Keys on symbol + assetType + direction + source; options additionally match
-   * on optionType/strikePrice/expiryDate (a different strike/expiry is a different idea).
+   * Keys on symbol + assetType + direction + source. A quant scan's contract is
+   * selected from a changing option chain, so a different strike/expiry is a
+   * contract refresh—not a new thesis. Other option sources retain leg-level
+   * matching because an explicitly chosen contract can be the thing being tracked.
    */
   private async findRecentDuplicateIdea(
     idea: InsertTradeIdea,
@@ -2624,7 +2689,9 @@ export class DatabaseStorage implements IStorage {
       not(eq(tradeIdeas.status, 'archived')),
     ];
     if ((idea as any).source) conds.push(eq(tradeIdeas.source, (idea as any).source));
-    if (idea.assetType === 'option') {
+    const source = String((idea as any).source ?? '').toLowerCase();
+    const contractIsPartOfIdentity = idea.assetType === 'option' && source !== 'quant';
+    if (contractIsPartOfIdentity) {
       if (idea.optionType) conds.push(eq(tradeIdeas.optionType, idea.optionType));
       if (idea.strikePrice != null) conds.push(eq(tradeIdeas.strikePrice, idea.strikePrice));
       if (idea.expiryDate) conds.push(eq(tradeIdeas.expiryDate, idea.expiryDate));
@@ -2648,7 +2715,18 @@ export class DatabaseStorage implements IStorage {
 
   // AUTO-CLEANUP: Remove stale trades from database
   async cleanupStaleTradeIdeas(): Promise<number> {
-    const RETENTION_DAYS = 7;
+    // RETENTION: archive, never delete.
+    //
+    // This was 7 days, hard delete. A platform cannot demonstrate an edge while
+    // erasing its own outcomes every week — it caps the observable sample at
+    // whatever closed in the last seven days, which is why the whole track record
+    // began on 2026-08-18 and why no source has enough decided trades to clear a
+    // significance bar. Closed trades ARE the product's evidence; they are the
+    // cheapest rows in the table and the only ones that answer "does this work".
+    //
+    // Size was the original concern. That is a read-side problem: exclude
+    // archived rows where payload matters, and keep the history.
+    const RETENTION_DAYS = 365; // archive after a year; never delete
     const STALE_HOURS = 48;
     const cutoffClosed = new Date();
     cutoffClosed.setDate(cutoffClosed.getDate() - RETENTION_DAYS);
@@ -2671,24 +2749,38 @@ export class DatabaseStorage implements IStorage {
 
     try {
       const result = await db
-        .delete(tradeIdeas)
-        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()}`)
+        .update(tradeIdeas)
+        .set({ archived: true })
+        .where(drizzleSql`${tradeIdeas.outcomeStatus} IN ('won', 'lost', 'closed', 'expired') AND ${tradeIdeas.timestamp} < ${cutoffClosed.toISOString()} AND ${tradeIdeas.archived} = false`)
         .returning({ id: tradeIdeas.id });
       deletedCount = result.length;
     } catch (err) {
       logger.error('[CLEANUP] Failed to delete old trades from database:', err);
     }
 
+    // ARCHIVE, never delete. This pass used to hard-delete every row whose
+    // contract expiry had passed, with NO status filter — resolved history
+    // included. Measured 2026-08-25: 223 of 312 rows with an expiry were inside
+    // a 14-day window and 105 of those were CLOSED ideas, so roughly ten days of
+    // this running would have destroyed most of the platform's track record on a
+    // rolling basis. An expired contract is exactly the row you most want to keep:
+    // it is a completed trade with a known outcome.
+    //
+    // The intent was payload size, which is a read concern. Solve it by excluding
+    // archived rows at the read, not by deleting the evidence.
     try {
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
       const result = await db
-        .delete(tradeIdeas)
-        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()}`)
+        .update(tradeIdeas)
+        .set({ archived: true })
+        .where(drizzleSql`${tradeIdeas.expiryDate} IS NOT NULL AND ${tradeIdeas.expiryDate} < ${oneDayAgo.toISOString()} AND ${tradeIdeas.archived} = false`)
         .returning({ id: tradeIdeas.id });
-      deletedCount += result.length;
+      if (result.length > 0) {
+        logger.info(`[CLEANUP] Archived ${result.length} expired-contract idea(s) — retained for performance history`);
+      }
     } catch (err) {
-      logger.error('[CLEANUP] Failed to delete expired options from database:', err);
+      logger.error('[CLEANUP] Failed to archive expired options:', err);
     }
 
     const totalAffected = expiredCount + deletedCount;
@@ -2869,27 +2961,17 @@ export class DatabaseStorage implements IStorage {
     const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
     const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter(i => i.outcomeStatus === 'hit_target');
-    // 🎯 MINIMUM LOSS THRESHOLD: Only count as loss if percentGain is below -3%
-    const lostIdeas = closedIdeas.filter(i => {
-      if (i.outcomeStatus !== 'hit_stop') return false;
-      if (i.percentGain !== null && i.percentGain !== undefined) {
-        return i.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-      }
-      return true;
-    });
+    // A touched stop is a loss — the shared isRealLoss classifier, not a local
+    // 3% floor. The floor survived here after being removed from the barrier
+    // layer, silently erasing small stop-outs from every reported rate.
+    const lostIdeas = closedIdeas.filter(i => isRealLoss(i));
     const expiredIdeas = closedIdeas.filter(i => i.outcomeStatus === 'expired' || i.outcomeStatus === 'manual_exit');
 
     const calculateAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
     
-    // Helper function to filter real losses (above threshold)
-    const isRealLoss = (idea: TradeIdea) => {
-      if (idea.outcomeStatus !== 'hit_stop') return false;
-      if (idea.percentGain !== null && idea.percentGain !== undefined) {
-        return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-      }
-      return true;
-    };
-    
+    // (the shared isRealLoss from @shared/constants classifies losses here —
+    // the local shadow that re-imposed the 3% floor is gone)
+
     const closedGains = closedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
     const closedHoldingTimes = closedIdeas.filter(i => i.actualHoldingTimeMinutes !== null).map(i => i.actualHoldingTimeMinutes!);
 
@@ -2909,7 +2991,12 @@ export class DatabaseStorage implements IStorage {
         totalIdeas: sourceAllIdeas.length, // Show ALL ideas (open + closed)
         wonIdeas: sourceWon.length,
         lostIdeas: sourceLost.length,
-        winRate: sourceDecided > 0 ? (sourceWon.length / sourceDecided) * 100 : 0,
+        // Null, not 0, when the sample cannot carry a rate. `gex_scanner` was
+        // shipping `winRate: 0` beside `wonIdeas: 0, lostIdeas: 0` — a scanner
+        // that had never resolved a trade, reported as one that never wins.
+        // `decided` travels with it so the reader sees the sample, not just a gap.
+        winRate: reportableRate(sourceWon.length, sourceDecided),
+        decided: sourceDecided,
         avgPercentGain: calculateAvg(sourceGains),
       };
     }).sort((a, b) => b.totalIdeas - a.totalIdeas); // Sort by total trades descending
@@ -3171,7 +3258,7 @@ export class DatabaseStorage implements IStorage {
       const losses = closedIdeas.filter(i => isRealLoss(i)).length;
       const decided = wins + losses;
       return {
-        winRate: decided > 0 ? Math.round((wins / decided) * 1000) / 10 : 0,
+        winRate: reportableRate(wins, decided),
         wins,
         losses,
         decided
@@ -3210,6 +3297,7 @@ export class DatabaseStorage implements IStorage {
         lostIdeas: lostIdeas.length,
         expiredIdeas: expiredIdeas.length,
         winRate: overallStats.winRate, // Use unified segmented methodology
+        winRateDecided: overallStats.decided, // the sample this rate is actually over
         quantAccuracy,
         directionalAccuracy,
         avgPercentGain: calculateAvg(closedGains),
@@ -3257,6 +3345,30 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(catalystsTable)
       .where(eq(catalystsTable.symbol, symbol))
       .orderBy(desc(catalystsTable.timestamp));
+  }
+
+  /**
+   * Catalysts an ENGINE should consider — a recent window plus the upcoming one.
+   *
+   * getAllCatalysts is deliberately forward-only because it backs a UI feed
+   * labelled "upcoming events". That is right for a scheduled earnings date and
+   * wrong for news: a story published two hours ago is the most actionable
+   * catalyst there is, and a forward-only filter makes every news row invisible
+   * to the scoring engine the moment it is written.
+   *
+   * Kept as a separate accessor rather than widening getAllCatalysts, so the
+   * "upcoming" feed does not silently start showing yesterday's headlines.
+   */
+  async getActiveCatalysts(lookbackHours = 72, lookaheadDays = 14): Promise<Catalyst[]> {
+    const now = Date.now();
+    const from = now - lookbackHours * 60 * 60 * 1000;
+    const to = now + lookaheadDays * 24 * 60 * 60 * 1000;
+
+    const all = await db.select().from(catalystsTable).orderBy(desc(catalystsTable.timestamp));
+    return all.filter((catalyst) => {
+      const t = Date.parse(catalyst.timestamp);
+      return Number.isFinite(t) && t >= from && t <= to;
+    });
   }
 
   async createCatalyst(catalyst: InsertCatalyst): Promise<Catalyst> {
@@ -4064,6 +4176,24 @@ export class DatabaseStorage implements IStorage {
       status: (position.status ?? 'open') as PaperTradeStatus,
     };
     const [created] = await db.insert(paperPositionsTable).values(insertData).returning();
+
+    // Paper positions are the execution ledger. Mark the linked Oracle idea
+    // here, at the single shared persistence boundary, so every bot/manual
+    // path has the same proof-of-entry semantics.
+    if (created.tradeIdeaId) {
+      const [idea] = await db.select().from(tradeIdeas).where(eq(tradeIdeas.id, created.tradeIdeaId)).limit(1);
+      if (idea) {
+        await db.update(tradeIdeas)
+          .set({
+            convergenceSignalsJson: recordPaperExecution(idea.convergenceSignalsJson, {
+              price: created.entryPrice,
+              at: created.entryTime,
+              paperPositionId: created.id,
+            }) as any,
+          })
+          .where(eq(tradeIdeas.id, idea.id));
+      }
+    }
     return created;
   }
 

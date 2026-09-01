@@ -8,6 +8,7 @@
 import { logger } from './logger';
 import { storage } from './storage';
 import { format, subDays, startOfWeek, endOfWeek } from 'date-fns';
+import { postDiscordWebhook } from './discord-service';
 
 interface WeeklyReport {
   period: {
@@ -298,7 +299,7 @@ async function sendToDiscord(report: WeeklyReport): Promise<boolean> {
   try {
     const content = formatForDiscord(report);
     
-    const response = await fetch(webhook, {
+    const response = await postDiscordWebhook(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

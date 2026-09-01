@@ -137,7 +137,7 @@ export function RotationMatrix() {
             {o.label}
           </button>
         ))}
-        <span className="ml-auto text-[9px] font-mono text-muted-foreground/40">
+        <span className="ml-auto text-[9px] font-mono text-muted-foreground/60">
           {data?.asOf ? `as of ${data.asOf}` : ''}
         </span>
         <button
@@ -241,7 +241,7 @@ function RotationRow({ layer, onDrillIn }: { layer: LayerCycle; onDrillIn: () =>
           {i === stageColIdx ? (
             <QEPill variant={STAGE_VARIANT[s]}>●</QEPill>
           ) : (
-            <span className="text-muted-foreground/20">·</span>
+            <span className="text-muted-foreground/60">·</span>
           )}
         </td>
       ))}

@@ -77,21 +77,21 @@ export function ComparisonTable() {
                       {feature.tradingView ? (
                         <Check className="h-5 w-5 text-muted-foreground mx-auto" />
                       ) : (
-                        <X className="h-5 w-5 text-muted-foreground/50 mx-auto" />
+                        <X className="h-5 w-5 text-muted-foreground/60 mx-auto" />
                       )}
                     </td>
                     <td className="p-4 text-center bg-card/50">
                       {feature.benzinga ? (
                         <Check className="h-5 w-5 text-muted-foreground mx-auto" />
                       ) : (
-                        <X className="h-5 w-5 text-muted-foreground/50 mx-auto" />
+                        <X className="h-5 w-5 text-muted-foreground/60 mx-auto" />
                       )}
                     </td>
                     <td className="p-4 text-center bg-card/50">
                       {feature.finviz ? (
                         <Check className="h-5 w-5 text-muted-foreground mx-auto" />
                       ) : (
-                        <X className="h-5 w-5 text-muted-foreground/50 mx-auto" />
+                        <X className="h-5 w-5 text-muted-foreground/60 mx-auto" />
                       )}
                     </td>
                   </motion.tr>
@@ -123,7 +123,7 @@ export function ComparisonTable() {
                      (compIdx === 3 && feature.finviz) ? (
                       <Check className={`h-4 w-4 mx-auto ${comp.highlight ? 'text-cyan-400' : 'text-muted-foreground'}`} />
                     ) : (
-                      <X className="h-4 w-4 text-muted-foreground/50 mx-auto" />
+                      <X className="h-4 w-4 text-muted-foreground/60 mx-auto" />
                     )}
                   </div>
                 ))}

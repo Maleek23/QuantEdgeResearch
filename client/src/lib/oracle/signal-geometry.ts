@@ -6,13 +6,14 @@
  *
  * What it computes (each maps to something the desk actually reads):
  *   • R-multiples — risk = |entry − stop|; every level expressed as R away from live.
- *   • T2 — a second target at 2× the T1 R-multiple. We never had one; the desk always
- *     shows T1 AND T2, and a scale-out plan needs two rungs.
+ *   • T2 — only when the publisher has supplied a second structural level. A
+ *     second target cannot be manufactured from T1's R multiple.
  *   • Progress — how far live has travelled entry → T1 (direction-aware).
  *   • Pace / horizon — how much of the holding window is spent vs progress made. A trade
  *     that's 20% to target with 80% of its time gone is failing even while "green".
  *   • Status — PENDING TRIGGER before entry fills, IN PLAY, AT TARGET, NEAR STOP.
- *   • Profit-taking plan — scale 40% at T1 + trail stop to entry, close the rest at T2.
+ *   • Profit-taking plan — the next evidenced structural target, without a
+ *     fabricated extension.
  *   • Components — VALIDITY / PROGRESS / PACE / OVERLAY, the four sub-scores.
  */
 
@@ -24,8 +25,14 @@ export interface GeomInput {
   live: number;
   riskRewardRatio?: number | null;
   holdingPeriod?: string | null;
+  /** Contract time remaining when the signal was published. */
+  optionDte?: number | null;
+  /** Absolute expiry lets the UI recompute time remaining after publication. */
+  expiryDate?: string | null;
   generatedAt?: string | null;
   convictionScore?: number | null;
+  /** Derived from the signal's execution ledger, never inferred from spot. */
+  lifecycleState?: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
   /** Peak favourable price seen since entry, when the backend has tracked it. */
   extremePrice?: number | null;
 }
@@ -50,12 +57,14 @@ export interface SignalGeometry {
   risk: number;                 // $ per share to the stop
   reward: number;               // $ per share to T1
   rr: number;                   // reward : risk at entry
-  t2: number;
+  /** Null means no second structural target has been observed. */
+  t2: number | null;
   levels: Level[];
   progressPct: number;          // 0–100 entry → T1
   pnlPct: number;               // direction-aware, from entry
   daysHeld: number;
   horizonDays: number;
+  horizonBasis: string;
   horizonUsedPct: number;
   drawdownPct: number;          // adverse excursion from entry (0 if none)
   status: SignalStatus;
@@ -67,13 +76,36 @@ export interface SignalGeometry {
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 
 /** Max days the thesis is given, by holding period. */
-export function horizonDaysFor(holdingPeriod?: string | null): number {
-  switch ((holdingPeriod || '').toLowerCase()) {
-    case 'day': return 1;
-    case 'swing': return 5;
-    case 'week-ending': return 5;
-    case 'position': return 30;
-    default: return 10;
+export function horizonDaysFor(
+  holdingPeriod?: string | null,
+  optionDte?: number | null,
+  expiryDate?: string | null,
+): { days: number; basis: string } {
+  const remainingDte = expiryDate
+    ? Math.max(0, Math.ceil((Date.parse(expiryDate) - Date.now()) / 86_400_000))
+    : optionDte ?? null;
+  const period = (holdingPeriod || '').toLowerCase();
+
+  switch (period) {
+    case 'day': return { days: 1, basis: 'intraday plan' };
+    case 'week-ending': return { days: Math.max(1, Math.min(5, remainingDte ?? 5)), basis: remainingDte != null ? `${remainingDte}DTE contract` : 'week-ending plan' };
+    case 'swing': {
+      // A swing plan should exit with time still left on the option. Half the
+      // available DTE (capped at 15 sessions) creates a real management window
+      // without pretending every 10DTE and 25DTE contract is the same 5-day bet.
+      const days = remainingDte != null ? Math.max(3, Math.min(15, Math.round(remainingDte * 0.5))) : 5;
+      return { days, basis: remainingDte != null ? `${remainingDte}DTE contract` : 'setup default · no contract' };
+    }
+    case 'position': {
+      const days = remainingDte != null ? Math.max(20, Math.min(120, Math.round(remainingDte * 0.65))) : 30;
+      return { days, basis: remainingDte != null ? `${remainingDte}DTE contract` : 'position plan' };
+    }
+    case 'leap':
+    case 'leaps': {
+      const days = remainingDte != null ? Math.max(90, Math.min(365, Math.round(remainingDte * 0.65))) : 180;
+      return { days, basis: remainingDte != null ? `${remainingDte}DTE contract` : 'LEAPS plan' };
+    }
+    default: return { days: remainingDte != null ? Math.max(3, Math.min(30, Math.round(remainingDte * 0.5))) : 10, basis: remainingDte != null ? `${remainingDte}DTE contract` : 'unclassified setup' };
   }
 }
 
@@ -87,9 +119,10 @@ export function computeGeometry(i: GeomInput): SignalGeometry {
   const reward = Math.abs(i.targetPrice - entry);
   const rr = i.riskRewardRatio && i.riskRewardRatio > 0 ? i.riskRewardRatio : reward / risk;
 
-  // T2 sits at twice T1's R-multiple — the second scale-out rung.
-  const t1R = reward / risk;
-  const t2 = long ? entry + risk * t1R * 2 : entry - risk * t1R * 2;
+  // The persisted trade idea has one target today. Don't create a prettier,
+  // but imaginary, T2 here. When the publisher records a second real level it
+  // can be passed through explicitly.
+  const t2: number | null = null;
 
   const mk = (key: Level['key'], label: string, price: number): Level => ({
     key, label, price,
@@ -99,7 +132,6 @@ export function computeGeometry(i: GeomInput): SignalGeometry {
   });
 
   const levels: Level[] = [
-    mk('t2', 'T2', t2),
     mk('t1', 'T1', i.targetPrice),
     mk('live', 'LIVE', live),
     mk('entry', 'ENTRY', entry),
@@ -116,7 +148,8 @@ export function computeGeometry(i: GeomInput): SignalGeometry {
   // time
   const started = i.generatedAt ? Date.parse(i.generatedAt) : NaN;
   const daysHeld = Number.isNaN(started) ? 0 : Math.max(0, (Date.now() - started) / 86_400_000);
-  const horizonDays = horizonDaysFor(i.holdingPeriod);
+  const horizonPlan = horizonDaysFor(i.holdingPeriod, i.optionDte, i.expiryDate);
+  const horizonDays = horizonPlan.days;
   const horizonUsedPct = clamp((daysHeld / horizonDays) * 100);
 
   // adverse excursion: how far it went against us from entry
@@ -126,7 +159,11 @@ export function computeGeometry(i: GeomInput): SignalGeometry {
   const drawdownPct = entry > 0 ? Math.max(0, (adverse / entry) * 100) : 0;
 
   // status
-  const triggered = long ? live >= entry : live <= entry;
+  // Price touching the entry is not proof of an entry. A trigger must be
+  // observed by the engine, and an execution must come from the paper/broker
+  // ledger. This makes the UI tell the truth even when spot sits beyond a
+  // planned trigger level.
+  const triggered = i.lifecycleState === 'triggered' || i.lifecycleState === 'executed';
   const hitStop = long ? live <= i.stopLoss : live >= i.stopLoss;
   const nearStop = Math.abs(live - i.stopLoss) / risk <= 0.25;
   let status: SignalStatus = 'in_play';
@@ -162,15 +199,15 @@ export function computeGeometry(i: GeomInput): SignalGeometry {
     { key: 'overlay',  label: 'OVERLAY',  value: overlay,  why: 'opportunity still ahead' },
   ];
 
-  // scale-out plan
+  // One observed level means one honest action. Do not imply a second exit
+  // plan simply because a component wants symmetrical rows.
   const plan: SignalGeometry['plan'] = [
-    { rung: 'T1', price: i.targetPrice, action: 'Scale out 40%, trail stop to entry', active: status === 'in_play' || status === 'pending_trigger' },
-    { rung: 'T2', price: t2, action: 'Close remaining 60%', active: status === 'at_target' },
+    { rung: 'T1', price: i.targetPrice, action: 'First structural target — reassess or trail only after a new level forms', active: status === 'in_play' || status === 'pending_trigger' },
   ];
 
   return {
     risk, reward, rr, t2, levels, progressPct, pnlPct,
-    daysHeld, horizonDays, horizonUsedPct, drawdownPct,
+    daysHeld, horizonDays, horizonBasis: horizonPlan.basis, horizonUsedPct, drawdownPct,
     status, statusLabel, components, plan,
   };
 }

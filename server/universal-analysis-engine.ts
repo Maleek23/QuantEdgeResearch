@@ -89,14 +89,31 @@ export interface UnifiedAnalysisResponse {
 }
 
 // Scoring weights (must sum to 1.0)
+/**
+ * CAUTION: these sum to 1.10, not 1.00.
+ *
+ * The percentages in the comments are what was intended; the values are what is
+ * applied, and they total 110%. calculateOverallScore used to multiply and sum
+ * these WITHOUT dividing by the total, so every grade the platform has ever
+ * published was inflated by up to 10%. Measured on ADSK 2026-08-27: true
+ * weighted score 64, displayed 69 — across the C+/B- boundary, on a stock
+ * reporting that night.
+ *
+ * calculateOverallScore now divides by the weight actually used, so the
+ * arithmetic is correct whatever these sum to. The values are left as they are
+ * because changing them shifts the relative importance of the categories, which
+ * is a modelling decision and not a bug fix — the ratios between them are
+ * presumably what was wanted. Fix the ratios deliberately, or leave them; either
+ * way the division keeps the output on a 0-100 scale.
+ */
 export const CATEGORY_WEIGHTS = {
-  technical: 0.25,      // 25%
-  fundamental: 0.30,    // 30%
-  quantitative: 0.15,   // 15%
-  ml: 0.10,             // 10%
-  orderFlow: 0.15,      // 15%
-  sentiment: 0.10,      // 10%
-  catalysts: 0.05       // 5%
+  technical: 0.25,      // intended 25%  → effective 22.7%
+  fundamental: 0.30,    // intended 30%  → effective 27.3%
+  quantitative: 0.15,   // intended 15%  → effective 13.6%
+  ml: 0.10,             // intended 10%  → effective  9.1%   (stub; excluded)
+  orderFlow: 0.15,      // intended 15%  → effective 13.6%
+  sentiment: 0.10,      // intended 10%  → effective  9.1%
+  catalysts: 0.05       // intended  5%  → effective  4.5%
 };
 
 /**
@@ -132,10 +149,49 @@ export class UniversalAnalysisEngine {
         import('./catalysts-scorer')
       ]);
 
-      // Fetch basic stock info
-      const { default: YahooFinance } = await import('yahoo-finance2');
-      const yahooFinance = new YahooFinance();
-      const quote = await yahooFinance.quote(symbol);
+      /**
+       * Basic stock info, with a fallback.
+       *
+       * This single call was unguarded while every scorer below it carries a
+       * .catch() — so a Yahoo 429 did not degrade the analysis, it destroyed it,
+       * and on-demand grading returned "Failed to get crumb, status 429" instead
+       * of a grade. Yahoo is rate-limiting persistently right now.
+       *
+       * Finnhub covers the same fields for the purpose this quote serves here
+       * (price and name), is on a separate quota, and is already configured.
+       */
+      let quote: any = null;
+      try {
+        const { default: YahooFinance } = await import('yahoo-finance2');
+        const yahooFinance = new YahooFinance();
+        quote = await yahooFinance.quote(symbol);
+      } catch (err: any) {
+        try {
+          const { getFinnhubQuote, getCompanyProfile } = await import('./finnhub-adapter');
+          const [fq, prof] = await Promise.all([
+            getFinnhubQuote(symbol),
+            getCompanyProfile(symbol).catch(() => null),
+          ]);
+          if (fq) {
+            quote = {
+              symbol,
+              regularMarketPrice: fq.price,
+              regularMarketChangePercent: fq.changePct,
+              longName: prof?.name ?? symbol,
+              marketCap: prof?.marketCap ?? null,
+              _source: 'finnhub',
+            };
+          }
+        } catch { /* both sources down — fall through to the null guard */ }
+
+        if (!quote) {
+          // Say WHICH sources failed. "Failed to get crumb" told the user
+          // nothing they could act on.
+          throw new Error(
+            `No quote available for ${symbol} — Yahoo failed (${err?.message ?? 'unknown'}) and Finnhub returned nothing.`,
+          );
+        }
+      }
 
       // Run all scorers in parallel
       const [
@@ -156,6 +212,39 @@ export class UniversalAnalysisEngine {
         catalystsScorer.score(symbol).catch(err => this.handleScorerError('catalysts', err))
       ]);
 
+      /**
+       * Which categories produced no reading.
+       *
+       * Two ways a scorer signals this: an explicit `available: false` (the ml
+       * stub), or a breakdown that is nothing but an Error/N-A entry, which is
+       * what the Yahoo-dependent scorers emit when their source is down. Both
+       * are excluded from the weighted average rather than counted as a vote
+       * for 50 — see calculateOverallScore.
+       */
+      const isUnavailable = (r: any): boolean => {
+        if (r?.available === false) return true;
+        const bd = r?.breakdown;
+        if (!Array.isArray(bd) || bd.length === 0) return true;
+        return bd.every((b: any) =>
+          b?.category === 'Error' || b?.value === 'N/A' || b?.value === 'Unknown');
+      };
+
+      const unavailable = new Set<string>();
+      for (const [cat, res] of Object.entries({
+        technical: technicalResult,
+        fundamental: fundamentalResult,
+        quantitative: quantitativeResult,
+        ml: mlResult,
+        orderFlow: orderFlowResult,
+        sentiment: sentimentResult,
+        catalysts: catalystsResult,
+      })) {
+        if (isUnavailable(res)) unavailable.add(cat);
+      }
+      if (unavailable.size > 0) {
+        logger.warn(`[UniversalEngine] ${symbol}: no data from ${[...unavailable].join(', ')} — excluded from the blend`);
+      }
+
       // Calculate overall score
       const overallScore = this.calculateOverallScore({
         technical: technicalResult.score,
@@ -165,7 +254,7 @@ export class UniversalAnalysisEngine {
         orderFlow: orderFlowResult.score,
         sentiment: sentimentResult.score,
         catalysts: catalystsResult.score
-      });
+      }, unavailable);
 
       const overallGrade = this.scoreToGrade(overallScore);
       const recommendation = this.scoreToRecommendation(overallScore);
@@ -224,7 +313,7 @@ export class UniversalAnalysisEngine {
             score: fundamentalResult.fundamentalScore || fundamentalResult.score || 50,
             grade: this.scoreToGrade(fundamentalResult.fundamentalScore || fundamentalResult.score || 50),
             weight: CATEGORY_WEIGHTS.fundamental,
-            breakdown: fundamentalResult.breakdown || []
+            breakdown: this.flattenFundamentalBreakdown(fundamentalResult.breakdown),
           },
           quantitative: {
             score: quantitativeResult.score,
@@ -295,32 +384,75 @@ export class UniversalAnalysisEngine {
   }
 
   /**
+   * Flatten the fundamental breakdown into the shape the other six scorers use.
+   *
+   * fundamental-analysis-service returns FundamentalScore[] — category groups
+   * ({ category, score, grade, metrics: [{ name, value, interpretation }] }) —
+   * while every other scorer returns flat { category, value, interpretation }.
+   * The engine passed it straight through, so anything reading `breakdown[].value`
+   * rendered "Financial Health: undefined": the values are one level down under
+   * `metrics`, keyed `name` rather than `category`.
+   *
+   * Flattening here rather than in each consumer keeps the contract uniform at
+   * the engine boundary, where it is stated.
+   */
+  private flattenFundamentalBreakdown(breakdown: any): any[] {
+    if (!Array.isArray(breakdown)) return [];
+
+    return breakdown.flatMap((group: any) => {
+      // Already flat (a defensive path — an error entry, or a future change).
+      if (group?.metrics === undefined) {
+        return group?.category ? [group] : [];
+      }
+      const metrics = Array.isArray(group.metrics) ? group.metrics : [];
+      return metrics.map((m: any) => ({
+        category: group.category ? `${group.category}: ${m?.name ?? ''}`.trim() : (m?.name ?? ''),
+        value: m?.value ?? 'N/A',
+        interpretation: m?.interpretation ?? '',
+      }));
+    });
+  }
+
+  /**
    * Calculate weighted overall score
    */
-  private calculateOverallScore(scores: Record<string, number>): number {
-    // Ensure all scores have valid values (default to 50 if missing)
-    const safeScores = {
-      technical: scores.technical ?? 50,
-      fundamental: scores.fundamental ?? 50,
-      quantitative: scores.quantitative ?? 50,
-      ml: scores.ml ?? 50,
-      orderFlow: scores.orderFlow ?? 50,
-      sentiment: scores.sentiment ?? 50,
-      catalysts: scores.catalysts ?? 50
-    };
+  private calculateOverallScore(
+    scores: Record<string, number>,
+    unavailable: Set<string> = new Set()
+  ): number {
+    /**
+     * Renormalise over the categories that actually produced a reading.
+     *
+     * The old form defaulted every missing category to 50 and applied its full
+     * weight. That treats "no data" as "neutral opinion", which it is not — it
+     * drags every grade toward the middle in proportion to how much of the
+     * engine is broken. With ml permanently stubbed and, until the fixes in
+     * this pass, five other scorers failing on a Yahoo 429, a score of 57 could
+     * be one real reading blended with six placeholders and still present as a
+     * considered C+.
+     *
+     * Dropping an unavailable category and rescaling the rest to sum to 1 means
+     * a non-reading neither helps nor hurts. The score then reflects only what
+     * was actually measured — and the caller can see WHICH categories those
+     * were in the breakdown.
+     *
+     * If every category is unavailable there is nothing to average, and 50 is
+     * returned as a genuine "no opinion" rather than a computed one.
+     */
+    let weightedSum = 0;
+    let weightUsed = 0;
 
-    const weightedScore =
-      safeScores.technical * CATEGORY_WEIGHTS.technical +
-      safeScores.fundamental * CATEGORY_WEIGHTS.fundamental +
-      safeScores.quantitative * CATEGORY_WEIGHTS.quantitative +
-      safeScores.ml * CATEGORY_WEIGHTS.ml +
-      safeScores.orderFlow * CATEGORY_WEIGHTS.orderFlow +
-      safeScores.sentiment * CATEGORY_WEIGHTS.sentiment +
-      safeScores.catalysts * CATEGORY_WEIGHTS.catalysts;
+    for (const [cat, weight] of Object.entries(CATEGORY_WEIGHTS)) {
+      if (unavailable.has(cat)) continue;
+      const v = scores[cat];
+      if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+      weightedSum += v * weight;
+      weightUsed += weight;
+    }
 
-    const finalScore = Math.min(100, Math.max(0, Math.round(weightedScore)));
+    if (weightUsed <= 0) return 50;
 
-    // Double-check for NaN (shouldn't happen with defaults above, but be safe)
+    const finalScore = Math.min(100, Math.max(0, Math.round(weightedSum / weightUsed)));
     return isNaN(finalScore) ? 50 : finalScore;
   }
 

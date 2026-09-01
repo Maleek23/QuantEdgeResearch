@@ -228,7 +228,7 @@ async function getMarketContext(): Promise<{ spyDown: boolean; spyChange: number
 export async function executeTradeIdea(
   portfolioId: string,
   tradeIdea: TradeIdea,
-  options?: { maxQuantity?: number }
+  options?: { maxQuantity?: number; riskFraction?: number }
 ): Promise<ExecuteTradeResult> {
   try {
     const portfolio = await storage.getPaperPortfolioById(portfolioId);
@@ -297,7 +297,14 @@ export async function executeTradeIdea(
       // 2. Hard cap of $60 per trade (small account friendly)
       // 3. Available cash balance
       const percentBasedMax = portfolio.cashBalance * MAX_PERCENT_PER_TRADE;
-      const maxAllowedSpend = Math.min(percentBasedMax, MAX_DOLLAR_PER_TRADE, portfolio.cashBalance);
+      // The flat $250 cap was small-account protection acting as a universal
+      // ceiling: the 100K clean-era book was refused a $655 MSFT contract by a
+      // rule written for a $2K lotto account. The dollar cap now scales with
+      // the book (3% of cash) and the flat figure survives only as the FLOOR
+      // of that scale — tiny accounts keep their guardrail, real books can
+      // buy one contract of the board they exist to measure.
+      const scaledDollarCap = Math.max(MAX_DOLLAR_PER_TRADE, portfolio.cashBalance * 0.03);
+      const maxAllowedSpend = Math.min(percentBasedMax, scaledDollarCap, portfolio.cashBalance);
       
       const contractCost = currentPrice * 100;
       
@@ -343,7 +350,10 @@ export async function executeTradeIdea(
       
       logger.info(`📊 [POSITION-SIZE] ${tradeIdea.symbol}: ${quantity} contracts @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)} (${(positionCost / portfolio.cashBalance * 100).toFixed(1)}% of cash, limit: $${maxAllowedSpend.toFixed(0)})`);
     } else {
-      const riskPerTrade = portfolio.riskPerTrade || 0.02;
+      // Callers may size down per-fill (the bot halves risk on a selective
+      // tape instead of refusing to trade — caution expressed in dollars,
+      // not in a starved sample).
+      const riskPerTrade = options?.riskFraction ?? (portfolio.riskPerTrade || 0.02);
       const riskAmount = portfolio.cashBalance * riskPerTrade;
       const stopDistance = Math.abs(currentPrice - tradeIdea.stopLoss);
       
@@ -616,8 +626,9 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
           unrealizedPnLPercent,
         };
         
-        // Track highest price for trailing stops (for both long and short positions)
-        const isLong = position.direction === 'long';
+        // Bought calls and puts are both long premium positions. `direction`
+        // remains the underlying thesis and must not invert put management.
+        const isLong = position.assetType === 'option' || position.direction === 'long';
         const currentHWM = position.highWaterMark || position.entryPrice;
         const entryPrice = position.entryPrice;
         
@@ -699,7 +710,7 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
     for (const position of openPositions) {
       if (!position.currentPrice) continue;
 
-      const isLong = position.direction === 'long';
+      const isLong = position.assetType === 'option' || position.direction === 'long';
       let shouldClose = false;
       let exitReason = '';
       

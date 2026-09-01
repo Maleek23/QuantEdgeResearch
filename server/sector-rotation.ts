@@ -144,6 +144,35 @@ interface RawQuote {
   sessionAtMs: number;     // epoch ms of the latest bar (regularMarketTime)
 }
 
+/** A provider session label is only trusted when it agrees with the NYSE clock. */
+function easternClock(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  return {
+    weekday: get('weekday'),
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    minutes: Number(get('hour')) * 60 + Number(get('minute')),
+  };
+}
+
+function scheduledMarketState(now = new Date()): RotationBrief['marketState'] {
+  const eastern = easternClock(now);
+  if (eastern.weekday === 'Sat' || eastern.weekday === 'Sun') return 'CLOSED';
+  if (eastern.minutes >= 4 * 60 && eastern.minutes < 9 * 60 + 30) return 'PRE';
+  if (eastern.minutes >= 9 * 60 + 30 && eastern.minutes < 16 * 60) return 'OPEN';
+  if (eastern.minutes >= 16 * 60 && eastern.minutes < 20 * 60) return 'AFTER';
+  return 'CLOSED';
+}
+
+function isFreshCurrentEasternPrint(atMs: number, now = new Date()) {
+  if (!atMs || scheduledMarketState(now) === 'CLOSED') return false;
+  return easternClock(new Date(atMs)).date === easternClock(now).date
+    && now.getTime() - atMs <= 20 * 60 * 1000;
+}
+
 async function fetchQuote(symbol: string): Promise<RawQuote | null> {
   try {
     // Rotation does not stop at 16:00. Money rotates through the overnight and
@@ -187,12 +216,16 @@ async function fetchQuote(symbol: string): Promise<RawQuote | null> {
     const first = f < closes.length ? Number(closes[f]) : last;
     const fiveDayChange = first ? +(((last - first) / first) * 100).toFixed(2) : 0;
 
+    const marketState = isFreshCurrentEasternPrint(sessionAtMs)
+      ? scheduledMarketState()
+      : String(m.marketState || '').toUpperCase();
+
     return {
       symbol,
       change,
       preMarketChange: extendedChange,
       fiveDayChange,
-      marketState: m.marketState || '',
+      marketState,
       sessionAtMs,
     };
   } catch (e: any) {
@@ -217,18 +250,25 @@ function deriveSession(sessionAtMs: number, marketState: string): {
 
   const sessDay = new Date(sessionAtMs);
   const now = new Date();
-  const sameDay =
-    sessDay.getFullYear() === now.getFullYear() &&
-    sessDay.getMonth() === now.getMonth() &&
-    sessDay.getDate() === now.getDate();
+  const sameDay = easternClock(sessDay).date === easternClock(now).date;
 
   const dateStr = sessDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-  // Trust Yahoo's marketState when present.
+  // Fresh print + actual market clock outrank stale Yahoo metadata. This prevents
+  // a valid 09:04 ET pre-market quote being labelled as the day's closing print.
+  if (sameDay && isFreshCurrentEasternPrint(sessionAtMs, now)) {
+    const scheduled = scheduledMarketState(now);
+    if (scheduled === 'PRE') return { label: 'Pre-market', state: 'PRE', isStale: false };
+    if (scheduled === 'OPEN') return { label: 'Live', state: 'OPEN', isStale: false };
+    if (scheduled === 'AFTER') return { label: 'After hours', state: 'AFTER', isStale: false };
+  }
+
+  // A provider can retain PRE after a Friday close. Only honour that state when
+  // the data itself belongs to today's session.
   const ms = (marketState || '').toUpperCase();
-  if (ms === 'PRE') return { label: 'Pre-market', state: 'PRE', isStale: false };
-  if (ms === 'REGULAR') return { label: 'Live', state: 'OPEN', isStale: false };
-  if (ms === 'POST' || ms === 'POSTPOST') return { label: 'After hours', state: 'AFTER', isStale: false };
+  if (sameDay && ms === 'PRE') return { label: 'Pre-market', state: 'PRE', isStale: false };
+  if (sameDay && ms === 'REGULAR') return { label: 'Live', state: 'OPEN', isStale: false };
+  if (sameDay && (ms === 'POST' || ms === 'POSTPOST')) return { label: 'After hours', state: 'AFTER', isStale: false };
 
   // No marketState → infer from freshness.
   if (sameDay) return { label: `${dateStr} close`, state: 'CLOSED', isStale: false };
@@ -258,7 +298,7 @@ function classify(relChange: number): FlowState {
 // ═══════════════════════════════════════════════════════════════
 
 let _cache: { at: number; brief: RotationBrief } | null = null;
-const TTL_MS = 3 * 60 * 1000; // 3 min — rotation shifts intraday but not by the second
+const TTL_MS = 90 * 1000; // matches leadership cadence; RRG axes stay based on daily closes
 
 
 /** Daily closes for the RS computation. Cached hard — this data changes once a day. */

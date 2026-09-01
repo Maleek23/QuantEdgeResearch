@@ -52,19 +52,21 @@ class TechnicalScorer {
     try {
       logger.info(`[TechnicalScorer] Scoring ${symbol}`);
 
-      const { default: YahooFinance } = await import('yahoo-finance2');
-      const yahooFinance = new YahooFinance();
-
-      // Fetch extended historical data (1 year) for statistical analysis
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setFullYear(startDate.getFullYear() - 1); // 1 year for robust statistics
-
-      const historical = await yahooFinance.historical(symbol, {
-        period1: startDate.toISOString().split('T')[0],
-        period2: endDate.toISOString().split('T')[0],
-        interval: '1d'
-      });
+      /**
+       * Bars via the shared fallback (Polygon grouped-daily → Yahoo).
+       *
+       * Technical carries the largest weight in CATEGORY_WEIGHTS, and it was
+       * calling Yahoo directly with a throw on failure — so on a 429 the
+       * heaviest input to the grade became the default 50 labelled "Error".
+       * Observed intermittently on WDAY while the other scorers succeeded,
+       * which is the worst version of the bug: the score moves for a reason
+       * that has nothing to do with the stock.
+       *
+       * 260 sessions, because SMA200 needs 200 plus room for the historical
+       * RSI distribution computed below.
+       */
+      const { getBars } = await import('./market-data-fallback');
+      const historical = await getBars(symbol, 260);
 
       if (!historical || historical.length < 50) {
         throw new Error('Insufficient historical data for technical analysis');

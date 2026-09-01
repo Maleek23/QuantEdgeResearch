@@ -1,3 +1,4 @@
+import { isOptionScaleIncoherent } from './option-unit-guard';
 /**
  * Shared constants for consistent terminology across the platform
  * Use these labels everywhere instead of hardcoding strings
@@ -84,7 +85,63 @@ export const PERFORMANCE_THRESHOLDS = {
  * Trades below these thresholds are considered "breakeven/neutral"
  */
 export const CANONICAL_LOSS_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_LOSS_PERCENT;
+
+/**
+ * The clean-era baseline. On this date the stats layer's loss classifier was
+ * unified with the barrier layer (a touched stop counts everywhere), the
+ * engine-level short gate landed, and the gap_continuation + real-avg-volume
+ * signal repairs shipped. Rates computed across this boundary mix two
+ * different measurement regimes — cohort tracking starts here.
+ */
+export const OUTCOME_BASELINE_DATE = '2026-08-26';
 export const CANONICAL_WIN_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_WIN_PERCENT;
+
+/**
+ * SAMPLE FLOOR — below this many decided trades, a rate is not reported.
+ *
+ * Not a style rule. `wins / decided` is defined for any decided > 0 and the
+ * platform printed it at every size, which produced statements it had no
+ * evidence for:
+ *
+ *   Auto-Lotto Bot   HIT RATE 0%   beside   TRADES 0 · W/L 0/0
+ *   equities         0%            off      one decided trade
+ *   gex_scanner      winRate 0     off      zero decided trades
+ *   dashboard pie    Losses 100%   off      zero decided trades
+ *
+ * None of those engines had lost anything. Each had simply not resolved a trade
+ * yet, and 0% is read as a verdict — the worst possible one — where the honest
+ * statement is "not enough trades to say". Losing money on a bot you switched
+ * off because it showed 0% is a real cost of a formatting decision.
+ *
+ * 30 is the conventional floor where a proportion's normal approximation starts
+ * behaving, and it is the number canon/score.tsx already defaults CanonRate to.
+ * It lives here so the client and the server cannot drift apart on it.
+ *
+ * The rule is only about REPORTING. Rates are still computed and stored; the
+ * counts are always shown, so a small sample stays visible as a sample rather
+ * than disappearing.
+ */
+export const MIN_REPORTABLE_SAMPLE = 30;
+
+/**
+ * A win rate, or null when the sample cannot support one.
+ *
+ * Returns null in two distinct cases that must not be conflated with 0%:
+ *   decided === 0                    nothing has resolved — no rate exists
+ *   decided < MIN_REPORTABLE_SAMPLE  too few to report, though a rate exists
+ *
+ * Callers render the counts either way, so the distinction survives: "0 of 0"
+ * and "0 of 1" read differently even though both suppress the percentage.
+ */
+export function reportableRate(
+  wins: number,
+  decided: number,
+  minSample: number = MIN_REPORTABLE_SAMPLE,
+): number | null {
+  if (!Number.isFinite(wins) || !Number.isFinite(decided)) return null;
+  if (decided <= 0 || decided < minSample) return null;
+  return Math.round((wins / decided) * 1000) / 10;
+}
 
 /**
  * UNIFIED WIN/LOSS CLASSIFICATION
@@ -94,7 +151,7 @@ export const CANONICAL_WIN_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_WIN_PERCENT;
  * 
  * CANONICAL DEFINITIONS:
  * - WIN: hit_target OR (closed with P&L >= +3%)
- * - LOSS: hit_stop AND (P&L <= -3%)
+ * - LOSS: hit_stop (a configured stop defines the loss; stop distance varies)
  * - NEUTRAL: expired, manual_exit, breakeven (|P&L| < 3%) - excluded from win rate
  */
 
@@ -119,11 +176,12 @@ export function isRealWin(idea: { outcomeStatus?: string | null; percentGain?: n
 }
 
 /**
- * Check if a trade is a "real loss" - hit stop with >= 3% loss
+ * Check if a trade is a "real loss".
  * Works with any object that has outcomeStatus and percentGain properties
  * 
  * A trade is a real loss if:
- * - It hit stop AND lost >= 3%
+ * - It hit its configured stop. A 2% stop is still a loss; applying a universal
+ *   3% P&L floor was silently converting valid stopped trades into neutrals.
  * 
  * Expired trades are EXCLUDED from loss calculations (they are separate from hit_stop).
  * This matches the documented methodology in replit.md.
@@ -132,15 +190,11 @@ export function isRealLoss(idea: { outcomeStatus?: string | null; percentGain?: 
   const status = (idea.outcomeStatus || '').trim().toLowerCase();
   
   // Only count hit_stop as losses - expired trades are excluded
-  if (status !== 'hit_stop') return false;
-  
-  // Check if the loss exceeds the threshold
-  if (idea.percentGain !== null && idea.percentGain !== undefined) {
-    return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-  }
-  
-  // For hit_stop without percentGain data, count as loss (legacy behavior)
-  return true;
+  if (status === 'hit_stop') return true;
+
+  // Historic rows without an outcome event can still be measured by their P&L.
+  // Expired/manual statuses remain unresolved under this legacy classifier.
+  return !status && idea.percentGain != null && idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
 }
 
 /**
@@ -155,6 +209,141 @@ export function isNeutral(idea: { outcomeStatus?: string | null; percentGain?: n
  * Classify a trade into win/loss/neutral
  */
 export type TradeOutcome = 'win' | 'loss' | 'neutral';
+/* ════════════════════════════════════════════════════════════════════════
+   OUTCOME MODEL v2 — "did the thesis play out", for an options book.
+   ════════════════════════════════════════════════════════════════════════
+
+   The canonical model above answers "did the STOCK move 3% our way". That is a
+   fair question for shares and the wrong one for this platform, measured:
+
+     • 593 ideas → 43 hit_target, 66 hit_stop, 367 EXPIRED (62%), 117 open.
+     • Of 377 closed trades with P&L, 280 (74%) finished between 0% and +3%.
+
+   Under v1 those 280 are "neutral" and excluded. That is only true if you hold
+   shares. Buy a 7-45 DTE contract — which is every contract this engine picks,
+   since SETUP_TO_TIER caps swing at 45 DTE — and a stock that drifts +1% over a
+   month is not neutral, it is most of your premium gone. v1 therefore drops the
+   single most common way this book actually loses money, and only ever drops it
+   in the flattering direction.
+
+   v2 changes three things:
+     1. WIN is reaching T1, not drifting +3%. T1 is where the plan says to scale
+        40% and trail to entry — that is the moment the trade is de-risked, and
+        it is what the profit plan is written against. T2 is upside, not thesis:
+        only 12 of 377 closed trades ever travelled past +25%.
+     2. TIMEOUT IS A LOSS. An expired option is -100% of premium. Calling it
+        neutral hides 62% of outcomes.
+     3. UNRESOLVED means still open. Nothing else.
+
+   v1 is NOT removed. It stays the number on the marketing page until these two
+   are compared on the same trades — swapping a public win rate silently is the
+   kind of thing this codebase already has scar tissue about.
+*/
+export type OutcomeV2 = 'win' | 'loss' | 'unresolved';
+
+export interface OutcomeV2Input {
+  outcomeStatus?: string | null;
+  percentGain?: number | null;
+  /** Contract P&L when the idea was expressed as an option — preferred over percentGain. */
+  optionPercentGain?: number | null;
+  /** Below here: needed to tell a MEASURED outcome from an unmeasurable one. */
+  assetType?: string | null;
+  entryPrice?: number | null;
+  strikePrice?: number | null;
+  resolutionReason?: string | null;
+}
+
+/**
+ * Reaching T1 is the win. Hitting stop or running out of time is the loss.
+ * Anything still live is unresolved and belongs in neither bucket.
+ */
+export function classifyOutcomeV2(idea: OutcomeV2Input): OutcomeV2 {
+  const status = (idea.outcomeStatus || '').trim().toLowerCase();
+
+  // UNMEASURABLE COMES FIRST — ahead of the status check, because a status word
+  // is what these rows are wrong about.
+  //
+  // Two populations were being laundered into wins here:
+  //
+  //   1. Unit-corrupted options. 18 rows recorded hit_target because premium
+  //      barriers were compared against underlying spot, which made the target
+  //      unreachable-to-miss. All 18 were gex_scanner, all 18 were wins, and
+  //      they alone produced a live 18W/0L/100%/+1.189R on the outcome-model
+  //      endpoint.
+  //
+  //   2. Plans that were never entered. A missed_entry row carries a real
+  //      percentGain for a trade nobody took. Scoring those counted 21W/7L for
+  //      positions that never existed.
+  //
+  // Both are 'unresolved'. That is not a hedge — it is the only true statement
+  // available, and it shows up as missing coverage, which is a number you can
+  // put on screen and act on.
+  if (isOptionScaleIncoherent(idea)) return 'unresolved';
+  if ((idea.resolutionReason || '').toLowerCase().includes('missed_entry')) return 'unresolved';
+
+  if (status === 'hit_target') return 'win';
+  if (status === 'hit_stop') return 'loss';
+
+  // Time running out IS a result — but only when the trade was actually measured.
+  //
+  // Measured on this database: of 367 expired ideas, 268 carry percentGain === 0.00
+  // and every one has currentPrice === null. That is not "the stock went nowhere",
+  // it is a default that was never written to. Treating those as -1R losses would
+  // manufacture 367 losses out of missing data and produce a 9% win rate that is
+  // no more honest than the 63% it replaced — just wrong in the other direction.
+  //
+  // So an expiry only counts as a loss when there is a real P&L attached to it.
+  // Without one it is 'unresolved', and the SIZE of that bucket is the finding:
+  // this platform does not resolve most of what it publishes. That is a data
+  // collection problem and no choice of definition can fix it.
+  if (status === 'expired' || status === 'timeout' || status === 'closed_horizon') {
+    // Judge on the CONTRACT's realised P&L and on its SIGN — not on the status word.
+    //
+    // "expired" here means the tracking window closed, not that the option went to
+    // zero: measured values in this database run -23.2% to +18.8%, nothing near
+    // -100%. So an expiry is a real outcome, but it is not automatically a loss.
+    // Marking ORCL at +13.6% as a loss because of a status string would be as wrong
+    // as excluding it entirely.
+    //
+    // Note this is a weaker "win" than hit_target — the trade made money without
+    // reaching plan. The win/loss label cannot express that difference; realisedR()
+    // can, which is why expectancy is the metric to lead with.
+    const pnl = idea.optionPercentGain ?? idea.percentGain;
+    if (pnl === null || pnl === undefined || Math.abs(pnl) <= 0.05) return 'unresolved';
+    return pnl > 0 ? 'win' : 'loss';
+  }
+
+  if (status === 'open' || status === '') return 'unresolved';
+
+  // Manually closed: judge on realised P&L, contract first where we have it.
+  const pnl = idea.optionPercentGain ?? idea.percentGain;
+  if (pnl === null || pnl === undefined) return 'unresolved';
+  return pnl > 0 ? 'win' : 'loss';
+}
+
+/**
+ * R-multiple actually realised. Win rate without R is unreadable — a 39% win rate
+ * at 2.5R is profitable and an 18% one can beat a 50% one, which is exactly how
+ * this platform ended up displaying three different win rates that all looked
+ * plausible. Returns null when the trade has no measurable P&L rather than
+ * guessing a zero, because a guessed zero drags expectancy toward the middle.
+ */
+export function realisedR(
+  idea: OutcomeV2Input & { riskRewardRatio?: number | null },
+): number | null {
+  const pnl = idea.optionPercentGain ?? idea.percentGain;
+  if (pnl === null || pnl === undefined) return null;
+
+  const outcome = classifyOutcomeV2(idea);
+  if (outcome === 'unresolved') return null;
+
+  // A managed option stop is -50% of premium (PREMIUM_STOP_FRACTION), so one R on
+  // the contract is half the premium. Expressing P&L against that makes a -50%
+  // contract exactly -1R, which is what the position sizing already assumes.
+  const ONE_R_PREMIUM_PCT = 50;
+  return pnl / ONE_R_PREMIUM_PCT;
+}
+
 export function classifyTrade(idea: { outcomeStatus?: string | null; percentGain?: number | null }): TradeOutcome {
   if (isRealWin(idea)) return 'win';
   if (isRealLoss(idea)) return 'loss';
@@ -166,7 +355,7 @@ export function classifyTrade(idea: { outcomeStatus?: string | null; percentGain
  * Used by auto-resolved trade endpoints
  * 
  * A trade is a real loss if:
- * - It was auto-resolved by stop hit AND lost >= 3%
+ * - It was auto-resolved by stop hit.
  * 
  * Expired trades are EXCLUDED from loss calculations.
  * This matches the documented methodology in replit.md.
@@ -175,15 +364,9 @@ export function isRealLossByResolution(idea: { resolutionReason?: string | null;
   const reason = idea.resolutionReason;
   
   // Only count stop hits as losses - expired trades are excluded
-  if (reason !== 'auto_stop_hit') return false;
-  
-  // Check if the loss exceeds the threshold
-  if (idea.percentGain !== null && idea.percentGain !== undefined) {
-    return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
-  }
-  
-  // For stop hit without percentGain data, count as loss (legacy behavior)
-  return true;
+  if (reason === 'auto_stop_hit') return true;
+
+  return !reason && idea.percentGain != null && idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
 }
 
 /**

@@ -755,7 +755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // IMPORTANT: validate (non-destructively) BEFORE creating the user, and only
       // redeem the invite AFTER the user is successfully created. Otherwise a failed
       // signup (e.g. email already exists) would permanently burn a valid invite.
-      const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
+      const adminCode = process.env.ADMIN_ACCESS_CODE;
       let candidateInvite: Awaited<ReturnType<typeof storage.getBetaInviteByToken>> = null;
       let usingAdminCode = false;
 
@@ -778,7 +778,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (candidateInvite.expiresAt && new Date(candidateInvite.expiresAt) < new Date()) {
           return res.status(403).json({ error: "This invite code has expired." });
         }
-      } else if (inviteCode === adminCode) {
+      } else if (adminCode && inviteCode === adminCode) {
         usingAdminCode = true;
       } else {
         return res.status(403).json({ error: "Invalid or expired invite code. Please check your invite email." });
@@ -1455,12 +1455,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
     try {
       const accessCode = req.body.accessCode;
-      const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
+      const adminCode = process.env.ADMIN_ACCESS_CODE;
 
       logger.info('[DEV-LOGIN] Attempting login', { accessCode: accessCode ? '***' : 'missing' });
 
-      // Also accept "0065" as a backup code
-      if (accessCode !== adminCode && accessCode !== "0065") {
+      if (!adminCode) {
+        logger.error('[DEV-LOGIN] ADMIN_ACCESS_CODE is not configured');
+        return res.status(503).json({ error: "Admin login is not configured" });
+      }
+
+      if (accessCode !== adminCode) {
         logger.warn('[DEV-LOGIN] Invalid access code');
         return res.status(401).json({ error: "Invalid access code" });
       }
@@ -1594,6 +1598,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'auth/user' });
       res.status(200).json(null);
+    }
+  });
+
+  /** Current-user identity editing. Keep email/auth-provider fields immutable here. */
+  app.patch("/api/auth/me", async (req: Request, res: Response) => {
+    try {
+      let userId = (req.session as any)?.userId;
+      if (!userId && req.user) userId = (req.user as any).claims?.sub;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+      const cleanName = (value: unknown) =>
+        typeof value === 'string' ? value.trim().slice(0, 80) || null : undefined;
+      const firstName = cleanName(req.body?.firstName);
+      const lastName = cleanName(req.body?.lastName);
+      const patch: { firstName?: string | null; lastName?: string | null } = {};
+      if (firstName !== undefined) patch.firstName = firstName;
+      if (lastName !== undefined) patch.lastName = lastName;
+
+      const updated = await storage.updateUser(userId, patch);
+      if (!updated) return res.status(404).json({ error: 'User not found' });
+      res.json(sanitizeUser(updated));
+    } catch (error) {
+      logError(error as Error, { context: 'auth/profile-update' });
+      res.status(500).json({ error: 'Failed to update profile' });
     }
   });
 
@@ -1801,7 +1829,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Authentication Routes with JWT
   app.post("/api/admin/verify-code", adminLimiter, (req, res) => {
     try {
-      const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
+      const adminCode = process.env.ADMIN_ACCESS_CODE;
+      if (!adminCode) {
+        logger.error('CRITICAL: ADMIN_ACCESS_CODE environment variable not set');
+        return res.status(503).json({ error: 'Admin login is not configured' });
+      }
       if (req.body.code === adminCode) {
         logger.info('Admin access code verified', { ip: req.ip });
         res.json({ success: true });
@@ -1905,12 +1937,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allIdeas = await storage.getAllTradeIdeas();
       
       // Apply canonical filters: exclude corrupted trades, options, flow/lotto
-      const cleanIdeas = storage.applyCanonicalPerformanceFilters(allIdeas);
+      // Module-level helpers, not storage methods — calling them as methods was
+      // a TypeError that 500'd this endpoint since the helpers moved.
+      const cleanIdeas = applyCanonicalPerformanceFilters(allIdeas);
       
       // Get decided trades (wins + real losses) using canonical methodology
-      const decidedTrades = storage.getDecidedTrades(cleanIdeas, { includeAllVersions: true });
+      const decidedTrades = getDecidedTrades(cleanIdeas, { includeAllVersions: true });
       const wins = decidedTrades.filter((i: any) => i.outcomeStatus === 'hit_target');
-      const realLosses = decidedTrades.filter((i: any) => storage.isRealLoss(i));
+      const realLosses = decidedTrades.filter((i: any) => isRealLoss(i));
       
       // Active = published AND outcome is open/pending
       const activeIdeas = allIdeas.filter((i: any) => 
@@ -5110,6 +5144,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET endpoint for batch stock quotes (used by WSB Trending, Social Trends pages)
   // Alert relay — the in-app bell only reaches you while you're looking at the terminal.
   // This posts the same events to Discord so they reach you when you're not.
+  // ── LEVEL-CROSS ALERTS — "tell me when X trades through P" ────────────────
+  app.post("/api/alerts/level", async (req, res) => {
+    try {
+      const symbol = String(req.body?.symbol ?? "").toUpperCase();
+      const price = Number(req.body?.price);
+      if (!symbol || !Number.isFinite(price) || price <= 0) {
+        return res.status(400).json({ error: "symbol and a positive price are required" });
+      }
+      const { addAlert } = await import("./price-alerts");
+      const { getRealtimeQuote } = await import("./realtime-pricing-service");
+      const q = await getRealtimeQuote(symbol, "stock").catch(() => null);
+      const alert = await addAlert(symbol, price, Number((q as any)?.price) || null);
+      res.json({ ok: true, alert });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to arm alert" });
+    }
+  });
+  app.get("/api/alerts/level", async (_req, res) => {
+    try {
+      const { listAlerts } = await import("./price-alerts");
+      res.json({ alerts: await listAlerts() });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to list alerts" });
+    }
+  });
+  app.delete("/api/alerts/level/:id", async (req, res) => {
+    try {
+      const { removeAlert } = await import("./price-alerts");
+      res.json({ ok: await removeAlert(String(req.params.id)) });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to remove alert" });
+    }
+  });
+
   app.post("/api/alerts/relay", async (req, res) => {
     try {
       const events = Array.isArray(req.body?.events) ? req.body.events : [];
@@ -5146,7 +5214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/early-rotation", async (_req, res) => {
     try {
       const { cachedFetch } = await import("./provider-cache");
-      const result = await cachedFetch("early-rotation:v1", 5 * 60_000, async () => {
+      const result = await cachedFetch("early-rotation:v1", 2 * 60_000, async () => {
         const { findEarlyRotation } = await import("./early-rotation");
         const lead = await fetch(`http://127.0.0.1:${process.env.PORT || 5000}/api/sector-leadership`)
           .then((r) => r.json())
@@ -5195,11 +5263,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { getBotStatus } = await import("./quant-bot");
       const status = await getBotStatus();
-      if (!status) return res.status(503).json({ error: "Bot portfolio unavailable" });
+      if (!status) {
+        return res.status(503).json({
+          error: "Paper execution ledger is not initialized",
+          code: "PAPER_LEDGER_NOT_INITIALIZED",
+          retryable: false,
+        });
+      }
       res.json(status);
     } catch (error) {
       logger.error("[API] quant-bot status failed:", error);
-      res.status(500).json({ error: "Failed to read bot status" });
+      res.status(503).json({
+        error: "Paper execution ledger is temporarily unavailable",
+        code: "PAPER_LEDGER_READ_FAILED",
+        retryable: true,
+      });
     }
   });
 
@@ -5220,8 +5298,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getExtendedLeaders } = await import("./extended-hours");
       const { getAllApprovedSymbols } = await import("../shared/approved-tickers");
       const limit = Math.min(Number(req.query.limit) || 10, 25);
-      // A bounded, liquid slice — extended-hours quotes are one request per symbol.
-      const universe = ['SPY', 'QQQ', ...getAllApprovedSymbols().slice(0, 60)];
+      // Extended-hours quotes are one request per symbol, so keep the sweep
+      // bounded—but never let array order decide whether the market's primary
+      // leadership proxies are visible. SOXX was outside slice(0, 60), which
+      // made a real semiconductor gap disappear from the pre-market read.
+      const sessionCore = [
+        'SPY', 'QQQ', 'IWM',
+        'SOXX', 'SMH', 'XLK', 'IGV', 'XBI', 'XLE', 'XLF', 'XLI', 'XLU', 'XLY',
+        'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA',
+      ];
+      const universe = [...sessionCore, ...getAllApprovedSymbols().filter((symbol) => !sessionCore.includes(symbol)).slice(0, 60)];
       const result = await getExtendedLeaders(Array.from(new Set(universe)), limit);
       res.json(result);
     } catch (error) {
@@ -5237,6 +5323,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // moving across the whole tape — it does not change materially inside a
   // minute, and recomputing it per request was the second-largest thing standing
   // between the page shell and a usable screen.
+  /**
+   * STRONGEST MOVERS, with a real market-cap floor.
+   *
+   * The leadership scan already groups the universe by industry and carries real
+   * session moves, but it has never carried market cap — so a "biggest movers
+   * above $1B" screen could not be answered. The platform's only cap data was a
+   * hand-maintained 85-symbol `capTier` list that covered 12 of a recent top-32.
+   *
+   * Caps come from Finnhub (free tier, 60/min, 12h cache). When no key is set
+   * the endpoint still returns the ranked movers with `marketCap: null` and
+   * `capVerified: false` — the screen degrades to "cap unknown" rather than
+   * silently dropping names it cannot measure, which would look like the filter
+   * worked.
+   *
+   * Query: ?limit=32&minCap=1000000000
+   */
+  app.get("/api/movers/ranked", async (req, res) => {
+    try {
+      const limit = Math.min(200, Math.max(1, Number(req.query.limit ?? 32)));
+      const minCap = Math.max(0, Number(req.query.minCap ?? 0));
+
+      const { getMarketCaps, isFinnhubConfigured } = await import("./finnhub-adapter");
+
+      // Reuse /api/sector-leadership rather than rebuilding its quote fetcher.
+      // That fetcher is ~60 lines inline in the route below — it picks between
+      // extended-hours and regular quotes by session, with its own concurrency
+      // control — and a second copy here would drift the moment either changed.
+      // The endpoint is cached for 90s, so this is a cheap in-process hop and
+      // both screens are guaranteed to describe the same session.
+      const port = process.env.PORT || 3000;
+      const leadRes = await fetch(`http://127.0.0.1:${port}/api/sector-leadership`);
+      if (!leadRes.ok) {
+        return res.status(503).json({ error: "leadership scan unavailable" });
+      }
+      const lead: any = await leadRes.json();
+
+      // Crypto tickers are not equities and cannot carry a market cap the way
+      // this screen means it — they ranked in the top 32 and had to be excluded
+      // by hand, so they are excluded here instead.
+      const NOT_EQUITY = new Set(["BTC", "ETH", "SOL", "XRP", "BTC-USD", "ETH-USD"]);
+
+      const seen = new Map<string, any>();
+      for (const g of lead.sectors ?? []) {
+        for (const side of ["leaders", "laggards"] as const) {
+          for (const m of g[side] ?? []) {
+            if (NOT_EQUITY.has(m.symbol)) continue;
+            seen.set(m.symbol, {
+              symbol: m.symbol,
+              price: m.price,
+              changePct: m.changePct,
+              group: g.label,
+              groupStance: g.stance,
+            });
+          }
+        }
+      }
+
+      // Rank on ABSOLUTE move — a −13% breakdown is as strong a move as +13%,
+      // and a screen that only ranked gainers would hide every short setup.
+      const ranked = Array.from(seen.values()).sort(
+        (a, b) => Math.abs(b.changePct) - Math.abs(a.changePct),
+      );
+
+      // Resolve caps for a generous slice so the floor can actually bite before
+      // the limit is applied — filtering after slicing would return fewer than
+      // `limit` names whenever anything was screened out.
+      const pool = ranked.slice(0, Math.min(ranked.length, limit * 3));
+      const caps = await getMarketCaps(pool.map((r) => r.symbol));
+
+      const withCaps = pool.map((r) => {
+        const cap = caps.get(r.symbol) ?? null;
+        return { ...r, marketCap: cap, capVerified: cap != null };
+      });
+
+      const passing = minCap > 0
+        ? withCaps.filter((r) => r.marketCap != null && r.marketCap >= minCap)
+        : withCaps;
+
+      const rows = passing.slice(0, limit);
+      const unverified = withCaps.filter((r) => !r.capVerified).length;
+
+      res.json({
+        session: lead.session,
+        benchmarkChangePct: lead.benchmarkChangePct,
+        universeSize: lead.universeSize,
+        quoted: lead.quoted,
+        capSource: isFinnhubConfigured() ? "finnhub" : "none",
+        minCap,
+        // Stated, never silent: how many candidates could not be measured.
+        unverifiedCaps: unverified,
+        excludedNonEquity: Array.from(NOT_EQUITY).filter((s) => ranked.every((r) => r.symbol !== s) === false),
+        count: rows.length,
+        rows,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: "movers ranking failed", details: e?.message ?? String(e) });
+    }
+  });
+
   app.get("/api/sector-leadership", async (_req, res) => {
     try {
       const { cachedFetch } = await import("./provider-cache");
@@ -5244,12 +5429,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { computeSectorLeadership } = await import("./sector-leadership");
       const { currentSession, fetchExtendedQuote } = await import("./extended-hours");
 
-      // Which prices are we allowed to trust right now? Outside 09:30–16:00 the regular
-      // batch quotes are just yesterday's close, so sector leadership computed from them
-      // is stale — exactly when a trader is trying to work out what to do at the open.
-      // Pre/post sessions therefore read the extended-hours tape instead.
+      // Which prices are we allowed to trust right now? Only an active pre/post
+      // session earns the extended-hours path. A closed market must stay anchored
+      // to the last cash close; treating a historic Friday bar as Sunday "post" is
+      // worse than showing a clearly-labelled handoff.
       const session = await currentSession();
-      const extended = session === 'pre' || session === 'post' || session === 'closed';
+      const extended = session === 'pre' || session === 'post';
 
       const result = await computeSectorLeadership(async (batch: string[]) => {
         const out: Record<string, any> = {};
@@ -5303,7 +5488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         symbolList.map((symbol) => ({ symbol, assetType: 'stock' as RTAssetType }))
       );
 
-      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number }> = {};
+      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number; asOf: string }> = {};
       for (const symbol of symbolList) {
         const q = quotesMap.get(symbol);
         if (q && q.price) {
@@ -5313,6 +5498,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             change: q.change || 0,
             changePercent: q.changePercent || 0,
             volume: q.volume || 0,
+            // Source timestamp, not API-response time. The client can therefore
+            // show an honest stale marker when Yahoo has not printed a new tick.
+            asOf: q.lastUpdate.toISOString(),
           };
         }
       }
@@ -5364,6 +5552,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PATTERN DETECTION API - Advanced technical analysis
   // ============================================
   
+  // ── PATTERN ENGINE — full-universe chart pattern scan, real OHLC ──────────
+  app.get("/api/patterns/scan", async (req, res) => {
+    try {
+      const { getPatternHits, scanUniversePatterns } = await import("./pattern-engine");
+      void scanUniversePatterns(req.query.force === "1"); // ?force=1 resweeps now; else refresh only if stale
+      const state = getPatternHits();
+      const sym = typeof req.query.symbol === "string" ? req.query.symbol.toUpperCase() : null;
+      const pattern = typeof req.query.pattern === "string" ? req.query.pattern : null;
+      let hits = state.hits;
+      if (sym) hits = hits.filter((h) => h.symbol === sym);
+      if (pattern) hits = hits.filter((h) => h.pattern === pattern);
+      res.json({ ...state, hits, _meta: { note: "Detection only — selection, gating and publishing stay with the funnel. Bear-side hits are context; the short gate owns that conversation." } });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to read pattern scan" });
+    }
+  });
+
+  // (registered ABOVE the legacy :symbol param route — Express would otherwise
+  //  match 'scan' as a symbol and 400 it)
   app.get("/api/patterns/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
@@ -5921,15 +6128,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
+      // FIRST SOURCE: the liquid universe — 12k+ ranked US names already in
+      // memory. Instant, provider-independent, ordered by real liquidity, and
+      // each hit carries the session's actual change. The operator asked
+      // "where is the search engine" while the primary source was a dead
+      // broker token; the platform's own universe answers before any network.
+      let liquidHits: Array<{ symbol: string; changePct: number | null; dollarVolume: number }> = [];
+      try {
+        const { searchLiquid } = await import('./liquid-universe');
+        liquidHits = searchLiquid(query, 8);
+      } catch { /* universe cold — network sources below */ }
+
       const { searchSymbolLookup } = await import('./tradier-api');
-      const tradierResults = await searchSymbolLookup(query);
-      
+      let tradierResults: { symbol: string; description: string; type?: string }[] = [];
+      try {
+        tradierResults = (await searchSymbolLookup(query)) || [];
+      } catch {
+        tradierResults = [];
+      }
+
       // Map to standardized search result format
-      const stockResults = (tradierResults || []).map((r: { symbol: string; description: string; type?: string }) => ({
-        symbol: r.symbol,
-        name: r.description || r.symbol,
-        type: r.type === 'option' ? 'option' : 'stock' as const,
-      }));
+      const seen = new Set(liquidHits.map((h) => h.symbol));
+      let stockResults = [
+        ...liquidHits.map((h) => ({
+          symbol: h.symbol,
+          name: h.changePct != null ? `${h.changePct >= 0 ? '+' : ''}${h.changePct.toFixed(1)}% today · $${(h.dollarVolume / 1e6).toFixed(0)}M traded` : `$${(h.dollarVolume / 1e6).toFixed(0)}M traded`,
+          type: 'stock' as const,
+          changePct: h.changePct,
+        })),
+        ...tradierResults
+          .filter((r) => !seen.has(r.symbol))
+          .map((r: { symbol: string; description: string; type?: string }) => ({
+            symbol: r.symbol,
+            name: r.description || r.symbol,
+            type: r.type === 'option' ? 'option' : 'stock' as const,
+          })),
+      ];
+
+      // FALLBACK. This branch is the only source of equity results, and it is the
+      // one thing here that depends on Tradier — so when that token is unapproved
+      // the whole stock half of search goes quiet while crypto and futures keep
+      // working, because those come from hardcoded maps below. Searching NVDA
+      // returned [] while BTC and ES returned matches, which reads as "we do not
+      // have that ticker" rather than "the upstream is down".
+      //
+      // universalSearch is already the engine behind /api/search and needs no
+      // brokerage credentials, so it is the natural degradation path.
+      if (stockResults.length === 0) {
+        // Name search ("SALESFORCE" → CRM). Yahoo's search endpoint needs no
+        // crumb and answers company names; the yahoo-finance2 wrapper's static
+        // API broke in v3 (same class as the regime-classifier fix), so this
+        // calls the endpoint directly.
+        try {
+          const r = await fetch(
+            `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0`,
+            { headers: { 'User-Agent': 'Mozilla/5.0' } },
+          );
+          const body: any = r.ok ? await r.json() : null;
+          stockResults = (body?.quotes || [])
+            .filter((x: any) => x.symbol && (x.quoteType === 'EQUITY' || x.quoteType === 'ETF'))
+            .slice(0, 8)
+            .map((x: any) => ({
+              symbol: String(x.symbol).toUpperCase(),
+              name: x.shortname || x.longname || x.symbol,
+              type: 'stock' as const,
+            }));
+        } catch (fallbackError) {
+          logger.warn(`search/symbols name fallback failed for "${query}": ${String(fallbackError)}`);
+        }
+      }
 
       // Add crypto matches
       const cryptoMap: Record<string, string> = {
@@ -5995,8 +6262,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: 'future' as const,
         }));
 
+      // "oil" is a market-complex query, not a ticker. Keep the futures result
+      // and add the liquid equity/options vehicles users can actually trade.
+      const oilAliases = [
+        { symbol: 'USO', name: 'WTI crude oil ETF' },
+        { symbol: 'BNO', name: 'Brent crude oil ETF' },
+        { symbol: 'XLE', name: 'Energy majors ETF' },
+        { symbol: 'XOP', name: 'Oil & gas producers ETF' },
+        { symbol: 'OIH', name: 'Oil services ETF' },
+      ];
+      const oilResults = /\b(OIL|CRUDE|WTI|BRENT)\b/.test(query)
+        ? oilAliases.map((item) => ({ ...item, type: 'stock' as const }))
+        : [];
+
       // Combine and limit results - prioritize exact matches
-      const allResults = [...stockResults.slice(0, 10), ...cryptoResults.slice(0, 5), ...futuresResults.slice(0, 5)];
+      const allResults = [
+        ...futuresResults.slice(0, 5),
+        ...oilResults,
+        ...stockResults.slice(0, 10),
+        ...cryptoResults.slice(0, 5),
+      ].filter((result, index, all) => all.findIndex((item) => item.symbol === result.symbol) === index);
       res.json(allResults.slice(0, 15));
     } catch (error) {
       logger.error('Global symbol search error:', error);
@@ -6334,7 +6619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Economic Calendar - Upcoming macro events
   app.get("/api/economic-calendar", async (req, res) => {
     try {
-      const { getUpcomingEvents, getTodayEvents, getMonthEvents } = await import('./economic-calendar');
+      const { getVerifiedUpcomingEvents, getMonthEvents } = await import('./economic-calendar');
       const days = parseInt(req.query?.days as string) || 14;
       const month = req.query?.month as string; // format: YYYY-MM
 
@@ -6344,9 +6629,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ events, month });
       }
 
-      const upcoming = getUpcomingEvents(days);
-      const today = getTodayEvents();
-      res.json({ upcoming, today, totalUpcoming: upcoming.length });
+      const verified = await getVerifiedUpcomingEvents(days);
+      const marketToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      const today = verified.events.filter((event) => event.date === marketToday);
+      res.json({ upcoming: verified.events, today, totalUpcoming: verified.events.length, coverage: verified.coverage });
     } catch (error: any) {
       logger.error("[ECON-CAL] API error:", error);
       res.json({ upcoming: [], today: [], totalUpcoming: 0 });
@@ -7033,13 +7319,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use the cached/shared snapshot so this endpoint and best-setups
       // always return matching scores for the same idea (single source of truth).
-      const data = await getCachedConvictions(buildOpts);
+      let data = await getCachedConvictions(buildOpts);
+
+      // Persist a sparse, auditable checkpoint for each live signal. This is
+      // intentionally asynchronous: the screen should never wait on an audit
+      // write, and the writer itself rate-limits each idea to one point / 15m.
+      // The cockpit will only draw the points that made it into this table.
+      void import('./signal-trajectory-service')
+        .then(({ recordSignalTrajectory }) => recordSignalTrajectory(data.picks))
+        .catch((err) => logger.warn('[TRAJECTORY] checkpoint write failed:', err));
+
+      /**
+       * Anything the bot HOLDS goes on the board, past every entry filter.
+       *
+       * See server/bot-held-picks.ts. Briefly: the cockpit was showing 4 of the
+       * bot's 11 open positions, because held inventory was being re-judged by
+       * the rules for opening a new position. NET was up $1,650 and invisible.
+       *
+       * Merged after the build so no gate above can remove them, and placed
+       * first so inventory reads before candidates.
+       */
+      let picksWithHeld = data.picks;
+      let botHeldCount = 0;
+      try {
+        const { getBotHeldPicks, mergeBotHeld } = await import("./bot-held-picks");
+        const held = await getBotHeldPicks();
+        botHeldCount = held.length;
+        picksWithHeld = mergeBotHeld(data.picks, held) as typeof data.picks;
+      } catch (err: any) {
+        logger.warn(`[API] bot-held merge skipped: ${err?.message ?? err}`);
+      }
+      data = { ...data, picks: picksWithHeld };
 
       const meta = {
         _meta: {
           dataSource: "convictions_engine",
           cachedAt: new Date().toISOString(),
           picksCount: data.picks?.length ?? 0,
+          botHeldCount,
         },
       };
 
@@ -7073,6 +7390,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("[API] Convictions backtest error:", error);
       res.status(500).json({ error: "Failed to run conviction backtest" });
+    }
+  });
+
+  // Recorded scanner/validator checkpoints for the cockpit trajectory. The
+  // current live quote stays client-side; this route is deliberately history
+  // only so a first visit never manufactures a line from one price.
+  app.get('/api/convictions/:ideaId/trajectory', requireBetaAccess, async (req, res) => {
+    try {
+      const snapshots = await storage.getPriceSnapshots(req.params.ideaId);
+      res.json({ snapshots: snapshots.reverse() });
+    } catch (error) {
+      logger.error('[TRAJECTORY] failed to read checkpoints:', error);
+      res.status(500).json({ error: 'Could not load recorded checkpoints' });
     }
   });
 
@@ -8063,6 +8393,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('[OPTIONS-SELECT] selection failed:', error);
       return res.status(500).json({ error: "Option selection failed" });
+    }
+  });
+
+  /**
+   * ADD A TICKER TO THE ACTIVE BOOK, ON DEMAND.
+   *
+   * The operator has asked for this repeatedly. What existed was a "grade this
+   * ticker" call (/api/analyze/:symbol, read-only) and a "+ watchlist" button —
+   * neither of which puts anything on the board. The scanners were the only
+   * writers, so a name they did not find could not be traded from the UI at all.
+   *
+   * This runs the same pipeline a scanner does, so the idea is scored, levelled
+   * and lifecycle-managed identically — it is not a second class of row. The
+   * only difference is the source tag, which keeps manual adds auditable and
+   * separable from scanner output when the record is graded later.
+   *
+   * The APPROVED_TICKERS whitelist is bypassed HERE and only here: the operator
+   * naming a symbol is a stronger signal than a 197-row static list, and that
+   * list is why the board could not publish W, ETSY, ASML or ADSK. Bypassing it
+   * for an explicit human request does not widen what the scanners may publish.
+   *
+   * POST /api/trade-ideas/add  { symbol, direction?, holdingPeriod?, note? }
+   */
+  app.post("/api/trade-ideas/add", async (req: any, res) => {
+    try {
+      const symbol = String(req.body?.symbol ?? "").toUpperCase().trim();
+      if (!/^[A-Z.\-]{1,6}$/.test(symbol)) {
+        return res.status(400).json({ error: "bad symbol" });
+      }
+      const direction = String(req.body?.direction ?? "bullish").toLowerCase() === "bearish"
+        ? "bearish" : "bullish";
+      const holdingPeriod = String(req.body?.holdingPeriod ?? "swing");
+
+      // Live price first — an idea levelled off a stale quote is the bug that
+      // put SWKS on the board at $1.52 against a real $66.80.
+      let price = 0;
+      try {
+        const { getFinnhubQuote } = await import("./finnhub-adapter");
+        const q = await getFinnhubQuote(symbol);
+        if (q?.price) price = q.price;
+      } catch { /* fall through */ }
+      if (!price) {
+        return res.status(422).json({ error: `no live price for ${symbol} — refusing to publish an unlevelled idea` });
+      }
+
+      const { ingestTradeIdea } = await import("./trade-idea-ingestion");
+      const result = await ingestTradeIdea({
+        source: "manual",
+        symbol,
+        assetType: "stock",
+        direction,
+        holdingPeriod,
+        currentPrice: price,
+        signals: [{ type: "operator_add", weight: 12, description: req.body?.note || "Added by operator" }],
+        catalyst: `Operator add${req.body?.note ? " · " + String(req.body.note).slice(0, 140) : ""}`,
+        analysis: `Manually added to the active book at $${price.toFixed(2)}. Levels and score come from the same pipeline the scanners use.`,
+      } as any);
+
+      res.json({
+        ok: !!result.success,
+        symbol,
+        direction,
+        price,
+        reason: result.reason,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: "add failed", details: e?.message ?? String(e) });
     }
   });
 
@@ -9483,6 +9880,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // (genScoringLayers). A layer whose trades beat baseline is predictive; one at
   // or below baseline is noise — this is the evidence for reweighting the engine.
   // Populates as instrumented ideas resolve (empty until then — expected).
+  // ── DISCIPLINE LEDGER — the short gate under the same referee ─────────────
+  // Every gate-blocked short is shadow-recorded and replayed here against real
+  // daily bars from the block date: which barrier a SHORT would have touched
+  // first (target below, stop above; both-touched ties go to the stop, same
+  // rule as live validation). "saved" = blocked shorts that would have hit
+  // their stop; "cost" = blocked shorts that would have hit their target. The
+  // gate keeps its job only while saved outweighs cost.
+  app.get("/api/discipline/ledger", async (_req, res) => {
+    try {
+      const { getLedger } = await import("./discipline-ledger");
+      const { resolveBarriers } = await import("@shared/barrier-resolution");
+      const { fetchCandles } = await import("./historical-candles");
+      const raw = await getLedger();
+      const bySymbol = new Map<string, typeof raw>();
+      for (const e of raw) {
+        if (!bySymbol.has(e.symbol)) bySymbol.set(e.symbol, []);
+        bySymbol.get(e.symbol)!.push(e);
+      }
+      const out: any[] = [];
+      for (const [symbol, list] of Array.from(bySymbol.entries())) {
+        let bars: { time: number; high: number; low: number; close: number }[] = [];
+        try { bars = await fetchCandles(symbol, "3mo", "1d") as any[]; } catch { /* no bars → unreplayable */ }
+        for (const e of list) {
+          const blockedDay = e.blockedAt.slice(0, 10);
+          const since = bars.filter((b) => new Date(b.time * 1000).toISOString().slice(0, 10) >= blockedDay);
+          if (since.length === 0) {
+            out.push({ ...e, replay: "no bars yet", outcome: "open", wouldBePercent: null });
+            continue;
+          }
+          const highest = Math.max(...since.map((b) => b.high));
+          const lowest = Math.min(...since.map((b) => b.low));
+          const barrier = resolveBarriers({ direction: "short", target: e.targetPrice, stop: e.stopLoss, highest, lowest });
+          const last = since[since.length - 1].close;
+          const exit = barrier.outcome === "hit_target" ? e.targetPrice : barrier.outcome === "hit_stop" ? e.stopLoss : last;
+          // Short P&L: entry above exit is a gain.
+          const wouldBePercent = e.entryPrice > 0 ? ((e.entryPrice - exit) / e.entryPrice) * 100 : null;
+          out.push({ ...e, outcome: barrier.outcome, wouldBePercent, lastPrice: last });
+        }
+      }
+      const decided = out.filter((r) => r.outcome === "hit_target" || r.outcome === "hit_stop");
+      const cost = decided.filter((r) => r.outcome === "hit_target");   // blocked winner
+      const saved = decided.filter((r) => r.outcome === "hit_stop");    // blocked loser
+      const sum = (rows: any[]) => rows.reduce((a, r) => a + (Number.isFinite(r.wouldBePercent) ? r.wouldBePercent : 0), 0);
+      res.json({
+        asOf: new Date().toISOString(),
+        totalBlocked: out.length,
+        decided: decided.length,
+        blockedWinners: cost.length,
+        blockedLosers: saved.length,
+        netWouldBePercent: Math.round(sum(decided) * 100) / 100,
+        entries: out.sort((a, b) => b.blockedAt.localeCompare(a.blockedAt)),
+        _meta: {
+          note: "Shadow trades — never published, never in the win rate. Replayed on daily bars, so intraday sequencing inside one bar is unknowable; both-barriers-in-one-bar ties go to the stop, matching live validation. netWouldBePercent > 0 means the gate is BLOCKING profitable shorts; sustained positive is the signal to revisit the rule, not to ignore the ledger.",
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to build discipline ledger" });
+    }
+  });
+
+  // ── BY-SIGNAL COHORTS — does each signal template earn its place? ─────────
+  // Every quant idea persists the signal labels that fired (qualitySignals),
+  // so new templates (gap_continuation, the volume-unlocked VWAP/spike paths)
+  // are trackable as cohorts from the day they shipped. Cohorts start at the
+  // clean-era baseline by default — rates across that boundary mix two
+  // measurement regimes. An idea with two labels counts in both cohorts; the
+  // payload says so rather than pretending the cohorts are disjoint.
+  app.get("/api/performance/by-signal", async (req, res) => {
+    try {
+      const { isRealWin, isRealLoss, reportableRate, OUTCOME_BASELINE_DATE, MIN_REPORTABLE_SAMPLE } = await import('@shared/constants');
+      const since = typeof req.query.since === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.since)
+        ? req.query.since : OUTCOME_BASELINE_DATE;
+      const all = await storage.getAllTradeIdeas();
+      const pool = all.filter((i: any) =>
+        !i.excludeFromTraining &&
+        typeof i.timestamp === 'string' && i.timestamp.slice(0, 10) >= since &&
+        Array.isArray(i.qualitySignals) && i.qualitySignals.length > 0);
+
+      const cohorts = new Map<string, any[]>();
+      for (const idea of pool) {
+        for (const label of idea.qualitySignals as string[]) {
+          // Historical-adjustment annotations are bookkeeping, not templates.
+          if (typeof label !== 'string' || label.startsWith('Historical:')) continue;
+          if (!cohorts.has(label)) cohorts.set(label, []);
+          cohorts.get(label)!.push(idea);
+        }
+      }
+
+      const signals = [...cohorts.entries()].map(([signal, ideas]) => {
+        const open = ideas.filter((i: any) => (i.outcomeStatus ?? 'open') === 'open').length;
+        const wins = ideas.filter((i: any) => isRealWin(i));
+        const losses = ideas.filter((i: any) => isRealLoss(i));
+        const decided = wins.length + losses.length;
+        const gains = [...wins, ...losses].map((i: any) => i.percentGain).filter((g: any) => Number.isFinite(g));
+        const avgGain = gains.length ? gains.reduce((a: number, b: number) => a + b, 0) / gains.length : null;
+        return {
+          signal,
+          total: ideas.length,
+          open,
+          wins: wins.length,
+          losses: losses.length,
+          decided,
+          winRate: reportableRate(wins.length, decided),
+          avgPercentGain: avgGain,
+        };
+      }).sort((a, b) => b.total - a.total);
+
+      res.json({
+        since,
+        baseline: OUTCOME_BASELINE_DATE,
+        sampleFloor: MIN_REPORTABLE_SAMPLE,
+        ideasInWindow: pool.length,
+        signals,
+        _meta: {
+          note: 'Cohorts overlap: an idea whose scoring fired two templates counts in both. winRate is null under the sample floor — the count is the honest read until then. Rates never span the baseline: before it, the stats layer erased sub-3% stop-outs.',
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to compute by-signal cohorts' });
+    }
+  });
+
   app.get("/api/performance/layer-attribution", async (_req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
@@ -9630,6 +10149,281 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // UNIFIED WIN RATE ENDPOINT - Single Source of Truth
   // Uses WinRateService for consistent calculations across platform
   // ============================================================
+  /**
+   * Both outcome models on the SAME trades, side by side.
+   *
+   * v1 (canonical, on the marketing page): win = hit_target OR P&L >= +3%;
+   * loss = hit_stop AND P&L <= -3%; everything else neutral and EXCLUDED.
+   * v2: win = reached T1; loss = hit stop OR ran out of time; unresolved = open only.
+   *
+   * Deliberately additive. The public 44.5% keeps its definition until these two
+   * have been compared on real trades — quietly redefining a number that is
+   * printed on the landing page is exactly the failure the page itself warns about.
+   */
+  /**
+   * Current manufactured target vs a structural one, on the SAME live signals.
+   *
+   * Read-only. Publishes nothing, changes no target. It exists so the swap can be
+   * judged on real symbols before it happens — 83% of the book carries a target at
+   * an exact round R multiple, so changing the source blind would be the largest
+   * unverified change in the system.
+   */
+  app.get("/api/targets/compare", async (req, res) => {
+    try {
+      const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 8));
+      const { findStructuralTargets } = await import("./structural-targets");
+
+      const base = `http://127.0.0.1:${process.env.PORT || 5000}`;
+      const getJson = async (path: string) => {
+        try {
+          const r = await fetch(base + path);
+          return r.ok ? await r.json() : null;
+        } catch { return null; }
+      };
+
+      const conv: any = await getJson(`/api/convictions?limit=${limit}&minScore=0`);
+      const picks: any[] = conv?.picks ?? [];
+
+      const rows = [];
+      for (const p of picks) {
+        const spot = p.currentPrice ?? p.entryPrice;
+        if (!spot) continue;
+        const report = await findStructuralTargets(p.symbol, spot, p.direction === 'short' ? 'short' : 'long', {
+          fetchGaps: (s) => getJson(`/api/gaps/${s}`),
+          fetchGamma: (s) => getJson(`/api/gex/buckets/${s}`),
+        });
+
+        const currentT1 = p.targetPrice;
+        const risk = p.stopLoss != null ? Math.abs(spot - p.stopLoss) : null;
+        const currentRR = risk && currentT1 != null ? Math.abs(currentT1 - spot) / risk : null;
+        // Test the ratio the idea was PUBLISHED with, not one recomputed from today's
+        // spot. Price moves after publication, so a target that was exactly 2.5R at
+        // signal time reads as 2.29R now — recomputing would hide the very signature
+        // being looked for. An exact .0/.5 multiple is a target that was computed
+        // rather than found.
+        const publishedRR = p.riskRewardRatio;
+        const manufactured =
+          publishedRR != null &&
+          Math.abs(publishedRR * 2 - Math.round(publishedRR * 2)) < 0.02;
+
+        const structRR =
+          risk && report.primary ? Math.abs(report.primary.price - spot) / risk : null;
+
+        rows.push({
+          symbol: p.symbol,
+          direction: p.direction,
+          spot: +spot.toFixed(2),
+          current: {
+            t1: currentT1,
+            rr: currentRR == null ? null : +currentRR.toFixed(2),
+            publishedRR,
+            looksManufactured: manufactured,
+          },
+          structural: report.primary
+            ? {
+                t1: +report.primary.price.toFixed(2),
+                rr: structRR == null ? null : +structRR.toFixed(2),
+                source: report.primary.source,
+                label: report.primary.label,
+                baseRate: report.primary.baseRate,
+                baseRateSample: report.primary.baseRateSample,
+                medianBarsToReach: report.primary.medianBarsToReach,
+              }
+            : null,
+          note: report.note,
+          otherLevels: report.candidates.slice(1, 3).map((c) => `${c.price} (${c.source})`),
+        });
+      }
+
+      const withStructure = rows.filter((r) => r.structural).length;
+      const manufacturedCount = rows.filter((r) => r.current.looksManufactured).length;
+
+      res.json({
+        checked: rows.length,
+        currentTargetsThatLookManufactured: manufacturedCount,
+        signalsWithAStructuralAlternative: withStructure,
+        rows,
+        note:
+          'READ ONLY — proposes, never publishes. baseRate is the symbol\'s own measured gap-fill history; ' +
+          'gamma walls return null rather than an invented confidence. Where structural is null there is no ' +
+          'destination within 25%, which is a reason to pass on the trade rather than to manufacture a target.',
+      });
+    } catch (error) {
+      logger.error("targets/compare error:", error);
+      res.status(500).json({ error: "Failed to compare targets" });
+    }
+  });
+
+  app.get("/api/performance/win-rate-compare", async (_req, res) => {
+    try {
+      const { classifyOutcomeV2, realisedR, classifyTrade } = await import("@shared/constants");
+      const ideas = await storage.getAllTradeIdeas();
+
+      const v1 = { win: 0, loss: 0, neutral: 0 };
+      const v2 = { win: 0, loss: 0, unresolved: 0 };
+      const rs: number[] = [];
+      const lossReasons: Record<string, number> = {};
+
+      for (const idea of ideas as any[]) {
+        v1[classifyTrade(idea)] += 1;
+
+        const o = classifyOutcomeV2(idea);
+        v2[o] += 1;
+        if (o === 'loss') {
+          const st = (idea.outcomeStatus || '(none)').trim().toLowerCase();
+          lossReasons[st] = (lossReasons[st] || 0) + 1;
+        }
+        const r = realisedR(idea);
+        if (r !== null) rs.push(r);
+      }
+
+      const v1Decided = v1.win + v1.loss;
+      const v2Decided = v2.win + v2.loss;
+      const expectancyR = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null;
+
+      res.json({
+        totalIdeas: ideas.length,
+        v1: {
+          ...v1,
+          decided: v1Decided,
+          winRate: v1Decided ? +(100 * v1.win / v1Decided).toFixed(1) : null,
+          excluded: v1.neutral,
+        },
+        v2: {
+          ...v2,
+          decided: v2Decided,
+          winRate: v2Decided ? +(100 * v2.win / v2Decided).toFixed(1) : null,
+          lossBreakdown: lossReasons,
+        },
+        expectancyR: expectancyR === null ? null : +expectancyR.toFixed(3),
+        rSampleSize: rs.length,
+        // The headline is not the win rate. It is coverage: how much of what this
+        // engine publishes ever gets an outcome written back at all.
+        coverage: {
+          measured: v2.win + v2.loss,
+          unresolved: v2.unresolved,
+          pctMeasured: ideas.length ? +(100 * (v2.win + v2.loss) / ideas.length).toFixed(1) : 0,
+        },
+        note:
+          'v1 excludes every trade that did not move 3%. v2 counts a measured timeout as a loss ' +
+          'but leaves UNMEASURED expiries unresolved — 268 of 367 expired ideas carry percentGain ' +
+          '0.00 with a null currentPrice, which is a default that was never written, not a result. ' +
+          'Neither win rate means much until coverage is fixed.',
+      });
+    } catch (error) {
+      logger.error("win-rate-compare error:", error);
+      res.status(500).json({ error: "Failed to compare win rate models" });
+    }
+  });
+
+  /**
+   * OUTCOME MODEL v2 — the terminal's single performance ledger.
+   *
+   * This intentionally does not reuse /performance/stats or WinRateService. Those
+   * endpoints answer older, filtered questions (including a ±3% stock threshold
+   * and option-only subsets). A trader needs one answer to a simpler question:
+   * did the published thesis resolve, and did we actually capture the result?
+   *
+   * The client leads with coverage instead of hiding the unresolved population.
+   * A number here is therefore safe to compare over time only when its coverage is
+   * shown beside it.
+   */
+  app.get("/api/performance/outcome-model", async (_req, res) => {
+    try {
+      const { classifyOutcomeV2, realisedR } = await import("@shared/constants");
+      const allIdeas = await storage.getAllTradeIdeas();
+      const ideas = allIdeas.filter((idea) => !idea.excludeFromTraining);
+
+      type Counts = { win: number; loss: number; unresolved: number; rValues: number[] };
+      const empty = (): Counts => ({ win: 0, loss: 0, unresolved: 0, rValues: [] });
+      const totals = empty();
+      const bySource = new Map<string, Counts>();
+      let measuredTimeouts = 0;
+      let unmeasuredTimeouts = 0;
+
+      for (const idea of ideas as any[]) {
+        const outcome = classifyOutcomeV2(idea);
+        totals[outcome] += 1;
+        const r = realisedR(idea);
+        if (r !== null) totals.rValues.push(r);
+
+        const source = idea.source || 'unknown';
+        const sourceTotals = bySource.get(source) || empty();
+        sourceTotals[outcome] += 1;
+        if (r !== null) sourceTotals.rValues.push(r);
+        bySource.set(source, sourceTotals);
+
+        const status = String(idea.outcomeStatus || '').toLowerCase();
+        if (status === 'expired' || status === 'timeout' || status === 'closed_horizon') {
+          if (outcome === 'unresolved') unmeasuredTimeouts += 1;
+          else measuredTimeouts += 1;
+        }
+      }
+
+      const decided = totals.win + totals.loss;
+      const winRate = decided ? +(totals.win / decided * 100).toFixed(1) : null;
+      const averageR = totals.rValues.length
+        ? +(totals.rValues.reduce((sum, value) => sum + value, 0) / totals.rValues.length).toFixed(3)
+        : null;
+
+      const sources = Array.from(bySource.entries())
+        .map(([source, counts]) => {
+          const sourceDecided = counts.win + counts.loss;
+          return {
+            source,
+            total: sourceDecided + counts.unresolved,
+            win: counts.win,
+            loss: counts.loss,
+            unresolved: counts.unresolved,
+            decided: sourceDecided,
+            winRate: sourceDecided ? +(counts.win / sourceDecided * 100).toFixed(1) : null,
+            averageR: counts.rValues.length
+              ? +(counts.rValues.reduce((sum, value) => sum + value, 0) / counts.rValues.length).toFixed(3)
+              : null,
+            rSampleSize: counts.rValues.length,
+          };
+        })
+        .sort((a, b) => b.total - a.total);
+
+      res.json({
+        model: 'Outcome model v2',
+        totalPublished: ideas.length,
+        outcomes: {
+          win: totals.win,
+          loss: totals.loss,
+          unresolved: totals.unresolved,
+          decided,
+          winRate,
+        },
+        coverage: {
+          measured: decided,
+          unresolved: totals.unresolved,
+          pctMeasured: ideas.length ? +(decided / ideas.length * 100).toFixed(1) : 0,
+        },
+        expectancy: {
+          averageR,
+          sampleSize: totals.rValues.length,
+          definition: 'Realised contract/underlying P&L ÷ 50% premium risk. Null when no outcome P&L was written.',
+        },
+        bySource: sources,
+        dataQuality: {
+          excludedFromTraining: allIdeas.length - ideas.length,
+          measuredTimeouts,
+          unmeasuredTimeouts,
+        },
+        methodology: {
+          win: 'Target reached, or a measured closed/expired trade with positive realised P&L.',
+          loss: 'Stop reached, or a measured closed/expired trade with negative realised P&L.',
+          unresolved: 'Open, or a timeout/close without a real P&L written back. Unresolved trades are not included in win rate or R.',
+        },
+        asOf: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("outcome-model error:", error);
+      res.status(500).json({ error: "Failed to build outcome model" });
+    }
+  });
+
   app.get("/api/performance/unified-win-rate", async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
@@ -13716,6 +14510,226 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // The base /api/catalysts route filters to UPCOMING events, but the news
+  // ingest writes past-dated rows — so consumers saw "0 of 282" and the feed
+  // read as empty. This is the recency window the short-discipline gate
+  // actually uses (past 72h + next 14d), exposed for the automation surface
+  // and the catalyst tab.
+  app.get("/api/catalysts/recent", async (_req, res) => {
+    try {
+      const catalysts = await storage.getActiveCatalysts();
+      res.json({ asOf: new Date().toISOString(), count: catalysts.length, catalysts: catalysts.slice(0, 100) });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch recent catalysts" });
+    }
+  });
+
+  // ── EARNINGS CALENDAR — the feed the catalyst board actually joins on ─────
+  // /api/earnings/upcoming imports ./earnings-service, which returns nothing;
+  // the board's real dates come from ./earnings-calendar (Nasdaq calendar,
+  // 6h cache). Expose that same service directly for the CATALYST tab.
+  app.get("/api/earnings/calendar", async (req, res) => {
+    try {
+      const { getUpcomingEarnings } = await import("./earnings-calendar");
+      const days = Math.min(21, Math.max(1, parseInt(String(req.query.days)) || 7));
+      const events = await getUpcomingEarnings(days);
+      res.json({ asOf: new Date().toISOString(), days, count: events.length, events });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch earnings calendar" });
+    }
+  });
+
+  // ── SHORT INTEREST — squeeze fuel, exchange-reported, freshness disclosed ─
+  app.get("/api/short-interest/:symbol", async (req, res) => {
+    try {
+      const { getShortInterest } = await import("./short-interest");
+      res.json(await getShortInterest(String(req.params.symbol)));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch short interest" });
+    }
+  });
+
+  // ── IDEA LEDGER — everything the engine produced, graded, beyond the book ─
+  // The active book shows ~13 live picks; the ledger shows the recent record:
+  // published ideas with their scores, signal types, and OUTCOMES where the
+  // validator has decided them. The operator asked "do we have a list of other
+  // trade ideas + grades" — this is that list, honest statuses included.
+  app.get("/api/ideas/ledger", async (req, res) => {
+    try {
+      const limit = Math.min(60, Number(req.query.limit) || 30);
+      const rows = await storage.getRecentTradeIdeas(72, 500);
+      const ledger = rows
+        .filter((i: any) => i.status === 'published')
+        .sort((a: any, b: any) => Date.parse(b.generationTimestamp ?? b.timestamp) - Date.parse(a.generationTimestamp ?? a.timestamp))
+        .slice(0, limit)
+        .map((i: any) => ({
+          id: i.id,
+          symbol: i.symbol,
+          direction: i.direction,
+          assetType: i.assetType,
+          signal: (Array.isArray(i.qualitySignals) && i.qualitySignals[0]) || i.signalType || 'quant',
+          score: i.confidenceScore ?? i.genConvictionScore ?? null,
+          entryPrice: i.entryPrice, targetPrice: i.targetPrice, stopLoss: i.stopLoss,
+          riskRewardRatio: i.riskRewardRatio ?? null,
+          outcome: i.outcomeStatus ?? 'open',
+          onDemand: typeof i.analysis === 'string' && i.analysis.includes('Analyzed on demand'),
+          at: i.generationTimestamp ?? i.timestamp,
+        }));
+      res.json({ ledger, window: '72h', note: 'published ideas only; outcome = validator verdict where decided' });
+    } catch (error) {
+      logger.error("[LEDGER] failed:", error);
+      res.status(500).json({ error: "Ledger failed" });
+    }
+  });
+
+  // ── ON-DEMAND ENGINE — any searched symbol through the same pipeline ──────
+  // "Doesn't need to trigger except it finds one": a found setup publishes
+  // into the cockpit book like any cron idea; a quiet chart says so honestly.
+  app.post("/api/engine/analyze/:symbol", async (req, res) => {
+    try {
+      const { analyzeSymbolOnDemand } = await import("./quant-ideas-generator");
+      res.json(await analyzeSymbolOnDemand(String(req.params.symbol), storage as any));
+    } catch (error) {
+      logger.error("[ON-DEMAND] engine run failed:", error);
+      res.status(500).json({ error: "Engine run failed" });
+    }
+  });
+
+  // ── SYSTEM PULSE — the machine narrating its own real work ────────────────
+  app.get("/api/pulse", async (req, res) => {
+    try {
+      const { getPulse } = await import("./system-pulse");
+      const since = Number(req.query.since) || 0;
+      res.json({ events: getPulse(since) });
+    } catch {
+      res.json({ events: [] });
+    }
+  });
+
+  // ── QUANTINUM INTELLIGENCE — every engine on any symbol, on demand ────────
+  // The universal search's brain: layer-by-layer evidence with signed points,
+  // the same disclosure standards as the cockpit, for a name nobody listed.
+  app.get("/api/quantinum/:symbol", async (req, res) => {
+    try {
+      const { getQuantinumDossier } = await import("./quantinum-intelligence");
+      res.json(await getQuantinumDossier(String(req.params.symbol)));
+    } catch (error) {
+      logger.error("[QUANTINUM] dossier failed:", error);
+      res.status(500).json({ error: "Quantinum dossier failed" });
+    }
+  });
+
+  // ── POST-EVENT INTEL — the synthesis the operator asked for ───────────────
+  // One call answers "what happened to X around its event, and what does the
+  // machine make of it": the earnings date (real calendar), the reaction
+  // (close-before vs latest, gap and follow-through from real bars), short
+  // interest (squeeze fuel), structure (200d/EMA stack), the gate's status
+  // for shorts NOW (post-event names carry the event a short requires), and
+  // put/call flow if the scanner holds prints. Reads, not recommendations.
+  app.get("/api/intel/post-event/:symbol", async (req, res) => {
+    try {
+      const sym = String(req.params.symbol).toUpperCase();
+      const [{ getUpcomingEarnings }, { getShortInterest }, { fetchCandles }] = await Promise.all([
+        import("./earnings-calendar"), import("./short-interest"), import("./historical-candles"),
+      ]);
+      const [earnAll, si, bars] = await Promise.all([
+        getUpcomingEarnings(14).catch(() => []),
+        getShortInterest(sym),
+        fetchCandles(sym, "1y", "1d").catch(() => []),
+      ]);
+      const earn = earnAll.find((e: any) => e.symbol?.toUpperCase() === sym) ?? null;
+      const closes = bars.map((b: any) => b.close);
+      const last = closes[closes.length - 1] ?? null;
+      const prev = closes[closes.length - 2] ?? null;
+      const sma200 = closes.length >= 200 ? closes.slice(-200).reduce((a: number, b: number) => a + b, 0) / 200 : null;
+      const catalysts = await (await import("./storage")).storage.getActiveCatalysts().catch(() => []);
+      const hi = catalysts.filter((c: any) => c.symbol?.toUpperCase() === sym && c.impact === "high");
+      res.json({
+        symbol: sym,
+        asOf: new Date().toISOString(),
+        event: earn ? { date: earn.date, session: earn.session, epsForecast: earn.epsForecast, daysAway: earn.daysAway } : null,
+        reaction: last != null && prev != null ? { last, prevClose: prev, changePct: ((last - prev) / prev) * 100 } : null,
+        structure: last != null && sma200 != null ? { sma200, above200d: last > sma200, distancePct: ((last - sma200) / sma200) * 100 } : null,
+        shortInterest: si,
+        shortGate: {
+          eventOnFile: hi.length > 0,
+          note: hi.length > 0
+            ? "impact:high event on file — a short may argue its case through the funnel"
+            : "no impact:high event on file — pattern shorts stay blocked",
+        },
+        _meta: { note: "Reads, not recommendations. Reaction uses daily closes (after-hours prints are not in daily bars until the next session). Short interest is exchange-reported on a twice-monthly cycle." },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to build post-event intel" });
+    }
+  });
+
+  // ── WORKUP PEERS — same-sector names from the real scan universe ──────────
+  // The ticker-universe already groups the scan lists by sector; this reverses
+  // that mapping for one symbol. Editorial grouping, honestly labeled — it is
+  // the universe's own taxonomy, not a market-cap-ranked peer model.
+  app.get("/api/peers/:symbol", async (req, res) => {
+    try {
+      const sym = String(req.params.symbol || "").toUpperCase();
+      const { getSectorTickers } = await import("./ticker-universe");
+      // getSectorTickers' own slug vocabulary (getUniverseStats uses display
+      // names, not these slugs — do not swap them). Catch-all buckets like
+      // topvolume/momentum lose to any thematic bucket via the size sort.
+      const sectors = ["tech", "financials", "healthcare", "industrials", "consumer", "energy", "utilities", "real_estate", "communication", "quantum", "nuclear", "ai", "space", "ev", "crypto", "semiconductors", "optics", "defense", "cannabis", "commodities", "gaming", "ecommerce", "momentum", "china", "smallcap", "topvolume", "banks", "telecom", "biotech", "media", "construction", "etfs"];
+      const found: { sector: string; peers: string[] }[] = [];
+      for (const sector of sectors) {
+        const tickers = getSectorTickers(sector).map((t) => t.toUpperCase());
+        if (tickers.includes(sym)) {
+          found.push({ sector, peers: tickers.filter((t) => t !== sym).slice(0, 8) });
+        }
+      }
+      // Prefer the most specific (smallest) sector bucket the symbol lives in.
+      found.sort((a, b) => a.peers.length - b.peers.length);
+      const best = found[0] ?? null;
+      res.json({ symbol: sym, sector: best?.sector ?? null, peers: best?.peers.slice(0, 5) ?? [] });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to resolve peers" });
+    }
+  });
+
+  // ── CRYPTO SENTIMENT — the two feeds the crypto tab disclosed as missing ──
+  // Fear & Greed from alternative.me and BTC dominance from CoinGecko's global
+  // endpoint. Both free, no key. Cached 30 min; each side degrades to null
+  // independently so one provider's outage never fabricates the other's read.
+  let cryptoSentimentCache: { at: number; payload: any } | null = null;
+  app.get("/api/crypto/sentiment", async (_req, res) => {
+    try {
+      if (cryptoSentimentCache && Date.now() - cryptoSentimentCache.at < 30 * 60_000) {
+        return res.json(cryptoSentimentCache.payload);
+      }
+      const [fngRes, globalRes] = await Promise.allSettled([
+        fetch("https://api.alternative.me/fng/?limit=1", { signal: AbortSignal.timeout(8000) }),
+        fetch("https://api.coingecko.com/api/v3/global", { signal: AbortSignal.timeout(8000) }),
+      ]);
+      let fearGreed: { value: number; label: string; asOf: string } | null = null;
+      if (fngRes.status === "fulfilled" && fngRes.value.ok) {
+        const j = await fngRes.value.json();
+        const row = j?.data?.[0];
+        const v = Number(row?.value);
+        if (Number.isFinite(v) && row?.value_classification) {
+          fearGreed = { value: v, label: String(row.value_classification), asOf: new Date(Number(row.timestamp) * 1000).toISOString() };
+        }
+      }
+      let btcDominance: number | null = null;
+      if (globalRes.status === "fulfilled" && globalRes.value.ok) {
+        const j = await globalRes.value.json();
+        const v = Number(j?.data?.market_cap_percentage?.btc);
+        if (Number.isFinite(v)) btcDominance = v;
+      }
+      const payload = { asOf: new Date().toISOString(), fearGreed, btcDominance };
+      // Only cache when at least one side answered — a double failure should retry.
+      if (fearGreed || btcDominance != null) cryptoSentimentCache = { at: Date.now(), payload };
+      res.json(payload);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch crypto sentiment" });
+    }
+  });
+
   // ── REPEAT BUYERS — the same contract accumulated across sessions ──────────
   // The strongest read available from flow: one large print is ambiguous (hedge,
   // roll, spread leg, or a close), but the SAME strike and expiry being added to
@@ -17556,6 +18570,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * Manual bear-flag ingest. Every other scanner has a trigger — /api/btc/scan,
+   * /api/bullish-trends/scan, /api/automations/<bot>/scan — and the short side had
+   * none, so the only way bearish ideas ever reached the feed was the worker
+   * cron, which does not run outside production. That made the board's
+   * 40-long / 0-short split look like a market read rather than a plumbing gap.
+   *
+   * Also the only way to verify the path outside market hours: the cron gates on
+   * isMarketHoursForFlow(), so on a weekend there is otherwise nothing to observe.
+   */
+  app.post("/api/bear-flag-scanner/ingest", async (_req, res) => {
+    try {
+      const { ingestBearFlagIdeas } = await import("./bear-flag-scanner");
+      const ingested = await ingestBearFlagIdeas();
+      logger.info(`[BEAR-FLAG-API] Manual ingest added ${ingested} bearish setups`);
+      res.json({ success: true, ingested });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/bear-flag-scanner/ingest' });
+      res.status(500).json({ error: "Bear flag ingest failed" });
+    }
+  });
+
   // ============ Swing Trade Scanner Routes ============
   // Get swing trade opportunities
   app.get("/api/swing-scanner", async (req, res) => {
@@ -20536,6 +21572,73 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   });
 
   // =============================================
+  // LIQUID-NAME REVERSAL PUBLISHER
+  // =============================================
+  // Unlike the index-only session scanner, this watches liquid single names
+  // (including TSLA) and writes only a CONFIRMED VWAP reversal with a real,
+  // liquid same-day CBOE contract. The endpoint accepts no arbitrary ticker
+  // universe, so it cannot be used to turn the scanner into a quote hammer.
+  app.get("/api/scanner/liquid-reversals/status", async (_req, res) => {
+    const { isLiquidReversalSession, LIQUID_REVERSAL_UNIVERSE } = await import('./liquid-reversal-publisher');
+    res.json({
+      marketOpen: isLiquidReversalSession(),
+      cadence: '5m during 10:00–15:15 ET weekdays',
+      universe: LIQUID_REVERSAL_UNIVERSE,
+      contractRule: 'same-day CBOE bid + ask, <=20% spread, OI >=100 or volume >=25',
+      confirmationRule: 'VWAP reclaim/rejection + 5m follow-through + RSI + volume context',
+    });
+  });
+
+  app.post("/api/scanner/liquid-reversals/run", marketDataLimiter, async (req, res) => {
+    try {
+      const { LIQUID_REVERSAL_UNIVERSE, runLiquidReversalPublisher } = await import('./liquid-reversal-publisher');
+      const requested = Array.isArray(req.body?.symbols)
+        ? req.body.symbols.map((value: unknown) => String(value).toUpperCase())
+        : LIQUID_REVERSAL_UNIVERSE;
+      const allowed = requested.filter((symbol: string) => (LIQUID_REVERSAL_UNIVERSE as readonly string[]).includes(symbol));
+      if (!allowed.length) {
+        return res.status(400).json({ error: `Symbols must be in the liquid reversal universe: ${LIQUID_REVERSAL_UNIVERSE.join(', ')}` });
+      }
+      const result = await runLiquidReversalPublisher(allowed);
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[LIQUID-REVERSAL] manual scan failed:', error);
+      res.status(500).json({ error: error?.message || 'Liquid reversal scan failed' });
+    }
+  });
+
+  // Real two-leg quote plan for an existing directional thesis. This remains a
+  // planner until spread legs are first-class persisted position fields; storing
+  // only the long leg as a "signal" would lie about both max loss and payoff.
+  app.get("/api/options/debit-spread/:symbol", marketDataLimiter, async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || '').toUpperCase();
+      const direction = String(req.query.direction || 'long').toLowerCase();
+      if (!/^[A-Z.]{1,10}$/.test(symbol) || (direction !== 'long' && direction !== 'short')) {
+        return res.status(400).json({ error: 'Use a valid symbol and direction=long|short.' });
+      }
+      const targetRaw = Number(req.query.target);
+      const minDte = Number(req.query.minDte);
+      const maxDte = Number(req.query.maxDte);
+      const maxRisk = Number(req.query.maxRisk);
+      const { planDebitSpread } = await import('./debit-spread-planner');
+      const plan = await planDebitSpread({
+        symbol,
+        direction: direction as 'long' | 'short',
+        targetPrice: Number.isFinite(targetRaw) && targetRaw > 0 ? targetRaw : null,
+        minDte: Number.isFinite(minDte) && minDte > 0 ? minDte : undefined,
+        maxDte: Number.isFinite(maxDte) && maxDte > 0 ? maxDte : undefined,
+        maxRiskDollars: Number.isFinite(maxRisk) && maxRisk > 0 ? maxRisk : undefined,
+      });
+      if (!plan) return res.status(404).json({ error: 'No liquid debit spread found from the delayed CBOE chain.' });
+      res.json(plan);
+    } catch (error: any) {
+      logger.error('[DEBIT-SPREAD] planner failed:', error);
+      res.status(500).json({ error: error?.message || 'Debit spread planning failed' });
+    }
+  });
+
+  // =============================================
   // SPX COMMAND CENTER - Aggregated Dashboard
   // =============================================
 
@@ -21878,8 +22981,11 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       // Check 2: Win rate consistency
       const rawWins = closedIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
       const rawWinRate = closedIdeas.length > 0 ? (rawWins / closedIdeas.length) * 100 : 0;
+      // Null when the sample is below the reporting floor — that is suppression,
+      // not disagreement, so the consistency check passes vacuously rather than
+      // flagging a "discrepancy" against a number that was deliberately withheld.
       const perfWinRate = stats.overall.winRate;
-      const winRateMatch = Math.abs(rawWinRate - perfWinRate) < 0.1; // Within 0.1%
+      const winRateMatch = perfWinRate === null || Math.abs(rawWinRate - perfWinRate) < 0.1; // Within 0.1%
       
       // Check 3: Missing outcome data
       const missingData = closedIdeas.filter(i => 
@@ -21906,7 +23012,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         errors.push(`Count mismatch: Found ${closedCount} closed ideas but performance stats show ${statsClosedCount}`);
       }
       
-      if (!winRateMatch) {
+      if (!winRateMatch && perfWinRate !== null) {
         warnings.push(`Win rate discrepancy: Raw calculation ${rawWinRate.toFixed(2)}% vs Performance stats ${perfWinRate.toFixed(2)}%`);
       }
       
@@ -21931,7 +23037,9 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
           totalTrades: totalCount,
           closedTrades: closedCount,
           openTrades: totalCount - closedCount,
-          overallWinRate: perfWinRate.toFixed(2) + '%',
+          overallWinRate: perfWinRate === null
+            ? `not reportable (n=${stats.overall.winRateDecided})`
+            : perfWinRate.toFixed(2) + '%',
         },
         checks: {
           totalTradeCount: { 
@@ -21944,11 +23052,11 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
             expected: statsClosedCount, 
             actual: closedCount 
           },
-          winRateConsistency: { 
-            match: winRateMatch, 
-            perfWinRate: perfWinRate.toFixed(2), 
+          winRateConsistency: {
+            match: winRateMatch,
+            perfWinRate: perfWinRate === null ? null : perfWinRate.toFixed(2),
             rawWinRate: rawWinRate.toFixed(2),
-            difference: Math.abs(rawWinRate - perfWinRate).toFixed(2)
+            difference: perfWinRate === null ? null : Math.abs(rawWinRate - perfWinRate).toFixed(2)
           },
           missingOutcomeData: { 
             count: missingData.length, 
@@ -26122,9 +27230,10 @@ Use this checklist before entering any trade:
   //   GET /api/macro/cash-gate?cashHours=4&watchHours=24
   app.get("/api/macro/cash-gate", async (req, res) => {
     try {
-      const { getUpcomingEvents } = await import("./economic-calendar");
+      const { getUpcomingEvents, getCalendarCoverage } = await import("./economic-calendar");
       const cashHrs = Math.max(0, Number(req.query.cashHours ?? 4));
       const watchHrs = Math.max(cashHrs, Number(req.query.watchHours ?? 24));
+      const calendar = getCalendarCoverage();
 
       // Parse "2:00 PM ET" + "YYYY-MM-DD" → epoch ms (ET ≈ UTC-4; ±1h at DST edges
       // is immaterial for a proximity warning).
@@ -26149,9 +27258,11 @@ Use this checklist before entering any trade:
         .sort((a: any, b: any) => a.hoursUntil - b.hoursUntil);
 
       const next = upcoming[0] || null;
-      let level: "clear" | "watch" | "cash" = "clear";
+      let level: "clear" | "watch" | "cash" | "unavailable" = calendar.current ? "clear" : "unavailable";
       let message = "No high-impact macro events imminent — normal risk.";
-      if (next && next.hoursUntil <= cashHrs) {
+      if (!calendar.current) {
+        message = `Macro calendar needs refresh — current coverage ends ${calendar.lastDate ?? 'unknown'}. No event-risk all-clear is implied.`;
+      } else if (next && next.hoursUntil <= cashHrs) {
         level = "cash";
         message = `⚠ ${next.name} in ${next.hoursUntil.toFixed(1)}h (${next.time}) — event risk. Size down or hold cash.`;
       } else if (next && next.hoursUntil <= watchHrs) {
@@ -26161,13 +27272,14 @@ Use this checklist before entering any trade:
 
       res.json({
         level,
-        active: level !== "clear",
+        active: level === "watch" || level === "cash",
         dampenGrades: level === "cash",
         message,
         nextEvent: next ? { name: next.name, date: next.date, time: next.time, hoursUntil: next.hoursUntil, tradingImpact: next.tradingImpact } : null,
         upcoming: upcoming.slice(0, 5).map((e: any) => ({ name: e.name, date: e.date, time: e.time, hoursUntil: e.hoursUntil })),
         params: { cashHours: cashHrs, watchHours: watchHrs },
-        _meta: { note: "Cash-gate = proximity to high-impact macro events from the curated calendar (server/economic-calendar.ts). Keep that calendar current for accuracy." },
+        calendar,
+        _meta: { note: "Cash-gate only returns clear/watch/cash while the curated economic calendar covers today. An unavailable calendar never means risk is clear." },
       });
     } catch (error) {
       logger.error("Cash-gate error:", error);
@@ -27059,6 +28171,56 @@ Use this checklist before entering any trade:
     } catch (error) {
       logger.error("Error running on-demand convergence analysis", { error });
       res.status(500).json({ error: "Failed to run convergence analysis" });
+    }
+  });
+
+  /**
+   * On-demand research queue. This is deliberately a scan, not a bulk insert:
+   * each symbol must produce a live, evidence-backed thesis before the
+   * universal idea generator is allowed to persist it into Active Signals.
+   */
+  app.post("/api/convergence/analyze-batch", async (req, res) => {
+    const rawSymbols: unknown[] = Array.isArray(req.body?.symbols) ? req.body.symbols : [];
+    const symbols: string[] = [...new Set<string>(rawSymbols
+      .map((symbol: unknown) => String(symbol || '').trim().toUpperCase())
+      .filter((symbol: string) => /^[A-Z.]{1,10}$/.test(symbol)))]
+      .slice(0, 10);
+
+    if (!symbols.length) {
+      return res.status(400).json({ error: "Provide 1–10 valid symbols" });
+    }
+
+    try {
+      const { isApprovedTicker } = await import("@shared/approved-tickers");
+      const { analyzeSymbolOnDemand } = await import("./convergence-engine");
+      const results: Array<{ symbol: string; persisted: boolean; score?: number; message: string }> = [];
+
+      // Keep calls sequential. Quote, options and news sources are rate-limited;
+      // parallel fan-out would make a blank board look like a passed scan.
+      for (const symbol of symbols) {
+        if (!isApprovedTicker(symbol)) {
+          results.push({ symbol, persisted: false, message: "Not in the approved scan universe" });
+          continue;
+        }
+
+        const result = await analyzeSymbolOnDemand(symbol);
+        results.push({
+          symbol,
+          persisted: Boolean(result.success && result.tradeIdea),
+          score: result.convergenceAnalysis?.convergenceScore,
+          message: result.message,
+        });
+      }
+
+      res.json({
+        success: true,
+        requested: symbols.length,
+        persisted: results.filter((result) => result.persisted).length,
+        results,
+      });
+    } catch (error) {
+      logger.error("Error running on-demand convergence batch", { error });
+      res.status(500).json({ error: "Failed to run convergence batch" });
     }
   });
 
@@ -29636,6 +30798,17 @@ Use this checklist before entering any trade:
   });
 
   // ──────────── BTC BETA TRACKER ────────────
+  // CRYPTO PULSE is deliberately separate from the beta scanner: BTC/ETH spot
+  // context should survive even when a free equity-history provider is throttled.
+  app.get('/api/crypto/pulse', async (_req, res) => {
+    try {
+      const { getCryptoPulse } = await import('./crypto-pulse');
+      res.json(await getCryptoPulse());
+    } catch (e: any) {
+      res.status(503).json({ error: 'crypto pulse unavailable', message: e?.message });
+    }
+  });
+
   // GET  /api/btc/state               → current BTC price + key levels + RSI + vol
   // GET  /api/btc/positions           → all tracked tickers with their beta/divergence
   // POST /api/btc/scan                → run full pattern scan (state + positions + signals)
@@ -30075,14 +31248,26 @@ Use this checklist before entering any trade:
           errors: [],
         };
         const fallbackHub = await buildGEXHub(fallbackScan as any);
-        return res.json({ hub: fallbackHub, scan: fallbackScan, cboeFallback: true });
+        // The mini-scan must not impersonate the full sweep: without this the
+        // rail read "20/20 scanned" — completeness theater through a side
+        // door. attempted stays the REAL universe size so the fraction is
+        // honest while the background scan warms.
+        (fallbackHub as any).miniScan = true;
+        try {
+          const { APPROVED_TICKERS } = await import('@shared/approved-tickers');
+          (fallbackHub as any).attempted = (APPROVED_TICKERS as Set<string>).size;
+        } catch { /* label alone still marks it */ }
+        // generatedAt so the Hub can show a real age. MOTION.md forbids dating a
+        // panel by the client's fetch time — a cached response can be hours old
+        // while the fetch is seconds old — so the age has to come from here.
+        return res.json({ hub: fallbackHub, scan: fallbackScan, cboeFallback: true, generatedAt: new Date().toISOString() });
       }
 
       const hub = await buildGEXHub(scan);
       // Fire-and-forget: persist best plays + index scalps for Trade Desk
       persistTopPlaysAsIdeas(hub.topPlays).catch(() => {});
       runIndexScalpScanner().catch(() => {});
-      res.json({ hub, scan });
+      res.json({ hub, scan, generatedAt: new Date().toISOString() });
     } catch (error: any) {
       logger.error("GEX hub error", { error: error?.message });
       res.status(500).json({ error: "Hub build failed", message: error?.message });

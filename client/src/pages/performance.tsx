@@ -12,6 +12,7 @@ import { useState, useMemo, lazy, Suspense } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn, safeToFixed } from "@/lib/utils";
+import { CanonRate } from "@/components/canon";
 import { getPnlColor } from "@/lib/signal-grade";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -134,15 +135,18 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Hit Rate</p>
             <span className="text-[10px] text-muted-foreground/60 font-mono">n={overall.decided}</span>
             <span className="group relative inline-block">
-              <Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+              <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
               <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-48 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
                 Count-based: wins / decided trades. Excludes &#177;3% breakeven trades.
               </span>
             </span>
           </div>
-          <p className={cn("text-3xl font-bold font-mono", getWinRateColor(overall.winRate))} data-testid="stat-win-rate">
-            {safeToFixed(overall.winRate, 1)}%
-          </p>
+          {/* The headline number. Was safeToFixed(winRate) — and safeToFixed
+              renders null as '0.00', so a suppressed rate would have shown as a
+              red 0.0%. CanonRate owns the below-floor rendering instead. */}
+          <div className="text-3xl" data-testid="stat-win-rate">
+            <CanonRate className="text-3xl font-bold" wins={overall.wins} decided={overall.decided} />
+          </div>
           <p className="text-xs text-muted-foreground mt-1">
             {overall.wins}W / {overall.losses}L ({overall.decided} decided)
           </p>
@@ -154,17 +158,17 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">By Asset Type</p>
           <div className="space-y-1">
-            <div className="flex justify-between items-center">
+            {/* Equities was rendering a red 0% off a single decided trade — one
+                stopped-out equity idea presented as "equities never win". The
+                segment counts below stay, so a thin segment reads as thin
+                rather than as a losing one. */}
+            <div className="flex justify-between items-center gap-2">
               <span className="text-xs">Equities</span>
-              <span className={cn("font-mono font-bold", getWinRateColor(equities.winRate))}>
-                {safeToFixed(equities.winRate, 0)}%
-              </span>
+              <CanonRate wins={equities.wins} decided={equities.decided} />
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-2">
               <span className="text-xs">Options</span>
-              <span className={cn("font-mono font-bold", getWinRateColor(options.winRate))}>
-                {safeToFixed(options.winRate, 0)}%
-              </span>
+              <CanonRate wins={options.wins} decided={options.decided} />
             </div>
           </div>
           <p className="text-[10px] text-muted-foreground mt-2">

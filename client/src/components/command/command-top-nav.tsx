@@ -225,7 +225,7 @@ export function CommandTopNav({
           {/* Expiration scope */}
           {onExpirationScopeChange && (
             <div className="flex items-center gap-1.5">
-              <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/50">EXP</span>
+              <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60">EXP</span>
               <PillGroup>
                 {EXPIRATION_SCOPES.map(es => (
                   <PillButton
@@ -245,7 +245,7 @@ export function CommandTopNav({
 
           {/* View mode */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/50">MODE</span>
+            <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60">MODE</span>
             <PillGroup>
               {VIEW_MODES.map(vm => (
                 <PillButton

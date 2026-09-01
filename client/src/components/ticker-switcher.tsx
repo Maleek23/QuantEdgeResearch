@@ -141,7 +141,7 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
           </span>
         )}
         <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} />
-        <span className="text-[9px] font-mono text-muted-foreground/50 ml-1">⌘K</span>
+        <span className="text-[9px] font-mono text-muted-foreground/60 ml-1">⌘K</span>
       </button>
 
       {open && (
@@ -167,7 +167,7 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
               onKeyDown={handleEnter}
               placeholder="Type ticker (Enter to jump)…"
               autoFocus
-              className="flex-1 bg-transparent border-none outline-none text-sm font-mono uppercase tracking-wide placeholder:text-muted-foreground/40"
+              className="flex-1 bg-transparent border-none outline-none text-sm font-mono uppercase tracking-wide placeholder:text-muted-foreground/60"
             />
           </div>
 

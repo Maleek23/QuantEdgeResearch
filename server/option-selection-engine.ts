@@ -31,7 +31,7 @@ import {
 
 export type ThesisDirection = 'bullish' | 'bearish';
 export type SetupType = 'scalp' | 'swing' | 'lotto' | 'position';
-export type SelectionTier = 'conservative' | 'balanced' | 'aggressive';
+export type SelectionTier = 'starter' | 'conservative' | 'balanced' | 'aggressive';
 export type EngineGrade = 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
 
 /**
@@ -145,7 +145,7 @@ export const EXPIRY_TIERS: Record<
 > = {
   '0DTE':    { min: 0,   max: 1,   ideal: 0,   fallbackMaxDte: 3,    label: 'Same-day (0DTE)' },
   DAILY:     { min: 1,   max: 3,   ideal: 2,   fallbackMaxDte: 10,   label: 'Day-to-day (1–3 DTE)' },
-  WEEKLY:    { min: 5,   max: 12,  ideal: 7,   fallbackMaxDte: 35,   label: 'Weekly (5–12 DTE)' },
+  WEEKLY:    { min: 8,   max: 14,  ideal: 10,  fallbackMaxDte: 35,   label: 'Weekly (8–14 DTE)' },
   MONTHLY:   { min: 25,  max: 45,  ideal: 30,  fallbackMaxDte: 90,   label: 'Monthly (25–45 DTE)' },
   LEAP:      { min: 180, max: 730, ideal: 365, fallbackMaxDte: 1000, label: 'LEAP (6mo+)' },
 };
@@ -191,25 +191,43 @@ export function resolveExpiryTier(thesis: PriceActionThesis): ExpiryTier {
  * So the floor moves with conviction rather than being fixed: weak setups are pushed out to
  * expiries that let them be wrong for a few days and still work.
  */
-export const SHORT_DTE_THRESHOLD = 7;
+export const SHORT_DTE_THRESHOLD = 8;
 export const SHORT_DTE_MIN_CONVICTION = 75;
 
-/** Minimum DTE this thesis has earned. Low conviction buys time whether it wants to or not. */
+/**
+ * Minimum DTE this thesis has earned. Low conviction buys time whether it wants to or not.
+ *
+ * FLOOR RAISED TO 8 — from measured outcomes on this book's own contract P&L:
+ *
+ *   DTE at signal   n(measured)   win rate   avg R
+ *     0-7               96          42.7%    -0.021   ← loses money
+ *     8-14             175          43.4%    +0.281   ← 13x better
+ *
+ * Note the win rate is FLAT across the two (42.7 vs 43.4). Extra time did not make
+ * the engine righter — it stopped theta taking the trade before the thesis had a
+ * chance to resolve. Same calls, different decay.
+ *
+ * The old floors let an elite read go to 1 DTE, which is the middle of the losing
+ * cohort. Conviction does not defeat gamma: an 85-score idea at 2 DTE still needs
+ * to be right immediately, and 96 measured trades say that is a negative-expectancy
+ * bet. Conviction still buys a SHORTER expiry than a marginal read gets — the ladder
+ * is intact — it just no longer buys one below the point where the data turns.
+ */
 export function minDteForConviction(conviction?: number | null): number {
   const c = conviction ?? 0;
-  if (c >= 85) return 1;    // elite — allowed right up to expiry if it wants
-  if (c >= 75) return 5;    // high — short-dated permitted
+  if (c >= 85) return 8;    // elite — the shortest the data supports, not the shortest possible
+  if (c >= 75) return 8;    // high
   if (c >= 60) return 14;   // decent — at least two weeks
   return 21;                // marginal — a marginal read needs room to be wrong
 }
 
 export const DTE_WINDOWS: Record<SetupType, { min: number; max: number; ideal: number }> = {
   // intraday, but never same-day expiry — 0DTE is a gamma coin-flip, not a scalp
-  scalp: { min: 3, max: 10, ideal: 5 },
+  scalp: { min: 8, max: 14, ideal: 10 },
   // 1–5 day hold → roughly a month out, so time decay isn't the counterparty
   swing: { min: 14, max: 45, ideal: 30 },
   // explicitly the gamble; short-dated is the point, so it stays short
-  lotto: { min: 1, max: 7, ideal: 3 },
+  lotto: { min: 8, max: 14, ideal: 10 },
   // multi-week thesis needs a quarter
   position: { min: 30, max: 120, ideal: 60 },
 };
@@ -217,6 +235,28 @@ export const DTE_WINDOWS: Record<SetupType, { min: number; max: number; ideal: n
 /** |delta| bands per tier. Conservative = deep ITM (high delta, low theta burn);
  *  balanced = ATM; aggressive = OTM convexity. */
 export const TIER_DELTA: Record<SelectionTier, { min: number; ideal: number; max: number }> = {
+  /**
+   * STARTER — the cheapest contract that still expresses the thesis.
+   *
+   * Added because the three tiers below are unbuyable on a small account. ORCL
+   * priced 2026-08-31 at spot $149: conservative $2,153/contract, balanced
+   * $1,115, aggressive $550. On a $1,000 account at 2% risk, even the
+   * aggressive tier risks $275 — 13x the budget.
+   *
+   * The obvious workaround is worse than the problem. ORCL had contracts at
+   * $61-$94, but they were $230-$370 strikes on a $149 stock: delta 0.03-0.06
+   * with 21-59% spreads. A $240 call cannot reach a $182 target, so it does not
+   * express the thesis at all — it is a lottery ticket that loses a third of
+   * its value to the spread on entry.
+   *
+   * So the floor is delta, not price. 0.15 is the lowest delta that still
+   * tracks the underlying meaningfully; below that the contract stops being a
+   * proxy for the move. This tier finds the cheapest contract at or above that
+   * floor, and if none exists it is simply omitted — an unaffordable setup
+   * should read as "not for this account", never as a cheap substitute that
+   * cannot win.
+   */
+  starter: { min: 0.15, ideal: 0.20, max: 0.30 },
   conservative: { min: 0.60, ideal: 0.68, max: 0.80 },
   balanced: { min: 0.42, ideal: 0.50, max: 0.58 },
   aggressive: { min: 0.22, ideal: 0.30, max: 0.40 },
@@ -514,9 +554,33 @@ function buildCandidate(
     riskRewardRatio >= 1.5 ? 70 :
     riskRewardRatio >= 1 ? 50 :
     riskRewardRatio >= 0.5 ? 30 : 15;
+  /**
+   * Liquidity: spread 55 / open interest 30 / volume 15.
+   *
+   * Two defects this replaces, both visible on a live GOOGL pick where the engine
+   * graded a 2.1k-OI / 119-volume put ABOVE a 12k-OI / 1.3k-volume one:
+   *
+   *   1. OI credit was `min(1, oi/2000) * 40`, so 2,100 and 12,000 both scored a
+   *      full 40. Six times the open interest bought nothing. The cap is now 10k,
+   *      which actually separates a thin strike from a crowded one.
+   *   2. Volume was never scored — only used as a filter, and that filter is 0.
+   *      Open interest is yesterday's positioning; volume is whether anyone is
+   *      trading it TODAY. A strike with big OI and no volume is a crowd that has
+   *      already left, and it is exactly where a fill goes badly.
+   *
+   * Volume only scores when the field is present. LIQUIDITY.minVolume stays 0 on
+   * purpose — early-session volume is legitimately zero and must not disqualify a
+   * contract — so an absent/zero value is treated as "unknown", scoring the neutral
+   * middle rather than a penalty. Punishing 9:31am for not having traded yet would
+   * just push every morning pick toward stale strikes.
+   */
+  const oiScore = Math.min(1, o.openInterest / 10000) * 30;
+  const volKnown = typeof o.volume === 'number' && o.volume > 0;
+  const volScore = volKnown ? Math.min(1, (o.volume as number) / 1000) * 15 : 7.5;
   const liqScore =
-    (1 - Math.min(1, o.spreadPct / LIQUIDITY.maxSpreadPct)) * 60 +
-    Math.min(1, o.openInterest / 2000) * 40;
+    (1 - Math.min(1, o.spreadPct / LIQUIDITY.maxSpreadPct)) * 55 +
+    oiScore +
+    volScore;
   const band = TIER_DELTA[tier];
   const deltaFitScore = (1 - Math.min(1, Math.abs(Math.abs(o.delta) - band.ideal) / 0.5)) * 100;
   const reachScore = scaleReachable ? 100 : Math.max(0, roiAtT1Pct / 30) * 100;
@@ -669,7 +733,7 @@ export function selectFromChain(
   // a tier has no distinct strike left, we SKIP that tier rather than emit an
   // identical duplicate row — showing the same contract under two tiers is
   // misleading. Result: collapse to as many tiers as there are real choices.
-  const tiers: SelectionTier[] = ['conservative', 'balanced', 'aggressive'];
+  const tiers: SelectionTier[] = ['conservative', 'balanced', 'aggressive', 'starter'];
   const used = new Set<string>();
   const picks: ContractCandidate[] = [];
   for (const tier of tiers) {

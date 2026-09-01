@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Target, TrendingUp, Zap, Award, Bot, Activity, BarChart3, Brain, CheckCircle, XCircle, AlertTriangle, Info } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
+import { CanonRate } from "@/components/canon";
 
 interface EngineMetrics {
   tradesWon: number;
@@ -126,7 +127,7 @@ export function UserPerformanceSummary() {
                   <p className="text-sm text-muted-foreground uppercase tracking-wider">Hit Rate</p>
                   <span className="text-xs text-muted-foreground/60 font-mono">n={totalDecided}</span>
                   <span className="group relative inline-block">
-                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
                     <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-52 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
                       Count-based: wins / decided trades. Excludes &#177;3% breakeven trades, expired, and open positions.
                     </span>
@@ -247,9 +248,15 @@ export function UserPerformanceSummary() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Hit Rate</p>
-                <p className={cn("text-xl font-bold font-mono", getWinRateColor(botData.overall.winRate))}>
-                  {safeToFixed(botData.overall.winRate, 0)}%
-                </p>
+                {/* Was `${winRate}%`, which printed a red 0% for a bot that had
+                    taken zero trades — the card's own TRADES 0 · W/L 0/0 said so
+                    in the same row. CanonRate suppresses the percentage below the
+                    sample floor and says which kind of "no number" this is. */}
+                <CanonRate
+                  className="text-xl"
+                  wins={botData.overall.wins}
+                  decided={botData.overall.wins + botData.overall.losses}
+                />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">W/L</p>

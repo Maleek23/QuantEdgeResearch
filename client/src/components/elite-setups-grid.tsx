@@ -12,6 +12,7 @@ import {
 import { cn, safeToFixed } from '@/lib/utils';
 import SymbolJourneyModal from './symbol-journey-modal';
 import type { WatchlistItem } from '@shared/schema';
+import { tierBadgeStyle } from '@/components/canon';
 
 type SortMode = 'score' | 'edge' | 'performance' | 'days';
 type FilterTier = 'all' | 'S' | 'A' | 'B';
@@ -37,11 +38,10 @@ interface EliteSetupsGridProps {
 
 const ITEMS_PER_PAGE = 24;
 
-const TIER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  S: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/40' },
-  A: { bg: 'bg-emerald-500/20', text: 'text-[var(--trade-bullish)]', border: 'border-emerald-500/40' },
-  B: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/40' },
-};
+// Tier colour now comes from canon/tierBadgeStyle, which is backed by the
+// --grade-* tokens. The map that was here hardcoded purple/cyan/orange beside
+// entries that already used tokens, and was missing C/D/F entirely so a
+// low-grade row fell through to grey and read as ungraded.
 
 function calculateSortScore(item: WatchlistItem, mode: SortMode, perfMap: Map<string, SymbolPerformance>): number {
   const baseScore = item.gradeScore || 50;
@@ -85,7 +85,7 @@ function CompactSetupRow({
   onTrade?: (symbol: string) => void;
 }) {
   const tier = item.tier || 'C';
-  const colors = TIER_COLORS[tier] || { bg: 'bg-muted-foreground/20', text: 'text-muted-foreground', border: 'border-muted-foreground/40' };
+  const tierStyle = tierBadgeStyle(tier);
   const daysWatched = Math.ceil((Date.now() - new Date(item.addedAt).getTime()) / (1000 * 60 * 60 * 24));
   
   const totalTrades = perf?.stats?.totalTrades || item.timesTraded || 0;
@@ -99,10 +99,10 @@ function CompactSetupRow({
       onClick={() => onViewJourney(item.symbol)}
       data-testid={`elite-setup-${item.symbol}`}
     >
-      <div className={cn(
-        "w-8 h-8 rounded-md flex items-center justify-center font-bold font-mono text-sm border",
-        colors.bg, colors.text, colors.border
-      )}>
+      <div
+        className="w-8 h-8 rounded-md flex items-center justify-center font-bold font-mono text-sm border"
+        style={tierStyle}
+      >
         {tier}
       </div>
       

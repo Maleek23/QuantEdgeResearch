@@ -51,9 +51,9 @@ export function StatCard({
         className={cn("flex items-baseline gap-1.5", onClick && "cursor-pointer", className)}
         onClick={onClick}
       >
-        <span className="text-[8px] text-muted-foreground/50 uppercase font-mono tracking-wider">{label}</span>
+        <span className="text-[8px] text-muted-foreground/60 uppercase font-mono tracking-wider">{label}</span>
         <span className={cn("text-xs font-mono font-bold tabular-nums", valueColor)}>{value}</span>
-        {subValue && <span className="text-[8px] text-muted-foreground/40 font-mono">{subValue}</span>}
+        {subValue && <span className="text-[8px] text-muted-foreground/60 font-mono">{subValue}</span>}
       </div>
     );
   }
@@ -69,12 +69,12 @@ export function StatCard({
         onClick={onClick}
       >
         <div className="flex items-center gap-1.5">
-          {icon && <span className="text-muted-foreground/50">{icon}</span>}
+          {icon && <span className="text-muted-foreground/60">{icon}</span>}
           <span className="text-[9px] text-muted-foreground/60 uppercase font-mono tracking-wider">{label}</span>
         </div>
         <div className="flex items-baseline gap-1">
           <span className={cn("text-sm font-mono font-bold tabular-nums", valueColor)}>{value}</span>
-          {subValue && <span className="text-[8px] text-muted-foreground/40 font-mono">{subValue}</span>}
+          {subValue && <span className="text-[8px] text-muted-foreground/60 font-mono">{subValue}</span>}
         </div>
       </div>
     );
@@ -91,12 +91,12 @@ export function StatCard({
       onClick={onClick}
     >
       <div className="flex items-center gap-1 mb-0.5">
-        {icon && <span className="text-muted-foreground/40">{icon}</span>}
-        <span className="text-[8px] text-muted-foreground/50 uppercase font-mono tracking-wider leading-none">{label}</span>
+        {icon && <span className="text-muted-foreground/60">{icon}</span>}
+        <span className="text-[8px] text-muted-foreground/60 uppercase font-mono tracking-wider leading-none">{label}</span>
       </div>
       <div className="flex items-baseline gap-1">
         <span className={cn("text-lg font-mono font-bold tabular-nums leading-tight", valueColor)}>{value}</span>
-        {subValue && <span className="text-[8px] text-muted-foreground/40 font-mono">{subValue}</span>}
+        {subValue && <span className="text-[8px] text-muted-foreground/60 font-mono">{subValue}</span>}
       </div>
     </div>
   );

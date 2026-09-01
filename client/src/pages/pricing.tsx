@@ -398,9 +398,9 @@ export default function Pricing() {
                         {feature.included ? (
                           <Check className="w-4 h-4 text-[var(--trade-bullish)] shrink-0 mt-0.5" />
                         ) : (
-                          <X className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
+                          <X className="w-4 h-4 text-muted-foreground/60 shrink-0 mt-0.5" />
                         )}
-                        <span className={`flex items-center gap-2 ${feature.included ? 'text-foreground' : 'text-muted-foreground/40'}`}>
+                        <span className={`flex items-center gap-2 ${feature.included ? 'text-foreground' : 'text-muted-foreground/60'}`}>
                           {feature.name}
                           {feature.comingSoon && (
                             <span className="bg-amber-500/10 text-[var(--trade-neutral)] rounded px-1.5 py-0.5 text-[10px] font-medium">

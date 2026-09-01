@@ -174,7 +174,7 @@ export function TradeFiltersBar({
             placeholder="Search symbol..."
             value={filters.search}
             onChange={(e) => update("search", e.target.value.toUpperCase())}
-            className="flex-1 bg-transparent text-[11px] font-mono outline-none placeholder:text-muted-foreground/40 text-foreground"
+            className="flex-1 bg-transparent text-[11px] font-mono outline-none placeholder:text-muted-foreground/60 text-foreground"
             data-testid="filter-search"
           />
           {filters.search && (

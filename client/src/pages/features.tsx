@@ -998,11 +998,11 @@ export default function Features() {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-mono text-muted-foreground/60">
               <span>Yahoo Finance</span>
-              <span className="text-muted-foreground/30">|</span>
+              <span className="text-muted-foreground/60">|</span>
               <span>Tradier</span>
-              <span className="text-muted-foreground/30">|</span>
+              <span className="text-muted-foreground/60">|</span>
               <span>CoinGecko</span>
-              <span className="text-muted-foreground/30">|</span>
+              <span className="text-muted-foreground/60">|</span>
               <span>Alpha Vantage</span>
             </div>
           </div>

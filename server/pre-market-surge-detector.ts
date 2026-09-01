@@ -1,4 +1,5 @@
 import { logger } from './logger';
+import { postDiscordWebhook } from './discord-service';
 
 const PRE_MARKET_WATCHLIST = [
   // Nuclear & Energy
@@ -201,7 +202,7 @@ async function sendPreMarketSurgeAlert(alert: SurgeAlert): Promise<void> {
   };
   
   try {
-    const response = await fetch(webhookUrl, {
+    const response = await postDiscordWebhook(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embeds: [embed] }),

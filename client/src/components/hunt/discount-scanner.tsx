@@ -125,7 +125,7 @@ export function DiscountScanner() {
               value={symbols}
               placeholder="universe (or AAPL,MU…)"
               onChange={(e) => setSymbols(e.target.value)}
-              className="w-40 px-2 py-0.5 bg-card border border-border rounded text-foreground focus:border-[var(--brand-cyan)]/50 outline-none uppercase placeholder:normal-case placeholder:text-muted-foreground/40"
+              className="w-40 px-2 py-0.5 bg-card border border-border rounded text-foreground focus:border-[var(--brand-cyan)]/50 outline-none uppercase placeholder:normal-case placeholder:text-muted-foreground/60"
             />
           </label>
           <button
@@ -148,7 +148,7 @@ export function DiscountScanner() {
         smile, puts vs the put smile) and flag contracts trading a real distance under it — <span className="text-muted-foreground/80">Edge</span> shows
         how far (vol-points · σ). Fair value = Black-Scholes re-priced at the smile. <span className="text-muted-foreground/80">Pick the side that matches your thesis.</span>
         <br />
-        <Clock className="w-3 h-3 inline text-muted-foreground/50 mr-1" />
+        <Clock className="w-3 h-3 inline text-muted-foreground/60 mr-1" />
         Both sides are scored the same way, so a put showing up just means that put is cheap vs other puts — not a bearish call.
         CBOE quotes are ~15min delayed: a near-close read, not a live print. Not financial advice.
       </div>
@@ -249,7 +249,7 @@ function DiscountRow({ c, rank, onClick }: { c: DiscountContract; rank: number; 
       <Td align="right" className="tabular-nums text-foreground">${c.mid.toFixed(2)}</Td>
       <Td align="right" className="tabular-nums text-[var(--trade-bullish)]">${c.fairValue.toFixed(2)}</Td>
       <Td align="right" className={cn('tabular-nums', edgeTone)} title={`${edgePts.toFixed(1)} vol-points / ${c.zEdge.toFixed(1)}σ below the fitted smile`}>
-        {edgePts.toFixed(1)}pt<span className="text-muted-foreground/50"> · {c.zEdge.toFixed(1)}σ</span>
+        {edgePts.toFixed(1)}pt<span className="text-muted-foreground/60"> · {c.zEdge.toFixed(1)}σ</span>
       </Td>
       <Td align="right" className="tabular-nums text-muted-foreground">{(c.iv * 100).toFixed(0)}%</Td>
       <Td align="right" className="tabular-nums text-muted-foreground/60">{(c.baselineIv * 100).toFixed(0)}%</Td>

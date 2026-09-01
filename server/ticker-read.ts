@@ -37,6 +37,22 @@ export interface TickerRead {
   spot: number;
   asOf: string;
   dimensions: Dimension[];
+  /**
+   * A search result needs a directional answer, but it must not borrow a
+   * Conviction band before entry, invalidation and a structural target exist.
+   * This is a transparent count of the directional price conditions, not a
+   * 0–100 trade score and never an instruction to enter.
+   */
+  directional: {
+    bias: 'bullish' | 'bearish' | 'neutral';
+    aligned: number;
+    conflicting: number;
+    assessed: number;
+    status: 'watch';
+    tradeable: false;
+    summary: string;
+    nextCheck: string;
+  };
   /** Deliberately null — see the note above. */
   band: null;
   /** Things that argue for caution regardless of direction. */
@@ -202,11 +218,37 @@ export async function buildTickerRead(symbol: string, bars: Bar[], spyBars: Bar[
 
   logger.debug(`[TICKER-READ] ${sym}: ${dims.length} dimensions`);
 
+  // Only dimensions that have a direction count here. Compression, gamma and
+  // event risk are useful context, but neither is itself a bullish/bearish
+  // vote. This prevents a busy card from pretending to have more directional
+  // confirmation than it does.
+  const bullish = dims.filter((d) => d.state === 'bullish').length;
+  const bearish = dims.filter((d) => d.state === 'bearish').length;
+  const assessed = bullish + bearish;
+  const bias = bullish > bearish ? 'bullish' : bearish > bullish ? 'bearish' : 'neutral';
+  const aligned = bias === 'bullish' ? bullish : bias === 'bearish' ? bearish : 0;
+  const conflicting = bias === 'bullish' ? bearish : bias === 'bearish' ? bullish : 0;
+  const biasWord = bias === 'neutral' ? 'No directional' : `${bias[0].toUpperCase()}${bias.slice(1)}`;
+  const summary = assessed > 0
+    ? `${biasWord} watch — ${aligned}/${assessed} directional price conditions align${conflicting ? `; ${conflicting} disagrees` : ''}.`
+    : 'No directional price conditions are currently available.';
+
   return {
     symbol: sym,
     spot,
     asOf: new Date().toISOString(),
     dimensions: dims,
+    directional: {
+      bias,
+      aligned,
+      conflicting,
+      assessed,
+      status: 'watch',
+      tradeable: false,
+      summary,
+      nextCheck:
+        'A watch becomes a signal only after a fresh trigger plus a structural target and invalidation are verified.',
+    },
     band: null,
     cautions,
     note:

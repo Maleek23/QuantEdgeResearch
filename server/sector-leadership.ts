@@ -142,7 +142,7 @@ export async function computeSectorLeadership(
   const top = sectors[0], bottom = sectors[sectors.length - 1];
   const sessionWord =
     session === 'pre' ? 'Pre-market' : session === 'post' ? 'After-hours'
-    : session === 'closed' ? 'Overnight' : 'Today';
+    : session === 'closed' ? 'Last cash close' : 'Today';
   const interpretation = top && bottom
     ? `${sessionWord}: ${top.label} leads (typical name ${top.medianChangePct >= 0 ? '+' : ''}${top.medianChangePct.toFixed(2)}%, ${top.breadthPct.toFixed(0)}% green)` +
       `${top.leaders[0] ? `, led by ${top.leaders[0].symbol} ${top.leaders[0].changePct >= 0 ? '+' : ''}${top.leaders[0].changePct.toFixed(1)}%` : ''}` +

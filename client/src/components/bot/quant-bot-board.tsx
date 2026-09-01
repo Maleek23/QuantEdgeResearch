@@ -9,11 +9,11 @@
  * It states what it doesn't know: no win rate is shown until trades have actually closed.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Play } from 'lucide-react';
+import { Loader2, Play, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TC, pnlColor } from '@/lib/oracle/trading-colors';
 import { apiRequest } from '@/lib/queryClient';
-import { RangeBar, DecayBar, Meter } from '@/components/viz';
+import { RangeBar, DecayBar, Meter, LiveValue } from '@/components/viz';
 import { daysToExpiry, formatExpiry } from '@/lib/market-date';
 
 interface Position {
@@ -31,21 +31,22 @@ interface BotStatus {
   portfolioId: string; name: string;
   startingCapital: number; cashBalance: number; totalValue: number;
   totalPnL: number; totalPnLPercent: number;
-  winCount: number; lossCount: number; winRate: number | null;
+  closedCount: number;
   openPositions: Position[]; closedPositions: Position[];
-  config: { minConviction: number; maxOpen: number; riskPerTradePct: number };
+  config: { minConviction: number; maxOpen: number; riskPerTradePct: number; maxProgressPct: number };
 }
 
 const money = (n: number) => `${n < 0 ? '−' : ''}$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 
 export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => void }) {
   const qc = useQueryClient();
-  const { data, isLoading, isError } = useQuery<BotStatus>({
+  const { data, isLoading, isError, error, refetch, isRefetching } = useQuery<BotStatus>({
     queryKey: ['/api/quant-bot/status'],
     queryFn: async () => {
       const r = await fetch('/api/quant-bot/status', { credentials: 'include' });
-      if (!r.ok) throw new Error('bot status failed');
-      return r.json();
+      const body = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(body?.error || 'Paper execution ledger unavailable');
+      return body;
     },
     staleTime: 30_000, refetchInterval: 60_000, retry: 1,
   });
@@ -64,16 +65,26 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
   }
   if (isError || !data) {
     return (
-      <div className="rounded-xl border border-card-border bg-card px-6 py-10 text-center">
-        <div className="text-meta font-mono uppercase tracking-widest text-foreground/80">Bot unavailable</div>
-        <p className="mx-auto mt-2 max-w-md text-meta leading-relaxed text-muted-foreground/70">
-          The paper portfolio could not be read. It will retry automatically.
+      <div className="rounded-xl border border-[var(--brand-cyan)]/25 bg-card px-6 py-10 text-center">
+        <div className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/90">Paper execution ledger offline</div>
+        <p className="mx-auto mt-2 max-w-md text-meta leading-relaxed text-muted-foreground/75">
+          {error instanceof Error ? error.message : 'The bot portfolio could not be read.'} No paper positions, P&amp;L, or exit statistics are being shown.
         </p>
+        <p className="mx-auto mt-2 max-w-md text-label leading-relaxed text-muted-foreground/60">
+          Signal grades still live in Oracle. They are evidence rankings, not paper-trade results.
+        </p>
+        <button
+          onClick={() => refetch()}
+          disabled={isRefetching}
+          className="mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded border border-border/60 bg-foreground/5 px-2.5 py-1.5 text-label font-mono uppercase tracking-wider text-foreground transition-colors hover:bg-foreground/10 disabled:opacity-60"
+        >
+          <RefreshCw className={cn('h-3 w-3', isRefetching && 'animate-spin')} /> Check ledger again
+        </button>
       </div>
     );
   }
 
-  const decided = data.winCount + data.lossCount;
+  const closedCount = data.closedCount ?? data.closedPositions.length;
 
   return (
     <div className="space-y-3 px-4 py-3">
@@ -81,7 +92,7 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
       <div className="rounded-xl border border-card-border bg-card overflow-hidden">
         <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
           <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">
-            Quant Bot · paper options
+            Paper execution sandbox
           </span>
           <button
             onClick={() => run.mutate()}
@@ -94,24 +105,29 @@ export function QuantBotBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string)
         </div>
 
         <div className="grid grid-cols-2 gap-px bg-border/20 sm:grid-cols-5">
-          <Stat label="Equity" value={money(data.totalValue)} />
-          <Stat label="P&L" value={`${data.totalPnL >= 0 ? '+' : ''}${money(data.totalPnL)}`} color={pnlColor(data.totalPnL)} />
-          <Stat label="Return" value={`${data.totalPnLPercent >= 0 ? '+' : ''}${data.totalPnLPercent.toFixed(2)}%`} color={pnlColor(data.totalPnLPercent)} />
-          <Stat label="Cash" value={money(data.cashBalance)} />
-          <Stat
-            label="Win rate"
-            value={data.winRate == null ? '—' : `${data.winRate.toFixed(0)}%`}
-            color={data.winRate == null ? undefined : data.winRate >= 50 ? TC.bull : TC.bear}
-          />
+          <Stat label="Equity" live={data.totalValue} format={money} />
+          <Stat label="P&L" live={data.totalPnL} format={(n) => `${n >= 0 ? '+' : ''}${money(n)}`} color={pnlColor(data.totalPnL)} />
+          <Stat label="Return" live={data.totalPnLPercent} format={(n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`} color={pnlColor(data.totalPnLPercent)} />
+          <Stat label="Cash" live={data.cashBalance} format={money} />
+          <Stat label="Closed exits" value={String(closedCount)} />
         </div>
 
         <div className="border-t border-border/30 px-4 py-2">
           <p className="text-meta leading-relaxed text-muted-foreground/70">
-            {decided === 0
-              ? `No trades have closed yet, so there is no win rate to report. The bot takes signals scoring ${data.config.minConviction}+ and holds up to ${data.config.maxOpen} at once, exiting on the signal's own stop or target.`
-              : `${data.winCount}W / ${data.lossCount}L across ${decided} closed trades. This is the engine's own record — every position came from a published signal and exited on its own stop or target.`}
+            {closedCount === 0
+              ? `No paper exits are written yet. This workspace records paper execution only; it does not assign signal grades.`
+              : `${closedCount} paper exits are written. Read P&L and exit reason on each row — this is an execution ledger, not a confidence score or platform win-rate claim.`}
           </p>
         </div>
+        <div className="grid border-t border-border/30 sm:grid-cols-4">
+          <BotRule label="Vehicle" value="Long calls / puts" detail="only a published contract" />
+          <BotRule label="Entry gate" value={`≥ ${data.config.minConviction} raw pts`} detail="triggered, not more than chased" />
+          <BotRule label="Risk" value={`${data.config.riskPerTradePct}% / trade`} detail="−50% premium stop" />
+          <BotRule label="Exit" value="+100% premium target" detail={`${data.config.maxOpen} max open positions`} />
+        </div>
+        <p className="border-t border-border/30 px-4 py-2 text-label leading-relaxed text-muted-foreground/60">
+          The bot paper-trades only option-backed Oracle signals with a non-delayed contract mark. It skips pending triggers, signals already more than {data.config.maxProgressPct}% to T1, ideas without a contract, and CBOE-delayed marks. Existing delayed paper positions stay visible for audit; it never substitutes shares as a proxy.
+        </p>
       </div>
 
       {/* what it's holding */}
@@ -241,11 +257,43 @@ function Row({ p, closed, onSelectSymbol }: { p: Position; closed?: boolean; onS
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
+/**
+ * A stat tile. Pass `live` (the raw number) and `format` for figures that move
+ * while you are watching — LiveValue tweens to the new value and flashes the
+ * direction it went, so a change registers without you having to diff it by eye.
+ * Pass plain `value` for anything that is a claim rather than a tick: a win rate
+ * tweening through intermediate percentages would be inventing readings the
+ * engine never produced. See viz/MOTION.md.
+ */
+function Stat({
+  label,
+  value,
+  live,
+  format,
+  color,
+}: {
+  label: string;
+  value?: string;
+  live?: number;
+  format?: (n: number) => string;
+  color?: string;
+}) {
   return (
     <div className="bg-card px-3 py-2">
       <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
-      <div className="mt-0.5 text-lead font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
+      <div className="mt-0.5 text-lead font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>
+        {live !== undefined ? <LiveValue value={live} format={format} /> : value}
+      </div>
+    </div>
+  );
+}
+
+function BotRule({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="border-b border-border/25 px-3 py-2.5 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">{label}</div>
+      <div className="mt-1 text-meta font-mono font-semibold text-foreground">{value}</div>
+      <div className="mt-0.5 text-label leading-snug text-muted-foreground/65">{detail}</div>
     </div>
   );
 }

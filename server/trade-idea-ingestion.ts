@@ -13,7 +13,12 @@
  * - Auto-Lotto Bot (options opportunities)
  */
 
-import { createAndSaveUniversalIdea, IdeaSignal, IdeaSource } from "./universal-idea-generator";
+import {
+  createAndSaveUniversalIdea,
+  IdeaSignal,
+  IdeaSource,
+  type UniversalIdeaInput,
+} from "./universal-idea-generator";
 import { getSymbolAdjustment } from "./loss-analyzer-service";
 import { logger } from "./logger";
 
@@ -61,89 +66,12 @@ export interface IngestionInput {
   strikePrice?: number;
   expiryDate?: string;
   sourceMetadata?: Record<string, any>;
-}
-
-// Options profit targets based on DTE (Days To Expiry)
-// Options are leveraged instruments - we need MEANINGFUL moves to profit
-const OPTIONS_MIN_TARGET_BY_DTE: Record<string, number> = {
-  '0dte': 50,      // Same-day expiry: need 50%+ target
-  '1dte': 50,      // 1-day expiry: need 50%+ target
-  'weekly': 35,    // 2-7 DTE: need 35%+ target
-  'biweekly': 30,  // 8-14 DTE: need 30%+ target
-  'monthly': 25,   // 15-30 DTE: need 25%+ target
-  'leaps': 20,     // 30+ DTE: need 20%+ target
-};
-
-/**
- * Calculate DTE category from expiry date
- */
-function getDTECategory(expiryDate?: string): string {
-  if (!expiryDate) return 'weekly'; // Default to weekly
-
-  const expiry = new Date(expiryDate);
-  const now = new Date();
-  const dte = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (dte <= 0) return '0dte';
-  if (dte === 1) return '1dte';
-  if (dte <= 7) return 'weekly';
-  if (dte <= 14) return 'biweekly';
-  if (dte <= 30) return 'monthly';
-  return 'leaps';
-}
-
-/**
- * Calculate profit target percentage from entry and target
- */
-function calculateProfitTarget(entry?: number, target?: number, direction?: string): number {
-  if (!entry || !target || entry === 0) return 0;
-
-  const isLong = !direction || direction === 'bullish';
-  if (isLong) {
-    return ((target - entry) / entry) * 100;
-  } else {
-    return ((entry - target) / entry) * 100;
-  }
-}
-
-/**
- * Validate options profit targets meet minimum thresholds
- * Returns adjusted target if too low, or null to reject
- */
-function validateOptionsTarget(
-  input: IngestionInput
-): { valid: boolean; adjustedTarget?: number; reason?: string; minRequired: number } {
-  const dteCategory = getDTECategory(input.expiryDate);
-  const minTarget = OPTIONS_MIN_TARGET_BY_DTE[dteCategory] || 30;
-
-  // Calculate current profit target
-  const entry = input.suggestedEntry || input.currentPrice;
-  const target = input.suggestedTarget || input.targetPrice;
-  const currentTarget = calculateProfitTarget(entry, target, input.direction);
-
-  if (currentTarget >= minTarget) {
-    return { valid: true, minRequired: minTarget };
-  }
-
-  // Target too low - calculate what target price would meet minimum
-  if (entry && entry > 0) {
-    const isLong = !input.direction || input.direction === 'bullish';
-    const multiplier = isLong ? (1 + minTarget / 100) : (1 - minTarget / 100);
-    const adjustedTarget = entry * multiplier;
-
-    return {
-      valid: false,
-      adjustedTarget,
-      reason: `Options target ${currentTarget.toFixed(1)}% below ${minTarget}% minimum for ${dteCategory.toUpperCase()}`,
-      minRequired: minTarget,
-    };
-  }
-
-  return {
-    valid: false,
-    reason: `Cannot validate options target - missing entry price`,
-    minRequired: minTarget,
-  };
+  /**
+   * Structured evidence for the detailed inspector. This is intentionally
+   * forwarded untouched to the universal generator; ingestion is the common
+   * path used by scanner-backed ideas.
+   */
+  convergenceAnalysis?: UniversalIdeaInput['convergenceAnalysis'];
 }
 
 export interface IngestionResult {
@@ -167,6 +95,92 @@ function isDuplicate(symbol: string, source: IdeaSource, assetType?: string): bo
 
   const elapsed = Date.now() - lastIngestion;
   return elapsed < INGESTION_COOLDOWN_MS;
+}
+
+/**
+ * The dedup gate, but asked of the DATABASE rather than of process memory.
+ *
+ * `recentIngestions` above is a Map. It dies with the process, so every restart
+ * hands the next scan a clean slate and the whole book is republished. Measured
+ * in the live table on 2026-08-27: AFRM held 8 open rows from source `quant`
+ * across a 15-hour window, AMZN 7, SNOW/SHOP/NET/DKS 6 each — 82 duplicate rows
+ * out of 122 open ideas. A 4-hour cooldown over 15 hours should permit about
+ * four; the extra ones are restarts.
+ *
+ * The in-memory map is kept as a fast path — it answers without a query when
+ * the process HAS seen the symbol. This only runs when the map says "no", which
+ * is exactly the case a restart fabricates.
+ *
+ * An OPEN idea on the same symbol and source is a duplicate regardless of age:
+ * republishing a name that is already live in the book is never useful, and the
+ * cooldown was only ever a proxy for "is this already on the board".
+ */
+async function isDuplicateInDb(symbol: string, source: IdeaSource): Promise<boolean> {
+  try {
+    const { db } = await import('./db');
+    const { sql } = await import('drizzle-orm');
+    const r: any = await db.execute(sql`
+      select 1 from trade_ideas
+      where upper(symbol) = ${symbol.toUpperCase()}
+        and source = ${source}
+        and (status = 'active' or outcome_status = 'open')
+      limit 1`);
+    return ((r.rows ?? r) as any[]).length > 0;
+  } catch {
+    // A failed lookup must not block publication — fall back to the map.
+    return false;
+  }
+}
+
+/**
+ * Is this symbol already held in the same DIRECTION, from ANY producer?
+ *
+ * isDuplicateInDb above keys on (symbol, source), which stops one scanner
+ * re-entering its own name but does nothing across producers. Measured on the
+ * live book 2026-08-27: AFRM held 11 open call rows, SNOW 8, AMZN 8, SHOP 8,
+ * PANW 7 — the bull-flag scanner, the quant generator and the mover discovery
+ * each entering the same setup independently and each seeing an empty result
+ * for its own source.
+ *
+ * That is not eleven ideas, it is one idea counted eleven times, and it
+ * corrupts everything downstream: position sizing, the win-rate denominator,
+ * and any per-symbol concentration limit.
+ *
+ * Direction is part of the key on purpose — a long and a short on the same
+ * symbol are genuinely different views (and may be a deliberate hedge), so
+ * those are still allowed through.
+ */
+async function isSymbolAlreadyHeld(
+  symbol: string,
+  direction: string | undefined,
+): Promise<{ held: boolean; existingSource?: string; n?: number }> {
+  try {
+    const { db } = await import('./db');
+    const { sql } = await import('drizzle-orm');
+
+    // Normalise the many spellings the producers use into long / short.
+    const d = String(direction ?? '').toLowerCase();
+    const side = /bear|short|put|down/.test(d) ? 'short' : 'long';
+
+    const r: any = await db.execute(sql`
+      select source, direction, count(*)::int as n
+      from trade_ideas
+      where upper(symbol) = ${symbol.toUpperCase()}
+        and (status = 'active' or outcome_status = 'open')
+      group by source, direction`);
+
+    const rows = (r.rows ?? r) as any[];
+    for (const row of rows) {
+      const rd = String(row.direction ?? '').toLowerCase();
+      const rside = /bear|short|put|down/.test(rd) ? 'short' : 'long';
+      if (rside === side) {
+        return { held: true, existingSource: String(row.source), n: Number(row.n) };
+      }
+    }
+    return { held: false };
+  } catch {
+    return { held: false };
+  }
 }
 
 /**
@@ -200,12 +214,70 @@ function markIngested(symbol: string, source: IdeaSource, assetType?: string): v
 export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionResult> {
   const symbol = input.symbol.toUpperCase();
   const source = input.source;
+
+  // Broad-universe reads are useful coverage, but they are not trade plans.
+  // A liquid, well-known ticker plus a moving quote is one observation, not a
+  // triggered setup with an invalidation and a structural destination. Keep
+  // this hard gate here as a backstop even if a caller bypasses the scanner.
+  const scannerType = String(input.sourceMetadata?.scannerType || '');
+  if (scannerType === 'popular_tickers' || scannerType === 'popular_tickers_options') {
+    return {
+      success: false,
+      reason: 'Coverage-only read — needs an independent trigger, invalidation, and structural target before publication',
+      symbol,
+      source,
+    };
+  }
+
+  // The broad market scanner is a discovery source. Its quote/volume movers
+  // used to fall through to the universal generator, which silently invented
+  // percentage-based entries, stops, and targets. Require the scanner that is
+  // publishing an Oracle plan to state the structure it is trading instead.
+  if (
+    (source === 'market_scanner' || source === 'bullish_trend') &&
+    (typeof input.targetPrice !== 'number' || typeof input.stopLoss !== 'number')
+  ) {
+    return {
+      success: false,
+      reason: 'Discovery-only read — a published signal needs a measured target and invalidation, not generator defaults',
+      symbol,
+      source,
+    };
+  }
   
   // Gate 1: Deduplication (includes asset type to allow both stock AND option for same symbol)
   if (isDuplicate(symbol, source, input.assetType)) {
     return {
       success: false,
       reason: `Duplicate - ${symbol} ${input.assetType || 'stock'} from ${source} already ingested recently`,
+      symbol,
+      source
+    };
+  }
+
+  // Survives restarts, which the in-memory map above does not.
+  if (await isDuplicateInDb(symbol, source)) {
+    markIngested(symbol, source, input.assetType);
+    return {
+      success: false,
+      reason: `Duplicate - ${symbol} from ${source} is already OPEN in the book`,
+      symbol,
+      source
+    };
+  }
+
+  // Cross-producer: already held on this side by ANY source. See
+  // isSymbolAlreadyHeld — the per-source check above cannot see other scanners.
+  const held = await isSymbolAlreadyHeld(symbol, input.direction);
+  if (held.held) {
+    markIngested(symbol, source, input.assetType);
+    logger.info(
+      `[INGESTION] ⛔ Blocked ${symbol} from ${source}: already held ` +
+      `(${held.n} open row${held.n === 1 ? '' : 's'} from ${held.existingSource})`,
+    );
+    return {
+      success: false,
+      reason: `Already held - ${symbol} has ${held.n} open row(s) from ${held.existingSource}`,
       symbol,
       source
     };
@@ -266,39 +338,10 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
     };
   }
 
-  // Gate 5: Options profit target validation
-  // Options MUST have meaningful profit targets based on DTE
-  if (input.assetType === 'option' || input.optionType) {
-    const targetValidation = validateOptionsTarget(input);
-
-    if (!targetValidation.valid) {
-      // If target is too low, we can either:
-      // 1. Reject the idea entirely
-      // 2. Adjust the target to meet minimum (we'll do this)
-
-      if (targetValidation.adjustedTarget) {
-        logger.info(`[INGESTION] 📈 Adjusting ${symbol} option target to meet ${targetValidation.minRequired}% minimum`);
-        // Upgrade the target to meet minimum requirements
-        if (input.direction === 'bullish') {
-          input.suggestedTarget = targetValidation.adjustedTarget;
-          input.targetPrice = targetValidation.adjustedTarget;
-        } else {
-          input.suggestedTarget = targetValidation.adjustedTarget;
-          input.targetPrice = targetValidation.adjustedTarget;
-        }
-      } else {
-        // Can't adjust - reject the idea
-        logger.warn(`[INGESTION] ⚠️ Rejecting ${symbol} option: ${targetValidation.reason}`);
-        return {
-          success: false,
-          reason: targetValidation.reason || 'Options target below minimum',
-          symbol,
-          source,
-          confidence: estimatedConfidence
-        };
-      }
-    }
-  }
+  // Price targets describe the underlying's structural destination. They must
+  // never be stretched to force a desired option-premium return: delta, IV and
+  // time decide premium ROI, and the Contract Engine calculates that separately.
+  // A small but real support/resistance level is valid; a 25% invented T1 is not.
 
   // All gates passed - create the idea
   try {
@@ -310,14 +353,19 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
       signals: input.signals,
       holdingPeriod: input.holdingPeriod,
       currentPrice: input.currentPrice,
-      targetPrice: input.targetPrice,
-      stopLoss: input.stopLoss,
+      // Some scanners use suggested* to distinguish a chart-level proposal
+      // from a confirmed trade. Once a source has cleared publication gates,
+      // preserve those measured levels instead of replacing them with the
+      // generator's percentage fallback.
+      targetPrice: input.targetPrice ?? input.suggestedTarget,
+      stopLoss: input.stopLoss ?? input.suggestedStop,
       catalyst: input.catalyst,
       analysis: input.analysis,
       technicalSignals: input.technicalSignals,
       optionType: input.optionType,
       strikePrice: input.strikePrice,
       expiryDate: input.expiryDate,
+      convergenceAnalysis: input.convergenceAnalysis,
     });
     
     if (success) {

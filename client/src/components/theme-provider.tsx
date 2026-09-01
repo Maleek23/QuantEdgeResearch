@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "dark" | "light" | "system";
+export type Theme = "dark" | "night" | "nexus" | "nexus-light" | "light" | "system";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -33,7 +33,7 @@ export function ThemeProvider({
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove("light", "dark");
+    root.classList.remove("light", "dark", "terminal-night", "terminal-nexus", "terminal-nexus-light");
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
@@ -42,6 +42,28 @@ export function ThemeProvider({
         : "light";
 
       root.classList.add(systemTheme);
+      return;
+    }
+
+    // Night is not a second fake dark theme: it inherits the semantic dark
+    // palette, then narrows the surfaces for a lower-luminance desk setting.
+    if (theme === "night") {
+      root.classList.add("dark", "terminal-night");
+      return;
+    }
+
+    // Nexus is the operator's reference-terminal palette, verbatim — teal-cyan
+    // accents, saturated bull/bear, cyan-tinted borders. Same mechanism as
+    // night: inherit dark's semantics, override the tokens.
+    if (theme === "nexus") {
+      root.classList.add("dark", "terminal-nexus");
+      return;
+    }
+
+    // The day-shift half of the reference palette: light ground, same accent
+    // hues at contrast-correct luminance.
+    if (theme === "nexus-light") {
+      root.classList.add("light", "terminal-nexus-light");
       return;
     }
 

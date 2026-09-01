@@ -18,7 +18,39 @@ const TONE: Record<NonNullable<Kpi['tone']>, string> = {
   muted: 'var(--muted-foreground)',
 };
 
-export function KpiStrip({ items, live = true, className }: { items: Kpi[]; live?: boolean; className?: string }) {
+export function KpiStrip({
+  items,
+  live = true,
+  boxed,
+  className,
+}: {
+  items: Kpi[];
+  live?: boolean;
+  /** Reference-terminal treatment: each KPI as a bordered tile with a cyan
+   *  hairline, instead of the flat one-liner. Same data either way. */
+  boxed?: boolean;
+  className?: string;
+}) {
+  if (boxed) {
+    return (
+      <div className={cn('qe-kpi-tiles', className)}>
+        {items.map((k, i) => (
+          <div key={`${k.label}-${i}`} className="qe-kpi-tile">
+            <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              {k.label}
+            </div>
+            <div
+              className="font-mono text-[15px] font-bold tabular-nums leading-none"
+              style={{ color: k.tone ? TONE[k.tone] : 'var(--foreground)' }}
+            >
+              {k.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

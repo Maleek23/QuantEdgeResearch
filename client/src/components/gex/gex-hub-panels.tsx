@@ -17,6 +17,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { formatGEX } from '../../../../shared/gex-types';
 import { componentStyles } from '@/lib/design-tokens';
 import type { GEXHubData, TopPlay } from '../../../../shared/gex-types';
+import { CanonFreshness } from '@/components/canon';
 
 function formatVEX(v: number): string {
   const sign = v >= 0 ? '+' : '−';
@@ -40,12 +41,15 @@ function formatDealerFlow(usd: number | undefined | null): string {
 
 interface GEXHubPanelsProps {
   hub: GEXHubData;
+  /** Server's own generatedAt. Threaded from the route rather than derived from
+      the fetch, so the age shown is the data's, not the request's. */
+  generatedAt?: string | null;
 }
 
-export function GEXHubPanels({ hub }: GEXHubPanelsProps) {
+export function GEXHubPanels({ hub, generatedAt }: GEXHubPanelsProps) {
   return (
     <div className="space-y-3 mb-3">
-      <MarketTape hub={hub} />
+      <MarketTape hub={hub} generatedAt={generatedAt} />
       {hub.topPlays && hub.topPlays.length > 0 && <TopPlaysPanel plays={hub.topPlays} />}
     </div>
   );
@@ -62,7 +66,7 @@ const SESSION_LABEL: Record<string, { text: string; tone: string }> = {
   overnight:   { text: 'OVERNIGHT',   tone: 'text-muted-foreground' },
 };
 
-function MarketTape({ hub }: { hub: GEXHubData }) {
+function MarketTape({ hub, generatedAt }: { hub: GEXHubData; generatedAt?: string | null }) {
   const sess = SESSION_LABEL[hub.session || 'open'] ?? SESSION_LABEL.open;
   const isOff = hub.session && hub.session !== 'open';
   const gexTone = hub.marketNetGEX >= 0 ? 'text-[var(--gex-positive)]' : 'text-[var(--gex-negative)]';
@@ -74,19 +78,19 @@ function MarketTape({ hub }: { hub: GEXHubData }) {
     <div className={cn(componentStyles.card.default, 'px-3 py-2')}>
       <div className="flex items-center gap-3 flex-wrap text-[10px] font-mono">
         <span className={cn('font-bold uppercase tracking-widest', sess.tone)}>{sess.text}</span>
-        <span className="text-muted-foreground/40">·</span>
+        <span className="text-muted-foreground/60">·</span>
         <span className="text-muted-foreground uppercase tracking-widest text-[9px]">NET GEX</span>
         <span className={cn('font-bold tabular-nums', gexTone)}>{formatGEX(hub.marketNetGEX)}</span>
-        <span className="text-muted-foreground/40">·</span>
+        <span className="text-muted-foreground/60">·</span>
         <span className="text-muted-foreground uppercase tracking-widest text-[9px]">NET VEX</span>
         <span className={cn('font-bold tabular-nums', vexTone)}>{formatVEX(hub.marketNetVEX)}</span>
-        <span className="text-muted-foreground/40">·</span>
+        <span className="text-muted-foreground/60">·</span>
         <span className="text-muted-foreground uppercase tracking-widest text-[9px]">REGIME</span>
         <span className="flex items-center gap-1 tabular-nums">
           <span className="text-[var(--gex-positive)]">{rd.positive_gamma}+</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span className="text-[var(--gex-negative)]">{rd.negative_gamma}−</span>
-          <span className="text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/60">/</span>
           <span className="text-muted-foreground">{rd.neutral}n</span>
         </span>
         {/* Slim regime bar */}
@@ -95,8 +99,24 @@ function MarketTape({ hub }: { hub: GEXHubData }) {
           <span style={{ width: `${(rd.negative_gamma / total) * 100}%`, backgroundColor: 'var(--gex-negative)', opacity: 0.7 }} />
           <span style={{ width: `${(rd.transitioning / total) * 100}%`, backgroundColor: 'var(--gex-flip)', opacity: 0.7 }} />
         </span>
-        <span className="text-muted-foreground/60 text-[9px] ml-auto">
+        <span className="ml-auto flex items-center gap-2 text-[9px] text-muted-foreground/60">
           {hub.totalTickers} tickers
+          {/* The hub polls but never said how old it was. Age comes from the
+              server's generatedAt, never the fetch — see viz/MOTION.md. */}
+          <CanonFreshness since={generatedAt ?? null} staleAfterSec={300} />
+        </span>
+      </div>
+      {/* Every gamma-exposure number on this surface rests on one unverifiable
+          assumption: that dealers are short the puts and long the calls retail
+          holds. We never observe dealer inventory. The magnitude of exposure at
+          a strike is measured from open interest and is solid; the SIGN of the
+          dealer's position is inferred. Say so once, prominently, rather than
+          letting a directional read look like an observation. */}
+      <div className="mt-1.5 flex items-start gap-1.5 border-t border-border/30 pt-1.5 text-[9px] font-mono leading-relaxed text-muted-foreground/55">
+        <span className="text-[var(--gex-flip)]">MODEL</span>
+        <span>
+          Dealer sign is an assumption, not an observation — inventory is never
+          reported. Magnitude at each strike is the reliable read.
         </span>
       </div>
       {isOff && hub.futures && hub.futures.length > 0 && (

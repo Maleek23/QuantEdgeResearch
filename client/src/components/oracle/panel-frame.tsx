@@ -12,9 +12,13 @@
  * clip fades out, so it reads as "continues below", and the control lives in the
  * header where the panel's identity already is — labelled with what's hidden,
  * because "Expand" is not information and "+4 sectors" is.
+ *
+ * A tape is different: it needs a stable viewport people can actively scan. Those
+ * panels opt into a native inner scroll and keep full-screen focus as their one
+ * expansion path — no second "more groups" interaction competing with it.
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /** Shared so the row stays flush; change here and all three move together. */
@@ -27,6 +31,14 @@ export function PanelFrame({
   collapsedHeight = PANEL_COLLAPSED_H,
   /** What expanding reveals, e.g. "4 more sectors". Falls back to "more". */
   moreLabel,
+  /** Full focus mode is controlled by the parent workbench, not an ever-taller grid row. */
+  forceExpanded = false,
+  onFocus,
+  focusLabel,
+  /** A tape keeps its compact viewport and scrolls inside it instead of fading rows away. */
+  scrollable = false,
+  /** Some panels use focus mode as their only expansion path. */
+  inlineToggle = true,
   className,
   bodyClassName,
 }: {
@@ -35,6 +47,11 @@ export function PanelFrame({
   children: ReactNode;
   collapsedHeight?: number;
   moreLabel?: string;
+  forceExpanded?: boolean;
+  onFocus?: () => void;
+  focusLabel?: string;
+  scrollable?: boolean;
+  inlineToggle?: boolean;
   className?: string;
   bodyClassName?: string;
 }) {
@@ -55,23 +72,36 @@ export function PanelFrame({
     return () => ro.disconnect();
   }, [collapsedHeight, children]);
 
-  const canToggle = overflows || expanded;
+  const isExpanded = forceExpanded || expanded;
+  const canToggle = inlineToggle && !forceExpanded && (overflows || expanded);
 
   return (
-    <div className={cn('flex flex-col rounded-xl border border-card-border bg-card overflow-hidden', className)}>
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-4 py-2.5">
-        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
+    <div className={cn('qe-panel-frame flex flex-col overflow-hidden rounded-xl border border-card-border bg-card', className)}>
+      <div className="qe-panel-head flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-4 py-3">
+        <span className="qe-panel-title font-sans text-[12px] font-semibold tracking-[0.015em] text-foreground/90">{title}</span>
         <div className="flex items-center gap-2.5 min-w-0">
           {right}
+          {onFocus && (
+            <button
+              type="button"
+              onPointerDown={onFocus}
+              onClick={onFocus}
+              title={focusLabel ? `Expand ${focusLabel}` : `Expand ${title}`}
+              aria-label={focusLabel ? `Expand ${focusLabel}` : `Expand ${title}`}
+              className="qe-panel-action inline-flex shrink-0 cursor-pointer items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--brand-cyan)]/85 transition-colors hover:text-foreground"
+            >
+              <span className="hidden sm:inline">Expand</span><Maximize2 className="h-3 w-3" />
+            </button>
+          )}
           {canToggle && (
             <button
               onClick={() => setExpanded((v) => !v)}
-              aria-expanded={expanded}
+              aria-expanded={isExpanded}
               className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-label font-mono uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
             >
-              {expanded ? 'Less' : moreLabel ?? 'More'}
+              {isExpanded ? 'Less' : moreLabel ?? 'More'}
               <ChevronDown
-                className={cn('h-3 w-3 transition-transform duration-200', expanded && 'rotate-180')}
+                className={cn('h-3 w-3 transition-transform duration-200', isExpanded && 'rotate-180')}
               />
             </button>
           )}
@@ -81,8 +111,11 @@ export function PanelFrame({
       <div className="relative min-h-0 flex-1">
         <div
           ref={bodyRef}
-          className={cn(expanded ? 'overflow-visible' : 'overflow-hidden', bodyClassName)}
-          style={expanded ? undefined : { maxHeight: collapsedHeight }}
+          className={cn(
+            isExpanded ? 'overflow-visible' : scrollable ? 'overflow-y-auto overscroll-contain' : 'overflow-hidden',
+            bodyClassName,
+          )}
+          style={isExpanded ? undefined : { maxHeight: collapsedHeight }}
         >
           {children}
         </div>
@@ -90,7 +123,7 @@ export function PanelFrame({
         {/* Fade the cut instead of slicing a row in half. The mask sits over the
             bottom of the clipped area, so content dissolves into the card colour
             and the truncation reads as intentional. */}
-        {!expanded && overflows && (
+        {!isExpanded && overflows && !scrollable && (
           <div
             className="pointer-events-none absolute inset-x-0 bottom-0 h-10"
             style={{ background: 'linear-gradient(to bottom, transparent, var(--card))' }}

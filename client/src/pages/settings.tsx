@@ -145,6 +145,27 @@ export default function SettingsPage() {
     },
   });
 
+  const profileSaveMutation = useMutation({
+    mutationFn: async () => {
+      const [profile] = await Promise.all([
+        apiRequest('PATCH', '/api/auth/me', {
+          firstName: profileData.firstName,
+          lastName: profileData.lastName,
+        }),
+        apiRequest('PATCH', '/api/preferences', { timezone: profileData.timezone }),
+      ]);
+      return profile.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/preferences'] });
+      toast({ title: 'Profile saved', description: 'Your terminal identity and timezone are updated.' });
+    },
+    onError: (error: Error) => {
+      toast({ variant: 'destructive', title: 'Profile save failed', description: error.message });
+    },
+  });
+
   const updateField = <K extends keyof UserPreferences>(field: K, value: UserPreferences[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setHasChanges(true);
@@ -325,6 +346,11 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <Button size="sm" onClick={() => profileSaveMutation.mutate()} disabled={profileSaveMutation.isPending}
+                className="bg-cyan-500 text-foreground hover:bg-cyan-400" data-testid="button-save-profile">
+                <Save className="mr-1 h-4 w-4" />
+                {profileSaveMutation.isPending ? 'Saving...' : 'Save profile'}
+              </Button>
             </CardContent>
           </Card>
           
@@ -785,14 +811,9 @@ export default function SettingsPage() {
                     <Bot className="h-3.5 w-3.5" /> Automations
                   </Button>
                 </Link>
-                <Link href="/history">
+                <Link href="/j?tab=log">
                   <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
                     <Clock className="h-3.5 w-3.5" /> History
-                  </Button>
-                </Link>
-                <Link href="/strategy-playbooks">
-                  <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
-                    <FileText className="h-3.5 w-3.5" /> Strategy Playbooks
                   </Button>
                 </Link>
                 <Link href="/options-analyzer">

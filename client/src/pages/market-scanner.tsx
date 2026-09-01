@@ -1114,7 +1114,7 @@ export default function MarketScanner() {
                 type="button"
                 onClick={() => surgeQuery.refetch()}
                 disabled={surgeQuery.isFetching}
-                className="p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                className="p-1 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                 data-testid="refresh-surges-button"
               >
                 {surgeQuery.isFetching ? (

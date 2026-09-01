@@ -356,7 +356,7 @@ function SessionAction() {
           <span className={cn("text-[10px] font-mono font-bold uppercase tracking-wider", config.color)}>
             {config.label}
           </span>
-          <span className="text-[10px] text-muted-foreground/50">{config.hint}</span>
+          <span className="text-[10px] text-muted-foreground/60">{config.hint}</span>
         </div>
         {bias && (
           <span className={cn(
@@ -489,7 +489,7 @@ function MarketIntelligence() {
             {briefingError ? (
               <CardError message="Briefing unavailable" onRetry={() => refetchBriefing()} />
             ) : briefingLoading ? (
-              <p className="text-[10px] text-muted-foreground/40">Loading briefing...</p>
+              <p className="text-[10px] text-muted-foreground/60">Loading briefing...</p>
             ) : (
               <>
                 {/* Trading plan */}
@@ -581,7 +581,7 @@ function MarketIntelligence() {
                     {regimeLabel ? (
                       <span className={cn("text-lg font-bold", regimeColor)}>{regimeLabel}</span>
                     ) : (
-                      <span className="text-sm text-muted-foreground/40 font-mono">—</span>
+                      <span className="text-sm text-muted-foreground/60 font-mono">—</span>
                     )}
                     {regime?.confidence && (
                       <span className={cn(componentStyles.text.dataValue, "text-xs text-muted-foreground")}>{regime.confidence}%</span>
@@ -662,7 +662,7 @@ function TopSignals() {
       {convError ? (
         <CardError message="Convictions unavailable" onRetry={() => refetchConv()} />
       ) : convLoading ? (
-        <p className="text-[10px] text-muted-foreground/40 text-center py-4">Loading convictions...</p>
+        <p className="text-[10px] text-muted-foreground/60 text-center py-4">Loading convictions...</p>
       ) : picks.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {picks.map((p) => (
@@ -746,7 +746,7 @@ function TopSignals() {
                                 {idea.timestamp && <span className="text-[10px] text-muted-foreground/60">{getRelativeTime(idea.timestamp)}</span>}
                                 {/* Show entry/target when available */}
                                 {idea.entryPrice && idea.targetPrice && (
-                                  <span className="text-[10px] font-mono text-muted-foreground/50">
+                                  <span className="text-[10px] font-mono text-muted-foreground/60">
                                     ${safeToFixed(idea.entryPrice, 2)} → ${safeToFixed(idea.targetPrice, 2)}
                                   </span>
                                 )}
@@ -765,7 +765,7 @@ function TopSignals() {
                   })}
                 </div>
               ) : (
-                <p className="text-[10px] text-muted-foreground/40 text-center py-4">No scored setups right now.</p>
+                <p className="text-[10px] text-muted-foreground/60 text-center py-4">No scored setups right now.</p>
               )}
             </CardContent>
           </Card>
@@ -812,7 +812,7 @@ function TopSignals() {
                   })}
                 </div>
               ) : (
-                <p className="text-[10px] text-muted-foreground/40 text-center py-4">No convergence signals</p>
+                <p className="text-[10px] text-muted-foreground/60 text-center py-4">No convergence signals</p>
               )}
             </CardContent>
           </Card>
@@ -869,7 +869,7 @@ function NewsFeed() {
         {isError ? (
           <CardError message="News feed unavailable" onRetry={() => refetch()} />
         ) : isLoading ? (
-          <p className="text-[10px] text-muted-foreground/40 text-center py-3">Loading news...</p>
+          <p className="text-[10px] text-muted-foreground/60 text-center py-3">Loading news...</p>
         ) : news.length > 0 ? (
           <div className="space-y-1.5">
             {news.map((article, i) => {
@@ -891,14 +891,14 @@ function NewsFeed() {
                   </div>
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className="text-[10px] text-muted-foreground">{article.source}</span>
-                    <span className="text-muted-foreground/40">·</span>
+                    <span className="text-muted-foreground/60">·</span>
                     <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                       <Clock className="w-2.5 h-2.5" />
                       {getRelativeTime(article.publishedAt)}
                     </span>
                     {article.tickers && article.tickers.length > 0 && (
                       <>
-                        <span className="text-muted-foreground/40">·</span>
+                        <span className="text-muted-foreground/60">·</span>
                         <div className="flex gap-1">
                           {article.tickers.slice(0, 3).map((ticker) => (
                             <span key={ticker} className={componentStyles.badge.cyan}>${ticker}</span>
@@ -912,7 +912,7 @@ function NewsFeed() {
             })}
           </div>
         ) : (
-          <p className="text-[10px] text-muted-foreground/40 text-center py-4">No breaking news right now</p>
+          <p className="text-[10px] text-muted-foreground/60 text-center py-4">No breaking news right now</p>
         )}
       </CardContent>
     </Card>
@@ -958,7 +958,7 @@ function EarningsCalendar() {
         {isError ? (
           <CardError message="Earnings unavailable" onRetry={() => refetch()} />
         ) : isLoading ? (
-          <p className="text-[10px] text-muted-foreground/40 text-center py-3">Loading earnings...</p>
+          <p className="text-[10px] text-muted-foreground/60 text-center py-3">Loading earnings...</p>
         ) : earnings.length > 0 ? (
           <div className="space-y-1.5">
             {earnings.map((earning, i) => {
@@ -971,7 +971,7 @@ function EarningsCalendar() {
                       <span className={timeInfo.cls}>{timeInfo.label}</span>
                       {/* Company name — previously unused */}
                       {earning.company && (
-                        <span className="text-[10px] text-muted-foreground/50 truncate max-w-[100px]">{earning.company}</span>
+                        <span className="text-[10px] text-muted-foreground/60 truncate max-w-[100px]">{earning.company}</span>
                       )}
                     </div>
                     <div className="text-right">
@@ -988,7 +988,7 @@ function EarningsCalendar() {
             })}
           </div>
         ) : (
-          <p className="text-[10px] text-muted-foreground/40 text-center py-4">No notable earnings this week</p>
+          <p className="text-[10px] text-muted-foreground/60 text-center py-4">No notable earnings this week</p>
         )}
       </CardContent>
     </Card>
@@ -1018,7 +1018,7 @@ function TopMovers() {
         {isError ? (
           <CardError message="Movers unavailable" onRetry={() => refetch()} />
         ) : isEmpty ? (
-          <p className="text-[10px] text-muted-foreground/40 text-center py-3">Market closed — movers update at open</p>
+          <p className="text-[10px] text-muted-foreground/60 text-center py-3">Market closed — movers update at open</p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -1101,7 +1101,7 @@ function EngineHealthBar() {
   if (stats.every(s => s.value === "—")) {
     return (
       <div className={cn(componentStyles.card.inset, "p-2 text-center")}>
-        <p className="text-[10px] text-muted-foreground/40">Performance stats available during market hours</p>
+        <p className="text-[10px] text-muted-foreground/60">Performance stats available during market hours</p>
       </div>
     );
   }

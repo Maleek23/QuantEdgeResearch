@@ -20,7 +20,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Maximize2, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { createChart, CandlestickSeries, type IChartApi, type ISeriesApi, type UTCTimestamp } from 'lightweight-charts';
+import { createChart, CandlestickSeries, LineSeries, type IChartApi, type ISeriesApi, type UTCTimestamp } from 'lightweight-charts';
 import { cn } from '@/lib/utils';
 
 export interface Candle { time: number; open: number; high: number; low: number; close: number }
@@ -104,6 +104,7 @@ export function EpochChart({
   zones = [],
   height = 420,
   initialTf = '1h',
+  initialMode = 'candles',
   expandable = true,
   className,
 }: {
@@ -118,6 +119,8 @@ export function EpochChart({
   zones?: PriceZone[];
   height?: number;
   initialTf?: TFId;
+  /** Candles are for execution; line is the same close data for longer structure. */
+  initialMode?: 'candles' | 'line';
   /** Show the expand control. False for the instance already inside the modal. */
   expandable?: boolean;
   className?: string;
@@ -125,9 +128,10 @@ export function EpochChart({
   const wrapRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>(null);
   const dataRef = useRef<Candle[]>([]);
   const [tf, setTf] = useState<TFId>(initialTf);
+  const [chartMode, setChartMode] = useState<'candles' | 'line'>(initialMode);
   const [hover, setHover] = useState<Candle | null>(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -309,16 +313,14 @@ export function EpochChart({
       crosshair: { mode: 0 },
       autoSize: false,
     });
-    const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#22c55e', downColor: '#ef4444', borderVisible: false,
-      wickUpColor: '#22c55e', wickDownColor: '#ef4444',
-    });
-    chartRef.current = chart; seriesRef.current = series;
+    chartRef.current = chart;
 
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.seriesData.size) { setHover(null); return; }
-      const d = param.seriesData.get(series) as any;
-      if (d) setHover({ time: Number(param.time), open: d.open, high: d.high, low: d.low, close: d.close });
+      // A line series has only a close value. The OHLC readout still comes from
+      // the same real candle at this epoch, so mode changes the grammar—not data.
+      const candle = dataRef.current.find((bar) => bar.time === Number(param.time));
+      setHover(candle ?? null);
     });
 
     // keep overlay in sync every frame
@@ -332,14 +334,38 @@ export function EpochChart({
     return () => { cancelAnimationFrame(raf); ro.disconnect(); chart.remove(); chartRef.current = null; seriesRef.current = null; };
   }, [height]);
 
+  // One chart, two honest readings of the same candle data. Replacing only the
+  // data series keeps epoch-anchored levels/zones intact across the mode switch.
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    if (seriesRef.current) chart.removeSeries(seriesRef.current);
+    seriesRef.current = chartMode === 'candles'
+      ? chart.addSeries(CandlestickSeries, {
+          upColor: '#22c55e', downColor: '#ef4444', borderVisible: false,
+          wickUpColor: '#22c55e', wickDownColor: '#ef4444',
+        })
+      : chart.addSeries(LineSeries, {
+          color: '#78c6e8', lineWidth: 2, crosshairMarkerVisible: true,
+          crosshairMarkerRadius: 3, lastValueVisible: true,
+        });
+    return () => {
+      if (seriesRef.current) { chart.removeSeries(seriesRef.current); seriesRef.current = null; }
+    };
+  }, [chartMode]);
+
   // ── push data on TF / data change; keep the visible range feel ──
   useEffect(() => {
     const series = seriesRef.current, chart = chartRef.current;
     if (!series || !chart) return;
     dataRef.current = data;
-    series.setData(data.map((c) => ({ time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
+    if (chartMode === 'candles') {
+      (series as ISeriesApi<'Candlestick'>).setData(data.map((c) => ({ time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
+    } else {
+      (series as ISeriesApi<'Line'>).setData(data.map((c) => ({ time: c.time as UTCTimestamp, value: c.close })));
+    }
     chart.timeScale().fitContent();
-  }, [data]);
+  }, [data, chartMode]);
 
   // keyboard TF switch (flash UI)
   useEffect(() => {
@@ -386,6 +412,21 @@ export function EpochChart({
               <Maximize2 className="h-3.5 w-3.5" />
             </button>
           )}
+          <div className="mr-1 flex overflow-hidden rounded border border-border/45">
+            {(['candles', 'line'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setChartMode(mode)}
+                title={mode === 'candles' ? 'Execution view · OHLC candles' : 'Structure view · closing-price line'}
+                className={cn(
+                  'px-1.5 py-1 font-mono text-[8px] font-bold uppercase tracking-[0.1em] transition-colors',
+                  chartMode === mode ? 'bg-[var(--brand-cyan)]/15 text-[var(--brand-cyan)]' : 'text-muted-foreground/65 hover:text-foreground',
+                )}
+              >
+                {mode === 'candles' ? 'C' : 'L'}
+              </button>
+            ))}
+          </div>
           {TFS.map((t, i) => (
             <button
               key={t.id}
@@ -441,6 +482,7 @@ export function EpochChart({
                     levels={levels}
                     zones={zones}
                     initialTf={tf}
+                    initialMode={chartMode}
                     height={Math.max(420, Math.round(window.innerHeight * 0.68))}
                     expandable={false}
                     className="border-0"

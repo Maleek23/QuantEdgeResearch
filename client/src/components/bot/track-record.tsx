@@ -1,55 +1,56 @@
-/**
- * TRACK RECORD — what the board's published signals have actually done.
- *
- * This exists because the number is easy to flatter and the flattering version is
- * worthless. Counting only trades that tagged a target or a stop gives ~76%; the
- * canonical accounting, which applies P&L thresholds and buckets everything that
- * resolved neither way as NEUTRAL, gives 38.5%. The second number is the real one,
- * so the neutral bucket is displayed rather than quietly dropped — a win rate
- * computed on a filtered subset is a claim about the filter, not the strategy.
- *
- * Expectancy leads, because win rate alone decides nothing: a 38% hit rate with a
- * 1.55:1 payoff is a different business from a 38% hit rate at 1:1, and only
- * expectancy tells them apart.
- */
+/** Oracle signal-validation ledger. It is deliberately distinct from bot executions. */
 import { useQuery } from '@tanstack/react-query';
 import { TC } from '@/lib/oracle/trading-colors';
 import { StackedBar } from '@/components/viz';
 
-interface HorizonRow {
-  horizon: string; total: number; hitTarget: number; hitStop: number;
-  expired: number; expiredPct: number; decided: number;
-  winRateDecided: number | null; avgTargetPct: number | null;
-}
-
-interface Overall {
-  wins: number; losses: number; neutral: number;
-  total: number; decided: number;
-  winRate: number; avgWinPct: number; avgLossPct: number; expectancy: number;
+interface OutcomeModel {
+  model: string;
+  totalPublished: number;
+  outcomes: { win: number; loss: number; unresolved: number; decided: number; winRate: number | null };
+  coverage: { measured: number; unresolved: number; pctMeasured: number };
+  expectancy: { averageR: number | null; sampleSize: number; definition: string };
+  bySource: Array<{
+    source: string; total: number; win: number; loss: number; unresolved: number;
+    decided: number; winRate: number | null; averageR: number | null; rSampleSize: number;
+  }>;
+  dataQuality: { excludedFromTraining: number; measuredTimeouts: number; unmeasuredTimeouts: number };
 }
 
 export function TrackRecord({ className }: { className?: string }) {
-  const { data, isLoading, isError } = useQuery<{ overall: Overall; methodology?: any }>({
-    queryKey: ['/api/performance/stats'],
+  const { data, isLoading, isError } = useQuery<OutcomeModel>({
+    queryKey: ['/api/performance/outcome-model'],
     queryFn: async () => {
-      const r = await fetch('/api/performance/stats', { credentials: 'include' });
-      if (!r.ok) throw new Error('performance failed');
-      return r.json();
-    },
-    staleTime: 600_000, retry: 1,
-  });
+      const r = await fetch('/api/performance/outcome-model', { credentials: 'include' });
+      // The shared preview's SPA fallback returns index.html with HTTP 200 before
+      // its Express process has reloaded. Check the media type so that does not
+      // masquerade as a successful performance response.
+      if (r.ok && r.headers.get('content-type')?.includes('application/json')) return r.json();
 
-  const o = data?.overall;
-
-  // The headline number averages two very different populations together. Day
-  // signals resolve; swing signals mostly expire. Splitting them is the difference
-  // between "the edge is negative" and "the swing window is too short".
-  const { data: byHorizon } = useQuery<{ horizons: HorizonRow[] }>({
-    queryKey: ['/api/performance/by-horizon'],
-    queryFn: async () => {
-      const r = await fetch('/api/performance/by-horizon', { credentials: 'include' });
-      if (!r.ok) throw new Error('horizon breakdown failed');
-      return r.json();
+      // The terminal hot-reloads in this session while Express belongs to the
+      // shared preview process. Keep the new ledger inspectable against the
+      // existing V2 endpoint until that process receives the new route.
+      const legacy = await fetch('/api/performance/win-rate-compare', { credentials: 'include' });
+      if (!legacy.ok) throw new Error('performance failed');
+      const previous = await legacy.json();
+      return {
+        model: 'Outcome model v2',
+        totalPublished: previous.totalIdeas,
+        outcomes: {
+          win: previous.v2.win,
+          loss: previous.v2.loss,
+          unresolved: previous.v2.unresolved,
+          decided: previous.v2.decided,
+          winRate: previous.v2.winRate,
+        },
+        coverage: previous.coverage,
+        expectancy: {
+          averageR: previous.expectancyR,
+          sampleSize: previous.rSampleSize,
+          definition: 'Realised P&L divided by the 50% premium-risk convention.',
+        },
+        bySource: [],
+        dataQuality: { excludedFromTraining: 0, measuredTimeouts: 0, unmeasuredTimeouts: 0 },
+      } satisfies OutcomeModel;
     },
     staleTime: 600_000, retry: 1,
   });
@@ -61,7 +62,7 @@ export function TrackRecord({ className }: { className?: string }) {
       </div>
     );
   }
-  if (isError || !o || !o.total) {
+  if (isError || !data || !data.totalPublished) {
     return (
       <div className={`rounded-xl border border-card-border bg-card px-4 py-8 text-center ${className ?? ''}`}>
         <div className="text-meta font-mono uppercase tracking-widest text-muted-foreground">No closed trades yet</div>
@@ -72,106 +73,107 @@ export function TrackRecord({ className }: { className?: string }) {
     );
   }
 
-  const expPositive = o.expectancy >= 0;
-  const expColor = expPositive ? TC.bull : TC.bear;
-  const payoff = o.avgLossPct > 0 ? o.avgWinPct / o.avgLossPct : null;
+  const { outcomes, coverage, expectancy, dataQuality } = data;
+  const rPositive = expectancy.averageR !== null && expectancy.averageR >= 0;
+  const rColor = expectancy.averageR === null ? TC.muted : rPositive ? TC.bull : TC.bear;
+  const coverageWeak = coverage.pctMeasured < 60;
 
   return (
     <div className={`rounded-xl border border-card-border bg-card overflow-hidden ${className ?? ''}`}>
       <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
-        <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Track Record</span>
-        <span className="text-label font-mono text-muted-foreground">{o.total} published signals</span>
-      </div>
-
-      {/* Expectancy first. It is the only figure that combines hit rate with payoff,
-          and it is the one that decides whether the edge is positive. */}
-      <div className="border-b border-border/30 px-4 py-3">
-        <div className="flex items-baseline justify-between gap-2 flex-wrap">
-          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">Expectancy per trade</span>
-          <span className="text-lead font-mono font-bold tabular-nums" style={{ color: expColor }}>
-            {expPositive ? '+' : ''}{o.expectancy.toFixed(2)}%
-          </span>
+        <div>
+          <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">Oracle signal outcomes</span>
+          <p className="mt-0.5 text-label font-mono uppercase tracking-wider text-muted-foreground">
+            validation engine · not bot execution
+          </p>
         </div>
-        <p className="mt-1 ui-prose text-label leading-snug text-muted-foreground">
-          {expPositive
-            ? `A ${o.winRate.toFixed(1)}% hit rate paying ${payoff ? payoff.toFixed(2) : '—'}:1 nets out positive before costs. Commissions and slippage come out of this.`
-            : `A ${o.winRate.toFixed(1)}% hit rate paying ${payoff ? payoff.toFixed(2) : '—'}:1 does not cover its losers. This is before commissions and slippage, which make it worse.`}
-        </p>
+        <span className="text-label font-mono text-muted-foreground">{data.totalPublished} signals</span>
       </div>
 
-      {/* Every trade accounted for, including the ones a win rate would hide. */}
+      <div className="grid grid-cols-2 border-b border-border/30">
+        <Readout label="Resolved" value={`${coverage.pctMeasured}%`} note={`${coverage.measured} / ${data.totalPublished} outcomes written`} color={coverageWeak ? TC.warn : TC.bull} />
+        <Readout
+          label="Realised R"
+          value={expectancy.averageR === null ? '—' : `${rPositive ? '+' : ''}${expectancy.averageR.toFixed(2)}R`}
+          note={`${expectancy.sampleSize} P&L observations`}
+          color={rColor}
+          edge
+        />
+      </div>
+
       <div className="px-4 py-3">
         <div className="mb-1.5 flex items-baseline justify-between">
-          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">Outcome of all {o.total}</span>
+          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">Outcome of published Oracle signals</span>
           <span className="text-label font-mono tabular-nums text-muted-foreground">
-            {o.winRate.toFixed(1)}% of {o.decided} decided
+            {outcomes.winRate === null ? '—' : `${outcomes.winRate}%`} of {outcomes.decided} measured
           </span>
         </div>
         <StackedBar
           segments={[
-            { value: o.wins, color: TC.bull, label: 'wins' },
-            { value: o.losses, color: TC.bear, label: 'losses' },
-            { value: o.neutral, color: TC.muted, label: 'neutral' },
+            { value: outcomes.win, color: TC.bull, label: 'wins' },
+            { value: outcomes.loss, color: TC.bear, label: 'losses' },
+            { value: outcomes.unresolved, color: TC.muted, label: 'unresolved' },
           ]}
         />
         <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
-          <Legend color={TC.bull} label="wins" value={o.wins} />
-          <Legend color={TC.bear} label="losses" value={o.losses} />
-          <Legend color={TC.muted} label="neutral" value={o.neutral} />
+          <Legend color={TC.bull} label="wins" value={outcomes.win} />
+          <Legend color={TC.bear} label="losses" value={outcomes.loss} />
+          <Legend color={TC.muted} label="unresolved" value={outcomes.unresolved} />
         </div>
         <p className="mt-2 ui-prose text-label leading-snug text-muted-foreground">
-          Neutral = expired, manually exited, or moved less than 3% either way. They are
-          excluded from the win rate but shown here, because a rate quoted on the decided
-          subset alone reads far better than the record actually is.
+          Win means the target was reached or realised P&L was positive. Loss means a stop
+          or negative realised P&L. Unresolved is missing evidence — not neutral and not a loss.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-px border-y border-border/30 bg-border/30">
-        <Stat label="Avg win" value={`+${o.avgWinPct.toFixed(1)}%`} color={TC.bull} />
-        <Stat label="Avg loss" value={`-${o.avgLossPct.toFixed(1)}%`} color={TC.bear} />
-      </div>
-
-      {/* Where the expectancy actually goes. */}
-      {(byHorizon?.horizons?.length ?? 0) > 0 && (
+      {data.bySource.length > 0 && (
         <div className="px-4 py-3">
-          <div className="mb-2 text-label font-mono uppercase tracking-wider text-muted-foreground">By horizon</div>
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">By publishing engine</span>
+            <span className="text-label font-mono text-muted-foreground">same outcome model</span>
+          </div>
           <div className="space-y-2">
-            {byHorizon!.horizons.map((h) => {
-              const bad = h.expiredPct >= 60;
+            {data.bySource.slice(0, 5).map((source) => {
               return (
-                <div key={h.horizon}>
+                <div key={source.source}>
                   <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                    <span className="text-meta font-mono uppercase tracking-wider text-foreground/85">{h.horizon}</span>
+                    <span className="text-meta font-mono uppercase tracking-wider text-foreground/85">{source.source}</span>
                     <span className="text-label font-mono tabular-nums text-muted-foreground">
-                      {h.total} signals
-                      {h.avgTargetPct != null ? ` · asks ${h.avgTargetPct}%` : ''}
-                      {' · '}
-                      <span style={{ color: bad ? TC.bear : TC.muted }}>{h.expiredPct}% never resolved</span>
+                      {source.winRate === null ? '—' : `${source.winRate}%`} · {source.decided}/{source.total} resolved
                     </span>
                   </div>
                   <div className="mt-1">
                     <StackedBar
                       segments={[
-                        { value: h.hitTarget, color: TC.bull },
-                        { value: h.hitStop, color: TC.bear },
-                        { value: h.expired, color: TC.muted },
+                        { value: source.win, color: TC.bull },
+                        { value: source.loss, color: TC.bear },
+                        { value: source.unresolved, color: TC.muted },
                       ]}
                       height={6}
                     />
                   </div>
-                  {bad && (
-                    <div className="mt-1 ui-prose text-label leading-snug" style={{ color: TC.warn }}>
-                      Most of these expire before hitting a target or a stop — the window is
-                      short relative to the {h.avgTargetPct != null ? `${h.avgTargetPct}% ` : ''}move being asked for,
-                      so the win rate above is computed on a small fraction of them.
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
+          {dataQuality.unmeasuredTimeouts > 0 && (
+            <p className="mt-3 border-t border-border/30 pt-2 ui-prose text-label leading-snug" style={{ color: TC.warn }}>
+              {dataQuality.unmeasuredTimeouts} timed-out signals have no realised P&L. They stay visible
+              as unresolved until the collector writes an outcome; they cannot be used to claim an edge.
+            </p>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function Readout({ label, value, note, color, edge = false }: { label: string; value: string; note: string; color: string; edge?: boolean }) {
+  return (
+    <div className={`px-4 py-3 ${edge ? 'border-l border-border/30' : ''}`}>
+      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 text-lead font-mono font-bold tabular-nums" style={{ color }}>{value}</div>
+      <div className="mt-0.5 text-label font-mono tabular-nums text-muted-foreground">{note}</div>
     </div>
   );
 }
@@ -182,14 +184,5 @@ function Legend({ color, label, value }: { color: string; label: string; value: 
       <span className="h-2 w-2 rounded-full" style={{ background: color }} />
       {label} <span className="tabular-nums text-foreground/80">{value}</span>
     </span>
-  );
-}
-
-function Stat({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="bg-card px-4 py-2.5">
-      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-body font-mono font-bold tabular-nums" style={{ color }}>{value}</div>
-    </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   Eye, AlertCircle, Sparkles, Activity
 } from 'lucide-react';
 import { cn, safeToFixed } from '@/lib/utils';
+import { tierBadgeStyle } from '@/components/canon';
 
 interface TierPerformance {
   watched: number;
@@ -40,14 +41,9 @@ interface PerformanceAttributionProps {
   compact?: boolean;
 }
 
-const TIER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  S: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/40' },
-  A: { bg: 'bg-emerald-500/20', text: 'text-[var(--trade-bullish)]', border: 'border-emerald-500/40' },
-  B: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/40' },
-  C: { bg: 'bg-amber-500/20', text: 'text-[var(--trade-neutral)]', border: 'border-amber-500/40' },
-  D: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/40' },
-  F: { bg: 'bg-red-500/20', text: 'text-[var(--trade-bearish)]', border: 'border-red-500/40' },
-};
+// Tier colour now comes from canon/tierBadgeStyle, which is backed by the
+// --grade-* tokens. The map that was here hardcoded purple/cyan/orange beside
+// entries that already used tokens, and duplicated two other copies verbatim.
 
 function formatPnl(pnl: number): string {
   const prefix = pnl >= 0 ? '+' : '';
@@ -55,16 +51,16 @@ function formatPnl(pnl: number): string {
 }
 
 function TierRow({ tier, data }: { tier: string; data: TierPerformance }) {
-  const colors = TIER_COLORS[tier] || TIER_COLORS.C;
+  const tierStyle = tierBadgeStyle(tier);
   
   if (data.watched === 0) return null;
   
   return (
     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/30" data-testid={`tier-row-${tier}`}>
-      <div className={cn(
-        "w-10 h-10 rounded-lg flex items-center justify-center font-bold font-mono text-lg border",
-        colors.bg, colors.text, colors.border
-      )}>
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center font-bold font-mono text-lg border"
+        style={tierStyle}
+      >
         {tier}
       </div>
       
@@ -285,7 +281,7 @@ export default function PerformanceAttribution({
                   data-testid={`missed-op-${op.symbol}`}
                 >
                   <div className="flex items-center gap-2">
-                    <Badge className={cn("text-xs", TIER_COLORS[op.tier]?.bg, TIER_COLORS[op.tier]?.text)}>
+                    <Badge className="text-xs border" style={tierBadgeStyle(op.tier)}>
                       {op.tier}
                     </Badge>
                     <span className="font-mono font-semibold">{op.symbol}</span>

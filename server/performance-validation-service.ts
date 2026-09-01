@@ -188,6 +188,37 @@ class PerformanceValidationService {
         console.log(`  ✓ Fetched ${contractsMap.size}/${futuresContractCodes.size} contracts successfully`);
       }
       
+      // Enrich extremes from REAL daily bars before judging barriers. The
+      // tracked highest/lowestPriceReached only advanced at 5-minute polls, so
+      // a spike that touched a barrier BETWEEN polls (or during a dev restart)
+      // never existed as far as resolution was concerned — wins and losses
+      // both undercounted, silently. Today's bar high/low from the candle
+      // feed captures the full session regardless of poll timing.
+      try {
+        const { fetchCandlesBatch } = await import('./historical-candles');
+        const symbols = Array.from(new Set(openIdeas.map(i => i.symbol.toUpperCase())));
+        const candles = await fetchCandlesBatch(symbols, '5d', '1d', 8);
+        const today = new Date().toISOString().slice(0, 10);
+        let enriched = 0;
+        for (const idea of openIdeas) {
+          const bars = candles.get(idea.symbol.toUpperCase()) ?? [];
+          const todayBar = bars[bars.length - 1];
+          if (!todayBar) continue;
+          const barDay = new Date(todayBar.time * 1000).toISOString().slice(0, 10);
+          if (barDay !== today) continue;
+          if (Number.isFinite(todayBar.high) && todayBar.high > 0) {
+            idea.highestPriceReached = Math.max(idea.highestPriceReached ?? -Infinity, todayBar.high);
+            enriched++;
+          }
+          if (Number.isFinite(todayBar.low) && todayBar.low > 0) {
+            idea.lowestPriceReached = Math.min(idea.lowestPriceReached ?? Infinity, todayBar.low);
+          }
+        }
+        if (enriched > 0) console.log(`  📏 Extremes enriched from daily bars for ${enriched} idea(s)`);
+      } catch (err: any) {
+        console.warn('  ⚠️ Bar-extreme enrichment failed (continuing with poll extremes):', err?.message);
+      }
+
       // Validate each idea with contract metadata
       const validationResults = PerformanceValidator.validateBatch(openIdeas, priceMap, contractsMap);
 
@@ -210,11 +241,49 @@ class PerformanceValidationService {
           ) {
             const livePremium = priceMap.get(`option_${ideaId}`);
             if (typeof livePremium === 'number' && livePremium >= 0) {
-              exitPremium = Math.round(livePremium * 100) / 100;
+              /**
+               * Floor the exit premium at intrinsic value.
+               *
+               * An option cannot be worth less than what it is worth if
+               * exercised right now. When the quoted premium is below intrinsic,
+               * the quote is stale — not a bargain.
+               *
+               * This is not hypothetical. AFRM's $77 09/04 call was entered at
+               * $4.55, hit its target with the underlying at $88.92 (intrinsic
+               * $11.92, a 162% contract return), and was recorded as +14.95%.
+               * The validator had priced the exit at $5.22, which was the
+               * PRE-EARNINGS close from the previous session's chain: equity
+               * options stop trading at 16:15 ET, so an overnight gap leaves
+               * every quote in the chain stale while the underlying has moved.
+               *
+               * Reporting 15% on a 162% trade is worse than reporting nothing —
+               * it makes a working signal look mediocre and poisons every
+               * win-rate and expectancy number computed downstream.
+               */
+              const strike = Number((ideaForResult as any).strikePrice);
+              const isCall = String((ideaForResult as any).optionType ?? '').toLowerCase().startsWith('c');
+              const underlyingExit = Number(result.exitPrice);
+
+              let effective = livePremium;
+              if (Number.isFinite(strike) && strike > 0 && Number.isFinite(underlyingExit) && underlyingExit > 0) {
+                const intrinsic = isCall
+                  ? Math.max(0, underlyingExit - strike)
+                  : Math.max(0, strike - underlyingExit);
+                if (intrinsic > livePremium) {
+                  console.log(
+                    `  ⚠️  ${ideaForResult.symbol} quoted exit premium $${livePremium.toFixed(2)} is below ` +
+                    `intrinsic $${intrinsic.toFixed(2)} (underlying ${underlyingExit}, strike ${strike}) — ` +
+                    `stale chain, using intrinsic`,
+                  );
+                  effective = intrinsic;
+                }
+              }
+
+              exitPremium = Math.round(effective * 100) / 100;
               const rawPct = ((exitPremium - ideaForResult.entryPremium) / ideaForResult.entryPremium) * 100;
-              // direction='short' means the contract was SOLD → profit when premium falls.
-              const signed = ideaForResult.direction === 'short' ? -rawPct : rawPct;
-              optionPercentGain = Math.round(signed * 100) / 100;
+              // Calls and puts are bought. `direction` describes the underlying
+              // thesis, not the side of the option contract.
+              optionPercentGain = Math.round(rawPct * 100) / 100;
               console.log(`  💵 ${ideaForResult.symbol} option P&L: entry $${ideaForResult.entryPremium} → exit $${exitPremium} = ${optionPercentGain >= 0 ? '+' : ''}${optionPercentGain}%`);
             }
           }

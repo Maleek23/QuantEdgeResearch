@@ -120,7 +120,7 @@ export function SignalChart({
               stroke="var(--brand-gold, #d4af37)"
               strokeDasharray="2 4"
               strokeOpacity={0.45}
-              label={{ value: `${l.label}`, position: 'left', fill: 'var(--brand-gold, #d4af37)', fontSize: 8, fontFamily: 'var(--font-mono)' }}
+              label={{ value: `${l.label}`, position: 'left', fill: 'var(--brand-gold, #d4af37)', fontSize: 9, fontFamily: 'var(--font-mono)' }}
             />
           ))}
           {typeof entry === 'number' && (

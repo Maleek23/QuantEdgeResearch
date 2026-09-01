@@ -30,7 +30,7 @@ export interface FlowTrade {
   impliedVolatility: number | null;
   delta: number | null;
   underlyingPrice: number | null;
-  sentiment: 'bullish' | 'bearish' | 'neutral';
+  sentiment: 'bullish' | 'bearish' | 'neutral' | 'unknown';
   flowType: 'block' | 'sweep' | 'unusual_volume' | 'dark_pool' | 'normal';
   unusualScore: number;
   strategyCategory: string | null;
@@ -119,7 +119,12 @@ function mapRow(f: any): FlowTrade {
     impliedVolatility: f.impliedVolatility,
     delta: f.delta,
     underlyingPrice: f.underlyingPrice,
-    sentiment: (f.sentiment || 'neutral') as 'bullish' | 'bearish' | 'neutral',
+    // Every persisted row predates any tape-level source, so its stored
+    // bullish/bearish came from the old `call && delta > 0.3` rule — which is
+    // backwards whenever the contract was SOLD. Rather than migrate historical
+    // rows to a value they never earned, report them for what they are. Flip this
+    // to `f.sentiment` once biasBasis === 'tape' is being written.
+    sentiment: 'unknown' as const,
     flowType: (f.flowType || 'normal') as FlowTrade['flowType'],
     unusualScore: f.unusualScore || 0,
     strategyCategory: f.strategyCategory,

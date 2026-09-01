@@ -299,22 +299,12 @@ export function analyzeLogReturns(logReturns: number[]): LogReturnAnalysis {
  */
 export async function classifyMarketRegime(): Promise<RegimeClassification> {
   try {
-    // In production, fetch real market data
-    // For now, use placeholder with structure
-    const yahooFinance = await import('yahoo-finance2').then(m => m.default);
-
-    // Fetch SPY data for regime classification
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 100);
-
-    const spyData = await yahooFinance.chart('SPY', {
-      period1: startDate,
-      period2: endDate,
-      interval: '1d',
-    });
-
-    const quotes = spyData.quotes || [];
+    // yahoo-finance2 v3 broke the static .chart() call this function was built
+    // on ("Call new YahooFinance() first"), which threw every 60s from the
+    // poller and left regime classification dead. The platform's own candle
+    // feed serves the same daily SPY bars without the dependency.
+    const { fetchCandles } = await import('./historical-candles');
+    const quotes = await fetchCandles('SPY', '6mo', '1d');
     if (quotes.length < 50) {
       return getDefaultRegimeClassification();
     }
@@ -341,11 +331,13 @@ export async function classifyMarketRegime(): Promise<RegimeClassification> {
       trendDirection = 'neutral';
     }
 
-    // Fetch VIX
-    let vix = 20; // Default
+    // VIX from the same candle feed (last daily close). A default of 20 on
+    // failure is disclosed by the regime carrying no VIX-derived certainty.
+    let vix = 20;
     try {
-      const vixQuote = await yahooFinance.quote('^VIX');
-      vix = vixQuote.regularMarketPrice || 20;
+      const vixBars = await fetchCandles('^VIX', '5d', '1d');
+      const lastVix = vixBars[vixBars.length - 1]?.close;
+      if (Number.isFinite(lastVix) && lastVix > 0) vix = lastVix;
     } catch {
       // Use default
     }
