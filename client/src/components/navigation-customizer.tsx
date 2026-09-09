@@ -44,6 +44,11 @@ import {
   Upload,
   Brain,
   Activity,
+  Zap,
+  Microscope,
+  Wallet,
+  GraduationCap,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NavigationLayoutType, NavigationGroupType, NavigationItemType } from "@shared/schema";
@@ -59,18 +64,23 @@ const iconMap: Record<string, any> = {
   BookOpen,
   Settings,
   Shield,
+  Zap,
+  Microscope,
+  Wallet,
+  GraduationCap,
+  HelpCircle,
 };
 
 const defaultNavItems: NavigationItemType[] = [
-  { id: "command-center", title: "Command Center", icon: "Activity", href: "/trading-engine" },
+  { id: "terminal", title: "Terminal", icon: "Activity", href: "/t" },
+  { id: "gex", title: "GEX", icon: "Zap", href: "/t?tab=gex" },
+  { id: "research", title: "Research", icon: "Microscope", href: "/r" },
+  { id: "positions", title: "Positions", icon: "Wallet", href: "/t?tab=positions" },
+  { id: "journal", title: "Journal", icon: "BookOpen", href: "/t?tab=journal" },
   { id: "trade-desk", title: "Trade Desk", icon: "TrendingUp", href: "/trade-desk" },
-  { id: "watchlist", title: "Watchlist", icon: "Eye", href: "/watchlist" },
-  { id: "performance", title: "Performance", icon: "Target", href: "/performance" },
-  { id: "chart-analysis", title: "Chart Analysis", icon: "Upload", href: "/chart-analysis" },
-  { id: "options", title: "Options", icon: "BarChart2", href: "/options-analyzer" },
-  { id: "trends", title: "Trends", icon: "TrendingUp", href: "/market-scanner" },
-  { id: "historical", title: "Historical", icon: "Brain", href: "/performance" },
-  { id: "academy", title: "Academy", icon: "BookOpen", href: "/academy" },
+  { id: "radar", title: "Thesis Radar", icon: "Target", href: "/radar" },
+  { id: "academy", title: "Academy", icon: "GraduationCap", href: "/academy" },
+  { id: "how-to", title: "How to use", icon: "HelpCircle", href: "/how-to" },
   { id: "blog", title: "Blog", icon: "BookOpen", href: "/blog" },
   { id: "settings", title: "Settings", icon: "Settings", href: "/settings" },
   { id: "admin", title: "Admin", icon: "Shield", href: "/admin", adminOnly: true },

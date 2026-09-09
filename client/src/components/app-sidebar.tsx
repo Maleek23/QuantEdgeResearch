@@ -1,16 +1,18 @@
 /**
- * AppSidebar — 5 top-level destinations.
+ * AppSidebar — nav for the legacy-chrome pages.
  *
- *   PULSE      what's happening (default home)
- *   HUNT       what to trade today
- *   RESEARCH   per-ticker deep dive
- *   POSITIONS  my book + P&L
- *   JOURNAL    history + learning
+ * The Terminal (/t) is the product's front door and draws its own tab bar, so
+ * this sidebar only renders around the remaining legacy-chrome surfaces
+ * (Trade Desk, Thesis Radar, Settings, …). It links the REAL information
+ * architecture — every href below is a live route or a live terminal tab.
+ * No redirect aliases, no 404s.
  *
- * Everything else is a tab/subpage inside one of these.
- * Old routes still work — they redirect via App.tsx.
+ * Active states are tab-aware: useLocation() returns the pathname only, so the
+ * ?tab= is read separately via useSearch(). A terminal tab with its own item
+ * (GEX, Positions, Journal) lights that item; the Terminal item lights for the
+ * NEXUS home (no tab).
  */
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { cn } from "@/lib/utils";
 import {
   Sidebar,
@@ -30,8 +32,6 @@ import {
   Wallet,
   BookOpen,
   Settings,
-  Star,
-  Bell,
   Zap,
   Target,
   HelpCircle,
@@ -45,79 +45,79 @@ interface NavItem {
   title: string;
   icon: any;
   href: string;
-  /** Path prefixes that mark this item as active (for old/aliased routes) */
+  /** Path prefixes that mark this item as active */
   match?: string[];
+  /** ?tab= value that activates this item (terminal tabs). Omit for path-only items. */
+  tab?: string;
   shortcut?: string;
   hint?: string;
 }
 
-// ─── 6 PRIMARY DESTINATIONS ─────────────────────────────────────────
+// ─── PRIMARY DESTINATIONS ───────────────────────────────────────────
+// Order matches the ⌘1-6 jumps in the global command palette.
 const PRIMARY: NavItem[] = [
   {
-    id: "home",
-    title: "Home",
+    id: "terminal",
+    title: "Terminal",
     icon: Home,
-    href: "/p",
-    match: ["/p", "/pulse", "/home", "/market-pulse", "/market-outlook", "/geopolitical-matrix", "/command"],
+    href: "/t",
+    tab: "oracle",
     shortcut: "1",
-    hint: "Your home — dashboard, market tape, rotation, earnings, what changed",
-  },
-  {
-    id: "hunt",
-    title: "Hunt",
-    icon: Crosshair,
-    href: "/h",
-    match: ["/h", "/discovery", "/market-scanner", "/trade-desk", "/flow-heatmap"],
-    shortcut: "2",
-    hint: "What to trade — AI picks, sector hunt, surges, earnings, watchlist",
+    hint: "NEXUS home — market tape, rotation, signals",
   },
   {
     id: "gex",
     title: "GEX",
     icon: Zap,
-    href: "/g",
-    match: ["/g", "/flow", "/flow-edge", "/gex-scanner", "/gex-dashboard", "/terminal/"],
-    shortcut: "3",
-    hint: "All gamma — hub, terminal, expiry matrix, heatmap, per-symbol",
+    href: "/t?tab=gex",
+    tab: "gex",
+    shortcut: "2",
+    hint: "Gamma hub — market-wide and per-symbol",
   },
   {
     id: "research",
     title: "Research",
     icon: Microscope,
     href: "/r/SPY",
-    match: ["/r/", "/options-analyzer", "/chart-analysis", "/analysis", "/historical-intelligence"],
-    shortcut: "4",
+    match: ["/r"],
+    shortcut: "3",
     hint: "Per-ticker deep dive — chart, options, news, setups",
   },
   {
     id: "positions",
     title: "Positions",
     icon: Wallet,
-    href: "/pos",
-    match: ["/pos", "/positions", "/positions-heatmap"],
-    shortcut: "5",
-    hint: "My book — open positions, heat map, alerts, exits",
+    href: "/t?tab=positions",
+    tab: "positions",
+    shortcut: "4",
+    hint: "My book — open positions, P&L heat map",
   },
   {
     id: "journal",
     title: "Journal",
     icon: BookOpen,
-    href: "/j",
-    match: ["/j", "/performance", "/history", "/backtest", "/simulator", "/conviction-backtest", "/academy", "/learning-dashboard"],
+    href: "/t?tab=journal",
+    tab: "journal",
+    shortcut: "5",
+    hint: "Trade log, metrics, backtests, academy",
+  },
+  {
+    id: "trade-desk",
+    title: "Trade Desk",
+    icon: Crosshair,
+    href: "/trade-desk",
     shortcut: "6",
-    hint: "Learning — trade log, metrics, backtests, mistakes",
+    hint: "Idea generation — flow-driven trade ideas",
   },
 ];
 
-// ─── AUTONOMOUS RADARS (new discovery destinations) ─────────────────
-// Note: BTC, Movers and Analyze now live as tabs inside Hunt/Research.
+// ─── AUTONOMOUS RADARS ──────────────────────────────────────────────
 const RADARS: NavItem[] = [
   {
     id: "radar",
     title: "Thesis Radar",
     icon: Target,
     href: "/radar",
-    match: ["/radar"],
     hint: "Autonomous setup discovery — 6 patterns, 5 scans/day",
   },
 ];
@@ -125,15 +125,22 @@ const RADARS: NavItem[] = [
 // ─── UTILITY (always-visible footer items) ──────────────────────────
 // Note: "What's New" is inserted in the JSX (it's a stateful component, not just a NavItem)
 const UTILITY: NavItem[] = [
-  { id: "watchlists", title: "Watchlists", icon: Star,       href: "/watchlist" },
-  { id: "alerts",     title: "Alerts",     icon: Bell,       href: "/alerts" },
-  { id: "how-to",     title: "How to use", icon: HelpCircle, href: "/how-to" },
-  { id: "settings",   title: "Settings",   icon: Settings,   href: "/settings" },
+  { id: "how-to",   title: "How to use", icon: HelpCircle, href: "/how-to" },
+  { id: "settings", title: "Settings",   icon: Settings,   href: "/settings" },
 ];
 
-function isActive(item: NavItem, location: string): boolean {
-  const matches = item.match ?? [item.href];
-  return matches.some(m => location === m || location.startsWith(m));
+function activeTab(search: string): string | null {
+  return new URLSearchParams(search).get("tab");
+}
+
+function isActive(item: NavItem, pathname: string, tab: string | null): boolean {
+  const paths = item.match ?? [item.href.split("?")[0]];
+  // Exact or child-path match — never a naive prefix ("/how-to" must not
+  // light up a "/h" item).
+  const pathOk = paths.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  if (!pathOk) return false;
+  if (item.tab === undefined) return true;
+  return (tab ?? "oracle") === item.tab;
 }
 
 function NavRow({ item, active }: { item: NavItem; active: boolean }) {
@@ -170,12 +177,14 @@ export function AppSidebar() {
   const { user } = useAuth();
   const userData = user as { firstName?: string; email?: string } | null;
   const [location] = useLocation();
+  const search = useSearch();
+  const tab = activeTab(search);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       {/* Logo */}
       <SidebarHeader className="px-3 py-3 border-b border-sidebar-border">
-        <Link href="/p">
+        <Link href="/t">
           <div className="flex items-center gap-2 cursor-pointer group">
             <img src={quantEdgeLabsLogoUrl} alt="QE" className="h-6 w-6 object-contain shrink-0" />
             <div className="flex flex-col leading-none group-data-[collapsible=icon]:hidden">
@@ -190,13 +199,13 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
 
-      {/* PRIMARY — 5 destinations, flat */}
+      {/* PRIMARY — destinations, flat */}
       <SidebarContent className="px-2 py-3 space-y-3">
         <SidebarGroup className="py-0">
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {PRIMARY.map(item => (
-                <NavRow key={item.id} item={item} active={isActive(item, location)} />
+                <NavRow key={item.id} item={item} active={isActive(item, location, tab)} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -210,7 +219,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="space-y-0.5">
               {RADARS.map(item => (
-                <NavRow key={item.id} item={item} active={isActive(item, location)} />
+                <NavRow key={item.id} item={item} active={isActive(item, location, tab)} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -228,7 +237,7 @@ export function AppSidebar() {
                 <WhatsNewBell />
               </SidebarMenuItem>
               {UTILITY.map(item => (
-                <NavRow key={item.id} item={item} active={isActive(item, location)} />
+                <NavRow key={item.id} item={item} active={isActive(item, location, tab)} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>

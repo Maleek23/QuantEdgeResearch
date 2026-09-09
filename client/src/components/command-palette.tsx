@@ -7,8 +7,8 @@
  *
  * What it searches:
  *   - Tickers (typed → /r/SYMBOL)
- *   - Pages   (Home, Hunt, GEX, Research, Positions, Journal — and tabs within)
- *   - Quick actions (refresh scan, add to watchlist, create idea from symbol)
+ *   - Pages   (Terminal, GEX, Research, Positions, Journal, Trade Desk — and tabs within)
+ *   - Quick actions (thesis radar, settings)
  *
  * Wraps shadcn Command primitive — keyboard-first, accessible, fast.
  */
@@ -31,8 +31,6 @@ import {
   Wallet,
   BookOpen,
   TrendingUp,
-  Star,
-  Bell,
   Search,
   ArrowRight,
 } from 'lucide-react';
@@ -46,41 +44,31 @@ interface NavTarget {
 }
 
 const PRIMARY_DESTINATIONS: NavTarget[] = [
-  { href: '/p',   label: 'Home',      icon: Home,       hint: 'Dashboard / Pulse / Rotation', keywords: ['dashboard','pulse','tape','overview'] },
-  { href: '/h',   label: 'Hunt',      icon: Crosshair,  hint: 'AI picks · GEX setups · sector hunt', keywords: ['discovery','scanner','picks','setups'] },
-  { href: '/g',   label: 'GEX Hub',   icon: Zap,        hint: 'Hub · Per-Symbol · Matrix · Heatmap', keywords: ['gamma','vex','dealer','flow'] },
-  { href: '/r',   label: 'Research',  icon: Microscope, hint: 'Per-ticker chart · options · GEX', keywords: ['terminal','chart','options'] },
-  { href: '/pos', label: 'Positions', icon: Wallet,     hint: 'Open · heat map · alerts', keywords: ['heatmap','book','pnl'] },
-  { href: '/j',   label: 'Journal',   icon: BookOpen,   hint: 'Trade log · metrics · backtest', keywords: ['history','performance','backtest'] },
+  { href: '/t',              label: 'Terminal',   icon: Home,      hint: 'NEXUS home · tape · rotation · signals', keywords: ['dashboard','pulse','overview','nexus'] },
+  { href: '/t?tab=gex',      label: 'GEX',        icon: Zap,       hint: 'Gamma hub · market-wide and per-symbol', keywords: ['gamma','vex','dealer','flow'] },
+  { href: '/r',              label: 'Research',   icon: Microscope,hint: 'Per-ticker chart · options · GEX', keywords: ['terminal','chart','options','ticker'] },
+  { href: '/t?tab=positions',label: 'Positions',  icon: Wallet,    hint: 'My book · open positions · P&L heat map', keywords: ['heatmap','book','pnl'] },
+  { href: '/t?tab=journal',  label: 'Journal',    icon: BookOpen,  hint: 'Trade log · metrics · backtest · academy', keywords: ['history','performance','backtest'] },
+  { href: '/trade-desk',     label: 'Trade Desk', icon: Crosshair, hint: 'Idea generation · flow-driven trade ideas', keywords: ['discovery','scanner','picks','setups'] },
 ];
 
 const NESTED_TABS: NavTarget[] = [
-  // Home
-  { href: '/p?tab=dashboard', label: 'Home → Dashboard', icon: Home,    keywords: ['home','dashboard'] },
-  { href: '/p?tab=pulse',     label: 'Home → Pulse',     icon: Home,    keywords: ['tape','market'] },
-  // Hunt
-  { href: '/h?tab=ai-picks',  label: 'Hunt → AI Picks',  icon: Crosshair, keywords: ['discovery','setups'] },
-  { href: '/h?tab=gex',       label: 'Hunt → GEX Setups', icon: Crosshair, keywords: ['gamma','workflow'] },
-  { href: '/h?tab=surges',    label: 'Hunt → Surges',     icon: Crosshair, keywords: ['momentum','breakouts'] },
-  { href: '/h?tab=movers',    label: 'Hunt → Movers',     icon: Crosshair, keywords: ['premarket','afterhours','overnight','gappers'] },
-  { href: '/h?tab=btc',       label: 'Hunt → BTC',        icon: Crosshair, keywords: ['bitcoin','crypto','mstr','coin','beta'] },
-  { href: '/h?tab=watchlist', label: 'Hunt → Watchlist',  icon: Crosshair, keywords: ['watchlist','saved'] },
-  // GEX (market-wide only — per-symbol GEX lives in Research to avoid duplication)
-  { href: '/g?tab=hub',       label: 'GEX → Hub',         icon: Zap, keywords: ['scanner','workflow','market-wide'] },
-  { href: '/g?tab=matrix',    label: 'GEX → Matrix',      icon: Zap, keywords: ['strike','expiry','heatseeker'] },
-  { href: '/g?tab=heatmap',   label: 'GEX → Heatmap',     icon: Zap, keywords: ['sector','flow'] },
-  { href: '/g?tab=analysis',  label: 'GEX → Analysis',    icon: Zap, keywords: ['gamma','growth','history'] },
+  // Terminal tabs
+  { href: '/t?tab=chart',    label: 'Terminal → Chart',    icon: Home, keywords: ['price','levels','candle'] },
+  { href: '/t?tab=flow',     label: 'Terminal → Flow',     icon: Home, keywords: ['tape','premium','sweeps','whales'] },
+  { href: '/t?tab=leaps',    label: 'Terminal → LEAPS',    icon: Home, keywords: ['long','dated','thesis'] },
+  { href: '/t?tab=crypto',   label: 'Terminal → Crypto',   icon: Home, keywords: ['bitcoin','btc'] },
+  { href: '/t?tab=catalyst', label: 'Terminal → Catalyst', icon: Home, keywords: ['events','earnings','calendar'] },
+  { href: '/t?tab=bot',      label: 'Terminal → Bot',      icon: Home, keywords: ['automation','paper'] },
   // Research tabs (the per-ticker home — search a ticker → lands here)
   { href: '/r/SPY?tab=chart',    label: 'Research → Chart',    icon: Microscope, keywords: ['price','levels','candle'] },
   { href: '/r/SPY?tab=options',  label: 'Research → Options',  icon: Microscope, keywords: ['chain','greeks','iv'] },
   { href: '/r/SPY?tab=gex',      label: 'Research → GEX',      icon: Microscope, keywords: ['gamma','walls','flip','per-symbol'] },
   { href: '/r/SPY?tab=analyze',  label: 'Research → Analyze',  icon: Microscope, keywords: ['contract','grade','bullflow','a+'] },
-  // Positions
-  { href: '/pos?tab=heatmap', label: 'Positions → Heat Map', icon: Wallet, keywords: ['pnl','treemap'] },
-  // Journal
-  { href: '/j?tab=log',       label: 'Journal → Trade Log',  icon: BookOpen, keywords: ['history','trades'] },
-  { href: '/j?tab=metrics',   label: 'Journal → Metrics',    icon: BookOpen, keywords: ['performance','win'] },
-  { href: '/j?tab=backtest',  label: 'Journal → Backtest',   icon: BookOpen, keywords: ['simulator','strategy'] },
+  // Journal sub-tabs (nested — the journal reads ?jtab= so it never fights the shell's ?tab=)
+  { href: '/t?tab=journal&jtab=log',      label: 'Journal → Trade Log',  icon: BookOpen, keywords: ['history','trades'] },
+  { href: '/t?tab=journal&jtab=metrics',  label: 'Journal → Metrics',    icon: BookOpen, keywords: ['performance','win'] },
+  { href: '/t?tab=journal&jtab=backtest', label: 'Journal → Backtest',   icon: BookOpen, keywords: ['simulator','strategy'] },
 ];
 
 // Quick popular tickers for tap-jump (extend over time / pull from watchlist)
@@ -242,14 +230,6 @@ export function CommandPalette() {
           <CommandItem onSelect={() => go('/radar')}>
             <Crosshair className="w-3.5 h-3.5 mr-2" />
             <span className="text-xs">Thesis Radar</span>
-          </CommandItem>
-          <CommandItem onSelect={() => go('/watchlist')}>
-            <Star className="w-3.5 h-3.5 mr-2" />
-            <span className="text-xs">Open Watchlists</span>
-          </CommandItem>
-          <CommandItem onSelect={() => go('/alerts')}>
-            <Bell className="w-3.5 h-3.5 mr-2" />
-            <span className="text-xs">Open Alerts</span>
           </CommandItem>
           <CommandItem onSelect={() => go('/settings')}>
             <Search className="w-3.5 h-3.5 mr-2" />

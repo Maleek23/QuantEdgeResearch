@@ -14,7 +14,7 @@ type PaletteItem =
   | { kind: 'ticker'; symbol: string; name?: string; changePct?: number | null }
   | { kind: 'tab'; tab: string; label: string };
 
-const TABS = ['nexus', 'chart', 'flow', 'gex', 'leaps', 'crypto', 'catalyst', 'bot'];
+interface PaletteTab { id: string; label: string }
 
 const readRecents = (): string[] => {
   try { return JSON.parse(localStorage.getItem('nx-recent-syms') || '[]'); } catch { return []; }
@@ -27,12 +27,13 @@ const pushRecent = (sym: string) => {
 };
 
 export function CommandPalette({
-  open, onClose, onTicker, onTab,
+  open, onClose, onTicker, onTab, tabs,
 }: {
   open: boolean;
   onClose: () => void;
   onTicker: (symbol: string, name?: string) => void;
   onTab: (tab: string) => void;
+  tabs: PaletteTab[];
 }) {
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
@@ -59,17 +60,17 @@ export function CommandPalette({
   const items = useMemo<PaletteItem[]>(() => {
     const out: PaletteItem[] = [];
     if (q) {
-      for (const t of TABS) {
-        if (t.toUpperCase().startsWith(q)) out.push({ kind: 'tab', tab: t, label: `Go to ${t.toUpperCase()}` });
+      for (const t of tabs) {
+        if (t.label.startsWith(q)) out.push({ kind: 'tab', tab: t.id, label: `Go to ${t.label}` });
       }
       for (const r of data.slice(0, 8)) out.push({ kind: 'ticker', symbol: r.symbol, name: r.name, changePct: r.changePct });
       if (!out.length && !isFetching) out.push({ kind: 'ticker', symbol: q, name: 'open directly' });
     } else {
       for (const s of readRecents()) out.push({ kind: 'ticker', symbol: s, name: 'recent' });
-      if (!out.length) for (const t of TABS.slice(0, 4)) out.push({ kind: 'tab', tab: t, label: `Go to ${t.toUpperCase()}` });
+      if (!out.length) for (const t of tabs.slice(0, 4)) out.push({ kind: 'tab', tab: t.id, label: `Go to ${t.label}` });
     }
     return out;
-  }, [q, data, isFetching]);
+  }, [q, data, isFetching, tabs]);
 
   useEffect(() => setCursor(0), [q]);
 
