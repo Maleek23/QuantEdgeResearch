@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend, Area, ComposedChart } from "recharts";
+import { Line, ReferenceLine, Legend, ComposedChart, Tooltip } from "recharts";
 import { AlertTriangle, CheckCircle, Target, TrendingUp, TrendingDown, Info } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
+import { AnalyticsChart, AnalyticsXAxis, AnalyticsYAxis, AnalyticsGrid, CHART_COLORS } from "@/components/ui/analytics-chart";
 
 interface CalibrationPoint {
   confidenceRange: string;
@@ -38,7 +39,7 @@ function CustomTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const errorDir = data.calibrationError > 0 ? 'overconfident' : 'underconfident';
-    
+
     return (
       <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
         <p className="font-semibold text-sm">Signal Strength Range: {data.confidenceRange}pts</p>
@@ -143,7 +144,7 @@ export default function CalibrationCurve() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge 
+            <Badge
               variant="outline"
               className={cn("font-mono", statusColors[summary.status])}
             >
@@ -214,57 +215,49 @@ export default function CalibrationCurve() {
           </div>
         </div>
 
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={calibrationCurve} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-              <XAxis
-                dataKey="midpoint"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                tickFormatter={(val) => `${val}%`}
-                label={{ value: 'Predicted Confidence', position: 'insideBottom', offset: -5, style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 } }}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                domain={[0, 100]}
-                tickFormatter={(val) => `${val}%`}
-                label={{ value: 'Win Rate', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 } }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ paddingTop: '10px' }} />
-              
-              <ReferenceLine 
-                stroke="hsl(var(--muted-foreground))" 
-                strokeDasharray="5 5"
-                strokeOpacity={0.5}
-                segment={[{ x: 0, y: 0 }, { x: 100, y: 100 }]}
-              />
-              
-              <Line
-                type="monotone"
-                dataKey="predicted"
-                name="Perfect Calibration"
-                stroke="hsl(var(--muted-foreground))"
-                strokeDasharray="5 5"
-                strokeWidth={2}
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="actual"
-                name="Actual Win Rate"
-                stroke="hsl(142, 76%, 45%)"
-                strokeWidth={3}
-                dot={{ fill: 'hsl(142, 76%, 45%)', r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        <AnalyticsChart config={{}} className="h-80">
+          <ComposedChart data={calibrationCurve} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
+            <AnalyticsGrid opacity={0.3} />
+            <AnalyticsXAxis
+              dataKey="midpoint"
+              tickFormatter={(val) => `${val}%`}
+              label={{ value: 'Predicted Confidence', position: 'insideBottom', offset: -5, style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 } }}
+            />
+            <AnalyticsYAxis
+              domain={[0, 100]}
+              tickFormatter={(val) => `${val}%`}
+              label={{ value: 'Win Rate', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))', fontSize: 11 } }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ paddingTop: '10px' }} />
+
+            <ReferenceLine
+              stroke="hsl(var(--muted-foreground))"
+              strokeDasharray="5 5"
+              strokeOpacity={0.5}
+              segment={[{ x: 0, y: 0 }, { x: 100, y: 100 }]}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="predicted"
+              name="Perfect Calibration"
+              stroke="hsl(var(--muted-foreground))"
+              strokeDasharray="5 5"
+              strokeWidth={2}
+              dot={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="actual"
+              name="Actual Win Rate"
+              stroke={CHART_COLORS.bull}
+              strokeWidth={3}
+              dot={{ fill: CHART_COLORS.bull, r: 4 }}
+              activeDot={{ r: 6 }}
+            />
+          </ComposedChart>
+        </AnalyticsChart>
 
         <div className="space-y-2">
           <p className="text-sm font-medium flex items-center gap-2">

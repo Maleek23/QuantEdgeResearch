@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, Tooltip, Cell } from "recharts";
 import { AlertTriangle, Info } from "lucide-react";
 import {
   ENGINE_HISTORICAL_PERFORMANCE,
@@ -10,6 +10,7 @@ import {
   normalizeEngineKey
 } from "@shared/constants";
 import { safeToFixed } from "@/lib/utils";
+import { AnalyticsChart, AnalyticsXAxis, AnalyticsYAxis, AnalyticsGrid, CHART_COLORS } from "@/components/ui/analytics-chart";
 
 interface ConfidenceBand {
   band: string;
@@ -25,9 +26,9 @@ interface ConfidenceCalibrationProps {
 }
 
 const getBarColor = (winRate: number) => {
-  if (winRate >= 70) return "hsl(142, 76%, 45%)";
-  if (winRate >= 50) return "hsl(45, 93%, 58%)";
-  return "hsl(0, 72%, 55%)";
+  if (winRate >= 70) return CHART_COLORS.bull;
+  if (winRate >= 50) return CHART_COLORS.gold;
+  return CHART_COLORS.bear;
 };
 
 function CustomTooltip({ active, payload }: any) {
@@ -58,7 +59,7 @@ function CustomTooltip({ active, payload }: any) {
 
 export default function ConfidenceCalibration({ selectedEngine }: ConfidenceCalibrationProps) {
   const queryParams = selectedEngine ? `?engine=${selectedEngine}` : '';
-  
+
   const { data, isLoading } = useQuery<ConfidenceBand[]>({
     queryKey: ['/api/performance/confidence-calibration', selectedEngine],
     queryFn: async () => {
@@ -131,33 +132,25 @@ export default function ConfidenceCalibration({ selectedEngine }: ConfidenceCali
           </div>
         </div>
 
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-              <XAxis
-                dataKey="bandLabel"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                label={{ value: 'Signal Band', position: 'insideBottom', offset: -5, style: { fill: 'hsl(var(--muted-foreground))' } }}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                label={{ value: 'Actual Win Rate %', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
-                domain={[0, 100]}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--accent))' }} />
-              <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${entry.band}-${index}`} fill={getBarColor(entry.winRate)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <AnalyticsChart config={{}} className="h-80">
+          <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <AnalyticsGrid opacity={0.3} />
+            <AnalyticsXAxis
+              dataKey="bandLabel"
+              label={{ value: 'Signal Band', position: 'insideBottom', offset: -5, style: { fill: 'hsl(var(--muted-foreground))' } }}
+            />
+            <AnalyticsYAxis
+              label={{ value: 'Actual Win Rate %', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
+              domain={[0, 100]}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--accent))' }} />
+            <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${entry.band}-${index}`} fill={getBarColor(entry.winRate)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </AnalyticsChart>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-xs text-center">
           {data.map((band, index) => (

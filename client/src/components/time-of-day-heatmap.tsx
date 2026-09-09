@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { safeToFixed } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, Tooltip, Cell } from "recharts";
 import { Info } from "lucide-react";
 import { fetchWithParams } from "@/lib/queryClient";
+import { AnalyticsChart, AnalyticsXAxis, AnalyticsYAxis, AnalyticsGrid, CHART_COLORS } from "@/components/ui/analytics-chart";
 
 interface HourData {
   hour: number;
@@ -57,9 +58,9 @@ export default function TimeOfDayHeatmap({ selectedEngine }: TimeOfDayHeatmapPro
   }
 
   const getBarColor = (winRate: number) => {
-    if (winRate >= 70) return "hsl(142, 76%, 45%)"; // green
-    if (winRate >= 40) return "hsl(45, 93%, 58%)"; // amber
-    return "hsl(0, 72%, 55%)"; // red
+    if (winRate >= 70) return CHART_COLORS.bull;
+    if (winRate >= 40) return CHART_COLORS.gold;
+    return CHART_COLORS.bear;
   };
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -98,32 +99,24 @@ export default function TimeOfDayHeatmap({ selectedEngine }: TimeOfDayHeatmapPro
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-              <XAxis
-                dataKey="hourLabel"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                label={{ value: 'Win Rate %', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
-                domain={[0, 100]}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--accent))' }} />
-              <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getBarColor(entry.winRate)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <AnalyticsChart config={{}} className="h-80">
+          <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <AnalyticsGrid opacity={0.3} />
+            <AnalyticsXAxis
+              dataKey="hourLabel"
+            />
+            <AnalyticsYAxis
+              label={{ value: 'Win Rate %', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
+              domain={[0, 100]}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--accent))' }} />
+            <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={getBarColor(entry.winRate)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </AnalyticsChart>
         <div className="flex items-start gap-2 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
           <Info className="w-4 h-4 text-cyan-500 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted-foreground">
@@ -132,15 +125,15 @@ export default function TimeOfDayHeatmap({ selectedEngine }: TimeOfDayHeatmapPro
         </div>
         <div className="flex items-center justify-center gap-6 text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(142, 76%, 45%)" }} />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: CHART_COLORS.bull }} />
             <span className="text-muted-foreground">Strong (70%+)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(45, 93%, 58%)" }} />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: CHART_COLORS.gold }} />
             <span className="text-muted-foreground">Moderate (40-70%)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(0, 72%, 55%)" }} />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: CHART_COLORS.bear }} />
             <span className="text-muted-foreground">Weak (&lt;40%)</span>
           </div>
         </div>

@@ -32,13 +32,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import {
-  ResponsiveContainer,
-  LineChart,
   Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
   BarChart,
   Bar,
   ComposedChart,
@@ -46,6 +40,20 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
+import {
+  AnalyticsChart,
+  AnalyticsTooltip,
+  AnalyticsXAxis,
+  AnalyticsYAxis,
+  AnalyticsGrid,
+  AnalyticsGradient,
+  CHART_COLORS,
+} from "@/components/ui/analytics-chart";
+
+/** Recharts value union — keeps tooltip formatters assignable to the themed
+ *  tooltip's non-generic Formatter<ValueType, NameType> prop. */
+type ChartValue = number | string | Array<number | string>;
+
 import { useToast } from "@/hooks/use-toast";
 
 interface WinLossSummary {
@@ -452,26 +460,23 @@ export default function AdminWinLossAnalysis() {
                 </CardHeader>
                 <CardContent>
                   <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <AnalyticsChart config={{}} className="h-full">
                       <BarChart data={summary.distribution.filter(d => d.count > 0)}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-                        <XAxis dataKey="range" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }} interval={0} angle={-45} textAnchor="end" height={60} />
-                        <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                          labelStyle={{ color: 'hsl(var(--foreground))' }}
-                        />
+                        <AnalyticsGrid opacity={0.5} />
+                        <AnalyticsXAxis dataKey="range" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }} interval={0} angle={-45} textAnchor="end" height={60} />
+                        <AnalyticsYAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
+                        <AnalyticsTooltip />
                         <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                           {summary.distribution.filter(d => d.count > 0).map((entry, index) => (
                             <Cell 
                               key={`cell-${index}`} 
-                              fill={entry.range.includes('-') && !entry.range.includes('to') ? 'hsl(0, 72%, 55%)' : 
-                                    entry.range.startsWith('-') ? 'hsl(0, 72%, 55%)' : 'hsl(142, 76%, 45%)'}
+                              fill={entry.range.includes('-') && !entry.range.includes('to') ? CHART_COLORS.bear : 
+                                    entry.range.startsWith('-') ? CHART_COLORS.bear : CHART_COLORS.bull}
                             />
                           ))}
                         </Bar>
                       </BarChart>
-                    </ResponsiveContainer>
+                    </AnalyticsChart>
                   </div>
                 </CardContent>
               </Card>
@@ -594,31 +599,33 @@ export default function AdminWinLossAnalysis() {
                 </CardHeader>
                 <CardContent>
                   <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <AnalyticsChart config={{}} className="h-full">
                       <ComposedChart data={simData.simulations}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-                        <XAxis 
+                        <defs>
+                          <AnalyticsGradient id="wl-winrate-fill" color={CHART_COLORS.accent} />
+                        </defs>
+                        <AnalyticsGrid opacity={0.5} />
+                        <AnalyticsXAxis 
                           dataKey="thresholdPercent" 
                           tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                           tickFormatter={(val) => `${val}%`}
                           label={{ value: 'Stop-Loss Threshold', position: 'insideBottom', offset: -5, fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                         />
-                        <YAxis 
+                        <AnalyticsYAxis 
                           yAxisId="left"
                           tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                           tickFormatter={(val) => `${val}%`}
                           label={{ value: 'Win Rate', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                         />
-                        <YAxis 
+                        <AnalyticsYAxis 
                           yAxisId="right"
                           orientation="right"
                           tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                           tickFormatter={(val) => `${val}%`}
                           label={{ value: 'Expectancy', angle: 90, position: 'insideRight', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                         />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                          formatter={(value: number, name: string) => [`${value}%`, name === 'winRate' ? 'Win Rate' : 'Expectancy']}
+                        <AnalyticsTooltip 
+                          formatter={(value: ChartValue, name: number | string) => [`${value}%`, name === 'winRate' ? 'Win Rate' : 'Expectancy']}
                         />
                         <ReferenceLine y={0} yAxisId="right" stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
                         {simData.optimalThreshold && (
@@ -633,21 +640,20 @@ export default function AdminWinLossAnalysis() {
                           yAxisId="left"
                           type="monotone" 
                           dataKey="winRate" 
-                          fill="hsl(185, 94%, 45%)" 
-                          fillOpacity={0.2}
-                          stroke="hsl(185, 94%, 45%)"
+                          fill="url(#wl-winrate-fill)" 
+                          stroke={CHART_COLORS.accent}
                           strokeWidth={2}
                         />
                         <Line 
                           yAxisId="right"
                           type="monotone" 
                           dataKey="expectancy" 
-                          stroke="hsl(280, 76%, 55%)"
+                          stroke={CHART_COLORS.purple}
                           strokeWidth={2}
-                          dot={{ fill: 'hsl(280, 76%, 55%)', r: 3 }}
+                          dot={{ fill: CHART_COLORS.purple, r: 3 }}
                         />
                       </ComposedChart>
-                    </ResponsiveContainer>
+                    </AnalyticsChart>
                   </div>
                 </CardContent>
               </Card>

@@ -3,11 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Area, ComposedChart } from "recharts";
+import { Line, Tooltip, ReferenceLine, Area, ComposedChart } from "recharts";
 import { TrendingUp, TrendingDown, Minus, Activity, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Tooltip as TooltipUI, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AnalyticsChart, AnalyticsXAxis, AnalyticsYAxis, AnalyticsGrid, AnalyticsGradient, CHART_COLORS } from "@/components/ui/analytics-chart";
 
 interface RollingDataPoint {
   tradeIndex: number;
@@ -96,7 +97,7 @@ function getTrendBadge(trend: string | undefined) {
 
 export default function RollingWinRateChart() {
   const [windowSize, setWindowSize] = useState("20");
-  
+
   const { data, isLoading, error } = useQuery<RollingWinRateData>({
     queryKey: ['/api/performance/rolling-win-rate', windowSize],
     queryFn: async () => {
@@ -176,7 +177,7 @@ export default function RollingWinRateChart() {
                     <Info className="h-4 w-4 text-muted-foreground" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
-                    <p className="text-xs">Shows win rate calculated over a rolling window of trades. 
+                    <p className="text-xs">Shows win rate calculated over a rolling window of trades.
                     Helps identify performance trends and regime changes.</p>
                   </TooltipContent>
                 </TooltipUI>
@@ -208,7 +209,7 @@ export default function RollingWinRateChart() {
             <p className="text-xs text-muted-foreground">Current</p>
             <p className={cn(
               "font-semibold font-mono text-lg",
-              (summary.currentWinRate || 0) >= 60 ? "text-[var(--trade-bullish)]" : 
+              (summary.currentWinRate || 0) >= 60 ? "text-[var(--trade-bullish)]" :
               (summary.currentWinRate || 0) >= 50 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
             )}>
               {summary.currentWinRate}%
@@ -228,58 +229,49 @@ export default function RollingWinRateChart() {
           </div>
         </div>
 
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={rollingData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <defs>
-                <linearGradient id="winRateGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(142, 76%, 45%)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(142, 76%, 45%)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-              <XAxis 
-                dataKey="tradeIndex" 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                tickLine={false}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-                label={{ value: 'Trade #', position: 'insideBottomRight', offset: -5, fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-              />
-              <YAxis 
-                domain={[0, 100]}
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                tickLine={false}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-                label={{ value: 'Win Rate %', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-              />
-              <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: '50%', position: 'left', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="winRate" 
-                stroke="none"
-                fill="url(#winRateGradient)" 
-              />
-              <Line 
-                type="monotone" 
-                dataKey="winRate" 
-                stroke="hsl(142, 76%, 45%)" 
-                strokeWidth={2}
-                dot={false}
-                name="Rolling Win Rate"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="cumulativeWinRate" 
-                stroke="hsl(190, 95%, 50%)" 
-                strokeWidth={1.5}
-                strokeDasharray="5 5"
-                dot={false}
-                name="Cumulative"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        <AnalyticsChart config={{}} className="h-64">
+          <ComposedChart data={rollingData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <defs>
+              <AnalyticsGradient id="winRateGradient" color={CHART_COLORS.bull} from={0.3} />
+            </defs>
+            <AnalyticsGrid opacity={0.5} />
+            <AnalyticsXAxis
+              dataKey="tradeIndex"
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              label={{ value: 'Trade #', position: 'insideBottomRight', offset: -5, fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+            />
+            <AnalyticsYAxis
+              domain={[0, 100]}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              label={{ value: 'Win Rate %', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+            />
+            <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: '50%', position: 'left', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
+            <Tooltip content={<CustomTooltip />} />
+            <Area
+              type="monotone"
+              dataKey="winRate"
+              stroke="none"
+              fill="url(#winRateGradient)"
+            />
+            <Line
+              type="monotone"
+              dataKey="winRate"
+              stroke={CHART_COLORS.bull}
+              strokeWidth={2}
+              dot={false}
+              name="Rolling Win Rate"
+            />
+            <Line
+              type="monotone"
+              dataKey="cumulativeWinRate"
+              stroke={CHART_COLORS.accent}
+              strokeWidth={1.5}
+              strokeDasharray="5 5"
+              dot={false}
+              name="Cumulative"
+            />
+          </ComposedChart>
+        </AnalyticsChart>
 
         <div className="flex items-center gap-4 justify-center text-xs">
           <div className="flex items-center gap-1.5">
@@ -287,7 +279,7 @@ export default function RollingWinRateChart() {
             <span className="text-muted-foreground">Rolling ({summary.windowSize}-trade)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 bg-cyan-500 rounded border-dashed" style={{ borderBottom: '2px dashed hsl(190, 95%, 50%)' }} />
+            <div className="w-3 h-0.5 bg-cyan-500 rounded border-dashed" style={{ borderBottom: `2px dashed ${CHART_COLORS.accent}` }} />
             <span className="text-muted-foreground">Cumulative</span>
           </div>
           <div className="flex items-center gap-1.5">

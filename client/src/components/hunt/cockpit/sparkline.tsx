@@ -2,8 +2,9 @@
  * Sparkline — tiny real-data area line for list rows. Fetches 5d/1d closes.
  * Renders nothing (a thin dash) when there's no data — never a fake curve.
  */
-import { Area, AreaChart, ResponsiveContainer, YAxis } from 'recharts';
+import { Area, AreaChart, YAxis } from 'recharts';
 import { usePriceHistory } from './use-price-history';
+import { AnalyticsChart, AnalyticsGradient } from '@/components/ui/analytics-chart';
 
 export function Sparkline({
   symbol,
@@ -40,13 +41,10 @@ export function Sparkline({
 
   return (
     <div style={{ width, height }}>
-      <ResponsiveContainer width="100%" height="100%">
+      <AnalyticsChart config={{}} className="h-full w-full">
         <AreaChart data={points} margin={{ top: 2, bottom: 2, left: 0, right: 0 }}>
           <defs>
-            <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
+            <AnalyticsGradient id={gid} color={color} />
           </defs>
           <YAxis hide domain={[min, max]} />
           <Area
@@ -59,7 +57,7 @@ export function Sparkline({
             dot={false}
           />
         </AreaChart>
-      </ResponsiveContainer>
+      </AnalyticsChart>
     </div>
   );
 }

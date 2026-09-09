@@ -36,13 +36,15 @@ import {
   Cell,
   BarChart,
   Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
+import {
+  AnalyticsChart,
+  AnalyticsTooltip,
+  AnalyticsXAxis,
+  AnalyticsYAxis,
+  AnalyticsGrid,
+  CHART_COLORS,
+} from "@/components/ui/analytics-chart";
 
 interface SecurityStats {
   totalRequests: number;
@@ -79,18 +81,18 @@ interface AuditLogsResponse {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  "2xx": "#10b981",
-  "3xx": "#06b6d4",
-  "4xx": "#f59e0b",
-  "5xx": "#ef4444",
+  "2xx": CHART_COLORS.bull,
+  "3xx": CHART_COLORS.accent,
+  "4xx": CHART_COLORS.gold,
+  "5xx": CHART_COLORS.bear,
 };
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: "#3b82f6",
-  POST: "#10b981",
-  PUT: "#f59e0b",
-  PATCH: "#a855f7",
-  DELETE: "#ef4444",
+  GET: CHART_COLORS.blue,
+  POST: CHART_COLORS.bull,
+  PUT: CHART_COLORS.gold,
+  PATCH: CHART_COLORS.purple,
+  DELETE: CHART_COLORS.bear,
 };
 
 export default function AdminSecurityPage() {
@@ -172,13 +174,13 @@ export default function AdminSecurityPage() {
   const statusChartData = stats ? Object.entries(stats.statusCodeDistribution).map(([status, count]) => ({
     name: status,
     value: count,
-    fill: STATUS_COLORS[status] || "#64748b",
+    fill: STATUS_COLORS[status] || CHART_COLORS.slate,
   })) : [];
 
   const methodChartData = stats ? Object.entries(stats.requestsByMethod).map(([method, count]) => ({
     method,
     count,
-    fill: METHOD_COLORS[method] || "#64748b",
+    fill: METHOD_COLORS[method] || CHART_COLORS.slate,
   })) : [];
 
   const endpointChartData = stats ? Object.entries(stats.requestsByEndpoint)
@@ -340,7 +342,7 @@ export default function AdminSecurityPage() {
                 <Skeleton className="h-[180px] w-[180px] rounded-full" />
               </div>
             ) : statusChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <AnalyticsChart config={{}} className="h-[200px]">
                 <PieChart>
                   <Pie
                     data={statusChartData}
@@ -356,15 +358,9 @@ export default function AdminSecurityPage() {
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
+                  <AnalyticsTooltip />
                 </PieChart>
-              </ResponsiveContainer>
+              </AnalyticsChart>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground">
                 Data loading...
@@ -387,25 +383,19 @@ export default function AdminSecurityPage() {
                 <Skeleton className="h-full w-full" />
               </div>
             ) : methodChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <AnalyticsChart config={{}} className="h-[200px]">
                 <BarChart data={methodChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis type="category" dataKey="method" stroke="hsl(var(--muted-foreground))" fontSize={12} width={50} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
+                  <AnalyticsGrid />
+                  <AnalyticsXAxis type="number" />
+                  <AnalyticsYAxis type="category" dataKey="method" width={50} />
+                  <AnalyticsTooltip />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {methodChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Bar>
                 </BarChart>
-              </ResponsiveContainer>
+              </AnalyticsChart>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground">
                 Data loading...
@@ -428,21 +418,15 @@ export default function AdminSecurityPage() {
                 <Skeleton className="h-full w-full" />
               </div>
             ) : endpointChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <AnalyticsChart config={{}} className="h-[200px]">
                 <BarChart data={endpointChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis type="category" dataKey="endpoint" stroke="hsl(var(--muted-foreground))" fontSize={10} width={100} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Bar dataKey="count" fill="#06b6d4" radius={[0, 4, 4, 0]} />
+                  <AnalyticsGrid />
+                  <AnalyticsXAxis type="number" />
+                  <AnalyticsYAxis type="category" dataKey="endpoint" width={100} />
+                  <AnalyticsTooltip />
+                  <Bar dataKey="count" fill={CHART_COLORS.accent} radius={[0, 4, 4, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
+              </AnalyticsChart>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-muted-foreground">
                 Data loading...

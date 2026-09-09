@@ -12,24 +12,24 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { cn, safeToFixed } from "@/lib/utils";
-import { 
-  ChartContainer, 
-  ChartTooltip, 
-  ChartTooltipContent 
-} from "@/components/ui/chart";
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  BarChart, 
-  Bar, 
-  LineChart, 
+import {
+  AnalyticsChart,
+  AnalyticsTooltip,
+  AnalyticsXAxis,
+  AnalyticsYAxis,
+  AnalyticsGradient,
+  CHART_COLORS,
+} from "@/components/ui/analytics-chart";
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  LineChart,
   Line,
   PieChart,
   Pie,
   Cell,
-  ResponsiveContainer
 } from "recharts";
 import { 
   Rocket, 
@@ -126,36 +126,34 @@ interface BotStatus {
 const chartConfig = {
   profit: { label: "Profit", color: "hsl(var(--chart-1))" },
   loss: { label: "Loss", color: "hsl(var(--chart-2))" },
-  winRate: { label: "Win Rate", color: "hsl(142 76% 36%)" },
+  winRate: { label: "Win Rate", color: CHART_COLORS.bull },
   trades: { label: "Trades", color: "hsl(var(--chart-3))" },
 };
 
-function SparklineChart({ data, color = "#22d3ee", height = 40 }: { data: number[], color?: string, height?: number }) {
+function SparklineChart({ data, color = CHART_COLORS.accent, height = 40 }: { data: number[], color?: string, height?: number }) {
   const chartData = data.map((value, index) => ({ value, index }));
+  const sparkGradientId = `sparkGradient-${color.replace(/[^a-z0-9]/gi, "")}`;
   
   return (
     <div 
       className="w-full [&_*]:pointer-events-none" 
       style={{ height, pointerEvents: 'none' }}
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <AnalyticsChart config={{}} className="h-full w-full">
         <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
           <defs>
-            <linearGradient id={`sparkGradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
+            <AnalyticsGradient id={sparkGradientId} color={color} from={0.3} />
           </defs>
           <Area 
             type="monotone" 
             dataKey="value" 
             stroke={color} 
             strokeWidth={1.5}
-            fill={`url(#sparkGradient-${color.replace('#', '')})`}
+            fill={`url(#${sparkGradientId})`}
             isAnimationActive={false}
           />
         </AreaChart>
-      </ResponsiveContainer>
+      </AnalyticsChart>
     </div>
   );
 }
@@ -192,11 +190,11 @@ function KPICard({
   };
   
   const sparkColors = {
-    cyan: "#22d3ee",
-    green: "#4ade80",
-    red: "#f87171",
-    amber: "#fbbf24",
-    purple: "#a78bfa",
+    cyan: CHART_COLORS.accent,
+    green: CHART_COLORS.bull,
+    red: CHART_COLORS.bear,
+    amber: CHART_COLORS.gold,
+    purple: CHART_COLORS.purple,
   };
 
   const handleClick = onClick ? (e: React.MouseEvent) => {
@@ -290,7 +288,7 @@ function SessionHeatmap({ data }: { data: { session: string; winRate: number; tr
 function TradeDistributionChart({ data }: { data: { name: string; value: number; color: string }[] }) {
   return (
     <div className="h-[160px]">
-      <ResponsiveContainer width="100%" height="100%">
+      <AnalyticsChart config={{}} className="h-full w-full">
         <PieChart>
           <Pie
             data={data}
@@ -306,7 +304,7 @@ function TradeDistributionChart({ data }: { data: { name: string; value: number;
             ))}
           </Pie>
         </PieChart>
-      </ResponsiveContainer>
+      </AnalyticsChart>
       <div className="flex justify-center gap-4 -mt-2">
         {data.map((item) => (
           <div key={item.name} className="flex items-center gap-1.5 text-xs">
@@ -321,68 +319,53 @@ function TradeDistributionChart({ data }: { data: { name: string; value: number;
 
 function PnLChart({ data }: { data: { date: string; pnl: number }[] }) {
   return (
-    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+    <AnalyticsChart config={chartConfig} className="h-[200px] w-full">
       <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <defs>
-          <linearGradient id="pnlGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.4} />
-            <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
-          </linearGradient>
+          <AnalyticsGradient id="pnlGradient" color={CHART_COLORS.accent} from={0.4} />
         </defs>
-        <XAxis 
-          dataKey="date" 
-          axisLine={false} 
-          tickLine={false} 
-          tick={{ fill: '#64748b', fontSize: 10 }}
+        <AnalyticsXAxis
+          dataKey="date"
           tickFormatter={(value) => value.slice(5)}
         />
-        <YAxis 
-          axisLine={false} 
-          tickLine={false} 
-          tick={{ fill: '#64748b', fontSize: 10 }}
+        <AnalyticsYAxis
           tickFormatter={(value) => `$${value}`}
         />
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <AnalyticsTooltip />
         <Area 
           type="monotone" 
           dataKey="pnl" 
-          stroke="#22d3ee" 
+          stroke={CHART_COLORS.accent} 
           strokeWidth={2}
           fill="url(#pnlGradient)"
         />
       </AreaChart>
-    </ChartContainer>
+    </AnalyticsChart>
   );
 }
 
 function WinRateTrendChart({ data }: { data: { date: string; winRate: number }[] }) {
   return (
-    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+    <AnalyticsChart config={chartConfig} className="h-[200px] w-full">
       <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-        <XAxis 
-          dataKey="date" 
-          axisLine={false} 
-          tickLine={false} 
-          tick={{ fill: '#64748b', fontSize: 10 }}
+        <AnalyticsXAxis
+          dataKey="date"
           tickFormatter={(value) => value.slice(5)}
         />
-        <YAxis 
-          axisLine={false} 
-          tickLine={false} 
-          tick={{ fill: '#64748b', fontSize: 10 }}
+        <AnalyticsYAxis
           tickFormatter={(value) => `${value}%`}
           domain={[0, 100]}
         />
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <AnalyticsTooltip />
         <Line 
           type="monotone" 
           dataKey="winRate" 
-          stroke="#4ade80" 
+          stroke={CHART_COLORS.bull} 
           strokeWidth={2}
           dot={false}
         />
       </LineChart>
-    </ChartContainer>
+    </AnalyticsChart>
   );
 }
 
@@ -632,10 +615,10 @@ export function AutoLottoDashboard() {
   });
   
   const distributionData = [
-    { name: "Options", value: assetCounts.options, color: "#22d3ee" },
-    { name: "Futures", value: assetCounts.futures, color: "#a78bfa" },
-    { name: "Crypto", value: assetCounts.crypto, color: "#fbbf24" },
-    { name: "Stocks", value: assetCounts.stock, color: "#4ade80" },
+    { name: "Options", value: assetCounts.options, color: CHART_COLORS.accent },
+    { name: "Futures", value: assetCounts.futures, color: CHART_COLORS.purple },
+    { name: "Crypto", value: assetCounts.crypto, color: CHART_COLORS.gold },
+    { name: "Stocks", value: assetCounts.stock, color: CHART_COLORS.bull },
   ].filter(d => d.value > 0);
 
   // Compute sparkline data from recent trades (last 12 data points)

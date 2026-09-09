@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { LineChart, Line, Tooltip, Legend } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { safeToFixed } from "@/lib/utils";
+import { AnalyticsChart, AnalyticsXAxis, AnalyticsYAxis, AnalyticsGrid, CHART_COLORS } from "@/components/ui/analytics-chart";
 
 interface WeekData {
   week: string;
@@ -82,82 +83,74 @@ export default function EngineTrendsChart() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-96">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-              <XAxis
-                dataKey="weekLabel"
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-              />
-              <YAxis
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                label={{ value: 'Win Rate %', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
-                domain={[0, 100]}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                wrapperStyle={{ paddingTop: '20px' }}
-                iconType="line"
-                formatter={(value) => value.toUpperCase()}
-              />
-              <Line
-                type="monotone"
-                dataKey="ai"
-                stroke="hsl(217, 91%, 60%)"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                name="ai"
-                data-testid="line-ai"
-              />
-              <Line
-                type="monotone"
-                dataKey="quant"
-                stroke="hsl(280, 70%, 60%)"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                name="quant"
-                data-testid="line-quant"
-              />
-              <Line
-                type="monotone"
-                dataKey="hybrid"
-                stroke="hsl(142, 76%, 45%)"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                name="hybrid"
-                data-testid="line-hybrid"
-              />
-              <Line
-                type="monotone"
-                dataKey="flow"
-                stroke="hsl(45, 100%, 50%)"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                name="flow"
-                data-testid="line-flow"
-              />
-              <Line
-                type="monotone"
-                dataKey="news"
-                stroke="hsl(45, 93%, 58%)"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-                name="news"
-                data-testid="line-news"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <AnalyticsChart config={{}} className="h-96">
+          <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <AnalyticsGrid opacity={0.3} />
+            <AnalyticsXAxis
+              dataKey="weekLabel"
+            />
+            <AnalyticsYAxis
+              label={{ value: 'Win Rate %', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
+              domain={[0, 100]}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend
+              wrapperStyle={{ paddingTop: '20px' }}
+              iconType="line"
+              formatter={(value) => value.toUpperCase()}
+            />
+            <Line
+              type="monotone"
+              dataKey="ai"
+              stroke={CHART_COLORS.blue}
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              activeDot={{ r: 6 }}
+              name="ai"
+              data-testid="line-ai"
+            />
+            <Line
+              type="monotone"
+              dataKey="quant"
+              stroke={CHART_COLORS.purple}
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              activeDot={{ r: 6 }}
+              name="quant"
+              data-testid="line-quant"
+            />
+            <Line
+              type="monotone"
+              dataKey="hybrid"
+              stroke={CHART_COLORS.bull}
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              activeDot={{ r: 6 }}
+              name="hybrid"
+              data-testid="line-hybrid"
+            />
+            <Line
+              type="monotone"
+              dataKey="flow"
+              stroke={CHART_COLORS.gold}
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              activeDot={{ r: 6 }}
+              name="flow"
+              data-testid="line-flow"
+            />
+            <Line
+              type="monotone"
+              dataKey="news"
+              stroke={CHART_COLORS.orange}
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              activeDot={{ r: 6 }}
+              name="news"
+              data-testid="line-news"
+            />
+          </LineChart>
+        </AnalyticsChart>
       </CardContent>
     </Card>
   );

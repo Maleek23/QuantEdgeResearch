@@ -54,13 +54,21 @@ import {
   Cell,
   BarChart,
   Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
+import {
+  AnalyticsChart,
+  AnalyticsTooltip,
+  AnalyticsXAxis,
+  AnalyticsYAxis,
+  AnalyticsGrid,
+  CHART_COLORS,
+  CHART_RAMP,
+} from "@/components/ui/analytics-chart";
+
+/** Recharts value union — keeps tooltip formatters assignable to the themed
+ *  tooltip's non-generic Formatter<ValueType, NameType> prop. */
+type ChartValue = number | string | Array<number | string>;
+
 import type { PlatformReport } from "@shared/schema";
 
 interface PlatformStats {
@@ -127,11 +135,11 @@ function getCSRFToken(): string | null {
 }
 
 const ENGINE_COLORS: Record<string, string> = {
-  ai: "#a855f7",
-  quant: "#3b82f6",
-  hybrid: "#06b6d4",
-  flow: "#10b981",
-  lotto: "#f59e0b",
+  ai: CHART_COLORS.purple,
+  quant: CHART_COLORS.blue,
+  hybrid: CHART_COLORS.accent,
+  flow: CHART_COLORS.bull,
+  lotto: CHART_COLORS.gold,
 };
 
 const ENGINE_LABELS: Record<string, string> = {
@@ -142,7 +150,8 @@ const ENGINE_LABELS: Record<string, string> = {
   lotto: "Lotto Scanner",
 };
 
-const ASSET_COLORS = ["#06b6d4", "#a855f7", "#10b981", "#f59e0b"];
+// Categorical ramp in CHART_RAMP order: accent, gold, purple, blue.
+const ASSET_COLORS: string[] = CHART_RAMP.slice(0, 4);
 
 export default function AdminReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
@@ -263,7 +272,7 @@ export default function AdminReportsPage() {
     engine: ENGINE_LABELS[e.engine] || e.engine,
     winRate: e.winRate || 0,
     trades: e.trades,
-    fill: ENGINE_COLORS[e.engine] || "#64748b",
+    fill: ENGINE_COLORS[e.engine] || CHART_COLORS.slate,
   })) || [];
 
   return (
@@ -493,7 +502,7 @@ export default function AdminReportsPage() {
                 {statsLoading ? (
                   <Skeleton className="h-64 w-full" />
                 ) : assetChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
+                  <AnalyticsChart config={{}} className="h-[280px]">
                     <RechartsPieChart>
                       <Pie
                         data={assetChartData}
@@ -504,21 +513,15 @@ export default function AdminReportsPage() {
                         paddingAngle={2}
                         dataKey="value"
                         label={({ name, percent }) => `${name} ${safeToFixed(percent * 100, 0)}%`}
-                        labelLine={{ stroke: "#64748b" }}
+                        labelLine={{ stroke: CHART_COLORS.slate }}
                       >
                         {assetChartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#1e293b",
-                          border: "1px solid #334155",
-                          borderRadius: "8px",
-                        }}
-                      />
+                      <AnalyticsTooltip />
                     </RechartsPieChart>
-                  </ResponsiveContainer>
+                  </AnalyticsChart>
                 ) : (
                   <div className="h-64 flex items-center justify-center text-muted-foreground">
                     Asset data loading...
@@ -586,26 +589,19 @@ export default function AdminReportsPage() {
               {statsLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : engineChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <AnalyticsChart config={{}} className="h-[300px]">
                   <BarChart data={engineChartData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} stroke="#64748b" />
-                    <YAxis type="category" dataKey="engine" width={120} stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#1e293b",
-                        border: "1px solid #334155",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value: number) => [`${safeToFixed(value, 1)}%`, "Win Rate"]}
-                    />
+                    <AnalyticsGrid />
+                    <AnalyticsXAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                    <AnalyticsYAxis type="category" dataKey="engine" width={120} />
+                    <AnalyticsTooltip formatter={(value: ChartValue) => [`${safeToFixed(value, 1)}%`, "Win Rate"]} />
                     <Bar dataKey="winRate" radius={[0, 4, 4, 0]}>
                       {engineChartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Bar>
                   </BarChart>
-                </ResponsiveContainer>
+                </AnalyticsChart>
               ) : (
                 <div className="h-64 flex items-center justify-center text-muted-foreground">
                   Engine data loading...

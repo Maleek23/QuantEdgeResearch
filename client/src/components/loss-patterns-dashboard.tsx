@@ -22,7 +22,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend } from "recharts";
+import { PieChart, Pie, Cell, BarChart, Bar } from "recharts";
+import {
+  AnalyticsChart,
+  AnalyticsTooltip,
+  AnalyticsXAxis,
+  AnalyticsYAxis,
+  CHART_COLORS,
+} from "@/components/ui/analytics-chart";
 import { safeToFixed } from "@/lib/utils";
 
 interface LossSummary {
@@ -36,34 +43,34 @@ interface LossSummary {
 
 // Human-readable reason labels with hex colors for charts
 const REASON_LABELS: Record<string, { label: string; icon: JSX.Element; color: string; hexColor: string; description: string }> = {
-  market_reversal: { label: "Market Reversal", icon: <TrendingDown className="w-4 h-4" />, color: "text-[var(--trade-bearish)]", hexColor: "#ef4444", description: "Market turned against position" },
-  sector_weakness: { label: "Sector Weakness", icon: <Activity className="w-4 h-4" />, color: "text-orange-500", hexColor: "#f97316", description: "Sector-wide headwinds" },
-  bad_timing: { label: "Bad Timing", icon: <Clock className="w-4 h-4" />, color: "text-yellow-500", hexColor: "#eab308", description: "Poor entry timing" },
-  news_catalyst_failed: { label: "News Failed", icon: <AlertCircle className="w-4 h-4" />, color: "text-purple-500", hexColor: "#a855f7", description: "Expected catalyst didn't materialize" },
-  stop_too_tight: { label: "Stop Too Tight", icon: <Target className="w-4 h-4" />, color: "text-blue-500", hexColor: "#3b82f6", description: "Normal volatility triggered stop" },
-  overconfident_signal: { label: "Overconfident Signal", icon: <Zap className="w-4 h-4" />, color: "text-[var(--trade-neutral)]", hexColor: "#f59e0b", description: "High confidence but still failed" },
-  low_volume_trap: { label: "Low Volume Trap", icon: <Volume2 className="w-4 h-4" />, color: "text-muted-foreground", hexColor: "#6b7280", description: "Trapped in illiquid name" },
-  gap_down_open: { label: "Gap Down Open", icon: <TrendingDown className="w-4 h-4" />, color: "text-red-600", hexColor: "#dc2626", description: "Gapped past stop loss" },
-  trend_exhaustion: { label: "Trend Exhaustion", icon: <Activity className="w-4 h-4" />, color: "text-orange-600", hexColor: "#ea580c", description: "Entered at extended move" },
-  fundamental_miss: { label: "Fundamental Miss", icon: <Lightbulb className="w-4 h-4" />, color: "text-blue-600", hexColor: "#2563eb", description: "AI missed fundamental red flag" },
-  technical_breakdown: { label: "Technical Breakdown", icon: <BarChart3 className="w-4 h-4" />, color: "text-indigo-500", hexColor: "#6366f1", description: "Key level didn't hold" },
-  options_decay: { label: "Options Decay", icon: <Clock className="w-4 h-4" />, color: "text-pink-500", hexColor: "#ec4899", description: "Theta ate into position" },
-  volatility_crush: { label: "Volatility Crush", icon: <TrendingDown className="w-4 h-4" />, color: "text-rose-500", hexColor: "#f43f5e", description: "IV crush after catalyst" },
-  correlation_blindspot: { label: "Correlation Blindspot", icon: <Shield className="w-4 h-4" />, color: "text-violet-500", hexColor: "#8b5cf6", description: "Missed correlation risk" },
-  unknown: { label: "Unknown", icon: <AlertCircle className="w-4 h-4" />, color: "text-muted-foreground", hexColor: "#9ca3af", description: "Requires manual review" },
+  market_reversal: { label: "Market Reversal", icon: <TrendingDown className="w-4 h-4" />, color: "text-[var(--trade-bearish)]", hexColor: CHART_COLORS.bear, description: "Market turned against position" },
+  sector_weakness: { label: "Sector Weakness", icon: <Activity className="w-4 h-4" />, color: "text-orange-500", hexColor: CHART_COLORS.orange, description: "Sector-wide headwinds" },
+  bad_timing: { label: "Bad Timing", icon: <Clock className="w-4 h-4" />, color: "text-yellow-500", hexColor: CHART_COLORS.gold, description: "Poor entry timing" },
+  news_catalyst_failed: { label: "News Failed", icon: <AlertCircle className="w-4 h-4" />, color: "text-purple-500", hexColor: CHART_COLORS.purple, description: "Expected catalyst didn't materialize" },
+  stop_too_tight: { label: "Stop Too Tight", icon: <Target className="w-4 h-4" />, color: "text-blue-500", hexColor: CHART_COLORS.blue, description: "Normal volatility triggered stop" },
+  overconfident_signal: { label: "Overconfident Signal", icon: <Zap className="w-4 h-4" />, color: "text-[var(--trade-neutral)]", hexColor: CHART_COLORS.gold, description: "High confidence but still failed" },
+  low_volume_trap: { label: "Low Volume Trap", icon: <Volume2 className="w-4 h-4" />, color: "text-muted-foreground", hexColor: CHART_COLORS.slate, description: "Trapped in illiquid name" },
+  gap_down_open: { label: "Gap Down Open", icon: <TrendingDown className="w-4 h-4" />, color: "text-red-600", hexColor: CHART_COLORS.bear, description: "Gapped past stop loss" },
+  trend_exhaustion: { label: "Trend Exhaustion", icon: <Activity className="w-4 h-4" />, color: "text-orange-600", hexColor: CHART_COLORS.orange, description: "Entered at extended move" },
+  fundamental_miss: { label: "Fundamental Miss", icon: <Lightbulb className="w-4 h-4" />, color: "text-blue-600", hexColor: CHART_COLORS.blue, description: "AI missed fundamental red flag" },
+  technical_breakdown: { label: "Technical Breakdown", icon: <BarChart3 className="w-4 h-4" />, color: "text-indigo-500", hexColor: CHART_COLORS.purple, description: "Key level didn't hold" },
+  options_decay: { label: "Options Decay", icon: <Clock className="w-4 h-4" />, color: "text-pink-500", hexColor: CHART_COLORS.pink, description: "Theta ate into position" },
+  volatility_crush: { label: "Volatility Crush", icon: <TrendingDown className="w-4 h-4" />, color: "text-rose-500", hexColor: CHART_COLORS.bear, description: "IV crush after catalyst" },
+  correlation_blindspot: { label: "Correlation Blindspot", icon: <Shield className="w-4 h-4" />, color: "text-violet-500", hexColor: CHART_COLORS.purple, description: "Missed correlation risk" },
+  unknown: { label: "Unknown", icon: <AlertCircle className="w-4 h-4" />, color: "text-muted-foreground", hexColor: CHART_COLORS.slate, description: "Requires manual review" },
 };
 
 // Engine config for charts
 const ENGINE_COLORS: Record<string, string> = {
-  ai: "#a855f7",
-  quant: "#3b82f6",
-  hybrid: "#8b5cf6",
-  flow: "#22d3ee",
-  lotto: "#f59e0b",
-  chart_analysis: "#ec4899",
-  news: "#22c55e",
-  flow_scanner: "#22d3ee",
-  lotto_scanner: "#f59e0b",
+  ai: CHART_COLORS.purple,
+  quant: CHART_COLORS.blue,
+  hybrid: CHART_COLORS.purple,
+  flow: CHART_COLORS.accent,
+  lotto: CHART_COLORS.gold,
+  chart_analysis: CHART_COLORS.pink,
+  news: CHART_COLORS.bull,
+  flow_scanner: CHART_COLORS.accent,
+  lotto_scanner: CHART_COLORS.gold,
 };
 
 // Pie chart component for loss reasons
@@ -72,12 +79,12 @@ function LossReasonsPieChart({ data }: { data: { reason: string; count: number; 
     name: REASON_LABELS[item.reason]?.label || item.reason,
     value: item.count,
     avgLoss: Math.abs(item.avgLoss),
-    color: REASON_LABELS[item.reason]?.hexColor || "#6b7280",
+    color: REASON_LABELS[item.reason]?.hexColor || CHART_COLORS.slate,
   }));
 
   return (
     <div className="h-48">
-      <ResponsiveContainer width="100%" height="100%">
+      <AnalyticsChart config={{}} className="h-full w-full">
         <PieChart>
           <Pie
             data={chartData}
@@ -92,20 +99,20 @@ function LossReasonsPieChart({ data }: { data: { reason: string; count: number; 
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
-          <RechartsTooltip
+          <AnalyticsTooltip
             contentStyle={{ 
               backgroundColor: 'hsl(var(--card))', 
               border: '1px solid hsl(var(--border))',
               borderRadius: '8px',
               fontSize: '12px'
             }}
-            formatter={(value: number, name: string, props: any) => [
+            formatter={(value: any, name: any, props: any) => [
               `${value} trades (${safeToFixed(props.payload.avgLoss, 1)}% avg loss)`,
               name
             ]}
           />
         </PieChart>
-      </ResponsiveContainer>
+      </AnalyticsChart>
     </div>
   );
 }
@@ -116,35 +123,34 @@ function EngineBreakdownChart({ data }: { data: { engine: string; count: number;
     name: formatEngine(item.engine),
     losses: item.count,
     avgLoss: Math.abs(item.avgLoss),
-    fill: ENGINE_COLORS[item.engine] || "#6b7280",
+    fill: ENGINE_COLORS[item.engine] || CHART_COLORS.slate,
   }));
 
   return (
     <div className="h-40">
-      <ResponsiveContainer width="100%" height="100%">
+      <AnalyticsChart config={{}} className="h-full w-full">
         <BarChart data={chartData} layout="vertical" margin={{ left: 70, right: 20 }}>
-          <XAxis type="number" hide />
-          <YAxis 
-            type="category" 
-            dataKey="name" 
-            tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
-            width={65} 
+          <AnalyticsXAxis type="number" hide />
+          <AnalyticsYAxis
+            type="category"
+            dataKey="name"
+            width={65}
           />
-          <RechartsTooltip
+          <AnalyticsTooltip
             contentStyle={{ 
               backgroundColor: 'hsl(var(--card))', 
               border: '1px solid hsl(var(--border))',
               borderRadius: '8px',
               fontSize: '12px'
             }}
-            formatter={(value: number, name: string, props: any) => [
+            formatter={(value: any, name: any, props: any) => [
               `${value} losses (${safeToFixed(props.payload.avgLoss, 1)}% avg)`,
               'Count'
             ]}
           />
           <Bar dataKey="losses" radius={[0, 4, 4, 0]} />
         </BarChart>
-      </ResponsiveContainer>
+      </AnalyticsChart>
     </div>
   );
 }

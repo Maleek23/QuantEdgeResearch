@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ComposedChart } from "recharts";
+import { Area, Line, Tooltip, ReferenceLine, ComposedChart } from "recharts";
 import { TrendingDown, TrendingUp, Activity, Info, AlertTriangle, CheckCircle } from "lucide-react";
 import { cn, safeToFixed } from "@/lib/utils";
 import { Tooltip as TooltipUI, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AnalyticsChart, AnalyticsXAxis, AnalyticsYAxis, AnalyticsGrid, AnalyticsGradient, CHART_COLORS } from "@/components/ui/analytics-chart";
 
 interface EquityCurvePoint {
   tradeIndex: number;
@@ -138,7 +139,7 @@ export default function DrawdownAnalysisChart() {
                     <Info className="h-4 w-4 text-muted-foreground" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
-                    <p className="text-xs">Measures the decline from peak cumulative returns. 
+                    <p className="text-xs">Measures the decline from peak cumulative returns.
                     Essential for understanding risk exposure and recovery patterns.</p>
                   </TooltipContent>
                 </TooltipUI>
@@ -194,7 +195,7 @@ export default function DrawdownAnalysisChart() {
                   <p className={cn(
                     "font-semibold font-mono text-lg",
                     summary.calmar.status !== 'valid' && summary.calmar.status !== 'estimated' ? "text-muted-foreground" :
-                    summary.calmar.value !== null && summary.calmar.value >= 1 ? "text-[var(--trade-bullish)]" : 
+                    summary.calmar.value !== null && summary.calmar.value >= 1 ? "text-[var(--trade-bullish)]" :
                     summary.calmar.value !== null && summary.calmar.value >= 0.5 ? "text-cyan-500" : "text-[var(--trade-neutral)]"
                   )}>
                     {summary.calmar.status === 'insufficient-sample' ? 'N/A' :
@@ -230,56 +231,44 @@ export default function DrawdownAnalysisChart() {
           </div>
         </div>
 
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={equityCurve} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <defs>
-                <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(142, 76%, 45%)" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="hsl(142, 76%, 45%)" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="drawdownGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(0, 72%, 55%)" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="hsl(0, 72%, 55%)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-              <XAxis 
-                dataKey="tradeIndex" 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                tickLine={false}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-              />
-              <YAxis 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                tickLine={false}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-                domain={['auto', 'auto']}
-                tickFormatter={(val) => `${safeToFixed(val, 2)}x`}
-                label={{ value: 'Equity (1.0 = start)', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-              />
-              <ReferenceLine y={1} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="equity" 
-                stroke="hsl(142, 76%, 45%)"
-                fill="url(#equityGradient)" 
-                strokeWidth={2}
-                name="Equity Curve"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="peak" 
-                stroke="hsl(190, 95%, 50%)" 
-                strokeWidth={1}
-                strokeDasharray="3 3"
-                dot={false}
-                name="Peak"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        <AnalyticsChart config={{}} className="h-64">
+          <ComposedChart data={equityCurve} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <defs>
+              <AnalyticsGradient id="equityGradient" color={CHART_COLORS.bull} from={0.4} />
+              <AnalyticsGradient id="drawdownGradient" color={CHART_COLORS.bear} from={0.4} />
+            </defs>
+            <AnalyticsGrid opacity={0.5} />
+            <AnalyticsXAxis
+              dataKey="tradeIndex"
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+            />
+            <AnalyticsYAxis
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              domain={['auto', 'auto']}
+              tickFormatter={(val) => `${safeToFixed(val, 2)}x`}
+              label={{ value: 'Equity (1.0 = start)', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+            />
+            <ReferenceLine y={1} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+            <Tooltip content={<CustomTooltip />} />
+            <Area
+              type="monotone"
+              dataKey="equity"
+              stroke={CHART_COLORS.bull}
+              fill="url(#equityGradient)"
+              strokeWidth={2}
+              name="Equity Curve"
+            />
+            <Line
+              type="monotone"
+              dataKey="peak"
+              stroke={CHART_COLORS.accent}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              dot={false}
+              name="Peak"
+            />
+          </ComposedChart>
+        </AnalyticsChart>
 
         <div className="flex items-center gap-4 justify-center text-xs">
           <div className="flex items-center gap-1.5">
@@ -287,7 +276,7 @@ export default function DrawdownAnalysisChart() {
             <span className="text-muted-foreground">Equity Curve</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 bg-cyan-500 rounded" style={{ borderBottom: '2px dashed hsl(190, 95%, 50%)' }} />
+            <div className="w-3 h-0.5 bg-cyan-500 rounded" style={{ borderBottom: `2px dashed ${CHART_COLORS.accent}` }} />
             <span className="text-muted-foreground">High Water Mark</span>
           </div>
         </div>
@@ -299,9 +288,9 @@ export default function DrawdownAnalysisChart() {
             </p>
             <p className="text-xs text-muted-foreground">
               <span className="font-medium">Risk Assessment:</span>{' '}
-              {summary.maxDrawdownPercent > 30 
+              {summary.maxDrawdownPercent > 30
                 ? 'High risk profile - consider tighter position sizing'
-                : summary.maxDrawdownPercent > 15 
+                : summary.maxDrawdownPercent > 15
                 ? 'Moderate risk - acceptable for active trading'
                 : 'Low drawdown - conservative risk profile'}
             </p>
