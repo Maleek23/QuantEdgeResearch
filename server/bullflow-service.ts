@@ -83,6 +83,7 @@ export interface BullflowPrint {
 
 const PRINT_CAP = 600;
 const prints: BullflowPrint[] = [];
+const discordThrottle = new Map<string, number>();  // symbol → last Discord push
 let streamState: 'off' | 'connecting' | 'live' | 'backoff' = 'off';
 let reconnectDelay = 2_000;
 let abort: AbortController | null = null;
@@ -151,10 +152,34 @@ export function startBullflowStream(): void {
           });
           if (prints.length > PRINT_CAP) prints.splice(0, prints.length - PRINT_CAP);
           if (premium >= 1_000_000) {
+            const contractStr = `${occ.underlying} $${occ.strike}${occ.optionType === 'call' ? 'C' : 'P'} ${occ.expiry}`;
             try {
               const { pulse } = await import('./system-pulse');
-              pulse('flow', `Bullflow: ${occ.underlying} $${occ.strike}${occ.optionType === 'call' ? 'C' : 'P'} ${d.alertName} — $${(premium / 1e6).toFixed(1)}M print`);
+              pulse('flow', `Bullflow: ${contractStr} ${d.alertName} — $${(premium / 1e6).toFixed(1)}M print`);
             } catch { /* decoration */ }
+            // Discord push, throttled per symbol so a repeat-fire name doesn't
+            // flood the channel. Direction stays honest: the print's side is
+            // not measured; the symbol's aggressor lean is, and rides along.
+            if (Date.now() - (discordThrottle.get(occ.underlying) ?? 0) > 10 * 60_000) {
+              discordThrottle.set(occ.underlying, Date.now());
+              void (async () => {
+                try {
+                  let leanLine = '';
+                  const read = await getNetPremiumToday(occ.underlying);
+                  if (read) leanLine = `\n> ${occ.underlying} aggressor lean today: **${read.lean.toUpperCase()}** (calls net ${read.callsNetPremium < 0 ? '−' : '+'}$${(Math.abs(read.callsNetPremium) / 1e6).toFixed(1)}M · puts net ${read.putsNetPremium < 0 ? '−' : '+'}$${(Math.abs(read.putsNetPremium) / 1e6).toFixed(1)}M)`;
+                  const url = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+                  if (!url) return;
+                  const { postDiscordWebhook } = await import('./discord-service');
+                  await postDiscordWebhook(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: `⚡ **${contractStr}** · ${d.alertName} · **$${(premium / 1e6).toFixed(1)}M** @ $${fill}\n> print side not measured — execution style ≠ direction${leanLine}` }),
+                  });
+                } catch (e) {
+                  logger.warn('[BULLFLOW] discord print relay failed:', e);
+                }
+              })();
+            }
           }
         }
       }

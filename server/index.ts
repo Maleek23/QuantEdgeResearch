@@ -235,6 +235,19 @@ app.use((req, res, next) => {
         }
       }).catch(() => {});
 
+      // Flow cluster sentry — the push channel the META miss exposed. Every
+      // 5 min in cash hours: same-name premium clusters (>=$5M, >=3 prints)
+      // fire ONCE per tier to the Pulse + Discord with the aggressor lean.
+      // Bearish reads are delivered as reads even when the gate blocks trades.
+      setInterval(() => {
+        const nowCT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const h = nowCT.getHours(); const m = nowCT.getMinutes(); const dow = nowCT.getDay();
+        const cash = dow >= 1 && dow <= 5 && (h > 8 || (h === 8 && m >= 30)) && h < 15;
+        if (!cash) return;
+        void import('./flow-cluster-sentry').then((s) => s.runFlowClusterSweep()).catch(() => {});
+      }, 5 * 60 * 1000);
+      log('🐋 Flow cluster sentry scheduled (5m, cash hours) — findings get a mouth');
+
       // Full-universe pattern sweep — daily bars, so twice a day is plenty.
       // First sweep 3 min after boot (let quotes/candles warm), then every 12h.
       setTimeout(() => {
