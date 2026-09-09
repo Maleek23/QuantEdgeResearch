@@ -531,8 +531,18 @@ async function runFullScan(options?: ScanOptions): Promise<ConfluenceScanResult>
         } else {
           const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
           const cboe = await computeGEXFromCBOE(symbol);
-          if (!cboe) throw new Error('no_gex_data');
-          snap = cboe;
+          if (cboe) {
+            snap = cboe;
+          } else {
+            // THIRD LEG — Bullflow's precomputed per-strike chain, one call
+            // instead of a 30-expiry fetch storm. This is what rescues the
+            // ~120 names that died on Tradier(401)+CBOE(429) and left the
+            // hub honestly reporting 14/136.
+            const { computeGEXFromBullflow } = await import('./gex-bullflow-fallback');
+            const bfl = await computeGEXFromBullflow(symbol);
+            if (!bfl) throw new Error('no_gex_data');
+            snap = bfl;
+          }
         }
         if (!quote) throw new Error('no_quote');
 

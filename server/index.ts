@@ -248,6 +248,14 @@ app.use((req, res, next) => {
       }, 5 * 60 * 1000);
       log('🐋 Flow cluster sentry scheduled (5m, cash hours) — findings get a mouth');
 
+      // Print-outcome scorer — 35 min after the close, every $250k+ print of
+      // the day gets a measured peak-return grade. The per-class track record
+      // is what eventually replaces hand-set score priors.
+      newsCron.default.schedule('35 15 * * 1-5', () => {
+        void import('./flow-outcome-scorer').then((s) => s.scoreDayPrints()).catch(() => {});
+      }, { timezone: 'America/Chicago' } as any);
+      log('📏 Flow outcome scorer scheduled (15:35 CT) — prints graded by measured aftermath');
+
       // Full-universe pattern sweep — daily bars, so twice a day is plenty.
       // First sweep 3 min after boot (let quotes/candles warm), then every 12h.
       setTimeout(() => {

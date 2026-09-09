@@ -84,6 +84,36 @@ export interface BullflowPrint {
 const PRINT_CAP = 600;
 const prints: BullflowPrint[] = [];
 const discordThrottle = new Map<string, number>();  // symbol → last Discord push
+
+// Prints persist to JSONL so a restart doesn't erase the day's tape — the
+// outcome scorer needs the full session, not whatever a fresh ring holds.
+async function persistPrint(p: BullflowPrint): Promise<void> {
+  try {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const file = path.join(process.cwd(), 'server', 'data', 'bullflow-prints.jsonl');
+    await fs.mkdir(path.dirname(file), { recursive: true }).catch(() => {});
+    await fs.appendFile(file, JSON.stringify(p) + '\n', 'utf8');
+  } catch { /* persistence is best-effort; the live ring still serves */ }
+}
+
+/** All persisted prints for one ET market date (scorer + restart recovery). */
+export async function readPersistedPrints(dateET: string): Promise<BullflowPrint[]> {
+  try {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const raw = await fs.readFile(path.join(process.cwd(), 'server', 'data', 'bullflow-prints.jsonl'), 'utf8');
+    const out: BullflowPrint[] = [];
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const p = JSON.parse(line) as BullflowPrint;
+        if (marketDateET(new Date(p.at)) === dateET) out.push(p);
+      } catch { /* skip corrupt line */ }
+    }
+    return out;
+  } catch { return []; }
+}
 let streamState: 'off' | 'connecting' | 'live' | 'backoff' = 'off';
 let reconnectDelay = 2_000;
 let abort: AbortController | null = null;
@@ -151,6 +181,7 @@ export function startBullflowStream(): void {
             at: new Date((Number(d.timestamp) || Date.now() / 1000) * 1000).toISOString(),
           });
           if (prints.length > PRINT_CAP) prints.splice(0, prints.length - PRINT_CAP);
+          void persistPrint(prints[prints.length - 1]);
           if (premium >= 1_000_000) {
             const contractStr = `${occ.underlying} $${occ.strike}${occ.optionType === 'call' ? 'C' : 'P'} ${occ.expiry}`;
             try {

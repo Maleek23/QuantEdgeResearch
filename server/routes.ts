@@ -14613,6 +14613,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ enabled: false, streamState: 'off', printsHeld: 0, latest: [] });
     }
   });
+  app.get("/api/bullflow/leaders", async (_req, res) => {
+    try {
+      const bf = await import("./bullflow-service");
+      if (!bf.bullflowEnabled()) return res.json({ enabled: false, rows: [] });
+      const d = await bf.getTopTickers('net_premium', { excludeEtfs: true });
+      res.json({ enabled: true, generatedAt: d?.generatedAt ?? null, rows: (d?.rows ?? []).slice(0, 20) });
+    } catch {
+      res.status(500).json({ error: "leaders lookup failed" });
+    }
+  });
+  app.get("/api/flow/outcomes", async (_req, res) => {
+    try {
+      const s = await import("./flow-outcome-scorer");
+      res.json({ classes: await s.outcomesByClass(), _meta: { note: "peak return since each print, measured by provider lookup; classes below MIN_REPORTABLE_SAMPLE are data accrual, not conclusions" } });
+    } catch {
+      res.status(500).json({ error: "outcomes read failed" });
+    }
+  });
   app.get("/api/bullflow/net-premium/:symbol", async (req, res) => {
     try {
       const bf = await import("./bullflow-service");

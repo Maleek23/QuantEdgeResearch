@@ -115,6 +115,19 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
       .sort((a, b) => b.score.score - a.score.score);
   }, [prints]);
 
+  // Market-wide leaders by aggressor-inferred NET premium — the whole-market
+  // "where is directional money actually going" strip. Provider-computed
+  // (ask-side vs bid-side); absent key or cold feed renders nothing.
+  const leadersQ = useQuery<{ enabled: boolean; rows: Array<{ ticker: string; totalNetPremium?: number; totalPremium?: number; callPremium?: number; putPremium?: number }> }>({
+    queryKey: ['/api/bullflow/leaders'],
+    queryFn: async () => {
+      const r = await fetch('/api/bullflow/leaders', { credentials: 'include' });
+      if (!r.ok) return { enabled: false, rows: [] };
+      return r.json();
+    },
+    staleTime: 5 * 60_000, refetchInterval: 6 * 60_000, retry: 0,
+  });
+
   const shown = useMemo(() => scored.filter(({ print: p, score: s }) => {
     if (dir !== 'all' && p.optionType !== dir) return false;
     if (kind !== 'all' && p.flowType !== kind) return false;
@@ -299,6 +312,27 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
                 buyer from a seller, and selling calls is bearish while selling puts is
                 bullish — so the side of this premium is unknown, not neutral.
               </CanonModelNote>
+            </div>
+          )}
+
+          {/* ── market leaders — aggressor-inferred net premium, whole market ── */}
+          {(leadersQ.data?.rows?.length ?? 0) > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', overflowX: 'auto', borderBottom: '1px solid var(--nx-border, rgba(148,163,184,0.1))', marginBottom: 8 }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-mute)', whiteSpace: 'nowrap' }} title="Provider-measured aggressor net premium (ask-side minus bid-side) — market-wide, ETFs excluded">
+                Leaders · net premium
+              </span>
+              {leadersQ.data!.rows.slice(0, 14).map((r) => {
+                const net = r.totalNetPremium ?? ((r.callPremium ?? 0) - (r.putPremium ?? 0));
+                const up = net >= 0;
+                return (
+                  <button key={r.ticker} onClick={() => openWorkup(r.ticker)}
+                    title={`${r.ticker}: net ${up ? '+' : '−'}$${(Math.abs(net) / 1e6).toFixed(1)}M aggressor premium today — click for workup`}
+                    style={{ display: 'flex', gap: 5, alignItems: 'baseline', padding: '3px 8px', borderRadius: 4, whiteSpace: 'nowrap', cursor: 'pointer', background: up ? 'rgba(52,211,153,0.07)' : 'rgba(255,84,112,0.07)', border: `1px solid ${up ? 'rgba(52,211,153,0.2)' : 'rgba(255,84,112,0.2)'}` }}>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: 'var(--text)' }}>{r.ticker}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}${(Math.abs(net) / 1e6).toFixed(1)}M</span>
+                  </button>
+                );
+              })}
             </div>
           )}
 

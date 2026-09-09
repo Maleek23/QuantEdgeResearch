@@ -288,6 +288,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
   const { data: spyHist } = useDaily('SPY', '3mo', 'wu-corr');
   const { data: qqqHist } = useDaily('QQQ', '3mo', 'wu-corr');
   const { data: shortInt } = useQuery<{ shortPercentOfFloat: number | null; shortRatio: number | null; squeezeContext: string }>({ queryKey: ['/api/short-interest', symbol], queryFn: fetchJson(`/api/short-interest/${symbol}`), staleTime: 3600_000, retry: 1 });
+  const { data: aggressor } = useQuery<{ enabled: boolean; read: { lean: 'long' | 'short' | 'flat'; callsNetPremium: number; putsNetPremium: number } | null }>({ queryKey: ['/api/bullflow/net-premium', symbol], queryFn: fetchJson(`/api/bullflow/net-premium/${symbol}`), staleTime: 180_000, retry: 0 });
   const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'wu'], queryFn: fetchJson('/api/crypto/pulse'), staleTime: 300_000, retry: 1 });
 
   const bars = yearly?.data ?? [];
@@ -765,7 +766,22 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                       </div>
                       Unusual options activity
                     </div>
-                    <div className="ov-badge" style={{ color: 'var(--purple)', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)' }}>{trades.length} prints</div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {aggressor?.read && (
+                        <div
+                          className="ov-badge"
+                          title={`Aggressor-inferred net premium today (ask-side vs bid-side, measured by the tape): calls ${aggressor.read.callsNetPremium < 0 ? '−' : '+'}$${(Math.abs(aggressor.read.callsNetPremium) / 1e6).toFixed(1)}M · puts ${aggressor.read.putsNetPremium < 0 ? '−' : '+'}$${(Math.abs(aggressor.read.putsNetPremium) / 1e6).toFixed(1)}M`}
+                          style={{
+                            color: aggressor.read.lean === 'long' ? 'var(--green)' : aggressor.read.lean === 'short' ? 'var(--red)' : 'var(--text-dim)',
+                            background: aggressor.read.lean === 'long' ? 'rgba(52,211,153,0.1)' : aggressor.read.lean === 'short' ? 'rgba(255,84,112,0.1)' : 'rgba(148,163,184,0.08)',
+                            border: `1px solid ${aggressor.read.lean === 'long' ? 'rgba(52,211,153,0.3)' : aggressor.read.lean === 'short' ? 'rgba(255,84,112,0.3)' : 'var(--nx-border)'}`,
+                          }}
+                        >
+                          AGGRESSOR: {aggressor.read.lean.toUpperCase()}
+                        </div>
+                      )}
+                      <div className="ov-badge" style={{ color: 'var(--purple)', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)' }}>{trades.length} prints</div>
+                    </div>
                   </div>
                   {trades.length > 0 && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
