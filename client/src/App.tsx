@@ -31,12 +31,10 @@ import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 // All page imports use lazyWithRetry for automatic chunk-load error recovery.
 // If a deployment changes chunk hashes, stale cached HTML won't crash —
 // the app retries and auto-reloads to pick up the new chunks.
-// ─── 6 PRIMARY SHELLS (new IA) — Home / Hunt / GEX / Research / Positions / Journal ───
+// ─── SHELLS — Terminal (/t) + Research (/r) ───
 const TerminalShell  = lazyWithRetry(() => import("@/pages/shells/terminal-shell"),  "terminal-shell");
 
 const ResearchShell  = lazyWithRetry(() => import("@/pages/shells/research-shell"),  "research-shell");
-const PositionsShell = lazyWithRetry(() => import("@/pages/shells/positions-shell"), "positions-shell");
-const JournalShell   = lazyWithRetry(() => import("@/pages/shells/journal-shell"),   "journal-shell");
 const RadarPage      = lazyWithRetry(() => import("@/pages/radar"),                  "radar");
 const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),                 "how-to");
 
@@ -66,7 +64,6 @@ const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
 
-const PositionsHeatmap = lazyWithRetry(() => import("@/pages/positions-heatmap"), "positions-heatmap");
 const StrategySimulator = lazyWithRetry(() => import("@/pages/strategy-simulator"), "strategy-simulator");
 const Backtest = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
 const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
@@ -101,7 +98,6 @@ const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
 // Terminal — full-screen Skylit-style dedicated pages
 // MERGED: /terminal/:symbol now redirects to Research (/r/:symbol?tab=chart)
 // MERGED: Heatmap view now lives inside unified terminal-chart.tsx
-// const TerminalHeatmap = lazyWithRetry(() => import("@/pages/terminal-heatmap"), "terminal-heatmap");
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -164,7 +160,7 @@ function SmartLanding() {
 
   if (user) {
     const lastPage = localStorage.getItem('qe-last-page');
-    const LEGACY_LANDINGS = ['/p', '/h', '/g', '/r', '/pos', '/j'];
+    const LEGACY_LANDINGS = ['/p', '/h', '/g', '/r'];
     const target = !lastPage || LEGACY_LANDINGS.includes(lastPage.split('?')[0]) ? '/t' : lastPage;
     return <Redirect to={target} />;
   }
@@ -190,19 +186,16 @@ function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Switch>
-        {/* ─── TERMINAL — the consolidation target: one shell, 5 tabs (Oracle/Flow/Heatmap/GEX/PRISM) ─── */}
+        {/* ─── TERMINAL — one shell, 10 tabs (NEXUS · CHART · FLOW · GEX · LEAPS · CRYPTO · CATALYST · BOT · POSITIONS · JOURNAL) ─── */}
         <Route path="/t"          component={withBetaProtection(TerminalShell)} />
         
-        {/* ─── 6 PRIMARY SHELLS — new IA (Home / Hunt / GEX / Research / Positions / Journal) ─── */}
+        {/* ─── RESEARCH — per-ticker shell (own symbol chrome; stays separate) ─── */}
 
-        {/* Kept as-is — Research / Positions / Journal aren't folded into the Terminal yet. */}
         <Route path="/r/:symbol"  component={withBetaProtection(ResearchShell)} />
         <Route path="/r"          component={withBetaProtection(ResearchShell)} />
-        <Route path="/pos"        component={withBetaProtection(PositionsShell)} />
-        <Route path="/j"          component={withBetaProtection(JournalShell)} />
         <Route path="/radar"      component={withBetaProtection(RadarPage)} />
 
-        <Route path="/how-to"     component={withBetaProtection(HowToPage)} />
+        <Route path="/how-to"     component={HowToPage} />
 
         {/* ─── RESTORED ROUTES ───────────────────────────────────────────────
             These four paths had NO <Route> while 28 <Redirect>s and roughly 25
@@ -238,6 +231,7 @@ function Router() {
         <Route path="/pricing"    component={Pricing} />
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/blog"       component={Blog} />
+        <Route path="/academy"    component={Academy} />
 
         {/* Public, read-only shared watchlist (no auth) — for trading groups */}
         <Route path="/w" component={PublicWatchlist} />
@@ -375,7 +369,7 @@ function App() {
     // Don't remember legacy shells as the landing page — the Terminal (/t) is the front
     // door now. They remain reachable directly; they just no longer hijack the next visit.
     const skipPaths = ['/', '/w', '/landing', '/login', '/signup', '/invite', '/join-beta',
-                       '/p', '/h', '/g', '/r', '/pos', '/j'];
+                       '/p', '/h', '/g', '/r', '/pos', '/j', '/academy', '/how-to'];
     if (!skipPaths.includes(path) && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
       localStorage.setItem('qe-last-page', location);
     }

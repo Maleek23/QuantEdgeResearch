@@ -59,7 +59,7 @@ export default function Login() {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ title: "Welcome!", description: "Admin login successful." });
-      setLocation("/trade-desk");
+      setLocation("/t");
     },
     onError: (error: Error) => {
       toast({
@@ -84,7 +84,7 @@ export default function Login() {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ title: "Welcome back!", description: "You have been logged in successfully." });
-      setTimeout(() => setLocation("/trade-desk"), 100);
+      setTimeout(() => setLocation("/t"), 100);
     },
     onError: (error: Error) => {
       toast({
