@@ -253,10 +253,10 @@ export default function Pricing() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-[var(--trade-bullish)]">
-                    Save 2 months with annual billing
+                    Save ~25% with annual billing
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Get 12 months for the price of 10. Click to switch to yearly.
+                    Get 12 months for the price of 9. Click to switch to yearly.
                   </p>
                 </div>
               </div>

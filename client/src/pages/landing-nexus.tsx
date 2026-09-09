@@ -171,6 +171,10 @@ function RotQuad({ sectors, height = 260 }: { sectors: Sector[]; height?: number
     raf = requestAnimationFrame(drawFrame);
     return () => cancelAnimationFrame(raf);
   }, [sectors]);
+  const hasPts = sectors.some((pt) => Number.isFinite(pt.rsRatio) && Number.isFinite(pt.rsMomentum));
+  if (!hasPts) {
+    return <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)', fontStyle: 'italic' }}>loading map…</div>;
+  }
   return <canvas ref={ref} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />;
 }
 
@@ -208,11 +212,11 @@ function SigCard({ p }: { p: Pick }) {
 }
 
 export default function LandingNexus() {
-  const { data: rotation } = useQuery<RotationPayload>({ queryKey: ['/api/sector-rotation', 'landing'], queryFn: fetchJson('/api/sector-rotation'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
-  const { data: conv } = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'landing'], queryFn: fetchJson('/api/convictions?limit=40&minScore=10'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
+  const { data: rotation, isLoading: rotationLoading } = useQuery<RotationPayload>({ queryKey: ['/api/sector-rotation', 'landing'], queryFn: fetchJson('/api/sector-rotation'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
+  const { data: conv, isLoading: convLoading } = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'landing'], queryFn: fetchJson('/api/convictions?limit=40&minScore=10'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
   const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'landing'], queryFn: fetchJson('/api/crypto/pulse'), staleTime: 300_000, retry: 1 });
-  const { data: patterns } = useQuery<{ hits?: unknown[]; scanned?: number }>({ queryKey: ['/api/patterns/scan', 'landing'], queryFn: fetchJson('/api/patterns/scan'), staleTime: 600_000, retry: 1 });
-  const { data: ideasMeta } = useQuery<{ total?: number; last24h?: number }>({ queryKey: ['/api/trade-ideas/debug/raw', 'landing'], queryFn: fetchJson('/api/trade-ideas/debug/raw'), staleTime: 600_000, retry: 1 });
+  const { data: patterns, isLoading: patternsLoading } = useQuery<{ hits?: unknown[]; scanned?: number }>({ queryKey: ['/api/patterns/scan', 'landing'], queryFn: fetchJson('/api/patterns/scan'), staleTime: 600_000, retry: 1 });
+  const { data: ideasMeta, isLoading: ideasLoading } = useQuery<{ total?: number; last24h?: number }>({ queryKey: ['/api/trade-ideas/debug/raw', 'landing'], queryFn: fetchJson('/api/trade-ideas/debug/raw'), staleTime: 600_000, retry: 1 });
   const spyIntra = useDaily('SPY', '1d', '5m');
   const spyDaily = useDaily('SPY', '5d', '1d');
   const [tapePaused, setTapePaused] = useState(false);
@@ -262,7 +266,7 @@ export default function LandingNexus() {
     { name: 'Oracle', desc: 'Evidence-ranked signals with a full audit trail. Every layer that argues for or against a setup, visible at a glance.', tag: 'Core · Live', color: '#4fd1c5' },
     { name: 'Chart', desc: 'Interactive multi-frame price action — pan, zoom, expand — with published levels drawn on the real bars.', tag: 'Price · Interactive', color: '#60a5fa' },
     { name: 'Flow', desc: 'Unusual options prints — whales, sweeps, blocks — with premium sums and honest freshness on every row.', tag: 'Options · 15m cycles', color: '#3ddc97' },
-    { name: 'GEX', desc: 'Gamma exposure by strike and expiry, dealer walls and flip levels. Know where the market is magnetized.', tag: 'Options · Live', color: '#f472b6' },
+    { name: 'GEX', desc: 'Gamma exposure by strike and expiry — dealer walls and the flip level where hedging pressure reverses. Know where the market is magnetized.', tag: 'Options · Live', color: '#f472b6' },
     { name: 'Leaps', desc: 'Long-dated calls graded on trend, value and momentum — with budget and grade filters over real premiums.', tag: 'Options · Daily', color: '#a78bfa' },
     { name: 'Crypto', desc: 'BTC/ETH spot reads with measured proxy correlations — the equity route chosen from evidence, not vibes.', tag: '24/7 · Live', color: '#fbbf24' },
     { name: 'Catalyst', desc: 'Earnings, macro releases and impact-graded news joined to live signals. Binary events are risk, never tilt.', tag: 'Events · Live', color: '#fb7185' },
@@ -381,22 +385,22 @@ export default function LandingNexus() {
         <div className="container">
           <div className="stats-grid">
             <div className="stat-item reveal">
-              <div className="lstat-val">{(ideasMeta?.total ?? 0).toLocaleString()}</div>
+              <div className="lstat-val">{ideasLoading ? '—' : (ideasMeta?.total ?? 0).toLocaleString()}</div>
               <div className="lstat-label">Signals generated & outcome-tracked</div>
-              <div className="lstat-sub">{ideasMeta?.last24h ?? 0} in the last 24h · {picks.length} in play now</div>
+              <div className="lstat-sub">{ideasLoading ? 'loading…' : `${ideasMeta?.last24h ?? 0} in the last 24h · ${picks.length} in play now`}</div>
             </div>
             <div className="stat-item reveal">
-              <div className="lstat-val">{sectors.length}</div>
+              <div className="lstat-val">{rotationLoading ? '—' : sectors.length}</div>
               <div className="lstat-label">Sectors mapped in rotation</div>
-              <div className="lstat-sub">{rotation?.sessionLabel ?? 'live session'}</div>
+              <div className="lstat-sub">{rotationLoading ? 'loading…' : (rotation?.sessionLabel ?? 'live session')}</div>
             </div>
             <div className="stat-item reveal">
-              <div className="lstat-val">{(patterns?.hits?.length ?? 0)}</div>
+              <div className="lstat-val">{patternsLoading ? '—' : (patterns?.hits?.length ?? 0)}</div>
               <div className="lstat-label">Chart patterns detected today</div>
-              <div className="lstat-sub">{patterns?.scanned ?? 0} names swept on real bars</div>
+              <div className="lstat-sub">{patternsLoading ? 'loading…' : `${patterns?.scanned ?? 0} names swept on real bars`}</div>
             </div>
             <div className="stat-item reveal">
-              <div className="lstat-val">{topScore}<span style={{ fontSize: 20, color: 'var(--text-mute)' }}>/100</span></div>
+              <div className="lstat-val">{convLoading ? '—' : (<>{topScore}<span style={{ fontSize: 20, color: 'var(--text-mute)' }}>/100</span></>)}</div>
               <div className="lstat-label">Top evidence score today</div>
               <div className="lstat-sub">14-layer scoring, audited</div>
             </div>
@@ -409,7 +413,7 @@ export default function LandingNexus() {
         <div className="container">
           <div className="reveal">
             <div className="sec-eyebrow">01 · Modules</div>
-            <h2 className="lsec-title">Nine modules. <span className="grad">One connected view.</span></h2>
+            <h2 className="lsec-title">Eight modules. <span className="grad">One connected view.</span></h2>
             <p className="lsec-sub">Every module talks to every other. Rotation informs signals. Signals inform the ledger. The ledger keeps score on everything — including the rules.</p>
           </div>
           <div className="modules-grid">
@@ -437,13 +441,14 @@ export default function LandingNexus() {
               <p className="feature-desc">These two cards are the live board's top picks right now — real levels, real evidence scores, real P&L. Hover the charts: they're the platform's actual price series, and clicking any card opens the terminal on the real thing.</p>
               <div className="feature-list">
                 <div className="feature-list-item">{CHECK}<div><b>14-layer evidence scoring</b> <span>— technical, regime, GEX, catalyst, flow, pre-market and more.</span></div></div>
-                <div className="feature-list-item">{CHECK}<div><b>Band grading S → C</b> <span>— filter the book by conviction tier in one click.</span></div></div>
-                <div className="feature-list-item">{CHECK}<div><b>Entry, stop, T1 and R:R</b> <span>— pre-computed on every signal, no guesswork.</span></div></div>
+                <div className="feature-list-item">{CHECK}<div><b>Band grading S → C</b> <span>— conviction tiers, strongest to weakest; filter the book in one click.</span></div></div>
+                <div className="feature-list-item">{CHECK}<div><b>Entry, stop, T1 and R:R</b> <span>— first target and risk/reward, pre-computed on every signal. No guesswork.</span></div></div>
               </div>
             </div>
             <div className="feature-visual reveal">
-              {top2.map((p) => <SigCard key={p.symbol} p={p} />)}
-              {top2.length === 0 && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-mute)', fontStyle: 'italic', fontSize: 12 }}>The board is between publishes — signals appear here the moment they exist.</div>}
+              {convLoading && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-mute)', fontStyle: 'italic', fontSize: 12 }}>Loading live signals…</div>}
+              {!convLoading && top2.map((p) => <SigCard key={p.symbol} p={p} />)}
+              {!convLoading && top2.length === 0 && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-mute)', fontStyle: 'italic', fontSize: 12 }}>The board is between publishes — signals appear here the moment they exist.</div>}
             </div>
           </div>
 
@@ -493,7 +498,7 @@ export default function LandingNexus() {
           <div className="workflow-grid">
             {[
               ['01', 'Read the tape', 'Open the terminal. Check the pulse, rotation map and pattern radar. Know what the market is doing before you look at any ticker.'],
-              ['02', 'Rank the book', 'Filter by band, side, state. Sort by conviction, R:R or time-to-T1. The top of the book is where your attention belongs.'],
+              ['02', 'Rank the book', 'Filter by band, side, state. Sort by conviction, risk/reward or time-to-target. The top of the book is where your attention belongs.'],
               ['03', 'Audit the evidence', 'Open any symbol\'s workup. See every layer that argues for it and against it. If the evidence doesn\'t clear your bar, skip it.'],
               ['04', 'Let the ledger judge', 'Entry, stop and T1 are pre-set. The paper ledger measures every published signal — win rates carry their sample size, always.'],
             ].map(([n, t, d]) => (
@@ -507,32 +512,18 @@ export default function LandingNexus() {
         </div>
       </section>
 
-      {/* PRICING */}
+            {/* PRICING — the canonical plans live on /pricing; this section links there
+          instead of duplicating a stale tier grid that contradicted it. */}
       <section id="sec-pricing">
         <div className="container">
-          <div className="reveal" style={{ textAlign: 'center', marginBottom: 56 }}>
+          <div className="reveal" style={{ textAlign: 'center', marginBottom: 8 }}>
             <div className="sec-eyebrow" style={{ margin: '0 auto 16px' }}>03 · Pricing</div>
-            <h2 className="lsec-title" style={{ margin: '0 auto 16px' }}>Built for serious operators. <span className="grad">Priced like it.</span></h2>
-            <p className="lsec-sub" style={{ margin: '0 auto' }}>Every tier includes the full terminal. The difference is data depth, bot seats and priority support.</p>
-          </div>
-          <div className="pricing-grid">
-            {[
-              { name: 'Operator', desc: 'For individual traders running a focused book.', price: '$89', note: 'billed annually · $109 monthly', featured: false, cta: 'Start with Operator', features: ['All 9 modules unlocked', 'Live board + pattern radar', 'Universal ticker workup', 'Paper ledger + cohorts'] },
-              { name: 'Quant', desc: 'For traders who run the book like a business.', price: '$249', note: 'billed annually · $299 monthly', featured: true, cta: 'Start with Quant', features: ['Everything in Operator', 'Full options + GEX + LEAPS depth', 'Shadow ledger + by-signal analytics', 'Priority support', 'Private Discord alpha'] },
-              { name: 'Desk', desc: 'For small funds and trading teams.', price: '$899', note: 'billed annually · custom on request', featured: false, cta: 'Talk to sales', features: ['Everything in Quant', 'Up to 10 seats', 'Shared book + permissions', 'API + webhook access', 'Dedicated onboarding'] },
-            ].map((t) => (
-              <div className={`price-card reveal${t.featured ? ' featured' : ''}`} key={t.name}>
-                {t.featured && <div className="price-badge">Most chosen</div>}
-                <div className="price-name">{t.name}</div>
-                <div className="price-desc">{t.desc}</div>
-                <div className="price-amount"><span className="price-val">{t.price}</span><span className="price-per">/ month</span></div>
-                <div className="price-note">{t.note}</div>
-                <div className="price-features">
-                  {t.features.map((f) => <div className="price-feature" key={f}>{CHECK}{f}</div>)}
-                </div>
-                <Link href="/t" className={`btn ${t.featured ? 'btn-primary' : 'btn-ghost'} price-btn`}>{t.cta}</Link>
-              </div>
-            ))}
+            <h2 className="lsec-title" style={{ margin: '0 auto 16px' }}>Start free. <span className="grad">Scale when the book does.</span></h2>
+            <p className="lsec-sub" style={{ margin: '0 auto 24px' }}>Explore the platform free, then upgrade to Advanced for unlimited access and real-time data. Beta pricing locks in before launch.</p>
+            <Link href="/pricing" className="btn btn-primary btn-lg">
+              See plans and pricing
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+            </Link>
           </div>
         </div>
       </section>
