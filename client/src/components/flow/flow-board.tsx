@@ -26,6 +26,10 @@ const CYAN = 'var(--brand-cyan,#22d3ee)';
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
 
+// Index, leveraged, and broad-sector ETF option tape — the hedging churn the
+// single-names default filters out (toggle brings it back).
+const INDEX_TAPE = new Set(['SPY', 'QQQ', 'IWM', 'DIA', 'SPX', 'XSP', 'NDX', 'VIX', 'TQQQ', 'SQQQ', 'SOXL', 'SOXS', 'UVXY', 'SMH', 'SOXX', 'XLK', 'XLF', 'XLE', 'XLV', 'XLY', 'XLP', 'XLI', 'XLU', 'XLC', 'XLB', 'XLRE', 'IGV', 'XBI', 'GLD', 'SLV', 'USO', 'TLT', 'HYG', 'EEM', 'FXI', 'EWZ', 'GDX', 'GDXU', 'ARKK', 'KRE', 'SPXL', 'SPXS', 'UPRO', 'TSLL', 'TSLG', 'TSLR', 'NVDL', 'SMCX', 'PLTU', 'MSTU', 'MSTX', 'BITX']);
+
 // Dir filters on optionType — call vs put IS measured on this feed, unlike
 // buyer-vs-seller, which stays unclaimed (4ce5213).
 type Dir = 'all' | 'call' | 'put';
@@ -76,6 +80,11 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
   const [minScore, setMinScore] = useState<number>(0);
   const [minPrem, setMinPrem] = useState<number>(0);
   const [whaleOnly, setWhaleOnly] = useState(false);
+  // Index/leveraged ETF tape (SPY/QQQ 0DTE churn) is mostly hedging and
+  // market-making, and on heavy days it buries every single-name whale under
+  // same-minute strike-day aggregates. Default view = single names; the index
+  // tape is one click away, never hidden.
+  const [showIndexTape, setShowIndexTape] = useState(false);
   const [q, setQ] = useState('');
   const [days, setDays] = useState(7);
   const [watched, setWatched] = useState<Set<string>>(new Set());
@@ -112,9 +121,10 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
     if (s.score < minScore) return false;
     if (s.totalPremium < minPrem) return false;
     if (whaleOnly && !s.isWhale) return false;
+    if (!showIndexTape && INDEX_TAPE.has(p.symbol.toUpperCase())) return false;
     if (q.trim() && !p.symbol.toUpperCase().includes(q.trim().toUpperCase())) return false;
     return true;
-  }), [scored, dir, kind, minScore, minPrem, whaleOnly, q]);
+  }), [scored, dir, kind, minScore, minPrem, whaleOnly, showIndexTape, q]);
 
   // Session premium split.
   //
@@ -294,6 +304,18 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
 
           {/* ── filters — the mock's select bar. Dir is CALL/PUT: measured. ── */}
           <div className="filters-bar">
+            <div className="filter-group">
+              <span className="filter-label">Names</span>
+              <select
+                className="filter-select"
+                value={showIndexTape ? 'all' : 'single'}
+                onChange={(e) => setShowIndexTape(e.target.value === 'all')}
+                title="Index/leveraged/sector ETF option tape is mostly hedging and market-making churn; single names is the default lens"
+              >
+                <option value="single">SINGLE NAMES</option>
+                <option value="all">+ INDEX TAPE</option>
+              </select>
+            </div>
             <div className="filter-group">
               <span className="filter-label">Dir</span>
               <select className="filter-select" value={dir} onChange={(e) => setDir(e.target.value as Dir)}>

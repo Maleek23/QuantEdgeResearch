@@ -10,6 +10,16 @@
  * LOW conviction = Long gamma + flow aligned (dampened move expected)
  */
 
+// Dollars → a readable magnitude. "$255278K" was a real render; premiums at
+// this scale read in millions or billions, not thousands.
+function fmtPremium(d: number): string {
+  const a = Math.abs(d);
+  if (a >= 1e9) return `$${(d / 1e9).toFixed(1)}B`;
+  if (a >= 1e6) return `$${(d / 1e6).toFixed(1)}M`;
+  return `$${(d / 1e3).toFixed(0)}K`;
+}
+
+
 import { logger } from './logger';
 import { db } from './db';
 import { optionsFlowHistory } from '@shared/schema';
@@ -355,13 +365,13 @@ export async function computeConvergenceSignal(symbol: string): Promise<Converge
       // Short gamma + bullish flow = squeeze setup
       conviction = flowCount >= 5 && flowStrength >= 40 ? 'HIGH' : 'MEDIUM';
       convergenceType = 'CALL_SWEEP_SHORT_GAMMA';
-      reasoning = `Short gamma regime (spot below flip at $${flip}) with ${callCount} bullish call sweeps totaling $${(callPremium / 1000).toFixed(0)}K. Dealers are short gamma and must BUY into rallies — large call flow here can trigger a gamma squeeze.`;
+      reasoning = `Short gamma regime (spot below flip at $${flip}) with ${callCount} bullish call sweeps totaling ${fmtPremium(callPremium)}. Dealers are short gamma and must BUY into rallies — large call flow here can trigger a gamma squeeze.`;
       strategy = `Long: Entry near $${gexData.spotPrice.toFixed(0)}, target $${anchor}, stop below $${(defenseLines[2] || gexData.spotPrice * 0.97).toFixed(0)}. Look for 0DTE or weekly calls at $${anchor} strike.`;
     } else if (regime === 'NEGATIVE' && flowBias === 'BEARISH' && hasSignificantFlow) {
       // Short gamma + bearish flow = crash acceleration
       conviction = flowCount >= 5 && flowStrength >= 40 ? 'HIGH' : 'MEDIUM';
       convergenceType = 'PUT_SWEEP_SHORT_GAMMA';
-      reasoning = `Short gamma regime with ${putCount} bearish put sweeps totaling $${(putPremium / 1000).toFixed(0)}K. Dealers amplify downside moves — put flow accelerates the sell-off.`;
+      reasoning = `Short gamma regime with ${putCount} bearish put sweeps totaling ${fmtPremium(putPremium)}. Dealers amplify downside moves — put flow accelerates the sell-off.`;
       strategy = `Short: Entry near $${gexData.spotPrice.toFixed(0)}, target $${(defenseLines[2] || gexData.spotPrice * 0.95).toFixed(0)}, stop above $${flip || anchor}. Weekly puts below current price.`;
     } else if (regime === 'POSITIVE' && flowBias !== 'NEUTRAL' && hasSignificantFlow) {
       // Long gamma + directional flow = dampened but directional
@@ -372,11 +382,11 @@ export async function computeConvergenceSignal(symbol: string): Promise<Converge
     } else if (regime === 'NEUTRAL' && flowBias !== 'NEUTRAL' && hasSignificantFlow) {
       conviction = 'MEDIUM';
       convergenceType = 'FLOW_NEUTRAL_GAMMA';
-      reasoning = `Neutral gamma regime with ${flowBias} flow bias (${flowCount} trades, $${(totalPremium / 1000).toFixed(0)}K premium). Gamma provides no directional edge — flow direction is the primary signal.`;
+      reasoning = `Neutral gamma regime with ${flowBias} flow bias (${flowCount} trades, ${fmtPremium(totalPremium)} premium). Gamma provides no directional edge — flow direction is the primary signal.`;
       strategy = `${flowBias === 'BULLISH' ? 'Long' : 'Short'}: Follow the flow with standard risk management. Entry near $${gexData.spotPrice.toFixed(0)}, target 1-2% move.`;
     } else {
       convergenceType = 'NO_SIGNAL';
-      reasoning = `Insufficient convergence. ${flowCount} trades detected with $${(totalPremium / 1000).toFixed(0)}K premium. ${regime} gamma regime with ${flowBias} flow.`;
+      reasoning = `Insufficient convergence. ${flowCount} trades detected with ${fmtPremium(totalPremium)} premium. ${regime} gamma regime with ${flowBias} flow.`;
       strategy = 'Wait for clearer signal alignment between GEX regime and institutional flow.';
     }
 
