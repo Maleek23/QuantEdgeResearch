@@ -744,9 +744,19 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
             const lockedGain = isLong
               ? ((trailingStopPrice - entryPrice) / entryPrice) * 100
               : ((entryPrice - trailingStopPrice) / entryPrice) * 100;
+            // The FILL is currentPrice, not the trigger. During the Sep 2-7
+            // outage AAPL's stop sat at +64% and the wake-up fill was −32% —
+            // and the old label still said "locked_64pct". A label must
+            // describe the exit that happened, not the one that was planned.
+            const actualPct = isLong
+              ? ((position.currentPrice - entryPrice) / entryPrice) * 100
+              : ((entryPrice - position.currentPrice) / entryPrice) * 100;
+            const gapped = Math.abs(position.currentPrice - trailingStopPrice) / trailingStopPrice > 0.10;
             shouldClose = true;
-            exitReason = `trailing_stop_hit_locked_${Math.max(0, lockedGain).toFixed(0)}pct`;
-            logger.info(`📉 [TRAILING] ${position.symbol}: Hit trailing stop at $${position.currentPrice.toFixed(2)} (set at $${trailingStopPrice.toFixed(2)}). Peak was $${highWaterMark.toFixed(2)} (+${gainFromEntry.toFixed(0)}%), locked +${lockedGain.toFixed(0)}%`);
+            exitReason = gapped
+              ? `trailing_stop_gapped_${actualPct >= 0 ? '+' : ''}${actualPct.toFixed(0)}pct_vs_${Math.max(0, lockedGain).toFixed(0)}pct_lock`
+              : `trailing_stop_hit_locked_${Math.max(0, lockedGain).toFixed(0)}pct`;
+            logger.info(`📉 [TRAILING] ${position.symbol}: Hit trailing stop at $${position.currentPrice.toFixed(2)} (set at $${trailingStopPrice.toFixed(2)}${gapped ? ' — GAPPED THROUGH' : ''}). Peak was $${highWaterMark.toFixed(2)} (+${gainFromEntry.toFixed(0)}%), fill ${actualPct >= 0 ? '+' : ''}${actualPct.toFixed(0)}%`);
           }
         }
         

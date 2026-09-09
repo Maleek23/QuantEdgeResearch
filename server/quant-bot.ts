@@ -343,8 +343,15 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         continue;
       }
 
+      // Flow-reversal exits are restricted to RED positions. The exit autopsy
+      // replayed every green flow-reversal exit against the position's own
+      // brackets: TSLA +364 would have been +2,696, AAPL −249 would have hit
+      // target for +774. Opposing tape on a losing position is a cut signal;
+      // on a winning one it is not evidence the brackets are wrong. (Board
+      // FLIPS above still exit either way — a published opposite signal is a
+      // stronger claim than tape skew.)
       const fx = flowAgainst?.get(`${pos.symbol}:${opposite}`);
-      if (fx) {
+      if (fx && (pos.unrealizedPnL ?? 0) < 0) {
         await closePosition(pos.id, mark, 'flow_reversal');
         const skewStr = fx.skew === Infinity ? 'one-sided' : `${fx.skew.toFixed(1)}:1`;
         const why = `options tape turned against it — $${(fx.prem / 1e6).toFixed(1)}M ${opposite === 'long' ? 'call' : 'put'} premium at ${skewStr} — ${pnlWord}`;

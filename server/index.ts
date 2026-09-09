@@ -577,6 +577,19 @@ app.use((req, res, next) => {
       startHeavyServices();
     }, { timezone: 'America/New_York' });
 
+    // ── Boot cycle: the bot checks its book the MOMENT it wakes ───────────
+    // The exit autopsy's dominant loss driver was the Sep 2-7 outage: MDB bled
+    // to −95% and AAPL filled 59% below its own trailing stop because nobody
+    // looked until the next cron tick after a week dark. A woken bot's first
+    // act is now to re-price and run exits — during market hours, immediately;
+    // off-hours the re-price still refreshes marks and expiry settlement.
+    setTimeout(() => {
+      void import('./quant-bot').then(async (m) => {
+        const r = await m.runBotCycle();
+        if (r.closed.length) log(`🤖 [QUANT-BOT] wake-up cycle closed ${r.closed.length} position(s) — see exit reasons`);
+      }).catch((err) => logger.error('[QUANT-BOT] wake-up cycle failed:', err));
+    }, 90 * 1000);
+
     // ── Cron: Quant Bot cycle (every 10 min, market hours) ────────────────
     // Takes the best signals into a paper portfolio and manages them against their own
     // stop/target. This is what turns the engine's opinions into a measurable record.
