@@ -5,9 +5,10 @@
  *
  * Layout:
  *   ┌──────────────────────────────────────────────────────┐
- *   │  KPI BAR: TOTAL | WINNERS | LOSERS | NET P&L         │
+ *   │  HERO: NET OPEN P&L (+ absolute)                     │
+ *   │  STRIP: POSITIONS | WIN RATE | HOT | COLD            │
  *   ├──────────────────────────────────────────────────────┤
- *   │  HEAT TREEMAP (size by P&L magnitude, color by gain) │
+ *   │  HEATMAP (size = |heat score|, color = heat rank)    │
  *   │  ┌──────┬──────┬─────┬─────┐                          │
  *   │  │ NOK  │ QCOM │ MP  │BB   │                          │
  *   │  │+47%🔥│+24%🔥│+18%│+8%  │                          │
@@ -91,8 +92,9 @@ const HEAT_LABEL: Record<LivePosition['heatRank'], string> = {
 
 export default function PositionsHeatmapPage() {
   const [sortBy, setSortBy] = useState<'pnl' | 'days' | 'expiry'>('pnl');
+  const [heatShown, setHeatShown] = useState(24); // heat tiles cap
 
-  const { data, isLoading, refetch, isFetching } = useQuery<PositionsResponse>({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<PositionsResponse>({
     queryKey: ['positions-live'],
     queryFn: async () => {
       const res = await fetch('/api/positions/live');
@@ -115,6 +117,31 @@ export default function PositionsHeatmapPage() {
     );
   }
 
+  // Fetch failure is NOT an empty portfolio — show an honest error, never
+  // "no positions" on a broken feed.
+  if (isError || (!isLoading && !data)) {
+    return (
+      <div className="min-h-screen bg-background text-foreground p-6">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold mb-4">Position Heat Map</h1>
+          <div className={`${componentStyles.card.default} p-12 text-center`}>
+            <div className="text-5xl mb-3">⚠️</div>
+            <div className="text-xl font-bold mb-2">Couldn't load positions</div>
+            <div className="text-sm text-muted-foreground mb-4">
+              The positions feed failed — your portfolio may be fine, this is a data issue.
+            </div>
+            <button onClick={() => refetch()} className={componentStyles.button.compact}>
+              ↻ Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Genuine empty portfolio — reads as empty, not broken.
+  // (The `!data` arm is unreachable after the error branch above, but it
+  // keeps TS narrowing `data` to defined for the rest of the render.)
   if (!data || data.summary.total === 0) {
     return (
       <div className="min-h-screen bg-background text-foreground p-6">
@@ -157,12 +184,22 @@ export default function PositionsHeatmapPage() {
           </button>
         </div>
 
-        {/* KPI Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+        {/* Hero — the single decision number: total open P&L. Winner/loser
+            counts are folded into win rate below; nothing is shown twice. */}
+        <div className={`${componentStyles.card.default} p-5 mb-3`}>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Net open P&L</div>
+          <div className={`text-4xl font-bold font-mono tabular-nums ${data.summary.totalPnLPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
+            {data.summary.totalPnLPct >= 0 ? '+' : ''}{data.summary.totalPnLPct}%
+          </div>
+          <div className="text-xs text-muted-foreground mt-1 font-mono tabular-nums">
+            {data.summary.totalPnLAbs >= 0 ? '+' : ''}${data.summary.totalPnLAbs} absolute
+          </div>
+        </div>
+
+        {/* Supporting strip — compact, secondary */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <KPI label="POSITIONS" value={data.summary.total.toString()} accent="cyan" />
-          <KPI label="WINNERS" value={data.summary.winners.toString()} accent="emerald" sub={`${Math.round((data.summary.winners / data.summary.total) * 100)}% WR`} />
-          <KPI label="LOSERS" value={data.summary.losers.toString()} accent="red" />
-          <KPI label="NET P&L %" value={`${data.summary.totalPnLPct >= 0 ? '+' : ''}${data.summary.totalPnLPct}%`} accent={data.summary.totalPnLPct >= 0 ? 'emerald' : 'red'} />
+          <KPI label="WIN RATE" value={`${Math.round((data.summary.winners / data.summary.total) * 100)}%`} accent={data.summary.winners / data.summary.total >= 0.5 ? 'emerald' : 'amber'} />
           <KPI label="🔥 HOT" value={data.summary.hotCount.toString()} accent="emerald" />
           <KPI label="🛑 COLD" value={data.summary.coldCount.toString()} accent="red" />
         </div>
@@ -184,14 +221,25 @@ export default function PositionsHeatmapPage() {
         {/* HEAT TREEMAP — default open */}
         <ExpandableCard
           title="🔥 Heat Map"
-          subtitle={`${positions.length} positions · size = weight · color = P&L`}
+          subtitle="tile size = |heat score| · tile color = heat rank"
           defaultOpen
         >
+          <HeatLegend />
           <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2">
-            {positions.map(p => (
+            {positions.slice(0, heatShown).map(p => (
               <HeatTile key={p.id} position={p} />
             ))}
           </div>
+          {positions.length > 24 && (
+            <button
+              onClick={() => setHeatShown(heatShown >= positions.length ? 24 : positions.length)}
+              className="mt-3 text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {heatShown >= positions.length
+                ? 'Show less ↑'
+                : `Show ${positions.length - heatShown} more ↓`}
+            </button>
+          )}
         </ExpandableCard>
 
         {/* Positions Table — COLLAPSED by default */}
@@ -204,12 +252,12 @@ export default function PositionsHeatmapPage() {
         </ExpandableCard>
       </div>
       <EngineStatusFooter signalsActive={data.summary.total} engineLabel="POSITIONS HEAT MAP v2.0" />
-      <div style={{display:'none'}}>{/* keep old table reference removed */}</div>
     </div>
   );
 }
 
 function DetailTable({ positions, sortBy, setSortBy }: { positions: LivePosition[]; sortBy: 'pnl' | 'days' | 'expiry'; setSortBy: (s: 'pnl' | 'days' | 'expiry') => void; }) {
+  const [rowsShown, setRowsShown] = useState(30);
   return (
     <div>
       <div className="flex items-center justify-end mb-3 gap-1">
@@ -231,7 +279,7 @@ function DetailTable({ positions, sortBy, setSortBy }: { positions: LivePosition
             <tr className="text-left text-muted-foreground border-b border-border">
               <th className="py-2 pr-3">Symbol</th>
               <th className="py-2 pr-3">Type</th>
-              <th className="py-2 pr-3">Dir</th>
+              <th className="py-2 pr-3" title="Direction: long or short">Dir</th>
               <th className="py-2 pr-3 text-right">Entry</th>
               <th className="py-2 pr-3 text-right">Spot</th>
               <th className="py-2 pr-3 text-right">Target</th>
@@ -239,18 +287,28 @@ function DetailTable({ positions, sortBy, setSortBy }: { positions: LivePosition
               <th className="py-2 pr-3 text-right">P&L %</th>
               <th className="py-2 pr-3 text-right">P&L $</th>
               <th className="py-2 pr-3 text-center">Days</th>
-              <th className="py-2 pr-3 text-center">DTE</th>
-              <th className="py-2 pr-3">Heat</th>
+              <th className="py-2 pr-3 text-center" title="Days to expiry (options only)">DTE</th>
+              <th className="py-2 pr-3" title="Heat rank — momentum score bucket, see Heat Map legend">Heat</th>
               <th className="py-2 pr-3">Source</th>
             </tr>
           </thead>
           <tbody>
-            {positions.map(p => (
+            {positions.slice(0, rowsShown).map(p => (
               <PositionRow key={p.id} position={p} />
             ))}
           </tbody>
         </table>
       </div>
+      {positions.length > 30 && (
+        <button
+          onClick={() => setRowsShown(rowsShown >= positions.length ? 30 : positions.length)}
+          className="mt-3 text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {rowsShown >= positions.length
+            ? 'Show less ↑'
+            : `Show ${positions.length - rowsShown} more ↓`}
+        </button>
+      )}
     </div>
   );
 }
@@ -269,6 +327,32 @@ function KPI({ label, value, accent, sub }: { label: string; value: string; acce
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className={`text-2xl font-bold ${colorMap[accent] || 'text-foreground'}`}>{value}</div>
       {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+// The single canonical legend for the heatmap intensity scale.
+const HEAT_RANK_TIP: Record<LivePosition['heatRank'], string> = {
+  fire: 'FIRE — strongest positive momentum',
+  hot: 'HOT — strong positive momentum',
+  warm: 'WARM — mild positive momentum',
+  cool: 'COOL — flat / neutral',
+  frozen: 'COLD — negative momentum',
+  red: 'RED — strongest negative momentum',
+};
+
+function HeatLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mb-3">
+      {(Object.keys(HEAT_BG) as LivePosition['heatRank'][]).map(rank => (
+        <span
+          key={rank}
+          title={HEAT_RANK_TIP[rank]}
+          className={`border rounded px-2 py-0.5 text-[10px] font-mono cursor-help ${HEAT_BG[rank]}`}
+        >
+          {HEAT_LABEL[rank]}
+        </span>
+      ))}
     </div>
   );
 }
