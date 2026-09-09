@@ -1,5 +1,6 @@
 import { Suspense, useState, useEffect, ComponentType } from "react";
 import { getMarketStatus } from "@/lib/market-hours";
+import { LEGACY_REDIRECT_PATTERN, resolveLegacyRedirect } from "@/lib/legacy-redirects";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -33,7 +34,6 @@ import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 // ─── 6 PRIMARY SHELLS (new IA) — Home / Hunt / GEX / Research / Positions / Journal ───
 const TerminalShell  = lazyWithRetry(() => import("@/pages/shells/terminal-shell"),  "terminal-shell");
 
-
 const ResearchShell  = lazyWithRetry(() => import("@/pages/shells/research-shell"),  "research-shell");
 const PositionsShell = lazyWithRetry(() => import("@/pages/shells/positions-shell"), "positions-shell");
 const JournalShell   = lazyWithRetry(() => import("@/pages/shells/journal-shell"),   "journal-shell");
@@ -66,7 +66,6 @@ const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
 
-
 const PositionsHeatmap = lazyWithRetry(() => import("@/pages/positions-heatmap"), "positions-heatmap");
 const StrategySimulator = lazyWithRetry(() => import("@/pages/strategy-simulator"), "strategy-simulator");
 const Backtest = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
@@ -76,10 +75,8 @@ const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 const BlogPost = lazyWithRetry(() => import("@/pages/blog-post"), "blog-post");
 const Pricing = lazyWithRetry(() => import("@/pages/pricing"), "pricing");
 // REMOVED — Paper Trading, Wallet Tracker, CT Tracker consolidated out
-// Redirects added below to prevent broken bookmarks
 const TradeAudit = lazyWithRetry(() => import("@/pages/trade-audit"), "trade-audit");
 const AutomationsPage = lazyWithRetry(() => import("@/pages/automations"), "automations");
-
 
 // REMOVED — Backtest merged into Performance tab
 
@@ -101,12 +98,10 @@ const ResetPassword = lazyWithRetry(() => import("@/pages/reset-password"), "res
 // MERGED — Discover absorbed into Trade Desk
 const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
 
-
 // Terminal — full-screen Skylit-style dedicated pages
 // MERGED: /terminal/:symbol now redirects to Research (/r/:symbol?tab=chart)
 // MERGED: Heatmap view now lives inside unified terminal-chart.tsx
 // const TerminalHeatmap = lazyWithRetry(() => import("@/pages/terminal-heatmap"), "terminal-heatmap");
-
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -178,6 +173,17 @@ function SmartLanding() {
   return <Landing />;
 }
 
+/**
+ * Renders the redirect for any legacy URL matched by LEGACY_REDIRECT_PATTERN.
+ * (Unmatched fallthrough renders NotFound, same as the old 404 fallback.)
+ */
+function LegacyRedirect() {
+  const [location] = useLocation();
+  const target = resolveLegacyRedirect(location);
+  if (!target) return <NotFound />;
+  return <Redirect to={target} />;
+}
+
 function Router() {
   usePageTracking();
 
@@ -186,25 +192,16 @@ function Router() {
       <Switch>
         {/* ─── TERMINAL — the consolidation target: one shell, 5 tabs (Oracle/Flow/Heatmap/GEX/PRISM) ─── */}
         <Route path="/t"          component={withBetaProtection(TerminalShell)} />
-        {/* NEXUS lives INSIDE the terminal shell now — one chrome, one nav. The URL survives as a redirect. */}
-        <Route path="/nexus"><Redirect to="/t" /></Route>
+        
         {/* ─── 6 PRIMARY SHELLS — new IA (Home / Hunt / GEX / Research / Positions / Journal) ─── */}
-        {/* Legacy shells now live as Terminal tabs — redirect so the old sidebar UI
-            can't keep opening from a bookmark or an open tab. The pages themselves are
-            still mounted inside the Terminal; nothing was deleted. */}
-        <Route path="/p"><Redirect to="/t" /></Route>
-        <Route path="/h"><Redirect to="/t" /></Route>
-        <Route path="/g"><Redirect to="/t?tab=gex" /></Route>
+
         {/* Kept as-is — Research / Positions / Journal aren't folded into the Terminal yet. */}
         <Route path="/r/:symbol"  component={withBetaProtection(ResearchShell)} />
         <Route path="/r"          component={withBetaProtection(ResearchShell)} />
         <Route path="/pos"        component={withBetaProtection(PositionsShell)} />
         <Route path="/j"          component={withBetaProtection(JournalShell)} />
         <Route path="/radar"      component={withBetaProtection(RadarPage)} />
-        {/* Folded into shells — Movers/BTC → Hunt tabs, Analyze → Research tab */}
-        <Route path="/btc"><Redirect to="/t?tab=crypto" /></Route>
-        <Route path="/movers"><Redirect to="/h?tab=movers" /></Route>
-        <Route path="/analyze"><Redirect to="/r/SPY?tab=analyze" /></Route>
+
         <Route path="/how-to"     component={withBetaProtection(HowToPage)} />
 
         {/* ─── RESTORED ROUTES ───────────────────────────────────────────────
@@ -231,7 +228,6 @@ function Router() {
             So /home is a redirect, not a page, and the other two stay unrouted.
             Three files claiming to be the dashboard is how this drifted in the
             first place; only one of them is reachable now, and it is the right one. */}
-        <Route path="/home"><Redirect to="/t" /></Route>
 
         {/* Public marketing routes that had links but no <Route>. /pricing is the
             worst of these: protected-route.tsx:201, kavout-sidebar.tsx:162 and
@@ -248,115 +244,19 @@ function Router() {
 
         {/* Core Pages - Smart redirect for logged-in users */}
         <Route path="/" component={SmartLanding} />
-      {/* AI Learning Dashboard */}
 
-      {/* Whale Flow → GEX flow heatmap (single hop; chained redirects drop the query param) */}
-      <Route path="/whale-flow">
-        <Redirect to="/g?tab=heatmap" />
-      </Route>
-
-      {/* Home Dashboard - Main landing for logged in users */}
-      <Route path="/dashboard">
-        <Redirect to="/home" />
-      </Route>
-      <Route path="/command-center">
-        <Redirect to="/home" />
-      </Route>
-      <Route path="/command-center-v2">
-        <Redirect to="/home" />
-      </Route>
-      {/* MERGED: Trading Engine → Performance */}
-      <Route path="/trading-engine"><Redirect to="/performance" /></Route>
-      <Route path="/aion"><Redirect to="/home" /></Route>
-      {/* ML Intelligence consolidated into Trading Engine */}
-      <Route path="/historical-intelligence"><Redirect to="/performance" /></Route>
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/join-beta" component={JoinBeta} />
-      <Route path="/invite/:token">{(params) => <Redirect to={`/invite?code=${params.token}`} />}</Route>
+      
       <Route path="/invite" component={InviteWelcome} />
-      {/* DEPRECATED — these routes redirect to canonical destinations to reduce surface area */}
-      <Route path="/discovery"><Redirect to="/h?tab=ai-picks" /></Route>
-      <Route path="/pulse"><Redirect to="/p?tab=pulse" /></Route>
-      <Route path="/chart-analysis"><Redirect to="/r/SPY?tab=chart" /></Route>
-      {/* Standalone scanners folded into GEX shell tabs */}
-      <Route path="/gex-dashboard"><Redirect to="/g?tab=analysis" /></Route>
-      <Route path="/gex-scanner"><Redirect to="/g?tab=hub" /></Route>
-      <Route path="/weekly-watchlist"><Redirect to="/watchlist" /></Route>
-      <Route path="/paper-trading"><Redirect to="/home" /></Route>
-      <Route path="/wallet-tracker"><Redirect to="/home" /></Route>
-      <Route path="/ct-tracker"><Redirect to="/home" /></Route>
-      <Route path="/wsb-trending"><Redirect to="/trade-desk" /></Route>
-      <Route path="/social-trends"><Redirect to="/trade-desk" /></Route>
-      <Route path="/watchlist-bot">
-        <Redirect to="/automations" />
-      </Route>
-      {/* duplicate /chart-analysis already handled above by redirect */}
-      <Route path="/options-analyzer"><Redirect to="/r/SPY?tab=options" /></Route>
-      <Route path="/smart-advisor"><Redirect to="/performance" /></Route>
-      <Route path="/research">
-        <Redirect to="/home" />
-      </Route>
-      {/*
-       * Stock detail (legacy) — kept reachable at /stock-legacy/:symbol so
-       * we can compare against the new ticker page during migration. The
-       * canonical /stock/:symbol now redirects to the new ticker page so
-       * external links and shared URLs land on the unified destination.
-       */}
-      <Route path="/stock/:symbol">
-        {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
-      </Route>
-      {/* MERGED: Discover → Trade Desk */}
-      <Route path="/discover"><Redirect to="/trade-desk" /></Route>
-      <Route path="/market-movers">
-        <Redirect to="/home" />
-      </Route>
-      <Route path="/watchlist"><Redirect to="/h?tab=watchlist" /></Route>
-      <Route path="/watchlist/weekly"><Redirect to="/h?tab=watchlist" /></Route>
-      <Route path="/convictions/backtest"><Redirect to="/performance" /></Route>
-      <Route path="/ai-stock-picker">
-        <Redirect to="/trade-desk" />
-      </Route>
-      <Route path="/smart-signals">
-        <Redirect to="/h?tab=surges" />
-      </Route>
-      <Route path="/smart-money"><Redirect to="/g?tab=heatmap" /></Route>
-      <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />
-      <Route path="/data-audit">
-        <Redirect to="/performance" />
-      </Route>
-      {/* Market Scanner folded into Hunt → Surges tab */}
-      <Route path="/market-scanner"><Redirect to="/h?tab=surges" /></Route>
-      <Route path="/pattern-scanner">
-        <Redirect to="/chart-analysis" />
-      </Route>
-      <Route path="/swing-scanner">
-        <Redirect to="/h?tab=surges" />
-      </Route>
-      {/* MERGED: Bullish Trends → Hunt Surges */}
-      <Route path="/bullish-trends"><Redirect to="/h?tab=surges" /></Route>
-      <Route path="/futures">
-        <Redirect to="/trade-desk?tab=futures" />
-      </Route>
-      <Route path="/futures-research">
-        <Redirect to="/trade-desk?tab=futures" />
-      </Route>
-      <Route path="/crypto"><Redirect to="/t?tab=crypto" /></Route>
-      
-      {/* Market Outlook — public (no auth), answers "what's tomorrow look like?" */}
 
-      {/* Research & Community Pages */}
-      
+      <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />
+
       {/* System Pages */}
       <Route path="/settings" component={withBetaProtection(SettingsPage)} />
-      <Route path="/account">
-        <Redirect to="/settings" />
-      </Route>
-      <Route path="/my-account">
-        <Redirect to="/settings" />
-      </Route>
 
       {/* Admin Pages - Have their own password auth via AdminLayout */}
       <Route path="/admin" component={AdminOverview} />
@@ -376,118 +276,14 @@ function Router() {
       {/* Legal Pages */}
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
-      
-      {/* Redirects - Consolidated Pages */}
-      <Route path="/trade-ideas">
-        <Redirect to="/trade-desk" />
-      </Route>
-      <Route path="/insights">
-        <Redirect to="/performance" />
-      </Route>
-      <Route path="/analytics">
-        <Redirect to="/performance" />
-      </Route>
-      <Route path="/signals">
-        <Redirect to="/performance" />
-      </Route>
 
-      {/* Redirects - Removed Pages */}
-      <Route path="/trading-guide">
-        <Redirect to="/blog/how-to-trade-like-a-pro" />
+      {/* ─── LEGACY REDIRECTS ─── one catch-all replaces ~70 individual redirect
+          routes. The map, matcher, and route pattern live in
+          lib/legacy-redirects.ts; redirect chains were resolved to final
+          destinations so every legacy URL lands in one hop. */}
+      <Route path={LEGACY_REDIRECT_PATTERN}>
+        <LegacyRedirect />
       </Route>
-      <Route path="/learn-more">
-        <Redirect to="/" />
-      </Route>
-      
-      {/*
-       * ═══════════════════════════════════════════════════════════════════
-       * COMMAND WORKSPACE — unified per-symbol chart destination.
-       *
-       * One URL pattern (/command/:symbol?) owns the chart workspace. All
-       * legacy chart entry points (gex per-ticker, projector, chart-analysis,
-       * spx, stock detail) redirect here. Every layer/panel on the screen is
-       * driven by URL query params so deep-links remain shareable:
-       *
-       *   /command/SPY                  — default orbs layout
-       *   /command/SPY?layer=gex        — GEX layer active
-       *   /command/SPY?layer=gex+vex    — both
-       *   /command/SPY?panel=projection — projection arc visible
-       *   /command/SPY?interval=5m      — timeframe
-       *
-       * /command (no symbol) resolves to /command/SPY.
-       * /command-legacy is the old projector+intelligence page, kept as a
-       * reference while we migrate its features into this workspace.
-       * ═══════════════════════════════════════════════════════════════════
-       */}
-      {/*
-       * ═══════════════════════════════════════════════════════════════
-       * TICKER PAGE — canonical per-symbol destination.
-       *
-       * Every analytic about ONE ticker lives here as a tab:
-       *   /t/PLTR              → defaults to /t/PLTR/chart
-       *   /t/PLTR/overview     → 5-second trader read
-       *   /t/PLTR/chart        → Skylit chart workspace
-       *   /t/PLTR/gex          → full GEX heatmap + per-strike
-       *   /t/PLTR/options      → strikes / flow / P/C  (stub)
-       *   /t/PLTR/vol          → IV surface, term structure (stub)
-       *   /t/PLTR/projection   → magnet target + scenarios  (stub)
-       *   /t/PLTR/catalysts    → earnings, news, macro  (stub)
-       *
-       * The OLD per-page chart entry points (/command, /stock, /gex/:s)
-       * redirect into this single home so links don't rot.
-       * ═══════════════════════════════════════════════════════════════
-       */}
-      {/* ═══════════════════════════════════════════════════════════════
-       * TERMINAL — full-screen Skylit-style dedicated pages
-       * Each tool gets its own page, not crammed into tabs.
-       * ═══════════════════════════════════════════════════════════════ */}
-      {/* ALL per-ticker entry points funnel into the canonical Research home
-          (/r/:symbol). Research's Chart tab IS TerminalChart, Options tab IS
-          OptionsAnalyzer, GEX tab IS TerminalHeatmap — so these are lossless. */}
-      <Route path="/terminal/heatmap"><Redirect to="/r/SPY?tab=gex" /></Route>
-      <Route path="/terminal/:symbol">
-        {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
-      </Route>
-      {/* /terminal is the name users type and the name on the nav — it must land on the
-          consolidated Terminal, not the legacy per-ticker Research page. This redirect
-          predates the Terminal shell and was quietly sending everyone to the old
-          sidebar design, which is why localhost kept "showing old designs". */}
-      <Route path="/terminal"><Redirect to="/t" /></Route>
-
-      {/* TICKER (legacy /t) — folded into Research */}
-      <Route path="/t/:symbol/:tab">
-        {(params) => <Redirect to={`/r/${params.symbol}`} />}
-      </Route>
-      <Route path="/t/:symbol">
-        {(params) => <Redirect to={`/r/${params.symbol}`} />}
-      </Route>
-      <Route path="/t"><Redirect to="/r/SPY" /></Route>
-
-      {/* Legacy chart workspace aliases → Research */}
-      <Route path="/command/:symbol">
-        {(params) => <Redirect to={`/r/${params.symbol}?tab=chart`} />}
-      </Route>
-      <Route path="/command"><Redirect to="/r/SPY?tab=chart" /></Route>
-      <Route path="/projector"><Redirect to="/r/SPY?tab=chart" /></Route>
-      <Route path="/spx"><Redirect to="/r/SPX?tab=chart" /></Route>
-      <Route path="/gex/:symbol">
-        {(params) => <Redirect to={`/r/${params.symbol}?tab=gex`} />}
-      </Route>
-      {/* Flow — options flow + GEX + smart money (tabs) */}
-      {/* /flow redirects to the GEX & Flow Hub which has the Flow tab */}
-      {/* GEX Hub merged into Flow as a tab */}
-      <Route path="/gex"><Redirect to="/g?tab=hub" /></Route>
-      {/* OlAlgo Bot — challenge backtest dashboard */}
-      {/* Convictions merged into Trade Desk — redirect for back-compat */}
-      <Route path="/convictions"><Redirect to="/trade-desk?preset=todays-best" /></Route>
-      <Route path="/scanner/gex"><Redirect to="/g?tab=hub" /></Route>
-      <Route path="/gex-legacy"><Redirect to="/g?tab=hub" /></Route>
-      {/* Geopolitical Reaction Matrix */}
-      <Route path="/geopolitical"><Redirect to="/command" /></Route>
-      {/* Redirects */}
-      <Route path="/trade-desk-v2"><Redirect to="/trade-desk" /></Route>
-
-      {/* Design System Test — admin only */}
 
       {/* 404 Fallback */}
       <Route component={NotFound} />
