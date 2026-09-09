@@ -495,7 +495,10 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
     ? "/api/convictions?limit=24&minScore=0"
     : "/api/convictions?limit=40&minScore=10&watchlistOnly=false";
   const { data, isLoading, isError } = useQuery<ConvictionsResponse>({
-    queryKey: ["/api/convictions", bookQuery],
+    // Embedded, the key MUST match the grid's exactly — a cold rebuild of the
+    // conviction board takes ~13s, and a cockpit with its own key sat on a
+    // spinner for all of it while the grid's warm cache held the same data.
+    queryKey: lockedView ? ["/api/convictions", "nexus"] : ["/api/convictions", bookQuery],
     queryFn: async () => {
       const res = await fetch(bookQuery, { credentials: "include" });
       if (!res.ok) throw new Error("convictions failed");
