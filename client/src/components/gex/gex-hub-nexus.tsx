@@ -77,6 +77,7 @@ const fmtM = (v: number) => {
   return `${sign}$${(a * 1000).toFixed(0)}K`;
 };
 const DUST_M = 0.001; // < $1K of exposure
+const RANKED_DEFAULT = 12; // ranked board is compact-by-default; expand on demand
 
 export function GexHubNexus() {
   const [, setLocation] = useLocation();
@@ -88,6 +89,7 @@ export function GexHubNexus() {
   const [anchor, setAnchor] = useState<string | null>(null);
   const symbol = (anchor ?? currentStock?.symbol ?? 'SPY').toUpperCase();
   const [rankMode, setRankMode] = useState<'gex' | 'vex'>('gex');
+  const [rankAll, setRankAll] = useState(false);
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
 
   const [view3d, setView3d] = useState(false);
@@ -98,11 +100,11 @@ export function GexHubNexus() {
   const leftRail = useColResize('nx-gex-left', 320, { sign: 1, min: 240, max: 520 });
   const rightRail = useColResize('nx-gex-right', 320, { sign: -1, min: 240, max: 520 });
 
-  const { data: hub } = useQuery<HubPayload>({
+  const { data: hub, isLoading: hubLoading, isError: hubError, refetch: refetchHub } = useQuery<HubPayload>({
     queryKey: ['/api/gex-vex/hub', 'nexus'], queryFn: q('/api/gex-vex/hub'),
     staleTime: 120_000, refetchInterval: 180_000, retry: 1,
   });
-  const { data: term, isLoading: termLoading } = useQuery<TerminalData>({
+  const { data: term, isLoading: termLoading, isError: termError, refetch: refetchTerm } = useQuery<TerminalData>({
     queryKey: ['/api/gex-vex/terminal', symbol, 'nexus'],
     queryFn: q(`/api/gex-vex/terminal/${symbol}?interval=15m&lookback=5`),
     staleTime: 60_000, refetchInterval: 120_000, retry: 1,
@@ -259,9 +261,55 @@ export function GexHubNexus() {
             </div>
           </div>
 
+          {/* HERO — the single decision-relevant read: the focus symbol's
+              gamma regime. Walls, gravity and nodes are supporting detail
+              for this posture. */}
+          {snap && (
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 14px', marginBottom: 10,
+                border: '1px solid var(--nx-border-hi)', borderRadius: 8,
+                background: 'color-mix(in srgb, var(--cyan) 6%, transparent)',
+              }}
+              title="Gamma regime — whether dealer hedging currently amplifies or dampens price moves. Positive gamma: dealers sell rallies and buy dips (dampens). Negative gamma: dealers chase the move (amplifies). Neutral: no strong dealer footprint."
+            >
+              <span style={{
+                fontFamily: "'JetBrains Mono',monospace", fontWeight: 800, fontSize: 24, lineHeight: 1,
+                color: snap.regime === 'negative_gamma' ? 'var(--red)' : snap.regime === 'positive_gamma' ? 'var(--green)' : 'var(--amber)',
+              }}>
+                {snap.regime === 'negative_gamma' ? '−γ' : snap.regime === 'positive_gamma' ? '+γ' : '±γ'}
+              </span>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  {snap.regime === 'negative_gamma' ? 'Negative gamma' : snap.regime === 'positive_gamma' ? 'Positive gamma' : snap.regime === 'transitioning' ? 'Transitioning' : 'Neutral regime'}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+                  {snap.regime === 'negative_gamma'
+                    ? 'Dealer hedging can amplify moves'
+                    : snap.regime === 'positive_gamma'
+                      ? 'Dealer hedging dampens moves'
+                      : 'No strong dealer footprint — levels matter less'}
+                </div>
+              </div>
+              <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                {spot ? `$${spot.toFixed(2)}` : '—'}
+                <span style={{ display: 'block', fontSize: 9, marginTop: 2 }}>
+                  {snap.putWall != null && snap.callWall != null
+                    ? (spot > snap.putWall && spot < snap.callWall
+                      ? `inside $${Math.round(snap.putWall)}–$${Math.round(snap.callWall)}`
+                      : spot >= snap.callWall
+                        ? `above $${Math.round(snap.callWall)} call wall`
+                        : `below $${Math.round(snap.putWall)} put wall`)
+                    : 'walls —'}
+                </span>
+              </span>
+            </div>
+          )}
+
           <div className="focus-card">
             <div className="focus-head">
-              <div className="focus-label">Money flow · {rotation?.sessionLabel ?? 'session'}</div>
+              <div className="focus-label" title="Sector rotation — where money is moving out of → into this session">Money flow · {rotation?.sessionLabel ?? 'session'}</div>
               <button className="focus-action" onClick={() => setLocation('/t?tab=flow')}>VIEW →</button>
             </div>
             <div className="spot-card">
@@ -279,7 +327,7 @@ export function GexHubNexus() {
                 </div>
                 <div style={{ textAlign: 'right', fontSize: 10, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
                   <div>{symbol === 'SPY' ? 'benchmark' : 'focus'}</div>
-                  <div style={{ color: snap?.gammaFlipPrice ? 'var(--cyan-bright)' : 'var(--text-mute)', marginTop: 2 }}>
+                  <div style={{ color: snap?.gammaFlipPrice ? 'var(--cyan-bright)' : 'var(--text-mute)', marginTop: 2 }} title="Gamma flip — the price where dealer gamma changes sign. Below it, hedging amplifies moves.">
                     {snap?.gammaFlipPrice ? `flip $${Math.round(snap.gammaFlipPrice)}` : 'no flip in range'}
                   </div>
                 </div>
@@ -295,7 +343,7 @@ export function GexHubNexus() {
               const flip = snap.gammaFlipPrice;
               return (
                 <div style={{ margin: '10px 0 4px', padding: '14px 10px 4px', position: 'relative' }}>
-                  <div style={{ position: 'relative', height: 6, borderRadius: 3, background: flip != null ? `linear-gradient(90deg, rgba(255,84,112,0.35) ${X(flip)}, rgba(61,220,151,0.3) ${X(flip)})` : 'rgba(79,209,197,0.15)' }}>
+                  <div style={{ position: 'relative', height: 6, borderRadius: 3, background: flip != null ? `linear-gradient(90deg, color-mix(in srgb, var(--red) 35%, transparent) ${X(flip)}, color-mix(in srgb, var(--green) 30%, transparent) ${X(flip)})` : 'color-mix(in srgb, var(--cyan) 15%, transparent)' }}>
                     {snap.putWall != null && <div title={`Put wall $${snap.putWall}`} style={{ position: 'absolute', left: X(snap.putWall), top: -4, width: 2, height: 14, background: 'var(--red)', boxShadow: '0 0 6px var(--red)' }} />}
                     {flip != null && <div title={`Gamma flip $${flip}`} style={{ position: 'absolute', left: X(flip), top: -6, width: 2, height: 18, background: 'var(--amber)', boxShadow: '0 0 8px var(--amber)' }} />}
                     {snap.callWall != null && <div title={`Call wall $${snap.callWall}`} style={{ position: 'absolute', left: X(snap.callWall), top: -4, width: 2, height: 14, background: 'var(--green)', boxShadow: '0 0 6px var(--green)' }} />}
@@ -305,11 +353,6 @@ export function GexHubNexus() {
                     <span style={{ color: 'var(--red)' }}>P {snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}</span>
                     <span style={{ color: 'var(--amber)' }}>flip {flip != null ? `$${Math.round(flip)}` : '—'}</span>
                     <span style={{ color: 'var(--green)' }}>C {snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-dim)' }}>
-                    <span>{snap.regime ?? '—'}</span>
-                    {snap.volatilityRegime && <span>· {snap.volatilityRegime}</span>}
-                    {snap.zeroGammaProjection != null && <span>· 0γ proj ${Math.round(snap.zeroGammaProjection)}</span>}
                   </div>
                 </div>
               );
@@ -335,11 +378,12 @@ export function GexHubNexus() {
 
           <div className="ranked">
             <div className="ranked-head">
-              <div className="ranked-label">Ranked · {rankMode === 'gex' ? 'GEX surface' : 'VEX surface'}</div>
+              <div className="ranked-label" title="Ranked by play score — a composite of gamma exposure, wall distance and regime">Ranked · {rankMode === 'gex' ? 'GEX surface' : 'VEX surface'}</div>
               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                 {(['gex', 'vex'] as const).map((m) => (
                   <button key={m} onClick={() => setRankMode(m)}
-                    style={{ padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: 0.5, background: rankMode === m ? 'rgba(245,182,66,0.15)' : 'transparent', color: rankMode === m ? 'var(--amber)' : 'var(--text-mute)', border: rankMode === m ? '1px solid rgba(245,182,66,0.3)' : '1px solid var(--nx-border)' }}>
+                    title={m === 'gex' ? 'Rank by GEX surface — dealer gamma exposure' : 'Rank by VEX surface — volatility exposure'}
+                    style={{ padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: 0.5, background: rankMode === m ? 'color-mix(in srgb, var(--amber) 15%, transparent)' : 'transparent', color: rankMode === m ? 'var(--amber)' : 'var(--text-mute)', border: rankMode === m ? '1px solid color-mix(in srgb, var(--amber) 30%, transparent)' : '1px solid var(--nx-border)' }}>
                     {m}
                   </button>
                 ))}
@@ -358,11 +402,12 @@ export function GexHubNexus() {
               </div>
             </div>
             <div className="ranked-list">
-              {(rankMode === 'gex' ? plays : [...plays].sort((a, b) => Math.abs(b.totalVEX ?? 0) - Math.abs(a.totalVEX ?? 0))).map((p, i) => (
+              {(rankMode === 'gex' ? plays : [...plays].sort((a, b) => Math.abs(b.totalVEX ?? 0) - Math.abs(a.totalVEX ?? 0))).slice(0, rankAll ? plays.length : RANKED_DEFAULT).map((p, i) => (
                 <div
                   key={p.symbol}
                   className={`ranked-item${p.symbol === 'SPY' ? ' benchmark' : ''}${p.symbol === symbol ? ' active' : ''}`}
                   onClick={() => setAnchor(p.symbol)}
+                  title={p.insight ? `${p.symbol} — ${p.insight}` : p.symbol}
                 >
                   <div className="ranked-num">{i + 1}</div>
                   <div>
@@ -373,16 +418,27 @@ export function GexHubNexus() {
                     ? <div className={`ranked-gamma ${p.isNegativeGamma ? 'neg' : 'pos'}`}>{p.isNegativeGamma ? '−γ' : '+γ'}</div>
                     : <div className={`ranked-gamma ${(p.totalVEX ?? 0) < 0 ? 'neg' : 'pos'}`}>{(p.vexSignal ?? 'V').slice(0, 4)}</div>}
                   {rankMode === 'gex'
-                    ? <div className="ranked-score">{p.playScore ?? '—'}</div>
+                    ? <div className="ranked-score" title="play score — composite rank of gamma exposure, wall distance and regime">{p.playScore ?? '—'}</div>
                     : <div className="ranked-score" title="total VEX">{p.totalVEX != null ? `${(p.totalVEX / 1e6) >= 1000 ? (p.totalVEX / 1e9).toFixed(1) + 'B' : (p.totalVEX / 1e6).toFixed(0) + 'M'}` : '—'}</div>}
                 </div>
               ))}
-              {!plays.length && (
+              {hubLoading && !plays.length && (
                 <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)', padding: '8px 0' }}>
                   hub scan loading…
                 </div>
               )}
+              {hubError && !plays.length && (
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)', padding: '8px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span>ranked scan unavailable</span>
+                  <button onClick={() => refetchHub()} style={{ color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, textDecoration: 'underline', padding: 0 }}>retry</button>
+                </div>
+              )}
             </div>
+            {plays.length > RANKED_DEFAULT && (
+              <div className="expand-row" onClick={() => setRankAll((a) => !a)}>
+                <span>{rankAll ? 'show less' : `+ ${plays.length - RANKED_DEFAULT} more ranked`}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -394,23 +450,23 @@ export function GexHubNexus() {
               <div className="prism-title">Strike × Expiry Surface</div>
               <div className="prism-badge"><span className="dot" />{termLoading ? 'loading…' : `${shaped.total} listed cells`}</div>
             </div>
-            <div className="prism-desc">Ranked board + the strike × expiry surface, in 2D or 3D. Green = calls · Red = puts · Brighter cells carry more exposure.</div>
+            <div className="prism-desc">The strike × expiry surface, in 2D or 3D — the intensity key is below.</div>
           </div>
 
           <div className="prism-controls">
             <div className="view-toggle">
               {(['2d', '3d'] as const).map((v) => (
-                <button key={v} className={`view-btn${(v === '3d') === view3d ? ' active' : ''}`} style={{ background: (v === '3d') === view3d ? undefined : 'transparent', border: 'none' }} onClick={() => setView3d(v === '3d')}>{v.toUpperCase()}</button>
+                <button key={v} className={`view-btn${(v === '3d') === view3d ? ' active' : ''}`} style={{ background: (v === '3d') === view3d ? undefined : 'transparent', border: 'none' }} onClick={() => setView3d(v === '3d')} title={v === '3d' ? '3D gamma surface — the honest surface, listed cells only' : '2D strike × expiry grid'}>{v.toUpperCase()}</button>
               ))}
             </div>
             <div className="view-toggle">
               {(['gex', 'vex'] as const).map((m) => (
-                <button key={m} className={`view-btn${metric === m ? ' active' : ''}`} style={{ background: metric === m ? undefined : 'transparent', border: 'none' }} onClick={() => setMetric(m)}>{m.toUpperCase()}</button>
+                <button key={m} className={`view-btn${metric === m ? ' active' : ''}`} style={{ background: metric === m ? undefined : 'transparent', border: 'none' }} onClick={() => setMetric(m)} title={m === 'gex' ? 'Net gamma exposure (GEX) — dealer positioning' : 'Net volatility exposure (VEX) — vega-weighted positioning'}>{m.toUpperCase()}</button>
               ))}
             </div>
             <div className="filter-sep" />
             <div className="filter-group">
-              <span className="filter-label">DTE</span>
+              <span className="filter-label" title="Days to expiry — filter the surface by time bucket">DTE</span>
               <div className="filter-chips">
                 {DTE_BUCKETS.map((b) => (
                   <button key={b.id} className={`filter-chip${bucket === b.id ? ' active' : ''}`} onClick={() => setBucket(b.id)}>
@@ -420,11 +476,35 @@ export function GexHubNexus() {
               </div>
             </div>
             <div className="expiry-selector">
-              <div className="expiry-btn">
+              <div className="expiry-btn" title="Expiries inside the current DTE bucket, and the furthest listed expiry">
                 {shaped.expiries.length} of {shaped.expiryAll.length} expiries
                 {shaped.expiryAll.length > 0 && ` · max ${shaped.expiryAll[shaped.expiryAll.length - 1][1]} (${shaped.expiryAll[shaped.expiryAll.length - 1][0]}d)`}
               </div>
             </div>
+          </div>
+
+          {/* Matrix intensity legend — the single canonical key for cell color and brightness. */}
+          <div
+            style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', alignItems: 'center', padding: '8px 2px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Call-side exposure — positive net gamma at that strike × expiry">
+              <span style={{ width: 20, height: 12, borderRadius: 2, background: 'linear-gradient(135deg, color-mix(in srgb, var(--green) 30%, transparent), color-mix(in srgb, var(--green) 15%, transparent))' }} />
+              calls
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Put-side exposure — negative net gamma at that strike × expiry">
+              <span style={{ width: 20, height: 12, borderRadius: 2, background: 'linear-gradient(135deg, color-mix(in srgb, var(--red) 30%, transparent), color-mix(in srgb, var(--red) 15%, transparent))' }} />
+              puts
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title="hot — at least 25% of the strongest listed exposure in this book">
+              <span style={{ width: 20, height: 12, borderRadius: 2, background: 'linear-gradient(135deg, color-mix(in srgb, var(--green) 30%, transparent), color-mix(in srgb, var(--green) 15%, transparent))', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' }} />
+              hot ≥ 25% of max
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title="mega — the single strongest listed exposure in this book">
+              <span style={{ width: 20, height: 12, borderRadius: 2, background: 'linear-gradient(135deg, color-mix(in srgb, var(--green) 30%, transparent), color-mix(in srgb, var(--green) 15%, transparent))', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15), 0 0 6px rgba(255,255,255,0.35)' }} />
+              mega = book max
+            </span>
+            <span title="Empty cell — the chain never listed that strike × expiry. Not a zero.">empty = not listed</span>
+            <span title="Values in $ millions ($B when marked). Under $1K of exposure is dust: no text, hover still answers.">$M · B when marked</span>
           </div>
 
           {view3d ? (
@@ -452,6 +532,11 @@ export function GexHubNexus() {
               {termLoading ? (
                 <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                   reading the surface…
+                </div>
+              ) : termError && !shaped.strikes.length ? (
+                <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', gap: 8, alignContent: 'center' }}>
+                  <span>couldn't read the surface</span>
+                  <button onClick={() => refetchTerm()} style={{ color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, textDecoration: 'underline', padding: 0 }}>retry</button>
                 </div>
               ) : !shaped.strikes.length ? (
                 <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)' }}>
@@ -530,34 +615,28 @@ export function GexHubNexus() {
             </div>
             <div className="context-grid">
               <div className="context-item">
-                <div className="context-k">Spot</div>
-                <div className="context-v cyan">{spot ? `$${spot.toFixed(2)}` : '—'}</div>
-                <div className="context-sub">{sessionLabel.toLowerCase()}</div>
-              </div>
-              <div className="context-item">
-                <div className="context-k">Gamma regime</div>
-                {negGamma == null ? (
-                  <div className="context-v" style={{ color: 'var(--text-mute)' }}>—</div>
-                ) : (
-                  <>
-                    <div className={`context-v ${negGamma ? 'red' : 'green'}`}>{negGamma ? '−γ' : '+γ'}</div>
-                    <div className="context-sub">{negGamma ? 'negative gamma' : 'positive gamma'}</div>
-                  </>
-                )}
-              </div>
-              <div className="context-item">
-                <div className="context-k">Call wall</div>
+                <div className="context-k" title="Largest positive-gamma strike above spot — the level dealers defend; resistance.">Call wall</div>
                 <div className="context-v green">{snap?.callWall ? `$${snap.callWall}` : '—'}</div>
                 <div className="context-sub">resistance</div>
               </div>
               <div className="context-item">
-                <div className="context-k">Put support</div>
+                <div className="context-k" title="Largest negative-gamma strike below spot — dealer support; the floor.">Put support</div>
                 <div className="context-v red">{snap?.putWall ? `$${snap.putWall}` : '—'}</div>
                 <div className="context-sub">floor</div>
               </div>
+              <div className="context-item">
+                <div className="context-k" title="Zero-gamma projection — the near-term price magnet implied by the gamma surface.">0γ projection</div>
+                <div className="context-v cyan">{snap?.zeroGammaProjection != null ? `$${Math.round(snap.zeroGammaProjection)}` : '—'}</div>
+                <div className="context-sub">near-term magnet</div>
+              </div>
+              <div className="context-item">
+                <div className="context-k" title="Volatility regime — the current volatility environment for this name.">Vol regime</div>
+                <div className="context-v amber">{snap?.volatilityRegime ? snap.volatilityRegime.charAt(0).toUpperCase() + snap.volatilityRegime.slice(1) : '—'}</div>
+                <div className="context-sub">vol environment</div>
+              </div>
               {snap?.callWall != null && snap?.putWall != null && (
                 <div className="context-item full">
-                  <div className="context-k">Structural range</div>
+                  <div className="context-k" title="Put wall → call wall — the range dealers are positioned around. Inside: expect pin and drift. Outside: moves can accelerate.">Structural range</div>
                   <div className="context-v amber">${snap.putWall} put → ${snap.callWall} call</div>
                   <div className="context-sub">
                     {spot > snap.putWall && spot < snap.callWall ? 'inside the range' : spot >= snap.callWall ? 'above the call wall' : 'below put support'}
@@ -569,7 +648,7 @@ export function GexHubNexus() {
 
           <div className="gravity-card">
             <div className="context-head">
-              <div className="context-label">Gravity · call vs put exposure</div>
+              <div className="context-label" title="Share of total listed exposure sitting on the call side vs the put side — which way the book leans.">Gravity · call vs put exposure</div>
             </div>
             {shaped.callPct == null ? (
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>no listed exposure yet</div>
@@ -608,7 +687,7 @@ export function GexHubNexus() {
 
           <div className="insight-card">
             <div className="context-head">
-              <div className="context-label">Strongest nodes · {metric.toUpperCase()}</div>
+              <div className="context-label" title="Largest listed gamma nodes above and below spot. Levels, not entries.">Strongest nodes · {metric.toUpperCase()}</div>
             </div>
             {shaped.above ? (
               <div className="insight-item bull">
@@ -673,7 +752,7 @@ export function GexHubNexus() {
                 [`share of $${drill.strike} strike`, strikeTotal !== 0 ? `${((v / strikeTotal) * 100).toFixed(0)}% of ${fmtM(strikeTotal)}` : '—'],
                 [`share of ${drill.expiryLabel} expiry`, expiryTotal !== 0 ? `${((v / expiryTotal) * 100).toFixed(0)}% of ${fmtM(expiryTotal)}` : '—'],
               ].map(([k, val2]) => (
-                <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px dashed rgba(79,209,197,0.08)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
+                <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px dashed color-mix(in srgb, var(--cyan) 8%, transparent)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
                   <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 9, letterSpacing: 0.5 }}>{k}</span>
                   <span style={{ fontWeight: 700 }}>{val2}</span>
                 </div>
