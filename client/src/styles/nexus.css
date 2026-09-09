@@ -2549,3 +2549,8 @@
    event arrives (design law: no synthetic motion). Reduced-motion kills it via
    the global rule above. */
 @keyframes pulse-slide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* RAIL WINDOW-MANAGER — collapse keeps only the panel's first child (its
+   header); hidden removes the panel (restore chips bring it back). */
+.nexus-vars .rail-min > :not(:first-child){display:none !important}
+.nexus-vars .rail-hidden{display:none !important}

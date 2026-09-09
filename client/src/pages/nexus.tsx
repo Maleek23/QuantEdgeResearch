@@ -440,6 +440,49 @@ export function NexusBoard() {
   // THE expand — the terminal's signature ⤢-to-blurred-modal, on every rail
   // section. The operator asked roughly fifty times; inline toggles are not it.
   const [expandSec, setExpandSec] = useState<null | 'prints' | 'watch' | 'heat' | 'quad' | 'pulse' | 'dev'>(null);
+  // Rail window-manager: each side panel can be collapsed to its header or
+  // hidden entirely ("it's so much going on"). Per-viewer convenience,
+  // persisted in localStorage; hidden panels come back via the restore chips.
+  const [railUi, setRailUi] = useState<Record<string, 'min' | 'hidden'>>(() => {
+    try { return JSON.parse(localStorage.getItem('nx-rail-ui') || '{}'); } catch { return {}; }
+  });
+  const setRail = (id: string, mode: 'min' | 'hidden' | null) => {
+    setRailUi((cur) => {
+      const next = { ...cur };
+      if (mode) next[id] = mode; else delete next[id];
+      try { localStorage.setItem('nx-rail-ui', JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  };
+  const railCls = (id: string, base: string) =>
+    `${base}${railUi[id] === 'min' ? ' rail-min' : ''}${railUi[id] === 'hidden' ? ' rail-hidden' : ''}`;
+  const RAIL_NAMES: Record<string, string> = { radar: 'Pattern Radar', pulse: 'Market Pulse', quad: 'Rotation Map', prints: 'Flow Prints', brief: 'Session Brief', dev: 'Candidate field', heat: 'Sector Heatmap', watch: 'Watchlist' };
+  const RailCtl = ({ id }: { id: string }) => (
+    <span style={{ display: 'inline-flex', gap: 3, marginLeft: 5 }}>
+      <button title={railUi[id] === 'min' ? 'Expand panel' : 'Collapse to header'} onClick={(e) => { e.stopPropagation(); setRail(id, railUi[id] === 'min' ? null : 'min'); }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', fontSize: 10, padding: '0 2px', lineHeight: 1 }}>
+        {railUi[id] === 'min' ? '+' : '–'}
+      </button>
+      <button title="Hide panel (restore chip appears at the top of the rail)" onClick={(e) => { e.stopPropagation(); setRail(id, 'hidden'); }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', fontSize: 10, padding: '0 2px', lineHeight: 1 }}>
+        ×
+      </button>
+    </span>
+  );
+  const RailRestore = ({ ids }: { ids: string[] }) => {
+    const hidden = ids.filter((i) => railUi[i] === 'hidden');
+    if (!hidden.length) return null;
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '6px 16px' }}>
+        {hidden.map((i) => (
+          <button key={i} onClick={() => setRail(i, null)} title="Restore panel"
+            style={{ padding: '2px 8px', borderRadius: 3, background: 'rgba(148,163,184,0.06)', border: '1px dashed var(--nx-border)', color: 'var(--text-mute)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, letterSpacing: 0.5 }}>
+            + {RAIL_NAMES[i] ?? i}
+          </button>
+        ))}
+      </div>
+    );
+  };
   const bigQuadRef = useRef<HTMLCanvasElement>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addSym, setAddSym] = useState('');
@@ -535,6 +578,15 @@ export function NexusBoard() {
   const [sort, setSort] = useState<'conviction' | 'rr' | 'newest'>('conviction');
   const [expanded, setExpanded] = useState<string | null>(null);
   const picks = convictions.data?.picks ?? [];
+  // Aggressor context for every card — the tape read that decodes whether
+  // today's options money agrees with the signal. One batch call, cached.
+  const pickSyms = [...new Set(picks.map((p) => p.symbol))].slice(0, 12).join(',');
+  const leansQ = useQuery<{ enabled: boolean; reads: Record<string, { lean: 'long' | 'short' | 'flat'; net: number }> }>({
+    queryKey: ['/api/bullflow/net-premium-batch', pickSyms],
+    queryFn: q(`/api/bullflow/net-premium-batch?symbols=${pickSyms}`),
+    enabled: pickSyms.length > 0, staleTime: 180_000, refetchInterval: 240_000, retry: 0,
+  });
+  const leanOf = (sym: string) => leansQ.data?.reads?.[sym];
   const bandOf = (p: ConvictionPick) => (p.convictionBand || 'C').charAt(0).toUpperCase();
   const bandCounts = useMemo(() => {
     const c: Record<string, number> = { S: 0, A: 0, B: 0, C: 0 };
@@ -650,10 +702,11 @@ export function NexusBoard() {
             <div className="sec-num">01 · MARKET INTELLIGENCE</div>
             <div className="sec-sub">Read the tape before the trade. Participation, relative rotation and leadership — one connected market view.</div>
           </div>
+          <RailRestore ids={['radar', 'pulse', 'quad', 'prints', 'brief']} />
 
-          <div className="intel-block">
+          <div className={railCls('radar', 'intel-block')}>
             <div className="intel-head">
-              <div className="intel-label">Pattern Radar</div>
+              <div className="intel-label">Pattern Radar<RailCtl id="radar" /></div>
               <div className="intel-value" style={{ cursor: 'pointer' }} title="Open the full pattern browser" onClick={() => setRadarBrowse('all')}>{patterns.data ? `${patterns.data.hits.length} hits · ${patterns.data.scanned} scanned ⤢` : 'warming…'}</div>
             </div>
             {(['inside_coil', 'bull_flag', 'breakout_watch', 'bear_flag'] as const).map((pat) => {
@@ -799,9 +852,9 @@ export function NexusBoard() {
             )}
           </div>
 
-          <div className="intel-block">
+          <div className={railCls('pulse', 'intel-block')}>
             <div className="intel-head">
-              <div className="intel-label">Market Pulse<Ex id="pulse" /></div>
+              <div className="intel-label">Market Pulse<Ex id="pulse" /><RailCtl id="pulse" /></div>
               <div className="intel-value">{rotation.data?.sessionLabel ?? '—'}</div>
             </div>
             <div className="pulse-card">
@@ -872,9 +925,9 @@ export function NexusBoard() {
           </div>
 
           {/* Rotation Map */}
-          <div className="intel-block">
+          <div className={railCls('quad', 'intel-block')}>
             <div className="intel-head">
-              <div className="intel-label">Rotation Map<Ex id="quad" /></div>
+              <div className="intel-label">Rotation Map<Ex id="quad" /><RailCtl id="quad" /></div>
               <div className="intel-value">{rotation.data?.sessionLabel ?? '—'}</div>
             </div>
             <div className="quad-wrap">
@@ -899,9 +952,9 @@ export function NexusBoard() {
           {/* Flow prints — the mock's Time & Sales slot, wired to the real flow
               feed. Side chip is CALL/PUT because that is measured; buyer vs
               seller is not, and is not claimed. */}
-          <div className="tape">
+          <div className={railCls('prints', 'tape')}>
             <div className="intel-head">
-              <div className="intel-label">Flow Prints<Ex id="prints" /></div>
+              <div className="intel-label">Flow Prints<Ex id="prints" /><RailCtl id="prints" /></div>
               <div className="intel-value" style={{ cursor: 'pointer' }} title="Expand / collapse the print list"
                 onClick={() => setPrintsExpanded((x) => !x)}>
                 {printsExpanded ? `${(flow.data?.trades ?? []).length} prints · collapse ▲` : '15-min delayed · expand ▼'}
@@ -923,9 +976,9 @@ export function NexusBoard() {
           </div>
 
           {/* Session Brief — the rotation feed's own headline, not invented prose */}
-          <div className="intel-block">
+          <div className={railCls('brief', 'intel-block')}>
             <div className="intel-head">
-              <div className="intel-label">Session Brief</div>
+              <div className="intel-label">Session Brief<RailCtl id="brief" /></div>
               <div className="intel-value">from the rotation feed</div>
             </div>
             <div className="brief-text">
@@ -1156,6 +1209,20 @@ export function NexusBoard() {
                     <div className="level"><div className="level-label">P&amp;L</div><div className={`level-val pnl ${g.pnlPct >= 0 ? 'pos' : 'neg'}`}>{g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(1)}%</div></div>
                   </div>
                   <div className="sig-foot">
+                    {(() => {
+                      const lr = leanOf(p.symbol);
+                      if (!lr) return null;
+                      const agrees = (lr.lean === 'long') === (p.direction !== 'short');
+                      const c = lr.lean === 'flat' ? 'var(--text-mute)' : agrees ? 'var(--green)' : 'var(--amber)';
+                      return (
+                        <span
+                          title={`Bullflow aggressor net premium today: ${lr.net >= 0 ? '+' : '−'}$${(Math.abs(lr.net) / 1e6).toFixed(1)}M (${lr.lean.toUpperCase()}) — ${lr.lean === 'flat' ? 'no decisive tape' : agrees ? 'the tape AGREES with this signal' : 'the tape DISAGREES — options money is positioned the other way'}`}
+                          style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, fontWeight: 700, color: c, letterSpacing: 0.5 }}
+                        >
+                          TAPE {lr.lean === 'flat' ? '·FLAT' : agrees ? '✓' : '✗'} {lr.net >= 0 ? '+' : '−'}${(Math.abs(lr.net) / 1e6).toFixed(1)}M
+                        </span>
+                      );
+                    })()}
                     <span>{p.optionDte != null ? `${p.optionDte}d` : 'no contract'}</span>
                     <span>{p.sector ?? ''}</span>
                   </div>
@@ -1180,6 +1247,7 @@ export function NexusBoard() {
             <div className="sec-sub">Coiled names inside groups already receiving money.</div>
             <div className="sec-meta"><span className="tag mute">watch · not signals</span></div>
           </div>
+          <RailRestore ids={['dev', 'heat', 'watch']} />
 
           {/* CANDIDATE FIELD — finally real. Two measured sources, no theater:
               picks whose trigger has not printed (the board's own pending set)
@@ -1206,9 +1274,9 @@ export function NexusBoard() {
               </div>
             );
             return (
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--nx-border)' }}>
+              <div className={railCls('dev', '')} style={{ padding: '12px 16px', borderBottom: '1px solid var(--nx-border)' }}>
                 <div className="intel-head" style={{ marginBottom: 8 }}>
-                  <div className="intel-label">Candidate field<Ex id="dev" /></div>
+                  <div className="intel-label">Candidate field<Ex id="dev" /><RailCtl id="dev" /></div>
                   <div className="intel-value">{total} developing</div>
                 </div>
                 {pendingPicks.map(({ p, g }) => (
@@ -1232,9 +1300,9 @@ export function NexusBoard() {
             );
           })()}
 
-          <div className="heatmap-section">
+          <div className={railCls('heat', 'heatmap-section')}>
             <div className="intel-head">
-              <div className="intel-label">Sector Heatmap<Ex id="heat" /></div>
+              <div className="intel-label">Sector Heatmap<Ex id="heat" /><RailCtl id="heat" /></div>
               <div className="intel-value">{rotation.data?.sessionLabel ?? '1D % chg'}</div>
             </div>
             <div className="heatmap">
@@ -1253,9 +1321,9 @@ export function NexusBoard() {
             </div>
           </div>
 
-          <div className="watch-section">
+          <div className={railCls('watch', 'watch-section')}>
             <div className="watch-head">
-              <div className="watch-title">Watchlist<Ex id="watch" /></div>
+              <div className="watch-title">Watchlist<Ex id="watch" /><RailCtl id="watch" /></div>
               <div className="watch-count" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {watchSyms.length ? `${watchSyms.length} names` : ''}
                 {addOpen ? (

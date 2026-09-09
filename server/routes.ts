@@ -14631,6 +14631,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "outcomes read failed" });
     }
   });
+  // Batch leans for the board's cards — one request instead of one per card.
+  // Bounded to 12 symbols; each read is 3-min-cached in the service so the
+  // 30/min provider limit survives polling.
+  app.get("/api/bullflow/net-premium-batch", async (req, res) => {
+    try {
+      const bf = await import("./bullflow-service");
+      if (!bf.bullflowEnabled()) return res.json({ enabled: false, reads: {} });
+      const symbols = String(req.query.symbols ?? '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean).slice(0, 12);
+      const reads: Record<string, any> = {};
+      for (const s of symbols) {
+        const r = await bf.getNetPremiumToday(s);
+        if (r) reads[s] = { lean: r.lean, net: r.callsNetPremium - r.putsNetPremium };
+      }
+      res.json({ enabled: true, reads });
+    } catch {
+      res.status(500).json({ error: "batch lean lookup failed" });
+    }
+  });
   app.get("/api/bullflow/net-premium/:symbol", async (req, res) => {
     try {
       const bf = await import("./bullflow-service");

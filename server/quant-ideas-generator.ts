@@ -352,17 +352,38 @@ const FLOW_MIN_SKEW = 2;
 // weaker "tape prints must not contradict" check: a premium skew that fights
 // the aggressor read is refused, one that agrees carries a real tape basis.
 let bullflowLeanBySymbol = new Map<string, 'long' | 'short' | 'flat'>();
+// Net magnitude too — a decisive aggressor read (|call net − put net| >= $2M)
+// is allowed to SEED flow_conviction on its own, chain-snapshot skew or not.
+// The tape outranks the snapshot; the operator watched Bullflow leaders sit
+// idle while the cockpit waited for a snapshot skew that never formed.
+let bullflowNetBySymbol = new Map<string, number>();
+const BULLFLOW_SEED_NET = 2_000_000;
 
 async function buildBullflowLeans(symbols: string[]): Promise<void> {
   bullflowLeanBySymbol = new Map();
+  bullflowNetBySymbol = new Map();
   try {
-    const { bullflowEnabled, getNetPremiumToday } = await import('./bullflow-service');
+    const { bullflowEnabled, getNetPremiumToday, getTopTickers } = await import('./bullflow-service');
     if (!bullflowEnabled()) return;
-    // netPremiumSeries is 30 req/min — bound the lookups to the candidates
-    // that could actually qualify.
+    // Market-wide leaders first (one cached call): decisive aggressor names
+    // get leans AND join the candidate set even without snapshot prints.
+    try {
+      const leaders: any = await getTopTickers('net_premium', { excludeEtfs: true });
+      for (const r of leaders?.rows ?? []) {
+        const net = Number(r.totalNetPremium ?? ((r.callPremium ?? 0) - (r.putPremium ?? 0)));
+        if (!Number.isFinite(net) || !r.ticker) continue;
+        bullflowNetBySymbol.set(String(r.ticker).toUpperCase(), net);
+        bullflowLeanBySymbol.set(String(r.ticker).toUpperCase(), Math.abs(net) < 100_000 ? 'flat' : net > 0 ? 'long' : 'short');
+      }
+    } catch { /* leaders cold — per-symbol path below */ }
+    // Then per-symbol reads for the snapshot-side candidates (30 req/min cap).
     for (const sym of symbols.slice(0, 15)) {
+      if (bullflowLeanBySymbol.has(sym.toUpperCase())) continue;
       const read = await getNetPremiumToday(sym);
-      if (read) bullflowLeanBySymbol.set(sym.toUpperCase(), read.lean);
+      if (read) {
+        bullflowLeanBySymbol.set(sym.toUpperCase(), read.lean);
+        bullflowNetBySymbol.set(sym.toUpperCase(), read.callsNetPremium - read.putsNetPremium);
+      }
     }
   } catch { /* tape absent — the contradiction check below still applies */ }
 }
@@ -387,7 +408,20 @@ async function buildBreakoutSet(): Promise<void> {
 }
 
 function flowConvictionFor(symbol: string): { direction: 'long' | 'short'; premium: number; skew: number; sweeps: number } | null {
-  const agg = flowAggBySymbol.get(symbol.toUpperCase());
+  const sym = symbol.toUpperCase();
+  // TAPE-PRIMARY PATH: a decisive aggressor net (>= $2M either way) seeds the
+  // signal directly — measured ask/bid direction needs no snapshot skew to
+  // corroborate it. Anything smaller falls through to the snapshot path.
+  const bfNet = bullflowNetBySymbol.get(sym);
+  if (bfNet != null && Math.abs(bfNet) >= BULLFLOW_SEED_NET) {
+    return {
+      direction: bfNet > 0 ? 'long' : 'short',
+      premium: Math.abs(bfNet),
+      skew: Infinity,   // aggressor-measured, not a skew inference
+      sweeps: 0,
+    };
+  }
+  const agg = flowAggBySymbol.get(sym);
   if (!agg) return null;
   const dominant = agg.callPrem >= agg.putPrem ? 'long' : 'short';
   const domPrem = Math.max(agg.callPrem, agg.putPrem);
@@ -971,8 +1005,12 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
   if (signal.type === 'flow_conviction') {
     const p = signal.flowPremium ?? 0;
     const side = signal.direction === 'long' ? 'call' : 'put';
+    if ((signal.flowSkew ?? 0) === Infinity) {
+      return `Aggressor-measured tape: $${(p / 1e6).toFixed(1)}M net ${side}-side premium (ask-vs-bid, provider-measured) — ` +
+             `direction here is read from actual fills, not inferred from a chain snapshot. Seeds a candidate for the funnel; every gate still applies.`;
+    }
     return `Session options tape is decisively ${side}-heavy: $${(p / 1e6).toFixed(1)}M dominant premium at ` +
-           `${(signal.flowSkew ?? 0) === Infinity ? 'fully one-sided' : `${(signal.flowSkew ?? 0).toFixed(1)}:1`} skew, with no tape-read contradiction. ` +
+           `${(signal.flowSkew ?? 0).toFixed(1)}:1 skew, with no tape-read contradiction. ` +
            `Caveat stated plainly: a chain snapshot cannot distinguish buyers from sellers, so skew is evidence, not proof — ` +
            `which is why this signal seeds a candidate for the funnel instead of asserting a conclusion.`;
   }
@@ -1357,7 +1395,13 @@ export async function generateQuantIdeas(
       .filter(([, a]) => Math.max(a.callPrem, a.putPrem) >= FLOW_MIN_PREMIUM)
       .map(([s]) => s);
     await buildBullflowLeans(heavy);
-    flowSymbols = Array.from(flowAggBySymbol.keys()).filter((s) => flowConvictionFor(s) != null).slice(0, 40);
+    // Tape-primary names (decisive aggressor net) join even without a single
+    // snapshot print — the tape doesn't need the snapshot's permission.
+    const tapePrimary = Array.from(bullflowNetBySymbol.entries())
+      .filter(([, net]) => Math.abs(net) >= BULLFLOW_SEED_NET)
+      .map(([s]) => s);
+    flowSymbols = Array.from(new Set([...flowAggBySymbol.keys(), ...tapePrimary]))
+      .filter((s) => flowConvictionFor(s) != null).slice(0, 40);
     if (flowSymbols.length) logger.info(`  ✓ Flow conviction: ${flowSymbols.length} name(s) with a qualifying one-sided tape — ${flowSymbols.slice(0, 8).join(', ')}${flowSymbols.length > 8 ? '…' : ''}`);
   } catch { /* scanner not warmed — pool unchanged */ }
   // Whole-market movers from the liquid universe (top-2000 by dollar volume):
@@ -2329,6 +2373,7 @@ export async function analyzeSymbolOnDemand(
     const { getTodayFlows } = await import('./options-flow-scanner');
     buildFlowAggregates(getTodayFlows() as any);
   } catch { /* scanner cold — the other detectors still run */ }
+  await buildBullflowLeans([sym]);
   await buildBreakoutSet();
 
   const now = new Date();
