@@ -658,7 +658,11 @@ export async function getBotStatus(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise
     totalPnLPercent: startingCapital > 0 ? ((totalValue - startingCapital) / startingCapital) * 100 : 0,
     closedCount: closedAll.length,
     openPositions: open,
-    closedPositions: closedAll.slice(0, 25),
+    // Newest exits first — the tab renders this as the win/loss history, and
+    // an unsorted slice would show an arbitrary 25.
+    closedPositions: [...closedAll]
+      .sort((a: any, b: any) => Date.parse(b.exitTime ?? b.updatedAt ?? 0) - Date.parse(a.exitTime ?? a.updatedAt ?? 0))
+      .slice(0, 40),
     config: cfg,
   };
 }

@@ -53,12 +53,26 @@ interface PaperPosition {
   useTrailingStop?: boolean; trailingStopPercent?: number | null;
   unrealizedPnL?: number | null; unrealizedPnLPercent?: number | null;
   entryTime?: string;
+  exitPrice?: number | null; exitTime?: string | null; exitReason?: string | null;
+  realizedPnL?: number | null;
 }
 interface QuantBotStatus {
   name?: string; startingCapital?: number; cashBalance?: number; totalValue?: number;
   totalPnL?: number; totalPnLPercent?: number; closedCount?: number;
   openPositions?: PaperPosition[];
+  closedPositions?: PaperPosition[];
   config?: { minConviction?: number; maxOpen?: number; riskPerTradePct?: number };
+}
+
+/**
+ * Where the position sits between its barriers, as a fraction 0..1
+ * (0 = at the stop, 1 = at the target). Null when the geometry is unusable.
+ * For option positions every input is CONTRACT PREMIUM — consistent space.
+ */
+function barrierProgress(p: PaperPosition): number | null {
+  const stop = Number(p.stopLoss), tgt = Number(p.targetPrice), now = Number(p.currentPrice ?? p.entryPrice);
+  if (!(Number.isFinite(stop) && Number.isFinite(tgt) && Number.isFinite(now)) || tgt === stop) return null;
+  return Math.max(0, Math.min(1, (now - stop) / (tgt - stop)));
 }
 interface LedgerEntry { symbol: string; blockedAt: string; entryPrice: number; stopLoss: number; targetPrice: number; reason: string; outcome?: string; wouldBePercent?: number | null; lastPrice?: number }
 interface LedgerPayload { totalBlocked?: number; decided?: number; blockedWinners?: number; blockedLosers?: number; netWouldBePercent?: number; entries?: LedgerEntry[] }
@@ -123,6 +137,9 @@ export function BotNexus() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState('');
   const [replay, setReplay] = useState<LedgerEntry | null>(null);
+  // The ⤢ expand for a LIVE position: underlying chart + the position's
+  // premium-space barriers. Distinct from the row click, which opens the workup.
+  const [expandPos, setExpandPos] = useState<PaperPosition | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const { data: conv } = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'bot'], queryFn: fetchJson('/api/convictions?limit=12'), refetchInterval: 120_000, staleTime: 60_000, retry: 1 });
@@ -342,8 +359,14 @@ export function BotNexus() {
             const contract = p.assetType === `option` && p.strikePrice != null
               ? `$` + p.strikePrice + (p.optionType ?? `c`).charAt(0).toUpperCase() + ` ` + (p.expiryDate ? new Date(p.expiryDate).toLocaleDateString([], { month: `short`, day: `numeric` }) : ``) + ` · ` + (p.quantity ?? 1) + `x @ $` + p.entryPrice
               : (p.quantity ?? 1) + `x @ $` + p.entryPrice;
+            const prog = barrierProgress(p);
+            const entryFrac = (() => {
+              const s = Number(p.stopLoss), t = Number(p.targetPrice);
+              if (!(Number.isFinite(s) && Number.isFinite(t)) || t === s) return null;
+              return Math.max(0, Math.min(1, (Number(p.entryPrice) - s) / (t - s)));
+            })();
             return (
-              <div className="book-pos" key={p.id} style={{ [`--pos-accent` as string]: up ? `var(--green)` : `var(--red)` }} onClick={() => openWorkup(p.symbol)} title="Open the ticker workup">
+              <div className="book-pos" key={p.id} style={{ [`--pos-accent` as string]: up ? `var(--green)` : `var(--red)`, flexWrap: 'wrap' }} onClick={() => openWorkup(p.symbol)} title="Open the ticker workup">
                 <div>
                   <div className="bp-sym">{p.symbol}</div>
                   <div className="bp-contract">{contract}</div>
@@ -357,11 +380,76 @@ export function BotNexus() {
                 <div className="bp-kv">held<b>{p.entryTime ? Math.max(0, Math.round((Date.now() - Date.parse(p.entryTime)) / 86_400_000)) + `d` : `—`}</b></div>
                 <div className={up ? `bp-pnl up` : `bp-pnl down`}>{up ? `+` : ``}{pnl.toFixed(1)}%</div>
                 <div className="bp-kv">P&L $<b style={{ color: up ? `var(--green)` : `var(--red)` }}>{(p.unrealizedPnL ?? 0) >= 0 ? `+` : ``}{p.unrealizedPnL ?? 0}</b></div>
+                <button
+                  onClick={(ev) => { ev.stopPropagation(); setExpandPos(p); }}
+                  title="Expand — chart + where price sits between the barriers"
+                  style={{ padding: '3px 8px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700 }}
+                >⤢</button>
+                {prog != null && (
+                  <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }} title={`stop $${p.stopLoss} ── entry $${p.entryPrice} ── target $${p.targetPrice} · mark $${p.currentPrice ?? '—'}${p.assetType === 'option' ? ' (contract premium)' : ''}`}>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: 'var(--red)' }}>S</span>
+                    <div style={{ position: 'relative', flex: 1, height: 5, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,84,112,0.35), rgba(148,163,184,0.12) 40%, rgba(61,220,151,0.35))' }}>
+                      {entryFrac != null && <div style={{ position: 'absolute', left: `${entryFrac * 100}%`, top: -2, width: 1.5, height: 9, background: 'var(--text-dim)' }} title="entry" />}
+                      <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 4px)`, top: -1.5, width: 8, height: 8, borderRadius: '50%', background: up ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 6px ${up ? 'var(--green)' : 'var(--red)'}` }} title={`mark $${p.currentPrice ?? '—'}`} />
+                    </div>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: 'var(--green)' }}>T</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', minWidth: 58, textAlign: 'right' }}>{(prog * 100).toFixed(0)}% to T</span>
+                  </div>
+                )}
               </div>
             );
           })}
           {(book?.openPositions ?? []).length === 0 && (
             <div className="book-empty">Flat — the bot holds nothing. Entries require conviction ≥ {book?.config?.minConviction ?? `—`} and pass the same gates as the board.</div>
+          )}
+        </div>
+
+        {/* TRADE HISTORY — every closed position, wins and losses, no curation */}
+        <div className="book-section">
+          <div className="book-head">
+            <div className="book-label">Trade history · closed positions</div>
+            <div className="book-meta">
+              {(() => {
+                const closed = book?.closedPositions ?? [];
+                const wins = closed.filter((c) => (c.realizedPnL ?? 0) > 0).length;
+                const losses = closed.filter((c) => (c.realizedPnL ?? 0) < 0).length;
+                const realized = closed.reduce((s, c) => s + (c.realizedPnL ?? 0), 0);
+                return (
+                  <>
+                    <span><b style={{ color: 'var(--green)' }}>{wins}W</b> · <b style={{ color: 'var(--red)' }}>{losses}L</b> shown of {book?.closedCount ?? 0} closed</span>
+                    <span>realized (shown) <b style={{ color: realized >= 0 ? 'var(--green)' : 'var(--red)' }}>{realized >= 0 ? '+' : ''}${Math.round(realized).toLocaleString()}</b></span>
+                    {(book?.closedCount ?? 0) < MIN_N && <span style={{ color: 'var(--text-mute)' }}>n&lt;{MIN_N} — rates not yet reportable</span>}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+          {(book?.closedPositions ?? []).map((c) => {
+            const won = (c.realizedPnL ?? 0) > 0;
+            const flat = (c.realizedPnL ?? 0) === 0;
+            const pct = c.entryPrice > 0 && c.exitPrice != null ? ((c.exitPrice - c.entryPrice) / c.entryPrice) * 100 : null;
+            const contract = c.assetType === 'option' && c.strikePrice != null
+              ? `$${c.strikePrice}${(c.optionType ?? 'c').charAt(0).toUpperCase()} ${c.expiryDate ? new Date(c.expiryDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''} · ${c.quantity ?? 1}x`
+              : `${c.quantity ?? 1}x`;
+            const reason = (c.exitReason ?? '').replace(/_/g, ' ') || '—';
+            return (
+              <div className="book-pos" key={c.id} style={{ ['--pos-accent' as string]: flat ? 'var(--text-mute)' : won ? 'var(--green)' : 'var(--red)' }} onClick={() => openWorkup(c.symbol)} title="Open the ticker workup">
+                <div>
+                  <div className="bp-sym">{c.symbol}</div>
+                  <div className="bp-contract">{contract}</div>
+                </div>
+                <div className="bp-kv">in<b>${c.entryPrice}</b></div>
+                <div className="bp-kv">out<b>{c.exitPrice != null ? `$${c.exitPrice}` : '—'}</b></div>
+                <div className="bp-kv" style={{ minWidth: 110 }} title={`exit reason: ${reason}`}>why<b style={{ textTransform: 'lowercase' }}>{reason.slice(0, 22)}</b></div>
+                <div className={won ? 'bp-pnl up' : flat ? 'bp-pnl' : 'bp-pnl down'}>
+                  {(c.realizedPnL ?? 0) >= 0 ? '+' : ''}${Math.round(c.realizedPnL ?? 0)}{pct != null ? ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%` : ''}
+                </div>
+                <div className="bp-kv">closed<b>{c.exitTime ? new Date(c.exitTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '—'}</b></div>
+              </div>
+            );
+          })}
+          {(book?.closedPositions ?? []).length === 0 && (
+            <div className="book-empty">No closed trades yet on this book — history fills as barriers and expiries decide positions.</div>
           )}
         </div>
 
@@ -561,6 +649,59 @@ export function BotNexus() {
               Replay verdict: <b style={{ color: replay.outcome === 'hit_target' ? 'var(--red)' : replay.outcome === 'hit_stop' ? 'var(--green)' : 'var(--amber)' }}>
                 {replay.outcome === 'hit_target' ? `target touched first — the gate COST ${replay.wouldBePercent?.toFixed(1)}%` : replay.outcome === 'hit_stop' ? `stop touched first — the gate SAVED ${Math.abs(replay.wouldBePercent ?? 0).toFixed(1)}%` : 'neither barrier touched yet — still open'}
               </b> · daily-bar granularity; both-touched ties go to the stop, same rule as live validation.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POSITION EXPAND — the underlying's chart plus the position's own barriers */}
+      {expandPos && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 88, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center' }} onClick={() => setExpandPos(null)}>
+          <div style={{ width: 'min(860px, 92vw)', background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 12, padding: 18, boxShadow: '0 30px 80px rgba(0,0,0,0.7)' }} onClick={(ev) => ev.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16 }}>
+                {expandPos.symbol} · live position
+              </div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }}>
+                {expandPos.assetType === 'option' && expandPos.strikePrice != null
+                  ? `$${expandPos.strikePrice}${(expandPos.optionType ?? 'c').charAt(0).toUpperCase()} · ${expandPos.quantity ?? 1}x · opened ${expandPos.entryTime ? new Date(expandPos.entryTime).toLocaleDateString() : '—'}`
+                  : `${expandPos.quantity ?? 1}x · opened ${expandPos.entryTime ? new Date(expandPos.entryTime).toLocaleDateString() : '—'}`}
+              </div>
+            </div>
+            {/* Chart shows the UNDERLYING. Option barriers are premium-space and
+                cannot honestly be drawn on a share chart — so the chart carries
+                the strike (a real underlying level) and the barrier rail below
+                stays in the contract's own units. */}
+            <NexusPriceChart key={`expand-${expandPos.id}`} symbol={expandPos.symbol} initialTf="1D" height={320} expandable={false}
+              levels={expandPos.assetType === 'option' && expandPos.strikePrice != null
+                ? [{ price: expandPos.strikePrice, color: '#f5b642', label: `strike $${expandPos.strikePrice}` }]
+                : [
+                    { price: Number(expandPos.entryPrice), color: '#4fd1c5', label: 'entry' },
+                    ...(expandPos.stopLoss != null ? [{ price: Number(expandPos.stopLoss), color: '#ff5470', label: 'stop' }] : []),
+                    ...(expandPos.targetPrice != null ? [{ price: Number(expandPos.targetPrice), color: '#3ddc97', label: 'target' }] : []),
+                  ]} />
+            <div style={{ marginTop: 12 }}>
+              {(() => {
+                const prog = barrierProgress(expandPos);
+                const pnl = expandPos.unrealizedPnLPercent ?? 0;
+                return (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, marginBottom: 6 }}>
+                      <span style={{ color: 'var(--red)' }}>stop ${expandPos.stopLoss ?? '—'}</span>
+                      <span style={{ color: 'var(--text-dim)' }}>entry ${expandPos.entryPrice} → mark ${expandPos.currentPrice ?? '—'}{expandPos.assetType === 'option' ? ' (premium)' : ''} · <b style={{ color: pnl >= 0 ? 'var(--green)' : 'var(--red)' }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}% · {(expandPos.unrealizedPnL ?? 0) >= 0 ? '+' : ''}${expandPos.unrealizedPnL ?? 0}</b></span>
+                      <span style={{ color: 'var(--green)' }}>target ${expandPos.targetPrice ?? '—'}</span>
+                    </div>
+                    {prog != null && (
+                      <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'linear-gradient(90deg, rgba(255,84,112,0.35), rgba(148,163,184,0.12) 40%, rgba(61,220,151,0.35))' }}>
+                        <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 5px)`, top: -2, width: 12, height: 12, borderRadius: '50%', background: pnl >= 0 ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 8px ${pnl >= 0 ? 'var(--green)' : 'var(--red)'}` }} />
+                      </div>
+                    )}
+                    <div style={{ marginTop: 8, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>
+                      {prog != null ? `${(prog * 100).toFixed(0)}% of the way from stop to target` : 'barrier geometry unavailable'} · barriers checked every bot cycle{expandPos.useTrailingStop ? ` · trailing ${expandPos.trailingStopPercent ?? '—'}%` : ''} · click-out to close
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
