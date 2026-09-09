@@ -485,16 +485,19 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
   // Widened pool (lower floor, higher limit) so the mode tabs — AI Picks / Flow /
   // Lotto / News / Manual — each have ideas to show, giving the cockpit the same
   // reach the standalone Trade Desk had.
+  // EMBEDDED (lockedView, mounted under the NEXUS "ranked book" toggle) the
+  // cockpit must show the SAME slice the grid shows — the operator caught grid
+  // and cockpit disagreeing about "the book" because this query widened the
+  // pool (floor 10, whole universe) while the grid asked for the watchlist
+  // top-24. Two views of one book cannot have two definitions of the book.
+  // STANDALONE keeps the widened pool so the mode tabs still have reach.
+  const bookQuery = lockedView
+    ? "/api/convictions?limit=24&minScore=0"
+    : "/api/convictions?limit=40&minScore=10&watchlistOnly=false";
   const { data, isLoading, isError } = useQuery<ConvictionsResponse>({
-    queryKey: [
-      "/api/convictions",
-      { limit: 40, minScore: 10, watchlistOnly: false },
-    ],
+    queryKey: ["/api/convictions", bookQuery],
     queryFn: async () => {
-      const res = await fetch(
-        "/api/convictions?limit=40&minScore=10&watchlistOnly=false",
-        { credentials: "include" },
-      );
+      const res = await fetch(bookQuery, { credentials: "include" });
       if (!res.ok) throw new Error("convictions failed");
       return res.json();
     },

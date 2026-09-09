@@ -192,7 +192,7 @@ export function SignalRow({
         ) : awaitingTrigger ? (
           <>
             <div className="mb-2 flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
-              <span>Entry gate · no position</span>
+              <span>Entry gate · no position{(pick as any).levelBasis === 'contract' ? ' · PREM levels' : ''}</span>
               <span className="tabular-nums text-[var(--brand-gold)]">
                 {triggerDistancePct.toFixed(1)}% {triggerSide} trigger
               </span>
