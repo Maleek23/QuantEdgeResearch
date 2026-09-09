@@ -66,6 +66,8 @@ export interface TradeIdeaCardData {
   probabilityBand?: string;
   catalyst?: string;
   source?: string;
+  /** Asset class of the idea (stock | option | crypto | future | penny_stock). Used by the page-level asset filter. */
+  assetType?: string | null;
   holdingPeriod?: string;
   livePrice?: number | null;
   priceStale?: boolean;

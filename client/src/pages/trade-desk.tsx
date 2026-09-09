@@ -9,12 +9,16 @@ import { cn } from "@/lib/utils";
 import { displayedScore, displayedScoreBarPct, isHighConviction, displayedGrade, gradeColorClass } from "@/lib/conviction-display";
 import { BarChart3, DollarSign, Zap, Activity, Star, AlertTriangle, Brain, Sparkles, Bitcoin, Flame, RefreshCw, Gem, PanelRightClose, PanelRightOpen } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
-import { TradeIdeaDetailV2 } from "@/components/trade-idea-detail-v2";
-import { TradeIdeasPanel } from "@/components/trade-desk/trade-ideas-panel";
-import { FlowImport } from "@/components/trade-desk/flow-import";
-import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
-import { DiscoveryPicksPanel } from "@/components/trade-desk/DiscoveryPicksPanel";
-import { GexBigGainers } from "@/components/gex-big-gainers";
+import { queryClient } from "@/lib/queryClient";
+import {
+  ASSET_FILTER_BUTTONS,
+  matchesAssetFilter,
+  type PageAssetFilter,
+} from "@/lib/trade-desk-filters";
+import { IdeaDetailDrawer } from "@/components/trade-desk/idea-detail-drawer";
+import { normalizeIdea } from "@/components/trade-desk/trade-ideas-panel";
+import type { TradeIdeaCardData } from "@/components/trade-desk/trade-idea-card";
+import { TodaysPicks } from "@/components/trade-desk/todays-picks";
 
 type TradingSession = 'pre-market' | 'market-hours' | 'after-hours' | 'weekend' | 'closed';
 
@@ -125,10 +129,12 @@ export default function TradeDeskRedesigned() {
   const [location] = useLocation();
 
   const [generatingEngine, setGeneratingEngine] = useState<string | null>(null);
-  const [assetFilter, setAssetFilter] = useState<'all' | 'stock' | 'option' | 'crypto' | 'future' | 'penny_stock' | 'watchlist' | 'tv'>('all');
-  // Trade idea detail modal state
-  const [selectedTradeIdea, setSelectedTradeIdea] = useState<TradeIdea | null>(null);
-  const [tradeIdeaModalOpen, setTradeIdeaModalOpen] = useState(false);
+  const [assetFilter, setAssetFilter] = useState<PageAssetFilter>('all');
+  // Phase 4: one detail surface for the page — the IdeaDetailDrawer.
+  // Controlled here so the sidebar "Top Conviction" rows and the Today's
+  // Picks tabs/cards all open the same drawer.
+  const [drawerIdea, setDrawerIdea] = useState<TradeIdeaCardData | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   // Side panel state
   const [sidebarOpen, setSidebarOpen] = useState(true);
   // Note: Filters (statusFilter, dateFilter, gradeFilter, directionFilter) are handled inside TradeIdeasList component
@@ -164,8 +170,13 @@ export default function TradeDeskRedesigned() {
         title: `${engine.toUpperCase()} Engine Complete`,
         description: `Generated ${count} new trade ideas`,
       });
-      // Invalidate cache to show new ideas
-      setTimeout(() => window.location.reload(), 1500);
+      // Phase 4: invalidate the idea queries instead of a full page reload.
+      // The key prefix matches every best-setups query (page + Ideas tab).
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas/best-setups'] });
+      queryClient.invalidateQueries({ queryKey: ['discovery-picks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/gex/big-gainers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/premarket/gappers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/convergence/hot-symbols'] });
     },
     onError: (error: Error) => {
       setGeneratingEngine(null);
@@ -289,66 +300,25 @@ export default function TradeDeskRedesigned() {
     return result;
   };
 
-  // Filter helpers for tabs - with deduplication only (no filtering here)
-  // TradeIdeasList handles all user-facing filters
-  const stockIdeas = useMemo(() => {
-    const filtered = tradeIdeas.filter(i =>
-      i.assetType === 'stock' || (!i.assetType && !i.optionType)
-    );
-    return deduplicateOnly(filtered);
-  }, [tradeIdeas]);
-
-  const optionIdeas = useMemo(() => {
-    const filtered = tradeIdeas.filter(i => i.assetType === 'option' || i.optionType);
-    return deduplicateOnly(filtered);
-  }, [tradeIdeas]);
-
-  const cryptoIdeas = useMemo(() => {
-    const filtered = tradeIdeas.filter(i => i.assetType === 'crypto');
-    return deduplicateOnly(filtered);
-  }, [tradeIdeas]);
-
-  const futuresIdeas = useMemo(() => {
-    const filtered = tradeIdeas.filter(i => i.assetType === 'future');
-    return deduplicateOnly(filtered);
-  }, [tradeIdeas]);
-
-  const pennyIdeas = useMemo(() => {
-    const filtered = tradeIdeas.filter(i => i.assetType === 'penny_stock');
-    return deduplicateOnly(filtered);
-  }, [tradeIdeas]);
-
-  // Watchlist-only ideas - only show ideas for tickers in user's watchlist
-  const watchlistIdeas = useMemo(() => {
-    if (watchlistSymbols.size === 0) return [];
-    const filtered = tradeIdeas.filter(i => watchlistSymbols.has((i.symbol || '').toUpperCase()));
-    return deduplicateOnly(filtered);
+  // Phase 4: one asset-filter implementation for the whole page.
+  // matchesAssetFilter (lib/trade-desk-filters) preserves the exact semantics
+  // of the old per-type memos; the sidebar, the filter-button counts and the
+  // Today's Picks tabs all read from this map.
+  const FILTER_VALUES: PageAssetFilter[] = ['all', 'stock', 'option', 'crypto', 'future', 'penny_stock', 'watchlist', 'tv'];
+  const ideasByFilter = useMemo(() => {
+    const out = {} as Record<PageAssetFilter, TradeIdea[]>;
+    for (const f of FILTER_VALUES) {
+      out[f] = deduplicateOnly(
+        f === 'all'
+          ? tradeIdeas
+          : tradeIdeas.filter((i) => matchesAssetFilter(i, f, watchlistSymbols)),
+      );
+    }
+    return out;
   }, [tradeIdeas, watchlistSymbols]);
 
-  // TradingView signal ideas only
-  const tvIdeas = useMemo(() => {
-    const filtered = tradeIdeas.filter(i => (i as any).source === 'tradingview');
-    return deduplicateOnly(filtered);
-  }, [tradeIdeas]);
-
-  // All ideas - deduplicated (for "All Ideas" tab)
-  const allIdeasDeduplicated = useMemo(() => {
-    return deduplicateOnly(tradeIdeas);
-  }, [tradeIdeas]);
-
-  // Filtered ideas based on asset type selector
-  const filteredIdeas = useMemo(() => {
-    switch (assetFilter) {
-      case 'stock': return stockIdeas;
-      case 'option': return optionIdeas;
-      case 'crypto': return cryptoIdeas;
-      case 'future': return futuresIdeas;
-      case 'penny_stock': return pennyIdeas;
-      case 'watchlist': return watchlistIdeas;
-      case 'tv': return tvIdeas;
-      default: return allIdeasDeduplicated;
-    }
-  }, [assetFilter, stockIdeas, optionIdeas, cryptoIdeas, futuresIdeas, pennyIdeas, watchlistIdeas, tvIdeas, allIdeasDeduplicated]);
+  // Filtered ideas based on asset type selector (sidebar + counts)
+  const filteredIdeas = ideasByFilter[assetFilter];
 
   // ============================================
   // INITIAL LOADING ANIMATION (minimum 0.5s)
@@ -502,15 +472,10 @@ export default function TradeDeskRedesigned() {
 
         {/* Asset Type Filter — compact with mobile touch targets */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          {[
-            { value: 'all', label: 'All' },
-            { value: 'watchlist', label: 'Watchlist' },
-            { value: 'option', label: 'Options' },
-            { value: 'tv', label: 'TV' },
-          ].map(({ value, label }) => {
-            const count = value === 'option' ? optionIdeas.length :
-                          value === 'watchlist' ? watchlistIdeas.length :
-                          value === 'tv' ? tvIdeas.length : 0;
+          {ASSET_FILTER_BUTTONS.map(({ value, label }) => {
+            // Phase 4: all eight declared filter values are now reachable
+            // (previously only All/Watchlist/Options/TV had buttons).
+            const count = value === 'all' ? 0 : ideasByFilter[value].length;
             return (
               <button
                 key={value}
@@ -544,22 +509,21 @@ export default function TradeDeskRedesigned() {
           {/* Left: Tabs + Ideas */}
           <div className={cn("flex-1 min-w-0", sidebarOpen && "lg:pr-0")}>
 
-        {/* Plays content — no tabs needed, Flow & Strategy live in Quant Seeker */}
+        {/* Phase 4: one "Today's Picks" surface — the five pick sources live
+            in tabs (All / Ideas / Discovery / Gappers / GEX / Flow Import)
+            instead of stacked panels. */}
         <div className="space-y-3 mt-3">
-            {/* PRE-MARKET GAPPERS — overnight movers from weekly + approved universe */}
-            <PreMarketGappersCard />
-
-            {/* FLOW IMPORT — paste Bullflow alerts (consumer tier has no API) → engine grades → B- and up */}
-            <FlowImport />
-
-            {/* 🎯 DISCOVERY PICKS — auto-pushed from convergence engine (the bridge) */}
-            <DiscoveryPicksPanel size="standard" maxItems={8} />
-
-            {/* GEX BIG GAINERS — premium scanner plays running hot + hall-of-fame winners */}
-            <GexBigGainers compact />
-
-            {/* TRADE IDEAS — Convictions-style panel with filters, presets, view modes, drawer */}
-            <TradeIdeasPanel />
+            <TodaysPicks
+              ideas={ideasByFilter.all}
+              assetFilter={assetFilter}
+              watchlistSymbols={watchlistSymbols}
+              drawerIdea={drawerIdea}
+              drawerOpen={drawerOpen}
+              onDrawerChange={(idea, open) => {
+                setDrawerIdea(idea);
+                setDrawerOpen(open);
+              }}
+            />
 
             {/* Empty state with generate button */}
             {showEmptyTodayMessage && (
@@ -611,7 +575,7 @@ export default function TradeDeskRedesigned() {
                       return (
                         <div
                           key={idx}
-                          onClick={() => { setSelectedTradeIdea(idea); setTradeIdeaModalOpen(true); }}
+                          onClick={() => { setDrawerIdea(normalizeIdea(idea)); setDrawerOpen(true); }}
                           className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 cursor-pointer transition-colors"
                         >
                           <div className="flex items-center gap-2 min-w-0">
@@ -718,11 +682,11 @@ export default function TradeDeskRedesigned() {
         </div>{/* End flex container */}
       </div>
 
-      {/* Trade Idea Detail Modal */}
-      <TradeIdeaDetailV2
-        idea={selectedTradeIdea}
-        open={tradeIdeaModalOpen}
-        onOpenChange={setTradeIdeaModalOpen}
+      {/* Idea detail drawer — the single detail surface for the page */}
+      <IdeaDetailDrawer
+        idea={drawerIdea}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
       />
     </div>
   );

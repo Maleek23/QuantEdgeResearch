@@ -35,6 +35,10 @@ import {
 } from "./trade-filters-bar";
 import { TradePresets, TRADE_PRESETS, TradePreset } from "./trade-presets";
 import { IdeaDetailDrawer } from "./idea-detail-drawer";
+import {
+  matchesAssetFilter,
+  type PageAssetFilter,
+} from "@/lib/trade-desk-filters";
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -52,7 +56,7 @@ interface BestSetupsResponse {
 // Helpers
 // ─────────────────────────────────────────────────────────────
 
-function normalizeIdea(raw: any): TradeIdeaCardData {
+export function normalizeIdea(raw: any): TradeIdeaCardData {
   const dir = (raw.direction ?? "").toString().toLowerCase();
   const isLong = dir === "long" || dir === "buy" || dir === "call";
   return {
@@ -67,6 +71,7 @@ function normalizeIdea(raw: any): TradeIdeaCardData {
     probabilityBand: raw.probabilityBand,
     catalyst: raw.catalyst,
     source: raw.source ?? raw.dataSourceUsed,
+    assetType: raw.assetType ?? null,
     holdingPeriod: raw.holdingPeriod,
     livePrice: raw.livePrice ?? null,
     priceStale: raw.priceStale,
@@ -117,7 +122,28 @@ function readPresetFromUrl(search: string): TradePreset | null {
 // Component
 // ─────────────────────────────────────────────────────────────
 
-export function TradeIdeasPanel({ className }: { className?: string }) {
+export function TradeIdeasPanel({
+  className,
+  drawerIdea: controlledDrawerIdea,
+  drawerOpen: controlledDrawerOpen,
+  onDrawerChange,
+  externalAssetFilter,
+  watchlistSymbols,
+}: {
+  className?: string;
+  /**
+   * Controlled drawer state. When onDrawerChange is provided (Trade Desk
+   * page), the panel defers to it so the sidebar "Top Conviction" rows and
+   * the Today's Picks "All" tab can open the SAME drawer — one detail
+   * surface for the whole page. Without it the panel keeps internal state.
+   */
+  drawerIdea?: TradeIdeaCardData | null;
+  drawerOpen?: boolean;
+  onDrawerChange?: (idea: TradeIdeaCardData | null, open: boolean) => void;
+  /** Page-level asset filter, applied on top of the panel's own filters. */
+  externalAssetFilter?: PageAssetFilter;
+  watchlistSymbols?: Set<string>;
+}) {
   // ── State ──
   const [filters, setFilters] = useState<TradeFilters>(() => {
     if (typeof window !== "undefined") {
@@ -134,12 +160,27 @@ export function TradeIdeasPanel({ className }: { className?: string }) {
     return null;
   });
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === "undefined") return "cards";
-    return (window.localStorage.getItem("qe.tradedesk.viewMode") as ViewMode) ?? "cards";
+    // Phase 4: compact is the default grid density; a stored preference
+    // still wins for returning users.
+    if (typeof window === "undefined") return "compact";
+    return (
+      (window.localStorage.getItem("qe.tradedesk.viewMode") as ViewMode) ??
+      "compact"
+    );
   });
-  const [selectedIdea, setSelectedIdea] = useState<TradeIdeaCardData | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [internalSelectedIdea, setInternalSelectedIdea] =
+    useState<TradeIdeaCardData | null>(null);
+  const [internalDrawerOpen, setInternalDrawerOpen] = useState(false);
   const [focusIndex, setFocusIndex] = useState(0);
+  // Phase 4: one drawer for the page — controlled when the parent passes
+  // onDrawerChange, internal otherwise.
+  const isDrawerControlled = typeof onDrawerChange === "function";
+  const selectedIdea = isDrawerControlled
+    ? (controlledDrawerIdea ?? null)
+    : internalSelectedIdea;
+  const drawerOpen = isDrawerControlled
+    ? (controlledDrawerOpen ?? false)
+    : internalDrawerOpen;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -193,8 +234,22 @@ export function TradeIdeasPanel({ className }: { className?: string }) {
   }, [setupsData]);
 
   const filteredIdeas = useMemo(() => {
-    return applyFilters(allIdeas as any, filters) as TradeIdeaCardData[];
-  }, [allIdeas, filters]);
+    const base = applyFilters(allIdeas as any, filters) as TradeIdeaCardData[];
+    if (!externalAssetFilter || externalAssetFilter === "all") return base;
+    return base.filter((idea) =>
+      matchesAssetFilter(idea, externalAssetFilter, watchlistSymbols),
+    );
+  }, [allIdeas, filters, externalAssetFilter, watchlistSymbols]);
+
+  // Phase 4: compact default grid is capped at ~30 visible with "Show more".
+  const [visibleCount, setVisibleCount] = useState(30);
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [filters, externalAssetFilter]);
+  const visibleIdeas = useMemo(
+    () => filteredIdeas.slice(0, visibleCount),
+    [filteredIdeas, visibleCount],
+  );
 
   // ── Handlers ──
   const handlePresetSelect = (preset: TradePreset) => {
@@ -203,8 +258,20 @@ export function TradeIdeasPanel({ className }: { className?: string }) {
   };
 
   const handleCardClick = (idea: TradeIdeaCardData) => {
-    setSelectedIdea(idea);
-    setDrawerOpen(true);
+    if (isDrawerControlled) {
+      onDrawerChange!(idea, true);
+    } else {
+      setInternalSelectedIdea(idea);
+      setInternalDrawerOpen(true);
+    }
+  };
+
+  const handleDrawerOpenChange = (open: boolean) => {
+    if (isDrawerControlled) {
+      onDrawerChange!(open ? selectedIdea : null, open);
+    } else {
+      setInternalDrawerOpen(open);
+    }
   };
 
   // ── Focus mode keyboard nav ──
@@ -213,15 +280,15 @@ export function TradeIdeasPanel({ className }: { className?: string }) {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") setFocusIndex((i) => Math.max(0, i - 1));
       if (e.key === "ArrowRight")
-        setFocusIndex((i) => Math.min(filteredIdeas.length - 1, i + 1));
+        setFocusIndex((i) => Math.min(visibleIdeas.length - 1, i + 1));
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [viewMode, filteredIdeas.length]);
+  }, [viewMode, visibleIdeas.length]);
 
   useEffect(() => {
-    if (focusIndex >= filteredIdeas.length) setFocusIndex(0);
-  }, [filteredIdeas.length, focusIndex]);
+    if (focusIndex >= visibleIdeas.length) setFocusIndex(0);
+  }, [visibleIdeas.length, focusIndex]);
 
   // ─────────────────────────────────────────────────────────────
   // Render
@@ -264,26 +331,40 @@ export function TradeIdeasPanel({ className }: { className?: string }) {
         />
       ) : (
         <>
-          {viewMode === "cards" && <CardsGrid ideas={filteredIdeas} onClick={handleCardClick} />}
-          {viewMode === "compact" && <CompactGrid ideas={filteredIdeas} onClick={handleCardClick} />}
-          {viewMode === "table" && <TableView ideas={filteredIdeas} onClick={handleCardClick} />}
+          {viewMode === "cards" && <CardsGrid ideas={visibleIdeas} onClick={handleCardClick} />}
+          {viewMode === "compact" && <CompactGrid ideas={visibleIdeas} onClick={handleCardClick} />}
+          {viewMode === "table" && <TableView ideas={visibleIdeas} onClick={handleCardClick} />}
           {viewMode === "focus" && (
             <FocusView
-              ideas={filteredIdeas}
+              ideas={visibleIdeas}
               index={focusIndex}
               onIndexChange={setFocusIndex}
               onOpenDetail={handleCardClick}
             />
           )}
+          {visibleCount < filteredIdeas.length && (
+            <div className="flex justify-center pt-1">
+              <button
+                onClick={() => setVisibleCount((c) => c + 30)}
+                className="px-4 py-1.5 rounded-md border border-foreground/10 text-muted-foreground hover:text-foreground hover:border-foreground/25 text-[10px] font-mono uppercase tracking-wider transition-colors"
+              >
+                Show more ({filteredIdeas.length - visibleCount} remaining)
+              </button>
+            </div>
+          )}
         </>
       )}
 
-      {/* Detail drawer */}
-      <IdeaDetailDrawer
-        idea={selectedIdea}
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-      />
+      {/* Detail drawer. In controlled mode the parent (Trade Desk page)
+          renders the single page-level drawer — the panel must not render a
+          second one. Standalone use keeps its own internal drawer. */}
+      {!isDrawerControlled && (
+        <IdeaDetailDrawer
+          idea={selectedIdea}
+          open={drawerOpen}
+          onOpenChange={handleDrawerOpenChange}
+        />
+      )}
     </div>
   );
 }

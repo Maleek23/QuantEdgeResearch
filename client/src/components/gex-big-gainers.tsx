@@ -59,6 +59,16 @@ interface GexBigGainersData {
   closed: GexClosedPlay[];
 }
 
+/** Shared fetch for GEX big gainers — same query key wherever used, so
+ *  the Today's Picks tabs share one cached result. */
+export function useGexBigGainers() {
+  return useQuery<GexBigGainersData>({
+    queryKey: ['/api/gex/big-gainers'],
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+}
+
 function contractLabel(p: { symbol: string; assetType: string; optionType: string | null; strikePrice: number | null; expiryDate: string | null }): string {
   if (p.assetType === 'option' && p.strikePrice) {
     const side = p.optionType ? p.optionType[0].toUpperCase() : '';
@@ -126,12 +136,8 @@ function Bucket({
   );
 }
 
-export function GexBigGainers({ compact = false }: { compact?: boolean }) {
-  const { data, isLoading } = useQuery<GexBigGainersData>({
-    queryKey: ['/api/gex/big-gainers'],
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-  });
+export function GexBigGainers({ compact = false, bare = false }: { compact?: boolean; /** Render without the outer card — for embedding in Today's Picks tabs. */ bare?: boolean }) {
+  const { data, isLoading } = useGexBigGainers();
 
   const liveLimit = compact ? 4 : 25;
   const closedLimit = compact ? 4 : 25;
@@ -139,75 +145,86 @@ export function GexBigGainers({ compact = false }: { compact?: boolean }) {
   const closed = (data?.closed ?? []).slice(0, closedLimit);
   const hasNothing = !isLoading && live.length === 0 && closed.length === 0;
 
+  const content = (
+    <>
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-1.5">
+        <Flame className="w-3.5 h-3.5 text-[var(--brand-cyan)]" />
+        <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground">GEX Big Gainers</span>
+      </div>
+      {data && (
+        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
+          {data.threshold > 0 ? `≥${safeToFixed(data.threshold, 0, '0')}%` : 'top movers'}
+        </span>
+      )}
+    </div>
+
+    {isLoading && (
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+      </div>
+    )}
+
+    {hasNothing && (
+      <InlineEmptyState message="No GEX gainers tracked yet — check back once plays start running." />
+    )}
+
+    {!isLoading && !hasNothing && (
+      <div className={cn('grid gap-4', !compact && 'md:grid-cols-2')}>
+        <Bucket
+          title="Running Now"
+          icon={<Flame className="w-3 h-3" />}
+          accent="text-[var(--trade-neutral)]"
+          count={live.length}
+        >
+          {live.length === 0
+            ? <InlineEmptyState message="Nothing running hot right now." />
+            : live.map((p, i) => (
+                <GainRow
+                  key={p.id}
+                  rank={i + 1}
+                  label={contractLabel(p)}
+                  direction={p.direction}
+                  gain={p.peakGain}
+                  gainLabel="peak"
+                  sub={p.rationale}
+                />
+              ))}
+        </Bucket>
+
+        <Bucket
+          title="Hall of Fame"
+          icon={<Trophy className="w-3 h-3" />}
+          accent="text-[var(--brand-gold,#d4af37)]"
+          count={closed.length}
+        >
+          {closed.length === 0
+            ? <InlineEmptyState message="No closed winners yet." />
+            : closed.map((p, i) => (
+                <GainRow
+                  key={p.id}
+                  rank={i + 1}
+                  label={contractLabel(p)}
+                  direction={p.direction}
+                  gain={p.percentGain}
+                  gainLabel="realized"
+                  sub={p.rationale}
+                />
+              ))}
+        </Bucket>
+      </div>
+    )}
+    
+    </>
+  );
+
+  if (bare) {
+    return <div data-testid="gex-big-gainers">{content}</div>;
+  }
+
   return (
     <QECard variant={compact ? 'glass' : 'default'} padding={compact ? 'sm' : 'md'} data-testid="gex-big-gainers">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <Flame className="w-3.5 h-3.5 text-[var(--brand-cyan)]" />
-          <span className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground">GEX Big Gainers</span>
-        </div>
-        {data && (
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
-            {data.threshold > 0 ? `≥${safeToFixed(data.threshold, 0, '0')}%` : 'top movers'}
-          </span>
-        )}
-      </div>
-
-      {isLoading && (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
-        </div>
-      )}
-
-      {hasNothing && (
-        <InlineEmptyState message="No GEX gainers tracked yet — check back once plays start running." />
-      )}
-
-      {!isLoading && !hasNothing && (
-        <div className={cn('grid gap-4', !compact && 'md:grid-cols-2')}>
-          <Bucket
-            title="Running Now"
-            icon={<Flame className="w-3 h-3" />}
-            accent="text-[var(--trade-neutral)]"
-            count={live.length}
-          >
-            {live.length === 0
-              ? <InlineEmptyState message="Nothing running hot right now." />
-              : live.map((p, i) => (
-                  <GainRow
-                    key={p.id}
-                    rank={i + 1}
-                    label={contractLabel(p)}
-                    direction={p.direction}
-                    gain={p.peakGain}
-                    gainLabel="peak"
-                    sub={p.rationale}
-                  />
-                ))}
-          </Bucket>
-
-          <Bucket
-            title="Hall of Fame"
-            icon={<Trophy className="w-3 h-3" />}
-            accent="text-[var(--brand-gold,#d4af37)]"
-            count={closed.length}
-          >
-            {closed.length === 0
-              ? <InlineEmptyState message="No closed winners yet." />
-              : closed.map((p, i) => (
-                  <GainRow
-                    key={p.id}
-                    rank={i + 1}
-                    label={contractLabel(p)}
-                    direction={p.direction}
-                    gain={p.percentGain}
-                    gainLabel="realized"
-                    sub={p.rationale}
-                  />
-                ))}
-          </Bucket>
-        </div>
-      )}
+      {content}
     </QECard>
   );
 }
