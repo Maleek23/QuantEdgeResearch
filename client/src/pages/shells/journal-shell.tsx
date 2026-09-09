@@ -40,17 +40,10 @@ const TABS: readonly QETabItem<Tab>[] = [
 const VALID_TABS = TABS.map(t => t.id);
 
 export default function JournalShell() {
-  const [tab, setTab] = useTabState<Tab>('log', VALID_TABS);
+  const [tab, setTab] = useTabState<Tab>('log', VALID_TABS, 'jtab');
 
   return (
     <div className="space-y-3 px-4 py-3">
-      <header>
-        <h1 className="text-lg font-mono font-bold uppercase tracking-widest text-foreground">Journal</h1>
-        <p className="text-[11px] font-mono text-muted-foreground/70">
-          Learn from your tape — history, metrics, backtests, patterns.
-        </p>
-      </header>
-
       <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
 
       <PageErrorBoundary label={`Journal · ${tab}`}>

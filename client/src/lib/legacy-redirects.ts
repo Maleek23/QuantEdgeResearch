@@ -28,6 +28,8 @@ export type LegacyTarget = string | ((params: Record<string, string>) => string)
 export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   // ── Shell aliases → Terminal (/t) ──────────────────────────────────────
   ["/nexus", "/t"],
+  ["/pos", "/t?tab=positions"],
+  ["/j", "/t?tab=journal"],
   ["/p", "/t"],
   ["/h", "/t"],
   ["/g", "/t?tab=gex"],

@@ -9,13 +9,10 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { EASE, DUR } from '@/lib/motion';
 
-/**
- * Mirrors the Tab union in pages/shells/terminal-shell.tsx. It had already drifted —
- * still listing 'heatmap' and 'prism' after both were folded into GEX — which is what
- * a second copy of a type always does eventually. Kept in sync by hand for now; the
- * real fix is for the shell to export its Tab type and this to import it.
- */
-export type TabId = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot';
+import type { Tab } from '@/pages/shells/terminal-shell';
+// Single source of truth — was a hand-mirrored copy that had already drifted
+// (still listed 'heatmap'/'prism' after both folded into GEX).
+export type TabId = Tab;
 
 interface Guide {
   title: string;
@@ -24,7 +21,7 @@ interface Guide {
   next: string;
 }
 
-export const GUIDES: Record<TabId, Guide> = {
+export const GUIDES: Record<Tab, Guide> = {
   oracle: {
     title: 'Oracle Guide',
     question: 'What do I trade?',
@@ -119,9 +116,30 @@ export const GUIDES: Record<TabId, Guide> = {
     ],
     next: 'Compare the bot’s entries against ORACLE — they are the same signals, so divergence means something broke.',
   },
+  positions: {
+    title: 'Positions Guide',
+    question: 'How is my book doing?',
+    read: [
+      'The treemap sizes each position by capital at risk and colors it by open P&L — the biggest boxes deserve your attention first.',
+      'This is your live book, not a backtest: marks come from real quotes, so intraday P&L moves with the tape.',
+      'A position deep red against the original thesis is an exit candidate, not a hope candidate. Check it against the signal that opened it.',
+    ],
+    next: 'Log the exit rationale in Journal so the next similar setup starts from evidence.',
+  },
+  journal: {
+    title: 'Journal Guide',
+    question: 'Am I getting better?',
+    read: [
+      'Trade Log is every trade you took — History is your past AI chats and research runs. They answer different questions.',
+      'Metrics cuts win rate and average R by setup type: that is where your edge (or lack of one) actually shows.',
+      'Backtest runs a strategy on historicals before you risk capital on it. Academy is the learning library.',
+      'The journal only works if exits get logged with the reason. An unlogged trade teaches nothing.',
+    ],
+    next: 'Take a pattern from Metrics and pressure-test it in Backtest.',
+  },
 };
 
-export function TerminalGuide({ tab, open, onClose }: { tab: TabId; open: boolean; onClose: () => void }) {
+export function TerminalGuide({ tab, open, onClose }: { tab: Tab; open: boolean; onClose: () => void }) {
   const reduce = useReducedMotion();
   const g = GUIDES[tab];
 

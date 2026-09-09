@@ -1,6 +1,7 @@
 /**
  * TERMINAL — the one shell. Replaces the scattered pages with a single persistent
- * chrome + 5 tabs (ORACLE · FLOW · HEATMAP · GEX · PRISM), the MomoEdge grammar
+ * chrome + 10 tabs (NEXUS · CHART · FLOW · GEX · LEAPS · CRYPTO · CATALYST ·
+ * BOT · POSITIONS · JOURNAL), the MomoEdge grammar
  * applied to QuantEdge's real engines. Everything moves via the shared motion
  * system; the tab underline slides (layoutId) and content cross-fades.
  *
@@ -13,7 +14,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Activity, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3, Loader2,
   LogOut, Moon, MoreHorizontal, Radar, Search, SlidersHorizontal,
-  TrendingUp, UserRound, X, Zap,
+  TrendingUp, UserRound, Wallet, X, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
@@ -48,10 +49,8 @@ const TerminalSettings = lazy(() => import('@/components/terminal/terminal-setti
 // EpochChart-based lab stays in the tree at charting/chart-lab.tsx.
 const ChartLab = lazy(() => import('@/components/charting/chart-lab-nexus').then(m => ({ default: m.ChartLabBoard })));
 
-const HuntCockpit   = lazy(() => import('@/pages/shells/hunt-cockpit'));
 const NexusBoard    = lazy(() => import('@/pages/nexus').then(m => ({ default: m.NexusBoard })));
-// GEX = the reference GEX Hub mock, wired. The prior GexShell (gainers/
-// heatmap/trade-plan subtabs) stays in the tree at pages/shells/gex-shell.
+// GEX = the reference GEX Hub mock, wired.
 const GexHub        = lazy(() => import('@/components/gex/gex-hub-nexus').then(m => ({ default: m.GexHubNexus })));
 const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m => ({ default: m.FlowBoard })));
 // The old flow-heatmap page is the SECTOR TREEMAP with a flow overlay (breadth, net flow,
@@ -66,12 +65,17 @@ const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m =
 const CryptoTerminal = lazy(() => import('@/components/crypto/crypto-nexus').then(m => ({ default: m.CryptoNexus })));
 // BOT = the seventh reference mock: the real automation layer, reported honestly.
 const BotNexus = lazy(() => import('@/components/bot/bot-nexus').then(m => ({ default: m.BotNexus })));
+// POSITIONS + JOURNAL — folded in from their own shells/routes (Phase 2: one chrome).
+// Positions is a single panel (its shell was only a header around the heatmap);
+// Journal keeps its own sub-tabs, synced to ?jtab= so it never fights the shell's ?tab=.
+const PositionsPanel = lazy(() => import('@/pages/positions-heatmap'));
+const JournalPanel = lazy(() => import('@/pages/shells/journal-shell'));
 // The universal ticker workup — any symbol click, any tab, opens this dossier.
 const TickerWorkup = lazy(() => import('@/components/workup/ticker-workup').then(m => ({ default: m.TickerWorkup })));
 // CATALYST = composed from docs/DESIGN_SYSTEM.md (no mock). Prior CatalystBoard stays in tree.
 const CatalystNexus = lazy(() => import('@/components/catalyst/catalyst-nexus').then(m => ({ default: m.CatalystNexus })));
 
-type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot';
+export type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot' | 'positions' | 'journal';
 /**
  * Two tabs removed here, both by measurement rather than taste.
  *
@@ -84,7 +88,7 @@ type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst'
  * "SectorHeatmap" — a name that described neither the file nor what it renders.
  * One page, two routes, one misleading label.
  */
-const TABS: { id: Tab; label: string }[] = [
+export const TABS: { id: Tab; label: string }[] = [
   { id: 'oracle',  label: 'NEXUS' },
   { id: 'chart',   label: 'CHART' },
   { id: 'flow',    label: 'FLOW' },
@@ -103,6 +107,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'crypto',  label: 'CRYPTO' },
   { id: 'catalyst', label: 'CATALYST' },
   { id: 'bot',     label: 'BOT' },
+  { id: 'positions', label: 'POSITIONS' },
+  { id: 'journal',   label: 'JOURNAL' },
 ];
 
 const MOBILE_PRIMARY: Tab[] = ['oracle', 'chart', 'flow', 'gex'];
@@ -110,7 +116,7 @@ const MOBILE_PRIMARY: Tab[] = ['oracle', 'chart', 'flow', 'gex'];
 // phones — the same "fully built and completely unreachable" bug the TABS comment
 // above describes, reintroduced for mobile only. Every tab in TABS must appear in
 // exactly one of these two arrays; the assertion below fails the build if not.
-const MOBILE_MORE: Tab[] = ['leaps', 'crypto', 'catalyst', 'bot'];
+const MOBILE_MORE: Tab[] = ['leaps', 'crypto', 'catalyst', 'bot', 'positions', 'journal'];
 
 if (import.meta.env.DEV) {
   const reachable = new Set<Tab>([...MOBILE_PRIMARY, ...MOBILE_MORE]);
@@ -128,6 +134,8 @@ function MobileTabIcon({ tab }: { tab: Tab }) {
   if (tab === 'leaps') return <TrendingUp className="h-[18px] w-[18px]" />;
   if (tab === 'crypto') return <Bitcoin className="h-[18px] w-[18px]" />;
   if (tab === 'catalyst') return <CalendarDays className="h-[18px] w-[18px]" />;
+  if (tab === 'positions') return <Wallet className="h-[18px] w-[18px]" />;
+  if (tab === 'journal') return <BookOpen className="h-[18px] w-[18px]" />;
   return <Bot className="h-[18px] w-[18px]" />;
 }
 
@@ -444,6 +452,8 @@ export default function TerminalShell() {
               {tab === 'crypto' && <CryptoTerminal />}
               {tab === 'catalyst' && <CatalystNexus />}
               {tab === 'bot' && <BotNexus />}
+              {tab === 'positions' && <PositionsPanel />}
+              {tab === 'journal' && <JournalPanel />}
             </Suspense>
           </motion.div>
         </AnimatePresence>
@@ -618,6 +628,7 @@ export default function TerminalShell() {
         onClose={() => setPaletteOpen(false)}
         onTicker={(symbol, name) => setCurrentStock({ symbol, name })}
         onTab={(t) => setTab(t as Tab)}
+        tabs={TABS}
       />
 
       {/* ── footer — the reference bottombar. Same real content as before:
