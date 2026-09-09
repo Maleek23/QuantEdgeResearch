@@ -56,7 +56,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
-import { HeroProductPanel } from "@/components/hero-product-panel";
+;
 import { AutoLottoDashboard } from "@/components/auto-lotto-dashboard";
 import { ExpiryPatternInsights } from "@/components/expiry-pattern-insights";
 import { MarketOverviewWidget } from "@/components/market-overview-widget";

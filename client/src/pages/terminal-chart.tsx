@@ -22,7 +22,7 @@ import { RefreshCw } from 'lucide-react';
 import type { GEXTerminalData } from '../../../shared/gex-types';
 import { CacheFreshnessIndicator } from '@/components/gex/CacheFreshnessIndicator';
 import { EngineStatusFooter } from '@/components/gex/EngineStatusFooter';
-import { EmptyGexState } from '@/components/gex/EmptyGexState';
+;
 
 
 // ─── Helpers ────────────────────────────────────────────────

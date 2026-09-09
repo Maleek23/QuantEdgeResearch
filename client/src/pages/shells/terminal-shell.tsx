@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
 import { RotationMap } from '@/components/rotation-map';
 import { SessionBrief } from '@/components/oracle/session-brief';
-import { EarlyRotationPanel } from '@/components/oracle/early-rotation-panel';
+;
 import { OracleMarketField } from '@/components/oracle/oracle-market-field';
 import { TickerTape, SectorHeatmap, WatchlistRail, SystemStatusBlock, FooterMarketLine } from '@/components/oracle/oracle-rails';
 import { LiveStatsBar } from '@/components/footer';
@@ -35,17 +35,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { KitStyles } from '@/components/templates/kit';
 import quantEdgeLogoUrl from '@assets/q_1767502987714.png';
 import '@/styles/nexus.css';
-import { TerminalPageHeader, TerminalSectionHeader } from '@/components/templates/terminal-page';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
 import { SystemPulse } from '@/components/terminal/system-pulse';
 import { CommandPalette } from '@/components/terminal/command-palette';
 // Non-default tabs and closed overlays must not tax Oracle's first paint. Keeping
 // these as static imports made charting, bot analytics and settings code part of
 // every terminal visit even when the user never opened those surfaces.
-const TickerView = lazy(() => import('@/components/oracle/ticker-view').then(m => ({ default: m.TickerView })));
 const TerminalGuide = lazy(() => import('@/components/terminal/terminal-guide').then(m => ({ default: m.TerminalGuide })));
 const TerminalSettings = lazy(() => import('@/components/terminal/terminal-settings').then(m => ({ default: m.TerminalSettings })));
-const TrackRecord = lazy(() => import('@/components/bot/track-record').then(m => ({ default: m.TrackRecord })));
+
 // CHART = the reference Chart Lab mock, wired (chart-lab-nexus). The prior
 // EpochChart-based lab stays in the tree at charting/chart-lab.tsx.
 const ChartLab = lazy(() => import('@/components/charting/chart-lab-nexus').then(m => ({ default: m.ChartLabBoard })));
@@ -55,17 +53,15 @@ const NexusBoard    = lazy(() => import('@/pages/nexus').then(m => ({ default: m
 // GEX = the reference GEX Hub mock, wired. The prior GexShell (gainers/
 // heatmap/trade-plan subtabs) stays in the tree at pages/shells/gex-shell.
 const GexHub        = lazy(() => import('@/components/gex/gex-hub-nexus').then(m => ({ default: m.GexHubNexus })));
-const GexShell      = lazy(() => import('@/pages/shells/gex-shell'));
 const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m => ({ default: m.FlowBoard })));
 // The old flow-heatmap page is the SECTOR TREEMAP with a flow overlay (breadth, net flow,
 // sweeps, whales + per-ticker flow detail). That's the Heatmap surface, not the tape — so
 // it belongs on HEATMAP. Keeping it preserves the strongest part of the old design.
 // PRISM = the strike x expiry gamma surface (what the walkthrough actually shows),
 // not the premium-spectrum strike picker that used to sit here.
-const QuantBotBoard = lazy(() => import('@/components/bot/quant-bot-board').then(m => ({ default: m.QuantBotBoard })));
+
 // CATALYST — the event calendar joined to the signals we publish, so a call and the
 // news pointing the other way land on the same screen instead of two separate ones.
-const CatalystBoard = lazy(() => import('@/components/catalyst/catalyst-board').then(m => ({ default: m.CatalystBoard })));
 // CRYPTO = the sixth reference mock, wired. Prior CryptoTerminal stays in tree.
 const CryptoTerminal = lazy(() => import('@/components/crypto/crypto-nexus').then(m => ({ default: m.CryptoNexus })));
 // BOT = the seventh reference mock: the real automation layer, reported honestly.

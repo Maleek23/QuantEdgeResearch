@@ -30,10 +30,10 @@ import {
 } from "@/components/hunt/cockpit/cockpit-modes";
 
 import { TickerLogo } from "@/components/hunt/cockpit/ticker-logo";
-import { SignalChart } from "@/components/hunt/cockpit/signal-chart";
+;
 import { TASummary } from "@/components/hunt/cockpit/ta-summary";
 import { SignalComponents } from "@/components/hunt/cockpit/signal-components";
-import { KeyLevels } from "@/components/hunt/cockpit/key-levels";
+;
 import { SignalRow } from "@/components/hunt/cockpit/signal-row";
 import { KpiStrip } from "@/components/hunt/cockpit/kpi-strip";
 import { ContractEngine } from "@/components/contract-engine/contract-engine";

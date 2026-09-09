@@ -18,7 +18,7 @@ import { Footer } from "@/components/footer";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
 import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-route";
 import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
-import { PersonalizationToolbar } from "@/components/ui/personalization-toolbar";
+;
 import { ContentDensityProvider } from "@/hooks/use-content-density";
 import { DensityProvider } from "@/components/ui/qe";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -32,9 +32,8 @@ import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 // the app retries and auto-reloads to pick up the new chunks.
 // ─── 6 PRIMARY SHELLS (new IA) — Home / Hunt / GEX / Research / Positions / Journal ───
 const TerminalShell  = lazyWithRetry(() => import("@/pages/shells/terminal-shell"),  "terminal-shell");
-const HomeShell      = lazyWithRetry(() => import("@/pages/shells/pulse-shell"),     "home-shell");
-const HuntShell      = lazyWithRetry(() => import("@/pages/shells/hunt-shell"),      "hunt-shell");
-const GexShell       = lazyWithRetry(() => import("@/pages/shells/gex-shell"),       "gex-shell");
+
+
 const ResearchShell  = lazyWithRetry(() => import("@/pages/shells/research-shell"),  "research-shell");
 const PositionsShell = lazyWithRetry(() => import("@/pages/shells/positions-shell"), "positions-shell");
 const JournalShell   = lazyWithRetry(() => import("@/pages/shells/journal-shell"),   "journal-shell");
@@ -48,7 +47,6 @@ const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
 const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "trade-journal");
-const StockDetailPage = lazyWithRetry(() => import("@/pages/stock-detail"), "stock-detail");
 // REMOVED — Market page consolidated, redirect to /home
 const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
 const SettingsPage = lazyWithRetry(() => import("@/pages/settings"), "settings");
@@ -67,32 +65,31 @@ const AdminTradeIdeas = lazyWithRetry(() => import("@/pages/admin/trade-ideas"),
 const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
-const ChartDatabase = lazyWithRetry(() => import("@/pages/chart-database"), "chart-database");
-const MarketPulse = lazyWithRetry(() => import("@/pages/market-pulse"), "market-pulse");
-const FlowHeatmap = lazyWithRetry(() => import("@/pages/flow-heatmap"), "flow-heatmap");
+
+
 const PositionsHeatmap = lazyWithRetry(() => import("@/pages/positions-heatmap"), "positions-heatmap");
 const StrategySimulator = lazyWithRetry(() => import("@/pages/strategy-simulator"), "strategy-simulator");
 const Backtest = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
 const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
 const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
-const TradingRules = lazyWithRetry(() => import("@/pages/trading-rules"), "trading-rules");
+
 const BlogPost = lazyWithRetry(() => import("@/pages/blog-post"), "blog-post");
 const Pricing = lazyWithRetry(() => import("@/pages/pricing"), "pricing");
 // REMOVED — Paper Trading, Wallet Tracker, CT Tracker consolidated out
 // Redirects added below to prevent broken bookmarks
 const TradeAudit = lazyWithRetry(() => import("@/pages/trade-audit"), "trade-audit");
 const AutomationsPage = lazyWithRetry(() => import("@/pages/automations"), "automations");
-const Features = lazyWithRetry(() => import("@/pages/features"), "features");
-const HomeGlass = lazyWithRetry(() => import("@/pages/home-glass"), "home-glass");
+
+
 // REMOVED — Backtest merged into Performance tab
-const TechnicalGuide = lazyWithRetry(() => import("@/pages/technical-guide"), "technical-guide");
+
 // MERGED — Market Scanner folded into Hunt → Surges tab
 // MERGED — Bullish Trends absorbed into Market Scanner
 // MERGED — Trading Engine absorbed into Performance
 // /watchlist + /watchlist/weekly now redirect into the Hunt shell's Watchlist tab
 // (single canonical surface); the component is loaded lazily by hunt-shell.tsx.
 // REMOVED — Weekly Watchlist tab lives in unified-watchlist, Conviction Backtest in Performance
-const HomePage = lazyWithRetry(() => import("@/pages/home"), "home");
+
 // REMOVED — AION consolidated out, redirect added below
 // REMOVED — Historical Intelligence merged into Performance tab
 const NotFound = lazyWithRetry(() => import("@/pages/not-found"), "not-found");
@@ -100,18 +97,16 @@ const JoinBeta = lazyWithRetry(() => import("@/pages/join-beta"), "join-beta");
 const InviteWelcome = lazyWithRetry(() => import("@/pages/invite-welcome"), "invite-welcome");
 const ForgotPassword = lazyWithRetry(() => import("@/pages/forgot-password"), "forgot-password");
 const ResetPassword = lazyWithRetry(() => import("@/pages/reset-password"), "reset-password");
-const LearningDashboard = lazyWithRetry(() => import("@/pages/learning-dashboard"), "learning-dashboard");
+
 // MERGED — Discover absorbed into Trade Desk
 const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
-const DesignSystemTest = lazyWithRetry(() => import("@/pages/design-system-test"), "design-system-test");
-const MarketOutlook = lazyWithRetry(() => import("@/pages/market-outlook"), "market-outlook");
-const CommandCenterLegacy = lazyWithRetry(() => import("@/pages/command"), "command-legacy");
-const OlAlgoPage = lazyWithRetry(() => import("@/pages/olalgo"), "olalgo");
+
+
 // Terminal — full-screen Skylit-style dedicated pages
 // MERGED: /terminal/:symbol now redirects to Research (/r/:symbol?tab=chart)
 // MERGED: Heatmap view now lives inside unified terminal-chart.tsx
 // const TerminalHeatmap = lazyWithRetry(() => import("@/pages/terminal-heatmap"), "terminal-heatmap");
-const TerminalTrinity = lazyWithRetry(() => import("@/pages/terminal-trinity"), "terminal-trinity");
+
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
