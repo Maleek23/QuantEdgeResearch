@@ -19,6 +19,7 @@
  * 10/min, peakReturn/lastTrade 60/min per their docs).
  */
 import { logger } from './logger';
+import { marketDateET } from '@shared/market-day';
 
 const BASE = 'https://api.bullflow.io';
 
@@ -185,7 +186,9 @@ export interface NetPremiumRead {
 }
 
 export async function getNetPremiumToday(ticker: string): Promise<NetPremiumRead | null> {
-  const today = new Date().toISOString().slice(0, 10);
+  // ET market date, not UTC — a 10pm CT query with UTC dates asks for
+  // TOMORROW's session and gets nothing.
+  const today = marketDateET();
   const d = await cachedGet('/v1/data/netPremiumSeries',
     { ticker: ticker.toUpperCase(), from: today, to: today, period: '1D' }, 3 * 60_000);
   const pts: any[] = d?.points ?? [];
@@ -219,7 +222,7 @@ export async function getNetVexChain(ticker: string): Promise<any | null> {
   return cachedGet('/v1/data/netvex', { ticker: ticker.toUpperCase() }, 5 * 60_000);
 }
 export async function getDarkPoolTrades(ticker: string, minNotional = 1_000_000): Promise<any | null> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = marketDateET();
   return cachedGet('/v1/data/darkPoolTrades', { ticker: ticker.toUpperCase(), from: today, to: today, minNotional: String(minNotional) }, 6 * 60_000);
 }
 export async function getPeakReturn(occ: string, oldPrice: number, tradeTsSec: number): Promise<{ peakPrice: number; peakPct: number } | null> {

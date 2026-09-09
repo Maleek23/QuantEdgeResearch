@@ -747,9 +747,11 @@ export function getTodayFlows(): OptionsFlow[] {
   // real-dollar Bullflow premium is stored ÷100 to stay unit-consistent.
   const merged = [...scannerStatus.todayFlows];
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    // ET market date on both sides — a UTC comparison drops the whole
+    // session's prints after 8pm ET when the UTC date rolls forward.
+    const today = marketDateET();
     for (const p of getBullflowPrints().prints) {
-      if (!p.at.startsWith(today)) continue;
+      if (marketDateET(new Date(p.at)) !== today) continue;
       merged.push({
         id: `bf-${p.id}`,
         symbol: p.underlying,
