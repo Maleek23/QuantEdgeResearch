@@ -4,7 +4,7 @@
  * Tabs: Trade Log | History | Metrics | Backtest | Academy
  */
 import { lazy, Suspense } from 'react';
-import { QETabs, type QETabItem } from '@/components/ui/qe';
+import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { Loader2 } from 'lucide-react';

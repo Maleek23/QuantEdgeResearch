@@ -30,7 +30,7 @@ import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense } from 'react';
 
-import { QETabs, type QETabItem } from '@/components/ui/qe';
+import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
 import { TickerSwitcher } from '@/components/ticker-switcher';
 import { useTabState } from '@/hooks/use-tab-state';
 import { useStockContext } from '@/contexts/stock-context';

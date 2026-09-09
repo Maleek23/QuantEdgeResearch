@@ -15,7 +15,9 @@ import { useEffect, useState, useCallback, useSyncExternalStore } from 'react';
 import { useLocation } from 'wouter';
 import { Bell, ArrowRight, X, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { QEDrawer, QECard, QEPill } from '@/components/ui/qe';
+import { QEDrawer } from '@/components/ui/qe-drawer';
+import { QECard } from '@/components/ui/qe-card';
+import { QEPill } from '@/components/ui/qe-pill';
 import { CHANGELOG, getUnreadEntries, getMostRecentId, type ChangeEntry, type ChangeTag } from '../../../shared/changelog';
 
 const STORAGE_KEY = 'qe_changelog_seen';

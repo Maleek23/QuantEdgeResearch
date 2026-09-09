@@ -8,7 +8,8 @@
  * Rendered full in the GEX hub (gainers tab) and compact in the Trade Desk.
  */
 import { useQuery } from '@tanstack/react-query';
-import { QECard, QEPill } from '@/components/ui/qe';
+import { QECard } from '@/components/ui/qe-card';
+import { QEPill } from '@/components/ui/qe-pill';
 import { Skeleton } from '@/components/ui/skeleton';
 import { InlineEmptyState } from '@/components/ui/empty-state';
 import { safeToFixed, cn } from '@/lib/utils';

@@ -16,16 +16,12 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, RefreshCw, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  QECard,
-  QEStat,
-  QEStatStrip,
-  QEPill,
-  QEBar,
-  QESection,
-  QETabs,
-  type QETabItem,
-} from '@/components/ui/qe';
+import { QECard } from '@/components/ui/qe-card';
+import { QEStat, QEStatStrip } from '@/components/ui/qe-stat';
+import { QEPill } from '@/components/ui/qe-pill';
+import { QEBar } from '@/components/ui/qe-bar';
+import { QESection } from '@/components/ui/qe-section';
+import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
 import { ContractAnalyzer } from '@/components/contract-analyzer';
 
 interface FlowTrade {

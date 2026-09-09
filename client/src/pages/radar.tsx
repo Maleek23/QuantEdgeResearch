@@ -11,7 +11,7 @@
  * 12:00, 15:55 ET on weekdays and pushes A+ picks straight to Trade Desk.
  */
 import { useEffect, useState } from 'react';
-import { QETabs, type QETabItem } from '@/components/ui/qe';
+import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { Loader2, RefreshCw, Zap, Target, History, Eye } from 'lucide-react';

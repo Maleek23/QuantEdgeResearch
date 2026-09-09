@@ -22,7 +22,7 @@ import { Loader2, AlertTriangle, Camera } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { QETabs } from "@/components/ui/qe";
+import { QETabs } from "@/components/ui/qe-tabs";
 import {
   COCKPIT_MODES,
   matchesMode,
@@ -63,7 +63,7 @@ import {
 } from "@/components/oracle/signal-timing-badge";
 // The CHART tab's engine, everywhere a chart appears — one interactive chart.
 import { NexusPriceChart } from "@/components/charting/nexus-price-chart";
-import { bandColor } from "@/lib/oracle/trading-colors";
+import { bandColor } from "@/lib/design-tokens";
 import { Heartbeat, LiveValue } from "@/components/viz";
 import {
   tierLabel,

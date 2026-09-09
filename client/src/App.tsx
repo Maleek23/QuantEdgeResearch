@@ -21,7 +21,7 @@ import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-rout
 import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
 ;
 import { ContentDensityProvider } from "@/hooks/use-content-density";
-import { DensityProvider } from "@/components/ui/qe";
+import { DensityProvider } from "@/components/ui/qe-density";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { StockContextProvider } from "@/contexts/stock-context";
 import { lazyWithRetry } from "@/lib/lazy-import";
