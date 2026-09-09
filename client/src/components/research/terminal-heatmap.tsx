@@ -11,7 +11,7 @@ import { HeatseekerToolbar, type ExposureMode } from '@/components/heatseeker/he
 import { GEXExpiryMatrix } from '@/components/gex/gex-expiry-matrix';
 import { useStockContext } from '@/contexts/stock-context';
 import { cn } from '@/lib/utils';
-import type { GEXTerminalData } from '../../../shared/gex-types';
+import type { GEXTerminalData } from '../../../../shared/gex-types';
 
 export default function TerminalHeatmapPage() {
   const { currentStock } = useStockContext();

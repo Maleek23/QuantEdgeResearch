@@ -15,7 +15,7 @@ export default function HowToPage() {
           How to use QuantEdge
         </h1>
         <p className="text-[12px] font-mono text-muted-foreground/80">
-          Three URLs, four tasks, one workflow. Read this once.
+          One terminal, three windows of time, one workflow. Read this once.
         </p>
       </header>
 
@@ -25,17 +25,17 @@ export default function HowToPage() {
           <Step
             time="MORNING (8:00–9:30 AM ET)"
             actions={[
-              { url: '/p',     label: 'Home → Pulse tab',     why: 'Futures, sectors, overnight news' },
+              { url: '/t',     label: 'Terminal — NEXUS',     why: 'Market briefing — regime, rotation, signals' },
               { url: '/radar', label: 'Thesis Radar → Picks', why: 'See what fired overnight (auto)' },
-              { url: '/btc',   label: 'BTC Radar',            why: 'BTC level breaks → MARA/COIN/MSTR plays' },
-              { url: '/pos',   label: 'Positions',            why: 'Adjust stops on existing trades' },
+              { url: '/t?tab=crypto', label: 'Terminal — Crypto', why: 'BTC level breaks — MARA/COIN/MSTR plays' },
+              { url: '/t?tab=positions', label: 'Positions',  why: 'Adjust stops on existing trades' },
             ]}
           />
           <Step
             time="DURING MARKET (9:30 AM – 4:00 PM)"
             actions={[
               { url: '/r/QCOM', label: 'Research → /r/[ticker]', why: 'Per-ticker chart, options, GEX, flow — all in one' },
-              { url: '/g',      label: 'GEX & Flow',            why: 'Dealer walls = your entry/exit levels' },
+              { url: '/t?tab=gex', label: 'GEX',               why: 'Dealer walls = your entry/exit levels' },
             ]}
           />
           <Step
@@ -48,16 +48,16 @@ export default function HowToPage() {
       </Section>
 
       {/* What each page is for */}
-      <Section title="What Each Page Does" subtitle="Six pages — that's it.">
+      <Section title="What Each Page Does" subtitle="Eight destinations — that's the whole product.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <PageCard icon={Home}       url="/p"      title="Home"            desc="Daily briefing — Today's Picks, market pulse, rotation, earnings" />
+          <PageCard icon={Home}       url="/t"      title="Terminal"        desc="NEXUS home — market briefing, rotation, signals, and every tab" />
           <PageCard icon={Target}     url="/radar"  title="Thesis Radar"    desc="6 patterns × 120 tickers, scanned 5×/day, A+ pushes to Trade Desk" />
-          <PageCard icon={Bitcoin}    url="/btc"    title="BTC Radar"       desc="Live BTC + 14 crypto-equity beta tracker, fires on level breaks" />
-          <PageCard icon={Crosshair}  url="/h"      title="Hunt"            desc="Manual scanners when Radar doesn't have what you want" />
-          <PageCard icon={Zap}        url="/g"      title="GEX & Flow"      desc="Dealer gamma walls + options flow — your entry/exit lens" />
+          <PageCard icon={Bitcoin}    url="/t?tab=crypto" title="BTC Radar" desc="Live BTC + 14 crypto-equity beta tracker, fires on level breaks" />
+          <PageCard icon={Crosshair}  url="/trade-desk" title="Trade Desk"  desc="Manual idea generation when Radar doesn't have what you want" />
+          <PageCard icon={Zap}        url="/t?tab=gex" title="GEX & Flow"   desc="Dealer gamma walls + options flow — your entry/exit lens" />
           <PageCard icon={Microscope} url="/r/SPY"  title="Research"        desc="Per-ticker deep dive — chart, options, GEX, flow, news" />
-          <PageCard icon={Wallet}     url="/pos"    title="Positions"       desc="Your open book — alerts, stops, exits" />
-          <PageCard icon={BookOpen}   url="/j"      title="Journal"         desc="Trade history + performance + backtests" />
+          <PageCard icon={Wallet}     url="/t?tab=positions" title="Positions" desc="Your open book — alerts, stops, exits" />
+          <PageCard icon={BookOpen}   url="/t?tab=journal" title="Journal"  desc="Trade history + performance + backtests" />
         </div>
       </Section>
 

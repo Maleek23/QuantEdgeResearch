@@ -38,7 +38,7 @@ import { PageErrorBoundary } from '@/components/page-error-boundary';
 
 // Lazy children — each is the existing implementation, now reading symbol via context
 const TerminalChart    = lazy(() => import('@/pages/terminal-chart'));
-const TerminalHeatmap  = lazy(() => import('@/pages/terminal-heatmap'));
+const TerminalHeatmap  = lazy(() => import('@/components/research/terminal-heatmap'));
 const OptionsAnalyzer  = lazy(() => import('@/pages/options-analyzer'));
 const FlowTable        = lazy(() => import('@/components/research/flow-table').then(m => ({ default: m.FlowTable })));
 const ContractAnalyzer = lazy(() => import('@/components/contract-analyzer').then(m => ({ default: m.ContractAnalyzer })));
