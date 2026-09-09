@@ -277,7 +277,7 @@ function EngineGrid({ engineHealthData, isLoading }: { engineHealthData?: Engine
 // DATA INTEGRITY PANEL - SQL-backed verification
 // ============================================================
 function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
-  const { data: integrityData, isLoading, refetch } = useQuery<{
+  const { data: integrityData, isLoading, isError, refetch } = useQuery<{
     checks: DataIntegrityCheck[];
     sampleTrades: Array<{
       id: string;
@@ -345,6 +345,14 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
           </div>
           {isLoading ? (
             <Skeleton className="h-20" />
+          ) : isError ? (
+            <div className="flex items-center justify-between p-3 rounded bg-muted/20 text-xs">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <XCircle className="h-3.5 w-3.5 text-[var(--trade-bearish)]" />
+                Audit request failed — the stats above are unaffected.
+              </span>
+              <Button variant="ghost" size="sm" onClick={() => refetch()}>Retry</Button>
+            </div>
           ) : (
             <div className="space-y-1">
               {integrityData?.checks?.map((check, i) => (
@@ -373,7 +381,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
           <p className="text-sm font-medium">Sample Trades (Verification)</p>
           {isLoading ? (
             <Skeleton className="h-32" />
-          ) : (
+          ) : isError ? null : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
@@ -526,7 +534,7 @@ export default function PerformancePage() {
   }, [dateRange, engineFilter, assetFilter]);
 
   const perfInterval = useMarketPoll(POLL.METRICS.open, POLL.METRICS.closed);
-  const { data: stats, isLoading } = useQuery<PerformanceStats>({
+  const { data: stats, isLoading, isError, refetch: refetchStats } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats', apiFilters],
     staleTime: 0, gcTime: 0, refetchOnMount: 'always',
     refetchInterval: perfInterval,
@@ -563,16 +571,33 @@ export default function PerformancePage() {
     );
   }
 
+  // A fetch failure must not read as "no data".
+  if (isError) {
+    return (
+      <div className="max-w-5xl mx-auto p-4 sm:p-6">
+        <Card className="p-8 text-center">
+          <AlertTriangle className="h-10 w-10 text-[var(--trade-bearish)] mx-auto mb-3" />
+          <h2 className="text-lg font-semibold">Couldn't load performance data</h2>
+          <p className="text-muted-foreground mt-1 text-sm">The request failed — your data is safe. Try again.</p>
+          <Button className="mt-4" onClick={() => refetchStats()}>Retry</Button>
+        </Card>
+      </div>
+    );
+  }
+
   if (!stats) {
     return (
       <div className="max-w-5xl mx-auto p-4 sm:p-6">
         <Card className="p-6">
           <h2 className="text-xl font-bold">No Performance Data</h2>
-          <p className="text-muted-foreground mt-2">Start generating research briefs to see performance metrics</p>
+          <p className="text-muted-foreground mt-2">Performance metrics will appear here once ideas start closing.</p>
         </Card>
       </div>
     );
   }
+
+  const decidedCount = stats.segmentedWinRates?.overall?.decided ?? 0;
+  const isFiltered = dateRange !== "all" || engineFilter !== "all" || assetFilter !== "all";
 
   return (
     <div className="max-w-5xl mx-auto p-3 sm:p-5 space-y-4">
@@ -631,8 +656,32 @@ export default function PerformancePage() {
         </div>
       </div>
 
-      {/* User Performance Summary - Primary View */}
-      <UserPerformanceSummary />
+      {/* User Performance Summary - Primary View.
+          A fresh account (or a filtered period) with no decided ideas gets an
+          inviting empty state instead of a hero full of zeros. */}
+      {decidedCount === 0 ? (
+        <Card className="p-8 text-center" data-testid="empty-performance">
+          <Target className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+          <h2 className="text-lg font-semibold">
+            {isFiltered ? "No decided ideas in this view" : "No decided ideas yet"}
+          </h2>
+          <p className="text-muted-foreground mt-2 text-sm max-w-md mx-auto">
+            Ideas count toward hit rate and expectancy once they close — open ideas don't move these numbers.
+            Check back after the next scan window.
+          </p>
+          {isFiltered && (
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => { setDateRange("all"); setEngineFilter("all"); setAssetFilter("all"); }}
+            >
+              Show all time
+            </Button>
+          )}
+        </Card>
+      ) : (
+        <UserPerformanceSummary apiFilters={apiFilters} />
+      )}
 
       {/* Advanced Analytics Toggle */}
       <div className="flex items-center justify-between px-3 py-2 rounded-md bg-muted/10 border border-border/30">

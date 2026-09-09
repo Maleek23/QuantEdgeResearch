@@ -22,6 +22,8 @@ interface PerformanceStats {
     totalIdeas: number;
     winRate: number;
     avgPercentGain: number;
+    expectancy: number | null;
+    profitFactor: number | null;
   };
   segmentedWinRates: {
     overall: {
@@ -70,9 +72,11 @@ const ENGINE_CONFIG = {
 
 type EngineKey = keyof typeof ENGINE_CONFIG;
 
-export function UserPerformanceSummary() {
+export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: string }) {
   const { data: stats, isLoading: isStatsLoading } = useQuery<PerformanceStats>({
-    queryKey: ['/api/performance/stats'],
+    // Same key as the page-level stats query (including active filters) so the
+    // hero always reflects the selected period — one cached fetch, not two.
+    queryKey: ['/api/performance/stats', apiFilters],
     staleTime: 60000,
   });
 
@@ -104,17 +108,24 @@ export function UserPerformanceSummary() {
   const wins = stats?.segmentedWinRates?.overall?.wins ?? 0;
   const losses = stats?.segmentedWinRates?.overall?.losses ?? 0;
   const overallGrade = getGrade(overallWinRate);
+  // Hero metric: expectancy = (win% x avg win) - (loss% x avg loss), in
+  // percentage points per idea. It answers "do the engines make money" in a
+  // way hit rate alone can't — a 70% hit rate with a bad win/loss size ratio
+  // still loses money.
+  const expectancy = stats?.overall?.expectancy ?? null;
 
   const engines: EngineKey[] = ["flow", "quant", "ai", "lotto"];
 
   return (
     <div className="space-y-6">
-      {/* Trust Score Hero */}
+      {/* Hero — expectancy leads (the one number that answers "do the engines
+          make money"); the grade tile anchors trust, hit rate stays visible
+          as the secondary stat. */}
       <Card className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5" />
         <CardContent className="relative p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            {/* Main Trust Score */}
+            {/* Main: grade tile + expectancy */}
             <div className="flex items-center gap-6">
               <div className={cn(
                 "h-20 w-20 rounded-2xl flex items-center justify-center text-3xl font-bold",
@@ -124,26 +135,40 @@ export function UserPerformanceSummary() {
               </div>
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Hit Rate</p>
+                  <p className="text-sm text-muted-foreground uppercase tracking-wider">Expectancy</p>
                   <span className="text-xs text-muted-foreground/60 font-mono">n={totalDecided}</span>
                   <span className="group relative inline-block">
                     <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
                     <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-52 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
-                      Count-based: wins / decided trades. Excludes &#177;3% breakeven trades, expired, and open positions.
+                      Your edge per idea: (win% &#215; avg win) &#8722; (loss% &#215; avg loss). Positive means the engines make money on average; negative means they lose it.
                     </span>
                   </span>
                 </div>
-                <p className={cn("text-4xl font-bold font-mono", getWinRateColor(overallWinRate))}>
-                  {safeToFixed(overallWinRate, 0)}%
+                <p className={cn("text-4xl font-bold font-mono", expectancy === null ? "text-muted-foreground" : expectancy < 0 ? "text-[var(--trade-bearish)]" : "text-[var(--trade-bullish)]")}>
+                  {expectancy === null ? '—' : `${expectancy >= 0 ? '+' : ''}${safeToFixed(expectancy, 1)}%`}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {wins} wins, {losses} losses ({totalDecided} decided)
+                  {expectancy === null
+                    ? 'No decided ideas in this period'
+                    : expectancy > 0
+                      ? `Positive edge — about ${safeToFixed(expectancy, 1)}% per idea across ${totalDecided} decided.`
+                      : expectancy < 0
+                        ? `Negative edge — about ${safeToFixed(Math.abs(expectancy), 1)}% lost per idea across ${totalDecided} decided.`
+                        : 'Breakeven — no measurable edge yet.'}
                 </p>
               </div>
             </div>
 
-            {/* Quick Stats */}
+            {/* Quick Stats — Bot P&L intentionally omitted: the dedicated
+                Auto-Lotto card below is its canonical home. */}
             <div className="flex gap-6">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase">Hit Rate</p>
+                <p className={cn("text-2xl font-bold font-mono", getWinRateColor(overallWinRate))}>
+                  {safeToFixed(overallWinRate, 0)}%
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">{wins}W/{losses}L</p>
+              </div>
               <div className="text-center">
                 <p className="text-xs text-muted-foreground uppercase">Total Ideas</p>
                 <p className="text-2xl font-bold font-mono text-cyan-400">{stats?.overall?.totalIdeas ?? 0}</p>
@@ -155,15 +180,6 @@ export function UserPerformanceSummary() {
                   (stats?.overall?.avgPercentGain ?? 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {(stats?.overall?.avgPercentGain ?? 0) >= 0 ? '+' : ''}{safeToFixed(stats?.overall?.avgPercentGain ?? 0, 1)}%
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground uppercase">Bot P&L</p>
-                <p className={cn(
-                  "text-2xl font-bold font-mono",
-                  (botData?.overall?.totalPnL ?? 0) >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                )}>
-                  {(botData?.overall?.totalPnL ?? 0) >= 0 ? '+' : ''}${safeToFixed(botData?.overall?.totalPnL ?? 0, 0)}
                 </p>
               </div>
             </div>
@@ -300,7 +316,7 @@ export function UserPerformanceSummary() {
                 Our trading engines analyze market data to generate trade ideas. The hit rate shows
                 how often ideas hit their target vs stop loss (count-based, not P&L-weighted).
                 Trades within &#177;3% of entry are excluded as breakeven. A <span className="text-[var(--trade-bullish)] font-medium">70%+ hit rate</span> indicates
-                strong reliability. Engine grades (A-F) help you quickly compare performance across different strategies.
+                strong reliability. Engine grades (A-F) help you quickly compare performance across different strategies. Expectancy is your edge per idea — a positive expectancy means the strategy makes money on average, even with a modest hit rate.
               </p>
             </div>
           </div>
