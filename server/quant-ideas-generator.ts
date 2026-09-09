@@ -895,9 +895,9 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
     const p = signal.flowPremium ?? 0;
     return `Options tape ${signal.direction === 'long' ? 'call' : 'put'}-heavy — $${(p / 1e6).toFixed(1)}M dominant premium at ${(signal.flowSkew ?? 0) === Infinity ? 'one-sided' : `${(signal.flowSkew ?? 0).toFixed(1)}:1`} skew`;
   } else if (signal.type === 'breakout_watch') {
-    return `Within 3% of the window high on a rising 20d average — proximity effect (George & Hwang), 72% forward win rate in our own out-of-sample test`;
+    return `Within 3% of the window high on a rising 20d average — candidacy signal only: the 753-session walk-forward found no 5-day edge at highs (the proximity effect is a 6-12 month phenomenon)`;
   } else if (signal.type === 'volume_thrust') {
-    return `${Number(volumeRatio).toFixed(1)}x average volume on an up day — the signal battery's only 3/3-regime winner (+3.9% to +10.6% forward means)`;
+    return `${Number(volumeRatio).toFixed(1)}x average volume on an up day — candidacy signal only: the 3-year walk-forward found no edge (−0.5%, t −1.4); the live cohort is its remaining case`;
   } else {
     return `Technical setup confirmed - ${volumeRatio}x volume`;
   }
@@ -976,26 +976,32 @@ function calculateConfidenceScore(
     score = signal.strength === 'strong' ? 56 : 50;
     qualitySignals.push('Flow Conviction (options tape)');
   } else if (signal.type === 'breakout_watch') {
-    // Externally replicated (George & Hwang 2004) AND validated on our own
-    // universe out of sample (72% forward win vs 63% baseline) — starts at
-    // the top of the unproven band; its cohort decides from here.
-    score = signal.strength === 'strong' ? 58 : 54;
-    qualitySignals.push('52w-High Proximity (George-Hwang)');
+    // DEMOTED 2026-09-08 by the 753-session walk-forward: at OUR 5-day
+    // horizon, proximity-to-highs shows NO edge (prox_0_1 −0.78%, 0/4 years
+    // positive; see research/signal-battery-longrun.ts). This does not refute
+    // George & Hwang — theirs is a 6-12 MONTH effect; promoting it at a 5-day
+    // horizon was a horizon mismatch. Kept as low-base candidacy: near-highs
+    // names still deserve a look, they just don't deserve points.
+    score = signal.strength === 'strong' ? 50 : 48;
+    qualitySignals.push('52w-High Proximity (no 5d edge — long-horizon effect)');
   } else if (signal.type === 'volume_thrust') {
-    // The battery's only 3/3 winner across three regimes (see research/
-    // signal-battery-r2.ts). Small n (66 across windows) — starts mid-band;
-    // the live cohort takes it from here.
-    score = signal.strength === 'strong' ? 58 : 54;
-    qualitySignals.push('Volume Thrust ≥2.5x (battery 3/3)');
+    // DEMOTED 2026-09-08: rounds 1-2's "3/3 windows" promotion was a regime
+    // artifact of one month. The 753-session walk-forward: edge −0.51%,
+    // t −1.4, 1/4 years positive — indistinguishable from baseline. The lab
+    // giveth and the lab taketh away; the live cohort can still argue.
+    score = signal.strength === 'strong' ? 48 : 46;
+    qualitySignals.push('Volume Thrust (3yr test: no edge)');
   } else if (signal.type === 'inside_coil') {
     // NEW and unmeasured — untrusted like every newborn template.
     score = signal.strength === 'strong' ? 54 : 50;
     qualitySignals.push('Inside-Bar Coil');
   } else if (signal.type === 'gap_continuation') {
-    // NEW and unmeasured — arrives untrusted like vwap_rejection did. Scored
-    // between the proven RSI(2) and the failed volume_spike until it has a
-    // decided sample of its own to argue with.
-    score = signal.strength === 'strong' ? 58 : 52;
+    // DEMOTED 2026-09-08: live cohort 0W-7L, and the walk-forward's gap rows
+    // are outlier artifacts (t 1.3, 49% win with +13% mean = 2023 moonshots).
+    // The operator's gap rule stays fully honored at the CANDIDACY layer —
+    // gaps seed the funnel — but the entry claim no longer earns mid-band
+    // points it hasn't backed up.
+    score = signal.strength === 'strong' ? 52 : 48;
     qualitySignals.push('Gap Continuation (operator rule)');
   } else if (signal.type === 'rsi2_mean_reversion') {
     // Actual performance: ~30-60% WR (not 75-91% from old research)

@@ -255,3 +255,27 @@ main().catch((e) => {
   if (e instanceof NotEntitledError) { console.error(`\n${e.message}\n`); process.exit(2); }
   console.error(e); process.exit(1);
 });
+
+/* ── LONG-RUN RESULTS (run 2026-09-08 · 2023-08-30→2026-08-31 · 753 sessions ·
+ *    point-in-time top-2000 · 1.51M observations · baseline +0.79%/53%w 5d fwd) ──
+ *
+ * NOTHING PASSED. Zero of 22 signals reached |t|>3; none is distinguishable
+ * from baseline at the 5-day horizon.
+ *
+ *   vol_thrust_2.5x (LIVE)  edge −0.51%  t −1.4  1/4 years positive
+ *     → rounds 1-2's promotion was a regime artifact of one month.
+ *   prox_0_1 / new_high     edge −0.78% / −0.70%  0/4 years positive
+ *     → 52w-high proximity shows NO 5-day edge here. This does not refute
+ *       George & Hwang — theirs is a 6-12 MONTH effect; promoting it at a
+ *       5-day horizon was a horizon mismatch. Short-term, highs mean chop.
+ *   gap5 same/next day      edge +12.8%  t 1.3 — a 2023 outlier artifact
+ *     (+104% year edge, 49% win rate = a handful of moonshots), not signal.
+ *   prox_15+ deep below     +0.71%, 4/4 years positive, t 0.8 — the only
+ *     consistently positive row: a mild short-horizon reversal tilt. Watch,
+ *     don't trade.
+ *
+ * ACTIONS TAKEN: volume_thrust demoted 54/58→46/48, breakout_watch demoted
+ * 54/58→48/50 with horizon-mismatch noted in prose, gap_continuation demoted
+ * 52/58→48/52 (live cohort 0W-7L agrees). The lesson is now part of the lab:
+ * two windows inside one month can promote noise; 753 sessions took it back.
+ */
