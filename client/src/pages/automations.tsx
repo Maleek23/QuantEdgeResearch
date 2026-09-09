@@ -102,7 +102,7 @@ interface ExitIntelligenceResponse {
 }
 
 function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
-  const { data: exitIntel, isPending, refetch } = useQuery<ExitIntelligenceResponse>({
+  const { data: exitIntel, isPending, isError: exitIntelError, refetch } = useQuery<ExitIntelligenceResponse>({
     queryKey: ['/api/auto-lotto/exit-intelligence'],
     refetchInterval: 30000, // Reduced from 15s to 30s to prevent flickering
     staleTime: 0,
@@ -136,7 +136,7 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
       moderate: 'text-[var(--trade-bullish)]',
       low: 'text-[var(--trade-bullish)]',
     };
-    return <span className={cn("text-xs font-mono", styles[urgency])}>θ{urgency}</span>;
+    return <span className={cn("text-xs font-mono", styles[urgency])} title="Theta urgency &mdash; how fast time decay is eroding this position">θ{urgency}</span>;
   };
 
   const getMomentumIcon = (momentum: string) => {
@@ -185,6 +185,19 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
         <p className="text-xs text-muted-foreground mt-1">
           Smart exit monitoring for bot-entered positions only
         </p>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2" aria-label="Exit window legend">
+          {[
+            { label: 'EXIT NOW', hint: 'Exit the position immediately', dot: 'bg-[var(--trade-bearish)]' },
+            { label: 'EXIT SOON', hint: 'Plan your exit \u2014 momentum is fading', dot: 'bg-[var(--trade-neutral)]' },
+            { label: 'WATCH', hint: 'Monitor closely, no action yet', dot: 'bg-[var(--trade-bullish)]' },
+            { label: 'HOLD', hint: 'No action needed', dot: 'bg-muted-foreground' },
+          ].map((l) => (
+            <span key={l.label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground" title={l.hint}>
+              <span className={cn("w-1.5 h-1.5 rounded-full", l.dot)} />
+              {l.label}
+            </span>
+          ))}
+        </div>
       </CardHeader>
       <CardContent className="p-3">
         {isPending && positions.length === 0 ? (
@@ -192,6 +205,14 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
             {[1, 2].map((i) => (
               <Skeleton key={i} className="h-16 w-full" />
             ))}
+          </div>
+        ) : exitIntelError ? (
+          <div className="text-center py-8 text-muted-foreground bg-card/40 rounded-lg border border-dashed border-border/50">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-40 text-[var(--trade-bearish)]" />
+            <p className="text-sm">Couldn&apos;t load exit intelligence</p>
+            <Button size="sm" variant="ghost" onClick={() => refetch()} className="mt-2 h-7 text-xs">
+              <RefreshCw className="w-3.5 h-3.5 mr-1" /> Retry
+            </Button>
           </div>
         ) : positions.length > 0 ? (
           <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
@@ -216,7 +237,8 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
                       <span className={cn(
                         "text-[10px] font-mono",
                         pos.dteRemaining <= 2 ? "text-[var(--trade-bearish)] font-bold" : "text-muted-foreground"
-                      )}>
+                      )}
+                        title="Days to expiration">
                         {pos.dteRemaining}DTE
                       </span>
                     )}
@@ -250,7 +272,7 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
 
                 <div className="space-y-1.5 p-2 rounded bg-card/40 border border-border/30">
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-muted-foreground">Exit Signal Strength</span>
+                    <span className="text-muted-foreground" title="Model confidence that this position should be exited &mdash; higher means exit sooner">Exit Signal Strength</span>
                     <span className="font-mono font-bold text-[var(--trade-bullish)]">{pos.exitProbability}%</span>
                   </div>
                   <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
@@ -273,8 +295,8 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
         ) : (
           <div className="text-center py-8 text-muted-foreground bg-card/40 rounded-lg border border-dashed border-border/50">
             <Activity className="h-8 w-8 mx-auto mb-2 opacity-20" />
-            <p className="text-sm">No active bot positions monitored</p>
-            <p className="text-[11px] mt-1 opacity-60">Bot must enter a play for monitoring to begin</p>
+            <p className="text-sm">No bot positions to monitor yet</p>
+            <p className="text-[11px] mt-1 opacity-60">Once a bot opens a position, smart exit signals will appear here</p>
           </div>
         )}
       </CardContent>
@@ -485,7 +507,7 @@ export default function AutomationsPage() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
 
-  const { data: status, isPending } = useQuery<AutomationsStatus>({
+  const { data: status, isPending, isError: statusError, refetch: refetchStatus } = useQuery<AutomationsStatus>({
     queryKey: ["/api/automations/status"],
     refetchInterval: 30000, // Reduced from 5s to 30s to prevent flickering
     staleTime: 0,
@@ -500,7 +522,7 @@ export default function AutomationsPage() {
   });
 
   // Main portfolio bots data
-  const { data: botData } = useQuery<{
+  const { data: botData, error: botDataError, refetch: refetchBotData } = useQuery<{
     portfolio: { name: string; startingCapital: number; cashBalance: number; totalValue: number; totalPnL: number } | null;
     futuresPortfolio: { name: string; startingCapital: number; cashBalance: number; totalValue: number; totalPnL: number; openPositions: number; winRate: string } | null;
     cryptoPortfolio: { name: string; startingCapital: number; cashBalance: number; totalValue: number; totalPnL: number; openPositions: number; winRate: string } | null;
@@ -680,6 +702,28 @@ export default function AutomationsPage() {
     },
   });
 
+  // A fetch failure is an error state with a retry — never an endless
+  // skeleton, and never a page of silent defaults.
+  if (statusError && !status && !botData && !cryptoData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-slate-900/20">
+        <div className="container max-w-[1600px] mx-auto py-4 px-3 sm:px-4">
+          <div className="rounded-xl bg-card/60 border border-border/50 p-10 text-center space-y-4">
+            <AlertTriangle className="h-10 w-10 mx-auto text-[var(--trade-bearish)]" />
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Couldn&apos;t load automations</h2>
+              <p className="text-sm text-muted-foreground mt-1">The automation status service didn&apos;t respond. Your bots and settings are unaffected.</p>
+            </div>
+            <Button onClick={() => refetchStatus()} variant="outline" className="border-[var(--trade-bullish)]/30 text-[var(--trade-bullish)]">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Show loading spinner during initial load OR when no data is available
   // This prevents blank screen scenarios when API returns cached/empty response
   if (isPending || (!status && !botData && !cryptoData)) {
@@ -712,6 +756,10 @@ export default function AutomationsPage() {
 
   const { quantBot, optionsFlow, socialSentiment, weeklyReport: reportSettings } = status || {};
 
+  // Hero metric: total realized P&L across all bot portfolios — the single
+  // number that answers "are my automations making money?"
+  const totalBotPnL = botData?.stats?.totalRealizedPnL ?? 0;
+
   if (activeTab === "research") {
     setLocation("/trade-ideas");
     return null;
@@ -738,15 +786,20 @@ export default function AutomationsPage() {
             </div>
             
             <div className="flex items-center gap-6">
-              <div className="text-right">
-                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active</span>
-                <div className="text-lg font-bold font-mono text-[var(--trade-bullish)]">
-                  {[quantBot?.isActive, optionsFlow?.isActive, socialSentiment?.isActive, cryptoData?.status === 'active'].filter(Boolean).length} / 4
+              <div className="text-right" title="Total realized profit & loss across all automated bot portfolios">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Automated P&amp;L</span>
+                <div className={cn(
+                  "text-xl font-bold font-mono",
+                  botDataError ? "text-muted-foreground" : totalBotPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
+                )}>
+                  {botDataError ? "\u2014" : <>{totalBotPnL >= 0 ? "+" : ""}${safeToFixed(totalBotPnL, 2)}</>}
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--trade-bullish)]/10 border border-green-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--trade-bullish)]" />
-                <span className="text-xs font-semibold text-[var(--trade-bullish)] uppercase tracking-wider">ACTIVE</span>
+              <div className="text-right" title="Automations currently enabled">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active</span>
+                <div className="text-lg font-bold font-mono text-foreground">
+                  {[quantBot?.isActive, optionsFlow?.isActive, socialSentiment?.isActive, cryptoData?.status === 'active'].filter(Boolean).length} / 4
+                </div>
               </div>
             </div>
           </div>
@@ -809,6 +862,17 @@ export default function AutomationsPage() {
           </div>
 
           {/* 4 Main Portfolio Bots - Primary Display */}
+          {botDataError && (
+            <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+              <span className="flex items-center text-xs text-muted-foreground">
+                <AlertTriangle className="w-3.5 h-3.5 mr-1.5 shrink-0 text-[var(--trade-neutral)]" />
+                Bot performance didn&apos;t load &mdash; figures below are defaults, not live data.
+              </span>
+              <Button size="sm" variant="ghost" onClick={() => refetchBotData()} className="h-7 text-[var(--trade-neutral)] shrink-0">
+                <RefreshCw className="w-3.5 h-3.5 mr-1" /> Retry
+              </Button>
+            </div>
+          )}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* Options Bot - $300 */}
             <Card className="bg-gradient-to-br from-emerald-500/10 to-slate-900/60 border-[var(--trade-bullish)]/30" data-testid="card-options-bot">
@@ -1082,7 +1146,7 @@ export default function AutomationsPage() {
                   </div>
                   <StatusBadge active={quantBot?.isActive || false} />
                 </div>
-                <CardDescription>RSI(2) mean-reversion signals</CardDescription>
+                <CardDescription title="2-period Relative Strength Index &mdash; flags oversold bounces for mean-reversion entries">RSI(2) mean-reversion signals</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
@@ -1222,6 +1286,12 @@ export default function AutomationsPage() {
                 {updatePreferences.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                 Save All Settings
               </Button>
+              {prefsLoading && (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Loading saved preferences&hellip;
+                </span>
+              )}
             </div>
           </div>
 
@@ -1448,7 +1518,7 @@ export default function AutomationsPage() {
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-[var(--trade-bearish)]" />
-                    <span className="text-sm">Circuit Breaker</span>
+                    <span className="text-sm" title="Halts all trading after consecutive losses, then enforces a cooldown">Circuit Breaker</span>
                   </div>
                   <Switch checked={circuitBreakerEnabled} onCheckedChange={setCircuitBreakerEnabled} data-testid="switch-circuit-breaker" />
                 </div>
@@ -1475,7 +1545,7 @@ export default function AutomationsPage() {
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30 mt-2">
                   <div className="flex items-center gap-2">
                     <Layers className="w-4 h-4 text-[var(--trade-bullish)]" />
-                    <span className="text-sm">Require Confluence</span>
+                    <span className="text-sm" title="Only enter trades confirmed by multiple independent signals">Require Confluence</span>
                   </div>
                   <Switch checked={requireConfluence} onCheckedChange={setRequireConfluence} data-testid="switch-confluence" />
                 </div>
@@ -1524,7 +1594,7 @@ export default function AutomationsPage() {
                 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm">Min Delta</Label>
+                    <Label className="text-sm" title="Option delta &mdash; price move per $1 move in the underlying; this band targets slightly out-of-the-money options">Min Delta</Label>
                     <span className="font-mono text-[var(--trade-bullish)] text-sm">{safeToFixed(optionsMinDelta, 2)}</span>
                   </div>
                   <Slider value={[optionsMinDelta * 100]} onValueChange={([v]) => setOptionsMinDelta(v / 100)} min={5} max={50} step={5} data-testid="slider-min-delta" />
@@ -1533,7 +1603,7 @@ export default function AutomationsPage() {
                 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm">Max Delta</Label>
+                    <Label className="text-sm" title="Option delta &mdash; price move per $1 move in the underlying; this band targets slightly out-of-the-money options">Max Delta</Label>
                     <span className="font-mono text-purple-400 text-sm">{safeToFixed(optionsMaxDelta, 2)}</span>
                   </div>
                   <Slider value={[optionsMaxDelta * 100]} onValueChange={([v]) => setOptionsMaxDelta(v / 100)} min={20} max={80} step={5} data-testid="slider-max-delta" />
