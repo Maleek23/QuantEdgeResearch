@@ -1,5 +1,5 @@
 /**
- * QECard — canonical card primitive.
+ * QECard — QE-styled card variant of the ui/ primitive layer.
  *
  * All page content should be composed of QECard. Variants pull from
  * `componentStyles.card.*` (see lib/design-tokens.ts) which in turn

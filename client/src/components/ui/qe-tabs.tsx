@@ -1,7 +1,7 @@
 /**
  * QETabs — horizontal sub-navigation pill strip.
  *
- * Sole sub-nav primitive for the platform. Used at top of every workflow
+ * QE-styled pill-strip tabs, one variant of the ui/ Tabs primitive. Used at top of every workflow
  * (PULSE, HUNT, RESEARCH, POSITIONS, JOURNAL) and nested within RESEARCH
  * for per-symbol drill-ins.
  *

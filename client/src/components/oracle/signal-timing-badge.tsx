@@ -5,7 +5,7 @@
  * but needs an open, red = the market has moved on without you.
  */
 import { signalTiming } from "@/lib/signal-timing";
-import { TC } from "@/lib/oracle/trading-colors";
+import { TC } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 
 const STANDING_COLOR = {

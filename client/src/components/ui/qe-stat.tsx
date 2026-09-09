@@ -1,7 +1,7 @@
 /**
  * QEStat — label + big tabular value + optional delta.
  *
- * The single canonical "metric tile" for the platform.
+ * QE-styled metric tile variant of the ui/ primitive layer.
  * Used everywhere we show a number: NET GEX, P&L, breadth, count, etc.
  *
  *   <QEStat label="NET GEX" value="+$4.18B" delta={+22} tone="bull" />

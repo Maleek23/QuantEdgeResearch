@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Heartbeat } from "@/components/viz";
 import { cn } from "@/lib/utils";
 import { EASE, SPRING, DUR } from "@/lib/motion";
-import { TC } from "@/lib/oracle/trading-colors";
+import { TC } from "@/lib/design-tokens";
 import { PanelFrame } from "@/components/oracle/panel-frame";
 
 interface Sector {

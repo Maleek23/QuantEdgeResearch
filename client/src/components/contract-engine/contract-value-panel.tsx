@@ -15,7 +15,7 @@
  * Deliberately not a buy signal: it's one input, and every verdict shows its inputs.
  */
 import { assessContract, type ContractValue } from '@shared/contract-value';
-import { TC } from '@/lib/oracle/trading-colors';
+import { TC } from '@/lib/design-tokens';
 import { cn } from '@/lib/utils';
 
 const VERDICT_COLOR: Record<string, string> = {

@@ -10,7 +10,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { CanonFreshness } from '@/components/canon';
 import { PanelFrame } from '@/components/oracle/panel-frame';
-import { TC } from '@/lib/oracle/trading-colors';
+import { TC } from '@/lib/design-tokens';
 import { MarketStream, useRealtimeStatus } from '@/components/oracle/market-stream';
 
 interface Sector {

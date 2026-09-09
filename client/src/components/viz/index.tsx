@@ -11,7 +11,7 @@
  */
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { TC } from '@/lib/oracle/trading-colors';
+import { TC } from '@/lib/design-tokens';
 
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 

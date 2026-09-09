@@ -1,7 +1,7 @@
 /**
  * QESection — header + body, optionally collapsible.
  *
- * Replaces every "stacked panel" we hand-roll. One canonical block.
+ * Collapsible stacked-panel block, QE-styled variant of the ui/ primitive layer.
  *
  *   <QESection title="Top Plays" subtitle="ranked by dealer positioning">
  *     <Body />
@@ -19,7 +19,7 @@
 import { useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { QECard, type QECardVariant } from './card';
+import { QECard, type QECardVariant } from './qe-card';
 
 export interface QESectionProps {
   title: string;

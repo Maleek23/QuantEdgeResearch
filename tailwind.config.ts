@@ -48,7 +48,7 @@ export default {
       },
       colors: {
         /**
-         * PALETTE OVERRIDE — emerald / green / teal are remapped onto Cold Read.
+         * PALETTE OVERRIDE — emerald / green / teal / cyan are remapped onto Cold Read.
          *
          * The app carries ~1,200 `bg-emerald-500` / `text-teal-400` style classes
          * accumulated over its life. Rewriting them by hand is a mechanical sweep
@@ -73,8 +73,13 @@ export default {
         },
         teal: {
           50: '#EAF5FA', 100: '#CFE9F5', 200: '#A8D7EE', 300: '#8ECFE9',
-          400: '#83CAE7', 500: '#78C6E8', // Ice Signal — the approved accent
+          400: '#83CAE7', 500: '#78C6E8', // Ice Signal — legacy accent, kept for teal-* classes
           600: '#5AA6C6', 700: '#42839F', 800: '#2F6076', 900: '#1F404F', 950: '#132A34',
+        },
+        cyan: {
+          50: '#EEF8F7', 100: '#DAF3F1', 200: '#B7EDE8', 300: '#94E7DF',
+          400: '#70DFD5', 500: '#4FD1C5', // brand cyan — the canonical accent
+          600: '#2DC2B4', 700: '#279D92', 800: '#21776F', 900: '#19514C', 950: '#11322F',
         },
 
         // Flat / base colors (regular buttons)

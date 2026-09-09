@@ -17,7 +17,7 @@ import { clarifyOracleNarrative, bandStrength, type ConvictionPick } from '@/lib
 import { computeGeometry, type SignalGeometry, type Level } from '@/lib/oracle/signal-geometry';
 import { trackScore } from '@/lib/oracle/score-tracker';
 import { useUserPrefs } from '@/components/terminal/terminal-settings';
-import { TC, healthColor, statusColor } from '@/lib/oracle/trading-colors';
+import { TC, healthColor, statusColor } from '@/lib/design-tokens';
 import { EASE, DUR } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { Readout } from '@/components/templates/kit';

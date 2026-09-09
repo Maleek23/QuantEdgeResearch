@@ -9,7 +9,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { LiveValue } from '@/components/viz';
 import { cn } from '@/lib/utils';
-import { TC } from '@/lib/oracle/trading-colors';
+import { TC } from '@/lib/design-tokens';
 
 export interface StreamQuote { price: number; ageSeconds: number }
 export interface RealtimeStatus {

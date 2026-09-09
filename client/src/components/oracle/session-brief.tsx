@@ -15,7 +15,7 @@ import { Heartbeat } from '@/components/viz';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PanelFrame } from '@/components/oracle/panel-frame';
-import { TC } from '@/lib/oracle/trading-colors';
+import { TC } from '@/lib/design-tokens';
 import { DivergingBar, ParticipationStrip, robustMax } from '@/components/viz';
 import { useRealtimeStatus } from '@/components/oracle/market-stream';
 

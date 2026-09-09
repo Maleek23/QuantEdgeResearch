@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Repeat, LogOut } from 'lucide-react';
 import { EASE, DUR } from '@/lib/motion';
-import { TC } from '@/lib/oracle/trading-colors';
+import { TC } from '@/lib/design-tokens';
 import { useStockContext } from '@/contexts/stock-context';
 
 interface RepeatDay { date: string; volume: number; openInterest: number; totalPremium: number }

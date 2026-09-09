@@ -6,7 +6,7 @@
  * shows only the facts needed to choose a name: direction, lifecycle, conviction,
  * and one live path from entry to T1.
  *
- * Colour discipline (lib/oracle/trading-colors): green/red mean direction and P&L
+ * Colour discipline (lib/design-tokens): green/red mean direction and P&L
  * only. Progress and time are structural, so they use cyan/amber — otherwise a strong
  * BEARISH setup renders green and reads as bullish.
  */
@@ -17,7 +17,7 @@ import { convictionPercent, type ConvictionPick } from '@/lib/convictions';
 import { LivePnl } from './live-pnl';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { trackScore } from '@/lib/oracle/score-tracker';
-import { TC, directionColor, pnlColor, statusColor, bandColor, confidenceFill } from '@/lib/oracle/trading-colors';
+import { TC, directionColor, pnlColor, statusColor, bandColor, confidenceFill } from '@/lib/design-tokens';
 import { LiveValue } from '@/components/viz';
 
 export function SignalRow({

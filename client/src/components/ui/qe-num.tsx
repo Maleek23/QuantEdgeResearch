@@ -14,7 +14,7 @@
 import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 
-// IBM Plex Mono slashed-zero + tabular lining figures — the canonical number look.
+// IBM Plex Mono slashed-zero + tabular lining figures — the QE number look.
 const FIGURES: CSSProperties = { fontFeatureSettings: '"zero" 1, "tnum" 1, "lnum" 1' };
 
 export type NumTone = 'auto' | 'bull' | 'bear' | 'neutral' | 'muted' | 'foreground';

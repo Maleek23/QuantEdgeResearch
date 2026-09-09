@@ -14,7 +14,7 @@ import { Bell, X, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiRequest } from '@/lib/queryClient';
 import { EASE, DUR } from '@/lib/motion';
-import { TC } from '@/lib/oracle/trading-colors';
+import { TC } from '@/lib/design-tokens';
 import { AlertSounds } from '@/components/sound-alert-toggle';
 import type { ConvictionPick } from '@/lib/convictions';
 import {
