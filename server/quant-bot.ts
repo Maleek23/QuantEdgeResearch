@@ -305,7 +305,11 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
       const agg = new Map<string, { call: number; put: number; tapeNet: number }>();
       for (const f of getTodayFlows() as any[]) {
         const a = agg.get(f.symbol) ?? { call: 0, put: 0, tapeNet: 0 };
-        if (f.optionType === 'call') a.call += f.premium; else a.put += f.premium;
+        // ×100 restores real dollars from the scanner's per-contract-price
+        // units — without it the $750k reversal floor was effectively $75M
+        // and this exit could never fire. (Unit bug, caught 2026-09-08.)
+        const dollars = f.premium * 100;
+        if (f.optionType === 'call') a.call += dollars; else a.put += dollars;
         if (f.biasBasis === 'tape') a.tapeNet += f.sentiment === 'bullish' ? 1 : f.sentiment === 'bearish' ? -1 : 0;
         agg.set(f.symbol, a);
       }

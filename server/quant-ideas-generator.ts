@@ -328,7 +328,12 @@ function buildFlowAggregates(flows: Array<{ symbol: string; optionType: string; 
   for (const f of flows) {
     const sym = f.symbol.toUpperCase();
     const agg = flowAggBySymbol.get(sym) ?? { callPrem: 0, putPrem: 0, tapeBull: 0, tapeBear: 0, sweeps: 0, prints: 0 };
-    if (f.optionType === 'call') agg.callPrem += f.premium; else agg.putPrem += f.premium;
+    // Store REAL DOLLARS. The scanner's premium field carries volume × per-
+    // contract price WITHOUT the ×100 contract multiplier; comparing raw sums
+    // against FLOW_MIN_PREMIUM made the effective floor $50M — the signal
+    // could never fire on normal tape. (Unit bug, caught 2026-09-08.)
+    const dollars = f.premium * 100;
+    if (f.optionType === 'call') agg.callPrem += dollars; else agg.putPrem += dollars;
     if (f.biasBasis === 'tape') {
       if (f.sentiment === 'bullish') agg.tapeBull++;
       else if (f.sentiment === 'bearish') agg.tapeBear++;
@@ -341,6 +346,26 @@ function buildFlowAggregates(flows: Array<{ symbol: string; optionType: string; 
 
 const FLOW_MIN_PREMIUM = 500_000;
 const FLOW_MIN_SKEW = 2;
+
+// Bullflow's aggressor-inferred net premium per symbol (ask-side vs bid-side,
+// computed by the provider from the real tape). When present it REPLACES the
+// weaker "tape prints must not contradict" check: a premium skew that fights
+// the aggressor read is refused, one that agrees carries a real tape basis.
+let bullflowLeanBySymbol = new Map<string, 'long' | 'short' | 'flat'>();
+
+async function buildBullflowLeans(symbols: string[]): Promise<void> {
+  bullflowLeanBySymbol = new Map();
+  try {
+    const { bullflowEnabled, getNetPremiumToday } = await import('./bullflow-service');
+    if (!bullflowEnabled()) return;
+    // netPremiumSeries is 30 req/min — bound the lookups to the candidates
+    // that could actually qualify.
+    for (const sym of symbols.slice(0, 15)) {
+      const read = await getNetPremiumToday(sym);
+      if (read) bullflowLeanBySymbol.set(sym.toUpperCase(), read.lean);
+    }
+  } catch { /* tape absent — the contradiction check below still applies */ }
+}
 
 // ── 52-WEEK-HIGH PROXIMITY (George & Hwang 2004) ────────────────────────────
 // The gainers study was unambiguous: 50 of the top-50 three-month winners
@@ -370,10 +395,17 @@ function flowConvictionFor(symbol: string): { direction: 'long' | 'short'; premi
   if (domPrem < FLOW_MIN_PREMIUM) return null;
   const skew = otherPrem > 0 ? domPrem / otherPrem : Infinity;
   if (skew < FLOW_MIN_SKEW) return null;
-  // Tape-based reads, where they exist, must not contradict the premium skew.
-  const tapeNet = agg.tapeBull - agg.tapeBear;
-  if (dominant === 'long' && tapeNet < 0) return null;
-  if (dominant === 'short' && tapeNet > 0) return null;
+  // Direction check, strongest available basis first: Bullflow's aggressor-
+  // inferred net premium (a real tape read) when present; otherwise the
+  // legacy "tape prints must not contradict" rule.
+  const bfLean = bullflowLeanBySymbol.get(symbol.toUpperCase());
+  if (bfLean && bfLean !== 'flat') {
+    if (bfLean !== dominant) return null; // skew fights the aggressor read — refuse
+  } else {
+    const tapeNet = agg.tapeBull - agg.tapeBear;
+    if (dominant === 'long' && tapeNet < 0) return null;
+    if (dominant === 'short' && tapeNet > 0) return null;
+  }
   return { direction: dominant, premium: domPrem, skew, sweeps: agg.sweeps };
 }
 
@@ -1320,6 +1352,11 @@ export async function generateQuantIdeas(
   try {
     const { getTodayFlows } = await import('./options-flow-scanner');
     buildFlowAggregates(getTodayFlows() as any);
+    // Aggressor leans first, so flowConvictionFor judges with the tape in hand.
+    const heavy = Array.from(flowAggBySymbol.entries())
+      .filter(([, a]) => Math.max(a.callPrem, a.putPrem) >= FLOW_MIN_PREMIUM)
+      .map(([s]) => s);
+    await buildBullflowLeans(heavy);
     flowSymbols = Array.from(flowAggBySymbol.keys()).filter((s) => flowConvictionFor(s) != null).slice(0, 40);
     if (flowSymbols.length) logger.info(`  ✓ Flow conviction: ${flowSymbols.length} name(s) with a qualifying one-sided tape — ${flowSymbols.slice(0, 8).join(', ')}${flowSymbols.length > 8 ? '…' : ''}`);
   } catch { /* scanner not warmed — pool unchanged */ }

@@ -225,6 +225,16 @@ app.use((req, res, next) => {
       }).catch(() => {});
       void import('./system-pulse').then((sp) => sp.pulse('system', 'engines online — publisher, pattern sweep, flow scan, bot, alerts all scheduled')).catch(() => {});
 
+      // Bullflow live tape — real print stream + aggressor-inferred direction.
+      // Self-gating: without BULLFLOW_API_KEY the start is a no-op and every
+      // consumer falls back to chain-snapshot flows.
+      void import('./bullflow-service').then((bf) => {
+        if (bf.bullflowEnabled()) {
+          bf.startBullflowStream();
+          log('🐂 Bullflow tape connecting — live prints feed the flow layer');
+        }
+      }).catch(() => {});
+
       // Full-universe pattern sweep — daily bars, so twice a day is plenty.
       // First sweep 3 min after boot (let quotes/candles warm), then every 12h.
       setTimeout(() => {

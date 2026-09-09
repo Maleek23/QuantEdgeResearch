@@ -14595,6 +14595,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── BULLFLOW — tape status + directional net premium for any symbol ───────
+  app.get("/api/bullflow/status", async (_req, res) => {
+    try {
+      const bf = await import("./bullflow-service");
+      const { state, prints } = bf.getBullflowPrints();
+      res.json({
+        enabled: bf.bullflowEnabled(),
+        streamState: state,
+        printsHeld: prints.length,
+        latest: prints.slice(-8).reverse().map((p) => ({
+          symbol: p.underlying, contract: `$${p.strike}${p.optionType === 'call' ? 'C' : 'P'} ${p.expiry}`,
+          name: p.alertName, premium: p.premium, at: p.at,
+        })),
+      });
+    } catch {
+      res.json({ enabled: false, streamState: 'off', printsHeld: 0, latest: [] });
+    }
+  });
+  app.get("/api/bullflow/net-premium/:symbol", async (req, res) => {
+    try {
+      const bf = await import("./bullflow-service");
+      if (!bf.bullflowEnabled()) return res.json({ enabled: false });
+      res.json({ enabled: true, read: await bf.getNetPremiumToday(String(req.params.symbol)) });
+    } catch {
+      res.status(500).json({ error: "net premium lookup failed" });
+    }
+  });
+
   // ── SYSTEM PULSE — the machine narrating its own real work ────────────────
   app.get("/api/pulse", async (req, res) => {
     try {

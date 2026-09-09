@@ -9,6 +9,7 @@
  */
 
 import { logger } from './logger';
+import { getBullflowPrints } from './bullflow-service';
 import { tradierBase } from './tradier-api';
 import { storage } from './storage';
 import { recordSymbolAttention } from './attention-tracking-service';
@@ -735,7 +736,45 @@ export function getOptionsFlowStatus(): ScannerStatus {
  * Get today's flows
  */
 export function getTodayFlows(): OptionsFlow[] {
-  return [...scannerStatus.todayFlows];
+  // Chain-snapshot aggregates PLUS the Bullflow live tape when the key is
+  // configured. Bullflow prints are REAL individual trades (OCC contract,
+  // trade premium, average fill) — every consumer of this function (flow
+  // board, flow_conviction, the bot's flow-reversal check, Quantinum's tape
+  // layer) inherits them with zero further wiring.
+  //
+  // UNIT NOTE: this store's `premium` field has always been volume × per-
+  // contract price WITHOUT the ×100 multiplier (consumers restore it), so a
+  // real-dollar Bullflow premium is stored ÷100 to stay unit-consistent.
+  const merged = [...scannerStatus.todayFlows];
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    for (const p of getBullflowPrints().prints) {
+      if (!p.at.startsWith(today)) continue;
+      merged.push({
+        id: `bf-${p.id}`,
+        symbol: p.underlying,
+        optionType: p.optionType,
+        strikePrice: p.strike,
+        expiryDate: p.expiry,
+        volume: p.contracts ?? 0,
+        openInterest: 0,                      // not reported per print — guards treat 0 honestly
+        volumeOIRatio: 0,
+        premium: p.premium / 100,             // unit consistency, see note above
+        impliedVolatility: 0,
+        delta: 0,
+        // A print classified by Bullflow's algo is still not an aggressor
+        // read — direction comes from netPremiumSeries at the AGGREGATE
+        // level, not per print. Honest per-print answer stays 'unknown'.
+        sentiment: 'unknown',
+        biasBasis: 'none',
+        flowType: /sweep/i.test(p.alertName) ? 'sweep' : p.premium >= 500_000 ? 'block' : 'unusual_volume',
+        unusualScore: 70,                     // tape-confirmed print — above the save floor by construction
+        underlyingPrice: null,
+        detectedAt: p.at,
+      });
+    }
+  } catch { /* bullflow module absent or cold — snapshot flows stand alone */ }
+  return merged;
 }
 
 /**
