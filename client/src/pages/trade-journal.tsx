@@ -263,17 +263,21 @@ const EMOTIONS = [
 
 // ─── Components ─────────────────────────────────────────────
 
-function StatCard({ label, value, subValue, icon: Icon, color }: {
+function StatCard({ label, value, subValue, icon: Icon, color, tooltip }: {
   label: string;
   value: string;
   subValue?: string;
   icon: typeof TrendingUp;
   color: string;
+  tooltip?: string;
 }) {
   return (
     <div className="bg-card border border-border/50 rounded-xl p-4 hover:border-border transition-colors">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">{label}</span>
+        <span
+          className={cn("text-[11px] text-muted-foreground uppercase tracking-wider font-medium", tooltip && "cursor-help")}
+          title={tooltip}
+        >{label}</span>
         <Icon className={cn("w-4 h-4", color)} />
       </div>
       <div className={cn("text-2xl font-bold tabular-nums", color)}>{value}</div>
@@ -328,10 +332,7 @@ function PnLCurveChart({ data }: { data: PnLPoint[] }) {
         />
       </svg>
       <div className="absolute top-2 left-3">
-        <span className={cn("text-lg font-bold", isPositive ? "text-emerald-400" : "text-red-400")}>
-          {formatPnL(lastPnL)}
-        </span>
-        <span className="text-[10px] text-muted-foreground ml-2">{data.length} trades</span>
+        <span className="text-[10px] text-muted-foreground">{data.length} trades</span>
       </div>
     </div>
   );
@@ -463,11 +464,14 @@ function TickerTable({ data }: { data: TickerBreakdown[] }) {
 }
 
 function SetupTable({ data }: { data: SetupBreakdown[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const VISIBLE = 8;
   if (data.length === 0) return null;
+  const visible = showAll ? data : data.slice(0, VISIBLE);
 
   return (
     <div className="space-y-2">
-      {data.map((s) => (
+      {visible.map((s) => (
         <div key={s.source} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/8 transition-colors">
           <div className="flex-1">
             <div className="text-sm font-medium text-foreground">{s.label}</div>
@@ -487,6 +491,14 @@ function SetupTable({ data }: { data: SetupBreakdown[] }) {
           </div>
         </div>
       ))}
+      {data.length > VISIBLE && (
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="w-full py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showAll ? 'Show less' : `Show all ${data.length} setups`}
+        </button>
+      )}
     </div>
   );
 }
@@ -1209,6 +1221,8 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
 // ─── Personal Trades List ──────────────────────────────────
 
 function PersonalTradesTable({ trades, onDelete }: { trades: JournalTradeRow[]; onDelete: (id: string) => void }) {
+  const [showAll, setShowAll] = useState(false);
+  const VISIBLE = 30;
   if (trades.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -1238,7 +1252,7 @@ function PersonalTradesTable({ trades, onDelete }: { trades: JournalTradeRow[]; 
           </tr>
         </thead>
         <tbody>
-          {trades.map((t) => {
+          {(showAll ? trades : trades.slice(0, VISIBLE)).map((t) => {
             const isOpt = t.assetType === 'option';
             const pnl = t.realizedPnL;
             return (
@@ -1313,6 +1327,14 @@ function PersonalTradesTable({ trades, onDelete }: { trades: JournalTradeRow[]; 
           })}
         </tbody>
       </table>
+      {trades.length > VISIBLE && (
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showAll ? 'Show less' : `Show all ${trades.length} trades`}
+        </button>
+      )}
     </div>
   );
 }
@@ -1516,10 +1538,7 @@ function WeeklyPnLChart({ data }: { data: WeeklyPnL[] }) {
             vectorEffect="non-scaling-stroke" />
         </svg>
         <div className="absolute top-2 left-3">
-          <span className={cn("text-lg font-bold", isPos ? "text-emerald-400" : "text-red-400")}>
-            {formatPnL(lastCum)}
-          </span>
-          <span className="text-[10px] text-muted-foreground ml-2">{data.length} weeks</span>
+          <span className="text-[10px] text-muted-foreground">{data.length} weeks</span>
         </div>
       </div>
 
@@ -1558,15 +1577,15 @@ function DrawdownCard({ data }: { data: DrawdownMetrics }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-3 rounded-lg bg-white/5">
-          <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Max Drawdown</div>
+          <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 cursor-help" title="Largest peak-to-trough decline in your equity curve.">Max Drawdown</div>
           <div className="text-lg font-bold text-red-400 font-mono">{formatPnL(-Math.abs(data.maxDrawdown))}</div>
         </div>
         <div className="p-3 rounded-lg bg-white/5">
-          <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Peak Equity</div>
+          <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 cursor-help" title="Highest cumulative P&L your journal has reached.">Peak Equity</div>
           <div className="text-lg font-bold text-emerald-400 font-mono">{formatPnL(data.peakEquity)}</div>
         </div>
         <div className="p-3 rounded-lg bg-white/5">
-          <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Current Drawdown</div>
+          <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 cursor-help" title="How far your equity currently sits below its peak.">Current Drawdown</div>
           <div className={cn("text-lg font-bold font-mono",
             data.currentDrawdown > 0 ? "text-red-400" : "text-emerald-400"
           )}>
@@ -1776,6 +1795,33 @@ function EmptyJournal({ onImportClick }: { onImportClick: () => void }) {
   );
 }
 
+// ─── Section empty note ───────────────────────────────────────
+
+function SectionEmpty({ text }: { text: string }) {
+  return <p className="text-xs text-muted-foreground py-6 text-center">{text}</p>;
+}
+
+// ─── Load error (fetch failure must not read as "no trades") ──
+
+function LoadErrorCard({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <AlertTriangle className="w-10 h-10 text-amber-400/70 mb-4" />
+      <h2 className="text-base font-semibold text-foreground mb-1">Couldn&apos;t load your journal</h2>
+      <p className="text-sm text-muted-foreground max-w-sm mb-5">
+        The journal service didn&apos;t respond. Your trades are safe — this is a
+        connection issue, not missing data.
+      </p>
+      <button
+        onClick={onRetry}
+        className="px-4 py-2 rounded-lg text-sm font-medium bg-white/5 text-foreground border border-border/50 hover:bg-white/10 transition-colors"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
 // ─── Main Page ──────────────────────────────────────────────
 
 export default function TradeJournal() {
@@ -1783,7 +1829,7 @@ export default function TradeJournal() {
   const queryClient = useQueryClient();
 
   // Fetch personal trades
-  const { data: tradesData } = useQuery<{ trades: JournalTradeRow[]; count: number }>({
+  const { data: tradesData, error: tradesError } = useQuery<{ trades: JournalTradeRow[]; count: number }>({
     queryKey: ['journal-trades'],
     queryFn: async () => {
       const res = await fetch('/api/journal/trades', { credentials: 'include' });
@@ -1828,7 +1874,24 @@ export default function TradeJournal() {
 
   const tradeCount = tradesData?.count ?? 0;
   const personalTrades = tradesData?.trades ?? [];
-  const hasNoTrades = tradeCount === 0 && !isLoading;
+  const hasNoTrades = tradeCount === 0 && !isLoading && !tradesError;
+
+  // Trades-list fetch failed: surface an error, never the "no trades" empty state
+  if (tradesError && !isLoading && activeTab !== 'import') {
+    return (
+      <div className="max-w-[1400px] mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Brain className="w-6 h-6 text-purple-400" />
+              Trade Journal
+            </h1>
+          </div>
+        </div>
+        <LoadErrorCard onRetry={handleRefresh} />
+      </div>
+    );
+  }
 
   // Show empty state if no trades at all (unless on import tab)
   if (hasNoTrades && activeTab !== 'import') {
@@ -1863,8 +1926,8 @@ export default function TradeJournal() {
 
   if ((error || !data) && activeTab !== 'import') {
     return (
-      <div className="flex items-center justify-center h-96 text-muted-foreground">
-        Failed to load analytics.
+      <div className="max-w-[1400px] mx-auto px-4 py-6">
+        <LoadErrorCard onRetry={handleRefresh} />
       </div>
     );
   }
@@ -1934,31 +1997,52 @@ export default function TradeJournal() {
         </div>
       </div>
 
+      {/* Hero metric — Expectancy: the single number that answers "am I getting better" */}
+      <div className="bg-card border border-border/50 rounded-xl p-5 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <span
+            className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium cursor-help"
+            title="Average profit or loss per trade. Positive means your strategy has an edge; negative means it loses money on average."
+          >
+            Expectancy · your edge per trade
+          </span>
+          <div className={cn("text-4xl font-bold tabular-nums mt-1", metrics.expectancy >= 0 ? "text-emerald-400" : "text-red-400")}>
+            {formatPnL(metrics.expectancy)}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {metrics.expectancy > 0
+              ? `Positive edge — you earn ${formatPnL(metrics.expectancy)} per trade on average.`
+              : metrics.expectancy < 0
+                ? `Negative edge — you lose ${formatPnL(Math.abs(metrics.expectancy))} per trade on average.`
+                : 'Breakeven — no measurable edge yet.'}
+            {` Across ${metrics.closedTrades} closed trades.`}
+          </p>
+        </div>
+        <Zap className={cn("w-8 h-8 shrink-0", metrics.expectancy >= 0 ? "text-emerald-400/50" : "text-red-400/50")} />
+      </div>
+
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
         <StatCard
           label="Total P&L" value={formatPnL(metrics.totalPnL)}
           subValue={`${metrics.closedTrades} closed trades`}
           icon={metrics.totalPnL >= 0 ? TrendingUp : TrendingDown}
           color={metrics.totalPnL >= 0 ? "text-emerald-400" : "text-red-400"}
+          tooltip="Net profit or loss across all closed trades in this journal."
         />
         <StatCard
           label="Win Rate" value={`${metrics.winRate.toFixed(1)}%`}
           subValue={`${metrics.wins}W / ${metrics.losses}L`}
           icon={Target}
           color={metrics.winRate >= 55 ? "text-emerald-400" : metrics.winRate >= 45 ? "text-amber-400" : "text-red-400"}
+          tooltip="Share of closed trades that were winners."
         />
         <StatCard
           label="Profit Factor" value={metrics.profitFactor === Infinity ? 'INF' : `${metrics.profitFactor.toFixed(2)}x`}
           subValue={`Avg win $${metrics.avgWin.toFixed(0)} / Avg loss $${metrics.avgLoss.toFixed(0)}`}
           icon={BarChart3}
           color={metrics.profitFactor >= 1.5 ? "text-emerald-400" : metrics.profitFactor >= 1 ? "text-amber-400" : "text-red-400"}
-        />
-        <StatCard
-          label="Expectancy" value={formatPnL(metrics.expectancy)}
-          subValue="Per trade average"
-          icon={Zap}
-          color={metrics.expectancy >= 0 ? "text-emerald-400" : "text-red-400"}
+          tooltip="Gross profit divided by gross loss. Above 1.0 means profitable; 1.5+ is strong."
         />
         <StatCard
           label="Current Streak"
@@ -1966,12 +2050,14 @@ export default function TradeJournal() {
           subValue={`Best: ${metrics.bestStreak}W | Worst: ${metrics.worstStreak}L`}
           icon={metrics.currentStreak.type === 'win' ? Flame : Snowflake}
           color={metrics.currentStreak.type === 'win' ? "text-emerald-400" : "text-red-400"}
+          tooltip="Your current run of consecutive wins or losses."
         />
         <StatCard
           label="Avg Hold" value={formatMinutes(metrics.avgHoldMinutes)}
           subValue={`${metrics.openTrades} positions open`}
           icon={Clock}
           color="text-blue-400"
+          tooltip="Average time a position stays open before closing."
         />
       </div>
 
@@ -2019,18 +2105,24 @@ export default function TradeJournal() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <PieChart className="w-3.5 h-3.5" /> Ticker Performance
             </h3>
-            <TickerTable data={tickerBreakdown} />
+            {tickerBreakdown.length === 0
+              ? <SectionEmpty text="Log more trades to see per-ticker performance." />
+              : <TickerTable data={tickerBreakdown} />}
           </div>
 
           <div className="bg-card border border-border/50 rounded-xl p-5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5" /> Setup Performance
             </h3>
-            <SetupTable data={setupBreakdown} />
+            {setupBreakdown.length === 0
+              ? <SectionEmpty text="Tag trades with a setup type to compare what works." />
+              : <SetupTable data={setupBreakdown} />}
           </div>
 
           <div className="bg-card border border-border/50 rounded-xl p-5">
-            <TimingHeatmap data={timingBySession} label="Session Performance" />
+            {timingBySession.length === 0
+              ? <SectionEmpty text="No session data yet — timing stats appear after a few trades." />
+              : <TimingHeatmap data={timingBySession} label="Session Performance" />}
           </div>
         </div>
       )}
@@ -2109,7 +2201,7 @@ export default function TradeJournal() {
           {/* DTE Breakdown (Options) */}
           <div className="bg-card border border-border/50 rounded-xl p-5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Timer className="w-3.5 h-3.5" /> DTE Breakdown (Options)
+              <Timer className="w-3.5 h-3.5" /> <span className="cursor-help" title="DTE = days to expiration. Groups your option trades by how much time was left on the contract.">DTE Breakdown (Options)</span>
             </h3>
             <DTEBreakdownCard data={dteBreakdown} />
           </div>
