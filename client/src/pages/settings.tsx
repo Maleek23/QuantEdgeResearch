@@ -11,7 +11,6 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-;
 import { 
   Save, 
   RotateCcw,
@@ -73,11 +72,12 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("profile");
   
-  const { data: preferences, isLoading } = useQuery<UserPreferences>({
+  const { data: preferences, isLoading, isError: preferencesError, refetch: refetchPreferences } = useQuery<UserPreferences>({
     queryKey: ['/api/preferences'],
+    retry: 1,
   });
 
-  const { data: botTrades } = useQuery<any[]>({
+  const { data: botTrades, isLoading: botTradesLoading } = useQuery<any[]>({
     queryKey: ['/api/bot-trades'],
     staleTime: 1000 * 60,
   });
@@ -197,6 +197,7 @@ export default function SettingsPage() {
   };
 
   const handleReset = () => {
+    if (!window.confirm('Discard your unsaved changes?')) return;
     if (preferences) {
       setFormData({
         ...preferences,
@@ -211,6 +212,25 @@ export default function SettingsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-pulse text-muted-foreground">Loading settings...</div>
+      </div>
+    );
+  }
+
+  if (preferencesError) {
+    return (
+      <div className="container max-w-5xl py-3 sm:py-4">
+        <div className="flex flex-col items-center justify-center h-64 gap-3 text-center">
+          <AlertTriangle className="h-8 w-8 text-[var(--trade-bearish)]" />
+          <p className="text-sm font-medium">Couldn&apos;t load your settings</p>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Your preferences couldn&apos;t be fetched, so nothing is shown rather than
+            displaying wrong defaults.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => refetchPreferences()} data-testid="button-retry-settings">
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }
@@ -244,6 +264,10 @@ export default function SettingsPage() {
           <TabsTrigger value="profile" data-testid="tab-profile" className="flex-1 min-w-[80px]">
             <User className="h-4 w-4 mr-2" />
             Profile
+          </TabsTrigger>
+          <TabsTrigger value="notifications" data-testid="tab-notifications" className="flex-1 min-w-[80px]">
+            <Bell className="h-4 w-4 mr-2" />
+            Notifications
           </TabsTrigger>
           <TabsTrigger value="trading" data-testid="tab-trading" className="flex-1 min-w-[80px]">
             <Wallet className="h-4 w-4 mr-2" />
@@ -360,6 +384,7 @@ export default function SettingsPage() {
                 <Shield className="h-4 w-4" />
                 Account Status
               </CardTitle>
+              <CardDescription>Your plan and membership details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
@@ -382,10 +407,12 @@ export default function SettingsPage() {
                 <Wallet className="h-4 w-4" />
                 Account & Position Sizing
               </CardTitle>
+              <CardDescription>These values feed the position-size calculator and risk guards across the terminal</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="account-size">Account Size</Label>
+                <p className="text-xs text-muted-foreground">Total trading capital. Positions are sized from this and your risk %.</p>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10">$</span>
                   <GlassInput
@@ -402,6 +429,7 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <Label>Max Risk Per Trade: {formData.maxRiskPerTrade || 1}%</Label>
+                <p className="text-xs text-muted-foreground">The most you will risk on a single idea, as a percent of account size.</p>
                 <Slider
                   min={0.5}
                   max={5}
@@ -414,6 +442,7 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="default-capital">Default Capital Per Trade</Label>
+                <p className="text-xs text-muted-foreground">Pre-filled capital amount on new trade ideas.</p>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10">$</span>
                   <GlassInput
@@ -430,6 +459,7 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="options-budget">Options Budget</Label>
+                <p className="text-xs text-muted-foreground">Default max premium applied to new options ideas.</p>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10">$</span>
                   <GlassInput
@@ -446,6 +476,7 @@ export default function SettingsPage() {
 
               <div className="space-y-2 sm:col-span-2">
                 <Label>Trading Style</Label>
+                <p className="text-xs text-muted-foreground">Your typical holding period. Tunes idea scoring to your style.</p>
                 <Select
                   value={formData.holdingHorizon || 'intraday'}
                   onValueChange={(v) => updateField('holdingHorizon', v)}
@@ -473,10 +504,12 @@ export default function SettingsPage() {
                 <Palette className="h-4 w-4" />
                 Display Settings
               </CardTitle>
+              <CardDescription>How the app looks and what you see first</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Layout Density</Label>
+                <p className="text-xs text-muted-foreground">Spacing between elements. Compact fits more on screen.</p>
                 <Select
                   value={formData.layoutDensity || 'comfortable'}
                   onValueChange={(v) => updateField('layoutDensity', v as 'compact' | 'comfortable' | 'spacious')}
@@ -494,6 +527,7 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <Label>Default View Mode</Label>
+                <p className="text-xs text-muted-foreground">How idea lists render throughout the app.</p>
                 <Select
                   value={formData.defaultViewMode || 'card'}
                   onValueChange={(v) => updateField('defaultViewMode', v)}
@@ -510,25 +544,8 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Timezone</Label>
-                <Select
-                  value={formData.timezone || 'America/Chicago'}
-                  onValueChange={(v) => updateField('timezone', v)}
-                >
-                  <SelectTrigger data-testid="select-timezone">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="America/New_York">Eastern (ET)</SelectItem>
-                    <SelectItem value="America/Chicago">Central (CT)</SelectItem>
-                    <SelectItem value="America/Denver">Mountain (MT)</SelectItem>
-                    <SelectItem value="America/Los_Angeles">Pacific (PT)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label>Default Asset Filter</Label>
+                <p className="text-xs text-muted-foreground">Which asset class the Trade Desk shows when it loads.</p>
                 <Select
                   value={formData.defaultAssetFilter || 'all'}
                   onValueChange={(v) => updateField('defaultAssetFilter', v)}
@@ -546,24 +563,31 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
+        {/* Notifications Tab */}
+        <TabsContent value="notifications" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Bell className="h-4 w-4" />
                 Notifications
               </CardTitle>
+              <CardDescription>Choose what QuantEdge tells you about, and where</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
-                  { field: 'enableTradeAlerts' as const, label: 'Trade Alerts' },
-                  { field: 'enablePriceAlerts' as const, label: 'Price Alerts' },
-                  { field: 'enablePerformanceAlerts' as const, label: 'Performance Alerts' },
-                  { field: 'enableWeeklyReport' as const, label: 'Weekly Report' },
-                ].map(({ field, label }) => (
-                  <div key={field} className="flex items-center justify-between p-3 rounded-md bg-muted/50">
-                    <span className="text-sm">{label}</span>
+                  { field: 'enableTradeAlerts' as const, label: 'Trade Alerts', description: 'New high-conviction ideas from the engines' },
+                  { field: 'enablePriceAlerts' as const, label: 'Price Alerts', description: 'Symbols hitting your alert price levels' },
+                  { field: 'enablePerformanceAlerts' as const, label: 'Performance Alerts', description: 'Daily P&L summaries and drawdown warnings' },
+                  { field: 'enableWeeklyReport' as const, label: 'Weekly Report', description: 'A weekly recap of ideas and results' },
+                ].map(({ field, label, description }) => (
+                  <div key={field} className="flex items-center justify-between gap-3 p-3 rounded-md bg-muted/50">
+                    <div className="space-y-0.5">
+                      <span className="text-sm">{label}</span>
+                      <p className="text-xs text-muted-foreground">{description}</p>
+                    </div>
                     <GlassToggle
                       checked={formData[field] ?? true}
                       onCheckedChange={(c) => updateField(field, c)}
@@ -576,6 +600,7 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="discord-webhook">Discord Webhook URL</Label>
+                <p className="text-xs text-muted-foreground">Paste a Discord webhook to receive alerts in your server. Leave empty to turn it off.</p>
                 <GlassInput
                   id="discord-webhook"
                   placeholder="https://discord.com/api/webhooks/..."
@@ -688,7 +713,10 @@ export default function SettingsPage() {
                     variant="outline" 
                     size="sm"
                     className="text-[var(--trade-bearish)] hover:text-red-600"
-                    onClick={() => toast({ title: "Logs cleared", description: "Bot trade logs have been reset" })}
+                    onClick={() => {
+                      if (!window.confirm('Clear all bot trade logs? This cannot be undone.')) return;
+                      toast({ title: "Logs cleared", description: "Bot trade logs have been reset" });
+                    }}
                     data-testid="button-clear-logs"
                   >
                     <Trash2 className="h-3 w-3 mr-1" />
@@ -716,6 +744,10 @@ export default function SettingsPage() {
                       </div>
                     ))}
                   </div>
+                ) : botTradesLoading ? (
+                  <div className="p-8 text-center text-muted-foreground text-sm animate-pulse">
+                    Loading trade logs...
+                  </div>
                 ) : (
                   <div className="p-8 text-center text-muted-foreground text-sm">
                     Bot trades will appear here once active
@@ -736,6 +768,7 @@ export default function SettingsPage() {
             <CardContent className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Max Position Size: ${botThresholds.maxPositionSize}</Label>
+                <p className="text-xs text-muted-foreground">Largest single position a bot may open.</p>
                 <Slider
                   min={100}
                   max={5000}
@@ -748,6 +781,7 @@ export default function SettingsPage() {
               
               <div className="space-y-2">
                 <Label>Signal Strength Threshold: {botThresholds.confidenceThreshold}pts</Label>
+                <p className="text-xs text-muted-foreground">Bots only act on signals scoring at least this.</p>
                 <Slider
                   min={50}
                   max={95}
@@ -760,6 +794,7 @@ export default function SettingsPage() {
               
               <div className="space-y-2">
                 <Label>Daily Trade Limit: {botThresholds.dailyTradeLimit} trades</Label>
+                <p className="text-xs text-muted-foreground">Maximum trades all bots may place per day.</p>
                 <Slider
                   min={1}
                   max={20}
@@ -772,6 +807,7 @@ export default function SettingsPage() {
               
               <div className="space-y-2">
                 <Label>Stop Loss: {botThresholds.stopLossPercent}%</Label>
+                <p className="text-xs text-muted-foreground">Bots close a position if it moves this far against the entry.</p>
                 <Slider
                   min={5}
                   max={50}
@@ -793,6 +829,7 @@ export default function SettingsPage() {
                 <PanelLeft className="h-4 w-4" />
                 Sidebar Navigation
               </CardTitle>
+              <CardDescription>Reorder your sidebar, add items, and organize groups</CardDescription>
             </CardHeader>
             <CardContent>
               <NavigationCustomizer />
