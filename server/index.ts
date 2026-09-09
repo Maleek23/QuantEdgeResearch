@@ -1051,13 +1051,18 @@ app.use((req, res, next) => {
         // (findSimilarTradeIdea, open-position skip, intra-batch symbol set),
         // so time-gating is pure lag: the operator watched a 9:58 ET setup
         // print +539% while the board waited for its 10:35 window. The
-        // publisher now sweeps every 15 minutes from 9:35 CT to 14:55 CT — and
+        // publisher now sweeps every 15 minutes from 8:35 CT (5 min after the
+        // 8:30 CT open — 9:35 ET) to 14:55 CT — and
         // OFF-HOURS it keeps working at a 2-hour cadence ("signals can be
         // generated overnight"): curated quotes resolve after hours, an
         // after-hours earnings blast shows up in changePercent, and an
         // overnight idea publishes as PENDING TRIGGER for the next session.
         // Every gate (dedup, chase guard, short discipline) applies unchanged.
-        const sinceOpen = (hour > 9 || (hour === 9 && minute >= 35)) && (hour < 14 || (hour === 14 && minute <= 55));
+        // NOTE: hour/minute here are CT. The window previously started at
+        // 9:35 CT — an ET value pasted into CT math — which re-created the
+        // exact 10:35 ET lag this comment says was fixed, and left the first
+        // 65 minutes of tape (where the aggressor flow prints) driving nothing.
+        const sinceOpen = (hour > 8 || (hour === 8 && minute >= 35)) && (hour < 14 || (hour === 14 && minute <= 55));
         const minGapMs = sinceOpen ? 14 * 60 * 1000 : 2 * 60 * 60 * 1000;
         if (Date.now() - lastQuantRunAt < minGapMs) {
           return;
