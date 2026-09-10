@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/command';
 import {
   Home,
+  Bell,
   Crosshair,
   Zap,
   Microscope,
@@ -227,6 +228,10 @@ export function CommandPalette() {
         <CommandSeparator />
 
         <CommandGroup heading="Quick actions">
+          <CommandItem onSelect={() => go('/alerts')}>
+            <Bell className="w-3.5 h-3.5 mr-2" />
+            <span className="text-xs">Alerts</span>
+          </CommandItem>
           <CommandItem onSelect={() => go('/radar')}>
             <Crosshair className="w-3.5 h-3.5 mr-2" />
             <span className="text-xs">Thesis Radar</span>

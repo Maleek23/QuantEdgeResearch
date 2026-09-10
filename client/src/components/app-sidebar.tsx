@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   Home,
+  Bell,
   Crosshair,
   Microscope,
   Wallet,
@@ -125,6 +126,8 @@ const RADARS: NavItem[] = [
 // ─── UTILITY (always-visible footer items) ──────────────────────────
 // Note: "What's New" is inserted in the JSX (it's a stateful component, not just a NavItem)
 const UTILITY: NavItem[] = [
+  { id: "alerts",   title: "Alerts",     icon: Bell,       href: "/alerts",
+    hint: "Signal state changes — triggers, targets, danger zones" },
   { id: "how-to",   title: "How to use", icon: HelpCircle, href: "/how-to" },
   { id: "settings", title: "Settings",   icon: Settings,   href: "/settings" },
 ];

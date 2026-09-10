@@ -49,6 +49,7 @@ import {
   Wallet,
   GraduationCap,
   HelpCircle,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NavigationLayoutType, NavigationGroupType, NavigationItemType } from "@shared/schema";
@@ -79,6 +80,7 @@ const defaultNavItems: NavigationItemType[] = [
   { id: "journal", title: "Journal", icon: "BookOpen", href: "/t?tab=journal" },
   { id: "trade-desk", title: "Trade Desk", icon: "TrendingUp", href: "/trade-desk" },
   { id: "radar", title: "Thesis Radar", icon: "Target", href: "/radar" },
+  { id: "alerts", title: "Alerts", icon: "Bell", href: "/alerts" },
   { id: "academy", title: "Academy", icon: "GraduationCap", href: "/academy" },
   { id: "how-to", title: "How to use", icon: "HelpCircle", href: "/how-to" },
   { id: "blog", title: "Blog", icon: "BookOpen", href: "/blog" },

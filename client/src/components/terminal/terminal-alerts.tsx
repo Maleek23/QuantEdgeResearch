@@ -60,6 +60,95 @@ export function useSignalAlerts(picks: ConvictionPick[] | undefined) {
   return { prefs, update, feed, setFeed, unread, setUnread };
 }
 
+/** Shared presentational pieces — used by the terminal drawer and the /alerts page. */
+
+export const alertToneColor = (t: AlertEvent['tone']) =>
+  (t === 'good' ? TC.bull : t === 'bad' ? TC.bear : TC.info);
+
+export const alertAgo = (ms: number) => {
+  const m = Math.floor((Date.now() - ms) / 60000);
+  return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ago`;
+};
+
+/** "Alert me on" chips — which state changes fire an alert. */
+export function AlertTypeToggles({ prefs, update }: { prefs: AlertPrefs; update: (p: AlertPrefs) => void }) {
+  return (
+    <div>
+      <div className="mb-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">Alert me on</div>
+      <div className="flex flex-wrap gap-1">
+        {(Object.keys(ALERT_LABELS) as AlertType[]).map((t) => {
+          const on = prefs.enabled[t];
+          return (
+            <button key={t}
+              onClick={() => update({ ...prefs, enabled: { ...prefs.enabled, [t]: !on } })}
+              className={cn('cursor-pointer rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
+                on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground/70 hover:text-foreground')}
+            >
+              {ALERT_LABELS[t]}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Delivery rows — Discord relay and quiet hours. */
+export function AlertDeliveryRows({ prefs, update }: { prefs: AlertPrefs; update: (p: AlertPrefs) => void }) {
+  return (
+    <>
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Send to Discord</span>
+        <button
+          onClick={() => update({ ...prefs, discord: !prefs.discord })}
+          role="switch" aria-checked={prefs.discord} aria-label="Send alerts to Discord"
+          className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
+            prefs.discord ? 'bg-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/15')}
+        >
+          <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all',
+            prefs.discord ? 'left-[18px]' : 'left-0.5')} />
+        </button>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Quiet hours</span>
+        <span className="flex items-center gap-2">
+          {prefs.quietHours.on && (
+            <span className="text-label font-mono tabular-nums text-muted-foreground/70">
+              {String(prefs.quietHours.start).padStart(2, '0')}:00–{String(prefs.quietHours.end).padStart(2, '0')}:00
+            </span>
+          )}
+          <button
+            onClick={() => update({ ...prefs, quietHours: { ...prefs.quietHours, on: !prefs.quietHours.on } })}
+            role="switch" aria-checked={prefs.quietHours.on} aria-label="Toggle quiet hours"
+            className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
+              prefs.quietHours.on ? 'bg-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/15')}
+          >
+            <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all',
+              prefs.quietHours.on ? 'left-[18px]' : 'left-0.5')} />
+          </button>
+        </span>
+      </div>
+    </>
+  );
+}
+
+/** One row of the alert feed. */
+export function AlertFeedItem({ a }: { a: AlertEvent }) {
+  return (
+    <div className="border-b border-border/25 px-4 py-2.5">
+      <div className="flex items-baseline gap-2">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: alertToneColor(a.tone) }} />
+        <span className="text-meta font-mono font-bold text-foreground">{a.title}</span>
+        <span className="ml-auto shrink-0 text-label font-mono text-muted-foreground/70">{alertAgo(a.at)}</span>
+      </div>
+      <div className="mt-0.5 pl-3.5 text-label font-mono text-muted-foreground/70">
+        {ALERT_LABELS[a.type]} · {a.detail}
+      </div>
+    </div>
+  );
+}
+
 export function TerminalAlerts({
   open, onClose, feed, setFeed, prefs, update,
 }: {
@@ -79,11 +168,7 @@ export function TerminalAlerts({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  const toneColor = (t: AlertEvent['tone']) => (t === 'good' ? TC.bull : t === 'bad' ? TC.bear : TC.info);
-  const ago = (ms: number) => {
-    const m = Math.floor((Date.now() - ms) / 60000);
-    return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : `${Math.floor(m / 60)}h ago`;
-  };
+  const ago = alertAgo;
 
   return (
     <AnimatePresence>
@@ -121,54 +206,8 @@ export function TerminalAlerts({
 
             {/* which alerts fire */}
             <div className="border-b border-border/40 px-4 py-3">
-              <div className="mb-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">Alert me on</div>
-              <div className="flex flex-wrap gap-1">
-                {(Object.keys(ALERT_LABELS) as AlertType[]).map((t) => {
-                  const on = prefs.enabled[t];
-                  return (
-                    <button key={t}
-                      onClick={() => update({ ...prefs, enabled: { ...prefs.enabled, [t]: !on } })}
-                      className={cn('cursor-pointer rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                        on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground/70 hover:text-foreground')}
-                    >
-                      {ALERT_LABELS[t]}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Send to Discord</span>
-                <button
-                  onClick={() => update({ ...prefs, discord: !prefs.discord })}
-                  role="switch" aria-checked={prefs.discord} aria-label="Send alerts to Discord"
-                  className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
-                    prefs.discord ? 'bg-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/15')}
-                >
-                  <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all',
-                    prefs.discord ? 'left-[18px]' : 'left-0.5')} />
-                </button>
-              </div>
-
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Quiet hours</span>
-                <span className="flex items-center gap-2">
-                  {prefs.quietHours.on && (
-                    <span className="text-label font-mono tabular-nums text-muted-foreground/70">
-                      {String(prefs.quietHours.start).padStart(2, '0')}:00–{String(prefs.quietHours.end).padStart(2, '0')}:00
-                    </span>
-                  )}
-                  <button
-                    onClick={() => update({ ...prefs, quietHours: { ...prefs.quietHours, on: !prefs.quietHours.on } })}
-                    role="switch" aria-checked={prefs.quietHours.on} aria-label="Toggle quiet hours"
-                    className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
-                      prefs.quietHours.on ? 'bg-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/15')}
-                  >
-                    <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all',
-                      prefs.quietHours.on ? 'left-[18px]' : 'left-0.5')} />
-                  </button>
-                </span>
-              </div>
+              <AlertTypeToggles prefs={prefs} update={update} />
+              <AlertDeliveryRows prefs={prefs} update={update} />
             </div>
 
             {/* the feed */}
@@ -182,18 +221,7 @@ export function TerminalAlerts({
                   </p>
                 </div>
               ) : (
-                feed.map((a) => (
-                  <div key={a.id} className="border-b border-border/25 px-4 py-2.5">
-                    <div className="flex items-baseline gap-2">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: toneColor(a.tone) }} />
-                      <span className="text-meta font-mono font-bold text-foreground">{a.title}</span>
-                      <span className="ml-auto shrink-0 text-label font-mono text-muted-foreground/70">{ago(a.at)}</span>
-                    </div>
-                    <div className="mt-0.5 pl-3.5 text-label font-mono text-muted-foreground/70">
-                      {ALERT_LABELS[a.type]} · {a.detail}
-                    </div>
-                  </div>
-                ))
+                feed.map((a) => <AlertFeedItem key={a.id} a={a} />)
               )}
             </div>
 

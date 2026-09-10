@@ -48,6 +48,7 @@ const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "t
 // REMOVED — Market page consolidated, redirect to /home
 const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
 const SettingsPage = lazyWithRetry(() => import("@/pages/settings"), "settings");
+const AlertsPage = lazyWithRetry(() => import("@/pages/alerts"), "alerts");
 const AdminOverview = lazyWithRetry(() => import("@/pages/admin/overview"), "admin-overview");
 const AdminUsers = lazyWithRetry(() => import("@/pages/admin/users"), "admin-users");
 const AdminInvites = lazyWithRetry(() => import("@/pages/admin/invites"), "admin-invites");
@@ -251,6 +252,7 @@ function Router() {
 
       {/* System Pages */}
       <Route path="/settings" component={withBetaProtection(SettingsPage)} />
+      <Route path="/alerts" component={withBetaProtection(AlertsPage)} />
 
       {/* Admin Pages - Have their own password auth via AdminLayout */}
       <Route path="/admin" component={AdminOverview} />
