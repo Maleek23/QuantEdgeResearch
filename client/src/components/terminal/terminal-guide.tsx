@@ -132,7 +132,7 @@ export const GUIDES: Record<Tab, Guide> = {
     read: [
       'Trade Log is every trade you took — History is your past AI chats and research runs. They answer different questions.',
       'Metrics cuts win rate and average R by setup type: that is where your edge (or lack of one) actually shows.',
-      'Backtest runs a strategy on historicals before you risk capital on it. Academy is the learning library.',
+      'Backtest runs a strategy on historicals before you risk capital on it.',
       'The journal only works if exits get logged with the reason. An unlogged trade teaches nothing.',
     ],
     next: 'Take a pattern from Metrics and pressure-test it in Backtest.',

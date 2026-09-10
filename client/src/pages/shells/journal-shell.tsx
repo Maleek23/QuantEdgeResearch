@@ -1,7 +1,7 @@
 /**
  * JOURNAL — "How do I get better"
  *
- * Tabs: Trade Log | History | Metrics | Backtest | Academy
+ * Tabs: Trade Log | History | Metrics | Backtest
  */
 import { lazy, Suspense } from 'react';
 import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
@@ -13,9 +13,8 @@ const Performance       = lazy(() => import('@/pages/performance'));
 const TradeJournal      = lazy(() => import('@/pages/trade-journal'));
 const History           = lazy(() => import('@/pages/history'));
 const StrategySim       = lazy(() => import('@/pages/strategy-simulator'));
-const Academy           = lazy(() => import('@/pages/academy'));
 
-type Tab = 'log' | 'history' | 'metrics' | 'backtest' | 'academy';
+type Tab = 'log' | 'history' | 'metrics' | 'backtest';
 
 /**
  * Trade Log pointed at pages/history.tsx, which renders /api/ai/chat/history and
@@ -28,13 +27,16 @@ type Tab = 'log' | 'history' | 'metrics' | 'backtest' | 'academy';
  *
  * The 'mistakes' tab is gone — it rendered ComingSoon and was not in this array
  * anyway, so it was an unreachable branch advertising a feature that does not exist.
+ *
+ * The 'academy' tab was removed per product decision (2026-09-09): the Academy
+ * rendered the full standalone /academy page inside the Terminal, duplicating it.
+ * /academy remains the canonical home for learning content.
  */
 const TABS: readonly QETabItem<Tab>[] = [
   { id: 'log',      label: 'Trade Log', hint: 'Every trade you took' },
   { id: 'history',  label: 'History',   hint: 'Past AI chats and research runs' },
   { id: 'metrics',  label: 'Metrics',   hint: 'Win rate, avg R, by setup type' },
   { id: 'backtest', label: 'Backtest',  hint: 'Run strategies on historicals' },
-  { id: 'academy',  label: 'Academy',   hint: 'Learning content' },
 ];
 
 const VALID_TABS = TABS.map(t => t.id);
@@ -52,7 +54,6 @@ export default function JournalShell() {
           {tab === 'history'  && <History />}
           {tab === 'metrics'  && <Performance />}
           {tab === 'backtest' && <StrategySim />}
-          {tab === 'academy'  && <Academy />}
         </Suspense>
       </PageErrorBoundary>
     </div>
