@@ -1219,6 +1219,22 @@ app.use((req, res, next) => {
     });
     log('🎯 Bullflow tape scanner started - aggressor tape publishes ideas every 10 min across the session');
 
+    // Bottom-reversal sweep — catches TURNS (higher-lows base, V-recovery)
+    // instead of waiting for a continuation pattern. Runs each evening off
+    // completed daily bars, publishing tomorrow's reversal slate with a
+    // Bullflow confirmation footnote per name. Validated against the Sep
+    // 10-22 semis run: MU fires Sep 2 (+14.7% follow-through), SNDK Sep 3
+    // (+21.4%). See server/bottom-reversal-scanner.ts.
+    cron.default.schedule('40 20 * * 1-5', async () => {
+      try {
+        const { runBottomReversalSweep } = await import('./bottom-reversal-scanner');
+        await runBottomReversalSweep({ publish: true });
+      } catch (err) {
+        logger.error('[BOTTOM-REV] evening sweep failed:', err);
+      }
+    }, { timezone: 'America/Chicago' });
+    log('🔄 Bottom-reversal scanner started - evening sweep 8:40 PM CT publishes tomorrow\'s reversal slate');
+
     // The board is persisted. Starting a server is not evidence for a new trade,
     // so startup never publishes another round of quant ideas. Use the explicit
     // scanner endpoint when a deliberate manual scan is needed.
