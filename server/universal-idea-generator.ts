@@ -1273,7 +1273,12 @@ export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Pro
    * which is a different claim from "not on our list".
    */
   const isOperatorAdd = String((input as any).source ?? '') === 'manual';
-  if (!isOperatorAdd && !isApprovedTicker(symbol)) {
+  // Measured aggressor flow earns candidacy on its own: an options_flow idea
+  // exists because dollars were counted at the ask, and a hand-curated list
+  // must not veto that (2026-09-23: whole-market Bullflow leaders were being
+  // silently dropped here — the POET/NNE class could never publish).
+  const isMeasuredFlow = String((input as any).source ?? '') === 'options_flow';
+  if (!isOperatorAdd && !isMeasuredFlow && !isApprovedTicker(symbol)) {
     logger.debug(`[UNIVERSAL] Blocked ${symbol} — not on approved watchlist`);
     return false;
   }
@@ -1287,9 +1292,15 @@ export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Pro
     const existingIdeas = await storage.getAllTradeIdeas();
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
+    // Stored rows say long/short while callers say bullish/bearish — compare
+    // in one spelling or this window never matches anything (found 2026-09-23:
+    // 'long' !== 'bullish' made this dedup dead code since it shipped).
+    const wantDir = input.direction === 'bullish' ? 'long' : 'short';
+    const normDir = (d: string | null | undefined) =>
+      d === 'bullish' ? 'long' : d === 'bearish' ? 'short' : (d ?? '');
     const recentDuplicate = existingIdeas.find(idea =>
       idea.symbol === symbol &&
-      idea.direction === input.direction &&
+      normDir(idea.direction) === wantDir &&
       idea.timestamp && new Date(idea.timestamp) > twoHoursAgo
     );
 

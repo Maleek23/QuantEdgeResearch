@@ -13,13 +13,26 @@
  * cooldown, cross-source held-check). It claims NO technical pattern — the
  * catalyst text says exactly what was measured and nothing else.
  *
- * Levels are measured, not invented: invalidation is the tape day's low (if
- * the day that printed the buying breaks its own low, the thesis is wrong),
- * T1 is stated plainly as 2R off that invalidation.
+ * Levels are measured, not invented: invalidation is the session low, falling
+ * back to the prior close (gap-fill = thesis wrong); T1 is stated plainly as
+ * 2R off that invalidation.
  *
  * Short discipline: net-SOLD names are logged and skipped — no short is
  * published without an event catalyst (operator rule), and this scanner does
  * not check catalysts. The skip is visible in the log, not silent.
+ *
+ * Review hardening (2026-09-23 adversarial pass):
+ * - Bullflow net premium is SESSION-CUMULATIVE, so without memory a symbol
+ *   whose idea stopped out would republish all day off the same morning tape
+ *   at worse entries. A per-market-date decision map prevents any second
+ *   publication attempt for a symbol the same day.
+ * - The decision map is also checked BEFORE quotes are fetched, so blocked
+ *   names stop costing Tradier/Yahoo calls on all ~39 daily sweeps.
+ * - Leaders older than STALE_TAPE_MAX_MS (cache serving stale through a
+ *   provider outage) are refused rather than narrated as "today's tape".
+ * - Composition requirement: call-led tape, or ≥$30M net regardless — sized
+ *   so every published idea genuinely clears the options_flow confidence
+ *   floor (75) instead of slipping through the 3-signal bypass at 65.
  */
 import { logger } from './logger';
 import { bullflowEnabled, getTopTickers } from './bullflow-service';
@@ -28,32 +41,61 @@ import { ingestTradeIdea } from './trade-idea-ingestion';
 
 /** Net premium (calls-minus-puts, aggressor-signed) required to publish. */
 const TAPE_NET_MIN = Number(process.env.BULLFLOW_TAPE_IDEA_NET ?? 8_000_000);
+/** Above this net, composition no longer matters — the tape is loud enough. */
+const TAPE_NET_ANY_COMPOSITION = 30_000_000;
 /** Cap per sweep — the tape rarely has more than a handful of real stories. */
 const MAX_IDEAS_PER_SCAN = 5;
 /** Invalidation farther than this from entry is a bad structure — skip. */
 const MAX_RISK_PCT = 0.08;
+/**
+ * Invalidation closer than this is not a structure either — early in the
+ * session the day low is minutes old and sits on top of last. Fall back to
+ * the prior close (gap-fill = thesis wrong), else skip this sweep.
+ */
+const MIN_RISK_PCT = 0.012;
+/** Refuse leader data older than this — stale cache is not "today's tape". */
+const STALE_TAPE_MAX_MS = 30 * 60_000;
 
 const fmtM = (n: number) => `${n < 0 ? '-' : '+'}$${(Math.abs(n) / 1e6).toFixed(1)}M`;
 
 /**
- * Last price + the session low, Tradier first, Yahoo when Tradier is down
- * (it regularly is — the rest of the platform carries the same fallback).
+ * One decision per symbol per market date. 'published' and 'blocked' are
+ * terminal for the day; transient skips (no quote, no structure band) are NOT
+ * recorded so those names retry on later sweeps.
  */
-async function quoteWithDayLow(symbol: string): Promise<{ last: number; low: number } | null> {
+const dayDecisions = new Map<string, { date: string; verdict: 'published' | 'blocked' }>();
+
+function marketDateET(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+}
+
+let yahooClient: any = null;
+async function getYahoo(): Promise<any> {
+  if (!yahooClient) {
+    const YahooFinance = (await import('yahoo-finance2')).default as any;
+    yahooClient = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
+  }
+  return yahooClient;
+}
+
+/**
+ * Last price + session low + prior close; Tradier first, Yahoo when Tradier
+ * is down (it regularly is — the rest of the platform carries the same
+ * fallback).
+ */
+async function quoteWithDayLow(symbol: string): Promise<{ last: number; low: number; prevClose: number } | null> {
   try {
     const q = await getTradierQuote(symbol);
     if (q && Number.isFinite(q.last) && q.last > 0 && Number.isFinite(q.low) && q.low > 0) {
-      return { last: q.last, low: q.low };
+      return { last: q.last, low: q.low, prevClose: Number(q.prevclose) || NaN };
     }
   } catch { /* fall through to Yahoo */ }
   try {
-    const YahooFinance = (await import('yahoo-finance2')).default as any;
-    const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
-    const y: any = await yahooFinance.quote(symbol);
+    const y: any = await (await getYahoo()).quote(symbol);
     const last = Number(y?.regularMarketPrice);
     const low = Number(y?.regularMarketDayLow);
     if (Number.isFinite(last) && last > 0 && Number.isFinite(low) && low > 0) {
-      return { last, low };
+      return { last, low, prevClose: Number(y?.regularMarketPreviousClose) || NaN };
     }
   } catch { /* both providers failed */ }
   return null;
@@ -68,7 +110,15 @@ export async function runBullflowTapeScan(): Promise<number> {
     logger.info('[TAPE-SCAN] leaders empty — no session tape yet');
     return 0;
   }
+  const generatedAt = Date.parse(String(top?.generatedAt ?? ''));
+  if (Number.isFinite(generatedAt) && Date.now() - generatedAt > STALE_TAPE_MAX_MS) {
+    logger.warn(
+      `[TAPE-SCAN] leader data is ${Math.round((Date.now() - generatedAt) / 60_000)} min old (provider outage?) — refusing to publish off stale tape`,
+    );
+    return 0;
+  }
 
+  const today = marketDateET();
   const longs = rows
     .filter((r) => Number(r.totalNetPremium) >= TAPE_NET_MIN)
     .sort((a, b) => Number(b.totalNetPremium) - Number(a.totalNetPremium));
@@ -91,43 +141,65 @@ export async function runBullflowTapeScan(): Promise<number> {
     const callNet = Number(r.callNetPremium ?? 0);
     const putNet = Number(r.putNetPremium ?? 0);
 
+    // Terminal decision already made today — costs nothing, not even a quote.
+    const prior = dayDecisions.get(symbol);
+    if (prior && prior.date === today) continue;
+
+    // Composition: the tape must be call-led, or loud enough that composition
+    // stops mattering. A mixed $9M read is an observation, not a publication.
+    const callLed = callNet > 0 && callNet >= Math.abs(putNet);
+    if (!callLed && net < TAPE_NET_ANY_COMPOSITION) {
+      dayDecisions.set(symbol, { date: today, verdict: 'blocked' });
+      logger.info(
+        `[TAPE-SCAN] ${symbol}: ${fmtM(net)} net but mixed composition (calls ${fmtM(callNet)} / puts ${fmtM(putNet)}) — not call-led, skipped for today`,
+      );
+      continue;
+    }
+
     try {
       const q = await quoteWithDayLow(symbol);
       if (!q) {
-        logger.info(`[TAPE-SCAN] ${symbol}: no quote from any provider — skipped`);
+        logger.info(`[TAPE-SCAN] ${symbol}: no quote from any provider — will retry next sweep`);
         continue;
       }
       const entry = q.last;
-      const stop = q.low < entry ? q.low : NaN;
+      // Measured invalidation, in preference order: the session low, then the
+      // prior close (gap-fill = thesis wrong). Each must leave a real but
+      // bounded risk; a stop minutes old on top of last is not a structure.
+      const riskOk = (s: number) =>
+        Number.isFinite(s) && s > 0 && s < entry &&
+        (entry - s) / entry >= MIN_RISK_PCT && (entry - s) / entry <= MAX_RISK_PCT;
+      let stop = NaN;
+      let stopBasis = '';
+      if (riskOk(q.low)) { stop = q.low; stopBasis = 'session low'; }
+      else if (riskOk(q.prevClose)) { stop = q.prevClose; stopBasis = 'prior close (gap-fill invalidation)'; }
       if (!Number.isFinite(stop)) {
-        logger.info(`[TAPE-SCAN] ${symbol}: session low ≥ last — no usable invalidation, skipped`);
-        continue;
-      }
-      const risk = entry - stop;
-      if (risk / entry > MAX_RISK_PCT) {
         logger.info(
-          `[TAPE-SCAN] ${symbol}: day low is ${((risk / entry) * 100).toFixed(1)}% away — structure too loose, skipped`,
+          `[TAPE-SCAN] ${symbol}: no measured invalidation in the ${(MIN_RISK_PCT * 100).toFixed(1)}–${(MAX_RISK_PCT * 100).toFixed(0)}% band (low $${q.low}, prevClose $${q.prevClose}) — will retry next sweep`,
         );
         continue;
       }
+      const risk = entry - stop;
       const target = Number((entry + 2 * risk).toFixed(2));
 
-      // Signal weights scale with how one-sided the measured tape is.
+      // Weights are sized so every combination that can reach this point
+      // clears the options_flow confidence floor (75) on the ingestion
+      // formula — the floor is real here, not bypassed.
       const signals = [
         {
           type: 'aggressor_net_premium',
-          weight: net >= 30e6 ? 26 : net >= 15e6 ? 22 : 18,
+          weight: net >= 30e6 ? 32 : net >= 15e6 ? 28 : 24,
           description: `${fmtM(net)} net premium bought at the ask today (aggressor-measured)`,
         },
         {
           type: 'tape_decomposition',
-          weight: callNet > 0 && callNet >= Math.abs(putNet) ? 12 : 6,
-          description: `calls ${fmtM(callNet)} · puts ${fmtM(putNet)} — ${callNet > 0 && callNet >= Math.abs(putNet) ? 'call buying leads' : 'mixed composition'}`,
+          weight: callLed ? 12 : 6,
+          description: `calls ${fmtM(callNet)} · puts ${fmtM(putNet)} — ${callLed ? 'call buying leads' : 'mixed composition, size overrides'}`,
         },
         {
           type: 'measured_invalidation',
           weight: 8,
-          description: `invalidation at the tape day's low $${stop.toFixed(2)} (${((risk / entry) * 100).toFixed(1)}% risk)`,
+          description: `invalidation at the ${stopBasis} $${stop.toFixed(2)} (${((risk / entry) * 100).toFixed(1)}% risk)`,
         },
       ];
 
@@ -145,8 +217,8 @@ export async function runBullflowTapeScan(): Promise<number> {
         analysis:
           `Flow-primary idea: direction is read from actual ask-vs-bid fills on the options tape (Bullflow), ` +
           `not from a chart pattern — no technical setup is claimed. ${fmtM(net)} of net premium was bought in ${symbol} this session. ` +
-          `Entry at last ($${entry.toFixed(2)}), invalidation at the session low ($${stop.toFixed(2)}) — if the day that printed the buying ` +
-          `breaks its own low, the thesis is wrong. T1 $${target.toFixed(2)} is stated plainly as 2R off that invalidation, not a structural level.`,
+          `Entry at last ($${entry.toFixed(2)}), invalidation at the ${stopBasis} ($${stop.toFixed(2)}) — if the day that printed the buying ` +
+          `gives that level back, the thesis is wrong. T1 $${target.toFixed(2)} is stated plainly as 2R off that invalidation, not a structural level.`,
         sourceMetadata: {
           scannerType: 'bullflow_tape',
           netPremium: net,
@@ -157,9 +229,13 @@ export async function runBullflowTapeScan(): Promise<number> {
 
       if (result.success) {
         ingested++;
+        dayDecisions.set(symbol, { date: today, verdict: 'published' });
         logger.info(`[TAPE-SCAN] 📤 published ${symbol} — ${fmtM(net)} net bought`);
       } else {
-        logger.info(`[TAPE-SCAN] ${symbol} not published: ${result.reason}`);
+        // Ingestion rejections (duplicate, already held, loss cooldown) are
+        // terminal for the day — the cumulative tape cannot change the answer.
+        dayDecisions.set(symbol, { date: today, verdict: 'blocked' });
+        logger.info(`[TAPE-SCAN] ${symbol} not published: ${result.reason} — done for today`);
       }
     } catch (err: any) {
       logger.warn(`[TAPE-SCAN] ${symbol} failed: ${err?.message ?? err}`);
