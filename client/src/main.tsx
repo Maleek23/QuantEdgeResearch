@@ -1,3 +1,4 @@
+import "./lib/insecure-context-polyfills"; // must run before anything touches crypto.randomUUID
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
