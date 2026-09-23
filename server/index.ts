@@ -1261,6 +1261,18 @@ app.use((req, res, next) => {
     }, { timezone: 'America/Chicago' });
     log('📈 Index swing scanner started - 8:55 AM + 12:55 PM CT, SPX-complex pullback discounts');
 
+    // Leader swing scanner — the same pullback discipline on the single-name
+    // leadership universe (FTNT/NET/MRVL class), flow-confirmed per candidate.
+    cron.default.schedule('5 9,13 * * 1-5', async () => {
+      try {
+        const { runLeaderSwingScan } = await import('./index-swing-scanner');
+        await runLeaderSwingScan();
+      } catch (err) {
+        logger.error('[LEADER-SWING] run failed:', err);
+      }
+    }, { timezone: 'America/Chicago' });
+    log('🎯 Leader swing scanner started - 9:05 AM + 1:05 PM CT over the leadership universe');
+
     // The board is persisted. Starting a server is not evidence for a new trade,
     // so startup never publishes another round of quant ideas. Use the explicit
     // scanner endpoint when a deliberate manual scan is needed.

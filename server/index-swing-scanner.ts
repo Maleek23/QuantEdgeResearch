@@ -40,7 +40,14 @@ interface IndexSetup {
   reasons: string[];
 }
 
-function detectIndexPullback(symbol: string, bars: UBar[]): IndexSetup | null {
+function detectIndexPullback(
+  symbol: string,
+  bars: UBar[],
+  opts: { pbMin?: number; pbMax?: number; riskMax?: number } = {},
+): IndexSetup | null {
+  const PB_MIN = opts.pbMin ?? 0.012;
+  const PB_MAX = opts.pbMax ?? 0.06;
+  const RISK_MAX = opts.riskMax ?? 0.045;
   const n = bars.length;
   if (n < 60) return null;
   const closes = bars.map((b) => b.close);
@@ -55,7 +62,7 @@ function detectIndexPullback(symbol: string, bars: UBar[]): IndexSetup | null {
   const high20 = Math.max(...last20.map((b) => b.high));
   const pullbackPct = (high20 - last.close) / high20;
   // The discount window: pulled back a real amount, but the trend intact.
-  if (pullbackPct < 0.012 || pullbackPct > 0.06) return null;
+  if (pullbackPct < PB_MIN || pullbackPct > PB_MAX) return null;
 
   // Pullback, not a crash: a single -3% index day IS the discount being
   // bought (XBI -3.2% on 2026-09-23 was the setup, not a disqualifier). What
@@ -78,7 +85,7 @@ function detectIndexPullback(symbol: string, bars: UBar[]): IndexSetup | null {
   for (const win of [3, 5, 10]) {
     const s2 = Math.min(...bars.slice(-win).map((b) => b.low));
     const r2 = (last.close - s2) / last.close;
-    if (r2 >= 0.006 && r2 <= 0.045) { stop = s2; riskPct = r2; break; }
+    if (r2 >= 0.006 && r2 <= RISK_MAX) { stop = s2; riskPct = r2; break; }
   }
   if (!Number.isFinite(stop)) return null;
 
@@ -202,5 +209,107 @@ export async function runIndexSwingScan(): Promise<number> {
   }
 
   logger.info(`[INDEX-SWING] run done — ${published} published`);
+  return published;
+}
+
+/**
+ * LEADER SWING SCAN — the same trend-pullback discipline applied to the
+ * single-name leadership universe (FTNT/NET/MRVL class). Operator 2026-09-23:
+ * "trade ideas are only SPY and IWM when u can be catching FTNT, NET, MRVL".
+ * Flow-confirmed like the reversal slate: the candidate's own aggressor tape
+ * can veto (net sold) or boost (net bought) — one per-symbol read each.
+ */
+export async function runLeaderSwingScan(): Promise<number> {
+  if (liquidUniverseStatus().size === 0) {
+    logger.warn('[LEADER-SWING] liquid universe not warmed — skipped');
+    return 0;
+  }
+  const { LEADERSHIP_UNIVERSE } = await import('@shared/leadership-universe');
+  const { isUSMarketOpen } = await import('@shared/market-calendar');
+  const bars = await getUniverseBars(70);
+  const today = marketDateET();
+  const cashOpen = isUSMarketOpen().isOpen;
+
+  // Detect across every leadership single name with bars (ETFs are the other
+  // scan's job). Single names breathe harder than indices: wider windows.
+  const hits: Array<{ sym: string; setup: IndexSetup }> = [];
+  for (const sym of LEADERSHIP_UNIVERSE) {
+    if (INDEX_ETFS.includes(sym)) continue;
+    if (dayDone.get(sym) === today) continue;
+    const series = bars.get(sym);
+    if (!series) continue;
+    const setup = detectIndexPullback(sym, series, { pbMin: 0.02, pbMax: 0.09, riskMax: 0.06 });
+    if (setup) hits.push({ sym, setup });
+  }
+  hits.sort((a, b) => b.setup.score - a.setup.score);
+  logger.info(`[LEADER-SWING] ${hits.length} leadership pullback(s) qualify structurally`);
+
+  let published = 0;
+  let flowReads = 0;
+  for (const { sym, setup } of hits) {
+    if (published >= 3 || flowReads >= 10) break;
+
+    // Flow confirmation — same discipline as the reversal slate.
+    let flowNote = 'tape not read (budget)';
+    let flowSignal: { type: string; weight: number; description: string } | null = null;
+    try {
+      const bf = await import('./bullflow-service');
+      if (bf.bullflowEnabled()) {
+        flowReads++;
+        const read: any = await bf.getNetPremiumToday(sym);
+        if (read) {
+          const net = Number(read.callsNetPremium ?? 0) - Number(read.putsNetPremium ?? 0);
+          if (net <= -500_000) {
+            dayDone.set(sym, today);
+            logger.info(`[LEADER-SWING] \u26d4 ${sym} vetoed — aggressor tape net sold $${(Math.abs(net) / 1e6).toFixed(1)}M into the pullback`);
+            continue;
+          }
+          if (net >= 250_000) {
+            flowNote = `+$${(net / 1e6).toFixed(2)}M net bullish tape`;
+            flowSignal = { type: 'tape_confirmation', weight: 10, description: `aggressor tape confirms: ${flowNote}` };
+          } else flowNote = 'tape thin/neutral';
+        }
+      }
+    } catch { /* flow is confirmation, never a blocker when absent */ }
+
+    // After hours: publish as a trigger above the close, never instant-entered.
+    const entry = cashOpen ? setup.lastClose : Number((setup.lastClose * 1.003).toFixed(2));
+    const risk = entry - setup.stop;
+    const t1 = Number((Math.max(setup.t1, entry + 1.2 * risk)).toFixed(2));
+
+    try {
+      const result = await ingestTradeIdea({
+        source: 'market_scanner',
+        symbol: sym,
+        assetType: 'stock',
+        direction: 'bullish',
+        signals: [
+          { type: 'leader_trend_pullback', weight: 22, description: setup.reasons.slice(0, 2).join('; ') },
+          { type: 'measured_invalidation', weight: 8, description: setup.reasons[2] },
+          ...(flowSignal ? [flowSignal] : [{ type: 'benchmark_member', weight: 4, description: 'leadership-universe name — liquid options, institutional participation' }]),
+        ],
+        holdingPeriod: 'swing',
+        currentPrice: entry,
+        targetPrice: t1,
+        stopLoss: Number(setup.stop.toFixed(2)),
+        catalyst: `Leader swing: ${(setup.pullbackPct * 100).toFixed(1)}% pullback in an uptrend \u00b7 flow: ${flowNote}`,
+        analysis:
+          `Leadership-name swing entry: ${setup.reasons.join('; ')}. ` +
+          `${cashOpen ? `Entry at last ($${entry.toFixed(2)})` : `Entry on a trigger at $${entry.toFixed(2)} (0.3% above the closed-market last \u2014 pending until touched in RTH)`}, ` +
+          `T1 $${t1} (prior 20-session high or 1.2R minimum, whichever is higher). Aggressor tape: ${flowNote}.`,
+        sourceMetadata: { scannerType: 'leader_swing', pullbackPct: setup.pullbackPct, flowNote },
+      });
+      dayDone.set(sym, today);
+      if (result.success) {
+        published++;
+        logger.info(`[LEADER-SWING] \ud83d\udce4 ${sym} \u2014 ${(setup.pullbackPct * 100).toFixed(1)}% pullback, ${flowNote}`);
+      } else {
+        logger.info(`[LEADER-SWING] ${sym} not published: ${result.reason}`);
+      }
+    } catch (err: any) {
+      logger.warn(`[LEADER-SWING] ${sym} failed: ${err?.message ?? err}`);
+    }
+  }
+  logger.info(`[LEADER-SWING] run done \u2014 ${published} published of ${hits.length} structural hits`);
   return published;
 }
