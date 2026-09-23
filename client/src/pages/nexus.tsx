@@ -411,6 +411,11 @@ function WatchSpark({ symbol, up }: { symbol: string; up: boolean }) {
    ════════════════════════════════════════════════════════════════ */
 
 
+// Futures rows are FRONT-MONTH CME futures (auto-rolled): after a quarterly
+// expiry they carry ~3 months of rate basis ABOVE the cash index — ES printed
+// +65 pts over SPX cash the Monday after the Sep'26 roll and it was correct.
+// The tooltip says so, because a broker's US500 CFD tracks CASH, not this.
+const FUTURES_NOTE = 'Front-month CME future (auto-rolls) — trades above the cash index by carry basis after a roll; a broker US500/US100 CFD tracks the cash index instead';
 const STREAM_ORDER = [
   { sym: 'ES', kind: 'futures' as const },
   { sym: 'NQ', kind: 'futures' as const },
@@ -881,7 +886,7 @@ export function NexusBoard() {
               <div className="pulse-sub">{freshCount}/{STREAM_ORDER.length} fresh · futures &amp; crypto stream</div>
 
               {streamRows.map((r) => (
-                <div className={`stream-row${r.flash ? ' flash' : ''}`} key={`${r.sym}-${r.price ?? 'x'}`}>
+                <div className={`stream-row${r.flash ? ' flash' : ''}`} key={`${r.sym}-${r.price ?? 'x'}`} title={r.kind === 'futures' ? FUTURES_NOTE : undefined}>
                   <div className="stream-sym">{r.sym}</div>
                   <div className="stream-bar">
                     {/* Bar = freshness: full at 0s, empty at 60s+. The mock's bars
