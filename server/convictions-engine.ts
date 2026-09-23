@@ -77,6 +77,7 @@ function neutralMarketContext(isOpen: boolean): MarketContext {
 // "macro", which was already being emitted onto layers.
 export type { ConvictionLayerKind } from "@shared/conviction-layers";
 import type { ConvictionLayerKind } from "@shared/conviction-layers";
+import { isLeadershipName } from "@shared/leadership-universe";
 
 export interface ConvictionLayer {
   kind: ConvictionLayerKind;
@@ -348,6 +349,28 @@ function scoreMeasuredStructureLayer(idea: any): ConvictionLayer | null {
     why: cat.split("·")[0].trim(),
     data: { publisherConfidence: conf },
   };
+}
+
+/**
+ * Leadership layer — membership in the benchmark complex (SPX/NDX/SMH/IGV
+ * class, curated in shared/leadership-universe) is worth real points: liquid
+ * options, institutional participation, index flows. Absence is never
+ * evidence against a name — no penalty, only the boost. Operator policy
+ * 2026-09-23: the board must skew toward names a trader benchmarks against.
+ */
+function scoreLeadershipLayer(symbol: string): ConvictionLayer | null {
+  try {
+    if (!isLeadershipName(symbol)) return null;
+    return {
+      kind: "structure",
+      label: "Benchmark Name",
+      points: 4,
+      why: "Inside the benchmark complex (SPX/NDX/SMH/IGV class) — liquid options, institutional participation",
+      data: {},
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -2291,6 +2314,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
 
     const measuredStructure = scoreMeasuredStructureLayer(idea);
     if (measuredStructure) layers.push(measuredStructure);
+
+    const leadership = scoreLeadershipLayer(idea.symbol);
+    if (leadership) layers.push(leadership);
 
     const tier = scoreTierLayer(idea.symbol, idea.riskRewardRatio);
     if (tier) layers.push(tier);

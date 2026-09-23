@@ -35,7 +35,8 @@
  *   floor (75) instead of slipping through the 3-signal bypass at 65.
  */
 import { logger } from './logger';
-import { bullflowEnabled, getTopTickers } from './bullflow-service';
+import { bullflowEnabled, getTopTickers, getNetPremiumToday } from './bullflow-service';
+import { FAVORITE_TICKERS } from '@shared/leadership-universe';
 import { getTradierQuote } from './tradier-api';
 import { ingestTradeIdea } from './trade-idea-ingestion';
 
@@ -173,6 +174,24 @@ export async function runBullflowTapeScan(): Promise<number> {
 
   const today = marketDateET();
   await loadDecisions(today);
+
+  // FAVORITES interrogation: the operator's names get a per-symbol tape read
+  // every sweep even when they don't crack the top-30 leaderboard. Reads are
+  // 3-min cached in the service (~2 uncached calls/min across the day). The
+  // same publish bars apply — favorites earn cards, they don't get them.
+  const onLeaderboard = new Set(rows.map((r: any) => String(r.ticker).toUpperCase()));
+  for (const fav of FAVORITE_TICKERS) {
+    if (onLeaderboard.has(fav)) continue;
+    if (dayDecisions.get(fav)?.date === today) continue;
+    try {
+      const read: any = await getNetPremiumToday(fav);
+      if (!read) continue;
+      const calls = Number(read.callsNetPremium ?? 0);
+      const puts = Number(read.putsNetPremium ?? 0);
+      rows.push({ ticker: fav, totalNetPremium: calls - puts, callNetPremium: calls, putNetPremium: puts });
+    } catch { /* favorite read failed — next sweep */ }
+  }
+
   if (publishedToday(today) >= MAX_DAILY_PUBLISH) {
     logger.info(`[TAPE-SCAN] daily publish cap (${MAX_DAILY_PUBLISH}) reached — sweep is read-only`);
     return 0;

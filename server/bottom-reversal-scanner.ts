@@ -52,11 +52,7 @@ const MIN_PUBLISH_SCORE = 70;
  * zero extra API cost. Favorites bypass the floor entirely.
  */
 const MIN_AVG_DOLLAR_VOL = Number(process.env.REVERSAL_MIN_DOLLAR_VOL ?? 150e6);
-/** Always-interrogated names (operator's own; META is the stated favorite). */
-const FAVORITES = new Set(
-  String(process.env.USER_FAVORITE_TICKERS ?? 'META,TSLA,NVDA,AMD,MU,AVGO,SNDK,CRWD,COIN,MSTR,AAPL,AMZN,GOOGL,MSFT')
-    .split(',').map((s) => s.trim().toUpperCase()).filter(Boolean),
-);
+import { FAVORITE_TICKERS as FAVORITES } from '@shared/leadership-universe';
 
 export interface ReversalHit {
   symbol: string;
