@@ -69,18 +69,9 @@ export interface ReversalHit {
 
 const dateOf = (b: UBar) => new Date(b.time * 1000).toISOString().slice(0, 10);
 
-/**
- * Leveraged/inverse wrappers have no business on a reversal slate — a
- * "bottom" in SCO is a bet that crude falls, and a 3x wrapper's shape is
- * its underlying's shape with borrowed money. Plain sector ETFs (SMH, XBI)
- * stay eligible: a sector turn is a real thesis.
- */
-const LEVERAGED_INVERSE = new Set([
-  'TQQQ', 'SQQQ', 'SOXL', 'SOXS', 'TNA', 'TZA', 'SPXL', 'SPXU', 'UPRO', 'SDOW', 'SDS', 'SSO', 'QLD', 'QID',
-  'UVXY', 'SVXY', 'VXX', 'UVIX', 'SVIX', 'SCO', 'UCO', 'BOIL', 'KOLD', 'DRIP', 'GUSH', 'NUGT', 'DUST',
-  'JNUG', 'JDST', 'TSLL', 'TSLQ', 'TSLG', 'TSLR', 'NVDL', 'NVDX', 'NVDU', 'NVDD', 'AMZU', 'AMZD', 'MSTU', 'MSTZ',
-  'FAS', 'FAZ', 'LABU', 'LABD', 'YINN', 'YANG', 'TMF', 'TMV', 'DXD', 'DDM', 'UDOW', 'ERX', 'ERY', 'CONY',
-]);
+// Shared with every scanner via the ingestion gate; imported here as well so
+// blocked wrappers don't even reach detection.
+import { LEVERAGED_INVERSE_ETFS as LEVERAGED_INVERSE } from './trade-idea-ingestion';
 
 /**
  * Evaluate the last bar of `bars` (oldest→newest daily OHLC). Pure — no I/O —

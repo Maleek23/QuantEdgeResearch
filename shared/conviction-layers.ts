@@ -29,6 +29,7 @@ export const CONVICTION_LAYERS = [
   { kind: 'premarket',    label: 'Pre-market',     short: 'PRE', blurb: 'Whether the overnight tape confirms or fights the setup' },
   { kind: 'freshness',    label: 'Freshness',      short: 'FRS', blurb: 'How much of the move has already happened' },
   { kind: 'weekly',       label: 'Weekly',         short: 'WKY', blurb: 'Position within the weekly watchlist thesis' },
+  { kind: 'structure',    label: 'Structure',      short: 'STR', blurb: 'What the publishing detector measured: a dated bottom with a printed invalidation, or aggressor dollars at the ask' },
 ] as const;
 
 /**
@@ -51,7 +52,7 @@ export const CONVICTION_FAMILIES = [
     question: 'What is price doing on its own terms?',
     blurb:
       'The setup as it appears without any outside context — structure, the named pattern, how tightly the range has wound, and how much of the move has already happened.',
-    kinds: ['technical', 'ta', 'compression', 'freshness'],
+    kinds: ['technical', 'ta', 'compression', 'freshness', 'structure'],
   },
   {
     id: 'positioning',

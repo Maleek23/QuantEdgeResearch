@@ -22,6 +22,19 @@ import {
 import { getSymbolAdjustment } from "./loss-analyzer-service";
 import { logger } from "./logger";
 
+/**
+ * Leveraged/inverse wrappers are blocked at the shared gate (2026-09-23: UCO
+ * reached the board as a "bull flag" — a pattern on an inverse/levered wrapper
+ * is its underlying's shape with borrowed money, not a setup). Plain sector
+ * ETFs (SMH, XBI) stay eligible: a sector turn is a real thesis.
+ */
+export const LEVERAGED_INVERSE_ETFS = new Set([
+  'TQQQ', 'SQQQ', 'SOXL', 'SOXS', 'TNA', 'TZA', 'SPXL', 'SPXU', 'UPRO', 'SDOW', 'SDS', 'SSO', 'QLD', 'QID',
+  'UVXY', 'SVXY', 'VXX', 'UVIX', 'SVIX', 'SCO', 'UCO', 'BOIL', 'KOLD', 'DRIP', 'GUSH', 'NUGT', 'DUST',
+  'JNUG', 'JDST', 'TSLL', 'TSLQ', 'TSLG', 'TSLR', 'NVDL', 'NVDX', 'NVDU', 'NVDD', 'AMZU', 'AMZD', 'MSTU', 'MSTZ',
+  'FAS', 'FAZ', 'LABU', 'LABD', 'YINN', 'YANG', 'TMF', 'TMV', 'DXD', 'DDM', 'UDOW', 'ERX', 'ERY', 'CONY',
+]);
+
 // Deduplication cache - prevents flooding Trade Desk with duplicates
 const recentIngestions = new Map<string, number>();
 const INGESTION_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours between same symbol/source
@@ -214,6 +227,15 @@ function markIngested(symbol: string, source: IdeaSource, assetType?: string): v
 export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionResult> {
   const symbol = input.symbol.toUpperCase();
   const source = input.source;
+
+  if (LEVERAGED_INVERSE_ETFS.has(symbol)) {
+    return {
+      success: false,
+      reason: 'Leveraged/inverse wrapper — a pattern here is the underlying with borrowed money, not a setup',
+      symbol,
+      source,
+    };
+  }
 
   // Broad-universe reads are useful coverage, but they are not trade plans.
   // A liquid, well-known ticker plus a moving quote is one observation, not a

@@ -289,7 +289,10 @@ function scoreQualitySignalsLayer(idea: any, direction: "long" | "short"): Convi
   if (qs.length === 0) return null;
 
   // Count signals that align with the direction.
-  const longKeywords = /breakout|bullish|momentum|volume|surge|uptrend|near high|gap up|squeeze|coil|oversold|bounce|accumulation|relative volume|strong move|positive/i;
+  // Includes the reversal and tape vocabulary (2026-09-23): "bottomed",
+  // "ascending floors", "net premium bought" are aligned long evidence — the
+  // old list scored a measured bottom-reversal as neutral and buried it.
+  const longKeywords = /breakout|bullish|momentum|volume|surge|uptrend|near high|gap up|squeeze|coil|oversold|bounce|accumulation|relative volume|strong move|positive|higher[- ]lows?|bottomed|ascending|recover|retrace|reversal|net premium|call buying|call-weighted|aggressor|tape confirms/i;
   const shortKeywords = /bearish|breakdown|downtrend|gap down|near low|overbought|distribution|selloff|negative/i;
 
   const aligned = qs.filter((s) => {
@@ -319,6 +322,31 @@ function scoreQualitySignalsLayer(idea: any, direction: "long" | "short"): Convi
     points,
     why: aligned.slice(0, 3).join(" · "),
     data: { signalCount: qs.length, aligned: aligned.length },
+  };
+}
+
+/**
+ * Measured-structure layer — reversal and tape-primary ideas are early BY
+ * DESIGN: every trend layer (RSI, EMA stack, 200SMA) systematically
+ * under-scores a name that is turning off a bottom or being accumulated
+ * before the chart moves, which buried the 2026-09-23 reversal slate at
+ * 4-14 points. The detector measured real things (a dated bottom, a printed
+ * invalidation, aggressor dollars at the ask) — credit that measurement,
+ * scaled by the publisher's own confidence.
+ */
+function scoreMeasuredStructureLayer(idea: any): ConvictionLayer | null {
+  const cat = String(idea.catalyst ?? "");
+  const isReversal = cat.startsWith("Higher-Lows Base") || cat.startsWith("V-Recovery");
+  const isTape = cat.startsWith("Aggressor tape:");
+  if (!isReversal && !isTape) return null;
+  const conf = Number(idea.confidenceScore ?? 0);
+  const points = conf >= 80 ? 12 : conf >= 70 ? 9 : 6;
+  return {
+    kind: "structure",
+    label: isTape ? "Measured Tape" : "Reversal Structure",
+    points,
+    why: cat.split("·")[0].trim(),
+    data: { publisherConfidence: conf },
   };
 }
 
@@ -2260,6 +2288,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
 
     const qualitySignals = scoreQualitySignalsLayer(idea, direction);
     if (qualitySignals) layers.push(qualitySignals);
+
+    const measuredStructure = scoreMeasuredStructureLayer(idea);
+    if (measuredStructure) layers.push(measuredStructure);
 
     const tier = scoreTierLayer(idea.symbol, idea.riskRewardRatio);
     if (tier) layers.push(tier);
