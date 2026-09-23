@@ -1235,6 +1235,19 @@ app.use((req, res, next) => {
     }, { timezone: 'America/Chicago' });
     log('🔄 Bottom-reversal scanner started - evening sweep 8:40 PM CT publishes tomorrow\'s reversal slate');
 
+    // Crypto proxy promoter — when BTC/ETH print a qualifying weekly move,
+    // interrogate the equity proxies on their OWN evidence (their own tape,
+    // their own invalidation) and publish the ones that pass. Twice a day.
+    cron.default.schedule('45 8,12 * * 1-5', async () => {
+      try {
+        const { runCryptoProxyPromotion } = await import('./crypto-proxy-promoter');
+        await runCryptoProxyPromotion();
+      } catch (err) {
+        logger.error('[CRYPTO-PROXY] run failed:', err);
+      }
+    }, { timezone: 'America/Chicago' });
+    log('₿ Crypto proxy promoter started - 8:45 AM + 12:45 PM CT, proxies must pass their own evidence bar');
+
     // The board is persisted. Starting a server is not evidence for a new trade,
     // so startup never publishes another round of quant ideas. Use the explicit
     // scanner endpoint when a deliberate manual scan is needed.

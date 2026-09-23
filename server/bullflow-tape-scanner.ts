@@ -122,7 +122,7 @@ async function getYahoo(): Promise<any> {
  * is down (it regularly is — the rest of the platform carries the same
  * fallback).
  */
-async function quoteWithDayLow(symbol: string): Promise<{ last: number; low: number; prevClose: number } | null> {
+export async function quoteWithDayLow(symbol: string): Promise<{ last: number; low: number; prevClose: number } | null> {
   try {
     const q = await getTradierQuote(symbol);
     if (q && Number.isFinite(q.last) && q.last > 0 && Number.isFinite(q.low) && q.low > 0) {

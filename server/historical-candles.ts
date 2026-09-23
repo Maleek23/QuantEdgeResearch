@@ -87,16 +87,39 @@ export async function fetchCandles(
 
         const stamps: number[] = res.timestamp || [];
         const q = res.indicators?.quote?.[0] || {};
+        const adj: Array<number | null> = res.indicators?.adjclose?.[0]?.adjclose ?? [];
+        const meta = res.meta ?? {};
         const quotes = stamps.map((t: number, i: number) => ({
           date: new Date(t * 1000),
           open: q.open?.[i], high: q.high?.[i], low: q.low?.[i],
-          close: q.close?.[i], volume: q.volume?.[i],
+          close: q.close?.[i], volume: q.volume?.[i], adjclose: adj?.[i],
         }));
-        return { quotes };
+        return { quotes, meta };
       },
     );
 
-    return (result?.quotes ?? [])
+    // Yahoo quirk (found 2026-09-22): for hours after each close, the just-
+    // completed session's daily bar comes back with close=null and the old
+    // null-filter DROPPED THE WHOLE BAR — every chart (and the TA engine)
+    // was missing the latest session, worst on the biggest-move days. Repair
+    // the close from adjclose, or for the final bar from Yahoo's own
+    // meta.regularMarketPrice, which is the official close of that session.
+    const meta: any = (result as any)?.meta ?? {};
+    const rows: any[] = result?.quotes ?? [];
+    const lastIdx = rows.length - 1;
+    return rows
+      .map((q: any, i: number) => {
+        let close = q.close ?? q.adjclose ?? null;
+        if (
+          close == null && i === lastIdx &&
+          Number.isFinite(meta.regularMarketPrice) &&
+          Number.isFinite(meta.regularMarketTime) &&
+          Math.abs(meta.regularMarketTime * 1000 - new Date(q.date).getTime()) < 24 * 3600_000
+        ) {
+          close = meta.regularMarketPrice;
+        }
+        return { ...q, close };
+      })
       .filter((q: any) => q.open != null && q.high != null && q.low != null && q.close != null)
       .map((q: any) => ({
         time: Math.floor(new Date(q.date).getTime() / 1000),
