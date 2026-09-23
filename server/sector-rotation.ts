@@ -198,9 +198,29 @@ async function fetchQuote(symbol: string): Promise<RawQuote | null> {
     const last = Number(closes[i]);
     const sessionAtMs = (stamps[i] ?? m.regularMarketTime ?? 0) * 1000;
 
-    // baseline = the last completed regular-session close, so an overnight move reads
-    // as a gap against yesterday rather than against itself.
-    const prevClose = Number(m.chartPreviousClose ?? m.previousClose ?? 0);
+    // baseline = the PRIOR session's last regular-hours print, derived from the
+    // series itself. NEVER m.chartPreviousClose here: on a 5d range Yahoo sets
+    // it to the close before the RANGE (5+ sessions back), which made "today's
+    // change" a week's cumulative move — SMH read +10.1% "Live" while the real
+    // tape printed −1.1% (found 2026-09-23; every rotation panel was wrong
+    // during live sessions).
+    const etDate = (ms: number) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const etMinutes = (ms: number) => {
+      const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ms));
+      return Number(p.find((x) => x.type === 'hour')?.value ?? 0) * 60 + Number(p.find((x) => x.type === 'minute')?.value ?? 0);
+    };
+    const lastDate = etDate(sessionAtMs);
+    let prevClose = 0;
+    for (let k = i; k >= 0; k--) {
+      if (closes[k] == null || !Number.isFinite(closes[k])) continue;
+      const tMs = (stamps[k] ?? 0) * 1000;
+      if (etDate(tMs) === lastDate) continue;            // still the current session
+      const mins = etMinutes(tMs);
+      if (mins < 9 * 60 + 30 || mins > 16 * 60) continue; // want the regular-hours close
+      prevClose = Number(closes[k]);
+      break;
+    }
+    if (!prevClose) prevClose = Number(m.previousClose ?? m.chartPreviousClose ?? 0);
     const regNow = Number(m.regularMarketPrice ?? last);
     if (!prevClose) return null;
 
