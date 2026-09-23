@@ -579,13 +579,34 @@ async function scanGammaPin(symbol: string, levels: DayLevels): Promise<SPXSigna
 
     const distancePercent = (minDistance / price) * 100;
 
-    // If within 0.3% of gamma level, expect pin
-    if (distancePercent > 0.3) {
+    // GRAVITY ZONE: the pin trade's whole edge IS the distance to the pin.
+    // Inside 0.35% the move is already over (the old gate published entries
+    // sitting ON the magnet — IWM 0.007% away on 2026-09-23); beyond 1.5%
+    // other forces dominate the magnet.
+    if (distancePercent < 0.35 || distancePercent > 1.5) {
       return null;
     }
 
     // Direction toward gamma
     const direction: 'LONG' | 'SHORT' = price < nearestGamma ? 'LONG' : 'SHORT';
+
+    // TAPE COHERENCE: a pin long against heavy same-day aggressor selling
+    // (SPY was published BULL with −$28.6M sold) is an argument, not a
+    // setup. Strongly opposing measured flow vetoes publication, visibly.
+    try {
+      const bf = await import('./bullflow-service');
+      if (bf.bullflowEnabled()) {
+        const read: any = await bf.getNetPremiumToday(symbol);
+        if (read) {
+          const net = Number(read.callsNetPremium ?? 0) - Number(read.putsNetPremium ?? 0);
+          if ((direction === 'LONG' && net <= -10e6) || (direction === 'SHORT' && net >= 10e6)) {
+            console.log(`[SPX-SESSION] GAMMA_PIN ${symbol} vetoed — aggressor tape ${(net / 1e6).toFixed(1)}M against the ${direction} pin thesis`);
+            return null;
+          }
+        }
+      }
+    } catch { /* flow unavailable — the geometry gates still hold */ }
+
     const rangeWidth = levels.hod - levels.lod;
 
     return createSignal({
@@ -593,6 +614,7 @@ async function scanGammaPin(symbol: string, levels: DayLevels): Promise<SPXSigna
       strategy: 'GAMMA_PIN',
       direction,
       price,
+      structuralTarget: nearestGamma,
       keyLevel: nearestGamma,
       keyLevelName: `$${nearestGamma} Strike`,
       rangeWidth,
@@ -841,6 +863,8 @@ interface SignalParams {
   confidence: number;
   urgency: 'HIGH' | 'MEDIUM' | 'LOW';
   thesis: string;
+  /** When the strategy has a REAL destination (e.g. the gamma pin), targets must be it — not a generic 2R past it. */
+  structuralTarget?: number;
 }
 
 function createSignal(params: SignalParams): SPXSignal {
@@ -854,8 +878,13 @@ function createSignal(params: SignalParams): SPXSignal {
   const risk = rangeWidth * 0.25;
   const entry = direction === 'LONG' ? price + 0.10 : price - 0.10;
   const stop = direction === 'LONG' ? price - risk : price + risk;
-  const target1 = direction === 'LONG' ? price + (risk * 2) : price - (risk * 2);
-  const target2 = direction === 'LONG' ? price + (risk * 3) : price - (risk * 3);
+  // A strategy with a structural destination (gamma pin) targets THAT level:
+  // a generic 2R past the pin contradicts the pin thesis itself (2026-09-23:
+  // IWM was published entering ON the $282 pin targeting $284 beyond it).
+  const target1 = params.structuralTarget ?? (direction === 'LONG' ? price + (risk * 2) : price - (risk * 2));
+  const target2 = params.structuralTarget != null
+    ? params.structuralTarget
+    : (direction === 'LONG' ? price + (risk * 3) : price - (risk * 3));
 
   // Options setup
   const isZeroDTE = mins < 120;

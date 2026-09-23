@@ -374,6 +374,37 @@ function scoreLeadershipLayer(symbol: string): ConvictionLayer | null {
 }
 
 /**
+ * Tape contradiction layer — SUBTRACTS. When the aggressor tape (measured
+ * ask-vs-bid fills, same-day) leans hard against the idea's direction, that
+ * is evidence AGAINST the card and must cost points, not decorate a chip:
+ * on 2026-09-23 a BULL SPY pin card rendered with −$28.6M net sold on its
+ * own face. Scaled by size; mild disagreement costs little, heavy costs a
+ * band. Confirming tape is already rewarded elsewhere — this layer only
+ * ever goes negative or abstains.
+ */
+async function scoreTapeContradictionLayer(symbol: string, direction: "long" | "short"): Promise<ConvictionLayer | null> {
+  try {
+    const bf = await import("./bullflow-service");
+    if (!bf.bullflowEnabled()) return null;
+    const read: any = await bf.getNetPremiumToday(symbol);
+    if (!read) return null;
+    const net = Number(read.callsNetPremium ?? 0) - Number(read.putsNetPremium ?? 0);
+    const against = direction === "long" ? -net : net; // positive = tape opposes
+    if (against < 1_000_000) return null;               // mild/confirming → abstain
+    const points = against >= 20e6 ? -10 : against >= 5e6 ? -7 : -4;
+    return {
+      kind: "structure",
+      label: "Tape Contradiction",
+      points,
+      why: `aggressor tape leans ${direction === "long" ? "SHORT" : "LONG"} $${(against / 1e6).toFixed(1)}M against this card today (measured fills)`,
+      data: { netPremium: net },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Watchlist tier layer — being on the proven backtested watchlist is
  * itself a form of conviction. S-tier names earn more than secondary.
  */
@@ -2474,7 +2505,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   if (!skipLiveRevalidation) {
     await Promise.all(
       topForSector.map(async (p) => {
-      const [sectorLayer, analystSnap, taLayer, compressionLayer] = await Promise.all([
+      const [sectorLayer, analystSnap, taLayer, compressionLayer, tapeContradiction] = await Promise.all([
         scoreSectorLayer(p.symbol, p.sector, p.direction),
         getAnalystSnapshot(p.symbol).catch(() => null),
         // TA confluence (Fib + candlesticks + structure). Skipped during backtest
@@ -2482,7 +2513,12 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
         scoreTALayer(p.symbol, p.direction),
         // Darvas box + TTM squeeze. Same live-candle caveat as the TA layer.
         scoreCompressionLayer(p.symbol, p.direction),
+        // Opposing measured flow subtracts — see scoreTapeContradictionLayer.
+        scoreTapeContradictionLayer(p.symbol, p.direction),
       ]);
+      if (tapeContradiction) {
+        p.layers.push(tapeContradiction);
+      }
       if (sectorLayer) {
         p.layers.push(sectorLayer);
       }
