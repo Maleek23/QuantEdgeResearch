@@ -37,6 +37,7 @@
 import { logger } from './logger';
 import { bullflowEnabled, getTopTickers, getNetPremiumToday } from './bullflow-service';
 import { FAVORITE_TICKERS } from '@shared/leadership-universe';
+import { isUSMarketOpen } from '@shared/market-calendar';
 import { getTradierQuote } from './tradier-api';
 import { ingestTradeIdea } from './trade-idea-ingestion';
 
@@ -250,7 +251,12 @@ export async function runBullflowTapeScan(): Promise<number> {
         logger.info(`[TAPE-SCAN] ${symbol}: no quote from any provider — will retry next sweep`);
         continue;
       }
-      const entry = q.last;
+      // After-hours publication bug (2026-09-23): entry = last made every
+      // evening idea instantly 'entered', then overnight drift painted fake
+      // drawdowns by the open. Outside cash hours the entry is a TRIGGER
+      // 0.3% above last — pending until actually touched in RTH.
+      const cashOpen = isUSMarketOpen().isOpen;
+      const entry = cashOpen ? q.last : Number((q.last * 1.003).toFixed(2));
       // Measured invalidation, in preference order: the session low, then the
       // prior close (gap-fill = thesis wrong). Each must leave a real but
       // bounded risk; a stop minutes old on top of last is not a structure.
@@ -331,7 +337,7 @@ export async function runBullflowTapeScan(): Promise<number> {
         analysis:
           `Flow-primary idea: direction is read from actual ask-vs-bid fills on the options tape (Bullflow), ` +
           `not from a chart pattern — no technical setup is claimed. ${symbol}'s tape this session: ${compText} (${fmtM(net)} net bullish). ` +
-          `Entry at last ($${entry.toFixed(2)}), invalidation at the ${stopBasis} ($${roundedStop.toFixed(2)}) — if the day that printed the buying ` +
+          `Entry ${cashOpen ? `at last ($${entry.toFixed(2)})` : `on a trigger at $${entry.toFixed(2)} (0.3% above the closed-market last — pending until touched in RTH)`}, invalidation at the ${stopBasis} ($${roundedStop.toFixed(2)}) — if the day that printed the buying ` +
           `gives that level back, the thesis is wrong. T1 $${target.toFixed(2)} is stated plainly as 2R off that invalidation, not a structural level.`,
         sourceMetadata: {
           scannerType: 'bullflow_tape',

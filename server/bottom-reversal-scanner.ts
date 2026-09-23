@@ -273,6 +273,12 @@ export async function runBottomReversalSweep(opts: { publish?: boolean } = {}): 
     ];
 
     try {
+      // The evening sweep runs after the close: publish the entry as a
+      // TRIGGER just above the close (BMT-style pending card), never as an
+      // already-entered position. Targets re-derive from the trigger.
+      const trigger = Number((h.lastClose * 1.003).toFixed(2));
+      const trigRisk = trigger - h.stop;
+      const t1FromTrigger = Number((trigger + 2 * trigRisk).toFixed(2));
       const result = await ingestTradeIdea({
         source: 'market_scanner',
         symbol: h.symbol,
@@ -280,8 +286,8 @@ export async function runBottomReversalSweep(opts: { publish?: boolean } = {}): 
         direction: 'bullish',
         signals,
         holdingPeriod: 'swing',
-        currentPrice: h.lastClose,
-        targetPrice: h.t1,
+        currentPrice: trigger,
+        targetPrice: t1FromTrigger,
         stopLoss: h.stop,
         catalyst: `${patternLabel} off the $${h.bottomLow.toFixed(2)} bottom (${h.bottomDate}) · flow: ${flowNote}`,
         analysis:
