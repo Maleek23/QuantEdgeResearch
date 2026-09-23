@@ -7282,6 +7282,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CONVICTIONS — Layered confluence scoring across the watchlist
   // ═══════════════════════════════════════════════════════════════
 
+  // 5-minute confluence read — six measured checks for entry/exit timing.
+  app.get("/api/timing5/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { getIntradayConfluence } = await import("./intraday-confluence");
+      const r = await getIntradayConfluence(String(req.params.symbol).toUpperCase());
+      if (!r) return res.status(404).json({ error: "not enough 5m bars" });
+      res.json(r);
+    } catch (err) {
+      logger.error("[API] timing5 failed:", err);
+      res.status(500).json({ error: "timing read failed" });
+    }
+  });
+
+  // Extended-hours read of the operator favorites (pre/post market).
+  app.get("/api/extended-favorites", requireBetaAccess, async (_req, res) => {
+    try {
+      const { readExtendedFavorites } = await import("./extended-hours-watch");
+      res.json({ reads: await readExtendedFavorites() });
+    } catch (err) {
+      logger.error("[API] extended favorites failed:", err);
+      res.status(500).json({ error: "extended read failed" });
+    }
+  });
+
   // Adaptive contract picker — DTE window + account budget in, ranked
   // candidates with explicit warnings out. CBOE delayed chain (Tradier dead).
   app.get("/api/contract-picker/:symbol", requireBetaAccess, async (req, res) => {

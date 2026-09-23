@@ -313,3 +313,98 @@ export async function runLeaderSwingScan(): Promise<number> {
   logger.info(`[LEADER-SWING] run done \u2014 ${published} published of ${hits.length} structural hits`);
   return published;
 }
+
+/**
+ * PREMIUM DISCOUNT SCAN — the operator's real SPX ask (2026-09-23): "spy qqq
+ * discounts i mean for PREMIUMS not spy itself — it's hard, they get 1%
+ * drawdowns these days." Correct: the modern index rarely discounts in
+ * PRICE; it discounts in PREMIUM. Measured as weekly ATM implied vol vs the
+ * index's own 20-session realized vol — when IV/RV <= 0.95, movement is
+ * being sold below its recent actual cost, and with-trend weekly calls are
+ * structurally cheap. No pullback required.
+ */
+export async function runPremiumDiscountScan(): Promise<number> {
+  if (liquidUniverseStatus().size === 0) return 0;
+  const bars = await getUniverseBars(30);
+  const today = marketDateET();
+  let published = 0;
+
+  for (const sym of ['SPY', 'QQQ']) {
+    if (dayDone.get('PD:' + sym) === today) continue;
+    const series = bars.get(sym);
+    if (!series || series.length < 22) continue;
+
+    // Realized vol: 20-session close-to-close, annualized.
+    const closes = series.map((b) => b.close);
+    const rets: number[] = [];
+    for (let i = closes.length - 20; i < closes.length; i++) rets.push(Math.log(closes[i] / closes[i - 1]));
+    const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+    const rv = Math.sqrt(rets.reduce((a, b) => a + (b - mean) ** 2, 0) / (rets.length - 1)) * Math.sqrt(252);
+
+    // Weekly ATM implied vol from the delayed chain.
+    let iv: number | null = null;
+    let atmLabel = '';
+    try {
+      const { fetchCboeChain } = await import('./contract-analyzer/cboe-chain');
+      const chain = await fetchCboeChain(sym);
+      if (chain && chain.spot > 0) {
+        const dteOf = (e: string) => Math.max(0, Math.round((new Date(e + 'T21:00:00Z').getTime() - Date.now()) / 86_400_000));
+        let best: any = null;
+        for (const o of chain.rawChain) {
+          if (String(o.option_type).toLowerCase() !== 'call') continue;
+          const dte = dteOf(o.expiration_date);
+          if (dte < 3 || dte > 9) continue;
+          const miv = o.greeks?.mid_iv;
+          if (miv == null || !(miv > 0)) continue;
+          const dist = Math.abs(o.strike - chain.spot);
+          if (!best || dist < best.dist) best = { dist, iv: Number(miv), strike: o.strike, exp: o.expiration_date, dte };
+        }
+        if (best) { iv = best.iv; atmLabel = `$${best.strike}C ${best.exp.slice(5)} (${best.dte} DTE)`; }
+      }
+    } catch { /* chain unavailable — no fabricated IV */ }
+    if (iv == null) { logger.info(`[PREMIUM-DISC] ${sym}: no ATM IV from the chain — no read`); continue; }
+
+    const ratio = iv / rv;
+    const last = series[series.length - 1];
+    const sma50src = closes.slice(-Math.min(50, closes.length));
+    const sma = sma50src.reduce((a, b) => a + b, 0) / sma50src.length;
+    const uptrend = last.close > sma;
+    logger.info(`[PREMIUM-DISC] ${sym}: weekly ATM IV ${(iv * 100).toFixed(1)}% vs realized ${(rv * 100).toFixed(1)}% — ratio ${ratio.toFixed(2)}${uptrend ? '' : ' (no uptrend)'}`);
+    if (!(ratio <= 0.95 && uptrend)) continue;
+
+    const stop = Math.min(...series.slice(-3).map((b) => b.low));
+    const risk = last.close - stop;
+    if (!(risk / last.close >= 0.004 && risk / last.close <= 0.03)) continue;
+    const t1 = Number((last.close + 2 * risk).toFixed(2));
+
+    try {
+      const result = await ingestTradeIdea({
+        source: 'market_scanner',
+        symbol: sym,
+        assetType: 'stock',
+        direction: 'bullish',
+        signals: [
+          { type: 'premium_discount', weight: 24, description: `weekly ATM IV ${(iv * 100).toFixed(1)}% vs realized ${(rv * 100).toFixed(1)}% (ratio ${ratio.toFixed(2)}) — movement priced below its recent actual cost` },
+          { type: 'trend_alignment', weight: 8, description: 'with-trend: above the 50-session mean' },
+          { type: 'measured_invalidation', weight: 8, description: `stop at the 3-session low $${stop.toFixed(2)}` },
+        ],
+        holdingPeriod: 'swing',
+        currentPrice: last.close,
+        targetPrice: t1,
+        stopLoss: Number(stop.toFixed(2)),
+        catalyst: `Premium discount: ${sym} weekly ATM IV ${(iv * 100).toFixed(1)}% vs realized ${(rv * 100).toFixed(1)}% (ratio ${ratio.toFixed(2)}) \u00b7 ${atmLabel}`,
+        analysis:
+          `Premium-discount read on ${sym}: the weekly ATM option (${atmLabel}) implies ${(iv * 100).toFixed(1)}% annualized movement while ` +
+          `the index actually realized ${(rv * 100).toFixed(1)}% over 20 sessions \u2014 buyers of this premium pay ${ratio.toFixed(2)}x its recent ` +
+          `actual cost. With-trend long expression; stop at the 3-session low. IV from the DELAYED chain \u2014 renew Tradier for live.`,
+        sourceMetadata: { scannerType: 'premium_discount', iv, rv, ratio },
+      });
+      dayDone.set('PD:' + sym, today);
+      if (result.success) { published++; logger.info(`[PREMIUM-DISC] \ud83d\udce4 ${sym} \u2014 ratio ${ratio.toFixed(2)}`); }
+      else logger.info(`[PREMIUM-DISC] ${sym} not published: ${result.reason}`);
+    } catch (err: any) {
+      logger.warn(`[PREMIUM-DISC] ${sym} failed: ${err?.message ?? err}`);
+    }
+  }
+  return published;
+}

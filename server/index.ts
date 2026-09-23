@@ -1273,6 +1273,26 @@ app.use((req, res, next) => {
     }, { timezone: 'America/Chicago' });
     log('🎯 Leader swing scanner started - 9:05 AM + 1:05 PM CT over the leadership universe');
 
+    // Premium-discount scan — weekly ATM IV vs realized on SPY/QQQ. The
+    // modern index discounts in PREMIUM, not price. With the index runs.
+    cron.default.schedule('58 8,12 * * 1-5', async () => {
+      try {
+        const { runPremiumDiscountScan } = await import('./index-swing-scanner');
+        await runPremiumDiscountScan();
+      } catch (err) { logger.error('[PREMIUM-DISC] run failed:', err); }
+    }, { timezone: 'America/Chicago' });
+
+    // Extended-hours favorites watch — post-close and pre-open sweeps.
+    cron.default.schedule('15 17 * * 1-5', async () => {
+      try { const { runExtendedHoursSweep } = await import('./extended-hours-watch'); await runExtendedHoursSweep(); }
+      catch (err) { logger.error('[EXT-HOURS] run failed:', err); }
+    }, { timezone: 'America/Chicago' });
+    cron.default.schedule('45 7 * * 1-5', async () => {
+      try { const { runExtendedHoursSweep } = await import('./extended-hours-watch'); await runExtendedHoursSweep(); }
+      catch (err) { logger.error('[EXT-HOURS] run failed:', err); }
+    }, { timezone: 'America/Chicago' });
+    log('\u23f0 Premium-discount (8:58a/12:58p) + extended-hours favorites watch (7:45a/5:15p CT) started');
+
     // The board is persisted. Starting a server is not evidence for a new trade,
     // so startup never publishes another round of quant ideas. Use the explicit
     // scanner endpoint when a deliberate manual scan is needed.

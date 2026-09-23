@@ -19,6 +19,8 @@ export const LEADERSHIP_UNIVERSE = new Set<string>([
   'MRVL', 'ARM', 'SNPS', 'CDNS', 'MCHP', 'ON', 'MPWR', 'SWKS', 'QRVO', 'TER', 'ENTG',
   'SMCI', 'SNDK', 'WDC', 'STX', 'RMBS', 'ALAB', 'CRDO', 'COHR', 'LITE', 'AEHR', 'COHU',
   'GFS', 'MKSI', 'ONTO', 'NVMI', 'CAMT', 'ACLS', 'AMBA', 'SITM', 'POWI', 'DIOD',
+  // Optics/photonics + etch/deposition complex (operator themes)
+  'AAOI', 'FN', 'CIEN', 'INFN', 'IPGP', 'NVTS', 'AXTI', 'AEIS', 'UCTT', 'ICHR', 'COHU',
   // Software / IGV-class
   'NOW', 'INTU', 'PANW', 'CRWD', 'FTNT', 'ZS', 'NET', 'DDOG', 'SNOW', 'MDB', 'TEAM',
   'WDAY', 'HUBS', 'PLTR', 'APP', 'SHOP', 'SQ', 'UBER', 'ABNB', 'DASH', 'COIN', 'HOOD',
