@@ -1278,7 +1278,15 @@ export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Pro
   // must not veto that (2026-09-23: whole-market Bullflow leaders were being
   // silently dropped here — the POET/NNE class could never publish).
   const isMeasuredFlow = String((input as any).source ?? '') === 'options_flow';
-  if (!isOperatorAdd && !isMeasuredFlow && !isApprovedTicker(symbol)) {
+  // Benchmark-complex names (shared/leadership-universe) also skip the
+  // hand-curated list: the operator's doctrine is leaders-first, and the
+  // index-swing scanner was being vetoed on IGV (2026-09-23).
+  let isBenchmark = false;
+  try {
+    const { isLeadershipName } = await import('@shared/leadership-universe');
+    isBenchmark = isLeadershipName(symbol);
+  } catch { /* module unavailable — curated list rules */ }
+  if (!isOperatorAdd && !isMeasuredFlow && !isBenchmark && !isApprovedTicker(symbol)) {
     logger.debug(`[UNIVERSAL] Blocked ${symbol} — not on approved watchlist`);
     return false;
   }

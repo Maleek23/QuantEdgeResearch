@@ -1248,6 +1248,19 @@ app.use((req, res, next) => {
     }, { timezone: 'America/Chicago' });
     log('₿ Crypto proxy promoter started - 8:45 AM + 12:45 PM CT, proxies must pass their own evidence bar');
 
+    // Index swing scanner — SPX-complex pullback entries with the premium
+    // discount measured (VIX regime). Twice a day: after the open settles
+    // and at midday. See server/index-swing-scanner.ts.
+    cron.default.schedule('55 8,12 * * 1-5', async () => {
+      try {
+        const { runIndexSwingScan } = await import('./index-swing-scanner');
+        await runIndexSwingScan();
+      } catch (err) {
+        logger.error('[INDEX-SWING] run failed:', err);
+      }
+    }, { timezone: 'America/Chicago' });
+    log('📈 Index swing scanner started - 8:55 AM + 12:55 PM CT, SPX-complex pullback discounts');
+
     // The board is persisted. Starting a server is not evidence for a new trade,
     // so startup never publishes another round of quant ideas. Use the explicit
     // scanner endpoint when a deliberate manual scan is needed.
