@@ -1195,7 +1195,30 @@ app.use((req, res, next) => {
     });
     
     log('📊 Quant Generator started - will generate ideas at 9:35 AM CT + 1:00 PM CT weekdays');
-    
+
+    // Bullflow tape scanner — the aggressor tape publishes ideas DIRECTLY,
+    // no longer waiting for a price pattern to form. Every 10 minutes across
+    // the session (8:35–15:05 CT), same window as the quant sweep. See
+    // server/bullflow-tape-scanner.ts for why (META 2026-09-09, semis 2026-09-22).
+    let isTapeScanning = false;
+    cron.default.schedule('*/10 * * * 1-5', async () => {
+      if (isTapeScanning) return;
+      const nowCT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+      const h = nowCT.getHours(), m = nowCT.getMinutes();
+      const inSession = (h > 8 || (h === 8 && m >= 35)) && (h < 15 || (h === 15 && m <= 5));
+      if (!inSession) return;
+      isTapeScanning = true;
+      try {
+        const { runBullflowTapeScan } = await import('./bullflow-tape-scanner');
+        await runBullflowTapeScan();
+      } catch (err) {
+        logger.error('[TAPE-SCAN] cron failed:', err);
+      } finally {
+        isTapeScanning = false;
+      }
+    });
+    log('🎯 Bullflow tape scanner started - aggressor tape publishes ideas every 10 min across the session');
+
     // The board is persisted. Starting a server is not evidence for a new trade,
     // so startup never publishes another round of quant ideas. Use the explicit
     // scanner endpoint when a deliberate manual scan is needed.
