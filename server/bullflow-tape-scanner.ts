@@ -41,6 +41,14 @@ import { ingestTradeIdea } from './trade-idea-ingestion';
 
 /** Net premium (calls-minus-puts, aggressor-signed) required to publish. */
 const TAPE_NET_MIN = Number(process.env.BULLFLOW_TAPE_IDEA_NET ?? 8_000_000);
+/**
+ * Operator observation 2026-09-23: heavy flow usually has a technical setup
+ * behind it. When the TA engine independently confirms (bullish bias +
+ * non-downtrend structure), the flow bar drops to this level — the two
+ * measurements corroborate each other, and the card says what the chart
+ * shows. Flow below this never publishes regardless of the chart.
+ */
+const TAPE_NET_MIN_WITH_TA = Number(process.env.BULLFLOW_TAPE_IDEA_NET_TA ?? 5_000_000);
 /** Above this net, composition no longer matters — the tape is loud enough. */
 const TAPE_NET_ANY_COMPOSITION = 30_000_000;
 /** Cap per sweep — the tape rarely has more than a handful of real stories. */
@@ -170,7 +178,7 @@ export async function runBullflowTapeScan(): Promise<number> {
     return 0;
   }
   const longs = rows
-    .filter((r) => Number(r.totalNetPremium) >= TAPE_NET_MIN)
+    .filter((r) => Number(r.totalNetPremium) >= TAPE_NET_MIN_WITH_TA)
     .sort((a, b) => Number(b.totalNetPremium) - Number(a.totalNetPremium));
   for (const r of rows.filter((x) => Number(x.totalNetPremium) <= -TAPE_NET_MIN)) {
     const sym = String(r.ticker).toUpperCase();
@@ -240,6 +248,24 @@ export async function runBullflowTapeScan(): Promise<number> {
         );
         continue;
       }
+      // Independent chart read. Below the standalone flow bar, a bullish TA
+      // confirmation is REQUIRED; above it, it is extra evidence on the card.
+      let taConfirm: { score: number; why: string } | null = null;
+      try {
+        const { getCachedTARead } = await import('./ta-engine');
+        const ta: any = await getCachedTARead(symbol, '3mo', '1d');
+        if (ta?.bias?.direction === 'bullish' && ta?.structure?.trend !== 'downtrend') {
+          taConfirm = {
+            score: Number(ta.bias.score) || 0,
+            why: [ta.structure?.trend ? `structure ${ta.structure.trend}` : null, ...(ta.bias.confluence ?? []).slice(0, 2)].filter(Boolean).join(' · '),
+          };
+        }
+      } catch { /* TA unavailable — standalone flow bar applies */ }
+      if (net < TAPE_NET_MIN && !taConfirm) {
+        logger.info(`[TAPE-SCAN] ${symbol}: ${fmtM(net)} net is below the ${fmtM(TAPE_NET_MIN)} standalone bar and the chart does not confirm — will retry next sweep`);
+        continue;
+      }
+
       // Round the stop first, then derive the target from the ROUNDED risk —
       // otherwise the published triple contradicts its own "2R" claim.
       const roundedStop = Number(stop.toFixed(2));
@@ -252,7 +278,7 @@ export async function runBullflowTapeScan(): Promise<number> {
       const signals = [
         {
           type: 'aggressor_net_premium',
-          weight: net >= 30e6 ? 32 : net >= 15e6 ? 28 : 24,
+          weight: net >= 30e6 ? 32 : net >= 15e6 ? 28 : net >= TAPE_NET_MIN ? 24 : 22,
           description: `${fmtM(net)} net premium bullish today (aggressor-measured)`,
         },
         {
@@ -265,6 +291,11 @@ export async function runBullflowTapeScan(): Promise<number> {
           weight: 8,
           description: `invalidation at the ${stopBasis} $${roundedStop.toFixed(2)} (${((risk / entry) * 100).toFixed(1)}% risk)`,
         },
+        ...(taConfirm ? [{
+          type: 'chart_confirmation',
+          weight: 8,
+          description: `chart independently confirms: ${taConfirm.why || `bias +${taConfirm.score}`}`,
+        }] : []),
       ];
 
       const result = await ingestTradeIdea({

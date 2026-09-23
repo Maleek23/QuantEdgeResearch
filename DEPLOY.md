@@ -1,142 +1,44 @@
-# Deploying QuantEdge
+# Deploying QuantEdge always-on
 
-Two services, one image, one database.
+The platform is cron- and stream-heavy (scanners every 10–30 min, SSE tape,
+WebSockets, a 4:10 PM ET worker self-restart). It needs a host where the
+process **never sleeps**. Serverless (Vercel/Netlify) and free web tiers
+(Render free spins down after ~15 idle minutes) cannot run it correctly.
 
-| Service | Command | Instances | Purpose |
+## Options, honestly compared
+
+| Host | $/mo | Always-on | Fit |
 |---|---|---|---|
-| `web` | `node dist/web.js` | scale freely | HTTP + the client bundle |
-| `worker` | `node dist/worker.js` | **exactly 1** | all 35 background jobs |
+| **VPS (Hetzner CX22 / DigitalOcean)** | ~$4–7 | yes | **Best** — 4GB RAM runs web+worker exactly as designed under PM2; full control |
+| Railway (Hobby) | ~$5+usage | yes | Good — GitHub deploy, no sleep; watch RAM pricing |
+| Render Starter | $7 | yes | OK — 512MB is tight; web only, worker needs a 2nd service |
+| Render Standard | $25 | yes | Easy — 2GB, zero-ops, current repo already wired |
+| Render Free (current) | $0 | **no** | Site preview only — crons dead while asleep |
 
-The database is already on Supabase and does not move. `server/db.ts` pins
-`DATABASE_URL` to `.env.supabase` with `override: true`, so **that file must
-exist in the image or the override must be removed before deploying** — see
-"Before the first deploy" below.
-
----
-
-## Before the first deploy
-
-**1. Rotate the exposed credentials.** These were pasted into a chat transcript
-and must be considered public:
-
-- `FINNHUB_API_KEY` — regenerate at finnhub.io
-- the webhook secret that was pasted into a chat transcript (rotate it in the provider console; it is deliberately not reproduced here)
-
-**2. Generate a fresh `SESSION_SECRET`.** Anyone holding it can forge sessions:
+## VPS quickstart (Ubuntu 22+, ~15 minutes)
 
 ```bash
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+# as root on the fresh server
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs git
+npm i -g pm2
+git clone https://github.com/Maleek23/QuantEdgeResearch.git /opt/quantedge
+cd /opt/quantedge && git checkout redesign/phase1-demolition
+# copy the local .env to the server (scp), then:
+npm ci --include=dev && npm run build
+pm2 start ecosystem.config.cjs && pm2 save && pm2 startup
 ```
 
-**3. Decide how `DATABASE_URL` reaches production.** `server/db.ts:10` does:
+Updates: `cd /opt/quantedge && git pull && npm ci --include=dev && npm run build && pm2 restart all`
 
-```ts
-config({ path: ".env.supabase", override: true });
-```
+Put Caddy or nginx in front for HTTPS + a domain when ready
+(`caddy reverse-proxy --from yourdomain.com --to localhost:3000`).
 
-`.env.supabase` is gitignored, so it will **not** be in the image, and the
-override silently no-ops — the app falls back to the platform's `DATABASE_URL`.
-That is the behaviour you want in production, but it is accidental rather than
-designed. Either set `DATABASE_URL` in Railway (recommended) and leave the
-override to fail harmlessly, or delete that line.
+## Notes
 
----
-
-## Railway
-
-Create one project with **two services from the same repo**. Point each at its
-own config file via the service's `RAILWAY_CONFIG_PATH` variable:
-
-| Service | `RAILWAY_CONFIG_PATH` |
-|---|---|
-| web | `railway.web.json` |
-| worker | `railway.worker.json` |
-
-### Environment variables
-
-Shared by both services:
-
-```
-DATABASE_URL, SESSION_SECRET, NODE_ENV=production, HOST=0.0.0.0
-POLYGON_API_KEY, FINNHUB_API_KEY, TRADIER_API_KEY, TRADIER_ACCOUNT_ID
-ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_PAPER=true
-DB_POOL_MAX=6
-```
-
-Web only — these stop the web tier from duplicating the worker's jobs:
-
-```
-WORKER_ENABLED=true
-DISABLE_WEB_FLOW_CRON=1
-```
-
-### Sizing `DB_POOL_MAX`
-
-The limit is **across all instances at once**. Supabase's pooler caps at 15:
-
-```
-(15 - 2 for the scheduler lock and headroom) / instances = DB_POOL_MAX
-```
-
-2 web + 1 worker → `DB_POOL_MAX=4`. One web + one worker → `6`. Exceeding the
-cap does not fail loudly; requests queue on `connectionTimeoutMillis` and the
-site appears to hang.
-
----
-
-## Why the worker must be a single instance
-
-Every background job writes to one shared database. Two schedulers publish the
-same signal twice, and because both processes check the ingestion dedup before
-either inserts, both read "no existing row" and both write.
-
-`server/scheduler-lock.ts` holds a Postgres session advisory lock to prevent
-this. It is a safety net, not a licence to scale the worker: a second worker
-takes the lock, loses, and idles doing nothing.
-
-The lock is released automatically when a process dies, and explicitly on
-SIGTERM so a rolling deploy hands over immediately.
-
-### Verifying it works
-
-Worker logs on a healthy deploy:
-
-```
-[SCHEDULER-LOCK] acquired — this instance runs the background schedulers
-```
-
-Web logs:
-
-```
-👥 WORKER_ENABLED=true — background jobs belong to the worker tier, web schedules nothing
-```
-
-If you ever see `[SCHEDULER-LOCK] another process holds the scheduler lock` on
-the worker, a second worker or an orphaned process is alive.
-
----
-
-## Health check
-
-`GET /api/health` returns **200 whenever the process can serve**, with a body
-that reports each dependency:
-
-```json
-{ "status": "degraded", "checks": { "postgres": { "ok": true } } }
-```
-
-`degraded` is deliberate — a vendor outage (Tradier, Yahoo) should not cause the
-platform to be restarted. Alert on `checks.postgres.ok === false`, not on
-`status`.
-
----
-
-## Concurrent users
-
-- Sessions are Postgres-backed (`connect-pg-simple`, `sessions` table), so they
-  survive restarts and work across multiple web instances.
-- Cookies are `httpOnly`, `sameSite: lax`, and `secure` when `NODE_ENV=production`
-  — so **the site must be served over HTTPS** or nobody can log in.
-- Signals in `trade_ideas` are global: every user sees the same board. That is
-  by design for a signals product. Per-user data (watchlist, preferences,
-  layouts, paper portfolios) is scoped by `user_id`.
+- `ecosystem.config.cjs` runs the intended two-process split; the worker's
+  4:10 PM ET exit is by design — PM2 restarting it is the memory reset.
+- DATABASE_URL: currently the Neon fallback; when the Supabase project is
+  resumed (or its backup imported), update `.env` on the server and
+  `pm2 restart all`.
+- The Tradier key is expired (401) — options chains/contract picking run on
+  fallbacks until it is renewed at tradier.com.
