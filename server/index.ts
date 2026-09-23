@@ -1198,7 +1198,7 @@ app.use((req, res, next) => {
 
     // Bullflow tape scanner — the aggressor tape publishes ideas DIRECTLY,
     // no longer waiting for a price pattern to form. Every 10 minutes across
-    // the session (8:35–15:05 CT), same window as the quant sweep. See
+    // the session (effective 8:40–15:00 CT on the */10 grid). See
     // server/bullflow-tape-scanner.ts for why (META 2026-09-09, semis 2026-09-22).
     let isTapeScanning = false;
     cron.default.schedule('*/10 * * * 1-5', async () => {
@@ -1217,7 +1217,7 @@ app.use((req, res, next) => {
         isTapeScanning = false;
       }
     });
-    log('🎯 Bullflow tape scanner started - aggressor tape publishes ideas every 10 min across the session');
+    log('🎯 Bullflow tape scanner started - aggressor tape publishes ideas every 10 min, 8:40-15:00 CT');
 
     // Bottom-reversal sweep — catches TURNS (higher-lows base, V-recovery)
     // instead of waiting for a continuation pattern. Runs each evening off

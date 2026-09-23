@@ -60,14 +60,53 @@ const fmtM = (n: number) => `${n < 0 ? '-' : '+'}$${(Math.abs(n) / 1e6).toFixed(
 
 /**
  * One decision per symbol per market date. 'published' and 'blocked' are
- * terminal for the day; transient skips (no quote, no structure band) are NOT
- * recorded so those names retry on later sweeps.
+ * terminal for the day; transient skips (no quote, no structure band, DB
+ * hiccup) are NOT recorded so those names retry on later sweeps. Persisted
+ * to disk so a process restart cannot re-publish a name that already
+ * resolved today off the same cumulative tape.
  */
-const dayDecisions = new Map<string, { date: string; verdict: 'published' | 'blocked' }>();
+const dayDecisions = new Map<string, { date: string; verdict: 'published' | 'blocked' | 'short_logged' }>();
+const DECISIONS_FILE = 'server/data/tape-scan-decisions.json';
+/** Across all ~39 sweeps — a broad rally day must not mint 25 tape ideas. */
+const MAX_DAILY_PUBLISH = 8;
+let decisionsLoaded = false;
 
 function marketDateET(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
+
+async function loadDecisions(today: string): Promise<void> {
+  if (decisionsLoaded) return;
+  decisionsLoaded = true;
+  try {
+    const fs = await import('fs/promises');
+    const raw = JSON.parse(await fs.readFile(DECISIONS_FILE, 'utf8'));
+    if (raw?.date === today && raw.entries) {
+      for (const [sym, verdict] of Object.entries(raw.entries)) {
+        dayDecisions.set(sym, { date: today, verdict: verdict as any });
+      }
+      logger.info(`[TAPE-SCAN] restored ${dayDecisions.size} day decision(s) from disk`);
+    }
+  } catch { /* first run of the day, or no file — fine */ }
+}
+
+async function saveDecisions(today: string): Promise<void> {
+  try {
+    const fs = await import('fs/promises');
+    const entries: Record<string, string> = {};
+    for (const [sym, d] of dayDecisions.entries()) if (d.date === today) entries[sym] = d.verdict;
+    await fs.writeFile(DECISIONS_FILE, JSON.stringify({ date: today, entries }));
+  } catch { /* best-effort — memory map still guards this process */ }
+}
+
+function publishedToday(today: string): number {
+  let n = 0;
+  for (const d of dayDecisions.values()) if (d.date === today && d.verdict === 'published') n++;
+  return n;
+}
+
+/** Ingestion rejections that the cumulative tape cannot change today. */
+const TERMINAL_REASONS = /Duplicate|Already held|Loss cooldown|Leveraged\/inverse/i;
 
 let yahooClient: any = null;
 async function getYahoo(): Promise<any> {
@@ -111,7 +150,13 @@ export async function runBullflowTapeScan(): Promise<number> {
     return 0;
   }
   const generatedAt = Date.parse(String(top?.generatedAt ?? ''));
-  if (Number.isFinite(generatedAt) && Date.now() - generatedAt > STALE_TAPE_MAX_MS) {
+  if (!Number.isFinite(generatedAt)) {
+    // Fail CLOSED: an unparseable timestamp means the freshness defense is
+    // blind, and the cache layer serves stale payloads through outages.
+    logger.warn('[TAPE-SCAN] leader payload has no parseable generatedAt — refusing to publish unverifiable tape');
+    return 0;
+  }
+  if (Date.now() - generatedAt > STALE_TAPE_MAX_MS) {
     logger.warn(
       `[TAPE-SCAN] leader data is ${Math.round((Date.now() - generatedAt) / 60_000)} min old (provider outage?) — refusing to publish off stale tape`,
     );
@@ -119,13 +164,20 @@ export async function runBullflowTapeScan(): Promise<number> {
   }
 
   const today = marketDateET();
+  await loadDecisions(today);
+  if (publishedToday(today) >= MAX_DAILY_PUBLISH) {
+    logger.info(`[TAPE-SCAN] daily publish cap (${MAX_DAILY_PUBLISH}) reached — sweep is read-only`);
+    return 0;
+  }
   const longs = rows
     .filter((r) => Number(r.totalNetPremium) >= TAPE_NET_MIN)
     .sort((a, b) => Number(b.totalNetPremium) - Number(a.totalNetPremium));
-  const shorts = rows.filter((r) => Number(r.totalNetPremium) <= -TAPE_NET_MIN);
-  for (const r of shorts) {
+  for (const r of rows.filter((x) => Number(x.totalNetPremium) <= -TAPE_NET_MIN)) {
+    const sym = String(r.ticker).toUpperCase();
+    if (dayDecisions.get(sym)?.date === today) continue; // one line per day, not 39
+    dayDecisions.set(sym, { date: today, verdict: 'short_logged' });
     logger.info(
-      `[TAPE-SCAN] ⛔ ${r.ticker} net SOLD ${fmtM(Number(r.totalNetPremium))} — short side skipped (no shorts without an event catalyst)`,
+      `[TAPE-SCAN] \u26d4 ${sym} net SOLD ${fmtM(Number(r.totalNetPremium))} \u2014 short side skipped (no shorts without an event catalyst)`,
     );
   }
   if (!longs.length) {
@@ -145,16 +197,25 @@ export async function runBullflowTapeScan(): Promise<number> {
     const prior = dayDecisions.get(symbol);
     if (prior && prior.date === today) continue;
 
-    // Composition: the tape must be call-led, or loud enough that composition
-    // stops mattering. A mixed $9M read is an observation, not a publication.
-    const callLed = callNet > 0 && callNet >= Math.abs(putNet);
-    if (!callLed && net < TAPE_NET_ANY_COMPOSITION) {
+    // Composition, sign-aware: calls BOUGHT (callNet > 0) and puts SOLD
+    // (putNet < 0) are both bullish dollars; calls sold / puts bought are
+    // bearish dollars. The old check treated put SELLING as opposition and
+    // wrongly skipped INTC (+$8.2M calls bought, $12.6M puts sold). Require
+    // the bullish side to carry >=2/3 of the gross, or >=$30M net overrides.
+    const bullDollars = Math.max(callNet, 0) + Math.max(-putNet, 0);
+    const bearDollars = Math.max(-callNet, 0) + Math.max(putNet, 0);
+    const bullishLed = bullDollars >= 2 * bearDollars;
+    const callsBought = callNet > 0;
+    if (!bullishLed && net < TAPE_NET_ANY_COMPOSITION) {
       dayDecisions.set(symbol, { date: today, verdict: 'blocked' });
       logger.info(
-        `[TAPE-SCAN] ${symbol}: ${fmtM(net)} net but mixed composition (calls ${fmtM(callNet)} / puts ${fmtM(putNet)}) — not call-led, skipped for today`,
+        `[TAPE-SCAN] ${symbol}: ${fmtM(net)} net but two-sided tape (bullish ${fmtM(bullDollars)} vs bearish ${fmtM(bearDollars)}) — skipped for today`,
       );
       continue;
     }
+    const compText =
+      `${callsBought ? `calls bought ${fmtM(callNet)}` : `calls sold ${fmtM(callNet)}`}` +
+      ` · ${putNet < 0 ? `puts sold ${fmtM(Math.abs(putNet))}` : `puts bought ${fmtM(putNet)}`}`;
 
     try {
       const q = await quoteWithDayLow(symbol);
@@ -179,7 +240,10 @@ export async function runBullflowTapeScan(): Promise<number> {
         );
         continue;
       }
-      const risk = entry - stop;
+      // Round the stop first, then derive the target from the ROUNDED risk —
+      // otherwise the published triple contradicts its own "2R" claim.
+      const roundedStop = Number(stop.toFixed(2));
+      const risk = entry - roundedStop;
       const target = Number((entry + 2 * risk).toFixed(2));
 
       // Weights are sized so every combination that can reach this point
@@ -189,17 +253,17 @@ export async function runBullflowTapeScan(): Promise<number> {
         {
           type: 'aggressor_net_premium',
           weight: net >= 30e6 ? 32 : net >= 15e6 ? 28 : 24,
-          description: `${fmtM(net)} net premium bought at the ask today (aggressor-measured)`,
+          description: `${fmtM(net)} net premium bullish today (aggressor-measured)`,
         },
         {
           type: 'tape_decomposition',
-          weight: callLed ? 12 : 6,
-          description: `calls ${fmtM(callNet)} · puts ${fmtM(putNet)} — ${callLed ? 'call buying leads' : 'mixed composition, size overrides'}`,
+          weight: bullishLed ? 12 : 6,
+          description: `${compText} — ${bullishLed ? 'bullish flow leads' : 'two-sided, size overrides'}`,
         },
         {
           type: 'measured_invalidation',
           weight: 8,
-          description: `invalidation at the ${stopBasis} $${stop.toFixed(2)} (${((risk / entry) * 100).toFixed(1)}% risk)`,
+          description: `invalidation at the ${stopBasis} $${roundedStop.toFixed(2)} (${((risk / entry) * 100).toFixed(1)}% risk)`,
         },
       ];
 
@@ -212,12 +276,12 @@ export async function runBullflowTapeScan(): Promise<number> {
         holdingPeriod: 'swing',
         currentPrice: entry,
         targetPrice: target,
-        stopLoss: Number(stop.toFixed(2)),
-        catalyst: `Aggressor tape: ${fmtM(net)} net premium bought today (calls ${fmtM(callNet)} / puts ${fmtM(putNet)}) — measured fills, not chain inference`,
+        stopLoss: roundedStop,
+        catalyst: `Aggressor tape: ${fmtM(net)} net bullish today (${compText}) — measured fills, not chain inference`,
         analysis:
           `Flow-primary idea: direction is read from actual ask-vs-bid fills on the options tape (Bullflow), ` +
-          `not from a chart pattern — no technical setup is claimed. ${fmtM(net)} of net premium was bought in ${symbol} this session. ` +
-          `Entry at last ($${entry.toFixed(2)}), invalidation at the ${stopBasis} ($${stop.toFixed(2)}) — if the day that printed the buying ` +
+          `not from a chart pattern — no technical setup is claimed. ${symbol}'s tape this session: ${compText} (${fmtM(net)} net bullish). ` +
+          `Entry at last ($${entry.toFixed(2)}), invalidation at the ${stopBasis} ($${roundedStop.toFixed(2)}) — if the day that printed the buying ` +
           `gives that level back, the thesis is wrong. T1 $${target.toFixed(2)} is stated plainly as 2R off that invalidation, not a structural level.`,
         sourceMetadata: {
           scannerType: 'bullflow_tape',
@@ -231,17 +295,22 @@ export async function runBullflowTapeScan(): Promise<number> {
         ingested++;
         dayDecisions.set(symbol, { date: today, verdict: 'published' });
         logger.info(`[TAPE-SCAN] 📤 published ${symbol} — ${fmtM(net)} net bought`);
-      } else {
-        // Ingestion rejections (duplicate, already held, loss cooldown) are
-        // terminal for the day — the cumulative tape cannot change the answer.
+      } else if (TERMINAL_REASONS.test(String(result.reason ?? ''))) {
+        // Duplicate / already held / loss cooldown / blocked wrapper — the
+        // cumulative tape cannot change these answers today.
         dayDecisions.set(symbol, { date: today, verdict: 'blocked' });
         logger.info(`[TAPE-SCAN] ${symbol} not published: ${result.reason} — done for today`);
+      } else {
+        // Transient (DB hiccup, generator null) — retry on a later sweep
+        // rather than silently starving the day's strongest name.
+        logger.info(`[TAPE-SCAN] ${symbol} not published: ${result.reason} — will retry next sweep`);
       }
     } catch (err: any) {
       logger.warn(`[TAPE-SCAN] ${symbol} failed: ${err?.message ?? err}`);
     }
   }
 
+  await saveDecisions(today);
   logger.info(`[TAPE-SCAN] sweep done — ${ingested} tape idea(s) published from ${longs.length} qualifying name(s)`);
   return ingested;
 }
