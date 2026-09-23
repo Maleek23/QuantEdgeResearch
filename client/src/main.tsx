@@ -42,3 +42,11 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </ErrorBoundary>
 );
+
+// PWA installability — the SW is a pure passthrough (no caching; a trading
+// terminal must never serve stale bundles). Registered post-load, best-effort.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => { /* not fatal */ });
+  });
+}
