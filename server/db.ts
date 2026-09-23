@@ -7,7 +7,11 @@ const { Pool } = pg;
 
 // A local recovery target is deliberately separate from .env so switching away
 // from an unavailable provider is reversible and never overwrites its URL.
-config({ path: ".env.supabase", override: true });
+// 2026-09-22: override disabled — the Supabase org is quota-paused and its
+// pooler answers "tenant not found", which silently broke every login. Running
+// on .env (Neon) until the project is resumed; re-enable this line to switch back.
+// config({ path: ".env.supabase", override: true });
+void config; // keep the dotenv import live for the commented switch above
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
