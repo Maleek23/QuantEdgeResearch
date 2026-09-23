@@ -45,6 +45,18 @@ const MAX_FLOW_READS = 10;     // per sweep — 30/min provider budget is shared
 /** Raw shapes are common (~12% of the universe on a choppy day); only the
  *  strongest earn a card. Validation showed the Sep winners scored 66-80. */
 const MIN_PUBLISH_SCORE = 70;
+/**
+ * Operator feedback 2026-09-23 ("idk these tickers"): the slate must be
+ * recognizable names. Publish only names doing >= this in average daily
+ * dollar volume over 20 sessions — computed from the bars already in hand,
+ * zero extra API cost. Favorites bypass the floor entirely.
+ */
+const MIN_AVG_DOLLAR_VOL = Number(process.env.REVERSAL_MIN_DOLLAR_VOL ?? 150e6);
+/** Always-interrogated names (operator's own; META is the stated favorite). */
+const FAVORITES = new Set(
+  String(process.env.USER_FAVORITE_TICKERS ?? 'META,TSLA,NVDA,AMD,MU,AVGO,SNDK,CRWD,COIN,MSTR,AAPL,AMZN,GOOGL,MSFT')
+    .split(',').map((s) => s.trim().toUpperCase()).filter(Boolean),
+);
 
 export interface ReversalHit {
   symbol: string;
@@ -199,8 +211,19 @@ export async function runBottomReversalSweep(opts: { publish?: boolean } = {}): 
   for (const [symbol, series] of bars.entries()) {
     if (LEVERAGED_INVERSE.has(symbol)) continue;
     try {
+      const isFavorite = FAVORITES.has(symbol);
+      if (!isFavorite) {
+        // Liquidity floor: 20-session average dollar volume from the bars in
+        // hand. Keeps the slate to names a trader recognizes and can size in.
+        const recent = series.slice(-20);
+        const avgDollarVol = recent.reduce((s, b) => s + b.close * b.volume, 0) / Math.max(1, recent.length);
+        if (avgDollarVol < MIN_AVG_DOLLAR_VOL) continue;
+      }
       const hit = detectBottomReversal(symbol, series);
-      if (hit) hits.push(hit);
+      if (hit) {
+        if (isFavorite) { hit.score = Math.min(100, hit.score + 8); hit.reasons.push('operator favorite'); }
+        hits.push(hit);
+      }
     } catch { /* one bad series must not kill the sweep */ }
   }
   hits.sort((a, b) => b.score - a.score);

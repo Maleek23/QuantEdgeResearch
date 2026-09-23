@@ -122,8 +122,33 @@ export function getBullflowPrints(): { state: string; prints: BullflowPrint[] } 
   return { state: streamState, prints: [...prints] };
 }
 
+let ringHydrated = false;
+/**
+ * Reload today's persisted prints into the in-memory ring once per process.
+ * Without this every restart emptied the FLOW tab until new live prints
+ * arrived — a session's worth of tape vanished at each boot (2026-09-23).
+ */
+async function hydrateRingFromDisk(): Promise<void> {
+  if (ringHydrated) return;
+  ringHydrated = true;
+  try {
+    const persisted = await readPersistedPrints(marketDateET());
+    const known = new Set(prints.map((p) => p.id));
+    let added = 0;
+    for (const p of persisted) {
+      if (known.has(p.id)) continue;
+      prints.push(p);
+      added++;
+    }
+    prints.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    if (prints.length > PRINT_CAP) prints.splice(0, prints.length - PRINT_CAP);
+    if (added > 0) logger.info(`[BULLFLOW] ring hydrated with ${added} persisted print(s) from today`);
+  } catch { /* hydration is best-effort */ }
+}
+
 /** Start (or restart) the live alert stream. Safe to call repeatedly. */
 export function startBullflowStream(): void {
+  void hydrateRingFromDisk();
   const k = key();
   if (!k || streamState === 'connecting' || streamState === 'live') return;
   streamState = 'connecting';

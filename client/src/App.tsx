@@ -44,6 +44,7 @@ const PublicWatchlist = lazyWithRetry(() => import("@/pages/public-watchlist"), 
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
+const SlatePage     = lazyWithRetry(() => import("@/pages/slate"), "slate");
 const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "trade-journal");
 // REMOVED — Market page consolidated, redirect to /home
 const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
@@ -209,6 +210,7 @@ function Router() {
             the router was collapsed to shells and the targets were never
             repointed. Restoring the route is the small fix; deleting the pages
             would have been the expensive one. */}
+        <Route path="/slate"       component={withBetaProtection(SlatePage)} />
         <Route path="/trade-desk"  component={withBetaProtection(TradeDeskPage)} />
         <Route path="/performance" component={withBetaProtection(PerformancePage)} />
         <Route path="/automations" component={withBetaProtection(AutomationsPage)} />

@@ -7282,6 +7282,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CONVICTIONS — Layered confluence scoring across the watchlist
   // ═══════════════════════════════════════════════════════════════
 
+  // Daily slate — the evening-watchlist card set (top measured ideas shaped
+  // as pattern/provenance/zone/stop/T1/T2/contract/flow). See server/slate.ts.
+  app.get("/api/slate", requireBetaAccess, async (_req, res) => {
+    try {
+      const { buildSlate } = await import("./slate");
+      res.json(await buildSlate());
+    } catch (err) {
+      logger.error("[API] slate build failed:", err);
+      res.status(500).json({ error: "slate build failed" });
+    }
+  });
+
   app.get("/api/convictions", requireBetaAccess, async (req: any, res) => {
     try {
       const { getCachedConvictions } = await import("./convictions-engine");
