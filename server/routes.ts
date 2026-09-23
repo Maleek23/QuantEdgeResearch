@@ -7282,6 +7282,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CONVICTIONS — Layered confluence scoring across the watchlist
   // ═══════════════════════════════════════════════════════════════
 
+  // Adaptive contract picker — DTE window + account budget in, ranked
+  // candidates with explicit warnings out. CBOE delayed chain (Tradier dead).
+  app.get("/api/contract-picker/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { pickContracts } = await import("./contract-picker");
+      const r = await pickContracts(String(req.params.symbol).toUpperCase(), {
+        direction: req.query.direction === "short" ? "short" : "long",
+        dteMin: req.query.dteMin ? Number(req.query.dteMin) : undefined,
+        dteMax: req.query.dteMax ? Number(req.query.dteMax) : undefined,
+        budget: req.query.budget ? Number(req.query.budget) : undefined,
+      });
+      if (!r) return res.status(404).json({ error: "no chain available for this symbol" });
+      res.json(r);
+    } catch (err) {
+      logger.error("[API] contract picker failed:", err);
+      res.status(500).json({ error: "contract picker failed" });
+    }
+  });
+
   // Daily slate — the evening-watchlist card set (top measured ideas shaped
   // as pattern/provenance/zone/stop/T1/T2/contract/flow). See server/slate.ts.
   app.get("/api/slate", requireBetaAccess, async (_req, res) => {

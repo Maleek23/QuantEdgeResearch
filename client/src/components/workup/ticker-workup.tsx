@@ -30,6 +30,7 @@
  * "Trade" does not exist — no broker. The slot holds Chart/GEX (real
  * navigation). Watch is a real watchlist POST.
  */
+import { ContractPickerPanel } from "./contract-picker-panel";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
@@ -791,6 +792,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                       <div className="ov-stat"><div className="ov-stat-k">Sweeps</div><div className="ov-stat-v" style={{ color: 'var(--cyan-bright)' }}>{flowSums.sweeps}</div></div>
                     </div>
                   )}
+                  <ContractPickerPanel symbol={symbol} />
                   <div className="flow-list">
                     {trades.slice(0, 14).map((t) => {
                       const strike = num(t.strikePrice);
