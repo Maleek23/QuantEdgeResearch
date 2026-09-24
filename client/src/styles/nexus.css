@@ -2616,3 +2616,14 @@
   .nexus-vars .bottombar { display: none !important; }
   .nexus-vars .topbar { flex-wrap: nowrap; }
 }
+
+/* ── phone reflow for fixed 5-up grids (UI overhaul 2026-09-24) ──────────
+   The board's stat tiles and the signal-card level strip were a fixed
+   repeat(5,1fr): on a 393px phone each tile was ~60px and every label
+   truncated ("AVG EVIDEN", "SESSIO"). Reflow instead of squeeze. */
+@media (max-width:640px){
+  .nexus-vars .stats-bar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .nexus-vars .stats-bar>*:last-child:nth-child(odd){grid-column:1 / -1}
+  .nexus-vars .sig-levels{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:8px}
+  .botlab .stats-bar{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px 14px}
+}
