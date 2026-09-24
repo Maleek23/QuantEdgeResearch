@@ -657,7 +657,9 @@ export async function integrateSPXScannerSignals(): Promise<void> {
 
     // Session scanner signals → convergence
     // SPXSignal.direction is 'LONG' | 'SHORT', thesis has the description
-    const sessionSignals = getActiveSignals?.() || [];
+    // Suspended with the board publish (2026-09-24 validation: −0.51R/idea) —
+    // a model with negative measured edge does not get a convergence vote either.
+    const sessionSignals = process.env.SPX_SESSION_PUBLISH === '1' ? (getActiveSignals?.() || []) : [];
     for (const sig of sessionSignals) {
       if (sig.confidence >= 65) {
         const signal: ConvergenceSignal = {

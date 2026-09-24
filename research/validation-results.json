@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T04:15:26.992Z",
+  "generatedAt": "2026-09-24T04:32:00.333Z",
   "mockTests": [
     {
       "id": "A1",
@@ -38,8 +38,8 @@
       "group": "Bottom-reversal detector",
       "name": "Planted V-recovery (−20% then 55% retrace in 4 sessions)",
       "expected": "fires as v_recovery",
-      "actual": "no fire",
-      "pass": false
+      "actual": "v_recovery",
+      "pass": true
     },
     {
       "id": "A5b",
@@ -71,6 +71,22 @@
       "name": "NEGATIVE CONTROL: ongoing crash, no recovery",
       "expected": "no fire",
       "actual": "no fire",
+      "pass": true
+    },
+    {
+      "id": "A9",
+      "group": "Bottom-reversal detector",
+      "name": "Level ordering on a fired signal",
+      "expected": "stop < entry < T1 ≤ T2",
+      "actual": "86.94 < 92.00 < 102.12 ≤ 107.17",
+      "pass": true
+    },
+    {
+      "id": "A10",
+      "group": "Bottom-reversal detector",
+      "name": "T1 is declared 2R",
+      "expected": "2.00R ± 0.02",
+      "actual": "2.00R",
       "pass": true
     },
     {
@@ -344,14 +360,14 @@
   "detectorBenchmark": {
     "horizonSessions": 10,
     "universeSamples": 37611,
-    "fires": 2021,
-    "fireMeanRet": 0.010693149592206594,
-    "universeMeanRet": 0.0039011614085722062,
-    "excess": 0.006791988183634388,
-    "tStat": 3.3224731537446237,
-    "fireHitPositive": 0.537357743691242,
+    "fires": 2174,
+    "fireMeanRet": 0.012110006637079422,
+    "universeMeanRet": 0.003901161408572193,
+    "excess": 0.00820884522850723,
+    "tStat": 4.047225191570094,
+    "fireHitPositive": 0.5400183992640294,
     "universeHitPositive": 0.4730530961686741,
-    "fireMedian": 0.005188976930089018
+    "fireMedian": 0.006239242685025959
   },
   "paperBook": {
     "trades": 27,

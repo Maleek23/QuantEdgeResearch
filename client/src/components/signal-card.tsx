@@ -102,7 +102,7 @@ export function SignalCard({ d, className }: { d: SignalCardData; className?: st
           <Line>    {K("TRIGGER_ZONE")} = {N(d.triggerLow.toFixed(2))} – {N(d.triggerHigh.toFixed(2))}</Line>
         )}
         {d.band && (
-          <Line>    {K("SIGNAL_CLASS")} = {S(d.band)}{d.confidence != null ? <>   {K("CONFIDENCE")} = {N(`${d.confidence}%`)}</> : null}</Line>
+          <Line>    {K("SIGNAL_CLASS")} = {S(d.band)}{d.confidence != null ? <>   {K("SCORE")} = {N(`${d.confidence}/100`)}</> : null}</Line>
         )}
         {d.optionType && (
           <Line>    {K("CONTRACT")} = {S(`${String(d.optionType).toUpperCase()}${d.strike ? ` $${d.strike}` : ""}`)}</Line>

@@ -1098,10 +1098,15 @@ export async function runSessionScan(): Promise<SessionScanResult> {
             state.signals.push(signal);
             logger.info(`[SPX-SESSION] 🎯 NEW SIGNAL: ${signal.symbol} ${signal.strategy} ${signal.direction} - Confidence: ${signal.confidence}%`);
 
-            // Save to Trade Ideas database for Trade Desk display
-            saveSignalAsTradeIdea(signal).catch(e =>
-              logger.error(`[SPX-SESSION] Failed to save trade idea:`, e)
-            );
+            // SUSPENDED from the board 2026-09-24 (SR 11-7 validation): 12.1% hit
+            // vs 40.2% random-walk break-even, −0.51R per idea, t −6.7, negative in
+            // both halves of the sample. Signals still feed levels/convergence;
+            // they no longer publish. SPX_SESSION_PUBLISH=1 re-enables after redesign.
+            if (process.env.SPX_SESSION_PUBLISH === '1') {
+              saveSignalAsTradeIdea(signal).catch(e =>
+                logger.error(`[SPX-SESSION] Failed to save trade idea:`, e)
+              );
+            }
           }
         }
       }

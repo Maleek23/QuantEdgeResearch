@@ -149,9 +149,21 @@ export function detectBottomReversal(symbol: string, bars: UBar[]): ReversalHit 
     const igniting = last.close > prior.high;
     const extended = last.close > bottom.low * 1.40;
     if (retrace >= 0.45 && green >= 0.5 && igniting && !extended) {
-      const stop = Math.min(...bars.slice(n - 3).map((b) => b.low));
+      // Structural stop first. On a fast V the 3-session window still holds the
+      // capitulation bar, putting risk past the cap — validation test A5 showed
+      // the sharpest recoveries could never qualify. Fall back to a volatility
+      // stop (1.5× ATR14 under the close) when the structural one is too wide.
+      let stop = Math.min(...bars.slice(n - 3).map((b) => b.low));
+      let stopBasis = 'lowest low of the last 3 sessions';
+      if ((last.close - stop) / last.close > MAX_RISK_PCT) {
+        const tr = bars.slice(n - 15).map((b, i, a) => i === 0 ? b.high - b.low
+          : Math.max(b.high - b.low, Math.abs(b.high - a[i - 1].close), Math.abs(b.low - a[i - 1].close)));
+        const atr = tr.slice(1).reduce((x, y) => x + y, 0) / (tr.length - 1);
+        stop = last.close - 1.5 * atr;
+        stopBasis = '1.5× ATR(14) under the close (capitulation bar too far for a structural stop)';
+      }
       const hit = finish(
-        'v_recovery', stop, 'lowest low of the last 3 sessions',
+        'v_recovery', stop, stopBasis,
         55 + Math.round(20 * Math.min(1, retrace)),
         [`bottomed $${bottom.low.toFixed(2)} on ${dateOf(bottom)}`,
          `${(retrace * 100).toFixed(0)}% of the decline retraced in ${sessionsSince} sessions`,

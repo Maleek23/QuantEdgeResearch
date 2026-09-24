@@ -200,7 +200,27 @@ class PerformanceValidationService {
         const candles = await fetchCandlesBatch(symbols, '5d', '1d', 8);
         const today = new Date().toISOString().slice(0, 10);
         let enriched = 0;
+        // An idea published TODAY must not be judged by the part of the session
+        // before it existed. The whole-day bar did exactly that: a 14:00 idea was
+        // "stopped" by a 10:00 low. 5-minute replay of every resolved idea
+        // (research/path-replay.ts, 2026-09-24) found 50 recorded stops that
+        // price never touched after publication. Same-day ideas use 5m bars from
+        // the publish minute; older ideas keep the full daily bar.
+        const { fetchCandles } = await import('./historical-candles');
         for (const idea of openIdeas) {
+          const createdSec = new Date(idea.timestamp).getTime() / 1000;
+          if (new Date(idea.timestamp).toISOString().slice(0, 10) === today) {
+            // Regular session only, matching the daily bar used on later days.
+            const etMin = (t: number) => { const [h, m] = new Date(t * 1000).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' }).split(':').map(Number); return (h % 24) * 60 + m; };
+            const intraday = (await fetchCandles(idea.symbol.toUpperCase(), '5d', '5m'))
+              .filter((b) => b.time >= createdSec && etMin(b.time) >= 570 && etMin(b.time) < 960);
+            if (intraday.length) {
+              idea.highestPriceReached = Math.max(idea.highestPriceReached ?? -Infinity, ...intraday.map((b) => b.high));
+              idea.lowestPriceReached = Math.min(idea.lowestPriceReached ?? Infinity, ...intraday.map((b) => b.low));
+              enriched++;
+            }
+            continue;
+          }
           const bars = candles.get(idea.symbol.toUpperCase()) ?? [];
           const todayBar = bars[bars.length - 1];
           if (!todayBar) continue;
