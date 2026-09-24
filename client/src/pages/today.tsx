@@ -18,7 +18,7 @@
  * Integrity: only MEASURED dealer levels are drawn; the path is labelled a
  * model projection with its confidence, never a forecast.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -64,10 +64,20 @@ function weekSentence(wp?: WeeklyPath, magnet?: number) {
   return { title, sub };
 }
 
+const PHONE = '(max-width: 640px)';
+function useNarrow() {
+  return useSyncExternalStore(
+    (cb) => { const m = window.matchMedia(PHONE); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb); },
+    () => window.matchMedia(PHONE).matches, () => false);
+}
+
 // ── Skylit-style weekly dealer map ─────────────────────────────────────────
 function WeekMap({ wp, gex }: { wp: WeeklyPath; gex?: GexTerminal }) {
   const reduce = useReducedMotion();
-  const W = 760, H = 380, padL = 14, padR = 118, padT = 18, padB = 46;
+  // On a phone the map is drawn in a narrower coordinate space so labels stay
+  // at a readable size instead of shrinking with the viewBox.
+  const narrow = useNarrow();
+  const W = narrow ? 380 : 760, H = narrow ? 320 : 380, padL = 8, padR = narrow ? 92 : 118, padT = 18, padB = 46;
   const snap = gex?.snapshot;
   // Only measured dealer levels — the model's extrapolated ones stay off the map.
   const measured = [
@@ -90,7 +100,7 @@ function WeekMap({ wp, gex }: { wp: WeeklyPath; gex?: GexTerminal }) {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="td-map" role="img" aria-label={`${wp.symbol} weekly dealer map and projected path`}>
+    <svg viewBox={`0 0 ${W} ${H}`} className={`td-map${narrow ? ' narrow' : ''}`} role="img" aria-label={`${wp.symbol} weekly dealer map and projected path`}>
       <defs>
         <linearGradient id="td-path" x1="0" x2="1"><stop offset="0" stopColor="#7fb2ff" /><stop offset="1" stopColor="#3b8cff" /></linearGradient>
         <linearGradient id="td-cone" x1="0" x2="1"><stop offset="0" stopColor="#3b8cff" stopOpacity="0.02" /><stop offset="1" stopColor="#3b8cff" stopOpacity="0.16" /></linearGradient>
@@ -107,7 +117,7 @@ function WeekMap({ wp, gex }: { wp: WeeklyPath; gex?: GexTerminal }) {
       {wp.phases.map((ph) => (
         <g key={ph.label}>
           <rect x={x(ph.startDay) + 2} y={H - 22} width={Math.max(0, x(ph.endDay) - x(ph.startDay) - 4)} height={16} rx={3} className={`td-phase ${ph.type}`} />
-          <text x={x((ph.startDay + ph.endDay) / 2)} y={H - 11} className="td-phase-t" textAnchor="middle">{ph.label.replace('PHASE ', 'P').replace(' · ', ' · ')} — {ph.description}</text>
+          <text x={x((ph.startDay + ph.endDay) / 2)} y={H - 11} className="td-phase-t" textAnchor="middle">{narrow ? ph.label.replace('PHASE ', 'P').split(' ')[0] : `${ph.label.replace('PHASE ', 'P')} — ${ph.description}`}</text>
         </g>
       ))}
       {/* measured dealer levels */}
@@ -118,7 +128,7 @@ function WeekMap({ wp, gex }: { wp: WeeklyPath; gex?: GexTerminal }) {
             {m.tone === 'magnet' && <rect x={padL} y={y(m.price) - 7} width={W - padL - padR} height={14} className="td-magnet" />}
             <line x1={padL} x2={W - padR} y1={y(m.price)} y2={y(m.price)} />
             <text x={W - padR + 10} y={y(m.price) - 3} className="td-lvl-name">{m.label}</text>
-            <text x={W - padR + 10} y={y(m.price) + 11} className="td-lvl-px">{fmt(m.price, 0)}{pct != null ? `  ·  ${(pct * 100).toFixed(0)}% γ` : ''}</text>
+            <text x={W - padR + 10} y={y(m.price) + 11} className="td-lvl-px">{fmt(m.price, 0)}{pct != null ? `${narrow ? ' ' : '  ·  '}${(pct * 100).toFixed(0)}% γ` : ''}</text>
           </g>
         );
       })}
@@ -258,8 +268,8 @@ export default function TodayPage() {
           <Link href="/t?tab=journal&jtab=metrics">Track record</Link>
         </nav>
         <form className="td-search" onSubmit={go} role="search">
-          <Search size={15} aria-hidden />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Any ticker" aria-label="Search a ticker" autoCapitalize="characters" />
+          <label htmlFor="td-q" className="td-search-ico"><Search size={15} aria-hidden /></label>
+          <input id="td-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Any ticker" aria-label="Search a ticker" autoCapitalize="characters" />
         </form>
         <Link href="/t" className="td-classic" title="The full terminal">Terminal <ArrowUpRight size={13} /></Link>
       </header>

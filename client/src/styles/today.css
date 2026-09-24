@@ -132,8 +132,18 @@
   .td-top{gap:12px;padding:10px 16px}
   .td-brand span{display:none}
   .td-nav a{padding:8px 10px;font-size:13px}
-  .td-search{min-width:0;flex:1;margin-left:0}
+  .td-nav{flex:1;min-width:0}
+  .td-search{min-width:0;width:38px;flex:none;padding:0 11px;margin-left:0}
+  .td-search input{width:0;min-width:0;padding:0}
+  .td-search:focus-within{position:absolute;left:16px;right:16px;width:auto;background:var(--panel-solid);z-index:2}
+  .td-search:focus-within input{width:auto;flex:1}
+  .td-search-ico{display:flex;cursor:pointer}
   .td-classic{display:none}
+  .td-map-card{padding:12px 10px 10px}
+  .td-map.narrow .td-lvl-name{font-size:12px}
+  .td-map.narrow .td-lvl-px{font-size:12.5px}
+  .td-map.narrow .td-axis,.td-map.narrow .td-spot-t,.td-map.narrow .td-end-t{font-size:12px}
+  .td-map.narrow .td-phase-t{font-size:11px}
   .td-main{gap:40px}
   .td-keys b{font-size:18px}
   .td-sym{font-size:40px}
