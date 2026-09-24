@@ -183,94 +183,55 @@ function buildPhases(snap: GEXSnapshot): WeeklyPhase[] {
   ];
 }
 
-/**
- * Generate the projected price path.
- * Uses regime to determine shape:
- *   - Positive gamma → smooth convergence to magnet
- *   - Negative gamma → V-shape (flush then recovery)
- *   - Transitioning → range then breakout
- */
-function buildPath(snap: GEXSnapshot, phases: WeeklyPhase[]): WeeklyPathPoint[] {
-  const spot = snap.spotPrice;
-  const magnet = snap.zeroGammaProjection || snap.maxGammaStrike;
-  const callWall = snap.callWall || spot * 1.02;
-  const putWall = snap.putWall || spot * 0.98;
-  const flip = snap.gammaFlipPrice || spot;
+/** Weekly volatility input. `annualVol` is a decimal (0.16 = 16%). */
+export interface VolInput { annualVol: number; source: 'vix' | 'regime-estimate' }
 
-  const isNegGamma = snap.regime === 'negative_gamma';
-  const isTransitioning = snap.regime === 'transitioning';
+/** Fallback when no live implied vol is available — stamped as an estimate. */
+const REGIME_VOL: Record<GEXSnapshot['volatilityRegime'], number> = { low: 0.12, normal: 0.17, high: 0.26, extreme: 0.38 };
+
+/**
+ * Projected path, sized by the options market's own implied move.
+ *
+ * 2026-09-24 rebuild. The old path was drawn, not modelled: in long gamma it
+ * travelled 80% of the way to the magnet by Friday, in short gamma it dived
+ * 70% of the way to the put wall and back (a ~2.5% round trip on SPY), with
+ * sine "noise" added for realism. Nothing tied its size to how far SPY
+ * actually moves in a week.
+ *
+ * Now:
+ *   σ_week = spot × IV × √(5/252)           — the 1σ weekly move priced by options
+ *   drift  = pull toward the pin, only in long gamma, capped at 0.25 σ_week
+ *            and at 35% of the distance — dealers dampen, they do not teleport
+ *   band   = drift ± σ_week × √t            — ~68% of weeks close inside it
+ * Short / transitioning gamma make no directional claim (drift 0): they widen
+ * ranges, they do not pick a side.
+ */
+function buildPath(snap: GEXSnapshot, vol: VolInput): { points: WeeklyPathPoint[]; sigmaWeek: number } {
+  const spot = snap.spotPrice;
+  const magnet = snap.maxGammaStrike || spot;
+  const sigmaWeek = spot * vol.annualVol * Math.sqrt(5 / 252);
+  const dist = magnet - spot;
+  const drift = snap.regime === 'positive_gamma'
+    ? Math.sign(dist) * Math.min(Math.abs(dist) * 0.35, sigmaWeek * 0.25)
+    : 0;
 
   const points: WeeklyPathPoint[] = [];
   const numPoints = 25; // 5 days × 5 points per day
-
   for (let i = 0; i <= numPoints; i++) {
-    const t = i / numPoints; // 0..1 through the week
-    const dayOffset = t * 5;
-    const intraday = (dayOffset % 1);
-
-    let price: number;
-    let confidence: number;
-
-    if (isNegGamma) {
-      // V-shape: flush to ~put wall midweek, then squeeze back above spot
-      const flushDepth = (spot - putWall) * 0.7; // 70% of distance to put wall
-      const recoveryTarget = magnet > spot ? magnet : spot * 1.005;
-
-      if (t < 0.5) {
-        // Phase 1: flush down with easeInOut
-        const phaseT = t / 0.5;
-        const ease = phaseT < 0.5
-          ? 4 * phaseT * phaseT * phaseT
-          : 1 - Math.pow(-2 * phaseT + 2, 3) / 2;
-        price = spot - flushDepth * ease;
-      } else {
-        // Phase 2: squeeze back up
-        const phaseT = (t - 0.5) / 0.5;
-        const ease = phaseT < 0.5
-          ? 4 * phaseT * phaseT * phaseT
-          : 1 - Math.pow(-2 * phaseT + 2, 3) / 2;
-        const bottom = spot - flushDepth;
-        price = bottom + (recoveryTarget - bottom) * ease;
-      }
-      // Confidence decays faster in neg gamma (more uncertain)
-      confidence = Math.max(0.2, 1 - t * 0.7);
-
-    } else if (isTransitioning) {
-      // Range early, then break toward magnet
-      const rangeWidth = (callWall - putWall) * 0.15;
-      if (t < 0.4) {
-        // Drift phase — oscillate near spot
-        const noise = Math.sin(t * Math.PI * 6) * rangeWidth * 0.5;
-        price = spot + noise;
-      } else {
-        // Breakout toward magnet
-        const phaseT = (t - 0.4) / 0.6;
-        const ease = phaseT * phaseT;
-        price = spot + (magnet - spot) * ease;
-      }
-      confidence = Math.max(0.15, 1 - t * 0.8);
-
-    } else {
-      // Positive gamma: smooth mean-reversion to magnet
-      const ease = 1 - Math.pow(1 - t, 2); // easeOutQuad
-      price = spot + (magnet - spot) * ease * 0.8; // 80% convergence by EOW
-      // Higher confidence in positive gamma (more predictable)
-      confidence = Math.max(0.3, 1 - t * 0.5);
-    }
-
-    // Add slight realistic noise (±0.1% of spot)
-    const noise = Math.sin(i * 2.7 + i * i * 0.3) * spot * 0.001;
-    price += noise;
-
+    const t = i / numPoints;
+    const price = spot + drift * (1 - Math.pow(1 - t, 2));
+    const half = sigmaWeek * Math.sqrt(t);
     points.push({
-      dayOffset,
-      intraday,
+      dayOffset: t * 5,
+      intraday: (t * 5) % 1,
       price: Math.round(price * 100) / 100,
-      confidence: Math.round(confidence * 100) / 100,
+      lo: Math.round((price - half) * 100) / 100,
+      hi: Math.round((price + half) * 100) / 100,
+      // Kept for older consumers: share of the week still unresolved.
+      confidence: Math.round((1 - t * 0.5) * 100) / 100,
     });
   }
-
-  return points;
+  return { points, sigmaWeek };
 }
 
 /**
@@ -350,10 +311,11 @@ function getWeekBounds(): { monday: string; friday: string } {
 
 // ─── Public API ──────────────────────────────────────────────
 
-export function computeWeeklyPath(snap: GEXSnapshot): WeeklyPathProjection {
+export function computeWeeklyPath(snap: GEXSnapshot, volIn?: VolInput): WeeklyPathProjection {
+  const vol: VolInput = volIn ?? { annualVol: REGIME_VOL[snap.volatilityRegime] ?? 0.17, source: 'regime-estimate' };
   const levels = buildLevels(snap);
   const phases = buildPhases(snap);
-  const path = buildPath(snap, phases);
+  const { points: path, sigmaWeek } = buildPath(snap, vol);
   const entryZones = buildEntryZones(snap, path, phases);
   const { monday, friday } = getWeekBounds();
 
@@ -377,5 +339,8 @@ export function computeWeeklyPath(snap: GEXSnapshot): WeeklyPathProjection {
     netGEX: snap.totalGEX,
     netVEX: snap.totalVEX,
     confidence,
+    expectedMove: Math.round(sigmaWeek * 100) / 100,
+    annualVol: vol.annualVol,
+    volSource: vol.source,
   };
 }

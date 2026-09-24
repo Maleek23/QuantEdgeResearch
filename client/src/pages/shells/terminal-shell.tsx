@@ -8,7 +8,7 @@
  * This is the consolidation target for AUDIT.md / BLUEPRINT.md / TERMINAL_SPEC.md.
  */
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { onWorkup } from '@/lib/workup-bus';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
@@ -224,12 +224,12 @@ export default function TerminalShell() {
              classes from styles/nexus.css. Every tab wears it. ── */}
       <header className="sticky top-0 z-20">
         <div className="topbar" style={{ minHeight: 44 }}>
-          <div className="brand">
+          <Link href="/today" className="brand" aria-label="Quant Edge Labs — home" style={{ textDecoration: 'none' }}>
             <img className="brand-logo" src={quantEdgeLogoUrl} alt="Quant Edge Labs" />
             <span className="brand-name">QUANTEDGE</span>
             <span className="brand-slash">{'//'}</span>
             <span className="brand-sub hidden sm:inline">TERMINAL</span>
-          </div>
+          </Link>
           <div className="status-chip ok hidden sm:flex"><span className="dot" />Engaged</div>
           <div
             className={cn('status-chip hidden lg:flex', dataPartial ? 'warn' : 'ok')}

@@ -246,6 +246,13 @@ function classifyRegime(spyChange: number, vix: number, breadth: number): Market
 // MAIN
 // ═══════════════════════════════════════════════════════════════
 
+/** Live VIX level (percent, e.g. 16.4) — the market's own 30-day implied vol
+ *  for the S&P. Used to size a realistic weekly move. Null when unavailable. */
+export async function getVixLevel(): Promise<number | null> {
+  const q = await fetchYahoo('^VIX');
+  return q?.price != null && q.price > 5 && q.price < 150 ? q.price : null;
+}
+
 export async function getMarketPulse(watchlist: string[] = []): Promise<MarketPulse> {
   // Pull all data in parallel
   const [indexData, sectorData, macroData, watchlistData] = await Promise.all([

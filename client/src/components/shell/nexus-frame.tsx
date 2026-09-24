@@ -38,7 +38,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
     <div className={cn('qe-terminal nexus-vars flex min-h-[100dvh] w-full min-w-0 max-w-[100vw] flex-col', nexusLight && 'light')}>
       <header className="sticky top-0 z-20">
         <div className="topbar" style={{ minHeight: 44 }}>
-          <Link href="/t" className="brand" aria-label="Quant Edge Labs — terminal home">
+          <Link href="/today" className="brand" aria-label="Quant Edge Labs — home">
             <img className="brand-logo" src={qeMark} alt="" width={22} height={22} />
             <span className="brand-name">QUANTEDGE</span>
             <span className="brand-slash">{'//'}</span>

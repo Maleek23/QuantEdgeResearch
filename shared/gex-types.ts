@@ -462,6 +462,9 @@ export interface WeeklyPathPoint {
   dayOffset: number;
   intraday: number;
   price: number;
+  /** 1σ band from the implied weekly move (≈68% of weeks stay inside). */
+  lo?: number;
+  hi?: number;
   confidence: number;
 }
 
@@ -500,6 +503,11 @@ export interface WeeklyPathProjection {
   netGEX: number;
   netVEX: number;
   confidence: number;
+  /** 1σ weekly move in points: spot × IV × √(5/252). */
+  expectedMove?: number;
+  /** Annualised vol behind expectedMove (decimal) and where it came from. */
+  annualVol?: number;
+  volSource?: 'vix' | 'regime-estimate';
 }
 
 /** Format GEX in billions with sign */

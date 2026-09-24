@@ -147,7 +147,7 @@ function SmartLanding() {
     return <PageLoader />;
   }
 
-  // If logged in, land on the TERMINAL (/t) — the new one-shell design.
+  // If logged in, land on TODAY (/today) — the signed-in home (2026-09-24).
   // We deliberately ignore a stale `qe-last-page` pointing at a legacy shell so the
   // app stops opening on the old sidebar UI; the legacy routes all still work if you
   // navigate to them directly. Anything else previously visited is still restored.
@@ -162,7 +162,7 @@ function SmartLanding() {
   if (user) {
     const lastPage = localStorage.getItem('qe-last-page');
     const LEGACY_LANDINGS = ['/p', '/h', '/g', '/r'];
-    const target = !lastPage || LEGACY_LANDINGS.includes(lastPage.split('?')[0]) ? '/t' : lastPage;
+    const target = !lastPage || LEGACY_LANDINGS.includes(lastPage.split('?')[0]) ? '/today' : lastPage;
     return <Redirect to={target} />;
   }
 

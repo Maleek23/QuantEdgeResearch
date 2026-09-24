@@ -205,3 +205,6 @@
 }
 .landing.today-l .lnav-links{display:flex}
 @media (max-width:560px){ .today-l .lterminal-body{grid-template-columns:minmax(0,1fr)} }
+
+.td-band-t{font:600 10.5px var(--mono);fill:var(--text-mute)}
+.td-map.narrow .td-band-t{font-size:12px}

@@ -33383,7 +33383,15 @@ Use this checklist before entering any trade:
       }
 
       const snapshot = toSnapshot(gex);
-      const projection = computeWeeklyPath(snapshot);
+      // Size the week with the market's own implied vol: VIX for the S&P
+      // complex; everything else falls back to a stamped regime estimate.
+      let vol: { annualVol: number; source: 'vix' } | undefined;
+      if (['SPY', 'SPX', 'ES', 'VOO', 'IVV'].includes(symbol)) {
+        const { getVixLevel } = await import('./market-pulse');
+        const vix = await getVixLevel().catch(() => null);
+        if (vix) vol = { annualVol: vix / 100, source: 'vix' };
+      }
+      const projection = computeWeeklyPath(snapshot, vol);
       saveLastGood('weekly-path', symbol, projection);
 
       res.json(projection);

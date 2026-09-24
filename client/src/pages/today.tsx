@@ -30,9 +30,9 @@ import '@/styles/today.css';
 
 // ── data shapes (subset) ────────────────────────────────────────────────────
 interface WPLevel { price: number; label: string; type: string; side: string }
-interface WPPoint { dayOffset: number; price: number; confidence: number }
+interface WPPoint { dayOffset: number; price: number; lo?: number; hi?: number; confidence: number }
 interface WPPhase { label: string; description: string; startDay: number; endDay: number; type: string }
-interface WeeklyPath { cached?: boolean; cachedAt?: string; symbol: string; spotPrice: number; weekStart: string; weekEnd: string; levels: WPLevel[]; path: WPPoint[]; phases: WPPhase[]; regime: string; confidence: number }
+interface WeeklyPath { cached?: boolean; cachedAt?: string; symbol: string; spotPrice: number; weekStart: string; weekEnd: string; levels: WPLevel[]; path: WPPoint[]; phases: WPPhase[]; regime: string; confidence: number; expectedMove?: number; annualVol?: number; volSource?: string }
 interface GexLevel { strike: number; gammaPct: number; role?: string }
 interface GexTerminal { snapshot?: { spotPrice: number; callWall?: number; putWall?: number; maxGammaStrike?: number; gammaFlipPrice?: number; levels?: GexLevel[] } }
 interface Layer { kind: string; why: string; points: number }
@@ -87,16 +87,16 @@ function WeekMap({ wp, gex }: { wp: WeeklyPath; gex?: GexTerminal }) {
     snap?.putWall && { price: snap.putWall, label: 'Put wall', tone: 'bear' },
   ].filter(Boolean) as { price: number; label: string; tone: string }[];
   const pctAt = (k: number) => snap?.levels?.find((l) => Math.abs(l.strike - k) < 0.01)?.gammaPct;
-  const prices = [...wp.path.map((p) => p.price), ...measured.map((m) => m.price), wp.spotPrice];
-  const lo = Math.min(...prices), hi = Math.max(...prices);
-  const pad = (hi - lo) * 0.12 || 2;
-  const y = (p: number) => padT + (1 - (p - (lo - pad)) / (hi - lo + 2 * pad)) * (H - padT - padB);
+  // Scale to the week SPY can realistically travel (±2σ of the implied move),
+  // not to walls 5% away — those get an edge marker instead of flattening the path.
+  const sig = wp.expectedMove ?? wp.spotPrice * 0.02;
+  const lo = wp.spotPrice - 2.2 * sig, hi = wp.spotPrice + 2.2 * sig;
+  const y = (p: number) => padT + (1 - (p - lo) / (hi - lo)) * (H - padT - padB);
+  const clampY = (p: number) => Math.max(padT, Math.min(H - padB, y(p)));
   const x = (d: number) => padL + (d / 5) * (W - padL - padR);
   const line = wp.path.map((p, i) => `${i ? 'L' : 'M'}${x(p.dayOffset).toFixed(1)},${y(p.price).toFixed(1)}`).join(' ');
-  // Confidence cone: widen as confidence falls.
-  const band = (hi - lo + 2 * pad) * 0.18;
-  const upper = wp.path.map((p) => `${x(p.dayOffset).toFixed(1)},${y(p.price + band * (1 - p.confidence)).toFixed(1)}`);
-  const lower = [...wp.path].reverse().map((p) => `${x(p.dayOffset).toFixed(1)},${y(p.price - band * (1 - p.confidence)).toFixed(1)}`);
+  const upper = wp.path.map((p) => `${x(p.dayOffset).toFixed(1)},${y(p.hi ?? p.price).toFixed(1)}`);
+  const lower = [...wp.path].reverse().map((p) => `${x(p.dayOffset).toFixed(1)},${y(p.lo ?? p.price).toFixed(1)}`);
   const end = wp.path[wp.path.length - 1];
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -124,16 +124,17 @@ function WeekMap({ wp, gex }: { wp: WeeklyPath; gex?: GexTerminal }) {
       {/* measured dealer levels */}
       {measured.map((m) => {
         const pct = pctAt(m.price);
+        const off = m.price > hi ? 'up' : m.price < lo ? 'dn' : null;
         return (
           <g key={m.label} className={`td-lvl ${m.tone}`}>
-            {m.tone === 'magnet' && <rect x={padL} y={y(m.price) - 7} width={W - padL - padR} height={14} className="td-magnet" />}
-            <line x1={padL} x2={W - padR} y1={y(m.price)} y2={y(m.price)} />
-            <text x={W - padR + 10} y={y(m.price) - 3} className="td-lvl-name">{m.label}</text>
-            <text x={W - padR + 10} y={y(m.price) + 11} className="td-lvl-px">{fmt(m.price, 0)}{pct != null ? `${narrow ? ' ' : '  ·  '}${(pct * 100).toFixed(0)}% γ` : ''}</text>
+            {!off && m.tone === 'magnet' && <rect x={padL} y={y(m.price) - 7} width={W - padL - padR} height={14} className="td-magnet" />}
+            {!off && <line x1={padL} x2={W - padR} y1={y(m.price)} y2={y(m.price)} />}
+            <text x={W - padR + 10} y={clampY(m.price) + (off === 'up' ? 10 : off === 'dn' ? -14 : -3)} className="td-lvl-name">{off === 'up' ? '↑ ' : off === 'dn' ? '↓ ' : ''}{m.label}</text>
+            <text x={W - padR + 10} y={clampY(m.price) + (off === 'up' ? 24 : off === 'dn' ? 0 : 11)} className="td-lvl-px">{fmt(m.price, 0)}{pct != null ? `${narrow ? ' ' : '  ·  '}${(pct * 100).toFixed(0)}% γ` : ''}</text>
           </g>
         );
       })}
-      {/* confidence cone + projected path */}
+      {/* ±1σ implied-move band + projected path */}
       <polygon points={[...upper, ...lower].join(' ')} fill="url(#td-cone)" />
       <path d={line} className="td-path-glow" filter="url(#td-glow)" />
       <motion.path d={line} className="td-path" stroke="url(#td-path)"
@@ -141,7 +142,8 @@ function WeekMap({ wp, gex }: { wp: WeeklyPath; gex?: GexTerminal }) {
       {/* spot + end */}
       <circle cx={x(0)} cy={y(wp.spotPrice)} r={5} className="td-spot" />
       <text x={x(0) + 10} y={y(wp.spotPrice) - 10} className="td-spot-t">now {fmt(wp.spotPrice)}</text>
-      {end && <text x={x(end.dayOffset) - 6} y={y(end.price) - 12} className="td-end-t" textAnchor="end">model {fmt(end.price, 0)}</text>}
+      {end?.hi != null && <text x={x(end.dayOffset) - 6} y={y(end.hi) - 6} className="td-band-t" textAnchor="end">+1σ {fmt(end.hi, 0)}</text>}
+      {end?.lo != null && <text x={x(end.dayOffset) - 6} y={y(end.lo) + 14} className="td-band-t" textAnchor="end">−1σ {fmt(end.lo, 0)}</text>}
     </svg>
   );
 }
@@ -254,9 +256,11 @@ export default function TodayPage() {
   const snap = gex.data?.snapshot;
   const magnet = snap?.maxGammaStrike;
   const shortGamma = wp.data?.regime?.includes('negative');
+  const sigma = wp.data?.expectedMove;
   const spy = quotes.data?.quotes?.SPY;
   const spyPx = spy?.price ?? spy?.lastPrice ?? wp.data?.spotPrice;
   const spyBars = spyIntra.data?.data ?? [];
+  const pinClose = magnet != null && sigma != null && spyPx != null && Math.abs(magnet - spyPx) <= 0.75 * sigma;
   const best = ideas[0];
   const bestX = best ? explain(best) : undefined;
   const book = ideas.slice(2, 8); // 0 and 1 are the feature cards
@@ -328,15 +332,17 @@ export default function TodayPage() {
                 <h1 className="hero-title">
                   Dealers are {shortGamma ? 'short' : 'long'} gamma.<br />
                   <span className="grad">Moves get {shortGamma ? 'amplified' : 'dampened'}.</span><br />
-                  {magnet ? <span className="accent">{shortGamma ? `${fmt(magnet, 0)} is the magnet.` : `Price pins to ${fmt(magnet, 0)}.`}</span> : null}
+                  {sigma != null
+                    ? <span className="accent">{pinClose && !shortGamma ? `Price pins near ${fmt(magnet, 0)}.` : `Typical week: ±${fmt(sigma, 0)} pts.`}</span>
+                    : null}
                 </h1>
               )}
               <p className="hero-sub">
                 {feedDown
                   ? 'We only draw the map from measured positioning. It comes back the moment the feed does — this page retries every 30 seconds.'
-                  : shortGamma
-                    ? 'Short-gamma dealers sell into drops and buy into rips, so ranges widen. Fade the walls, respect the breaks.'
-                    : 'Long-gamma dealers buy dips and sell rips, so ranges tighten around the biggest strike. Walls hold until they don’t.'}
+                  : `${shortGamma
+                    ? 'Short-gamma dealers sell into drops and buy into rips, so ranges widen.'
+                    : 'Long-gamma dealers buy dips and sell rips, so ranges tighten.'}${sigma != null ? ` Options price a 1σ week of ±${fmt(sigma, 0)} points (${fmt(sigma / (spyPx ?? 1) * 100, 1)}%)${wp.data?.volSource === 'vix' ? ', from VIX' : ', estimated'}.` : ''}${magnet && sigma != null && !pinClose ? ` The biggest strike, ${fmt(magnet, 0)}, is ${fmt(Math.abs(magnet - (spyPx ?? magnet)), 0)} points away — further than dealers usually drag price in a week.` : ''}`}
               </p>
               <div className="hero-actions">
                 <button type="button" className="btn btn-primary btn-lg" onClick={toBest}>
@@ -360,7 +366,7 @@ export default function TodayPage() {
               </div>
               <div className="lterminal-body">
                 <div className="t-panel" style={{ gridColumn: '1/-1' }}>
-                  <div className="t-panel-head"><span>Projected path · walls · gamma</span><span>{wp.data ? `${(wp.data.confidence * 100).toFixed(0)}% conf` : ''}</span></div>
+                  <div className="t-panel-head"><span>This week · implied range · walls</span><span>{sigma != null ? `1σ ±${fmt(sigma, 0)} pts${wp.data?.volSource === 'vix' ? ` · VIX ${((wp.data.annualVol ?? 0) * 100).toFixed(1)}` : ' · est.'}` : ''}</span></div>
                   {wp.data && !gex.isLoading
                     ? <WeekMap wp={wp.data} gex={gex.data} />
                     : <div className="tl-map-empty">{feedDown ? 'Options feed down — retrying' : 'Reading dealer positioning…'}</div>}
@@ -385,7 +391,7 @@ export default function TodayPage() {
               </div>
             </div>
           </div>
-          <div className="tl-map-foot">Model projection from measured dealer positioning — not a forecast. Only measured walls are drawn.</div>
+          <div className="tl-map-foot">Shaded band: the options market’s 1σ weekly move (about 2 weeks in 3 close inside it). The line leans toward the biggest strike only in long gamma, capped at a quarter of that move. Not a forecast.</div>
         </div>
       </section>
 
