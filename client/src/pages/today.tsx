@@ -149,18 +149,60 @@ function Ladder({ p, live }: { p: Pick; live?: number }) {
         {live != null && <div className="td-ladder-now" style={{ left: at(live) }} title={`now ${fmt(live)}`} />}
       </div>
       <div className="td-ladder-labels">
-        <span className="bear">Stop <b>{fmt(s)}</b></span>
+        {long ? <span className="bear">Stop <b>{fmt(s)}</b></span> : <span className="bull">Target <b>{fmt(t)}</b></span>}
         <span>Entry <b>{fmt(e)}</b></span>
-        <span className="bull">Target <b>{fmt(t)}</b></span>
+        {long ? <span className="bull">Target <b>{fmt(t)}</b></span> : <span className="bear">Stop <b>{fmt(s)}</b></span>}
       </div>
     </div>
   );
 }
 
-function evidenceLine(p: Pick) {
-  const top = (p.layers ?? []).filter((l) => l.points > 0).sort((a, b) => b.points - a.points)[0];
-  return (top?.why || p.thesis || '').split(/[.—]/)[0].trim();
+/**
+ * Evidence, in plain English. The layers carry precise measurements in
+ * machine phrasing ("Aggressor tape: +$18.5M net bullish … calls bought
+ * +$14.0M"); a person needs one sentence and a few reasons.
+ */
+function explain(p: Pick): { headline: string; reasons: string[]; against?: string } {
+  const L = p.layers ?? [];
+  const txt = (l?: Layer) => (l?.why ?? '').replace(/^[^\w$+-]+/u, '').trim();
+  const flow = L.map(txt).find((w) => /Aggressor tape|net premium/i.test(w));
+  const pattern = L.map(txt).find((w) => /(Higher-Lows Base|V-Recovery|Bull flag|breakout|pullback|reclaim)/i.test(w) && !/Aggressor/i.test(w));
+  let headline = '';
+  if (flow) {
+    const m = flow.match(/([+-])\$([\d.]+)M net (bullish|bearish)/i);
+    const calls = flow.match(/calls (bought|sold) \+\$([\d.]+)M/i);
+    const puts = flow.match(/puts (bought|sold) \+\$([\d.]+)M/i);
+    if (m) {
+      const bull = m[3].toLowerCase() === 'bullish';
+      const lead = bull ? calls : puts;
+      headline = `Options traders put $${m[2]}M ${bull ? 'behind' : 'against'} it yesterday` +
+        (lead ? ` — mostly ${bull ? 'calls' : 'puts'} ${lead[1]}.` : '.');
+    }
+  }
+  if (!headline && pattern) headline = pattern.split(/[:;(]/)[0].replace(/ off the /i, ' off ').trim() + '.';
+  if (!headline) headline = (p.thesis ?? '').split('.')[0] + '.';
+  const reasons: string[] = [];
+  for (const l of [...L].sort((a, b) => b.points - a.points)) {
+    if (l.points <= 0 || reasons.length >= 3) continue;
+    const w = txt(l);
+    if (/Aggressor tape|net premium|context only|Regime ranging|benchmark complex/i.test(w)) continue;
+    let r = '';
+    const run = w.match(/clean runway to (.+?) at \$([\d.,]+) \(([\d.]+)R, (\d+)% reach odds\)/i);
+    if (run) r = `Clear path to $${run[2]} · ${run[4]}% reach odds`;
+    else if (/^TA confirms/i.test(w)) r = 'Chart trend agrees';
+    else if (/Coiled/i.test(w)) r = 'Coiled range, pressing the ceiling';
+    else if (/Dealers support/i.test(w)) r = 'Dealer positioning supports the move';
+    else if (/sector|Semis|Tech|Energy|Utilities|Financials/i.test(w)) r = w.split('—')[0].replace(/[🩸]/gu, '').trim();
+    else if (/Earnings (miss|beat)/i.test(w)) r = w;
+    else if (pattern && w === pattern) continue;
+    else r = w.split(/[—(;]/)[0].trim();
+    if (r && !reasons.includes(r)) reasons.push(r.length > 64 ? r.slice(0, 62) + '…' : r);
+  }
+  const neg = L.filter((l) => l.points < 0).sort((a, b) => a.points - b.points)[0];
+  const against = neg ? txt(neg).replace(/[🩸]/gu, '').split('—').map((x) => x.trim()).filter(Boolean).join(' — ') : undefined;
+  return { headline, reasons, against };
 }
+const sectorName = (s?: string) => (!s || s === 'other' ? '' : s.replace(/_/g, ' '));
 
 export default function TodayPage() {
   const [, setLocation] = useLocation();
@@ -239,10 +281,14 @@ export default function TodayPage() {
               <div className="td-best-id">
                 <div className="td-sym">{best.symbol}</div>
                 <div className={`td-dir ${best.direction}`}>{best.direction === 'long' ? 'Long' : 'Short'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}</div>
-                <div className="td-sector">{best.sector ?? ''}</div>
+                <div className="td-sector">{sectorName(best.sector)}</div>
               </div>
               <div className="td-best-body">
-                <p className="td-why">{evidenceLine(best) || 'Ranked first by evidence across the scoring layers.'}</p>
+                {(() => { const x = explain(best); return (<>
+                  <p className="td-why">{x.headline}</p>
+                  {x.reasons.length > 0 && <ul className="td-reasons">{x.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
+                  {x.against && <p className="td-against"><b>Against it:</b> {x.against}</p>}
+                </>); })()}
                 <Ladder p={best} live={px(best.symbol)} />
               </div>
               <div className="td-best-stats">
@@ -262,10 +308,10 @@ export default function TodayPage() {
               <motion.li key={p.ideaId} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i, duration: 0.3 }}>
                 <Link href={`/r/${p.symbol}`} className="td-row">
                   <span className="td-rank">{i + 2}</span>
-                  <span className="td-row-sym">{p.symbol}<small>{p.sector ?? ''}</small></span>
+                  <span className="td-row-sym">{p.symbol}{sectorName(p.sector) && <small>{sectorName(p.sector)}</small>}</span>
                   <span className={`td-dir sm ${p.direction}`}>{p.direction === 'long' ? 'Long' : 'Short'}</span>
-                  <span className="td-row-why">{evidenceLine(p)}</span>
-                  <span className="td-row-ev"><i style={{ width: `${Math.min(100, p.convictionScore ?? 0)}%` }} /><b>{p.convictionScore}</b></span>
+                  <span className="td-row-why">{explain(p).headline}</span>
+                  <span className="td-row-ev" title="Evidence score out of 100"><span className="td-ev-track"><i style={{ width: `${Math.min(100, p.convictionScore ?? 0)}%` }} /></span><b>{p.convictionScore}</b></span>
                   <span className="td-row-rr">{p.riskRewardRatio ? `${p.riskRewardRatio.toFixed(1)}R` : '—'}</span>
                 </Link>
               </motion.li>
