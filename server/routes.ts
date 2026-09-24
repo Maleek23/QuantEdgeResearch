@@ -7306,6 +7306,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Live reprice of a PUBLISHED contract — greeks, expected move, odds and
+  // scenarios recomputed from the current chain (never carried forward).
+  app.get("/api/contract-live/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { repricePublishedContract } = await import("./contract-picker");
+      const q = req.query as Record<string, string>;
+      if (!q.strike || !q.expiry || !q.type) return res.status(400).json({ error: "strike, expiry, type required" });
+      const r = await repricePublishedContract(String(req.params.symbol).toUpperCase(), {
+        optionType: q.type === "put" ? "put" : "call",
+        strike: Number(q.strike), expiry: q.expiry,
+        target: q.target ? Number(q.target) : undefined,
+        stop: q.stop ? Number(q.stop) : undefined,
+        entryPremium: q.entryPremium ? Number(q.entryPremium) : undefined,
+      });
+      if (!r) return res.status(404).json({ error: "no chain" });
+      res.json(r);
+    } catch (err) {
+      logger.error("[API] contract-live failed:", err);
+      res.status(500).json({ error: "reprice failed" });
+    }
+  });
+
   // Adaptive contract picker — DTE window + account budget in, ranked
   // candidates with explicit warnings out. CBOE delayed chain (Tradier dead).
   app.get("/api/contract-picker/:symbol", requireBetaAccess, async (req, res) => {

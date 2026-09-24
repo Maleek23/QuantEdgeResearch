@@ -13,6 +13,7 @@
  * and real company logos. Nothing is fabricated; missing data shows honest
  * empty states.
  */
+import { PublishedContractLive } from "@/components/contract-engine/published-contract-live";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
@@ -1385,6 +1386,17 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                   {(selected.direction === "long" ||
                     selected.direction === "short") && (
                     <div ref={engineRef}>
+                      {(selected as any).strikePrice && (selected as any).optionType && (selected as any).expiryDate && (
+                        <PublishedContractLive
+                          symbol={selected.symbol}
+                          optionType={String((selected as any).optionType)}
+                          strike={Number((selected as any).strikePrice)}
+                          expiry={String((selected as any).expiryDate)}
+                          target={selected.targetPrice}
+                          stop={selected.stopLoss}
+                          entryPremium={(selected as any).entryPremium ?? null}
+                        />
+                      )}
                       <ContractEngine
                         key={selected.ideaId}
                         autoLoad
