@@ -68,7 +68,7 @@ export function Spark({ bars, color, height = 60, label }: { bars: SparkBar[]; c
   };
 
   if (bars.length < 2) {
-    return <div style={{ height, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>{label ?? 'loading series…'}</div>;
+    return <div style={{ height, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>{label ?? 'loading series…'}</div>;
   }
   return (
     <div style={{ position: 'relative', height }} onMouseMove={onMove} onMouseLeave={() => { setTip(null); draw(null); }}>

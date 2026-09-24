@@ -172,7 +172,7 @@ export function CatalystNexus() {
                   <div className="econ-item" key={`${e.name}-${e.date}`}>
                     <div className="econ-date">
                       {dayHead(e.date)}<br />
-                      <span style={{ fontSize: 9, color: 'var(--text-mute)' }}>{e.time ?? ''}{e.date === today ? ' · today' : ''}</span>
+                      <span style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>{e.time ?? ''}{e.date === today ? ' · today' : ''}</span>
                     </div>
                     <div>
                       <div className="econ-name">{e.name}</div>

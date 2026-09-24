@@ -269,9 +269,9 @@ export default function TerminalShell() {
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
               {currentStock?.symbol ? (
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 0.8, color: 'var(--cyan-bright, #22d3ee)' }}>{currentStock.symbol}</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 0.8, color: 'var(--cyan-bright, #22d3ee)' }}>{currentStock.symbol}</span>
               ) : (
-                <span style={{ fontSize: 10.5, color: 'var(--text-mute)' }}>search any ticker</span>
+                <span style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--text-mute)' }}>search any ticker</span>
               )}
               <span className="search-kbd">⌘K</span>
             </button>

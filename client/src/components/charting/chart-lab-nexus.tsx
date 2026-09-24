@@ -240,7 +240,7 @@ export function ChartLabBoard() {
                     <button key={sym} onClick={() => { setCurrentStock({ symbol: sym }); setInstrumentOpen(false); }}>
                       <span>{sym}</span>
                       {quoteBySym.get(sym) && (
-                        <span style={{ color: quoteBySym.get(sym)!.changePct >= 0 ? 'var(--green)' : 'var(--red)', fontSize: 10 }}>
+                        <span style={{ color: quoteBySym.get(sym)!.changePct >= 0 ? 'var(--green)' : 'var(--red)', fontSize: 'var(--fs-10, 10px)' }}>
                           {quoteBySym.get(sym)!.changePct >= 0 ? '+' : ''}{quoteBySym.get(sym)!.changePct.toFixed(1)}%
                         </span>
                       )}
@@ -327,7 +327,7 @@ export function ChartLabBoard() {
           <div className="levels-section">
             <div className="levels-head">
               <div className="levels-title">QuantEdge Levels</div>
-              <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol}</div>
+              <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol}</div>
             </div>
             {levelRows.length ? levelRows.map((l) => (
               <div className="level-row" key={l.label}>
@@ -342,7 +342,7 @@ export function ChartLabBoard() {
               </div>
             )}
             {pick && (
-              <div style={{ marginTop: 8, fontSize: 10, color: 'var(--text-dim)', fontFamily: "'JetBrains Mono',monospace" }}>
+              <div style={{ marginTop: 8, fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', fontFamily: "'JetBrains Mono',monospace" }}>
                 {bullish ? '▲ LONG' : '▼ SHORT'} · R:R {pick.riskRewardRatio ? `${pick.riskRewardRatio.toFixed(1)}:1` : '—'}
               </div>
             )}

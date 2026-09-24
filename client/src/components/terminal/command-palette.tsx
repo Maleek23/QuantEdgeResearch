@@ -111,12 +111,12 @@ export function CommandPalette({
             placeholder="Search any ticker, or jump to a tab…"
             style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: 'var(--text, #e8ecf3)', fontFamily: "'JetBrains Mono',monospace", fontSize: 14, letterSpacing: 0.5 }}
           />
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', border: '1px solid var(--nx-border, rgba(148,163,184,0.16))', borderRadius: 4, padding: '2px 6px' }}>ESC</span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', border: '1px solid var(--nx-border, rgba(148,163,184,0.16))', borderRadius: 4, padding: '2px 6px' }}>ESC</span>
         </div>
 
         <div style={{ maxHeight: '46vh', overflowY: 'auto' }}>
           {!q && items.length > 0 && (
-            <div style={{ padding: '8px 16px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-mute)' }}>
+            <div style={{ padding: '8px 16px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-mute)' }}>
               {readRecents().length ? 'Recent' : 'Jump to'}
             </div>
           )}
@@ -135,7 +135,7 @@ export function CommandPalette({
                 <>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: 'var(--cyan-bright, #22d3ee)' }}>→</span>
                   <span style={{ fontSize: 12.5, color: 'var(--text)' }}>{item.label}</span>
-                  <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 8, letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>tab</span>
+                  <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>tab</span>
                 </>
               ) : (
                 <>
@@ -144,13 +144,13 @@ export function CommandPalette({
                     fontSize: 11, color: item.changePct != null ? (item.changePct >= 0 ? 'var(--green, #34d399)' : 'var(--red, #ff5470)') : 'var(--text-dim, #8b93a7)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
                   }}>{item.name ?? ''}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>↵ workup</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>↵ workup</span>
                 </>
               )}
             </div>
           ))}
           {q && isFetching && !items.length && (
-            <div style={{ padding: '14px 16px', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>searching…</div>
+            <div style={{ padding: '14px 16px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>searching…</div>
           )}
         </div>
 

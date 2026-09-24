@@ -240,13 +240,13 @@ export default function DrawdownAnalysisChart() {
             <AnalyticsGrid opacity={0.5} />
             <AnalyticsXAxis
               dataKey="tradeIndex"
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
             />
             <AnalyticsYAxis
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
               domain={['auto', 'auto']}
               tickFormatter={(val) => `${safeToFixed(val, 2)}x`}
-              label={{ value: 'Equity (1.0 = start)', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              label={{ value: 'Equity (1.0 = start)', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
             />
             <ReferenceLine y={1} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
             <Tooltip content={<CustomTooltip />} />

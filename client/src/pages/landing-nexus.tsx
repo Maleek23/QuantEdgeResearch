@@ -113,7 +113,7 @@ function Spark({ bars, color, height = 60, label }: { bars: Bar[]; color: string
   const onLeave = () => { setTip(null); draw(null); };
 
   if (bars.length < 2) {
-    return <div style={{ height, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>{label ?? 'loading series…'}</div>;
+    return <div style={{ height, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>{label ?? 'loading series…'}</div>;
   }
   return (
     <div ref={wrapRef} style={{ position: 'relative', height }} onMouseMove={onMove} onMouseLeave={onLeave}>
@@ -173,7 +173,7 @@ function RotQuad({ sectors, height = 260 }: { sectors: Sector[]; height?: number
   }, [sectors]);
   const hasPts = sectors.some((pt) => Number.isFinite(pt.rsRatio) && Number.isFinite(pt.rsMomentum));
   if (!hasPts) {
-    return <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)', fontStyle: 'italic' }}>loading map…</div>;
+    return <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', fontStyle: 'italic' }}>loading map…</div>;
   }
   return <canvas ref={ref} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />;
 }
@@ -354,7 +354,7 @@ export default function LandingNexus() {
                       <div className="t-signal" key={p.symbol}>
                         <span className="ticker">{p.symbol}</span>
                         <span className="band">{(p.publishedConvictionBand ?? p.convictionBand ?? 'C').charAt(0)}</span>
-                        <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{dir === 'short' ? '▼ BEAR' : '▲ BULL'} · {p.tradeType ?? 'swing'}</span>
+                        <span style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>{dir === 'short' ? '▼ BEAR' : '▲ BULL'} · {p.tradeType ?? 'swing'}</span>
                         <span className={`dir${(pnl ?? 0) < 0 ? ' down' : ''}`}>{pnl != null ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%` : '—'}</span>
                       </div>
                     );

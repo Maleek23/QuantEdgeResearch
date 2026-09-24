@@ -284,7 +284,7 @@ export function GexHubNexus() {
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                   {snap.regime === 'negative_gamma' ? 'Negative gamma' : snap.regime === 'positive_gamma' ? 'Positive gamma' : snap.regime === 'transitioning' ? 'Transitioning' : 'Neutral regime'}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', marginTop: 2 }}>
                   {snap.regime === 'negative_gamma'
                     ? 'Dealer hedging can amplify moves'
                     : snap.regime === 'positive_gamma'
@@ -292,9 +292,9 @@ export function GexHubNexus() {
                       : 'No strong dealer footprint — levels matter less'}
                 </div>
               </div>
-              <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+              <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', textAlign: 'right', whiteSpace: 'nowrap' }}>
                 {spot ? `$${spot.toFixed(2)}` : '—'}
-                <span style={{ display: 'block', fontSize: 9, marginTop: 2 }}>
+                <span style={{ display: 'block', fontSize: 'var(--fs-9, 9px)', marginTop: 2 }}>
                   {snap.putWall != null && snap.callWall != null
                     ? (spot > snap.putWall && spot < snap.callWall
                       ? `inside $${Math.round(snap.putWall)}–$${Math.round(snap.callWall)}`
@@ -325,7 +325,7 @@ export function GexHubNexus() {
                     <div className="spot-chg" style={{ color: 'var(--text-mute)' }}>chg —</div>
                   )}
                 </div>
-                <div style={{ textAlign: 'right', fontSize: 10, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
+                <div style={{ textAlign: 'right', fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
                   <div>{symbol === 'SPY' ? 'benchmark' : 'focus'}</div>
                   <div style={{ color: snap?.gammaFlipPrice ? 'var(--cyan-bright)' : 'var(--text-mute)', marginTop: 2 }} title="Gamma flip — the price where dealer gamma changes sign. Below it, hedging amplifies moves.">
                     {snap?.gammaFlipPrice ? `flip $${Math.round(snap.gammaFlipPrice)}` : 'no flip in range'}
@@ -349,7 +349,7 @@ export function GexHubNexus() {
                     {snap.callWall != null && <div title={`Call wall $${snap.callWall}`} style={{ position: 'absolute', left: X(snap.callWall), top: -4, width: 2, height: 14, background: 'var(--green)', boxShadow: '0 0 6px var(--green)' }} />}
                     {spot != null && <div title={`Spot $${spot.toFixed(2)}`} style={{ position: 'absolute', left: X(spot), top: -3, width: 8, height: 12, borderRadius: 2, background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,0.7)', transform: 'translateX(-4px)' }} />}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
                     <span style={{ color: 'var(--red)' }}>P {snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}</span>
                     <span style={{ color: 'var(--amber)' }}>flip {flip != null ? `$${Math.round(flip)}` : '—'}</span>
                     <span style={{ color: 'var(--green)' }}>C {snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}</span>
@@ -383,7 +383,7 @@ export function GexHubNexus() {
                 {(['gex', 'vex'] as const).map((m) => (
                   <button key={m} onClick={() => setRankMode(m)}
                     title={m === 'gex' ? 'Rank by GEX surface — dealer gamma exposure' : 'Rank by VEX surface — volatility exposure'}
-                    style={{ padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: 0.5, background: rankMode === m ? 'color-mix(in srgb, var(--amber) 15%, transparent)' : 'transparent', color: rankMode === m ? 'var(--amber)' : 'var(--text-mute)', border: rankMode === m ? '1px solid color-mix(in srgb, var(--amber) 30%, transparent)' : '1px solid var(--nx-border)' }}>
+                    style={{ padding: '2px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', letterSpacing: 0.5, background: rankMode === m ? 'color-mix(in srgb, var(--amber) 15%, transparent)' : 'transparent', color: rankMode === m ? 'var(--amber)' : 'var(--text-mute)', border: rankMode === m ? '1px solid color-mix(in srgb, var(--amber) 30%, transparent)' : '1px solid var(--nx-border)' }}>
                     {m}
                   </button>
                 ))}
@@ -423,14 +423,14 @@ export function GexHubNexus() {
                 </div>
               ))}
               {hubLoading && !plays.length && (
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)', padding: '8px 0' }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', padding: '8px 0' }}>
                   hub scan loading…
                 </div>
               )}
               {hubError && !plays.length && (
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)', padding: '8px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', padding: '8px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span>ranked scan unavailable</span>
-                  <button onClick={() => refetchHub()} style={{ color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, textDecoration: 'underline', padding: 0 }}>retry</button>
+                  <button onClick={() => refetchHub()} style={{ color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--fs-10, 10px)', textDecoration: 'underline', padding: 0 }}>retry</button>
                 </div>
               )}
             </div>
@@ -485,7 +485,7 @@ export function GexHubNexus() {
 
           {/* Matrix intensity legend — the single canonical key for cell color and brightness. */}
           <div
-            style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', alignItems: 'center', padding: '8px 2px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}
+            style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', alignItems: 'center', padding: '8px 2px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Call-side exposure — positive net gamma at that strike × expiry">
               <span style={{ width: 20, height: 12, borderRadius: 2, background: 'linear-gradient(135deg, color-mix(in srgb, var(--green) 30%, transparent), color-mix(in srgb, var(--green) 15%, transparent))' }} />
@@ -611,7 +611,7 @@ export function GexHubNexus() {
           <div className="context-card">
             <div className="context-head">
               <div className="context-label">Key levels</div>
-              <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol} · {sessionLabel.toLowerCase()}</div>
+              <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol} · {sessionLabel.toLowerCase()}</div>
             </div>
             <div className="context-grid">
               <div className="context-item">
@@ -651,7 +651,7 @@ export function GexHubNexus() {
               <div className="context-label" title="Share of total listed exposure sitting on the call side vs the put side — which way the book leans.">Gravity · call vs put exposure</div>
             </div>
             {shaped.callPct == null ? (
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>no listed exposure yet</div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>no listed exposure yet</div>
             ) : (
               <>
                 <div
@@ -743,7 +743,7 @@ export function GexHubNexus() {
             <div style={{ width: 320, background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 10, padding: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }} onClick={(e) => e.stopPropagation()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
                 <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16 }}>{symbol} ${drill.strike}</div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }}>{drill.expiryLabel} · {drill.dte}d</div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>{drill.expiryLabel} · {drill.dte}d</div>
               </div>
               {[
                 ['net GEX', fmtM(drill.netGEX)],
@@ -753,11 +753,11 @@ export function GexHubNexus() {
                 [`share of ${drill.expiryLabel} expiry`, expiryTotal !== 0 ? `${((v / expiryTotal) * 100).toFixed(0)}% of ${fmtM(expiryTotal)}` : '—'],
               ].map(([k, val2]) => (
                 <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px dashed color-mix(in srgb, var(--cyan) 8%, transparent)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
-                  <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 9, letterSpacing: 0.5 }}>{k}</span>
+                  <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 'var(--fs-9, 9px)', letterSpacing: 0.5 }}>{k}</span>
                   <span style={{ fontWeight: 700 }}>{val2}</span>
                 </div>
               ))}
-              <div style={{ marginTop: 10, fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", fontStyle: 'italic' }}>listed-chain node · esc or click away to close</div>
+              <div style={{ marginTop: 10, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", fontStyle: 'italic' }}>listed-chain node · esc or click away to close</div>
             </div>
           </div>
         );

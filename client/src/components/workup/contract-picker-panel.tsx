@@ -58,14 +58,14 @@ export function ContractPickerPanel({ symbol, direction = "long", target, title 
   return (
     <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--nx-border)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-        <span style={{ fontSize: 10, letterSpacing: 1, color: "var(--text-dim)", fontWeight: 700 }}>{title ?? "CONTRACT PICKER"}</span>
+        <span style={{ fontSize: 'var(--fs-10, 10px)', letterSpacing: 1, color: "var(--text-dim)", fontWeight: 700 }}>{title ?? "CONTRACT PICKER"}</span>
         <div style={{ display: "flex", gap: 4 }}>
           {DTE_PRESETS.map((p, i) => (
             <button
               key={p.label}
               onClick={() => setPreset(i)}
               style={{
-                fontSize: 10, padding: "3px 8px", borderRadius: 4, cursor: "pointer",
+                fontSize: 'var(--fs-10, 10px)', padding: "3px 8px", borderRadius: 4, cursor: "pointer",
                 border: `1px solid ${i === preset ? "var(--purple)" : "var(--nx-border)"}`,
                 background: i === preset ? "rgba(167,139,250,0.15)" : "transparent",
                 color: i === preset ? "var(--purple)" : "var(--text-dim)",
@@ -82,7 +82,7 @@ export function ContractPickerPanel({ symbol, direction = "long", target, title 
               onClick={() => { setCostIdx(i); try { localStorage.setItem("qe-picker-maxcost", String(i)); } catch { /* ok */ } }}
               title="max cost per contract"
               style={{
-                fontSize: 10, padding: "4px 8px", borderRadius: 4, cursor: "pointer", minHeight: 26,
+                fontSize: 'var(--fs-10, 10px)', padding: "4px 8px", borderRadius: 4, cursor: "pointer", minHeight: 26,
                 border: `1px solid ${i === costIdx ? "var(--green, #3ddc97)" : "var(--nx-border)"}`,
                 background: i === costIdx ? "rgba(61,220,151,0.12)" : "transparent",
                 color: i === costIdx ? "var(--green, #3ddc97)" : "var(--text-dim)",
@@ -92,7 +92,7 @@ export function ContractPickerPanel({ symbol, direction = "long", target, title 
             </button>
           ))}
         </div>
-        <label style={{ fontSize: 10, color: "var(--text-dim)", display: "flex", alignItems: "center", gap: 4 }}>
+        <label style={{ fontSize: 'var(--fs-10, 10px)', color: "var(--text-dim)", display: "flex", alignItems: "center", gap: 4 }}>
           acct $
           <input
             value={budget}
@@ -103,7 +103,7 @@ export function ContractPickerPanel({ symbol, direction = "long", target, title 
             style={{ width: 64, fontSize: 11, padding: "2px 6px", background: "rgba(255,255,255,0.04)", border: "1px solid var(--nx-border)", borderRadius: 4, color: "inherit" }}
           />
         </label>
-        <span style={{ fontSize: 9, color: "var(--text-dim)", opacity: 0.7 }}>CBOE delayed · warnings are the point</span>
+        <span style={{ fontSize: 'var(--fs-9, 9px)', color: "var(--text-dim)", opacity: 0.7 }}>CBOE delayed · warnings are the point</span>
       </div>
 
       {q.isLoading && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>reading the chain…</div>}
@@ -120,10 +120,10 @@ export function ContractPickerPanel({ symbol, direction = "long", target, title 
             <span style={{ fontWeight: 700 }}>{c.label}</span>
             <span>
               mid ${c.mid}
-              <span style={{ color: "var(--text-dim)", fontSize: 10 }}> · ${c.costPerContract}/contract{c.pctOfBudget != null ? ` (${Math.round(c.pctOfBudget * 100)}% of acct)` : ""}</span>
+              <span style={{ color: "var(--text-dim)", fontSize: 'var(--fs-10, 10px)' }}> · ${c.costPerContract}/contract{c.pctOfBudget != null ? ` (${Math.round(c.pctOfBudget * 100)}% of acct)` : ""}</span>
             </span>
           </div>
-          <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
+          <div style={{ fontSize: 'var(--fs-10, 10px)', color: "var(--text-dim)", marginTop: 2 }}>
             {c.roiAtT1 != null && <span style={{ color: c.roiAtT1 > 0 ? "var(--green, #3ddc97)" : "inherit", fontWeight: 700 }}>~{c.roiAtT1 > 0 ? "+" : ""}{Math.round(c.roiAtT1 * 100)}% at T1 · </span>}
             {c.contractsAffordable != null && c.contractsAffordable > 0 && <span>{c.contractsAffordable}× within cap · </span>}
             Δ {c.delta != null ? c.delta.toFixed(2) : "—"} · θ/day {c.thetaPerDayPct != null ? (c.thetaPerDayPct * 100).toFixed(1) + "%" : "—"} · spread {c.spreadPct != null ? (c.spreadPct * 100).toFixed(0) + "%" : "—"} · OI {c.openInterest} · vol {c.volume}
@@ -131,7 +131,7 @@ export function ContractPickerPanel({ symbol, direction = "long", target, title 
           {c.warnings.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
               {c.warnings.map((w) => (
-                <span key={w} style={{ fontSize: 9.5, padding: "1px 6px", borderRadius: 3, background: "rgba(255,180,0,0.08)", border: "1px solid rgba(255,180,0,0.25)", color: "#e8b34b" }}>
+                <span key={w} style={{ fontSize: 'var(--fs-9, 9.5px)', padding: "1px 6px", borderRadius: 3, background: "rgba(255,180,0,0.08)", border: "1px solid rgba(255,180,0,0.25)", color: "#e8b34b" }}>
                   ⚠ {w}
                 </span>
               ))}

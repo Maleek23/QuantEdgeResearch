@@ -83,7 +83,7 @@ export function TickerTape({ className }: { className?: string }) {
     // No feed → an empty quiet strip, not an invented one.
     return (
       <div className={cn('ticker-tape', className)} style={{ minHeight: 28 }}>
-        <span style={{ padding: '0 16px', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-mute)' }}>
+        <span style={{ padding: '0 16px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-mute)' }}>
           quote tape · no data
         </span>
       </div>

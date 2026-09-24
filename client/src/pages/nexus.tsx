@@ -70,10 +70,10 @@ function RadarPreview({ symbol, note, x, y }: { symbol: string; note: string; x:
     <div style={{ position: 'fixed', left: Math.min(x, window.innerWidth - 250), top: y + 14, width: 236, zIndex: 90, background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 8, padding: 10, boxShadow: '0 16px 40px rgba(0,0,0,0.6)', pointerEvents: 'none' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 13 }}>
         {symbol}
-        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', fontWeight: 600 }}>1mo · real bars</span>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontWeight: 600 }}>1mo · real bars</span>
       </div>
       <Spark bars={(data?.data ?? []).map((b) => ({ time: b.time, close: b.close }))} color="#4fd1c5" height={54} />
-      <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-dim)', lineHeight: 1.5 }}>{note}</div>
+      <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-dim)', lineHeight: 1.5 }}>{note}</div>
     </div>
   );
 }
@@ -391,7 +391,7 @@ function SigChart({ symbol, dir }: { symbol: string; dir: 'bull' | 'bear' }) {
     <div className="sig-chart">
       {points.length >= 2
         ? <canvas ref={ref} />
-        : <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>NO PRICE HISTORY</div>}
+        : <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>NO PRICE HISTORY</div>}
     </div>
   );
 }
@@ -479,11 +479,11 @@ export function NexusBoard() {
   const RailCtl = ({ id }: { id: string }) => (
     <span style={{ display: 'inline-flex', gap: 3, marginLeft: 5 }}>
       <button title={railUi[id] === 'min' ? 'Expand panel' : 'Collapse to header'} onClick={(e) => { e.stopPropagation(); setRail(id, railUi[id] === 'min' ? null : 'min'); }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', fontSize: 10, padding: '0 2px', lineHeight: 1 }}>
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)', padding: '0 2px', lineHeight: 1 }}>
         {railUi[id] === 'min' ? '+' : '–'}
       </button>
       <button title="Hide panel (restore chip appears at the top of the rail)" onClick={(e) => { e.stopPropagation(); setRail(id, 'hidden'); }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', fontSize: 10, padding: '0 2px', lineHeight: 1 }}>
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)', padding: '0 2px', lineHeight: 1 }}>
         ×
       </button>
     </span>
@@ -671,7 +671,7 @@ export function NexusBoard() {
   }, [watchlist.data, watchOrder]);
   const Ex = ({ id }: { id: NonNullable<typeof expandSec> }) => (
     <button title="Expand" onClick={(e) => { e.stopPropagation(); setExpandSec(id); }}
-      style={{ marginLeft: 6, width: 16, height: 16, display: 'inline-grid', placeItems: 'center', background: 'transparent', border: '1px solid var(--nx-border)', borderRadius: 3, color: 'var(--text-mute)', cursor: 'pointer', fontSize: 9, lineHeight: 1 }}>⤢</button>
+      style={{ marginLeft: 6, width: 16, height: 16, display: 'inline-grid', placeItems: 'center', background: 'transparent', border: '1px solid var(--nx-border)', borderRadius: 3, color: 'var(--text-mute)', cursor: 'pointer', fontSize: 'var(--fs-9, 9px)', lineHeight: 1 }}>⤢</button>
   );
 
   const dropOn = (target: string) => {
@@ -759,7 +759,7 @@ export function NexusBoard() {
               const label = pat === 'inside_coil' ? 'Coils' : pat === 'bull_flag' ? 'Bull flags' : pat === 'breakout_watch' ? '52w-high watch' : 'Bear flags';
               return (
                 <div key={pat} style={{ marginBottom: 8 }}>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 0.8, margin: '6px 0 4px' }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 0.8, margin: '6px 0 4px' }}>
                     {label} · {(patterns.data?.hits ?? []).filter((h) => h.pattern === pat).length}
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -768,7 +768,7 @@ export function NexusBoard() {
                         onMouseEnter={(e) => setRadarPrev({ symbol: h.symbol, note: h.note, x: (e.currentTarget as HTMLElement).getBoundingClientRect().left, y: (e.currentTarget as HTMLElement).getBoundingClientRect().bottom })}
                         onMouseLeave={() => setRadarPrev(null)}
                         onClick={() => { setRadarPrev(null); setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
-                        style={{ padding: '3px 8px', background: 'var(--panel-hi)', border: `1px solid ${h.bias === 'short' ? 'rgba(255,84,112,0.3)' : h.bias === 'long' ? 'rgba(61,220,151,0.3)' : 'var(--nx-border)'}`, borderRadius: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 600, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text-dim)', cursor: 'pointer' }}>
+                        style={{ padding: '3px 8px', background: 'var(--panel-hi)', border: `1px solid ${h.bias === 'short' ? 'rgba(255,84,112,0.3)' : h.bias === 'long' ? 'rgba(61,220,151,0.3)' : 'var(--nx-border)'}`, borderRadius: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 600, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text-dim)', cursor: 'pointer' }}>
                         {h.symbol}
                       </button>
                     ))}
@@ -777,7 +777,7 @@ export function NexusBoard() {
               );
             })}
             {patterns.data && patterns.data.hits.length === 0 && (
-              <div style={{ fontSize: 10, color: 'var(--text-mute)', fontStyle: 'italic', padding: '6px 0' }}>Sweep pending — first pass runs ~3 min after boot.</div>
+              <div style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', fontStyle: 'italic', padding: '6px 0' }}>Sweep pending — first pass runs ~3 min after boot.</div>
             )}
             {radarPrev && <RadarPreview {...radarPrev} />}
             {expandSec && (
@@ -799,7 +799,7 @@ export function NexusBoard() {
                             <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13 }}>{t.symbol}</b>
                             <span style={{ color: 'var(--text-dim)' }}>${t.strikePrice} strike · ${Math.round(t.totalPremium / 1000)}k premium</span>
                             <span style={{ color: t.optionType === 'call' ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{t.optionType.toUpperCase()}</span>
-                            <span style={{ color: 'var(--text-mute)', fontSize: 10 }}>workup →</span>
+                            <span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)' }}>workup →</span>
                           </div>
                         ))}
                         {!(flow.data?.trades ?? []).length && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-mute)', fontStyle: 'italic' }}>No prints in the window.</div>}
@@ -828,7 +828,7 @@ export function NexusBoard() {
                           <button key={s2.etf} onClick={() => { setExpandSec(null); setCurrentStock({ symbol: s2.etf }); openWorkup(s2.etf); }}
                             style={{ padding: '18px 8px', borderRadius: 6, border: 'none', cursor: 'pointer', background: heatColor(s2.change), color: Math.abs(s2.change) > 2 ? '#fff' : 'rgba(255,255,255,0.9)', fontFamily: "'JetBrains Mono',monospace" }}>
                             <div style={{ fontWeight: 700, fontSize: 14 }}>{s2.etf}</div>
-                            <div style={{ fontSize: 10, opacity: 0.85 }}>{s2.name}</div>
+                            <div style={{ fontSize: 'var(--fs-10, 10px)', opacity: 0.85 }}>{s2.name}</div>
                             <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{s2.change >= 0 ? '+' : ''}{s2.change.toFixed(2)}%</div>
                           </button>
                         ))}
@@ -837,10 +837,10 @@ export function NexusBoard() {
                     {expandSec === 'quad' && (
                       <div style={{ position: 'relative', height: '62vh', background: 'linear-gradient(rgba(79,209,197,0.05) 1px, transparent 1px),linear-gradient(90deg, rgba(79,209,197,0.05) 1px, transparent 1px)', backgroundSize: '25% 25%', borderRadius: 8, overflow: 'hidden' }}>
                         <canvas ref={bigQuadRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
-                        <div style={{ position: 'absolute', top: 10, left: 14, color: 'var(--green)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>LEADING</div>
-                        <div style={{ position: 'absolute', top: 10, right: 14, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>IMPROVING</div>
-                        <div style={{ position: 'absolute', bottom: 10, left: 14, color: 'var(--amber)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>WEAKENING</div>
-                        <div style={{ position: 'absolute', bottom: 10, right: 14, color: 'var(--red)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>LAGGING</div>
+                        <div style={{ position: 'absolute', top: 10, left: 14, color: 'var(--green)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 1 }}>LEADING</div>
+                        <div style={{ position: 'absolute', top: 10, right: 14, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 1 }}>IMPROVING</div>
+                        <div style={{ position: 'absolute', bottom: 10, left: 14, color: 'var(--amber)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 1 }}>WEAKENING</div>
+                        <div style={{ position: 'absolute', bottom: 10, right: 14, color: 'var(--red)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 1 }}>LAGGING</div>
                       </div>
                     )}
                     {expandSec === 'pulse' && (
@@ -856,7 +856,7 @@ export function NexusBoard() {
                                 <span style={{ color: r.dirUp === false ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{r.dirUp == null ? '—' : r.dirUp ? '▲' : '▼'}</span>
                               </div>
                               <div style={{ fontSize: 12, marginTop: 4 }}>{r.price != null ? (r.sym === 'BTC' || r.sym === 'ETH' ? `$${Math.round(r.price).toLocaleString()}` : `$${r.price.toFixed(2)}`) : 'no level'}</div>
-                              <div style={{ fontSize: 9, color: r.age != null && r.age <= 60 ? 'var(--green)' : 'var(--amber)', marginTop: 2 }}>{r.age != null ? `${Math.round(r.age)}s ago` : 'age unknown'}</div>
+                              <div style={{ fontSize: 'var(--fs-9, 9px)', color: r.age != null && r.age <= 60 ? 'var(--green)' : 'var(--amber)', marginTop: 2 }}>{r.age != null ? `${Math.round(r.age)}s ago` : 'age unknown'}</div>
                             </div>
                           ))}
                         </div>
@@ -877,14 +877,14 @@ export function NexusBoard() {
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 15, marginRight: 'auto' }}>Pattern browser · {patterns.data?.hits.length ?? 0} hits</div>
                     {['all', 'inside_coil', 'bull_flag', 'bear_flag', 'breakout_watch', 'nr7'].map((f) => (
-                      <button key={f} onClick={() => setRadarBrowse(f)} style={{ padding: '3px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', background: radarBrowse === f ? 'rgba(79,209,197,0.15)' : 'transparent', color: radarBrowse === f ? 'var(--cyan-bright)' : 'var(--text-mute)', border: '1px solid var(--nx-border)' }}>{f.replace('_', ' ')}</button>
+                      <button key={f} onClick={() => setRadarBrowse(f)} style={{ padding: '3px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', background: radarBrowse === f ? 'rgba(79,209,197,0.15)' : 'transparent', color: radarBrowse === f ? 'var(--cyan-bright)' : 'var(--text-mute)', border: '1px solid var(--nx-border)' }}>{f.replace('_', ' ')}</button>
                     ))}
                   </div>
                   {(patterns.data?.hits ?? []).filter((h) => radarBrowse === 'all' || h.pattern === radarBrowse).slice(0, 120).map((h) => (
                     <div key={`${h.pattern}-${h.symbol}`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setRadarBrowse(null); setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
-                      style={{ display: 'grid', gridTemplateColumns: '64px 110px 1fr', gap: 10, alignItems: 'center', padding: '7px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
+                      style={{ display: 'grid', gridTemplateColumns: '64px 110px 1fr', gap: 10, alignItems: 'center', padding: '7px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
                       <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text)' }}>{h.symbol}</b>
-                      <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 9 }}>{h.pattern.replace('_', ' ')}</span>
+                      <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 'var(--fs-9, 9px)' }}>{h.pattern.replace('_', ' ')}</span>
                       <span style={{ color: 'var(--text-dim)' }}>{h.note}</span>
                     </div>
                   ))}
@@ -915,7 +915,7 @@ export function NexusBoard() {
                 ) : (
                   <div className="pulse-change" style={{ color: 'var(--text-mute)' }}>—</div>
                 )}
-                <div style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-mute)' }}>
+                <div style={{ marginLeft: 'auto', fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>
                   CASH · {sessionWord(extended.data?.session)}
                 </div>
               </div>
@@ -1066,7 +1066,7 @@ export function NexusBoard() {
 
           {bookView === 'ledger' ? (
             <div style={{ padding: '12px 16px' }}>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
                 Everything published · last 72h · validator verdicts where decided · click → workup
               </div>
               {(ledgerQ.data?.ledger ?? []).map((r) => {
@@ -1077,20 +1077,20 @@ export function NexusBoard() {
                 return (
                   <div key={r.id} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => openWorkup(r.symbol)}
                     style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '6px 4px', borderBottom: '1px solid var(--nx-border, rgba(148,163,184,0.08))', cursor: 'pointer' }}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', minWidth: 56 }}>{new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', minWidth: 56 }}>{new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, minWidth: 52 }}>{r.symbol}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: r.direction === 'short' ? 'var(--red)' : 'var(--green)', minWidth: 42 }}>{r.direction === 'short' ? '▼ BEAR' : '▲ BULL'}</span>
-                    <span style={{ fontSize: 10, color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.signal}{r.onDemand ? ' · on-demand' : ''}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)', minWidth: 46, textAlign: 'right' }}>{r.score != null ? `${r.score}` : '—'}{r.riskRewardRatio != null ? ` · ${r.riskRewardRatio}R` : ''}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, color: oc.c, minWidth: 58, textAlign: 'right' }}>{oc.t}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, color: r.direction === 'short' ? 'var(--red)' : 'var(--green)', minWidth: 42 }}>{r.direction === 'short' ? '▼ BEAR' : '▲ BULL'}</span>
+                    <span style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.signal}{r.onDemand ? ' · on-demand' : ''}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', minWidth: 46, textAlign: 'right' }}>{r.score != null ? `${r.score}` : '—'}{r.riskRewardRatio != null ? ` · ${r.riskRewardRatio}R` : ''}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, color: oc.c, minWidth: 58, textAlign: 'right' }}>{oc.t}</span>
                   </div>
                 );
               })}
               {ledgerQ.isFetching && !(ledgerQ.data?.ledger ?? []).length && (
-                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>reading the ledger…</div>
+                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>reading the ledger…</div>
               )}
               {!ledgerQ.isFetching && !(ledgerQ.data?.ledger ?? []).length && (
-                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>nothing published in the last 72h</div>
+                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>nothing published in the last 72h</div>
               )}
             </div>
           ) : bookView !== 'grid' ? (
@@ -1113,11 +1113,11 @@ export function NexusBoard() {
             </div>
             <div className="stat-box">
               <div className="stat-label">Avg Evidence</div>
-              <div className="stat-val">{avgEv ?? '—'}<span style={{ color: 'var(--text-mute)', fontSize: 10 }}>/100</span></div>
+              <div className="stat-val">{avgEv ?? '—'}<span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)' }}>/100</span></div>
             </div>
             <div className="stat-box">
               <div className="stat-label">Top Evidence</div>
-              <div className="stat-val green">{topEv ?? '—'}<span style={{ color: 'var(--text-mute)', fontSize: 10 }}>/100</span></div>
+              <div className="stat-val green">{topEv ?? '—'}<span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)' }}>/100</span></div>
             </div>
             <div className="stat-box">
               <div className="stat-label">Long / Short</div>
@@ -1161,7 +1161,7 @@ export function NexusBoard() {
             </div>
           </div>
 
-          <div style={{ padding: '8px 16px 0', fontSize: 10, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
+          <div style={{ padding: '8px 16px 0', fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
             {shown.length} of {picks.length} shown
           </div>
 
@@ -1229,13 +1229,13 @@ export function NexusBoard() {
                   <SigChart symbol={p.symbol} dir={dir} />
                   <div className="sig-status">
                     <span className={`sig-status-pill${pending ? ' pending' : ''}`}>{g.statusLabel}</span>{explainCards && <AnatomyMark n={2} />}
-                    <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                    <span style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>
                       {p.optionDte != null || p.expiryDate
                         ? `${g.horizonUsedPct.toFixed(0)}% of ${g.horizonDays}d used`
                         : 'timing pending contract'}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', margin: '6px 0 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 9 }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', margin: '6px 0 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }} onClick={(e) => e.stopPropagation()}>
                     {[
                       ['WORKUP', () => openWorkup(p.symbol)],
                       [watchState[p.symbol] ? `WATCH ${watchState[p.symbol]}` : 'WATCH', () => addToWatch(p.symbol)],
@@ -1254,13 +1254,13 @@ export function NexusBoard() {
                       }],
                     ].map(([label, fn]) => (
                       <button key={String(label)} onClick={fn as () => void}
-                        style={{ padding: '2px 7px', borderRadius: 3, background: 'transparent', border: '1px solid var(--nx-border)', color: 'var(--text-mute)', cursor: 'pointer', letterSpacing: 0.5, fontWeight: 700, fontFamily: 'inherit', fontSize: 9, transition: 'all 0.15s' }}
+                        style={{ padding: '2px 7px', borderRadius: 3, background: 'transparent', border: '1px solid var(--nx-border)', color: 'var(--text-mute)', cursor: 'pointer', letterSpacing: 0.5, fontWeight: 700, fontFamily: 'inherit', fontSize: 'var(--fs-9, 9px)', transition: 'all 0.15s' }}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--cyan-dim)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
                         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--nx-border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-mute)'; }}>
                         {String(label)}
                       </button>
                     ))}
-                    {botVerdicts[p.ideaId] && <span style={{ color: 'var(--amber)', fontSize: 9 }}>{botVerdicts[p.ideaId]}</span>}
+                    {botVerdicts[p.ideaId] && <span style={{ color: 'var(--amber)', fontSize: 'var(--fs-9, 9px)' }}>{botVerdicts[p.ideaId]}</span>}
                   </div>
                   <div className="progress-wrap">
                     <div className="progress-label">
@@ -1363,7 +1363,7 @@ export function NexusBoard() {
                 </div>
                 {pendingPicks.map(({ p, g }) => (
                   <div key={`pp-${p.ideaId}`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setCurrentStock({ symbol: p.symbol }); openWorkup(p.symbol); }}
-                    style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
+                    style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
                     <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12 }}>{p.symbol}</b>
                     <span style={{ color: 'var(--text-dim)' }}>awaiting trigger · entry ${p.entryPrice?.toFixed(2)}</span>
                     <span style={{ color: 'var(--amber)', fontWeight: 700 }}>{(p.convictionScore ?? 0)}pt</span>
@@ -1371,13 +1371,13 @@ export function NexusBoard() {
                 ))}
                 {coilHits.map((h) => (
                   <div key={`ch-${h.pattern}-${h.symbol}`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
-                    style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
+                    style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
                     <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12 }}>{h.symbol}</b>
                     <span style={{ color: 'var(--text-dim)' }} title={h.note}>{h.pattern === 'inside_coil' ? 'coiling' : 'NR7 compression'} · {h.note.slice(0, 30)}…</span>
                     <span style={{ color: 'var(--cyan-bright)', fontWeight: 700 }}>watch</span>
                   </div>
                 ))}
-                <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', fontStyle: 'italic' }}>watch · not signals — pre-trigger picks + live compressions, click for the workup</div>
+                <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontStyle: 'italic' }}>watch · not signals — pre-trigger picks + live compressions, click for the workup</div>
               </div>
             );
           })()}
@@ -1419,7 +1419,7 @@ export function NexusBoard() {
                       } catch { /* row simply won't appear */ }
                       setAddOpen(false); setAddSym('');
                     }}
-                    placeholder="SYM ↵" style={{ width: 62, background: 'var(--bg-2)', border: '1px solid var(--nx-border-hi)', borderRadius: 3, color: 'var(--text)', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, padding: '2px 6px', outline: 'none' }} />
+                    placeholder="SYM ↵" style={{ width: 62, background: 'var(--bg-2)', border: '1px solid var(--nx-border-hi)', borderRadius: 3, color: 'var(--text)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', padding: '2px 6px', outline: 'none' }} />
                 ) : (
                   <button title="Add a ticker to the watchlist" onClick={() => setAddOpen(true)}
                     style={{ width: 18, height: 18, borderRadius: 3, background: 'rgba(79,209,197,0.08)', border: '1px solid var(--nx-border-hi)', color: 'var(--cyan-bright)', cursor: 'pointer', fontSize: 12, lineHeight: 1, display: 'grid', placeItems: 'center' }}>+</button>

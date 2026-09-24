@@ -237,15 +237,15 @@ export default function RollingWinRateChart() {
             <AnalyticsGrid opacity={0.5} />
             <AnalyticsXAxis
               dataKey="tradeIndex"
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-              label={{ value: 'Trade #', position: 'insideBottomRight', offset: -5, fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
+              label={{ value: 'Trade #', position: 'insideBottomRight', offset: -5, fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
             />
             <AnalyticsYAxis
               domain={[0, 100]}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-              label={{ value: 'Win Rate %', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
+              label={{ value: 'Win Rate %', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
             />
-            <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: '50%', position: 'left', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
+            <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ value: '50%', position: 'left', fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }} />
             <Tooltip content={<CustomTooltip />} />
             <Area
               type="monotone"

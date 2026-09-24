@@ -28,7 +28,8 @@ export function NexusFrame({ children }: { children: ReactNode }) {
   const reduce = useReducedMotion();
   const [accountOpen, setAccountOpen] = useState(false);
   const nexusLight = theme === 'nexus-light';
-  const page = [...PAGES, ...UTILITY_PAGES].find((p) => p.href === path);
+  const page = [...PAGES, ...UTILITY_PAGES].find((p) => p.href === path)
+    ?? (path.startsWith('/r') ? { href: path, label: 'Research', short: 'RESEARCH', icon: PAGES[0].icon } : undefined);
   const accountLabel = (user as any)?.firstName || (user as any)?.email?.split('@')[0] || 'Account';
 
   return (

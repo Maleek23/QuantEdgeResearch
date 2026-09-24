@@ -383,16 +383,16 @@ export function BotNexus() {
                 <button
                   onClick={(ev) => { ev.stopPropagation(); setExpandPos(p); }}
                   title="Expand — chart + where price sits between the barriers"
-                  style={{ padding: '3px 8px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700 }}
+                  style={{ padding: '3px 8px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700 }}
                 >⤢</button>
                 {prog != null && (
                   <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }} title={`stop $${p.stopLoss} ── entry $${p.entryPrice} ── target $${p.targetPrice} · mark $${p.currentPrice ?? '—'}${p.assetType === 'option' ? ' (contract premium)' : ''}`}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: 'var(--red)' }}>S</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--red)' }}>S</span>
                     <div style={{ position: 'relative', flex: 1, height: 5, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,84,112,0.35), rgba(148,163,184,0.12) 40%, rgba(61,220,151,0.35))' }}>
                       {entryFrac != null && <div style={{ position: 'absolute', left: `${entryFrac * 100}%`, top: -2, width: 1.5, height: 9, background: 'var(--text-dim)' }} title="entry" />}
                       <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 4px)`, top: -1.5, width: 8, height: 8, borderRadius: '50%', background: up ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 6px ${up ? 'var(--green)' : 'var(--red)'}` }} title={`mark $${p.currentPrice ?? '—'}`} />
                     </div>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: 'var(--green)' }}>T</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--green)' }}>T</span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', minWidth: 58, textAlign: 'right' }}>{(prog * 100).toFixed(0)}% to T</span>
                   </div>
                 )}
@@ -480,7 +480,7 @@ export function BotNexus() {
                 <div className="bp-kv">outcome<b>{oc === 'hit_target' ? 'won (cost us)' : oc === 'hit_stop' ? 'lost (saved us)' : 'open'}</b></div>
                 <div className={`bp-pnl ${up ? 'up' : 'down'}`}>{e2.wouldBePercent != null ? `${up ? '+' : ''}${e2.wouldBePercent.toFixed(1)}%` : '—'}</div>
                 <div className="bp-kv">
-                  <button onClick={() => setReplay(e2)} style={{ padding: '3px 9px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, letterSpacing: 0.5 }}>REPLAY</button>
+                  <button onClick={() => setReplay(e2)} style={{ padding: '3px 9px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, letterSpacing: 0.5 }}>REPLAY</button>
                 </div>
                 <div className="bp-kv" />
               </div>
@@ -508,7 +508,7 @@ export function BotNexus() {
                 <tr key={r.name} data-bot-id={`rule-${RULES.indexOf(r)}`}>
                   <td><div className="rule-name">{r.name} <span className="bot-tag">{r.tag}</span></div></td>
                   <td><div className="rule-trigger">{r.trigger}</div></td>
-                  <td><div className="rule-size"><span className="pct" style={{ fontSize: 10 }}>{r.file}</span></div></td>
+                  <td><div className="rule-size"><span className="pct" style={{ fontSize: 'var(--fs-10, 10px)' }}>{r.file}</span></div></td>
                   <td><div className="rule-toggle on locked" title="Enforced in code — not a switch. Change it in the file, ship it through review." /></td>
                 </tr>
               ))}
@@ -578,7 +578,7 @@ export function BotNexus() {
           </div>
           <div className="perf-chart" style={{ display: 'grid', placeItems: 'center' }}>
             {/* No daily P&L series is tracked — a curve here would be a random walk. */}
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
               NOT MEASURED — no daily P&L series;<br />outcomes are tracked per idea
             </div>
           </div>
@@ -635,7 +635,7 @@ export function BotNexus() {
               <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16 }}>
                 {replay.symbol} · blocked short, replayed
               </div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>
                 blocked {new Date(replay.blockedAt).toLocaleString()} · {replay.reason}
               </div>
             </div>
@@ -645,7 +645,7 @@ export function BotNexus() {
                 { price: replay.stopLoss, color: '#ff5470', label: 'would-be stop' },
                 { price: replay.targetPrice, color: '#3ddc97', label: 'would-be target' },
               ]} />
-            <div style={{ marginTop: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }}>
+            <div style={{ marginTop: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>
               Replay verdict: <b style={{ color: replay.outcome === 'hit_target' ? 'var(--red)' : replay.outcome === 'hit_stop' ? 'var(--green)' : 'var(--amber)' }}>
                 {replay.outcome === 'hit_target' ? `target touched first — the gate COST ${replay.wouldBePercent?.toFixed(1)}%` : replay.outcome === 'hit_stop' ? `stop touched first — the gate SAVED ${Math.abs(replay.wouldBePercent ?? 0).toFixed(1)}%` : 'neither barrier touched yet — still open'}
               </b> · daily-bar granularity; both-touched ties go to the stop, same rule as live validation.
@@ -662,7 +662,7 @@ export function BotNexus() {
               <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16 }}>
                 {expandPos.symbol} · live position
               </div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>
                 {expandPos.assetType === 'option' && expandPos.strikePrice != null
                   ? `$${expandPos.strikePrice}${(expandPos.optionType ?? 'c').charAt(0).toUpperCase()} · ${expandPos.quantity ?? 1}x · opened ${expandPos.entryTime ? new Date(expandPos.entryTime).toLocaleDateString() : '—'}`
                   : `${expandPos.quantity ?? 1}x · opened ${expandPos.entryTime ? new Date(expandPos.entryTime).toLocaleDateString() : '—'}`}
@@ -686,7 +686,7 @@ export function BotNexus() {
                 const pnl = expandPos.unrealizedPnLPercent ?? 0;
                 return (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, marginBottom: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', marginBottom: 6 }}>
                       <span style={{ color: 'var(--red)' }}>stop ${expandPos.stopLoss ?? '—'}</span>
                       <span style={{ color: 'var(--text-dim)' }}>entry ${expandPos.entryPrice} → mark ${expandPos.currentPrice ?? '—'}{expandPos.assetType === 'option' ? ' (premium)' : ''} · <b style={{ color: pnl >= 0 ? 'var(--green)' : 'var(--red)' }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}% · {(expandPos.unrealizedPnL ?? 0) >= 0 ? '+' : ''}${expandPos.unrealizedPnL ?? 0}</b></span>
                       <span style={{ color: 'var(--green)' }}>target ${expandPos.targetPrice ?? '—'}</span>
@@ -696,7 +696,7 @@ export function BotNexus() {
                         <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 5px)`, top: -2, width: 12, height: 12, borderRadius: '50%', background: pnl >= 0 ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 8px ${pnl >= 0 ? 'var(--green)' : 'var(--red)'}` }} />
                       </div>
                     )}
-                    <div style={{ marginTop: 8, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>
+                    <div style={{ marginTop: 8, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
                       {prog != null ? `${(prog * 100).toFixed(0)}% of the way from stop to target` : 'barrier geometry unavailable'} · barriers checked every bot cycle{expandPos.useTrailingStop ? ` · trailing ${expandPos.trailingStopPercent ?? '—'}%` : ''} · click-out to close
                     </div>
                   </>

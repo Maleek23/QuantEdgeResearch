@@ -97,7 +97,7 @@ export default function SlatePage() {
                     {c.contract ? `▲ ${c.contract.split("·")[0].trim()}` : "▲ LONG"}
                   </span>
                 </div>
-                <div style={{ fontSize: 10.5, color: "var(--text-mute)", marginTop: 4 }}>
+                <div style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: "var(--text-mute)", marginTop: 4 }}>
                   {fmt(c.lastClose)} close{c.contract ? ` · ${c.contract.split("·").slice(1).join("·").trim()}` : " · no contract yet — engine picks at the open"}
                   {c.band ? ` · ${c.band}-band ${c.score ?? ""}` : ""}
                 </div>
@@ -109,7 +109,7 @@ export default function SlatePage() {
                   {c.provenance}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 16, fontSize: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 16, fontSize: 'var(--fs-10, 10px)' }}>
                   <div>
                     <div style={{ color: "var(--text-mute)", marginBottom: 3 }}>ENTRY</div>
                     <div style={{ fontWeight: 700, fontSize: 11 }}>
@@ -130,7 +130,7 @@ export default function SlatePage() {
                   </div>
                 </div>
 
-                <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--nx-border)", fontSize: 10, color: "var(--text-dim)" }}>
+                <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--nx-border)", fontSize: 'var(--fs-10, 10px)', color: "var(--text-dim)" }}>
                   FLOW&nbsp;&nbsp;{c.flowNote}
                 </div>
               </div>
@@ -138,7 +138,7 @@ export default function SlatePage() {
           ))}
         </div>
 
-        <div style={{ marginTop: 36, fontSize: 10.5, color: "var(--text-mute)", textAlign: "center" }}>
+        <div style={{ marginTop: 36, fontSize: 'var(--fs-10-5, 10.5px)', color: "var(--text-mute)", textAlign: "center" }}>
           Setups derived from measured detectors (aggressor tape · bottom reversals · crypto transmission) ·
           T2 hover shows its basis · Re-validate at the open · Not financial advice
         </div>

@@ -426,7 +426,9 @@ function App() {
   //
   // Matching /r and /r/:symbol as a prefix, not an equality, so per-ticker routes
   // are included.
-  const isFullBleedShell = locationPath === '/t' || locationPath === '/nexus' || locationPath === '/r' || locationPath.startsWith('/r/');
+  // /r (research) now renders inside NexusFrame like every other page, so it
+  // gets the shared topbar and mobile dock instead of a third chrome of its own.
+  const isFullBleedShell = locationPath === '/t' || locationPath === '/nexus';
 
   if (isFullBleedShell) {
     return (

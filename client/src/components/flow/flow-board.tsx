@@ -328,8 +328,8 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
                   <button key={r.ticker} onClick={() => openWorkup(r.ticker)}
                     title={`${r.ticker}: net ${up ? '+' : '−'}$${(Math.abs(net) / 1e6).toFixed(1)}M aggressor premium today — click for workup`}
                     style={{ display: 'flex', gap: 5, alignItems: 'baseline', padding: '3px 8px', borderRadius: 4, whiteSpace: 'nowrap', cursor: 'pointer', background: up ? 'rgba(52,211,153,0.07)' : 'rgba(255,84,112,0.07)', border: `1px solid ${up ? 'rgba(52,211,153,0.2)' : 'rgba(255,84,112,0.2)'}` }}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: 'var(--text)' }}>{r.ticker}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}${(Math.abs(net) / 1e6).toFixed(1)}M</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, color: 'var(--text)' }}>{r.ticker}</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}${(Math.abs(net) / 1e6).toFixed(1)}M</span>
                   </button>
                 );
               })}

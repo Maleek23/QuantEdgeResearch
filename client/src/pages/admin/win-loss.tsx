@@ -463,8 +463,8 @@ export default function AdminWinLossAnalysis() {
                     <AnalyticsChart config={{}} className="h-full">
                       <BarChart data={summary.distribution.filter(d => d.count > 0)}>
                         <AnalyticsGrid opacity={0.5} />
-                        <AnalyticsXAxis dataKey="range" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }} interval={0} angle={-45} textAnchor="end" height={60} />
-                        <AnalyticsYAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
+                        <AnalyticsXAxis dataKey="range" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-9, 9px)' }} interval={0} angle={-45} textAnchor="end" height={60} />
+                        <AnalyticsYAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }} />
                         <AnalyticsTooltip />
                         <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                           {summary.distribution.filter(d => d.count > 0).map((entry, index) => (
@@ -607,22 +607,22 @@ export default function AdminWinLossAnalysis() {
                         <AnalyticsGrid opacity={0.5} />
                         <AnalyticsXAxis 
                           dataKey="thresholdPercent" 
-                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
                           tickFormatter={(val) => `${val}%`}
-                          label={{ value: 'Stop-Loss Threshold', position: 'insideBottom', offset: -5, fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                          label={{ value: 'Stop-Loss Threshold', position: 'insideBottom', offset: -5, fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
                         />
                         <AnalyticsYAxis 
                           yAxisId="left"
-                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
                           tickFormatter={(val) => `${val}%`}
-                          label={{ value: 'Win Rate', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                          label={{ value: 'Win Rate', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
                         />
                         <AnalyticsYAxis 
                           yAxisId="right"
                           orientation="right"
-                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
                           tickFormatter={(val) => `${val}%`}
-                          label={{ value: 'Expectancy', angle: 90, position: 'insideRight', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                          label={{ value: 'Expectancy', angle: 90, position: 'insideRight', fill: 'hsl(var(--muted-foreground))', fontSize: 'var(--fs-10, 10px)' }}
                         />
                         <AnalyticsTooltip 
                           formatter={(value: ChartValue, name: number | string) => [`${value}%`, name === 'winRate' ? 'Win Rate' : 'Expectancy']}
@@ -633,7 +633,7 @@ export default function AdminWinLossAnalysis() {
                             x={simData.optimalThreshold.thresholdPercent} 
                             stroke="hsl(var(--primary))" 
                             strokeDasharray="5 5"
-                            label={{ value: 'Optimal', fill: 'hsl(var(--primary))', fontSize: 10 }}
+                            label={{ value: 'Optimal', fill: 'hsl(var(--primary))', fontSize: 'var(--fs-10, 10px)' }}
                           />
                         )}
                         <Area 

@@ -34,7 +34,7 @@ export function PublishedContractLive(props: {
   const d = q.data;
   const cell = (k: string, v: string, tone?: string) => (
     <div style={{ display: "grid", gap: 2 }}>
-      <span style={{ fontSize: 9.5, letterSpacing: 1, color: "var(--text-dim, #6b7482)" }}>{k}</span>
+      <span style={{ fontSize: 'var(--fs-9, 9.5px)', letterSpacing: 1, color: "var(--text-dim, #6b7482)" }}>{k}</span>
       <span style={{ fontSize: 13, fontWeight: 700, color: tone ?? "inherit", fontVariantNumeric: "tabular-nums" }}>{v}</span>
     </div>
   );
@@ -43,8 +43,8 @@ export function PublishedContractLive(props: {
   return (
     <section className="rounded-lg border border-card-border bg-card px-4 py-3 mb-2" style={{ fontFamily: "'JetBrains Mono', monospace" }} data-testid="published-contract-live">
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        <span style={{ fontSize: 10, letterSpacing: 1.5, color: "var(--text-dim, #6b7482)", fontWeight: 700 }}>YOUR CONTRACT · REPRICED NOW</span>
-        <span style={{ fontSize: 9.5, color: "var(--text-dim, #6b7482)" }}>
+        <span style={{ fontSize: 'var(--fs-10, 10px)', letterSpacing: 1.5, color: "var(--text-dim, #6b7482)", fontWeight: 700 }}>YOUR CONTRACT · REPRICED NOW</span>
+        <span style={{ fontSize: 'var(--fs-9, 9.5px)', color: "var(--text-dim, #6b7482)" }}>
           {d ? `${d.label} · CBOE delayed · ${ageMin === 0 ? "just now" : `${ageMin}m ago`}` : q.isLoading ? "reading the chain…" : "no chain"}
         </span>
       </div>
@@ -63,7 +63,7 @@ export function PublishedContractLive(props: {
             {cell("AT STOP TODAY", d.valueAtStopToday != null ? `$${d.valueAtStopToday.toFixed(2)}` : "—", "var(--red, #ff5d73)")}
             {cell("BREAKEVEN @EXP", d.breakevenAtExpiry != null ? `$${d.breakevenAtExpiry.toFixed(2)}` : "—")}
           </div>
-          <p style={{ fontSize: 10, color: "var(--text-dim, #6b7482)", margin: "10px 0 0", lineHeight: 1.5 }}>
+          <p style={{ fontSize: 'var(--fs-10, 10px)', color: "var(--text-dim, #6b7482)", margin: "10px 0 0", lineHeight: 1.5 }}>
             Odds are risk-neutral and driftless (what the option market is pricing, not a forecast). "If T1 today" uses delta + gamma — waiting costs theta.
           </p>
         </>
@@ -71,7 +71,7 @@ export function PublishedContractLive(props: {
       {d && d.flags.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
           {d.flags.map((f) => (
-            <span key={f} style={{ fontSize: 9.5, padding: "2px 7px", borderRadius: 3, background: "rgba(232,179,75,0.08)", border: "1px solid rgba(232,179,75,0.28)", color: "#e8b34b" }}>⚠ {f}</span>
+            <span key={f} style={{ fontSize: 'var(--fs-9, 9.5px)', padding: "2px 7px", borderRadius: 3, background: "rgba(232,179,75,0.08)", border: "1px solid rgba(232,179,75,0.28)", color: "#e8b34b" }}>⚠ {f}</span>
           ))}
         </div>
       )}

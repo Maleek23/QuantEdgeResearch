@@ -205,7 +205,7 @@ function MiniChart({ bars }: { bars: Bar[] }) {
     ctx.shadowColor = color; ctx.shadowBlur = 6;
     ctx.stroke(); ctx.shadowBlur = 0;
   }, [last30]);
-  if (last30.length < 2) return <div className="mini-chart" style={{ display: 'grid', placeItems: 'center', fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>NO SERIES</div>;
+  if (last30.length < 2) return <div className="mini-chart" style={{ display: 'grid', placeItems: 'center', fontSize: 'var(--fs-9, 9px)', fontFamily: "'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>NO SERIES</div>;
   return <div className="mini-chart"><canvas ref={ref} /></div>;
 }
 
@@ -441,7 +441,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                 {sectorLabel && <div className="ticker-sector">{sectorLabel}</div>}
                 <div className={`ticker-grade ${gradeClass}`}>{band ? `${band}${score != null ? ` · ${Math.round(score)}` : ''}` : '— no signal'}</div>
               </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>
                 <span>daily close series</span>
                 <span>·</span>
                 <span>Vol <b style={{ color: 'var(--text)' }}>{fmtVol(last?.volume)}</b></span>
@@ -478,7 +478,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                     setAlertOpen(false);
                   }}
                   placeholder="level $" style={{ width: 84, background: 'var(--bg-2)', border: '1px solid var(--nx-border-hi)', borderRadius: 5, color: 'var(--text)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, padding: '6px 8px', outline: 'none' }} />
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>↵ arm</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>↵ arm</span>
               </span>
             ) : (
               <button className={`wa-btn${alertState === 'armed' ? ' done' : ''}`} title="Alert when price crosses a level — fires once, relayed to Discord"
@@ -507,7 +507,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
               {!qtm ? (
                 <button
                   className="wa-btn"
-                  style={{ width: '100%', justifyContent: 'center', padding: '8px 0', fontSize: 10, letterSpacing: 0.8 }}
+                  style={{ width: '100%', justifyContent: 'center', padding: '8px 0', fontSize: 'var(--fs-10, 10px)', letterSpacing: 0.8 }}
                   onClick={runQuantinum}
                   disabled={qtmState === 'running'}
                   title="Run every engine on this name — evidence layers with signed points, missing feeds named"
@@ -520,32 +520,32 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: qtm.lean === 'bullish' ? 'var(--green)' : qtm.lean === 'bearish' ? 'var(--red)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 0.8 }}>
                       {qtm.lean === 'bullish' ? '▲' : qtm.lean === 'bearish' ? '▼' : '◆'} {qtm.lean}
                     </div>
-                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-dim)' }} title="Display index over evidence weight — not a probability">
+                    <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }} title="Display index over evidence weight — not a probability">
                       {qtm.confidence}/100 · +{qtm.bullPoints}/−{qtm.bearPoints}
                     </div>
                   </div>
                   {qtm.layers.map((l, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }} title={`${l.why} — ${l.source}`}>
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, minWidth: 24, textAlign: 'right', color: l.points > 0 ? 'var(--green)' : l.points < 0 ? 'var(--red)' : 'var(--text-mute)' }}>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, minWidth: 24, textAlign: 'right', color: l.points > 0 ? 'var(--green)' : l.points < 0 ? 'var(--red)' : 'var(--text-mute)' }}>
                         {l.points > 0 ? `+${l.points}` : l.points}
                       </span>
-                      <span style={{ fontSize: 10, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                      <span style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
                         <b>{l.label}</b> · <span style={{ color: 'var(--text-dim)' }}>{l.why}</span>
                       </span>
                     </div>
                   ))}
                   {qtm.unavailable.length > 0 && (
-                    <div style={{ fontSize: 9, color: 'var(--text-mute)', lineHeight: 1.5 }} title={qtm.unavailable.join(' · ')}>
+                    <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', lineHeight: 1.5 }} title={qtm.unavailable.join(' · ')}>
                       NOT MEASURED: {qtm.unavailable.map((u) => u.split(' (')[0]).join(' · ')}
                     </div>
                   )}
-                  <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", color: qtm.shortGate.open ? 'var(--amber)' : 'var(--text-mute)' }}>
+                  <div style={{ fontSize: 'var(--fs-9, 9px)', fontFamily: "'JetBrains Mono',monospace", color: qtm.shortGate.open ? 'var(--amber)' : 'var(--text-mute)' }}>
                     SHORT GATE: {qtm.shortGate.open ? 'OPEN' : 'blocked'} — {qtm.shortGate.why}
                   </div>
                   {qtm.suggestions.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
                       {qtm.suggestions.map((s) => (
-                        <button key={s.symbol} className="wa-btn" style={{ padding: '2px 7px', fontSize: 9 }} title={s.why} onClick={() => openWorkup(s.symbol)}>
+                        <button key={s.symbol} className="wa-btn" style={{ padding: '2px 7px', fontSize: 'var(--fs-9, 9px)' }} title={s.why} onClick={() => openWorkup(s.symbol)}>
                           {s.symbol}{s.why.includes('pattern') ? ' ◆' : ''}
                         </button>
                       ))}
@@ -568,7 +568,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                       <span>{evTotal >= 0 ? '+' : ''}<b>{evTotal}</b> evidence</span>
                       <div className="signal-card-bar"><div className="signal-card-bar-fill" style={{ width: `${Math.min(100, Math.abs(evTotal) / 70 * 100)}%` }} /></div>
                     </div>
-                    <div style={{ marginTop: 8, display: 'flex', gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-dim)' }}>
+                    <div style={{ marginTop: 8, display: 'flex', gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-dim)' }}>
                       <span>{layers.length} layers scored</span>
                       <span>·</span>
                       <span style={{ color: against ? 'var(--amber)' : 'var(--green)' }}>{against} against</span>
@@ -580,7 +580,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                     {engineState !== 'done' ? (
                       <button
                         className="wa-btn"
-                        style={{ justifyContent: 'center', padding: '6px 0', fontSize: 10, letterSpacing: 0.8 }}
+                        style={{ justifyContent: 'center', padding: '6px 0', fontSize: 'var(--fs-10, 10px)', letterSpacing: 0.8 }}
                         disabled={engineState === 'running'}
                         onClick={runEngine}
                         title="Run the SAME engine the publisher runs — every detector, every gate — on this name right now. A found setup publishes into the book; a quiet chart says so."
@@ -588,13 +588,13 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                         {engineState === 'running' ? 'ENGINE RUNNING…' : engineState === 'fail' ? 'FAILED — RETRY' : '⚙ RUN ENGINE ON THIS NAME'}
                       </button>
                     ) : engineResult?.published ? (
-                      <div style={{ fontSize: 10.5, color: 'var(--green)', textAlign: 'center' }}>
+                      <div style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--green)', textAlign: 'center' }}>
                         ✓ {engineResult.idea?.signal} {engineResult.idea?.direction?.toUpperCase()} published — score {engineResult.idea?.score}, R:R {engineResult.idea?.riskRewardRatio}:1. Board refreshing…
                       </div>
                     ) : engineResult?.blocked ? (
-                      <div style={{ fontSize: 10.5, color: 'var(--amber)', lineHeight: 1.45 }}>{engineResult.blocked}</div>
+                      <div style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--amber)', lineHeight: 1.45 }}>{engineResult.blocked}</div>
                     ) : (
-                      <div style={{ fontSize: 10.5, color: 'var(--text-dim)', lineHeight: 1.45 }} title={`checked: ${(engineResult?.checked ?? []).join(', ')}`}>
+                      <div style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--text-dim)', lineHeight: 1.45 }} title={`checked: ${(engineResult?.checked ?? []).join(', ')}`}>
                         {engineResult?.reason ?? 'engine ran — no qualifying setup'}{engineResult?.idea ? ` (found ${engineResult.idea.signal} but ${engineResult.reason?.includes('R:R') ? 'below the R:R floor' : 'not publishable'})` : ''}
                       </div>
                     )}
@@ -629,7 +629,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                   <div className="ql-stat-k">Short % float</div>
                   <div className="ql-stat-v" style={{ color: (shortInt?.shortPercentOfFloat ?? 0) >= 0.15 ? 'var(--red)' : (shortInt?.shortPercentOfFloat ?? 0) >= 0.08 ? 'var(--amber)' : undefined }}>
                     {shortInt?.shortPercentOfFloat != null ? `${(shortInt.shortPercentOfFloat * 100).toFixed(1)}%` : '—'}
-                    {shortInt?.shortRatio != null && <span style={{ fontSize: 9, color: 'var(--text-mute)', marginLeft: 4 }}>{shortInt.shortRatio.toFixed(1)}d cover</span>}
+                    {shortInt?.shortRatio != null && <span style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', marginLeft: 4 }}>{shortInt.shortRatio.toFixed(1)}d cover</span>}
                   </div>
                 </div>
                 <div className="ql-stat"><div className="ql-stat-k">MA 20</div><div className="ql-stat-v cyan">{fmtPrice(stats.ma20)}</div></div>
@@ -643,11 +643,11 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
               {highImpact.length ? (
                 <div style={{ padding: 10, background: 'rgba(251,146,60,0.04)', border: '1px solid rgba(251,146,60,0.15)', borderRadius: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <div style={{ fontSize: 10, color: 'var(--event)', fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>{highImpact[0].eventType ?? 'event'}</div>
+                    <div style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--event)', fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>{highImpact[0].eventType ?? 'event'}</div>
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: 'var(--event)' }}>{relTime(highImpact[0].timestamp)}</div>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>{(highImpact[0].title ?? highImpact[0].description ?? '').slice(0, 90)}</div>
-                  <div style={{ marginTop: 8, padding: '4px 8px', background: 'rgba(255,84,112,0.08)', border: '1px solid rgba(255,84,112,0.2)', borderRadius: 4, fontSize: 9, color: 'var(--red)', fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase' }}>⚠ EVENT RISK · SIZE DOWN</div>
+                  <div style={{ marginTop: 8, padding: '4px 8px', background: 'rgba(255,84,112,0.08)', border: '1px solid rgba(255,84,112,0.2)', borderRadius: 4, fontSize: 'var(--fs-9, 9px)', color: 'var(--red)', fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase' }}>⚠ EVENT RISK · SIZE DOWN</div>
                 </div>
               ) : (
                 <div className="wu-empty">No high-impact event on file.<br />Forward earnings dates are not yet fed.</div>
@@ -711,7 +711,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                             );
                           })}
                         </div>
-                        <div style={{ marginTop: 10, padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 10, color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                        <div style={{ marginTop: 10, padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', fontStyle: 'italic' }}>
                           {against ? `${against} layer${against !== 1 ? 's' : ''} arguing against — hover a row for its reasoning` : 'no layers arguing against — hover a row for its reasoning'}
                         </div>
                       </>
@@ -858,7 +858,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                       </div>
                     ))}
                   </div>
-                  <div style={{ marginTop: 12, padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 10, color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                  <div style={{ marginTop: 12, padding: 8, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', fontStyle: 'italic' }}>
                     These are the platform's real gates evaluated against {symbol}'s live data — nothing here executes. No broker is connected.
                   </div>
                 </div>
@@ -871,7 +871,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
             <div className="mini-chart-wrap">
               <div className="ql-label cyan"><span className="dot" />30-day trend</div>
               <MiniChart bars={bars} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
                 <span style={{ color: 'var(--text-mute)' }}>30d ago</span>
                 <span style={{ color: (stats.ret30 ?? 0) >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{stats.ret30 != null ? `${stats.ret30 >= 0 ? '+' : ''}${stats.ret30.toFixed(1)}%` : '—'}</span>
               </div>
@@ -907,7 +907,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                   </div>
                 );
               })}
-              <div style={{ marginTop: 6, fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>computed · ~3mo overlap, dash under 13 sessions</div>
+              <div style={{ marginTop: 6, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>computed · ~3mo overlap, dash under 13 sessions</div>
             </div>
           </div>
         </div>

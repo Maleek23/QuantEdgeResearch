@@ -94,14 +94,14 @@ export function SystemPulse() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 14 }}>System Pulse</div>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
                 {events.length} real events held · newest first · nothing synthetic
               </div>
             </div>
             {[...events].reverse().map((e) => (
               <div key={e.id} style={{ display: 'flex', gap: 8, alignItems: 'baseline', padding: '5px 0', borderBottom: '1px solid var(--nx-border, rgba(148,163,184,0.08))' }}>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', minWidth: 34, textAlign: 'right' }}>{relTime(e.at)}</span>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, color: KIND_COLOR[e.kind], minWidth: 58, textTransform: 'uppercase' }}>{e.kind}</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', minWidth: 34, textAlign: 'right' }}>{relTime(e.at)}</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, color: KIND_COLOR[e.kind], minWidth: 58, textTransform: 'uppercase' }}>{e.kind}</span>
                 <span style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.4 }}>{e.msg}</span>
               </div>
             ))}
