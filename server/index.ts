@@ -144,6 +144,17 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
 
+    // Warm the two slowest shared reads (21 s / 8 s cold, measured 2026-09-24)
+    // so the first visitor after a deploy gets the cached answer, then keep
+    // them warm — both routes are stale-while-revalidate.
+    const warm = () => {
+      for (const path of ['/api/market-pulse', '/api/extended-hours']) {
+        fetch(`http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}${path}`).catch(() => {});
+      }
+    };
+    setTimeout(warm, 5_000);
+    setInterval(warm, 60_000).unref?.();
+
     /**
      * Decide leadership BEFORE anything schedules or reconciles.
      *

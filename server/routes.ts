@@ -5314,12 +5314,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 30 s response cache + in-flight dedupe — every panel shares one sweep.
       const key = `eh:${limit}`;
       const hit = extendedHoursCache.get(key);
-      if (hit && Date.now() - hit.at < 30_000) return res.json(await hit.p);
-      const p = getExtendedLeaders(Array.from(new Set(universe)), limit);
-      extendedHoursCache.set(key, { at: Date.now(), p });
-      p.catch(() => extendedHoursCache.delete(key));
-      const result = await p;
-      res.json(result);
+      const fresh = hit && Date.now() - hit.at < 30_000;
+      if (!fresh && !(hit as any)?.refreshing) {
+        const p = getExtendedLeaders(Array.from(new Set(universe)), limit);
+        const entry = { at: hit?.at ?? 0, p: hit?.p ?? p, refreshing: true } as any;
+        extendedHoursCache.set(key, entry);
+        p.then(() => extendedHoursCache.set(key, { at: Date.now(), p })).catch(() => { entry.refreshing = false; });
+        if (!hit) return res.json(await p);
+      }
+      if (hit && Date.now() - hit.at < 10 * 60_000) return res.json(await hit.p);
+      res.json(await extendedHoursCache.get(key)!.p);
     } catch (error) {
       logger.error("[API] Failed to fetch extended-hours leaders:", error);
       res.status(500).json({ error: "Failed to fetch extended-hours leaders" });
@@ -33593,14 +33597,21 @@ Use this checklist before entering any trade:
         : ['NOK','BB','MP','QRVO','CSCO','QCOM','SOUN','PLTR','NVDA','AAPL','AMZN','META','MSFT','GOOGL','TSLA','AMD','TXN','MRVL','ARM','ORCL','INTC'];
       // Uncached before 2026-09-24: 9.2 s measured on a NEXUS load, recomputed
       // for every caller (footer, rails, chart lab). 30 s cache + in-flight dedupe.
+      // Stale-while-revalidate: cold compute measured 21 s after a restart,
+      // so a plain 30 s TTL made someone pay it every 30 s. Serve the last good
+      // value instantly (up to 10 min old) and refresh in the background.
       const key = watchlist.join(',');
       const hit = marketPulseCache.get(key);
-      if (hit && Date.now() - hit.at < 30_000) return res.json(await hit.p);
-      const p = getMarketPulse(watchlist);
-      marketPulseCache.set(key, { at: Date.now(), p });
-      p.catch(() => marketPulseCache.delete(key));
-      const pulse = await p;
-      res.json(pulse);
+      const fresh = hit && Date.now() - hit.at < 30_000;
+      if (!fresh && !(hit as any)?.refreshing) {
+        const p = getMarketPulse(watchlist);
+        const entry = { at: hit?.at ?? 0, p: hit?.p ?? p, refreshing: true } as any;
+        marketPulseCache.set(key, entry);
+        p.then(() => marketPulseCache.set(key, { at: Date.now(), p })).catch(() => { entry.refreshing = false; });
+        if (!hit) return res.json(await p);
+      }
+      if (hit && Date.now() - hit.at < 10 * 60_000) return res.json(await hit.p);
+      res.json(await marketPulseCache.get(key)!.p);
     } catch (error: any) {
       logger.error('[MARKET-PULSE] Error:', error);
       res.status(500).json({ error: 'Pulse fetch failed', detail: error.message });
