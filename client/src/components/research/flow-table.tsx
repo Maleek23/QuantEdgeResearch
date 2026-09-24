@@ -132,7 +132,7 @@ export function FlowTable({ symbol }: FlowTableProps) {
         <QETabs items={SENTIMENT_TYPES} active={sentiment} onChange={setSentiment} prefixLabel="SENT" variant="gold" />
 
         <div className="flex items-center gap-3 flex-wrap pb-1 border-b border-border/30">
-          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
             <Filter className="w-3 h-3 inline mr-1" /> FILTERS
           </span>
 
@@ -203,7 +203,7 @@ export function FlowTable({ symbol }: FlowTableProps) {
           <div className="overflow-x-auto">
             <table className="w-full text-[10px] font-mono border-collapse min-w-max">
               <thead className="sticky top-0 z-10 bg-muted/30 border-b border-border">
-                <tr className="text-[9px] uppercase tracking-widest text-muted-foreground/70">
+                <tr className="text-[9px] uppercase tracking-widest text-muted-foreground">
                   <Th>Time</Th>
                   <Th>Strike</Th>
                   <Th>C/P</Th>

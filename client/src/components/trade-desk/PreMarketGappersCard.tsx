@@ -80,7 +80,7 @@ function GapperRow({ g }: { g: Gapper }) {
             <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
           )}
           <span className="font-mono font-semibold">{g.symbol}</span>
-          <span className="text-muted-foreground/70 font-mono">
+          <span className="text-muted-foreground font-mono">
             ${g.price.toFixed(2)}
           </span>
         </div>
@@ -145,7 +145,7 @@ export default function PreMarketGappersCard({
   );
 
   const list = top.length === 0 ? (
-    <div className="text-xs text-muted-foreground/70 py-2">
+    <div className="text-xs text-muted-foreground py-2">
       No significant overnight gaps in your universe.
     </div>
   ) : (
@@ -160,7 +160,7 @@ export default function PreMarketGappersCard({
     return (
       <div className="space-y-2" data-testid="card-premarket-gappers">
         {headerRow}
-        <div className="text-[10px] text-muted-foreground/60 leading-tight">
+        <div className="text-[10px] text-muted-foreground leading-tight">
           {PHASE_HINT[data.phase]}
         </div>
         {list}
@@ -179,7 +179,7 @@ export default function PreMarketGappersCard({
 
       {!collapsed && (
         <>
-          <div className="text-[10px] text-muted-foreground/60 leading-tight">
+          <div className="text-[10px] text-muted-foreground leading-tight">
             {PHASE_HINT[data.phase]}
           </div>
           {list}

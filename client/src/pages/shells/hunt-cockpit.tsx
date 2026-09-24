@@ -822,7 +822,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
             Say what is true — the board is empty — and why that can happen,
             without claiming to know which reason applies.
           */}
-          <p className="text-[11px] font-mono text-muted-foreground/60">
+          <p className="text-[11px] font-mono text-muted-foreground">
             {isError
               ? "The signals endpoint did not respond. The book is unchanged — this is a display failure, not an empty book."
               : "Nothing has cleared the gate in this window. Scanners publish on a cycle and candidates retire at their holding-period age cap, so the board can be legitimately empty right after a restart or early in a session. We do not pad it with invented trades."}
@@ -877,7 +877,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
             className="min-w-0"
           />
         ) : (
-          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
             Ranked Conviction Signals
           </span>
         )}
@@ -922,7 +922,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
             No {COCKPIT_MODES.find((m) => m.id === mode)?.label} setups right
             now.
           </p>
-          <p className="text-[11px] font-mono text-muted-foreground/60">
+          <p className="text-[11px] font-mono text-muted-foreground">
             Switch modes above — other engines may have live ideas.
           </p>
         </div>
@@ -1015,7 +1015,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                 className="space-y-2 pr-1 -mr-1 lg:sticky lg:top-3 lg:h-[calc(100vh-7.5rem)] lg:overflow-y-auto"
               >
                 <div className="sticky top-0 z-10 -mx-1 px-2 py-1.5 bg-background/95 backdrop-blur flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                     Active Signals
                   </span>
                   {/* the NEW count now lives on the NEW tab of the stream filter below, so this
@@ -1025,7 +1025,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                       <button
                         onClick={markSeen}
                         title="Mark all as seen"
-                        className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground"
+                        className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
                       >
                         seen
                       </button>
@@ -1082,7 +1082,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                         "flex-1 cursor-pointer rounded px-2 py-1 text-[9px] font-mono uppercase tracking-wider transition-colors",
                         streamFilter === id
                           ? "bg-foreground/10 text-[var(--brand-cyan)]"
-                          : "text-muted-foreground/60 hover:text-foreground",
+                          : "text-muted-foreground hover:text-foreground",
                       )}
                       data-testid={`stream-filter-${id}`}
                     >
@@ -1093,7 +1093,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                 </div>
 
                 {shown.length === 0 ? (
-                  <div className="px-2 py-6 text-center text-[10px] font-mono text-muted-foreground/60">
+                  <div className="px-2 py-6 text-center text-[10px] font-mono text-muted-foreground">
                     {streamFilter === "new" ? (
                       <>
                         No new signals right now —{" "}
@@ -1133,7 +1133,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                 {/* CLOSED TODAY — signals that already resolved, kept visible for the record */}
                 {closedToday.length > 0 && (
                   <div className="mt-3">
-                    <div className="mb-1.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">
+                    <div className="mb-1.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
                       Closed today · {closedToday.length}
                     </div>
                     <div className="space-y-1.5">
@@ -1302,7 +1302,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                             {selected.thesis ? clarifyOracleNarrative(selected.thesis) : "No written thesis was returned."}
                           </p>
                           {selected.catalyst && selected.catalyst !== selected.thesis && (
-                            <p className="mt-2 border-t border-border/30 pt-2 font-mono text-[10px] leading-relaxed text-muted-foreground/80">
+                            <p className="mt-2 border-t border-border/30 pt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
                               {clarifyOracleNarrative(selected.catalyst)}
                             </p>
                           )}
@@ -1312,7 +1312,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                           <p className="font-mono text-[11px] font-semibold uppercase tracking-wide text-foreground/90">
                             {data?.marketContext?.regime?.replace(/_/g, " ") ?? "Context unavailable"} · {selected.sector}
                           </p>
-                          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/80">
+                          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
                             {data?.marketContext?.reasons?.[0] ?? "No fresh regime adjustment is available for this plan."}
                           </p>
                         </div>
@@ -1321,8 +1321,8 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                           <p className="font-mono text-[11px] font-semibold uppercase tracking-wide" style={{ color: toneColor }}>
                             {selected.lifecycleState.replace(/_/g, " ")}
                           </p>
-                          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/80">{executionStateCopy(selected.lifecycleState)}</p>
-                          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px] tabular-nums text-muted-foreground/80">
+                          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{executionStateCopy(selected.lifecycleState)}</p>
+                          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px] tabular-nums text-muted-foreground">
                             <span>ENTRY ${selected.entryPrice.toFixed(2)}</span>
                             <span style={{ color: "var(--trade-bearish)" }}>INVALID ${selected.stopLoss.toFixed(2)}</span>
                             <span style={{ color: "var(--trade-bullish)" }}>T1 ${selected.targetPrice.toFixed(2)}</span>
@@ -1480,7 +1480,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                         <button
                           type="button"
                           onClick={() => setConfidenceInfoOpen((open) => !open)}
-                          className="flex w-full items-center justify-between font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/75 transition-colors hover:text-[var(--brand-cyan)]"
+                          className="flex w-full items-center justify-between font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-[var(--brand-cyan)]"
                           aria-expanded={confidenceInfoOpen}
                         >
                           <span>How this grade works</span>
@@ -1493,24 +1493,24 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                         </button>
                         {confidenceInfoOpen && (
                           <div className="mt-2 grid gap-px border border-border/45 bg-border/45">
-                            <p className="bg-card px-2.5 py-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground/85">
+                            <p className="bg-card px-2.5 py-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground">
                               <b className="text-foreground">
                                 {selected.convictionBand} is the live evidence band, not a probability of profit.
                               </b>{" "}
                               The board ranks the signed raw total: supporting evidence minus challenges. Trigger, geometry, liquidity, and execution remain separate decisions.
                             </p>
                             {selected.publishedConvictionScore != null && (
-                              <p className="bg-card px-2.5 py-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground/85">
+                              <p className="bg-card px-2.5 py-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground">
                                 <b className="text-foreground">Published +{selected.publishedConvictionScore} ({selected.publishedConvictionBand ?? "—"} band).</b>{" "}
                                 That frozen grade describes the setup when it entered the book. Live evidence can move as price, regime, freshness, and confirmation change; it does not rewrite the original call.
                               </p>
                             )}
-                            <p className="bg-card px-2.5 py-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground/85">
+                            <p className="bg-card px-2.5 py-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground">
                               <b className="text-foreground">+{selected.convictionScore} is the raw evidence total.</b>{" "}
                               It adds supporting layers and subtracts challenging ones. Bands use raw points: C &lt;+13 · B +13–18 · A +19–24 · S +25+.
                             </p>
                             <div className="bg-card px-2.5 py-2">
-                              <p className="mb-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground/85">
+                              <p className="mb-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground">
                                 There is no honest fixed “out of” denominator: layers are conditional. This plan is {selected.convictionScore >= 25 ? `${selected.convictionScore - 25} points into S` : `${25 - selected.convictionScore} points from S`}. The four evidence families below show what was available and what actually fired.
                               </p>
                               <div className="grid gap-px border border-border/45 bg-border/45 sm:grid-cols-2">
@@ -1522,9 +1522,9 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                                     <div key={family.id} className="bg-card px-2 py-2">
                                       <div className="flex items-baseline justify-between gap-2 font-mono">
                                         <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--brand-cyan)]">{family.tag} · {family.label}</span>
-                                        <span className="text-[9px] tabular-nums text-muted-foreground/70">{active.length}/{family.kinds.length} active</span>
+                                        <span className="text-[9px] tabular-nums text-muted-foreground">{active.length}/{family.kinds.length} active</span>
                                       </div>
-                                      <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground/70">{family.question}</p>
+                                      <p className="mt-1 text-[9px] leading-relaxed text-muted-foreground">{family.question}</p>
                                     </div>
                                   );
                                 })}
@@ -1682,7 +1682,7 @@ function AnalysedSignalRow({
                 {arrow} {state}
               </span>
             </div>
-            <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/75">
+            <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
               no published entry · evidence only
             </p>
           </div>
@@ -1690,14 +1690,14 @@ function AnalysedSignalRow({
             <p className="font-mono text-[16px] font-bold leading-none tabular-nums" style={{ color: tone }}>
               {read.directional.aligned}/{read.directional.assessed || "—"}
             </p>
-            <p className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/70">
+            <p className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
               conditions
             </p>
           </div>
         </div>
 
         <div className="mt-3 grid grid-cols-[1fr_auto] gap-3 border-t border-border/45 pt-2">
-          <p className="min-w-0 font-mono text-[9px] leading-relaxed text-muted-foreground/75">
+          <p className="min-w-0 font-mono text-[9px] leading-relaxed text-muted-foreground">
             {read.directional.summary}
           </p>
           <span className="font-mono text-[10px] font-bold tabular-nums text-foreground">
@@ -1741,7 +1741,7 @@ function AnalysedSignalRow({
               Analysed
             </span>
           </div>
-          <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/75">
+          <p className="mt-1 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             {recommendation} · {overall.confidence?.toLowerCase() ?? "unrated"}
           </p>
         </div>
@@ -1782,7 +1782,7 @@ function AnalysedSignalRow({
             );
           })}
         </div>
-        <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground/65">
+        <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
           {components.length} evidence dimensions · open analysis →
         </p>
       </div>
@@ -1842,7 +1842,7 @@ function OnDemandSubject({
                   Analysed
                 </span>
               </div>
-              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.09em] text-muted-foreground/75">
+              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.09em] text-muted-foreground">
                 {overall.recommendation?.replace(/_/g, " ") ??
                   "No directional call"}{" "}
                 · {overall.confidence?.toLowerCase() ?? "unrated"} confidence
@@ -1858,7 +1858,7 @@ function OnDemandSubject({
             >
               {overall.score ?? "—"}
             </p>
-            <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground/75">
+            <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
               {overall.grade ?? overall.tier ?? "—"} grade
             </p>
           </div>
@@ -1876,7 +1876,7 @@ function OnDemandSubject({
                 <p className="mt-1 font-mono text-[12px] font-bold uppercase text-foreground">
                   {horizon.signal ?? "No call"}
                 </p>
-                <p className="mt-1 font-mono text-[10px] tabular-nums text-muted-foreground/70">
+                <p className="mt-1 font-mono text-[10px] tabular-nums text-muted-foreground">
                   {typeof horizon.confidence === "number"
                     ? `${Math.round(horizon.confidence)} confidence`
                     : (horizon.timeframe ?? "Timeframe unavailable")}
@@ -1884,7 +1884,7 @@ function OnDemandSubject({
               </div>
             ))
           ) : (
-            <p className="bg-card px-3 py-3 font-mono text-[11px] text-muted-foreground/70">
+            <p className="bg-card px-3 py-3 font-mono text-[11px] text-muted-foreground">
               The analysis returned no horizon calls.
             </p>
           )}
@@ -1904,7 +1904,7 @@ function OnDemandSubject({
                   key={key}
                   className="grid grid-cols-[82px_minmax(0,1fr)_30px] items-center gap-3"
                 >
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground/80">
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground">
                     {componentLabel(key)}
                   </span>
                   <span className="h-[4px] bg-foreground/[0.08]">
@@ -1933,7 +1933,7 @@ function OnDemandSubject({
               <InsightList title="Against" items={risks} tone="bear" />
             )}
             {positives.length === 0 && risks.length === 0 && (
-              <p className="font-mono text-[11px] text-muted-foreground/70">
+              <p className="font-mono text-[11px] text-muted-foreground">
                 No written insights returned for this analysis.
               </p>
             )}
@@ -1952,7 +1952,7 @@ function OnDemandSubject({
                   : "+ Add to watchlist"}
             </button>
             {watchStatus && (
-              <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground/75">
+              <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
                 {watchStatus}
               </p>
             )}
@@ -2003,7 +2003,7 @@ function TickerReadSubject({
                   {label}
                 </span>
               </div>
-              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.09em] text-muted-foreground/75">
+              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.09em] text-muted-foreground">
                 conditions read · not an active trade
               </p>
             </div>
@@ -2012,7 +2012,7 @@ function TickerReadSubject({
             <p className="font-mono text-3xl font-bold leading-none tabular-nums" style={{ color }}>
               ${read.spot.toFixed(2)}
             </p>
-            <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground/75">
+            <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
               latest close
             </p>
           </div>
@@ -2022,21 +2022,21 @@ function TickerReadSubject({
 
         <div className="grid gap-px border border-border/45 bg-border/45 sm:grid-cols-3">
           <div className="bg-card px-3 py-3">
-            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground/70">Directional evidence</p>
+            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Directional evidence</p>
             <p className="mt-1 font-mono text-[18px] font-bold tabular-nums" style={{ color }}>
               {read.directional.aligned}/{read.directional.assessed || "—"}
             </p>
-            <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">conditions align</p>
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground">conditions align</p>
           </div>
           <div className="bg-card px-3 py-3">
-            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground/70">Conflict</p>
+            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Conflict</p>
             <p className="mt-1 font-mono text-[18px] font-bold tabular-nums text-foreground">{read.directional.conflicting}</p>
-            <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">conditions disagree</p>
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground">conditions disagree</p>
           </div>
           <div className="bg-card px-3 py-3">
-            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground/70">Status</p>
+            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Status</p>
             <p className="mt-1 font-mono text-[12px] font-bold uppercase" style={{ color }}>watch</p>
-            <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">no entry published</p>
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground">no entry published</p>
           </div>
         </div>
       </CockpitCard>
@@ -2058,7 +2058,7 @@ function TickerReadSubject({
                     <span className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-foreground">{dimension.label}</span>
                     <span className="text-right font-mono text-[10px] font-bold tabular-nums" style={{ color: stateColor }}>{dimension.value}</span>
                   </div>
-                  <p className="mt-1 font-mono text-[10px] leading-relaxed text-muted-foreground/75">{dimension.read}</p>
+                  <p className="mt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">{dimension.read}</p>
                 </div>
               );
             })}
@@ -2066,11 +2066,11 @@ function TickerReadSubject({
         </CockpitCard>
         <CockpitCard title="Publication gate" meta="What is missing">
           <p className="font-mono text-[11px] leading-relaxed text-foreground/85">{read.directional.summary}</p>
-          <p className="mt-3 border-t border-border/45 pt-3 font-mono text-[10px] leading-relaxed text-muted-foreground/75">{read.directional.nextCheck}</p>
+          <p className="mt-3 border-t border-border/45 pt-3 font-mono text-[10px] leading-relaxed text-muted-foreground">{read.directional.nextCheck}</p>
           {read.cautions.length > 0 && (
             <div className="mt-3 border-t border-border/45 pt-3">
               <p className="font-mono text-[9px] font-bold uppercase tracking-[0.13em] text-[var(--brand-gold)]">Caution</p>
-              {read.cautions.map((caution) => <p key={caution} className="mt-1 font-mono text-[10px] leading-relaxed text-muted-foreground/75">{caution}</p>)}
+              {read.cautions.map((caution) => <p key={caution} className="mt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">{caution}</p>)}
             </div>
           )}
           <div className="mt-4 border-t border-border/45 pt-3">
@@ -2082,7 +2082,7 @@ function TickerReadSubject({
             >
               {watching ? "Adding…" : watchStatus ? "Watching" : "+ Add to watchlist"}
             </button>
-            {watchStatus && <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground/75">{watchStatus}</p>}
+            {watchStatus && <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">{watchStatus}</p>}
           </div>
         </CockpitCard>
       </div>
@@ -2176,7 +2176,7 @@ function InsightList({
         {items.map((item, i) => (
           <li
             key={`${item}-${i}`}
-            className="font-mono text-[10px] leading-relaxed text-muted-foreground/85"
+            className="font-mono text-[10px] leading-relaxed text-muted-foreground"
           >
             {item}
           </li>
@@ -2234,12 +2234,12 @@ function CockpitCard({
       {(title || meta) && (
         <header className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border/30">
           {title && (
-            <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               {title}
             </span>
           )}
           {meta && (
-            <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">
+            <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
               {meta}
             </span>
           )}
@@ -2265,7 +2265,7 @@ function StatTile({
     : "var(--foreground)";
   return (
     <div className="rounded-md border border-border/30 bg-foreground/[0.02] px-2.5 py-2">
-      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">
+      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
         {label}
       </div>
       <div
@@ -2295,7 +2295,7 @@ function ContextRow({
         : "var(--foreground)";
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">
+      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
       <span

@@ -69,7 +69,7 @@ export function GapMagnets({ symbol, className }: { symbol: string; className?: 
   if (isError) {
     return (
       <div className={cn('border-t border-border/30 px-4 py-2.5', className)}>
-        <span className="text-label font-mono text-muted-foreground/60">
+        <span className="text-label font-mono text-muted-foreground">
           Gap history unavailable for {symbol}
         </span>
       </div>
@@ -91,22 +91,22 @@ export function GapMagnets({ symbol, className }: { symbol: string; className?: 
   return (
     <div className={cn('border-t border-border/30 px-4 py-2.5', className)}>
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <span className="text-label font-mono uppercase tracking-widest text-muted-foreground/70">
+        <span className="text-label font-mono uppercase tracking-widest text-muted-foreground">
           Unfilled gaps
         </span>
         {stats && stats.total > 0 && (
-          <span className="text-label font-mono tabular-nums text-muted-foreground/60">
+          <span className="text-label font-mono tabular-nums text-muted-foreground">
             fills {Math.round(stats.fillRate * 100)}%
-            <span className="text-muted-foreground/60"> · {stats.filled}/{stats.total}</span>
+            <span className="text-muted-foreground"> · {stats.filled}/{stats.total}</span>
             {stats.medianBarsToFill != null && (
-              <span className="text-muted-foreground/60"> · median {stats.medianBarsToFill} bars</span>
+              <span className="text-muted-foreground"> · median {stats.medianBarsToFill} bars</span>
             )}
           </span>
         )}
       </div>
 
       {gaps.length === 0 ? (
-        <span className="text-label font-mono text-muted-foreground/60">
+        <span className="text-label font-mono text-muted-foreground">
           {hidden > 0
             ? `No unfilled gap within ${REACHABLE_PCT}% of spot — ${hidden} further out.`
             : 'None open — every gap on this chart has been filled.'}
@@ -128,7 +128,7 @@ export function GapMagnets({ symbol, className }: { symbol: string; className?: 
                 <span className="text-foreground/80">
                   ${money(gp.from)}–${money(gp.to)}
                 </span>
-                <span className="text-muted-foreground/60">
+                <span className="text-muted-foreground">
                   {gp.sizePct.toFixed(1)}% · {gp.ageBars}b old
                 </span>
                 <span
@@ -143,7 +143,7 @@ export function GapMagnets({ symbol, className }: { symbol: string; className?: 
           {hidden > 0 && (
             /* Never truncate silently — a shorter list would read as "these are
                all the gaps" when it is really "these are the reachable ones". */
-            <span className="pt-0.5 text-label font-mono text-muted-foreground/60">
+            <span className="pt-0.5 text-label font-mono text-muted-foreground">
               {hidden} more beyond {REACHABLE_PCT}%
             </span>
           )}

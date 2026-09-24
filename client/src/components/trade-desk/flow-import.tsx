@@ -89,10 +89,10 @@ export function FlowImport({ bare = false }: { bare?: boolean }) {
           onChange={(e) => setText(e.target.value)}
           placeholder={PLACEHOLDER}
           rows={4}
-          className="w-full rounded-lg bg-background/60 border border-border/40 p-2 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-[var(--brand-cyan)]/40 resize-y"
+          className="w-full rounded-lg bg-background/60 border border-border/40 p-2 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[var(--brand-cyan)]/40 resize-y"
         />
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-mono text-muted-foreground/60">
+          <span className="text-[10px] font-mono text-muted-foreground">
             Only contracts grading B- (70+) are pushed. Live CBOE quotes only — no fabricated fills.
           </span>
           <Button size="sm" disabled={busy || !text.trim()} onClick={run}>
@@ -102,19 +102,19 @@ export function FlowImport({ bare = false }: { bare?: boolean }) {
 
         {result && (
           <div className="pt-2 border-t border-border/30 space-y-1">
-            <div className="text-[10px] font-mono text-muted-foreground/70">
+            <div className="text-[10px] font-mono text-muted-foreground">
               {result.parsedCount} parsed · {result.gradedCount} graded · {result.pushedCount} pushed
             </div>
             {result.items.map((it, i) => (
               <div key={i} className="flex items-center gap-2 text-[11px] font-mono">
-                <span className={cn("w-6 shrink-0", it.pushed ? "text-emerald-400" : "text-muted-foreground/60")}>
+                <span className={cn("w-6 shrink-0", it.pushed ? "text-emerald-400" : "text-muted-foreground")}>
                   {it.pushed ? "✓" : "·"}
                 </span>
                 <span className="w-28 shrink-0 truncate text-foreground">
                   {it.symbol ? `${it.symbol} ${it.contract ?? ""}` : it.raw}
                 </span>
                 {it.grade && <span className={cn("w-8 shrink-0 font-semibold", gradeClass(it.grade))}>{it.grade}</span>}
-                <span className="text-muted-foreground/70 truncate">{it.reason}</span>
+                <span className="text-muted-foreground truncate">{it.reason}</span>
               </div>
             ))}
           </div>
@@ -128,7 +128,7 @@ export function FlowImport({ bare = false }: { bare?: boolean }) {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--brand-cyan)]">Flow Import</span>
-          <span className="text-[10px] font-mono text-muted-foreground/70">
+          <span className="text-[10px] font-mono text-muted-foreground">
             Paste Bullflow alerts → engine grades → B- and up hit the desk
           </span>
         </div>
@@ -145,7 +145,7 @@ export function FlowImport({ bare = false }: { bare?: boolean }) {
       >
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--brand-cyan)]">Flow Import</span>
-          <span className="text-[10px] font-mono text-muted-foreground/70">
+          <span className="text-[10px] font-mono text-muted-foreground">
             Paste Bullflow alerts → engine grades → B- and up hit the desk
           </span>
         </div>

@@ -184,7 +184,7 @@ export function WhatsNewToast() {
       <span
         role="button"
         onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
-        className="text-muted-foreground/60 hover:text-foreground p-0.5 rounded hover:bg-muted/40"
+        className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted/40"
         title="Dismiss"
       >
         <X className="w-3 h-3" />
@@ -219,7 +219,7 @@ export function WhatsNewDrawer() {
       <div className="p-3 space-y-4">
         {grouped.map(([date, entries]) => (
           <div key={date}>
-            <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-2 px-1">
+            <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mb-2 px-1">
               {formatDate(date)}
             </div>
             <div className="space-y-2">
@@ -249,7 +249,7 @@ export function WhatsNewDrawer() {
             </div>
           </div>
         ))}
-        <div className="text-center text-[9px] font-mono text-muted-foreground/60 pt-2 border-t border-border/30">
+        <div className="text-center text-[9px] font-mono text-muted-foreground pt-2 border-t border-border/30">
           That's it for now. Check back when the cyan badge lights up.
         </div>
       </div>

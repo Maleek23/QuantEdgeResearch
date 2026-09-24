@@ -72,7 +72,7 @@ function MarketPulseHeader() {
       })()}
       {tickers.map((t) => (
         <div key={t.symbol} className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] text-muted-foreground/70 font-mono">{t.symbol}</span>
+          <span className="text-[10px] text-muted-foreground font-mono">{t.symbol}</span>
           <span className="text-xs font-mono text-foreground">
             {t.price ? `${t.prefix || ''}${t.price.toLocaleString()}` : '—'}
           </span>
@@ -110,7 +110,7 @@ function HotSymbolsCompact() {
         <Link key={i} href={`/terminal/${sym.symbol}`}>
           <div className="flex items-center justify-between p-1.5 rounded hover:bg-muted/50 cursor-pointer transition-colors">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[10px] text-muted-foreground/60 font-mono w-3">{i + 1}</span>
+              <span className="text-[10px] text-muted-foreground font-mono w-3">{i + 1}</span>
               <span className="font-mono font-semibold text-xs text-foreground truncate">{sym.symbol}</span>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -401,13 +401,13 @@ export default function TradeDeskRedesigned() {
               return <span className={color}>{label}</span>;
             })()}
             {/* Date filter indicator */}
-            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/60")}>
+            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground")}>
               {serverDateFilter === 'today' ? 'TODAY' : serverDateFilter === 'week' ? 'PAST WEEK' : 'ALL TIME'}
             </span>
           </div>
           <div className="flex items-center gap-3">
             {/* Global data timestamp */}
-            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground/60 tabular-nums")}>
+            <span className={cn(componentStyles.text.chromeLabel, "text-muted-foreground tabular-nums")}>
               {new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true })} ET
             </span>
             {/* Generate Ideas Dropdown */}
@@ -494,7 +494,7 @@ export default function TradeDeskRedesigned() {
               </button>
             );
           })}
-          <span className="ml-auto text-[9px] text-muted-foreground/60 font-mono tabular-nums">{filteredIdeas.length} ideas</span>
+          <span className="ml-auto text-[9px] text-muted-foreground font-mono tabular-nums">{filteredIdeas.length} ideas</span>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="ml-2 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors hidden lg:flex"

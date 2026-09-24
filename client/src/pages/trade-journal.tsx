@@ -931,7 +931,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
             value={form.symbol}
             onChange={(e) => setForm(p => ({ ...p, symbol: e.target.value }))}
             placeholder="AAPL"
-            className="w-full bg-white/5 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-purple-500/50"
+            className="w-full bg-white/5 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-purple-500/50"
           />
         </div>
         <div>
@@ -1114,7 +1114,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
             value={form.setupType}
             onChange={(e) => setForm(p => ({ ...p, setupType: e.target.value }))}
             placeholder="e.g. GEX flip, breakout"
-            className="w-full bg-white/5 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-purple-500/50"
+            className="w-full bg-white/5 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-purple-500/50"
           />
         </div>
         <div>
@@ -1124,7 +1124,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
             value={form.mistakeTag}
             onChange={(e) => setForm(p => ({ ...p, mistakeTag: e.target.value }))}
             placeholder="e.g. chased, no stop"
-            className="w-full bg-white/5 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-purple-500/50"
+            className="w-full bg-white/5 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-purple-500/50"
           />
         </div>
         <div>
@@ -1157,7 +1157,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
           onChange={(e) => setForm(p => ({ ...p, notes: e.target.value }))}
           placeholder="What was your thesis? What went right or wrong?"
           rows={2}
-          className="w-full bg-white/5 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-purple-500/50 resize-none"
+          className="w-full bg-white/5 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-purple-500/50 resize-none"
         />
       </div>
 
@@ -1721,7 +1721,7 @@ function SimulatorTab({ trades }: { trades: JournalTradeRow[] }) {
   if (optionPositions.length === 0) {
     return (
       <div className="bg-card border border-border/50 rounded-xl p-8 text-center">
-        <LineChart className="w-12 h-12 mx-auto mb-4 text-muted-foreground/60" />
+        <LineChart className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground mb-2">No Option Positions</h3>
         <p className="text-xs text-muted-foreground max-w-md mx-auto">
           Log or import option trades with strike prices and expiry dates to use the P&L simulator.

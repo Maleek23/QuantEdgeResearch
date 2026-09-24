@@ -166,7 +166,7 @@ export function SignalGrid({
                   >
                     {g.statusLabel}
                   </span>
-                  <span className="text-muted-foreground/70">
+                  <span className="text-muted-foreground">
                     {p.optionDte != null || p.expiryDate
                       ? `${g.horizonUsedPct.toFixed(0)}% of ${g.horizonDays}d used`
                       : 'timing pending contract'}
@@ -194,7 +194,7 @@ export function SignalGrid({
 
                 {/* progress entry → T1, with drawdown shown against it */}
                 <div>
-                  <div className="mb-1 flex items-baseline justify-between font-mono text-[9px] uppercase tracking-wider text-muted-foreground/70">
+                  <div className="mb-1 flex items-baseline justify-between font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
                     <span>{g.progressPct.toFixed(0)}% to T1</span>
                     {g.drawdownPct > 0 && (
                       <span style={{ color: 'var(--trade-bearish)' }}>{g.drawdownPct.toFixed(1)}% DD</span>
@@ -224,7 +224,7 @@ export function SignalGrid({
                     />
                     <p className={cn(
                       'mt-1.5 font-mono text-[9px]',
-                      against.length ? 'text-[color:var(--trade-bearish)]' : 'text-muted-foreground/70',
+                      against.length ? 'text-[color:var(--trade-bearish)]' : 'text-muted-foreground',
                     )}>
                       {against.length
                         ? `${against.length} layer${against.length > 1 ? 's' : ''} arguing against`

@@ -93,8 +93,11 @@ export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: strin
   const isLoading = isStatsLoading || isEngineLoading || isBotLoading;
 
   if (isLoading) {
+    // Viewport-tall placeholder: the finished summary is ~1,200px on a phone,
+    // and a 350px skeleton made everything below jump when it arrived
+    // (CLS 0.54 measured 2026-09-24). Below-the-fold content can't shift.
     return (
-      <div className="space-y-6">
+      <div className="min-h-[100dvh] space-y-6" aria-busy="true">
         <Skeleton className="h-32 w-full" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)}
@@ -136,9 +139,9 @@ export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: strin
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <p className="text-sm text-muted-foreground uppercase tracking-wider">Expectancy</p>
-                  <span className="text-xs text-muted-foreground/60 font-mono">n={totalDecided}</span>
+                  <span className="text-xs text-muted-foreground font-mono">n={totalDecided}</span>
                   <span className="group relative inline-block">
-                    <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                     <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-52 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
                       Your edge per idea: (win% &#215; avg win) &#8722; (loss% &#215; avg loss). Positive means the engines make money on average; negative means they lose it.
                     </span>

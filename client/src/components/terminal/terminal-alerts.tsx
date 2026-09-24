@@ -74,7 +74,7 @@ export const alertAgo = (ms: number) => {
 export function AlertTypeToggles({ prefs, update }: { prefs: AlertPrefs; update: (p: AlertPrefs) => void }) {
   return (
     <div>
-      <div className="mb-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">Alert me on</div>
+      <div className="mb-2 text-label font-mono uppercase tracking-widest text-muted-foreground">Alert me on</div>
       <div className="flex flex-wrap gap-1">
         {(Object.keys(ALERT_LABELS) as AlertType[]).map((t) => {
           const on = prefs.enabled[t];
@@ -82,7 +82,7 @@ export function AlertTypeToggles({ prefs, update }: { prefs: AlertPrefs; update:
             <button key={t}
               onClick={() => update({ ...prefs, enabled: { ...prefs.enabled, [t]: !on } })}
               className={cn('cursor-pointer rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground/70 hover:text-foreground')}
+                on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground hover:text-foreground')}
             >
               {ALERT_LABELS[t]}
             </button>
@@ -98,7 +98,7 @@ export function AlertDeliveryRows({ prefs, update }: { prefs: AlertPrefs; update
   return (
     <>
       <div className="mt-3 flex items-center justify-between">
-        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Send to Discord</span>
+        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">Send to Discord</span>
         <button
           onClick={() => update({ ...prefs, discord: !prefs.discord })}
           role="switch" aria-checked={prefs.discord} aria-label="Send alerts to Discord"
@@ -111,10 +111,10 @@ export function AlertDeliveryRows({ prefs, update }: { prefs: AlertPrefs; update
       </div>
 
       <div className="mt-3 flex items-center justify-between">
-        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Quiet hours</span>
+        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">Quiet hours</span>
         <span className="flex items-center gap-2">
           {prefs.quietHours.on && (
-            <span className="text-label font-mono tabular-nums text-muted-foreground/70">
+            <span className="text-label font-mono tabular-nums text-muted-foreground">
               {String(prefs.quietHours.start).padStart(2, '0')}:00–{String(prefs.quietHours.end).padStart(2, '0')}:00
             </span>
           )}
@@ -140,9 +140,9 @@ export function AlertFeedItem({ a }: { a: AlertEvent }) {
       <div className="flex items-baseline gap-2">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: alertToneColor(a.tone) }} />
         <span className="text-meta font-mono font-bold text-foreground">{a.title}</span>
-        <span className="ml-auto shrink-0 text-label font-mono text-muted-foreground/70">{alertAgo(a.at)}</span>
+        <span className="ml-auto shrink-0 text-label font-mono text-muted-foreground">{alertAgo(a.at)}</span>
       </div>
-      <div className="mt-0.5 pl-3.5 text-label font-mono text-muted-foreground/70">
+      <div className="mt-0.5 pl-3.5 text-label font-mono text-muted-foreground">
         {ALERT_LABELS[a.type]} · {a.detail}
       </div>
     </div>
@@ -186,19 +186,19 @@ export function TerminalAlerts({
             <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
               <div>
                 <div className="text-meta font-mono font-bold uppercase tracking-widest text-foreground">Alerts</div>
-                <div className="text-label font-mono text-muted-foreground/70">fires while you're in the platform</div>
+                <div className="text-label font-mono text-muted-foreground">fires while you're in the platform</div>
               </div>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => update({ ...prefs, sound: !prefs.sound })}
                   aria-label={prefs.sound ? 'Mute alert sounds' : 'Unmute alert sounds'}
                   title={prefs.sound ? 'Sound on' : 'Sound off'}
-                  className="cursor-pointer rounded p-1 text-muted-foreground/70 transition-colors hover:text-foreground"
+                  className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
                 >
                   {prefs.sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                 </button>
                 <button onClick={onClose} aria-label="Close alerts"
-                  className="cursor-pointer rounded p-1 text-muted-foreground/70 transition-colors hover:text-foreground">
+                  className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:text-foreground">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -215,7 +215,7 @@ export function TerminalAlerts({
               {feed.length === 0 ? (
                 <div className="px-6 py-12 text-center">
                   <div className="text-meta font-mono uppercase tracking-widest text-foreground/80">No alerts yet</div>
-                  <p className="mx-auto mt-2 max-w-xs text-meta leading-relaxed text-muted-foreground/70">
+                  <p className="mx-auto mt-2 max-w-xs text-meta leading-relaxed text-muted-foreground">
                     Alerts fire when a signal actually changes state — a trigger fills, T1 is hit, a
                     stop comes into range. Nothing fires just for existing.
                   </p>
@@ -228,7 +228,7 @@ export function TerminalAlerts({
             {feed.length > 0 && (
               <button
                 onClick={() => { clearFeed(); setFeed([]); }}
-                className="flex cursor-pointer items-center justify-center gap-1.5 border-t border-border/40 py-2 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+                className="flex cursor-pointer items-center justify-center gap-1.5 border-t border-border/40 py-2 text-label font-mono uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Trash2 className="h-3 w-3" /> Clear
               </button>
@@ -246,7 +246,7 @@ export function AlertBell({ unread, onClick }: { unread: number; onClick: () => 
     <button
       onClick={onClick}
       aria-label={unread > 0 ? `Alerts (${unread} new)` : 'Alerts'}
-      className="relative inline-flex cursor-pointer items-center text-muted-foreground/70 transition-colors hover:text-foreground"
+      className="relative inline-flex cursor-pointer items-center text-muted-foreground transition-colors hover:text-foreground"
     >
       <Bell className="h-3.5 w-3.5" />
       {unread > 0 && (

@@ -92,7 +92,7 @@ function TradeVector({ pick, live }: { pick: ConvictionPick; live: number }) {
   return (
     <div className="border-t border-border/30 px-4 py-3">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground/75">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
           {awaitingTrigger ? 'Entry trigger watch' : 'Live trade vector'}
         </span>
         <span className="font-mono text-[10px] tabular-nums" style={{ color: awaitingTrigger ? GOLD : g.pnlPct >= 0 ? BULL : BEAR }}>
@@ -116,7 +116,7 @@ function TradeVector({ pick, live }: { pick: ConvictionPick; live: number }) {
           <div key={point.label} className="absolute top-0 -translate-x-1/2 text-center" style={{ left: `${x(point.price)}%` }}>
             <span className="block h-3 w-px mx-auto" style={{ background: point.color }} />
             <span className="mt-1 block font-mono text-[9px] font-bold uppercase tracking-[0.11em]" style={{ color: point.color }}>{point.label}</span>
-            <span className="block font-mono text-[9px] tabular-nums text-muted-foreground/65">${money(point.price)}</span>
+            <span className="block font-mono text-[9px] tabular-nums text-muted-foreground">${money(point.price)}</span>
           </div>
         ))}
         <motion.span
@@ -137,7 +137,7 @@ function Card({ title, meta, children, className }: { title: string; meta?: Reac
     <div className={cn('rounded-xl border border-card-border bg-card overflow-hidden', className)}>
       <div className="flex items-center justify-between border-b border-border/40 px-4 py-2.5">
         <span className="text-meta font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
-        {meta && <span className="text-label font-mono text-muted-foreground/60">{meta}</span>}
+        {meta && <span className="text-label font-mono text-muted-foreground">{meta}</span>}
       </div>
       {children}
     </div>
@@ -175,7 +175,7 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
             </span>
             Live quote
           </div>
-          <div className="mt-0.5 text-label font-mono text-muted-foreground/65">
+          <div className="mt-0.5 text-label font-mono text-muted-foreground">
             {awaitingTrigger
               ? `${triggerDistancePct.toFixed(2)}% ${triggerSide} trigger · not entered`
               : atEntry ? 'At recorded entry' : `${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(2)}% versus entry`}
@@ -183,7 +183,7 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
         </div>
         <div className="text-right">
           <div className="text-value font-mono font-bold tabular-nums" style={{ color: liveColor }}><LiveValue value={live || pick.entryPrice} format={(n) => `$${money(n)}`} /></div>
-          <div className="text-label font-mono tabular-nums text-muted-foreground/60">{awaitingTrigger ? 'TRIGGER' : 'ENTRY'} ${money(pick.entryPrice)} · fixed</div>
+          <div className="text-label font-mono tabular-nums text-muted-foreground">{awaitingTrigger ? 'TRIGGER' : 'ENTRY'} ${money(pick.entryPrice)} · fixed</div>
         </div>
       </div>
       <div className="divide-y divide-border/20">
@@ -230,7 +230,7 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
                       ? awaitingTrigger ? 'Waiting' : 'Recorded'
                       : `${l.pctFromLive >= 0 ? '+' : ''}${l.pctFromLive.toFixed(2)}%`}
                   </span>
-                  <span className="text-muted-foreground/70"> · {l.key === 'entry' ? '0.0' : l.rAway.toFixed(1)}R</span>
+                  <span className="text-muted-foreground"> · {l.key === 'entry' ? '0.0' : l.rAway.toFixed(1)}R</span>
                 </>
               </span>
             </motion.div>
@@ -286,7 +286,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
       className={className}
     >
       <div className="px-4 py-3 space-y-2.5">
-        <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">
+        <div className="text-label font-mono uppercase tracking-wider text-muted-foreground">
           +{pick.convictionScore} net evidence · {bandStrength(pick.convictionBand)} · {pick.layerCount ?? pick.layers?.length ?? 0} active layers
         </div>
         {/* how the score was built */}
@@ -295,14 +295,14 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
           className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2 transition-colors hover:bg-foreground/[0.06]"
           aria-expanded={showMath}
         >
-          <span className="text-label font-mono uppercase tracking-widest text-muted-foreground/70">
+          <span className="text-label font-mono uppercase tracking-widest text-muted-foreground">
             How this score was built
           </span>
           <span className="flex items-baseline gap-1.5 font-mono tabular-nums">
             <span className="text-meta" style={{ color: TC.bull }}>+{plus}</span>
             {minus < 0 && <span className="text-meta" style={{ color: TC.bear }}>{minus}</span>}
-            <span className="text-label text-muted-foreground/70">= {pick.convictionScore}</span>
-            <span className="text-label text-muted-foreground/70">{showMath ? '▲' : '▼'}</span>
+            <span className="text-label text-muted-foreground">= {pick.convictionScore}</span>
+            <span className="text-label text-muted-foreground">{showMath ? '▲' : '▼'}</span>
           </span>
         </button>
 
@@ -333,7 +333,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
                 </div>
               </div>
             )}
-            <p className="text-label leading-relaxed text-muted-foreground/70">
+            <p className="text-label leading-relaxed text-muted-foreground">
               {hurt.length === 0
                 ? 'Nothing is currently arguing against this setup.'
                 : `${hurt.length} layer${hurt.length > 1 ? 's are' : ' is'} arguing against it — read those before sizing up.`}
@@ -344,7 +344,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
         {g.components.map((c) => (
           <div key={c.key}>
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{c.label}</span>
+              <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">{c.label}</span>
               <span className="text-label font-mono tabular-nums" style={{ color: healthColor(c.value) }}>{c.value}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-foreground/8">
@@ -353,7 +353,7 @@ export function ConfidenceBars({ pick, live, className }: { pick: ConvictionPick
                 initial={reduce ? false : { width: 0 }} animate={{ width: `${c.value}%` }}
                 transition={{ duration: DUR.slow, ease: EASE }} />
             </div>
-            <div className="mt-0.5 text-label font-mono text-muted-foreground/70">{c.why}</div>
+            <div className="mt-0.5 text-label font-mono text-muted-foreground">{c.why}</div>
           </div>
         ))}
       </div>
@@ -480,7 +480,7 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
             <div style={{ width: `${riskShare}%`, background: BEAR }} />
             <div style={{ width: `${100 - riskShare}%`, background: CYAN }} />
           </div>
-          <div className="mt-1 flex justify-between text-label font-mono uppercase tracking-wider text-muted-foreground/70">
+          <div className="mt-1 flex justify-between text-label font-mono uppercase tracking-wider text-muted-foreground">
             <span>◀ risk</span><span>reward ▶</span>
           </div>
         </div>
@@ -514,10 +514,10 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
 
         {/* 4 · TIME */}
         <div className="flex items-baseline justify-between gap-2 border-t border-border/30 pt-2.5">
-          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">Horizon</span>
+          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">Horizon</span>
           <span className="text-right text-meta font-mono tabular-nums text-foreground" title={`Management window derived from ${g.horizonBasis}`}>
             {g.horizonUsedPct.toFixed(0)}% used · {g.daysHeld.toFixed(1)}/{g.horizonDays}d
-            <span className="ml-1 text-[9px] text-muted-foreground/55">({g.horizonBasis})</span>
+            <span className="ml-1 text-[9px] text-muted-foreground">({g.horizonBasis})</span>
           </span>
         </div>
 
@@ -526,7 +526,7 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
             over verbatim from PositionSize; losing it in the merge would have been
             the one genuine regression available here. */}
         {sized && (units === 0 || overAllocated) && (
-          <p className="text-label leading-relaxed text-muted-foreground/70 border-t border-border/30 pt-2.5">
+          <p className="text-label leading-relaxed text-muted-foreground border-t border-border/30 pt-2.5">
             {units === 0 && isOption
               ? `Too big for this account. One contract costs $${costPerUnit.toFixed(0)} and commits $${riskPerUnit.toFixed(0)} — ${(riskPerUnit / Math.max(riskBudget, 0.01)).toFixed(1)}× your $${riskBudget.toFixed(0)} ${rule.basis === 'allocation' ? 'per-idea capital' : 'options budget'}. Look at a cheaper strike or further expiry.`
               : units === 0
@@ -536,7 +536,7 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
         )}
 
         {sized && units > 0 && !overAllocated && (
-          <p className="text-label leading-relaxed text-muted-foreground/70 border-t border-border/30 pt-2.5">
+          <p className="text-label leading-relaxed text-muted-foreground border-t border-border/30 pt-2.5">
             {isOption
               ? `${units} ${unitLabel} at $${premium.toFixed(2)} (${premiumIsLive ? "live premium" : "premium at publish — live chain unavailable"}). ${rule.why}`
               : `Sized against your $${account.toLocaleString()} account.`}
@@ -560,7 +560,7 @@ function LayerRow({ layer }: { layer: { label?: string; kind?: string; points: n
           {layer.label ?? layer.kind}
         </span>
         {layer.why && (
-          <span className="block text-label leading-relaxed text-muted-foreground/70">{layer.why}</span>
+          <span className="block text-label leading-relaxed text-muted-foreground">{layer.why}</span>
         )}
       </span>
     </div>
@@ -570,7 +570,7 @@ function LayerRow({ layer }: { layer: { label?: string; kind?: string; points: n
 function Mini({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="rounded border border-border/40 px-2 py-1">
-      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
+      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-body font-mono font-bold tabular-nums" style={{ color: color ?? 'var(--foreground)' }}>{value}</div>
     </div>
   );
@@ -602,20 +602,20 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
               <span className="w-6 shrink-0 text-label font-mono font-bold tracking-wider" style={{ color: CYAN }}>{r.rung}</span>
               <div className="min-w-0 flex-1">
                 <div className="text-value font-mono font-bold tabular-nums text-foreground">
-                  ${money(r.price)} <span className="text-label font-normal text-muted-foreground/70">· {r.rMultiple.toFixed(1)}R · {Math.round(r.probTouch * 100)}% reach</span>
+                  ${money(r.price)} <span className="text-label font-normal text-muted-foreground">· {r.rMultiple.toFixed(1)}R · {Math.round(r.probTouch * 100)}% reach</span>
                 </div>
                 <div className="text-label font-mono" style={{ color: r.structural ? 'var(--foreground)' : 'var(--amber, #e8b34b)', opacity: 0.75 }}>
                   {r.source}{i === 0 ? ' — take partial, move stop to entry' : i === lad.rungs.length - 1 ? ' — runner exit' : ' — scale again'}
                 </div>
               </div>
               <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-label font-mono uppercase tracking-wider',
-                i < hitIdx ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground/70')}>
+                i < hitIdx ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground')}>
                 {i < hitIdx ? 'Hit' : i === hitIdx ? 'Next' : 'Pending'}
               </span>
             </div>
           ))}
           {lad.publishedTargetNote && (
-            <div className="px-4 py-2 text-label font-mono text-muted-foreground/70">Card's original target: {lad.publishedTargetNote}.</div>
+            <div className="px-4 py-2 text-label font-mono text-muted-foreground">Card's original target: {lad.publishedTargetNote}.</div>
           )}
         </div>
       ) : (
@@ -625,10 +625,10 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
               <span className="w-6 shrink-0 text-label font-mono font-bold tracking-wider" style={{ color: CYAN }}>{p.rung}</span>
               <div className="min-w-0 flex-1">
                 <div className="text-value font-mono font-bold tabular-nums text-foreground">${money(p.price)}</div>
-                <div className="text-label font-mono text-muted-foreground/65">{ladderQ.isLoading ? 'mapping real levels…' : p.action}</div>
+                <div className="text-label font-mono text-muted-foreground">{ladderQ.isLoading ? 'mapping real levels…' : p.action}</div>
               </div>
               <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-label font-mono uppercase tracking-wider',
-                p.active ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground/70')}>
+                p.active ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground')}>
                 {p.active ? 'Active' : 'Pending'}
               </span>
             </div>
@@ -670,7 +670,7 @@ export function ContextPanel({
           {' '}R:R 1:{g.rr.toFixed(1)}, risking ${g.risk.toFixed(2)} to make ${g.reward.toFixed(2)} per share.
           {aligns !== undefined && regime && <> {regime} regime {aligns ? 'favors' : 'works against'} {pick.direction}s.</>}
         </p>
-        {pick.thesis && <p className="text-meta leading-relaxed text-muted-foreground/75">{clarifyOracleNarrative(pick.thesis)}</p>}
+        {pick.thesis && <p className="text-meta leading-relaxed text-muted-foreground">{clarifyOracleNarrative(pick.thesis)}</p>}
         <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
           <div className="mb-0.5 text-label font-mono uppercase tracking-widest" style={{ color: CYAN }}>What to do now</div>
           <div className="text-meta font-mono text-foreground/85">{todo}</div>

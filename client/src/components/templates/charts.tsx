@@ -138,7 +138,7 @@ export function Matrix({
 
       {axis && axis.length === cols && (
         <div
-          className="relative z-[2] mt-3.5 grid gap-1.5 font-mono text-[10px] tracking-[0.08em] text-muted-foreground/60"
+          className="relative z-[2] mt-3.5 grid gap-1.5 font-mono text-[10px] tracking-[0.08em] text-muted-foreground"
           style={grid}
         >
           <span />

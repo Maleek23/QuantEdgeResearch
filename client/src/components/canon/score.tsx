@@ -74,7 +74,7 @@ export function CanonScore({
     >
       <b className="text-[13px] leading-none" style={{ color }}>{score}</b>
       {showBand && (
-        <span className="text-label uppercase tracking-wider text-muted-foreground/65">{band}</span>
+        <span className="text-label uppercase tracking-wider text-muted-foreground">{band}</span>
       )}
     </span>
   );
@@ -131,7 +131,7 @@ export function CanonRate({
     const nothingDecided = decided <= 0;
     return (
       <span
-        className={cn('font-mono text-label italic text-muted-foreground/55', className)}
+        className={cn('font-mono text-label italic text-muted-foreground', className)}
         title={
           nothingDecided
             ? 'No trade has resolved yet — there is no rate to report, which is not the same as 0%'
@@ -146,7 +146,7 @@ export function CanonRate({
   return (
     <span className={cn('font-mono tabular-nums', className)}>
       <b>{pct.toFixed(1)}%</b>
-      <span className="ml-1.5 text-label text-muted-foreground/65">
+      <span className="ml-1.5 text-label text-muted-foreground">
         {label ? `${label} · ` : ''}n={decided}
       </span>
     </span>

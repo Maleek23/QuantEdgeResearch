@@ -62,7 +62,7 @@ export function QEStat({
 
   return (
     <div className={cn('flex flex-col gap-0.5 min-w-0', className)}>
-      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/70 truncate">
+      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground truncate">
         {label}
       </div>
       <div className={cn('font-mono font-bold tabular-nums truncate', SIZE_MAP[size], valueTone)}>
@@ -74,7 +74,7 @@ export function QEStat({
         )}
       </div>
       {caption && (
-        <div className="text-[9px] font-mono text-muted-foreground/60 truncate">{caption}</div>
+        <div className="text-[9px] font-mono text-muted-foreground truncate">{caption}</div>
       )}
     </div>
   );

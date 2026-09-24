@@ -103,7 +103,7 @@ function ChipGroup({
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 mr-0.5">
+      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground mr-0.5">
         {label}
       </span>
       <div className="flex items-center gap-1">{children}</div>
@@ -174,7 +174,7 @@ export function TradeFiltersBar({
             placeholder="Search symbol..."
             value={filters.search}
             onChange={(e) => update("search", e.target.value.toUpperCase())}
-            className="flex-1 bg-transparent text-[11px] font-mono outline-none placeholder:text-muted-foreground/60 text-foreground"
+            className="flex-1 bg-transparent text-[11px] font-mono outline-none placeholder:text-muted-foreground text-foreground"
             data-testid="filter-search"
           />
           {filters.search && (

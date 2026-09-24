@@ -183,10 +183,10 @@ export function SectorHeatmap({
   return (
     <div className={cn('px-4 py-3', className)}>
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           Sector heatmap
         </span>
-        <span className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground/60">
+        <span className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
           {data?.sessionLabel ?? '1D % chg'}
           <Heartbeat since={feedTimestamp(data)} staleAfterSec={900} />
         </span>
@@ -211,7 +211,7 @@ export function SectorHeatmap({
           ))}
         </div>
       ) : (
-        <p className="font-mono text-[10px] text-muted-foreground/50">no sector read yet</p>
+        <p className="font-mono text-[10px] text-muted-foreground">no sector read yet</p>
       )}
     </div>
   );
@@ -259,10 +259,10 @@ export function WatchlistRail({
   return (
     <div className={cn('border-t border-border/50 px-4 py-3', className)}>
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           Watchlist
         </span>
-        <span className="font-mono text-[10px] text-muted-foreground/60">
+        <span className="font-mono text-[10px] text-muted-foreground">
           {names.length ? `${names.length} names` : ''}
         </span>
       </div>
@@ -290,14 +290,14 @@ export function WatchlistRail({
                   </span>
                 ) : (
                   /* Not scanned this pass — absence, not zero. */
-                  <span className="text-right font-mono text-[10px] text-muted-foreground/40">—</span>
+                  <span className="text-right font-mono text-[10px] text-muted-foreground">—</span>
                 )}
               </button>
             );
           })}
         </div>
       ) : (
-        <p className="ui-prose py-2 text-[11px] text-muted-foreground/60">
+        <p className="ui-prose py-2 text-[11px] text-muted-foreground">
           No names on the watchlist yet — add tickers from any board and they track here.
         </p>
       )}
@@ -348,7 +348,7 @@ export function SystemStatusBlock({ className }: { className?: string }) {
 
   const Row = ({ k, v, tone }: { k: string; v: React.ReactNode; tone?: 'ok' | 'warn' }) => (
     <div className="flex justify-between py-1 font-mono text-[10.5px]">
-      <span className="uppercase tracking-wider text-muted-foreground/60">{k}</span>
+      <span className="uppercase tracking-wider text-muted-foreground">{k}</span>
       <span
         className="font-semibold tabular-nums"
         style={
@@ -371,7 +371,7 @@ export function SystemStatusBlock({ className }: { className?: string }) {
       <Row k="Watchlist" v={watchlistData?.length ?? '—'} />
       {/* VIX above ~20 is the conventional caution line; below it stays neutral. */}
       <Row k="VIX" v={vix != null ? vix.toFixed(1) : '—'} tone={vix != null && vix >= 20 ? 'warn' : undefined} />
-      <p className="mt-2 border-t border-border/40 pt-2 text-center font-mono text-[9px] italic leading-relaxed text-muted-foreground/50">
+      <p className="mt-2 border-t border-border/40 pt-2 text-center font-mono text-[9px] italic leading-relaxed text-muted-foreground">
         Educational only · not investment advice.
         <br />
         Past setups do not guarantee future results.
@@ -453,15 +453,15 @@ export function FooterMarketLine({ className }: { className?: string }) {
 
   return (
     <span className={cn('inline-flex items-center gap-3 font-mono', className)}>
-      <span className="text-muted-foreground/70">{sessionLabel(data?.session).toLowerCase()}</span>
+      <span className="text-muted-foreground">{sessionLabel(data?.session).toLowerCase()}</span>
       <Quote label="SPY" q={spy} />
       <Quote label="BTC" q={btc} money />
       {nextIn != null && (
-        <span className="hidden tabular-nums text-muted-foreground/60 lg:inline">
+        <span className="hidden tabular-nums text-muted-foreground lg:inline">
           next poll {nextIn}s
         </span>
       )}
-      <span className="tabular-nums text-muted-foreground/70">{clock}</span>
+      <span className="tabular-nums text-muted-foreground">{clock}</span>
     </span>
   );
 }

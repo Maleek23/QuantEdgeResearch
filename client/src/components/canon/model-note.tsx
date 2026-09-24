@@ -41,7 +41,7 @@ export function CanonModelNote({
       >
         {tone === 'model' ? 'Model' : 'Gap'}
       </span>
-      <span className="text-label leading-relaxed text-muted-foreground/80">{children}</span>
+      <span className="text-label leading-relaxed text-muted-foreground">{children}</span>
     </div>
   );
 }

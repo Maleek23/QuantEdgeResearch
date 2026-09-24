@@ -74,7 +74,7 @@ export function TerminalTickerSearch({
         {variant === 'nexus' ? (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
         ) : (
-          <Search className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground/65" />
+          <Search className="ml-2 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         )}
         {value && !query && (
           <span className="ml-2 rounded-sm bg-[var(--brand-cyan)]/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-[var(--brand-cyan)]">
@@ -100,12 +100,12 @@ export function TerminalTickerSearch({
           className={cn(
             variant === 'nexus'
               ? undefined /* the .search shell styles its input */
-              : 'min-w-0 flex-1 bg-transparent px-2 font-mono text-[10px] uppercase tracking-wider text-foreground outline-none placeholder:text-muted-foreground/45',
+              : 'min-w-0 flex-1 bg-transparent px-2 font-mono text-[10px] uppercase tracking-wider text-foreground outline-none placeholder:text-muted-foreground',
             variant !== 'nexus' && (compact ? 'w-40' : 'w-32 lg:w-44'),
           )}
         />
         {query && (
-          <button type="button" onClick={() => setQuery('')} className={variant === 'nexus' ? 'text-inherit' : 'mr-2 text-muted-foreground/60 hover:text-foreground'} style={variant === 'nexus' ? { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)' } : undefined}>
+          <button type="button" onClick={() => setQuery('')} className={variant === 'nexus' ? 'text-inherit' : 'mr-2 text-muted-foreground hover:text-foreground'} style={variant === 'nexus' ? { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-mute)' } : undefined}>
             <X className="h-3 w-3" />
           </button>
         )}
@@ -114,7 +114,7 @@ export function TerminalTickerSearch({
 
       {open && q && (
         <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-[340px] overflow-hidden rounded-md border border-border/80 bg-[var(--background)]/98 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center justify-between border-b border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground/60">
+          <div className="flex items-center justify-between border-b border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
             <span>Universal ticker</span>
             <span>{isFetching ? 'searching…' : `${results.length} matches`}</span>
           </div>
@@ -143,7 +143,7 @@ export function TerminalTickerSearch({
               <span>Open {q} directly</span><span className="text-[var(--brand-cyan)]">↗</span>
             </button>
           ) : null}
-          <div className="border-t border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground/45">
+          <div className="border-t border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
             Enter open · ↑↓ navigate · symbol follows every workspace
           </div>
         </div>

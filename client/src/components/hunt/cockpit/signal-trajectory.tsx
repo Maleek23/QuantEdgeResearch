@@ -72,8 +72,8 @@ export function SignalTrajectory({ ideaId, live, className }: { ideaId: string; 
   return (
     <div className={cn('border-t border-border/35 pt-2.5', className)}>
       <div className="mb-1.5 flex items-center justify-between gap-3 font-mono text-[9px] uppercase tracking-[0.13em]">
-        <span className="font-bold text-muted-foreground/75">Recorded path</span>
-        <span className="text-muted-foreground/60">
+        <span className="font-bold text-muted-foreground">Recorded path</span>
+        <span className="text-muted-foreground">
           {isLoading ? 'loading audit…' : latest ? `${points.length} checks · ${EVENT_LABEL[latest.eventType] ?? latest.eventType} ${ago(latest.eventTimestamp)}` : 'waiting for first check'}
         </span>
       </div>
@@ -91,13 +91,13 @@ export function SignalTrajectory({ ideaId, live, className }: { ideaId: string; 
           ))}
         </svg>
       ) : (
-        <div className="flex h-10 items-center gap-2 border border-dashed border-border/45 px-2.5 font-mono text-[9px] leading-relaxed text-muted-foreground/70">
+        <div className="flex h-10 items-center gap-2 border border-dashed border-border/45 px-2.5 font-mono text-[9px] leading-relaxed text-muted-foreground">
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand-cyan)]" />
           No price trend yet — the next scanner checkpoint starts this audit trail.
         </div>
       )}
       {latest && (
-        <div className="mt-1 flex items-center justify-between font-mono text-[9px] tabular-nums text-muted-foreground/65">
+        <div className="mt-1 flex items-center justify-between font-mono text-[9px] tabular-nums text-muted-foreground">
           <span>${latest.currentPrice.toFixed(2)} recorded</span>
           <motion.span
             key={latest.pnlAtSnapshot}

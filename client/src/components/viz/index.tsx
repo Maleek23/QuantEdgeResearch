@@ -72,7 +72,7 @@ export function RangeBar({
             </span>
           </>
         ) : (
-          <span className="text-muted-foreground/60">hover the bar to price it</span>
+          <span className="text-muted-foreground">hover the bar to price it</span>
         )}
       </div>
 
@@ -117,7 +117,7 @@ export function RangeBar({
       {showTicks && (
         <div className="mt-1 flex justify-between text-label font-mono tabular-nums">
           <span style={{ color: TC.bear }}>{stop.toFixed(2)}</span>
-          <span className="text-muted-foreground/70">entry {entry.toFixed(2)}</span>
+          <span className="text-muted-foreground">entry {entry.toFixed(2)}</span>
           <span style={{ color: TC.bull }}>{target.toFixed(2)}</span>
         </div>
       )}
@@ -136,8 +136,8 @@ export function Meter({
     <div className={cn('w-full', className)}>
       {(label || right) && (
         <div className="mb-1 flex items-baseline justify-between">
-          {label && <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</span>}
-          {right && <span className="text-label font-mono tabular-nums text-muted-foreground/70">{right}</span>}
+          {label && <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">{label}</span>}
+          {right && <span className="text-label font-mono tabular-nums text-muted-foreground">{right}</span>}
         </div>
       )}
       <div className="w-full overflow-hidden rounded-full bg-foreground/[0.07]" style={{ height }}>
@@ -158,7 +158,7 @@ export function DecayBar({ daysLeft, totalDays = 30, className }: { daysLeft: nu
   return (
     <div className={cn('w-full', className)}>
       <div className="mb-1 flex items-baseline justify-between">
-        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">Time left</span>
+        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">Time left</span>
         <span className="text-label font-mono tabular-nums" style={{ color }}>{daysLeft}d</span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.07]">
@@ -183,7 +183,7 @@ export function CoilBar({ low, high, current, className }: { low: number; high: 
         <div className="absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-2 ring-background"
              style={{ left: `calc(${pos}% - 5px)`, background: color }} />
       </div>
-      <div className="mt-1 flex justify-between text-label font-mono tabular-nums text-muted-foreground/70">
+      <div className="mt-1 flex justify-between text-label font-mono tabular-nums text-muted-foreground">
         <span>{low.toFixed(2)}</span>
         <span style={{ color }}>{pos.toFixed(0)}% up the range</span>
         <span>{high.toFixed(2)}</span>
@@ -261,7 +261,7 @@ export function ScoreDial({
       </svg>
       <span className="absolute flex flex-col items-center leading-none">
         <span className="font-mono text-lead font-bold tabular-nums" style={{ color }}>{Math.round(v)}</span>
-        {label && <span className="mt-0.5 text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</span>}
+        {label && <span className="mt-0.5 text-label font-mono uppercase tracking-wider text-muted-foreground">{label}</span>}
       </span>
       {delta != null && delta !== 0 && (
         <span className="absolute -right-1 -top-1 font-mono text-label font-bold tabular-nums"
@@ -373,9 +373,9 @@ export function StructuralRange({
       </div>
 
       <div className="mt-1 flex justify-between text-label font-mono tabular-nums">
-        <span style={{ color: TC.bear }}>{putWall ? `$${putWall}` : '—'}<span className="ml-1 text-muted-foreground/70">put</span></span>
-        <span className="text-muted-foreground/70">{inCage ? 'inside the range' : 'outside the walls'}</span>
-        <span style={{ color: TC.bull }}><span className="mr-1 text-muted-foreground/70">call</span>{callWall ? `$${callWall}` : '—'}</span>
+        <span style={{ color: TC.bear }}>{putWall ? `$${putWall}` : '—'}<span className="ml-1 text-muted-foreground">put</span></span>
+        <span className="text-muted-foreground">{inCage ? 'inside the range' : 'outside the walls'}</span>
+        <span style={{ color: TC.bull }}><span className="mr-1 text-muted-foreground">call</span>{callWall ? `$${callWall}` : '—'}</span>
       </div>
     </div>
   );
@@ -599,7 +599,7 @@ export function Heartbeat({
       <span style={{ color: dead ? 'var(--trade-bearish)' : stale ? 'var(--brand-gold)' : 'var(--trade-bullish)' }}>
         {label}
       </span>
-      <span className="text-muted-foreground/70">{age}</span>
+      <span className="text-muted-foreground">{age}</span>
     </span>
   );
 }

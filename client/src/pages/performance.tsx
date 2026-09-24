@@ -133,9 +133,9 @@ function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number 
         <CardContent className="p-4">
           <div className="flex items-center gap-1 mb-1">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Hit Rate</p>
-            <span className="text-[10px] text-muted-foreground/60 font-mono">n={overall.decided}</span>
+            <span className="text-[10px] text-muted-foreground font-mono">n={overall.decided}</span>
             <span className="group relative inline-block">
-              <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
               <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-48 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
                 Count-based: wins / decided trades. Excludes &#177;3% breakeven trades.
               </span>
@@ -650,7 +650,7 @@ export default function PerformancePage() {
             </SelectContent>
           </Select>
 
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExport} data-testid="button-export">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExport} aria-label="Export performance data" data-testid="button-export">
             <Download className="w-3 h-3" />
           </Button>
         </div>
@@ -661,7 +661,7 @@ export default function PerformancePage() {
           inviting empty state instead of a hero full of zeros. */}
       {decidedCount === 0 ? (
         <Card className="p-8 text-center" data-testid="empty-performance">
-          <Target className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+          <Target className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <h2 className="text-lg font-semibold">
             {isFiltered ? "No decided ideas in this view" : "No decided ideas yet"}
           </h2>

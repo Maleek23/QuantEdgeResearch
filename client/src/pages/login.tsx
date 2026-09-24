@@ -159,7 +159,7 @@ export default function Login() {
 
             {/* Testimonial */}
             <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg p-5 max-w-md">
-              <p className="text-muted-foreground/70 dark:text-foreground/80 text-sm mb-3">
+              <p className="text-muted-foreground dark:text-foreground/80 text-sm mb-3">
                 "Finally, a platform that gives retail traders the same analysis tools institutions have been using for years."
               </p>
               <div className="flex items-center gap-2">
@@ -174,7 +174,7 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="text-xs text-muted-foreground dark:text-muted-foreground/70">
+          <div className="text-xs text-muted-foreground dark:text-muted-foreground">
             © {new Date().getFullYear()} Quant Edge Labs
           </div>
         </div>
@@ -256,7 +256,7 @@ export default function Login() {
               <div className="w-full border-t border-gray-200 dark:border-border" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-[#fafafa] dark:bg-[var(--surface-base)] px-3 text-muted-foreground dark:text-muted-foreground/70">or continue with email</span>
+              <span className="bg-[#fafafa] dark:bg-[var(--surface-base)] px-3 text-muted-foreground dark:text-muted-foreground">or continue with email</span>
             </div>
           </div>
 
@@ -270,13 +270,13 @@ export default function Login() {
                   <FormItem>
                     <FormControl>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground dark:text-muted-foreground/70" />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground dark:text-muted-foreground" />
                         <Input
                           type="email"
                           placeholder="Email address"
                           aria-label="Email address"
                           autoComplete="email"
-                          className="h-11 pl-10 bg-white dark:bg-card border-gray-200 dark:border-border text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground/70 focus:border-gray-300 dark:focus:border-border focus:ring-0"
+                          className="h-11 pl-10 bg-white dark:bg-card border-gray-200 dark:border-border text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:border-gray-300 dark:focus:border-border focus:ring-0"
                           {...field}
                         />
                       </div>
@@ -292,20 +292,20 @@ export default function Login() {
                   <FormItem>
                     <FormControl>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground dark:text-muted-foreground/70" />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground dark:text-muted-foreground" />
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="Password"
                           aria-label="Password"
                           autoComplete="current-password"
-                          className="h-11 pl-10 pr-10 bg-white dark:bg-card border-gray-200 dark:border-border text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground/70 focus:border-gray-300 dark:focus:border-border focus:ring-0"
+                          className="h-11 pl-10 pr-10 bg-white dark:bg-card border-gray-200 dark:border-border text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground focus:border-gray-300 dark:focus:border-border focus:ring-0"
                           {...field}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
                           aria-label={showPassword ? "Hide password" : "Show password"}
-                          className="absolute right-0 top-1/2 -translate-y-1/2 h-11 w-11 flex items-center justify-center text-muted-foreground dark:text-muted-foreground/70 hover:text-foreground dark:hover:text-foreground"
+                          className="absolute right-0 top-1/2 -translate-y-1/2 h-11 w-11 flex items-center justify-center text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -366,7 +366,7 @@ export default function Login() {
                   value={accessCode}
                   onChange={(e) => setAccessCode(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-                  className="h-10 bg-card border-border text-foreground placeholder:text-muted-foreground/70 focus:border-border focus:ring-0"
+                  className="h-10 bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-border focus:ring-0"
                 />
                 <Button
                   type="button"

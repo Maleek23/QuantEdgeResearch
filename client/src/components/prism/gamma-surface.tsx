@@ -518,7 +518,7 @@ export function GammaSurface({
           breakdown={`${cells - grid.filled} not listed`}
         />
         {flipPrice == null && (
-          <div className="text-muted-foreground/70">no gamma flip in range</div>
+          <div className="text-muted-foreground">no gamma flip in range</div>
         )}
       </div>
 
@@ -539,7 +539,7 @@ export function GammaSurface({
             className={`px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] transition-colors ${
               mode === m
                 ? 'bg-[var(--brand-cyan)]/15 text-[var(--brand-cyan)]'
-                : 'text-muted-foreground/60 hover:text-foreground/80'
+                : 'text-muted-foreground hover:text-foreground/80'
             }`}
           >
             {MODE_LABEL[m]}
@@ -560,11 +560,11 @@ export function GammaSurface({
             ) : (
               /* An unlisted strike/expiry is an absence, not a measurement of zero.
                  Printing "0.0000 GEX" here would state a reading the chain never made. */
-              <div className="text-muted-foreground/70">not listed</div>
+              <div className="text-muted-foreground">not listed</div>
             )}
           </>
         ) : (
-          <div className="text-muted-foreground/60">hover the surface</div>
+          <div className="text-muted-foreground">hover the surface</div>
         )}
       </div>
 
@@ -579,7 +579,7 @@ export function GammaSurface({
           ['FLIP', flipPrice, '#f59e0b'],
         ] as const).map(([name, value, color]) =>
           value == null ? (
-            <div key={name} className="text-muted-foreground/60">
+            <div key={name} className="text-muted-foreground">
               {name} — none
             </div>
           ) : (
@@ -594,7 +594,7 @@ export function GammaSurface({
         )}
       </div>
 
-      <div className="pointer-events-none absolute bottom-3 left-3 font-mono text-[9px] leading-relaxed tracking-wider text-muted-foreground/60">
+      <div className="pointer-events-none absolute bottom-3 left-3 font-mono text-[9px] leading-relaxed tracking-wider text-muted-foreground">
         <div>X STRIKE · Z EXPIRY (ordinal, not linear days) · Y NET GEX</div>
         {/* Naming the clipping is the point of (5). Silence here is what let a
             plateau of unequal cells read as a plateau of equal ones. */}

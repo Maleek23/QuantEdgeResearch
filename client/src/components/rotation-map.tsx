@@ -305,7 +305,7 @@ export function RotationMap({
     >
       {(data?.isStale || sessionNote) && (
         <div className="flex items-center justify-between border-b border-border/30 px-4 py-1.5">
-          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">
+          <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">
             {data?.sessionLabel ?? "last close"}
           </span>
           <div className="flex items-center gap-3">
@@ -332,7 +332,7 @@ export function RotationMap({
         style={{ aspectRatio: "16 / 10", maxWidth: expanded ? undefined : 560 }}
       >
         {isLoading && (
-          <div className="absolute inset-0 grid place-items-center text-label font-mono uppercase tracking-widest text-muted-foreground/70">
+          <div className="absolute inset-0 grid place-items-center text-label font-mono uppercase tracking-widest text-muted-foreground">
             reading rotation…
           </div>
         )}
@@ -538,14 +538,14 @@ export function RotationMap({
       {selectedSector && !expanded && (
         <div className="border-t border-border/40 px-4 py-2 font-mono text-[10px] text-muted-foreground">
           <span className="font-bold text-foreground">{selectedSector.etf}</span>
-          <span className="mx-2 text-muted-foreground/50">·</span>
+          <span className="mx-2 text-muted-foreground">·</span>
           {selectedSector.sector.name} vs SPY
           {tape.length > 1 && (
             <span className="ml-2 font-bold tabular-nums" style={{ color: tape[tape.length - 1].relative >= 0 ? TC.bull : TC.bear }}>
               {tape[tape.length - 1].relative >= 0 ? '+' : ''}{tape[tape.length - 1].relative.toFixed(2)}% relative
             </span>
           )}
-          <span className="ml-2 text-muted-foreground/65">· expand map for last 24 tradable hours</span>
+          <span className="ml-2 text-muted-foreground">· expand map for last 24 tradable hours</span>
         </div>
       )}
 
@@ -624,7 +624,7 @@ function RotationTape({
           <span className="text-[10px] text-muted-foreground">
             {sector.name} vs SPY
           </span>
-          <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/65">
+          <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
             last 24 tradable h
           </span>
         </div>
@@ -641,7 +641,7 @@ function RotationTape({
       {loading ? (
         <div className="mt-2 h-[94px] animate-pulse rounded bg-foreground/[0.035]" />
       ) : points.length < 2 ? (
-        <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground/70">
+        <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
           Extended-hours bars are unavailable for this sector right now. The map
           remains based on the latest verified rotation read.
         </p>
@@ -703,7 +703,7 @@ function RotationTape({
               fill={tone}
             />
           </svg>
-          <div className="mt-1 flex items-center justify-between font-mono text-[9px] tabular-nums text-muted-foreground/65">
+          <div className="mt-1 flex items-center justify-between font-mono text-[9px] tabular-nums text-muted-foreground">
             <span>{tapeDate(points[0]?.at)}</span>
             <span>15m bars · includes post &amp; pre-market</span>
             <span>{tapeDate(latest?.at)}</span>
@@ -735,7 +735,7 @@ function QLabel({
       >
         {q.label}
       </div>
-      <div className="text-label font-mono uppercase tracking-wide text-muted-foreground/70">
+      <div className="text-label font-mono uppercase tracking-wide text-muted-foreground">
         {q.sub}
       </div>
     </div>

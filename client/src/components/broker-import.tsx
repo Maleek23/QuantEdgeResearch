@@ -822,7 +822,7 @@ function PortfolioSummary({ portfolio }: { portfolio: Portfolio }) {
             {/* AI insights + signal correlation */}
             <PortfolioInsights broker={portfolio.broker} />
 
-            <div className="text-xs text-muted-foreground/70 text-center">
+            <div className="text-xs text-muted-foreground text-center">
               Last updated: {new Date(portfolio.lastUpdated).toLocaleString()}
             </div>
           </div>
@@ -965,12 +965,12 @@ export default function BrokerImport() {
       {/* Empty State */}
       {(!portfolioData || portfolioData.length === 0) && !portfolioLoading && (
         <Card className="bg-card/40 border-border/50 p-8 text-center">
-          <Link2Off className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
+          <Link2Off className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-white mb-2">No Brokers Connected</h3>
           <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
             Connect your broker accounts to track positions, analyze performance, and get AI-powered insights on your portfolio.
           </p>
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground/70">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <Info className="w-4 h-4" />
             <span>Your data is stored locally and never shared</span>
           </div>

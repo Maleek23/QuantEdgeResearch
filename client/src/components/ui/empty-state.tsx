@@ -41,19 +41,19 @@ const variantDefaults: Record<EmptyStateVariant, {
     icon: Database,
     title: 'No Data Available',
     message: 'Data has not been loaded yet. Try refreshing or check back later.',
-    iconColor: 'text-muted-foreground/70',
+    iconColor: 'text-muted-foreground',
   },
   'no-signals': {
     icon: BarChart3,
     title: 'No Signals Found',
     message: 'Market is in ranging regime. Try adjusting scanner settings or wait for volatility.',
-    iconColor: 'text-muted-foreground/70',
+    iconColor: 'text-muted-foreground',
   },
   'no-results': {
     icon: Search,
     title: 'No Results Found',
     message: 'Your search did not match any records. Try adjusting your filters.',
-    iconColor: 'text-muted-foreground/70',
+    iconColor: 'text-muted-foreground',
   },
   'error': {
     icon: AlertTriangle,
@@ -127,7 +127,7 @@ export function InlineEmptyState({
       "text-sm text-muted-foreground font-mono py-4 text-center",
       className
     )}>
-      <span className="text-muted-foreground/70 mr-2">{">"}</span>
+      <span className="text-muted-foreground mr-2">{">"}</span>
       {message}
     </div>
   );

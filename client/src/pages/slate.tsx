@@ -58,7 +58,7 @@ export default function SlatePage() {
           <span style={{ margin: "0 12px" }}>·</span>QUANTEDGE DAILY SLATE
         </div>
         <h1 style={{ fontSize: "clamp(26px, 6vw, 40px)", fontWeight: 700, margin: "0 0 6px", fontFamily: "inherit" }}>{today}</h1>
-        <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 28 }}>
+        <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 28, minHeight: "2.8em" }}>
           {cards.length} setups · all measured · {slateQ.data?.basis ?? "loading…"}
         </div>
 

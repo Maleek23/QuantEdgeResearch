@@ -167,12 +167,12 @@ export function TerminalGuide({ tab, open, onClose }: { tab: Tab; open: boolean;
             <div className="sticky top-0 flex items-center justify-between border-b border-border/40 bg-card px-4 py-3">
               <div>
                 <div className="text-[11px] font-mono font-bold uppercase tracking-widest text-foreground">{g.title}</div>
-                <div className="text-[10px] font-mono text-muted-foreground/60">{g.question}</div>
+                <div className="text-[10px] font-mono text-muted-foreground">{g.question}</div>
               </div>
               <button
                 onClick={onClose}
                 aria-label="Close guide"
-                className="cursor-pointer rounded p-1 text-muted-foreground/70 transition-colors hover:text-foreground"
+                className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -195,7 +195,7 @@ export function TerminalGuide({ tab, open, onClose }: { tab: Tab; open: boolean;
                 <div className="text-[11px] font-mono text-foreground/85">{g.next}</div>
               </div>
 
-              <p className="pt-2 text-[10px] leading-relaxed text-muted-foreground/70">
+              <p className="pt-2 text-[10px] leading-relaxed text-muted-foreground">
                 Educational only — not investment advice. Confirm every signal against your own risk plan.
               </p>
             </div>

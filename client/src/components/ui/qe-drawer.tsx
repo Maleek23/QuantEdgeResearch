@@ -80,7 +80,7 @@ export function QEDrawer({
           <div className="min-w-0">
             <div className="text-base font-mono font-bold text-foreground truncate">{title}</div>
             {subtitle && (
-              <div className="text-[10px] font-mono text-muted-foreground/80 uppercase tracking-widest truncate">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest truncate">
                 {subtitle}
               </div>
             )}

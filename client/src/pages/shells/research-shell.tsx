@@ -112,7 +112,7 @@ export default function ResearchShell() {
       {/* SUB-NAV TABS */}
       <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
 
-      <div className="text-[9px] font-mono text-muted-foreground/60">
+      <div className="text-[9px] font-mono text-muted-foreground">
         {TABS.find(t => t.id === tab)?.hint}
       </div>
 

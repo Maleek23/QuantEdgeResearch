@@ -157,7 +157,7 @@ export function DiscoveryPicksPanel({
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] text-muted-foreground/70">
+          <p className="text-[10px] text-muted-foreground">
             Auto-pushed from convergence engine (score ≥ 70) · {signals.length} active
           </p>
           {sizeToggle}

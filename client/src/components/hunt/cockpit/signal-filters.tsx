@@ -232,7 +232,7 @@ export function SignalFilterBar({
         {filters.query && (
           <button
             onClick={() => set('query', '')}
-            className="font-mono text-[10px] text-muted-foreground/70 hover:text-foreground"
+            className="font-mono text-[10px] text-muted-foreground hover:text-foreground"
             aria-label="Clear ticker"
           >
             ✕
@@ -246,7 +246,7 @@ export function SignalFilterBar({
               'shrink-0 border px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.1em] transition-colors',
               compactOpen || activeFilterCount > 0
                 ? 'border-[var(--brand-cyan)]/45 bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)]'
-                : 'border-border/60 text-muted-foreground/75 hover:border-foreground/40 hover:text-foreground',
+                : 'border-border/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground',
             )}
           >
             {compactOpen ? 'done' : activeFilterCount > 0 ? `filters ${activeFilterCount}` : 'filters'}
@@ -298,7 +298,7 @@ export function SignalFilterBar({
       </>}
 
       {/* Count + escape. Never truncate silently. */}
-      <div className={cn('flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70', compact ? '' : 'w-full')}>
+      <div className={cn('flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground', compact ? '' : 'w-full')}>
         <span>{shownCount} of {picks.length} shown</span>
         {active && (
           <button onClick={reset} className="text-[color:var(--brand-cyan)] transition-opacity hover:opacity-70">
@@ -310,7 +310,7 @@ export function SignalFilterBar({
       {/* Probably a typo — offer the real symbol before anything else. */}
       {suggestions.length > 0 && (
         <div className="flex w-full flex-wrap items-center gap-2 border-t border-border/40 pt-2">
-          <span className="font-mono text-[10px] text-muted-foreground/70">Did you mean</span>
+          <span className="font-mono text-[10px] text-muted-foreground">Did you mean</span>
           {suggestions.map((sym) => {
             const listed = bookSymbols.has(sym);
             return (
@@ -330,7 +330,7 @@ export function SignalFilterBar({
             <button
               onClick={() => onGradeTicker(q)}
               disabled={grading}
-              className="font-mono text-[10px] text-muted-foreground/70 underline-offset-2 hover:underline disabled:opacity-50"
+              className="font-mono text-[10px] text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
             >
               no, grade {q}
             </button>
@@ -341,7 +341,7 @@ export function SignalFilterBar({
       {/* A ticker the book does not carry is a question, not a dead end. */}
       {canGrade && (
         <div className="flex w-full items-center gap-2 border-t border-border/40 pt-2">
-          <span className="font-mono text-[10px] text-muted-foreground/70">
+          <span className="font-mono text-[10px] text-muted-foreground">
             {knownTicker ? `${q} is covered, but has no published signal today.` : `${q} isn’t in today’s book.`}
           </span>
           <button
@@ -362,7 +362,7 @@ function FilterGroup({ label, children, className }: {
 }) {
   return (
     <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
-      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/70">{label}</span>
+      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
       {children}
     </div>
   );

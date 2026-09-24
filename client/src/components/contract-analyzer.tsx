@@ -154,7 +154,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
       {/* Header */}
       <div className="flex items-center justify-between mb-2 pb-2 border-b border-border/30">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
             Contract Analyzer
           </span>
           {analysis && (
@@ -164,7 +164,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
           )}
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-muted-foreground/60 hover:text-foreground">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-3.5 w-3.5" />
           </button>
         )}
@@ -179,7 +179,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && analyze()}
-            className="flex-1 bg-muted/20 border border-border/40 rounded px-3 py-1.5 text-[11px] font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-[var(--brand-cyan)]/60"
+            className="flex-1 bg-muted/20 border border-border/40 rounded px-3 py-1.5 text-[11px] font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[var(--brand-cyan)]/60"
           />
           <button
             onClick={() => analyze()}
@@ -211,7 +211,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
           <div className="space-y-1 font-mono text-[10px]">
             {analysis.statusLines.map((line, i) => (
               <div key={i} className="text-[var(--brand-cyan)]/80">
-                {'> '}<span className="text-muted-foreground/70">{line}</span>
+                {'> '}<span className="text-muted-foreground">{line}</span>
               </div>
             ))}
           </div>
@@ -219,23 +219,23 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
           {/* Header bar — spot, contract, Greeks summary */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px] font-mono px-2 py-2 rounded bg-muted/20 border border-border/20">
             <div>
-              <div className="text-muted-foreground/60 uppercase text-[9px]">Spot</div>
+              <div className="text-muted-foreground uppercase text-[9px]">Spot</div>
               <div className="text-foreground font-bold">${analysis.spotAtAnalysis.toFixed(2)}</div>
             </div>
             <div>
-              <div className="text-muted-foreground/60 uppercase text-[9px]">Contract Mid</div>
+              <div className="text-muted-foreground uppercase text-[9px]">Contract Mid</div>
               <div className="text-foreground font-bold">${analysis.contractMid?.toFixed(2) ?? '—'}</div>
             </div>
             <div>
-              <div className="text-muted-foreground/60 uppercase text-[9px]">Delta</div>
+              <div className="text-muted-foreground uppercase text-[9px]">Delta</div>
               <div className="text-foreground">{analysis.delta?.toFixed(2) ?? '—'}</div>
             </div>
             <div>
-              <div className="text-muted-foreground/60 uppercase text-[9px]">Theta/day</div>
+              <div className="text-muted-foreground uppercase text-[9px]">Theta/day</div>
               <div className="text-foreground">-${Math.abs(analysis.theta ?? 0).toFixed(3)}</div>
             </div>
             <div>
-              <div className="text-muted-foreground/60 uppercase text-[9px]">IV</div>
+              <div className="text-muted-foreground uppercase text-[9px]">IV</div>
               <div className="text-foreground">{((analysis.iv ?? 0) * 100).toFixed(0)}%</div>
             </div>
           </div>
@@ -257,7 +257,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
 
           {/* Combining... line */}
           <div className="text-[10px] font-mono text-[var(--brand-cyan)]/80 pt-1">
-            {'> '}<span className="text-muted-foreground/70">Combining individual tool analyses into final conviction</span>
+            {'> '}<span className="text-muted-foreground">Combining individual tool analyses into final conviction</span>
           </div>
 
           {/* Final composite */}
@@ -269,7 +269,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
           </div>
 
           <div className="text-[10px] font-mono text-[var(--brand-cyan)]/80">
-            {'> '}<span className="text-muted-foreground/70">Analysis complete · score {analysis.finalScore}/100</span>
+            {'> '}<span className="text-muted-foreground">Analysis complete · score {analysis.finalScore}/100</span>
           </div>
 
           {/* Trade plan */}
@@ -289,7 +289,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
               <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
                 {analysis.roiScenarios.map((r, i) => (
                   <div key={i} className="px-2 py-1 rounded bg-muted/20 border border-border/20">
-                    <div className="text-muted-foreground/60">
+                    <div className="text-muted-foreground">
                       {r.pct === 0 ? 'flat' : `${r.pct > 0 ? '+' : ''}${r.pct.toFixed(1)}σ`} → ${r.stockPrice.toFixed(2)}
                     </div>
                     <div className={`font-bold ${r.roi >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
@@ -308,7 +308,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
                 <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--brand-cyan)]">
                   Oracle Upgrade
                 </span>
-                <span className="text-[10px] font-mono text-muted-foreground/70">
+                <span className="text-[10px] font-mono text-muted-foreground">
                   {analysis.suggestionNote ?? 'Stronger contracts for the same thesis'}
                 </span>
               </div>
@@ -326,7 +326,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
           )}
           {analysis.suggestions && analysis.suggestions.length === 0 && analysis.suggestionNote && (
             <div className="pt-3 border-t border-border/30">
-              <div className="text-[10px] font-mono text-muted-foreground/60">
+              <div className="text-[10px] font-mono text-muted-foreground">
                 {'> '}{analysis.suggestionNote}
               </div>
             </div>
@@ -335,7 +335,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
           {/* Push to Trade Desk */}
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/30">
             {pushResult && (
-              <div className="text-[10px] font-mono text-muted-foreground/70 flex-1">{pushResult}</div>
+              <div className="text-[10px] font-mono text-muted-foreground flex-1">{pushResult}</div>
             )}
             <button
               onClick={pushToTradeDesk}
@@ -404,28 +404,28 @@ function SuggestionCard({ s, symbol, onReanalyze }: {
       <div className="text-[13px] font-mono font-bold text-foreground">
         ${s.strike}{cp}
       </div>
-      <div className="text-[9px] font-mono text-muted-foreground/70 mb-2">
+      <div className="text-[9px] font-mono text-muted-foreground mb-2">
         {fmtExpiry(s.expiry)} · {s.dte}DTE · Δ{s.delta.toFixed(2)} · ${s.entryPremium.toFixed(2)}
       </div>
       {/* Metrics grid */}
       <div className="grid grid-cols-3 gap-1.5 text-[9px] font-mono">
         <div>
-          <div className="text-muted-foreground/60 uppercase text-[9px]">ROI@T1</div>
+          <div className="text-muted-foreground uppercase text-[9px]">ROI@T1</div>
           <div className={`font-bold ${s.roiAtT1Pct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
             {s.roiAtT1Pct >= 0 ? '+' : ''}{s.roiAtT1Pct.toFixed(0)}%
           </div>
         </div>
         <div>
-          <div className="text-muted-foreground/60 uppercase text-[9px]">R:R</div>
+          <div className="text-muted-foreground uppercase text-[9px]">R:R</div>
           <div className="font-bold text-foreground">{s.riskRewardRatio.toFixed(1)}x</div>
         </div>
         <div>
-          <div className="text-muted-foreground/60 uppercase text-[9px]">BE</div>
+          <div className="text-muted-foreground uppercase text-[9px]">BE</div>
           <div className="font-bold text-foreground">${s.breakeven.toFixed(2)}</div>
         </div>
       </div>
       {s.rationale && (
-        <div className="mt-1.5 text-[9px] font-mono text-muted-foreground/60 leading-snug line-clamp-2">
+        <div className="mt-1.5 text-[9px] font-mono text-muted-foreground leading-snug line-clamp-2">
           {s.rationale}
         </div>
       )}
@@ -440,7 +440,7 @@ function PlanBox({ label, value, color }: { label: string; value: string; color:
     'text-foreground';
   return (
     <div className="px-2 py-1.5 rounded bg-muted/20 border border-border/20">
-      <div className="text-[9px] font-mono uppercase text-muted-foreground/60">{label}</div>
+      <div className="text-[9px] font-mono uppercase text-muted-foreground">{label}</div>
       <div className={`text-[11px] font-mono font-bold ${colorClass}`}>{value}</div>
     </div>
   );

@@ -159,7 +159,7 @@ function LegendDialog() {
                     ))}
                   </div>
                   <span className="font-mono text-[10px] tabular-nums">{row.cutoff}</span>
-                  <span className="text-[10px] text-muted-foreground/60 ml-auto">
+                  <span className="text-[10px] text-muted-foreground ml-auto">
                     {row.band} band
                   </span>
                 </div>

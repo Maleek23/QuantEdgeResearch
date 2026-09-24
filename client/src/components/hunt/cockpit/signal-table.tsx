@@ -51,7 +51,7 @@ export function SignalTable({
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1180px] border-collapse text-left font-mono tabular-nums">
           <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-xl">
-            <tr className="border-b border-border/70 text-[9px] uppercase tracking-[0.14em] text-muted-foreground/70">
+            <tr className="border-b border-border/70 text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
               <th className="w-10 px-3 py-2 text-right">#</th>
               <th className="px-3 py-2">Ticker ↕</th>
               <th className="px-3 py-2">Side</th>
@@ -87,11 +87,11 @@ export function SignalTable({
                     selectedId === pick.ideaId && 'bg-[var(--brand-cyan)]/[0.07]',
                   )}
                 >
-                  <td className="px-3 py-2 text-right text-muted-foreground/55">{index + 1}</td>
+                  <td className="px-3 py-2 text-right text-muted-foreground">{index + 1}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-baseline gap-2">
                       <span className="text-[13px] font-bold tracking-[0.04em] text-foreground">{pick.symbol}</span>
-                      <span className="max-w-24 truncate text-[9px] uppercase tracking-wider text-muted-foreground/55">
+                      <span className="max-w-24 truncate text-[9px] uppercase tracking-wider text-muted-foreground">
                         {pick.sector || pick.tradeType || 'equity'}
                       </span>
                     </div>
@@ -107,7 +107,7 @@ export function SignalTable({
                         <div className="h-full rounded-full bg-gradient-to-r from-[var(--trade-bullish)] to-[var(--brand-cyan)]" style={{ width: `${Math.max(5, evidencePct)}%` }} />
                       </div>
                       <span className="text-[12px] font-bold text-foreground">{evidencePct}</span>
-                      <span className="text-[9px] text-muted-foreground/60">{pick.convictionBand} · {pick.layerCount}L</span>
+                      <span className="text-[9px] text-muted-foreground">{pick.convictionBand} · {pick.layerCount}L</span>
                     </div>
                   </td>
                   <td className="px-3 py-2">
@@ -141,7 +141,7 @@ export function SignalTable({
                   <td className="px-3 py-2">
                     <div className="flex items-baseline gap-2">
                       <span className="text-foreground">{contractFor(pick)}</span>
-                      <span className="text-[9px] text-muted-foreground/60">
+                      <span className="text-[9px] text-muted-foreground">
                         {pick.entryPremium != null ? money(pick.entryPremium) : ''}{pick.optionDte != null ? ` · ${pick.optionDte}d` : ''}
                       </span>
                     </div>
@@ -159,7 +159,7 @@ export function SignalTable({
           </motion.tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between border-t border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/60">
+      <div className="flex items-center justify-between border-t border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
         <span>{picks.length} signals · click a row to open the cockpit</span>
         <span>live path · fixed published levels</span>
       </div>

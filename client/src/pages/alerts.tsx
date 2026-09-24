@@ -135,7 +135,7 @@ export default function AlertsPage() {
               <AlertTypeToggles prefs={prefs} update={update} />
               <AlertDeliveryRows prefs={prefs} update={update} />
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70"
+                <span className="text-label font-mono uppercase tracking-wider text-muted-foreground"
                       title="Play a short sound when an alert fires">
                   Alert sounds
                 </span>
@@ -173,7 +173,7 @@ export default function AlertsPage() {
                       'shrink-0 rounded px-2 py-0.5 text-label font-mono uppercase tracking-wider',
                       prefs.enabled[t]
                         ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]'
-                        : 'bg-foreground/5 text-muted-foreground/70'
+                        : 'bg-foreground/5 text-muted-foreground'
                     )}>
                       {ALERT_LABELS[t]}
                     </dt>
@@ -198,7 +198,7 @@ export default function AlertsPage() {
               <Button
                 variant="ghost" size="sm"
                 onClick={() => { clearFeed(); setFeed([]); }}
-                className="text-muted-foreground/70 hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear
               </Button>
@@ -207,9 +207,9 @@ export default function AlertsPage() {
           <CardContent className="px-0">
             {feed.length === 0 ? (
               <div className="px-6 py-12 text-center">
-                <Bell className="mx-auto w-6 h-6 text-muted-foreground/40" />
+                <Bell className="mx-auto w-6 h-6 text-muted-foreground" />
                 <div className="mt-3 text-meta font-mono uppercase tracking-widest text-foreground/80">No alerts yet</div>
-                <p className="mx-auto mt-2 max-w-xs text-meta leading-relaxed text-muted-foreground/70">
+                <p className="mx-auto mt-2 max-w-xs text-meta leading-relaxed text-muted-foreground">
                   Alerts fire when a signal actually changes state — a trigger fills, T1 is hit, a
                   stop comes into range. Keep the platform open and they&apos;ll land here.
                 </p>
@@ -222,7 +222,7 @@ export default function AlertsPage() {
                 {feed.length > FEED_CAP && (
                   <button
                     onClick={() => setShowAll((v) => !v)}
-                    className="w-full cursor-pointer py-2 text-label font-mono uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+                    className="w-full cursor-pointer py-2 text-label font-mono uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
                   >
                     {showAll ? 'Show less' : `Show all ${feed.length}`}
                   </button>

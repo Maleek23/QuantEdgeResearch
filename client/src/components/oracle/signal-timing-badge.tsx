@@ -38,7 +38,7 @@ export function SignalTimingBadge({
         {t.label}
       </span>
       {showCaveat && t.caveat && (
-        <span className="text-label font-mono text-muted-foreground/70 truncate">· {t.caveat}</span>
+        <span className="text-label font-mono text-muted-foreground truncate">· {t.caveat}</span>
       )}
     </span>
   );

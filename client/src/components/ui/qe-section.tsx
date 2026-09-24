@@ -65,7 +65,7 @@ export function QESection({
             {title}
           </span>
           {subtitle && (
-            <span className="text-[9px] font-mono text-muted-foreground/70">
+            <span className="text-[9px] font-mono text-muted-foreground">
               · {subtitle}
             </span>
           )}

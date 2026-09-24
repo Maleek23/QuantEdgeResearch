@@ -62,14 +62,14 @@ export function MarketStream({ className }: { className?: string }) {
           </span>
           Overnight stream
         </span>
-        <span className="tabular-nums text-muted-foreground/55">{active}/{quotes.length} fresh</span>
+        <span className="tabular-nums text-muted-foreground">{active}/{quotes.length} fresh</span>
       </div>
       <div className="grid grid-cols-5 gap-2">
         {quotes.map(([symbol, quote]) => {
           const fresh = quote && quote.ageSeconds <= 30;
           return (
             <div key={symbol} className="min-w-0 font-mono tabular-nums">
-              <div className="flex items-center gap-1 text-[9px] font-bold tracking-[0.13em] text-muted-foreground/60">
+              <div className="flex items-center gap-1 text-[9px] font-bold tracking-[0.13em] text-muted-foreground">
                 <span className="h-1 w-1 rounded-full" style={{ background: fresh ? TC.bull : TC.warn }} /> {symbol}
               </div>
               {quote ? (
@@ -78,8 +78,8 @@ export function MarketStream({ className }: { className?: string }) {
                   format={(value) => formatPrice(symbol, value)}
                   className="mt-0.5 block max-w-full truncate px-0 text-[10px] font-semibold text-foreground"
                 />
-              ) : <span className="text-[10px] text-muted-foreground/50">—</span>}
-              <div className="mt-0.5 text-[9px] text-muted-foreground/50">{quote ? `${quote.ageSeconds}s` : 'no feed'}</div>
+              ) : <span className="text-[10px] text-muted-foreground">—</span>}
+              <div className="mt-0.5 text-[9px] text-muted-foreground">{quote ? `${quote.ageSeconds}s` : 'no feed'}</div>
             </div>
           );
         })}

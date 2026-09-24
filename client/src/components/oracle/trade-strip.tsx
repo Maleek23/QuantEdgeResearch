@@ -76,7 +76,7 @@ export function TradeStrip({
   if (!pick) {
     return (
       <div className={cn('rounded-lg border border-dashed border-border px-4 py-2.5', className)}>
-        <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/60">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
           Selecting contract…
         </span>
       </div>
@@ -130,7 +130,7 @@ export function TradeStrip({
 
       {/* The disagreement, stated. Never silently reconciled. */}
       {disagrees && (
-        <p className="mt-2.5 border-t border-dashed border-border pt-2 font-mono text-[10px] leading-relaxed text-muted-foreground/70">
+        <p className="mt-2.5 border-t border-dashed border-border pt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
           Published at{' '}
           <span className="text-[var(--brand-gold)]">
             ${publishedStrike}{(publishedType ?? '').toLowerCase() === 'put' ? 'P' : 'C'}
@@ -151,9 +151,9 @@ function Fact({ label, value, tone, note }: { label: string; value: string; tone
     : 'var(--foreground)';
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/70">{label}</span>
+      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
       <span className="font-mono text-[13px] font-medium tabular-nums" style={{ color }}>{value}</span>
-      {note && <span className="font-mono text-[9px] text-muted-foreground/60">{note}</span>}
+      {note && <span className="font-mono text-[9px] text-muted-foreground">{note}</span>}
     </div>
   );
 }

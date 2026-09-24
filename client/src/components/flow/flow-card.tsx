@@ -39,7 +39,7 @@ function Block({ title, children, muted }: { title: string; children: React.Reac
     <div className="mt-3 first:mt-0">
       <div className={cn(
         'mb-1.5 text-label font-mono uppercase tracking-widest',
-        muted ? 'text-muted-foreground/45' : 'text-muted-foreground/60',
+        muted ? 'text-muted-foreground' : 'text-muted-foreground',
       )}>
         {title}
       </div>
@@ -52,12 +52,12 @@ function Block({ title, children, muted }: { title: string; children: React.Reac
 function KV({ k, v, color, strong, dim }: { k: string; v: string; color?: string; strong?: boolean; dim?: boolean }) {
   return (
     <div className="min-w-0">
-      <div className="truncate text-label font-mono uppercase tracking-wider text-muted-foreground/55">{k}</div>
+      <div className="truncate text-label font-mono uppercase tracking-wider text-muted-foreground">{k}</div>
       <div
         className={cn(
           'truncate font-mono tabular-nums',
           strong ? 'text-[13px] font-bold' : 'text-[11px]',
-          dim && 'italic text-muted-foreground/40',
+          dim && 'italic text-muted-foreground',
         )}
         style={color && !dim ? { color } : undefined}
       >
@@ -112,7 +112,7 @@ export function FlowCard({
           </div>
           <div className="mt-0.5 text-label font-mono tabular-nums" style={{ color: tone }}>
             ${print.strikePrice}{print.optionType === 'call' ? 'C' : 'P'} · {expLabel(print.expirationDate)}
-            {score.dte != null && <span className="text-muted-foreground/70"> · {score.dte}DTE</span>}
+            {score.dte != null && <span className="text-muted-foreground"> · {score.dte}DTE</span>}
           </div>
         </button>
 
@@ -149,7 +149,7 @@ export function FlowCard({
             </span>
             {/* Word band next to the tier letter: "84 · STRONG" reads without
                 having to know the tier scale. */}
-            <span className="mt-0.5 flex items-center gap-0.5 text-label font-mono uppercase tracking-wider text-muted-foreground/60">
+            <span className="mt-0.5 flex items-center gap-0.5 text-label font-mono uppercase tracking-wider text-muted-foreground">
               {scoreBand(score.score)} <ChevronDown className={cn('h-2.5 w-2.5 transition-transform', open && 'rotate-180')} />
             </span>
           </button>
@@ -179,15 +179,15 @@ export function FlowCard({
           transition={{ duration: DUR.base, ease: EASE }}
           className="border-t border-border/30 px-3 py-2"
         >
-          <div className="mb-1.5 text-label font-mono uppercase tracking-widest text-muted-foreground/60">Why this score</div>
+          <div className="mb-1.5 text-label font-mono uppercase tracking-widest text-muted-foreground">Why this score</div>
           <div className="space-y-1">
             {score.components.map((c) => (
               <div key={c.label} className="flex items-baseline gap-2 text-label font-mono">
-                <span className="w-24 shrink-0 uppercase tracking-wider text-muted-foreground/70">{c.label}</span>
+                <span className="w-24 shrink-0 uppercase tracking-wider text-muted-foreground">{c.label}</span>
                 <span className="w-8 shrink-0 tabular-nums font-bold" style={{ color: c.points >= 0 ? BULL : BEAR }}>
                   {c.points >= 0 ? '+' : ''}{c.points}
                 </span>
-                <span className="text-muted-foreground/60">{c.why}</span>
+                <span className="text-muted-foreground">{c.why}</span>
               </div>
             ))}
           </div>
@@ -236,7 +236,7 @@ export function FlowCard({
             <KV k="Score band" v={scoreBand(score.score)} color={TIER_COLOR[score.tier]} />
           </Block>
 
-          <p className="mt-2 text-label leading-relaxed text-muted-foreground/70">
+          <p className="mt-2 text-label leading-relaxed text-muted-foreground">
             Score ranks aggregate chain activity; it is not proof of buyer/seller intent and it is not a trigger.
           </p>
         </motion.div>
@@ -244,7 +244,7 @@ export function FlowCard({
 
       {/* footer actions */}
       <div className="flex items-center gap-2 border-t border-border/30 px-3 py-1.5">
-        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">
+        <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">
           {print.volume.toLocaleString()} vol
           {print.openInterest ? ` · ${print.openInterest.toLocaleString()} OI` : ''}
           {print.impliedVolatility ? ` · IV ${(print.impliedVolatility * (print.impliedVolatility > 3 ? 1 : 100)).toFixed(0)}%` : ''}
@@ -254,7 +254,7 @@ export function FlowCard({
           aria-label={watched ? `Remove ${print.symbol} from watchlist` : `Add ${print.symbol} to watchlist`}
           className={cn(
             'ml-auto inline-flex cursor-pointer items-center gap-1 text-label font-mono uppercase tracking-wider transition-colors',
-            watched ? 'text-[#e0a458]' : 'text-muted-foreground/70 hover:text-foreground',
+            watched ? 'text-[#e0a458]' : 'text-muted-foreground hover:text-foreground',
           )}
         >
           <Star className={cn('h-3 w-3', watched && 'fill-current')} /> {watched ? 'Watching' : 'Watch'}
@@ -267,7 +267,7 @@ export function FlowCard({
 function Cell({ label, value, color, strong }: { label: string; value: string; color?: string; strong?: boolean }) {
   return (
     <div className="bg-card px-2.5 py-1.5">
-      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground/70">{label}</div>
+      <div className="text-label font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className={cn('mt-0.5 font-mono tabular-nums', strong ? 'text-body font-bold' : 'text-meta')}
            style={{ color: color ?? 'var(--foreground)' }}>
         {value}

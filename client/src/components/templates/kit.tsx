@@ -247,7 +247,7 @@ export function KeyValue({
 }) {
   return (
     <div className={cn("flex flex-col gap-0.5", className)}>
-      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">
+      <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
         {k}
       </span>
       <span
@@ -400,7 +400,7 @@ export function BoardFrame({
       {(title || right) && (
         <div className="relative z-[2] mb-6 flex flex-wrap items-center justify-between gap-4">
           {title && (
-            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70">
+            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               {title}
             </span>
           )}
@@ -423,7 +423,7 @@ export function IntensityLegend({
   const c = TONE_VAR[tone];
   const steps = [0.18, 0.45, 1];
   return (
-    <span className="inline-flex items-center gap-[18px] font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground/70">
+    <span className="inline-flex items-center gap-[18px] font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
       {steps.map((s, i) => (
         <span key={i} className="inline-flex items-center gap-1.5">
           <i
@@ -471,11 +471,11 @@ export function SectionRule({
 }) {
   return (
     <div className={cn("flex items-center gap-3 pt-3", className)}>
-      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </span>
       {note && (
-        <span className="font-mono text-[10px] text-muted-foreground/60">
+        <span className="font-mono text-[10px] text-muted-foreground">
           {note}
         </span>
       )}
@@ -560,7 +560,7 @@ export function Readout({
           {title}
         </span>
         {meta && (
-          <span className="font-mono text-[10px] font-medium text-muted-foreground/80">
+          <span className="font-mono text-[10px] font-medium text-muted-foreground">
             {meta}
           </span>
         )}
@@ -578,7 +578,7 @@ export function Readout({
               </span>
             )}
             {qualifier && (
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 {qualifier}
               </span>
             )}
@@ -589,7 +589,7 @@ export function Readout({
         {children}
 
         {note && (
-          <p className="border-t border-border/45 pt-2.5 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground/80">
+          <p className="border-t border-border/45 pt-2.5 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground">
             {note}
           </p>
         )}
@@ -689,14 +689,14 @@ export function BandScale({
               key={b.label}
               style={{ color: i === activeIdx ? c : undefined }}
               className={
-                i === activeIdx ? "font-bold" : "text-muted-foreground/70"
+                i === activeIdx ? "font-bold" : "text-muted-foreground"
               }
             >
               {b.label}
             </span>
           ))}
         </span>
-        <span className="text-muted-foreground/70">
+        <span className="text-muted-foreground">
           {next
             ? `${Math.max(0, Math.ceil(next.floor - value))} to ${next.label}`
             : "top band"}

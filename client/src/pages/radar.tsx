@@ -89,7 +89,7 @@ export default function RadarPage() {
             Thesis Radar
           </h1>
           <HeroLine hero={hero} loading={loading} error={error} />
-          <p className="text-[11px] font-mono text-muted-foreground/70">
+          <p className="text-[11px] font-mono text-muted-foreground">
             Autonomous setup discovery — 6 patterns, ~120 tickers, 5 scans/day.
           </p>
         </div>
@@ -98,7 +98,7 @@ export default function RadarPage() {
 
       <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
 
-      <div className="text-[9px] font-mono text-muted-foreground/60">
+      <div className="text-[9px] font-mono text-muted-foreground">
         {TABS.find(t => t.id === tab)?.hint}
       </div>
 
@@ -125,13 +125,13 @@ function HeroLine({ hero, loading, error }: { hero: Hero; loading: boolean; erro
     return <div className="text-sm font-mono text-muted-foreground animate-pulse">Reading radar…</div>;
   }
   if (error || !hero) {
-    return <div className="text-sm font-mono text-muted-foreground/70">Couldn't reach the radar API.</div>;
+    return <div className="text-sm font-mono text-muted-foreground">Couldn't reach the radar API.</div>;
   }
   if (hero.kind === 'forming') {
     return (
       <div className="text-sm font-mono flex items-center gap-2 flex-wrap">
         <span className="font-bold text-amber-500">{hero.count} forming</span>
-        <span className="text-muted-foreground/60 text-[11px]">top:</span>
+        <span className="text-muted-foreground text-[11px]">top:</span>
         <span className="font-bold text-foreground">{hero.symbol}</span>
         <GradePill grade={hero.grade} />
       </div>
@@ -140,21 +140,21 @@ function HeroLine({ hero, loading, error }: { hero: Hero; loading: boolean; erro
   if (hero.kind === 'latest') {
     return (
       <div className="text-sm font-mono flex items-center gap-2 flex-wrap">
-        <span className="text-muted-foreground/60 text-[11px]">latest pick:</span>
+        <span className="text-muted-foreground text-[11px]">latest pick:</span>
         <span className="font-bold text-foreground">{hero.symbol}</span>
         <GradePill grade={hero.grade} />
-        <span className="text-muted-foreground/60 text-[11px]">· {hero.count} fired</span>
+        <span className="text-muted-foreground text-[11px]">· {hero.count} fired</span>
       </div>
     );
   }
-  return <div className="text-sm font-mono text-muted-foreground/70">No picks on record yet — the next scan will appear here.</div>;
+  return <div className="text-sm font-mono text-muted-foreground">No picks on record yet — the next scan will appear here.</div>;
 }
 
 // ─── Legend — the one place jargon gets explained ────────────────────
 
 function Legend() {
   return (
-    <details className="text-[10px] font-mono text-muted-foreground/70">
+    <details className="text-[10px] font-mono text-muted-foreground">
       <summary className="cursor-pointer text-primary/80 hover:text-primary w-fit">
         Legend — grades, statuses, terms
       </summary>
@@ -224,7 +224,7 @@ function PicksTab({ query }: { query: PicksQuery }) {
   if (!picks || picks.length === 0) {
     return (
       <EmptyState
-        icon={<Eye className="h-8 w-8 text-muted-foreground/60" />}
+        icon={<Eye className="h-8 w-8 text-muted-foreground" />}
         title="No picks fired yet"
         message="Scans run at 09:35, 12:00, 15:55 ET on weekdays. Check back after the next scan, or trigger one manually with the Re-scan button."
       />
@@ -259,16 +259,16 @@ function PickCard({ pick }: { pick: RadarPick }) {
           </span>
           <div className="font-mono font-bold text-sm truncate">{pick.symbol}</div>
           <GradePill grade={pick.finalGrade} />
-          <div className="text-[10px] font-mono text-muted-foreground/60 truncate">
+          <div className="text-[10px] font-mono text-muted-foreground truncate">
             ${pick.spotAtFire.toFixed(2)} · {pick.patternId.replace(/_/g, ' ')}
           </div>
         </div>
-        <div className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
+        <div className="text-[10px] font-mono text-muted-foreground shrink-0">
           {new Date(pick.firedAt).toLocaleString()}
         </div>
       </div>
 
-      <p className="text-[11px] font-mono text-muted-foreground/80 leading-relaxed line-clamp-2">
+      <p className="text-[11px] font-mono text-muted-foreground leading-relaxed line-clamp-2">
         {pick.synthesis}
       </p>
 
@@ -287,7 +287,7 @@ function PickCard({ pick }: { pick: RadarPick }) {
                     className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-muted/30 border border-border/30"
                     title={s.source}
                   >
-                    {s.label} <span className="text-muted-foreground/60">{s.grade}</span>
+                    {s.label} <span className="text-muted-foreground">{s.grade}</span>
                   </div>
                 ))}
               </div>
@@ -371,7 +371,7 @@ function PatternsTab() {
   if (patterns.length === 0) {
     return (
       <EmptyState
-        icon={<Eye className="h-8 w-8 text-muted-foreground/60" />}
+        icon={<Eye className="h-8 w-8 text-muted-foreground" />}
         title="No patterns configured"
         message="The engine didn't return any pattern signatures. If this persists, the scan configuration may need attention."
       />
@@ -383,16 +383,16 @@ function PatternsTab() {
         <div key={p.id} className="qe-card border border-border/40 rounded-md p-4 space-y-3">
           <div>
             <h3 className="font-mono font-bold text-sm uppercase">{p.name}</h3>
-            <p className="text-[11px] font-mono text-muted-foreground/70 mt-1">{p.thesis}</p>
+            <p className="text-[11px] font-mono text-muted-foreground mt-1">{p.thesis}</p>
           </div>
           <div className="flex items-center gap-3 text-[10px] font-mono">
-            <div className="text-muted-foreground/60">
+            <div className="text-muted-foreground">
               Horizon: <span className="text-foreground">{p.horizon}</span>
             </div>
-            <div className="text-muted-foreground/60">
+            <div className="text-muted-foreground">
               Target hit rate: <span className="text-foreground">{(p.targetHitRate * 100).toFixed(0)}%</span>
             </div>
-            <div className="text-muted-foreground/60">
+            <div className="text-muted-foreground">
               Filters: <span className="text-foreground">{p.filters.length}</span>
             </div>
           </div>
@@ -400,7 +400,7 @@ function PatternsTab() {
             <summary className="cursor-pointer text-primary/80 hover:text-primary">View filters</summary>
             <ul className="mt-2 space-y-1.5 pl-4">
               {p.filters.map((f, i) => (
-                <li key={i} className="text-muted-foreground/80">
+                <li key={i} className="text-muted-foreground">
                   <span className="text-primary/60">[{f.domain}]</span> {f.explain}
                 </li>
               ))}
@@ -448,7 +448,7 @@ function TrackTab() {
   if (stats.length === 0) {
     return (
       <EmptyState
-        icon={<History className="h-8 w-8 text-muted-foreground/60" />}
+        icon={<History className="h-8 w-8 text-muted-foreground" />}
         title="No resolved picks yet"
         message="Track record builds as picks fire and the daily resolve cron marks outcomes. Check back after a few weeks of operation."
       />
@@ -456,7 +456,7 @@ function TrackTab() {
   }
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-7 gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60 px-3 py-2 border-b border-border/30">
+      <div className="grid grid-cols-7 gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-3 py-2 border-b border-border/30">
         <div className="col-span-2">Pattern</div>
         <div>Picks</div>
         <div>Resolved</div>
@@ -502,7 +502,7 @@ function GradePill({ grade }: { grade: string }) {
 
 function LoadingState({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-center py-12 text-[11px] font-mono text-muted-foreground/60">
+    <div className="flex items-center justify-center py-12 text-[11px] font-mono text-muted-foreground">
       <Loader2 className="h-4 w-4 animate-spin mr-2" />
       {label}
     </div>
@@ -514,7 +514,7 @@ function EmptyState({ icon, title, message }: { icon: React.ReactNode; title: st
     <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
       {icon}
       <div className="font-mono text-sm text-foreground">{title}</div>
-      <div className="font-mono text-[10px] text-muted-foreground/60 max-w-md">{message}</div>
+      <div className="font-mono text-[10px] text-muted-foreground max-w-md">{message}</div>
     </div>
   );
 }
@@ -524,7 +524,7 @@ function ErrorState({ title, message }: { title: string; message?: string }) {
     <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
       <AlertTriangle className="h-8 w-8 text-amber-500/60" />
       <div className="font-mono text-sm text-foreground">{title}</div>
-      <div className="font-mono text-[10px] text-muted-foreground/60 max-w-md">
+      <div className="font-mono text-[10px] text-muted-foreground max-w-md">
         {message ?? "The radar API didn't respond. This doesn't mean the radar is empty — try the Re-scan button or reload the page."}
       </div>
     </div>
@@ -551,7 +551,7 @@ function RescanButton({ onScan }: { onScan?: () => void }) {
   };
   return (
     <div className="flex items-center gap-2">
-      {lastResult && <div className="text-[10px] font-mono text-muted-foreground/60">{lastResult}</div>}
+      {lastResult && <div className="text-[10px] font-mono text-muted-foreground">{lastResult}</div>}
       <button
         onClick={handleRescan}
         disabled={loading}

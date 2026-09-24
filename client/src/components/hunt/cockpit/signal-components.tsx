@@ -31,15 +31,15 @@ export function SignalComponents({
   const against = ranked.filter((l) => l.points < 0);
 
   if (ranked.length === 0) {
-    return <div className="py-2 font-mono text-[10px] text-muted-foreground/60">No scored evidence was returned.</div>;
+    return <div className="py-2 font-mono text-[10px] text-muted-foreground">No scored evidence was returned.</div>;
   }
 
   return (
     <div className={cn('space-y-2.5', className)}>
       {showSummary && (
         <div className="grid grid-cols-2 gap-px border border-border/45 bg-border/45 font-mono text-[10px] tabular-nums">
-          <div className="bg-card px-2.5 py-2"><span className="text-muted-foreground/65">SUPPORT</span><span className="float-right font-bold text-[var(--trade-bullish)]">+{plus}</span></div>
-          <div className="bg-card px-2.5 py-2"><span className="text-muted-foreground/65">CHALLENGE</span><span className="float-right font-bold text-[var(--trade-bearish)]">{minus || '—'}</span></div>
+          <div className="bg-card px-2.5 py-2"><span className="text-muted-foreground">SUPPORT</span><span className="float-right font-bold text-[var(--trade-bullish)]">+{plus}</span></div>
+          <div className="bg-card px-2.5 py-2"><span className="text-muted-foreground">CHALLENGE</span><span className="float-right font-bold text-[var(--trade-bearish)]">{minus || '—'}</span></div>
         </div>
       )}
 
@@ -60,10 +60,10 @@ export function SignalComponents({
                 <span className="self-stretch" style={{ background: color }} />
                 <span className="min-w-0">
                   <span className="block truncate font-mono text-[10px] font-bold uppercase tracking-[0.11em] text-foreground/90">{layer.label || LAYER_TAG[layer.kind]}</span>
-                  <span className="block truncate font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground/60">{positive ? 'supports thesis' : 'argues against'}</span>
+                  <span className="block truncate font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">{positive ? 'supports thesis' : 'argues against'}</span>
                 </span>
                 <span className="font-mono text-[11px] font-bold tabular-nums" style={{ color }}>{positive ? '+' : ''}{layer.points}</span>
-                <span className="pr-2 font-mono text-[10px] text-muted-foreground/55">{isOpen ? '−' : '+'}</span>
+                <span className="pr-2 font-mono text-[10px] text-muted-foreground">{isOpen ? '−' : '+'}</span>
               </button>
               <AnimatePresence initial={false}>
                 {isOpen && layer.why && (
@@ -74,7 +74,7 @@ export function SignalComponents({
                     transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                     className="overflow-hidden"
                   >
-                    <p className="border-t border-border/25 bg-foreground/[0.02] px-3 py-2.5 font-mono text-[10px] leading-relaxed text-muted-foreground/85">{layer.why}</p>
+                    <p className="border-t border-border/25 bg-foreground/[0.02] px-3 py-2.5 font-mono text-[10px] leading-relaxed text-muted-foreground">{layer.why}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -87,13 +87,13 @@ export function SignalComponents({
         <button
           type="button"
           onClick={() => { setExpanded((value) => !value); setOpenKey(null); }}
-          className="w-full cursor-pointer border border-border/45 px-2.5 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.11em] text-muted-foreground/75 transition-colors hover:border-[var(--brand-cyan)]/50 hover:text-[var(--brand-cyan)]"
+          className="w-full cursor-pointer border border-border/45 px-2.5 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.11em] text-muted-foreground transition-colors hover:border-[var(--brand-cyan)]/50 hover:text-[var(--brand-cyan)]"
         >
           {expanded ? 'Show deciding evidence' : `Inspect all ${ranked.length} scored layers (+${ranked.length - max})`}
         </button>
       )}
 
-      <p className="font-mono text-[10px] leading-relaxed text-muted-foreground/75">
+      <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
         {against.length === 0
           ? 'No scored layer currently disputes the thesis.'
           : `${against.length} counter-signal${against.length > 1 ? 's' : ''}: ${against.map((layer) => layer.label || LAYER_TAG[layer.kind]).join(', ')}.`}

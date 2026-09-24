@@ -343,6 +343,7 @@ export default function SettingsPage() {
                 </Label>
                 <GlassInput
                   id="email"
+                  aria-label="Email address"
                   type="email"
                   value={profileData.email}
                   disabled

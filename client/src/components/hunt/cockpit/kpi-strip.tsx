@@ -36,7 +36,7 @@ export function KpiStrip({
       <div className={cn('qe-kpi-tiles', className)}>
         {items.map((k, i) => (
           <div key={`${k.label}-${i}`} className="qe-kpi-tile">
-            <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
               {k.label}
             </div>
             <div
@@ -60,7 +60,7 @@ export function KpiStrip({
     >
       {items.map((k, i) => (
         <div key={`${k.label}-${i}`} className="flex items-center gap-2">
-          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">{k.label}</span>
+          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">{k.label}</span>
           <span
             className="text-[11px] font-mono font-bold tabular-nums"
             style={{ color: k.tone ? TONE[k.tone] : 'var(--foreground)' }}

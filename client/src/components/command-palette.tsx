@@ -152,7 +152,7 @@ export function CommandPalette() {
               <div>
                 Press <kbd className="px-1 py-0.5 bg-muted rounded text-[var(--brand-cyan)] font-mono">Enter</kbd> to open
                 <span className="font-mono font-bold text-[var(--brand-cyan)] mx-1">{search.toUpperCase()}</span>
-                in Research → <span className="font-mono text-muted-foreground/70">/r/{search.toUpperCase()}</span>
+                in Research → <span className="font-mono text-muted-foreground">/r/{search.toUpperCase()}</span>
               </div>
             ) : (
               <>
@@ -179,9 +179,9 @@ export function CommandPalette() {
                 <Icon className="w-3.5 h-3.5 mr-2 text-[var(--brand-cyan)]" />
                 <span className="font-mono text-sm font-bold">{t.label}</span>
                 {t.hint && (
-                  <span className="ml-2 text-[10px] text-muted-foreground/70">{t.hint}</span>
+                  <span className="ml-2 text-[10px] text-muted-foreground">{t.hint}</span>
                 )}
-                <span className="ml-auto text-[9px] font-mono text-muted-foreground/60">
+                <span className="ml-auto text-[9px] font-mono text-muted-foreground">
                   ⌘{i + 1}
                 </span>
               </CommandItem>
@@ -202,7 +202,7 @@ export function CommandPalette() {
               >
                 <Icon className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
                 <span className="text-xs">{t.label}</span>
-                <ArrowRight className="ml-auto w-3 h-3 text-muted-foreground/60" />
+                <ArrowRight className="ml-auto w-3 h-3 text-muted-foreground" />
               </CommandItem>
             );
           })}
@@ -219,8 +219,8 @@ export function CommandPalette() {
             >
               <TrendingUp className="w-3.5 h-3.5 mr-2 text-[var(--brand-gold)]" />
               <span className="font-mono text-sm font-bold">{sym}</span>
-              <span className="ml-2 text-[10px] text-muted-foreground/70">Research</span>
-              <span className="ml-auto text-[9px] font-mono text-muted-foreground/60">/r/{sym}</span>
+              <span className="ml-2 text-[10px] text-muted-foreground">Research</span>
+              <span className="ml-auto text-[9px] font-mono text-muted-foreground">/r/{sym}</span>
             </CommandItem>
           ))}
         </CommandGroup>

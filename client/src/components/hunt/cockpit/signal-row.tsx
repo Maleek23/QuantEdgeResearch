@@ -107,8 +107,8 @@ export function SignalRow({
             <span className="truncate" style={{ color: closed ? TC.muted : statusColor(g.status) }}>
               {closed ? 'Closed' : g.statusLabel}
             </span>
-            <span className="text-muted-foreground/50">·</span>
-            <span className="text-muted-foreground/75">{pick.holdingPeriod}</span>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">{pick.holdingPeriod}</span>
           </div>
         </div>
 
@@ -134,7 +134,7 @@ export function SignalRow({
         <div className="shrink-0 border-l border-border/45 pl-2.5 text-right">
           <div className="flex items-baseline justify-end gap-1.5">
             <span className="font-mono text-[22px] font-bold leading-none" style={{ color: bandColor(pick.convictionBand) }}>{pick.convictionBand}</span>
-            <span className="font-mono text-[9px] font-bold tabular-nums text-muted-foreground/75">+{pick.convictionScore}</span>
+            <span className="font-mono text-[9px] font-bold tabular-nums text-muted-foreground">+{pick.convictionScore}</span>
             {arrow && (
               <span className="font-mono text-[9px] font-bold tabular-nums" style={{ color: arrowColor }}
                     title={`Rating ${rating.direction === 'up' ? 'up' : 'down'} ${Math.abs(rating.delta)} since first seen ${rating.hoursTracked < 1 ? 'under an hour' : `${Math.round(rating.hoursTracked)}h`} ago`}>
@@ -163,7 +163,7 @@ export function SignalRow({
         */}
         {pick.isBotHeld ? (
           <>
-            <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               <span>Position · held</span>
               <span style={{ color: 'var(--brand-gold)' }}>{pick.botOwner ?? 'bot'}</span>
             </div>
@@ -174,12 +174,12 @@ export function SignalRow({
                   : 'shares'}
                 {pick.expiryDate ? ` · ${String(pick.expiryDate).slice(0, 10)}` : ''}
               </span>
-              <span className="tabular-nums text-muted-foreground/75">
+              <span className="tabular-nums text-muted-foreground">
                 {pick.quantity ?? 1}x @ ${Number(pick.entryPremium ?? pick.entryPrice ?? 0).toFixed(2)}
               </span>
             </div>
             <div className="mt-2 flex items-baseline justify-between font-mono text-[9px] font-semibold uppercase tracking-[0.1em]">
-              <span className="text-muted-foreground/70">unrealised</span>
+              <span className="text-muted-foreground">unrealised</span>
               <span
                 className="tabular-nums"
                 style={{ color: (pick.unrealizedPnlPercent ?? 0) >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}
@@ -191,7 +191,7 @@ export function SignalRow({
           </>
         ) : awaitingTrigger ? (
           <>
-            <div className="mb-2 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
+            <div className="mb-2 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               <span>Entry gate · no position{(pick as any).levelBasis === 'contract' ? ' · PREM levels' : ''}</span>
               <span className="tabular-nums text-[var(--brand-gold)]">
                 {triggerDistancePct.toFixed(1)}% {triggerSide} trigger
@@ -199,17 +199,17 @@ export function SignalRow({
             </div>
             <div className="grid grid-cols-2 gap-px border border-border/45 bg-border/45">
               <div className="bg-card px-2 py-1.5">
-                <span className="block font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/60">live</span>
+                <span className="block font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">live</span>
                 <span className="mt-0.5 block font-mono text-[10px] font-bold tabular-nums text-foreground">${px.toFixed(2)}</span>
               </div>
               <div className="bg-card px-2 py-1.5">
-                <span className="block font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/60">trigger</span>
+                <span className="block font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">trigger</span>
                 <span className="mt-0.5 block font-mono text-[10px] font-bold tabular-nums text-[var(--brand-cyan)]">${pick.entryPrice.toFixed(2)}</span>
               </div>
             </div>
             <div className="mt-2 flex items-center justify-between font-mono text-[9px] font-semibold uppercase tracking-[0.1em]">
-              <span className="text-muted-foreground/70">T1 after entry</span>
-              <span className="tabular-nums text-muted-foreground/70">R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}</span>
+              <span className="text-muted-foreground">T1 after entry</span>
+              <span className="tabular-nums text-muted-foreground">R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}</span>
               <span className="tabular-nums" style={{ color: g.horizonUsedPct >= 80 ? TC.bear : g.horizonUsedPct >= 50 ? TC.warn : TC.muted }}>
                 {pick.optionDte != null || pick.expiryDate
                   ? `${g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/${g.horizonDays}d plan`
@@ -219,7 +219,7 @@ export function SignalRow({
           </>
         ) : (
           <>
-            <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               <span>Trade path · entered</span>
               <span style={{ color: pnlColor(g.pnlPct) }}>
                 <LiveValue
@@ -230,7 +230,7 @@ export function SignalRow({
                 />
               </span>
             </div>
-            <div className="mb-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/55">
+            <div className="mb-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
               <span>entry</span><span>T1</span>
             </div>
             <div className="relative h-[3px] bg-foreground/[0.09]">
@@ -249,8 +249,8 @@ export function SignalRow({
               <span className="absolute right-0 top-1/2 h-2.5 w-px -translate-y-1/2 bg-foreground/65" />
             </div>
             <div className="mt-2 flex items-center justify-between font-mono text-[9px] font-semibold uppercase tracking-[0.1em]">
-              <span className="tabular-nums text-muted-foreground/70">{g.progressPct.toFixed(0)}% to target</span>
-              <span className="tabular-nums text-muted-foreground/70">R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}</span>
+              <span className="tabular-nums text-muted-foreground">{g.progressPct.toFixed(0)}% to target</span>
+              <span className="tabular-nums text-muted-foreground">R:R {(pick.riskRewardRatio ?? g.rr).toFixed(1)}</span>
               <span className="tabular-nums" style={{ color: g.horizonUsedPct >= 80 ? TC.bear : g.horizonUsedPct >= 50 ? TC.warn : TC.muted }}>
                 {pick.optionDte != null || pick.expiryDate
                   ? `${g.daysHeld < 1 ? '<1' : Math.round(g.daysHeld)}/${g.horizonDays}d`

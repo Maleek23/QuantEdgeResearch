@@ -91,7 +91,7 @@ export function QETabs<T extends string = string>({
       className={cn(
         'font-mono font-bold uppercase rounded-md transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer',
         SIZE_PADDING[size],
-        item.disabled && 'opacity-40 cursor-not-allowed text-muted-foreground/60',
+        item.disabled && 'opacity-40 cursor-not-allowed text-muted-foreground',
         !item.disabled && active === item.id
           ? ACTIVE_VARIANT[variant]
           : !item.disabled && 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]',
@@ -100,10 +100,10 @@ export function QETabs<T extends string = string>({
       {item.icon}
       {item.label}
       {typeof item.count === 'number' && !item.disabled && (
-        <span className="text-muted-foreground/70 font-normal">·{item.count}</span>
+        <span className="text-muted-foreground font-normal">·{item.count}</span>
       )}
       {item.disabled && (
-        <span className="ml-0.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 px-1 py-0 rounded border border-border/30">
+        <span className="ml-0.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground px-1 py-0 rounded border border-border/30">
           soon
         </span>
       )}
@@ -125,7 +125,7 @@ export function QETabs<T extends string = string>({
     return (
       <div className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
         {prefixLabel && (
-          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mx-1.5 self-center">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mx-1.5 self-center">
             {prefixLabel}
           </span>
         )}
@@ -133,7 +133,7 @@ export function QETabs<T extends string = string>({
           <div key={cluster.group || ci} className="flex min-w-0 flex-wrap items-center gap-1">
             {ci > 0 && <span className="mx-1 h-5 w-px bg-border/40" aria-hidden />}
             {cluster.group && (
-              <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground/60 mr-0.5 self-center select-none">
+              <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground mr-0.5 self-center select-none">
                 {cluster.group}
               </span>
             )}
@@ -148,7 +148,7 @@ export function QETabs<T extends string = string>({
   return (
     <div className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
       {prefixLabel && (
-        <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mx-1.5">
+        <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mx-1.5">
           {prefixLabel}
         </span>
       )}

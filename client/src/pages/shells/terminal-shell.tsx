@@ -319,7 +319,7 @@ export default function TerminalShell() {
                   >
                     <div className="border-b border-border/45 px-2.5 py-2 font-mono">
                       <div className="truncate text-[11px] font-bold text-foreground">{accountLabel}</div>
-                      <div className="truncate text-[9px] text-muted-foreground/65">{user?.email ?? 'Guest terminal'}</div>
+                      <div className="truncate text-[9px] text-muted-foreground">{user?.email ?? 'Guest terminal'}</div>
                     </div>
                     {/* Controls the reference header doesn't carry — parked here
                         so the bar matches it exactly. */}
@@ -450,7 +450,7 @@ export default function TerminalShell() {
                 <button
                   type="button"
                   onClick={() => setMarketFocus(null)}
-                  className="inline-flex items-center gap-1 border border-border/70 px-2.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/80 transition-colors hover:border-[var(--brand-cyan)] hover:text-foreground"
+                  className="inline-flex items-center gap-1 border border-border/70 px-2.5 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:border-[var(--brand-cyan)] hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" /> Close
                 </button>

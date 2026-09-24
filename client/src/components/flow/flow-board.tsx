@@ -417,7 +417,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
           {/* ── the tape — the mock's table ── */}
           <div className="table-wrap">
             {isLoading ? (
-              <div className="flex h-40 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
+              <div className="flex h-40 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading the tape…
               </div>
             ) : isError ? (

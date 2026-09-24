@@ -105,7 +105,7 @@ export function RecordCard({
       </div>
 
       {id && (
-        <span className="relative z-[1] mb-2.5 font-mono text-[10px] tracking-[0.12em] text-muted-foreground/60">
+        <span className="relative z-[1] mb-2.5 font-mono text-[10px] tracking-[0.12em] text-muted-foreground">
           {id}
         </span>
       )}
@@ -119,7 +119,7 @@ export function RecordCard({
       {(footLeft || footRight) && (
         <div className="relative z-[1] mt-[18px] flex items-center justify-between gap-2 border-t border-dashed border-border pt-3.5 font-mono text-[10px] uppercase tracking-[0.06em]">
           <span style={{ color: c }}>{footLeft}</span>
-          <span className="text-muted-foreground/70">{footRight}</span>
+          <span className="text-muted-foreground">{footRight}</span>
         </div>
       )}
     </Tag>

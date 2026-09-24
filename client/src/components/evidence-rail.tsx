@@ -51,7 +51,7 @@ export function EvidenceRail({
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {!compact && (
-        <div className="text-label font-mono uppercase tracking-widest text-muted-foreground/60">
+        <div className="text-label font-mono uppercase tracking-widest text-muted-foreground">
           Check {sym} against
         </div>
       )}
@@ -70,7 +70,7 @@ export function EvidenceRail({
             )}
           >
             {e.label}
-            <span aria-hidden className="text-muted-foreground/60 group-hover:text-[var(--brand-cyan)]/70">
+            <span aria-hidden className="text-muted-foreground group-hover:text-[var(--brand-cyan)]/70">
               ↗
             </span>
           </button>

@@ -351,7 +351,7 @@ function PnLChart({
           x2={pad.left + plotW}
           y2={zeroY}
           stroke="currentColor"
-          className="text-muted-foreground/60"
+          className="text-muted-foreground"
           strokeWidth={1}
           strokeDasharray="6,4"
         />
@@ -960,12 +960,12 @@ export default function PositionPnLSimulator({
                         {pos.optionType.toUpperCase()}
                       </span>
                     </span>
-                    <span className="text-muted-foreground/60">
+                    <span className="text-muted-foreground">
                       @ ${safeToFixed(pos.avgCost, 2)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground/60">
+                    <span className="text-muted-foreground">
                       {pos.expiryDate}
                     </span>
                     {perContractPnL !== null && (

@@ -183,7 +183,7 @@ export default function History() {
                   </div>
                 ) : (
                   <div className="p-12 text-center">
-                    <MessageSquare className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
+                    <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No chat history yet</p>
                     <p className="text-sm text-muted-foreground mt-1">Your AI conversations will appear here</p>
                   </div>
@@ -251,7 +251,7 @@ export default function History() {
                   </div>
                 ) : (
                   <div className="p-12 text-center">
-                    <FileText className="w-12 h-12 text-muted-foreground/70 mx-auto mb-4" />
+                    <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No research history yet</p>
                     <p className="text-sm text-muted-foreground mt-1">Run an analysis to get started</p>
                   </div>

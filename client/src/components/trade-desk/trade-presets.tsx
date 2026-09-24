@@ -122,7 +122,7 @@ interface Props {
 export function TradePresets({ activePresetId, onSelect, className }: Props) {
   return (
     <div className={cn("flex items-center gap-2 overflow-x-auto pb-1", className)}>
-      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60 whitespace-nowrap">
+      <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground whitespace-nowrap">
         Presets
       </span>
       {TRADE_PRESETS.filter((p) => !p.showWhen || p.showWhen()).map((preset) => {

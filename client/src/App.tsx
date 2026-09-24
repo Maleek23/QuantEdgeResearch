@@ -335,11 +335,11 @@ function AuthHeader() {
         >
           <Search className="h-3 w-3" />
           Search
-          <kbd className="ml-1 px-1 py-0 text-[9px] bg-muted rounded border border-border text-muted-foreground/60">⌘K</kbd>
+          <kbd className="ml-1 px-1 py-0 text-[9px] bg-muted rounded border border-border text-muted-foreground">⌘K</kbd>
         </Button>
         {isAuthenticated && userData && (
           <>
-            <span className="hidden md:inline text-[10px] font-mono text-muted-foreground/60 truncate max-w-[120px]">
+            <span className="hidden md:inline text-[10px] font-mono text-muted-foreground truncate max-w-[120px]">
               {userData.firstName || userData.email || 'User'}
             </span>
             <Button

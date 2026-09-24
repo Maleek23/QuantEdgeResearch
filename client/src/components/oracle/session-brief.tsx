@@ -127,7 +127,7 @@ export function SessionBrief({
               </span>
               <span>· {data.quoted}/{data.universeSize} names</span>
               {data.session === 'closed' ? (
-                <span className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground/55">cash closed</span>
+                <span className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">cash closed</span>
               ) : (
                 <Heartbeat since={data.generatedAt} staleAfterSec={900} className="ml-1" />
               )}
@@ -137,11 +137,11 @@ export function SessionBrief({
       }
     >
       {isLoading ? (
-        <div className="flex h-32 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
+        <div className="flex h-32 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading leadership…
         </div>
       ) : isError || sectors.length === 0 ? (
-        <div className="px-6 py-8 text-center text-meta leading-relaxed text-muted-foreground/70">
+        <div className="px-6 py-8 text-center text-meta leading-relaxed text-muted-foreground">
           Leadership unavailable right now. It will refresh automatically.
         </div>
       ) : (
@@ -150,7 +150,7 @@ export function SessionBrief({
             <div className="border-b border-border/30 px-4 py-2.5" style={{ background: `color-mix(in srgb, ${TC.info} 6%, transparent)` }}>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-label ui-eyebrow" style={{ color: TC.info }}>{handoff?.label}</span>
-                <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground/65">
+                <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
                   {realtime?.futures?.connected ? `${realtime.futures.symbols ?? 0} futures streams` : 'futures unavailable'} · {realtime?.coinbase?.connected ? `${realtime.coinbase.symbols ?? 0} crypto streams` : 'crypto unavailable'}
                 </span>
               </div>
@@ -205,7 +205,7 @@ export function SessionBrief({
 
             {(data?.megaCaps?.length ?? 0) > 0 && (
               <div className="mt-3 border-t border-border/30 pt-2.5">
-                <div className="mb-1 text-label font-mono uppercase tracking-widest text-muted-foreground/70">
+                <div className="mb-1 text-label font-mono uppercase tracking-widest text-muted-foreground">
                   Mega caps
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1">

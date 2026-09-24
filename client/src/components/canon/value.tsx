@@ -63,7 +63,7 @@ export function CanonValue({
   if (state === 'unmeasurable') {
     return (
       <span
-        className={cn(base, 'italic text-muted-foreground/45')}
+        className={cn(base, 'italic text-muted-foreground')}
         title={reason ?? 'This feed cannot measure this value'}
       >
         NOT MEASURED
@@ -73,7 +73,7 @@ export function CanonValue({
 
   if (state === 'missing') {
     return (
-      <span className={cn(base, 'text-muted-foreground/40')} title="No data">
+      <span className={cn(base, 'text-muted-foreground')} title="No data">
         —
       </span>
     );
@@ -112,12 +112,12 @@ export function CanonCoverage({
 }) {
   const pct = total > 0 ? Math.round((measurable / total) * 100) : 0;
   return (
-    <div className={cn('font-mono text-label leading-relaxed text-muted-foreground/70', className)}>
+    <div className={cn('font-mono text-label leading-relaxed text-muted-foreground', className)}>
       <span className="uppercase tracking-wider">{label}:</span>{' '}
       <span className="tabular-nums text-foreground/80">
         {measurable} of {total} ({pct}%)
       </span>
-      {breakdown && <span className="text-muted-foreground/55"> · {breakdown}</span>}
+      {breakdown && <span className="text-muted-foreground"> · {breakdown}</span>}
     </div>
   );
 }

@@ -99,16 +99,16 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/40 bg-card px-4 py-3">
               <div>
                 <div className="text-meta font-mono font-bold uppercase tracking-widest text-foreground">Settings</div>
-                <div className="text-label font-mono text-muted-foreground/60">how the terminal works for you</div>
+                <div className="text-label font-mono text-muted-foreground">how the terminal works for you</div>
               </div>
               <button onClick={onClose} aria-label="Close settings"
-                className="cursor-pointer rounded p-1 text-muted-foreground/70 transition-colors hover:text-foreground">
+                className="cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {isLoading ? (
-              <div className="flex h-40 items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground/70" /></div>
+              <div className="flex h-40 items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
             ) : (
               <div className="space-y-5 px-4 py-4">
                 {/* ── risk: the settings that change the numbers ── */}
@@ -140,7 +140,7 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                           <button key={a} onClick={() => set('preferredAssets',
                             on ? (draft.preferredAssets ?? []).filter((x) => x !== a) : [...(draft.preferredAssets ?? []), a])}
                             className={cn('cursor-pointer rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                              on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground/70 hover:text-foreground')}>
+                              on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground hover:text-foreground')}>
                             {a}
                           </button>
                         );
@@ -161,18 +161,18 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                     <span className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
                       <button onClick={() => setAppearance('dark')}
                         className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                          theme !== 'night' && theme !== 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}>
+                          theme !== 'night' && theme !== 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground hover:text-foreground')}>
                         <Monitor className="h-3 w-3" /> Terminal
                       </button>
                       <button onClick={() => setAppearance('night')}
                         className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                          theme === 'night' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}>
+                          theme === 'night' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground hover:text-foreground')}>
                         <Moon className="h-3 w-3" /> Night
                       </button>
                       {/* The reference-terminal palette, verbatim — see .terminal-nexus in index.css */}
                       <button onClick={() => setAppearance('nexus')}
                         className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                          theme === 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}>
+                          theme === 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground hover:text-foreground')}>
                         <Zap className="h-3 w-3" /> Nexus
                       </button>
                     </span>
@@ -210,7 +210,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
     <div>
       <div className="mb-2 flex items-baseline gap-2">
         <span className="text-label font-mono font-bold uppercase tracking-widest text-foreground/80">{title}</span>
-        {hint && <span className="text-label font-mono text-muted-foreground/70">{hint}</span>}
+        {hint && <span className="text-label font-mono text-muted-foreground">{hint}</span>}
       </div>
       <div className="space-y-2.5">{children}</div>
     </div>
@@ -220,7 +220,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-meta font-mono text-muted-foreground/70">{label}</span>
+      <span className="text-meta font-mono text-muted-foreground">{label}</span>
       {children}
     </div>
   );
@@ -231,13 +231,13 @@ function NumInput({ value, onChange, prefix, suffix, step = 1, max }: {
 }) {
   return (
     <span className="flex items-center gap-1 rounded border border-border/60 bg-background/60 px-2 py-1">
-      {prefix && <span className="text-label font-mono text-muted-foreground/70">{prefix}</span>}
+      {prefix && <span className="text-label font-mono text-muted-foreground">{prefix}</span>}
       <input
         type="number" value={value} step={step} max={max} min={0}
         onChange={(e) => onChange(Math.max(0, Number(e.target.value)))}
         className="w-20 bg-transparent text-right text-meta font-mono tabular-nums text-foreground outline-none"
       />
-      {suffix && <span className="text-label font-mono text-muted-foreground/70">{suffix}</span>}
+      {suffix && <span className="text-label font-mono text-muted-foreground">{suffix}</span>}
     </span>
   );
 }
@@ -248,7 +248,7 @@ function Seg<T extends string>({ options, value, onChange }: { options: readonly
       {options.map((o) => (
         <button key={o} onClick={() => onChange(o)}
           className={cn('cursor-pointer rounded px-2 py-0.5 text-label font-mono uppercase tracking-wider transition-colors',
-            value === o ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground/70 hover:text-foreground')}>
+            value === o ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground hover:text-foreground')}>
           {o}
         </button>
       ))}

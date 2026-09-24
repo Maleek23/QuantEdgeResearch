@@ -582,7 +582,7 @@ export function GEXContractSuggestion({ idea }: { idea: TradeIdeaCardData }) {
         {gexContext && (
           <>
             <span className="text-muted-foreground">·</span>
-            <span className="text-[9px] text-muted-foreground/70">{gexContext}</span>
+            <span className="text-[9px] text-muted-foreground">{gexContext}</span>
           </>
         )}
       </div>
@@ -673,7 +673,7 @@ function FullVariant({
             </span>
           </div>
           {idea.sector && (
-            <span className="text-[9px] font-mono uppercase text-muted-foreground/60 truncate">
+            <span className="text-[9px] font-mono uppercase text-muted-foreground truncate">
               {idea.sector.replace(/_/g, " ")}
             </span>
           )}
@@ -691,7 +691,7 @@ function FullVariant({
           >
             {grade}
           </div>
-          <div className="text-[9px] font-mono text-muted-foreground/60 mt-1 tabular-nums">
+          <div className="text-[9px] font-mono text-muted-foreground mt-1 tabular-nums">
             {score}pts
           </div>
         </div>
@@ -716,7 +716,7 @@ function FullVariant({
                 <div className={cn("text-sm font-mono font-semibold tabular-nums", live.color)}>
                   {live.label}
                 </div>
-                <div className="text-[9px] font-mono text-muted-foreground/60 tabular-nums line-through">
+                <div className="text-[9px] font-mono text-muted-foreground tabular-nums line-through">
                   {idea.riskRewardRatio.toFixed(1)}×
                 </div>
               </div>
@@ -1101,7 +1101,7 @@ function RowVariant({
                 {idea.optionDte != null ? ` ${idea.optionDte}D` : ""}
               </span>
             )}
-            <span className="text-muted-foreground/60 truncate">{idea.expiryDate ?? ""}</span>
+            <span className="text-muted-foreground truncate">{idea.expiryDate ?? ""}</span>
           </span>
         ) : (
           idea.thesis || idea.catalyst || "—"
@@ -1175,15 +1175,15 @@ function PremiumRiskRewardBar({ idea }: { idea: TradeIdeaCardData }) {
       <div className="mt-1 flex items-center justify-between text-[9px] font-mono tabular-nums">
         <span className="text-red-300" title="-50% premium stop">
           ${stopPrem.toFixed(2)}
-          <span className="text-muted-foreground/60"> stop</span>
+          <span className="text-muted-foreground"> stop</span>
         </span>
         <span className="text-foreground" title="Entry premium">
           ${entry.toFixed(2)}
-          <span className="text-muted-foreground/60"> entry</span>
+          <span className="text-muted-foreground"> entry</span>
         </span>
         <span className="text-emerald-300" title={`Projected at target (${fmtPrice(idea.targetPrice)})`}>
           ${projTarget.toFixed(2)}
-          <span className="text-muted-foreground/60"> +{targetGainPct.toFixed(0)}%</span>
+          <span className="text-muted-foreground"> +{targetGainPct.toFixed(0)}%</span>
         </span>
       </div>
     </div>

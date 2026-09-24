@@ -141,7 +141,7 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
           </span>
         )}
         <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform', open && 'rotate-180')} />
-        <span className="text-[9px] font-mono text-muted-foreground/60 ml-1">⌘K</span>
+        <span className="text-[9px] font-mono text-muted-foreground ml-1">⌘K</span>
       </button>
 
       {open && (
@@ -167,7 +167,7 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
               onKeyDown={handleEnter}
               placeholder="Type ticker (Enter to jump)…"
               autoFocus
-              className="flex-1 bg-transparent border-none outline-none text-sm font-mono uppercase tracking-wide placeholder:text-muted-foreground/60"
+              className="flex-1 bg-transparent border-none outline-none text-sm font-mono uppercase tracking-wide placeholder:text-muted-foreground"
             />
           </div>
 
@@ -185,7 +185,7 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
 
             {/* Sector groups */}
             <div className="space-y-3 pt-1 border-t border-border/30">
-              <div className="flex items-center gap-1.5 px-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/70">
+              <div className="flex items-center gap-1.5 px-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
                 <Layers className="w-3 h-3" />
                 Sectors
               </div>
@@ -193,7 +193,7 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
                 <Group key={g.label} label={g.label} symbols={g.symbols} active={value} onSelect={select} />
               ))}
               {filteredGroups.length === 0 && (
-                <div className="text-[10px] font-mono text-muted-foreground/60 px-2 py-3 text-center">
+                <div className="text-[10px] font-mono text-muted-foreground px-2 py-3 text-center">
                   No tickers match "{search}". Press Enter to jump anyway.
                 </div>
               )}
@@ -216,7 +216,7 @@ function Group({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-1.5 px-1 mb-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground/70">
+      <div className="flex items-center gap-1.5 px-1 mb-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
         {icon}
         {label}
       </div>

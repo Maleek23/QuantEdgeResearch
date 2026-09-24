@@ -130,7 +130,7 @@ function fmtCompact(n: number): string {
 function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <div>
-      <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/60">{label}</div>
+      <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="font-mono font-bold tabular-nums" style={{ color: accent ?? 'var(--foreground)' }}>{value}</div>
     </div>
   );
@@ -278,7 +278,7 @@ export function ContractEngine({
   if (selection.status !== 'ok' || selection.picks.length === 0) {
     return (
       <div className="text-xs font-mono text-muted-foreground px-4 py-3 rounded-lg bg-card border border-card-border" data-testid="picker-empty">
-        <span className="text-muted-foreground/60 uppercase tracking-wider text-[10px]">Contract Engine · </span>
+        <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Contract Engine · </span>
         {selection.note ?? 'No liquid contract available for this thesis.'}
         <ContractPickerPanel symbol={symbol} direction={direction === 'BEAR' ? 'short' : 'long'} target={t1} title="FIT MY BUDGET" />
       </div>
@@ -289,10 +289,10 @@ export function ContractEngine({
     <>
     <section className="rounded-lg border border-card-border bg-card overflow-hidden" data-testid="oracle-option-picker">
       <header className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border/30">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
           Contract Engine · Pick Tier
         </span>
-        <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">
+        <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
           Spot ${selection.spot.toFixed(2)} · {selection.dteWindow.min}-{selection.dteWindow.max}DTE
           {selection.asOf ? ` · ${Math.max(0, Math.round((Date.now() - Date.parse(selection.asOf)) / 60000))}m old` : ''}
         </span>
@@ -332,7 +332,7 @@ export function ContractEngine({
                 <div className="flex items-center gap-2">
                   <span
                     aria-hidden
-                    className="font-mono text-[9px] text-muted-foreground/60 transition-transform"
+                    className="font-mono text-[9px] text-muted-foreground transition-transform"
                     style={{ transform: isExpanded(p.tier, isRecommended) ? 'rotate(90deg)' : 'none' }}
                   >
                     ▶
@@ -358,7 +358,7 @@ export function ContractEngine({
               <div className="flex items-baseline justify-between">
                 <span className="text-base font-mono font-bold text-foreground tabular-nums">
                   ${p.strike}{p.optionType === 'call' ? 'C' : 'P'}
-                  <span className="text-[11px] font-normal text-muted-foreground/60 ml-1.5">
+                  <span className="text-[11px] font-normal text-muted-foreground ml-1.5">
                     {fmtExpiry(p.expiry)} · {p.dte}DTE
                   </span>
                 </span>
@@ -396,7 +396,7 @@ export function ContractEngine({
                 const color = heavy ? '#e0a458' : unusual ? 'var(--trade-bullish)' : 'var(--muted-foreground)';
                 return (
                   <div className="mt-1.5 flex items-center gap-2">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Vol/OI</span>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Vol/OI</span>
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/[0.07]">
                       <div className="h-full rounded-full transition-[width] duration-500"
                            style={{ width: `${Math.min(100, (volOi / 3) * 100)}%`, background: color }} />
@@ -458,7 +458,7 @@ export function ContractEngine({
                       closes={closes}
                     />
                   </div>
-                  <p className="text-[10px] font-mono text-muted-foreground/80 mt-2 leading-snug border-t border-border/30 pt-2">
+                  <p className="text-[10px] font-mono text-muted-foreground mt-2 leading-snug border-t border-border/30 pt-2">
                     {p.rationale}
                   </p>
                 </>

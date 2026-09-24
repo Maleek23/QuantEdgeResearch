@@ -270,7 +270,7 @@ export default function AdminBlogPage() {
                   </div>
                 ) : filteredPosts.length === 0 ? (
                   <div className="text-center py-12">
-                    <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/70 mb-4" />
+                    <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No posts published yet</h3>
                     <p className="text-muted-foreground mb-4">Start creating SEO-friendly content to attract visitors</p>
                     <Button onClick={handleNewPost} className="bg-cyan-600 hover:bg-cyan-700">
