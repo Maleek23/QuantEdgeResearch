@@ -58,7 +58,7 @@
     <ul class="checklist" id="checklist">
       <li><input type="checkbox" id="c-resize"><label for="c-resize"><b>Resize the droplet to 2GB ($12/mo)</b>DigitalOcean → Droplets → Resize. Fixes slowness and lets the server run every scanner with your laptop closed.</label></li>
       <li><input type="checkbox" id="c-tradier"><label for="c-tradier"><b>Renew the Tradier API key</b>Dead since Aug 26. Brings back 0DTE/weekly ideas, live option quotes, and contracts on every card.</label></li>
-      <li><input type="checkbox" id="c-supabase"><label for="c-supabase"><b>Download the Supabase backup</b>Holds your Aug 22 – Sep 10 trades. Resumable until Oct 2027, but download it now and hand it over for import.</label></li>
+      <li><input type="checkbox" id="c-supabase" checked><label for="c-supabase"><b>Supabase backup — imported Sep 24</b>940 ideas (Aug 24 – Sep 10), the bot's 33-position book, flow history and catalysts merged into your own database.</label></li>
       <li><input type="checkbox" id="c-google"><label for="c-google"><b>Add the Google sign-in redirect</b>Google Cloud Console → OAuth client → redirect URI <code>https://quantedgelabs.net/api/auth/google/callback</code>.</label></li>
       <li><input type="checkbox" id="c-apple"><label for="c-apple"><b>Enroll in the Apple Developer Program + install Xcode</b>$99/yr. Needed for the App Store build; Xcode is ~15GB from the Mac App Store.</label></li>
       <li><input type="checkbox" id="c-share"><label for="c-share"><b>Share the member Field Guide</b>It's private until you use its Share menu.</label></li>
@@ -75,7 +75,7 @@
         <tr><td>Database</td><td>Postgres on the same droplet</td><td>Yours — no provider quota can pause it. Laptop and Render point here too.</td></tr>
         <tr><td>Laptop</td><td>localhost:3000</td><td>Runs every scanner until the droplet is resized. Keep it awake through 8:40 PM CT for the evening slate.</td></tr>
         <tr><td>Backup copy</td><td>quantedge-terminal-0eec.onrender.com</td><td>Free tier — sleeps; its scanners don't run.</td></tr>
-        <tr><td>Old data</td><td>Supabase (paused)</td><td>Aug–Sep history. Restorable, not live.</td></tr>
+        <tr><td>Old data</td><td>Supabase (paused)</td><td>Already imported into your database on Sep 24 — nothing needed from it now.</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -116,7 +116,7 @@ ssh -i ~/.ssh/quantedge_deploy root@104.248.127.195 'cd /opt/quantedge && git pu
       <p><strong>Measured, not inferred.</strong> Every idea comes from a scanner that measured something — flow at the ask, a dated bottom, a real pullback. No invented levels.</p>
       <p><strong>Coherent with itself.</strong> A card may not contradict its own theory or its own tape. Opposing flow subtracts points.</p>
       <p><strong>Live, not carried forward.</strong> Anything shown as current is recomputed now or labelled with its age. Publish-time numbers are history, not the present.</p>
-      <p><strong>No shorts without an event.</strong> Bearish charts alone never become short ideas.</p>
+      <p><strong>Long and short on equal footing.</strong> Shorts clear the same measured-evidence bar as longs; opposing tape subtracts in both directions; a tape flip retires the stale opposite-side card.</p>
       <p><strong>Judged by the record.</strong> Every card's outcome is tracked; scanners that don't pay get demoted by their own numbers.</p>
     </div>
   </section>
