@@ -44,6 +44,7 @@ const PublicWatchlist = lazyWithRetry(() => import("@/pages/public-watchlist"), 
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const SlatePage     = lazyWithRetry(() => import("@/pages/slate"), "slate");
+const TodayPage     = lazyWithRetry(() => import("@/pages/today"), "today");
 const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "trade-journal");
 // REMOVED — Market page consolidated, redirect to /home
 const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
@@ -208,6 +209,7 @@ function Router() {
             the router was collapsed to shells and the targets were never
             repointed. Restoring the route is the small fix; deleting the pages
             would have been the expensive one. */}
+        <Route path="/today"       component={withBetaProtection(TodayPage)} />
         <Route path="/slate"       component={withBetaProtection(SlatePage)} />
         {/* HOME IS THE TERMINAL. Confirmed by the owner, against two rival
             candidates that both call themselves the dashboard in their own headers:
@@ -422,7 +424,7 @@ function App() {
   // are included.
   // /r (research) now renders inside NexusFrame like every other page, so it
   // gets the shared topbar and mobile dock instead of a third chrome of its own.
-  const isFullBleedShell = locationPath === '/t' || locationPath === '/nexus';
+  const isFullBleedShell = locationPath === '/t' || locationPath === '/nexus' || locationPath === '/today';
 
   if (isFullBleedShell) {
     return (
