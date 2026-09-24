@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { SEOHead } from "@/components/seo-head";
 import { FloatingBubblesBackground } from "@/components/floating-bubbles-background";
-import quantEdgeLogoUrl from "@assets/qe-mark-96.png";
+import quantEdgeLogoUrl from "@assets/qe-mark.svg";
 
 interface PlanFeature {
   name: string;

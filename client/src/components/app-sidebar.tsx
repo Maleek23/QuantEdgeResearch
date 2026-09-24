@@ -38,7 +38,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { WhatsNewBell } from "@/components/whats-new";
-import quantEdgeLabsLogoUrl from "@assets/qe-mark-96.png";
+import quantEdgeLabsLogoUrl from "@assets/qe-mark.svg";
 import { useAuth } from "@/hooks/useAuth";
 
 interface NavItem {

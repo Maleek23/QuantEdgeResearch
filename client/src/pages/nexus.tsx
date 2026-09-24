@@ -48,7 +48,7 @@ import { useTheme } from '@/components/theme-provider';
 import { useColResize } from '@/lib/use-col-resize';
 import { useStockContext } from '@/contexts/stock-context';
 import type { ConvictionPick, ConvictionsResponse } from '@/lib/convictions';
-import quantEdgeLogoUrl from '@assets/qe-mark-96.png';
+import quantEdgeLogoUrl from '@assets/qe-mark.svg';
 // The cockpit — the deep single-signal read — mounts on demand behind the
 // board's view toggle. Same component the old Active Book used.
 const HuntCockpit = lazy(() => import('@/pages/shells/hunt-cockpit'));

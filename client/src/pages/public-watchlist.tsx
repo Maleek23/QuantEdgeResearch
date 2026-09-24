@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import qeMark from "@assets/qe-mark.svg";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Public, read-only watchlist — shareable with a trading group.
@@ -77,7 +78,8 @@ export default function PublicWatchlist() {
         <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold tracking-tight text-emerald-400">QuantEdge</span>
+              <img src={qeMark} alt="" width={22} height={22} className="h-[22px] w-[22px]" />
+              <span className="text-lg font-bold tracking-tight text-sky-300">QuantEdge</span>
               <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-slate-400">
                 Shared · read-only
               </span>

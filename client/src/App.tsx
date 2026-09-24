@@ -27,6 +27,7 @@ import { StockContextProvider } from "@/contexts/stock-context";
 import { lazyWithRetry } from "@/lib/lazy-import";
 import { CommandPalette } from "@/components/command-palette";
 import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
+import { NexusFrame } from "@/components/shell/nexus-frame";
 
 // All page imports use lazyWithRetry for automatic chunk-load error recovery.
 // If a deployment changes chunk hashes, stale cached HTML won't crash —
@@ -464,7 +465,11 @@ function App() {
     );
   }
 
-  // Sidebar layout — primary navigation
+  // Every other signed-in page wears the terminal's chrome (NexusFrame): same
+  // topbar, same desktop tabs, same mobile bottom dock. The legacy left-sidebar
+  // layout (AppSidebar + AuthHeader + Footer) was retired 2026-09-24 — two
+  // designs in one product made moving between the board and a page feel like
+  // leaving the app.
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="nexus" storageKey="quantedge-theme">
@@ -475,15 +480,17 @@ function App() {
                 <ContentDensityProvider>
                   <DensityProvider>
                     <SidebarProvider style={style as React.CSSProperties}>
-                      <div className="flex h-screen w-full">
-                        <AppSidebar />
-                        <MainContentWrapper />
-                      </div>
+                      <NexusFrame>
+                        <ErrorBoundary>
+                          <Suspense fallback={<PageLoader />}>
+                            <Router />
+                          </Suspense>
+                        </ErrorBoundary>
+                      </NexusFrame>
                     </SidebarProvider>
                     <CommandPalette />
                     <WhatsNewDrawer />
                     <WhatsNewToast />
-                    <AIChatbotPopup />
                     <Toaster />
                   </DensityProvider>
                 </ContentDensityProvider>
@@ -493,25 +500,6 @@ function App() {
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
-  );
-}
-
-// Responsive wrapper that adjusts to sidebar state (legacy)
-function MainContentWrapper() {
-  return (
-    <div className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-200 page-atmosphere">
-      <AuthHeader />
-      <div className="flex-1 overflow-auto flex flex-col">
-        <main className="flex-1 w-full">
-          <ErrorBoundary>
-            <Suspense fallback={<PageLoader />}>
-              <Router />
-            </Suspense>
-          </ErrorBoundary>
-        </main>
-        <Footer />
-      </div>
-    </div>
   );
 }
 

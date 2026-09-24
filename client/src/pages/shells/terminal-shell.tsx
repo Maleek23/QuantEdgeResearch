@@ -34,7 +34,7 @@ import { useStockContext } from '@/contexts/stock-context';
 import { useTheme } from '@/components/theme-provider';
 import { useAuth } from '@/hooks/useAuth';
 import { KitStyles } from '@/components/templates/kit';
-import quantEdgeLogoUrl from '@assets/qe-mark-96.png';
+import quantEdgeLogoUrl from '@assets/qe-mark.svg';
 import '@/styles/nexus.css';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
 import { SystemPulse } from '@/components/terminal/system-pulse';
@@ -75,69 +75,12 @@ const TickerWorkup = lazy(() => import('@/components/workup/ticker-workup').then
 // CATALYST = composed from docs/DESIGN_SYSTEM.md (no mock). Prior CatalystBoard stays in tree.
 const CatalystNexus = lazy(() => import('@/components/catalyst/catalyst-nexus').then(m => ({ default: m.CatalystNexus })));
 
-export type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot' | 'positions' | 'journal';
-/**
- * Two tabs removed here, both by measurement rather than taste.
- *
- * PRISM now lives inside GEX as its default view, because PrismBoard reads both
- * /api/gex-vex/hub and /api/gex-vex/terminal/:sym — it was already the union of
- * that shell's Hub and Matrix sub-tabs, reached by a second door.
- *
- * HEATMAP was an exact duplicate: it lazy-loaded @/pages/flow-heatmap, the same
- * module GexShell loads for its own Heatmap sub-tab, while being aliased
- * "SectorHeatmap" — a name that described neither the file nor what it renders.
- * One page, two routes, one misleading label.
- */
-export const TABS: { id: Tab; label: string }[] = [
-  { id: 'oracle',  label: 'NEXUS' },
-  { id: 'chart',   label: 'CHART' },
-  { id: 'flow',    label: 'FLOW' },
-  { id: 'gex',     label: 'GEX' },
-  // LEAPS was fully built and completely unreachable. /api/leap-tracker returns 200
-  // with 52 qualified S-grade picks (ABBV 390DTE +125% ROI@T1, JPM 298DTE +168%),
-  // the component existed, and the ONLY thing importing it was hunt-shell.tsx —
-  // which has no <Route>. So the long-dated engine has been scanning and grading
-  // this whole time with no door into it.
-  //
-  // It earns a top-level tab rather than a sub-tab: the contract engine caps every
-  // signal at 45 DTE (SETUP_TO_TIER maps swing→MONTHLY 25-45, lotto→WEEKLY 5-12,
-  // and NOTHING maps to the LEAP tier), so this is the only surface in the product
-  // where a 6-24 month thesis can appear at all.
-  { id: 'leaps',   label: 'LEAPS' },
-  { id: 'crypto',  label: 'CRYPTO' },
-  { id: 'catalyst', label: 'CATALYST' },
-  { id: 'bot',     label: 'BOT' },
-  { id: 'positions', label: 'POSITIONS' },
-  { id: 'journal',   label: 'JOURNAL' },
-];
-
-const MOBILE_PRIMARY: Tab[] = ['oracle', 'chart', 'flow', 'gex'];
-// LEAPS was missing from BOTH lists, so the long-dated engine was unreachable on
-// phones — the same "fully built and completely unreachable" bug the TABS comment
-// above describes, reintroduced for mobile only. Every tab in TABS must appear in
-// exactly one of these two arrays; the assertion below fails the build if not.
-const MOBILE_MORE: Tab[] = ['leaps', 'crypto', 'catalyst', 'bot', 'positions', 'journal'];
-
-if (import.meta.env.DEV) {
-  const reachable = new Set<Tab>([...MOBILE_PRIMARY, ...MOBILE_MORE]);
-  const orphaned = TABS.filter((t) => !reachable.has(t.id)).map((t) => t.label);
-  if (orphaned.length > 0) {
-    console.error(`[terminal-shell] Tabs unreachable on mobile: ${orphaned.join(', ')}`);
-  }
-}
-
-function MobileTabIcon({ tab }: { tab: Tab }) {
-  if (tab === 'oracle') return <Radar className="h-[18px] w-[18px]" />;
-  if (tab === 'chart') return <CandlestickChart className="h-[18px] w-[18px]" />;
-  if (tab === 'flow') return <Activity className="h-[18px] w-[18px]" />;
-  if (tab === 'gex') return <Grid3X3 className="h-[18px] w-[18px]" />;
-  if (tab === 'leaps') return <TrendingUp className="h-[18px] w-[18px]" />;
-  if (tab === 'crypto') return <Bitcoin className="h-[18px] w-[18px]" />;
-  if (tab === 'catalyst') return <CalendarDays className="h-[18px] w-[18px]" />;
-  if (tab === 'positions') return <Wallet className="h-[18px] w-[18px]" />;
-  if (tab === 'journal') return <BookOpen className="h-[18px] w-[18px]" />;
-  return <Bot className="h-[18px] w-[18px]" />;
-}
+// Tabs, mobile dock and "More" live in ONE shared model so the terminal and
+// every standalone page (NexusFrame) wear identical navigation.
+import { TABS, PAGES, type Tab } from '@/components/shell/nav-model';
+import { MobileDock } from '@/components/shell/mobile-dock';
+export { TABS };
+export type { Tab };
 
 function useUptime() {
   const [s, setS] = useState(0);
@@ -216,7 +159,6 @@ export default function TerminalShell() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   const [marketFocus, setMarketFocus] = useState<MarketFocus | null>(null);
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   // Alerts watch the same conviction feed the Oracle tab renders, so they fire on any
@@ -295,6 +237,10 @@ export default function TerminalShell() {
               >
                 {t.label}
               </button>
+            ))}
+            <span className="mx-1 h-4 w-px self-center bg-border/70" aria-hidden />
+            {PAGES.map((p) => (
+              <button key={p.href} onClick={() => setLocation(p.href)} className="nav-tab">{p.short}</button>
             ))}
           </nav>
 
@@ -460,87 +406,7 @@ export default function TerminalShell() {
       </main>
 
 
-      {/* Mobile instrument dock. The four daily workflows stay one tap away;
-          secondary modules live in a compact sheet instead of seven cramped tabs. */}
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/65 bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
-        <nav className="grid h-16 grid-cols-5 px-1" aria-label="Terminal sections">
-          {MOBILE_PRIMARY.map((id) => {
-            const label = TABS.find((item) => item.id === id)?.label ?? id;
-            const active = tab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => { setMobileMoreOpen(false); setTab(id); }}
-                className={cn(
-                  'relative flex min-w-0 flex-col items-center justify-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] transition-colors',
-                  active ? 'text-[var(--brand-cyan)]' : 'text-muted-foreground/70',
-                )}
-              >
-                {active && <motion.span layoutId="mobile-terminal-active" className="absolute inset-x-4 top-0 h-px bg-[var(--brand-cyan)]" />}
-                <MobileTabIcon tab={id} />
-                <span>{label}</span>
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setMobileMoreOpen((open) => !open)}
-            aria-expanded={mobileMoreOpen}
-            className={cn(
-              'relative flex flex-col items-center justify-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] transition-colors',
-              MOBILE_MORE.includes(tab) || mobileMoreOpen ? 'text-[var(--brand-cyan)]' : 'text-muted-foreground/70',
-            )}
-          >
-            {MOBILE_MORE.includes(tab) && <motion.span layoutId="mobile-terminal-active" className="absolute inset-x-4 top-0 h-px bg-[var(--brand-cyan)]" />}
-            <MoreHorizontal className="h-[18px] w-[18px]" />
-            <span>More</span>
-          </button>
-        </nav>
-      </div>
-
-      <AnimatePresence>
-        {mobileMoreOpen && (
-          <>
-            <motion.button
-              type="button"
-              aria-label="Close section menu"
-              className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm lg:hidden"
-              initial={reduce ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={reduce ? undefined : { opacity: 0 }}
-              onClick={() => setMobileMoreOpen(false)}
-            />
-            <motion.div
-              className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 overflow-hidden rounded-xl border border-border/75 bg-card shadow-2xl lg:hidden"
-              initial={reduce ? false : { opacity: 0, y: 16, scale: .98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduce ? undefined : { opacity: 0, y: 12, scale: .98 }}
-              transition={{ duration: DUR.fast, ease: EASE }}
-            >
-              <div className="border-b border-border/50 px-4 py-3">
-                <p className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">More instruments</p>
-              </div>
-              <div className="grid grid-cols-2 gap-px bg-border/50">
-                {MOBILE_MORE.map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => { setMobileMoreOpen(false); setTab(id); }}
-                    className={cn(
-                      'flex min-h-20 flex-col items-center justify-center gap-2 bg-card font-mono text-[10px] font-bold uppercase tracking-wider transition-colors',
-                      tab === id ? 'text-[var(--brand-cyan)]' : 'text-muted-foreground hover:text-foreground',
-                    )}
-                  >
-                    <MobileTabIcon tab={id} />
-                    {TABS.find((item) => item.id === id)?.label}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <MobileDock activeTab={tab} onTab={setTab} />
 
       {/* Each live market view has a full-screen focus mode. The stage stays comparable
           at a glance; a reader can then inspect one real source without it becoming

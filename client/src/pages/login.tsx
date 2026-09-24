@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
-import quantEdgeLabsLogoUrl from "@assets/qe-mark-96.png";
+import quantEdgeLabsLogoUrl from "@assets/qe-mark.svg";
 import { WaitlistPopup } from "@/components/waitlist-popup";
 
 const loginSchema = z.object({

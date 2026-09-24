@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { CONVICTION_LAYER_COUNT } from "@shared/conviction-layers";
 import { SEOHead } from "@/components/seo-head";
 import { Link } from "wouter";
+import qeMark from "@assets/qe-mark.svg";
 import profileImage from "@assets/malikpic-480.jpg";
 
 const engines = [
@@ -109,7 +110,7 @@ export default function About() {
                 </Button>
               </Link>
               <div className="flex items-center gap-2">
-                <Activity className="h-5 w-5 text-primary" />
+                <img src={qeMark} alt="" width={22} height={22} className="h-[22px] w-[22px]" />
                 <h1 className="text-lg font-bold">Quant Edge Labs</h1>
               </div>
             </div>
