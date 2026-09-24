@@ -248,7 +248,7 @@ export function Spark({
       </svg>
       {tag && (
         <span
-          className="absolute right-1 top-1.5 rounded-[2px] px-1.5 py-0.5 font-mono text-[8px] tracking-[0.04em] text-background"
+          className="absolute right-1 top-1.5 rounded-[2px] px-1.5 py-0.5 font-mono text-[9px] tracking-[0.04em] text-background"
           style={{ background: c }}
         >
           {tag}

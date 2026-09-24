@@ -337,7 +337,7 @@ function LayerPill({ layer }: { layer: ConvictionLayer }) {
     >
       <div
         className={cn(
-          "text-[8px] font-mono font-bold tracking-wider px-1 py-0.5 rounded bg-black/30",
+          "text-[9px] font-mono font-bold tracking-wider px-1 py-0.5 rounded bg-black/30",
           style.color,
         )}
       >
@@ -691,7 +691,7 @@ function FullVariant({
           >
             {grade}
           </div>
-          <div className="text-[8px] font-mono text-muted-foreground/60 mt-1 tabular-nums">
+          <div className="text-[9px] font-mono text-muted-foreground/60 mt-1 tabular-nums">
             {score}pts
           </div>
         </div>
@@ -707,7 +707,7 @@ function FullVariant({
             <PriceCell label="Stop" value={fmtPrice(idea.stopLoss)} tone="negative" />
             {live ? (
               <div>
-                <div className="text-[8px] font-mono uppercase text-muted-foreground flex items-center gap-1">
+                <div className="text-[9px] font-mono uppercase text-muted-foreground flex items-center gap-1">
                   Live R:R
                   {live.degraded && (
                     <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />
@@ -716,7 +716,7 @@ function FullVariant({
                 <div className={cn("text-sm font-mono font-semibold tabular-nums", live.color)}>
                   {live.label}
                 </div>
-                <div className="text-[8px] font-mono text-muted-foreground/60 tabular-nums line-through">
+                <div className="text-[9px] font-mono text-muted-foreground/60 tabular-nums line-through">
                   {idea.riskRewardRatio.toFixed(1)}×
                 </div>
               </div>
@@ -763,7 +763,7 @@ function FullVariant({
               </>
             )}
             {idea.expiryTier && (
-              <span className="ml-auto px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-200 font-bold uppercase tracking-wider text-[8px]">
+              <span className="ml-auto px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-200 font-bold uppercase tracking-wider text-[9px]">
                 {idea.expiryTier}{idea.optionDte != null ? ` · ${idea.optionDte}DTE` : ""}
               </span>
             )}
@@ -908,16 +908,16 @@ function CompactVariant({
         return (
           <div className="grid grid-cols-3 gap-1.5 mb-2 text-[10px] font-mono">
             <div>
-              <div className="text-[8px] uppercase text-muted-foreground">Entry</div>
+              <div className="text-[9px] uppercase text-muted-foreground">Entry</div>
               <div className="text-foreground font-semibold">{fmtPrice(idea.entryPrice)}</div>
             </div>
             <div>
-              <div className="text-[8px] uppercase text-muted-foreground">Tgt</div>
+              <div className="text-[9px] uppercase text-muted-foreground">Tgt</div>
               <div className="text-emerald-400 font-semibold">{fmtPrice(idea.targetPrice)}</div>
             </div>
             {live ? (
               <div>
-                <div className="text-[8px] uppercase text-muted-foreground flex items-center gap-0.5">
+                <div className="text-[9px] uppercase text-muted-foreground flex items-center gap-0.5">
                   Live R:R
                   {live.degraded && <AlertTriangle className="w-2 h-2 text-amber-400" />}
                 </div>
@@ -927,7 +927,7 @@ function CompactVariant({
               </div>
             ) : (
               <div>
-                <div className="text-[8px] uppercase text-muted-foreground">R:R</div>
+                <div className="text-[9px] uppercase text-muted-foreground">R:R</div>
                 <div className="text-cyan-300 font-semibold">{idea.riskRewardRatio.toFixed(1)}×</div>
               </div>
             )}
@@ -1096,7 +1096,7 @@ function RowVariant({
               {optTag}
             </span>
             {idea.expiryTier && (
-              <span className="px-1 py-px rounded bg-violet-500/15 text-violet-200 text-[8px] font-bold uppercase tracking-wider">
+              <span className="px-1 py-px rounded bg-violet-500/15 text-violet-200 text-[9px] font-bold uppercase tracking-wider">
                 {idea.expiryTier}
                 {idea.optionDte != null ? ` ${idea.optionDte}D` : ""}
               </span>
@@ -1148,7 +1148,7 @@ function PremiumRiskRewardBar({ idea }: { idea: TradeIdeaCardData }) {
 
   return (
     <div className="mt-2 pt-2 border-t border-violet-500/15">
-      <div className="flex items-center justify-between text-[8px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
+      <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
         <span>Premium R:R</span>
         <span className="opacity-60">est. · delta-based</span>
       </div>
@@ -1210,7 +1210,7 @@ function PriceCell({
 
   return (
     <div>
-      <div className="text-[8px] font-mono uppercase text-muted-foreground">
+      <div className="text-[9px] font-mono uppercase text-muted-foreground">
         {label}
       </div>
       <div className={cn("text-sm font-mono font-semibold tabular-nums", toneColor)}>

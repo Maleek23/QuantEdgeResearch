@@ -194,7 +194,7 @@ export function HeatseekerToolbar({
                 )}
                 {priceChangePct !== undefined && (
                   <span className={cn(
-                    'px-1 py-0.5 rounded text-[8px] font-bold',
+                    'px-1 py-0.5 rounded text-[9px] font-bold',
                     isUp ? 'bg-[var(--trade-bullish)]/15 text-[var(--trade-bullish)]' : 'bg-[var(--trade-bearish)]/15 text-[var(--trade-bearish)]'
                   )}>
                     ({isUp ? '+' : ''}{priceChangePct.toFixed(2)}%)

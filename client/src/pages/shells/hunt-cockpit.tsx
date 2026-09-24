@@ -1690,7 +1690,7 @@ function AnalysedSignalRow({
             <p className="font-mono text-[16px] font-bold leading-none tabular-nums" style={{ color: tone }}>
               {read.directional.aligned}/{read.directional.assessed || "—"}
             </p>
-            <p className="mt-1 font-mono text-[8px] font-bold uppercase tracking-[0.15em] text-muted-foreground/70">
+            <p className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/70">
               conditions
             </p>
           </div>
@@ -1737,7 +1737,7 @@ function AnalysedSignalRow({
             <span className="font-mono text-[14px] font-bold tracking-[0.08em] text-foreground">
               {analysis.symbol}
             </span>
-            <span className="font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--brand-cyan)]">
+            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--brand-cyan)]">
               Analysed
             </span>
           </div>
@@ -1753,7 +1753,7 @@ function AnalysedSignalRow({
             {score ?? "—"}
           </p>
           <p
-            className="mt-1 font-mono text-[8px] font-bold uppercase tracking-[0.15em]"
+            className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.15em]"
             style={{ color: gradeTone }}
           >
             {grade} grade

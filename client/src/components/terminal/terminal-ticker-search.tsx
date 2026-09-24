@@ -136,14 +136,14 @@ export function TerminalTickerSearch({
               >
                 {result.name ?? result.symbol}
               </span>
-              <span className="font-mono text-[8px] uppercase tracking-widest text-[var(--brand-cyan)]/75">{result.type ?? 'stock'}</span>
+              <span className="font-mono text-[9px] uppercase tracking-widest text-[var(--brand-cyan)]/75">{result.type ?? 'stock'}</span>
             </button>
           )) : !isFetching ? (
             <button type="button" onClick={() => select({ symbol: q, type: 'stock' })} className="flex w-full items-center justify-between px-3 py-3 text-left font-mono text-[10px] hover:bg-foreground/[0.035]">
               <span>Open {q} directly</span><span className="text-[var(--brand-cyan)]">↗</span>
             </button>
           ) : null}
-          <div className="border-t border-border/50 px-3 py-2 font-mono text-[8px] uppercase tracking-widest text-muted-foreground/45">
+          <div className="border-t border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground/45">
             Enter open · ↑↓ navigate · symbol follows every workspace
           </div>
         </div>

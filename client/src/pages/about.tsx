@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { CONVICTION_LAYER_COUNT } from "@shared/conviction-layers";
 import { SEOHead } from "@/components/seo-head";
 import { Link } from "wouter";
-import profileImage from "@assets/malikpic_1760579415191.jpg";
+import profileImage from "@assets/malikpic-480.jpg";
 
 const engines = [
   {
@@ -70,8 +70,11 @@ const values = [
 
 const stats = [
   { value: String(CONVICTION_LAYER_COUNT), label: "Conviction Layers", suffix: "" },
-  { value: "300", label: "Data Sources", suffix: "+" },
-  { value: "8000", label: "Stocks Covered", suffix: "+" },
+  // Measured 2026-09-24, not aspirational: the feeds the server actually calls
+  // (Yahoo, CBOE, Finnhub, Bullflow, CoinGecko, Coinbase, SEC EDGAR, Nasdaq) and
+  // the liquid universe ranked daily (server/data/liquid-universe.json).
+  { value: "8", label: "Market Data Feeds", suffix: "" },
+  { value: "2000", label: "Liquid Names Ranked Daily", suffix: "" },
   { value: "24/7", label: "Market Monitoring", suffix: "" },
 ];
 
@@ -84,8 +87,8 @@ const milestones = [
 ];
 
 const trustBadges = [
-  { icon: Lock, label: "256-bit SSL Encryption" },
-  { icon: Server, label: "SOC 2 Compliant Infrastructure" },
+  { icon: Lock, label: "HTTPS / TLS Encryption" },
+  { icon: Server, label: "Hosted on SOC 2-Audited Cloud" },
   { icon: Shield, label: "Read-Only Data Access" },
   { icon: CheckCircle2, label: "No Trading Execution" },
 ];
@@ -132,8 +135,8 @@ export default function About() {
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             We built QuantEdge Labs because we were tired of scattered data, conflicting signals,
-            and analysis paralysis. Our platform synthesizes 6 independent analysis layers into
-            clear, actionable insights.
+            and analysis paralysis. Our platform scores every setup through {CONVICTION_LAYER_COUNT} layers and publishes
+            its measured hit rate — including the models that failed validation.
           </p>
         </section>
 
@@ -296,6 +299,7 @@ export default function About() {
                   <img
                     src={profileImage}
                     alt="Abdulmalik Ajisegiri"
+                    width={128} height={128} loading="lazy" decoding="async"
                     className="w-32 h-32 rounded-lg object-cover border-2 border-cyan-500/20 shadow-lg"
                   />
                 </div>

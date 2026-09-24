@@ -69,7 +69,7 @@ export function MarketStream({ className }: { className?: string }) {
           const fresh = quote && quote.ageSeconds <= 30;
           return (
             <div key={symbol} className="min-w-0 font-mono tabular-nums">
-              <div className="flex items-center gap-1 text-[8px] font-bold tracking-[0.13em] text-muted-foreground/60">
+              <div className="flex items-center gap-1 text-[9px] font-bold tracking-[0.13em] text-muted-foreground/60">
                 <span className="h-1 w-1 rounded-full" style={{ background: fresh ? TC.bull : TC.warn }} /> {symbol}
               </div>
               {quote ? (
@@ -79,7 +79,7 @@ export function MarketStream({ className }: { className?: string }) {
                   className="mt-0.5 block max-w-full truncate px-0 text-[10px] font-semibold text-foreground"
                 />
               ) : <span className="text-[10px] text-muted-foreground/50">—</span>}
-              <div className="mt-0.5 text-[8px] text-muted-foreground/50">{quote ? `${quote.ageSeconds}s` : 'no feed'}</div>
+              <div className="mt-0.5 text-[9px] text-muted-foreground/50">{quote ? `${quote.ageSeconds}s` : 'no feed'}</div>
             </div>
           );
         })}

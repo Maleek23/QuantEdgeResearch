@@ -479,7 +479,7 @@ export default function TerminalPage() {
                   <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-[var(--gex-positive)]">
                     {exposureMode.toUpperCase()} PROFILE BY STRIKE
                   </span>
-                  <span className="text-[8px] font-mono text-muted-foreground">
+                  <span className="text-[9px] font-mono text-muted-foreground">
                     {data.heatmap.length} strikes · spot ${data.snapshot.spotPrice.toFixed(2)}
                   </span>
                 </div>
@@ -494,7 +494,7 @@ export default function TerminalPage() {
                   <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-[var(--gex-positive)]">
                     KEY LEVELS
                   </span>
-                  <span className="text-[8px] font-mono text-muted-foreground">
+                  <span className="text-[9px] font-mono text-muted-foreground">
                     {data.snapshot.levels.length} strikes
                   </span>
                 </div>
@@ -505,7 +505,7 @@ export default function TerminalPage() {
                     <GEXLevelBadge level={lvl} compact />
                     <div className="text-right">
                       <div className="text-[10px] font-mono tabular-nums text-foreground">{formatGEX(lvl.gex)}</div>
-                      <div className="text-[8px] font-mono text-muted-foreground tabular-nums">
+                      <div className="text-[9px] font-mono text-muted-foreground tabular-nums">
                         {formatGammaPct(lvl.gammaPct)} · OI {lvl.openInterest.toLocaleString()}
                       </div>
                     </div>

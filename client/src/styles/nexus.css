@@ -31,7 +31,7 @@
   --nx-border-glow:rgba(79,209,197,0.35);
   --text:#e8ecf3;
   --text-dim:#8b93a3;
-  --text-mute:#525a6b;
+  --text-mute:#7f889a; /* was #525a6b (2.4–2.9:1, failed WCAG AA on every panel); 4.6–5.7:1 now */
   --cyan:#4fd1c5;
   --cyan-bright:#6ee7db;
   --cyan-dim:#2a8a82;
@@ -1027,7 +1027,7 @@
   --nx-border-glow:rgba(13,148,136,0.4);
   --text:#121826;
   --text-dim:#46536b;
-  --text-mute:#8a94a6;
+  --text-mute:#5f697d; /* was #8a94a6 (2.6–3.1:1 on light panels); 4.7–5.5:1 now */
   --cyan:#0d9488;
   --cyan-bright:#0f766e;
   --cyan-dim:#99e6dd;
@@ -2347,7 +2347,7 @@
 .landing .lnav-status{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:5px;background:rgba(61,220,151,0.08);border:1px solid rgba(61,220,151,0.2);font-size:11px;font-weight:600;color:var(--green);letter-spacing:0.5px;text-transform:uppercase}
 .landing .lnav-status.stale{background:rgba(245,182,66,0.08);border-color:rgba(245,182,66,0.2);color:var(--amber)}
 .landing .lnav-status .dot{width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor;animation:pulse 1.8s infinite}
-.landing .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;font-size:13px;font-weight:600;border-radius:6px;cursor:pointer;transition:all 0.2s;font-family:inherit;border:1px solid transparent;letter-spacing:0.2px;text-decoration:none;color:inherit}
+.landing .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;min-height:44px;font-size:13px;font-weight:600;border-radius:6px;cursor:pointer;transition:all 0.2s;font-family:inherit;border:1px solid transparent;letter-spacing:0.2px;text-decoration:none;color:inherit}
 .landing .btn-primary{background:linear-gradient(135deg, var(--cyan), #3ba89e);color:#031917;box-shadow:0 4px 20px rgba(79,209,197,0.35)}
 .landing .btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(79,209,197,0.5)}
 .landing .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--nx-border-hi)}

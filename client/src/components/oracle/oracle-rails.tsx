@@ -203,7 +203,7 @@ export function SectorHeatmap({
               style={heatStyle(s.change)}
             >
               {s.etf}
-              <span className="absolute bottom-[2px] right-[3px] text-[7.5px] font-medium opacity-80">
+              <span className="absolute bottom-[2px] right-[3px] text-[9px] font-medium opacity-80">
                 {s.change >= 0 ? '+' : ''}
                 {s.change.toFixed(1)}
               </span>

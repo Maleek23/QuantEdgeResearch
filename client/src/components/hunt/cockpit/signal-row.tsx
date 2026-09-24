@@ -123,7 +123,7 @@ export function SignalRow({
               <LivePnl value={pick.unrealizedPnl ?? 0} />
             </div>
             <span
-              className="mt-1 block font-mono text-[8px] font-bold uppercase tracking-[0.15em]"
+              className="mt-1 block font-mono text-[9px] font-bold uppercase tracking-[0.15em]"
               style={{ color: 'var(--brand-gold)' }}
               title={`Held by ${pick.botOwner ?? 'bot'}${pick.quantity ? ` · ${pick.quantity}x` : ''} — shown regardless of entry filters`}
             >
@@ -142,7 +142,7 @@ export function SignalRow({
               </span>
             )}
           </div>
-          <span className="mt-1 block font-mono text-[8px] font-bold uppercase tracking-[0.15em]" style={{ color: bandColor(pick.convictionBand) }}>
+          <span className="mt-1 block font-mono text-[9px] font-bold uppercase tracking-[0.15em]" style={{ color: bandColor(pick.convictionBand) }}>
             evidence
           </span>
         </div>
@@ -163,7 +163,7 @@ export function SignalRow({
         */}
         {pick.isBotHeld ? (
           <>
-            <div className="mb-1.5 flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
               <span>Position · held</span>
               <span style={{ color: 'var(--brand-gold)' }}>{pick.botOwner ?? 'bot'}</span>
             </div>
@@ -191,7 +191,7 @@ export function SignalRow({
           </>
         ) : awaitingTrigger ? (
           <>
-            <div className="mb-2 flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
+            <div className="mb-2 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
               <span>Entry gate · no position{(pick as any).levelBasis === 'contract' ? ' · PREM levels' : ''}</span>
               <span className="tabular-nums text-[var(--brand-gold)]">
                 {triggerDistancePct.toFixed(1)}% {triggerSide} trigger
@@ -199,11 +199,11 @@ export function SignalRow({
             </div>
             <div className="grid grid-cols-2 gap-px border border-border/45 bg-border/45">
               <div className="bg-card px-2 py-1.5">
-                <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/60">live</span>
+                <span className="block font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/60">live</span>
                 <span className="mt-0.5 block font-mono text-[10px] font-bold tabular-nums text-foreground">${px.toFixed(2)}</span>
               </div>
               <div className="bg-card px-2 py-1.5">
-                <span className="block font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/60">trigger</span>
+                <span className="block font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/60">trigger</span>
                 <span className="mt-0.5 block font-mono text-[10px] font-bold tabular-nums text-[var(--brand-cyan)]">${pick.entryPrice.toFixed(2)}</span>
               </div>
             </div>
@@ -219,18 +219,18 @@ export function SignalRow({
           </>
         ) : (
           <>
-            <div className="mb-1.5 flex items-center justify-between font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
+            <div className="mb-1.5 flex items-center justify-between font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground/65">
               <span>Trade path · entered</span>
               <span style={{ color: pnlColor(g.pnlPct) }}>
                 <LiveValue
                   value={g.pnlPct}
                   tween={false}
-                  className="font-mono text-[8px] font-bold uppercase tracking-[0.14em]"
+                  className="font-mono text-[9px] font-bold uppercase tracking-[0.14em]"
                   format={(n) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}% live`}
                 />
               </span>
             </div>
-            <div className="mb-1 flex items-center justify-between font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/55">
+            <div className="mb-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/55">
               <span>entry</span><span>T1</span>
             </div>
             <div className="relative h-[3px] bg-foreground/[0.09]">

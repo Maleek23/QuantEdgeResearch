@@ -115,8 +115,8 @@ function TradeVector({ pick, live }: { pick: ConvictionPick; live: number }) {
         {points.map((point) => (
           <div key={point.label} className="absolute top-0 -translate-x-1/2 text-center" style={{ left: `${x(point.price)}%` }}>
             <span className="block h-3 w-px mx-auto" style={{ background: point.color }} />
-            <span className="mt-1 block font-mono text-[8px] font-bold uppercase tracking-[0.11em]" style={{ color: point.color }}>{point.label}</span>
-            <span className="block font-mono text-[8px] tabular-nums text-muted-foreground/65">${money(point.price)}</span>
+            <span className="mt-1 block font-mono text-[9px] font-bold uppercase tracking-[0.11em]" style={{ color: point.color }}>{point.label}</span>
+            <span className="block font-mono text-[9px] tabular-nums text-muted-foreground/65">${money(point.price)}</span>
           </div>
         ))}
         <motion.span
@@ -517,7 +517,7 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
           <span className="text-label font-mono uppercase tracking-wider text-muted-foreground/60">Horizon</span>
           <span className="text-right text-meta font-mono tabular-nums text-foreground" title={`Management window derived from ${g.horizonBasis}`}>
             {g.horizonUsedPct.toFixed(0)}% used · {g.daysHeld.toFixed(1)}/{g.horizonDays}d
-            <span className="ml-1 text-[8px] text-muted-foreground/55">({g.horizonBasis})</span>
+            <span className="ml-1 text-[9px] text-muted-foreground/55">({g.horizonBasis})</span>
           </span>
         </div>
 

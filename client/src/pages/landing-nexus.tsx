@@ -215,7 +215,7 @@ export default function LandingNexus() {
   const { data: rotation, isLoading: rotationLoading } = useQuery<RotationPayload>({ queryKey: ['/api/sector-rotation', 'landing'], queryFn: fetchJson('/api/sector-rotation'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
   const { data: conv, isLoading: convLoading } = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'landing'], queryFn: fetchJson('/api/convictions?limit=40&minScore=10'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
   const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'landing'], queryFn: fetchJson('/api/crypto/pulse'), staleTime: 300_000, retry: 1 });
-  const { data: patterns, isLoading: patternsLoading } = useQuery<{ hits?: unknown[]; scanned?: number }>({ queryKey: ['/api/patterns/scan', 'landing'], queryFn: fetchJson('/api/patterns/scan'), staleTime: 600_000, retry: 1 });
+  const { data: patterns, isLoading: patternsLoading } = useQuery<{ hits?: unknown[]; scanned?: number; scanning?: boolean }>({ queryKey: ['/api/patterns/scan', 'landing'], queryFn: fetchJson('/api/patterns/scan'), staleTime: 600_000, retry: 1 });
   const { data: ideasMeta, isLoading: ideasLoading } = useQuery<{ total?: number; last24h?: number }>({ queryKey: ['/api/trade-ideas/debug/raw', 'landing'], queryFn: fetchJson('/api/trade-ideas/debug/raw'), staleTime: 600_000, retry: 1 });
   const spyIntra = useDaily('SPY', '1d', '5m');
   const spyDaily = useDaily('SPY', '5d', '1d');
@@ -387,7 +387,7 @@ export default function LandingNexus() {
             <div className="stat-item reveal">
               <div className="lstat-val">{ideasLoading ? '—' : (ideasMeta?.total ?? 0).toLocaleString()}</div>
               <div className="lstat-label">Signals generated & outcome-tracked</div>
-              <div className="lstat-sub">{ideasLoading ? 'loading…' : `${ideasMeta?.last24h ?? 0} in the last 24h · ${picks.length} in play now`}</div>
+              <div className="lstat-sub">{ideasLoading ? 'loading…' : `${ideasMeta?.last24h ?? 0} in the last 24h${conv ? ` · ${picks.length} in play now` : ''}`}</div>
             </div>
             <div className="stat-item reveal">
               <div className="lstat-val">{rotationLoading ? '—' : sectors.length}</div>
@@ -395,9 +395,9 @@ export default function LandingNexus() {
               <div className="lstat-sub">{rotationLoading ? 'loading…' : (rotation?.sessionLabel ?? 'live session')}</div>
             </div>
             <div className="stat-item reveal">
-              <div className="lstat-val">{patternsLoading ? '—' : (patterns?.hits?.length ?? 0)}</div>
+              <div className="lstat-val">{patternsLoading || (!patterns?.scanned && patterns?.scanning) ? '—' : (patterns?.hits?.length ?? 0)}</div>
               <div className="lstat-label">Chart patterns detected today</div>
-              <div className="lstat-sub">{patternsLoading ? 'loading…' : `${patterns?.scanned ?? 0} names swept on real bars`}</div>
+              <div className="lstat-sub">{patternsLoading ? 'loading…' : patterns?.scanned ? `${patterns.scanned} names swept on real bars` : 'sweep in progress'}</div>
             </div>
             <div className="stat-item reveal">
               <div className="lstat-val">{convLoading ? '—' : (<>{topScore}<span style={{ fontSize: 20, color: 'var(--text-mute)' }}>/100</span></>)}</div>

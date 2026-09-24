@@ -14,7 +14,7 @@ export default function HowToPage() {
         <h1 className="text-2xl font-mono font-bold uppercase tracking-widest">
           How to use QuantEdge
         </h1>
-        <p className="text-[12px] font-mono text-muted-foreground/80">
+        <p className="text-[12px] font-mono text-muted-foreground">
           One terminal, three windows of time, one workflow. Read this once.
         </p>
       </header>
@@ -73,7 +73,7 @@ export default function HowToPage() {
               <span className="text-[var(--brand-cyan)]">2.</span>{' '}
               Scans <strong>~120 tickers</strong> against <strong>6 pattern signatures</strong>:
             </p>
-            <ul className="ml-6 space-y-1 text-muted-foreground/80 text-[10px]">
+            <ul className="ml-6 space-y-1 text-muted-foreground text-[11px]">
               <li>• <strong>DGXX Setup</strong> — small-cap + AI-adjacent + call vol spike + hyperscaler news</li>
               <li>• <strong>Aschenbrenner 2nd Derivative</strong> — layer hasn't run yet vs first-order layer</li>
               <li>• <strong>Bottleneck Whisper</strong> — "constrained / shortage" mentions cluster</li>
@@ -113,7 +113,7 @@ export default function HowToPage() {
 
       {/* Limits to know */}
       <Section title="What QuantEdge ISN'T" subtitle="Honest disclosure">
-        <div className="text-[11px] font-mono text-muted-foreground/80 space-y-2">
+        <div className="text-[11px] font-mono text-muted-foreground space-y-2">
           <p>
             <strong className="text-foreground">Real-time data:</strong> we use CBOE delayed (15 min) + Yahoo Finance + Tradier when token is alive. We're <strong>not</strong> Unusual Whales (no curated dark pool prints) or Polygon ($99/mo institutional real-time).
           </p>
@@ -136,7 +136,7 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
     <section className="space-y-2">
       <div>
         <h2 className="text-[13px] font-mono uppercase tracking-wider text-foreground">{title}</h2>
-        {subtitle && <p className="text-[10px] font-mono text-muted-foreground/60">{subtitle}</p>}
+        {subtitle && <p className="text-[11px] font-mono text-muted-foreground">{subtitle}</p>}
       </div>
       {children}
     </section>
@@ -146,13 +146,13 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 function Step({ time, actions }: { time: string; actions: { url: string; label: string; why: string }[] }) {
   return (
     <div className="qe-card border border-border/40 rounded-md p-3">
-      <div className="text-[9px] font-mono uppercase tracking-wider text-[var(--brand-cyan)] mb-2">{time}</div>
+      <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--brand-cyan)] mb-2">{time}</div>
       <div className="space-y-1.5">
         {actions.map((a, i) => (
           <Link key={i} href={a.url} className="flex items-center gap-2 text-[11px] font-mono hover:bg-muted/30 px-2 py-1 rounded transition">
-            <ArrowRight className="h-3 w-3 text-muted-foreground/60" />
+            <ArrowRight className="h-3 w-3 text-muted-foreground" />
             <span className="text-foreground min-w-[200px]">{a.label}</span>
-            <span className="text-muted-foreground/60">{a.why}</span>
+            <span className="text-muted-foreground">{a.why}</span>
           </Link>
         ))}
       </div>
@@ -166,9 +166,9 @@ function PageCard({ icon: Icon, url, title, desc }: { icon: any; url: string; ti
       <div className="flex items-center gap-2 mb-1">
         <Icon className="h-3.5 w-3.5 text-[var(--brand-cyan)]" />
         <div className="text-[12px] font-mono font-bold uppercase">{title}</div>
-        <div className="text-[10px] font-mono text-muted-foreground/60">{url}</div>
+        <div className="text-[11px] font-mono text-muted-foreground">{url}</div>
       </div>
-      <p className="text-[10px] font-mono text-muted-foreground/70">{desc}</p>
+      <p className="text-[11px] font-mono text-muted-foreground">{desc}</p>
     </Link>
   );
 }
@@ -179,7 +179,7 @@ function DecisionRow({ q, a }: { q: string; a: string[] }) {
       <span className="flex-1 text-foreground">{q}</span>
       <div className="flex gap-1">
         {a.map((url, i) => (
-          <Link key={i} href={url} className="px-2 py-0.5 rounded bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/20 text-[10px] font-mono">
+          <Link key={i} href={url} className="px-2 py-0.5 rounded bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/20 text-[11px] font-mono">
             {url}
           </Link>
         ))}

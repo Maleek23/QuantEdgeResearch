@@ -358,7 +358,7 @@ export function GEXExpiryMatrix({
       {/* DTE preset bar — toggle between any date or DTE range */}
       {(!visibleExpiries || visibleExpiries.length === 0) && expiryInfo.length > 0 && (
         <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0 pb-1 border-b border-border/20">
-          <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60 mr-1">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mr-1">
             DTE
           </span>
           {(() => {
@@ -416,7 +416,7 @@ export function GEXExpiryMatrix({
               </option>
             ))}
           </select>
-          <span className="text-[8px] font-mono text-muted-foreground/60 ml-auto">
+          <span className="text-[9px] font-mono text-muted-foreground/60 ml-auto">
             {filteredExpiries.length} of {expiries.length} expiries
             {expiryInfo.length > 0 && (
               <span className="ml-2 text-muted-foreground/60">
@@ -434,7 +434,7 @@ export function GEXExpiryMatrix({
             type="button"
             onClick={() => setInternalWeek('all')}
             className={cn(
-              'px-2 py-0.5 text-[8px] font-mono font-bold uppercase rounded border transition-colors whitespace-nowrap flex-shrink-0',
+              'px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded border transition-colors whitespace-nowrap flex-shrink-0',
               internalWeek === 'all'
                 ? 'border-[var(--gex-positive)]/30 text-[var(--gex-positive)] bg-[var(--gex-positive)]/10'
                 : 'border-transparent text-muted-foreground/60 hover:text-muted-foreground hover:border-border/20'
@@ -454,7 +454,7 @@ export function GEXExpiryMatrix({
                 type="button"
                 onClick={() => setInternalWeek(internalWeek === wk.key ? 'all' : wk.key)}
                 className={cn(
-                  'px-2 py-0.5 text-[8px] font-mono font-bold rounded border transition-colors whitespace-nowrap flex-shrink-0',
+                  'px-2 py-0.5 text-[9px] font-mono font-bold rounded border transition-colors whitespace-nowrap flex-shrink-0',
                   internalWeek === wk.key
                     ? accent
                     : 'border-transparent text-muted-foreground/60 hover:text-muted-foreground hover:border-border/20'
@@ -576,7 +576,7 @@ export function GEXExpiryMatrix({
                       {isFlip && !isMax && !isAnchor && <span className="text-violet-400" title="Gamma flip">&#x26A1;</span>}
                       <span>${strike.toFixed(strike % 1 === 0 ? 0 : 1)}</span>
                       {isVeryClose && !isAnchor && (
-                        <span className="text-[8px] font-mono text-amber-400/60 ml-0.5">{distPct >= 0 ? '+' : ''}{distPct.toFixed(1)}%</span>
+                        <span className="text-[9px] font-mono text-amber-400/60 ml-0.5">{distPct >= 0 ? '+' : ''}{distPct.toFixed(1)}%</span>
                       )}
                     </div>
                   </td>

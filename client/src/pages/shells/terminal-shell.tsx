@@ -34,7 +34,7 @@ import { useStockContext } from '@/contexts/stock-context';
 import { useTheme } from '@/components/theme-provider';
 import { useAuth } from '@/hooks/useAuth';
 import { KitStyles } from '@/components/templates/kit';
-import quantEdgeLogoUrl from '@assets/q_1767502987714.png';
+import quantEdgeLogoUrl from '@assets/qe-mark-96.png';
 import '@/styles/nexus.css';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
 import { SystemPulse } from '@/components/terminal/system-pulse';

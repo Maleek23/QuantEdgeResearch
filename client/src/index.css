@@ -548,7 +548,7 @@ button:not([disabled]):active,
   --terminal-border-hover: rgba(79, 209, 197, .18);
   --terminal-text: #e8ecf3;
   --terminal-text-secondary: #8b93a3;
-  --terminal-text-muted: #525a6b;
+  --terminal-text-muted: #7f889a; /* WCAG AA on terminal panels; was #525a6b */
 
   /* brand accents — cyan/teal inherit the canonical :root ramp */
   --brand-blue: #60a5fa;

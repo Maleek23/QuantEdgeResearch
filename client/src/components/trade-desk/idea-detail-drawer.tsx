@@ -330,31 +330,31 @@ function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
             <div className="mt-2 grid grid-cols-5 gap-1.5">
               {idea.optionDelta != null && (
                 <div className="text-center">
-                  <div className="text-[8px] font-mono uppercase text-muted-foreground">Delta</div>
+                  <div className="text-[9px] font-mono uppercase text-muted-foreground">Delta</div>
                   <div className="text-[11px] font-mono text-foreground">{idea.optionDelta.toFixed(2)}</div>
                 </div>
               )}
               {idea.optionGamma != null && (
                 <div className="text-center">
-                  <div className="text-[8px] font-mono uppercase text-muted-foreground">Gamma</div>
+                  <div className="text-[9px] font-mono uppercase text-muted-foreground">Gamma</div>
                   <div className="text-[11px] font-mono text-foreground">{idea.optionGamma.toFixed(3)}</div>
                 </div>
               )}
               {idea.optionTheta != null && (
                 <div className="text-center">
-                  <div className="text-[8px] font-mono uppercase text-muted-foreground">Theta</div>
+                  <div className="text-[9px] font-mono uppercase text-muted-foreground">Theta</div>
                   <div className="text-[11px] font-mono text-foreground">{idea.optionTheta.toFixed(2)}</div>
                 </div>
               )}
               {idea.optionVega != null && (
                 <div className="text-center">
-                  <div className="text-[8px] font-mono uppercase text-muted-foreground">Vega</div>
+                  <div className="text-[9px] font-mono uppercase text-muted-foreground">Vega</div>
                   <div className="text-[11px] font-mono text-foreground">{idea.optionVega.toFixed(2)}</div>
                 </div>
               )}
               {idea.optionIV != null && (
                 <div className="text-center">
-                  <div className="text-[8px] font-mono uppercase text-muted-foreground">IV</div>
+                  <div className="text-[9px] font-mono uppercase text-muted-foreground">IV</div>
                   <div className="text-[11px] font-mono text-foreground">{idea.optionIV.toFixed(0)}%</div>
                 </div>
               )}

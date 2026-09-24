@@ -36,7 +36,7 @@
  * The mock's price-jitter loop does not run: prices move when the feed moves.
  * Its filter buttons, which only toggled classes, now actually filter.
  */
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { openWorkup } from '@/lib/workup-bus';
 import { Spark } from '@/components/charting/spark';
@@ -48,7 +48,7 @@ import { useTheme } from '@/components/theme-provider';
 import { useColResize } from '@/lib/use-col-resize';
 import { useStockContext } from '@/contexts/stock-context';
 import type { ConvictionPick, ConvictionsResponse } from '@/lib/convictions';
-import quantEdgeLogoUrl from '@assets/q_1767502987714.png';
+import quantEdgeLogoUrl from '@assets/qe-mark-96.png';
 // The cockpit — the deep single-signal read — mounts on demand behind the
 // board's view toggle. Same component the old Active Book used.
 const HuntCockpit = lazy(() => import('@/pages/shells/hunt-cockpit'));
@@ -748,7 +748,7 @@ export function NexusBoard() {
           <div className={railCls('radar', 'intel-block')}>
             <div className="intel-head">
               <div className="intel-label">Pattern Radar<RailCtl id="radar" /></div>
-              <div className="intel-value" style={{ cursor: 'pointer' }} title="Open the full pattern browser" onClick={() => setRadarBrowse('all')}>{patterns.data ? `${patterns.data.hits.length} hits · ${patterns.data.scanned} scanned ⤢` : 'warming…'}</div>
+              <div className="intel-value" style={{ cursor: 'pointer' }} title="Open the full pattern browser" role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => setRadarBrowse('all')}>{patterns.data ? `${patterns.data.hits.length} hits · ${patterns.data.scanned} scanned ⤢` : 'warming…'}</div>
             </div>
             {(['inside_coil', 'bull_flag', 'breakout_watch', 'bear_flag'] as const).map((pat) => {
               // Operator-core names pin to the front of each group — CRCL's
@@ -793,7 +793,7 @@ export function NexusBoard() {
                     {expandSec === 'prints' && (
                       <div>
                         {(flow.data?.trades ?? []).map((t) => (
-                          <div key={t.id} onClick={() => { setExpandSec(null); setCurrentStock({ symbol: t.symbol }); openWorkup(t.symbol); }}
+                          <div key={t.id} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setExpandSec(null); setCurrentStock({ symbol: t.symbol }); openWorkup(t.symbol); }}
                             style={{ display: 'grid', gridTemplateColumns: '90px 70px 1fr auto auto', gap: 12, alignItems: 'center', padding: '8px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>
                             <span style={{ color: 'var(--text-mute)' }}>{new Date(t.detectedAt).toTimeString().slice(0, 8)}</span>
                             <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13 }}>{t.symbol}</b>
@@ -810,7 +810,7 @@ export function NexusBoard() {
                         {watchSyms.map(({ symbol }) => {
                           const wq = quoteBySym.get(symbol);
                           return (
-                            <div key={symbol} onClick={() => { setExpandSec(null); setCurrentStock({ symbol }); openWorkup(symbol); }}
+                            <div key={symbol} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setExpandSec(null); setCurrentStock({ symbol }); openWorkup(symbol); }}
                               style={{ padding: 12, background: 'rgba(0,0,0,0.25)', border: '1px solid var(--nx-border)', borderRadius: 6, cursor: 'pointer' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                                 <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 14 }}>{symbol}</b>
@@ -881,7 +881,7 @@ export function NexusBoard() {
                     ))}
                   </div>
                   {(patterns.data?.hits ?? []).filter((h) => radarBrowse === 'all' || h.pattern === radarBrowse).slice(0, 120).map((h) => (
-                    <div key={`${h.pattern}-${h.symbol}`} onClick={() => { setRadarBrowse(null); setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
+                    <div key={`${h.pattern}-${h.symbol}`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setRadarBrowse(null); setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
                       style={{ display: 'grid', gridTemplateColumns: '64px 110px 1fr', gap: 10, alignItems: 'center', padding: '7px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
                       <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text)' }}>{h.symbol}</b>
                       <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 9 }}>{h.pattern.replace('_', ' ')}</span>
@@ -1003,7 +1003,7 @@ export function NexusBoard() {
             </div>
             <div className="tape-list" style={printsExpanded ? { maxHeight: 380, overflowY: 'auto' } : undefined}>
               {(flow.data?.trades ?? []).slice(0, printsExpanded ? 200 : 10).map((t) => (
-                <div className="tape-row" key={t.id} style={{ cursor: 'pointer' }} title={`Open ${t.symbol} workup`} onClick={() => { setCurrentStock({ symbol: t.symbol }); openWorkup(t.symbol); }}>
+                <div className="tape-row" key={t.id} style={{ cursor: 'pointer' }} title={`Open ${t.symbol} workup`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setCurrentStock({ symbol: t.symbol }); openWorkup(t.symbol); }}>
                   <span className="tape-time">{new Date(t.detectedAt).toTimeString().slice(0, 8)}</span>
                   <span className="tape-sym">{t.symbol}</span>
                   <span className="tape-price">${t.strikePrice} × ${Math.round(t.totalPremium / 1000)}k</span>
@@ -1075,7 +1075,7 @@ export function NexusBoard() {
                   : r.outcome === 'expired' ? { c: 'var(--text-mute)', t: 'EXPIRED' }
                   : { c: 'var(--cyan-bright)', t: 'OPEN' };
                 return (
-                  <div key={r.id} onClick={() => openWorkup(r.symbol)}
+                  <div key={r.id} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => openWorkup(r.symbol)}
                     style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '6px 4px', borderBottom: '1px solid var(--nx-border, rgba(148,163,184,0.08))', cursor: 'pointer' }}>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)', minWidth: 56 }}>{new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, minWidth: 52 }}>{r.symbol}</span>
@@ -1362,7 +1362,7 @@ export function NexusBoard() {
                   <div className="intel-value">{total} developing</div>
                 </div>
                 {pendingPicks.map(({ p, g }) => (
-                  <div key={`pp-${p.ideaId}`} onClick={() => { setCurrentStock({ symbol: p.symbol }); openWorkup(p.symbol); }}
+                  <div key={`pp-${p.ideaId}`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setCurrentStock({ symbol: p.symbol }); openWorkup(p.symbol); }}
                     style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
                     <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12 }}>{p.symbol}</b>
                     <span style={{ color: 'var(--text-dim)' }}>awaiting trigger · entry ${p.entryPrice?.toFixed(2)}</span>
@@ -1370,7 +1370,7 @@ export function NexusBoard() {
                   </div>
                 ))}
                 {coilHits.map((h) => (
-                  <div key={`ch-${h.pattern}-${h.symbol}`} onClick={() => { setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
+                  <div key={`ch-${h.pattern}-${h.symbol}`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
                     style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
                     <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12 }}>{h.symbol}</b>
                     <span style={{ color: 'var(--text-dim)' }} title={h.note}>{h.pattern === 'inside_coil' ? 'coiling' : 'NR7 compression'} · {h.note.slice(0, 30)}…</span>
@@ -1478,3 +1478,10 @@ export function NexusBoard() {
 }
 
 export default NexusBoard;
+
+/** Keyboard parity for clickable rows: Enter/Space fires the row's own onClick.
+ *  (UI validation 2026-09-24: board rows were mouse-only — unreachable by keyboard.) */
+const pressOnEnter = (e: ReactKeyboardEvent<HTMLElement>) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
+};
+

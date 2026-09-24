@@ -340,7 +340,7 @@ export function ContractEngine({
                   <span className="text-[10px] font-mono font-bold tracking-widest" style={{ color: st.color }}>{st.label}</span>
                   {isRecommended && (
                     <span
-                      className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
+                      className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
                       style={{ color: 'var(--brand-cyan)', background: 'color-mix(in srgb, var(--brand-cyan) 14%, transparent)' }}
                     >
                       Rec

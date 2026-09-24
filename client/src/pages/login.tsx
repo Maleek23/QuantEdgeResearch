@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
-import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
+import quantEdgeLabsLogoUrl from "@assets/qe-mark-96.png";
 import { WaitlistPopup } from "@/components/waitlist-popup";
 
 const loginSchema = z.object({
@@ -274,6 +274,8 @@ export default function Login() {
                         <Input
                           type="email"
                           placeholder="Email address"
+                          aria-label="Email address"
+                          autoComplete="email"
                           className="h-11 pl-10 bg-white dark:bg-card border-gray-200 dark:border-border text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground/70 focus:border-gray-300 dark:focus:border-border focus:ring-0"
                           {...field}
                         />
@@ -294,13 +296,16 @@ export default function Login() {
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="Password"
+                          aria-label="Password"
+                          autoComplete="current-password"
                           className="h-11 pl-10 pr-10 bg-white dark:bg-card border-gray-200 dark:border-border text-foreground dark:text-foreground placeholder:text-muted-foreground dark:placeholder:text-muted-foreground/70 focus:border-gray-300 dark:focus:border-border focus:ring-0"
                           {...field}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground dark:text-muted-foreground/70 hover:text-foreground dark:hover:text-foreground"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          className="absolute right-0 top-1/2 -translate-y-1/2 h-11 w-11 flex items-center justify-center text-muted-foreground dark:text-muted-foreground/70 hover:text-foreground dark:hover:text-foreground"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -335,7 +340,7 @@ export default function Login() {
             <p className="text-sm text-muted-foreground dark:text-muted-foreground mb-3">Don't have access yet?</p>
             <Button
               variant="outline"
-              className="w-full h-10 border-gray-200 dark:border-border text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground hover:bg-gray-50 dark:hover:bg-card"
+              className="w-full h-11 border-gray-200 dark:border-border text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground hover:bg-gray-50 dark:hover:bg-card"
               onClick={() => setWaitlistOpen(true)}
             >
               Join the waitlist
@@ -347,7 +352,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setShowAdminLogin(!showAdminLogin)}
-              className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors w-full text-center"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-center min-h-11"
             >
               Admin access
             </button>
@@ -357,6 +362,7 @@ export default function Login() {
                 <Input
                   type="password"
                   placeholder="Admin access code"
+                  aria-label="Admin access code"
                   value={accessCode}
                   onChange={(e) => setAccessCode(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}

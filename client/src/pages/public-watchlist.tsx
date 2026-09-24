@@ -85,14 +85,22 @@ export default function PublicWatchlist() {
             <h1 className="mt-1 text-xl font-semibold sm:text-2xl">{data?.name ?? "Watchlist"}</h1>
           </div>
           <div className="text-right text-xs text-slate-400">
-            <div>{data?.count ?? 0} tickers</div>
+            <div>{data ? `${data.count} tickers` : "—"}</div>
             <div className="mt-0.5">Updated {fmtUpdated(data?.updatedAt ?? null)}</div>
           </div>
         </div>
 
         {/* States */}
+        {/* Skeleton rows the height of real rows: the old one-line "Loading…"
+            was swapped for the full list and shoved the page (CLS 0.25, "poor"). */}
         {isLoading && (
-          <div className="py-16 text-center text-slate-400">Loading watchlist…</div>
+          <ul className="mt-3 divide-y divide-white/[0.06]" aria-busy="true" aria-label="Loading watchlist">
+            {Array.from({ length: 8 }, (_, i) => (
+              <li key={i} className="flex items-center gap-3 py-3">
+                <span className="h-9 w-full animate-pulse rounded bg-white/[0.04]" />
+              </li>
+            ))}
+          </ul>
         )}
         {isError && (
           <div className="py-16 text-center text-red-400">Couldn't load the watchlist. Try refreshing.</div>

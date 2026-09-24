@@ -1555,7 +1555,7 @@ function WeeklyPnLChart({ data }: { data: WeeklyPnL[] }) {
                 style={{ width: `${(Math.abs(w.totalPnL) / maxWeekPnL) * 100}%` }}
               />
               <div className="absolute inset-0 flex items-center justify-between px-1.5">
-                <span className="text-[8px] text-muted-foreground">{w.trades} trades</span>
+                <span className="text-[9px] text-muted-foreground">{w.trades} trades</span>
                 <span className={cn("text-[9px] font-mono",
                   w.totalPnL >= 0 ? "text-emerald-400" : "text-red-400"
                 )}>

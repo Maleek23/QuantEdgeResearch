@@ -201,12 +201,12 @@ export function OracleMarketField({
               </>
             )}
             {esLive && (
-              <span className="absolute top-2 inline-flex items-center gap-1 text-[7px] font-bold tracking-[0.13em] text-[var(--brand-cyan)]">
+              <span className="absolute top-2 inline-flex items-center gap-1 text-[9px] font-bold tracking-[0.13em] text-[var(--brand-cyan)]">
                 <span className="h-1 w-1 rounded-full bg-[var(--brand-cyan)]" /> ES LIVE
               </span>
             )}
             <span className="text-[17px] font-bold tracking-tight" style={{ color: read.tone }}>{signed(data.spyChange)}</span>
-            <span className="absolute bottom-[13px] text-[8px] font-bold tracking-[0.14em] text-muted-foreground/65">SPY CASH</span>
+            <span className="absolute bottom-[13px] text-[9px] font-bold tracking-[0.14em] text-muted-foreground/65">SPY CASH</span>
           </motion.div>
         </div>
 

@@ -117,7 +117,7 @@ export function SignalTable({
                   </td>
                   <td className="px-3 py-2 text-right font-semibold text-foreground">{money(px)}</td>
                   <td className="px-3 py-2 text-right" title={(pick as any).levelBasis === 'contract' ? "Levels are the option contract's PREMIUM, not share prices" : undefined}>
-                    {(pick as any).levelBasis === 'contract' && <span className="mr-1 text-[8px] font-bold tracking-wider" style={{ color: 'var(--brand-gold)' }}>PREM</span>}
+                    {(pick as any).levelBasis === 'contract' && <span className="mr-1 text-[9px] font-bold tracking-wider" style={{ color: 'var(--brand-gold)' }}>PREM</span>}
                     {money(pick.entryPrice)}
                   </td>
                   <td className="px-3 py-2 text-right text-[var(--trade-bearish)]">{money(pick.stopLoss)}</td>

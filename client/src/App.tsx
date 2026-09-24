@@ -334,7 +334,7 @@ function AuthHeader() {
         >
           <Search className="h-3 w-3" />
           Search
-          <kbd className="ml-1 px-1 py-0 text-[8px] bg-muted rounded border border-border text-muted-foreground/60">⌘K</kbd>
+          <kbd className="ml-1 px-1 py-0 text-[9px] bg-muted rounded border border-border text-muted-foreground/60">⌘K</kbd>
         </Button>
         {isAuthenticated && userData && (
           <>

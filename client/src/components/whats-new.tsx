@@ -146,6 +146,16 @@ export function WhatsNewToast() {
   const { unreadCount, handleOpen } = useWhatsNew();
   const [dismissed, setDismissed] = useState(false);
 
+  // A first-time visitor has never seen the changelog, so EVERY entry counts
+  // as unread ("34 new updates") — noise on a first impression, and on phones
+  // it covers the page. Baseline them silently; returning users still get it.
+  const [firstVisit] = useState(() => wnState.seenId == null);
+  useEffect(() => {
+    if (!firstVisit) return;
+    const latest = getMostRecentId();
+    if (latest) { writeSeen(latest); wnSet({ seenId: latest }); }
+  }, [firstVisit]);
+
   // Auto-dismiss after 10s
   useEffect(() => {
     if (unreadCount === 0 || dismissed) return;
@@ -153,7 +163,7 @@ export function WhatsNewToast() {
     return () => clearTimeout(t);
   }, [unreadCount, dismissed]);
 
-  if (unreadCount === 0 || dismissed) return null;
+  if (firstVisit || unreadCount === 0 || dismissed) return null;
 
   return (
     <button
