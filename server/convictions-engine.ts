@@ -374,6 +374,41 @@ function scoreLeadershipLayer(symbol: string): ConvictionLayer | null {
 }
 
 /**
+ * Path-to-structure layer — the context the 2R formula targets ignored
+ * (operator 2026-09-24). Resistance (or support, for shorts) sitting inside
+ * 1R of the entry caps the trade before it can pay; a clean runway to the
+ * first real level is evidence FOR it.
+ */
+async function scorePathToStructureLayer(p: any): Promise<ConvictionLayer | null> {
+  try {
+    if (!(p.entryPrice > 0) || !(p.stopLoss > 0) || p.levelBasis === 'contract') return null;
+    const { buildTargetLadder } = await import("./target-ladder");
+    const l = await buildTargetLadder({
+      symbol: p.symbol, direction: p.direction, entry: p.entryPrice, stop: p.stopLoss,
+      holdingPeriod: p.holdingPeriod, publishedTarget: p.targetPrice, includeGex: false,
+    });
+    const first = l?.rungs.find((r) => r.structural);
+    if (!l || !first) return null;
+    const wall = p.direction === 'long' ? 'resistance' : 'support';
+    if (first.rMultiple < 1) {
+      return { kind: "structure", label: "Path Blocked", points: -6,
+        why: `${first.source} at $${first.price} caps the move at ${first.rMultiple}R — the first real ${wall} arrives before 1:1`,
+        data: { firstLevel: first.price, rMultiple: first.rMultiple } };
+    }
+    if (first.rMultiple <= 3) {
+      // A lone Fibonacci ratio is a weaker level than a traded shelf or a wall.
+      const fibOnly = /^Fib[^+]*$/.test(first.source.trim());
+      return { kind: "structure", label: "Clear Path", points: fibOnly ? 2 : 4,
+        why: `clean runway to ${first.source} at $${first.price} (${first.rMultiple}R, ${Math.round(first.probTouch * 100)}% reach odds)`,
+        data: { firstLevel: first.price, rMultiple: first.rMultiple } };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Tape contradiction layer — SUBTRACTS. When the aggressor tape (measured
  * ask-vs-bid fills, same-day) leans hard against the idea's direction, that
  * is evidence AGAINST the card and must cost points, not decorate a chip:
@@ -2518,7 +2553,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   if (!skipLiveRevalidation) {
     await Promise.all(
       topForSector.map(async (p) => {
-      const [sectorLayer, analystSnap, taLayer, compressionLayer, tapeContradiction] = await Promise.all([
+      const [sectorLayer, analystSnap, taLayer, compressionLayer, tapeContradiction, pathLayer] = await Promise.all([
         scoreSectorLayer(p.symbol, p.sector, p.direction),
         getAnalystSnapshot(p.symbol).catch(() => null),
         // TA confluence (Fib + candlesticks + structure). Skipped during backtest
@@ -2528,9 +2563,13 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
         scoreCompressionLayer(p.symbol, p.direction),
         // Opposing measured flow subtracts — see scoreTapeContradictionLayer.
         scoreTapeContradictionLayer(p.symbol, p.direction),
+        scorePathToStructureLayer(p),
       ]);
       if (tapeContradiction) {
         p.layers.push(tapeContradiction);
+      }
+      if (pathLayer) {
+        p.layers.push(pathLayer);
       }
       if (sectorLayer) {
         p.layers.push(sectorLayer);

@@ -7328,6 +7328,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Context target ladder — T1/T2/T3 from real levels (structure, dealer
+  // walls, prior swings) with odds of reach over the holding horizon.
+  app.get("/api/target-ladder/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const { buildTargetLadder } = await import("./target-ladder");
+      const q = req.query as Record<string, string>;
+      const r = await buildTargetLadder({
+        symbol: String(req.params.symbol).toUpperCase(),
+        direction: q.direction === "short" ? "short" : "long",
+        entry: Number(q.entry), stop: Number(q.stop),
+        holdingPeriod: q.hp ?? null,
+        publishedTarget: q.target ? Number(q.target) : null,
+      });
+      if (!r) return res.status(404).json({ error: "not enough data for a ladder" });
+      res.json(r);
+    } catch (err) {
+      logger.error("[API] target ladder failed:", err);
+      res.status(500).json({ error: "ladder failed" });
+    }
+  });
+
   // Adaptive contract picker — DTE window + account budget in, ranked
   // candidates with explicit warnings out. CBOE delayed chain (Tradier dead).
   app.get("/api/contract-picker/:symbol", requireBetaAccess, async (req, res) => {

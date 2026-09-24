@@ -580,23 +580,61 @@ function Mini({ label, value, color }: { label: string; value: string; color?: s
 
 export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; live: number; className?: string }) {
   const g = geometryFor(pick, live);
+  // Context ladder: T1-T3 from real levels (structure, dealer walls, prior
+  // swings) with reach odds — replaces formula-only targets (2026-09-24).
+  const ladderQ = useQuery<{
+    rungs: Array<{ rung: string; price: number; source: string; rMultiple: number; probTouch: number; structural: boolean }>;
+    expectedRange: number; horizonDays: number; publishedTargetNote: string | null; note: string;
+  }>({
+    queryKey: [`/api/target-ladder/${pick.symbol}?direction=${pick.direction}&entry=${pick.entryPrice}&stop=${pick.stopLoss}&hp=${pick.holdingPeriod ?? ''}&target=${pick.targetPrice ?? ''}`],
+    enabled: !!(pick.entryPrice && pick.stopLoss) && (pick as any).levelBasis !== 'contract',
+    staleTime: 5 * 60_000,
+    retry: 0,
+  });
+  const lad = ladderQ.data;
+  const hitIdx = lad ? lad.rungs.filter((r) => (pick.direction === 'long' ? live >= r.price : live <= r.price)).length : 0;
   return (
-    <Card title="Profit Taking Plan" className={className}>
-      <div className="divide-y divide-border/30">
-        {g.plan.map((p) => (
-          <div key={p.rung} className="flex items-center gap-3 px-4 py-2.5">
-            <span className="w-6 shrink-0 text-label font-mono font-bold tracking-wider" style={{ color: CYAN }}>{p.rung}</span>
-            <div className="min-w-0 flex-1">
-              <div className="text-value font-mono font-bold tabular-nums text-foreground">${money(p.price)}</div>
-              <div className="text-label font-mono text-muted-foreground/65">{p.action}</div>
+    <Card title="Profit Taking Plan" meta={lad ? `levels from structure · ±$${lad.expectedRange.toFixed(2)} range over ${lad.horizonDays}d` : undefined} className={className}>
+      {lad && lad.rungs.length > 0 ? (
+        <div className="divide-y divide-border/30">
+          {lad.rungs.map((r, i) => (
+            <div key={r.rung} className="flex items-center gap-3 px-4 py-2.5">
+              <span className="w-6 shrink-0 text-label font-mono font-bold tracking-wider" style={{ color: CYAN }}>{r.rung}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-value font-mono font-bold tabular-nums text-foreground">
+                  ${money(r.price)} <span className="text-label font-normal text-muted-foreground/70">· {r.rMultiple.toFixed(1)}R · {Math.round(r.probTouch * 100)}% reach</span>
+                </div>
+                <div className="text-label font-mono" style={{ color: r.structural ? 'var(--foreground)' : 'var(--amber, #e8b34b)', opacity: 0.75 }}>
+                  {r.source}{i === 0 ? ' — take partial, move stop to entry' : i === lad.rungs.length - 1 ? ' — runner exit' : ' — scale again'}
+                </div>
+              </div>
+              <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-label font-mono uppercase tracking-wider',
+                i < hitIdx ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground/70')}>
+                {i < hitIdx ? 'Hit' : i === hitIdx ? 'Next' : 'Pending'}
+              </span>
             </div>
-            <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-label font-mono uppercase tracking-wider',
-              p.active ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground/70')}>
-              {p.active ? 'Active' : 'Pending'}
-            </span>
-          </div>
-        ))}
-      </div>
+          ))}
+          {lad.publishedTargetNote && (
+            <div className="px-4 py-2 text-label font-mono text-muted-foreground/70">Card's original target: {lad.publishedTargetNote}.</div>
+          )}
+        </div>
+      ) : (
+        <div className="divide-y divide-border/30">
+          {g.plan.map((p) => (
+            <div key={p.rung} className="flex items-center gap-3 px-4 py-2.5">
+              <span className="w-6 shrink-0 text-label font-mono font-bold tracking-wider" style={{ color: CYAN }}>{p.rung}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-value font-mono font-bold tabular-nums text-foreground">${money(p.price)}</div>
+                <div className="text-label font-mono text-muted-foreground/65">{ladderQ.isLoading ? 'mapping real levels…' : p.action}</div>
+              </div>
+              <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-label font-mono uppercase tracking-wider',
+                p.active ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground/70')}>
+                {p.active ? 'Active' : 'Pending'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
