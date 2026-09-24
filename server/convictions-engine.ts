@@ -2070,9 +2070,22 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     const { watchlistSymbols: ws } = await getScannerUniverse();
     userWatchlistSymbols = ws;
   } catch {}
+  // Measured detectors (tape, reversal, index/leader swing, premium discount,
+  // crypto transmission) and benchmark-complex names earn board access on
+  // their own evidence. Without this, a fresh account (empty personal
+  // watchlist) saw only the hand-curated list — 4 cards where the engine had
+  // 12 (2026-09-23, quantedgelabs.net).
+  const MEASURED_PREFIXES = ['Aggressor tape:', 'Higher-Lows Base', 'V-Recovery', 'Leader swing:', 'Index swing discount:', 'Premium discount:', 'Crypto transmission:'];
+  const isMeasured = (idea: any) => {
+    const c = String(idea.catalyst ?? '');
+    return MEASURED_PREFIXES.some((p) => c.startsWith(p));
+  };
   let watchlistFiltered = watchlistOnly
     ? activeIdeas.filter((idea: any) =>
-        isApprovedTicker(idea.symbol) || userWatchlistSymbols?.has(idea.symbol.toUpperCase()),
+        isApprovedTicker(idea.symbol) ||
+        userWatchlistSymbols?.has(idea.symbol.toUpperCase()) ||
+        isLeadershipName(idea.symbol) ||
+        isMeasured(idea),
       )
     : activeIdeas;
 
