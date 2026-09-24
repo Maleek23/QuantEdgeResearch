@@ -21,7 +21,6 @@ import { formatGEX, formatGammaPct } from '../../../shared/gex-types';
 import { RefreshCw } from 'lucide-react';
 import type { GEXTerminalData } from '../../../shared/gex-types';
 import { CacheFreshnessIndicator } from '@/components/gex/CacheFreshnessIndicator';
-import { EngineStatusFooter } from '@/components/gex/EngineStatusFooter';
 ;
 
 
@@ -598,7 +597,7 @@ export default function TerminalPage() {
           </div>
         </div>
       )}
-      <EngineStatusFooter engineLabel={`TERMINAL · ${exposureMode.toUpperCase()}`} />
+      {/* EngineStatusFooter removed 2026-09-24: third status bar under the shell's own; fake uptime/engine labels */}
     </div>
   );
 }

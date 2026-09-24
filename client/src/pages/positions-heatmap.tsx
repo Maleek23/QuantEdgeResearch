@@ -25,7 +25,6 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { CacheFreshnessIndicator } from '@/components/gex/CacheFreshnessIndicator';
-import { EngineStatusFooter } from '@/components/gex/EngineStatusFooter';
 import { SkeletonLoader } from '@/components/gex/SkeletonLoader';
 import { ExpandableCard } from '@/components/expandable-card';
 import { componentStyles } from '@/lib/design-tokens';
@@ -251,7 +250,7 @@ export default function PositionsHeatmapPage() {
           <DetailTable positions={positions} sortBy={sortBy} setSortBy={setSortBy} />
         </ExpandableCard>
       </div>
-      <EngineStatusFooter signalsActive={data.summary.total} engineLabel="POSITIONS HEAT MAP v2.0" />
+      {/* EngineStatusFooter removed 2026-09-24: third status bar under the shell's own; fake uptime/engine labels */}
     </div>
   );
 }

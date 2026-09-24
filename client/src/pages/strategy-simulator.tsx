@@ -17,7 +17,6 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { EngineStatusFooter } from '@/components/gex/EngineStatusFooter';
 import { componentStyles } from '@/lib/design-tokens';
 
 interface SimulatedTrade {
@@ -336,7 +335,7 @@ export default function StrategySimulatorPage() {
           </div>
         )}
       </div>
-      <EngineStatusFooter engineLabel="STRATEGY SIM v1.0" />
+      {/* EngineStatusFooter removed 2026-09-24: third status bar under the shell's own; fake uptime/engine labels */}
     </div>
   );
 }
