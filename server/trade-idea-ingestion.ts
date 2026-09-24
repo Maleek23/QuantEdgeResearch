@@ -365,6 +365,42 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
   // time decide premium ROI, and the Contract Engine calculates that separately.
   // A small but real support/resistance level is valid; a 25% invented T1 is not.
 
+  // Gate 5: VOLATILITY STOP FLOOR (validated 2026-09-24, research/stop-floor-test.ts).
+  // Stop width was the strongest measured loss driver (IC +0.30, holds within
+  // every producer); the median published stop sat at 0.59× the stock's own
+  // daily range, so ordinary noise took ideas out. Walk-forward on real 5-min
+  // paths: widening swing/position stops to 1.25× ATR(14) — k chosen on the
+  // first half — cut the out-of-sample loss from −0.225R to −0.115R per idea
+  // (total −74.8R → −38.1R, n=332). Day trades are excluded (a daily ATR is the
+  // wrong yardstick intraday). The target is kept; R:R is restated honestly.
+  let stopLoss = input.stopLoss ?? input.suggestedStop;
+  let stopNote = '';
+  const entryPx = input.currentPrice;
+  if (
+    typeof stopLoss === 'number' && typeof entryPx === 'number' && entryPx > 0 &&
+    input.holdingPeriod !== 'day' && input.assetType !== 'crypto'
+  ) {
+    try {
+      const { fetchCandles } = await import('./historical-candles');
+      const d = (await fetchCandles(symbol, '3mo', '1d')).slice(-16);
+      if (d.length >= 15) {
+        const tr = d.slice(1).map((b, i) => Math.max(b.high - b.low, Math.abs(b.high - d[i].close), Math.abs(b.low - d[i].close)));
+        const atr = tr.reduce((a, b) => a + b, 0) / tr.length;
+        const floor = 1.25 * atr;
+        const dist = Math.abs(entryPx - stopLoss);
+        const isLong = !/short|bear/i.test(String(input.direction));
+        if (atr > 0 && dist < floor) {
+          const widened = Number((isLong ? entryPx - floor : entryPx + floor).toFixed(2));
+          if (widened > 0) {
+            stopNote = `Stop widened from $${stopLoss.toFixed(2)} to $${widened.toFixed(2)} (1.25× ATR $${atr.toFixed(2)}): stops inside a normal day's range were the #1 measured loss driver.`;
+            logger.info(`[INGESTION] ${symbol}: ${stopNote}`);
+            stopLoss = widened;
+          }
+        }
+      }
+    } catch { /* candles unavailable — publish the producer's stop unchanged */ }
+  }
+
   // All gates passed - create the idea
   try {
     const success = await createAndSaveUniversalIdea({
@@ -380,9 +416,9 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
       // preserve those measured levels instead of replacing them with the
       // generator's percentage fallback.
       targetPrice: input.targetPrice ?? input.suggestedTarget,
-      stopLoss: input.stopLoss ?? input.suggestedStop,
+      stopLoss,
       catalyst: input.catalyst,
-      analysis: input.analysis,
+      analysis: stopNote ? `${input.analysis ? input.analysis + ' ' : ''}${stopNote}` : input.analysis,
       technicalSignals: input.technicalSignals,
       optionType: input.optionType,
       strikePrice: input.strikePrice,

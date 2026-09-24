@@ -6,6 +6,9 @@
 @media (max-width:1023px),(pointer:coarse){
   :root{--fs-9:11px;--fs-10:11px;--fs-10-5:11.5px}
   .text-\[9px\],.text-\[10px\],.text-\[10\.5px\]{font-size:11px!important}
+  /* WCAG 2.5.8 target size (24px minimum) for buttons, tabs and chips under a
+     thumb. Rows and cards are already taller; inline text links are exempt. */
+  .qe-terminal button:not(.nav-tab),.qe-terminal [role=tab],.qe-terminal select,.workuplab button{min-height:28px;min-width:28px}
 }
 /**
  * NEXUS — the reference terminal's stylesheet, extracted from the mock so the
@@ -2162,7 +2165,8 @@
    in one scroll instead, full-screen, header wrapped (UI validation 2026-09-24). */
 @media(max-width:900px){
   .workuplab{padding:0}
-  .workuplab .workup-box{max-height:none;height:100dvh;border-radius:0;border:0}
+  .workuplab .workup-box{max-height:none;height:100dvh;border-radius:0;border:0;grid-template-columns:minmax(0,1fr)}
+  .workuplab .ticker-price-block{flex-wrap:wrap;min-width:0}
   .workuplab .workup-head{grid-template-columns:1fr;gap:10px;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top))}
   .workuplab .workup-actions{flex-wrap:wrap}
   .workuplab .workup-body{display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch}

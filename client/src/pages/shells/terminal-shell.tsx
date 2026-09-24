@@ -7,7 +7,7 @@
  *
  * This is the consolidation target for AUDIT.md / BLUEPRINT.md / TERMINAL_SPEC.md.
  */
-import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { onWorkup } from '@/lib/workup-bus';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -180,7 +180,17 @@ export default function TerminalShell() {
   // Universal workup: any board fires openWorkup(sym) on the bus. It lands in
   // the same stock context the legacy lookup used, so ONE overlay contract
   // serves every click site.
-  useEffect(() => onWorkup((sym) => setCurrentStock({ symbol: sym })), [setCurrentStock]);
+  useEffect(() => onWorkup((sym) => { setCurrentStock({ symbol: sym }); setWorkupOpen(true); }), [setCurrentStock]);
+  // The shared ticker persists across pages (sessionStorage) so CHART/GEX can
+  // follow it — but that alone must not pop the workup overlay on every page
+  // load. It opens when a ticker is chosen in THIS view (UI validation
+  // 2026-09-24: a stale META workup covered every page, dock included).
+  const [workupOpen, setWorkupOpen] = useState(false);
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    if (currentStock?.symbol) setWorkupOpen(true);
+  }, [currentStock?.symbol]);
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
   const { data: health } = useQuery<{
@@ -460,11 +470,11 @@ export default function TerminalShell() {
       {/* The ticker workup replaced the legacy TickerView lookup here — same
           contract (overlay above whichever tab you're on, searching is a
           detour), now the full dossier. TickerView stays in the tree. */}
-      {currentStock?.symbol && tab !== 'chart' && (
+      {workupOpen && currentStock?.symbol && tab !== 'chart' && (
         <Suspense fallback={null}>
           <TickerWorkup
             symbol={currentStock.symbol.toUpperCase()}
-            onClose={clearStock}
+            onClose={() => { setWorkupOpen(false); clearStock(); }}
             onNavigate={(t, sym) => { setCurrentStock({ symbol: sym }); setTab(t as Tab); }}
           />
         </Suspense>
