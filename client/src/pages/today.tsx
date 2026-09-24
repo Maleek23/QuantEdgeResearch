@@ -18,12 +18,12 @@
  * Integrity: only MEASURED dealer levels are drawn; the path is labelled a
  * model projection with its confidence, never a forecast.
  */
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowUpRight, Search, TrendingUp, Radar as RadarIcon, LineChart } from 'lucide-react';
-import qeMark from '@assets/qe-mark.svg';
+import { Search } from 'lucide-react';
+import { Spark, RotQuad, SigCard, CHECK, fetchJson, useDaily, type RotationPayload, type CryptoPulse } from '@/components/landing/live-widgets';
 import '@/styles/nexus.css';
 import '@/styles/today.css';
 
@@ -233,12 +233,15 @@ const sectorName = (s?: string) => (!s || s === 'other' ? '' : s.replace(/_/g, '
 export default function TodayPage() {
   const [, setLocation] = useLocation();
   const [q, setQ] = useState('');
-  const reduce = useReducedMotion();
-  const retryWhileDown = { refetchInterval: (q: { state: { status: string } }) => (q.state.status === 'error' ? 30_000 : false) };
+  const retryWhileDown = { refetchInterval: (qq: { state: { status: string } }) => (qq.state.status === 'error' ? 30_000 : false) };
   const wp = useQuery<WeeklyPath>({ queryKey: ['/api/weekly-path/SPY'], queryFn: get('/api/weekly-path/SPY'), staleTime: 300_000, ...retryWhileDown });
   const gex = useQuery<GexTerminal>({ queryKey: ['/api/gex-vex/terminal/SPY', 'today'], queryFn: get('/api/gex-vex/terminal/SPY'), staleTime: 300_000, ...retryWhileDown });
   const conv = useQuery<{ picks?: Pick[] }>({ queryKey: ['/api/convictions', 'today'], queryFn: get('/api/convictions'), staleTime: 60_000, refetchInterval: 90_000 });
   const perf = useQuery<Perf>({ queryKey: ['/api/performance/stats/', 'today'], queryFn: get('/api/performance/stats/'), staleTime: 600_000 });
+  const rotation = useQuery<RotationPayload>({ queryKey: ['/api/sector-rotation', 'landing'], queryFn: fetchJson('/api/sector-rotation'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
+  const pulse = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'landing'], queryFn: fetchJson('/api/crypto/pulse'), staleTime: 300_000, retry: 1 });
+  const spyIntra = useDaily('SPY', '1d', '5m');
+  const [tapePaused, setTapePaused] = useState(false);
 
   const ideas = useMemo(() => (conv.data?.picks ?? [])
     .filter((p) => typeof p.convictionScore === 'number' && !p.isBotHeld && p.lifecycleState !== 'executed')
@@ -247,123 +250,305 @@ export default function TodayPage() {
   const quotes = useQuery<{ quotes: Record<string, Quote> }>({ queryKey: [`/api/quotes/batch/${syms}`], queryFn: get(`/api/quotes/batch/${syms}`), enabled: ideas.length > 0, refetchInterval: 60_000 });
   const px = (s: string) => { const qq = quotes.data?.quotes?.[s]; return qq?.price ?? qq?.lastPrice; };
 
-  const magnet = gex.data?.snapshot?.maxGammaStrike;
-  const head = wp.isError && !wp.data
-    ? { title: 'The options feed is down, so no dealer map right now.', sub: 'We only draw the map from measured positioning. It comes back as soon as the feed does.' }
-    : weekSentence(wp.data, magnet);
+  const snap = gex.data?.snapshot;
+  const magnet = snap?.maxGammaStrike;
+  const shortGamma = wp.data?.regime?.includes('negative');
   const spy = quotes.data?.quotes?.SPY;
+  const spyPx = spy?.price ?? spy?.lastPrice ?? wp.data?.spotPrice;
+  const spyBars = spyIntra.data?.data ?? [];
   const best = ideas[0];
-  const rest = ideas.slice(1, 9);
+  const bestX = best ? explain(best) : undefined;
+  const book = ideas.slice(1, 7);
+  const longs = ideas.filter((p) => p.direction !== 'short').length;
   const o = perf.data?.overall;
 
+  const sectors = rotation.data?.sectors ?? [];
+  const flows = useMemo(() => {
+    const sorted = [...sectors].filter((x) => Number.isFinite(x.relChange)).sort((a, b) => (b.relChange ?? 0) - (a.relChange ?? 0));
+    const maxAbs = Math.max(0.1, ...sorted.map((x) => Math.abs(x.relChange ?? 0)));
+    return { top: sorted.slice(0, 2), bottom: sorted.slice(-2).reverse(), maxAbs };
+  }, [sectors]);
+  const tape = useMemo(() => {
+    const rows: { sym: string; price: string; chg: number }[] = [];
+    sectors.forEach((x) => rows.push({ sym: x.etf, price: '', chg: x.change }));
+    (pulse.data?.assets ?? []).forEach((x) => rows.push({ sym: x.symbol, price: `$${Math.round(x.price).toLocaleString()}`, chg: x.change24h ?? 0 }));
+    return rows;
+  }, [sectors, pulse.data]);
+  const fresh = !rotation.data?.isStale;
+  const closed = !fresh && /close/i.test(rotation.data?.sessionLabel ?? '');
+
+  // Sections rest visible; the reveal only adds motion as they scroll in.
+  useEffect(() => {
+    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } }), { threshold: 0.08 });
+    document.querySelectorAll('.today-l .reveal').forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [conv.data, rotation.data]);
+
   const go = (e: React.FormEvent) => { e.preventDefault(); const s = q.trim().toUpperCase(); if (s) setLocation(`/r/${s}`); };
+  const toBest = () => document.getElementById('sec-best')?.scrollIntoView({ behavior: 'smooth' });
+  const weekOf = wp.data ? new Date(wp.data.weekStart + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  const feedDown = wp.isError && !wp.data;
 
   return (
-    <div className="today nexus-vars">
-      <div className="td-atmos" aria-hidden />
-      <header className="td-top">
-        <Link href="/today" className="td-brand"><img src={qeMark} alt="" width={26} height={26} /><span>Quant Edge</span></Link>
-        <nav className="td-nav" aria-label="Primary">
-          <Link href="/today" className="on">Today</Link>
-          <Link href="/t?tab=gex">Markets</Link>
-          <Link href="/t?tab=journal&jtab=metrics">Track record</Link>
-        </nav>
-        <form className="td-search" onSubmit={go} role="search">
-          <label htmlFor="td-q" className="td-search-ico"><Search size={15} aria-hidden /></label>
-          <input id="td-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Any ticker" aria-label="Search a ticker" autoCapitalize="characters" />
-        </form>
-        <Link href="/t" className="td-classic" title="The full terminal">Terminal <ArrowUpRight size={13} /></Link>
-      </header>
+    <div className="landing nexus-vars today-l">
+      {/* NAV — the landing bar, signed-in destinations */}
+      <nav className="lnav">
+        <div className="lnav-inner">
+          <Link href="/today" className="brand" style={{ textDecoration: 'none' }}>
+            <div className="brand-mark" />
+            <span className="brand-name">QUANTEDGE</span>
+            <span className="brand-slash">//</span>
+            <span className="brand-sub">TODAY</span>
+          </Link>
+          <div className="lnav-links">
+            <Link href="/today" className="lnav-link on">Today</Link>
+            <Link href="/t?tab=gex" className="lnav-link">Markets</Link>
+            <Link href="/t?tab=journal&jtab=metrics" className="lnav-link">Track record</Link>
+          </div>
+          <div className="lnav-spacer" />
+          <form className="tl-search" onSubmit={go} role="search">
+            <label htmlFor="tl-q" className="tl-search-ico"><Search size={14} aria-hidden /></label>
+            <input id="tl-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Any ticker" aria-label="Search a ticker" autoCapitalize="characters" />
+          </form>
+          <div className={`lnav-status${fresh ? '' : closed ? ' closed' : ' stale'}`}><span className="dot" />{fresh ? 'Live' : closed ? 'Market closed' : 'Data stale'}</div>
+          <Link href="/t" className="btn btn-primary">Terminal</Link>
+        </div>
+      </nav>
 
-      <main className="td-main">
-        {/* 1 · THE WEEK */}
-        <section className="td-hero">
-          <div className="td-hero-copy">
-            <div className="td-eyebrow">SPY · week of {wp.data ? new Date(wp.data.weekStart + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</div>
-            <h1>{head.title}</h1>
-            <p className="td-lede">{head.sub}</p>
-            <div className="td-spot-big">
-              <span className="td-px">{fmt(spy?.price ?? spy?.lastPrice ?? wp.data?.spotPrice)}</span>
-              {spy?.changePercent != null && (
-                <span className={`td-chg ${spy.changePercent >= 0 ? 'up' : 'dn'}`}>{spy.changePercent >= 0 ? '▲' : '▼'} {Math.abs(spy.changePercent).toFixed(2)}%</span>
+      {/* HERO — the week, and the dealer map in the terminal window */}
+      <section className="hero">
+        <div className="container">
+          <div className="hero-grid">
+            <div>
+              <div className="hero-eyebrow"><span className="pill">LIVE</span>SPY dealer map{weekOf ? ` · week of ${weekOf}` : ''}</div>
+              {feedDown ? (
+                <h1 className="hero-title">The options feed<br /><span className="grad">is down right now.</span></h1>
+              ) : (
+                <h1 className="hero-title">
+                  Dealers are {shortGamma ? 'short' : 'long'} gamma.<br />
+                  <span className="grad">Moves get {shortGamma ? 'amplified' : 'dampened'}.</span><br />
+                  {magnet ? <span className="accent">{shortGamma ? `${fmt(magnet, 0)} is the magnet.` : `Price pins to ${fmt(magnet, 0)}.`}</span> : null}
+                </h1>
               )}
+              <p className="hero-sub">
+                {feedDown
+                  ? 'We only draw the map from measured positioning. It comes back the moment the feed does — this page retries every 30 seconds.'
+                  : shortGamma
+                    ? 'Short-gamma dealers sell into drops and buy into rips, so ranges widen. Fade the walls, respect the breaks.'
+                    : 'Long-gamma dealers buy dips and sell rips, so ranges tighten around the biggest strike. Walls hold until they don’t.'}
+              </p>
+              <div className="hero-actions">
+                <button type="button" className="btn btn-primary btn-lg" onClick={toBest}>
+                  Today&rsquo;s best idea
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
+                </button>
+                <Link href="/t?tab=gex" className="btn btn-ghost btn-lg">Full GEX surface</Link>
+              </div>
+              <div className="tl-keys">
+                {([['Magnet', magnet, 'max gamma', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
+                  <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
+                ))}
+              </div>
             </div>
-            <div className="td-keys">
-              {[['Magnet', magnet, 'max gamma'], ['Ceiling', gex.data?.snapshot?.callWall, 'call wall'], ['Floor', gex.data?.snapshot?.putWall, 'put wall']].map(([k, v, s]) => (
-                <div key={String(k)}><span>{k as string}</span><b>{fmt(v as number, 0)}</b><small>{s as string}</small></div>
-              ))}
+
+            <div className="lterminal">
+              <div className="lterminal-head">
+                <div className="lterminal-dots"><span /><span /><span /></div>
+                <div className="lterminal-title">dealer map · spy · this week</div>
+                <div className="lterminal-status"><span className="dot" />{wp.data?.cachedAt ? `${Math.max(1, Math.round((Date.now() - Date.parse(wp.data.cachedAt)) / 60000))}m old` : 'measured'}</div>
+              </div>
+              <div className="lterminal-body">
+                <div className="t-panel" style={{ gridColumn: '1/-1' }}>
+                  <div className="t-panel-head"><span>Projected path · walls · gamma</span><span>{wp.data ? `${(wp.data.confidence * 100).toFixed(0)}% conf` : ''}</span></div>
+                  {wp.data && !gex.isLoading
+                    ? <WeekMap wp={wp.data} gex={gex.data} />
+                    : <div className="tl-map-empty">{feedDown ? 'Options feed down — retrying' : 'Reading dealer positioning…'}</div>}
+                </div>
+                <div className="t-panel">
+                  <div className="t-panel-head"><span>Market pulse · SPY</span><span className="live">LIVE</span></div>
+                  <div className="t-price">SPY {fmt(spyPx)}</div>
+                  <div className={`t-change${(spy?.changePercent ?? 0) >= 0 ? ' up' : ''}`}>{spy?.changePercent != null ? `${spy.changePercent >= 0 ? '+' : ''}${spy.changePercent.toFixed(2)}% · ${rotation.data?.sessionLabel ?? 'session'}` : '—'}</div>
+                  <div className="t-chart"><Spark bars={spyBars} color={(spy?.changePercent ?? 0) >= 0 ? '#6ee7b7' : '#ff6b3d'} height={54} /></div>
+                </div>
+                <div className="t-panel">
+                  <div className="t-panel-head"><span>The book · {ideas.length} live</span><span className="live">LIVE</span></div>
+                  {ideas.slice(0, 3).map((p) => (
+                    <div className="t-signal" key={p.ideaId}>
+                      <span className="ticker">{p.symbol}</span>
+                      <span style={{ fontSize: 'var(--fs-10, 10px)', color: p.direction === 'short' ? 'var(--red)' : 'var(--green)' }}>{p.direction === 'short' ? '▼ short' : '▲ long'}</span>
+                      <span className="dir">{p.convictionScore}</span>
+                    </div>
+                  ))}
+                  <div className="t-row"><span className="k">Long / Short</span><span className="v"><span style={{ color: 'var(--green)' }}>{longs}</span> / <span style={{ color: 'var(--red)' }}>{ideas.length - longs}</span></span></div>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="td-map-card">
-            {wp.data && !gex.isLoading ? <WeekMap wp={wp.data} gex={gex.data} /> : <div className="td-map-empty">{wp.isError ? 'Dealer map unavailable right now.' : 'Reading dealer positioning…'}</div>}
-            <div className="td-map-foot">
-              Model projection from dealer positioning{wp.data ? ` · ${(wp.data.confidence * 100).toFixed(0)}% confidence` : ''}{wp.data?.cachedAt ? ` · from ${Math.max(1, Math.round((Date.now() - Date.parse(wp.data.cachedAt)) / 60000))} min ago` : ''} · not a forecast · only measured levels shown
-            </div>
-          </div>
-        </section>
+          <div className="tl-map-foot">Model projection from measured dealer positioning — not a forecast. Only measured walls are drawn.</div>
+        </div>
+      </section>
 
-        {/* 2 · THE BEST IDEA */}
-        {best && (
-          <section className="td-best" aria-label="Best idea right now">
-            <div className="td-section-t"><TrendingUp size={15} /> Best idea right now</div>
-            <motion.div className="td-best-card" initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-              <div className="td-best-id">
-                <div className="td-sym">{best.symbol}</div>
-                <div className={`td-dir ${best.direction}`}>{best.direction === 'long' ? 'Long' : 'Short'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}</div>
-                <div className="td-sector">{sectorName(best.sector)}</div>
+      {/* TAPE */}
+      {tape.length > 0 && (
+        <div className="ltape" onMouseEnter={() => setTapePaused(true)} onMouseLeave={() => setTapePaused(false)}>
+          <div className={`ltape-track${tapePaused ? ' paused' : ''}`}>
+            {[...tape, ...tape].map((t, i) => (
+              <div className="ltape-item" key={i}>
+                <span className="ltape-sym">{t.sym}</span>
+                {t.price && <span className="ltape-price">{t.price}</span>}
+                <span className={`ltape-chg ${t.chg >= 0 ? 'up' : 'down'}`}>{t.chg >= 0 ? '+' : ''}{t.chg.toFixed(2)}%</span>
+                <span className="ltape-sep">·</span>
               </div>
-              <div className="td-best-body">
-                {(() => { const x = explain(best); return (<>
-                  <p className="td-why">{x.headline}</p>
-                  {x.reasons.length > 0 && <ul className="td-reasons">{x.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
-                  {x.against && <p className="td-against"><b>Against it:</b> {x.against}</p>}
-                </>); })()}
-                <Ladder p={best} live={px(best.symbol)} />
-              </div>
-              <div className="td-best-stats">
-                <div><span>Evidence</span><b>{best.convictionScore}</b><small>/100</small></div>
-                <div><span>Reward : risk</span><b>{best.riskRewardRatio ? best.riskRewardRatio.toFixed(1) : '—'}</b><small>: 1</small></div>
-                <Link href={`/r/${best.symbol}`} className="td-cta">Full analysis <ArrowUpRight size={15} /></Link>
-              </div>
-            </motion.div>
-          </section>
-        )}
-
-        {/* 3 · THE BOOK */}
-        <section className="td-book" aria-label="Ranked ideas">
-          <div className="td-section-t"><RadarIcon size={15} /> Next best · {ideas.length} live ideas</div>
-          <ol className="td-rows">
-            {rest.map((p, i) => (
-              <motion.li key={p.ideaId} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 * i, duration: 0.3 }}>
-                <Link href={`/r/${p.symbol}`} className="td-row">
-                  <span className="td-rank">{i + 2}</span>
-                  <span className="td-row-sym">{p.symbol}{sectorName(p.sector) && <small>{sectorName(p.sector)}</small>}</span>
-                  <span className={`td-dir sm ${p.direction}`}>{p.direction === 'long' ? 'Long' : 'Short'}</span>
-                  <span className="td-row-why">{explain(p).headline}</span>
-                  <span className="td-row-ev" title="Evidence score out of 100"><span className="td-ev-track"><i style={{ width: `${Math.min(100, p.convictionScore ?? 0)}%` }} /></span><b>{p.convictionScore}</b></span>
-                  <span className="td-row-rr">{p.riskRewardRatio ? `${p.riskRewardRatio.toFixed(1)}R` : '—'}</span>
-                </Link>
-              </motion.li>
             ))}
-            {!rest.length && <li className="td-empty">{conv.isLoading ? 'Loading the book…' : 'No other live ideas right now.'}</li>}
-          </ol>
-          <Link href="/t" className="td-more">Open the full board <ArrowUpRight size={14} /></Link>
-        </section>
-
-        {/* 4 · THE RECORD */}
-        <section className="td-record" aria-label="Track record">
-          <div className="td-section-t"><LineChart size={15} /> Track record — measured, not marketed</div>
-          <div className="td-record-grid">
-            <div><b>{o?.winRateDecided ?? '—'}</b><span>ideas decided</span></div>
-            <div><b>{o?.winRate != null ? `${o.winRate}%` : '—'}</b><span>hit their target</span></div>
-            <div><b>{o?.expectancy != null ? `${o.expectancy >= 0 ? '+' : ''}${o.expectancy.toFixed(2)}%` : '—'}</b><span>average per idea</span></div>
-            <div><b>{o?.profitFactor != null ? o.profitFactor.toFixed(2) : '—'}</b><span>profit factor</span></div>
           </div>
-          <p className="td-record-note">Every idea is published with its levels and scored against real prices — losses included. The volatility stop floor validated on Sep 24 is live for new ideas; its effect shows here as they resolve.</p>
-          <Link href="/t?tab=journal&jtab=metrics" className="td-more">See every outcome <ArrowUpRight size={14} /></Link>
+        </div>
+      )}
+
+      {/* STATS — measured */}
+      <section className="stats-bar-l">
+        <div className="container">
+          <div className="stats-grid">
+            <div className="stat-item reveal">
+              <div className="lstat-val">{conv.isLoading ? '—' : ideas.length}</div>
+              <div className="lstat-label">Live ideas in the book</div>
+              <div className="lstat-sub">{longs} long · {ideas.length - longs} short</div>
+            </div>
+            <div className="stat-item reveal">
+              <div className="lstat-val">{best ? best.convictionScore : '—'}<span style={{ fontSize: 20, color: 'var(--text-mute)' }}>/100</span></div>
+              <div className="lstat-label">Top evidence score</div>
+              <div className="lstat-sub">{best ? `${best.symbol} · ${best.direction}` : 'waiting for the board'}</div>
+            </div>
+            <div className="stat-item reveal">
+              <div className="lstat-val">{o?.winRateDecided != null ? `${o.winRateDecided.toFixed(0)}%` : '—'}</div>
+              <div className="lstat-label">Win rate, decided ideas</div>
+              <div className="lstat-sub">{o?.totalIdeas != null ? `n = ${o.totalIdeas} measured` : 'measuring'}</div>
+            </div>
+            <div className="stat-item reveal">
+              <div className="lstat-val">{o?.expectancy != null ? `${o.expectancy >= 0 ? '+' : ''}${o.expectancy.toFixed(2)}%` : '—'}</div>
+              <div className="lstat-label">Average per idea</div>
+              <div className="lstat-sub">{o?.profitFactor != null ? `profit factor ${o.profitFactor.toFixed(2)}` : 'measuring'}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURE · BEST IDEA */}
+      <section id="sec-best">
+        <div className="container">
+          {best && bestX ? (
+            <div className="feature">
+              <div className="reveal">
+                <div className="feature-num">BEST IDEA RIGHT NOW · {best.symbol} · {best.direction === 'short' ? 'SHORT' : 'LONG'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}</div>
+                <h3 className="feature-title">{bestX.headline}</h3>
+                {bestX.against && <p className="feature-desc"><b style={{ color: 'var(--red)' }}>Against it:</b> {bestX.against}</p>}
+                <div className="feature-list">
+                  {bestX.reasons.map((r) => <div className="feature-list-item" key={r}>{CHECK}<div><b>{r}</b></div></div>)}
+                </div>
+                <div className="tl-ladder"><Ladder p={best} live={px(best.symbol)} /></div>
+                <div className="hero-actions" style={{ marginTop: 24 }}>
+                  <Link href={`/r/${best.symbol}`} className="btn btn-primary btn-lg">Full analysis
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+                  </Link>
+                </div>
+              </div>
+              <div className="feature-visual reveal">
+                <SigCard p={best as never} />
+                {ideas[1] && <SigCard p={ideas[1] as never} />}
+              </div>
+            </div>
+          ) : (
+            <div className="tl-empty">{conv.isLoading ? 'Loading the book…' : 'The board is between publishes — ideas appear here the moment they exist.'}</div>
+          )}
+        </div>
+      </section>
+
+      {/* THE BOOK */}
+      {book.length > 0 && (
+        <section>
+          <div className="container">
+            <div className="reveal">
+              <div className="sec-eyebrow">The book · ranked by evidence</div>
+              <h2 className="lsec-title">Next up. <span className="grad">Every one explains itself.</span></h2>
+            </div>
+            <div className="tl-book">
+              {book.map((p) => {
+                const x = explain(p);
+                return (
+                  <div className="tl-book-item reveal" key={p.ideaId}>
+                    <SigCard p={p as never} />
+                    <p className="tl-book-why">{x.headline}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </section>
-      </main>
-      <footer className="td-foot">Quant Edge Labs · educational research, not investment advice</footer>
+      )}
+
+      {/* FEATURE · ROTATION */}
+      <section>
+        <div className="container">
+          <div className="feature reverse">
+            <div className="reveal">
+              <div className="feature-num">WHERE THE MONEY IS MOVING</div>
+              <h3 className="feature-title">See rotation before it becomes consensus.</h3>
+              <p className="feature-desc">Every dot is a real sector at its measured relative-strength × momentum coordinate. The bars are today&rsquo;s strongest measured inflows and outflows versus SPY.</p>
+              <div className="feature-list">
+                <div className="feature-list-item">{CHECK}<div><b>{sectors.length || '—'} sectors mapped</b> <span>— {rotation.data?.sessionLabel ?? 'live session'}</span></div></div>
+                {flows.top[0] && <div className="feature-list-item">{CHECK}<div><b>Leading: {flows.top[0].name}</b> <span>— {(flows.top[0].relChange ?? 0) >= 0 ? '+' : ''}{(flows.top[0].relChange ?? 0).toFixed(1)}% vs SPY</span></div></div>}
+                {flows.bottom[0] && <div className="feature-list-item">{CHECK}<div><b>Lagging: {flows.bottom[0].name}</b> <span>— {(flows.bottom[0].relChange ?? 0).toFixed(1)}% vs SPY</span></div></div>}
+              </div>
+            </div>
+            <div className="feature-visual reveal">
+              <div className="rot-map">
+                <RotQuad sectors={sectors} />
+                <div className="rot-label tl">Leading</div>
+                <div className="rot-label tr">Improving</div>
+                <div className="rot-label bl">Weakening</div>
+                <div className="rot-label br">Lagging</div>
+                <div className="rot-axis x">x · rel strength →</div>
+                <div className="rot-axis y">y · momentum →</div>
+              </div>
+              <div className="flow-viz">
+                {[...flows.top.map((x) => ({ x, cls: 'in' as const })), ...flows.bottom.map((x) => ({ x, cls: 'out' as const }))].map(({ x, cls }) => (
+                  <div className="lflow-row" key={x.etf}>
+                    <div className="lflow-sym" style={{ color: cls === 'in' ? 'var(--green)' : 'var(--red)' }}>{x.etf}</div>
+                    <div className="lflow-bar"><div className={`lflow-fill ${cls}`} style={{ width: `${Math.min(95, Math.abs(x.relChange ?? 0) / flows.maxAbs * 95)}%` }} /></div>
+                    <div className={`lflow-val ${cls}`}>{(x.relChange ?? 0) >= 0 ? '+' : ''}{(x.relChange ?? 0).toFixed(1)}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA — the honest record */}
+      <section>
+        <div className="container">
+          <div className="cta-box reveal">
+            <h2 className="cta-title">Every idea is graded.<br /><span className="grad">Including the losers.</span></h2>
+            <p className="cta-sub">
+              {o?.winRateDecided != null
+                ? `${o.winRateDecided.toFixed(0)}% of decided ideas hit target first, across ${o.totalIdeas ?? '—'} measured. Replayed on 5-minute bars, not marked to the close.`
+                : 'The record is replayed on 5-minute bars, not marked to the close.'}
+            </p>
+            <div className="cta-actions">
+              <Link href="/t?tab=journal&jtab=metrics" className="btn btn-primary btn-lg">See the track record</Link>
+              <Link href="/t" className="btn btn-ghost btn-lg">Open the terminal</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="lfooter">
+        <div className="container">
+          <div className="lfooter-bottom">
+            <div>© 2026 QuantEdge Labs</div>
+            <div className="disclaimer">Educational and analytical tool only. Not investment advice. Every performance figure carries its sample size.</div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

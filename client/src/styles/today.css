@@ -152,3 +152,56 @@
   .td-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (prefers-reduced-motion:reduce){.td-path-glow{display:none}}
+
+/* ── TODAY in the landing design language (2026-09-24) ─────────────────────
+   The page wraps in .landing (nexus.css) and reuses its hero, terminal window,
+   tape, stats, feature and CTA blocks. These rules only add what Today needs:
+   the tokens the dealer map/ladder read, search, key levels, the book grid. */
+.today-l{
+  --line:rgba(127,178,255,0.10); --line-hi:rgba(127,178,255,0.22);
+  --text-dim:#9aa3b5; --text-mute:#7f889a;
+  --accent:#3b8cff; --accent-hi:#7fb2ff; --gain:#6ee7b7; --loss:#ff6b3d; --amber:#facc15;
+  --mono:'JetBrains Mono',ui-monospace,monospace; --ui:'Inter',system-ui,sans-serif;
+}
+.today-l .lnav-link{text-decoration:none;color:var(--text-dim)}
+.today-l .lnav-link.on{color:var(--text)}
+.tl-search{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;min-width:180px;border:1px solid var(--line-hi);border-radius:8px;background:rgba(14,17,23,0.6);color:var(--text-mute)}
+.tl-search:focus-within{border-color:var(--accent)}
+.tl-search input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--text);font:500 12px var(--mono);text-transform:uppercase}
+.tl-search-ico{display:flex;cursor:pointer}
+.tl-keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin-top:28px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--line);max-width:460px}
+.tl-keys>div{background:rgba(10,12,17,0.9);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.tl-keys span{font-size:12px;color:var(--text-mute)}
+.tl-keys b{font:700 22px var(--mono);letter-spacing:-0.02em}
+.tl-keys b.mag{color:var(--amber)} .tl-keys b.up{color:var(--gain)} .tl-keys b.dn{color:var(--loss)}
+.tl-keys small{font-size:11px;color:var(--text-mute)}
+.tl-map-empty{height:220px;display:grid;place-items:center;color:var(--text-mute);font:500 12px var(--mono)}
+.tl-map-foot{margin-top:18px;font-size:12px;color:var(--text-mute);text-align:right}
+.today-l .t-panel .td-map{margin-top:2px}
+.tl-ladder{margin-top:22px;max-width:520px}
+.tl-empty{padding:40px 0;text-align:center;color:var(--text-mute)}
+.tl-book{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:32px}
+.tl-book-item{display:flex;flex-direction:column;gap:10px}
+.tl-book-item .lsig-card{margin:0}
+.tl-book-why{margin:0 4px;font-size:13.5px;line-height:1.5;color:var(--text-dim)}
+@media (max-width:1024px){
+  .tl-book{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .today-l .lnav-inner{gap:10px;padding:10px 16px}
+  .today-l .brand-slash,.today-l .brand-sub,.today-l .brand-name{display:none}
+  .today-l .lnav-links{display:flex !important;gap:2px}
+  .today-l .lnav-link{padding:6px 8px;font-size:13px}
+  .today-l .lnav-status{display:none}
+  .today-l .lnav .btn-primary{display:none}
+  .tl-search{min-width:0;width:34px;padding:0 10px;flex:none}
+  .tl-search input{width:0;padding:0}
+  .tl-search:focus-within{position:absolute;left:16px;right:16px;width:auto;background:#0e1117;z-index:3}
+  .tl-search:focus-within input{width:auto}
+  .today-l .lnav-inner{position:relative}
+  .tl-book{grid-template-columns:minmax(0,1fr)}
+  .tl-keys b{font-size:18px}
+  .tl-map-foot{text-align:left}
+}
+.landing.today-l .lnav-links{display:flex}
+@media (max-width:560px){ .today-l .lterminal-body{grid-template-columns:minmax(0,1fr)} }
