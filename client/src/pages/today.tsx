@@ -165,41 +165,57 @@ function Ladder({ p, live }: { p: Pick; live?: number }) {
 function explain(p: Pick): { headline: string; reasons: string[]; against?: string } {
   const L = p.layers ?? [];
   const txt = (l?: Layer) => (l?.why ?? '').replace(/^[^\w$+-]+/u, '').trim();
-  const flow = L.map(txt).find((w) => /Aggressor tape|net premium/i.test(w));
-  const pattern = L.map(txt).find((w) => /(Higher-Lows Base|V-Recovery|Bull flag|breakout|pullback|reclaim)/i.test(w) && !/Aggressor/i.test(w));
+  const all = L.map(txt);
+  const PATTERN = /Higher-Lows Base|V-Recovery|Bull flag|Bear flag|Breakout|Breakdown|Pullback|Reclaim/i;
+  const flow = all.find((w) => /net premium|Aggressor tape/i.test(w));
+  const pattern = all.find((w) => PATTERN.test(w) && / off the /i.test(w)) ?? all.find((w) => PATTERN.test(w));
   let headline = '';
-  if (flow) {
-    const m = flow.match(/([+-])\$([\d.]+)M net (bullish|bearish)/i);
-    const calls = flow.match(/calls (bought|sold) \+\$([\d.]+)M/i);
-    const puts = flow.match(/puts (bought|sold) \+\$([\d.]+)M/i);
-    if (m) {
-      const bull = m[3].toLowerCase() === 'bullish';
-      const lead = bull ? calls : puts;
-      headline = `Options traders put $${m[2]}M ${bull ? 'behind' : 'against'} it yesterday` +
-        (lead ? ` — mostly ${bull ? 'calls' : 'puts'} ${lead[1]}.` : '.');
-    }
-  }
-  if (!headline && pattern) headline = pattern.split(/[:;(]/)[0].replace(/ off the /i, ' off ').trim() + '.';
-  if (!headline) headline = (p.thesis ?? '').split('.')[0] + '.';
+  const m = flow?.match(/([+-])\$([\d.]+)M net (?:premium )?(bullish|bearish)/i);
+  if (m && flow) {
+    const bull = m[3].toLowerCase() === 'bullish';
+    const lead = flow.match(bull ? /calls (bought|sold) \+\$([\d.]+)M/i : /puts (bought|sold) \+\$([\d.]+)M/i);
+    headline = `Options traders put $${m[2]}M ${bull ? 'behind' : 'against'} it yesterday` +
+      (lead && Number(lead[2]) > 0 ? `, $${lead[2]}M of it in ${bull ? 'calls' : 'puts'} ${lead[1]}.` : '.');
+  } else if (pattern) {
+    const lvl = pattern.match(/\$([\d.,]+) bottom/)?.[1] ?? pattern.match(/bottomed \$([\d.,]+)/)?.[1];
+    if (/Higher-Lows/i.test(pattern)) headline = `Building higher lows off the $${lvl} bottom.`;
+    else if (/V-Recovery/i.test(pattern)) headline = `Sharp V-shaped recovery off the $${lvl} bottom.`;
+    else headline = pattern.split(/[:;(]/)[0].trim() + '.';
+  } else headline = (p.thesis ?? '').split('.')[0] + '.';
+
+  const sectorLine = (w: string) => {
+    const s = w.replace(/[🩸]/gu, '').trim().match(/^([A-Za-z &]+?) ([+-][\d.]+)% \(([+-][\d.]+)% vs SPY\)/);
+    if (!s) return '';
+    const down = s[2].startsWith('-');
+    return `${s[1]} ${down ? 'down' : 'up'} ${s[2].slice(1)}% today`;
+  };
   const reasons: string[] = [];
   for (const l of [...L].sort((a, b) => b.points - a.points)) {
     if (l.points <= 0 || reasons.length >= 3) continue;
     const w = txt(l);
-    if (/Aggressor tape|net premium|context only|Regime ranging|benchmark complex/i.test(w)) continue;
+    if (/net premium|Aggressor tape|context only|Regime ranging/i.test(w) || PATTERN.test(w)) continue;
     let r = '';
-    const run = w.match(/clean runway to (.+?) at \$([\d.,]+) \(([\d.]+)R, (\d+)% reach odds\)/i);
-    if (run) r = `Clear path to $${run[2]} · ${run[4]}% reach odds`;
-    else if (/^TA confirms/i.test(w)) r = 'Chart trend agrees';
-    else if (/Coiled/i.test(w)) r = 'Coiled range, pressing the ceiling';
-    else if (/Dealers support/i.test(w)) r = 'Dealer positioning supports the move';
-    else if (/sector|Semis|Tech|Energy|Utilities|Financials/i.test(w)) r = w.split('—')[0].replace(/[🩸]/gu, '').trim();
-    else if (/Earnings (miss|beat)/i.test(w)) r = w;
-    else if (pattern && w === pattern) continue;
+    const run = w.match(/clean runway to .+? at \$([\d.,]+) \(([\d.]+)R, (\d+)% reach odds\)/i);
+    if (run) r = `Open road to $${run[1]} · ${run[3]}% reach odds`;
+    else if (/^TA confirms/i.test(w)) r = 'Trend on the chart agrees';
+    else if (/Coiled/i.test(w)) r = 'Coiled tight, pressing the ceiling';
+    else if (/Dealers support/i.test(w)) r = 'Dealer hedging leans its way';
+    else if (/benchmark complex/i.test(w)) r = 'Deep, liquid options market';
+    else if (/Earnings beat/i.test(w)) r = 'Beat on earnings';
+    else if (/Earnings miss/i.test(w)) r = 'Missed on earnings';
+    else if (/vs SPY/i.test(w)) r = sectorLine(w) + (/confirms/i.test(w) ? ', confirming it' : '');
     else r = w.split(/[—(;]/)[0].trim();
-    if (r && !reasons.includes(r)) reasons.push(r.length > 64 ? r.slice(0, 62) + '…' : r);
+    if (r && !reasons.includes(r)) reasons.push(r);
   }
   const neg = L.filter((l) => l.points < 0).sort((a, b) => a.points - b.points)[0];
-  const against = neg ? txt(neg).replace(/[🩸]/gu, '').split('—').map((x) => x.trim()).filter(Boolean).join(' — ') : undefined;
+  let against: string | undefined;
+  if (neg) {
+    const w = txt(neg);
+    const cap = w.match(/at \$([\d.,]+) caps the move at ([\d.]+)R/i);
+    if (cap) against = `Resistance at $${cap[1]} caps the move at ${cap[2]}× the risk.`;
+    else if (/vs SPY/i.test(w)) against = `${sectorLine(w)}, money rotating out of the sector.`;
+    else against = w.replace(/[🩸]/gu, '').split('—')[0].trim() + '.';
+  }
   return { headline, reasons, against };
 }
 const sectorName = (s?: string) => (!s || s === 'other' ? '' : s.replace(/_/g, ' '));
@@ -266,7 +282,7 @@ export default function TodayPage() {
             </div>
           </div>
           <div className="td-map-card">
-            {wp.data ? <WeekMap wp={wp.data} gex={gex.data} /> : <div className="td-map-empty">{wp.isError ? 'Dealer map unavailable right now.' : 'Drawing the dealer map…'}</div>}
+            {wp.data && !gex.isLoading ? <WeekMap wp={wp.data} gex={gex.data} /> : <div className="td-map-empty">{wp.isError ? 'Dealer map unavailable right now.' : 'Reading dealer positioning…'}</div>}
             <div className="td-map-foot">
               Model projection from dealer positioning{wp.data ? ` · ${(wp.data.confidence * 100).toFixed(0)}% confidence` : ''} · not a forecast · only measured levels shown
             </div>
