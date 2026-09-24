@@ -2,33 +2,14 @@
   "routes": 37,
   "redirects": 76,
   "tabs": 10,
-  "linkTargets": 52,
+  "linkTargets": 55,
   "N1_dead": {},
-  "N2_viaRedirect": {
-    "/trade-desk": [
-      "client/src/components/app-sidebar.tsx",
-      "client/src/components/navigation-customizer.tsx",
-      "client/src/pages/automations.tsx"
-    ],
-    "/trade-ideas/": [
-      "client/src/components/trade-desk/idea-detail-drawer.tsx"
-    ],
-    "/terminal/": [
-      "client/src/pages/trade-desk.tsx"
-    ]
-  },
+  "N2_viaRedirect": {},
   "N3_orphanPageFiles": [
-    "automations",
     "backtest",
-    "landing-nexus",
-    "trade-desk"
+    "landing-nexus"
   ],
-  "N4_unreachableRoutes": [
-    "/blog/:slug",
-    "/w",
-    "/trade-ideas/:id/audit",
-    "/about"
-  ],
+  "N4_unreachableRoutes": [],
   "N5_navModel": {
     "tabs": [
       "NEXUS",

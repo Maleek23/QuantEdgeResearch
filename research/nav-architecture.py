@@ -68,8 +68,9 @@ LINK_PATTERNS = [
     r"navigate\(\s*'(/[^']*)'", r'navigate\(\s*"(/[^"]*)"',
     r"window\.location\.href\s*=\s*'(/[^']*)'", r'window\.location\.href\s*=\s*"(/[^"]*)"',
     r'<Redirect to="(/[^"]*)"', r"path: '(/[^']+)'", r"href: '(/[^']+)'", r'href: "(/[^"]+)"',
-    r"href=\{`(/[^`$]*)",
+    r"\['(/[a-z][^']*)',\s*'[A-Z]",
 ]
+TEMPLATE = re.compile(r"(?:href=\{|setLocation\()`(/[^`]*)`")
 files = [f for f in glob.glob(os.path.join(SRC, "**", "*.tsx"), recursive=True) + glob.glob(os.path.join(SRC, "**", "*.ts"), recursive=True)
          if "legacy-redirects" not in f]
 links = collections.defaultdict(list)  # target -> [file]
@@ -80,6 +81,10 @@ for f in files:
             t = t.strip()
             if not t or t.startswith("//") or t.startswith("/api") or t.startswith("/assets") or re.search(r"\.(png|svg|jpg|json|webmanifest|ico)$", t): continue
             links[t].append(os.path.relpath(f, ROOT))
+    for t in TEMPLATE.findall(s):
+        t = re.sub(r"\$\{[^}]*\}", "x", t)
+        if t.startswith("/api"): continue
+        links[t].append(os.path.relpath(f, ROOT))
 
 dead, via_redirect, ok = {}, {}, {}
 for t, fs in links.items():

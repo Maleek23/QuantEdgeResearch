@@ -78,7 +78,7 @@ const defaultNavItems: NavigationItemType[] = [
   { id: "research", title: "Research", icon: "Microscope", href: "/r" },
   { id: "positions", title: "Positions", icon: "Wallet", href: "/t?tab=positions" },
   { id: "journal", title: "Journal", icon: "BookOpen", href: "/t?tab=journal" },
-  { id: "trade-desk", title: "Trade Desk", icon: "TrendingUp", href: "/trade-desk" },
+  { id: "slate", title: "Slate", icon: "TrendingUp", href: "/slate" },
   { id: "radar", title: "Thesis Radar", icon: "Target", href: "/radar" },
   { id: "alerts", title: "Alerts", icon: "Bell", href: "/alerts" },
   { id: "academy", title: "Academy", icon: "GraduationCap", href: "/academy" },

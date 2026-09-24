@@ -364,7 +364,7 @@ function HeatTile({ position }: { position: LivePosition }) {
     '';
 
   return (
-    <Link href={`/t/${position.symbol}`}>
+    <Link href={`/r/${position.symbol}`}>
       <div className={`border rounded p-3 hover:border-[var(--brand-cyan)]/50 transition-colors cursor-pointer ${bg} ${sizeClass}`}>
         <div className="flex items-center justify-between mb-1">
           <span className="font-bold">{position.symbol}</span>
@@ -419,7 +419,7 @@ function PositionRow({ position }: { position: LivePosition }) {
   return (
     <tr className="border-b border-border/50 hover:bg-muted/20">
       <td className="py-2 pr-3 font-bold">
-        <Link href={`/t/${position.symbol}`}>
+        <Link href={`/r/${position.symbol}`}>
           <span className="hover:text-[var(--brand-cyan)] cursor-pointer">{position.symbol}</span>
         </Link>
       </td>
