@@ -2172,6 +2172,9 @@
   .workuplab .workup-tabs{overflow-x:auto;padding:8px 12px}
   .workuplab .workup-left,.workuplab .workup-right{border:0;border-top:1px solid var(--nx-border);overflow:visible}
   .workuplab .workup-foot{padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+  .workuplab .overview-grid{grid-template-columns:minmax(0,1fr)}
+  .workuplab .workup-box,.workuplab .workup-body,.workuplab .workup-center,.workuplab .workup-content{min-width:0;max-width:100vw}
+  .workuplab .workup-head>*{min-width:0}
 }
 
 

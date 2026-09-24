@@ -33,7 +33,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
   const accountLabel = (user as any)?.firstName || (user as any)?.email?.split('@')[0] || 'Account';
 
   return (
-    <div className={cn('qe-terminal nexus-vars flex min-h-[100dvh] flex-col', nexusLight && 'light')}>
+    <div className={cn('qe-terminal nexus-vars flex min-h-[100dvh] w-full min-w-0 max-w-[100vw] flex-col', nexusLight && 'light')}>
       <header className="sticky top-0 z-20">
         <div className="topbar" style={{ minHeight: 44 }}>
           <Link href="/t" className="brand" aria-label="Quant Edge Labs — terminal home">
