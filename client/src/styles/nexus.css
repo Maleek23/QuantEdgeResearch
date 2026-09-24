@@ -2554,3 +2554,13 @@
    header); hidden removes the panel (restore chips bring it back). */
 .nexus-vars .rail-min > :not(:first-child){display:none !important}
 .nexus-vars .rail-hidden{display:none !important}
+
+/* Phones + tablets (<1024px): the bottom bar is the ONLY navigation. The
+   .nav-tabs display rule above out-specifies Tailwind's `hidden`, so the top
+   tabs leaked onto phones and wrapped the header to three rows; the desktop
+   footer bar leaked too. */
+@media (max-width: 1023px) {
+  .nexus-vars .nav-tabs { display: none !important; }
+  .nexus-vars .bottombar { display: none !important; }
+  .nexus-vars .topbar { flex-wrap: nowrap; }
+}

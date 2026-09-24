@@ -159,7 +159,7 @@ export function WhatsNewToast() {
     <button
       type="button"
       onClick={() => { handleOpen(); setDismissed(true); }}
-      className="fixed bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-lg bg-card border border-[var(--brand-cyan)]/40 shadow-2xl hover:bg-[var(--brand-cyan)]/5 transition-all group animate-in slide-in-from-bottom-4 duration-300"
+      className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] lg:bottom-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-lg bg-card border border-[var(--brand-cyan)]/40 shadow-2xl hover:bg-[var(--brand-cyan)]/5 transition-all group animate-in slide-in-from-bottom-4 duration-300"
     >
       <Sparkles className="w-4 h-4 text-[var(--brand-cyan)]" />
       <div className="text-left">

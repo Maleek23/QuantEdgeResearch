@@ -285,7 +285,7 @@ export default function TerminalShell() {
           </div>
 
           {/* His nav sits LEFT, immediately after the chips — not centered. */}
-          <nav className="nav-tabs hidden overflow-x-auto md:flex">
+          <nav className="nav-tabs hidden overflow-x-auto lg:flex">
             {TABS.map((t) => (
               <button
                 key={t.id}
@@ -306,14 +306,14 @@ export default function TerminalShell() {
             onClick={() => setMobileSearchOpen((open) => !open)}
             aria-label="Search ticker"
             aria-expanded={mobileSearchOpen}
-            className="grid h-8 w-8 place-items-center rounded border border-border/55 text-muted-foreground transition-colors hover:text-foreground md:hidden"
+            className="grid h-9 w-9 place-items-center rounded border border-border/55 text-muted-foreground transition-colors hover:text-foreground lg:hidden"
           >
             <Search className="h-4 w-4" />
           </button>
           {/* Desktop search is a ⌘K PALETTE TRIGGER, not an inline dropdown —
               same .search chrome the mock drew, but clicking it (or ⌘K from
               anywhere) opens the command palette. */}
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <button
               type="button"
               className="search"
@@ -394,7 +394,7 @@ export default function TerminalShell() {
         <AnimatePresence initial={false}>
           {mobileSearchOpen && (
             <motion.div
-              className="border-t border-border/45 px-3 py-2 md:hidden"
+              className="border-t border-border/45 px-3 py-2 lg:hidden"
               initial={reduce ? false : { opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={reduce ? undefined : { opacity: 0, height: 0 }}
@@ -419,7 +419,7 @@ export default function TerminalShell() {
       </div>
 
       {/* ── tab content (cross-fades) ── */}
-      <main className="min-h-0 flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
+      <main className="min-h-0 flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
         {/* Some market modules keep long-lived subscriptions and nested layout
             animations. `mode="wait"` can leave the outgoing module mounted at
             opacity 0 while it waits for every descendant to finish exiting,
@@ -462,7 +462,7 @@ export default function TerminalShell() {
 
       {/* Mobile instrument dock. The four daily workflows stay one tap away;
           secondary modules live in a compact sheet instead of seven cramped tabs. */}
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/65 bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/65 bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
         <nav className="grid h-16 grid-cols-5 px-1" aria-label="Terminal sections">
           {MOBILE_PRIMARY.map((id) => {
             const label = TABS.find((item) => item.id === id)?.label ?? id;
@@ -505,14 +505,14 @@ export default function TerminalShell() {
             <motion.button
               type="button"
               aria-label="Close section menu"
-              className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm md:hidden"
+              className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm lg:hidden"
               initial={reduce ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={reduce ? undefined : { opacity: 0 }}
               onClick={() => setMobileMoreOpen(false)}
             />
             <motion.div
-              className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 overflow-hidden rounded-xl border border-border/75 bg-card shadow-2xl md:hidden"
+              className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 overflow-hidden rounded-xl border border-border/75 bg-card shadow-2xl lg:hidden"
               initial={reduce ? false : { opacity: 0, y: 16, scale: .98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={reduce ? undefined : { opacity: 0, y: 12, scale: .98 }}
