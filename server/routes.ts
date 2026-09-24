@@ -1,5 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { storage, isRealLoss, isRealLossByResolution, isCurrentGenEngine, getDecidedTrades, getDecidedTradesByResolution, applyCanonicalPerformanceFilters, CANONICAL_LOSS_THRESHOLD } from "./storage";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -32014,6 +32016,18 @@ Use this checklist before entering any trade:
   });
 
   // GEX terminal cache — serves last successful computation when market is closed
+  // Last-good caches survive restarts on disk: a pm2 restart used to blank the
+  // dealer map while boot-time scanners had CBOE rate-limiting us (429).
+  const lastGoodDir = path.join(process.cwd(), '.cache', 'last-good');
+  const lastGoodFile = (kind: string, sym: string) => path.join(lastGoodDir, `${kind}-${sym.replace(/[^A-Z0-9^.]/gi, '')}.json`);
+  const loadLastGood = (kind: string, sym: string): { data: any; cachedAt: number } | undefined => {
+    try { return JSON.parse(fs.readFileSync(lastGoodFile(kind, sym), 'utf8')); } catch { return undefined; }
+  };
+  const saveLastGood = (kind: string, sym: string, data: any) => {
+    fs.promises.mkdir(lastGoodDir, { recursive: true })
+      .then(() => fs.promises.writeFile(lastGoodFile(kind, sym), JSON.stringify({ data, cachedAt: Date.now() })))
+      .catch(() => { /* best effort */ });
+  };
   const gexTerminalCache = new Map<string, { data: any; cachedAt: number }>();
   const GEX_CACHE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -32046,7 +32060,7 @@ Use this checklist before entering any trade:
 
       if (!gex) {
         // Final fallback: serve cached if available
-        const cached = gexTerminalCache.get(symbol);
+        const cached = gexTerminalCache.get(symbol) ?? loadLastGood('gex-terminal', symbol);
         if (cached && (Date.now() - cached.cachedAt) < GEX_CACHE_MAX_AGE) {
           logger.info(`[GEX-TERMINAL] Serving cached data for ${symbol} (age: ${((Date.now() - cached.cachedAt) / 60000).toFixed(0)}m)`);
           return res.json({ ...cached.data, cached: true, cachedAt: new Date(cached.cachedAt).toISOString() });
@@ -32232,6 +32246,7 @@ Use this checklist before entering any trade:
 
       // Cache successful computation for after-hours/weekend access
       gexTerminalCache.set(symbol, { data: payload, cachedAt: Date.now() });
+      if (['SPY', 'QQQ', 'SPX', 'IWM'].includes(symbol)) saveLastGood('gex-terminal', symbol, payload);
 
       res.json(payload);
     } catch (error: any) {
@@ -33338,8 +33353,7 @@ Use this checklist before entering any trade:
   });
 
   // ─── Weekly Path Projection ──────────────────────────────────
-  const weeklyPathCache = new Map<string, { data: object; at: number }>();
-  app.get("/api/weekly-path/:symbol", requireBetaAccess, async (req: any, res) => {
+    app.get("/api/weekly-path/:symbol", requireBetaAccess, async (req: any, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();
 
@@ -33357,9 +33371,9 @@ Use this checklist before entering any trade:
         if (cboeSnapshot) gex = { snapshot: cboeSnapshot, dataQuality: 'cboe_fallback' } as any;
       }
       if (!gex) {
-        const cached = weeklyPathCache.get(symbol);
-        if (cached && Date.now() - cached.at < 12 * 3600_000) {
-          return res.json({ ...cached.data, cached: true, cachedAt: new Date(cached.at).toISOString() });
+        const cached = loadLastGood('weekly-path', symbol);
+        if (cached && Date.now() - cached.cachedAt < 24 * 3600_000) {
+          return res.json({ ...cached.data, cached: true, cachedAt: new Date(cached.cachedAt).toISOString() });
         }
         return res.status(503).json({
           error: `Options data unavailable for ${symbol}`,
@@ -33370,7 +33384,7 @@ Use this checklist before entering any trade:
 
       const snapshot = toSnapshot(gex);
       const projection = computeWeeklyPath(snapshot);
-      weeklyPathCache.set(symbol, { data: projection, at: Date.now() });
+      saveLastGood('weekly-path', symbol, projection);
 
       res.json(projection);
     } catch (error: any) {
