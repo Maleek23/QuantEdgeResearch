@@ -28,7 +28,7 @@ export function MobileDock({ activeTab, onTab }: {
 
   return (
     <>
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/65 bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/65 bg-background/[0.98] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
         <nav className="grid h-16 grid-cols-5 px-1" aria-label="Sections">
           {MOBILE_PRIMARY.map((id) => {
             const label = TABS.find((item) => item.id === id)?.label ?? id;
