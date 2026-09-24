@@ -218,11 +218,17 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
 
 export function generateSEO(pageKey?: string, overrides?: Partial<SEOMetadata>): SEOMetadata {
   const pageSeo: Partial<SEOMetadata> = pageKey && PAGE_SEO[pageKey] ? PAGE_SEO[pageKey] : {};
+  // SEOHead passes every prop, most of them undefined — and spreading
+  // {title: undefined} OVERWRITES the page's title. Every page using SEOHead
+  // shipped with document.title "undefined" (UI validation 2026-09-24).
+  const set = Object.fromEntries(
+    Object.entries(overrides ?? {}).filter(([, v]) => v !== undefined),
+  ) as Partial<SEOMetadata>;
 
   return {
     ...DEFAULT_SEO,
     ...pageSeo,
-    ...overrides,
+    ...set,
     ogTitle: overrides?.ogTitle || pageSeo.ogTitle || overrides?.title || pageSeo.title || DEFAULT_SEO.title,
     ogDescription: overrides?.ogDescription || pageSeo.ogDescription || overrides?.description || pageSeo.description || DEFAULT_SEO.description,
   };

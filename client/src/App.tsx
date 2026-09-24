@@ -345,6 +345,7 @@ function AuthHeader() {
               variant="ghost"
               size="sm"
               onClick={handleLogout}
+              aria-label="Log out"
               data-testid="button-logout"
               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
             >

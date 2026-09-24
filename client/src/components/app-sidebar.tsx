@@ -162,8 +162,8 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
         )}
         data-testid={`nav-${item.id}`}
       >
-        <Link href={item.href}>
-          <Icon className={cn("w-4 h-4 shrink-0", active && "text-[var(--brand-cyan)]")} />
+        <Link href={item.href} aria-label={item.title}>
+          <Icon aria-hidden className={cn("w-4 h-4 shrink-0", active && "text-[var(--brand-cyan)]")} />
           <span className="truncate font-mono uppercase tracking-wider text-[11px]">{item.title}</span>
           {item.shortcut && (
             <span className="ml-auto text-[9px] font-mono text-sidebar-foreground/25 group-data-[collapsible=icon]:hidden">

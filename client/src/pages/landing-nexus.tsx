@@ -261,6 +261,9 @@ export default function LandingNexus() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const fresh = !rotation?.isStale;
+  // Overnight / weekends the map correctly shows the last close — that is the
+  // market being shut, not the data failing. Say which one it is.
+  const closed = !fresh && /close/i.test(rotation?.sessionLabel ?? '');
 
   const MODULES: { name: string; desc: string; tag: string; color: string }[] = [
     { name: 'Oracle', desc: 'Evidence-ranked signals with a full audit trail. Every layer that argues for or against a setup, visible at a glance.', tag: 'Core · Live', color: '#4fd1c5' },
@@ -290,7 +293,7 @@ export default function LandingNexus() {
             ))}
           </div>
           <div className="lnav-spacer" />
-          <div className={`lnav-status${fresh ? '' : ' stale'}`}><span className="dot" />{fresh ? 'Live' : 'Data stale'}</div>
+          <div className={`lnav-status${fresh ? '' : closed ? ' closed' : ' stale'}`}><span className="dot" />{fresh ? 'Live' : closed ? 'Market closed' : 'Data stale'}</div>
           <Link href="/login" className="btn btn-ghost">Sign in</Link>
           <Link href="/t" className="btn btn-primary">Get access</Link>
         </div>
