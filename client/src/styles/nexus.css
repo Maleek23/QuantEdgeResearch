@@ -2175,6 +2175,10 @@
   .workuplab .overview-grid{grid-template-columns:minmax(0,1fr)}
   .workuplab .workup-box,.workuplab .workup-body,.workuplab .workup-center,.workuplab .workup-content{min-width:0;max-width:100vw}
   .workuplab .workup-head>*{min-width:0}
+  .workuplab .workup-head{grid-template-columns:minmax(0,1fr)!important}
+  .workuplab .ticker-identity{flex-wrap:wrap;min-width:0}
+  .workuplab .ticker-price{font-size:26px}
+  .workuplab .workup-actions{justify-content:flex-start}
 }
 
 
