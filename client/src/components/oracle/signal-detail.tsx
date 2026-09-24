@@ -12,6 +12,7 @@
  *   ContextPanel   — the interpreting sentence + what to do now.
  */
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { clarifyOracleNarrative, bandStrength, type ConvictionPick } from '@/lib/convictions';
 import { computeGeometry, type SignalGeometry, type Level } from '@/lib/oracle/signal-geometry';
@@ -407,14 +408,34 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
    * long-dated contract read "too big for this account" — arithmetically right,
    * practically useless. See shared/sizing.ts.
    */
-  const rule = sizingFor((pick as any).optionDte, prefs as any);
+  // DTE from the expiry date, never the value stored at publish (audit 2026-09-24).
+  const expiry = (pick as any).expiryDate ? String((pick as any).expiryDate).slice(0, 10) : null;
+  const liveDte = expiry
+    ? Math.max(0, Math.ceil((new Date(expiry + 'T20:00:00Z').getTime() - Date.now()) / 86_400_000))
+    : (pick as any).optionDte;
+  const rule = sizingFor(liveDte, prefs as any);
   const riskBudget = rule.budget;
+
+  // Size off the contract's premium NOW. Sizing off the publish-time premium
+  // buys double the intended risk if the premium has doubled since.
+  const liveContractQ = useQuery<{ found: boolean; mid: number | null; asOf: string }>({
+    queryKey: [
+      `/api/contract-live/${pick.symbol}?type=${pick.optionType ?? 'call'}&strike=${pick.strikePrice ?? ''}&expiry=${expiry ?? ''}`,
+    ],
+    enabled: !!(pick.optionType && pick.strikePrice && expiry),
+    refetchInterval: 120_000,
+    staleTime: 60_000,
+    retry: 0,
+  });
 
   const byKey = (k: Level['key']) => g.levels.find((l) => l.key === k);
   const riskShare = (g.risk / (g.risk + g.reward)) * 100;
 
   // Is this signal expressed as a contract? Then size contracts, not shares.
-  const premium = Number((pick as any).entryPremium ?? (pick as any).contractPrice ?? 0);
+  const publishedPremium = Number((pick as any).entryPremium ?? (pick as any).contractPrice ?? 0);
+  const livePremium = liveContractQ.data?.found && liveContractQ.data.mid ? liveContractQ.data.mid : null;
+  const premium = livePremium ?? publishedPremium;
+  const premiumIsLive = livePremium != null;
   const isOption = !!(pick.optionType && pick.strikePrice && premium > 0);
 
   // Short-dated: risk is the premium under the −50% stop. Long-dated: the
@@ -517,7 +538,7 @@ export function RiskPanel({ pick, live, className }: { pick: ConvictionPick; liv
         {sized && units > 0 && !overAllocated && (
           <p className="text-label leading-relaxed text-muted-foreground/70 border-t border-border/30 pt-2.5">
             {isOption
-              ? `${units} ${unitLabel} at $${premium.toFixed(2)}. ${rule.why}`
+              ? `${units} ${unitLabel} at $${premium.toFixed(2)} (${premiumIsLive ? "live premium" : "premium at publish — live chain unavailable"}). ${rule.why}`
               : `Sized against your $${account.toLocaleString()} account.`}
           </p>
         )}

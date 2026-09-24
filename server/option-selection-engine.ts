@@ -803,9 +803,13 @@ export async function selectContracts(
     if (cboe && cboe.rawChain.length > 0) {
       const spot = thesis.asOfSpot ?? cboe.spot;
       if (spot > 0) {
-        return selectFromChain(thesis, spot, cboe.rawChain, {
+        const sel = selectFromChain(thesis, spot, cboe.rawChain, {
           expiriesNote: undefined,
         });
+        // Stamp the chain's real fetch time, not "now" — a cached chain must
+        // not read as fresh (audit 2026-09-24).
+        if (cboe.fetchedAt) (sel as any).asOf = new Date(cboe.fetchedAt).toISOString();
+        return sel;
       }
     }
   } catch (e) {

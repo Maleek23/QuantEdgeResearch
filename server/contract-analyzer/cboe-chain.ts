@@ -15,6 +15,8 @@
 import type { RawChainOption } from '../option-selection-engine';
 
 export interface CboeChain {
+  /** Epoch ms the chain was actually fetched — never "now" for a cached copy. */
+  fetchedAt?: number;
   spot: number;
   rawChain: RawChainOption[];
   totalChainOI: number;
@@ -176,6 +178,8 @@ async function fetchCboeChainOnce(symbol: string, timeoutMs: number): Promise<{ 
  * with exponential backoff on HTTP 429 so transient rate-limits don't silently
  * collapse option ideas into bare-stock theses.
  */
+const CHAIN_STALE_MAX_MS = 5 * 60_000;
+
 export async function fetchCboeChain(symbol: string, timeoutMs = 6000): Promise<CboeChain | null> {
   const key = symbol.toUpperCase();
 
@@ -186,7 +190,8 @@ export async function fetchCboeChain(symbol: string, timeoutMs = 6000): Promise<
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const { chain, status } = await fetchCboeChainOnce(key, timeoutMs);
     if (chain) {
-      chainCache.set(key, { at: Date.now(), chain });
+      chain.fetchedAt = Date.now();
+      chainCache.set(key, { at: chain.fetchedAt, chain });
       return chain;
     }
     // Only backoff-retry on rate-limit; other failures (404, parse) won't fix themselves.
@@ -194,7 +199,9 @@ export async function fetchCboeChain(symbol: string, timeoutMs = 6000): Promise<
     await sleep(500 * 2 ** attempt); // 500ms, 1000ms
   }
 
-  // Last resort: serve a stale cached chain rather than dropping the contract.
-  if (cached) return cached.chain;
+  // Last resort: a stale cached chain, but only while it is still usable.
+  // Unbounded stale-serve let hour-old premiums grade outcomes and render as
+  // live (audit 2026-09-24). Beyond the cap, no chain beats a wrong chain.
+  if (cached && Date.now() - cached.at <= CHAIN_STALE_MAX_MS) return cached.chain;
   return null;
 }

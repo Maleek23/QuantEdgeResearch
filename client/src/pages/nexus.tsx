@@ -662,13 +662,27 @@ export function NexusBoard() {
     setWatchOrder(next);
     try { localStorage.setItem('nx-watch-order', JSON.stringify(next)); } catch { /* ignore */ }
   };
+  // Live quotes for every symbol on the board (not only the day's movers), so
+  // cards price off now rather than the board-build snapshot. 60s cadence.
+  const boardSyms = useMemo(() => Array.from(new Set(shown.map((p) => p.symbol))).slice(0, 40).sort().join(','), [shown]);
+  const boardQuotesQ = useQuery<{ quotes: Record<string, { price: number; changePercent: number }> }>({
+    queryKey: [`/api/quotes/batch/${boardSyms}`],
+    enabled: boardSyms.length > 0,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
   const quoteBySym = useMemo(() => {
     const m = new Map<string, EHQuote>();
     for (const list of [extended.data?.gainers, extended.data?.losers, extended.data?.mostActive]) {
       for (const t of list ?? []) if (!m.has(t.symbol) && Number.isFinite(t.changePct)) m.set(t.symbol, t);
     }
+    for (const [sym, q] of Object.entries(boardQuotesQ.data?.quotes ?? {})) {
+      if (Number.isFinite(q?.price) && q.price > 0) {
+        m.set(sym, { ...(m.get(sym) ?? {}), symbol: sym, lastPrice: q.price, changePct: q.changePercent } as EHQuote);
+      }
+    }
     return m;
-  }, [extended.data]);
+  }, [extended.data, boardQuotesQ.data]);
   const runningBots = 0; /* automations/status shape varies; sys row reads watch/vix/feed */
   const es = fut['ES'];
   const btc = cry['BTC'];
@@ -1122,8 +1136,27 @@ export function NexusBoard() {
           <div className="signals">
             {shown.map((p) => {
               const b = bandOf(p);
-              const px = p.currentPrice ?? p.entryPrice;
+              // Live quote first — the board-build price can be 15+ min old
+              // (audit 2026-09-24). Contract-basis levels are premiums, so the
+              // share quote can't be compared to them; those keep the stored mark.
+              const isPremiumBasis = (p as any).levelBasis === 'contract';
+              const px = isPremiumBasis
+                ? (p.currentPrice ?? p.entryPrice)
+                : (quoteBySym.get(p.symbol)?.lastPrice ?? p.currentPrice ?? p.entryPrice);
               const g = geometryFor(p, px);
+              const pendingNow = /pending|trigger/i.test(g.statusLabel ?? '');
+              // R:R for someone entering NOW, not the ratio frozen at publish.
+              const isLong = p.direction !== 'short';
+              const liveRR = (() => {
+                if (pendingNow || px == null || p.stopLoss == null || p.targetPrice == null) return null;
+                const risk = isLong ? px - p.stopLoss : p.stopLoss - px;
+                const reward = isLong ? p.targetPrice - px : px - p.targetPrice;
+                return risk > 0 && reward > 0 ? reward / risk : 0;
+              })();
+              // DTE counts down from the expiry, never the value stored at publish.
+              const liveDte = p.expiryDate
+                ? Math.max(0, Math.ceil((new Date(String(p.expiryDate).slice(0, 10) + 'T20:00:00Z').getTime() - Date.now()) / 86_400_000))
+                : p.optionDte ?? null;
               const pending = /pending|trigger/i.test(g.statusLabel ?? '');
               const against = (p.layers ?? []).filter((l) => l.points < 0);
               const chips = (p.layers ?? [])
@@ -1210,7 +1243,7 @@ export function NexusBoard() {
                     <div className="level"><div className="level-label" style={(p as any).levelBasis === 'contract' ? { color: 'var(--amber)' } : undefined}>{(p as any).levelBasis === 'contract' ? 'PREM' : 'Entry'}</div><div className="level-val entry">${p.entryPrice?.toFixed(2) ?? '—'}</div></div>
                     <div className="level"><div className="level-label">Stop</div><div className="level-val stop">${p.stopLoss?.toFixed(2) ?? '—'}</div></div>
                     <div className="level"><div className="level-label">T1</div><div className="level-val t1">${p.targetPrice?.toFixed(2) ?? '—'}</div></div>
-                    <div className="level"><div className="level-label">R:R</div><div className="level-val rr">{p.riskRewardRatio ? `${p.riskRewardRatio.toFixed(1)}:1` : '—'}</div></div>
+                    <div className="level" title={liveRR != null && p.riskRewardRatio ? `R:R if you enter at the live price. At publish it was ${p.riskRewardRatio.toFixed(1)}:1.` : 'R:R from entry — the trigger has not printed'}><div className="level-label">{liveRR != null ? 'R:R now' : 'R:R'}</div><div className="level-val rr" style={liveRR != null && liveRR < 1 ? { color: 'var(--amber)' } : undefined}>{liveRR != null ? `${liveRR.toFixed(1)}:1` : p.riskRewardRatio ? `${p.riskRewardRatio.toFixed(1)}:1` : '—'}</div></div>
                     <div className="level"><div className="level-label">P&amp;L</div><div className={`level-val pnl ${g.pnlPct >= 0 ? 'pos' : 'neg'}`}>{g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(1)}%</div></div>
                   </div>
                   <div className="sig-foot">
@@ -1228,7 +1261,7 @@ export function NexusBoard() {
                         </span>
                       );
                     })()}
-                    <span>{p.optionDte != null ? `${p.optionDte}d` : 'no contract'}</span>
+                    <span>{liveDte != null ? `${liveDte}d` : 'no contract'}</span>
                     <span>{p.sector ?? ''}</span>
                   </div>
                 </div>

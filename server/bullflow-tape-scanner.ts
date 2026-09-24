@@ -304,7 +304,7 @@ export async function runBullflowTapeScan(): Promise<number> {
         {
           type: 'aggressor_net_premium',
           weight: net >= 30e6 ? 32 : net >= 15e6 ? 28 : net >= TAPE_NET_MIN ? 24 : 22,
-          description: `${fmtM(net)} net premium bullish today (aggressor-measured)`,
+          description: `${fmtM(net)} net premium bullish on ${today} (aggressor-measured)`,
         },
         {
           type: 'tape_decomposition',
@@ -333,10 +333,10 @@ export async function runBullflowTapeScan(): Promise<number> {
         currentPrice: entry,
         targetPrice: target,
         stopLoss: roundedStop,
-        catalyst: `Aggressor tape: ${fmtM(net)} net bullish today (${compText}) — measured fills, not chain inference`,
+        catalyst: `Aggressor tape: ${fmtM(net)} net bullish on ${today} (${compText}) — measured fills, not chain inference`,
         analysis:
           `Flow-primary idea: direction is read from actual ask-vs-bid fills on the options tape (Bullflow), ` +
-          `not from a chart pattern — no technical setup is claimed. ${symbol}'s tape this session: ${compText} (${fmtM(net)} net bullish). ` +
+          `not from a chart pattern — no technical setup is claimed. ${symbol}'s tape on ${today}: ${compText} (${fmtM(net)} net bullish). ` +
           `Entry ${cashOpen ? `at last ($${entry.toFixed(2)})` : `on a trigger at $${entry.toFixed(2)} (0.3% above the closed-market last — pending until touched in RTH)`}, invalidation at the ${stopBasis} ($${roundedStop.toFixed(2)}) — if the day that printed the buying ` +
           `gives that level back, the thesis is wrong. T1 $${target.toFixed(2)} is stated plainly as 2R off that invalidation, not a structural level.`,
         sourceMetadata: {

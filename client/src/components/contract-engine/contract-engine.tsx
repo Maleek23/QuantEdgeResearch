@@ -50,6 +50,8 @@ interface EnginePick {
 }
 
 interface EngineSelection {
+  /** When the chain behind this selection was fetched (ISO). */
+  asOf?: string;
   symbol: string;
   optionType: 'call' | 'put';
   spot: number;
@@ -229,6 +231,11 @@ export function ContractEngine({
   // Auto-fetch contracts on mount / when the thesis changes (per-ticker reload).
   useEffect(() => {
     if (autoLoad && direction !== 'NEUTRAL') mutate();
+    // Re-select every 3 minutes: a one-shot fetch left an open cockpit showing
+    // hour-old premium, delta and ROI@T1 (audit 2026-09-24).
+    if (!autoLoad || direction === 'NEUTRAL') return;
+    const id = setInterval(() => { if (document.visibilityState === 'visible') mutate(); }, 180_000);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLoad, symbol, direction, entry, stop, t1, t2]);
 
@@ -287,6 +294,7 @@ export function ContractEngine({
         </span>
         <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">
           Spot ${selection.spot.toFixed(2)} · {selection.dteWindow.min}-{selection.dteWindow.max}DTE
+          {selection.asOf ? ` · ${Math.max(0, Math.round((Date.now() - Date.parse(selection.asOf)) / 60000))}m old` : ''}
         </span>
       </header>
 
