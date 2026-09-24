@@ -5293,6 +5293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Extended-hours leaders — who is moving pre-market / after-hours, the window the
   // platform used to go completely blind in.
+  const extendedHoursCache = new Map<string, { at: number; p: Promise<any> }>();
   app.get("/api/extended-hours", async (req, res) => {
     try {
       const { getExtendedLeaders } = await import("./extended-hours");
@@ -5308,7 +5309,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA',
       ];
       const universe = [...sessionCore, ...getAllApprovedSymbols().filter((symbol) => !sessionCore.includes(symbol)).slice(0, 60)];
-      const result = await getExtendedLeaders(Array.from(new Set(universe)), limit);
+      // ~85 quotes in 11 serial batches: 5-7.5 s measured per call, and one
+      // NEXUS load issued it several times at once (UI validation 2026-09-24).
+      // 30 s response cache + in-flight dedupe — every panel shares one sweep.
+      const key = `eh:${limit}`;
+      const hit = extendedHoursCache.get(key);
+      if (hit && Date.now() - hit.at < 30_000) return res.json(await hit.p);
+      const p = getExtendedLeaders(Array.from(new Set(universe)), limit);
+      extendedHoursCache.set(key, { at: Date.now(), p });
+      p.catch(() => extendedHoursCache.delete(key));
+      const result = await p;
       res.json(result);
     } catch (error) {
       logger.error("[API] Failed to fetch extended-hours leaders:", error);
@@ -33574,13 +33584,22 @@ Use this checklist before entering any trade:
 
   // ─── Market Pulse — "Is market red or green today?" ──────────
   // Powers the dashboard morning context view
+  const marketPulseCache = new Map<string, { at: number; p: Promise<any> }>();
   app.get('/api/market-pulse', async (req: any, res) => {
     try {
       const { getMarketPulse } = await import('./market-pulse');
       const watchlist = req.query.watchlist
         ? (req.query.watchlist as string).split(',').map(s => s.trim().toUpperCase())
         : ['NOK','BB','MP','QRVO','CSCO','QCOM','SOUN','PLTR','NVDA','AAPL','AMZN','META','MSFT','GOOGL','TSLA','AMD','TXN','MRVL','ARM','ORCL','INTC'];
-      const pulse = await getMarketPulse(watchlist);
+      // Uncached before 2026-09-24: 9.2 s measured on a NEXUS load, recomputed
+      // for every caller (footer, rails, chart lab). 30 s cache + in-flight dedupe.
+      const key = watchlist.join(',');
+      const hit = marketPulseCache.get(key);
+      if (hit && Date.now() - hit.at < 30_000) return res.json(await hit.p);
+      const p = getMarketPulse(watchlist);
+      marketPulseCache.set(key, { at: Date.now(), p });
+      p.catch(() => marketPulseCache.delete(key));
+      const pulse = await p;
       res.json(pulse);
     } catch (error: any) {
       logger.error('[MARKET-PULSE] Error:', error);

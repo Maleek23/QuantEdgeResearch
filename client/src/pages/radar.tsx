@@ -122,7 +122,7 @@ type Hero =
 
 function HeroLine({ hero, loading, error }: { hero: Hero; loading: boolean; error: boolean }) {
   if (loading) {
-    return <div className="text-sm font-mono text-muted-foreground/50 animate-pulse">Reading radar…</div>;
+    return <div className="text-sm font-mono text-muted-foreground animate-pulse">Reading radar…</div>;
   }
   if (error || !hero) {
     return <div className="text-sm font-mono text-muted-foreground/70">Couldn't reach the radar API.</div>;

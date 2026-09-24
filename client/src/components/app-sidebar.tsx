@@ -166,7 +166,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
           <Icon aria-hidden className={cn("w-4 h-4 shrink-0", active && "text-[var(--brand-cyan)]")} />
           <span className="truncate font-mono uppercase tracking-wider text-[11px]">{item.title}</span>
           {item.shortcut && (
-            <span className="ml-auto text-[9px] font-mono text-sidebar-foreground/25 group-data-[collapsible=icon]:hidden">
+            <span className="ml-auto text-[9px] font-mono text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
               ⌘{item.shortcut}
             </span>
           )}
@@ -194,7 +194,7 @@ export function AppSidebar() {
               <span className="text-xs font-bold text-sidebar-foreground tracking-tight">
                 QuantEdge
               </span>
-              <span className="text-[9px] font-semibold text-sidebar-foreground/40 tracking-[0.12em] uppercase font-mono">
+              <span className="text-[9px] font-semibold text-sidebar-foreground/70 tracking-[0.12em] uppercase font-mono">
                 Labs
               </span>
             </div>
@@ -216,7 +216,7 @@ export function AppSidebar() {
 
         {/* RADARS — autonomous discovery */}
         <SidebarGroup className="py-0">
-          <div className="px-2.5 pb-1 text-[9px] font-mono uppercase tracking-[0.14em] text-sidebar-foreground/30 group-data-[collapsible=icon]:hidden">
+          <div className="px-2.5 pb-1 text-[9px] font-mono uppercase tracking-[0.14em] text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
             Radars
           </div>
           <SidebarGroupContent>
@@ -230,7 +230,7 @@ export function AppSidebar() {
 
         {/* UTILITY — small, low-emphasis */}
         <SidebarGroup className="py-0 mt-auto">
-          <div className="px-2.5 pb-1 text-[9px] font-mono uppercase tracking-[0.14em] text-sidebar-foreground/30 group-data-[collapsible=icon]:hidden">
+          <div className="px-2.5 pb-1 text-[9px] font-mono uppercase tracking-[0.14em] text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
             Utility
           </div>
           <SidebarGroupContent>

@@ -121,7 +121,7 @@ export function OracleMarketField({
     retry: 1,
   });
   const { data: extended } = useQuery<ExtendedFeed>({
-    queryKey: ['/api/extended-hours', 'oracle-market-pulse'],
+    queryKey: ['/api/extended-hours', 'oracle-tape'], // shared with the tape — was a 2nd identical request per board load
     queryFn: async () => {
       const response = await fetch('/api/extended-hours', { credentials: 'include' });
       if (!response.ok) throw new Error('extended-hours unavailable');
