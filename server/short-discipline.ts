@@ -1,7 +1,13 @@
 /**
- * SHORT DISCIPLINE
+ * SHORT DISCIPLINE — REVISED 2026-09-24 (operator: "if the platform isn't as
+ * good long and short it's trash"). Shorts are now held to the SAME measured-
+ * evidence standard as longs: no event requirement. Coherence is enforced
+ * elsewhere, symmetrically (the Tape Contradiction layer subtracts from a short
+ * that fights heavy buying exactly as it does from a long that fights selling).
+ * Only the BTC-proxy rule survives, mirrored with the long side: don't short
+ * levered-bitcoin equities while bitcoin itself is rising.
  *
- * Two rules about when this platform is allowed to publish a short.
+ * The original two rules (kept for history):
  *
  * 1. A short needs an EVENT, not a chart. "RSI(2) overbought" and "price rejected
  *    under VWAP" are descriptions of what price already did — generateCatalyst()
@@ -46,7 +52,7 @@ export function isBtcProxy(symbol: string): boolean {
  * treated as close to long-only, and a -3% BTC day was judged too loose a bar
  * for taking the other side of levered beta.
  */
-const BTC_BREAKDOWN_PCT = -5;
+const BTC_BREAKDOWN_PCT = 0;
 
 export interface ShortDisciplineInput {
   symbol: string;
@@ -73,14 +79,10 @@ export function evaluateShortDiscipline(input: ShortDisciplineInput): ShortDisci
   // Longs are not this module's business.
   if (direction !== 'short') return { allowed: true, reason: null };
 
-  if (!hasEventCatalyst) {
-    return {
-      allowed: false,
-      reason: 'short without an event catalyst — technical pattern only',
-    };
-  }
+  void hasEventCatalyst; // an event still strengthens a short via the catalyst layer; it is no longer required
 
   if (isBtcProxy(symbol)) {
+    // Mirror of the long rule: a proxy short needs bitcoin not to be rising.
     const btcIsBreakingDown =
       typeof btcChangePercent === 'number' &&
       Number.isFinite(btcChangePercent) &&
@@ -93,7 +95,7 @@ export function evaluateShortDiscipline(input: ShortDisciplineInput): ShortDisci
           : 'BTC move unknown';
       return {
         allowed: false,
-        reason: `${symbol} is a BTC proxy and ${btcText} is not a breakdown (needs ≤ ${BTC_BREAKDOWN_PCT}%)`,
+        reason: `${symbol} is a BTC proxy and ${btcText} — no proxy shorts while bitcoin is rising`,
       };
     }
   }

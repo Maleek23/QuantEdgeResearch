@@ -132,11 +132,11 @@ async function getYahoo(): Promise<any> {
  * is down (it regularly is — the rest of the platform carries the same
  * fallback).
  */
-export async function quoteWithDayLow(symbol: string): Promise<{ last: number; low: number; prevClose: number } | null> {
+export async function quoteWithDayLow(symbol: string): Promise<{ last: number; low: number; prevClose: number; high?: number } | null> {
   try {
     const q = await getTradierQuote(symbol);
     if (q && Number.isFinite(q.last) && q.last > 0 && Number.isFinite(q.low) && q.low > 0) {
-      return { last: q.last, low: q.low, prevClose: Number(q.prevclose) || NaN };
+      return { last: q.last, low: q.low, prevClose: Number(q.prevclose) || NaN, high: Number(q.high) || undefined };
     }
   } catch { /* fall through to Yahoo */ }
   try {
@@ -144,7 +144,7 @@ export async function quoteWithDayLow(symbol: string): Promise<{ last: number; l
     const last = Number(y?.regularMarketPrice);
     const low = Number(y?.regularMarketDayLow);
     if (Number.isFinite(last) && last > 0 && Number.isFinite(low) && low > 0) {
-      return { last, low, prevClose: Number(y?.regularMarketPreviousClose) || NaN };
+      return { last, low, prevClose: Number(y?.regularMarketPreviousClose) || NaN, high: Number(y?.regularMarketDayHigh) || undefined };
     }
   } catch { /* both providers failed */ }
   return null;
@@ -200,17 +200,16 @@ export async function runBullflowTapeScan(): Promise<number> {
   const longs = rows
     .filter((r) => Number(r.totalNetPremium) >= TAPE_NET_MIN_WITH_TA)
     .sort((a, b) => Number(b.totalNetPremium) - Number(a.totalNetPremium));
-  for (const r of rows.filter((x) => Number(x.totalNetPremium) <= -TAPE_NET_MIN)) {
-    const sym = String(r.ticker).toUpperCase();
-    if (dayDecisions.get(sym)?.date === today) continue; // one line per day, not 39
-    dayDecisions.set(sym, { date: today, verdict: 'short_logged' });
-    logger.info(
-      `[TAPE-SCAN] \u26d4 ${sym} net SOLD ${fmtM(Number(r.totalNetPremium))} \u2014 short side skipped (no shorts without an event catalyst)`,
-    );
-  }
+  // SELL SIDE (operator 2026-09-24: long AND short, same evidence standard).
+  // Net-sold names are published as shorts by publishShortSide() below.
+  const shortsList = rows
+    .filter((r) => Number(r.totalNetPremium) <= -TAPE_NET_MIN_WITH_TA)
+    .sort((a, b) => Number(a.totalNetPremium) - Number(b.totalNetPremium));
+  const shortPublished = await publishShortSide(shortsList, today);
   if (!longs.length) {
     logger.info(`[TAPE-SCAN] no name over ${fmtM(TAPE_NET_MIN)} net bought this sweep`);
-    return 0;
+    await saveDecisions(today);
+    return shortPublished;
   }
 
   let ingested = 0;
@@ -351,6 +350,7 @@ export async function runBullflowTapeScan(): Promise<number> {
         ingested++;
         dayDecisions.set(symbol, { date: today, verdict: 'published' });
         logger.info(`[TAPE-SCAN] 📤 published ${symbol} — ${fmtM(net)} net bought`);
+        await retireOppositeSide(symbol, 'long', `tape flipped to ${fmtM(net)} net bought on ${today}`);
       } else if (TERMINAL_REASONS.test(String(result.reason ?? ''))) {
         // Duplicate / already held / loss cooldown / blocked wrapper — the
         // cumulative tape cannot change these answers today.
@@ -368,5 +368,123 @@ export async function runBullflowTapeScan(): Promise<number> {
 
   await saveDecisions(today);
   logger.info(`[TAPE-SCAN] sweep done — ${ingested} tape idea(s) published from ${longs.length} qualifying name(s)`);
-  return ingested;
+  return ingested + shortPublished;
+}
+
+/**
+ * When the tape flips, the opposite-side card on the same name is superseded.
+ * An open SNDK long beside a fresh SNDK short (tape −$20M) is exactly the
+ * self-contradicting board the operator rejected. Retire the stale side,
+ * labelled, rather than showing both.
+ */
+async function retireOppositeSide(symbol: string, newDirection: 'long' | 'short', note: string): Promise<void> {
+  try {
+    const { db } = await import('./db');
+    const { sql } = await import('drizzle-orm');
+    const opposite = newDirection === 'long' ? 'short' : 'long';
+    const r: any = await db.execute(sql`
+      UPDATE trade_ideas
+         SET outcome_status = 'expired',
+             resolution_reason = ${`superseded: ${note}`}
+       WHERE symbol = ${symbol}
+         AND direction = ${opposite}
+         AND (outcome_status = 'open' OR outcome_status IS NULL)
+      RETURNING id`);
+    const n = (r?.rows ?? r ?? []).length;
+    if (n > 0) logger.info(`[TAPE-SCAN] retired ${n} open ${opposite} card(s) on ${symbol} — ${note}`);
+  } catch (err: any) {
+    logger.warn(`[TAPE-SCAN] could not retire opposite side on ${symbol}: ${err?.message ?? err}`);
+  }
+}
+
+/**
+ * Short-side mirror of the long publisher: aggressor tape net SOLD, bearish-
+ * led composition (calls sold + puts bought ≥ 2/3 of gross) or ≥$30M net,
+ * $5-8M only with the chart independently confirming bearish. Stop is the
+ * session high (else the prior close — gap-fill against the short = wrong);
+ * T1 declared 2R lower. Same day-memory, caps and coherence as longs.
+ */
+async function publishShortSide(list: any[], today: string): Promise<number> {
+  let published = 0;
+  const { isUSMarketOpen } = await import('@shared/market-calendar');
+  for (const r of list) {
+    if (published >= 3 || publishedToday(today) >= MAX_DAILY_PUBLISH) break;
+    const symbol = String(r.ticker).toUpperCase();
+    if (dayDecisions.get(symbol)?.date === today) continue;
+    const net = Number(r.totalNetPremium);            // negative
+    const callNet = Number(r.callNetPremium ?? 0);
+    const putNet = Number(r.putNetPremium ?? 0);
+    const bearDollars = Math.max(-callNet, 0) + Math.max(putNet, 0);
+    const bullDollars = Math.max(callNet, 0) + Math.max(-putNet, 0);
+    const bearishLed = bearDollars >= 2 * bullDollars;
+    if (!bearishLed && -net < TAPE_NET_ANY_COMPOSITION) {
+      dayDecisions.set(symbol, { date: today, verdict: 'blocked' });
+      logger.info(`[TAPE-SCAN] ${symbol}: ${fmtM(net)} net but two-sided tape — short skipped for today`);
+      continue;
+    }
+    const compText =
+      `${callNet < 0 ? `calls sold ${fmtM(Math.abs(callNet))}` : `calls bought ${fmtM(callNet)}`}` +
+      ` · ${putNet > 0 ? `puts bought ${fmtM(putNet)}` : `puts sold ${fmtM(Math.abs(putNet))}`}`;
+    try {
+      const q = await quoteWithDayLow(symbol);
+      if (!q) continue;
+      let taConfirm: string | null = null;
+      try {
+        const { getCachedTARead } = await import('./ta-engine');
+        const ta: any = await getCachedTARead(symbol, '3mo', '1d');
+        if (ta?.bias?.direction === 'bearish' && ta?.structure?.trend !== 'uptrend') {
+          taConfirm = [ta.structure?.trend ? `structure ${ta.structure.trend}` : null, ...(ta.bias.confluence ?? []).slice(0, 2)].filter(Boolean).join(' · ');
+        }
+      } catch { /* standalone bar applies */ }
+      if (-net < TAPE_NET_MIN && !taConfirm) continue;
+
+      const cashOpen = isUSMarketOpen().isOpen;
+      const entry = cashOpen ? q.last : Number((q.last * 0.997).toFixed(2));
+      const riskOk = (st: number | undefined) =>
+        st != null && Number.isFinite(st) && st > entry &&
+        (st - entry) / entry >= MIN_RISK_PCT && (st - entry) / entry <= MAX_RISK_PCT;
+      let stop = NaN, stopBasis = '';
+      if (riskOk(q.high)) { stop = q.high!; stopBasis = 'session high'; }
+      else if (riskOk(q.prevClose)) { stop = q.prevClose; stopBasis = 'prior close (gap-fill invalidation)'; }
+      if (!Number.isFinite(stop)) continue;
+      const roundedStop = Number(stop.toFixed(2));
+      const risk = roundedStop - entry;
+      const target = Number((entry - 2 * risk).toFixed(2));
+
+      const result = await ingestTradeIdea({
+        source: 'options_flow',
+        symbol,
+        assetType: 'stock',
+        direction: 'bearish',
+        signals: [
+          { type: 'aggressor_net_premium', weight: -net >= 30e6 ? 32 : -net >= 15e6 ? 28 : -net >= TAPE_NET_MIN ? 24 : 22, description: `${fmtM(net)} net premium bearish on ${today} (aggressor-measured)` },
+          { type: 'tape_decomposition', weight: bearishLed ? 12 : 6, description: `${compText} — ${bearishLed ? 'bearish flow leads' : 'two-sided, size overrides'}` },
+          { type: 'measured_invalidation', weight: 8, description: `invalidation at the ${stopBasis} $${roundedStop.toFixed(2)} (${((risk / entry) * 100).toFixed(1)}% risk)` },
+          ...(taConfirm ? [{ type: 'chart_confirmation', weight: 8, description: `chart independently confirms bearish: ${taConfirm}` }] : []),
+        ],
+        holdingPeriod: 'swing',
+        currentPrice: entry,
+        targetPrice: target,
+        stopLoss: roundedStop,
+        catalyst: `Aggressor tape: ${fmtM(net)} net bearish on ${today} (${compText}) — measured fills, not chain inference`,
+        analysis:
+          `Flow-primary SHORT: direction read from actual ask-vs-bid fills (Bullflow), not a chart pattern. ${symbol}'s tape on ${today}: ${compText} (${fmtM(net)} net bearish). ` +
+          `Entry ${cashOpen ? `at last ($${entry.toFixed(2)})` : `on a trigger at $${entry.toFixed(2)} (0.3% below the closed-market last — pending until touched in RTH)`}, ` +
+          `invalidation at the ${stopBasis} ($${roundedStop.toFixed(2)}). T1 $${target.toFixed(2)} is stated plainly as 2R.`,
+        sourceMetadata: { scannerType: 'bullflow_tape', side: 'short', netPremium: net, callNetPremium: callNet, putNetPremium: putNet },
+      });
+      if (result.success) {
+        published++;
+        dayDecisions.set(symbol, { date: today, verdict: 'published' });
+        logger.info(`[TAPE-SCAN] 📤 published SHORT ${symbol} — ${fmtM(net)} net sold`);
+        await retireOppositeSide(symbol, 'short', `tape flipped to ${fmtM(net)} net sold on ${today}`);
+      } else if (TERMINAL_REASONS.test(String(result.reason ?? ''))) {
+        dayDecisions.set(symbol, { date: today, verdict: 'blocked' });
+        logger.info(`[TAPE-SCAN] ${symbol} short not published: ${result.reason}`);
+      }
+    } catch (err: any) {
+      logger.warn(`[TAPE-SCAN] ${symbol} short failed: ${err?.message ?? err}`);
+    }
+  }
+  return published;
 }

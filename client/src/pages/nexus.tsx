@@ -416,6 +416,20 @@ function WatchSpark({ symbol, up }: { symbol: string; up: boolean }) {
 // +65 pts over SPX cash the Monday after the Sep'26 roll and it was correct.
 // The tooltip says so, because a broker's US500 CFD tracks CASH, not this.
 const FUTURES_NOTE = 'Front-month CME future (auto-rolls) — trades above the cash index by carry basis after a roll; a broker US500/US100 CFD tracks the cash index instead';
+const AnatomyMark = ({ n }: { n: number }) => (
+  <span
+    aria-hidden="true"
+    style={{ display: 'inline-grid', placeItems: 'center', width: 16, height: 16, borderRadius: '50%', background: 'var(--cyan, #4fd1c5)', color: '#0a0c10', font: "800 9.5px 'JetBrains Mono',monospace", flex: 'none', marginLeft: 4, verticalAlign: 'middle' }}
+  >{n}</span>
+);
+const ANATOMY_LEGEND: Array<[number, string, string]> = [
+  [1, 'Band & score', 'S strongest → C weakest. The number totals every evidence layer.'],
+  [2, 'Status', 'Pending trigger = not a trade until price takes the entry in market hours. In play = triggered.'],
+  [3, 'Evidence layers', 'Each chip is one measured reason. Red chips argue against the idea and subtract points.'],
+  [4, 'Levels', 'Stop is a price that actually printed. T1 is a real level or a stated 2R. "R:R now" is for entering at the live price.'],
+  [5, 'The tape', 'Options money from real fills: ✓ agrees with the idea, ✗ is positioned against it.'],
+];
+
 const STREAM_ORDER = [
   { sym: 'ES', kind: 'futures' as const },
   { sym: 'NQ', kind: 'futures' as const },
@@ -569,6 +583,14 @@ export function NexusBoard() {
   // GRID is the mock's card wall; SCANNER and COCKPIT are the working views the
   // desk asked back in — HuntCockpit owns those, mounted with its own filters.
   const [bookView, setBookView] = useState<'grid' | 'scanner' | 'cockpit' | 'ledger'>('grid');
+  // "Explain cards": numbered anatomy markers (1-5) on every card + a legend.
+  const [explainCards, setExplainCards] = useState<boolean>(() => {
+    try { return localStorage.getItem('nx-explain-cards') === '1'; } catch { return false; }
+  });
+  const toggleExplain = () => setExplainCards((v) => {
+    try { localStorage.setItem('nx-explain-cards', v ? '0' : '1'); } catch { /* ok */ }
+    return !v;
+  });
   // Idea ledger — everything published in the last 72h beyond the active book,
   // with the validator's verdicts where decided. Fetched only when the view opens.
   const ledgerQ = useQuery<{ ledger: Array<{ id: string; symbol: string; direction: string; signal: string; score: number | null; entryPrice: number; targetPrice: number; riskRewardRatio: number | null; outcome: string; onDemand: boolean; at: string }> }>({
@@ -1017,6 +1039,16 @@ export function NexusBoard() {
             <div className="sec-meta">
               <span className="tag cyan">ranked book</span>
               <span className="tag mute">· {picks.length}</span>
+              <button
+                type="button"
+                onClick={toggleExplain}
+                aria-pressed={explainCards}
+                className={`view-btn${explainCards ? ' active' : ''}`}
+                title="Show what each part of a card means"
+                style={{ marginLeft: 8 }}
+              >
+                {explainCards ? 'hide guide' : 'explain cards'}
+              </button>
               <div className="view-toggle" style={{ marginLeft: 'auto' }}>
                 {(['grid', 'scanner', 'cockpit', 'ledger'] as const).map((v) => (
                   <button
@@ -1133,6 +1165,16 @@ export function NexusBoard() {
             {shown.length} of {picks.length} shown
           </div>
 
+          {explainCards && (
+            <div style={{ display: 'grid', gap: 8, padding: '12px 14px', margin: '0 0 12px', border: '1px solid var(--nx-border)', borderRadius: 8, fontFamily: "'JetBrains Mono',monospace" }}>
+              {ANATOMY_LEGEND.map(([n, k, v]) => (
+                <div key={n} style={{ display: 'grid', gridTemplateColumns: '20px minmax(0,1fr)', gap: 8, alignItems: 'start', fontSize: 11 }}>
+                  <AnatomyMark n={n} />
+                  <div><b style={{ color: 'var(--text)' }}>{k}.</b> <span style={{ color: 'var(--text-dim)' }}>{v}</span></div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="signals">
             {shown.map((p) => {
               const b = bandOf(p);
@@ -1173,7 +1215,7 @@ export function NexusBoard() {
                 >
                   <div className="sig-head">
                     <div className="sig-ticker">{p.symbol}</div>
-                    <div className={`sig-band band-${b}`}>{b}</div>
+                    <div className={`sig-band band-${b}`}>{b}</div>{explainCards && <AnatomyMark n={1} />}
                     <div className="sig-ev">
                       <span>+<b>{p.convictionScore}</b> evidence</span>
                       <div className="ev-bar"><div className="ev-bar-fill" style={{ width: `${Math.min(100, ((p.convictionScore ?? 0) / 70) * 100)}%` }} /></div>
@@ -1186,7 +1228,7 @@ export function NexusBoard() {
                   </div>
                   <SigChart symbol={p.symbol} dir={dir} />
                   <div className="sig-status">
-                    <span className={`sig-status-pill${pending ? ' pending' : ''}`}>{g.statusLabel}</span>
+                    <span className={`sig-status-pill${pending ? ' pending' : ''}`}>{g.statusLabel}</span>{explainCards && <AnatomyMark n={2} />}
                     <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
                       {p.optionDte != null || p.expiryDate
                         ? `${g.horizonUsedPct.toFixed(0)}% of ${g.horizonDays}d used`
@@ -1230,6 +1272,7 @@ export function NexusBoard() {
                     </div>
                   </div>
                   <div className="sig-ev-list">
+                    {explainCards && <AnatomyMark n={3} />}
                     {chips.map((l, i) => (
                       <div className={`ev-chip ${l.points >= 0 ? 'pos' : 'neg'}`} key={`${l.kind}-${i}`}>
                         {l.kind.slice(0, 3).toUpperCase()} <span className="v">{l.points > 0 ? '+' : ''}{l.points}</span>
@@ -1240,6 +1283,7 @@ export function NexusBoard() {
                     {against.length ? `${against.length} layer${against.length > 1 ? 's' : ''} arguing against` : 'nothing arguing against'}
                   </div>
                   <div className="sig-levels" title={(p as any).levelBasis === 'contract' ? 'Levels are the option contract\'s PREMIUM, not share prices' : undefined}>
+                    {explainCards && <div style={{ position: 'absolute', marginTop: -10, marginLeft: -6 }}><AnatomyMark n={4} /></div>}
                     <div className="level"><div className="level-label" style={(p as any).levelBasis === 'contract' ? { color: 'var(--amber)' } : undefined}>{(p as any).levelBasis === 'contract' ? 'PREM' : 'Entry'}</div><div className="level-val entry">${p.entryPrice?.toFixed(2) ?? '—'}</div></div>
                     <div className="level"><div className="level-label">Stop</div><div className="level-val stop">${p.stopLoss?.toFixed(2) ?? '—'}</div></div>
                     <div className="level"><div className="level-label">T1</div><div className="level-val t1">${p.targetPrice?.toFixed(2) ?? '—'}</div></div>
@@ -1257,7 +1301,7 @@ export function NexusBoard() {
                           title={`Bullflow aggressor net premium today: ${lr.net >= 0 ? '+' : '−'}$${(Math.abs(lr.net) / 1e6).toFixed(1)}M (${lr.lean.toUpperCase()}) — ${lr.lean === 'flat' ? 'no decisive tape' : agrees ? 'the tape AGREES with this signal' : 'the tape DISAGREES — options money is positioned the other way'}`}
                           style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, fontWeight: 700, color: c, letterSpacing: 0.5 }}
                         >
-                          TAPE {lr.lean === 'flat' ? '·FLAT' : agrees ? '✓' : '✗'} {lr.net >= 0 ? '+' : '−'}${(Math.abs(lr.net) / 1e6).toFixed(1)}M
+                          TAPE {lr.lean === 'flat' ? '·FLAT' : agrees ? '✓' : '✗'} {lr.net >= 0 ? '+' : '−'}${(Math.abs(lr.net) / 1e6).toFixed(1)}M{explainCards && <AnatomyMark n={5} />}
                         </span>
                       );
                     })()}
