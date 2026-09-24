@@ -259,7 +259,7 @@ export default function TodayPage() {
   const spyBars = spyIntra.data?.data ?? [];
   const best = ideas[0];
   const bestX = best ? explain(best) : undefined;
-  const book = ideas.slice(1, 7);
+  const book = ideas.slice(2, 8); // 0 and 1 are the feature cards
   const longs = ideas.filter((p) => p.direction !== 'short').length;
   const o = perf.data?.overall;
 
