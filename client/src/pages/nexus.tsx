@@ -463,13 +463,16 @@ export function NexusBoard() {
   // hidden entirely ("it's so much going on"). Per-viewer convenience,
   // persisted in localStorage; hidden panels come back via the restore chips.
   const [railUi, setRailUi] = useState<Record<string, 'min' | 'hidden'>>(() => {
-    try { return JSON.parse(localStorage.getItem('nx-rail-ui') || '{}'); } catch { return {}; }
+    // Sector Heatmap and Flow Prints repeat the Rotation Map and the FLOW tab;
+    // they start hidden (restorable from the chip) — purpose review 2026-09-24.
+    const DEFAULTS: Record<string, 'min' | 'hidden'> = { heat: 'hidden', prints: 'hidden' };
+    try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nx-rail-ui-v2') || '{}') }; } catch { return DEFAULTS; }
   });
   const setRail = (id: string, mode: 'min' | 'hidden' | null) => {
     setRailUi((cur) => {
       const next = { ...cur };
       if (mode) next[id] = mode; else delete next[id];
-      try { localStorage.setItem('nx-rail-ui', JSON.stringify(next)); } catch { /* private mode */ }
+      try { localStorage.setItem('nx-rail-ui-v2', JSON.stringify(next)); } catch { /* private mode */ }
       return next;
     });
   };
@@ -686,6 +689,16 @@ export function NexusBoard() {
   };
   // Live quotes for every symbol on the board (not only the day's movers), so
   // cards price off now rather than the board-build snapshot. 60s cadence.
+  // Phones show the top 6 of the book, then "show all": the full book ran
+  // ~9,400px on a 393px screen before any market context (review 2026-09-24).
+  const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const on = () => setIsPhone(mq.matches);
+    mq.addEventListener('change', on); return () => mq.removeEventListener('change', on);
+  }, []);
+  const [bookAll, setBookAll] = useState(false);
+  const bookList = isPhone && !bookAll ? shown.slice(0, 6) : shown;
   const boardSyms = useMemo(() => Array.from(new Set(shown.map((p) => p.symbol))).slice(0, 40).sort().join(','), [shown]);
   const boardQuotesQ = useQuery<{ quotes: Record<string, { price: number; changePercent: number }> }>({
     queryKey: [`/api/quotes/batch/${boardSyms}`],
@@ -740,7 +753,7 @@ export function NexusBoard() {
         {/* LEFT — MARKET INTEL */}
         <div className="col col-left">
           <div className="sec-head">
-            <div className="sec-num">01 · MARKET INTELLIGENCE</div>
+            <div className="sec-num">01 · MARKET CONTEXT</div>
             <div className="sec-sub">Read the tape before the trade. Participation, relative rotation and leadership — one connected market view.</div>
           </div>
           <RailRestore ids={['radar', 'pulse', 'quad', 'prints', 'brief']} />
@@ -1162,7 +1175,7 @@ export function NexusBoard() {
           </div>
 
           <div style={{ padding: '8px 16px 0', fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
-            {shown.length} of {picks.length} shown
+            {bookList.length < shown.length ? `top ${bookList.length} of ${shown.length}` : `${shown.length} of ${picks.length} shown`}
           </div>
 
           {explainCards && (
@@ -1176,7 +1189,7 @@ export function NexusBoard() {
             </div>
           )}
           <div className="signals">
-            {shown.map((p) => {
+            {bookList.map((p) => {
               const b = bandOf(p);
               // Live quote first — the board-build price can be 15+ min old
               // (audit 2026-09-24). Contract-basis levels are premiums, so the
@@ -1311,6 +1324,12 @@ export function NexusBoard() {
                 </div>
               );
             })}
+            {bookList.length < shown.length && (
+              <button type="button" onClick={() => setBookAll(true)}
+                style={{ gridColumn: '1/-1', minHeight: 44, border: '1px solid var(--nx-border-hi)', borderRadius: 8, background: 'transparent', color: 'var(--cyan-bright)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-11, 12px)', fontWeight: 700, letterSpacing: 0.5, cursor: 'pointer' }}>
+                Show all {shown.length} ideas
+              </button>
+            )}
             {!shown.length && (
               <p style={{ gridColumn: '1/-1', textAlign: 'center', padding: '32px 0', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)' }}>
                 {convictions.isLoading ? 'loading the book…' : 'Nothing matches these filters.'}
@@ -1458,14 +1477,8 @@ export function NexusBoard() {
             </div>
           </div>
 
-          <div className="sys-status">
-            <div className="sys-row"><span className="k">Online</span><span className="v ok">● connected</span></div>
-            <div className="sys-row"><span className="k">Uptime</span><span className="v">{uptime}</span></div>
-            <div className="sys-row"><span className="k">Watchlist</span><span className="v">{watchlist.data?.length ?? '—'}</span></div>
-            <div className="sys-row"><span className="k">VIX</span><span className={`v${vix != null && vix >= 20 ? ' warn' : ''}`}>{vix != null ? vix.toFixed(1) : '—'}</span></div>
-            <div className="sys-row"><span className="k">Feed</span><span className="v" style={{ color: dataPartial ? 'var(--amber)' : 'var(--green)' }}>{dataPartial ? 'partial' : 'connected'}</span></div>
-          </div>
-
+          {/* System status block removed 2026-09-24: the terminal footer already shows
+              connection, uptime, VIX and feed state on every tab. */}
           <div className="disclaimer">
             Educational only · not investment advice.<br />
             Past setups do not guarantee future results.

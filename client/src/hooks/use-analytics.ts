@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
 import type { UserActivityType } from '@shared/schema';
 
 const SESSION_KEY = 'qel_session_id';
@@ -55,7 +55,13 @@ function getUTMParams() {
 }
 
 export function usePageTracking() {
-  const [location] = useLocation();
+  const [pathOnly] = useLocation();
+  // Terminal tabs live in ?tab= / ?jtab=; without them every tab logged as "/t"
+  // and per-surface usage could not be measured (purpose review 2026-09-24).
+  const search = useSearch();
+  const sp = new URLSearchParams(search);
+  const keep = ['tab', 'jtab'].filter((k) => sp.get(k)).map((k) => `${k}=${sp.get(k)}`).join('&');
+  const location = keep ? `${pathOnly}?${keep}` : pathOnly;
   const pageViewIdRef = useRef<string | null>(null);
   const startTimeRef = useRef<number>(Date.now());
 

@@ -11,10 +11,9 @@ import { Loader2 } from 'lucide-react';
 
 const Performance       = lazy(() => import('@/pages/performance'));
 const TradeJournal      = lazy(() => import('@/pages/trade-journal'));
-const History           = lazy(() => import('@/pages/history'));
 const StrategySim       = lazy(() => import('@/pages/strategy-simulator'));
 
-type Tab = 'log' | 'history' | 'metrics' | 'backtest';
+type Tab = 'log' | 'metrics' | 'backtest';
 
 /**
  * Trade Log pointed at pages/history.tsx, which renders /api/ai/chat/history and
@@ -34,8 +33,9 @@ type Tab = 'log' | 'history' | 'metrics' | 'backtest';
  */
 const TABS: readonly QETabItem<Tab>[] = [
   { id: 'log',      label: 'Trade Log', hint: 'Every trade you took' },
-  { id: 'history',  label: 'History',   hint: 'Past AI chats and research runs' },
-  { id: 'metrics',  label: 'Metrics',   hint: 'Win rate, avg R, by setup type' },
+  // Consolidated 2026-09-24: the standalone PERF page rendered this exact
+  // component a second time; /performance now redirects here.
+  { id: 'metrics',  label: 'Track record', hint: 'How the published ideas actually did — hit rate, expectancy, sample size' },
   { id: 'backtest', label: 'Backtest',  hint: 'Run strategies on historicals' },
 ];
 
@@ -51,7 +51,6 @@ export default function JournalShell() {
       <PageErrorBoundary label={`Journal · ${tab}`}>
         <Suspense fallback={<Loading />}>
           {tab === 'log'      && <TradeJournal />}
-          {tab === 'history'  && <History />}
           {tab === 'metrics'  && <Performance />}
           {tab === 'backtest' && <StrategySim />}
         </Suspense>

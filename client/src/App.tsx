@@ -209,7 +209,6 @@ function Router() {
             repointed. Restoring the route is the small fix; deleting the pages
             would have been the expensive one. */}
         <Route path="/slate"       component={withBetaProtection(SlatePage)} />
-        <Route path="/performance" component={withBetaProtection(PerformancePage)} />
         {/* HOME IS THE TERMINAL. Confirmed by the owner, against two rival
             candidates that both call themselves the dashboard in their own headers:
             pages/home.tsx ("Command Center", 1,186 lines) and pages/home-glass.tsx

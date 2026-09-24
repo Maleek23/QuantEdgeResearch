@@ -98,6 +98,8 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   // Automations duplicated the BOT tab with a contradictory P&L.
   ["/trade-desk", "/slate"],
   ["/automations", "/t?tab=bot"],
+  // PERF duplicated JOURNAL › Track record (same component, two doors).
+  ["/performance", "/t?tab=journal&jtab=metrics"],
   ["/convictions", "/trade-desk?preset=todays-best"],
   ["/futures", "/trade-desk?tab=futures"],
   ["/futures-research", "/trade-desk?tab=futures"],

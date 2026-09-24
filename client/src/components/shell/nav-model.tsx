@@ -36,7 +36,6 @@ export interface PageLink { href: string; label: string; short: string; icon: ty
 export const PAGES: PageLink[] = [
   { href: '/slate',       label: 'Slate',       short: 'SLATE',  icon: ListChecks },
   { href: '/radar',       label: 'Radar',       short: 'RADAR',  icon: Crosshair },
-  { href: '/performance', label: 'Performance', short: 'PERF',   icon: LineChart },
 ];
 export const UTILITY_PAGES: PageLink[] = [
   { href: '/alerts',   label: 'Alerts',   short: 'ALERTS',   icon: Bell },
