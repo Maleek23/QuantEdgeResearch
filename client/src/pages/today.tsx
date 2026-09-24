@@ -31,7 +31,7 @@ import '@/styles/today.css';
 interface WPLevel { price: number; label: string; type: string; side: string }
 interface WPPoint { dayOffset: number; price: number; confidence: number }
 interface WPPhase { label: string; description: string; startDay: number; endDay: number; type: string }
-interface WeeklyPath { symbol: string; spotPrice: number; weekStart: string; weekEnd: string; levels: WPLevel[]; path: WPPoint[]; phases: WPPhase[]; regime: string; confidence: number }
+interface WeeklyPath { cached?: boolean; cachedAt?: string; symbol: string; spotPrice: number; weekStart: string; weekEnd: string; levels: WPLevel[]; path: WPPoint[]; phases: WPPhase[]; regime: string; confidence: number }
 interface GexLevel { strike: number; gammaPct: number; role?: string }
 interface GexTerminal { snapshot?: { spotPrice: number; callWall?: number; putWall?: number; maxGammaStrike?: number; gammaFlipPrice?: number; levels?: GexLevel[] } }
 interface Layer { kind: string; why: string; points: number }
@@ -237,7 +237,9 @@ export default function TodayPage() {
   const px = (s: string) => { const qq = quotes.data?.quotes?.[s]; return qq?.price ?? qq?.lastPrice; };
 
   const magnet = gex.data?.snapshot?.maxGammaStrike;
-  const head = weekSentence(wp.data, magnet);
+  const head = wp.isError && !wp.data
+    ? { title: 'The options feed is down, so no dealer map right now.', sub: 'We only draw the map from measured positioning. It comes back as soon as the feed does.' }
+    : weekSentence(wp.data, magnet);
   const spy = quotes.data?.quotes?.SPY;
   const best = ideas[0];
   const rest = ideas.slice(1, 9);
@@ -284,7 +286,7 @@ export default function TodayPage() {
           <div className="td-map-card">
             {wp.data && !gex.isLoading ? <WeekMap wp={wp.data} gex={gex.data} /> : <div className="td-map-empty">{wp.isError ? 'Dealer map unavailable right now.' : 'Reading dealer positioning…'}</div>}
             <div className="td-map-foot">
-              Model projection from dealer positioning{wp.data ? ` · ${(wp.data.confidence * 100).toFixed(0)}% confidence` : ''} · not a forecast · only measured levels shown
+              Model projection from dealer positioning{wp.data ? ` · ${(wp.data.confidence * 100).toFixed(0)}% confidence` : ''}{wp.data?.cachedAt ? ` · from ${Math.max(1, Math.round((Date.now() - Date.parse(wp.data.cachedAt)) / 60000))} min ago` : ''} · not a forecast · only measured levels shown
             </div>
           </div>
         </section>

@@ -33338,6 +33338,7 @@ Use this checklist before entering any trade:
   });
 
   // ─── Weekly Path Projection ──────────────────────────────────
+  const weeklyPathCache = new Map<string, { data: object; at: number }>();
   app.get("/api/weekly-path/:symbol", requireBetaAccess, async (req: any, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();
@@ -33346,15 +33347,30 @@ Use this checklist before entering any trade:
       const { toSnapshot } = await import('./gex-vex-scanner');
       const { computeWeeklyPath } = await import('./weekly-path-model');
 
-      const gex = await calculateAggregateGammaExposure(symbol);
-      if (!gex) return res.status(503).json({
-        error: `Options data unavailable for ${symbol}`,
-        reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
-        symbol,
-      });
+      const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
+
+      // Same source chain as the GEX terminal: Tradier → CBOE → last good
+      // projection (stamped with its age — never passed off as current).
+      let gex = await calculateAggregateGammaExposure(symbol);
+      if (!gex) {
+        const cboeSnapshot = await computeGEXFromCBOE(symbol);
+        if (cboeSnapshot) gex = { snapshot: cboeSnapshot, dataQuality: 'cboe_fallback' } as any;
+      }
+      if (!gex) {
+        const cached = weeklyPathCache.get(symbol);
+        if (cached && Date.now() - cached.at < 12 * 3600_000) {
+          return res.json({ ...cached.data, cached: true, cachedAt: new Date(cached.at).toISOString() });
+        }
+        return res.status(503).json({
+          error: `Options data unavailable for ${symbol}`,
+          reason: 'All data sources failed (Tradier, CBOE). Market may be closed or API keys may need renewal.',
+          symbol,
+        });
+      }
 
       const snapshot = toSnapshot(gex);
       const projection = computeWeeklyPath(snapshot);
+      weeklyPathCache.set(symbol, { data: projection, at: Date.now() });
 
       res.json(projection);
     } catch (error: any) {
