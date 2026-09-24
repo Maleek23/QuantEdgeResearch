@@ -79,6 +79,7 @@ const CatalystNexus = lazy(() => import('@/components/catalyst/catalyst-nexus').
 // every standalone page (NexusFrame) wear identical navigation.
 import { TABS, PAGES, type Tab } from '@/components/shell/nav-model';
 import { MobileDock } from '@/components/shell/mobile-dock';
+import { CustomizePanel } from '@/components/shell/customize-panel';
 export { TABS };
 export type { Tab };
 
@@ -147,6 +148,7 @@ export default function TerminalShell() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
   // ⌘K from anywhere in the terminal opens the palette.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -333,6 +335,9 @@ export default function TerminalShell() {
                       {nexusLight ? <Moon className="h-3.5 w-3.5" /> : <span className="grid h-3.5 w-3.5 place-items-center text-[11px] leading-none">☀</span>}
                       {nexusLight ? 'Dark mode' : 'Light mode'}
                     </button>
+                    <button onClick={() => { setAccountOpen(false); setCustomizeOpen(true); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
+                      <SlidersHorizontal className="h-3.5 w-3.5" /> Display & layout
+                    </button>
                     <button onClick={() => { setAccountOpen(false); setSettingsOpen(true); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
                       <UserRound className="h-3.5 w-3.5" /> Preferences & risk
                     </button>
@@ -417,6 +422,7 @@ export default function TerminalShell() {
 
 
       <MobileDock activeTab={tab} onTab={setTab} />
+      <CustomizePanel open={customizeOpen} onClose={() => setCustomizeOpen(false)} />
 
       {/* Each live market view has a full-screen focus mode. The stage stays comparable
           at a glance; a reader can then inspect one real source without it becoming

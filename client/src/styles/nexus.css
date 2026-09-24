@@ -2627,3 +2627,64 @@
   .nexus-vars .sig-levels{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:8px}
   .botlab .stats-bar{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px 14px}
 }
+
+/* ── USER PREFERENCES (lib/board-prefs.ts) ─────────────────────────────── */
+/* Text size — Large / Extra large scale every type token, app-wide. */
+html.qe-text-l{--fs-9:13px;--fs-10:14px;--fs-10-5:14.5px;--fs-11:14px}
+html.qe-text-xl{--fs-9:15px;--fs-10:16px;--fs-10-5:16.5px;--fs-11:16px}
+html.qe-text-l .text-\[11px\],html.qe-text-l .text-\[12px\]{font-size:14px!important}
+html.qe-text-xl .text-\[11px\],html.qe-text-xl .text-\[12px\]{font-size:16px!important}
+html.qe-text-l .qe-terminal p,html.qe-text-l .qe-terminal li{font-size:15px}
+html.qe-text-xl .qe-terminal p,html.qe-text-xl .qe-terminal li{font-size:17px}
+/* Calm mode (default on) — no ambient particles, no neon glow, no pulsing;
+   the data carries the page, not the effects. */
+html.qe-calm #bgCanvas{display:none}
+html.qe-calm .qe-terminal *,html.qe-calm .workuplab *{text-shadow:none!important}
+html.qe-calm .nexus-vars .dot,html.qe-calm .nexus-vars .status-chip .dot{animation:none!important;box-shadow:none!important}
+html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-calm .nexus-vars .intel-block{box-shadow:none!important}
+/* Rails become ordered flex columns so panels can be rearranged. */
+.nexus-vars .col-left,.nexus-vars .col-right{display:flex;flex-direction:column}
+.nexus-vars .col-left>*,.nexus-vars .col-right>*{flex-shrink:0}
+/* Card sections the reader switched off. */
+.signals.hide-thesis .sig-type,.signals.hide-chart .sig-chart,.signals.hide-status .sig-status,
+.signals.hide-actions .sig-actions,.signals.hide-progress .progress-wrap,.signals.hide-evidence .sig-ev-list,
+.signals.hide-note .ev-note,.signals.hide-levels .sig-levels,.signals.hide-foot .sig-foot{display:none!important}
+/* Compact density. */
+.signals.density-compact{gap:8px!important}
+.signals.density-compact .signal{padding:10px 12px!important}
+.signals.density-compact .sig-chart{height:36px!important}
+.signals.density-compact .sig-levels{padding-top:5px!important}
+
+/* ── Customize panel ─────────────────────────────────────────────────── */
+.qc-scrim{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,0.45);display:flex;justify-content:flex-end}
+.qc-panel{width:min(420px,100vw);height:100dvh;overflow-y:auto;background:var(--panel-solid,#0e1117);border-left:1px solid var(--nx-border-hi,#2a3140);
+  padding:18px 18px calc(24px + env(safe-area-inset-bottom));font-family:'Inter',system-ui,sans-serif;color:var(--text,#e8ecf3);outline:none}
+.qc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}
+.qc-head h2{font-size:18px;font-weight:700;margin:0}
+.qc-head p{font-size:13px;color:var(--text-dim);margin:4px 0 0}
+.qc-close{width:40px;height:40px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--nx-border);background:transparent;color:var(--text-dim);cursor:pointer}
+.qc-panel section{border-top:1px solid var(--nx-border);padding:14px 0 6px;margin-top:10px}
+.qc-panel h3{font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--cyan-bright);margin:0 0 10px}
+.qc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;flex-wrap:wrap}
+.qc-name{font-size:14px;display:flex;flex-direction:column}
+.qc-name small{font-size:12px;color:var(--text-mute);margin-top:2px}
+.qc-sub{font-size:12px;color:var(--text-dim);margin:10px 0 6px}
+.qc-seg{display:inline-flex;border:1px solid var(--nx-border);border-radius:8px;overflow:hidden}
+.qc-seg button{min-height:36px;padding:0 12px;font-size:13px;background:transparent;border:0;border-right:1px solid var(--nx-border);color:var(--text-dim);cursor:pointer}
+.qc-seg button:last-child{border-right:0}
+.qc-seg button.on{background:rgba(59,140,255,0.16);color:var(--text);font-weight:600}
+.qc-seg.small button{min-height:32px;padding:0 9px;font-size:12px}
+.qc-switch{width:44px;height:26px;accent-color:var(--cyan)}
+.qc-checks{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-bottom:6px}
+.qc-check{display:flex;align-items:center;gap:8px;min-height:36px;font-size:13px;cursor:pointer}
+.qc-check input{width:18px;height:18px;accent-color:var(--cyan)}
+.qc-list{display:flex;flex-direction:column;gap:4px}
+.qc-list .qc-row{border:1px solid var(--nx-border);border-radius:8px;padding:6px 8px}
+.qc-move{display:flex;gap:4px}
+.qc-move button{width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--nx-border);border-radius:6px;background:transparent;color:var(--text-dim);cursor:pointer}
+.qc-move button:disabled{opacity:0.3;cursor:default}
+.qc-reset{margin-top:16px;width:100%;min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--nx-border-hi);border-radius:8px;background:transparent;color:var(--text-dim);font-size:13px;cursor:pointer}
+@media (max-width:640px){
+  .qc-scrim{align-items:flex-end}
+  .qc-panel{width:100vw;height:auto;max-height:88dvh;border-left:0;border-top:1px solid var(--nx-border-hi);border-radius:14px 14px 0 0}
+}

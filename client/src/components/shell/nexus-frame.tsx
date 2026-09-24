@@ -19,6 +19,7 @@ import qeMark from '@assets/qe-mark.svg';
 import '@/styles/nexus.css';
 import { TABS, PAGES, UTILITY_PAGES, tabHref } from './nav-model';
 import { MobileDock } from './mobile-dock';
+import { CustomizePanel } from './customize-panel';
 
 export function NexusFrame({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -27,6 +28,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const reduce = useReducedMotion();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
   const nexusLight = theme === 'nexus-light';
   const page = [...PAGES, ...UTILITY_PAGES].find((p) => p.href === path)
     ?? (path.startsWith('/r') ? { href: path, label: 'Research', short: 'RESEARCH', icon: PAGES[0].icon } : undefined);
@@ -74,6 +76,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
                   {[
                     { icon: Bell, label: 'Alerts', go: () => setLocation('/alerts') },
                     { icon: BookOpen, label: 'How to use', go: () => setLocation('/how-to') },
+                    { icon: SlidersHorizontal, label: 'Display & layout', go: () => setCustomizeOpen(true) },
                     { icon: SlidersHorizontal, label: 'Settings', go: () => setLocation('/settings') },
                   ].map(({ icon: Icon, label, go }) => (
                     <button key={label} onClick={() => { setAccountOpen(false); go(); }} className="flex min-h-10 w-full items-center gap-2 rounded px-2.5 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
@@ -104,6 +107,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
       </main>
 
       <MobileDock activeTab={null} />
+      <CustomizePanel open={customizeOpen} onClose={() => setCustomizeOpen(false)} />
 
       <footer className="bottombar hidden lg:flex" style={{ minHeight: 26 }}>
         <div className="bb-item"><span className="dot" /><b>{page ? page.short : 'PAGE'}</b></div>

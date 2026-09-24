@@ -53,6 +53,8 @@ import quantEdgeLogoUrl from '@assets/qe-mark.svg';
 // board's view toggle. Same component the old Active Book used.
 const HuntCockpit = lazy(() => import('@/pages/shells/hunt-cockpit'));
 import '@/styles/nexus.css';
+import { usePrefs, orderOf } from '@/lib/board-prefs';
+import { CustomizePanel } from '@/components/shell/customize-panel';
 
 /** Radar hover-preview: the pattern\'s real 1mo series + its defining levels.
  *  Interaction reveals measured data (interactivity plan rule #1). */
@@ -168,10 +170,10 @@ function useNexusData() {
    ════════════════════════════════════════════════════════════════ */
 
 /** Background particles + flow lines — the mock's drawBg, unchanged. */
-function useBgCanvas(ref: React.RefObject<HTMLCanvasElement>) {
+function useBgCanvas(ref: React.RefObject<HTMLCanvasElement>, off = false) {
   useEffect(() => {
     const bgCanvas = ref.current;
-    if (!bgCanvas) return;
+    if (!bgCanvas || off) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const bgCtx = bgCanvas.getContext('2d');
     if (!bgCtx) return;
@@ -244,7 +246,7 @@ function useBgCanvas(ref: React.RefObject<HTMLCanvasElement>) {
     }
     raf = requestAnimationFrame(drawBg);
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); };
-  }, [ref]);
+  }, [ref, off]);
 }
 
 const QUAD_COLOR: Record<string, string> = {
@@ -462,16 +464,18 @@ export function NexusBoard() {
   // Rail window-manager: each side panel can be collapsed to its header or
   // hidden entirely ("it's so much going on"). Per-viewer convenience,
   // persisted in localStorage; hidden panels come back via the restore chips.
-  const [railUi, setRailUi] = useState<Record<string, 'min' | 'hidden'>>(() => {
+  const [railUi, setRailUi] = useState<Record<string, 'min' | 'hidden' | 'shown'>>(() => {
     // Sector Heatmap and Flow Prints repeat the Rotation Map and the FLOW tab;
     // they start hidden (restorable from the chip) — purpose review 2026-09-24.
-    const DEFAULTS: Record<string, 'min' | 'hidden'> = { heat: 'hidden', prints: 'hidden' };
+    const DEFAULTS: Record<string, 'min' | 'hidden' | 'shown'> = { heat: 'hidden', prints: 'hidden' };
     try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nx-rail-ui-v2') || '{}') }; } catch { return DEFAULTS; }
   });
   const setRail = (id: string, mode: 'min' | 'hidden' | null) => {
     setRailUi((cur) => {
       const next = { ...cur };
-      if (mode) next[id] = mode; else delete next[id];
+      // An explicit 'shown' — deleting the key would let a hidden-by-default
+      // panel re-hide itself on the next load.
+      next[id] = mode ?? 'shown';
       try { localStorage.setItem('nx-rail-ui-v2', JSON.stringify(next)); } catch { /* private mode */ }
       return next;
     });
@@ -547,7 +551,10 @@ export function NexusBoard() {
   /* canvases */
   const bgRef = useRef<HTMLCanvasElement>(null);
   const quadRef = useRef<HTMLCanvasElement>(null);
-  useBgCanvas(bgRef);
+  const prefs = usePrefs();
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const ord = (rail: 'left' | 'right', id: string) => 10 + orderOf(prefs, rail, id);
+  useBgCanvas(bgRef, prefs.calm);
   useQuadCanvas(quadRef, rotation.data?.sectors ?? [], light);
   useQuadCanvas(bigQuadRef, rotation.data?.sectors ?? [], light);
 
@@ -698,7 +705,7 @@ export function NexusBoard() {
     mq.addEventListener('change', on); return () => mq.removeEventListener('change', on);
   }, []);
   const [bookAll, setBookAll] = useState(false);
-  const bookList = isPhone && !bookAll ? shown.slice(0, 6) : shown;
+  const bookList = isPhone && !bookAll && prefs.phoneCount > 0 ? shown.slice(0, prefs.phoneCount) : shown;
   const boardSyms = useMemo(() => Array.from(new Set(shown.map((p) => p.symbol))).slice(0, 40).sort().join(','), [shown]);
   const boardQuotesQ = useQuery<{ quotes: Record<string, { price: number; changePercent: number }> }>({
     queryKey: [`/api/quotes/batch/${boardSyms}`],
@@ -731,6 +738,7 @@ export function NexusBoard() {
        renders only the board: ambient canvas + the three-column main. */
     <div className="nexus-embed">
       <canvas id="bgCanvas" ref={bgRef} />
+      <CustomizePanel open={customizeOpen} onClose={() => setCustomizeOpen(false)} railUi={railUi} setRail={setRail} />
 
       {/* ============ MAIN ============ */}
       <div
@@ -758,7 +766,7 @@ export function NexusBoard() {
           </div>
           <RailRestore ids={['radar', 'pulse', 'quad', 'prints', 'brief']} />
 
-          <div className={railCls('radar', 'intel-block')}>
+          <div className={railCls('radar', 'intel-block')} style={{ order: ord('left', 'radar') }}>
             <div className="intel-head">
               <div className="intel-label">Pattern Radar<RailCtl id="radar" /></div>
               <div className="intel-value" style={{ cursor: 'pointer' }} title="Open the full pattern browser" role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => setRadarBrowse('all')}>{patterns.data ? `${patterns.data.hits.length} hits · ${patterns.data.scanned} scanned ⤢` : 'warming…'}</div>
@@ -906,7 +914,7 @@ export function NexusBoard() {
             )}
           </div>
 
-          <div className={railCls('pulse', 'intel-block')}>
+          <div className={railCls('pulse', 'intel-block')} style={{ order: ord('left', 'pulse') }}>
             <div className="intel-head">
               <div className="intel-label">Market Pulse<Ex id="pulse" /><RailCtl id="pulse" /></div>
               <div className="intel-value">{rotation.data?.sessionLabel ?? '—'}</div>
@@ -979,7 +987,7 @@ export function NexusBoard() {
           </div>
 
           {/* Rotation Map */}
-          <div className={railCls('quad', 'intel-block')}>
+          <div className={railCls('quad', 'intel-block')} style={{ order: ord('left', 'quad') }}>
             <div className="intel-head">
               <div className="intel-label">Rotation Map<Ex id="quad" /><RailCtl id="quad" /></div>
               <div className="intel-value">{rotation.data?.sessionLabel ?? '—'}</div>
@@ -1006,7 +1014,7 @@ export function NexusBoard() {
           {/* Flow prints — the mock's Time & Sales slot, wired to the real flow
               feed. Side chip is CALL/PUT because that is measured; buyer vs
               seller is not, and is not claimed. */}
-          <div className={railCls('prints', 'tape')}>
+          <div className={railCls('prints', 'tape')} style={{ order: ord('left', 'prints') }}>
             <div className="intel-head">
               <div className="intel-label">Flow Prints<Ex id="prints" /><RailCtl id="prints" /></div>
               <div className="intel-value" style={{ cursor: 'pointer' }} title="Expand / collapse the print list"
@@ -1030,7 +1038,7 @@ export function NexusBoard() {
           </div>
 
           {/* Session Brief — the rotation feed's own headline, not invented prose */}
-          <div className={railCls('brief', 'intel-block')}>
+          <div className={railCls('brief', 'intel-block')} style={{ order: ord('left', 'brief') }}>
             <div className="intel-head">
               <div className="intel-label">Session Brief<RailCtl id="brief" /></div>
               <div className="intel-value">from the rotation feed</div>
@@ -1061,6 +1069,15 @@ export function NexusBoard() {
                 style={{ marginLeft: 8 }}
               >
                 {explainCards ? 'hide guide' : 'explain cards'}
+              </button>
+              <button
+                type="button"
+                className="view-btn"
+                aria-haspopup="dialog"
+                onClick={() => setCustomizeOpen(true)}
+                title="Arrange panels, choose what cards show, text size and calm mode"
+              >
+                customize
               </button>
               <div className="view-toggle" style={{ marginLeft: 'auto' }}>
                 {(['grid', 'scanner', 'cockpit', 'ledger'] as const).map((v) => (
@@ -1188,7 +1205,10 @@ export function NexusBoard() {
               ))}
             </div>
           )}
-          <div className="signals">
+          <div
+            className={['signals', `density-${prefs.density}`, ...Object.entries(prefs.card).filter(([, on]) => !on).map(([k]) => `hide-${k}`)].join(' ')}
+            style={prefs.columns !== 'auto' ? { gridTemplateColumns: `repeat(${prefs.columns}, minmax(0, 1fr))` } : undefined}
+          >
             {bookList.map((p) => {
               const b = bandOf(p);
               // Live quote first — the board-build price can be 15+ min old
@@ -1248,7 +1268,7 @@ export function NexusBoard() {
                         : 'timing pending contract'}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', margin: '6px 0 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }} onClick={(e) => e.stopPropagation()}>
+                  <div className="sig-actions" style={{ display: 'flex', gap: 5, alignItems: 'center', margin: '6px 0 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }} onClick={(e) => e.stopPropagation()}>
                     {[
                       ['WORKUP', () => openWorkup(p.symbol)],
                       [watchState[p.symbol] ? `WATCH ${watchState[p.symbol]}` : 'WATCH', () => addToWatch(p.symbol)],
@@ -1365,7 +1385,7 @@ export function NexusBoard() {
               .slice(0, 5);
             const total = pendingPicks.length + coilHits.length;
             if (!total) return (
-              <div className="dev-empty">
+              <div className="dev-empty" style={{ order: ord('right', 'dev') }}>
                 <div className="dev-icon">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
                 </div>
@@ -1375,7 +1395,7 @@ export function NexusBoard() {
               </div>
             );
             return (
-              <div className={railCls('dev', '')} style={{ padding: '12px 16px', borderBottom: '1px solid var(--nx-border)' }}>
+              <div className={railCls('dev', '')} style={{ order: ord('right', 'dev'), padding: '12px 16px', borderBottom: '1px solid var(--nx-border)' }}>
                 <div className="intel-head" style={{ marginBottom: 8 }}>
                   <div className="intel-label">Candidate field<Ex id="dev" /><RailCtl id="dev" /></div>
                   <div className="intel-value">{total} developing</div>
@@ -1401,7 +1421,7 @@ export function NexusBoard() {
             );
           })()}
 
-          <div className={railCls('heat', 'heatmap-section')}>
+          <div className={railCls('heat', 'heatmap-section')} style={{ order: ord('right', 'heat') }}>
             <div className="intel-head">
               <div className="intel-label">Sector Heatmap<Ex id="heat" /><RailCtl id="heat" /></div>
               <div className="intel-value">{rotation.data?.sessionLabel ?? '1D % chg'}</div>
@@ -1422,7 +1442,7 @@ export function NexusBoard() {
             </div>
           </div>
 
-          <div className={railCls('watch', 'watch-section')}>
+          <div className={railCls('watch', 'watch-section')} style={{ order: ord('right', 'watch') }}>
             <div className="watch-head">
               <div className="watch-title">Watchlist<Ex id="watch" /><RailCtl id="watch" /></div>
               <div className="watch-count" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -1479,7 +1499,7 @@ export function NexusBoard() {
 
           {/* System status block removed 2026-09-24: the terminal footer already shows
               connection, uptime, VIX and feed state on every tab. */}
-          <div className="disclaimer">
+          <div className="disclaimer" style={{ order: 999 }}>
             Educational only · not investment advice.<br />
             Past setups do not guarantee future results.
           </div>
