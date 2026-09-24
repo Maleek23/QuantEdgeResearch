@@ -40,7 +40,7 @@ interface IndexSetup {
   reasons: string[];
 }
 
-function detectIndexPullback(
+export function detectIndexPullback(
   symbol: string,
   bars: UBar[],
   opts: { pbMin?: number; pbMax?: number; riskMax?: number } = {},

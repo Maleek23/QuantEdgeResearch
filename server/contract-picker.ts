@@ -163,7 +163,7 @@ export async function pickContracts(
 // carries an as-of stamp and the data source.
 // ─────────────────────────────────────────────────────────────────────────
 
-function normCdf(x: number): number {
+export function normCdf(x: number): number {
   // Abramowitz-Stegun 26.2.17, |err| < 7.5e-8
   const t = 1 / (1 + 0.2316419 * Math.abs(x));
   const d = 0.3989423 * Math.exp(-x * x / 2);
