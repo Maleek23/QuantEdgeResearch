@@ -2157,7 +2157,22 @@
 .terminal-nexus-light .workuplab .ql-stat,.terminal-nexus-light .workuplab .ql-level,.terminal-nexus-light .workuplab .ov-stat,.terminal-nexus-light .workuplab .ev-row,.terminal-nexus-light .workuplab .flow-row,.terminal-nexus-light .workuplab .bot-rule,.terminal-nexus-light .workuplab .ov-chart,.terminal-nexus-light .workuplab .mini-chart{background:rgba(0,0,0,0.03)}
 
 @media(max-width:1200px){.workuplab .workup-body{grid-template-columns:200px 1fr 260px}}
-@media(max-width:900px){.workuplab{padding:10px}.workuplab .workup-body{grid-template-columns:1fr}.workuplab .workup-left,.workuplab .workup-right{display:none}}
+/* Phones/small tablets: the side rails used to be display:none — the evidence
+   breakdown and levels simply did not exist on a phone. Stack all three columns
+   in one scroll instead, full-screen, header wrapped (UI validation 2026-09-24). */
+@media(max-width:900px){
+  .workuplab{padding:0}
+  .workuplab .workup-box{max-height:none;height:100dvh;border-radius:0;border:0}
+  .workuplab .workup-head{grid-template-columns:1fr;gap:10px;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top))}
+  .workuplab .workup-actions{flex-wrap:wrap}
+  .workuplab .workup-body{display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .workuplab .workup-center{order:-1}
+  .workuplab .workup-center{overflow:visible}
+  .workuplab .workup-content{overflow:visible;padding:14px}
+  .workuplab .workup-tabs{overflow-x:auto;padding:8px 12px}
+  .workuplab .workup-left,.workuplab .workup-right{border:0;border-top:1px solid var(--nx-border);overflow:visible}
+  .workuplab .workup-foot{padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+}
 
 
 /* ═══════════════════════ CATALYST — the ninth reference mock ═══════════════════════

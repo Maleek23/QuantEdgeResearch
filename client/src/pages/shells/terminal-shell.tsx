@@ -365,7 +365,7 @@ export default function TerminalShell() {
       </div>
 
       {/* ── tab content (cross-fades) ── */}
-      <main className="min-h-0 flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <main className="min-h-0 min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
         {/* Some market modules keep long-lived subscriptions and nested layout
             animations. `mode="wait"` can leave the outgoing module mounted at
             opacity 0 while it waits for every descendant to finish exiting,

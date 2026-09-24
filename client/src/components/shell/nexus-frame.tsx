@@ -96,7 +96,10 @@ export function NexusFrame({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="min-h-0 w-full flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      {/* overflow-x contained HERE: one wide table (the GEX strike matrix, a filter
+          row) used to widen the whole document, and iOS then zoomed the entire
+          page out — dock included (measured: /r/META 1572px on a 393px phone). */}
+      <main className="min-h-0 w-full min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
         {children}
       </main>
 
