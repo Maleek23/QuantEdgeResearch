@@ -132,7 +132,7 @@ export function ExpiryPatternInsights({ portfolioId }: { portfolioId?: string })
               <div className="text-xs text-muted-foreground">Overall Sentiment</div>
             </div>
             <div className="text-center p-3 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold text-cyan-400">{safeToFixed(summary.weeklyWinRate, 1, '0.0')}%</div>
+              <div className="text-2xl font-bold text-sky-400">{safeToFixed(summary.weeklyWinRate, 1, '0.0')}%</div>
               <div className="text-xs text-muted-foreground">Weekly Expiry Win Rate</div>
             </div>
             <div className="text-center p-3 rounded-lg bg-muted/50">

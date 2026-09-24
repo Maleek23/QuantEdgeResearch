@@ -70,7 +70,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="min-h-screen bg-card text-white flex items-center justify-center p-8">
             <div className="max-w-md text-center">
               <div className="mb-6">
-                <svg className="h-16 w-16 mx-auto text-cyan-400 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="h-16 w-16 mx-auto text-sky-400 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
               </div>
@@ -83,7 +83,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   sessionStorage.removeItem("error_boundary_reload");
                   window.location.reload();
                 }}
-                className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-medium transition-colors"
+                className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 rounded-lg font-medium transition-colors"
               >
                 Reload Now
               </button>
@@ -99,7 +99,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <h1 className="text-2xl font-bold text-[var(--trade-bearish)] mb-4">Something went wrong</h1>
             <div className="bg-muted rounded-lg p-4 mb-4">
               <h2 className="text-lg font-semibold text-[var(--trade-bearish)] mb-2">Error Message:</h2>
-              <pre className="text-sm text-red-300 whitespace-pre-wrap break-all">
+              <pre className="text-sm text-[var(--trade-bearish)] whitespace-pre-wrap break-all">
                 {this.state.error?.message}
               </pre>
             </div>
@@ -110,14 +110,14 @@ export class ErrorBoundary extends Component<Props, State> {
               </pre>
             </div>
             <div className="bg-muted rounded-lg p-4">
-              <h2 className="text-lg font-semibold text-cyan-400 mb-2">Component Stack:</h2>
+              <h2 className="text-lg font-semibold text-sky-400 mb-2">Component Stack:</h2>
               <pre className="text-xs text-foreground/80 whitespace-pre-wrap break-all overflow-auto max-h-64">
                 {this.state.errorInfo?.componentStack}
               </pre>
             </div>
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded"
+              className="mt-4 px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded"
             >
               Reload Page
             </button>

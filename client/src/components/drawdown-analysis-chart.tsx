@@ -71,7 +71,7 @@ function CustomTooltip({ active, payload }: any) {
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Peak:</span>
-            <span className="font-mono text-cyan-500">{safeToFixed(data.peak, 4)}x</span>
+            <span className="font-mono text-sky-500">{safeToFixed(data.peak, 4)}x</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Drawdown:</span>
@@ -187,7 +187,7 @@ export default function DrawdownAnalysisChart() {
               {summary.currentDrawdownPercent > 0 ? `-${summary.currentDrawdownPercent}%` : 'None'}
             </p>
           </div>
-          <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+          <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
             <p className="text-xs text-muted-foreground">Calmar Ratio</p>
             <TooltipProvider>
               <TooltipUI>
@@ -196,7 +196,7 @@ export default function DrawdownAnalysisChart() {
                     "font-semibold font-mono text-lg",
                     summary.calmar.status !== 'valid' && summary.calmar.status !== 'estimated' ? "text-muted-foreground" :
                     summary.calmar.value !== null && summary.calmar.value >= 1 ? "text-[var(--trade-bullish)]" :
-                    summary.calmar.value !== null && summary.calmar.value >= 0.5 ? "text-cyan-500" : "text-[var(--trade-neutral)]"
+                    summary.calmar.value !== null && summary.calmar.value >= 0.5 ? "text-sky-500" : "text-[var(--trade-neutral)]"
                   )}>
                     {summary.calmar.status === 'insufficient-sample' ? 'N/A' :
                      summary.calmar.status === 'no-drawdown' ? '∞' :
@@ -276,7 +276,7 @@ export default function DrawdownAnalysisChart() {
             <span className="text-muted-foreground">Equity Curve</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 bg-cyan-500 rounded" style={{ borderBottom: `2px dashed ${CHART_COLORS.accent}` }} />
+            <div className="w-3 h-0.5 bg-sky-500 rounded" style={{ borderBottom: `2px dashed ${CHART_COLORS.accent}` }} />
             <span className="text-muted-foreground">High Water Mark</span>
           </div>
         </div>

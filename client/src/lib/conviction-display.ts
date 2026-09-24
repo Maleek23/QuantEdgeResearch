@@ -179,9 +179,9 @@ export function displayedGrade(idea: ScoredIdea | null | undefined): LetterGrade
  *  consistent across pages that still use the legacy helper.)
  */
 export function gradeColorClass(grade: LetterGrade): string {
-  if (grade === "A+") return "text-emerald-300 border-emerald-500/50 bg-emerald-500/15";
-  if (grade.startsWith("A")) return "text-emerald-400 border-emerald-500/40 bg-emerald-500/10";
+  if (grade === "A+") return "text-[var(--trade-bullish)] border-emerald-500/50 bg-emerald-500/15";
+  if (grade.startsWith("A")) return "text-[var(--trade-bullish)] border-emerald-500/40 bg-emerald-500/10";
   if (grade.startsWith("B")) return "text-blue-300 border-blue-500/40 bg-blue-500/10";
   if (grade.startsWith("C")) return "text-amber-300 border-amber-500/40 bg-amber-500/10";
-  return "text-red-400 border-red-500/40 bg-red-500/10";
+  return "text-[var(--trade-bearish)] border-red-500/40 bg-red-500/10";
 }

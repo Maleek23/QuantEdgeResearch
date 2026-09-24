@@ -18,7 +18,7 @@ import { scoreBand } from '@/components/canon';
 
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
-const CYAN = 'var(--brand-cyan,#22d3ee)';
+const CYAN = 'var(--brand-cyan,#3b8cff)';
 
 const TIER_COLOR: Record<FlowScore['tier'], string> = { S: '#e0a458', A: BULL, B: CYAN, C: 'var(--muted,#8b98a8)' };
 
@@ -107,7 +107,7 @@ export function FlowCard({
           className="cursor-pointer text-left"
           aria-label={`Open ${print.symbol}`}
         >
-          <div className="text-lead font-mono font-bold tracking-wider text-foreground hover:text-[var(--brand-cyan,#22d3ee)]">
+          <div className="text-lead font-mono font-bold tracking-wider text-foreground hover:text-[var(--brand-cyan,#3b8cff)]">
             {print.symbol}
           </div>
           <div className="mt-0.5 text-label font-mono tabular-nums" style={{ color: tone }}>
@@ -127,7 +127,7 @@ export function FlowCard({
             )}
             {score.isSweep && (
               <span className="inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-label font-mono font-bold tracking-wider"
-                    style={{ color: CYAN, borderColor: `${'#22d3ee'}40`, background: '#22d3ee1a' }}>
+                    style={{ color: CYAN, borderColor: `${'#3b8cff'}40`, background: '#3b8cff1a' }}>
                 <Zap className="h-2.5 w-2.5" /> SWEEP-LIKE
               </span>
             )}

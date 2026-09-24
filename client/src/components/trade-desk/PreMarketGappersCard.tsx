@@ -65,7 +65,7 @@ function GapperRow({ g }: { g: Gapper }) {
   const isUp = g.direction === "up";
   const Icon = isUp ? TrendingUp : TrendingDown;
   return (
-    <Link href={`/terminal/${g.symbol}`}>
+    <Link href={`/r/${g.symbol}`}>
       <div
         className={cn(
           "flex items-center justify-between text-xs px-2 py-1.5 rounded border cursor-pointer transition-colors",
@@ -87,7 +87,7 @@ function GapperRow({ g }: { g: Gapper }) {
         <div
           className={cn(
             "flex items-center gap-1 font-mono font-semibold tabular-nums",
-            isUp ? "text-emerald-400" : "text-red-400",
+            isUp ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]",
           )}
         >
           <Icon className="h-3 w-3" />

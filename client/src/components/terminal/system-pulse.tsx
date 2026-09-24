@@ -9,12 +9,12 @@ import { useEffect, useRef, useState } from 'react';
 interface PulseEvent { id: number; at: string; kind: string; msg: string }
 
 const KIND_COLOR: Record<string, string> = {
-  quant: 'var(--cyan-bright, #22d3ee)',
+  quant: 'var(--cyan-bright, #3b8cff)',
   pattern: 'var(--purple, #a78bfa)',
-  flow: 'var(--amber, #f5b642)',
+  flow: 'var(--amber, #facc15)',
   bot: 'var(--green, #34d399)',
-  alert: 'var(--red, #ff5470)',
-  gate: 'var(--amber, #f5b642)',
+  alert: 'var(--red, #ff6b3d)',
+  gate: 'var(--amber, #facc15)',
   universe: 'var(--text-dim, #8b93a7)',
   news: 'var(--event, #fb923c)',
   gex: 'var(--gold, #fbbf24)',

@@ -313,12 +313,12 @@ export function CatalystNexus() {
             </div>
             <div className="summary-card">
               <div className="summary-label">Event risk</div>
-              <div className="summary-val" style={{ color: 'var(--red)', textShadow: '0 0 6px rgba(255,84,112,0.3)' }}>{counts.risk}</div>
+              <div className="summary-val" style={{ color: 'var(--red)', textShadow: '0 0 6px rgba(255,107,61,0.3)' }}>{counts.risk}</div>
               <div className="summary-sub">earnings inside horizon</div>
             </div>
             <div className="summary-card">
               <div className="summary-label">Conflicts</div>
-              <div className="summary-val" style={{ color: 'var(--amber)', textShadow: '0 0 6px rgba(245,182,66,0.3)' }}>{counts.conflict}</div>
+              <div className="summary-val" style={{ color: 'var(--amber)', textShadow: '0 0 6px rgba(250,204,21,0.3)' }}>{counts.conflict}</div>
               <div className="summary-sub">polarity mismatch</div>
             </div>
             <div className="summary-card">

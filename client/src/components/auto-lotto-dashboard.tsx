@@ -182,7 +182,7 @@ function KPICard({
   onClick?: () => void;
 }) {
   const colorClasses = {
-    cyan: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+    cyan: "text-sky-400 bg-sky-500/10 border-sky-500/20",
     green: "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-500/20",
     red: "text-[var(--trade-bearish)] bg-red-500/10 border-red-500/20",
     amber: "text-[var(--trade-neutral)] bg-[var(--trade-neutral)]/10 border-[var(--trade-neutral)]/20",
@@ -396,7 +396,7 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono font-bold text-foreground" data-testid={`trade-symbol-${position.id}`}>{position.symbol || 'N/A'}</span>
               {(position.optionType || position.strikePrice) && (
-                <Badge variant="outline" className="text-[10px] border-cyan-500/30 text-cyan-400 uppercase">
+                <Badge variant="outline" className="text-[10px] border-sky-500/30 text-sky-400 uppercase">
                   {position.optionType || ''} {position.strikePrice ? `$${position.strikePrice}` : ''}
                 </Badge>
               )}
@@ -698,7 +698,7 @@ export function AutoLottoDashboard() {
   return (
     <div className="space-y-6" data-testid="auto-lotto-dashboard">
       {/* Hero Status Bar */}
-      <div className="rounded-xl bg-gradient-to-r from-cyan-500/10 via-slate-900/80 to-purple-500/10 border border-cyan-500/20 p-6" data-testid="hero-status-bar">
+      <div className="rounded-xl bg-gradient-to-r from-sky-500/10 via-slate-900/80 to-purple-500/10 border border-sky-500/20 p-6" data-testid="hero-status-bar">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl border-2 transition-all duration-300 bg-[var(--trade-bullish)]/20 border-green-500/40 animate-pulse">
@@ -716,7 +716,7 @@ export function AutoLottoDashboard() {
                 </Badge>
                 <Badge 
                   variant="outline" 
-                  className="font-medium text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                  className="font-medium text-xs bg-sky-500/10 text-sky-400 border-sky-500/30"
                   data-testid="badge-scanning"
                 >
                   <Activity className="h-3 w-3 mr-1 animate-pulse" />
@@ -735,7 +735,7 @@ export function AutoLottoDashboard() {
               size="sm"
               onClick={() => manualScan.mutate()}
               disabled={manualScan.isPending}
-              className="border-cyan-500/30 hover:bg-cyan-500/10 text-cyan-400"
+              className="border-sky-500/30 hover:bg-sky-500/10 text-sky-400"
               data-testid="button-manual-scan"
             >
               {manualScan.isPending ? (
@@ -865,7 +865,7 @@ export function AutoLottoDashboard() {
         <TabsList className="h-10 bg-muted/40 border border-border/50 rounded-lg p-1">
           <TabsTrigger 
             value="dashboard" 
-            className="rounded-md px-4 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            className="rounded-md px-4 data-[state=active]:bg-sky-500/10 data-[state=active]:text-sky-400"
             data-testid="tab-dashboard-view"
           >
             <BarChart3 className="h-4 w-4 mr-2" />
@@ -873,7 +873,7 @@ export function AutoLottoDashboard() {
           </TabsTrigger>
           <TabsTrigger 
             value="analytics"
-            className="rounded-md px-4 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            className="rounded-md px-4 data-[state=active]:bg-sky-500/10 data-[state=active]:text-sky-400"
             data-testid="tab-analytics-view"
           >
             <PieChartIcon className="h-4 w-4 mr-2" />
@@ -881,7 +881,7 @@ export function AutoLottoDashboard() {
           </TabsTrigger>
           <TabsTrigger 
             value="history"
-            className="rounded-md px-4 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            className="rounded-md px-4 data-[state=active]:bg-sky-500/10 data-[state=active]:text-sky-400"
             data-testid="tab-history-view"
           >
             <Clock className="h-4 w-4 mr-2" />
@@ -937,7 +937,7 @@ export function AutoLottoDashboard() {
             <Card className="bg-card/60 border-border/50" data-testid="chart-pnl">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-cyan-400" />
+                  <TrendingUp className="h-4 w-4 text-sky-400" />
                   Cumulative P&L
                 </CardTitle>
                 <CardDescription>14-day profit/loss trend</CardDescription>
@@ -1020,7 +1020,7 @@ export function AutoLottoDashboard() {
             <Card className="bg-card/60 border-border/50" data-testid="chart-asset-distribution">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <PieChartIcon className="h-4 w-4 text-cyan-400" />
+                  <PieChartIcon className="h-4 w-4 text-sky-400" />
                   Asset Distribution
                 </CardTitle>
                 <CardDescription>Trade allocation by asset type</CardDescription>
@@ -1050,7 +1050,7 @@ export function AutoLottoDashboard() {
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           "w-2 h-8 rounded-full",
-                          strategy.color === "cyan" ? "bg-cyan-500" :
+                          strategy.color === "cyan" ? "bg-sky-500" :
                           strategy.color === "green" ? "bg-[var(--trade-bullish)]" :
                           strategy.color === "amber" ? "bg-[var(--trade-neutral)]" : "bg-purple-500"
                         )} />
@@ -1090,7 +1090,7 @@ export function AutoLottoDashboard() {
                 </div>
                 <div className="p-4 rounded-lg bg-muted/40 border border-border/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Current Value</p>
-                  <p className="text-xl font-bold font-mono text-cyan-400" data-testid="portfolio-current-value">${safeToFixed(lottoPortfolio?.totalValue || 0, 2)}</p>
+                  <p className="text-xl font-bold font-mono text-sky-400" data-testid="portfolio-current-value">${safeToFixed(lottoPortfolio?.totalValue || 0, 2)}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/40 border border-border/30 text-center">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cash Balance</p>
@@ -1116,7 +1116,7 @@ export function AutoLottoDashboard() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-cyan-400" />
+                  <Clock className="h-4 w-4 text-sky-400" />
                   Trade History
                 </CardTitle>
                 <Badge variant="secondary" className="font-mono" data-testid="badge-trade-count">
@@ -1149,12 +1149,12 @@ export function AutoLottoDashboard() {
       {/* Portfolio Trades Modal - Only render when selectedPortfolio is set */}
       {selectedPortfolio && (
         <Dialog open={true} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
-          <DialogContent className="max-w-2xl bg-muted dark:bg-muted border-2 border-cyan-500/50 shadow-2xl shadow-cyan-500/20" data-testid="modal-portfolio-trades">
+          <DialogContent className="max-w-2xl bg-muted dark:bg-muted border-2 border-sky-500/50 shadow-2xl shadow-sky-500/20" data-testid="modal-portfolio-trades">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-3 text-foreground">
                 <div className={cn(
                   "p-2 rounded-lg border",
-                  selectedInfo?.color === 'cyan' && "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+                  selectedInfo?.color === 'cyan' && "text-sky-400 bg-sky-500/10 border-sky-500/20",
                   selectedInfo?.color === 'purple' && "text-purple-400 bg-purple-500/10 border-purple-500/20",
                   selectedInfo?.color === 'amber' && "text-[var(--trade-neutral)] bg-[var(--trade-neutral)]/10 border-[var(--trade-neutral)]/20",
                   selectedInfo?.color === 'green' && "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-500/20"
@@ -1187,7 +1187,7 @@ export function AutoLottoDashboard() {
                 <TabsTrigger value="closed" className="data-[state=active]:bg-muted-foreground/20 data-[state=active]:text-foreground/80" data-testid="tab-closed">
                   Closed ({closedCount})
                 </TabsTrigger>
-                <TabsTrigger value="all" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-all">
+                <TabsTrigger value="all" className="data-[state=active]:bg-sky-500/20 data-[state=active]:text-sky-400" data-testid="tab-all">
                   All ({selectedPositions.length})
                 </TabsTrigger>
               </TabsList>

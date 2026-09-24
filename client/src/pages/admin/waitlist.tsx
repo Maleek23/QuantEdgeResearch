@@ -197,7 +197,7 @@ function AdminWaitlistContent() {
     }
     if (inviteSent) {
       return (
-        <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+        <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/20">
           <Send className="h-3 w-3 mr-1" />
           Invited
         </Badge>
@@ -206,7 +206,7 @@ function AdminWaitlistContent() {
     const styles = {
       pending: "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20",
       approved: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-      invited: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+      invited: "bg-sky-500/10 text-sky-400 border-sky-500/20",
       joined: "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20",
       rejected: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20",
     };
@@ -274,7 +274,7 @@ function AdminWaitlistContent() {
         <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-cyan-400">{invitedCount}</p>
+              <p className="text-2xl font-bold text-sky-400">{invitedCount}</p>
               <p className="text-sm text-muted-foreground">Invited</p>
             </div>
           </CardContent>
@@ -294,7 +294,7 @@ function AdminWaitlistContent() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="text-foreground flex items-center gap-2">
-                <UserPlus className="h-5 w-5 text-cyan-400" />
+                <UserPlus className="h-5 w-5 text-sky-400" />
                 Waitlist Management
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -360,7 +360,7 @@ function AdminWaitlistContent() {
                 <Button
                   size="sm"
                   onClick={() => setShowInviteDialog(true)}
-                  className="bg-cyan-600 hover:bg-cyan-700"
+                  className="bg-sky-600 hover:bg-sky-700"
                   data-testid="button-bulk-invite"
                 >
                   <Send className="h-4 w-4 mr-1" />
@@ -467,7 +467,7 @@ function AdminWaitlistContent() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-8 text-cyan-400 hover:text-cyan-300"
+                              className="h-8 text-sky-400 hover:text-sky-300"
                               onClick={() => sendInvitesMutation.mutate([entry.id])}
                               disabled={sendInvitesMutation.isPending}
                               data-testid={`button-invite-${entry.id}`}
@@ -498,7 +498,7 @@ function AdminWaitlistContent() {
           </DialogHeader>
           <div className="py-4">
             <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <Users className="h-5 w-5 text-cyan-400" />
+              <Users className="h-5 w-5 text-sky-400" />
               <span className="text-foreground">{selectedIds.size} users will receive invites</span>
             </div>
           </div>
@@ -513,7 +513,7 @@ function AdminWaitlistContent() {
             <Button 
               onClick={() => sendInvitesMutation.mutate(Array.from(selectedIds))}
               disabled={sendInvitesMutation.isPending}
-              className="bg-cyan-600 hover:bg-cyan-700"
+              className="bg-sky-600 hover:bg-sky-700"
               data-testid="button-confirm-send-invites"
             >
               {sendInvitesMutation.isPending ? "Sending..." : "Send Invites"}

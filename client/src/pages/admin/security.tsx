@@ -139,7 +139,7 @@ export default function AdminSecurityPage() {
   if (authLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-8 w-8 animate-spin text-cyan-400" />
+        <RefreshCw className="h-8 w-8 animate-spin text-sky-400" />
       </div>
     );
   }
@@ -161,7 +161,7 @@ export default function AdminSecurityPage() {
             <Button 
               onClick={() => setLocation("/admin")} 
               data-testid="button-go-to-admin"
-              className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
+              className="bg-sky-500 hover:bg-sky-400 text-foreground"
             >
               Go to Admin Panel
             </Button>
@@ -195,14 +195,14 @@ export default function AdminSecurityPage() {
 
   const getStatusColor = (status: number) => {
     if (status >= 200 && status < 300) return "text-[var(--trade-bullish)]";
-    if (status >= 300 && status < 400) return "text-cyan-400";
+    if (status >= 300 && status < 400) return "text-sky-400";
     if (status >= 400 && status < 500) return "text-[var(--trade-neutral)]";
     return "text-[var(--trade-bearish)]";
   };
 
   const getStatusBadgeVariant = (status: number) => {
     if (status >= 200 && status < 300) return "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/30";
-    if (status >= 300 && status < 400) return "bg-cyan-500/10 text-cyan-400 border-cyan-500/30";
+    if (status >= 300 && status < 400) return "bg-sky-500/10 text-sky-400 border-sky-500/30";
     if (status >= 400 && status < 500) return "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/30";
     return "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/30";
   };
@@ -212,7 +212,7 @@ export default function AdminSecurityPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3" data-testid="text-page-title">
-            <Shield className="h-7 w-7 text-cyan-400" />
+            <Shield className="h-7 w-7 text-sky-400" />
             Security Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -225,7 +225,7 @@ export default function AdminSecurityPage() {
             refetchStats();
             refetchLogs();
           }}
-          className="border-border hover:border-cyan-500"
+          className="border-border hover:border-sky-500"
           data-testid="button-refresh-security"
         >
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -241,7 +241,7 @@ export default function AdminSecurityPage() {
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Total API Requests
               </span>
-              <Activity className="h-4 w-4 text-cyan-400" />
+              <Activity className="h-4 w-4 text-sky-400" />
             </div>
             {statsLoading ? (
               <Skeleton className="h-8 w-24" />
@@ -332,7 +332,7 @@ export default function AdminSecurityPage() {
         <Card className="glass-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Server className="h-4 w-4 text-cyan-400" />
+              <Server className="h-4 w-4 text-sky-400" />
               Status Code Distribution
             </CardTitle>
           </CardHeader>
@@ -373,7 +373,7 @@ export default function AdminSecurityPage() {
         <Card className="glass-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Activity className="h-4 w-4 text-cyan-400" />
+              <Activity className="h-4 w-4 text-sky-400" />
               Requests by Method
             </CardTitle>
           </CardHeader>
@@ -408,7 +408,7 @@ export default function AdminSecurityPage() {
         <Card className="glass-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Globe className="h-4 w-4 text-cyan-400" />
+              <Globe className="h-4 w-4 text-sky-400" />
               Top Endpoints
             </CardTitle>
           </CardHeader>
@@ -539,7 +539,7 @@ export default function AdminSecurityPage() {
       <Card className="glass-card">
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Activity className="h-4 w-4 text-cyan-400" />
+            <Activity className="h-4 w-4 text-sky-400" />
             Audit Log
           </CardTitle>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

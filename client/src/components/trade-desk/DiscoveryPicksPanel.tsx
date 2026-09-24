@@ -106,7 +106,7 @@ export function DiscoveryPicksPanel({
           key={s}
           onClick={() => setSelectedSize(s)}
           className={`text-[10px] px-2 py-1 rounded ${
-            selectedSize === s ? 'bg-cyan-500/20 text-cyan-400' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'
+            selectedSize === s ? 'bg-sky-500/20 text-sky-400' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'
           }`}
         >
           {s}
@@ -132,7 +132,7 @@ export function DiscoveryPicksPanel({
       <p className="text-sm">No Discovery picks yet.</p>
       <button
         onClick={runDiscoveryNow}
-        className="mt-3 text-xs px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-emerald-400 hover:bg-emerald-500/20"
+        className="mt-3 text-xs px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-[var(--trade-bullish)] hover:bg-emerald-500/20"
       >
         🎯 Run Discovery Now
       </button>
@@ -173,7 +173,7 @@ export function DiscoveryPicksPanel({
         <div>
           <h2 className="text-lg font-bold flex items-center gap-2">
             🎯 Discovery Picks
-            <span className="text-xs px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/30 rounded text-cyan-400">
+            <span className="text-xs px-2 py-0.5 bg-sky-500/10 border border-sky-500/30 rounded text-sky-400">
               {signals.length} active
             </span>
           </h2>

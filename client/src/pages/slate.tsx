@@ -5,6 +5,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
 
 interface SlateCard {
   symbol: string;
@@ -78,6 +79,13 @@ export default function SlatePage() {
               </div>
             );
           })}
+        </div>
+
+        {/* Pre-market gappers moved here when the Trade Desk was retired
+            (2026-09-24): it was the Desk's only surface not already on the
+            board, and the gap is the leading read before the open. */}
+        <div style={{ marginBottom: 28 }}>
+          <PreMarketGappersCard defaultExpanded />
         </div>
 
         {slateQ.isLoading && <div style={{ color: "var(--text-dim)", fontSize: 13 }}>building slate from the board…</div>}

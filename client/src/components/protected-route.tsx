@@ -58,7 +58,7 @@ export function ProtectedRoute({
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2
-          className="h-8 w-8 animate-spin text-cyan-400"
+          className="h-8 w-8 animate-spin text-sky-400"
           data-testid="loading-spinner"
         />
       </div>
@@ -244,7 +244,7 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
       </div>
     );
   }

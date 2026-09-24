@@ -52,7 +52,7 @@ function getOutcomeColor(status: string | null): string {
     case "hit_target": return "text-[var(--trade-bullish)]";
     case "hit_stop": return "text-[var(--trade-bearish)]";
     case "expired": return "text-[var(--trade-neutral)]";
-    default: return "text-cyan-400";
+    default: return "text-sky-400";
   }
 }
 
@@ -65,7 +65,7 @@ function getOutcomeBadge(status: string | null) {
     case "expired":
       return <Badge className="bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30">Expired</Badge>;
     default:
-      return <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">Open</Badge>;
+      return <Badge className="bg-sky-500/20 text-sky-400 border-sky-500/30">Open</Badge>;
   }
 }
 
@@ -78,7 +78,7 @@ function getEventIcon(eventType: string) {
     case "expired":
       return <Clock className="h-4 w-4 text-[var(--trade-neutral)]" />;
     case "idea_published":
-      return <FileText className="h-4 w-4 text-cyan-400" />;
+      return <FileText className="h-4 w-4 text-sky-400" />;
     case "validation_check":
       return <Activity className="h-4 w-4 text-blue-400" />;
     default:
@@ -108,8 +108,8 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
     <Card className="glass-card">
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-            <Target className="h-5 w-5 text-cyan-400" />
+          <div className="h-10 w-10 rounded-lg bg-sky-500/10 flex items-center justify-center">
+            <Target className="h-5 w-5 text-sky-400" />
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Original Plan</p>
@@ -210,15 +210,15 @@ function getSignalInfo(signal: string): { points: number; description: string; c
   const signalMap: Record<string, { points: number; description: string; color: string }> = {
     'Strong R:R (2:1+)': { points: 28, description: 'Risk/reward ratio of 2:1 or better', color: 'bg-[var(--trade-bullish)]' },
     'Good R:R (1.5:1+)': { points: 15, description: 'Risk/reward ratio of 1.5:1 or better', color: 'bg-[var(--trade-bullish)]' },
-    'Acceptable R:R (1.2:1+)': { points: 8, description: 'Risk/reward ratio of 1.2:1 or better', color: 'bg-cyan-400' },
-    'Confirmed Volume': { points: 18, description: 'Volume 1.5x+ average, institutional interest', color: 'bg-cyan-500' },
-    'Strong Volume': { points: 12, description: 'Volume above average, adequate liquidity', color: 'bg-cyan-400' },
+    'Acceptable R:R (1.2:1+)': { points: 8, description: 'Risk/reward ratio of 1.2:1 or better', color: 'bg-sky-400' },
+    'Confirmed Volume': { points: 18, description: 'Volume 1.5x+ average, institutional interest', color: 'bg-sky-500' },
+    'Strong Volume': { points: 12, description: 'Volume above average, adequate liquidity', color: 'bg-sky-400' },
     'Strong Signal': { points: 25, description: 'Multiple technical indicators aligned', color: 'bg-purple-500' },
     'Clear Signal': { points: 18, description: 'At least one strong technical indicator', color: 'bg-purple-400' },
     'Reversal Setup': { points: 20, description: 'RSI extreme - mean reversion likely', color: 'bg-amber-500' },
     'Trend Setup': { points: 15, description: 'Price aligned with prevailing trend', color: 'bg-amber-400' },
     'Breakout Setup': { points: 18, description: 'Breaking key resistance/support', color: 'bg-indigo-500' },
-    'High Liquidity': { points: 5, description: 'High trading volume, easy entry/exit', color: 'bg-cyan-500' },
+    'High Liquidity': { points: 5, description: 'High trading volume, easy entry/exit', color: 'bg-sky-500' },
     'Catalyst Present': { points: 10, description: 'News catalyst provides fundamental support', color: 'bg-pink-500' }
   };
   return signalMap[signal] || { points: 5, description: 'Quality signal detected', color: 'bg-white/10' };
@@ -307,7 +307,7 @@ function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
               {idea.timingConfidence && (
                 <div className="stat-glass rounded-lg p-3 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Timing Conf</p>
-                  <p className="font-mono font-bold text-cyan-400">{safeToFixed(idea.timingConfidence, 0, '0')}%</p>
+                  <p className="font-mono font-bold text-sky-400">{safeToFixed(idea.timingConfidence, 0, '0')}%</p>
                 </div>
               )}
               {idea.volatilityRegime && (
@@ -363,7 +363,7 @@ function FullAnalysisCard({ idea }: { idea: TradeIdea }) {
         {idea.sessionContext && (
           <div className="pt-3 border-t border-border/50">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
-              <Clock className="h-3 w-3 text-cyan-400" />
+              <Clock className="h-3 w-3 text-sky-400" />
               Market Session Context
             </p>
             <p className="text-sm leading-relaxed">{idea.sessionContext}</p>
@@ -410,14 +410,14 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
         <div className="flex items-center gap-3">
           <div className={cn(
             "h-10 w-10 rounded-lg flex items-center justify-center",
-            isWin ? "bg-[var(--trade-bullish)]/10" : isLoss ? "bg-red-500/10" : "bg-cyan-500/10"
+            isWin ? "bg-[var(--trade-bullish)]/10" : isLoss ? "bg-red-500/10" : "bg-sky-500/10"
           )}>
             {isWin ? (
               <TrendingUp className="h-5 w-5 text-[var(--trade-bullish)]" />
             ) : isLoss ? (
               <TrendingDown className="h-5 w-5 text-[var(--trade-bearish)]" />
             ) : (
-              <Activity className="h-5 w-5 text-cyan-400" />
+              <Activity className="h-5 w-5 text-sky-400" />
             )}
           </div>
           <div>
@@ -488,8 +488,8 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
         
         {!isResolved && (
           <div className="text-center py-8">
-            <div className="h-12 w-12 rounded-lg bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
-              <Activity className="h-6 w-6 text-cyan-400 animate-pulse" />
+            <div className="h-12 w-12 rounded-lg bg-sky-500/10 flex items-center justify-center mx-auto mb-3">
+              <Activity className="h-6 w-6 text-sky-400 animate-pulse" />
             </div>
             <p className="text-muted-foreground">Trade in progress...</p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -756,10 +756,10 @@ export default function TradeAudit() {
   if (error || !data) {
     return (
       <div className="p-3 sm:p-4 space-y-3 max-w-[1600px] mx-auto">
-        <Link href="/trade-desk">
+        <Link href="/slate">
           <Button variant="ghost" size="sm" data-testid="button-back">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Trade Desk
+            Back to Slate
           </Button>
         </Link>
         <Card className="glass-card">
@@ -785,7 +785,7 @@ export default function TradeAudit() {
     <div className="p-3 sm:p-4 space-y-3 max-w-[1600px] mx-auto" data-testid="trade-audit-page">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
-          <Link href="/trade-desk">
+          <Link href="/slate">
             <Button variant="ghost" size="sm" data-testid="button-back">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
@@ -806,7 +806,7 @@ export default function TradeAudit() {
         
         <div className="flex items-center gap-2 flex-wrap">
           {isOpen && (
-            <Badge variant="outline" className="flex items-center gap-1 text-cyan-400 border-cyan-500/30 animate-pulse">
+            <Badge variant="outline" className="flex items-center gap-1 text-sky-400 border-sky-500/30 animate-pulse">
               <Activity className="h-3 w-3" />
               Live - updates every 30s
             </Badge>

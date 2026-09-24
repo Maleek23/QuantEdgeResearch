@@ -288,9 +288,9 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
                 <div className="text-[9px] text-[var(--trade-bearish)]/70">Stop</div>
                 <div className="text-sm font-bold font-mono text-[var(--trade-bearish)]">${safeFixed(idea.stopLoss, 2)}</div>
               </div>
-              <div className="text-center py-2 rounded bg-cyan-500/10">
-                <div className="text-[9px] text-cyan-400/70">R:R</div>
-                <div className="text-sm font-bold font-mono text-cyan-400">{Number(rr).toFixed(1)}:1</div>
+              <div className="text-center py-2 rounded bg-sky-500/10">
+                <div className="text-[9px] text-sky-400/70">R:R</div>
+                <div className="text-sm font-bold font-mono text-sky-400">{Number(rr).toFixed(1)}:1</div>
               </div>
             </div>
           </div>
@@ -345,9 +345,9 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
               <h3 className="text-[10px] text-muted-foreground uppercase tracking-wide tracking-wider mb-2">
                 GEX Setup Found
               </h3>
-              <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-3 space-y-2">
+              <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge className="text-[10px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                  <Badge className="text-[10px] bg-sky-500/20 text-sky-400 border border-sky-500/30">
                     {gexResult.candidate.setup.replace('_', ' ').toUpperCase()}
                   </Badge>
                   <Badge className={cn(
@@ -377,8 +377,8 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
                     <span className="font-mono text-[var(--trade-bearish)]">${gexResult.candidate.stop.toFixed(2)}</span>
                   </div>
                   <div className="text-center">
-                    <span className="text-cyan-400 block text-[9px]">R:R</span>
-                    <span className="font-mono text-cyan-400">{gexResult.candidate.riskRewardRatio}:1</span>
+                    <span className="text-sky-400 block text-[9px]">R:R</span>
+                    <span className="font-mono text-sky-400">{gexResult.candidate.riskRewardRatio}:1</span>
                   </div>
                 </div>
                 {/* GEX Levels */}
@@ -387,10 +387,10 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
                     <span>Flip: <span className="font-mono text-foreground/70">${gexResult.candidate.flipPoint.toFixed(2)}</span></span>
                   )}
                   {gexResult.candidate.callWall && (
-                    <span>Call Wall: <span className="font-mono text-emerald-400">${gexResult.candidate.callWall.toFixed(2)}</span></span>
+                    <span>Call Wall: <span className="font-mono text-[var(--trade-bullish)]">${gexResult.candidate.callWall.toFixed(2)}</span></span>
                   )}
                   {gexResult.candidate.putWall && (
-                    <span>Put Wall: <span className="font-mono text-red-400">${gexResult.candidate.putWall.toFixed(2)}</span></span>
+                    <span>Put Wall: <span className="font-mono text-[var(--trade-bearish)]">${gexResult.candidate.putWall.toFixed(2)}</span></span>
                   )}
                 </div>
                 {gexResult.persisted && (
@@ -410,13 +410,13 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
 
           {/* ACTIONS */}
           <div className="flex items-center gap-2 pt-2 flex-wrap">
-            <Link href={`/stock/${idea.symbol}`}>
+            <Link href={`/r/${idea.symbol}`}>
               <Button variant="outline" size="sm" className="text-xs border-border hover:border-border">
                 <ExternalLink className="w-3 h-3 mr-1.5" />
                 Full Analysis
               </Button>
             </Link>
-            <Link href={`/flow?tab=hub&symbol=${idea.symbol}`}>
+            <Link href={`/r/${idea.symbol}?tab=flow`}>
               <Button variant="outline" size="sm" className="text-xs border-border hover:border-border">
                 <BarChart3 className="w-3 h-3 mr-1.5" />
                 GEX Profile
@@ -425,7 +425,7 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
             <Button
               variant="outline"
               size="sm"
-              className="text-xs border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/50"
+              className="text-xs border-sky-500/30 text-sky-400 hover:bg-sky-500/10 hover:border-sky-500/50"
               onClick={() => scanGex(idea.symbol)}
               disabled={gexScanning}
             >

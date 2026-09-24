@@ -152,7 +152,7 @@ export default function PositionsHeatmapPage() {
             <div className="text-sm text-muted-foreground mb-4">
               Go to Trade Desk or Discovery to start tracking positions.
             </div>
-            <Link href="/discovery">
+            <Link href="/t">
               <button className="px-4 py-2 bg-[var(--brand-cyan)]/10 border border-[var(--brand-cyan)]/30 rounded text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/20">
                 Open Discovery →
               </button>

@@ -37,8 +37,8 @@ const GlassInput = React.forwardRef<HTMLInputElement, GlassInputProps>(
     };
 
     const variantClasses = {
-      glass: "bg-muted/50 backdrop-blur-md border-border/40 focus:border-cyan-500/60 focus:ring-cyan-500/20",
-      solid: "bg-muted border-border focus:border-cyan-500 focus:ring-cyan-500/30",
+      glass: "bg-muted/50 backdrop-blur-md border-border/40 focus:border-sky-500/60 focus:ring-sky-500/20",
+      solid: "bg-muted border-border focus:border-sky-500 focus:ring-sky-500/30",
     };
 
     return (

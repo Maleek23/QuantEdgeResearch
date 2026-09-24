@@ -63,8 +63,8 @@ interface BacktestReport {
 
 const BAND_COLOR: Record<BandStats["band"], string> = {
   S: "text-amber-300 border-amber-500/40 bg-amber-500/10",
-  A: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10",
-  B: "text-cyan-300 border-cyan-500/40 bg-cyan-500/10",
+  A: "text-[var(--trade-bullish)] border-emerald-500/40 bg-emerald-500/10",
+  B: "text-sky-300 border-sky-500/40 bg-sky-500/10",
   C: "text-rose-300 border-rose-500/40 bg-rose-500/10",
 };
 
@@ -179,14 +179,14 @@ export default function ConvictionBacktestCard({
                     </td>
                     <td
                       className={`text-right tabular-nums px-2 py-1.5 font-mono ${
-                        b.avgPercentGain >= 0 ? "text-emerald-400" : "text-red-400"
+                        b.avgPercentGain >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       }`}
                     >
                       {pct(b.avgPercentGain)}
                     </td>
                     <td
                       className={`text-right tabular-nums px-2 py-1.5 font-mono ${
-                        b.expectancyR >= 0 ? "text-emerald-400" : "text-red-400"
+                        b.expectancyR >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       }`}
                     >
                       {b.expectancyR >= 0 ? "+" : ""}
@@ -230,14 +230,14 @@ export default function ConvictionBacktestCard({
                       </td>
                       <td
                         className={`text-right tabular-nums px-2 py-1.5 font-mono ${
-                          s.avgPercentGain >= 0 ? "text-emerald-400" : "text-red-400"
+                          s.avgPercentGain >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                         }`}
                       >
                         {pct(s.avgPercentGain)}
                       </td>
                       <td
                         className={`text-right tabular-nums px-2 py-1.5 font-mono ${
-                          s.expectancyR >= 0 ? "text-emerald-400" : "text-red-400"
+                          s.expectancyR >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                         }`}
                       >
                         {s.expectancyR.toFixed(2)}R
@@ -274,7 +274,7 @@ export default function ConvictionBacktestCard({
                     </div>
                     <span
                       className={`font-mono tabular-nums ${
-                        b.actualPercentGain >= 0 ? "text-emerald-400" : "text-red-400"
+                        b.actualPercentGain >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       }`}
                     >
                       {pct(b.actualPercentGain)}
@@ -307,7 +307,7 @@ export default function ConvictionBacktestCard({
                     </div>
                     <span
                       className={`font-mono tabular-nums ${
-                        b.actualPercentGain >= 0 ? "text-emerald-400" : "text-red-400"
+                        b.actualPercentGain >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                       }`}
                     >
                       {pct(b.actualPercentGain)}

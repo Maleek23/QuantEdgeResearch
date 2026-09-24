@@ -82,7 +82,7 @@ export function AlertTypeToggles({ prefs, update }: { prefs: AlertPrefs; update:
             <button key={t}
               onClick={() => update({ ...prefs, enabled: { ...prefs.enabled, [t]: !on } })}
               className={cn('cursor-pointer rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground hover:text-foreground')}
+                on ? 'bg-[var(--brand-cyan,#3b8cff)]/15 text-[var(--brand-cyan,#3b8cff)]' : 'bg-foreground/5 text-muted-foreground hover:text-foreground')}
             >
               {ALERT_LABELS[t]}
             </button>
@@ -103,7 +103,7 @@ export function AlertDeliveryRows({ prefs, update }: { prefs: AlertPrefs; update
           onClick={() => update({ ...prefs, discord: !prefs.discord })}
           role="switch" aria-checked={prefs.discord} aria-label="Send alerts to Discord"
           className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
-            prefs.discord ? 'bg-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/15')}
+            prefs.discord ? 'bg-[var(--brand-cyan,#3b8cff)]' : 'bg-foreground/15')}
         >
           <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all',
             prefs.discord ? 'left-[18px]' : 'left-0.5')} />
@@ -122,7 +122,7 @@ export function AlertDeliveryRows({ prefs, update }: { prefs: AlertPrefs; update
             onClick={() => update({ ...prefs, quietHours: { ...prefs.quietHours, on: !prefs.quietHours.on } })}
             role="switch" aria-checked={prefs.quietHours.on} aria-label="Toggle quiet hours"
             className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
-              prefs.quietHours.on ? 'bg-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/15')}
+              prefs.quietHours.on ? 'bg-[var(--brand-cyan,#3b8cff)]' : 'bg-foreground/15')}
           >
             <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all',
               prefs.quietHours.on ? 'left-[18px]' : 'left-0.5')} />

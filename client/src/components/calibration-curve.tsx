@@ -187,12 +187,12 @@ export default function CalibrationCurve() {
               {summary.avgCalibrationError}%
             </p>
           </div>
-          <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+          <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
             <p className="text-xs text-muted-foreground">Brier Score</p>
             <p className={cn(
               "text-lg font-bold font-mono",
               (summary.brierScore || 0) <= 0.15 ? "text-[var(--trade-bullish)]" :
-              (summary.brierScore || 0) <= 0.20 ? "text-cyan-500" :
+              (summary.brierScore || 0) <= 0.20 ? "text-sky-500" :
               (summary.brierScore || 0) <= 0.25 ? "text-[var(--trade-neutral)]" : "text-[var(--trade-bearish)]"
             )}>
               {summary.brierScore !== undefined ? safeToFixed(summary.brierScore, 3, 'N/A') : 'N/A'}

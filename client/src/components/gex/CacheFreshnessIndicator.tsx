@@ -28,12 +28,12 @@ export function CacheFreshnessIndicator({
   const isLive = !cached && ageMs < 60 * 1000;
 
   let dotColor = 'bg-emerald-500';
-  let textColor = 'text-emerald-400';
+  let textColor = 'text-[var(--trade-bullish)]';
   let label = 'LIVE';
 
   if (isVeryStale) {
     dotColor = 'bg-red-500';
-    textColor = 'text-red-400';
+    textColor = 'text-[var(--trade-bearish)]';
     label = 'STALE';
   } else if (isStale || cached) {
     dotColor = 'bg-amber-500';

@@ -213,7 +213,7 @@ export default function Academy() {
       <div className="container mx-auto max-w-7xl px-6 py-8">
         {/* Quick Links */}
         <div className="grid sm:grid-cols-3 gap-4 mb-10">
-          <Link href="/technical-guide">
+          <Link href="/how-to">
             <Card className="glass-card hover-elevate h-full border-border/50 cursor-pointer" data-testid="link-technical-guide">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
@@ -227,7 +227,7 @@ export default function Academy() {
               </CardContent>
             </Card>
           </Link>
-          <Link href="/trading-rules">
+          <Link href="/how-to">
             <Card className="glass-card hover-elevate h-full border-border/50 cursor-pointer" data-testid="link-trading-rules">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0">

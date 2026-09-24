@@ -32,11 +32,11 @@ interface PublicResponse {
 
 const TIER_STYLE: Record<string, string> = {
   S: "bg-purple-500/20 text-purple-300 border-purple-500/40",
-  A: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-  B: "bg-emerald-500/15 text-emerald-300/90 border-emerald-500/30",
+  A: "bg-emerald-500/20 text-[var(--trade-bullish)] border-emerald-500/40",
+  B: "bg-emerald-500/15 text-[var(--trade-bullish)]/90 border-emerald-500/30",
   C: "bg-amber-500/20 text-amber-300 border-amber-500/40",
   D: "bg-orange-500/20 text-orange-300 border-orange-500/40",
-  F: "bg-red-500/20 text-red-300 border-red-500/40",
+  F: "bg-red-500/20 text-[var(--trade-bearish)] border-red-500/40",
 };
 
 function isNew(addedAt: string | null): boolean {
@@ -105,7 +105,7 @@ export default function PublicWatchlist() {
           </ul>
         )}
         {isError && (
-          <div className="py-16 text-center text-red-400">Couldn't load the watchlist. Try refreshing.</div>
+          <div className="py-16 text-center text-[var(--trade-bearish)]">Couldn't load the watchlist. Try refreshing.</div>
         )}
         {!isLoading && !isError && items.length === 0 && (
           <div className="py-16 text-center text-slate-400">No tickers on the list yet.</div>
@@ -143,7 +143,7 @@ export default function PublicWatchlist() {
                         </span>
                       )}
                       {fresh && (
-                        <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-300">
+                        <span className="rounded bg-sky-500/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-300">
                           New
                         </span>
                       )}
@@ -157,7 +157,7 @@ export default function PublicWatchlist() {
                     {mom != null && (
                       <div
                         className={`font-mono text-sm ${
-                          mom >= 0 ? "text-emerald-400" : "text-red-400"
+                          mom >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                         }`}
                         title="5-day momentum"
                       >
@@ -166,7 +166,7 @@ export default function PublicWatchlist() {
                       </div>
                     )}
                     {it.upside != null && (
-                      <div className="font-mono text-[11px] text-cyan-400" title="Upside to target">
+                      <div className="font-mono text-[11px] text-sky-400" title="Upside to target">
                         {it.upside >= 0 ? "+" : ""}
                         {Math.round(it.upside)}% tgt
                       </div>

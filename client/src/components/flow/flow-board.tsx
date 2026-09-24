@@ -22,7 +22,7 @@ import {
 import { RepeatBuyers } from './repeat-buyers';
 import { ConvergenceCard } from './convergence-card';
 
-const CYAN = 'var(--brand-cyan,#22d3ee)';
+const CYAN = 'var(--brand-cyan,#3b8cff)';
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
 
@@ -245,7 +245,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
             <div className="flow-eyebrow">Options activity</div>
             <div className="flow-title-row">
               <div className="flow-title">Flow</div>
-              <span className={cn('tag', freshness?.stale ? 'warn' : 'live')} style={freshness?.stale ? { background: 'rgba(245,182,66,0.1)', color: 'var(--amber)', border: '1px solid rgba(245,182,66,0.25)' } : undefined}>
+              <span className={cn('tag', freshness?.stale ? 'warn' : 'live')} style={freshness?.stale ? { background: 'rgba(250,204,21,0.1)', color: 'var(--amber)', border: '1px solid rgba(250,204,21,0.25)' } : undefined}>
                 <span className="dot" />
                 {freshness ? (freshness.stale ? `historical · last print ${freshness.label}` : `last print ${freshness.label}`) : 'no prints'}
               </span>
@@ -327,7 +327,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
                 return (
                   <button key={r.ticker} onClick={() => openWorkup(r.ticker)}
                     title={`${r.ticker}: net ${up ? '+' : '−'}$${(Math.abs(net) / 1e6).toFixed(1)}M aggressor premium today — click for workup`}
-                    style={{ display: 'flex', gap: 5, alignItems: 'baseline', padding: '3px 8px', borderRadius: 4, whiteSpace: 'nowrap', cursor: 'pointer', background: up ? 'rgba(52,211,153,0.07)' : 'rgba(255,84,112,0.07)', border: `1px solid ${up ? 'rgba(52,211,153,0.2)' : 'rgba(255,84,112,0.2)'}` }}>
+                    style={{ display: 'flex', gap: 5, alignItems: 'baseline', padding: '3px 8px', borderRadius: 4, whiteSpace: 'nowrap', cursor: 'pointer', background: up ? 'rgba(52,211,153,0.07)' : 'rgba(255,107,61,0.07)', border: `1px solid ${up ? 'rgba(52,211,153,0.2)' : 'rgba(255,107,61,0.2)'}` }}>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, color: 'var(--text)' }}>{r.ticker}</span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}${(Math.abs(net) / 1e6).toFixed(1)}M</span>
                   </button>

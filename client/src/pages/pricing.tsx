@@ -195,7 +195,7 @@ export default function Pricing() {
 
         {/* Beta Access Banner */}
         <div className="max-w-3xl mx-auto mb-6" data-testid="banner-beta-access">
-          <div className="glass-card rounded-xl p-4 border border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-cyan-500/10">
+          <div className="glass-card rounded-xl p-4 border border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-sky-500/10">
             <div className="flex items-center justify-center gap-3">
               <div className="h-8 w-8 rounded-full bg-purple-500/20 flex items-center justify-center">
                 <FlaskConical className="h-4 w-4 text-purple-400" />
@@ -214,10 +214,10 @@ export default function Pricing() {
 
         {/* Hero Header - Glassmorphism */}
         <div className="relative overflow-hidden rounded-xl bg-[#0a1525]/90 border border-white/10 backdrop-blur-xl p-6 sm:p-8 mb-12">
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
+          <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-sky-400/10" />
           <div className="relative z-10 text-center">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400">
+              <p className="text-xs font-semibold uppercase tracking-widest text-sky-400">
                 Research Platform
               </p>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30" data-testid="badge-beta">
@@ -312,7 +312,7 @@ export default function Pricing() {
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <span 
-                      className="glass rounded px-3 py-1 text-xs font-medium text-cyan-400 flex items-center gap-1"
+                      className="glass rounded px-3 py-1 text-xs font-medium text-sky-400 flex items-center gap-1"
                       data-testid="badge-most-popular"
                     >
                       <Crown className="w-3 h-3" />
@@ -341,14 +341,14 @@ export default function Pricing() {
                     plan.id === 'free' 
                       ? 'bg-gradient-to-br from-slate-500/20 to-slate-400/10' 
                       : plan.id === 'advanced'
-                      ? 'bg-gradient-to-br from-cyan-500/20 to-cyan-400/10'
+                      ? 'bg-gradient-to-br from-sky-500/20 to-sky-400/10'
                       : 'bg-gradient-to-br from-purple-500/20 to-purple-400/10'
                   }`}>
                     <Icon className={`w-6 h-6 ${
                       plan.id === 'free' 
                         ? 'text-muted-foreground' 
                         : plan.id === 'advanced'
-                        ? 'text-cyan-400'
+                        ? 'text-sky-400'
                         : 'text-purple-400'
                     }`} />
                   </div>
@@ -356,7 +356,7 @@ export default function Pricing() {
                     plan.id === 'free' 
                       ? 'text-foreground' 
                       : plan.id === 'advanced'
-                      ? 'text-cyan-400'
+                      ? 'text-sky-400'
                       : 'text-purple-400'
                   }`} data-testid={`text-plan-name-${plan.id}`}>
                     {plan.name}

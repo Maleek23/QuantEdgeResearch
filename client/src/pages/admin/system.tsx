@@ -211,7 +211,7 @@ function AdminSystemContent() {
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
-              <Server className="h-5 w-5 text-cyan-400" />
+              <Server className="h-5 w-5 text-sky-400" />
               Services
             </CardTitle>
             <CardDescription className="text-muted-foreground">
@@ -315,7 +315,7 @@ function AdminSystemContent() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-foreground flex items-center gap-2">
-                  <Database className="h-5 w-5 text-cyan-400" />
+                  <Database className="h-5 w-5 text-sky-400" />
                   Database
                 </CardTitle>
                 <CardDescription className="text-muted-foreground">
@@ -449,7 +449,7 @@ function AdminSystemContent() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-foreground flex items-center gap-2">
-                <Wifi className="h-5 w-5 text-cyan-400" />
+                <Wifi className="h-5 w-5 text-sky-400" />
                 Market Data APIs
               </CardTitle>
               <CardDescription className="text-muted-foreground">

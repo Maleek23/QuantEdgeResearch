@@ -50,7 +50,7 @@ const PRIMARY_DESTINATIONS: NavTarget[] = [
   { href: '/r',              label: 'Research',   icon: Microscope,hint: 'Per-ticker chart · options · GEX', keywords: ['terminal','chart','options','ticker'] },
   { href: '/t?tab=positions',label: 'Positions',  icon: Wallet,    hint: 'My book · open positions · P&L heat map', keywords: ['heatmap','book','pnl'] },
   { href: '/t?tab=journal',  label: 'Journal',    icon: BookOpen,  hint: 'Trade log · metrics · backtest · academy', keywords: ['history','performance','backtest'] },
-  { href: '/trade-desk',     label: 'Trade Desk', icon: Crosshair, hint: 'Idea generation · flow-driven trade ideas', keywords: ['discovery','scanner','picks','setups'] },
+  { href: '/slate',          label: 'Slate', icon: Crosshair, hint: "Today's measured setups + pre-market gappers", keywords: ['discovery','scanner','picks','setups','trade desk','gappers'] },
 ];
 
 const NESTED_TABS: NavTarget[] = [

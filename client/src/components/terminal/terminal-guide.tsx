@@ -181,7 +181,7 @@ export function TerminalGuide({ tab, open, onClose }: { tab: Tab; open: boolean;
             <div className="space-y-3 px-4 py-4">
               {g.read.map((line, i) => (
                 <div key={i} className="flex gap-2.5">
-                  <span className="mt-0.5 shrink-0 text-[10px] font-mono tabular-nums text-[var(--brand-cyan,#22d3ee)]">
+                  <span className="mt-0.5 shrink-0 text-[10px] font-mono tabular-nums text-[var(--brand-cyan,#3b8cff)]">
                     {String(i + 1).padStart(2, '0')}
                   </span>
                   <p className="text-[12px] leading-relaxed text-foreground/80">{line}</p>
@@ -189,7 +189,7 @@ export function TerminalGuide({ tab, open, onClose }: { tab: Tab; open: boolean;
               ))}
 
               <div className="mt-4 rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2.5">
-                <div className="mb-0.5 text-[10px] font-mono uppercase tracking-widest text-[var(--brand-cyan,#22d3ee)]">
+                <div className="mb-0.5 text-[10px] font-mono uppercase tracking-widest text-[var(--brand-cyan,#3b8cff)]">
                   Next step
                 </div>
                 <div className="text-[11px] font-mono text-foreground/85">{g.next}</div>

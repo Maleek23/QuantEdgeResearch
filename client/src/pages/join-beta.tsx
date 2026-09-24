@@ -158,7 +158,7 @@ export default function JoinBeta() {
         title: "Welcome!",
         description: "Your account is now active.",
       });
-      setTimeout(() => navigate("/automations"), 2000);
+      setTimeout(() => navigate("/t"), 2000);
     },
     onError: (error: any) => {
       if (error.requiresVerification) {
@@ -189,8 +189,8 @@ export default function JoinBeta() {
           <h1 className="text-2xl font-semibold text-white mb-2" data-testid="text-welcome-title">Welcome to the Lab!</h1>
           <p className="text-neutral-400 mb-6">Your account is active. Redirecting to dashboard...</p>
           <Button 
-            onClick={() => navigate("/automations")} 
-            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg"
+            onClick={() => navigate("/t")} 
+            className="bg-sky-500 hover:bg-sky-400 text-black font-semibold rounded-xl shadow-lg"
             data-testid="button-go-automations"
           >
             Go to Dashboard
@@ -203,12 +203,12 @@ export default function JoinBeta() {
 
   return (
     <div className="min-h-screen bg-[var(--surface-base)] flex items-start justify-center py-8 px-6 relative overflow-y-auto">
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-sky-500/5 blur-[120px] rounded-full pointer-events-none" />
       
       <div className="w-full max-w-lg relative z-10">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center shadow-lg">
               <span className="text-lg font-bold text-white">Q</span>
             </div>
             <div>
@@ -226,22 +226,22 @@ export default function JoinBeta() {
         </div>
 
         <div className="flex justify-center items-center gap-3 mb-8">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "verify" ? "bg-cyan-500 text-black shadow-lg" : "bg-emerald-500/20 border border-emerald-500/30 text-[var(--trade-bullish)]"}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "verify" ? "bg-sky-500 text-black shadow-lg" : "bg-emerald-500/20 border border-emerald-500/30 text-[var(--trade-bullish)]"}`}>
             {step !== "verify" ? <CheckCircle className="w-5 h-5" /> : "1"}
           </div>
-          <div className={`w-16 h-0.5 rounded-full transition-all ${step === "onboard" ? "bg-cyan-500" : "bg-neutral-800"}`} />
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "onboard" ? "bg-cyan-500 text-black shadow-lg" : "bg-neutral-900 border border-neutral-800 text-neutral-600"}`}>
+          <div className={`w-16 h-0.5 rounded-full transition-all ${step === "onboard" ? "bg-sky-500" : "bg-neutral-800"}`} />
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all ${step === "onboard" ? "bg-sky-500 text-black shadow-lg" : "bg-neutral-900 border border-neutral-800 text-neutral-600"}`}>
             2
           </div>
         </div>
 
         {step === "verify" ? (
           <div className="bg-card border border-neutral-800/80 rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
-            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-sky-500/30 to-transparent" />
             <CardHeader className="pb-4 pt-6">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-cyan-400" />
+                <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-sky-400" />
                 </div>
                 <CardTitle className="text-white text-lg">Enter Your Details</CardTitle>
               </div>
@@ -258,7 +258,7 @@ export default function JoinBeta() {
                 <div>
                   <label className="block text-neutral-300 text-sm font-medium mb-2">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500 z-10" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500 z-10" />
                     <input
                       type="email"
                       placeholder="you@example.com"
@@ -276,13 +276,13 @@ export default function JoinBeta() {
                 <div>
                   <label className="block text-neutral-300 text-sm font-medium mb-2">Access Code</label>
                   <div className="relative">
-                    <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-500 z-10" />
+                    <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500 z-10" />
                     <input
                       type="text"
                       placeholder="Enter your invite code"
                       data-testid="input-verify-token"
                       autoComplete="one-time-code"
-                      style={{ ...inputWithIconStyles, fontFamily: 'monospace', color: '#22d3ee' }}
+                      style={{ ...inputWithIconStyles, fontFamily: 'monospace', color: '#3b8cff' }}
                       {...verifyForm.register("token")}
                     />
                   </div>
@@ -293,7 +293,7 @@ export default function JoinBeta() {
 
                 <Button 
                   type="submit" 
-                  className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg transition-all hover:shadow-lg mt-2"
+                  className="w-full h-12 bg-sky-500 hover:bg-sky-400 text-black font-semibold rounded-xl shadow-lg transition-all hover:shadow-lg mt-2"
                   disabled={verifyMutation.isPending}
                   data-testid="button-verify-code"
                 >
@@ -309,12 +309,12 @@ export default function JoinBeta() {
           </div>
         ) : (
           <div className="bg-card border border-neutral-800/80 rounded-2xl shadow-2xl shadow-black/50 relative overflow-hidden">
-            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+            <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-sky-500/30 to-transparent" />
             <CardHeader className="pb-4 pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-white text-lg">Your Profile</CardTitle>
-                  <CardDescription className="text-cyan-400">
+                  <CardDescription className="text-sky-400">
                     {verifiedEmail}
                   </CardDescription>
                 </div>
@@ -387,7 +387,7 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">Experience</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-cyan-500" data-testid="select-experience">
+                              <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-sky-500" data-testid="select-experience">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -409,7 +409,7 @@ export default function JoinBeta() {
                           <FormLabel className="text-neutral-300">Risk Tolerance</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-cyan-500" data-testid="select-risk">
+                              <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-sky-500" data-testid="select-risk">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -433,7 +433,7 @@ export default function JoinBeta() {
                         <FormLabel className="text-neutral-300">Investment Goal</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-cyan-500" data-testid="select-goals">
+                            <SelectTrigger className="bg-[#1a1a2e] border-neutral-700 text-white focus:border-sky-500" data-testid="select-goals">
                               <SelectValue />
                             </SelectTrigger>
                           </FormControl>
@@ -471,7 +471,7 @@ export default function JoinBeta() {
                                           : field.value?.filter((v: string) => v !== area.value) || [];
                                         field.onChange(updated);
                                       }}
-                                      className="border-neutral-600 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                                      className="border-neutral-600 data-[state=checked]:bg-sky-500 data-[state=checked]:border-sky-500"
                                       data-testid={`checkbox-${area.value}`}
                                     />
                                   </FormControl>
@@ -538,7 +538,7 @@ export default function JoinBeta() {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg transition-all hover:shadow-lg mt-2"
+                    className="w-full h-12 bg-sky-500 hover:bg-sky-400 text-black font-semibold rounded-xl shadow-lg transition-all hover:shadow-lg mt-2"
                     disabled={onboardMutation.isPending}
                     data-testid="button-complete-profile"
                   >

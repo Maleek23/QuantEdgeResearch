@@ -184,7 +184,7 @@ function MiniChart({ bars }: { bars: Bar[] }) {
     const min = Math.min(...data); const max = Math.max(...data);
     const range = max - min || 1;
     const up = data[data.length - 1] >= data[0];
-    const color = up ? '#3ddc97' : '#ff5470';
+    const color = up ? '#6ee7b7' : '#ff6b3d';
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, color + '40'); grad.addColorStop(1, color + '00');
     ctx.beginPath();
@@ -390,9 +390,9 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
   };
 
   const levels = pick ? [
-    ...(pick.entryPrice != null ? [{ price: pick.entryPrice, color: '#4fd1c5', label: 'Entry' }] : []),
-    ...(pick.stopLoss != null ? [{ price: pick.stopLoss, color: '#ff5470', label: 'Stop' }] : []),
-    ...(pick.targetPrice != null ? [{ price: pick.targetPrice, color: '#3ddc97', label: 'T1' }] : []),
+    ...(pick.entryPrice != null ? [{ price: pick.entryPrice, color: '#3b8cff', label: 'Entry' }] : []),
+    ...(pick.stopLoss != null ? [{ price: pick.stopLoss, color: '#ff6b3d', label: 'Stop' }] : []),
+    ...(pick.targetPrice != null ? [{ price: pick.targetPrice, color: '#6ee7b7', label: 'T1' }] : []),
   ] : [];
 
   const gradeClass = band ? band.toLowerCase().charAt(0) : 'none';
@@ -516,7 +516,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                 </button>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderRadius: 6, background: qtm.lean === 'bullish' ? 'rgba(52,211,153,0.07)' : qtm.lean === 'bearish' ? 'rgba(255,84,112,0.07)' : 'rgba(148,163,184,0.06)', border: `1px solid ${qtm.lean === 'bullish' ? 'rgba(52,211,153,0.25)' : qtm.lean === 'bearish' ? 'rgba(255,84,112,0.25)' : 'var(--nx-border)'}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', borderRadius: 6, background: qtm.lean === 'bullish' ? 'rgba(52,211,153,0.07)' : qtm.lean === 'bearish' ? 'rgba(255,107,61,0.07)' : 'rgba(148,163,184,0.06)', border: `1px solid ${qtm.lean === 'bullish' ? 'rgba(52,211,153,0.25)' : qtm.lean === 'bearish' ? 'rgba(255,107,61,0.25)' : 'var(--nx-border)'}` }}>
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: qtm.lean === 'bullish' ? 'var(--green)' : qtm.lean === 'bearish' ? 'var(--red)' : 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 0.8 }}>
                       {qtm.lean === 'bullish' ? '▲' : qtm.lean === 'bearish' ? '▼' : '◆'} {qtm.lean}
                     </div>
@@ -647,7 +647,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                     <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 700, color: 'var(--event)' }}>{relTime(highImpact[0].timestamp)}</div>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>{(highImpact[0].title ?? highImpact[0].description ?? '').slice(0, 90)}</div>
-                  <div style={{ marginTop: 8, padding: '4px 8px', background: 'rgba(255,84,112,0.08)', border: '1px solid rgba(255,84,112,0.2)', borderRadius: 4, fontSize: 'var(--fs-9, 9px)', color: 'var(--red)', fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase' }}>⚠ EVENT RISK · SIZE DOWN</div>
+                  <div style={{ marginTop: 8, padding: '4px 8px', background: 'rgba(255,107,61,0.08)', border: '1px solid rgba(255,107,61,0.2)', borderRadius: 4, fontSize: 'var(--fs-9, 9px)', color: 'var(--red)', fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase' }}>⚠ EVENT RISK · SIZE DOWN</div>
                 </div>
               ) : (
                 <div className="wu-empty">No high-impact event on file.<br />Forward earnings dates are not yet fed.</div>
@@ -676,7 +676,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                         </div>
                         Price action · interactive
                       </div>
-                      <div className="ov-badge" style={{ color: 'var(--cyan-bright)', background: 'rgba(79,209,197,0.1)', border: '1px solid rgba(79,209,197,0.25)' }}>REAL SERIES</div>
+                      <div className="ov-badge" style={{ color: 'var(--cyan-bright)', background: 'rgba(59,140,255,0.1)', border: '1px solid rgba(59,140,255,0.25)' }}>REAL SERIES</div>
                     </div>
                     <NexusPriceChart key={`ov-${symbol}`} symbol={symbol} initialTf="1D" height={220} levels={levels} expandable />
                     <div className="ov-stats">
@@ -695,7 +695,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                         </div>
                         Evidence breakdown
                       </div>
-                      {pick && <div className="ov-badge" style={{ color: 'var(--cyan-bright)', background: 'rgba(79,209,197,0.1)', border: '1px solid rgba(79,209,197,0.25)' }}>{evTotal >= 0 ? '+' : ''}{evTotal}</div>}
+                      {pick && <div className="ov-badge" style={{ color: 'var(--cyan-bright)', background: 'rgba(59,140,255,0.1)', border: '1px solid rgba(59,140,255,0.25)' }}>{evTotal >= 0 ? '+' : ''}{evTotal}</div>}
                     </div>
                     {pick ? (
                       <>
@@ -744,7 +744,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                       </div>
                       {symbol} · Chart Lab
                     </div>
-                    <div className="ov-badge" style={{ color: 'var(--cyan-bright)', background: 'rgba(79,209,197,0.1)', border: '1px solid rgba(79,209,197,0.25)' }}>PAN · ZOOM · ⤢</div>
+                    <div className="ov-badge" style={{ color: 'var(--cyan-bright)', background: 'rgba(59,140,255,0.1)', border: '1px solid rgba(59,140,255,0.25)' }}>PAN · ZOOM · ⤢</div>
                   </div>
                   <NexusPriceChart key={`ch-${symbol}`} symbol={symbol} initialTf="1h" height={380} levels={levels} expandable />
                   <div className="ov-stats" style={{ gridTemplateColumns: 'repeat(6,1fr)' }}>
@@ -774,8 +774,8 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                           title={`Aggressor-inferred net premium today (ask-side vs bid-side, measured by the tape): calls ${aggressor.read.callsNetPremium < 0 ? '−' : '+'}$${(Math.abs(aggressor.read.callsNetPremium) / 1e6).toFixed(1)}M · puts ${aggressor.read.putsNetPremium < 0 ? '−' : '+'}$${(Math.abs(aggressor.read.putsNetPremium) / 1e6).toFixed(1)}M`}
                           style={{
                             color: aggressor.read.lean === 'long' ? 'var(--green)' : aggressor.read.lean === 'short' ? 'var(--red)' : 'var(--text-dim)',
-                            background: aggressor.read.lean === 'long' ? 'rgba(52,211,153,0.1)' : aggressor.read.lean === 'short' ? 'rgba(255,84,112,0.1)' : 'rgba(148,163,184,0.08)',
-                            border: `1px solid ${aggressor.read.lean === 'long' ? 'rgba(52,211,153,0.3)' : aggressor.read.lean === 'short' ? 'rgba(255,84,112,0.3)' : 'var(--nx-border)'}`,
+                            background: aggressor.read.lean === 'long' ? 'rgba(52,211,153,0.1)' : aggressor.read.lean === 'short' ? 'rgba(255,107,61,0.1)' : 'rgba(148,163,184,0.08)',
+                            border: `1px solid ${aggressor.read.lean === 'long' ? 'rgba(52,211,153,0.3)' : aggressor.read.lean === 'short' ? 'rgba(255,107,61,0.3)' : 'var(--nx-border)'}`,
                           }}
                         >
                           AGGRESSOR: {aggressor.read.lean.toUpperCase()}

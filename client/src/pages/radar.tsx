@@ -254,7 +254,7 @@ function PickCard({ pick }: { pick: RadarPick }) {
     <div className="qe-card border border-border/40 rounded-md p-3 space-y-1.5 hover:border-primary/30 transition">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <span className={`font-mono text-xs ${isLong ? 'text-emerald-500' : 'text-rose-500'}`}>
+          <span className={`font-mono text-xs ${isLong ? 'text-[var(--trade-bullish)]' : 'text-rose-500'}`}>
             {isLong ? '↑' : '↓'}
           </span>
           <div className="font-mono font-bold text-sm truncate">{pick.symbol}</div>
@@ -294,8 +294,8 @@ function PickCard({ pick }: { pick: RadarPick }) {
             )}
             {(pick.targets?.t1 || pick.invalidation) && (
               <div className="flex items-center gap-3">
-                {pick.targets?.t1 && <span className="text-emerald-500">T1: ${pick.targets.t1.toFixed(2)}</span>}
-                {pick.targets?.t2 && <span className="text-emerald-500">T2: ${pick.targets.t2.toFixed(2)}</span>}
+                {pick.targets?.t1 && <span className="text-[var(--trade-bullish)]">T1: ${pick.targets.t1.toFixed(2)}</span>}
+                {pick.targets?.t2 && <span className="text-[var(--trade-bullish)]">T2: ${pick.targets.t2.toFixed(2)}</span>}
                 {pick.invalidation && <span className="text-rose-500">Stop: ${pick.invalidation.toFixed(2)}</span>}
               </div>
             )}
@@ -469,10 +469,10 @@ function TrackTab() {
           <div className="col-span-2 text-foreground">{s.patternId.replace(/_/g, ' ')}</div>
           <div>{s.totalPicks}</div>
           <div>{s.resolved}</div>
-          <div className={s.hitRate >= 0.5 ? 'text-emerald-500' : 'text-rose-500'}>
+          <div className={s.hitRate >= 0.5 ? 'text-[var(--trade-bullish)]' : 'text-rose-500'}>
             {(s.hitRate * 100).toFixed(0)}%
           </div>
-          <div className={s.avgOutcomePct >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
+          <div className={s.avgOutcomePct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-rose-500'}>
             {s.avgOutcomePct >= 0 ? '+' : ''}{s.avgOutcomePct.toFixed(1)}%
           </div>
           <div>{s.avgDaysToResolve.toFixed(1)}</div>
@@ -486,7 +486,7 @@ function TrackTab() {
 
 function GradePill({ grade }: { grade: string }) {
   const color =
-    grade.startsWith('A') ? 'bg-emerald-500/15 text-emerald-500' :
+    grade.startsWith('A') ? 'bg-emerald-500/15 text-[var(--trade-bullish)]' :
     grade.startsWith('B') ? 'bg-blue-500/15 text-blue-500' :
     grade.startsWith('C') ? 'bg-amber-500/15 text-amber-500' :
     'bg-rose-500/15 text-rose-500';

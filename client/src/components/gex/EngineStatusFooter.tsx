@@ -50,7 +50,7 @@ export function EngineStatusFooter({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               <div className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-              <span className={online ? 'text-emerald-400' : 'text-red-400'}>
+              <span className={online ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
                 ORACLE {online ? 'ONLINE' : 'OFFLINE'}
               </span>
             </div>
@@ -62,7 +62,7 @@ export function EngineStatusFooter({
               <>
                 <span className="text-zinc-600">·</span>
                 <span className="text-zinc-500">
-                  SIGNALS: <span className="text-cyan-400">{signalsActive} ACTIVE</span>
+                  SIGNALS: <span className="text-sky-400">{signalsActive} ACTIVE</span>
                 </span>
               </>
             )}

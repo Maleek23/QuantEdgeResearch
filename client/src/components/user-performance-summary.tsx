@@ -50,7 +50,7 @@ function getGrade(winRate: number | null): { grade: string; color: string; bgCol
   if (winRate === null) return { grade: "?", color: "text-muted-foreground", bgColor: "bg-muted/20" };
   if (winRate >= 80) return { grade: "A+", color: "text-[var(--trade-bullish)]", bgColor: "bg-[var(--trade-bullish)]/10" };
   if (winRate >= 70) return { grade: "A", color: "text-[var(--trade-bullish)]", bgColor: "bg-[var(--trade-bullish)]/10" };
-  if (winRate >= 60) return { grade: "B", color: "text-cyan-400", bgColor: "bg-cyan-500/10" };
+  if (winRate >= 60) return { grade: "B", color: "text-sky-400", bgColor: "bg-sky-500/10" };
   if (winRate >= 50) return { grade: "C", color: "text-[var(--trade-neutral)]", bgColor: "bg-amber-500/10" };
   if (winRate >= 40) return { grade: "D", color: "text-orange-400", bgColor: "bg-orange-500/10" };
   return { grade: "F", color: "text-[var(--trade-bearish)]", bgColor: "bg-red-500/10" };
@@ -125,7 +125,7 @@ export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: strin
           make money"); the grade tile anchors trust, hit rate stays visible
           as the secondary stat. */}
       <Card className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5" />
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 via-transparent to-purple-500/5" />
         <CardContent className="relative p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             {/* Main: grade tile + expectancy */}
@@ -174,7 +174,7 @@ export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: strin
               </div>
               <div className="text-center">
                 <p className="text-xs text-muted-foreground uppercase">Total Ideas</p>
-                <p className="text-2xl font-bold font-mono text-cyan-400">{stats?.overall?.totalIdeas ?? 0}</p>
+                <p className="text-2xl font-bold font-mono text-sky-400">{stats?.overall?.totalIdeas ?? 0}</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-muted-foreground uppercase">Avg Gain</p>
@@ -312,7 +312,7 @@ export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: strin
       <Card className="bg-muted/20 border-dashed">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <Zap className="h-5 w-5 text-cyan-400 mt-0.5 shrink-0" />
+            <Zap className="h-5 w-5 text-sky-400 mt-0.5 shrink-0" />
             <div className="text-sm">
               <p className="font-medium mb-1">What do these numbers mean?</p>
               <p className="text-muted-foreground">

@@ -68,7 +68,7 @@ export function signalFromPick(p: any): SignalCardData {
 const CKEY = "var(--muted, #8b98a8)";
 const CSTR = "#e0a458";
 const CNUM = "#7aa2f7";
-const CFN = "var(--brand-cyan, #22d3ee)";
+const CFN = "var(--brand-cyan, #3b8cff)";
 
 const K = (t: string) => <span style={{ color: CKEY }}>{t}</span>;
 const S = (t: string | number) => <span style={{ color: CSTR }}>"{t}"</span>;

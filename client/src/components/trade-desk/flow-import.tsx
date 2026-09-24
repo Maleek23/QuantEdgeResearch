@@ -40,7 +40,7 @@ TSLA 350P 6/27`;
 
 function gradeClass(grade?: string): string {
   if (!grade) return "text-muted-foreground";
-  if (grade.startsWith("S") || grade.startsWith("A")) return "text-emerald-400";
+  if (grade.startsWith("S") || grade.startsWith("A")) return "text-[var(--trade-bullish)]";
   if (grade.startsWith("B")) return "text-[var(--brand-cyan)]";
   if (grade.startsWith("C")) return "text-amber-400";
   return "text-rose-400";
@@ -107,7 +107,7 @@ export function FlowImport({ bare = false }: { bare?: boolean }) {
             </div>
             {result.items.map((it, i) => (
               <div key={i} className="flex items-center gap-2 text-[11px] font-mono">
-                <span className={cn("w-6 shrink-0", it.pushed ? "text-emerald-400" : "text-muted-foreground")}>
+                <span className={cn("w-6 shrink-0", it.pushed ? "text-[var(--trade-bullish)]" : "text-muted-foreground")}>
                   {it.pushed ? "✓" : "·"}
                 </span>
                 <span className="w-28 shrink-0 truncate text-foreground">

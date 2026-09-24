@@ -61,7 +61,7 @@ export function MarketOverviewWidget() {
       <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)]">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground/90">
-            <BarChart3 className="h-4 w-4 text-cyan-400" />
+            <BarChart3 className="h-4 w-4 text-sky-400" />
             Market Overview
           </CardTitle>
         </CardHeader>
@@ -79,7 +79,7 @@ export function MarketOverviewWidget() {
       <Card className="bg-card/50 backdrop-blur-xl border-border/30 shadow-[0_0_30px_-10px_rgba(34,211,238,0.06)]">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground/90">
-            <BarChart3 className="h-4 w-4 text-cyan-400" />
+            <BarChart3 className="h-4 w-4 text-sky-400" />
             Market Overview
           </CardTitle>
         </CardHeader>
@@ -114,7 +114,7 @@ export function MarketOverviewWidget() {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground/90">
-            <BarChart3 className="h-4 w-4 text-cyan-400" />
+            <BarChart3 className="h-4 w-4 text-sky-400" />
             Market Overview
           </CardTitle>
           <Badge className="text-xs bg-muted/60 text-foreground/80 border border-border/50">
@@ -183,7 +183,7 @@ export function MarketOverviewWidget() {
 
         {context.spyData && (
           <div className="flex items-center gap-2 text-xs">
-            <Zap className="h-3 w-3 text-cyan-400" />
+            <Zap className="h-3 w-3 text-sky-400" />
             <span className="text-muted-foreground">Volume:</span>
             <span className={cn(
               "font-medium font-mono",
@@ -200,7 +200,7 @@ export function MarketOverviewWidget() {
             <div className="text-xs text-muted-foreground space-y-1">
               {context.reasons.slice(0, 3).map((reason, i) => (
                 <div key={i} className="flex items-start gap-1">
-                  <span className="text-cyan-400">•</span>
+                  <span className="text-sky-400">•</span>
                   <span>{reason}</span>
                 </div>
               ))}

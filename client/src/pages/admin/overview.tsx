@@ -37,7 +37,7 @@ interface MetricCardProps {
 
 function MetricCard({ title, value, description, icon, trend, color = 'cyan', isLoading }: MetricCardProps) {
   const colorClasses = {
-    cyan: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+    cyan: "text-sky-400 bg-sky-500/10 border-sky-500/20",
     green: "text-[var(--trade-bullish)] bg-[var(--trade-bullish)]/10 border-green-500/20",
     amber: "text-[var(--trade-neutral)] bg-amber-500/10 border-amber-500/20",
     purple: "text-purple-400 bg-purple-500/10 border-purple-500/20",
@@ -117,7 +117,7 @@ function RecentActivity({ activities, isLoading }: { activities: ActivityItem[];
         >
           <div className="p-2 rounded-full bg-muted">
             {activity.type === 'user_signup' && <UserPlus className="h-3 w-3 text-[var(--trade-bullish)]" />}
-            {activity.type === 'invite_sent' && <Mail className="h-3 w-3 text-cyan-400" />}
+            {activity.type === 'invite_sent' && <Mail className="h-3 w-3 text-sky-400" />}
             {activity.type === 'invite_redeemed' && <CheckCircle2 className="h-3 w-3 text-[var(--trade-bullish)]" />}
             {activity.type === 'waitlist_join' && <Clock className="h-3 w-3 text-[var(--trade-neutral)]" />}
             {!['user_signup', 'invite_sent', 'invite_redeemed', 'waitlist_join'].includes(activity.type) && 
@@ -282,7 +282,7 @@ function AdminOverviewContent() {
   const ideas = tradeIdeasData?.ideas || [];
   const botSourceMap: Record<string, { label: string; color: string; icon: any }> = {
     quant_signal: { label: "Quant Bot", color: "text-purple-400", icon: BarChart3 },
-    bot_screener: { label: "Screener Bot", color: "text-cyan-400", icon: Target },
+    bot_screener: { label: "Screener Bot", color: "text-sky-400", icon: Target },
     ai_analysis: { label: "AI Bot", color: "text-[var(--trade-neutral)]", icon: Brain },
     options_flow: { label: "Flow Bot", color: "text-[var(--trade-bullish)]", icon: TrendingUp },
     whale_flow: { label: "Whale Bot", color: "text-[var(--trade-bullish)]", icon: TrendingUp },
@@ -349,7 +349,7 @@ function AdminOverviewContent() {
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">
-              <Activity className="h-5 w-5 text-cyan-400" />
+              <Activity className="h-5 w-5 text-sky-400" />
               Recent Activity
             </CardTitle>
             <CardDescription className="text-muted-foreground">
@@ -387,7 +387,7 @@ function AdminOverviewContent() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3">
-              <Database className="h-8 w-8 text-cyan-400" />
+              <Database className="h-8 w-8 text-sky-400" />
               <div>
                 <p className="text-lg font-semibold text-foreground">
                   {stats?.dbStats?.tableCount || 0} tables
@@ -436,7 +436,7 @@ function AdminOverviewContent() {
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-foreground flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-cyan-400" />
+            <BarChart3 className="h-5 w-5 text-sky-400" />
             User Behavior Analytics (24h)
           </CardTitle>
           <CardDescription className="text-muted-foreground">
@@ -455,7 +455,7 @@ function AdminOverviewContent() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
-                    <Eye className="h-4 w-4 text-cyan-400" />
+                    <Eye className="h-4 w-4 text-sky-400" />
                     <span className="text-sm text-muted-foreground">Page Views</span>
                   </div>
                   <p className="text-2xl font-bold text-foreground" data-testid="metric-page-views-24h">
@@ -507,7 +507,7 @@ function AdminOverviewContent() {
                           <span className="text-xs text-muted-foreground w-5">{idx + 1}.</span>
                           <span className="text-sm text-foreground font-mono">{page.path}</span>
                         </div>
-                        <Badge variant="outline" className="text-cyan-400 border-cyan-500/20">
+                        <Badge variant="outline" className="text-sky-400 border-sky-500/20">
                           {page.count} views
                         </Badge>
                       </div>
@@ -563,7 +563,7 @@ function AdminOverviewContent() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
-                    <Zap className="h-4 w-4 text-cyan-400" />
+                    <Zap className="h-4 w-4 text-sky-400" />
                     <span className="text-sm text-muted-foreground">Total Ideas</span>
                   </div>
                   <p className="text-2xl font-bold text-foreground">{ideas.length}</p>
@@ -616,11 +616,11 @@ function AdminOverviewContent() {
                           <div className="flex items-center gap-3">
                             <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                               <div
-                                className={cn("h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400")}
+                                className={cn("h-full rounded-full bg-gradient-to-r from-sky-500 to-sky-400")}
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
-                            <Badge variant="outline" className="text-cyan-400 border-cyan-500/20 min-w-[50px] justify-center">
+                            <Badge variant="outline" className="text-sky-400 border-sky-500/20 min-w-[50px] justify-center">
                               {bot.count}
                             </Badge>
                           </div>

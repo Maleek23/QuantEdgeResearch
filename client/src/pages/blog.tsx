@@ -24,7 +24,7 @@ const CATEGORIES = [
 
 const CATEGORY_VISUALS: Record<string, { gradient: string; icon: any; pattern: string }> = {
   'education': { 
-    gradient: 'from-blue-600 via-cyan-500 to-teal-400', 
+    gradient: 'from-blue-600 via-sky-500 to-teal-400', 
     icon: GraduationCap,
     pattern: 'radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(20, 184, 166, 0.3) 0%, transparent 50%)'
   },
@@ -49,7 +49,7 @@ const CATEGORY_VISUALS: Record<string, { gradient: string; icon: any; pattern: s
     pattern: 'radial-gradient(circle at 30% 70%, rgba(220, 38, 38, 0.3) 0%, transparent 50%), radial-gradient(circle at 70% 30%, rgba(244, 114, 182, 0.3) 0%, transparent 50%)'
   },
   'platform-updates': { 
-    gradient: 'from-cyan-600 via-blue-500 to-indigo-400', 
+    gradient: 'from-sky-600 via-blue-500 to-indigo-400', 
     icon: Lightbulb,
     pattern: 'radial-gradient(circle at 25% 75%, rgba(8, 145, 178, 0.3) 0%, transparent 50%), radial-gradient(circle at 75% 25%, rgba(99, 102, 241, 0.3) 0%, transparent 50%)'
   },
@@ -101,7 +101,7 @@ export default function Blog() {
       
       {/* Hero Section */}
       <div className="relative overflow-hidden border-b border-border/50">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-purple-500/10" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
         
         <div className="container mx-auto max-w-[1600px] px-3 sm:px-4 py-6 md:py-8 relative">
@@ -110,7 +110,7 @@ export default function Blog() {
           </p>
 
           <div className="flex items-center gap-2 mb-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
               <BookOpen className="h-4 w-4 text-white" />
             </div>
             <div>
@@ -133,7 +133,7 @@ export default function Blog() {
                 <ChevronRight className="h-3 w-3" />
               </Button>
             </Link>
-            <Link href="/trading-rules">
+            <Link href="/how-to">
               <Button variant="outline" size="sm" className="border-border gap-2" data-testid="link-to-rules">
                 <Shield className="h-4 w-4" />
                 Trading Rules
@@ -151,7 +151,7 @@ export default function Blog() {
                   variant={isActive ? "default" : "outline"}
                   size="sm"
                   onClick={() => setActiveCategory(cat.id)}
-                  className={isActive ? "bg-cyan-500 text-foreground" : "border-border"}
+                  className={isActive ? "bg-sky-500 text-foreground" : "border-border"}
                   data-testid={`category-${cat.id}`}
                 >
                   <cat.icon className="h-4 w-4 mr-2" />
@@ -227,7 +227,7 @@ function FeaturedArticleCard({ article }: { article: BlogPost }) {
             <Badge variant="outline" className="w-fit mb-3 capitalize">
               {article.category.replace('-', ' ')}
             </Badge>
-            <h2 className="text-2xl md:text-3xl font-bold mb-3 group-hover:text-cyan-400 transition-colors">
+            <h2 className="text-2xl md:text-3xl font-bold mb-3 group-hover:text-sky-400 transition-colors">
               {article.title}
             </h2>
             <p className="text-muted-foreground mb-4 leading-relaxed line-clamp-3">
@@ -245,7 +245,7 @@ function FeaturedArticleCard({ article }: { article: BlogPost }) {
                   <span>{readTime} min read</span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-cyan-500 font-medium text-sm group-hover:gap-2 transition-all">
+              <div className="flex items-center gap-1 text-sky-500 font-medium text-sm group-hover:gap-2 transition-all">
                 Read more <ArrowRight className="h-4 w-4" />
               </div>
             </div>
@@ -280,7 +280,7 @@ function ArticleCard({ article }: { article: BlogPost }) {
           <Badge variant="outline" className="mb-3 capitalize text-xs">
             {article.category.replace('-', ' ')}
           </Badge>
-          <h3 className="font-bold text-lg mb-2 line-clamp-2 group-hover:text-cyan-400 transition-colors">
+          <h3 className="font-bold text-lg mb-2 line-clamp-2 group-hover:text-sky-400 transition-colors">
             {article.title}
           </h3>
           <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
@@ -292,7 +292,7 @@ function ArticleCard({ article }: { article: BlogPost }) {
               <Clock className="h-3 w-3" />
               <span>{readTime} min</span>
             </div>
-            <div className="flex items-center gap-1 text-cyan-500 font-medium group-hover:gap-2 transition-all">
+            <div className="flex items-center gap-1 text-sky-500 font-medium group-hover:gap-2 transition-all">
               Read <ChevronRight className="h-3 w-3" />
             </div>
           </div>
@@ -308,7 +308,7 @@ function TopicsSection() {
       title: 'Options Basics', 
       desc: 'Learn calls, puts, strikes, and expiration dates',
       icon: BookOpen,
-      color: 'from-blue-500 to-cyan-500'
+      color: 'from-blue-500 to-sky-500'
     },
     { 
       title: 'Risk Management', 
@@ -336,7 +336,7 @@ function TopicsSection() {
         Explore
       </p>
       <div className="flex items-center gap-2 mb-6">
-        <GraduationCap className="h-5 w-5 text-cyan-500" />
+        <GraduationCap className="h-5 w-5 text-sky-500" />
         <h2 className="text-xl font-semibold">Popular Topics</h2>
       </div>
       
@@ -361,8 +361,8 @@ function EmptyBlogState() {
   return (
     <Card className="glass-card text-center py-16 rounded-lg">
       <CardContent>
-        <div className="h-20 w-20 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-6">
-          <Newspaper className="h-10 w-10 text-cyan-500" />
+        <div className="h-20 w-20 rounded-lg bg-gradient-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-6">
+          <Newspaper className="h-10 w-10 text-sky-500" />
         </div>
         <h2 className="text-2xl font-semibold mb-2">Content Coming Soon</h2>
         <p className="text-muted-foreground max-w-md mx-auto mb-6 leading-relaxed">
@@ -390,7 +390,7 @@ function EmptyBlogState() {
 
 function NewsletterCTA() {
   return (
-    <Card className="glass-card bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10 border-cyan-500/20 rounded-lg">
+    <Card className="glass-card bg-gradient-to-br from-sky-500/10 via-transparent to-purple-500/10 border-sky-500/20 rounded-lg">
       <CardContent className="p-6 md:p-8">
         <div className="grid md:grid-cols-2 gap-8 items-center">
           <div>
@@ -398,7 +398,7 @@ function NewsletterCTA() {
               Stay Updated
             </p>
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
                 <Users className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-xl font-semibold">Join Our Community</h3>

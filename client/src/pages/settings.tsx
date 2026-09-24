@@ -251,7 +251,7 @@ export default function SettingsPage() {
               <RotateCcw className="h-4 w-4 mr-1" />
               Reset
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-cyan-500 hover:bg-cyan-400 text-foreground" data-testid="button-save">
+            <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-sky-500 hover:bg-sky-400 text-foreground" data-testid="button-save">
               <Save className="h-4 w-4 mr-1" />
               {saveMutation.isPending ? "Saving..." : "Save"}
             </Button>
@@ -372,7 +372,7 @@ export default function SettingsPage() {
                 </Select>
               </div>
               <Button size="sm" onClick={() => profileSaveMutation.mutate()} disabled={profileSaveMutation.isPending}
-                className="bg-cyan-500 text-foreground hover:bg-cyan-400" data-testid="button-save-profile">
+                className="bg-sky-500 text-foreground hover:bg-sky-400" data-testid="button-save-profile">
                 <Save className="mr-1 h-4 w-4" />
                 {profileSaveMutation.isPending ? 'Saving...' : 'Save profile'}
               </Button>
@@ -844,17 +844,17 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <Link href="/automations">
+                <Link href="/t?tab=bot">
                   <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
                     <Bot className="h-3.5 w-3.5" /> Automations
                   </Button>
                 </Link>
-                <Link href="/j?tab=log">
+                <Link href="/t?tab=journal">
                   <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
                     <Clock className="h-3.5 w-3.5" /> History
                   </Button>
                 </Link>
-                <Link href="/options-analyzer">
+                <Link href="/r/SPY?tab=options">
                   <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
                     <Target className="h-3.5 w-3.5" /> Options Analyzer
                   </Button>
@@ -872,7 +872,7 @@ export default function SettingsPage() {
             <RotateCcw className="h-4 w-4 mr-1" />
             Reset
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-cyan-500 hover:bg-cyan-400 text-foreground">
+          <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-sky-500 hover:bg-sky-400 text-foreground">
             <Save className="h-4 w-4 mr-1" />
             {saveMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>

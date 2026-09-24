@@ -60,8 +60,8 @@ export function WaitlistPromptModal({
       icon: BarChart3,
       title: "Save Your Watchlist",
       description: "Track your favorite stocks and set price alerts",
-      color: "text-cyan-400",
-      bgColor: "bg-cyan-500/10",
+      color: "text-sky-400",
+      bgColor: "bg-sky-500/10",
     },
     {
       icon: Sparkles,
@@ -76,8 +76,8 @@ export function WaitlistPromptModal({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader className="text-center">
-          <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mb-4">
-            <Sparkles className="h-8 w-8 text-cyan-400" />
+          <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center mb-4">
+            <Sparkles className="h-8 w-8 text-sky-400" />
           </div>
           <DialogTitle className="text-2xl font-bold text-white">{title}</DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -116,7 +116,7 @@ export function WaitlistPromptModal({
           {/* CTA Buttons */}
           <div className="space-y-3 pt-2">
             <Button
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium"
+              className="w-full bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-600 hover:to-blue-600 text-white font-medium"
               size="lg"
               onClick={handleSignup}
             >
@@ -127,7 +127,7 @@ export function WaitlistPromptModal({
             <p className="text-xs text-center text-muted-foreground">
               Already have an account?{" "}
               <button
-                className="text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
+                className="text-sky-400 hover:text-sky-300 hover:underline transition-colors"
                 onClick={handleLogin}
               >
                 Log in

@@ -35,7 +35,7 @@ export const componentStyles = {
 
   // Button variants
   button: {
-    primary: 'bg-gradient-to-r from-cyan-400 to-cyan-600 hover:from-cyan-300 hover:to-cyan-500 text-black font-semibold', // on the canonical brand ramp (cyan-* remapped in tailwind.config)
+    primary: 'bg-gradient-to-r from-sky-400 to-sky-600 hover:from-sky-300 hover:to-sky-500 text-black font-semibold', // on the canonical brand ramp (cyan-* remapped in tailwind.config)
     secondary: 'bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium border border-border',
     outline: 'border border-border hover:bg-muted text-foreground font-medium',
     ghost: 'hover:bg-muted/50 text-muted-foreground hover:text-foreground',
@@ -287,7 +287,7 @@ export const TC = {
   bull:    'var(--trade-bullish, #22c55e)',
   bear:    'var(--trade-bearish, #ef4444)',
   warn:    '#e0a458',
-  info:    'var(--brand-cyan, #4fd1c5)',
+  info:    'var(--brand-cyan, #3b8cff)',
   muted:   'var(--muted-foreground, #8b98a8)',
   neutral: 'var(--foreground, #e6edf3)',
 } as const;
@@ -347,7 +347,7 @@ export function riskColor(pctUsed: number): string {
 export function bandColor(band?: string | null): string {
   switch ((band ?? '').toUpperCase()) {
     case 'S': return '#e0a458';                       // gold — elite
-    case 'A': return 'var(--brand-cyan, #4fd1c5)';    // cyan — strong
+    case 'A': return 'var(--brand-cyan, #3b8cff)';    // cyan — strong
     case 'B': return '#7aa2f7';                       // slate blue — solid
     default:  return 'var(--muted-foreground, #8b98a8)';
   }
@@ -359,7 +359,7 @@ export function bandColor(band?: string | null): string {
  */
 export function confidenceFill(score: number): string {
   if (score >= 85) return '#e0a458';
-  if (score >= 70) return 'var(--brand-cyan, #4fd1c5)';
+  if (score >= 70) return 'var(--brand-cyan, #3b8cff)';
   if (score >= 50) return '#7aa2f7';
   if (score >= 30) return '#8b98a8';
   return 'var(--trade-bearish, #ef4444)';

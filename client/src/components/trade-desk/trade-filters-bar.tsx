@@ -85,7 +85,7 @@ function Chip({
       className={cn(
         "px-2.5 py-1 rounded text-[10px] font-mono uppercase tracking-wider transition-all border",
         active
-          ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/30"
+          ? "bg-sky-500/15 text-sky-300 border-sky-500/30"
           : "bg-foreground/[0.02] text-muted-foreground border-foreground/10 hover:text-foreground hover:border-foreground/20",
       )}
     >
@@ -197,7 +197,7 @@ export function TradeFiltersBar({
           <button
             onClick={() => onChange({ ...DEFAULT_FILTERS, search: filters.search })}
             data-testid="filter-clear"
-            className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-cyan-300 px-2 py-1 border border-foreground/10 rounded hover:border-cyan-500/30"
+            className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-sky-300 px-2 py-1 border border-foreground/10 rounded hover:border-sky-500/30"
           >
             Clear
           </button>

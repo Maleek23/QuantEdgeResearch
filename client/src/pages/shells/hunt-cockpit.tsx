@@ -1342,7 +1342,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                       levels={[
                         {
                           price: selected.entryPrice,
-                          color: "#22d3ee",
+                          color: "#3b8cff",
                           label: "ENTRY",
                         },
                         {

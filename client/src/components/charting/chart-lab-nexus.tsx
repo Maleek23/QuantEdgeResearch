@@ -57,7 +57,7 @@ function WatchSpark({ symbol, up }: { symbol: string; up: boolean }) {
     const pts = points.map((p) => p.close);
     const min = Math.min(...pts); const max = Math.max(...pts);
     const range = max - min || 1;
-    const color = up ? '#3ddc97' : '#ff5470';
+    const color = up ? '#6ee7b7' : '#ff6b3d';
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     grad.addColorStop(0, color + '40');
     grad.addColorStop(1, color + '00');
@@ -123,9 +123,9 @@ export function ChartLabBoard() {
   );
   // The real published levels — the mock's fake pivot ladder does not ship.
   const levels: Level[] = useMemo(() => (pick ? [
-    { price: pick.targetPrice, color: '#3ddc97', label: 'T1' },
-    { price: pick.entryPrice, color: '#4fd1c5', label: 'ENTRY' },
-    { price: pick.stopLoss, color: '#ff5470', label: 'STOP' },
+    { price: pick.targetPrice, color: '#6ee7b7', label: 'T1' },
+    { price: pick.entryPrice, color: '#3b8cff', label: 'ENTRY' },
+    { price: pick.stopLoss, color: '#ff6b3d', label: 'STOP' },
   ].filter((l) => Number.isFinite(l.price)) : []), [pick]);
 
   const { data: extended } = useQuery<EHPayload>({

@@ -226,17 +226,17 @@ const SEVERITY_STYLES = {
 } as const;
 
 const SEVERITY_TEXT = {
-  positive: 'text-emerald-400',
+  positive: 'text-[var(--trade-bullish)]',
   neutral: 'text-zinc-400',
   warning: 'text-amber-400',
-  critical: 'text-red-400',
+  critical: 'text-[var(--trade-bearish)]',
 } as const;
 
 const GRADE_COLORS = {
-  hot: 'bg-emerald-500/20 text-emerald-400',
+  hot: 'bg-emerald-500/20 text-[var(--trade-bullish)]',
   warm: 'bg-amber-500/20 text-amber-400',
   neutral: 'bg-zinc-500/20 text-zinc-400',
-  cold: 'bg-red-500/20 text-red-400',
+  cold: 'bg-red-500/20 text-[var(--trade-bearish)]',
 } as const;
 
 const BROKERS = [
@@ -252,13 +252,13 @@ const BROKERS = [
 ] as const;
 
 const EMOTIONS = [
-  { value: 'confident', label: 'Confident', color: 'text-emerald-400' },
+  { value: 'confident', label: 'Confident', color: 'text-[var(--trade-bullish)]' },
   { value: 'disciplined', label: 'Disciplined', color: 'text-blue-400' },
   { value: 'neutral', label: 'Neutral', color: 'text-zinc-400' },
   { value: 'fearful', label: 'Fearful', color: 'text-amber-400' },
   { value: 'fomo', label: 'FOMO', color: 'text-orange-400' },
-  { value: 'greedy', label: 'Greedy', color: 'text-red-400' },
-  { value: 'revenge', label: 'Revenge', color: 'text-red-500' },
+  { value: 'greedy', label: 'Greedy', color: 'text-[var(--trade-bearish)]' },
+  { value: 'revenge', label: 'Revenge', color: 'text-[var(--trade-bearish)]' },
 ] as const;
 
 // ─── Components ─────────────────────────────────────────────
@@ -442,17 +442,17 @@ function TickerTable({ data }: { data: TickerBreakdown[] }) {
               <td className="py-2 text-center">
                 <span className={cn(
                   "px-2 py-0.5 rounded text-[10px] font-medium",
-                  t.winRate >= 60 ? "bg-emerald-500/20 text-emerald-400" :
+                  t.winRate >= 60 ? "bg-emerald-500/20 text-[var(--trade-bullish)]" :
                   t.winRate >= 45 ? "bg-amber-500/20 text-amber-400" :
-                  "bg-red-500/20 text-red-400"
+                  "bg-red-500/20 text-[var(--trade-bearish)]"
                 )}>
                   {t.winRate}%
                 </span>
               </td>
-              <td className={cn("py-2 text-right font-mono", t.totalPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
+              <td className={cn("py-2 text-right font-mono", t.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                 {formatPnL(t.totalPnL)}
               </td>
-              <td className={cn("py-2 text-right font-mono", t.avgPnL >= 0 ? "text-emerald-400/70" : "text-red-400/70")}>
+              <td className={cn("py-2 text-right font-mono", t.avgPnL >= 0 ? "text-[var(--trade-bullish)]/70" : "text-[var(--trade-bearish)]/70")}>
                 {formatPnL(t.avgPnL)}
               </td>
             </tr>
@@ -478,13 +478,13 @@ function SetupTable({ data }: { data: SetupBreakdown[] }) {
             <div className="text-[10px] text-muted-foreground">{s.trades} trades</div>
           </div>
           <div className="text-center px-3">
-            <div className={cn("text-sm font-bold", s.winRate >= 55 ? "text-emerald-400" : s.winRate >= 45 ? "text-amber-400" : "text-red-400")}>
+            <div className={cn("text-sm font-bold", s.winRate >= 55 ? "text-[var(--trade-bullish)]" : s.winRate >= 45 ? "text-amber-400" : "text-[var(--trade-bearish)]")}>
               {s.winRate}%
             </div>
             <div className="text-[9px] text-muted-foreground">WIN RATE</div>
           </div>
           <div className="text-right w-20">
-            <div className={cn("text-sm font-mono font-medium", s.totalPnL >= 0 ? "text-emerald-400" : "text-red-400")}>
+            <div className={cn("text-sm font-mono font-medium", s.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
               {formatPnL(s.totalPnL)}
             </div>
             <div className="text-[9px] text-muted-foreground">TOTAL</div>
@@ -537,7 +537,7 @@ function RecentTradesTable({ trades }: { trades: TradeRecord[] }) {
                 <td className="py-2">
                   <span className={cn(
                     "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                    t.direction === 'long' ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                    t.direction === 'long' ? "bg-emerald-500/20 text-[var(--trade-bullish)]" : "bg-red-500/20 text-[var(--trade-bearish)]"
                   )}>
                     {t.direction === 'long' ? 'LONG' : 'SHORT'}
                   </span>
@@ -548,15 +548,15 @@ function RecentTradesTable({ trades }: { trades: TradeRecord[] }) {
                   {t.exitPrice ? `$${t.exitPrice.toFixed(2)}` : '—'}
                 </td>
                 <td className={cn("py-2 text-right font-mono font-medium",
-                  t.realizedPnL && t.realizedPnL > 0 ? "text-emerald-400" :
-                  t.realizedPnL && t.realizedPnL < 0 ? "text-red-400" : "text-muted-foreground"
+                  t.realizedPnL && t.realizedPnL > 0 ? "text-[var(--trade-bullish)]" :
+                  t.realizedPnL && t.realizedPnL < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
                 )}>
                   {t.realizedPnL != null ? formatPnL(t.realizedPnL) : '—'}
                 </td>
                 <td className="py-2 text-center">
                   <span className={cn("text-[10px] px-1.5 py-0.5 rounded",
-                    t.outcomeStatus === 'hit_target' ? "bg-emerald-500/20 text-emerald-400" :
-                    t.outcomeStatus === 'hit_stop' ? "bg-red-500/20 text-red-400" :
+                    t.outcomeStatus === 'hit_target' ? "bg-emerald-500/20 text-[var(--trade-bullish)]" :
+                    t.outcomeStatus === 'hit_stop' ? "bg-red-500/20 text-[var(--trade-bearish)]" :
                     t.outcomeStatus === 'expired' ? "bg-zinc-500/20 text-zinc-400" :
                     "bg-blue-500/20 text-blue-400"
                   )}>
@@ -729,8 +729,8 @@ function CSVImportPanel({ onImportSuccess }: { onImportSuccess: () => void }) {
           {importResult.success ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-semibold text-emerald-400">
+                <Check className="w-4 h-4 text-[var(--trade-bullish)]" />
+                <span className="text-sm font-semibold text-[var(--trade-bullish)]">
                   Import Successful
                 </span>
               </div>
@@ -750,8 +750,8 @@ function CSVImportPanel({ onImportSuccess }: { onImportSuccess: () => void }) {
           ) : (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <X className="w-4 h-4 text-red-400" />
-                <span className="text-sm font-semibold text-red-400">Import Failed</span>
+                <X className="w-4 h-4 text-[var(--trade-bearish)]" />
+                <span className="text-sm font-semibold text-[var(--trade-bearish)]">Import Failed</span>
               </div>
               <ul className="text-xs text-muted-foreground list-disc pl-4">
                 {importResult.errors.map((e, i) => <li key={i}>{e}</li>)}
@@ -917,7 +917,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/5 text-xs text-red-400">
+        <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/5 text-xs text-[var(--trade-bearish)]">
           {error}
         </div>
       )}
@@ -942,7 +942,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
               onClick={() => setForm(p => ({ ...p, direction: 'long' }))}
               className={cn(
                 "flex-1 py-2 rounded-lg text-xs font-medium transition-colors",
-                form.direction === 'long' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-white/5 text-muted-foreground border border-border/50"
+                form.direction === 'long' ? "bg-emerald-500/20 text-[var(--trade-bullish)] border border-emerald-500/30" : "bg-white/5 text-muted-foreground border border-border/50"
               )}
             >
               LONG
@@ -952,7 +952,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
               onClick={() => setForm(p => ({ ...p, direction: 'short' }))}
               className={cn(
                 "flex-1 py-2 rounded-lg text-xs font-medium transition-colors",
-                form.direction === 'short' ? "bg-red-500/20 text-red-400 border border-red-500/30" : "bg-white/5 text-muted-foreground border border-border/50"
+                form.direction === 'short' ? "bg-red-500/20 text-[var(--trade-bearish)] border border-red-500/30" : "bg-white/5 text-muted-foreground border border-border/50"
               )}
             >
               SHORT
@@ -1008,7 +1008,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
                 onClick={() => setForm(p => ({ ...p, optionType: 'call' }))}
                 className={cn(
                   "flex-1 py-2 rounded-lg text-xs font-medium transition-colors",
-                  form.optionType === 'call' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-white/5 text-muted-foreground border border-border/50"
+                  form.optionType === 'call' ? "bg-emerald-500/20 text-[var(--trade-bullish)] border border-emerald-500/30" : "bg-white/5 text-muted-foreground border border-border/50"
                 )}
               >
                 CALL
@@ -1018,7 +1018,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
                 onClick={() => setForm(p => ({ ...p, optionType: 'put' }))}
                 className={cn(
                   "flex-1 py-2 rounded-lg text-xs font-medium transition-colors",
-                  form.optionType === 'put' ? "bg-red-500/20 text-red-400 border border-red-500/30" : "bg-white/5 text-muted-foreground border border-border/50"
+                  form.optionType === 'put' ? "bg-red-500/20 text-[var(--trade-bearish)] border border-red-500/30" : "bg-white/5 text-muted-foreground border border-border/50"
                 )}
               >
                 PUT
@@ -1188,7 +1188,7 @@ function ManualTradeForm({ onSuccess }: { onSuccess: () => void }) {
               const diff = form.direction === 'long' ? exit - entry : entry - exit;
               const pnl = diff * qty * mult - fees;
               return (
-                <span className={cn("text-lg font-bold font-mono", pnl >= 0 ? "text-emerald-400" : "text-red-400")}>
+                <span className={cn("text-lg font-bold font-mono", pnl >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
                   {formatPnL(pnl)}
                 </span>
               );
@@ -1273,7 +1273,7 @@ function PersonalTradesTable({ trades, onDelete }: { trades: JournalTradeRow[]; 
                 <td className="py-2">
                   <span className={cn(
                     "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                    t.direction === 'long' ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                    t.direction === 'long' ? "bg-emerald-500/20 text-[var(--trade-bullish)]" : "bg-red-500/20 text-[var(--trade-bearish)]"
                   )}>
                     {t.direction === 'long' ? 'LONG' : 'SHORT'}
                   </span>
@@ -1285,8 +1285,8 @@ function PersonalTradesTable({ trades, onDelete }: { trades: JournalTradeRow[]; 
                   {t.exitPrice ? `$${t.exitPrice.toFixed(2)}` : '—'}
                 </td>
                 <td className={cn("py-2 text-right font-mono font-medium",
-                  pnl && pnl > 0 ? "text-emerald-400" :
-                  pnl && pnl < 0 ? "text-red-400" : "text-muted-foreground"
+                  pnl && pnl > 0 ? "text-[var(--trade-bullish)]" :
+                  pnl && pnl < 0 ? "text-[var(--trade-bearish)]" : "text-muted-foreground"
                 )}>
                   {pnl != null ? formatPnL(pnl) : '—'}
                   {t.realizedPnLPercent != null && (
@@ -1297,8 +1297,8 @@ function PersonalTradesTable({ trades, onDelete }: { trades: JournalTradeRow[]; 
                 </td>
                 <td className="py-2 text-center">
                   <span className={cn("text-[10px] px-1.5 py-0.5 rounded",
-                    t.outcome === 'win' ? "bg-emerald-500/20 text-emerald-400" :
-                    t.outcome === 'loss' ? "bg-red-500/20 text-red-400" :
+                    t.outcome === 'win' ? "bg-emerald-500/20 text-[var(--trade-bullish)]" :
+                    t.outcome === 'loss' ? "bg-red-500/20 text-[var(--trade-bearish)]" :
                     t.outcome === 'breakeven' ? "bg-zinc-500/20 text-zinc-400" :
                     "bg-blue-500/20 text-blue-400"
                   )}>
@@ -1316,7 +1316,7 @@ function PersonalTradesTable({ trades, onDelete }: { trades: JournalTradeRow[]; 
                 <td className="py-2 text-center">
                   <button
                     onClick={() => onDelete(t.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-400"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-[var(--trade-bearish)]"
                     title="Delete trade"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -1372,14 +1372,14 @@ function DTEBreakdownCard({ data }: { data: DTEBreakdown[] }) {
                   {d.winRate.toFixed(0)}% WR · {d.trades} trades
                 </span>
                 <span className={cn("text-[10px] font-mono font-medium",
-                  d.avgPnL >= 0 ? "text-emerald-400" : "text-red-400"
+                  d.avgPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   avg {formatPnL(d.avgPnL)}
                 </span>
               </div>
             </div>
             <span className={cn("text-[10px] font-mono w-16 text-right font-medium",
-              d.totalPnL >= 0 ? "text-emerald-400" : "text-red-400"
+              d.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
             )}>
               {formatPnL(d.totalPnL)}
             </span>
@@ -1425,7 +1425,7 @@ function DayOfWeekChart({ data }: { data: DayOfWeekPnL[] }) {
               <div className="absolute inset-0 flex items-center justify-between px-1">
                 <span className="text-[9px] text-muted-foreground">{d.trades} trades</span>
                 <span className={cn("text-[10px] font-mono font-medium",
-                  isPositive ? "text-emerald-400" : "text-red-400"
+                  isPositive ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {formatPnL(d.totalPnL)}
                 </span>
@@ -1464,7 +1464,7 @@ function TradeCountOptimumCard({ data }: { data: TradeCountBucket[] }) {
               : "border-border/30 bg-white/5"
           )}>
             <div className="flex items-center gap-3">
-              {isBest && <Star className="w-3.5 h-3.5 text-emerald-400" />}
+              {isBest && <Star className="w-3.5 h-3.5 text-[var(--trade-bullish)]" />}
               <div>
                 <div className="text-sm font-medium text-foreground">{b.label}</div>
                 <div className="text-[10px] text-muted-foreground">{b.days} days · {b.winRate.toFixed(0)}% WR</div>
@@ -1472,7 +1472,7 @@ function TradeCountOptimumCard({ data }: { data: TradeCountBucket[] }) {
             </div>
             <div className="text-right">
               <div className={cn("text-sm font-mono font-bold",
-                b.avgPnL >= 0 ? "text-emerald-400" : "text-red-400"
+                b.avgPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 {formatPnL(b.avgPnL)}/day
               </div>
@@ -1484,7 +1484,7 @@ function TradeCountOptimumCard({ data }: { data: TradeCountBucket[] }) {
         );
       })}
       {bestBucket && bestBucket.avgPnL > 0 && (
-        <div className="text-[10px] text-emerald-400/80 flex items-center gap-1.5 px-1">
+        <div className="text-[10px] text-[var(--trade-bullish)]/80 flex items-center gap-1.5 px-1">
           <Lightbulb className="w-3 h-3" />
           Sweet spot: {bestBucket.label} per day (avg {formatPnL(bestBucket.avgPnL)}/day)
         </div>
@@ -1557,7 +1557,7 @@ function WeeklyPnLChart({ data }: { data: WeeklyPnL[] }) {
               <div className="absolute inset-0 flex items-center justify-between px-1.5">
                 <span className="text-[9px] text-muted-foreground">{w.trades} trades</span>
                 <span className={cn("text-[9px] font-mono",
-                  w.totalPnL >= 0 ? "text-emerald-400" : "text-red-400"
+                  w.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
                 )}>
                   {formatPnL(w.totalPnL)}
                 </span>
@@ -1578,16 +1578,16 @@ function DrawdownCard({ data }: { data: DrawdownMetrics }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-3 rounded-lg bg-white/5">
           <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 cursor-help" title="Largest peak-to-trough decline in your equity curve.">Max Drawdown</div>
-          <div className="text-lg font-bold text-red-400 font-mono">{formatPnL(-Math.abs(data.maxDrawdown))}</div>
+          <div className="text-lg font-bold text-[var(--trade-bearish)] font-mono">{formatPnL(-Math.abs(data.maxDrawdown))}</div>
         </div>
         <div className="p-3 rounded-lg bg-white/5">
           <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 cursor-help" title="Highest cumulative P&L your journal has reached.">Peak Equity</div>
-          <div className="text-lg font-bold text-emerald-400 font-mono">{formatPnL(data.peakEquity)}</div>
+          <div className="text-lg font-bold text-[var(--trade-bullish)] font-mono">{formatPnL(data.peakEquity)}</div>
         </div>
         <div className="p-3 rounded-lg bg-white/5">
           <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1 cursor-help" title="How far your equity currently sits below its peak.">Current Drawdown</div>
           <div className={cn("text-lg font-bold font-mono",
-            data.currentDrawdown > 0 ? "text-red-400" : "text-emerald-400"
+            data.currentDrawdown > 0 ? "text-[var(--trade-bearish)]" : "text-[var(--trade-bullish)]"
           )}>
             {data.currentDrawdown > 0 ? formatPnL(-data.currentDrawdown) : 'At peak'}
           </div>
@@ -1611,7 +1611,7 @@ function DrawdownCard({ data }: { data: DrawdownMetrics }) {
                   {' → '}
                   {new Date(p.end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </span>
-                <span className="text-[10px] font-mono text-red-400 font-medium">
+                <span className="text-[10px] font-mono text-[var(--trade-bearish)] font-medium">
                   {formatPnL(-Math.abs(p.depth))}
                 </span>
               </div>
@@ -1626,13 +1626,13 @@ function DrawdownCard({ data }: { data: DrawdownMetrics }) {
 // ─── Emotion Analysis ─────────────────────────────────────
 
 const EMOTION_COLORS: Record<string, string> = {
-  confident: 'text-emerald-400 bg-emerald-500/20',
+  confident: 'text-[var(--trade-bullish)] bg-emerald-500/20',
   disciplined: 'text-blue-400 bg-blue-500/20',
   neutral: 'text-zinc-400 bg-zinc-500/20',
   fearful: 'text-amber-400 bg-amber-500/20',
   fomo: 'text-orange-400 bg-orange-500/20',
-  greedy: 'text-red-400 bg-red-500/20',
-  revenge: 'text-red-500 bg-red-500/20',
+  greedy: 'text-[var(--trade-bearish)] bg-red-500/20',
+  revenge: 'text-[var(--trade-bearish)] bg-red-500/20',
 };
 
 function EmotionChart({ data }: { data: EmotionAnalysis[] }) {
@@ -1658,14 +1658,14 @@ function EmotionChart({ data }: { data: EmotionAnalysis[] }) {
             <div className="flex-1 flex items-center gap-3">
               <span className="text-[10px] text-muted-foreground">{e.trades} trades</span>
               <span className={cn("text-[10px] font-medium",
-                e.winRate >= 55 ? "text-emerald-400" : e.winRate >= 45 ? "text-amber-400" : "text-red-400"
+                e.winRate >= 55 ? "text-[var(--trade-bullish)]" : e.winRate >= 45 ? "text-amber-400" : "text-[var(--trade-bearish)]"
               )}>
                 {e.winRate.toFixed(0)}% WR
               </span>
             </div>
             <div className="text-right">
               <span className={cn("text-xs font-mono font-medium",
-                e.avgPnL >= 0 ? "text-emerald-400" : "text-red-400"
+                e.avgPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
               )}>
                 avg {formatPnL(e.avgPnL)}
               </span>
@@ -2006,7 +2006,7 @@ export default function TradeJournal() {
           >
             Expectancy · your edge per trade
           </span>
-          <div className={cn("text-4xl font-bold tabular-nums mt-1", metrics.expectancy >= 0 ? "text-emerald-400" : "text-red-400")}>
+          <div className={cn("text-4xl font-bold tabular-nums mt-1", metrics.expectancy >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
             {formatPnL(metrics.expectancy)}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -2018,7 +2018,7 @@ export default function TradeJournal() {
             {` Across ${metrics.closedTrades} closed trades.`}
           </p>
         </div>
-        <Zap className={cn("w-8 h-8 shrink-0", metrics.expectancy >= 0 ? "text-emerald-400/50" : "text-red-400/50")} />
+        <Zap className={cn("w-8 h-8 shrink-0", metrics.expectancy >= 0 ? "text-[var(--trade-bullish)]/50" : "text-[var(--trade-bearish)]/50")} />
       </div>
 
       {/* Stat Cards */}
@@ -2027,21 +2027,21 @@ export default function TradeJournal() {
           label="Total P&L" value={formatPnL(metrics.totalPnL)}
           subValue={`${metrics.closedTrades} closed trades`}
           icon={metrics.totalPnL >= 0 ? TrendingUp : TrendingDown}
-          color={metrics.totalPnL >= 0 ? "text-emerald-400" : "text-red-400"}
+          color={metrics.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"}
           tooltip="Net profit or loss across all closed trades in this journal."
         />
         <StatCard
           label="Win Rate" value={`${metrics.winRate.toFixed(1)}%`}
           subValue={`${metrics.wins}W / ${metrics.losses}L`}
           icon={Target}
-          color={metrics.winRate >= 55 ? "text-emerald-400" : metrics.winRate >= 45 ? "text-amber-400" : "text-red-400"}
+          color={metrics.winRate >= 55 ? "text-[var(--trade-bullish)]" : metrics.winRate >= 45 ? "text-amber-400" : "text-[var(--trade-bearish)]"}
           tooltip="Share of closed trades that were winners."
         />
         <StatCard
           label="Profit Factor" value={metrics.profitFactor === Infinity ? 'INF' : `${metrics.profitFactor.toFixed(2)}x`}
           subValue={`Avg win $${metrics.avgWin.toFixed(0)} / Avg loss $${metrics.avgLoss.toFixed(0)}`}
           icon={BarChart3}
-          color={metrics.profitFactor >= 1.5 ? "text-emerald-400" : metrics.profitFactor >= 1 ? "text-amber-400" : "text-red-400"}
+          color={metrics.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" : metrics.profitFactor >= 1 ? "text-amber-400" : "text-[var(--trade-bearish)]"}
           tooltip="Gross profit divided by gross loss. Above 1.0 means profitable; 1.5+ is strong."
         />
         <StatCard
@@ -2049,7 +2049,7 @@ export default function TradeJournal() {
           value={`${metrics.currentStreak.count} ${metrics.currentStreak.type === 'win' ? 'W' : 'L'}`}
           subValue={`Best: ${metrics.bestStreak}W | Worst: ${metrics.worstStreak}L`}
           icon={metrics.currentStreak.type === 'win' ? Flame : Snowflake}
-          color={metrics.currentStreak.type === 'win' ? "text-emerald-400" : "text-red-400"}
+          color={metrics.currentStreak.type === 'win' ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"}
           tooltip="Your current run of consecutive wins or losses."
         />
         <StatCard
@@ -2131,7 +2131,7 @@ export default function TradeJournal() {
         <div className="space-y-6">
           {positiveInsights.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-emerald-400 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-[var(--trade-bullish)] mb-3 flex items-center gap-2">
                 <Trophy className="w-4 h-4" /> Your Strengths
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2246,7 +2246,7 @@ export default function TradeJournal() {
             <div className="bg-card border border-red-500/20 rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <h4 className="text-xs font-semibold text-[var(--trade-bearish)] uppercase tracking-wider flex items-center gap-1.5">
                     <Trash2 className="w-3.5 h-3.5" /> Reset Journal
                   </h4>
                   <p className="text-[11px] text-muted-foreground mt-1">
@@ -2272,7 +2272,7 @@ export default function TradeJournal() {
                       alert('Failed to delete: ' + err.message);
                     }
                   }}
-                  className="px-4 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors shrink-0"
+                  className="px-4 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-[var(--trade-bearish)] border border-red-500/20 hover:bg-red-500/20 transition-colors shrink-0"
                 >
                   Delete All Trades
                 </button>

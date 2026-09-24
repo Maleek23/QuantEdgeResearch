@@ -77,7 +77,7 @@ export function DensityControl({ className }: { className?: string }) {
         onClick={() => setDensity('minimal')}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
           density === 'minimal' 
-            ? 'bg-cyan-500 text-foreground' 
+            ? 'bg-sky-500 text-foreground' 
             : 'text-muted-foreground hover:text-foreground/90 hover:bg-muted/40'
         }`}
       >
@@ -88,7 +88,7 @@ export function DensityControl({ className }: { className?: string }) {
         onClick={() => setDensity('standard')}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
           density === 'standard' 
-            ? 'bg-cyan-500 text-foreground' 
+            ? 'bg-sky-500 text-foreground' 
             : 'text-muted-foreground hover:text-foreground/90 hover:bg-muted/40'
         }`}
       >
@@ -99,7 +99,7 @@ export function DensityControl({ className }: { className?: string }) {
         onClick={() => setDensity('detailed')}
         className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
           density === 'detailed' 
-            ? 'bg-cyan-500 text-foreground' 
+            ? 'bg-sky-500 text-foreground' 
             : 'text-muted-foreground hover:text-foreground/90 hover:bg-muted/40'
         }`}
       >

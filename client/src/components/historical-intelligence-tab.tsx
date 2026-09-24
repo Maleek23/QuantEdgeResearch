@@ -64,7 +64,7 @@ function HeroStats({ stats }: { stats: HistoricalStats }) {
       <Card>
         <CardContent className="pt-4 pb-3">
           <div className="flex flex-col items-center">
-            <Database className="h-6 w-6 text-cyan-400 mb-1" />
+            <Database className="h-6 w-6 text-sky-400 mb-1" />
             <p className="text-2xl font-bold">{stats.overall.totalIdeas.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Total Ideas</p>
           </div>

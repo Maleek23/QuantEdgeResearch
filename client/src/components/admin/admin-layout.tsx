@@ -130,7 +130,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     return (
       <div className="min-h-screen bg-card flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-4">
-          <Shield className="h-12 w-12 text-cyan-500" />
+          <Shield className="h-12 w-12 text-sky-500" />
           <p className="text-muted-foreground">Verifying access...</p>
         </div>
       </div>
@@ -143,8 +143,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div className="min-h-screen bg-card flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-card border-border">
           <CardHeader className="text-center space-y-2">
-            <div className="mx-auto p-3 bg-cyan-500/10 rounded-full w-fit border border-cyan-500/20">
-              <Shield className="h-8 w-8 text-cyan-500" />
+            <div className="mx-auto p-3 bg-sky-500/10 rounded-full w-fit border border-sky-500/20">
+              <Shield className="h-8 w-8 text-sky-500" />
             </div>
             <CardTitle className="text-2xl text-white">Admin Access</CardTitle>
             <CardDescription className="text-muted-foreground">
@@ -175,7 +175,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 </InputOTP>
                 <Button 
                   onClick={handlePinSubmit} 
-                  className="w-full bg-cyan-600 hover:bg-cyan-700"
+                  className="w-full bg-sky-600 hover:bg-sky-700"
                   disabled={pinCode.length !== 4}
                   data-testid="button-verify-pin"
                 >
@@ -195,7 +195,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 />
                 <Button 
                   onClick={handlePasswordSubmit}
-                  className="w-full bg-cyan-600 hover:bg-cyan-700"
+                  className="w-full bg-sky-600 hover:bg-sky-700"
                   disabled={!password}
                   data-testid="button-login"
                 >
@@ -243,8 +243,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <span className="text-sm">Back to App</span>
             </Link>
             <div className="flex items-center gap-3 mt-4">
-              <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-                <Shield className="h-5 w-5 text-cyan-500" />
+              <div className="p-2 bg-sky-500/10 rounded-lg border border-sky-500/20">
+                <Shield className="h-5 w-5 text-sky-500" />
               </div>
               <div>
                 <h2 className="font-semibold text-white">Admin Panel</h2>
@@ -270,7 +270,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                             className={cn(
                               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                               isActive 
-                                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" 
+                                ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" 
                                 : "text-muted-foreground hover:text-white hover:bg-muted"
                             )}
                             data-testid={`nav-${item.title.toLowerCase()}`}
@@ -302,7 +302,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                             className={cn(
                               "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                               isActive 
-                                ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" 
+                                ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" 
                                 : "text-muted-foreground hover:text-white hover:bg-muted"
                             )}
                             data-testid={`nav-${item.title.toLowerCase().replace('/', '-')}`}

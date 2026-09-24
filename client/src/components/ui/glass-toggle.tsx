@@ -18,7 +18,7 @@ const GlassToggle = React.forwardRef<
   };
 
   const variantClasses = {
-    cyan: "data-[state=checked]:bg-cyan-500",
+    cyan: "data-[state=checked]:bg-sky-500",
     green: "data-[state=checked]:bg-[var(--trade-bullish)]",
     amber: "data-[state=checked]:bg-amber-500",
   };
@@ -28,7 +28,7 @@ const GlassToggle = React.forwardRef<
       className={cn(
         "peer inline-flex shrink-0 cursor-pointer items-center rounded-full",
         "border border-border/60 transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
         "disabled:cursor-not-allowed disabled:opacity-50",
         "bg-muted/70 backdrop-blur-sm",
         variantClasses[variant],

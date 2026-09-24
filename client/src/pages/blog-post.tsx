@@ -20,7 +20,7 @@ import type { BlogPost } from "@shared/schema";
 
 const CATEGORY_VISUALS: Record<string, { gradient: string; icon: any; pattern: string }> = {
   'education': { 
-    gradient: 'from-blue-600 via-cyan-500 to-teal-400', 
+    gradient: 'from-blue-600 via-sky-500 to-teal-400', 
     icon: BookOpen,
     pattern: 'radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(20, 184, 166, 0.3) 0%, transparent 50%)'
   },
@@ -45,7 +45,7 @@ const CATEGORY_VISUALS: Record<string, { gradient: string; icon: any; pattern: s
     pattern: 'radial-gradient(circle at 30% 70%, rgba(220, 38, 38, 0.3) 0%, transparent 50%), radial-gradient(circle at 70% 30%, rgba(244, 114, 182, 0.3) 0%, transparent 50%)'
   },
   'platform-updates': { 
-    gradient: 'from-cyan-600 via-blue-500 to-indigo-400', 
+    gradient: 'from-sky-600 via-blue-500 to-indigo-400', 
     icon: Lightbulb,
     pattern: 'radial-gradient(circle at 25% 75%, rgba(8, 145, 178, 0.3) 0%, transparent 50%), radial-gradient(circle at 75% 25%, rgba(99, 102, 241, 0.3) 0%, transparent 50%)'
   },
@@ -77,14 +77,14 @@ function TradingGuideContent() {
     <div className="space-y-12">
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-lg glass-card p-8 md:p-12">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/20 via-primary/10 to-purple-500/20" />
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/20 via-primary/10 to-purple-500/20" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
         <div className="relative">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
             Complete Trading Guide
           </p>
           <div className="flex items-center gap-3 mb-4">
-            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
               <BookOpen className="h-6 w-6 text-foreground" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-semibold">
@@ -105,7 +105,7 @@ function TradingGuideContent() {
             { num: 4, label: 'Execute Trade', icon: DollarSign },
           ].map((step) => (
             <div key={step.num} className="flex items-center gap-3 stat-glass rounded-lg p-3">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-foreground font-bold font-mono tabular-nums">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-foreground font-bold font-mono tabular-nums">
                 {step.num}
               </div>
               <div>
@@ -120,7 +120,7 @@ function TradingGuideContent() {
       {/* Step 1: Find Trade Ideas */}
       <section>
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-foreground font-bold font-mono text-xl">
+          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-foreground font-bold font-mono text-xl">
             1
           </div>
           <div>
@@ -131,7 +131,7 @@ function TradingGuideContent() {
 
         <div className="grid md:grid-cols-2 gap-4 mb-8">
           {[
-            { title: 'Trade Desk', desc: 'Fresh AI + Quant research briefs generated daily at market open', icon: Sparkles, color: 'from-cyan-500 to-blue-600' },
+            { title: 'Trade Desk', desc: 'Fresh AI + Quant research briefs generated daily at market open', icon: Sparkles, color: 'from-sky-500 to-blue-600' },
             { title: 'Flow Scanner', desc: 'Unusual options activity from institutional traders', icon: Zap, color: 'from-purple-500 to-pink-600' },
             { title: 'Lotto Ideas', desc: 'High R:R weekly options with 2:1+ risk/reward', icon: Target, color: 'from-orange-500 to-red-600' },
             { title: 'Chart Analysis', desc: 'Upload your own chart for AI-powered analysis', icon: BarChart3, color: 'from-green-500 to-emerald-600' },
@@ -153,11 +153,11 @@ function TradingGuideContent() {
         </div>
 
         {/* Signal Grades */}
-        <Card className="glass-card border-cyan-500/20 rounded-lg">
+        <Card className="glass-card border-sky-500/20 rounded-lg">
           <CardHeader>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Understanding</p>
             <CardTitle className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-foreground" />
               </div>
               Signal Grades
@@ -185,11 +185,11 @@ function TradingGuideContent() {
               ))}
             </div>
             
-            <div className="mt-6 p-4 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+            <div className="mt-6 p-4 rounded-lg bg-sky-500/10 border border-sky-500/20">
               <div className="flex items-start gap-3">
-                <Lightbulb className="h-5 w-5 text-cyan-500 shrink-0 mt-0.5" />
+                <Lightbulb className="h-5 w-5 text-sky-500 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-cyan-400">Pro Tip:</span>
+                  <span className="font-semibold text-sky-400">Pro Tip:</span>
                   <span className="text-muted-foreground ml-2">
                     Focus on A and B grade setups with clear risk/reward. Skip C and D grades unless you have additional confirmation.
                   </span>
@@ -224,13 +224,13 @@ function TradingGuideContent() {
                 { timeframe: '5-15 Minute', best: 'Same-day (0DTE)', use: 'Quick momentum plays that resolve in hours', color: 'from-red-500 to-orange-500' },
                 { timeframe: '1 Hour', best: '1-3 day swings', use: 'Catching overnight moves or 2-day momentum', color: 'from-orange-500 to-amber-500' },
                 { timeframe: '4 Hour', best: 'Weekly options (5-7 days)', use: 'Best for Friday expirations bought Mon-Wed', color: 'from-green-500 to-emerald-500' },
-                { timeframe: 'Daily', best: '2-4 week swings', use: 'Monthly options or longer-dated plays', color: 'from-blue-500 to-cyan-500' },
+                { timeframe: 'Daily', best: '2-4 week swings', use: 'Monthly options or longer-dated plays', color: 'from-blue-500 to-sky-500' },
               ].map((item) => (
                 <div key={item.timeframe} className="p-4 rounded-lg stat-glass relative overflow-hidden">
                   <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${item.color}`} />
                   <div className="pl-3">
                     <div className="font-bold text-lg font-mono">{item.timeframe}</div>
-                    <div className="text-sm text-cyan-400 font-medium">{item.best}</div>
+                    <div className="text-sm text-sky-400 font-medium">{item.best}</div>
                     <div className="text-sm text-muted-foreground mt-1">{item.use}</div>
                   </div>
                 </div>
@@ -255,7 +255,7 @@ function TradingGuideContent() {
               {[
                 { label: 'Primary', chart: '4-Hour Chart', desc: 'Shows the weekly trend and key support/resistance levels', color: 'from-purple-500 to-violet-600' },
                 { label: 'Entry', chart: '1-Hour Chart', desc: 'Fine-tune your entry point within the larger trend', color: 'from-pink-500 to-rose-600' },
-                { label: 'Confirmation', chart: 'Daily Chart', desc: "Make sure you're trading WITH the larger trend", color: 'from-blue-500 to-cyan-600' },
+                { label: 'Confirmation', chart: 'Daily Chart', desc: "Make sure you're trading WITH the larger trend", color: 'from-blue-500 to-sky-600' },
               ].map((item) => (
                 <div key={item.label} className="text-center p-4 rounded-lg stat-glass">
                   <Badge className={`bg-gradient-to-r ${item.color} text-foreground mb-3 border-0`}>{item.label}</Badge>
@@ -357,7 +357,7 @@ function TradingGuideContent() {
                   <div className="p-4">
                     <Badge variant="outline" className="mb-2 font-mono">{item.type}</Badge>
                     <h4 className="font-bold mb-1">{item.name}</h4>
-                    <div className="text-xs text-cyan-400 mb-2 font-mono">{item.delta}</div>
+                    <div className="text-xs text-sky-400 mb-2 font-mono">{item.delta}</div>
                     <p className="text-sm text-muted-foreground">{item.desc}</p>
                   </div>
                 </div>
@@ -405,7 +405,7 @@ function TradingGuideContent() {
               {[
                 { rr: '2:1', label: 'Minimum R:R', desc: 'Risk $1 to make $2', color: 'text-yellow-500' },
                 { rr: '3:1', label: 'Good R:R', desc: 'Risk $1 to make $3', color: 'text-[var(--trade-bullish)]' },
-                { rr: '5:1+', label: 'Lotto R:R', desc: 'Risk $1 to make $5+', color: 'text-cyan-500' },
+                { rr: '5:1+', label: 'Lotto R:R', desc: 'Risk $1 to make $5+', color: 'text-sky-500' },
               ].map((item) => (
                 <div key={item.rr} className="text-center p-4 rounded-lg stat-glass">
                   <div className={`text-3xl font-bold font-mono ${item.color}`}>{item.rr}</div>
@@ -502,11 +502,11 @@ function TradingGuideContent() {
         </Card>
 
         {/* Pre-Trade Checklist */}
-        <Card className="glass-card border-cyan-500/20 rounded-lg">
+        <Card className="glass-card border-sky-500/20 rounded-lg">
           <CardHeader>
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Checklist</p>
             <CardTitle className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
                 <CheckCircle2 className="h-4 w-4 text-foreground" />
               </div>
               Pre-Trade Checklist
@@ -554,18 +554,18 @@ function TradingGuideContent() {
       </Card>
 
       {/* CTA */}
-      <Card className="glass-card bg-gradient-to-br from-cyan-500/10 via-primary/5 to-purple-500/10 border-cyan-500/20 rounded-lg">
+      <Card className="glass-card bg-gradient-to-br from-sky-500/10 via-primary/5 to-purple-500/10 border-sky-500/20 rounded-lg">
         <CardContent className="p-8 text-center">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center mx-auto mb-4">
+          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center mx-auto mb-4">
             <Sparkles className="h-6 w-6 text-foreground" />
           </div>
           <h3 className="text-xl font-semibold mb-2">Ready to Start Trading?</h3>
           <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
             Put what you've learned into practice with our AI-powered research tools
           </p>
-          <Link href="/trade-desk">
-            <Button size="lg" className="gap-2 bg-cyan-500 text-foreground" data-testid="button-go-to-trade-desk">
-              Go to Trade Desk
+          <Link href="/slate">
+            <Button size="lg" className="gap-2 bg-sky-500 text-foreground" data-testid="button-go-to-trade-desk">
+              Go to Slate
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -707,7 +707,7 @@ export default function BlogPostPage() {
       
       {/* Hero Header */}
       <div className="relative overflow-hidden border-b border-border/50">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-purple-500/10" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
         
         <div className="container mx-auto max-w-4xl px-6 py-8 relative">

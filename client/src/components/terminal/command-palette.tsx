@@ -128,12 +128,12 @@ export function CommandPalette({
               style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer',
                 background: cursor === i ? 'rgba(34,211,238,0.08)' : 'transparent',
-                borderLeft: cursor === i ? '2px solid var(--cyan-bright, #22d3ee)' : '2px solid transparent',
+                borderLeft: cursor === i ? '2px solid var(--cyan-bright, #3b8cff)' : '2px solid transparent',
               }}
             >
               {item.kind === 'tab' ? (
                 <>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: 'var(--cyan-bright, #22d3ee)' }}>→</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: 'var(--cyan-bright, #3b8cff)' }}>→</span>
                   <span style={{ fontSize: 12.5, color: 'var(--text)' }}>{item.label}</span>
                   <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>tab</span>
                 </>
@@ -141,7 +141,7 @@ export function CommandPalette({
                 <>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, fontWeight: 700, letterSpacing: 0.8, color: 'var(--text)', minWidth: 56 }}>{item.symbol}</span>
                   <span style={{
-                    fontSize: 11, color: item.changePct != null ? (item.changePct >= 0 ? 'var(--green, #34d399)' : 'var(--red, #ff5470)') : 'var(--text-dim, #8b93a7)',
+                    fontSize: 11, color: item.changePct != null ? (item.changePct >= 0 ? 'var(--green, #34d399)' : 'var(--red, #ff6b3d)') : 'var(--text-dim, #8b93a7)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
                   }}>{item.name ?? ''}</span>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>↵ workup</span>

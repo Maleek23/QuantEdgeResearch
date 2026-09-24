@@ -182,7 +182,7 @@ function AdminInvitesContent() {
   const getStatusBadge = (status: string) => {
     const styles = {
       pending: "bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20",
-      sent: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+      sent: "bg-sky-500/10 text-sky-400 border-sky-500/20",
       redeemed: "bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20",
       expired: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
       revoked: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20",
@@ -233,9 +233,9 @@ function AdminInvitesContent() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Sent</p>
-                <p className="text-2xl font-bold text-cyan-400">{sentCount}</p>
+                <p className="text-2xl font-bold text-sky-400">{sentCount}</p>
               </div>
-              <Send className="h-8 w-8 text-cyan-400/20" />
+              <Send className="h-8 w-8 text-sky-400/20" />
             </div>
           </CardContent>
         </Card>
@@ -257,7 +257,7 @@ function AdminInvitesContent() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="text-foreground flex items-center gap-2">
-                <Mail className="h-5 w-5 text-cyan-400" />
+                <Mail className="h-5 w-5 text-sky-400" />
                 Beta Invites
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -277,7 +277,7 @@ function AdminInvitesContent() {
               </Button>
               <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700" data-testid="button-create-invite">
+                  <Button size="sm" className="bg-sky-600 hover:bg-sky-700" data-testid="button-create-invite">
                     <Plus className="h-4 w-4 mr-2" />
                     Create Invite
                   </Button>
@@ -336,7 +336,7 @@ function AdminInvitesContent() {
                     <Button 
                       onClick={() => createInviteMutation.mutate({ email: newEmail, tier: newTier, notes: newNotes })}
                       disabled={!newEmail || createInviteMutation.isPending}
-                      className="bg-cyan-600 hover:bg-cyan-700"
+                      className="bg-sky-600 hover:bg-sky-700"
                       data-testid="button-submit-invite"
                     >
                       {createInviteMutation.isPending ? "Creating..." : "Create Invite"}
@@ -381,13 +381,13 @@ function AdminInvitesContent() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <code className="text-xs text-cyan-400 font-mono bg-muted/50 px-2 py-1 rounded max-w-[180px] truncate" title={invite.token}>
+                          <code className="text-xs text-sky-400 font-mono bg-muted/50 px-2 py-1 rounded max-w-[180px] truncate" title={invite.token}>
                             {invite.token}
                           </code>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-6 w-6 text-muted-foreground hover:text-cyan-400"
+                            className="h-6 w-6 text-muted-foreground hover:text-sky-400"
                             onClick={() => {
                               navigator.clipboard.writeText(invite.token);
                               setCopiedId(invite.id + '-code');
@@ -433,7 +433,7 @@ function AdminInvitesContent() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-cyan-400 hover:text-cyan-300"
+                              className="h-8 w-8 text-sky-400 hover:text-sky-300"
                               onClick={() => sendInviteMutation.mutate(invite.id)}
                               disabled={sendInviteMutation.isPending}
                               data-testid={`button-send-${invite.id}`}
@@ -459,7 +459,7 @@ function AdminInvitesContent() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-[var(--trade-bearish)] hover:text-red-300"
+                              className="h-8 w-8 text-[var(--trade-bearish)] hover:text-[var(--trade-bearish)]"
                               onClick={() => revokeInviteMutation.mutate(invite.id)}
                               data-testid={`button-revoke-${invite.id}`}
                               title="Revoke invite"

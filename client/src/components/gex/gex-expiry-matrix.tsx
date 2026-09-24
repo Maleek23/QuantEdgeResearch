@@ -446,7 +446,7 @@ export function GEXExpiryMatrix({
             const isMonthly = wk.key.startsWith('m-');
             const isQuarterly = wk.key.startsWith('q-');
             const accent = isQuarterly ? 'text-purple-400 border-purple-400/30 bg-purple-400/10'
-                          : isMonthly ? 'text-cyan-400 border-cyan-400/30 bg-cyan-400/10'
+                          : isMonthly ? 'text-sky-400 border-sky-400/30 bg-sky-400/10'
                           : 'text-amber-400 border-amber-400/30 bg-amber-400/10';
             return (
               <button

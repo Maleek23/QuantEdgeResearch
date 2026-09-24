@@ -48,7 +48,7 @@ export class PageErrorBoundary extends Component<Props, State> {
           <div className="flex items-start gap-3">
             <div className="text-2xl">⚠️</div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-red-400">
+              <div className="text-sm font-bold text-[var(--trade-bearish)]">
                 {this.props.label || 'Component'} crashed
               </div>
               <div className="text-xs text-zinc-400 mt-1 font-mono break-all">
@@ -92,7 +92,7 @@ export function CardErrorBoundary({
     <PageErrorBoundary
       label={label}
       fallback={
-        <div className="bg-zinc-900/40 border border-red-500/20 rounded p-2 text-xs text-red-400 italic">
+        <div className="bg-zinc-900/40 border border-red-500/20 rounded p-2 text-xs text-[var(--trade-bearish)] italic">
           ⚠️ {label || 'Card'} failed to render
         </div>
       }

@@ -114,7 +114,7 @@ export default function AdminBetaInvites() {
         return <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">Approved</Badge>;
       case 'invited':
       case 'sent':
-        return <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400"><Mail className="w-3 h-3 mr-1" />Invited</Badge>;
+        return <Badge variant="secondary" className="bg-sky-500/20 text-sky-400"><Mail className="w-3 h-3 mr-1" />Invited</Badge>;
       case 'joined':
       case 'redeemed':
         return <Badge variant="secondary" className="bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)]"><CheckCircle className="w-3 h-3 mr-1" />Joined</Badge>;
@@ -149,7 +149,7 @@ export default function AdminBetaInvites() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Plus className="w-5 h-5 text-cyan-400" />
+              <Plus className="w-5 h-5 text-sky-400" />
               Send New Invite
             </CardTitle>
             <CardDescription>Create and send a beta invite to any email address</CardDescription>
@@ -181,7 +181,7 @@ export default function AdminBetaInvites() {
             <Button
               onClick={() => createInviteMutation.mutate(newEmail)}
               disabled={!newEmail || createInviteMutation.isPending}
-              className="bg-cyan-600 hover:bg-cyan-700"
+              className="bg-sky-600 hover:bg-sky-700"
               data-testid="button-send-new-invite"
             >
               <Send className="w-4 h-4 mr-2" />
@@ -234,7 +234,7 @@ export default function AdminBetaInvites() {
                             size="sm"
                             onClick={() => sendInviteMutation.mutate(entry.id)}
                             disabled={sendInviteMutation.isPending}
-                            className="bg-cyan-600 hover:bg-cyan-700"
+                            className="bg-sky-600 hover:bg-sky-700"
                             data-testid={`button-invite-${entry.id}`}
                           >
                             <Send className="w-3 h-3 mr-1" />
@@ -307,7 +307,7 @@ export default function AdminBetaInvites() {
                                 onClick={() => revokeInviteMutation.mutate(invite.id)}
                                 disabled={revokeInviteMutation.isPending}
                                 title="Revoke invite"
-                                className="text-[var(--trade-bearish)] hover:text-red-300"
+                                className="text-[var(--trade-bearish)] hover:text-[var(--trade-bearish)]"
                                 data-testid={`button-revoke-${invite.id}`}
                               >
                                 <XCircle className="w-4 h-4" />

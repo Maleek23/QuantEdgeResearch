@@ -141,7 +141,7 @@ function RotQuad({ sectors, height = 260 }: { sectors: Sector[]; height?: number
     const xs = pts.map((s) => s.rsRatio!); const ys = pts.map((s) => s.rsMomentum!);
     const xMax = Math.max(1, ...xs.map(Math.abs)); const yMax = Math.max(1, ...ys.map(Math.abs));
     const phase = new Map(pts.map((s, i) => [s.etf, i * 1.7]));
-    const colorOf = (s: Sector) => (s.rsRatio! >= 0 && s.rsMomentum! >= 0) ? '#3ddc97' : (s.rsRatio! < 0 && s.rsMomentum! >= 0) ? '#4fd1c5' : (s.rsRatio! >= 0) ? '#f5b642' : '#ff5470';
+    const colorOf = (s: Sector) => (s.rsRatio! >= 0 && s.rsMomentum! >= 0) ? '#6ee7b7' : (s.rsRatio! < 0 && s.rsMomentum! >= 0) ? '#3b8cff' : (s.rsRatio! >= 0) ? '#facc15' : '#ff6b3d';
     const drawFrame = (t: number) => {
       const canvas = ref.current;
       if (!canvas) return;
@@ -151,7 +151,7 @@ function RotQuad({ sectors, height = 260 }: { sectors: Sector[]; height?: number
       canvas.width = w * devicePixelRatio; canvas.height = h * devicePixelRatio;
       const ctx = canvas.getContext('2d')!;
       ctx.scale(devicePixelRatio, devicePixelRatio);
-      ctx.strokeStyle = 'rgba(79,209,197,0.15)'; ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(59,140,255,0.15)'; ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
       ctx.setLineDash([]);
       pts.forEach((s) => {
@@ -185,7 +185,7 @@ function SigCard({ p }: { p: Pick }) {
   const bars = data?.data ?? [];
   const band = (p.publishedConvictionBand ?? p.convictionBand ?? 'C').charAt(0);
   const dir = (p.direction ?? 'long').toLowerCase();
-  const bandColor = band === 'S' ? '#fbbf24' : band === 'A' ? '#4fd1c5' : band === 'B' ? '#f5b642' : '#8b93a3';
+  const bandColor = band === 'S' ? '#fbbf24' : band === 'A' ? '#3b8cff' : band === 'B' ? '#facc15' : '#8b93a3';
   const live = p.currentPrice; const entry = p.entryPrice;
   const pnl = live != null && entry ? ((live - entry) / entry) * (dir === 'short' ? -100 : 100) : null;
   const fmt = (v?: number | null) => v == null ? '—' : `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(2)}`;
@@ -200,7 +200,7 @@ function SigCard({ p }: { p: Pick }) {
         <span className={`dir ${dir === 'short' ? 'bear' : 'bull'}`}>{dir === 'short' ? '▼ BEAR' : '▲ BULL'}</span>
         <span className="kind">· {p.tradeType ?? 'swing'}{p.thesis ? ` · ${p.thesis.split('.')[0].slice(0, 34)}` : ''}</span>
       </div>
-      <div className="lsig-chart"><Spark bars={bars} color={dir === 'short' ? '#ff5470' : '#3ddc97'} height={56} /></div>
+      <div className="lsig-chart"><Spark bars={bars} color={dir === 'short' ? '#ff6b3d' : '#6ee7b7'} height={56} /></div>
       <div className="lsig-levels">
         <div className="lsig-level"><div className="l">Entry</div><div className="v">{fmt(p.entryPrice)}</div></div>
         <div className="lsig-level"><div className="l">Stop</div><div className="v stop">{fmt(p.stopLoss)}</div></div>
@@ -266,14 +266,14 @@ export default function LandingNexus() {
   const closed = !fresh && /close/i.test(rotation?.sessionLabel ?? '');
 
   const MODULES: { name: string; desc: string; tag: string; color: string }[] = [
-    { name: 'Oracle', desc: 'Evidence-ranked signals with a full audit trail. Every layer that argues for or against a setup, visible at a glance.', tag: 'Core · Live', color: '#4fd1c5' },
+    { name: 'Oracle', desc: 'Evidence-ranked signals with a full audit trail. Every layer that argues for or against a setup, visible at a glance.', tag: 'Core · Live', color: '#3b8cff' },
     { name: 'Chart', desc: 'Interactive multi-frame price action — pan, zoom, expand — with published levels drawn on the real bars.', tag: 'Price · Interactive', color: '#60a5fa' },
-    { name: 'Flow', desc: 'Unusual options prints — whales, sweeps, blocks — with premium sums and honest freshness on every row.', tag: 'Options · 15m cycles', color: '#3ddc97' },
+    { name: 'Flow', desc: 'Unusual options prints — whales, sweeps, blocks — with premium sums and honest freshness on every row.', tag: 'Options · 15m cycles', color: '#6ee7b7' },
     { name: 'GEX', desc: 'Gamma exposure by strike and expiry — dealer walls and the flip level where hedging pressure reverses. Know where the market is magnetized.', tag: 'Options · Live', color: '#f472b6' },
     { name: 'Leaps', desc: 'Long-dated calls graded on trend, value and momentum — with budget and grade filters over real premiums.', tag: 'Options · Daily', color: '#a78bfa' },
     { name: 'Crypto', desc: 'BTC/ETH spot reads with measured proxy correlations — the equity route chosen from evidence, not vibes.', tag: '24/7 · Live', color: '#fbbf24' },
     { name: 'Catalyst', desc: 'Earnings, macro releases and impact-graded news joined to live signals. Binary events are risk, never tilt.', tag: 'Events · Live', color: '#fb7185' },
-    { name: 'Bot', desc: 'The real automation layer — jobs, gates and a paper ledger that measures every published signal.', tag: 'Measurement', color: '#22d3ee' },
+    { name: 'Bot', desc: 'The real automation layer — jobs, gates and a paper ledger that measures every published signal.', tag: 'Measurement', color: '#3b8cff' },
   ];
 
   return (
@@ -339,7 +339,7 @@ export default function LandingNexus() {
                   <div className="t-panel-head"><span>Market Pulse · SPY</span><span className="live">LIVE</span></div>
                   <div className="t-price">{spyLast != null ? `SPY ${spyLast.toFixed(2)}` : 'SPY —'}</div>
                   <div className={`t-change${(spyChg ?? 0) >= 0 ? ' up' : ''}`}>{spyChg != null ? `${spyChg >= 0 ? '+' : ''}${spyChg.toFixed(2)}% · ${rotation?.sessionLabel ?? 'session'}` : '—'}</div>
-                  <div className="t-chart"><Spark bars={spyBars} color={(spyChg ?? 0) >= 0 ? '#3ddc97' : '#ff5470'} height={60} /></div>
+                  <div className="t-chart"><Spark bars={spyBars} color={(spyChg ?? 0) >= 0 ? '#6ee7b7' : '#ff6b3d'} height={60} /></div>
                 </div>
                 <div className="t-panel">
                   <div className="t-panel-head"><span>Rotation Map</span><span>{rotation?.sessionLabel ?? ''}</span></div>
@@ -578,6 +578,13 @@ export default function LandingNexus() {
       {/* FOOTER */}
       <footer className="lfooter">
         <div className="container">
+          {/* Footer links: /about, /w, /academy, /pricing and the legal pages had
+              no door anywhere in the product (nav-architecture test N4, 2026-09-24). */}
+          <nav className="lfooter-links" aria-label="Site" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', marginBottom: 16 }}>
+            {[['/about', 'About'], ['/pricing', 'Pricing'], ['/academy', 'Academy'], ['/blog', 'Blog'], ['/w', 'Public watchlist'], ['/privacy', 'Privacy'], ['/terms', 'Terms']].map(([href, label]) => (
+              <Link key={href} href={href} style={{ color: 'var(--text-dim)', textDecoration: 'none', fontSize: 13, minHeight: 32, display: 'inline-flex', alignItems: 'center' }}>{label}</Link>
+            ))}
+          </nav>
           <div className="lfooter-bottom">
             <div>© 2026 QuantEdge Labs · All rights reserved.</div>
             <div className="disclaimer">Educational and analytical tool only. Not investment advice. Trading involves risk of loss. Past performance of signals does not guarantee future results — and every performance figure shown carries its sample size.</div>

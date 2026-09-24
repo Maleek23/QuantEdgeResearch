@@ -349,7 +349,7 @@ export default function BacktestPage() {
             <Button
               onClick={handleSearch}
               disabled={!symbol.trim() || isLoading}
-              className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
+              className="bg-sky-500 hover:bg-sky-400 text-foreground"
               data-testid="button-analyze"
             >
               {isLoading ? (

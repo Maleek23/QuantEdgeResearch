@@ -136,7 +136,7 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
 
   const isLong = idea.direction === "long";
   const DirIcon = isLong ? ArrowUpRight : ArrowDownRight;
-  const dirColor = isLong ? "text-emerald-400" : "text-red-400";
+  const dirColor = isLong ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -157,9 +157,9 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
                   band === "S"
                     ? "text-amber-300 border-amber-400/40 bg-amber-500/10"
                     : band === "A"
-                      ? "text-emerald-300 border-emerald-400/30 bg-emerald-500/10"
+                      ? "text-[var(--trade-bullish)] border-emerald-400/30 bg-emerald-500/10"
                       : band === "B"
-                        ? "text-cyan-300 border-cyan-400/20 bg-cyan-500/10"
+                        ? "text-sky-300 border-sky-400/20 bg-sky-500/10"
                         : "text-muted-foreground border-foreground/10",
                 )}
               >
@@ -214,13 +214,23 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
         {/* Footer actions */}
         <div className="sticky bottom-0 left-0 right-0 px-5 py-3 border-t border-foreground/10 bg-background flex items-center gap-2">
           <Link
-            href={`/terminal/${idea.symbol}`}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 transition-colors text-[11px] font-mono uppercase tracking-wider"
+            href={`/r/${idea.symbol}`}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-sky-500/30 text-sky-300 hover:bg-sky-500/10 transition-colors text-[11px] font-mono uppercase tracking-wider"
           >
             <TrendingUp className="w-3.5 h-3.5" />
             Open Chart
             <ExternalLink className="w-3 h-3" />
           </Link>
+          {/* The per-idea audit trail (/trade-ideas/:id/audit) was routed but had
+              no link anywhere — every recorded outcome was unauditable from the UI. */}
+          {idea.id && (
+            <Link
+              href={`/trade-ideas/${idea.id}/audit`}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-foreground/15 text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors text-[11px] font-mono uppercase tracking-wider"
+            >
+              Audit trail
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -248,7 +258,7 @@ function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
       {idea.livePrice != null && Number.isFinite(idea.livePrice) && (
         <div className="flex items-center justify-between px-3 py-2 rounded-md bg-foreground/[0.03] border border-foreground/[0.08]">
           <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-cyan-400" />
+            <Activity className="w-3.5 h-3.5 text-sky-400" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               Current
             </span>
@@ -275,7 +285,7 @@ function TradeTab({ idea }: { idea: TradeIdeaCardData }) {
       <div className="flex items-center gap-3 px-3 py-2 rounded-md bg-foreground/[0.02] border border-foreground/[0.06] text-[11px] font-mono">
         <div>
           <div className="text-[9px] uppercase text-muted-foreground">R:R</div>
-          <div className="text-cyan-300 font-bold text-sm">
+          <div className="text-sky-300 font-bold text-sm">
             {idea.riskRewardRatio.toFixed(2)}×
           </div>
         </div>
@@ -450,9 +460,9 @@ function ConvictionTab({
               band === "S"
                 ? "text-amber-300"
                 : band === "A"
-                  ? "text-emerald-300"
+                  ? "text-[var(--trade-bullish)]"
                   : band === "B"
-                    ? "text-cyan-300"
+                    ? "text-sky-300"
                     : "text-muted-foreground",
             )}
           >
@@ -463,7 +473,7 @@ function ConvictionTab({
           <div className="text-[9px] font-mono uppercase text-muted-foreground">
             Supports
           </div>
-          <div className="text-xl font-mono font-bold leading-none text-emerald-400">
+          <div className="text-xl font-mono font-bold leading-none text-[var(--trade-bullish)]">
             +{totalPos}
           </div>
         </div>
@@ -471,7 +481,7 @@ function ConvictionTab({
           <div className="text-[9px] font-mono uppercase text-muted-foreground">
             Opposes
           </div>
-          <div className="text-xl font-mono font-bold leading-none text-red-400">
+          <div className="text-xl font-mono font-bold leading-none text-[var(--trade-bearish)]">
             {totalNeg}
           </div>
         </div>
@@ -526,7 +536,7 @@ function TabButton({
       className={cn(
         "flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-mono uppercase tracking-wider transition-colors border-b-2",
         active
-          ? "text-cyan-300 border-cyan-400"
+          ? "text-sky-300 border-sky-400"
           : "text-muted-foreground border-transparent hover:text-foreground",
       )}
     >
@@ -536,7 +546,7 @@ function TabButton({
         <span
           className={cn(
             "ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold",
-            active ? "bg-cyan-500/20 text-cyan-200" : "bg-foreground/10 text-muted-foreground",
+            active ? "bg-sky-500/20 text-sky-200" : "bg-foreground/10 text-muted-foreground",
           )}
         >
           {count}
@@ -559,9 +569,9 @@ function BigCell({
 }) {
   const toneColor =
     tone === "positive"
-      ? "text-emerald-400"
+      ? "text-[var(--trade-bullish)]"
       : tone === "negative"
-        ? "text-red-400"
+        ? "text-[var(--trade-bearish)]"
         : "text-foreground";
 
   return (
@@ -605,9 +615,9 @@ function DetailLayerRow({ layer }: { layer: ConvictionLayer }) {
             className={cn(
               "text-[11px] font-mono font-bold",
               layer.points > 0
-                ? "text-emerald-400"
+                ? "text-[var(--trade-bullish)]"
                 : layer.points < 0
-                  ? "text-red-400"
+                  ? "text-[var(--trade-bearish)]"
                   : "text-muted-foreground",
             )}
           >

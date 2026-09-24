@@ -197,7 +197,7 @@ export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
  * convergence=violet, catalyst=amber, …). Used for the colorful confluence pills.
  */
 export const LAYER_COLOR: Record<ConvictionLayerKind, string> = {
-  technical:    '#22d3ee', // cyan
+  technical:    '#3b8cff', // cyan
   ta:           '#38bdf8', // blue — named chart setup
   convergence:  '#a78bfa', // violet
   catalyst:     '#fbbf24', // amber

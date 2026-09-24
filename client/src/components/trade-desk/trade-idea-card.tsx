@@ -134,9 +134,9 @@ export const LAYER_STYLES: Record<
 > = {
   technical: {
     icon: "TECH",
-    color: "text-cyan-400",
-    bg: "bg-cyan-500/10",
-    border: "border-cyan-500/20",
+    color: "text-sky-400",
+    bg: "bg-sky-500/10",
+    border: "border-sky-500/20",
   },
   convergence: {
     icon: "CONV",
@@ -152,7 +152,7 @@ export const LAYER_STYLES: Record<
   },
   regime: {
     icon: "RGME",
-    color: "text-emerald-400",
+    color: "text-[var(--trade-bullish)]",
     bg: "bg-emerald-500/10",
     border: "border-emerald-500/20",
   },
@@ -225,16 +225,16 @@ const BAND_STYLES: Record<
   },
   A: {
     label: "A",
-    color: "text-emerald-300",
-    bg: "bg-gradient-to-br from-emerald-500/15 to-cyan-500/10",
+    color: "text-[var(--trade-bullish)]",
+    bg: "bg-gradient-to-br from-emerald-500/15 to-sky-500/10",
     border: "border-emerald-400/30",
     glow: "shadow-[0_0_15px_rgba(52,211,153,0.1)]",
   },
   B: {
     label: "B",
-    color: "text-cyan-300",
-    bg: "bg-cyan-500/[0.06]",
-    border: "border-cyan-400/20",
+    color: "text-sky-300",
+    bg: "bg-sky-500/[0.06]",
+    border: "border-sky-400/20",
     glow: "",
   },
   C: {
@@ -307,9 +307,9 @@ function computeLiveRR(idea: TradeIdeaCardData): {
     idea.riskRewardRatio > 0 && clampedRR < idea.riskRewardRatio * 0.5;
 
   let color: string;
-  if (clampedRR <= 0)       color = "text-red-400";
-  else if (clampedRR < 1.0) color = "text-red-400";
-  else if (clampedRR >= 1.5) color = "text-emerald-400";
+  if (clampedRR <= 0)       color = "text-[var(--trade-bearish)]";
+  else if (clampedRR < 1.0) color = "text-[var(--trade-bearish)]";
+  else if (clampedRR >= 1.5) color = "text-[var(--trade-bullish)]";
   else                       color = "text-muted-foreground";
 
   return {
@@ -352,9 +352,9 @@ function LayerPill({ layer }: { layer: ConvictionLayer }) {
             className={cn(
               "text-[10px] font-mono font-bold",
               layer.points > 0
-                ? "text-emerald-400"
+                ? "text-[var(--trade-bullish)]"
                 : layer.points < 0
-                  ? "text-red-400"
+                  ? "text-[var(--trade-bearish)]"
                   : "text-muted-foreground",
             )}
           >
@@ -411,9 +411,9 @@ function FreshnessPill({ idea }: { idea: TradeIdeaCardData }) {
   else if (drift != null && driftAgainst != null && driftAgainst < 0) tone = "good";
 
   const styles: Record<typeof tone, string> = {
-    good: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+    good: "bg-emerald-500/10 text-[var(--trade-bullish)] border-emerald-500/30",
     warn: "bg-amber-500/10 text-amber-300 border-amber-500/30",
-    bad: "bg-red-500/10 text-red-300 border-red-500/40",
+    bad: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/40",
     muted: "bg-foreground/5 text-muted-foreground border-foreground/10",
   };
 
@@ -564,17 +564,17 @@ export function GEXContractSuggestion({ idea }: { idea: TradeIdeaCardData }) {
     : data.putWall ? `Put wall $${data.putWall}` : '';
 
   return (
-    <div className="mb-3 px-2.5 py-2 rounded-md bg-cyan-500/8 border border-cyan-500/20">
+    <div className="mb-3 px-2.5 py-2 rounded-md bg-sky-500/8 border border-sky-500/20">
       <div className="flex items-center gap-1.5 mb-1">
-        <Crosshair className="w-3 h-3 text-cyan-400" />
-        <span className="text-[9px] font-mono uppercase tracking-wider text-cyan-300/70">
+        <Crosshair className="w-3 h-3 text-sky-400" />
+        <span className="text-[9px] font-mono uppercase tracking-wider text-sky-300/70">
           GEX-Suggested Contract
         </span>
       </div>
       <div className="flex items-center gap-3 text-[11px] font-mono">
-        <span className="font-bold text-cyan-300">{idea.symbol}</span>
+        <span className="font-bold text-sky-300">{idea.symbol}</span>
         <span className="font-bold text-foreground">${suggestedStrike}</span>
-        <span className={cn("font-bold uppercase", isLong ? "text-emerald-400" : "text-red-400")}>
+        <span className={cn("font-bold uppercase", isLong ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
           {optionType}
         </span>
         <span className="text-muted-foreground">·</span>
@@ -640,7 +640,7 @@ function FullVariant({
   const band = BAND_STYLES[bandFromIdea(idea)];
   const isLong = idea.direction === "long";
   const DirIcon = isLong ? ArrowUpRight : ArrowDownRight;
-  const dirColor = isLong ? "text-emerald-400" : "text-red-400";
+  const dirColor = isLong ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]";
   // H9: single source of truth for the displayed score.
   // U2: render grade as the headline; keep numeric score for tooltip.
   const score = displayedScore(idea);
@@ -731,7 +731,7 @@ function FullVariant({
       {idea.livePrice != null && Number.isFinite(idea.livePrice) && (
         <div className="flex items-center justify-between mb-3 px-2 py-1.5 rounded bg-foreground/[0.03] border border-foreground/[0.08]">
           <div className="flex items-center gap-2">
-            <Activity className="w-3 h-3 text-cyan-400" />
+            <Activity className="w-3 h-3 text-sky-400" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               Current
             </span>
@@ -833,7 +833,7 @@ function FullVariant({
           )}
         </div>
         <Link
-          href={`/terminal/${idea.symbol}`}
+          href={`/r/${idea.symbol}`}
           onClick={(e) => e.stopPropagation()}
           className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-foreground/10 text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
         >
@@ -862,7 +862,7 @@ function CompactVariant({
   const band = BAND_STYLES[bandFromIdea(idea)];
   const isLong = idea.direction === "long";
   const DirIcon = isLong ? ArrowUpRight : ArrowDownRight;
-  const dirColor = isLong ? "text-emerald-400" : "text-red-400";
+  const dirColor = isLong ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]";
   // H9: single source of truth for the displayed score.
   // U2: render grade as the headline; keep numeric score for tooltip.
   const score = displayedScore(idea);
@@ -913,7 +913,7 @@ function CompactVariant({
             </div>
             <div>
               <div className="text-[9px] uppercase text-muted-foreground">Tgt</div>
-              <div className="text-emerald-400 font-semibold">{fmtPrice(idea.targetPrice)}</div>
+              <div className="text-[var(--trade-bullish)] font-semibold">{fmtPrice(idea.targetPrice)}</div>
             </div>
             {live ? (
               <div>
@@ -928,7 +928,7 @@ function CompactVariant({
             ) : (
               <div>
                 <div className="text-[9px] uppercase text-muted-foreground">R:R</div>
-                <div className="text-cyan-300 font-semibold">{idea.riskRewardRatio.toFixed(1)}×</div>
+                <div className="text-sky-300 font-semibold">{idea.riskRewardRatio.toFixed(1)}×</div>
               </div>
             )}
           </div>
@@ -984,7 +984,7 @@ function RowVariant({
 }) {
   const band = BAND_STYLES[bandFromIdea(idea)];
   const isLong = idea.direction === "long";
-  const dirColor = isLong ? "text-emerald-400" : "text-red-400";
+  const dirColor = isLong ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]";
   // H9: single source of truth for the displayed score.
   // U2: render grade as the headline; keep numeric score for tooltip.
   const score = displayedScore(idea);
@@ -1028,7 +1028,7 @@ function RowVariant({
               onToggleGroup?.();
             }}
             title={expanded ? "Collapse setups" : `Show ${groupCount} more setup${groupCount > 1 ? "s" : ""}`}
-            className="flex items-center gap-0.5 text-cyan-300 hover:text-cyan-200 shrink-0"
+            className="flex items-center gap-0.5 text-sky-300 hover:text-sky-200 shrink-0"
           >
             <ChevronRight className={cn("w-3 h-3 transition-transform", expanded && "rotate-90")} />
             <span className="text-[9px] font-bold tabular-nums">+{groupCount}</span>
@@ -1059,7 +1059,7 @@ function RowVariant({
         {hasPrem ? `$${prem!.toFixed(2)}` : fmtPrice(idea.entryPrice)}
       </div>
       <div
-        className="text-emerald-400 tabular-nums text-right"
+        className="text-[var(--trade-bullish)] tabular-nums text-right"
         title={hasPrem ? `Projected premium at target (est., delta-based)` : "Stock target"}
       >
         {hasPrem
@@ -1069,7 +1069,7 @@ function RowVariant({
           : fmtPrice(idea.targetPrice)}
       </div>
       <div
-        className="text-red-400 tabular-nums text-right"
+        className="text-[var(--trade-bearish)] tabular-nums text-right"
         title={hasPrem ? `-50% premium stop` : "Stock stop"}
       >
         {hasPrem ? `$${stopPrem!.toFixed(2)}` : fmtPrice(idea.stopLoss)}
@@ -1085,7 +1085,7 @@ function RowVariant({
             {live.label}
           </div>
         ) : (
-          <div className="text-cyan-300 text-right">{idea.riskRewardRatio.toFixed(1)}×</div>
+          <div className="text-sky-300 text-right">{idea.riskRewardRatio.toFixed(1)}×</div>
         );
       })()}
       <div className="text-muted-foreground truncate">
@@ -1173,7 +1173,7 @@ function PremiumRiskRewardBar({ idea }: { idea: TradeIdeaCardData }) {
       </div>
       {/* Labels */}
       <div className="mt-1 flex items-center justify-between text-[9px] font-mono tabular-nums">
-        <span className="text-red-300" title="-50% premium stop">
+        <span className="text-[var(--trade-bearish)]" title="-50% premium stop">
           ${stopPrem.toFixed(2)}
           <span className="text-muted-foreground"> stop</span>
         </span>
@@ -1181,7 +1181,7 @@ function PremiumRiskRewardBar({ idea }: { idea: TradeIdeaCardData }) {
           ${entry.toFixed(2)}
           <span className="text-muted-foreground"> entry</span>
         </span>
-        <span className="text-emerald-300" title={`Projected at target (${fmtPrice(idea.targetPrice)})`}>
+        <span className="text-[var(--trade-bullish)]" title={`Projected at target (${fmtPrice(idea.targetPrice)})`}>
           ${projTarget.toFixed(2)}
           <span className="text-muted-foreground"> +{targetGainPct.toFixed(0)}%</span>
         </span>
@@ -1201,11 +1201,11 @@ function PriceCell({
 }) {
   const toneColor =
     tone === "positive"
-      ? "text-emerald-400"
+      ? "text-[var(--trade-bullish)]"
       : tone === "negative"
-        ? "text-red-400"
+        ? "text-[var(--trade-bearish)]"
         : tone === "cyan"
-          ? "text-cyan-300"
+          ? "text-sky-300"
           : "text-foreground";
 
   return (

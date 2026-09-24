@@ -65,7 +65,7 @@ const getWinRateBg = (winRate: number) => {
 const getGradeColor = (grade: string) => {
   switch (grade) {
     case 'A': return 'bg-[var(--trade-bullish)]/20 text-[var(--trade-bullish)] border-green-500/30';
-    case 'B': return 'bg-cyan-500/20 text-cyan-500 border-cyan-500/30';
+    case 'B': return 'bg-sky-500/20 text-sky-500 border-sky-500/30';
     case 'C': return 'bg-amber-500/20 text-[var(--trade-neutral)] border-amber-500/30';
     case 'D': return 'bg-orange-500/20 text-orange-500 border-orange-500/30';
     case 'F': return 'bg-red-500/20 text-[var(--trade-bearish)] border-red-500/30';
@@ -75,7 +75,7 @@ const getGradeColor = (grade: string) => {
 
 const getSharpeColor = (sharpe: number) => {
   if (sharpe >= 1) return "text-[var(--trade-bullish)]";
-  if (sharpe >= 0.5) return "text-cyan-500";
+  if (sharpe >= 0.5) return "text-sky-500";
   if (sharpe >= 0) return "text-[var(--trade-neutral)]";
   return "text-[var(--trade-bearish)]";
 };
@@ -141,7 +141,7 @@ export default function EngineActualPerformance() {
             <p className="font-semibold text-[var(--trade-bullish)]">{summary.bestEngine}</p>
             <p className="text-xs font-mono text-[var(--trade-bullish)]">{summary.bestWinRate}% win rate</p>
           </div>
-          <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+          <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
             <p className="text-xs text-muted-foreground">Sharpe Ratio</p>
             <p className={cn("font-semibold font-mono", getSharpeColor(summary.overallSharpeRatio))}>
               {summary.overallSharpeRatio}

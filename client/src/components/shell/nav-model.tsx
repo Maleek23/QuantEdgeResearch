@@ -1,7 +1,7 @@
 /**
  * ONE NAVIGATION MODEL for the whole signed-in platform.
  *
- * The terminal (/t) and every standalone page (/slate, /radar, /trade-desk,
+ * The terminal (/t) and every standalone page (/slate, /radar,
  * /performance, /alerts, /how-to, /settings…) read their tabs, the mobile dock
  * and the "More" sheet from here. Before 2026-09-24 the standalone pages wore a
  * second, older design — a left sidebar with its own header and footer — so
@@ -36,7 +36,6 @@ export interface PageLink { href: string; label: string; short: string; icon: ty
 export const PAGES: PageLink[] = [
   { href: '/slate',       label: 'Slate',       short: 'SLATE',  icon: ListChecks },
   { href: '/radar',       label: 'Radar',       short: 'RADAR',  icon: Crosshair },
-  { href: '/trade-desk',  label: 'Trade Desk',  short: 'DESK',   icon: Activity },
   { href: '/performance', label: 'Performance', short: 'PERF',   icon: LineChart },
 ];
 export const UTILITY_PAGES: PageLink[] = [

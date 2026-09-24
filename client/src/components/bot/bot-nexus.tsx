@@ -388,7 +388,7 @@ export function BotNexus() {
                 {prog != null && (
                   <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }} title={`stop $${p.stopLoss} ── entry $${p.entryPrice} ── target $${p.targetPrice} · mark $${p.currentPrice ?? '—'}${p.assetType === 'option' ? ' (contract premium)' : ''}`}>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--red)' }}>S</span>
-                    <div style={{ position: 'relative', flex: 1, height: 5, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,84,112,0.35), rgba(148,163,184,0.12) 40%, rgba(61,220,151,0.35))' }}>
+                    <div style={{ position: 'relative', flex: 1, height: 5, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,107,61,0.35), rgba(148,163,184,0.12) 40%, rgba(110,231,183,0.35))' }}>
                       {entryFrac != null && <div style={{ position: 'absolute', left: `${entryFrac * 100}%`, top: -2, width: 1.5, height: 9, background: 'var(--text-dim)' }} title="entry" />}
                       <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 4px)`, top: -1.5, width: 8, height: 8, borderRadius: '50%', background: up ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 6px ${up ? 'var(--green)' : 'var(--red)'}` }} title={`mark $${p.currentPrice ?? '—'}`} />
                     </div>
@@ -641,9 +641,9 @@ export function BotNexus() {
             </div>
             <NexusPriceChart key={`replay-${replay.symbol}`} symbol={replay.symbol} initialTf="1D" height={340} expandable={false}
               levels={[
-                { price: replay.entryPrice, color: '#4fd1c5', label: 'blocked entry' },
-                { price: replay.stopLoss, color: '#ff5470', label: 'would-be stop' },
-                { price: replay.targetPrice, color: '#3ddc97', label: 'would-be target' },
+                { price: replay.entryPrice, color: '#3b8cff', label: 'blocked entry' },
+                { price: replay.stopLoss, color: '#ff6b3d', label: 'would-be stop' },
+                { price: replay.targetPrice, color: '#6ee7b7', label: 'would-be target' },
               ]} />
             <div style={{ marginTop: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>
               Replay verdict: <b style={{ color: replay.outcome === 'hit_target' ? 'var(--red)' : replay.outcome === 'hit_stop' ? 'var(--green)' : 'var(--amber)' }}>
@@ -674,11 +674,11 @@ export function BotNexus() {
                 stays in the contract's own units. */}
             <NexusPriceChart key={`expand-${expandPos.id}`} symbol={expandPos.symbol} initialTf="1D" height={320} expandable={false}
               levels={expandPos.assetType === 'option' && expandPos.strikePrice != null
-                ? [{ price: expandPos.strikePrice, color: '#f5b642', label: `strike $${expandPos.strikePrice}` }]
+                ? [{ price: expandPos.strikePrice, color: '#facc15', label: `strike $${expandPos.strikePrice}` }]
                 : [
-                    { price: Number(expandPos.entryPrice), color: '#4fd1c5', label: 'entry' },
-                    ...(expandPos.stopLoss != null ? [{ price: Number(expandPos.stopLoss), color: '#ff5470', label: 'stop' }] : []),
-                    ...(expandPos.targetPrice != null ? [{ price: Number(expandPos.targetPrice), color: '#3ddc97', label: 'target' }] : []),
+                    { price: Number(expandPos.entryPrice), color: '#3b8cff', label: 'entry' },
+                    ...(expandPos.stopLoss != null ? [{ price: Number(expandPos.stopLoss), color: '#ff6b3d', label: 'stop' }] : []),
+                    ...(expandPos.targetPrice != null ? [{ price: Number(expandPos.targetPrice), color: '#6ee7b7', label: 'target' }] : []),
                   ]} />
             <div style={{ marginTop: 12 }}>
               {(() => {
@@ -692,7 +692,7 @@ export function BotNexus() {
                       <span style={{ color: 'var(--green)' }}>target ${expandPos.targetPrice ?? '—'}</span>
                     </div>
                     {prog != null && (
-                      <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'linear-gradient(90deg, rgba(255,84,112,0.35), rgba(148,163,184,0.12) 40%, rgba(61,220,151,0.35))' }}>
+                      <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'linear-gradient(90deg, rgba(255,107,61,0.35), rgba(148,163,184,0.12) 40%, rgba(110,231,183,0.35))' }}>
                         <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 5px)`, top: -2, width: 12, height: 12, borderRadius: '50%', background: pnl >= 0 ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 8px ${pnl >= 0 ? 'var(--green)' : 'var(--red)'}` }} />
                       </div>
                     )}

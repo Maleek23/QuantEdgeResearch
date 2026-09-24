@@ -73,8 +73,8 @@ export default function AlertsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-[var(--brand-cyan,#22d3ee)]/10 border border-[var(--brand-cyan,#22d3ee)]/20">
-                  <Bell className="w-4 h-4 text-[var(--brand-cyan,#22d3ee)]" />
+                <div className="p-2 rounded-lg bg-[var(--brand-cyan,#3b8cff)]/10 border border-[var(--brand-cyan,#3b8cff)]/20">
+                  <Bell className="w-4 h-4 text-[var(--brand-cyan,#3b8cff)]" />
                 </div>
                 <h1 className="text-base font-semibold text-foreground" data-testid="text-page-title">
                   Alerts
@@ -143,7 +143,7 @@ export default function AlertsPage() {
                   onClick={() => update({ ...prefs, sound: !prefs.sound })}
                   role="switch" aria-checked={prefs.sound} aria-label="Toggle alert sounds"
                   className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
-                    prefs.sound ? 'bg-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/15')}
+                    prefs.sound ? 'bg-[var(--brand-cyan,#3b8cff)]' : 'bg-foreground/15')}
                 >
                   <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all',
                     prefs.sound ? 'left-[18px]' : 'left-0.5')} />
@@ -172,7 +172,7 @@ export default function AlertsPage() {
                     <dt className={cn(
                       'shrink-0 rounded px-2 py-0.5 text-label font-mono uppercase tracking-wider',
                       prefs.enabled[t]
-                        ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]'
+                        ? 'bg-[var(--brand-cyan,#3b8cff)]/15 text-[var(--brand-cyan,#3b8cff)]'
                         : 'bg-foreground/5 text-muted-foreground'
                     )}>
                       {ALERT_LABELS[t]}

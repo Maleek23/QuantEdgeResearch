@@ -71,7 +71,7 @@ const variantDefaults: Record<EmptyStateVariant, {
     icon: Clock,
     title: 'Coming Soon',
     message: 'This feature is currently under development. Check back soon!',
-    iconColor: 'text-cyan-400',
+    iconColor: 'text-sky-400',
   },
 };
 
@@ -105,7 +105,7 @@ export function EmptyState({
               variant={action.variant === 'primary' ? 'default' : 'outline'}
               onClick={action.onClick}
               className={action.variant === 'primary' 
-                ? 'bg-cyan-500 hover:bg-cyan-400 text-foreground' 
+                ? 'bg-sky-500 hover:bg-sky-400 text-foreground' 
                 : ''
               }
             >

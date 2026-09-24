@@ -337,7 +337,7 @@ export default function TerminalPage() {
           <div className="flex flex-col items-start min-w-0" title={tooltip}>
             <span className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">
               {label}
-              {linked && <span className="ml-1 text-cyan-400/60">●</span>}
+              {linked && <span className="ml-1 text-sky-400/60">●</span>}
             </span>
             <span className={cn('text-sm font-bold tabular-nums leading-tight font-mono', color)}>
               {value}
@@ -352,7 +352,7 @@ export default function TerminalPage() {
               <span className={cn(
                 'px-2 py-1 rounded text-[10px] font-bold uppercase border whitespace-nowrap flex-shrink-0',
                 s.regime === 'positive_gamma'
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-[var(--trade-bullish)]'
                   : s.regime === 'negative_gamma'
                     ? 'bg-orange-500/10 border-orange-500/40 text-orange-400'
                     : 'bg-zinc-700/40 border-zinc-700 text-zinc-400'
@@ -365,7 +365,7 @@ export default function TerminalPage() {
                 label={`NET ${exposureMode.toUpperCase()}`}
                 value={typeof netExposure === 'number' && !isNaN(netExposure) ? formatExposure(netExposure, exposureMode) : '—'}
                 tooltip={`Net dealer ${exposureMode} exposure across all strikes`}
-                color={(netExposure ?? 0) > 0 ? 'text-emerald-400' : (netExposure ?? 0) < 0 ? 'text-orange-400' : 'text-foreground'}
+                color={(netExposure ?? 0) > 0 ? 'text-[var(--trade-bullish)]' : (netExposure ?? 0) < 0 ? 'text-orange-400' : 'text-foreground'}
               />
 
               <div className="w-px h-7 bg-border/20 flex-shrink-0" />
@@ -375,7 +375,7 @@ export default function TerminalPage() {
                 label="Call Wall"
                 value={s.callWall != null ? `$${s.callWall.toFixed(0)}` : <span className="text-zinc-600 italic text-xs">low OI</span>}
                 tooltip="Largest call OI above spot — likely magnet/resistance"
-                color="text-emerald-400"
+                color="text-[var(--trade-bullish)]"
               />
 
               {/* MAGNET (Zero-Γ Target) — cyan, with % from spot */}
@@ -384,9 +384,9 @@ export default function TerminalPage() {
                   label="Magnet"
                   value={
                     <span className="flex items-baseline gap-1">
-                      <span className="text-cyan-400">${s.zeroGammaProjection.toFixed(0)}</span>
+                      <span className="text-sky-400">${s.zeroGammaProjection.toFixed(0)}</span>
                       {spot > 0 && (
-                        <span className={cn('text-[10px]', s.zeroGammaProjection >= spot ? 'text-emerald-400' : 'text-red-400')}>
+                        <span className={cn('text-[10px]', s.zeroGammaProjection >= spot ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]')}>
                           {s.zeroGammaProjection >= spot ? '+' : ''}{(((s.zeroGammaProjection - spot) / spot) * 100).toFixed(1)}%
                         </span>
                       )}
@@ -411,7 +411,7 @@ export default function TerminalPage() {
                 label="Put Wall"
                 value={s.putWall != null ? `$${s.putWall.toFixed(0)}` : <span className="text-zinc-600 italic text-xs">low OI</span>}
                 tooltip="Largest put OI below spot — likely magnet/support"
-                color="text-red-400"
+                color="text-[var(--trade-bearish)]"
                 linked={linkedPutMaxGamma}
               />
 
@@ -431,7 +431,7 @@ export default function TerminalPage() {
               <div className="text-[9px] text-muted-foreground mt-1 font-mono">
                 Magnet from dealer hedging flow · conf {proj ? `${(proj.confidence * 100).toFixed(0)}%` : '100%'}
                 {(linkedPutMaxGamma || linkedTargetMax) && (
-                  <span className="ml-2 text-cyan-400/60">● = same strike (linked levels confirm magnet)</span>
+                  <span className="ml-2 text-sky-400/60">● = same strike (linked levels confirm magnet)</span>
                 )}
               </div>
             )}

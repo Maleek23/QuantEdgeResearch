@@ -238,8 +238,8 @@ button:not([disabled]):active,
   --confidence-low: #f59e0b;
 
   /* --- Brand accents --- */
-  --brand-cyan: #4fd1c5;  /* canonical brand cyan — what the default nexus theme renders */
-  --brand-teal: #4fd1c5;  /* same ramp as --brand-cyan — one accent, not two */
+  --brand-cyan: #3b8cff;  /* canonical brand cyan — what the default nexus theme renders */
+  --brand-teal: #3b8cff;  /* same ramp as --brand-cyan — one accent, not two */
   --brand-blue: #3b82f6;
   --brand-gold: #f59e0b;
 
@@ -502,7 +502,7 @@ button:not([disabled]):active,
    NEXUS — the operator's reference-terminal palette, verbatim.
 
    Every hex below is lifted straight from the reference mock's :root —
-   --cyan:#4fd1c5, --green:#3ddc97, --red:#ff5470, --amber:#f5b642,
+   --cyan:#3b8cff, --green:#6ee7b7, --red:#ff6b3d, --amber:#f5b642,
    --bg:#06070a, --panel-solid:#0e1117, cyan-tinted borders — mapped onto
    this app's token names. That is the whole point of the token system: the
    look is a palette assignment, not a fork of the components. Where a token
@@ -519,7 +519,7 @@ button:not([disabled]):active,
   /* core surfaces — #06070a / #0a0c11 / #0e1117 / #131720 */
   --background: 225 25% 3%;
   --foreground: 218 31% 93%;        /* #e8ecf3 */
-  --border: 187 30% 10%;            /* rgba(79,209,197,.08) composited on bg */
+  --border: 187 30% 10%;            /* rgba(59,140,255,.08) composited on bg */
   --card: 220 24% 7%;               /* #0e1117 */
   --card-foreground: 218 31% 93%;
   --card-border: 187 30% 12%;
@@ -529,9 +529,9 @@ button:not([disabled]):active,
   --secondary-foreground: 220 12% 59%;
   --muted: 222 25% 10%;
   --muted-foreground: 220 12% 59%;  /* #8b93a3 */
-  --accent: 174 59% 56%;            /* #4fd1c5 */
+  --accent: 174 59% 56%;            /* #3b8cff */
   --accent-foreground: 225 25% 3%;
-  --destructive: 350 100% 66%;      /* #ff5470 */
+  --destructive: 350 100% 66%;      /* #ff6b3d */
   --destructive-foreground: 0 0% 100%;
   --input: 220 24% 7%;
   --ring: 174 59% 56%;
@@ -540,12 +540,12 @@ button:not([disabled]):active,
   --surface-raised: #0a0c11;
   --surface-overlay: rgba(10, 12, 17, .92);
   --surface-glass: rgba(14, 17, 23, .72);       /* mock --panel */
-  --surface-glass-border: rgba(79, 209, 197, .18); /* mock --border-hi */
+  --surface-glass-border: rgba(59,140,255, .18); /* mock --border-hi */
   --terminal-bg: #0e1117;
   --terminal-bg-secondary: #0a0c11;
   --terminal-bg-tertiary: #131720;
-  --terminal-border: rgba(79, 209, 197, .08);   /* mock --border */
-  --terminal-border-hover: rgba(79, 209, 197, .18);
+  --terminal-border: rgba(59,140,255, .08);   /* mock --border */
+  --terminal-border-hover: rgba(59,140,255, .18);
   --terminal-text: #e8ecf3;
   --terminal-text-secondary: #8b93a3;
   --terminal-text-muted: #7f889a; /* WCAG AA on terminal panels; was #525a6b */
@@ -555,33 +555,33 @@ button:not([disabled]):active,
   --brand-gold: #f5b642;
 
   /* trading semantics — the mock's saturated pair */
-  --trade-bullish: #3ddc97;
-  --trade-bullish-bg: rgba(61, 220, 151, .08);
-  --trade-bullish-bg-subtle: rgba(61, 220, 151, .04);
-  --trade-bearish: #ff5470;
-  --trade-bearish-bg: rgba(255, 84, 112, .08);
-  --trade-bearish-bg-subtle: rgba(255, 84, 112, .04);
-  --trade-neutral: #f5b642;
-  --trade-neutral-bg: rgba(245, 182, 66, .08);
-  --trade-neutral-bg-subtle: rgba(245, 182, 66, .04);
+  --trade-bullish: #6ee7b7;
+  --trade-bullish-bg: rgba(110,231,183, .08);
+  --trade-bullish-bg-subtle: rgba(110,231,183, .04);
+  --trade-bearish: #ff6b3d;
+  --trade-bearish-bg: rgba(255,107,61, .08);
+  --trade-bearish-bg-subtle: rgba(255,107,61, .04);
+  --trade-neutral: #facc15;
+  --trade-neutral-bg: rgba(250,204,21, .08);
+  --trade-neutral-bg-subtle: rgba(250,204,21, .04);
 
   /* bands — exactly the mock's band-S/A/B/C chip colours */
-  --grade-s: #3ddc97;
-  --grade-a: #4fd1c5;
+  --grade-s: #6ee7b7;
+  --grade-a: #3b8cff;
   --grade-b: #f5b642;
   --grade-c: #8b93a3;
   --grade-d: #f97316;
-  --grade-f: #ff5470;
+  --grade-f: #ff6b3d;
 
-  --ai-primary: #4fd1c5;
+  --ai-primary: #3b8cff;
   --ai-secondary: #60a5fa;
-  --confidence-high: #3ddc97;
+  --confidence-high: #6ee7b7;
   --confidence-medium: #60a5fa;
   --confidence-low: #f5b642;
 
-  --glow-cyan: rgba(79, 209, 197, .08);
+  --glow-cyan: rgba(59,140,255, .08);
   --glow-blue: rgba(96, 165, 250, .06);
-  --glow-teal: rgba(79, 209, 197, .15);
+  --glow-teal: rgba(59,140,255, .15);
   --projection-glow: #6ee7db;                   /* mock --cyan-bright */
   --projection-glow-soft: rgba(110, 231, 219, .22);
 
@@ -608,16 +608,16 @@ button:not([disabled]):active,
    the section eyebrow, the tape symbols and the heartbeat all carry the soft
    cyan bloom that defines its look. */
 .terminal-nexus .qe-ov2-num {
-  text-shadow: 0 0 8px rgba(79, 209, 197, .4);
+  text-shadow: 0 0 8px rgba(59,140,255, .4);
 }
 .terminal-nexus .qe-tape-item b {
-  text-shadow: 0 0 10px rgba(79, 209, 197, .25);
+  text-shadow: 0 0 10px rgba(59,140,255, .25);
 }
 .terminal-nexus .qe-kpi-tile::before {
   opacity: .45;
 }
 .terminal-nexus .qe-sig-card:hover {
-  box-shadow: 0 8px 24px rgb(0 0 0 / .4), 0 0 0 1px rgba(79, 209, 197, .18);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .4), 0 0 0 1px rgba(59,140,255, .18);
 }
 
 /* ========================================
@@ -2785,7 +2785,7 @@ button:not([disabled]):active,
   --ring: 174 84% 29%;
 
   /* consciously-kept light-theme legibility step of the same ramp (dark teal) */
-  --brand-cyan: #0d9488;
+  --brand-cyan: #1d6ce0;
   --brand-teal: #0d9488;
   --brand-blue: #2563eb;
   --brand-gold: #b45309;

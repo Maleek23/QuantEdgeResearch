@@ -355,7 +355,7 @@ export function SystemStatusBlock({ className }: { className?: string }) {
           tone === 'ok'
             ? { color: 'var(--trade-bullish)' }
             : tone === 'warn'
-              ? { color: 'var(--brand-gold, #f5b642)' }
+              ? { color: 'var(--brand-gold, #facc15)' }
               : undefined
         }
       >

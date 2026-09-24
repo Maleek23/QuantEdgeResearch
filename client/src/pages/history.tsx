@@ -119,7 +119,7 @@ export default function History() {
             <TabsList className="bg-muted/50 mb-6">
               <TabsTrigger
                 value="chat"
-                className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-cyan-400 gap-2"
+                className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-sky-400 gap-2"
                 data-testid="tab-chat-history"
               >
                 <MessageSquare className="w-4 h-4" />
@@ -127,7 +127,7 @@ export default function History() {
               </TabsTrigger>
               <TabsTrigger
                 value="research"
-                className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-cyan-400 gap-2"
+                className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-sky-400 gap-2"
                 data-testid="tab-research-history"
               >
                 <FileText className="w-4 h-4" />
@@ -157,7 +157,7 @@ export default function History() {
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                            <MessageSquare className="w-5 h-5 text-cyan-400" />
+                            <MessageSquare className="w-5 h-5 text-sky-400" />
                           </div>
                           <div>
                             <p className="font-medium text-foreground/90">{chat.title}</p>
@@ -170,7 +170,7 @@ export default function History() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" className="text-cyan-400">
+                          <Button variant="ghost" size="sm" className="text-sky-400">
                             <Eye className="w-4 h-4 mr-1" />
                             View
                           </Button>
@@ -214,8 +214,8 @@ export default function History() {
                         <div className="flex items-center gap-4">
                           <div>
                             <div className="flex items-center gap-2">
-                              <Link href={`/chart-analysis?symbol=${research.symbol}`}>
-                                <span className="font-semibold text-cyan-400 hover:text-[var(--trade-bullish)] cursor-pointer">
+                              <Link href={`/r/${research.symbol}?tab=chart`}>
+                                <span className="font-semibold text-sky-400 hover:text-[var(--trade-bullish)] cursor-pointer">
                                   {research.symbol}
                                 </span>
                               </Link>
@@ -236,8 +236,8 @@ export default function History() {
                               {(research.signal || research.direction)?.toUpperCase()}
                             </Badge>
                           )}
-                          <Link href={`/chart-analysis?symbol=${research.symbol}`}>
-                            <Button variant="ghost" size="sm" className="text-cyan-400">
+                          <Link href={`/r/${research.symbol}?tab=chart`}>
+                            <Button variant="ghost" size="sm" className="text-sky-400">
                               <Eye className="w-4 h-4 mr-1" />
                               View
                             </Button>

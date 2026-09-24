@@ -140,7 +140,7 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                           <button key={a} onClick={() => set('preferredAssets',
                             on ? (draft.preferredAssets ?? []).filter((x) => x !== a) : [...(draft.preferredAssets ?? []), a])}
                             className={cn('cursor-pointer rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                              on ? 'bg-[var(--brand-cyan,#22d3ee)]/15 text-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/5 text-muted-foreground hover:text-foreground')}>
+                              on ? 'bg-[var(--brand-cyan,#3b8cff)]/15 text-[var(--brand-cyan,#3b8cff)]' : 'bg-foreground/5 text-muted-foreground hover:text-foreground')}>
                             {a}
                           </button>
                         );
@@ -161,18 +161,18 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                     <span className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
                       <button onClick={() => setAppearance('dark')}
                         className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                          theme !== 'night' && theme !== 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground hover:text-foreground')}>
+                          theme !== 'night' && theme !== 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#3b8cff)]' : 'text-muted-foreground hover:text-foreground')}>
                         <Monitor className="h-3 w-3" /> Terminal
                       </button>
                       <button onClick={() => setAppearance('night')}
                         className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                          theme === 'night' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground hover:text-foreground')}>
+                          theme === 'night' ? 'bg-foreground/10 text-[var(--brand-cyan,#3b8cff)]' : 'text-muted-foreground hover:text-foreground')}>
                         <Moon className="h-3 w-3" /> Night
                       </button>
                       {/* The reference-terminal palette, verbatim — see .terminal-nexus in index.css */}
                       <button onClick={() => setAppearance('nexus')}
                         className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                          theme === 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground hover:text-foreground')}>
+                          theme === 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#3b8cff)]' : 'text-muted-foreground hover:text-foreground')}>
                         <Zap className="h-3 w-3" /> Nexus
                       </button>
                     </span>
@@ -188,7 +188,7 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                 <button
                   onClick={() => save.mutate(draft)}
                   disabled={save.isPending}
-                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[var(--brand-cyan,#22d3ee)] px-3 py-2 text-meta font-mono font-bold uppercase tracking-wider text-background transition-opacity disabled:opacity-60"
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[var(--brand-cyan,#3b8cff)] px-3 py-2 text-meta font-mono font-bold uppercase tracking-wider text-background transition-opacity disabled:opacity-60"
                 >
                   {save.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <Check className="h-3.5 w-3.5" /> : null}
                   {save.isPending ? 'Saving' : saved ? 'Saved' : 'Save settings'}
@@ -248,7 +248,7 @@ function Seg<T extends string>({ options, value, onChange }: { options: readonly
       {options.map((o) => (
         <button key={o} onClick={() => onChange(o)}
           className={cn('cursor-pointer rounded px-2 py-0.5 text-label font-mono uppercase tracking-wider transition-colors',
-            value === o ? 'bg-foreground/10 text-[var(--brand-cyan,#22d3ee)]' : 'text-muted-foreground hover:text-foreground')}>
+            value === o ? 'bg-foreground/10 text-[var(--brand-cyan,#3b8cff)]' : 'text-muted-foreground hover:text-foreground')}>
           {o}
         </button>
       ))}
@@ -259,7 +259,7 @@ function Seg<T extends string>({ options, value, onChange }: { options: readonly
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button onClick={() => onChange(!on)} role="switch" aria-checked={on} aria-label="Toggle animations"
-      className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors', on ? 'bg-[var(--brand-cyan,#22d3ee)]' : 'bg-foreground/15')}>
+      className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors', on ? 'bg-[var(--brand-cyan,#3b8cff)]' : 'bg-foreground/15')}>
       <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all', on ? 'left-[18px]' : 'left-0.5')} />
     </button>
   );

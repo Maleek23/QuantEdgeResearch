@@ -1,0 +1,88 @@
+{
+  "routes": 37,
+  "redirects": 76,
+  "tabs": 10,
+  "linkTargets": 52,
+  "N1_dead": {},
+  "N2_viaRedirect": {
+    "/trade-desk": [
+      "client/src/components/app-sidebar.tsx",
+      "client/src/components/navigation-customizer.tsx",
+      "client/src/pages/automations.tsx"
+    ],
+    "/trade-ideas/": [
+      "client/src/components/trade-desk/idea-detail-drawer.tsx"
+    ],
+    "/terminal/": [
+      "client/src/pages/trade-desk.tsx"
+    ]
+  },
+  "N3_orphanPageFiles": [
+    "automations",
+    "backtest",
+    "landing-nexus",
+    "trade-desk"
+  ],
+  "N4_unreachableRoutes": [
+    "/blog/:slug",
+    "/w",
+    "/trade-ideas/:id/audit",
+    "/about"
+  ],
+  "N5_navModel": {
+    "tabs": [
+      "NEXUS",
+      "CHART",
+      "FLOW",
+      "GEX",
+      "LEAPS",
+      "CRYPTO",
+      "CATALYST",
+      "BOT",
+      "POSITIONS",
+      "JOURNAL"
+    ],
+    "pages": [
+      "/slate",
+      "/radar",
+      "/performance",
+      "/alerts",
+      "/how-to",
+      "/settings"
+    ]
+  },
+  "N6_redundantJobs": {
+    "Rank today's trade ideas": [
+      "/t (NEXUS board)",
+      "/slate",
+      "/trade-desk"
+    ],
+    "Scan for chart setups": [
+      "/radar",
+      "/t (NEXUS pattern radar)",
+      "/slate"
+    ],
+    "Measure track record": [
+      "/performance",
+      "/t?tab=journal",
+      "/trade-ideas/:id/audit"
+    ],
+    "Guide / how to use": [
+      "/how-to",
+      "terminal Guide drawer",
+      "/academy"
+    ],
+    "Alerts": [
+      "/alerts",
+      "terminal Alerts drawer"
+    ],
+    "Preferences": [
+      "/settings",
+      "terminal Preferences drawer"
+    ],
+    "Per-ticker research": [
+      "/r/:symbol",
+      "ticker workup overlay"
+    ]
+  }
+}

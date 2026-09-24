@@ -41,7 +41,7 @@ const engines = [
   {
     name: "Convergence Layer",
     icon: Target,
-    color: "from-cyan-500 to-cyan-600",
+    color: "from-sky-500 to-sky-600",
     description: "Our proprietary algorithm that synthesizes all layers into a unified signal strength score with graded bands."
   }
 ];
@@ -123,7 +123,7 @@ export default function About() {
 
         {/* Hero Section */}
         <section className="text-center space-y-6">
-          <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
+          <Badge variant="outline" className="border-sky-500/30 text-sky-400">
             <Sparkles className="h-3 w-3 mr-1" />
             About QuantEdge Labs
           </Badge>
@@ -190,7 +190,7 @@ export default function About() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {engines.map((engine, i) => (
-              <Card key={i} className="glass-card group hover:border-cyan-500/30 transition-colors">
+              <Card key={i} className="glass-card group hover:border-sky-500/30 transition-colors">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${engine.color} flex items-center justify-center flex-shrink-0`}>
@@ -223,7 +223,7 @@ export default function About() {
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center flex-shrink-0">
-                      <value.icon className="h-4 w-4 text-cyan-400" />
+                      <value.icon className="h-4 w-4 text-sky-400" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-sm">{value.title}</h3>
@@ -249,10 +249,10 @@ export default function About() {
               <div className="space-y-4">
                 {milestones.map((milestone, i) => (
                   <div key={i} className="flex items-center gap-4">
-                    <Badge variant="outline" className="w-24 justify-center text-xs border-cyan-500/30 text-cyan-400">
+                    <Badge variant="outline" className="w-24 justify-center text-xs border-sky-500/30 text-sky-400">
                       {milestone.year}
                     </Badge>
-                    <div className="h-2 w-2 rounded-full bg-cyan-500" />
+                    <div className="h-2 w-2 rounded-full bg-sky-500" />
                     <span className="text-sm text-muted-foreground">{milestone.event}</span>
                   </div>
                 ))}
@@ -288,7 +288,7 @@ export default function About() {
         {/* Creator Section */}
         <section className="space-y-6">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center">
               <Users className="h-5 w-5 text-white" />
             </div>
             <h2 className="text-2xl font-semibold">Meet the Creator</h2>
@@ -301,13 +301,13 @@ export default function About() {
                     src={profileImage}
                     alt="Abdulmalik Ajisegiri"
                     width={128} height={128} loading="lazy" decoding="async"
-                    className="w-32 h-32 rounded-lg object-cover border-2 border-cyan-500/20 shadow-lg"
+                    className="w-32 h-32 rounded-lg object-cover border-2 border-sky-500/20 shadow-lg"
                   />
                 </div>
                 <div className="lg:col-span-3 space-y-4">
                   <div>
                     <h3 className="text-lg font-semibold">Abdulmalik Ajisegiri</h3>
-                    <p className="text-cyan-400 font-medium">Founder & Lead Developer</p>
+                    <p className="text-sky-400 font-medium">Founder & Lead Developer</p>
                     <p className="text-sm text-muted-foreground">Model Risk Engineer @ DTCC</p>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
@@ -321,7 +321,7 @@ export default function About() {
                       href="https://www.linkedin.com/in/malikajisegiri"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                      className="text-sm text-sky-400 hover:text-sky-300 transition-colors"
                     >
                       LinkedIn
                     </a>
@@ -330,7 +330,7 @@ export default function About() {
                       href="https://github.com/Maleek23"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                      className="text-sm text-sky-400 hover:text-sky-300 transition-colors"
                     >
                       GitHub
                     </a>
@@ -349,12 +349,12 @@ export default function About() {
           </p>
           <div className="flex gap-4 justify-center">
             <Link href="/signup">
-              <Button size="lg" className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600">
+              <Button size="lg" className="bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-600 hover:to-sky-600">
                 <Sparkles className="h-4 w-4 mr-2" />
                 Sign Up Free
               </Button>
             </Link>
-            <Link href="/features">
+            <Link href="/">
               <Button size="lg" variant="outline">
                 View Features
               </Button>

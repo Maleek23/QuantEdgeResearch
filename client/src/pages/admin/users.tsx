@@ -163,7 +163,7 @@ function AdminUsersContent() {
     const styles = {
       admin: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20",
       pro: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-      advanced: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+      advanced: "bg-sky-500/10 text-sky-400 border-sky-500/20",
       free: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
     };
     const icons = {
@@ -197,7 +197,7 @@ function AdminUsersContent() {
   const getRiskBadge = (risk?: string) => {
     const labels: Record<string, { label: string; color: string }> = {
       conservative: { label: "Conservative", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-      moderate: { label: "Moderate", color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20" },
+      moderate: { label: "Moderate", color: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
       aggressive: { label: "Aggressive", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
       very_aggressive: { label: "Very Aggressive", color: "bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20" },
     };
@@ -212,7 +212,7 @@ function AdminUsersContent() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="text-foreground flex items-center gap-2">
-                <Users className="h-5 w-5 text-cyan-400" />
+                <Users className="h-5 w-5 text-sky-400" />
                 User Management
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -334,7 +334,7 @@ function AdminUsersContent() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                            className="h-8 w-8 text-sky-400 hover:text-sky-300 hover:bg-sky-500/10"
                             onClick={() => setSelectedUserId(user.id)}
                             data-testid={`button-view-${user.id}`}
                           >
@@ -343,7 +343,7 @@ function AdminUsersContent() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-[var(--trade-bearish)] hover:text-red-300 hover:bg-red-500/10"
+                            className="h-8 w-8 text-[var(--trade-bearish)] hover:text-[var(--trade-bearish)] hover:bg-red-500/10"
                             onClick={() => setDeleteUserId(user.id)}
                             data-testid={`button-delete-${user.id}`}
                           >
@@ -398,7 +398,7 @@ function AdminUsersContent() {
         <SheetContent className="bg-card border-border w-full sm:max-w-lg">
           <SheetHeader>
             <SheetTitle className="text-foreground flex items-center gap-2">
-              <User className="h-5 w-5 text-cyan-400" />
+              <User className="h-5 w-5 text-sky-400" />
               User Details
             </SheetTitle>
             <SheetDescription className="text-muted-foreground">
@@ -410,8 +410,8 @@ function AdminUsersContent() {
             <ScrollArea className="h-[calc(100vh-120px)] mt-6 pr-4">
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                  <div className="h-16 w-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-cyan-400/10 border border-cyan-500/20 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-cyan-400">
+                  <div className="h-16 w-16 rounded-full bg-gradient-to-br from-sky-500/20 to-sky-400/10 border border-sky-500/20 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-sky-400">
                       {selectedUser.firstName?.[0] || selectedUser.email[0].toUpperCase()}
                     </span>
                   </div>
@@ -440,7 +440,7 @@ function AdminUsersContent() {
 
                 <div className="space-y-4">
                   <h4 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-cyan-400" />
+                    <Briefcase className="h-4 w-4 text-sky-400" />
                     Profile Information
                   </h4>
                   <div className="grid grid-cols-2 gap-3">
@@ -465,7 +465,7 @@ function AdminUsersContent() {
 
                 <div className="space-y-4">
                   <h4 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-cyan-400" />
+                    <TrendingUp className="h-4 w-4 text-sky-400" />
                     Trading Profile
                   </h4>
                   <div className="space-y-3">
@@ -479,7 +479,7 @@ function AdminUsersContent() {
                     </div>
                     <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
                       <p className="text-xs text-muted-foreground mb-2">Investment Goals</p>
-                      <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+                      <Badge variant="outline" className="bg-sky-500/10 text-sky-400 border-sky-500/20">
                         <Target className="h-3 w-3 mr-1" />
                         {selectedUser.investmentGoals?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Not specified"}
                       </Badge>
@@ -503,7 +503,7 @@ function AdminUsersContent() {
 
                 <div className="space-y-4">
                   <h4 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-cyan-400" />
+                    <Clock className="h-4 w-4 text-sky-400" />
                     Account Timeline
                   </h4>
                   <div className="space-y-2">
@@ -546,7 +546,7 @@ function AdminUsersContent() {
                     <Separator className="bg-muted" />
                     <div className="space-y-4">
                       <h4 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                        <CreditCard className="h-4 w-4 text-cyan-400" />
+                        <CreditCard className="h-4 w-4 text-sky-400" />
                         Billing
                       </h4>
                       <div className="p-3 rounded-lg bg-muted/50 border border-border/50">

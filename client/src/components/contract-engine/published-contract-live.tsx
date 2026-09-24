@@ -52,15 +52,15 @@ export function PublishedContractLive(props: {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(92px, 1fr))", gap: 10 }}>
             {cell("PREMIUM", d.mid != null ? `$${d.mid.toFixed(2)}` : "—")}
-            {cell("SINCE PUBLISH", pct(d.premiumChangeSincePublish), (d.premiumChangeSincePublish ?? 0) >= 0 ? "var(--green, #3ddc97)" : "var(--red, #ff5d73)")}
+            {cell("SINCE PUBLISH", pct(d.premiumChangeSincePublish), (d.premiumChangeSincePublish ?? 0) >= 0 ? "var(--green, #6ee7b7)" : "var(--red, #ff6b3d)")}
             {cell("DELTA", d.delta != null ? Math.abs(d.delta).toFixed(2) : "—")}
             {cell("IV", d.iv != null ? `${(d.iv * 100).toFixed(1)}%` : "—")}
             {cell("θ / DAY", d.thetaPerDayPct != null ? `${(d.thetaPerDayPct * 100).toFixed(1)}%` : "—")}
             {cell("EXPECTED MOVE", d.expectedMove != null ? `±$${d.expectedMove.toFixed(2)}` : "—")}
             {cell("T1 DISTANCE", d.targetSigma != null ? `${d.targetSigma.toFixed(2)}σ` : "—", d.targetSigma != null && d.targetSigma > 1 ? "var(--amber, #e8b34b)" : undefined)}
             {cell("ODDS TOUCH T1", d.probTouchT1 != null ? `${Math.round(d.probTouchT1 * 100)}%` : "—")}
-            {cell("IF T1 TODAY", pct(d.roiIfT1Today), "var(--green, #3ddc97)")}
-            {cell("AT STOP TODAY", d.valueAtStopToday != null ? `$${d.valueAtStopToday.toFixed(2)}` : "—", "var(--red, #ff5d73)")}
+            {cell("IF T1 TODAY", pct(d.roiIfT1Today), "var(--green, #6ee7b7)")}
+            {cell("AT STOP TODAY", d.valueAtStopToday != null ? `$${d.valueAtStopToday.toFixed(2)}` : "—", "var(--red, #ff6b3d)")}
             {cell("BREAKEVEN @EXP", d.breakevenAtExpiry != null ? `$${d.breakevenAtExpiry.toFixed(2)}` : "—")}
           </div>
           <p style={{ fontSize: 'var(--fs-10, 10px)', color: "var(--text-dim, #6b7482)", margin: "10px 0 0", lineHeight: 1.5 }}>

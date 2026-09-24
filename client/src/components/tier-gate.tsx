@@ -211,7 +211,7 @@ export function UsageBadge({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-1 text-xs", className)}>
       {tier === 'advanced' ? (
-        <Zap className="h-3 w-3 text-cyan-500" />
+        <Zap className="h-3 w-3 text-sky-500" />
       ) : (
         <span className="text-muted-foreground">Free</span>
       )}

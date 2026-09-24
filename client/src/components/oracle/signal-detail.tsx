@@ -29,7 +29,7 @@ import { SignalTrajectory } from '@/components/hunt/cockpit/signal-trajectory';
 
 const BULL = 'var(--trade-bullish,#22c55e)';
 const BEAR = 'var(--trade-bearish,#ef4444)';
-const CYAN = 'var(--brand-cyan,#22d3ee)';
+const CYAN = 'var(--brand-cyan,#3b8cff)';
 const GOLD = '#e0a458';
 
 const money = (n: number) => (n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 0 }) : n.toFixed(2));
@@ -609,7 +609,7 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
                 </div>
               </div>
               <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-label font-mono uppercase tracking-wider',
-                i < hitIdx ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground')}>
+                i < hitIdx ? 'border-[var(--brand-cyan,#3b8cff)]/40 text-[var(--brand-cyan,#3b8cff)]' : 'border-border/50 text-muted-foreground')}>
                 {i < hitIdx ? 'Hit' : i === hitIdx ? 'Next' : 'Pending'}
               </span>
             </div>
@@ -628,7 +628,7 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
                 <div className="text-label font-mono text-muted-foreground">{ladderQ.isLoading ? 'mapping real levels…' : p.action}</div>
               </div>
               <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-label font-mono uppercase tracking-wider',
-                p.active ? 'border-[var(--brand-cyan,#22d3ee)]/40 text-[var(--brand-cyan,#22d3ee)]' : 'border-border/50 text-muted-foreground')}>
+                p.active ? 'border-[var(--brand-cyan,#3b8cff)]/40 text-[var(--brand-cyan,#3b8cff)]' : 'border-border/50 text-muted-foreground')}>
                 {p.active ? 'Active' : 'Pending'}
               </span>
             </div>

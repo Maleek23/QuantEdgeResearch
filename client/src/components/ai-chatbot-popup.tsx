@@ -161,12 +161,12 @@ export function AIChatbotPopup() {
           data-testid="container-ai-chatbot"
         >
           <div 
-            className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-t-xl"
+            className="flex items-center justify-between p-3 border-b bg-gradient-to-r from-sky-500/10 to-blue-500/10 rounded-t-xl"
           >
             <div className="flex items-center gap-2">
               <div className="relative">
-                <Bot className="h-5 w-5 text-cyan-400" />
-                <Sparkles className="absolute -top-1 -right-1 h-2.5 w-2.5 text-cyan-300" />
+                <Bot className="h-5 w-5 text-sky-400" />
+                <Sparkles className="absolute -top-1 -right-1 h-2.5 w-2.5 text-sky-300" />
               </div>
               <span className="font-medium text-sm">Quant Edge AI</span>
               {user && creditsRemaining !== null && (
@@ -176,7 +176,7 @@ export function AIChatbotPopup() {
                     "text-xs gap-1",
                     creditsRemaining <= 5 ? "border-red-500/50 text-[var(--trade-bearish)]" :
                     creditsRemaining <= 15 ? "border-amber-500/50 text-[var(--trade-neutral)]" :
-                    "border-cyan-500/50 text-cyan-400"
+                    "border-sky-500/50 text-sky-400"
                   )}
                   data-testid="badge-credits"
                 >
@@ -212,7 +212,7 @@ export function AIChatbotPopup() {
               <ScrollArea className="flex-1 p-3" ref={scrollRef}>
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                    <Bot className="h-12 w-12 text-cyan-400/50 mb-3" />
+                    <Bot className="h-12 w-12 text-sky-400/50 mb-3" />
                     <h3 className="font-medium mb-1">How can I help you?</h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       Ask about trading concepts, market analysis, or research questions.
@@ -253,7 +253,7 @@ export function AIChatbotPopup() {
                           className={cn(
                             "max-w-[85%] rounded-lg px-3 py-2",
                             message.role === 'user' 
-                              ? "bg-cyan-500/20 text-foreground" 
+                              ? "bg-sky-500/20 text-foreground" 
                               : "bg-muted"
                           )}
                         >
@@ -283,7 +283,7 @@ export function AIChatbotPopup() {
                     {researchMutation.isPending && (
                       <div className="flex justify-start">
                         <div className="bg-muted rounded-lg px-3 py-2 flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+                          <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
                           <span className="text-sm text-muted-foreground">Thinking...</span>
                         </div>
                       </div>
@@ -298,12 +298,12 @@ export function AIChatbotPopup() {
                   creditBalance.creditsUsed / creditBalance.creditsAllocated >= 0.7 && (
                   <a 
                     href="/pricing" 
-                    className="flex items-center gap-2 mb-2 p-2 rounded-lg bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 hover:border-cyan-500/40 transition-colors"
+                    className="flex items-center gap-2 mb-2 p-2 rounded-lg bg-gradient-to-r from-sky-500/10 to-purple-500/10 border border-sky-500/20 hover:border-sky-500/40 transition-colors"
                     data-testid="link-upgrade-nudge"
                   >
-                    <ArrowUpCircle className="h-4 w-4 text-cyan-400 flex-shrink-0" />
+                    <ArrowUpCircle className="h-4 w-4 text-sky-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-cyan-300">
+                      <p className="text-xs font-medium text-sky-300">
                         Running low on credits!
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
@@ -330,7 +330,7 @@ export function AIChatbotPopup() {
                   <Button
                     type="submit"
                     size="icon"
-                    className="h-9 w-9 bg-cyan-500 hover:bg-cyan-600"
+                    className="h-9 w-9 bg-sky-500 hover:bg-sky-600"
                     disabled={!question.trim() || researchMutation.isPending}
                     data-testid="button-chatbot-send"
                   >
@@ -351,7 +351,7 @@ export function AIChatbotPopup() {
         onClick={toggleOpen}
         className={cn(
           "fixed bottom-4 right-4 z-50 h-14 w-14 rounded-full shadow-lg",
-          "bg-gradient-to-br from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500",
+          "bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500",
           "transition-all duration-200",
           isOpen && "scale-0 opacity-0"
         )}

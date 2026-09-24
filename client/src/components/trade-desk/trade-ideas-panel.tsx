@@ -621,7 +621,7 @@ function EmptyState({
               <button
                 key={s.key as string}
                 onClick={() => onRelax(s.patch)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-mono uppercase tracking-wider"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-emerald-500/30 text-[var(--trade-bullish)] hover:bg-emerald-500/10 text-[10px] font-mono uppercase tracking-wider"
                 data-testid={`empty-relax-${s.key}`}
               >
                 <span>{s.label}</span>
@@ -638,7 +638,7 @@ function EmptyState({
 
       <button
         onClick={onReset}
-        className="mt-4 px-3 py-1.5 rounded-md border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 text-[10px] font-mono uppercase tracking-wider"
+        className="mt-4 px-3 py-1.5 rounded-md border border-sky-500/30 text-sky-300 hover:bg-sky-500/10 text-[10px] font-mono uppercase tracking-wider"
       >
         Reset All Filters
       </button>

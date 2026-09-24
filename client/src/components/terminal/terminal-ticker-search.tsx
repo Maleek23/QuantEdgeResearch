@@ -132,7 +132,7 @@ export function TerminalTickerSearch({
               <span className="w-14 font-mono text-[12px] font-bold tracking-wider text-foreground">{result.symbol}</span>
               <span
                 className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground"
-                style={result.changePct != null ? { color: result.changePct >= 0 ? 'var(--green, #34d399)' : 'var(--red, #ff5470)' } : undefined}
+                style={result.changePct != null ? { color: result.changePct >= 0 ? 'var(--green, #34d399)' : 'var(--red, #ff6b3d)' } : undefined}
               >
                 {result.name ?? result.symbol}
               </span>

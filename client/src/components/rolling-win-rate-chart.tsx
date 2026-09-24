@@ -54,7 +54,7 @@ function CustomTooltip({ active, payload }: any) {
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Cumulative:</span>
-            <span className="font-mono text-cyan-500">{data.cumulativeWinRate}%</span>
+            <span className="font-mono text-sky-500">{data.cumulativeWinRate}%</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Window W/L:</span>
@@ -223,9 +223,9 @@ export default function RollingWinRateChart() {
             <p className="text-xs text-muted-foreground">Trough</p>
             <p className="font-semibold font-mono text-lg text-[var(--trade-bearish)]">{summary.minWinRate}%</p>
           </div>
-          <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+          <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
             <p className="text-xs text-muted-foreground">Volatility</p>
-            <p className="font-semibold font-mono text-lg text-cyan-500">{summary.volatility}%</p>
+            <p className="font-semibold font-mono text-lg text-sky-500">{summary.volatility}%</p>
           </div>
         </div>
 
@@ -279,7 +279,7 @@ export default function RollingWinRateChart() {
             <span className="text-muted-foreground">Rolling ({summary.windowSize}-trade)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 bg-cyan-500 rounded border-dashed" style={{ borderBottom: `2px dashed ${CHART_COLORS.accent}` }} />
+            <div className="w-3 h-0.5 bg-sky-500 rounded border-dashed" style={{ borderBottom: `2px dashed ${CHART_COLORS.accent}` }} />
             <span className="text-muted-foreground">Cumulative</span>
           </div>
           <div className="flex items-center gap-1.5">

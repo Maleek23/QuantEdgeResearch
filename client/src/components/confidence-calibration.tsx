@@ -118,10 +118,10 @@ export default function ConfidenceCalibration({ selectedEngine }: ConfidenceCali
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-          <Info className="h-4 w-4 text-cyan-500 mt-0.5 shrink-0" />
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
+          <Info className="h-4 w-4 text-sky-500 mt-0.5 shrink-0" />
           <div className="text-sm">
-            <p className="font-medium text-cyan-600 dark:text-cyan-400">
+            <p className="font-medium text-sky-600 dark:text-sky-400">
               Signal Strength = How many indicators agree (not probability)
             </p>
             {engineEV && evValue !== null && (

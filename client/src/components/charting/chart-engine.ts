@@ -149,7 +149,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   const priceRange = max - min || 1;
 
   // Grid + price labels
-  ctx.strokeStyle = 'rgba(79, 209, 197, 0.05)';
+  ctx.strokeStyle = 'rgba(59,140,255, 0.05)';
   ctx.lineWidth = 1;
   const gridLines = 6;
   for (let i = 0; i <= gridLines; i++) {
@@ -185,10 +185,10 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     if (bot > max || top < min) continue;
     const y1 = padding.top + ((max - Math.min(top, max)) / priceRange) * priceH;
     const y2 = padding.top + ((max - Math.max(bot, min)) / priceRange) * priceH;
-    ctx.fillStyle = (z.color ?? '#f5b642') + '14';
+    ctx.fillStyle = (z.color ?? '#facc15') + '14';
     ctx.fillRect(padding.left, y1, chartW, Math.max(1, y2 - y1));
     if (z.label) {
-      ctx.fillStyle = (z.color ?? '#f5b642') + '99';
+      ctx.fillStyle = (z.color ?? '#facc15') + '99';
       ctx.font = '700 8px "JetBrains Mono", monospace';
       ctx.textAlign = 'right';
       ctx.fillText(z.label, w - padding.right - 4, y1 + 9);
@@ -233,7 +233,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     ctx.stroke();
   };
   strokeMA(ma50, 'rgba(167, 139, 250, 0.6)');
-  strokeMA(ma20, 'rgba(79, 209, 197, 0.7)');
+  strokeMA(ma20, 'rgba(59,140,255, 0.7)');
 
   // Volume bars
   const volTop = padding.top + priceH + 10;
@@ -241,7 +241,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   candles.forEach((c, i) => {
     const x = padding.left + i * candleW;
     const barH = maxVol > 0 ? (c.volume / maxVol) * volumeH : 0;
-    ctx.fillStyle = c.close >= c.open ? 'rgba(61, 220, 151, 0.25)' : 'rgba(255, 84, 112, 0.25)';
+    ctx.fillStyle = c.close >= c.open ? 'rgba(110,231,183, 0.25)' : 'rgba(255,107,61, 0.25)';
     ctx.fillRect(x + candleW * 0.15, volTop + volumeH - barH, candleW * 0.7, barH);
   });
 
@@ -280,7 +280,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
       const x = padding.left + i * candleW;
       const cx = x + candleW / 2;
       const isUp = c.close >= c.open;
-      const color = isUp ? '#3ddc97' : '#ff5470';
+      const color = isUp ? '#6ee7b7' : '#ff6b3d';
       const openY = padding.top + ((max - c.open) / priceRange) * priceH;
       const closeY = padding.top + ((max - c.close) / priceRange) * priceH;
       const highY = c.clampedHigh ? padding.top : padding.top + ((max - c.high) / priceRange) * priceH;
@@ -303,8 +303,8 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     });
   } else {
     const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + priceH);
-    grad.addColorStop(0, 'rgba(79, 209, 197, 0.25)');
-    grad.addColorStop(1, 'rgba(79, 209, 197, 0)');
+    grad.addColorStop(0, 'rgba(59,140,255, 0.25)');
+    grad.addColorStop(1, 'rgba(59,140,255, 0)');
     ctx.beginPath();
     candles.forEach((c, i) => {
       const x = padding.left + (i / (candles.length - 1)) * chartW;
@@ -322,9 +322,9 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
       const y = padding.top + ((max - c.close) / priceRange) * priceH;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
-    ctx.strokeStyle = '#4fd1c5';
+    ctx.strokeStyle = '#3b8cff';
     ctx.lineWidth = 1.8;
-    ctx.shadowColor = '#4fd1c5';
+    ctx.shadowColor = '#3b8cff';
     ctx.shadowBlur = 8;
     ctx.stroke();
     ctx.shadowBlur = 0;
@@ -333,7 +333,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   // Current price line + tag
   const lastCandle = candles[candles.length - 1];
   const lastY = padding.top + ((max - lastCandle.close) / priceRange) * priceH;
-  ctx.strokeStyle = 'rgba(79, 209, 197, 0.5)';
+  ctx.strokeStyle = 'rgba(59,140,255, 0.5)';
   ctx.lineWidth = 1;
   ctx.setLineDash([2, 3]);
   ctx.beginPath();
@@ -341,7 +341,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   ctx.lineTo(w - padding.right, lastY);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = '#4fd1c5';
+  ctx.fillStyle = '#3b8cff';
   ctx.fillRect(w - padding.right, lastY - 9, 60, 18);
   ctx.fillStyle = '#031917';
   ctx.font = '700 10px "JetBrains Mono", monospace';
@@ -350,7 +350,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
 
   // Crosshair
   if (inPlot) {
-    ctx.strokeStyle = 'rgba(79, 209, 197, 0.3)';
+    ctx.strokeStyle = 'rgba(59,140,255, 0.3)';
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -363,7 +363,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     const cursorPrice = max - ((opts.mouseY - padding.top) / priceH) * priceRange;
     ctx.fillStyle = 'rgba(14,17,23,0.9)';
     ctx.fillRect(w - padding.right, opts.mouseY - 9, 60, 18);
-    ctx.strokeStyle = 'rgba(79, 209, 197, 0.5)';
+    ctx.strokeStyle = 'rgba(59,140,255, 0.5)';
     ctx.strokeRect(w - padding.right, opts.mouseY - 9, 60, 18);
     ctx.fillStyle = '#e8ecf3';
     ctx.font = '600 10px "JetBrains Mono", monospace';

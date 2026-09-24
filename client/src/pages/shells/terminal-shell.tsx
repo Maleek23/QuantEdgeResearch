@@ -279,7 +279,7 @@ export default function TerminalShell() {
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
               {currentStock?.symbol ? (
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 0.8, color: 'var(--cyan-bright, #22d3ee)' }}>{currentStock.symbol}</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 0.8, color: 'var(--cyan-bright, #3b8cff)' }}>{currentStock.symbol}</span>
               ) : (
                 <span style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--text-mute)' }}>search any ticker</span>
               )}
@@ -302,7 +302,7 @@ export default function TerminalShell() {
                 {alerts.unread > 0 && (
                   <span
                     className="grid h-4 min-w-4 place-items-center rounded-full px-1 font-mono text-[9px] font-bold"
-                    style={{ background: 'rgba(79,209,197,0.15)', color: 'var(--cyan-bright)', border: '1px solid rgba(79,209,197,0.3)' }}
+                    style={{ background: 'rgba(59,140,255,0.15)', color: 'var(--cyan-bright)', border: '1px solid rgba(59,140,255,0.3)' }}
                   >
                     {alerts.unread}
                   </span>
@@ -534,7 +534,7 @@ export default function TerminalShell() {
 function Fallback() {
   return (
     <div className="flex items-center justify-center h-64">
-      <Loader2 className="h-4 w-4 animate-spin text-[var(--brand-cyan,#22d3ee)]" />
+      <Loader2 className="h-4 w-4 animate-spin text-[var(--brand-cyan,#3b8cff)]" />
     </div>
   );
 }

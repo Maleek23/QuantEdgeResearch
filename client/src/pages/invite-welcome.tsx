@@ -32,14 +32,14 @@ export default function InviteWelcome() {
   return (
     <div className="min-h-screen bg-[var(--surface-base)] flex items-center justify-center p-6 relative overflow-hidden">
       {/* Subtle gradient accent */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-sky-500/5 blur-[120px] rounded-full pointer-events-none" />
       
       <div className="w-full max-w-md relative z-10">
         
         {/* Logo with subtle glow */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
               <span className="text-lg font-bold text-white">Q</span>
             </div>
             <div>
@@ -53,11 +53,11 @@ export default function InviteWelcome() {
         {/* Main Card with subtle border glow */}
         <div className="bg-card border border-neutral-800/80 rounded-2xl p-8 shadow-2xl shadow-black/50 relative">
           {/* Subtle top accent line */}
-          <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+          <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-sky-500/30 to-transparent" />
           
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium mb-4">
               <Sparkles className="w-3 h-3" />
               Exclusive Beta Access
             </div>
@@ -73,8 +73,8 @@ export default function InviteWelcome() {
           <div className="space-y-3 mb-8">
             {features.map((feature, idx) => (
               <div key={idx} className="flex items-center gap-3 text-neutral-300 text-sm group">
-                <div className="w-8 h-8 rounded-lg bg-neutral-800/50 border border-neutral-700/50 flex items-center justify-center group-hover:border-cyan-500/30 transition-colors">
-                  <feature.icon className="w-4 h-4 text-cyan-400" />
+                <div className="w-8 h-8 rounded-lg bg-neutral-800/50 border border-neutral-700/50 flex items-center justify-center group-hover:border-sky-500/30 transition-colors">
+                  <feature.icon className="w-4 h-4 text-sky-400" />
                 </div>
                 {feature.label}
               </div>
@@ -84,7 +84,7 @@ export default function InviteWelcome() {
           {/* CTA Button */}
           <Button 
             onClick={handleAcceptInvite}
-            className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all hover:shadow-cyan-500/30"
+            className="w-full h-12 bg-sky-500 hover:bg-sky-400 text-black font-semibold rounded-xl shadow-lg shadow-sky-500/20 transition-all hover:shadow-sky-500/30"
             data-testid="button-accept-invite"
           >
             Accept Invitation

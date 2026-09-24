@@ -280,7 +280,7 @@ export default function AdminReportsPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3" data-testid="text-page-title">
-            <FileText className="h-7 w-7 text-cyan-400" />
+            <FileText className="h-7 w-7 text-sky-400" />
             Platform Reports Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -301,7 +301,7 @@ export default function AdminReportsPage() {
           <Button
             onClick={() => generateReportMutation.mutate(selectedPeriod)}
             disabled={generateReportMutation.isPending}
-            className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
+            className="bg-sky-500 hover:bg-sky-400 text-foreground"
             data-testid="button-generate-report"
           >
             {generateReportMutation.isPending ? (
@@ -324,7 +324,7 @@ export default function AdminReportsPage() {
               key={period}
               className={cn(
                 "glass-card cursor-pointer transition-all",
-                isSelected && "ring-2 ring-cyan-500/50"
+                isSelected && "ring-2 ring-sky-500/50"
               )}
               onClick={() => setSelectedPeriod(period as typeof selectedPeriod)}
               data-testid={`card-${period}-report`}
@@ -401,7 +401,7 @@ export default function AdminReportsPage() {
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Total Ideas
                   </p>
-                  <BarChart3 className="h-4 w-4 text-cyan-400" />
+                  <BarChart3 className="h-4 w-4 text-sky-400" />
                 </div>
                 {statsLoading ? (
                   <Skeleton className="h-8 w-20 mt-2" />
@@ -480,7 +480,7 @@ export default function AdminReportsPage() {
                     toast({ title: "PDF Downloaded", description: `${selectedPeriod} report PDF generated successfully` });
                   }
                 }}
-                className="border-cyan-500/30 hover:border-cyan-500"
+                className="border-sky-500/30 hover:border-sky-500"
                 data-testid="button-download-pdf"
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -494,7 +494,7 @@ export default function AdminReportsPage() {
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <PieChart className="h-5 w-5 text-cyan-400" />
+                  <PieChart className="h-5 w-5 text-sky-400" />
                   Asset Type Distribution
                 </CardTitle>
               </CardHeader>
@@ -543,7 +543,7 @@ export default function AdminReportsPage() {
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
                     Options Flow Alerts
                   </p>
-                  <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-flow-alerts">
+                  <p className="text-2xl font-bold font-mono tabular-nums text-sky-400" data-testid="text-flow-alerts">
                     {stats?.scannerActivity.optionsFlowAlerts || 0}
                   </p>
                 </div>
@@ -665,7 +665,7 @@ export default function AdminReportsPage() {
             <Card className="glass-card border-l-2 border-l-cyan-500" data-testid="card-bot-autolotto">
               <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Bot className="h-4 w-4 text-cyan-400" />
+                  <Bot className="h-4 w-4 text-sky-400" />
                   Auto-Lotto Bot
                 </CardTitle>
               </CardHeader>
@@ -930,7 +930,7 @@ export default function AdminReportsPage() {
           <Card className="glass-card">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="h-5 w-5 text-cyan-400" />
+                <Clock className="h-5 w-5 text-sky-400" />
                 {selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} Report History
               </CardTitle>
             </CardHeader>

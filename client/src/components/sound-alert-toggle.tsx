@@ -126,7 +126,7 @@ export function SoundAlertToggle({ variant = 'compact' }: Props) {
             if (!prefs.alertsEnabled) AlertSounds.click();
           }}
           className={`p-1.5 rounded transition-colors ${
-            prefs.alertsEnabled ? 'text-cyan-400 hover:bg-cyan-500/10' : 'text-zinc-600 hover:bg-zinc-800'
+            prefs.alertsEnabled ? 'text-sky-400 hover:bg-sky-500/10' : 'text-zinc-600 hover:bg-zinc-800'
           }`}
           title={prefs.alertsEnabled ? 'Alerts ON' : 'Alerts OFF'}
         >
@@ -138,7 +138,7 @@ export function SoundAlertToggle({ variant = 'compact' }: Props) {
             if (!prefs.soundEnabled) AlertSounds.click();
           }}
           className={`p-1.5 rounded transition-colors ${
-            prefs.soundEnabled ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-zinc-600 hover:bg-zinc-800'
+            prefs.soundEnabled ? 'text-[var(--trade-bullish)] hover:bg-emerald-500/10' : 'text-zinc-600 hover:bg-zinc-800'
           }`}
           title={prefs.soundEnabled ? 'Sound ON' : 'Sound OFF'}
         >
@@ -225,7 +225,7 @@ function ToggleRow({
     <div className={`flex items-center justify-between gap-2 ${disabled ? 'opacity-40' : ''}`}>
       <span className="text-xs flex-1">{label}</span>
       {onTest && value && !disabled && (
-        <button onClick={onTest} className="text-[10px] text-cyan-400 hover:underline">test</button>
+        <button onClick={onTest} className="text-[10px] text-sky-400 hover:underline">test</button>
       )}
       <button
         onClick={() => !disabled && onChange(!value)}

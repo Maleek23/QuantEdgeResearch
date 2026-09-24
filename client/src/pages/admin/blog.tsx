@@ -255,7 +255,7 @@ export default function AdminBlogPage() {
                       data-testid="input-search-posts"
                     />
                   </div>
-                  <Button onClick={handleNewPost} className="bg-cyan-600 hover:bg-cyan-700" data-testid="button-new-post">
+                  <Button onClick={handleNewPost} className="bg-sky-600 hover:bg-sky-700" data-testid="button-new-post">
                     <Plus className="h-4 w-4 mr-2" />
                     New Post
                   </Button>
@@ -273,7 +273,7 @@ export default function AdminBlogPage() {
                     <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No posts published yet</h3>
                     <p className="text-muted-foreground mb-4">Start creating SEO-friendly content to attract visitors</p>
-                    <Button onClick={handleNewPost} className="bg-cyan-600 hover:bg-cyan-700">
+                    <Button onClick={handleNewPost} className="bg-sky-600 hover:bg-sky-700">
                       <Plus className="h-4 w-4 mr-2" />
                       Create Your First Post
                     </Button>
@@ -335,7 +335,7 @@ export default function AdminBlogPage() {
                             variant="ghost" 
                             size="sm" 
                             onClick={() => { setPostToDelete(post); setDeleteDialogOpen(true); }}
-                            className="text-[var(--trade-bearish)] hover:text-red-300"
+                            className="text-[var(--trade-bearish)] hover:text-[var(--trade-bearish)]"
                             data-testid={`button-delete-${post.id}`}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -592,7 +592,7 @@ export default function AdminBlogPage() {
                       <Button 
                         onClick={handlePublish}
                         disabled={createMutation.isPending || updateMutation.isPending}
-                        className="w-full bg-cyan-600 hover:bg-cyan-700"
+                        className="w-full bg-sky-600 hover:bg-sky-700"
                         data-testid="button-publish"
                       >
                         <Send className="h-4 w-4 mr-2" />

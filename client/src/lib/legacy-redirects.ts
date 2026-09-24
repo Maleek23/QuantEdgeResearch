@@ -92,7 +92,12 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/wsb-trending", "/trade-desk"],
   ["/social-trends", "/trade-desk"],
   ["/ai-stock-picker", "/trade-desk"],
-  ["/trade-ideas", "/trade-desk"],
+  ["/trade-ideas", "/slate"],
+  // Retired 2026-09-24 (nav-architecture test N6): Trade Desk duplicated the
+  // NEXUS board and Slate and read "0 ideas" while the board had them;
+  // Automations duplicated the BOT tab with a contradictory P&L.
+  ["/trade-desk", "/slate"],
+  ["/automations", "/t?tab=bot"],
   ["/convictions", "/trade-desk?preset=todays-best"],
   ["/futures", "/trade-desk?tab=futures"],
   ["/futures-research", "/trade-desk?tab=futures"],

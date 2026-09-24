@@ -588,7 +588,7 @@ function HoverTooltip({
         <div
           className={cn(
             'text-sm font-bold tabular-nums font-mono',
-            pnl >= 0 ? 'text-emerald-400' : 'text-red-400',
+            pnl >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]',
           )}
         >
           {pnl >= 0 ? '+' : ''}
@@ -696,7 +696,7 @@ export default function PositionPnLSimulator({
             className={cn(
               'text-[10px]',
               mode === 'expiry'
-                ? 'border-emerald-500/30 text-emerald-400'
+                ? 'border-emerald-500/30 text-[var(--trade-bullish)]'
                 : 'border-amber-500/30 text-amber-400',
             )}
           >
@@ -735,7 +735,7 @@ export default function PositionPnLSimulator({
                 key={pct}
                 variant="outline"
                 size="sm"
-                className="h-8 px-2 text-xs font-mono text-red-400 border-border/50 hover:border-red-500/40 hover:bg-red-500/10"
+                className="h-8 px-2 text-xs font-mono text-[var(--trade-bearish)] border-border/50 hover:border-red-500/40 hover:bg-red-500/10"
                 onClick={() => handleQuickAdjust(pct)}
               >
                 {pct}%
@@ -755,7 +755,7 @@ export default function PositionPnLSimulator({
                 key={pct}
                 variant="outline"
                 size="sm"
-                className="h-8 px-2 text-xs font-mono text-emerald-400 border-border/50 hover:border-emerald-500/40 hover:bg-emerald-500/10"
+                className="h-8 px-2 text-xs font-mono text-[var(--trade-bullish)] border-border/50 hover:border-emerald-500/40 hover:bg-emerald-500/10"
                 onClick={() => handleQuickAdjust(pct)}
               >
                 +{pct}%
@@ -813,10 +813,10 @@ export default function PositionPnLSimulator({
           {/* Max Profit */}
           <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
             <div className="flex items-center gap-1.5 mb-1">
-              <ArrowUpRight className="h-3.5 w-3.5 text-emerald-400" />
+              <ArrowUpRight className="h-3.5 w-3.5 text-[var(--trade-bullish)]" />
               <span className="text-xs text-muted-foreground">Max Profit</span>
             </div>
-            <div className="text-sm font-bold font-mono tabular-nums text-emerald-400">
+            <div className="text-sm font-bold font-mono tabular-nums text-[var(--trade-bullish)]">
               {maxProfit.isUnlimited ? (
                 <span className="flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
@@ -831,10 +831,10 @@ export default function PositionPnLSimulator({
           {/* Max Loss */}
           <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20">
             <div className="flex items-center gap-1.5 mb-1">
-              <ArrowDownRight className="h-3.5 w-3.5 text-red-400" />
+              <ArrowDownRight className="h-3.5 w-3.5 text-[var(--trade-bearish)]" />
               <span className="text-xs text-muted-foreground">Max Loss</span>
             </div>
-            <div className="text-sm font-bold font-mono tabular-nums text-red-400">
+            <div className="text-sm font-bold font-mono tabular-nums text-[var(--trade-bearish)]">
               {maxLoss.isUnlimited ? (
                 <span className="flex items-center gap-1">
                   <ShieldAlert className="h-3 w-3" />
@@ -886,8 +886,8 @@ export default function PositionPnLSimulator({
                 projectedPnL === null
                   ? 'text-muted-foreground'
                   : projectedPnL >= 0
-                    ? 'text-emerald-400'
-                    : 'text-red-400',
+                    ? 'text-[var(--trade-bullish)]'
+                    : 'text-[var(--trade-bearish)]',
               )}
             >
               {projectedPnL === null ? (
@@ -939,8 +939,8 @@ export default function PositionPnLSimulator({
                       className={cn(
                         'text-[10px] py-0 px-1.5',
                         pos.direction === 'long'
-                          ? 'border-emerald-500/30 text-emerald-400'
-                          : 'border-red-500/30 text-red-400',
+                          ? 'border-emerald-500/30 text-[var(--trade-bullish)]'
+                          : 'border-red-500/30 text-[var(--trade-bearish)]',
                       )}
                     >
                       {pos.direction.toUpperCase()}
@@ -953,8 +953,8 @@ export default function PositionPnLSimulator({
                       <span
                         className={cn(
                           pos.optionType === 'call'
-                            ? 'text-emerald-400'
-                            : 'text-red-400',
+                            ? 'text-[var(--trade-bullish)]'
+                            : 'text-[var(--trade-bearish)]',
                         )}
                       >
                         {pos.optionType.toUpperCase()}
@@ -973,8 +973,8 @@ export default function PositionPnLSimulator({
                         className={cn(
                           'font-mono font-medium tabular-nums',
                           perContractPnL >= 0
-                            ? 'text-emerald-400'
-                            : 'text-red-400',
+                            ? 'text-[var(--trade-bullish)]'
+                            : 'text-[var(--trade-bearish)]',
                         )}
                       >
                         {perContractPnL >= 0 ? '+' : ''}

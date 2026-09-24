@@ -292,7 +292,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
                     <div className="text-muted-foreground">
                       {r.pct === 0 ? 'flat' : `${r.pct > 0 ? '+' : ''}${r.pct.toFixed(1)}σ`} → ${r.stockPrice.toFixed(2)}
                     </div>
-                    <div className={`font-bold ${r.roi >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    <div className={`font-bold ${r.roi >= 0 ? 'text-[var(--trade-bullish)]' : 'text-rose-500'}`}>
                       {r.roi >= 0 ? '+' : ''}{(r.roi * 100).toFixed(0)}%
                     </div>
                   </div>
@@ -340,7 +340,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
             <button
               onClick={pushToTradeDesk}
               disabled={pushing}
-              className="text-[10px] font-mono px-3 py-1.5 rounded border border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 disabled:opacity-50 flex items-center gap-1.5"
+              className="text-[10px] font-mono px-3 py-1.5 rounded border border-emerald-500/40 text-[var(--trade-bullish)] hover:bg-emerald-500/10 disabled:opacity-50 flex items-center gap-1.5"
             >
               {pushing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
               Push to Trade Desk
@@ -356,8 +356,8 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
 
 function GradePill({ grade, large }: { grade: string; large?: boolean }) {
   const color =
-    grade.startsWith('S') ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30' :
-    grade.startsWith('A') ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30' :
+    grade.startsWith('S') ? 'bg-emerald-500/15 text-[var(--trade-bullish)] border-emerald-500/30' :
+    grade.startsWith('A') ? 'bg-emerald-500/15 text-[var(--trade-bullish)] border-emerald-500/30' :
     grade.startsWith('B') ? 'bg-[var(--brand-cyan)]/15 text-[var(--brand-cyan)] border-[var(--brand-cyan)]/30' :
     grade.startsWith('C') ? 'bg-amber-500/15 text-amber-500 border-amber-500/30' :
     'bg-rose-500/15 text-rose-500 border-rose-500/30';
@@ -370,7 +370,7 @@ function GradePill({ grade, large }: { grade: string; large?: boolean }) {
 
 // Tier accent colors mirror the Oracle Option Pick card.
 const TIER_STYLE: Record<SuggestedContract['tier'], { accent: string; border: string; bg: string; label: string }> = {
-  conservative: { accent: 'text-emerald-500', border: 'border-emerald-500/40', bg: 'bg-emerald-500/5', label: 'Conservative' },
+  conservative: { accent: 'text-[var(--trade-bullish)]', border: 'border-emerald-500/40', bg: 'bg-emerald-500/5', label: 'Conservative' },
   balanced:     { accent: 'text-[var(--brand-cyan)]', border: 'border-[var(--brand-cyan)]/40', bg: 'bg-[var(--brand-cyan)]/5', label: 'Balanced' },
   aggressive:   { accent: 'text-amber-500', border: 'border-amber-500/40', bg: 'bg-amber-500/5', label: 'Aggressive' },
 };
@@ -411,7 +411,7 @@ function SuggestionCard({ s, symbol, onReanalyze }: {
       <div className="grid grid-cols-3 gap-1.5 text-[9px] font-mono">
         <div>
           <div className="text-muted-foreground uppercase text-[9px]">ROI@T1</div>
-          <div className={`font-bold ${s.roiAtT1Pct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+          <div className={`font-bold ${s.roiAtT1Pct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-rose-500'}`}>
             {s.roiAtT1Pct >= 0 ? '+' : ''}{s.roiAtT1Pct.toFixed(0)}%
           </div>
         </div>
@@ -435,7 +435,7 @@ function SuggestionCard({ s, symbol, onReanalyze }: {
 
 function PlanBox({ label, value, color }: { label: string; value: string; color: 'emerald' | 'rose' | 'muted' }) {
   const colorClass =
-    color === 'emerald' ? 'text-emerald-500' :
+    color === 'emerald' ? 'text-[var(--trade-bullish)]' :
     color === 'rose' ? 'text-rose-500' :
     'text-foreground';
   return (

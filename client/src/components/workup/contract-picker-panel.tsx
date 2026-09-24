@@ -83,9 +83,9 @@ export function ContractPickerPanel({ symbol, direction = "long", target, title 
               title="max cost per contract"
               style={{
                 fontSize: 'var(--fs-10, 10px)', padding: "4px 8px", borderRadius: 4, cursor: "pointer", minHeight: 26,
-                border: `1px solid ${i === costIdx ? "var(--green, #3ddc97)" : "var(--nx-border)"}`,
-                background: i === costIdx ? "rgba(61,220,151,0.12)" : "transparent",
-                color: i === costIdx ? "var(--green, #3ddc97)" : "var(--text-dim)",
+                border: `1px solid ${i === costIdx ? "var(--green, #6ee7b7)" : "var(--nx-border)"}`,
+                background: i === costIdx ? "rgba(110,231,183,0.12)" : "transparent",
+                color: i === costIdx ? "var(--green, #6ee7b7)" : "var(--text-dim)",
               }}
             >
               {c.label}
@@ -124,7 +124,7 @@ export function ContractPickerPanel({ symbol, direction = "long", target, title 
             </span>
           </div>
           <div style={{ fontSize: 'var(--fs-10, 10px)', color: "var(--text-dim)", marginTop: 2 }}>
-            {c.roiAtT1 != null && <span style={{ color: c.roiAtT1 > 0 ? "var(--green, #3ddc97)" : "inherit", fontWeight: 700 }}>~{c.roiAtT1 > 0 ? "+" : ""}{Math.round(c.roiAtT1 * 100)}% at T1 · </span>}
+            {c.roiAtT1 != null && <span style={{ color: c.roiAtT1 > 0 ? "var(--green, #6ee7b7)" : "inherit", fontWeight: 700 }}>~{c.roiAtT1 > 0 ? "+" : ""}{Math.round(c.roiAtT1 * 100)}% at T1 · </span>}
             {c.contractsAffordable != null && c.contractsAffordable > 0 && <span>{c.contractsAffordable}× within cap · </span>}
             Δ {c.delta != null ? c.delta.toFixed(2) : "—"} · θ/day {c.thetaPerDayPct != null ? (c.thetaPerDayPct * 100).toFixed(1) + "%" : "—"} · spread {c.spreadPct != null ? (c.spreadPct * 100).toFixed(0) + "%" : "—"} · OI {c.openInterest} · vol {c.volume}
           </div>

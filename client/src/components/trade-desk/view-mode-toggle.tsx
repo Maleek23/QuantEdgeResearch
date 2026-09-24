@@ -49,7 +49,7 @@ export function ViewModeToggle({ value, onChange, className }: Props) {
             className={cn(
               "flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-mono uppercase tracking-wider transition-all",
               isActive
-                ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
+                ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
                 : "text-muted-foreground hover:text-foreground hover:bg-foreground/5 border border-transparent",
             )}
           >

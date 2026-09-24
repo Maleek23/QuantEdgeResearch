@@ -28,7 +28,7 @@ import {
 /** Semantic + categorical ramp, wired to the token store. */
 export const CHART_COLORS = {
   /** Brand accent — the one cyan. */
-  accent: "var(--brand-cyan, #4FD1C5)",
+  accent: "var(--brand-cyan, #3b8cff)",
   /** Directional up / healthy. Use ONLY for direction or P&L. */
   bull: "var(--trade-bullish, #6E9E7A)",
   /** Directional down / unhealthy. Use ONLY for direction or P&L. */

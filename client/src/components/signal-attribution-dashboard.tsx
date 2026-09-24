@@ -59,7 +59,7 @@ function getTrendIcon(direction: string) {
 function getGradeColor(grade: string) {
   switch (grade) {
     case 'A': return 'bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20';
-    case 'B': return 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20';
+    case 'B': return 'bg-sky-500/10 text-sky-500 border-sky-500/20';
     case 'C': return 'bg-amber-500/10 text-[var(--trade-neutral)] border-amber-500/20';
     case 'D': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
     case 'F': return 'bg-red-500/10 text-[var(--trade-bearish)] border-red-500/20';
@@ -69,7 +69,7 @@ function getGradeColor(grade: string) {
 
 function getWinRateColor(rate: number) {
   if (rate >= 70) return 'text-[var(--trade-bullish)]';
-  if (rate >= 60) return 'text-cyan-400';
+  if (rate >= 60) return 'text-sky-400';
   if (rate >= 50) return 'text-[var(--trade-neutral)]';
   return 'text-[var(--trade-bearish)]';
 }
@@ -132,7 +132,7 @@ function SignalRow({ signal }: { signal: SignalStats }) {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>Avg Win: <span className="text-[var(--trade-bullish)]">+{safeToFixed(signal.avgWinPercent, 2)}%</span></div>
                   <div>Avg Loss: <span className="text-[var(--trade-bearish)]">{safeToFixed(signal.avgLossPercent, 2)}%</span></div>
-                  <div>Profit Factor: <span className="text-cyan-400">{safeToFixed(signal.profitFactor, 2)}</span></div>
+                  <div>Profit Factor: <span className="text-sky-400">{safeToFixed(signal.profitFactor, 2)}</span></div>
                   <div>Expectancy: <span className={signal.expectancy >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>{safeToFixed(signal.expectancy, 2)}%</span></div>
                 </div>
                 {(signal.stockWinRate > 0 || signal.optionWinRate > 0 || signal.cryptoWinRate > 0) && (
@@ -186,7 +186,7 @@ export function SignalAttributionDashboard() {
       <Card className="border-border/50 bg-gradient-to-br from-slate-900/50 to-slate-800/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-cyan-400" />
+            <BarChart3 className="w-5 h-5 text-sky-400" />
             Signal Attribution Analytics
           </CardTitle>
         </CardHeader>
@@ -224,7 +224,7 @@ export function SignalAttributionDashboard() {
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-cyan-400" />
+            <BarChart3 className="w-5 h-5 text-sky-400" />
             Signal Attribution Analytics
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
@@ -296,7 +296,7 @@ export function SignalAttributionDashboard() {
 
             <div>
               <h3 className="flex items-center gap-2 text-sm font-medium mb-3">
-                <Target className="w-4 h-4 text-cyan-400" />
+                <Target className="w-4 h-4 text-sky-400" />
                 All Signals
                 <span className="text-muted-foreground ml-auto text-xs">{data.signals.length} tracked</span>
               </h3>

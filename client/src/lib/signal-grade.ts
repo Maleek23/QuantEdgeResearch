@@ -59,7 +59,7 @@ export function getSignalGrade(qualitySignals: string[] | null | undefined) {
   return {
     grade: info.label.charAt(0).toUpperCase(), // Legacy compat
     label: `${info.count} Signals`,
-    color: info.count >= 4 ? 'text-green-400' : info.count >= 3 ? 'text-cyan-400' : 'text-amber-400',
+    color: info.count >= 4 ? 'text-[var(--trade-bullish)]' : info.count >= 3 ? 'text-sky-400' : 'text-amber-400',
     description: info.description,
     signalCount: info.count
   };
@@ -78,8 +78,8 @@ export function getSignalGradeLetter(qualitySignals: string[] | null | undefined
  */
 export function getSignalGradeColor(qualitySignals: string[] | null | undefined): string {
   const count = qualitySignals?.length || 0;
-  if (count >= 4) return 'text-green-400';
-  if (count >= 3) return 'text-cyan-400';
+  if (count >= 4) return 'text-[var(--trade-bullish)]';
+  if (count >= 3) return 'text-sky-400';
   return 'text-amber-400';
 }
 
@@ -146,28 +146,28 @@ export function getResolutionReasonLabel(reason: string | null | undefined): {
       return {
         label: 'Target Hit',
         description: 'Price reached the target price - trade successful',
-        color: 'text-green-500',
+        color: 'text-[var(--trade-bullish)]',
         iconName: 'target'
       };
     case 'auto_stop_hit':
       return {
         label: 'Stop Hit',
         description: 'Price hit stop loss level - trade closed at loss',
-        color: 'text-red-500',
+        color: 'text-[var(--trade-bearish)]',
         iconName: 'octagon'
       };
     case 'option_expired_worthless':
       return {
         label: 'Option Expired Worthless',
         description: 'Option contract expired out of the money',
-        color: 'text-red-400',
+        color: 'text-[var(--trade-bearish)]',
         iconName: 'skull'
       };
     case 'option_expired_itm':
       return {
         label: 'Option Expired ITM',
         description: 'Option contract expired in the money',
-        color: 'text-green-400',
+        color: 'text-[var(--trade-bullish)]',
         iconName: 'coins'
       };
     default:
@@ -208,7 +208,7 @@ export function getTradeOutcomeStyle(outcomeStatus: string | null | undefined): 
     case 'hit_target':
       return {
         label: 'WIN',
-        color: 'text-green-500 dark:text-green-400',
+        color: 'text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]',
         bgColor: 'bg-green-500/10',
         borderColor: 'border-green-500/30',
         isWin: true,
@@ -219,7 +219,7 @@ export function getTradeOutcomeStyle(outcomeStatus: string | null | undefined): 
     case 'hit_stop':
       return {
         label: 'LOSS',
-        color: 'text-red-500 dark:text-red-400',
+        color: 'text-[var(--trade-bearish)] dark:text-[var(--trade-bearish)]',
         bgColor: 'bg-red-500/10',
         borderColor: 'border-red-500/30',
         isWin: false,
@@ -279,15 +279,15 @@ export function getPnlColor(outcomeStatus: string | null | undefined, percentGai
   
   // For closed trades (hit_target, hit_stop), use outcome-based color
   if (status === 'hit_target') {
-    return 'text-green-400';
+    return 'text-[var(--trade-bullish)]';
   }
   if (status === 'hit_stop') {
-    return 'text-red-400';
+    return 'text-[var(--trade-bearish)]';
   }
   
   // For open trades or unknown, use P&L-based color
   const gain = percentGain ?? 0;
-  if (gain > 0) return 'text-green-400';
-  if (gain < 0) return 'text-red-400';
+  if (gain > 0) return 'text-[var(--trade-bullish)]';
+  if (gain < 0) return 'text-[var(--trade-bearish)]';
   return 'text-muted-foreground';
 }

@@ -255,7 +255,7 @@ export default function AdminWinLossAnalysis() {
   if (authLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-8 w-8 animate-spin text-cyan-400" data-testid="loading-spinner" />
+        <RefreshCw className="h-8 w-8 animate-spin text-sky-400" data-testid="loading-spinner" />
       </div>
     );
   }
@@ -277,7 +277,7 @@ export default function AdminWinLossAnalysis() {
             <Button 
               onClick={() => setLocation("/admin")} 
               data-testid="button-go-to-admin"
-              className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
+              className="bg-sky-500 hover:bg-sky-400 text-foreground"
             >
               Go to Admin Panel
             </Button>
@@ -296,7 +296,7 @@ export default function AdminWinLossAnalysis() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-cyan-400" />
+            <BarChart3 className="h-6 w-6 text-sky-400" />
             Win/Loss Analysis
           </h1>
           <p className="text-muted-foreground">Institutional-grade trade performance analytics</p>
@@ -319,7 +319,7 @@ export default function AdminWinLossAnalysis() {
             onClick={() => exportMutation.mutate()}
             disabled={exportMutation.isPending}
             data-testid="button-export"
-            className="bg-cyan-500 hover:bg-cyan-400 text-foreground"
+            className="bg-sky-500 hover:bg-sky-400 text-foreground"
           >
             <Download className="h-4 w-4 mr-1" />
             Export ML Data
@@ -329,7 +329,7 @@ export default function AdminWinLossAnalysis() {
 
       {summaryLoading ? (
         <div className="flex items-center justify-center py-12">
-          <RefreshCw className="h-8 w-8 animate-spin text-cyan-400" />
+          <RefreshCw className="h-8 w-8 animate-spin text-sky-400" />
         </div>
       ) : summary ? (
         <Tabs defaultValue="overview" className="space-y-4">
@@ -367,13 +367,13 @@ export default function AdminWinLossAnalysis() {
                   <p className="text-xs text-muted-foreground">&lt;3% loss</p>
                 </CardContent>
               </Card>
-              <Card className="bg-cyan-500/10 border-cyan-500/20">
+              <Card className="bg-sky-500/10 border-sky-500/20">
                 <CardContent className="p-4">
                   <TooltipProvider>
                     <TooltipUI>
                       <TooltipTrigger className="w-full text-left">
                         <p className="text-xs text-muted-foreground">Win Rate</p>
-                        <p className="text-2xl font-bold text-cyan-500" data-testid="text-win-rate">{summary.winRate}%</p>
+                        <p className="text-2xl font-bold text-sky-500" data-testid="text-win-rate">{summary.winRate}%</p>
                         <p className="text-xs text-muted-foreground">
                           [{summary.winRateCI.lower}%-{summary.winRateCI.upper}%]
                         </p>
@@ -413,7 +413,7 @@ export default function AdminWinLossAnalysis() {
                         <p className="text-xs text-muted-foreground">Profit Factor</p>
                         <p className={cn("text-2xl font-bold", 
                           typeof summary.profitFactor === 'number' && summary.profitFactor >= 1.5 ? "text-[var(--trade-bullish)]" :
-                          typeof summary.profitFactor === 'number' && summary.profitFactor >= 1 ? "text-cyan-500" : "text-[var(--trade-bearish)]"
+                          typeof summary.profitFactor === 'number' && summary.profitFactor >= 1 ? "text-sky-500" : "text-[var(--trade-bearish)]"
                         )} data-testid="text-profit-factor">
                           {summary.profitFactor}
                         </p>
@@ -485,7 +485,7 @@ export default function AdminWinLossAnalysis() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Info className="h-4 w-4 text-cyan-400" />
+                  <Info className="h-4 w-4 text-sky-400" />
                   Key Metrics Summary
                 </CardTitle>
               </CardHeader>
@@ -538,7 +538,7 @@ export default function AdminWinLossAnalysis() {
                         onClick={() => setStopLossThreshold(threshold)}
                         className={cn(
                           "min-w-[48px] font-mono",
-                          stopLossThreshold === threshold && "bg-cyan-500 hover:bg-cyan-400 text-foreground"
+                          stopLossThreshold === threshold && "bg-sky-500 hover:bg-sky-400 text-foreground"
                         )}
                         data-testid={`button-threshold-${threshold}`}
                       >
@@ -553,9 +553,9 @@ export default function AdminWinLossAnalysis() {
 
                 {currentSimulation && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                    <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
                       <p className="text-xs text-muted-foreground">Win Rate at {stopLossThreshold}%</p>
-                      <p className="text-xl font-bold text-cyan-500">{currentSimulation.winRate}%</p>
+                      <p className="text-xl font-bold text-sky-500">{currentSimulation.winRate}%</p>
                       <p className="text-xs text-muted-foreground">[{currentSimulation.winRateLower}%-{currentSimulation.winRateUpper}%]</p>
                     </div>
                     <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
@@ -579,11 +579,11 @@ export default function AdminWinLossAnalysis() {
                 )}
 
                 {simData?.optimalThreshold && (
-                  <div className="p-4 rounded-lg bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20">
+                  <div className="p-4 rounded-lg bg-gradient-to-r from-sky-500/10 to-purple-500/10 border border-sky-500/20">
                     <div className="flex items-start gap-3">
-                      <Target className="h-5 w-5 text-cyan-400 mt-0.5" />
+                      <Target className="h-5 w-5 text-sky-400 mt-0.5" />
                       <div>
-                        <p className="font-semibold text-cyan-400">Optimal Threshold: {simData.optimalThreshold.thresholdPercent}%</p>
+                        <p className="font-semibold text-sky-400">Optimal Threshold: {simData.optimalThreshold.thresholdPercent}%</p>
                         <p className="text-sm text-muted-foreground">{simData.optimalThreshold.rationale}</p>
                       </div>
                     </div>
@@ -724,7 +724,7 @@ export default function AdminWinLossAnalysis() {
           <TabsContent value="expiration" className="space-y-4">
             {expirationLoading ? (
               <div className="flex items-center justify-center py-12">
-                <RefreshCw className="h-8 w-8 animate-spin text-cyan-400" />
+                <RefreshCw className="h-8 w-8 animate-spin text-sky-400" />
               </div>
             ) : expirationData?.summary?.totalExpired === 0 ? (
               <Card>
@@ -747,9 +747,9 @@ export default function AdminWinLossAnalysis() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                      <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
                         <div className="text-xs text-muted-foreground mb-1">Total Expired</div>
-                        <div className="text-2xl font-bold text-cyan-400">{expirationData.summary.totalExpired}</div>
+                        <div className="text-2xl font-bold text-sky-400">{expirationData.summary.totalExpired}</div>
                       </div>
                       <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                         <div className="text-xs text-muted-foreground mb-1">Almost Hit Target (75%+)</div>

@@ -9,7 +9,6 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/comp
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
@@ -44,7 +43,6 @@ const Landing = lazyWithRetry(() => import("@/pages/landing-nexus"), "landing");
 const PublicWatchlist = lazyWithRetry(() => import("@/pages/public-watchlist"), "public-watchlist");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
-const TradeDeskPage = lazyWithRetry(() => import("@/pages/trade-desk"), "trade-desk");
 const SlatePage     = lazyWithRetry(() => import("@/pages/slate"), "slate");
 const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "trade-journal");
 // REMOVED — Market page consolidated, redirect to /home
@@ -76,7 +74,6 @@ const BlogPost = lazyWithRetry(() => import("@/pages/blog-post"), "blog-post");
 const Pricing = lazyWithRetry(() => import("@/pages/pricing"), "pricing");
 // REMOVED — Paper Trading, Wallet Tracker, CT Tracker consolidated out
 const TradeAudit = lazyWithRetry(() => import("@/pages/trade-audit"), "trade-audit");
-const AutomationsPage = lazyWithRetry(() => import("@/pages/automations"), "automations");
 
 // REMOVED — Backtest merged into Performance tab
 
@@ -118,7 +115,7 @@ function preloadCriticalRoutes() {
 function PageLoader() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] w-full">
-      <Loader2 className="h-8 w-8 animate-spin text-cyan-400/60" />
+      <Loader2 className="h-8 w-8 animate-spin text-sky-400/60" />
     </div>
   );
 }
@@ -212,9 +209,7 @@ function Router() {
             repointed. Restoring the route is the small fix; deleting the pages
             would have been the expensive one. */}
         <Route path="/slate"       component={withBetaProtection(SlatePage)} />
-        <Route path="/trade-desk"  component={withBetaProtection(TradeDeskPage)} />
         <Route path="/performance" component={withBetaProtection(PerformancePage)} />
-        <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
         {/* HOME IS THE TERMINAL. Confirmed by the owner, against two rival
             candidates that both call themselves the dashboard in their own headers:
             pages/home.tsx ("Command Center", 1,186 lines) and pages/home-glass.tsx

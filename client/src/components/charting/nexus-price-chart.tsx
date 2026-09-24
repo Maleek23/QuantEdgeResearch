@@ -277,7 +277,7 @@ export function NexusPriceChart({
         className="chart-canvas-wrap"
         style={fill
           ? { flex: 1, minHeight: 0, position: 'relative' }
-          : { height, flex: 'none', borderRadius: 6, border: '1px solid var(--nx-border, rgba(79,209,197,0.08))' }}
+          : { height, flex: 'none', borderRadius: 6, border: '1px solid var(--nx-border, rgba(59,140,255,0.08))' }}
       >
         {chartBody}
       </div>

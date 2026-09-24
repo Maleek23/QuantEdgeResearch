@@ -182,8 +182,8 @@ function AdminTradeIdeasContent() {
                 <p className="text-sm text-muted-foreground">Total Ideas</p>
                 <p className="text-2xl font-bold text-foreground">{stats.total}</p>
               </div>
-              <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                <Zap className="h-5 w-5 text-cyan-400" />
+              <div className="p-3 rounded-lg bg-sky-500/10 border border-sky-500/20">
+                <Zap className="h-5 w-5 text-sky-400" />
               </div>
             </div>
           </CardContent>
@@ -238,7 +238,7 @@ function AdminTradeIdeasContent() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="text-foreground flex items-center gap-2">
-                <Zap className="h-5 w-5 text-cyan-400" />
+                <Zap className="h-5 w-5 text-sky-400" />
                 Trade Ideas Management
               </CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -325,7 +325,7 @@ function AdminTradeIdeasContent() {
                       <TableRow key={idea.id} className="border-border">
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-cyan-400">{idea.symbol}</span>
+                            <span className="font-semibold text-sky-400">{idea.symbol}</span>
                             {idea.catalyst && (
                               <span className="text-xs text-muted-foreground truncate max-w-[100px]">
                                 {idea.catalyst}
@@ -402,7 +402,7 @@ function AdminTradeIdeasContent() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-[var(--trade-bearish)] hover:text-red-300 hover:bg-red-500/10"
+                            className="h-8 w-8 text-[var(--trade-bearish)] hover:text-[var(--trade-bearish)] hover:bg-red-500/10"
                             onClick={() => setDeleteIdeaId(idea.id)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -430,7 +430,7 @@ function AdminTradeIdeasContent() {
           {ideaToDelete && (
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex items-center gap-3">
-                <span className="font-semibold text-cyan-400">{ideaToDelete.symbol}</span>
+                <span className="font-semibold text-sky-400">{ideaToDelete.symbol}</span>
                 <Badge
                   variant="outline"
                   className={cn(

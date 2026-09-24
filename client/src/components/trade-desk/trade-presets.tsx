@@ -138,7 +138,7 @@ export function TradePresets({ activePresetId, onSelect, className }: Props) {
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-mono uppercase tracking-wider whitespace-nowrap border transition-all",
               isActive
-                ? "bg-gradient-to-r from-cyan-500/20 to-violet-500/15 text-cyan-200 border-cyan-400/40 shadow-[0_0_12px_rgba(34,211,238,0.15)]"
+                ? "bg-gradient-to-r from-sky-500/20 to-violet-500/15 text-sky-200 border-sky-400/40 shadow-[0_0_12px_rgba(34,211,238,0.15)]"
                 : "bg-foreground/[0.02] text-muted-foreground border-foreground/10 hover:text-foreground hover:border-foreground/20",
             )}
           >

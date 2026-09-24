@@ -53,7 +53,7 @@ export default function HowToPage() {
           <PageCard icon={Home}       url="/t"      title="Terminal"        desc="NEXUS home — market briefing, rotation, signals, and every tab" />
           <PageCard icon={Target}     url="/radar"  title="Thesis Radar"    desc="6 patterns × 120 tickers, scanned 5×/day, A+ pushes to Trade Desk" />
           <PageCard icon={Bitcoin}    url="/t?tab=crypto" title="BTC Radar" desc="Live BTC + 14 crypto-equity beta tracker, fires on level breaks" />
-          <PageCard icon={Crosshair}  url="/trade-desk" title="Trade Desk"  desc="Manual idea generation when Radar doesn't have what you want" />
+          <PageCard icon={Crosshair}  url="/slate" title="Slate"  desc="Today's measured setups and the pre-market gappers" />
           <PageCard icon={Zap}        url="/t?tab=gex" title="GEX & Flow"   desc="Dealer gamma walls + options flow — your entry/exit lens" />
           <PageCard icon={Microscope} url="/r/SPY"  title="Research"        desc="Per-ticker deep dive — chart, options, GEX, flow, news" />
           <PageCard icon={Wallet}     url="/t?tab=positions" title="Positions" desc="Your open book — alerts, stops, exits" />
@@ -103,7 +103,7 @@ export default function HowToPage() {
           <DecisionRow q="What should I trade today?"               a={['/radar', '/btc']} />
           <DecisionRow q="Is the market bullish or bearish?"        a={['/p?tab=pulse']} />
           <DecisionRow q="Where's QCOM going?"                       a={['/r/QCOM', '/g']} />
-          <DecisionRow q="What just got pushed to my Trade Desk?"   a={['/trade-desk']} />
+          <DecisionRow q="What just got published today?"   a={['/slate']} />
           <DecisionRow q="What earnings are this week?"             a={['/p?tab=earnings']} />
           <DecisionRow q="My open positions?"                        a={['/pos']} />
           <DecisionRow q="My win rate / track record?"               a={['/j']} />

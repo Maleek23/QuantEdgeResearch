@@ -72,7 +72,7 @@ function RadarPreview({ symbol, note, x, y }: { symbol: string; note: string; x:
         {symbol}
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontWeight: 600 }}>1mo · real bars</span>
       </div>
-      <Spark bars={(data?.data ?? []).map((b) => ({ time: b.time, close: b.close }))} color="#4fd1c5" height={54} />
+      <Spark bars={(data?.data ?? []).map((b) => ({ time: b.time, close: b.close }))} color="#3b8cff" height={54} />
       <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-dim)', lineHeight: 1.5 }}>{note}</div>
     </div>
   );
@@ -207,7 +207,7 @@ function useBgCanvas(ref: React.RefObject<HTMLCanvasElement>) {
       bgCtx!.clearRect(0, 0, bgW, bgH);
       bgCtx!.scale(devicePixelRatio, devicePixelRatio);
       flowLines.forEach((fl) => {
-        bgCtx!.strokeStyle = `rgba(79, 209, 197, ${fl.opacity})`;
+        bgCtx!.strokeStyle = `rgba(59,140,255, ${fl.opacity})`;
         bgCtx!.lineWidth = 1;
         bgCtx!.beginPath();
         for (let x = 0; x < innerWidth; x += 4) {
@@ -232,7 +232,7 @@ function useBgCanvas(ref: React.RefObject<HTMLCanvasElement>) {
           const dy = particles[i].y - particles[j].y;
           const d = Math.sqrt(dx * dx + dy * dy);
           if (d < 120) {
-            bgCtx!.strokeStyle = `rgba(79, 209, 197, ${(1 - d / 120) * 0.15})`;
+            bgCtx!.strokeStyle = `rgba(59,140,255, ${(1 - d / 120) * 0.15})`;
             bgCtx!.beginPath();
             bgCtx!.moveTo(particles[i].x, particles[i].y);
             bgCtx!.lineTo(particles[j].x, particles[j].y);
@@ -248,7 +248,7 @@ function useBgCanvas(ref: React.RefObject<HTMLCanvasElement>) {
 }
 
 const QUAD_COLOR: Record<string, string> = {
-  leading: '#3ddc97', improving: '#4fd1c5', weakening: '#f5b642', lagging: '#ff5470',
+  leading: '#6ee7b7', improving: '#3b8cff', weakening: '#facc15', lagging: '#ff6b3d',
 };
 
 /** The feed's rsRatio/rsMomentum → the mock's 0–100 x/y + quadrant colour. */
@@ -293,7 +293,7 @@ function useQuadCanvas(ref: React.RefObject<HTMLCanvasElement>, sectors: Sector[
       quadCtx!.setTransform(1, 0, 0, 1, 0, 0);
       quadCtx!.clearRect(0, 0, quadCanvas!.width, quadCanvas!.height);
       quadCtx!.scale(devicePixelRatio, devicePixelRatio);
-      quadCtx!.strokeStyle = 'rgba(79, 209, 197, 0.15)';
+      quadCtx!.strokeStyle = 'rgba(59,140,255, 0.15)';
       quadCtx!.lineWidth = 1;
       quadCtx!.setLineDash([4, 4]);
       quadCtx!.beginPath();
@@ -352,7 +352,7 @@ function drawSignalChart(canvas: HTMLCanvasElement, data: number[], dir: 'bull' 
   ctx.scale(dpr, dpr);
   const min = Math.min(...data); const max = Math.max(...data);
   const range = max - min || 1;
-  const color = dir === 'bull' ? '#3ddc97' : '#ff5470';
+  const color = dir === 'bull' ? '#6ee7b7' : '#ff6b3d';
   const grad = ctx.createLinearGradient(0, 0, 0, h);
   grad.addColorStop(0, color + '40');
   grad.addColorStop(1, color + '00');
@@ -419,7 +419,7 @@ const FUTURES_NOTE = 'Front-month CME future (auto-rolls) — trades above the c
 const AnatomyMark = ({ n }: { n: number }) => (
   <span
     aria-hidden="true"
-    style={{ display: 'inline-grid', placeItems: 'center', width: 16, height: 16, borderRadius: '50%', background: 'var(--cyan, #4fd1c5)', color: '#0a0c10', font: "800 9.5px 'JetBrains Mono',monospace", flex: 'none', marginLeft: 4, verticalAlign: 'middle' }}
+    style={{ display: 'inline-grid', placeItems: 'center', width: 16, height: 16, borderRadius: '50%', background: 'var(--cyan, #3b8cff)', color: '#0a0c10', font: "800 9.5px 'JetBrains Mono',monospace", flex: 'none', marginLeft: 4, verticalAlign: 'middle' }}
   >{n}</span>
 );
 const ANATOMY_LEGEND: Array<[number, string, string]> = [
@@ -710,7 +710,7 @@ export function NexusBoard() {
   const btc = cry['BTC'];
 
   const bandColorOf = (b: string) =>
-    b === 'S' ? '#3ddc97' : b === 'A' ? '#4fd1c5' : b === 'B' ? '#f5b642' : '#8b93a3';
+    b === 'S' ? '#6ee7b7' : b === 'A' ? '#3b8cff' : b === 'B' ? '#facc15' : '#8b93a3';
 
   return (
     /* Embedded in the terminal shell — the shell's root carries .nexus-vars
@@ -768,7 +768,7 @@ export function NexusBoard() {
                         onMouseEnter={(e) => setRadarPrev({ symbol: h.symbol, note: h.note, x: (e.currentTarget as HTMLElement).getBoundingClientRect().left, y: (e.currentTarget as HTMLElement).getBoundingClientRect().bottom })}
                         onMouseLeave={() => setRadarPrev(null)}
                         onClick={() => { setRadarPrev(null); setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
-                        style={{ padding: '3px 8px', background: 'var(--panel-hi)', border: `1px solid ${h.bias === 'short' ? 'rgba(255,84,112,0.3)' : h.bias === 'long' ? 'rgba(61,220,151,0.3)' : 'var(--nx-border)'}`, borderRadius: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 600, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text-dim)', cursor: 'pointer' }}>
+                        style={{ padding: '3px 8px', background: 'var(--panel-hi)', border: `1px solid ${h.bias === 'short' ? 'rgba(255,107,61,0.3)' : h.bias === 'long' ? 'rgba(110,231,183,0.3)' : 'var(--nx-border)'}`, borderRadius: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 600, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text-dim)', cursor: 'pointer' }}>
                         {h.symbol}
                       </button>
                     ))}
@@ -794,7 +794,7 @@ export function NexusBoard() {
                       <div>
                         {(flow.data?.trades ?? []).map((t) => (
                           <div key={t.id} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setExpandSec(null); setCurrentStock({ symbol: t.symbol }); openWorkup(t.symbol); }}
-                            style={{ display: 'grid', gridTemplateColumns: '90px 70px 1fr auto auto', gap: 12, alignItems: 'center', padding: '8px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>
+                            style={{ display: 'grid', gridTemplateColumns: '90px 70px 1fr auto auto', gap: 12, alignItems: 'center', padding: '8px 10px', borderBottom: '1px dashed rgba(59,140,255,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>
                             <span style={{ color: 'var(--text-mute)' }}>{new Date(t.detectedAt).toTimeString().slice(0, 8)}</span>
                             <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 13 }}>{t.symbol}</b>
                             <span style={{ color: 'var(--text-dim)' }}>${t.strikePrice} strike · ${Math.round(t.totalPremium / 1000)}k premium</span>
@@ -835,7 +835,7 @@ export function NexusBoard() {
                       </div>
                     )}
                     {expandSec === 'quad' && (
-                      <div style={{ position: 'relative', height: '62vh', background: 'linear-gradient(rgba(79,209,197,0.05) 1px, transparent 1px),linear-gradient(90deg, rgba(79,209,197,0.05) 1px, transparent 1px)', backgroundSize: '25% 25%', borderRadius: 8, overflow: 'hidden' }}>
+                      <div style={{ position: 'relative', height: '62vh', background: 'linear-gradient(rgba(59,140,255,0.05) 1px, transparent 1px),linear-gradient(90deg, rgba(59,140,255,0.05) 1px, transparent 1px)', backgroundSize: '25% 25%', borderRadius: 8, overflow: 'hidden' }}>
                         <canvas ref={bigQuadRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
                         <div style={{ position: 'absolute', top: 10, left: 14, color: 'var(--green)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 1 }}>LEADING</div>
                         <div style={{ position: 'absolute', top: 10, right: 14, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 1 }}>IMPROVING</div>
@@ -846,7 +846,7 @@ export function NexusBoard() {
                     {expandSec === 'pulse' && (
                       <div>
                         <div style={{ marginBottom: 14 }}>
-                          <Spark bars={(pulseSpy ?? []).map((b2) => ({ time: b2.time, close: b2.close }))} color="#4fd1c5" height={220} label="SPY intraday" />
+                          <Spark bars={(pulseSpy ?? []).map((b2) => ({ time: b2.time, close: b2.close }))} color="#3b8cff" height={220} label="SPY intraday" />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
                           {streamRows.map((r) => (
@@ -877,12 +877,12 @@ export function NexusBoard() {
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 15, marginRight: 'auto' }}>Pattern browser · {patterns.data?.hits.length ?? 0} hits</div>
                     {['all', 'inside_coil', 'bull_flag', 'bear_flag', 'breakout_watch', 'nr7'].map((f) => (
-                      <button key={f} onClick={() => setRadarBrowse(f)} style={{ padding: '3px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', background: radarBrowse === f ? 'rgba(79,209,197,0.15)' : 'transparent', color: radarBrowse === f ? 'var(--cyan-bright)' : 'var(--text-mute)', border: '1px solid var(--nx-border)' }}>{f.replace('_', ' ')}</button>
+                      <button key={f} onClick={() => setRadarBrowse(f)} style={{ padding: '3px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', background: radarBrowse === f ? 'rgba(59,140,255,0.15)' : 'transparent', color: radarBrowse === f ? 'var(--cyan-bright)' : 'var(--text-mute)', border: '1px solid var(--nx-border)' }}>{f.replace('_', ' ')}</button>
                     ))}
                   </div>
                   {(patterns.data?.hits ?? []).filter((h) => radarBrowse === 'all' || h.pattern === radarBrowse).slice(0, 120).map((h) => (
                     <div key={`${h.pattern}-${h.symbol}`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setRadarBrowse(null); setCurrentStock({ symbol: h.symbol }); openWorkup(h.symbol); }}
-                      style={{ display: 'grid', gridTemplateColumns: '64px 110px 1fr', gap: 10, alignItems: 'center', padding: '7px 10px', borderBottom: '1px dashed rgba(79,209,197,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
+                      style={{ display: 'grid', gridTemplateColumns: '64px 110px 1fr', gap: 10, alignItems: 'center', padding: '7px 10px', borderBottom: '1px dashed rgba(59,140,255,0.08)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
                       <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12, color: h.bias === 'short' ? 'var(--red)' : h.bias === 'long' ? 'var(--green)' : 'var(--text)' }}>{h.symbol}</b>
                       <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 'var(--fs-9, 9px)' }}>{h.pattern.replace('_', ' ')}</span>
                       <span style={{ color: 'var(--text-dim)' }}>{h.note}</span>
@@ -1422,7 +1422,7 @@ export function NexusBoard() {
                     placeholder="SYM ↵" style={{ width: 62, background: 'var(--bg-2)', border: '1px solid var(--nx-border-hi)', borderRadius: 3, color: 'var(--text)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', padding: '2px 6px', outline: 'none' }} />
                 ) : (
                   <button title="Add a ticker to the watchlist" onClick={() => setAddOpen(true)}
-                    style={{ width: 18, height: 18, borderRadius: 3, background: 'rgba(79,209,197,0.08)', border: '1px solid var(--nx-border-hi)', color: 'var(--cyan-bright)', cursor: 'pointer', fontSize: 12, lineHeight: 1, display: 'grid', placeItems: 'center' }}>+</button>
+                    style={{ width: 18, height: 18, borderRadius: 3, background: 'rgba(59,140,255,0.08)', border: '1px solid var(--nx-border-hi)', color: 'var(--cyan-bright)', cursor: 'pointer', fontSize: 12, lineHeight: 1, display: 'grid', placeItems: 'center' }}>+</button>
                 )}
               </div>
             </div>
