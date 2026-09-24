@@ -23,6 +23,7 @@ import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Search } from 'lucide-react';
+import { convictionDisplayPercent } from '@shared/conviction-display';
 import { Spark, RotQuad, SigCard, CHECK, fetchJson, useDaily, type RotationPayload, type CryptoPulse } from '@/components/landing/live-widgets';
 import '@/styles/nexus.css';
 import '@/styles/today.css';
@@ -376,7 +377,7 @@ export default function TodayPage() {
                     <div className="t-signal" key={p.ideaId}>
                       <span className="ticker">{p.symbol}</span>
                       <span style={{ fontSize: 'var(--fs-10, 10px)', color: p.direction === 'short' ? 'var(--red)' : 'var(--green)' }}>{p.direction === 'short' ? '▼ short' : '▲ long'}</span>
-                      <span className="dir">{p.convictionScore}</span>
+                      <span className="dir">{convictionDisplayPercent(p.convictionScore ?? 0)}</span>
                     </div>
                   ))}
                   <div className="t-row"><span className="k">Long / Short</span><span className="v"><span style={{ color: 'var(--green)' }}>{longs}</span> / <span style={{ color: 'var(--red)' }}>{ideas.length - longs}</span></span></div>
@@ -414,14 +415,14 @@ export default function TodayPage() {
               <div className="lstat-sub">{longs} long · {ideas.length - longs} short</div>
             </div>
             <div className="stat-item reveal">
-              <div className="lstat-val">{best ? best.convictionScore : '—'}<span style={{ fontSize: 20, color: 'var(--text-mute)' }}>/100</span></div>
+              <div className="lstat-val">{best ? convictionDisplayPercent(best.convictionScore ?? 0) : '—'}<span style={{ fontSize: 20, color: 'var(--text-mute)' }}>/100</span></div>
               <div className="lstat-label">Top evidence score</div>
               <div className="lstat-sub">{best ? `${best.symbol} · ${best.direction}` : 'waiting for the board'}</div>
             </div>
             <div className="stat-item reveal">
-              <div className="lstat-val">{o?.winRateDecided != null ? `${o.winRateDecided.toFixed(0)}%` : '—'}</div>
+              <div className="lstat-val">{o?.winRate != null ? `${o.winRate.toFixed(0)}%` : '—'}</div>
               <div className="lstat-label">Win rate, decided ideas</div>
-              <div className="lstat-sub">{o?.totalIdeas != null ? `n = ${o.totalIdeas} measured` : 'measuring'}</div>
+              <div className="lstat-sub">{o?.winRateDecided != null ? `n = ${o.winRateDecided} hit target or stop` : 'measuring'}</div>
             </div>
             <div className="stat-item reveal">
               <div className="lstat-val">{o?.expectancy != null ? `${o.expectancy >= 0 ? '+' : ''}${o.expectancy.toFixed(2)}%` : '—'}</div>
@@ -529,8 +530,8 @@ export default function TodayPage() {
           <div className="cta-box reveal">
             <h2 className="cta-title">Every idea is graded.<br /><span className="grad">Including the losers.</span></h2>
             <p className="cta-sub">
-              {o?.winRateDecided != null
-                ? `${o.winRateDecided.toFixed(0)}% of decided ideas hit target first, across ${o.totalIdeas ?? '—'} measured. Replayed on 5-minute bars, not marked to the close.`
+              {o?.winRate != null && o.winRateDecided != null
+                ? `${o.winRate.toFixed(0)}% of ${o.winRateDecided} decided ideas hit target before stop. Losers stay on the record, and every rate carries its sample size.`
                 : 'The record is replayed on 5-minute bars, not marked to the close.'}
             </p>
             <div className="cta-actions">
