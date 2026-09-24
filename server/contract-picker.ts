@@ -32,6 +32,8 @@ export interface PickerCandidate {
   volume: number;
   costPerContract: number;    // mid * 100
   pctOfBudget: number | null;
+  roiAtT1: number | null;     // delta-approx % on premium if the stock reaches T1
+  contractsAffordable: number | null; // floor(maxCost-or-budget / cost)
   warnings: string[];
   score: number;
 }
@@ -49,12 +51,14 @@ const dteOf = (expiry: string): number =>
 
 export async function pickContracts(
   symbol: string,
-  opts: { direction?: 'long' | 'short'; dteMin?: number; dteMax?: number; budget?: number },
+  opts: { direction?: 'long' | 'short'; dteMin?: number; dteMax?: number; budget?: number; maxCost?: number; target?: number },
 ): Promise<PickerResult | null> {
   const direction = opts.direction ?? 'long';
   const dteMin = Math.max(0, opts.dteMin ?? 5);
   const dteMax = Math.max(dteMin, opts.dteMax ?? 21);
   const budget = opts.budget && opts.budget > 0 ? opts.budget : null;
+  const maxCost = opts.maxCost && opts.maxCost > 0 ? opts.maxCost : null;
+  const target = opts.target && opts.target > 0 ? opts.target : null;
 
   const chain = await fetchCboeChain(symbol);
   if (!chain || !chain.rawChain.length || !(chain.spot > 0)) {
@@ -75,8 +79,12 @@ export async function pickContracts(
     if (mid < 0.05) continue;
     // Moneyness window: near-the-money is where directional trades live.
     const money = o.strike / chain.spot;
-    if (wantType === 'call' && (money < 0.9 || money > 1.15)) continue;
-    if (wantType === 'put' && (money > 1.1 || money < 0.85)) continue;
+    const otmReach = maxCost != null ? 0.25 : 0.15;
+    if (wantType === 'call' && (money < 0.9 || money > 1 + otmReach)) continue;
+    if (wantType === 'put' && (money > 1.1 || money < 1 - otmReach)) continue;
+    // Under a spend cap, a strike that can't plausibly reach T1 is a lottery ticket.
+    if (maxCost != null && target != null && wantType === 'call' && o.strike > target * 1.03) continue;
+    if (maxCost != null && target != null && wantType === 'put' && o.strike < target * 0.97) continue;
 
     const delta = o.greeks?.delta != null ? Math.abs(Number(o.greeks.delta)) : null;
     const theta = o.greeks?.theta != null ? Math.abs(Number(o.greeks.theta)) : null;
@@ -86,7 +94,14 @@ export async function pickContracts(
     const spreadPct = mid > 0 && bid > 0 ? (ask - bid) / mid : null;
     const thetaPerDayPct = theta != null && mid > 0 ? theta / mid : null;
     const cost = mid * 100;
+    // Per-contract spend cap: 'I can afford $100-600' means never show $1,770.
+    if (maxCost != null && cost > maxCost) continue;
     const pctOfBudget = budget ? cost / budget : null;
+    const roiAtT1 = target != null && delta != null
+      ? (delta * (wantType === 'call' ? target - chain.spot : chain.spot - target)) / mid
+      : null;
+    const cap = maxCost ?? budget;
+    const contractsAffordable = cap != null ? Math.floor(cap / cost) : null;
 
     const warnings: string[] = [];
     if (spreadPct == null) warnings.push('no bid — spread unknowable, exit may be ugly');
@@ -104,6 +119,7 @@ export async function pickContracts(
     if (delta != null) score += 15 - Math.min(15, Math.abs(delta - 0.4) * 60);
     if (spreadPct != null) score += 10 - Math.min(10, spreadPct * 100);
     if (pctOfBudget != null) score += pctOfBudget <= 0.10 ? 10 : pctOfBudget <= 0.25 ? 5 : 0;
+    if (roiAtT1 != null) score += Math.max(0, Math.min(12, roiAtT1 * 10));
     score -= warnings.length * 3;
 
     candidates.push({
@@ -118,6 +134,8 @@ export async function pickContracts(
       openInterest: oi, volume: vol,
       costPerContract: Number(cost.toFixed(0)),
       pctOfBudget,
+      roiAtT1: roiAtT1 != null ? Number(roiAtT1.toFixed(2)) : null,
+      contractsAffordable,
       warnings,
       score: Math.round(score),
     });

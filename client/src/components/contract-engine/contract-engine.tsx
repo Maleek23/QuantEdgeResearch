@@ -7,6 +7,7 @@
  * and lets the user choose. Premiums are live (never fabricated); empty/illiquid
  * results render an honest note instead of a fake strike.
  */
+import { ContractPickerPanel } from "@/components/workup/contract-picker-panel";
 import { parseMarketDate } from '@/lib/market-date';
 import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -272,11 +273,13 @@ export function ContractEngine({
       <div className="text-xs font-mono text-muted-foreground px-4 py-3 rounded-lg bg-card border border-card-border" data-testid="picker-empty">
         <span className="text-muted-foreground/60 uppercase tracking-wider text-[10px]">Contract Engine · </span>
         {selection.note ?? 'No liquid contract available for this thesis.'}
+        <ContractPickerPanel symbol={symbol} direction={direction === 'BEAR' ? 'short' : 'long'} target={t1} title="FIT MY BUDGET" />
       </div>
     );
   }
 
   return (
+    <>
     <section className="rounded-lg border border-card-border bg-card overflow-hidden" data-testid="oracle-option-picker">
       <header className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border/30">
         <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
@@ -459,5 +462,7 @@ export function ContractEngine({
         })}
       </div>
     </section>
+    <div className="rounded-lg border border-card-border bg-card px-4 pb-3 mt-2"><ContractPickerPanel symbol={symbol} direction={direction === 'BEAR' ? 'short' : 'long'} target={t1} title="FIT MY BUDGET" /></div>
+    </>
   );
 }

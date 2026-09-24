@@ -15,6 +15,8 @@ interface Candidate {
   volume: number;
   costPerContract: number;
   pctOfBudget: number | null;
+  roiAtT1: number | null;
+  contractsAffordable: number | null;
   warnings: string[];
   score: number;
 }
@@ -27,8 +29,20 @@ const DTE_PRESETS = [
   { label: "LEAPS", min: 91, max: 500 },
 ];
 
-export function ContractPickerPanel({ symbol, direction = "long" }: { symbol: string; direction?: "long" | "short" }) {
+const COST_PRESETS = [
+  { label: "≤$100", v: 100 },
+  { label: "≤$250", v: 250 },
+  { label: "≤$600", v: 600 },
+  { label: "≤$1.5k", v: 1500 },
+  { label: "any", v: 0 },
+];
+
+export function ContractPickerPanel({ symbol, direction = "long", target, title }: { symbol: string; direction?: "long" | "short"; target?: number; title?: string }) {
   const [preset, setPreset] = useState(1);
+  const [costIdx, setCostIdx] = useState<number>(() => {
+    try { const v = Number(localStorage.getItem("qe-picker-maxcost")); return Number.isFinite(v) && v >= 0 && v < COST_PRESETS.length ? v : 2; } catch { return 2; }
+  });
+  const maxCost = COST_PRESETS[costIdx].v;
   const [budget, setBudget] = useState<string>(() => {
     try { return localStorage.getItem("qe-picker-budget") ?? "5000"; } catch { return "5000"; }
   });
@@ -36,7 +50,7 @@ export function ContractPickerPanel({ symbol, direction = "long" }: { symbol: st
   const { min, max } = DTE_PRESETS[preset];
 
   const q = useQuery<{ spot: number; note: string; candidates: Candidate[] }>({
-    queryKey: [`/api/contract-picker/${symbol}?dteMin=${min}&dteMax=${max}&budget=${budgetNum}&direction=${direction}`],
+    queryKey: [`/api/contract-picker/${symbol}?dteMin=${min}&dteMax=${max}&budget=${budgetNum}&direction=${direction}${maxCost ? `&maxCost=${maxCost}` : ""}${target ? `&target=${target}` : ""}`],
     staleTime: 120_000,
     retry: 0,
   });
@@ -44,7 +58,7 @@ export function ContractPickerPanel({ symbol, direction = "long" }: { symbol: st
   return (
     <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--nx-border)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-        <span style={{ fontSize: 10, letterSpacing: 1, color: "var(--text-dim)", fontWeight: 700 }}>CONTRACT PICKER</span>
+        <span style={{ fontSize: 10, letterSpacing: 1, color: "var(--text-dim)", fontWeight: 700 }}>{title ?? "CONTRACT PICKER"}</span>
         <div style={{ display: "flex", gap: 4 }}>
           {DTE_PRESETS.map((p, i) => (
             <button
@@ -58,6 +72,23 @@ export function ContractPickerPanel({ symbol, direction = "long" }: { symbol: st
               }}
             >
               {p.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {COST_PRESETS.map((c, i) => (
+            <button
+              key={c.label}
+              onClick={() => { setCostIdx(i); try { localStorage.setItem("qe-picker-maxcost", String(i)); } catch { /* ok */ } }}
+              title="max cost per contract"
+              style={{
+                fontSize: 10, padding: "4px 8px", borderRadius: 4, cursor: "pointer", minHeight: 26,
+                border: `1px solid ${i === costIdx ? "var(--green, #3ddc97)" : "var(--nx-border)"}`,
+                background: i === costIdx ? "rgba(61,220,151,0.12)" : "transparent",
+                color: i === costIdx ? "var(--green, #3ddc97)" : "var(--text-dim)",
+              }}
+            >
+              {c.label}
             </button>
           ))}
         </div>
@@ -78,7 +109,9 @@ export function ContractPickerPanel({ symbol, direction = "long" }: { symbol: st
       {q.isLoading && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>reading the chain…</div>}
       {q.isError && <div style={{ fontSize: 11, color: "var(--text-dim)" }}>no chain available for {symbol}</div>}
       {q.data && q.data.candidates.length === 0 && (
-        <div style={{ fontSize: 11, color: "var(--text-dim)" }}>nothing near-the-money in this DTE window — widen it</div>
+        <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
+          nothing {maxCost ? `under $${maxCost}/contract ` : ""}that can reach the target in this DTE window — widen the DTE or raise the cap
+        </div>
       )}
 
       {(q.data?.candidates ?? []).slice(0, 5).map((c) => (
@@ -91,6 +124,8 @@ export function ContractPickerPanel({ symbol, direction = "long" }: { symbol: st
             </span>
           </div>
           <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
+            {c.roiAtT1 != null && <span style={{ color: c.roiAtT1 > 0 ? "var(--green, #3ddc97)" : "inherit", fontWeight: 700 }}>~{c.roiAtT1 > 0 ? "+" : ""}{Math.round(c.roiAtT1 * 100)}% at T1 · </span>}
+            {c.contractsAffordable != null && c.contractsAffordable > 0 && <span>{c.contractsAffordable}× within cap · </span>}
             Δ {c.delta != null ? c.delta.toFixed(2) : "—"} · θ/day {c.thetaPerDayPct != null ? (c.thetaPerDayPct * 100).toFixed(1) + "%" : "—"} · spread {c.spreadPct != null ? (c.spreadPct * 100).toFixed(0) + "%" : "—"} · OI {c.openInterest} · vol {c.volume}
           </div>
           {c.warnings.length > 0 && (

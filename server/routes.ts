@@ -7316,6 +7316,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dteMin: req.query.dteMin ? Number(req.query.dteMin) : undefined,
         dteMax: req.query.dteMax ? Number(req.query.dteMax) : undefined,
         budget: req.query.budget ? Number(req.query.budget) : undefined,
+        maxCost: req.query.maxCost ? Number(req.query.maxCost) : undefined,
+        target: req.query.target ? Number(req.query.target) : undefined,
       });
       if (!r) return res.status(404).json({ error: "no chain available for this symbol" });
       res.json(r);
