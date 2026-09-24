@@ -1396,7 +1396,7 @@ export function NexusBoard() {
                     <span style={{ color: 'var(--cyan-bright)', fontWeight: 700 }}>watch</span>
                   </div>
                 ))}
-                <div style={{ marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontStyle: 'italic' }}>watch · not signals — pre-trigger picks + live compressions, click for the workup</div>
+                <p style={{ marginTop: 6, fontSize: 'var(--fs-11, 12px)', color: 'var(--text-dim)' }}>Watch list, not signals: setups that haven't triggered yet. Tap one for its workup.</p>
               </div>
             );
           })()}

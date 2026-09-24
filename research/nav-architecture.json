@@ -1,12 +1,13 @@
 {
-  "routes": 37,
-  "redirects": 76,
+  "routes": 36,
+  "redirects": 77,
   "tabs": 10,
-  "linkTargets": 55,
+  "linkTargets": 54,
   "N1_dead": {},
   "N2_viaRedirect": {},
   "N3_orphanPageFiles": [
     "backtest",
+    "history",
     "landing-nexus"
   ],
   "N4_unreachableRoutes": [],
@@ -26,7 +27,6 @@
     "pages": [
       "/slate",
       "/radar",
-      "/performance",
       "/alerts",
       "/how-to",
       "/settings"
