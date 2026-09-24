@@ -32,7 +32,7 @@ import '@/styles/today.css';
 interface WPLevel { price: number; label: string; type: string; side: string }
 interface WPPoint { dayOffset: number; price: number; lo?: number; hi?: number; confidence: number }
 interface WPPhase { label: string; description: string; startDay: number; endDay: number; type: string }
-interface WeeklyPath { cached?: boolean; cachedAt?: string; symbol: string; spotPrice: number; weekStart: string; weekEnd: string; levels: WPLevel[]; path: WPPoint[]; phases: WPPhase[]; regime: string; confidence: number; expectedMove?: number; annualVol?: number; volSource?: string }
+interface WeeklyPath { cached?: boolean; cachedAt?: string; symbol: string; spotPrice: number; weekStart: string; weekEnd: string; levels: WPLevel[]; path: WPPoint[]; phases: WPPhase[]; regime: string; confidence: number; expectedMove?: number; annualVol?: number; volSource?: string; impliedVol?: number }
 interface GexLevel { strike: number; gammaPct: number; role?: string }
 interface GexTerminal { snapshot?: { spotPrice: number; callWall?: number; putWall?: number; maxGammaStrike?: number; gammaFlipPrice?: number; levels?: GexLevel[] } }
 interface Layer { kind: string; why: string; points: number }
@@ -342,7 +342,7 @@ export default function TodayPage() {
                   ? 'We only draw the map from measured positioning. It comes back the moment the feed does — this page retries every 30 seconds.'
                   : `${shortGamma
                     ? 'Short-gamma dealers sell into drops and buy into rips, so ranges widen.'
-                    : 'Long-gamma dealers buy dips and sell rips, so ranges tighten.'}${sigma != null ? ` Options price a 1σ week of ±${fmt(sigma, 0)} points (${fmt(sigma / (spyPx ?? 1) * 100, 1)}%)${wp.data?.volSource === 'vix' ? ', from VIX' : ', estimated'}.` : ''}${magnet && sigma != null && !pinClose ? ` The biggest strike, ${fmt(magnet, 0)}, is ${fmt(Math.abs(magnet - (spyPx ?? magnet)), 0)} points away — further than dealers usually drag price in a week.` : ''}`}
+                    : 'Long-gamma dealers buy dips and sell rips, so ranges tighten.'}${sigma != null ? ` ${wp.data?.volSource === 'realized-20d' ? 'Lately SPY has moved' : 'Expect'} about ±${fmt(sigma, 0)} points (${fmt(sigma / (spyPx ?? 1) * 100, 1)}%) in a typical week${wp.data?.volSource === 'realized-20d' ? `${wp.data.impliedVol ? ` — options price more, ±${fmt((spyPx ?? 0) * wp.data.impliedVol * Math.sqrt(5 / 252), 0)}` : ''}` : wp.data?.volSource === 'vix' ? ' (from VIX)' : ' (estimated)'}.` : ''}${magnet && sigma != null && !pinClose ? ` The biggest strike, ${fmt(magnet, 0)}, is ${fmt(Math.abs(magnet - (spyPx ?? magnet)), 0)} points away — further than dealers usually drag price in a week.` : ''}`}
               </p>
               <div className="hero-actions">
                 <button type="button" className="btn btn-primary btn-lg" onClick={toBest}>
@@ -366,7 +366,7 @@ export default function TodayPage() {
               </div>
               <div className="lterminal-body">
                 <div className="t-panel" style={{ gridColumn: '1/-1' }}>
-                  <div className="t-panel-head"><span>This week · implied range · walls</span><span>{sigma != null ? `1σ ±${fmt(sigma, 0)} pts${wp.data?.volSource === 'vix' ? ` · VIX ${((wp.data.annualVol ?? 0) * 100).toFixed(1)}` : ' · est.'}` : ''}</span></div>
+                  <div className="t-panel-head"><span>This week · implied range · walls</span><span>{sigma != null ? `1σ ±${fmt(sigma, 0)} pts · ${wp.data?.volSource === 'realized-20d' ? `realized ${((wp.data.annualVol ?? 0) * 100).toFixed(1)}%` : wp.data?.volSource === 'vix' ? `VIX ${((wp.data.annualVol ?? 0) * 100).toFixed(1)}` : 'est.'}` : ''}</span></div>
                   {wp.data && !gex.isLoading
                     ? <WeekMap wp={wp.data} gex={gex.data} />
                     : <div className="tl-map-empty">{feedDown ? 'Options feed down — retrying' : 'Reading dealer positioning…'}</div>}
@@ -391,7 +391,7 @@ export default function TodayPage() {
               </div>
             </div>
           </div>
-          <div className="tl-map-foot">Shaded band: the options market’s 1σ weekly move (about 2 weeks in 3 close inside it). The line leans toward the biggest strike only in long gamma, capped at a quarter of that move. Not a forecast.</div>
+          <div className="tl-map-foot">Shaded band: SPY’s 1σ weekly move from its last 20 sessions (about 2 weeks in 3 close inside it). The line leans toward the biggest strike only in long gamma, capped at a quarter of that move. Not a forecast.</div>
         </div>
       </section>
 

@@ -33385,12 +33385,25 @@ Use this checklist before entering any trade:
       const snapshot = toSnapshot(gex);
       // Size the week with the market's own implied vol: VIX for the S&P
       // complex; everything else falls back to a stamped regime estimate.
-      let vol: { annualVol: number; source: 'vix' } | undefined;
+      // Size the week on how far the symbol has ACTUALLY been moving (20-day
+      // realized vol); VIX rides along for the S&P complex as the implied
+      // reference. Implied usually exceeds realized, so it is not the sizer.
+      let vol: { annualVol: number; source: 'realized-20d' | 'vix'; impliedVol?: number } | undefined;
+      let impliedVol: number | undefined;
       if (['SPY', 'SPX', 'ES', 'VOO', 'IVV'].includes(symbol)) {
         const { getVixLevel } = await import('./market-pulse');
         const vix = await getVixLevel().catch(() => null);
-        if (vix) vol = { annualVol: vix / 100, source: 'vix' };
+        if (vix) impliedVol = vix / 100;
       }
+      const closes = await fetchHistoricalPrices(symbol === 'SPX' ? 'SPY' : symbol, 'stock', 25).catch(() => [] as number[]);
+      if (closes.length >= 21) {
+        const rets = closes.slice(-21).slice(1).map((c, i, arr) => Math.log(c / closes.slice(-21)[i]));
+        const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+        const sd = Math.sqrt(rets.reduce((a, b) => a + (b - mean) ** 2, 0) / (rets.length - 1));
+        const realized = sd * Math.sqrt(252);
+        if (realized > 0.02 && realized < 1.5) vol = { annualVol: realized, source: 'realized-20d', impliedVol };
+      }
+      if (!vol && impliedVol) vol = { annualVol: impliedVol, source: 'vix', impliedVol };
       const projection = computeWeeklyPath(snapshot, vol);
       saveLastGood('weekly-path', symbol, projection);
 

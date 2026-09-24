@@ -507,7 +507,9 @@ export interface WeeklyPathProjection {
   expectedMove?: number;
   /** Annualised vol behind expectedMove (decimal) and where it came from. */
   annualVol?: number;
-  volSource?: 'vix' | 'regime-estimate';
+  volSource?: 'realized-20d' | 'vix' | 'regime-estimate';
+  /** VIX-implied vol (decimal), for reference beside the realized figure. */
+  impliedVol?: number;
 }
 
 /** Format GEX in billions with sign */

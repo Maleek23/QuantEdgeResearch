@@ -184,7 +184,7 @@ function buildPhases(snap: GEXSnapshot): WeeklyPhase[] {
 }
 
 /** Weekly volatility input. `annualVol` is a decimal (0.16 = 16%). */
-export interface VolInput { annualVol: number; source: 'vix' | 'regime-estimate' }
+export interface VolInput { annualVol: number; source: 'realized-20d' | 'vix' | 'regime-estimate'; impliedVol?: number }
 
 /** Fallback when no live implied vol is available — stamped as an estimate. */
 const REGIME_VOL: Record<GEXSnapshot['volatilityRegime'], number> = { low: 0.12, normal: 0.17, high: 0.26, extreme: 0.38 };
@@ -199,7 +199,11 @@ const REGIME_VOL: Record<GEXSnapshot['volatilityRegime'], number> = { low: 0.12,
  * actually moves in a week.
  *
  * Now:
- *   σ_week = spot × IV × √(5/252)           — the 1σ weekly move priced by options
+ *   σ_week = spot × vol × √(5/252)          — the 1σ weekly move. vol is SPY's own
+ *            20-day REALIZED volatility (how far it has actually been moving);
+ *            implied vol (VIX) is carried alongside for reference — it usually
+ *            runs above realized (the variance risk premium), so sizing the week
+ *            on it overstates how far SPY travels.
  *   drift  = pull toward the pin, only in long gamma, capped at 0.25 σ_week
  *            and at 35% of the distance — dealers dampen, they do not teleport
  *   band   = drift ± σ_week × √t            — ~68% of weeks close inside it
@@ -342,5 +346,6 @@ export function computeWeeklyPath(snap: GEXSnapshot, volIn?: VolInput): WeeklyPa
     expectedMove: Math.round(sigmaWeek * 100) / 100,
     annualVol: vol.annualVol,
     volSource: vol.source,
+    impliedVol: vol.impliedVol,
   };
 }
