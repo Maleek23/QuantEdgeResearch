@@ -14801,6 +14801,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
               : ageHours != null && ageHours > freshnessHours
                 ? `${horizon} setup is older than its ${freshnessHours}h live-book window`
                 : 'published record; live-book admission is revalidated separately';
+          const outcomeNotes = typeof i.outcomeNotes === 'string' ? i.outcomeNotes : null;
+          const peakPremiumMatch = outcomeNotes?.match(/peak\s+\$?([\d.]+)/i);
+          const peakPercentMatch = outcomeNotes?.match(/peak\s+\$?[\d.]+\s*\(\+?(-?[\d.]+)%\)/i);
+          const peakPremium = peakPremiumMatch ? Number(peakPremiumMatch[1]) : null;
+          const entryPremium = Number(i.entryPremium);
+          const peakOptionPercentGain = peakPercentMatch
+            ? Number(peakPercentMatch[1])
+            : peakPremium != null && Number.isFinite(entryPremium) && entryPremium > 0
+              ? ((peakPremium / entryPremium) - 1) * 100
+              : null;
+          const markedPnlAtPeak = peakPremium != null && Number.isFinite(entryPremium) && entryPremium > 0
+            ? (peakPremium - entryPremium) * 100
+            : null;
           return ({
           id: i.id,
           symbol: i.symbol,
@@ -14826,7 +14839,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           exitPremium: i.exitPremium ?? null,
           optionPercentGain: i.optionPercentGain ?? null,
           realizedPnL: i.realizedPnL ?? null,
-          outcomeNotes: i.outcomeNotes ?? null,
+          peakPremium,
+          peakOptionPercentGain: peakOptionPercentGain == null ? null : Number(peakOptionPercentGain.toFixed(2)),
+          markedPnlAtPeak: markedPnlAtPeak == null ? null : Number(markedPnlAtPeak.toFixed(2)),
+          outcomeNotes,
           resolutionReason: i.resolutionReason ?? null,
           source: i.source ?? null,
           dataSourceUsed: i.dataSourceUsed ?? null,

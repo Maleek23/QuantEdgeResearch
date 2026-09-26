@@ -172,6 +172,9 @@ interface PublishedIdeaRow {
   exitPremium: number | null;
   optionPercentGain: number | null;
   realizedPnL: number | null;
+  peakPremium?: number | null;
+  peakOptionPercentGain?: number | null;
+  markedPnlAtPeak?: number | null;
   outcomeNotes?: string | null;
   resolutionReason?: string | null;
   source: string | null;
@@ -673,7 +676,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
   }>({
     queryKey: ['/api/ideas/ledger', 'cockpit-recent'],
     queryFn: async () => {
-      const res = await fetch('/api/ideas/ledger?limit=60', { credentials: 'include' });
+      const res = await fetch('/api/ideas/ledger?limit=200&sessions=10', { credentials: 'include' });
       if (!res.ok) throw new Error('recent decisions failed');
       return res.json();
     },
@@ -684,7 +687,15 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
   const recentDecisions = useMemo(
     () => (recentDecisionData?.ledger ?? [])
       .filter((row) => row.outcome && row.outcome !== 'open')
+      .filter((row) => !['SPX', 'SPY', 'QQQ', 'IWM'].includes(row.symbol.toUpperCase()))
       .slice(0, 4),
+    [recentDecisionData],
+  );
+  const indexTrackRows = useMemo(
+    () => (recentDecisionData?.ledger ?? [])
+      .filter((row) => ['SPX', 'SPY', 'QQQ', 'IWM'].includes(row.symbol.toUpperCase()))
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+      .slice(0, 6),
     [recentDecisionData],
   );
 
@@ -1154,6 +1165,107 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
           </button>
         </div>
       </div>
+
+      {indexTrackRows.length > 0 && (
+        <section className="rounded-lg border border-[var(--brand-cyan)]/25 bg-[var(--brand-cyan)]/[0.025] px-3 py-2" aria-label="Index trade performance tracker">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--brand-cyan)]">
+                Index performance tape
+              </div>
+              <div className="mt-0.5 text-[9px] font-mono text-muted-foreground">
+                SPX · SPY · QQQ · IWM — signal → contract path → bankable marks
+              </div>
+            </div>
+            <span className="text-[8px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+              replay marks are not broker fills
+            </span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {indexTrackRows.map((row) => {
+              const entry = row.entryPremium == null ? null : Number(row.entryPremium);
+              const exit = row.exitPremium == null ? null : Number(row.exitPremium);
+              const gain = row.optionPercentGain == null ? null : Number(row.optionPercentGain);
+              const peak = row.peakPremium == null ? null : Number(row.peakPremium);
+              const peakGain = row.peakOptionPercentGain == null ? null : Number(row.peakOptionPercentGain);
+              const peakPnl = row.markedPnlAtPeak == null ? null : Number(row.markedPnlAtPeak);
+              const markedPnl = row.realizedPnL == null ? null : Number(row.realizedPnL);
+              const won = row.outcome === 'hit_target';
+              const open = row.outcome === 'open';
+              const contract = row.optionType && row.strikePrice != null
+                ? `${Number(row.strikePrice)}${row.optionType === 'call' ? 'C' : 'P'}`
+                : null;
+              return (
+                <article
+                  key={`index-track-${row.id}`}
+                  className={cn(
+                    'rounded-md border px-3 py-2.5',
+                    won
+                      ? 'border-[var(--trade-bullish)]/35 bg-[var(--trade-bullish)]/[0.045]'
+                      : open
+                        ? 'border-[var(--brand-cyan)]/25 bg-background/50'
+                        : 'border-border/50 bg-background/40',
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-mono text-sm font-semibold text-foreground">
+                        {row.symbol}{contract ? ` ${contract}` : ''}
+                      </div>
+                      <div className="mt-0.5 text-[9px] font-mono text-muted-foreground">
+                        {row.source === 'tradingview' ? 'closing-drive alert' : row.source?.replaceAll('_', ' ') || 'index engine'}
+                      </div>
+                    </div>
+                    <span className={cn(
+                      'rounded border px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wide',
+                      won
+                        ? 'border-[var(--trade-bullish)]/35 text-[var(--trade-bullish)]'
+                        : open
+                          ? 'border-[var(--brand-cyan)]/30 text-[var(--brand-cyan)]'
+                          : 'border-border text-muted-foreground',
+                    )}>
+                      {won ? 'T1 hit' : open ? 'tracking' : row.outcome.replaceAll('_', ' ')}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-3 gap-2 border-t border-border/40 pt-2 font-mono">
+                    <div>
+                      <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Entry</div>
+                      <div className="mt-0.5 text-[11px] text-foreground">{entry == null ? '—' : `$${entry.toFixed(2)}`}</div>
+                    </div>
+                    <div>
+                      <div className="text-[8px] uppercase tracking-wide text-muted-foreground">T1 / exit</div>
+                      <div className="mt-0.5 text-[11px] text-foreground">{exit == null ? '—' : `$${exit.toFixed(2)}`}</div>
+                    </div>
+                    <div>
+                      <div className="text-[8px] uppercase tracking-wide text-muted-foreground">Peak mark</div>
+                      <div className="mt-0.5 text-[11px] text-foreground">{peak == null ? '—' : `$${peak.toFixed(2)}`}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px]">
+                    {gain != null && (
+                      <span className={gain >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
+                        T1 {gain >= 0 ? '+' : ''}{gain.toFixed(1)}%
+                      </span>
+                    )}
+                    {markedPnl != null && (
+                      <span className={markedPnl >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
+                        {markedPnl >= 0 ? '+' : '−'}${Math.abs(markedPnl).toFixed(0)} marked
+                      </span>
+                    )}
+                    {peakGain != null && (
+                      <span className="text-[var(--brand-amber)]">
+                        peak +{peakGain.toFixed(0)}%{peakPnl != null ? ` · +$${peakPnl.toFixed(0)}/contract` : ''}
+                      </span>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {(recentDecisions.length > 0 || bankablePositions.length > 0) && (
         <section className="rounded-lg border border-border/60 bg-card/35 px-3 py-2" aria-label="Recent resolved calls">
