@@ -92,10 +92,10 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
     ],
   },
   about: {
-    title: "About | Quant Edge Labs AI Trading Platform",
-    description: "Built by a Model Risk Engineer combining quantitative finance and rule-based scoring to democratize institutional-grade trading research.",
-    ogTitle: "About Quant Edge Labs - AI Trading Innovation",
-    ogDescription: "Meet the team building the future of AI-powered trading research and stock analysis.",
+    title: "About QuantEdge Labs | Research Method and Founder",
+    description: "Learn how QuantEdge Labs combines systems engineering, model-risk discipline and quantitative market research. Founded by Abdulmalik Ajisegiri.",
+    ogTitle: "About QuantEdge Labs",
+    ogDescription: "The research method and systems-engineering discipline behind QuantEdge Labs.",
     keywords: [
       "about Quant Edge Labs",
       "AI trading startup",

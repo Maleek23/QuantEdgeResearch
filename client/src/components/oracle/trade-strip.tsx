@@ -135,8 +135,9 @@ export function TradeStrip({
           <span className="text-[var(--brand-gold)]">
             ${publishedStrike}{(publishedType ?? '').toLowerCase() === 'put' ? 'P' : 'C'}
           </span>
-          {' '}— the levels, R:R and position sizing on this page are computed from that strike.
-          The engine re-selected against the live chain and now prefers ${pick.strike}.
+          {' '}— that was the originally published vehicle. The underlying entry,
+          stop and targets remain fixed independently of strike. For a new entry,
+          the engine now prefers ${pick.strike}; it does not replace an existing position.
         </p>
       )}
     </div>

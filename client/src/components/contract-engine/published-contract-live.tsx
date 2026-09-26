@@ -51,8 +51,8 @@ export function PublishedContractLive(props: {
       {d && d.found && (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(92px, 1fr))", gap: 10 }}>
-            {cell("PREMIUM", d.mid != null ? `$${d.mid.toFixed(2)}` : "—")}
-            {cell("SINCE PUBLISH", pct(d.premiumChangeSincePublish), (d.premiumChangeSincePublish ?? 0) >= 0 ? "var(--green, #6ee7b7)" : "var(--red, #ff6b3d)")}
+            {cell("MID PREMIUM", d.mid != null ? `$${d.mid.toFixed(2)}` : "—")}
+            {cell("VS ENTRY · MID", pct(d.premiumChangeSincePublish), (d.premiumChangeSincePublish ?? 0) >= 0 ? "var(--green, #6ee7b7)" : "var(--red, #ff6b3d)")}
             {cell("DELTA", d.delta != null ? Math.abs(d.delta).toFixed(2) : "—")}
             {cell("IV", d.iv != null ? `${(d.iv * 100).toFixed(1)}%` : "—")}
             {cell("θ / DAY", d.thetaPerDayPct != null ? `${(d.thetaPerDayPct * 100).toFixed(1)}%` : "—")}
@@ -64,7 +64,7 @@ export function PublishedContractLive(props: {
             {cell("BREAKEVEN @EXP", d.breakevenAtExpiry != null ? `$${d.breakevenAtExpiry.toFixed(2)}` : "—")}
           </div>
           <p style={{ fontSize: 'var(--fs-10, 10px)', color: "var(--text-dim, #6b7482)", margin: "10px 0 0", lineHeight: 1.5 }}>
-            Odds are risk-neutral and driftless (what the option market is pricing, not a forecast). "If T1 today" uses delta + gamma — waiting costs theta.
+            Research values use the bid/ask midpoint. Held-position P&amp;L uses the bid—the price a long contract could actually exit near. Odds are risk-neutral and driftless, not a forecast.
           </p>
         </>
       )}

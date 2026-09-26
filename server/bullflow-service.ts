@@ -118,8 +118,105 @@ let streamState: 'off' | 'connecting' | 'live' | 'backoff' = 'off';
 let reconnectDelay = 2_000;
 let abort: AbortController | null = null;
 
+export interface BullflowGexSetup {
+  id: string;
+  type: string;
+  ticker: string;
+  alertedAt: string;
+  classification: 'bullish' | 'bearish' | 'neutral' | string;
+  severity?: string;
+  title: string;
+  message?: string;
+  spotPrice?: number;
+  nodeStrike?: number;
+  oldNodeStrike?: number;
+  newNodeStrike?: number;
+  severityScore?: number;
+}
+
+const gexSetups: BullflowGexSetup[] = [];
+let gexStreamState: 'off' | 'connecting' | 'live' | 'backoff' = 'off';
+let gexAbort: AbortController | null = null;
+let gexReconnectDelay = 2_000;
+
+function rememberGexSetup(raw: any): void {
+  if (!raw?.id || !raw?.ticker) return;
+  const id = String(raw.id);
+  if (gexSetups.some((x) => x.id === id)) return;
+  gexSetups.push({
+    id,
+    type: String(raw.type ?? 'gex_setup'),
+    ticker: String(raw.ticker).toUpperCase(),
+    alertedAt: String(raw.alertedAt ?? new Date().toISOString()),
+    classification: String(raw.classification ?? 'neutral'),
+    severity: raw.severity ? String(raw.severity) : undefined,
+    title: String(raw.title ?? 'GEX setup'),
+    message: raw.message ? String(raw.message) : undefined,
+    spotPrice: Number.isFinite(Number(raw.spotPrice)) ? Number(raw.spotPrice) : undefined,
+    nodeStrike: Number.isFinite(Number(raw.nodeStrike)) ? Number(raw.nodeStrike) : undefined,
+    oldNodeStrike: Number.isFinite(Number(raw.oldNodeStrike)) ? Number(raw.oldNodeStrike) : undefined,
+    newNodeStrike: Number.isFinite(Number(raw.newNodeStrike)) ? Number(raw.newNodeStrike) : undefined,
+    severityScore: Number.isFinite(Number(raw.severityScore)) ? Number(raw.severityScore) : undefined,
+  });
+  gexSetups.sort((a, b) => Date.parse(a.alertedAt) - Date.parse(b.alertedAt));
+  if (gexSetups.length > 100) gexSetups.splice(0, gexSetups.length - 100);
+}
+
 export function getBullflowPrints(): { state: string; prints: BullflowPrint[] } {
   return { state: streamState, prints: [...prints] };
+}
+
+export function getBullflowGexSetups(ticker?: string): { state: string; setups: BullflowGexSetup[] } {
+  const sym = ticker?.trim().toUpperCase();
+  return { state: gexStreamState, setups: gexSetups.filter((x) => !sym || x.ticker === sym) };
+}
+
+/** Live, provider-classified GEX changes. History=true repairs restart blindness. */
+export function startBullflowGexStream(): void {
+  const k = key();
+  if (!k || gexStreamState === 'connecting' || gexStreamState === 'live') return;
+  gexStreamState = 'connecting';
+  gexAbort?.abort();
+  gexAbort = new AbortController();
+  void (async () => {
+    try {
+      const r = await fetch(`${BASE}/v1/streaming/gexSetups?key=${encodeURIComponent(k)}&history=true`, {
+        signal: gexAbort!.signal,
+        headers: { Accept: 'text/event-stream' },
+      });
+      if (!r.ok || !r.body) throw new Error(`HTTP ${r.status}`);
+      gexStreamState = 'live';
+      gexReconnectDelay = 2_000;
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line.startsWith('data: ')) continue;
+          let msg: any;
+          try { msg = JSON.parse(line.slice(6)); } catch { continue; }
+          if (msg?.event === 'history') {
+            for (const setup of msg.data?.alerts ?? []) rememberGexSetup(setup);
+          } else if (msg?.event === 'gex_setup') {
+            rememberGexSetup(msg.data);
+          }
+        }
+      }
+      throw new Error('stream ended');
+    } catch (err: any) {
+      if (gexAbort?.signal.aborted) { gexStreamState = 'off'; return; }
+      gexStreamState = 'backoff';
+      logger.warn(`[BULLFLOW] GEX stream dropped (${err?.message}) — reconnect in ${Math.round(gexReconnectDelay / 1000)}s`);
+      setTimeout(() => { gexStreamState = 'off'; startBullflowGexStream(); }, gexReconnectDelay);
+      gexReconnectDelay = Math.min(60_000, gexReconnectDelay * 2);
+    }
+  })();
 }
 
 let ringHydrated = false;
@@ -288,12 +385,21 @@ export async function getNetPremiumToday(ticker: string): Promise<NetPremiumRead
 }
 
 // ── market-wide leaders / chains / dark pool ────────────────────────────────
-export async function getTopTickers(metric: 'volume' | 'premium' | 'net_premium' = 'net_premium', opts: { excludeEtfs?: boolean; sweepsOnly?: boolean } = {}): Promise<any | null> {
+export async function getTopTickers(metric: 'volume' | 'premium' | 'net_premium' = 'net_premium', opts: { excludeEtfs?: boolean; sweepsOnly?: boolean; bullishBearish?: boolean; date?: string; from?: string; to?: string } = {}): Promise<any | null> {
   return cachedGet('/v1/data/optionsTopTickers', {
     metric, ticker_count: '30',
     exclude_etfs: String(opts.excludeEtfs ?? true),
     sweeps_only: String(opts.sweepsOnly ?? false),
+    bullish_bearish: String(opts.bullishBearish ?? false),
+    ...(opts.date ? { date: opts.date } : {}),
+    ...(opts.from && opts.to ? { from: opts.from, to: opts.to } : {}),
   }, 6 * 60_000); // 10 req/min limit — cache hard
+}
+
+export async function getLastTradePrice(ticker: string): Promise<{ price: number; asOf: string | null } | null> {
+  const d = await cachedGet('/v1/data/lastTradePrice', { ticker: ticker.toUpperCase() }, 15_000);
+  const price = Number(d?.lastTradePrice);
+  return Number.isFinite(price) && price > 0 ? { price, asOf: d?.timestamp ?? null } : null;
 }
 
 export async function getNetGexChain(ticker: string): Promise<any | null> {

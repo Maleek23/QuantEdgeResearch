@@ -47,6 +47,9 @@ interface EnginePick {
   grade: 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
   rationale: string;
   flags: string[];
+  riskPerContract?: number;
+  maxContracts?: number | null;
+  fitsAccount?: boolean;
 }
 
 interface EngineSelection {
@@ -60,6 +63,12 @@ interface EngineSelection {
   picks: EnginePick[];
   status: 'ok' | 'unavailable' | 'no_candidates';
   note?: string;
+}
+
+interface ContractRiskProfile {
+  accountSize: number;
+  riskBudgetDollars: number;
+  maxDebitDollars: number;
 }
 
 interface Props {
@@ -175,6 +184,13 @@ export function ContractEngine({
 }: Props) {
   const [selection, setSelection] = useState<EngineSelection | null>(null);
   const [chosen, setChosen] = useState<Tier | null>(null);
+  const [riskProfile, setRiskProfile] = useState<ContractRiskProfile>(() => {
+    const fallback = { accountSize: 10_000, riskBudgetDollars: 250, maxDebitDollars: 300 };
+    try {
+      const saved = JSON.parse(localStorage.getItem('qe-contract-risk-profile') ?? 'null');
+      return saved && typeof saved === 'object' ? { ...fallback, ...saved } : fallback;
+    } catch { return fallback; }
+  });
   /**
    * Which tiers are expanded.
    *
@@ -209,6 +225,8 @@ export function ContractEngine({
         t1,
         t2,
         conviction,
+        ...riskProfile,
+        minRoiAtT1Pct: 30,
       });
       return (await res.json()) as EngineSelection;
     },
@@ -228,6 +246,9 @@ export function ContractEngine({
   }, [activePick?.strike, activePick?.expiry, activePick?.tier]);
 
   const { mutate } = mutation;
+  useEffect(() => {
+    localStorage.setItem('qe-contract-risk-profile', JSON.stringify(riskProfile));
+  }, [riskProfile]);
   // Auto-fetch contracts on mount / when the thesis changes (per-ticker reload).
   useEffect(() => {
     if (autoLoad && direction !== 'NEUTRAL') mutate();
@@ -297,6 +318,37 @@ export function ContractEngine({
           {selection.asOf ? ` · ${Math.max(0, Math.round((Date.now() - Date.parse(selection.asOf)) / 60000))}m old` : ''}
         </span>
       </header>
+
+      <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-2 px-4 py-2.5 border-b border-border/30 bg-foreground/[0.015]">
+        {([
+          ['ACCOUNT', 'accountSize'],
+          ['MAX LOSS', 'riskBudgetDollars'],
+          ['MAX DEBIT', 'maxDebitDollars'],
+        ] as const).map(([label, key]) => (
+          <label key={key} className="min-w-0">
+            <span className="block text-[8px] font-mono tracking-wider text-muted-foreground mb-1">{label}</span>
+            <span className="flex items-center rounded border border-card-border bg-background/40 px-2">
+              <span className="text-[10px] font-mono text-muted-foreground">$</span>
+              <input
+                type="number"
+                min="1"
+                step={key === 'accountSize' ? 1000 : 25}
+                value={riskProfile[key]}
+                onChange={(event) => setRiskProfile((current) => ({ ...current, [key]: Math.max(1, Number(event.target.value) || 1) }))}
+                className="w-full bg-transparent px-1 py-1.5 text-[11px] font-mono tabular-nums text-foreground outline-none"
+                aria-label={label.toLowerCase()}
+              />
+            </span>
+          </label>
+        ))}
+        <button
+          type="button"
+          onClick={() => mutation.mutate()}
+          className="self-end rounded border border-[var(--brand-cyan)]/30 px-2.5 py-1.5 text-[9px] font-mono font-bold tracking-wider text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/10"
+        >
+          REFIT
+        </button>
+      </div>
 
       <div className="p-4 grid grid-cols-1 gap-2">
         {selection.picks.map((p) => {
@@ -438,6 +490,12 @@ export function ContractEngine({
                 <Stat label="R:R" value={`${p.riskRewardRatio.toFixed(1)}:1`} />
                 <Stat label="BE" value={`$${p.breakeven.toFixed(2)}`} />
               </div>
+
+              {p.riskPerContract != null && (
+                <div className="mt-1.5 text-[10px] font-mono text-muted-foreground">
+                  Managed risk ${p.riskPerContract.toFixed(0)}/contract · {p.maxContracts == null ? 'research only' : `${p.maxContracts} fit current limits`}
+                </div>
+              )}
 
               {isChosen && (
                 <>

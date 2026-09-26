@@ -476,17 +476,42 @@ export async function scanBearFlagBreakdowns(): Promise<BearFlagSetup[]> {
   const results: BearFlagSetup[] = [];
   const funnel = { data: 0, downtrend: 0, bounce: 0, scored: 0 };
 
+  // Use the same grouped-daily source as the bullish scanner. The old path
+  // made one Yahoo request per symbol; a 429 then looked exactly like "no bear
+  // setups" and biased the board bullish. Grouped bars cover the entire liquid
+  // universe with the same data used by research/backtests.
+  let uniBars: Map<string, { open: number; high: number; low: number; close: number; volume: number }[]> = new Map();
+  try {
+    const { getUniverseBars, loadLiquidUniverseFromDisk, getLiquidSymbols } = await import('./liquid-universe');
+    if (getLiquidSymbols().length === 0) await loadLiquidUniverseFromDisk();
+    uniBars = await getUniverseBars(180) as any;
+    logger.info(`[BEAR-FLAG] bars from liquid universe for ${uniBars.size} names`);
+  } catch (e: any) {
+    logger.warn(`[BEAR-FLAG] universe bars unavailable (${e?.message ?? e}) — falling back to Yahoo per symbol`);
+  }
+
   for (const symbol of bearUniverse) {
     try {
-      const data = await fetchDaily(symbol);
-      if (!data) continue;
+      let closes: number[] = [];
+      let highs: number[] = [];
+      let lows: number[] = [];
+      let volumes: number[] = [];
+      const ub = uniBars.get(symbol.toUpperCase());
+      if (ub && ub.length >= 50) {
+        closes = ub.map((b) => b.close).filter((p) => p != null);
+        highs = ub.map((b) => b.high).filter((p) => p != null);
+        lows = ub.map((b) => b.low).filter((p) => p != null);
+        volumes = ub.map((b) => b.volume).filter((v) => v != null);
+      } else {
+        const data = await fetchDaily(symbol);
+        if (!data) continue;
+        const quotes = data.indicators?.quote?.[0];
+        closes = (quotes?.close || []).filter((p: any) => p != null);
+        highs = (quotes?.high || []).filter((p: any) => p != null);
+        lows = (quotes?.low || []).filter((p: any) => p != null);
+        volumes = (quotes?.volume || []).filter((v: any) => v != null);
+      }
       funnel.data++;
-
-      const quotes = data.indicators?.quote?.[0];
-      const closes: number[] = (quotes?.close || []).filter((p: any) => p != null);
-      const highs: number[] = (quotes?.high || []).filter((p: any) => p != null);
-      const lows: number[] = (quotes?.low || []).filter((p: any) => p != null);
-      const volumes: number[] = (quotes?.volume || []).filter((v: any) => v != null);
 
       if (closes.length < 50) continue;
 

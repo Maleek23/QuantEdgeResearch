@@ -200,7 +200,38 @@ export function getLiquidMovers(minChangePct = 3, minDollarVol = 50e6, cap = 60)
  */
 export interface UBar { time: number; open: number; high: number; low: number; close: number; volume: number }
 
+const UNIVERSE_BARS_TTL_MS = 15 * 60 * 1000;
+let universeBarsCache: { days: number; at: number; bars: Map<string, UBar[]> } | null = null;
+const universeBarsInflight = new Map<number, Promise<Map<string, UBar[]>>>();
+
+function sliceUniverseBars(source: Map<string, UBar[]>, days: number): Map<string, UBar[]> {
+  const out = new Map<string, UBar[]>();
+  for (const [symbol, bars] of source) out.set(symbol, bars.slice(-days));
+  return out;
+}
+
 export async function getUniverseBars(days = 70): Promise<Map<string, UBar[]>> {
+  const cached = universeBarsCache;
+  if (cached && Date.now() - cached.at < UNIVERSE_BARS_TTL_MS && cached.days >= days) {
+    return cached.days === days ? cached.bars : sliceUniverseBars(cached.bars, days);
+  }
+  const running = universeBarsInflight.get(days);
+  if (running) return running;
+
+  const load = buildUniverseBars(days);
+  universeBarsInflight.set(days, load);
+  try {
+    const bars = await load;
+    if (!universeBarsCache || universeBarsCache.days <= days || Date.now() - universeBarsCache.at >= UNIVERSE_BARS_TTL_MS) {
+      universeBarsCache = { days, at: Date.now(), bars };
+    }
+    return bars;
+  } finally {
+    universeBarsInflight.delete(days);
+  }
+}
+
+async function buildUniverseBars(days: number): Promise<Map<string, UBar[]>> {
   const out = new Map<string, UBar[]>();
   const want = new Set(getLiquidSymbols());
   if (want.size === 0) return out;

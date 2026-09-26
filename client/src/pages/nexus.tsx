@@ -52,6 +52,7 @@ import quantEdgeLogoUrl from '@assets/qe-mark.svg';
 // The cockpit — the deep single-signal read — mounts on demand behind the
 // board's view toggle. Same component the old Active Book used.
 const HuntCockpit = lazy(() => import('@/pages/shells/hunt-cockpit'));
+const TickerWorkup = lazy(() => import('@/components/workup/ticker-workup').then(m => ({ default: m.TickerWorkup })));
 import '@/styles/nexus.css';
 import { usePrefs, orderOf } from '@/lib/board-prefs';
 import { CustomizePanel } from '@/components/shell/customize-panel';
@@ -100,6 +101,13 @@ interface RotationPayload {
   asOf?: string; sessionLabel?: string; spyChange?: number; headline?: string;
   leaders?: Sector[]; laggards?: Sector[]; sectors?: Sector[];
 }
+const NEXUS_ROTATION_NAMES: Record<string, string[]> = {
+  SMH: ['SMH', 'MU', 'SNDK', 'AMD', 'AVGO', 'ARM'], XLK: ['MSFT', 'AAPL', 'ORCL', 'QCOM'],
+  IGV: ['NOW', 'CRM', 'ADBE', 'DDOG'], XLC: ['META', 'GOOG', 'NFLX', 'TTD'],
+  XLV: ['LLY', 'JNJ', 'UNH', 'MRK'], XBI: ['VRTX', 'REGN', 'MRNA', 'GILD'],
+  XLF: ['JPM', 'GS', 'BAC', 'AFRM'], XLE: ['XOM', 'CVX', 'COP', 'SLB'],
+  XLI: ['CAT', 'GE', 'BA', 'DE'], XLY: ['AMZN', 'TSLA', 'HD', 'NKE'],
+};
 interface RealtimePayload {
   prices?: {
     futures?: Record<string, { price: number; ageSeconds: number }>;
@@ -141,11 +149,12 @@ function useNexusData() {
   });
   const extended = useQuery<EHPayload>({
     queryKey: ['/api/extended-hours', 'nexus'], queryFn: q('/api/extended-hours'),
-    refetchInterval: 120_000, staleTime: 60_000, retry: 1,
+    refetchInterval: 30_000, staleTime: 20_000, retry: 1,
   });
   const convictions = useQuery<ConvictionsResponse>({
     queryKey: ['/api/convictions', 'nexus'], queryFn: q('/api/convictions?limit=24&minScore=0'),
-    refetchInterval: 120_000, staleTime: 60_000, retry: 1,
+    refetchInterval: 30_000, staleTime: 20_000, retry: 1,
+    refetchOnWindowFocus: true, refetchOnReconnect: true,
   });
   const flow = useQuery<{ trades: FlowTrade[] }>({
     queryKey: ['/api/options-flow', 'nexus'], queryFn: q('/api/options-flow?limit=12'),
@@ -514,7 +523,11 @@ export function NexusBoard() {
   const [addSym, setAddSym] = useState('');
   // Quick-actions on the book's cards. The Bot? verdict runs the bot's own
   // entry rules for this symbol right now — absence stops being a mystery.
-  const botStatus = useQuery<{ openPositions?: { symbol: string }[]; config?: { minConviction?: number; maxProgressPct?: number } }>({
+  const botStatus = useQuery<{ openPositions?: Array<{
+    symbol: string; currentPrice?: number | null; entryPrice?: number | null;
+    unrealizedPnL?: number | null; unrealizedPnLPercent?: number | null;
+    lastPriceUpdate?: string | null;
+  }>; config?: { minConviction?: number; maxProgressPct?: number } }>({
     queryKey: ['/api/quant-bot/status', 'nexus'], queryFn: q('/api/quant-bot/status'),
     staleTime: 60_000, retry: 1,
   });
@@ -524,6 +537,9 @@ export function NexusBoard() {
   });
   const pulseSpy = pulseSpyQ.data?.data;
   const heldByBot = useMemo(() => new Set((botStatus.data?.openPositions ?? []).map((x) => x.symbol)), [botStatus.data]);
+  const liveBotPosition = useMemo(() => new Map(
+    (botStatus.data?.openPositions ?? []).map((x) => [x.symbol.toUpperCase(), x]),
+  ), [botStatus.data]);
   const [botVerdicts, setBotVerdicts] = useState<Record<string, string>>({});
   const [watchState, setWatchState] = useState<Record<string, string>>({});
   const addToWatch = async (sym: string) => {
@@ -593,6 +609,7 @@ export function NexusBoard() {
   // GRID is the mock's card wall; SCANNER and COCKPIT are the working views the
   // desk asked back in — HuntCockpit owns those, mounted with its own filters.
   const [bookView, setBookView] = useState<'grid' | 'scanner' | 'cockpit' | 'ledger'>('grid');
+  const [selectedLedger, setSelectedLedger] = useState<any | null>(null);
   // "Explain cards": numbered anatomy markers (1-5) on every card + a legend.
   const [explainCards, setExplainCards] = useState<boolean>(() => {
     try { return localStorage.getItem('nx-explain-cards') === '1'; } catch { return false; }
@@ -601,18 +618,31 @@ export function NexusBoard() {
     try { localStorage.setItem('nx-explain-cards', v ? '0' : '1'); } catch { /* ok */ }
     return !v;
   });
-  // Idea ledger — everything published in the last 72h beyond the active book,
-  // with the validator's verdicts where decided. Fetched only when the view opens.
-  const ledgerQ = useQuery<{ ledger: Array<{ id: string; symbol: string; direction: string; signal: string; score: number | null; entryPrice: number; targetPrice: number; riskRewardRatio: number | null; outcome: string; onDemand: boolean; at: string }> }>({
-    queryKey: ['/api/ideas/ledger', 'nexus'], queryFn: q('/api/ideas/ledger?limit=40'),
-    staleTime: 120_000, retry: 1, enabled: bookView === 'ledger',
+  // Outcomes use completed trading sessions, not a rolling 72-hour window that
+  // silently drops Thursday/Friday records over a weekend.
+  const ledgerQ = useQuery<{ window: string; sessions: string[]; ledger: Array<{ id: string; symbol: string; direction: string; signal: string; score: number | null; entryPrice: number; targetPrice: number; riskRewardRatio: number | null; outcome: string; optionType: 'call' | 'put' | null; strikePrice: number | null; expiryDate: string | null; contractSymbol: string | null; entryPremium: number | null; exitPremium: number | null; optionPercentGain: number | null; realizedPnL: number | null; outcomeNotes: string | null; resolutionReason: string | null; dataSourceUsed: string | null; onDemand: boolean; at: string }> }>({
+    queryKey: ['/api/ideas/ledger', 'nexus', 6], queryFn: q('/api/ideas/ledger?limit=120&sessions=6'),
+    staleTime: 120_000, retry: 1,
   });
+  const indexReplayQ = useQuery<{
+    period: { from: string; to: string; tradingSessions: number };
+    limitation: string;
+    summary: { alerts: number; resolved: number; coveragePct: number; trust: string; targetHits: number; stops: number; targetHitRatePct: number; netMarkedPnlDollars: number };
+    policyMatrix: Record<string, { targetPct: number; sample: number; targetHits: number; stops: number; targetHitRatePct: number; netMarkedPnlDollars: number }>;
+    rows: Array<{ date: string; symbol: string; direction: string; estTimestamp: string; entryMark?: number; exitMark?: number; outcome: string; returnPct?: number; pnlDollars?: number; error?: string }>;
+  }>({
+    queryKey: ['/api/backtests/index-0dte/six-session'],
+    queryFn: q('/api/backtests/index-0dte/six-session'),
+    staleTime: 3_600_000, retry: 0,
+  });
+  const latestHit = ledgerQ.data?.ledger.find((row) => row.outcome === 'hit_target');
   // Draggable rails: drag the border, double-click to cycle default ↔ expanded.
   const leftRail = useColResize('nx-rail-left', 320, { sign: 1, min: 220, max: 560 });
   const rightRail = useColResize('nx-rail-right', 340, { sign: -1, min: 220, max: 560 });
   const [side, setSide] = useState<'all' | 'long' | 'short'>('all');
   const [band, setBand] = useState<'all' | 'S' | 'A' | 'B' | 'C'>('all');
-  const [sort, setSort] = useState<'conviction' | 'rr' | 'newest'>('conviction');
+  const [bookScope, setBookScope] = useState<'setups' | 'live' | 'held' | 'all'>('all');
+  const [sort, setSort] = useState<'conviction' | 'rr' | 'newest'>('newest');
   const [expanded, setExpanded] = useState<string | null>(null);
   const picks = convictions.data?.picks ?? [];
   // Aggressor context for every card — the tape read that decodes whether
@@ -625,24 +655,39 @@ export function NexusBoard() {
   });
   const leanOf = (sym: string) => leansQ.data?.reads?.[sym];
   const bandOf = (p: ConvictionPick) => (p.convictionBand || 'C').charAt(0).toUpperCase();
+  const signalPicks = useMemo(() => picks.filter((p) => !p.isBotHeld), [picks]);
+  const heldPicks = useMemo(() => picks.filter((p) => p.isBotHeld), [picks]);
+  const legacyHeldCount = useMemo(() => heldPicks.filter((p) => p.botBookLegacy).length, [heldPicks]);
+  const setupCount = useMemo(() => signalPicks.filter((p) => p.lifecycleState === 'pending_trigger').length, [signalPicks]);
+  const liveSignalCount = useMemo(() => signalPicks.filter((p) => p.lifecycleState === 'triggered' || p.lifecycleState === 'executed').length, [signalPicks]);
   const bandCounts = useMemo(() => {
     const c: Record<string, number> = { S: 0, A: 0, B: 0, C: 0 };
-    picks.forEach((p) => { c[bandOf(p)] = (c[bandOf(p)] ?? 0) + 1; });
+    signalPicks.forEach((p) => { c[bandOf(p)] = (c[bandOf(p)] ?? 0) + 1; });
     return c;
-  }, [picks]);
+  }, [signalPicks]);
   const shown = useMemo(() => {
     let out = picks.filter((p) =>
+      (bookScope === 'all' ||
+        (bookScope === 'held' && p.isBotHeld) ||
+        (bookScope === 'setups' && !p.isBotHeld && p.lifecycleState === 'pending_trigger') ||
+        (bookScope === 'live' && !p.isBotHeld && (p.lifecycleState === 'triggered' || p.lifecycleState === 'executed'))) &&
       (side === 'all' || p.direction === side) &&
-      (band === 'all' || bandOf(p) === band));
+      (band === 'all' || (!p.isBotHeld && bandOf(p) === band)));
     out = [...out].sort((a, b) =>
       sort === 'conviction' ? (b.convictionScore ?? 0) - (a.convictionScore ?? 0)
         : sort === 'rr' ? (b.riskRewardRatio ?? 0) - (a.riskRewardRatio ?? 0)
-          : String(b.generatedAt ?? '').localeCompare(String(a.generatedAt ?? '')));
+          : (new Date(b.generatedAt ?? b.heldSince ?? 0).getTime() || 0) -
+            (new Date(a.generatedAt ?? a.heldSince ?? 0).getTime() || 0));
     return out;
-  }, [picks, side, band, sort]);
+  }, [picks, bookScope, side, band, sort]);
   const longs = picks.filter((p) => p.direction === 'long').length;
   const shorts = picks.length - longs;
-  const scores = picks.map((p) => p.convictionScore ?? 0);
+  // Held inventory deliberately has no entry grade. Including it as zero made
+  // three scored signals plus five positions report "Avg Evidence 9/100" — a
+  // mathematically tidy but operationally false KPI.
+  const scores = signalPicks
+    .map((p) => Number(p.convictionScore))
+    .filter((score) => Number.isFinite(score));
   const avgEv = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
   const topEv = scores.length ? Math.max(...scores) : null;
 
@@ -664,6 +709,11 @@ export function NexusBoard() {
   const sectors = rotation.data?.sectors ?? [];
   const leaders = (rotation.data?.leaders ?? sectors.filter((s) => s.change > 0).slice(0, 2)).slice(0, 2);
   const laggards = (rotation.data?.laggards ?? [...sectors].reverse().filter((s) => s.change < 0).slice(0, 2)).slice(0, 2);
+  const rotationQueue = sectors
+    .filter((s) => Number.isFinite(s.rsRatio) && Number.isFinite(s.rsMomentum) && s.rsMomentum > 0 && NEXUS_ROTATION_NAMES[s.etf])
+    .map((s) => ({ ...s, phase: s.rsRatio >= 0 ? 'LEADING' : 'IMPROVING' }))
+    .sort((a, b) => a.phase === b.phase ? b.rsMomentum - a.rsMomentum : a.phase === 'IMPROVING' ? -1 : 1)
+    .slice(0, 3);
   const spyChange = rotation.data?.spyChange;
   const dataPartial = health.data?.dataPartial ?? true;
   const vix = pulse.data?.macro?.vix;
@@ -695,7 +745,7 @@ export function NexusBoard() {
     try { localStorage.setItem('nx-watch-order', JSON.stringify(next)); } catch { /* ignore */ }
   };
   // Live quotes for every symbol on the board (not only the day's movers), so
-  // cards price off now rather than the board-build snapshot. 60s cadence.
+  // cards price off now rather than the board-build snapshot. 20s cadence.
   // Phones show the top 6 of the book, then "show all": the full book ran
   // ~9,400px on a 393px screen before any market context (review 2026-09-24).
   const [isPhone, setIsPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches);
@@ -710,8 +760,8 @@ export function NexusBoard() {
   const boardQuotesQ = useQuery<{ quotes: Record<string, { price: number; changePercent: number }> }>({
     queryKey: [`/api/quotes/batch/${boardSyms}`],
     enabled: boardSyms.length > 0,
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+    refetchInterval: 20_000,
+    staleTime: 15_000,
   });
   const quoteBySym = useMemo(() => {
     const m = new Map<string, EHQuote>();
@@ -1048,6 +1098,24 @@ export function NexusBoard() {
                 ? <span>{rotation.data.headline}</span>
                 : <span style={{ color: 'var(--text-mute)' }}>No session read yet.</span>}
             </div>
+            {rotationQueue.length > 0 && (
+              <div style={{ marginTop: 10, display: 'grid', gap: 7 }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', letterSpacing: '.1em', textTransform: 'uppercase' }}>Research next · not signals</div>
+                {rotationQueue.map((sector) => (
+                  <div key={sector.etf} style={{ borderTop: '1px solid var(--nx-border)', paddingTop: 7 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }}>
+                      <b style={{ color: 'var(--text)' }}>{sector.etf} · {sector.name}</b>
+                      <span style={{ color: sector.phase === 'IMPROVING' ? 'var(--cyan)' : 'var(--green)' }}>{sector.phase}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 9px', marginTop: 5 }}>
+                      {NEXUS_ROTATION_NAMES[sector.etf].map((symbol) => (
+                        <button key={symbol} type="button" onClick={() => openWorkup(symbol)} style={{ border: 0, padding: 0, background: 'transparent', color: 'var(--text-dim)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700 }}>{symbol}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1079,6 +1147,17 @@ export function NexusBoard() {
               >
                 customize
               </button>
+              {latestHit && (
+                <button
+                  type="button"
+                  className="view-btn active"
+                  onClick={() => setBookView('ledger')}
+                  title="Open recent measured outcomes"
+                  style={{ color: 'var(--green)', borderColor: 'color-mix(in srgb, var(--green) 35%, transparent)' }}
+                >
+                  latest hit · {latestHit.symbol}{latestHit.optionPercentGain != null ? ` +${Number(latestHit.optionPercentGain).toFixed(0)}%` : ''}
+                </button>
+              )}
               <div className="view-toggle" style={{ marginLeft: 'auto' }}>
                 {(['grid', 'scanner', 'cockpit', 'ledger'] as const).map((v) => (
                   <button
@@ -1087,7 +1166,7 @@ export function NexusBoard() {
                     style={{ background: bookView === v ? undefined : 'transparent', border: 'none' }}
                     onClick={() => setBookView(v)}
                   >
-                    {v}
+                    {v === 'ledger' ? 'outcomes' : v}
                   </button>
                 ))}
               </div>
@@ -1097,20 +1176,75 @@ export function NexusBoard() {
           {bookView === 'ledger' ? (
             <div style={{ padding: '12px 16px' }}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-                Everything published · last 72h · validator verdicts where decided · click → workup
+                Everything published · {ledgerQ.data?.window ?? '6 completed trading sessions'} · click a record → historical replay
               </div>
+              {indexReplayQ.data && (
+                <div style={{ marginBottom: 14, border: '1px solid var(--nx-border-hi)', borderRadius: 8, overflow: 'hidden', background: 'color-mix(in srgb, var(--panel-2) 82%, transparent)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, padding: '10px 12px', borderBottom: '1px solid var(--nx-border)' }}>
+                    <div style={{ minWidth: 210 }}>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--cyan-bright)', fontWeight: 800, letterSpacing: 1 }}>INDEX 0DTE · SIX-SESSION REPLAY</div>
+                      <div style={{ marginTop: 3, fontSize: 10, color: 'var(--text-mute)' }}>{indexReplayQ.data.period.from} → {indexReplayQ.data.period.to} · ordered one-minute reported trades</div>
+                    </div>
+                    {[
+                      ['Coverage', `${indexReplayQ.data.summary.resolved}/${indexReplayQ.data.summary.alerts} · ${indexReplayQ.data.summary.coveragePct}%`],
+                      ['+100% target', `${indexReplayQ.data.summary.targetHits}/${indexReplayQ.data.summary.resolved} · ${indexReplayQ.data.summary.targetHitRatePct}%`],
+                      ['Stops', String(indexReplayQ.data.summary.stops)],
+                      ['Marked P&L', `${indexReplayQ.data.summary.netMarkedPnlDollars >= 0 ? '+' : '−'}$${Math.abs(indexReplayQ.data.summary.netMarkedPnlDollars).toFixed(0)}`],
+                    ].map(([label, value]) => (
+                      <div key={label} style={{ minWidth: 86 }}>
+                        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: .8 }}>{label}</div>
+                        <div style={{ marginTop: 2, fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 800, color: label === 'Marked P&L' && indexReplayQ.data!.summary.netMarkedPnlDollars < 0 ? 'var(--red)' : 'var(--text)' }}>{value}</div>
+                      </div>
+                    ))}
+                    <div style={{ marginLeft: 'auto', maxWidth: 280, fontSize: 9, lineHeight: 1.5, color: 'var(--amber)' }}>
+                      INSUFFICIENT COVERAGE · reported marks, not executable fills. Missing paths stay unresolved.
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(245px,1fr))' }}>
+                    {indexReplayQ.data.rows.map((row) => {
+                      const contract = row.symbol.replace(/^O:/, '');
+                      const color = row.outcome === 'target' ? 'var(--green)' : row.outcome === 'stop' ? 'var(--red)' : 'var(--text-mute)';
+                      return (
+                        <div key={`${row.date}-${row.symbol}-${row.estTimestamp}`} style={{ display: 'grid', gridTemplateColumns: '62px 1fr auto', gap: 8, padding: '7px 10px', borderRight: '1px solid var(--nx-border)', borderBottom: '1px solid var(--nx-border)', alignItems: 'baseline' }}>
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>{row.date.slice(5)}</span>
+                          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: "'JetBrains Mono',monospace", fontSize: 9 }}>{contract}{row.entryMark != null ? ` · $${row.entryMark.toFixed(2)}` : ''}</span>
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 800, color }} title={row.error}>
+                            {row.outcome === 'unresolved'
+                              ? row.error?.includes('exceeds') ? 'OVER BUDGET' : 'NO PATH'
+                              : `${row.returnPct! >= 0 ? '+' : ''}${row.returnPct!.toFixed(0)}%`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {(ledgerQ.data?.ledger ?? []).map((r) => {
+                const mfeMatch = r.outcomeNotes?.match(/peak \$[\d.]+ \(\+?([\d.]+)%\)/i);
+                const pathMfe = mfeMatch ? Number(mfeMatch[1]) : null;
                 const oc = r.outcome === 'hit_target' ? { c: 'var(--green)', t: 'HIT T1' }
                   : r.outcome === 'hit_stop' ? { c: 'var(--red)', t: 'STOPPED' }
+                  : r.outcome === 'expired' && pathMfe != null && pathMfe >= 10 ? { c: 'var(--amber)', t: `PEAK +${pathMfe.toFixed(0)}% · FADED` }
                   : r.outcome === 'expired' ? { c: 'var(--text-mute)', t: 'EXPIRED' }
                   : { c: 'var(--cyan-bright)', t: 'OPEN' };
                 return (
-                  <div key={r.id} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => openWorkup(r.symbol)}
+                  <div key={r.id} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => setSelectedLedger(r)}
+                    aria-label={`Open historical analysis for ${r.symbol}`}
                     style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '6px 4px', borderBottom: '1px solid var(--nx-border, rgba(148,163,184,0.08))', cursor: 'pointer' }}>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', minWidth: 56 }}>{new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, fontWeight: 700, minWidth: 52 }}>{r.symbol}</span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, color: r.direction === 'short' ? 'var(--red)' : 'var(--green)', minWidth: 42 }}>{r.direction === 'short' ? '▼ BEAR' : '▲ BULL'}</span>
-                    <span style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.signal}{r.onDemand ? ' · on-demand' : ''}</span>
+                    <span style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {r.optionType && r.strikePrice != null
+                        ? `${r.contractSymbol ? r.contractSymbol.replace(/\d{6}[CP]\d{8}$/, '') : r.symbol} ${r.strikePrice}${r.optionType === 'call' ? 'C' : 'P'}${r.expiryDate ? ` · ${r.expiryDate.slice(5)}` : ''}`
+                        : r.signal}
+                      {r.entryPremium != null ? ` · $${Number(r.entryPremium).toFixed(2)}` : ''}
+                      {r.exitPremium != null ? ` → $${Number(r.exitPremium).toFixed(2)}` : ''}
+                      {r.optionPercentGain != null ? ` · ${Number(r.optionPercentGain) >= 0 ? '+' : ''}${Number(r.optionPercentGain).toFixed(1)}%` : ''}
+                      {r.outcome === 'hit_target' && pathMfe != null && pathMfe > Number(r.optionPercentGain ?? 0) ? ` · peak +${pathMfe.toFixed(0)}%` : ''}
+                      {r.realizedPnL != null ? ` · ${Number(r.realizedPnL) >= 0 ? '+' : '−'}$${Math.abs(Number(r.realizedPnL)).toFixed(0)} marked` : ''}
+                      {r.onDemand ? ' · on-demand' : ''}
+                    </span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', minWidth: 46, textAlign: 'right' }}>{r.score != null ? `${r.score}` : '—'}{r.riskRewardRatio != null ? ` · ${r.riskRewardRatio}R` : ''}</span>
                     <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, color: oc.c, minWidth: 58, textAlign: 'right' }}>{oc.t}</span>
                   </div>
@@ -1120,7 +1254,7 @@ export function NexusBoard() {
                 <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>reading the ledger…</div>
               )}
               {!ledgerQ.isFetching && !(ledgerQ.data?.ledger ?? []).length && (
-                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>nothing published in the last 72h</div>
+                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>nothing published in the last 6 completed trading sessions</div>
               )}
             </div>
           ) : bookView !== 'grid' ? (
@@ -1138,8 +1272,10 @@ export function NexusBoard() {
           <>
           <div className="stats-bar">
             <div className="stat-box">
-              <div className="stat-label">Active Signals</div>
-              <div className="stat-val cyan">{picks.length}</div>
+              <div className="stat-label">Signals / Held</div>
+              <div className="stat-val cyan">
+                {signalPicks.length}<span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)' }}> / {heldPicks.length}</span>
+              </div>
             </div>
             <div className="stat-box">
               <div className="stat-label">Avg Evidence</div>
@@ -1164,6 +1300,18 @@ export function NexusBoard() {
           </div>
 
           <div className="filters">
+            <div className="filter-group">
+              <span className="filter-label">Book</span>
+              {([
+                ['setups', `Setups · ${setupCount}`],
+                ['live', `Live · ${liveSignalCount}`],
+                ['held', `Held · ${heldPicks.length}`],
+                ['all', `All · ${picks.length}`],
+              ] as const).map(([scope, label]) => (
+                <button key={scope} className={`filter-btn${bookScope === scope ? ' active' : ''}`} onClick={() => setBookScope(scope)}>{label}</button>
+              ))}
+            </div>
+            <div className="filter-sep" />
             <div className="filter-group">
               <span className="filter-label">Side</span>
               {(['all', 'long', 'short'] as const).map((s) => (
@@ -1192,7 +1340,13 @@ export function NexusBoard() {
           </div>
 
           <div style={{ padding: '8px 16px 0', fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
-            {bookList.length < shown.length ? `top ${bookList.length} of ${shown.length}` : `${shown.length} of ${picks.length} shown`}
+            <span style={{ color: 'var(--text)' }}>
+              {bookList.length < shown.length ? `top ${bookList.length} of ${shown.length}` : `${shown.length} displayed`}
+            </span>
+            {' · '}{signalPicks.length} current signal{signalPicks.length === 1 ? '' : 's'}
+            {' · '}{heldPicks.length} held position{heldPicks.length === 1 ? '' : 's'}
+            {legacyHeldCount > 0 ? ` (${legacyHeldCount} legacy book)` : ''}
+            {' · '}{convictions.data?.totalCandidatesScanned ?? '—'} candidates scanned this cycle
           </div>
 
           {explainCards && (
@@ -1219,6 +1373,11 @@ export function NexusBoard() {
                 ? (p.currentPrice ?? p.entryPrice)
                 : (quoteBySym.get(p.symbol)?.lastPrice ?? p.currentPrice ?? p.entryPrice);
               const g = geometryFor(p, px);
+              const botMark = p.isBotHeld ? liveBotPosition.get(p.symbol.toUpperCase()) : undefined;
+              const heldPnlPct = botMark?.unrealizedPnLPercent ?? p.unrealizedPnlPercent;
+              const cardPnlPct = p.isBotHeld && heldPnlPct != null
+                ? Number(heldPnlPct)
+                : g.pnlPct;
               const pendingNow = /pending|trigger/i.test(g.statusLabel ?? '');
               // R:R for someone entering NOW, not the ratio frozen at publish.
               const isLong = p.direction !== 'short';
@@ -1233,6 +1392,11 @@ export function NexusBoard() {
                 ? Math.max(0, Math.ceil((new Date(String(p.expiryDate).slice(0, 10) + 'T20:00:00Z').getTime() - Date.now()) / 86_400_000))
                 : p.optionDte ?? null;
               const pending = /pending|trigger/i.test(g.statusLabel ?? '');
+              const botFloor = botStatus.data?.config?.minConviction ?? 18;
+              // A directional record can remain on the audit trail after its
+              // evidence decays. Do not present that history as a fresh call.
+              const weakThesis = !p.isBotHeld && (p.convictionScore ?? 0) < botFloor;
+              const displayStatus = weakThesis ? 'THESIS WEAKENED' : g.statusLabel;
               const against = (p.layers ?? []).filter((l) => l.points < 0);
               const chips = (p.layers ?? [])
                 .filter((l) => l.points !== 0)
@@ -1248,20 +1412,32 @@ export function NexusBoard() {
                 >
                   <div className="sig-head">
                     <div className="sig-ticker">{p.symbol}</div>
-                    <div className={`sig-band band-${b}`}>{b}</div>{explainCards && <AnatomyMark n={1} />}
+                    <div className={`sig-band band-${b}`}>{p.isBotHeld ? 'POS' : b}</div>{explainCards && <AnatomyMark n={1} />}
                     <div className="sig-ev">
-                      <span>+<b>{p.convictionScore}</b> evidence</span>
-                      <div className="ev-bar"><div className="ev-bar-fill" style={{ width: `${Math.min(100, ((p.convictionScore ?? 0) / 70) * 100)}%` }} /></div>
+                      {p.isBotHeld
+                        ? <span title={`${p.botBookName ?? 'Bot book'}${p.botBookLegacy ? ' · older portfolio' : ' · current portfolio'}`}><b>{p.botBookLegacy ? 'LEGACY HELD' : 'BOT HELD'}</b>{heldPnlPct != null ? ` · ${Number(heldPnlPct) >= 0 ? '+' : ''}${Number(heldPnlPct).toFixed(1)}%` : ''}</span>
+                        : <span>+<b>{p.convictionScore}</b> evidence</span>}
+                      <div className="ev-bar"><div className="ev-bar-fill" style={{ width: p.isBotHeld ? '100%' : `${Math.min(100, ((p.convictionScore ?? 0) / 70) * 100)}%` }} /></div>
                     </div>
                   </div>
                   <div className="sig-type">
-                    <span className={`sig-dir ${dir}`}>{dir === 'bull' ? '▲ BULL' : '▼ BEAR'}</span>
-                    <span className="sig-kind">· {p.holdingPeriod}</span>
-                    <span className="sig-pattern">{p.thesis?.split('.')[0] ?? ''}</span>
+                    <span className={`sig-dir ${dir}`}>
+                      {weakThesis ? (dir === 'bull' ? '▲ LONG BIAS' : '▼ SHORT BIAS') : (dir === 'bull' ? '▲ BULL' : '▼ BEAR')}
+                    </span>
+                    <span className="sig-kind">· {p.isBotHeld ? 'position' : p.holdingPeriod}</span>
+                    <span className="sig-pattern">{p.isBotHeld ? (p.botBookLegacy ? 'Older bot book · manage or reconcile' : 'Current bot inventory') : (p.thesis?.split('.')[0] ?? '')}</span>
                   </div>
+                  {p.optionType && p.strikePrice != null && p.expiryDate && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, margin: '-2px 0 7px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-dim)' }}>
+                      <span style={{ color: 'var(--cyan-bright)', fontWeight: 700 }}>
+                        {p.symbol} ${p.strikePrice}{p.optionType === 'call' ? 'C' : 'P'} · {String(p.expiryDate).slice(5, 10)}
+                      </span>
+                      <span>{p.entryPremium != null ? `entry mark $${Number(p.entryPremium).toFixed(2)}` : 'mark unavailable'}</span>
+                    </div>
+                  )}
                   <SigChart symbol={p.symbol} dir={dir} />
                   <div className="sig-status">
-                    <span className={`sig-status-pill${pending ? ' pending' : ''}`}>{g.statusLabel}</span>{explainCards && <AnatomyMark n={2} />}
+                    <span className={`sig-status-pill${pending || weakThesis ? ' pending' : ''}`}>{displayStatus}</span>{explainCards && <AnatomyMark n={2} />}
                     <span style={{ fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>
                       {p.optionDte != null || p.expiryDate
                         ? `${g.horizonUsedPct.toFixed(0)}% of ${g.horizonDays}d used`
@@ -1273,7 +1449,7 @@ export function NexusBoard() {
                       ['WORKUP', () => openWorkup(p.symbol)],
                       [watchState[p.symbol] ? `WATCH ${watchState[p.symbol]}` : 'WATCH', () => addToWatch(p.symbol)],
                       ['BOT?', () => {
-                        const floor = botStatus.data?.config?.minConviction ?? 18;
+                        const floor = botFloor;
                         const maxProg = botStatus.data?.config?.maxProgressPct ?? 35;
                         const px = quoteBySym.get(p.symbol)?.lastPrice ?? p.currentPrice ?? p.entryPrice ?? 0;
                         let verdict: string;
@@ -1313,7 +1489,11 @@ export function NexusBoard() {
                     ))}
                   </div>
                   <div className="ev-note">
-                    {against.length ? `${against.length} layer${against.length > 1 ? 's' : ''} arguing against` : 'nothing arguing against'}
+                    {p.isBotHeld
+                      ? 'inventory · entry evidence not rescored'
+                      : against.length
+                        ? `${against.length} layer${against.length > 1 ? 's' : ''} arguing against`
+                        : 'no scored layer currently disputes'}
                   </div>
                   <div className="sig-levels" title={(p as any).levelBasis === 'contract' ? 'Levels are the option contract\'s PREMIUM, not share prices' : undefined}>
                     {explainCards && <div style={{ position: 'absolute', marginTop: -10, marginLeft: -6 }}><AnatomyMark n={4} /></div>}
@@ -1321,7 +1501,7 @@ export function NexusBoard() {
                     <div className="level"><div className="level-label">Stop</div><div className="level-val stop">${p.stopLoss?.toFixed(2) ?? '—'}</div></div>
                     <div className="level"><div className="level-label">T1</div><div className="level-val t1">${p.targetPrice?.toFixed(2) ?? '—'}</div></div>
                     <div className="level" title={liveRR != null && p.riskRewardRatio ? `R:R if you enter at the live price. At publish it was ${p.riskRewardRatio.toFixed(1)}:1.` : 'R:R from entry — the trigger has not printed'}><div className="level-label">{liveRR != null ? 'R:R now' : 'R:R'}</div><div className="level-val rr" style={liveRR != null && liveRR < 1 ? { color: 'var(--amber)' } : undefined}>{liveRR != null ? `${liveRR.toFixed(1)}:1` : p.riskRewardRatio ? `${p.riskRewardRatio.toFixed(1)}:1` : '—'}</div></div>
-                    <div className="level"><div className="level-label">P&amp;L</div><div className={`level-val pnl ${g.pnlPct >= 0 ? 'pos' : 'neg'}`}>{g.pnlPct >= 0 ? '+' : ''}{g.pnlPct.toFixed(1)}%</div></div>
+                    <div className="level"><div className="level-label">P&amp;L</div><div className={`level-val pnl ${cardPnlPct >= 0 ? 'pos' : 'neg'}`}>{cardPnlPct >= 0 ? '+' : ''}{cardPnlPct.toFixed(1)}%</div></div>
                   </div>
                   <div className="sig-foot">
                     {(() => {
@@ -1506,6 +1686,32 @@ export function NexusBoard() {
         </div>
       </div>
 
+      {selectedLedger && (
+        <Suspense fallback={null}>
+          <TickerWorkup
+            symbol={selectedLedger.symbol}
+            onClose={() => setSelectedLedger(null)}
+            historicalRecord={{
+              id: selectedLedger.id,
+              publishedAt: selectedLedger.at,
+              direction: selectedLedger.direction,
+              outcome: selectedLedger.outcome,
+              score: selectedLedger.score,
+              riskRewardRatio: selectedLedger.riskRewardRatio,
+              contract: selectedLedger.optionType && selectedLedger.strikePrice != null
+                ? `${selectedLedger.symbol} ${selectedLedger.strikePrice}${selectedLedger.optionType === 'call' ? 'C' : 'P'}${selectedLedger.expiryDate ? ` · ${selectedLedger.expiryDate.slice(0, 10)}` : ''}`
+                : null,
+              entryPremium: selectedLedger.entryPremium,
+              exitPremium: selectedLedger.exitPremium,
+              optionPercentGain: selectedLedger.optionPercentGain,
+              realizedPnL: selectedLedger.realizedPnL,
+              outcomeNotes: selectedLedger.outcomeNotes,
+              resolutionReason: selectedLedger.resolutionReason,
+            }}
+          />
+        </Suspense>
+      )}
+
     </div>
   );
 }
@@ -1517,4 +1723,3 @@ export default NexusBoard;
 const pressOnEnter = (e: ReactKeyboardEvent<HTMLElement>) => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
 };
-

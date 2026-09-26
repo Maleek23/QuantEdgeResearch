@@ -433,11 +433,26 @@ async function cboeOptionQuote(
       strike = strike || parsed.strike;
     }
 
-    const { getContractQuote } = await import('./cboe-options-fallback');
-    const q = await getContractQuote(underlying, optionType, strike, expiry);
-    if (!q || !(q.mid > 0)) return null;
+    // Use the canonical full-chain parser shared with the contract detail
+    // panel. The older fallback parser trims the chain for GEX analytics and
+    // historically substituted a nearby strike when a far-OTM held contract
+    // was outside that window. Position valuation must resolve one exact OCC
+    // contract or return no mark.
+    const { fetchCboeChain } = await import('./contract-analyzer/cboe-chain');
+    const chain = await fetchCboeChain(underlying);
+    const wantExpiry = String(expiry).slice(0, 10);
+    const row = chain?.rawChain.find((o) =>
+      o.option_type === optionType &&
+      Math.abs(Number(o.strike) - Number(strike)) < 0.01 &&
+      String(o.expiration_date).slice(0, 10) === wantExpiry
+    );
+    if (!row) return null;
+    const bid = Number(row.bid) || 0;
+    const ask = Number(row.ask) || 0;
+    const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : ask || bid;
+    if (!(mid > 0)) return null;
 
-    return { last: q.last ?? q.mid, bid: q.bid, ask: q.ask, mid: q.mid, source: 'cboe', delayed: true };
+    return { last: mid, bid, ask, mid, source: 'cboe', delayed: true };
   } catch {
     return null;
   }

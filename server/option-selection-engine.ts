@@ -67,6 +67,14 @@ export interface PriceActionThesis {
   conviction?: number;
   /** Optional pre-fetched spot; otherwise fetched live. */
   asOfSpot?: number;
+  /** Account-aware selection inputs. Omit them for research-only comparisons. */
+  accountSize?: number;
+  riskBudgetDollars?: number;
+  riskPerTradePct?: number;
+  maxDebitDollars?: number;
+  minRoiAtT1Pct?: number;
+  /** Explicit escape hatch for the dedicated index-0DTE engine only. */
+  allowZeroDte?: boolean;
 }
 
 export interface ContractCandidate {
@@ -102,6 +110,14 @@ export interface ContractCandidate {
   riskRewardRatio: number;
   /** Does T1 clear the +30% first-trim trigger? */
   scaleReachable: boolean;
+  /** Whether the underlying T1 reaches/passes the strike in the thesis direction. */
+  targetCrossesStrike: boolean;
+  /** Dollar risk for one contract at the managed premium stop. */
+  riskPerContract: number;
+  /** Maximum contracts allowed by both risk budget and debit ceiling. */
+  maxContracts: number | null;
+  /** False means this contract must not be recommended for this account. */
+  fitsAccount: boolean;
 
   score: number; // 0-100, engine-native
   grade: EngineGrade;
@@ -546,6 +562,29 @@ function buildCandidate(
   const roiAtT2Pct = projectedAtT2 != null ? (projectedAtT2 / entryPremium - 1) * 100 : undefined;
   const scaleReachable = roiAtT1Pct >= 30;
   const breakeven = isCall ? o.strike + entryPremium : o.strike - entryPremium;
+  const targetCrossesStrike = isCall ? thesis.t1 >= o.strike : thesis.t1 <= o.strike;
+
+  // Account fit is computed in RISK units, not just contract debit. With the
+  // platform's managed -50% premium stop, a $2,000 contract risks $1,000. The
+  // debit ceiling remains independent because a trader may not want that much
+  // cash tied up even when the stop risk technically fits.
+  const riskBudget = thesis.riskBudgetDollars ?? (
+    thesis.accountSize && thesis.riskPerTradePct
+      ? thesis.accountSize * (thesis.riskPerTradePct / 100)
+      : null
+  );
+  const debitPerContract = entryPremium * 100;
+  const riskPerContract = debitPerContract * PREMIUM_STOP_FRACTION;
+  const maxByRisk = riskBudget != null && riskBudget > 0
+    ? Math.floor(riskBudget / Math.max(1, riskPerContract))
+    : Number.POSITIVE_INFINITY;
+  const maxByDebit = thesis.maxDebitDollars != null && thesis.maxDebitDollars > 0
+    ? Math.floor(thesis.maxDebitDollars / Math.max(1, debitPerContract))
+    : Number.POSITIVE_INFINITY;
+  const constrained = Number.isFinite(maxByRisk) || Number.isFinite(maxByDebit);
+  const maxContractsRaw = Math.min(maxByRisk, maxByDebit);
+  const maxContracts = constrained ? Math.max(0, maxContractsRaw) : null;
+  const fitsAccount = maxContracts == null || maxContracts >= 1;
 
   // ── Engine-native score ──
   const rrScore =
@@ -588,6 +627,8 @@ function buildCandidate(
   if (shared) score -= 6;
   if (fallbackDte) score -= 8;
   if (o.ivEstimated) score -= 4;
+  if (!targetCrossesStrike) score -= 12;
+  if (!fitsAccount) score -= 30;
   score = Math.max(0, Math.min(100, Math.round(score)));
 
   // ── Flags ──
@@ -598,6 +639,9 @@ function buildCandidate(
   if (shared) flags.push('shared_strike');
   if (fallbackDte) flags.push('dte_fallback');
   if (o.openInterest < 250) flags.push('thin_oi');
+  if (!targetCrossesStrike) flags.push('strike_beyond_t1');
+  if (!fitsAccount) flags.push('outside_account_risk');
+  if (roiAtT1Pct < (thesis.minRoiAtT1Pct ?? 20)) flags.push('target_return_below_floor');
 
   // ── Direction-consistent rationale (GEX lesson: shorts must not read bullish) ──
   const verb = isCall ? 'rises' : 'falls';
@@ -636,6 +680,10 @@ function buildCandidate(
     roiAtT2Pct,
     riskRewardRatio,
     scaleReachable,
+    targetCrossesStrike,
+    riskPerContract,
+    maxContracts,
+    fitsAccount,
     score,
     grade: letterGrade(score),
     rationale,
@@ -680,7 +728,9 @@ export function selectFromChain(
   // in, bad on a marginal one, and most of the board is marginal. So the floor rises as
   // conviction falls: a weak read is pushed out to an expiry that lets it be wrong for a
   // few days and still work.
-  const dteFloor = minDteForConviction(thesis.conviction);
+  const dteFloor = thesis.allowZeroDte && expiryTier === '0DTE'
+    ? 0
+    : minDteForConviction(thesis.conviction);
   const gated = dteFloor > tierWin.min;
   const win = gated
     ? {
@@ -752,11 +802,17 @@ export function selectFromChain(
 
   // Recommended tier must actually be present in the emitted picks. Thin chains
   // can drop a tier, so fall back to the best-scoring contract we did emit.
+  const eligible = picks.filter((p) =>
+    p.fitsAccount &&
+    p.targetCrossesStrike &&
+    p.roiAtT1Pct >= (thesis.minRoiAtT1Pct ?? 20) &&
+    p.riskRewardRatio >= 1
+  );
   const preferredTier = recommendTier(thesis);
-  const recommendedTier = picks.some((p) => p.tier === preferredTier)
+  const recommendedTier = eligible.some((p) => p.tier === preferredTier)
     ? preferredTier
-    : (picks.length > 0
-        ? [...picks].sort((a, b) => b.score - a.score)[0].tier
+    : (eligible.length > 0
+        ? [...eligible].sort((a, b) => b.score - a.score)[0].tier
         : null);
 
   return {
@@ -764,7 +820,9 @@ export function selectFromChain(
     picks,
     recommendedTier,
     status: 'ok',
-    note: meta?.expiriesNote ?? fallbackNote,
+    note: recommendedTier == null && picks.length > 0
+      ? 'No contract clears thesis reachability, projected return, R:R, and account-risk gates.'
+      : (meta?.expiriesNote ?? fallbackNote),
   };
 }
 

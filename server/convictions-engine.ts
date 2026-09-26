@@ -35,7 +35,7 @@ import { getTradierQuote } from "./tradier-api";
 import { getMarketBreadth, type MarketBreadthSnapshot } from "./market-breadth-service";
 import { getAnalystSnapshot, type AnalystSnapshot } from "./analyst-data-service";
 import { getRealtimeBatchQuotes, type RealtimeQuote } from "./realtime-pricing-service";
-import { getPreMarketBatch, type PreMarketSnapshot } from "./pre-market-service";
+import { currentMarketPhase, getPreMarketBatch, type PreMarketSnapshot } from "./pre-market-service";
 import { getGexSnapshotBatch, type GexSnapshot } from "./gex-snapshot-service";
 import { isUSMarketOpen } from "@shared/market-calendar";
 
@@ -285,7 +285,34 @@ function scoreTechnicalLayer(idea: any, direction: "long" | "short"): Conviction
  * capped at 12. This is the workhorse layer for historical ideas where
  * the structured technical fields aren't populated.
  */
-function scoreQualitySignalsLayer(idea: any, direction: "long" | "short"): ConvictionLayer | null {
+function isTapePrimaryIdea(idea: any): boolean {
+  const source = String(idea.source ?? "").toLowerCase();
+  const catalyst = String(idea.catalyst ?? "");
+  return source === "flow" || catalyst.startsWith("Aggressor tape:");
+}
+
+/**
+ * Intraday aggressor flow is a short-lived observation, not a multi-day fact.
+ * Keep it at full weight during the session it was measured, then decay it
+ * quickly. After one full market day it remains visible in the thesis/history,
+ * but contributes no fresh conviction points until Bullflow publishes a new
+ * read. This also prevents a dated tape sentence from being counted once as a
+ * quality signal and again as measured structure for several sessions.
+ */
+function tapeEvidenceWeight(idea: any, applyLiveDecay = true): { factor: number; ageHours: number } {
+  const ageHours = ideaAgeHours(idea);
+  if (!applyLiveDecay || !isTapePrimaryIdea(idea)) return { factor: 1, ageHours };
+  if (ageHours <= 8) return { factor: 1, ageHours };
+  if (ageHours <= 16) return { factor: 0.65, ageHours };
+  if (ageHours <= 24) return { factor: 0.3, ageHours };
+  return { factor: 0, ageHours };
+}
+
+function scoreQualitySignalsLayer(
+  idea: any,
+  direction: "long" | "short",
+  applyLiveDecay = true,
+): ConvictionLayer | null {
   const qs: string[] = Array.isArray(idea.qualitySignals) ? idea.qualitySignals : [];
   if (qs.length === 0) return null;
 
@@ -305,24 +332,28 @@ function scoreQualitySignalsLayer(idea: any, direction: "long" | "short"): Convi
   if (aligned.length === 0) {
     // Even neutral signals (e.g. "1.5x relative volume") still indicate
     // *something* fired — give partial credit for the count.
-    const points = Math.min(6, qs.length);
+    const tapeWeight = tapeEvidenceWeight(idea, applyLiveDecay);
+    const points = Math.round(Math.min(6, qs.length) * tapeWeight.factor);
     if (points === 0) return null;
     return {
       kind: "technical",
       label: `Signals ${qs.length}×`,
       points,
-      why: qs.slice(0, 3).join(" · "),
-      data: { signalCount: qs.length, aligned: 0 },
+      why: `${qs.slice(0, 3).join(" · ")}${tapeWeight.factor < 1 ? ` · aged tape ${tapeWeight.ageHours.toFixed(0)}h (${Math.round(tapeWeight.factor * 100)}% weight)` : ""}`,
+      data: { signalCount: qs.length, aligned: 0, evidenceWeight: tapeWeight.factor, evidenceAgeHours: tapeWeight.ageHours },
     };
   }
 
-  const points = Math.min(12, aligned.length * 2 + Math.min(2, qs.length - aligned.length));
+  const rawPoints = Math.min(12, aligned.length * 2 + Math.min(2, qs.length - aligned.length));
+  const tapeWeight = tapeEvidenceWeight(idea, applyLiveDecay);
+  const points = Math.round(rawPoints * tapeWeight.factor);
+  if (points === 0) return null;
   return {
     kind: "technical",
     label: `Signals ${aligned.length}/${qs.length}`,
     points,
-    why: aligned.slice(0, 3).join(" · "),
-    data: { signalCount: qs.length, aligned: aligned.length },
+    why: `${aligned.slice(0, 3).join(" · ")}${tapeWeight.factor < 1 ? ` · aged tape ${tapeWeight.ageHours.toFixed(0)}h (${Math.round(tapeWeight.factor * 100)}% weight)` : ""}`,
+    data: { signalCount: qs.length, aligned: aligned.length, evidenceWeight: tapeWeight.factor, evidenceAgeHours: tapeWeight.ageHours },
   };
 }
 
@@ -335,19 +366,22 @@ function scoreQualitySignalsLayer(idea: any, direction: "long" | "short"): Convi
  * invalidation, aggressor dollars at the ask) — credit that measurement,
  * scaled by the publisher's own confidence.
  */
-function scoreMeasuredStructureLayer(idea: any): ConvictionLayer | null {
+function scoreMeasuredStructureLayer(idea: any, applyLiveDecay = true): ConvictionLayer | null {
   const cat = String(idea.catalyst ?? "");
   const isReversal = cat.startsWith("Higher-Lows Base") || cat.startsWith("V-Recovery");
   const isTape = cat.startsWith("Aggressor tape:");
   if (!isReversal && !isTape) return null;
   const conf = Number(idea.confidenceScore ?? 0);
-  const points = conf >= 80 ? 12 : conf >= 70 ? 9 : 6;
+  const rawPoints = conf >= 80 ? 12 : conf >= 70 ? 9 : 6;
+  const tapeWeight = tapeEvidenceWeight(idea, applyLiveDecay);
+  const points = Math.round(rawPoints * tapeWeight.factor);
+  if (points === 0) return null;
   return {
     kind: "structure",
     label: isTape ? "Measured Tape" : "Reversal Structure",
     points,
-    why: cat.split("·")[0].trim(),
-    data: { publisherConfidence: conf },
+    why: `${cat.split("·")[0].trim()}${tapeWeight.factor < 1 ? ` · aged ${tapeWeight.ageHours.toFixed(0)}h (${Math.round(tapeWeight.factor * 100)}% weight)` : ""}`,
+    data: { publisherConfidence: conf, evidenceWeight: tapeWeight.factor, evidenceAgeHours: tapeWeight.ageHours },
   };
 }
 
@@ -1848,6 +1882,15 @@ const CONVICTIONS_STALE_MS = 10 * 60_000;
 const _convictionsInflight = new Map<string, Promise<ConvictionsResponse>>();
 
 /**
+ * A lifecycle write (trigger, execution, close) changes the meaning of a card
+ * immediately. Do not leave a five-minute scoring snapshot claiming
+ * PENDING TRIGGER after the audit row has advanced to triggered.
+ */
+export function invalidateConvictionsCache(): void {
+  _convictionsCache.clear();
+}
+
+/**
  * Returns a cached convictions snapshot (60s TTL) or builds a fresh one.
  * Used by best-setups + /api/convictions to share one expensive scoring
  * pass — eliminating the score mismatch between the two parallel pipelines.
@@ -2020,6 +2063,20 @@ export interface BuildConvictionsOptions {
 }
 
 export async function buildConvictions(opts: BuildConvictionsOptions = {}): Promise<ConvictionsResponse> {
+  // Recover legacy GEX rows before reading the candidate pool. A malformed
+  // ladder is quarantined when it cannot be proven, but a structurally complete
+  // row is repaired and allowed to face the same scoring gates as every other
+  // thesis instead of being discarded solely because its publisher mixed
+  // contract premium with underlying prices.
+  if (!opts.skipLiveRevalidation) {
+    try {
+      const { repairMalformedOpenGexIdeas } = await import('./gex-level-repair');
+      const repaired = await repairMalformedOpenGexIdeas();
+      if (repaired > 0) logger.info(`[CONVICTIONS] repaired ${repaired} legacy GEX ladder${repaired === 1 ? '' : 's'} before scoring`);
+    } catch (err) {
+      logger.warn('[CONVICTIONS] GEX ladder repair unavailable; malformed rows remain quarantined:', err);
+    }
+  }
   // Wide lookback window — the per-idea age cap (holding-period aware:
   // intraday=6h, swing=36h, position=96h) does the real freshness filtering.
   const lookbackHours = opts.lookbackHours ?? 96;
@@ -2033,10 +2090,18 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   // it must never be allowed to turn a page load into a fan-out of hundreds of
   // provider calls.  Outside cash hours, stock/option quotes are either stale
   // or unavailable anyway, so retain the plan and label it with its recorded
-  // timestamp instead of pretending an overnight price check is live.
+  // timestamp instead of pretending a fully closed-session check is live.
+  // Pre/post-market is different: the session-aware quote feed is live enough
+  // to challenge a thesis even though it must not trigger an entry.
   const cashMarketOpen = isUSMarketOpen().isOpen;
+  const marketPhase = currentMarketPhase();
+  const liveSession = marketPhase !== "closed";
   const liveCandidateLimit = Math.max(limit * 2, 40);
-  const deepEnrichmentLimit = Math.max(limit, 16);
+  // Deep layers fan out to several third-party services per symbol. Enrich the
+  // best names, but never make a large UI/debug limit turn into 100 concurrent
+  // sector/analyst/TA/GEX requests. Base evidence is still scored for every
+  // candidate; only the optional live context is capped here.
+  const deepEnrichmentLimit = Math.min(Math.max(limit, 12), 16);
 
   // Pull this user's weekly watchlist set if requested. We use a Set for O(1)
   // membership checks during scoring + filtering.
@@ -2086,6 +2151,19 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   const activeIdeas = rawIdeas.filter((idea: any) => {
     if (idea.outcomeStatus && idea.outcomeStatus !== "open") return false;
 
+    // GEX scanner rows created before the level-space repair stored option
+    // PREMIUM in entry/target/stop while the rest of the board treated those
+    // fields as UNDERLYING prices. Do not let those legacy rows render as
+    // impossible $2 share entries; newly generated GEX ideas preserve the
+    // underlying ladder and keep premium in entryPremium.
+    const isMalformedLegacyGexOption =
+      idea.source === "gex_scanner" &&
+      idea.optionType != null &&
+      idea.strikePrice != null &&
+      Number(idea.entryPrice) > 0 &&
+      Number(idea.entryPrice) < Number(idea.strikePrice) * 0.5;
+    if (isMalformedLegacyGexOption) return false;
+
     // Preserve old momentum rows as audit history, but do not let the legacy
     // quote-only publisher masquerade as an active Oracle plan. It had no
     // structural trigger/target model and can be recognised exactly by its
@@ -2112,6 +2190,15 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   // 12 (2026-09-23, quantedgelabs.net).
   const MEASURED_PREFIXES = ['Aggressor tape:', 'Higher-Lows Base', 'V-Recovery', 'Leader swing:', 'Index swing discount:', 'Premium discount:', 'Crypto transmission:'];
   const isMeasured = (idea: any) => {
+    if (idea.source === 'tradingview') return true;
+    // Current index-scalp rows are measured, contract-backed intraday plans.
+    // Requiring SPX/QQQ/IWM to also appear in a personal watchlist caused the
+    // bot to publish a valid 0DTE plan that Cockpit could never display.
+    if (
+      idea.source === 'gex_scanner' &&
+      String(idea.dataSourceUsed ?? '').startsWith('GEX_index_scalp_') &&
+      idea.entryPremium != null
+    ) return true;
     const c = String(idea.catalyst ?? '');
     return MEASURED_PREFIXES.some((p) => c.startsWith(p));
   };
@@ -2160,7 +2247,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   // Backtest replay deliberately needs the entire historical pool; the cap is
   // a live-serving guard only.
   let revalidated = skipLiveRevalidation ? (ageGated as any[]) : rankedForLive;
-  if (!skipLiveRevalidation && cashMarketOpen && rankedForLive.length > 0) {
+  if (!skipLiveRevalidation && liveSession && rankedForLive.length > 0) {
     try {
       const validAssetTypes = new Set(["stock", "crypto", "option", "futures"]);
       // A trade idea's `symbol` is ALWAYS the underlying ("AMZN"), but `assetType` is
@@ -2182,8 +2269,32 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
           assetType: resolved as "stock" | "crypto" | "option" | "futures",
         };
       });
-      const quoteMap = await getRealtimeBatchQuotes(quoteRequests);
-      quoteMap.forEach((q, sym) => liveQuotes.set(sym, q));
+      if (marketPhase === "regular") {
+        const quoteMap = await within(
+          getRealtimeBatchQuotes(quoteRequests),
+          new Map<string, RealtimeQuote>(),
+          3_000,
+        );
+        quoteMap.forEach((q, sym) => liveQuotes.set(sym, q));
+      } else {
+        // During pre/post-market the regular quote service is commonly the
+        // prior close. Use the session-aware snapshot as the primary mark so
+        // overnight gaps can strengthen, challenge, or retire a thesis.
+        const sessionQuotes = await within(
+          getPreMarketBatch(quoteRequests.map((r) => r.symbol)),
+          new Map<string, PreMarketSnapshot>(),
+          3_000,
+        );
+        sessionQuotes.forEach((q, sym) => {
+          if (Number.isFinite(q.price) && q.price > 0) {
+            liveQuotes.set(sym, {
+              symbol: sym,
+              price: q.price,
+              changePercent: q.gapPct,
+            } as RealtimeQuote);
+          }
+        });
+      }
 
       // The batch service silently DROPS symbols when providers throttle and returns
       // nothing outside regular hours, so every pick came back with currentPrice = null —
@@ -2204,7 +2315,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
           let recovered = 0;
           for (let i = 0; i < missingSyms.length; i += CONC) {
             const slice = missingSyms.slice(i, i + CONC);
-            const rows = await Promise.all(slice.map((sym) => fetchExtendedQuote(sym)));
+            const rows = await Promise.all(
+              slice.map((sym) => within(fetchExtendedQuote(sym), null, 1_200)),
+            );
             for (const q of rows) {
               if (q && Number.isFinite(q.lastPrice) && q.lastPrice > 0) {
                 liveQuotes.set(q.symbol, {
@@ -2275,8 +2388,10 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     // the CBOE path resolves after hours. Split the gate so each keeps only the
     // condition it needs.
     const [pmRes, gexRes] = await Promise.allSettled([
-      cashMarketOpen ? getPreMarketBatch(symbols) : Promise.resolve(new Map()),
-      getGexSnapshotBatch(symbols),
+      liveSession
+        ? within(getPreMarketBatch(symbols), new Map<string, PreMarketSnapshot>(), 3_000)
+        : Promise.resolve(new Map<string, PreMarketSnapshot>()),
+      within(getGexSnapshotBatch(symbols), new Map<string, GexSnapshot>(), 4_000),
     ]);
     if (pmRes.status === "fulfilled") {
       pmRes.value.forEach((s, sym) => preMarketBySymbol.set(sym, s));
@@ -2388,10 +2503,10 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     const technical = scoreTechnicalLayer(idea, direction);
     if (technical) layers.push(technical);
 
-    const qualitySignals = scoreQualitySignalsLayer(idea, direction);
+    const qualitySignals = scoreQualitySignalsLayer(idea, direction, !skipLiveRevalidation);
     if (qualitySignals) layers.push(qualitySignals);
 
-    const measuredStructure = scoreMeasuredStructureLayer(idea);
+    const measuredStructure = scoreMeasuredStructureLayer(idea, !skipLiveRevalidation);
     if (measuredStructure) layers.push(measuredStructure);
 
     const leadership = scoreLeadershipLayer(idea.symbol);
@@ -2554,16 +2669,16 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     await Promise.all(
       topForSector.map(async (p) => {
       const [sectorLayer, analystSnap, taLayer, compressionLayer, tapeContradiction, pathLayer] = await Promise.all([
-        scoreSectorLayer(p.symbol, p.sector, p.direction),
-        getAnalystSnapshot(p.symbol).catch(() => null),
+        within(scoreSectorLayer(p.symbol, p.sector, p.direction), null, 2_500),
+        within(getAnalystSnapshot(p.symbol), null, 2_500),
         // TA confluence (Fib + candlesticks + structure). Skipped during backtest
         // replay since it reads live daily candles, not historical-as-of bars.
-        scoreTALayer(p.symbol, p.direction),
+        within(scoreTALayer(p.symbol, p.direction), null, 2_500),
         // Darvas box + TTM squeeze. Same live-candle caveat as the TA layer.
-        scoreCompressionLayer(p.symbol, p.direction),
+        within(scoreCompressionLayer(p.symbol, p.direction), null, 2_500),
         // Opposing measured flow subtracts — see scoreTapeContradictionLayer.
-        scoreTapeContradictionLayer(p.symbol, p.direction),
-        scorePathToStructureLayer(p),
+        within(scoreTapeContradictionLayer(p.symbol, p.direction), null, 2_500),
+        within(scorePathToStructureLayer(p), null, 2_500),
       ]);
       if (tapeContradiction) {
         p.layers.push(tapeContradiction);

@@ -956,6 +956,37 @@ function detectBehaviors(trades: TradeRecord[], metrics: PerformanceMetrics): Be
     }
   }
 
+  // ── Long vs short edge ──
+  // This turns the journal into an evidence check for the recurring question
+  // "am I actually better at bullish or bearish setups?" instead of letting
+  // the current board composition answer it by impression.
+  const longTrades = closed.filter(t => t.direction === 'long');
+  const shortTrades = closed.filter(t => t.direction === 'short');
+  if (longTrades.length >= 3 && shortTrades.length >= 3) {
+    const summarize = (group: TradeRecord[]) => {
+      const pnl = group.reduce((sum, t) => sum + (t.realizedPnL || 0), 0);
+      return {
+        winRate: group.filter(isWin).length / group.length * 100,
+        expectancy: pnl / group.length,
+      };
+    };
+    const longs = summarize(longTrades);
+    const shorts = summarize(shortTrades);
+    const better = longs.expectancy >= shorts.expectancy ? 'bullish' : 'bearish';
+    const best = better === 'bullish' ? longs : shorts;
+    const other = better === 'bullish' ? shorts : longs;
+    insights.push({
+      id: 'directional_edge',
+      category: 'setup',
+      severity: best.expectancy > 0 ? 'positive' : 'warning',
+      title: `${better === 'bullish' ? 'Bullish' : 'Bearish'} Setups Lead Your Book`,
+      description: `${better === 'bullish' ? 'Longs' : 'Shorts'} average $${best.expectancy.toFixed(0)}/trade (${best.winRate.toFixed(0)}% WR) versus $${other.expectancy.toFixed(0)}/trade on the other side.`,
+      metric: `$${best.expectancy.toFixed(0)}/trade`,
+      suggestion: 'Treat this as a sample result, not permission to size up. Re-check after every 20 closed trades and compare the same setup family and market regime.',
+      icon: better === 'bullish' ? '↗️' : '↘️',
+    });
+  }
+
   // ── Current streak awareness ──
   if (metrics.currentStreak.type === 'win' && metrics.currentStreak.count >= 3) {
     insights.push({
@@ -1142,8 +1173,8 @@ export async function getJournalAnalytics(userId?: string): Promise<JournalAnaly
         stopLoss: 0,
         exitPrice: j.exitPrice || null,
         riskRewardRatio: 0,
-        realizedPnL: j.realizedPnL || null,
-        percentGain: j.realizedPnLPercent || null,
+        realizedPnL: j.realizedPnL ?? null,
+        percentGain: j.realizedPnLPercent ?? null,
         outcomeStatus: j.status === 'closed'
           ? (j.outcome === 'win' ? 'hit_target' : j.outcome === 'loss' ? 'hit_stop' : 'expired')
           : 'open',

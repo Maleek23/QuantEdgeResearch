@@ -1,6 +1,6 @@
-import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "./db";
-import { paperPositions, tradeIdeas } from "@shared/schema";
+import { paperPositions, tradeIdeas, tradePriceSnapshots } from "@shared/schema";
 import {
   readOracleExecutionAudit,
   recordPaperExecution,
@@ -43,6 +43,20 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
     return state == null || state === "coverage" || state === "thesis" || state === "pending_trigger";
   });
   if (pending.length === 0) return 0;
+
+  // Scanner checkpoints are already our durable path evidence. A live poll can
+  // miss a quick touch that reverses before the next two-minute observation;
+  // taking the recorded max/min makes trigger detection monotonic and auditable.
+  const extremaRows = await db
+    .select({
+      tradeIdeaId: tradePriceSnapshots.tradeIdeaId,
+      high: sql<number>`max(${tradePriceSnapshots.currentPrice})`,
+      low: sql<number>`min(${tradePriceSnapshots.currentPrice})`,
+    })
+    .from(tradePriceSnapshots)
+    .where(inArray(tradePriceSnapshots.tradeIdeaId, pending.map((idea) => idea.id)))
+    .groupBy(tradePriceSnapshots.tradeIdeaId);
+  const checkpointExtrema = new Map(extremaRows.map((row) => [row.tradeIdeaId, row]));
 
   /**
    * Ask for each row under ITS OWN asset class.
@@ -88,8 +102,14 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
     // Persisted extrema beat a spot check: a trigger that traded between two
     // polls is still a trigger, and sampling live price alone would miss it.
     const isLong = idea.direction !== "short";
-    const extreme = isLong ? idea.highestPriceReached : idea.lowestPriceReached;
-    const best = [live, typeof extreme === "number" ? extreme : null].filter(
+    const persistedExtreme = isLong ? idea.highestPriceReached : idea.lowestPriceReached;
+    const checkpoint = checkpointExtrema.get(idea.id);
+    const checkpointExtreme = isLong ? checkpoint?.high : checkpoint?.low;
+    const best = [
+      live,
+      typeof persistedExtreme === "number" ? persistedExtreme : null,
+      typeof checkpointExtreme === "number" ? checkpointExtreme : null,
+    ].filter(
       (v): v is number => typeof v === "number" && Number.isFinite(v),
     );
     if (best.length === 0) continue;
@@ -114,6 +134,8 @@ export async function observeTriggeredIdeas(hoursBack = 96): Promise<number> {
   }
 
   if (observed) {
+    const { invalidateConvictionsCache } = await import("./convictions-engine");
+    invalidateConvictionsCache();
     logger.info(`[ORACLE LIFECYCLE] Observed ${observed} trigger${observed === 1 ? "" : "s"} (pending → triggered)`);
   }
   return observed;

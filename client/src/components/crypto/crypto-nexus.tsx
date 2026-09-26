@@ -45,6 +45,13 @@ interface SentimentPayload {
   fearGreed?: { value: number; label: string; asOf: string } | null;
   btcDominance?: number | null;
 }
+interface ProxyCandidate {
+  underlying: string; underlying7d: number | null; underlyingGatePassed: boolean;
+  symbol: string; route: string; proxyNet: number | null; tapeGatePassed: boolean;
+  entry: number | null; invalidation: number | null; invalidationBasis: string | null;
+  eligible: boolean; reason: string;
+}
+interface ProxyCandidatePayload { asOf?: string; eligible?: number; rows?: ProxyCandidate[]; methodology?: string }
 
 const BTC_PROXIES = [
   { sym: 'IBIT', type: 'spot ETF', desc: 'Direct BTC wrapper — tightest correlation, lowest idiosyncratic risk.' },
@@ -218,6 +225,15 @@ export function CryptoNexus() {
     },
     staleTime: 15 * 60_000, refetchInterval: 30 * 60_000, retry: 1,
   });
+  const { data: proxyTrace, isError: proxyTraceError } = useQuery<ProxyCandidatePayload>({
+    queryKey: ['/api/crypto/proxy-candidates', 'nexus'],
+    queryFn: async () => {
+      const r = await fetch('/api/crypto/proxy-candidates', { credentials: 'include' });
+      if (!r.ok) throw new Error('proxy candidate trace failed');
+      return r.json();
+    },
+    staleTime: 5 * 60_000, refetchInterval: 5 * 60_000, retry: 1,
+  });
 
   const btc = pulse?.assets?.find((a) => a.symbol === 'BTC');
   const eth = pulse?.assets?.find((a) => a.symbol === 'ETH');
@@ -319,6 +335,32 @@ export function CryptoNexus() {
               <SpotCard a={eth} kind="eth" />
             </div>
           </div>
+
+          <section className="border-y border-border/45 px-4 py-4 md:px-6" aria-label="Crypto proxy promotion gate">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--brand-cyan)]">Nexus promotion gate</div>
+                <h2 className="mt-1 text-sm font-semibold text-foreground">Which proxies can become trade ideas now</h2>
+                <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-muted-foreground">The coin move only opens the search. A proxy needs its own bullish options tape and a measured chart invalidation before the publisher may send it to Nexus.</p>
+              </div>
+              <div className="font-mono text-[10px] text-muted-foreground"><b className="text-foreground">{proxyTrace?.eligible ?? 0}</b> eligible · <Heartbeat since={proxyTrace?.asOf ?? null} staleAfterSec={600} /></div>
+            </div>
+            {proxyTraceError ? (
+              <div className="mt-3 rounded border border-[var(--trade-bearish)]/30 bg-[var(--trade-bearish)]/5 px-3 py-2 font-mono text-[10px] text-[var(--trade-bearish)]">Proxy evidence feed failed. No eligibility is implied.</div>
+            ) : (
+              <div className="mt-3 grid gap-2 xl:grid-cols-2">
+                {(proxyTrace?.rows ?? []).map((row) => (
+                  <button key={`${row.underlying}-${row.symbol}`} type="button" onClick={() => openWorkup(row.symbol)} className="grid cursor-pointer grid-cols-[58px_64px_1fr_auto] items-center gap-2 rounded border border-border/45 bg-background/20 px-3 py-2 text-left transition-colors hover:border-[var(--brand-cyan)]/50 hover:bg-foreground/[0.025]">
+                    <span className="font-mono text-[11px] font-bold text-foreground">{row.symbol}</span>
+                    <span className="font-mono text-[9px] text-muted-foreground">{row.underlying} {row.underlying7d == null ? '—' : `${row.underlying7d >= 0 ? '+' : ''}${(row.underlying7d * 100).toFixed(1)}%`}</span>
+                    <span className="min-w-0 truncate text-[10px] text-muted-foreground" title={row.reason}>{row.reason}</span>
+                    <span className="rounded border px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider" style={{ color: row.eligible ? 'var(--green)' : row.tapeGatePassed ? 'var(--amber)' : 'var(--text-mute)', borderColor: row.eligible ? 'color-mix(in srgb,var(--green) 35%,transparent)' : 'var(--nx-border)' }}>{row.eligible ? 'QUALIFIED' : row.tapeGatePassed ? 'NEEDS LEVEL' : 'WATCH'}</span>
+                  </button>
+                ))}
+                {!proxyTrace?.rows?.length && <div className="font-mono text-[10px] text-muted-foreground">Reading the crypto transmission gates…</div>}
+              </div>
+            )}
+          </section>
 
           <div className="proxy-section">
             <div className="proxy-head">

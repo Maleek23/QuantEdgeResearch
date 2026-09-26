@@ -45,6 +45,84 @@ interface FlowResponse {
   };
 }
 
+interface IndexPulseData {
+  timestamp?: string;
+  gex?: { spotPrice?: number; totalNetGEX?: number; maxGammaStrike?: number; topLevels?: Array<{ strike: number; netGEX: number; type: string }> } | null;
+  vwap?: { vwap: number; upper1: number; lower1: number; currentPrice: number; distancePct: number; position: string } | null;
+  volumeDelta?: { deltaDirection: string; divergence: boolean; note?: string } | null;
+  momentum?: { regime: string; rsi: number; confidence: number; tradingAdvice?: string } | null;
+  unifiedScore?: { score: number; direction: 'bullish' | 'bearish' | 'neutral'; confidence: number; thesis: string; topSignals: string[] } | null;
+}
+
+interface IndexScalpResponse {
+  session?: { isMarketOpen: boolean; minutesToClose: number; sessionLabel: string };
+  scalps?: Array<{ id: string; symbol: string; bias: 'calls' | 'puts'; setup: string; strike: number; spot: number; target: number; stop: number; confidence: number; thesis: string; timestamp: string }>;
+}
+
+interface BullflowPulse {
+  enabled?: boolean;
+  streamState?: string;
+  gexStreamState?: string;
+  printsHeld?: number;
+  indexFlow?: { lean: 'long' | 'short' | 'flat'; netPremium: number; asOf?: string } | null;
+  latestGexSetup?: { classification?: string; title?: string; message?: string; nodeStrike?: number; newNodeStrike?: number } | null;
+}
+
+function IndexZeroDtePulse({ intel, scalps, stream }: { intel?: IndexPulseData; scalps?: IndexScalpResponse; stream?: BullflowPulse }) {
+  const score = intel?.unifiedScore?.score;
+  const direction = intel?.unifiedScore?.direction ?? 'neutral';
+  const confidence = intel?.unifiedScore?.confidence ?? 0;
+  const spot = intel?.gex?.spotPrice ?? intel?.vwap?.currentPrice;
+  const magnet = intel?.gex?.maxGammaStrike;
+  const active = scalps?.scalps?.[0];
+  const biasColor = direction === 'bullish' ? BULL : direction === 'bearish' ? BEAR : 'var(--amber)';
+  const gate = active ? 'TRIGGERED' : confidence >= 35 ? 'ARMED' : 'WAIT';
+
+  const level = (label: string, value?: number, color = 'var(--text-mute)') => (
+    <div style={{ minWidth: 92 }}>
+      <div style={{ fontSize: 8, letterSpacing: 1.1, color: 'var(--text-mute)' }}>{label}</div>
+      <div style={{ marginTop: 2, fontSize: 12, fontWeight: 700, color }}>{value != null && Number.isFinite(value) ? value.toFixed(2) : '—'}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ margin: '0 0 10px', padding: '12px 14px', border: '1px solid var(--nx-border, rgba(148,163,184,.14))', borderRadius: 8, background: 'linear-gradient(90deg, rgba(59,140,255,.055), rgba(7,12,20,.35))' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: 1.4, color: CYAN }}>INDEX 0DTE PULSE · SPX</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginTop: 4 }}>
+            <strong style={{ fontSize: 18, color: biasColor }}>{direction.toUpperCase()}</strong>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", color: 'var(--text)' }}>{score != null ? `${score}/100` : '—'}</span>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: gate === 'TRIGGERED' ? BULL : 'var(--amber)' }}>{gate}</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 18, overflowX: 'auto', fontFamily: "'JetBrains Mono',monospace" }}>
+          {level('LOWER 1σ', intel?.vwap?.lower1, BEAR)}
+          {level('VWAP', intel?.vwap?.vwap, CYAN)}
+          {level('SPOT', spot, 'var(--text)')}
+          {level('UPPER 1σ', intel?.vwap?.upper1, BULL)}
+          {level('GAMMA MAGNET', magnet, 'var(--amber)')}
+        </div>
+        <div style={{ minWidth: 180, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, lineHeight: 1.6 }}>
+          <div style={{ color: stream?.streamState === 'live' ? BULL : 'var(--amber)' }}>TAPE {stream?.streamState?.toUpperCase() ?? 'OFF'} · {stream?.printsHeld ?? 0} PRINTS</div>
+          <div style={{ color: 'var(--text-mute)' }}>{scalps?.session?.isMarketOpen ? `${scalps.session.minutesToClose}m TO CLOSE` : 'SESSION CLOSED'} · {confidence}% agreement</div>
+        </div>
+      </div>
+      <div style={{ marginTop: 10, paddingTop: 9, borderTop: '1px solid var(--nx-border, rgba(148,163,184,.1))', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 10 }}>
+        <span style={{ color: 'var(--text-secondary)' }}>
+          {active ? `${active.symbol} ${active.bias.toUpperCase()} $${active.strike} · ${active.setup.replace(/_/g, ' ')} · ${active.confidence}/100` : 'No qualified entry: bias exists, but level + momentum + tape confirmation has not aligned.'}
+        </span>
+        <span style={{ color: stream?.indexFlow?.lean === 'long' ? BULL : stream?.indexFlow?.lean === 'short' ? BEAR : 'var(--text-mute)' }}>
+          {stream?.indexFlow
+            ? `SPY FLOW ${stream.indexFlow.lean.toUpperCase()} · ${stream.indexFlow.netPremium >= 0 ? '+' : '−'}$${(Math.abs(stream.indexFlow.netPremium) / 1e6).toFixed(1)}M`
+            : 'SPY flow unavailable'}
+          {stream?.latestGexSetup ? ` · ${stream.latestGexSetup.title}` : ''}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /** Normalise whatever the API returns into the shape the scorer expects. */
 function toPrint(t: any): FlowPrint | null {
   const symbol = t?.symbol ?? t?.ticker;
@@ -84,7 +162,8 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
   // market-making, and on heavy days it buries every single-name whale under
   // same-minute strike-day aggregates. Default view = single names; the index
   // tape is one click away, never hidden.
-  const [showIndexTape, setShowIndexTape] = useState(false);
+  const [showIndexTape, setShowIndexTape] = useState(true);
+  const [zeroDteOnly, setZeroDteOnly] = useState(false);
   const [q, setQ] = useState('');
   const [days, setDays] = useState(7);
   const [watched, setWatched] = useState<Set<string>>(new Set());
@@ -97,9 +176,45 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
       if (!r.ok) throw new Error('flow failed');
       return r.json();
     },
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    staleTime: 8_000,
+    refetchInterval: 15_000,
     retry: 1,
+  });
+
+  const indexPulseQ = useQuery<IndexPulseData>({
+    queryKey: ['/api/spx/intelligence', 'SPX', 'flow-pulse'],
+    queryFn: async () => {
+      const r = await fetch('/api/spx/intelligence?symbol=SPX', { credentials: 'include' });
+      if (!r.ok) throw new Error('index pulse failed');
+      return r.json();
+    },
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: 0,
+  });
+
+  const indexScalpsQ = useQuery<IndexScalpResponse>({
+    queryKey: ['/api/index-scalps', 'flow-pulse'],
+    queryFn: async () => {
+      const r = await fetch('/api/index-scalps', { credentials: 'include' });
+      if (!r.ok) throw new Error('index scalps failed');
+      return r.json();
+    },
+    staleTime: 8_000,
+    refetchInterval: 15_000,
+    retry: 0,
+  });
+
+  const streamQ = useQuery<BullflowPulse>({
+    queryKey: ['/api/bullflow/status', 'flow-pulse'],
+    queryFn: async () => {
+      const r = await fetch('/api/bullflow/status', { credentials: 'include' });
+      if (!r.ok) throw new Error('tape status failed');
+      return r.json();
+    },
+    staleTime: 5_000,
+    refetchInterval: 10_000,
+    retry: 0,
   });
 
   const prints = useMemo(
@@ -135,9 +250,14 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
     if (s.totalPremium < minPrem) return false;
     if (whaleOnly && !s.isWhale) return false;
     if (!showIndexTape && INDEX_TAPE.has(p.symbol.toUpperCase())) return false;
+    if (zeroDteOnly) {
+      const expiryET = new Date(`${String(p.expirationDate).slice(0, 10)}T12:00:00`).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const todayET = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      if (expiryET !== todayET) return false;
+    }
     if (q.trim() && !p.symbol.toUpperCase().includes(q.trim().toUpperCase())) return false;
     return true;
-  }), [scored, dir, kind, minScore, minPrem, whaleOnly, showIndexTape, q]);
+  }), [scored, dir, kind, minScore, minPrem, whaleOnly, showIndexTape, zeroDteOnly, q]);
 
   // Session premium split.
   //
@@ -253,6 +373,8 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
             <div className="flow-desc">Follow unusual options-chain activity from aggregate premium to contract-level evidence. Bias and pattern labels are inferred.</div>
           </div>
 
+          <IndexZeroDtePulse intel={indexPulseQ.data} scalps={indexScalpsQ.data} stream={streamQ.data} />
+
           {/* The mock's six stat-cards — same measured values as before, including
               the honest sixth: Direction is n/a until a tape source measures it. */}
           <div className="stats-bar">
@@ -344,10 +466,17 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
                 className="filter-select"
                 value={showIndexTape ? 'all' : 'single'}
                 onChange={(e) => setShowIndexTape(e.target.value === 'all')}
-                title="Index/leveraged/sector ETF option tape is mostly hedging and market-making churn; single names is the default lens"
+                title="Include index, sector and leveraged ETF contracts. ETF flow can be hedging, so use the 0DTE pulse for context."
               >
                 <option value="single">SINGLE NAMES</option>
-                <option value="all">+ INDEX TAPE</option>
+                <option value="all">ALL + INDEX/ETF</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <span className="filter-label">DTE</span>
+              <select className="filter-select" value={zeroDteOnly ? '0' : 'all'} onChange={(e) => setZeroDteOnly(e.target.value === '0')}>
+                <option value="all">ALL</option>
+                <option value="0">0DTE ONLY</option>
               </select>
             </div>
             <div className="filter-group">

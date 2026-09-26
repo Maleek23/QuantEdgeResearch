@@ -42,6 +42,23 @@ interface MacroGate {
   calendar?: { current: boolean; lastDate: string | null };
 }
 
+interface RotationOpportunity {
+  etf: string; name: string; rsRatio: number | null; rsMomentum: number | null;
+  relChange: number; isStale?: boolean;
+}
+interface RotationBriefPayload { asOf?: string; isStale?: boolean; sessionLabel?: string; sectors?: RotationOpportunity[] }
+
+// Liquid, optionable representatives. These are research candidates—not
+// signals—and therefore never inherit a direction merely because their sector
+// moved. The workup must still confirm the name's own tape and structure.
+const ROTATION_CANDIDATES: Record<string, string[]> = {
+  XLV: ['LLY', 'JNJ', 'UNH', 'MRK', 'ABBV'], XBI: ['VRTX', 'REGN', 'MRNA', 'GILD'],
+  IGV: ['MSFT', 'NOW', 'CRM', 'ADBE', 'DDOG', 'NET'], XLK: ['AAPL', 'MSFT', 'ORCL', 'QCOM'],
+  SMH: ['AMD', 'AVGO', 'MU', 'ARM', 'KLAC', 'LRCX'], XLF: ['JPM', 'GS', 'BAC', 'AFRM'],
+  XLE: ['XOM', 'CVX', 'COP', 'SLB'], XLI: ['CAT', 'GE', 'BA', 'DE'],
+  XLY: ['AMZN', 'TSLA', 'HD', 'NKE'], ITA: ['LMT', 'RTX', 'NOC', 'KTOS'],
+};
+
 const SESSION_LABEL: Record<string, string> = {
   pre: 'Pre-market', regular: 'Live session', post: 'After-hours', closed: 'Last cash close',
 };
@@ -101,6 +118,17 @@ export function SessionBrief({
     refetchInterval: 2 * 60_000,
     retry: 1,
   });
+  const rotation = useQuery<RotationBriefPayload>({
+    queryKey: ['/api/sector-rotation', 'session-brief'],
+    queryFn: async () => {
+      const r = await fetch('/api/sector-rotation', { credentials: 'include' });
+      if (!r.ok) throw new Error('rotation failed');
+      return r.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: 1,
+  });
   const handoff = data ? cashHandoffCopy(data.session) : null;
   const sectors = data?.sectors ?? [];
   // Shared scale so every bar is comparable — but robust, not the raw max. One
@@ -109,6 +137,15 @@ export function SessionBrief({
   const maxMove = robustMax(sectors.map((x) => x.medianChangePct));
   const strong = sectors.filter((x) => x.medianChangePct >= 0);
   const weak = sectors.filter((x) => x.medianChangePct < 0).reverse();
+  const rotationResearch = (rotation.data?.sectors ?? [])
+    .filter((sector) => sector.rsRatio != null && sector.rsMomentum != null && sector.rsMomentum > 0 && ROTATION_CANDIDATES[sector.etf])
+    .map((sector) => ({ ...sector, phase: (sector.rsRatio ?? 0) >= 0 ? 'LEADING' : 'IMPROVING' as const }))
+    .sort((a, b) => {
+      // Improving groups are the earliest handoff; established leaders follow.
+      if (a.phase !== b.phase) return a.phase === 'IMPROVING' ? -1 : 1;
+      return (b.rsMomentum ?? 0) - (a.rsMomentum ?? 0);
+    })
+    .slice(0, 4);
   return (
     <PanelFrame
       title="Session Brief"
@@ -182,6 +219,34 @@ export function SessionBrief({
                title={data.interpretation}>
               {data.interpretation}
             </p>
+          )}
+
+          {rotationResearch.length > 0 && (
+            <div className="border-b border-border/30 px-4 py-3" style={{ background: `color-mix(in srgb, ${TC.info} 5%, transparent)` }}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-label ui-eyebrow" style={{ color: '#2dd4bf' }}>Rotation research queue</div>
+                  <p className="ui-prose mt-1 text-label leading-snug text-muted-foreground">Improving groups are early handoffs; leading groups have established relative strength. The names below are next for interrogation—not automatic longs.</p>
+                </div>
+                <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">{rotation.data?.sessionLabel ?? 'rotation feed'}</span>
+              </div>
+              <div className="mt-2.5 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                {rotationResearch.map((sector) => (
+                  <div key={sector.etf} className="rounded border border-border/45 bg-background/20 px-2.5 py-2">
+                    <div className="flex items-baseline justify-between gap-2 font-mono">
+                      <b className="text-[10px] text-foreground">{sector.etf} · {sector.name}</b>
+                      <span className="text-[8px] font-bold tracking-wide" style={{ color: sector.phase === 'IMPROVING' ? '#2dd4bf' : TC.bull }}>{sector.phase}</span>
+                    </div>
+                    <div className="mt-1 font-mono text-[8px] tabular-nums text-muted-foreground">RS {sector.rsRatio?.toFixed(2)} · momentum +{sector.rsMomentum?.toFixed(2)}</div>
+                    <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1">
+                      {ROTATION_CANDIDATES[sector.etf].slice(0, 5).map((symbol) => (
+                        <button key={symbol} onClick={() => onSelectSymbol?.(symbol)} className="cursor-pointer font-mono text-[9px] font-semibold text-muted-foreground transition-colors hover:text-foreground">{symbol}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           <div className="px-4 py-2.5">

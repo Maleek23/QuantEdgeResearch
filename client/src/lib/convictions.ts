@@ -33,10 +33,17 @@ export interface ConvictionPick {
    */
   isBotHeld?: boolean;
   botOwner?: string;
+  botBookName?: string;
+  botBookLegacy?: boolean;
   quantity?: number;
   unrealizedPnl?: number | null;
   unrealizedPnlPercent?: number | null;
   heldSince?: string | null;
+  /** Contract-premium mark and bracket for held options (never underlying prices). */
+  currentPremium?: number | null;
+  premiumTarget?: number | null;
+  premiumStop?: number | null;
+  premiumMarkedAt?: string | null;
 
   ideaId: string;
   symbol: string;

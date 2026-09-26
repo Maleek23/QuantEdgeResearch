@@ -17,9 +17,10 @@ import { useTheme } from '@/components/theme-provider';
 import { useAuth } from '@/hooks/useAuth';
 import qeMark from '@assets/qe-mark.svg';
 import '@/styles/nexus.css';
-import { TABS, PAGES, UTILITY_PAGES, tabHref } from './nav-model';
+import { PAGES, UTILITY_PAGES } from './nav-model';
 import { MobileDock } from './mobile-dock';
 import { CustomizePanel } from './customize-panel';
+import { DesktopRail } from './desktop-rail';
 
 export function NexusFrame({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -36,26 +37,15 @@ export function NexusFrame({ children }: { children: ReactNode }) {
 
   return (
     <div className={cn('qe-terminal nexus-vars flex min-h-[100dvh] w-full min-w-0 max-w-[100vw] flex-col', nexusLight && 'light')}>
-      <header className="sticky top-0 z-20">
+      <DesktopRail activeTab={null} currentPath={path} />
+      <header className="sticky top-0 z-20 lg:pl-[196px]">
         <div className="topbar" style={{ minHeight: 44 }}>
-          <Link href="/today" className="brand" aria-label="Quant Edge Labs — home">
+          <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home">
             <img className="brand-logo" src={qeMark} alt="" width={22} height={22} />
             <span className="brand-name">QUANTEDGE</span>
             <span className="brand-slash">{'//'}</span>
             <span className="brand-sub">{page ? page.short : 'TERMINAL'}</span>
           </Link>
-
-          <nav className="nav-tabs hidden overflow-x-auto lg:flex" aria-label="Terminal and pages">
-            {TABS.map((t) => (
-              <Link key={t.id} href={tabHref(t.id)} className="nav-tab">{t.label}</Link>
-            ))}
-            <span className="mx-1 h-4 w-px self-center bg-border/70" aria-hidden />
-            {PAGES.map((p) => (
-              <Link key={p.href} href={p.href} className={cn('nav-tab', path === p.href && 'active')} aria-current={path === p.href ? 'page' : undefined}>
-                {p.short}
-              </Link>
-            ))}
-          </nav>
 
           <div className="top-spacer" />
 
@@ -102,14 +92,14 @@ export function NexusFrame({ children }: { children: ReactNode }) {
       {/* overflow-x contained HERE: one wide table (the GEX strike matrix, a filter
           row) used to widen the whole document, and iOS then zoomed the entire
           page out — dock included (measured: /r/META 1572px on a 393px phone). */}
-      <main className="min-h-0 w-full min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <main className="min-h-0 w-full min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[196px]">
         {children}
       </main>
 
       <MobileDock activeTab={null} />
       <CustomizePanel open={customizeOpen} onClose={() => setCustomizeOpen(false)} />
 
-      <footer className="bottombar hidden lg:flex" style={{ minHeight: 26 }}>
+      <footer className="bottombar hidden lg:flex lg:pl-[196px]" style={{ minHeight: 26 }}>
         <div className="bb-item"><span className="dot" /><b>{page ? page.short : 'PAGE'}</b></div>
         <div className="bb-spacer" />
         <div className="bb-item">Educational only · not investment advice</div>

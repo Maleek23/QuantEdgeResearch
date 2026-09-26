@@ -71,6 +71,7 @@ interface OptionPlayValidation {
   entryPrice?: number;
   generatedAt?: Date | string;
   assetType?: string | null;
+  strategyContext?: string | null;
 }
 
 function isOptionPlayStillRelevant(play: OptionPlayValidation): { valid: boolean; reason: string } {
@@ -82,7 +83,7 @@ function isOptionPlayStillRelevant(play: OptionPlayValidation): { valid: boolean
   // Market hours in minutes: 8:30 AM = 510, 3:00 PM = 900
   const MARKET_OPEN = 8 * 60 + 30;  // 8:30 AM CT
   const MARKET_CLOSE = 15 * 60;      // 3:00 PM CT
-  const SAFE_0DTE_CUTOFF = MARKET_OPEN + 60; // First hour only for 0 DTE
+  const SAFE_0DTE_CUTOFF = MARKET_OPEN + 60; // conservative default lane
   
   // Check 1: Only validate options
   if (play.assetType && play.assetType !== 'option') {
@@ -103,6 +104,21 @@ function isOptionPlayStillRelevant(play: OptionPlayValidation): { valid: boolean
     // Check 3: 0 DTE plays - only valid before market open + 1 hour
     const isToday = expiry.getTime() === today.getTime();
     if (isToday) {
+      const isIndexClosingDrive = /(?:SPX|SPY|QQQ|IWM)/.test(play.symbol.toUpperCase()) &&
+        /closing[ _-]?drive|power[ _-]?hour|index_scalp/i.test(play.strategyContext || '');
+
+      // The old blanket cutoff made a deliberately late-session strategy
+      // impossible to alert. Keep a narrow exception, not an all-day loophole:
+      // 14:25–14:50 CT equals 15:25–15:50 ET. No fresh entry after that.
+      if (isIndexClosingDrive) {
+        const closingWindowOpen = 14 * 60 + 25;
+        const closingWindowClose = 14 * 60 + 50;
+        if (marketMinutes < closingWindowOpen || marketMinutes > closingWindowClose) {
+          return { valid: false, reason: 'Closing-drive 0DTE alert outside 3:25–3:50 PM ET entry window' };
+        }
+        return { valid: true, reason: 'Verified index closing-drive window' };
+      }
+
       // 0 DTE: Only send in pre-market or first hour of trading
       if (marketMinutes > SAFE_0DTE_CUTOFF) {
         return { valid: false, reason: `0 DTE option after ${Math.floor(SAFE_0DTE_CUTOFF / 60)}:${(SAFE_0DTE_CUTOFF % 60).toString().padStart(2, '0')} CT cutoff` };
@@ -525,6 +541,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
       entryPrice: idea.entryPrice,
       assetType: idea.assetType,
       generatedAt: idea.timestamp,
+      strategyContext: `${(idea as any).dataSourceUsed || ''} ${(idea as any).catalyst || ''} ${(idea as any).analysis || ''}`,
     });
     
     if (!relevanceCheck.valid) {

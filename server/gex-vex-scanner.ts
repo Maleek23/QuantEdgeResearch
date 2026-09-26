@@ -785,6 +785,14 @@ async function isTopPlayDuplicate(symbol: string, bias: string): Promise<boolean
         i.source === 'gex_scanner' &&
         (i.dataSourceUsed || '').startsWith('GEX_top_play') &&
         (i.direction || '').toLowerCase() === bias &&
+        // Premium-space rows created by the old publisher are invalid Active
+        // Book candidates. Do not let one suppress the corrected replacement.
+        !(
+          i.optionType != null &&
+          Number(i.strikePrice) > 0 &&
+          Number(i.entryPrice) > 0 &&
+          Number(i.entryPrice) < Number(i.strikePrice) * 0.5
+        ) &&
         new Date(i.timestamp).getTime() > cutoff,
     );
   } catch { return false; }
@@ -839,20 +847,30 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
     try {
       const enriched = await enrichOptionIdea(aiShape);
       if (enriched) {
+        const underlyingTarget = play.target || play.spotPrice * (direction === 'long' ? 1.03 : 0.97);
+        const underlyingStop = play.stop || play.spotPrice * (direction === 'long' ? 0.98 : 1.02);
+        const risk = Math.abs(play.spotPrice - underlyingStop);
+        const reward = Math.abs(underlyingTarget - play.spotPrice);
         tradeIdea = {
           symbol: play.symbol,
           sector: play.sector ?? null,
           assetType: 'option',
           direction,
-          entryPrice: enriched.entryPrice,
-          targetPrice: enriched.targetPrice,
-          stopLoss: enriched.stopLoss,
-          riskRewardRatio: enriched.riskRewardRatio,
+          // Signal geometry always stays in UNDERLYING price space. The old
+          // publisher replaced these with option premium ($2.70 on PLTR), so
+          // live revalidation compared a $192 stock quote to a $2.70 entry and
+          // correctly rejected the row as malformed.
+          entryPrice: play.spotPrice,
+          targetPrice: underlyingTarget,
+          stopLoss: underlyingStop,
+          riskRewardRatio: risk > 0 ? +(reward / risk).toFixed(2) : 0,
+          // Contract premium is separate from the share-price ladder.
+          entryPremium: enriched.entryPrice,
           optionType: enriched.optionType,
           strikePrice: enriched.strikePrice,
           expiryDate: enriched.expiryDate,
           catalyst: `GEX top play — ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} exp ${enriched.expiryDate}`,
-          analysis: `${play.insight} | OPTIONS: ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} @ $${enriched.entryPrice.toFixed(2)} → target $${enriched.targetPrice.toFixed(2)}`,
+          analysis: `${play.insight} | OPTIONS: ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} @ $${enriched.entryPrice.toFixed(2)} contract mid. Underlying target $${underlyingTarget.toFixed(2)}.`,
           source: 'gex_scanner',
           dataSourceUsed: `GEX_top_play_${play.vexSignal}`,
           sessionContext: 'regular',
@@ -917,7 +935,11 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
     }
   }
 
-  if (persisted > 0) logger.info(`[GEX-HUB] ✅ Persisted ${persisted}/${best.length} top plays as trade ideas`);
+  if (persisted > 0) {
+    logger.info(`[GEX-HUB] ✅ Persisted ${persisted}/${best.length} top plays as trade ideas`);
+    const { invalidateConvictionsCache } = await import('./convictions-engine');
+    invalidateConvictionsCache();
+  }
   return persisted;
 }
 

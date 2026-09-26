@@ -384,10 +384,12 @@ function computeRs(
 export async function getSectorRotation(force = false): Promise<RotationBrief> {
   if (!force && _cache && Date.now() - _cache.at < TTL_MS) return _cache.brief;
 
-  const [spy, ...rest] = await Promise.all([
+  const fetchedQuotes = await Promise.all([
     fetchQuote(BENCHMARK),
     ...ROTATION_ETFS.map(e => fetchQuote(e.symbol)),
   ]);
+  let spy = fetchedQuotes[0];
+  const rest = fetchedQuotes.slice(1);
 
   // Daily history for the RRG axes. Heavily cached (6h) because daily closes only
   // change once a day, so this costs one round of requests per session, not per view.
@@ -395,6 +397,43 @@ export async function getSectorRotation(force = false): Promise<RotationBrief> {
   const sectorDaily = await Promise.all(
     ROTATION_ETFS.map(e => fetchDailyCloses(e.symbol).catch(() => [] as number[])),
   );
+
+  // Yahoo occasionally omits one otherwise-live ETF (SMH and XLK were both
+  // missing on 2026-09-25), and the old code silently removed that sector from
+  // the map. Fall back to the platform's batch quote service: absence from one
+  // provider is unknown data, not evidence that a sector stopped existing.
+  const missingSymbols = [
+    ...(spy ? [] : [BENCHMARK]),
+    ...ROTATION_ETFS.filter((_, i) => !rest[i]).map((e) => e.symbol),
+  ];
+  if (missingSymbols.length > 0) {
+    try {
+      const { getRealtimeBatchQuotes } = await import('./realtime-pricing-service');
+      const fallback = await getRealtimeBatchQuotes(
+        missingSymbols.map((symbol) => ({ symbol, assetType: 'stock' as const })),
+      );
+      const fromFallback = (symbol: string, closes: number[]): RawQuote | null => {
+        const q = fallback.get(symbol);
+        if (!q || !Number.isFinite(q.price) || !Number.isFinite(q.changePercent)) return null;
+        const base = closes.length >= 6 ? closes[closes.length - 6] : 0;
+        const fiveDayChange = base > 0 ? ((q.price - base) / base) * 100 : 0;
+        return {
+          symbol,
+          change: Number(q.changePercent),
+          preMarketChange: null,
+          fiveDayChange: +fiveDayChange.toFixed(2),
+          marketState: scheduledMarketState(),
+          sessionAtMs: Date.now(),
+        };
+      };
+      if (!spy) spy = fromFallback(BENCHMARK, benchDaily);
+      ROTATION_ETFS.forEach((e, i) => {
+        if (!rest[i]) rest[i] = fromFallback(e.symbol, sectorDaily[i] ?? []);
+      });
+    } catch (err: any) {
+      logger.warn(`[sector-rotation] batch fallback failed: ${err?.message ?? err}`);
+    }
+  }
 
   // Session timing — use the freshest bar across all fetched ETFs.
   const allQuotes = [spy, ...rest].filter((q): q is RawQuote => !!q);

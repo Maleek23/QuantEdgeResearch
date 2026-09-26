@@ -61,6 +61,11 @@ export function SEOHead({
   });
 
   useEffect(() => {
+    const pageCanonical = seo.canonical || `https://quantedgelabs.net${window.location.pathname === "/" ? "/" : window.location.pathname.replace(/\/$/, "")}`;
+    const socialImage = seo.ogImage?.startsWith("http")
+      ? seo.ogImage
+      : `https://quantedgelabs.net${seo.ogImage || "/og-image.png"}`;
+
     document.title = seo.title;
 
     setMetaTag("description", seo.description);
@@ -73,22 +78,22 @@ export function SEOHead({
     setMetaTag("og:description", seo.ogDescription || seo.description, true);
     setMetaTag("og:type", "website", true);
     setMetaTag("og:site_name", "Quant Edge Labs", true);
+    setMetaTag("og:url", pageCanonical, true);
     
     if (seo.ogImage) {
-      setMetaTag("og:image", seo.ogImage, true);
+      setMetaTag("og:image", socialImage, true);
     }
 
     setMetaTag("twitter:card", seo.twitterCard || "summary_large_image");
     setMetaTag("twitter:title", seo.ogTitle || seo.title);
     setMetaTag("twitter:description", seo.ogDescription || seo.description);
+    setMetaTag("twitter:url", pageCanonical);
     
     if (seo.ogImage) {
-      setMetaTag("twitter:image", seo.ogImage);
+      setMetaTag("twitter:image", socialImage);
     }
 
-    if (seo.canonical) {
-      setLinkTag("canonical", seo.canonical);
-    }
+    setLinkTag("canonical", pageCanonical);
   }, [seo]);
 
   return null;

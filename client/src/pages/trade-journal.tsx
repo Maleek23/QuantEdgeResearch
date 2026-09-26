@@ -586,6 +586,9 @@ function CSVImportPanel({ onImportSuccess }: { onImportSuccess: () => void }) {
     success: boolean;
     broker: string;
     saved: number;
+    duplicates?: number;
+    open?: number;
+    closed?: number;
     errors: string[];
     batchId?: string;
   } | null>(null);
@@ -624,6 +627,9 @@ function CSVImportPanel({ onImportSuccess }: { onImportSuccess: () => void }) {
         success: true,
         broker: data.broker,
         saved: data.saved,
+        duplicates: data.duplicates,
+        open: data.open,
+        closed: data.closed,
         errors: data.errors || [],
         batchId: data.batchId,
       });
@@ -737,6 +743,12 @@ function CSVImportPanel({ onImportSuccess }: { onImportSuccess: () => void }) {
               <p className="text-xs text-muted-foreground">
                 Detected <span className="text-foreground font-medium">{importResult.broker}</span> format.
                 Imported <span className="text-foreground font-medium">{importResult.saved}</span> trades.
+                {typeof importResult.closed === 'number' && typeof importResult.open === 'number' && (
+                  <> Reconstructed <span className="text-foreground font-medium">{importResult.closed} closed</span> and <span className="text-foreground font-medium">{importResult.open} open</span> positions.</>
+                )}
+                {!!importResult.duplicates && (
+                  <> Skipped <span className="text-foreground font-medium">{importResult.duplicates} duplicates</span>.</>
+                )}
               </p>
               {importResult.errors.length > 0 && (
                 <div className="mt-2">
@@ -768,7 +780,7 @@ function CSVImportPanel({ onImportSuccess }: { onImportSuccess: () => void }) {
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] text-muted-foreground">
           <div>
-            <span className="text-foreground font-medium">Webull:</span> App → More → Order History → Export CSV
+            <span className="text-foreground font-medium">Webull:</span> Account → History → Export Orders
           </div>
           <div>
             <span className="text-foreground font-medium">Robinhood:</span> Statements & History → Download CSV

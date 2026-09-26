@@ -21,7 +21,7 @@ export const COCKPIT_MODES: readonly CockpitModeMeta[] = [
   { id: 'all',      label: 'All',     hint: 'Every ranked conviction signal, highest confluence first' },
   { id: 'ai-picks', label: 'AI Picks', hint: 'Quant / AI / Hybrid engine setups' },
   { id: 'flow',     label: 'Flow',    hint: 'Institutional options-flow driven ideas' },
-  { id: 'lotto',    label: 'Lotto',   hint: 'High-risk cheap options ($0.20–0.70 premium, 20x potential)' },
+  { id: 'lotto',    label: '0DTE / Low cost', hint: 'Account-fit option expressions ($0.20–$2.00 premium); defined debit, staged exits' },
   { id: 'news',     label: 'News',    hint: 'Breaking-news catalyst plays' },
   { id: 'manual',   label: 'Manual',  hint: 'Your own briefs and manual entries' },
 ];
@@ -41,10 +41,11 @@ export function matchesMode(pick: ConvictionPick, mode: CockpitMode): boolean {
     case 'manual':
       return source === 'manual';
     case 'lotto': {
-      // Cheap directional option premium — same band the Trade Desk used.
+      // Premium lives in `entryPremium`; entryPrice is the underlying trigger.
+      // Reading entryPrice here made every legitimate SPX/SPY option invisible.
       if (pick.assetType !== 'option' || !pick.optionType) return false;
-      const premium = pick.entryPrice;
-      return typeof premium === 'number' && premium >= 0.2 && premium <= 0.7;
+      const premium = pick.entryPremium;
+      return typeof premium === 'number' && premium >= 0.2 && premium <= 2;
     }
     default:
       return true;

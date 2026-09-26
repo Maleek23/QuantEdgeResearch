@@ -26,7 +26,7 @@
  */
 import { useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense } from 'react';
 
@@ -37,20 +37,17 @@ import { useStockContext } from '@/contexts/stock-context';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 
 // Lazy children — each is the existing implementation, now reading symbol via context
-const TerminalChart    = lazy(() => import('@/pages/terminal-chart'));
 const TerminalHeatmap  = lazy(() => import('@/components/research/terminal-heatmap'));
-const OptionsAnalyzer  = lazy(() => import('@/pages/options-analyzer'));
-const FlowTable        = lazy(() => import('@/components/research/flow-table').then(m => ({ default: m.FlowTable })));
 const ContractAnalyzer = lazy(() => import('@/components/contract-analyzer').then(m => ({ default: m.ContractAnalyzer })));
 
-type Tab = 'chart' | 'options' | 'gex' | 'flow' | 'analyze';
+const TickerWorkup     = lazy(() => import('@/components/workup/ticker-workup').then(m => ({ default: m.TickerWorkup })));
+
+type Tab = 'workup' | 'gex' | 'analyze';
 
 const TABS: readonly QETabItem<Tab>[] = [
-  { id: 'chart',    label: 'Chart',    hint: 'Price + key levels + GEX overlays' },
-  { id: 'options',  label: 'Options',  hint: 'Chain · greeks · IV · ROI scenarios' },
-  { id: 'gex',      label: 'GEX',      hint: 'Walls · flip · expiry matrix · dealer flow' },
-  { id: 'flow',     label: 'Flow',     hint: 'Live unusual options activity — sweeps, blocks, dark pool' },
-  { id: 'analyze',  label: 'Analyze',  hint: 'Paste any contract → Bullflow-style A+/B+ graded analysis' },
+  { id: 'workup',   label: 'Dossier',       hint: 'One live workspace · overview, chart, options, events and execution gates' },
+  { id: 'gex',      label: 'GEX surface',   hint: 'Specialist surface · walls, flip, expiry matrix and dealer positioning' },
+  { id: 'analyze',  label: 'Contract lab',  hint: 'Paste any contract for a separate contract-level analysis' },
 ];
 
 const VALID_TABS = TABS.map(t => t.id);
@@ -59,9 +56,15 @@ export default function ResearchShell() {
   const { symbol: rawSym } = useParams<{ symbol: string }>();
   const [, setLocation] = useLocation();
   const { currentStock, setCurrentStock } = useStockContext();
-  const [tab, setTab] = useTabState<Tab>('chart', VALID_TABS);
+  const [tab, setTab] = useTabState<Tab>('workup', VALID_TABS);
 
   const symbol = (rawSym ?? 'SPY').toUpperCase();
+  const source = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('from') : null;
+  const requestedLegacyTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+  const initialWorkupTab = requestedLegacyTab === 'chart' || requestedLegacyTab === 'options'
+    ? requestedLegacyTab
+    : 'overview';
+  const returnTab = source?.startsWith('terminal-') ? source.replace('terminal-', '') : null;
 
   // 1) Sync URL :symbol → StockContext so children see the right ticker
   useEffect(() => {
@@ -70,6 +73,16 @@ export default function ResearchShell() {
       setCurrentStock({ symbol });
     }
   }, [symbol, currentStock, setCurrentStock]);
+
+  // Old links opened separate Chart / Options / Flow applications with their
+  // own headers and interaction grammar. Keep those URLs working, but land
+  // them inside the canonical dossier instead of rendering a duplicate UI.
+  useEffect(() => {
+    if (!requestedLegacyTab || !['chart', 'options', 'flow'].includes(requestedLegacyTab)) return;
+    const params = new URLSearchParams(window.location.search);
+    params.delete('tab');
+    setLocation(`/r/${symbol}${params.size ? `?${params.toString()}` : ''}`, { replace: true });
+  }, [requestedLegacyTab, setLocation, symbol]);
 
   // 3) Live quote for header — uses /api/quotes/batch (the endpoint that actually exists)
   const { data: quote } = useQuery<{ price: number; change: number; changePct: number }>({
@@ -89,7 +102,7 @@ export default function ResearchShell() {
   });
 
   const handleSymbolChange = (sym: string) => {
-    setLocation(`/r/${sym.toUpperCase()}${tab !== 'chart' ? `?tab=${tab}` : ''}`);
+    setLocation(`/r/${sym.toUpperCase()}${tab !== 'workup' ? `?tab=${tab}` : ''}`);
   };
 
   return (
@@ -97,6 +110,14 @@ export default function ResearchShell() {
       {/* HEADER — ticker switcher + price + sector tags */}
       <header className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setLocation(returnTab && returnTab !== 'oracle' ? `/t?tab=${returnTab}` : '/t')}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-[var(--brand-cyan)]/50 hover:text-foreground"
+            title={returnTab ? `Back to ${returnTab}` : 'Back to terminal'}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Terminal
+          </button>
           <TickerSwitcher
             value={symbol}
             onChange={handleSymbolChange}
@@ -104,7 +125,7 @@ export default function ResearchShell() {
             changePct={quote?.changePct}
           />
           <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            Research
+            Research · one symbol, every engine
           </span>
         </div>
       </header>
@@ -121,10 +142,8 @@ export default function ResearchShell() {
         <Suspense fallback={<Loading />}>
           {/* Re-key on (symbol, tab) so children get fresh state on switch */}
           <div key={`${symbol}-${tab}`}>
-            {tab === 'chart'   && <TerminalChart />}
-            {tab === 'options' && <OptionsAnalyzer />}
+            {tab === 'workup'  && <TickerWorkup symbol={symbol} mode="embedded" initialTab={initialWorkupTab} onNavigate={(next) => { if (next === 'gex') setTab('gex'); }} />}
             {tab === 'gex'     && <TerminalHeatmap />}
-            {tab === 'flow'    && <FlowTable symbol={symbol} />}
             {tab === 'analyze' && <ContractAnalyzer />}
           </div>
         </Suspense>
@@ -140,4 +159,3 @@ function Loading() {
     </div>
   );
 }
-

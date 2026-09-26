@@ -2,7 +2,7 @@ import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from './logger';
 import type { Server } from 'http';
 
-export type BotEventType = 'looking' | 'entry' | 'exit' | 'skip' | 'error';
+export type BotEventType = 'looking' | 'signal' | 'entry' | 'exit' | 'skip' | 'error';
 
 export interface BotNotification {
   type: 'bot_event';
@@ -15,6 +15,10 @@ export interface BotNotification {
   quantity?: number;
   confidence?: number;
   reason?: string;
+  /** Stable origin lets clients route high-priority index alerts without
+   * guessing from prose. */
+  source?: 'quant_bot' | 'index_scalp' | 'tradingview' | 'system';
+  ideaId?: string;
   portfolio?: 'options' | 'small_account' | 'futures' | 'crypto';
   pnl?: number;
   timestamp: string;

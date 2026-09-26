@@ -1801,27 +1801,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TRADINGVIEW WEBHOOK — Receive strategy signals from TradingView
   // ═══════════════════════════════════════════════════════════════
 
+  app.get("/api/webhooks/tradingview/status", async (_req: Request, res: Response) => {
+    const { isTradingViewConfigured } = await import("./tradingview-webhook");
+    res.json({
+      configured: isTradingViewConfigured(),
+      mode: "validate_then_paper",
+      execution: "disabled",
+      endpoint: "/api/webhooks/tradingview",
+      required: ["secret", "ticker", "direction", "price", "entry", "stop", "target"],
+      spx0dte: {
+        additional: ["strategy", "timeframe", "bar_time", "confirmed", "expiry_tier"],
+        rule: "Confirmed intraday bars only; live contract and account-risk gates must pass",
+      },
+    });
+  });
+
+  app.get('/api/options/history/:occSymbol', async (req: Request, res: Response) => {
+    try {
+      const date = String(req.query.date || '').slice(0, 10);
+      const { getHistoricalOptionMinutes } = await import('./option-minute-history');
+      const series = await getHistoricalOptionMinutes(req.params.occSymbol, date);
+      if (!series) return res.status(404).json({ error: 'No exact option minute trades found for that contract/date' });
+      res.json(series);
+    } catch (error) {
+      logger.error('[OPTION-HISTORY] endpoint failed:', error);
+      res.status(500).json({ error: 'Option minute history failed' });
+    }
+  });
+
   app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
     try {
-      const { validateWebhookSecret, processSignal } = await import("./tradingview-webhook");
+      const { validateWebhookSecret, normalizeTradingViewPayload, processSignal } = await import("./tradingview-webhook");
       const payload = req.body;
 
-      if (!payload || !payload.secret || !payload.ticker || !payload.direction) {
-        return res.status(400).json({ error: "Missing required fields: secret, ticker, direction" });
+      if (!payload || typeof payload !== 'object') {
+        return res.status(400).json({ error: "A valid JSON body is required" });
       }
 
-      if (!validateWebhookSecret(payload.secret)) {
+      if (!validateWebhookSecret(String(payload.secret || ''))) {
         logger.warn(`[TV-WEBHOOK] Invalid secret from ${req.ip}`);
         return res.status(401).json({ error: "Invalid webhook secret" });
       }
 
-      const result = await processSignal(payload);
+      const normalized = normalizeTradingViewPayload(payload);
+      if (!normalized.ok) return res.status(400).json({ error: normalized.error });
 
-      if (result.success) {
-        res.json({ received: true, ideaId: result.ideaId });
-      } else {
-        res.status(422).json({ received: false, error: result.error });
-      }
+      // TradingView cancels receivers that take roughly three seconds. Quote,
+      // chain and validation calls happen after a fast acknowledgement; their
+      // result is persisted/logged by the processor rather than holding the
+      // webhook connection open.
+      res.status(202).json({ received: true, signalId: normalized.signal.signalId, mode: "validate_then_paper" });
+      setImmediate(() => {
+        void processSignal(normalized.signal).then((result) => {
+          if (!result.success) logger.info(`[TV-WEBHOOK] ${normalized.signal.signalId} not published: ${result.error}`);
+        }).catch((error) => logger.error(`[TV-WEBHOOK] Async processing failed: ${error}`));
+      });
     } catch (error) {
       logger.error("[TV-WEBHOOK] Endpoint error:", error);
       res.status(500).json({ error: "Webhook processing failed" });
@@ -8485,6 +8519,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stop = Number(b.stop);
       const t1 = Number(b.t1);
       const num = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : undefined);
+      const positive = (v: any, ceiling: number) => {
+        const n = num(v);
+        return n != null && n > 0 ? Math.min(n, ceiling) : undefined;
+      };
 
       if (!symbol || !direction || ![entry, stop, t1].every(Number.isFinite)) {
         return res.status(400).json({
@@ -8504,6 +8542,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         holdingDays: num(b.holdingDays),
         conviction: num(b.conviction),
         asOfSpot: num(b.asOfSpot),
+        accountSize: positive(b.accountSize, 100_000_000),
+        riskBudgetDollars: positive(b.riskBudgetDollars, 1_000_000),
+        riskPerTradePct: positive(b.riskPerTradePct, 100),
+        maxDebitDollars: positive(b.maxDebitDollars, 1_000_000),
+        minRoiAtT1Pct: positive(b.minRoiAtT1Pct, 10_000),
       });
       return res.json(selection);
     } catch (error) {
@@ -10501,6 +10544,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .sort((a, b) => b.total - a.total);
 
+      // Descriptive attribution only. These slices help diagnose where losses
+      // cluster; they do not retune weights automatically and therefore cannot
+      // leak the same sample back into the model that produced it.
+      const segment = (field: 'direction' | 'holdingPeriod' | 'source') => {
+        const groups = new Map<string, Counts>();
+        for (const idea of ideas as any[]) {
+          const key = String(idea[field] || 'unknown').toLowerCase();
+          const counts = groups.get(key) || empty();
+          const outcome = classifyOutcomeV2(idea);
+          counts[outcome] += 1;
+          const r = realisedR(idea);
+          if (r !== null) counts.rValues.push(r);
+          groups.set(key, counts);
+        }
+        return Array.from(groups.entries()).map(([name, counts]) => {
+          const decided = counts.win + counts.loss;
+          const total = decided + counts.unresolved;
+          return {
+            name, total, decided, win: counts.win, loss: counts.loss, unresolved: counts.unresolved,
+            coverage: total ? +(decided / total * 100).toFixed(1) : 0,
+            winRate: decided ? +(counts.win / decided * 100).toFixed(1) : null,
+            averageR: counts.rValues.length ? +(counts.rValues.reduce((sum, value) => sum + value, 0) / counts.rValues.length).toFixed(3) : null,
+            sampleSize: counts.rValues.length,
+          };
+        }).sort((a, b) => b.decided - a.decided);
+      };
+
       res.json({
         model: 'Outcome model v2',
         totalPublished: ideas.length,
@@ -10522,6 +10592,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           definition: 'Realised contract/underlying P&L ÷ 50% premium risk. Null when no outcome P&L was written.',
         },
         bySource: sources,
+        diagnostics: {
+          byDirection: segment('direction'),
+          byHorizon: segment('holdingPeriod'),
+          bySource: segment('source'),
+          warning: 'Descriptive in-sample slices. Use them to form hypotheses, then validate changes on a later out-of-sample period.',
+        },
         dataQuality: {
           excludedFromTraining: allIdeas.length - ideas.length,
           measuredTimeouts,
@@ -14672,13 +14748,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // trade ideas + grades" — this is that list, honest statuses included.
   app.get("/api/ideas/ledger", async (req, res) => {
     try {
-      const limit = Math.min(60, Number(req.query.limit) || 30);
-      const rows = await storage.getRecentTradeIdeas(72, 500);
+      const limit = Math.min(200, Number(req.query.limit) || 80);
+      const requestedSessions = Math.min(20, Math.max(1, Number(req.query.sessions) || 6));
+      const now = new Date();
+      const marketDate = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+      const marketHour = Number(now.toLocaleString('en-US', {
+        timeZone: 'America/New_York', hour: '2-digit', hour12: false,
+      }));
+      const dates: string[] = [];
+      const cursor = new Date(`${marketDate}T12:00:00.000Z`);
+      const currentWeekday = cursor.getUTCDay();
+      if ((currentWeekday >= 1 && currentWeekday <= 5) && marketHour < 16) {
+        cursor.setUTCDate(cursor.getUTCDate() - 1);
+      }
+      while (dates.length < requestedSessions) {
+        const weekday = cursor.getUTCDay();
+        if (weekday >= 1 && weekday <= 5) dates.push(cursor.toISOString().slice(0, 10));
+        cursor.setUTCDate(cursor.getUTCDate() - 1);
+      }
+      const sessionStart = dates.at(-1)!;
+      const startMs = Date.parse(`${sessionStart}T00:00:00.000Z`);
+      const hoursBack = Math.ceil((now.getTime() - startMs) / 3_600_000) + 24;
+      const rows = await storage.getRecentTradeIdeas(hoursBack, 2_000);
       const ledger = rows
-        .filter((i: any) => i.status === 'published')
+        .filter((i: any) => {
+          if (i.status !== 'published') return false;
+          const at = i.generationTimestamp ?? i.timestamp;
+          if (!at) return false;
+          const date = new Date(at).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+          return date >= sessionStart;
+        })
         .sort((a: any, b: any) => Date.parse(b.generationTimestamp ?? b.timestamp) - Date.parse(a.generationTimestamp ?? a.timestamp))
         .slice(0, limit)
-        .map((i: any) => ({
+        .map((i: any) => {
+          const recordedOutcome = i.outcomeStatus ?? 'open';
+          const expiry = typeof i.expiryDate === 'string' ? i.expiryDate.slice(0, 10) : null;
+          const contractExpired = Boolean(expiry && (
+            expiry < marketDate || (expiry === marketDate && marketHour >= 16)
+          ));
+          const effectiveOutcome = recordedOutcome === 'open' && contractExpired
+            ? 'expired'
+            : recordedOutcome;
+          const at = i.generationTimestamp ?? i.timestamp;
+          const ageHours = at ? Math.max(0, (now.getTime() - Date.parse(at)) / 3_600_000) : null;
+          const rr = Number(i.riskRewardRatio);
+          const horizon = String(i.holdingPeriod ?? 'swing').toLowerCase();
+          const freshnessHours = horizon === 'day' ? 6 : horizon === 'position' ? 96 : 36;
+          const archiveReason = effectiveOutcome !== 'open'
+            ? (effectiveOutcome === 'expired' ? 'contract expired' : `validator: ${String(effectiveOutcome).replaceAll('_', ' ')}`)
+            : Number.isFinite(rr) && rr < 1
+              ? `reward/risk ${rr.toFixed(2)} is below 1.0`
+              : ageHours != null && ageHours > freshnessHours
+                ? `${horizon} setup is older than its ${freshnessHours}h live-book window`
+                : 'published record; live-book admission is revalidated separately';
+          return ({
           id: i.id,
           symbol: i.symbol,
           direction: i.direction,
@@ -14687,14 +14810,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
           score: i.confidenceScore ?? i.genConvictionScore ?? null,
           entryPrice: i.entryPrice, targetPrice: i.targetPrice, stopLoss: i.stopLoss,
           riskRewardRatio: i.riskRewardRatio ?? null,
-          outcome: i.outcomeStatus ?? 'open',
+          outcome: effectiveOutcome,
+          recordedOutcome,
+          contractExpired,
+          ageHours: ageHours == null ? null : Number(ageHours.toFixed(1)),
+          holdingPeriod: i.holdingPeriod ?? null,
+          archiveReason,
+          optionType: i.optionType ?? null,
+          strikePrice: i.strikePrice ?? null,
+          expiryDate: i.expiryDate ?? null,
+          contractSymbol: Array.isArray(i.convergenceSignalsJson?.signals)
+            ? (i.convergenceSignalsJson.signals.find((s: any) => s?.data?.occSymbol)?.data?.occSymbol ?? null)
+            : null,
+          entryPremium: i.entryPremium ?? null,
+          exitPremium: i.exitPremium ?? null,
+          optionPercentGain: i.optionPercentGain ?? null,
+          realizedPnL: i.realizedPnL ?? null,
+          outcomeNotes: i.outcomeNotes ?? null,
+          resolutionReason: i.resolutionReason ?? null,
+          source: i.source ?? null,
+          dataSourceUsed: i.dataSourceUsed ?? null,
           onDemand: typeof i.analysis === 'string' && i.analysis.includes('Analyzed on demand'),
-          at: i.generationTimestamp ?? i.timestamp,
-        }));
-      res.json({ ledger, window: '72h', note: 'published ideas only; outcome = validator verdict where decided' });
+          at,
+        });
+        });
+      res.json({
+        ledger,
+        window: `${requestedSessions} completed trading sessions`,
+        sessions: dates.slice().reverse(),
+        sessionStart,
+        marketDate,
+        note: 'published record; effective outcome expires dated contracts even before the validator writes its terminal verdict',
+      });
     } catch (error) {
       logger.error("[LEDGER] failed:", error);
       res.status(500).json({ error: "Ledger failed" });
+    }
+  });
+
+  // Ordered one-minute option-mark replay for the six-session index-0DTE audit.
+  // This is deliberately separate from realized account P&L: reported trades
+  // cannot prove an executable fill, and missing paths remain unresolved.
+  app.get("/api/backtests/index-0dte/six-session", (_req, res) => {
+    try {
+      const resultPath = path.join(process.cwd(), 'research', 'results', 'index-0dte-minute-path-2026-09-18-2026-09-25.json');
+      if (!fs.existsSync(resultPath)) return res.status(404).json({ error: 'Six-session replay has not been generated' });
+      const report = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
+      res.json(report);
+    } catch (error) {
+      logger.error('[INDEX-0DTE-BACKTEST] failed:', error);
+      res.status(500).json({ error: 'Failed to read six-session replay' });
     }
   });
 
@@ -14716,10 +14881,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const bf = await import("./bullflow-service");
       const { state, prints } = bf.getBullflowPrints();
+      const gex = bf.getBullflowGexSetups('SPY');
+      const spyFlow = await bf.getNetPremiumToday('SPY');
       res.json({
         enabled: bf.bullflowEnabled(),
         streamState: state,
+        gexStreamState: gex.state,
         printsHeld: prints.length,
+        indexFlow: spyFlow ? {
+          lean: spyFlow.lean,
+          netPremium: spyFlow.callsNetPremium - spyFlow.putsNetPremium,
+          asOf: spyFlow.asOf,
+        } : null,
+        latestGexSetup: gex.setups.at(-1) ?? null,
         latest: prints.slice(-8).reverse().map((p) => ({
           symbol: p.underlying, contract: `$${p.strike}${p.optionType === 'call' ? 'C' : 'P'} ${p.expiry}`,
           name: p.alertName, premium: p.premium, at: p.at,
@@ -14729,11 +14903,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ enabled: false, streamState: 'off', printsHeld: 0, latest: [] });
     }
   });
+  app.get("/api/bullflow/context/:ticker", async (req, res) => {
+    try {
+      const ticker = String(req.params.ticker ?? '').trim().toUpperCase();
+      if (!/^[A-Z.\-]{1,10}$/.test(ticker)) return res.status(400).json({ error: 'Invalid ticker' });
+      const bf = await import('./bullflow-service');
+      if (!bf.bullflowEnabled()) return res.json({ enabled: false, ticker });
+      const [flow, dark, last] = await Promise.all([
+        bf.getNetPremiumToday(ticker),
+        bf.getDarkPoolTrades(ticker),
+        bf.getLastTradePrice(ticker),
+      ]);
+      const rows = Array.isArray(dark?.rows) ? dark.rows : [];
+      const darkPoolLevels = rows
+        .map((row: any) => ({
+          price: Number(row.price), notional: Number(row.notional), size: Number(row.size),
+          pctDayVolume: Number(row.pctDayVolume ?? row.volumePercent),
+          percent30DayVolume: Number(row.percent30DayVolume), at: row.sipTimestampMs ?? null,
+        }))
+        .filter((row: any) => Number.isFinite(row.price) && Number.isFinite(row.notional))
+        .sort((a: any, b: any) => b.notional - a.notional)
+        .slice(0, 5);
+      return res.json({
+        enabled: true, ticker, flow, lastTrade: last, darkPoolLevels,
+        disclosure: 'Dark-pool prints identify high-notional price levels; they are not directional by themselves.',
+      });
+    } catch (error: any) {
+      logger.warn(`[BULLFLOW] context failed: ${error?.message}`);
+      return res.status(502).json({ error: 'Bullflow context unavailable' });
+    }
+  });
   app.get("/api/bullflow/leaders", async (_req, res) => {
     try {
       const bf = await import("./bullflow-service");
       if (!bf.bullflowEnabled()) return res.json({ enabled: false, rows: [] });
-      const d = await bf.getTopTickers('net_premium', { excludeEtfs: true });
+      const d = await bf.getTopTickers('net_premium', { excludeEtfs: true, bullishBearish: true });
       res.json({ enabled: true, generatedAt: d?.generatedAt ?? null, rows: (d?.rows ?? []).slice(0, 20) });
     } catch {
       res.status(500).json({ error: "leaders lookup failed" });
@@ -27649,11 +27853,17 @@ Use this checklist before entering any trade:
         import("./social-sentiment-scanner").then(m => m.getSocialSentimentStatus()),
         import("./weekly-performance-report").then(m => m.getReportSettings()),
       ]);
+      // Never serialize webhook credentials to the browser. The UI only needs
+      // to know whether delivery is configured, not the secret destination.
+      const { discordWebhook: _discordWebhook, ...publicWeeklyReport } = weeklyReport as any;
       res.json({
         quantBot,
         optionsFlow,
         socialSentiment,
-        weeklyReport,
+        weeklyReport: {
+          ...publicWeeklyReport,
+          discordConfigured: Boolean(_discordWebhook),
+        },
       });
     } catch (error) {
       logger.error("Error getting automations status", { error });
@@ -31546,9 +31756,32 @@ Use this checklist before entering any trade:
       // Persist parsed trades
       const userId = (req as any).user?.id || 'default';
       const batchId = `import_${Date.now()}`;
+      const existing = await storage.getJournalTrades(userId);
+      const fingerprint = (t: any) => [
+        t.broker,
+        t.brokerOrderId || '',
+        t.symbol,
+        t.assetType,
+        t.optionType || '',
+        t.strikePrice ?? '',
+        t.expiryDate || '',
+        t.direction,
+        Number(t.quantity || 0).toFixed(6),
+        Number(t.entryPrice || 0).toFixed(6),
+        Number(t.exitPrice || 0).toFixed(6),
+        t.entryTime,
+        t.exitTime || '',
+      ].join('|');
+      const known = new Set(existing.map(fingerprint));
       let saved = 0;
+      let duplicates = 0;
       for (const t of result.trades) {
         try {
+          const key = fingerprint(t);
+          if (known.has(key)) {
+            duplicates++;
+            continue;
+          }
           await storage.createJournalTrade({
             userId,
             symbol: t.symbol,
@@ -31566,8 +31799,8 @@ Use this checklist before entering any trade:
             holdingMinutes: t.exitTime
               ? Math.round((new Date(t.exitTime).getTime() - new Date(t.entryTime).getTime()) / 60000)
               : null,
-            realizedPnL: t.realizedPnL || null,
-            realizedPnLPercent: t.realizedPnL && t.entryPrice > 0
+            realizedPnL: t.realizedPnL ?? null,
+            realizedPnLPercent: t.realizedPnL != null && t.entryPrice > 0
               ? +((t.realizedPnL / (t.entryPrice * t.quantity * (t.assetType === 'option' ? 100 : 1))) * 100).toFixed(2)
               : null,
             grossPnL: t.realizedPnL != null ? +(t.realizedPnL + t.fees).toFixed(2) : null,
@@ -31580,6 +31813,7 @@ Use this checklist before entering any trade:
             importBatchId: batchId,
             rawCsvRow: t.rawCsvRow,
           } as any);
+          known.add(key);
           saved++;
         } catch (err: any) {
           result.errors.push(`Save failed for ${t.symbol}: ${err.message}`);
@@ -31592,6 +31826,9 @@ Use this checklist before entering any trade:
         totalRows: result.totalRows,
         parsed: result.parsedRows,
         saved,
+        duplicates,
+        open: result.trades.filter((t) => t.status === 'open').length,
+        closed: result.trades.filter((t) => t.status === 'closed').length,
         errors: result.errors,
         batchId,
       });
@@ -33691,6 +33928,26 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error('[ROTATION-MATRIX] Error:', error);
       res.status(500).json({ error: 'Rotation matrix fetch failed', detail: error.message });
+    }
+  });
+
+  // Read-only decision trace for crypto-to-equity transmission. This endpoint
+  // never publishes a trade; it explains which proxy gates passed and which
+  // failed so the Crypto tab and Nexus can distinguish an idea from a watch.
+  app.get('/api/crypto/proxy-candidates', async (req: any, res) => {
+    try {
+      const { getCryptoProxyCandidates } = await import('./crypto-proxy-promoter');
+      const force = req.query.force === '1' || req.query.force === 'true';
+      const rows = await getCryptoProxyCandidates(force);
+      res.json({
+        asOf: new Date().toISOString(),
+        rows,
+        eligible: rows.filter((row) => row.eligible).length,
+        methodology: 'Coin move opens the interrogation; the equity proxy must pass its own Bullflow tape and measured invalidation before publication.',
+      });
+    } catch (error: any) {
+      logger.error('[CRYPTO-PROXY] candidate trace failed:', error);
+      res.status(500).json({ error: 'Crypto proxy trace failed', detail: error.message });
     }
   });
 

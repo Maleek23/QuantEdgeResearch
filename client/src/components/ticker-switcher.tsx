@@ -64,6 +64,25 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
     staleTime: 60_000,
   });
 
+  const searchQuery = search.trim().toUpperCase();
+  const { data: universalResults = [], isFetching: searchingUniverse } = useQuery<Array<{
+    symbol: string;
+    name?: string;
+    type?: string;
+    changePct?: number | null;
+  }>>({
+    queryKey: ['/api/search/symbols', searchQuery, 'ticker-switcher'],
+    queryFn: async () => {
+      const res = await fetch(`/api/search/symbols?q=${encodeURIComponent(searchQuery)}`, { credentials: 'include' });
+      if (!res.ok) return [];
+      const body = await res.json();
+      return (Array.isArray(body) ? body : body.results ?? []).slice(0, 8);
+    },
+    enabled: open && searchQuery.length > 0,
+    staleTime: 60_000,
+    retry: 0,
+  });
+
   // Close on outside click
   useEffect(() => {
     if (!open) return;
@@ -173,6 +192,42 @@ export function TickerSwitcher({ value, onChange, price, changePct, className }:
 
           {/* Body */}
           <div className="overflow-auto flex-1 p-2 space-y-3">
+            {/* The same live liquid-universe index used by global search. This
+                replaces the previous illusion of universality: typing only
+                filtered the small static sector chips, even though Enter could
+                jump to an arbitrary symbol. */}
+            {searchQuery && (
+              <div>
+                <div className="flex items-center justify-between px-1 mb-1 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+                  <span>Universal results</span>
+                  <span>{searchingUniverse ? 'searching…' : `${universalResults.length} found`}</span>
+                </div>
+                <div className="overflow-hidden rounded-md border border-border/40">
+                  {universalResults.map((result) => (
+                    <button
+                      key={`${result.type ?? 'stock'}-${result.symbol}`}
+                      type="button"
+                      onClick={() => select(result.symbol)}
+                      className="flex w-full items-center gap-3 border-b border-border/30 px-2.5 py-2 text-left last:border-0 hover:bg-muted/30"
+                    >
+                      <span className="w-14 font-mono text-[11px] font-bold text-foreground">{result.symbol}</span>
+                      <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">{result.name ?? result.type ?? 'equity'}</span>
+                      {result.changePct != null && (
+                        <span className={cn('font-mono text-[10px] tabular-nums', result.changePct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]')}>
+                          {result.changePct >= 0 ? '+' : ''}{result.changePct.toFixed(2)}%
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  {!searchingUniverse && universalResults.length === 0 && (
+                    <button type="button" onClick={() => select(searchQuery)} className="flex w-full items-center justify-between px-2.5 py-2 text-left font-mono text-[10px] hover:bg-muted/30">
+                      <span>Open {searchQuery} directly</span><span className="text-[var(--brand-cyan)]">↵</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Recent */}
             {recent.length > 0 && (
               <Group icon={<Clock className="w-3 h-3" />} label="Recent" symbols={recent} active={value} onSelect={select} />

@@ -253,10 +253,16 @@ async function persistCandidate(c: GexIdeaCandidate): Promise<boolean> {
         sector: sector ?? null,
         assetType: "option" as const,
         direction: c.direction,
-        entryPrice: enriched.entryPrice,
-        targetPrice: enriched.targetPrice,
-        stopLoss: enriched.stopLoss,
-        riskRewardRatio: enriched.riskRewardRatio,
+        // The signal ladder is always expressed in UNDERLYING price space.
+        // enrichOptionIdea returns premium-space levels; storing those here
+        // made a $2.70 option premium look like PLTR's share entry and produced
+        // impossible targets. Keep the contract mid in entryPremium and retain
+        // the measured GEX share levels for entry/target/stop.
+        entryPrice: c.entry,
+        targetPrice: c.target,
+        stopLoss: c.stop,
+        riskRewardRatio: c.riskRewardRatio,
+        entryPremium: enriched.entryPrice,
         optionType: enriched.optionType,
         strikePrice: enriched.strikePrice,
         expiryDate: enriched.expiryDate,
@@ -362,6 +368,10 @@ export async function scanTickerForGexIdea(symbol: string): Promise<{
   if (!candidate) return { candidate: null, persisted: false, cached: false };
 
   const persisted = await persistCandidate(candidate);
+  if (persisted) {
+    const { invalidateConvictionsCache } = await import('./convictions-engine');
+    invalidateConvictionsCache();
+  }
   return { candidate, persisted, cached: !persisted };
 }
 
@@ -383,6 +393,11 @@ export async function scanBatchForGexIdeas(symbols: string[]): Promise<GexScanRe
   let persisted = 0;
   for (const c of candidates) {
     if (await persistCandidate(c)) persisted++;
+  }
+
+  if (persisted > 0) {
+    const { invalidateConvictionsCache } = await import('./convictions-engine');
+    invalidateConvictionsCache();
   }
 
   return { scanned: snaps.size, candidates: candidates.length, persisted, setups: candidates };
@@ -411,6 +426,11 @@ export async function runGexIdeaScanner(): Promise<GexScanResult> {
   let persisted = 0;
   for (const c of candidates) {
     if (await persistCandidate(c)) persisted++;
+  }
+
+  if (persisted > 0) {
+    const { invalidateConvictionsCache } = await import('./convictions-engine');
+    invalidateConvictionsCache();
   }
 
   return {

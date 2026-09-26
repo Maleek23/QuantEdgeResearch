@@ -262,6 +262,12 @@ export interface UniversalIdeaInput {
   optionType?: 'call' | 'put';
   strikePrice?: number;
   expiryDate?: string;
+  /** Exact option mark captured by the caller at signal time. */
+  entryPremium?: number;
+  /** Original signal time; required for historical/replay publication. */
+  signalTimestamp?: string;
+  /** Venue/feed that produced the price used for this idea. */
+  dataSourceUsed?: string;
   
   // Signals contributing to confidence
   signals: IdeaSignal[];
@@ -1092,7 +1098,10 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     let optionTheta: number | null = null;
     let optionVega: number | null = null;
     let optionIV: number | null = null;
-    let entryPremium: number | null = null;
+    let entryPremium: number | null =
+      Number.isFinite(input.entryPremium) && Number(input.entryPremium) > 0
+        ? Number(input.entryPremium)
+        : null;
     let optionOpenInterest: number | null = null;
     let optionVolume: number | null = null;
     let expiryTier: ExpiryTier | null = null;
@@ -1133,7 +1142,7 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
         resolvedAssetType = 'option';
         logger.info(`[UNIVERSAL] Attached contract for ${input.symbol}: ${optionType} $${strikePrice} ${expiryDate} (Δ${optionDelta})`);
       }
-    } else if (callerSpecifiedContract && optionType && strikePrice && expiryDate) {
+    } else if (callerSpecifiedContract && optionType && strikePrice && expiryDate && entryPremium == null) {
       // Caller already named the exact contract (Contract Analyzer / flow alert).
       // Capture its live mid as the entry premium so the P&L tracker has a real
       // cost basis. Never fabricate — leave null if the chain/contract isn't found.
@@ -1190,7 +1199,7 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       confidenceScore: confidence,
       probabilityBand: grade,
       holdingPeriod,
-      timestamp: new Date().toISOString(),
+      timestamp: input.signalTimestamp ?? new Date().toISOString(),
       sessionContext,
 
       // Option fields — concrete contract from the canonical engine
@@ -1231,7 +1240,7 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       outcomeStatus: 'open',
       
       // Source metadata
-      dataSourceUsed: input.source,
+      dataSourceUsed: input.dataSourceUsed ?? input.source,
 
       // News sentiment fields
       newsBias: newsContext?.newsBias || null,
@@ -1278,6 +1287,7 @@ export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Pro
   // must not veto that (2026-09-23: whole-market Bullflow leaders were being
   // silently dropped here — the POET/NNE class could never publish).
   const isMeasuredFlow = String((input as any).source ?? '') === 'options_flow';
+  const isTradingView = String((input as any).source ?? '') === 'tradingview';
   // Benchmark-complex names (shared/leadership-universe) also skip the
   // hand-curated list: the operator's doctrine is leaders-first, and the
   // index-swing scanner was being vetoed on IGV (2026-09-23).
@@ -1286,7 +1296,7 @@ export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Pro
     const { isLeadershipName } = await import('@shared/leadership-universe');
     isBenchmark = isLeadershipName(symbol);
   } catch { /* module unavailable — curated list rules */ }
-  if (!isOperatorAdd && !isMeasuredFlow && !isBenchmark && !isApprovedTicker(symbol)) {
+  if (!isOperatorAdd && !isMeasuredFlow && !isTradingView && !isBenchmark && !isApprovedTicker(symbol)) {
     logger.debug(`[UNIVERSAL] Blocked ${symbol} — not on approved watchlist`);
     return false;
   }

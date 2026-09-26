@@ -242,7 +242,8 @@ app.use((req, res, next) => {
       void import('./bullflow-service').then((bf) => {
         if (bf.bullflowEnabled()) {
           bf.startBullflowStream();
-          log('🐂 Bullflow tape connecting — live prints feed the flow layer');
+          bf.startBullflowGexStream();
+          log('🐂 Bullflow tape + GEX setup streams connecting');
         }
       }).catch(() => {});
 

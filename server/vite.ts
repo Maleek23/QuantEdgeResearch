@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import { injectServerSeo } from "./seo-metadata";
 import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
@@ -115,6 +116,10 @@ export function serveStatic(app: Express) {
       return res.status(404).type('text').send('Asset not found');
     }
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.sendFile(path.resolve(distPath, "index.html"));
+    const indexPath = path.resolve(distPath, "index.html");
+    fs.readFile(indexPath, "utf-8", (error, html) => {
+      if (error) return res.status(500).type("text").send("Unable to load application");
+      res.status(200).type("html").send(injectServerSeo(html, req.originalUrl));
+    });
   });
 }

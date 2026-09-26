@@ -712,11 +712,40 @@ export async function ingestBullFlagIdeas(): Promise<number> {
      * server/ingest-policy.ts. Everything is env-tunable.
      */
     const ranked = await getTopBullFlagSetups(900);
-    const { selectForIngest, logPolicy } = await import('./ingest-policy');
+    const { selectForIngest, logPolicy, riskReward, getIngestPolicy } = await import('./ingest-policy');
+    const { isLeadershipName } = await import('../shared/leadership-universe');
     logPolicy('BULL-FLAG');
     const { picked, report } = selectForIngest(ranked as any, sectorOf);
-    const setups = picked as any as typeof ranked;
+    // A whole-market score leaderboard was crowding out exactly the liquid
+    // benchmark names the desk trades. Reserve a small leadership lane after
+    // the normal tier/geometry selection; it does not relax score or R:R and
+    // it still respects the per-sector cap. This lets a valid MU/QCOM/SMH-class
+    // setup reach the work queue without turning every sector move into a call.
+    const policy = getIngestPolicy();
+    const selected = [...picked] as any[];
+    const selectedSymbols = new Set(selected.map((s) => s.symbol));
+    const sectorCounts = new Map<string, number>();
+    for (const s of selected) {
+      const sector = sectorOf(s.symbol) || 'unknown';
+      sectorCounts.set(sector, (sectorCounts.get(sector) ?? 0) + 1);
+    }
+    let leadershipAdded = 0;
+    for (const setup of ranked) {
+      if (leadershipAdded >= 8 || selected.length >= policy.maxPerSweep + 8) break;
+      if (!isLeadershipName(setup.symbol) || selectedSymbols.has(setup.symbol)) continue;
+      const rr = riskReward(setup);
+      if (setup.score < policy.tiers[policy.tiers.length - 1].minScore || rr < policy.minRiskReward) continue;
+      const sector = sectorOf(setup.symbol) || 'unknown';
+      if (policy.maxPerSector > 0 && sector !== 'unknown' && (sectorCounts.get(sector) ?? 0) >= policy.maxPerSector) continue;
+      const tier = policy.tiers.find((t) => setup.score >= t.minScore)?.name ?? 'C';
+      selected.push({ ...setup, rr, tier });
+      selectedSymbols.add(setup.symbol);
+      sectorCounts.set(sector, (sectorCounts.get(sector) ?? 0) + 1);
+      leadershipAdded++;
+    }
+    const setups = selected as any as typeof ranked;
     logger.info(`[BULL-FLAG] ${report}`);
+    if (leadershipAdded > 0) logger.info(`[BULL-FLAG] added ${leadershipAdded} benchmark-name setup(s) through the reserved leadership lane`);
     logger.info(`[BULL-FLAG] taking: ${setups.map((s: any) => `${s.symbol}(${s.tier}/${s.score})`).join(' ')}`);
     const { ingestTradeIdea } = await import("./trade-idea-ingestion");
     let ingested = 0;
@@ -755,6 +784,10 @@ export async function ingestBullFlagIdeas(): Promise<number> {
 
     if (ingested > 0) {
       logger.info(`[BULL-FLAG] 📤 Auto-ingested ${ingested} bull flag setups to Trade Desk`);
+      try {
+        const { invalidateConvictionsCache } = await import('./convictions-engine');
+        invalidateConvictionsCache();
+      } catch { /* publication succeeded; cache refresh is best-effort */ }
     }
     return ingested;
   } catch (err) {

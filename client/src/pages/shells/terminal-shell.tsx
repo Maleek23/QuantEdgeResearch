@@ -7,7 +7,7 @@
  *
  * This is the consolidation target for AUDIT.md / BLUEPRINT.md / TERMINAL_SPEC.md.
  */
-import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'wouter';
 import { onWorkup } from '@/lib/workup-bus';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -70,16 +70,15 @@ const BotNexus = lazy(() => import('@/components/bot/bot-nexus').then(m => ({ de
 // Journal keeps its own sub-tabs, synced to ?jtab= so it never fights the shell's ?tab=.
 const PositionsPanel = lazy(() => import('@/pages/positions-heatmap'));
 const JournalPanel = lazy(() => import('@/pages/shells/journal-shell'));
-// The universal ticker workup — any symbol click, any tab, opens this dossier.
-const TickerWorkup = lazy(() => import('@/components/workup/ticker-workup').then(m => ({ default: m.TickerWorkup })));
 // CATALYST = composed from docs/DESIGN_SYSTEM.md (no mock). Prior CatalystBoard stays in tree.
 const CatalystNexus = lazy(() => import('@/components/catalyst/catalyst-nexus').then(m => ({ default: m.CatalystNexus })));
 
 // Tabs, mobile dock and "More" live in ONE shared model so the terminal and
 // every standalone page (NexusFrame) wear identical navigation.
-import { TABS, PAGES, type Tab } from '@/components/shell/nav-model';
+import { TABS, type Tab } from '@/components/shell/nav-model';
 import { MobileDock } from '@/components/shell/mobile-dock';
 import { CustomizePanel } from '@/components/shell/customize-panel';
+import { DesktopRail } from '@/components/shell/desktop-rail';
 export { TABS };
 export type { Tab };
 
@@ -178,21 +177,20 @@ export default function TerminalShell() {
   const reduce = useReducedMotion();
   const uptime = useUptime();
   // One ticker for the whole terminal: search once, every tab follows it.
-  const { currentStock, setCurrentStock, clearStock } = useStockContext();
-  // Universal workup: any board fires openWorkup(sym) on the bus. It lands in
-  // the same stock context the legacy lookup used, so ONE overlay contract
-  // serves every click site.
-  useEffect(() => onWorkup((sym) => { setCurrentStock({ symbol: sym }); setWorkupOpen(true); }), [setCurrentStock]);
-  // The shared ticker persists across pages (sessionStorage) so CHART/GEX can
-  // follow it — but that alone must not pop the workup overlay on every page
-  // load. It opens when a ticker is chosen in THIS view (UI validation
-  // 2026-09-24: a stale META workup covered every page, dock included).
-  const [workupOpen, setWorkupOpen] = useState(false);
-  const mounted = useRef(false);
-  useEffect(() => {
-    if (!mounted.current) { mounted.current = true; return; }
-    if (currentStock?.symbol) setWorkupOpen(true);
-  }, [currentStock?.symbol]);
+  const { currentStock, setCurrentStock } = useStockContext();
+  // ONE ticker destination. Search, flow rows, rotation/session names and every
+  // openWorkup() call land on the same deep-linkable Research shell. The old
+  // behavior mixed context-only changes, modal dossiers and tab switches.
+  const openResearch = useCallback((symbol: string, name?: string, researchTab: 'workup' | 'chart' | 'flow' | 'gex' = 'workup') => {
+    const sym = symbol.trim().toUpperCase();
+    if (!sym) return;
+    setCurrentStock({ symbol: sym, name });
+    const params = new URLSearchParams();
+    if (researchTab !== 'workup') params.set('tab', researchTab);
+    params.set('from', `terminal-${tab}`);
+    setLocation(`/r/${encodeURIComponent(sym)}?${params.toString()}`);
+  }, [setCurrentStock, setLocation, tab]);
+  useEffect(() => onWorkup((sym) => openResearch(sym)), [openResearch]);
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
   const { data: health } = useQuery<{
@@ -220,11 +218,12 @@ export default function TerminalShell() {
   return (
     <div className={cn('qe-terminal nexus-vars min-h-screen flex flex-col', theme === 'nexus-light' && 'light')}>
       <KitStyles />
+      <DesktopRail activeTab={tab} currentPath="/t" onTab={setTab} />
       {/* ── persistent chrome — the reference terminal's topbar, verbatim
              classes from styles/nexus.css. Every tab wears it. ── */}
-      <header className="sticky top-0 z-20">
+      <header className="sticky top-0 z-20 lg:pl-[196px]">
         <div className="topbar" style={{ minHeight: 44 }}>
-          <Link href="/today" className="brand" aria-label="Quant Edge Labs — home" style={{ textDecoration: 'none' }}>
+          <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home" style={{ textDecoration: 'none' }}>
             <img className="brand-logo" src={quantEdgeLogoUrl} alt="Quant Edge Labs" />
             <span className="brand-name">QUANTEDGE</span>
             <span className="brand-slash">{'//'}</span>
@@ -239,23 +238,6 @@ export default function TerminalShell() {
           </div>
 
           {/* His nav sits LEFT, immediately after the chips — not centered. */}
-          <nav className="nav-tabs hidden overflow-x-auto lg:flex">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={cn('nav-tab', tab === t.id && 'active')}
-                data-testid={`terminal-tab-${t.id}`}
-              >
-                {t.label}
-              </button>
-            ))}
-            <span className="mx-1 h-4 w-px self-center bg-border/70" aria-hidden />
-            {PAGES.map((p) => (
-              <button key={p.href} onClick={() => setLocation(p.href)} className="nav-tab">{p.short}</button>
-            ))}
-          </nav>
-
           <div className="top-spacer" />
 
           {/* His search box — same typeahead engine, his shell around it. */}
@@ -364,7 +346,7 @@ export default function TerminalShell() {
                 compact
                 value={currentStock?.symbol}
                 onSelect={(result) => {
-                  setCurrentStock({ symbol: result.symbol, name: result.name });
+                  openResearch(result.symbol, result.name);
                   setMobileSearchOpen(false);
                 }}
               />
@@ -375,12 +357,12 @@ export default function TerminalShell() {
 
       {/* ── quote tape — real movers from the extended-hours scan, labelled by
           session. Hidden on small screens where 28px of marquee is noise. */}
-      <div className="hidden md:block">
+      <div className="hidden md:block lg:pl-[196px]">
         <TickerTape />
       </div>
 
       {/* ── tab content (cross-fades) ── */}
-      <main className="min-h-0 min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <main className="min-h-0 min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[196px]">
         {/* Some market modules keep long-lived subscriptions and nested layout
             animations. `mode="wait"` can leave the outgoing module mounted at
             opacity 0 while it waits for every descendant to finish exiting,
@@ -407,7 +389,7 @@ export default function TerminalShell() {
               {tab === 'chart' && <ChartLab />}
               {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it.
                   Full-bleed: the FLOW mock owns its own two-column layout. */}
-              {tab === 'flow' && <FlowBoard onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
+              {tab === 'flow' && <FlowBoard onSelectSymbol={(sym) => openResearch(sym, undefined, 'flow')} />}
               {tab === 'gex' && <GexHub />}
               {tab === 'leaps' && <LeapTracker />}
               {tab === 'crypto' && <CryptoTerminal />}
@@ -462,29 +444,14 @@ export default function TerminalShell() {
                 </button>
               </div>
               <div className="min-h-0 overflow-y-auto p-3 md:p-5">
-                {marketFocus === 'pulse' && <OracleMarketField expanded onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
+                {marketFocus === 'pulse' && <OracleMarketField expanded onSelectSymbol={(sym) => openResearch(sym)} />}
                 {marketFocus === 'rotation' && <RotationMap expanded />}
-                {marketFocus === 'brief' && <SessionBrief expanded onSelectSymbol={(sym) => setCurrentStock({ symbol: sym })} />}
+                {marketFocus === 'brief' && <SessionBrief expanded onSelectSymbol={(sym) => openResearch(sym)} />}
               </div>
             </motion.section>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Ticker lookup — an overlay above whichever tab you're on, not a panel wedged
-          into the page. Searching is a detour; it shouldn't rearrange the board. */}
-      {/* The ticker workup replaced the legacy TickerView lookup here — same
-          contract (overlay above whichever tab you're on, searching is a
-          detour), now the full dossier. TickerView stays in the tree. */}
-      {workupOpen && currentStock?.symbol && tab !== 'chart' && (
-        <Suspense fallback={null}>
-          <TickerWorkup
-            symbol={currentStock.symbol.toUpperCase()}
-            onClose={() => { setWorkupOpen(false); clearStock(); }}
-            onNavigate={(t, sym) => { setCurrentStock({ symbol: sym }); setTab(t as Tab); }}
-          />
-        </Suspense>
-      )}
 
       {guideOpen && (
         <Suspense fallback={null}>
@@ -508,7 +475,7 @@ export default function TerminalShell() {
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
-        onTicker={(symbol, name) => setCurrentStock({ symbol, name })}
+        onTicker={(symbol, name) => openResearch(symbol, name)}
         onTab={(t) => setTab(t as Tab)}
         tabs={TABS}
       />
@@ -516,7 +483,7 @@ export default function TerminalShell() {
       {/* ── footer — the reference bottombar. Same real content as before:
              LiveStatsBar (bots/watchlist/VIX) and the market line (session ·
              SPY · BTC · next poll · clock) ride inside his chrome. ── */}
-      <footer className="bottombar" style={{ minHeight: 26 }}>
+      <footer className="bottombar lg:pl-[196px]" style={{ minHeight: 26 }}>
         <div className="bb-item"><span className="dot" /><b>{tab.toUpperCase()}</b> engaged</div>
         <div className="bb-sep" />
         <SystemPulse />

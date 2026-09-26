@@ -321,18 +321,30 @@ export async function executeTradeIdea(
         return { success: false, error: `Option premium too high for account. Cost: $${contractCost.toFixed(0)}, Max allowed: $${maxAllowedSpend.toFixed(0)}` };
       }
       
-      // 🛡️ Cap quantity to what we can actually afford within spend limit
+      // Size options by dollars at risk, not premium spend alone. With a $10
+      // premium and a $5 stop, one contract risks $500—not $1,000. The caller's
+      // chosen risk fraction now means the same thing for shares and options.
+      const riskPerTrade = options?.riskFraction ?? (portfolio.riskPerTrade || 0.02);
+      const riskBudget = portfolio.cashBalance * riskPerTrade;
+      const stopPremium = Number(tradeIdea.stopLoss ?? 0);
+      const riskPerContract = Math.abs(currentPrice - stopPremium) * 100;
+      if (!(riskPerContract > 0)) {
+        return { success: false, error: `Invalid option stop for ${tradeIdea.symbol}` };
+      }
+
+      // 🛡️ Cap quantity to what we can actually afford within spend and risk limits
       const maxAffordable = Math.floor(portfolio.cashBalance / contractCost);
       const maxBySpendLimit = Math.floor(maxAllowedSpend / contractCost);
+      const maxByRisk = Math.floor(riskBudget / riskPerContract);
       // Only buy what fits within spend limit AND what we can afford - NO forcing to 1
       // 💎 PLAYBOOK: Respect maxQuantity parameter (for Options Bot single-contract rule)
       const maxAllowed = options?.maxQuantity ? Math.min(MAX_CONTRACTS_PER_TRADE, options.maxQuantity) : MAX_CONTRACTS_PER_TRADE;
-      quantity = Math.min(maxAllowed, maxBySpendLimit, maxAffordable);
+      quantity = Math.min(maxAllowed, maxBySpendLimit, maxAffordable, maxByRisk);
       
       // Safety: ensure at least 1 contract (should always pass given prior checks)
       if (quantity < 1) {
         logger.warn(`🛑 [POSITION-SIZE] Quantity calculation resulted in 0 contracts for ${tradeIdea.symbol}`);
-        return { success: false, error: `Cannot calculate valid position size for ${tradeIdea.symbol}` };
+        return { success: false, error: `One ${tradeIdea.symbol} contract risks $${riskPerContract.toFixed(0)}, above the $${riskBudget.toFixed(0)} trade budget` };
       }
       
       positionCost = quantity * contractCost;
@@ -348,7 +360,7 @@ export async function executeTradeIdea(
         return { success: false, error: `Position exceeds max allowed. Cost: $${positionCost.toFixed(0)}, Limit: $${maxAllowedSpend.toFixed(0)}` };
       }
       
-      logger.info(`📊 [POSITION-SIZE] ${tradeIdea.symbol}: ${quantity} contracts @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)} (${(positionCost / portfolio.cashBalance * 100).toFixed(1)}% of cash, limit: $${maxAllowedSpend.toFixed(0)})`);
+      logger.info(`📊 [POSITION-SIZE] ${tradeIdea.symbol}: ${quantity} contracts @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)}; risk $${(quantity * riskPerContract).toFixed(0)}/${riskBudget.toFixed(0)} budget`);
     } else {
       // Callers may size down per-fill (the bot halves risk on a selective
       // tape instead of refusing to trade — caution expressed in dollars,

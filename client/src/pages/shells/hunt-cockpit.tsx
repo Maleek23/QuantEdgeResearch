@@ -16,7 +16,7 @@
 import { PublishedContractLive } from "@/components/contract-engine/published-contract-live";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { apiRequest } from "@/lib/queryClient";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { EvidenceRail } from "@/components/evidence-rail";
 import { Loader2, AlertTriangle, Camera } from "lucide-react";
@@ -153,6 +153,32 @@ interface GradedTicker {
   analysis?: OnDemandAnalysis;
 }
 
+interface PublishedIdeaRow {
+  id: string;
+  symbol: string;
+  direction: string;
+  outcome: string;
+  recordedOutcome?: string;
+  contractExpired?: boolean;
+  ageHours?: number | null;
+  holdingPeriod?: string | null;
+  archiveReason?: string;
+  score?: number | null;
+  riskRewardRatio?: number | null;
+  optionType: 'call' | 'put' | null;
+  strikePrice: number | null;
+  expiryDate: string | null;
+  entryPremium: number | null;
+  exitPremium: number | null;
+  optionPercentGain: number | null;
+  realizedPnL: number | null;
+  outcomeNotes?: string | null;
+  resolutionReason?: string | null;
+  source: string | null;
+  dataSourceUsed: string | null;
+  at: string;
+}
+
 function executionStateCopy(state: ConvictionPick["lifecycleState"]): string {
   switch (state) {
     case "executed": return "Execution recorded — manage the open plan against its stop and first objective.";
@@ -162,6 +188,71 @@ function executionStateCopy(state: ConvictionPick["lifecycleState"]): string {
     case "closed": return "This plan is closed and belongs in the review record.";
     default: return "Trigger watch — no position is recorded until the entry condition is observed.";
   }
+}
+
+/**
+ * A held option has two simultaneous truths: premium P&L on the exact contract
+ * and directional progress on the underlying. Putting both on one unlabeled
+ * ladder made a losing far-OTM call look like a winning position whenever the
+ * stock approached T1. Keep the units and decisions visibly separate.
+ */
+function HeldPositionStrip({ pick, liveUnderlying }: { pick: ConvictionPick; liveUnderlying: number | null }) {
+  const qty = Number(pick.quantity ?? 1);
+  const pnl = pick.unrealizedPnl;
+  const pnlPct = pick.unrealizedPnlPercent;
+  const entry = Number(pick.entryPrice);
+  const target = Number(pick.targetPrice);
+  const hasUnderlyingPlan = Number.isFinite(entry) && entry > 0 && Number.isFinite(target) && target > 0;
+  const span = hasUnderlyingPlan ? Math.abs(target - entry) : 0;
+  const moved = liveUnderlying == null || !hasUnderlyingPlan
+    ? null
+    : pick.direction === 'short' ? entry - liveUnderlying : liveUnderlying - entry;
+  const progress = moved != null && span > 0 ? Math.max(0, Math.min(100, (moved / span) * 100)) : null;
+  const contract = pick.strikePrice != null && pick.optionType
+    ? `$${pick.strikePrice}${pick.optionType === 'put' ? 'P' : 'C'}`
+    : 'contract';
+
+  return (
+    <div className="rounded-lg border border-card-border bg-card px-4 py-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--brand-cyan)]">Held position · manage existing</span>
+        <span className="font-mono text-[10px] text-muted-foreground">{contract} · {qty} contract{qty === 1 ? '' : 's'} · {pick.expiryDate ? String(pick.expiryDate).slice(0, 10) : 'expiry unknown'}</span>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-md border border-border/50 bg-foreground/[0.02] p-3">
+          <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Contract premium · executable mark</div>
+          <div className="mt-2 grid grid-cols-3 gap-3 font-mono tabular-nums">
+            <div><div className="text-[9px] text-muted-foreground">ENTRY</div><div className="text-sm font-bold">{pick.entryPremium != null ? `$${Number(pick.entryPremium).toFixed(2)}` : '—'}</div></div>
+            <div><div className="text-[9px] text-muted-foreground">MARK</div><div className="text-sm font-bold">{pick.currentPremium != null ? `$${Number(pick.currentPremium).toFixed(2)}` : '—'}</div></div>
+            <div><div className="text-[9px] text-muted-foreground">OPTION P&L</div><div className="text-sm font-bold" style={{ color: Number(pnl ?? 0) >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}>{pnl != null ? `${Number(pnl) >= 0 ? '+' : '−'}$${Math.abs(Number(pnl)).toFixed(0)}` : '—'}{pnlPct != null ? ` · ${Number(pnlPct) >= 0 ? '+' : ''}${Number(pnlPct).toFixed(1)}%` : ''}</div></div>
+          </div>
+          <div className="mt-2 font-mono text-[9px] text-muted-foreground">Paper P&L uses the exact held contract’s bid. No nearby-strike substitution.</div>
+        </div>
+        <div className="rounded-md border border-border/50 bg-foreground/[0.02] p-3">
+          <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Underlying thesis · {pick.symbol} shares</div>
+          <div className="mt-2 grid grid-cols-3 gap-3 font-mono tabular-nums">
+            <div><div className="text-[9px] text-muted-foreground">ENTRY</div><div className="text-sm font-bold">{hasUnderlyingPlan ? `$${entry.toFixed(2)}` : '—'}</div></div>
+            <div><div className="text-[9px] text-muted-foreground">LIVE</div><div className="text-sm font-bold">{liveUnderlying != null ? `$${liveUnderlying.toFixed(2)}` : '—'}</div></div>
+            <div><div className="text-[9px] text-muted-foreground">TO T1</div><div className="text-sm font-bold">{progress != null ? `${progress.toFixed(0)}%` : '—'}</div></div>
+          </div>
+          <div className="mt-2 font-mono text-[9px] text-muted-foreground">Share-price progress is not option profit. Strike distance, IV, theta and spread can make them diverge.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeldManagementPanel({ pick }: { pick: ConvictionPick }) {
+  return (
+    <CockpitCard title="Position management" meta="premium bracket · recorded at entry">
+      <div className="grid grid-cols-3 gap-3 font-mono tabular-nums">
+        <div><div className="text-[9px] text-muted-foreground">PREMIUM STOP</div><div className="text-sm font-bold text-[var(--trade-bearish)]">{pick.premiumStop != null ? `$${Number(pick.premiumStop).toFixed(2)}` : '—'}</div></div>
+        <div><div className="text-[9px] text-muted-foreground">PREMIUM ENTRY</div><div className="text-sm font-bold">{pick.entryPremium != null ? `$${Number(pick.entryPremium).toFixed(2)}` : '—'}</div></div>
+        <div><div className="text-[9px] text-muted-foreground">PREMIUM TARGET</div><div className="text-sm font-bold text-[var(--trade-bullish)]">{pick.premiumTarget != null ? `$${Number(pick.premiumTarget).toFixed(2)}` : '—'}</div></div>
+      </div>
+      <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">The share-price ladder beside this panel tracks whether the thesis is working. This premium bracket governs the paper option position.</p>
+    </CockpitCard>
+  );
 }
 
 /**
@@ -198,6 +289,7 @@ function useGapZones(symbol: string) {
 export default function HuntCockpit({ initialView, lockedView }: { initialView?: "grid" | "scanner" | "cockpit"; lockedView?: boolean } = {}) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rangeId, setRangeId] = useState<(typeof RANGES)[number]["id"]>("1mo");
   const [mode, setMode] = useState<CockpitMode>("all");
@@ -339,6 +431,56 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
   // sharing files (best for "send to people"); otherwise downloads the PNG.
   const captureRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLElement>(null);
+
+  // High-priority index calls arrive over the same durable websocket used by
+  // bot execution events. The toast is immediate; invalidating the book then
+  // lets the canonical card appear as soon as persistence finishes.
+  useEffect(() => {
+    let socket: WebSocket | null = null;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+    const connect = () => {
+      if (stopped) return;
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      socket = new WebSocket(`${protocol}//${window.location.host}/ws/bot`);
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          const symbol = String(message.symbol || "").toUpperCase();
+          if (message.type !== "bot_event" || message.eventType !== "signal" || !["SPX", "SPY", "QQQ", "IWM"].includes(symbol)) return;
+          const contract = message.optionType && message.strike != null
+            ? `${message.strike}${message.optionType === "call" ? "C" : "P"}`
+            : "index setup";
+          const setup = String(message.reason || "").split("|")[0].replaceAll("_", " ");
+          toast({
+            title: `⚡ ${symbol} ${contract} called`,
+            description: `${setup || "Index alert"}${message.price ? ` · $${Number(message.price).toFixed(2)}` : ""} · open Cockpit for trigger, stop and targets.`,
+          });
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification(`QuantEdge · ${symbol} ${contract}`, {
+              body: `${setup || "Index alert"}${message.price ? ` at $${Number(message.price).toFixed(2)}` : ""}`,
+              tag: `qe-index-${symbol}-${message.strike ?? "setup"}`,
+            });
+          }
+          window.setTimeout(() => {
+            void queryClient.invalidateQueries({ queryKey: ["/api/convictions"] });
+            void queryClient.invalidateQueries({ queryKey: ["/api/ideas/ledger"] });
+          }, 500);
+        } catch {
+          // Ignore non-JSON websocket frames; the price feed uses another path.
+        }
+      };
+      socket.onclose = () => {
+        if (!stopped) retry = setTimeout(connect, 3_000);
+      };
+    };
+    connect();
+    return () => {
+      stopped = true;
+      if (retry) clearTimeout(retry);
+      socket?.close();
+    };
+  }, [queryClient, toast]);
   const railRef = useRef<HTMLElement>(null);
   const [capturing, setCapturing] = useState(false);
 
@@ -523,7 +665,100 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
     retry: 1,
   });
 
-  const allPicks = data?.picks ?? [];
+  // Cockpit is the operational surface. Recently resolved calls stay visible
+  // here after they leave the active-entry pool, so a target hit does not seem
+  // to vanish into a separate audit page the moment it resolves.
+  const { data: recentDecisionData } = useQuery<{
+    ledger?: PublishedIdeaRow[];
+  }>({
+    queryKey: ['/api/ideas/ledger', 'cockpit-recent'],
+    queryFn: async () => {
+      const res = await fetch('/api/ideas/ledger?limit=60', { credentials: 'include' });
+      if (!res.ok) throw new Error('recent decisions failed');
+      return res.json();
+    },
+    staleTime: 20_000,
+    refetchInterval: 30_000,
+    retry: 0,
+  });
+  const recentDecisions = useMemo(
+    () => (recentDecisionData?.ledger ?? [])
+      .filter((row) => row.outcome && row.outcome !== 'open')
+      .slice(0, 4),
+    [recentDecisionData],
+  );
+
+  // Held inventory is marked by the bot ledger, while entry candidates come
+  // from the convictions snapshot. Overlay only contract/P&L fields here—never
+  // put an option premium into `currentPrice`, which is underlying-space.
+  const { data: liveBotBook } = useQuery<{
+    openPositions?: Array<{
+      symbol: string; currentPrice?: number | null; entryPrice?: number | null;
+      unrealizedPnL?: number | null; unrealizedPnLPercent?: number | null;
+      lastPriceUpdate?: string | null; highWaterMark?: number | null;
+      quantity?: number | null; optionType?: string | null; strikePrice?: number | null;
+    }>;
+  }>({
+    queryKey: ["/api/quant-bot/status", "nexus"],
+    queryFn: async () => {
+      const res = await fetch('/api/quant-bot/status', { credentials: 'include' });
+      if (!res.ok) throw new Error('bot book failed');
+      return res.json();
+    },
+    staleTime: 45_000,
+    refetchInterval: 60_000,
+    retry: 0,
+  });
+  const botMarks = useMemo(() => new Map(
+    (liveBotBook?.openPositions ?? []).map((p) => [p.symbol.toUpperCase(), p]),
+  ), [liveBotBook]);
+  const bankablePositions = useMemo(() => (liveBotBook?.openPositions ?? [])
+    .map((position) => {
+      const entry = Number(position.entryPrice);
+      const peak = Number(position.highWaterMark);
+      const mfe = entry > 0 && peak > 0 ? (peak / entry - 1) * 100 : null;
+      return { ...position, mfe };
+    })
+    .filter((position) => position.mfe != null && position.mfe >= 10)
+    .sort((a, b) => Number(b.mfe) - Number(a.mfe)), [liveBotBook?.openPositions]);
+  const allPicks = useMemo(() => (data?.picks ?? []).map((pick) => {
+    if (!pick.isBotHeld) return pick;
+    const mark = botMarks.get(pick.symbol.toUpperCase());
+    if (!mark) return pick;
+    return {
+      ...pick,
+      currentPremium: mark.currentPrice ?? pick.currentPremium,
+      premiumMarkedAt: mark.lastPriceUpdate ?? pick.premiumMarkedAt,
+      unrealizedPnl: mark.unrealizedPnL ?? pick.unrealizedPnl,
+      unrealizedPnlPercent: mark.unrealizedPnLPercent ?? pick.unrealizedPnlPercent,
+    };
+  }), [data?.picks, botMarks]);
+  const publishedAudit = useMemo(() => {
+    const activeIds = new Set(allPicks.map((pick) => pick.ideaId));
+    const heldSymbols = new Set(
+      allPicks.filter((pick) => pick.isBotHeld).map((pick) => pick.symbol.toUpperCase()),
+    );
+    return (recentDecisionData?.ledger ?? []).map((row) => {
+      const active = activeIds.has(row.id);
+      const held = heldSymbols.has(row.symbol.toUpperCase());
+      const state = active ? 'active' : held ? 'held' : row.outcome !== 'open' ? 'resolved' : 'archive';
+      const rr = Number(row.riskRewardRatio);
+      const reason = active
+        ? Number.isFinite(rr) && rr < 1
+          ? `live book warning: reward/risk ${rr.toFixed(2)} is below 1.0`
+          : 'admitted to the live ranked book'
+        : held
+          ? 'managed as an open paper position'
+          : row.archiveReason ?? 'published record; not in the current live book';
+      return { ...row, state, reason };
+    });
+  }, [allPicks, recentDecisionData?.ledger]);
+  const publishedAuditCounts = useMemo(() => ({
+    active: publishedAudit.filter((row) => row.state === 'active').length,
+    held: publishedAudit.filter((row) => row.state === 'held').length,
+    resolved: publishedAudit.filter((row) => row.state === 'resolved').length,
+    archive: publishedAudit.filter((row) => row.state === 'archive').length,
+  }), [publishedAudit]);
   // One bounded quote stream for the entire 40-name book. Before this only the
   // selected subject had a quote, leaving the other 39 cards permanently static.
   const signalSymbols = useMemo(
@@ -688,6 +923,11 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
 
   const selected: ConvictionPick | undefined =
     shown.find((p) => p.ideaId === selectedId) ?? shown[0] ?? picks[0];
+  const selectedIsIndexIntraday = Boolean(
+    selected &&
+    ["SPX", "SPY", "QQQ", "IWM"].includes(selected.symbol.toUpperCase()) &&
+    (selected.holdingPeriod === "day" || selected.optionDte === 0),
+  );
   const onDemand = onDemandFocused ? graded?.analysis : null;
 
   // Unfilled gaps for the selected ticker — drawn as bands on the chart below.
@@ -914,6 +1154,153 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
           </button>
         </div>
       </div>
+
+      {(recentDecisions.length > 0 || bankablePositions.length > 0) && (
+        <section className="rounded-lg border border-border/60 bg-card/35 px-3 py-2" aria-label="Recent resolved calls">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+              Recent decisions · still visible in Cockpit
+            </span>
+            <span className="text-[9px] font-mono text-muted-foreground">realized exits + labeled replays + open-trade MFE</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {recentDecisions.map((row) => {
+              const gain = row.optionPercentGain == null ? null : Number(row.optionPercentGain);
+              const mfeMatch = row.outcomeNotes?.match(/peak \$[\d.]+ \(\+?([\d.]+)%\)/i);
+              const pathMfe = mfeMatch ? Number(mfeMatch[1]) : null;
+              const won = row.outcome === 'hit_target';
+              const isReplay = row.dataSourceUsed === 'yahoo-opr-trades';
+              const provenance = isReplay
+                ? 'recorded replay'
+                : row.source === 'quant-bot'
+                  ? 'paper bot'
+                  : 'engine outcome';
+              const contract = row.optionType && row.strikePrice != null
+                ? `${row.strikePrice}${row.optionType === 'call' ? 'C' : 'P'}`
+                : null;
+              return (
+                <div key={row.id} className="rounded-md border border-border/50 bg-background/45 px-2.5 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-semibold">{row.symbol}{contract ? ` ${contract}` : ''}</span>
+                    <span className={cn(
+                      'text-[9px] font-mono uppercase tracking-wide',
+                      won ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]',
+                    )}>
+                      {won
+                        ? 'contract target hit'
+                        : pathMfe != null && pathMfe >= 10
+                          ? `+${pathMfe.toFixed(0)}% MFE · ${row.outcome.replaceAll('_', ' ')}`
+                          : row.outcome.replaceAll('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                    {row.entryPremium != null ? `$${Number(row.entryPremium).toFixed(2)}` : '—'}
+                    {' → '}
+                    {row.exitPremium != null ? `$${Number(row.exitPremium).toFixed(2)}` : '—'}
+                    {gain != null && (
+                      <span className={cn('ml-2', gain >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]')}>
+                        {gain >= 0 ? '+' : ''}{gain.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-muted-foreground/75">
+                    {provenance}
+                  </div>
+                </div>
+              );
+            })}
+            {bankablePositions.slice(0, 4).map((position) => {
+              const contract = position.optionType && position.strikePrice != null
+                ? `${Number(position.strikePrice)}${position.optionType === 'call' ? 'C' : 'P'}`
+                : null;
+              return (
+                <div key={`mfe-${position.symbol}-${position.strikePrice ?? ''}`} className="rounded-md border border-[var(--trade-bullish)]/25 bg-[var(--trade-bullish)]/[0.035] px-2.5 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-semibold">{position.symbol}{contract ? ` ${contract}` : ''}</span>
+                    <span className="text-[9px] font-mono uppercase tracking-wide text-[var(--trade-bullish)]">
+                      crossed +10%
+                    </span>
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                    Peak premium excursion
+                    <span className="ml-2 text-[var(--trade-bullish)]">+{Number(position.mfe).toFixed(1)}%</span>
+                  </div>
+                  <div className="mt-1 text-[8px] font-mono uppercase tracking-[0.14em] text-muted-foreground/75">
+                    open · bankable milestone, not realized win
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {publishedAudit.length > 0 && (
+        <details className="group rounded-lg border border-border/60 bg-card/30" data-testid="published-72h-audit">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-3 py-2.5 hover:bg-foreground/[0.025]">
+            <div className="min-w-0">
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-foreground">
+                Published record · last 72h
+              </div>
+              <div className="mt-0.5 text-[9px] font-mono text-muted-foreground">
+                Every published idea stays findable; only revalidated plans enter the live book.
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap justify-end gap-2 text-[9px] font-mono uppercase tracking-wide">
+              <span className="text-[var(--brand-cyan)]">{publishedAuditCounts.active} active</span>
+              <span className="text-[var(--trade-bullish)]">{publishedAuditCounts.held} held</span>
+              <span className="text-muted-foreground">{publishedAuditCounts.resolved} decided</span>
+              <span className="text-[var(--trade-neutral)]">{publishedAuditCounts.archive} archive</span>
+              <span className="text-muted-foreground transition-transform group-open:rotate-180">⌄</span>
+            </div>
+          </summary>
+          <div className="border-t border-border/50 px-2 pb-2 pt-1">
+            <div className="max-h-[340px] overflow-auto">
+              <div className="min-w-[760px]">
+                <div className="grid grid-cols-[62px_82px_74px_72px_70px_minmax(260px,1fr)] gap-2 border-b border-border/40 px-2 py-1.5 text-[8px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+                  <span>Time</span><span>Symbol</span><span>State</span><span>Score</span><span>R:R</span><span>Why</span>
+                </div>
+                {publishedAudit.map((row) => {
+                  const active = row.state === 'active';
+                  const held = row.state === 'held';
+                  const timestamp = row.at ? new Date(row.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+                  return (
+                    <button
+                      key={row.id}
+                      type="button"
+                      onClick={() => {
+                        setOnDemandFocused(false);
+                        setView('cockpit');
+                        if (active) setSelectedId(row.id);
+                        else void gradeTicker(row.symbol);
+                      }}
+                      className="grid w-full grid-cols-[62px_82px_74px_72px_70px_minmax(260px,1fr)] gap-2 border-b border-border/25 px-2 py-2 text-left font-mono text-[10px] transition-colors last:border-0 hover:bg-foreground/[0.035]"
+                      title={active ? `Open ${row.symbol} in Cockpit` : `Run a current ${row.symbol} workup`}
+                    >
+                      <span className="text-muted-foreground">{timestamp}</span>
+                      <span className={['bullish', 'long'].includes(row.direction) ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
+                        {row.symbol} {['bullish', 'long'].includes(row.direction) ? '▲' : '▼'}
+                      </span>
+                      <span className={cn(
+                        'uppercase',
+                        active ? 'text-[var(--brand-cyan)]' : held ? 'text-[var(--trade-bullish)]' : 'text-muted-foreground',
+                      )}>{row.state}</span>
+                      <span>{row.score != null ? `${Math.round(Number(row.score))}/100` : '—'}</span>
+                      <span className={Number(row.riskRewardRatio) >= 1 ? 'text-foreground' : 'text-[var(--trade-neutral)]'}>
+                        {row.riskRewardRatio != null ? `${Number(row.riskRewardRatio).toFixed(2)}R` : '—'}
+                      </span>
+                      <span className="truncate text-muted-foreground">{row.reason}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="px-2 pt-2 text-[9px] font-mono text-muted-foreground">
+              Click an active row to open it. Click an archive row to run a fresh current-state workup—archive status is never silently promoted.
+            </div>
+          </div>
+        </details>
+      )}
 
       {picks.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[32vh] gap-2 text-center">
@@ -1266,7 +1653,9 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                   while the engine had re-selected a different one against the live
                   chain. The strip shows the live pick and names the disagreement
                   when there is one. See oracle/trade-strip.tsx. */}
-                    {(selected.direction === "long" ||
+                    {selected.isBotHeld ? (
+                      <HeldPositionStrip pick={selected} liveUnderlying={livePx} />
+                    ) : (selected.direction === "long" ||
                       selected.direction === "short") && (
                       <TradeStrip
                         pick={enginePick}
@@ -1331,12 +1720,32 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                       </div>
                     </CockpitCard>
 
+                    {selectedIsIndexIntraday && (
+                      <section className="overflow-hidden rounded-lg border border-[var(--brand-cyan)]/25 bg-[var(--brand-cyan)]/[0.035]" aria-label="Index execution playbook">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 px-3 py-2">
+                          <div>
+                            <div className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--brand-cyan)]">Index execution playbook</div>
+                            <div className="mt-0.5 text-[10px] text-muted-foreground">One event · one card · chart levels update through the full lifecycle</div>
+                          </div>
+                          <span className="rounded border border-[var(--trade-neutral)]/30 bg-[var(--trade-neutral)]/10 px-2 py-1 font-mono text-[9px] uppercase tracking-wide text-[var(--trade-neutral)]">
+                            force flat 3:57 ET if 0DTE
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 divide-x divide-y divide-border/35 sm:grid-cols-4 sm:divide-y-0">
+                          <div className="px-3 py-2.5"><div className="font-mono text-[8px] uppercase tracking-wider text-muted-foreground">Trigger</div><div className="mt-1 font-mono text-sm tabular-nums">${selected.entryPrice.toFixed(2)}</div><div className="mt-0.5 text-[9px] text-muted-foreground">completed-bar reclaim / break</div></div>
+                          <div className="px-3 py-2.5"><div className="font-mono text-[8px] uppercase tracking-wider text-muted-foreground">Invalidation</div><div className="mt-1 font-mono text-sm tabular-nums text-[var(--trade-bearish)]">${selected.stopLoss.toFixed(2)}</div><div className="mt-0.5 text-[9px] text-muted-foreground">thesis fails here</div></div>
+                          <div className="px-3 py-2.5"><div className="font-mono text-[8px] uppercase tracking-wider text-muted-foreground">T1</div><div className="mt-1 font-mono text-sm tabular-nums text-[var(--trade-bullish)]">${selected.targetPrice.toFixed(2)}</div><div className="mt-0.5 text-[9px] text-muted-foreground">recover risk / trail runner</div></div>
+                          <div className="px-3 py-2.5"><div className="font-mono text-[8px] uppercase tracking-wider text-muted-foreground">Expression</div><div className="mt-1 font-mono text-sm tabular-nums">{selected.strikePrice != null ? `${selected.strikePrice}${selected.optionType === "put" ? "P" : "C"}` : "pending chain"}</div><div className="mt-0.5 text-[9px] text-muted-foreground">{selected.entryPremium != null ? `$${selected.entryPremium.toFixed(2)} at call` : "live executable mark required"}</div></div>
+                        </div>
+                      </section>
+                    )}
+
                     {/* THE CHART is the focus of the analysis — prominent, right under the header.
                   One universal EpochChart (epoch-anchored, any ticker) with entry/stop/target. */}
                     <NexusPriceChart syncGroup="cockpit"
                       key={selected.ideaId}
                       symbol={selected.symbol}
-                      initialTf="1D"
+                      initialTf={selectedIsIndexIntraday ? "1m" : "1D"}
                       height={340}
                       zones={gapZones}
                       levels={[
@@ -1366,15 +1775,21 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                     <div className="grid items-start gap-2 lg:grid-cols-2">
                       <PriceLadder pick={selected} live={livePx} />
                       <div className="space-y-2">
-                        <ContextPanel
-                          pick={selected}
-                          live={livePx}
-                          regime={data?.marketContext?.regime}
-                          preferredDirection={
-                            data?.marketContext?.preferredDirection
-                          }
-                        />
-                        <ProfitPlan pick={selected} live={livePx} />
+                        {selected.isBotHeld ? (
+                          <HeldManagementPanel pick={selected} />
+                        ) : (
+                          <>
+                            <ContextPanel
+                              pick={selected}
+                              live={livePx}
+                              regime={data?.marketContext?.regime}
+                              preferredDirection={
+                                data?.marketContext?.preferredDirection
+                              }
+                            />
+                            <ProfitPlan pick={selected} live={livePx} />
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -1397,22 +1812,24 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                           entryPremium={(selected as any).entryPremium ?? null}
                         />
                       )}
-                      <ContractEngine
-                        key={selected.ideaId}
-                        autoLoad
-                        onResolve={(p) =>
-                          setEnginePick(p as TradeStripPick | null)
-                        }
-                        symbol={selected.symbol}
-                        direction={
-                          selected.direction === "long" ? "BULL" : "BEAR"
-                        }
-                        entry={selected.entryPrice}
-                        stop={selected.stopLoss}
-                        t1={selected.targetPrice}
-                        holdPeriodLabel={selected.holdingPeriod}
-                        conviction={selected.convictionScore}
-                      />
+                      {!selected.isBotHeld && (
+                        <ContractEngine
+                          key={selected.ideaId}
+                          autoLoad
+                          onResolve={(p) =>
+                            setEnginePick(p as TradeStripPick | null)
+                          }
+                          symbol={selected.symbol}
+                          direction={
+                            selected.direction === "long" ? "BULL" : "BEAR"
+                          }
+                          entry={selected.entryPrice}
+                          stop={selected.stopLoss}
+                          t1={selected.targetPrice}
+                          holdPeriodLabel={selected.holdingPeriod}
+                          conviction={selected.convictionScore}
+                        />
+                      )}
                     </div>
                   )}
 

@@ -11,6 +11,7 @@ import { db } from './db';
 import { optionsFlowHistory } from '@shared/schema';
 import type { FlowStrategyCategory, FlowDteCategory } from '@shared/schema';
 import { eq, desc, gte, and, sql, count, sum } from 'drizzle-orm';
+import { marketDateET } from '@shared/market-day';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -135,6 +136,72 @@ function mapRow(f: any): FlowTrade {
   };
 }
 
+function dteCategory(expiry: string): FlowDteCategory {
+  const today = new Date(`${marketDateET()}T12:00:00-04:00`).getTime();
+  const expiration = new Date(`${String(expiry).slice(0, 10)}T12:00:00-04:00`).getTime();
+  const dte = Math.max(0, Math.round((expiration - today) / 86_400_000));
+  if (dte === 0) return '0DTE';
+  if (dte <= 2) return '1-2DTE';
+  if (dte <= 7) return '3-7DTE';
+  if (dte <= 45) return 'swing';
+  if (dte <= 180) return 'monthly';
+  return 'leaps';
+}
+
+/**
+ * The SSE tape used to feed scoring while the Flow page queried only the
+ * persisted chain-snapshot table. That made the page look frozen even with a
+ * healthy live stream. Merge today's in-memory prints into the read model;
+ * keep their direction unknown because an alert classification is not an
+ * aggressor-side measurement.
+ */
+async function getLiveTape(filters: FlowFilters): Promise<FlowTrade[]> {
+  try {
+    const { bullflowEnabled, getBullflowPrints } = await import('./bullflow-service');
+    if (!bullflowEnabled()) return [];
+    const today = marketDateET();
+    return getBullflowPrints().prints
+      .filter((p) => marketDateET(new Date(p.at)) === today)
+      .map((p): FlowTrade => {
+        const category = dteCategory(p.expiry);
+        const flowType: FlowTrade['flowType'] = /sweep/i.test(p.alertName)
+          ? 'sweep'
+          : p.premium >= 500_000 ? 'block' : 'unusual_volume';
+        return {
+          id: `bullflow-${p.id}`,
+          symbol: p.underlying,
+          optionType: p.optionType,
+          strikePrice: p.strike,
+          expirationDate: p.expiry,
+          volume: p.contracts ?? 0,
+          openInterest: null,
+          volumeOIRatio: null,
+          premium: p.fillPrice,
+          totalPremium: p.premium,
+          impliedVolatility: null,
+          delta: null,
+          underlyingPrice: null,
+          sentiment: 'unknown',
+          flowType,
+          unusualScore: 70,
+          strategyCategory: p.alertName,
+          dteCategory: category,
+          isLotto: category === '0DTE',
+          detectedAt: p.at,
+          detectedDate: today,
+        };
+      })
+      .filter((p) => !filters.symbol || p.symbol === filters.symbol.toUpperCase())
+      .filter((p) => !filters.flowType || p.flowType === filters.flowType)
+      .filter((p) => !filters.minPremium || p.totalPremium >= filters.minPremium)
+      .filter((p) => !filters.dteCategory || p.dteCategory === filters.dteCategory)
+      .filter((p) => !filters.sentiment || p.sentiment === filters.sentiment);
+  } catch (error) {
+    logger.warn('[FLOW-EDGE] Live tape unavailable:', error);
+    return [];
+  }
+}
+
 /**
  * Get paginated options flow trades with filters
  */
@@ -145,19 +212,25 @@ export async function getOptionsFlow(filters: FlowFilters): Promise<FlowResponse
   try {
     const where = buildConditions(filters);
 
-    // Get paginated trades
-    const trades = await db.select()
+    // Read a slightly wider persisted window, then merge the live SSE tape
+    // before sorting/pagination. Live prints must not wait for the next DB
+    // scanner cycle to appear on the operator's screen.
+    const dbTrades = await db.select()
       .from(optionsFlowHistory)
       .where(where)
       .orderBy(desc(optionsFlowHistory.detectedAt))
-      .limit(limit)
-      .offset(offset);
+      .limit(Math.min(500, limit + offset + 100));
+
+    const liveTrades = await getLiveTape(filters);
+    const merged = [...liveTrades, ...dbTrades.map(mapRow)]
+      .sort((a, b) => Date.parse(b.detectedAt) - Date.parse(a.detectedAt));
+    const trades = merged.slice(offset, offset + limit);
 
     // Get total count for pagination
     const countResult = await db.select({ count: sql<number>`count(*)` })
       .from(optionsFlowHistory)
       .where(where);
-    const total = Number(countResult[0]?.count || 0);
+    const total = Number(countResult[0]?.count || 0) + liveTrades.length;
 
     // Get ALL rows for stats (up to 500 for performance)
     const allRows = await db.select()
@@ -166,10 +239,10 @@ export async function getOptionsFlow(filters: FlowFilters): Promise<FlowResponse
       .orderBy(desc(optionsFlowHistory.totalPremium))
       .limit(500);
 
-    const stats = computeStats(allRows);
+    const stats = computeStats([...liveTrades, ...allRows]);
 
     return {
-      trades: trades.map(mapRow),
+      trades,
       stats,
       pagination: { limit, offset, total },
     };

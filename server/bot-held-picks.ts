@@ -37,6 +37,11 @@ export interface BotHeldPick {
   strikePrice: number | null;
   expiryDate: string | null;
   entryPremium: number | null;
+  /** Latest premium mark stored by the position monitor (bid for long options). */
+  currentPremium: number | null;
+  premiumTarget: number | null;
+  premiumStop: number | null;
+  premiumMarkedAt: string | null;
   /** Underlying-space levels from the originating idea. Null when unknown. */
   entryPrice: number | null;
   targetPrice: number | null;
@@ -47,6 +52,9 @@ export interface BotHeldPick {
   /** Marks the row as inventory rather than a candidate. The UI badges on this. */
   isBotHeld: true;
   botOwner: string;
+  /** Portfolio provenance prevents old and current bot books looking identical. */
+  botBookName: string;
+  botBookLegacy: boolean;
   heldSince: string | null;
   convictionScore: number | null;
   convictionBand: string | null;
@@ -79,9 +87,19 @@ export async function getBotHeldPicks(): Promise<BotHeldPick[]> {
      */
     const r: any = await db.execute(sql`
       SELECT pp.id, pp.symbol, pp.asset_type, pp.direction, pp.option_type,
-             pp.strike_price, pp.expiry_date, pp.entry_price, pp.quantity,
+             pp.strike_price, pp.expiry_date, pp.entry_price, pp.current_price,
+             pp.target_price AS position_target, pp.stop_loss AS position_stop,
+             pp.last_price_update, pp.quantity,
              pp.unrealized_pnl, pp.unrealized_pnl_percent, pp.entry_time,
-             pp.trade_idea_id, po.user_id AS bot_owner,
+             pp.trade_idea_id, pp.portfolio_id,
+             po.user_id AS bot_owner, po.name AS bot_book_name,
+             EXISTS (
+               SELECT 1
+               FROM paper_portfolios newer
+               WHERE newer.user_id = po.user_id
+                 AND newer.name = po.name
+                 AND newer.created_at > po.created_at
+             ) AS bot_book_legacy,
              ti.entry_price  AS idea_entry,
              ti.target_price AS idea_target,
              ti.stop_loss    AS idea_stop
@@ -89,6 +107,15 @@ export async function getBotHeldPicks(): Promise<BotHeldPick[]> {
       JOIN paper_portfolios po ON po.id = pp.portfolio_id
       LEFT JOIN trade_ideas ti ON ti.id = pp.trade_idea_id
       WHERE pp.status = 'open'
+        -- Inventory can remain marked open when the option-price reconciler
+        -- cannot obtain a final expiration-day mark. It still belongs in the
+        -- audit ledger, but an expired contract is not an active position and
+        -- must not be promoted back onto today's Active Book.
+        AND (
+          COALESCE(pp.asset_type, '') <> 'option'
+          OR pp.expiry_date IS NULL
+          OR pp.expiry_date::date >= CURRENT_DATE
+        )
       ORDER BY pp.symbol`);
 
     const rows = (r.rows ?? r) as any[];
@@ -107,6 +134,10 @@ export async function getBotHeldPicks(): Promise<BotHeldPick[]> {
         expiryDate: x.expiry_date ? String(x.expiry_date) : null,
         // The premium lives in its own field and never in a level field.
         entryPremium: isOption && x.entry_price != null ? Number(x.entry_price) : null,
+        currentPremium: isOption && x.current_price != null ? Number(x.current_price) : null,
+        premiumTarget: isOption && x.position_target != null ? Number(x.position_target) : null,
+        premiumStop: isOption && x.position_stop != null ? Number(x.position_stop) : null,
+        premiumMarkedAt: x.last_price_update ? new Date(x.last_price_update).toISOString() : null,
         // Levels are underlying-space, sourced from the originating idea. Null
         // when unknown — see the query comment.
         entryPrice: x.idea_entry != null ? Number(x.idea_entry) : (isOption ? null : Number(x.entry_price)),
@@ -117,6 +148,8 @@ export async function getBotHeldPicks(): Promise<BotHeldPick[]> {
         unrealizedPnlPercent: pnlPct,
         isBotHeld: true as const,
         botOwner: String(x.bot_owner ?? 'bot'),
+        botBookName: String(x.bot_book_name ?? 'Bot book'),
+        botBookLegacy: x.bot_book_legacy === true || String(x.bot_book_legacy) === 'true',
         heldSince: x.entry_time ? new Date(x.entry_time).toISOString() : null,
         // Held positions are not scored for entry. Showing a fabricated
         // conviction here would invite comparison against candidates that were

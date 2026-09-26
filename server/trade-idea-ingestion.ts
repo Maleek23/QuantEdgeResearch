@@ -78,6 +78,9 @@ export interface IngestionInput {
   optionType?: 'call' | 'put';
   strikePrice?: number;
   expiryDate?: string;
+  entryPremium?: number;
+  signalTimestamp?: string;
+  dataSourceUsed?: string;
   sourceMetadata?: Record<string, any>;
   /**
    * Structured evidence for the detailed inspector. This is intentionally
@@ -423,6 +426,10 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
       optionType: input.optionType,
       strikePrice: input.strikePrice,
       expiryDate: input.expiryDate,
+      entryPremium: input.entryPremium,
+      signalTimestamp: input.signalTimestamp,
+      dataSourceUsed: input.dataSourceUsed,
+      sourceMetadata: input.sourceMetadata,
       convergenceAnalysis: input.convergenceAnalysis,
     });
     

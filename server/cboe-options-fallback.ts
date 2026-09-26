@@ -76,6 +76,8 @@ const CBOE_TTL_MS = 60_000;
 
 export async function getCBOEOptionsChain(symbol: string): Promise<{
   options: any[];
+  /** Full decoded chain. Exact-position pricing must use this, never a nearby strike. */
+  allOptions: any[];
   spotPrice: number;
   expirations: string[];
   source: 'cboe';
@@ -106,6 +108,7 @@ export async function getCBOEOptionsChain(symbol: string): Promise<{
 
 async function _fetchCBOEOptionsChain(symbol: string): Promise<{
   options: any[];
+  allOptions: any[];
   spotPrice: number;
   expirations: string[];
   source: 'cboe';
@@ -169,10 +172,7 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
     const lowerBound = spotPrice * 0.85;
     const upperBound = spotPrice * 1.15;
 
-    const options = decoded
-      .filter(({ occ }) => occ.strike >= lowerBound && occ.strike <= upperBound)
-      .filter(({ opt }) => (opt.open_interest || 0) > 0 || (opt.volume || 0) > 0)
-      .map(({ opt, occ }) => ({
+    const toCompatible = ({ opt, occ }: (typeof decoded)[number]) => ({
         symbol: opt.option,
         description: `${symbol} ${occ.expirationDate} ${occ.strike} ${occ.optionType}`,
         exch: 'CBOE',
@@ -220,11 +220,20 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
         expiration_type: 'standard',
         option_type: occ.optionType,
         root_symbol: symbol,
-      }));
+      });
+
+    // Analytics callers only need the liquid near-money slice. Position
+    // marking is different: it must be able to find the exact far-OTM contract
+    // the ledger owns. Keep both views from the same downloaded chain.
+    const allOptions = decoded.map(toCompatible);
+    const options = decoded
+      .filter(({ occ }) => occ.strike >= lowerBound && occ.strike <= upperBound)
+      .filter(({ opt }) => (opt.open_interest || 0) > 0 || (opt.volume || 0) > 0)
+      .map(toCompatible);
 
     logger.info(`[CBOE-OPT] ${symbol}: ${options.length} options across ${expirations.length} expirations, spot=$${spotPrice.toFixed(2)}`);
 
-    return { options, spotPrice, expirations, source: 'cboe' };
+    return { options, allOptions, spotPrice, expirations, source: 'cboe' };
   } catch (e: any) {
     logger.warn(`[CBOE-OPT] Error for ${symbol}: ${e.message}`);
     return null;
@@ -281,16 +290,18 @@ export async function getContractQuote(
   if (!chain) return null;
 
   const want = String(expirationDate).slice(0, 10);
-  // Exact contract first; otherwise the nearest strike on the same expiry, since a chain
-  // may not list the precise strike the signal named.
-  const sameExpiry = chain.options.filter(
+  // A held position is one exact OCC contract. Substituting a nearby strike
+  // corrupts premium P&L while still printing the held strike's label (SNOW
+  // $420C was marked with a $390C quote). If the exact contract is absent,
+  // return no mark and preserve the last known value with a stale label.
+  const sameExpiry = chain.allOptions.filter(
     (o: any) => o.option_type === optionType && String(o.expiration_date).slice(0, 10) === want,
   );
   if (sameExpiry.length === 0) return null;
 
   const exact = sameExpiry.find((o: any) => Math.abs(o.strike - strike) < 0.01);
-  const pick = exact ?? sameExpiry.reduce((best: any, o: any) =>
-    Math.abs(o.strike - strike) < Math.abs(best.strike - strike) ? o : best, sameExpiry[0]);
+  if (!exact) return null;
+  const pick = exact;
 
   const bid = Number(pick.bid) || 0;
   const ask = Number(pick.ask) || 0;

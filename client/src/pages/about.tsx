@@ -306,7 +306,16 @@ export default function About() {
                 </div>
                 <div className="lg:col-span-3 space-y-4">
                   <div>
-                    <h3 className="text-lg font-semibold">Abdulmalik Ajisegiri</h3>
+                    <h3 className="text-lg font-semibold">
+                      <a
+                        href="https://abdulmalikajisegiri.com/"
+                        target="_blank"
+                        rel="me noopener noreferrer"
+                        className="hover:text-sky-300 transition-colors"
+                      >
+                        Abdulmalik Ajisegiri
+                      </a>
+                    </h3>
                     <p className="text-sky-400 font-medium">Founder & Lead Developer</p>
                     <p className="text-sm text-muted-foreground">Model Risk Engineer @ DTCC</p>
                   </div>
@@ -317,6 +326,15 @@ export default function About() {
                     Engineering from UT Arlington.
                   </p>
                   <div className="flex gap-3">
+                    <a
+                      href="https://abdulmalikajisegiri.com/"
+                      target="_blank"
+                      rel="me noopener noreferrer"
+                      className="text-sm text-sky-400 hover:text-sky-300 transition-colors"
+                    >
+                      Portfolio
+                    </a>
+                    <span className="text-muted-foreground">•</span>
                     <a
                       href="https://www.linkedin.com/in/malikajisegiri"
                       target="_blank"

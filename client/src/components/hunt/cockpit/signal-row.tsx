@@ -179,7 +179,9 @@ export function SignalRow({
               </span>
             </div>
             <div className="mt-2 flex items-baseline justify-between font-mono text-[9px] font-semibold uppercase tracking-[0.1em]">
-              <span className="text-muted-foreground">unrealised</span>
+              <span className="text-muted-foreground">
+                {pick.currentPremium != null ? `bid $${Number(pick.currentPremium).toFixed(2)} · option P&L` : 'option P&L · mark unavailable'}
+              </span>
               <span
                 className="tabular-nums"
                 style={{ color: (pick.unrealizedPnlPercent ?? 0) >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)' }}

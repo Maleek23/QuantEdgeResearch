@@ -41,10 +41,19 @@ interface FlowPayload { trades?: { symbol: string; detectedAt?: string }[]; stat
 interface LeapsPayload { asOf?: string; picks?: unknown[] }
 interface EconPayload { upcoming?: { name: string; date: string; time?: string; importance?: string; description?: string }[]; coverage?: { source?: string; current?: boolean } }
 interface CatalystsRecent { asOf?: string; count?: number; catalysts?: { symbol?: string; timestamp?: string; eventType?: string; impact?: string; description?: string }[] }
-interface PerfPayload {
-  overall?: { openIdeas?: number; closedIdeas?: number };
-  segmentedWinRates?: Record<string, { winRate: number | null; wins: number; losses: number; decided: number }>;
+interface OutcomePayload {
+  model?: string;
+  totalPublished?: number;
+  outcomes?: { win: number; loss: number; unresolved: number; decided: number; winRate: number | null };
+  coverage?: { measured: number; unresolved: number; pctMeasured: number };
+  expectancy?: { averageR: number | null; sampleSize: number; definition?: string };
+  dataQuality?: { excludedFromTraining?: number; measuredTimeouts?: number; unmeasuredTimeouts?: number };
+  diagnostics?: {
+    byDirection?: OutcomeSlice[]; byHorizon?: OutcomeSlice[]; bySource?: OutcomeSlice[]; warning?: string;
+  };
+  asOf?: string;
 }
+interface OutcomeSlice { name: string; decided: number; win: number; loss: number; unresolved: number; coverage: number; winRate: number | null; averageR: number | null; sampleSize: number }
 interface PaperPosition {
   id: string; symbol: string; assetType?: string; optionType?: string | null;
   strikePrice?: number | null; expiryDate?: string | null;
@@ -147,7 +156,10 @@ export function BotNexus() {
   const { data: leaps } = useQuery<LeapsPayload>({ queryKey: ['/api/leap-tracker', 'bot'], queryFn: fetchJson('/api/leap-tracker'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
   const { data: econ } = useQuery<EconPayload>({ queryKey: ['/api/economic-calendar', 'bot'], queryFn: fetchJson('/api/economic-calendar'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
   const { data: cats } = useQuery<CatalystsRecent>({ queryKey: ['/api/catalysts/recent', 'bot'], queryFn: fetchJson('/api/catalysts/recent'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
-  const { data: perf } = useQuery<PerfPayload>({ queryKey: ['/api/performance/stats', 'bot'], queryFn: fetchJson('/api/performance/stats'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
+  // Outcome model v2 is the only ledger that carries unresolved coverage next
+  // to the result. The legacy /performance/stats mixes incompatible outcome
+  // definitions and must not power a user-facing win-rate claim (SR 11-7 P0-1/2).
+  const { data: outcomes } = useQuery<OutcomePayload>({ queryKey: ['/api/performance/outcome-model', 'bot'], queryFn: fetchJson('/api/performance/outcome-model'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
   const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'bot'], queryFn: fetchJson('/api/crypto/pulse'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
   const { data: realtime } = useQuery<RealtimePayload>({ queryKey: ['/api/realtime-status', 'bot'], queryFn: fetchJson('/api/realtime-status'), refetchInterval: 30_000, staleTime: 20_000, retry: 1 });
   const { data: ledger } = useQuery<LedgerPayload>({ queryKey: ['/api/discipline/ledger', 'bot'], queryFn: fetchJson('/api/discipline/ledger'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
@@ -213,8 +225,20 @@ export function BotNexus() {
   }, [conv, cats]);
 
   /* ── perf: DECIDED outcomes only, sample disclosed ── */
-  const opt = perf?.segmentedWinRates?.options;
-  const reportable = (opt?.decided ?? 0) >= MIN_N;
+  const observed = outcomes?.outcomes;
+  const coverage = outcomes?.coverage?.pctMeasured ?? 0;
+  // Sample size alone is not enough. Until outcome coverage is substantially
+  // complete and point-in-time replay is rebuilt, the percentage is diagnostic,
+  // not a validated performance claim.
+  const reportable = (observed?.decided ?? 0) >= MIN_N && coverage >= 80;
+  const diagnosticSlices = [
+    ...(outcomes?.diagnostics?.byDirection ?? []).map((row) => ({ ...row, dimension: 'side' })),
+    ...(outcomes?.diagnostics?.byHorizon ?? []).map((row) => ({ ...row, dimension: 'horizon' })),
+    ...(outcomes?.diagnostics?.bySource ?? []).map((row) => ({ ...row, dimension: 'source' })),
+  ].filter((row) => row.decided >= 20 && row.averageR != null)
+    .sort((a, b) => (b.averageR ?? -99) - (a.averageR ?? -99));
+  const strongestSlice = diagnosticSlices[0];
+  const weakestSlice = diagnosticSlices[diagnosticSlices.length - 1];
 
   /* ── ⌘K over jobs / rules / log symbols ── */
   useEffect(() => {
@@ -293,16 +317,16 @@ export function BotNexus() {
             <div className="stat-sub">{conv?.totalCandidatesScanned ?? '—'} candidates scanned</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Win rate · options</div>
+            <div className="stat-label">Observed outcomes</div>
             {reportable ? (
               <>
-                <div className="stat-val green">{opt!.winRate?.toFixed(0)}%</div>
-                <div className="stat-sub">{opt!.wins}W–{opt!.losses}L · n={opt!.decided} decided</div>
+                <div className="stat-val green">{observed!.winRate?.toFixed(0)}%</div>
+                <div className="stat-sub">{observed!.win}W–{observed!.loss}L · {coverage.toFixed(0)}% coverage</div>
               </>
             ) : (
               <>
-                <div className="stat-val amber">n={opt?.decided ?? 0}</div>
-                <div className="stat-sub">under sample floor ({MIN_N}) — no % shown</div>
+                <div className="stat-val amber">VALIDATION HOLD</div>
+                <div className="stat-sub">{observed?.win ?? 0}W–{observed?.loss ?? 0}L observed · {coverage.toFixed(0)}% coverage</div>
               </>
             )}
           </div>
@@ -571,31 +595,39 @@ export function BotNexus() {
           </div>
         </div>
 
-        {/* PERF — decided outcomes only */}
+        {/* PERFORMANCE — observed outcomes with the unresolved population visible */}
         <div className="perf">
           <div className="perf-head">
-            <div className="perf-label">Outcomes · decided only</div>
+            <div className="perf-label">Outcome integrity · SR 11-7 control</div>
           </div>
           <div className="perf-chart" style={{ display: 'grid', placeItems: 'center' }}>
             {/* No daily P&L series is tracked — a curve here would be a random walk. */}
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
-              NOT MEASURED — no daily P&L series;<br />outcomes are tracked per idea
+              {reportable ? 'OBSERVED LEDGER — coverage gate passed' : 'VALIDATION HOLD — not a performance claim'}<br />
+              {coverage.toFixed(0)}% measured · {outcomes?.coverage?.unresolved ?? '—'} unresolved
             </div>
           </div>
           <div className="perf-stats">
             <div className="perf-stat">
               <div className="perf-stat-k">Win rate</div>
-              <div className={`perf-stat-v ${reportable ? 'green' : ''}`} style={reportable ? undefined : { color: 'var(--amber)' }}>{reportable ? `${opt!.winRate?.toFixed(0)}%` : `n<${MIN_N}`}</div>
+              <div className={`perf-stat-v ${reportable ? 'green' : ''}`} style={reportable ? undefined : { color: 'var(--amber)' }}>{reportable ? `${observed!.winRate?.toFixed(0)}%` : 'withheld'}</div>
             </div>
             <div className="perf-stat">
-              <div className="perf-stat-k">W – L</div>
-              <div className="perf-stat-v bot">{opt ? `${opt.wins}–${opt.losses}` : '—'}</div>
+              <div className="perf-stat-k">Observed W – L</div>
+              <div className="perf-stat-v bot">{observed ? `${observed.win}–${observed.loss}` : '—'}</div>
             </div>
             <div className="perf-stat">
-              <div className="perf-stat-k">Open</div>
-              <div className="perf-stat-v">{perf?.overall?.openIdeas ?? '—'}</div>
+              <div className="perf-stat-k">Coverage</div>
+              <div className="perf-stat-v">{coverage.toFixed(0)}%</div>
             </div>
           </div>
+          {(strongestSlice || weakestSlice) && (
+            <div style={{ borderTop: '1px solid var(--nx-border)', padding: '9px 12px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }}>
+              {strongestSlice && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: 'var(--text-mute)' }}><span>best observed · {strongestSlice.dimension}/{strongestSlice.name}</span><b style={{ color: (strongestSlice.averageR ?? 0) >= 0 ? 'var(--green)' : 'var(--amber)' }}>{strongestSlice.averageR! >= 0 ? '+' : ''}{strongestSlice.averageR!.toFixed(3)}R · n={strongestSlice.decided}</b></div>}
+              {weakestSlice && weakestSlice !== strongestSlice && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 5, color: 'var(--text-mute)' }}><span>largest drag · {weakestSlice.dimension}/{weakestSlice.name}</span><b style={{ color: 'var(--red)' }}>{weakestSlice.averageR!.toFixed(3)}R · n={weakestSlice.decided}</b></div>}
+              <div style={{ marginTop: 6, lineHeight: 1.45, color: 'var(--text-dim)' }}>Descriptive only · use a later out-of-sample window before changing gates.</div>
+            </div>
+          )}
         </div>
 
         {/* SAFEGUARDS — the honest list */}
@@ -607,7 +639,8 @@ export function BotNexus() {
             <div className="safeguard-item"><span className="safeguard-name">Short gate · event required</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>enforced <span className="check">✓</span></span></div>
             <div className="safeguard-item"><span className="safeguard-name">Catalyst bar · impact high</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>enforced <span className="check">✓</span></span></div>
             <div className="safeguard-item"><span className="safeguard-name">Sample floor · n ≥ {MIN_N}</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>enforced <span className="check">✓</span></span></div>
-            <div className="safeguard-item"><span className="safeguard-name">Fabricated data</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>banned <span className="check">✓</span></span></div>
+            <div className="safeguard-item"><span className="safeguard-name">Outcome coverage · ≥ 80%</span><span className="safeguard-val" style={{ color: reportable ? 'var(--green)' : 'var(--amber)' }}>{reportable ? 'passed' : `${coverage.toFixed(0)}% · hold`}</span></div>
+            <div className="safeguard-item"><span className="safeguard-name">Legacy win-rate claims</span><span className="safeguard-val" style={{ color: 'var(--amber)' }}>withheld pending validation</span></div>
             <div className="safeguard-item"><span className="safeguard-name">Broker</span><span className="safeguard-val" style={{ color: 'var(--amber)' }}>none · signals only</span></div>
           </div>
         </div>

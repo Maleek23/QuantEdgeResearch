@@ -14,6 +14,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import {
   CommandDialog,
   CommandEmpty,
@@ -83,6 +84,19 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [, setLocation] = useLocation();
+  const tickerQuery = search.trim().toUpperCase();
+  const { data: tickerResults = [] } = useQuery<Array<{ symbol: string; name?: string; type?: string; changePct?: number | null }>>({
+    queryKey: ['/api/search/symbols', tickerQuery, 'global-palette'],
+    queryFn: async () => {
+      const response = await fetch(`/api/search/symbols?q=${encodeURIComponent(tickerQuery)}`, { credentials: 'include' });
+      if (!response.ok) return [];
+      const body = await response.json();
+      return (Array.isArray(body) ? body : body.results ?? []).slice(0, 10);
+    },
+    enabled: open && tickerQuery.length > 0,
+    staleTime: 60_000,
+    retry: 0,
+  });
 
   // Global ⌘K listener — only ⌘K toggles. Digit shortcuts must NOT hijack
   // typing into the search input (a real ticker like "1080P" or just "1" matters).
@@ -210,19 +224,29 @@ export function CommandPalette() {
 
         <CommandSeparator />
 
-        <CommandGroup heading="Tickers (jump to Research)">
-          {POPULAR_TICKERS.map(sym => (
+        <CommandGroup heading={tickerQuery ? "Universal tickers" : "Popular tickers (jump to Research)"}>
+          {(tickerQuery
+            ? tickerResults.map((result) => result.symbol)
+            : POPULAR_TICKERS
+          ).map(sym => {
+            const result = tickerResults.find((item) => item.symbol === sym);
+            return (
             <CommandItem
               key={sym}
-              value={`${sym} ticker`}
+              value={`${sym} ${result?.name ?? ''} ticker`}
               onSelect={() => go(`/r/${sym}`)}
             >
               <TrendingUp className="w-3.5 h-3.5 mr-2 text-[var(--brand-gold)]" />
               <span className="font-mono text-sm font-bold">{sym}</span>
-              <span className="ml-2 text-[10px] text-muted-foreground">Research</span>
+              <span className="ml-2 min-w-0 truncate text-[10px] text-muted-foreground">{result?.name ?? 'Research'}</span>
+              {result?.changePct != null && (
+                <span className={result.changePct >= 0 ? 'ml-auto text-[10px] text-[var(--trade-bullish)]' : 'ml-auto text-[10px] text-[var(--trade-bearish)]'}>
+                  {result.changePct >= 0 ? '+' : ''}{result.changePct.toFixed(2)}%
+                </span>
+              )}
               <span className="ml-auto text-[9px] font-mono text-muted-foreground">/r/{sym}</span>
             </CommandItem>
-          ))}
+          )})}
         </CommandGroup>
 
         <CommandSeparator />

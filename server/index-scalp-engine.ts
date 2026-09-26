@@ -2,8 +2,9 @@
  * INDEX SCALP ENGINE
  * ==================
  * Generates intraday SPX/SPY/QQQ scalp ideas using GEX structural levels.
- * Targets 0DTE and same-week options in the $1.50–$10.00 premium sweet spot
- * for potential 100–1000%+ runners.
+ * Targets liquid 0DTE contracts only when the structural thesis, executable
+ * chain, and account-risk limits agree. Large returns are measured outcomes,
+ * never an engine promise.
  *
  * Uses SPY/QQQ GEX data — translates SPY levels to SPX strikes (SPX ≈ SPY × 10).
  *
@@ -20,6 +21,7 @@
 import { logger } from './logger';
 import { storage } from './storage';
 import { getGexSnapshotBatch, type GexSnapshot } from './gex-snapshot-service';
+import { fetchYahooFinancePrice } from './market-api';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -72,11 +74,12 @@ interface SessionInfo {
 
 export function getScalpSession(): SessionInfo {
   const now = new Date();
-  const utcH = now.getUTCHours();
-  const utcM = now.getUTCMinutes();
-  // EDT (UTC-4)
-  const etH = (utcH - 4 + 24) % 24;
-  const etMin = etH * 60 + utcM;
+  const etParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(now);
+  const etH = Number(etParts.find((part) => part.type === 'hour')?.value ?? 0) % 24;
+  const etM = Number(etParts.find((part) => part.type === 'minute')?.value ?? 0);
+  const etMin = etH * 60 + etM;
 
   const marketOpen = 9 * 60 + 30;   // 9:30 AM ET
   const powerHour = 15 * 60;         // 3:00 PM ET
@@ -84,8 +87,8 @@ export function getScalpSession(): SessionInfo {
 
   // Weekend guard — getUTCDay 0=Sun, 6=Sat. Without this, any Sat/Sun between
   // 9:30–4pm ET would falsely report open and run the scanner on dead data.
-  const etDay = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay();
-  const isWeekday = etDay >= 1 && etDay <= 5;
+  const weekday = etParts.find((part) => part.type === 'weekday')?.value;
+  const isWeekday = weekday !== 'Sat' && weekday !== 'Sun';
 
   const isMarketOpen = isWeekday && etMin >= marketOpen && etMin < marketClose;
   const isPowerHour = etMin >= powerHour && etMin < marketClose;
@@ -521,20 +524,87 @@ async function isDuplicate(symbol: string, setup: ScalpSetup, bias: string): Pro
 async function persistScalp(idea: IndexScalpIdea): Promise<boolean> {
   if (await isDuplicate(idea.symbol, idea.setup, idea.bias)) return false;
 
+  // A price-level signal is not an option contract. Resolve the actual vehicle
+  // against the live chain and the user's stated small-account guardrails. The
+  // old code attached a heuristic strike and an estimated premium range; that
+  // is how an attractive SPX thesis could become an unbuyable or unreachable
+  // contract. No eligible contract means no published 0DTE callout.
+  const { selectContracts } = await import('./option-selection-engine');
+  const accountSize = Math.max(1_000, Number(process.env.INDEX_0DTE_ACCOUNT_SIZE ?? 10_000));
+  const riskBudgetDollars = Math.max(25, Number(process.env.INDEX_0DTE_RISK_BUDGET ?? 200));
+  const maxDebitDollars = Math.max(25, Number(process.env.INDEX_0DTE_MAX_DEBIT ?? 200));
+  // Preserve an SPX-level thesis, but do not force a $100-multiplier SPXW
+  // contract into a small account. SPY is the liquid, account-sized fallback.
+  const vehicles = idea.symbol === 'SPX'
+    ? [{ symbol: 'SPX', scale: 1 }, { symbol: 'SPY', scale: 1 / INDEX_MAP.SPY.multiplier }]
+    : [{ symbol: idea.symbol, scale: 1 }];
+  let selection: Awaited<ReturnType<typeof selectContracts>> | null = null;
+  let contract: Awaited<ReturnType<typeof selectContracts>>['picks'][number] | null = null;
+  let vehicle = vehicles[0];
+  for (const candidate of vehicles) {
+    const result = await selectContracts({
+      symbol: candidate.symbol,
+      direction: idea.direction === 'long' ? 'bullish' : 'bearish',
+      setup: 'scalp',
+      expiryTier: '0DTE',
+      allowZeroDte: true,
+      entry: idea.spotPrice * candidate.scale,
+      stop: idea.stop * candidate.scale,
+      t1: idea.target * candidate.scale,
+      holdingDays: 0,
+      conviction: idea.confidence,
+      asOfSpot: idea.spotPrice * candidate.scale,
+      accountSize,
+      riskBudgetDollars,
+      maxDebitDollars,
+      minRoiAtT1Pct: 50,
+    });
+    // For the index desk, return the best ACCOUNT-FIT expression, not merely
+    // the generic tier recommendation. This deliberately prefers a liquid
+    // $0.20–$2.00 contract that can be sized inside the debit cap while still
+    // clearing reachability, return and R:R gates. It avoids both $2k SPXW
+    // contracts and five-cent lottery tickets whose spread is the whole trade.
+    const eligible = result.picks.filter((p) =>
+      p.fitsAccount &&
+      p.targetCrossesStrike &&
+      p.entryPremium >= 0.20 &&
+      p.entryPremium * 100 <= maxDebitDollars &&
+      p.roiAtT1Pct >= 50 &&
+      p.riskRewardRatio >= 1
+    );
+    const pick = [...eligible].sort((a, b) => {
+      const accountFitA = a.entryPremium <= 2 ? 12 : 0;
+      const accountFitB = b.entryPremium <= 2 ? 12 : 0;
+      const returnA = Math.min(18, a.roiAtT1Pct / 20);
+      const returnB = Math.min(18, b.roiAtT1Pct / 20);
+      return (b.score + accountFitB + returnB) - (a.score + accountFitA + returnA);
+    })[0] ?? null;
+    selection = result;
+    if (pick) { contract = pick; vehicle = candidate; break; }
+  }
+  if (!contract) {
+    logger.info(`[INDEX-SCALP] ${idea.symbol} ${idea.setup} withheld: ${selection?.note ?? 'no account-fit 0DTE contract'}`);
+    return false;
+  }
+
+  const packageQuantity = Math.max(1, Math.min(5, Math.floor(maxDebitDollars / (contract.entryPremium * 100))));
+  const packageDebit = contract.entryPremium * 100 * packageQuantity;
+
   const tradeIdea = {
-    symbol: idea.symbol,
+    symbol: vehicle.symbol,
     sector: 'index' as const,
     assetType: 'option' as const,
     direction: idea.direction,
-    entryPrice: idea.spotPrice,
-    targetPrice: idea.target,
-    stopLoss: idea.stop,
+    entryPrice: idea.spotPrice * vehicle.scale,
+    targetPrice: idea.target * vehicle.scale,
+    stopLoss: idea.stop * vehicle.scale,
     riskRewardRatio: idea.riskRewardRatio,
-    optionType: idea.bias === 'calls' ? ('call' as const) : ('put' as const),
-    strikePrice: idea.suggestedStrike,
-    expiryDate: idea.expiryDate,
-    catalyst: `${idea.isPowerHour ? '⚡ POWER HOUR ' : ''}${idea.symbol} 0DTE ${idea.bias.toUpperCase()} — ${idea.setup.replace('_', ' ')} | Est. premium ${idea.premiumRange}`,
-    analysis: idea.thesis,
+    optionType: contract.optionType,
+    strikePrice: contract.strike,
+    expiryDate: contract.expiry,
+    entryPremium: Number(contract.entryPremium.toFixed(2)),
+    catalyst: `${idea.isPowerHour ? '⚡ POWER HOUR ' : ''}${vehicle.symbol} 0DTE ${idea.bias.toUpperCase()} — ${idea.setup.replace('_', ' ')} | ${contract.tier} ${contract.grade} · ${packageQuantity}x @ $${contract.entryPremium.toFixed(2)} (≤$${packageDebit.toFixed(0)} debit) · modeled +${contract.roiAtT1Pct.toFixed(0)}% at T1`,
+    analysis: `${idea.thesis}${vehicle.symbol !== idea.symbol ? ` Account-fit execution uses ${vehicle.symbol}; the thesis was measured on ${idea.symbol}.` : ''}`,
     source: 'gex_scanner',
     dataSourceUsed: `GEX_index_scalp_${idea.setup}`,
     sessionContext: idea.isPowerHour ? 'power_hour' : 'intraday',
@@ -546,11 +616,16 @@ async function persistScalp(idea: IndexScalpIdea): Promise<boolean> {
       `index_scalp:${idea.setup}`,
       `regime:${idea.regime}`,
       `underlying:${idea.underlying}`,
+      `vehicle:${vehicle.symbol}`,
       idea.gammaFlip ? `flip:${idea.gammaFlip.toFixed(2)}` : '',
       idea.callWall ? `call_wall:${idea.callWall.toFixed(2)}` : '',
       idea.putWall ? `put_wall:${idea.putWall.toFixed(2)}` : '',
-      `strike:${idea.suggestedStrike}`,
-      `0DTE:${idea.expiryDate}`,
+      `strike:${contract.strike}`,
+      `0DTE:${contract.expiry}`,
+      `contract_rr:${contract.riskRewardRatio.toFixed(2)}`,
+      `contract_debit:${(contract.entryPremium * 100).toFixed(0)}`,
+      `package_qty:${packageQuantity}`,
+      `package_debit:${packageDebit.toFixed(0)}`,
       idea.isPowerHour ? 'power_hour' : '',
     ].filter(Boolean),
   };
@@ -558,26 +633,45 @@ async function persistScalp(idea: IndexScalpIdea): Promise<boolean> {
   try {
     await storage.createTradeIdea(tradeIdea as any);
     logger.info(
-      `[INDEX-SCALP] ✅ ${idea.symbol} ${idea.bias.toUpperCase()} $${idea.suggestedStrike} 0DTE | ${idea.setup} | ${idea.premiumRange} | ${idea.isPowerHour ? '⚡ POWER HOUR' : 'intraday'}`,
+      `[INDEX-SCALP] ✅ ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} @ $${contract.entryPremium.toFixed(2)} | ${idea.setup} | ${idea.isPowerHour ? '⚡ POWER HOUR' : 'intraday'}`,
     );
+
+    // Cockpit is an operational surface, not a page the user should have to
+    // refresh. Reuse the existing websocket channel so a newly published
+    // SPX/SPY/QQQ/IWM call becomes an in-app alert immediately.
+    import('./bot-notification-service')
+      .then(({ broadcastBotEvent }) => broadcastBotEvent({
+        eventType: 'signal',
+        source: 'index_scalp',
+        symbol: vehicle.symbol,
+        optionType: contract!.optionType,
+        strike: contract!.strike,
+        expiry: contract!.expiry,
+        price: contract!.entryPremium,
+        quantity: packageQuantity,
+        confidence: idea.confidence,
+        portfolio: 'small_account',
+        reason: `${idea.setup}|${idea.thesis}`,
+      }))
+      .catch((e) => logger.warn(`[INDEX-SCALP] cockpit alert failed: ${e?.message}`));
 
     // Fire a Discord callout for the fresh scalp (gated on DISCORD_WEBHOOK_SPX;
     // no-ops cleanly if unconfigured). Fire-and-forget — never block persist.
     import('./discord-service')
       .then(({ sendIndexScalpToDiscord }) =>
         sendIndexScalpToDiscord({
-          symbol: idea.symbol,
+          symbol: vehicle.symbol,
           bias: idea.bias,
           setup: idea.setup,
-          suggestedStrike: idea.suggestedStrike,
-          expiryDate: idea.expiryDate,
-          spotPrice: idea.spotPrice,
-          target: idea.target,
-          stop: idea.stop,
+          suggestedStrike: contract.strike,
+          expiryDate: contract.expiry,
+          spotPrice: idea.spotPrice * vehicle.scale,
+          target: idea.target * vehicle.scale,
+          stop: idea.stop * vehicle.scale,
           riskRewardRatio: idea.riskRewardRatio,
           confidence: idea.confidence,
-          thesis: idea.thesis,
-          premiumRange: idea.premiumRange,
+          thesis: `${idea.thesis}${vehicle.symbol !== idea.symbol ? ` Executed through account-fit ${vehicle.symbol}.` : ''}`,
+          premiumRange: `$${contract.bid.toFixed(2)}–$${contract.ask.toFixed(2)}`,
           regime: idea.regime,
           isPowerHour: idea.isPowerHour,
         }),
@@ -617,6 +711,25 @@ export async function runIndexScalpScanner(): Promise<IndexScalpResult> {
   logger.info(`[INDEX-SCALP] Scanning ${symbols.join(', ')} | session=${session.sessionLabel} | powerHour=${session.isPowerHour} | ${session.minutesToClose}min to close`);
 
   const snaps = await getGexSnapshotBatch(symbols);
+
+  // SPX is not SPY × 10. The ratio drifts enough to move a 0DTE suggestion by
+  // several strikes (today it was roughly 10.056). Resolve the live cash-index
+  // ratio once per scan before translating SPY GEX levels into SPX levels.
+  // Keep 10 only as a clearly logged fallback when the cash quote is absent.
+  const spySnap = snaps.get('SPY');
+  if (spySnap?.spot > 0) {
+    const spySpot = spySnap.spot;
+    try {
+      const spxCash = await fetchYahooFinancePrice('%5EGSPC');
+      if (spxCash?.currentPrice && spxCash.currentPrice > 1_000) {
+        INDEX_MAP.SPY.multiplier = spxCash.currentPrice / spySpot;
+      } else {
+        logger.warn('[INDEX-SCALP] SPX cash quote unavailable — using fallback SPY×10 translation');
+      }
+    } catch {
+      logger.warn('[INDEX-SCALP] SPX cash quote failed — using fallback SPY×10 translation');
+    }
+  }
   const ideas: IndexScalpIdea[] = [];
 
   for (const snap of snaps.values()) {
@@ -653,13 +766,13 @@ export async function runIndexScalpScanner(): Promise<IndexScalpResult> {
 
 let scalpInterval: ReturnType<typeof setInterval> | null = null;
 
-const REGULAR_CADENCE_MS = 3 * 60 * 1000;  // every 3 min in regular hours
-const POWER_HOUR_CADENCE_MS = 90 * 1000;   // every 90s during power hour
+const REGULAR_CADENCE_MS = 60 * 1000;      // every minute in regular hours
+const POWER_HOUR_CADENCE_MS = 30 * 1000;   // every 30s during power hour
 let lastScalpRunMs = 0;
 
 export function startIndexScalpScheduler(): void {
   if (scalpInterval) return;
-  logger.info('[INDEX-SCALP] Starting intraday scheduler (3min regular / 90s power hour)...');
+  logger.info('[INDEX-SCALP] Starting intraday scheduler (60s regular / 30s power hour)...');
 
   // Tick every 30s; decide whether enough time has elapsed for this session
   // phase. Cheap when the market is closed (early return inside the scanner).

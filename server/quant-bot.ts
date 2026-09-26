@@ -37,6 +37,20 @@ export interface BotConfig {
   riskPerTradePct: number;
   /** refuse a signal that has already travelled this far entry -> T1 (chase guard) */
   maxProgressPct: number;
+  /** Minimum reward/risk on the underlying thesis before choosing an option. */
+  minUnderlyingRR: number;
+  /** Maximum live bid/ask spread accepted for a paper fill. */
+  maxOptionSpreadPct: number;
+  /** Maximum debit committed to one trade as a fraction of current cash. */
+  maxDebitPct: number;
+  /** Absolute managed-loss ceiling for one trade, independent of paper equity. */
+  maxRiskDollars: number;
+  /** Absolute debit ceiling for one trade, independent of paper equity. */
+  maxDebitDollars: number;
+  /** Minimum modeled contract return when the underlying reaches T1. */
+  minContractRoiAtT1Pct: number;
+  /** Do not simulate delayed-quote fills before this New York minute. */
+  delayedFillNotBeforeEtMinutes: number;
 }
 
 export const DEFAULT_BOT_CONFIG: BotConfig = {
@@ -50,7 +64,33 @@ export const DEFAULT_BOT_CONFIG: BotConfig = {
   riskPerTradePct: 2,
   // Past ~35% of the way to T1 the remaining reward no longer justifies the same risk.
   maxProgressPct: 35,
+  minUnderlyingRR: 1,
+  maxOptionSpreadPct: 0.15,
+  maxDebitPct: 0.03,
+  maxRiskDollars: 250,
+  maxDebitDollars: 300,
+  minContractRoiAtT1Pct: 30,
+  // Opening prints and delayed option chains are especially stale/wide. SNOW's
+  // $420C was booked at 09:38 ET for $25.18 after being published near $15.78.
+  delayedFillNotBeforeEtMinutes: 10 * 60,
 };
+
+function easternMinutes(date = new Date()): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0) % 24;
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+  return hour * 60 + minute;
+}
+
+function easternDateKey(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
 
 /** Read the dedicated portfolio without changing account state. */
 async function findBotPortfolio() {
@@ -159,10 +199,26 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
   //     value or it is worth nothing, and either way it leaves the book.
   try {
     const open = await getOpenPositions(portfolio.id);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = easternDateKey();
+    const etMinute = easternMinutes();
     for (const pos of open as any[]) {
       if (!pos.expiryDate || !pos.optionType) continue;
       if (String(pos.expiryDate).slice(0, 10) > today) continue;
+
+      // Same-day contracts are still alive during the cash session. The old
+      // `expiry <= today` check liquidated every 0DTE position on the very next
+      // bot cycle, which made an intraday strategy impossible. Flatten the
+      // marked option shortly before the close; use intrinsic settlement only
+      // after 16:00 ET (or on a later date).
+      const expiryDay = String(pos.expiryDate).slice(0, 10);
+      if (expiryDay === today && etMinute < 15 * 60 + 55) continue;
+      if (expiryDay === today && etMinute < 16 * 60) {
+        const markedExit = Number(pos.currentPrice ?? 0);
+        await closePosition(pos.id, markedExit, '0dte_eod_exit');
+        await announceExit(pos, markedExit, '0DTE time exit before close');
+        closed.push({ symbol: pos.symbol, reason: '0DTE time exit before close' });
+        continue;
+      }
 
       // Intrinsic value at expiry — everything else (time value) is gone.
       const spot = Number(pos.underlyingPrice ?? pos.currentUnderlyingPrice ?? 0);
@@ -493,13 +549,110 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         // more false-precision entries while the realtime provider is unavailable.
         let tradeable: any;
 
-        if (idea.assetType === 'option' && idea.strikePrice && idea.expiryDate && idea.optionType) {
+        if (idea.assetType === 'option') {
+          const underlyingEntry = Number(idea.entryPrice ?? pick.entryPrice);
+          const underlyingStop = Number(idea.stopLoss ?? pick.stopLoss);
+          const underlyingT1 = Number(idea.targetPrice ?? pick.targetPrice);
+          const direction = idea.direction === 'short' || pick.direction === 'short' ? 'bearish' : 'bullish';
+          const directionValid = direction === 'bullish'
+            ? underlyingStop < underlyingEntry && underlyingT1 > underlyingEntry
+            : underlyingStop > underlyingEntry && underlyingT1 < underlyingEntry;
+          const underlyingRisk = Math.abs(underlyingEntry - underlyingStop);
+          const underlyingReward = Math.abs(underlyingT1 - underlyingEntry);
+          const underlyingRR = underlyingRisk > 0 ? underlyingReward / underlyingRisk : 0;
+
+          if (!directionValid || underlyingRR < cfg.minUnderlyingRR) {
+            skipped++;
+            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: invalid/weak underlying plan (R:R ${underlyingRR.toFixed(2)}, minimum ${cfg.minUnderlyingRR.toFixed(2)})`);
+            continue;
+          }
+
+          const cash = Number(portfolio.cashBalance ?? 0);
+          const riskBudget = Math.min(cash * riskFraction, cfg.maxRiskDollars);
+          const maxDebit = Math.min(cash * cfg.maxDebitPct, cfg.maxDebitDollars, riskBudget / 0.5);
+          const isIndexScalp = idea.source === 'gex_scanner' &&
+            String(idea.dataSourceUsed ?? '').startsWith('GEX_index_scalp_');
+
+          // Index 0DTE is already contract-selected by the scalp engine. Keep
+          // that exact account-fit vehicle so Cockpit and the paper bot execute
+          // the same idea. Sending it through the swing selector again could
+          // silently replace a $0.75 call with a different strike/expiry.
+          if (isIndexScalp) {
+            const expiry = String(idea.expiryDate ?? '').slice(0, 10);
+            const today = easternDateKey();
+            const selectedPremium = Number(idea.entryPremium ?? 0);
+            const packageSignal = (Array.isArray(idea.qualitySignals) ? idea.qualitySignals : [])
+              .find((signal: string) => signal.startsWith('package_qty:'));
+            const packageQuantity = Math.max(1, Math.min(5, Number(String(packageSignal ?? '').split(':')[1]) || 1));
+            if (!idea.optionType || !idea.strikePrice || expiry !== today || !(selectedPremium >= 0.20)) {
+              skipped++;
+              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: invalid or stale index-0DTE contract`);
+              continue;
+            }
+
+            const { getOptionMark } = await import('./tradier-api');
+            const q = await getOptionMark({
+              underlying: idea.symbol,
+              optionType: idea.optionType,
+              strike: Number(idea.strikePrice),
+              expiryDate: expiry,
+            }).catch(() => null);
+            if (!q || !(q.bid > 0 && q.ask > 0)) {
+              skipped++;
+              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no executable quote for published 0DTE contract`);
+              continue;
+            }
+            const spreadPct = q.mid > 0 ? (q.ask - q.bid) / q.mid : Number.POSITIVE_INFINITY;
+            const totalDebit = q.ask * 100 * packageQuantity;
+            if (spreadPct > cfg.maxOptionSpreadPct || totalDebit > 200) {
+              skipped++;
+              logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: 0DTE spread/debit gate failed (${(spreadPct * 100).toFixed(1)}%, $${totalDebit.toFixed(0)})`);
+              continue;
+            }
+            tradeable = {
+              ...idea,
+              catalyst: `[INDEX 0DTE · ${q.source}${q.delayed ? ' · delayed' : ''}] ${idea.catalyst ?? idea.analysis ?? ''}`,
+              assetType: 'option',
+              __maxContracts: packageQuantity,
+              currentPrice: q.ask,
+              entryPrice: q.ask,
+              targetPrice: Number((q.ask * 2).toFixed(2)),
+              stopLoss: Number((q.ask * 0.5).toFixed(2)),
+            };
+          } else {
+          const holding = String(idea.holdingPeriod ?? pick.holdingPeriod ?? '').toLowerCase();
+          const setup = holding.includes('day') ? 'scalp' : holding.includes('position') ? 'position' : 'swing';
+          const { selectContracts } = await import('./option-selection-engine');
+          const selection = await selectContracts({
+            symbol: idea.symbol,
+            direction,
+            setup,
+            entry: underlyingEntry,
+            stop: underlyingStop,
+            t1: underlyingT1,
+            holdingDays: Number(pick.horizonDays ?? idea.horizonDays ?? 0) || undefined,
+            conviction: convictionDisplayPercent(pick.convictionScore ?? 0),
+            asOfSpot: Number(pick.currentPrice ?? 0) || undefined,
+            accountSize: cash,
+            riskBudgetDollars: riskBudget,
+            maxDebitDollars: maxDebit,
+            minRoiAtT1Pct: cfg.minContractRoiAtT1Pct,
+          });
+          const selected = selection.recommendedTier
+            ? selection.picks.find((p) => p.tier === selection.recommendedTier)
+            : null;
+          if (!selected) {
+            skipped++;
+            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: ${selection.note ?? 'no contract clears reachability/account gates'}`);
+            continue;
+          }
+
           const { getOptionMark } = await import('./tradier-api');
           const q = await getOptionMark({
             underlying: idea.symbol,
-            optionType: idea.optionType as 'call' | 'put',
-            strike: Number(idea.strikePrice),
-            expiryDate: String(idea.expiryDate),
+            optionType: selected.optionType,
+            strike: selected.strike,
+            expiryDate: selected.expiry,
           }).catch(() => null);
 
           if (!q) {
@@ -507,33 +660,42 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
             logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no contract mark from any source`);
             continue;
           }
-          // A delayed mark fills — DISCLOSED, not refused. This is a paper
-          // measurement ledger: with the realtime provider dead, refusing
-          // 15-minute-delayed CBOE mids meant zero fills and zero learning
-          // (the operator watched a full board go untraded). The fill is
-          // stamped with its mark source so delayed-mark cohorts can be
-          // separated in any later analysis; false precision is prevented by
-          // labeling, not by an empty ledger.
-          if (q.delayed) {
-            logger.info(`[QUANT-BOT] ${idea.symbol}: filling on ${q.source} delayed mark (disclosed)`);
+          const quoteMid = Number(q.mid ?? 0);
+          const quoteBid = Number(q.bid ?? 0);
+          const quoteAsk = Number(q.ask ?? 0);
+          const spreadPct = quoteMid > 0 ? (quoteAsk - quoteBid) / quoteMid : Number.POSITIVE_INFINITY;
+          if (!(quoteBid > 0 && quoteAsk > 0) || spreadPct > cfg.maxOptionSpreadPct) {
+            skipped++;
+            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: non-executable option market (spread ${(spreadPct * 100).toFixed(1)}%)`);
+            continue;
+          }
+          if (q.delayed && easternMinutes() < cfg.delayedFillNotBeforeEtMinutes) {
+            skipped++;
+            logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: delayed option quote during opening-price discovery`);
+            continue;
           }
 
-          const premium = q.mid;
+          // A long option crosses the spread. Filling at midpoint systematically
+          // overstates performance, especially in thin contracts; paper execution
+          // therefore pays the ask and records the delayed source explicitly.
+          const premium = quoteAsk;
           // Premium-based management: a -50% premium stop and a +100% target are the
           // desk-standard bracket for a directional long option, and they're expressed in
           // the same units as the fill so P&L is coherent.
           tradeable = {
             ...idea,
-            catalyst: `[mark: ${q.source}${q.delayed ? ' · 15m delayed' : ''}] ${idea.catalyst ?? ''}`.trim(),
+            catalyst: `[${selection.recommendedTier} · ${selected.grade} · mark: ${q.source}${q.delayed ? ' · delayed' : ''}] ${selected.rationale}`,
             assetType: 'option',
-            optionType: idea.optionType,
-            strikePrice: Number(idea.strikePrice),
-            expiryDate: String(idea.expiryDate),
+            optionType: selected.optionType,
+            strikePrice: selected.strike,
+            expiryDate: selected.expiry,
+            __maxContracts: selected.maxContracts ?? 1,
             currentPrice: premium,
             entryPrice: premium,
             targetPrice: Number((premium * 2).toFixed(2)),
             stopLoss: Number((premium * 0.5).toFixed(2)),
           };
+          }
         } else {
           // OPTIONS ONLY. This used to fall back to buying the underlying as shares
           // whenever an idea lacked a concrete contract, which is how UEC (134 shares,
@@ -547,7 +709,14 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
           continue;
         }
 
-        const res = await executeTradeIdea(portfolio.id, tradeable as any, { riskFraction });
+        const selectedMaxContracts = tradeable.assetType === 'option'
+          ? Math.max(1, Number((tradeable as any).__maxContracts ?? 1))
+          : undefined;
+        const effectiveRiskFraction = Math.min(riskFraction, cfg.maxRiskDollars / Math.max(1, Number(portfolio.cashBalance ?? 0)));
+        const res = await executeTradeIdea(portfolio.id, tradeable as any, {
+          riskFraction: effectiveRiskFraction,
+          maxQuantity: selectedMaxContracts,
+        });
         if (res.success) {
           opened.push({
             symbol: pick.symbol,

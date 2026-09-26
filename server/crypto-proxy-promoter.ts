@@ -34,6 +34,7 @@ const ROUTES: Record<string, { proxies: Array<{ symbol: string; route: string }>
       { symbol: 'IBIT', route: 'spot ETF — direct wrapper' },
       { symbol: 'MSTR', route: 'treasury — BTC balance-sheet leverage' },
       { symbol: 'COIN', route: 'exchange — volume-driven' },
+      { symbol: 'CRCL', route: 'stablecoin rails — crypto activity, not direct BTC beta' },
       { symbol: 'MARA', route: 'miner — operating leverage' },
       { symbol: 'RIOT', route: 'miner — operating leverage' },
     ],
@@ -51,6 +52,32 @@ const fmtM = (n: number) => `${n < 0 ? '-' : '+'}$${(Math.abs(n) / 1e6).toFixed(
 
 const dayDone = new Map<string, string>(); // symbol -> market date
 const marketDateET = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+const isCashSessionOpen = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const read = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+  const weekday = read('weekday');
+  const minute = Number(read('hour')) * 60 + Number(read('minute'));
+  return !['Sat', 'Sun'].includes(weekday) && minute >= 570 && minute < 960;
+};
+
+export interface CryptoProxyCandidate {
+  underlying: string;
+  underlying7d: number | null;
+  underlyingGatePassed: boolean;
+  symbol: string;
+  route: string;
+  proxyNet: number | null;
+  tapeGatePassed: boolean;
+  entry: number | null;
+  invalidation: number | null;
+  invalidationBasis: string | null;
+  eligible: boolean;
+  reason: string;
+}
+
+let readinessCache: { at: number; rows: CryptoProxyCandidate[] } | null = null;
 
 async function weeklyMove(pair: string): Promise<number | null> {
   try {
@@ -65,6 +92,73 @@ async function weeklyMove(pair: string): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Read-only decision trace for the Crypto tab and Nexus. It runs the exact
+ * evidence gates used by the publisher but never writes an idea. This closes
+ * the prior audit gap where a scheduled promoter existed yet users could not
+ * see which proxies were being considered or why they failed.
+ */
+export async function getCryptoProxyCandidates(force = false): Promise<CryptoProxyCandidate[]> {
+  if (!force && readinessCache && Date.now() - readinessCache.at < 5 * 60_000) return readinessCache.rows;
+  const rows: CryptoProxyCandidate[] = [];
+
+  for (const [pair, cfg] of Object.entries(ROUTES)) {
+    const move = await weeklyMove(pair);
+    const underlying = pair.replace('-USD', '');
+    const underlyingGatePassed = move != null && move >= UNDERLYING_7D_MIN;
+
+    for (const proxy of cfg.proxies) {
+      let net: number | null = null;
+      let entry: number | null = null;
+      let invalidation: number | null = null;
+      let invalidationBasis: string | null = null;
+      let reason = move == null
+        ? `${underlying} history unavailable`
+        : !underlyingGatePassed
+          ? `${underlying} ${((move ?? 0) * 100).toFixed(1)}% over 7d is below the ${(UNDERLYING_7D_MIN * 100).toFixed(0)}% activation gate`
+          : 'awaiting proxy evidence';
+
+      if (underlyingGatePassed && bullflowEnabled() && isCashSessionOpen()) {
+        try {
+          const read: any = await getNetPremiumToday(proxy.symbol);
+          net = Number(read?.callsNetPremium ?? 0) - Number(read?.putsNetPremium ?? 0);
+          const quote = await quoteWithDayLow(proxy.symbol);
+          if (quote) {
+            entry = quote.last;
+            const riskOk = (stop: number) => Number.isFinite(stop) && stop > 0 && stop < quote.last &&
+              (quote.last - stop) / quote.last >= MIN_RISK_PCT && (quote.last - stop) / quote.last <= MAX_RISK_PCT;
+            if (riskOk(quote.low)) { invalidation = Number(quote.low.toFixed(2)); invalidationBasis = 'session low'; }
+            else if (riskOk(quote.prevClose)) { invalidation = Number(quote.prevClose.toFixed(2)); invalidationBasis = 'prior close'; }
+          }
+          reason = net < PROXY_NET_MIN
+            ? `own tape ${fmtM(net)} is below ${fmtM(PROXY_NET_MIN)}`
+            : invalidation == null
+              ? 'own tape passed; no measured invalidation in the risk band'
+              : 'underlying, own tape and measured invalidation all passed';
+        } catch (error: any) {
+          reason = `proxy evidence unavailable: ${error?.message ?? 'provider error'}`;
+        }
+      } else if (underlyingGatePassed && !isCashSessionOpen()) {
+        reason = 'cash session closed; live proxy-tape gate is deferred, not failed';
+      } else if (underlyingGatePassed) {
+        reason = 'Bullflow is unavailable; proxy cannot be promoted from the coin move alone';
+      }
+
+      const tapeGatePassed = net != null && net >= PROXY_NET_MIN;
+      rows.push({
+        underlying, underlying7d: move, underlyingGatePassed,
+        symbol: proxy.symbol, route: proxy.route, proxyNet: net, tapeGatePassed,
+        entry, invalidation, invalidationBasis,
+        eligible: underlyingGatePassed && tapeGatePassed && invalidation != null,
+        reason,
+      });
+    }
+  }
+
+  readinessCache = { at: Date.now(), rows };
+  return rows;
 }
 
 export async function runCryptoProxyPromotion(): Promise<number> {

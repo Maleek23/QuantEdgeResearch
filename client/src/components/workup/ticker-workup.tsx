@@ -211,12 +211,32 @@ function MiniChart({ bars }: { bars: Bar[] }) {
 
 type WuTab = 'overview' | 'chart' | 'options' | 'events' | 'bot';
 
-export function TickerWorkup({ symbol, onClose, onNavigate }: {
+export interface HistoricalWorkupRecord {
+  id: string;
+  publishedAt: string;
+  direction: string;
+  outcome: string;
+  score?: number | null;
+  riskRewardRatio?: number | null;
+  contract?: string | null;
+  entryPremium?: number | null;
+  exitPremium?: number | null;
+  optionPercentGain?: number | null;
+  realizedPnL?: number | null;
+  outcomeNotes?: string | null;
+  resolutionReason?: string | null;
+}
+
+export function TickerWorkup({ symbol, onClose, onNavigate, mode = 'modal', historicalRecord, initialTab = 'overview' }: {
   symbol: string;
-  onClose: () => void;
+  onClose?: () => void;
   onNavigate?: (tab: 'chart' | 'gex', symbol: string) => void;
+  mode?: 'modal' | 'embedded';
+  historicalRecord?: HistoricalWorkupRecord | null;
+  initialTab?: WuTab;
 }) {
-  const [tab, setTab] = useState<WuTab>('overview');
+  const close = onClose ?? (() => undefined);
+  const [tab, setTab] = useState<WuTab>(initialTab);
   const [watched, setWatched] = useState<'idle' | 'saving' | 'done' | 'fail'>('idle');
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertPrice, setAlertPrice] = useState('');
@@ -241,9 +261,12 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
     } catch { setEngineState('fail'); }
   };
 
-  // Quantinum runs on demand (multi-engine, multi-second) — never auto-fired.
+  // Modal workups remain user-triggered. The canonical Research dossier runs
+  // the read once per symbol so a search immediately has a current, sourced
+  // market interpretation instead of a second click and an empty shell.
   const [qtm, setQtm] = useState<QuantinumDossier | null>(null);
   const [qtmState, setQtmState] = useState<'idle' | 'running' | 'fail'>('idle');
+  const autoQuantinumSymbol = useRef('');
   const runQuantinum = async () => {
     setQtmState('running');
     try {
@@ -254,14 +277,19 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
     } catch { setQtmState('fail'); }
   };
 
-  useEffect(() => { setTab('overview'); setWatched('idle'); setQtm(null); setQtmState('idle'); setEngineState('idle'); setEngineResult(null); }, [symbol]);
+  useEffect(() => { setTab(initialTab); setWatched('idle'); setQtm(null); setQtmState('idle'); setEngineState('idle'); setEngineResult(null); }, [initialTab, symbol]);
+  useEffect(() => {
+    if (mode !== 'embedded' || historicalRecord || autoQuantinumSymbol.current === symbol) return;
+    autoQuantinumSymbol.current = symbol;
+    void runQuantinum();
+  }, [historicalRecord, mode, symbol]);
   // Keyboard: esc closes, ←/→ cycle tabs, ↑/↓ hop through the peer list —
   // the dossier browses like a dossier, not like a webpage.
   const peersRef = useRef<string[]>([]);
   useEffect(() => {
     const TABS: WuTab[] = ['overview', 'chart', 'options', 'events', 'bot'];
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if (e.key === 'Escape' && mode === 'modal') { e.stopPropagation(); close(); return; }
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         e.preventDefault();
@@ -278,7 +306,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true } as any);
-  }, [onClose, symbol]);
+  }, [close, mode, symbol]);
 
   const { data: yearly } = useDaily(symbol, '1y', 'wu');
   const { data: conv } = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'wu'], queryFn: fetchJson('/api/convictions?limit=60'), staleTime: 120_000, retry: 1 });
@@ -290,6 +318,11 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
   const { data: qqqHist } = useDaily('QQQ', '3mo', 'wu-corr');
   const { data: shortInt } = useQuery<{ shortPercentOfFloat: number | null; shortRatio: number | null; squeezeContext: string }>({ queryKey: ['/api/short-interest', symbol], queryFn: fetchJson(`/api/short-interest/${symbol}`), staleTime: 3600_000, retry: 1 });
   const { data: aggressor } = useQuery<{ enabled: boolean; read: { lean: 'long' | 'short' | 'flat'; callsNetPremium: number; putsNetPremium: number } | null }>({ queryKey: ['/api/bullflow/net-premium', symbol], queryFn: fetchJson(`/api/bullflow/net-premium/${symbol}`), staleTime: 180_000, retry: 0 });
+  const { data: bullflowContext } = useQuery<{
+    enabled: boolean;
+    darkPoolLevels?: Array<{ price: number; notional: number; pctDayVolume?: number }>;
+    disclosure?: string;
+  }>({ queryKey: ['/api/bullflow/context', symbol], queryFn: fetchJson(`/api/bullflow/context/${symbol}`), staleTime: 180_000, retry: 0 });
   const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'wu'], queryFn: fetchJson('/api/crypto/pulse'), staleTime: 300_000, retry: 1 });
 
   const bars = yearly?.data ?? [];
@@ -428,8 +461,8 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
   );
 
   return (
-    <div className="workuplab" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="workup-box">
+    <div className={`workuplab${mode === 'embedded' ? ' embedded' : ''}${historicalRecord ? ' has-history' : ''}`} onClick={(e) => { if (mode === 'modal' && e.target === e.currentTarget) close(); }}>
+      <div className="workup-box" role={mode === 'modal' ? 'dialog' : 'region'} aria-label={`${symbol} research workup`}>
 
         {/* HEADER */}
         <div className="workup-head">
@@ -486,16 +519,38 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                 {alertState === 'armed' ? 'Alert ✓' : alertState === 'fail' ? 'Alert ✗' : 'Alert'}
               </button>
             )}
-            <button className="wa-btn" onClick={() => { onNavigate?.('gex', symbol); onClose(); }} title="Open the full GEX surface">GEX</button>
-            <button className="wa-btn primary" onClick={() => { onNavigate?.('chart', symbol); onClose(); }} title="Open the full chart lab">
+            <button className="wa-btn" onClick={() => { onNavigate?.('gex', symbol); if (mode === 'modal') close(); }} title="Open the full GEX surface">GEX</button>
+            <button className="wa-btn primary" onClick={() => { onNavigate?.('chart', symbol); if (mode === 'modal') close(); }} title="Open the full chart lab">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
               Chart
             </button>
-            <button className="wa-close" onClick={onClose} aria-label="Close workup">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" /></svg>
-            </button>
+            {mode === 'modal' && (
+              <button className="wa-close" onClick={close} aria-label="Close workup">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            )}
           </div>
         </div>
+
+        {historicalRecord && (
+          <section className="history-replay" aria-label="Historical ledger record">
+            <div className="history-replay-title">
+              <span>Historical replay</span>
+              <b>{historicalRecord.outcome.replaceAll('_', ' ')}</b>
+            </div>
+            <div className="history-replay-metrics">
+              <div><span>Published</span><b>{new Date(historicalRecord.publishedAt).toLocaleString()}</b></div>
+              <div><span>Recorded contract</span><b>{historicalRecord.contract || 'underlying only'}</b></div>
+              <div><span>Option path</span><b>{historicalRecord.entryPremium != null ? `$${historicalRecord.entryPremium.toFixed(2)}` : '—'}{historicalRecord.exitPremium != null ? ` → $${historicalRecord.exitPremium.toFixed(2)}` : ''}</b></div>
+              <div><span>Measured return</span><b className={(historicalRecord.optionPercentGain ?? 0) >= 0 ? 'positive' : 'negative'}>{historicalRecord.optionPercentGain != null ? `${historicalRecord.optionPercentGain >= 0 ? '+' : ''}${historicalRecord.optionPercentGain.toFixed(1)}%` : 'unresolved'}</b></div>
+              <div><span>Evidence / R:R</span><b>{historicalRecord.score ?? '—'}{historicalRecord.riskRewardRatio != null ? ` · ${historicalRecord.riskRewardRatio}R` : ''}</b></div>
+            </div>
+            <div className="history-replay-note">
+              {historicalRecord.outcomeNotes || historicalRecord.resolutionReason || 'No contract-path audit note is stored for this record.'}
+            </div>
+            <div className="history-replay-context">The record above is frozen history. The dossier below is current context and may differ from conditions at publication.</div>
+          </section>
+        )}
 
         {/* BODY */}
         <div className="workup-body">
@@ -781,6 +836,15 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
                           AGGRESSOR: {aggressor.read.lean.toUpperCase()}
                         </div>
                       )}
+                      {!!bullflowContext?.darkPoolLevels?.length && (
+                        <div
+                          className="ov-badge"
+                          title={`${bullflowContext.disclosure} Largest today: ${bullflowContext.darkPoolLevels.slice(0, 3).map((level) => `$${level.price.toFixed(2)} · $${(level.notional / 1e6).toFixed(1)}M`).join(' | ')}`}
+                          style={{ color: 'var(--text-dim)', background: 'rgba(148,163,184,0.08)', border: '1px solid var(--nx-border)' }}
+                        >
+                          DARK ${bullflowContext.darkPoolLevels[0].price.toFixed(2)} · ${(bullflowContext.darkPoolLevels[0].notional / 1e6).toFixed(1)}M
+                        </div>
+                      )}
                       <div className="ov-badge" style={{ color: 'var(--purple)', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)' }}>{trades.length} prints</div>
                     </div>
                   </div>
@@ -924,7 +988,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate }: {
           <div className="wf-sep" />
           <div className="wf-item">Gates <span className="hl">{botRules.length}</span> bound</div>
           <div className="wf-spacer" />
-          <div className="wf-item">esc close · ←→ tabs · ↑↓ peers</div>
+          <div className="wf-item">{mode === 'modal' ? 'esc close · ' : ''}←→ tabs · ↑↓ peers</div>
         </div>
       </div>
     </div>

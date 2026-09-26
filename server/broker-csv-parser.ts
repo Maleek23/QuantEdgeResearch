@@ -35,6 +35,8 @@ export interface ParsedTrade {
   status: 'open' | 'closed';
   broker: JournalBroker;
   brokerOrderId?: string;
+  /** Fill side from the broker export. Used internally to reconstruct lots. */
+  transactionSide?: 'buy' | 'sell';
   rawCsvRow: Record<string, string>;
 }
 
@@ -78,7 +80,10 @@ function rowToObj(headers: string[], row: string[]): Record<string, string> {
 
 function parseNum(v: string): number {
   if (!v) return 0;
-  return parseFloat(v.replace(/[$,()]/g, '').replace(/^\((.+)\)$/, '-$1')) || 0;
+  const raw = v.trim();
+  const negative = /^\(.*\)$/.test(raw) || /^-/.test(raw);
+  const parsed = parseFloat(raw.replace(/[$,()]/g, '').replace(/^-/, '')) || 0;
+  return negative ? -parsed : parsed;
 }
 
 function parseDate(v: string): string {
@@ -111,6 +116,24 @@ function parseOptionSymbol(sym: string): { underlying: string; optionType: 'call
       optionType: cp === 'C' ? 'call' : 'put',
       strike: parseInt(strikeRaw) / 1000,
       expiry: `20${yy}-${mm}-${dd}`,
+    };
+  }
+
+  // Common broker display formats:
+  //   AAPL 01/17/2025 200.00 C
+  //   AAPL 01/17/2025 200 Call
+  //   AAPL 2025-01-17 200P
+  const display = sym.trim().toUpperCase().match(
+    /^([A-Z.]{1,8})\s+(\d{1,4}[\/-]\d{1,2}[\/-]\d{2,4})\s+\$?([\d.]+)\s*(C|P|CALL|PUT)$/,
+  );
+  if (display) {
+    const [, underlying, rawDate, rawStrike, cp] = display;
+    const expiry = parseDate(rawDate).slice(0, 10);
+    return {
+      underlying,
+      optionType: cp === 'P' || cp === 'PUT' ? 'put' : 'call',
+      strike: Number(rawStrike),
+      expiry,
     };
   }
   return null;
@@ -188,6 +211,7 @@ function parseWebull(row: Record<string, string>): ParsedTrade | null {
     status: pnl ? 'closed' : 'open',
     broker: 'webull',
     brokerOrderId: row['order_id'] || row['order id'] || undefined,
+    transactionSide: isSell ? 'sell' : isBuy ? 'buy' : undefined,
     rawCsvRow: row,
   };
 }
@@ -220,6 +244,7 @@ function parseRobinhood(row: Record<string, string>): ParsedTrade | null {
     realizedPnL: undefined,
     status: 'closed',
     broker: 'robinhood',
+    transactionSide: isBuy ? 'buy' : 'sell',
     rawCsvRow: row,
   };
 }
@@ -253,6 +278,7 @@ function parseSchwab(row: Record<string, string>): ParsedTrade | null {
     realizedPnL: undefined,
     status: 'closed',
     broker: 'schwab',
+    transactionSide: isBuy ? 'buy' : 'sell',
     rawCsvRow: row,
   };
 }
@@ -282,6 +308,7 @@ function parseIBKR(row: Record<string, string>): ParsedTrade | null {
     realizedPnL: pnl || undefined,
     status: pnl ? 'closed' : 'open',
     broker: 'ibkr',
+    transactionSide: qty > 0 ? 'buy' : 'sell',
     brokerOrderId: row['tradeid'] || undefined,
     rawCsvRow: row,
   };
@@ -313,6 +340,7 @@ function parseTastytrade(row: Record<string, string>): ParsedTrade | null {
     realizedPnL: pnl || undefined,
     status: 'closed',
     broker: 'tastytrade',
+    transactionSide: isBuy ? 'buy' : 'sell',
     rawCsvRow: row,
   };
 }
@@ -372,6 +400,7 @@ function parseGeneric(row: Record<string, string>): ParsedTrade | null {
     realizedPnL: pnl || undefined,
     status: pnl || exitP ? 'closed' : 'open',
     broker: 'csv',
+    transactionSide: isBuy ? 'buy' : side ? 'sell' : undefined,
     rawCsvRow: row,
   };
 }
@@ -379,52 +408,83 @@ function parseGeneric(row: Record<string, string>): ParsedTrade | null {
 // ─── Trade Matching (pair opens with closes) ─────────────────
 
 function matchTrades(trades: ParsedTrade[]): ParsedTrade[] {
-  // Group by symbol + direction, pair BUY with SELL
-  const opens = new Map<string, ParsedTrade[]>();
+  type Lot = ParsedTrade & { remaining: number; allocatedFees: number };
+  const opens = new Map<string, Lot[]>();
   const matched: ParsedTrade[] = [];
 
   const sorted = [...trades].sort((a, b) =>
     new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime());
 
   for (const t of sorted) {
-    const key = `${t.symbol}_${t.optionType || ''}_${t.strikePrice || ''}`;
+    // Expiry belongs in the identity. Without it, AAPL 200C Jan and AAPL 200C
+    // Feb were previously paired into one fictional trade.
+    const key = [t.assetType, t.symbol, t.optionType || '', t.strikePrice ?? '', t.expiryDate || ''].join('|');
+    const side = t.transactionSide || (t.direction === 'short' ? 'sell' : 'buy');
+    const openingDirection: ParsedTrade['direction'] = side === 'buy' ? 'long' : 'short';
+    const opposingDirection: ParsedTrade['direction'] = side === 'buy' ? 'short' : 'long';
+    const lots = opens.get(key) || [];
+    let remaining = Math.abs(t.quantity);
+    let closeFeesRemaining = Math.abs(t.fees || 0);
 
-    if (t.direction === 'long') {
-      // Opening long
-      const existing = opens.get(key) || [];
-      existing.push(t);
-      opens.set(key, existing);
-    } else {
-      // Closing — try to match with an open long
-      const existing = opens.get(key);
-      if (existing && existing.length > 0) {
-        const open = existing.shift()!;
-        if (existing.length === 0) opens.delete(key);
+    // FIFO: a buy closes existing shorts first; a sell closes existing longs.
+    while (remaining > 1e-9) {
+      const lotIndex = lots.findIndex((lot) => lot.direction === opposingDirection && lot.remaining > 1e-9);
+      if (lotIndex < 0) break;
+      const open = lots[lotIndex];
+      const closeQty = Math.min(remaining, open.remaining);
+      const openFee = open.quantity > 0 ? (open.fees * closeQty) / open.quantity : 0;
+      const closeFee = t.quantity > 0 ? (Math.abs(t.fees || 0) * closeQty) / Math.abs(t.quantity) : 0;
+      const multiplier = open.assetType === 'option' ? 100 : 1;
+      const gross = open.direction === 'long'
+        ? (t.entryPrice - open.entryPrice) * closeQty * multiplier
+        : (open.entryPrice - t.entryPrice) * closeQty * multiplier;
 
-        // Merge into a complete trade — apply 100x multiplier for options
-        const multiplier = open.assetType === 'option' ? 100 : 1;
-        const pnl = (t.entryPrice - open.entryPrice) * open.quantity * multiplier - (open.fees + t.fees);
-        const holdMs = new Date(t.entryTime).getTime() - new Date(open.entryTime).getTime();
+      matched.push({
+        ...open,
+        quantity: closeQty,
+        exitPrice: t.entryPrice,
+        exitTime: t.entryTime,
+        realizedPnL: +(gross - openFee - closeFee).toFixed(2),
+        fees: +(openFee + closeFee).toFixed(4),
+        status: 'closed',
+        brokerOrderId: [open.brokerOrderId, t.brokerOrderId].filter(Boolean).join('→') || undefined,
+      });
 
-        matched.push({
-          ...open,
-          exitPrice: t.entryPrice,
-          exitTime: t.entryTime,
-          realizedPnL: open.realizedPnL ?? +pnl.toFixed(2),
-          fees: open.fees + t.fees,
-          status: 'closed',
-        });
-      } else {
-        // No match — short opening
-        matched.push(t);
-      }
+      open.remaining -= closeQty;
+      open.allocatedFees += openFee;
+      remaining -= closeQty;
+      closeFeesRemaining -= closeFee;
+      if (open.remaining <= 1e-9) lots.splice(lotIndex, 1);
     }
+
+    // Any excess fill opens a new position on the corresponding side.
+    if (remaining > 1e-9) {
+      const fee = t.quantity > 0 ? (Math.abs(t.fees || 0) * remaining) / Math.abs(t.quantity) : closeFeesRemaining;
+      lots.push({
+        ...t,
+        direction: openingDirection,
+        quantity: remaining,
+        fees: +Math.max(0, fee).toFixed(4),
+        realizedPnL: undefined,
+        status: 'open',
+        remaining,
+        allocatedFees: 0,
+      });
+    }
+    if (lots.length) opens.set(key, lots);
+    else opens.delete(key);
   }
 
   // Add unmatched opens
   opens.forEach((remaining) => {
     for (const t of remaining) {
-      matched.push({ ...t, status: 'open' });
+      const { remaining: quantity, allocatedFees: _allocatedFees, ...rest } = t;
+      matched.push({
+        ...rest,
+        quantity,
+        fees: +Math.max(0, rest.fees - _allocatedFees).toFixed(4),
+        status: 'open',
+      });
     }
   });
 

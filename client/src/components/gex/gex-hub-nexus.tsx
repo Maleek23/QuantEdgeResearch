@@ -92,9 +92,10 @@ export function GexHubNexus() {
   const [rankAll, setRankAll] = useState(false);
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
 
+  const [workspace, setWorkspace] = useState<'map' | 'surface'>('map');
   const [view3d, setView3d] = useState(false);
   const [metric, setMetric] = useState<'gex' | 'vex'>('gex');
-  const [bucket, setBucket] = useState<BucketId>('all');
+  const [bucket, setBucket] = useState<BucketId>('0-7');
   const [showAbove, setShowAbove] = useState(false);
   const [showBelow, setShowBelow] = useState(false);
   const leftRail = useColResize('nx-gex-left', 320, { sign: 1, min: 240, max: 520 });
@@ -191,6 +192,37 @@ export function GexHubNexus() {
     return cls;
   };
 
+  const profile = useMemo(() => {
+    const levels = [...(snap?.levels ?? [])]
+      .filter((l) => Number.isFinite(l.strike) && Number.isFinite(l.gex))
+      .sort((a, b) => Math.abs(a.strike - spot) - Math.abs(b.strike - spot))
+      .slice(0, 13)
+      .sort((a, b) => b.strike - a.strike);
+    const max = Math.max(1e-9, ...levels.map((l) => Math.abs(l.gex)));
+    return { levels, max };
+  }, [snap?.levels, spot]);
+
+  const regimeRead = snap?.regime === 'negative_gamma'
+    ? {
+        label: 'Expansion regime',
+        tone: 'red',
+        headline: 'Dealer hedging can chase the move.',
+        expectation: 'Breaks can accelerate. Wait for price to clear a wall, then trade with the confirmed direction instead of fading it.',
+      }
+    : snap?.regime === 'positive_gamma'
+      ? {
+          label: 'Compression regime',
+          tone: 'green',
+          headline: 'Dealer hedging can absorb the move.',
+          expectation: 'Expect two-way trade and pinning toward the dominant node. Fade weak extensions until a wall breaks with confirmation.',
+        }
+      : {
+          label: 'Transition regime',
+          tone: 'amber',
+          headline: 'The dealer map has no stable grip.',
+          expectation: 'Treat the walls as decision levels, reduce size, and let price confirm direction before using gamma as confluence.',
+        };
+
   /* ── ⌘K search — the real universal index ── */
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -233,7 +265,12 @@ export function GexHubNexus() {
   };
 
   const sessionLabel = eh?.session === 'pre' ? 'Pre-market' : eh?.session === 'post' ? 'After hours' : eh?.session === 'regular' ? 'Live' : 'Last close';
-  const negGamma = plays.find((p) => p.symbol === symbol)?.isNegativeGamma;
+  // The focused terminal snapshot is newer and more complete than the ranked
+  // rail. Never let a stale hub row label the same symbol +γ while its live
+  // dealer map says −γ.
+  const negGamma = snap
+    ? snap.regime === 'negative_gamma'
+    : plays.find((p) => p.symbol === symbol)?.isNegativeGamma;
   const laggards = (rotation?.laggards ?? []).slice(0, 3);
   const leaders = (rotation?.leaders ?? []).slice(0, 3);
 
@@ -445,27 +482,32 @@ export function GexHubNexus() {
         {/* ══════════ CENTER — PRISM ══════════ */}
         <div className="col prism-area">
           <div className="prism-header">
-            <div className="prism-eyebrow">Prism · {symbol}</div>
+            <div className="prism-eyebrow">Dealer map · {symbol}</div>
             <div className="prism-title-row">
-              <div className="prism-title">Strike × Expiry Surface</div>
-              <div className="prism-badge"><span className="dot" />{termLoading ? 'loading…' : `${shaped.total} listed cells`}</div>
+              <div className="prism-title">{workspace === 'map' ? 'Where price is likely to react' : 'Strike × Expiry Surface'}</div>
+              <div className="prism-badge"><span className="dot" />{termLoading ? 'reading chain…' : `${snap?.expirationsUsed?.length || shaped.expiryAll.length} expiries`}</div>
             </div>
-            <div className="prism-desc">The strike × expiry surface, in 2D or 3D — the intensity key is below.</div>
+            <div className="prism-desc">{workspace === 'map' ? 'Start with the behavior, dominant node and break levels. Open the surface only when you need the raw chain.' : 'Research view: every material listed node by strike and expiry.'}</div>
           </div>
 
           <div className="prism-controls">
             <div className="view-toggle">
+              {(['map', 'surface'] as const).map((v) => (
+                <button key={v} className={`view-btn${workspace === v ? ' active' : ''}`} style={{ background: workspace === v ? undefined : 'transparent', border: 'none' }} onClick={() => setWorkspace(v)}>{v === 'map' ? 'DEALER MAP' : 'EXPIRY SURFACE'}</button>
+              ))}
+            </div>
+            {workspace === 'surface' && <div className="view-toggle">
               {(['2d', '3d'] as const).map((v) => (
                 <button key={v} className={`view-btn${(v === '3d') === view3d ? ' active' : ''}`} style={{ background: (v === '3d') === view3d ? undefined : 'transparent', border: 'none' }} onClick={() => setView3d(v === '3d')} title={v === '3d' ? '3D gamma surface — the honest surface, listed cells only' : '2D strike × expiry grid'}>{v.toUpperCase()}</button>
               ))}
-            </div>
-            <div className="view-toggle">
+            </div>}
+            {workspace === 'surface' && <div className="view-toggle">
               {(['gex', 'vex'] as const).map((m) => (
                 <button key={m} className={`view-btn${metric === m ? ' active' : ''}`} style={{ background: metric === m ? undefined : 'transparent', border: 'none' }} onClick={() => setMetric(m)} title={m === 'gex' ? 'Net gamma exposure (GEX) — dealer positioning' : 'Net volatility exposure (VEX) — vega-weighted positioning'}>{m.toUpperCase()}</button>
               ))}
-            </div>
-            <div className="filter-sep" />
-            <div className="filter-group">
+            </div>}
+            {workspace === 'surface' && <div className="filter-sep" />}
+            {workspace === 'surface' && <div className="filter-group">
               <span className="filter-label" title="Days to expiry — filter the surface by time bucket">DTE</span>
               <div className="filter-chips">
                 {DTE_BUCKETS.map((b) => (
@@ -474,15 +516,86 @@ export function GexHubNexus() {
                   </button>
                 ))}
               </div>
-            </div>
-            <div className="expiry-selector">
+            </div>}
+            {workspace === 'surface' && <div className="expiry-selector">
               <div className="expiry-btn" title="Expiries inside the current DTE bucket, and the furthest listed expiry">
                 {shaped.expiries.length} of {shaped.expiryAll.length} expiries
                 {shaped.expiryAll.length > 0 && ` · max ${shaped.expiryAll[shaped.expiryAll.length - 1][1]} (${shaped.expiryAll[shaped.expiryAll.length - 1][0]}d)`}
               </div>
-            </div>
+            </div>}
           </div>
 
+          {workspace === 'map' && (
+            <div className="dealer-map-workspace">
+              <section className={`dealer-read ${regimeRead.tone}`}>
+                <div>
+                  <div className="dealer-kicker">{regimeRead.label}</div>
+                  <h2>{regimeRead.headline}</h2>
+                  <p>{regimeRead.expectation}</p>
+                </div>
+                <div className="dealer-flow-stat">
+                  <span>Net gamma</span>
+                  <strong>{snap ? `${snap.totalGEX >= 0 ? '+' : ''}${snap.totalGEX.toFixed(2)}B` : '—'}</strong>
+                  <small>per 1% underlying move</small>
+                </div>
+              </section>
+
+              <section className="dealer-levels">
+                {[
+                  ['PUT FLOOR', snap?.putWall, 'support / bearish break'],
+                  ['SPOT', spot || null, sessionLabel],
+                  ['KING NODE', snap?.maxGammaStrike, 'strongest pin'],
+                  ['CALL WALL', snap?.callWall, 'resistance / bullish break'],
+                ].map(([label, value, note]) => (
+                  <div className={`dealer-level ${label === 'SPOT' ? 'spot' : label === 'KING NODE' ? 'king' : ''}`} key={String(label)}>
+                    <span>{label}</span>
+                    <strong>{typeof value === 'number' && value > 0 ? `$${value.toFixed(2).replace('.00', '')}` : '—'}</strong>
+                    <small>{note}</small>
+                  </div>
+                ))}
+              </section>
+
+              <section className="dealer-profile-card">
+                <div className="dealer-card-head">
+                  <div><span>Gamma profile</span><strong>Near-spot pressure by strike</strong></div>
+                  <small>bar length = relative exposure · sign = estimated dealer side</small>
+                </div>
+                <div className="dealer-profile">
+                  {profile.levels.map((level) => {
+                    const width = Math.max(2, Math.abs(level.gex) / profile.max * 48);
+                    const positive = level.gex >= 0;
+                    const special = level.strike === snap?.maxGammaStrike || level.strike === snap?.callWall || level.strike === snap?.putWall;
+                    return (
+                      <div className={`dealer-profile-row${special ? ' special' : ''}`} key={level.strike}>
+                        <div className="dealer-strike">${level.strike}</div>
+                        <div className="dealer-bar-axis">
+                          <div className={`dealer-bar ${positive ? 'positive' : 'negative'}`} style={positive ? { left: '50%', width: `${width}%` } : { right: '50%', width: `${width}%` }} />
+                          {Math.abs(level.strike - spot) <= Math.max(0.5, spot * 0.001) && <i className="dealer-spot-line" />}
+                        </div>
+                        <div className="dealer-role">{level.strike === snap?.maxGammaStrike ? 'KING' : level.strike === snap?.callWall ? 'CALL WALL' : level.strike === snap?.putWall ? 'PUT WALL' : `${level.distancePct >= 0 ? '+' : ''}${level.distancePct.toFixed(1)}%`}</div>
+                      </div>
+                    );
+                  })}
+                  {!profile.levels.length && <div className="dealer-empty">{termLoading ? 'Building the dealer map…' : 'No material gamma levels returned.'}</div>}
+                </div>
+              </section>
+
+              <section className="dealer-actions">
+                <div>
+                  <span>IF PRICE HOLDS INSIDE</span>
+                  <strong>{snap?.putWall && snap?.callWall ? `$${snap.putWall}–$${snap.callWall}` : 'the dealer range'}</strong>
+                  <p>{snap?.regime === 'negative_gamma' ? 'Do not assume a pin. Wait for direction and use the opposite wall as invalidation.' : `Expect rotation toward $${snap?.maxGammaStrike ?? 'the king node'}; avoid chasing the middle.`}</p>
+                </div>
+                <div>
+                  <span>IF A WALL BREAKS</span>
+                  <strong>{snap?.callWall ? `>${snap.callWall} bullish` : 'upper wall bullish'} · {snap?.putWall ? `<${snap.putWall} bearish` : 'lower wall bearish'}</strong>
+                  <p>Require price acceptance plus volume/flow confirmation. GEX supplies structure; it does not create the entry by itself.</p>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {workspace === 'surface' && <>
           {/* Matrix intensity legend — the single canonical key for cell color and brightness. */}
           <div
             style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', alignItems: 'center', padding: '8px 2px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}
@@ -598,6 +711,7 @@ export function GexHubNexus() {
               )}
             </div>
           )}
+          </>}
         </div>
 
         {/* ══════════ RIGHT — CONTEXT ══════════ */}

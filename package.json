@@ -13,6 +13,7 @@
     "ts:budget:diff": "tsx scripts/ts-budget.ts -- --diff",
     "ts:budget:update": "tsx scripts/ts-budget.ts -- --update",
     "health": "curl -fsS http://localhost:5000/api/health | (jq . 2>/dev/null || cat)",
+    "backtest:bullflow-0dte": "node --env-file=.env node_modules/.bin/tsx scripts/backtest-bullflow-index-0dte.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

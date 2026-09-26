@@ -34,6 +34,21 @@ const GOLD = '#e0a458';
 
 const money = (n: number) => (n >= 1000 ? n.toLocaleString('en-US', { maximumFractionDigits: 0 }) : n.toFixed(2));
 
+function triggerRead(pick: ConvictionPick, live: number) {
+  const distancePct = pick.entryPrice > 0
+    ? Math.abs(((live - pick.entryPrice) / pick.entryPrice) * 100)
+    : 0;
+  const crossed = pick.direction === 'short' ? live <= pick.entryPrice : live >= pick.entryPrice;
+  const side = live >= pick.entryPrice ? 'above' : 'below';
+  return {
+    distancePct,
+    crossed,
+    text: crossed
+      ? `crossed by ${distancePct.toFixed(2)}% · observer pending`
+      : `${distancePct.toFixed(2)}% ${side} trigger · no position`,
+  };
+}
+
 /** Build geometry from a pick + live price. Shared by every panel below. */
 export function geometryFor(pick: ConvictionPick, live: number): SignalGeometry {
   return computeGeometry({
@@ -72,10 +87,7 @@ function TradeVector({ pick, live }: { pick: ConvictionPick; live: number }) {
   const reduce = useReducedMotion();
   const g = geometryFor(pick, live);
   const awaitingTrigger = g.status === 'pending_trigger';
-  const triggerDistancePct = pick.entryPrice > 0
-    ? Math.abs(((live - pick.entryPrice) / pick.entryPrice) * 100)
-    : 0;
-  const triggerSide = pick.direction === 'long' ? 'below' : 'above';
+  const trigger = triggerRead(pick, live);
   const levelPrices = [pick.stopLoss, pick.entryPrice, pick.targetPrice, ...(g.t2 != null ? [g.t2] : [])];
   const min = Math.min(...levelPrices);
   const max = Math.max(...levelPrices);
@@ -97,7 +109,7 @@ function TradeVector({ pick, live }: { pick: ConvictionPick; live: number }) {
         </span>
         <span className="font-mono text-[10px] tabular-nums" style={{ color: awaitingTrigger ? GOLD : g.pnlPct >= 0 ? BULL : BEAR }}>
           {awaitingTrigger
-            ? `${triggerDistancePct.toFixed(2)}% ${triggerSide} trigger · no position`
+            ? trigger.text
             : `${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(2)}% from entry`}
         </span>
       </div>
@@ -150,10 +162,7 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
   const reduce = useReducedMotion();
   const g = geometryFor(pick, live);
   const awaitingTrigger = g.status === 'pending_trigger';
-  const triggerDistancePct = pick.entryPrice > 0
-    ? Math.abs((((live || pick.entryPrice) - pick.entryPrice) / pick.entryPrice) * 100)
-    : 0;
-  const triggerSide = pick.direction === 'long' ? 'below' : 'above';
+  const trigger = triggerRead(pick, live || pick.entryPrice);
   const liveColor = g.pnlPct > 0.001 ? BULL : g.pnlPct < -0.001 ? BEAR : CYAN;
   const atEntry = Math.abs((live || pick.entryPrice) - pick.entryPrice) <= Math.max(Math.abs(pick.entryPrice) * 0.0001, 0.01);
   const planLevels = g.levels.filter((level) => level.key !== 'live');
@@ -177,7 +186,7 @@ export function PriceLadder({ pick, live, className }: { pick: ConvictionPick; l
           </div>
           <div className="mt-0.5 text-label font-mono text-muted-foreground">
             {awaitingTrigger
-              ? `${triggerDistancePct.toFixed(2)}% ${triggerSide} trigger · not entered`
+              ? trigger.text.replace('no position', 'not entered')
               : atEntry ? 'At recorded entry' : `${g.pnlPct >= 0 ? '+' : ''}${g.pnlPct.toFixed(2)}% versus entry`}
           </div>
         </div>
