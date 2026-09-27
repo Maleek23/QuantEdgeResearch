@@ -10,45 +10,7 @@ interface PriceCacheEntry {
 }
 
 const priceCache = new Map<string, PriceCacheEntry>();
-const PRICE_CACHE_TTL = 30 * 1000; // 30 seconds
-
-// Mock price base values for various futures
-const MOCK_PRICES: Record<string, number> = {
-  // Index futures
-  NQ: 21000, // E-mini Nasdaq-100
-  ES: 5900,  // E-mini S&P 500
-  YM: 43000, // E-mini Dow
-  RTY: 2200, // E-mini Russell
-  // Metals (COMEX)
-  GC: 2750,  // Gold
-  SI: 31,    // Silver
-  HG: 4.5,   // Copper
-  PL: 1000,  // Platinum
-  PA: 950,   // Palladium
-  // Energy (NYMEX)
-  CL: 75,    // Crude Oil WTI
-  NG: 3.5,   // Natural Gas
-  // Bonds
-  ZB: 118,   // 30-Year T-Bond
-  ZN: 110,   // 10-Year T-Note
-};
-
-// Price fluctuation ranges
-const PRICE_FLUCTUATIONS: Record<string, number> = {
-  NQ: 10,    // +/- 10 points
-  ES: 5,     // +/- 5 points
-  YM: 50,    // +/- 50 points
-  RTY: 2,    // +/- 2 points
-  GC: 5,     // +/- 5 points
-  SI: 0.2,   // +/- 0.2 points
-  HG: 0.05,  // +/- 0.05 points
-  PL: 10,    // +/- 10 points
-  PA: 10,    // +/- 10 points
-  CL: 0.5,   // +/- 0.5 points
-  NG: 0.05,  // +/- 0.05 points
-  ZB: 0.5,   // +/- 0.5 points
-  ZN: 0.25,  // +/- 0.25 points
-};
+const FUTURES_ROOTS = new Set(['NQ', 'ES', 'YM', 'RTY', 'GC', 'SI', 'HG', 'PL', 'PA', 'CL', 'NG', 'ZB', 'ZN']);
 
 /**
  * Check if Databento API is available
@@ -60,62 +22,10 @@ export function isDatentoAvailable(): boolean {
   const isAvailable = !!apiKey && apiKey.length > 0;
   
   if (!isAvailable) {
-    logger.info('[FUTURES-SERVICE] Databento API key not available - using mock data');
+    logger.info('[FUTURES-SERVICE] Databento API key not available - futures marks must come from the verified quote fallback');
   }
   
   return isAvailable;
-}
-
-/**
- * Generate mock price with small random fluctuations
- * @param rootSymbol - Futures root symbol (e.g., 'NQ', 'GC', 'HG', 'CL')
- * @returns Mock price with random fluctuation
- */
-function generateMockPrice(rootSymbol: string): number {
-  const basePrice = MOCK_PRICES[rootSymbol] || 100;
-  const fluctuation = PRICE_FLUCTUATIONS[rootSymbol] || 1;
-
-  // No random fluctuation — return static base price until real feed available
-  const price = basePrice;
-
-  // Tick sizes by product type
-  const tickSizes: Record<string, number> = {
-    NQ: 0.25, ES: 0.25, YM: 1, RTY: 0.1,
-    GC: 0.10, SI: 0.005, HG: 0.0005, PL: 0.10, PA: 0.10,
-    CL: 0.01, NG: 0.001, ZB: 0.03125, ZN: 0.015625,
-  };
-  const tickSize = tickSizes[rootSymbol] || 0.01;
-  return Math.round(price / tickSize) * tickSize;
-}
-
-/**
- * Get cached price or generate new mock price
- * @param contractCode - e.g., 'NQH25', 'HGH25'
- * @param rootSymbol - Futures root symbol (e.g., 'NQ', 'GC', 'HG')
- * @returns Cached or newly generated price
- */
-function getCachedOrGeneratePrice(contractCode: string, rootSymbol: string): number {
-  const cached = priceCache.get(contractCode);
-  const now = new Date();
-
-  // Check if cache is valid (within TTL)
-  if (cached && (now.getTime() - cached.timestamp.getTime()) < PRICE_CACHE_TTL) {
-    logger.debug(`[FUTURES-SERVICE] Using cached price for ${contractCode}: $${cached.price}`);
-    return cached.price;
-  }
-
-  // Generate new mock price
-  const price = generateMockPrice(rootSymbol);
-
-  // Update cache
-  priceCache.set(contractCode, {
-    price,
-    timestamp: now,
-  });
-
-  logger.info(`[FUTURES-SERVICE] Generated mock price for ${contractCode}: $${price} (${rootSymbol} base: $${MOCK_PRICES[rootSymbol] || 'unknown'})`);
-
-  return price;
 }
 
 /**
@@ -148,6 +58,19 @@ export async function getActiveFuturesContract(rootSymbol: string): Promise<Futu
  */
 export async function getFuturesPrice(contractCode: string): Promise<number> {
   logger.debug(`[FUTURES-SERVICE] Fetching price for ${contractCode}`);
+
+  // Root symbols (ES/NQ/CL/...) are widely used by market context callers.
+  // Resolve them through the real quote adapter before looking for a stored
+  // dated contract. The previous implementation rejected them, then other
+  // screens quietly displayed a static mock.
+  if (FUTURES_ROOTS.has(contractCode.toUpperCase())) {
+    const { fetchFuturesQuote } = await import('./market-api');
+    const quote = await fetchFuturesQuote(contractCode.toUpperCase());
+    if (!quote || !Number.isFinite(quote.price)) {
+      throw new Error(`Live futures price unavailable: ${contractCode.toUpperCase()}`);
+    }
+    return quote.price;
+  }
   
   // Validate contract exists in database
   const contract = await storage.getFuturesContract(contractCode);
@@ -173,14 +96,9 @@ export async function getFuturesPrice(contractCode: string): Promise<number> {
     return realtimePrice.price;
   }
   
-  // Fallback to mock data if Databento not connected
-  if (isDatentoAvailable()) {
-    logger.debug(`[FUTURES-SERVICE] Databento API key found but no real-time price yet - using mock data`);
-  }
-  
-  const price = getCachedOrGeneratePrice(contractCode, contract.rootSymbol);
-  
-  return price;
+  // Never manufacture a tradable mark. Consumers must render unavailable and
+  // preserve the last verified observation, not a hard-coded ES/NQ/CL value.
+  throw new Error(`Live futures price unavailable: ${contractCode}`);
 }
 
 /**

@@ -6069,6 +6069,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ES translation must be registered before /api/futures/:symbol. It uses a
+  // measured futures/cash basis and exposes MES/ES stop-risk arithmetic for the
+  // UI; no static fallback price is permitted.
+  app.get("/api/futures/es-context", async (req, res) => {
+    try {
+      const accountSize = Math.max(0, Number(req.query.accountSize) || 50_000);
+      const riskPct = Math.min(10, Math.max(0.05, Number(req.query.riskPct) || 0.5));
+      const stopPoints = Math.max(0.25, Number(req.query.stopPoints) || 5);
+      const { getEsContext } = await import('./es-context');
+      res.json(await getEsContext({ accountSize, riskPct, stopPoints }));
+    } catch (error: any) {
+      res.status(503).json({ error: 'ES context unavailable', detail: error?.message });
+    }
+  });
+
   app.get("/api/futures/:symbol", requireTier('canTradeFutures'), async (req, res) => {
     try {
       const { fetchFuturesQuote } = await import("./market-api");

@@ -100,7 +100,10 @@ export const AI_SOFTWARE = [
   'PLTR', 'AI', 'SOUN', 'BBAI', 'PATH', 'SNOW', 'DDOG', 'MDB', 'ESTC', 'GTLB',
   'TEAM', 'ZM', 'DOCU', 'TWLO', 'OKTA', 'ZS', 'CRWD', 'S', 'PANW', 'NET',
   'FSLY', 'CFLT', 'NEWR', 'DT', 'SPLK', 'SUMO', 'ASAN', 'MNDY', 'BILL', 'COUP',
-  'VEEV', 'WDAY', 'HUBS', 'ZEN', 'RNG', 'FIVN', 'NICE', 'APPN', 'AGYS', 'PRFT'
+  'VEEV', 'WDAY', 'HUBS', 'ZEN', 'RNG', 'FIVN', 'NICE', 'APPN', 'AGYS', 'PRFT',
+  // Advertising AI, AI cloud and hyperscaler infrastructure. These were in
+  // separate allowlists but not in the thematic neighborhood scanner.
+  'APP', 'NBIS', 'CRWV', 'DELL', 'HPE', 'VRT', 'ANET'
 ];
 
 // === 🚀 SPACE & SATELLITES (15) ===
@@ -146,7 +149,9 @@ export const CANNABIS = [
 export const COMMODITIES_MATERIALS = [
   'MP', 'LAC', 'ALB', 'FCX', 'NEM', 'GOLD', 'AEM', 'KGC', 'BTG', 'HL',
   'PAAS', 'FSM', 'AG', 'EXK', 'SLI', 'PLL', 'LTHM', 'SQM', 'CLF', 'X',
-  'NUE', 'STLD', 'AA', 'CENX', 'CMC', 'RS', 'ATI', 'HAYN', 'KALU', 'ZEUS'
+  'NUE', 'STLD', 'AA', 'CENX', 'CMC', 'RS', 'ATI', 'HAYN', 'KALU', 'ZEUS',
+  // Rare-earth / strategic-material names and the broad copper expression.
+  'USAR', 'CRML', 'REMX', 'COPX'
 ];
 
 // === 🎮 GAMING & ENTERTAINMENT (15) ===

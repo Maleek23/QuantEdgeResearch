@@ -108,6 +108,7 @@ export function ChartLabBoard() {
   const [showLevels, setShowLevels] = useState(true);
   const [instrumentOpen, setInstrumentOpen] = useState(false);
   const [instrumentQuery, setInstrumentQuery] = useState('');
+  const [futuresRisk, setFuturesRisk] = useState({ accountSize: 50_000, riskPct: 0.5, stopPoints: 5 });
   // Sidebar rail: drag its border left to widen, double-click to expand.
   const rail = useColResize('nx-chart-side', 300, { sign: -1, min: 240, max: 620 });
 
@@ -209,6 +210,16 @@ export function ChartLabBoard() {
   });
   const { data: botStatus } = useQuery<{ bots: { name: string; status: string }[] }>({
     queryKey: ['/api/automations/status'], refetchInterval: 60_000, retry: 1,
+  });
+  const { data: esContext } = useQuery<{
+    asOf: string; session: string;
+    prices: { es: number | null; spx: number | null; spy: number | null };
+    translation: { basis: number | null; spyPerSpx: number | null; note: string };
+    risk: { riskBudget: number; stopPoints: number; contracts: Array<{ symbol: string; riskPerContract: number; maxContracts: number }> };
+  }>({
+    queryKey: ['/api/futures/es-context', 'chart-lab', futuresRisk.accountSize, futuresRisk.riskPct, futuresRisk.stopPoints],
+    queryFn: q(`/api/futures/es-context?accountSize=${futuresRisk.accountSize}&riskPct=${futuresRisk.riskPct}&stopPoints=${futuresRisk.stopPoints}`),
+    staleTime: 15_000, refetchInterval: 30_000, retry: 1,
   });
 
   const quoteBySym = useMemo(() => {
@@ -441,6 +452,34 @@ export function ChartLabBoard() {
               </div>
             )}
           </div>
+
+          {(['SPX', 'SPY', 'ES', 'MES'].includes(symbol) || symbol === 'QQQ') && (
+            <div className="levels-section" aria-label="ES translation and futures risk">
+              <div className="levels-head">
+                <div className="levels-title">ES translation</div>
+                <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{esContext?.session ?? 'unavailable'}</div>
+              </div>
+              <div className="level-row"><div className="level-name">ES</div><div className="level-bar" /><div className="level-val">{esContext?.prices.es?.toFixed(2) ?? '—'}</div></div>
+              <div className="level-row"><div className="level-name">SPX</div><div className="level-bar" /><div className="level-val">{esContext?.prices.spx?.toFixed(2) ?? '—'}</div></div>
+              <div className="level-row"><div className="level-name">BASIS</div><div className="level-bar" /><div className="level-val">{esContext?.translation.basis == null ? '—' : `${esContext.translation.basis >= 0 ? '+' : ''}${esContext.translation.basis.toFixed(2)}`}</div></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5, marginTop: 8 }}>
+                {([
+                  ['accountSize', 'ACCOUNT', 100],
+                  ['riskPct', 'RISK %', 0.05],
+                  ['stopPoints', 'STOP PTS', 0.25],
+                ] as const).map(([key, label, step]) => (
+                  <label key={key} style={{ display: 'grid', gap: 3, font: "7px 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>
+                    {label}
+                    <input type="number" min={step} step={step} value={futuresRisk[key]} onChange={(event) => setFuturesRisk((value) => ({ ...value, [key]: Math.max(step, Number(event.target.value) || step) }))} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border)', borderRadius: 3, background: 'var(--panel-2)', color: 'var(--text)', padding: '4px 5px', font: "9px 'JetBrains Mono',monospace" }} />
+                  </label>
+                ))}
+              </div>
+              <div style={{ marginTop: 8, font: "9px/1.5 'JetBrains Mono',monospace", color: 'var(--text-dim)' }}>
+                {esContext?.risk.stopPoints ?? futuresRisk.stopPoints}pt stop · ${esContext?.risk.riskBudget.toFixed(0) ?? '—'} risk: MES {esContext?.risk.contracts.find((c) => c.symbol === 'MES')?.maxContracts ?? '—'} max · ES {esContext?.risk.contracts.find((c) => c.symbol === 'ES')?.maxContracts ?? '—'} max
+              </div>
+              <div style={{ marginTop: 5, font: "9px/1.45 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>{esContext?.translation.note ?? 'Waiting for measured ES and cash-index quotes.'}</div>
+            </div>
+          )}
 
           <div className="watch-section">
             <div className="watch-head">

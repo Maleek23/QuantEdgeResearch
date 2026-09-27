@@ -29,12 +29,23 @@
  * referees.
  */
 import { logger } from './logger';
+import { findDivergences } from '../shared/divergence-engine';
+
+export type PatternKind =
+  | 'inside_coil'
+  | 'nr7'
+  | 'bull_flag'
+  | 'bear_flag'
+  | 'breakout_watch'
+  | 'trendline_breakout'
+  | 'bullish_divergence'
+  | 'bearish_divergence';
 
 export interface PatternHit {
   symbol: string;
   /** On the operator's core watchlist — consumers pin these first. */
   core?: boolean;
-  pattern: 'inside_coil' | 'nr7' | 'bull_flag' | 'bear_flag' | 'breakout_watch';
+  pattern: PatternKind;
   bias: 'long' | 'short' | 'neutral';
   /**
    * Flags only. Bulkowski's measured record: tight flags (shallow retrace off
@@ -86,6 +97,83 @@ function detect(symbol: string, bars: Bar[]): PatternHit[] {
     last,
     pctFromHigh: pctFromHigh != null ? Number(pctFromHigh.toFixed(1)) : null,
   };
+
+  // ── pivot divergence: disagreement is a setup, not an entry ──────────────
+  // Only fresh, material divergences become directional radar hits. The shared
+  // engine uses confirmed pivots, reports its unavoidable lag, and prevents the
+  // common endpoint-comparison look-ahead bug. A reclaim/break remains the gate.
+  for (const d of findDivergences(bars, 3, 14, 90)) {
+    if (d.strength < 45 || d.barsSincePivot > 8) continue;
+    const bullish = d.kind === 'bullish';
+    const pivot = bars[d.toIdx];
+    const afterPivotBeforeNow = bars.slice(d.toIdx + 1, -1);
+    const confirmation = bullish
+      ? Math.max(pivot.high, ...afterPivotBeforeNow.map((b) => b.high))
+      : Math.min(pivot.low, ...afterPivotBeforeNow.map((b) => b.low));
+    const triggered = bullish ? last > confirmation : last < confirmation;
+    hits.push({
+      symbol,
+      pattern: bullish ? 'bullish_divergence' : 'bearish_divergence',
+      bias: bullish ? 'long' : 'short',
+      detectedAt: now,
+      levels: {
+        firstPivot: d.priceFrom,
+        secondPivot: d.priceTo,
+        invalidation: bullish ? pivot.low : pivot.high,
+        confirmation,
+        rsiFrom: d.momentumFrom,
+        rsiTo: d.momentumTo,
+        strength: d.strength,
+        barsSincePivot: d.barsSincePivot,
+        triggered: triggered ? 1 : 0,
+      },
+      note: `${bullish ? 'bullish' : 'bearish'} RSI divergence ${d.momentumFrom.toFixed(0)}→${d.momentumTo.toFixed(0)} at confirmed pivots · ${d.strength}/100 · ${triggered ? 'confirmed through' : `requires ${bullish ? 'reclaim' : 'break'}`} ${confirmation.toFixed(2)}`,
+      context,
+    });
+  }
+
+  // ── descending-trendline breakout: repeated lower highs, then a close above ──
+  // Fit resistance only to PRIOR highs. The latest bar is evaluated out of
+  // sample against that line, so the detector cannot use the breakout bar to
+  // manufacture the trendline it subsequently claims to have broken.
+  if (bars.length >= 45) {
+    const lookback = bars.slice(-41, -1);
+    const pivotHighs: Array<{ x: number; y: number }> = [];
+    for (let i = 2; i < lookback.length - 2; i++) {
+      if (lookback[i].high > lookback[i - 1].high && lookback[i].high > lookback[i - 2].high
+        && lookback[i].high >= lookback[i + 1].high && lookback[i].high >= lookback[i + 2].high) {
+        pivotHighs.push({ x: i, y: lookback[i].high });
+      }
+    }
+    const anchors = pivotHighs.slice(-4);
+    if (anchors.length >= 2) {
+      const n = anchors.length;
+      const sx = anchors.reduce((s, p) => s + p.x, 0);
+      const sy = anchors.reduce((s, p) => s + p.y, 0);
+      const sxx = anchors.reduce((s, p) => s + p.x * p.x, 0);
+      const sxy = anchors.reduce((s, p) => s + p.x * p.y, 0);
+      const denom = n * sxx - sx * sx;
+      const slope = denom ? (n * sxy - sx * sy) / denom : 0;
+      const intercept = (sy - slope * sx) / n;
+      const lineNow = intercept + slope * lookback.length;
+      const priorClose = lookback.at(-1)!.close;
+      const priorLine = intercept + slope * (lookback.length - 1);
+      const latest = bars.at(-1)!;
+      const avgVol = lookback.slice(-20).reduce((s, b) => s + (b.volume ?? 0), 0) / 20;
+      const relVol = avgVol > 0 ? (latest.volume ?? 0) / avgVol : 0;
+      const descending = slope < -(last * 0.00035);
+      const crossed = priorClose <= priorLine * 1.006 && latest.close > lineNow * 1.003;
+      if (descending && crossed && relVol >= 1.05) {
+        const recentLow = Math.min(...bars.slice(-12).map((b) => b.low));
+        hits.push({
+          symbol, pattern: 'trendline_breakout', bias: 'long', detectedAt: now,
+          levels: { trendline: lineNow, breakoutClose: latest.close, invalidation: recentLow, relativeVolume: relVol },
+          note: `closed ${(((latest.close / lineNow) - 1) * 100).toFixed(1)}% above descending resistance on ${relVol.toFixed(1)}× 20d volume · invalid below ${recentLow.toFixed(2)}`,
+          context,
+        });
+      }
+    }
+  }
 
   // ── inside_coil: mother bar + >=3 consecutive inside sessions, unbroken ──
   for (let m = bars.length - 5; m >= Math.max(0, bars.length - 9); m--) {

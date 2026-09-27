@@ -870,13 +870,19 @@ export function NexusBoard() {
               <div className="intel-label">Pattern Radar<RailCtl id="radar" /></div>
               <div className="intel-value" style={{ cursor: 'pointer' }} title="Open the full pattern browser" role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => setRadarBrowse('all')}>{patterns.data ? `${patterns.data.hits.length} hits · ${patterns.data.scanned} scanned ⤢` : 'warming…'}</div>
             </div>
-            {(['inside_coil', 'bull_flag', 'breakout_watch', 'bear_flag'] as const).map((pat) => {
+            {(['trendline_breakout', 'bullish_divergence', 'inside_coil', 'breakout_watch', 'bearish_divergence', 'bull_flag'] as const).map((pat) => {
               // Operator-core names pin to the front of each group — CRCL's
               // bull flag was hit #40 of 157 and invisible behind the 8-chip cap.
               const rows = (patterns.data?.hits ?? []).filter((h) => h.pattern === pat)
                 .sort((a, b) => Number((b as any).core ?? false) - Number((a as any).core ?? false)).slice(0, 8);
               if (!rows.length) return null;
-              const label = pat === 'inside_coil' ? 'Coils' : pat === 'bull_flag' ? 'Bull flags' : pat === 'breakout_watch' ? '52w-high watch' : 'Bear flags';
+              const label = pat === 'inside_coil' ? 'Coils'
+                : pat === 'bull_flag' ? 'Bull flags · secondary'
+                : pat === 'breakout_watch' ? '52w-high watch'
+                : pat === 'trendline_breakout' ? 'Trendline breaks'
+                : pat === 'bullish_divergence' ? 'Bullish divergences'
+                : pat === 'bearish_divergence' ? 'Bearish divergences'
+                : 'Bear flags';
               return (
                 <div key={pat} style={{ marginBottom: 8 }}>
                   <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 0.8, margin: '6px 0 4px' }}>
@@ -996,7 +1002,7 @@ export function NexusBoard() {
                 <div style={{ width: 'min(720px, 92vw)', maxHeight: '80vh', overflow: 'auto', background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 12, padding: 18 }} onClick={(ev) => ev.stopPropagation()}>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 15, marginRight: 'auto' }}>Pattern browser · {patterns.data?.hits.length ?? 0} hits</div>
-                    {['all', 'inside_coil', 'bull_flag', 'bear_flag', 'breakout_watch', 'nr7'].map((f) => (
+                    {['all', 'trendline_breakout', 'bullish_divergence', 'bearish_divergence', 'inside_coil', 'bull_flag', 'bear_flag', 'breakout_watch', 'nr7'].map((f) => (
                       <button key={f} onClick={() => setRadarBrowse(f)} style={{ padding: '3px 8px', borderRadius: 3, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', background: radarBrowse === f ? 'rgba(59,140,255,0.15)' : 'transparent', color: radarBrowse === f ? 'var(--cyan-bright)' : 'var(--text-mute)', border: '1px solid var(--nx-border)' }}>{f.replace('_', ' ')}</button>
                     ))}
                   </div>

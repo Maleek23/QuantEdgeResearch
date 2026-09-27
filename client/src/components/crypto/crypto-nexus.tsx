@@ -27,6 +27,7 @@ import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
 import { Heartbeat } from '@/components/viz';
+import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
 import '@/styles/nexus.css';
 
 interface CryptoAsset {
@@ -195,6 +196,7 @@ export function CryptoNexus() {
   const [, setLocation] = useLocation();
   const { setCurrentStock } = useStockContext();
   const rail = useColResize('nx-crypto-side', 320, { sign: -1, min: 240, max: 520 });
+  const [chartCoin, setChartCoin] = useState<'BTC' | 'ETH' | 'SOL' | 'XRP' | 'QNT'>('BTC');
 
   const { data: pulse } = useQuery<PulsePayload>({
     queryKey: ['/api/crypto/pulse', 'nexus'],
@@ -237,6 +239,7 @@ export function CryptoNexus() {
 
   const btc = pulse?.assets?.find((a) => a.symbol === 'BTC');
   const eth = pulse?.assets?.find((a) => a.symbol === 'ETH');
+  const chartAsset = pulse?.assets?.find((a) => a.symbol === chartCoin);
 
   /* ETH/BTC — real arithmetic on the two live series */
   const ethBtc = btc && eth && btc.price > 0 ? eth.price / btc.price : null;
@@ -335,6 +338,29 @@ export function CryptoNexus() {
               <SpotCard a={eth} kind="eth" />
             </div>
           </div>
+
+          <section className="crypto-chart-deck" aria-label="Interactive crypto chart and levels">
+            <div className="crypto-chart-head">
+              <div>
+                <div className="spot-label">Structure lab</div>
+                <div className="crypto-chart-title">{chartCoin}/USD · interactive tape</div>
+              </div>
+              <div className="crypto-chart-tabs">
+                {(['BTC', 'ETH', 'SOL', 'XRP', 'QNT'] as const).map((coin) => (
+                  <button key={coin} type="button" className={coin === chartCoin ? 'active' : ''} onClick={() => setChartCoin(coin)}>{coin}</button>
+                ))}
+              </div>
+            </div>
+            <NexusPriceChart key={chartCoin} symbol={`${chartCoin}-USD`} initialTf="1h" height={330} expandable />
+            <div className="crypto-level-strip">
+              <div><span>spot</span><b>{chartAsset ? `$${chartAsset.price.toLocaleString(undefined, { maximumFractionDigits: chartAsset.price < 10 ? 4 : 0 })}` : '—'}</b></div>
+              <div><span>7d</span><b className={(chartAsset?.change7d ?? 0) >= 0 ? 'up' : 'down'}>{pct(chartAsset?.change7d)}</b></div>
+              <div><span>30d</span><b className={(chartAsset?.change30d ?? 0) >= 0 ? 'up' : 'down'}>{pct(chartAsset?.change30d)}</b></div>
+              <div><span>RSI 14d</span><b>{chartAsset?.rsi14d == null ? '—' : chartAsset.rsi14d.toFixed(0)}</b></div>
+              <div><span>realized vol</span><b>{chartAsset?.realizedVol30d == null ? '—' : `${chartAsset.realizedVol30d.toFixed(0)}%`}</b></div>
+            </div>
+            <p className="crypto-chart-note">Levels come from traded price structure on the selected coin. Equity proxies remain separate trades: their own trend, tape, liquidity and invalidation must confirm.</p>
+          </section>
 
           <section className="border-y border-border/45 px-4 py-4 md:px-6" aria-label="Crypto proxy promotion gate">
             <div className="flex flex-wrap items-end justify-between gap-3">

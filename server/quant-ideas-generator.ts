@@ -293,7 +293,8 @@ async function fetchLearnedWeights(): Promise<Map<string, number>> {
 interface QuantSignal {
   type: 'rsi2_mean_reversion' | 'vwap_cross' | 'volume_spike' | 'rsi2_short_reversion'
     | 'vwap_rejection' | 'distribution_spike' | 'gap_continuation' | 'inside_coil'
-    | 'flow_conviction' | 'breakout_watch' | 'volume_thrust';
+    | 'flow_conviction' | 'breakout_watch' | 'volume_thrust'
+    | 'trendline_breakout' | 'bullish_divergence' | 'bearish_divergence';
   gapPercent?: number;
   strength: 'strong' | 'moderate' | 'weak';
   direction: 'long' | 'short';  // v3.2: BOTH long and short positions (mean reversion both ways)
@@ -396,13 +397,21 @@ async function buildBullflowLeans(symbols: string[]): Promise<void> {
 // instead of just decorating the radar. Populated from the pattern engine's
 // sweep each batch; symbol → pct from window high (negative = below).
 let breakoutProximity = new Map<string, number | null>();
+let actionablePattern = new Map<string, { type: 'trendline_breakout' | 'bullish_divergence' | 'bearish_divergence'; strength: number }>();
 
 async function buildBreakoutSet(): Promise<void> {
   breakoutProximity = new Map();
+  actionablePattern = new Map();
   try {
     const { getPatternHits } = await import('./pattern-engine');
     for (const h of getPatternHits().hits) {
       if (h.pattern === 'breakout_watch') breakoutProximity.set(h.symbol, h.context?.pctFromHigh ?? null);
+      if (h.pattern === 'trendline_breakout') {
+        actionablePattern.set(h.symbol, { type: h.pattern, strength: Number(h.levels.relativeVolume ?? 1) >= 1.5 ? 80 : 65 });
+      }
+      if ((h.pattern === 'bullish_divergence' || h.pattern === 'bearish_divergence') && h.levels.triggered === 1) {
+        actionablePattern.set(h.symbol, { type: h.pattern, strength: Number(h.levels.strength ?? 50) });
+      }
     }
   } catch { /* engine cold — detector simply doesn't fire */ }
 }
@@ -631,6 +640,25 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
           type: 'breakout_watch',
           strength: prox != null && prox > -1.5 ? 'strong' : 'moderate',
           direction: 'long',
+        };
+      }
+    }
+  }
+
+  // PRIORITY 0.42: confirmed structure families. Divergence alone is never an
+  // entry; only a later reclaim/break stored by the pivot engine may seed the
+  // book. Trendline breaks require a close through prior fitted resistance and
+  // volume confirmation. Bull flags intentionally do not receive this bridge.
+  {
+    const setup = actionablePattern.get(data.symbol);
+    if (setup) {
+      const short = setup.type === 'bearish_divergence';
+      detectedSignals.push(setup.type.toUpperCase());
+      if (!primarySignal) {
+        primarySignal = {
+          type: setup.type,
+          strength: setup.strength >= 75 ? 'strong' : 'moderate',
+          direction: short ? 'short' : 'long',
         };
       }
     }
@@ -964,6 +992,12 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
     return `Within 3% of the window high on a rising 20d average — candidacy signal only: the 753-session walk-forward found no 5-day edge at highs (the proximity effect is a 6-12 month phenomenon)`;
   } else if (signal.type === 'volume_thrust') {
     return `${Number(volumeRatio).toFixed(1)}x average volume on an up day — candidacy signal only: the 3-year walk-forward found no edge (−0.5%, t −1.4); the live cohort is its remaining case`;
+  } else if (signal.type === 'trendline_breakout') {
+    return `Confirmed close above fitted descending resistance with volume participation — breakout level is structural, not a percentage template`;
+  } else if (signal.type === 'bullish_divergence') {
+    return `Bullish RSI pivot divergence plus a later price reclaim — momentum disagreement alone was not treated as an entry`;
+  } else if (signal.type === 'bearish_divergence') {
+    return `Bearish RSI pivot divergence plus a later support break — momentum disagreement alone was not treated as an entry`;
   } else {
     return `Technical setup confirmed - ${volumeRatio}x volume`;
   }
@@ -1015,6 +1049,16 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
            `which is why this signal seeds a candidate for the funnel instead of asserting a conclusion.`;
   }
 
+  if (signal.type === 'trendline_breakout') {
+    return `Price closed through a descending resistance line fitted only to prior pivot highs, with above-average volume. ` +
+      `The breakout bar was excluded from the fit to avoid look-ahead. This is a newly tracked cohort, so it seeds candidacy without inheriting a claimed win rate.`;
+  }
+  if (signal.type === 'bullish_divergence' || signal.type === 'bearish_divergence') {
+    const bullish = signal.type === 'bullish_divergence';
+    return `${bullish ? 'Bullish' : 'Bearish'} divergence was measured between confirmed price pivots and RSI pivots, then gated on a subsequent ${bullish ? 'reclaim' : 'breakdown'}. ` +
+      `The confirmation lag is explicit; this is a pressure-shift read, not proof of destination.`;
+  }
+
   return `Quantitative setup confirmed with ${volumeRatio.toFixed(1)}x volume and favorable risk/reward ratio.`;
 }
 
@@ -1061,6 +1105,16 @@ function calculateConfidenceScore(
     // giveth and the lab taketh away; the live cohort can still argue.
     score = signal.strength === 'strong' ? 48 : 46;
     qualitySignals.push('Volume Thrust (3yr test: no edge)');
+  } else if (signal.type === 'trendline_breakout') {
+    // New cohort: useful structure, deliberately not pre-trusted.
+    score = signal.strength === 'strong' ? 56 : 52;
+    qualitySignals.push('Trendline Breakout (new measured cohort)');
+  } else if (signal.type === 'bullish_divergence' || signal.type === 'bearish_divergence') {
+    // The old endpoint-based RSI divergence cohort failed. This implementation
+    // is pivot-confirmed AND price-confirmed, but remains untrusted until its
+    // own outcomes—not the old label—earn a higher base.
+    score = signal.strength === 'strong' ? 54 : 50;
+    qualitySignals.push(`${signal.type === 'bullish_divergence' ? 'Bullish' : 'Bearish'} Pivot Divergence + Price Confirmation (new cohort)`);
   } else if (signal.type === 'inside_coil') {
     // NEW and unmeasured — untrusted like every newborn template.
     score = signal.strength === 'strong' ? 54 : 50;

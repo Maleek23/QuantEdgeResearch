@@ -1,7 +1,7 @@
 import { fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 
 export type CryptoPulseAsset = {
-  symbol: 'BTC' | 'ETH';
+  symbol: string;
   name: string;
   price: number;
   change24h: number;
@@ -50,7 +50,7 @@ function percentFrom(closes: number[], daysAgo: number): number | null {
   return ((current - base) / base) * 100;
 }
 
-async function asset(symbol: 'BTC' | 'ETH', name: string): Promise<CryptoPulseAsset | null> {
+async function asset(symbol: string, name: string): Promise<CryptoPulseAsset | null> {
   const [quote, history] = await Promise.all([
     fetchCryptoPrice(symbol),
     fetchHistoricalPrices(symbol, 'crypto', 90),
@@ -90,7 +90,13 @@ async function asset(symbol: 'BTC' | 'ETH', name: string): Promise<CryptoPulseAs
  */
 export async function getCryptoPulse(): Promise<CryptoPulse> {
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.value;
-  const assets = (await Promise.all([asset('BTC', 'Bitcoin'), asset('ETH', 'Ethereum')]))
+  const assets = (await Promise.all([
+    asset('BTC', 'Bitcoin'),
+    asset('ETH', 'Ethereum'),
+    asset('SOL', 'Solana'),
+    asset('XRP', 'XRP'),
+    asset('QNT', 'Quant'),
+  ]))
     .filter((value): value is CryptoPulseAsset => value !== null);
   const value = { asOf: new Date().toISOString(), assets };
   cached = { value, at: Date.now() };

@@ -41,7 +41,8 @@ const YAHOO_CRYPTO_MAP: Record<string, string> = {
   'XRP': 'XRP-USD', 'ADA': 'ADA-USD', 'DOGE': 'DOGE-USD', 'DOT': 'DOT-USD',
   'AVAX': 'AVAX-USD', 'LINK': 'LINK-USD', 'MATIC': 'MATIC-USD', 'SHIB': 'SHIB-USD',
   'LTC': 'LTC-USD', 'UNI': 'UNI-USD', 'AAVE': 'AAVE-USD', 'ATOM': 'ATOM-USD',
-  'NEAR': 'NEAR-USD', 'APT': 'APT-USD', 'FIL': 'FIL-USD', 'INJ': 'INJ-USD'
+  'NEAR': 'NEAR-USD', 'APT': 'APT-USD', 'FIL': 'FIL-USD', 'INJ': 'INJ-USD',
+  'QNT': 'QNT-USD',
 };
 
 // Track CoinGecko rate limit status
@@ -70,6 +71,7 @@ const CRYPTO_SYMBOL_MAP: Record<string, string> = {
   APT: "aptos",
   FIL: "filecoin",
   IMX: "immutable-x",
+  QNT: "quant-network",
 };
 
 /**
