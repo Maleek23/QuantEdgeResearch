@@ -396,12 +396,13 @@ export const SECTOR_MAP: Record<string, Sector> = {
   CRWD: 'cybersecurity', PANW: 'cybersecurity', ZS: 'cybersecurity', FTNT: 'cybersecurity',
   // Enterprise SaaS (gap fills)
   CRM: 'software', ADBE: 'software', NOW: 'software', WDAY: 'software', HUBS: 'software', IBM: 'software',
+  SAP: 'software', GDDY: 'software',
   // AI Infrastructure
-  CRDO: 'ai_infra', VRT: 'ai_infra', ANET: 'ai_infra',
+  CRDO: 'ai_infra', VRT: 'ai_infra', ANET: 'ai_infra', EQIX: 'ai_infra', KEYS: 'ai_infra',
   // Chips expansion
-  INTC: 'chips', QCOM: 'chips', ON: 'chips',
+  INTC: 'chips', QCOM: 'chips', ON: 'chips', QRVO: 'chips', SWKS: 'chips',
   // Index ETFs expansion
-  IGV: 'index', XBI: 'index', ARKK: 'index',
+  IGV: 'index', XBI: 'index', ARKK: 'index', XLV: 'index',
   // Defense / Aerospace
   KTOS: 'defense', LMT: 'defense',
   // Nuclear / Energy renaissance
@@ -451,12 +452,12 @@ export const SECTOR_MAP: Record<string, Sector> = {
 
   // ── Healthcare rotation tier ──────────────────────────────
   // Pharma
-  LLY: 'pharma', NVO: 'pharma', MRK: 'pharma', ABBV: 'pharma',
+  LLY: 'pharma', NVO: 'pharma', NVS: 'pharma', JNJ: 'pharma', MRK: 'pharma', ABBV: 'pharma',
   PFE: 'pharma', AMGN: 'pharma', GILD: 'pharma', BMY: 'pharma',
   // Health insurers / providers / med-devices / tools
   UNH: 'healthcare', CVS: 'healthcare', ELV: 'healthcare', CI: 'healthcare',
   HUM: 'healthcare', HCA: 'healthcare', ISRG: 'healthcare', MDT: 'healthcare',
-  ABT: 'healthcare', TMO: 'healthcare', DHR: 'healthcare',
+  ABT: 'healthcare', TMO: 'healthcare', DHR: 'healthcare', UFPT: 'healthcare', HTFL: 'healthcare',
   // Large-cap optionable biotech
   VRTX: 'biotech', REGN: 'biotech', MRNA: 'biotech',
 
@@ -480,12 +481,15 @@ export const SECTOR_MAP: Record<string, Sector> = {
 
   // Materials / copper / rare earths
   FCX: 'materials', SCCO: 'materials', MP: 'materials', LAC: 'materials',
-  ALB: 'materials', XME: 'materials', REMX: 'materials',
+  ALB: 'materials', XME: 'materials', REMX: 'materials', NTR: 'materials',
 
   // Consumer / communications
   WMT: 'consumer', COST: 'consumer', HD: 'consumer', LOW: 'consumer',
   TGT: 'consumer', NKE: 'consumer', SBUX: 'consumer', DIS: 'consumer',
-  UBER: 'consumer', ABNB: 'consumer',
+  UBER: 'consumer', ABNB: 'consumer', BBY: 'consumer', DKS: 'consumer',
+
+  // Insurance / payments discovered dynamically by the liquid-universe scan.
+  MET: 'financials', CPAY: 'fintech',
 };
 
 export function getSector(symbol: string): Sector {

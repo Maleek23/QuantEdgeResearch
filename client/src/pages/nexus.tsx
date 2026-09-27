@@ -56,6 +56,7 @@ const TickerWorkup = lazy(() => import('@/components/workup/ticker-workup').then
 import '@/styles/nexus.css';
 import { usePrefs, orderOf } from '@/lib/board-prefs';
 import { CustomizePanel } from '@/components/shell/customize-panel';
+import { getSector, SECTOR_LABELS } from '@shared/approved-tickers';
 
 /** Radar hover-preview: the pattern\'s real 1mo series + its defining levels.
  *  Interaction reveals measured data (interactivity plan rule #1). */
@@ -171,7 +172,17 @@ function useNexusData() {
     queryKey: ['/api/health', 'terminal-chrome'], queryFn: q('/api/health'),
     refetchInterval: 120_000, staleTime: 60_000, retry: 1,
   });
-  return { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns };
+  const proactive = useQuery<{ setups: Array<{ symbol: string; setupType: string; direction: 'bullish' | 'bearish'; confidence: number; signals: string[]; currentPrice: number }> }>({
+    queryKey: ['/api/discovery/proactive', 'nexus'],
+    queryFn: q('/api/discovery/proactive'),
+    refetchInterval: 900_000, staleTime: 600_000, retry: 0,
+  });
+  const shortInterest = useQuery<{ asOf: string; coverage?: { requested: number; available: number }; rows: Array<{ symbol: string; shortPercentOfFloat: number | null; shortRatio: number | null; squeezeContext: string }> }>({
+    queryKey: ['/api/short-interest/screen', 'nexus'],
+    queryFn: q('/api/short-interest/screen'),
+    refetchInterval: 43_200_000, staleTime: 43_200_000, retry: 0,
+  });
+  return { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns, proactive, shortInterest };
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -463,7 +474,7 @@ export function NexusBoard() {
   const { currentStock, setCurrentStock } = useStockContext();
   const focusSym = currentStock?.symbol?.toUpperCase();
   const light = theme === 'nexus-light';
-  const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns } = useNexusData();
+  const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns, proactive, shortInterest } = useNexusData();
   const [radarPrev, setRadarPrev] = useState<{ symbol: string; note: string; x: number; y: number } | null>(null);
   const [radarBrowse, setRadarBrowse] = useState<string | null>(null); // pattern filter or 'all'
   const [printsExpanded, setPrintsExpanded] = useState(false);
@@ -1567,7 +1578,7 @@ export function NexusBoard() {
                       );
                     })()}
                     <span>{liveDte != null ? `${liveDte}d` : 'no contract'}</span>
-                    <span>{p.sector ?? ''}</span>
+                    <span>{SECTOR_LABELS[getSector(p.symbol)]}</span>
                   </div>
                 </div>
               );
@@ -1611,7 +1622,18 @@ export function NexusBoard() {
               .filter((h) => (h.pattern === 'inside_coil' || h.pattern === 'nr7') && h.bias !== 'short')
               .filter((h) => !pendingPicks.some(({ p }) => p.symbol === h.symbol))
               .slice(0, 5);
-            const total = pendingPicks.length + coilHits.length;
+            const accumulationHits = (proactive.data?.setups ?? [])
+              .filter((setup) => setup.setupType === 'VOLUME_ACCUMULATION')
+              .filter((setup) => !pendingPicks.some(({ p }) => p.symbol === setup.symbol))
+              .filter((setup) => !coilHits.some((hit) => hit.symbol === setup.symbol))
+              .slice(0, 4);
+            const shortFuel = (shortInterest.data?.rows ?? [])
+              .filter((row) => (row.shortPercentOfFloat ?? 0) >= 0.08)
+              .filter((row) => !pendingPicks.some(({ p }) => p.symbol === row.symbol))
+              .filter((row) => !coilHits.some((hit) => hit.symbol === row.symbol))
+              .filter((row) => !accumulationHits.some((hit) => hit.symbol === row.symbol))
+              .slice(0, 4);
+            const total = pendingPicks.length + coilHits.length + accumulationHits.length + shortFuel.length;
             if (!total) return (
               <div className="dev-empty" style={{ order: ord('right', 'dev') }}>
                 <div className="dev-icon">
@@ -1644,7 +1666,33 @@ export function NexusBoard() {
                     <span style={{ color: 'var(--cyan-bright)', fontWeight: 700 }}>watch</span>
                   </div>
                 ))}
-                <p style={{ marginTop: 6, fontSize: 'var(--fs-11, 12px)', color: 'var(--text-dim)' }}>Watch list, not signals: setups that haven't triggered yet. Tap one for its workup.</p>
+                {accumulationHits.map((setup) => (
+                  <div key={`acc-${setup.symbol}`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setCurrentStock({ symbol: setup.symbol }); openWorkup(setup.symbol); }}
+                    style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(110,231,183,0.035)', border: '1px solid rgba(110,231,183,0.18)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
+                    <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12 }}>{setup.symbol}</b>
+                    <span style={{ color: 'var(--text-dim)' }}>volume accumulation · pre-trigger context</span>
+                    <span style={{ color: 'var(--green)', fontWeight: 700 }}>{setup.confidence}%</span>
+                  </div>
+                ))}
+                {shortFuel.map((row) => (
+                  <div key={`si-${row.symbol}`} role="button" tabIndex={0} onKeyDown={pressOnEnter} onClick={() => { setCurrentStock({ symbol: row.symbol }); openWorkup(row.symbol); }}
+                    style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 8, alignItems: 'center', padding: '6px 8px', marginBottom: 4, background: 'rgba(244,185,66,0.035)', border: '1px solid rgba(244,185,66,0.18)', borderRadius: 4, cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
+                    <b style={{ fontFamily: "'Space Grotesk',sans-serif", fontSize: 12 }}>{row.symbol}</b>
+                    <span style={{ color: 'var(--text-dim)' }}>short-interest fuel · context only</span>
+                    <span style={{ color: 'var(--amber)', fontWeight: 700 }}>{((row.shortPercentOfFloat ?? 0) * 100).toFixed(1)}%</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 7, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
+                  <span style={{ padding: '2px 6px', border: '1px solid var(--nx-border)', borderRadius: 3 }}>
+                    accumulation · {accumulationHits.length ? `${accumulationHits.length} detected` : proactive.data ? 'none detected' : proactive.isLoading ? 'scanning' : 'unavailable'}
+                  </span>
+                  <span style={{ padding: '2px 6px', border: '1px solid var(--nx-border)', borderRadius: 3 }}>
+                    short interest · {shortInterest.data?.coverage?.available
+                      ? `${shortFuel.length} elevated / ${shortInterest.data.coverage.available} measured`
+                      : shortInterest.isLoading ? 'loading' : 'feed unavailable'}
+                  </span>
+                </div>
+                <p style={{ marginTop: 6, fontSize: 'var(--fs-11, 12px)', color: 'var(--text-dim)' }}>Watch list, not signals: pending entries, live compression, measured accumulation and squeeze fuel. Tap one for its workup.</p>
               </div>
             );
           })()}

@@ -3,8 +3,8 @@
  *
  * Extracted from chart-lab-nexus so NexusPriceChart and the Chart Lab page can
  * both use one engine without a circular import. Everything here is the mock's
- * drawing code plus the honesty layer: real OHLCV via useCandles, outlier-wick
- * clamping with counts, zone bands, level lines.
+ * drawing code plus the honesty layer: real OHLCV via useCandles, bad-tick
+ * quarantine with counts, zone bands, level lines.
  */
 import { useQuery } from '@tanstack/react-query';
 
@@ -51,6 +51,21 @@ const WICK_TOLERANCE: Record<string, number> = {
 };
 
 export interface CandleSeries { bars: Candle[]; clampedWicks: number }
+
+/**
+ * Render bounds for a candle after source-anomaly quarantine.
+ *
+ * A quarantined print must not set the scale and must never be stretched to a
+ * plot boundary. Doing that made a hidden bad tick look like a real, dramatic
+ * full-height candle. We retain the raw OHLC on the Candle for audit/tooltips,
+ * but collapse only the suspect side to the observed candle body on screen.
+ */
+export function renderedCandleRange(candle: Candle): { high: number; low: number } {
+  return {
+    high: candle.clampedHigh ? Math.max(candle.open, candle.close) : candle.high,
+    low: candle.clampedLow ? Math.min(candle.open, candle.close) : candle.low,
+  };
+}
 
 export function aggregateCandles(bars: Candle[], minutes: number): Candle[] {
   const bucketMs = minutes * 60_000;
@@ -171,11 +186,9 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
 
   let min = Infinity; let max = -Infinity; let maxVol = 0;
   candles.forEach((c) => {
-    // A clamped side is a bad tick: it may not set the scale, or three broken
-    // prints flatten every real bar (measured on QQQ 1h). Its wick is drawn
-    // to the plot edge below instead — off-scale, stated as such.
-    const lo = c.clampedLow ? Math.min(c.open, c.close) : c.low;
-    const hi = c.clampedHigh ? Math.max(c.open, c.close) : c.high;
+    // A quarantined side is a bad tick: it may not set the scale or appear as
+    // a synthetic boundary-to-boundary wick.
+    const { low: lo, high: hi } = renderedCandleRange(c);
     if (lo < min) min = lo;
     if (hi > max) max = hi;
     if (c.volume > maxVol) maxVol = c.volume;
@@ -320,8 +333,9 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
       const color = isUp ? '#6ee7b7' : '#ff6b3d';
       const openY = padding.top + ((max - c.open) / priceRange) * priceH;
       const closeY = padding.top + ((max - c.close) / priceRange) * priceH;
-      const highY = c.clampedHigh ? padding.top : padding.top + ((max - c.high) / priceRange) * priceH;
-      const lowY = c.clampedLow ? padding.top + priceH : padding.top + ((max - c.low) / priceRange) * priceH;
+      const rendered = renderedCandleRange(c);
+      const highY = padding.top + ((max - rendered.high) / priceRange) * priceH;
+      const lowY = padding.top + ((max - rendered.low) / priceRange) * priceH;
       ctx.strokeStyle = color;
       ctx.lineWidth = 1;
       ctx.beginPath();

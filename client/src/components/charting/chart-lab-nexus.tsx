@@ -37,6 +37,7 @@ export { drawChart, useCandles, TF_CONFIG } from '@/components/charting/chart-en
 export type { Candle, Level, Zone, CandleSeries } from '@/components/charting/chart-engine';
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
 import type { ConvictionPick, ConvictionsResponse } from '@/lib/convictions';
+import { getAllApprovedSymbols } from '@shared/approved-tickers';
 import '@/styles/nexus.css';
 
 /* ────────────────────────────────────────────────────────────────
@@ -95,6 +96,7 @@ const q = (path: string) => async () => {
 };
 
 const DEFAULT_INSTRUMENTS = ['SPY', 'QQQ', 'IWM', 'SMH', 'XBI'];
+const APPROVED_INSTRUMENTS = getAllApprovedSymbols().sort();
 
 export function ChartLabBoard() {
   const { currentStock, setCurrentStock } = useStockContext();
@@ -105,6 +107,7 @@ export function ChartLabBoard() {
   const [showCrosshair, setShowCrosshair] = useState(true);
   const [showLevels, setShowLevels] = useState(true);
   const [instrumentOpen, setInstrumentOpen] = useState(false);
+  const [instrumentQuery, setInstrumentQuery] = useState('');
   // Sidebar rail: drag its border left to widen, double-click to expand.
   const rail = useColResize('nx-chart-side', 300, { sign: -1, min: 240, max: 620 });
 
@@ -191,9 +194,18 @@ export function ChartLabBoard() {
   const [ohlc, setOhlc] = useState<Candle | null>(null);
 
   const instruments = useMemo(() => {
-    const set = new Set<string>([symbol, ...DEFAULT_INSTRUMENTS, ...(watchlist ?? []).map((w) => w.symbol)]);
-    return [...set];
-  }, [watchlist, symbol]);
+    const priority = [
+      symbol,
+      ...DEFAULT_INSTRUMENTS,
+      ...(watchlist ?? []).map((w) => w.symbol),
+      ...(convictions?.picks ?? []).map((p) => p.symbol),
+    ];
+    const set = new Set<string>([...priority, ...APPROVED_INSTRUMENTS]);
+    const needle = instrumentQuery.trim().toUpperCase();
+    return [...set]
+      .filter((candidate) => !needle || candidate.includes(needle))
+      .slice(0, needle ? 80 : 40);
+  }, [watchlist, convictions?.picks, symbol, instrumentQuery]);
 
   const spyQ = quoteBySym.get('SPY');
   const btc = realtime?.prices?.crypto?.BTC;
@@ -253,8 +265,26 @@ export function ChartLabBoard() {
               <svg className="instrument-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: instrumentOpen ? 'rotate(180deg)' : undefined }}><path d="M6 9l6 6 6-6" /></svg>
               {instrumentOpen && (
                 <div className="instrument-menu" onClick={(e) => e.stopPropagation()}>
+                  <div style={{ position: 'sticky', top: 0, zIndex: 2, padding: 6, background: 'var(--panel-solid)' }}>
+                    <input
+                      autoFocus
+                      value={instrumentQuery}
+                      onChange={(e) => setInstrumentQuery(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && instrumentQuery.trim()) {
+                          setCurrentStock({ symbol: instrumentQuery.trim().toUpperCase() });
+                          setInstrumentOpen(false);
+                          setInstrumentQuery('');
+                        }
+                        if (e.key === 'Escape') setInstrumentOpen(false);
+                      }}
+                      placeholder="Search any ticker"
+                      aria-label="Search chart instrument"
+                      style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border-hi)', borderRadius: 4, background: 'var(--panel-2)', color: 'var(--text)', padding: '7px 8px', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, outline: 'none' }}
+                    />
+                  </div>
                   {instruments.map((sym) => (
-                    <button key={sym} onClick={() => { setCurrentStock({ symbol: sym }); setInstrumentOpen(false); }}>
+                    <button key={sym} onClick={() => { setCurrentStock({ symbol: sym }); setInstrumentOpen(false); setInstrumentQuery(''); }}>
                       <span>{sym}</span>
                       {quoteBySym.get(sym) && (
                         <span style={{ color: quoteBySym.get(sym)!.changePct >= 0 ? 'var(--green)' : 'var(--red)', fontSize: 'var(--fs-10, 10px)' }}>
@@ -263,6 +293,12 @@ export function ChartLabBoard() {
                       )}
                     </button>
                   ))}
+                  {!instruments.length && instrumentQuery.trim() && (
+                    <button onClick={() => { setCurrentStock({ symbol: instrumentQuery.trim().toUpperCase() }); setInstrumentOpen(false); setInstrumentQuery(''); }}>
+                      <span>Open {instrumentQuery.trim().toUpperCase()}</span>
+                      <span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-9, 9px)' }}>verify from feed</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

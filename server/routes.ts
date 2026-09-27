@@ -14841,6 +14841,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── SHORT INTEREST — squeeze fuel, exchange-reported, freshness disclosed ─
+  // A small, explicit screen for the Cockpit's candidate rail. This is context,
+  // never an entry signal: high short interest can fuel a squeeze OR confirm a
+  // structurally weak name. Keep this route before /:symbol so "screen" is not
+  // interpreted as a ticker.
+  app.get("/api/short-interest/screen", async (req, res) => {
+    try {
+      const fallback = [
+        'NBIS', 'BE', 'RGTI', 'IONQ', 'QBTS', 'SOUN', 'BBAI', 'UPST', 'OPEN',
+        'GME', 'AMC', 'RIVN', 'LCID', 'MARA', 'IREN', 'WULF', 'CLSK', 'CRCL',
+        'BMNR', 'AVGO',
+      ];
+      const requested = String(req.query.symbols || '')
+        .split(',').map((s) => s.trim().toUpperCase()).filter((s) => /^[A-Z]{1,5}$/.test(s));
+      const symbols = [...new Set(requested.length ? requested : fallback)].slice(0, 30);
+      const { getShortInterest } = await import("./short-interest");
+      const rows = (await Promise.all(symbols.map((symbol) => getShortInterest(symbol))))
+        .filter((row) => row.shortPercentOfFloat != null)
+        .sort((a, b) => (b.shortPercentOfFloat ?? 0) - (a.shortPercentOfFloat ?? 0));
+      res.json({
+        asOf: new Date().toISOString(),
+        coverage: { requested: symbols.length, available: rows.length },
+        rows,
+        _meta: {
+          note: 'Exchange-reported short interest updates roughly twice monthly. This is squeeze fuel/context, not a directional signal.',
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to screen short interest" });
+    }
+  });
+
   app.get("/api/short-interest/:symbol", async (req, res) => {
     try {
       const { getShortInterest } = await import("./short-interest");
@@ -28071,7 +28102,11 @@ Use this checklist before entering any trade:
         });
       } else {
         // Default: scan watchlist and trending stocks
-        const defaultSymbols = ['AAPL', 'NVDA', 'TSLA', 'AMD', 'META', 'MSFT', 'GOOGL', 'AMZN', 'NFLX', 'PLTR'];
+        const defaultSymbols = [
+          'AVGO', 'BE', 'NBIS', 'RGTI', 'IONQ', 'SOUN', 'CRCL', 'META', 'MSFT',
+          'GOOGL', 'AMZN', 'AMD', 'MU', 'DELL', 'PLTR', 'MARA', 'IREN', 'UPST',
+          'COHR', 'LITE',
+        ];
         const setups = await runProactiveScan(defaultSymbols);
         res.json({
           setups,

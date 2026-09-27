@@ -9,7 +9,7 @@
  * Interaction model (the "can't scroll to see other bars" fix):
  *   wheel        zoom in/out, anchored on the bar under the cursor
  *   drag         pan through history
- *   double-click reset to the full range
+ *   double-click reset to a readable timeframe-sized window
  *   ⤢            expand into a modal over a blurred backdrop
  *
  * Pan/zoom is a windowed VIEW over the real series — never resampled, never
@@ -17,12 +17,22 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import {
-  drawChart, useCandles, TF_CONFIG,
+  drawChart, renderedCandleRange, useCandles, TF_CONFIG,
   type Candle, type Level, type Zone,
 } from '@/components/charting/chart-engine';
 import '@/styles/nexus.css';
 
 const MIN_SPAN = 15;
+const DEFAULT_VISIBLE_BARS: Record<keyof typeof TF_CONFIG, number> = {
+  '1m': 390,
+  '5m': 390,
+  '15m': 260,
+  '30m': 220,
+  '1h': 240,
+  '4h': 180,
+  '1D': 180,
+  '1W': 156,
+};
 
 const SYNC_BUS = new Map<string, Set<(t: number | null) => void>>();
 
@@ -64,7 +74,8 @@ export function NexusPriceChart({
   const [view, setView] = useState<{ span: number | null; offset: number }>({ span: null, offset: 0 });
   useEffect(() => { setView({ span: null, offset: 0 }); }, [symbol, tf]);
   const len = all?.length ?? 0;
-  const span = view.span == null ? len : Math.min(view.span, len);
+  const defaultSpan = Math.min(len, DEFAULT_VISIBLE_BARS[tf]);
+  const span = view.span == null ? defaultSpan : Math.min(view.span, len);
   const offset = Math.min(view.offset, Math.max(0, len - span));
   const candles = all ? all.slice(Math.max(0, len - span - offset), len - offset) : undefined;
 
@@ -103,7 +114,11 @@ export function NexusPriceChart({
       mouseY: mouse.current.y,
       syncTime: syncTime.current,
       onHover: (c: Candle | null, x: number, y: number) => {
-        onHoverCandle?.(c ?? (candles ? candles[candles.length - 1] : null));
+        const shown = c ? { ...c, ...renderedCandleRange(c) } : null;
+        const latest = candles?.length
+          ? { ...candles[candles.length - 1], ...renderedCandleRange(candles[candles.length - 1]) }
+          : null;
+        onHoverCandle?.(shown ?? latest);
         publishSync(c?.time ?? null);
         const tip = tipRef.current; const wrap = wrapRef.current;
         if (!tip || !wrap) return;
@@ -111,8 +126,9 @@ export function NexusPriceChart({
         const d = new Date(c.time);
         tip.querySelector('[data-tip=time]')!.textContent = d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
         tip.querySelector('[data-tip=o]')!.textContent = c.open.toFixed(2);
-        tip.querySelector('[data-tip=h]')!.textContent = c.high.toFixed(2);
-        tip.querySelector('[data-tip=l]')!.textContent = c.low.toFixed(2);
+        const rendered = renderedCandleRange(c);
+        tip.querySelector('[data-tip=h]')!.textContent = `${rendered.high.toFixed(2)}${c.clampedHigh ? '*' : ''}`;
+        tip.querySelector('[data-tip=l]')!.textContent = `${rendered.low.toFixed(2)}${c.clampedLow ? '*' : ''}`;
         const tc = tip.querySelector('[data-tip=c]') as HTMLElement;
         tc.textContent = c.close.toFixed(2);
         tc.className = 'v ' + (c.close >= c.open ? 'up' : 'down');
@@ -148,7 +164,9 @@ export function NexusPriceChart({
       if (!all || all.length < MIN_SPAN) return;
       e.preventDefault();
       setView((v) => {
-        const curSpan = v.span == null ? all.length : Math.min(v.span, all.length);
+        const curSpan = v.span == null
+          ? Math.min(all.length, DEFAULT_VISIBLE_BARS[tf])
+          : Math.min(v.span, all.length);
         // Delta-proportional zoom. The old fixed 1.25x step compounded per
         // EVENT, and a trackpad fires dozens of small-delta events per flick —
         // one gesture blew through the whole range. exp(delta·k) makes a small
@@ -157,7 +175,7 @@ export function NexusPriceChart({
         const delta = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
         const factor = Math.exp(Math.max(-160, Math.min(160, delta)) * 0.0015);
         const nextSpan = Math.round(Math.max(MIN_SPAN, Math.min(all.length, curSpan * factor)));
-        if (nextSpan >= all.length) return { span: null, offset: 0 };
+        if (nextSpan >= all.length) return { span: all.length, offset: 0 };
         // anchor: keep the bar under the cursor roughly in place
         const rect = el.getBoundingClientRect();
         const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -168,7 +186,12 @@ export function NexusPriceChart({
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [all]);
+  }, [all, tf]);
+
+  const visibleQuarantined = candles?.reduce(
+    (count, candle) => count + Number(Boolean(candle.clampedHigh)) + Number(Boolean(candle.clampedLow)),
+    0,
+  ) ?? 0;
 
   const chartBody = (
     <>
@@ -254,12 +277,10 @@ export function NexusPriceChart({
 
       <div className="chart-info-overlay" style={{ bottom: 8, left: 8, padding: '4px 8px' }}>
         <span>TF <b>{TF_CONFIG[tf].label}</b></span>
-        <span>BARS <b>{candles?.length ?? 0}{view.span != null ? ` / ${len}` : ''}</b></span>
-        {view.span != null
-          ? <span style={{ color: 'var(--cyan-bright)' }}>drag · wheel · dbl-click resets</span>
-          : <span>wheel zoom · drag pan</span>}
-        {(series?.clampedWicks ?? 0) > 0 && (
-          <span style={{ color: 'var(--amber)' }}>{series!.clampedWicks} OUTLIER WICK{series!.clampedWicks === 1 ? '' : 'S'} CLAMPED</span>
+        <span>BARS <b>{candles?.length ?? 0}{(candles?.length ?? 0) < len ? ` / ${len}` : ''}</b></span>
+        <span style={{ color: view.span != null ? 'var(--cyan-bright)' : undefined }}>wheel zoom · drag pan · dbl-click reset</span>
+        {visibleQuarantined > 0 && (
+          <span style={{ color: 'var(--amber)' }}>{visibleQuarantined} SOURCE ANOMAL{visibleQuarantined === 1 ? 'Y' : 'IES'} HIDDEN</span>
         )}
       </div>
 
