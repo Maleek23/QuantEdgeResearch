@@ -45,6 +45,7 @@ const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const SlatePage     = lazyWithRetry(() => import("@/pages/slate"), "slate");
 const TodayPage     = lazyWithRetry(() => import("@/pages/today"), "today");
+const NexusPrototype = lazyWithRetry(() => import("@/pages/nexus-prototype"), "nexus-prototype");
 const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "trade-journal");
 // REMOVED — Market page consolidated, redirect to /home
 const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
@@ -189,6 +190,7 @@ function Router() {
       <Switch>
         {/* ─── TERMINAL — one shell, 10 tabs (NEXUS · CHART · FLOW · GEX · LEAPS · CRYPTO · CATALYST · BOT · POSITIONS · JOURNAL) ─── */}
         <Route path="/t"          component={withBetaProtection(TerminalShell)} />
+        <Route path="/nexus-prototype" component={withBetaProtection(NexusPrototype)} />
         
         {/* ─── RESEARCH — per-ticker shell (own symbol chrome; stays separate) ─── */}
 

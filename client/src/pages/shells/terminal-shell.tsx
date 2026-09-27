@@ -22,7 +22,7 @@ import { RotationMap } from '@/components/rotation-map';
 import { SessionBrief } from '@/components/oracle/session-brief';
 ;
 import { OracleMarketField } from '@/components/oracle/oracle-market-field';
-import { TickerTape, SectorHeatmap, WatchlistRail, SystemStatusBlock, FooterMarketLine } from '@/components/oracle/oracle-rails';
+import { FooterMarketLine } from '@/components/oracle/oracle-rails';
 import { LiveStatsBar } from '@/components/footer';
 // LEAPS = the fifth reference mock, wired. The prior LeapTracker stays at
 // components/hunt/leap-tracker.
@@ -49,7 +49,11 @@ const TerminalSettings = lazy(() => import('@/components/terminal/terminal-setti
 // EpochChart-based lab stays in the tree at charting/chart-lab.tsx.
 const ChartLab = lazy(() => import('@/components/charting/chart-lab-nexus').then(m => ({ default: m.ChartLabBoard })));
 
-const NexusBoard    = lazy(() => import('@/pages/nexus').then(m => ({ default: m.NexusBoard })));
+// Nexus now uses the focused live decision workspace. The legacy board mixed
+// market-overview modules (pulse, rotation, radar, heatmap, watchlist) into the
+// signal workflow; those belong on Today. Cockpit remains wired through the
+// shell's universal openWorkup listener below.
+const NexusBoard    = lazy(() => import('@/pages/nexus-prototype'));
 // GEX = the reference GEX Hub mock, wired.
 const GexHub        = lazy(() => import('@/components/gex/gex-hub-nexus').then(m => ({ default: m.GexHubNexus })));
 const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m => ({ default: m.FlowBoard })));
@@ -355,12 +359,6 @@ export default function TerminalShell() {
         </AnimatePresence>
       </header>
 
-      {/* ── quote tape — real movers from the extended-hours scan, labelled by
-          session. Hidden on small screens where 28px of marquee is noise. */}
-      <div className="hidden md:block lg:pl-[196px]">
-        <TickerTape />
-      </div>
-
       {/* ── tab content (cross-fades) ── */}
       <main className="min-h-0 min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[196px]">
         {/* Some market modules keep long-lived subscriptions and nested layout
@@ -378,10 +376,8 @@ export default function TerminalShell() {
           >
             <Suspense fallback={<Fallback />}>
               {tab === 'oracle' && (
-                /* NEXUS — the reference board, embedded. The shell owns the
-                   chrome (topbar/nav/tape/footer); this renders only the
-                   three-column main. The previous Oracle v2 layout this
-                   replaces lives at 4598bc1 if it is ever wanted back. */
+                /* NEXUS — focused ranked book + selected setup. Today owns the
+                   market-overview modules; Cockpit owns the deep workup. */
                 <div className="nexus-embed-host">
                   <NexusBoard />
                 </div>
