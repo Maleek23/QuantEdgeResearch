@@ -17,9 +17,48 @@ export interface OptionMinuteSeries {
   bars: OptionMinuteBar[];
 }
 
+export interface OptionStrikeReplay {
+  strike: number;
+  occSymbol: string;
+  status: 'measured' | 'no_reported_trades' | 'no_entry_mark' | 'no_post_entry_path';
+  source: OptionMinuteSeries['source'];
+  priceBasis: OptionMinuteSeries['priceBasis'];
+  delayed: boolean;
+  entryAt: string | null;
+  entryPremium: number | null;
+  entryVolume: number | null;
+  lastAt: string | null;
+  lastPremium: number | null;
+  peakAt: string | null;
+  peakPremium: number | null;
+  troughAt: string | null;
+  troughPremium: number | null;
+  peakReturnPct: number | null;
+  maxAdversePct: number | null;
+  peakMarkedPnl: number | null;
+  barsObserved: number;
+}
+
 /** Yahoo's chart endpoint wants the compact OSI symbol without `O:` or spaces. */
 export function normalizeYahooOptionSymbol(occSymbol: string): string {
   return occSymbol.trim().toUpperCase().replace(/^O:/, '').replace(/\s+/g, '');
+}
+
+/** Build a compact OCC symbol without guessing an expiry or strike increment. */
+export function buildOccOptionSymbol(
+  root: string,
+  expiry: string,
+  optionType: 'call' | 'put',
+  strike: number,
+): string {
+  const normalizedRoot = root.trim().toUpperCase().replace(/^O:/, '');
+  if (!/^[A-Z.]{1,6}$/.test(normalizedRoot)) throw new Error('Invalid OCC root');
+  const match = expiry.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error('Invalid OCC expiry');
+  if (!Number.isFinite(strike) || strike <= 0) throw new Error('Invalid OCC strike');
+  const strikeCode = String(Math.round(strike * 1000)).padStart(8, '0');
+  if (strikeCode.length !== 8) throw new Error('OCC strike is out of range');
+  return `${normalizedRoot}${match[1].slice(2)}${match[2]}${match[3]}${optionType === 'call' ? 'C' : 'P'}${strikeCode}`;
 }
 
 function finite(value: unknown): number | null {
@@ -130,4 +169,87 @@ export function replayOptionMarks(args: { series: OptionMinuteSeries; entryAt: s
     peakReturnPct: ((peak.high / entry.close) - 1) * 100,
     maxAdversePct: ((trough.low / entry.close) - 1) * 100,
   };
+}
+
+/**
+ * Audit every requested strike from the same decision timestamp through the
+ * requested end (or the final reported regular-session trade). This is a
+ * counterfactual contract comparison, not a claim that every contract could
+ * have been filled at the printed high.
+ */
+export async function replayOptionStrikeLadder(args: {
+  root: string;
+  date: string;
+  optionType: 'call' | 'put';
+  strikes: number[];
+  entryAt: string;
+  exitAt?: string;
+}): Promise<OptionStrikeReplay[]> {
+  const entryMs = Date.parse(args.entryAt);
+  const exitMs = args.exitAt ? Date.parse(args.exitAt) : Number.POSITIVE_INFINITY;
+  if (!Number.isFinite(entryMs)) throw new Error('Invalid ladder entry timestamp');
+  if (args.exitAt && !Number.isFinite(exitMs)) throw new Error('Invalid ladder exit timestamp');
+  const uniqueStrikes = [...new Set(args.strikes.filter((strike) => Number.isFinite(strike) && strike > 0))]
+    .sort((a, b) => a - b);
+  if (uniqueStrikes.length === 0 || uniqueStrikes.length > 30) throw new Error('Strike ladder must contain 1-30 strikes');
+
+  return Promise.all(uniqueStrikes.map(async (strike): Promise<OptionStrikeReplay> => {
+    const occSymbol = buildOccOptionSymbol(args.root, args.date, args.optionType, strike);
+    const empty = (status: OptionStrikeReplay['status']): OptionStrikeReplay => ({
+      strike,
+      occSymbol,
+      status,
+      source: 'yahoo-opr-trades',
+      priceBasis: 'reported-trade-ohlcv',
+      delayed: true,
+      entryAt: null,
+      entryPremium: null,
+      entryVolume: null,
+      lastAt: null,
+      lastPremium: null,
+      peakAt: null,
+      peakPremium: null,
+      troughAt: null,
+      troughPremium: null,
+      peakReturnPct: null,
+      maxAdversePct: null,
+      peakMarkedPnl: null,
+      barsObserved: 0,
+    });
+
+    const series = await getHistoricalOptionMinutes(occSymbol, args.date);
+    if (!series || series.bars.length === 0) return empty('no_reported_trades');
+    const entry = optionMarkAtOrAfter(series.bars, args.entryAt);
+    if (!entry || Date.parse(entry.timestamp) > exitMs || entry.close <= 0) return empty('no_entry_mark');
+    const path = series.bars.filter((bar) => {
+      const at = Date.parse(bar.timestamp);
+      return at > Date.parse(entry.timestamp) && at <= exitMs;
+    });
+    if (path.length === 0) return { ...empty('no_post_entry_path'), entryAt: entry.timestamp, entryPremium: entry.close, entryVolume: entry.volume };
+
+    const peak = path.reduce((best, bar) => bar.high > best.high ? bar : best, path[0]);
+    const trough = path.reduce((worst, bar) => bar.low < worst.low ? bar : worst, path[0]);
+    const last = path[path.length - 1];
+    return {
+      strike,
+      occSymbol,
+      status: 'measured',
+      source: series.source,
+      priceBasis: series.priceBasis,
+      delayed: series.delayed,
+      entryAt: entry.timestamp,
+      entryPremium: Number(entry.close.toFixed(2)),
+      entryVolume: entry.volume,
+      lastAt: last.timestamp,
+      lastPremium: Number(last.close.toFixed(2)),
+      peakAt: peak.timestamp,
+      peakPremium: Number(peak.high.toFixed(2)),
+      troughAt: trough.timestamp,
+      troughPremium: Number(trough.low.toFixed(2)),
+      peakReturnPct: Number((((peak.high / entry.close) - 1) * 100).toFixed(2)),
+      maxAdversePct: Number((((trough.low / entry.close) - 1) * 100).toFixed(2)),
+      peakMarkedPnl: Number(((peak.high - entry.close) * 100).toFixed(2)),
+      barsObserved: path.length,
+    };
+  }));
 }

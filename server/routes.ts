@@ -1829,6 +1829,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Counterfactual strike audit around one index signal. This answers “which
+  // nearby contract was cheapest and what did each one print after the call?”
+  // with reported option trades, while keeping the result explicitly separate
+  // from executable fills and realized account P&L.
+  app.get('/api/options/history-ladder', async (req: Request, res: Response) => {
+    try {
+      const root = String(req.query.root || 'SPXW').toUpperCase();
+      const date = String(req.query.date || '').slice(0, 10);
+      const optionType = String(req.query.type || '').toLowerCase();
+      const entryAt = String(req.query.entryAt || '');
+      const exitAt = req.query.exitAt ? String(req.query.exitAt) : undefined;
+      const minStrike = Number(req.query.minStrike);
+      const maxStrike = Number(req.query.maxStrike);
+      const step = Number(req.query.step || 5);
+      if (!/^[A-Z.]{1,6}$/.test(root) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: 'Valid OCC root and YYYY-MM-DD date are required' });
+      }
+      if (optionType !== 'call' && optionType !== 'put') {
+        return res.status(400).json({ error: 'type must be call or put' });
+      }
+      if (!Number.isFinite(Date.parse(entryAt))) {
+        return res.status(400).json({ error: 'entryAt must be an ISO timestamp' });
+      }
+      if (!Number.isFinite(minStrike) || !Number.isFinite(maxStrike) || !Number.isFinite(step) || step <= 0 || maxStrike < minStrike) {
+        return res.status(400).json({ error: 'A valid bounded strike range is required' });
+      }
+      const count = Math.floor((maxStrike - minStrike) / step) + 1;
+      if (count < 1 || count > 30) return res.status(400).json({ error: 'Strike ladder is limited to 30 contracts' });
+      const strikes = Array.from({ length: count }, (_, index) => Number((minStrike + index * step).toFixed(3)));
+      const { replayOptionStrikeLadder } = await import('./option-minute-history');
+      const ladder = await replayOptionStrikeLadder({
+        root,
+        date,
+        optionType: optionType as 'call' | 'put',
+        strikes,
+        entryAt,
+        exitAt,
+      });
+      const measured = ladder.filter((row) => row.status === 'measured');
+      const cheapest = [...measured].sort((a, b) => Number(a.entryPremium) - Number(b.entryPremium))[0] ?? null;
+      const bestPeakPct = [...measured].sort((a, b) => Number(b.peakReturnPct) - Number(a.peakReturnPct))[0] ?? null;
+      const bestPeakDollars = [...measured].sort((a, b) => Number(b.peakMarkedPnl) - Number(a.peakMarkedPnl))[0] ?? null;
+      res.json({
+        root,
+        date,
+        optionType,
+        entryAt,
+        exitAt: exitAt ?? null,
+        source: 'yahoo-opr-trades',
+        priceBasis: 'reported-trade-ohlcv',
+        fillBasis: 'counterfactual marks; not NBBO or guaranteed fills',
+        ladder,
+        summary: {
+          requested: strikes.length,
+          measured: measured.length,
+          cheapestStrike: cheapest?.strike ?? null,
+          cheapestEntryPremium: cheapest?.entryPremium ?? null,
+          bestPeakPctStrike: bestPeakPct?.strike ?? null,
+          bestPeakReturnPct: bestPeakPct?.peakReturnPct ?? null,
+          bestPeakDollarsStrike: bestPeakDollars?.strike ?? null,
+          bestPeakMarkedPnl: bestPeakDollars?.peakMarkedPnl ?? null,
+        },
+      });
+    } catch (error) {
+      logger.error('[OPTION-HISTORY] strike ladder failed:', error);
+      res.status(500).json({ error: 'Option strike ladder replay failed' });
+    }
+  });
+
   app.post("/api/webhooks/tradingview", async (req: Request, res: Response) => {
     try {
       const { validateWebhookSecret, normalizeTradingViewPayload, processSignal } = await import("./tradingview-webhook");

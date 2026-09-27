@@ -179,7 +179,107 @@ interface PublishedIdeaRow {
   resolutionReason?: string | null;
   source: string | null;
   dataSourceUsed: string | null;
+  contractSymbol?: string | null;
   at: string;
+}
+
+interface StrikeLadderResponse {
+  fillBasis: string;
+  summary: {
+    requested: number;
+    measured: number;
+    cheapestStrike: number | null;
+    cheapestEntryPremium: number | null;
+    bestPeakPctStrike: number | null;
+    bestPeakReturnPct: number | null;
+  };
+  ladder: Array<{
+    strike: number;
+    status: string;
+    entryPremium: number | null;
+    entryVolume: number | null;
+    peakPremium: number | null;
+    peakReturnPct: number | null;
+    maxAdversePct: number | null;
+    peakMarkedPnl: number | null;
+  }>;
+}
+
+function IndexStrikeLadder({ row }: { row: PublishedIdeaRow }) {
+  const [open, setOpen] = useState(false);
+  const center = Number(row.strikePrice);
+  const expiry = row.expiryDate?.slice(0, 10) || row.at.slice(0, 10);
+  const root = row.contractSymbol?.match(/^([A-Z.]{1,6})\d{6}[CP]\d{8}$/)?.[1] || (row.symbol === 'SPX' ? 'SPXW' : row.symbol);
+  const params = new URLSearchParams({
+    root,
+    date: expiry,
+    type: row.optionType || 'call',
+    entryAt: row.at,
+    minStrike: String(center - 10),
+    maxStrike: String(center + 15),
+    step: '1',
+  });
+  const { data, isFetching, error } = useQuery<StrikeLadderResponse>({
+    queryKey: ['/api/options/history-ladder', row.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/options/history-ladder?${params.toString()}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('Strike replay unavailable');
+      return response.json();
+    },
+    enabled: open && Number.isFinite(center) && center > 0,
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: 0,
+  });
+
+  if (row.symbol !== 'SPX' || !row.optionType || !Number.isFinite(center)) return null;
+  return (
+    <div className="mt-2 border-t border-border/40 pt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="font-mono text-[9px] uppercase tracking-[0.13em] text-[var(--brand-cyan)] hover:underline"
+      >
+        {open ? 'Hide strike audit' : `Compare ${center - 10}–${center + 15} strikes`}
+      </button>
+      {open && (
+        <div className="mt-2 overflow-x-auto">
+          {isFetching ? (
+            <div className="font-mono text-[9px] text-muted-foreground">Loading reported one-minute contract paths…</div>
+          ) : error ? (
+            <div className="font-mono text-[9px] text-[var(--trade-bearish)]">Strike history is unavailable from the delayed source.</div>
+          ) : (
+            <>
+              <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[8px] text-muted-foreground">
+                <span>{data?.summary.requested ?? 0} strike values checked</span>
+                <span>{data?.summary.measured ?? 0} listed/traded contracts</span>
+                {data?.summary.cheapestStrike != null && <span>cheapest: {data.summary.cheapestStrike}C @ ${Number(data.summary.cheapestEntryPremium).toFixed(2)}</span>}
+                {data?.summary.bestPeakPctStrike != null && <span className="text-[var(--brand-amber)]">largest peak %: {data.summary.bestPeakPctStrike}C · +{Number(data.summary.bestPeakReturnPct).toFixed(0)}%</span>}
+              </div>
+              <div className="grid min-w-[430px] grid-cols-[46px_repeat(5,minmax(64px,1fr))] gap-x-2 border-b border-border/40 pb-1 font-mono text-[8px] uppercase text-muted-foreground">
+                <span>Strike</span><span>Entry</span><span>Peak</span><span>Peak %</span><span>Drawdown</span><span>Peak $</span>
+              </div>
+              {(data?.ladder ?? []).filter((contract) => contract.status === 'measured').map((contract) => (
+                <div key={contract.strike} className={cn(
+                  'grid min-w-[430px] grid-cols-[46px_repeat(5,minmax(64px,1fr))] gap-x-2 border-b border-border/25 py-1 font-mono text-[9px] tabular-nums',
+                  contract.strike === center && 'bg-[var(--brand-cyan)]/[0.06]',
+                )}>
+                  <span className="font-semibold">{contract.strike}</span>
+                  <>
+                    <span>${Number(contract.entryPremium).toFixed(2)}</span>
+                    <span>${Number(contract.peakPremium).toFixed(2)}</span>
+                    <span className="text-[var(--trade-bullish)]">+{Number(contract.peakReturnPct).toFixed(0)}%</span>
+                    <span className="text-[var(--trade-bearish)]">{Number(contract.maxAdversePct).toFixed(0)}%</span>
+                    <span className="text-[var(--brand-amber)]">+${Number(contract.peakMarkedPnl).toFixed(0)}</span>
+                  </>
+                </div>
+              ))}
+              <div className="mt-1 font-mono text-[8px] leading-relaxed text-muted-foreground">Unlisted/no-history strike values are omitted from the rows. Reported trade highs are counterfactual marks—not NBBO fills. Drawdown shows the danger of the cheapest contracts.</div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function executionStateCopy(state: ConvictionPick["lifecycleState"]): string {
@@ -1260,6 +1360,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                       </span>
                     )}
                   </div>
+                  <IndexStrikeLadder row={row} />
                 </article>
               );
             })}
