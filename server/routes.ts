@@ -2332,6 +2332,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   let weekendOutlookCache: { data: any; timestamp: number } | null = null;
   const WEEKEND_CACHE_TTL = 15 * 60 * 1000; // 15 min on weekends (data doesn't change much)
 
+  // 24/7 read-only proxy tape. These are HIP-3 perpetual marks from the XYZ
+  // DEX, not official closes or executable US equity quotes. The distinction
+  // is part of the API contract so a client cannot silently relabel a weekend
+  // derivative as the cash market.
+  let hyperliquidProxyCache: { data: any; timestamp: number } | null = null;
+  app.get('/api/market/weekend-proxies', async (_req, res) => {
+    try {
+      if (hyperliquidProxyCache && Date.now() - hyperliquidProxyCache.timestamp < 30_000) {
+        return res.json(hyperliquidProxyCache.data);
+      }
+      const response = await fetch('https://api.hyperliquid.xyz/info', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'metaAndAssetCtxs', dex: 'xyz' }),
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) throw new Error(`Hyperliquid ${response.status}`);
+      const [meta, contexts] = await response.json() as [
+        { universe?: Array<{ name: string; maxLeverage?: number }> },
+        Array<{ markPx?: string; oraclePx?: string; prevDayPx?: string; dayNtlVlm?: string; openInterest?: string; funding?: string }>,
+      ];
+      const wanted = new Set(['XYZ100', 'SP500', 'VIX', 'MAGS', 'AAPL', 'MSFT', 'NVDA', 'META', 'TSLA', 'GOOGL', 'AMZN', 'CRCL', 'COIN', 'MSTR', 'SMH', 'BRENTOIL', 'GOLD', 'SILVER', 'DXY']);
+      const rows = (meta.universe ?? []).map((asset, index) => {
+        const symbol = asset.name.replace(/^xyz:/, '');
+        const ctx = contexts[index] ?? {};
+        const mark = Number(ctx.markPx);
+        const prior = Number(ctx.prevDayPx);
+        return {
+          symbol,
+          venueSymbol: asset.name,
+          mark: Number.isFinite(mark) ? mark : null,
+          oracle: Number.isFinite(Number(ctx.oraclePx)) ? Number(ctx.oraclePx) : null,
+          changePct: Number.isFinite(mark) && Number.isFinite(prior) && prior !== 0 ? ((mark - prior) / prior) * 100 : null,
+          dayNotional: Number.isFinite(Number(ctx.dayNtlVlm)) ? Number(ctx.dayNtlVlm) : null,
+          openInterest: Number.isFinite(Number(ctx.openInterest)) ? Number(ctx.openInterest) : null,
+          funding: Number.isFinite(Number(ctx.funding)) ? Number(ctx.funding) : null,
+          maxLeverage: asset.maxLeverage ?? null,
+        };
+      }).filter((row) => wanted.has(row.symbol) && row.mark != null);
+      const data = {
+        source: 'Hyperliquid XYZ HIP-3',
+        sourceType: 'third_party_perpetual_proxy',
+        asOf: new Date().toISOString(),
+        disclaimer: '24/7 derivative marks; not official cash-market prices, closes, or options inputs.',
+        rows,
+      };
+      hyperliquidProxyCache = { data, timestamp: Date.now() };
+      res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
+      res.json(data);
+    } catch (error: any) {
+      if (hyperliquidProxyCache) return res.json({ ...hyperliquidProxyCache.data, stale: true });
+      res.status(503).json({ error: 'Weekend proxy tape unavailable', detail: error?.message });
+    }
+  });
+
   app.get("/api/market-outlook", async (_req, res) => {
     try {
       const { currentMarketPhase, getPreMarketBatch } = await import("./pre-market-service");
@@ -32546,6 +32601,8 @@ Use this checklist before entering any trade:
 
       const payload = {
         symbol,
+        generatedAt: new Date().toISOString(),
+        optionsSource: cboeFallbackUsed ? 'CBOE delayed fallback' : String((gex as any).dataQuality ?? 'primary options feed'),
         snapshot,
         candles,
         orbs,

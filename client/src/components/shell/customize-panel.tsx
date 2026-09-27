@@ -11,12 +11,14 @@ import {
 
 type RailMode = 'min' | 'hidden' | 'shown' | undefined;
 
-export function CustomizePanel({ open, onClose, railUi, setRail }: {
+export function CustomizePanel({ open, onClose, railUi, setRail, explainCards, onExplainCardsChange }: {
   open: boolean;
   onClose: () => void;
   /** Present only on the board — enables the Panels section. */
   railUi?: Record<string, RailMode>;
   setRail?: (id: string, mode: 'min' | 'hidden' | null) => void;
+  explainCards?: boolean;
+  onExplainCardsChange?: (value: boolean) => void;
 }) {
   const p = usePrefs();
   const ref = useRef<HTMLDivElement>(null);
@@ -88,6 +90,12 @@ export function CustomizePanel({ open, onClose, railUi, setRail }: {
 
         <section>
           <h3>Idea cards</h3>
+          {onExplainCardsChange && (
+            <label className="qc-row">
+              <span className="qc-name">Card guide<small>Number each field and explain what it means</small></span>
+              <input type="checkbox" className="qc-switch" checked={Boolean(explainCards)} onChange={(e) => onExplainCardsChange(e.target.checked)} />
+            </label>
+          )}
           <div className="qc-row"><span className="qc-name">Density</span><Seg k="density" opts={[['comfortable', 'Comfortable'], ['compact', 'Compact']]} /></div>
           <div className="qc-row"><span className="qc-name">Columns</span><Seg k="columns" opts={[['auto', 'Auto'], ['1', '1'], ['2', '2'], ['3', '3']]} /></div>
           <p className="qc-sub">Show on each card</p>

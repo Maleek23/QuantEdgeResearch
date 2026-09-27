@@ -535,6 +535,17 @@ export function NexusBoard() {
     queryKey: ['/api/historical-prices', 'SPY', '1d5m', 'nexus'], queryFn: q('/api/historical-prices/SPY?range=1d&interval=5m'),
     staleTime: 120_000, refetchInterval: 300_000, retry: 1, enabled: expandSec === 'pulse',
   });
+  const weekendProxyQ = useQuery<{
+    source: string; sourceType: string; asOf: string; disclaimer: string; stale?: boolean;
+    rows: Array<{ symbol: string; mark: number | null; changePct: number | null }>;
+  }>({
+    queryKey: ['/api/market/weekend-proxies', 'nexus'],
+    queryFn: q('/api/market/weekend-proxies'),
+    enabled: extended.data?.session === 'closed',
+    staleTime: 20_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
   const pulseSpy = pulseSpyQ.data?.data;
   const heldByBot = useMemo(() => new Set((botStatus.data?.openPositions ?? []).map((x) => x.symbol)), [botStatus.data]);
   const liveBotPosition = useMemo(() => new Map(
@@ -609,14 +620,11 @@ export function NexusBoard() {
   // GRID is the mock's card wall; SCANNER and COCKPIT are the working views the
   // desk asked back in — HuntCockpit owns those, mounted with its own filters.
   const [bookView, setBookView] = useState<'grid' | 'scanner' | 'cockpit' | 'ledger'>('grid');
+  const [historyScope, setHistoryScope] = useState<'decided' | 'tracking' | 'all'>('decided');
   const [selectedLedger, setSelectedLedger] = useState<any | null>(null);
   // "Explain cards": numbered anatomy markers (1-5) on every card + a legend.
   const [explainCards, setExplainCards] = useState<boolean>(() => {
     try { return localStorage.getItem('nx-explain-cards') === '1'; } catch { return false; }
-  });
-  const toggleExplain = () => setExplainCards((v) => {
-    try { localStorage.setItem('nx-explain-cards', v ? '0' : '1'); } catch { /* ok */ }
-    return !v;
   });
   // Outcomes use completed trading sessions, not a rolling 72-hour window that
   // silently drops Thursday/Friday records over a weekend.
@@ -636,6 +644,26 @@ export function NexusBoard() {
     staleTime: 3_600_000, retry: 0,
   });
   const latestHit = ledgerQ.data?.ledger.find((row) => row.outcome === 'hit_target');
+  const historyCounts = useMemo(() => {
+    const rows = ledgerQ.data?.ledger ?? [];
+    return {
+      decided: rows.filter((row) => row.outcome !== 'open').length,
+      tracking: rows.filter((row) => row.outcome === 'open').length,
+      all: rows.length,
+    };
+  }, [ledgerQ.data?.ledger]);
+  const historyRows = useMemo(() => {
+    const rows = ledgerQ.data?.ledger ?? [];
+    if (historyScope === 'decided') return rows.filter((row) => row.outcome !== 'open');
+    if (historyScope === 'tracking') return rows.filter((row) => row.outcome === 'open');
+    return rows;
+  }, [historyScope, ledgerQ.data?.ledger]);
+  const indexReplayRows = useMemo(() => {
+    const rows = indexReplayQ.data?.rows ?? [];
+    if (historyScope === 'decided') return rows.filter((row) => row.outcome !== 'unresolved');
+    if (historyScope === 'tracking') return rows.filter((row) => row.outcome === 'unresolved');
+    return rows;
+  }, [historyScope, indexReplayQ.data?.rows]);
   // Draggable rails: drag the border, double-click to cycle default ↔ expanded.
   const leftRail = useColResize('nx-rail-left', 320, { sign: 1, min: 220, max: 560 });
   const rightRail = useColResize('nx-rail-right', 340, { sign: -1, min: 220, max: 560 });
@@ -788,7 +816,17 @@ export function NexusBoard() {
        renders only the board: ambient canvas + the three-column main. */
     <div className="nexus-embed">
       <canvas id="bgCanvas" ref={bgRef} />
-      <CustomizePanel open={customizeOpen} onClose={() => setCustomizeOpen(false)} railUi={railUi} setRail={setRail} />
+      <CustomizePanel
+        open={customizeOpen}
+        onClose={() => setCustomizeOpen(false)}
+        railUi={railUi}
+        setRail={setRail}
+        explainCards={explainCards}
+        onExplainCardsChange={(value) => {
+          setExplainCards(value);
+          try { localStorage.setItem('nx-explain-cards', value ? '1' : '0'); } catch { /* ok */ }
+        }}
+      />
 
       {/* ============ MAIN ============ */}
       <div
@@ -1006,6 +1044,26 @@ export function NexusBoard() {
                   <div className="stream-age">{r.age != null ? `${r.age}s` : '—'}</div>
                 </div>
               ))}
+              {extended.data?.session === 'closed' && (weekendProxyQ.data?.rows?.length ?? 0) > 0 && (
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--nx-border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 5, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                    <span>24/7 proxy tape · XYZ HIP-3</span>
+                    <span style={{ color: weekendProxyQ.data?.stale ? 'var(--amber)' : 'var(--cyan)' }}>{weekendProxyQ.data?.stale ? 'cached' : 'live derivative'}</span>
+                  </div>
+                  {(['SP500', 'VIX', 'MAGS', 'SMH', 'CRCL'] as const)
+                    .map((symbol) => weekendProxyQ.data!.rows.find((row) => row.symbol === symbol))
+                    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+                    .map((row) => (
+                      <div className="stream-row" key={`proxy-${row.symbol}`} title="Hyperliquid perpetual proxy — not the cash market or an options input">
+                        <div className="stream-sym">{row.symbol}</div>
+                        <div className="stream-bar"><div className="stream-bar-fill" style={{ width: '100%', opacity: .45 }} /></div>
+                        <div className={`stream-price${(row.changePct ?? 0) >= 0 ? ' up' : ' down'}`}>{row.mark != null ? fmtPrice(row.mark) : '—'}</div>
+                        <div className="stream-age">{row.changePct != null ? `${row.changePct >= 0 ? '+' : ''}${row.changePct.toFixed(1)}%` : '—'}</div>
+                      </div>
+                    ))}
+                  <div style={{ marginTop: 5, fontSize: 8.5, lineHeight: 1.4, color: 'var(--text-mute)' }}>Derivative proxy only · never blended into cash quotes, GEX, entries or outcomes.</div>
+                </div>
+              )}
             </div>
 
             <div className="intel-head" style={{ marginTop: 14 }}>
@@ -1126,18 +1184,8 @@ export function NexusBoard() {
             <div className="sec-title">Ranked opportunities.</div>
             <div className="sec-sub">Select a ticker to connect price, evidence, levels and execution.</div>
             <div className="sec-meta">
-              <span className="tag cyan">ranked book</span>
-              <span className="tag mute">· {picks.length}</span>
-              <button
-                type="button"
-                onClick={toggleExplain}
-                aria-pressed={explainCards}
-                className={`view-btn${explainCards ? ' active' : ''}`}
-                title="Show what each part of a card means"
-                style={{ marginLeft: 8 }}
-              >
-                {explainCards ? 'hide guide' : 'explain cards'}
-              </button>
+              <span className="tag cyan">live book · {picks.length}</span>
+              {latestHit && <span className="tag" style={{ color: 'var(--green)' }}>last decided win · {latestHit.symbol}{latestHit.optionPercentGain != null ? ` +${Number(latestHit.optionPercentGain).toFixed(0)}%` : ''}</span>}
               <button
                 type="button"
                 className="view-btn"
@@ -1145,19 +1193,8 @@ export function NexusBoard() {
                 onClick={() => setCustomizeOpen(true)}
                 title="Arrange panels, choose what cards show, text size and calm mode"
               >
-                customize
+                view settings
               </button>
-              {latestHit && (
-                <button
-                  type="button"
-                  className="view-btn active"
-                  onClick={() => setBookView('ledger')}
-                  title="Open recent measured outcomes"
-                  style={{ color: 'var(--green)', borderColor: 'color-mix(in srgb, var(--green) 35%, transparent)' }}
-                >
-                  latest hit · {latestHit.symbol}{latestHit.optionPercentGain != null ? ` +${Number(latestHit.optionPercentGain).toFixed(0)}%` : ''}
-                </button>
-              )}
               <div className="view-toggle" style={{ marginLeft: 'auto' }}>
                 {(['grid', 'scanner', 'cockpit', 'ledger'] as const).map((v) => (
                   <button
@@ -1166,7 +1203,7 @@ export function NexusBoard() {
                     style={{ background: bookView === v ? undefined : 'transparent', border: 'none' }}
                     onClick={() => setBookView(v)}
                   >
-                    {v === 'ledger' ? 'outcomes' : v}
+                    {v === 'grid' ? 'Cards' : v === 'scanner' ? 'Table' : v === 'cockpit' ? 'Workup' : 'History'}
                   </button>
                 ))}
               </div>
@@ -1175,8 +1212,17 @@ export function NexusBoard() {
 
           {bookView === 'ledger' ? (
             <div style={{ padding: '12px 16px' }}>
-              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-                Everything published · {ledgerQ.data?.window ?? '6 completed trading sessions'} · click a record → historical replay
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Recorded history · {ledgerQ.data?.window ?? '6 completed trading sessions'} · click → replay
+                </div>
+                <div className="view-toggle" style={{ marginLeft: 'auto' }}>
+                  {([['decided', 'Decided'], ['tracking', 'Still tracking'], ['all', 'All published']] as const).map(([value, label]) => (
+                    <button key={value} type="button" className={`view-btn${historyScope === value ? ' active' : ''}`} onClick={() => setHistoryScope(value)}>
+                      {label} · {historyCounts[value]}
+                    </button>
+                  ))}
+                </div>
               </div>
               {indexReplayQ.data && (
                 <div style={{ marginBottom: 14, border: '1px solid var(--nx-border-hi)', borderRadius: 8, overflow: 'hidden', background: 'color-mix(in srgb, var(--panel-2) 82%, transparent)' }}>
@@ -1201,7 +1247,7 @@ export function NexusBoard() {
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(245px,1fr))' }}>
-                    {indexReplayQ.data.rows.map((row) => {
+                    {indexReplayRows.map((row) => {
                       const contract = row.symbol.replace(/^O:/, '');
                       const color = row.outcome === 'target' ? 'var(--green)' : row.outcome === 'stop' ? 'var(--red)' : 'var(--text-mute)';
                       return (
@@ -1219,7 +1265,7 @@ export function NexusBoard() {
                   </div>
                 </div>
               )}
-              {(ledgerQ.data?.ledger ?? []).map((r) => {
+              {historyRows.map((r) => {
                 const mfeMatch = r.outcomeNotes?.match(/peak \$[\d.]+ \(\+?([\d.]+)%\)/i);
                 const pathMfe = mfeMatch ? Number(mfeMatch[1]) : null;
                 const oc = r.outcome === 'hit_target' ? { c: 'var(--green)', t: 'HIT T1' }
@@ -1250,11 +1296,13 @@ export function NexusBoard() {
                   </div>
                 );
               })}
-              {ledgerQ.isFetching && !(ledgerQ.data?.ledger ?? []).length && (
+              {ledgerQ.isFetching && !historyRows.length && (
                 <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>reading the ledger…</div>
               )}
-              {!ledgerQ.isFetching && !(ledgerQ.data?.ledger ?? []).length && (
-                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>nothing published in the last 6 completed trading sessions</div>
+              {!ledgerQ.isFetching && !historyRows.length && (
+                <div style={{ padding: 20, textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)' }}>
+                  {historyScope === 'decided' ? 'No decided outcomes in this window.' : historyScope === 'tracking' ? 'No published ideas are still tracking.' : 'Nothing published in this window.'}
+                </div>
               )}
             </div>
           ) : bookView !== 'grid' ? (
