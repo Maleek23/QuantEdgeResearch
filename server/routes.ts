@@ -32446,23 +32446,23 @@ Use this checklist before entering any trade:
       const { scanWatchlistConfluence, toSnapshot } = await import('./gex-vex-scanner');
       const { getCrossValidatedQuote } = await import('./data-quality');
       const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
+      const yahooSymbol = symbol === 'SPX' ? '^SPX' : symbol;
 
       // 1. Try Tradier-first GEX (live data when market open)
       let gex = await calculateAggregateGammaExposure(symbol);
 
       // 2. CBOE fallback (works on weekends + after-hours)
       let cboeFallbackUsed = false;
+      let cboeSnapshot: Awaited<ReturnType<typeof computeGEXFromCBOE>> = null;
       if (!gex) {
-        const cboeSnapshot = await computeGEXFromCBOE(symbol);
+        cboeSnapshot = await computeGEXFromCBOE(symbol);
         if (cboeSnapshot) {
-          // Wrap CBOE snapshot in calculateAggregateGammaExposure shape
-          gex = { snapshot: cboeSnapshot, dataQuality: 'cboe_fallback' } as any;
           cboeFallbackUsed = true;
           logger.info(`[GEX-TERMINAL] Tradier failed for ${symbol}, using CBOE fallback`);
         }
       }
 
-      if (!gex) {
+      if (!gex && !cboeSnapshot) {
         // Final fallback: serve cached if available
         const cached = gexTerminalCache.get(symbol) ?? loadLastGood('gex-terminal', symbol);
         if (cached && (Date.now() - cached.cachedAt) < GEX_CACHE_MAX_AGE) {
@@ -32476,11 +32476,13 @@ Use this checklist before entering any trade:
         });
       }
 
-      // 2. Build unified snapshot with real VEX + dataQuality
-      const baseSnapshot = toSnapshot(gex);
+      // 2. Both providers already produce the canonical GEXSnapshot shape at
+      // this boundary. CBOE must not be wrapped as an aggregate and converted
+      // again—that erased its levels and crashed the terminal adapter.
+      const baseSnapshot = cboeSnapshot ?? toSnapshot(gex!);
 
       // 3. Overlay fresh cross-validated spot for rendering
-      const cq = await getCrossValidatedQuote(symbol);
+      const cq = await getCrossValidatedQuote(yahooSymbol);
       const spotPrice = cq.bestPrice > 0 ? cq.bestPrice : baseSnapshot.spotPrice;
       baseSnapshot.spotPrice = spotPrice;
 
@@ -32492,7 +32494,7 @@ Use this checklist before entering any trade:
       const period1 = new Date(Date.now() - lookback * 86400000);
       let candles: any[] = [];
       try {
-        const chartData: any = await (yf as any).chart(symbol, {
+        const chartData: any = await (yf as any).chart(yahooSymbol, {
           period1,
           interval: intervalMap[interval] || '15m',
         });
@@ -32636,7 +32638,7 @@ Use this checklist before entering any trade:
         candles,
         orbs,
         heatmap,
-        strikeExpiryMatrix: gex.strikeExpiryMatrix || [],
+        strikeExpiryMatrix: gex?.strikeExpiryMatrix || [],
         projection,
         peers,
         dataQuality: {

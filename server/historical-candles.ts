@@ -63,6 +63,9 @@ export async function fetchCandles(
   interval = '1d',
 ): Promise<Candle[]> {
   const r = normalizeRange(range, '6mo');
+  // Public-facing terminal symbols do not always match Yahoo's chart symbols.
+  // Keep the UI canonical (SPX) and translate only at the provider boundary.
+  const providerSymbol = symbol.toUpperCase() === 'SPX' ? '^SPX' : symbol;
   // Intraday charts need overnight/premarket context. The old omission of 1m
   // made the most time-sensitive view regular-session-only while 5m/15m were
   // extended-hours, so the same move appeared differently by timeframe.
@@ -73,7 +76,7 @@ export async function fetchCandles(
 
   try {
     const result: any = await cachedFetchWithStale(
-      `yahoo:chart:${symbol}:${r}:${interval}`,
+      `yahoo:chart:${providerSymbol}:${r}:${interval}`,
       // Daily bars only change once a day apart from the forming last candle, so
       // a 60s TTL meant a scan over 80 symbols re-fetched the whole set every
       // minute for data that had not moved. Intraday intervals keep the short TTL.
@@ -81,7 +84,7 @@ export async function fetchCandles(
       30 * 60_000,
       async () => {
         const url =
-          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(providerSymbol)}` +
           `?period1=${period1}&period2=${period2}&interval=${interval}` +
           `&includePrePost=${includeExtended}`;
         const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });

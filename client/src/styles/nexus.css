@@ -1411,15 +1411,15 @@
    Sits ON the column border inside .main (which is position:relative). A hover
    or active drag lights it cyan; double-click cycles default ↔ expanded. */
 .nexus-vars .nx-resize{
-  position:absolute;top:0;bottom:0;width:7px;
+  position:absolute;top:0;bottom:0;width:13px;
   cursor:col-resize;z-index:8;
-  margin-left:-3px;
+  margin-left:-6px;
   background:transparent;
   transition:background .15s;
 }
 .nexus-vars .nx-resize::after{
-  content:'';position:absolute;top:0;bottom:0;left:3px;width:1px;
-  background:transparent;transition:background .15s;
+  content:'';position:absolute;top:0;bottom:0;left:6px;width:1px;
+  background:rgba(139,147,163,0.12);transition:background .15s;
 }
 .nexus-vars .nx-resize:hover,
 .nexus-vars .nx-resize.active{background:rgba(59,140,255,0.08)}

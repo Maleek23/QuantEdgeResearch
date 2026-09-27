@@ -53,8 +53,11 @@ interface AggregatedStrike {
 
 export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | null> {
   try {
-    const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${symbol}.json`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    // CBOE exposes index chains behind underscored quote symbols. The option
+    // contracts inside the payload still use OCC roots such as SPX and SPXW.
+    const cboeSymbol = symbol.toUpperCase() === 'SPX' ? '_SPX' : symbol;
+    const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${cboeSymbol}.json`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, redirect: 'follow' });
     if (!r.ok) return null;
     const j: CBOEResponse = await r.json();
     const data = j?.data;
@@ -62,8 +65,6 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
 
     const spot = data.current_price;
     const opts = data.options;
-    const slen = symbol.length;
-
     // Aggregate by strike
     const byStrike = new Map<number, AggregatedStrike>();
     let totalCallGEX = 0, totalPutGEX = 0;
@@ -75,17 +76,21 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
 
     for (const o of opts) {
       const s = o.option;
-      const base = s.slice(slen);
-      const cp = base[6];
-      const strike = parseInt(base.slice(7)) / 1000;
+      // OCC compact symbol: ROOT + YYMMDD + C/P + 8-digit strike. SPX chains
+      // mix monthly SPX and weekly SPXW roots, so slicing by request-symbol
+      // length corrupts most 0DTE contracts. Parse the contract itself.
+      const parsed = /^([A-Z]+)(\d{6})([CP])(\d{8})$/.exec(s);
+      if (!parsed) continue;
+      const [, , expiryCode, cp, strikeCode] = parsed;
+      const strike = parseInt(strikeCode, 10) / 1000;
+      if (!Number.isFinite(strike) || strike <= 0) continue;
       const oi = o.open_interest || 0;
       if (oi === 0) continue;
       const gamma = o.gamma || 0;
       const vega = o.vega || 0;
-      // Expiration is encoded in CBOE option symbol: chars 0-5 of `base` = YYMMDD
-      const yy = base.slice(0, 2);
-      const mm = base.slice(2, 4);
-      const dd = base.slice(4, 6);
+      const yy = expiryCode.slice(0, 2);
+      const mm = expiryCode.slice(2, 4);
+      const dd = expiryCode.slice(4, 6);
       const expirationDate = `20${yy}-${mm}-${dd}`;
       contractList.push({ expirationDate, strike, cp: cp as 'C' | 'P', oi, gamma });
       netGammaSum += oi * gamma * (cp === 'P' ? -1 : 1);
@@ -154,15 +159,36 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       }
     }
 
-    // Find gamma flip (where cumulative GEX changes sign)
+    // Approximate the actionable flip with the nearest strike-to-strike net-GEX
+    // sign change. Starting a cumulative sum at the chain's lowest strike made
+    // broad index chains report absurd flips thousands of points from spot
+    // (SPX returned 5400 while trading near 7743).
     let gammaFlipPrice: number | null = null;
+    let nearestFlipDistance = Infinity;
+    for (let i = 1; i < strikes.length; i++) {
+      const left = strikes[i - 1];
+      const right = strikes[i];
+      if (Math.sign(left.netGEX) === Math.sign(right.netGEX)) continue;
+      const midpoint = (left.strike + right.strike) / 2;
+      const distance = Math.abs(midpoint - spot);
+      if (distance < nearestFlipDistance) {
+        gammaFlipPrice = midpoint;
+        nearestFlipDistance = distance;
+      }
+    }
+
+    // Sparse chains can have no local sign transition. Retain the cumulative
+    // fallback only when it lands near the traded price plane.
     let cumulative = 0;
-    for (let i = 0; i < strikes.length; i++) {
-      const prev = cumulative;
-      cumulative += strikes[i].netGEX;
-      if ((prev <= 0 && cumulative > 0) || (prev >= 0 && cumulative < 0)) {
-        gammaFlipPrice = strikes[i].strike;
-        break;
+    if (gammaFlipPrice == null) {
+      for (let i = 0; i < strikes.length; i++) {
+        const prev = cumulative;
+        cumulative += strikes[i].netGEX;
+        if ((prev <= 0 && cumulative > 0) || (prev >= 0 && cumulative < 0)) {
+          const candidate = strikes[i].strike;
+          if (Math.abs(candidate / spot - 1) <= 0.2) gammaFlipPrice = candidate;
+          break;
+        }
       }
     }
 
@@ -184,17 +210,27 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       .slice(0, 20)
       .sort((a, b) => a.strike - b.strike);
 
-    const levels = levelsRaw.map(l => ({
-      strike: l.strike,
-      netGEX: l.netGEX,
-      callGEX: l.callGEX,
-      putGEX: -l.putGEX,
-      callOI: l.callOI,
-      putOI: l.putOI,
-      isCallWall: l.strike === callWall,
-      isPutWall: l.strike === putWall,
-      isMaxGamma: l.strike === maxGammaStrike,
-    })) as any;
+    const totalAbsStrikeGEX = strikes.reduce((sum, row) => sum + Math.abs(row.netGEX), 0);
+    const levels = levelsRaw.map(l => {
+      let role: GEXSnapshot['levels'][number]['role'] = 'neutral';
+      if (l.strike === maxGammaStrike) role = 'max_gamma';
+      else if (l.strike === callWall) role = 'call_wall';
+      else if (l.strike === putWall) role = 'put_wall';
+      else if (gammaFlipPrice != null && Math.abs(l.strike - gammaFlipPrice) <= 2.5) role = 'flip';
+      else if (l.netGEX > 0 && l.strike > spot) role = 'resistance';
+      else if (l.netGEX < 0 && l.strike < spot) role = 'support';
+      return {
+        strike: l.strike,
+        gex: l.netGEX / 1e9,
+        callGex: l.callGEX / 1e9,
+        putGex: -l.putGEX / 1e9,
+        vex: (l.callVEX - l.putVEX) / 1e6,
+        gammaPct: totalAbsStrikeGEX > 0 ? Math.abs(l.netGEX) / totalAbsStrikeGEX : 0,
+        openInterest: l.callOI + l.putOI,
+        role,
+        distancePct: ((l.strike - spot) / spot) * 100,
+      };
+    });
 
     // P0: DTE buckets + dealer-flow
     const byDte = bucketizeChain(contractList, spot);
@@ -205,6 +241,7 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       spotPrice: spot,
       calculatedAt: Date.now(),
       totalGEX: totalGEX / 1e9,         // billions ($/1.0 move)
+      totalNetGEX: totalGEX / 1e9,
       totalVEX: totalVEX / 1e6,         // millions — match Tradier-path convention
       callGEX: totalCallGEX / 1e9,
       putGEX: -totalPutGEX / 1e9,
@@ -219,6 +256,8 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       volatilityRegime: 'normal',
       dealerFlowPer1Pct,
       byDte,
+      source: 'mixed',
+      expirationsUsed: [...new Set(contractList.map((contract) => contract.expirationDate))],
     } as GEXSnapshot;
   } catch (e: any) {
     logger.warn(`[GEX-CBOE-FALLBACK] failed ${symbol}: ${e.message}`);

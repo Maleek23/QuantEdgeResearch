@@ -167,6 +167,10 @@ export interface DrawOpts {
   showCrosshair: boolean;
   showLevels: boolean;
   levels: Level[];
+  /** Manual price-axis transform. scale > 1 shows more vertical range. */
+  priceScale?: number;
+  /** Vertical pan expressed as a fraction of the unscaled visible range. */
+  priceShift?: number;
   /** Shaded price bands (e.g. unfilled gaps) drawn under the levels. */
   zones?: Zone[];
   mouseX: number;
@@ -203,9 +207,14 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     if (hi > max) max = hi;
     if (c.volume > maxVol) maxVol = c.volume;
   });
-  const span = max - min;
+  const span = max - min || 1;
   min -= span * 0.05;
   max += span * 0.05;
+  const naturalRange = max - min || 1;
+  const priceScale = Math.max(0.2, Math.min(5, opts.priceScale ?? 1));
+  const center = (min + max) / 2 + (opts.priceShift ?? 0) * naturalRange;
+  min = center - naturalRange * priceScale / 2;
+  max = center + naturalRange * priceScale / 2;
   const priceRange = max - min || 1;
 
   // Grid + price labels

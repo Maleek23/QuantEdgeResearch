@@ -23,6 +23,8 @@ import {
 import '@/styles/nexus.css';
 
 const MIN_SPAN = 15;
+const PRICE_AXIS_WIDTH = 70;
+const TIME_AXIS_HEIGHT = 50;
 const DEFAULT_VISIBLE_BARS: Record<keyof typeof TF_CONFIG, number> = {
   '1m': 390,
   '5m': 390,
@@ -72,7 +74,11 @@ export function NexusPriceChart({
 
   /* windowed view over the series: span bars, ending `offset` bars before now */
   const [view, setView] = useState<{ span: number | null; offset: number }>({ span: null, offset: 0 });
-  useEffect(() => { setView({ span: null, offset: 0 }); }, [symbol, tf]);
+  const [priceView, setPriceView] = useState({ scale: 1, shift: 0 });
+  useEffect(() => {
+    setView({ span: null, offset: 0 });
+    setPriceView({ scale: 1, shift: 0 });
+  }, [symbol, tf]);
   const len = all?.length ?? 0;
   const defaultSpan = Math.min(len, DEFAULT_VISIBLE_BARS[tf]);
   const span = view.span == null ? defaultSpan : Math.min(view.span, len);
@@ -83,7 +89,17 @@ export function NexusPriceChart({
   const wrapRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const mouse = useRef({ x: -1, y: -1 });
-  const pan = useRef<{ startX: number; startOffset: number; moved: boolean } | null>(null);
+  const pan = useRef<{
+    mode: 'plot' | 'price-axis' | 'time-axis';
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startOffset: number;
+    startSpan: number;
+    startPriceScale: number;
+    startPriceShift: number;
+    moved: boolean;
+  } | null>(null);
   const touch = useRef<{ x: number; offset: number; dist: number | null; span: number } | null>(null);
   const syncTime = useRef<number | null>(null);
   const publishSync = (t: number | null) => {
@@ -109,6 +125,8 @@ export function NexusPriceChart({
     drawChart(canvas, candles, {
       type, tf, showCrosshair: true, showLevels: true,
       levels: levels.filter((l) => Number.isFinite(l.price)),
+      priceScale: priceView.scale,
+      priceShift: priceView.shift,
       zones,
       mouseX: mouse.current.x,
       mouseY: mouse.current.y,
@@ -144,7 +162,7 @@ export function NexusPriceChart({
     });
   };
 
-  useEffect(() => { redraw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [candles, type, tf, levels, zones]);
+  useEffect(() => { redraw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [candles, type, tf, levels, zones, priceView]);
   useEffect(() => {
     const onResize = () => redraw();
     window.addEventListener('resize', onResize);
@@ -154,7 +172,7 @@ export function NexusPriceChart({
     if (observer && wrapRef.current) observer.observe(wrapRef.current);
     return () => { window.removeEventListener('resize', onResize); observer?.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, type, tf, levels, zones]);
+  }, [candles, type, tf, levels, zones, priceView]);
 
   /* wheel zoom — native listener so preventDefault actually stops page scroll */
   useEffect(() => {
@@ -206,7 +224,7 @@ export function NexusPriceChart({
       ) : (
         <canvas
           ref={canvasRef}
-          style={{ cursor: pan.current ? 'grabbing' : 'crosshair', touchAction: 'none' }}
+          style={{ cursor: 'crosshair', touchAction: 'none' }}
           onTouchStart={(e) => {
             if (!all) return;
             if (e.touches.length === 2) {
@@ -237,31 +255,90 @@ export function NexusPriceChart({
             }
           }}
           onTouchEnd={() => { touch.current = null; }}
-          onMouseDown={(e) => {
-            pan.current = { startX: e.clientX, startOffset: offset, moved: false };
+          onPointerDown={(e) => {
+            if (e.pointerType !== 'mouse') return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const localX = e.clientX - rect.left;
+            const localY = e.clientY - rect.top;
+            const mode = localX >= rect.width - PRICE_AXIS_WIDTH
+              ? 'price-axis'
+              : localY >= rect.height - TIME_AXIS_HEIGHT
+                ? 'time-axis'
+                : 'plot';
+            pan.current = {
+              mode,
+              pointerId: e.pointerId,
+              startX: e.clientX,
+              startY: e.clientY,
+              startOffset: offset,
+              startSpan: span,
+              startPriceScale: priceView.scale,
+              startPriceShift: priceView.shift,
+              moved: false,
+            };
+            e.currentTarget.setPointerCapture(e.pointerId);
+            e.currentTarget.style.cursor = mode === 'price-axis' ? 'ns-resize' : mode === 'time-axis' ? 'ew-resize' : 'grabbing';
           }}
-          onMouseMove={(e) => {
+          onPointerMove={(e) => {
+            if (e.pointerType !== 'mouse') return;
             const rect = e.currentTarget.getBoundingClientRect();
             mouse.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
             const activePan = pan.current;
             if (activePan && all) {
               const dx = e.clientX - activePan.startX;
-              if (Math.abs(dx) > 3) activePan.moved = true;
-              const barW = rect.width / Math.max(1, span);
-              const dBars = Math.round(dx / barW);
-              // Capture the drag origin before queueing the React update.
-              // mouseup/mouseleave may clear the ref before this callback runs.
-              const startOffset = activePan.startOffset;
-              setView((v) => ({
-                span: v.span,
-                offset: Math.max(0, Math.min(Math.max(0, len - span), startOffset + dBars)),
-              }));
+              const dy = e.clientY - activePan.startY;
+              if (Math.abs(dx) > 3 || Math.abs(dy) > 3) activePan.moved = true;
+              if (activePan.mode === 'price-axis') {
+                const scale = Math.max(0.2, Math.min(5, activePan.startPriceScale * Math.exp(dy * 0.008)));
+                setPriceView((current) => ({ ...current, scale }));
+              } else if (activePan.mode === 'time-axis') {
+                const nextSpan = Math.round(Math.max(MIN_SPAN, Math.min(len, activePan.startSpan * Math.exp(dx * 0.008))));
+                setView({ span: nextSpan, offset: Math.min(activePan.startOffset, Math.max(0, len - nextSpan)) });
+              } else {
+                const plotWidth = Math.max(1, rect.width - PRICE_AXIS_WIDTH);
+                const plotHeight = Math.max(1, rect.height - TIME_AXIS_HEIGHT);
+                const barW = plotWidth / Math.max(1, activePan.startSpan);
+                const dBars = Math.round(dx / barW);
+                setView((v) => ({
+                  span: v.span,
+                  offset: Math.max(0, Math.min(Math.max(0, len - span), activePan.startOffset + dBars)),
+                }));
+                setPriceView((current) => ({
+                  ...current,
+                  shift: activePan.startPriceShift + (dy / plotHeight) * activePan.startPriceScale,
+                }));
+              }
+            } else {
+              const localX = e.clientX - rect.left;
+              const localY = e.clientY - rect.top;
+              e.currentTarget.style.cursor = localX >= rect.width - PRICE_AXIS_WIDTH
+                ? 'ns-resize'
+                : localY >= rect.height - TIME_AXIS_HEIGHT
+                  ? 'ew-resize'
+                  : 'crosshair';
             }
             redraw();
           }}
-          onMouseUp={() => { pan.current = null; redraw(); }}
-          onMouseLeave={() => { pan.current = null; mouse.current = { x: -1, y: -1 }; redraw(); }}
-          onDoubleClick={() => setView({ span: null, offset: 0 })}
+          onPointerUp={(e) => {
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+            pan.current = null;
+            e.currentTarget.style.cursor = 'crosshair';
+            redraw();
+          }}
+          onPointerLeave={(e) => {
+            if (pan.current) return;
+            mouse.current = { x: -1, y: -1 };
+            e.currentTarget.style.cursor = 'crosshair';
+            redraw();
+          }}
+          onLostPointerCapture={(e) => {
+            pan.current = null;
+            e.currentTarget.style.cursor = 'crosshair';
+          }}
+          onDoubleClick={() => {
+            setView({ span: null, offset: 0 });
+            setPriceView({ scale: 1, shift: 0 });
+          }}
         />
       )}
 
@@ -282,7 +359,7 @@ export function NexusPriceChart({
       <div className="chart-info-overlay" style={{ bottom: 8, left: 8, padding: '4px 8px' }}>
         <span>TF <b>{TF_CONFIG[tf].label}</b></span>
         <span>BARS <b>{candles?.length ?? 0}{(candles?.length ?? 0) < len ? ` / ${len}` : ''}</b></span>
-        <span style={{ color: view.span != null ? 'var(--cyan-bright)' : undefined }}>wheel zoom · drag pan · dbl-click reset</span>
+        <span style={{ color: view.span != null || priceView.scale !== 1 || priceView.shift !== 0 ? 'var(--cyan-bright)' : undefined }}>plot ↔↕ · axes scale · dbl-click reset</span>
         {visibleQuarantined > 0 && (
           <span style={{ color: 'var(--amber)' }}>{visibleQuarantined} SOURCE ANOMAL{visibleQuarantined === 1 ? 'Y' : 'IES'} HIDDEN</span>
         )}
