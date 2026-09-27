@@ -8,9 +8,19 @@ import { TickerLogo } from '@/components/hunt/cockpit/ticker-logo';
 import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
 import { ContextPanel, PriceLadder, ProfitPlan, RiskPanel } from '@/components/oracle/signal-detail';
 import { ContractEngine } from '@/components/contract-engine/contract-engine';
+import { TASummary } from '@/components/hunt/cockpit/ta-summary';
+import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
 import { convictionPercent, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import '@/styles/nexus-prototype.css';
+
+interface IndexScalp {
+  id: string; symbol: string; bias: 'calls' | 'puts'; direction?: 'long' | 'short';
+  setup?: string; strike?: number | null; expiry?: string | null; spot?: number | null;
+  target?: number | null; stop?: number | null; riskRewardRatio?: number | null;
+  confidence?: number | null; thesis?: string | null; timestamp?: string;
+}
+interface IndexScalpResponse { session?: { isMarketOpen?: boolean; sessionLabel?: string }; scalps?: IndexScalp[]; }
 
 async function get<T>(url: string): Promise<T> {
   const response = await fetch(url, { credentials: 'include' });
@@ -30,12 +40,19 @@ export default function NexusPrototype() {
   const [contextOpen, setContextOpen] = useState(false);
   const [view, setView] = useState<'focus' | 'grid' | 'table'>('focus');
   const [rank, setRank] = useState<'all' | 'new' | 'best' | 'conviction'>('all');
+  const [detailTab, setDetailTab] = useState<'overview' | 'technical' | 'manage' | 'risk' | 'contract'>('overview');
 
   const convictions = useQuery<ConvictionsResponse>({
     queryKey: ['/api/convictions', 'nexus-prototype'],
     queryFn: () => get('/api/convictions'),
     staleTime: 30_000,
     refetchInterval: 60_000,
+  });
+  const indexScalps = useQuery<IndexScalpResponse>({
+    queryKey: ['/api/index-scalps', 'nexus-focus'],
+    queryFn: () => get('/api/index-scalps'),
+    staleTime: 8_000,
+    refetchInterval: 15_000,
   });
 
   const rows = useMemo(() => {
@@ -69,6 +86,8 @@ export default function NexusPrototype() {
     : 0;
   const support = selected?.layers.filter((layer) => layer.points > 0).sort((a, b) => b.points - a.points) ?? [];
   const challenge = selected?.layers.filter((layer) => layer.points < 0).sort((a, b) => a.points - b.points) ?? [];
+  const pendingEntry = selected?.lifecycleState === 'pending_trigger' || selected?.lifecycleState === 'coverage' || selected?.lifecycleState === 'thesis';
+  const spxExpression = selected?.symbol === 'SPY' ? indexScalps.data?.scalps?.find((row) => row.symbol === 'SPX') : undefined;
 
   return (
     <main className="nxp-shell">
@@ -140,7 +159,7 @@ export default function NexusPrototype() {
               <div className="nxp-chart-card">
                 <div className="nxp-chart-meta"><span>1 month structure</span><strong>{money(live)}</strong></div>
                 <NexusPriceChart symbol={selected.symbol} initialTf="1D" height={238} levels={[
-                  { price: selected.entryPrice, label: 'ENTRY', color: '#3b8cff' },
+                  { price: selected.entryPrice, label: pendingEntry ? 'TRIGGER' : 'ENTRY', color: '#3b8cff' },
                   { price: selected.stopLoss, label: 'STOP', color: '#ff746d' },
                   { price: selected.targetPrice, label: 'T1', color: '#42d5b1' },
                 ]} />
@@ -148,7 +167,7 @@ export default function NexusPrototype() {
 
               <div className="nxp-levels">
                 <div><span>Live</span><strong>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1</small></div>
-                <div><span>Entry</span><strong>{money(selected.entryPrice)}</strong><small>{stateLabel(selected)}</small></div>
+                <div><span>{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
                 <div className="risk"><span>Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
                 <div className="reward"><span>First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
               </div>
@@ -165,15 +184,24 @@ export default function NexusPrototype() {
                 <aside className="nxp-execution">
                   <div className="nxp-section-title"><span>Execution</span><small>{selected.optionType ? 'Option-backed' : selected.assetType}</small></div>
                   <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span></div></div>
+                  {selected.symbol === 'SPY' && <div className={`nxp-spx-expression ${spxExpression ? 'live' : ''}`}>
+                    <span>SPX equivalent</span>
+                    {spxExpression ? <><strong>{spxExpression.bias === 'calls' ? 'CALL' : 'PUT'} {money(spxExpression.strike)}</strong><small>Trigger {money(spxExpression.spot)} · Stop {money(spxExpression.stop)} · T1 {money(spxExpression.target)}</small></> : <small>No measured SPX execution is active right now.</small>}
+                  </div>}
                   <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full Cockpit <ChevronRight size={16} /></button>
                   <p>Cockpit remains the complete chart, contract, sizing, evidence, and management surface.</p>
                 </aside>
               </div>
 
-              <div className="nxp-deep-dive">
-                <details open><summary>Trade management <span>ladder · context · profit plan</span></summary><div className="nxp-deep-grid"><PriceLadder pick={selected} live={live} /><ContextPanel pick={selected} live={live} regime={market?.regime} preferredDirection={market?.preferredDirection} /><ProfitPlan pick={selected} live={live} /></div></details>
-                <details><summary>Risk and sizing <span>account-aware position plan</span></summary><RiskPanel pick={selected} live={live} /></details>
-                <details><summary>Contract engine <span>tiers · liquidity · greeks · budget fit</span></summary><ContractEngine symbol={selected.symbol} direction={positive ? 'BULL' : 'BEAR'} entry={selected.entryPrice} stop={selected.stopLoss} t1={selected.targetPrice} holdPeriodLabel={selected.holdingPeriod} conviction={convictionPercent(selected.convictionScore)} /></details>
+              <div className="nxp-detail-tabs">
+                {(['overview','technical','manage','risk','contract'] as const).map((tab) => <button key={tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab}</button>)}
+              </div>
+              <div className="nxp-tab-panel">
+                {detailTab === 'overview' && <div className="nxp-deep-grid"><PriceLadder pick={selected} live={live} /><ContextPanel pick={selected} live={live} regime={market?.regime} preferredDirection={market?.preferredDirection} /><ProfitPlan pick={selected} live={live} /></div>}
+                {detailTab === 'technical' && <div className="nxp-technical-grid"><TASummary symbol={selected.symbol} /><div className="nxp-components"><div className="nxp-section-title"><span>Signal components</span><small>{selected.layers.length} layers</small></div><SignalComponents layers={selected.layers} max={99} /></div></div>}
+                {detailTab === 'manage' && <div className="nxp-deep-grid"><PriceLadder pick={selected} live={live} /><ContextPanel pick={selected} live={live} regime={market?.regime} preferredDirection={market?.preferredDirection} /><ProfitPlan pick={selected} live={live} /></div>}
+                {detailTab === 'risk' && <RiskPanel pick={selected} live={live} />}
+                {detailTab === 'contract' && <ContractEngine symbol={selected.symbol} direction={positive ? 'BULL' : 'BEAR'} entry={selected.entryPrice} stop={selected.stopLoss} t1={selected.targetPrice} holdPeriodLabel={selected.holdingPeriod} conviction={convictionPercent(selected.convictionScore)} />}
               </div>
             </motion.div>
           )}
