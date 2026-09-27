@@ -17,7 +17,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SignalCard } from '@/components/signal-card';
-import type { SignalData } from '@/components/signal-card';
+import type { SignalCardData } from '@/components/signal-card';
 import { queryClient } from '@/lib/queryClient';
 import {
   matchesAssetFilter,
@@ -97,7 +97,7 @@ export function DiscoveryPicksPanel({
   );
 
   // Transform raw ideas → SignalData
-  const signals: SignalData[] = rawIdeas.map(translateToSignal);
+  const signals = rawIdeas.map((idea) => ({ id: idea.id, data: translateToSignal(idea) }));
 
   const sizeToggle = (
     <div className="flex gap-1">
@@ -146,8 +146,7 @@ export function DiscoveryPicksPanel({
       {signals.map((signal) => (
         <SignalCard
           key={signal.id}
-          signal={signal}
-          size={selectedSize}
+          d={signal.data}
         />
       ))}
     </div>
@@ -192,62 +191,19 @@ export function DiscoveryPicksPanel({
 // ═══════════════════════════════════════════════════════════════
 // HELPER: Raw trade idea → SignalData shape
 // ═══════════════════════════════════════════════════════════════
-function translateToSignal(idea: RawIdea): SignalData {
-  const direction =
-    idea.direction === 'long' ? 'BULL' :
-    idea.direction === 'short' ? 'BEAR' :
-    'NEUTRAL';
-
-  const issued = new Date(idea.timestamp);
-  const daysActive = Math.max(1, Math.floor((Date.now() - issued.getTime()) / 86400000));
-  const totalMove = Math.abs(idea.targetPrice - idea.entryPrice);
-
-  // We don't have live spot in this payload — would need to merge with /api/quote/:symbol
-  // For now estimate based on entry as placeholder; will be replaced when wired
-  const spot = idea.entryPrice; // TODO: merge with live quote
-  const pnlPct = ((spot - idea.entryPrice) / idea.entryPrice) * 100;
-  const pnlAbs = spot - idea.entryPrice;
-
-  // Determine status
-  let status: SignalData['status'] = 'TRIGGER_PENDING';
-  if (idea.status === 't1_hit') status = 'T1_HIT';
-  else if (idea.status === 't2_hit') status = 'T2_HIT';
-  else if (idea.status === 'stopped') status = 'STOPPED';
-  else if (Math.abs(pnlPct) > 0.5) status = 'TRIGGER_CONFIRMED';
-
+function translateToSignal(idea: RawIdea): SignalCardData {
   return {
-    id: idea.id,
     symbol: idea.symbol,
-    direction,
-    spot,
-    spotChangeToday: 0,  // TODO: live merge
+    direction: idea.direction === 'short' ? 'short' : 'long',
     confidence: idea.confidenceScore || 70,
-    confidenceDelta: 0,
-    holdPeriodLabel: idea.assetType === 'option' ? 'OPTION' : 'SWING',
     entry: idea.entryPrice,
-    t1: idea.targetPrice,
+    target: idea.targetPrice,
     stop: idea.stopLoss,
-    pnlPct,
-    pnlAbs,
-    daysActive,
-    status,
-    issuedAt: idea.timestamp,
-    targetDate: idea.expiryDate,
-    trigger: { confirmed: status !== 'TRIGGER_PENDING', price: idea.entryPrice },
-    geometry: {
-      stopRMultiple: Math.abs(spot - idea.stopLoss) / Math.max(0.01, Math.abs(idea.entryPrice - idea.stopLoss)),
-      horizonUsedPct: idea.expiryDate
-        ? Math.min(100, (daysActive / Math.max(1, Math.floor((new Date(idea.expiryDate).getTime() - issued.getTime()) / 86400000))) * 100)
-        : Math.min(100, daysActive * 2)
-    },
-    oracleOption: idea.assetType === 'option' && idea.strikePrice && idea.expiryDate ? {
-      strike: idea.strikePrice,
-      expiry: idea.expiryDate,
-      optionType: (idea.optionType as 'call' | 'put') || 'call',
-      premiumAtIssue: idea.entryPrice,
-      premiumNow: spot,
-      pctChange: pnlPct
-    } : undefined,
-    source: idea.source || 'unknown'
+    riskReward: idea.riskRewardRatio,
+    horizon: idea.assetType === 'option' ? 'OPTION' : 'SWING',
+    setup: idea.catalyst || idea.analysis,
+    status: idea.status || 'PENDING',
+    optionType: idea.optionType,
+    strike: idea.strikePrice,
   };
 }

@@ -6,6 +6,7 @@
  */
 
 import { fetchOHLCData, OHLCData } from './chart-analysis';
+import { executeLongSignals } from './backtest-execution-engine';
 
 interface OHLCBar {
   date: string;
@@ -30,6 +31,8 @@ interface BacktestConfig {
   rsiPeriod?: number;           // For mean reversion
   rsiOversold?: number;
   rsiOverbought?: number;
+  slippageBps?: number;
+  commissionPerOrder?: number;
 }
 
 interface Trade {
@@ -41,6 +44,8 @@ interface Trade {
   positionSize: number;
   pnl: number;
   pnlPercent: number;
+  grossPnl?: number;
+  costs?: number;
   exitReason: 'take_profit' | 'stop_loss' | 'signal_exit' | 'end_of_data';
 }
 
@@ -128,7 +133,7 @@ function getSupport(bars: OHLCBar[], index: number, lookback: number): number {
 }
 
 // Breakout Strategy: Buy when price breaks above 20-day high
-function runBreakoutStrategy(
+function runBreakoutStrategyLegacy(
   bars: OHLCBar[],
   config: BacktestConfig
 ): Trade[] {
@@ -203,7 +208,7 @@ function runBreakoutStrategy(
 }
 
 // Mean Reversion Strategy: Buy when RSI oversold, sell when overbought
-function runMeanReversionStrategy(
+function runMeanReversionStrategyLegacy(
   bars: OHLCBar[],
   config: BacktestConfig
 ): Trade[] {
@@ -282,7 +287,7 @@ function runMeanReversionStrategy(
 }
 
 // Momentum Strategy: Buy on strong upward momentum
-function runMomentumStrategy(
+function runMomentumStrategyLegacy(
   bars: OHLCBar[],
   config: BacktestConfig
 ): Trade[] {
@@ -360,6 +365,46 @@ function runMomentumStrategy(
   }
   
   return trades;
+}
+
+function executeStrategySignals(
+  bars: OHLCBar[],
+  config: BacktestConfig,
+  entrySignals: boolean[],
+  exitSignals: boolean[] = bars.map(() => false),
+): Trade[] {
+  return executeLongSignals(bars, entrySignals, exitSignals, config);
+}
+
+function runBreakoutStrategy(bars: OHLCBar[], config: BacktestConfig): Trade[] {
+  const lookback = config.lookbackPeriod || 20;
+  const entries = bars.map((bar, index) =>
+    index >= lookback && bar.close > getResistance(bars, index, lookback),
+  );
+  return executeStrategySignals(bars, config, entries);
+}
+
+function runMeanReversionStrategy(bars: OHLCBar[], config: BacktestConfig): Trade[] {
+  const period = config.rsiPeriod || 2;
+  const oversold = config.rsiOversold || 10;
+  const overbought = config.rsiOverbought || 90;
+  const rsi = calculateRSI(bars.map((bar) => bar.close), period);
+  const entries = bars.map((_, index) => index > period && rsi[index - 1] <= oversold && rsi[index] > oversold);
+  const exits = bars.map((_, index) => index > period && rsi[index] >= overbought);
+  return executeStrategySignals(bars, config, entries, exits);
+}
+
+function runMomentumStrategy(bars: OHLCBar[], config: BacktestConfig): Trade[] {
+  const lookback = config.lookbackPeriod || 10;
+  const momentum = bars.map((bar, index) => index >= lookback
+    ? ((bar.close - bars[index - lookback].close) / bars[index - lookback].close) * 100
+    : 0);
+  return executeStrategySignals(
+    bars,
+    config,
+    momentum.map((value, index) => index >= lookback && value > 5),
+    momentum.map((value, index) => index >= lookback && value < -3),
+  );
 }
 
 // Calculate backtest metrics

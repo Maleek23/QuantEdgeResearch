@@ -15,13 +15,14 @@ import { logger } from './logger';
 import { signalKey } from '@shared/signal-continuity';
 import { marketDateET } from '@shared/market-day';
 import { convictionDisplayPercent } from '@shared/conviction-display';
+import { CONVICTION_BAND_CUTOFFS } from '@shared/conviction-bands';
 
 /** Ideas already announced. Keyed by idea id, cleared daily. */
 let _sent = new Set<string>();
 let _sentDay = marketDateET();
 
 /** Only announce setups worth interrupting someone for. */
-const MIN_CONVICTION = 22;
+const MIN_CONVICTION = CONVICTION_BAND_CUTOFFS.A;
 
 export interface AlertablePick {
   ideaId?: string;

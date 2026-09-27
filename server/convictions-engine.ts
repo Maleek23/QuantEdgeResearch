@@ -28,6 +28,7 @@ import { tradeIdeas, type ConvergenceAnalysis } from "@shared/schema";
 import { readOracleExecutionAudit, type OracleLifecycleState } from "@shared/oracle-lifecycle";
 import { gte, desc } from "drizzle-orm";
 import { logger } from "./logger";
+import { convictionBandForScore } from "@shared/conviction-bands";
 import { getMarketContext, type MarketContext } from "./market-context-service";
 import { getScenarioMatrix } from "./geopolitical-matrix";
 import { getSector, isApprovedTicker, getTier, type Sector } from "@shared/approved-tickers";
@@ -503,14 +504,7 @@ async function scoreTapeContradictionLayer(symbol: string, direction: "long" | "
  * the only edit required, and it is why they are named constants in one place
  * instead of two inline ternaries that had already been duplicated.
  */
-const BAND_CUTOFFS = { S: 25, A: 19, B: 13 } as const;
-
-function bandFor(score: number): "S" | "A" | "B" | "C" {
-  return score >= BAND_CUTOFFS.S ? "S"
-       : score >= BAND_CUTOFFS.A ? "A"
-       : score >= BAND_CUTOFFS.B ? "B"
-       : "C";
-}
+const bandFor = convictionBandForScore;
 
 function scoreTierLayer(symbol: string, riskRewardRatio: number): ConvictionLayer | null {
   const tier = getTier(symbol);
@@ -2789,10 +2783,12 @@ bandFor(p.convictionScore);
         filtered.map((p) =>
           p.ideaId && p.publishedConvictionScore == null
             ? storage.updateTradeIdea(p.ideaId, {
-                genConvictionScore: p.convictionScore,
-                genConvictionBand: p.convictionBand,
-                genScoringLayers: p.layers.map((l) => ({ kind: l.kind, points: l.points, why: l.why })),
-              } as any)
+              genConvictionScore: p.convictionScore,
+              genConvictionBand: p.convictionBand,
+              genScoringLayers: p.layers.map((l) => ({ kind: l.kind, points: l.points, why: l.why })),
+              engineVersion: process.env.GIT_SHA || process.env.RAILWAY_GIT_COMMIT_SHA || 'local-unversioned',
+              generationTimestamp: p.generatedAt || new Date().toISOString(),
+            } as any)
             : Promise.resolve(),
         ),
       );

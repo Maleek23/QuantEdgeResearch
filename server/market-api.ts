@@ -16,6 +16,14 @@ export interface ExternalMarketData {
   marketCap?: number;
   high24h?: number;
   low24h?: number;
+  /** Provider that supplied the displayed price. Never infer this in the UI. */
+  source: string;
+  /** Provider observation/fetch time, ISO-8601. */
+  fetchedAt: string;
+  /** True when the preferred provider did not supply this observation. */
+  isFallback: boolean;
+  /** True when a prior good observation is being replayed from cache. */
+  servedFromCache?: boolean;
 }
 
 const COINGECKO_API = "https://api.coingecko.com/api/v3";
@@ -151,6 +159,9 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
       marketCap: cached?.data.marketCap,
       high24h: cached?.data.high24h,
       low24h: cached?.data.low24h,
+      source: `realtime:${realtimePrice.source}`,
+      fetchedAt: realtimePrice.timestamp.toISOString(),
+      isFallback: false,
     };
   }
   
@@ -245,6 +256,9 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
       marketCap: marketData.market_cap.usd,
       high24h: marketData.high_24h.usd,
       low24h: marketData.low_24h.usd,
+      source: 'coingecko',
+      fetchedAt: new Date().toISOString(),
+      isFallback: false,
     };
     
     // Cache the successful result for fallback
@@ -298,6 +312,9 @@ export async function fetchCryptoPriceFromYahoo(symbol: string): Promise<Externa
       volume: meta.regularMarketVolume || 0,
       high24h: meta.regularMarketDayHigh,
       low24h: meta.regularMarketDayLow,
+      source: 'yahoo_finance',
+      fetchedAt: new Date().toISOString(),
+      isFallback: true,
     };
     
     // Cache this result too for future fallback
@@ -387,6 +404,9 @@ export async function fetchYahooFinancePrice(
       high24h: quote?.high?.[0] || meta.regularMarketDayHigh,
       low24h: quote?.low?.[0] || meta.regularMarketDayLow,
       marketCap: meta.marketCap,
+      source: 'yahoo_finance',
+      fetchedAt: new Date().toISOString(),
+      isFallback: true,
     };
     
     // Cache the result
@@ -428,6 +448,9 @@ async function fetchWithMultiSource(symbol: string): Promise<ExternalMarketData 
         currentPrice: quote.price,
         changePercent: quote.changePercent,
         volume: quote.volume || 0,
+        source: `multi:${quote.source}`,
+        fetchedAt: new Date().toISOString(),
+        isFallback: true,
       };
     }
   } catch (error) {
@@ -463,6 +486,9 @@ export async function fetchStockPrice(
           high24h: quote.high,
           low24h: quote.low,
           marketCap: undefined,
+          source: 'tradier',
+          fetchedAt: new Date().toISOString(),
+          isFallback: false,
         };
         apiCache.set('quote', symbol, data, 'tradier');
         return data;
@@ -514,6 +540,9 @@ export async function fetchStockPrice(
         volume: parseInt(quote["06. volume"]),
         high24h: parseFloat(quote["03. high"]),
         low24h: parseFloat(quote["04. low"]),
+        source: 'alpha_vantage',
+        fetchedAt: new Date().toISOString(),
+        isFallback: true,
       };
       
       // Cache Alpha Vantage response for fallback

@@ -25,6 +25,7 @@ import { tradeIdeas } from "@shared/schema";
 import { logger } from "./logger";
 import { buildConvictions } from "./convictions-engine";
 import { getRealtimeBatchQuotes } from "./realtime-pricing-service";
+import { classifyGradeCohort } from "@shared/grade-provenance";
 
 export interface BandStats {
   band: "S" | "A" | "B" | "C";
@@ -55,6 +56,13 @@ export interface BacktestReport {
   scoredIdeas: number;
   closedCount: number;
   openCount: number;
+  methodology: {
+    headlineCohort: 'certified';
+    certified: number;
+    legacyStored: number;
+    replay: number;
+    unmeasuredClosed: number;
+  };
   bands: BandStats[];
   sources: SourceStats[];
   /** Pct of actual winners that today's engine grades A or S. */
@@ -231,6 +239,10 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
   let scoredCount = 0;
   let closedCount = 0;
   let openCountResolved = 0;
+  let certified = 0;
+  let legacyStored = 0;
+  let replay = 0;
+  let unmeasuredClosed = 0;
   let actualWinnerCount = 0;
   let topGradedWinners = 0;
 
@@ -244,6 +256,13 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
   const rows: Row[] = [];
 
   for (const idea of allIdeas as any[]) {
+    const cohort = classifyGradeCohort(idea);
+    if (cohort === 'certified') certified++;
+    else if (cohort === 'legacy-stored') legacyStored++;
+    else replay++;
+    // Replays answer a diagnostic question using today's engine. They must not
+    // enter headline band statistics or masquerade as point-in-time grades.
+    if (cohort !== 'certified') continue;
     const pick = pickById.get(idea.id);
     if (!pick) continue; // engine dropped it (minScore=0 means it had no positive layers)
     scoredCount++;
@@ -273,8 +292,10 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
         // so a single bad row doesn't poison the band averages.
         pctGain = Math.max(-100, Math.min(500, stored));
       } else {
-        // Fallback: derive from realizedPnL if available
-        pctGain = idea.outcomeStatus === "hit_target" ? 5 : -3;
+        // A status label is not a measured return. Exclude unresolved rows
+        // instead of fabricating the historical +5%/-3% defaults.
+        unmeasuredClosed++;
+        continue;
       }
     } else {
       continue;
@@ -407,6 +428,13 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
     scoredIdeas: scoredCount,
     closedCount,
     openCount: openCountResolved,
+    methodology: {
+      headlineCohort: 'certified',
+      certified,
+      legacyStored,
+      replay,
+      unmeasuredClosed,
+    },
     bands: [bands.S, bands.A, bands.B, bands.C],
     sources,
     topGradeRecallPct,

@@ -20,7 +20,7 @@
  *   - 'gold'           — secondary (sort selectors etc.)
  *   - 'subtle'         — for tertiary in-card tabs
  */
-import type { ReactNode } from 'react';
+import { useId, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 export type QETabsVariant = 'cyan' | 'gold' | 'subtle';
@@ -57,6 +57,8 @@ export interface QETabsProps<T extends string = string> {
   /** Slot rendered after the tabs (right-aligned) */
   rightSlot?: ReactNode;
   className?: string;
+  /** Prefix used to link tabs to their tabpanel elements. */
+  panelIdPrefix?: string;
 }
 
 // Active tab — filled accent chip with a soft outer glow (premium segmented look).
@@ -80,13 +82,37 @@ export function QETabs<T extends string = string>({
   prefixLabel,
   rightSlot,
   className,
+  panelIdPrefix,
 }: QETabsProps<T>) {
+  const generatedId = useId().replace(/:/g, '');
+  const idPrefix = panelIdPrefix ?? `qe-tabs-${generatedId}`;
+  const enabledItems = items.filter((item) => !item.disabled);
+  const moveFocus = (event: KeyboardEvent<HTMLButtonElement>, item: QETabItem<T>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const current = enabledItems.findIndex((candidate) => candidate.id === item.id);
+    const nextIndex = event.key === 'Home' ? 0
+      : event.key === 'End' ? enabledItems.length - 1
+      : event.key === 'ArrowRight' ? (current + 1) % enabledItems.length
+      : (current - 1 + enabledItems.length) % enabledItems.length;
+    const next = enabledItems[nextIndex];
+    if (!next) return;
+    onChange(next.id);
+    document.getElementById(`${idPrefix}-tab-${next.id}`)?.focus();
+  };
+
   const renderTab = (item: QETabItem<T>) => (
     <button
       key={item.id}
+      id={`${idPrefix}-tab-${item.id}`}
       type="button"
+      role="tab"
+      aria-selected={active === item.id}
+      aria-controls={panelIdPrefix ? `${idPrefix}-panel-${item.id}` : undefined}
+      tabIndex={active === item.id ? 0 : -1}
       disabled={item.disabled}
       onClick={() => !item.disabled && onChange(item.id)}
+      onKeyDown={(event) => moveFocus(event, item)}
       title={item.hint}
       className={cn(
         'font-mono font-bold uppercase rounded-md transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer',
@@ -123,7 +149,7 @@ export function QETabs<T extends string = string>({
       else clusters.push({ group: g, items: [item] });
     }
     return (
-      <div className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
+      <div role="tablist" className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
         {prefixLabel && (
           <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mx-1.5 self-center">
             {prefixLabel}
@@ -146,7 +172,7 @@ export function QETabs<T extends string = string>({
   }
 
   return (
-    <div className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
+    <div role="tablist" className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
       {prefixLabel && (
         <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mx-1.5">
           {prefixLabel}

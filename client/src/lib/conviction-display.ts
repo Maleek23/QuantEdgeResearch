@@ -51,6 +51,7 @@ export function displayedScore(idea: ScoredIdea | null | undefined): number {
  */
 export function displayedBand(idea: ScoredIdea | null | undefined): string | null {
   if (!idea) return null;
+  if (typeof idea.convictionScore === "number") return convictionBandForScore(idea.convictionScore);
   if (idea.convictionBand) return idea.convictionBand;
   const legacy = idea.probabilityBand;
   if (!legacy) return null;
@@ -66,7 +67,10 @@ export function displayedBand(idea: ScoredIdea | null | undefined): string | nul
  */
 export function isHighConviction(idea: ScoredIdea | null | undefined): boolean {
   if (!idea) return false;
-  if (idea.convictionBand === "S" || idea.convictionBand === "A") return true;
+  if (typeof idea.convictionScore === "number") {
+    return isHighConvictionBand(convictionBandForScore(idea.convictionScore));
+  }
+  if (isHighConvictionBand(idea.convictionBand)) return true;
   if (idea.convictionBand === "B" || idea.convictionBand === "C") return false;
   const legacy = idea.probabilityBand || "";
   return ["A+", "A", "A-"].includes(legacy);
@@ -110,31 +114,32 @@ export function displayedScoreBarPct(idea: ScoredIdea | null | undefined): numbe
 // IMPORTANT — A4 audit fix:
 // The convictions engine clamps to 0–100 but realistically scores in
 // the ~0–60 range (sum of 14 layer points). Server bands (server/
-// convictions-engine.ts:1694) cut at S≥30, A≥22, B≥15, C<15. The
+// convictions engine cuts at S≥25, A≥19, B≥13, C<13. The
 // CONVICTION_GRADE_CUTOFFS table below is calibrated to that real range
 // so a server "S" pick renders as A+/A/A- (not B+ as the original 0-100
 // table did). Bands and grades stay aligned visually:
-//   S band  → A+ / A / A-     (≥30 server)
-//   A band  → B+ / B / B-     (22–29 server)
-//   B band  → C+ / C / C-     (15–21 server)
-//   C band  → D+ / D / D- / F (<15 server)
+//   S band  → A+ / A / A-     (≥25)
+//   A band  → B+ / B / B-     (19–24)
+//   B band  → C+ / C / C-     (13–18)
+//   C band  → D+ / D / D- / F (<13)
 
 import { getLetterGrade as confidenceToGrade, type GradeLetter } from "@shared/grading";
+import { convictionBandForScore, isHighConvictionBand } from "@shared/conviction-bands";
 
 export type LetterGrade = GradeLetter;
 
 const CONVICTION_GRADE_CUTOFFS: Array<[number, LetterGrade]> = [
-  [42, "A+"], // elite confluence — top of S band
-  [36, "A"],  // strong S
-  [30, "A-"], // S-band entry (matches server S≥30)
-  [26, "B+"], // strong A
-  [22, "B"],  // A-band entry (matches server A≥22)
-  [18, "B-"], // weak A
-  [15, "C+"], // B-band entry (matches server B≥15)
-  [12, "C"],
-  [9,  "C-"],
-  [6,  "D+"],
-  [3,  "D"],
+  [35, "A+"],
+  [30, "A"],
+  [25, "A-"],
+  [23, "B+"],
+  [21, "B"],
+  [19, "B-"],
+  [17, "C+"],
+  [15, "C"],
+  [13, "C-"],
+  [9,  "D+"],
+  [5,  "D"],
   [1,  "D-"],
 ];
 

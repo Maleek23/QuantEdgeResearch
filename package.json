@@ -12,6 +12,11 @@
     "ts:budget": "tsx scripts/ts-budget.ts",
     "ts:budget:diff": "tsx scripts/ts-budget.ts -- --diff",
     "ts:budget:update": "tsx scripts/ts-budget.ts -- --update",
+    "test:tsc-gate": "node scripts/verify-tsc-gate.mjs",
+    "test:redirects": "tsx scripts/verify-redirects.ts",
+    "test:sr-controls": "tsx scripts/test-sr-controls.ts",
+    "test:model-determinism": "node scripts/verify-model-determinism.mjs",
+    "test:sr117": "npm run test:tsc-gate && npm run test:redirects && npm run test:sr-controls && npm run test:model-determinism && npm run build",
     "health": "curl -fsS http://localhost:5000/api/health | (jq . 2>/dev/null || cat)",
     "backtest:bullflow-0dte": "node --env-file=.env node_modules/.bin/tsx scripts/backtest-bullflow-index-0dte.ts",
     "db:push": "drizzle-kit push"

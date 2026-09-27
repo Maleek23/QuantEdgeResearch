@@ -7,6 +7,7 @@ import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { tradeIdeas, secFilings, governmentContracts, catalystEvents, paperPositions, symbolBehaviorProfiles, confidenceCalibration, historicalIntelligenceSummary } from "@shared/schema";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
+import { buildMonotoneCalibration, interpolateCalibration } from "@shared/isotonic-calibration";
 // LAZY-LOADED: ai-service, quant-ideas-generator, quantitative-engine, flow-scanner
 // These are imported via await import() inside route handlers to reduce startup memory
 // LAZY-LOADED: diagnostic-export — imported via await import() in handlers
@@ -333,42 +334,26 @@ function detectNewsCatalyst(catalyst: string, analysis: string): boolean {
 // Maps raw confidence scores to ACTUAL historical win rates
 // THIS IS THE REAL DATA from /api/performance/calibration-curve
 // Format: { rawScore: actualWinRate }
-const CALIBRATION_LOOKUP: Record<number, number> = {
-  // Raw score -> Actual win rate (from calibration curve API)
-  // Data shows INVERSION: low scores outperform high scores historically
-  // This is because Flow engine (82% win rate) uses conservative scoring
-  20: 68,   // Actual: 68.1% (72 trades) - mostly Flow signals
-  25: 68,   // Interpolated
-  30: 68,   // Interpolated  
-  35: 68,   // Interpolated
-  40: 67,   // Interpolated
-  45: 67,   // Actual: 67.3% (52 trades)
-  50: 60,   // Actual: 60.0% (15 trades)
-  55: 88,   // Actual: 88.5% (26 trades) - high performing bucket
-  60: 77,   // Actual: 76.5% (34 trades)
-  65: 56,   // Actual: 55.6% (36 trades)
-  70: 68,   // Actual: 68.0% (25 trades)
-  75: 55,   // Actual: 55.0% (40 trades)
-  80: 25,   // Actual: 25.0% (16 trades) - WARNING: high conf = low actual
-  85: 22,   // Actual: 22.2% (18 trades) - WARNING: overconfident
-  90: 36,   // Actual: 36.4% (33 trades) - WARNING: overconfident
-  95: 57,   // Actual: 57.1% (7 trades)
-  100: 78   // Actual: 78.4% (37 trades)
-};
+const CALIBRATION_CURVE = buildMonotoneCalibration([
+  { score: 20, winRate: 68.1, sampleSize: 72 },
+  { score: 45, winRate: 67.3, sampleSize: 52 },
+  { score: 50, winRate: 60.0, sampleSize: 15 },
+  { score: 55, winRate: 88.5, sampleSize: 26 },
+  { score: 60, winRate: 76.5, sampleSize: 34 },
+  { score: 65, winRate: 55.6, sampleSize: 36 },
+  { score: 70, winRate: 68.0, sampleSize: 25 },
+  { score: 75, winRate: 55.0, sampleSize: 40 },
+  { score: 80, winRate: 25.0, sampleSize: 16 },
+  { score: 85, winRate: 22.2, sampleSize: 18 },
+  { score: 90, winRate: 36.4, sampleSize: 33 },
+  { score: 95, winRate: 57.1, sampleSize: 7 },
+  { score: 100, winRate: 78.4, sampleSize: 37 },
+]);
 
 // Get calibrated confidence from raw score
 // Uses linear interpolation between lookup points
 function getCalibratedConfidence(rawScore: number): number {
-  const clampedScore = Math.max(20, Math.min(100, rawScore));
-  const lowerKey = Math.floor(clampedScore / 5) * 5;
-  const upperKey = Math.min(100, lowerKey + 5);
-  
-  const lowerVal = CALIBRATION_LOOKUP[lowerKey] || 60;
-  const upperVal = CALIBRATION_LOOKUP[upperKey] || 60;
-  
-  // Linear interpolation
-  const fraction = (clampedScore - lowerKey) / 5;
-  return Math.round(lowerVal + fraction * (upperVal - lowerVal));
+  return interpolateCalibration(CALIBRATION_CURVE, rawScore);
 }
 
 // 📊 CONFIDENCE CALCULATION: Data-driven confidence scoring

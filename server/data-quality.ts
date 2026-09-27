@@ -59,7 +59,7 @@ export interface CrossValidatedQuote {
   newestAgeMs: number;
 
   // Flags
-  isStale: boolean;              // oldest > STALE_THRESHOLD
+  isStale: boolean;              // selected quote age > STALE_THRESHOLD
   hasDisagreement: boolean;      // maxSpreadPct > DISAGREE_THRESHOLD
   hasFallback: boolean;          // using a non-primary source because primary failed
   marketStatus: 'live' | 'closed' | 'premarket' | 'afterhours';
@@ -332,7 +332,11 @@ export async function getCrossValidatedQuote(symbol: string): Promise<CrossValid
   const newestAgeMs = ages.length > 0 ? Math.min(...ages) : Number.POSITIVE_INFINITY;
 
   // Flags
-  const isStale = oldestAgeMs > STALE_THRESHOLD_MS;
+  // The displayed quote comes from bestSource. A stale secondary source may
+  // raise a disagreement flag, but must not mark a fresh displayed quote stale.
+  const selectedSource = okSources.find((s) => s.source === bestSource);
+  const selectedAgeMs = selectedSource ? now - selectedSource.fetchedAt : newestAgeMs;
+  const isStale = selectedAgeMs > STALE_THRESHOLD_MS;
   const hasDisagreement = maxSpreadPct > DISAGREE_THRESHOLD_PCT;
   const hasFallback = bestSource !== 'schwab' && schwab.ok === false && isSchwabConfigured();
   const marketStatus = getMarketStatus();

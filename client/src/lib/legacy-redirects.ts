@@ -87,11 +87,11 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/gex/:symbol", (p) => `/r/${p.symbol}?tab=gex`],
 
   // ── Trade Desk ─────────────────────────────────────────────────────────
-  ["/trade-desk-v2", "/trade-desk"],
-  ["/discover", "/trade-desk"],
-  ["/wsb-trending", "/trade-desk"],
-  ["/social-trends", "/trade-desk"],
-  ["/ai-stock-picker", "/trade-desk"],
+  ["/trade-desk-v2", "/slate"],
+  ["/discover", "/slate"],
+  ["/wsb-trending", "/slate"],
+  ["/social-trends", "/slate"],
+  ["/ai-stock-picker", "/slate"],
   ["/trade-ideas", "/slate"],
   // Retired 2026-09-24 (nav-architecture test N6): Trade Desk duplicated the
   // NEXUS board and Slate and read "0 ideas" while the board had them;
@@ -100,22 +100,22 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/automations", "/t?tab=bot"],
   // PERF duplicated JOURNAL › Track record (same component, two doors).
   ["/performance", "/t?tab=journal&jtab=metrics"],
-  ["/convictions", "/trade-desk?preset=todays-best"],
-  ["/futures", "/trade-desk?tab=futures"],
-  ["/futures-research", "/trade-desk?tab=futures"],
+  ["/convictions", "/slate?preset=todays-best"],
+  ["/futures", "/slate?tab=futures"],
+  ["/futures-research", "/slate?tab=futures"],
 
   // ── Performance ────────────────────────────────────────────────────────
-  ["/trading-engine", "/performance"],
-  ["/historical-intelligence", "/performance"],
-  ["/smart-advisor", "/performance"],
-  ["/convictions/backtest", "/performance"],
-  ["/data-audit", "/performance"],
-  ["/insights", "/performance"],
-  ["/analytics", "/performance"],
-  ["/signals", "/performance"],
+  ["/trading-engine", "/t?tab=journal&jtab=metrics"],
+  ["/historical-intelligence", "/t?tab=journal&jtab=metrics"],
+  ["/smart-advisor", "/t?tab=journal&jtab=metrics"],
+  ["/convictions/backtest", "/t?tab=journal&jtab=metrics"],
+  ["/data-audit", "/t?tab=journal&jtab=metrics"],
+  ["/insights", "/t?tab=journal&jtab=metrics"],
+  ["/analytics", "/t?tab=journal&jtab=metrics"],
+  ["/signals", "/t?tab=journal&jtab=metrics"],
 
   // ── Misc ───────────────────────────────────────────────────────────────
-  ["/watchlist-bot", "/automations"],
+  ["/watchlist-bot", "/t?tab=bot"],
   ["/account", "/settings"],
   ["/my-account", "/settings"],
   ["/trading-guide", "/blog/how-to-trade-like-a-pro"],
@@ -165,6 +165,16 @@ export function resolveLegacyRedirect(pathname: string): string | null {
     return target(params);
   }
   return null;
+}
+
+/** Preserve incoming query parameters while allowing the destination to win conflicts. */
+export function mergeRedirectQuery(target: string, incomingSearch: string): string {
+  const [targetPath, targetQuery = ''] = target.split('?');
+  const merged = new URLSearchParams(incomingSearch.startsWith('?') ? incomingSearch.slice(1) : incomingSearch);
+  const destination = new URLSearchParams(targetQuery);
+  destination.forEach((value, key) => merged.set(key, value));
+  const query = merged.toString();
+  return query ? `${targetPath}?${query}` : targetPath;
 }
 
 /**

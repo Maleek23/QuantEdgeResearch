@@ -55,8 +55,8 @@ export interface BotConfig {
 
 export const DEFAULT_BOT_CONFIG: BotConfig = {
   // convictionScore is a raw CONFLUENCE-POINT sum, not a percent: it tops out around the
-  // high 20s and the bands are S>=30 / A>=22 / B>=15. A threshold of 25 therefore left
-  // only 3 eligible names out of 52. 18 takes solid B/A-band setups without scraping the
+  // high 20s and the canonical bands are S>=25 / A>=19 / B>=13. A threshold of 25 therefore left
+  // only rare S-band names. 18 takes strong B and near-A setups without scraping the
   // bottom of the board.
   minConviction: 18,
   maxOpen: 10,

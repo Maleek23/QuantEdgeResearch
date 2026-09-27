@@ -1,6 +1,6 @@
 import { Suspense, useState, useEffect, ComponentType } from "react";
 import { getMarketStatus } from "@/lib/market-hours";
-import { LEGACY_REDIRECT_PATTERN, resolveLegacyRedirect } from "@/lib/legacy-redirects";
+import { LEGACY_REDIRECT_PATTERN, mergeRedirectQuery, resolveLegacyRedirect } from "@/lib/legacy-redirects";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -178,7 +178,7 @@ function LegacyRedirect() {
   const [location] = useLocation();
   const target = resolveLegacyRedirect(location);
   if (!target) return <NotFound />;
-  return <Redirect to={target} />;
+  return <Redirect to={mergeRedirectQuery(target, window.location.search)} />;
 }
 
 function Router() {
