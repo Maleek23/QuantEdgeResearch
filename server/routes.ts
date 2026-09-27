@@ -22204,6 +22204,47 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   // SPX COMMAND CENTER - Aggregated Dashboard
   // =============================================
 
+  // Translate an existing SPY thesis into cash-index levels. This remains
+  // available outside market hours (using the latest quoted values), unlike
+  // the active 0DTE scalp feed. It is a level map, not an invented contract.
+  app.get("/api/spx/expression", async (req, res) => {
+    try {
+      const entry = Number(req.query.entry);
+      const stop = Number(req.query.stop);
+      const target = Number(req.query.target);
+      if (![entry, stop, target].every((value) => Number.isFinite(value) && value > 0)) {
+        return res.status(400).json({ error: 'Valid SPY entry, stop and target levels are required.' });
+      }
+      const { fetchYahooFinancePrice } = await import('./market-api');
+      const [spyQuote, spxQuote] = await Promise.all([
+        fetchYahooFinancePrice('SPY'),
+        fetchYahooFinancePrice('%5EGSPC'),
+      ]);
+      const spy = Number(spyQuote?.currentPrice);
+      const spx = Number(spxQuote?.currentPrice);
+      if (!(spy > 0) || !(spx > 1_000)) {
+        return res.status(503).json({ error: 'SPX/SPY quote pair is unavailable.' });
+      }
+      const ratio = spx / spy;
+      const map = (value: number) => Math.round(value * ratio * 100) / 100;
+      res.json({
+        symbol: 'SPX',
+        sourceSymbol: 'SPY',
+        source: 'live SPX cash / SPY ratio',
+        asOf: new Date().toISOString(),
+        ratio,
+        spot: spx,
+        entry: map(entry),
+        stop: map(stop),
+        target: map(target),
+        contract: null,
+      });
+    } catch (error: any) {
+      logger.error('[SPX-EXPRESSION] translation failed:', error);
+      res.status(500).json({ error: error?.message || 'SPX expression failed' });
+    }
+  });
+
   app.get("/api/spx/dashboard", async (req, res) => {
     try {
       const validSymbols = ['SPY', 'QQQ', 'IWM', 'SPX'];

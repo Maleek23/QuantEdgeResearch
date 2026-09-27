@@ -21,6 +21,7 @@ interface IndexScalp {
   confidence?: number | null; thesis?: string | null; timestamp?: string;
 }
 interface IndexScalpResponse { session?: { isMarketOpen?: boolean; sessionLabel?: string }; scalps?: IndexScalp[]; }
+interface SpxExpression { symbol: 'SPX'; source: string; asOf: string; ratio: number; spot: number; entry: number; stop: number; target: number; contract: null; }
 
 async function get<T>(url: string): Promise<T> {
   const response = await fetch(url, { credentials: 'include' });
@@ -49,13 +50,6 @@ export default function NexusPrototype() {
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
-  const indexScalps = useQuery<IndexScalpResponse>({
-    queryKey: ['/api/index-scalps', 'nexus-focus'],
-    queryFn: () => get('/api/index-scalps'),
-    staleTime: 8_000,
-    refetchInterval: 15_000,
-  });
-
   const rows = useMemo(() => {
     const needle = query.trim().toUpperCase();
     const ranked = [...(convictions.data?.picks ?? [])]
@@ -83,6 +77,13 @@ export default function NexusPrototype() {
   }, [selectedId]);
 
   const selected = rows.find((row) => row.ideaId === selectedId) ?? rows[0];
+  const spxMap = useQuery<SpxExpression>({
+    queryKey: ['/api/spx/expression', selected?.entryPrice, selected?.stopLoss, selected?.targetPrice],
+    queryFn: () => get(`/api/spx/expression?entry=${selected!.entryPrice}&stop=${selected!.stopLoss}&target=${selected!.targetPrice}`),
+    enabled: selected?.symbol === 'SPY',
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
   const market = convictions.data?.marketContext;
   const positive = selected?.direction === 'long';
   const live = selected?.currentPrice ?? selected?.entryPrice;
@@ -92,7 +93,7 @@ export default function NexusPrototype() {
   const support = selected?.layers.filter((layer) => layer.points > 0).sort((a, b) => b.points - a.points) ?? [];
   const challenge = selected?.layers.filter((layer) => layer.points < 0).sort((a, b) => a.points - b.points) ?? [];
   const pendingEntry = selected?.lifecycleState === 'pending_trigger' || selected?.lifecycleState === 'coverage' || selected?.lifecycleState === 'thesis';
-  const spxExpression = selected?.symbol === 'SPY' ? indexScalps.data?.scalps?.find((row) => row.symbol === 'SPX') : undefined;
+  const spxExpression = selected?.symbol === 'SPY' ? spxMap.data : undefined;
 
   return (
     <main className="nxp-shell">
@@ -193,7 +194,7 @@ export default function NexusPrototype() {
                   <aside className="nxp-execution">
                     <div className="nxp-section-title"><span>Execution</span><small>{selected.optionType ? 'Option-backed' : selected.assetType}</small></div>
                     <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span></div></div>
-                    {selected.symbol === 'SPY' && <div className={`nxp-spx-expression ${spxExpression ? 'live' : ''}`}><span>SPX equivalent</span>{spxExpression ? <><strong>{spxExpression.bias === 'calls' ? 'CALL' : 'PUT'} {money(spxExpression.strike)}</strong><small>Trigger {money(spxExpression.spot)} · Stop {money(spxExpression.stop)} · T1 {money(spxExpression.target)}</small></> : <small>No measured SPX execution is active right now.</small>}</div>}
+                    {selected.symbol === 'SPY' && <div className={`nxp-spx-expression ${spxExpression ? 'live' : ''}`}><span>SPX linked expression</span>{spxExpression ? <><strong>{positive ? 'BULLISH' : 'BEARISH'} · SPX {money(spxExpression.spot)}</strong><small>Trigger {money(spxExpression.entry)} · Stop {money(spxExpression.stop)} · T1 {money(spxExpression.target)}</small><small>Live cash ratio {spxExpression.ratio.toFixed(3)}× · levels only; contract not selected</small></> : <small>{spxMap.isLoading ? 'Mapping live SPX levels…' : 'SPX quote pair unavailable — no levels guessed.'}</small>}</div>}
                     <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full workup <ChevronRight size={16} /></button>
                   </aside>
                 </div>}
