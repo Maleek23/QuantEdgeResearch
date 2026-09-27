@@ -56,7 +56,7 @@ const TickerWorkup = lazy(() => import('@/components/workup/ticker-workup').then
 import '@/styles/nexus.css';
 import { usePrefs, orderOf } from '@/lib/board-prefs';
 import { CustomizePanel } from '@/components/shell/customize-panel';
-import { getSector, SECTOR_LABELS } from '@shared/approved-tickers';
+import { APPROVED_TICKERS, getSector, SECTOR_LABELS } from '@shared/approved-tickers';
 
 /** Radar hover-preview: the pattern\'s real 1mo series + its defining levels.
  *  Interaction reveals measured data (interactivity plan rule #1). */
@@ -488,6 +488,7 @@ export function NexusBoard() {
   const { realtime, rotation, extended, convictions, flow, watchlist, pulse, health, patterns, proactive, shortInterest } = useNexusData();
   const [radarPrev, setRadarPrev] = useState<{ symbol: string; note: string; x: number; y: number } | null>(null);
   const [radarBrowse, setRadarBrowse] = useState<string | null>(null); // pattern filter or 'all'
+  const [showResearchRails, setShowResearchRails] = useState(false);
   const [printsExpanded, setPrintsExpanded] = useState(false);
   // THE expand — the terminal's signature ⤢-to-blurred-modal, on every rail
   // section. The operator asked roughly fifty times; inline toggles are not it.
@@ -642,6 +643,7 @@ export function NexusBoard() {
   // GRID is the mock's card wall; SCANNER and COCKPIT are the working views the
   // desk asked back in — HuntCockpit owns those, mounted with its own filters.
   const [bookView, setBookView] = useState<'grid' | 'scanner' | 'cockpit' | 'ledger'>('grid');
+  const [candidateFocus, setCandidateFocus] = useState(false);
   const [historyScope, setHistoryScope] = useState<'decided' | 'tracking' | 'all'>('decided');
   const [selectedLedger, setSelectedLedger] = useState<any | null>(null);
   // "Explain cards": numbered anatomy markers (1-5) on every card + a legend.
@@ -691,7 +693,7 @@ export function NexusBoard() {
   const rightRail = useColResize('nx-rail-right', 340, { sign: -1, min: 220, max: 560 });
   const [side, setSide] = useState<'all' | 'long' | 'short'>('all');
   const [band, setBand] = useState<'all' | 'S' | 'A' | 'B' | 'C'>('all');
-  const [bookScope, setBookScope] = useState<'setups' | 'live' | 'held' | 'all'>('all');
+  const [bookScope, setBookScope] = useState<'signals' | 'setups' | 'live' | 'held' | 'all'>('signals');
   const [sort, setSort] = useState<'conviction' | 'rr' | 'newest'>('newest');
   const [expanded, setExpanded] = useState<string | null>(null);
   const rawPicks = convictions.data?.picks ?? [];
@@ -705,7 +707,7 @@ export function NexusBoard() {
   );
   const structureCandidates = useMemo(() => {
     const published = new Set(picks.map((pick) => pick.symbol.toUpperCase()));
-    return (patterns.data?.hits ?? [])
+    const ranked = (patterns.data?.hits ?? [])
       .filter((hit) =>
         hit.pattern === 'trendline_breakout' ||
         ((hit.pattern === 'bullish_divergence' || hit.pattern === 'bearish_divergence') && Number(hit.levels.triggered) === 1),
@@ -721,13 +723,23 @@ export function NexusBoard() {
         return Number.isFinite(last) && Number.isFinite(line) && line > 0 &&
           Math.abs(last / line - 1) <= 0.15 && relVol >= 1.05 && relVol <= 20;
       })
+      // Nexus is the operator surface, not an uncurated discovery dump.
+      // Unknown names remain searchable in Radar; the home candidate shelf is
+      // restricted to the explicitly approved liquid/thematic universe.
+      .filter((hit) => APPROVED_TICKERS.has(hit.symbol.toUpperCase()))
       .filter((hit) => !published.has(hit.symbol.toUpperCase()))
       .sort((a, b) => {
         const core = Number(Boolean(b.core)) - Number(Boolean(a.core));
         if (core) return core;
         return Number(b.levels.strength ?? b.levels.relativeVolume ?? 0) - Number(a.levels.strength ?? a.levels.relativeVolume ?? 0);
-      })
-      .slice(0, 12);
+      });
+    const seen = new Set<string>();
+    return ranked.filter((hit) => {
+      const symbol = hit.symbol.toUpperCase();
+      if (seen.has(symbol)) return false;
+      seen.add(symbol);
+      return true;
+    }).slice(0, 12);
   }, [patterns.data?.hits, picks]);
   // Aggressor context for every card — the tape read that decodes whether
   // today's options money agrees with the signal. One batch call, cached.
@@ -741,6 +753,11 @@ export function NexusBoard() {
   const bandOf = (p: ConvictionPick) => (p.convictionBand || 'C').charAt(0).toUpperCase();
   const signalPicks = useMemo(() => picks.filter((p) => !p.isBotHeld), [picks]);
   const heldPicks = useMemo(() => picks.filter((p) => p.isBotHeld), [picks]);
+  const evidenceFloor = botStatus.data?.config?.minConviction ?? 18;
+  const actionableSignalPicks = useMemo(
+    () => signalPicks.filter((pick) => Number(pick.convictionScore ?? 0) >= evidenceFloor),
+    [signalPicks, evidenceFloor],
+  );
   const legacyHeldCount = useMemo(() => heldPicks.filter((p) => p.botBookLegacy).length, [heldPicks]);
   const setupCount = useMemo(() => signalPicks.filter((p) => p.lifecycleState === 'pending_trigger').length, [signalPicks]);
   const liveSignalCount = useMemo(() => signalPicks.filter((p) => p.lifecycleState === 'triggered' || p.lifecycleState === 'executed').length, [signalPicks]);
@@ -752,6 +769,7 @@ export function NexusBoard() {
   const shown = useMemo(() => {
     let out = picks.filter((p) =>
       (bookScope === 'all' ||
+        (bookScope === 'signals' && !p.isBotHeld && Number(p.convictionScore ?? 0) >= evidenceFloor) ||
         (bookScope === 'held' && p.isBotHeld) ||
         (bookScope === 'setups' && !p.isBotHeld && p.lifecycleState === 'pending_trigger') ||
         (bookScope === 'live' && !p.isBotHeld && (p.lifecycleState === 'triggered' || p.lifecycleState === 'executed'))) &&
@@ -763,17 +781,20 @@ export function NexusBoard() {
           : (new Date(b.generatedAt ?? b.heldSince ?? 0).getTime() || 0) -
             (new Date(a.generatedAt ?? a.heldSince ?? 0).getTime() || 0));
     return out;
-  }, [picks, bookScope, side, band, sort]);
+  }, [picks, bookScope, side, band, sort, evidenceFloor]);
   const longs = picks.filter((p) => p.direction === 'long').length;
   const shorts = picks.length - longs;
   // Held inventory deliberately has no entry grade. Including it as zero made
   // three scored signals plus five positions report "Avg Evidence 9/100" — a
   // mathematically tidy but operationally false KPI.
-  const scores = signalPicks
+  const scores = actionableSignalPicks
     .map((p) => Number(p.convictionScore))
     .filter((score) => Number.isFinite(score));
   const avgEv = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
   const topEv = scores.length ? Math.max(...scores) : null;
+  const heldUp = heldPicks.filter((pick) => Number(pick.unrealizedPnlPercent ?? 0) > 0).length;
+  const heldDown = heldPicks.filter((pick) => Number(pick.unrealizedPnlPercent ?? 0) < 0).length;
+  const heldMarkedPnl = heldPicks.reduce((sum, pick) => sum + Number(pick.unrealizedPnl ?? 0), 0);
 
   /* heat colour — the mock's heatColor, verbatim */
   function heatColor(v: number) {
@@ -886,22 +907,24 @@ export function NexusBoard() {
 
       {/* ============ MAIN ============ */}
       <div
-        className={`main${leftRail.dragging || rightRail.dragging ? ' nx-dragging' : ''}`}
+        className={`main${showResearchRails ? '' : ' nexus-focus'}${leftRail.dragging || rightRail.dragging ? ' nx-dragging' : ''}`}
         style={{ ['--nx-left' as string]: `${leftRail.width}px`, ['--nx-right' as string]: `${rightRail.width}px` }}
       >
         {/* draggable borders — drag to resize, double-click to expand */}
-        <div
-          className={`nx-resize${leftRail.dragging ? ' active' : ''}`}
-          style={{ left: leftRail.width }}
-          title="Drag to resize · double-click to expand"
-          {...leftRail.handleProps}
-        />
-        <div
-          className={`nx-resize${rightRail.dragging ? ' active' : ''}`}
-          style={{ right: rightRail.width - 4, marginLeft: 0 }}
-          title="Drag to resize · double-click to expand"
-          {...rightRail.handleProps}
-        />
+        {showResearchRails && <>
+          <div
+            className={`nx-resize${leftRail.dragging ? ' active' : ''}`}
+            style={{ left: leftRail.width }}
+            title="Drag to resize · double-click to expand"
+            {...leftRail.handleProps}
+          />
+          <div
+            className={`nx-resize${rightRail.dragging ? ' active' : ''}`}
+            style={{ right: rightRail.width - 4, marginLeft: 0 }}
+            title="Drag to resize · double-click to expand"
+            {...rightRail.handleProps}
+          />
+        </>}
         {/* LEFT — MARKET INTEL */}
         <div className="col col-left">
           <div className="sec-head">
@@ -1241,13 +1264,33 @@ export function NexusBoard() {
 
         {/* CENTER — ACTIVE BOOK */}
         <div className="col col-center">
+          <section className="nexus-market-brief" aria-label="Market brief">
+            <div className="nexus-brief-copy">
+              <span className="nexus-brief-session">{sessionWord(extended.data?.session)}</span>
+              <strong>{rotation.data?.headline ?? 'Market context is still loading.'}</strong>
+            </div>
+            <div className="nexus-brief-facts">
+              {leaders[0] && <span><b>{leaders[0].etf}</b> leading {leaders[0].change >= 0 ? '+' : ''}{leaders[0].change.toFixed(1)}%</span>}
+              {laggards[0] && <span><b>{laggards[0].etf}</b> lagging {laggards[0].change.toFixed(1)}%</span>}
+              <span><b>VIX</b> {vix != null ? Number(vix).toFixed(1) : '—'}</span>
+            </div>
+            <button type="button" onClick={() => setShowResearchRails((value) => !value)}>
+              {showResearchRails ? 'Hide research panels' : 'Open research panels'}
+            </button>
+          </section>
           <div className="sec-head">
-            <div className="sec-num">02 · ACTIVE BOOK</div>
-            <div className="sec-title">Ranked opportunities.</div>
-            <div className="sec-sub">Select a ticker to connect price, evidence, levels and execution.</div>
+            <div className="sec-title">Nexus</div>
+            <div className="sec-sub">Find an opportunity, manage a position, or review what happened.</div>
             <div className="sec-meta">
-              <span className="tag cyan">live book · {picks.length}</span>
-              <span className="tag" style={{ color: 'var(--amber)' }}>confirmed candidates · {structureCandidates.length}</span>
+              <span className="tag cyan">
+                {bookView === 'ledger'
+                  ? `history · ${historyRows.length}`
+                  : candidateFocus
+                    ? `candidates · ${structureCandidates.length}`
+                    : bookScope === 'held'
+                      ? `positions · ${heldPicks.length}`
+                      : `opportunities · ${actionableSignalPicks.length}`}
+              </span>
               {latestHit && <span className="tag" style={{ color: 'var(--green)' }}>last decided win · {latestHit.symbol}{latestHit.optionPercentGain != null ? ` +${Number(latestHit.optionPercentGain).toFixed(0)}%` : ''}</span>}
               <button
                 type="button"
@@ -1259,16 +1302,22 @@ export function NexusBoard() {
                 view settings
               </button>
               <div className="view-toggle" style={{ marginLeft: 'auto' }}>
-                {(['grid', 'scanner', 'cockpit', 'ledger'] as const).map((v) => (
-                  <button
-                    key={v}
-                    className={`view-btn${bookView === v ? ' active' : ''}`}
-                    style={{ background: bookView === v ? undefined : 'transparent', border: 'none' }}
-                    onClick={() => setBookView(v)}
-                  >
-                    {v === 'grid' ? 'Cards' : v === 'scanner' ? 'Table' : v === 'cockpit' ? 'Workup' : 'History'}
-                  </button>
-                ))}
+                <button
+                  className={`view-btn${bookView === 'grid' && !candidateFocus && bookScope !== 'held' ? ' active' : ''}`}
+                  onClick={() => { setBookView('grid'); setCandidateFocus(false); setBookScope('signals'); }}
+                >Opportunities</button>
+                <button
+                  className={`view-btn${bookView === 'grid' && !candidateFocus && bookScope === 'held' ? ' active' : ''}`}
+                  onClick={() => { setBookView('grid'); setCandidateFocus(false); setBookScope('held'); }}
+                >Positions</button>
+                <button
+                  className={`view-btn${bookView === 'grid' && candidateFocus ? ' active' : ''}`}
+                  onClick={() => { setBookView('grid'); setCandidateFocus(true); }}
+                >Candidates</button>
+                <button
+                  className={`view-btn${bookView === 'ledger' ? ' active' : ''}`}
+                  onClick={() => { setCandidateFocus(false); setBookView('ledger'); }}
+                >History</button>
               </div>
             </div>
           </div>
@@ -1381,63 +1430,39 @@ export function NexusBoard() {
             </Suspense>
           ) : (
           <>
-          <div className="stats-bar">
+          <div className="stats-bar" style={candidateFocus ? { display: 'none' } : undefined}>
             <div className="stat-box">
-              <div className="stat-label">Signals / Held</div>
+              <div className="stat-label">{bookScope === 'held' ? 'Open positions' : 'Opportunities'}</div>
               <div className="stat-val cyan">
-                {signalPicks.length}<span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)' }}> / {heldPicks.length}</span>
+                {bookScope === 'held' ? heldPicks.length : actionableSignalPicks.length}
               </div>
             </div>
             <div className="stat-box">
-              <div className="stat-label">Avg Evidence</div>
-              <div className="stat-val">{avgEv ?? '—'}<span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)' }}>/100</span></div>
+              <div className="stat-label">{bookScope === 'held' ? 'Up / Down' : 'Avg evidence'}</div>
+              <div className="stat-val">{bookScope === 'held' ? `${heldUp} / ${heldDown}` : <>{avgEv ?? '—'}<span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)' }}>/100</span></>}</div>
             </div>
             <div className="stat-box">
-              <div className="stat-label">Top Evidence</div>
-              <div className="stat-val green">{topEv ?? '—'}<span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)' }}>/100</span></div>
+              <div className="stat-label">{bookScope === 'held' ? 'Marked P&L' : 'Top evidence'}</div>
+              <div className={`stat-val${bookScope === 'held' && heldMarkedPnl < 0 ? ' red' : ' green'}`}>
+                {bookScope === 'held' ? `${heldMarkedPnl >= 0 ? '+' : '−'}$${Math.abs(heldMarkedPnl).toFixed(0)}` : <>{topEv ?? '—'}<span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-10, 10px)' }}>/100</span></>}
+              </div>
             </div>
             <div className="stat-box">
-              <div className="stat-label">Long / Short</div>
+              <div className="stat-label">Direction</div>
               <div className="stat-val">
-                <span style={{ color: 'var(--green)' }}>{longs}</span>
+                <span style={{ color: 'var(--green)' }}>{bookScope === 'held' ? heldPicks.filter((pick) => pick.direction === 'long').length : actionableSignalPicks.filter((pick) => pick.direction === 'long').length}</span>
                 <span style={{ color: 'var(--text-mute)' }}> / </span>
-                <span style={{ color: 'var(--red)' }}>{shorts}</span>
+                <span style={{ color: 'var(--red)' }}>{bookScope === 'held' ? heldPicks.filter((pick) => pick.direction === 'short').length : actionableSignalPicks.filter((pick) => pick.direction === 'short').length}</span>
               </div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-label">Session</div>
-              <div className="stat-val amber">{sessionWord(extended.data?.session).toUpperCase()}</div>
             </div>
           </div>
 
-          <div className="filters">
-            <div className="filter-group">
-              <span className="filter-label">Book</span>
-              {([
-                ['setups', `Setups · ${setupCount}`],
-                ['live', `Live · ${liveSignalCount}`],
-                ['held', `Held · ${heldPicks.length}`],
-                ['all', `All · ${picks.length}`],
-              ] as const).map(([scope, label]) => (
-                <button key={scope} className={`filter-btn${bookScope === scope ? ' active' : ''}`} onClick={() => setBookScope(scope)}>{label}</button>
-              ))}
-            </div>
-            <div className="filter-sep" />
+          <div className="filters" style={candidateFocus ? { display: 'none' } : undefined}>
             <div className="filter-group">
               <span className="filter-label">Side</span>
               {(['all', 'long', 'short'] as const).map((s) => (
                 <button key={s} className={`filter-btn${side === s ? ' active' : ''}`} onClick={() => setSide(s)}>
                   {s === 'all' ? 'All' : s === 'long' ? 'Long' : 'Short'}
-                </button>
-              ))}
-            </div>
-            <div className="filter-sep" />
-            <div className="filter-group">
-              <span className="filter-label">Band</span>
-              <button className={`filter-btn${band === 'all' ? ' active' : ''}`} onClick={() => setBand('all')}>All · {picks.length}</button>
-              {(['S', 'A', 'B', 'C'] as const).map((b) => (
-                <button key={b} className={`filter-btn${band === b ? ' active' : ''}`} onClick={() => setBand(b)}>
-                  {b} · {bandCounts[b] ?? 0}
                 </button>
               ))}
             </div>
@@ -1450,11 +1475,11 @@ export function NexusBoard() {
             </div>
           </div>
 
-          <div style={{ padding: '8px 16px 0', fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
+          <div style={{ display: candidateFocus ? 'none' : undefined, padding: '8px 16px 0', fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>
             <span style={{ color: 'var(--text)' }}>
               {bookList.length < shown.length ? `top ${bookList.length} of ${shown.length}` : `${shown.length} displayed`}
             </span>
-            {' · '}{signalPicks.length} current signal{signalPicks.length === 1 ? '' : 's'}
+            {' · '}{actionableSignalPicks.length} actionable signal{actionableSignalPicks.length === 1 ? '' : 's'}
             {' · '}{heldPicks.length} held position{heldPicks.length === 1 ? '' : 's'}
             {legacyHeldCount > 0 ? ` (${legacyHeldCount} legacy book)` : ''}
             {' · '}{structureCandidates.length} confirmed structures from {patterns.data?.scanned ?? convictions.data?.totalCandidatesScanned ?? '—'} names scanned
@@ -1463,7 +1488,7 @@ export function NexusBoard() {
 
           <section
             data-testid="nexus-structure-candidates"
-            style={{ margin: '10px 14px 12px', border: '1px solid var(--nx-border-hi)', borderRadius: 8, overflow: 'hidden', background: 'color-mix(in srgb, var(--panel-2) 84%, transparent)' }}
+            style={{ display: candidateFocus ? undefined : 'none', margin: '10px 14px 12px', border: '1px solid var(--nx-border-hi)', borderRadius: 8, overflow: 'hidden', background: 'color-mix(in srgb, var(--panel-2) 84%, transparent)' }}
           >
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, padding: '10px 12px', borderBottom: '1px solid var(--nx-border)' }}>
               <div>
@@ -1547,7 +1572,7 @@ export function NexusBoard() {
             )}
           </section>
 
-          {explainCards && (
+          {!candidateFocus && explainCards && (
             <div style={{ display: 'grid', gap: 8, padding: '12px 14px', margin: '0 0 12px', border: '1px solid var(--nx-border)', borderRadius: 8, fontFamily: "'JetBrains Mono',monospace" }}>
               {ANATOMY_LEGEND.map(([n, k, v]) => (
                 <div key={n} style={{ display: 'grid', gridTemplateColumns: '20px minmax(0,1fr)', gap: 8, alignItems: 'start', fontSize: 11 }}>
@@ -1559,7 +1584,7 @@ export function NexusBoard() {
           )}
           <div
             className={['signals', `density-${prefs.density}`, ...Object.entries(prefs.card).filter(([, on]) => !on).map(([k]) => `hide-${k}`)].join(' ')}
-            style={prefs.columns !== 'auto' ? { gridTemplateColumns: `repeat(${prefs.columns}, minmax(0, 1fr))` } : undefined}
+            style={{ ...(prefs.columns !== 'auto' ? { gridTemplateColumns: `repeat(${prefs.columns}, minmax(0, 1fr))` } : {}), ...(candidateFocus ? { display: 'none' } : {}) }}
           >
             {bookList.map((p) => {
               const b = bandOf(p);
@@ -1730,7 +1755,11 @@ export function NexusBoard() {
             )}
             {!shown.length && (
               <p style={{ gridColumn: '1/-1', textAlign: 'center', padding: '32px 0', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)' }}>
-                {convictions.isLoading ? 'loading the book…' : 'Nothing matches these filters.'}
+                {convictions.isLoading
+                  ? 'Loading opportunities…'
+                  : bookScope === 'signals'
+                    ? `No publication currently clears the ${evidenceFloor}-point evidence floor. Review confirmed Candidates without treating them as trades.`
+                    : 'Nothing matches these filters.'}
               </p>
             )}
           </div>

@@ -292,6 +292,41 @@
 }
 .nexus-vars .col:last-child{border-right:none}
 
+/* Nexus defaults to one decision column. Research rails remain available on
+   demand, but they no longer compete with the active workspace on every load. */
+.nexus-vars .nexus-embed .main.nexus-focus{
+  grid-template-columns:minmax(0,1fr) !important;
+  overflow:visible;
+}
+.nexus-vars .main.nexus-focus>.col-left,
+.nexus-vars .main.nexus-focus>.col-right,
+.nexus-vars .main.nexus-focus>.nx-resize{display:none !important}
+.nexus-vars .main.nexus-focus>.col-center{border-right:0;overflow:visible}
+
+.nexus-vars .nexus-market-brief{
+  display:grid;grid-template-columns:minmax(280px,1fr) auto auto;
+  align-items:center;gap:18px;padding:10px 16px;
+  border-bottom:1px solid var(--nx-border);
+  background:color-mix(in srgb,var(--panel-2) 82%,transparent);
+}
+.nexus-vars .nexus-brief-copy{display:flex;align-items:baseline;gap:10px;min-width:0}
+.nexus-vars .nexus-brief-session{
+  flex-shrink:0;color:var(--cyan-bright);font-size:10px;font-weight:700;
+  text-transform:capitalize;
+}
+.nexus-vars .nexus-brief-copy strong{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--text);font-size:12px;font-weight:600;
+}
+.nexus-vars .nexus-brief-facts{display:flex;align-items:center;gap:12px;color:var(--text-dim);font-size:10px;white-space:nowrap}
+.nexus-vars .nexus-brief-facts b{color:var(--text);font-weight:700}
+.nexus-vars .nexus-market-brief>button{
+  min-height:32px;padding:0 10px;border:1px solid var(--nx-border-hi);border-radius:5px;
+  background:transparent;color:var(--text-dim);cursor:pointer;font-size:10px;font-weight:600;
+}
+.nexus-vars .nexus-market-brief>button:hover,
+.nexus-vars .nexus-market-brief>button:focus-visible{border-color:var(--cyan);color:var(--text);outline:none}
+
 /* ============ SECTION HEADERS ============ */
 .nexus-vars .sec-head{
   padding:14px 16px 10px;
@@ -1444,6 +1479,14 @@
 }
 @media(max-width:1279px){
   .nexus-vars .nexus-embed .nx-resize{display:none}
+}
+
+@media(max-width:760px){
+  .nexus-vars .nexus-market-brief{grid-template-columns:1fr;gap:8px;padding:10px 12px}
+  .nexus-vars .nexus-brief-copy{display:block}
+  .nexus-vars .nexus-brief-copy strong{display:block;margin-top:4px;white-space:normal;line-height:1.45}
+  .nexus-vars .nexus-brief-facts{overflow-x:auto;padding-bottom:2px}
+  .nexus-vars .nexus-market-brief>button{justify-self:start}
 }
 
 /* ── topbar overflow at desk widths ───────────────────────────────
