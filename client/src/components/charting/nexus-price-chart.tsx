@@ -243,14 +243,18 @@ export function NexusPriceChart({
           onMouseMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             mouse.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-            if (pan.current && all) {
-              const dx = e.clientX - pan.current.startX;
-              if (Math.abs(dx) > 3) pan.current.moved = true;
+            const activePan = pan.current;
+            if (activePan && all) {
+              const dx = e.clientX - activePan.startX;
+              if (Math.abs(dx) > 3) activePan.moved = true;
               const barW = rect.width / Math.max(1, span);
               const dBars = Math.round(dx / barW);
+              // Capture the drag origin before queueing the React update.
+              // mouseup/mouseleave may clear the ref before this callback runs.
+              const startOffset = activePan.startOffset;
               setView((v) => ({
                 span: v.span,
-                offset: Math.max(0, Math.min(len - span, pan.current!.startOffset + dBars)),
+                offset: Math.max(0, Math.min(Math.max(0, len - span), startOffset + dBars)),
               }));
             }
             redraw();

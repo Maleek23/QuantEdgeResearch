@@ -124,7 +124,22 @@ export function ChartLabBoard() {
     () => convictions?.picks?.find((c: ConvictionPick) => c.symbol.toUpperCase() === symbol),
     [convictions, symbol],
   );
-  const { data: dealer } = useQuery<{ snapshot?: { putWall?: number | null; gammaFlipPrice?: number | null; maxGammaStrike?: number | null; callWall?: number | null; regime?: string } }>({
+  const { data: dealer } = useQuery<{ snapshot?: {
+    spotPrice?: number | null;
+    putWall?: number | null;
+    gammaFlipPrice?: number | null;
+    maxGammaStrike?: number | null;
+    callWall?: number | null;
+    regime?: string;
+    levels?: Array<{
+      strike: number;
+      gex: number;
+      gammaPct?: number;
+      role?: string;
+      openInterest?: number;
+      distancePct?: number;
+    }>;
+  } }>({
     queryKey: ['/api/gex-vex/terminal', symbol, 'chart-overlay'],
     queryFn: q(`/api/gex-vex/terminal/${symbol}?interval=15m&lookback=5`),
     staleTime: 120_000, refetchInterval: 180_000, retry: 1,
@@ -135,15 +150,41 @@ export function ChartLabBoard() {
   const levels: Level[] = useMemo(() => {
     const rows: Level[] = [];
     if (pick) rows.push(
-      { price: pick.targetPrice, color: '#6ee7b7', label: 'T1' },
-      { price: pick.entryPrice, color: '#3b8cff', label: 'ENTRY' },
-      { price: pick.stopLoss, color: '#ff6b3d', label: 'STOP' },
+      { price: pick.targetPrice, color: '#6ee7b7', label: 'T1', kind: 'execution' },
+      { price: pick.entryPrice, color: '#3b8cff', label: 'ENTRY', kind: 'execution' },
+      { price: pick.stopLoss, color: '#ff6b3d', label: 'STOP', kind: 'execution' },
     );
     const snap = dealer?.snapshot;
-    if (snap?.putWall != null) rows.push({ price: snap.putWall, color: '#ef6461', label: 'PUT WALL' });
-    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: '#f4b942', label: 'GAMMA FLIP' });
-    if (snap?.maxGammaStrike != null) rows.push({ price: snap.maxGammaStrike, color: '#b794f4', label: 'KING NODE' });
-    if (snap?.callWall != null) rows.push({ price: snap.callWall, color: '#38d9a9', label: 'CALL WALL' });
+    const rankedNodes = [...(snap?.levels ?? [])]
+      .filter((node) => Number.isFinite(node.strike) && Number.isFinite(node.gex))
+      .filter((node) => Math.abs(node.distancePct ?? 0) <= 15)
+      .sort((a, b) => Math.abs(b.gex) - Math.abs(a.gex))
+      .slice(0, 7);
+    const strongest = Math.max(...rankedNodes.map((node) => Math.abs(node.gex)), 0.000001);
+    const strengthAt = (price: number) => {
+      const node = rankedNodes.find((candidate) => Math.abs(candidate.strike - price) < 0.001);
+      return node ? Math.abs(node.gex) / strongest : 0.65;
+    };
+    if (snap?.putWall != null) rows.push({ price: snap.putWall, color: '#ef6461', label: 'PUT WALL', kind: 'gex-anchor', strength: strengthAt(snap.putWall), meta: 'Γ wall' });
+    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: '#f4b942', label: 'GAMMA FLIP', kind: 'gex-anchor', strength: strengthAt(snap.gammaFlipPrice), meta: 'Γ flip' });
+    if (snap?.maxGammaStrike != null) rows.push({ price: snap.maxGammaStrike, color: '#b794f4', label: 'KING NODE', kind: 'gex-anchor', strength: 1, meta: 'max Γ' });
+    if (snap?.callWall != null) rows.push({ price: snap.callWall, color: '#38d9a9', label: 'CALL WALL', kind: 'gex-anchor', strength: strengthAt(snap.callWall), meta: 'Γ wall' });
+
+    const occupied = new Set(rows.map((row) => row.price.toFixed(4)));
+    for (const node of rankedNodes) {
+      const key = node.strike.toFixed(4);
+      if (occupied.has(key)) continue;
+      const positive = node.gex >= 0;
+      rows.push({
+        price: node.strike,
+        color: positive ? '#38d9a9' : '#ff7861',
+        label: `Γ NODE ${node.strike}`,
+        kind: 'gex-node',
+        strength: Math.abs(node.gex) / strongest,
+        meta: `${positive ? '+' : '−'}${((node.gammaPct ?? 0) * 100).toFixed(1)}% Γ`,
+      });
+      occupied.add(key);
+    }
     const seen = new Set<string>();
     return rows.filter((l) => Number.isFinite(l.price) && !seen.has(`${l.label}:${l.price}`) && seen.add(`${l.label}:${l.price}`));
   }, [pick, dealer]);

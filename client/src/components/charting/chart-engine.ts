@@ -132,7 +132,17 @@ export function useCandles(symbol: string, tf: string) {
   });
 }
 
-export interface Level { price: number; color: string; label: string }
+export interface Level {
+  price: number;
+  color: string;
+  label: string;
+  /** Dealer-positioning levels render as sized nodes, not generic trade lines. */
+  kind?: 'execution' | 'gex-anchor' | 'gex-node';
+  /** Relative node importance in the 0..1 range. */
+  strength?: number;
+  /** Optional compact context rendered beside a GEX node. */
+  meta?: string;
+}
 export interface Zone { from: number; to: number; color?: string; label?: string }
 
 /* ────────────────────────────────────────────────────────────────
@@ -250,9 +260,11 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     opts.levels.forEach((lvl) => {
       if (lvl.price >= min && lvl.price <= max) {
         const y = padding.top + ((max - lvl.price) / priceRange) * priceH;
-        ctx.strokeStyle = lvl.color + '40';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
+        const isNode = lvl.kind === 'gex-node' || lvl.kind === 'gex-anchor';
+        const strength = Math.max(0, Math.min(1, lvl.strength ?? 0.45));
+        ctx.strokeStyle = lvl.color + (isNode ? '55' : '40');
+        ctx.lineWidth = isNode ? 0.8 + strength * 1.2 : 1;
+        ctx.setLineDash(isNode ? [2, 5] : [4, 4]);
         ctx.beginPath();
         ctx.moveTo(padding.left, y);
         ctx.lineTo(w - padding.right, y);
@@ -262,6 +274,24 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
         ctx.font = '700 9px "JetBrains Mono", monospace';
         ctx.textAlign = 'left';
         ctx.fillText(lvl.label, padding.left + 4, y - 3);
+        if (isNode) {
+          const nodeX = w - padding.right - 10;
+          const radius = 3 + strength * 4;
+          ctx.save();
+          ctx.shadowColor = lvl.color;
+          ctx.shadowBlur = 5 + strength * 8;
+          ctx.globalAlpha = 0.82;
+          ctx.beginPath();
+          ctx.arc(nodeX, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          if (lvl.meta) {
+            ctx.fillStyle = lvl.color + 'cc';
+            ctx.font = '700 8px "JetBrains Mono", monospace';
+            ctx.textAlign = 'right';
+            ctx.fillText(lvl.meta, nodeX - radius - 5, y + 3);
+          }
+        }
       }
     });
   }
