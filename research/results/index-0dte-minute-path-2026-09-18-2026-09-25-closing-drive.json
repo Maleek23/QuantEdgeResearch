@@ -1,0 +1,315 @@
+{
+  "model": "QuantEdge index 0DTE ordered minute-mark replay",
+  "classification": "reported-trade mark replay — not executable NBBO or broker-fill P&L",
+  "period": {
+    "from": "2026-09-18",
+    "to": "2026-09-25",
+    "tradingSessions": 5
+  },
+  "policy": {
+    "entry": "next minute first reported option trade after alert",
+    "stop": "-50% premium",
+    "target": "+100% premium",
+    "collision": "stop first when stop and target occur within the same OHLC minute",
+    "close": "last regular-session reported trade",
+    "maxDebitDollars": 200,
+    "maxContracts": 5
+  },
+  "limitation": "Reported option trades are marks, not NBBO. Results exclude spread, commissions, queue position and broker latency; trust only actual imported fills as realized P&L.",
+  "summary": {
+    "alerts": 5,
+    "resolved": 3,
+    "coveragePct": 60,
+    "sessionsWithPath": 3,
+    "noPathData": 1,
+    "budgetRejected": 1,
+    "trust": "insufficient_coverage",
+    "targetHits": 0,
+    "stops": 3,
+    "eodExits": 0,
+    "targetHitRatePct": 0,
+    "profitableRatePct": 0,
+    "netMarkedPnlDollars": -227.5,
+    "averageReturnPct": -50,
+    "medianReturnPct": -50,
+    "profitFactor": 0
+  },
+  "policyMatrix": {
+    "target10": {
+      "targetPct": 10,
+      "sample": 3,
+      "targetHits": 2,
+      "stops": 1,
+      "eodExits": 0,
+      "targetHitRatePct": 66.67,
+      "profitableRatePct": 66.67,
+      "netMarkedPnlDollars": -62.5,
+      "averageReturnPct": -10,
+      "profitFactor": 0.31
+    },
+    "target15": {
+      "targetPct": 15,
+      "sample": 3,
+      "targetHits": 2,
+      "stops": 1,
+      "eodExits": 0,
+      "targetHitRatePct": 66.67,
+      "profitableRatePct": 66.67,
+      "netMarkedPnlDollars": -48.75,
+      "averageReturnPct": -6.67,
+      "profitFactor": 0.46
+    },
+    "target25": {
+      "targetPct": 25,
+      "sample": 3,
+      "targetHits": 2,
+      "stops": 1,
+      "eodExits": 0,
+      "targetHitRatePct": 66.67,
+      "profitableRatePct": 66.67,
+      "netMarkedPnlDollars": -21.25,
+      "averageReturnPct": 0,
+      "profitFactor": 0.76
+    },
+    "target50": {
+      "targetPct": 50,
+      "sample": 3,
+      "targetHits": 0,
+      "stops": 3,
+      "eodExits": 0,
+      "targetHitRatePct": 0,
+      "profitableRatePct": 0,
+      "netMarkedPnlDollars": -227.5,
+      "averageReturnPct": -50,
+      "profitFactor": 0
+    },
+    "target100": {
+      "targetPct": 100,
+      "sample": 3,
+      "targetHits": 0,
+      "stops": 3,
+      "eodExits": 0,
+      "targetHitRatePct": 0,
+      "profitableRatePct": 0,
+      "netMarkedPnlDollars": -227.5,
+      "averageReturnPct": -50,
+      "profitFactor": 0
+    }
+  },
+  "rows": [
+    {
+      "date": "2026-09-18",
+      "symbol": "O:SPY260918P00764000",
+      "direction": "bearish",
+      "timestamp": 1789760835,
+      "estTimestamp": "2026-09-18 15:47:15 EST",
+      "alertName": "QuantEdge Index 0DTE Bearish",
+      "outcome": "unresolved",
+      "error": "no minute option trades"
+    },
+    {
+      "date": "2026-09-21",
+      "symbol": "SPY260921C00775000",
+      "direction": "bullish",
+      "timestamp": 1790019510,
+      "estTimestamp": "2026-09-21 15:38:30 EST",
+      "alertName": "QuantEdge Index 0DTE Bullish",
+      "entryAt": "2026-09-21T19:39:00.000Z",
+      "entryMark": 0.36,
+      "quantity": 5,
+      "debitDollars": 180,
+      "stopMark": 0.18,
+      "targetMark": 0.72,
+      "exitAt": "2026-09-21T19:42:00.000Z",
+      "exitMark": 0.18,
+      "outcome": "stop",
+      "returnPct": -50,
+      "pnlDollars": -90,
+      "mfePct": 5.56,
+      "maePct": -58.33,
+      "minutesHeld": 3,
+      "policyOutcomes": {
+        "target10": {
+          "outcome": "stop",
+          "exitAt": "2026-09-21T19:42:00.000Z",
+          "exitMark": 0.18,
+          "returnPct": -50,
+          "pnlDollars": -90,
+          "minutesHeld": 3
+        },
+        "target15": {
+          "outcome": "stop",
+          "exitAt": "2026-09-21T19:42:00.000Z",
+          "exitMark": 0.18,
+          "returnPct": -50,
+          "pnlDollars": -90,
+          "minutesHeld": 3
+        },
+        "target25": {
+          "outcome": "stop",
+          "exitAt": "2026-09-21T19:42:00.000Z",
+          "exitMark": 0.18,
+          "returnPct": -50,
+          "pnlDollars": -90,
+          "minutesHeld": 3
+        },
+        "target50": {
+          "outcome": "stop",
+          "exitAt": "2026-09-21T19:42:00.000Z",
+          "exitMark": 0.18,
+          "returnPct": -50,
+          "pnlDollars": -90,
+          "minutesHeld": 3
+        },
+        "target100": {
+          "outcome": "stop",
+          "exitAt": "2026-09-21T19:42:00.000Z",
+          "exitMark": 0.18,
+          "returnPct": -50,
+          "pnlDollars": -90,
+          "minutesHeld": 3
+        }
+      }
+    },
+    {
+      "date": "2026-09-22",
+      "symbol": "O:QQQ260922C00745000",
+      "direction": "bullish",
+      "timestamp": 1790106367,
+      "estTimestamp": "2026-09-22 15:46:07 EST",
+      "alertName": "QuantEdge Index 0DTE Bullish",
+      "outcome": "unresolved",
+      "entryAt": "2026-09-22T19:47:00.000Z",
+      "entryMark": 2.68,
+      "error": "entry debit $268 exceeds $200 cap"
+    },
+    {
+      "date": "2026-09-23",
+      "symbol": "QQQ260923C00741000",
+      "direction": "bullish",
+      "timestamp": 1790191977,
+      "estTimestamp": "2026-09-23 15:32:57 EST",
+      "alertName": "QuantEdge Index 0DTE Bullish",
+      "entryAt": "2026-09-23T19:33:00.000Z",
+      "entryMark": 0.53,
+      "quantity": 3,
+      "debitDollars": 159,
+      "stopMark": 0.26,
+      "targetMark": 1.06,
+      "exitAt": "2026-09-23T19:42:00.000Z",
+      "exitMark": 0.26,
+      "outcome": "stop",
+      "returnPct": -50,
+      "pnlDollars": -79.5,
+      "mfePct": 33.96,
+      "maePct": -56.6,
+      "minutesHeld": 9,
+      "policyOutcomes": {
+        "target10": {
+          "outcome": "target",
+          "exitAt": "2026-09-23T19:33:00.000Z",
+          "exitMark": 0.58,
+          "returnPct": 10,
+          "pnlDollars": 15.9,
+          "minutesHeld": 0
+        },
+        "target15": {
+          "outcome": "target",
+          "exitAt": "2026-09-23T19:33:00.000Z",
+          "exitMark": 0.61,
+          "returnPct": 15,
+          "pnlDollars": 23.85,
+          "minutesHeld": 0
+        },
+        "target25": {
+          "outcome": "target",
+          "exitAt": "2026-09-23T19:34:00.000Z",
+          "exitMark": 0.66,
+          "returnPct": 25,
+          "pnlDollars": 39.75,
+          "minutesHeld": 1
+        },
+        "target50": {
+          "outcome": "stop",
+          "exitAt": "2026-09-23T19:42:00.000Z",
+          "exitMark": 0.26,
+          "returnPct": -50,
+          "pnlDollars": -79.5,
+          "minutesHeld": 9
+        },
+        "target100": {
+          "outcome": "stop",
+          "exitAt": "2026-09-23T19:42:00.000Z",
+          "exitMark": 0.26,
+          "returnPct": -50,
+          "pnlDollars": -79.5,
+          "minutesHeld": 9
+        }
+      }
+    },
+    {
+      "date": "2026-09-25",
+      "symbol": "QQQ260925P00745000",
+      "direction": "bearish",
+      "timestamp": 1790364711,
+      "estTimestamp": "2026-09-25 15:31:51 EST",
+      "alertName": "QuantEdge Index 0DTE Bearish",
+      "entryAt": "2026-09-25T19:32:00.000Z",
+      "entryMark": 1.16,
+      "quantity": 1,
+      "debitDollars": 116,
+      "stopMark": 0.58,
+      "targetMark": 2.32,
+      "exitAt": "2026-09-25T19:45:00.000Z",
+      "exitMark": 0.58,
+      "outcome": "stop",
+      "returnPct": -50,
+      "pnlDollars": -58,
+      "mfePct": 46.55,
+      "maePct": -60.34,
+      "minutesHeld": 13,
+      "policyOutcomes": {
+        "target10": {
+          "outcome": "target",
+          "exitAt": "2026-09-25T19:32:00.000Z",
+          "exitMark": 1.28,
+          "returnPct": 10,
+          "pnlDollars": 11.6,
+          "minutesHeld": 0
+        },
+        "target15": {
+          "outcome": "target",
+          "exitAt": "2026-09-25T19:34:00.000Z",
+          "exitMark": 1.33,
+          "returnPct": 15,
+          "pnlDollars": 17.4,
+          "minutesHeld": 2
+        },
+        "target25": {
+          "outcome": "target",
+          "exitAt": "2026-09-25T19:34:00.000Z",
+          "exitMark": 1.45,
+          "returnPct": 25,
+          "pnlDollars": 29,
+          "minutesHeld": 2
+        },
+        "target50": {
+          "outcome": "stop",
+          "exitAt": "2026-09-25T19:45:00.000Z",
+          "exitMark": 0.58,
+          "returnPct": -50,
+          "pnlDollars": -58,
+          "minutesHeld": 13
+        },
+        "target100": {
+          "outcome": "stop",
+          "exitAt": "2026-09-25T19:45:00.000Z",
+          "exitMark": 0.58,
+          "returnPct": -50,
+          "pnlDollars": -58,
+          "minutesHeld": 13
+        }
+      }
+    }
+  ]
+}

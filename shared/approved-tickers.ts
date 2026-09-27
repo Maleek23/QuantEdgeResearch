@@ -184,11 +184,26 @@ export const OIL_COMPLEX_TIER = [
   'SLB', 'HAL', 'VLO', 'MPC', 'PSX',
 ] as const;
 
+// Liquid, widely-followed groups that were previously discovered only by the
+// daily mover scan. Keeping them in the baseline universe makes quiet-session
+// research useful too; inclusion is coverage, never an automatic signal.
+export const CORE_MARKET_TIER = [
+  // Banks, brokers, payments and exchanges
+  'JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'V', 'MA', 'AXP', 'SCHW', 'CME', 'ICE',
+  // Broad semiconductors / compute / data-centre supply chain
+  'NVDA', 'AMAT', 'ADI', 'TXN', 'MCHP', 'NXPI', 'MPWR', 'TER', 'HPE', 'NTAP',
+  'PSTG', 'GLW', 'APH', 'ETN', 'PWR', 'GEV',
+  // Materials, copper and rare earths
+  'COPX', 'FCX', 'SCCO', 'MP', 'LAC', 'ALB', 'XME', 'REMX',
+  // Consumer / communication names with liquid options
+  'WMT', 'COST', 'HD', 'LOW', 'TGT', 'NKE', 'SBUX', 'DIS', 'UBER', 'ABNB',
+] as const;
+
 export const APPROVED_TICKERS: Set<string> = new Set<string>([
   ...MEGA_CAP_TIER,
   ...S_TIER, ...A_TIER, ...INDEX_TICKERS, ...CRYPTO_TICKERS, ...SECONDARY,
   ...SMALL_ACCOUNT_TIER, ...HEALTHCARE_TIER, ...PRECIOUS_METALS_TIER,
-  ...OIL_COMPLEX_TIER,
+  ...OIL_COMPLEX_TIER, ...CORE_MARKET_TIER,
 ]);
 
 // Skip list: proven money losers
@@ -312,7 +327,11 @@ export type Sector =
   | 'healthcare'
   | 'ev_mobility'
   | 'precious_metals'
-  | 'other';
+  | 'financials'
+  | 'materials'
+  | 'consumer'
+  | 'special_situations'
+  | 'unclassified';
 
 export const SECTOR_MAP: Record<string, Sector> = {
   // Semi equipment
@@ -354,7 +373,7 @@ export const SECTOR_MAP: Record<string, Sector> = {
   OKLO: 'energy',
 
   // Energy
-  BE: 'energy', FCEL: 'energy', COPX: 'other',
+  BE: 'energy', FCEL: 'energy', COPX: 'materials',
   // Oil complex — crude proxies, producers, services and refiners
   USO: 'energy', BNO: 'energy', XLE: 'energy', XOP: 'energy', OIH: 'energy',
   XOM: 'energy', CVX: 'energy', COP: 'energy', OXY: 'energy', EOG: 'energy',
@@ -411,8 +430,8 @@ export const SECTOR_MAP: Record<string, Sector> = {
   JOBY: 'ev_mobility', ACHR: 'ev_mobility',
   SMR: 'energy', NNE: 'energy', BWXT: 'energy',
   HOOD: 'fintech', OPEN: 'fintech',
-  CHWY: 'other', PTON: 'other',
-  BB: 'other', GME: 'other', AMC: 'other',
+  CHWY: 'consumer', PTON: 'consumer',
+  BB: 'special_situations', GME: 'special_situations', AMC: 'special_situations',
 
   // Emerging gems — uranium / nuclear fuel
   LEU: 'energy', CCJ: 'energy', UEC: 'energy',
@@ -447,10 +466,32 @@ export const SECTOR_MAP: Record<string, Sector> = {
   MUX: 'precious_metals', HL: 'precious_metals', MTA: 'precious_metals',
   HYMC: 'precious_metals', GAU: 'precious_metals', THM: 'precious_metals',
   AG: 'precious_metals', CDE: 'precious_metals',
+
+  // Financials
+  JPM: 'financials', BAC: 'financials', WFC: 'financials', C: 'financials',
+  GS: 'financials', MS: 'financials', V: 'financials', MA: 'financials',
+  AXP: 'financials', SCHW: 'financials', CME: 'financials', ICE: 'financials',
+
+  // Broader compute and data-centre supply chain
+  NVDA: 'chips', AMAT: 'semi_equipment', ADI: 'chips', TXN: 'chips',
+  MCHP: 'chips', NXPI: 'chips', MPWR: 'chips', TER: 'semi_equipment',
+  HPE: 'ai_infra', NTAP: 'ai_infra', PSTG: 'ai_infra', GLW: 'optics',
+  APH: 'ai_infra', ETN: 'ai_infra', PWR: 'ai_infra', GEV: 'energy',
+
+  // Materials / copper / rare earths
+  FCX: 'materials', SCCO: 'materials', MP: 'materials', LAC: 'materials',
+  ALB: 'materials', XME: 'materials', REMX: 'materials',
+
+  // Consumer / communications
+  WMT: 'consumer', COST: 'consumer', HD: 'consumer', LOW: 'consumer',
+  TGT: 'consumer', NKE: 'consumer', SBUX: 'consumer', DIS: 'consumer',
+  UBER: 'consumer', ABNB: 'consumer',
 };
 
 export function getSector(symbol: string): Sector {
-  return SECTOR_MAP[symbol.toUpperCase()] || 'other';
+  // Unclassified names may enter dynamic discovery, but they must not
+  // masquerade as a tradable "Other" theme.
+  return SECTOR_MAP[symbol.toUpperCase()] || 'unclassified';
 }
 
 export const SECTOR_LABELS: Record<Sector, string> = {
@@ -474,5 +515,9 @@ export const SECTOR_LABELS: Record<Sector, string> = {
   healthcare: 'Healthcare / Insurers',
   ev_mobility: 'EV / Mobility',
   precious_metals: 'Gold / Silver',
-  other: 'Other',
+  financials: 'Financials',
+  materials: 'Materials / Copper',
+  consumer: 'Consumer',
+  special_situations: 'Special Situations',
+  unclassified: 'Unclassified',
 };

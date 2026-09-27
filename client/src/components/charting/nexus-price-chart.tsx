@@ -132,7 +132,11 @@ export function NexusPriceChart({
   useEffect(() => {
     const onResize = () => redraw();
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    const observer = typeof ResizeObserver !== 'undefined' && wrapRef.current
+      ? new ResizeObserver(onResize)
+      : null;
+    if (observer && wrapRef.current) observer.observe(wrapRef.current);
+    return () => { window.removeEventListener('resize', onResize); observer?.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles, type, tf, levels, zones]);
 
@@ -277,7 +281,7 @@ export function NexusPriceChart({
         className="chart-canvas-wrap"
         style={fill
           ? { flex: 1, minHeight: 0, position: 'relative' }
-          : { height, flex: 'none', borderRadius: 6, border: '1px solid var(--nx-border, rgba(59,140,255,0.08))' }}
+          : { height: Math.max(height, 380), flex: 'none', borderRadius: 6, border: '1px solid var(--nx-border, rgba(59,140,255,0.08))' }}
       >
         {chartBody}
       </div>

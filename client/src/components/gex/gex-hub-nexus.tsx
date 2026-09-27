@@ -23,15 +23,18 @@
  * The mock's genGEX() random matrix, spot jitter and looping countdown do not
  * ship — same rule as every board before it.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
-import { GammaSurface } from '@/components/prism/gamma-surface';
 import { robustMax } from '@/components/viz';
 import type { StrikeExpiryCell, GEXSnapshot } from '@shared/gex-types';
 import '@/styles/nexus.css';
+
+// Three.js is substantial and only needed after the trader explicitly selects
+// 3D. Keeping it out of the default 7D map removes that cost from first paint.
+const GammaSurface = lazy(() => import('@/components/prism/gamma-surface').then((m) => ({ default: m.GammaSurface })));
 
 const q = (path: string) => async () => {
   const r = await fetch(path, { credentials: 'include' });
@@ -132,6 +135,25 @@ export function GexHubNexus() {
   const snap = term?.snapshot;
   const matrix = term?.strikeExpiryMatrix ?? [];
   const spot = snap?.spotPrice ?? 0;
+  const sessionClock = useMemo(() => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date());
+    const weekday = parts.find((p) => p.type === 'weekday')?.value ?? '';
+    const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0) % 24;
+    const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+    const at = hour * 60 + minute;
+    const open = 9 * 60 + 30; const close = 16 * 60;
+    const marketDay = weekday !== 'Sat' && weekday !== 'Sun';
+    const minutesLeft = marketDay && at >= open && at < close ? close - at : 0;
+    return {
+      minutesLeft,
+      label: minutesLeft > 0 ? `${Math.floor(minutesLeft / 60)}h ${minutesLeft % 60}m to close` : 'cash session closed',
+      // Square-root-of-time is a clock proxy only. It is deliberately not
+      // labelled theta because contract IV/strike are not part of this panel.
+      timeValuePct: minutesLeft > 0 ? Math.round(Math.sqrt(minutesLeft / 390) * 100) : 0,
+    };
+  }, [term?.generatedAt]);
 
   /* Default decision view: aggregate only currently listed 0–7 DTE cells by
      strike. The previous "map" mixed every expiry into snapshot levels, so a
@@ -580,6 +602,29 @@ export function GexHubNexus() {
                 </div>
               </section>
 
+              <section className="gex-three-axis" aria-label="Spot, expiry clock, and gamma context">
+                <div className="gex-axis-card">
+                  <span>01 · spot</span>
+                  <strong>{spot > 0 ? `$${spot.toFixed(2)}` : '—'}</strong>
+                  <small>{snap?.gammaFlipPrice != null
+                    ? `${spot >= snap.gammaFlipPrice ? 'above' : 'below'} flip · ${Math.abs((spot / snap.gammaFlipPrice - 1) * 100).toFixed(2)}% away`
+                    : 'flip unavailable'}</small>
+                  <i><b style={{ width: `${snap?.putWall != null && snap?.callWall != null && snap.callWall > snap.putWall ? Math.max(0, Math.min(100, ((spot - snap.putWall) / (snap.callWall - snap.putWall)) * 100)) : 50}%` }} /></i>
+                </div>
+                <div className="gex-axis-card clock">
+                  <span>02 · expiry clock</span>
+                  <strong>{sessionClock.label}</strong>
+                  <small>{sessionClock.timeValuePct}% square-root time proxy remains · contract theta varies</small>
+                  <i><b style={{ width: `${sessionClock.timeValuePct}%` }} /></i>
+                </div>
+                <div className={`gex-axis-card ${flat7.total < 0 ? 'negative' : 'positive'}`}>
+                  <span>03 · gamma</span>
+                  <strong>{flat7.levels.length ? fmtM(flat7.total) : '—'}</strong>
+                  <small>{flat7.dominant ? `dominant node $${flat7.dominant.strike} · ${snap?.regime?.replace('_', ' ') ?? 'regime unknown'}` : 'no near-term node'}</small>
+                  <i><b style={{ width: `${flat7.dominant && flat7.max > 0 ? Math.max(4, Math.min(100, Math.abs(flat7.dominant.gex) / flat7.max * 100)) : 0}%` }} /></i>
+                </div>
+              </section>
+
               <section className="dealer-levels">
                 {[
                   ['NEGATIVE NODE', flat7.negative?.strike, 'largest negative near-term strike'],
@@ -665,15 +710,17 @@ export function GexHubNexus() {
               {/* GammaSurface is already the honest 3D: LISTED mode for absent
                   cells, overflow ticks past the robust max. VEX maps the same
                   real matrix through netVEX. */}
-              <GammaSurface
-                className="h-full w-full"
-                points={(metric === 'vex' ? matrix.map((c) => ({ ...c, netGEX: c.netVEX ?? 0 })) : matrix) as any}
-                spot={spot}
-                symbol={symbol}
-                callWall={snap?.callWall}
-                putWall={snap?.putWall}
-                flipPrice={snap?.gammaFlipPrice ?? null}
-              />
+              <Suspense fallback={<div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>loading 3D surface…</div>}>
+                <GammaSurface
+                  className="h-full w-full"
+                  points={(metric === 'vex' ? matrix.map((c) => ({ ...c, netGEX: c.netVEX ?? 0 })) : matrix) as any}
+                  spot={spot}
+                  symbol={symbol}
+                  callWall={snap?.callWall}
+                  putWall={snap?.putWall}
+                  flipPrice={snap?.gammaFlipPrice ?? null}
+                />
+              </Suspense>
             </div>
           ) : (
             <div className="matrix-wrap">

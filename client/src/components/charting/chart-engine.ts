@@ -22,13 +22,17 @@ export interface EHQuote { symbol: string; lastPrice: number; changePct: number 
 export interface EHPayload { session?: string; gainers?: EHQuote[]; losers?: EHQuote[]; mostActive?: EHQuote[] }
 
 /** TF → the feed's real range/interval pair. No 4h — the feed has no 4h bars. */
-export const TF_CONFIG: Record<string, { range: string; interval: string; label: string }> = {
-  '1m': { range: '1d', interval: '1m', label: '1M' },
-  '5m': { range: '1d', interval: '5m', label: '5M' },
-  '15m': { range: '1d', interval: '15m', label: '15M' },
-  '1h': { range: '5d', interval: '1h', label: '1H' },
-  '1D': { range: '3mo', interval: '1d', label: '1D' },
-  '1W': { range: '1y', interval: '1wk', label: '1W' },
+export const TF_CONFIG: Record<string, { range: string; interval: string; label: string; aggregateMinutes?: number }> = {
+  '1m': { range: '5d', interval: '1m', label: '1M' },
+  '5m': { range: '1mo', interval: '5m', label: '5M' },
+  '15m': { range: '1mo', interval: '15m', label: '15M' },
+  '30m': { range: '1mo', interval: '30m', label: '30M' },
+  '1h': { range: '6mo', interval: '1h', label: '1H' },
+  // Yahoo has no native 4h bar. Aggregate actual 1h OHLCV into exchange-time
+  // four-hour buckets; this is measured resampling, not interpolation.
+  '4h': { range: '2y', interval: '1h', aggregateMinutes: 240, label: '4H' },
+  '1D': { range: '2y', interval: '1d', label: '1D' },
+  '1W': { range: '10y', interval: '1wk', label: '1W' },
 };
 export const CANDLES_POLL_MS = 120_000;
 
@@ -43,10 +47,28 @@ export const CANDLES_POLL_MS = 120_000;
  * with the bar span because a 7% weekly wick can be a real crash week.
  */
 const WICK_TOLERANCE: Record<string, number> = {
-  '1m': 0.015, '5m': 0.02, '15m': 0.02, '1h': 0.025, '1D': 0.08, '1W': 0.15,
+  '1m': 0.015, '5m': 0.02, '15m': 0.02, '30m': 0.025, '1h': 0.03, '4h': 0.05, '1D': 0.12, '1W': 0.2,
 };
 
 export interface CandleSeries { bars: Candle[]; clampedWicks: number }
+
+export function aggregateCandles(bars: Candle[], minutes: number): Candle[] {
+  const bucketMs = minutes * 60_000;
+  const groups = new Map<number, Candle[]>();
+  for (const bar of bars) {
+    const bucket = Math.floor(bar.time / bucketMs) * bucketMs;
+    const rows = groups.get(bucket);
+    if (rows) rows.push(bar); else groups.set(bucket, [bar]);
+  }
+  return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([time, rows]) => ({
+    time,
+    open: rows[0].open,
+    high: Math.max(...rows.map((r) => r.high)),
+    low: Math.min(...rows.map((r) => r.low)),
+    close: rows[rows.length - 1].close,
+    volume: rows.reduce((sum, r) => sum + r.volume, 0),
+  }));
+}
 
 export function useCandles(symbol: string, tf: string) {
   const cfg = TF_CONFIG[tf];
@@ -58,18 +80,33 @@ export function useCandles(symbol: string, tf: string) {
       if (!r.ok) throw new Error('history failed');
       const body: HistoryResponse & { error?: string } = await r.json();
       let clampedWicks = 0;
-      const bars = (body.data ?? []).filter((c) =>
+      let bars = (body.data ?? []).filter((c) =>
         // Non-positive OHLC is not a price at all.
         [c.open, c.high, c.low, c.close].every((v) => Number.isFinite(v) && v > 0),
       ).map((c) => {
-        const bodyLo = Math.min(c.open, c.close);
-        const bodyHi = Math.max(c.open, c.close);
-        let { low, high } = c;
-        let clampedLow = false; let clampedHigh = false;
-        if (low < bodyLo * (1 - tol)) { low = bodyLo * (1 - tol); clampedLow = true; clampedWicks++; }
-        if (high > bodyHi * (1 + tol)) { high = bodyHi * (1 + tol); clampedHigh = true; clampedWicks++; }
         // The feed's time is epoch SECONDS; the drawing code labels with Date(ms).
-        return { ...c, low, high, clampedLow, clampedHigh, time: c.time * 1000 };
+        return { ...c, time: c.time < 10_000_000_000 ? c.time * 1000 : c.time };
+      });
+      if (cfg.aggregateMinutes) bars = aggregateCandles(bars, cfg.aggregateMinutes);
+      // Quarantine only isolated provider spikes. A large real candle is kept:
+      // the body or either neighbour must also move. This avoids the old rule
+      // that silently clipped every legitimate wick merely for exceeding a
+      // fixed percentage of its own body.
+      bars = bars.map((c, i, rows) => {
+        if (i === 0 || i === rows.length - 1) return c;
+        const prev = rows[i - 1]; const next = rows[i + 1];
+        const local = [prev.close, c.open, c.close, next.open].sort((a, b) => a - b);
+        const median = (local[1] + local[2]) / 2;
+        const neighboursStable = Math.abs(prev.close / median - 1) < tol / 2
+          && Math.abs(next.open / median - 1) < tol / 2
+          && Math.abs(c.open / median - 1) < tol / 2
+          && Math.abs(c.close / median - 1) < tol / 2;
+        if (!neighboursStable) return c;
+        const clampedLow = c.low < median * (1 - tol);
+        const clampedHigh = c.high > median * (1 + tol);
+        if (clampedLow) clampedWicks++;
+        if (clampedHigh) clampedWicks++;
+        return { ...c, clampedLow, clampedHigh };
       });
       if (bars.length < 2) throw new Error(body.error ?? 'history empty');
       return { bars, clampedWicks };
@@ -375,4 +412,3 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     opts.onHover(null, 0, 0);
   }
 }
-

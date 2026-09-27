@@ -21834,12 +21834,19 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
-  // Index Lotto Scanner - High R:R plays on SPX/SPY/IWM/QQQ
+  // Index 0DTE scanner. The legacy index-lotto service estimated premiums from
+  // distance-to-strike and used placeholder volume. That is not publishable
+  // market data. Route this endpoint through the GEX + live-chain engine, which
+  // withholds an idea unless an account-fit contract actually exists.
   app.get("/api/scanner/index-lotto", async (_req, res) => {
     try {
-      const { scanIndexLottoPlays } = await import("./index-lotto-scanner");
-      const result = await scanIndexLottoPlays();
-      res.json(result);
+      const { runIndexScalpScanner } = await import("./index-scalp-engine");
+      const result = await runIndexScalpScanner();
+      res.json({
+        ...result,
+        methodology: 'measured GEX structure + executable live-chain contract gate',
+        warning: '0DTE options can lose the full debit. Modeled levels are hypotheses, not guarantees.',
+      });
     } catch (error: any) {
       logger.error(`[INDEX-LOTTO] Error:`, error);
       res.status(500).json({ error: error?.message || "Failed to scan index lotto plays" });
@@ -32587,7 +32594,9 @@ Use this checklist before entering any trade:
       const payload = {
         symbol,
         generatedAt: new Date().toISOString(),
-        optionsSource: cboeFallbackUsed ? 'CBOE delayed fallback' : String((gex as any).dataQuality ?? 'primary options feed'),
+        optionsSource: cboeFallbackUsed
+          ? 'CBOE delayed fallback'
+          : (cq.bestSource || snapshot.source || 'primary options feed'),
         snapshot,
         candles,
         orbs,

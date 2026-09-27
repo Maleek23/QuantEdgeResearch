@@ -1479,6 +1479,19 @@
 .nexus-vars .chart-modal-body{flex:1;min-height:0;position:relative}
 .nexus-vars .chart-modal-body{display:flex;flex-direction:column}
 
+/* SPX / index decision plane: the three variables a flat price chart hides. */
+.nexus-vars .gex-three-axis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nexus-vars .gex-axis-card{min-width:0;padding:12px 13px;border:1px solid var(--nx-border);border-radius:7px;background:color-mix(in srgb,var(--panel-solid) 88%,transparent)}
+.nexus-vars .gex-axis-card>span{display:block;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute)}
+.nexus-vars .gex-axis-card>strong{display:block;margin-top:7px;font:700 15px/1.2 'Space Grotesk',sans-serif;color:var(--text)}
+.nexus-vars .gex-axis-card>small{display:block;min-height:28px;margin-top:5px;font:500 10px/1.4 'JetBrains Mono',monospace;color:var(--text-dim)}
+.nexus-vars .gex-axis-card>i{display:block;height:3px;margin-top:9px;overflow:hidden;border-radius:2px;background:rgba(139,147,163,.12)}
+.nexus-vars .gex-axis-card>i>b{display:block;height:100%;border-radius:inherit;background:var(--cyan);box-shadow:0 0 8px color-mix(in srgb,var(--cyan) 70%,transparent)}
+.nexus-vars .gex-axis-card.clock>i>b{background:var(--amber)}
+.nexus-vars .gex-axis-card.negative>i>b{background:var(--red)}
+.nexus-vars .gex-axis-card.positive>i>b{background:var(--green)}
+@media(max-width:900px){.nexus-vars .gex-three-axis{grid-template-columns:1fr}}
+
 /* ═══════════════════════════════════════════════════════════════
    GEX HUB — the fourth reference mock. Shared classes reused; .gexlab scopes
    page pieces. Includes the ⌘K search modal, the strike×expiry matrix, and

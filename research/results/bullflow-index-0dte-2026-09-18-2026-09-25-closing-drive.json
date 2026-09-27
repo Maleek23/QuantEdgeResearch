@@ -1,0 +1,146 @@
+{
+  "model": "Bullflow index 0DTE alert opportunity replay",
+  "classification": "opportunity study — not executable P&L",
+  "period": {
+    "from": "2026-09-18",
+    "to": "2026-09-25",
+    "weekdaysRequested": 6,
+    "replayDaysCompleted": 6,
+    "replayDaysFailed": 0
+  },
+  "policy": {
+    "universe": [
+      "SPY",
+      "QQQ",
+      "IWM"
+    ],
+    "direction": "provider-classified bullish/bearish custom alerts",
+    "dte": 0,
+    "premiumMin": 100000,
+    "sigScoreMin": 0.65,
+    "entryWindowET": "15:30-15:55",
+    "contractDebit": "$25-$300",
+    "maxSignalsPerDay": 1,
+    "cooldownMinutesByDirection": 30
+  },
+  "limitation": "peakReturn is best later trade, not a fillable exit; no bid/ask path, stop ordering, slippage, commissions, or settlement. Do not call hit rates win rates.",
+  "replayFailures": [],
+  "splits": {
+    "train": {
+      "attempted": 3,
+      "observations": 2,
+      "unresolved": 1,
+      "coveragePct": 66.66666666666666,
+      "hit25Pct": 0,
+      "hit50Pct": 0,
+      "hit100Pct": 0,
+      "hit200Pct": 0,
+      "medianPeakPct": 16.74,
+      "meanPeakPct": 11.485
+    },
+    "validation": {
+      "attempted": 1,
+      "observations": 1,
+      "unresolved": 0,
+      "coveragePct": 100,
+      "hit25Pct": 1,
+      "hit50Pct": 0,
+      "hit100Pct": 0,
+      "hit200Pct": 0,
+      "medianPeakPct": 39,
+      "meanPeakPct": 39
+    },
+    "test": {
+      "attempted": 1,
+      "observations": 1,
+      "unresolved": 0,
+      "coveragePct": 100,
+      "hit25Pct": 0,
+      "hit50Pct": 0,
+      "hit100Pct": 0,
+      "hit200Pct": 0,
+      "medianPeakPct": 22.96,
+      "meanPeakPct": 22.96
+    },
+    "all": {
+      "attempted": 5,
+      "observations": 4,
+      "unresolved": 1,
+      "coveragePct": 80,
+      "hit25Pct": 0.25,
+      "hit50Pct": 0,
+      "hit100Pct": 0,
+      "hit200Pct": 0,
+      "medianPeakPct": 22.96,
+      "meanPeakPct": 21.2325
+    }
+  },
+  "rows": [
+    {
+      "id": "150",
+      "date": "2026-09-18",
+      "symbol": "O:SPY260918P00764000",
+      "alertName": "QuantEdge Index 0DTE Bearish",
+      "direction": "bearish",
+      "premium": 597500,
+      "entry": 2.39,
+      "timestamp": 1789760835,
+      "estTimestamp": "2026-09-18 15:47:15 EST",
+      "peakPrice": 2.79,
+      "peakPct": 16.74
+    },
+    {
+      "id": "304",
+      "date": "2026-09-21",
+      "symbol": "O:SPY260921C00775000",
+      "alertName": "QuantEdge Index 0DTE Bullish",
+      "direction": "bullish",
+      "premium": 103923,
+      "entry": 0.353,
+      "timestamp": 1790019510,
+      "estTimestamp": "2026-09-21 15:38:30 EST",
+      "peakPrice": 0.38,
+      "peakPct": 6.23
+    },
+    {
+      "id": "177",
+      "date": "2026-09-22",
+      "symbol": "O:QQQ260922C00745000",
+      "alertName": "QuantEdge Index 0DTE Bullish",
+      "direction": "bullish",
+      "premium": 284959,
+      "entry": 2.602,
+      "timestamp": 1790106367,
+      "estTimestamp": "2026-09-22 15:46:07 EST",
+      "peakPrice": null,
+      "peakPct": null,
+      "error": "peak HTTP 404"
+    },
+    {
+      "id": "307",
+      "date": "2026-09-23",
+      "symbol": "O:QQQ260923C00741000",
+      "alertName": "QuantEdge Index 0DTE Bullish",
+      "direction": "bullish",
+      "premium": 171357,
+      "entry": 0.5,
+      "timestamp": 1790191977,
+      "estTimestamp": "2026-09-23 15:32:57 EST",
+      "peakPrice": 0.7,
+      "peakPct": 39
+    },
+    {
+      "id": "178",
+      "date": "2026-09-25",
+      "symbol": "O:QQQ260925P00745000",
+      "alertName": "QuantEdge Index 0DTE Bearish",
+      "direction": "bearish",
+      "premium": 637740,
+      "entry": 1.35,
+      "timestamp": 1790364711,
+      "estTimestamp": "2026-09-25 15:31:51 EST",
+      "peakPrice": 1.66,
+      "peakPct": 22.96
+    }
+  ]
+}

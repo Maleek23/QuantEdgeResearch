@@ -90,7 +90,10 @@ export async function computeSectorLeadership(
     const price = typeof q?.price === 'number' ? q.price : null;
     if (chg == null || price == null) continue;
     quoted++;
-    const key = getSector(sym) || 'other';
+    const key = getSector(sym);
+    // Unknown discovery names can still be researched individually, but a
+    // grab-bag bucket is not a sector and must never become a recommendation.
+    if (key === 'unclassified') continue;
     const entry: LeaderName = { symbol: sym, price, changePct: chg, isMega: mega.has(sym) };
     const arr = buckets.get(key);
     if (arr) arr.push(entry); else buckets.set(key, [entry]);

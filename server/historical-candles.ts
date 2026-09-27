@@ -27,8 +27,8 @@ export interface Candle {
 }
 
 const RANGE_MAP: Record<string, string> = {
-  '1D': '1d', '5D': '5d', '1M': '1mo', '3M': '3mo', '6M': '6mo', '1Y': '1y', '5Y': '5y',
-  '1d': '1d', '5d': '5d', '1mo': '1mo', '3mo': '3mo', '6mo': '6mo', '1y': '1y', '5y': '5y',
+  '1D': '1d', '5D': '5d', '1M': '1mo', '3M': '3mo', '6M': '6mo', '1Y': '1y', '2Y': '2y', '5Y': '5y', '10Y': '10y',
+  '1d': '1d', '5d': '5d', '1mo': '1mo', '3mo': '3mo', '6mo': '6mo', '1y': '1y', '2y': '2y', '5y': '5y', '10y': '10y',
 };
 
 export function normalizeRange(raw: string | undefined, fallback = '1mo'): string {
@@ -45,7 +45,9 @@ function startDateFor(range: string): Date {
     case '3mo': return new Date(now - 95 * DAY);
     case '6mo': return new Date(now - 190 * DAY);
     case '1y': return new Date(now - 370 * DAY);
+    case '2y': return new Date(now - 728 * DAY);
     case '5y': return new Date(now - 5 * 370 * DAY);
+    case '10y': return new Date(now - 10 * 370 * DAY);
     default: return new Date(now - 32 * DAY);
   }
 }
@@ -61,8 +63,11 @@ export async function fetchCandles(
   interval = '1d',
 ): Promise<Candle[]> {
   const r = normalizeRange(range, '6mo');
+  // Intraday charts need overnight/premarket context. The old omission of 1m
+  // made the most time-sensitive view regular-session-only while 5m/15m were
+  // extended-hours, so the same move appeared differently by timeframe.
   const includeExtended =
-    interval === '1h' || interval === '5m' || interval === '15m' || interval === '1d';
+    interval === '1m' || interval === '1h' || interval === '5m' || interval === '15m' || interval === '30m' || interval === '1d';
   const period1 = Math.floor(startDateFor(r).getTime() / 1000);
   const period2 = Math.floor(Date.now() / 1000);
 

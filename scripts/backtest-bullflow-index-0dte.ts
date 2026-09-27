@@ -40,9 +40,12 @@ const from = args.from ?? '2026-03-01';
 const to = args.to ?? new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 const concurrency = Math.max(1, Math.min(4, Number(args.concurrency ?? 2)));
 const maxPerDay = Math.max(1, Math.min(6, Number(args.maxPerDay ?? 2)));
+const entryStartMinute = Number(args.entryStartMinute ?? (9 * 60 + 45));
+const entryEndMinute = Number(args.entryEndMinute ?? (14 * 60 + 30));
+const studyLabel = String(args.label ?? 'base').replace(/[^a-z0-9-]/gi, '-').toLowerCase();
 const outDir = path.join(process.cwd(), 'research', 'results');
 const cacheFile = path.join(outDir, 'bullflow-index-0dte-peak-cache.json');
-const outputFile = path.join(outDir, `bullflow-index-0dte-${from}-${to}.json`);
+const outputFile = path.join(outDir, `bullflow-index-0dte-${from}-${to}${studyLabel === 'base' ? '' : `-${studyLabel}`}.json`);
 
 function datesBetween(a: string, b: string): string[] {
   const out: string[] = [];
@@ -106,7 +109,7 @@ async function replayOnce(date: string): Promise<ReplayAlert[]> {
         const minutes = regularMinutes(String(message.data.estTimestamp ?? ''));
         // Avoid opening auction noise and late-day gamma singularity. Both may
         // be studied separately, but neither belongs in the base policy.
-        if (minutes == null || minutes < 9 * 60 + 45 || minutes > 14 * 60 + 30) continue;
+        if (minutes == null || minutes < entryStartMinute || minutes > entryEndMinute) continue;
         const entry = Number(message.data.tradePrice);
         if (!(entry >= 0.25 && entry <= 3.00)) continue; // $25-$300 debit/account fit
         alerts.push({
@@ -236,7 +239,8 @@ async function main() {
     },
     policy: {
       universe: ['SPY', 'QQQ', 'IWM'], direction: 'provider-classified bullish/bearish custom alerts',
-      dte: 0, premiumMin: 100000, sigScoreMin: 0.65, entryWindowET: '09:45-14:30',
+      dte: 0, premiumMin: 100000, sigScoreMin: 0.65,
+      entryWindowET: `${String(Math.floor(entryStartMinute / 60)).padStart(2, '0')}:${String(entryStartMinute % 60).padStart(2, '0')}-${String(Math.floor(entryEndMinute / 60)).padStart(2, '0')}:${String(entryEndMinute % 60).padStart(2, '0')}`,
       contractDebit: '$25-$300', maxSignalsPerDay: maxPerDay, cooldownMinutesByDirection: 30,
     },
     limitation: 'peakReturn is best later trade, not a fillable exit; no bid/ask path, stop ordering, slippage, commissions, or settlement. Do not call hit rates win rates.',

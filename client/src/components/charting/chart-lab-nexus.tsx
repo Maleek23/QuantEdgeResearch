@@ -121,12 +121,29 @@ export function ChartLabBoard() {
     () => convictions?.picks?.find((c: ConvictionPick) => c.symbol.toUpperCase() === symbol),
     [convictions, symbol],
   );
-  // The real published levels — the mock's fake pivot ladder does not ship.
-  const levels: Level[] = useMemo(() => (pick ? [
-    { price: pick.targetPrice, color: '#6ee7b7', label: 'T1' },
-    { price: pick.entryPrice, color: '#3b8cff', label: 'ENTRY' },
-    { price: pick.stopLoss, color: '#ff6b3d', label: 'STOP' },
-  ].filter((l) => Number.isFinite(l.price)) : []), [pick]);
+  const { data: dealer } = useQuery<{ snapshot?: { putWall?: number | null; gammaFlipPrice?: number | null; maxGammaStrike?: number | null; callWall?: number | null; regime?: string } }>({
+    queryKey: ['/api/gex-vex/terminal', symbol, 'chart-overlay'],
+    queryFn: q(`/api/gex-vex/terminal/${symbol}?interval=15m&lookback=5`),
+    staleTime: 120_000, refetchInterval: 180_000, retry: 1,
+  });
+  // One price plane: execution levels plus measured dealer structure. This is
+  // the useful part of a TradingView-style GEX indicator without pretending a
+  // modeled wall is a guaranteed support/resistance level.
+  const levels: Level[] = useMemo(() => {
+    const rows: Level[] = [];
+    if (pick) rows.push(
+      { price: pick.targetPrice, color: '#6ee7b7', label: 'T1' },
+      { price: pick.entryPrice, color: '#3b8cff', label: 'ENTRY' },
+      { price: pick.stopLoss, color: '#ff6b3d', label: 'STOP' },
+    );
+    const snap = dealer?.snapshot;
+    if (snap?.putWall != null) rows.push({ price: snap.putWall, color: '#ef6461', label: 'PUT WALL' });
+    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: '#f4b942', label: 'GAMMA FLIP' });
+    if (snap?.maxGammaStrike != null) rows.push({ price: snap.maxGammaStrike, color: '#b794f4', label: 'KING NODE' });
+    if (snap?.callWall != null) rows.push({ price: snap.callWall, color: '#38d9a9', label: 'CALL WALL' });
+    const seen = new Set<string>();
+    return rows.filter((l) => Number.isFinite(l.price) && !seen.has(`${l.label}:${l.price}`) && seen.add(`${l.label}:${l.price}`));
+  }, [pick, dealer]);
 
   const { data: extended } = useQuery<EHPayload>({
     queryKey: ['/api/extended-hours', 'oracle-tape'],
