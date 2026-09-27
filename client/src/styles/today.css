@@ -208,3 +208,64 @@
 
 .td-band-t{font:600 10.5px var(--mono);fill:var(--text-mute)}
 .td-map.narrow .td-band-t{font-size:12px}
+
+/* ── Signed-in homepage ───────────────────────────────────────────────────
+   Today shares the terminal frame. Keep one expressive visual (dealer map),
+   but use product density and hierarchy rather than landing-page theatre. */
+.qe-terminal .today-l{min-height:100%;background:var(--bg);padding-bottom:28px}
+.qe-terminal .today-l .container{width:100%;max-width:1800px;padding-left:24px;padding-right:24px}
+.qe-terminal .today-l .hero{padding:22px 0 18px}
+.qe-terminal .today-l .hero-grid{grid-template-columns:minmax(330px,.78fr) minmax(520px,1.22fr);gap:24px;align-items:start}
+.qe-terminal .today-l .hero-eyebrow{margin-bottom:12px;border-radius:5px}
+.qe-terminal .today-l .hero-title{max-width:760px;margin-bottom:12px;font-size:clamp(26px,2.5vw,38px);line-height:1.12;letter-spacing:-.025em}
+.qe-terminal .today-l .hero-sub{max-width:68ch;margin-bottom:16px;font-size:13.5px;line-height:1.55}
+.qe-terminal .today-l .hero-actions{margin-bottom:18px}
+.qe-terminal .today-l .btn-lg{min-height:38px;padding:0 14px;font-size:12px;border-radius:6px}
+.qe-terminal .today-l .tl-keys{margin-top:16px;border-radius:6px}
+.qe-terminal .today-l .tl-keys>div{padding:9px 11px}
+.qe-terminal .today-l .tl-keys b{font-size:18px}
+.qe-terminal .today-l .lterminal{border-radius:7px;box-shadow:none}
+.qe-terminal .today-l .tl-map-foot{margin-top:8px;font-size:10.5px;text-align:left}
+.qe-terminal .today-l section:not(.hero):not(.stats-bar-l):not(.td-index-desk){padding:20px 0}
+.qe-terminal .today-l .stats-bar-l{padding:0}
+.qe-terminal .today-l .stats-grid{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.qe-terminal .today-l .stat-item{padding:16px 18px}
+.qe-terminal .today-l .feature{gap:26px;padding:20px;border:1px solid var(--line);border-radius:7px;background:var(--bg-2)}
+.qe-terminal .today-l .feature-title{font-size:clamp(22px,2.2vw,32px)}
+.qe-terminal .today-l .feature-desc{font-size:13px;line-height:1.55}
+.qe-terminal .today-l .lsec-title{font-size:clamp(24px,2.4vw,34px)}
+.qe-terminal .today-l .tl-book{margin-top:18px;gap:12px}
+.qe-terminal .today-l .cta-box{padding:22px;border-radius:7px;text-align:left}
+.qe-terminal .today-l .cta-title{font-size:clamp(22px,2.2vw,32px)}
+.qe-terminal .today-l .cta-sub{max-width:76ch;margin-left:0}
+.qe-terminal .today-l .cta-actions{justify-content:flex-start}
+
+.td-index-desk{padding:12px 0 0;background:color-mix(in srgb,var(--panel-solid) 75%,transparent)}
+.td-index-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px}
+.td-index-head>div{display:flex;align-items:baseline;gap:10px}
+.td-index-head b{font-size:12px;color:var(--text)}
+.td-index-head span{font:500 10px var(--mono);color:var(--text-mute)}
+.td-index-head a{font-size:11px;color:var(--accent-hi);text-decoration:none}
+.td-index-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--line);gap:1px}
+.td-index-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;min-width:0;padding:11px 12px;background:var(--bg-2);color:var(--text);text-decoration:none;transition:background 180ms ease-out,border-color 180ms ease-out}
+.td-index-row:hover,.td-index-row:focus-visible{background:color-mix(in srgb,var(--panel-2) 88%,var(--accent) 12%);outline:none}
+.td-index-row.live{box-shadow:inset 2px 0 0 var(--accent)}
+.td-index-row>div{min-width:0;display:flex;align-items:baseline;gap:8px}
+.td-index-row strong{font:700 14px var(--mono)}
+.td-index-row small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--text-mute)}
+.td-index-row>span{font:700 9px var(--mono);text-transform:uppercase;color:var(--text-mute)}
+.td-index-row>span.up{color:var(--gain)}.td-index-row>span.down{color:var(--loss)}
+.td-index-row>b{font:700 12px var(--mono)}
+.td-index-row>em{font:normal 10px var(--mono);color:var(--text-mute);text-align:right}
+
+@media(max-width:1100px){
+  .qe-terminal .today-l .hero-grid{grid-template-columns:minmax(0,1fr)}
+  .td-index-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  .qe-terminal .today-l .container{padding-left:14px;padding-right:14px}
+  .qe-terminal .today-l .hero{padding-top:14px}
+  .qe-terminal .today-l .hero-title{font-size:25px}
+  .td-index-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media(prefers-reduced-motion:reduce){.td-index-row{transition:none}}

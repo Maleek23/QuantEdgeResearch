@@ -424,7 +424,9 @@ function App() {
   // are included.
   // /r (research) now renders inside NexusFrame like every other page, so it
   // gets the shared topbar and mobile dock instead of a third chrome of its own.
-  const isFullBleedShell = locationPath === '/t' || locationPath === '/nexus' || locationPath === '/today';
+  // Today is the signed-in homepage, not a second landing site. It belongs in
+  // NexusFrame with the rest of the product so navigation never disappears.
+  const isFullBleedShell = locationPath === '/t' || locationPath === '/nexus';
 
   if (isFullBleedShell) {
     return (

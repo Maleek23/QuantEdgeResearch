@@ -19,10 +19,9 @@
  * model projection with its confidence, never a forecast.
  */
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Search } from 'lucide-react';
 import { convictionDisplayPercent } from '@shared/conviction-display';
 import { Spark, RotQuad, SigCard, CHECK, fetchJson, useDaily, type RotationPayload, type CryptoPulse } from '@/components/landing/live-widgets';
 import '@/styles/nexus.css';
@@ -44,6 +43,13 @@ interface Pick {
 }
 interface Perf { overall?: { winRate?: number; winRateDecided?: number; expectancy?: number; profitFactor?: number; totalIdeas?: number } }
 interface Quote { price?: number; lastPrice?: number; changePercent?: number }
+interface IndexScalp {
+  id: string; symbol: string; direction: 'long' | 'short'; bias: string;
+  setup?: string; strike?: number | null; expiry?: string | null;
+  spot?: number | null; target?: number | null; stop?: number | null;
+  riskRewardRatio?: number | null; confidence?: number | null;
+  thesis?: string | null; regime?: string | null; isPowerHour?: boolean;
+}
 
 const get = <T,>(url: string) => async (): Promise<T> => {
   const r = await fetch(url, { credentials: 'include' });
@@ -234,8 +240,6 @@ function explain(p: Pick): { headline: string; reasons: string[]; against?: stri
 const sectorName = (s?: string) => (!s || s === 'other' ? '' : s.replace(/_/g, ' '));
 
 export default function TodayPage() {
-  const [, setLocation] = useLocation();
-  const [q, setQ] = useState('');
   const retryWhileDown = { refetchInterval: (qq: { state: { status: string } }) => (qq.state.status === 'error' ? 30_000 : false) };
   const wp = useQuery<WeeklyPath>({ queryKey: ['/api/weekly-path/SPY'], queryFn: get('/api/weekly-path/SPY'), staleTime: 300_000, ...retryWhileDown });
   const gex = useQuery<GexTerminal>({ queryKey: ['/api/gex-vex/terminal/SPY', 'today'], queryFn: get('/api/gex-vex/terminal/SPY'), staleTime: 300_000, ...retryWhileDown });
@@ -243,6 +247,13 @@ export default function TodayPage() {
   const perf = useQuery<Perf>({ queryKey: ['/api/performance/stats/', 'today'], queryFn: get('/api/performance/stats/'), staleTime: 600_000 });
   const rotation = useQuery<RotationPayload>({ queryKey: ['/api/sector-rotation', 'landing'], queryFn: fetchJson('/api/sector-rotation'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
   const pulse = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'landing'], queryFn: fetchJson('/api/crypto/pulse'), staleTime: 300_000, retry: 1 });
+  const indexDesk = useQuery<{ session?: { name?: string; isOpen?: boolean }; scalps?: IndexScalp[] }>({
+    queryKey: ['/api/index-scalps', 'today'],
+    queryFn: get('/api/index-scalps'),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: 1,
+  });
   const spyIntra = useDaily('SPY', '1d', '5m');
   const [tapePaused, setTapePaused] = useState(false);
 
@@ -280,7 +291,6 @@ export default function TodayPage() {
     return rows;
   }, [sectors, pulse.data]);
   const fresh = !rotation.data?.isStale;
-  const closed = !fresh && /close/i.test(rotation.data?.sessionLabel ?? '');
 
   // Sections rest visible; the reveal only adds motion as they scroll in.
   useEffect(() => {
@@ -289,51 +299,25 @@ export default function TodayPage() {
     return () => io.disconnect();
   }, [conv.data, rotation.data]);
 
-  const go = (e: React.FormEvent) => { e.preventDefault(); const s = q.trim().toUpperCase(); if (s) setLocation(`/r/${s}`); };
   const toBest = () => document.getElementById('sec-best')?.scrollIntoView({ behavior: 'smooth' });
   const weekOf = wp.data ? new Date(wp.data.weekStart + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
   const feedDown = wp.isError && !wp.data;
 
   return (
     <div className="landing nexus-vars today-l">
-      {/* NAV — the landing bar, signed-in destinations */}
-      <nav className="lnav">
-        <div className="lnav-inner">
-          <Link href="/today" className="brand" style={{ textDecoration: 'none' }}>
-            <div className="brand-mark" />
-            <span className="brand-name">QUANTEDGE</span>
-            <span className="brand-slash">//</span>
-            <span className="brand-sub">TODAY</span>
-          </Link>
-          <div className="lnav-links">
-            <Link href="/today" className="lnav-link on">Today</Link>
-            <Link href="/t?tab=gex" className="lnav-link">Markets</Link>
-            <Link href="/t?tab=journal&jtab=metrics" className="lnav-link">Track record</Link>
-          </div>
-          <div className="lnav-spacer" />
-          <form className="tl-search" onSubmit={go} role="search">
-            <label htmlFor="tl-q" className="tl-search-ico"><Search size={14} aria-hidden /></label>
-            <input id="tl-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Any ticker" aria-label="Search a ticker" autoCapitalize="characters" />
-          </form>
-          <div className={`lnav-status${fresh ? '' : closed ? ' closed' : ' stale'}`}><span className="dot" />{fresh ? 'Live' : closed ? 'Market closed' : 'Data stale'}</div>
-          <Link href="/t" className="btn btn-primary">Terminal</Link>
-        </div>
-      </nav>
-
-      {/* HERO — the week, and the dealer map in the terminal window */}
+      {/* SESSION BRIEF — compact operational homepage, inside NexusFrame. */}
       <section className="hero">
         <div className="container">
           <div className="hero-grid">
             <div>
-              <div className="hero-eyebrow"><span className="pill">LIVE</span>SPY dealer map{weekOf ? ` · week of ${weekOf}` : ''}</div>
+              <div className="hero-eyebrow"><span className="pill">TODAY</span>Index desk{weekOf ? ` · week of ${weekOf}` : ''}</div>
               {feedDown ? (
-                <h1 className="hero-title">The options feed<br /><span className="grad">is down right now.</span></h1>
+                <h1 className="hero-title">Options positioning is unavailable.</h1>
               ) : (
                 <h1 className="hero-title">
-                  Dealers are {shortGamma ? 'short' : 'long'} gamma.<br />
-                  <span className="grad">Moves get {shortGamma ? 'amplified' : 'dampened'}.</span><br />
+                  SPY is in <span className="grad">{shortGamma ? 'short' : 'long'} gamma</span>. Moves get {shortGamma ? 'amplified' : 'dampened'}.
                   {sigma != null
-                    ? <span className="accent">{pinClose && !shortGamma ? `Price pins near ${fmt(magnet, 0)}.` : `Typical week: ±${fmt(sigma, 0)} pts.`}</span>
+                    ? <span className="accent"> {pinClose && !shortGamma ? `Price is near the ${fmt(magnet, 0)} magnet.` : `Weekly range: ±${fmt(sigma, 0)} points.`}</span>
                     : null}
                 </h1>
               )}
@@ -411,6 +395,29 @@ export default function TodayPage() {
         </div>
       )}
 
+      {/* INDEX DESK — the same four instruments the intraday engine monitors. */}
+      <section className="td-index-desk" aria-label="Index desk">
+        <div className="container">
+          <div className="td-index-head">
+            <div><b>Index desk</b><span>SPX · SPY · QQQ · IWM</span></div>
+            <Link href="/t">Open in Nexus</Link>
+          </div>
+          <div className="td-index-grid">
+            {(['SPX', 'SPY', 'QQQ', 'IWM'] as const).map((symbol) => {
+              const play = indexDesk.data?.scalps?.find((row) => row.symbol === symbol);
+              return (
+                <Link href={play ? `/r/${symbol}` : `/r/${symbol}?tab=chart`} className={`td-index-row${play ? ' live' : ''}`} key={symbol}>
+                  <div><strong>{symbol}</strong><small>{play ? `${play.setup?.replaceAll('_', ' ') ?? 'index setup'}${play.isPowerHour ? ' · power hour' : ''}` : 'monitoring levels'}</small></div>
+                  <span className={play?.direction === 'short' ? 'down' : play ? 'up' : ''}>{play ? `${play.direction === 'short' ? '▼' : '▲'} ${play.bias}` : 'watch'}</span>
+                  <b>{play?.confidence != null ? `${Math.round(play.confidence)}/100` : '—'}</b>
+                  <em>{play?.riskRewardRatio != null ? `${play.riskRewardRatio.toFixed(1)}R` : 'No active call'}</em>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* STATS — measured */}
       <section className="stats-bar-l">
         <div className="container">
@@ -445,7 +452,7 @@ export default function TodayPage() {
           {best && bestX ? (
             <div className="feature">
               <div className="reveal">
-                <div className="feature-num">BEST IDEA RIGHT NOW · {best.symbol} · {best.direction === 'short' ? 'SHORT' : 'LONG'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}</div>
+                <div className="feature-num">TOP RANKED SETUP · {best.symbol} · {best.direction === 'short' ? 'SHORT' : 'LONG'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}</div>
                 <h3 className="feature-title">{bestX.headline}</h3>
                 {bestX.against && <p className="feature-desc"><b style={{ color: 'var(--red)' }}>Against it:</b> {bestX.against}</p>}
                 <div className="feature-list">
@@ -474,8 +481,8 @@ export default function TodayPage() {
         <section>
           <div className="container">
             <div className="reveal">
-              <div className="sec-eyebrow">The book · ranked by evidence</div>
-              <h2 className="lsec-title">Next up. <span className="grad">Every one explains itself.</span></h2>
+              <div className="sec-eyebrow">Active book · ranked by evidence</div>
+              <h2 className="lsec-title">Ranked setups</h2>
             </div>
             <div className="tl-book">
               {book.map((p) => {
@@ -497,9 +504,9 @@ export default function TodayPage() {
         <div className="container">
           <div className="feature reverse">
             <div className="reveal">
-              <div className="feature-num">WHERE THE MONEY IS MOVING</div>
-              <h3 className="feature-title">See rotation before it becomes consensus.</h3>
-              <p className="feature-desc">Every dot is a real sector at its measured relative-strength × momentum coordinate. The bars are today&rsquo;s strongest measured inflows and outflows versus SPY.</p>
+              <div className="feature-num">SECTOR CONTEXT</div>
+              <h3 className="feature-title">Rotation</h3>
+              <p className="feature-desc">Relative strength and momentum across the tracked sectors. Bars show the strongest measured moves versus SPY.</p>
               <div className="feature-list">
                 <div className="feature-list-item">{CHECK}<div><b>{sectors.length || '—'} sectors mapped</b> <span>— {rotation.data?.sessionLabel ?? 'live session'}</span></div></div>
                 {flows.top[0] && <div className="feature-list-item">{CHECK}<div><b>Leading: {flows.top[0].name}</b> <span>— {(flows.top[0].relChange ?? 0) >= 0 ? '+' : ''}{(flows.top[0].relChange ?? 0).toFixed(1)}% vs SPY</span></div></div>}
@@ -534,7 +541,7 @@ export default function TodayPage() {
       <section>
         <div className="container">
           <div className="cta-box reveal">
-            <h2 className="cta-title">Every idea is graded.<br /><span className="grad">Including the losers.</span></h2>
+            <h2 className="cta-title">Model record</h2>
             <p className="cta-sub">
               {o?.winRate != null && o.winRateDecided != null
                 ? `${o.winRate.toFixed(0)}% of ${o.winRateDecided} decided ideas hit target before stop. Losers stay on the record, and every rate carries its sample size.`
@@ -548,14 +555,6 @@ export default function TodayPage() {
         </div>
       </section>
 
-      <footer className="lfooter">
-        <div className="container">
-          <div className="lfooter-bottom">
-            <div>© 2026 QuantEdge Labs</div>
-            <div className="disclaimer">Educational and analytical tool only. Not investment advice. Every performance figure carries its sample size.</div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
