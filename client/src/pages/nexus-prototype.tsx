@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Activity, ChevronRight, LayoutGrid, List, PanelRightOpen, Search, Table2, Target, X } from 'lucide-react';
@@ -6,7 +6,7 @@ import { SignalGrid } from '@/components/hunt/cockpit/signal-grid';
 import { SignalTable } from '@/components/hunt/cockpit/signal-table';
 import { TickerLogo } from '@/components/hunt/cockpit/ticker-logo';
 import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
-import { ContextPanel, PriceLadder, ProfitPlan, RiskPanel } from '@/components/oracle/signal-detail';
+import { PriceLadder, ProfitPlan, RiskPanel } from '@/components/oracle/signal-detail';
 import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
@@ -41,6 +41,7 @@ export default function NexusPrototype() {
   const [view, setView] = useState<'focus' | 'grid' | 'table'>('focus');
   const [rank, setRank] = useState<'all' | 'new' | 'best' | 'conviction'>('all');
   const [detailTab, setDetailTab] = useState<'overview' | 'technical' | 'manage' | 'risk' | 'contract'>('overview');
+  const stageRef = useRef<HTMLElement>(null);
 
   const convictions = useQuery<ConvictionsResponse>({
     queryKey: ['/api/convictions', 'nexus-prototype'],
@@ -76,6 +77,10 @@ export default function NexusPrototype() {
   useEffect(() => {
     if (!rows.some((row) => row.ideaId === selectedId)) setSelectedId(rows[0]?.ideaId);
   }, [rows, selectedId]);
+  useEffect(() => {
+    stageRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    setDetailTab('overview');
+  }, [selectedId]);
 
   const selected = rows.find((row) => row.ideaId === selectedId) ?? rows[0];
   const market = convictions.data?.marketContext;
@@ -145,7 +150,7 @@ export default function NexusPrototype() {
           </div>
         </aside>
 
-        <section className="nxp-stage">
+        <section className="nxp-stage" ref={stageRef}>
           {!selected ? <div className="nxp-empty"><Activity /><h2>Select a setup</h2><p>The trade plan will appear here without leaving Nexus.</p></div> : (
             <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
               <div className="nxp-detail-head">
@@ -172,34 +177,28 @@ export default function NexusPrototype() {
                 <div className="reward"><span>First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
               </div>
 
-              <div className="nxp-bottom-grid">
-                <article className="nxp-thesis">
-                  <div className="nxp-section-title"><span>Decision brief</span><small>{selected.layerCount} measured layers</small></div>
-                  <h3>{selected.thesis || 'The scanner returned evidence without a written thesis.'}</h3>
-                  <div className="nxp-evidence">
-                    {support.slice(0, 4).map((layer) => <div key={`${layer.kind}-${layer.label}`}><span>+{layer.points}</span><p><strong>{layer.label}</strong>{layer.why}</p></div>)}
-                    {challenge.slice(0, 1).map((layer) => <div className="against" key={`${layer.kind}-${layer.label}`}><span>{layer.points}</span><p><strong>{layer.label}</strong>{layer.why}</p></div>)}
-                  </div>
-                </article>
-                <aside className="nxp-execution">
-                  <div className="nxp-section-title"><span>Execution</span><small>{selected.optionType ? 'Option-backed' : selected.assetType}</small></div>
-                  <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span></div></div>
-                  {selected.symbol === 'SPY' && <div className={`nxp-spx-expression ${spxExpression ? 'live' : ''}`}>
-                    <span>SPX equivalent</span>
-                    {spxExpression ? <><strong>{spxExpression.bias === 'calls' ? 'CALL' : 'PUT'} {money(spxExpression.strike)}</strong><small>Trigger {money(spxExpression.spot)} · Stop {money(spxExpression.stop)} · T1 {money(spxExpression.target)}</small></> : <small>No measured SPX execution is active right now.</small>}
-                  </div>}
-                  <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full Cockpit <ChevronRight size={16} /></button>
-                  <p>Cockpit remains the complete chart, contract, sizing, evidence, and management surface.</p>
-                </aside>
-              </div>
-
               <div className="nxp-detail-tabs">
                 {(['overview','technical','manage','risk','contract'] as const).map((tab) => <button key={tab} className={detailTab === tab ? 'active' : ''} onClick={() => setDetailTab(tab)}>{tab}</button>)}
               </div>
               <div className="nxp-tab-panel">
-                {detailTab === 'overview' && <div className="nxp-deep-grid"><PriceLadder pick={selected} live={live} /><ContextPanel pick={selected} live={live} regime={market?.regime} preferredDirection={market?.preferredDirection} /><ProfitPlan pick={selected} live={live} /></div>}
+                {detailTab === 'overview' && <div className="nxp-bottom-grid">
+                  <article className="nxp-thesis">
+                    <div className="nxp-section-title"><span>Decision brief</span><small>{selected.layerCount} measured layers</small></div>
+                    <h3>{selected.thesis || 'The scanner returned evidence without a written thesis.'}</h3>
+                    <div className="nxp-evidence">
+                      {support.slice(0, 4).map((layer) => <div key={`${layer.kind}-${layer.label}`}><span>+{layer.points}</span><p><strong>{layer.label}</strong>{layer.why}</p></div>)}
+                      {challenge.slice(0, 1).map((layer) => <div className="against" key={`${layer.kind}-${layer.label}`}><span>{layer.points}</span><p><strong>{layer.label}</strong>{layer.why}</p></div>)}
+                    </div>
+                  </article>
+                  <aside className="nxp-execution">
+                    <div className="nxp-section-title"><span>Execution</span><small>{selected.optionType ? 'Option-backed' : selected.assetType}</small></div>
+                    <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span></div></div>
+                    {selected.symbol === 'SPY' && <div className={`nxp-spx-expression ${spxExpression ? 'live' : ''}`}><span>SPX equivalent</span>{spxExpression ? <><strong>{spxExpression.bias === 'calls' ? 'CALL' : 'PUT'} {money(spxExpression.strike)}</strong><small>Trigger {money(spxExpression.spot)} · Stop {money(spxExpression.stop)} · T1 {money(spxExpression.target)}</small></> : <small>No measured SPX execution is active right now.</small>}</div>}
+                    <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full workup <ChevronRight size={16} /></button>
+                  </aside>
+                </div>}
                 {detailTab === 'technical' && <div className="nxp-technical-grid"><TASummary symbol={selected.symbol} /><div className="nxp-components"><div className="nxp-section-title"><span>Signal components</span><small>{selected.layers.length} layers</small></div><SignalComponents layers={selected.layers} max={99} /></div></div>}
-                {detailTab === 'manage' && <div className="nxp-deep-grid"><PriceLadder pick={selected} live={live} /><ContextPanel pick={selected} live={live} regime={market?.regime} preferredDirection={market?.preferredDirection} /><ProfitPlan pick={selected} live={live} /></div>}
+                {detailTab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={live} /><ProfitPlan pick={selected} live={live} /></div>}
                 {detailTab === 'risk' && <RiskPanel pick={selected} live={live} />}
                 {detailTab === 'contract' && <ContractEngine symbol={selected.symbol} direction={positive ? 'BULL' : 'BEAR'} entry={selected.entryPrice} stop={selected.stopLoss} t1={selected.targetPrice} holdPeriodLabel={selected.holdingPeriod} conviction={convictionPercent(selected.convictionScore)} />}
               </div>
