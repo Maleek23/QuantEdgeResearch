@@ -153,6 +153,33 @@ interface GradedTicker {
   analysis?: OnDemandAnalysis;
 }
 
+interface PatternCandidate {
+  symbol: string;
+  core?: boolean;
+  pattern:
+    | "trendline_breakout"
+    | "bullish_divergence"
+    | "bearish_divergence"
+    | string;
+  bias: "long" | "short" | "neutral";
+  detectedAt: string;
+  note: string;
+  levels: Record<string, number>;
+  context?: {
+    last?: number;
+    above200d?: boolean | null;
+    ema20AboveEma50?: boolean | null;
+  };
+}
+
+interface PatternScanResponse {
+  asOf: string | null;
+  scanned: number;
+  failed: number;
+  scanning: boolean;
+  hits: PatternCandidate[];
+}
+
 interface PublishedIdeaRow {
   id: string;
   symbol: string;
@@ -768,6 +795,24 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
     retry: 1,
   });
 
+  // Detection and publication are deliberately separate, but that must not
+  // make the expanded scanner invisible. Cockpit shows confirmed structures
+  // as candidates (never as scored trades) and lets the operator open a fresh
+  // workup. Unconfirmed divergence remains watch-only in Pattern Radar.
+  const { data: patternScan } = useQuery<PatternScanResponse>({
+    queryKey: ["/api/patterns/scan", "cockpit-candidates"],
+    queryFn: async () => {
+      const res = await fetch("/api/patterns/scan", { credentials: "include" });
+      if (!res.ok) throw new Error("pattern scan failed");
+      return res.json();
+    },
+    staleTime: 20_000,
+    refetchInterval: 60_000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    retry: 1,
+  });
+
   // Cockpit is the operational surface. Recently resolved calls stay visible
   // here after they leave the active-entry pool, so a target hit does not seem
   // to vanish into a separate audit page the moment it resolves.
@@ -832,7 +877,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
     })
     .filter((position) => position.mfe != null && position.mfe >= 10)
     .sort((a, b) => Number(b.mfe) - Number(a.mfe)), [liveBotBook?.openPositions]);
-  const allPicks = useMemo(() => (data?.picks ?? []).map((pick) => {
+  const mappedBookPicks = useMemo(() => (data?.picks ?? []).map((pick) => {
     if (!pick.isBotHeld) return pick;
     const mark = botMarks.get(pick.symbol.toUpperCase());
     if (!mark) return pick;
@@ -844,6 +889,51 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
       unrealizedPnlPercent: mark.unrealizedPnLPercent ?? pick.unrealizedPnlPercent,
     };
   }), [data?.picks, botMarks]);
+
+  // A two-day-old, unexecuted flag is an audit record, not a current setup.
+  // Keep it findable below, but stop letting a backlog of one detector inflate
+  // the active count and crowd newly confirmed structures off the screen.
+  const isStaleFlag = (pick: ConvictionPick) => {
+    if (pick.isBotHeld) return false;
+    const copy = `${pick.catalyst ?? ""} ${pick.thesis ?? ""}`;
+    if (!/bull flag|bear flag|flag pullback/i.test(copy)) return false;
+    const published = Date.parse(pick.generatedAt);
+    return Number.isFinite(published) && Date.now() - published > 30 * 60 * 60_000;
+  };
+  const stalePatternBacklog = useMemo(
+    () => mappedBookPicks.filter(isStaleFlag),
+    [mappedBookPicks],
+  );
+  const allPicks = useMemo(
+    () => mappedBookPicks.filter((pick) => !isStaleFlag(pick)),
+    [mappedBookPicks],
+  );
+  const structureCandidates = useMemo(() => {
+    const published = new Set(allPicks.map((pick) => pick.symbol.toUpperCase()));
+    return (patternScan?.hits ?? [])
+      .filter((hit) =>
+        hit.pattern === "trendline_breakout" ||
+        ((hit.pattern === "bullish_divergence" || hit.pattern === "bearish_divergence") &&
+          Number(hit.levels.triggered) === 1),
+      )
+      .filter((hit) => {
+        if (hit.pattern !== "trendline_breakout") return true;
+        const last = Number(hit.context?.last);
+        const line = Number(hit.levels.trendline);
+        const relVol = Number(hit.levels.relativeVolume);
+        return Number.isFinite(last) && Number.isFinite(line) && line > 0 &&
+          Math.abs(last / line - 1) <= 0.15 && relVol >= 1.05 && relVol <= 20;
+      })
+      .filter((hit) => !published.has(hit.symbol.toUpperCase()))
+      .sort((a, b) => {
+        const core = Number(Boolean(b.core)) - Number(Boolean(a.core));
+        if (core) return core;
+        const bStrength = Number(b.levels.strength ?? b.levels.relativeVolume ?? 0);
+        const aStrength = Number(a.levels.strength ?? a.levels.relativeVolume ?? 0);
+        return bStrength - aStrength;
+      })
+      .slice(0, 12);
+  }, [allPicks, patternScan?.hits]);
   const publishedAudit = useMemo(() => {
     const activeIds = new Set(allPicks.map((pick) => pick.ideaId));
     const heldSymbols = new Set(
@@ -1265,6 +1355,109 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
           </button>
         </div>
       </div>
+
+      <section
+        className="rounded-lg border border-[var(--brand-cyan)]/25 bg-[var(--brand-cyan)]/[0.025] px-3 py-3"
+        aria-label="Confirmed structure candidates"
+        data-testid="cockpit-structure-candidates"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--brand-cyan)]">
+              Live structure candidates · {structureCandidates.length}
+            </div>
+            <div className="mt-1 max-w-3xl text-[10px] font-mono leading-relaxed text-muted-foreground">
+              Confirmed trendline breaks and divergence reclaims from {patternScan?.scanned?.toLocaleString() ?? "—"} scanned names.
+              These are research candidates—not published trades—until a workup validates evidence, levels, liquidity and risk.
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-wide text-muted-foreground">
+            {patternScan?.scanning && <span className="text-[var(--brand-amber)]">scanning</span>}
+            <span>{patternScan?.asOf ? `as of ${new Date(patternScan.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "warming"}</span>
+          </div>
+        </div>
+
+        {structureCandidates.length > 0 ? (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {structureCandidates.map((candidate) => {
+              const divergence = candidate.pattern.includes("divergence");
+              const long = candidate.bias === "long";
+              const gate = Number(
+                divergence
+                  ? candidate.levels.confirmation
+                  : candidate.levels.trendline ?? candidate.levels.breakoutClose,
+              );
+              const invalidation = Number(candidate.levels.invalidation);
+              const last = Number(candidate.context?.last);
+              const evidence = divergence
+                ? `${Math.round(Number(candidate.levels.strength ?? 0))}/100 pivot quality`
+                : `${Number(candidate.levels.relativeVolume ?? 0).toFixed(1)}× volume`;
+              return (
+                <button
+                  key={`${candidate.symbol}-${candidate.pattern}`}
+                  type="button"
+                  onClick={() => void gradeTicker(candidate.symbol)}
+                  className="group rounded-md border border-border/55 bg-background/55 px-3 py-2.5 text-left transition-colors hover:border-[var(--brand-cyan)]/45 hover:bg-[var(--brand-cyan)]/[0.035]"
+                  title={`Open a current ${candidate.symbol} workup`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <TickerLogo symbol={candidate.symbol} size="sm" />
+                      <span className="font-mono text-sm font-semibold text-foreground">{candidate.symbol}</span>
+                      {candidate.core && (
+                        <span className="rounded border border-[var(--brand-cyan)]/25 px-1 py-0.5 text-[7px] font-mono uppercase tracking-wide text-[var(--brand-cyan)]">core</span>
+                      )}
+                    </div>
+                    <span className={cn("text-[9px] font-mono font-semibold", long ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
+                      {long ? "▲ LONG" : "▼ SHORT"}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-[10px] font-mono uppercase tracking-[0.12em] text-foreground">
+                    {candidate.pattern.replaceAll("_", " ")}
+                  </div>
+                  <div className="mt-1 line-clamp-2 min-h-8 text-[9px] leading-relaxed text-muted-foreground">
+                    {candidate.note}
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 border-t border-border/40 pt-2 font-mono">
+                    <div><div className="text-[7px] uppercase text-muted-foreground">Last</div><div className="text-[10px]">{Number.isFinite(last) ? `$${last.toFixed(2)}` : "—"}</div></div>
+                    <div><div className="text-[7px] uppercase text-muted-foreground">Gate</div><div className="text-[10px]">{Number.isFinite(gate) ? `$${gate.toFixed(2)}` : "—"}</div></div>
+                    <div><div className="text-[7px] uppercase text-muted-foreground">Invalid</div><div className="text-[10px]">{Number.isFinite(invalidation) ? `$${invalidation.toFixed(2)}` : "—"}</div></div>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[8px] font-mono uppercase tracking-wide">
+                    <span className="text-muted-foreground">{evidence}</span>
+                    <span className="text-[var(--brand-cyan)] group-hover:underline">open workup →</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-3 rounded border border-border/45 bg-background/40 px-3 py-3 text-[10px] font-mono text-muted-foreground">
+            No off-book structure has confirmed its entry gate yet. Unconfirmed divergences remain in Pattern Radar instead of being promoted as trades.
+          </div>
+        )}
+
+        {stalePatternBacklog.length > 0 && (
+          <details className="group mt-3 border-t border-border/45 pt-2">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[9px] font-mono uppercase tracking-wide text-muted-foreground hover:text-foreground">
+              <span>Archived flag backlog · {stalePatternBacklog.length} no longer counted as current</span>
+              <span className="transition-transform group-open:rotate-180">⌄</span>
+            </summary>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {stalePatternBacklog.map((pick) => (
+                <button
+                  key={`stale-${pick.ideaId}`}
+                  type="button"
+                  onClick={() => void gradeTicker(pick.symbol)}
+                  className="rounded border border-border/50 bg-background/55 px-2 py-1 text-[9px] font-mono text-muted-foreground hover:border-[var(--brand-cyan)]/35 hover:text-foreground"
+                >
+                  {pick.symbol} · {Math.max(1, Math.floor((Date.now() - Date.parse(pick.generatedAt)) / 3_600_000))}h old · fresh workup
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
+      </section>
 
       {indexTrackRows.length > 0 && (
         <section className="rounded-lg border border-[var(--brand-cyan)]/25 bg-[var(--brand-cyan)]/[0.025] px-3 py-2" aria-label="Index trade performance tracker">

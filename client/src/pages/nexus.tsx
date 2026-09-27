@@ -134,14 +134,17 @@ function useNexusData() {
   // Pattern Radar — the full-universe engine's raw detections. Visible even
   // when the funnel declines them: detection and selection are separate jobs,
   // and the operator sees both.
-  const patterns = useQuery<{ asOf: string | null; scanned: number; hits: { symbol: string; pattern: string; bias: string; note: string; levels: Record<string, number> }[] }>({
+  const patterns = useQuery<{ asOf: string | null; scanned: number; hits: { symbol: string; core?: boolean; pattern: string; bias: string; note: string; detectedAt?: string; levels: Record<string, number>; context?: { last?: number; above200d?: boolean | null; ema20AboveEma50?: boolean | null } }[] }>({
     queryKey: ['/api/patterns/scan', 'nexus'],
     queryFn: async () => {
       const r = await fetch('/api/patterns/scan', { credentials: 'include' });
       if (!r.ok) throw new Error('patterns failed');
       return r.json();
     },
-    refetchInterval: 600_000, staleTime: 300_000, retry: 1,
+    // The first response after a server boot can legitimately be an empty
+    // "scanning" snapshot. Never cache that warming state for five minutes.
+    refetchInterval: 60_000, staleTime: 20_000, retry: 1,
+    refetchOnMount: 'always', refetchOnWindowFocus: true,
   });
 
   const rotation = useQuery<RotationPayload>({
@@ -468,6 +471,14 @@ const fmtPrice = (n: number, money = false) =>
     : n >= 1000 ? n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
       : n.toFixed(2);
 
+function isStalePatternPublication(pick: ConvictionPick) {
+  if (pick.isBotHeld) return false;
+  const copy = `${pick.catalyst ?? ''} ${pick.thesis ?? ''}`;
+  if (!/bull flag|bear flag|flag pullback/i.test(copy)) return false;
+  const published = Date.parse(pick.generatedAt);
+  return Number.isFinite(published) && Date.now() - published > 30 * 60 * 60_000;
+}
+
 export function NexusBoard() {
   const [, setLocation] = useLocation();
   const { theme, setTheme } = useTheme();
@@ -683,7 +694,41 @@ export function NexusBoard() {
   const [bookScope, setBookScope] = useState<'setups' | 'live' | 'held' | 'all'>('all');
   const [sort, setSort] = useState<'conviction' | 'rr' | 'newest'>('newest');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const picks = convictions.data?.picks ?? [];
+  const rawPicks = convictions.data?.picks ?? [];
+  const stalePatternBacklog = useMemo(
+    () => rawPicks.filter(isStalePatternPublication),
+    [rawPicks],
+  );
+  const picks = useMemo(
+    () => rawPicks.filter((pick) => !isStalePatternPublication(pick)),
+    [rawPicks],
+  );
+  const structureCandidates = useMemo(() => {
+    const published = new Set(picks.map((pick) => pick.symbol.toUpperCase()));
+    return (patterns.data?.hits ?? [])
+      .filter((hit) =>
+        hit.pattern === 'trendline_breakout' ||
+        ((hit.pattern === 'bullish_divergence' || hit.pattern === 'bearish_divergence') && Number(hit.levels.triggered) === 1),
+      )
+      .filter((hit) => {
+        if (hit.pattern !== 'trendline_breakout') return true;
+        const last = Number(hit.context?.last);
+        const line = Number(hit.levels.trendline);
+        const relVol = Number(hit.levels.relativeVolume);
+        // Huge split-adjustment discontinuities can masquerade as a breakout
+        // and produce absurd 100×–6,000× volume ratios. Keep them auditable in
+        // Radar, but never promote them into the operational candidate shelf.
+        return Number.isFinite(last) && Number.isFinite(line) && line > 0 &&
+          Math.abs(last / line - 1) <= 0.15 && relVol >= 1.05 && relVol <= 20;
+      })
+      .filter((hit) => !published.has(hit.symbol.toUpperCase()))
+      .sort((a, b) => {
+        const core = Number(Boolean(b.core)) - Number(Boolean(a.core));
+        if (core) return core;
+        return Number(b.levels.strength ?? b.levels.relativeVolume ?? 0) - Number(a.levels.strength ?? a.levels.relativeVolume ?? 0);
+      })
+      .slice(0, 12);
+  }, [patterns.data?.hits, picks]);
   // Aggressor context for every card — the tape read that decodes whether
   // today's options money agrees with the signal. One batch call, cached.
   const pickSyms = [...new Set(picks.map((p) => p.symbol))].slice(0, 12).join(',');
@@ -1202,6 +1247,7 @@ export function NexusBoard() {
             <div className="sec-sub">Select a ticker to connect price, evidence, levels and execution.</div>
             <div className="sec-meta">
               <span className="tag cyan">live book · {picks.length}</span>
+              <span className="tag" style={{ color: 'var(--amber)' }}>confirmed candidates · {structureCandidates.length}</span>
               {latestHit && <span className="tag" style={{ color: 'var(--green)' }}>last decided win · {latestHit.symbol}{latestHit.optionPercentGain != null ? ` +${Number(latestHit.optionPercentGain).toFixed(0)}%` : ''}</span>}
               <button
                 type="button"
@@ -1411,8 +1457,95 @@ export function NexusBoard() {
             {' · '}{signalPicks.length} current signal{signalPicks.length === 1 ? '' : 's'}
             {' · '}{heldPicks.length} held position{heldPicks.length === 1 ? '' : 's'}
             {legacyHeldCount > 0 ? ` (${legacyHeldCount} legacy book)` : ''}
-            {' · '}{convictions.data?.totalCandidatesScanned ?? '—'} candidates scanned this cycle
+            {' · '}{structureCandidates.length} confirmed structures from {patterns.data?.scanned ?? convictions.data?.totalCandidatesScanned ?? '—'} names scanned
+            {stalePatternBacklog.length > 0 ? ` · ${stalePatternBacklog.length} stale flags archived` : ''}
           </div>
+
+          <section
+            data-testid="nexus-structure-candidates"
+            style={{ margin: '10px 14px 12px', border: '1px solid var(--nx-border-hi)', borderRadius: 8, overflow: 'hidden', background: 'color-mix(in srgb, var(--panel-2) 84%, transparent)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, padding: '10px 12px', borderBottom: '1px solid var(--nx-border)' }}>
+              <div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 800, letterSpacing: 1, color: 'var(--cyan-bright)' }}>
+                  CONFIRMED STRUCTURE · {structureCandidates.length}
+                </div>
+                <div style={{ marginTop: 3, maxWidth: 680, fontSize: 9, lineHeight: 1.55, color: 'var(--text-mute)' }}>
+                  Off-book research candidates with a confirmed trendline break or divergence reclaim. They are not scored trades until Workup validates levels, liquidity and risk.
+                </div>
+              </div>
+              <span style={{ flexShrink: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: .8 }}>
+                {patterns.data?.scanned?.toLocaleString() ?? '—'} scanned
+              </span>
+            </div>
+            {structureCandidates.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))' }}>
+                {structureCandidates.map((hit) => {
+                  const divergence = hit.pattern.includes('divergence');
+                  const long = hit.bias === 'long';
+                  const last = Number(hit.context?.last);
+                  const gate = Number(divergence ? hit.levels.confirmation : hit.levels.trendline ?? hit.levels.breakoutClose);
+                  const invalidation = Number(hit.levels.invalidation);
+                  const proof = divergence
+                    ? `${Math.round(Number(hit.levels.strength ?? 0))}/100 pivot quality`
+                    : `${Number(hit.levels.relativeVolume ?? 0).toFixed(1)}× volume`;
+                  return (
+                    <button
+                      key={`${hit.symbol}-${hit.pattern}`}
+                      type="button"
+                      onClick={() => { setCurrentStock({ symbol: hit.symbol }); openWorkup(hit.symbol); }}
+                      style={{ minWidth: 0, padding: '10px 11px', border: 0, borderRight: '1px solid var(--nx-border)', borderBottom: '1px solid var(--nx-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}
+                      title={`Open current ${hit.symbol} workup`}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <b style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12 }}>{hit.symbol}</b>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, fontWeight: 800, color: long ? 'var(--green)' : 'var(--red)' }}>
+                          {long ? '▲ LONG' : '▼ SHORT'}
+                        </span>
+                      </div>
+                      <div style={{ marginTop: 5, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, textTransform: 'uppercase', letterSpacing: .65, color: 'var(--cyan-bright)' }}>
+                        {hit.pattern.replaceAll('_', ' ')}{hit.core ? ' · core' : ''}
+                      </div>
+                      <div style={{ marginTop: 7, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, fontFamily: "'JetBrains Mono',monospace" }}>
+                        {[
+                          ['Last', last],
+                          ['Gate', gate],
+                          ['Invalid', invalidation],
+                        ].map(([label, value]) => (
+                          <div key={String(label)}>
+                            <div style={{ fontSize: 7, color: 'var(--text-mute)', textTransform: 'uppercase' }}>{label}</div>
+                            <div style={{ marginTop: 2, fontSize: 9.5 }}>{Number.isFinite(Number(value)) ? `$${Number(value).toFixed(2)}` : '—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', gap: 8, fontFamily: "'JetBrains Mono',monospace", fontSize: 8 }}>
+                        <span style={{ color: 'var(--text-mute)' }}>{proof}</span>
+                        <span style={{ color: 'var(--cyan-bright)' }}>WORKUP →</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: 14, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: 'var(--text-mute)' }}>
+                No off-book structure has confirmed its gate. Raw divergences remain watch-only in Pattern Radar.
+              </div>
+            )}
+            {stalePatternBacklog.length > 0 && (
+              <details style={{ borderTop: '1px solid var(--nx-border)' }}>
+                <summary style={{ cursor: 'pointer', padding: '8px 12px', fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: .7 }}>
+                  Archived flag backlog · {stalePatternBacklog.length} removed from current counts
+                </summary>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '0 12px 10px' }}>
+                  {stalePatternBacklog.map((pick) => (
+                    <button key={`archive-${pick.ideaId}`} type="button" onClick={() => openWorkup(pick.symbol)} className="filter-btn">
+                      {pick.symbol} · fresh workup
+                    </button>
+                  ))}
+                </div>
+              </details>
+            )}
+          </section>
 
           {explainCards && (
             <div style={{ display: 'grid', gap: 8, padding: '12px 14px', margin: '0 0 12px', border: '1px solid var(--nx-border)', borderRadius: 8, fontFamily: "'JetBrains Mono',monospace" }}>
