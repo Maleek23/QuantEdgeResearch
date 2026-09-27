@@ -99,8 +99,11 @@ async function fetchCboeChainOnce(symbol: string, timeoutMs: number): Promise<{ 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    // CBOE's cash-index quote key is `_SPX`; contracts in the payload retain
+    // their real OCC roots (`SPX` monthly and `SPXW` weekly).
+    const cboeSymbol = symbol.toUpperCase() === 'SPX' ? '_SPX' : symbol.toUpperCase();
     const r = await fetch(
-      `https://cdn.cboe.com/api/global/delayed_quotes/options/${symbol.toUpperCase()}.json`,
+      `https://cdn.cboe.com/api/global/delayed_quotes/options/${cboeSymbol}.json`,
       { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' }, signal: controller.signal },
     );
     if (!r.ok) return { chain: null, status: r.status };

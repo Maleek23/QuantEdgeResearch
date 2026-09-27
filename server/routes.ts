@@ -22227,6 +22227,22 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       }
       const ratio = spx / spy;
       const map = (value: number) => Math.round(value * ratio * 100) / 100;
+      const mapped = { entry: map(entry), stop: map(stop), target: map(target) };
+      const holdingDays = Math.max(0, Math.min(90, Number(req.query.holdingDays) || 1));
+      const conviction = Math.max(0, Math.min(100, Number(req.query.conviction) || 60));
+      const { selectContracts } = await import('./option-selection-engine');
+      const selection = await selectContracts({
+        symbol: 'SPX', direction: target > entry ? 'bullish' : 'bearish',
+        setup: holdingDays <= 1 ? 'scalp' : 'swing',
+        expiryTier: holdingDays === 0 ? '0DTE' : undefined,
+        allowZeroDte: holdingDays === 0, holdingDays,
+        entry: mapped.entry, stop: mapped.stop, t1: mapped.target,
+        asOfSpot: spx, conviction, accountSize: 10_000,
+        riskBudgetDollars: 300, maxDebitDollars: 300,
+      });
+      const recommended = selection.recommendedTier
+        ? selection.picks.find((pick) => pick.tier === selection.recommendedTier) ?? null
+        : null;
       res.json({
         symbol: 'SPX',
         sourceSymbol: 'SPY',
@@ -22234,10 +22250,12 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         asOf: new Date().toISOString(),
         ratio,
         spot: spx,
-        entry: map(entry),
-        stop: map(stop),
-        target: map(target),
-        contract: null,
+        ...mapped,
+        chainStatus: selection.status,
+        chainNote: selection.note,
+        chainAsOf: selection.asOf,
+        chainContractsScored: selection.picks.length,
+        contract: recommended,
       });
     } catch (error: any) {
       logger.error('[SPX-EXPRESSION] translation failed:', error);

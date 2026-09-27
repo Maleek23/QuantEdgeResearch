@@ -21,7 +21,7 @@ interface IndexScalp {
   confidence?: number | null; thesis?: string | null; timestamp?: string;
 }
 interface IndexScalpResponse { session?: { isMarketOpen?: boolean; sessionLabel?: string }; scalps?: IndexScalp[]; }
-interface SpxExpression { symbol: 'SPX'; source: string; asOf: string; ratio: number; spot: number; entry: number; stop: number; target: number; contract: null; }
+interface SpxExpression { symbol: 'SPX'; source: string; asOf: string; ratio: number; spot: number; entry: number; stop: number; target: number; chainStatus: string; chainNote?: string; chainAsOf?: string; chainContractsScored: number; contract: { optionType: 'call' | 'put'; strike: number; expiry: string; dte: number; entryPremium: number; optionSymbol: string } | null; }
 
 async function get<T>(url: string): Promise<T> {
   const response = await fetch(url, { credentials: 'include' });
@@ -50,9 +50,35 @@ export default function NexusPrototype() {
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+  const spySource = convictions.data?.picks.find((pick) => pick.symbol === 'SPY' && !pick.isBotHeld);
+  const spxMap = useQuery<SpxExpression>({
+    queryKey: ['/api/spx/expression', spySource?.entryPrice, spySource?.stopLoss, spySource?.targetPrice],
+    queryFn: () => get(`/api/spx/expression?entry=${spySource!.entryPrice}&stop=${spySource!.stopLoss}&target=${spySource!.targetPrice}&holdingDays=${parseInt(spySource!.holdingPeriod) || 1}&conviction=${convictionPercent(spySource!.convictionScore)}`),
+    enabled: Boolean(spySource),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
   const rows = useMemo(() => {
     const needle = query.trim().toUpperCase();
-    const ranked = [...(convictions.data?.picks ?? [])]
+    const sourceRows = [...(convictions.data?.picks ?? [])];
+    if (spySource && spxMap.data) {
+      const expression = spxMap.data;
+      sourceRows.push({
+        ...spySource,
+        ideaId: `spx-linked-${spySource.ideaId}`,
+        symbol: 'SPX', sector: 'index', source: 'spx-linked-expression',
+        assetType: expression.contract ? 'option' : 'index',
+        entryPrice: expression.entry, stopLoss: expression.stop,
+        targetPrice: expression.target, currentPrice: expression.spot,
+        optionType: expression.contract?.optionType ?? null,
+        strikePrice: expression.contract?.strike ?? null,
+        expiryDate: expression.contract?.expiry ?? null,
+        optionDte: expression.contract?.dte ?? null,
+        entryPremium: expression.contract?.entryPremium ?? null,
+        thesis: `SPX expression of the measured SPY thesis using the live ${expression.ratio.toFixed(3)}× cash ratio. ${expression.chainNote ?? ''}`.trim(),
+      });
+    }
+    const ranked = sourceRows
       .filter((pick) => scope === 'positions' ? pick.isBotHeld : !pick.isBotHeld)
       .filter((pick) => side === 'all' || pick.direction === side)
       .filter((pick) => !needle || pick.symbol.includes(needle) || pick.sector.toUpperCase().includes(needle))
@@ -66,7 +92,7 @@ export default function NexusPrototype() {
     }
     if (rank === 'best') return ranked.slice(0, 10);
     return ranked.filter((pick) => pick.convictionBand === 'S' || pick.convictionBand === 'A');
-  }, [convictions.data, query, scope, side, rank]);
+  }, [convictions.data, query, scope, side, rank, spySource, spxMap.data]);
 
   useEffect(() => {
     if (!rows.some((row) => row.ideaId === selectedId)) setSelectedId(rows[0]?.ideaId);
@@ -77,13 +103,6 @@ export default function NexusPrototype() {
   }, [selectedId]);
 
   const selected = rows.find((row) => row.ideaId === selectedId) ?? rows[0];
-  const spxMap = useQuery<SpxExpression>({
-    queryKey: ['/api/spx/expression', selected?.entryPrice, selected?.stopLoss, selected?.targetPrice],
-    queryFn: () => get(`/api/spx/expression?entry=${selected!.entryPrice}&stop=${selected!.stopLoss}&target=${selected!.targetPrice}`),
-    enabled: selected?.symbol === 'SPY',
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-  });
   const market = convictions.data?.marketContext;
   const positive = selected?.direction === 'long';
   const live = selected?.currentPrice ?? selected?.entryPrice;
@@ -194,7 +213,7 @@ export default function NexusPrototype() {
                   <aside className="nxp-execution">
                     <div className="nxp-section-title"><span>Execution</span><small>{selected.optionType ? 'Option-backed' : selected.assetType}</small></div>
                     <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span></div></div>
-                    {selected.symbol === 'SPY' && <div className={`nxp-spx-expression ${spxExpression ? 'live' : ''}`}><span>SPX linked expression</span>{spxExpression ? <><strong>{positive ? 'BULLISH' : 'BEARISH'} · SPX {money(spxExpression.spot)}</strong><small>Trigger {money(spxExpression.entry)} · Stop {money(spxExpression.stop)} · T1 {money(spxExpression.target)}</small><small>Live cash ratio {spxExpression.ratio.toFixed(3)}× · levels only; contract not selected</small></> : <small>{spxMap.isLoading ? 'Mapping live SPX levels…' : 'SPX quote pair unavailable — no levels guessed.'}</small>}</div>}
+                    {selected.symbol === 'SPY' && <div className={`nxp-spx-expression ${spxExpression ? 'live' : ''}`}><span>SPX linked expression</span>{spxExpression ? <><strong>{positive ? 'BULLISH' : 'BEARISH'} · SPX {money(spxExpression.spot)}</strong><small>Trigger {money(spxExpression.entry)} · Stop {money(spxExpression.stop)} · T1 {money(spxExpression.target)}</small>{spxExpression.contract ? <small>Actual chain · {spxExpression.contract.optionSymbol} · {money(spxExpression.contract.entryPremium)}</small> : <small>{spxExpression.chainNote || 'No account-fit SPX/SPXW contract cleared the chain gates.'}</small>}</> : <small>{spxMap.isLoading ? 'Reading the SPX/SPXW chain…' : 'SPX quote pair unavailable — no levels guessed.'}</small>}</div>}
                     <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full workup <ChevronRight size={16} /></button>
                   </aside>
                 </div>}
