@@ -496,10 +496,19 @@ export function NexusBoard() {
   // hidden entirely ("it's so much going on"). Per-viewer convenience,
   // persisted in localStorage; hidden panels come back via the restore chips.
   const [railUi, setRailUi] = useState<Record<string, 'min' | 'hidden' | 'shown'>>(() => {
-    // Sector Heatmap and Flow Prints repeat the Rotation Map and the FLOW tab;
-    // they start hidden (restorable from the chip) — purpose review 2026-09-24.
-    const DEFAULTS: Record<string, 'min' | 'hidden' | 'shown'> = { heat: 'hidden', prints: 'hidden' };
-    try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nx-rail-ui-v2') || '{}') }; } catch { return DEFAULTS; }
+    // One primary story per rail. Secondary context stays one click away instead
+    // of presenting eight equally weighted panels at first paint.
+    const DEFAULTS: Record<string, 'min' | 'hidden' | 'shown'> = {
+      radar: 'min',
+      pulse: 'shown',
+      quad: 'shown',
+      brief: 'hidden',
+      prints: 'hidden',
+      dev: 'shown',
+      heat: 'hidden',
+      watch: 'min',
+    };
+    try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem('nx-rail-ui-v3') || '{}') }; } catch { return DEFAULTS; }
   });
   const setRail = (id: string, mode: 'min' | 'hidden' | null) => {
     setRailUi((cur) => {
@@ -507,7 +516,7 @@ export function NexusBoard() {
       // An explicit 'shown' — deleting the key would let a hidden-by-default
       // panel re-hide itself on the next load.
       next[id] = mode ?? 'shown';
-      try { localStorage.setItem('nx-rail-ui-v2', JSON.stringify(next)); } catch { /* private mode */ }
+      try { localStorage.setItem('nx-rail-ui-v3', JSON.stringify(next)); } catch { /* private mode */ }
       return next;
     });
   };
@@ -639,9 +648,9 @@ export function NexusBoard() {
   }, [extended.data]);
 
   /* signals — the live book through the mock's filter bar, which now filters */
-  // GRID is the mock's card wall; SCANNER and COCKPIT are the working views the
-  // desk asked back in — HuntCockpit owns those, mounted with its own filters.
-  const [bookView, setBookView] = useState<'grid' | 'scanner' | 'cockpit' | 'ledger'>('grid');
+  // Grid and table are lenses over one book. Workup is the canonical selected-
+  // symbol inspector, not a second nested signal browser inside Nexus.
+  const [bookView, setBookView] = useState<'grid' | 'scanner' | 'ledger'>('grid');
   const [historyScope, setHistoryScope] = useState<'decided' | 'tracking' | 'all'>('decided');
   const [selectedLedger, setSelectedLedger] = useState<any | null>(null);
   // "Explain cards": numbered anatomy markers (1-5) on every card + a legend.
@@ -914,7 +923,7 @@ export function NexusBoard() {
         {/* LEFT — MARKET INTEL */}
         <div className="col col-left">
           <div className="sec-head">
-            <div className="sec-num">01 · MARKET CONTEXT</div>
+            <div className="sec-num">MARKET</div>
             <div className="sec-sub">Read the tape before the trade. Participation, relative rotation and leadership — one connected market view.</div>
           </div>
           <RailRestore ids={['radar', 'pulse', 'quad', 'prints', 'brief']} />
@@ -1251,7 +1260,7 @@ export function NexusBoard() {
         {/* CENTER — ACTIVE BOOK */}
         <div className="col col-center">
           <div className="sec-head">
-            <div className="sec-num">02 · ACTIVE BOOK</div>
+            <div className="sec-num">ACTIVE BOOK</div>
             <div className="sec-title">Ranked opportunities.</div>
             <div className="sec-sub">Select a ticker to connect price, evidence, levels and execution.</div>
             <div className="sec-meta">
@@ -1268,14 +1277,14 @@ export function NexusBoard() {
                 view settings
               </button>
               <div className="view-toggle" style={{ marginLeft: 'auto' }}>
-                {(['grid', 'scanner', 'cockpit', 'ledger'] as const).map((v) => (
+                {(['grid', 'scanner', 'ledger'] as const).map((v) => (
                   <button
                     key={v}
                     className={`view-btn${bookView === v ? ' active' : ''}`}
                     style={{ background: bookView === v ? undefined : 'transparent', border: 'none' }}
                     onClick={() => setBookView(v)}
                   >
-                    {v === 'grid' ? 'Cards' : v === 'scanner' ? 'Table' : v === 'cockpit' ? 'Workup' : 'History'}
+                    {v === 'grid' ? 'Grid' : v === 'scanner' ? 'Table' : 'Outcomes'}
                   </button>
                 ))}
               </div>
@@ -1750,7 +1759,7 @@ export function NexusBoard() {
         {/* RIGHT — DEVELOPING */}
         <div className="col col-right">
           <div className="sec-head">
-            <div className="sec-num">03 · DEVELOPING</div>
+            <div className="sec-num">RESEARCH QUEUE</div>
             <div className="sec-title">Setups before the trigger.</div>
             <div className="sec-sub">Coiled names inside groups already receiving money.</div>
             <div className="sec-meta"><span className="tag mute">watch · not signals</span></div>
