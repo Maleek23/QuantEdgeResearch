@@ -43,6 +43,15 @@ export function DesktopRail({
       </Link>
 
       <nav className="qe-rail-nav">
+        <section className="qe-rail-group" aria-label="Start">
+          <div className="qe-rail-label">Start</div>
+          {PAGES.slice(0, 1).map((page) => {
+            const Icon = page.icon;
+            const active = currentPath === page.href;
+            return <Link key={page.href} href={page.href} className={cn('qe-rail-item', active && 'active')} aria-current={active ? 'page' : undefined}><Icon aria-hidden /><span>{page.label}</span>{active && <i aria-hidden />}</Link>;
+          })}
+        </section>
+
         {GROUPS.map((group) => (
           <section key={group.label} className="qe-rail-group" aria-label={group.label}>
             <div className="qe-rail-label">{group.label}</div>
@@ -62,7 +71,7 @@ export function DesktopRail({
 
         <section className="qe-rail-group" aria-label="Daily workflow">
           <div className="qe-rail-label">Daily workflow</div>
-          {PAGES.map((page) => {
+          {PAGES.slice(1).map((page) => {
             const Icon = page.icon;
             const active = currentPath === page.href;
             return <Link key={page.href} href={page.href} className={cn('qe-rail-item', active && 'active')} aria-current={active ? 'page' : undefined}><Icon aria-hidden /><span>{page.label}</span>{active && <i aria-hidden />}</Link>;
