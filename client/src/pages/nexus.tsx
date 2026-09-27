@@ -562,6 +562,20 @@ export function NexusBoard() {
     queryKey: ['/api/quant-bot/status', 'nexus'], queryFn: q('/api/quant-bot/status'),
     staleTime: 60_000, retry: 1,
   });
+  const indexDeskQ = useQuery<{
+    session?: { name?: string; isOpen?: boolean };
+    scalps?: Array<{
+      id: string; symbol: string; direction: 'long' | 'short'; bias: string;
+      setup?: string; confidence?: number | null; riskRewardRatio?: number | null;
+      isPowerHour?: boolean;
+    }>;
+  }>({
+    queryKey: ['/api/index-scalps', 'nexus'],
+    queryFn: q('/api/index-scalps'),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: 1,
+  });
   const pulseSpyQ = useQuery<{ data?: { time: number; close: number }[] }>({
     queryKey: ['/api/historical-prices', 'SPY', '1d5m', 'nexus'], queryFn: q('/api/historical-prices/SPY?range=1d&interval=5m'),
     staleTime: 120_000, refetchInterval: 300_000, retry: 1, enabled: expandSec === 'pulse',
@@ -1259,6 +1273,30 @@ export function NexusBoard() {
 
         {/* CENTER — ACTIVE BOOK */}
         <div className="col col-center">
+          <section className="nexus-index-strip" aria-label="Live index desk">
+            <div className="nexus-index-label">
+              <span className={indexDeskQ.data?.session?.isOpen ? 'live' : ''} />
+              <div><b>Index desk</b><small>SPX · SPY · QQQ · IWM</small></div>
+            </div>
+            <div className="nexus-index-instruments">
+              {(['SPX', 'SPY', 'QQQ', 'IWM'] as const).map((symbol) => {
+                const play = indexDeskQ.data?.scalps?.find((row) => row.symbol === symbol);
+                return (
+                  <button
+                    type="button"
+                    key={symbol}
+                    className={`nexus-index-tile${play ? ' active' : ''}${play?.direction === 'short' ? ' short' : ''}`}
+                    onClick={() => { setCurrentStock({ symbol }); openWorkup(symbol); }}
+                  >
+                    <strong>{symbol}</strong>
+                    <span>{play ? `${play.direction === 'short' ? '▼' : '▲'} ${play.bias}` : 'watch'}</span>
+                    <em>{play?.confidence != null ? `${Math.round(play.confidence)}/100` : '—'}</em>
+                    <small>{play?.riskRewardRatio != null ? `${play.riskRewardRatio.toFixed(1)}R` : 'levels'}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
           <div className="sec-head">
             <div className="sec-num">ACTIVE BOOK</div>
             <div className="sec-title">Ranked opportunities.</div>

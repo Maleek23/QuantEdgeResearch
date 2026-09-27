@@ -292,6 +292,36 @@
 }
 .nexus-vars .col:last-child{border-right:none}
 
+/* TODAY'S live visual rhythm, adapted for the deeper Nexus workspace. */
+.nexus-vars .nexus-index-strip{
+  display:grid;grid-template-columns:150px minmax(0,1fr);gap:1px;
+  border-bottom:1px solid var(--nx-border);background:var(--nx-border);
+  position:relative;z-index:4;
+}
+.nexus-vars .nexus-index-label{
+  display:flex;align-items:center;gap:9px;padding:10px 12px;background:var(--bg-2)
+}
+.nexus-vars .nexus-index-label>span{width:6px;height:6px;border-radius:50%;background:var(--text-mute)}
+.nexus-vars .nexus-index-label>span.live{background:var(--green);box-shadow:0 0 10px var(--green);animation:nexus-pulse 1.8s ease-in-out infinite}
+.nexus-vars .nexus-index-label>div{display:flex;min-width:0;flex-direction:column;gap:1px}
+.nexus-vars .nexus-index-label b{font-size:11px;color:var(--text)}
+.nexus-vars .nexus-index-label small{font:500 8.5px 'JetBrains Mono',monospace;color:var(--text-mute);white-space:nowrap}
+.nexus-vars .nexus-index-instruments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--nx-border)}
+.nexus-vars .nexus-index-tile{
+  display:grid;grid-template-columns:1fr auto;gap:3px 8px;align-items:center;
+  min-width:0;padding:8px 10px;border:0;background:var(--bg-2);color:var(--text);
+  cursor:pointer;text-align:left;transition:background 180ms ease-out,box-shadow 180ms ease-out
+}
+.nexus-vars .nexus-index-tile:hover,.nexus-vars .nexus-index-tile:focus-visible{background:color-mix(in srgb,var(--panel-2) 88%,var(--cyan) 12%);outline:none}
+.nexus-vars .nexus-index-tile.active{box-shadow:inset 2px 0 0 var(--green)}
+.nexus-vars .nexus-index-tile.active.short{box-shadow:inset 2px 0 0 var(--red)}
+.nexus-vars .nexus-index-tile strong{font:700 12px 'JetBrains Mono',monospace}
+.nexus-vars .nexus-index-tile span{font:700 8px 'JetBrains Mono',monospace;text-transform:uppercase;color:var(--text-mute)}
+.nexus-vars .nexus-index-tile.active span{color:var(--green)}
+.nexus-vars .nexus-index-tile.active.short span{color:var(--red)}
+.nexus-vars .nexus-index-tile em{font:700 10px 'JetBrains Mono',monospace;font-style:normal;text-align:right}
+.nexus-vars .nexus-index-tile small{font:500 8.5px 'JetBrains Mono',monospace;color:var(--text-mute);text-align:right}
+
 /* ============ SECTION HEADERS ============ */
 .nexus-vars .sec-head{
   padding:14px 16px 10px;
@@ -659,7 +689,12 @@
   border-radius:8px;padding:12px;
   cursor:pointer;transition:all 0.3s;
   position:relative;overflow:hidden;
+  animation:nexus-card-arrive 280ms cubic-bezier(.2,.8,.2,1) both;
 }
+.nexus-vars .signal:nth-child(2){animation-delay:25ms}.nexus-vars .signal:nth-child(3){animation-delay:50ms}
+.nexus-vars .signal:nth-child(4){animation-delay:75ms}.nexus-vars .signal:nth-child(5){animation-delay:100ms}
+.nexus-vars .signal:nth-child(6){animation-delay:125ms}.nexus-vars .signal:nth-child(n+7){animation-delay:150ms}
+@keyframes nexus-card-arrive{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
 .nexus-vars .signal::before{
   content:'';position:absolute;
   left:0;top:0;bottom:0;width:2px;
@@ -1621,11 +1656,19 @@
 .nexus-vars .dealer-actions strong{display:block;margin:6px 0;font:700 13px/1.3 'JetBrains Mono',monospace;color:var(--text)}
 
 @media(max-width:760px){
+  .nexus-vars .nexus-index-strip{grid-template-columns:minmax(0,1fr)}
+  .nexus-vars .nexus-index-label{display:none}
+  .nexus-vars .nexus-index-tile{padding:8px 7px}
   .nexus-vars .dealer-read{grid-template-columns:1fr}
   .nexus-vars .dealer-flow-stat{padding:12px 0 0;border-left:0;border-top:1px solid var(--nx-border);align-items:flex-start}
   .nexus-vars .dealer-levels{grid-template-columns:1fr 1fr}
   .nexus-vars .dealer-actions{grid-template-columns:1fr}
   .nexus-vars .dealer-profile-row{grid-template-columns:54px minmax(120px,1fr) 64px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .nexus-vars .signal{animation:none}
+  .nexus-vars .nexus-index-label>span.live{animation:none}
 }
 
 /* matrix */
