@@ -5439,6 +5439,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Extended-hours leaders — who is moving pre-market / after-hours, the window the
   // platform used to go completely blind in.
   const extendedHoursCache = new Map<string, { at: number; p: Promise<any> }>();
+  app.get("/api/extended-hours/:symbol", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || '').toUpperCase();
+      if (!/^[A-Z.\-]{1,12}$/.test(symbol)) return res.status(400).json({ error: 'Invalid symbol' });
+      const { fetchExtendedQuote } = await import('./extended-hours');
+      const quote = await fetchExtendedQuote(symbol);
+      if (!quote) return res.status(404).json({ error: 'Extended-hours quote unavailable' });
+      res.json(quote);
+    } catch (error: any) {
+      logger.error('[EXTENDED-HOURS] symbol quote failed:', error);
+      res.status(500).json({ error: 'Extended-hours quote failed' });
+    }
+  });
   app.get("/api/extended-hours", async (req, res) => {
     try {
       const { getExtendedLeaders } = await import("./extended-hours");

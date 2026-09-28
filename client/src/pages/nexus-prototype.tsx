@@ -26,6 +26,65 @@ interface MarketPulseRead { asOf: string; macro: { yield10Y: number; yieldDirect
 interface ExtendedHoursRead { asOf: string | null; session: string; isStale: boolean; assetClasses: Array<{ key: string; label: string; symbol: string; changePct: number | null; stance: string | null }>; }
 interface PatternHit { symbol: string; core?: boolean; pattern: string; bias: string; note: string; detectedAt?: string; levels: Record<string, number>; context?: { last?: number; above200d?: boolean | null; ema20AboveEma50?: boolean | null }; }
 interface PatternScanRead { asOf: string | null; scanned: number; failed: number; scanning: boolean; hits: PatternHit[]; }
+interface ExtendedSymbolQuote { symbol: string; lastPrice: number; previousClose: number; changePct: number; session: 'pre' | 'regular' | 'post' | 'closed'; asOf: string; isCurrent: boolean; volume: number; isExtended: boolean; }
+
+function patternDecision(hit: PatternHit, current?: number) {
+  const l = hit.levels ?? {};
+  const high = Number(l.motherHigh ?? l.rangeHigh ?? l.flagHigh ?? l.trendline ?? l.trigger);
+  const low = Number(l.motherLow ?? l.rangeLow ?? l.confirmation ?? l.flagLow);
+  const invalidation = Number(l.invalidation ?? (hit.bias === 'short' ? high : l.poleLow ?? low));
+  let status = 'WAITING';
+  let detail = 'Structure is developing; no entry is published.';
+  if (Number.isFinite(current)) {
+    if (Number.isFinite(high) && current! > high) { status = 'ABOVE RANGE'; detail = `Price cleared ${money(high)}. It still needs a fresh scan and execution gate.`; }
+    if (Number.isFinite(low) && current! < low) { status = 'BELOW RANGE'; detail = `Price broke below ${money(low)}. The stored structure is no longer intact.`; }
+    if (Number.isFinite(invalidation) && ((hit.bias === 'short' && current! > invalidation) || (hit.bias !== 'short' && current! < invalidation))) { status = 'INVALIDATED'; detail = `Price crossed the detector's ${money(invalidation)} invalidation.`; }
+  }
+  return { high, low, invalidation, status, detail };
+}
+
+function DevelopingDetail({ hit, quote, onOpen }: { hit: PatternHit; quote?: ExtendedSymbolQuote; onOpen: () => void }) {
+  const detected = Number(hit.context?.last);
+  const current = quote?.lastPrice ?? detected;
+  const displacement = Number.isFinite(detected) && detected > 0 && Number.isFinite(current) ? ((current / detected) - 1) * 100 : null;
+  const staleSnapshot = Boolean(quote?.isCurrent && displacement != null && Math.abs(displacement) >= 5);
+  const decision = patternDecision(hit, current);
+  const status = staleSnapshot ? 'REPRICE REQUIRED' : decision.status;
+  const levelRows = Object.entries(hit.levels ?? {}).filter(([, value]) => Number.isFinite(Number(value)));
+  const formatLevel = (key: string, value: number) => {
+    const metric = key.toLowerCase();
+    if (metric === 'triggered') return value ? 'Yes' : 'No';
+    if (metric.includes('rsi') || metric.includes('pct') || metric.includes('strength') || metric.includes('volume')) return value.toFixed(1);
+    if (metric.includes('days') || metric.includes('bars')) return value.toFixed(0);
+    return money(value);
+  };
+  const chartLevels = [
+    Number.isFinite(decision.high) ? { price: decision.high, label: 'UPPER DECISION', color: '#42d5b1' } : null,
+    Number.isFinite(decision.low) ? { price: decision.low, label: 'LOWER DECISION', color: '#ffb84d' } : null,
+    Number.isFinite(decision.invalidation) ? { price: decision.invalidation, label: 'INVALIDATION', color: '#ff746d' } : null,
+  ].filter(Boolean) as Array<{ price: number; label: string; color: string }>;
+  return <motion.div key={`${hit.symbol}-${hit.pattern}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail nxp-developing-detail">
+    <div className="nxp-detail-head">
+      <div>
+        <div className="nxp-symbol-line"><TickerLogo symbol={hit.symbol} size="lg" /><h2>{hit.symbol}</h2><span className={hit.bias === 'short' ? 'bear' : 'bull'}>{hit.bias === 'short' ? 'Bearish' : hit.bias === 'long' ? 'Bullish' : 'Two-sided'}</span><span>{hit.core ? 'core universe' : 'watch universe'}</span></div>
+        <p>{hit.note || `${hit.pattern.replaceAll('_', ' ')} detected; awaiting a measured break.`}</p>
+      </div>
+      <div className={`nxp-dev-status ${status.toLowerCase().replaceAll(' ', '-')}`}><strong>{status}</strong><span>{quote?.isCurrent ? `${quote.session} tape` : 'snapshot only'}</span></div>
+    </div>
+    <div className="nxp-dev-summary">
+      <div><span>Current</span><strong>{money(current)}</strong><small>{quote ? `${quote.changePct >= 0 ? '+' : ''}${quote.changePct.toFixed(2)}% vs close · ${quote.session}` : 'quote unavailable'}</small></div>
+      <div><span>Detected at</span><strong>{money(detected)}</strong><small>{hit.detectedAt ? new Date(hit.detectedAt).toLocaleString() : 'scanner snapshot'}</small></div>
+      <div className={staleSnapshot ? 'risk' : ''}><span>Since detection</span><strong>{displacement == null ? '—' : `${displacement >= 0 ? '+' : ''}${displacement.toFixed(1)}%`}</strong><small>{staleSnapshot ? 'old levels cannot be traded as-is' : 'inside freshness tolerance'}</small></div>
+      <div><span>Pattern</span><strong>{hit.pattern.replaceAll('_', ' ')}</strong><small>{hit.bias === 'neutral' ? 'break direction decides' : `${hit.bias} observation`}</small></div>
+    </div>
+    {staleSnapshot && <div className="nxp-dev-warning"><strong>Snapshot dislocated from live tape.</strong><span>The detector saw {money(detected)}, while the current {quote?.session} print is {money(current)}. Rescan levels and options before this can become a trade.</span></div>}
+    <div className="nxp-chart-card"><div className="nxp-chart-meta"><span>Price structure · detector levels</span><strong>{quote?.isCurrent ? 'CURRENT TAPE' : 'HISTORICAL'}</strong></div><NexusPriceChart symbol={hit.symbol} initialTf="1D" height={260} levels={chartLevels} /></div>
+    <div className="nxp-dev-grid">
+      <article><div className="nxp-section-title"><span>Measured evidence</span><small>{levelRows.length} fields</small></div><h3>{decision.detail}</h3><div className="nxp-dev-levels">{levelRows.map(([key, value]) => <div key={key}><span>{key.replaceAll('_', ' ')}</span><strong>{formatLevel(key, Number(value))}</strong></div>)}</div></article>
+      <aside><div className="nxp-section-title"><span>Promotion gate</span><small>candidate → setup</small></div><ol><li>Fresh quote agrees with the structure</li><li>Decision level triggers and holds</li><li>Risk level survives normal volatility</li><li>Liquid contract fits account risk</li></ol><p>Developing candidates are research observations—not entries, confidence grades, or bot orders.</p><button className="nxp-cockpit" type="button" onClick={onOpen}>Open full workup <ChevronRight size={16} /></button></aside>
+    </div>
+  </motion.div>;
+}
 
 function macroRisk(pulse?: MarketPulseRead, bondsPct?: number | null) {
   const y = pulse?.macro.yield10Y ?? 0;
@@ -66,6 +125,7 @@ export default function NexusPrototype() {
   const [side, setSide] = useState<'all' | 'long' | 'short'>('all');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string>();
+  const [developingSymbol, setDevelopingSymbol] = useState<string>();
   const [contextOpen, setContextOpen] = useState(false);
   const [view, setView] = useState<'focus' | 'grid' | 'table'>('focus');
   const [rank, setRank] = useState<'all' | 'new' | 'best' | 'conviction'>('all');
@@ -157,6 +217,18 @@ export default function NexusPrototype() {
       .filter((hit) => { const symbol = hit.symbol.toUpperCase(); if (seen.has(symbol)) return false; seen.add(symbol); return true; })
       .slice(0, 80);
   }, [patterns.data, convictions.data, query, side]);
+  const developingPick = developing.find((hit) => hit.symbol === developingSymbol) ?? developing[0];
+  const developingQuote = useQuery<ExtendedSymbolQuote>({
+    queryKey: ['/api/extended-hours/symbol', developingPick?.symbol],
+    queryFn: () => get(`/api/extended-hours/${developingPick!.symbol}`),
+    enabled: scope === 'developing' && Boolean(developingPick),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  useEffect(() => {
+    if (scope === 'developing' && developingPick && developingPick.symbol !== developingSymbol) setDevelopingSymbol(developingPick.symbol);
+  }, [scope, developingPick, developingSymbol]);
 
   useEffect(() => {
     if (!rows.some((row) => row.ideaId === selectedId)) setSelectedId(rows[0]?.ideaId);
@@ -225,7 +297,7 @@ export default function NexusPrototype() {
           <div className="nxp-rows">
             {scope === 'developing' && patterns.isLoading && <div className="nxp-state">Scanning the opportunity funnel…</div>}
             {scope === 'developing' && !patterns.isLoading && developing.length === 0 && <div className="nxp-state">No measured developing structures match this view.</div>}
-            {scope === 'developing' && developing.map((hit) => <button type="button" key={`${hit.symbol}-${hit.pattern}`} className="nxp-row nxp-developing-row" onClick={() => openWorkup(hit.symbol)}><TickerLogo symbol={hit.symbol} size="sm" className="nxp-logo" /><span className="nxp-row-main"><strong>{hit.symbol}</strong><small>{hit.pattern.replaceAll('_',' ')}</small></span><span className="nxp-row-status"><strong>{hit.bias === 'short' ? '▼' : '▲'}</strong><small>{hit.core ? 'core' : 'watch'}</small></span><ChevronRight size={14} /></button>)}
+            {scope === 'developing' && developing.map((hit) => <button type="button" key={`${hit.symbol}-${hit.pattern}`} className={`nxp-row nxp-developing-row ${developingPick?.symbol === hit.symbol ? 'selected' : ''}`} onClick={() => setDevelopingSymbol(hit.symbol)}><TickerLogo symbol={hit.symbol} size="sm" className="nxp-logo" /><span className="nxp-row-main"><strong>{hit.symbol}</strong><small>{hit.pattern.replaceAll('_',' ')}</small></span><span className="nxp-row-status"><strong>{hit.bias === 'short' ? '▼' : hit.bias === 'long' ? '▲' : '◆'}</strong><small>{hit.core ? 'core' : 'watch'}</small></span><ChevronRight size={14} /></button>)}
             {scope !== 'developing' && <>
             {convictions.isLoading && <div className="nxp-state">Loading the live book…</div>}
             {!convictions.isLoading && rows.length === 0 && <div className="nxp-state">No setups match this view.</div>}
@@ -246,7 +318,7 @@ export default function NexusPrototype() {
         </aside>
 
         <section className="nxp-stage" ref={stageRef}>
-          {scope === 'developing' ? <div className="nxp-empty"><Activity /><h2>{developing.length} developing candidates</h2><p>{patterns.data?.scanned?.toLocaleString() ?? '—'} names scanned. These are research candidates, not published trades. Select one to open its measured workup.</p></div> : !selected ? <div className="nxp-empty"><Activity /><h2>Select a setup</h2><p>The trade plan will appear here without leaving Nexus.</p></div> : (
+          {scope === 'developing' ? (developingPick ? <DevelopingDetail hit={developingPick} quote={developingQuote.data} onOpen={() => openWorkup(developingPick.symbol)} /> : <div className="nxp-empty"><Activity /><h2>No developing candidate selected</h2><p>Change the ticker, side, or pattern filter.</p></div>) : !selected ? <div className="nxp-empty"><Activity /><h2>Select a setup</h2><p>The trade plan will appear here without leaving Nexus.</p></div> : (
             <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
               <div className="nxp-detail-head">
                 <div>
