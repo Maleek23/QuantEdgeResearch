@@ -22220,8 +22220,20 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
         fetchYahooFinancePrice('SPY'),
         fetchYahooFinancePrice('%5EGSPC'),
       ]);
-      const spy = Number(spyQuote?.currentPrice);
-      const spx = Number(spxQuote?.currentPrice);
+      let spy = Number(spyQuote?.currentPrice);
+      let spx = Number(spxQuote?.currentPrice);
+      // Quote endpoints can be throttled while the canonical candle service
+      // still has the latest measured close. Use that real observation so the
+      // SPX row does not disappear merely because a quote vendor returned 429.
+      if (!(spy > 0) || !(spx > 1_000)) {
+        const { fetchCandles } = await import('./historical-candles');
+        const [spyBars, spxBars] = await Promise.all([
+          fetchCandles('SPY', '5d', '1d'),
+          fetchCandles('SPX', '5d', '1d'),
+        ]);
+        spy = spy > 0 ? spy : Number(spyBars.at(-1)?.close);
+        spx = spx > 1_000 ? spx : Number(spxBars.at(-1)?.close);
+      }
       if (!(spy > 0) || !(spx > 1_000)) {
         return res.status(503).json({ error: 'SPX/SPY quote pair is unavailable.' });
       }
