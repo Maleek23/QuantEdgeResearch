@@ -22,6 +22,8 @@ interface IndexScalp {
 }
 interface IndexScalpResponse { session?: { isMarketOpen?: boolean; sessionLabel?: string }; scalps?: IndexScalp[]; }
 interface SpxExpression { symbol: 'SPX'; source: string; asOf: string; ratio: number; spot: number; entry: number; stop: number; target: number; chainStatus: string; chainNote?: string; chainAsOf?: string; chainContractsScored: number; contract: { optionType: 'call' | 'put'; strike: number; expiry: string; dte: number; entryPremium: number; optionSymbol: string } | null; }
+interface MarketPulseRead { asOf: string; macro: { yield10Y: number; yieldDirection: 'RISING' | 'FALLING'; vix: number; dxy: number }; }
+interface ExtendedHoursRead { asOf: string | null; session: string; isStale: boolean; assetClasses: Array<{ key: string; label: string; symbol: string; changePct: number | null; stance: string | null }>; }
 
 async function get<T>(url: string): Promise<T> {
   const response = await fetch(url, { credentials: 'include' });
@@ -47,6 +49,18 @@ export default function NexusPrototype() {
   const convictions = useQuery<ConvictionsResponse>({
     queryKey: ['/api/convictions', 'nexus-prototype'],
     queryFn: () => get('/api/convictions'),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const pulse = useQuery<MarketPulseRead>({
+    queryKey: ['/api/market-pulse', 'nexus-macro'],
+    queryFn: () => get('/api/market-pulse'),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const extended = useQuery<ExtendedHoursRead>({
+    queryKey: ['/api/extended-hours', 'nexus-macro'],
+    queryFn: () => get('/api/extended-hours?limit=5'),
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
@@ -104,6 +118,7 @@ export default function NexusPrototype() {
 
   const selected = rows.find((row) => row.ideaId === selectedId) ?? rows[0];
   const market = convictions.data?.marketContext;
+  const bonds = extended.data?.assetClasses?.find((asset) => asset.key === 'bonds');
   const positive = selected?.direction === 'long';
   const live = selected?.currentPrice ?? selected?.entryPrice;
   const progress = selected && selected.targetPrice !== selected.entryPrice
@@ -131,6 +146,8 @@ export default function NexusPrototype() {
           <div className="nxp-market-summary">
             <span>{market?.regime ?? 'Loading regime'}</span>
             <strong>{market?.preferredDirection ?? '—'}</strong>
+            <span className={pulse.data?.macro.yieldDirection === 'RISING' ? 'risk' : 'reward'}>10Y {pulse.data?.macro.yield10Y ? `${pulse.data.macro.yield10Y.toFixed(2)}%` : '—'} {pulse.data?.macro.yieldDirection === 'RISING' ? '↑' : '↓'}</span>
+            <span className={(bonds?.changePct ?? 0) < 0 ? 'risk' : 'reward'}>TLT {bonds?.changePct == null ? '—' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}%`}</span>
             <button type="button" onClick={() => setContextOpen(true)}><PanelRightOpen size={15} /> Context</button>
           </div>
         </div>
@@ -239,7 +256,7 @@ export default function NexusPrototype() {
           <motion.aside className="nxp-context" initial={reduceMotion ? false : { x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 320 }}>
             <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regime ?? 'Unavailable'}</h2></div><button onClick={() => setContextOpen(false)}><X size={17} /></button></div>
             <div className="nxp-context-score"><strong>{market?.score ?? '—'}</strong><span>regime score</span></div>
-            <dl><div><dt>Risk sentiment</dt><dd>{market?.riskSentiment ?? '—'}</dd></div><div><dt>Preferred side</dt><dd>{market?.preferredDirection ?? '—'}</dd></div><div><dt>VIX</dt><dd>{market?.vixLevel?.toFixed(1) ?? '—'}</dd></div></dl>
+            <dl><div><dt>Risk sentiment</dt><dd>{market?.riskSentiment ?? '—'}</dd></div><div><dt>Preferred side</dt><dd>{market?.preferredDirection ?? '—'}</dd></div><div><dt>VIX</dt><dd>{market?.vixLevel?.toFixed(1) ?? '—'}</dd></div><div><dt>10Y yield</dt><dd>{pulse.data?.macro.yield10Y ? `${pulse.data.macro.yield10Y.toFixed(2)}% · ${pulse.data.macro.yieldDirection.toLowerCase()}` : 'unavailable'}</dd></div><div><dt>Bonds · TLT</dt><dd>{bonds?.changePct == null ? 'unavailable' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}% · ${bonds.stance?.toLowerCase()}`}</dd></div><div><dt>Macro freshness</dt><dd>{extended.data?.isStale ? 'stale' : extended.data?.session ?? 'loading'}</dd></div></dl>
             <h3>Why it matters now</h3>
             <ul>{(market?.reasons ?? []).map((reason) => <li key={reason}>{reason}</li>)}</ul>
           </motion.aside>
