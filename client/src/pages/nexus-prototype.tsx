@@ -25,6 +25,30 @@ interface SpxExpression { symbol: 'SPX'; source: string; asOf: string; ratio: nu
 interface MarketPulseRead { asOf: string; macro: { yield10Y: number; yieldDirection: 'RISING' | 'FALLING'; vix: number; dxy: number }; }
 interface ExtendedHoursRead { asOf: string | null; session: string; isStale: boolean; assetClasses: Array<{ key: string; label: string; symbol: string; changePct: number | null; stance: string | null }>; }
 
+function macroRisk(pulse?: MarketPulseRead, bondsPct?: number | null) {
+  const y = pulse?.macro.yield10Y ?? 0;
+  const vix = pulse?.macro.vix ?? 0;
+  let score = 0;
+  const drivers: string[] = [];
+  if (y >= 5) { score += 35; drivers.push(`10Y ${y.toFixed(2)}% is above the 5% stress threshold`); }
+  else if (y >= 4.5) { score += 24; drivers.push(`10Y ${y.toFixed(2)}% is restrictive`); }
+  else if (y >= 4) { score += 12; drivers.push(`10Y ${y.toFixed(2)}% is elevated`); }
+  if (pulse?.macro.yieldDirection === 'RISING') { score += 15; drivers.push('yields are still rising'); }
+  if (bondsPct != null && bondsPct <= -0.7) { score += 18; drivers.push(`TLT ${bondsPct.toFixed(2)}% confirms bond selling`); }
+  else if (bondsPct != null && bondsPct < -0.3) { score += 9; drivers.push(`TLT ${bondsPct.toFixed(2)}% shows rate pressure`); }
+  if (vix >= 30) { score += 25; drivers.push(`VIX ${vix.toFixed(1)} is disorderly`); }
+  else if (vix >= 22) { score += 15; drivers.push(`VIX ${vix.toFixed(1)} is elevated`); }
+  else if (vix >= 18) { score += 7; drivers.push(`VIX ${vix.toFixed(1)} is firm`); }
+  score = Math.min(100, score);
+  const level = score >= 75 ? 'EXTREME' : score >= 50 ? 'HIGH' : score >= 25 ? 'ELEVATED' : 'LOW';
+  const posture = score >= 50
+    ? 'Reduce size, demand confirmed triggers, avoid chasing long-duration growth, and prefer defined-risk structures.'
+    : score >= 25
+      ? 'Use smaller size and require sector-relative strength; duration-sensitive longs need extra confirmation.'
+      : 'Macro pressure is limited; normal setup and liquidity gates still apply.';
+  return { score, level, drivers, posture };
+}
+
 async function get<T>(url: string): Promise<T> {
   const response = await fetch(url, { credentials: 'include' });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
@@ -119,6 +143,7 @@ export default function NexusPrototype() {
   const selected = rows.find((row) => row.ideaId === selectedId) ?? rows[0];
   const market = convictions.data?.marketContext;
   const bonds = extended.data?.assetClasses?.find((asset) => asset.key === 'bonds');
+  const macro = useMemo(() => macroRisk(pulse.data, bonds?.changePct), [pulse.data, bonds?.changePct]);
   const positive = selected?.direction === 'long';
   const live = selected?.currentPrice ?? selected?.entryPrice;
   const progress = selected && selected.targetPrice !== selected.entryPrice
@@ -148,6 +173,7 @@ export default function NexusPrototype() {
             <strong>{market?.preferredDirection ?? '—'}</strong>
             <span className={pulse.data?.macro.yieldDirection === 'RISING' ? 'risk' : 'reward'}>10Y {pulse.data?.macro.yield10Y ? `${pulse.data.macro.yield10Y.toFixed(2)}%` : '—'} {pulse.data?.macro.yieldDirection === 'RISING' ? '↑' : '↓'}</span>
             <span className={(bonds?.changePct ?? 0) < 0 ? 'risk' : 'reward'}>TLT {bonds?.changePct == null ? '—' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}%`}</span>
+            <span className={`nxp-risk-state ${macro.level.toLowerCase()}`}>RISK {macro.level}</span>
             <button type="button" onClick={() => setContextOpen(true)}><PanelRightOpen size={15} /> Context</button>
           </div>
         </div>
@@ -256,6 +282,7 @@ export default function NexusPrototype() {
           <motion.aside className="nxp-context" initial={reduceMotion ? false : { x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 320 }}>
             <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regime ?? 'Unavailable'}</h2></div><button onClick={() => setContextOpen(false)}><X size={17} /></button></div>
             <div className="nxp-context-score"><strong>{market?.score ?? '—'}</strong><span>regime score</span></div>
+            <div className={`nxp-macro-oracle ${macro.level.toLowerCase()}`}><div><span>Macro Risk Oracle</span><strong>{macro.level}</strong><b>{macro.score}/100</b></div><p>{macro.posture}</p><ul>{macro.drivers.map((driver) => <li key={driver}>{driver}</li>)}</ul><small>Rates stress is measured from 10Y, its direction, TLT and VIX. Inflation is not inferred from yields.</small></div>
             <dl><div><dt>Risk sentiment</dt><dd>{market?.riskSentiment ?? '—'}</dd></div><div><dt>Preferred side</dt><dd>{market?.preferredDirection ?? '—'}</dd></div><div><dt>VIX</dt><dd>{market?.vixLevel?.toFixed(1) ?? '—'}</dd></div><div><dt>10Y yield</dt><dd>{pulse.data?.macro.yield10Y ? `${pulse.data.macro.yield10Y.toFixed(2)}% · ${pulse.data.macro.yieldDirection.toLowerCase()}` : 'unavailable'}</dd></div><div><dt>Bonds · TLT</dt><dd>{bonds?.changePct == null ? 'unavailable' : `${bonds.changePct >= 0 ? '+' : ''}${bonds.changePct.toFixed(2)}% · ${bonds.stance?.toLowerCase()}`}</dd></div><div><dt>Macro freshness</dt><dd>{extended.data?.isStale ? 'stale' : extended.data?.session ?? 'loading'}</dd></div></dl>
             <h3>Why it matters now</h3>
             <ul>{(market?.reasons ?? []).map((reason) => <li key={reason}>{reason}</li>)}</ul>
