@@ -24,6 +24,8 @@ interface IndexScalpResponse { session?: { isMarketOpen?: boolean; sessionLabel?
 interface SpxExpression { symbol: 'SPX'; source: string; asOf: string; ratio: number; spot: number; entry: number; stop: number; target: number; chainStatus: string; chainNote?: string; chainAsOf?: string; chainContractsScored: number; contract: { optionType: 'call' | 'put'; strike: number; expiry: string; dte: number; entryPremium: number; optionSymbol: string } | null; }
 interface MarketPulseRead { asOf: string; macro: { yield10Y: number; yieldDirection: 'RISING' | 'FALLING'; vix: number; dxy: number }; }
 interface ExtendedHoursRead { asOf: string | null; session: string; isStale: boolean; assetClasses: Array<{ key: string; label: string; symbol: string; changePct: number | null; stance: string | null }>; }
+interface PatternHit { symbol: string; core?: boolean; pattern: string; bias: string; note: string; detectedAt?: string; levels: Record<string, number>; context?: { last?: number; above200d?: boolean | null; ema20AboveEma50?: boolean | null }; }
+interface PatternScanRead { asOf: string | null; scanned: number; failed: number; scanning: boolean; hits: PatternHit[]; }
 
 function macroRisk(pulse?: MarketPulseRead, bondsPct?: number | null) {
   const y = pulse?.macro.yield10Y ?? 0;
@@ -60,7 +62,7 @@ const stateLabel = (pick: ConvictionPick) => pick.isBotHeld ? 'Bot held' : pick.
 
 export default function NexusPrototype() {
   const reduceMotion = useReducedMotion();
-  const [scope, setScope] = useState<'setups' | 'positions'>('setups');
+  const [scope, setScope] = useState<'setups' | 'developing' | 'positions'>('setups');
   const [side, setSide] = useState<'all' | 'long' | 'short'>('all');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string>();
@@ -87,6 +89,13 @@ export default function NexusPrototype() {
     queryFn: () => get('/api/extended-hours?limit=5'),
     staleTime: 30_000,
     refetchInterval: 60_000,
+  });
+  const patterns = useQuery<PatternScanRead>({
+    queryKey: ['/api/patterns/scan', 'nexus-developing'],
+    queryFn: () => get('/api/patterns/scan'),
+    staleTime: 20_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
   const spySource = convictions.data?.picks.find((pick) => pick.symbol === 'SPY' && !pick.isBotHeld);
   const spxMap = useQuery<SpxExpression>({
@@ -131,6 +140,23 @@ export default function NexusPrototype() {
     if (rank === 'best') return ranked.slice(0, 10);
     return ranked.filter((pick) => pick.convictionBand === 'S' || pick.convictionBand === 'A');
   }, [convictions.data, query, scope, side, rank, spySource, spxMap.data]);
+  const developing = useMemo(() => {
+    const published = new Set((convictions.data?.picks ?? []).map((pick) => pick.symbol.toUpperCase()));
+    const needle = query.trim().toUpperCase();
+    const seen = new Set<string>();
+    return (patterns.data?.hits ?? [])
+      .filter((hit) => !published.has(hit.symbol.toUpperCase()))
+      .filter((hit) => side === 'all' || (side === 'long' ? hit.bias !== 'short' : hit.bias === 'short'))
+      .filter((hit) => !needle || hit.symbol.includes(needle) || hit.pattern.toUpperCase().includes(needle))
+      .filter((hit) => {
+        const last = Number(hit.context?.last);
+        const trigger = Number(hit.levels.trendline ?? hit.levels.trigger ?? hit.levels.entry ?? last);
+        return Number.isFinite(last) && last > 0 && Number.isFinite(trigger) && trigger > 0 && Math.abs(last / trigger - 1) <= .2;
+      })
+      .sort((a, b) => Number(Boolean(b.core)) - Number(Boolean(a.core)) || Number(b.levels.strength ?? b.levels.relativeVolume ?? 0) - Number(a.levels.strength ?? a.levels.relativeVolume ?? 0))
+      .filter((hit) => { const symbol = hit.symbol.toUpperCase(); if (seen.has(symbol)) return false; seen.add(symbol); return true; })
+      .slice(0, 80);
+  }, [patterns.data, convictions.data, query, side]);
 
   useEffect(() => {
     if (!rows.some((row) => row.ideaId === selectedId)) setSelectedId(rows[0]?.ideaId);
@@ -184,9 +210,10 @@ export default function NexusPrototype() {
           <div className="nxp-queue-head">
             <div className="nxp-segmented">
               <button className={scope === 'setups' ? 'active' : ''} onClick={() => setScope('setups')}>Setups</button>
+              <button className={scope === 'developing' ? 'active' : ''} onClick={() => setScope('developing')}>Developing</button>
               <button className={scope === 'positions' ? 'active' : ''} onClick={() => setScope('positions')}>Positions</button>
             </div>
-            <span>{rows.length}</span>
+            <span>{scope === 'developing' ? developing.length : rows.length}</span>
           </div>
           <label className="nxp-search"><Search size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ticker or sector" /></label>
           <div className="nxp-side-filter">
@@ -196,6 +223,10 @@ export default function NexusPrototype() {
             {(['all', 'new', 'best', 'conviction'] as const).map((value) => <button key={value} className={rank === value ? 'active' : ''} onClick={() => setRank(value)}>{value}</button>)}
           </div>}
           <div className="nxp-rows">
+            {scope === 'developing' && patterns.isLoading && <div className="nxp-state">Scanning the opportunity funnel…</div>}
+            {scope === 'developing' && !patterns.isLoading && developing.length === 0 && <div className="nxp-state">No measured developing structures match this view.</div>}
+            {scope === 'developing' && developing.map((hit) => <button type="button" key={`${hit.symbol}-${hit.pattern}`} className="nxp-row nxp-developing-row" onClick={() => openWorkup(hit.symbol)}><TickerLogo symbol={hit.symbol} size="sm" className="nxp-logo" /><span className="nxp-row-main"><strong>{hit.symbol}</strong><small>{hit.pattern.replaceAll('_',' ')}</small></span><span className="nxp-row-status"><strong>{hit.bias === 'short' ? '▼' : '▲'}</strong><small>{hit.core ? 'core' : 'watch'}</small></span><ChevronRight size={14} /></button>)}
+            {scope !== 'developing' && <>
             {convictions.isLoading && <div className="nxp-state">Loading the live book…</div>}
             {!convictions.isLoading && rows.length === 0 && <div className="nxp-state">No setups match this view.</div>}
             {rows.map((pick) => {
@@ -210,11 +241,12 @@ export default function NexusPrototype() {
                 </button>
               );
             })}
+            </>}
           </div>
         </aside>
 
         <section className="nxp-stage" ref={stageRef}>
-          {!selected ? <div className="nxp-empty"><Activity /><h2>Select a setup</h2><p>The trade plan will appear here without leaving Nexus.</p></div> : (
+          {scope === 'developing' ? <div className="nxp-empty"><Activity /><h2>{developing.length} developing candidates</h2><p>{patterns.data?.scanned?.toLocaleString() ?? '—'} names scanned. These are research candidates, not published trades. Select one to open its measured workup.</p></div> : !selected ? <div className="nxp-empty"><Activity /><h2>Select a setup</h2><p>The trade plan will appear here without leaving Nexus.</p></div> : (
             <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
               <div className="nxp-detail-head">
                 <div>
