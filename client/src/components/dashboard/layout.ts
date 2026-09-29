@@ -1,8 +1,8 @@
 /**
- * Grid maths for the FLOW dashboard — a 12-column grid in whole cells.
+ * Grid maths for every dashboard — a 12-column grid in whole cells.
  * Pure functions, no DOM: collision, vertical compaction, auto-arrange.
+ * (Was components/flowdash/layout.ts; unchanged apart from the tool id type.)
  */
-import type { ToolType } from './registry';
 
 export const COLS = 12;
 export const ROW_H = 40;   // px per grid row
@@ -10,7 +10,7 @@ export const GAP = 8;      // px between cells
 
 export interface PlacedTool {
   i: string;            // instance id
-  type: ToolType;
+  type: string;         // tool id in the global registry
   x: number; y: number; w: number; h: number;
 }
 
@@ -24,7 +24,7 @@ const overlaps = (a: PlacedTool, b: PlacedTool) =>
   a.i !== b.i && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 export function clampTool(t: PlacedTool, minW = 2, minH = 3): PlacedTool {
-  const w = Math.max(minW, Math.min(COLS, Math.round(t.w)));
+  const w = Math.max(Math.min(minW, COLS), Math.min(COLS, Math.round(t.w)));
   const h = Math.max(minH, Math.round(t.h));
   const x = Math.max(0, Math.min(COLS - w, Math.round(t.x)));
   const y = Math.max(0, Math.round(t.y));
@@ -71,7 +71,7 @@ export function autoArrange(tools: PlacedTool[]): PlacedTool[] {
 
 /** Where a new tool of size w×h lands: first gap that fits, else the bottom. */
 export function slotFor(tools: PlacedTool[], w: number, h: number): { x: number; y: number } {
-  const probe: PlacedTool = { i: '__probe', type: 'options-flow', x: 0, y: 0, w: Math.min(w, COLS), h };
+  const probe: PlacedTool = { i: '__probe', type: '__probe', x: 0, y: 0, w: Math.min(w, COLS), h };
   const bottom = tools.reduce((m, t) => Math.max(m, t.y + t.h), 0);
   for (let y = 0; y <= bottom; y++) {
     for (let x = 0; x + probe.w <= COLS; x++) {
@@ -80,5 +80,8 @@ export function slotFor(tools: PlacedTool[], w: number, h: number): { x: number;
   }
   return { x: 0, y: bottom };
 }
+
+/** Reading-order sort (top-to-bottom, left-to-right) — the phone stack order. */
+export const readingOrder = (tools: PlacedTool[]) => [...tools].sort((a, b) => a.y - b.y || a.x - b.x);
 
 export const uid = () => Math.random().toString(36).slice(2, 10);

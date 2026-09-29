@@ -17,7 +17,7 @@ import { Info } from 'lucide-react';
 import { openWorkup } from '@/lib/workup-bus';
 import { cn } from '@/lib/utils';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
-import { useDashboard, useFocusSymbol, useNow, useToolReport } from './frame';
+import { useDashboard, useFocusSymbol, useNow, useToolReport } from '../../frame';
 import {
   useFlowTape, sigScore, contractKey, dte, money, etTime, ageLabel,
   ETF_SET, SIG_FORMULA_TEXT, type TapeRow, type SigParts,

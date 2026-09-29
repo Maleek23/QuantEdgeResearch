@@ -1,11 +1,11 @@
 /**
- * Dashboard tools that wrap existing components / endpoints, plus the small
- * new ones (net-premium series, per-strike sums, alert feed, levels, dark
- * pool). Every tool: honest loading / error / empty states (qe-states) and
+ * FLOW dashboard tools that wrap existing components / endpoints, plus the
+ * small new ones (net-premium series, per-strike sums, alert feed, dark pool).
+ * (GEX tools moved to tools/gex/.) Every tool: honest loading / error / empty states (qe-states) and
  * a freshness report to its frame. Colours: calls = --green (mint), puts =
  * --red (vermilion) — the CVD-safe pair; GEX colours from gex-colors.ts.
  */
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { openWorkup } from '@/lib/workup-bus';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
@@ -14,11 +14,7 @@ import { RepeatBuyers } from '@/components/flow/repeat-buyers';
 import { ConvergenceCard } from '@/components/flow/convergence-card';
 import { FlowChartBoard } from '@/components/charting/flow-chart-nexus';
 import { WatchlistRail } from '@/components/oracle/oracle-rails';
-import { GexHubNexus } from '@/components/gex/gex-hub-nexus';
-import { GexRankingsPanel } from '@/components/gex/gex-rankings-panel';
-import { exposureText, fmtSignedUsd, regimeColor } from '@/components/gex/gex-colors';
-import { REGIME_COPY, type GammaRegime } from '@shared/gex-regime';
-import { useFocusSymbol, useToolReport } from './frame';
+import { useFocusSymbol, useToolReport } from '../../frame';
 import { useFlowTape, money, etTime, ageLabel, type TapeRow } from './tape';
 
 const getJson = (url: string) => async () => {
@@ -48,11 +44,6 @@ export function IndexPulseTool() {
   return <div className="fd-scroll fd-pad"><IndexZeroDtePulsePanel /></div>;
 }
 export function StockChartTool() { return <div className="fd-fill fd-chart"><FlowChartBoard /></div>; }
-export function GexHubTool() { return <div className="fd-fill fd-legacy"><GexHubNexus /></div>; }
-export function GexSetupsTool() {
-  const [, setFocus] = useFocusSymbol();
-  return <div className="fd-scroll"><GexRankingsPanel onPick={setFocus} /></div>;
-}
 
 export function WatchlistTool() {
   const [, setFocus] = useFocusSymbol();
@@ -232,50 +223,6 @@ export function FlowAlertsTool() {
           <span className="p">{money(r.premium)}</span>
         </button>
       ))}
-    </div>
-  );
-}
-
-/* ════════════════════ GEX Levels — one row of the rankings job ════════════════════ */
-
-interface RankRow {
-  symbol: string; spot: number; netGEX: number; regime: GammaRegime; nearFlip?: boolean;
-  zeroGamma?: number | null; zeroGammaDistPct?: number | null; callWall: number | null; putWall: number | null;
-  topStrike: number | null; topStrikeGEX: number | null; topStrikeShare: number | null;
-  dataSource?: string; fetchedAt: string; ageSec: number; stale: boolean;
-}
-
-export function GexLevelsTool() {
-  const [focus] = useFocusSymbol();
-  const q = useQuery<{ rows: RankRow[]; units: { gex: string }; universe?: { total: number } }>({
-    queryKey: ['/api/gex-vex/rankings', 'flowdash'], queryFn: getJson('/api/gex-vex/rankings?limit=100'),
-    staleTime: 60_000, refetchInterval: 120_000, retry: 1,
-  });
-  const row = q.data?.rows.find((r) => r.symbol.toUpperCase() === focus);
-  useToolReport({
-    asOf: q.isError ? null : row ? row.fetchedAt : q.data ? null : undefined,
-    source: row?.dataSource ? `GEX rankings · ${row.dataSource}` : undefined,
-    note: q.isError ? 'request failed' : row?.stale ? 'stale' : undefined, tone: q.isError || row?.stale ? 'warn' : 'ok',
-  });
-  if (q.isLoading) return <QELoading rows={4} className="fd-pad" />;
-  if (q.isError) return <QEError className="fd-m" title="GEX rankings didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
-  if (!row) return <QEEmpty className="fd-m" message={`${focus} is not in the top ${q.data?.rows.length ?? 0} rows the GEX rankings job holds. Open the GEX Chart tool for a full single-ticker read.`} />;
-  const words = REGIME_COPY[row.regime] ?? REGIME_COPY.neutral;
-  const L = (k: string, v: ReactNode, color?: string, title?: string) => (
-    <div className="fd-kv" title={title}><span>{k}</span><b style={color ? { color } : undefined}>{v}</b></div>
-  );
-  const px = (v: number | null | undefined) => (v == null ? '—' : `$${v.toFixed(2).replace(/\.00$/, '')}`);
-  return (
-    <div className="fd-scroll fd-pad">
-      <div className="fd-regime" style={{ color: regimeColor(row.regime, row.nearFlip) }}>{words.glyph} {words.title}{row.nearFlip ? ' · near flip' : ''}</div>
-      <div className="fd-sub">{words.posture}</div>
-      {L('Spot', px(row.spot))}
-      {L('Net GEX', fmtSignedUsd(row.netGEX), exposureText('gex', row.netGEX), q.data?.units.gex)}
-      {L('Zero gamma', row.zeroGamma != null ? `${px(row.zeroGamma)}${row.zeroGammaDistPct != null ? ` (${row.zeroGammaDistPct >= 0 ? '+' : ''}${row.zeroGammaDistPct.toFixed(1)}%)` : ''}` : 'none within ±20%', 'var(--amber)')}
-      {L('Call wall', px(row.callWall), 'var(--cyan)')}
-      {L('Put wall', px(row.putWall), 'var(--red)')}
-      {L('Top strike', row.topStrike != null ? `${px(row.topStrike)} · ${fmtSignedUsd(row.topStrikeGEX)}${row.topStrikeShare != null ? ` · ${(row.topStrikeShare * 100).toFixed(0)}% of |GEX|` : ''}` : '—', row.topStrikeGEX != null ? exposureText('gex', row.topStrikeGEX) : undefined)}
-      <div className="fd-foot">+ provides liquidity / − takes liquidity. Sign convention: naive OI (dealers short calls, long puts). All listed expiries.</div>
     </div>
   );
 }

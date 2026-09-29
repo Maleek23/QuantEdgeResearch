@@ -28,10 +28,17 @@ import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
-import type { StrikeExpiryCell, GEXSnapshot } from '@shared/gex-types';
+import type { StrikeExpiryCell } from '@shared/gex-types';
 import { exposureCellBg, exposureText, regimeColor, fmtGexB, fmtVexM, fmtAge, LEVEL_COLORS } from './gex-colors';
 import { GexStrikeLadder, GexStrikeMatrix, type GridLevels } from './gex-strike-grid';
-import { describeLegacyRegime, type GammaRegime } from '@shared/gex-regime';
+import { describeLegacyRegime } from '@shared/gex-regime';
+import {
+  DTE_BUCKETS, type BucketId, type EHQuote,
+  useGexHub, useGexTerminal, useSectorRotation, useExtendedHoursNexus,
+  nearTermByStrike, shapeMatrix, regimeView, zeroGammaOf, gridLevelsOf, regimeNarrative,
+  nearTermDisagrees as nearTermDisagreesOf, sessionClock as readSessionClock, sessionLabelOf,
+} from './gex-model';
+import { DealerStructureRail, GammaProfileChart, GexCellDrill } from './gex-parts';
 import '@/styles/nexus.css';
 
 // Three.js is substantial and only needed after the trader explicitly selects
@@ -39,54 +46,11 @@ import '@/styles/nexus.css';
 const GammaSurface = lazy(() => import('@/components/prism/gamma-surface').then((m) => ({ default: m.GammaSurface })));
 const GexRankingsPanel = lazy(() => import('./gex-rankings-panel').then((m) => ({ default: m.GexRankingsPanel })));
 
-const q = (path: string) => async () => {
-  const r = await fetch(path, { credentials: 'include' });
-  if (!r.ok) throw new Error(`${path} failed`);
-  return r.json();
-};
-
-interface TopPlay {
-  symbol: string; sector?: string; spotPrice?: number; playScore?: number;
-  conviction?: string; regime?: string; bias?: string; callWall?: number; putWall?: number;
-  isNegativeGamma?: boolean; insight?: string;
-  totalVEX?: number; vexSignal?: string; gammaFlip?: number | null; flipDistancePct?: number | null;
-}
-interface HubPayload { hub?: { topPlays?: TopPlay[]; totalScanned?: number; totalTickers?: number; attempted?: number; failedSymbols?: string[]; miniScan?: boolean }; generatedAt?: string }
-interface TerminalData {
-  symbol: string;
-  snapshot: GEXSnapshot;
-  strikeExpiryMatrix: StrikeExpiryCell[];
-  generatedAt?: string;
-  cached?: boolean;
-  cachedAt?: string;
-  optionsSource?: string;
-  dataQuality?: { bestSource?: string; isStale?: boolean; marketStatus?: string };
-}
-interface Sector { etf: string; name: string; change: number }
-interface RotationPayload { leaders?: Sector[]; laggards?: Sector[]; sectors?: Sector[]; sessionLabel?: string }
-interface EHQuote { symbol: string; lastPrice: number; changePct: number }
-interface EHPayload { session?: string; gainers?: EHQuote[]; losers?: EHQuote[]; mostActive?: EHQuote[] }
 interface SearchResult { symbol: string; name?: string; type?: string }
 
-const DTE_BUCKETS = [
-  { id: 'all', label: 'ALL', test: (d: number) => d >= 0 },
-  { id: '0-7', label: '0–7d', test: (d: number) => d >= 0 && d <= 7 },
-  { id: '7-30', label: '7–30d', test: (d: number) => d > 7 && d <= 30 },
-  { id: '30-90', label: '30–90d', test: (d: number) => d > 30 && d <= 90 },
-  { id: '90+', label: '90d+', test: (d: number) => d > 90 },
-] as const;
-type BucketId = typeof DTE_BUCKETS[number]['id'];
-
-/**
- * UNITS (server units v2 — docs/GEX_VEX_METHODOLOGY.md):
- *   matrix / snapshot GEX  = $B of underlying per 1% move
- *   matrix / snapshot VEX  = $M of underlying per 1 IV point
- * v1 of this file formatted the GEX matrix as $M, so every cell read 1000×
- * too small (SPY's −$1.40B node at 761 printed "−$1.4M"). fmtCell converts
- * each metric from its own unit. Under $1K is dust: an empty cell that still
- * answers on hover, so "visually nothing" never turns into "claimed zero".
- */
-const fmtCell = (v: number, metric: 'gex' | 'vex') => (metric === 'vex' ? fmtVexM(v) : fmtGexB(v));
+// Payload types, DTE buckets, units and every derivation below live in
+// gex-model.ts — shared with the GEX dashboard tools so both compute them
+// one way and share one query per symbol.
 
 /** The three hub views, named for what they show. */
 const WORKSPACES = [
@@ -116,81 +80,22 @@ export function GexHubNexus() {
   const leftRail = useColResize('nx-gex-left', 320, { sign: 1, min: 240, max: 520 });
   const rightRail = useColResize('nx-gex-right', 320, { sign: -1, min: 240, max: 520 });
 
-  const { data: hub, isLoading: hubLoading, isError: hubError, refetch: refetchHub } = useQuery<HubPayload>({
-    queryKey: ['/api/gex-vex/hub', 'nexus'], queryFn: q('/api/gex-vex/hub'),
-    staleTime: 120_000, refetchInterval: 180_000, retry: 1,
-  });
-  const { data: term, isLoading: termLoading, isError: termError, refetch: refetchTerm } = useQuery<TerminalData>({
-    queryKey: ['/api/gex-vex/terminal', symbol, 'nexus'],
-    queryFn: q(`/api/gex-vex/terminal/${symbol}?interval=15m&lookback=5`),
-    staleTime: 60_000, refetchInterval: 120_000, retry: 1,
-  });
-  const { data: rotation } = useQuery<RotationPayload>({
-    queryKey: ['/api/sector-rotation', 'nexus'], queryFn: q('/api/sector-rotation'),
-    staleTime: 120_000, refetchInterval: 180_000, retry: 1,
-  });
-  const { data: eh } = useQuery<EHPayload>({
-    queryKey: ['/api/extended-hours', 'nexus'], queryFn: q('/api/extended-hours'),
-    staleTime: 60_000, refetchInterval: 120_000, retry: 1,
-  });
+  const { data: hub, isLoading: hubLoading, isError: hubError, refetch: refetchHub } = useGexHub();
+  const { data: term, isLoading: termLoading, isError: termError, refetch: refetchTerm } = useGexTerminal(symbol);
+  const { data: rotation } = useSectorRotation();
+  const { data: eh } = useExtendedHoursNexus();
 
   const plays = hub?.hub?.topPlays ?? [];
   const snap = term?.snapshot;
   const matrix = term?.strikeExpiryMatrix ?? [];
   const spot = snap?.spotPrice ?? 0;
-  const sessionClock = useMemo(() => {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
-    }).formatToParts(new Date());
-    const weekday = parts.find((p) => p.type === 'weekday')?.value ?? '';
-    const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0) % 24;
-    const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
-    const at = hour * 60 + minute;
-    const open = 9 * 60 + 30; const close = 16 * 60;
-    const marketDay = weekday !== 'Sat' && weekday !== 'Sun';
-    const minutesLeft = marketDay && at >= open && at < close ? close - at : 0;
-    return {
-      minutesLeft,
-      label: minutesLeft > 0 ? `${Math.floor(minutesLeft / 60)}h ${minutesLeft % 60}m to close` : 'cash session closed',
-      // Square-root-of-time is a clock proxy only. It is deliberately not
-      // labelled theta because contract IV/strike are not part of this panel.
-      timeValuePct: minutesLeft > 0 ? Math.round(Math.sqrt(minutesLeft / 390) * 100) : 0,
-    };
-  }, [term?.generatedAt]);
+  const sessionClock = useMemo(() => readSessionClock(), [term?.generatedAt]);
 
   /* Default decision view: aggregate only currently listed 0–7 DTE cells by
      strike. The previous "map" mixed every expiry into snapshot levels, so a
      January node could dominate a September trading screen. Long-dated chain
      data remains available in Chain Matrix; it no longer controls the default. */
-  const flat7 = useMemo(() => {
-    const byStrike = new Map<number, number>();
-    const expiries = new Set<string>();
-    for (const cell of matrix) {
-      if (!Number.isFinite(cell.strike) || !Number.isFinite(cell.dte) || cell.dte < 0 || cell.dte > 7) continue;
-      byStrike.set(cell.strike, (byStrike.get(cell.strike) ?? 0) + (Number.isFinite(cell.netGEX) ? cell.netGEX : 0));
-      expiries.add(cell.expiryLabel);
-    }
-    const all = [...byStrike.entries()].map(([strike, gex]) => ({
-      strike,
-      gex,
-      distancePct: spot > 0 ? ((strike - spot) / spot) * 100 : 0,
-    }));
-    const nearest = [...all].sort((a, b) => Math.abs(a.strike - spot) - Math.abs(b.strike - spot)).slice(0, 17).sort((a, b) => b.strike - a.strike);
-    const positive = all.filter((x) => x.gex > 0).sort((a, b) => b.gex - a.gex)[0] ?? null;
-    const negative = all.filter((x) => x.gex < 0).sort((a, b) => a.gex - b.gex)[0] ?? null;
-    const dominant = [...all].sort((a, b) => Math.abs(b.gex) - Math.abs(a.gex))[0] ?? null;
-    return {
-      levels: nearest,
-      /** every listed strike in the 0–7 DTE scope — the scrollable ladder */
-      all,
-      positive,
-      negative,
-      dominant,
-      total: all.reduce((sum, x) => sum + x.gex, 0),
-      max: Math.max(1e-9, ...nearest.map((x) => Math.abs(x.gex))),
-      expiries: [...expiries],
-    };
-  }, [matrix, spot]);
+  const flat7 = useMemo(() => nearTermByStrike(matrix, spot), [matrix, spot]);
 
   const quoteBySym = useMemo(() => {
     const m = new Map<string, EHQuote>();
@@ -201,44 +106,8 @@ export function GexHubNexus() {
   }, [eh]);
   const spotQ = quoteBySym.get(symbol);
 
-  /* ── matrix shaping — all real cells, windowed around spot ── */
-  const valOf = (c: StrikeExpiryCell) => (metric === 'vex' ? (c.netVEX ?? 0) : c.netGEX);
-
-  const shaped = useMemo(() => {
-    const cells = matrix.filter((c) => Number.isFinite(c.strike) && Number.isFinite(c.dte) && c.dte >= 0);
-    const expiryAll = [...new Map(cells.map((c) => [c.dte, c.expiryLabel] as const)).entries()]
-      .sort((a, b) => a[0] - b[0]);
-    const bucketDef = DTE_BUCKETS.find((b) => b.id === bucket)!;
-    const expiries = expiryAll.filter(([d]) => bucketDef.test(d));
-    const bucketCounts = Object.fromEntries(
-      DTE_BUCKETS.map((b) => [b.id, expiryAll.filter(([d]) => b.test(d)).length]),
-    ) as Record<BucketId, number>;
-
-    // Every listed strike is shown — the grid scrolls (gex-strike-grid.tsx);
-    // there is no spot window and nothing to "expand".
-    const strikeCount = new Set(cells.map((c) => c.strike)).size;
-
-    /* strongest listed nodes above / below spot — the context rail's read */
-    let above: StrikeExpiryCell | null = null; let below: StrikeExpiryCell | null = null;
-    for (const c of cells) {
-      if (c.strike > spot && (!above || Math.abs(valOf(c)) > Math.abs(valOf(above)))) above = c;
-      if (c.strike < spot && (!below || Math.abs(valOf(c)) > Math.abs(valOf(below)))) below = c;
-    }
-    /* gravity: call-side vs put-side share of total |exposure| */
-    let pos = 0; let neg = 0;
-    for (const c of cells) { const v = valOf(c); if (v >= 0) pos += v; else neg += -v; }
-    // One decimal, clamped off the poles: with a single node holding ~99% of
-    // exposure, integer rounding printed "0% puts / 100% calls" — but puts
-    // EXIST, they are just dwarfed. 0% is a claim of absence; 0.2% is a
-    // measurement. (Same lesson as the robust max on the gamma surface.)
-    const callPct = pos + neg > 0
-      ? Math.min(99.9, Math.max(0.1, (pos / (pos + neg)) * 100))
-      : null;
-
-    return { expiries, expiryAll, bucketCounts, strikeCount, above, below, callPct, total: cells.length };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matrix, bucket, spot, metric]);
-
+  /* ── matrix shaping — all real cells (gex-model.shapeMatrix) ── */
+  const shaped = useMemo(() => shapeMatrix(matrix, bucket, spot, metric), [matrix, bucket, spot, metric]);
 
   /**
    * ONE regime read for every panel on this page (shared/gex-regime.ts):
@@ -247,47 +116,16 @@ export function GexHubNexus() {
    * badges all print THIS — v1 derived the map's read from the 0–7 DTE sum and
    * the hero from the snapshot, so the same page could say both.
    */
-  const reg = useMemo(() => {
-    if (!snap) return null;
-    const rr = snap.regimeRead;
-    if (rr) {
-      return {
-        regime: rr.regime as GammaRegime, nearFlip: rr.nearFlip, glyph: rr.glyph,
-        title: rr.nearFlip ? `${rr.title} · near the flip` : rr.title,
-        posture: rr.posture, basis: rr.basis,
-      };
-    }
-    const d = describeLegacyRegime(snap.regime);
-    return { regime: d.regime, nearFlip: d.nearFlip, glyph: d.glyph, title: d.title, posture: d.posture, basis: `net GEX ${fmtGexB(snap.totalGEX)}/1%` };
-  }, [snap]);
+  const reg = useMemo(() => regimeView(snap), [snap]);
   const negGamma = reg ? reg.regime === 'negative' : false;
-  const zeroGamma = snap ? (snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null) : null;
+  const zeroGamma = zeroGammaOf(snap);
   /** Structural levels every strike grid marks (all listed expiries). */
-  const gridLevels: GridLevels = useMemo(() => ({
-    spot,
-    callWall: snap?.callWall ?? null,
-    putWall: snap?.putWall ?? null,
-    maxGamma: snap?.maxGammaStrike ?? null,
-    zeroGamma,
-  }), [spot, snap?.callWall, snap?.putWall, snap?.maxGammaStrike, zeroGamma]);
-
-  const EXPECT: Record<GammaRegime, string> = {
-    negative: 'Breaks can accelerate. Wait for price to clear a wall, then trade with the confirmed direction instead of fading it.',
-    positive: 'Expect two-way trade and pinning toward the dominant node. Fade weak extensions until a wall breaks with confirmation.',
-    neutral: 'Treat the walls as decision levels, reduce size, and let price confirm direction before using gamma as confluence.',
-  };
-  const regimeRead = reg
-    ? {
-        label: reg.title,
-        tone: reg.nearFlip || reg.regime === 'neutral' ? 'amber' : reg.regime === 'negative' ? 'red' : 'blue',
-        headline: reg.posture,
-        expectation: reg.nearFlip
-          ? `Spot is within 1% of the zero-gamma level ($${zeroGamma?.toFixed(2)}): a small move flips dealers between dampening and amplifying. ${EXPECT.neutral}`
-          : EXPECT[reg.regime],
-      }
-    : { label: 'Reading the chain', tone: 'amber', headline: 'No dealer map yet.', expectation: 'Levels appear once the chain is read.' };
+  const gridLevels: GridLevels = useMemo(() => gridLevelsOf(snap, spot),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [spot, snap?.callWall, snap?.putWall, snap?.maxGammaStrike, zeroGamma]);
+  const regimeRead = regimeNarrative(reg, zeroGamma);
   // Does the 0–7 DTE book lean the other way from the whole book? Say so rather than pick one.
-  const nearTermDisagrees = !!reg && flat7.levels.length > 0 && reg.regime !== 'neutral' && Math.sign(flat7.total) !== (reg.regime === 'positive' ? 1 : -1);
+  const nearTermDisagrees = nearTermDisagreesOf(reg, flat7);
 
   /* ── ⌘K search — the real universal index ── */
   const [searchOpen, setSearchOpen] = useState(false);
@@ -330,7 +168,7 @@ export function GexHubNexus() {
     setSearchOpen(false);
   };
 
-  const sessionLabel = eh?.session === 'pre' ? 'Pre-market' : eh?.session === 'post' ? 'After hours' : eh?.session === 'regular' ? 'Live' : 'Last close';
+  const sessionLabel = sessionLabelOf(eh);
   // The focused terminal snapshot is newer and more complete than the ranked
   // rail. Never let a stale hub row label the same symbol +γ while its live
   // dealer map says −γ.
@@ -435,30 +273,7 @@ export function GexHubNexus() {
             {/* Dealer structure rail — the flip/wall geometry, drawn not implied.
                 putWall … gammaFlip … callWall on a price axis with the live spot
                 marker; below-flip territory is negative-gamma red. */}
-            {snap && (snap.putWall || snap.callWall || zeroGamma) && (() => {
-              const pts = [snap.putWall, zeroGamma, snap.callWall, spot].filter((v): v is number => Number.isFinite(v as number));
-              const lo = Math.min(...pts) * 0.995; const hi = Math.max(...pts) * 1.005;
-              const X = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
-              const flip = zeroGamma;
-              // Which side of zero-γ is negative depends on the book's profile, not a rule:
-              // colour the side spot is on by the regime, the other side by its opposite.
-              const leftNeg = flip != null && spot < flip ? negGamma : !negGamma;
-              return (
-                <div style={{ margin: '10px 0 4px', padding: '14px 10px 4px', position: 'relative' }}>
-                  <div style={{ position: 'relative', height: 6, borderRadius: 3, background: flip != null ? `linear-gradient(90deg, color-mix(in srgb, ${leftNeg ? 'var(--red)' : 'var(--cyan)'} 32%, transparent) ${X(flip)}, color-mix(in srgb, ${leftNeg ? 'var(--cyan)' : 'var(--red)'} 32%, transparent) ${X(flip)})` : `color-mix(in srgb, ${negGamma ? 'var(--red)' : 'var(--cyan)'} 15%, transparent)` }} title="Bar colour: blue = positive-gamma side (dealers stabilise), vermilion = negative-gamma side (dealers amplify)">
-                    {snap.putWall != null && <div title={`Put wall $${snap.putWall}`} style={{ position: 'absolute', left: X(snap.putWall), top: -4, width: 2, height: 14, background: 'var(--red)', boxShadow: '0 0 6px var(--red)' }} />}
-                    {flip != null && <div title={`Zero-gamma level $${flip.toFixed(2)}`} style={{ position: 'absolute', left: X(flip), top: -6, width: 2, height: 18, background: 'var(--amber)', boxShadow: '0 0 8px var(--amber)' }} />}
-                    {snap.callWall != null && <div title={`Call wall $${snap.callWall}`} style={{ position: 'absolute', left: X(snap.callWall), top: -4, width: 2, height: 14, background: 'var(--cyan)', boxShadow: '0 0 6px var(--cyan)' }} />}
-                    {spot != null && <div title={`Spot $${spot.toFixed(2)}`} style={{ position: 'absolute', left: X(spot), top: -3, width: 8, height: 12, borderRadius: 2, background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,0.7)', transform: 'translateX(-4px)' }} />}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
-                    <span style={{ color: 'var(--red)' }}>P {snap.putWall != null ? `$${Math.round(snap.putWall)}` : '—'}</span>
-                    <span style={{ color: 'var(--amber)' }}>zero-γ {flip != null ? `$${flip.toFixed(1)}` : '—'}</span>
-                    <span style={{ color: 'var(--cyan-bright)' }}>C {snap.callWall != null ? `$${Math.round(snap.callWall)}` : '—'}</span>
-                  </div>
-                </div>
-              );
-            })()}
+            {snap && <DealerStructureRail snap={snap} spot={spot} zeroGamma={zeroGamma} negGamma={negGamma} />}
             <div className="flow-wrap">
               <div className="flow-side">
                 <div className="flow-side-label">Out of</div>
@@ -807,45 +622,15 @@ export function GexHubNexus() {
             </div>
           </div>
 
-          {snap?.gammaProfile && snap.gammaProfile.length > 2 && (() => {
-            const pts = snap.gammaProfile;
-            const W = 280; const H = 86; const pad = 4;
-            const xs = pts.map((p) => p.spot); const ys = pts.map((p) => p.netGEX);
-            const x0 = Math.min(...xs); const x1 = Math.max(...xs);
-            const yMax = Math.max(1e-12, ...ys.map((v) => Math.abs(v)));
-            const X = (v: number) => pad + ((v - x0) / (x1 - x0)) * (W - 2 * pad);
-            const Y = (v: number) => H / 2 - (v / yMax) * (H / 2 - pad);
-            const line = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.spot).toFixed(1)},${Y(p.netGEX).toFixed(1)}`).join(' ');
-            const area = `${line} L${X(x1).toFixed(1)},${H / 2} L${X(x0).toFixed(1)},${H / 2} Z`;
-            return (
-              <div className="context-card" title="Net GEX re-priced at hypothetical spots (every contract's gamma recomputed at each price, IV held). Where the curve crosses zero is the zero-gamma level.">
-                <div className="context-head">
-                  <div className="context-label">Gamma profile · if spot moved</div>
-                  <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>net GEX $/1% vs price, ±20%</div>
-                </div>
-                <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label="Net GEX across hypothetical spot prices">
-                  <defs>
-                    <clipPath id="gp-above"><rect x="0" y="0" width={W} height={H / 2} /></clipPath>
-                    <clipPath id="gp-below"><rect x="0" y={H / 2} width={W} height={H / 2} /></clipPath>
-                  </defs>
-                  <path d={area} fill="color-mix(in srgb, var(--cyan) 22%, transparent)" clipPath="url(#gp-above)" />
-                  <path d={area} fill="color-mix(in srgb, var(--red) 22%, transparent)" clipPath="url(#gp-below)" />
-                  <line x1={0} x2={W} y1={H / 2} y2={H / 2} stroke="var(--nx-border-hi)" strokeWidth={1} />
-                  <path d={line} fill="none" stroke="var(--text-dim)" strokeWidth={1.2} />
-                  {zeroGamma != null && zeroGamma >= x0 && zeroGamma <= x1 && <line x1={X(zeroGamma)} x2={X(zeroGamma)} y1={pad} y2={H - pad} stroke="var(--amber)" strokeDasharray="3 2" strokeWidth={1.2} />}
-                  {spot > 0 && spot >= x0 && spot <= x1 && <line x1={X(spot)} x2={X(spot)} y1={pad} y2={H - pad} stroke="#fff" strokeWidth={1.4} />}
-                </svg>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
-                  <span>${x0.toFixed(0)}</span>
-                  <span><span style={{ color: '#fff' }}>│</span> spot · <span style={{ color: 'var(--amber)' }}>┆</span> zero-γ{zeroGamma != null ? ` $${zeroGamma.toFixed(2)}` : ' none'}</span>
-                  <span>${x1.toFixed(0)}</span>
-                </div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', marginTop: 2 }}>
-                  <span style={{ color: 'var(--cyan-bright)' }}>blue</span> = dealers long gamma at that price · <span style={{ color: 'var(--red)' }}>vermilion</span> = short gamma
-                </div>
+          {snap?.gammaProfile && snap.gammaProfile.length > 2 && (
+            <div className="context-card" title="Net GEX re-priced at hypothetical spots (every contract's gamma recomputed at each price, IV held). Where the curve crosses zero is the zero-gamma level.">
+              <div className="context-head">
+                <div className="context-label">Gamma profile · if spot moved</div>
+                <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>net GEX $/1% vs price, ±20%</div>
               </div>
-            );
-          })()}
+              <GammaProfileChart snap={snap} spot={spot} zeroGamma={zeroGamma} />
+            </div>
+          )}
 
           <div className="gravity-card">
             <div className="context-head">
@@ -931,38 +716,7 @@ export function GexHubNexus() {
       </div>
 
       {/* ══════════ ⌘K SEARCH — real universal index ══════════ */}
-      {drill && (() => {
-        const strikeCells = matrix.filter((m) => m.strike === drill.strike);
-        const expiryCells = matrix.filter((m) => m.dte === drill.dte);
-        const val = (c: StrikeExpiryCell) => metric === 'vex' ? (c.netVEX ?? 0) : c.netGEX;
-        const strikeTotal = strikeCells.reduce((a, c) => a + val(c), 0);
-        const expiryTotal = expiryCells.reduce((a, c) => a + val(c), 0);
-        const v = val(drill);
-        const dist = spot ? ((drill.strike - spot) / spot) * 100 : null;
-        return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center' }} onClick={() => setDrill(null)}>
-            <div style={{ width: 320, background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 10, padding: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }} onClick={(e) => e.stopPropagation()}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-                <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16 }}>{symbol} ${drill.strike}</div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>{drill.expiryLabel} · {drill.dte}d</div>
-              </div>
-              {[
-                ['net GEX', `${fmtGexB(drill.netGEX)}/1%`],
-                ['net VEX', `${fmtVexM(drill.netVEX ?? 0)}/IV pt`],
-                ['vs spot', dist != null ? `${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%` : '—'],
-                [`share of $${drill.strike} strike`, strikeTotal !== 0 ? `${((v / strikeTotal) * 100).toFixed(0)}% of ${fmtCell(strikeTotal, metric)}` : '—'],
-                [`share of ${drill.expiryLabel} expiry`, expiryTotal !== 0 ? `${((v / expiryTotal) * 100).toFixed(0)}% of ${fmtCell(expiryTotal, metric)}` : '—'],
-              ].map(([k, val2]) => (
-                <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px dashed color-mix(in srgb, var(--cyan) 8%, transparent)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>
-                  <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 'var(--fs-9, 9px)', letterSpacing: 0.5 }}>{k}</span>
-                  <span style={{ fontWeight: 700, color: k === 'net GEX' ? exposureText('gex', drill.netGEX) : k === 'net VEX' ? exposureText('vex', drill.netVEX ?? 0) : undefined }}>{val2}</span>
-                </div>
-              ))}
-              <div style={{ marginTop: 10, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", fontStyle: 'italic' }}>listed-chain node · esc or click away to close</div>
-            </div>
-          </div>
-        );
-      })()}
+      {drill && <GexCellDrill drill={drill} matrix={matrix} metric={metric} spot={spot} symbol={symbol} onClose={() => setDrill(null)} />}
       {searchOpen && (
         <div className="search-modal" onClick={(e) => { if (e.target === e.currentTarget) setSearchOpen(false); }}>
           <div className="search-box">
