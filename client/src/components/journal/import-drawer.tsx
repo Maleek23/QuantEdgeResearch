@@ -11,7 +11,7 @@
  *   6. Discord        → a trader's Discord history, preview then confirm (trader journals)
  */
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Download, FileUp, Link2, Loader2, MessageSquare, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Download, FileUp, Link2, Loader2, MessageSquare, Plus, Trash2, Upload } from 'lucide-react';
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -22,20 +22,11 @@ import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
 import { useJournalPortalClass } from './parts';
 import { useJournal } from './journal-context';
 import { AlpacaConnect } from './alpaca-connect';
+import { ImportHistory, ImportReconciliation, type ImportResult } from './import-reconciliation';
 
 const FlowImport = lazy(() => import('@/components/trade-desk/flow-import').then((m) => ({ default: m.FlowImport })));
 
 export type ImportSection = 'csv' | 'manual' | 'flow' | 'reset' | 'broker' | 'discord';
-
-interface ImportResult {
-  ok: boolean;
-  broker?: string;
-  saved?: number;
-  duplicates?: number;
-  open?: number;
-  closed?: number;
-  errors: string[];
-}
 
 function CsvImport({ onDone, qs }: { onDone: () => void; qs: string }) {
   const [broker, setBroker] = useState('');
@@ -60,7 +51,10 @@ function CsvImport({ onDone, qs }: { onDone: () => void; qs: string }) {
       const csv = await file.text();
       const res = await apiRequest('POST', `/api/journal/import-csv${qs ? `?${qs}` : ''}`, { csv, broker: broker || undefined });
       const data = await res.json();
-      setResult({ ok: true, broker: data.broker, saved: data.saved, duplicates: data.duplicates, open: data.open, closed: data.closed, errors: data.errors ?? [] });
+      setResult({
+        ok: true, broker: data.broker, saved: data.saved, duplicates: data.duplicates, open: data.open, closed: data.closed, errors: data.errors ?? [],
+        totalRows: data.totalRows, fillRows: data.fillRows ?? null, roundTrips: data.roundTrips, duplicateRows: data.duplicateRows, batchId: data.batchId,
+      });
       onDone();
     } catch (err) {
       setResult({ ok: false, errors: [await readApiError(err)] });
@@ -95,28 +89,7 @@ function CsvImport({ onDone, qs }: { onDone: () => void; qs: string }) {
         <div style={{ fontSize: 11.5, marginTop: 2 }}>Webull · Robinhood · Schwab · IBKR · tastytrade · TD · Fidelity · E*TRADE. Duplicates are skipped.</div>
         <input ref={input} type="file" accept=".csv,text/csv" hidden onChange={(e) => { handle(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
-      {result && (result.ok ? (
-        <div className="jr-ok" role="status">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}><Check className="h-4 w-4" /> Imported {result.saved} trade{result.saved === 1 ? '' : 's'} ({result.broker})</div>
-          <div className="jr-dim" style={{ fontSize: 12, marginTop: 4 }}>
-            {typeof result.closed === 'number' && <>Reconstructed {result.closed} closed and {result.open} open positions. </>}
-            {!!result.duplicates && <>Skipped {result.duplicates} already in your journal.</>}
-          </div>
-          {result.errors.length > 0 && (
-            <details style={{ marginTop: 6 }}>
-              <summary style={{ cursor: 'pointer', color: 'var(--amber)' }}>{result.errors.length} row warning{result.errors.length === 1 ? '' : 's'}</summary>
-              <ul style={{ margin: '4px 0 0 16px', fontSize: 11.5, color: 'var(--text-dim)', maxHeight: 120, overflowY: 'auto' }}>
-                {result.errors.slice(0, 25).map((e, i) => <li key={i}>{e}</li>)}
-              </ul>
-            </details>
-          )}
-        </div>
-      ) : (
-        <div className="jr-err" role="alert">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}><X className="h-4 w-4" /> Import failed — nothing was saved</div>
-          <ul style={{ margin: '4px 0 0 16px' }}>{result.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
-        </div>
-      ))}
+      {result && <ImportReconciliation result={result} />}
       <details className="jr-details">
         <summary className="jr-dim" style={{ fontSize: 12 }}><Download className="h-3.5 w-3.5" /> How to export from your broker</summary>
         <ul style={{ margin: '6px 0 0 16px', fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.7 }}>

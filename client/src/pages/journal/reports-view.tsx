@@ -8,6 +8,11 @@
  * Client-computed (filtered rows): breakdowns, weekday/hour/hold time, risk,
  * weekly. Server-computed with the same filters: behaviour insights, session
  * timing, trades-per-day optimum, DTE. Each block says its sample size.
+ *
+ * 2026-09-29 (LuxAlgo Reports parity, components/journal/reports-extra.tsx):
+ * Comparison (two filter sets side by side), Trade explorer (virtualised
+ * table, column chooser), Performance trends (rolling metrics), Review export
+ * (CSV downloads).
  */
 import { useMemo, useState } from 'react';
 import type { JournalFilters } from '@shared/journal-filters';
@@ -20,6 +25,7 @@ import {
   REPORT_DIM_LABEL, drawdownPeriods, underwater, type ReportDim,
 } from '@/lib/journal/metrics';
 import type { BehaviorInsight, TimingInsight } from '@/lib/journal/types';
+import { ComparisonCard, PerformanceTrendsCard, ReviewExportCard, TradeExplorerCard } from '@/components/journal/reports-extra';
 
 const shortDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
 
@@ -64,6 +70,10 @@ export default function ReportsView() {
         <a href="#jr-time">Time</a>
         <a href="#jr-risk">Risk</a>
         <a href="#jr-insights">Insights</a>
+        <a href="#jr-compare">Comparison</a>
+        <a href="#jr-explorer">Trade explorer</a>
+        <a href="#jr-trends">Trends</a>
+        <a href="#jr-export">Export</a>
       </nav>
 
       <Card id="jr-breakdowns" className="jr-anchor" num="01" title={`Performance by ${REPORT_DIM_LABEL[by].toLowerCase()}`}
@@ -196,6 +206,11 @@ export default function ReportsView() {
       <Card id="jr-insights" className="jr-anchor" num="12" title="Behaviour insights" meta={<span className="jr-n">server engine · same filters</span>}>
         {serverBlock(() => <InsightGroups insights={a?.insights ?? []} />)}
       </Card>
+
+      <ComparisonCard num="13" />
+      <TradeExplorerCard num="14" />
+      <PerformanceTrendsCard num="15" />
+      <ReviewExportCard num="16" />
     </div>
   );
 }
