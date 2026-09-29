@@ -6,13 +6,14 @@
  * via ?jtab=backtest).
  */
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
+import { ToolSkeleton } from '@/components/ui/qe-loading';
 
 const Performance = lazy(() => import('@/pages/performance'));
 const StrategySim = lazy(() => import('@/pages/strategy-simulator'));
 
 const Spinner = () => (
-  <div style={{ display: 'grid', placeItems: 'center', height: 160 }}><Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--jr-accent)' }} /></div>
+  <ToolSkeleton rows={3} />
 );
 
 export default function RecordView({ backtestOpen }: { backtestOpen: boolean }) {

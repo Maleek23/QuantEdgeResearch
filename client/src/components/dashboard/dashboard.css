@@ -197,9 +197,11 @@
 /* Desktop: the page fits the viewport — bar fixed, only the grid (and each
    tool's own body) scrolls. --dash-chrome = app chrome height around main. */
 @media (min-width:768px){
-  .flowdash.dash-fit{display:flex;flex-direction:column;height:calc(100dvh - var(--dash-chrome,98px));min-height:420px;padding-bottom:6px}
-  .flowdash.dash-fit .fd-bar{flex:none}
-  .flowdash.dash-fit .fd-scroller{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-bottom:12px;scrollbar-gutter:stable}
+  /* height = the shell's MEASURED main area (main-height.ts), so the grid's
+     VIEW_ROWS rows fill it exactly; the chrome guess is only a fallback. */
+  .flowdash.dash-fit{display:flex;flex-direction:column;box-sizing:border-box;height:var(--qe-main-h,calc(100dvh - var(--dash-chrome,98px)));min-height:420px;padding-bottom:6px}
+  .flowdash.dash-fit .fd-bar{flex:none;min-height:30px}
+  .flowdash.dash-fit .fd-scroller{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-bottom:0;scrollbar-gutter:stable}
 }
 .flowdash .fd-live{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .flowdash .fd-idle{display:grid;place-items:center;flex:1;padding:16px;font:500 10.5px var(--fd-mono);color:var(--text-mute);text-align:center}
@@ -219,7 +221,6 @@
 .flowdash .gx-col{display:flex;flex-direction:column;overflow:hidden}
 .flowdash .gx-grow{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .flowdash .gx-grow.matrix-wrap{overflow:hidden;padding:0 2px 2px}
-.flowdash .gx-grow.three-wrap{min-height:160px}
 .flowdash .gx-pad{padding:0 10px}
 .flowdash .gx-legend{flex:none;padding:5px 10px;border-bottom:1px solid var(--nx-border);font:500 9.5px/1.45 var(--fd-mono);color:var(--text-mute)}
 .flowdash .gx-legend i{font-style:normal}
@@ -261,3 +262,31 @@
 .flowdash .gx-tool .flow-wrap{margin-top:0}
 /* the hub's rankings table inside a tile */
 .flowdash .fd-scroll>.gexrank{min-width:0}
+
+/* ══════════════ loading & motion (2026-09-29, docs/DESIGN_SYSTEM.md "Loading") ══════════════
+   Whatever lands in a tool body (skeleton, then content) fades in ≤150ms —
+   opacity only, so nothing moves; off under prefers-reduced-motion. */
+.flowdash .fd-live>*{animation:qe-in .15s ease-out}
+@media (prefers-reduced-motion:reduce){.flowdash .fd-live>*{animation:none}}
+.flowdash .fd-live>.qe-tool-skel{flex:1}
+
+/* ══════════════ SIMPLE page (PageSpec.simple) — one tool, full bleed ══════════════ */
+.flowdash .fd-prov{min-width:0;font:500 10px var(--fd-mono);color:var(--text-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flowdash .fd-prov.warn{color:var(--amber)}
+.flowdash.dash-simple .fd-bar-title{flex:1}
+@media (min-width:768px){.flowdash.dash-simple .fd-bar-title{flex-wrap:nowrap}}
+.flowdash .fd-simple{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;flex:1;min-height:0}
+.flowdash .fd-simple.with-rail{grid-template-columns:minmax(0,1fr) clamp(260px,22vw,380px)}
+.flowdash .fd-simple-main,.flowdash .fd-simple-rail{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-solid);overflow:hidden}
+.flowdash .fd-simple-rail-head{display:flex;align-items:center;gap:8px;padding:6px 6px 5px 10px;border-bottom:1px solid var(--nx-border);background:var(--bg-2);flex:none}
+.flowdash .fd-simple-rail-title{font:700 12px 'Space Grotesk',Inter,sans-serif;color:var(--text);white-space:nowrap}
+.flowdash .fd-simple-rail-head .fd-prov{flex:1}
+@media (min-width:768px){
+  .flowdash.dash-simple .fd-simple{height:100%}
+}
+@media (max-width:767px){
+  .flowdash .fd-simple,.flowdash .fd-simple.with-rail{grid-template-columns:1fr}
+  .flowdash .fd-simple-main{height:min(78dvh,640px)}
+  .flowdash .fd-simple-rail{height:min(70dvh,520px)}
+  .flowdash.dash-simple .fd-bar-title .fd-prov{flex-basis:100%;white-space:normal}
+}

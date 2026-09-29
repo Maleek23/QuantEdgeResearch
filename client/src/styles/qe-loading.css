@@ -1,0 +1,36 @@
+/* THE LOADING SYSTEM (components/ui/qe-loading.tsx) — boot → page → tool.
+   Skeleton = a quiet surface-tinted block with a slow opacity breath; motion
+   is opacity-only and off under prefers-reduced-motion. Colours read the
+   nexus tokens with neutral fallbacks so the same skeleton works in the
+   terminal, framed pages and public pages. */
+
+.qe-skel{display:block;border-radius:4px;background:color-mix(in srgb,var(--text-mute,#8a93a6) 14%,transparent);animation:qe-breathe 1.4s ease-in-out infinite}
+@keyframes qe-breathe{0%,100%{opacity:.55}50%{opacity:1}}
+@keyframes qe-in{from{opacity:0}to{opacity:1}}
+
+/* tool */
+.qe-tool-skel{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;padding:10px;overflow:hidden;animation:qe-in .15s ease-out}
+.qe-skel-label{font:500 10px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.06em;color:var(--text-mute,#8a93a6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qe-skel-block{flex:1 1 40%;min-height:48px;max-height:220px}
+.qe-skel-line{height:10px;flex:none}
+
+/* page — mirrors .flowdash.dash-fit: same padding, 30px bar + 8px gap, 12-col grid, 8px gaps */
+.qe-page-skel{display:flex;flex-direction:column;box-sizing:border-box;height:var(--qe-main-h,calc(100dvh - 98px));min-height:420px;padding:8px 12px 6px;animation:qe-in .15s ease-out}
+.qe-page-skel.fill{height:100%;min-height:0;padding:0}
+.qe-page-skel-bar{display:flex;align-items:center;gap:6px;height:30px;margin-bottom:8px;flex:none}
+.qe-page-skel-bar .qe-skel{height:22px;border-radius:5px}
+.qe-page-skel-gap{flex:1}
+.qe-page-skel-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px;flex:1;min-height:0}
+.qe-page-skel-tile{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--nx-border-hi,rgba(148,163,184,.22));border-radius:8px;background:var(--panel-solid,#0c1017);overflow:hidden}
+.qe-page-skel-head{flex:none;padding:9px 10px;border-bottom:1px solid var(--nx-border,rgba(148,163,184,.14));background:var(--bg-2,#0a0c11)}
+.qe-page-skel-head .qe-skel{height:10px}
+.qe-page-skel-body{display:flex;flex-direction:column;gap:8px;padding:10px}
+@media (max-width:767px){
+  .qe-page-skel{height:auto;min-height:0;padding:8px 16px 24px}
+  .qe-page-skel-grid{grid-template-columns:1fr;grid-template-rows:none!important;gap:10px}
+  .qe-page-skel-tile{grid-column:auto!important;grid-row:auto!important;height:220px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .qe-skel,.qe-tool-skel,.qe-page-skel{animation:none}
+}

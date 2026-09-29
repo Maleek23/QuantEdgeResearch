@@ -1,4 +1,5 @@
 import "./lib/insecure-context-polyfills"; // must run before anything touches crypto.randomUUID
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -6,6 +7,7 @@ import "./components/lux/lux.css";
 import { ErrorBoundary } from "./components/error-boundary";
 import { initClientObservability } from "./lib/observability";
 import { installStaleBundleGuard } from "./lib/stale-bundle";
+import { armBoot } from "./lib/boot";
 
 // Initialize observability immediately (before any other code can throw)
 void initClientObservability();
@@ -34,16 +36,18 @@ window.onunhandledrejection = function(event) {
   console.error('===================================');
 };
 
-// Remove the inline HTML loading indicator once React takes over
-const appLoader = document.getElementById("app-loader");
-if (appLoader) {
-  appLoader.style.transition = "opacity 0.3s ease-out";
-  appLoader.style.opacity = "0";
-  setTimeout(() => appLoader.remove(), 300);
+// The boot screen (#app-loader) is NOT removed at module load any more — it
+// used to vanish before React had painted, exposing a second spinner. After
+// React's FIRST commit (so every boot-phase <BootHold/> has registered) it
+// leaves as soon as nothing holds it (lib/boot.ts, ui/qe-loading.tsx).
+function BootArm() {
+  useEffect(() => { armBoot(); }, []);
+  return null;
 }
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
+    <BootArm />
     <App />
   </ErrorBoundary>
 );

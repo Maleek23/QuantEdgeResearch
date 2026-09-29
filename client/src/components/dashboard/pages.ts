@@ -9,6 +9,7 @@
  * layouts saved before the framework existed still load.
  */
 import type { DefaultLayout, ToolCategory } from './tool-def';
+import { VIEW_ROWS, tilingIssues } from './layout';
 import { FLOW_DEFAULTS } from './defs/flow';
 import { GEX_DEFAULTS } from './defs/gex';
 import { NEXUS_DEFAULTS } from './defs/nexus';
@@ -41,6 +42,13 @@ export interface PageSpec {
   seedOnlyWhenEmpty?: boolean;
   /** tools offered as one-click adds when a dashboard is empty */
   starters: string[];
+  /**
+   * SIMPLE page: by default the page is ONE primary tool, full bleed — no
+   * grid, no tool chrome (provenance moves to the page bar) — with an
+   * optional collapsible right rail. "Customize" switches that viewer to the
+   * page's dashboards (remembered per device); "Simple view" switches back.
+   */
+  simple?: { tool: string; rail?: { tool: string; label: string } };
 }
 
 const spec = (id: PageId, label: string, defaults: DefaultLayout[], primary: ToolCategory[], starters: string[]): PageSpec => ({
@@ -58,12 +66,37 @@ export const PAGES: Record<PageId, PageSpec> = {
   },
   gex: spec('gex', 'GEX', GEX_DEFAULTS, ['GEX', 'Market'], ['gex-dealer-map', 'gex-levels', 'stock-chart']),
   nexus: spec('nexus', 'NEXUS', NEXUS_DEFAULTS, ['Ideas', 'Market'], NEXUS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
-  chart: spec('chart', 'CHART', CHART_DEFAULTS, ['Market', 'Research'], ['stock-chart']),
+  chart: { ...spec('chart', 'CHART', CHART_DEFAULTS, ['Market', 'Research'], ['stock-chart']), simple: { tool: 'stock-chart', rail: { tool: 'chart-watchlists', label: 'Watchlist' } } },
   crypto: spec('crypto', 'CRYPTO', CRYPTO_DEFAULTS, ['Crypto', 'Market'], CRYPTO_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
   catalyst: spec('catalyst', 'CATALYST', CATALYST_DEFAULTS, ['Catalyst', 'Ideas'], CATALYST_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
-  leaps: spec('leaps', 'LEAPS', LEAPS_DEFAULTS, ['Ideas', 'Research'], LEAPS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
+  leaps: { ...spec('leaps', 'LEAPS', LEAPS_DEFAULTS, ['Ideas', 'Research'], LEAPS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []), simple: { tool: 'leaps-classic' } },
   bot: spec('bot', 'BOT', BOT_DEFAULTS, ['Bot', 'Book'], BOT_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
-  positions: spec('positions', 'POSITIONS', POSITIONS_DEFAULTS, ['Book', 'Bot'], POSITIONS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
+  positions: { ...spec('positions', 'POSITIONS', POSITIONS_DEFAULTS, ['Book', 'Bot'], POSITIONS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []), simple: { tool: 'positions-classic' } },
   journal: spec('journal', 'JOURNAL', JOURNAL_DEFAULTS, ['Journal'], ['journal-net-pnl', 'journal-equity', 'journal-calendar']),
   today: spec('today', 'TODAY', TODAY_DEFAULTS, ['Market', 'Ideas', 'Book'], TODAY_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
 };
+
+export type ViewMode = 'simple' | 'dashboard';
+export const viewModeKey = (page: PageId) => `qe-dash-${page}-view`;
+/** A simple page's view for this device: 'simple' unless the viewer chose Customize. */
+export function readViewMode(page: PageId): ViewMode {
+  if (!PAGES[page].simple) return 'dashboard';
+  try { return localStorage.getItem(viewModeKey(page)) === 'dashboard' ? 'dashboard' : 'simple'; } catch { return 'simple'; }
+}
+
+/** Where a page's loading skeleton puts its tiles — the page's own default grid. */
+export function skeletonTiles(page: PageId, mode: ViewMode = readViewMode(page)): Array<[number, number, number, number]> {
+  const p = PAGES[page];
+  if (mode === 'simple' && p.simple) return p.simple.rail ? [[0, 0, 9, VIEW_ROWS], [9, 0, 3, VIEW_ROWS]] : [[0, 0, 12, VIEW_ROWS]];
+  return (p.defaults[0]?.tools ?? []).map(([, x, y, w, h]) => [x, y, w, h]);
+}
+
+// Every shipped default must tile COLS × VIEW_ROWS exactly (no holes, no overlaps).
+if (import.meta.env?.DEV) {
+  for (const p of Object.values(PAGES)) {
+    for (const d of p.defaults) {
+      const issues = tilingIssues(d.tools.map(([type, x, y, w, h]) => ({ type, x, y, w, h })));
+      if (issues.length) console.warn(`[dashboard] ${p.id}:${d.id} default does not tile:`, issues);
+    }
+  }
+}

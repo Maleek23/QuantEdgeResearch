@@ -9,14 +9,14 @@
  * walls/max-γ/zero-γ rows), colours from gex-colors.ts (CVD-safe).
  * Ticker tools follow the dashboard focus symbol; a row click re-points it.
  */
-import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { StrikeExpiryCell } from '@shared/gex-types';
 import { describeLegacyRegime } from '@shared/gex-regime';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
-import { GexStrikeLadder, GexStrikeMatrix } from '@/components/gex/gex-strike-grid';
+import { GexStrikeLadder, GexStrikeMatrix, type MatrixScale } from '@/components/gex/gex-strike-grid';
 import { GexHubNexus } from '@/components/gex/gex-hub-nexus';
 import { GexRankingsPanel } from '@/components/gex/gex-rankings-panel';
-import { exposureCellBg, exposureText, fmtGexB, fmtVexM, LEVEL_COLORS, regimeColor } from '@/components/gex/gex-colors';
+import { exposureText, fmtGexB, fmtVexM, LEVEL_COLORS, regimeColor } from '@/components/gex/gex-colors';
 import {
   DTE_BUCKETS, type BucketId,
   useGexHub, useGexTerminal, useSectorRotation, useExtendedHoursNexus,
@@ -25,9 +25,6 @@ import {
 } from '@/components/gex/gex-model';
 import { DealerStructureRail, GammaProfileChart, GexCellDrill } from '@/components/gex/gex-parts';
 import { useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
-
-// Three.js only loads when a 3D surface tool is placed AND on screen.
-const GammaSurface = lazy(() => import('@/components/prism/gamma-surface').then((m) => ({ default: m.GammaSurface })));
 
 const mono = "'JetBrains Mono',monospace";
 const px = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? '—' : `$${v.toFixed(d).replace(/\.00$/, '')}`);
@@ -96,6 +93,7 @@ export function GexMatrixTool() {
   const g = useGexFocus();
   const [metric, setMetric] = useToolSetting<'gex' | 'vex'>('metric', 'gex');
   const [bucket, setBucket] = useToolSetting<BucketId>('bucket', 'all');
+  const [scale, setScale] = useToolSetting<MatrixScale>('scale', 'column');
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
   const shaped = useMemo(() => shapeMatrix(g.matrix, bucket, g.spot, metric), [g.matrix, bucket, g.spot, metric]);
   const blocked = gate(g, 'strike × expiry surface');
@@ -114,7 +112,7 @@ export function GexMatrixTool() {
             <button key={b.id} type="button" className={bucket === b.id ? 'on' : ''} onClick={() => setBucket(b.id)}>{b.label}<span className="dim"> {shaped.bucketCounts[b.id]}</span></button>
           ))}
         </div>
-        <span className="gx-note">{shaped.expiries.length}/{shaped.expiryAll.length} expiries{last ? ` · max ${last[1]} (${last[0]}d)` : ''} · click a cell to drill</span>
+        <span className="gx-note">{shaped.expiries.length}/{shaped.expiryAll.length} expiries{last ? ` · max ${last[1]} (${last[0]}d)` : ''} · colour: <b>{scale === 'column' ? 'per expiry' : 'absolute'}</b> · click a cell to drill</span>
       </div>
       <div className="gx-grow matrix-wrap">
         <GexStrikeMatrix
@@ -124,6 +122,8 @@ export function GexMatrixTool() {
           metric={metric}
           centerKey={`${g.symbol}|tool-surface|${metric}`}
           onCellClick={setDrill}
+          scale={scale}
+          onScaleChange={setScale}
           emptyText={`no listed cells for ${g.symbol} in this DTE bucket`}
         />
       </div>
@@ -402,42 +402,6 @@ export function GexRankingsTool() {
 export function GexSetupsTool() {
   const [, setFocus] = useFocusSymbol();
   return <div className="fd-scroll"><GexRankingsPanel onPick={setFocus} /></div>;
-}
-
-/* ════════════ 3D surface ════════════ */
-export function GexSurface3DTool() {
-  const g = useGexFocus();
-  const [metric, setMetric] = useToolSetting<'gex' | 'vex'>('metric', 'gex');
-  const blocked = gate(g, '3D surface');
-  if (blocked) return blocked;
-  if (!g.matrix.length) return <QEEmpty className="fd-m" message={`No listed strike × expiry cells for ${g.symbol}.`} />;
-  const snap = g.snap!;
-  return (
-    <div className="gx-tool gx-col">
-      <div className="gx-controls">
-        <div className="of-seg" role="group" aria-label="Metric">
-          {(['gex', 'vex'] as const).map((m) => <button key={m} type="button" className={metric === m ? 'on' : ''} onClick={() => setMetric(m)}>{m.toUpperCase()}</button>)}
-        </div>
-        <span className="gx-note">
-          <i style={{ display: 'inline-block', width: 14, height: 9, borderRadius: 2, background: exposureCellBg(metric, 1, 1), verticalAlign: -1 }} /> + provides liquidity ·{' '}
-          <i style={{ display: 'inline-block', width: 14, height: 9, borderRadius: 2, background: exposureCellBg(metric, -1, 1), verticalAlign: -1 }} /> − takes liquidity · listed cells only · drag to rotate
-        </span>
-      </div>
-      <div className="gx-grow three-wrap">
-        <Suspense fallback={<QELoading rows={3} className="fd-pad" label="loading 3D surface…" />}>
-          <GammaSurface
-            className="h-full w-full"
-            points={(metric === 'vex' ? g.matrix.map((c) => ({ ...c, netGEX: c.netVEX ?? 0 })) : g.matrix) as any}
-            spot={g.spot}
-            symbol={g.symbol}
-            callWall={snap.callWall}
-            putWall={snap.putWall}
-            flipPrice={snap.gammaFlipPrice ?? null}
-          />
-        </Suspense>
-      </div>
-    </div>
-  );
 }
 
 /* ════════════ GEX hub (classic, all-in-one) ════════════ */

@@ -12,12 +12,12 @@ import { Link, useLocation } from 'wouter';
 import { onWorkup } from '@/lib/workup-bus';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-  Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3, Loader2,
+  Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3,
   LogOut, Moon, MoreHorizontal, Radar, Search, SlidersHorizontal,
   TrendingUp, UserRound, Wallet, X, Zap, Bell, Settings, Sun,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EASE, DUR } from '@/lib/motion';
+import { EASE } from '@/lib/motion';
 import { RotationMap } from '@/components/rotation-map';
 import { SessionBrief } from '@/components/oracle/session-brief';
 ;
@@ -61,6 +61,14 @@ import { useMainHeightVar } from '@/components/shell/main-height';
 import { LuxTopBar } from '@/components/lux/lux-topbar';
 import { LuxMenu, LuxMenuContent, LuxMenuItem, LuxMenuLabel, LuxMenuSeparator, LuxMenuTrigger } from '@/components/lux/lux-menu';
 import { TAB_SHORT } from '@/components/shell/nav-groups';
+import { RouteFallback } from '@/components/ui/qe-loading';
+import { skeletonTiles, type PageId } from '@/components/dashboard/pages';
+
+/** Terminal tab → the dashboard page it renders (JOURNAL is not a dashboard). */
+const TAB_PAGE: Partial<Record<Tab, PageId>> = {
+  oracle: 'nexus', chart: 'chart', flow: 'flow', gex: 'gex', leaps: 'leaps',
+  crypto: 'crypto', catalyst: 'catalyst', bot: 'bot', positions: 'positions',
+};
 export { TABS };
 export type { Tab };
 
@@ -365,14 +373,16 @@ export default function TerminalShell() {
             main's scroll height never doubles during a switch (main is the
             scroll container now that the shell is exactly one viewport tall). */}
         <AnimatePresence mode="popLayout" initial={false}>
+          {/* Opacity only, 120ms (docs/DESIGN_SYSTEM.md "Loading"): a slide
+              shifted the whole page 8px on every tab change. */}
           <motion.div
             key={tab}
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? undefined : { opacity: 0, y: -8 }}
-            transition={{ duration: DUR.base, ease: EASE }}
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={reduce ? undefined : { opacity: 0 }}
+            transition={{ duration: 0.12, ease: EASE }}
           >
-            <Suspense fallback={<Fallback />}>
+            <Suspense fallback={<Fallback tab={tab} />}>
               {tab === 'oracle' && <Dashboard page="nexus" />}
               {tab === 'chart' && <Dashboard page="chart" />}
               {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it.
@@ -492,10 +502,8 @@ export default function TerminalShell() {
   );
 }
 
-function Fallback() {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="h-4 w-4 animate-spin text-[var(--brand-cyan,#3b8cff)]" />
-    </div>
-  );
+/** Page-chunk fallback: the boot screen during boot, else this tab's own skeleton (shell stays mounted). */
+function Fallback({ tab }: { tab: Tab }) {
+  const page = TAB_PAGE[tab];
+  return <RouteFallback tiles={page ? skeletonTiles(page) : undefined} />;
 }

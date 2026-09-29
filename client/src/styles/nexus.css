@@ -1736,7 +1736,6 @@
 .nexus-vars .matrix .cell.mega{font-weight:800;text-shadow:0 0 8px rgba(255,255,255,0.5)}
 .nexus-vars .expand-row{padding:10px 24px;background:var(--bg-2);border-bottom:1px solid var(--nx-border);display:flex;align-items:center;gap:10px;font-size:var(--fs-11);color:var(--text-dim);cursor:pointer;transition:all 0.15s;font-family:'JetBrains Mono',monospace;border-top:1px solid var(--nx-border)}
 .nexus-vars .expand-row:hover{color:var(--cyan);background:rgba(59,140,255,0.03)}
-.nexus-vars .three-wrap{flex:1;position:relative;background:radial-gradient(ellipse at center, rgba(59,140,255,0.04), transparent 60%), var(--bg)}
 
 /* right — context */
 .nexus-vars .context-card{padding:14px 16px;border-bottom:1px solid var(--nx-border)}
@@ -2879,6 +2878,10 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 /* ── GEX strike grids (components/gex/gex-strike-grid.tsx) ─────────────────
    Full strike range in a scroll container: sticky header, sticky strike column,
    sticky Σ column, structural rows banded in their level colour. */
+/* GEX diverging ramp tokens (gex-colors.ts rampColor) — OKLab-built, lightness ∝ |value|,
+   hue fixed per side: + blue / − orange-vermilion (CVD-safe pair). Light theme runs light → dark. */
+.nexus-vars{--gx-pos-0:#1d3559;--gx-pos-1:#3680dd;--gx-pos-2:#a4d8fe;--gx-neg-0:#532718;--gx-neg-1:#de6129;--gx-neg-2:#ffc898;--gx-ink-lo:#e8ecf3;--gx-ink-hi:#07121f;--gx-zero:#0b0f16}
+.nexus-vars.light{--gx-pos-0:#deedfe;--gx-pos-1:#6aa9ed;--gx-pos-2:#2256bb;--gx-neg-0:#fee6d4;--gx-neg-1:#f08e54;--gx-neg-2:#b83b07;--gx-ink-lo:#0e1726;--gx-ink-hi:#ffffff;--gx-zero:#f2f5f9}
 .gx-wrap{position:relative;display:flex;flex-direction:column;flex:1;min-height:0;font-family:'JetBrains Mono',monospace;--gx-bg:var(--bg,#07090d);--gx-head:var(--bg-2,#0b0f16)}
 .gx-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;padding:4px 2px 6px;font-size:var(--fs-9,9px);color:var(--text-mute,#8a93a6)}
 .gx-toggle{display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-dim,#aab3c5)}
@@ -2909,7 +2912,19 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-sum-bar{display:inline-block;width:52px;height:6px;margin-right:8px;vertical-align:middle;border-radius:2px;background:color-mix(in srgb,var(--text-mute,#8a93a6) 14%,transparent);overflow:hidden}
 .gx-sum-bar i{display:block;height:100%;border-radius:2px}
 .gx-cell{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:24px;border:0;border-radius:3px;padding:0 5px;font:600 var(--fs-10,10px)/1 'JetBrains Mono',monospace;cursor:pointer;overflow:hidden}
-.gx-cell i{position:absolute;left:0;bottom:0;height:2px;opacity:.9}
+.gx-cell.top{padding-left:13px;font-weight:800;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--text,#e8ecf3) 80%,transparent)}
+.gx-cell.top::before,.gx-lval[data-rank]::before{content:attr(data-rank);margin-right:3px;font-size:9px;font-weight:800;opacity:.9}
+.gx-cell.top::before{position:absolute;left:3px;top:1px;margin:0;font-size:8.5px;line-height:1}
+.gx-colnet{display:block;margin-top:2px;font-style:normal;font-weight:700;font-size:var(--fs-9,9px);letter-spacing:0}
+.gx-scale-seg{display:inline-flex;align-items:center;gap:0;border:1px solid var(--nx-border-hi,rgba(148,163,184,.3));border-radius:5px;overflow:hidden}
+.gx-scale-seg b{padding:0 6px;font-weight:700;color:var(--text-mute,#8a93a6);letter-spacing:.06em;text-transform:uppercase}
+.gx-scale-seg button{height:22px;padding:0 8px;border:0;border-left:1px solid var(--nx-border-hi,rgba(148,163,184,.3));background:transparent;color:var(--text-dim,#aab3c5);font:600 10px 'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap}
+.gx-scale-seg button.on{background:color-mix(in srgb,var(--cyan,#3b8cff) 18%,transparent);color:var(--text,#e8ecf3)}
+.gx-scale-now{font-weight:600;color:var(--text-dim,#aab3c5)}
+.gx-ramp{display:inline-flex;flex-direction:column;gap:1px;min-width:220px}
+.gx-ramp-bar{display:block;height:8px;border-radius:2px;border:1px solid var(--nx-border,rgba(148,163,184,.2))}
+.gx-ramp-ticks{display:flex;justify-content:space-between;gap:6px;font-size:8.5px;color:var(--text-mute,#8a93a6);white-space:nowrap}
+.gx-lrow.top .gx-lval{font-weight:800}
 .gx-cell.dust{opacity:.55;font-weight:500}
 .gx-cell.max{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text,#e8ecf3) 45%,transparent)}
 .gx-cell:hover{outline:1px solid color-mix(in srgb,var(--text,#e8ecf3) 55%,transparent);outline-offset:-1px}
@@ -2948,8 +2963,8 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-lstrike small{margin-left:6px;color:var(--text-mute,#8a93a6);font-size:var(--fs-9,9px)}
 .gx-laxis{position:relative;height:12px;background:linear-gradient(90deg,transparent calc(50% - .5px),color-mix(in srgb,var(--text-mute,#8a93a6) 45%,transparent) calc(50% - .5px),color-mix(in srgb,var(--text-mute,#8a93a6) 45%,transparent) calc(50% + .5px),transparent calc(50% + .5px))}
 .gx-laxis i{position:absolute;top:1px;bottom:1px;border-radius:2px}
-.gx-laxis i.pos{background:var(--cyan,#3b8cff)}
-.gx-laxis i.neg{background:var(--red,#ff6b3d)}
+.gx-laxis i.pos{background:var(--gx-pos-1,#3680dd)}
+.gx-laxis i.neg{background:var(--gx-neg-1,#de6129)}
 .gx-lval{text-align:right;font-weight:700}
 .gx-lrow.marked{background:linear-gradient(90deg,color-mix(in srgb,var(--band) 18%,transparent),color-mix(in srgb,var(--band) 5%,transparent));box-shadow:inset 3px 0 0 var(--band),inset 0 1px 0 color-mix(in srgb,var(--band) 60%,transparent),inset 0 -1px 0 color-mix(in srgb,var(--band) 60%,transparent)}
 .gx-lrow.marked .gx-lstrike b{color:var(--band);font-size:11.5px}

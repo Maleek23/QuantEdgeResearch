@@ -81,22 +81,72 @@ export function fmtAge(sec: number | null | undefined): string {
   return `${Math.round(sec / 86400)}d`;
 }
 
-/**
- * Perceptual cell tint for the strike × expiry grids.
+/* ─────────────────────────────────────────────────────────────────────────
+ * DIVERGING EXPOSURE RAMP (2026-09-29) — the strike × expiry matrix and the
+ * ladder. Operator: "on later dates you can't even tell what's going on or
+ * which is what based on colour". Two causes, two fixes:
  *
- * exposureBg's 8–48% ramp left most of a real book near-invisible: with one
- * node holding the book max, a +$9K cell beside a +$2K cell read as the same
- * dark smudge (operator screenshot, SPY $786–$802). This ramp starts at a
- * visible 16% and runs to 72%, on √(|v|/max) — square-root is the standard
- * perceptual compression for magnitude-as-lightness, so a node 4× larger reads
- * 2× stronger rather than disappearing its neighbours. Sign stays the hue
- * (+GEX blue, −GEX vermilion, +VEX mint); the value is always printed too.
- */
-export function exposureCellBg(kind: ExposureKind, v: number, maxAbs: number): string {
+ *  1. ONE colour scale was shared by every expiry, so near-term gamma (0–2
+ *     DTE nodes are routinely 10–100× the monthly ones) set the max and every
+ *     later column washed out → the matrix normalises PER EXPIRY by default
+ *     (each column 0 → its own max), with an "absolute" toggle.
+ *  2. The tint was the sign hue mixed into transparent (16–72%), so lightness
+ *     AND hue drifted together and small cells of either sign became the same
+ *     dark smudge → a perceptually uniform DIVERGING ramp built in OKLab:
+ *     lightness rises monotonically with |value| (magnitude reads the same on
+ *     both sides), hue is FIXED per side — blue (+, dealers long gamma,
+ *     provides liquidity) ↔ orange/vermilion (−, dealers short gamma, takes
+ *     liquidity). Blue↔orange sits on the b* (yellow–blue) axis that protan
+ *     and deutan vision keep, and tritan still separates it by hue; OKLab ΔE
+ *     (×100) between the sides at mid ramp: normal 32 · protan 26 · deutan 30
+ *     · tritan 32 (Machado 2009 simulation). Same family as the +GEX blue /
+ *     −GEX vermilion law, so the meaning never flips. (Cividis/vik/berlin
+ *     class — dark-centred like berlin because the panels are dark.)
+ *
+ * Stops are CSS tokens (styles/nexus.css `--gx-pos-*` / `--gx-neg-*`,
+ * re-grounded for the light theme, where the ramp runs light → dark); the
+ * hex values below are the fallbacks = the dark-theme ramp (OKLCH → sRGB):
+ *
+ *            t=0 (≈0)    t=½ (¼ of max)   t=1 (max)
+ *   + side   #1d3559     #3680dd          #a4d8fe     L .33 → .60 → .86, h≈255
+ *   − side   #532718     #de6129          #ffc898     L .33 → .64 → .87, h 40→62
+ *
+ * VEX uses the same ramp inside the grids (+ provides / − takes liquidity).
+ * t = √(|v| / scale max): square-root keeps small real nodes visible next to
+ * one giant node. The value is always printed too — colour is never alone.
+ * ───────────────────────────────────────────────────────────────────────── */
+const RAMP = {
+  pos: ['var(--gx-pos-0, #1d3559)', 'var(--gx-pos-1, #3680dd)', 'var(--gx-pos-2, #a4d8fe)'],
+  neg: ['var(--gx-neg-0, #532718)', 'var(--gx-neg-1, #de6129)', 'var(--gx-neg-2, #ffc898)'],
+} as const;
+
+/** Colour of a signed value at ramp position t ∈ [0,1] (t = √(|v|/max)). */
+export function rampColor(sign: number, t: number): string {
+  if (!Number.isFinite(t) || !sign) return 'transparent';
+  const s = RAMP[sign > 0 ? 'pos' : 'neg'];
+  const u = Math.max(0, Math.min(1, t));
+  if (u <= 0.5) return `color-mix(in oklab, ${s[1]} ${Math.round(u * 200)}%, ${s[0]})`;
+  return `color-mix(in oklab, ${s[2]} ${Math.round((u - 0.5) * 200)}%, ${s[1]})`;
+}
+
+/** Ink that stays readable on a ramp cell (dark ink on the light end; the light theme flips it). */
+export function rampInk(t: number): string {
+  return t >= 0.62 ? 'var(--gx-ink-hi, #07121f)' : 'var(--gx-ink-lo, #e8ecf3)';
+}
+
+/** The whole diverging ramp, −max … 0 … +max, as a CSS gradient (legends). */
+export function rampGradient(steps = 8): string {
+  const stops: string[] = [];
+  for (let i = steps; i >= 1; i--) stops.push(rampColor(-1, i / steps));
+  stops.push('var(--gx-zero, #0b0f16)');
+  for (let i = 1; i <= steps; i++) stops.push(rampColor(1, i / steps));
+  return `linear-gradient(90deg, ${stops.join(', ')})`;
+}
+
+/** Cell tint for any strike grid — the diverging ramp on √(|v|/max). */
+export function exposureCellBg(_kind: ExposureKind, v: number, maxAbs: number): string {
   if (!Number.isFinite(v) || v === 0 || !(maxAbs > 0)) return 'transparent';
-  const t = Math.min(1, Math.sqrt(Math.abs(v) / maxAbs));
-  const pct = Math.round(16 + 56 * t);
-  return `color-mix(in srgb, ${exposureVar(kind, v)} ${pct}%, transparent)`;
+  return rampColor(v, Math.min(1, Math.sqrt(Math.abs(v) / maxAbs)));
 }
 
 /** 0..1 magnitude on the same √ scale — drives in-cell bars and legend stops. */

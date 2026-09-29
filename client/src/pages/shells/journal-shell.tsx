@@ -25,7 +25,7 @@
  * it was opened from.
  */
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, Upload } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { JournalContext, type JournalCtx, type JournalView } from '@/components/journal/journal-context';
@@ -39,6 +39,7 @@ import { useJournalData, useJournalFilterState, useJournalKey, useJournalPrefs, 
 import type { JournalKey } from '@shared/journal-sources';
 import { FILTERED_PAGES, JOURNAL_PAGES, TRADE_PAGES, resolveJournalPage } from '@/lib/journal/legacy-jtab';
 import '@/styles/journal.css';
+import { ToolSkeleton } from '@/components/ui/qe-loading';
 
 const DashboardView = lazy(() => import('@/pages/journal/dashboard-view'));
 const CalendarView = lazy(() => import('@/pages/journal/calendar-view'));
@@ -287,7 +288,7 @@ export default function JournalShell() {
 
               <div className="jr-body">
                 <PageErrorBoundary label={`Journal · ${view}`}>
-                  <Suspense fallback={<div style={{ display: 'grid', placeItems: 'center', height: 200 }}><Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--jr-accent)' }} /></div>}>
+                  <Suspense fallback={<ToolSkeleton rows={4} />}>
                     {body}
                   </Suspense>
                 </PageErrorBoundary>

@@ -90,23 +90,21 @@ export const BOT_TOOLS: ToolDef[] = [
 ];
 
 /**
- * BOT default — KPIs across the top; then the paper book, the blocked ledger
- * and outcome integrity (what the bot holds and whether its record is
- * reportable); then jobs with the macro queue and safeguards beside them;
- * below the fold, trade history, the activity log and the rules table.
+ * BOT default — one screen (12 × 18):
+ *   ┌──────────────────── automation KPIs 12×3 ────────────────────┐
+ *   ├── paper book 5×8 ──┬── blocked ledger 4×8 ──┬ outcomes 3×8 ──┤
+ *   ├──── engines & jobs 6×7 ────┬──── track record 6×7 ──────────┤
+ * What it holds and whether the record is reportable, then whether the
+ * jobs are alive and what it did. Log, rules, queue, safeguards: Add tool.
  */
 export const BOT_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'BOT',
   tools: [
-    ['bot-stats', 0, 0, 12, 4],
-    ['bot-book', 0, 4, 5, 8],
-    ['bot-ledger', 5, 4, 4, 8],
-    ['bot-outcomes', 9, 4, 3, 8],
-    ['bot-jobs', 0, 12, 8, 10],
-    ['bot-queue', 8, 12, 4, 5],
-    ['bot-status', 8, 17, 4, 5],
-    ['bot-history', 0, 22, 6, 9],
-    ['bot-log', 6, 22, 6, 9],
-    ['bot-rules', 0, 31, 12, 10],
+    ['bot-stats', 0, 0, 12, 3],
+    ['bot-book', 0, 3, 5, 8],
+    ['bot-ledger', 5, 3, 4, 8],
+    ['bot-outcomes', 9, 3, 3, 8],
+    ['bot-jobs', 0, 11, 6, 7],
+    ['bot-history', 6, 11, 6, 7],
   ],
 }];

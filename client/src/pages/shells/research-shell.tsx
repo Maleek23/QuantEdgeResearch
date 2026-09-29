@@ -24,7 +24,8 @@
  */
 import { useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { PageSkeleton } from '@/components/ui/qe-loading';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense } from 'react';
 
@@ -164,10 +165,7 @@ export default function ResearchShell() {
   );
 }
 
+/** Sub-view chunk fallback — the page skeleton, below the mounted research header. */
 function Loading() {
-  return (
-    <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--lx-accent-text)' }} aria-label="Loading" />
-    </div>
-  );
+  return <div style={{ height: 'min(560px, 70dvh)' }}><PageSkeleton bar={false} fill tiles={[[0, 0, 8, 12], [8, 0, 4, 12]]} label="loading research view…" /></div>;
 }

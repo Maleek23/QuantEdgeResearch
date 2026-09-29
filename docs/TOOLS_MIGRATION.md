@@ -25,7 +25,7 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 
 **Fit.** Desktop: the page is `100dvh − chrome`; only the grid and tool bodies scroll.
 
-## Registry (90 tools)
+## Registry (89 tools)
 
 | Category | id | Title | Defined in |
 |---|---|---|---|
@@ -54,7 +54,6 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 | GEX | `gex-gravity` | Gravity & strongest nodes | `defs/gex.ts` |
 | GEX | `gex-rankings` | Cross-ticker rankings | `defs/gex.ts` |
 | GEX | `gex-setups` | Magnet setups · screener | `defs/gex.ts` |
-| GEX | `gex-surface-3d` | 3D gamma surface | `defs/gex.ts` |
 | GEX | `gex-hub` | GEX Hub (all-in-one) | `defs/gex.ts` |
 | Market | `money-flow` | Money flow · sector rotation | `defs/gex.ts` |
 | Ideas | `nexus-board` | Ranked setups | `defs/nexus.ts` |
@@ -120,20 +119,22 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 | Market | `market-rotation` | Rotation map | `defs/market.ts` |
 | Market | `market-session-brief` | Session brief | `defs/market.ts` |
 
-## Default layouts — `tool (x,y w×h)`, 12 columns, 40 px rows
+## Default layouts — `tool (x,y w×h)`, 12 columns × 18 rows (rows scale to the viewport)
 
-- **flow:default** (Market flow) — `options-flow` (0,0 8×14), `top-tickers` (8,0 4×7), `flow-sweeps-blocks` (8,7 4×7), `market-tide` (0,14 4×8), `flow-unusual` (4,14 4×8), `flow-setups` (8,14 4×8), `net-flow-strike` (0,22 3×16), `flow-strike-expiry` (3,22 5×16), `stock-chart` (8,22 4×16), `flow-timeline` (0,38 4×10), `flow-gex-convergence` (4,38 4×10), `dark-pool-flow` (8,38 4×10), `repeat-buyers` (0,48 7×9), `flow-alerts` (7,48 5×9)
-- **flow:ticker** (Ticker flow) — `net-flow-strike` (0,0 3×18), `stock-chart` (3,0 5×18), `flow-gex-convergence` (8,0 4×10), `net-premium` (8,10 4×8), `flow-strike-expiry` (0,18 7×14), `flow-timeline` (7,18 5×7), `dark-pool-flow` (7,25 5×7), `flow-sweeps-blocks` (0,32 6×9), `repeat-buyers` (6,32 6×9), `flow-unusual` (0,41 6×8), `flow-setups` (6,41 6×8)
-- **gex:default** (GEX) — `gex-regime` (0,0 3×7), `gex-levels` (0,7 3×9), `stock-chart` (3,0 5×16), `gex-dealer-map` (8,0 4×16), `gex-matrix` (0,16 6×14), `gex-profile` (6,16 3×6), `gex-gravity` (6,22 3×8), `gex-rankings` (9,16 3×8), `flow-context` (9,24 3×6), `gex-setups` (0,30 7×13), `gex-surface-3d` (7,30 5×13)
-- **nexus:default** (NEXUS) — `nexus-board` (0,0 3×16), `nexus-detail` (3,0 6×16), `nexus-context` (9,0 3×9), `nexus-positions` (9,9 3×7), `nexus-developing` (0,16 5×12), `stock-chart` (5,16 4×12), `gex-levels` (9,16 3×12), `nexus-horizon` (0,28 8×10), `flow-context` (8,28 4×10)
-- **chart:default** (Chart) — `stock-chart` (0,0 8×16), `chart-levels` (8,0 4×7), `chart-watchlists` (8,7 4×9), `chart-lab-chart` (0,16 8×14), `chart-es-risk` (8,16 4×8), `chart-readouts` (8,24 4×6)
-- **chart:lab** (Chart Lab) — `chart-lab` (0,0 12×20)
-- **crypto:default** (Crypto) — `crypto-chart` (0,0 7×16), `crypto-spot` (7,0 5×10), `crypto-summary` (7,10 5×6), `crypto-proxy-gate` (0,16 8×8), `crypto-sentiment` (8,16 4×6), `crypto-correlation` (8,22 4×7), `crypto-proxy-board` (0,24 8×12), `crypto-guide` (8,29 4×7)
-- **catalyst:default** (Catalyst) — `catalyst-impact` (0,0 7×16), `catalyst-summary` (7,0 5×8), `catalyst-earnings` (7,8 5×8), `catalyst-econ` (0,16 7×10), `catalyst-distance` (7,16 5×10)
-- **leaps:default** (LEAPS) — `leaps-list` (0,0 8×16), `leaps-summary` (8,0 4×6), `leaps-grades` (8,6 4×10), `stock-chart` (0,16 12×12)
-- **bot:default** (BOT) — `bot-stats` (0,0 12×4), `bot-book` (0,4 5×8), `bot-ledger` (5,4 4×8), `bot-outcomes` (9,4 3×8), `bot-jobs` (0,12 8×10), `bot-queue` (8,12 4×5), `bot-status` (8,17 4×5), `bot-history` (0,22 6×9), `bot-log` (6,22 6×9), `bot-rules` (0,31 12×10)
-- **positions:default** (POSITIONS) — `positions-pnl` (0,0 12×3), `positions-heat` (0,3 8×13), `positions-best-worst` (8,3 4×6), `positions-mix` (8,9 4×7), `positions-table` (0,16 12×12)
-- **today:default** (Today) — `today-week-map` (0,0 8×11), `today-best-idea` (8,0 4×11), `today-tape` (0,11 12×3), `today-ranked-book` (0,14 8×12), `today-index-desk` (8,14 4×6), `today-book-stats` (8,20 4×6), `today-rotation` (0,26 7×9), `today-model-record` (7,26 5×9), `nexus-horizon` (0,35 12×10)
+Every default tiles 12 × 18 exactly (DEV assertion `tilingIssues`, pages.ts). CHART, LEAPS and POSITIONS are SIMPLE pages (`PageSpec.simple`: `stock-chart` + `chart-watchlists` rail, `leaps-classic`, `positions-classic`); their layouts below are what *Customize* opens.
+
+- **flow:default** (Market flow) — `options-flow` (0,0 8×11), `top-tickers` (8,0 4×11), `market-tide` (0,11 4×7), `flow-sweeps-blocks` (4,11 4×7), `flow-unusual` (8,11 4×7)
+- **flow:ticker** (Ticker flow) — `stock-chart` (0,0 6×11), `net-flow-strike` (6,0 3×11), `flow-gex-convergence` (9,0 3×11), `flow-strike-expiry` (0,11 6×7), `flow-timeline` (6,11 3×7), `dark-pool-flow` (9,11 3×7)
+- **gex:default** (GEX) — `gex-matrix` (0,0 7×10), `stock-chart` (7,0 5×10), `gex-dealer-map` (0,10 3×8), `gex-levels` (3,10 3×8), `gex-regime` (6,10 3×8), `gex-profile` (9,10 3×8)
+- **nexus:default** (NEXUS) — `nexus-board` (0,0 3×18), `nexus-detail` (3,0 6×11), `nexus-context` (9,0 3×11), `nexus-developing` (3,11 5×7), `nexus-positions` (8,11 4×7)
+- **chart:default** (Chart) — `stock-chart` (0,0 8×18), `chart-watchlists` (8,0 4×11), `chart-levels` (8,11 4×7)
+- **chart:lab** (Chart Lab) — `chart-lab` (0,0 12×18)
+- **crypto:default** (Crypto) — `crypto-chart` (0,0 8×11), `crypto-spot` (8,0 4×11), `crypto-proxy-gate` (0,11 6×7), `crypto-sentiment` (6,11 3×7), `crypto-correlation` (9,11 3×7)
+- **catalyst:default** (Catalyst) — `catalyst-impact` (0,0 8×11), `catalyst-earnings` (8,0 4×11), `catalyst-econ` (0,11 5×7), `catalyst-distance` (5,11 4×7), `catalyst-summary` (9,11 3×7)
+- **leaps:default** (LEAPS) — `leaps-list` (0,0 7×18), `stock-chart` (7,0 5×11), `leaps-summary` (7,11 5×7)
+- **bot:default** (BOT) — `bot-stats` (0,0 12×3), `bot-book` (0,3 5×8), `bot-ledger` (5,3 4×8), `bot-outcomes` (9,3 3×8), `bot-jobs` (0,11 6×7), `bot-history` (6,11 6×7)
+- **positions:default** (POSITIONS) — `positions-pnl` (0,0 12×3), `positions-heat` (0,3 8×9), `positions-best-worst` (8,3 4×5), `positions-mix` (8,8 4×4), `positions-table` (0,12 12×6)
+- **today:default** (Today) — `today-week-map` (0,0 8×9), `today-best-idea` (8,0 4×9), `today-tape` (0,9 12×3), `today-ranked-book` (0,12 6×6), `today-index-desk` (6,12 3×6), `today-model-record` (9,12 3×6)
 
 ## FLOW domain — one owner for everything options-flow (feat/flowdom, 2026-09-29)
 

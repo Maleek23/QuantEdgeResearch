@@ -56,22 +56,24 @@ export const NEXUS_TOOLS: ToolDef[] = [
 ];
 
 /**
- * NEXUS default — ranked board left, selected detail centre, market context
- * and bot positions right (all in the first 16 rows); below, the developing
- * funnel with the stock chart and GEX levels following the selection, and
- * the one compact flow-context tool (links to FLOW) beside the horizon book.
+ * NEXUS default — one screen (12 × 18):
+ *
+ *   ┌ ranked ┬──────── setup detail 6×11 ────────┬ context 3×11 ┐
+ *   │ setups │ chart, levels, tabs               │ regime, macro │
+ *   │ 3×18   ├──── developing 5×7 ──────┬── bot positions 4×7 ──┤
+ *   └────────┴──────────────────────────┴───────────────────────┘
+ *
+ * Master → detail left to right; the market context that frames every idea
+ * on the right; the funnel (developing) and what the bot holds underneath.
+ * Book by horizon, stock chart, GEX levels and flow context: Add tool.
  */
 export const NEXUS_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'NEXUS',
   tools: [
-    ['nexus-board', 0, 0, 3, 16],
-    ['nexus-detail', 3, 0, 6, 16],
-    ['nexus-context', 9, 0, 3, 9],
-    ['nexus-positions', 9, 9, 3, 7],
-    ['nexus-developing', 0, 16, 5, 12],
-    ['stock-chart', 5, 16, 4, 12],
-    ['gex-levels', 9, 16, 3, 12],
-    ['nexus-horizon', 0, 28, 8, 10],
-    ['flow-context', 8, 28, 4, 10],
+    ['nexus-board', 0, 0, 3, 18],
+    ['nexus-detail', 3, 0, 6, 11],
+    ['nexus-context', 9, 0, 3, 11],
+    ['nexus-developing', 3, 11, 5, 7],
+    ['nexus-positions', 8, 11, 4, 7],
   ],
 }];

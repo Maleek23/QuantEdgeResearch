@@ -80,8 +80,31 @@ Usage rules (enforced in the 2026-09-29 colour pass):
 ```
 call wall  --cyan-bright   put wall  --red   max γ / magnet  --purple
 zero-γ     --amber (dashed line)             spot            --text (solid line)
-cell tint  √(|v|/max), 16–72% of the sign colour (exposureCellBg)
+cell tint  diverging OKLab ramp on √(|v|/max) (rampColor / exposureCellBg) — see below
 ```
+
+### GEX strike grids — diverging ramp + per-expiry scale (2026-09-29)
+One ramp for the strike × expiry matrix and the ladder (GEX and VEX): lightness
+rises monotonically with |value|, hue is fixed per side, so magnitude reads the
+same on both sides and the sign never depends on lightness. Tokens live on
+`.nexus-vars` (`--gx-pos-0/1/2`, `--gx-neg-0/1/2`, `--gx-ink-lo/hi`, `--gx-zero`)
+and are re-grounded for `.light` (the ramp runs light → dark there).
+```
+            t=0 (≈0)   t=½ (¼ of max)  t=1 (max)
++ blue      #1d3559    #3680dd         #a4d8fe    dealers long γ — provides liquidity
+− orange    #532718    #de6129         #ffc898    dealers short γ — takes liquidity
+light theme +  #deedfe #6aa9ed #2256bb   −  #fee6d4 #f08e54 #b83b07
+```
+- Blue ↔ orange is the CVD-safe diverging pair (cividis / vik / berlin family):
+  OKLab ΔE×100 between sides at mid ramp — normal 32, protan 26, deutan 30,
+  tritan 32 (Machado 2009 simulation). Never red ↔ green.
+- **Scale**: the matrix normalises each expiry column to its own max by default
+  ("Per expiry"); "Absolute" uses one max for every cell. The active scale is
+  printed in the matrix toolbar and in the tool's control row; the legend shows
+  the value → colour mapping for the active scale (−max · −¼ · 0 · +¼ · +max).
+- The top-2 |cells| of every expiry carry ①② and are never hidden as dust; each
+  column header prints the expiry's net (Σ). The value is always printed — colour
+  is never the only carrier.
 
 ### Module accents
 ```
@@ -153,7 +176,7 @@ Symbol clicks anywhere open the universal Ticker Workup (workup-bus).
 
 ## 07 · 3D & IMMERSIVE
 
-- GEX Prism (Three.js strike×expiry mesh) and Chart Lab 3D are the only 3D surfaces; always with a 2D fallback. Camera 0.002–0.003 rad/frame, fog #06070a 15–40, wireframe overlay 0.12.
+- No 3D data surfaces. The GEX 3D gamma surface (Three.js) was removed 2026-09-29 — the 2D strike × expiry matrix is the one exposure view; nothing imports three / @react-three any more.
 - Ambient canvas per mock page at 0.5 opacity; scanlines at 0.012 overlay; vignette radial.
 
 ## 08 · MOTION
@@ -169,6 +192,44 @@ Symbol clicks anywhere open the universal Ticker Workup (workup-bus).
 | Progress fill | 800ms | cubic-bezier(.2,.8,.2,1) |
 
 Never animate on scroll except first viewport entry.
+
+### Loading — one boot → page → tool system (2026-09-29)
+Three states, one look (`client/src/components/ui/qe-loading.tsx`,
+`client/src/styles/qe-loading.css`, `client/src/lib/boot.ts`). Nothing else spins
+for a page or a tool; an inline spinner is allowed only inside a button that is
+doing the action the user just clicked.
+
+| State | Where | What it looks like | Leaves |
+|---|---|---|---|
+| **Boot** | `#app-loader` in `client/index.html` | mark + QUANTEDGE // TERMINAL + 2px track, theme-matched ground | once, when no `<BootHold/>` is mounted (after React's first commit; 15 s hard cap) — 150 ms fade |
+| **Page** | `<PageSkeleton/>` via `<RouteFallback/>` | the shell stays mounted; the content area shows skeleton tiles on the page's own 12 × 18 default grid (`skeletonTiles(page)`), plus a bar row | when the page's code + layout are ready — content fades in |
+| **Tool** | `<ToolSkeleton/>` (= `QELoading`) | block + lines inside the tool frame | when the tool's code/first data land — 150 ms fade |
+
+Rules:
+- Every Suspense / auth / route fallback is `<RouteFallback/>`: during boot it
+  renders `<BootHold/>` (keeps the boot screen, so no second screen can flash);
+  after boot it is the page skeleton. Tool-level fallbacks are `<ToolSkeleton/>`.
+- Motion is opacity only, ≤150 ms (tab switch 120 ms, page reveal 120 ms), and
+  none under `prefers-reduced-motion`. Skeletons occupy the exact box the content
+  will fill, so nothing shifts when it lands.
+- The stale-bundle banner (`lib/stale-bundle.ts`) is not a loader: it is plain
+  DOM on purpose (it must work when React has crashed) and only appears after a
+  deploy.
+
+### Dashboard layout law (2026-09-29)
+- The desktop grid is 12 columns × **18 visible rows**; row height scales with
+  the measured main area (`fitRowHeight`), so a default authored at exactly
+  12 × 18 fills the viewport with no scroll at 1440×900, 1920×1080 and 2513×1260.
+- Every shipped default: the page's primary tool top-left and largest, related
+  tools adjacent, rows aligned, no holes, 3–6 tools; everything else is in Add
+  tool. A DEV assertion (`tilingIssues`, pages.ts) warns if a default stops tiling.
+- Auto-arrange = the same packing: reading order, rows filled left → right,
+  widths stretched to span 12, equal height per row, row heights scaled to fill
+  18 rows when the tools' minimum heights allow.
+- **Simple pages** (`PageSpec.simple`): CHART (full-bleed price chart + collapsible
+  watchlist rail), LEAPS and POSITIONS render one primary tool with no grid and
+  no tool chrome (its source · age moves to the page bar). "Customize" switches
+  that device to the page's dashboards; "Simple view" switches back.
 
 ## 09 · LIVE DATA PATTERNS (integrity-gated)
 

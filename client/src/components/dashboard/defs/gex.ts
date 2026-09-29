@@ -18,7 +18,7 @@ export const GEX_TOOLS: ToolDef[] = [
   },
   {
     id: 'gex-matrix', category: 'GEX', title: 'Strike × expiry matrix',
-    what: 'Every listed strike × expiry cell, GEX or VEX, filterable by days to expiry; click a cell for its share of the strike and expiry.',
+    what: 'Every listed strike × expiry cell, GEX or VEX, filterable by days to expiry. Coloured per expiry by default (each column 0 → its own max; toggle Absolute), top-2 cells of every expiry labelled, net per expiry in the header; click a cell to drill.',
     units: 'GEX $/1% move · VEX $/IV pt', source: ENGINE, backing: `GexStrikeMatrix (gex-strike-grid.tsx) ← ${TERMINAL}`,
     needs: ['symbol'], defaultSize: { w: 6, h: 14 }, minSize: { w: 4, h: 8 }, Component: lazyTool(gex, 'GexMatrixTool'),
   },
@@ -59,12 +59,6 @@ export const GEX_TOOLS: ToolDef[] = [
     ageInside: true, defaultSize: { w: 7, h: 13 }, minSize: { w: 5, h: 8 }, Component: lazyTool(gex, 'GexSetupsTool'),
   },
   {
-    id: 'gex-surface-3d', category: 'GEX', title: '3D gamma surface',
-    what: 'The strike × expiry exposure as a 3D surface (listed cells only; overflow ticks past the robust max). Loads three.js only when shown.',
-    units: 'GEX $/1% move · VEX $/IV pt', source: ENGINE, backing: `GammaSurface (components/prism/gamma-surface.tsx) ← ${TERMINAL}`,
-    needs: ['symbol'], defaultSize: { w: 5, h: 13 }, minSize: { w: 4, h: 8 }, Component: lazyTool(gex, 'GexSurface3DTool'),
-  },
-  {
     id: 'gex-hub', category: 'GEX', title: 'GEX Hub (all-in-one)',
     what: 'The previous GEX page in one tile: ranked list, near-term map, strike × expiry surface and context rail.',
     units: 'GEX $/1% move, VEX $/IV pt', source: ENGINE, backing: 'GexHubNexus (components/gex/gex-hub-nexus.tsx)',
@@ -79,26 +73,26 @@ export const GEX_TOOLS: ToolDef[] = [
 ];
 
 /**
- * GEX default — a pro GEX terminal: regime + levels on the left, the stock
- * chart with GEX overlay in the middle, the near-term ladder on the right;
- * below, the full strike × expiry matrix, profile, gravity and the
- * cross-ticker rankings with the one compact flow-context tool (links to
- * FLOW — the flow views themselves live there); then magnet setups and the
- * 3D surface.
+ * GEX default — one screen (12 × 18, rows scale to the viewport):
+ *
+ *   ┌──────────── matrix 7×10 ───────────┬──── stock chart 5×10 ────┐
+ *   │ strike × expiry, per-expiry colour │ price + GEX bubbles       │
+ *   ├── ladder 3×8 ─┬── levels 3×8 ──┬── regime 3×8 ─┬── profile 3×8 ─┤
+ *   └───────────────┴────────────────┴───────────────┴────────────────┘
+ *
+ * The book (matrix) is the page's point, top-left and largest, with price
+ * beside it; the near-term ladder sits next to the levels it defines, then
+ * the regime read and the zero-γ profile. Gravity, rankings, magnet setups,
+ * money flow and flow context are one click away in Add tool.
  */
 export const GEX_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'GEX',
   tools: [
-    ['gex-regime', 0, 0, 3, 7],
-    ['gex-levels', 0, 7, 3, 9],
-    ['stock-chart', 3, 0, 5, 16],
-    ['gex-dealer-map', 8, 0, 4, 16],
-    ['gex-matrix', 0, 16, 6, 14],
-    ['gex-profile', 6, 16, 3, 6],
-    ['gex-gravity', 6, 22, 3, 8],
-    ['gex-rankings', 9, 16, 3, 8],
-    ['flow-context', 9, 24, 3, 6],
-    ['gex-setups', 0, 30, 7, 13],
-    ['gex-surface-3d', 7, 30, 5, 13],
+    ['gex-matrix', 0, 0, 7, 10],
+    ['stock-chart', 7, 0, 5, 10],
+    ['gex-dealer-map', 0, 10, 3, 8],
+    ['gex-levels', 3, 10, 3, 8],
+    ['gex-regime', 6, 10, 3, 8],
+    ['gex-profile', 9, 10, 3, 8],
   ],
 }];
