@@ -8,6 +8,7 @@
  */
 
 import { Component, ReactNode, ErrorInfo } from 'react';
+import { recoverIfStale } from '@/lib/stale-bundle';
 
 interface Props {
   children: ReactNode;
@@ -19,6 +20,8 @@ interface Props {
 interface State {
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  /** The error was a stale bundle after a deploy — the reload banner owns it. */
+  stale?: boolean;
 }
 
 export class PageErrorBoundary extends Component<Props, State> {
@@ -30,17 +33,25 @@ export class PageErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ error, errorInfo });
+    void recoverIfStale(error).then((stale) => { if (stale) this.setState({ stale: true }); });
     // Log to console for debugging — production should ship to Sentry/etc.
     console.error(`[ErrorBoundary] ${this.props.label || 'page'} crashed:`, error, errorInfo);
   }
 
   reset = () => {
-    this.setState({ error: null, errorInfo: null });
+    this.setState({ error: null, errorInfo: null, stale: false });
     this.props.onReset?.();
   };
 
   render() {
     if (this.state.error) {
+      if (this.state.stale) {
+        return (
+          <div role="status" className="my-3 rounded-lg border border-[var(--nx-border,rgba(148,163,184,0.2))] p-4 font-mono text-xs text-muted-foreground">
+            A newer version of QuantEdge was deployed — reloading to pick it up…
+          </div>
+        );
+      }
       if (this.props.fallback) return this.props.fallback;
 
       return (

@@ -4,9 +4,13 @@ import App from "./App";
 import "./index.css";
 import { ErrorBoundary } from "./components/error-boundary";
 import { initClientObservability } from "./lib/observability";
+import { installStaleBundleGuard } from "./lib/stale-bundle";
 
 // Initialize observability immediately (before any other code can throw)
 void initClientObservability();
+// After a deploy an open tab can load a chunk that no longer exists, or mix old
+// and new code ("useRef is not defined"). Detect it, say so, reload once.
+installStaleBundleGuard();
 
 // Signal to diagnostic script that the module loaded successfully
 (window as any).__QE_LOADED = true;

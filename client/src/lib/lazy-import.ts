@@ -1,4 +1,5 @@
 import { lazy, ComponentType } from "react";
+import { isChunkLoadError as isStaleChunkError, showNewVersionBanner } from "@/lib/stale-bundle";
 
 /**
  * Enhanced lazy import with automatic retry and cache-busting reload.
@@ -16,20 +17,7 @@ const RELOAD_FLAG_PREFIX = "chunk_reload_";
 const MAX_RETRIES = 2;
 const RETRY_DELAYS = [1000, 2000]; // ms between retries
 
-function isChunkLoadError(error: unknown): boolean {
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase();
-    return (
-      msg.includes("failed to fetch dynamically imported module") ||
-      msg.includes("loading chunk") ||
-      msg.includes("loading css chunk") ||
-      msg.includes("dynamically imported module") ||
-      msg.includes("failed to load module script") ||
-      msg.includes("error loading dynamically imported module")
-    );
-  }
-  return false;
-}
+const isChunkLoadError = isStaleChunkError;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -83,7 +71,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       // Force reload to get fresh HTML with correct chunk references
       console.warn("[LazyLoad] All retries failed. Reloading page to fetch updated chunks...");
       sessionStorage.setItem(reloadKey, "1");
-      window.location.reload();
+      showNewVersionBanner({ autoReloadMs: 600 });
       // Wait briefly for the reload to take effect, then reject so Suspense doesn't hang forever
       return new Promise<{ default: T }>((_, reject) => {
         setTimeout(() => reject(new Error('Reloading to fetch updated code...')), 8000);
