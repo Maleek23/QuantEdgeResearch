@@ -26,7 +26,7 @@
 import { db } from "./db";
 import { tradeIdeas, type ConvergenceAnalysis } from "@shared/schema";
 import { readOracleExecutionAudit, type OracleLifecycleState } from "@shared/oracle-lifecycle";
-import { gte, desc } from "drizzle-orm";
+import { gte, desc, and, or, eq, isNull } from "drizzle-orm";
 import { logger } from "./logger";
 import { convictionBandForScore } from "@shared/conviction-bands";
 import { getMarketContext, type MarketContext } from "./market-context-service";
@@ -960,6 +960,33 @@ function scoreGeopoliticalLayer(
  * cannot survive in the ELITE band. That was the core defect: 15 chips shown
  * as ELITE BULLISH on the morning the whole group got wrecked.
  */
+/**
+ * SECTOR & PEERS — the peer-confirmation read (server/peer-confirmation.ts)
+ * when the symbol has a mapped peer group and at least two peers could be
+ * priced; otherwise the ETF-vs-SPY rotation read below, unchanged. One layer,
+ * never both, so the group is not counted twice.
+ */
+async function scoreSectorAndPeersLayer(
+  symbol: string,
+  sector: Sector,
+  direction: "long" | "short",
+  peerMoves: Map<string, import("./peer-confirmation").PeerMove>,
+): Promise<ConvictionLayer | null> {
+  try {
+    const { scorePeerConfirmation, prefetchPeerMoves, peerSymbolsFor } = await import("./peer-confirmation");
+    // The build-level prefetch normally has everything; if it timed out, top up
+    // from the cache (fetching only what is still missing) before scoring.
+    const moves = peerMoves.size > 0
+      ? peerMoves
+      : await within(prefetchPeerMoves(peerSymbolsFor(symbol)), new Map(), 1_500);
+    const peer = scorePeerConfirmation(symbol, direction, moves);
+    if (peer) return peer;
+  } catch {
+    /* fall through to the ETF read */
+  }
+  return scoreSectorLayer(symbol, sector, direction);
+}
+
 async function scoreSectorLayer(symbol: string, sector: Sector, direction: "long" | "short"): Promise<ConvictionLayer | null> {
   try {
     const { getRotationForSector } = await import("./sector-rotation");
@@ -1143,6 +1170,38 @@ async function scoreTALayer(symbol: string, direction: "long" | "short"): Promis
 // ─────────────────────────────────────────────────────────────
 
 /**
+ * Swing / position age caps, in WEEKDAY hours (see marketHoursBetween — every
+ * weekday counts 24h, weekends count 0).
+ *
+ * The swing cap was 36. The comment beneath claimed that meant "roughly five
+ * trading sessions", but marketHoursBetween counts whole weekdays, so 36h was
+ * a day and a half: a Monday swing idea was gone by Tuesday evening, long
+ * before its own thesis horizon (the path replay grades swings over 10
+ * sessions; the freshness layer calls a swing "very stale" only at 120h).
+ * Measured 2026-09-29: "age cap removed 18 stale ideas (kept 19)" on every
+ * build — half the open book dropped for age alone, while the book itself was
+ * starved of new ideas.
+ *
+ * 120h = five sessions, matching the freshness layer's own very-stale mark.
+ * Age alone no longer retires a swing inside its horizon; the live checks in
+ * revalidateOne() still retire any idea whose entry is no longer valid
+ * (stopped, chased, entry window closed, or an aged entry with no live price
+ * to confirm it).
+ */
+const SWING_MAX_AGE_WEEKDAY_HOURS = 120;
+/** Position ideas: 20 sessions — the path replay's position horizon. */
+const POSITION_MAX_AGE_WEEKDAY_HOURS = 480;
+/**
+ * Live builds must see every OPEN idea still inside its cap. The longest cap is
+ * 480 weekday-hours (four calendar weeks); 30 days of wall clock covers it with
+ * holidays to spare. The pool is filtered to open rows in SQL, so the wider
+ * window does not widen the scan over resolved history.
+ */
+const MIN_LIVE_LOOKBACK_HOURS = 30 * 24;
+/** Past one session an entry must be re-confirmed against a live price. */
+const UNVERIFIED_ENTRY_MAX_AGE_HOURS = 24;
+
+/**
  * Convert an idea's `holdingPeriod` field into a hard maximum age (hours).
  * Day/intraday ideas decay fast — a "+5% intraday momentum" idea has no
  * business surviving 6 hours, let alone 56. Swing ideas get more rope.
@@ -1153,9 +1212,9 @@ function maxAgeHoursForIdea(idea: any): number {
   // Base caps (market-hours only logic)
   let cap: number;
   if (hp.includes("day") || hp.includes("intraday") || hp.includes("scalp")) cap = 6;
-  else if (hp.includes("swing")) cap = 36;
-  else if (hp.includes("position") || hp.includes("long")) cap = 96;
-  else cap = 24; // unknown → swing default
+  else if (hp.includes("swing")) cap = SWING_MAX_AGE_WEEKDAY_HOURS;
+  else if (hp.includes("position") || hp.includes("long")) cap = POSITION_MAX_AGE_WEEKDAY_HOURS;
+  else cap = 24; // unknown → one session
 
   /**
    * The caps above are MARKET hours, and ideaAgeHours now measures market hours
@@ -1169,9 +1228,8 @@ function maxAgeHoursForIdea(idea: any): number {
    * stale ideas (kept 1)", and the board rendered empty for the whole session
    * behind a message blaming an unrelated database migration.
    *
-   * Counting only market hours makes the cap mean what it says: a 36h swing
-   * idea survives roughly five trading sessions' worth of clock, and a weekend
-   * costs it nothing, whatever day it is read on.
+   * Counting only weekday hours makes a weekend cost an idea nothing, whatever
+   * day it is read on. (A weekday counts all 24h, so 120h = five sessions.)
    */
   return cap;
 }
@@ -1233,6 +1291,14 @@ function ideaAgeHours(idea: any): number {
 function catalystContradictsDirection(idea: any, direction: "long" | "short"): boolean {
   const text = typeof idea.catalyst === "string" ? idea.catalyst.toLowerCase() : "";
   if (!text) return false;
+  // Same exception as the write gate (validateTradeIdeaForCreate): a catalyst
+  // that names its own side — "ORB 15min SHORT breakout" — describes a move in
+  // that direction, so "breakout" there is not a bullish read. Without this the
+  // board retired every ORB short the write gate had just (correctly) admitted.
+  const namesOwnSide = direction === "short"
+    ? /\b(short|downside|puts?)\b/.test(text)
+    : /\b(long|upside|calls?)\b/.test(text);
+  if (namesOwnSide) return false;
   const bearishWords = /bearish|breakdown|downtrend|selloff|gap down|distribution|sell-off/;
   const bullishWords = /bullish|breakout|uptrend|surge|gap up|accumulation|rally/;
   if (direction === "long" && bearishWords.test(text) && !bullishWords.test(text)) return true;
@@ -1599,6 +1665,12 @@ function revalidateOne(
   idea: any,
   direction: "long" | "short",
   quote: RealtimeQuote | undefined,
+  /**
+   * Whether the quote pass was healthy enough that a MISSING price is about
+   * this symbol rather than a provider outage. Only then does an aged idea
+   * with no price get retired — a Yahoo 429 storm must not blank the board.
+   */
+  quotesHealthy = true,
 ): RevalidationResult {
   // 0. Level coherence — reject geometrically impossible ideas outright.
   //
@@ -1638,8 +1710,19 @@ function revalidateOne(
     };
   }
 
-  // No live quote — keep the idea, freshness layer will still apply age penalty
+  // No live quote. A fresh idea keeps its place (the freshness layer still
+  // applies); an idea older than a session does not — with the swing cap now
+  // five sessions, "no price to check it against" must not become a way for a
+  // dead entry to stay on the board.
   if (!quote || !Number.isFinite(quote.price)) {
+    const ageH = ideaAgeHours(idea);
+    if (quotesHealthy && ageH > UNVERIFIED_ENTRY_MAX_AGE_HOURS) {
+      return {
+        quote,
+        reject: true,
+        rejectReason: `no live price to confirm a ${ageH.toFixed(0)}h-old entry`,
+      };
+    }
     return { quote, reject: false, rejectReason: null };
   }
 
@@ -1790,6 +1873,11 @@ export async function revalidateBestSetups(
   }
 
   // Per-idea revalidation + annotation
+  const pricedCount = ageGated.filter((i: any) => {
+    const q = quoteMap.get(i.symbol);
+    return q && Number.isFinite(q.price) && q.price > 0;
+  }).length;
+  const bestSetupQuotesHealthy = pricedCount >= ageGated.length / 2;
   const kept: any[] = [];
   for (const idea of ageGated) {
     const dir: "long" | "short" =
@@ -1801,7 +1889,7 @@ export async function revalidateBestSetups(
           ? "short"
           : "long";
     const quote = quoteMap.get(idea.symbol);
-    const result = revalidateOne(idea, dir, quote);
+    const result = revalidateOne(idea, dir, quote, bestSetupQuotesHealthy);
     if (result.reject) {
       diagnostics.liveRejected++;
       diagnostics.rejected.push({
@@ -2071,9 +2159,15 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       logger.warn('[CONVICTIONS] GEX ladder repair unavailable; malformed rows remain quarantined:', err);
     }
   }
-  // Wide lookback window — the per-idea age cap (holding-period aware:
-  // intraday=6h, swing=36h, position=96h) does the real freshness filtering.
-  const lookbackHours = opts.lookbackHours ?? 96;
+  // Wide lookback window — the per-idea age cap (holding-period aware, in
+  // weekday hours: intraday=6, swing=120, position=480) does the real freshness
+  // filtering. Live builds never look back less than the longest cap, or a
+  // caller's "96h" silently undercut the caps (a Wednesday swing idea read the
+  // next Monday is 96h+ of wall clock but only ~72 weekday hours old).
+  const lookbackHours = Math.max(
+    opts.lookbackHours ?? 96,
+    opts.skipLiveRevalidation ? 0 : MIN_LIVE_LOOKBACK_HOURS,
+  );
   const limit = opts.limit ?? 25;
   const watchlistOnly = opts.watchlistOnly ?? true;
   const minScore = opts.minScore ?? 15;
@@ -2131,7 +2225,16 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     db
       .select()
       .from(tradeIdeas)
-      .where(gte(tradeIdeas.timestamp, cutoff))
+      .where(
+        // Live builds only ever score OPEN ideas (terminal rows are dropped
+        // just below), so filter in SQL and keep the 500-row slice for them.
+        skipLiveRevalidation
+          ? gte(tradeIdeas.timestamp, cutoff)
+          : and(
+              gte(tradeIdeas.timestamp, cutoff),
+              or(isNull(tradeIdeas.outcomeStatus), eq(tradeIdeas.outcomeStatus, "open")),
+            ),
+      )
       .orderBy(desc(tradeIdeas.timestamp))
       // Backtest replay needs the full historical pool; live convictions
       // only ever look at the recent slice so 500 is plenty.
@@ -2331,6 +2434,14 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
 
       const survivors: any[] = [];
       let rejectCount = 0;
+      const pricedLive = rankedForLive.filter((i: any) => {
+        const q = liveQuotes.get(i.symbol);
+        return q && Number.isFinite(q.price) && q.price > 0;
+      }).length;
+      const quotesHealthy = pricedLive >= rankedForLive.length / 2;
+      if (!quotesHealthy) {
+        logger.warn(`[CONVICTIONS] only ${pricedLive}/${rankedForLive.length} live prices — keeping aged ideas unverified this build rather than blanking the board`);
+      }
       for (const idea of rankedForLive) {
         const dir: "long" | "short" =
           typeof idea.targetPrice === "number" && typeof idea.entryPrice === "number"
@@ -2338,7 +2449,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
               ? "long"
               : "short"
             : (idea.direction as "long" | "short") || "long";
-        const result = revalidateOne(idea, dir, liveQuotes.get(idea.symbol));
+        const result = revalidateOne(idea, dir, liveQuotes.get(idea.symbol), quotesHealthy);
         if (result.reject) {
           rejectCount++;
           logger.debug(
@@ -2660,10 +2771,18 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
 
   // Sector + analyst enrichment (parallel, capped to top picks)
   if (!skipLiveRevalidation) {
+    // One batched quote pass for every top pick's peers + group ETF (+ SPY), so
+    // the per-pick peer read below is a cache lookup, not a fan-out.
+    const { prefetchPeerMoves, peerSymbolsFor } = await import("./peer-confirmation");
+    const peerMoves = await within(
+      prefetchPeerMoves(topForSector.flatMap((p) => peerSymbolsFor(p.symbol))),
+      new Map(),
+      4_000,
+    );
     await Promise.all(
       topForSector.map(async (p) => {
       const [sectorLayer, analystSnap, taLayer, compressionLayer, tapeContradiction, pathLayer] = await Promise.all([
-        within(scoreSectorLayer(p.symbol, p.sector, p.direction), null, 2_500),
+        within(scoreSectorAndPeersLayer(p.symbol, p.sector, p.direction, peerMoves), null, 2_500),
         within(getAnalystSnapshot(p.symbol), null, 2_500),
         // TA confluence (Fib + candlesticks + structure). Skipped during backtest
         // replay since it reads live daily candles, not historical-as-of bars.
