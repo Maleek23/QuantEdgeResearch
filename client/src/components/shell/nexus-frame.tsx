@@ -10,7 +10,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { BookOpen, LogOut, Moon, SlidersHorizontal, Bell } from 'lucide-react';
+import { BookOpen, LogOut, Moon, SlidersHorizontal, Bell, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
 import { useTheme } from '@/components/theme-provider';
@@ -23,6 +23,14 @@ import { CustomizePanel } from './customize-panel';
 import { DesktopRail } from './desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from './skip-link';
 import { useDismissable } from '@/hooks/use-dismissable';
+
+/**
+ * ONE search for every framed page: the global CommandPalette (App.tsx) owns
+ * ticker search, page jumps and ⌘K. This trigger only opens it — before
+ * 2026-09-29 the palette's only click trigger lived in the never-rendered
+ * AuthHeader, so framed pages (and every phone) had no search at all.
+ */
+const openPalette = () => window.dispatchEvent(new Event('qe:open-command-palette'));
 
 export function NexusFrame({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -54,6 +62,32 @@ export function NexusFrame({ children }: { children: ReactNode }) {
           </Link>
 
           <div className="top-spacer" />
+
+          {/* Phones: icon trigger — the palette is a full-width dialog there. */}
+          <button
+            type="button"
+            onClick={openPalette}
+            aria-label="Search tickers and pages"
+            data-testid="frame-search-mobile"
+            className="grid h-9 w-9 place-items-center rounded border border-border/55 text-muted-foreground transition-colors hover:text-foreground lg:hidden"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          {/* Desktop: the terminal's .search chrome, as a ⌘K palette trigger. */}
+          <div className="hidden lg:block">
+            <button
+              type="button"
+              className="search"
+              onClick={openPalette}
+              aria-label="Open command palette"
+              data-testid="frame-search"
+              style={{ cursor: 'pointer', background: 'transparent' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+              <span style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--text-mute)' }}>search any ticker or page</span>
+              <span className="search-kbd">⌘K</span>
+            </button>
+          </div>
 
           <div className="relative">
             <button ref={accountTriggerRef} onClick={() => setAccountOpen((o) => !o)} aria-label="Open account menu" aria-expanded={accountOpen} aria-haspopup="menu" className="user-chip">

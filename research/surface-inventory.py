@@ -16,7 +16,7 @@ import json, os, re, itertools
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "client", "src")
 SURFACES = {
-    "NEXUS board": "pages/nexus.tsx", "CHART": "components/charting/chart-lab-nexus.tsx", "FLOW": "components/flow/flow-board.tsx",
+    "NEXUS board": "pages/nexus-prototype.tsx", "Today": "pages/today.tsx", "CHART": "components/charting/chart-lab-nexus.tsx", "FLOW": "components/flow/flow-board.tsx",
     "GEX": "components/gex/gex-hub-nexus.tsx", "LEAPS": "components/hunt/leaps-nexus.tsx", "CRYPTO": "components/crypto/crypto-nexus.tsx",
     "CATALYST": "components/catalyst/catalyst-nexus.tsx", "BOT": "components/bot/bot-nexus.tsx", "POSITIONS": "pages/positions-heatmap.tsx",
     "JOURNAL": "pages/shells/journal-shell.tsx", "Slate": "pages/slate.tsx", "Radar": "pages/radar.tsx", "Performance": "pages/performance.tsx",

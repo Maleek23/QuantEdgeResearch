@@ -7,16 +7,21 @@
  * through ONE catch-all route (see App.tsx) driven by this table.
  *
  * Rules baked into the table:
- * - Redirect CHAINS were resolved to final destinations. Several legacy paths
- *   pointed at intermediate aliases (/home, /h, /p, /g, /chart-analysis,
- *   /command) that are themselves redirects, and chained redirects drop query
- *   params — so the table records where the user EFFECTIVELY landed, in one hop.
- * - One entry was dead code and is NOT here: a late `/t -> /r/SPY` redirect
- *   shadowed by the real `/t` Terminal route earlier in the Switch. `/t` IS
- *   the Terminal; that redirect could never fire.
+ * - ONE HOP. Every row names the final destination; no row targets another
+ *   legacy path. research/check-legacy-redirects.ts asserts this.
+ * - KEEP THE TAB. When a retired page had a successor TAB (terminal ?tab=,
+ *   journal ?jtab=, radar ?tab=), the row lands on that tab — not on the bare
+ *   shell. (2026-09-29 IA pass: ~12 rows used to drop their tab because they
+ *   were resolved through old chains like /h?tab=surges → /h → /t.)
+ * - The resolver ALSO follows chains (visited set, ≤ MAX_REDIRECT_HOPS) and
+ *   carries query params across every hop, so a future retirement that forgets
+ *   to repoint a row degrades to an extra hop instead of a dropped query.
  * - Parametric sources (/stock/:symbol etc.) keep their param substitution.
  *
- * To retire another URL: add one line to LEGACY_REDIRECTS. Nothing else changes.
+ * docs/IA_SYSTEM_DESIGN.md §5 holds the full old → new map this table encodes.
+ *
+ * To retire another URL: add one line here, repoint any rows that targeted it,
+ * run `npx tsx research/check-legacy-redirects.ts`.
  */
 
 export type LegacyTarget = string | ((params: Record<string, string>) => string);
@@ -28,6 +33,7 @@ export type LegacyTarget = string | ((params: Record<string, string>) => string)
 export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   // ── Shell aliases → Terminal (/t) ──────────────────────────────────────
   ["/nexus", "/t"],
+  ["/nexus-prototype", "/t"], // the board it prototyped IS the NEXUS tab
   ["/pos", "/t?tab=positions"],
   ["/j", "/t?tab=journal"],
   ["/p", "/t"],
@@ -41,25 +47,28 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/command-center", "/t"],
   ["/command-center-v2", "/t"],
   ["/aion", "/t"],
-  ["/paper-trading", "/t"],
-  ["/wallet-tracker", "/t"],
-  ["/ct-tracker", "/t"],
-  ["/research", "/t"],
+  ["/paper-trading", "/t?tab=bot"], // paper trading lives in the BOT tab
+  ["/wallet-tracker", "/t?tab=crypto"],
+  ["/ct-tracker", "/t?tab=crypto"],
+  // NEXUS carries the movers + watchlist rails and the market pulse.
   ["/market-movers", "/t"],
-  ["/movers", "/t"], // was /h?tab=movers → /h → /t (tab dropped by the chain)
-  ["/discovery", "/t"], // was /h?tab=ai-picks → /t
-  ["/pulse", "/t"], // was /p?tab=pulse → /t
-  ["/watchlist", "/t"], // was /h?tab=watchlist → /t
+  ["/movers", "/t"],
+  ["/pulse", "/t"],
+  ["/watchlist", "/t"],
   ["/watchlist/weekly", "/t"],
-  ["/weekly-watchlist", "/t"], // was → /watchlist → /t
-  ["/smart-signals", "/t"], // was /h?tab=surges → /t
-  ["/market-scanner", "/t"], // was /h?tab=surges → /t
-  ["/swing-scanner", "/t"], // was /h?tab=surges → /t
-  ["/bullish-trends", "/t"], // was /h?tab=surges → /t
+  ["/weekly-watchlist", "/t"],
 
-  // ── Folded into the Terminal GEX tab ────────────────────────────────────
-  ["/whale-flow", "/t?tab=gex"], // was /g?tab=heatmap → /g → /t?tab=gex
-  ["/smart-money", "/t?tab=gex"], // was /g?tab=heatmap → /t?tab=gex
+  // ── Scanners → Radar (the setup-discovery surface) ─────────────────────
+  ["/discovery", "/radar?tab=picks"], // was /h?tab=ai-picks
+  ["/smart-signals", "/radar?tab=forming"], // was /h?tab=surges
+  ["/market-scanner", "/radar?tab=forming"],
+  ["/swing-scanner", "/radar?tab=forming"],
+  ["/bullish-trends", "/radar?tab=forming"],
+  ["/pattern-scanner", "/radar?tab=patterns"],
+
+  // ── Flow and GEX ────────────────────────────────────────────────────────
+  ["/whale-flow", "/t?tab=flow"], // whale prints are options flow
+  ["/smart-money", "/t?tab=flow"],
   ["/gex-dashboard", "/t?tab=gex"],
   ["/gex-scanner", "/t?tab=gex"],
   ["/gex", "/t?tab=gex"],
@@ -67,15 +76,18 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/gex-legacy", "/t?tab=gex"],
 
   // ── Research / chart destinations ───────────────────────────────────────
+  ["/research", "/r"], // the per-ticker home, not the terminal
   ["/analyze", "/r/SPY?tab=analyze"],
-  ["/chart-analysis", "/r/SPY?tab=chart"],
-  ["/pattern-scanner", "/r/SPY?tab=chart"], // was → /chart-analysis → …
-  ["/geopolitical", "/r/SPY?tab=chart"], // was → /command → …
-  ["/command", "/r/SPY?tab=chart"],
-  ["/projector", "/r/SPY?tab=chart"],
+  ["/chart-analysis", "/t?tab=chart"],
+  ["/command", "/t?tab=chart"],
+  ["/geopolitical", "/t?tab=catalyst"], // events live in CATALYST
+  ["/projector", "/today"], // the weekly path projection leads Today
   ["/options-analyzer", "/r/SPY?tab=options"],
   ["/terminal/heatmap", "/r/SPY?tab=gex"],
   ["/spx", "/r/SPX?tab=chart"],
+  // Futures: the CHART tab carries the ES translation + futures risk sizer.
+  ["/futures", "/t?tab=chart"],
+  ["/futures-research", "/t?tab=chart"],
 
   // ── Parametric (kept as functions) ─────────────────────────────────────
   ["/invite/:token", (p) => `/invite?code=${p.token}`],
@@ -86,36 +98,33 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/command/:symbol", (p) => `/r/${p.symbol}?tab=chart`],
   ["/gex/:symbol", (p) => `/r/${p.symbol}?tab=gex`],
 
-  // ── Trade Desk ─────────────────────────────────────────────────────────
+  // ── Ideas (Trade Desk retired 2026-09-24) ──────────────────────────────
   ["/trade-desk-v2", "/slate"],
+  ["/trade-desk", "/slate"],
   ["/discover", "/slate"],
   ["/wsb-trending", "/slate"],
   ["/social-trends", "/slate"],
-  ["/ai-stock-picker", "/slate"],
+  ["/ai-stock-picker", "/radar?tab=picks"],
   ["/trade-ideas", "/slate"],
-  // Retired 2026-09-24 (nav-architecture test N6): Trade Desk duplicated the
-  // NEXUS board and Slate and read "0 ideas" while the board had them;
-  // Automations duplicated the BOT tab with a contradictory P&L.
-  ["/trade-desk", "/slate"],
+  // "Today's best convictions" (the old ?preset=todays-best) is exactly the
+  // ranked book Today renders from /api/convictions. Slate has no presets.
+  ["/convictions", "/today"],
   ["/automations", "/t?tab=bot"],
-  // PERF duplicated JOURNAL › Track record (same component, two doors).
-  ["/performance", "/t?tab=journal&jtab=record"],
-  ["/convictions", "/slate?preset=todays-best"],
-  ["/futures", "/slate?tab=futures"],
-  ["/futures-research", "/slate?tab=futures"],
+  ["/watchlist-bot", "/t?tab=bot"],
 
-  // ── Performance ────────────────────────────────────────────────────────
+  // ── Journal (PERF folded into JOURNAL › Track record) ──────────────────
+  ["/performance", "/t?tab=journal&jtab=record"],
+  ["/history", "/t?tab=journal&jtab=trades"],
   ["/trading-engine", "/t?tab=journal&jtab=record"],
   ["/historical-intelligence", "/t?tab=journal&jtab=record"],
   ["/smart-advisor", "/t?tab=journal&jtab=record"],
-  ["/convictions/backtest", "/t?tab=journal&jtab=record"],
+  ["/convictions/backtest", "/t?tab=journal&jtab=backtest"],
   ["/data-audit", "/t?tab=journal&jtab=record"],
-  ["/insights", "/t?tab=journal&jtab=record"],
-  ["/analytics", "/t?tab=journal&jtab=record"],
+  ["/insights", "/t?tab=journal&jtab=insights"],
+  ["/analytics", "/t?tab=journal&jtab=analytics"],
   ["/signals", "/t?tab=journal&jtab=record"],
 
   // ── Misc ───────────────────────────────────────────────────────────────
-  ["/watchlist-bot", "/t?tab=bot"],
   ["/account", "/settings"],
   ["/my-account", "/settings"],
   ["/trading-guide", "/blog/how-to-trade-like-a-pro"],
@@ -148,11 +157,8 @@ const COMPILED: CompiledEntry[] = LEGACY_REDIRECTS.map(([pattern, target]) => ({
   target,
 }));
 
-/**
- * Resolve a legacy pathname to its redirect target, or null if it isn't legacy.
- * Pure function — no router dependency, safe to unit test.
- */
-export function resolveLegacyRedirect(pathname: string): string | null {
+/** One table lookup, no chain following. Exported for the hygiene check. */
+export function resolveLegacyRedirectOnce(pathname: string): string | null {
   const path = pathname.split("?")[0].split("#")[0];
   for (const { regex, keys, target } of COMPILED) {
     const m = regex.exec(path);
@@ -165,6 +171,54 @@ export function resolveLegacyRedirect(pathname: string): string | null {
     return target(params);
   }
   return null;
+}
+
+/** Max redirects followed for one legacy URL. */
+export const MAX_REDIRECT_HOPS = 3;
+
+function splitUrl(url: string): { path: string; params: URLSearchParams } {
+  const noHash = url.split("#")[0];
+  const q = noHash.indexOf("?");
+  return q < 0
+    ? { path: noHash, params: new URLSearchParams() }
+    : { path: noHash.slice(0, q), params: new URLSearchParams(noHash.slice(q + 1)) };
+}
+
+/**
+ * Resolve a legacy URL to its FINAL destination, or null if it isn't legacy.
+ *
+ * - Follows chains (a target that is itself legacy) with a visited set and at
+ *   most MAX_REDIRECT_HOPS hops, so a cycle can't spin.
+ * - Preserves query params across every hop: the incoming query is kept, and a
+ *   hop's own target params win on conflicts (they are what route it — e.g.
+ *   `tab=bot`).
+ *
+ * `search` is the incoming query string (wouter's useLocation() returns only
+ * the pathname). Pure — no window access — so scripts and tests can call it.
+ */
+export function resolveLegacyRedirect(pathname: string, search = ""): string | null {
+  let { path, params } = splitUrl(pathname);
+  if (search) {
+    new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).forEach((v, k) => {
+      if (!params.has(k)) params.set(k, v);
+    });
+  }
+
+  const visited = new Set<string>([path]);
+  let resolved = false;
+  for (let hop = 0; hop < MAX_REDIRECT_HOPS; hop++) {
+    const next = resolveLegacyRedirectOnce(path);
+    if (next == null) break;
+    const { path: nextPath, params: nextParams } = splitUrl(next);
+    nextParams.forEach((v, k) => params.set(k, v)); // hop target wins on conflicts
+    path = nextPath;
+    resolved = true;
+    if (visited.has(path)) break; // cycle — stop where we are
+    visited.add(path);
+  }
+  if (!resolved) return null;
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
 }
 
 /** Preserve incoming query parameters while allowing the destination to win conflicts. */

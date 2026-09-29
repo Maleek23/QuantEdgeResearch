@@ -1,24 +1,18 @@
-import { Suspense, useState, useEffect, ComponentType } from "react";
-import { getMarketStatus } from "@/lib/market-hours";
-import { LEGACY_REDIRECT_PATTERN, mergeRedirectQuery, resolveLegacyRedirect } from "@/lib/legacy-redirects";
+import { Suspense, useEffect, ComponentType } from "react";
+import { LEGACY_REDIRECT_PATTERN, resolveLegacyRedirect } from "@/lib/legacy-redirects";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
-import { Button } from "@/components/ui/button";
-import { LogOut, User, Loader2, Search } from "lucide-react";
-import { Footer } from "@/components/footer";
-import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
+import { Loader2 } from "lucide-react";
 import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-route";
-import { PreferencesProvider, usePreferences } from "@/contexts/preferences-context";
-;
+import { PreferencesProvider } from "@/contexts/preferences-context";
 import { ContentDensityProvider } from "@/hooks/use-content-density";
 import { DensityProvider } from "@/components/ui/qe-density";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -45,9 +39,7 @@ const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const SlatePage     = lazyWithRetry(() => import("@/pages/slate"), "slate");
 const TodayPage     = lazyWithRetry(() => import("@/pages/today"), "today");
-const NexusPrototype = lazyWithRetry(() => import("@/pages/nexus-prototype"), "nexus-prototype");
 // REMOVED — Market page consolidated, redirect to /home
-const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
 const SettingsPage = lazyWithRetry(() => import("@/pages/settings"), "settings");
 const AlertsPage = lazyWithRetry(() => import("@/pages/alerts"), "alerts");
 const AdminOverview = lazyWithRetry(() => import("@/pages/admin/overview"), "admin-overview");
@@ -66,8 +58,6 @@ const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
 
-const StrategySimulator = lazyWithRetry(() => import("@/pages/strategy-simulator"), "strategy-simulator");
-const Backtest = lazyWithRetry(() => import("@/pages/backtest"), "backtest");
 const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
 const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 
@@ -94,11 +84,10 @@ const ForgotPassword = lazyWithRetry(() => import("@/pages/forgot-password"), "f
 const ResetPassword = lazyWithRetry(() => import("@/pages/reset-password"), "reset-password");
 
 // MERGED — Discover absorbed into Trade Desk
-const HistoryPage = lazyWithRetry(() => import("@/pages/history"), "history");
+// REMOVED 2026-09-29 — pages/history.tsx (never routed; /history → Journal › Trades)
 
 // Terminal — full-screen Skylit-style dedicated pages
 // MERGED: /terminal/:symbol now redirects to Research (/r/:symbol?tab=chart)
-// MERGED: Heatmap view now lives inside unified terminal-chart.tsx
 
 // Preload critical routes after initial render (during idle time).
 // This warms the chunk cache so navigation feels instant.
@@ -176,9 +165,9 @@ function SmartLanding() {
  */
 function LegacyRedirect() {
   const [location] = useLocation();
-  const target = resolveLegacyRedirect(location);
+  const target = resolveLegacyRedirect(location, window.location.search);
   if (!target) return <NotFound />;
-  return <Redirect to={mergeRedirectQuery(target, window.location.search)} />;
+  return <Redirect to={target} />;
 }
 
 function Router() {
@@ -189,7 +178,6 @@ function Router() {
       <Switch>
         {/* ─── TERMINAL — one shell, 10 tabs (NEXUS · CHART · FLOW · GEX · LEAPS · CRYPTO · CATALYST · BOT · POSITIONS · JOURNAL) ─── */}
         <Route path="/t"          component={withBetaProtection(TerminalShell)} />
-        <Route path="/nexus-prototype" component={withBetaProtection(NexusPrototype)} />
         
         {/* ─── RESEARCH — per-ticker shell (own symbol chrome; stays separate) ─── */}
 
@@ -288,75 +276,6 @@ function Router() {
   );
 }
 
-function AuthHeader() {
-  const { user, logout, isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
-  const [marketStatus, setMarketStatus] = useState({ isOpen: false, statusMessage: 'Checking...' });
-
-  useEffect(() => {
-    const updateStatus = () => {
-      const status = getMarketStatus();
-      setMarketStatus(status);
-    };
-    updateStatus();
-    const interval = setInterval(updateStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleLogout = () => {
-    logout();
-    setLocation("/");
-  };
-
-  const userData = user as { email?: string; firstName?: string } | null;
-
-  return (
-    <header className="flex items-center justify-between gap-2 px-3 h-10 border-b border-border/40 bg-card/50 backdrop-blur-sm shrink-0">
-      {/* Left — trigger + market status */}
-      <div className="flex items-center gap-2">
-        <SidebarTrigger data-testid="button-mobile-menu" className="h-7 w-7 text-muted-foreground" />
-        <div className="h-4 w-px bg-border hidden sm:block" />
-        <span className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
-          <span className={`h-1 w-1 rounded-full ${marketStatus.isOpen ? 'bg-[var(--trade-bullish)] animate-pulse' : 'bg-muted-foreground'}`} />
-          {marketStatus.isOpen ? 'OPEN' : 'CLOSED'}
-        </span>
-      </div>
-
-      {/* Right — search, user, theme */}
-      <div className="flex items-center gap-1.5">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-[10px] font-mono text-muted-foreground hover:text-foreground gap-1.5 hidden sm:flex"
-          onClick={() => window.dispatchEvent(new Event('qe:open-command-palette'))}
-        >
-          <Search className="h-3 w-3" />
-          Search
-          <kbd className="ml-1 px-1 py-0 text-[9px] bg-muted rounded border border-border text-muted-foreground">⌘K</kbd>
-        </Button>
-        {isAuthenticated && userData && (
-          <>
-            <span className="hidden md:inline text-[10px] font-mono text-muted-foreground truncate max-w-[120px]">
-              {userData.firstName || userData.email || 'User'}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              aria-label="Log out"
-              data-testid="button-logout"
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="h-3 w-3" />
-            </Button>
-          </>
-        )}
-        <ThemeToggle />
-      </div>
-    </header>
-  );
-}
-
 function App() {
   const [location] = useLocation();
 
@@ -371,7 +290,7 @@ function App() {
     // Only save authenticated app pages (not landing/login/public)
     // Don't remember legacy shells as the landing page — the Terminal (/t) is the front
     // door now. They remain reachable directly; they just no longer hijack the next visit.
-    const skipPaths = ['/', '/w', '/landing', '/login', '/signup', '/invite', '/join-beta',
+    const skipPaths = ['/', '/w', '/login', '/signup', '/invite', '/join-beta',
                        '/p', '/h', '/g', '/r', '/pos', '/j', '/academy', '/how-to'];
     if (!skipPaths.includes(path) && !path.startsWith('/admin') && !path.startsWith('/invite/')) {
       localStorage.setItem('qe-last-page', location);
@@ -386,7 +305,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog', '/pricing'];
+  const publicPages = ['/', '/w', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog', '/pricing'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {
@@ -427,7 +346,9 @@ function App() {
   // gets the shared topbar and mobile dock instead of a third chrome of its own.
   // Today is the signed-in homepage, not a second landing site. It belongs in
   // NexusFrame with the rest of the product so navigation never disappears.
-  const isFullBleedShell = locationPath === '/t' || locationPath === '/nexus';
+  // (/nexus used to be listed here too, but it is a legacy redirect to /t —
+  // the redirect renders before this branch could ever matter.)
+  const isFullBleedShell = locationPath === '/t';
 
   if (isFullBleedShell) {
     return (

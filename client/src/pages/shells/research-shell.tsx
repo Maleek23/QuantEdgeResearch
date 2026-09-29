@@ -1,26 +1,21 @@
 /**
  * RESEARCH — the canonical per-ticker home.
  *
- *   URL: /r/:symbol[?tab=chart|options|gex|flow|news|setups|analysis]
+ *   URL: /r/:symbol[?tab=workup|gex|analyze]
+ *   (legacy ?tab=chart|options|flow land inside the Dossier — see effect below)
  *
  * Header:
  *   • TickerSwitcher (hierarchical: recent / watchlist / sector groups / search)
- *   • Live price + change pill (from /api/quote)
- *   • Sector/tier tags
+ *   • Live price + change pill (from /api/quotes/batch)
  *
  * Tabs:
- *   Chart    — price + key levels + GEX overlays  (terminal-chart.tsx)
- *   Options  — chain · greeks · IV · ROI         (options-analyzer.tsx)
- *   GEX      — walls · flip · matrix · dealer flow (terminal-heatmap.tsx)
- *   Flow     — unusual options activity for this ticker (next sprint stub)
- *   News     — catalysts + sentiment (next sprint stub)
- *   Setups   — active trade ideas tied to this symbol (next sprint stub)
- *   Analysis — TA + FA combined (next sprint stub)
+ *   Dossier       — TickerWorkup: overview, chart, options, events, execution gates
+ *   GEX surface   — walls · flip · expiry matrix · dealer flow (research/terminal-heatmap)
+ *   Contract lab  — ContractAnalyzer: paste any contract for a contract-level read
  *
  * Symbol propagation:
  *   useParams() reads URL → setCurrentStock() updates global StockContext
- *   → terminal-chart, options-analyzer, etc. (which already read currentStock)
- *     all see the right ticker without prop-drilling.
+ *   → children that read currentStock see the right ticker without prop-drilling.
  *
  * GEX → Per-Symbol shortcut redirects here with ?tab=gex (no duplication).
  */

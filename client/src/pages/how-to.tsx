@@ -1,7 +1,7 @@
 /**
  * HOW TO USE QUANTEDGE — single-page user guide
  *
- * Linked from sidebar (Help) and ⌘K. Static page with no API calls.
+ * Linked from the account menu (How to use) and ⌘K. Static page with no API calls.
  * Goal: replace "I don't know how to use this" with "I know exactly where to go."
  */
 import { Link } from 'wouter';
@@ -55,9 +55,9 @@ export default function HowToPage() {
           <PageCard icon={Bitcoin}    url="/t?tab=crypto" title="BTC Radar" desc="Live BTC + 14 crypto-equity beta tracker, fires on level breaks" />
           <PageCard icon={Crosshair}  url="/slate" title="Slate"  desc="Today's measured setups and the pre-market gappers" />
           <PageCard icon={Zap}        url="/t?tab=gex" title="GEX & Flow"   desc="Dealer gamma walls + options flow — your entry/exit lens" />
-          <PageCard icon={Microscope} url="/r/SPY"  title="Research"        desc="Per-ticker deep dive — chart, options, GEX, flow, news" />
+          <PageCard icon={Microscope} url="/r/SPY"  title="Research"        desc="Per-ticker dossier — chart, options, GEX surface, contract lab" />
           <PageCard icon={Wallet}     url="/t?tab=positions" title="Positions" desc="Your open book — alerts, stops, exits" />
-          <PageCard icon={BookOpen}   url="/t?tab=journal" title="Journal"  desc="Trade history + performance + backtests" />
+          <PageCard icon={BookOpen}   url="/t?tab=journal" title="Journal"  desc="Dashboard · trades · analytics · track record" />
         </div>
       </Section>
 
@@ -100,14 +100,17 @@ export default function HowToPage() {
       {/* Quick decision tree */}
       <Section title="When Stuck — Quick Decision Tree" subtitle="">
         <div className="space-y-2 text-[11px] font-mono">
-          <DecisionRow q="What should I trade today?"               a={['/radar', '/btc']} />
-          <DecisionRow q="Is the market bullish or bearish?"        a={['/p?tab=pulse']} />
-          <DecisionRow q="Where's QCOM going?"                       a={['/r/QCOM', '/g']} />
-          <DecisionRow q="What just got published today?"   a={['/slate']} />
-          <DecisionRow q="What earnings are this week?"             a={['/p?tab=earnings']} />
-          <DecisionRow q="My open positions?"                        a={['/pos']} />
-          <DecisionRow q="My win rate / track record?"               a={['/j']} />
-          <DecisionRow q="A pattern setup I want to follow?"        a={['/h']} />
+          {/* Canonical URLs only — the old aliases (/p, /g, /pos, /j, /h, /btc)
+              are redirects, and /p?tab=earnings dropped its tab on the way. */}
+          <DecisionRow q="What should I trade today?"               a={['/today', '/slate']} />
+          <DecisionRow q="Is the market bullish or bearish?"        a={['/t']} />
+          <DecisionRow q="Where's QCOM going?"                       a={['/r/QCOM', '/t?tab=gex']} />
+          <DecisionRow q="What just got published today?"           a={['/slate']} />
+          <DecisionRow q="What earnings are this week?"             a={['/t?tab=catalyst']} />
+          <DecisionRow q="BTC moving — which equities follow?"      a={['/t?tab=crypto']} />
+          <DecisionRow q="My open positions?"                        a={['/t?tab=positions']} />
+          <DecisionRow q="My win rate / track record?"               a={['/t?tab=journal&jtab=record']} />
+          <DecisionRow q="A pattern setup I want to follow?"        a={['/radar?tab=forming']} />
         </div>
       </Section>
 

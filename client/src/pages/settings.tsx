@@ -21,9 +21,7 @@ import {
   Palette,
   Target,
   TrendingDown,
-  Clock,
   AlertTriangle,
-  PanelLeft,
   User,
   Bot,
   Download,
@@ -34,8 +32,6 @@ import {
   Mail,
   Camera
 } from "lucide-react";
-import { Link } from "wouter";
-import { NavigationCustomizer } from "@/components/navigation-customizer";
 import { safeToFixed } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
@@ -279,10 +275,6 @@ export default function SettingsPage() {
           <TabsTrigger value="preferences" data-testid="tab-preferences" className="flex-1 min-w-[80px]">
             <Palette className="h-4 w-4 mr-2" />
             Display
-          </TabsTrigger>
-          <TabsTrigger value="navigation" data-testid="tab-navigation" className="flex-1 min-w-[80px]">
-            <PanelLeft className="h-4 w-4 mr-2" />
-            Navigation
           </TabsTrigger>
         </TabsList>
 
@@ -811,47 +803,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Navigation Tab */}
-        <TabsContent value="navigation" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <PanelLeft className="h-4 w-4" />
-                Sidebar Navigation
-              </CardTitle>
-              <CardDescription>Reorder your sidebar, add items, and organize groups</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <NavigationCustomizer />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Quick Links</CardTitle>
-              <CardDescription>Pages not in the sidebar that you might find useful</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <Link href="/t?tab=bot">
-                  <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
-                    <Bot className="h-3.5 w-3.5" /> Automations
-                  </Button>
-                </Link>
-                <Link href="/t?tab=journal">
-                  <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
-                    <Clock className="h-3.5 w-3.5" /> History
-                  </Button>
-                </Link>
-                <Link href="/r/SPY?tab=options">
-                  <Button variant="outline" size="sm" className="w-full text-xs gap-1.5 justify-start">
-                    <Target className="h-3.5 w-3.5" /> Options Analyzer
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Floating Save Button */}
