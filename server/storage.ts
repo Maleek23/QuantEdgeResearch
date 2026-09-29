@@ -2676,12 +2676,31 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // LOSS RULES v1 (server/loss-rules.ts): every NEW idea from every automated
+    // source gets T1 capped at its horizon's expected move, a planned time stop,
+    // and the rule-set version stamped into convergenceSignalsJson.lossRules.
+    // Existing rows are never rewritten. Flags: LOSS_RULE_TARGET_CAP / _TIME_STOP.
+    let ruled: InsertTradeIdea = idea;
+    try {
+      const { applyLossRulesToNewIdea } = await import("./loss-rules");
+      ruled = await applyLossRulesToNewIdea(idea as any) as InsertTradeIdea;
+    } catch (err) {
+      logger.warn(`[LOSS-RULES] could not apply to ${(idea as any).symbol}: ${(err as Error)?.message ?? err}`);
+    }
+    if ((ruled as any).targetPrice !== (idea as any).targetPrice) {
+      const v2 = validateTradeIdeaForCreate(ruled);
+      if (!v2.ok) {
+        logger.warn(`[LOSS-RULES] ${(idea as any).symbol} ${src}: capped plan fails the write gate (${v2.reason}) — not published`);
+        throw new Error(`Invalid trade idea after loss-rules target cap: ${v2.reason}`);
+      }
+    }
+
     // GLOBAL CAP: No trade idea should have confidence > 94% (reflects market uncertainty)
     const cappedIdea = {
-      ...idea,
-      confidenceScore: idea.confidenceScore
-        ? Math.min(94, Math.max(0, idea.confidenceScore))
-        : idea.confidenceScore
+      ...ruled,
+      confidenceScore: ruled.confidenceScore
+        ? Math.min(94, Math.max(0, ruled.confidenceScore))
+        : ruled.confidenceScore
     };
     const [created] = await db.insert(tradeIdeas).values(cappedIdea as any).returning();
     return created;
