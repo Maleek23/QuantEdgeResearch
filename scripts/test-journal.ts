@@ -12,7 +12,7 @@ import {
   calendarMonth, computeMetrics, crossBuckets, dailyStats, dayStreaks, drawdownPeriods, equityCurve, groupBy, missingDim, noteLine,
   peakConcurrent, periodStart, reportBuckets, rollingStats, ruleOfReason, runRecords, toTrade,
 } from '../client/src/lib/journal/metrics';
-import { FILTERED_PAGES, JOURNAL_PAGES, LEGACY_JTAB, TRADE_PAGES, resolveJournalPage, resolveJournalTab } from '../client/src/lib/journal/legacy-jtab';
+import { FILTERED_PAGES, JOURNAL_GROUPS, JOURNAL_PAGES, LEGACY_JTAB, TRADE_PAGES, resolveJournalPage, resolveJournalTab } from '../client/src/lib/journal/legacy-jtab';
 import type { JournalTradeRow } from '../client/src/lib/journal/types';
 import { parseJournalKey, traderOwnerId, journalKindOf, journalNoteKey } from '../shared/journal-sources';
 import { decodeOccSymbol, pairFills, type BrokerFill } from '../shared/fill-pairing';
@@ -23,6 +23,12 @@ import {
   calendarInsights, dayEquity, dayRecap, decodeTradeReview, edgeScore, encodeTradeReview, groupImportErrors, marketWindow, maxDrawdownPct,
   performanceTrends, planLevels, playbookAdherence, playbookRules, relativeDrawdown, timeGrid, toCsv, tradeTimeframe, type TradeReview,
 } from '../client/src/lib/journal/metrics-extra';
+import {
+  analyseTrade, counterfactuals, dteBucket, etParts, exitCategory, holdBucket, isOutsideRTH, lossDrivers, LOSS_CLASSES, replayR,
+  summariseLosses, tradeContext, type Bar, type LossRow,
+} from '../client/src/lib/journal/loss-analysis';
+import { JOURNAL_DEFAULTS } from '../client/src/components/dashboard/defs/journal';
+import { tilingIssues } from '../client/src/components/dashboard/layout';
 import {
   normalizeDiscordExport, pairDiscordMessages, parseDiscordMessage, resolveExpiry, type DiscordMsg,
 } from '../shared/discord-journal-parser';
@@ -104,7 +110,11 @@ for (const [alias, view] of [['journal', 'daily'], ['notes', 'notebook'], ['setu
 // Every sidebar page is reachable by its own id, and the 4 old destination ids still resolve.
 for (const p of JOURNAL_PAGES) assert.equal(resolveJournalTab(p.id).view, p.id, `page ${p.id} resolves to itself`);
 for (const old of ['dashboard', 'trades', 'analytics', 'record']) assert.ok(Object.prototype.hasOwnProperty.call(LEGACY_JTAB, old), `old view id ${old}`);
-assert.deepEqual(JOURNAL_PAGES.map((p) => p.id), ['dashboard', 'calendar', 'daily', 'trades', 'reports', 'notebook', 'playbooks', 'progress', 'missed', 'import', 'accounts', 'settings', 'record']);
+assert.deepEqual(JOURNAL_PAGES.map((p) => p.id), ['dashboard', 'calendar', 'daily', 'trades', 'reports', 'loss', 'playbooks', 'progress', 'missed', 'notebook', 'import', 'accounts', 'settings', 'record']);
+assert.deepEqual(JOURNAL_GROUPS.map((g) => g.id), ['overview', 'trades', 'improve', 'setup', 'platform']);
+for (const g of JOURNAL_GROUPS) assert.ok(JOURNAL_PAGES.some((p) => p.group === g.id), `group ${g.id} has pages`);
+assert.equal(resolveJournalTab('losses').view, 'loss');
+assert.ok(TRADE_PAGES.has('loss') && FILTERED_PAGES.has('loss'), 'Loss analysis reads the filtered book');
 assert.ok(!JOURNAL_PAGES.some((p) => (p.id as string) === 'prop-firms'), 'Prop firms is not carried over');
 assert.equal(resolveJournalPage('?jpage=progress&jtab=trades').view, 'progress', '?jpage= wins over ?jtab=');
 assert.equal(resolveJournalPage('?jtab=missed').view, 'missed');
@@ -421,6 +431,114 @@ assert.throws(() => normalizeDiscordExport('hello,world\n1,2'), /Unrecognised fi
   assert.deepEqual([ge.saves.length, ge.other.length], [1, 1]);
   // Review notes key.
   assert.equal(journalNoteKey('trade_review', 'abc-123'), 'trade:abc-123');
+}
+
+// ── loss analysis: taxonomy rules (client/src/lib/journal/loss-analysis.ts) ──
+{
+  const H = 3_600_000;
+  // Hourly bars from 2026-09-01 13:30Z (09:30 ET, a Tuesday), one per hour, OHLC from a close path.
+  const t0 = Date.parse('2026-09-01T13:30:00Z');
+  const mk = (path: [number, number, number][]): Bar[] => path.map(([o, h, l], i) => ({ time: t0 + i * H, open: o, high: h, low: l, close: (h + l) / 2 }));
+  const flat = (n: number, px: number): [number, number, number][] => Array.from({ length: n }, () => [px, px + 0.1, px - 0.1]);
+  const iso = (i: number) => new Date(t0 + i * H + 60_000).toISOString();
+  const lrow = (p: Partial<LossRow>): LossRow => ({
+    id: `l${Math.random()}`, symbol: 'TST', assetType: 'stock', direction: 'long', entryPrice: 100, entryTime: iso(0), exitTime: iso(5),
+    realizedPnL: -20, status: 'closed', notes: 'plan: entry 100 · target 104 · stop 98\noutcome: hit_stop', setupType: 'market_scanner', ...p,
+  });
+  const cls = (row: LossRow, bars: Bar[]) => analyseTrade(row, { h1: bars, d1: null }, t0 + 400 * H);
+
+  // Context parsing: desk notes → plan, exit category, conviction; option thesis from the contract.
+  const c = tradeContext(lrow({ notes: 'plan: entry 412.5 · target 430 · stop 405\nconviction band at publish: A\noutcome: expired (time)' }));
+  assert.deepEqual([c.planEntry, c.target, c.stop, c.exitCat, c.conviction], [412.5, 430, 405, 'expired', 'A']);
+  assert.equal(tradeContext(lrow({ assetType: 'option', optionType: 'put', direction: 'long' })).thesis, 'short', 'a bought put is short the underlying');
+  assert.equal(tradeContext(lrow({ notes: 'Exit: stop loss hit' })).exitCat, 'stop', 'bot exit reason');
+  assert.equal(tradeContext(lrow({ notes: 'outcome: expired (stop never printed)' })).exitCat, 'expired', 'desk status wins over its prose');
+  assert.equal(exitCategory(''), 'not recorded');
+  assert.equal(exitCategory('hit_target'), 'target');
+  // New York time and regular hours.
+  assert.deepEqual(etParts(Date.parse('2026-09-01T13:30:00Z')), { weekday: 'Tue', hour: 9, minute: 30 });
+  assert.equal(isOutsideRTH(Date.parse('2026-09-01T13:30:00Z')), false, '09:30 ET is regular hours');
+  assert.equal(isOutsideRTH(Date.parse('2026-09-02T00:30:00Z')), true, '20:30 ET is not');
+  assert.equal(isOutsideRTH(Date.parse('2026-09-05T15:00:00Z')), true, 'Saturday is not');
+  assert.equal(dteBucket(14), '8–30 DTE');
+  assert.equal(dteBucket(null), 'not an option');
+  assert.equal(holdBucket(30 * 60_000), '< 1h');
+
+  // 1 · wrong direction: never above +0.2R (stop 98 → R = 2), stopped, kept falling.
+  const down = mk([[100, 100.2, 99.5], [99.5, 99.6, 99], [99, 99.1, 98.5], [98.5, 98.6, 97.9], [97.9, 98, 97.5], [97.5, 97.6, 97], ...flat(30, 96)]);
+  const a1 = cls(lrow({}), down);
+  assert.equal(a1.cls, 'wrong_direction');
+  assert.ok(a1.flags.includes('never_in_profit') && a1.flags.includes('stop_printed'));
+  assert.equal(a1.risk, 2);
+  assert.ok(Math.abs(a1.mfeR! - 0.1) < 1e-9 && a1.maeR! <= -1.5);
+  assert.equal(a1.tMaeMs, 5 * H - 60_000, 'time to MAE = the bar the worst low printed');
+
+  // 2 · gave back a winner: +1.25R, then stopped.
+  const a2 = cls(lrow({}), mk([[100, 101.5, 99.9], [101.5, 102.5, 101], [102, 102.1, 100], [100, 100.1, 98.5], [98.5, 98.6, 97.9], [97.9, 98, 97.8], ...flat(30, 97)]));
+  assert.equal(a2.cls, 'gave_back');
+  assert.ok(a2.mfeR! >= 1);
+
+  // 3 · stop too tight: stopped at 97.9 (never in profit either), then the target printed — precedence stop_tight > wrong_direction.
+  const a3 = cls(lrow({}), mk([[100, 100.1, 99], [99, 99.2, 97.9], [98, 98.5, 97.9], [98, 98.2, 97.95], [98, 98.1, 97.95], [98, 98.1, 97.95], [99, 101, 98.9], [101, 104.5, 100.8], ...flat(20, 103)]));
+  assert.equal(a3.cls, 'stop_tight');
+  assert.ok(a3.flags.includes('never_in_profit') && a3.flags.includes('target_after_exit'), 'outranked rules stay as flags');
+
+  // 4 · theta: a call, underlying +1% at the exit (no usable stop → % rules), premium lost.
+  const up = mk([[100, 100.3, 99.9], [100.2, 100.8, 100.1], [100.6, 101.1, 100.5], [100.9, 101.2, 100.8], [101, 101.1, 100.9], [101, 101.1, 100.9], ...flat(30, 101)]);
+  const a4 = cls(lrow({ assetType: 'option', optionType: 'call', expiryDate: '2026-09-11', notes: 'plan: entry 100 · target — · stop —\noutcome: expired', realizedPnL: -85 }), up);
+  assert.equal(a4.risk, null);
+  assert.equal(a4.cls, 'theta');
+  assert.ok(a4.moveAtExitPct! > 0.009);
+  // A bot option's premium stop (1.2 vs a $100 underlying) is not an underlying price → no R.
+  assert.equal(cls(lrow({ assetType: 'option', optionType: 'call', notes: 'Plan: target 5 · stop 1.2\nExit: time', realizedPnL: -30 }), up).risk, null);
+
+  // 5 · target too far: stop 95 / target 110, wandered ±1.5 and timed out.
+  const a5 = cls(lrow({ notes: 'plan: entry 100 · target 110 · stop 95\noutcome: expired', realizedPnL: -10 }), mk([[100, 101.5, 99.5], [101, 101.2, 99], [99.5, 100, 99.2], [99.4, 99.8, 99.1], [99.5, 99.7, 99.3], [99.5, 99.6, 99.4], ...flat(30, 99.5)]));
+  assert.equal(a5.cls, 'target_far');
+
+  // 6 · late entry: stamped 20:30 ET (outside RTH); the next 09:30 bar opened 0.4R against.
+  const a6 = analyseTrade(lrow({ entryTime: '2026-09-01T00:30:00Z', exitTime: iso(4) }), { h1: mk([[99.2, 99.4, 98.9], [99, 99.1, 98.5], [98.5, 98.6, 97.9], ...flat(30, 97.5)]), d1: null }, t0 + 400 * H);
+  assert.ok(a6.ctx.outsideRTH && a6.gapR! <= -0.25);
+  assert.equal(a6.cls, 'late_entry');
+
+  // 7 · no bars → unknown, never guessed. A win is not classified.
+  assert.equal(analyseTrade(lrow({}), undefined).cls, 'unknown');
+  assert.equal(analyseTrade(lrow({}), { h1: null, d1: null }).cls, 'unknown');
+  assert.equal(cls(lrow({ realizedPnL: 40 }), up).cls, null);
+
+  // 8 · ordinary loss: in profit < 1R, no other rule.
+  const a8 = cls(lrow({ notes: 'plan: entry 100 · target 104 · stop 98\noutcome: hit_stop' }), mk([[100, 101, 99.9], [100.8, 101.2, 100], [100, 100.1, 99], [99, 99.1, 97.9], [97.8, 97.9, 97.5], [97.5, 97.6, 97.4], ...flat(30, 97.4)]));
+  assert.equal(a8.cls, 'normal');
+
+  // Summary: every loss in exactly one class; $ adds up.
+  const all = [a1, a2, a3, a4, a5, a6, a8, analyseTrade(lrow({ realizedPnL: -5 }), undefined)];
+  const sum = summariseLosses(all);
+  assert.equal(sum.classes.reduce((s, x) => s + x.n, 0), all.length);
+  assert.equal(Math.round(sum.classes.reduce((s, x) => s + x.lost, 0)), Math.round(sum.lost));
+  assert.deepEqual(LOSS_CLASSES.map((x) => x.id), ['unknown', 'gave_back', 'stop_tight', 'late_entry', 'theta', 'target_far', 'wrong_direction', 'normal']);
+  assert.ok(sum.classes.find((x) => x.id === 'wrong_direction')!.fired >= 2, 'fired counts outranked losses too');
+
+  // Drivers: sorted by $ lost; PF = won / lost.
+  const ctxs = [tradeContext(lrow({ setupType: 'a', realizedPnL: -50 })), tradeContext(lrow({ setupType: 'a', realizedPnL: 25 })), tradeContext(lrow({ setupType: 'b', realizedPnL: -10 }))];
+  const dr = lossDrivers(ctxs, 'source');
+  assert.deepEqual(dr.map((r) => [r.key, r.n, r.lost, r.pf]), [['a', 2, -50, 0.5], ['b', 1, -10, 0]]);
+
+  // Replay: a bar that prints both stop and target is scored as the stop (conservative); gaps fill at the open.
+  const both = mk([[100, 105, 97]]);
+  assert.equal(replayR(both, 'h1', t0, t0 + 10 * H, 'long', 100, 98, 104, 2), -1);
+  assert.equal(replayR(mk([[96, 97, 95]]), 'h1', t0, t0 + 10 * H, 'long', 100, 98, 104, 2), -2, 'gap through the stop fills at the open');
+  assert.equal(replayR(mk([[100, 101, 99.5], [101, 101, 100.5]]), 'h1', t0, t0 + 10 * H, 'long', 100, 98, 104, 2), 0.375, 'no level → the last close');
+  // Counterfactuals: the plan replay is its own baseline (Δ 0); filters report n kept.
+  const cf = counterfactuals([a1, a2, a5], new Map([['TST', { h1: down, d1: null }]]));
+  const plan = cf.find((x) => x.id === 'plan')!;
+  assert.equal(plan.net, plan.baseNet);
+  assert.equal(plan.firstHalfDelta + plan.secondHalfDelta, 0);
+  assert.equal(cf.find((x) => x.id === 'rth')!.n, 3, 'all three stamped in regular hours');
+}
+
+// ── journal dashboard defaults tile 12×18 (fit the journal's visible area) ──
+for (const d of JOURNAL_DEFAULTS) {
+  assert.deepEqual(tilingIssues(d.tools.map(([type, x, y, w, h]) => ({ type, x, y, w, h }))), [], `journal default ${d.id} tiles 12×18`);
 }
 
 console.log('journal checks passed');

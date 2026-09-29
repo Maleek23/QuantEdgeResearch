@@ -8,7 +8,7 @@
 import type { ImportSection } from '@/components/journal/import-drawer';
 
 export type JournalView =
-  | 'dashboard' | 'calendar' | 'daily' | 'trades' | 'reports' | 'notebook' | 'playbooks' | 'progress' | 'missed'
+  | 'dashboard' | 'calendar' | 'daily' | 'trades' | 'reports' | 'loss' | 'notebook' | 'playbooks' | 'progress' | 'missed'
   | 'import' | 'accounts' | 'settings'
   | 'record';
 
@@ -19,19 +19,29 @@ export type JournalIntent =
   | { kind: 'sim' }
   | { kind: 'backtest' };
 
-export type JournalPageGroup = 'journal' | 'setup' | 'platform';
+export type JournalPageGroup = 'overview' | 'trades' | 'improve' | 'setup' | 'platform';
 
-/** Sidebar order and grouping (LuxAlgo: main pages · setup pages; ours adds Platform). */
+/** Sidebar groups, in order (2026-09-29 nav redesign: short labels, five clear groups). */
+export const JOURNAL_GROUPS: readonly { id: JournalPageGroup; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'trades', label: 'Trades' },
+  { id: 'improve', label: 'Improve' },
+  { id: 'setup', label: 'Setup' },
+  { id: 'platform', label: 'Platform' },
+];
+
+/** Sidebar order and grouping. */
 export const JOURNAL_PAGES: readonly { id: JournalView; label: string; group: JournalPageGroup; hint: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', group: 'journal', hint: 'P&L, calendar, recent trades' },
-  { id: 'calendar', label: 'Calendar', group: 'journal', hint: 'Month and week P&L, day drill-down' },
-  { id: 'daily', label: 'Daily journal', group: 'journal', hint: "Each trading day: its trades, notes and a day note" },
-  { id: 'trades', label: 'Trades', group: 'journal', hint: 'Every trade — review, edit, export' },
-  { id: 'reports', label: 'Reports', group: 'journal', hint: 'By symbol, setup, tag, time, weekday, holding time' },
-  { id: 'notebook', label: 'Notebook', group: 'journal', hint: 'All notes, searchable, tagged by ticker and day' },
-  { id: 'playbooks', label: 'Playbooks', group: 'journal', hint: 'Each setup: its definition and live stats' },
-  { id: 'progress', label: 'Progress', group: 'journal', hint: 'Streaks, goals vs actual, rolling win rate' },
-  { id: 'missed', label: 'Missed', group: 'journal', hint: 'Trades not taken — and what they did' },
+  { id: 'dashboard', label: 'Dashboard', group: 'overview', hint: 'P&L, calendar, recent trades' },
+  { id: 'calendar', label: 'Calendar', group: 'overview', hint: 'Month and week P&L, day drill-down' },
+  { id: 'daily', label: 'Daily', group: 'overview', hint: 'Each trading day: its trades, notes and a day note' },
+  { id: 'trades', label: 'Trades', group: 'trades', hint: 'Every trade — review, edit, export' },
+  { id: 'reports', label: 'Reports', group: 'trades', hint: 'By symbol, setup, tag, time, weekday, holding time' },
+  { id: 'loss', label: 'Loss analysis', group: 'trades', hint: 'Why each loss happened — MFE/MAE from bars, loss classes, drivers, what would have helped' },
+  { id: 'playbooks', label: 'Playbooks', group: 'improve', hint: 'Each setup: its definition and live stats' },
+  { id: 'progress', label: 'Progress', group: 'improve', hint: 'Streaks, goals vs actual, rolling win rate' },
+  { id: 'missed', label: 'Missed', group: 'improve', hint: 'Trades not taken — and what they did' },
+  { id: 'notebook', label: 'Notebook', group: 'improve', hint: 'All notes, searchable, tagged by ticker and day' },
   { id: 'import', label: 'Import', group: 'setup', hint: 'Broker CSV, manual entry, flow alerts' },
   { id: 'accounts', label: 'Accounts', group: 'setup', hint: 'Broker connections and balances' },
   { id: 'settings', label: 'Settings', group: 'setup', hint: 'Default book, display, timezone' },
@@ -39,9 +49,9 @@ export const JOURNAL_PAGES: readonly { id: JournalView; label: string; group: Jo
 ];
 
 /** Pages whose content is the selected book's trades (filters apply; empty book → empty state). */
-export const TRADE_PAGES: ReadonlySet<JournalView> = new Set(['dashboard', 'calendar', 'trades', 'reports', 'progress']);
+export const TRADE_PAGES: ReadonlySet<JournalView> = new Set(['dashboard', 'calendar', 'trades', 'reports', 'loss', 'progress']);
 /** Pages that read the filtered rows or notes, so the filter bar is shown. */
-export const FILTERED_PAGES: ReadonlySet<JournalView> = new Set(['dashboard', 'calendar', 'daily', 'trades', 'reports', 'notebook', 'playbooks', 'progress']);
+export const FILTERED_PAGES: ReadonlySet<JournalView> = new Set(['dashboard', 'calendar', 'daily', 'trades', 'reports', 'loss', 'notebook', 'playbooks', 'progress']);
 
 /** Every ?jtab= the journal has ever used → where it lives now. */
 export const LEGACY_JTAB: Record<string, { view: JournalView; intent?: JournalIntent }> = {
@@ -51,6 +61,7 @@ export const LEGACY_JTAB: Record<string, { view: JournalView; intent?: JournalIn
   daily: { view: 'daily' },
   trades: { view: 'trades' },
   reports: { view: 'reports' },
+  loss: { view: 'loss' },
   notebook: { view: 'notebook' },
   playbooks: { view: 'playbooks' },
   progress: { view: 'progress' },
@@ -60,6 +71,9 @@ export const LEGACY_JTAB: Record<string, { view: JournalView; intent?: JournalIn
   settings: { view: 'settings' },
   record: { view: 'record' },
   // aliases for the new pages
+  losses: { view: 'loss' },
+  'loss-analysis': { view: 'loss' },
+  why: { view: 'loss' },
   journal: { view: 'daily' },
   'daily-journal': { view: 'daily' },
   day: { view: 'daily' },

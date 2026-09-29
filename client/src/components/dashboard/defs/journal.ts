@@ -86,28 +86,47 @@ export const JOURNAL_TOOLS: ToolDef[] = [
   },
 ];
 
-/** LuxAlgo's order: KPI row · edge / cumulative · calendar / activity · secondary KPIs · time performance · facts. */
-export const JOURNAL_DEFAULTS: DefaultLayout[] = [{
-  id: 'default', name: 'Journal',
-  tools: [
-    ['journal-net-pnl', 0, 0, 3, 4],
-    ['journal-win-rate', 3, 0, 3, 4],
-    ['journal-profit-factor', 6, 0, 2, 4],
-    ['journal-day-win', 8, 0, 2, 4],
-    ['journal-avg-win-loss', 10, 0, 2, 4],
-    ['journal-edge', 0, 4, 4, 10],
-    ['journal-equity', 4, 4, 8, 10],
-    ['journal-calendar', 0, 14, 7, 10],
-    ['journal-activity', 7, 14, 5, 10],
-    ['journal-max-drawdown', 0, 24, 3, 4],
-    ['journal-streaks', 3, 24, 2, 4],
-    ['journal-expectancy', 5, 24, 2, 4],
-    ['journal-duration', 7, 24, 2, 4],
-    ['journal-best-worst-day', 9, 24, 3, 4],
-    ['journal-time-heatmap', 0, 28, 12, 7],
-    ['journal-facts', 0, 35, 6, 7],
-    ['journal-by-setup', 6, 35, 6, 7],
-    ['journal-insights', 0, 42, 6, 8],
-    ['journal-notes', 6, 42, 6, 8],
-  ],
-}];
+/**
+ * LuxAlgo's widgets, as three shipped dashboards that each tile exactly
+ * COLS × VIEW_ROWS (12×18) — so each fills the journal's visible area with no
+ * scroll and no half-cut tile at 1440×900, 1920×1080, 2513×1260 (pages.ts DEV
+ * tiling check). Overview = KPI row · edge / cumulative · secondary KPIs;
+ * Calendar & time = calendar / activity · time performance; Review = facts /
+ * by setup · insights / notes.
+ */
+export const JOURNAL_DEFAULTS: DefaultLayout[] = [
+  {
+    id: 'default', name: 'Overview',
+    tools: [
+      ['journal-net-pnl', 0, 0, 3, 4],
+      ['journal-win-rate', 3, 0, 3, 4],
+      ['journal-profit-factor', 6, 0, 2, 4],
+      ['journal-day-win', 8, 0, 2, 4],
+      ['journal-avg-win-loss', 10, 0, 2, 4],
+      ['journal-edge', 0, 4, 4, 10],
+      ['journal-equity', 4, 4, 8, 10],
+      ['journal-max-drawdown', 0, 14, 3, 4],
+      ['journal-streaks', 3, 14, 2, 4],
+      ['journal-expectancy', 5, 14, 2, 4],
+      ['journal-duration', 7, 14, 2, 4],
+      ['journal-best-worst-day', 9, 14, 3, 4],
+    ],
+  },
+  {
+    id: 'calendar-time', name: 'Calendar & time',
+    tools: [
+      ['journal-calendar', 0, 0, 7, 10],
+      ['journal-activity', 7, 0, 5, 10],
+      ['journal-time-heatmap', 0, 10, 12, 8],
+    ],
+  },
+  {
+    id: 'review', name: 'Review',
+    tools: [
+      ['journal-facts', 0, 0, 6, 9],
+      ['journal-by-setup', 6, 0, 6, 9],
+      ['journal-insights', 0, 9, 6, 9],
+      ['journal-notes', 6, 9, 6, 9],
+    ],
+  },
+];

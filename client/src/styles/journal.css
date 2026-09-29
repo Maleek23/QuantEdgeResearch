@@ -26,8 +26,6 @@
 .jr *{box-sizing:border-box}
 .jr :focus-visible{outline:2px solid var(--jr-accent);outline-offset:2px;border-radius:6px}
 
-.jr-page{max-width:1400px;margin:0 auto;padding:14px 16px 40px;display:flex;flex-direction:column;gap:14px}
-@media (min-width:768px){.jr-page{padding:18px 24px 48px;gap:16px}}
 
 /* ── header ─────────────────────────────────────────── */
 .jr-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 16px}
@@ -111,7 +109,7 @@
 .jr-jumps{display:flex;gap:6px;flex-wrap:wrap}
 .jr-jumps a{padding:5px 12px;border-radius:100px;border:1px solid var(--jr-line-hi);color:var(--text-dim);text-decoration:none;font-size:12px;font-weight:600}
 .jr-jumps a:hover{color:var(--text);border-color:var(--jr-accent)}
-.jr-anchor{scroll-margin-top:90px}
+.jr-anchor{scroll-margin-top:8px}
 
 /* ── chips ──────────────────────────────────────────── */
 .jr-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:4px;font-family:var(--jr-mono);font-size:10.5px;font-weight:700;
@@ -254,18 +252,74 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-state{font-family:var(--jr-mono);font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase}
 .jr-state.new{color:var(--jr-gain)} .jr-state.update{color:var(--amber,#facc15)} .jr-state.unchanged{color:var(--text-mute)}
 
-/* ── sidebar of pages (2026-09-29, LuxAlgo shell.tsx: main · setup · platform) ── */
-.jr-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
-.jr-main{display:flex;flex-direction:column;gap:14px;min-width:0}
+/* ══ fit to screen + nav (2026-09-29 redesign) ══════════════════════════
+   The journal is exactly the shell's measured main area (--qe-main-h,
+   components/shell/main-height.ts): sidebar and header stay put and ONLY
+   .jr-body scrolls — no page-level and no horizontal scroll, like every other
+   terminal page. Desktop ≥769px: fixed sidebar column (book picker + pages,
+   collapsible to icons). Phones: a compact strip (book · page ▾ sheet). */
+.jr{display:flex;flex-direction:column;height:var(--qe-main-h,calc(100dvh - 98px));min-height:0;overflow:hidden}
+.jr-layout{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
+.jr-main{display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;padding:8px 12px 0}
+.jr-body{flex:1;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:2px 0 16px}
 @media (min-width:769px){
-  .jr-layout{grid-template-columns:196px minmax(0,1fr);gap:18px}
-  .jr-layout[data-collapsed="true"]{grid-template-columns:56px minmax(0,1fr)}
+  .jr-layout{grid-template-columns:212px minmax(0,1fr)}
+  .jr-layout[data-collapsed="true"]{grid-template-columns:60px minmax(0,1fr)}
+  .jr-main{padding:12px 20px 0;gap:10px}
+  .jr-body{scrollbar-gutter:stable;padding-right:2px}
+  .jr-strip{display:none!important}
 }
-/* the sidebar itself is the shared LuxSidebar (components/lux/lux-sidebar.tsx, placement=inline) — styles in components/lux/lux.css */
+@media (max-width:768px){.jr-side{display:none!important}}
 
-.jr-pagebar{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--jr-line);padding-bottom:8px}
-.jr-pagebar-t{font-family:var(--jr-disp);font-size:18px;font-weight:700;letter-spacing:-0.01em;margin:0}
-.jr-body{min-width:0}
+/* sidebar column: book picker on top, then the shared LuxSidebar (placement=inline) */
+.jr-side{display:flex;flex-direction:column;gap:10px;min-height:0;height:100%;padding:12px 8px 8px;border-right:1px solid var(--jr-line);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--panel-solid,#0e1117) 92%,var(--jr-accent) 2%),var(--panel-solid,#0e1117))}
+.jr-side .lx-sidebar[data-placement='inline']{position:static;top:auto;max-height:none;flex:1;min-height:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.jr-side .lx-sidebar-group-label{padding:8px 10px 5px;color:var(--text-mute);font-weight:700;letter-spacing:.1em}
+.jr-side .lx-sidebar[data-placement='inline'] .lx-sidebar-group + .lx-sidebar-group{margin-top:4px;padding-top:2px;border-top:0}
+.jr-side .lx-sidebar-item{min-height:32px}
+.jr-side .lx-sidebar-item[aria-current='page']{background:color-mix(in srgb,var(--jr-accent) 14%,transparent);color:var(--text)}
+.jr-side .lx-sidebar-footer{border-top:1px solid var(--jr-line)}
+.jr-side[data-collapsed="true"]{padding-inline:6px}
+
+/* book picker */
+.jr-book{display:flex;flex-direction:column;gap:4px;min-width:0;padding:0 2px}
+.jr-book-l{display:flex;align-items:center;gap:6px;font-family:var(--jr-mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute)}
+.jr-book-ro{display:inline-flex;align-items:center;gap:3px;margin-left:auto;letter-spacing:.04em;text-transform:none;font-weight:600;color:var(--text-dim)}
+.jr-book-row{display:flex;align-items:center;gap:2px;min-width:0}
+.jr-book-select{flex:1;min-width:0;min-height:36px;font-size:13px;font-weight:600;cursor:pointer}
+.jr-book-collapsed{align-items:center;padding:0}
+.jr-book-chip{display:grid;place-items:center;width:42px;height:36px;border-radius:8px;border:1px solid var(--jr-line-hi);background:rgba(59,140,255,.1);
+  color:var(--jr-accent-hi);font:700 12px var(--jr-mono);cursor:pointer}
+.jr-book-chip:hover{border-color:var(--jr-accent)}
+
+/* phone strip */
+.jr-strip{position:relative;display:flex;align-items:center;gap:8px;flex:none;padding:8px 12px 0}
+.jr-strip .jr-book{flex:1 1 44%;padding:0}
+.jr-strip .jr-book-l{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.jr-strip-page{flex:1 1 56%;min-width:0;display:flex;align-items:center;gap:8px;min-height:36px;padding:0 10px;border-radius:8px;border:1px solid var(--jr-line-hi);
+  background:var(--panel-solid,#0e1117);color:var(--text);font:600 13px/1.2 inherit;cursor:pointer}
+.jr-strip-page>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jr-sheet-scrim{position:fixed;inset:0;z-index:40;border:0;background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+.jr-sheet{position:absolute;left:8px;right:8px;top:calc(100% + 6px);z-index:41;max-height:min(70dvh,560px);overflow:auto;border-radius:12px;
+  border:1px solid var(--jr-line-hi);background:var(--panel-solid,#0e1117);box-shadow:0 16px 40px rgba(0,0,0,.45)}
+
+/* header: one row — JOURNAL · book, the page title, n; actions right */
+.jr-top{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;flex:none}
+.jr-top-t{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 12px;min-width:0}
+.jr-top .jr-eyebrow{margin:0;align-self:center}
+.jr-top-h{font-family:var(--jr-disp);font-weight:700;font-size:clamp(18px,1.7vw,23px);line-height:1.15;letter-spacing:-0.015em;margin:0;
+  background:linear-gradient(135deg,var(--jr-grad-from) 30%,var(--jr-accent-hi));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.jr-top-n{white-space:normal}
+.jr-top .jr-head-actions{margin-left:auto}
+.jr-basis-compact{flex:none;padding:5px 10px;font-size:12px}
+.jr-basis-compact>summary{cursor:pointer;list-style:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jr-basis-compact>summary::-webkit-details-marker{display:none}
+.jr-basis-compact[open]>summary{white-space:normal}
+.jr-basis-more{margin-left:8px;font-size:11px;color:var(--jr-accent-hi);text-decoration:underline;text-underline-offset:2px}
+.jr-basis-compact[open] .jr-basis-more{display:none}
+.jr-main>.jr-filters{flex:none}
+@media (max-width:768px){.jr-top .jr-eyebrow{display:none}.jr-top-h{font-size:18px}}
 .jr-accent-link{color:var(--jr-accent-hi);text-decoration:underline;text-underline-offset:3px}
 .jr-table-wrapcells td{white-space:normal;vertical-align:top}
 .jr-table-wrapcells td:first-child{white-space:nowrap}
@@ -312,9 +366,19 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .light .jr-chart-tip,.jr.light .jr-chart-tip{box-shadow:0 8px 24px rgba(15,23,42,0.12)}
 
 /* ══════════ LuxAlgo-parity pages (2026-09-29, feat/luxcontent) ══════════ */
-/* Dashboard = the platform dashboard framework, in the page flow (not viewport-fit). */
-.jr-dash .flowdash.dash-fit{height:auto;min-height:0;padding:0}
-.jr-dash .flowdash.dash-fit .fd-scroller{overflow:visible;padding-bottom:0}
+/* Dashboard = the platform dashboard framework. Desktop: it FILLS the journal
+   body (the body stops scrolling; the grid's own scroller does, so its
+   VIEW_ROWS rows fit the visible area). Phones: in the page flow. */
+@media (min-width:769px){
+  .jr[data-view="dashboard"] .jr-body{overflow:hidden;display:flex;flex-direction:column;padding-bottom:6px}
+  .jr[data-view="dashboard"] .jr-body>*{min-height:0}
+  .jr-dash{flex:1;min-height:0;display:flex;flex-direction:column}
+  .jr-dash .flowdash.dash-fit{flex:1;height:auto;min-height:0;padding:0}
+}
+@media (max-width:768px){
+  .jr-dash .flowdash.dash-fit{height:auto;min-height:0;padding:0}
+  .jr-dash .flowdash.dash-fit .fd-scroller{overflow:visible;padding-bottom:0}
+}
 .jr-tool{height:100%;overflow:auto}
 .jr-tool-stat{display:flex;flex-direction:column;gap:4px;min-width:0}
 .jr-tool-stat .v{font-family:var(--jr-mono);font-size:clamp(18px,2vw,26px);font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
@@ -413,3 +477,15 @@ button.jr-heat-c{cursor:pointer}
 .jr-recon-steps small{font-size:10.5px;color:var(--text-mute);line-height:1.35}
 .jr-recon details summary{cursor:pointer;font-size:12px;color:var(--text-dim)}
 .jr-recon details ul{margin:4px 0 0 16px;font-size:11.5px;color:var(--text-dim);max-height:160px;overflow:auto}
+
+/* ══ Loss analysis (2026-09-29) ══ */
+.jr-fix{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.5}
+.jr-fix li::marker{color:var(--jr-accent-hi);font-family:var(--jr-mono);font-weight:700}
+.jr-ex{display:inline-block;margin-right:8px;font-family:var(--jr-mono);font-size:11.5px}
+.jr-loss-classes td{vertical-align:top}
+.jr-loss-classes td.num,.jr-table-wrapcells td.num{white-space:nowrap}
+.jr-kpi-wrap{display:block;white-space:normal;font-size:15px;line-height:1.25;letter-spacing:0}
+.jr-cls-gave_back,.jr-cls-stop_tight{color:var(--amber,#facc15);border-color:color-mix(in srgb,var(--amber,#facc15) 40%,transparent)}
+.jr-cls-wrong_direction,.jr-cls-late_entry{color:var(--jr-loss);border-color:color-mix(in srgb,var(--jr-loss) 40%,transparent)}
+.jr-cls-theta,.jr-cls-target_far{color:var(--purple,#a78bfa);border-color:color-mix(in srgb,var(--purple,#a78bfa) 40%,transparent)}
+.jr-cls-unknown{opacity:.7}
