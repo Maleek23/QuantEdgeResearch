@@ -47,7 +47,7 @@ export default function TerminalHeatmapPage() {
   };
 
   return (
-    <div className="h-[calc(100dvh-80px)] bg-[var(--surface-base)] flex flex-col overflow-hidden">
+    <div className="h-full min-h-[420px] flex-1 bg-[var(--surface-base)] flex flex-col overflow-hidden">
       {/* Unified toolbar */}
       <HeatseekerToolbar
         symbol={symbol}

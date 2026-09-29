@@ -6,7 +6,9 @@
  * drawing code plus the honesty layer: real OHLCV via useCandles, bad-tick
  * quarantine with counts, zone bands, level lines.
  */
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { subscribeLivePrice, type LiveTick } from '@/lib/live-price-bus';
 
 /* ────────────────────────────────────────────────────────────────
    DATA
@@ -130,6 +132,114 @@ export function useCandles(symbol: string, tf: string) {
     refetchInterval: CANDLES_POLL_MS,
     retry: 1,
   });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   LIVE CANDLES — the forming bar, from real prints.
+   ──────────────────────────────────────────────────────────────── */
+
+/** Bar length per timeframe. Intraday bars roll on the FEED's grid (last bar
+ *  time + n·barMs), so Yahoo's 9:30-anchored hourly bars stay aligned. */
+export const TF_BAR_MS: Record<string, number> = {
+  '1m': 60_000, '5m': 300_000, '15m': 900_000, '30m': 1_800_000,
+  '1h': 3_600_000, '4h': 14_400_000, '1D': 86_400_000, '1W': 604_800_000,
+};
+
+const etDate = (ms: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date(ms));
+
+/**
+ * Apply one tick to a bar series. Returns the new series, or null when the
+ * tick changes nothing. Rules (never invent a bar):
+ *   - a tick inside the last bar's window updates its high/low/close;
+ *   - a LIVE print past the window opens the next bar on the feed's grid with
+ *     O=H=L=C=print and zero volume (IEX size is a partial tape — it is not
+ *     added as volume);
+ *   - a polled quote (tick.live=false) may refresh the forming bar but never
+ *     opens one: its timestamp is read-time, not trade-time;
+ *   - ticks older than the last bar are ignored.
+ */
+export function applyTick(bars: Candle[], tick: LiveTick, tf: string): Candle[] | null {
+  if (!bars.length || !(tick.price > 0)) return null;
+  const last = bars[bars.length - 1];
+  const barMs = TF_BAR_MS[tf] ?? 60_000;
+  if (tick.ts < last.time) return null;
+  const daily = tf === '1D' || tf === '1W';
+  const inside = daily
+    ? (tf === '1D' ? etDate(tick.ts) === etDate(last.time) : tick.ts < last.time + barMs)
+    : tick.ts < last.time + barMs;
+  if (inside) {
+    if (last.close === tick.price && tick.price <= last.high && tick.price >= last.low) return null;
+    const next = { ...last, close: tick.price, high: Math.max(last.high, tick.price), low: Math.min(last.low, tick.price) };
+    return [...bars.slice(0, -1), next];
+  }
+  if (!tick.live) return null;
+  const time = daily ? tick.ts : last.time + Math.floor((tick.ts - last.time) / barMs) * barMs;
+  return [...bars, { time, open: tick.price, high: tick.price, low: tick.price, close: tick.price, volume: 0 }];
+}
+
+/**
+ * History bars + the live forming bar(s). Subscribes to the live price bus for
+ * `symbol` while `enabled` (off in Replay, where the chart shows the past).
+ * Re-renders at most 4×/s however fast the tape prints. When the history
+ * refetch lands, bars it now covers are taken from history and only the
+ * still-forming tail is kept from live ticks.
+ */
+export function useLiveCandles(symbol: string, tf: string, history: Candle[] | undefined, enabled = true) {
+  const [overlay, setOverlay] = useState<{ bars: Candle[] | null; tick: LiveTick | null }>({ bars: null, tick: null });
+  const workRef = useRef<Candle[] | null>(null);
+  const tickRef = useRef<LiveTick | null>(null);
+  const flushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const keyRef = useRef('');
+
+  // A new history payload re-bases the working series. Same symbol/timeframe:
+  // keep the live tail the (slightly delayed) history does not cover yet, so
+  // the forming bar never blinks out on a refetch. New symbol/timeframe: reset.
+  useEffect(() => {
+    const key = `${symbol}|${tf}`;
+    const sameSeries = keyRef.current === key;
+    const prev = sameSeries ? workRef.current : null;
+    keyRef.current = key;
+    if (!sameSeries) tickRef.current = null;
+    let next: Candle[] | null = null;
+    if (prev && history?.length) {
+      const lastT = history[history.length - 1].time;
+      const tail = prev.filter((b) => b.time >= lastT);
+      if (tail.length) {
+        next = history.slice();
+        for (const b of tail) {
+          const h = next[next.length - 1];
+          if (b.time === h.time) next[next.length - 1] = { ...h, high: Math.max(h.high, b.high), low: Math.min(h.low, b.low), close: b.close };
+          else if (b.time > h.time) next.push(b);
+        }
+      }
+    }
+    workRef.current = next;
+    setOverlay({ bars: next, tick: tickRef.current });
+  }, [history, symbol, tf]);
+
+  useEffect(() => {
+    if (!enabled || !symbol) return;
+    const unsub = subscribeLivePrice(symbol, (t) => {
+      const base = workRef.current ?? history;
+      if (!base) return;
+      const next = applyTick(base, t, tf);
+      tickRef.current = t;
+      if (next) workRef.current = next;
+      if (flushRef.current) return;
+      flushRef.current = setTimeout(() => {
+        flushRef.current = null;
+        setOverlay({ bars: workRef.current, tick: tickRef.current });
+      }, 250);
+    });
+    return () => {
+      unsub();
+      if (flushRef.current) { clearTimeout(flushRef.current); flushRef.current = null; }
+    };
+  }, [symbol, tf, history, enabled]);
+
+  const bars = enabled && overlay.bars ? overlay.bars : history;
+  return useMemo(() => ({ bars, lastTick: enabled ? overlay.tick : null }), [bars, enabled, overlay.tick]);
 }
 
 export interface Level {

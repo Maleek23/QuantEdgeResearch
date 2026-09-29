@@ -56,9 +56,12 @@ export function validateCSRF(req: Request, res: Response, next: NextFunction) {
     return next();
   }
   
-  // Exempt PATCH to /api/tracking/pageview/:id - sendBeacon cannot set headers
-  // This is safe because it only updates time-on-page for an existing pageview
-  if (req.method === 'PATCH' && /^\/api\/tracking\/pageview\/[a-f0-9-]+$/.test(req.path)) {
+  // Exempt the time-on-page update for /api/tracking/pageview/:id — the client
+  // sends it with navigator.sendBeacon, which can neither set headers nor use
+  // any method but POST. (Only PATCH was exempted, so every beacon — always a
+  // POST — died here with 403.) Safe: it only writes a clamped duration onto an
+  // existing pageview row.
+  if ((req.method === 'PATCH' || req.method === 'POST') && /^\/api\/tracking\/pageview\/[a-f0-9-]+$/.test(req.path)) {
     return next();
   }
 

@@ -101,7 +101,9 @@ export default function ResearchShell() {
   };
 
   return (
-    <div className="space-y-3 px-4 py-3">
+    // The GEX surface is a full-height workspace: the shell becomes exactly
+    // main's height and hands the rest to the grid, which scrolls inside itself.
+    <div className={tab === 'gex' ? 'flex h-[var(--qe-main-h,100dvh)] min-h-[520px] flex-col gap-3 px-4 py-3' : 'space-y-3 px-4 py-3'}>
       {/* HEADER — ticker switcher + price + sector tags */}
       <header className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
@@ -136,7 +138,7 @@ export default function ResearchShell() {
       <PageErrorBoundary label={`Research · ${symbol} · ${tab}`}>
         <Suspense fallback={<Loading />}>
           {/* Re-key on (symbol, tab) so children get fresh state on switch */}
-          <div key={`${symbol}-${tab}`}>
+          <div key={`${symbol}-${tab}`} className={tab === 'gex' ? 'flex min-h-0 flex-1 flex-col' : undefined}>
             {tab === 'workup'  && <TickerWorkup symbol={symbol} mode="embedded" initialTab={initialWorkupTab} onNavigate={(next) => { if (next === 'gex') setTab('gex'); }} />}
             {tab === 'gex'     && <TerminalHeatmap />}
             {tab === 'analyze' && <ContractAnalyzer />}

@@ -116,15 +116,21 @@ import { MobileDock } from '@/components/shell/mobile-dock';
 import { CustomizePanel } from '@/components/shell/customize-panel';
 import { DesktopRail } from '@/components/shell/desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from '@/components/shell/skip-link';
+import { useMainHeightVar } from '@/components/shell/main-height';
 import { useDismissable } from '@/hooks/use-dismissable';
 export { TABS };
 export type { Tab };
 
-function useUptime() {
+/**
+ * The footer's uptime clock, isolated in its own component. It used to be a
+ * hook on TerminalShell itself, so its 1 s setState re-rendered the entire
+ * terminal — every tab body, every chart, every table — once a second.
+ */
+function Uptime() {
   const [s, setS] = useState(0);
   useEffect(() => { const t = setInterval(() => setS((x) => x + 1), 1000); return () => clearInterval(t); }, []);
   const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
+  return <b className="tabular-nums">{`${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`}</b>;
 }
 
 const isTab = (v: string | null): v is Tab => !!v && TABS.some((t) => t.id === v);
@@ -228,7 +234,9 @@ export default function TerminalShell() {
   // Alerts watch the same conviction feed the Oracle tab renders, so they fire on any
   // tab — the point of an alert is that it reaches you when you are NOT looking at it.
   const { data: convictions } = useQuery<ConvictionsResponse>({
-    queryKey: ['/api/convictions', 'alerts'],
+    // Same key as every other unparameterised /api/convictions reader
+    // (Today, Alerts) so React Query dedupes them into one request.
+    queryKey: ['/api/convictions', 'all'],
     queryFn: async () => {
       const r = await fetch('/api/convictions', { credentials: 'include' });
       if (!r.ok) throw new Error('convictions failed');
@@ -238,7 +246,6 @@ export default function TerminalShell() {
   });
   const alerts = useSignalAlerts(convictions?.picks);
   const reduce = useReducedMotion();
-  const uptime = useUptime();
   // One ticker for the whole terminal: search once, every tab follows it.
   const { currentStock, setCurrentStock } = useStockContext();
   // ONE ticker destination. Search, flow rows, rotation/session names and every
@@ -275,17 +282,19 @@ export default function TerminalShell() {
   // Night/dark remain reachable from the settings panel's labelled picker.
   const nextTheme = nexusLight ? 'nexus' as const : 'nexus-light' as const;
   const dataPartial = health?.status === 'degraded' || health?.dependencies?.tradier === false;
+  const mainRef = useRef<HTMLElement>(null);
+  useMainHeightVar(mainRef);
   const accountLabel = user?.firstName || user?.email?.split('@')[0] || 'Account';
   const accountInitial = accountLabel.slice(0, 1).toUpperCase();
 
   return (
-    <div className={cn('qe-terminal nexus-vars min-h-screen flex flex-col', theme === 'nexus-light' && 'light')}>
+    <div className={cn('qe-terminal nexus-vars h-[100dvh] overflow-hidden flex flex-col', theme === 'nexus-light' && 'light')}>
       <KitStyles />
       <DesktopRail activeTab={tab} currentPath="/t" onTab={setTab} />
       {/* ── persistent chrome — the reference terminal's topbar, verbatim
              classes from styles/nexus.css. Every tab wears it. ── */}
       <SkipLink />
-      <header className="sticky top-0 z-20 lg:pl-[196px]">
+      <header className="relative z-20 shrink-0 lg:pl-[var(--qe-rail-w,196px)]">
         <div className="topbar" style={{ minHeight: 44 }}>
           <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home" style={{ textDecoration: 'none' }}>
             <img className="brand-logo" src={quantEdgeLogoUrl} alt="Quant Edge Labs" />
@@ -394,7 +403,7 @@ export default function TerminalShell() {
                     <button onClick={() => { setAccountOpen(false); setLocation('/settings'); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
                       <SlidersHorizontal className="h-3.5 w-3.5" /> Full account settings
                     </button>
-                    {user && <button onClick={() => { setAccountOpen(false); logout(); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-[var(--trade-bearish)] transition-colors hover:bg-[var(--trade-bearish)]/10">
+                    {user && <button onClick={() => { setAccountOpen(false); logout(); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
                       <LogOut className="h-3.5 w-3.5" /> Sign out
                     </button>}
                   </motion.div>
@@ -424,7 +433,7 @@ export default function TerminalShell() {
       </header>
 
       {/* ── tab content (cross-fades) ── */}
-      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="outline-none min-h-0 min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[196px]">
+      <main ref={mainRef} id={MAIN_CONTENT_ID} tabIndex={-1} className="relative outline-none min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[var(--qe-rail-w,196px)]">
         {unknownTab && (
           <div role="status" className="flex items-center gap-3 border-b border-[var(--brand-gold)]/30 bg-[var(--brand-gold)]/[0.06] px-4 py-2 font-mono text-[11px] text-foreground/85">
             <span>Unknown tab ‘{unknownTab}’ — showing NEXUS.</span>
@@ -443,7 +452,10 @@ export default function TerminalShell() {
             opacity 0 while it waits for every descendant to finish exiting,
             producing a blank terminal after a tab change. Sync keeps the handoff
             animated without allowing one module to block the next. */}
-        <AnimatePresence mode="sync" initial={false}>
+        {/* popLayout: the outgoing tab is taken out of flow while it fades, so
+            main's scroll height never doubles during a switch (main is the
+            scroll container now that the shell is exactly one viewport tall). */}
+        <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={tab}
             initial={reduce ? false : { opacity: 0, y: 8 }}
@@ -556,12 +568,12 @@ export default function TerminalShell() {
       {/* ── footer — the reference bottombar. Same real content as before:
              LiveStatsBar (bots/watchlist/VIX) and the market line (session ·
              SPY · BTC · next poll · clock) ride inside his chrome. ── */}
-      <footer className="bottombar lg:pl-[196px]" style={{ minHeight: 26 }}>
+      <footer className="bottombar shrink-0 overflow-hidden whitespace-nowrap lg:pl-[var(--qe-rail-w,196px)]" style={{ height: 26 }}>
         <div className="bb-item"><span className="dot" /><b>{tab.toUpperCase()}</b> engaged</div>
         <div className="bb-sep" />
         <SystemPulse />
         <div className="bb-sep hidden md:block" />
-        <div className="bb-item hidden md:flex">Uptime <b className="tabular-nums">{uptime}</b></div>
+        <div className="bb-item hidden md:flex">Uptime <Uptime /></div>
         <div className="bb-sep hidden md:block" />
         <span className="hidden items-center md:inline-flex">
           <LiveStatsBar />

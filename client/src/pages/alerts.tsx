@@ -48,7 +48,7 @@ const fmtHour = (h: number) => `${String(h).padStart(2, '0')}:00`;
 export default function AlertsPage() {
   // Identical query key to the terminal shell — one cached fetch, shared.
   const { data: convictions, isLoading, isError, refetch } = useQuery<ConvictionsResponse>({
-    queryKey: ['/api/convictions', 'alerts'],
+    queryKey: ['/api/convictions', 'all'],
     queryFn: async () => {
       const r = await fetch('/api/convictions', { credentials: 'include' });
       if (!r.ok) throw new Error('convictions failed');

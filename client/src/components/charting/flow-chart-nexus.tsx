@@ -136,8 +136,7 @@ export function FlowChartBoard({ onOpenLab }: { onOpenLab?: () => void }) {
   const { data: series } = useCandles(symbol, tf);
 
   /* ── session range + extended-hours filter (pre-replay) ── */
-  const ranged = useMemo(() => {
-    const bars = series?.bars ?? [];
+  const applyRange = useCallback((bars: Candle[]) => {
     if (!intraday) return bars;
     let out = bars;
     if (!extended) out = out.filter((b) => { const m = etInfo(b.time).mins; return m >= 570 && m < 960; });
@@ -155,7 +154,8 @@ export function FlowChartBoard({ onOpenLab }: { onOpenLab?: () => void }) {
       }
     }
     return out;
-  }, [series, intraday, extended, range]);
+  }, [intraday, extended, range]);
+  const ranged = useMemo(() => applyRange(series?.bars ?? []), [series, applyRange]);
 
   /* ── replay ── */
   const [replay, setReplay] = useState<{ on: boolean; idx: number; playing: boolean; speed: number }>({ on: false, idx: 0, playing: false, speed: 1 });
@@ -172,12 +172,16 @@ export function FlowChartBoard({ onOpenLab }: { onOpenLab?: () => void }) {
   }, [replay.on, replay.playing, ranged.length]);
   const cutoff = replay.on && ranged.length ? ranged[Math.min(replay.idx, ranged.length - 1)].time : null;
 
-  // The chart hands over its raw series; the board has already applied the
-  // session range (same query, same bars) — hand back that, cut at the
-  // replay cursor.
+  // The chart hands over its series — history plus the live forming bar when
+  // not replaying — and gets back the session range, cut at the replay cursor.
+  // (It used to ignore its input and return the board's own copy, which is
+  // why no live tick could ever reach the Flow chart.)
   const transformBars = useCallback(
-    (_bars: Candle[]) => (cutoff == null ? ranged : ranged.filter((b) => b.time <= cutoff)),
-    [ranged, cutoff],
+    (bars: Candle[]) => {
+      const r = applyRange(bars);
+      return cutoff == null ? r : r.filter((b) => b.time <= cutoff);
+    },
+    [applyRange, cutoff],
   );
 
   /* ── overlays ── */
@@ -611,6 +615,7 @@ export function FlowChartBoard({ onOpenLab }: { onOpenLab?: () => void }) {
           showMA={prefs.ma}
           showVolume={prefs.volume}
           transformBars={transformBars}
+          live={!replay.on}
           defaultVisibleBars={intraday && range !== 'ALL' ? Math.max(15, ranged.length) : undefined}
           resetKey={`${range}:${extended}:${replay.on}`}
           underlay={underlay}
@@ -684,7 +689,7 @@ export function FlowChartBoard({ onOpenLab }: { onOpenLab?: () => void }) {
 }
 
 const FC_CSS = `
-.fc-root{display:flex;flex-direction:column;height:calc(100dvh - 98px);min-height:460px;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace}
+.fc-root{display:flex;flex-direction:column;height:var(--qe-main-h, calc(100dvh - 98px));min-height:460px;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace}
 .fc-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid var(--nx-border)}
 .fc-sym{width:170px;min-width:120px}
 .fc-px{display:flex;gap:6px;align-items:baseline;font-size:11px;padding:0 4px}

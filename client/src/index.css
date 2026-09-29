@@ -529,12 +529,12 @@ button:not([disabled]):active,
   --secondary-foreground: 220 12% 59%;
   --muted: 222 25% 10%;
   --muted-foreground: 220 12% 59%;  /* #8b93a3 */
-  --accent: 174 59% 56%;            /* #3b8cff */
+  --accent: 215 100% 62%;           /* #3b8cff — was 174 59% 56% (teal #4fd1c1) under a #3b8cff comment */
   --accent-foreground: 225 25% 3%;
-  --destructive: 350 100% 66%;      /* #ff6b3d */
+  --destructive: 15 100% 62%;       /* #ff6b3d vermilion — was 350° (a pink-red #ff5270, not the loss token) */
   --destructive-foreground: 0 0% 100%;
   --input: 220 24% 7%;
-  --ring: 174 59% 56%;
+  --ring: 215 100% 62%;              /* focus ring = accent blue */
 
   --surface-base: #06070a;
   --surface-raised: #0a0c11;
@@ -589,7 +589,7 @@ button:not([disabled]):active,
   --chart-1: 213 94% 68%;
   --chart-2: 154 72% 55%;
   --chart-3: 39 89% 61%;
-  --chart-4: 350 100% 66%;
+  --chart-4: 15 100% 62%;            /* loss vermilion #ff6b3d */
   --chart-5: 255 92% 76%;
 
   /* the mock's type: Inter body, JetBrains Mono figures */

@@ -129,6 +129,21 @@ function withAdminProtection<P extends object>(Component: ComponentType<P>) {
     );
   };
 }
+// Route components are wrapped ONCE, at module scope. Calling withBetaProtection()
+// inside <Router> minted a brand-new component type on every Router render — and
+// Router re-renders on every location/search change (usePageTracking reads
+// useSearch). React treats a new type as a different component, so every ?tab=
+// switch unmounted and remounted the WHOLE terminal: every poller restarted
+// (the /api/pulse?since=0 storm), every query refired, every chart rebuilt.
+const ProtectedTerminalShell = withBetaProtection(TerminalShell);
+const ProtectedResearchShell = withBetaProtection(ResearchShell);
+const ProtectedRadarPage = withBetaProtection(RadarPage);
+const ProtectedTodayPage = withBetaProtection(TodayPage);
+const ProtectedSlatePage = withBetaProtection(SlatePage);
+const ProtectedTradeAudit = withBetaProtection(TradeAudit);
+const ProtectedSettingsPage = withBetaProtection(SettingsPage);
+const ProtectedAlertsPage = withBetaProtection(AlertsPage);
+
 function SmartLanding() {
   const { user, isLoading } = useAuth();
 
@@ -177,13 +192,13 @@ function Router() {
     <Suspense fallback={<PageLoader />}>
       <Switch>
         {/* ─── TERMINAL — one shell, 10 tabs (NEXUS · CHART · FLOW · GEX · LEAPS · CRYPTO · CATALYST · BOT · POSITIONS · JOURNAL) ─── */}
-        <Route path="/t"          component={withBetaProtection(TerminalShell)} />
+        <Route path="/t"          component={ProtectedTerminalShell} />
         
         {/* ─── RESEARCH — per-ticker shell (own symbol chrome; stays separate) ─── */}
 
-        <Route path="/r/:symbol"  component={withBetaProtection(ResearchShell)} />
-        <Route path="/r"          component={withBetaProtection(ResearchShell)} />
-        <Route path="/radar"      component={withBetaProtection(RadarPage)} />
+        <Route path="/r/:symbol"  component={ProtectedResearchShell} />
+        <Route path="/r"          component={ProtectedResearchShell} />
+        <Route path="/radar"      component={ProtectedRadarPage} />
 
         <Route path="/how-to"     component={HowToPage} />
 
@@ -198,8 +213,8 @@ function Router() {
             the router was collapsed to shells and the targets were never
             repointed. Restoring the route is the small fix; deleting the pages
             would have been the expensive one. */}
-        <Route path="/today"       component={withBetaProtection(TodayPage)} />
-        <Route path="/slate"       component={withBetaProtection(SlatePage)} />
+        <Route path="/today"       component={ProtectedTodayPage} />
+        <Route path="/slate"       component={ProtectedSlatePage} />
         {/* HOME IS THE TERMINAL. Confirmed by the owner, against two rival
             candidates that both call themselves the dashboard in their own headers:
             pages/home.tsx ("Command Center", 1,186 lines) and pages/home-glass.tsx
@@ -236,11 +251,11 @@ function Router() {
       
       <Route path="/invite" component={InviteWelcome} />
 
-      <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />
+      <Route path="/trade-ideas/:id/audit" component={ProtectedTradeAudit} />
 
       {/* System Pages */}
-      <Route path="/settings" component={withBetaProtection(SettingsPage)} />
-      <Route path="/alerts" component={withBetaProtection(AlertsPage)} />
+      <Route path="/settings" component={ProtectedSettingsPage} />
+      <Route path="/alerts" component={ProtectedAlertsPage} />
 
       {/* Admin Pages - Have their own password auth via AdminLayout */}
       <Route path="/admin" component={AdminOverview} />
@@ -361,7 +376,7 @@ function App() {
                   <ContentDensityProvider>
                     <DensityProvider>
                       <SidebarProvider style={style as React.CSSProperties}>
-                        <div className="h-screen w-full overflow-auto page-atmosphere">
+                        <div className="h-[100dvh] w-full overflow-hidden page-atmosphere">
                           <ErrorBoundary>
                             <Suspense fallback={<PageLoader />}>
                               <Router />

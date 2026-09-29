@@ -33,25 +33,54 @@ Two standing platform rules override the brief where they conflict:
 --panel-solid: #0e1117
 --panel-2:     #131720
 --panel-hi:    #1a1f2a
---nx-border:      rgba(79,209,197,0.08)   (renamed from --border: shadcn holds
---nx-border-hi:   rgba(79,209,197,0.18)    an HSL triplet under that name)
+--nx-border:      rgba(59,140,255,0.08)   (renamed from --border: shadcn holds
+--nx-border-hi:   rgba(59,140,255,0.18)    an HSL triplet under that name)
 ```
 
 ### Text
 ```
---text:       #e8ecf3
---text-dim:   #8b93a3
---text-mute:  #525a6b
+--text:       #e8ecf3   17.0:1 on --bg
+--text-dim:   #8b93a3    6.5:1
+--text-mute:  #7f889a    5.7:1 on --bg, 4.6:1 on --panel-hi (was #525a6b, 2.4–2.9:1)
 ```
 
-### Semantic
+### Semantic — the colour-psychology law (CVD-safe: blue ↔ vermilion, never red ↔ green alone)
 ```
---cyan:       #4fd1c5   (primary accent, Oracle/Chart)
---green:      #3ddc97   (positive, long, calls)
---red:        #ff5470   (negative, short, puts)
---amber:      #f5b642   (warning, partial data)
---purple:     #a78bfa   (secondary, options)
---blue:       #60a5fa   (tertiary)
+--cyan:       #3b8cff   accent / info / +GEX (dealers provide liquidity) · --cyan-bright #7fb2ff for text
+--green:      #6ee7b7   GAIN only — up candles, positive P&L, +VEX
+--red:        #ff6b3d   LOSS only — down candles, negative P&L, −GEX/−VEX (vermilion, not pink-red)
+--amber:      #facc15   CAUTION — partial data, near the flip, zero-γ, alerts that need attention
+--purple:     #a78bfa   structural marker (max-γ / magnet), secondary
+--blue:       #60a5fa   neutral information (bot activity, system events)
+```
+Usage rules (enforced in the 2026-09-29 colour pass):
+- Green and vermilion mean gain and loss. Nothing else wears them: an alert is
+  caution (amber), a bot acting is information (blue), "Sign out" is neutral
+  text — none of them is a loss.
+- Colour is never the only carrier: every signed value prints its sign, levels
+  carry text chips (CALL WALL / PUT WALL / MAX γ / ZERO-γ / SPOT).
+- Body text ≥ 4.5:1 on every panel in both themes (see the ratios above).
+
+### Light theme (nexus-light) — AA fixes 2026-09-29
+```
+--cyan   #1a63d1  (was #1d6ce0: 4.49:1 on --bg, 4.14:1 on --bg-2 → 5.1 / 4.7)
+--red    #b23c0b  (was #c2410c: 4.36:1 on --bg-2 → 5.4 / 5.0)
+--amber  #8f5706  (was #a16207: 4.50 / 4.15:1 → 5.4 / 5.0)
+--nx-border family → accent blue rgba(29,99,209,…) (was an off-palette teal)
+```
+
+### Shadcn bridge (.dark.terminal-nexus in index.css) — 2026-09-29
+```
+--accent / --ring   215 100% 62%  (#3b8cff) — was 174 59% 56%, a teal (#4fd1c1) under a "#3b8cff" comment
+--destructive       15 100% 62%   (#ff6b3d) — was 350°, a pink-red (#ff5270) that matched no token
+--chart-4           15 100% 62%   loss vermilion
+```
+
+### GEX levels (client/src/components/gex/gex-colors.ts → LEVEL_COLORS)
+```
+call wall  --cyan-bright   put wall  --red   max γ / magnet  --purple
+zero-γ     --amber (dashed line)             spot            --text (solid line)
+cell tint  √(|v|/max), 16–72% of the sign colour (exposureCellBg)
 ```
 
 ### Module accents

@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { recoverIfStale } from '@/lib/stale-bundle';
 
 interface Props {
   children: ReactNode;
@@ -46,20 +47,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
     this.setState({ error, errorInfo });
 
-    // For chunk load errors, auto-reload after a short delay
-    // This handles the case where a new deployment changed chunk hashes
-    if (isChunkLoadError(error)) {
-      const reloadKey = "error_boundary_reload";
-      const hasReloaded = sessionStorage.getItem(reloadKey);
-      if (!hasReloaded) {
-        sessionStorage.setItem(reloadKey, "1");
-        // Small delay so the user sees we're handling it
-        setTimeout(() => window.location.reload(), 1500);
-      } else {
-        // Already tried auto-reload, clear flag so next time works
-        sessionStorage.removeItem(reloadKey);
-      }
-    }
+    // Stale bundle after a deploy (missing chunk, or old+new code mixed into a
+    // ReferenceError): the shared guard shows "New version available" and
+    // reloads once, loop-guarded. Confirmed stale → swap the crash screen for
+    // the quiet updating screen.
+    void recoverIfStale(error).then((stale) => {
+      if (stale && !this.state.isChunkError) this.setState({ isChunkError: true });
+    });
   }
 
   render() {
@@ -79,10 +73,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 A new version was deployed. Refreshing to load the latest build.
               </p>
               <button
-                onClick={() => {
-                  sessionStorage.removeItem("error_boundary_reload");
-                  window.location.reload();
-                }}
+                onClick={() => window.location.reload()}
                 className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 rounded-lg font-medium transition-colors"
               >
                 Reload Now
