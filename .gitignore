@@ -119,3 +119,6 @@ vite.config.ts.*
 # 🔒 Database content
 .claude/worktrees/
 server/data/discipline-ledger.jsonl
+
+# Imported by committed code (routes.ts) — must ship.
+!server/signal-trajectory-service.ts
