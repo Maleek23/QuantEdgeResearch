@@ -69,21 +69,20 @@ export const TODAY_TOOLS: ToolDef[] = [
 ];
 
 /**
- * TODAY default — reading order of the old page: the week dealer map as the
- * hero with the best idea beside it; the tape; the ranked book with the index
- * desk and book stats beside it; then rotation and the model record.
+ * TODAY default — the old page's reading order on one screen (12 × 18):
+ *   ┌────────── week dealer map · SPY 8×9 ───────────┬ best idea 4×9 ─┐
+ *   ├──────────────────── sector & crypto tape 12×3 ───────────────────┤
+ *   ├───── ranked book 6×6 ─────┬ index desk 3×6 ┬ model record 3×6 ──┤
+ * Book stats, rotation and book by horizon: Add tool.
  */
 export const TODAY_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'Today',
   tools: [
-    ['today-week-map', 0, 0, 8, 11],
-    ['today-best-idea', 8, 0, 4, 11],
-    ['today-tape', 0, 11, 12, 3],
-    ['today-ranked-book', 0, 14, 8, 12],
-    ['today-index-desk', 8, 14, 4, 6],
-    ['today-book-stats', 8, 20, 4, 6],
-    ['today-rotation', 0, 26, 7, 9],
-    ['today-model-record', 7, 26, 5, 9],
-    ['nexus-horizon', 0, 35, 12, 10],
+    ['today-week-map', 0, 0, 8, 9],
+    ['today-best-idea', 8, 0, 4, 9],
+    ['today-tape', 0, 9, 12, 3],
+    ['today-ranked-book', 0, 12, 6, 6],
+    ['today-index-desk', 6, 12, 3, 6],
+    ['today-model-record', 9, 12, 3, 6],
   ],
 }];

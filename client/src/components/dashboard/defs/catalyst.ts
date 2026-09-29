@@ -48,17 +48,18 @@ export const CATALYST_TOOLS: ToolDef[] = [
 ];
 
 /**
- * Catalyst default — the impact board (the page's point: conflicts first)
- * on the left; summary + this week's earnings on the right; macro releases
- * and distance-to-event below.
+ * CATALYST default — one screen (12 × 18):
+ *   ┌────────── signal impact 8×11 ──────────┬ earnings · 7d 4×11 ┐
+ *   ├──── macro releases 5×7 ────┬ distance 4×7 ┬ summary 3×7 ────┤
+ * Conflicts first (the page's point), this week's reports beside them.
  */
 export const CATALYST_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'Catalyst',
   tools: [
-    ['catalyst-impact', 0, 0, 7, 16],
-    ['catalyst-summary', 7, 0, 5, 8],
-    ['catalyst-earnings', 7, 8, 5, 8],
-    ['catalyst-econ', 0, 16, 7, 10],
-    ['catalyst-distance', 7, 16, 5, 10],
+    ['catalyst-impact', 0, 0, 8, 11],
+    ['catalyst-earnings', 8, 0, 4, 11],
+    ['catalyst-econ', 0, 11, 5, 7],
+    ['catalyst-distance', 5, 11, 4, 7],
+    ['catalyst-summary', 9, 11, 3, 7],
   ],
 }];

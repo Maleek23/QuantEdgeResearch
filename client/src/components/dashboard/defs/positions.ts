@@ -50,17 +50,20 @@ export const POSITIONS_TOOLS: ToolDef[] = [
 ];
 
 /**
- * POSITIONS default — the decision number (net open P&L + KPIs) across the
- * top; the heat map beside best/worst and the book mix; the full detail table
- * below.
+ * POSITIONS is a SIMPLE page (pages.ts `simple`: the heat-map page full
+ * bleed). This is what "Customize" switches to — one screen (12 × 18):
+ *   ┌──────────────────── net open P&L 12×3 ────────────────────┐
+ *   ├────────── heat map 8×9 ──────────┬ best vs worst 4×5 ──────┤
+ *   │                                  ├ book mix 4×4 ───────────┤
+ *   ├──────────────────── detail table 12×6 ────────────────────┤
  */
 export const POSITIONS_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'POSITIONS',
   tools: [
     ['positions-pnl', 0, 0, 12, 3],
-    ['positions-heat', 0, 3, 8, 13],
-    ['positions-best-worst', 8, 3, 4, 6],
-    ['positions-mix', 8, 9, 4, 7],
-    ['positions-table', 0, 16, 12, 12],
+    ['positions-heat', 0, 3, 8, 9],
+    ['positions-best-worst', 8, 3, 4, 5],
+    ['positions-mix', 8, 8, 4, 4],
+    ['positions-table', 0, 12, 12, 6],
   ],
 }];

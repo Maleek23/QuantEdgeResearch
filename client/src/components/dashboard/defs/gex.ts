@@ -73,25 +73,26 @@ export const GEX_TOOLS: ToolDef[] = [
 ];
 
 /**
- * GEX default — a pro GEX terminal: regime + levels on the left, the stock
- * chart with GEX overlay in the middle, the near-term ladder on the right;
- * below, the full strike × expiry matrix, profile, gravity and the
- * cross-ticker rankings with the one compact flow-context tool (links to
- * FLOW — the flow views themselves live there); then magnet setups and the
- * (3D surface removed 2026-09-29).
+ * GEX default — one screen (12 × 18, rows scale to the viewport):
+ *
+ *   ┌──────────── matrix 7×10 ───────────┬──── stock chart 5×10 ────┐
+ *   │ strike × expiry, per-expiry colour │ price + GEX bubbles       │
+ *   ├── ladder 3×8 ─┬── levels 3×8 ──┬── regime 3×8 ─┬── profile 3×8 ─┤
+ *   └───────────────┴────────────────┴───────────────┴────────────────┘
+ *
+ * The book (matrix) is the page's point, top-left and largest, with price
+ * beside it; the near-term ladder sits next to the levels it defines, then
+ * the regime read and the zero-γ profile. Gravity, rankings, magnet setups,
+ * money flow and flow context are one click away in Add tool.
  */
 export const GEX_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'GEX',
   tools: [
-    ['gex-regime', 0, 0, 3, 7],
-    ['gex-levels', 0, 7, 3, 9],
-    ['stock-chart', 3, 0, 5, 16],
-    ['gex-dealer-map', 8, 0, 4, 16],
-    ['gex-matrix', 0, 16, 6, 14],
-    ['gex-profile', 6, 16, 3, 6],
-    ['gex-gravity', 6, 22, 3, 8],
-    ['gex-rankings', 9, 16, 3, 8],
-    ['flow-context', 9, 24, 3, 6],
-    ['gex-setups', 0, 30, 7, 13],
+    ['gex-matrix', 0, 0, 7, 10],
+    ['stock-chart', 7, 0, 5, 10],
+    ['gex-dealer-map', 0, 10, 3, 8],
+    ['gex-levels', 3, 10, 3, 8],
+    ['gex-regime', 6, 10, 3, 8],
+    ['gex-profile', 9, 10, 3, 8],
   ],
 }];

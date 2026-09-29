@@ -55,27 +55,28 @@ export const CHART_TOOLS: ToolDef[] = [
 ];
 
 /**
- * CHART default — the Stock Chart large (GEX bubbles, dark-pool levels, flow)
- * with Chart Lab's levels and watchlists down the right; below, the lab's
- * levels chart, ES sizing and market readouts.
- * LAB — the classic Chart Lab full size, one click away in the switcher.
+ * CHART is a SIMPLE page (pages.ts `simple`): one full-bleed price chart with
+ * its own toolbar and a collapsible watchlist rail. These layouts are what
+ * "Customize" switches to.
+ *
+ *   Chart      ┌────────── stock chart 8×18 ──────────┬ watchlists 4×11 ┐
+ *              │                                      ├ QE levels 4×7   ┤
+ *              └──────────────────────────────────────┴─────────────────┘
+ *   Chart Lab  the classic Chart Lab, 12×18.
  */
 export const CHART_DEFAULTS: DefaultLayout[] = [
   {
     id: 'default', name: 'Chart',
     tools: [
-      ['stock-chart', 0, 0, 8, 16],
-      ['chart-levels', 8, 0, 4, 7],
-      ['chart-watchlists', 8, 7, 4, 9],
-      ['chart-lab-chart', 0, 16, 8, 14],
-      ['chart-es-risk', 8, 16, 4, 8],
-      ['chart-readouts', 8, 24, 4, 6],
+      ['stock-chart', 0, 0, 8, 18],
+      ['chart-watchlists', 8, 0, 4, 11],
+      ['chart-levels', 8, 11, 4, 7],
     ],
   },
   {
     id: 'lab', name: 'Chart Lab',
     tools: [
-      ['chart-lab', 0, 0, 12, 20],
+      ['chart-lab', 0, 0, 12, 18],
     ],
   },
 ];

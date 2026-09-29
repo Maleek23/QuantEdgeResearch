@@ -75,20 +75,18 @@ export const CRYPTO_TOOLS: ToolDef[] = [
 ];
 
 /**
- * CRYPTO default — the coin chart large with the spot read beside it; the
- * ratio/feeds summary under the spot cards; then the promotion gate with
- * sentiment and correlation, the proxy board, and the method last.
+ * CRYPTO default — one screen (12 × 18):
+ *   ┌────────── coin chart 8×11 ──────────┬ spot read 4×11 ┐
+ *   ├──── promotion gate 6×7 ─────┬ fear & greed 3×7 ┬ correlation 3×7 ┤
+ * Proxy board, summary and the method: Add tool.
  */
 export const CRYPTO_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'Crypto',
   tools: [
-    ['crypto-chart', 0, 0, 7, 16],
-    ['crypto-spot', 7, 0, 5, 10],
-    ['crypto-summary', 7, 10, 5, 6],
-    ['crypto-proxy-gate', 0, 16, 8, 8],
-    ['crypto-sentiment', 8, 16, 4, 6],
-    ['crypto-correlation', 8, 22, 4, 7],
-    ['crypto-proxy-board', 0, 24, 8, 12],
-    ['crypto-guide', 8, 29, 4, 7],
+    ['crypto-chart', 0, 0, 8, 11],
+    ['crypto-spot', 8, 0, 4, 11],
+    ['crypto-proxy-gate', 0, 11, 6, 7],
+    ['crypto-sentiment', 6, 11, 3, 7],
+    ['crypto-correlation', 9, 11, 3, 7],
   ],
 }];

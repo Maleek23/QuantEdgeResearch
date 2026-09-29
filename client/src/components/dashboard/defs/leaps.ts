@@ -37,16 +37,17 @@ export const LEAPS_TOOLS: ToolDef[] = [
 ];
 
 /**
- * LEAPS default — the ranked cards take the first screen with summary and
- * grade distribution beside them; below, the stock chart follows whichever
- * card was clicked (cards set the focus ticker).
+ * LEAPS is a SIMPLE page (pages.ts `simple`: the ranked LEAPS board full
+ * bleed). This is what "Customize" switches to — one screen (12 × 18):
+ *   ┌──────── ranked contracts 7×18 ────────┬ stock chart 5×11 ┐
+ *   │                                       ├ summary 5×7      ┤
+ * The chart follows whichever card was clicked. Grades: Add tool.
  */
 export const LEAPS_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'LEAPS',
   tools: [
-    ['leaps-list', 0, 0, 8, 16],
-    ['leaps-summary', 8, 0, 4, 6],
-    ['leaps-grades', 8, 6, 4, 10],
-    ['stock-chart', 0, 16, 12, 12],
+    ['leaps-list', 0, 0, 7, 18],
+    ['stock-chart', 7, 0, 5, 11],
+    ['leaps-summary', 7, 11, 5, 7],
   ],
 }];

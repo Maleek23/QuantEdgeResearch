@@ -132,50 +132,38 @@ export const FLOW_TOOLS: ToolDef[] = [
 ];
 
 /**
- * FLOW shipped dashboards.
+ * FLOW shipped dashboards — each one screen (12 × 18).
  *
- * Market flow — situational, top to bottom: the market-wide tape and its
- * leaders first; then the focused ticker (ladder · heatmap · chart); then
- * the ticker's timeline, its one GEX context (Flow × GEX, which links to the
- * GEX page) and dark pool; then position builders and alerts.
+ * Market flow — the whole tape first, then its three cuts:
+ *   ┌──────────── options flow 8×11 ────────────┬ top tickers 4×11 ┐
+ *   ├── market tide 4×7 ──┬── sweeps & blocks 4×7 ──┬ unusual 4×7 ──┤
  *
- * Ticker flow — one symbol, everything about its flow; list tools start
- * scoped to the focused ticker (instance ids `ticker-…`).
+ * Ticker flow — one symbol (list tools follow the focus ticker):
+ *   ┌──── stock chart 6×11 ────┬ strike ladder 3×11 ┬ flow×GEX 3×11 ┐
+ *   ├── strike × expiry 6×7 ───┬── timeline 3×7 ────┬ dark pool 3×7 ┤
+ *
+ * Alerts, setups, builders, net premium and Index pulse: Add tool.
  */
 export const FLOW_DEFAULTS: DefaultLayout[] = [
   {
     id: 'default', name: 'Market flow',
     tools: [
-      ['options-flow', 0, 0, 8, 14],
-      ['top-tickers', 8, 0, 4, 7],
-      ['flow-sweeps-blocks', 8, 7, 4, 7],
-      ['market-tide', 0, 14, 4, 8],
-      ['flow-unusual', 4, 14, 4, 8],
-      ['flow-setups', 8, 14, 4, 8],
-      ['net-flow-strike', 0, 22, 3, 16],
-      ['flow-strike-expiry', 3, 22, 5, 16],
-      ['stock-chart', 8, 22, 4, 16],
-      ['flow-timeline', 0, 38, 4, 10],
-      ['flow-gex-convergence', 4, 38, 4, 10],
-      ['dark-pool-flow', 8, 38, 4, 10],
-      ['repeat-buyers', 0, 48, 7, 9],
-      ['flow-alerts', 7, 48, 5, 9],
+      ['options-flow', 0, 0, 8, 11],
+      ['top-tickers', 8, 0, 4, 11],
+      ['market-tide', 0, 11, 4, 7],
+      ['flow-sweeps-blocks', 4, 11, 4, 7],
+      ['flow-unusual', 8, 11, 4, 7],
     ],
   },
   {
     id: 'ticker', name: 'Ticker flow',
     tools: [
-      ['net-flow-strike', 0, 0, 3, 18],
-      ['stock-chart', 3, 0, 5, 18],
-      ['flow-gex-convergence', 8, 0, 4, 10],
-      ['net-premium', 8, 10, 4, 8],
-      ['flow-strike-expiry', 0, 18, 7, 14],
-      ['flow-timeline', 7, 18, 5, 7],
-      ['dark-pool-flow', 7, 25, 5, 7],
-      ['flow-sweeps-blocks', 0, 32, 6, 9],
-      ['repeat-buyers', 6, 32, 6, 9],
-      ['flow-unusual', 0, 41, 6, 8],
-      ['flow-setups', 6, 41, 6, 8],
+      ['stock-chart', 0, 0, 6, 11],
+      ['net-flow-strike', 6, 0, 3, 11],
+      ['flow-gex-convergence', 9, 0, 3, 11],
+      ['flow-strike-expiry', 0, 11, 6, 7],
+      ['flow-timeline', 6, 11, 3, 7],
+      ['dark-pool-flow', 9, 11, 3, 7],
     ],
   },
 ];

@@ -5,8 +5,22 @@
  */
 
 export const COLS = 12;
-export const ROW_H = 40;   // px per grid row
+export const ROW_H = 40;   // px per grid row on phones, and the fallback before the grid is measured
 export const GAP = 8;      // px between cells
+/**
+ * Desktop rows SCALE: the grid's visible height is always VIEW_ROWS rows, so
+ * a layout VIEW_ROWS tall fills the viewport exactly at any resolution
+ * (1440×900 ≈ 36px rows, 1920×1080 ≈ 46px, 2513×1260 ≈ 56px). Every shipped
+ * default is authored to exactly COLS × VIEW_ROWS; taller layouts scroll.
+ */
+export const VIEW_ROWS = 18;
+export const MIN_ROW_H = 24;
+export const MAX_ROW_H = 80;
+/** Row height (px) that makes VIEW_ROWS rows fill a grid viewport of `px` height. */
+export function fitRowHeight(px: number): number {
+  if (!(px > 0)) return ROW_H;
+  return Math.max(MIN_ROW_H, Math.min(MAX_ROW_H, (px - GAP * (VIEW_ROWS - 1)) / VIEW_ROWS));
+}
 
 export interface PlacedTool {
   i: string;            // instance id
@@ -53,20 +67,95 @@ export function compact(tools: PlacedTool[], pinned?: string): PlacedTool[] {
   return pinned ? compact(placed) : placed;
 }
 
-/** First-fit packing in reading order — the "Auto-arrange" button. */
-export function autoArrange(tools: PlacedTool[]): PlacedTool[] {
-  const order = [...tools].sort((a, b) => a.y - b.y || a.x - b.x);
-  const placed: PlacedTool[] = [];
+/**
+ * Auto-arrange — the same packing every shipped default uses:
+ *   ROW-MAJOR   tools keep reading order and fill rows left → right;
+ *   GAP-FREE    each row's widths are stretched (largest remainder) to span
+ *               all COLS, so nothing leaves a hole;
+ *   EQUAL ROWS  every tool in a row takes the row's height;
+ *   FITS        when the rows' minimum heights allow it, row heights are
+ *               scaled so the whole dashboard is exactly VIEW_ROWS tall — it
+ *               fills the viewport with no scroll. Otherwise rows keep their
+ *               natural height and the grid scrolls.
+ * `minH(type)` / `minW(type)` are the registry minimums.
+ */
+export function autoArrange(
+  tools: PlacedTool[],
+  minH: (type: string) => number = () => 3,
+  minW: (type: string) => number = () => 2,
+): PlacedTool[] {
+  const order = readingOrder(tools);
+  const rows: PlacedTool[][] = [];
+  let cur: PlacedTool[] = []; let used = 0;
   for (const t of order) {
-    let done = false;
-    for (let y = 0; !done && y < 1000; y++) {
-      for (let x = 0; x + t.w <= COLS; x++) {
-        const cand = { ...t, x, y };
-        if (!placed.some((p) => overlaps(cand, p))) { placed.push(cand); done = true; break; }
-      }
+    const w = Math.max(Math.min(COLS, minW(t.type)), Math.min(COLS, t.w));
+    if (cur.length && used + w > COLS) { rows.push(cur); cur = []; used = 0; }
+    cur.push({ ...t, w }); used += w;
+  }
+  if (cur.length) rows.push(cur);
+
+  // widths: stretch each row to COLS by largest remainder
+  for (const row of rows) {
+    const sum = row.reduce((s, t) => s + t.w, 0);
+    if (sum >= COLS) continue;
+    const exact = row.map((t) => (t.w / sum) * COLS);
+    const base = exact.map(Math.floor);
+    let left = COLS - base.reduce((s, v) => s + v, 0);
+    const byFrac = exact.map((v, i) => [v - Math.floor(v), i] as const).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+    for (const [, i] of byFrac) { if (!left) break; base[i]++; left--; }
+    row.forEach((t, i) => { t.w = base[i]; });
+  }
+
+  // heights: natural = tallest in row; floor = the row's largest minimum
+  const natural = rows.map((r) => Math.max(...r.map((t) => t.h)));
+  const floor = rows.map((r) => Math.max(...r.map((t) => minH(t.type))));
+  let heights = natural.map((h, i) => Math.max(h, floor[i]));
+  const floorSum = floor.reduce((s, v) => s + v, 0);
+  if (floorSum <= VIEW_ROWS) {
+    const natSum = heights.reduce((s, v) => s + v, 0);
+    const exact = heights.map((h) => (h / natSum) * VIEW_ROWS);
+    const hs = exact.map((v, i) => Math.max(floor[i], Math.floor(v)));
+    let diff = VIEW_ROWS - hs.reduce((s, v) => s + v, 0);
+    // give / take whole rows, largest fractional part first, never below a floor
+    const order2 = exact.map((v, i) => [v - Math.floor(v), i] as const).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(([, i]) => i);
+    for (let guard = 0; diff !== 0 && guard < 400; guard++) {
+      const i = order2[guard % order2.length];
+      if (diff > 0) { hs[i]++; diff--; } else if (hs[i] > floor[i]) { hs[i]--; diff++; }
+    }
+    heights = hs;
+  }
+
+  const out: PlacedTool[] = [];
+  let y = 0;
+  rows.forEach((row, r) => {
+    let x = 0;
+    for (const t of row) { out.push({ ...t, x, y, h: heights[r] }); x += t.w; }
+    y += heights[r];
+  });
+  return out;
+}
+
+/**
+ * Tiling check for shipped defaults: overlaps, holes inside the covered
+ * area, and whether the layout is exactly COLS × VIEW_ROWS. Pure; used by a
+ * DEV-only assertion in pages.ts and by the layout audit.
+ */
+export function tilingIssues(tools: Array<{ x: number; y: number; w: number; h: number; type?: string }>): string[] {
+  const out: string[] = [];
+  const bottom = tools.reduce((m, t) => Math.max(m, t.y + t.h), 0);
+  const grid: string[][] = Array.from({ length: bottom }, () => Array(COLS).fill(''));
+  for (const t of tools) {
+    if (t.x < 0 || t.x + t.w > COLS) out.push(`${t.type ?? '?'} spills past column ${COLS}`);
+    for (let y = t.y; y < t.y + t.h; y++) for (let x = t.x; x < Math.min(COLS, t.x + t.w); x++) {
+      if (grid[y][x]) out.push(`${t.type ?? '?'} overlaps ${grid[y][x]} at ${x},${y}`);
+      grid[y][x] = t.type ?? '#';
     }
   }
-  return placed;
+  let holes = 0;
+  for (const row of grid) for (const c of row) if (!c) holes++;
+  if (holes) out.push(`${holes} empty cells`);
+  if (bottom !== VIEW_ROWS) out.push(`height ${bottom} rows, not ${VIEW_ROWS}`);
+  return out;
 }
 
 /** Where a new tool of size w×h lands: first gap that fits, else the bottom. */
