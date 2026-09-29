@@ -510,3 +510,26 @@ button.jr-heat-c{cursor:pointer}
 .jr-cls-unknown,.jr-cls-unresolved{opacity:.7}
 .jr-page .jr-cols .jr-bar-row{grid-template-columns:minmax(80px,150px) minmax(16px,1fr) auto}
 .jr-page .jr-cols .jr-bar-v{white-space:nowrap;min-width:0}
+
+/* Journal nav v2 — sections + page pills (replaces the crammed single row). */
+.jr-nav2{display:flex;flex-direction:column;gap:8px;padding:10px 20px 8px;border-bottom:1px solid var(--jr-line)}
+.jr-nav2-top{display:flex;align-items:center;gap:16px;min-width:0}
+.jr-nav2-top>.jr-book{flex:none;width:clamp(150px,13vw,200px);padding:0}
+.jr-nav2 .jr-book-l{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.jr-nav2 .jr-book-select{min-height:38px;font-size:14px}
+.jr-sec{display:flex;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:none}
+.jr-sec::-webkit-scrollbar{display:none}
+.jr-sec-tab{flex:none;display:inline-flex;align-items:center;height:38px;padding:0 14px;border-radius:8px;font-size:14px;font-weight:600;color:var(--text-dim);text-decoration:none;white-space:nowrap;transition:background .15s,color .15s}
+.jr-sec-tab:hover{color:var(--text);background:color-mix(in srgb,var(--jr-accent) 8%,transparent)}
+.jr-sec-tab[aria-current]{color:var(--text);background:color-mix(in srgb,var(--jr-accent) 16%,transparent);box-shadow:inset 0 -2px 0 var(--jr-accent)}
+.jr-sub{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.jr-sub::-webkit-scrollbar{display:none}
+.jr-sub-tab{flex:none;display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--jr-line-hi);font-size:13px;font-weight:500;color:var(--text-dim);text-decoration:none;white-space:nowrap}
+.jr-sub-tab:hover{color:var(--text);border-color:var(--jr-accent)}
+.jr-sub-tab[aria-current='page']{color:var(--text);font-weight:700;border-color:var(--jr-accent);background:color-mix(in srgb,var(--jr-accent) 14%,transparent)}
+.jr-sec-tab:focus-visible,.jr-sub-tab:focus-visible{outline:2px solid var(--jr-accent);outline-offset:2px}
+.jr-nav2-phone{padding:8px 12px 8px}
+.jr-nav2-phone .jr-nav2-top{flex-direction:column;align-items:stretch;gap:8px}
+.jr-nav2-phone .jr-nav2-top>.jr-book{width:100%}
+.jr-nav2-phone .jr-sec-tab{height:44px}
+.jr-nav2-phone .jr-sub-tab{height:40px}

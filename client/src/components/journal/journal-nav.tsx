@@ -120,48 +120,29 @@ export function JournalNav({ view, onSelect, ...book }: Props) {
       title={p.hint} onClick={click(p.id)} data-testid={`jr-nav-${p.id}`}>{p.label}</a>
   );
 
-  if (phone) {
-    return (
-      <div className="jr-nav jr-nav-phone">
-        <JournalSwitcher value={book.book} onChange={book.onBook} sources={book.sources} loading={book.sourcesLoading} idSuffix="-phone" />
-        <nav className="jr-tabstrip" aria-label="Journal pages" ref={stripRef}>
-          {GROUPS.map((g, gi) => (
-            <div className="jr-tabs-g" key={g.id} role="group" aria-label={g.label}>
-              {gi > 0 && <span className="jr-tabs-sep" aria-hidden />}
-              {g.pages.map(tabLink)}
-            </div>
+  const current = GROUPS.find((g) => g.pages.some((p) => p.id === view)) ?? GROUPS[0];
+  // Two readable levels instead of one crammed row: sections on top, the
+  // current section's pages as pills underneath. Same on phones (each row
+  // swipes sideways); nothing is hidden behind a "More" menu.
+  return (
+    <div className={cn('jr-nav2', phone && 'jr-nav2-phone')}>
+      <div className="jr-nav2-top">
+        <JournalSwitcher value={book.book} onChange={book.onBook} sources={book.sources} loading={book.sourcesLoading} idSuffix={phone ? '-phone' : undefined} />
+        <nav className="jr-sec" aria-label="Journal sections" ref={stripRef}>
+          {GROUPS.map((g) => (
+            <a key={g.id} href={pageHref(g.pages[0].id)} className="jr-sec-tab" aria-current={g.id === current.id ? 'true' : undefined}
+              onClick={click(g.pages.some((p) => p.id === view) ? view : g.pages[0].id)} data-testid={`jr-sec-${g.id}`}>{g.label}</a>
           ))}
         </nav>
       </div>
-    );
-  }
-
-  const hidden = GROUPS.map((g) => ({ ...g, pages: g.pages.filter((p) => !fit.visible.has(p.id)) })).filter((g) => g.pages.length);
-  const activeHidden = hidden.some((g) => g.pages.some((p) => p.id === view));
-  return (
-    <div className="jr-nav">
-      <JournalSwitcher value={book.book} onChange={book.onBook} sources={book.sources} loading={book.sourcesLoading} />
-      <nav className="jr-tabs" aria-label="Journal pages" ref={barRef}>
-        {GROUPS.map((g, gi) => {
-          const shown = g.pages.filter((p) => fit.visible.has(p.id));
-          if (!shown.length) return null;
-          return (
-            <div className="jr-tabs-g" key={g.id} role="group" aria-label={g.label}>
-              {gi > 0 && <span className="jr-tabs-sep" aria-hidden />}
-              {fit.labels && <span className="jr-tabs-gl" aria-hidden>{g.label}</span>}
-              {shown.map(tabLink)}
-            </div>
-          );
-        })}
-        {hidden.length > 0 && <MoreMenu groups={hidden} view={view} activeHidden={activeHidden} onPick={onSelect} />}
-      </nav>
-      {/* Off-screen copy at natural width — what the fit is measured on. */}
-      <div className="jr-tabs-measure" ref={measureRef} aria-hidden>
-        {GROUPS.map((g) => <span key={g.id} className="jr-tabs-gl" data-m-label={g.id}>{g.label}</span>)}
-        {JOURNAL_PAGES.map((p) => <span key={p.id} className="jr-tab" data-m-tab={p.id}>{p.label}</span>)}
-        <span className="jr-tabs-sep" data-m-sep />
-        <span className="jr-tab jr-more-btn" data-m-more>Loss analysis <ChevronDown className="h-3.5 w-3.5" /></span>
-      </div>
+      {current.pages.length > 1 && (
+        <nav className="jr-sub" aria-label={`${current.label} pages`}>
+          {current.pages.map((p) => (
+            <a key={p.id} href={pageHref(p.id)} className="jr-sub-tab" aria-current={view === p.id ? 'page' : undefined}
+              title={p.hint} onClick={click(p.id)} data-testid={`jr-nav-${p.id}`}>{p.label}</a>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }
