@@ -1,0 +1,61 @@
+/* BOT tools — the BOT board (components/bot/bot-nexus.tsx) one section per
+   tile. The board's own .botlab classes, compacted: sections lose their page
+   padding, grids reflow to the tile width, the log loses its 240px cap, and
+   the lone section scrolls inside the tile. */
+.flowdash .fd-legacy>.botlab.bot-only{display:block;flex:1;height:100%;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.flowdash .bot-only .stats-bar,
+.flowdash .bot-only .bots-section,
+.flowdash .bot-only .book-section,
+.flowdash .bot-only .rules-section,
+.flowdash .bot-only .log-section,
+.flowdash .bot-only .queue,
+.flowdash .bot-only .perf,
+.flowdash .bot-only .safeguards,
+.flowdash .bot-only .sys-status{padding:8px 10px;border:0;background:transparent}
+
+/* stats bar — reflow to the tile */
+.flowdash .bot-only .stats-bar{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.flowdash .bot-only .stat-card{padding:7px 9px}
+.flowdash .bot-only .stat-val{font-size:14px}
+
+/* jobs */
+.flowdash .bot-only .bots-head,
+.flowdash .bot-only .rules-head,
+.flowdash .bot-only .book-head,
+.flowdash .bot-only .log-head,
+.flowdash .bot-only .queue-head,
+.flowdash .bot-only .perf-head,
+.flowdash .bot-only .safeguards-head{margin-bottom:6px;flex-wrap:wrap;gap:4px 10px}
+.flowdash .bot-only .bots-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px}
+.flowdash .bot-only .bot-card{padding:9px 10px}
+.flowdash .bot-only .bot-card:hover{transform:none}
+.flowdash .bot-only .bot-card-head{margin-bottom:6px}
+.flowdash .bot-only .bot-icon{width:24px;height:24px}
+.flowdash .bot-only .bot-name{font-size:12.5px}
+.flowdash .bot-only .bot-desc-text{margin-bottom:6px;min-height:0;font-size:10.5px}
+.flowdash .bot-only .bot-stats{padding-top:6px}
+
+/* book / history / ledger rows */
+.flowdash .bot-only .book-meta{flex-wrap:wrap;gap:4px 10px}
+.flowdash .bot-only .book-pos{grid-template-columns:minmax(76px,90px) minmax(0,1fr) repeat(4,auto);gap:4px 10px;padding:7px 10px;margin-bottom:4px}
+.flowdash .bot-only .book-pos:hover{transform:none}
+.flowdash .bot-only .book-empty{padding:10px 0}
+
+/* rules */
+.flowdash .bot-only .rules-table td{padding:6px 8px}
+.flowdash .bot-only .rules-table th{padding:6px 8px}
+
+/* log — no page cap; the tile scrolls */
+.flowdash .bot-only .log-section{max-height:none;overflow:visible}
+.flowdash .bot-only .log-head{position:static;background:transparent;padding-bottom:0}
+.flowdash .bot-only .log-item{grid-template-columns:44px 68px 48px minmax(0,1fr) auto auto;gap:6px;padding:5px 8px}
+
+/* right-rail sections */
+.flowdash .bot-only .perf-chart{height:56px}
+.flowdash .bot-only .disclaimer{padding:6px 10px}
+
+@media (max-width:767px){
+  .flowdash .bot-only .book-pos{grid-template-columns:1fr auto auto}
+  .flowdash .bot-only .log-item{grid-template-columns:44px 48px minmax(0,1fr) auto auto}
+  .flowdash .bot-only .log-bot{display:none}
+}

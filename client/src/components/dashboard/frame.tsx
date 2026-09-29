@@ -115,7 +115,9 @@ export function ToolFrame({
 }) {
   const [report, setReport] = useState<ToolReport>({});
   const now = useNow();
-  const age = def.ageInside
+  const age = def.staticContent
+    ? 'static · defined in code'
+    : def.ageInside
     ? 'age shown per row'
     : report.asOf !== undefined
       ? (report.asOf ? ageLabel(report.asOf, now) : 'no data yet')

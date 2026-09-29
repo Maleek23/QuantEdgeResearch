@@ -140,7 +140,55 @@ const RULES = [
   { name: 'No fabrication', tag: 'Gate', cat: 'gates', file: 'everywhere', trigger: <>unmeasured values render <code>NOT MEASURED</code> — no random walks, no jitter, no placeholder percentages.</> },
 ];
 
-export function BotNexus() {
+/**
+ * One section of the board, rendered alone (dashboard tools — see
+ * components/dashboard/tools/bot). Omit for the full classic board.
+ */
+export type BotSection =
+  | 'stats' | 'jobs' | 'book' | 'history' | 'ledger' | 'rules' | 'log'
+  | 'queue' | 'outcomes' | 'status';
+
+type BotFeed = 'conv' | 'flow' | 'leaps' | 'econ' | 'cats' | 'outcomes' | 'pulse' | 'realtime' | 'ledger' | 'book';
+const JOB_FEEDS: BotFeed[] = ['conv', 'flow', 'leaps', 'econ', 'cats', 'pulse', 'realtime'];
+/** Which feeds each section reads — a lone section only polls what it shows. */
+const SECTION_FEEDS: Record<BotSection, BotFeed[]> = {
+  stats: [...JOB_FEEDS, 'outcomes'],
+  jobs: JOB_FEEDS,
+  book: ['book'],
+  history: ['book'],
+  ledger: ['ledger'],
+  rules: [],
+  log: ['conv', 'cats'],
+  queue: ['econ'],
+  outcomes: ['outcomes'],
+  status: [...JOB_FEEDS, 'outcomes'],
+};
+
+/**
+ * Every feed the board reads, with the board's own query keys — so N section
+ * tools on one dashboard share one request per feed. `only` disables the feeds
+ * a lone section never shows; no argument = the full board (all feeds on).
+ */
+export function useBotFeeds(only?: BotSection) {
+  const on = (f: BotFeed) => !only || SECTION_FEEDS[only].includes(f);
+  const conv = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'bot'], queryFn: fetchJson('/api/convictions?limit=12'), refetchInterval: 120_000, staleTime: 60_000, retry: 1, enabled: on('conv') });
+  const flow = useQuery<FlowPayload>({ queryKey: ['/api/options-flow', 'bot'], queryFn: fetchJson('/api/options-flow?limit=50'), refetchInterval: 180_000, staleTime: 120_000, retry: 1, enabled: on('flow') });
+  const leaps = useQuery<LeapsPayload>({ queryKey: ['/api/leap-tracker', 'bot'], queryFn: fetchJson('/api/leap-tracker'), refetchInterval: 600_000, staleTime: 300_000, retry: 1, enabled: on('leaps') });
+  const econ = useQuery<EconPayload>({ queryKey: ['/api/economic-calendar', 'bot'], queryFn: fetchJson('/api/economic-calendar'), refetchInterval: 600_000, staleTime: 300_000, retry: 1, enabled: on('econ') });
+  const cats = useQuery<CatalystsRecent>({ queryKey: ['/api/catalysts/recent', 'bot'], queryFn: fetchJson('/api/catalysts/recent'), refetchInterval: 300_000, staleTime: 120_000, retry: 1, enabled: on('cats') });
+  // Outcome model v2 is the only ledger that carries unresolved coverage next
+  // to the result. The legacy /performance/stats mixes incompatible outcome
+  // definitions and must not power a user-facing win-rate claim (SR 11-7 P0-1/2).
+  const outcomes = useQuery<OutcomePayload>({ queryKey: ['/api/performance/outcome-model', 'bot'], queryFn: fetchJson('/api/performance/outcome-model'), refetchInterval: 600_000, staleTime: 300_000, retry: 1, enabled: on('outcomes') });
+  const pulse = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'bot'], queryFn: fetchJson('/api/crypto/pulse'), refetchInterval: 300_000, staleTime: 120_000, retry: 1, enabled: on('pulse') });
+  const realtime = useQuery<RealtimePayload>({ queryKey: ['/api/realtime-status', 'bot'], queryFn: fetchJson('/api/realtime-status'), refetchInterval: 30_000, staleTime: 20_000, retry: 1, enabled: on('realtime') });
+  const ledger = useQuery<LedgerPayload>({ queryKey: ['/api/discipline/ledger', 'bot'], queryFn: fetchJson('/api/discipline/ledger'), refetchInterval: 600_000, staleTime: 300_000, retry: 1, enabled: on('ledger') });
+  const book = useQuery<QuantBotStatus>({ queryKey: ['/api/quant-bot/status', 'bot'], queryFn: fetchJson('/api/quant-bot/status'), refetchInterval: 60_000, staleTime: 30_000, retry: 1, enabled: on('book') });
+  return { conv, flow, leaps, econ, cats, outcomes, pulse, realtime, ledger, book };
+}
+export type BotFeeds = ReturnType<typeof useBotFeeds>;
+
+export function BotNexus({ only }: { only?: BotSection } = {}) {
   const rail = useColResize('nx-bot-side', 320, { sign: -1, min: 240, max: 520 });
   const [ruleTab, setRuleTab] = useState<'all' | 'gates' | 'signals' | 'disclosure'>('all');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -151,19 +199,17 @@ export function BotNexus() {
   const [expandPos, setExpandPos] = useState<PaperPosition | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const { data: conv } = useQuery<ConvictionsPayload>({ queryKey: ['/api/convictions', 'bot'], queryFn: fetchJson('/api/convictions?limit=12'), refetchInterval: 120_000, staleTime: 60_000, retry: 1 });
-  const { data: flow } = useQuery<FlowPayload>({ queryKey: ['/api/options-flow', 'bot'], queryFn: fetchJson('/api/options-flow?limit=50'), refetchInterval: 180_000, staleTime: 120_000, retry: 1 });
-  const { data: leaps } = useQuery<LeapsPayload>({ queryKey: ['/api/leap-tracker', 'bot'], queryFn: fetchJson('/api/leap-tracker'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
-  const { data: econ } = useQuery<EconPayload>({ queryKey: ['/api/economic-calendar', 'bot'], queryFn: fetchJson('/api/economic-calendar'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
-  const { data: cats } = useQuery<CatalystsRecent>({ queryKey: ['/api/catalysts/recent', 'bot'], queryFn: fetchJson('/api/catalysts/recent'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
-  // Outcome model v2 is the only ledger that carries unresolved coverage next
-  // to the result. The legacy /performance/stats mixes incompatible outcome
-  // definitions and must not power a user-facing win-rate claim (SR 11-7 P0-1/2).
-  const { data: outcomes } = useQuery<OutcomePayload>({ queryKey: ['/api/performance/outcome-model', 'bot'], queryFn: fetchJson('/api/performance/outcome-model'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
-  const { data: pulse } = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'bot'], queryFn: fetchJson('/api/crypto/pulse'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
-  const { data: realtime } = useQuery<RealtimePayload>({ queryKey: ['/api/realtime-status', 'bot'], queryFn: fetchJson('/api/realtime-status'), refetchInterval: 30_000, staleTime: 20_000, retry: 1 });
-  const { data: ledger } = useQuery<LedgerPayload>({ queryKey: ['/api/discipline/ledger', 'bot'], queryFn: fetchJson('/api/discipline/ledger'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
-  const { data: book } = useQuery<QuantBotStatus>({ queryKey: ['/api/quant-bot/status', 'bot'], queryFn: fetchJson('/api/quant-bot/status'), refetchInterval: 60_000, staleTime: 30_000, retry: 1 });
+  const feeds = useBotFeeds(only);
+  const conv = feeds.conv.data;
+  const flow = feeds.flow.data;
+  const leaps = feeds.leaps.data;
+  const econ = feeds.econ.data;
+  const cats = feeds.cats.data;
+  const outcomes = feeds.outcomes.data;
+  const pulse = feeds.pulse.data;
+  const realtime = feeds.realtime.data;
+  const ledger = feeds.ledger.data;
+  const book = feeds.book.data;
 
   /* ── the real jobs, status from their own output freshness ── */
   const lastFlow = flow?.trades?.length ? flow.trades.reduce<string | undefined>((m, t) => (!m || (t.detectedAt && t.detectedAt > m) ? t.detectedAt : m), undefined) : undefined;
@@ -242,6 +288,9 @@ export function BotNexus() {
 
   /* ── ⌘K over jobs / rules / log symbols ── */
   useEffect(() => {
+    // A lone section (dashboard tool) never claims the global ⌘K — the classic
+    // board tool keeps it.
+    if (only) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault(); e.stopPropagation();
@@ -252,7 +301,7 @@ export function BotNexus() {
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true } as any);
-  }, []);
+  }, [only]);
 
   const flash = (id: string) => {
     setSearchOpen(false);
@@ -279,387 +328,386 @@ export function BotNexus() {
   const nextRelease = econ?.upcoming?.[0];
   const today = new Date().toISOString().slice(0, 10);
 
-  return (
-    <div className="botlab">
-      <div className={`nx-resize${rail.dragging ? ' active' : ''}`} style={{ right: rail.width - 4 }} title="Drag to resize · double-click to expand" {...rail.handleProps} />
-
-      {/* ══════════ BOT AREA ══════════ */}
-      <div className="col bot-area" style={{ ['--nx-side' as string]: `${rail.width}px` }}>
-        <div className="bot-header">
-          <div className="bot-eyebrow">Automation</div>
-          <div className="bot-title-row"><div className="bot-title">BOT</div></div>
-          <div className="bot-desc">
-            The platform's real automation layer: <b>scanner jobs</b>, <b>hard gates</b> and <b>ingest crons</b>, reported from their own output.
-            No broker is connected — nothing here places orders. Discipline is enforced in code, not clicked on.
-          </div>
-          <div className="bot-meta">
-            <span className="tag bot">{runningCount}/{jobs.length} jobs running</span>
-            <span className="tag live"><span className="dot" />{RULES.length} rules enforced</span>
-            <span className="tag mute">no broker · signals only</span>
-          </div>
+  /* ── sections — one const each, so a dashboard tool can render just one ── */
+  const statsEl = (
+    <>
+      {/* STATS BAR */}
+      <div className="stats-bar">
+        <div className="stat-card">
+          <div className="stat-label">Jobs live</div>
+          <div className="stat-val bot">{runningCount}</div>
+          <div className="stat-sub">of {jobs.length} · by output freshness</div>
         </div>
-
-        {/* STATS BAR */}
-        <div className="stats-bar">
-          <div className="stat-card">
-            <div className="stat-label">Jobs live</div>
-            <div className="stat-val bot">{runningCount}</div>
-            <div className="stat-sub">of {jobs.length} · by output freshness</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Rules enforced</div>
-            <div className="stat-val">{RULES.length}</div>
-            <div className="stat-sub">in code · not toggleable</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Latest scan</div>
-            <div className="stat-val green">{conv?.picks?.length ?? '—'}</div>
-            <div className="stat-sub">{conv?.totalCandidatesScanned ?? '—'} candidates scanned</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Observed outcomes</div>
-            {reportable ? (
-              <>
-                <div className="stat-val green">{observed!.winRate?.toFixed(0)}%</div>
-                <div className="stat-sub">{observed!.win}W–{observed!.loss}L · {coverage.toFixed(0)}% coverage</div>
-              </>
-            ) : (
-              <>
-                <div className="stat-val amber">VALIDATION HOLD</div>
-                <div className="stat-sub">{observed?.win ?? 0}W–{observed?.loss ?? 0}L observed · {coverage.toFixed(0)}% coverage</div>
-              </>
-            )}
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Next macro release</div>
-            <div className="stat-val amber">{nextRelease?.name ?? '—'}</div>
-            <div className="stat-sub">{nextRelease ? `${nextRelease.date === today ? 'today' : nextRelease.date}${nextRelease.time ? ` · ${nextRelease.time}` : ''}` : 'calendar empty'}</div>
-          </div>
+        <div className="stat-card">
+          <div className="stat-label">Rules enforced</div>
+          <div className="stat-val">{RULES.length}</div>
+          <div className="stat-sub">in code · not toggleable</div>
         </div>
-
-        {/* ACTIVE BOTS = the real jobs */}
-        <div className="bots-section">
-          <div className="bots-head">
-            <div className="bots-label">Background jobs · status from output freshness</div>
-            <div className="log-count">running · stale · idle</div>
-          </div>
-          <div className="bots-grid">
-            {jobs.map((j) => (
-              <div key={j.id} className="bot-card" data-bot-id={`job-${j.id}`} style={{ ['--bot-status-color' as string]: STATUS_COLOR[j.st] }}
-                title={`Last output ${fmtAge(j.age)} · cadence ${j.cadenceLabel}`}>
-                <div className="bot-card-head">
-                  <div className={`bot-icon ${STATUS_CLASS[j.st]}`}>{j.icon}</div>
-                  <div className="bot-name">{j.name}</div>
-                  <div className={`bot-status ${STATUS_CLASS[j.st]}`}><span className="dot" />{j.st}</div>
-                </div>
-                <div className="bot-desc-text">{j.desc}</div>
-                <div className="bot-stats">
-                  {j.stats.map((s) => (
-                    <div className="bot-stat" key={s.k}>
-                      <div className="bot-stat-k">{s.k}</div>
-                      <div className={`bot-stat-v${s.cls ? ` ${s.cls}` : ''}`}>{s.v}</div>
-                    </div>
-                  ))}
-                </div>
+        <div className="stat-card">
+          <div className="stat-label">Latest scan</div>
+          <div className="stat-val green">{conv?.picks?.length ?? '—'}</div>
+          <div className="stat-sub">{conv?.totalCandidatesScanned ?? '—'} candidates scanned</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Observed outcomes</div>
+          {reportable ? (
+            <>
+              <div className="stat-val green">{observed!.winRate?.toFixed(0)}%</div>
+              <div className="stat-sub">{observed!.win}W–{observed!.loss}L · {coverage.toFixed(0)}% coverage</div>
+            </>
+          ) : (
+            <>
+              <div className="stat-val amber">VALIDATION HOLD</div>
+              <div className="stat-sub">{observed?.win ?? 0}W–{observed?.loss ?? 0}L observed · {coverage.toFixed(0)}% coverage</div>
+            </>
+          )}
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Next macro release</div>
+          <div className="stat-val amber">{nextRelease?.name ?? '—'}</div>
+          <div className="stat-sub">{nextRelease ? `${nextRelease.date === today ? 'today' : nextRelease.date}${nextRelease.time ? ` · ${nextRelease.time}` : ''}` : 'calendar empty'}</div>
+        </div>
+      </div>
+    </>
+  );
+  const jobsEl = (
+    <>
+      {/* ACTIVE BOTS = the real jobs */}
+      <div className="bots-section">
+        <div className="bots-head">
+          <div className="bots-label">Background jobs · status from output freshness</div>
+          <div className="log-count">running · stale · idle</div>
+        </div>
+        <div className="bots-grid">
+          {jobs.map((j) => (
+            <div key={j.id} className="bot-card" data-bot-id={`job-${j.id}`} style={{ ['--bot-status-color' as string]: STATUS_COLOR[j.st] }}
+              title={`Last output ${fmtAge(j.age)} · cadence ${j.cadenceLabel}`}>
+              <div className="bot-card-head">
+                <div className={`bot-icon ${STATUS_CLASS[j.st]}`}>{j.icon}</div>
+                <div className="bot-name">{j.name}</div>
+                <div className={`bot-status ${STATUS_CLASS[j.st]}`}><span className="dot" />{j.st}</div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* PAPER BOOK — what the bot is actually holding */}
-        <div className="book-section">
-          <div className="book-head">
-            <div className="book-label">Paper book · what the bot holds</div>
-            <div className="book-meta">
-              <span>Value <b>{book?.totalValue != null ? `$` + book.totalValue.toLocaleString() : `—`}</b></span>
-              <span>Cash <b>{book?.cashBalance != null ? `$` + book.cashBalance.toLocaleString() : `—`}</b></span>
-              <span>P&L <b style={{ color: (book?.totalPnL ?? 0) >= 0 ? `var(--green)` : `var(--red)` }}>{(book?.totalPnL ?? 0) >= 0 ? `+` : ``}{`$` + String(book?.totalPnL ?? 0)} ({(book?.totalPnLPercent ?? 0).toFixed(2)}%)</b></span>
-              <span>{book?.closedCount ?? 0} closed · floor {book?.config?.minConviction ?? `—`} · max {book?.config?.maxOpen ?? `—`} · {book?.config?.riskPerTradePct ?? `—`}%/trade</span>
-            </div>
-          </div>
-          {(book?.openPositions ?? []).map((p) => {
-            const pnl = p.unrealizedPnLPercent ?? 0;
-            const up = pnl >= 0;
-            const contract = p.assetType === `option` && p.strikePrice != null
-              ? `$` + p.strikePrice + (p.optionType ?? `c`).charAt(0).toUpperCase() + ` ` + (p.expiryDate ? new Date(p.expiryDate).toLocaleDateString([], { month: `short`, day: `numeric` }) : ``) + ` · ` + (p.quantity ?? 1) + `x @ $` + p.entryPrice
-              : (p.quantity ?? 1) + `x @ $` + p.entryPrice;
-            const prog = barrierProgress(p);
-            const entryFrac = (() => {
-              const s = Number(p.stopLoss), t = Number(p.targetPrice);
-              if (!(Number.isFinite(s) && Number.isFinite(t)) || t === s) return null;
-              return Math.max(0, Math.min(1, (Number(p.entryPrice) - s) / (t - s)));
-            })();
-            return (
-              <div className="book-pos" key={p.id} style={{ [`--pos-accent` as string]: up ? `var(--green)` : `var(--red)`, flexWrap: 'wrap' }} onClick={() => openWorkup(p.symbol)} title="Open the ticker workup">
-                <div>
-                  <div className="bp-sym">{p.symbol}</div>
-                  <div className="bp-contract">{contract}</div>
-                </div>
-                <div className="bp-brackets">
-                  {p.targetPrice != null && <span className="t">T ${p.targetPrice}</span>}
-                  {p.stopLoss != null && <span className="s">S ${p.stopLoss}</span>}
-                  {p.useTrailingStop && <span className="tr">trail {p.trailingStopPercent ?? `—`}%</span>}
-                </div>
-                <div className="bp-kv">now<b>{p.currentPrice != null ? `$` + p.currentPrice : `—`}</b></div>
-                <div className="bp-kv">held<b>{p.entryTime ? Math.max(0, Math.round((Date.now() - Date.parse(p.entryTime)) / 86_400_000)) + `d` : `—`}</b></div>
-                <div className={up ? `bp-pnl up` : `bp-pnl down`}>{up ? `+` : ``}{pnl.toFixed(1)}%</div>
-                <div className="bp-kv">P&L $<b style={{ color: up ? `var(--green)` : `var(--red)` }}>{(p.unrealizedPnL ?? 0) >= 0 ? `+` : ``}{p.unrealizedPnL ?? 0}</b></div>
-                <button
-                  onClick={(ev) => { ev.stopPropagation(); setExpandPos(p); }}
-                  title="Expand — chart + where price sits between the barriers"
-                  style={{ padding: '3px 8px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700 }}
-                >⤢</button>
-                {prog != null && (
-                  <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }} title={`stop $${p.stopLoss} ── entry $${p.entryPrice} ── target $${p.targetPrice} · mark $${p.currentPrice ?? '—'}${p.assetType === 'option' ? ' (contract premium)' : ''}`}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--red)' }}>S</span>
-                    <div style={{ position: 'relative', flex: 1, height: 5, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,107,61,0.35), rgba(148,163,184,0.12) 40%, rgba(110,231,183,0.35))' }}>
-                      {entryFrac != null && <div style={{ position: 'absolute', left: `${entryFrac * 100}%`, top: -2, width: 1.5, height: 9, background: 'var(--text-dim)' }} title="entry" />}
-                      <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 4px)`, top: -1.5, width: 8, height: 8, borderRadius: '50%', background: up ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 6px ${up ? 'var(--green)' : 'var(--red)'}` }} title={`mark $${p.currentPrice ?? '—'}`} />
-                    </div>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--green)' }}>T</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', minWidth: 58, textAlign: 'right' }}>{(prog * 100).toFixed(0)}% to T</span>
+              <div className="bot-desc-text">{j.desc}</div>
+              <div className="bot-stats">
+                {j.stats.map((s) => (
+                  <div className="bot-stat" key={s.k}>
+                    <div className="bot-stat-k">{s.k}</div>
+                    <div className={`bot-stat-v${s.cls ? ` ${s.cls}` : ''}`}>{s.v}</div>
                   </div>
-                )}
+                ))}
               </div>
-            );
-          })}
-          {(book?.openPositions ?? []).length === 0 && (
-            <div className="book-empty">Flat — the bot holds nothing. Entries require conviction ≥ {book?.config?.minConviction ?? `—`} and pass the same gates as the board.</div>
-          )}
-        </div>
-
-        {/* TRADE HISTORY — every closed position, wins and losses, no curation */}
-        <div className="book-section">
-          <div className="book-head">
-            <div className="book-label">Trade history · closed positions</div>
-            <div className="book-meta">
-              {(() => {
-                const closed = book?.closedPositions ?? [];
-                const wins = closed.filter((c) => (c.realizedPnL ?? 0) > 0).length;
-                const losses = closed.filter((c) => (c.realizedPnL ?? 0) < 0).length;
-                const realized = closed.reduce((s, c) => s + (c.realizedPnL ?? 0), 0);
-                return (
-                  <>
-                    <span><b style={{ color: 'var(--green)' }}>{wins}W</b> · <b style={{ color: 'var(--red)' }}>{losses}L</b> shown of {book?.closedCount ?? 0} closed</span>
-                    <span>realized (shown) <b style={{ color: realized >= 0 ? 'var(--green)' : 'var(--red)' }}>{realized >= 0 ? '+' : ''}${Math.round(realized).toLocaleString()}</b></span>
-                    {(book?.closedCount ?? 0) < MIN_N && <span style={{ color: 'var(--text-mute)' }}>n&lt;{MIN_N} — rates not yet reportable</span>}
-                  </>
-                );
-              })()}
             </div>
-          </div>
-          {(book?.closedPositions ?? []).map((c) => {
-            const won = (c.realizedPnL ?? 0) > 0;
-            const flat = (c.realizedPnL ?? 0) === 0;
-            const pct = c.entryPrice > 0 && c.exitPrice != null ? ((c.exitPrice - c.entryPrice) / c.entryPrice) * 100 : null;
-            const contract = c.assetType === 'option' && c.strikePrice != null
-              ? `$${c.strikePrice}${(c.optionType ?? 'c').charAt(0).toUpperCase()} ${c.expiryDate ? new Date(c.expiryDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''} · ${c.quantity ?? 1}x`
-              : `${c.quantity ?? 1}x`;
-            const reason = (c.exitReason ?? '').replace(/_/g, ' ') || '—';
-            return (
-              <div className="book-pos" key={c.id} style={{ ['--pos-accent' as string]: flat ? 'var(--text-mute)' : won ? 'var(--green)' : 'var(--red)' }} onClick={() => openWorkup(c.symbol)} title="Open the ticker workup">
-                <div>
-                  <div className="bp-sym">{c.symbol}</div>
-                  <div className="bp-contract">{contract}</div>
-                </div>
-                <div className="bp-kv">in<b>${c.entryPrice}</b></div>
-                <div className="bp-kv">out<b>{c.exitPrice != null ? `$${c.exitPrice}` : '—'}</b></div>
-                <div className="bp-kv" style={{ minWidth: 110 }} title={`exit reason: ${reason}`}>why<b style={{ textTransform: 'lowercase' }}>{reason.slice(0, 22)}</b></div>
-                <div className={won ? 'bp-pnl up' : flat ? 'bp-pnl' : 'bp-pnl down'}>
-                  {(c.realizedPnL ?? 0) >= 0 ? '+' : ''}${Math.round(c.realizedPnL ?? 0)}{pct != null ? ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%` : ''}
-                </div>
-                <div className="bp-kv">closed<b>{c.exitTime ? new Date(c.exitTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '—'}</b></div>
-              </div>
-            );
-          })}
-          {(book?.closedPositions ?? []).length === 0 && (
-            <div className="book-empty">No closed trades yet on this book — history fills as barriers and expiries decide positions.</div>
-          )}
+          ))}
         </div>
-
-        {/* SHADOW LEDGER — what the short gate blocked, replayed on real bars */}
-        <div className="book-section">
-          <div className="book-head">
-            <div className="book-label" style={{ color: 'var(--amber)' }}>Shadow ledger · what the gate blocked</div>
-            <div className="book-meta">
-              <span>{ledger?.totalBlocked ?? 0} blocked</span>
-              <span>{ledger?.decided ?? 0} decided</span>
-              <span>saved <b style={{ color: 'var(--green)' }}>{ledger?.blockedLosers ?? 0}</b> · cost <b style={{ color: 'var(--red)' }}>{ledger?.blockedWinners ?? 0}</b></span>
-              <span>net wouldBe <b style={{ color: (ledger?.netWouldBePercent ?? 0) > 0 ? 'var(--red)' : 'var(--green)' }}>{(ledger?.netWouldBePercent ?? 0) >= 0 ? '+' : ''}{(ledger?.netWouldBePercent ?? 0).toFixed(2)}%</b></span>
+      </div>
+    </>
+  );
+  const bookEl = (
+    <>
+      {/* PAPER BOOK — what the bot is actually holding */}
+      <div className="book-section">
+        <div className="book-head">
+          <div className="book-label">Paper book · what the bot holds</div>
+          <div className="book-meta">
+            <span>Value <b>{book?.totalValue != null ? `$` + book.totalValue.toLocaleString() : `—`}</b></span>
+            <span>Cash <b>{book?.cashBalance != null ? `$` + book.cashBalance.toLocaleString() : `—`}</b></span>
+            <span>P&L <b style={{ color: (book?.totalPnL ?? 0) >= 0 ? `var(--green)` : `var(--red)` }}>{(book?.totalPnL ?? 0) >= 0 ? `+` : ``}{`$` + String(book?.totalPnL ?? 0)} ({(book?.totalPnLPercent ?? 0).toFixed(2)}%)</b></span>
+            <span>{book?.closedCount ?? 0} closed · floor {book?.config?.minConviction ?? `—`} · max {book?.config?.maxOpen ?? `—`} · {book?.config?.riskPerTradePct ?? `—`}%/trade</span>
+          </div>
+        </div>
+        {(book?.openPositions ?? []).map((p) => {
+          const pnl = p.unrealizedPnLPercent ?? 0;
+          const up = pnl >= 0;
+          const contract = p.assetType === `option` && p.strikePrice != null
+            ? `$` + p.strikePrice + (p.optionType ?? `c`).charAt(0).toUpperCase() + ` ` + (p.expiryDate ? new Date(p.expiryDate).toLocaleDateString([], { month: `short`, day: `numeric` }) : ``) + ` · ` + (p.quantity ?? 1) + `x @ $` + p.entryPrice
+            : (p.quantity ?? 1) + `x @ $` + p.entryPrice;
+          const prog = barrierProgress(p);
+          const entryFrac = (() => {
+            const s = Number(p.stopLoss), t = Number(p.targetPrice);
+            if (!(Number.isFinite(s) && Number.isFinite(t)) || t === s) return null;
+            return Math.max(0, Math.min(1, (Number(p.entryPrice) - s) / (t - s)));
+          })();
+          return (
+            <div className="book-pos" key={p.id} style={{ [`--pos-accent` as string]: up ? `var(--green)` : `var(--red)`, flexWrap: 'wrap' }} onClick={() => openWorkup(p.symbol)} title="Open the ticker workup">
+              <div>
+                <div className="bp-sym">{p.symbol}</div>
+                <div className="bp-contract">{contract}</div>
+              </div>
+              <div className="bp-brackets">
+                {p.targetPrice != null && <span className="t">T ${p.targetPrice}</span>}
+                {p.stopLoss != null && <span className="s">S ${p.stopLoss}</span>}
+                {p.useTrailingStop && <span className="tr">trail {p.trailingStopPercent ?? `—`}%</span>}
+              </div>
+              <div className="bp-kv">now<b>{p.currentPrice != null ? `$` + p.currentPrice : `—`}</b></div>
+              <div className="bp-kv">held<b>{p.entryTime ? Math.max(0, Math.round((Date.now() - Date.parse(p.entryTime)) / 86_400_000)) + `d` : `—`}</b></div>
+              <div className={up ? `bp-pnl up` : `bp-pnl down`}>{up ? `+` : ``}{pnl.toFixed(1)}%</div>
+              <div className="bp-kv">P&L $<b style={{ color: up ? `var(--green)` : `var(--red)` }}>{(p.unrealizedPnL ?? 0) >= 0 ? `+` : ``}{p.unrealizedPnL ?? 0}</b></div>
+              <button
+                onClick={(ev) => { ev.stopPropagation(); setExpandPos(p); }}
+                title="Expand — chart + where price sits between the barriers"
+                style={{ padding: '3px 8px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700 }}
+              >⤢</button>
+              {prog != null && (
+                <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }} title={`stop $${p.stopLoss} ── entry $${p.entryPrice} ── target $${p.targetPrice} · mark $${p.currentPrice ?? '—'}${p.assetType === 'option' ? ' (contract premium)' : ''}`}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--red)' }}>S</span>
+                  <div style={{ position: 'relative', flex: 1, height: 5, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,107,61,0.35), rgba(148,163,184,0.12) 40%, rgba(110,231,183,0.35))' }}>
+                    {entryFrac != null && <div style={{ position: 'absolute', left: `${entryFrac * 100}%`, top: -2, width: 1.5, height: 9, background: 'var(--text-dim)' }} title="entry" />}
+                    <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 4px)`, top: -1.5, width: 8, height: 8, borderRadius: '50%', background: up ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 6px ${up ? 'var(--green)' : 'var(--red)'}` }} title={`mark $${p.currentPrice ?? '—'}`} />
+                  </div>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--green)' }}>T</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', minWidth: 58, textAlign: 'right' }}>{(prog * 100).toFixed(0)}% to T</span>
+                </div>
+              )}
             </div>
+          );
+        })}
+        {(book?.openPositions ?? []).length === 0 && (
+          <div className="book-empty">Flat — the bot holds nothing. Entries require conviction ≥ {book?.config?.minConviction ?? `—`} and pass the same gates as the board.</div>
+        )}
+      </div>
+    </>
+  );
+  const historyEl = (
+    <>
+      {/* TRADE HISTORY — every closed position, wins and losses, no curation */}
+      <div className="book-section">
+        <div className="book-head">
+          <div className="book-label">Trade history · closed positions</div>
+          <div className="book-meta">
+            {(() => {
+              const closed = book?.closedPositions ?? [];
+              const wins = closed.filter((c) => (c.realizedPnL ?? 0) > 0).length;
+              const losses = closed.filter((c) => (c.realizedPnL ?? 0) < 0).length;
+              const realized = closed.reduce((s, c) => s + (c.realizedPnL ?? 0), 0);
+              return (
+                <>
+                  <span><b style={{ color: 'var(--green)' }}>{wins}W</b> · <b style={{ color: 'var(--red)' }}>{losses}L</b> shown of {book?.closedCount ?? 0} closed</span>
+                  <span>realized (shown) <b style={{ color: realized >= 0 ? 'var(--green)' : 'var(--red)' }}>{realized >= 0 ? '+' : ''}${Math.round(realized).toLocaleString()}</b></span>
+                  {(book?.closedCount ?? 0) < MIN_N && <span style={{ color: 'var(--text-mute)' }}>n&lt;{MIN_N} — rates not yet reportable</span>}
+                </>
+              );
+            })()}
           </div>
-          {(ledger?.entries ?? []).slice(0, 8).map((e2) => {
-            const oc = e2.outcome ?? 'open';
-            const up = (e2.wouldBePercent ?? 0) >= 0;
-            return (
-              <div className="book-pos" key={`${e2.symbol}-${e2.blockedAt}`} style={{ ['--pos-accent' as string]: oc === 'hit_target' ? 'var(--red)' : oc === 'hit_stop' ? 'var(--green)' : 'var(--amber)' }}>
-                <div>
-                  <div className="bp-sym">{e2.symbol}</div>
-                  <div className="bp-contract">short blocked {new Date(e2.blockedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} @ ${e2.entryPrice}</div>
-                </div>
-                <div className="bp-brackets">
-                  <span className="t">T ${e2.targetPrice}</span>
-                  <span className="s">S ${e2.stopLoss}</span>
-                </div>
-                <div className="bp-kv">outcome<b>{oc === 'hit_target' ? 'won (cost us)' : oc === 'hit_stop' ? 'lost (saved us)' : 'open'}</b></div>
-                <div className={`bp-pnl ${up ? 'up' : 'down'}`}>{e2.wouldBePercent != null ? `${up ? '+' : ''}${e2.wouldBePercent.toFixed(1)}%` : '—'}</div>
-                <div className="bp-kv">
-                  <button onClick={() => setReplay(e2)} style={{ padding: '3px 9px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, letterSpacing: 0.5 }}>REPLAY</button>
-                </div>
-                <div className="bp-kv" />
-              </div>
-            );
-          })}
-          {(ledger?.entries ?? []).length === 0 && <div className="book-empty">No blocks recorded yet — entries appear the first time the gate refuses a short.</div>}
         </div>
-
-        {/* RULES = the real gates */}
-        <div className="rules-section">
-          <div className="rules-head">
-            <div className="rules-label">Rules · enforced in code, with the file that holds them</div>
-            <div className="rules-tabs">
-              {([['all', `All · ${RULES.length}`], ['gates', `Gates · ${RULES.filter((r) => r.cat === 'gates').length}`], ['signals', `Signals · ${RULES.filter((r) => r.cat === 'signals').length}`], ['disclosure', `Disclosure · ${RULES.filter((r) => r.cat === 'disclosure').length}`]] as const).map(([k, label]) => (
-                <div key={k} className={`rules-tab${ruleTab === k ? ' active' : ''}`} onClick={() => setRuleTab(k)}>{label}</div>
-              ))}
+        {(book?.closedPositions ?? []).map((c) => {
+          const won = (c.realizedPnL ?? 0) > 0;
+          const flat = (c.realizedPnL ?? 0) === 0;
+          const pct = c.entryPrice > 0 && c.exitPrice != null ? ((c.exitPrice - c.entryPrice) / c.entryPrice) * 100 : null;
+          const contract = c.assetType === 'option' && c.strikePrice != null
+            ? `$${c.strikePrice}${(c.optionType ?? 'c').charAt(0).toUpperCase()} ${c.expiryDate ? new Date(c.expiryDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''} · ${c.quantity ?? 1}x`
+            : `${c.quantity ?? 1}x`;
+          const reason = (c.exitReason ?? '').replace(/_/g, ' ') || '—';
+          return (
+            <div className="book-pos" key={c.id} style={{ ['--pos-accent' as string]: flat ? 'var(--text-mute)' : won ? 'var(--green)' : 'var(--red)' }} onClick={() => openWorkup(c.symbol)} title="Open the ticker workup">
+              <div>
+                <div className="bp-sym">{c.symbol}</div>
+                <div className="bp-contract">{contract}</div>
+              </div>
+              <div className="bp-kv">in<b>${c.entryPrice}</b></div>
+              <div className="bp-kv">out<b>{c.exitPrice != null ? `$${c.exitPrice}` : '—'}</b></div>
+              <div className="bp-kv" style={{ minWidth: 110 }} title={`exit reason: ${reason}`}>why<b style={{ textTransform: 'lowercase' }}>{reason.slice(0, 22)}</b></div>
+              <div className={won ? 'bp-pnl up' : flat ? 'bp-pnl' : 'bp-pnl down'}>
+                {(c.realizedPnL ?? 0) >= 0 ? '+' : ''}${Math.round(c.realizedPnL ?? 0)}{pct != null ? ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%` : ''}
+              </div>
+              <div className="bp-kv">closed<b>{c.exitTime ? new Date(c.exitTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '—'}</b></div>
             </div>
+          );
+        })}
+        {(book?.closedPositions ?? []).length === 0 && (
+          <div className="book-empty">No closed trades yet on this book — history fills as barriers and expiries decide positions.</div>
+        )}
+      </div>
+    </>
+  );
+  const ledgerEl = (
+    <>
+      {/* SHADOW LEDGER — what the short gate blocked, replayed on real bars */}
+      <div className="book-section">
+        <div className="book-head">
+          <div className="book-label" style={{ color: 'var(--amber)' }}>Shadow ledger · what the gate blocked</div>
+          <div className="book-meta">
+            <span>{ledger?.totalBlocked ?? 0} blocked</span>
+            <span>{ledger?.decided ?? 0} decided</span>
+            <span>saved <b style={{ color: 'var(--green)' }}>{ledger?.blockedLosers ?? 0}</b> · cost <b style={{ color: 'var(--red)' }}>{ledger?.blockedWinners ?? 0}</b></span>
+            <span>net wouldBe <b style={{ color: (ledger?.netWouldBePercent ?? 0) > 0 ? 'var(--red)' : 'var(--green)' }}>{(ledger?.netWouldBePercent ?? 0) >= 0 ? '+' : ''}{(ledger?.netWouldBePercent ?? 0).toFixed(2)}%</b></span>
           </div>
-          <table className="rules-table">
-            <thead>
-              <tr><th>Rule</th><th>What it enforces</th><th>Where</th><th>Active</th></tr>
-            </thead>
-            <tbody>
-              {filteredRules.map((r) => (
-                <tr key={r.name} data-bot-id={`rule-${RULES.indexOf(r)}`}>
-                  <td><div className="rule-name">{r.name} <span className="bot-tag">{r.tag}</span></div></td>
-                  <td><div className="rule-trigger">{r.trigger}</div></td>
-                  <td><div className="rule-size"><span className="pct" style={{ fontSize: 'var(--fs-10, 10px)' }}>{r.file}</span></div></td>
-                  <td><div className="rule-toggle on locked" title="Enforced in code — not a switch. Change it in the file, ship it through review." /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-
-        {/* EXECUTION LOG = real recent events */}
-        <div className="log-section">
-          <div className="log-head">
-            <div className="log-label">Activity log · real events</div>
-            <div className="log-count">{log.length} shown · ideas + catalysts, merged by time</div>
-          </div>
-          <div className="log-list">
-            {log.length === 0 && <div className="disclaimer" style={{ padding: '18px 0' }}>No recent events from the engines — outputs will appear as jobs run.</div>}
-            {log.map((l, i) => (
-              <div className="log-item" key={i} data-bot-id={`log-${i}`}>
-                <div className="log-time">{l.time ? new Date(l.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</div>
-                <div className="log-bot">{l.job}</div>
-                <div className="log-ticker">{l.sym}</div>
-                <div className="log-action">{l.action}</div>
-                <div className="log-price">{l.price}</div>
-                <div className={`log-status ${l.cls}`}>{l.chip}</div>
+        {(ledger?.entries ?? []).slice(0, 8).map((e2) => {
+          const oc = e2.outcome ?? 'open';
+          const up = (e2.wouldBePercent ?? 0) >= 0;
+          return (
+            <div className="book-pos" key={`${e2.symbol}-${e2.blockedAt}`} style={{ ['--pos-accent' as string]: oc === 'hit_target' ? 'var(--red)' : oc === 'hit_stop' ? 'var(--green)' : 'var(--amber)' }}>
+              <div>
+                <div className="bp-sym">{e2.symbol}</div>
+                <div className="bp-contract">short blocked {new Date(e2.blockedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} @ ${e2.entryPrice}</div>
               </div>
+              <div className="bp-brackets">
+                <span className="t">T ${e2.targetPrice}</span>
+                <span className="s">S ${e2.stopLoss}</span>
+              </div>
+              <div className="bp-kv">outcome<b>{oc === 'hit_target' ? 'won (cost us)' : oc === 'hit_stop' ? 'lost (saved us)' : 'open'}</b></div>
+              <div className={`bp-pnl ${up ? 'up' : 'down'}`}>{e2.wouldBePercent != null ? `${up ? '+' : ''}${e2.wouldBePercent.toFixed(1)}%` : '—'}</div>
+              <div className="bp-kv">
+                <button onClick={() => setReplay(e2)} style={{ padding: '3px 9px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontWeight: 700, letterSpacing: 0.5 }}>REPLAY</button>
+              </div>
+              <div className="bp-kv" />
+            </div>
+          );
+        })}
+        {(ledger?.entries ?? []).length === 0 && <div className="book-empty">No blocks recorded yet — entries appear the first time the gate refuses a short.</div>}
+      </div>
+    </>
+  );
+  const rulesEl = (
+    <>
+      {/* RULES = the real gates */}
+      <div className="rules-section">
+        <div className="rules-head">
+          <div className="rules-label">Rules · enforced in code, with the file that holds them</div>
+          <div className="rules-tabs">
+            {([['all', `All · ${RULES.length}`], ['gates', `Gates · ${RULES.filter((r) => r.cat === 'gates').length}`], ['signals', `Signals · ${RULES.filter((r) => r.cat === 'signals').length}`], ['disclosure', `Disclosure · ${RULES.filter((r) => r.cat === 'disclosure').length}`]] as const).map(([k, label]) => (
+              <div key={k} className={`rules-tab${ruleTab === k ? ' active' : ''}`} onClick={() => setRuleTab(k)}>{label}</div>
             ))}
           </div>
         </div>
-      </div>
-
-      {/* ══════════ RIGHT SIDEBAR ══════════ */}
-      <div className="col col-right" style={{ width: rail.width, minWidth: rail.width }}>
-        <div className="sec-head">
-          <div className="sec-num" style={{ color: 'var(--bot-bright)', textShadow: '0 0 8px rgba(56,189,248,0.4)' }}>Automation</div>
-          <div className="sec-title" style={{ background: 'linear-gradient(135deg,#fff,var(--bot-bright))', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Discipline, running.</div>
-          <div className="sec-sub">The jobs and gates that keep the terminal honest — reported from their own output, not a claimed status.</div>
-          <div className="sec-meta">
-            <span className="tag bot">BOT</span>
-            <span className="tag live"><span className="dot" />engaged</span>
-          </div>
-        </div>
-
-        {/* QUEUE = FRED upcoming releases */}
-        <div className="queue">
-          <div className="queue-head">
-            <div className="queue-label">Macro queue · FRED</div>
-            <div className="queue-count">{econ?.upcoming?.length ?? 0} scheduled</div>
-          </div>
-          <div className="queue-list">
-            {(econ?.upcoming ?? []).slice(0, 6).map((e) => (
-              <div className="queue-item" key={`${e.name}-${e.date}`} title={e.description ?? ''}>
-                <div className="queue-icon">{ICONS.cal}</div>
-                <div>
-                  <div className="queue-name">{e.name}</div>
-                  <div className="queue-meta">{e.date}{e.time ? ` · ${e.time}` : ''}{e.importance ? ` · ${e.importance}` : ''}</div>
-                </div>
-                <div className="queue-eta">{e.date === today ? 'today' : `${Math.max(0, Math.round((Date.parse(e.date) - Date.now()) / 86_400_000))}d`}</div>
-              </div>
+        <table className="rules-table">
+          <thead>
+            <tr><th>Rule</th><th>What it enforces</th><th>Where</th><th>Active</th></tr>
+          </thead>
+          <tbody>
+            {filteredRules.map((r) => (
+              <tr key={r.name} data-bot-id={`rule-${RULES.indexOf(r)}`}>
+                <td><div className="rule-name">{r.name} <span className="bot-tag">{r.tag}</span></div></td>
+                <td><div className="rule-trigger">{r.trigger}</div></td>
+                <td><div className="rule-size"><span className="pct" style={{ fontSize: 'var(--fs-10, 10px)' }}>{r.file}</span></div></td>
+                <td><div className="rule-toggle on locked" title="Enforced in code — not a switch. Change it in the file, ship it through review." /></td>
+              </tr>
             ))}
-            {(econ?.upcoming ?? []).length === 0 && <div className="disclaimer" style={{ padding: '10px 0' }}>No releases in the calendar window.</div>}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+  const logEl = (
+    <>
+      {/* EXECUTION LOG = real recent events */}
+      <div className="log-section">
+        <div className="log-head">
+          <div className="log-label">Activity log · real events</div>
+          <div className="log-count">{log.length} shown · ideas + catalysts, merged by time</div>
+        </div>
+        <div className="log-list">
+          {log.length === 0 && <div className="disclaimer" style={{ padding: '18px 0' }}>No recent events from the engines — outputs will appear as jobs run.</div>}
+          {log.map((l, i) => (
+            <div className="log-item" key={i} data-bot-id={`log-${i}`}>
+              <div className="log-time">{l.time ? new Date(l.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</div>
+              <div className="log-bot">{l.job}</div>
+              <div className="log-ticker">{l.sym}</div>
+              <div className="log-action">{l.action}</div>
+              <div className="log-price">{l.price}</div>
+              <div className={`log-status ${l.cls}`}>{l.chip}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+  const queueEl = (
+    <>
+      {/* QUEUE = FRED upcoming releases */}
+      <div className="queue">
+        <div className="queue-head">
+          <div className="queue-label">Macro queue · FRED</div>
+          <div className="queue-count">{econ?.upcoming?.length ?? 0} scheduled</div>
+        </div>
+        <div className="queue-list">
+          {(econ?.upcoming ?? []).slice(0, 6).map((e) => (
+            <div className="queue-item" key={`${e.name}-${e.date}`} title={e.description ?? ''}>
+              <div className="queue-icon">{ICONS.cal}</div>
+              <div>
+                <div className="queue-name">{e.name}</div>
+                <div className="queue-meta">{e.date}{e.time ? ` · ${e.time}` : ''}{e.importance ? ` · ${e.importance}` : ''}</div>
+              </div>
+              <div className="queue-eta">{e.date === today ? 'today' : `${Math.max(0, Math.round((Date.parse(e.date) - Date.now()) / 86_400_000))}d`}</div>
+            </div>
+          ))}
+          {(econ?.upcoming ?? []).length === 0 && <div className="disclaimer" style={{ padding: '10px 0' }}>No releases in the calendar window.</div>}
+        </div>
+      </div>
+    </>
+  );
+  const outcomesEl = (
+    <>
+      {/* PERFORMANCE — observed outcomes with the unresolved population visible */}
+      <div className="perf">
+        <div className="perf-head">
+          <div className="perf-label">Outcome integrity · SR 11-7 control</div>
+        </div>
+        <div className="perf-chart" style={{ display: 'grid', placeItems: 'center' }}>
+          {/* No daily P&L series is tracked — a curve here would be a random walk. */}
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
+            {reportable ? 'OBSERVED LEDGER — coverage gate passed' : 'VALIDATION HOLD — not a performance claim'}<br />
+            {coverage.toFixed(0)}% measured · {outcomes?.coverage?.unresolved ?? '—'} unresolved
           </div>
         </div>
-
-        {/* PERFORMANCE — observed outcomes with the unresolved population visible */}
-        <div className="perf">
-          <div className="perf-head">
-            <div className="perf-label">Outcome integrity · SR 11-7 control</div>
+        <div className="perf-stats">
+          <div className="perf-stat">
+            <div className="perf-stat-k">Win rate</div>
+            <div className={`perf-stat-v ${reportable ? 'green' : ''}`} style={reportable ? undefined : { color: 'var(--amber)' }}>{reportable ? `${observed!.winRate?.toFixed(0)}%` : 'withheld'}</div>
           </div>
-          <div className="perf-chart" style={{ display: 'grid', placeItems: 'center' }}>
-            {/* No daily P&L series is tracked — a curve here would be a random walk. */}
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', fontStyle: 'italic', color: 'var(--text-mute)', textAlign: 'center', padding: '0 10px' }}>
-              {reportable ? 'OBSERVED LEDGER — coverage gate passed' : 'VALIDATION HOLD — not a performance claim'}<br />
-              {coverage.toFixed(0)}% measured · {outcomes?.coverage?.unresolved ?? '—'} unresolved
-            </div>
+          <div className="perf-stat">
+            <div className="perf-stat-k">Observed W – L</div>
+            <div className="perf-stat-v bot">{observed ? `${observed.win}–${observed.loss}` : '—'}</div>
           </div>
-          <div className="perf-stats">
-            <div className="perf-stat">
-              <div className="perf-stat-k">Win rate</div>
-              <div className={`perf-stat-v ${reportable ? 'green' : ''}`} style={reportable ? undefined : { color: 'var(--amber)' }}>{reportable ? `${observed!.winRate?.toFixed(0)}%` : 'withheld'}</div>
-            </div>
-            <div className="perf-stat">
-              <div className="perf-stat-k">Observed W – L</div>
-              <div className="perf-stat-v bot">{observed ? `${observed.win}–${observed.loss}` : '—'}</div>
-            </div>
-            <div className="perf-stat">
-              <div className="perf-stat-k">Coverage</div>
-              <div className="perf-stat-v">{coverage.toFixed(0)}%</div>
-            </div>
-          </div>
-          {(strongestSlice || weakestSlice) && (
-            <div style={{ borderTop: '1px solid var(--nx-border)', padding: '9px 12px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }}>
-              {strongestSlice && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: 'var(--text-mute)' }}><span>best observed · {strongestSlice.dimension}/{strongestSlice.name}</span><b style={{ color: (strongestSlice.averageR ?? 0) >= 0 ? 'var(--green)' : 'var(--amber)' }}>{strongestSlice.averageR! >= 0 ? '+' : ''}{strongestSlice.averageR!.toFixed(3)}R · n={strongestSlice.decided}</b></div>}
-              {weakestSlice && weakestSlice !== strongestSlice && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 5, color: 'var(--text-mute)' }}><span>largest drag · {weakestSlice.dimension}/{weakestSlice.name}</span><b style={{ color: 'var(--red)' }}>{weakestSlice.averageR!.toFixed(3)}R · n={weakestSlice.decided}</b></div>}
-              <div style={{ marginTop: 6, lineHeight: 1.45, color: 'var(--text-dim)' }}>Descriptive only · use a later out-of-sample window before changing gates.</div>
-            </div>
-          )}
-        </div>
-
-        {/* SAFEGUARDS — the honest list */}
-        <div className="safeguards">
-          <div className="safeguards-head">
-            <div className="safeguards-label">Standing safeguards</div>
-          </div>
-          <div className="safeguard-list">
-            <div className="safeguard-item"><span className="safeguard-name">Short gate · event required</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>enforced <span className="check">✓</span></span></div>
-            <div className="safeguard-item"><span className="safeguard-name">Catalyst bar · impact high</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>enforced <span className="check">✓</span></span></div>
-            <div className="safeguard-item"><span className="safeguard-name">Sample floor · n ≥ {MIN_N}</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>enforced <span className="check">✓</span></span></div>
-            <div className="safeguard-item"><span className="safeguard-name">Outcome coverage · ≥ 80%</span><span className="safeguard-val" style={{ color: reportable ? 'var(--green)' : 'var(--amber)' }}>{reportable ? 'passed' : `${coverage.toFixed(0)}% · hold`}</span></div>
-            <div className="safeguard-item"><span className="safeguard-name">Legacy win-rate claims</span><span className="safeguard-val" style={{ color: 'var(--amber)' }}>withheld pending validation</span></div>
-            <div className="safeguard-item"><span className="safeguard-name">Broker</span><span className="safeguard-val" style={{ color: 'var(--amber)' }}>none · signals only</span></div>
+          <div className="perf-stat">
+            <div className="perf-stat-k">Coverage</div>
+            <div className="perf-stat-v">{coverage.toFixed(0)}%</div>
           </div>
         </div>
-
-        {/* SYS STATUS */}
-        <div className="sys-status">
-          <div className="sys-row"><span className="k">Jobs</span><span className="v" style={{ color: 'var(--bot-bright)' }}>{runningCount} running</span></div>
-          <div className="sys-row"><span className="k">Catalysts 72h</span><span className="v">{catRows ?? '—'}</span></div>
-          <div className="sys-row"><span className="k">High impact</span><span className="v ok">{cats?.catalysts ? highImpact : '—'}</span></div>
-          <div className="sys-row"><span className="k">Calendar</span><span className={`v ${econ?.coverage?.current ? 'ok' : 'warn'}`}>{econ?.coverage?.current ? '● current' : 'stale'}</span></div>
-          <div className="sys-row"><span className="k">Last scan</span><span className="v" style={{ display: 'inline-flex', gap: 6 }}><Heartbeat since={conv?.generatedAt ?? null} staleAfterSec={900} /></span></div>
+        {(strongestSlice || weakestSlice) && (
+          <div style={{ borderTop: '1px solid var(--nx-border)', padding: '9px 12px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }}>
+            {strongestSlice && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: 'var(--text-mute)' }}><span>best observed · {strongestSlice.dimension}/{strongestSlice.name}</span><b style={{ color: (strongestSlice.averageR ?? 0) >= 0 ? 'var(--green)' : 'var(--amber)' }}>{strongestSlice.averageR! >= 0 ? '+' : ''}{strongestSlice.averageR!.toFixed(3)}R · n={strongestSlice.decided}</b></div>}
+            {weakestSlice && weakestSlice !== strongestSlice && <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 5, color: 'var(--text-mute)' }}><span>largest drag · {weakestSlice.dimension}/{weakestSlice.name}</span><b style={{ color: 'var(--red)' }}>{weakestSlice.averageR!.toFixed(3)}R · n={weakestSlice.decided}</b></div>}
+            <div style={{ marginTop: 6, lineHeight: 1.45, color: 'var(--text-dim)' }}>Descriptive only · use a later out-of-sample window before changing gates.</div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+  const statusEl = (
+    <>
+      {/* SAFEGUARDS — the honest list */}
+      <div className="safeguards">
+        <div className="safeguards-head">
+          <div className="safeguards-label">Standing safeguards</div>
         </div>
-
-        <div className="disclaimer">
-          Educational only · not investment advice.<br />
-          Automation does not remove risk — it enforces discipline.
+        <div className="safeguard-list">
+          <div className="safeguard-item"><span className="safeguard-name">Short gate · event required</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>enforced <span className="check">✓</span></span></div>
+          <div className="safeguard-item"><span className="safeguard-name">Catalyst bar · impact high</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>enforced <span className="check">✓</span></span></div>
+          <div className="safeguard-item"><span className="safeguard-name">Sample floor · n ≥ {MIN_N}</span><span className="safeguard-val" style={{ color: 'var(--green)' }}>enforced <span className="check">✓</span></span></div>
+          <div className="safeguard-item"><span className="safeguard-name">Outcome coverage · ≥ 80%</span><span className="safeguard-val" style={{ color: reportable ? 'var(--green)' : 'var(--amber)' }}>{reportable ? 'passed' : `${coverage.toFixed(0)}% · hold`}</span></div>
+          <div className="safeguard-item"><span className="safeguard-name">Legacy win-rate claims</span><span className="safeguard-val" style={{ color: 'var(--amber)' }}>withheld pending validation</span></div>
+          <div className="safeguard-item"><span className="safeguard-name">Broker</span><span className="safeguard-val" style={{ color: 'var(--amber)' }}>none · signals only</span></div>
         </div>
       </div>
 
+      {/* SYS STATUS */}
+      <div className="sys-status">
+        <div className="sys-row"><span className="k">Jobs</span><span className="v" style={{ color: 'var(--bot-bright)' }}>{runningCount} running</span></div>
+        <div className="sys-row"><span className="k">Catalysts 72h</span><span className="v">{catRows ?? '—'}</span></div>
+        <div className="sys-row"><span className="k">High impact</span><span className="v ok">{cats?.catalysts ? highImpact : '—'}</span></div>
+        <div className="sys-row"><span className="k">Calendar</span><span className={`v ${econ?.coverage?.current ? 'ok' : 'warn'}`}>{econ?.coverage?.current ? '● current' : 'stale'}</span></div>
+        <div className="sys-row"><span className="k">Last scan</span><span className="v" style={{ display: 'inline-flex', gap: 6 }}><Heartbeat since={conv?.generatedAt ?? null} staleAfterSec={900} /></span></div>
+      </div>
+
+      <div className="disclaimer">
+        Educational only · not investment advice.<br />
+        Automation does not remove risk — it enforces discipline.
+      </div>
+    </>
+  );
+  const replayEl = (
+    <>
       {/* BARRIER REPLAY — the blocked short drawn on the real chart */}
       {replay && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 88, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center' }} onClick={() => setReplay(null)}>
@@ -686,7 +734,10 @@ export function BotNexus() {
           </div>
         </div>
       )}
-
+    </>
+  );
+  const expandEl = (
+    <>
       {/* POSITION EXPAND — the underlying's chart plus the position's own barriers */}
       {expandPos && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 88, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center' }} onClick={() => setExpandPos(null)}>
@@ -739,7 +790,10 @@ export function BotNexus() {
           </div>
         </div>
       )}
-
+    </>
+  );
+  const searchEl = (
+    <>
       {/* ⌘K */}
       {searchOpen && (
         <div className="search-modal open" onClick={(e) => { if (e.target === e.currentTarget) setSearchOpen(false); }}>
@@ -777,6 +831,79 @@ export function BotNexus() {
           </div>
         </div>
       )}
+    </>
+  );
+
+  if (only) {
+    const el = { stats: statsEl, jobs: jobsEl, book: bookEl, history: historyEl, ledger: ledgerEl, rules: rulesEl, log: logEl, queue: queueEl, outcomes: outcomesEl, status: statusEl }[only];
+    return (
+      <div className={`botlab bot-only bot-only-${only}`}>
+        {el}
+        {replayEl}
+        {expandEl}
+      </div>
+    );
+  }
+
+  return (
+    <div className="botlab">
+      <div className={`nx-resize${rail.dragging ? ' active' : ''}`} style={{ right: rail.width - 4 }} title="Drag to resize · double-click to expand" {...rail.handleProps} />
+
+      {/* ══════════ BOT AREA ══════════ */}
+      <div className="col bot-area" style={{ ['--nx-side' as string]: `${rail.width}px` }}>
+        <div className="bot-header">
+          <div className="bot-eyebrow">Automation</div>
+          <div className="bot-title-row"><div className="bot-title">BOT</div></div>
+          <div className="bot-desc">
+            The platform's real automation layer: <b>scanner jobs</b>, <b>hard gates</b> and <b>ingest crons</b>, reported from their own output.
+            No broker is connected — nothing here places orders. Discipline is enforced in code, not clicked on.
+          </div>
+          <div className="bot-meta">
+            <span className="tag bot">{runningCount}/{jobs.length} jobs running</span>
+            <span className="tag live"><span className="dot" />{RULES.length} rules enforced</span>
+            <span className="tag mute">no broker · signals only</span>
+          </div>
+        </div>
+
+        {statsEl}
+
+        {jobsEl}
+
+        {bookEl}
+
+        {historyEl}
+
+        {ledgerEl}
+
+        {rulesEl}
+
+        {logEl}
+      </div>
+
+      {/* ══════════ RIGHT SIDEBAR ══════════ */}
+      <div className="col col-right" style={{ width: rail.width, minWidth: rail.width }}>
+        <div className="sec-head">
+          <div className="sec-num" style={{ color: 'var(--bot-bright)', textShadow: '0 0 8px rgba(56,189,248,0.4)' }}>Automation</div>
+          <div className="sec-title" style={{ background: 'linear-gradient(135deg,#fff,var(--bot-bright))', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Discipline, running.</div>
+          <div className="sec-sub">The jobs and gates that keep the terminal honest — reported from their own output, not a claimed status.</div>
+          <div className="sec-meta">
+            <span className="tag bot">BOT</span>
+            <span className="tag live"><span className="dot" />engaged</span>
+          </div>
+        </div>
+
+        {queueEl}
+
+        {outcomesEl}
+
+        {statusEl}
+      </div>
+
+      {replayEl}
+
+      {expandEl}
+
+      {searchEl}
     </div>
   );
 }

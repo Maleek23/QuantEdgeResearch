@@ -29,7 +29,7 @@ import { SkeletonLoader } from '@/components/gex/SkeletonLoader';
 import { ExpandableCard } from '@/components/expandable-card';
 import { componentStyles } from '@/lib/design-tokens';
 
-interface LivePosition {
+export interface LivePosition {
   id: string;
   symbol: string;
   direction: 'long' | 'short';
@@ -51,7 +51,7 @@ interface LivePosition {
   heatRank: 'fire' | 'hot' | 'warm' | 'cool' | 'frozen' | 'red';
 }
 
-interface Summary {
+export interface Summary {
   total: number;
   winners: number;
   losers: number;
@@ -65,7 +65,7 @@ interface Summary {
   byAssetType: Record<string, number>;
 }
 
-interface PositionsResponse {
+export interface PositionsResponse {
   asOf: string;
   summary: Summary;
   positions: LivePosition[];
@@ -80,7 +80,7 @@ const HEAT_BG: Record<LivePosition['heatRank'], string> = {
   red: 'bg-[var(--trade-bearish)]/30 border-[var(--trade-bearish)]/60'
 };
 
-const HEAT_LABEL: Record<LivePosition['heatRank'], string> = {
+export const HEAT_LABEL: Record<LivePosition['heatRank'], string> = {
   fire: '🔥 FIRE',
   hot: '🔥 HOT',
   warm: '↑ WARM',
@@ -89,11 +89,11 @@ const HEAT_LABEL: Record<LivePosition['heatRank'], string> = {
   red: '🛑 RED'
 };
 
-export default function PositionsHeatmapPage() {
-  const [sortBy, setSortBy] = useState<'pnl' | 'days' | 'expiry'>('pnl');
-  const [heatShown, setHeatShown] = useState(24); // heat tiles cap
+export type PositionSort = 'pnl' | 'days' | 'expiry';
 
-  const { data, isLoading, isError, refetch, isFetching } = useQuery<PositionsResponse>({
+/** The page's one feed — shared by the dashboard POSITIONS tools (same key ⇒ one request). */
+export function usePositionsLive() {
+  return useQuery<PositionsResponse>({
     queryKey: ['positions-live'],
     queryFn: async () => {
       const res = await fetch('/api/positions/live');
@@ -103,6 +103,13 @@ export default function PositionsHeatmapPage() {
     refetchInterval: 60000,
     staleTime: 30000,
   });
+}
+
+export default function PositionsHeatmapPage() {
+  const [sortBy, setSortBy] = useState<'pnl' | 'days' | 'expiry'>('pnl');
+  const [heatShown, setHeatShown] = useState(24); // heat tiles cap
+
+  const { data, isLoading, isError, refetch, isFetching } = usePositionsLive();
 
   if (isLoading) {
     return (
@@ -255,7 +262,7 @@ export default function PositionsHeatmapPage() {
   );
 }
 
-function DetailTable({ positions, sortBy, setSortBy }: { positions: LivePosition[]; sortBy: 'pnl' | 'days' | 'expiry'; setSortBy: (s: 'pnl' | 'days' | 'expiry') => void; }) {
+export function DetailTable({ positions, sortBy, setSortBy, onSelect }: { positions: LivePosition[]; sortBy: 'pnl' | 'days' | 'expiry'; setSortBy: (s: 'pnl' | 'days' | 'expiry') => void; onSelect?: (symbol: string) => void; }) {
   const [rowsShown, setRowsShown] = useState(30);
   return (
     <div>
@@ -293,7 +300,7 @@ function DetailTable({ positions, sortBy, setSortBy }: { positions: LivePosition
           </thead>
           <tbody>
             {positions.slice(0, rowsShown).map(p => (
-              <PositionRow key={p.id} position={p} />
+              <PositionRow key={p.id} position={p} onSelect={onSelect} />
             ))}
           </tbody>
         </table>
@@ -314,7 +321,7 @@ function DetailTable({ positions, sortBy, setSortBy }: { positions: LivePosition
 
 // ─── Sub-components ─────────────────────────────────────────
 
-function KPI({ label, value, accent, sub }: { label: string; value: string; accent: string; sub?: string }) {
+export function KPI({ label, value, accent, sub }: { label: string; value: string; accent: string; sub?: string }) {
   const colorMap: Record<string, string> = {
     emerald: 'text-[var(--trade-bullish)]',
     red: 'text-[var(--trade-bearish)]',
@@ -340,7 +347,7 @@ const HEAT_RANK_TIP: Record<LivePosition['heatRank'], string> = {
   red: 'RED — strongest negative momentum',
 };
 
-function HeatLegend() {
+export function HeatLegend() {
   return (
     <div className="flex flex-wrap items-center gap-1.5 mb-3">
       {(Object.keys(HEAT_BG) as LivePosition['heatRank'][]).map(rank => (
@@ -356,7 +363,7 @@ function HeatLegend() {
   );
 }
 
-function HeatTile({ position }: { position: LivePosition }) {
+export function HeatTile({ position }: { position: LivePosition }) {
   const bg = HEAT_BG[position.heatRank];
   const sizeClass =
     Math.abs(position.heatScore) > 30 ? 'col-span-2 row-span-2' :
@@ -381,7 +388,7 @@ function HeatTile({ position }: { position: LivePosition }) {
   );
 }
 
-function BestWorstCard({ position, type }: { position: LivePosition; type: 'best' | 'worst' }) {
+export function BestWorstCard({ position, type }: { position: LivePosition; type: 'best' | 'worst' }) {
   return (
     <div className={`p-4 ${type === 'best' ? componentStyles.card.accentBullish : componentStyles.card.accentBearish}`}>
       <div className="text-[10px] uppercase tracking-wider mb-2 text-muted-foreground">
@@ -407,7 +414,7 @@ function BestWorstCard({ position, type }: { position: LivePosition; type: 'best
   );
 }
 
-function PositionRow({ position }: { position: LivePosition }) {
+export function PositionRow({ position, onSelect }: { position: LivePosition; onSelect?: (symbol: string) => void }) {
   const heatColor =
     position.heatRank === 'fire' ? 'text-[var(--trade-bullish)]' :
     position.heatRank === 'hot' ? 'text-[var(--trade-bullish)]' :
@@ -417,7 +424,7 @@ function PositionRow({ position }: { position: LivePosition }) {
     'text-[var(--trade-bearish)]';
 
   return (
-    <tr className="border-b border-border/50 hover:bg-muted/20">
+    <tr className="border-b border-border/50 hover:bg-muted/20" onClick={onSelect ? () => onSelect(position.symbol) : undefined}>
       <td className="py-2 pr-3 font-bold">
         <Link href={`/r/${position.symbol}`}>
           <span className="hover:text-[var(--brand-cyan)] cursor-pointer">{position.symbol}</span>
@@ -447,7 +454,7 @@ function PositionRow({ position }: { position: LivePosition }) {
   );
 }
 
-function sortPositions(positions: LivePosition[], by: 'pnl' | 'days' | 'expiry'): LivePosition[] {
+export function sortPositions(positions: LivePosition[], by: 'pnl' | 'days' | 'expiry'): LivePosition[] {
   const sorted = [...positions];
   if (by === 'pnl') sorted.sort((a, b) => b.pnlPct - a.pnlPct);
   else if (by === 'days') sorted.sort((a, b) => b.daysActive - a.daysActive);
