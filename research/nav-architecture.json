@@ -1,14 +1,36 @@
 {
-  "routes": 36,
-  "redirects": 77,
+  "routes": 37,
+  "redirects": 79,
   "tabs": 10,
-  "linkTargets": 54,
+  "linkTargets": 60,
   "N1_dead": {},
   "N2_viaRedirect": {},
-  "N3_orphanPageFiles": [
-    "backtest",
-    "history",
-    "landing-nexus"
+  "N3_orphanPageFiles": [],
+  "N3b_deadModules": [
+    "client/src/components/ai-chatbot-popup.tsx",
+    "client/src/components/auto-lotto-dashboard.tsx",
+    "client/src/components/expiry-pattern-insights.tsx",
+    "client/src/components/gex-big-gainers.tsx",
+    "client/src/components/gex/EngineStatusFooter.tsx",
+    "client/src/components/market-overview-widget.tsx",
+    "client/src/components/research/flow-table.tsx",
+    "client/src/components/signal-card.tsx",
+    "client/src/components/trade-desk/DiscoveryPicksPanel.tsx",
+    "client/src/components/trade-desk/idea-detail-drawer.tsx",
+    "client/src/components/trade-desk/todays-picks.tsx",
+    "client/src/components/trade-desk/trade-filters-bar.tsx",
+    "client/src/components/trade-desk/trade-idea-card.tsx",
+    "client/src/components/trade-desk/trade-ideas-panel.tsx",
+    "client/src/components/trade-desk/trade-presets.tsx",
+    "client/src/components/trade-desk/view-mode-toggle.tsx",
+    "client/src/components/trade-idea-detail-v2.tsx",
+    "client/src/components/ui/empty-state.tsx",
+    "client/src/components/ui/qe-bar.tsx",
+    "client/src/components/ui/qe-num.tsx",
+    "client/src/components/ui/qe-section.tsx",
+    "client/src/components/ui/qe-stat.tsx",
+    "client/src/components/win-rate-widget.tsx",
+    "client/src/lib/trade-desk-filters.ts"
   ],
   "N4_unreachableRoutes": [],
   "N5_navModel": {
@@ -25,6 +47,7 @@
       "JOURNAL"
     ],
     "pages": [
+      "/today",
       "/slate",
       "/radar",
       "/alerts",
@@ -32,38 +55,126 @@
       "/settings"
     ]
   },
-  "N6_redundantJobs": {
+  "N6_multiOwnerTools": [],
+  "N6_functionsWithoutOwner": [],
+  "N6b_redundancyDebt": {
     "Rank today's trade ideas": [
-      "/t (NEXUS board)",
-      "/slate",
-      "/trade-desk"
+      "/today Ranked setups",
+      "/t NEXUS board",
+      "/slate cards",
+      "/radar Picks"
     ],
-    "Scan for chart setups": [
-      "/radar",
-      "/t (NEXUS pattern radar)",
-      "/slate"
+    "Discover forming setups": [
+      "/radar Forming",
+      "NEXUS forming rail"
     ],
-    "Measure track record": [
-      "/performance",
-      "/t?tab=journal",
-      "/trade-ideas/:id/audit"
+    "Sector rotation": [
+      "/today RotQuad",
+      "RotationMap (terminal overlay, unreachable)",
+      "landing RotQuad"
+    ],
+    "Market pulse / leadership": [
+      "OracleMarketField (overlay, unreachable)",
+      "SessionBrief (overlay, unreachable)"
+    ],
+    "Options flow tape": [
+      "/t?tab=flow flowdash",
+      "ticker workup flow block"
+    ],
+    "Dealer positioning (GEX)": [
+      "/t?tab=gex GexHub",
+      "/r/:s GEX surface",
+      "flowdash GEX Chart"
+    ],
+    "GEX setups / magnets": [
+      "GexHub rankings panel",
+      "flowdash GEX Setups"
+    ],
+    "Watchlist": [
+      "NEXUS WatchlistRail",
+      "flowdash Watchlist"
+    ],
+    "Per-ticker dossier": [
+      "/r/:s Dossier",
+      "terminal workup overlay"
+    ],
+    "Price chart": [
+      "/t?tab=chart ChartLab",
+      "FlowChartBoard",
+      "workup chart"
+    ],
+    "Option chain / contract analysis": [
+      "/r/:s Contract lab",
+      "workup options"
+    ],
+    "Strike x expiry matrix": [
+      "gex-expiry-matrix",
+      "research/terminal-heatmap"
+    ],
+    "Alerts": [
+      "/alerts page",
+      "terminal Alerts drawer"
+    ],
+    "Track record (model)": [
+      "Journal Track record",
+      "/radar Track Record",
+      "/today Model record"
+    ],
+    "Backtest": [
+      "Journal backtest (pages/backtest)",
+      "strategy-simulator"
+    ],
+    "Search / command palette": [
+      "global CommandPalette",
+      "terminal CommandPalette"
+    ],
+    "Account menu": [
+      "NexusFrame menu",
+      "terminal menu"
+    ],
+    "Preferences / settings": [
+      "/settings",
+      "terminal Preferences drawer",
+      "CustomizePanel"
     ],
     "Guide / how to use": [
       "/how-to",
-      "terminal Guide drawer",
-      "/academy"
-    ],
-    "Alerts": [
-      "/alerts",
-      "terminal Alerts drawer"
-    ],
-    "Preferences": [
-      "/settings",
-      "terminal Preferences drawer"
-    ],
-    "Per-ticker research": [
-      "/r/:symbol",
-      "ticker workup overlay"
+      "terminal Guide drawer"
     ]
+  },
+  "N7_phantomChrome": {},
+  "N8_chains": [],
+  "N8_dangling": [],
+  "N9_tabDropped": {},
+  "N10_workflowFail": {},
+  "N10_workflowOk": {
+    "W1 magnet \u2192 research \u2192 trade \u2192 review": [
+      "/t?tab=gex \u2192 /r/:symbol [chrome/palette]",
+      "/r/:symbol \u2192 /t?tab=positions [chrome/palette]",
+      "/t?tab=positions \u2192 /t?tab=journal [chrome/palette]"
+    ],
+    "W2 morning routine": [
+      "/today \u2192 /t [chrome/palette]",
+      "/t \u2192 /radar [chrome/palette]",
+      "/radar \u2192 /t?tab=positions [chrome/palette]"
+    ],
+    "W3 evening slate": [
+      "/slate \u2192 /r/:symbol [chrome/palette]",
+      "/r/:symbol \u2192 /t?tab=journal&jtab=record [chrome/palette]"
+    ],
+    "W4 check an idea's evidence": [
+      "/today \u2192 /trade-ideas/:id/audit [link in today.tsx]"
+    ],
+    "W5 flow \u2192 chart \u2192 research": [
+      "/t?tab=flow \u2192 /t?tab=chart [chrome/palette]",
+      "/t?tab=chart \u2192 /r/:symbol [chrome/palette]"
+    ]
+  },
+  "N11_searchFail": [],
+  "N12_deadState": [
+    "client/src/pages/shells/terminal-shell.tsx:marketFocus"
+  ],
+  "N12_knownDebt": {
+    "client/src/pages/shells/terminal-shell.tsx:marketFocus": "Phase 2 (terminal UX branch owns the file): remove overlay; RotationMap/OracleMarketField/SessionBrief become Markets tools"
   }
 }

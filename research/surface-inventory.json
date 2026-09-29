@@ -1,79 +1,87 @@
 {
   "surfaces": {
     "NEXUS board": {
-      "files": 41,
-      "lines": 11352,
+      "files": 30,
+      "lines": 7017,
       "apis": [
-        "/api/bullflow/net-premium-batch",
         "/api/contract-live/:p",
         "/api/contract-picker/:p",
         "/api/convictions",
         "/api/convictions/${encodeURIComponent",
         "/api/extended-hours",
+        "/api/extended-hours/${developingPick",
+        "/api/extended-hours/symbol",
         "/api/gaps",
         "/api/gaps/:p",
-        "/api/health",
         "/api/historical-prices",
         "/api/historical-prices/:p",
-        "/api/historical-prices/SPY",
-        "/api/ideas/ledger",
         "/api/market-pulse",
-        "/api/options-flow",
         "/api/options/select",
         "/api/patterns/scan",
         "/api/preferences",
         "/api/quant-bot/status",
-        "/api/quotes/batch",
-        "/api/quotes/batch/${selected",
-        "/api/quotes/batch/${signalSymbols.join",
-        "/api/quotes/batch/:p",
-        "/api/realtime-status",
-        "/api/sector-rotation",
+        "/api/spx/expression",
         "/api/ta",
         "/api/ta/:p",
         "/api/target-ladder/:p",
-        "/api/ticker/${encodeURIComponent",
-        "/api/trade-ideas/:p/share-discord-card",
         "/api/watchlist"
       ],
-      "sections": [
-        "01 \u00b7 MARKET INTELLIGENCE",
-        "02 \u00b7 ACTIVE BOOK",
-        "03 \u00b7 DEVELOPING",
-        "Ranked opportunities.",
-        "Setups before the trigger."
-      ],
+      "sections": [],
       "unique": [
-        "/api/bullflow/net-premium-batch",
         "/api/contract-live/:p",
         "/api/convictions/${encodeURIComponent",
+        "/api/extended-hours/${developingPick",
+        "/api/extended-hours/symbol",
         "/api/gaps",
         "/api/gaps/:p",
-        "/api/health",
-        "/api/historical-prices/SPY",
-        "/api/ideas/ledger",
         "/api/options/select",
         "/api/patterns/scan",
-        "/api/quotes/batch/${selected",
-        "/api/quotes/batch/${signalSymbols.join",
+        "/api/spx/expression",
         "/api/ta",
         "/api/ta/:p",
-        "/api/target-ladder/:p",
-        "/api/ticker/${encodeURIComponent",
-        "/api/trade-ideas/:p/share-discord-card"
+        "/api/target-ladder/:p"
+      ]
+    },
+    "Today": {
+      "files": 2,
+      "lines": 762,
+      "apis": [
+        "/api/convictions",
+        "/api/crypto/pulse",
+        "/api/gex-vex/terminal/SPY",
+        "/api/historical-prices",
+        "/api/historical-prices/:p",
+        "/api/index-scalps",
+        "/api/performance/stats",
+        "/api/quotes/batch/:p",
+        "/api/sector-rotation",
+        "/api/weekly-path/SPY"
+      ],
+      "sections": [],
+      "unique": [
+        "/api/gex-vex/terminal/SPY",
+        "/api/weekly-path/SPY"
       ]
     },
     "CHART": {
-      "files": 4,
-      "lines": 1151,
+      "files": 6,
+      "lines": 1988,
       "apis": [
         "/api/automations/status",
         "/api/convictions",
         "/api/extended-hours",
+        "/api/futures/es-context",
+        "/api/gex-vex/terminal",
+        "/api/gex-vex/terminal/:p",
         "/api/historical-prices",
         "/api/historical-prices/:p",
+        "/api/journal/discord/commit",
+        "/api/journal/discord/preview",
+        "/api/journal/sources",
         "/api/market-pulse",
         "/api/realtime-status",
+        "/api/traders",
+        "/api/traders/${encodeURIComponent",
         "/api/watchlist"
       ],
       "sections": [
@@ -81,19 +89,26 @@
         "Price intelligence."
       ],
       "unique": [
-        "/api/automations/status"
+        "/api/automations/status",
+        "/api/futures/es-context",
+        "/api/journal/discord/commit",
+        "/api/journal/discord/preview",
+        "/api/journal/sources"
       ]
     },
     "FLOW": {
       "files": 12,
-      "lines": 2351,
+      "lines": 2480,
       "apis": [
         "/api/bullflow/leaders",
+        "/api/bullflow/status",
         "/api/flow",
         "/api/flow-gex-convergence/top",
         "/api/flow/exits",
         "/api/flow/repeats",
-        "/api/options-flow"
+        "/api/index-scalps",
+        "/api/options-flow",
+        "/api/spx/intelligence"
       ],
       "sections": [
         "After the print.",
@@ -101,18 +116,21 @@
       ],
       "unique": [
         "/api/bullflow/leaders",
+        "/api/bullflow/status",
         "/api/flow",
         "/api/flow-gex-convergence/top",
         "/api/flow/exits",
-        "/api/flow/repeats"
+        "/api/flow/repeats",
+        "/api/spx/intelligence"
       ]
     },
     "GEX": {
-      "files": 10,
-      "lines": 2601,
+      "files": 12,
+      "lines": 3267,
       "apis": [
         "/api/extended-hours",
         "/api/gex-vex/hub",
+        "/api/gex-vex/rankings",
         "/api/gex-vex/terminal",
         "/api/gex-vex/terminal/:p",
         "/api/gex-vex/terminal/:symbol",
@@ -127,8 +145,8 @@
       ],
       "unique": [
         "/api/gex-vex/hub",
-        "/api/gex-vex/terminal/:symbol",
-        "/api/search/symbols"
+        "/api/gex-vex/rankings",
+        "/api/gex-vex/terminal/:symbol"
       ]
     },
     "LEAPS": {
@@ -144,9 +162,10 @@
       "unique": []
     },
     "CRYPTO": {
-      "files": 3,
-      "lines": 1136,
+      "files": 5,
+      "lines": 2227,
       "apis": [
+        "/api/crypto/proxy-candidates",
         "/api/crypto/pulse",
         "/api/crypto/sentiment",
         "/api/historical-prices",
@@ -158,6 +177,7 @@
         "Underlying first."
       ],
       "unique": [
+        "/api/crypto/proxy-candidates",
         "/api/crypto/sentiment"
       ]
     },
@@ -180,7 +200,7 @@
     },
     "BOT": {
       "files": 4,
-      "lines": 2053,
+      "lines": 2412,
       "apis": [
         "/api/catalysts/recent",
         "/api/convictions",
@@ -191,7 +211,7 @@
         "/api/historical-prices/:p",
         "/api/leap-tracker",
         "/api/options-flow",
-        "/api/performance/stats",
+        "/api/performance/outcome-model",
         "/api/quant-bot/status",
         "/api/realtime-status"
       ],
@@ -201,7 +221,8 @@
       ],
       "unique": [
         "/api/catalysts/recent",
-        "/api/discipline/ledger"
+        "/api/discipline/ledger",
+        "/api/performance/outcome-model"
       ]
     },
     "POSITIONS": {
@@ -216,10 +237,9 @@
       ]
     },
     "JOURNAL": {
-      "files": 38,
-      "lines": 12018,
+      "files": 45,
+      "lines": 11426,
       "apis": [
-        "/api/ai/chat/history",
         "/api/audit/data-integrity",
         "/api/auth/logout",
         "/api/auth/me",
@@ -230,17 +250,14 @@
         "/api/broker/portfolio/:p",
         "/api/broker/supported",
         "/api/convictions/backtest",
-        "/api/csrf-token",
         "/api/engine-health",
+        "/api/flow/ingest",
         "/api/historical-intelligence",
         "/api/historical-intelligence/refresh",
         "/api/historical-intelligence/stats",
-        "/api/journal/analytics",
-        "/api/journal/import-csv",
-        "/api/journal/trade",
-        "/api/journal/trade/:p",
-        "/api/journal/trades",
-        "/api/journal/trades/all",
+        "/api/journal/broker/alpaca",
+        "/api/journal/broker/alpaca/sync",
+        "/api/journal/import-csv${qs",
         "/api/loss-analysis/summary",
         "/api/patterns",
         "/api/performance/auto-lotto-bot",
@@ -257,29 +274,27 @@
         "/api/performance/symbol-leaderboard",
         "/api/performance/time-of-day-heatmap",
         "/api/performance/validate",
-        "/api/research-history",
         "/api/signal-attribution",
         "/api/signal-attribution/recalculate",
         "/api/strategy-simulator/run",
+        "/api/trade-ideas/best-setups",
+        "/api/traders",
+        "/api/traders/${encodeURIComponent",
         "/api/user/tier"
       ],
       "sections": [],
       "unique": [
-        "/api/ai/chat/history",
-        "/api/csrf-token",
-        "/api/journal/analytics",
-        "/api/journal/import-csv",
-        "/api/journal/trade",
-        "/api/journal/trade/:p",
-        "/api/journal/trades",
-        "/api/journal/trades/all",
-        "/api/research-history",
-        "/api/strategy-simulator/run"
+        "/api/flow/ingest",
+        "/api/journal/broker/alpaca",
+        "/api/journal/broker/alpaca/sync",
+        "/api/journal/import-csv${qs",
+        "/api/strategy-simulator/run",
+        "/api/trade-ideas/best-setups"
       ]
     },
     "Slate": {
       "files": 2,
-      "lines": 346,
+      "lines": 390,
       "apis": [
         "/api/premarket/gappers",
         "/api/quotes/batch/SPY",
@@ -294,7 +309,7 @@
     },
     "Radar": {
       "files": 3,
-      "lines": 707,
+      "lines": 735,
       "apis": [
         "/api/radar/patterns",
         "/api/radar/picks",
@@ -311,7 +326,7 @@
     },
     "Performance": {
       "files": 31,
-      "lines": 8371,
+      "lines": 8153,
       "apis": [
         "/api/audit/data-integrity",
         "/api/auth/logout",
@@ -352,7 +367,7 @@
     },
     "Alerts": {
       "files": 3,
-      "lines": 740,
+      "lines": 765,
       "apis": [
         "/api/alerts/relay",
         "/api/convictions"
@@ -364,67 +379,72 @@
     },
     "How-to": {
       "files": 1,
-      "lines": 189,
+      "lines": 192,
       "apis": [],
       "sections": [],
       "unique": []
     },
     "Settings": {
-      "files": 3,
-      "lines": 1411,
+      "files": 2,
+      "lines": 878,
       "apis": [
         "/api/auth/logout",
         "/api/auth/me",
         "/api/bot-trades",
-        "/api/navigation-layout",
         "/api/preferences"
       ],
       "sections": [],
       "unique": [
-        "/api/bot-trades",
-        "/api/navigation-layout"
+        "/api/bot-trades"
       ]
     },
     "Research": {
-      "files": 15,
-      "lines": 5368,
+      "files": 14,
+      "lines": 4915,
       "apis": [
+        "/api/alerts/level",
+        "/api/bullflow/context",
+        "/api/bullflow/context/:p",
+        "/api/bullflow/net-premium",
+        "/api/bullflow/net-premium/:p",
+        "/api/catalysts/symbol",
+        "/api/catalysts/symbol/:p",
+        "/api/contract-picker/:p",
         "/api/contract/analyze",
+        "/api/convictions",
+        "/api/crypto/pulse",
+        "/api/economic-calendar",
+        "/api/engine/analyze/:p",
         "/api/gex-vex/terminal",
         "/api/gex-vex/terminal/:p",
-        "/api/options-analyzer/chain",
-        "/api/options-analyzer/chain/:p",
-        "/api/options-analyzer/deep-analysis",
-        "/api/options-analyzer/expirations",
+        "/api/historical-prices",
+        "/api/historical-prices/:p",
         "/api/options-flow",
-        "/api/options-quant/monte-carlo",
-        "/api/options-quant/price",
-        "/api/options-quant/strategy",
-        "/api/options-quant/surface",
+        "/api/peers",
+        "/api/peers/:p",
+        "/api/quantinum/:p",
         "/api/quotes/batch",
         "/api/quotes/batch/:p",
+        "/api/search/symbols",
+        "/api/short-interest",
+        "/api/short-interest/:p",
         "/api/trade-desk/ideas/from-contract-analysis",
         "/api/watchlist"
       ],
       "sections": [],
       "unique": [
         "/api/contract/analyze",
-        "/api/options-analyzer/chain",
-        "/api/options-analyzer/chain/:p",
-        "/api/options-analyzer/deep-analysis",
-        "/api/options-analyzer/expirations",
-        "/api/options-quant/monte-carlo",
-        "/api/options-quant/price",
-        "/api/options-quant/strategy",
-        "/api/options-quant/surface",
+        "/api/quotes/batch",
         "/api/trade-desk/ideas/from-contract-analysis"
       ]
     },
     "Ticker workup": {
       "files": 4,
-      "lines": 1775,
+      "lines": 2165,
       "apis": [
         "/api/alerts/level",
+        "/api/bullflow/context",
+        "/api/bullflow/context/:p",
         "/api/bullflow/net-premium",
         "/api/bullflow/net-premium/:p",
         "/api/catalysts/symbol",
@@ -445,26 +465,14 @@
         "/api/watchlist"
       ],
       "sections": [],
-      "unique": [
-        "/api/alerts/level",
-        "/api/bullflow/net-premium",
-        "/api/bullflow/net-premium/:p",
-        "/api/catalysts/symbol",
-        "/api/catalysts/symbol/:p",
-        "/api/engine/analyze/:p",
-        "/api/peers",
-        "/api/peers/:p",
-        "/api/quantinum/:p",
-        "/api/short-interest",
-        "/api/short-interest/:p"
-      ]
+      "unique": []
     }
   },
   "overlap": [
     {
       "a": "JOURNAL",
       "b": "Performance",
-      "jaccard": 0.77,
+      "jaccard": 0.8,
       "shared": [
         "/api/audit/data-integrity",
         "/api/auth/logout",
@@ -502,9 +510,37 @@
       ]
     },
     {
+      "a": "Research",
+      "b": "Ticker workup",
+      "jaccard": 0.75,
+      "shared": [
+        "/api/alerts/level",
+        "/api/bullflow/context",
+        "/api/bullflow/context/:p",
+        "/api/bullflow/net-premium",
+        "/api/bullflow/net-premium/:p",
+        "/api/catalysts/symbol",
+        "/api/catalysts/symbol/:p",
+        "/api/contract-picker/:p",
+        "/api/convictions",
+        "/api/crypto/pulse",
+        "/api/economic-calendar",
+        "/api/engine/analyze/:p",
+        "/api/historical-prices",
+        "/api/historical-prices/:p",
+        "/api/options-flow",
+        "/api/peers",
+        "/api/peers/:p",
+        "/api/quantinum/:p",
+        "/api/short-interest",
+        "/api/short-interest/:p",
+        "/api/watchlist"
+      ]
+    },
+    {
       "a": "CRYPTO",
       "b": "BOT",
-      "jaccard": 0.31,
+      "jaccard": 0.29,
       "shared": [
         "/api/crypto/pulse",
         "/api/historical-prices",
@@ -513,30 +549,30 @@
       ]
     },
     {
-      "a": "CHART",
+      "a": "Today",
       "b": "CRYPTO",
-      "jaccard": 0.3,
+      "jaccard": 0.23,
       "shared": [
+        "/api/crypto/pulse",
         "/api/historical-prices",
-        "/api/historical-prices/:p",
-        "/api/realtime-status"
+        "/api/historical-prices/:p"
       ]
     },
     {
-      "a": "CHART",
+      "a": "Today",
       "b": "BOT",
-      "jaccard": 0.25,
+      "jaccard": 0.22,
       "shared": [
         "/api/convictions",
+        "/api/crypto/pulse",
         "/api/historical-prices",
-        "/api/historical-prices/:p",
-        "/api/realtime-status"
+        "/api/historical-prices/:p"
       ]
     },
     {
       "a": "BOT",
       "b": "Ticker workup",
-      "jaccard": 0.24,
+      "jaccard": 0.22,
       "shared": [
         "/api/convictions",
         "/api/crypto/pulse",
@@ -549,39 +585,95 @@
     {
       "a": "NEXUS board",
       "b": "CHART",
-      "jaccard": 0.22,
+      "jaccard": 0.19,
       "shared": [
         "/api/convictions",
         "/api/extended-hours",
         "/api/historical-prices",
         "/api/historical-prices/:p",
         "/api/market-pulse",
-        "/api/realtime-status",
         "/api/watchlist"
       ]
     },
     {
+      "a": "BOT",
+      "b": "Research",
+      "jaccard": 0.18,
+      "shared": [
+        "/api/convictions",
+        "/api/crypto/pulse",
+        "/api/economic-calendar",
+        "/api/historical-prices",
+        "/api/historical-prices/:p",
+        "/api/options-flow"
+      ]
+    },
+    {
       "a": "CHART",
-      "b": "Ticker workup",
+      "b": "BOT",
       "jaccard": 0.17,
       "shared": [
         "/api/convictions",
         "/api/historical-prices",
         "/api/historical-prices/:p",
+        "/api/realtime-status"
+      ]
+    },
+    {
+      "a": "CHART",
+      "b": "CRYPTO",
+      "jaccard": 0.16,
+      "shared": [
+        "/api/historical-prices",
+        "/api/historical-prices/:p",
+        "/api/realtime-status"
+      ]
+    },
+    {
+      "a": "CHART",
+      "b": "Research",
+      "jaccard": 0.16,
+      "shared": [
+        "/api/convictions",
+        "/api/gex-vex/terminal",
+        "/api/gex-vex/terminal/:p",
+        "/api/historical-prices",
+        "/api/historical-prices/:p",
         "/api/watchlist"
+      ]
+    },
+    {
+      "a": "Today",
+      "b": "Research",
+      "jaccard": 0.15,
+      "shared": [
+        "/api/convictions",
+        "/api/crypto/pulse",
+        "/api/historical-prices",
+        "/api/historical-prices/:p",
+        "/api/quotes/batch/:p"
+      ]
+    },
+    {
+      "a": "Today",
+      "b": "Ticker workup",
+      "jaccard": 0.15,
+      "shared": [
+        "/api/convictions",
+        "/api/crypto/pulse",
+        "/api/historical-prices",
+        "/api/historical-prices/:p"
       ]
     },
     {
       "a": "NEXUS board",
       "b": "BOT",
-      "jaccard": 0.16,
+      "jaccard": 0.14,
       "shared": [
         "/api/convictions",
         "/api/historical-prices",
         "/api/historical-prices/:p",
-        "/api/options-flow",
-        "/api/quant-bot/status",
-        "/api/realtime-status"
+        "/api/quant-bot/status"
       ]
     },
     {
@@ -593,14 +685,44 @@
         "/api/convictions",
         "/api/historical-prices",
         "/api/historical-prices/:p",
-        "/api/options-flow",
+        "/api/watchlist"
+      ]
+    },
+    {
+      "a": "CHART",
+      "b": "GEX",
+      "jaccard": 0.14,
+      "shared": [
+        "/api/extended-hours",
+        "/api/gex-vex/terminal",
+        "/api/gex-vex/terminal/:p"
+      ]
+    },
+    {
+      "a": "Today",
+      "b": "CHART",
+      "jaccard": 0.13,
+      "shared": [
+        "/api/convictions",
+        "/api/historical-prices",
+        "/api/historical-prices/:p"
+      ]
+    },
+    {
+      "a": "CHART",
+      "b": "Ticker workup",
+      "jaccard": 0.12,
+      "shared": [
+        "/api/convictions",
+        "/api/historical-prices",
+        "/api/historical-prices/:p",
         "/api/watchlist"
       ]
     },
     {
       "a": "CRYPTO",
       "b": "Ticker workup",
-      "jaccard": 0.14,
+      "jaccard": 0.12,
       "shared": [
         "/api/crypto/pulse",
         "/api/historical-prices",
@@ -608,9 +730,41 @@
       ]
     },
     {
-      "a": "CHART",
-      "b": "Alerts",
+      "a": "NEXUS board",
+      "b": "Today",
       "jaccard": 0.11,
+      "shared": [
+        "/api/convictions",
+        "/api/historical-prices",
+        "/api/historical-prices/:p"
+      ]
+    },
+    {
+      "a": "NEXUS board",
+      "b": "Research",
+      "jaccard": 0.11,
+      "shared": [
+        "/api/contract-picker/:p",
+        "/api/convictions",
+        "/api/historical-prices",
+        "/api/historical-prices/:p",
+        "/api/watchlist"
+      ]
+    },
+    {
+      "a": "CRYPTO",
+      "b": "Research",
+      "jaccard": 0.1,
+      "shared": [
+        "/api/crypto/pulse",
+        "/api/historical-prices",
+        "/api/historical-prices/:p"
+      ]
+    },
+    {
+      "a": "Today",
+      "b": "Alerts",
+      "jaccard": 0.09,
       "shared": [
         "/api/convictions"
       ]
@@ -618,122 +772,20 @@
     {
       "a": "GEX",
       "b": "Research",
-      "jaccard": 0.1,
+      "jaccard": 0.09,
       "shared": [
         "/api/gex-vex/terminal",
-        "/api/gex-vex/terminal/:p"
+        "/api/gex-vex/terminal/:p",
+        "/api/search/symbols"
       ]
     },
     {
       "a": "NEXUS board",
       "b": "CRYPTO",
-      "jaccard": 0.09,
+      "jaccard": 0.08,
       "shared": [
         "/api/historical-prices",
-        "/api/historical-prices/:p",
-        "/api/realtime-status"
-      ]
-    },
-    {
-      "a": "NEXUS board",
-      "b": "Research",
-      "jaccard": 0.09,
-      "shared": [
-        "/api/options-flow",
-        "/api/quotes/batch",
-        "/api/quotes/batch/:p",
-        "/api/watchlist"
-      ]
-    },
-    {
-      "a": "LEAPS",
-      "b": "BOT",
-      "jaccard": 0.08,
-      "shared": [
-        "/api/leap-tracker"
-      ]
-    },
-    {
-      "a": "BOT",
-      "b": "Alerts",
-      "jaccard": 0.08,
-      "shared": [
-        "/api/convictions"
-      ]
-    },
-    {
-      "a": "CHART",
-      "b": "GEX",
-      "jaccard": 0.07,
-      "shared": [
-        "/api/extended-hours"
-      ]
-    },
-    {
-      "a": "CATALYST",
-      "b": "BOT",
-      "jaccard": 0.07,
-      "shared": [
-        "/api/economic-calendar"
-      ]
-    },
-    {
-      "a": "NEXUS board",
-      "b": "GEX",
-      "jaccard": 0.06,
-      "shared": [
-        "/api/extended-hours",
-        "/api/sector-rotation"
-      ]
-    },
-    {
-      "a": "FLOW",
-      "b": "BOT",
-      "jaccard": 0.06,
-      "shared": [
-        "/api/options-flow"
-      ]
-    },
-    {
-      "a": "Performance",
-      "b": "Settings",
-      "jaccard": 0.06,
-      "shared": [
-        "/api/auth/logout",
-        "/api/auth/me"
-      ]
-    },
-    {
-      "a": "Research",
-      "b": "Ticker workup",
-      "jaccard": 0.06,
-      "shared": [
-        "/api/options-flow",
-        "/api/watchlist"
-      ]
-    },
-    {
-      "a": "FLOW",
-      "b": "Research",
-      "jaccard": 0.05,
-      "shared": [
-        "/api/options-flow"
-      ]
-    },
-    {
-      "a": "CATALYST",
-      "b": "Ticker workup",
-      "jaccard": 0.05,
-      "shared": [
-        "/api/economic-calendar"
-      ]
-    },
-    {
-      "a": "Alerts",
-      "b": "Ticker workup",
-      "jaccard": 0.05,
-      "shared": [
-        "/api/convictions"
+        "/api/historical-prices/:p"
       ]
     }
   ]
