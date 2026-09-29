@@ -31994,6 +31994,29 @@ Use this checklist before entering any trade:
   });
 
   /**
+   * GEX/VEX CROSS-TICKER RANKINGS — magnet squeeze · most negative VEX ·
+   * lowest GEX+ · pins. Served from a background job's cache (CBOE delayed
+   * chains, throttled ≥1.5s, persisted last-good on disk); every row carries
+   * its own fetchedAt/ageSec. Never computes on the request path.
+   * Set GEX_RANKINGS_JOB=off to disable the job.
+   */
+  if (process.env.GEX_RANKINGS_JOB !== 'off') {
+    void import('./gex-rankings').then((m) => m.startGexRankingJob()).catch((e) => {
+      logger.warn('[GEX-RANK] job failed to start', { error: e?.message });
+    });
+  }
+  app.get("/api/gex-vex/rankings", requireBetaAccess, async (req, res) => {
+    try {
+      const { getGexRankings } = await import('./gex-rankings');
+      const limit = Math.max(5, Math.min(100, parseInt(String(req.query.limit ?? '30'), 10) || 30));
+      res.json(getGexRankings(limit));
+    } catch (error: any) {
+      logger.error("GEX rankings error", { error: error?.message });
+      res.status(500).json({ error: "Rankings unavailable", message: error?.message });
+    }
+  });
+
+  /**
    * GEX IDEA SCANNER — manual trigger
    * =================================
    * Runs a single pass of the gamma-exposure setup scanner. Returns the
