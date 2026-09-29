@@ -16,6 +16,7 @@
 import { logger } from './logger';
 import { fetchStockPrice, fetchYahooFinancePrice } from './market-api';
 import { storage } from './storage';
+import { timeStopIso } from './zero-dte-policies';
 
 // ============================================
 // MARKET DATA HELPERS
@@ -257,6 +258,28 @@ let dailyState: DailyState = {
   breakouts: [],
   priceHistory: new Map(),
 };
+
+/**
+ * Breakouts judged stale (first close beyond the range was > 15 min before we
+ * saw it). The web process restarted 14 times on 2026-09-29; every restart
+ * wiped dailyState, re-formed the ranges and "detected" a breakout that had
+ * happened hours earlier — SPY SHORT 15/30/60min fired again at 13:57 ET off a
+ * 09:45 range. A breakout is only a signal at the moment it happens.
+ */
+const staleBreakouts = new Set<string>();
+const MAX_BREAKOUT_AGE_MS = 15 * 60_000;
+
+/** Start time of the first 5-min bar after the range formed that CLOSED beyond the level, or null. */
+async function firstCloseBeyond(symbol: string, range: OpeningRange, direction: 'LONG' | 'SHORT'): Promise<number | null> {
+  const bars = await getIntradayPrices(symbol, '5min');
+  const buffer = range.rangeWidth * (BREAKOUT_BUFFER_PCT / 100);
+  for (const b of bars) {
+    const t = new Date(b.date).getTime();
+    if (t < range.formedAt.getTime()) continue;
+    if (direction === 'LONG' ? b.close > range.high + buffer : b.close < range.low - buffer) return t;
+  }
+  return null;
+}
 
 // ============================================
 // HELPER FUNCTIONS
@@ -662,6 +685,11 @@ async function generateBreakoutSignal(
   };
 }
 
+/** 15:55 ET today — shared with the index 0DTE policies. */
+function orbTimeStopIso(): string {
+  return timeStopIso();
+}
+
 /**
  * Save ORB breakout as a Trade Idea for Trade Desk display
  */
@@ -685,7 +713,7 @@ async function saveBreakoutAsTradeIdea(breakout: ORBBreakout): Promise<void> {
       stopLoss: breakout.stop,
       riskRewardRatio: Number(orbRR.toFixed(2)),
       catalyst: `ORB ${breakout.timeframe} ${breakout.direction} breakout`,
-      analysis: breakout.thesis,
+      analysis: `${breakout.thesis} Provenance: opening-range breakout — the research plan (research/SPX-0DTE-RESEARCH-AND-VALIDATION.md) lists SPY ORB as a BASELINE to beat, not a validated edge. Levels are the ${breakout.timeframe} opening range from 5-minute bars.${breakout.breakoutType === '0DTE' ? ' Hard time stop 15:55 ET.' : ''}`,
       sessionContext: `${breakout.sessionPhase} - ${breakout.breakoutType} trade`,
       source: 'orb_scanner',
       dataSourceUsed: `ORB_${breakout.timeframe}_${breakout.breakoutType}`,
@@ -693,6 +721,8 @@ async function saveBreakoutAsTradeIdea(breakout: ORBBreakout): Promise<void> {
       outcomeStatus: 'open' as const,
       confidenceScore: breakout.confidence,
       holdingPeriod: breakout.breakoutType === '0DTE' ? 'day' as const : 'swing' as const,
+      // 0DTE: hard time stop before the close (SPXW stops trading at 16:00).
+      ...(breakout.breakoutType === '0DTE' ? { exitBy: orbTimeStopIso(), expiryTier: '0DTE' as const, optionDte: 0 } : {}),
 
       // Option details
       optionType: breakout.optionType,
@@ -733,6 +763,7 @@ export async function runORBScan(): Promise<ORBScanResult> {
       breakouts: [],
       priceHistory: new Map(),
     };
+    staleBreakouts.clear();
     logger.info(`[ORB] New trading day - state reset`);
   }
 
@@ -782,7 +813,14 @@ export async function runORBScan(): Promise<ORBScanResult> {
               b => b.symbol === symbol && b.timeframe === tf && b.direction === breakout.direction
             );
 
-            if (!existingBreakout) {
+            const staleKey = `${today}|${symbol}|${tf}|${breakout.direction}`;
+            if (!existingBreakout && !staleBreakouts.has(staleKey)) {
+              const crossedAt = await firstCloseBeyond(symbol, range, breakout.direction);
+              if (crossedAt != null && Date.now() - crossedAt > MAX_BREAKOUT_AGE_MS + 5 * 60_000) {
+                staleBreakouts.add(staleKey);
+                logger.info(`[ORB] ${symbol} ${tf} ${breakout.direction}: break closed at ${new Date(crossedAt + 5 * 60_000).toISOString()} — ${Math.round((Date.now() - crossedAt) / 60_000)}m old, not a fresh signal (restart/late detection); not published`);
+                continue;
+              }
               // Determine trade type based on time
               const tradeType: '0DTE' | 'SWING' = etHours < SESSION.POWER_HOUR ? '0DTE' : 'SWING';
 

@@ -23,7 +23,8 @@
  * WHAT IT DELIBERATELY LEAVES OUT
  *   • market_scanner / swing-trade-scanner — its resolved record is the worst
  *     of the large producers (replay hit rate 10%, research/rating-accuracy).
- *   • spx_session — suspended by the 2026-09-24 validation (SPX_SESSION_PUBLISH).
+ *   • spx_session — suspended by the 2026-09-24 validation (SPX_SESSION_PUBLISH);
+ *     index 0DTE setups come from server/zero-dte-policies.ts instead.
  *   • anything with side effects beyond publishing: paper auto-execution,
  *     Discord broadcasts, bots. The quant sweep here publishes only.
  *
@@ -132,6 +133,21 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return runGexIdeaScanner();
   }), ET);
 
+  // ── Index 0DTE (SPY→SPX / QQQ / IWM) — structure-gated policies A/B/C in
+  // server/zero-dte-policies.ts, unvalidated and labelled so. Before this the
+  // web process ran the index scanner only when someone loaded the GEX hub
+  // (3 passes on 2026-09-29, all "0 ideas"). Every 5 min 09:45–14:55, every
+  // 2 min in power hour; the scanner itself no-ops outside 09:45–15:45 ET,
+  // shares one in-flight pass, and reuses a pass younger than 60 s. Chains come
+  // from the 5-minute GEX snapshot cache; bars from a 60-second cache.
+  // Publish only: Discord stays off unless INDEX_0DTE_DISCORD=1. ──
+  const index0dte = guarded('index-0dte', async () => {
+    const { runIndexScalpScanner } = await import('./index-scalp-engine');
+    return runIndexScalpScanner({ discord: process.env.INDEX_0DTE_DISCORD === '1' });
+  });
+  cron.schedule('*/5 9-14 * * 1-5', index0dte, ET);
+  cron.schedule('*/2 15 * * 1-5', index0dte, ET);
+
   // ── Quant sweep — publish only (no paper execution, no Discord). ──
   cron.schedule('12,42 9-15 * * 1-5', guarded('quant', async () => {
     const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -154,5 +170,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log('🧭 [WEB] Idea producers scheduled — flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m, index/leader swing + crypto proxy 2×/day, reversal slate nightly (IDEA_PRODUCERS_IN_WEB=false disables)');
+  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m, index/leader swing + crypto proxy 2×/day, reversal slate nightly (IDEA_PRODUCERS_IN_WEB=false disables)');
 }

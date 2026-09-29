@@ -2336,7 +2336,14 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   // Choose the only candidates that could plausibly be returned before any
   // network work. This is intentionally deterministic: score, then recency.
   // It prevents a 500-name DB slice from becoming 500 quote/GEX requests.
+  // Same-day index 0DTE plans go first: they live six hours at most and carry a
+  // deliberately modest rank (their policy is unvalidated), so a confidence sort
+  // alone could push a live 0DTE call out of the candidate slice.
+  const isIntradayIndexPlan = (i: any) =>
+    String(i.dataSourceUsed ?? '').startsWith('GEX_index_scalp_') || (i.source === 'orb_scanner' && i.holdingPeriod === 'day');
   const rankedForLive = [...(ageGated as any[])].sort((a, b) => {
+    const intradayDelta = Number(isIntradayIndexPlan(b)) - Number(isIntradayIndexPlan(a));
+    if (intradayDelta !== 0) return intradayDelta;
     const scoreDelta = Number(b.confidenceScore ?? 0) - Number(a.confidenceScore ?? 0);
     if (scoreDelta !== 0) return scoreDelta;
     return new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime();
