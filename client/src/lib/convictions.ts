@@ -86,6 +86,9 @@ export interface ConvictionPick {
 
   /** A plan becomes live only after a trigger or recorded execution. */
   lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
+
+  /** 0DTE / weekly / swing / monthly / position / LEAPS — stamped by the API (shared/idea-horizon.ts). */
+  horizon?: import('@shared/idea-horizon').HorizonRead;
 }
 
 export interface ConvictionsResponse {

@@ -12,6 +12,8 @@ import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
 import { convictionPercent, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
+import { HorizonFilter, useHorizonFilter } from '@/components/ideas/horizon-filter';
+import { IdeasTable } from '@/components/ideas/ideas-table';
 import '@/styles/nexus-prototype.css';
 
 interface IndexScalp {
@@ -165,7 +167,7 @@ export default function NexusPrototype() {
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
-  const rows = useMemo(() => {
+  const allRows = useMemo(() => {
     const needle = query.trim().toUpperCase();
     const sourceRows = [...(convictions.data?.picks ?? [])];
     if (spySource && spxMap.data) {
@@ -200,6 +202,9 @@ export default function NexusPrototype() {
     if (rank === 'best') return ranked.slice(0, 10);
     return ranked.filter((pick) => pick.convictionBand === 'S' || pick.convictionBand === 'A');
   }, [convictions.data, query, scope, side, rank, spySource, spxMap.data]);
+  // Horizon cut (0DTE / weekly / swing / monthly / position / LEAPS) — applies to queue, grid and table alike.
+  const horizonCut = useHorizonFilter(allRows, 'qe.nexus.horizon');
+  const rows = horizonCut.filtered;
   const developing = useMemo(() => {
     const published = new Set((convictions.data?.picks ?? []).map((pick) => pick.symbol.toUpperCase()));
     const needle = query.trim().toUpperCase();
@@ -291,6 +296,7 @@ export default function NexusPrototype() {
           <div className="nxp-side-filter">
             {(['all', 'long', 'short'] as const).map((value) => <button key={value} className={side === value ? 'active' : ''} onClick={() => setSide(value)}>{value}</button>)}
           </div>
+          {scope !== 'developing' && <HorizonFilter className="nxp-horizon-filter px-3 py-2" value={horizonCut.value} onChange={horizonCut.setValue} counts={horizonCut.counts} total={allRows.length} />}
           {scope === 'setups' && <div className="nxp-rank-filter">
             {(['all', 'new', 'best', 'conviction'] as const).map((value) => <button key={value} className={rank === value ? 'active' : ''} onClick={() => setRank(value)}>{value}</button>)}
           </div>}
@@ -378,7 +384,13 @@ export default function NexusPrototype() {
         <SignalGrid picks={rows} selectedId={selected?.ideaId ?? null} onSelect={(id) => { setSelectedId(id); setView('focus'); }} />
       </section>}
 
-      {view === 'table' && <section className="nxp-alt-view nxp-table-view"><SignalTable picks={rows} selectedId={selected?.ideaId ?? null} onSelect={(id) => { setSelectedId(id); setView('focus'); }} /></section>}
+      {view === 'table' && <section className="nxp-alt-view nxp-table-view">
+        <HorizonFilter className="mb-3" value={horizonCut.value} onChange={horizonCut.setValue} counts={horizonCut.counts} total={allRows.length} />
+        <IdeasTable picks={rows} selectedId={selected?.ideaId ?? null} onSelect={(id) => { setSelectedId(id); setView('focus'); }} />
+        <details className="mt-4"><summary className="cursor-pointer font-mono text-[11px] text-muted-foreground">Live geometry table</summary>
+          <SignalTable picks={rows} selectedId={selected?.ideaId ?? null} onSelect={(id) => { setSelectedId(id); setView('focus'); }} />
+        </details>
+      </section>}
 
       <AnimatePresence>
         {contextOpen && <>

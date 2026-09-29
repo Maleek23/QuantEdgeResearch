@@ -148,6 +148,8 @@ export interface ConvictionPick {
   currentPrice?: number | null;
   /** A published plan is not an executed position. Derived from the durable audit. */
   lifecycleState: OracleLifecycleState;
+  /** Stamped by /api/convictions at read time (shared/idea-horizon.ts). */
+  horizon?: import('../shared/idea-horizon').HorizonRead;
 }
 
 export interface ConvictionsResponse {

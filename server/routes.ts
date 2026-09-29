@@ -7692,6 +7692,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       data = { ...data, picks: picksWithHeld };
 
+      // Horizon (0DTE / weekly / swing / monthly / position / LEAPS) stamped at
+      // read time from expiry DTE or holding period — backfills every stored row
+      // without a migration. shared/idea-horizon.ts is the one rule.
+      {
+        const { classifyIdeaHorizon } = await import("@shared/idea-horizon");
+        const now = Date.now();
+        data = { ...data, picks: data.picks.map((p) => ({ ...p, horizon: classifyIdeaHorizon(p, now) })) };
+      }
+
       const meta = {
         _meta: {
           dataSource: "convictions_engine",

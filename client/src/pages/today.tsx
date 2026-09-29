@@ -24,6 +24,8 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { convictionDisplayPercent } from '@shared/conviction-display';
 import { Spark, RotQuad, SigCard, CHECK, fetchJson, useDaily, type RotationPayload, type CryptoPulse } from '@/components/landing/live-widgets';
+import { HorizonBook } from '@/components/ideas/horizon-book';
+import type { ConvictionPick } from '@/lib/convictions';
 import '@/styles/nexus.css';
 import '@/styles/today.css';
 
@@ -501,6 +503,19 @@ export default function TodayPage() {
                 );
               })}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* THE WHOLE BOOK · by horizon (0DTE / weekly / swing / monthly / LEAPS) */}
+      {ideas.length > 0 && (
+        <section>
+          <div className="container">
+            <div className="reveal">
+              <div className="sec-eyebrow">Every live idea · {ideas.length}</div>
+              <h2 className="lsec-title">The book by horizon</h2>
+            </div>
+            <HorizonBook picks={ideas as unknown as ConvictionPick[]} storageKey="qe.today.horizon" />
           </div>
         </section>
       )}
