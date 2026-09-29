@@ -322,4 +322,12 @@ import {
   assert.equal(TRADER_FEED_DEFAULTS.maxAgeTradingDays, 5);
 }
 
+// ─── 5 · NEXUS default still tiles 12×18 with the Trader calls tool ──────────
+{
+  const { NEXUS_DEFAULTS } = await import('../client/src/components/dashboard/defs/nexus');
+  const { tilingIssues } = await import('../client/src/components/dashboard/layout');
+  for (const d of NEXUS_DEFAULTS) assert.deepEqual(tilingIssues(d.tools.map(([type, x, y, w, h]) => ({ type, x, y, w, h }))), [], `nexus default ${d.id} tiles`);
+  assert.ok(NEXUS_DEFAULTS[0].tools.some(([t]) => t === 'nexus-trader-calls'), 'Trader calls is on the NEXUS default');
+}
+
 console.log('discord forum checks passed');

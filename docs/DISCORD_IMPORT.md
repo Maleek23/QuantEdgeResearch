@@ -1,5 +1,146 @@
 # Discord → trader journal import
 
+> **2026-09-29 (feat/forum) — Discord FORUM import.** The operator's server has a
+> forum channel of trading journals, one thread per trader. **Journal › Import ›
+> Discord forum** (admin only, any book) imports all of them at once into each
+> trader's book. This section is that flow; the older single-channel → watchlist
+> importer further down is unchanged.
+
+## Discord forum → every trader's book
+
+What it does, per thread:
+
+| From the thread | Lands in | Notes |
+|---|---|---|
+| Every message (the trader's and anyone replying) | the trader's **Notebook** — `journal_notes`, `source='discord'`, `reason='discord_post'` | Text as posted; author, time, a link back to the message, attachments/images kept as links (never downloaded). Keyed by message id: re-import updates edits, never duplicates. |
+| The thread author's calls/fills the parser reads | the trader's **Trades** — `journal_trades`, `broker='discord'`, `broker_order_id='discord:<entry message id>'` | Ticker, side, contract (strike/expiry/call-put), entry, trims, exit, stated stop/target, size when stated. **P&L only when both entry and exit are stated** (exit price, or a % the price is derived from and flagged). Open calls stay open — no exit is ever invented. Each trade carries a parse confidence (0–100%) and its source link. |
+| The author's messages that look like trades but did not parse | the **review list** — Notebook › REVIEW filter, and the preview | entry without a price · exit with no open entry · closed without a price · "reads like a trade" (a contract or ticker + trade words but no fill). |
+| Tickers they called | their **watchlist** (one row per ticker, latest call as the note) | Same fold as the channel importer. |
+
+Comments by other people in a thread are Notebook posts (labelled with their
+author) but never become that trader's trades.
+
+### Thread → trader mapping
+
+The preview proposes a trader per thread and the operator confirms:
+
+- **Existing trader** when a word of the thread name is a trader's slug or name
+  ("femi's trading journals" → femi, "UZO's Road to a Milly" → uzo), or the
+  thread's author matches a trader's handle.
+- **New trader** otherwise, from the first word, possessive dropped:
+  "Leeks $300 to 5 figgy challenge" → `leek`, "kasyah's futures journal" → `kasyah`,
+  "ayo's trading journal" → `ayo`, "Teejay's journals" → `teejay`,
+  "P4E's Journal" → `p4e`, "gushiesty's journal" → `gushiesty`. A new trader is
+  created **only** when the operator ticks "create trader" and gives it a name.
+  Slug and name are editable in the preview. Any thread can be skipped (threads
+  with no posts are skipped by default).
+
+On commit, an existing trader with no source/handle/channel gets `source='discord'`,
+the thread author as handle, and the thread id as its Discord channel.
+
+### Bot mode — exact operator steps
+
+1. <https://discord.com/developers/applications> → **New Application** (name it e.g.
+   "QuantEdge Journal Reader") → **Bot** → **Reset Token** → copy the token (shown once).
+2. Same Bot page → **Privileged Gateway Intents** → turn on **MESSAGE CONTENT INTENT**
+   → Save. Without it every message arrives with empty text; the preview warns
+   "empty content — enable the Message Content intent for the bot".
+3. **OAuth2 → URL Generator** → scopes: `bot` → bot permissions: **View Channels** and
+   **Read Message History** only (no Send Messages, nothing else). Open the generated
+   URL and add the bot to the server that holds the forum (needs *Manage Server* on
+   that server — or send the URL to its owner).
+4. If the forum has channel-level permission overrides, make sure the bot's role can
+   **View Channel** + **Read Message History** on the forum itself.
+5. On the droplet, add to the production `.env` (the web process):
+   ```sh
+   DISCORD_BOT_TOKEN=<the bot token>
+   ```
+   and restart the app. `GET /api/journal/sources` then reports
+   `capabilities.discordBot: true` and the Import page shows **BOT · READ FORUM**.
+6. In Discord: Settings → Advanced → **Developer Mode** on; right-click the forum
+   channel → **Copy Channel ID**.
+7. Journal › Import › Discord forum → **BOT · READ FORUM** → paste the id → **Read
+   forum** → review the mapping/trades → **Import N threads**.
+
+The reader (`server/discord-reader.ts`) only issues `GET`s:
+`GET /channels/{forum}` (guild id, type check) → `GET /guilds/{guild}/threads/active`
+filtered by `parent_id` → `GET /channels/{forum}/threads/archived/public?before=<archive_timestamp>`
+until `has_more` is false → for each thread `GET /channels/{thread}/messages?limit=100&before=<id>`.
+It honours `429 retry_after` (bounded retries) and sleeps out `X-RateLimit-Reset-After`
+when `X-RateLimit-Remaining` hits 0. ~1,300 messages ≈ 15–20 requests. Caps: 5,000
+messages per thread, 20,000 per preview.
+
+### Export mode (no bot token)
+
+1. [DiscordChatExporter](https://github.com/Tyrrrz/DiscordChatExporter) — export **each
+   thread** as **JSON** (the GUI lists forum threads under the forum; the CLI takes the
+   thread id as the channel):
+   ```sh
+   DiscordChatExporter.Cli export -t <your token> -c <thread id> -f Json -o "femi.json"
+   ```
+   (Recent DiscordChatExporter versions can also export a forum's threads in one go —
+   check `DiscordChatExporter.Cli export --help` for a thread option. One JSON per
+   thread is what the importer expects either way.)
+   Don't use `--media` (local paths can't be served).
+2. Journal › Import › Discord forum → **EXPORT FILES** → drop all the `.json` files,
+   or one `.zip` of them (unzipped in the browser; ≤ 38 MB of JSON per import).
+3. Same preview → confirm → import. Several parts of one thread (date ranges) merge
+   by message id.
+
+Only JSON: thread identity (id, name, forum, server) comes from the export's
+`channel`/`guild` blocks; CSV exports don't carry it.
+
+**Attachment links**: Discord CDN links are signed and expire (~24 h). Posts keep the
+link as posted; re-running the bot import refreshes them. Images are never copied.
+
+### Analysis, ranking, NEXUS
+
+- **Journal › Trader ranking** (`GET /api/traders/leaderboard`, `/api/traders/:slug/analysis`):
+  per trader — *stated* stats (only trades with entry AND exit posted: win rate,
+  avg % on the stated entry equal-weighted, profit factor on % returns, avg R where a
+  stop on the risk side was stated, hold time, best setups/tickers, LOW N under 20) and
+  *measured on underlying* for calls with no stated exit (open of the first daily bar
+  that starts after the post — no look-ahead — then 5 trading bars or to expiry;
+  signed for the call's side; stated stop/target used only for stock calls; a bar
+  printing both is scored as the stop). Measured results are **never** labelled as
+  the trader's P&L. Score = mean of the two win rates, each shrunk toward 50% by 5
+  phantom trades. External traders' histories are shown with their dates (the
+  platform's pre-2026-08-26 outcome invalidation is about the platform's own records).
+- **NEXUS › Trader calls** (`GET /api/trader-calls`): open calls ≤ 5 trading days
+  old, parse confidence ≥ 60%, from traders whose score ≥ 55 on ≥ 10 scored calls.
+  Shown as "Trader call · Femi · 2h ago" with the message link, the stated entry
+  labelled as stated-at-post, and the underlying **repriced live** (quote source
+  stamped; a bars-derived quote is marked "last close", never "now"). Also a `TC`
+  badge on a matching setup row and an evidence block in the setup detail.
+  Thresholds: `TRADER_FEED_MIN_SCORE`, `TRADER_FEED_MIN_SAMPLE`,
+  `TRADER_FEED_MAX_AGE_DAYS`, `TRADER_FEED_MIN_CONFIDENCE` (env; defaults in
+  `shared/trader-ranking.ts`).
+- **Evidence, not an auto-trade.** Trader calls are NOT fed into bot confluence
+  (`shared/loss-rules.ts`), conviction scoring, or any bot gate. They are read only
+  by NEXUS's display and the journal.
+
+### Schema
+
+`migrations/0003_discord_forum.sql` adds `journal_notes.meta jsonb` (+ an
+`(owner_id, reason)` index). **Apply it before deploying this code** — Drizzle
+selects every column, so the Notebook errors until the column exists:
+```sh
+pg_dump "$DATABASE_URL" -Fc -f pre-0003.dump
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/0003_discord_forum.sql
+```
+Trades need no schema change (source metadata rides in `journal_trades.raw_csv_row`).
+
+### Parser accuracy (fixtures, `scripts/test-discord-forum.ts`)
+
+On 16 labelled fixture messages the grammar was extended against: 16/16 exact. On
+12 held-out fixture messages in other styles: 7/12 exact, 36/42 fields (85.7%).
+Known misses: `TP 5.00` mid-message (read as nothing, not a target), "bought 100
+shares of F" (single-letter ticker without `$`), "Stop hit on RIVN" (no ticker
+read), futures prices without decimals ("long ES 5850"), "sold half … for 2.5".
+Those land on the review list or as open calls, never as invented P&L.
+
+---
+
 > **2026-09-29 — target changed.** Discord imports now fill a trader's **watchlist**
 > (one row per ticker they posted: mention count, last mention, their latest call
 > as the note), not their journal. Traders keep their own journal once they have

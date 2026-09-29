@@ -53,7 +53,7 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 
 **Fit.** Desktop: the page is `100dvh − chrome`; only the grid and tool bodies scroll.
 
-## Registry (89 tools)
+## Registry (90 tools)
 
 | Category | id | Title | Defined in |
 |---|---|---|---|
@@ -89,6 +89,7 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 | Ideas | `nexus-developing` | Developing candidates | `defs/nexus.ts` |
 | Ideas | `nexus-positions` | Bot positions | `defs/nexus.ts` |
 | Market | `nexus-context` | Market context · macro risk | `defs/nexus.ts` |
+| Ideas | `nexus-trader-calls` | Trader calls · ranked traders' open calls (evidence) | `defs/nexus.ts` |
 | Ideas | `nexus-horizon` | Book by horizon | `defs/nexus.ts` |
 | Ideas | `nexus-classic` | NEXUS (all-in-one, classic) | `defs/nexus.ts` |
 | Market | `chart-lab-chart` | Chart Lab · levels chart | `defs/chart.ts` |
@@ -154,7 +155,7 @@ Every default tiles 12 × 18 exactly (DEV assertion `tilingIssues`, pages.ts). O
 - **flow:default** (Market flow) — `options-flow` (0,0 8×11), `top-tickers` (8,0 4×11), `market-tide` (0,11 4×7), `flow-sweeps-blocks` (4,11 4×7), `flow-unusual` (8,11 4×7)
 - **flow:ticker** (Ticker flow) — `stock-chart` (0,0 6×11), `net-flow-strike` (6,0 3×11), `flow-gex-convergence` (9,0 3×11), `flow-strike-expiry` (0,11 6×7), `flow-timeline` (6,11 3×7), `dark-pool-flow` (9,11 3×7)
 - **gex:default** (GEX) — `gex-matrix` (0,0 7×10), `stock-chart` (7,0 5×10), `gex-dealer-map` (0,10 3×8), `gex-levels` (3,10 3×8), `gex-regime` (6,10 3×8), `gex-profile` (9,10 3×8)
-- **nexus:default** (NEXUS) — `nexus-board` (0,0 3×18), `nexus-detail` (3,0 6×11), `nexus-context` (9,0 3×11), `nexus-developing` (3,11 5×7), `nexus-positions` (8,11 4×7)
+- **nexus:default** (NEXUS) — `nexus-board` (0,0 3×18), `nexus-detail` (3,0 6×11), `nexus-context` (9,0 3×6), `nexus-trader-calls` (9,6 3×5), `nexus-developing` (3,11 5×7), `nexus-positions` (8,11 4×7)
 - **chart:default** (Chart) — `stock-chart` (0,0 8×18), `chart-watchlists` (8,0 4×11), `chart-levels` (8,11 4×7)
 - **chart:lab** (Chart Lab) — `chart-lab` (0,0 12×18)
 - **crypto:default** (Crypto) — `crypto-chart` (0,0 8×11), `crypto-spot` (8,0 4×11), `crypto-proxy-gate` (0,11 6×7), `crypto-sentiment` (6,11 3×7), `crypto-correlation` (9,11 3×7)

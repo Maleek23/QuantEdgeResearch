@@ -70,6 +70,7 @@ let boardCache: { at: number; value: ReturnType<typeof buildBoard> } | null = nu
 export function invalidateTraderAnalysis() {
   cache.clear();
   boardCache = null;
+  boardInflight = null;
 }
 
 function toCall(r: JournalTrade): CallRow {
@@ -156,17 +157,28 @@ function buildBoard(list: TraderAnalysis[], cfg: TraderFeedConfig) {
   return { asOf: new Date().toISOString(), config: cfg, rows: ranked };
 }
 
+let boardInflight: Promise<ReturnType<typeof buildBoard>> | null = null;
+
+/**
+ * Every trader, ranked. The first read after a restart or import reads daily
+ * bars for open calls (cached 30 min); concurrent callers (NEXUS polling, the
+ * journal) share one in-flight computation instead of stampeding the bar feed.
+ */
 export async function leaderboard() {
   if (boardCache && Date.now() - boardCache.at < TTL_MS) return boardCache.value;
-  const all = await db.select().from(traders);
-  const list: TraderAnalysis[] = [];
-  for (const t of all) {
-    const a = await traderAnalysis(t.slug);
-    if (a && (a.stats.sample > 0 || a.stats.open > 0)) list.push(a);
-  }
-  const value = buildBoard(list, traderFeedConfig());
-  boardCache = { at: Date.now(), value };
-  return value;
+  if (boardInflight) return boardInflight;
+  boardInflight = (async () => {
+    const all = await db.select().from(traders);
+    const list: TraderAnalysis[] = [];
+    for (const t of all) {
+      const a = await traderAnalysis(t.slug);
+      if (a && (a.stats.sample > 0 || a.stats.open > 0)) list.push(a);
+    }
+    const value = buildBoard(list, traderFeedConfig());
+    boardCache = { at: Date.now(), value };
+    return value;
+  })().finally(() => { boardInflight = null; });
+  return boardInflight;
 }
 
 export interface TraderCall {
