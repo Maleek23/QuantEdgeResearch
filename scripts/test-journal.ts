@@ -8,10 +8,13 @@
 import assert from 'node:assert/strict';
 import { journalDayKey, matchesJournalFilters, parseJournalFilters, journalFiltersToParams, journalRowOutcome } from '../shared/journal-filters';
 import { buildJournalTradeUpdate, deriveJournalTradeFields, journalTradeInputSchema } from '../server/journal-trade-input';
-import { calendarMonth, computeMetrics, dailyStats, drawdownPeriods, equityCurve, groupBy, toTrade } from '../client/src/lib/journal/metrics';
-import { resolveJournalTab } from '../client/src/lib/journal/legacy-jtab';
+import {
+  calendarMonth, computeMetrics, crossBuckets, dailyStats, dayStreaks, drawdownPeriods, equityCurve, groupBy, missingDim, noteLine,
+  peakConcurrent, periodStart, reportBuckets, rollingStats, ruleOfReason, toTrade,
+} from '../client/src/lib/journal/metrics';
+import { FILTERED_PAGES, JOURNAL_PAGES, LEGACY_JTAB, TRADE_PAGES, resolveJournalPage, resolveJournalTab } from '../client/src/lib/journal/legacy-jtab';
 import type { JournalTradeRow } from '../client/src/lib/journal/types';
-import { parseJournalKey, traderOwnerId, journalKindOf } from '../shared/journal-sources';
+import { parseJournalKey, traderOwnerId, journalKindOf, journalNoteKey } from '../shared/journal-sources';
 import { decodeOccSymbol, pairFills, type BrokerFill } from '../shared/fill-pairing';
 import { mapDeskIdea, type DeskIdea } from '../server/journal-row-maps';
 import {
@@ -75,15 +78,60 @@ const orb = groupBy(trades, 'setup').find((b) => b.key === 'ORB')!;
 assert.deepEqual([orb.closed, orb.netPnl, orb.winRate], [2, 50, 0.5]);
 assert.equal(drawdownPeriods(equityCurve(trades))[0].depth, 300);
 
-// ── legacy ?jtab= ──
+// ── ?jtab= / ?jpage= → sidebar pages ──
 assert.equal(resolveJournalTab('metrics').view, 'record');
 assert.equal(resolveJournalTab('log').view, 'dashboard');
 assert.equal(resolveJournalTab('backtest').intent?.kind, 'backtest');
-assert.deepEqual(resolveJournalTab('timing'), { view: 'analytics', intent: { kind: 'anchor', id: 'jr-time' } });
+assert.deepEqual(resolveJournalTab('timing'), { view: 'reports', intent: { kind: 'anchor', id: 'jr-time' } }, 'Trade Log → Timing now lives in Reports');
+assert.deepEqual(resolveJournalTab('insights'), { view: 'reports', intent: { kind: 'anchor', id: 'jr-insights' } });
+assert.equal(resolveJournalTab('analytics').view, 'reports', 'the 4-tab Analytics id resolves to Reports');
 assert.equal(resolveJournalTab('simulator').view, 'trades');
-assert.equal(resolveJournalTab('import').intent?.kind, 'import');
+assert.equal(resolveJournalTab('import').view, 'import', 'import is a page now, not a drawer intent');
+assert.deepEqual(resolveJournalTab('flow'), { view: 'import', intent: { kind: 'import', section: 'flow' } });
+assert.equal(resolveJournalTab('add').intent?.kind, 'add');
 assert.equal(resolveJournalTab('toString').view, 'dashboard', 'prototype keys are not tabs');
 assert.equal(resolveJournalTab(null).view, 'dashboard');
+assert.equal(resolveJournalTab(' Calendar ').view, 'calendar', 'trimmed, case-insensitive');
+for (const [alias, view] of [['journal', 'daily'], ['notes', 'notebook'], ['setups', 'playbooks'], ['goals', 'progress'], ['blocked', 'missed'], ['alpaca', 'accounts'], ['preferences', 'settings']] as const) {
+  assert.equal(resolveJournalTab(alias).view, view, `alias ${alias}`);
+}
+// Every sidebar page is reachable by its own id, and the 4 old destination ids still resolve.
+for (const p of JOURNAL_PAGES) assert.equal(resolveJournalTab(p.id).view, p.id, `page ${p.id} resolves to itself`);
+for (const old of ['dashboard', 'trades', 'analytics', 'record']) assert.ok(Object.prototype.hasOwnProperty.call(LEGACY_JTAB, old), `old view id ${old}`);
+assert.deepEqual(JOURNAL_PAGES.map((p) => p.id), ['dashboard', 'calendar', 'daily', 'trades', 'reports', 'notebook', 'playbooks', 'progress', 'missed', 'import', 'accounts', 'settings', 'record']);
+assert.ok(!JOURNAL_PAGES.some((p) => (p.id as string) === 'prop-firms'), 'Prop firms is not carried over');
+assert.equal(resolveJournalPage('?jpage=progress&jtab=trades').view, 'progress', '?jpage= wins over ?jtab=');
+assert.equal(resolveJournalPage('?jtab=missed').view, 'missed');
+assert.equal(resolveJournalPage('').view, 'dashboard');
+assert.ok([...TRADE_PAGES].every((v) => FILTERED_PAGES.has(v)), 'every trade page shows the filter bar');
+
+// ── note keys ──
+assert.equal(journalNoteKey('day_note', '2026-09-29'), 'day:2026-09-29');
+assert.equal(journalNoteKey('playbook', ' ORB '), 'playbook:orb', 'one definition per setup, case-insensitive');
+assert.equal(journalNoteKey('missed', '2026-09-29'), null, 'many missed trades per day');
+
+// ── reports / progress / playbooks helpers ──
+assert.deepEqual(reportBuckets(trades, 'weekday').map((b) => b.key), ['Tue'], 'all fixtures entered Tue Sep 1 ET');
+assert.equal(reportBuckets(trades, 'duration')[0].key, '30m–2h');
+assert.equal(reportBuckets(trades, 'symbol').find((b) => b.key === 'SPY')!.avgDurationMs != null, true);
+assert.equal(missingDim(trades, 'setup'), 3, 'three fixtures have no setup');
+const cross = crossBuckets(trades, 'setup', 'side');
+assert.deepEqual(cross.map((c) => c.key), ['ORB × long']);
+assert.equal(cross[0].closed, 2);
+const roll = rollingStats(trades, 2);
+assert.equal(roll.length, 3, '4 closes, window 2 → 3 windows');
+assert.deepEqual([roll[0].winRate, roll[0].expectancy], [0.5, 25]);
+assert.deepEqual([roll[2].winRate, roll[2].expectancy], [0.5, -50]);
+assert.deepEqual(dayStreaks(dailyStats(trades)), { maxGreen: 1, maxRed: 1, current: -1 });
+assert.equal(peakConcurrent(trades, Date.parse('2026-09-10T00:00:00Z')), 5, 'every fixture opened at the same instant');
+assert.equal(peakConcurrent([toTrade(row({ entryTime: '2026-09-01T14:00:00Z', exitTime: '2026-09-01T15:00:00Z' })), toTrade(row({ entryTime: '2026-09-01T15:00:00Z', exitTime: '2026-09-01T16:00:00Z' }))]), 1, 'exit and entry at the same instant do not overlap');
+assert.equal(noteLine(toTrade(row({ notes: 'Entry: ORB\nExit: gap magnet at $412.10 — banked +38%' })), 'Exit:'), 'gap magnet at $412.10 — banked +38%');
+assert.equal(ruleOfReason('gap magnet at $412.10 — banked +38%'), 'gap magnet');
+assert.equal(ruleOfReason('stop hit (−12%)'), 'stop hit');
+assert.equal(ruleOfReason('target 1 hit — +40%'), 'target 1 hit', 'rule numbers stay, trade numbers go');
+assert.equal(ruleOfReason('trailed out +12.5% below 190.25'), 'trailed out below', 'money/percent/decimals stripped');
+assert.equal(periodStart('2026-09-30', 'week'), '2026-09-28');
+assert.equal(periodStart('2026-09-30', 'month'), '2026-09-01');
 
 // ── journal keys ──
 assert.equal(parseJournalKey(null), 'mine');

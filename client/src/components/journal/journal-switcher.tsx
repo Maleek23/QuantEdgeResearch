@@ -63,7 +63,7 @@ export function JournalSwitcher({ value, onChange, sources, loading }: {
 }
 
 /** "Computed on …" — present on every journal view so no number is unattributed. */
-export function JournalBasis({ meta, shown, total }: { meta: JournalSourceMeta | null; shown: number; total: number }) {
+export function JournalBasis({ meta, shown, total, sizing = 'show' }: { meta: JournalSourceMeta | null; shown: number; total: number; sizing?: 'show' | 'hide' }) {
   if (!meta) return null;
   const excluded = (meta.excluded ?? []).filter((e) => e.count > 0);
   const nExcluded = excluded.reduce((s, e) => s + e.count, 0);
@@ -76,7 +76,9 @@ export function JournalBasis({ meta, shown, total }: { meta: JournalSourceMeta |
         <b>{head}</b>{rest.length ? <> — {rest.join(' — ')}</> : null}.{' '}
         <span className="jr-n">n={shown}{shown !== total ? ` of ${total}` : ''} trades{meta.readOnly ? ' · read-only' : ''}</span>
       </div>
-      {meta.sizing && <div className="jr-basis-s">{meta.sizing}</div>}
+      {meta.sizing && (sizing === 'show'
+        ? <div className="jr-basis-s">{meta.sizing}</div>
+        : <details className="jr-basis-s"><summary style={{ cursor: 'pointer' }}>How P&amp;L is sized</summary>{meta.sizing}</details>)}
       {nExcluded > 0 && (
         <details className="jr-basis-s">
           <summary style={{ cursor: 'pointer' }}>{nExcluded} source row{nExcluded === 1 ? '' : 's'} not scored — why</summary>

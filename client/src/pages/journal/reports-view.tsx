@@ -1,5 +1,5 @@
 /**
- * Journal · Analytics — LuxAlgo's Reports (breakdowns by symbol/tag/mistake/
+ * Journal · Reports (was Analytics until the 2026-09-29 sidebar) — LuxAlgo's Reports (breakdowns by symbol/tag/mistake/
  * playbook, time-of-day/weekday/duration performance, drawdown) on our rows,
  * as one scrolling page with jump links instead of more tabs. It absorbs the
  * old Trade Log → Insights and → Timing tabs and the Overview's ticker/setup
@@ -16,21 +16,26 @@ import { UnderwaterChart } from '@/components/journal/equity-chart';
 import { useJournal } from '@/components/journal/journal-context';
 import { BucketBars, BucketTable, Card, LowSample, N, Pnl } from '@/components/journal/parts';
 import {
-  byDuration, byHour, byWeek, byWeekday, fmtMoney, fmtPct, fmtRatio, groupBy, GROUP_BY_LABEL,
-  drawdownPeriods, underwater, type GroupBy,
+  byDuration, byHour, byWeek, byWeekday, crossBuckets, fmtMoney, fmtPct, fmtRatio, missingDim, reportBuckets,
+  REPORT_DIM_LABEL, drawdownPeriods, underwater, type ReportDim,
 } from '@/lib/journal/metrics';
 import type { BehaviorInsight, TimingInsight } from '@/lib/journal/types';
 
 const shortDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
 
-const GROUPS: GroupBy[] = ['setup', 'symbol', 'mistake', 'emotion', 'side', 'asset', 'broker', 'rating'];
+const DIMS: ReportDim[] = ['symbol', 'setup', 'mistake', 'emotion', 'weekday', 'hour', 'duration', 'side', 'asset', 'broker', 'rating'];
+const dimOptions = DIMS.map((g) => <option key={g} value={g}>{REPORT_DIM_LABEL[g]}</option>);
 
-export default function AnalyticsView() {
+export default function ReportsView() {
   const { data, filters } = useJournal();
   const { trades, curve, days, metrics: m, analyticsQ } = data;
-  const [by, setBy] = useState<GroupBy>('setup');
+  const [by, setBy] = useState<ReportDim>('symbol');
+  const [crossA, setCrossA] = useState<ReportDim>('setup');
+  const [crossB, setCrossB] = useState<ReportDim>('weekday');
 
-  const buckets = useMemo(() => groupBy(trades, by), [trades, by]);
+  const buckets = useMemo(() => reportBuckets(trades, by), [trades, by]);
+  const missing = useMemo(() => missingDim(trades, by), [trades, by]);
+  const cross = useMemo(() => (crossA === crossB ? [] : crossBuckets(trades, crossA, crossB)), [trades, crossA, crossB]);
   const weekday = useMemo(() => byWeekday(trades), [trades]);
   const hour = useMemo(() => byHour(trades).map((b) => ({ ...b, key: `${b.key}:00 ET` })), [trades]);
   const hold = useMemo(() => byDuration(trades), [trades]);
@@ -39,10 +44,11 @@ export default function AnalyticsView() {
   const periods = useMemo(() => drawdownPeriods(curve).slice(0, 5), [curve]);
 
   /** Click a bucket → filter the whole journal to it (LuxAlgo: breakdowns drill into filters). */
+  const FILTER_OF: Partial<Record<ReportDim, keyof JournalFilters>> = { setup: 'setup', mistake: 'mistake', emotion: 'emotion', side: 'side', asset: 'asset', broker: 'broker' };
+  const pickable = by === 'symbol' || !!FILTER_OF[by];
   const pick = (key: string) => {
-    const map: Partial<Record<GroupBy, keyof JournalFilters>> = { setup: 'setup', mistake: 'mistake', emotion: 'emotion', side: 'side', asset: 'asset', broker: 'broker' };
     if (by === 'symbol') filters.setFilter('symbols', [key]);
-    else if (map[by]) filters.setFilter(map[by]!, key as never);
+    else if (FILTER_OF[by]) filters.setFilter(FILTER_OF[by]!, key as never);
   };
 
   const a = analyticsQ.data;
@@ -52,46 +58,69 @@ export default function AnalyticsView() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <nav className="jr-jumps" aria-label="Analytics sections">
+      <nav className="jr-jumps" aria-label="Report sections">
         <a href="#jr-breakdowns">Breakdowns</a>
+        <a href="#jr-cross">Cross-analysis</a>
         <a href="#jr-time">Time</a>
         <a href="#jr-risk">Risk</a>
         <a href="#jr-insights">Insights</a>
       </nav>
 
-      <Card id="jr-breakdowns" className="jr-anchor" num="01" title={`Performance by ${GROUP_BY_LABEL[by].toLowerCase()}`}
+      <Card id="jr-breakdowns" className="jr-anchor" num="01" title={`Performance by ${REPORT_DIM_LABEL[by].toLowerCase()}`}
         meta={
-          <select className="jr-select" aria-label="Group trades by" value={by} onChange={(e) => setBy(e.target.value as GroupBy)}>
-            {GROUPS.map((g) => <option key={g} value={g}>By {GROUP_BY_LABEL[g].toLowerCase()}</option>)}
-          </select>
+          <>
+            <N n={m.closedTrades} />
+            <select className="jr-select" aria-label="Report by" value={by} onChange={(e) => setBy(e.target.value as ReportDim)}>{dimOptions}</select>
+          </>
         }>
         {buckets.length ? (
           <>
-            <BucketTable buckets={buckets} keyLabel={GROUP_BY_LABEL[by]} onPick={by === 'rating' ? undefined : pick} />
+            <BucketTable buckets={buckets} keyLabel={REPORT_DIM_LABEL[by]} onPick={pickable ? pick : undefined} showHold />
             <p className="jr-note">
-              Rates use closed trades only (n). {by !== 'rating' && 'Select a row to filter the whole journal to it. '}
-              {['setup', 'mistake', 'emotion', 'rating'].includes(by) && `${trades.filter((t) => !(by === 'setup' ? t.row.setupType : by === 'mistake' ? t.row.mistakeTag : by === 'emotion' ? t.row.emotion : t.row.rating)).length} trades in view have no ${GROUP_BY_LABEL[by].toLowerCase()} and are not counted here.`}
+              Rates use closed trades only (n). {pickable && 'Select a row to filter the whole journal to it. '}
+              {missing > 0 && `${missing} trade${missing === 1 ? '' : 's'} in view ha${missing === 1 ? 's' : 've'} no ${REPORT_DIM_LABEL[by].toLowerCase()} and ${missing === 1 ? 'is' : 'are'} not counted here.`}
+              {(by === 'weekday' || by === 'hour') && ' Bucketed by entry time, New York.'}
             </p>
           </>
         ) : (
-          <QEEmpty message={`No trades in view carry a ${GROUP_BY_LABEL[by].toLowerCase()} yet. Add one from a trade's Edit form.`} />
+          <QEEmpty message={`No trades in view carry a ${REPORT_DIM_LABEL[by].toLowerCase()}${data.meta?.canWrite ? " yet. Add one from a trade's Edit form." : '.'}`} />
+        )}
+      </Card>
+
+      <Card id="jr-cross" className="jr-anchor" num="02" title="Cross-analysis"
+        meta={
+          <>
+            <select className="jr-select" aria-label="Rows" value={crossA} onChange={(e) => setCrossA(e.target.value as ReportDim)}>{dimOptions}</select>
+            <span className="jr-n">×</span>
+            <select className="jr-select" aria-label="Then by" value={crossB} onChange={(e) => setCrossB(e.target.value as ReportDim)}>{dimOptions}</select>
+          </>
+        }>
+        {crossA === crossB ? (
+          <QEEmpty message="Pick two different dimensions to cross." />
+        ) : cross.length ? (
+          <>
+            <BucketTable buckets={cross.slice(0, 60)} keyLabel={`${REPORT_DIM_LABEL[crossA]} × ${REPORT_DIM_LABEL[crossB]}`} showHold />
+            <p className="jr-note">{cross.length > 60 ? `Top 60 of ${cross.length} pairs by net P&L. ` : ''}Pairs split the sample thin — read the n and the LOW N flags before the win rate.</p>
+          </>
+        ) : (
+          <QEEmpty message={`No trades in view carry both a ${REPORT_DIM_LABEL[crossA].toLowerCase()} and a ${REPORT_DIM_LABEL[crossB].toLowerCase()}.`} />
         )}
       </Card>
 
       <div className="jr-grid jr-anchor" id="jr-time">
-        <Card className="jr-span-4" num="02" title="By weekday" meta={<span className="jr-n">entry day, ET</span>}>
+        <Card className="jr-span-4" num="03" title="By weekday" meta={<span className="jr-n">entry day, ET</span>}>
           <BucketBars buckets={weekday} empty="No trades in view." />
         </Card>
-        <Card className="jr-span-4" num="03" title="By entry hour" meta={<span className="jr-n">New York time</span>}>
+        <Card className="jr-span-4" num="04" title="By entry hour" meta={<span className="jr-n">New York time</span>}>
           <BucketBars buckets={hour} empty="No trades in view." />
         </Card>
-        <Card className="jr-span-4" num="04" title="By holding time">
+        <Card className="jr-span-4" num="05" title="By holding time">
           <BucketBars buckets={hold} empty="No closed trades with an exit time in view." />
         </Card>
-        <Card className="jr-span-6" num="05" title="By session" meta={<span className="jr-n">server engine</span>}>
+        <Card className="jr-span-6" num="06" title="By session" meta={<span className="jr-n">server engine</span>}>
           {serverBlock(() => <TimingList data={a?.timingBySession ?? []} empty="No session data in view." />)}
         </Card>
-        <Card className="jr-span-6" num="06" title="Trades per day" meta={<span className="jr-n">server engine</span>}>
+        <Card className="jr-span-6" num="07" title="Trades per day" meta={<span className="jr-n">server engine</span>}>
           {serverBlock(() => (a?.tradeCountOptimum ?? []).length ? (
             <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
               {a!.tradeCountOptimum.map((b) => (
@@ -104,7 +133,7 @@ export default function AnalyticsView() {
             </div>
           ) : <QEEmpty message="Not enough trading days in view to compare daily trade counts." />)}
         </Card>
-        <Card className="jr-span-12" num="07" title="Options by days to expiry" meta={<span className="jr-n">server engine · option trades with an expiry</span>}>
+        <Card className="jr-span-12" num="08" title="Options by days to expiry" meta={<span className="jr-n">server engine · option trades with an expiry</span>}>
           {serverBlock(() => (a?.dteBreakdown ?? []).length ? (
             <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
               {a!.dteBreakdown.map((d) => (
@@ -120,7 +149,7 @@ export default function AnalyticsView() {
       </div>
 
       <div className="jr-grid jr-anchor" id="jr-risk">
-        <Card className="jr-span-7" num="08" title="Drawdown" meta={<N n={curve.length} unit="closes" />}>
+        <Card className="jr-span-7" num="09" title="Drawdown" meta={<N n={curve.length} unit="closes" />}>
           <UnderwaterChart points={uw} height={140} />
           <div className="jr-stats" style={{ marginTop: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
             <div><span>Max drawdown</span><b className={m.maxDrawdown ? 'jr-loss' : ''}>{fmtMoney(m.maxDrawdown ? -m.maxDrawdown : 0)}</b><small>peak → trough</small></div>
@@ -145,14 +174,14 @@ export default function AnalyticsView() {
           )}
           <p className="jr-note">Measured on cumulative net P&amp;L from $0 — the journal doesn't know your account balance, so no drawdown % is shown.</p>
         </Card>
-        <Card className="jr-span-5" num="09" title="Weekly P&L" meta={<N n={weeks.length} unit="weeks" />}>
+        <Card className="jr-span-5" num="10" title="Weekly P&L" meta={<N n={weeks.length} unit="weeks" />}>
           <BucketBars
             buckets={weeks.map((w) => ({ key: `wk ${w.week.slice(5)}`, trades: w.trades, closed: w.trades, wins: w.wins, netPnl: w.netPnl, winRate: w.trades ? w.wins / w.trades : null, profitFactor: null, profitFactorIsInfinite: false, expectancy: null }))}
             empty="No closed trades in view."
           />
           <p className="jr-note">Last 12 weeks with closes, newest first; weeks start Monday.</p>
         </Card>
-        <Card className="jr-span-12" num="10" title="Streaks & extremes" meta={<><N n={m.closedTrades} /><LowSample n={m.closedTrades} /></>}>
+        <Card className="jr-span-12" num="11" title="Streaks & extremes" meta={<><N n={m.closedTrades} /><LowSample n={m.closedTrades} /></>}>
           <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
             <div><span>Longest win streak</span><b>{m.maxWinStreak}</b><small>consecutive closed wins</small></div>
             <div><span>Longest loss streak</span><b>{m.maxLossStreak}</b><small>consecutive closed losses</small></div>
@@ -164,7 +193,7 @@ export default function AnalyticsView() {
         </Card>
       </div>
 
-      <Card id="jr-insights" className="jr-anchor" num="11" title="Behaviour insights" meta={<span className="jr-n">server engine · same filters</span>}>
+      <Card id="jr-insights" className="jr-anchor" num="12" title="Behaviour insights" meta={<span className="jr-n">server engine · same filters</span>}>
         {serverBlock(() => <InsightGroups insights={a?.insights ?? []} />)}
       </Card>
     </div>

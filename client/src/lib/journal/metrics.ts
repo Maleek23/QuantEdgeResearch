@@ -296,10 +296,12 @@ export interface BucketStats {
   profitFactor: number | null;
   profitFactorIsInfinite: boolean;
   expectancy: number | null;
+  /** Mean holding time of the closed trades that have one. */
+  avgDurationMs?: number | null;
 }
 
 export function bucketStats(key: string, trades: JTrade[]): BucketStats {
-  let closed = 0, wins = 0, netPnl = 0, profit = 0, loss = 0;
+  let closed = 0, wins = 0, netPnl = 0, profit = 0, loss = 0, durSum = 0, durN = 0;
   for (const t of trades) {
     if (t.status === 'open') continue;
     closed++;
@@ -307,6 +309,7 @@ export function bucketStats(key: string, trades: JTrade[]): BucketStats {
     netPnl += t.netPnl;
     profit += Math.max(0, t.netPnl);
     loss -= Math.min(0, t.netPnl);
+    if (t.durationMs != null) { durSum += t.durationMs; durN++; }
   }
   return {
     key,
@@ -318,6 +321,7 @@ export function bucketStats(key: string, trades: JTrade[]): BucketStats {
     profitFactor: loss > 0 ? profit / loss : null,
     profitFactorIsInfinite: loss === 0 && profit > 0,
     expectancy: closed ? netPnl / closed : null,
+    avgDurationMs: durN ? durSum / durN : null,
   };
 }
 
@@ -511,3 +515,123 @@ export function fmtPrice(v: number | null | undefined): string {
 
 /** Below this many closed trades a rate is shown with a "low sample" flag. */
 export const LOW_SAMPLE = 20;
+
+// ─── Reports, progress, playbooks (2026-09-29 sidebar pages) ─
+
+/** Every dimension Reports can break a book down by. */
+export type ReportDim = GroupBy | 'weekday' | 'hour' | 'duration';
+
+export const REPORT_DIM_LABEL: Record<ReportDim, string> = {
+  ...GROUP_BY_LABEL,
+  weekday: 'Weekday',
+  hour: 'Entry hour (ET)',
+  duration: 'Holding time',
+};
+
+/** Bucket keys of one trade for a dimension ([] = the trade has no value for it). */
+export function dimKeys(t: JTrade, dim: ReportDim): string[] {
+  switch (dim) {
+    case 'setup': return tagOf(t.row.setupType);
+    case 'symbol': return [t.symbol];
+    case 'mistake': return tagOf(t.row.mistakeTag);
+    case 'emotion': return tagOf(t.row.emotion);
+    case 'side': return [t.direction];
+    case 'asset': return [t.assetType];
+    case 'broker': return [t.row.broker || 'manual'];
+    case 'rating': return t.row.rating ? [`${t.row.rating}/5`] : [];
+    case 'weekday': { const w = nyParts(t.openedAt).weekday; return w ? [w] : []; }
+    case 'hour': { const h = nyParts(t.openedAt).hour; return Number.isFinite(h) ? [`${String(h).padStart(2, '0')}:00`] : []; }
+    case 'duration': return t.durationMs == null ? [] : [DURATION_BUCKETS.find((b) => t.durationMs! < b.maxMs)!.key];
+  }
+}
+
+/** Natural order for ordinal dimensions; by net P&L otherwise. */
+function orderBuckets(dim: ReportDim, buckets: BucketStats[]): BucketStats[] {
+  if (dim === 'weekday') return buckets.sort((a, b) => WEEKDAYS.indexOf(a.key as never) - WEEKDAYS.indexOf(b.key as never));
+  if (dim === 'hour') return buckets.sort((a, b) => a.key.localeCompare(b.key));
+  if (dim === 'duration') { const o = DURATION_BUCKETS.map((b) => b.key as string); return buckets.sort((a, b) => o.indexOf(a.key) - o.indexOf(b.key)); }
+  if (dim === 'rating') return buckets.sort((a, b) => b.key.localeCompare(a.key));
+  return buckets;
+}
+
+export function reportBuckets(trades: JTrade[], dim: ReportDim): BucketStats[] {
+  return orderBuckets(dim, groupInto(trades, (t) => dimKeys(t, dim)));
+}
+
+/** Cross-analysis: one bucket per (a, b) pair, keyed "a × b". */
+export function crossBuckets(trades: JTrade[], a: ReportDim, b: ReportDim): (BucketStats & { a: string; b: string })[] {
+  const SEP = '\u0000';
+  return groupInto(trades, (t) => dimKeys(t, a).flatMap((x) => dimKeys(t, b).map((y) => `${x}${SEP}${y}`)))
+    .map((s) => { const [x, y] = s.key.split(SEP); return { ...s, key: `${x} × ${y}`, a: x, b: y }; });
+}
+
+/** Trades with no value for a dimension — reported next to the table, never silently dropped. */
+export function missingDim(trades: JTrade[], dim: ReportDim): number {
+  return trades.filter((t) => dimKeys(t, dim).length === 0).length;
+}
+
+export interface RollingPoint { t: string; index: number; winRate: number; expectancy: number; n: number }
+
+/** Win rate and expectancy over the trailing `window` closed trades, at each close once `window` exist. */
+export function rollingStats(trades: JTrade[], window: number): RollingPoint[] {
+  const closed = closedByCloseTime(trades);
+  const out: RollingPoint[] = [];
+  let wins = 0, sum = 0;
+  closed.forEach((t, i) => {
+    if (t.status === 'win') wins++;
+    sum += t.netPnl;
+    if (i >= window) {
+      const old = closed[i - window];
+      if (old.status === 'win') wins--;
+      sum -= old.netPnl;
+    }
+    if (i >= window - 1) out.push({ t: t.closedAt, index: i + 1, winRate: wins / window, expectancy: sum / window, n: window });
+  });
+  return out;
+}
+
+export interface DayStreaks { maxGreen: number; maxRed: number; /** + green run, − red run (flat days end a run). */ current: number }
+
+export function dayStreaks(days: DayStats[]): DayStreaks {
+  let run = 0, maxGreen = 0, maxRed = 0;
+  for (const d of days) {
+    if (d.trades === 0) continue;
+    const dir = d.netPnl > 0 ? 1 : d.netPnl < 0 ? -1 : 0;
+    run = dir === 0 ? 0 : Math.sign(run) === dir ? run + dir : dir;
+    maxGreen = Math.max(maxGreen, run);
+    maxRed = Math.max(maxRed, -run);
+  }
+  return { maxGreen, maxRed, current: run };
+}
+
+/** Most positions open at the same instant (entry ≤ t < exit; open trades run to now). */
+export function peakConcurrent(trades: JTrade[], now = Date.now()): number {
+  const ev: [number, number][] = [];
+  for (const t of trades) {
+    const a = Date.parse(t.openedAt);
+    if (!Number.isFinite(a)) continue;
+    const b = t.closedAt ? Date.parse(t.closedAt) : now;
+    ev.push([a, 1], [Number.isFinite(b) ? b : now, -1]);
+  }
+  ev.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+  let cur = 0, peak = 0;
+  for (const [, d] of ev) { cur += d; peak = Math.max(peak, cur); }
+  return peak;
+}
+
+/** The first line of a trade's notes that starts with `prefix` ("Exit: …"), without the prefix. */
+export function noteLine(t: JTrade, prefix: string): string | null {
+  const line = (t.row.notes ?? '').split('\n').find((l) => l.startsWith(prefix));
+  return line ? line.slice(prefix.length).trim() || null : null;
+}
+
+/** "gap magnet at $412.10 — banked +38%" → "gap magnet": the rule, without this trade's numbers. */
+export function ruleOfReason(reason: string): string {
+  const head = reason.split(/\s[—–-]\s|:|\(| at \$| @ /)[0].replace(/[+\-−]?\$\d[\d.,]*|[+\-−]?\d[\d.,]*%|\d+\.\d+/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  return head.slice(0, 48) || 'unspecified';
+}
+
+/** YYYY-MM-DD of the Monday starting the week of `today` / first of its month. */
+export function periodStart(today: string, period: 'week' | 'month'): string {
+  return period === 'week' ? weekKey(today) : `${today.slice(0, 7)}-01`;
+}

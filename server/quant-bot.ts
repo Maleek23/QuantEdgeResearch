@@ -29,6 +29,8 @@ import {
 // OUTCOME_BASELINE_DATE.
 export const BOT_PORTFOLIO_NAME = 'Quant Bot · 100K';
 const BOT_USER = 'system-quant-bot';
+/** Owner id of every paper portfolio the bot trades (read by the journal's Accounts page). */
+export const BOT_USER_ID = BOT_USER;
 
 export interface BotConfig {
   minConviction: number;   // only take signals at/above this raw conviction score

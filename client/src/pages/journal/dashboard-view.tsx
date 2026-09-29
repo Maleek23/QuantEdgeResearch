@@ -22,7 +22,7 @@ import {
 const sortKey = (t: JTrade) => Date.parse(t.closedAt ?? t.openedAt);
 
 export default function DashboardView() {
-  const { data, openTrade, goTo, filters } = useJournal();
+  const { data, openTrade, goTo, filters, openDay } = useJournal();
   const { trades, days, curve, metrics: m, analyticsQ } = data;
   const [mode, setMode] = useState<'cumulative' | 'daily'>('cumulative');
 
@@ -78,7 +78,8 @@ export default function DashboardView() {
           <EquityChart curve={curve} days={days} mode={mode} height={250} />
         </Card>
 
-        <Card className="jr-span-5" num="02" title="P&L calendar" meta={<N n={m.tradingDays} unit="days" />}>
+        <Card className="jr-span-5" num="02" title="P&L calendar"
+          meta={<><N n={m.tradingDays} unit="days" /><button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('calendar')}>Full calendar <ArrowRight className="h-3.5 w-3.5" /></button></>}>
           <CalendarPnl days={days} year={year} month={month} onMonth={(y, mo) => { setYm({ y, m: mo }); setDay(null); }}
             selected={day} onSelect={setDay} showWeeks />
           {day && (
@@ -86,7 +87,10 @@ export default function DashboardView() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <b style={{ fontSize: 13 }}>{new Date(`${day}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</b>
                 <span className="jr-n">{dayTrades.length} closed</span>
-                <button type="button" className="jr-btn jr-btn-sm" style={{ marginLeft: 'auto' }}
+                <button type="button" className="jr-btn jr-btn-sm" style={{ marginLeft: 'auto' }} onClick={() => openDay(day)}>
+                  Daily journal <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" className="jr-btn jr-btn-sm"
                   onClick={() => { filters.setRange('custom'); filters.setFilter('from', day); filters.setFilter('to', day); goTo('trades'); }}>
                   Open in Trades <ArrowRight className="h-3.5 w-3.5" />
                 </button>
@@ -115,12 +119,12 @@ export default function DashboardView() {
         </Card>
 
         <Card className="jr-span-6" num="05" title="By setup"
-          meta={<button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('analytics', 'jr-breakdowns')}>All breakdowns <ArrowRight className="h-3.5 w-3.5" /></button>}>
+          meta={<button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('reports', 'jr-breakdowns')}>All breakdowns <ArrowRight className="h-3.5 w-3.5" /></button>}>
           <BucketBars buckets={setups} empty={data.meta?.canWrite === false ? 'No setup tags on these trades.' : 'Tag trades with a setup (Edit trade → Setup) to see which setups pay.'} />
         </Card>
 
         <Card className="jr-span-6" num="06" title="Insights"
-          meta={<button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('analytics', 'jr-insights')}>All insights <ArrowRight className="h-3.5 w-3.5" /></button>}>
+          meta={<button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('reports', 'jr-insights')}>All insights <ArrowRight className="h-3.5 w-3.5" /></button>}>
           {analyticsQ.isError ? (
             <QEError title="Journal insights didn't load" message="The insight engine request failed — the numbers above are unaffected (they're computed from your rows)." onRetry={() => analyticsQ.refetch()} retrying={analyticsQ.isFetching} />
           ) : analyticsQ.isLoading ? (
@@ -151,18 +155,20 @@ export default function DashboardView() {
  * no matching entry — filtered by the same symbol and date filters as the rest.
  */
 function NotesCard() {
-  const { data, filters } = useJournal();
+  const { data, filters, goTo } = useJournal();
   const { notesQ } = data;
   const f = filters.resolved;
   const [limit, setLimit] = useState(12);
   const all = notesQ.data?.notes ?? [];
   const shown = useMemo(() => all
+    .filter((n) => n.reason !== 'playbook')
     .filter((n) => (!f.from || n.day >= f.from) && (!f.to || n.day <= f.to))
     .filter((n) => !f.symbols?.length || (n.symbols ?? []).some((s) => f.symbols!.includes(s.toUpperCase())))
     .sort((a, b) => Date.parse(b.postedAt) - Date.parse(a.postedAt)), [all, f.from, f.to, f.symbols]);
   if (!notesQ.isError && (notesQ.isLoading || !all.length)) return null;
   return (
-    <Card className="jr-span-12" num="07" title="Notes & analysis" id="jr-notes" meta={<N n={shown.length} unit="notes" />}>
+    <Card className="jr-span-12" num="07" title="Notes & analysis" id="jr-notes"
+      meta={<><N n={shown.length} unit="notes" /><button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('notebook')}>Notebook <ArrowRight className="h-3.5 w-3.5" /></button></>}>
       {notesQ.isError ? (
         <QEError title="Journal notes didn't load" message="The notes request failed — trades and metrics above are unaffected." onRetry={() => notesQ.refetch()} retrying={notesQ.isFetching} />
       ) : !shown.length ? (

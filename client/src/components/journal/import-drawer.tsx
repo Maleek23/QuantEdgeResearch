@@ -1,7 +1,8 @@
 /**
- * Import drawer — every way a trade gets into the journal, in one place
- * (LuxAlgo's Import page: file upload · manual · accounts), opened from the
- * journal header instead of taking a navigation slot:
+ * Import — every way a trade gets into the journal, in one place (LuxAlgo's
+ * Import page: file upload · manual · accounts). Was a drawer off the journal
+ * header; since the sidebar (2026-09-29) it renders as the Import page
+ * (pages/journal/import-view.tsx). File name kept so ?jtab= types still import.
  *   1. Broker CSV     → POST /api/journal/import-csv (auto-detects the broker)
  *   2. Log manually   → the trade editor
  *   3. Bullflow flow  → FlowImport (grades pasted alerts into trade ideas)
@@ -11,13 +12,11 @@
  */
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Download, FileUp, Link2, Loader2, MessageSquare, Plus, Trash2, Upload, X } from 'lucide-react';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { apiRequest } from '@/lib/queryClient';
-import { cn } from '@/lib/utils';
 import { BROKERS } from '@/lib/journal/types';
 import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
 import { useJournalPortalClass } from './parts';
@@ -132,14 +131,10 @@ function CsvImport({ onDone, qs }: { onDone: () => void; qs: string }) {
   );
 }
 
-export function ImportDrawer({ open, onOpenChange, focus, tradeCount, onLogTrade, discordBot = false }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+export function ImportSections({ focus, tradeCount, onLogTrade }: {
   focus?: ImportSection;
   tradeCount: number;
   onLogTrade: () => void;
-  /** The server has DISCORD_BOT_TOKEN (bot-token import path available). */
-  discordBot?: boolean;
 }) {
   const portal = useJournalPortalClass();
   const { data } = useJournal();
@@ -151,72 +146,60 @@ export function ImportDrawer({ open, onOpenChange, focus, tradeCount, onLogTrade
   const [typed, setTyped] = useState('');
   const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // Deep links (?jtab=import / flow) land on the right section once the sheet has opened.
+  // Deep links (?jtab=flow …) land on the right section once the page has rendered.
   useEffect(() => {
-    if (!open || !focus || focus === 'csv') return;
-    const t = window.setTimeout(() => document.getElementById(`jr-imp-sec-${focus}`)?.scrollIntoView({ block: 'start' }), 350);
+    if (!focus || focus === 'csv') return;
+    const t = window.setTimeout(() => document.getElementById(`jr-imp-sec-${focus}`)?.scrollIntoView({ block: 'start' }), 250);
     return () => window.clearTimeout(t);
-  }, [open, focus]);
+  }, [focus]);
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className={cn(portal, 'w-full overflow-y-auto sm:max-w-xl')} style={{ background: 'var(--bg-2)' }}>
-          <SheetHeader className="text-left">
-            <SheetTitle className="jr-title" style={{ fontSize: 24 }}>Add to {whose} journal</SheetTitle>
-            <SheetDescription className="jr-sub">
-              {trader
-                ? `${book}'s journal is theirs to keep once they have an account; their Discord calls land on their watchlist.`
-                : 'Import a broker statement, connect Alpaca, log a trade by hand, or bring in flow alerts.'}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="jr-drawer" style={{ marginTop: 18, gap: 22 }}>
-            {trader ? (
-              <section id="jr-imp-sec-discord" aria-labelledby="jr-imp-discord">
-                <h3 className="jr-section-h" id="jr-imp-discord"><MessageSquare className="h-4 w-4" /> From Discord</h3>
-                <p className="jr-note" style={{ margin: 0 }}>
-                  Discord calls go to {book}'s <b>watchlist</b>, not this journal — open Chart › Watchlist › {book} › "Import from Discord".
-                  {' '}{book} keeps this journal themselves once they have an account.
-                </p>
-              </section>
-            ) : (
-              <>
-                <section id="jr-imp-sec-csv" aria-labelledby="jr-imp-csv">
-                  <h3 className="jr-section-h" id="jr-imp-csv"><Upload className="h-4 w-4" /> Broker CSV</h3>
-                  <CsvImport onDone={refresh} qs={qs} />
-                </section>
-                <section id="jr-imp-sec-broker" aria-labelledby="jr-imp-broker">
-                  <h3 className="jr-section-h" id="jr-imp-broker"><Link2 className="h-4 w-4" /> Connect broker · Alpaca</h3>
-                  <AlpacaConnect onSynced={refresh} />
-                </section>
-              </>
-            )}
-
-            <section id="jr-imp-sec-manual" aria-labelledby="jr-imp-man">
-              <h3 className="jr-section-h" id="jr-imp-man"><Plus className="h-4 w-4" /> Log a trade by hand</h3>
-              <p className="jr-note" style={{ marginTop: 0 }}>Symbol, side, entry and (optionally) exit. P&amp;L is calculated on save; add setup, mistake, emotion, notes and a screenshot while you're there.</p>
-              <button type="button" className="jr-btn jr-btn-primary" onClick={onLogTrade}><Plus className="h-4 w-4" /> Log a trade</button>
+      <div className="jr-grid">
+        {trader ? (
+          <section className="jr-card jr-span-12 jr-anchor" id="jr-imp-sec-discord" aria-labelledby="jr-imp-discord">
+            <h3 className="jr-section-h" id="jr-imp-discord"><MessageSquare className="h-4 w-4" /> From Discord</h3>
+            <p className="jr-note" style={{ margin: 0 }}>
+              Discord calls go to {book}'s <b>watchlist</b>, not this journal — open Chart › Watchlist › {book} › "Import from Discord".
+              {' '}They show up here in the Notebook as read-only calls. {book} keeps this journal themselves once they have an account.
+            </p>
+          </section>
+        ) : (
+          <>
+            <section className="jr-card jr-span-7 jr-anchor" id="jr-imp-sec-csv" aria-labelledby="jr-imp-csv">
+              <h3 className="jr-section-h" id="jr-imp-csv"><Upload className="h-4 w-4" /> Broker CSV</h3>
+              <CsvImport onDone={refresh} qs={qs} />
             </section>
-
-            {!trader && <section id="jr-imp-sec-flow" aria-labelledby="jr-imp-flow">
-              <h3 className="jr-section-h" id="jr-imp-flow">Bullflow alerts → trade ideas</h3>
-              <p className="jr-note" style={{ marginTop: 0 }}>Paste alerts you saw in Bullflow. Each line is graded by the option engine; B-and-up contracts become trade ideas (not journal trades).</p>
-              <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin" />}>
-                <FlowImport bare />
-              </Suspense>
-            </section>}
-
-            <section id="jr-imp-sec-reset" aria-labelledby="jr-imp-reset" className="jr-danger">
-              <h3 className="jr-section-h jr-loss" id="jr-imp-reset"><Trash2 className="h-4 w-4" /> Reset {whose} journal</h3>
-              <p className="jr-note" style={{ marginTop: 0 }}>Deletes all {tradeCount} trade{tradeCount === 1 ? '' : 's'} so you can re-import cleanly (for old imports with wrong P&amp;L or malformed symbols). Cannot be undone.</p>
-              <button type="button" className="jr-btn jr-btn-danger" disabled={tradeCount === 0} onClick={() => { setTyped(''); setResetMsg(null); setConfirmReset(true); }}>
-                Delete all trades
-              </button>
-              {resetMsg && <div className={resetMsg.ok ? 'jr-ok' : 'jr-err'} style={{ marginTop: 8 }} role={resetMsg.ok ? 'status' : 'alert'}>{resetMsg.text}</div>}
+            <section className="jr-card jr-span-5 jr-anchor" id="jr-imp-sec-broker" aria-labelledby="jr-imp-broker">
+              <h3 className="jr-section-h" id="jr-imp-broker"><Link2 className="h-4 w-4" /> Connect broker · Alpaca</h3>
+              <AlpacaConnect onSynced={refresh} />
             </section>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </>
+        )}
+
+        <section className="jr-card jr-span-6 jr-anchor" id="jr-imp-sec-manual" aria-labelledby="jr-imp-man">
+          <h3 className="jr-section-h" id="jr-imp-man"><Plus className="h-4 w-4" /> Log a trade by hand</h3>
+          <p className="jr-note" style={{ marginTop: 0 }}>Symbol, side, entry and (optionally) exit. P&amp;L is calculated on save; add setup, mistake, emotion, notes and a screenshot while you're there.</p>
+          <button type="button" className="jr-btn jr-btn-primary" onClick={onLogTrade}><Plus className="h-4 w-4" /> Log a trade</button>
+        </section>
+
+        <section className="jr-card jr-danger jr-span-6 jr-anchor" id="jr-imp-sec-reset" aria-labelledby="jr-imp-reset">
+          <h3 className="jr-section-h jr-loss" id="jr-imp-reset"><Trash2 className="h-4 w-4" /> Reset {whose} journal</h3>
+          <p className="jr-note" style={{ marginTop: 0 }}>Deletes all {tradeCount} trade{tradeCount === 1 ? '' : 's'} so you can re-import cleanly (for old imports with wrong P&amp;L or malformed symbols). Cannot be undone.</p>
+          <button type="button" className="jr-btn jr-btn-danger" disabled={tradeCount === 0} onClick={() => { setTyped(''); setResetMsg(null); setConfirmReset(true); }}>
+            Delete all trades
+          </button>
+          {resetMsg && <div className={resetMsg.ok ? 'jr-ok' : 'jr-err'} style={{ marginTop: 8 }} role={resetMsg.ok ? 'status' : 'alert'}>{resetMsg.text}</div>}
+        </section>
+
+        {!trader && <section className="jr-card jr-span-12 jr-anchor" id="jr-imp-sec-flow" aria-labelledby="jr-imp-flow">
+          <h3 className="jr-section-h" id="jr-imp-flow">Bullflow alerts → trade ideas</h3>
+          <p className="jr-note" style={{ marginTop: 0 }}>Paste alerts you saw in Bullflow. Each line is graded by the option engine; B-and-up contracts become trade ideas (not journal trades).</p>
+          <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin" />}>
+            <FlowImport bare />
+          </Suspense>
+        </section>}
+      </div>
 
       <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
         <AlertDialogContent className={portal} style={{ background: 'var(--bg-2)' }}>
