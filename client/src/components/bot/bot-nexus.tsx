@@ -672,7 +672,7 @@ export function BotNexus() {
                 blocked {new Date(replay.blockedAt).toLocaleString()} · {replay.reason}
               </div>
             </div>
-            <NexusPriceChart key={`replay-${replay.symbol}`} symbol={replay.symbol} initialTf="1D" height={340} expandable={false}
+            <NexusPriceChart key={`replay-${replay.symbol}`} symbol={replay.symbol} initialTf="1D" height={340} expandable={false} live={false}
               levels={[
                 { price: replay.entryPrice, color: '#3b8cff', label: 'blocked entry' },
                 { price: replay.stopLoss, color: '#ff6b3d', label: 'would-be stop' },

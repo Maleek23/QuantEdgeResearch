@@ -17,9 +17,10 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  drawChart, renderedCandleRange, useCandles, TF_CONFIG,
+  drawChart, renderedCandleRange, useCandles, useLiveCandles, TF_CONFIG, TF_BAR_MS,
   type Candle, type Level, type Zone, type DrawOpts,
 } from '@/components/charting/chart-engine';
+import type { LiveTick } from '@/lib/live-price-bus';
 import '@/styles/nexus.css';
 
 const MIN_SPAN = 15;
@@ -66,6 +67,7 @@ export function NexusPriceChart({
   axisOverlay,
   resetKey,
   defaultVisibleBars,
+  live = true,
 }: {
   symbol: string;
   initialTf?: keyof typeof TF_CONFIG;
@@ -99,6 +101,9 @@ export function NexusPriceChart({
   resetKey?: string;
   /** Initial window width in bars (default: timeframe-sized). */
   defaultVisibleBars?: number;
+  /** Form the last candle from live ticks (default on). Off for Replay — the
+   *  past must not be edited by the present. */
+  live?: boolean;
 }) {
   const [localTf, setLocalTf] = useState<keyof typeof TF_CONFIG>(
     TF_CONFIG[initialTf] ? initialTf : '1D',
@@ -108,9 +113,11 @@ export function NexusPriceChart({
   const [type, setType] = useState<'candles' | 'line'>('candles');
   const [expanded, setExpanded] = useState(false);
   const { data: series, isLoading, isError } = useCandles(symbol, tf);
+  // History + the forming bar from live prints (WS, or 1 s polling fallback).
+  const { bars: liveBars, lastTick } = useLiveCandles(symbol, tf, series?.bars, live);
   const all = useMemo(
-    () => (series?.bars && transformBars ? transformBars(series.bars) : series?.bars),
-    [series, transformBars],
+    () => (liveBars && transformBars ? transformBars(liveBars) : liveBars),
+    [liveBars, transformBars],
   );
 
   /* windowed view over the series: span bars, ending `offset` bars before now */
@@ -121,6 +128,15 @@ export function NexusPriceChart({
     setPriceView({ scale: 1, shift: 0 });
   }, [symbol, tf, resetKey]);
   const len = all?.length ?? 0;
+  // A new live bar appends to the series. If the reader has panned back into
+  // history, keep THEIR window still instead of sliding it one bar per bar.
+  const prevLen = useRef({ len, key: `${symbol}|${tf}|${resetKey ?? ''}` });
+  useEffect(() => {
+    const key = `${symbol}|${tf}|${resetKey ?? ''}`;
+    const grew = prevLen.current.key === key ? len - prevLen.current.len : 0;
+    prevLen.current = { len, key };
+    if (grew > 0 && grew < 5) setView((v) => (v.offset > 0 ? { ...v, offset: v.offset + grew } : v));
+  }, [len, symbol, tf, resetKey]);
   const defaultSpan = Math.min(len, defaultVisibleBars ?? DEFAULT_VISIBLE_BARS[tf]);
   const span = view.span == null ? defaultSpan : Math.min(view.span, len);
   const offset = Math.min(view.offset, Math.max(0, len - span));
@@ -405,6 +421,7 @@ export function NexusPriceChart({
         <span>TF <b>{TF_CONFIG[tf].label}</b></span>
         <span>BARS <b>{candles?.length ?? 0}{(candles?.length ?? 0) < len ? ` / ${len}` : ''}</b></span>
         <span style={{ color: view.span != null || priceView.scale !== 1 || priceView.shift !== 0 ? 'var(--cyan-bright)' : undefined }}>plot ↔↕ · axes scale · dbl-click reset</span>
+        {live && lastTick && all?.length ? <LiveBadge tick={lastTick} tf={tf} lastBarTime={all[all.length - 1].time} /> : null}
         {visibleQuarantined > 0 && (
           <span style={{ color: 'var(--amber)' }}>{visibleQuarantined} SOURCE ANOMAL{visibleQuarantined === 1 ? 'Y' : 'IES'} HIDDEN</span>
         )}
@@ -457,6 +474,31 @@ export function NexusPriceChart({
       )}
       {expanded && <EscClose onClose={() => setExpanded(false)} />}
     </>
+  );
+}
+
+/**
+ * LIVE · price age · countdown to the next bar. Its own component with its own
+ * 1 s clock, so the countdown ticks without redrawing the canvas. Says "delayed"
+ * rather than "live" when the newest price came from a polled quote.
+ */
+function LiveBadge({ tick, tf, lastBarTime }: { tick: LiveTick; tf: string; lastBarTime: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
+  const age = Math.max(0, Math.round((now - tick.ts) / 1000));
+  const barMs = TF_BAR_MS[tf] ?? 60_000;
+  const intraday = barMs < 86_400_000;
+  const left = intraday ? Math.max(0, Math.round((lastBarTime + barMs - now) / 1000)) : null;
+  const fresh = tick.live && age < 15;
+  const src = tick.source === 'alpaca-iex' ? 'IEX' : tick.source === 'coinbase' ? 'Coinbase' : tick.source;
+  return (
+    <span
+      style={{ color: fresh ? 'var(--green, #6ee7b7)' : 'var(--amber, #facc15)' }}
+      title={`Last price ${tick.price} from ${tick.source}, ${age}s old. ${tick.live ? 'Real print — the forming candle updates on every trade.' : 'Polled quote — refreshes the forming candle, never opens a new one.'}`}
+    >
+      {fresh ? '● LIVE' : '○ DELAYED'} {src} · {age < 60 ? `${age}s` : `${Math.round(age / 60)}m`}
+      {left != null && left <= Math.round(barMs / 1000) ? ` · next bar ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : ''}
+    </span>
   );
 }
 

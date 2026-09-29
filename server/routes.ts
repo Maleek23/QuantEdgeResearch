@@ -5016,6 +5016,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // REAL-TIME QUOTES API - Unified pricing across all asset types
   // ============================================
   
+  // ── LAST PRICE — the lightweight fallback for live candles ──────────────
+  // Charts form their last candle from /ws/prices ticks. When the socket is
+  // down (or the equity stream is parked) the client polls this instead, so it
+  // must be cheap: a live stream trade if one is fresh, else the shared quote
+  // cache (10 s TTL server-side). `asOf` is the SOURCE time, never "now", so
+  // the client can say how old the price is instead of presenting it as live.
+  app.get("/api/last-price/:symbol", async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const symbol = String(req.params.symbol || '').toUpperCase().trim();
+      if (!/^[A-Z][A-Z0-9.\-]{0,11}$/.test(symbol)) return res.status(400).json({ error: 'bad symbol' });
+      const cryptoBase = symbol.replace(/-?USDT?$/, '');
+      if (cryptoBase !== symbol || ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'LTC'].includes(symbol)) {
+        const { getCryptoPrice } = await import('./realtime-price-service');
+        const c = getCryptoPrice(cryptoBase);
+        if (c) return res.json({ symbol, price: c.price, asOf: c.timestamp.toISOString(), source: 'coinbase', live: true });
+      }
+      const { getLastEquityTrade } = await import('./live-equity-stream');
+      const t = getLastEquityTrade(symbol);
+      if (t) return res.json({ symbol, price: t.price, asOf: new Date(t.ts).toISOString(), source: t.source, live: true });
+      const q = await getRealtimeQuote(symbol, 'stock');
+      if (!q || !(q.price > 0)) return res.status(404).json({ error: 'no price' });
+      res.json({ symbol, price: q.price, asOf: q.lastUpdate.toISOString(), source: q.source ?? 'quote', live: false });
+    } catch (error) {
+      res.status(500).json({ error: 'last price unavailable' });
+    }
+  });
+
+  app.get("/api/live-equity-status", async (_req, res) => {
+    const { liveEquityStatus } = await import('./live-equity-stream');
+    res.json(liveEquityStatus());
+  });
+
   app.get("/api/realtime-quote/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;

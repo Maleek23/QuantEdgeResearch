@@ -1,6 +1,7 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from './logger';
 import type { Server } from 'http';
+import { handleClientMessage, handleClientClose } from './live-equity-stream';
 
 interface PriceUpdate {
   symbol: string;
@@ -33,24 +34,30 @@ let wss: WebSocketServer | null = null;
 
 const COINBASE_WS_URL = 'wss://ws-feed.exchange.coinbase.com';
 
+/**
+ * Coalesced fan-out. Coinbase's ticker channel can print the same coin a dozen
+ * times inside 10 ms (measured: 15 SOL messages in one millisecond burst), and
+ * every one was re-sent to every client. Now the newest price per symbol is
+ * held for ≤250 ms and sent once — at most 4 updates/s per coin, still far
+ * faster than any chart or quote cell can use.
+ */
+const pendingBroadcast = new Map<string, BroadcastMessage>();
+let broadcastTimer: NodeJS.Timeout | null = null;
+
 function broadcastPrice(symbol: string, price: number, source: 'coinbase' | 'yahoo'): void {
   if (!wss) return;
-  
-  const message: BroadcastMessage = {
-    type: 'price',
-    symbol,
-    price,
-    source,
-    timestamp: new Date().toISOString()
-  };
-  
-  const payload = JSON.stringify(message);
-  
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(payload);
-    }
-  });
+  pendingBroadcast.set(symbol, { type: 'price', symbol, price, source, timestamp: new Date().toISOString() });
+  if (broadcastTimer) return;
+  broadcastTimer = setTimeout(() => {
+    broadcastTimer = null;
+    if (!wss || !pendingBroadcast.size) { pendingBroadcast.clear(); return; }
+    const payloads = [...pendingBroadcast.values()].map((m) => JSON.stringify(m));
+    pendingBroadcast.clear();
+    wss.clients.forEach((client) => {
+      if (client.readyState !== WebSocket.OPEN) return;
+      for (const p of payloads) client.send(p);
+    });
+  }, 250);
 }
 
 const COINBASE_SYMBOLS = [
@@ -314,7 +321,10 @@ export function initializeRealtimePrices(httpServer?: Server): void {
       
       snapshot.forEach(msg => ws.send(JSON.stringify(msg)));
       
+      // Equity subscriptions: {type:'subscribe', symbols:[...]} — see live-equity-stream.ts.
+      ws.on('message', (raw) => handleClientMessage(ws, raw));
       ws.on('close', () => {
+        handleClientClose(ws);
         logger.info(`[WS-BROADCAST] Client disconnected (total: ${wss?.clients.size})`);
       });
       

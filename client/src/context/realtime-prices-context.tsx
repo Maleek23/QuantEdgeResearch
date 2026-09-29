@@ -1,18 +1,21 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+/**
+ * Realtime prices — compatibility shim over the live price bus.
+ *
+ * This provider used to open its own /ws/prices socket for every page and copy
+ * a whole Map into React state on EVERY tick (Coinbase prints dozens a second),
+ * re-rendering the provider continuously while nothing in the app read it.
+ * The single socket now lives in @/lib/live-price-bus and is opened only while
+ * something subscribes (a live chart). The provider stays so the tree shape and
+ * the useRealtimePrices() API keep working; it no longer does any work itself.
+ */
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { getLastLiveTick, subscribeLiveStatus } from '@/lib/live-price-bus';
 
 interface PriceData {
   price: number;
-  source: 'coinbase' | 'yahoo';
+  source: string;
   timestamp: string;
   previousPrice?: number;
-}
-
-interface PriceMessage {
-  type: 'price';
-  symbol: string;
-  price: number;
-  source: 'coinbase' | 'yahoo';
-  timestamp: string;
 }
 
 interface RealtimePricesContextValue {
@@ -21,124 +24,16 @@ interface RealtimePricesContextValue {
   getPrice: (symbol: string) => PriceData | undefined;
 }
 
-const RealtimePricesContext = createContext<RealtimePricesContextValue | null>(null);
-
 export function RealtimePricesProvider({ children }: { children: ReactNode }) {
-  const [prices, setPrices] = useState<Map<string, PriceData>>(new Map());
-  const [isConnected, setIsConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectAttemptsRef = useRef(0);
-  const mountedRef = useRef(true);
-
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-    if (wsRef.current?.readyState === WebSocket.CONNECTING) return;
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/prices`;
-
-    try {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        if (mountedRef.current) {
-          setIsConnected(true);
-          reconnectAttemptsRef.current = 0;
-        }
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message: PriceMessage = JSON.parse(event.data);
-          
-          if (message.type === 'price' && mountedRef.current) {
-            setPrices(prev => {
-              const newPrices = new Map(prev);
-              const existing = newPrices.get(message.symbol);
-              newPrices.set(message.symbol, {
-                price: message.price,
-                source: message.source,
-                timestamp: message.timestamp,
-                previousPrice: existing?.price
-              });
-              return newPrices;
-            });
-          }
-        } catch (e) {
-          console.error('[WS] Failed to parse message:', e);
-        }
-      };
-
-      ws.onclose = () => {
-        if (mountedRef.current) {
-          setIsConnected(false);
-          wsRef.current = null;
-          
-          const delay = Math.min(3000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-          reconnectAttemptsRef.current++;
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            if (mountedRef.current) {
-              connect();
-            }
-          }, delay);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('[WS] Error:', error);
-        ws.close();
-      };
-    } catch (error) {
-      console.error('[WS] Failed to connect:', error);
-      const delay = Math.min(3000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-      reconnectAttemptsRef.current++;
-      
-      reconnectTimeoutRef.current = setTimeout(() => {
-        if (mountedRef.current) {
-          connect();
-        }
-      }, delay);
-    }
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    connect();
-
-    return () => {
-      mountedRef.current = false;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-    };
-  }, [connect]);
-
-  const getPrice = useCallback((symbol: string): PriceData | undefined => {
-    return prices.get(symbol.toUpperCase());
-  }, [prices]);
-
-  return (
-    <RealtimePricesContext.Provider value={{ prices, isConnected, getPrice }}>
-      {children}
-    </RealtimePricesContext.Provider>
-  );
+  return <>{children}</>;
 }
 
 export function useRealtimePrices(): RealtimePricesContextValue {
-  const context = useContext(RealtimePricesContext);
-  if (!context) {
-    return {
-      prices: new Map(),
-      isConnected: false,
-      getPrice: () => undefined
-    };
-  }
-  return context;
+  const [isConnected, setConnected] = useState(false);
+  useEffect(() => subscribeLiveStatus(setConnected), []);
+  const getPrice = useCallback((symbol: string): PriceData | undefined => {
+    const t = getLastLiveTick(symbol);
+    return t ? { price: t.price, source: t.source, timestamp: new Date(t.ts).toISOString() } : undefined;
+  }, []);
+  return { prices: new Map(), isConnected, getPrice };
 }
