@@ -243,7 +243,7 @@ export default function TodayPage() {
   const retryWhileDown = { refetchInterval: (qq: { state: { status: string } }) => (qq.state.status === 'error' ? 30_000 : false) };
   const wp = useQuery<WeeklyPath>({ queryKey: ['/api/weekly-path/SPY'], queryFn: get('/api/weekly-path/SPY'), staleTime: 300_000, ...retryWhileDown });
   const gex = useQuery<GexTerminal>({ queryKey: ['/api/gex-vex/terminal/SPY', 'today'], queryFn: get('/api/gex-vex/terminal/SPY'), staleTime: 300_000, ...retryWhileDown });
-  const conv = useQuery<{ picks?: Pick[] }>({ queryKey: ['/api/convictions', 'today'], queryFn: get('/api/convictions'), staleTime: 60_000, refetchInterval: 90_000 });
+  const conv = useQuery<{ picks?: Pick[] }>({ queryKey: ['/api/convictions', 'all'], queryFn: get('/api/convictions'), staleTime: 60_000, refetchInterval: 90_000 });
   const perf = useQuery<Perf>({ queryKey: ['/api/performance/stats/', 'today'], queryFn: get('/api/performance/stats/'), staleTime: 600_000 });
   const rotation = useQuery<RotationPayload>({ queryKey: ['/api/sector-rotation', 'landing'], queryFn: fetchJson('/api/sector-rotation'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
   const pulse = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'landing'], queryFn: fetchJson('/api/crypto/pulse'), staleTime: 300_000, retry: 1 });

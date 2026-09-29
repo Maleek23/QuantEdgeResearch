@@ -4,7 +4,8 @@
  * full feed. No synthetic activity: a quiet machine shows its last real
  * event and an honest timestamp, not invented motion.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 interface PulseEvent { id: number; at: string; kind: string; msg: string }
 
@@ -12,8 +13,11 @@ const KIND_COLOR: Record<string, string> = {
   quant: 'var(--cyan-bright, #3b8cff)',
   pattern: 'var(--purple, #a78bfa)',
   flow: 'var(--amber, #facc15)',
-  bot: 'var(--green, #34d399)',
-  alert: 'var(--red, #ff6b3d)',
+  // Colour psychology: green/vermilion are reserved for gain/loss. A bot acting
+  // is information (blue); an alert firing is a call for attention (caution
+  // yellow) — neither is a profit or a loss.
+  bot: 'var(--blue, #60a5fa)',
+  alert: 'var(--amber, #facc15)',
   gate: 'var(--amber, #facc15)',
   universe: 'var(--text-dim, #8b93a7)',
   news: 'var(--event, #fb923c)',
@@ -28,32 +32,44 @@ const relTime = (iso: string) => {
   return `${Math.floor(s / 3600)}h`;
 };
 
+/**
+ * ONE shared query for the pulse feed. It used to be a raw fetch in a mount
+ * effect, so every remount of the terminal (and the terminal remounted on every
+ * tab switch — see the route wrappers in App.tsx) fired /api/pulse?since=0
+ * again. React Query dedupes concurrent mounts onto one in-flight request and
+ * pauses the interval while the browser tab is hidden.
+ */
+export const PULSE_QUERY_KEY = ['/api/pulse', 'feed'] as const;
+
 export function SystemPulse() {
-  const [events, setEvents] = useState<PulseEvent[]>([]);
   const [open, setOpen] = useState(false);
   const [flash, setFlash] = useState(false);
   const lastId = useRef(0);
+  const { data } = useQuery<{ events?: PulseEvent[] }>({
+    queryKey: PULSE_QUERY_KEY,
+    queryFn: async () => {
+      const r = await fetch('/api/pulse?since=0', { credentials: 'include' });
+      if (!r.ok) throw new Error('pulse unavailable');
+      return r.json();
+    },
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+    retry: 0,
+  });
+  const events = useMemo(() => (Array.isArray(data?.events) ? data!.events! : []), [data]);
 
   useEffect(() => {
-    let alive = true;
-    const poll = async () => {
-      try {
-        const r = await fetch(`/api/pulse?since=0`, { credentials: 'include' });
-        if (!r.ok) return;
-        const d = await r.json();
-        if (!alive || !Array.isArray(d.events)) return;
-        const newest = d.events[d.events.length - 1];
-        if (newest && newest.id !== lastId.current) {
-          if (lastId.current !== 0) { setFlash(true); setTimeout(() => setFlash(false), 500); }
-          lastId.current = newest.id;
-        }
-        setEvents(d.events);
-      } catch { /* quiet failure — pulse is decoration */ }
-    };
-    poll();
-    const t = setInterval(poll, 7000);
-    return () => { alive = false; clearInterval(t); };
-  }, []);
+    const newest = events[events.length - 1];
+    if (!newest || newest.id === lastId.current) return;
+    const first = lastId.current === 0;
+    lastId.current = newest.id;
+    if (first) return;
+    setFlash(true);
+    const t = setTimeout(() => setFlash(false), 500);
+    return () => clearTimeout(t);
+  }, [events]);
 
   const latest = events[events.length - 1];
 

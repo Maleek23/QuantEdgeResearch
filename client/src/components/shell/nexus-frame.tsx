@@ -8,6 +8,7 @@
  * page no longer swaps the entire interface underneath you.
  */
 import { useRef, useState, type ReactNode } from 'react';
+import { useMainHeightVar } from './main-height';
 import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { BookOpen, LogOut, Moon, SlidersHorizontal, Bell } from 'lucide-react';
@@ -35,16 +36,18 @@ export function NexusFrame({ children }: { children: ReactNode }) {
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   useDismissable(accountOpen, () => setAccountOpen(false), { panelRef: accountMenuRef, triggerRef: accountTriggerRef });
+  const mainRef = useRef<HTMLElement>(null);
+  useMainHeightVar(mainRef);
   const nexusLight = theme === 'nexus-light';
   const page = [...PAGES, ...UTILITY_PAGES].find((p) => p.href === path)
     ?? (path.startsWith('/r') ? { href: path, label: 'Research', short: 'RESEARCH', icon: PAGES[0].icon } : undefined);
   const accountLabel = (user as any)?.firstName || (user as any)?.email?.split('@')[0] || 'Account';
 
   return (
-    <div className={cn('qe-terminal nexus-vars flex min-h-[100dvh] w-full min-w-0 max-w-[100vw] flex-col', nexusLight && 'light')}>
+    <div className={cn('qe-terminal nexus-vars flex h-[100dvh] overflow-hidden w-full min-w-0 max-w-[100vw] flex-col', nexusLight && 'light')}>
       <DesktopRail activeTab={null} currentPath={path} />
       <SkipLink />
-      <header className="sticky top-0 z-20 lg:pl-[196px]">
+      <header className="relative z-20 shrink-0 lg:pl-[var(--qe-rail-w,196px)]">
         <div className="topbar" style={{ minHeight: 44 }}>
           <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home">
             <img className="brand-logo" src={qeMark} alt="" width={22} height={22} />
@@ -87,7 +90,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
                     {nexusLight ? 'Dark mode' : 'Light mode'}
                   </button>
                   {user && (
-                    <button role="menuitem" onClick={() => { setAccountOpen(false); logout(); }} className="flex min-h-10 w-full items-center gap-2 rounded px-2.5 text-left font-mono text-[11px] uppercase tracking-wider text-[var(--trade-bearish)] transition-colors hover:bg-[var(--trade-bearish)]/10">
+                    <button role="menuitem" onClick={() => { setAccountOpen(false); logout(); }} className="flex min-h-10 w-full items-center gap-2 rounded px-2.5 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
                       <LogOut className="h-3.5 w-3.5" /> Sign out
                     </button>
                   )}
@@ -101,14 +104,14 @@ export function NexusFrame({ children }: { children: ReactNode }) {
       {/* overflow-x contained HERE: one wide table (the GEX strike matrix, a filter
           row) used to widen the whole document, and iOS then zoomed the entire
           page out — dock included (measured: /r/META 1572px on a 393px phone). */}
-      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="outline-none min-h-0 w-full min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[196px]">
+      <main ref={mainRef} id={MAIN_CONTENT_ID} tabIndex={-1} className="outline-none min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[var(--qe-rail-w,196px)]">
         {children}
       </main>
 
       <MobileDock activeTab={null} />
       <CustomizePanel open={customizeOpen} onClose={() => setCustomizeOpen(false)} />
 
-      <footer className="bottombar hidden lg:flex lg:pl-[196px]" style={{ minHeight: 26 }}>
+      <footer className="bottombar hidden shrink-0 lg:flex lg:pl-[var(--qe-rail-w,196px)]" style={{ minHeight: 26 }}>
         <div className="bb-item"><span className="dot" /><b>{page ? page.short : 'PAGE'}</b></div>
         <div className="bb-spacer" />
         <div className="bb-item">Educational only · not investment advice</div>

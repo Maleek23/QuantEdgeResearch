@@ -1133,7 +1133,7 @@
    natural-scroll columns instead of a fixed grid. */
 .nexus-embed{
   position:relative;
-  height:calc(100dvh - 98px);
+  height:var(--qe-main-h, calc(100dvh - 98px));
   display:flex;
   flex-direction:column;
 }
@@ -1158,7 +1158,7 @@
    area + right sidebar only. Shared classes (.sec-head, .tag,
    .watch-*, .sys-*) already exist above and are not repeated.
    ═══════════════════════════════════════════════════════════════ */
-.nexus-vars .chartlab{position:relative;height:calc(100dvh - 98px);display:flex;flex-direction:column}
+.nexus-vars .chartlab{position:relative;height:var(--qe-main-h, calc(100dvh - 98px));display:flex;flex-direction:column}
 .nexus-vars .chartlab .main{display:grid;grid-template-columns:1fr 300px;overflow:hidden;position:relative;z-index:2;flex:1;min-height:0}
 .nexus-vars .chart-area{display:flex;flex-direction:column;border-right:1px solid var(--nx-border);overflow:hidden}
 .nexus-vars .chart-header{
@@ -1335,7 +1335,7 @@
    already exist above. .flowlab scopes the page-specific pieces, including
    its 6-column stats-bar variant.
    ═══════════════════════════════════════════════════════════════ */
-.nexus-vars .flowlab{position:relative;height:calc(100dvh - 98px);display:flex;flex-direction:column}
+.nexus-vars .flowlab{position:relative;height:var(--qe-main-h, calc(100dvh - 98px));display:flex;flex-direction:column}
 .nexus-vars .flowlab .main{display:grid;grid-template-columns:1fr 300px;overflow:hidden;position:relative;z-index:2;flex:1;min-height:0}
 .nexus-vars .flow-area{display:flex;flex-direction:column;border-right:1px solid var(--nx-border);overflow:hidden}
 .nexus-vars .flow-header{
@@ -1573,7 +1573,7 @@
    page pieces. Includes the ⌘K search modal, the strike×expiry matrix, and
    the context/gravity/insight rail.
    ═══════════════════════════════════════════════════════════════ */
-.nexus-vars .gexlab{position:relative;height:calc(100dvh - 98px);display:flex;flex-direction:column}
+.nexus-vars .gexlab{position:relative;height:var(--qe-main-h, calc(100dvh - 98px));display:flex;flex-direction:column}
 .nexus-vars .gexlab .main{display:grid;grid-template-columns:var(--nx-gexl,320px) minmax(0,1fr) var(--nx-gexr,320px);overflow:hidden;position:relative;z-index:2;flex:1;min-height:0}
 .nexus-vars .gexlab .col{overflow-y:auto;border-right:1px solid var(--nx-border)}
 .nexus-vars .gexlab .col:last-child{border-right:none}
@@ -1788,7 +1788,7 @@
    (.sec-head, .tag, .search-modal, .sys-status) reused. .leapslab scopes.
    ═══════════════════════════════════════════════════════════════ */
 .nexus-vars{--gold:#fbbf24}
-.nexus-vars .leapslab{position:relative;height:calc(100dvh - 98px);display:flex;flex-direction:column}
+.nexus-vars .leapslab{position:relative;height:var(--qe-main-h, calc(100dvh - 98px));display:flex;flex-direction:column}
 .nexus-vars .leapslab .main{display:grid;grid-template-columns:minmax(0,1fr) var(--nx-side,320px);overflow:hidden;position:relative;z-index:2;flex:1;min-height:0}
 .nexus-vars .leaps-area{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--nx-border)}
 .nexus-vars .leaps-header{padding:20px 28px 16px;border-bottom:1px solid var(--nx-border);background:rgba(6,7,10,0.88);backdrop-filter:blur(16px)}
@@ -1889,7 +1889,7 @@
    CRYPTO — the sixth reference mock. BTC gold / ETH violet accents.
    ═══════════════════════════════════════════════════════════════ */
 .nexus-vars{--btc:#f7931a;--btc-bright:#ffb547;--btc-dim:#a66310;--eth:#8b7ee0;--eth-bright:#a89df0;--eth-dim:#5d54a3}
-.nexus-vars .cryptolab{position:relative;height:calc(100dvh - 98px);display:flex;flex-direction:column}
+.nexus-vars .cryptolab{position:relative;height:var(--qe-main-h, calc(100dvh - 98px));display:flex;flex-direction:column}
 .nexus-vars .cryptolab .main{display:grid;grid-template-columns:minmax(0,1fr) var(--nx-side,320px);overflow:hidden;position:relative;z-index:2;flex:1;min-height:0}
 .nexus-vars .crypto-area{display:flex;flex-direction:column;overflow-y:auto;border-right:1px solid var(--nx-border)}
 .nexus-vars .crypto-header{padding:20px 28px 16px;border-bottom:1px solid var(--nx-border);background:rgba(6,7,10,0.88);backdrop-filter:blur(16px)}
@@ -2893,6 +2893,47 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .qe-rail-utility { padding:10px 8px 12px; border-top:1px solid var(--nx-border); }
 .qe-rail-disclosure { margin:10px 8px 0; color:var(--text-dim); font:500 8px/1.55 'JetBrains Mono',monospace; }
 .qe-rail-disclosure span { display:inline-block; width:5px; height:5px; margin-right:6px; border-radius:50%; background:var(--green); box-shadow:0 0 8px color-mix(in srgb,var(--green) 70%,transparent); }
+
+/* ── Desktop rail: collapsible (icon-only 56px) ─────────────────────────────
+   Width comes from --qe-rail-w on <html> (components/shell/rail-state.ts), which
+   the shells' lg:pl-[var(--qe-rail-w)] padding follows. */
+.qe-desktop-rail { width: var(--qe-rail-w, 196px); transition: width 180ms ease; }
+.qe-terminal > header, .qe-terminal > main, .qe-terminal > footer { transition: padding-left 180ms ease; }
+@media (prefers-reduced-motion: reduce) {
+  .qe-desktop-rail, .qe-terminal > header, .qe-terminal > main, .qe-terminal > footer { transition: none; }
+}
+.qe-rail-toggle { margin-top: 4px; color: var(--text-dim); }
+.qe-rail-item:focus-visible, .qe-rail-brand:focus-visible { outline: 2px solid var(--cyan-bright); outline-offset: -2px; }
+.qe-desktop-rail.collapsed .qe-rail-brand { justify-content: center; padding: 0; }
+.qe-desktop-rail.collapsed .qe-rail-brand span,
+.qe-desktop-rail.collapsed .qe-rail-item span,
+.qe-desktop-rail.collapsed .qe-rail-disclosure { display: none; }
+.qe-desktop-rail.collapsed .qe-rail-label { height: 1px; padding: 0; margin: 4px 10px 6px; overflow: hidden; color: transparent; background: var(--nx-border); }
+.qe-desktop-rail.collapsed .qe-rail-nav { padding: 10px 6px 18px; overflow-x: visible; }
+.qe-desktop-rail.collapsed .qe-rail-utility { padding: 10px 6px 12px; }
+.qe-desktop-rail.collapsed .qe-rail-item { justify-content: center; padding: 0; min-height: 38px; }
+.qe-desktop-rail.collapsed .qe-rail-item svg { width: 17px; height: 17px; }
+/* Tooltip: hover AND keyboard focus, since collapsed items are icon-only. */
+.qe-desktop-rail.collapsed [data-tip] { position: relative; }
+.qe-desktop-rail.collapsed [data-tip]:hover::after,
+.qe-desktop-rail.collapsed [data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: fixed;
+  /* top left at its static position: a flex child of the centred item, so the
+     tip sits level with the icon; fixed so the nav's overflow cannot clip it. */
+  left: calc(var(--qe-rail-w, 56px) + 6px);
+  z-index: 80;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--nx-border-hi, rgba(148,163,184,.25));
+  background: var(--panel-solid, #0f1622);
+  color: var(--text);
+  font: 650 10px/1 'JetBrains Mono', monospace;
+  letter-spacing: .08em;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}
 
 /* ── GEX strike grids (components/gex/gex-strike-grid.tsx) ─────────────────
    Full strike range in a scroll container: sticky header, sticky strike column,
