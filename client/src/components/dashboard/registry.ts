@@ -23,13 +23,14 @@ import { BOT_TOOLS } from './defs/bot';
 import { POSITIONS_TOOLS } from './defs/positions';
 import { TODAY_TOOLS } from './defs/today';
 import { MARKET_TOOLS } from './defs/market';
+import { JOURNAL_TOOLS } from './defs/journal';
 
 export type { ToolDef, ToolCategory, ToolNeed, DefaultLayout } from './tool-def';
 export { CATEGORY_ORDER, lazyTool } from './tool-def';
 
 export const TOOLS: ToolDef[] = [
   ...FLOW_TOOLS, ...GEX_TOOLS, ...NEXUS_TOOLS, ...CHART_TOOLS, ...CRYPTO_TOOLS,
-  ...CATALYST_TOOLS, ...LEAPS_TOOLS, ...BOT_TOOLS, ...POSITIONS_TOOLS, ...TODAY_TOOLS, ...MARKET_TOOLS,
+  ...CATALYST_TOOLS, ...LEAPS_TOOLS, ...BOT_TOOLS, ...POSITIONS_TOOLS, ...TODAY_TOOLS, ...MARKET_TOOLS, ...JOURNAL_TOOLS,
 ];
 
 export const TOOL_BY_ID = new Map<string, ToolDef>(TOOLS.map((t) => [t.id, t]));

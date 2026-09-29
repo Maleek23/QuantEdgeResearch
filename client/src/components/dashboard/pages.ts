@@ -19,8 +19,9 @@ import { LEAPS_DEFAULTS } from './defs/leaps';
 import { BOT_DEFAULTS } from './defs/bot';
 import { POSITIONS_DEFAULTS } from './defs/positions';
 import { TODAY_DEFAULTS } from './defs/today';
+import { JOURNAL_DEFAULTS } from './defs/journal';
 
-export type PageId = 'flow' | 'gex' | 'nexus' | 'chart' | 'crypto' | 'catalyst' | 'leaps' | 'bot' | 'positions' | 'today';
+export type PageId = 'flow' | 'gex' | 'nexus' | 'chart' | 'crypto' | 'catalyst' | 'leaps' | 'bot' | 'positions' | 'today' | 'journal';
 
 export interface PageSpec {
   id: PageId;
@@ -61,5 +62,6 @@ export const PAGES: Record<PageId, PageSpec> = {
   leaps: spec('leaps', 'LEAPS', LEAPS_DEFAULTS, ['Ideas', 'Research'], LEAPS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
   bot: spec('bot', 'BOT', BOT_DEFAULTS, ['Bot', 'Book'], BOT_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
   positions: spec('positions', 'POSITIONS', POSITIONS_DEFAULTS, ['Book', 'Bot'], POSITIONS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
+  journal: spec('journal', 'JOURNAL', JOURNAL_DEFAULTS, ['Journal'], ['journal-net-pnl', 'journal-equity', 'journal-calendar']),
   today: spec('today', 'TODAY', TODAY_DEFAULTS, ['Market', 'Ideas', 'Book'], TODAY_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
 };
