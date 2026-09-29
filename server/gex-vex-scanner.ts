@@ -181,6 +181,7 @@ async function getQuoteWithChange(symbol: string): Promise<{ price: number; chan
 
 // ─── Convert gamma-exposure result → GEXSnapshot ──────────
 import { bucketizeMatrix, dealerFlowFromTotalGEX } from './gex-dte-buckets';
+import { classifyGammaRegime } from '../shared/gex-regime';
 
 export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calculateAggregateGammaExposure>>>): GEXSnapshot {
   const {
@@ -198,6 +199,7 @@ export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calcula
     putWall: putWallExtra,
     zeroGammaProjection: projExtra,
     regime: regimeExtra,
+    regimeRead,
     dataSource,
     dataQuality,
   } = result;
@@ -254,20 +256,20 @@ export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calcula
     .sort((a, b) => Math.abs(b.gex) - Math.abs(a.gex))
     .slice(0, 20);
 
-  const regime: GEXSnapshot['regime'] =
-    regimeExtra ??
-    (totalNetGEX > 0.5
-      ? 'positive_gamma'
-      : totalNetGEX < -0.5
-        ? 'negative_gamma'
-        : Math.abs(totalNetGEX) < 0.2
-          ? 'neutral'
-          : 'transitioning');
+  // One regime definition everywhere (shared/gex-regime.ts). The fallback only
+  // runs for results that pre-date regimeRead; it uses the same classifier.
+  const read = regimeRead ?? classifyGammaRegime({
+    netGEX: totalNetGEX * 1e9,
+    grossGEX: result.grossGEX != null ? result.grossGEX * 1e9 : totalAbsGEX * 1e9,
+    spot: spotPrice,
+    zeroGamma: result.zeroGammaLevel ?? flipPoint,
+  });
+  const regime: GEXSnapshot['regime'] = regimeExtra ?? read.legacy;
 
   // P0: per-DTE buckets + dealer-flow per 1% move
   const matrix = (result as any).strikeExpiryMatrix as Array<{ strike: number; dte: number; netGEX: number }> | undefined;
   const byDte = matrix && matrix.length > 0 ? bucketizeMatrix(matrix, spotPrice) : undefined;
-  const dealerFlowPer1Pct = dealerFlowFromTotalGEX(totalNetGEX);
+  const dealerFlowPer1Pct = dealerFlowFromTotalGEX(totalNetGEX); // $B per 1% → $ per 1%
 
   return {
     symbol,
@@ -285,7 +287,14 @@ export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calcula
     zeroGammaProjection,
     levels,
     regime,
-    volatilityRegime: 'normal',
+    regimeRead: read,
+    unitsVersion: result.unitsVersion,
+    grossGEX: result.grossGEX,
+    gexByScope: result.gexByScope,
+    zeroGammaLevel: result.zeroGammaLevel ?? flipPoint,
+    gammaProfile: result.gammaProfile,
+    callWallOI: result.callWallOI ?? null,
+    putWallOI: result.putWallOI ?? null,
     source: (dataSource as GEXSnapshot['source']) || 'mixed',
     expirationsUsed: [],
     dataQuality,
@@ -298,9 +307,9 @@ export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calcula
 function scoreConfluence(snap: GEXSnapshot): ConfluenceBreakdown {
   const { spotPrice, callWall, putWall, levels, totalGEX, regime } = snap;
 
-  // The displayed flip is currently a cumulative-by-strike crossing, not a true
-  // zero-gamma spot sweep. Keep it as an estimated chart reference, but do not let
-  // proximity to that estimate manufacture up to 25 ranking points.
+  // The flip is now a true spot-grid zero-gamma level (shared/gex-math.ts), but
+  // proximity to it has not been validated as a ranking input — kept at 0 until
+  // a replay says otherwise (docs/GEX_VEX_METHODOLOGY.md, open items).
   const flipProximity = 0;
 
   // 2. Wall setup (0-25) — reward clean bracket around spot
@@ -324,7 +333,7 @@ function scoreConfluence(snap: GEXSnapshot): ConfluenceBreakdown {
   let vexAlignment = 0;
   const gexSign = Math.sign(totalGEX);
   const vexSign = Math.sign(totalVEX);
-  const vexMag = Math.min(1, Math.abs(totalVEX) / 500); // $500M+ = full magnitude (VEX is in $M)
+  const vexMag = Math.min(1, Math.abs(totalVEX) / 5); // $5M per IV pt = full magnitude (v1: $500M per 100 pts)
 
   if (gexSign !== 0 && vexSign !== 0 && gexSign === vexSign) {
     // Aligned — best case
@@ -675,20 +684,22 @@ function buildTopPlays(rows: ConfluenceRow[]): TopPlay[] {
         ? ((r.spotPrice - r.gammaFlip) / r.spotPrice) * 100
         : null;
       const isAboveFlip = flipDist !== null && flipDist >= 0;
-      const isNegativeGamma = r.regime === 'negative_gamma' || r.totalGEX < 0;
-      const absVex = Math.abs(r.totalVEX);
+      // Shared regime (shared/gex-regime.ts): near-flip rows count by their net sign.
+      const isNegativeGamma = r.regime === 'negative_gamma' || (r.regime === 'transitioning' && r.totalGEX < 0);
+      const absVex = Math.abs(r.totalVEX); // $M per 1 IV point (units v2)
 
       // ── Play score: VEX magnitude (40) + regime (15) + wall setup (15) ──
       // Gamma flip is displayed as an estimate but excluded from ranking until it is
       // recomputed by sweeping total GEX across candidate spot prices.
       let score = 0;
 
-      // VEX component (0-40): positive VEX is rare and very bullish
-      if (r.totalVEX > 0 && absVex > 50) score += 40;
-      else if (absVex > 1000) score += 35;
-      else if (absVex > 500) score += 30;
-      else if (absVex > 100) score += 22;
-      else if (absVex > 10) score += 12;
+      // VEX component (0-40): positive VEX is rare and very bullish.
+      // Thresholds are v1's ÷100 — VEX moved from $M per 100 vol pts to $M per 1 IV pt.
+      if (r.totalVEX > 0 && absVex > 0.5) score += 40;
+      else if (absVex > 10) score += 35;
+      else if (absVex > 5) score += 30;
+      else if (absVex > 1) score += 22;
+      else if (absVex > 0.1) score += 12;
       else score += 4;
 
       // Regime (0-15): negative gamma = amplified moves
@@ -708,9 +719,9 @@ function buildTopPlays(rows: ConfluenceRow[]): TopPlay[] {
 
       // VEX signal classification
       let vexSignal: VEXSignal;
-      if (r.totalVEX > 0 && absVex > 50) vexSignal = 'positive_rare';
-      else if (absVex > 500 && isNegativeGamma) vexSignal = 'negative_explosive';
-      else if (absVex > 100) vexSignal = 'negative_strong';
+      if (r.totalVEX > 0 && absVex > 0.5) vexSignal = 'positive_rare';
+      else if (absVex > 5 && isNegativeGamma) vexSignal = 'negative_explosive';
+      else if (absVex > 1) vexSignal = 'negative_strong';
       else vexSignal = 'mild';
 
       // ── Plain English insight (regime-aware) ──
@@ -721,26 +732,26 @@ function buildTopPlays(rows: ConfluenceRow[]): TopPlay[] {
 
       if (vexSignal === 'positive_rare' && isPositiveGamma) {
         // Positive VEX + positive gamma = vol compression drives dealer buying → strong pin support
-        insight = `Positive VEX (+${absVex.toFixed(0)}) in positive gamma — vol compression drives dealer buying. Strong pin support near $${(r.callWall || r.gammaFlip || r.spotPrice).toFixed(0)}.`;
+        insight = `Positive VEX (+$${absVex.toFixed(1)}M/IV pt) in positive gamma — vol compression drives dealer buying. Strong pin support near $${(r.callWall || r.gammaFlip || r.spotPrice).toFixed(0)}.`;
       } else if (vexSignal === 'positive_rare') {
         // Positive VEX outside positive gamma = dealers buying alongside, rare
-        insight = `Positive VEX (+${absVex.toFixed(0)}) — dealers accumulating delta with you. Rare bullish signal${isTransitioning ? ' — watch for regime flip to confirm.' : '.'}`;
+        insight = `Positive VEX (+$${absVex.toFixed(1)}M/IV pt) — dealers buy as IV rises, accumulating delta with you. Rare bullish signal${isTransitioning ? ' — watch for regime flip to confirm.' : '.'}`;
       } else if (vexSignal === 'negative_explosive') {
         // Negative gamma + high VEX = cascading dealer hedging both ways
-        insight = `Negative gamma + VEX −${absVex.toFixed(0)} = coiled spring. Dealer hedging can amplify a confirmed break in either direction.`;
+        insight = `Negative gamma + VEX −$${absVex.toFixed(1)}M/IV pt (dealers sell as IV rises) = coiled spring. Dealer hedging can amplify a confirmed break in either direction.`;
       } else if (isPositiveGamma) {
         // Positive gamma dampens moves; do not derive direction from the current
         // cumulative-strike flip estimate.
-        const negVexNote = absVex > 100
-          ? ` Negative VEX (−${absVex.toFixed(0)}) = vol-compression headwind limits upside extension.`
+        const negVexNote = absVex > 1
+          ? ` Negative VEX (−$${absVex.toFixed(1)}M/IV pt): dealers sell as IV rises.`
           : '';
         insight = `Positive gamma — dealers dampen moves; expect range-bound action near $${(r.callWall || r.spotPrice).toFixed(0)}.${negVexNote}${hasPositiveVEX ? ' Positive VEX supports the bid.' : ''}`;
       } else if (isNegativeGamma) {
         insight = `Negative gamma — dealer hedging can amplify whichever side confirms first. Use the walls as structural levels, not directional triggers.`;
       } else if (isTransitioning && flipDist !== null) {
-        insight = `Transitioning regime. The displayed flip is an estimated reference and is excluded from the score; confirm direction with price and flow.`;
+        insight = `Near the flip — spot is within 1% of the zero-gamma level, so a small move changes whether dealers dampen or amplify. Confirm direction with price and flow.`;
       } else {
-        insight = `Neutral regime. VEX ${r.totalVEX >= 0 ? '+' : ''}${r.totalVEX.toFixed(0)} — moderate dealer positioning, no strong directional pressure.`;
+        insight = `Neutral gamma (dealer book roughly balanced). VEX ${r.totalVEX >= 0 ? '+' : '−'}$${Math.abs(r.totalVEX).toFixed(1)}M/IV pt — no strong directional pressure.`;
       }
 
       const conviction = score >= 70 ? 'high' as const : score >= 45 ? 'medium' as const : 'low' as const;

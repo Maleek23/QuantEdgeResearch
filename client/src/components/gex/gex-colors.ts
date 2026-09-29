@@ -14,19 +14,39 @@
  * everything else to invisible).
  */
 
+import type { GammaRegime } from '@shared/gex-regime';
+
 export type ExposureKind = 'gex' | 'vex' | 'gexPlus';
 
+// Hex fallbacks so surfaces outside nexus.css (the research chart) get the same law.
+const CYAN = 'var(--cyan, #3b8cff)';
+const CYAN_BRIGHT = 'var(--cyan-bright, #6aa8ff)';
+const RED = 'var(--red, #ff6b3d)';
+const GREEN = 'var(--green, #6ee7b7)';
+const AMBER = 'var(--amber, #f4b942)';
+const MUTE = 'var(--text-mute, #8a93a6)';
+
 export function exposureVar(kind: ExposureKind, v: number): string {
-  if (!Number.isFinite(v) || v === 0) return 'var(--text-mute)';
-  if (kind === 'vex') return v > 0 ? 'var(--green)' : 'var(--red)';
-  return v > 0 ? 'var(--cyan)' : 'var(--red)';
+  if (!Number.isFinite(v) || v === 0) return MUTE;
+  if (kind === 'vex') return v > 0 ? GREEN : RED;
+  return v > 0 ? CYAN : RED;
 }
 
 /** Text colour: the brighter accent for +GEX so it reads on dark panels. */
 export function exposureText(kind: ExposureKind, v: number): string {
-  if (!Number.isFinite(v) || v === 0) return 'var(--text-mute)';
-  if (kind !== 'vex' && v > 0) return 'var(--cyan-bright)';
+  if (!Number.isFinite(v) || v === 0) return MUTE;
+  if (kind !== 'vex' && v > 0) return CYAN_BRIGHT;
   return exposureVar(kind, v);
+}
+
+/**
+ * Gamma REGIME colour — follows the GEX pair: positive = blue (dealers long
+ * gamma, stabilising), negative = vermilion (dealers short gamma, amplifying),
+ * neutral / near the flip = amber. Words come from shared/gex-regime.ts.
+ */
+export function regimeColor(regime: GammaRegime | null | undefined, nearFlip = false): string {
+  if (nearFlip || regime === 'neutral' || !regime) return AMBER;
+  return regime === 'positive' ? CYAN_BRIGHT : RED;
 }
 
 /** Background tint whose strength scales with |v| / max (8% … 48%). */
@@ -36,6 +56,11 @@ export function exposureBg(kind: ExposureKind, v: number, maxAbs: number): strin
   const pct = Math.round(8 + 40 * t);
   return `color-mix(in srgb, ${exposureVar(kind, v)} ${pct}%, transparent)`;
 }
+
+/** GEX from a snapshot field ($B per 1%) → "−$1.40B". */
+export const fmtGexB = (billions: number | null | undefined) => (billions == null ? '—' : fmtSignedUsd(billions * 1e9));
+/** VEX from a snapshot field ($M per IV point) → "−$6.4B". */
+export const fmtVexM = (millions: number | null | undefined) => (millions == null ? '—' : fmtSignedUsd(millions * 1e6));
 
 /** Signed dollars: +$5.29M / −$24.4M / +$812K. Input in whole dollars. */
 export function fmtSignedUsd(v: number | null | undefined): string {

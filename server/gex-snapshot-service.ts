@@ -73,12 +73,9 @@ async function fetchOne(symbol: string): Promise<GexSnapshot | null> {
   const flip = typeof result.flipPoint === "number" ? result.flipPoint : null;
   const flipDistancePct = flip !== null ? ((flip - spot) / spot) * 100 : null;
 
-  const netSign: GexSnapshot["netGexSign"] =
-    result.totalNetGEX > 0.05
-      ? "positive"
-      : result.totalNetGEX < -0.05
-        ? "negative"
-        : "neutral";
+  // Shared regime definition (shared/gex-regime.ts) — sign with a 5%-of-gross neutral band.
+  const netSign: GexSnapshot["netGexSign"] = result.regimeRead?.regime
+    ?? (result.totalNetGEX > 0.05 ? "positive" : result.totalNetGEX < -0.05 ? "negative" : "neutral");
 
   return {
     symbol: symbol.toUpperCase(),

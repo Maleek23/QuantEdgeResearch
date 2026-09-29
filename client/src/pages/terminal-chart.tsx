@@ -21,21 +21,15 @@ import { formatGEX, formatGammaPct } from '../../../shared/gex-types';
 import { RefreshCw } from 'lucide-react';
 import type { GEXTerminalData } from '../../../shared/gex-types';
 import { CacheFreshnessIndicator } from '@/components/gex/CacheFreshnessIndicator';
+import { exposureText, regimeColor, fmtGexB, fmtVexM } from '@/components/gex/gex-colors';
+import { describeLegacyRegime } from '@shared/gex-regime';
 ;
 
 
 // ─── Helpers ────────────────────────────────────────────────
-/** Smart exposure formatter: GEX is in $B, VEX is in $M — scale accordingly */
+/** GEX: snapshot $B per 1% move; VEX: $M per 1 IV point (units v2, docs/GEX_VEX_METHODOLOGY.md). */
 function formatExposure(val: number, mode: 'gex' | 'vex'): string {
-  const sign = val >= 0 ? '+' : '−';
-  const abs = Math.abs(val);
-  if (mode === 'gex') {
-    // totalGEX is in billions
-    return `${sign}$${abs.toFixed(2)}B`;
-  }
-  // totalVEX is in millions
-  if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(1)}B`;
-  return `${sign}$${abs.toFixed(1)}M`;
+  return mode === 'gex' ? `${fmtGexB(val)}/1%` : `${fmtVexM(val)}/IV pt`;
 }
 
 /** TradingView-style tick flash — returns 'up'|'down'|null on value change */
@@ -333,13 +327,13 @@ export default function TerminalPage() {
         const linkedTargetMax = s.zeroGammaProjection != null && s.maxGammaStrike != null &&
                                 Math.abs(s.zeroGammaProjection - s.maxGammaStrike) < 1;
 
-        const Pill = ({ label, value, tooltip, color, linked }: { label: string; value: React.ReactNode; tooltip: string; color: string; linked?: boolean }) => (
+        const Pill = ({ label, value, tooltip, color, linked, valueStyle }: { label: string; value: React.ReactNode; tooltip: string; color: string; linked?: boolean; valueStyle?: React.CSSProperties }) => (
           <div className="flex flex-col items-start min-w-0" title={tooltip}>
             <span className="text-[9px] uppercase tracking-wider text-muted-foreground leading-none">
               {label}
               {linked && <span className="ml-1 text-sky-400/60">●</span>}
             </span>
-            <span className={cn('text-sm font-bold tabular-nums leading-tight font-mono', color)}>
+            <span className={cn('text-sm font-bold tabular-nums leading-tight font-mono', color)} style={valueStyle}>
               {value}
             </span>
           </div>
@@ -348,24 +342,30 @@ export default function TerminalPage() {
         return (
           <div className="flex-shrink-0 border-b border-border/15 bg-[var(--surface-base)] px-4 py-2">
             <div className="flex items-center gap-5 overflow-x-auto">
-              {/* Regime badge */}
-              <span className={cn(
-                'px-2 py-1 rounded text-[10px] font-bold uppercase border whitespace-nowrap flex-shrink-0',
-                s.regime === 'positive_gamma'
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-[var(--trade-bullish)]'
-                  : s.regime === 'negative_gamma'
-                    ? 'bg-orange-500/10 border-orange-500/40 text-orange-400'
-                    : 'bg-zinc-700/40 border-zinc-700 text-zinc-400'
-              )}>
-                {s.regime === 'positive_gamma' ? 'Γ POS · pinned' : s.regime === 'negative_gamma' ? 'Γ NEG · squeezy' : 'Γ NEUTRAL'}
-              </span>
+              {/* Regime badge — shared definition + words (shared/gex-regime.ts), GEX colour law */}
+              {(() => {
+                const rd = describeLegacyRegime(s.regime);
+                const c = regimeColor(rd.regime, rd.nearFlip);
+                return (
+                  <span
+                    className="px-2 py-1 rounded text-[10px] font-bold uppercase border whitespace-nowrap flex-shrink-0"
+                    style={{ color: c, borderColor: `color-mix(in srgb, ${c} 40%, transparent)`, background: `color-mix(in srgb, ${c} 10%, transparent)` }}
+                    title={`${rd.posture}${s.regimeRead?.basis ? ` · ${s.regimeRead.basis}` : ''}`}
+                  >
+                    {rd.glyph} {rd.title}
+                  </span>
+                );
+              })()}
 
               {/* Net GEX/VEX */}
               <Pill
                 label={`NET ${exposureMode.toUpperCase()}`}
                 value={typeof netExposure === 'number' && !isNaN(netExposure) ? formatExposure(netExposure, exposureMode) : '—'}
-                tooltip={`Net dealer ${exposureMode} exposure across all strikes`}
-                color={(netExposure ?? 0) > 0 ? 'text-[var(--trade-bullish)]' : (netExposure ?? 0) < 0 ? 'text-orange-400' : 'text-foreground'}
+                tooltip={exposureMode === 'gex'
+                  ? 'Net GEX: $ of underlying dealers trade per 1% move, all strikes and expiries. + = dealers long gamma (stabilising); sign assumes dealers long calls / short puts.'
+                  : 'Net VEX: $ dealers trade per 1 IV point. + = dealers buy as IV rises; − = they sell (vol-up selloffs feed on themselves).'}
+                color=""
+                valueStyle={{ color: exposureText(exposureMode, netExposure ?? 0) }}
               />
 
               <div className="w-px h-7 bg-border/20 flex-shrink-0" />
@@ -374,14 +374,14 @@ export default function TerminalPage() {
               <Pill
                 label="Call Wall"
                 value={s.callWall != null ? `$${s.callWall.toFixed(0)}` : <span className="text-zinc-600 italic text-xs">low OI</span>}
-                tooltip="Largest call OI above spot — likely magnet/resistance"
+                tooltip="Call wall: strike above spot with the largest call gamma $ (all expiries) — typical resistance"
                 color="text-[var(--trade-bullish)]"
               />
 
               {/* MAGNET (Zero-Γ Target) — cyan, with % from spot */}
               {s.zeroGammaProjection != null && (
                 <Pill
-                  label="Magnet"
+                  label={(s.totalGEX ?? 0) > 0 ? 'Pin (max γ)' : 'Zero-γ'}
                   value={
                     <span className="flex items-baseline gap-1">
                       <span className="text-sky-400">${s.zeroGammaProjection.toFixed(0)}</span>
@@ -392,7 +392,7 @@ export default function TerminalPage() {
                       )}
                     </span>
                   }
-                  tooltip="Zero-Γ projection — price gravitates here from dealer hedging"
+                  tooltip={(s.totalGEX ?? 0) > 0 ? 'Max-gamma strike: in positive gamma, dealer hedging tends to pin price toward it' : 'Zero-gamma level (no positive book to pin to)'}
                   color=""
                   linked={linkedTargetMax}
                 />
@@ -400,9 +400,9 @@ export default function TerminalPage() {
 
               {/* FLIP — amber = regime change boundary */}
               <Pill
-                label="Flip"
-                value={s.gammaFlipPrice != null ? `$${s.gammaFlipPrice.toFixed(0)}` : <span className="text-zinc-600 italic text-xs">none</span>}
-                tooltip="Where dealer gamma flips from + to − (regime boundary)"
+                label="Zero-γ"
+                value={s.gammaFlipPrice != null ? `$${s.gammaFlipPrice.toFixed(2)}` : <span className="text-zinc-600 italic text-xs">none ±20%</span>}
+                tooltip="Zero-gamma level: the spot where net dealer gamma crosses zero, found by re-pricing every contract's gamma across hypothetical spots. On one side dealers stabilise, on the other they amplify."
                 color="text-amber-400"
               />
 
@@ -410,7 +410,7 @@ export default function TerminalPage() {
               <Pill
                 label="Put Wall"
                 value={s.putWall != null ? `$${s.putWall.toFixed(0)}` : <span className="text-zinc-600 italic text-xs">low OI</span>}
-                tooltip="Largest put OI below spot — likely magnet/support"
+                tooltip="Put wall: strike below spot with the largest put gamma $ (all expiries) — typical support"
                 color="text-[var(--trade-bearish)]"
                 linked={linkedPutMaxGamma}
               />
@@ -429,7 +429,7 @@ export default function TerminalPage() {
             {/* Subtle one-liner explaining magnet — only when relevant */}
             {s.zeroGammaProjection != null && (
               <div className="text-[9px] text-muted-foreground mt-1 font-mono">
-                Magnet from dealer hedging flow · conf {proj ? `${(proj.confidence * 100).toFixed(0)}%` : '100%'}
+                Pin/zero-γ are levels from dealer-hedging math, not forecasts · sign assumes dealers long calls / short puts
                 {(linkedPutMaxGamma || linkedTargetMax) && (
                   <span className="ml-2 text-sky-400/60">● = same strike (linked levels confirm magnet)</span>
                 )}

@@ -1552,6 +1552,21 @@
 .nexus-vars .gexrank-table tbody tr.stale{opacity:.55}
 .nexus-vars .gexrank-foot{display:flex;flex-direction:column;gap:4px;font:500 var(--fs-9,9px)/1.5 'JetBrains Mono',monospace;color:var(--text-mute)}
 .nexus-vars .gexrank-foot b{color:var(--text-dim)}
+.nexus-vars .gexrank-head{display:flex;flex-direction:column;gap:2px}
+.nexus-vars .gexrank-head h3{margin:0;font:700 14px/1.2 'Space Grotesk',sans-serif;color:var(--text)}
+.nexus-vars .gexrank-head p{margin:0;font:500 var(--fs-10,10px)/1.45 'JetBrains Mono',monospace;color:var(--text-dim)}
+.nexus-vars .gexsetups{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.nexus-vars .gexsetup{border:1px solid var(--nx-border);border-left:3px solid var(--setup-c,var(--cyan));border-radius:6px;padding:10px 12px;background:color-mix(in srgb,var(--panel-solid) 90%,transparent);cursor:pointer;display:flex;flex-direction:column;gap:6px;min-width:0;transition:background .12s}
+.nexus-vars .gexsetup:hover,.nexus-vars .gexsetup:focus-visible{background:color-mix(in srgb,var(--setup-c,var(--cyan)) 6%,transparent);outline:none}
+.nexus-vars .gexsetup.stale{opacity:.55}
+.nexus-vars .gexsetup-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.nexus-vars .gexsetup-top .sym{font:700 15px/1 'Space Grotesk',sans-serif;color:var(--text)}
+.nexus-vars .gexsetup-top .k{font:700 12px/1 'JetBrains Mono',monospace;color:var(--setup-c,var(--cyan))}
+.nexus-vars .gexsetup-top .score{margin-left:auto;font:800 13px/1 'JetBrains Mono',monospace;color:var(--text)}
+.nexus-vars .gexsetup-bar{height:4px;border-radius:2px;background:var(--nx-border);overflow:hidden}
+.nexus-vars .gexsetup-bar b{display:block;height:100%;background:var(--setup-c,var(--cyan))}
+.nexus-vars .gexsetup ul{margin:0;padding-left:14px;display:flex;flex-direction:column;gap:3px;font:500 var(--fs-10,10px)/1.45 Inter,sans-serif;color:var(--text-dim)}
+.nexus-vars .gexsetup-meta{display:flex;flex-wrap:wrap;gap:4px 10px;font:500 var(--fs-9,9px)/1.4 'JetBrains Mono',monospace;color:var(--text-mute)}
 
 /* ═══════════════════════════════════════════════════════════════
    GEX HUB — the fourth reference mock. Shared classes reused; .gexlab scopes
