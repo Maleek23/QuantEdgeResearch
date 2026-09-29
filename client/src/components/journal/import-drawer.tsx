@@ -6,9 +6,11 @@
  *   2. Log manually   → the trade editor
  *   3. Bullflow flow  → FlowImport (grades pasted alerts into trade ideas)
  *   4. Reset journal  → DELETE /api/journal/trades/all, behind a typed confirmation
+ *   5. Connect broker → Alpaca, read-only fill import (your journal)
+ *   6. Discord        → a trader's Discord history, preview then confirm (trader journals)
  */
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Download, FileUp, Loader2, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Check, Download, FileUp, Link2, Loader2, MessageSquare, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent,
@@ -19,10 +21,13 @@ import { cn } from '@/lib/utils';
 import { BROKERS } from '@/lib/journal/types';
 import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
 import { useJournalPortalClass } from './parts';
+import { useJournal } from './journal-context';
+import { AlpacaConnect } from './alpaca-connect';
+import { DiscordImport } from './discord-import';
 
 const FlowImport = lazy(() => import('@/components/trade-desk/flow-import').then((m) => ({ default: m.FlowImport })));
 
-export type ImportSection = 'csv' | 'manual' | 'flow' | 'reset';
+export type ImportSection = 'csv' | 'manual' | 'flow' | 'reset' | 'broker' | 'discord';
 
 interface ImportResult {
   ok: boolean;
@@ -34,7 +39,7 @@ interface ImportResult {
   errors: string[];
 }
 
-function CsvImport({ onDone }: { onDone: () => void }) {
+function CsvImport({ onDone, qs }: { onDone: () => void; qs: string }) {
   const [broker, setBroker] = useState('');
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
@@ -55,7 +60,7 @@ function CsvImport({ onDone }: { onDone: () => void }) {
     setResult(null);
     try {
       const csv = await file.text();
-      const res = await apiRequest('POST', '/api/journal/import-csv', { csv, broker: broker || undefined });
+      const res = await apiRequest('POST', `/api/journal/import-csv${qs ? `?${qs}` : ''}`, { csv, broker: broker || undefined });
       const data = await res.json();
       setResult({ ok: true, broker: data.broker, saved: data.saved, duplicates: data.duplicates, open: data.open, closed: data.closed, errors: data.errors ?? [] });
       onDone();
@@ -64,7 +69,7 @@ function CsvImport({ onDone }: { onDone: () => void }) {
     } finally {
       setBusy(false);
     }
-  }, [broker, onDone]);
+  }, [broker, onDone, qs]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -128,15 +133,21 @@ function CsvImport({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function ImportDrawer({ open, onOpenChange, focus, tradeCount, onLogTrade }: {
+export function ImportDrawer({ open, onOpenChange, focus, tradeCount, onLogTrade, discordBot = false }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   focus?: ImportSection;
   tradeCount: number;
   onLogTrade: () => void;
+  /** The server has DISCORD_BOT_TOKEN (bot-token import path available). */
+  discordBot?: boolean;
 }) {
   const portal = useJournalPortalClass();
-  const { refresh, resetAll } = useJournalMutations();
+  const { data } = useJournal();
+  const { refresh, resetAll, qs } = useJournalMutations(data.key);
+  const trader = data.key.startsWith('trader:') ? data.key.slice(7) : null;
+  const book = data.meta?.label ?? (trader ?? 'your');
+  const whose = trader ? `${book}'s` : 'your';
   const [confirmReset, setConfirmReset] = useState(false);
   const [typed, setTyped] = useState('');
   const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -153,14 +164,31 @@ export function ImportDrawer({ open, onOpenChange, focus, tradeCount, onLogTrade
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className={cn(portal, 'w-full overflow-y-auto sm:max-w-xl')} style={{ background: 'var(--bg-2)' }}>
           <SheetHeader className="text-left">
-            <SheetTitle className="jr-title" style={{ fontSize: 24 }}>Add to your journal</SheetTitle>
-            <SheetDescription className="jr-sub">Import a broker statement, log a trade by hand, or bring in flow alerts.</SheetDescription>
+            <SheetTitle className="jr-title" style={{ fontSize: 24 }}>Add to {whose} journal</SheetTitle>
+            <SheetDescription className="jr-sub">
+              {trader
+                ? `Import ${book}'s Discord history (preview first), or log a trade by hand.`
+                : 'Import a broker statement, connect Alpaca, log a trade by hand, or bring in flow alerts.'}
+            </SheetDescription>
           </SheetHeader>
           <div className="jr-drawer" style={{ marginTop: 18, gap: 22 }}>
-            <section id="jr-imp-sec-csv" aria-labelledby="jr-imp-csv">
-              <h3 className="jr-section-h" id="jr-imp-csv"><Upload className="h-4 w-4" /> Broker CSV</h3>
-              <CsvImport onDone={refresh} />
-            </section>
+            {trader ? (
+              <section id="jr-imp-sec-discord" aria-labelledby="jr-imp-discord">
+                <h3 className="jr-section-h" id="jr-imp-discord"><MessageSquare className="h-4 w-4" /> From Discord</h3>
+                <DiscordImport traderSlug={trader} traderName={book} botAvailable={discordBot} onDone={refresh} />
+              </section>
+            ) : (
+              <>
+                <section id="jr-imp-sec-csv" aria-labelledby="jr-imp-csv">
+                  <h3 className="jr-section-h" id="jr-imp-csv"><Upload className="h-4 w-4" /> Broker CSV</h3>
+                  <CsvImport onDone={refresh} qs={qs} />
+                </section>
+                <section id="jr-imp-sec-broker" aria-labelledby="jr-imp-broker">
+                  <h3 className="jr-section-h" id="jr-imp-broker"><Link2 className="h-4 w-4" /> Connect broker · Alpaca</h3>
+                  <AlpacaConnect onSynced={refresh} />
+                </section>
+              </>
+            )}
 
             <section id="jr-imp-sec-manual" aria-labelledby="jr-imp-man">
               <h3 className="jr-section-h" id="jr-imp-man"><Plus className="h-4 w-4" /> Log a trade by hand</h3>
@@ -168,16 +196,16 @@ export function ImportDrawer({ open, onOpenChange, focus, tradeCount, onLogTrade
               <button type="button" className="jr-btn jr-btn-primary" onClick={onLogTrade}><Plus className="h-4 w-4" /> Log a trade</button>
             </section>
 
-            <section id="jr-imp-sec-flow" aria-labelledby="jr-imp-flow">
+            {!trader && <section id="jr-imp-sec-flow" aria-labelledby="jr-imp-flow">
               <h3 className="jr-section-h" id="jr-imp-flow">Bullflow alerts → trade ideas</h3>
               <p className="jr-note" style={{ marginTop: 0 }}>Paste alerts you saw in Bullflow. Each line is graded by the option engine; B-and-up contracts become trade ideas (not journal trades).</p>
               <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin" />}>
                 <FlowImport bare />
               </Suspense>
-            </section>
+            </section>}
 
             <section id="jr-imp-sec-reset" aria-labelledby="jr-imp-reset" className="jr-danger">
-              <h3 className="jr-section-h jr-loss" id="jr-imp-reset"><Trash2 className="h-4 w-4" /> Reset journal</h3>
+              <h3 className="jr-section-h jr-loss" id="jr-imp-reset"><Trash2 className="h-4 w-4" /> Reset {whose} journal</h3>
               <p className="jr-note" style={{ marginTop: 0 }}>Deletes all {tradeCount} trade{tradeCount === 1 ? '' : 's'} so you can re-import cleanly (for old imports with wrong P&amp;L or malformed symbols). Cannot be undone.</p>
               <button type="button" className="jr-btn jr-btn-danger" disabled={tradeCount === 0} onClick={() => { setTyped(''); setResetMsg(null); setConfirmReset(true); }}>
                 Delete all trades
@@ -193,7 +221,7 @@ export function ImportDrawer({ open, onOpenChange, focus, tradeCount, onLogTrade
           <AlertDialogHeader>
             <AlertDialogTitle>Delete all {tradeCount} trades?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every trade, note, tag and screenshot in your journal is removed. Type <b>DELETE</b> to confirm.
+              Every trade, tag and screenshot in {whose} journal is removed. Type <b>DELETE</b> to confirm.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <input className="jr-input" aria-label="Type DELETE to confirm" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />

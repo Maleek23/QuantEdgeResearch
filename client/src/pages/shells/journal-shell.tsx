@@ -14,19 +14,27 @@
  *   Dashboard · Trades · Analytics · Track record
  * with Add trade / Import as header actions (editor dialog, import drawer).
  * Every old ?jtab= value still resolves — see lib/journal/legacy-jtab.ts.
+ *
+ * 2026-09-29: one journal UI, several books. A switcher above the header picks
+ * what everything is computed on — Mine · Bot · Trade desk · a trader (Femi,
+ * Malik, Uzo, Bean…) — kept in ?journal=, and a basis line names that book,
+ * its sizing rule and anything it could not score. Bot and Trade desk are
+ * read-only mappings of their ledgers; trader books are written by import.
  */
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart3, BookOpenCheck, LayoutDashboard, ListOrdered, Loader2, Plus, Upload } from 'lucide-react';
+import { BarChart3, BookOpenCheck, LayoutDashboard, ListOrdered, Loader2, MessageSquare, Plus, Upload } from 'lucide-react';
 import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { JournalContext, type JournalCtx, type JournalView } from '@/components/journal/journal-context';
 import { JournalFilterBar } from '@/components/journal/filter-bar';
+import { JournalBasis, JournalSwitcher } from '@/components/journal/journal-switcher';
 import { ImportDrawer, type ImportSection } from '@/components/journal/import-drawer';
 import { TradeDrawer } from '@/components/journal/trade-drawer';
 import { TradeEditor } from '@/components/journal/trade-editor';
 import type { JournalTradeRow } from '@/lib/journal/types';
-import { useJournalData, useJournalFilterState } from '@/lib/journal/use-journal';
+import { useJournalData, useJournalFilterState, useJournalKey, useJournalSources } from '@/lib/journal/use-journal';
+import type { JournalKey } from '@shared/journal-sources';
 import { resolveJournalTab } from '@/lib/journal/legacy-jtab';
 import '@/styles/journal.css';
 
@@ -42,6 +50,14 @@ const TABS: readonly QETabItem<JournalView>[] = [
   { id: 'record', label: 'Track record', hint: "How the platform's published ideas did, plus the backtester", icon: <BookOpenCheck className="h-3 w-3" /> },
 ];
 
+/** Header copy per book — the question each journal answers. */
+function headCopy(key: JournalKey, label: string) {
+  if (key === 'bot') return { eyebrow: 'bot paper ledger', title: 'How is the bot actually trading?' };
+  if (key === 'desk') return { eyebrow: 'published ideas, as trades', title: 'How did the trade desk trade?' };
+  if (key.startsWith('trader:')) return { eyebrow: `${label}'s trades`, title: `How is ${label} trading?` };
+  return { eyebrow: 'your trades', title: 'How am I actually trading?' };
+}
+
 const PANEL_PREFIX = 'journal-views';
 
 export default function JournalShell() {
@@ -52,7 +68,13 @@ export default function JournalShell() {
   const [simSymbol, setSimSymbol] = useState<string | null>(null);
 
   const filters = useJournalFilterState();
-  const data = useJournalData(filters.resolved);
+  const [journalKey, setJournalKey] = useJournalKey();
+  const sourcesQ = useJournalSources();
+  const data = useJournalData(filters.resolved, journalKey);
+  const source = sourcesQ.data?.sources.find((x) => x.key === journalKey);
+  const bookLabel = data.meta?.label ?? source?.label ?? (journalKey === 'mine' ? 'Mine' : journalKey);
+  const canWrite = data.meta?.canWrite ?? source?.canWrite ?? journalKey === 'mine';
+  const isTrader = journalKey.startsWith('trader:');
 
   const [drawer, setDrawer] = useState<{ id: string; order: string[] } | null>(null);
   const [editor, setEditor] = useState<{ open: boolean; row: JournalTradeRow | null }>({ open: initial.intent?.kind === 'add', row: null });
@@ -96,7 +118,9 @@ export default function JournalShell() {
     goTo,
     simSymbol,
     simulate: (symbol) => { setSimSymbol(symbol); setDrawer(null); goTo('trades', 'jr-sim'); },
-  }), [filters, data, goTo, simSymbol]);
+    setJournal: (key) => { setDrawer(null); setEditor({ open: false, row: null }); setImp({ open: false }); setJournalKey(key); if (view === 'record') setView('dashboard'); },
+    sources: sourcesQ.data,
+  }), [filters, data, goTo, simSymbol, setJournalKey, view, sourcesQ.data]);
 
   const current = drawer ? rowsById.get(drawer.id) ?? null : null;
   const idx = drawer ? drawer.order.indexOf(drawer.id) : -1;
@@ -112,30 +136,40 @@ export default function JournalShell() {
   } else if (tradesQ.isError) {
     body = (
       <QEError
-        title="Couldn't load your journal"
-        message="The journal service didn't respond. Your trades are safe — this is a connection failure, not an empty journal."
+        title={journalKey === 'mine' ? "Couldn't load your journal" : `Couldn't load the ${bookLabel} journal`}
+        message={journalKey === 'mine'
+          ? "The journal service didn't respond. Your trades are safe — this is a connection failure, not an empty journal."
+          : `The ${bookLabel} journal request failed (${tradesQ.error instanceof Error ? tradesQ.error.message : 'no response'}). This is a failure, not an empty book.`}
         onRetry={() => tradesQ.refetch()}
         retrying={tradesQ.isFetching}
       />
     );
   } else if (tradesQ.isLoading) {
-    body = <QELoading rows={4} label="loading your trades…" />;
+    body = <QELoading rows={4} label={`loading ${journalKey === 'mine' ? 'your' : `the ${bookLabel}`} trades…`} />;
   } else if (total === 0) {
+    const excluded = (data.meta?.excluded ?? []).reduce((n, e) => n + e.count, 0);
     body = (
       <QEEmpty
-        message={<>Your journal is empty. Import a broker CSV or log a trade and the dashboard, calendar and analytics fill in from your real fills.</>}
-        action={
+        message={
+          journalKey === 'mine' ? <>Your journal is empty. Import a broker CSV, connect Alpaca, or log a trade and the dashboard, calendar and analytics fill in from your real fills.</>
+          : journalKey === 'bot' ? <>The bot's paper ledger has no positions yet{data.meta?.basis ? <> — {data.meta.basis}</> : null}.</>
+          : journalKey === 'desk' ? <>No published idea since the clean-era baseline could be scored as a trade{excluded ? ` (${excluded} held but not scorable — see the basis line)` : ''}.</>
+          : <>{bookLabel}'s journal is empty.{canWrite ? ' Import their Discord history (preview first) or log a trade.' : ' An admin can import their Discord history.'}</>
+        }
+        action={canWrite ? (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button type="button" className="jr-btn jr-btn-primary" onClick={() => setImp({ open: true, section: 'csv' })}><Upload className="h-4 w-4" /> Import CSV</button>
+            {isTrader
+              ? <button type="button" className="jr-btn jr-btn-primary" onClick={() => setImp({ open: true, section: 'discord' })}><MessageSquare className="h-4 w-4" /> Import from Discord</button>
+              : <button type="button" className="jr-btn jr-btn-primary" onClick={() => setImp({ open: true, section: 'csv' })}><Upload className="h-4 w-4" /> Import CSV</button>}
             <button type="button" className="jr-btn" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Log a trade</button>
           </div>
-        }
+        ) : undefined}
       />
     );
   } else if (data.rows.length === 0) {
     body = (
       <QEEmpty
-        message={`None of your ${total} trades match these filters.`}
+        message={`None of the ${total} trades in ${journalKey === 'mine' ? 'your journal' : `the ${bookLabel} journal`} match these filters.`}
         action={<button type="button" className="jr-btn" onClick={filters.clear}>Clear filters</button>}
       />
     );
@@ -150,14 +184,16 @@ export default function JournalShell() {
   }
 
   const m = data.metrics;
+  const copy = headCopy(journalKey, bookLabel);
   return (
     <JournalContext.Provider value={ctx}>
       <div className="jr">
         <div className="jr-page">
+          <JournalSwitcher value={journalKey} onChange={ctx.setJournal} sources={sourcesQ.data} loading={sourcesQ.isLoading} />
           <header className="jr-head">
             <div style={{ minWidth: 0 }}>
-              <div className="jr-eyebrow"><span className="pill">JOURNAL</span>{personal ? 'your trades' : 'published ideas'}</div>
-              <h1 className="jr-title">{personal ? 'How am I actually trading?' : 'How did the ideas do?'}</h1>
+              <div className="jr-eyebrow"><span className="pill">JOURNAL</span>{personal ? copy.eyebrow : 'published ideas'}</div>
+              <h1 className="jr-title">{personal ? copy.title : 'How did the ideas do?'}</h1>
               <p className="jr-sub">
                 {personal
                   ? tradesQ.isSuccess
@@ -168,11 +204,17 @@ export default function JournalShell() {
                   : 'Hit rate, expectancy and sample size of every published idea'}
               </p>
             </div>
-            <div className="jr-head-actions">
-              <button type="button" className="jr-btn" onClick={() => setImp({ open: true, section: 'csv' })}><Upload className="h-4 w-4" /> Import</button>
-              <button type="button" className="jr-btn jr-btn-primary" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Add trade</button>
-            </div>
+            {personal && canWrite && (
+              <div className="jr-head-actions">
+                {isTrader
+                  ? <button type="button" className="jr-btn" onClick={() => setImp({ open: true, section: 'discord' })}><MessageSquare className="h-4 w-4" /> Import from Discord</button>
+                  : <button type="button" className="jr-btn" onClick={() => setImp({ open: true, section: 'csv' })}><Upload className="h-4 w-4" /> Import</button>}
+                <button type="button" className="jr-btn jr-btn-primary" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Add trade</button>
+              </div>
+            )}
           </header>
+
+          {personal && tradesQ.isSuccess && <JournalBasis meta={data.meta} shown={data.rows.length} total={total} />}
 
           <QETabs
             items={TABS}
@@ -214,6 +256,7 @@ export default function JournalShell() {
           focus={imp.section}
           onOpenChange={(o) => setImp((s) => ({ ...s, open: o }))}
           tradeCount={total}
+          discordBot={sourcesQ.data?.capabilities.discordBot ?? false}
           onLogTrade={() => { setImp({ open: false }); setEditor({ open: true, row: null }); }}
         />
       </div>

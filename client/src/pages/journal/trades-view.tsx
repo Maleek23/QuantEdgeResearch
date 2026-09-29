@@ -25,14 +25,14 @@ function csvCell(v: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-function exportCsv(trades: JTrade[]) {
+function exportCsv(trades: JTrade[], book: string) {
   const cols = ['entryTime', 'exitTime', 'symbol', 'assetType', 'direction', 'optionType', 'strikePrice', 'expiryDate', 'quantity',
     'entryPrice', 'exitPrice', 'fees', 'realizedPnL', 'realizedPnLPercent', 'status', 'setupType', 'mistakeTag', 'emotion', 'rating', 'broker', 'notes'] as const;
   const lines = [cols.join(','), ...trades.map((t) => cols.map((c) => csvCell(t.row[c])).join(','))];
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `journal-trades-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `journal-${book}-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -45,7 +45,8 @@ export default function TradesView() {
   const [simOpen, setSimOpen] = useState(!!simSymbol || new URLSearchParams(window.location.search).get('jsim') === '1');
   useEffect(() => { if (simSymbol) setSimOpen(true); }, [simSymbol]);
   const portal = useJournalPortalClass();
-  const { remove } = useJournalMutations();
+  const { remove } = useJournalMutations(data.key);
+  const readOnly = !(data.meta?.canWrite ?? data.key === 'mine');
   const [pendingDelete, setPendingDelete] = useState<JTrade | null>(null);
   const [deleteError, setDeleteError] = useState('');
 
@@ -92,12 +93,14 @@ export default function TradesView() {
               <option value="pnl:1">Worst P&amp;L</option>
               <option value="symbol:1">Symbol A–Z</option>
             </select>
-            <button type="button" className="jr-btn jr-btn-sm" onClick={() => exportCsv(sorted)} disabled={!sorted.length}>
+            <button type="button" className="jr-btn jr-btn-sm" onClick={() => exportCsv(sorted, data.key.replace(':', '-'))} disabled={!sorted.length}>
               <Download className="h-3.5 w-3.5" /> Export CSV
             </button>
-            <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => openEditor()}>
-              <Plus className="h-3.5 w-3.5" /> Add trade
-            </button>
+            {!readOnly && (
+              <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => openEditor()}>
+                <Plus className="h-3.5 w-3.5" /> Add trade
+              </button>
+            )}
           </>
         }>
         <div className="jr-table-wrap jr-desktop-only">
@@ -140,8 +143,8 @@ export default function TradesView() {
                   <td className="jr-dim">{t.row.broker}</td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <button type="button" className="jr-icon-btn" aria-label={`Edit ${t.symbol} trade`} onClick={() => openEditor(t.row)}><Pencil className="h-3.5 w-3.5" /></button>
-                    <button type="button" className="jr-icon-btn danger" aria-label={`Delete ${t.symbol} trade (asks to confirm)`} onClick={() => { setDeleteError(''); setPendingDelete(t); }}><Trash2 className="h-3.5 w-3.5" /></button>
+                    {!readOnly && <button type="button" className="jr-icon-btn" aria-label={`Edit ${t.symbol} trade`} onClick={() => openEditor(t.row)}><Pencil className="h-3.5 w-3.5" /></button>}
+                    {!readOnly && <button type="button" className="jr-icon-btn danger" aria-label={`Delete ${t.symbol} trade (asks to confirm)`} onClick={() => { setDeleteError(''); setPendingDelete(t); }}><Trash2 className="h-3.5 w-3.5" /></button>}
                     <ChevronRight className="h-4 w-4" style={{ color: 'var(--text-mute)' }} aria-hidden />
                     </div>
                   </td>

@@ -16,7 +16,7 @@
 
 import { storage } from './storage';
 import { logger } from './logger';
-import { matchesJournalFilters, type JournalFilters } from '@shared/journal-filters';
+import { matchesJournalFilters, type JournalFilterableRow, type JournalFilters } from '@shared/journal-filters';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -1154,13 +1154,19 @@ function detectBehaviors(trades: TradeRecord[], metrics: PerformanceMetrics): Be
 // ─── Main Export ─────────────────────────────────────────────
 
 export async function getJournalAnalytics(userId?: string, filters?: JournalFilters): Promise<JournalAnalytics> {
+  return getJournalAnalyticsFor(userId ? await storage.getJournalTrades(userId) : null, filters);
+}
+
+/**
+ * Analytics over any journal book's rows (mine, bot, desk, a trader) — rows in the
+ * journal_trades shape. `null` keeps the legacy platform-ideas demo fallback.
+ */
+export async function getJournalAnalyticsFor(rows: JournalFilterableRow[] | null, filters?: JournalFilters): Promise<JournalAnalytics> {
   try {
-    // If userId provided, pull from personal journal trades
-    // Otherwise fall back to platform trade ideas for demo
     let trades: TradeRecord[];
 
-    if (userId) {
-      const allJournalTrades = await storage.getJournalTrades(userId);
+    if (rows) {
+      const allJournalTrades = rows;
       const journalTrades = filters
         ? allJournalTrades.filter((j) => matchesJournalFilters(j, filters))
         : allJournalTrades;

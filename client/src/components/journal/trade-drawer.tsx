@@ -16,6 +16,7 @@ import { fmtDuration, fmtPrice, toTrade } from '@/lib/journal/metrics';
 import type { JournalTradeRow } from '@/lib/journal/types';
 import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
 import { OutcomeChip, Pnl, SideChip, useJournalPortalClass } from './parts';
+import { useJournal } from './journal-context';
 import { ScreenshotField } from './trade-editor';
 
 const when = (iso?: string | null) => (iso
@@ -33,7 +34,9 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
   onSimulate?: (symbol: string) => void;
 }) {
   const portal = useJournalPortalClass();
-  const { save, remove } = useJournalMutations();
+  const { data } = useJournal();
+  const readOnly = !(data.meta?.canWrite ?? data.key === 'mine');
+  const { save, remove } = useJournalMutations(data.key);
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -94,18 +97,19 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
             </div>
             <SheetDescription className="jr-sub">
               {t.status === 'open'
-                ? 'Open position — P&L is realised when you record an exit.'
+                ? (readOnly ? 'Open position — no P&L until it closes in its source ledger.' : 'Open position — P&L is realised when you record an exit.')
                 : <>Net <Pnl value={t.netPnl} className="font-bold" />{trade.realizedPnLPercent != null && <span className="jr-mute"> ({trade.realizedPnLPercent > 0 ? '+' : ''}{trade.realizedPnLPercent.toFixed(1)}% on cost)</span>}</>}
             </SheetDescription>
           </SheetHeader>
 
           <div className="jr-drawer" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" className="jr-btn jr-btn-sm" onClick={() => onEdit(trade)}><Pencil className="h-3.5 w-3.5" /> Edit trade</button>
+              {!readOnly && <button type="button" className="jr-btn jr-btn-sm" onClick={() => onEdit(trade)}><Pencil className="h-3.5 w-3.5" /> Edit trade</button>}
               {isOpt && onSimulate && (
                 <button type="button" className="jr-btn jr-btn-sm" onClick={() => onSimulate(trade.symbol)}><LineChart className="h-3.5 w-3.5" /> Simulate P&amp;L</button>
               )}
-              <button type="button" className="jr-btn jr-btn-sm jr-btn-danger" onClick={() => setConfirm(true)}><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+              {!readOnly && <button type="button" className="jr-btn jr-btn-sm jr-btn-danger" onClick={() => setConfirm(true)}><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
+              {readOnly && <span className="jr-tag" title="This book is computed from its source ledger">read-only · {data.meta?.label ?? 'journal'}</span>}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
                 <button type="button" className="jr-icon-btn" disabled={!neighbours.prev} onClick={() => neighbours.prev && onNavigate(neighbours.prev)} aria-label="Previous trade (←)"><ChevronLeft className="h-4 w-4" /></button>
                 <button type="button" className="jr-icon-btn" disabled={!neighbours.next} onClick={() => neighbours.next && onNavigate(neighbours.next)} aria-label="Next trade (→)"><ChevronRight className="h-4 w-4" /></button>
@@ -122,9 +126,23 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
               {trade.mistakeTag ? <span className="jr-tag">mistake · {trade.mistakeTag}</span> : null}
               {trade.emotion ? <span className="jr-tag">emotion · {trade.emotion}</span> : null}
               {trade.rating ? <span className="jr-tag">rating · {trade.rating}/5</span> : null}
-              {!trade.setupType && !trade.mistakeTag && !trade.emotion && !trade.rating && <span className="jr-mute" style={{ fontSize: 12 }}>none yet — add them with Edit trade</span>}
+              {!trade.setupType && !trade.mistakeTag && !trade.emotion && !trade.rating && <span className="jr-mute" style={{ fontSize: 12 }}>{readOnly ? 'none' : 'none yet — add them with Edit trade'}</span>}
             </div>
 
+            {readOnly ? (
+              <>
+                <div className="jr-field">
+                  <span className="l">Notes</span>
+                  {trade.notes ? <div className="jr-notes">{trade.notes}</div> : <span className="jr-mute" style={{ fontSize: 12 }}>No notes on this trade.</span>}
+                </div>
+                {trade.screenshot && (
+                  <div className="jr-field">
+                    <span className="l">Chart screenshot</span>
+                    <a href={trade.screenshot} target="_blank" rel="noreferrer noopener"><img src={trade.screenshot} alt={`${trade.symbol} chart`} className="jr-shot" loading="lazy" /></a>
+                  </div>
+                )}
+              </>
+            ) : (<>
             <div className="jr-field">
               <label htmlFor="jr-drawer-notes">Notes</label>
               <textarea id="jr-drawer-notes" className="jr-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What was the plan? What happened? What would you repeat?" />
@@ -137,6 +155,7 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
             </div>
 
             <ScreenshotField value={trade.screenshot ?? null} onChange={(v) => patch({ screenshot: v }, v ? 'Screenshot saved' : 'Screenshot removed')} />
+            </>)}
             {msg && <div className={msg.ok ? 'jr-ok' : 'jr-err'} role={msg.ok ? 'status' : 'alert'}>{msg.text}</div>}
           </div>
         </SheetContent>

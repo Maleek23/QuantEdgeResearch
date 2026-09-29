@@ -12,9 +12,12 @@ import {
   journalDayKey, journalFiltersToParams, matchesJournalFilters, parseJournalFilters,
   countJournalFilters, JOURNAL_FILTER_PARAMS, type JournalFilters,
 } from '@shared/journal-filters';
+import {
+  JOURNAL_PARAM, parseJournalKey, type JournalKey, type JournalSourceListItem, type JournalSourceMeta,
+} from '@shared/journal-sources';
 import { apiRequest } from '@/lib/queryClient';
 import { computeMetrics, dailyStats, equityCurve, toTrade } from './metrics';
-import type { JournalAnalytics, JournalTradeRow } from './types';
+import type { JournalAnalytics, JournalNoteRow, JournalTradeRow } from './types';
 
 export const RANGE_PRESETS = [
   { id: 'all', label: 'All time' },
@@ -95,12 +98,55 @@ export function useJournalFilterState() {
 
 export const JOURNAL_TRADES_KEY = ['journal-trades'] as const;
 export const JOURNAL_ANALYTICS_KEY = 'journal-analytics';
+export const JOURNAL_NOTES_KEY = 'journal-notes';
+export const JOURNAL_SOURCES_KEY = ['journal-sources'] as const;
 
-export function useJournalData(filters: JournalFilters) {
-  const tradesQ = useQuery<{ trades: JournalTradeRow[]; count: number }>({
-    queryKey: JOURNAL_TRADES_KEY,
+/** `?journal=` for a book; empty for "mine" so existing URLs keep working. */
+export function journalQs(key: JournalKey): string {
+  return key === 'mine' ? '' : `${JOURNAL_PARAM}=${encodeURIComponent(key)}`;
+}
+
+const withQs = (path: string, ...parts: string[]) => {
+  const q = parts.filter(Boolean).join('&');
+  return q ? `${path}?${q}` : path;
+};
+
+/** Which book the journal shows — lives in the URL (?journal=) next to the filters. */
+export function useJournalKey() {
+  const [key, setKey] = useState<JournalKey>(() =>
+    parseJournalKey(typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(JOURNAL_PARAM)));
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (key === 'mine') url.searchParams.delete(JOURNAL_PARAM);
+    else url.searchParams.set(JOURNAL_PARAM, key);
+    window.history.replaceState(window.history.state, '', url.toString());
+  }, [key]);
+  return [key, setKey] as const;
+}
+
+export interface JournalSourcesResponse {
+  sources: JournalSourceListItem[];
+  isAdmin: boolean;
+  capabilities: { discordBot: boolean; brokerKeys: boolean; serverAlpaca: boolean };
+}
+
+export function useJournalSources() {
+  return useQuery<JournalSourcesResponse>({
+    queryKey: JOURNAL_SOURCES_KEY,
     queryFn: async () => {
-      const res = await fetch('/api/journal/trades', { credentials: 'include' });
+      const res = await fetch('/api/journal/sources', { credentials: 'include' });
+      if (!res.ok) throw new Error(`Journal sources request failed (${res.status})`);
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine') {
+  const tradesQ = useQuery<{ trades: JournalTradeRow[]; count: number; journal?: JournalSourceMeta }>({
+    queryKey: [...JOURNAL_TRADES_KEY, key],
+    queryFn: async () => {
+      const res = await fetch(withQs('/api/journal/trades', journalQs(key)), { credentials: 'include' });
       if (!res.ok) throw new Error(`Journal trades request failed (${res.status})`);
       return res.json();
     },
@@ -108,13 +154,25 @@ export function useJournalData(filters: JournalFilters) {
 
   const qs = journalFiltersToParams(filters).toString();
   const analyticsQ = useQuery<JournalAnalytics>({
-    queryKey: [JOURNAL_ANALYTICS_KEY, qs],
+    queryKey: [JOURNAL_ANALYTICS_KEY, key, qs],
     queryFn: async () => {
-      const res = await fetch(`/api/journal/analytics${qs ? `?${qs}` : ''}`, { credentials: 'include' });
+      const res = await fetch(withQs('/api/journal/analytics', journalQs(key), qs), { credentials: 'include' });
       if (!res.ok) throw new Error(`Journal analytics request failed (${res.status})`);
       return res.json();
     },
     enabled: (tradesQ.data?.count ?? 0) > 0,
+    staleTime: 60_000,
+  });
+
+  const notesQ = useQuery<{ notes: JournalNoteRow[]; count: number }>({
+    queryKey: [JOURNAL_NOTES_KEY, key],
+    queryFn: async () => {
+      const res = await fetch(withQs('/api/journal/notes', journalQs(key)), { credentials: 'include' });
+      if (!res.ok) throw new Error(`Journal notes request failed (${res.status})`);
+      return res.json();
+    },
+    // The bot and trade-desk books are ledgers — they carry no notes.
+    enabled: key === 'mine' || key.startsWith('trader:'),
     staleTime: 60_000,
   });
 
@@ -139,7 +197,8 @@ export function useJournalData(filters: JournalFilters) {
     };
   }, [allRows]);
 
-  return { tradesQ, analyticsQ, allRows, rows, trades, days, curve, metrics, options };
+  const meta = tradesQ.data?.journal ?? null;
+  return { key, meta, tradesQ, analyticsQ, notesQ, allRows, rows, trades, days, curve, metrics, options };
 }
 
 export type JournalData = ReturnType<typeof useJournalData>;
@@ -179,18 +238,20 @@ export async function readApiError(err: unknown): Promise<string> {
   return msg;
 }
 
-export function useJournalMutations() {
+export function useJournalMutations(key: JournalKey = 'mine') {
   const qc = useQueryClient();
   const refresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: JOURNAL_TRADES_KEY });
     qc.invalidateQueries({ queryKey: [JOURNAL_ANALYTICS_KEY] });
+    qc.invalidateQueries({ queryKey: [JOURNAL_NOTES_KEY] });
   }, [qc]);
+  const q = journalQs(key);
 
   const save = useMutation({
     mutationFn: async ({ id, input }: { id?: string; input: Partial<JournalTradeInput> }) => {
       const res = id
-        ? await apiRequest('PATCH', `/api/journal/trade/${encodeURIComponent(id)}`, input)
-        : await apiRequest('POST', '/api/journal/trade', input);
+        ? await apiRequest('PATCH', withQs(`/api/journal/trade/${encodeURIComponent(id)}`, q), input)
+        : await apiRequest('POST', withQs('/api/journal/trade', q), input);
       return (await res.json()) as { trade: JournalTradeRow };
     },
     onSuccess: refresh,
@@ -198,18 +259,18 @@ export function useJournalMutations() {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest('DELETE', `/api/journal/trade/${encodeURIComponent(id)}`);
+      await apiRequest('DELETE', withQs(`/api/journal/trade/${encodeURIComponent(id)}`, q));
     },
     onSuccess: refresh,
   });
 
   const resetAll = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest('DELETE', '/api/journal/trades/all');
+      const res = await apiRequest('DELETE', withQs('/api/journal/trades/all', q));
       return (await res.json()) as { deleted: number };
     },
     onSuccess: refresh,
   });
 
-  return { save, remove, resetAll, refresh };
+  return { save, remove, resetAll, refresh, qs: q };
 }

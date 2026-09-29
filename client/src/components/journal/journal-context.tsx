@@ -6,7 +6,8 @@
  */
 import { createContext, useContext } from 'react';
 import type { JournalTradeRow } from '@/lib/journal/types';
-import type { JournalData, useJournalFilterState } from '@/lib/journal/use-journal';
+import type { JournalData, JournalSourcesResponse, useJournalFilterState } from '@/lib/journal/use-journal';
+import type { JournalKey } from '@shared/journal-sources';
 import type { JournalView } from '@/lib/journal/legacy-jtab';
 import type { ImportSection } from './import-drawer';
 
@@ -23,6 +24,9 @@ export interface JournalCtx {
   /** Symbol preselected in the options P&L simulator (Trades). */
   simSymbol: string | null;
   simulate: (symbol: string) => void;
+  /** Switch the book the journal is computed on (Mine · Bot · Trade desk · a trader). */
+  setJournal: (key: JournalKey) => void;
+  sources: JournalSourcesResponse | undefined;
 }
 
 export const JournalContext = createContext<JournalCtx | null>(null);

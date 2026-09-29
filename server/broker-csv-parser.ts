@@ -504,7 +504,8 @@ export function parseBrokerCSV(rawCsv: string, brokerHint?: JournalBroker): Pars
   const errors: string[] = [];
   const raw: ParsedTrade[] = [];
 
-  const parserMap: Record<JournalBroker, (row: Record<string, string>) => ParsedTrade | null> = {
+  // alpaca / discord rows arrive through their own importers, never as a CSV.
+  const parserMap: Record<Exclude<JournalBroker, 'alpaca' | 'discord'>, (row: Record<string, string>) => ParsedTrade | null> = {
     webull: parseWebull,
     robinhood: parseRobinhood,
     schwab: parseSchwab,
@@ -517,7 +518,7 @@ export function parseBrokerCSV(rawCsv: string, brokerHint?: JournalBroker): Pars
     csv: parseGeneric,
   };
 
-  const parser = parserMap[broker] || parseGeneric;
+  const parser = parserMap[broker as keyof typeof parserMap] || parseGeneric;
 
   for (let i = 1; i < lines.length; i++) {
     const row = rowToObj(headers, lines[i]);

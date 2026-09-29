@@ -38,6 +38,7 @@ export type { Candle, Level, Zone, CandleSeries } from '@/components/charting/ch
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
 import type { ConvictionPick, ConvictionsResponse } from '@/lib/convictions';
 import { getAllApprovedSymbols } from '@shared/approved-tickers';
+import { TraderWatchlistTabs } from '@/components/traders/trader-watchlist-tabs';
 import '@/styles/nexus.css';
 
 /* ────────────────────────────────────────────────────────────────
@@ -484,17 +485,21 @@ export function ChartLabBoard() {
           <div className="watch-section">
             <div className="watch-head">
               <div className="watch-title">Watchlist</div>
-              <div className="watch-count">{watchSyms.length ? `${watchSyms.length} names` : ''}</div>
             </div>
-            <div>
-              {watchSyms.map(({ symbol: sym }) => {
+            {/* Mine + one tab per trader (Femi, Malik, Uzo, Bean…) — 2026-09-29. */}
+            <TraderWatchlistTabs
+              mineCount={watchlist?.length ?? 0}
+              renderSymbol={(sym, note) => {
                 const wq = quoteBySym.get(sym);
                 const up = wq != null && wq.changePct >= 0;
                 return (
                   <div
                     className={`watch-item${sym === symbol ? ' active' : ''}`}
-                    key={sym}
+                    role="button"
+                    tabIndex={0}
+                    title={note ?? `Chart ${sym}`}
                     onClick={() => setCurrentStock({ symbol: sym })}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentStock({ symbol: sym }); } }}
                   >
                     <div className="watch-sym">{sym}</div>
                     <div className="watch-name" />
@@ -504,13 +509,35 @@ export function ChartLabBoard() {
                       : <div className="watch-chg" style={{ color: 'var(--text-mute)' }}>—</div>}
                   </div>
                 );
-              })}
-              {!watchSyms.length && (
-                <div style={{ fontSize: 11, color: 'var(--text-mute)', padding: '4px 0' }}>
-                  No names on the watchlist yet.
+              }}
+              mine={
+                <div>
+                  {watchSyms.map(({ symbol: sym }) => {
+                    const wq = quoteBySym.get(sym);
+                    const up = wq != null && wq.changePct >= 0;
+                    return (
+                      <div
+                        className={`watch-item${sym === symbol ? ' active' : ''}`}
+                        key={sym}
+                        onClick={() => setCurrentStock({ symbol: sym })}
+                      >
+                        <div className="watch-sym">{sym}</div>
+                        <div className="watch-name" />
+                        <WatchSpark symbol={sym} up={wq ? up : true} />
+                        {wq
+                          ? <div className={`watch-chg ${up ? 'up' : 'down'}`}>{up ? '+' : ''}{wq.changePct.toFixed(1)}%</div>
+                          : <div className="watch-chg" style={{ color: 'var(--text-mute)' }}>—</div>}
+                      </div>
+                    );
+                  })}
+                  {!watchSyms.length && (
+                    <div style={{ fontSize: 11, color: 'var(--text-mute)', padding: '4px 0' }}>
+                      No names on the watchlist yet.
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              }
+            />
           </div>
 
           <div className="sys-status">

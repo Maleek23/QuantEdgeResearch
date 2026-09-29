@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { fmtMoney } from '@/lib/journal/metrics';
 import { EMOTIONS, type JournalTradeRow } from '@/lib/journal/types';
 import { readApiError, useJournalMutations, type JournalTradeInput } from '@/lib/journal/use-journal';
+import { useJournal } from './journal-context';
 import { useJournalPortalClass } from './parts';
 
 interface FormState {
@@ -145,7 +146,8 @@ export function TradeEditor({ open, onOpenChange, trade, onSaved }: {
   onSaved?: (row: JournalTradeRow) => void;
 }) {
   const portal = useJournalPortalClass();
-  const { save } = useJournalMutations();
+  const { data: journalData } = useJournal();
+  const { save } = useJournalMutations(journalData.key);
   const [form, setForm] = useState<FormState>(() => fromRow(trade));
   const [error, setError] = useState('');
   useEffect(() => { if (open) { setForm(fromRow(trade)); setError(''); } }, [open, trade]);

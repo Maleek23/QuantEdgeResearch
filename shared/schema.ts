@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, integer, boolean, timestamp, index, jsonb, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, integer, boolean, timestamp, index, uniqueIndex, jsonb, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -3474,7 +3474,7 @@ export type IvSnapshot = typeof ivSnapshots.$inferSelect;
 // TRADE JOURNAL — Personal trade imports from brokers
 // ==========================================
 
-export type JournalBroker = 'webull' | 'robinhood' | 'schwab' | 'tda' | 'ibkr' | 'etrade' | 'fidelity' | 'tastytrade' | 'manual' | 'csv';
+export type JournalBroker = 'webull' | 'robinhood' | 'schwab' | 'tda' | 'ibkr' | 'etrade' | 'fidelity' | 'tastytrade' | 'manual' | 'csv' | 'alpaca' | 'discord';
 
 export const journalTrades = pgTable("journal_trades", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -3531,11 +3531,104 @@ export const journalTrades = pgTable("journal_trades", {
   index("idx_journal_trades_user_symbol").on(table.userId, table.symbol),
   index("idx_journal_trades_user_time").on(table.userId, table.entryTime),
   index("idx_journal_trades_import").on(table.importBatchId),
+  // Idempotent re-import for sources that carry a stable id (Alpaca fill, Discord message).
+  uniqueIndex("uq_journal_trades_source_key").on(table.userId, table.brokerOrderId).where(sql`broker IN ('alpaca', 'discord')`),
 ]);
 
 export const insertJournalTradeSchema = createInsertSchema(journalTrades).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertJournalTrade = z.infer<typeof insertJournalTradeSchema>;
 export type JournalTrade = typeof journalTrades.$inferSelect;
+
+// ==========================================
+// TRADERS — people whose watchlist + journal live on the platform (2026-09-29)
+// Their journal rows sit in journal_trades / journal_notes under the owner id
+// `trader:<traders.id>` (shared/journal-sources.ts traderOwnerId). Migration:
+// migrations/0002_journals_traders.sql.
+// ==========================================
+
+export const traders = pgTable("traders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slug: varchar("slug", { length: 32 }).notNull().unique(),
+  name: text("name").notNull(),
+  /** Their handle where they post (e.g. a Discord username) — null until known. */
+  handle: text("handle"),
+  /** Where their calls come from: 'discord' | 'manual' | … — null until known. */
+  source: text("source"),
+  /** Discord channel their journal is read from (bot-token import path). */
+  discordChannelId: text("discord_channel_id"),
+  /** Only this author's messages are imported when set (channels are often shared). */
+  discordAuthorId: text("discord_author_id"),
+  /** A platform user who IS this trader — may edit their own watchlist/journal. */
+  linkedUserId: varchar("linked_user_id"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export type Trader = typeof traders.$inferSelect;
+
+/**
+ * A trader's watchlist. Deliberately NOT the shared `watchlist` table: that table
+ * feeds the watchlist monitor (Discord alerts), grading crons, the scanner
+ * universe and the admin's all-rows view, so a friend's list written there would
+ * fire alerts and leak into the operator's own watchlist.
+ */
+export const traderWatchlistItems = pgTable("trader_watchlist_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  traderId: varchar("trader_id").notNull(),
+  symbol: varchar("symbol", { length: 24 }).notNull(),
+  note: text("note"),
+  addedBy: varchar("added_by"),
+  addedAt: timestamp("added_at").defaultNow(),
+}, (table) => [
+  index("idx_trader_watchlist_trader").on(table.traderId),
+  uniqueIndex("uq_trader_watchlist_symbol").on(table.traderId, table.symbol),
+]);
+export type TraderWatchlistItem = typeof traderWatchlistItems.$inferSelect;
+
+/** Analysis / commentary that isn't a trade leg — linked to tickers and a trading day. */
+export const journalNotes = pgTable("journal_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  /** Same owner id space as journal_trades.user_id. */
+  ownerId: varchar("owner_id").notNull(),
+  symbols: text("symbols").array(),
+  /** New York trading day, YYYY-MM-DD. */
+  day: text("day").notNull(),
+  postedAt: text("posted_at").notNull(),
+  body: text("body").notNull(),
+  attachments: jsonb("attachments").$type<{ url: string; name: string; isImage: boolean }[]>(),
+  /** 'discord' | 'manual' */
+  source: text("source").notNull().default('manual'),
+  /** Idempotency key for imports (Discord message id). */
+  sourceMessageId: text("source_message_id"),
+  /** 'analysis' | 'unmatched_exit' | 'unpriced_exit' | 'entry_without_price' */
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_journal_notes_owner_day").on(table.ownerId, table.day),
+  uniqueIndex("uq_journal_notes_source_msg").on(table.ownerId, table.source, table.sourceMessageId),
+]);
+export type JournalNote = typeof journalNotes.$inferSelect;
+
+/**
+ * Per-user broker credentials for read-only journal import. Secrets are
+ * AES-256-GCM ciphertext (server/secret-box.ts, key BROKER_CREDENTIALS_KEY) and
+ * are never returned by any API — only key_hint (last 4 of the key id).
+ */
+export const brokerConnections = pgTable("broker_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  broker: text("broker").notNull(),
+  paper: boolean("paper").notNull().default(true),
+  keyIdEnc: text("key_id_enc").notNull(),
+  secretEnc: text("secret_enc").notNull(),
+  keyHint: varchar("key_hint", { length: 8 }),
+  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncResult: jsonb("last_sync_result"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("uq_broker_connections_user_broker").on(table.userId, table.broker),
+]);
+export type BrokerConnection = typeof brokerConnections.$inferSelect;
 
 // ═══════════════════════════════════════════════════════════
 // GEX SNAPSHOT HISTORY — Historical gamma exposure archive
