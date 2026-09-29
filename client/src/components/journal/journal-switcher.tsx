@@ -1,8 +1,8 @@
 /**
  * Journal switcher — which book the journal is computed on:
- *   Journal: Mine · Bot · Trade desk | Traders: Femi · Malik · Uzo · Bean
- * A pressed-button group (not another tab strip), so the journal keeps one level
- * of destinations. The basis line underneath names what every number on the
+ *   Books: Mine · Bot · Trade desk | Traders: Femi · Malik · Uzo · Bean
+ * Since the 2026-09-29 nav redesign it is a grouped select at the top of the
+ * journal sidebar (phones: the top strip). The basis line names what every number on the
  * page is computed on, its sizing rule, and anything the source held that the
  * journal could not score.
  */
@@ -17,11 +17,20 @@ import type { JournalKey, JournalSourceMeta } from '@shared/journal-sources';
 import { JOURNAL_SOURCES_KEY, readApiError, type JournalSourcesResponse } from '@/lib/journal/use-journal';
 import { useJournalPortalClass } from './parts';
 
-export function JournalSwitcher({ value, onChange, sources, loading }: {
+/**
+ * The book picker — top of the journal sidebar (and of the phone strip).
+ * A native <select> grouped Books / Traders: compact, keyboard- and
+ * screen-reader-native, and it never wraps. Collapsed sidebar → the book's
+ * initials; choosing expands the sidebar first.
+ */
+export function JournalSwitcher({ value, onChange, sources, loading, collapsed = false, onExpand, idSuffix = '' }: {
   value: JournalKey;
   onChange: (key: JournalKey) => void;
   sources: JournalSourcesResponse | undefined;
   loading: boolean;
+  collapsed?: boolean;
+  onExpand?: () => void;
+  idSuffix?: string;
 }) {
   const [dialog, setDialog] = useState<{ open: boolean; slug?: string }>({ open: false });
   const list = sources?.sources ?? [
@@ -32,40 +41,55 @@ export function JournalSwitcher({ value, onChange, sources, loading }: {
   ];
   const books = list.filter((s) => s.kind !== 'trader');
   const people = list.filter((s) => s.kind === 'trader');
+  const current = list.find((s) => s.key === value);
   const currentTrader = value.startsWith('trader:') ? value.slice(7) : null;
+  const label = current?.label ?? (value === 'mine' ? 'Mine' : value.replace(/^trader:/, ''));
+  const selectId = `jr-book-select${idSuffix}`;
 
-  const btn = (s: (typeof list)[number]) => (
-    <button key={s.key} type="button" aria-pressed={value === s.key} title={s.hint} onClick={() => onChange(s.key)}>
-      {s.label}{s.readOnly && s.kind !== 'trader' ? <Lock className="h-2.5 w-2.5" aria-label="read-only" style={{ marginLeft: 4, display: 'inline' }} /> : null}
-    </button>
-  );
+  if (collapsed) {
+    const initials = label.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+    return (
+      <div className="jr-book jr-book-collapsed">
+        <button type="button" className="jr-book-chip" onClick={onExpand} aria-label={`Book: ${label}${current?.readOnly ? ' (read-only)' : ''} — expand the sidebar to switch`} title={`Book: ${label} — expand to switch`}>
+          {initials}
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <nav className="jr-books" aria-label="Choose which journal to show">
-      <span className="jr-books-l" id="jr-books-l">Journal</span>
-      <div className="jr-seg" role="group" aria-labelledby="jr-books-l">{books.map(btn)}</div>
-      <span className="jr-books-l" id="jr-people-l">Traders</span>
-      <div className="jr-seg" role="group" aria-labelledby="jr-people-l">
-        {people.map(btn)}
-        {loading && !people.length && <span className="jr-n" style={{ padding: '6px 8px' }}>loading…</span>}
-        {!loading && !people.length && !sources && <span className="jr-n" style={{ padding: '6px 8px' }}>unavailable</span>}
+    <div className="jr-book">
+      <label className="jr-book-l" htmlFor={selectId}>Book{current?.readOnly ? <span className="jr-book-ro"><Lock className="h-2.5 w-2.5" aria-hidden /> read-only</span> : null}</label>
+      <div className="jr-book-row">
+        <select id={selectId} className="jr-select jr-book-select" value={value} onChange={(e) => onChange(e.target.value as JournalKey)}
+          title={current?.hint}>
+          <optgroup label="Books">
+            {books.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </optgroup>
+          <optgroup label={loading && !people.length ? 'Traders (loading…)' : !people.length && !sources ? 'Traders (unavailable)' : 'Traders'}>
+            {people.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </optgroup>
+          {!list.some((s) => s.key === value) && <option value={value}>{label}</option>}
+        </select>
+        {sources?.isAdmin && (
+          <>
+            <button type="button" className="jr-icon-btn" aria-label="Add a trader" title="Add a trader" onClick={() => setDialog({ open: true })}><Plus className="h-4 w-4" /></button>
+            {currentTrader && (
+              <button type="button" className="jr-icon-btn" aria-label="Trader settings" title="Trader settings (handle, source, Discord channel)" onClick={() => setDialog({ open: true, slug: currentTrader })}><Settings2 className="h-4 w-4" /></button>
+            )}
+          </>
+        )}
       </div>
-      {sources?.isAdmin && (
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button type="button" className="jr-icon-btn" aria-label="Add a trader" title="Add a trader" onClick={() => setDialog({ open: true })}><Plus className="h-4 w-4" /></button>
-          {currentTrader && (
-            <button type="button" className="jr-icon-btn" aria-label="Trader settings" title="Trader settings (handle, source, Discord channel)" onClick={() => setDialog({ open: true, slug: currentTrader })}><Settings2 className="h-4 w-4" /></button>
-          )}
-        </div>
-      )}
       <TraderDialog open={dialog.open} slug={dialog.slug} onOpenChange={(o) => setDialog((d) => ({ ...d, open: o }))} onCreated={(slug) => onChange(`trader:${slug}`)} />
-    </nav>
+    </div>
   );
 }
 
 /** "Computed on …" — present on every journal view so no number is unattributed. */
-export function JournalBasis({ meta, shown, total, sizing = 'show', rows }: {
+export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compact = false }: {
   meta: JournalSourceMeta | null; shown: number; total: number; sizing?: 'show' | 'hide';
+  /** One line (book + n) that expands to the full basis — the fit-to-screen header uses this. */
+  compact?: boolean;
   /** Rows in view — the Bot book names which runs they cover. */
   rows?: { runId?: string | null; status: string; realizedPnL?: number | null }[];
 }) {
@@ -83,13 +107,8 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows }: {
   const nExcluded = excluded.reduce((s, e) => s + e.count, 0);
   // The basis names its book first ("Trade desk — every idea…"); bold that part.
   const [head, ...rest] = meta.basis.split(' — ');
-  return (
-    <div className="jr-basis" role="note" aria-label="What these numbers are computed on">
-      <div>
-        <span className="jr-basis-k">Computed on</span>{' '}
-        <b>{head}</b>{rest.length ? <> — {rest.join(' — ')}</> : null}.{' '}
-        <span className="jr-n">n={shown}{shown !== total ? ` of ${total}` : ''} trades{meta.readOnly ? ' · read-only' : ''}</span>
-      </div>
+  const detail = (
+    <>
       {runs.length > 0 && (
         <div className="jr-basis-s">
           <span className="jr-basis-k">Runs</span>{' '}
@@ -98,7 +117,7 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows }: {
           ))}</> : 'no run in view'}
         </div>
       )}
-      {meta.sizing && (sizing === 'show'
+      {meta.sizing && (sizing === 'show' || compact
         ? <div className="jr-basis-s">{meta.sizing}</div>
         : <details className="jr-basis-s"><summary style={{ cursor: 'pointer' }}>How P&amp;L is sized</summary>{meta.sizing}</details>)}
       {nExcluded > 0 && (
@@ -109,6 +128,29 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows }: {
           </ul>
         </details>
       )}
+    </>
+  );
+  const n = <span className="jr-n">n={shown}{shown !== total ? ` of ${total}` : ''} trades{meta.readOnly ? ' · read-only' : ''}</span>;
+  if (compact) {
+    return (
+      <details className="jr-basis jr-basis-compact" role="note" aria-label="What these numbers are computed on">
+        <summary>
+          <span className="jr-basis-k">Computed on</span> <b>{head}</b>{' '}{n}
+          {nExcluded > 0 && <span className="jr-n"> · {nExcluded} not scored</span>}
+          <span className="jr-basis-more">details</span>
+        </summary>
+        {rest.length ? <div className="jr-basis-s">{rest.join(' — ')}.</div> : null}
+        {detail}
+      </details>
+    );
+  }
+  return (
+    <div className="jr-basis" role="note" aria-label="What these numbers are computed on">
+      <div>
+        <span className="jr-basis-k">Computed on</span>{' '}
+        <b>{head}</b>{rest.length ? <> — {rest.join(' — ')}</> : null}.{' '}{n}
+      </div>
+      {detail}
     </div>
   );
 }

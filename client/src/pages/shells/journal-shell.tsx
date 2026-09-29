@@ -3,18 +3,22 @@
  *
  * Built on LuxAlgo Trade Journal's information architecture
  * (https://github.com/LuxAlgo/trade-journal, MIT): global filters, trades that
- * open in a drawer, and — since 2026-09-29 — its left sidebar of pages:
+ * open in a drawer, and a left sidebar of pages — regrouped 2026-09-29:
  *
- *   Journal   Dashboard · Calendar · Daily journal · Trades · Reports ·
- *             Notebook · Playbooks · Progress · Missed
+ *   [Book ▾]  Mine · Bot · Trade desk · traders
+ *   Overview  Dashboard · Calendar · Daily
+ *   Trades    Trades · Reports · Loss analysis
+ *   Improve   Playbooks · Progress · Missed · Notebook
  *   Setup     Import · Accounts · Settings
  *   Platform  Track record
  *
- * (LuxAlgo's Prop firms page is not carried over.) The sidebar collapses to
- * icons (remembered on this device) and becomes a scroll strip on phones.
+ * Fit to screen: the journal is exactly the shell's measured main area
+ * (--qe-main-h); the sidebar and the one-row header stay put and only the
+ * page body (#jr-scroll) scrolls. The sidebar collapses to icons (remembered
+ * on this device); phones get a compact strip (book select · page ▾ sheet).
  * Every old ?jtab= value still resolves — see lib/journal/legacy-jtab.ts.
  *
- * One journal UI, several books: the switcher above the header picks what every
+ * One journal UI, several books: the book picker (top of the sidebar) picks what every
  * page is computed on — Mine · Bot · Trade desk · a trader (Femi, Malik, Uzo,
  * Bean…) — kept in ?journal=, and the basis line names that book, its sizing
  * rule and anything it could not score. Bot and Trade desk are read-only
@@ -30,8 +34,8 @@ import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { JournalContext, type JournalCtx, type JournalView } from '@/components/journal/journal-context';
 import { JournalFilterBar } from '@/components/journal/filter-bar';
-import { JournalBasis, JournalSwitcher } from '@/components/journal/journal-switcher';
-import { JournalSidebar } from '@/components/journal/journal-sidebar';
+import { JournalBasis } from '@/components/journal/journal-switcher';
+import { JournalPhoneNav, JournalSidebar } from '@/components/journal/journal-sidebar';
 import { TradeDrawer } from '@/components/journal/trade-drawer';
 import { TradeEditor } from '@/components/journal/trade-editor';
 import type { JournalTradeRow } from '@/lib/journal/types';
@@ -46,6 +50,7 @@ const CalendarView = lazy(() => import('@/pages/journal/calendar-view'));
 const DailyView = lazy(() => import('@/pages/journal/daily-view'));
 const TradesView = lazy(() => import('@/pages/journal/trades-view'));
 const ReportsView = lazy(() => import('@/pages/journal/reports-view'));
+const LossView = lazy(() => import('@/pages/journal/loss-view'));
 const NotebookView = lazy(() => import('@/pages/journal/notebook-view'));
 const PlaybooksView = lazy(() => import('@/pages/journal/playbooks-view'));
 const ProgressView = lazy(() => import('@/pages/journal/progress-view'));
@@ -57,6 +62,8 @@ const RecordView = lazy(() => import('@/pages/journal/record-view'));
 const TradeView = lazy(() => import('@/pages/journal/trade-view'));
 
 const TRADE_PARAM = 'jtrade';
+/** The journal's only scroll container (fit-to-screen: sidebar + header stay put). */
+const SCROLL_ID = 'jr-scroll';
 
 /** Header copy per book — the question each journal answers. */
 function headCopy(key: JournalKey, label: string) {
@@ -131,7 +138,7 @@ export default function JournalShell() {
     setTradePage(null);
     if (v === 'record') setBacktestOpen(false);
     if (a) setAnchor(a);
-    else document.getElementById('jr-main')?.scrollIntoView({ block: 'start' });
+    else document.getElementById(SCROLL_ID)?.scrollTo({ top: 0 });
   }, []);
   const rowsById = useMemo(() => new Map(data.allRows.map((r) => [r.id, r])), [data.allRows]);
 
@@ -142,7 +149,7 @@ export default function JournalShell() {
     bookLabel,
     canWrite,
     openTrade: (id, order) => setDrawer({ id, order: order ?? [id] }),
-    openTradePage: (id, order) => { setDrawer(null); setTradePage({ id, order: order ?? [] }); document.getElementById('jr-main')?.scrollIntoView({ block: 'start' }); },
+    openTradePage: (id, order) => { setDrawer(null); setTradePage({ id, order: order ?? [] }); document.getElementById(SCROLL_ID)?.scrollTo({ top: 0 }); },
     openEditor: (row) => { if (canWrite) setEditor({ open: true, row: row ?? null }); },
     openImport: (section) => goTo('import', section ? `jr-imp-sec-${section}` : undefined),
     goTo,
@@ -220,6 +227,7 @@ export default function JournalShell() {
         {view === 'daily' && <DailyView />}
         {view === 'trades' && <TradesView />}
         {view === 'reports' && <ReportsView />}
+        {view === 'loss' && <LossView />}
         {view === 'notebook' && <NotebookView />}
         {view === 'playbooks' && <PlaybooksView />}
         {view === 'progress' && <ProgressView />}
@@ -236,65 +244,56 @@ export default function JournalShell() {
   const pageLabel = tradePage ? 'Trade' : PAGE_LABEL.get(view) ?? view;
   return (
     <JournalContext.Provider value={ctx}>
-      <div className="jr">
-        <div className="jr-page">
-          <JournalSwitcher value={journalKey} onChange={ctx.setJournal} sources={sourcesQ.data} loading={sourcesQ.isLoading} />
-          <div className="jr-layout" data-collapsed={prefs.sidebarCollapsed}>
-            <JournalSidebar
-              view={view}
-              onSelect={(v) => goTo(v)}
-              collapsed={prefs.sidebarCollapsed}
-              onToggle={() => setPrefs({ sidebarCollapsed: !prefs.sidebarCollapsed })}
-            />
-            <main className="jr-main" id="jr-main" aria-labelledby="jr-page-title">
-              <header className="jr-head">
-                <div style={{ minWidth: 0 }}>
-                  <div className="jr-eyebrow"><span className="pill">JOURNAL</span>{personal ? copy.eyebrow : 'published ideas'}</div>
-                  <h1 className="jr-title">{personal ? copy.title : 'How did the ideas do?'}</h1>
-                  <p className="jr-sub">
-                    {personal
-                      ? tradesQ.isSuccess
-                        ? total
-                          ? <>{data.rows.length === total ? `${total} trades` : `${data.rows.length} of ${total} trades in view`} · {m.closedTrades} closed · {m.openTrades} open</>
-                          : 'No trades yet'
-                        : ' '
-                      : 'Hit rate, expectancy and sample size of every published idea'}
-                  </p>
+      <div className="jr" data-view={tradePage ? 'trade' : view}>
+        <JournalPhoneNav view={view} onSelect={(v) => goTo(v)} pageLabel={pageLabel}
+          book={journalKey} onBook={ctx.setJournal} sources={sourcesQ.data} sourcesLoading={sourcesQ.isLoading} />
+        <div className="jr-layout" data-collapsed={prefs.sidebarCollapsed}>
+          <JournalSidebar
+            view={view}
+            onSelect={(v) => goTo(v)}
+            collapsed={prefs.sidebarCollapsed}
+            onToggle={() => setPrefs({ sidebarCollapsed: !prefs.sidebarCollapsed })}
+            book={journalKey} onBook={ctx.setJournal} sources={sourcesQ.data} sourcesLoading={sourcesQ.isLoading}
+          />
+          <main className="jr-main" id="jr-main" aria-labelledby="jr-page-title">
+            <header className="jr-top">
+              <div className="jr-top-t">
+                <span className="jr-eyebrow"><span className="pill">JOURNAL</span>{personal ? `${bookLabel} · ${copy.eyebrow}` : 'published ideas'}</span>
+                <h1 className="jr-top-h" id="jr-page-title" title={personal ? copy.title : 'How did the ideas do?'}>{pageLabel}</h1>
+                <span className="jr-n jr-top-n">
+                  {personal
+                    ? tradesQ.isSuccess
+                      ? total
+                        ? <>{data.rows.length === total ? `${total} trades` : `${data.rows.length} of ${total} in view`} · {m.closedTrades} closed · {m.openTrades} open{canWrite ? '' : ' · read-only'}</>
+                        : 'no trades yet'
+                      : ''
+                    : 'hit rate, expectancy and n of every published idea'}
+                </span>
+              </div>
+              {personal && canWrite && (
+                <div className="jr-head-actions">
+                  {view !== 'import' && <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('import')}><Upload className="h-4 w-4" /> Import</button>}
+                  <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Add trade</button>
                 </div>
-                {personal && canWrite && (
-                  <div className="jr-head-actions">
-                    {view !== 'import' && <button type="button" className="jr-btn" onClick={() => goTo('import')}><Upload className="h-4 w-4" /> Import</button>}
-                    <button type="button" className="jr-btn jr-btn-primary" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Add trade</button>
-                  </div>
-                )}
-              </header>
-
-              {personal && tradesQ.isSuccess && view !== 'settings' && (
-                <JournalBasis meta={data.meta} shown={data.rows.length} total={total} sizing={prefs.sizing} rows={data.rows} />
               )}
+            </header>
 
-              <div className="jr-pagebar">
-                <h2 className="jr-pagebar-t" id="jr-page-title">{pageLabel}</h2>
-                {personal && (
-                  <span className="jr-n">
-                    {bookLabel}{tradesQ.isSuccess ? ` · n=${data.rows.length}${data.rows.length !== total ? ` of ${total}` : ''} trades` : ''}{canWrite ? '' : ' · read-only'}
-                  </span>
-                )}
-              </div>
+            {personal && tradesQ.isSuccess && view !== 'settings' && (
+              <JournalBasis compact meta={data.meta} shown={data.rows.length} total={total} sizing={prefs.sizing} rows={data.rows} />
+            )}
 
-              {personal && tradesQ.isSuccess && total > 0 && FILTERED_PAGES.has(view) && !tradePage && (
-                <JournalFilterBar api={filters} options={data.options} shown={data.rows.length} total={total} />
-              )}
+            {personal && tradesQ.isSuccess && total > 0 && FILTERED_PAGES.has(view) && !tradePage && (
+              <JournalFilterBar api={filters} options={data.options} shown={data.rows.length} total={total} />
+            )}
 
-              <div className="jr-body">
-                <PageErrorBoundary label={`Journal · ${view}`}>
-                  <Suspense fallback={<ToolSkeleton rows={4} />}>
-                    {body}
-                  </Suspense>
-                </PageErrorBoundary>
-              </div>
-            </main>
-          </div>
+            <div className="jr-body" id={SCROLL_ID}>
+              <PageErrorBoundary label={`Journal · ${view}`}>
+                <Suspense fallback={<ToolSkeleton rows={4} />}>
+                  {body}
+                </Suspense>
+              </PageErrorBoundary>
+            </div>
+          </main>
         </div>
 
         <TradeDrawer

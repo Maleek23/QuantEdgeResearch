@@ -9,6 +9,7 @@
  *   DELETE /api/journal/notes/:id?journal=          remove a manual note (writable books)
  *   GET    /api/journal/bot                         the Quant Bot's rules (config) + paper portfolios
  *   GET    /api/journal/balance?journal=            the book's account balance, when one exists (edge score / relative drawdown)
+ *   GET    /api/journal/bars?symbols=&interval=&from=  OHLC for many symbols in one call (Loss analysis MFE/MAE)
  *   GET    /api/traders                             traders (with watchlist counts)
  *   POST   /api/traders                             create            (admin)
  *   PATCH  /api/traders/:slug                       handle/source/…   (admin)
@@ -60,6 +61,36 @@ const attachmentSchema = z.object({
 const balanceCache = new Map<string, { at: number; value: unknown }>();
 
 export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
+  // ── Bars for the Loss analysis page ──────────────────────
+  // One request for up to 25 symbols instead of one per symbol per interval
+  // (a desk book spans ~80 symbols — per-symbol fetches would spend a third of
+  // the 500/15min API budget on one page view). Same provider path and cache
+  // as /api/historical-prices; bars are trimmed to [from − 40d, now] and sent
+  // as [t(ms), o, h, l, c] rows. A symbol the feed has nothing for is null.
+  app.get('/api/journal/bars', requireBetaAccess, async (req, res) => {
+    try {
+      const interval = req.query.interval === '1h' ? '1h' : req.query.interval === '1d' ? '1d' : null;
+      if (!interval) return res.status(400).json({ error: 'interval must be 1h or 1d' });
+      const symbols = [...new Set(String(req.query.symbols ?? '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean))];
+      if (!symbols.length || symbols.length > 25 || symbols.some((s) => !/^[A-Z0-9^][A-Z0-9.\-=/^]{0,14}$/.test(s))) {
+        return res.status(400).json({ error: 'symbols: 1–25 tickers, comma-separated' });
+      }
+      const fromRaw = Number(req.query.from);
+      const from = Number.isFinite(fromRaw) && fromRaw > 0 ? fromRaw - 40 * 86_400_000 : 0;
+      const { fetchCandlesBatch } = await import('./historical-candles');
+      const got = await fetchCandlesBatch(symbols, interval === '1h' ? '6mo' : '2y', interval, 3);
+      const bars: Record<string, [number, number, number, number, number][] | null> = {};
+      for (const s of symbols) {
+        const rows = (got.get(s) ?? [])
+          .map((c) => [c.time < 10_000_000_000 ? c.time * 1000 : c.time, c.open, c.high, c.low, c.close] as [number, number, number, number, number])
+          .filter((r) => r[0] >= from && r.slice(1).every((v) => Number.isFinite(v) && v > 0));
+        bars[s] = rows.length > 1 ? rows : null;
+      }
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.json({ interval, bars });
+    } catch (err) { fail(res, err, 'Journal bars'); }
+  });
+
   // ── Sources ──────────────────────────────────────────────
   app.get('/api/journal/sources', requireBetaAccess, async (req, res) => {
     try {
