@@ -42,9 +42,12 @@ export function toTrade(row: JournalTradeRow): JTrade {
   const netPnl = closed ? Number(row.realizedPnL) : 0;
   const fees = Number(row.fees ?? 0) || 0;
   const closedAt = closed ? row.exitTime || row.entryTime : undefined;
-  const durationMs = row.holdingMinutes != null
-    ? row.holdingMinutes * 60_000
-    : closed && row.exitTime ? Math.max(0, Date.parse(row.exitTime) - Date.parse(row.entryTime)) : undefined;
+  // Exact entry→exit when both stamps exist; holdingMinutes is rounded to whole
+  // minutes at import, which moved a 4m40s trade into the "5–30m" bucket.
+  const exactMs = closed && row.exitTime ? Date.parse(row.exitTime) - Date.parse(row.entryTime) : NaN;
+  const durationMs = Number.isFinite(exactMs)
+    ? Math.max(0, exactMs)
+    : row.holdingMinutes != null ? row.holdingMinutes * 60_000 : undefined;
   return {
     row,
     id: row.id,
