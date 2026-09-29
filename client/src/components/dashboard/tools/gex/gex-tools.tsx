@@ -64,10 +64,8 @@ export function GexDealerMapTool() {
   if (blocked) return blocked;
   return (
     <div className="gx-tool gx-col">
-      <div className="gx-legend">
-        Net GEX by strike, expiries ≤7d · {near.expiries.length} expiries · Σ <b style={{ color: exposureText('gex', near.total) }}>{fmtGexB(near.total)}/1%</b>
-        {' · '}<i style={{ color: 'var(--cyan-bright)' }}>+ blue provides liquidity</i> / <i style={{ color: 'var(--red)' }}>− vermilion takes it</i>
-        {' · '}<i style={{ color: LEVEL_COLORS.callWall }}>call wall</i>, <i style={{ color: LEVEL_COLORS.putWall }}>put wall</i>, <i style={{ color: LEVEL_COLORS.magnet }}>max γ</i>, <i style={{ color: LEVEL_COLORS.zeroGamma }}>zero-γ</i> = all expiries
+      <div className="gx-legend" title="Walls, max-γ and zero-γ rows come from ALL listed expiries; bars are the ≤7-day slice.">
+        ≤7d · {near.expiries.length} expiries · Σ <b style={{ color: exposureText('gex', near.total) }}>{fmtGexB(near.total)}/1%</b> · levels from all expiries
       </div>
       <div className="gx-grow">
         <GexStrikeLadder
