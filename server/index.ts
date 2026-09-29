@@ -57,6 +57,11 @@ app.get("/health", (req: Request, res: Response) => {
   });
 });
 
+// Journal writes carry whole broker CSV exports and downscaled chart screenshots,
+// which routinely exceed the global 100kb cap (a 413 there read as "import failed").
+// Scoped to these paths (app.use prefix-matches /api/journal/trade/:id too);
+// express.json skips a body that is already parsed.
+app.use(['/api/journal/import-csv', '/api/journal/trade'], express.json({ limit: '4mb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(cookieParser());

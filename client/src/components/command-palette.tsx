@@ -50,7 +50,7 @@ const PRIMARY_DESTINATIONS: NavTarget[] = [
   { href: '/t?tab=gex',      label: 'GEX',        icon: Zap,       hint: 'Gamma hub · market-wide and per-symbol', keywords: ['gamma','vex','dealer','flow'] },
   { href: '/r',              label: 'Research',   icon: Microscope,hint: 'Per-ticker chart · options · GEX', keywords: ['terminal','chart','options','ticker'] },
   { href: '/t?tab=positions',label: 'Positions',  icon: Wallet,    hint: 'My book · open positions · P&L heat map', keywords: ['heatmap','book','pnl'] },
-  { href: '/t?tab=journal',  label: 'Journal',    icon: BookOpen,  hint: 'Trade log · metrics · backtest · academy', keywords: ['history','performance','backtest'] },
+  { href: '/t?tab=journal',  label: 'Journal',    icon: BookOpen,  hint: 'Dashboard · trades · analytics · track record', keywords: ['history','performance','backtest','calendar','pnl'] },
   { href: '/slate',          label: 'Slate', icon: Crosshair, hint: "Today's measured setups + pre-market gappers", keywords: ['discovery','scanner','picks','setups','trade desk','gappers'] },
 ];
 
@@ -68,9 +68,11 @@ const NESTED_TABS: NavTarget[] = [
   { href: '/r/SPY?tab=gex',      label: 'Research → GEX',      icon: Microscope, keywords: ['gamma','walls','flip','per-symbol'] },
   { href: '/r/SPY?tab=analyze',  label: 'Research → Analyze',  icon: Microscope, keywords: ['contract','grade','bullflow','a+'] },
   // Journal sub-tabs (nested — the journal reads ?jtab= so it never fights the shell's ?tab=)
-  { href: '/t?tab=journal&jtab=log',      label: 'Journal → Trade Log',  icon: BookOpen, keywords: ['history','trades'] },
-  { href: '/t?tab=journal&jtab=metrics',  label: 'Journal → Metrics',    icon: BookOpen, keywords: ['performance','win'] },
-  { href: '/t?tab=journal&jtab=backtest', label: 'Journal → Backtest',   icon: BookOpen, keywords: ['simulator','strategy'] },
+  { href: '/t?tab=journal&jtab=trades',    label: 'Journal → Trades',       icon: BookOpen, keywords: ['history','trades','log','edit','export'] },
+  { href: '/t?tab=journal&jtab=analytics', label: 'Journal → Analytics',    icon: BookOpen, keywords: ['setup','symbol','timing','insights','drawdown'] },
+  { href: '/t?tab=journal&jtab=record',    label: 'Journal → Track record', icon: BookOpen, keywords: ['performance','win','metrics','ideas'] },
+  { href: '/t?tab=journal&jtab=backtest',  label: 'Journal → Backtest',     icon: BookOpen, keywords: ['simulator','strategy'] },
+  { href: '/t?tab=journal&jtab=import',    label: 'Journal → Import trades', icon: BookOpen, keywords: ['csv','broker','upload','bullflow','flow'] },
 ];
 
 // Quick popular tickers for tap-jump (extend over time / pull from watchlist)

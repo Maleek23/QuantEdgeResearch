@@ -46,7 +46,6 @@ const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
 const SlatePage     = lazyWithRetry(() => import("@/pages/slate"), "slate");
 const TodayPage     = lazyWithRetry(() => import("@/pages/today"), "today");
 const NexusPrototype = lazyWithRetry(() => import("@/pages/nexus-prototype"), "nexus-prototype");
-const TradeJournalPage = lazyWithRetry(() => import("@/pages/trade-journal"), "trade-journal");
 // REMOVED — Market page consolidated, redirect to /home
 const PerformancePage = lazyWithRetry(() => import("@/pages/performance"), "performance");
 const SettingsPage = lazyWithRetry(() => import("@/pages/settings"), "settings");

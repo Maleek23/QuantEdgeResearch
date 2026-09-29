@@ -59,6 +59,8 @@ export interface QETabsProps<T extends string = string> {
   className?: string;
   /** Prefix used to link tabs to their tabpanel elements. */
   panelIdPrefix?: string;
+  /** Accessible name for the tablist (what these tabs switch between). */
+  ariaLabel?: string;
 }
 
 // Active tab — filled accent chip with a soft outer glow (premium segmented look).
@@ -83,6 +85,7 @@ export function QETabs<T extends string = string>({
   rightSlot,
   className,
   panelIdPrefix,
+  ariaLabel,
 }: QETabsProps<T>) {
   const generatedId = useId().replace(/:/g, '');
   const idPrefix = panelIdPrefix ?? `qe-tabs-${generatedId}`;
@@ -149,7 +152,7 @@ export function QETabs<T extends string = string>({
       else clusters.push({ group: g, items: [item] });
     }
     return (
-      <div role="tablist" className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
+      <div role="tablist" aria-label={ariaLabel} className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
         {prefixLabel && (
           <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mx-1.5 self-center">
             {prefixLabel}
@@ -172,7 +175,7 @@ export function QETabs<T extends string = string>({
   }
 
   return (
-    <div role="tablist" className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
+    <div role="tablist" aria-label={ariaLabel} className={cn('flex max-w-full items-center gap-1 flex-wrap rounded-lg border border-border/40 bg-foreground/[0.03] p-1', className)}>
       {prefixLabel && (
         <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mx-1.5">
           {prefixLabel}
