@@ -384,9 +384,12 @@ async function selectZeroDteContract(signal: NormalizedTVSignal): Promise<TVOpti
       minRoiAtT1Pct: 30,
     });
     lastNote = result.note || '';
-    const contract = result.recommendedTier
+    // Only a contract inside the account limits and above F quality is used;
+    // otherwise try the next vehicle (limits are constraints, never grades).
+    const recommended = result.recommendedTier
       ? result.picks.find((pick) => pick.tier === result.recommendedTier)
       : undefined;
+    const contract = recommended && recommended.fitsAccount && recommended.grade !== 'F' ? recommended : undefined;
     if (!contract) continue;
     return {
       vehicleSymbol: vehicle.symbol,

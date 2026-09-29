@@ -725,8 +725,15 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
             maxDebitDollars: maxDebit,
             minRoiAtT1Pct: cfg.minContractRoiAtT1Pct,
           });
-          const selected = selection.recommendedTier
+          // Limits are constraints, not grades: the engine only recommends a
+          // contract that fits riskBudget / maxDebit and is not F quality. A
+          // contract outside the limits is simply not chosen — never traded as
+          // an "F". The explicit re-check keeps that true if the engine changes.
+          const recommended = selection.recommendedTier
             ? selection.picks.find((p) => p.tier === selection.recommendedTier)
+            : null;
+          const selected = recommended && recommended.fitsAccount && recommended.grade !== 'F'
+            ? recommended
             : null;
           if (!selected) {
             skipped++;

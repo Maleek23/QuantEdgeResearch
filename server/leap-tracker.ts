@@ -86,6 +86,14 @@ export interface LeapPick {
   roiAtT1Pct: number;
   roiAtT2Pct?: number;
   riskRewardRatio: number;
+  /**
+   * Contract-quality letter + score from shared/contract-engine.ts (via the
+   * selection engine) — the same grade the Contract Engine shows. Separate from
+   * `grade`, which is this tracker's own sector+trend+contract composite.
+   */
+  contractGrade: string;
+  contractGradeScore: number;
+  contractGradePartial: boolean;
 
   // Plain-English why
   why: string[];
@@ -449,6 +457,9 @@ async function evaluate(
     roiAtT1Pct: pick.roiAtT1Pct,
     roiAtT2Pct: pick.roiAtT2Pct,
     riskRewardRatio: pick.riskRewardRatio,
+    contractGrade: pick.grade,
+    contractGradeScore: pick.score,
+    contractGradePartial: pick.partialGrade ?? false,
     why: [...sectorR.why, ...trendR.why, ...contractR.why],
     ivLabel: contractR.ivLabel,
   };

@@ -25,6 +25,8 @@ interface LeapPick {
   strike: number; expiry: string; entryPremium: number; dte: number;
   roiAtT1Pct?: number; roiAtT2Pct?: number; spot: number; ivLabel?: string;
   openInterest?: number; spreadPct?: number;
+  /** Contract-quality grade from the shared Contract Engine (A–F). */
+  contractGrade?: string; contractGradeScore?: number; contractGradePartial?: boolean;
   fundamentals?: { profitable?: boolean };
 }
 interface LeapPayload {
@@ -225,6 +227,9 @@ export function LeapsNexus({ only, ...ctl }: LeapsNexusProps = {}) {
                 <span>·</span>
                 <span><b>{l.dte}</b>d</span>
                 {l.ivLabel && <><span>·</span><span>IV <b>{l.ivLabel}</b></span></>}
+                {l.contractGrade && (
+                  <><span>·</span><span title={`Contract quality from the Contract Engine: ${l.contractGradeScore ?? '—'}/100${l.contractGradePartial ? ' (partial — a component could not be graded)' : ''}`}>Quality <b>{l.contractGrade}</b></span></>
+                )}
               </div>
               <div className="contract-roi">
                 <span className="roi-label">ROI @ +30%</span>

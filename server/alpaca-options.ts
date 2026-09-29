@@ -379,6 +379,57 @@ export async function getAlpacaOptionsChain(
   return p;
 }
 
+export interface AlpacaContractQuote {
+  occ: string;
+  bid: number | null;
+  ask: number | null;
+  last: number | null;
+  quoteTime: string | null;
+  feed: typeof ALPACA_OPTIONS_FEED;
+  /** 'chain_cache' = read from a chain this process already holds (no request). */
+  via: 'chain_cache' | 'snapshot';
+}
+
+/**
+ * One contract's indicative quote — for marking/pricing a single held or
+ * about-to-be-entered contract without pulling a whole chain.
+ *
+ * Reads a fresh cached chain first (zero requests), else ONE snapshot request
+ * (`/v1beta1/options/snapshots?symbols=`). It rides the same process-wide
+ * budget and serial queue as every other Alpaca call, in the BACKGROUND lane
+ * unless the caller wrapped it in withAlpacaPriority. Returns null when
+ * unconfigured, cooling down, or Alpaca has no quote for the contract —
+ * callers fall through to CBOE.
+ */
+export async function getAlpacaContractQuote(occ: string): Promise<AlpacaContractQuote | null> {
+  if (!isAlpacaOptionsConfigured()) return null;
+  const sym = occ.toUpperCase().replace(/^O:/, '');
+  const parsed = parseOcc(sym);
+  if (!parsed) return null;
+  const root = parsed.root;
+  if (root === 'SPX' || root === 'SPXW' || root === 'VIX' || root === 'NDX' || root === 'RUT') return null;
+
+  const now = Date.now();
+  for (const [key, entry] of chainCache) {
+    if (!key.startsWith(`${root}|`) || entry.expiresAt <= now) continue;
+    const c = entry.chain.contracts.find((x) => x.occ === sym);
+    if (c && (c.bid != null || c.ask != null)) {
+      return { occ: sym, bid: c.bid, ask: c.ask, last: c.last, quoteTime: c.quoteTime, feed: ALPACA_OPTIONS_FEED, via: 'chain_cache' };
+    }
+  }
+
+  const high = isPriority();
+  const qs = new URLSearchParams({ symbols: sym, feed: ALPACA_OPTIONS_FEED });
+  const { json } = await alpacaGet(`${DATA_BASE}/v1beta1/options/snapshots?${qs}`, () => high);
+  const s = json?.snapshots?.[sym];
+  if (!s) return null;
+  const bid = num(s?.latestQuote?.bp);
+  const ask = num(s?.latestQuote?.ap);
+  const last = num(s?.latestTrade?.p);
+  if (bid == null && ask == null && last == null) return null;
+  return { occ: sym, bid, ask, last, quoteTime: s?.latestQuote?.t ?? null, feed: ALPACA_OPTIONS_FEED, via: 'snapshot' };
+}
+
 /** Tradier-compatible rows so optionToInput() consumes Alpaca unchanged. */
 export function alpacaToTradierShape(chain: AlpacaChain, expiration?: string): any[] {
   return chain.contracts

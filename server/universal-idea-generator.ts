@@ -781,8 +781,13 @@ async function attachOptionContract(args: {
     };
     const sel = selectFromChain(thesis, chain.spot, chain.rawChain);
     if (sel.status !== 'ok' || sel.picks.length === 0) return null;
+    // The recommended tier, else the best contract-quality pick (grade/score from
+    // shared/contract-engine.ts — the same grade the Contract Engine shows and the
+    // one written into the stored summary below). No account limits are passed
+    // here, so every pick is inside limits.
     const pick: ContractCandidate =
-      sel.picks.find((p) => p.tier === sel.recommendedTier) ?? sel.picks[0];
+      sel.picks.find((p) => p.tier === sel.recommendedTier) ??
+      [...sel.picks].sort((a, b) => b.score - a.score)[0];
     const isLotto = pick.delta < 0.30;
     const tradeType: AttachedContract['tradeType'] = isLotto
       ? 'lotto'
@@ -800,7 +805,7 @@ async function attachOptionContract(args: {
     // like when it fired, and the engine is the authority on what to buy now.
     const summary =
       `At signal: $${pick.strike}${cp} ${expFmt} @ $${pick.entryPremium.toFixed(2)} ` +
-      `(Δ${pick.delta.toFixed(2)}, ${pick.dte}DTE, contract quality ${pick.grade}) — ` +
+      `(Δ${pick.delta.toFixed(2)}, ${pick.dte}DTE, contract quality ${pick.grade} ${pick.score}/100) — ` +
       `ROI@T1 ${pick.roiAtT1Pct >= 0 ? '+' : ''}${pick.roiAtT1Pct.toFixed(0)}%, R:R ${pick.riskRewardRatio.toFixed(1)}:1. ` +
       `The Contract Engine re-picks against the live chain.`;
     return {
