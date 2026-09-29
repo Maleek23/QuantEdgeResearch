@@ -29,7 +29,6 @@ import {
   Download,
   RefreshCw,
   Play,
-  Pause,
   FileText,
   Trash2,
   Mail,
@@ -634,21 +633,11 @@ export default function SettingsPage() {
                 <div key={bot.key} className="p-4 rounded-lg border bg-muted/30 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{bot.name}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-[var(--trade-bullish)]">Active</span>
-                      </div>
+                      {/* No per-bot status feed exists — the old hardcoded "Active"
+                          badge and the Pause/Restart buttons (no handlers) are gone
+                          rather than implying live control (SR 11-7 §5.4). */}
+                      <span className="block font-medium">{bot.name}</span>
                       <p className="text-xs text-muted-foreground">{bot.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" data-testid={`button-pause-${bot.key}`}>
-                        <Pause className="h-3 w-3 mr-1" />
-                        Pause
-                      </Button>
-                      <Button variant="outline" size="sm" data-testid={`button-restart-${bot.key}`}>
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                        Restart
-                      </Button>
                     </div>
                   </div>
                   <Separator />
