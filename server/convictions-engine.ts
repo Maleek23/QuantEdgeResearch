@@ -78,6 +78,7 @@ function neutralMarketContext(isOpen: boolean): MarketContext {
 export type { ConvictionLayerKind } from "@shared/conviction-layers";
 import type { ConvictionLayerKind } from "@shared/conviction-layers";
 import { isLeadershipName } from "@shared/leadership-universe";
+import { convictionBandFor } from "@shared/conviction-bands";
 
 export interface ConvictionLayer {
   kind: ConvictionLayerKind;
@@ -468,14 +469,12 @@ async function scoreTapeContradictionLayer(symbol: string, direction: "long" | "
  * ~5% intended. Re-measure on a trading day and adjust these three numbers; that is
  * the only edit required, and it is why they are named constants in one place
  * instead of two inline ternaries that had already been duplicated.
+ *
+ * The numbers now live in shared/conviction-bands.ts so the client letter
+ * grades, legends and the alert gate read the same cutoffs (SR 11-7 F3.3).
  */
-const BAND_CUTOFFS = { S: 25, A: 19, B: 13 } as const;
-
 function bandFor(score: number): "S" | "A" | "B" | "C" {
-  return score >= BAND_CUTOFFS.S ? "S"
-       : score >= BAND_CUTOFFS.A ? "A"
-       : score >= BAND_CUTOFFS.B ? "B"
-       : "C";
+  return convictionBandFor(score);
 }
 
 function scoreTierLayer(symbol: string, riskRewardRatio: number): ConvictionLayer | null {
@@ -2596,7 +2595,7 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
     );
   }
 
-  // Final scoring + band assignment. See BAND_CUTOFFS above.
+  // Final scoring + band assignment. See BAND CUTOFFS above (shared/conviction-bands.ts).
   for (const p of deduped) {
     const total = p.layers.reduce((s, l) => s + l.points, 0);
     p.convictionScore = Math.max(0, Math.min(100, total));

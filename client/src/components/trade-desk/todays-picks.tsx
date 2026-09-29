@@ -22,6 +22,7 @@
  * controlled drawer props (the drawer itself lives at page level).
  */
 
+import { CONVICTION_BAND_LEGEND } from "@shared/conviction-bands";
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { QETabs, type QETabItem } from "@/components/ui/qe-tabs";
@@ -136,7 +137,7 @@ function LegendDialog() {
           <p>
             <span className="text-foreground font-medium">Band</span> —{" "}
             <span className="font-mono text-[11px]">displayedBand</span>:
-            engine cutoffs <span className="font-mono">S ≥ 30 · A ≥ 22 · B ≥ 15 · C &lt; 15</span>.
+            engine cutoffs <span className="font-mono">{CONVICTION_BAND_LEGEND}</span>.
             Falls back to the legacy probability band (A+/A/A- → A, …).
           </p>
           <div>

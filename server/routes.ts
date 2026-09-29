@@ -6422,11 +6422,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get all trade ideas for stats
       const allIdeas = await storage.getAllTradeIdeas();
-      const decidedIdeas = allIdeas.filter(i => i.status === 'hit_target' || i.status === 'stopped_out' || i.status === 'expired');
-      const openIdeas = allIdeas.filter(i => i.status === 'open' || i.status === 'pending');
+      // Outcomes live on outcomeStatus — `status` is the publish lifecycle
+      // (draft/published/archived), so the old filter matched nothing. Decided =
+      // hit_target + isRealLoss; expired ideas with no measured exit are excluded
+      // (isUnmeasuredExpiry) and reported as `unmeasuredExpired`, never counted
+      // as non-wins in the denominator.
+      const { isUnmeasuredExpiry } = await import('@shared/constants');
+      const decidedIdeas = allIdeas.filter(i => i.outcomeStatus === 'hit_target' || isRealLoss(i));
+      const unmeasuredExpired = allIdeas.filter(i => isUnmeasuredExpiry(i)).length;
+      const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
       
       // Calculate win rate
-      const wins = decidedIdeas.filter(i => i.status === 'hit_target').length;
+      const wins = decidedIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
       const winRate = decidedIdeas.length > 0 ? (wins / decidedIdeas.length) * 100 : 0;
       
       // Get paper portfolios for portfolio value (use user's portfolios if logged in)
@@ -6507,8 +6514,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       
       // Strict hit rate: wins / (wins + losses), excluding expired/breakeven
-      const losses = decidedIdeas.filter(i => i.status === 'stopped_out').length;
-      const expired = decidedIdeas.filter(i => i.status === 'expired').length;
+      const losses = decidedIdeas.filter(i => isRealLoss(i)).length;
+      const expired = allIdeas.filter(i => i.outcomeStatus === 'expired').length;
       const strictWinRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
 
       res.json({
@@ -6536,8 +6543,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           losses,
           expired,
           breakevenExcluded: expired,
+          unmeasuredExpired,
           sampleSize: wins + losses,
-          note: "Hit rate = wins / (wins + losses). Expired/breakeven trades excluded from rate calculation.",
+          note: "Hit rate = wins / (wins + losses). Expired/breakeven trades excluded from rate calculation; unmeasuredExpired = expiries with no recorded exit, excluded rather than counted as 0.00.",
         },
       });
     } catch (error) {
@@ -7494,7 +7502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // CONVICTION BACKTEST — replay scoring vs actual outcomes
+  // CONVICTION BACKTEST — point-in-time grades vs closed outcomes (look-ahead re-grades reported apart)
   // ═══════════════════════════════════════════════════════════════
 
   app.get("/api/convictions/backtest", requireBetaAccess, async (req: any, res) => {
@@ -7967,11 +7975,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`[BEST-SETUPS] Pre-filtered to ${candidateIdeas.length} candidates (from ${openIdeas.length} open ideas)`);
       
       // Calculate historical win rate by symbol (from all closed trade ideas)
-      // Uses actual outcome statuses: 'hit_target', 'stopped_out', 'expired'
+      // Decided outcomes only: hit_target vs isRealLoss. Expired ideas are not
+      // decided — an unmeasured expiry (0.00 default) in the denominator read as
+      // a loss. 'stopped_out' is not an outcomeStatus value; hit_stop is.
       const calculateSymbolWinRate = (symbol: string): { winRate: number; sampleSize: number } => {
         const symbolIdeas = allIdeas.filter(i => 
           i.symbol === symbol && 
-          (i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'stopped_out' || i.outcomeStatus === 'expired')
+          (i.outcomeStatus === 'hit_target' || isRealLoss(i))
         );
         if (symbolIdeas.length < 3) return { winRate: 50, sampleSize: symbolIdeas.length };
         const wins = symbolIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
@@ -12350,9 +12360,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/win-loss/summary", requireAdminJWT, async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
+      // Expired-without-exit policy: an expiry carrying the 0.00 default is not a
+      // resolved trade — excluded from the distribution/averages and counted apart.
+      const { isUnmeasuredExpiry } = await import('@shared/constants');
+      const unmeasuredExpired = allIdeas.filter(t => isUnmeasuredExpiry(t)).length;
       const resolvedTrades = allIdeas.filter(t => 
         t.outcomeStatus && ['hit_target', 'hit_stop', 'expired', 'manual_exit'].includes(t.outcomeStatus) &&
-        t.percentGain !== null && t.percentGain !== undefined
+        t.percentGain !== null && t.percentGain !== undefined &&
+        !isUnmeasuredExpiry(t)
       );
 
       if (resolvedTrades.length === 0) {
@@ -12361,6 +12376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           wins: 0,
           losses: 0,
           breakeven: 0,
+          unmeasuredExpired,
           message: "No resolved trades available for analysis"
         });
       }
@@ -12461,6 +12477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         totalTrades: resolvedTrades.length,
+        unmeasuredExpired, // expired with no measured exit — excluded, not zero-filled
         decidedTrades,
         wins: wins.length,
         losses: realLosses.length,
@@ -14039,7 +14056,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Calculate summary stats
-      const closedIdeas = auditRecords.filter(i => i.outcomeStatus !== 'open');
+      // Expired-without-exit policy (@shared/constants isUnmeasuredExpiry): the
+      // 0.00-default expiries stay in the export rows but out of both rates.
+      const { isUnmeasuredExpiry } = await import('@shared/constants');
+      const unmeasuredExpired = auditRecords.filter(i => isUnmeasuredExpiry(i));
+      const closedIdeas = auditRecords.filter(i => i.outcomeStatus !== 'open' && !isUnmeasuredExpiry(i));
       const wins = auditRecords.filter(i => i.outcomeStatus === 'hit_target');
       const losses = auditRecords.filter(i => i.outcomeStatus === 'hit_stop');
       const expired = auditRecords.filter(i => i.outcomeStatus === 'expired');
@@ -14052,6 +14073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         wins: wins.length,
         losses: losses.length,
         expired: expired.length,
+        unmeasuredExpired: unmeasuredExpired.length,
         winRateVsLosses: losses.length > 0 ? Math.round((wins.length / (wins.length + losses.length)) * 1000) / 10 : 0,
         winRateVsAll: closedIdeas.length > 0 ? Math.round((wins.length / closedIdeas.length) * 1000) / 10 : 0,
       };
@@ -14230,9 +14252,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas, { includeFlowLotto: true });
       
       // 🔧 DATA INTEGRITY: Use canonical getDecidedTrades from storage.ts
-      // Filter to current-gen engines and DECIDED trades (wins + real losses)
-      // Excludes: expired, breakeven (<3% loss), and legacy v1.x/v2.x
+      // Filter to current-gen engines and DECIDED trades: hit_target wins and
+      // isRealLoss losses (every hit_stop, whatever its size — there is no 3%
+      // floor on stopped trades any more; ±3% only judges status-less legacy rows).
+      // Excludes: expired, manual exits, and legacy v1.x/v2.x.
       const resolvedIdeas = getDecidedTrades(filteredIdeas);
+      // Expired-without-exit policy (@shared/constants isUnmeasuredExpiry):
+      // never in the win rate, reported as its own count.
+      const { isUnmeasuredExpiry } = await import('@shared/constants');
+      const unmeasuredExpired = filteredIdeas.filter(isCurrentGenEngine).filter((i: any) => isUnmeasuredExpiry(i)).length;
       
       // 1. Engine Performance Map
       const engineStats = new Map<string, { wins: number; losses: number; total: number }>();
@@ -14334,12 +14362,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 🔧 DATA INTEGRITY: Summary uses consistent counts from filtered+thresholded data
       const totalWins = resolvedIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
-      const totalLosses = resolvedIdeas.length - totalWins; // Real losses only (3% threshold applied above)
+      const totalLosses = resolvedIdeas.length - totalWins; // Real losses only (isRealLoss — every hit_stop)
       
       res.json({
         summary: {
           totalIdeas: filteredIdeas.length, // Uses engine-filtered count (not raw allIdeas)
           resolvedTrades: resolvedIdeas.length, // Decided trades only (wins + real losses)
+          unmeasuredExpired, // expired with no measured exit — excluded, not zero-filled
           totalWins,
           totalLosses,
           overallWinRate: resolvedIdeas.length > 0 

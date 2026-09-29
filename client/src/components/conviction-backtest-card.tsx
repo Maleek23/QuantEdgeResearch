@@ -2,7 +2,10 @@
  * ConvictionBacktestCard
  * ======================
  * Calls /api/convictions/backtest and renders the band/source breakdown,
- * top-grade recall, and the engine's blindspots/overpromises. Lets the user
+ * top-grade recall, and the engine's blindspots/overpromises. Headline bands
+ * use the grade stored at first scoring; ideas without one are shown in a
+ * separate table labelled "re-graded with today's engine (look-ahead)".
+ * Closed-trade metrics and open marks are never blended. Lets the user
  * answer "is the convictions engine actually picking winners?".
  */
 
@@ -13,24 +16,36 @@ import { Badge } from "@/components/ui/badge";
 
 interface BandStats {
   band: "S" | "A" | "B" | "C";
-  count: number;
   closed: number;
-  open: number;
   wins: number;
   losses: number;
-  winRate: number;
-  avgPercentGain: number;
-  avgRealizedGain: number;
-  avgUnrealizedGain: number;
-  expectancyR: number;
+  winRate: number | null;
+  avgRealizedGain: number | null;
+  expectancyR: number | null;
+  expectancySampleSize: number;
+  unknownOutcome: number;
+  unmeasured: number;
+  open: number;
+  avgUnrealizedGain: number | null;
 }
 
 interface SourceStats {
   source: string;
-  count: number;
-  winRate: number;
-  avgPercentGain: number;
-  expectancyR: number;
+  closed: number;
+  winRate: number | null;
+  avgRealizedGain: number | null;
+  expectancyR: number | null;
+  expectancySampleSize: number;
+}
+
+interface BacktestRow {
+  symbol: string;
+  score: number;
+  band: string;
+  actualPercentGain: number;
+  direction: string;
+  source: string;
+  gradeSource: "stored" | "regraded";
 }
 
 interface BacktestReport {
@@ -40,25 +55,20 @@ interface BacktestReport {
   scoredIdeas: number;
   closedCount: number;
   openCount: number;
+  unknownOutcomeCount: number;
+  unmeasuredCount: number;
+  grading: {
+    pointInTime: number;
+    regraded: number;
+    pointInTimeLabel: string;
+    lookAheadLabel: string;
+  };
   bands: BandStats[];
+  regradedBands: BandStats[];
   sources: SourceStats[];
-  topGradeRecallPct: number;
-  blindspots: Array<{
-    symbol: string;
-    score: number;
-    band: string;
-    actualPercentGain: number;
-    direction: string;
-    source: string;
-  }>;
-  overpromises: Array<{
-    symbol: string;
-    score: number;
-    band: string;
-    actualPercentGain: number;
-    direction: string;
-    source: string;
-  }>;
+  topGradeRecallPct: number | null;
+  blindspots: BacktestRow[];
+  overpromises: BacktestRow[];
 }
 
 const BAND_COLOR: Record<BandStats["band"], string> = {
@@ -68,8 +78,67 @@ const BAND_COLOR: Record<BandStats["band"], string> = {
   C: "text-rose-300 border-rose-500/40 bg-rose-500/10",
 };
 
-function pct(n: number): string {
+function pct(n: number | null): string {
+  if (n == null) return "—";
   return `${(n >= 0 ? "+" : "")}${n.toFixed(1)}%`;
+}
+
+function rate(n: number | null): string {
+  return n == null ? "—" : `${(n * 100).toFixed(0)}%`;
+}
+
+function rMult(n: number | null): string {
+  return n == null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}R`;
+}
+
+function tone(n: number | null): string {
+  if (n == null) return "text-muted-foreground";
+  return n >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]";
+}
+
+function BandTable({ bands, testIdPrefix }: { bands: BandStats[]; testIdPrefix: string }) {
+  const ordered: BandStats[] = ["S", "A", "B", "C"]
+    .map((b) => bands.find((x) => x.band === b))
+    .filter(Boolean) as BandStats[];
+  return (
+    <div className="rounded-lg border border-foreground/10 overflow-hidden">
+      <table className="w-full text-[11px]">
+        <thead className="bg-foreground/[0.04] text-[9px] uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="text-left px-2 py-1.5">Band</th>
+            <th className="text-right px-2 py-1.5">Closed</th>
+            <th className="text-right px-2 py-1.5">Win %</th>
+            <th className="text-right px-2 py-1.5">Avg realized</th>
+            <th className="text-right px-2 py-1.5">Expectancy</th>
+            <th className="text-right px-2 py-1.5">Open (mark)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ordered.map((b) => (
+            <tr key={b.band} className="border-t border-foreground/5" data-testid={`${testIdPrefix}-${b.band}`}>
+              <td className="px-2 py-1.5">
+                <Badge variant="outline" className={`px-1.5 py-0 font-mono font-bold ${BAND_COLOR[b.band]}`}>
+                  {b.band}
+                </Badge>
+              </td>
+              <td className="text-right tabular-nums px-2 py-1.5 font-mono">{b.closed}</td>
+              <td className="text-right tabular-nums px-2 py-1.5 font-mono">{rate(b.winRate)}</td>
+              <td className={`text-right tabular-nums px-2 py-1.5 font-mono ${tone(b.avgRealizedGain)}`}>
+                {pct(b.avgRealizedGain)}
+              </td>
+              <td className={`text-right tabular-nums px-2 py-1.5 font-mono ${tone(b.expectancyR)}`}>
+                {rMult(b.expectancyR)}
+                <span className="text-muted-foreground"> n={b.expectancySampleSize}</span>
+              </td>
+              <td className={`text-right tabular-nums px-2 py-1.5 font-mono ${tone(b.avgUnrealizedGain)}`}>
+                {b.open > 0 ? `${pct(b.avgUnrealizedGain)} · ${b.open}` : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export default function ConvictionBacktestCard({
@@ -95,7 +164,7 @@ export default function ConvictionBacktestCard({
       <Card>
         <CardContent className="flex items-center gap-2 py-6 text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-xs">Replaying convictions engine over {lookbackDays} days…</span>
+          <span className="text-xs">Grading {lookbackDays} days of ideas against their outcomes…</span>
         </CardContent>
       </Card>
     );
@@ -111,9 +180,7 @@ export default function ConvictionBacktestCard({
     );
   }
 
-  const orderedBands: BandStats[] = ["S", "A", "B", "C"]
-    .map((b) => data.bands.find((x) => x.band === b))
-    .filter(Boolean) as BandStats[];
+  const hasRegraded = data.grading.regraded > 0;
 
   return (
     <Card data-testid="card-conviction-backtest">
@@ -129,90 +196,54 @@ export default function ConvictionBacktestCard({
         {/* Headline */}
         <div className="rounded-lg border border-foreground/10 bg-foreground/[0.02] p-3">
           <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            Top-grade recall
+            Top-grade recall · point-in-time grades
           </div>
           <div className="text-2xl font-bold tabular-nums">
-            {data.topGradeRecallPct.toFixed(1)}%
+            {data.topGradeRecallPct == null ? "—" : `${data.topGradeRecallPct.toFixed(1)}%`}
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            Of actual winners, {data.topGradeRecallPct.toFixed(1)}% were graded A or S by today's
-            engine. Higher = engine catches winners early.
+            Of closed winners, the share graded A or S by the score stored when the engine first
+            scored them. Closed trades only; open ideas are marked separately.
+          </div>
+          <div className="text-[10px] font-mono text-muted-foreground mt-1">
+            {data.closedCount} closed measured · {data.openCount} open marked ·{" "}
+            {data.unmeasuredCount} expired with no measured exit and {data.unknownOutcomeCount} closed
+            with no stored P&amp;L excluded
           </div>
         </div>
 
-        {/* Bands table */}
+        {/* Bands table — point-in-time */}
         <div>
           <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
-            By Conviction Band
+            By Conviction Band · point-in-time ({data.grading.pointInTime} ideas)
           </div>
-          <div className="rounded-lg border border-foreground/10 overflow-hidden">
-            <table className="w-full text-[11px]">
-              <thead className="bg-foreground/[0.04] text-[9px] uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="text-left px-2 py-1.5">Band</th>
-                  <th className="text-right px-2 py-1.5">N</th>
-                  <th className="text-right px-2 py-1.5">Win %</th>
-                  <th className="text-right px-2 py-1.5">Avg %Gain</th>
-                  <th className="text-right px-2 py-1.5">Expectancy</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orderedBands.map((b) => (
-                  <tr
-                    key={b.band}
-                    className="border-t border-foreground/5"
-                    data-testid={`backtest-band-${b.band}`}
-                  >
-                    <td className="px-2 py-1.5">
-                      <Badge
-                        variant="outline"
-                        className={`px-1.5 py-0 font-mono font-bold ${BAND_COLOR[b.band]}`}
-                      >
-                        {b.band}
-                      </Badge>
-                    </td>
-                    <td className="text-right tabular-nums px-2 py-1.5 font-mono">
-                      {b.count}
-                    </td>
-                    <td className="text-right tabular-nums px-2 py-1.5 font-mono">
-                      {(b.winRate * 100).toFixed(0)}%
-                    </td>
-                    <td
-                      className={`text-right tabular-nums px-2 py-1.5 font-mono ${
-                        b.avgPercentGain >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                      }`}
-                    >
-                      {pct(b.avgPercentGain)}
-                    </td>
-                    <td
-                      className={`text-right tabular-nums px-2 py-1.5 font-mono ${
-                        b.expectancyR >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                      }`}
-                    >
-                      {b.expectancyR >= 0 ? "+" : ""}
-                      {b.expectancyR.toFixed(2)}R
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <BandTable bands={data.bands} testIdPrefix="backtest-band" />
         </div>
+
+        {/* Bands table — look-ahead re-grade, never blended with the above */}
+        {hasRegraded && (
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-amber-300 mb-2">
+              By Conviction Band · {data.grading.lookAheadLabel} ({data.grading.regraded} ideas)
+            </div>
+            <BandTable bands={data.regradedBands} testIdPrefix="backtest-regraded-band" />
+          </div>
+        )}
 
         {/* Sources */}
         {data.sources.length > 0 && (
           <div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
-              By Source Scanner
+              By Source Scanner · closed trades
             </div>
             <div className="rounded-lg border border-foreground/10 overflow-hidden">
               <table className="w-full text-[11px]">
                 <thead className="bg-foreground/[0.04] text-[9px] uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="text-left px-2 py-1.5">Source</th>
-                    <th className="text-right px-2 py-1.5">N</th>
+                    <th className="text-right px-2 py-1.5">Closed</th>
                     <th className="text-right px-2 py-1.5">Win %</th>
-                    <th className="text-right px-2 py-1.5">Avg %Gain</th>
+                    <th className="text-right px-2 py-1.5">Avg realized</th>
                     <th className="text-right px-2 py-1.5">Exp</th>
                   </tr>
                 </thead>
@@ -222,25 +253,13 @@ export default function ConvictionBacktestCard({
                       <td className="px-2 py-1.5 font-mono uppercase tracking-wider">
                         {s.source.replace(/_/g, " ")}
                       </td>
-                      <td className="text-right tabular-nums px-2 py-1.5 font-mono">
-                        {s.count}
+                      <td className="text-right tabular-nums px-2 py-1.5 font-mono">{s.closed}</td>
+                      <td className="text-right tabular-nums px-2 py-1.5 font-mono">{rate(s.winRate)}</td>
+                      <td className={`text-right tabular-nums px-2 py-1.5 font-mono ${tone(s.avgRealizedGain)}`}>
+                        {pct(s.avgRealizedGain)}
                       </td>
-                      <td className="text-right tabular-nums px-2 py-1.5 font-mono">
-                        {(s.winRate * 100).toFixed(0)}%
-                      </td>
-                      <td
-                        className={`text-right tabular-nums px-2 py-1.5 font-mono ${
-                          s.avgPercentGain >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                        }`}
-                      >
-                        {pct(s.avgPercentGain)}
-                      </td>
-                      <td
-                        className={`text-right tabular-nums px-2 py-1.5 font-mono ${
-                          s.expectancyR >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]"
-                        }`}
-                      >
-                        {s.expectancyR.toFixed(2)}R
+                      <td className={`text-right tabular-nums px-2 py-1.5 font-mono ${tone(s.expectancyR)}`}>
+                        {rMult(s.expectancyR)}
                       </td>
                     </tr>
                   ))}
@@ -271,6 +290,11 @@ export default function ConvictionBacktestCard({
                       >
                         {b.band}
                       </Badge>
+                      {b.gradeSource === "regraded" && (
+                        <span className="text-[9px] text-amber-300" title={data.grading.lookAheadLabel}>
+                          look-ahead
+                        </span>
+                      )}
                     </div>
                     <span
                       className={`font-mono tabular-nums ${
@@ -304,6 +328,11 @@ export default function ConvictionBacktestCard({
                       >
                         {b.band}
                       </Badge>
+                      {b.gradeSource === "regraded" && (
+                        <span className="text-[9px] text-amber-300" title={data.grading.lookAheadLabel}>
+                          look-ahead
+                        </span>
+                      )}
                     </div>
                     <span
                       className={`font-mono tabular-nums ${

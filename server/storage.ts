@@ -181,7 +181,7 @@ export {
 } from "@shared/constants";
 
 // Import for use in this file
-import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine, reportableRate } from "@shared/constants";
+import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine, reportableRate, isUnmeasuredExpiry } from "@shared/constants";
 import { normalizeIdeaSource } from "@shared/idea-sources";
 import { logger } from "./logger";
 
@@ -373,6 +373,12 @@ export interface PerformanceStats {
     wonIdeas: number;
     lostIdeas: number;
     expiredIdeas: number;
+    /**
+     * Expired ideas with no measured exit (see isUnmeasuredExpiry). Excluded from
+     * winRate, avgPercentGain and expectancy — reported here instead of being
+     * averaged in as 0.00.
+     */
+    unmeasuredExpiredIdeas: number;
     /**
      * Market win rate: hit_target / (hit_target + hit_stop).
      *
@@ -1701,7 +1707,10 @@ export class MemStorage implements IStorage {
       });
     }
 
-    const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
+    // Expired-without-exit policy: unmeasured expiries are excluded from every
+    // rate and average below and reported as a separate count.
+    const unmeasuredExpired = allIdeas.filter((idea) => isUnmeasuredExpiry(idea as any));
+    const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open' && !isUnmeasuredExpiry(idea as any));
     const wonIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_target');
     
     // A touched stop is a loss, full stop. The shared isRealLoss already says
@@ -1726,7 +1735,8 @@ export class MemStorage implements IStorage {
         closedIdeas: closedIdeas.length,
         wonIdeas: wonIdeas.length,
         lostIdeas: lostIdeas.length,
-        expiredIdeas: closedIdeas.filter(i => i.outcomeStatus === 'expired').length,
+        expiredIdeas: [...closedIdeas, ...unmeasuredExpired].filter(i => i.outcomeStatus === 'expired').length,
+        unmeasuredExpiredIdeas: unmeasuredExpired.length,
         winRate,
         winRateDecided: decidedIdeas,
         quantAccuracy: 0,
@@ -2959,7 +2969,12 @@ export class DatabaseStorage implements IStorage {
     }
     
     const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
-    const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
+    // EXPIRED-WITHOUT-EXIT POLICY (@shared/constants isUnmeasuredExpiry): an expiry
+    // whose P&L is the never-written 0.00 default is not a closed trade we can
+    // measure. It is kept out of closedIdeas — and so out of avgPercentGain, the
+    // per-source/asset/signal averages and expectancy — and counted separately.
+    const unmeasuredExpiredIdeas = allIdeas.filter(i => isUnmeasuredExpiry(i));
+    const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open' && !isUnmeasuredExpiry(i));
     const wonIdeas = closedIdeas.filter(i => i.outcomeStatus === 'hit_target');
     // A touched stop is a loss — the shared isRealLoss classifier, not a local
     // 3% floor. The floor survived here after being removed from the barrier
@@ -3253,7 +3268,7 @@ export class DatabaseStorage implements IStorage {
     
     // Helper for segmented win rate calculation (reuses isRealLoss defined above)
     const calcSegmentedWinRate = (ideas: TradeIdea[]) => {
-      const closedIdeas = ideas.filter(i => i.outcomeStatus !== 'open');
+      const closedIdeas = ideas.filter(i => i.outcomeStatus !== 'open' && !isUnmeasuredExpiry(i));
       const wins = closedIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
       const losses = closedIdeas.filter(i => isRealLoss(i)).length;
       const decided = wins + losses;
@@ -3295,7 +3310,8 @@ export class DatabaseStorage implements IStorage {
         closedIdeas: closedIdeas.length,
         wonIdeas: wonIdeas.length,
         lostIdeas: lostIdeas.length,
-        expiredIdeas: expiredIdeas.length,
+        expiredIdeas: expiredIdeas.length + unmeasuredExpiredIdeas.filter(i => i.outcomeStatus === 'expired').length,
+        unmeasuredExpiredIdeas: unmeasuredExpiredIdeas.length,
         winRate: overallStats.winRate, // Use unified segmented methodology
         winRateDecided: overallStats.decided, // the sample this rate is actually over
         quantAccuracy,

@@ -184,7 +184,9 @@ export function isRealWin(idea: { outcomeStatus?: string | null; percentGain?: n
  *   3% P&L floor was silently converting valid stopped trades into neutrals.
  * 
  * Expired trades are EXCLUDED from loss calculations (they are separate from hit_stop).
- * This matches the documented methodology in replit.md.
+ * Expired trades with no measured exit (see isUnmeasuredExpiry) are also never
+ * wins — their 0.00 default sits below the win threshold — and callers report
+ * them as a separate "unmeasured" count rather than folding them into averages.
  */
 export function isRealLoss(idea: { outcomeStatus?: string | null; percentGain?: number | null }): boolean {
   const status = (idea.outcomeStatus || '').trim().toLowerCase();
@@ -239,6 +241,34 @@ export type TradeOutcome = 'win' | 'loss' | 'neutral';
    are compared on the same trades — swapping a public win rate silently is the
    kind of thing this codebase already has scar tissue about.
 */
+/**
+ * EXPIRED-WITHOUT-EXIT POLICY (SR 11-7 F3.7 / F4.4) — one rule, every surface.
+ *
+ * Measured on this database: of 367 expired ideas, 268 carry percentGain 0.00
+ * with a null currentPrice. That 0.00 is a column default that was never
+ * written, not a flat trade. Counting those rows as neutral-at-zero drags
+ * average-gain and expectancy toward 0; counting them as losses manufactures
+ * losses out of missing data. Neither is a measurement.
+ *
+ * Policy: an expired/timed-out idea with no measured exit is EXCLUDED from win
+ * rate, from average gain, and from expectancy, and each endpoint reports how
+ * many it excluded as a separate "unmeasured" count so the gap stays visible.
+ *
+ * "No measured exit" = the outcome P&L (contract P&L first, then stock P&L) is
+ * missing or within ±0.05% of zero — the same test classifyOutcomeV2 has used
+ * since v2, now shared so v1 surfaces apply it too.
+ */
+export function isUnmeasuredExpiry(idea: {
+  outcomeStatus?: string | null;
+  percentGain?: number | null;
+  optionPercentGain?: number | null;
+}): boolean {
+  const status = (idea.outcomeStatus || '').trim().toLowerCase();
+  if (status !== 'expired' && status !== 'timeout' && status !== 'closed_horizon') return false;
+  const pnl = idea.optionPercentGain ?? idea.percentGain;
+  return pnl === null || pnl === undefined || Math.abs(pnl) <= 0.05;
+}
+
 export type OutcomeV2 = 'win' | 'loss' | 'unresolved';
 
 export interface OutcomeV2Input {
@@ -308,8 +338,8 @@ export function classifyOutcomeV2(idea: OutcomeV2Input): OutcomeV2 {
     // Note this is a weaker "win" than hit_target — the trade made money without
     // reaching plan. The win/loss label cannot express that difference; realisedR()
     // can, which is why expectancy is the metric to lead with.
-    const pnl = idea.optionPercentGain ?? idea.percentGain;
-    if (pnl === null || pnl === undefined || Math.abs(pnl) <= 0.05) return 'unresolved';
+    if (isUnmeasuredExpiry(idea)) return 'unresolved';
+    const pnl = (idea.optionPercentGain ?? idea.percentGain) as number;
     return pnl > 0 ? 'win' : 'loss';
   }
 

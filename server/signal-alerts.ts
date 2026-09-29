@@ -15,13 +15,23 @@ import { logger } from './logger';
 import { signalKey } from '@shared/signal-continuity';
 import { marketDateET } from '@shared/market-day';
 import { convictionDisplayPercent } from '@shared/conviction-display';
+import { CONVICTION_BAND_CUTOFFS } from '@shared/conviction-bands';
 
 /** Ideas already announced. Keyed by idea id, cleared daily. */
 let _sent = new Set<string>();
 let _sentDay = marketDateET();
 
-/** Only announce setups worth interrupting someone for. */
-const MIN_CONVICTION = 22;
+/**
+ * Only announce setups worth interrupting someone for: A band and above.
+ *
+ * This was a bare 22 — the old A-band entry from before the 22 Aug 2026 band
+ * retune (S≥30/A≥22/B≥15 → S≥25/A≥19/B≥13). After the retune it silently meant
+ * "upper A only", so scores 19–21 were graded A on screen but never alerted
+ * (SR 11-7 F3.11). The choice now is explicit: an alert fires for exactly the
+ * picks the product calls A or S, and moves with the canonical cutoffs in
+ * shared/conviction-bands.ts rather than drifting from them.
+ */
+const MIN_CONVICTION = CONVICTION_BAND_CUTOFFS.A;
 
 export interface AlertablePick {
   ideaId?: string;

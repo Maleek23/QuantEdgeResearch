@@ -129,7 +129,8 @@ export function directionTone(direction: 'long' | 'short'): 'bull' | 'bear' {
  *
  * The server's `convictionScore` is a *confluence-points* sum, not a percent —
  * it realistically tops out around the low 40s, and the bands are:
- *   S ≥ 30 · A ≥ 22 · B ≥ 15 · C < 15  (server/convictions-engine.ts).
+ *   see CONVICTION_BAND_CUTOFFS in shared/conviction-bands.ts (the one source
+ *   the server engine and every client surface read).
  * Rendering that raw number on a 0-100 dial makes an ELITE (band S) signal read
  * as "31" — which looks weak and contradicts the tier label. This is a monotonic
  * transform that anchors each band onto a sensible slice of the dial, so ELITE
