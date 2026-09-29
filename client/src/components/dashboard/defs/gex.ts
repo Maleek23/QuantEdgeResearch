@@ -89,8 +89,8 @@ export const GEX_DEFAULTS: DefaultLayout[] = [{
   tools: [
     ['gex-regime', 0, 0, 3, 7],
     ['gex-levels', 0, 7, 3, 9],
-    ['stock-chart', 3, 0, 6, 16],
-    ['gex-dealer-map', 9, 0, 3, 16],
+    ['stock-chart', 3, 0, 5, 16],
+    ['gex-dealer-map', 8, 0, 4, 16],
     ['gex-matrix', 0, 16, 6, 14],
     ['gex-profile', 6, 16, 3, 6],
     ['gex-gravity', 6, 22, 3, 8],

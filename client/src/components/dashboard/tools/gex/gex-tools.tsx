@@ -21,10 +21,10 @@ import {
   DTE_BUCKETS, type BucketId,
   useGexHub, useGexTerminal, useSectorRotation, useExtendedHoursNexus,
   nearTermByStrike, shapeMatrix, regimeView, zeroGammaOf, gridLevelsOf, regimeNarrative,
-  nearTermDisagrees, sessionClock, sessionLabelOf, terminalAsOf,
+  nearTermDisagrees, sessionClock, sessionLabelOf, terminalAsOf, TERMINAL_TIMEOUT_MS,
 } from '@/components/gex/gex-model';
 import { DealerStructureRail, GammaProfileChart, GexCellDrill } from '@/components/gex/gex-parts';
-import { useFocusSymbol, useToolReport, useToolSetting } from '../../frame';
+import { useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
 
 // Three.js only loads when a 3D surface tool is placed AND on screen.
 const GammaSurface = lazy(() => import('@/components/prism/gamma-surface').then((m) => ({ default: m.GammaSurface })));
@@ -39,19 +39,29 @@ function useGexFocus() {
   const snap = q.data?.snapshot;
   const matrix = q.data?.strikeExpiryMatrix ?? [];
   const spot = snap?.spotPrice ?? 0;
+  const waited = useLoadingFor(q.isLoading);
   useToolReport({
     asOf: q.isError && !q.data ? null : terminalAsOf(q.data),
     source: q.data?.optionsSource ? `GEX engine · ${q.data.optionsSource.replaceAll('_', ' ')}` : undefined,
     note: q.isError ? 'refresh failed' : q.data?.cached ? 'cached' : snap?.dataQuality?.openInterestDate ? `OI ${snap.dataQuality.openInterestDate}` : undefined,
     tone: q.isError || q.data?.cached ? 'warn' : 'ok',
   });
-  return { symbol, setFocus, q, snap, matrix, spot };
+  return { symbol, setFocus, q, snap, matrix, spot, waited };
+}
+
+/** Elapsed seconds while a query is in its first load — so a slow chain says so. */
+function useLoadingFor(loading: boolean) {
+  const [since] = useState(() => Date.now());
+  const now = useNow(5_000);
+  return loading ? Math.round((now - since) / 1000) : 0;
 }
 
 /** loading / error / empty gate shared by every ticker tool */
 function gate(g: ReturnType<typeof useGexFocus>, what = 'dealer map'): ReactNode | null {
-  if (g.q.isLoading) return <QELoading rows={4} className="fd-pad" label={`reading ${g.symbol} chain…`} />;
-  if (g.q.isError && !g.q.data) return <QEError className="fd-m" title={`${g.symbol} ${what} didn't load`} onRetry={() => g.q.refetch()} retrying={g.q.isFetching} />;
+  if (g.q.isLoading) {
+    return <QELoading rows={4} className="fd-pad" label={g.waited >= 15 ? `reading ${g.symbol} chain… ${g.waited}s — the options-data queue is busy; this gives up at ${TERMINAL_TIMEOUT_MS / 1000}s and offers a retry` : `reading ${g.symbol} chain…`} />;
+  }
+  if (g.q.isError && !g.q.data) return <QEError className="fd-m" title={`${g.symbol} ${what} didn't load`} message={g.q.error instanceof Error ? g.q.error.message : undefined} onRetry={() => g.q.refetch()} retrying={g.q.isFetching} />;
   if (!g.snap) return <QEEmpty className="fd-m" message={`No dealer positioning returned for ${g.symbol}.`} />;
   return null;
 }
@@ -64,10 +74,8 @@ export function GexDealerMapTool() {
   if (blocked) return blocked;
   return (
     <div className="gx-tool gx-col">
-      <div className="gx-legend">
-        Net GEX by strike, expiries ≤7d · {near.expiries.length} expiries · Σ <b style={{ color: exposureText('gex', near.total) }}>{fmtGexB(near.total)}/1%</b>
-        {' · '}<i style={{ color: 'var(--cyan-bright)' }}>+ blue provides liquidity</i> / <i style={{ color: 'var(--red)' }}>− vermilion takes it</i>
-        {' · '}<i style={{ color: LEVEL_COLORS.callWall }}>call wall</i>, <i style={{ color: LEVEL_COLORS.putWall }}>put wall</i>, <i style={{ color: LEVEL_COLORS.magnet }}>max γ</i>, <i style={{ color: LEVEL_COLORS.zeroGamma }}>zero-γ</i> = all expiries
+      <div className="gx-legend" title="Walls, max-γ and zero-γ rows come from ALL listed expiries; bars are the ≤7-day slice.">
+        ≤7d · {near.expiries.length} expiries · Σ <b style={{ color: exposureText('gex', near.total) }}>{fmtGexB(near.total)}/1%</b> · levels from all expiries
       </div>
       <div className="gx-grow">
         <GexStrikeLadder
