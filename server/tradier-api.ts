@@ -32,6 +32,35 @@ interface TradierQuote {
   askexch: string;
   ask_date: number;
   root_symbols?: string;
+  // ── Provenance (SR 11-7 F4.1 / P0-5) — set by getTradierQuote, not by Tradier ──
+  /** Provider that produced this quote. getTradierQuote never substitutes another source; it returns null. */
+  source?: 'tradier';
+  /** Always false here — a null return is how this function says "not Tradier". */
+  isFallback?: boolean;
+  /** True when served from the Tradier sandbox (TRADIER_USE_SANDBOX), whose quotes are delayed. */
+  delayed?: boolean;
+}
+
+/**
+ * Daily OHLC history with provenance (SR 11-7 F4.1 / P0-5).
+ *
+ * getTradierHistoryOHLC silently fell back to Yahoo; callers could not tell
+ * which provider's bars they were computing ATR/levels on. The arrays are
+ * unchanged — `source`, `isFallback` and `adjusted` are additive.
+ *   adjusted: false  → Yahoo `quote.close` (the chart's `adjclose` series is not read),
+ *                      so dividends are not adjusted out.
+ *   adjusted: null   → Tradier daily history; its adjustment policy is not
+ *                      verified in this codebase, so we do not claim either way.
+ */
+export interface OHLCHistory {
+  opens: number[];
+  highs: number[];
+  lows: number[];
+  closes: number[];
+  dates: string[];
+  source: 'tradier' | 'yahoo';
+  isFallback: boolean;
+  adjusted: boolean | null;
 }
 
 interface TradierHistoricalDay {
@@ -243,7 +272,7 @@ export async function getTradierQuote(symbol: string, apiKey?: string): Promise<
 
     recordBreakerSuccess();
     logAPISuccess('Tradier', '/markets/quotes', Date.now() - startTime);
-    return quote;
+    return { ...quote, source: 'tradier', isFallback: false, delayed: isSandboxKey(key) };
   } catch (error) {
     if (_breakerFailures < BREAKER_THRESHOLD) {
       logger.error(`Tradier quote fetch error for ${symbol}:`, error);
@@ -518,7 +547,7 @@ export async function getTradierHistory(
 async function fetchYahooHistoryOHLC(
   symbol: string,
   days: number = 20
-): Promise<{ opens: number[]; highs: number[]; lows: number[]; closes: number[]; dates: string[] } | null> {
+): Promise<OHLCHistory | null> {
   try {
     const endDate = Math.floor(Date.now() / 1000);
     const startDate = endDate - (days * 24 * 60 * 60);
@@ -561,7 +590,8 @@ async function fetchYahooHistoryOHLC(
     }
     
     logger.info(`[YAHOO-FALLBACK] Fetched ${closes.length} OHLC bars for ${symbol}`);
-    return { opens, highs, lows, closes, dates };
+    // Raw `quote.close`, not `adjclose` — see OHLCHistory.adjusted.
+    return { opens, highs, lows, closes, dates, source: 'yahoo', isFallback: true, adjusted: false };
   } catch (error) {
     logger.error(`Yahoo Finance OHLC fetch error for ${symbol}:`, error);
     return null;
@@ -569,12 +599,13 @@ async function fetchYahooHistoryOHLC(
 }
 
 // Get historical OHLC data for ATR calculation and chart analysis
-// Falls back to Yahoo Finance when Tradier is unavailable
+// Falls back to Yahoo Finance when Tradier is unavailable — the result's
+// `source` / `isFallback` say which one answered (was silent before F4.1).
 export async function getTradierHistoryOHLC(
   symbol: string,
   days: number = 20,
   apiKey?: string
-): Promise<{ opens: number[]; highs: number[]; lows: number[]; closes: number[]; dates: string[] } | null> {
+): Promise<OHLCHistory | null> {
   const key = apiKey || process.env.TRADIER_API_KEY;
   
   // Try Tradier first if key available — unless the breaker already knows it is down,
@@ -610,7 +641,10 @@ export async function getTradierHistoryOHLC(
             highs: history.map(day => day.high),
             lows: history.map(day => day.low),
             closes: history.map(day => day.close),
-            dates: history.map(day => day.date)
+            dates: history.map(day => day.date),
+            source: 'tradier',
+            isFallback: false,
+            adjusted: null,
           };
         }
       } else {

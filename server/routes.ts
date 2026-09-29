@@ -350,6 +350,40 @@ const CALIBRATION_CURVE = buildMonotoneCalibration([
   { score: 100, winRate: 78.4, sampleSize: 37 },
 ]);
 
+/**
+ * MONOTONICITY GUARD (SR 11-7 F3.6 / P0-6).
+ *
+ * A calibration map must be non-decreasing: a higher raw score may not map to a
+ * LOWER expected win rate, or the score stops meaning "more likely". This table
+ * is not — raw 55 → 88% but raw 80 → 25% — because it is a Dec-2025 snapshot
+ * of 411 trades whose buckets are mostly one engine each (see the comments
+ * above), with bins as small as n=7. It is a record of that sample, not a
+ * calibration, and the output of getCalibratedConfidence() must not be read as
+ * a win probability.
+ *
+ * The guard below does NOT reshape the numbers (doing that silently would
+ * change every published AI/hybrid confidence); it detects and logs every
+ * inversion once at boot so the defect is visible until the table is refit
+ * (isotonic / pool-adjacent-violators on a fresh, per-engine sample) or retired.
+ */
+const CALIBRATION_LOOKUP_INVERSIONS: Array<{ from: number; to: number; drop: number }> = (() => {
+  const keys = Object.keys(CALIBRATION_LOOKUP).map(Number).sort((x, y) => x - y);
+  const out: Array<{ from: number; to: number; drop: number }> = [];
+  for (let i = 1; i < keys.length; i++) {
+    const prev = CALIBRATION_LOOKUP[keys[i - 1]];
+    const cur = CALIBRATION_LOOKUP[keys[i]];
+    if (cur < prev) out.push({ from: keys[i - 1], to: keys[i], drop: prev - cur });
+  }
+  return out;
+})();
+if (CALIBRATION_LOOKUP_INVERSIONS.length > 0) {
+  logger.warn(
+    `[CONFIDENCE] Static Dec-2025 CALIBRATION_LOOKUP is NON-MONOTONIC (${CALIBRATION_LOOKUP_INVERSIONS.length} inversions: ` +
+    CALIBRATION_LOOKUP_INVERSIONS.map((v) => `${v.from}→${v.to} −${v.drop}pp`).join(', ') +
+    `). Its output is an uncalibrated historical lookup, not a win probability.`,
+  );
+}
+
 // Get calibrated confidence from raw score
 // Uses linear interpolation between lookup points
 function getCalibratedConfidence(rawScore: number): number {

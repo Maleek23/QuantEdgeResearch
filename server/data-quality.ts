@@ -14,7 +14,7 @@
  * Quality Score Components:
  *   - source count      (0-30)  — number of working sources
  *   - agreement         (0-30)  — how tightly sources agree (<0.2% spread = full marks)
- *   - freshness         (0-25)  — newest timestamp (< 10s = full marks)
+ *   - freshness         (0-25)  — age of the source bestPrice came from (< 10s = full marks)
  *   - market status     (0-15)  — intraday w/ live ticks > after-hours
  */
 
@@ -57,9 +57,11 @@ export interface CrossValidatedQuote {
   maxSpreadPct: number;          // largest disagreement between sources (percent)
   oldestAgeMs: number;
   newestAgeMs: number;
+  /** Age of the source bestPrice actually came from. Governs BOTH isStale and the freshness score. */
+  priceAgeMs: number;
 
   // Flags
-  isStale: boolean;              // selected quote age > STALE_THRESHOLD
+  isStale: boolean;              // priceAgeMs > STALE_THRESHOLD
   hasDisagreement: boolean;      // maxSpreadPct > DISAGREE_THRESHOLD
   hasFallback: boolean;          // using a non-primary source because primary failed
   marketStatus: 'live' | 'closed' | 'premarket' | 'afterhours';
@@ -331,12 +333,19 @@ export async function getCrossValidatedQuote(symbol: string): Promise<CrossValid
   const oldestAgeMs = ages.length > 0 ? Math.max(...ages) : Number.POSITIVE_INFINITY;
   const newestAgeMs = ages.length > 0 ? Math.min(...ages) : Number.POSITIVE_INFINITY;
 
+  // ONE staleness definition (SR 11-7 F4.2). isStale used the OLDEST source and
+  // the freshness score used the NEWEST, so one quote could score "fresh" while
+  // flagged stale. Neither extreme is the number the user sees: bestPrice comes
+  // from exactly one source, so that source's age is what "stale" must mean —
+  // a slow backup source should not stale-flag a fresh primary, and a fresh
+  // backup should not make a stale primary look fresh. oldest/newest are kept
+  // as diagnostics only. (Age here is time since our fetch returned — the
+  // providers' own trade timestamps are not normalised across sources yet.)
+  const bestQuote = okSources.find((s) => s.source === bestSource);
+  const priceAgeMs = bestQuote ? now - bestQuote.fetchedAt : Number.POSITIVE_INFINITY;
+
   // Flags
-  // The displayed quote comes from bestSource. A stale secondary source may
-  // raise a disagreement flag, but must not mark a fresh displayed quote stale.
-  const selectedSource = okSources.find((s) => s.source === bestSource);
-  const selectedAgeMs = selectedSource ? now - selectedSource.fetchedAt : newestAgeMs;
-  const isStale = selectedAgeMs > STALE_THRESHOLD_MS;
+  const isStale = priceAgeMs > STALE_THRESHOLD_MS;
   const hasDisagreement = maxSpreadPct > DISAGREE_THRESHOLD_PCT;
   const hasFallback = bestSource !== 'schwab' && schwab.ok === false && isSchwabConfigured();
   const marketStatus = getMarketStatus();
@@ -360,11 +369,11 @@ export async function getCrossValidatedQuote(symbol: string): Promise<CrossValid
     qualityScore += 15;
   }
 
-  // Freshness (0-25)
-  if (newestAgeMs < FRESH_THRESHOLD_MS) qualityScore += 25;
-  else if (newestAgeMs < 30_000) qualityScore += 18;
-  else if (newestAgeMs < 60_000) qualityScore += 10;
-  else if (newestAgeMs < 300_000) qualityScore += 4;
+  // Freshness (0-25) — same age as isStale (see F4.2 note above)
+  if (priceAgeMs < FRESH_THRESHOLD_MS) qualityScore += 25;
+  else if (priceAgeMs < STALE_THRESHOLD_MS) qualityScore += 18;
+  else if (priceAgeMs < 60_000) qualityScore += 10;
+  else if (priceAgeMs < 300_000) qualityScore += 4;
 
   // Market status (0-15)
   if (marketStatus === 'live') qualityScore += 15;
@@ -394,6 +403,7 @@ export async function getCrossValidatedQuote(symbol: string): Promise<CrossValid
     maxSpreadPct,
     oldestAgeMs,
     newestAgeMs,
+    priceAgeMs,
     isStale,
     hasDisagreement,
     hasFallback,

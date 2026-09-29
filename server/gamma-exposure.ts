@@ -17,7 +17,7 @@ import { getTradierOptionsChain } from './tradier-api';
 import { getYahooOptionsChain, getYahooExpirations } from './yahoo-options-fallback';
 import { getSchwabOptionsChain, getSchwabExpirations, isSchwabConfigured } from './schwab-options-adapter';
 import { getCBOEExpirations, getCBOEOptionsChain } from './cboe-options-fallback';
-import { getCrossValidatedQuote } from './data-quality';
+import { getCrossValidatedQuote, assessOptionsStaleness } from './data-quality';
 import {
   computeExposures,
   optionToInput,
@@ -78,6 +78,23 @@ export interface GammaExposureResult {
     spreadPct: number;
     isStale: boolean;
     hasDisagreement: boolean;
+    // ── Options-chain provenance (SR 11-7 F3.5 / P1-3). The fields above
+    // describe the SPOT quote only; these describe the chain the levels came from.
+    /** When the cascade received the chain (oldest leg for aggregates). ISO. Provider-side caches (e.g. CBOE's 60s) are not visible here. */
+    chainFetchedAt?: string;
+    /** Age of the chain at emit time, ms. */
+    chainAgeMs?: number;
+    /** Verdict from assessOptionsStaleness (5 min live / 15 min otherwise). */
+    chainIsFresh?: boolean;
+    chainStaleReason?: string;
+    /** True when any leg came from CBOE's delayed (~15 min) feed. */
+    chainDelayedFeed?: boolean;
+    /** Share of aggregated contracts whose greeks were computed on the DEFAULT_IV fallback. */
+    ivFallbackShare?: number;
+    /** Share of aggregated contracts whose gamma/delta were computed by Black-Scholes here (not feed-supplied). */
+    bsComputedShare?: number;
+    /** The fixed Black-Scholes assumptions those computed greeks used. */
+    bsAssumptions?: ExposureSnapshot['bsAssumptions'];
   };
   strikeExpiryMatrix?: StrikeExpiryCell[];
 }
@@ -88,6 +105,8 @@ type OptionsSource = 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
 type OptionsFetchResult = {
   options: any[];
   source: OptionsSource;
+  /** When this cascade received the chain (ms epoch) — the chain's own age, F3.5. */
+  fetchedAt: number;
 };
 
 async function fetchOptionsChain(
@@ -99,7 +118,7 @@ async function fetchOptionsChain(
     try {
       const schwab = await getSchwabOptionsChain(symbol, expiration);
       if (schwab.length > 0) {
-        return { options: schwab, source: 'schwab' };
+        return { options: schwab, source: 'schwab', fetchedAt: Date.now() };
       }
     } catch (e: any) {
       logger.warn(`[GEX] Schwab chain failed for ${symbol}: ${e.message}`);
@@ -110,7 +129,7 @@ async function fetchOptionsChain(
   try {
     const tradier = await getTradierOptionsChain(symbol, expiration);
     if (tradier.length > 0) {
-      return { options: tradier, source: 'tradier' };
+      return { options: tradier, source: 'tradier', fetchedAt: Date.now() };
     }
   } catch (e: any) {
     logger.warn(`[GEX] Tradier chain failed for ${symbol}: ${e.message}`);
@@ -120,7 +139,7 @@ async function fetchOptionsChain(
   try {
     const yahoo = await getYahooOptionsChain(symbol, expiration);
     if (yahoo.length > 0) {
-      return { options: yahoo, source: 'yahoo' };
+      return { options: yahoo, source: 'yahoo', fetchedAt: Date.now() };
     }
   } catch (e: any) {
     logger.warn(`[GEX] Yahoo chain failed for ${symbol}: ${e.message}`);
@@ -136,14 +155,14 @@ async function fetchOptionsChain(
         filtered = cboe.options.filter((o: any) => o.expiration_date === expiration);
       }
       if (filtered.length > 0) {
-        return { options: filtered, source: 'cboe' as any };
+        return { options: filtered, source: 'cboe' as any, fetchedAt: Date.now() };
       }
     }
   } catch (e: any) {
     logger.warn(`[GEX] CBOE chain failed for ${symbol}: ${e.message}`);
   }
 
-  return { options: [], source: 'none' };
+  return { options: [], source: 'none', fetchedAt: Date.now() };
 }
 
 async function fetchExpirationsCascade(symbol: string): Promise<string[]> {
@@ -195,7 +214,13 @@ function snapshotToLegacy(
   expirationLabel: string,
   source: OptionsSource,
   cq: Awaited<ReturnType<typeof getCrossValidatedQuote>>,
+  chain: { fetchedAt: number; expirationsUsed: string[]; delayedFeed: boolean },
 ): GammaExposureResult {
+  // Chain age + staleness verdict (F3.5). assessOptionsStaleness existed with
+  // no callers; this is its first. Levels built from an old chain are old levels.
+  const staleness = assessOptionsStaleness(chain.expirationsUsed, chain.fetchedAt);
+  const used = snap.contractsUsed;
+
   const strikes: GammaByStrike[] = snap.strikes.map((s) => ({
     strike: s.strike,
     callGamma: s.callGamma,
@@ -260,6 +285,14 @@ function snapshotToLegacy(
       spreadPct: cq.maxSpreadPct,
       isStale: cq.isStale,
       hasDisagreement: cq.hasDisagreement,
+      chainFetchedAt: new Date(chain.fetchedAt).toISOString(),
+      chainAgeMs: staleness.ageMs,
+      chainIsFresh: staleness.isFresh,
+      chainStaleReason: staleness.reason,
+      chainDelayedFeed: chain.delayedFeed,
+      ivFallbackShare: snap.ivFallbackShare,
+      bsComputedShare: used > 0 ? snap.bsComputedCount / used : 0,
+      bsAssumptions: snap.bsAssumptions,
     },
   };
 }
@@ -279,7 +312,7 @@ export async function calculateGammaExposure(
     }
 
     // 2. Fetch options chain via cascade
-    const { options, source } = await fetchOptionsChain(symbol, expiration);
+    const { options, source, fetchedAt } = await fetchOptionsChain(symbol, expiration);
     if (options.length === 0) {
       logger.warn(`[GEX] No options data for ${symbol} from any source`);
       return null;
@@ -302,7 +335,11 @@ export async function calculateGammaExposure(
     // 4. Compute exposures
     const snap = computeExposures(symbol, cq.bestPrice, inputs, [actualExpiration]);
 
-    return snapshotToLegacy(snap, actualExpiration, source, cq);
+    return snapshotToLegacy(snap, actualExpiration, source, cq, {
+      fetchedAt,
+      expirationsUsed: [actualExpiration],
+      delayedFeed: source === 'cboe',
+    });
   } catch (error: any) {
     logger.error(`[GEX] Error calculating gamma exposure for ${symbol}: ${error?.message || error}`);
     return null;
@@ -330,10 +367,15 @@ export async function calculateAggregateGammaExposure(
     try {
       const { getMassiveChainInputs } = await import('./massive-options');
       const massiveInputs = await getMassiveChainInputs(symbol);
+      const massiveFetchedAt = Date.now();
       if (massiveInputs && massiveInputs.length >= 10) {
         const snap = computeExposures(symbol, cq.bestPrice, massiveInputs, ['massive-chain']);
         logger.info(`[GEX-AGG] ${symbol}: Massive chain snapshot — ${massiveInputs.length} contracts, one call`);
-        return snapshotToLegacy(snap, `Aggregate (massive chain)`, 'mixed', cq);
+        return snapshotToLegacy(snap, `Aggregate (massive chain)`, 'mixed', cq, {
+          fetchedAt: massiveFetchedAt,
+          expirationsUsed: ['massive-chain'],
+          delayedFeed: false,
+        });
       }
     } catch { /* fall through to the cascade */ }
 
@@ -363,11 +405,14 @@ export async function calculateAggregateGammaExposure(
     const allInputs: OptionInput[] = [];
     const expsUsed: string[] = [];
     const sourcesUsed = new Set<string>();
+    // Oldest leg governs the aggregate's chain age — the book is only as fresh as its stalest expiry.
+    let oldestChainFetchedAt = Number.POSITIVE_INFINITY;
     for (let i = 0; i < chainResults.length; i++) {
-      const { options, source } = chainResults[i];
+      const { options, source, fetchedAt } = chainResults[i];
       if (options.length === 0) continue;
       expsUsed.push(nearExps[i]);
       sourcesUsed.add(source);
+      if (fetchedAt < oldestChainFetchedAt) oldestChainFetchedAt = fetchedAt;
       for (const opt of options) {
         const input = optionToInput(opt, nearExps[i]);
         if (input) allInputs.push(input);
@@ -388,7 +433,11 @@ export async function calculateAggregateGammaExposure(
         : sourcesUsed.size > 1 ? 'mixed' : 'none';
 
     const legacyExp = `Aggregate (${expsUsed.length} exp)`;
-    return snapshotToLegacy(snap, legacyExp, mixedSource, cq);
+    return snapshotToLegacy(snap, legacyExp, mixedSource, cq, {
+      fetchedAt: oldestChainFetchedAt,
+      expirationsUsed: expsUsed,
+      delayedFeed: sourcesUsed.has('cboe'),
+    });
   } catch (error: any) {
     logger.error(`[GEX] Aggregate calculation error for ${symbol}: ${error?.message || error}`);
     return null;

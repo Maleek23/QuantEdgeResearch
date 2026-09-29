@@ -29,10 +29,39 @@
  * it is the same series every backtest in research/ uses — so the scorers and
  * the research finally read identical data. They did not before, which means a
  * rule validated offline could behave differently live.
+ *
+ * PROVENANCE (SR 11-7 F4.1 / P0-5)
+ * Every bar and quote now says which provider answered (`source`) and whether
+ * that was a fallback down the chain (`isFallback`). Bars also carry
+ * `adjusted`: Massive/Polygon grouped-daily is requested with `adjusted=true`;
+ * the Yahoo path returns `close`, not `adjClose`, so dividends are NOT adjusted
+ * out of it (`adjusted: false`). A consumer mixing the two can now tell.
+ * Additive fields only — no existing reader changes behaviour.
  */
 import { logger } from './logger';
 
-export interface Bar { date: Date; open: number; high: number; low: number; close: number; volume: number }
+export type BarSource = 'polygon' | 'yahoo';
+export type QuoteSource = 'finnhub' | 'yahoo' | 'bars';
+
+export interface Bar {
+  date: Date; open: number; high: number; low: number; close: number; volume: number;
+  /** Provider that produced this bar. */
+  source?: BarSource;
+  /** True when the primary (Polygon grouped-daily) did not answer. */
+  isFallback?: boolean;
+  /** true = provider was asked for adjusted bars; false = raw closes (Yahoo `close`, not `adjClose`). */
+  adjusted?: boolean;
+}
+
+export interface FallbackQuote {
+  price: number;
+  changePct: number;
+  prevClose: number;
+  /** Provider that produced this quote ('bars' = derived from the last two daily closes). */
+  source: QuoteSource;
+  /** True when the primary (Finnhub) did not answer. */
+  isFallback: boolean;
+}
 
 /** Daily bars, newest last. Returns [] rather than throwing — callers degrade. */
 export async function getBars(symbol: string, days = 130): Promise<Bar[]> {
@@ -47,6 +76,7 @@ export async function getBars(symbol: string, days = 130): Promise<Bar[]> {
       return ub.map((b: any) => ({
         date: new Date(b.time * 1000),
         open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
+        source: 'polygon' as const, isFallback: false, adjusted: true,
       }));
     }
   } catch (e: any) {
@@ -61,6 +91,8 @@ export async function getBars(symbol: string, days = 130): Promise<Bar[]> {
     if (h?.length) {
       return h.map((b) => ({
         date: new Date(b.date), open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume,
+        // `close` is Yahoo's unadjusted-for-dividends series (adjClose is ignored here).
+        source: 'yahoo' as const, isFallback: true, adjusted: false,
       }));
     }
   } catch (e: any) {
@@ -71,7 +103,7 @@ export async function getBars(symbol: string, days = 130): Promise<Bar[]> {
 }
 
 /** Last price + day change. Null when no source answers. */
-export async function getQuote(symbol: string): Promise<{ price: number; changePct: number; prevClose: number } | null> {
+export async function getQuote(symbol: string): Promise<FallbackQuote | null> {
   const sym = symbol.toUpperCase();
 
   try {
@@ -79,7 +111,7 @@ export async function getQuote(symbol: string): Promise<{ price: number; changeP
     const q = await getFinnhubQuote(sym);
     if (q?.price) {
       const prev = q.changePct !== 0 ? q.price / (1 + q.changePct / 100) : q.price;
-      return { price: q.price, changePct: q.changePct, prevClose: prev };
+      return { price: q.price, changePct: q.changePct, prevClose: prev, source: 'finnhub', isFallback: false };
     }
   } catch { /* next */ }
 
@@ -92,6 +124,8 @@ export async function getQuote(symbol: string): Promise<{ price: number; changeP
         price: q.regularMarketPrice,
         changePct: q.regularMarketChangePercent ?? 0,
         prevClose: q.regularMarketPreviousClose ?? q.regularMarketPrice,
+        source: 'yahoo',
+        isFallback: true,
       };
     }
   } catch { /* fall through */ }
@@ -100,7 +134,8 @@ export async function getQuote(symbol: string): Promise<{ price: number; changeP
   const bars = await getBars(sym, 5);
   if (bars.length >= 2) {
     const c = bars[bars.length - 1].close, p = bars[bars.length - 2].close;
-    return { price: c, changePct: p > 0 ? ((c - p) / p) * 100 : 0, prevClose: p };
+    // Not a live quote: the last daily close, from whichever bar source answered.
+    return { price: c, changePct: p > 0 ? ((c - p) / p) * 100 : 0, prevClose: p, source: 'bars', isFallback: true };
   }
   return null;
 }

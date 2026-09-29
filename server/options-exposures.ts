@@ -41,6 +41,8 @@ export interface OptionInput {
   openInterest: number;
   volume: number;
   impliedVolatility: number;        // decimal, e.g. 0.25 for 25%
+  /** True when the source had no IV and DEFAULT_IV was substituted (set by optionToInput). */
+  ivDefaulted?: boolean;
   daysToExpiry: number;
   greeks?: {
     delta?: number;
@@ -129,6 +131,23 @@ export interface ExposureSnapshot {
   strikesScanned: number;
   strikesWithOI: number;
   vannaComputed: number;    // How many vanna values were computed vs provided
+
+  // Black-Scholes fallback disclosure (SR 11-7 F3.5 / P1-3). Flip, walls and
+  // regime all rest on gamma; when a contract's gamma/delta was not supplied by
+  // the feed, it was computed here under the assumptions below, and if the feed
+  // had no IV either, under DEFAULT_IV. These fields say how much of the book
+  // that describes. No sensitivity of levels to these assumptions has been
+  // measured yet — this is disclosure, not validation.
+  /** Contracts that passed the OI/strike filters and entered the aggregation. */
+  contractsUsed: number;
+  /** Of those, how many had gamma or delta computed by Black-Scholes here. */
+  bsComputedCount: number;
+  /** Of those, how many had Black-Scholes run on DEFAULT_IV because the feed had no IV. */
+  ivFallbackCount: number;
+  /** ivFallbackCount / contractsUsed (0 when nothing was used). */
+  ivFallbackShare: number;
+  /** The fixed assumptions behind every computed greek. */
+  bsAssumptions: { riskFreeRate: number; dividendYield: number; defaultIV: number };
 }
 
 export interface StrikeExpiryCell {
@@ -156,6 +175,11 @@ function normalPDF(x: number): number {
 }
 
 const RISK_FREE = 0.045; // 4.5% — approx 3-month T-bill, adjust later if needed
+// IV substituted when the feed supplies none. Judgmental, not measured: a flat
+// 30% ignores skew and term structure, so gamma on those contracts is an
+// assumption. Surfaced per snapshot as ivFallbackCount / ivFallbackShare.
+export const DEFAULT_IV = 0.30;
+const DIVIDEND_YIELD = 0; // computeAllGreeks has no dividend term
 
 interface ComputedGreeks {
   delta: number;
@@ -222,6 +246,9 @@ export function computeExposures(
   const strikeMap = new Map<number, StrikeExposure>();
   const expiryMap = new Map<string, StrikeExpiryCell>(); // key: "strike|dte"
   let vannaComputedCount = 0;
+  let contractsUsed = 0;
+  let bsComputedCount = 0;
+  let ivFallbackCount = 0;
   const S2 = spotPrice * spotPrice;
   const MULT = 100;
 
@@ -244,7 +271,9 @@ export function computeExposures(
     if (opt.strike < spotPrice * 0.6 || opt.strike > spotPrice * 1.4) continue;
 
     const isCall = opt.optionType === 'call';
-    const iv = opt.impliedVolatility > 0 ? opt.impliedVolatility : 0.30; // fallback IV
+    const ivDefaulted = opt.ivDefaulted === true || !(opt.impliedVolatility > 0);
+    const iv = opt.impliedVolatility > 0 ? opt.impliedVolatility : DEFAULT_IV; // fallback IV
+    contractsUsed++;
     const tte = Math.max(0.001, opt.daysToExpiry / 365.25);
 
     // Use provided greeks if valid, else compute
@@ -260,6 +289,12 @@ export function computeExposures(
 
     if (needsCompute) {
       const bs = computeAllGreeks(spotPrice, opt.strike, tte, iv, isCall);
+      const coreGreekComputed =
+        !Number.isFinite(gamma!) || gamma === 0 || !Number.isFinite(delta!) || delta === 0;
+      if (coreGreekComputed) {
+        bsComputedCount++;
+        if (ivDefaulted) ivFallbackCount++;
+      }
       if (!Number.isFinite(gamma!) || gamma === 0) gamma = bs.gamma;
       if (!Number.isFinite(vanna!)) { vanna = bs.vanna; vannaComputedCount++; }
       if (!Number.isFinite(delta!) || delta === 0) delta = bs.delta;
@@ -372,6 +407,9 @@ export function computeExposures(
       strikes: [],
       strikeExpiryMatrix: [],
       expirationsUsed, strikesScanned: 0, strikesWithOI: 0, vannaComputed: 0,
+      contractsUsed, bsComputedCount, ivFallbackCount,
+      ivFallbackShare: contractsUsed > 0 ? ivFallbackCount / contractsUsed : 0,
+      bsAssumptions: { riskFreeRate: RISK_FREE, dividendYield: DIVIDEND_YIELD, defaultIV: DEFAULT_IV },
     };
   }
 
@@ -558,6 +596,11 @@ export function computeExposures(
     strikesScanned: strikes.length,
     strikesWithOI,
     vannaComputed: vannaComputedCount,
+    contractsUsed,
+    bsComputedCount,
+    ivFallbackCount,
+    ivFallbackShare: contractsUsed > 0 ? ivFallbackCount / contractsUsed : 0,
+    bsAssumptions: { riskFreeRate: RISK_FREE, dividendYield: DIVIDEND_YIELD, defaultIV: DEFAULT_IV },
   };
 }
 
@@ -577,7 +620,9 @@ export function optionToInput(opt: any, expDateStr?: string): OptionInput | null
 
   // Prefer mid_iv, then smv_vol, then ask_iv, then bid_iv
   const g = opt.greeks || {};
-  const iv = g.mid_iv || g.smv_vol || g.ask_iv || g.bid_iv || opt.impliedVolatility || 0.30;
+  const feedIV = g.mid_iv || g.smv_vol || g.ask_iv || g.bid_iv || opt.impliedVolatility;
+  const ivDefaulted = !(feedIV > 0);
+  const iv = ivDefaulted ? DEFAULT_IV : feedIV;
 
   return {
     strike: opt.strike,
@@ -585,6 +630,7 @@ export function optionToInput(opt: any, expDateStr?: string): OptionInput | null
     openInterest: opt.open_interest || 0,
     volume: opt.volume || 0,
     impliedVolatility: iv,
+    ivDefaulted,
     daysToExpiry: dte,
     greeks: {
       delta: g.delta,

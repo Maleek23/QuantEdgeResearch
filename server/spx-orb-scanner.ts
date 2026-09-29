@@ -177,7 +177,9 @@ export interface ORBBreakout {
   volumeScore: number;      // From Surge Detection
   flowScore: number;        // From Order Flow
   patternScore: number;     // From Pattern Intelligence
-  mlScore: number;          // From ML Scorer
+  mlScore: number;          // Calibrated confidence, or baseConfidence when the calibrator is empty
+  /** True only when server/ml/confidence-calibrator.ts had a model AND adjusted this score (P0-6). */
+  calibrated?: boolean;
 
   // Context
   vix: number;
@@ -493,20 +495,29 @@ async function getPatternScore(symbol: string, direction: 'LONG' | 'SHORT'): Pro
   return 50;
 }
 
+/**
+ * Confidence calibration (SR 11-7 F3.6 / P0-6).
+ *
+ * This used to dynamically import `calibrateConfidence` from ./ml-scorer, which
+ * exports no such symbol — the call threw every time, was caught, and the
+ * "ML calibration" silently returned the raw number. It now uses the real
+ * calibrator (server/ml/confidence-calibrator.ts). That calibrator is empty
+ * until an admin runs the calibration study, and returns adjustmentFactor 1.0
+ * then; `calibrated` says which case applied so nothing downstream can call an
+ * unadjusted number calibrated.
+ */
 async function getMLScore(
-  symbol: string,
-  direction: 'LONG' | 'SHORT',
   confidence: number
-): Promise<number> {
+): Promise<{ confidence: number; calibrated: boolean }> {
   try {
-    // Try to use ML scorer for calibration
-    const { calibrateConfidence } = await import('./ml-scorer');
-    const calibrated = await calibrateConfidence(symbol, direction, confidence);
-    return calibrated || confidence;
+    const { calibrateConfidence, getCalibrationStatus } = await import('./ml/confidence-calibrator');
+    if (!getCalibrationStatus().isCalibrated) return { confidence, calibrated: false };
+    const adj = calibrateConfidence(confidence);
+    return { confidence: adj.calibratedConfidence, calibrated: adj.adjustmentFactor !== 1.0 };
   } catch (e) {
-    // Fallback to uncalibrated
+    logger.debug(`[ORB] calibrator unavailable, using uncalibrated confidence: ${(e as Error)?.message ?? e}`);
   }
-  return confidence;
+  return { confidence, calibrated: false };
 }
 
 async function getVIX(): Promise<number> {
@@ -550,8 +561,9 @@ async function generateBreakoutSignal(
     (range.isValid ? 10 : 0)
   );
 
-  // Apply ML calibration
-  const mlScore = await getMLScore(symbol, direction, baseConfidence);
+  // Apply calibration when a calibration model exists. With an empty model this
+  // is baseConfidence exactly — the same number the dead import used to produce.
+  const { confidence: mlScore, calibrated } = await getMLScore(baseConfidence);
   const confidence = Math.round((baseConfidence + mlScore) / 2);
 
   // Calculate trade levels
@@ -638,6 +650,7 @@ async function generateBreakoutSignal(
     flowScore,
     patternScore,
     mlScore,
+    calibrated,
 
     vix,
     sessionPhase: getSessionPhase(getETHours(et)),
