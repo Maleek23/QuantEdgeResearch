@@ -7611,6 +7611,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // UNIFIED CONTRACT ENGINE — one set of limits, one ranked list, transparent
+  // grades, honest source. Replaces the UI's side-by-side use of
+  // /api/options/select ("Pick Tier") and /api/contract-picker ("Fit my budget").
+  // See shared/contract-engine.ts for the grading formula.
+  app.get("/api/contract-engine/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const q = req.query as Record<string, string | undefined>;
+      const n = (v: string | undefined) => (v != null && v !== "" && Number.isFinite(Number(v)) ? Number(v) : undefined);
+      const pos = (v: string | undefined, dflt: number, ceil: number) => {
+        const x = n(v);
+        return x != null && x > 0 ? Math.min(x, ceil) : dflt;
+      };
+      const symbol = String(req.params.symbol).toUpperCase();
+      if (!/^[A-Z.\-]{1,8}$/.test(symbol)) return res.status(400).json({ error: "bad symbol" });
+      const dteMin = Math.max(0, Math.min(1000, n(q.dteMin) ?? 25));
+      const dteMax = Math.max(dteMin, Math.min(1000, n(q.dteMax) ?? 45));
+      const { runContractEngine } = await import("./contract-engine");
+      const r = await runContractEngine(
+        symbol,
+        {
+          direction: q.direction === "short" ? "short" : "long",
+          entry: n(q.entry) ?? null,
+          stop: n(q.stop) ?? null,
+          t1: n(q.t1) ?? null,
+          holdingDays: n(q.holdDays) ?? null,
+        },
+        {
+          accountSize: pos(q.account, 10_000, 100_000_000),
+          maxLossDollars: pos(q.maxLoss, 250, 10_000_000),
+          maxDebitDollars: pos(q.maxDebit, 500, 10_000_000),
+          dteMin,
+          dteMax,
+        },
+      );
+      res.json(r);
+    } catch (err) {
+      logger.error("[API] contract engine failed:", err);
+      res.status(500).json({ error: "contract engine failed" });
+    }
+  });
+
   // Daily slate — the evening-watchlist card set (top measured ideas shaped
   // as pattern/provenance/zone/stop/T1/T2/contract/flow). See server/slate.ts.
   app.get("/api/slate", requireBetaAccess, async (_req, res) => {

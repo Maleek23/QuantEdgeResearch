@@ -1,166 +1,143 @@
 /**
- * ContractEngine — 3-tier contract selector
- * ===============================================
- * On-demand surface over the canonical option-selection engine
- * (POST /api/options/select). Given a signal's price-action thesis, fetches up
- * to three risk-tiered contract picks — conservative / balanced / aggressive —
- * and lets the user choose. Premiums are live (never fabricated); empty/illiquid
- * results render an honest note instead of a fake strike.
+ * ContractEngine — ONE contract engine: one set of limits, one ranked list.
+ * ========================================================================
+ * Replaces the old pair that rendered side by side — "Contract Engine · Pick
+ * Tier" (POST /api/options/select) and "Fit my budget" (GET /api/contract-picker)
+ * — which carried two account inputs, two conflicting caps, all-F grades and an
+ * empty state that contradicted the list above it.
+ *
+ * Now:
+ *   - Limits (account, max loss per trade, max debit, DTE window) live in ONE
+ *     per-user store (localStorage, shared live across every mounted engine).
+ *   - GET /api/contract-engine/:symbol ranks the chain against those limits.
+ *     Contracts that fit come first; the rest sit in a separate "outside your
+ *     limits" group naming the exact rule each breaks.
+ *   - Grades are contract quality only, with four visible components (target
+ *     odds, R:R to T1, liquidity, decay & IV). Formula: shared/contract-engine.ts.
+ *   - Tiers are labels on rows (by |delta|), not a separate picker.
+ *   - Source + age are the chain actually used (Alpaca indicative / CBOE
+ *     delayed / Yahoo) — never assumed.
  */
-import { ContractPickerPanel } from "@/components/workup/contract-picker-panel";
-import { parseMarketDate } from '@/lib/market-date';
-import { useEffect, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { parseMarketDate } from '@/lib/market-date';
+import { TC } from '@/lib/design-tokens';
+import {
+  DTE_PRESETS,
+  dteWindowForHold,
+  holdDaysForLabel,
+  type ContractEngineResult,
+  type ContractTier,
+  type Letter,
+  type RankedContract,
+  type RelaxAction,
+} from '@shared/contract-engine';
 import { ContractValuePanel } from './contract-value-panel';
 
-type Tier = 'starter' | 'conservative' | 'balanced' | 'aggressive';
+export type { RankedContract } from '@shared/contract-engine';
 
-interface EnginePick {
-  tier: Tier;
-  optionType: 'call' | 'put';
-  strike: number;
-  expiry: string;
-  dte: number;
-  // greeks + liquidity (engine returns the full chain row)
-  delta: number;
-  gamma: number;
-  theta: number;
-  vega: number;
-  iv: number;
-  bid: number;
-  ask: number;
-  mid: number;
-  spreadPct: number;
-  openInterest: number;
-  volume: number;
-  entryPremium: number;
-  projectedAtT1: number;
-  projectedAtT2?: number;
-  roiAtT1Pct: number;
-  roiAtT2Pct?: number;
-  riskRewardRatio: number;
-  breakeven: number;
-  scaleReachable: boolean;
-  score: number;
-  grade: 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
-  rationale: string;
-  flags: string[];
-  riskPerContract?: number;
-  maxContracts?: number | null;
-  fitsAccount?: boolean;
-}
+// ─── One per-user limits store ───────────────────────────────────────────
 
-interface EngineSelection {
-  /** When the chain behind this selection was fetched (ISO). */
-  asOf?: string;
-  symbol: string;
-  optionType: 'call' | 'put';
-  spot: number;
-  recommendedTier: Tier | null;
-  dteWindow: { min: number; max: number };
-  picks: EnginePick[];
-  status: 'ok' | 'unavailable' | 'no_candidates';
-  note?: string;
-}
-
-interface ContractRiskProfile {
+export interface ContractLimits {
   accountSize: number;
-  riskBudgetDollars: number;
+  maxLossDollars: number;
   maxDebitDollars: number;
+  /** null = follow the idea's holding horizon. */
+  dteMin: number | null;
+  dteMax: number | null;
 }
 
-interface Props {
-  symbol: string;
-  direction: 'BULL' | 'BEAR' | 'NEUTRAL';
-  entry: number;
-  stop: number;
-  t1: number;
-  t2?: number;
-  holdPeriodLabel?: string;
-  conviction?: number;
-  /** Fetch contracts on mount instead of waiting for a button click. */
-  autoLoad?: boolean;
-  onSelect?: (pick: EnginePick) => void;
-  /**
-   * Fires whenever the ACTIVE pick changes — on resolve (with the engine's own
-   * recommended tier) and on every user tier change after that.
-   *
-   * `onSelect` only fires on a click, so a caller wanting to show the trade
-   * before the user touches anything had no way to learn what it is. That is
-   * what left the cockpit's hero asserting the signal's stored strike while the
-   * engine recommended a different one 1,190px below.
-   */
-  onResolve?: (pick: EnginePick | null) => void;
+const LIMITS_KEY = 'qe-contract-engine-limits';
+const DEFAULT_LIMITS: ContractLimits = { accountSize: 10_000, maxLossDollars: 250, maxDebitDollars: 500, dteMin: null, dteMax: null };
+
+function readLimits(): ContractLimits {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LIMITS_KEY) ?? 'null');
+    if (saved && typeof saved === 'object') return { ...DEFAULT_LIMITS, ...saved };
+    // One-time carry-over from the old Pick-Tier profile so nobody loses their numbers.
+    const old = JSON.parse(localStorage.getItem('qe-contract-risk-profile') ?? 'null');
+    if (old && typeof old === 'object') {
+      return {
+        ...DEFAULT_LIMITS,
+        accountSize: Number(old.accountSize) > 0 ? Number(old.accountSize) : DEFAULT_LIMITS.accountSize,
+        maxLossDollars: Number(old.riskBudgetDollars) > 0 ? Number(old.riskBudgetDollars) : DEFAULT_LIMITS.maxLossDollars,
+        maxDebitDollars: Number(old.maxDebitDollars) > 0 ? Number(old.maxDebitDollars) : DEFAULT_LIMITS.maxDebitDollars,
+      };
+    }
+  } catch { /* storage blocked — defaults */ }
+  return DEFAULT_LIMITS;
 }
 
-function labelToSetup(label?: string): 'scalp' | 'swing' | 'lotto' | 'position' {
-  const l = (label ?? '').toUpperCase();
-  if (l.includes('OVERNIGHT')) return 'scalp';
-  if (l.includes('WEEK') || l.includes('MONTH') || l.includes('YEAR')) return 'position';
-  const dayMatch = l.match(/(\d+)\s*DAY/);
-  if (dayMatch) {
-    const d = parseInt(dayMatch[1], 10);
-    if (d <= 1) return 'scalp';
-    if (d <= 5) return 'swing';
-    return 'position';
-  }
-  return 'swing';
+let limitsState: ContractLimits | null = null;
+const listeners = new Set<() => void>();
+function getLimits(): ContractLimits {
+  if (!limitsState) limitsState = readLimits();
+  return limitsState;
+}
+export function setContractLimits(patch: Partial<ContractLimits>) {
+  limitsState = { ...getLimits(), ...patch };
+  try { localStorage.setItem(LIMITS_KEY, JSON.stringify(limitsState)); } catch { /* ok */ }
+  listeners.forEach((l) => l());
+}
+function subscribe(l: () => void) {
+  listeners.add(l);
+  return () => { listeners.delete(l); };
+}
+export function useContractLimits(): ContractLimits {
+  return useSyncExternalStore(subscribe, getLimits, getLimits);
 }
 
-// Tier accent colors — drawn from the same QE design tokens the cockpit uses
-// (bullish green / brand cyan / amber) so the contract engine matches every
-// other panel instead of introducing a second palette.
-const AMBER = '#f59e0b';
-const TIER_STYLE: Record<Tier, { color: string; label: string }> = {
-  // Muted violet — deliberately outside the bullish/cyan/amber trio, because
-  // STARTER is an affordability answer, not a conviction level. It should not
-  // read as "more aggressive than aggressive".
-  starter: { color: '#a78bfa', label: 'STARTER' },
-  conservative: { color: 'var(--trade-bullish)', label: 'CONSERVATIVE' },
-  balanced: { color: 'var(--brand-cyan)', label: 'BALANCED' },
-  aggressive: { color: AMBER, label: 'AGGRESSIVE' },
-};
+// ─── Formatting ──────────────────────────────────────────────────────────
 
-function gradeColor(grade: string): string {
-  if (grade === 'S' || grade === 'A') return 'var(--trade-bullish)';
-  if (grade === 'B') return 'var(--brand-cyan)';
-  if (grade === 'C') return AMBER;
-  return 'var(--trade-bearish)';
-}
-
-function fmtCompact(n: number): string {
-  if (!Number.isFinite(n)) return '—';
-  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return `${Math.round(n)}`;
-}
-
-function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
-  return (
-    <div>
-      <div className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="font-mono font-bold tabular-nums" style={{ color: accent ?? 'var(--foreground)' }}>{value}</div>
-    </div>
-  );
-}
+const usd = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
+const px = (n: number) => `$${n.toFixed(2)}`;
 
 function fmtExpiry(expiry: string): string {
   try {
     const d = parseMarketDate(expiry) ?? new Date(expiry);
     if (!isNaN(d.getTime())) return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  } catch {}
+  } catch { /* fall through */ }
   return expiry;
 }
 
-/**
- * Daily closes for the underlying, used for the realized-vol comparison inside
- * ContractValuePanel. Fetched once per symbol and shared across all three tiers —
- * the alternative is three identical requests for the same history. Failure is
- * non-fatal: without it the panel drops the IV-vs-realized line and still shows
- * the priced-in-move comparison, which is the primary read.
- */
-function useUnderlyingCloses(symbol: string) {
+function ageLabel(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const ms = Date.now() - Date.parse(iso);
+  if (!Number.isFinite(ms)) return '';
+  const m = Math.max(0, Math.round(ms / 60_000));
+  return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`;
+}
+
+const TIER_STYLE: Record<ContractTier, { color: string; label: string; hint: string }> = {
+  conservative: { color: TC.bull, label: 'CONSERVATIVE', hint: '|Δ| ≥ 0.60 — deep in the money, least theta per $ of delta' },
+  balanced: { color: TC.info, label: 'BALANCED', hint: '|Δ| 0.40–0.60 — near the money' },
+  aggressive: { color: TC.warn, label: 'AGGRESSIVE', hint: '|Δ| 0.22–0.40 — out of the money, convex' },
+  starter: { color: '#a78bfa', label: 'STARTER', hint: '|Δ| under 0.22 — cheapest way to express the view, lowest odds' },
+};
+
+function gradeColor(g: Letter | null): string {
+  if (g === 'A') return TC.bull;
+  if (g === 'B') return TC.info;
+  if (g === 'C') return TC.warn;
+  if (g == null) return TC.muted;
+  return TC.bear;
+}
+
+function GradeChip({ grade, score, partial }: { grade: Letter | null; score?: number | null; partial?: boolean }) {
+  const c = gradeColor(grade);
+  return (
+    <span
+      className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums"
+      style={{ color: c, background: `color-mix(in srgb, ${c} 14%, transparent)` }}
+      title={partial ? 'Partial grade — no idea target, so target odds and R:R are not graded' : undefined}
+    >
+      {grade ?? '—'}{score != null ? ` · ${score}` : ''}{partial ? '*' : ''}
+    </span>
+  );
+}
+
+/** Underlying daily closes for the IV-vs-realized read in ContractValuePanel. */
+function useUnderlyingCloses(symbol: string, enabled: boolean) {
   const { data } = useQuery<number[]>({
     queryKey: ['/api/historical-prices', symbol, 'contract-value'],
     queryFn: async () => {
@@ -168,367 +145,455 @@ function useUnderlyingCloses(symbol: string) {
       if (!r.ok) return [];
       const j = await r.json();
       const rows = Array.isArray(j) ? j : (j?.data ?? []);
-      return rows
-        .map((c: any) => Number(c?.close ?? c?.c ?? c))
-        .filter((n: number) => Number.isFinite(n) && n > 0);
+      return rows.map((c: any) => Number(c?.close ?? c?.c ?? c)).filter((n: number) => Number.isFinite(n) && n > 0);
     },
     staleTime: 15 * 60_000,
     retry: 0,
-    enabled: !!symbol,
+    enabled: !!symbol && enabled,
   });
   return data ?? [];
 }
 
-export function ContractEngine({
-  symbol, direction, entry, stop, t1, t2, holdPeriodLabel, conviction, autoLoad, onSelect, onResolve,
-}: Props) {
-  const [selection, setSelection] = useState<EngineSelection | null>(null);
-  const [chosen, setChosen] = useState<Tier | null>(null);
-  const [riskProfile, setRiskProfile] = useState<ContractRiskProfile>(() => {
-    const fallback = { accountSize: 10_000, riskBudgetDollars: 250, maxDebitDollars: 300 };
-    try {
-      const saved = JSON.parse(localStorage.getItem('qe-contract-risk-profile') ?? 'null');
-      return saved && typeof saved === 'object' ? { ...fallback, ...saved } : fallback;
-    } catch { return fallback; }
-  });
-  /**
-   * Which tiers are expanded.
-   *
-   * Four tiers of full detail is roughly 120 lines of numbers before you reach
-   * anything else on the page, and three of them are alternatives you are not
-   * taking. Collapsed rows keep the comparison that matters — strike, expiry,
-   * premium, grade — and hide the greeks, liquidity and value blocks until
-   * asked for.
-   *
-   * `null` means "not chosen yet": the recommended tier is open and the rest
-   * are shut. Once the operator expands or collapses anything, their choice is
-   * respected and the default stops applying.
-   */
-  const [expanded, setExpanded] = useState<Record<string, boolean> | null>(null);
-  const isExpanded = (tier: Tier, recommended: boolean) =>
-    expanded ? !!expanded[tier] : recommended;
-  const toggleExpanded = (tier: Tier, recommended: boolean) =>
-    setExpanded((prev) => {
-      const base = prev ?? { [tier]: recommended };
-      return { ...base, [tier]: !(prev ? !!prev[tier] : recommended) };
-    });
-  const closes = useUnderlyingCloses(symbol);
+// ─── Inputs ──────────────────────────────────────────────────────────────
 
-  const mutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest('POST', '/api/options/select', {
-        symbol,
-        direction: direction === 'BEAR' ? 'bearish' : 'bullish',
-        setup: labelToSetup(holdPeriodLabel),
-        entry,
-        stop,
-        t1,
-        t2,
-        conviction,
-        ...riskProfile,
-        minRoiAtT1Pct: 30,
-      });
-      return (await res.json()) as EngineSelection;
-    },
-    onSuccess: (data) => {
-      setSelection(data);
-      setChosen(data.recommendedTier);
-    },
-  });
-
-  // Report the ACTIVE pick upward. Runs on resolve (chosen defaults to the
-  // engine's recommendedTier) and again whenever the user switches tier, so a
-  // parent can show the live trade without duplicating the fetch.
-  const activePick = selection?.picks.find((p) => p.tier === chosen) ?? null;
+function MoneyInput({ label, value, onCommit }: { label: string; value: number; onCommit: (v: number) => void }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => { setDraft(String(value)); }, [value]);
+  // Commit after a pause so each keystroke does not refetch the chain.
   useEffect(() => {
-    onResolve?.(activePick);
+    const n = Number(draft);
+    if (!(n > 0) || n === value) return;
+    const t = setTimeout(() => onCommit(Math.round(n)), 600);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePick?.strike, activePick?.expiry, activePick?.tier]);
+  }, [draft]);
+  return (
+    <label className="min-w-0">
+      <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="flex items-center rounded border border-card-border bg-background/40 px-2">
+        <span className="font-mono text-[11px] text-muted-foreground">$</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min="1"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => { const n = Number(draft); if (n > 0 && n !== value) onCommit(Math.round(n)); else setDraft(String(value)); }}
+          className="w-full min-w-0 bg-transparent px-1 py-1.5 font-mono text-[12px] tabular-nums text-foreground outline-none"
+          aria-label={label}
+        />
+      </span>
+    </label>
+  );
+}
 
-  const { mutate } = mutation;
-  useEffect(() => {
-    localStorage.setItem('qe-contract-risk-profile', JSON.stringify(riskProfile));
-  }, [riskProfile]);
-  // Auto-fetch contracts on mount / when the thesis changes (per-ticker reload).
-  useEffect(() => {
-    if (autoLoad && direction !== 'NEUTRAL') mutate();
-    // Re-select every 3 minutes: a one-shot fetch left an open cockpit showing
-    // hour-old premium, delta and ROI@T1 (audit 2026-09-24).
-    if (!autoLoad || direction === 'NEUTRAL') return;
-    const id = setInterval(() => { if (document.visibilityState === 'visible') mutate(); }, 180_000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoLoad, symbol, direction, entry, stop, t1, t2]);
+// ─── Rows ────────────────────────────────────────────────────────────────
 
-  // No options thesis for neutral signals.
-  if (direction === 'NEUTRAL') return null;
-
-  if (!selection && !mutation.isPending && !autoLoad) {
-    return (
+function ContractRow({
+  c, rank, recommended, expanded, onToggle, selected, onPick, spot, t1, closes, outside,
+}: {
+  c: RankedContract; rank: number; recommended: boolean; expanded: boolean; onToggle: () => void;
+  selected: boolean; onPick: () => void; spot: number; t1: number | null; closes: number[]; outside?: boolean;
+}) {
+  const st = TIER_STYLE[c.tier];
+  const cp = c.optionType === 'call' ? 'C' : 'P';
+  return (
+    <div
+      className="rounded-md border bg-foreground/[0.02]"
+      style={{ borderColor: selected ? st.color : 'var(--card-border)', opacity: outside ? 0.92 : 1 }}
+      data-testid={`contract-row-${c.occ}`}
+    >
       <button
-        onClick={() => mutation.mutate()}
-        className="w-full text-xs font-mono px-3 py-2.5 rounded-lg bg-card border border-[var(--brand-cyan)]/25 text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/10 hover:border-[var(--brand-cyan)]/40 transition-colors font-bold tracking-wide cursor-pointer"
-        data-testid="button-find-contracts"
+        type="button"
+        onClick={() => { onToggle(); if (!outside) onPick(); }}
+        aria-expanded={expanded}
+        className="w-full cursor-pointer px-2.5 py-2 text-left hover:bg-foreground/[0.03]"
       >
-        FIND BEST CONTRACTS · 3 TIERS
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="font-mono text-[10px] text-muted-foreground">{outside ? '·' : `#${rank}`}</span>
+            <span className="font-mono text-[10px] font-bold tracking-widest" style={{ color: st.color }} title={st.hint}>{st.label}</span>
+            {recommended && (
+              <span className="rounded px-1.5 py-px font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: TC.info, background: `color-mix(in srgb, ${TC.info} 14%, transparent)` }}>
+                Top fit
+              </span>
+            )}
+          </div>
+          <GradeChip grade={c.grade} score={c.score} partial={c.partialGrade} />
+        </div>
+        <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+          <span className="font-mono text-[15px] font-bold tabular-nums text-foreground">
+            ${c.strike}{cp}
+            <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">{fmtExpiry(c.expiry)} · {c.dte}DTE</span>
+          </span>
+          <span className="font-mono text-[12px] tabular-nums text-foreground">
+            <b>{usd(c.debitPerContract)}</b><span className="text-muted-foreground">/contract · {px(c.mid)}/sh</span>
+          </span>
+        </div>
+        {outside ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {c.violations.map((v) => (
+              <span key={v.rule} className="rounded border px-1.5 py-px font-mono text-[11px]" style={{ color: TC.bear, borderColor: `color-mix(in srgb, ${TC.bear} 40%, transparent)` }}>
+                {v.message}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+            {c.contractsAffordable}× fit · max loss {usd(c.riskPerContract)}/contract {c.riskBasis === 'underlying_stop' ? 'at the stop' : '(−50% premium stop)'}
+            {c.roiAtT1Pct != null ? ` · ${c.roiAtT1Pct >= 0 ? '+' : ''}${c.roiAtT1Pct.toFixed(0)}% at T1` : ''}
+          </div>
+        )}
       </button>
-    );
-  }
 
-  if ((!selection && !mutation.isPending) || mutation.isPending) {
-    // autoLoad pending OR live scan in flight — same calm skeleton chrome.
-    return (
-      <div className="text-xs font-mono text-muted-foreground px-4 py-3 rounded-lg bg-card border border-card-border animate-pulse">
-        {mutation.isPending
-          ? `Scanning live chain for ${symbol} ${direction === 'BEAR' ? 'puts' : 'calls'}…`
-          : `Loading contracts for ${symbol}…`}
-      </div>
-    );
-  }
+      {expanded && (
+        <div className="space-y-2 border-t border-border/30 px-2.5 pb-2.5 pt-2">
+          {/* Grade components — the grade is never a bare letter. */}
+          <div className="space-y-1.5">
+            {c.components.map((k) => (
+              <div key={k.key} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-mono text-[11px] font-bold text-foreground">{k.label}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">{Math.round(k.weight * 100)}% weight</span>
+                    <span className="font-mono text-[11px] tabular-nums text-foreground">{k.value}</span>
+                  </div>
+                  <div className="font-mono text-[11px] leading-snug text-muted-foreground">{k.why}</div>
+                </div>
+                <GradeChip grade={k.grade} score={k.score} />
+              </div>
+            ))}
+          </div>
 
-  if (mutation.isError) {
-    return (
-      <div className="text-xs font-mono text-[var(--trade-bearish)] px-4 py-3 rounded-lg bg-card border border-[var(--trade-bearish)]/25">
-        Contract selection failed. <button onClick={() => mutation.mutate()} className="underline cursor-pointer">Retry</button>
-      </div>
-    );
-  }
+          <div className="grid grid-cols-4 gap-1 font-mono text-[11px]">
+            {[
+              ['Bid×Ask', `${c.bid.toFixed(2)}×${c.ask.toFixed(2)}`],
+              ['Δ', c.delta.toFixed(2)],
+              ['Θ/day', c.theta != null ? c.theta.toFixed(2) : '—'],
+              ['IV', c.iv != null ? `${Math.round(c.iv * 100)}%` : '—'],
+              ['OI', c.openInterest != null ? c.openInterest.toLocaleString('en-US') : 'n/a'],
+              ['Vol', c.volume != null ? c.volume.toLocaleString('en-US') : 'n/a'],
+              ['BE', px(c.breakeven)],
+              ['@T1', c.projectedAtT1 != null ? px(c.projectedAtT1) : '—'],
+            ].map(([k, v]) => (
+              <div key={k} className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{k}</div>
+                <div className="truncate font-bold tabular-nums text-foreground">{v}</div>
+              </div>
+            ))}
+          </div>
 
-  if (!selection) return null;
+          {c.lossAtStopPerContract != null && (
+            <div className="font-mono text-[11px] text-muted-foreground">
+              Stock at the stop → modelled loss {usd(c.lossAtStopPerContract)}/contract; −50% premium stop = {usd(c.debitPerContract / 2)}. Planned loss is the smaller: {usd(c.riskPerContract)}.
+            </div>
+          )}
 
-  if (selection.status !== 'ok' || selection.picks.length === 0) {
-    return (
-      <div className="text-xs font-mono text-muted-foreground px-4 py-3 rounded-lg bg-card border border-card-border" data-testid="picker-empty">
-        <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Contract Engine · </span>
-        {selection.note ?? 'No liquid contract available for this thesis.'}
-        <ContractPickerPanel symbol={symbol} direction={direction === 'BEAR' ? 'short' : 'long'} target={t1} title="FIT MY BUDGET" />
-      </div>
-    );
-  }
+          {c.flags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {c.flags.map((f) => (
+                <span key={f} className="rounded border px-1.5 py-px font-mono text-[11px]" style={{ color: TC.warn, borderColor: `color-mix(in srgb, ${TC.warn} 35%, transparent)` }}>{f}</span>
+              ))}
+            </div>
+          )}
+
+          {c.iv != null && (
+            <ContractValuePanel
+              spot={spot} strike={c.strike} optionType={c.optionType} iv={c.iv} dte={c.dte}
+              bid={c.bid} ask={c.ask} mid={c.mid} theta={c.theta} targetPrice={t1} closes={closes}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Engine ──────────────────────────────────────────────────────────────
+
+interface Props {
+  symbol: string;
+  /** Direction from the idea. Omitted / NEUTRAL → the user picks calls or puts. */
+  direction?: 'BULL' | 'BEAR' | 'NEUTRAL';
+  entry?: number | null;
+  stop?: number | null;
+  t1?: number | null;
+  /** Kept for callers; the unified engine grades against T1. */
+  t2?: number;
+  holdPeriodLabel?: string | null;
+  /** Kept for callers; limits, not conviction, decide what is shown. */
+  conviction?: number;
+  /** Kept for callers; the engine always loads (one cached chain read). */
+  autoLoad?: boolean;
+  title?: string;
+  onSelect?: (pick: RankedContract) => void;
+  /** Fires with the active contract (top fit by default) whenever it changes. */
+  onResolve?: (pick: RankedContract | null) => void;
+}
+
+export function ContractEngine({ symbol, direction, entry, stop, t1, holdPeriodLabel, title, onSelect, onResolve }: Props) {
+  const limits = useContractLimits();
+  const fromIdea = direction === 'BULL' || direction === 'BEAR';
+  const [manualSide, setManualSide] = useState<'long' | 'short'>('long');
+  const side: 'long' | 'short' = fromIdea ? (direction === 'BEAR' ? 'short' : 'long') : manualSide;
+  const ideaWindow = dteWindowForHold(holdPeriodLabel);
+  const dteMin = limits.dteMin ?? ideaWindow.min;
+  const dteMax = limits.dteMax ?? ideaWindow.max;
+  const holdDays = holdDaysForLabel(holdPeriodLabel);
+  const validT1 = t1 != null && Number.isFinite(t1) && t1 > 0 ? t1 : null;
+  const validStop = stop != null && Number.isFinite(stop) && stop > 0 ? stop : null;
+
+  const url = useMemo(() => {
+    const qs = new URLSearchParams({
+      direction: side,
+      account: String(limits.accountSize),
+      maxLoss: String(limits.maxLossDollars),
+      maxDebit: String(limits.maxDebitDollars),
+      dteMin: String(dteMin),
+      dteMax: String(dteMax),
+      holdDays: String(holdDays),
+    });
+    if (validT1 != null) qs.set('t1', String(validT1));
+    if (validStop != null) qs.set('stop', String(validStop));
+    if (entry != null && Number.isFinite(entry)) qs.set('entry', String(entry));
+    return `/api/contract-engine/${encodeURIComponent(symbol)}?${qs}`;
+  }, [symbol, side, limits.accountSize, limits.maxLossDollars, limits.maxDebitDollars, dteMin, dteMax, holdDays, validT1, validStop, entry]);
+
+  const q = useQuery<ContractEngineResult>({
+    queryKey: [url],
+    queryFn: async () => {
+      const r = await fetch(url, { credentials: 'include' });
+      if (!r.ok) throw new Error(`${r.status}`);
+      return r.json();
+    },
+    enabled: !!symbol,
+    staleTime: 60_000,
+    // Re-rank every 3 minutes while visible — a one-shot fetch left an open
+    // cockpit showing hour-old premium (audit 2026-09-24).
+    refetchInterval: 180_000,
+    refetchIntervalInBackground: false,
+    placeholderData: (prev) => prev,
+    retry: 0,
+  });
+  const data = q.data;
+
+  const [openRow, setOpenRow] = useState<string | null>(null);
+  const [selectedOcc, setSelectedOcc] = useState<string | null>(null);
+  const [showOutside, setShowOutside] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [showMethod, setShowMethod] = useState(false);
+  const closes = useUnderlyingCloses(symbol, !!openRow);
+
+  const active = data?.within.find((c) => c.occ === selectedOcc) ?? data?.within[0] ?? null;
+  useEffect(() => {
+    onResolve?.(active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.occ]);
+
+  const applyRelax = (a: RelaxAction) => {
+    const patch: Partial<ContractLimits> = {};
+    if (a.maxDebitDollars != null) patch.maxDebitDollars = a.maxDebitDollars;
+    if (a.maxLossDollars != null) patch.maxLossDollars = a.maxLossDollars;
+    if (a.dteMin != null && a.dteMax != null) { patch.dteMin = a.dteMin; patch.dteMax = a.dteMax; }
+    setContractLimits(patch);
+  };
+
+  const kind = side === 'long' ? 'calls' : 'puts';
+  const src = data?.source;
+  const within = data?.within ?? [];
+  const visible = showAll ? within : within.slice(0, 5);
 
   return (
-    <>
-    <section className="rounded-lg border border-card-border bg-card overflow-hidden" data-testid="oracle-option-picker">
-      <header className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border/30">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-          Contract Engine · Pick Tier
+    <section className="min-w-0 overflow-hidden rounded-lg border border-card-border bg-card" data-testid="contract-engine">
+      {/* Header — what, and from which chain */}
+      <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-border/30 px-3 py-2.5">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-foreground">
+          {title ?? 'Contract engine'} · {symbol} {kind}
         </span>
-        <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-          Spot ${selection.spot.toFixed(2)} · {selection.dteWindow.min}-{selection.dteWindow.max}DTE
-          {selection.asOf ? ` · ${Math.max(0, Math.round((Date.now() - Date.parse(selection.asOf)) / 60000))}m old` : ''}
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          {data?.spot != null ? `Spot ${px(data.spot)}` : ''}
+          {validT1 != null ? ` · T1 ${px(validT1)}` : ''}
+          {validStop != null ? ` · stop ${px(validStop)}` : ''}
         </span>
       </header>
 
-      <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-2 px-4 py-2.5 border-b border-border/30 bg-foreground/[0.015]">
-        {([
-          ['ACCOUNT', 'accountSize'],
-          ['MAX LOSS', 'riskBudgetDollars'],
-          ['MAX DEBIT', 'maxDebitDollars'],
-        ] as const).map(([label, key]) => (
-          <label key={key} className="min-w-0">
-            <span className="block text-[8px] font-mono tracking-wider text-muted-foreground mb-1">{label}</span>
-            <span className="flex items-center rounded border border-card-border bg-background/40 px-2">
-              <span className="text-[10px] font-mono text-muted-foreground">$</span>
-              <input
-                type="number"
-                min="1"
-                step={key === 'accountSize' ? 1000 : 25}
-                value={riskProfile[key]}
-                onChange={(event) => setRiskProfile((current) => ({ ...current, [key]: Math.max(1, Number(event.target.value) || 1) }))}
-                className="w-full bg-transparent px-1 py-1.5 text-[11px] font-mono tabular-nums text-foreground outline-none"
-                aria-label={label.toLowerCase()}
-              />
+      {/* One set of limits */}
+      <div className="space-y-2 border-b border-border/30 bg-foreground/[0.015] px-3 py-2.5">
+        <div className="grid grid-cols-3 gap-2">
+          <MoneyInput label="Account" value={limits.accountSize} onCommit={(v) => setContractLimits({ accountSize: v })} />
+          <MoneyInput label="Max loss/trade" value={limits.maxLossDollars} onCommit={(v) => setContractLimits({ maxLossDollars: v })} />
+          <MoneyInput label="Max debit" value={limits.maxDebitDollars} onCommit={(v) => setContractLimits({ maxDebitDollars: v })} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">DTE</span>
+          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto pb-0.5">
+            {DTE_PRESETS.map((p) => {
+              const on = p.min === dteMin && p.max === dteMax;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setContractLimits({ dteMin: p.min, dteMax: p.max })}
+                  className="shrink-0 cursor-pointer rounded border px-2 py-1 font-mono text-[11px]"
+                  style={{
+                    color: on ? TC.info : 'var(--muted-foreground)',
+                    borderColor: on ? TC.info : 'var(--card-border)',
+                    background: on ? `color-mix(in srgb, ${TC.info} 12%, transparent)` : 'transparent',
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-muted-foreground">
+          {fromIdea ? (
+            <span>
+              Direction <b style={{ color: side === 'long' ? TC.bull : TC.bear }}>{side === 'long' ? 'LONG → calls' : 'SHORT → puts'}</b> from the idea
             </span>
-          </label>
-        ))}
-        <button
-          type="button"
-          onClick={() => mutation.mutate()}
-          className="self-end rounded border border-[var(--brand-cyan)]/30 px-2.5 py-1.5 text-[9px] font-mono font-bold tracking-wider text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/10"
-        >
-          REFIT
-        </button>
+          ) : (
+            <span className="flex items-center gap-1">
+              {(['long', 'short'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setManualSide(s)}
+                  className="cursor-pointer rounded border px-2 py-0.5"
+                  style={{ color: manualSide === s ? (s === 'long' ? TC.bull : TC.bear) : 'var(--muted-foreground)', borderColor: manualSide === s ? 'currentColor' : 'var(--card-border)' }}
+                >
+                  {s === 'long' ? 'Calls' : 'Puts'}
+                </button>
+              ))}
+              <span>· no idea attached — grade is liquidity + cost only</span>
+            </span>
+          )}
+          {limits.dteMin == null ? (
+            <span>window follows the idea horizon</span>
+          ) : (
+            (ideaWindow.min !== dteMin || ideaWindow.max !== dteMax) && holdPeriodLabel ? (
+              <button type="button" className="cursor-pointer underline" onClick={() => setContractLimits({ dteMin: null, dteMax: null })}>
+                use idea horizon ({ideaWindow.min}–{ideaWindow.max}d)
+              </button>
+            ) : null
+          )}
+        </div>
       </div>
 
-      <div className="p-4 grid grid-cols-1 gap-2">
-        {selection.picks.map((p) => {
-          const st = TIER_STYLE[p.tier];
-          const isChosen = chosen === p.tier;
-          const isRecommended = selection.recommendedTier === p.tier;
-          const gc = gradeColor(p.grade);
-          return (
-            <button
-              key={p.tier}
-              onClick={() => { setChosen(p.tier); onSelect?.(p); }}
-              data-testid={`tier-${p.tier}`}
-              className="text-left rounded-md border p-2.5 transition-colors cursor-pointer bg-foreground/[0.02] hover:bg-foreground/[0.05]"
-              style={{
-                borderColor: isChosen ? st.color : 'var(--card-border)',
-                boxShadow: isChosen ? `inset 3px 0 14px -8px ${st.color}` : undefined,
-              }}
-            >
-              <div
-                className="flex items-center justify-between mb-1.5"
-                onClick={(e) => { e.stopPropagation(); toggleExpanded(p.tier, isRecommended); }}
-                role="button"
-                tabIndex={0}
-                aria-expanded={isExpanded(p.tier, isRecommended)}
-                aria-label={`${st.label} tier details`}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault(); e.stopPropagation();
-                    toggleExpanded(p.tier, isRecommended);
-                  }
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    aria-hidden
-                    className="font-mono text-[9px] text-muted-foreground transition-transform"
-                    style={{ transform: isExpanded(p.tier, isRecommended) ? 'rotate(90deg)' : 'none' }}
-                  >
-                    ▶
-                  </span>
-                  <span className="text-[10px] font-mono font-bold tracking-widest" style={{ color: st.color }}>{st.label}</span>
-                  {isRecommended && (
-                    <span
-                      className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
-                      style={{ color: 'var(--brand-cyan)', background: 'color-mix(in srgb, var(--brand-cyan) 14%, transparent)' }}
-                    >
-                      Rec
-                    </span>
-                  )}
-                </div>
-                <span
-                  className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded tabular-nums"
-                  style={{ color: gc, background: `color-mix(in srgb, ${gc} 14%, transparent)` }}
-                >
-                  {p.grade} · {p.score}
-                </span>
-              </div>
+      <div className="space-y-2 px-3 py-2.5">
+        {/* Source line — the chain actually used */}
+        {src && (
+          <div className="font-mono text-[11px] text-muted-foreground" title={src.note}>
+            Chain: <b className="text-foreground">{src.label}</b> · fetched {ageLabel(src.fetchedAt)}
+            {src.quotesAsOf ? ` · newest quote ${ageLabel(src.quotesAsOf)}` : ''}
+            {src.openInterestDate ? ` · OI as of ${src.openInterestDate}` : ''}
+            {q.isFetching ? ' · refreshing…' : ''}
+          </div>
+        )}
 
-              <div className="flex items-baseline justify-between">
-                <span className="text-base font-mono font-bold text-foreground tabular-nums">
-                  ${p.strike}{p.optionType === 'call' ? 'C' : 'P'}
-                  <span className="text-[11px] font-normal text-muted-foreground ml-1.5">
-                    {fmtExpiry(p.expiry)} · {p.dte}DTE
-                  </span>
-                </span>
-                <span className="text-base font-mono font-bold tabular-nums" style={{ color: AMBER }}>${p.entryPremium.toFixed(2)}</span>
-              </div>
+        {q.isLoading && (
+          <div className="animate-pulse font-mono text-[12px] text-muted-foreground">Reading the {symbol} chain…</div>
+        )}
+        {q.isError && !data && (
+          <div className="font-mono text-[12px]" style={{ color: TC.bear }}>
+            The contract engine request failed. <button type="button" className="cursor-pointer underline" onClick={() => q.refetch()}>Retry</button>
+          </div>
+        )}
 
-              {/*
-                Everything below is DETAIL — greeks, liquidity, contract value,
-                rationale. Collapsed by default on every tier except the
-                recommended one, so four tiers no longer push ~120 lines of
-                numbers between the operator and the rest of the page. The
-                identity row above (strike, expiry, premium, grade) always stays
-                visible, because that is what the tiers are compared on.
-              */}
-              {isExpanded(p.tier, isRecommended) && (
-                <>
-              {/* Liquidity row — premium / OI / volume / IV.
-                  Vol and OI side by side don't say much on their own; the RATIO does.
-                  Volume above open interest means today's activity is NEW positioning
-                  rather than trades against an existing book — which is the definition of
-                  unusual flow, and it tells you whether this contract is where the money
-                  actually went or just the strike our sizer happened to like. */}
-              <div className="grid grid-cols-4 gap-1 mt-2 text-[11px]">
-                <Stat label="Bid×Ask" value={`${p.bid.toFixed(2)}×${p.ask.toFixed(2)}`} />
-                <Stat label="OI" value={fmtCompact(p.openInterest)} />
-                <Stat label="Vol" value={fmtCompact(p.volume)} />
-                <Stat label="IV" value={`${(p.iv * 100).toFixed(0)}%`} />
-              </div>
-
-              {(() => {
-                const volOi = p.openInterest > 0 ? p.volume / p.openInterest : 0;
-                const unusual = volOi >= 1;      // more traded today than is already open
-                const heavy = volOi >= 2.5;
-                const thin = p.openInterest < 100 || p.volume < 25;
-                const color = heavy ? '#e0a458' : unusual ? 'var(--trade-bullish)' : 'var(--muted-foreground)';
-                return (
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Vol/OI</span>
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/[0.07]">
-                      <div className="h-full rounded-full transition-[width] duration-500"
-                           style={{ width: `${Math.min(100, (volOi / 3) * 100)}%`, background: color }} />
-                    </div>
-                    <span className="text-[10px] font-mono tabular-nums" style={{ color }}>
-                      {volOi.toFixed(1)}×
-                    </span>
-                    {heavy ? (
-                      <span className="rounded border px-1 py-px text-[10px] font-mono font-bold tracking-wider"
-                            style={{ color: '#e0a458', borderColor: '#e0a45855', background: '#e0a4581a' }}>
-                        UNUSUAL
-                      </span>
-                    ) : thin ? (
-                      <span className="rounded border px-1 py-px text-[10px] font-mono font-bold tracking-wider"
-                            style={{ color: 'var(--trade-bearish)', borderColor: 'color-mix(in srgb, var(--trade-bearish) 35%, transparent)' }}
-                            title="Low open interest or volume — expect a wide spread and poor fills">
-                        THIN
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              })()}
-
-              {/* Greeks row */}
-              <div className="grid grid-cols-4 gap-1 mt-1.5 text-[11px]">
-                <Stat label="Δ" value={p.delta.toFixed(2)} accent="var(--brand-cyan)" />
-                <Stat label="Γ" value={p.gamma.toFixed(3)} />
-                <Stat label="Θ" value={p.theta.toFixed(2)} />
-                <Stat label="V" value={p.vega.toFixed(2)} />
-              </div>
-
-              {/* Trade math row — ROI / R:R / BE */}
-              <div className="grid grid-cols-3 gap-1 mt-1.5 text-[11px]">
-                <Stat
-                  label="ROI @T1"
-                  value={`${p.roiAtT1Pct >= 0 ? '+' : ''}${p.roiAtT1Pct.toFixed(0)}%`}
-                  accent={p.roiAtT1Pct >= 0 ? 'var(--trade-bullish)' : 'var(--trade-bearish)'}
+        {data && data.within.length > 0 && (
+          <>
+            <div className="font-mono text-[11px] text-muted-foreground">
+              <b className="text-foreground">{data.counts.withinLimits}</b> of {data.counts.tradeable} tradeable {kind} in {dteMin}–{dteMax} DTE fit your limits · ranked by grade
+            </div>
+            <div className="space-y-1.5">
+              {visible.map((c, i) => (
+                <ContractRow
+                  key={c.occ} c={c} rank={i + 1} recommended={i === 0}
+                  expanded={openRow === c.occ} onToggle={() => setOpenRow(openRow === c.occ ? null : c.occ)}
+                  selected={active?.occ === c.occ}
+                  onPick={() => { setSelectedOcc(c.occ); onSelect?.(c); }}
+                  spot={data.spot ?? 0} t1={validT1} closes={closes}
                 />
-                <Stat label="R:R" value={`${p.riskRewardRatio.toFixed(1)}:1`} />
-                <Stat label="BE" value={`$${p.breakeven.toFixed(2)}`} />
+              ))}
+            </div>
+            {within.length > 5 && (
+              <button type="button" onClick={() => setShowAll((v) => !v)} className="cursor-pointer font-mono text-[11px] underline" style={{ color: TC.info }}>
+                {showAll ? 'Show top 5' : `Show all ${within.length}`}
+              </button>
+            )}
+          </>
+        )}
+
+        {/* The one empty state — names the constraint and offers the fix */}
+        {data && data.within.length === 0 && (
+          <div className="rounded-md border px-3 py-2.5" style={{ borderColor: `color-mix(in srgb, ${TC.warn} 35%, transparent)`, background: `color-mix(in srgb, ${TC.warn} 6%, transparent)` }} data-testid="contract-engine-empty">
+            <div className="font-mono text-[12px] leading-snug text-foreground">
+              {data.emptyReason ?? `Nothing fits your limits in ${dteMin}–${dteMax} DTE.`}
+            </div>
+            {data.relax.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {data.relax.map((a) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    onClick={() => applyRelax(a)}
+                    className="cursor-pointer rounded border px-2 py-1 font-mono text-[11px] font-bold"
+                    style={{ color: TC.info, borderColor: `color-mix(in srgb, ${TC.info} 40%, transparent)` }}
+                    title={`${a.unlocks} contract${a.unlocks === 1 ? '' : 's'} would fit`}
+                  >
+                    {a.label}
+                  </button>
+                ))}
               </div>
+            )}
+            {data.status === 'no_chain' && (
+              <button type="button" className="mt-2 cursor-pointer font-mono text-[11px] underline" style={{ color: TC.info }} onClick={() => q.refetch()}>Retry</button>
+            )}
+          </div>
+        )}
 
-              {p.riskPerContract != null && (
-                <div className="mt-1.5 text-[10px] font-mono text-muted-foreground">
-                  Managed risk ${p.riskPerContract.toFixed(0)}/contract · {p.maxContracts == null ? 'research only' : `${p.maxContracts} fit current limits`}
-                </div>
-              )}
-
-              {isChosen && (
-                <>
-                  {/* Only on the selected tier — this is the cost read for the contract
-                      you're actually weighing, and showing it three times would bury it. */}
-                  <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                    <ContractValuePanel
-                      spot={selection.spot}
-                      strike={p.strike}
-                      optionType={p.optionType}
-                      iv={p.iv}
-                      dte={p.dte}
-                      bid={p.bid}
-                      ask={p.ask}
-                      mid={p.mid}
-                      theta={p.theta}
-                      targetPrice={t1}
-                      closes={closes}
-                    />
-                  </div>
-                  <p className="text-[10px] font-mono text-muted-foreground mt-2 leading-snug border-t border-border/30 pt-2">
-                    {p.rationale}
-                  </p>
-                </>
-              )}
-                </>
-              )}
+        {/* Outside your limits — separate, with the rule each one breaks */}
+        {data && data.outside.length > 0 && (
+          <div className="border-t border-border/30 pt-2">
+            <button type="button" onClick={() => setShowOutside((v) => !v)} className="flex w-full cursor-pointer items-center justify-between font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+              <span>Outside your limits · {data.counts.outsideLimits}</span>
+              <span>{showOutside || data.within.length === 0 ? 'hide' : 'show'}</span>
             </button>
-          );
-        })}
+            {(showOutside || data.within.length === 0) && (
+              <div className="mt-1.5 space-y-1.5">
+                {data.outside.map((c, i) => (
+                  <ContractRow
+                    key={c.occ} c={c} rank={i + 1} recommended={false} outside
+                    expanded={openRow === c.occ} onToggle={() => setOpenRow(openRow === c.occ ? null : c.occ)}
+                    selected={false} onPick={() => {}}
+                    spot={data.spot ?? 0} t1={validT1} closes={closes}
+                  />
+                ))}
+                {data.counts.outsideLimits > data.outside.length && (
+                  <div className="font-mono text-[11px] text-muted-foreground">Closest {data.outside.length} to fitting shown.</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* How grades work — stated, not implied */}
+        <div className="border-t border-border/30 pt-2">
+          <button type="button" onClick={() => setShowMethod((v) => !v)} className="cursor-pointer font-mono text-[11px] text-muted-foreground underline">
+            {showMethod ? 'Hide' : 'How'} grades and limits work
+          </button>
+          {showMethod && (
+            <ul className="mt-1.5 list-disc space-y-1 pl-4 font-mono text-[11px] leading-snug text-muted-foreground">
+              <li>Limits are hard rules applied first: one contract's debit must be ≤ max debit and ≤ account, and its planned loss ≤ max loss. They never change the grade.</li>
+              <li>Planned loss = the smaller of the modelled loss if the stock hits the idea's stop and the −50% premium stop.</li>
+              <li>Grade = target odds 30% (touch T1 + finish past breakeven, from the expiry's ATM IV) · R:R to T1 30% · liquidity 20% (spread, OI, volume) · decay &amp; IV 20% (theta over the hold, IV vs ATM). A ≥ 80 · B ≥ 65 · C ≥ 50 · D ≥ 35 · F below.</li>
+              <li>IV rank is not computed — there is no IV-history feed. * marks a partial grade (no idea target).</li>
+              <li>Tier labels follow |Δ|: conservative ≥ 0.60 · balanced 0.40–0.60 · aggressive 0.22–0.40 · starter below.</li>
+              {src && <li>{src.note}</li>}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
-    <div className="rounded-lg border border-card-border bg-card px-4 pb-3 mt-2"><ContractPickerPanel symbol={symbol} direction={direction === 'BEAR' ? 'short' : 'long'} target={t1} title="FIT MY BUDGET" /></div>
-    </>
   );
 }

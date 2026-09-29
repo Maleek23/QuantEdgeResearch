@@ -856,7 +856,16 @@ export function TickerWorkup({ symbol, onClose, onNavigate, mode = 'modal', hist
                       <div className="ov-stat"><div className="ov-stat-k">Sweeps</div><div className="ov-stat-v" style={{ color: 'var(--cyan-bright)' }}>{flowSums.sweeps}</div></div>
                     </div>
                   )}
-                  <ContractPickerPanel symbol={symbol} />
+                  <div style={{ margin: '0 0 14px' }}>
+                    <ContractPickerPanel
+                      symbol={symbol}
+                      direction={dir.includes('bear') || dir.includes('short') ? 'short' : dir.includes('bull') || dir.includes('long') ? 'long' : undefined}
+                      target={pick?.targetPrice ?? null}
+                      stop={pick?.stopLoss ?? null}
+                      entry={pick?.entryPrice ?? null}
+                      holdPeriodLabel={pick?.holdingPeriod ?? null}
+                    />
+                  </div>
                   <div className="flow-list">
                     {trades.slice(0, 14).map((t) => {
                       const strike = num(t.strikePrice);
