@@ -35,9 +35,9 @@
   "N5_navModel": {
     "tabs": [
       "NEXUS",
-      "CHART",
       "FLOW",
       "GEX",
+      "CHART",
       "LEAPS",
       "CRYPTO",
       "CATALYST",
@@ -46,6 +46,7 @@
       "JOURNAL"
     ],
     "pages": [
+      "/today",
       "/today",
       "/slate",
       "/radar",
@@ -175,5 +176,18 @@
   ],
   "N12_knownDebt": {
     "client/src/pages/shells/terminal-shell.tsx:marketFocus": "Phase 2 (terminal UX branch owns the file): remove overlay; RotationMap/OracleMarketField/SessionBrief become Markets tools"
-  }
+  },
+  "N13_dock": [
+    "page:/today",
+    "tab:oracle",
+    "tab:flow",
+    "tab:gex"
+  ],
+  "N13_researchTabs": [
+    "chart",
+    "leaps",
+    "crypto",
+    "catalyst"
+  ],
+  "N13_fail": []
 }

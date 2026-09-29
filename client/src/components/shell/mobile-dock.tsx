@@ -1,6 +1,6 @@
 /**
  * The bottom navigation — ONE component for the terminal and every page.
- * Four primary sections + More. More opens a sheet with the remaining
+ * Four primary sections (Today, NEXUS, FLOW, GEX — nav-model MOBILE_DOCK) + More. More opens a sheet with the remaining
  * instruments and the standalone pages. Touch targets are ≥ 44pt (Apple HIG).
  *
  * 2026-09-29 lux pass: the dock and the rail share names, icons and grouping
@@ -16,8 +16,8 @@ import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
 import { useDismissable } from '@/hooks/use-dismissable';
 import { LuxSidebar } from '@/components/lux/lux-sidebar';
-import { MOBILE_PRIMARY, MOBILE_MORE, PAGES, UTILITY_PAGES, MobileTabIcon, tabHref, type Tab } from './nav-model';
-import { TAB_SHORT, navGroups, utilityItems } from './nav-groups';
+import { MOBILE_DOCK, MOBILE_PRIMARY, MOBILE_PRIMARY_PAGES, MOBILE_MORE, PAGES, UTILITY_PAGES, MobileTabIcon, tabHref, type Tab } from './nav-model';
+import { TAB_SHORT, navGroups, pageShort, utilityItems } from './nav-groups';
 
 export function MobileDock({ activeTab, onTab }: {
   /** The terminal tab in view, or null on a standalone page. */
@@ -34,30 +34,35 @@ export function MobileDock({ activeTab, onTab }: {
   useDismissable(open, () => setOpen(false), { panelRef: sheetRef, triggerRef: moreRef, trap: true });
   const path = location.split('?')[0];
   const go = (t: Tab) => { setOpen(false); onTab ? onTab(t) : setLocation(tabHref(t)); };
-  const target = { activeTab, currentPath: path, onTab, go: setLocation, omitTabs: MOBILE_PRIMARY };
-  const onPage = [...PAGES, ...UTILITY_PAGES].some((p) => p.href === path);
+  const target = { activeTab, currentPath: path, onTab, go: setLocation, omitTabs: MOBILE_PRIMARY, omitPages: MOBILE_PRIMARY_PAGES };
+  const onPage = [...PAGES, ...UTILITY_PAGES].some((p) => p.href === path && !MOBILE_PRIMARY_PAGES.includes(p.href));
+  const goPage = (href: string) => { setOpen(false); setLocation(href); };
   const moreActive = open || (activeTab != null && MOBILE_MORE.includes(activeTab)) || onPage;
 
   return (
     <>
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--lx-line)] bg-[color-mix(in_srgb,var(--lx-bg)_96%,transparent)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
         <nav className="grid h-16 grid-cols-5 px-1" aria-label="Sections">
-          {MOBILE_PRIMARY.map((id) => {
-            const label = TAB_SHORT[id];
-            const active = activeTab === id;
+          {MOBILE_DOCK.map((item) => {
+            const page = item.kind === 'page' ? PAGES.find((p) => p.href === item.href) : undefined;
+            const key = item.kind === 'page' ? item.href : item.tab;
+            const label = item.kind === 'page' ? (page ? pageShort(page) : item.href) : TAB_SHORT[item.tab];
+            const active = item.kind === 'page' ? activeTab == null && path === item.href : activeTab === item.tab;
+            const PageIcon = page?.icon;
             return (
               <button
-                key={id}
+                key={key}
                 type="button"
-                onClick={() => go(id)}
+                onClick={() => (item.kind === 'page' ? goPage(item.href) : go(item.tab))}
                 aria-current={active ? 'page' : undefined}
+                data-testid={`dock-${item.kind === 'page' ? item.href.slice(1) : item.tab}`}
                 className={cn(
                   'lx-focus relative flex min-w-0 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors',
                   active ? 'text-[var(--lx-accent-text)]' : 'text-[var(--lx-dim)]',
                 )}
               >
                 {active && <motion.span layoutId="mobile-dock-active" className="absolute inset-x-5 top-0 h-[3px] rounded-b-full bg-[var(--lx-accent)]" />}
-                <MobileTabIcon tab={id} />
+                {item.kind === 'page' ? (PageIcon ? <PageIcon className="h-[18px] w-[18px]" /> : null) : <MobileTabIcon tab={item.tab} />}
                 <span>{label}</span>
               </button>
             );

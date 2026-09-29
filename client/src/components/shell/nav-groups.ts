@@ -65,8 +65,8 @@ export const pageShort = (p: PageLink) => PAGE_SHORT[p.href] ?? p.label;
 /** Group captions — short, drawn as hairlines when the rail is collapsed. */
 export const NAV_GROUPS: Array<{ id: string; label: string; tabs?: Tab[]; pages?: string[] }> = [
   { id: 'start', label: 'Start', pages: ['/today'] },
-  { id: 'trade', label: 'Trade', tabs: ['oracle', 'chart', 'flow', 'gex'] },
-  { id: 'research', label: 'Research', tabs: ['leaps', 'crypto', 'catalyst'] },
+  { id: 'trade', label: 'Trade', tabs: ['oracle', 'flow', 'gex'] },
+  { id: 'research', label: 'Research', tabs: ['chart', 'leaps', 'crypto', 'catalyst'] },
   { id: 'manage', label: 'Manage', tabs: ['bot', 'positions', 'journal'] },
   { id: 'daily', label: 'Daily', pages: ['/slate', '/radar'] },
 ];
@@ -80,8 +80,10 @@ export interface NavTarget {
   onTab?: (tab: Tab) => void;
   /** SPA navigation (wouter setLocation). */
   go: (href: string) => void;
-  /** Tabs to leave out (e.g. the phone dock's primary four). */
+  /** Tabs to leave out (e.g. the phone dock's primary tabs). */
   omitTabs?: readonly Tab[];
+  /** Page hrefs to leave out (e.g. /today, already in the phone dock). */
+  omitPages?: readonly string[];
 }
 
 export function tabItem(id: Tab, t: NavTarget): LuxNavItem {
@@ -116,7 +118,7 @@ export function navGroups(t: NavTarget): LuxNavGroup[] {
     id: g.id,
     label: g.label,
     items: [
-      ...(g.pages ?? []).map((h) => pages.get(h)).filter((p): p is PageLink => !!p).map((p) => pageItem(p, t)),
+      ...(g.pages ?? []).filter((h) => !t.omitPages?.includes(h)).map((h) => pages.get(h)).filter((p): p is PageLink => !!p).map((p) => pageItem(p, t)),
       ...(g.tabs ?? []).filter((id) => !t.omitTabs?.includes(id)).map((id) => tabItem(id, t)),
     ],
   })).filter((g) => g.items.length > 0);
