@@ -66,7 +66,10 @@ const ML_CALIBRATION_ENABLED = process.env.ENABLE_ML_CALIBRATION !== 'false';
 const ML_REGIME_ENABLED = process.env.ENABLE_ML_REGIME !== 'false';
 
 if (ML_CALIBRATION_ENABLED) {
-  logger.info('[UNIVERSAL-IDEA] ✅ ML confidence calibration ENABLED');
+  // ENABLED is not the same as ACTIVE: the calibrator (server/ml/confidence-calibrator.ts)
+  // is empty until an admin runs the calibration study, and until then it is a
+  // pass-through. Each idea carries `calibrated` saying which case applied (F3.6).
+  logger.info('[UNIVERSAL-IDEA] ML confidence calibration enabled (pass-through until a calibration model is loaded)');
 }
 if (ML_REGIME_ENABLED) {
   logger.info('[UNIVERSAL-IDEA] ✅ ML regime-based signal multipliers ENABLED');
@@ -94,10 +97,15 @@ async function getCurrentRegime(): Promise<RegimeAnalysis | null> {
 }
 
 /**
- * Apply ML calibration to adjust confidence based on historical accuracy
+ * Apply ML calibration to adjust confidence based on historical accuracy.
+ *
+ * SR 11-7 F3.6 / P0-6: in normal runtime the calibrator has no model and
+ * returns adjustmentFactor 1.0, so this was a SILENT no-op while logs and UI
+ * called the result "calibrated". It now says so: `calibrated` is true only
+ * when a real adjustment was applied.
  */
-function applyMLCalibration(rawConfidence: number): number {
-  if (!ML_CALIBRATION_ENABLED) return rawConfidence;
+function applyMLCalibration(rawConfidence: number): { confidence: number; calibrated: boolean } {
+  if (!ML_CALIBRATION_ENABLED) return { confidence: rawConfidence, calibrated: false };
 
   try {
     const calibration = calibrateConfidence(rawConfidence);
@@ -105,11 +113,11 @@ function applyMLCalibration(rawConfidence: number): number {
     if (calibration.adjustmentFactor !== 1.0) {
       const adjusted = Math.round(rawConfidence * calibration.adjustmentFactor);
       logger.debug(`[UNIVERSAL-IDEA] Calibration: ${rawConfidence}% -> ${adjusted}%`);
-      return Math.max(40, Math.min(94, adjusted)); // Keep within bounds
+      return { confidence: Math.max(40, Math.min(94, adjusted)), calibrated: true }; // Keep within bounds
     }
-    return rawConfidence;
+    return { confidence: rawConfidence, calibrated: false };
   } catch (error) {
-    return rawConfidence;
+    return { confidence: rawConfidence, calibrated: false };
   }
 }
 
@@ -441,7 +449,11 @@ const SIGNAL_GROUP_MAP = getSignalGroupMap();
  * - ML regime-based signal multipliers (NEW)
  * - ML calibration adjustment (NEW)
  */
-async function calculateConfidenceWithVIX(source: IdeaSource, signals: IdeaSignal[], vix: number = 20): Promise<number> {
+async function calculateConfidenceWithVIX(
+  source: IdeaSource,
+  signals: IdeaSignal[],
+  vix: number = 20,
+): Promise<{ confidence: number; calibrated: boolean }> {
   let confidence = SOURCE_BASE_CONFIDENCE[source] || 50;
 
   // Get current market regime for ML-based signal adjustments
@@ -537,16 +549,17 @@ async function calculateConfidenceWithVIX(source: IdeaSource, signals: IdeaSigna
   // Clamp to valid range
   let rawConfidence = Math.max(0, Math.min(94, Math.round(confidence)));
 
-  // Apply ML calibration adjustment based on historical accuracy (NEW)
-  const calibratedConfidence = applyMLCalibration(rawConfidence);
+  // Apply ML calibration adjustment based on historical accuracy — a
+  // pass-through (calibrated: false) whenever the calibrator has no model.
+  const calibration = applyMLCalibration(rawConfidence);
 
   // Final NaN check
-  if (isNaN(calibratedConfidence)) {
+  if (isNaN(calibration.confidence)) {
     logger.warn(`[UNIVERSAL-IDEA] NaN after calibration for ${source}, using raw confidence`);
-    return rawConfidence;
+    return { confidence: rawConfidence, calibrated: false };
   }
 
-  return calibratedConfidence;
+  return calibration;
 }
 
 /**
@@ -811,7 +824,15 @@ async function attachOptionContract(args: {
  * Universal Trade Idea Generator
  * Creates a trade idea from ANY source with calculated confidence
  */
-export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Promise<InsertTradeIdea | null> {
+/**
+ * A generated idea plus provenance that has no DB column yet. `calibrated` is
+ * false whenever confidenceScore is the uncalibrated heuristic (F3.6) — which,
+ * until the calibration study is run and loaded, is always. Drizzle inserts
+ * only mapped columns, so the extra key is not persisted.
+ */
+export type UniversalTradeIdea = InsertTradeIdea & { calibrated: boolean };
+
+export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Promise<UniversalTradeIdea | null> {
   try {
     // 🛡️ LOSS ANALYZER CHECK - Block avoided symbols and apply confidence adjustments
     let lossAdjustment = 0;
@@ -921,7 +942,9 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     }
     
     // Calculate confidence from all signals with VIX filtering and loss adjustment
-    let confidence = await calculateConfidenceWithVIX(input.source, input.signals, currentVIX);
+    const scored = await calculateConfidenceWithVIX(input.source, input.signals, currentVIX);
+    const calibrated = scored.calibrated;
+    let confidence = scored.confidence;
     confidence = Math.max(0, Math.min(94, confidence + lossAdjustment));
 
     // Apply ML Intelligence enhancement (±10 points)
@@ -1164,7 +1187,8 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     const hour = new Date().getHours();
     const sessionContext = hour < 9 ? 'pre-market' : hour < 16 ? 'regular' : 'after-hours';
 
-    const idea: InsertTradeIdea = {
+    const idea: UniversalTradeIdea = {
+      calibrated,
       symbol: input.symbol.toUpperCase(),
       assetType: resolvedAssetType,
       direction: input.direction === 'bullish' ? 'long' : 'short',
@@ -1241,7 +1265,7 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       convergenceSignalsJson: input.convergenceAnalysis || null,
     };
 
-    logger.info(`[UNIVERSAL] Generated ${input.symbol} idea from ${input.source}: ${confidence}% (${grade})`);
+    logger.info(`[UNIVERSAL] Generated ${input.symbol} idea from ${input.source}: ${confidence}% (${grade})${calibrated ? ' calibrated' : ' uncalibrated'}`);
     
     return idea;
     

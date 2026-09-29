@@ -664,8 +664,17 @@ export async function generateTradeIdeasFromNews(newsArticle: {
   
   logger.info(`📰 [NEWS-AI] Generating trade idea for ${primaryTicker} from news: "${title}"`);
   
-  // 🎲 10% probability to suggest options for news-driven trades with high volatility
-  const shouldMakeOption = Math.random() < 0.10;
+  // ~10% of news-driven ideas are asked for as options. This used to be
+  // Math.random() < 0.10, so the same article could yield a stock idea on one
+  // run and an option idea on the next (SR 11-7 F3.10 / P1-2). It is now a
+  // deterministic hash of ticker + UTC date: same ticker, same day → same
+  // answer; roughly 10% of ticker-days across the universe still get options.
+  const optionBucketKey = `${primaryTicker.toUpperCase()}|${new Date().toISOString().slice(0, 10)}`;
+  let optionBucketHash = 0;
+  for (let i = 0; i < optionBucketKey.length; i++) {
+    optionBucketHash = (optionBucketHash * 31 + optionBucketKey.charCodeAt(i)) >>> 0;
+  }
+  const shouldMakeOption = optionBucketHash % 100 < 10;
   const assetTypeInstruction = shouldMakeOption 
     ? `"option" (use options for high-impact news events - these will be enriched with real Tradier data)`
     : `"stock" (news-driven trades typically focus on stocks)`;

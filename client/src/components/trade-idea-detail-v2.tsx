@@ -265,7 +265,7 @@ export function TradeIdeaDetailV2({ idea, open, onOpenChange }: Props) {
                 )}>
                   {Math.round(confidence)}pts
                 </div>
-                <span className="text-xs text-muted-foreground">from calibration engine (historical WR + R:R + signals)</span>
+                <span className="text-xs text-muted-foreground">uncalibrated heuristic (signals + R:R), not a win probability</span>
               </div>
             </div>
           )}

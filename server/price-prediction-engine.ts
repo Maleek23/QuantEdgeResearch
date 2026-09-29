@@ -1,3 +1,21 @@
+/**
+ * PRICE ESTIMATE ENGINE — UNCALIBRATED HEURISTIC (SR 11-7 F3.12).
+ *
+ * Despite the file/function names (kept for API compatibility), nothing here is
+ * a fitted or validated prediction model:
+ *   - the "predicted" price is a hand-set rule on Yahoo OHLC: +2%/30d in an
+ *     uptrend, −1.5%/30d in a downtrend, ±2–3% on RSI extremes, +1%/30d on
+ *     momentum, and a 0.3 mean-reversion coefficient;
+ *   - "confidence" is 50 plus fixed bumps, clamped to 30–85. It has never been
+ *     compared against outcomes and is NOT a probability;
+ *   - the range is volatility × sqrt(time) × 1.5 — a judgmental band, not a
+ *     measured interval;
+ *   - the LEAPS premium is spot × vol × 0.3, which is not option pricing.
+ * User-facing strings therefore say "estimate" and "heuristic score", and the
+ * payload carries `calibrated: false`. The JSON field names (predictions,
+ * predictedPrice, confidence) are unchanged so existing clients keep working.
+ * Promote this only after a hit-rate validation like server/projection-validator.ts.
+ */
 import { logger } from './logger';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -24,6 +42,8 @@ interface PricePrediction {
   };
   analysis: string;
   generatedAt: string;
+  /** Always false — see the header. The confidence field is a heuristic score, not a probability. */
+  calibrated: false;
 }
 
 interface TechnicalFactors {
@@ -249,20 +269,20 @@ export async function predictPrice(symbol: string, targetDates?: Date[]): Promis
     const bullishPredictions = predictions.filter(p => p.direction === 'bullish').length;
     const avgConfidence = predictions.reduce((sum, p) => sum + p.confidence, 0) / predictions.length;
     
-    let analysis = `**${symbol} Price Prediction Analysis**\n\n`;
+    let analysis = `**${symbol} Price Estimate (uncalibrated heuristic)**\n\n`;
     analysis += `Current: $${currentPrice.toFixed(2)} | RSI: ${technicals.rsi.toFixed(0)} | Trend: ${technicals.trend}\n`;
     analysis += `Support: $${technicals.support.toFixed(2)} | Resistance: $${technicals.resistance.toFixed(2)}\n\n`;
     
     if (bullishPredictions >= 3) {
-      analysis += `📈 **BULLISH OUTLOOK**: Models favor upside with ${avgConfidence.toFixed(0)}% avg confidence.\n`;
+      analysis += `📈 **BULLISH LEAN**: The heuristic leans upside (avg heuristic score ${avgConfidence.toFixed(0)}/100 — not a probability).\n`;
     } else if (bullishPredictions <= 1) {
-      analysis += `📉 **BEARISH OUTLOOK**: Models suggest downside risk. Consider puts or waiting.\n`;
+      analysis += `📉 **BEARISH LEAN**: The heuristic leans downside. Consider puts or waiting.\n`;
     } else {
-      analysis += `⚖️ **NEUTRAL OUTLOOK**: Mixed signals. Range-bound trading expected.\n`;
+      analysis += `⚖️ **NEUTRAL LEAN**: Mixed signals; the heuristic has no directional lean.\n`;
     }
     
     if (leapsRecommendation) {
-      analysis += `\n**LEAPS Recommendation**: ${leapsRecommendation.optionType.toUpperCase()} $${leapsRecommendation.strikePrice} exp ${leapsRecommendation.expiryDate}`;
+      analysis += `\n**LEAPS idea**: ${leapsRecommendation.optionType.toUpperCase()} $${leapsRecommendation.strikePrice} exp ${leapsRecommendation.expiryDate} (premium is a rough spot×vol×0.3 estimate, not an option price)`;
     }
     
     return {
@@ -271,7 +291,8 @@ export async function predictPrice(symbol: string, targetDates?: Date[]): Promis
       predictions,
       leapsRecommendation,
       analysis,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
+      calibrated: false,
     };
     
   } catch (error) {
@@ -309,7 +330,7 @@ export async function predictPriceWithAI(symbol: string): Promise<PricePredictio
               model: 'llama-3.3-70b-versatile',
               messages: [{
                 role: 'user',
-                content: `Analyze this price prediction for ${symbol} (current: $${basePrediction.currentPrice}):
+                content: `Analyze this heuristic price estimate for ${symbol} (current: $${basePrediction.currentPrice}):
                 
 Technical factors: RSI signals, trend analysis, support/resistance levels.
 
@@ -336,7 +357,7 @@ Provide a brief 2-3 sentence market outlook for the next 6 months. Focus on key 
     }
     
     if (!aiEnhanced) {
-      basePrediction.analysis += '\n\n*AI enhancement unavailable - using quantitative analysis only*';
+      basePrediction.analysis += '\n\n*AI enhancement unavailable - heuristic estimate only*';
     }
     
     return basePrediction;

@@ -5,6 +5,18 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { logger } from './logger';
 import type { AssetType, VolatilityRegime, SessionPhase } from '@shared/schema';
 
+/**
+ * DETERMINISM (SR 11-7 F3.10 / P1-2).
+ *
+ * Every entry/exit/confidence multiplier here used to be `lo + Math.random() * w`,
+ * so the same trade got a different timing window — and a different
+ * "timing confidence" / "target hit probability" — on every call, and those
+ * values are presented (and persisted with the idea) as analysis. They now take
+ * the MIDPOINT of the same documented range. The ranges themselves are
+ * judgmental, not fitted; only the noise is removed.
+ */
+const mid = (lo: number, hi: number): number => (lo + hi) / 2;
+
 export interface TimingWindowsInput {
   symbol: string;
   assetType: AssetType;
@@ -93,7 +105,7 @@ function parseTimingCues(analysisText: string): {
     if (text.includes(cue)) {
       return {
         entryUrgency: 'immediate',
-        entryMultiplier: 0.5 + Math.random() * 0.25, // 0.5x - 0.75x
+        entryMultiplier: mid(0.5, 0.75), // 0.5x - 0.75x
         reason: `"${cue}" detected - short entry window`
       };
     }
@@ -104,17 +116,17 @@ function parseTimingCues(analysisText: string): {
     if (text.includes(cue)) {
       return {
         entryUrgency: 'patient',
-        entryMultiplier: 1.5 + Math.random() * 0.5, // 1.5x - 2.0x
+        entryMultiplier: mid(1.5, 2.0), // 1.5x - 2.0x
         reason: `"${cue}" detected - extended entry window`
       };
     }
   }
   
-  // Default: moderate entry window with slight randomization
+  // Default: moderate entry window (midpoint, deterministic)
   return {
     entryUrgency: 'moderate',
-    entryMultiplier: 0.9 + Math.random() * 0.2, // 0.9x - 1.1x (±10% variance)
-    reason: 'standard entry window with randomization'
+    entryMultiplier: mid(0.9, 1.1), // 0.9x - 1.1x (±10% variance)
+    reason: 'standard entry window'
   };
 }
 
@@ -127,10 +139,10 @@ function estimateVolatilityRegime(input: TimingWindowsInput): {
   // Use quant-provided volatility if available
   if (input.volatilityRegime) {
     const multipliers: Record<VolatilityRegime, number> = {
-      'low': 1.3 + Math.random() * 0.2,      // 1.3x - 1.5x (longer holds in calm markets)
-      'normal': 0.9 + Math.random() * 0.2,   // 0.9x - 1.1x (standard)
-      'high': 0.6 + Math.random() * 0.2,     // 0.6x - 0.8x (shorter holds in volatile markets)
-      'extreme': 0.4 + Math.random() * 0.2   // 0.4x - 0.6x (very short holds in extreme volatility)
+      'low': mid(1.3, 1.5),      // 1.3x - 1.5x (longer holds in calm markets)
+      'normal': mid(0.9, 1.1),   // 0.9x - 1.1x (standard)
+      'high': mid(0.6, 0.8),     // 0.6x - 0.8x (shorter holds in volatile markets)
+      'extreme': mid(0.4, 0.6)   // 0.4x - 0.6x (very short holds in extreme volatility)
     };
     
     return {
@@ -164,19 +176,19 @@ function estimateVolatilityRegime(input: TimingWindowsInput): {
   
   if (isOptions || maxLossPercent > 4.0 || (hasHighRSI && hasHighVolume)) {
     regime = 'high';
-    exitMultiplier = 0.6 + Math.random() * 0.2; // 0.6x - 0.8x
+    exitMultiplier = mid(0.6, 0.8); // 0.6x - 0.8x
     reason = `high volatility (${isOptions ? 'options' : maxLossPercent.toFixed(1) + '% stop'})`;
   } else if (isCrypto || maxLossPercent > 3.0 || hasHighVolume) {
     regime = 'normal';
-    exitMultiplier = 0.9 + Math.random() * 0.2; // 0.9x - 1.1x
+    exitMultiplier = mid(0.9, 1.1); // 0.9x - 1.1x
     reason = `normal volatility (${isCrypto ? 'crypto' : maxLossPercent.toFixed(1) + '% stop'})`;
   } else if (maxLossPercent < 2.0) {
     regime = 'low';
-    exitMultiplier = 1.3 + Math.random() * 0.2; // 1.3x - 1.5x
+    exitMultiplier = mid(1.3, 1.5); // 1.3x - 1.5x
     reason = `low volatility (${maxLossPercent.toFixed(1)}% stop)`;
   } else {
     regime = 'normal';
-    exitMultiplier = 0.9 + Math.random() * 0.2; // 0.9x - 1.1x
+    exitMultiplier = mid(0.9, 1.1); // 0.9x - 1.1x
     reason = `normal volatility (${maxLossPercent.toFixed(1)}% stop)`;
   }
   
@@ -219,17 +231,17 @@ function calculateConfidenceAdjustment(confidenceScore: number): {
   
   if (confidenceScore >= 65) {
     return {
-      confidenceMultiplier: 0.7 + Math.random() * 0.15, // 0.7x - 0.85x
+      confidenceMultiplier: mid(0.7, 0.85), // 0.7x - 0.85x
       reason: `high confidence (${confidenceScore.toFixed(0)}) - aggressive timing`
     };
   } else if (confidenceScore >= 55) {
     return {
-      confidenceMultiplier: 0.9 + Math.random() * 0.2, // 0.9x - 1.1x
+      confidenceMultiplier: mid(0.9, 1.1), // 0.9x - 1.1x
       reason: `moderate confidence (${confidenceScore.toFixed(0)}) - standard timing`
     };
   } else {
     return {
-      confidenceMultiplier: 1.2 + Math.random() * 0.3, // 1.2x - 1.5x
+      confidenceMultiplier: mid(1.2, 1.5), // 1.2x - 1.5x
       reason: `lower confidence (${confidenceScore.toFixed(0)}) - patient timing`
     };
   }
@@ -448,13 +460,13 @@ export function deriveTimingWindows(
     confidenceScore * 0.7 + 
     (volatilityInfo.regime === 'high' ? -10 : 0) +
     (nlpCues.entryUrgency === 'immediate' ? 5 : 0) +
-    Math.random() * 10 // Add randomization
+    5 // was Math.random() * 10 — midpoint of that range (F3.10)
   ));
   
   const targetHitProbability = Math.min(90, Math.max(35,
     confidenceScore * 0.8 +
     (volatilityInfo.regime === 'low' ? 5 : -5) +
-    Math.random() * 10 // Add randomization
+    5 // was Math.random() * 10 — midpoint of that range (F3.10)
   ));
   
   // 12. Build timing reason for logging
@@ -645,25 +657,25 @@ export function recalculateExitTime(input: RecalculateExitTimeInput): Recalculat
     
     // High volatility: price already moved significantly from entry
     if (currentPriceMove > 2.5) {
-      volatilityMultiplier = 0.7 + Math.random() * 0.1; // 0.7x - 0.8x (shorten exit window)
+      volatilityMultiplier = mid(0.7, 0.8); // 0.7x - 0.8x (shorten exit window)
       volatilityReason = `high vol (${currentPriceMove.toFixed(1)}% move from entry)`;
     } else if (currentPriceMove > 1.5) {
-      volatilityMultiplier = 0.85 + Math.random() * 0.15; // 0.85x - 1.0x
+      volatilityMultiplier = mid(0.85, 1.0); // 0.85x - 1.0x
       volatilityReason = `moderate vol (${currentPriceMove.toFixed(1)}% move)`;
     } else {
-      volatilityMultiplier = 1.0 + Math.random() * 0.2; // 1.0x - 1.2x (can extend slightly)
+      volatilityMultiplier = mid(1.0, 1.2); // 1.0x - 1.2x (can extend slightly)
       volatilityReason = `low vol (${currentPriceMove.toFixed(1)}% move)`;
     }
   } else {
     // Estimate from stop/target range if no current price
     if (priceRangePercent > 8) {
-      volatilityMultiplier = 0.75 + Math.random() * 0.15; // Wide range = high vol
+      volatilityMultiplier = mid(0.75, 0.9); // Wide range = high vol
       volatilityReason = `wide range (${priceRangePercent.toFixed(1)}%)`;
     } else if (priceRangePercent > 5) {
-      volatilityMultiplier = 0.9 + Math.random() * 0.2;
+      volatilityMultiplier = mid(0.9, 1.1);
       volatilityReason = `moderate range (${priceRangePercent.toFixed(1)}%)`;
     } else {
-      volatilityMultiplier = 1.0 + Math.random() * 0.15;
+      volatilityMultiplier = mid(1.0, 1.15);
       volatilityReason = `tight range (${priceRangePercent.toFixed(1)}%)`;
     }
   }
@@ -677,12 +689,13 @@ export function recalculateExitTime(input: RecalculateExitTimeInput): Recalculat
     volatilityReason += ' + crypto 24/7';
   }
   
-  // Add ±10-30% random variance to prevent identical exit times
+  // Add ±20% symbol-seeded variance to prevent identical exit times
   // This variance is seeded by symbol hash for consistency within session
   const symbolHash = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const seedVariance = ((symbolHash % 41) - 20) / 100; // -20% to +20% based on symbol
-  const randomVariance = (Math.random() - 0.5) * 0.2; // ±10% additional random
-  const totalVariance = seedVariance + randomVariance;
+  // The ±10% Math.random() term that used to sit here is gone (F3.10): its
+  // midpoint is 0, and the symbol-hash seed above already spreads exit times.
+  const totalVariance = seedVariance;
   
   // Apply variance (clamped to ±30%)
   const clampedVariance = Math.max(-0.3, Math.min(0.3, totalVariance));
