@@ -261,41 +261,7 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
   .jr-layout{grid-template-columns:196px minmax(0,1fr);gap:18px}
   .jr-layout[data-collapsed="true"]{grid-template-columns:56px minmax(0,1fr)}
 }
-.jr-side{position:relative;min-width:0;border:1px solid var(--jr-line);border-radius:12px;padding:6px;
-  background:linear-gradient(160deg,var(--panel-solid,#0e1117),var(--panel-2,#131720))}
-.jr-side::before{content:'';position:absolute;top:0;left:12px;right:12px;height:1px;background:linear-gradient(90deg,transparent,var(--jr-accent),transparent);opacity:.5}
-@media (min-width:769px){.jr-side{position:sticky;top:12px;max-height:calc(100dvh - 24px);overflow-y:auto;display:flex;flex-direction:column}}
-.jr-side-nav{display:flex;flex-direction:column;gap:6px}
-.jr-side-group ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
-.jr-side-group+.jr-side-group{border-top:1px solid var(--jr-line);padding-top:6px}
-.jr-side-gl{font-family:var(--jr-mono);font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-mute);padding:6px 10px 4px}
-.jr-side-link{position:relative;display:flex;align-items:center;gap:10px;min-height:36px;padding:6px 10px;border-radius:8px;
-  color:var(--text-dim);text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap;transition:background .15s,color .15s}
-.jr-side-link:hover{color:var(--text);background:rgba(59,140,255,0.06)}
-.jr-side-link[aria-current="page"]{color:var(--jr-accent-hi);font-weight:700;background:rgba(59,140,255,0.13);box-shadow:inset 0 0 0 1px rgba(59,140,255,0.28)}
-.jr-side-link[aria-current="page"]::before{content:'';position:absolute;left:-6px;top:8px;bottom:8px;width:2px;border-radius:2px;background:var(--jr-accent)}
-.jr-side-ic{width:16px;height:16px;flex:none}
-.jr-side-toggle{display:none}
-@media (min-width:769px){
-  .jr-side-toggle{display:flex;align-items:center;gap:10px;margin-top:6px;min-height:34px;padding:6px 10px;border-radius:8px;border:0;border-top:1px solid var(--jr-line);
-    background:transparent;color:var(--text-mute);cursor:pointer;font:inherit;font-size:12px}
-  .jr-side-toggle:hover{color:var(--text)}
-  .jr-side[data-collapsed="true"] .jr-side-link,.jr-side[data-collapsed="true"] .jr-side-toggle{justify-content:center;padding:6px 0}
-  .jr-side[data-collapsed="true"] .jr-side-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-  .jr-side[data-collapsed="true"] .jr-side-gl{font-size:0;padding:2px 0;height:6px}
-}
-/* phone / tablet-portrait: a horizontal strip of pages */
-@media (max-width:768px){
-  .jr-side{padding:4px;border-radius:10px}
-  .jr-side-nav{flex-direction:row;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;gap:4px;scrollbar-width:none}
-  .jr-side-nav::-webkit-scrollbar{display:none}
-  .jr-side-group{display:flex;align-items:center;gap:2px;flex:none}
-  .jr-side-group+.jr-side-group{border-top:0;border-left:1px solid var(--jr-line);padding:0 0 0 4px}
-  .jr-side-gl{display:none}
-  .jr-side-group ul{flex-direction:row;gap:2px}
-  .jr-side-link{min-height:36px;padding:6px 10px;font-size:12.5px;scroll-snap-align:start}
-  .jr-side-link[aria-current="page"]::before{left:10px;right:10px;top:auto;bottom:-4px;width:auto;height:2px}
-}
+/* the sidebar itself is the shared LuxSidebar (components/lux/lux-sidebar.tsx, placement=inline) — styles in components/lux/lux.css */
 
 .jr-pagebar{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--jr-line);padding-bottom:8px}
 .jr-pagebar-t{font-family:var(--jr-disp);font-size:18px;font-weight:700;letter-spacing:-0.01em;margin:0}

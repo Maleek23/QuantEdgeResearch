@@ -199,6 +199,10 @@ live or snapshot? 3D justified? right-sidebar context?
 - Charts: `NexusPriceChart` (pan/zoom/expand, wick-clamp disclosure) — never
   hand-rolled candles.
 - Rails: `useColResize`. Workup: `openWorkup()` from `lib/workup-bus`.
+- Primitives (sidebar, top bar, tabs, segmented, menus, tooltips, sheets,
+  cards/KPIs, tables, filter chips, empty states, chart frame): import from
+  `@/components/lux`; tokens `--lx-*` in `components/lux/lux.css`. Map of
+  old → new and the licence note: `docs/LUX_PORT.md`.
 
 ## 13 · ANTI-PATTERNS
 

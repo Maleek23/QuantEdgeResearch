@@ -2,6 +2,7 @@ import "./lib/insecure-context-polyfills"; // must run before anything touches c
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./components/lux/lux.css";
 import { ErrorBoundary } from "./components/error-boundary";
 import { initClientObservability } from "./lib/observability";
 import { installStaleBundleGuard } from "./lib/stale-bundle";

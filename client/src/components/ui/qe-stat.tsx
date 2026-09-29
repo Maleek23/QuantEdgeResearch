@@ -8,8 +8,17 @@
  *   <QEStat label="VIX"      value="18.3"      tone="muted" size="sm" />
  *
  * Tone drives color via CSS vars, never raw Tailwind.
+ *
+ * 2026-09-29 lux pass: readable 10.5px caption (was 9px), `help` renders a
+ * HelpHint beside the label, `tile` draws the KPI-tile chrome. Delta keeps its
+ * ▲/▼ glyph and sign so colour is never the only carrier. Portions of the KPI
+ * tile look adapted from the Trade Journal web app (apps/web/src/components/
+ * ui/card.tsx CardTitle + metric cards), MIT License, Copyright (c) 2026
+ * LuxAlgo Global, LLC — see components/lux/LICENSE-luxalgo.txt.
  */
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { HelpHint } from '@/components/lux/lux-tooltip';
 
 export type QEStatTone = 'default' | 'bull' | 'bear' | 'cyan' | 'gold' | 'muted' | 'warn';
 export type QEStatSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -28,7 +37,7 @@ const SIZE_MAP: Record<QEStatSize, string> = {
   sm: 'text-sm',
   md: 'text-base',
   lg: 'text-lg',
-  xl: 'text-2xl',
+  xl: 'text-[22px] leading-tight',
 };
 
 export interface QEStatProps {
@@ -43,6 +52,10 @@ export interface QEStatProps {
   size?: QEStatSize;
   /** Optional micro-caption under value */
   caption?: string;
+  /** Explanation shown by a "?" next to the label (hover + keyboard focus). */
+  help?: ReactNode;
+  /** Draw as a standalone KPI tile (surface, hairline, sheen). */
+  tile?: boolean;
   className?: string;
 }
 
@@ -54,6 +67,8 @@ export function QEStat({
   tone,
   size = 'md',
   caption,
+  help,
+  tile = false,
   className,
 }: QEStatProps) {
   const inferredTone: QEStatTone = tone
@@ -61,9 +76,12 @@ export function QEStat({
   const valueTone = TONE_MAP[inferredTone];
 
   return (
-    <div className={cn('flex flex-col gap-0.5 min-w-0', className)}>
-      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground truncate">
-        {label}
+    <div className={cn('flex flex-col gap-0.5 min-w-0', tile && 'lx-kpi-tile lx-card', className)}>
+      <div className="flex min-w-0 items-center gap-1">
+        <div className="lx-card-title truncate" style={{ fontSize: 10.5 }}>
+          {label}
+        </div>
+        {help && <HelpHint heading={label}>{help}</HelpHint>}
       </div>
       <div className={cn('font-mono font-bold tabular-nums truncate', SIZE_MAP[size], valueTone)}>
         {value}
@@ -74,7 +92,7 @@ export function QEStat({
         )}
       </div>
       {caption && (
-        <div className="text-[9px] font-mono text-muted-foreground truncate">{caption}</div>
+        <div className="text-[10.5px] font-mono text-muted-foreground truncate">{caption}</div>
       )}
     </div>
   );

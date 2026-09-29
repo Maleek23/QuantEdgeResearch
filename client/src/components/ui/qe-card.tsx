@@ -7,8 +7,15 @@
  *
  * Stop hand-rolling `bg-zinc-900/40 border border-zinc-800 rounded-lg`.
  * Use <QECard variant="glass"> instead.
+ *
+ * 2026-09-29 lux pass: every surface card wears the hairline top sheen and
+ * the 10px radius (.lx-card), and the card has an anatomy — QECardHeader →
+ * QECardTitle (11px caps caption) → QECardContent. Portions of the look adapted
+ * from the Trade Journal web app (apps/web/src/components/ui/card.tsx, the
+ * .card-sheen style), MIT License, Copyright (c) 2026 LuxAlgo Global, LLC —
+ * see components/lux/LICENSE-luxalgo.txt.
  */
-import { forwardRef, type HTMLAttributes } from 'react';
+import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { componentStyles } from '@/lib/design-tokens';
 
@@ -56,9 +63,28 @@ const PADDING_MAP = {
 
 export const QECard = forwardRef<HTMLDivElement, QECardProps>(
   ({ variant = 'default', padding = 'md', className, children, ...rest }, ref) => (
-    <div ref={ref} className={cn(VARIANT_MAP[variant], PADDING_MAP[padding], className)} {...rest}>
+    <div ref={ref} className={cn(VARIANT_MAP[variant], variant !== 'inset' && 'lx-card', PADDING_MAP[padding], className)} {...rest}>
       {children}
     </div>
   ),
 );
 QECard.displayName = 'QECard';
+
+/** Card header row: title on the left, an optional action (help, menu) on the right. */
+export function QECardHeader({ className, action, children, ...rest }: HTMLAttributes<HTMLDivElement> & { action?: ReactNode }) {
+  return (
+    <div className={cn('lx-card-header', className)} {...rest}>
+      <div className="min-w-0 flex-1">{children}</div>
+      {action}
+    </div>
+  );
+}
+
+/** 11px uppercase caption — what the card measures. */
+export function QECardTitle({ className, as: Tag = 'div', ...rest }: HTMLAttributes<HTMLElement> & { as?: 'div' | 'h2' | 'h3' }) {
+  return <Tag className={cn('lx-card-title', className)} {...rest} />;
+}
+
+export function QECardContent({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('lx-card-content', className)} {...rest} />;
+}

@@ -1,3 +1,9 @@
+/*
+ * 2026-09-29 lux pass: denser 36px header / 8px cells, hairline rows (see also
+ * components/lux/lux-table.tsx for sticky header + sort). Sizing adapted from
+ * the Trade Journal web app (apps/web/src/components/ui/table.tsx), MIT,
+ * Copyright (c) 2026 LuxAlgo Global, LLC — components/lux/LICENSE-luxalgo.txt.
+ */
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -58,7 +64,7 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+      "border-b border-[var(--lx-line)] transition-colors hover:bg-[var(--lx-hover)] data-[state=selected]:bg-muted",
       className
     )}
     {...props}
@@ -73,7 +79,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      "h-9 whitespace-nowrap px-3 text-left align-middle text-xs font-semibold text-muted-foreground [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}
@@ -87,7 +93,7 @@ const TableCell = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)}
+    className={cn("px-3 py-2 align-middle [&:has([role=checkbox])]:pr-0", className)}
     {...props}
   />
 ))

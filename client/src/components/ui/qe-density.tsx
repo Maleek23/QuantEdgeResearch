@@ -6,7 +6,7 @@
  * platform-wide. Persisted per user. Compact is the Bloomberg-dense default.
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { cn } from '@/lib/utils';
+import { LuxSegmented } from '@/components/lux/lux-segmented';
 
 export type LayoutDensity = 'compact' | 'comfortable' | 'spacious';
 const KEY = 'qe:density';
@@ -50,22 +50,13 @@ const OPTIONS: { id: LayoutDensity; label: string }[] = [
 export function QEDensityToggle({ className }: { className?: string }) {
   const { density, setDensity } = useDensity();
   return (
-    <div className={cn('inline-flex items-center gap-0.5 rounded-md border border-border bg-card p-0.5', className)}>
-      {OPTIONS.map((o) => (
-        <button
-          key={o.id}
-          onClick={() => setDensity(o.id)}
-          className={cn(
-            'px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider rounded transition-colors',
-            density === o.id
-              ? 'bg-[var(--brand-cyan)] text-background'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-          title={`${o.label} density`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <LuxSegmented
+      label="Layout density"
+      size="sm"
+      className={className}
+      value={density}
+      onChange={setDensity}
+      options={OPTIONS.map((o) => ({ value: o.id, label: o.label, hint: `${o.label} density` }))}
+    />
   );
 }

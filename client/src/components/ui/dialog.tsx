@@ -1,5 +1,11 @@
 "use client"
 
+/*
+ * 2026-09-29 lux pass: card surface, 12px radius, phone-safe width/height with
+ * internal scroll, 32px close target. Look adapted from the Trade Journal web
+ * app (apps/web/src/components/ui/dialog.tsx), MIT License, Copyright (c) 2026
+ * LuxAlgo Global, LLC — see components/lux/LICENSE-luxalgo.txt.
+ */
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
@@ -21,7 +27,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-[var(--surface-base)]/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-[var(--lx-overlay)] backdrop-blur-[3px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -38,13 +44,13 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        "fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-24px)] max-w-lg max-h-[calc(100dvh-24px)] overflow-y-auto overscroll-contain translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border border-[var(--lx-line-hi)] bg-card p-6 shadow-[var(--lx-shadow-pop)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] ",
         className
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+      <DialogPrimitive.Close className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--lx-accent)] disabled:pointer-events-none">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
@@ -88,7 +94,7 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
+      "pr-6 text-lg font-semibold leading-snug tracking-tight",
       className
     )}
     {...props}

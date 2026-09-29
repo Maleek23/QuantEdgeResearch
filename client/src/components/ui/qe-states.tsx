@@ -12,6 +12,10 @@
  * "no data"/"nothing"). Rule for callers: check `isError` BEFORE the empty
  * branch, and wire `onRetry` to the query's `refetch`.
  *
+ * 2026-09-29 lux pass: QEEmpty takes an optional title + icon and uses the
+ * shared .lx-empty surface (components/lux/lux.css); still dashed + icon-less
+ * by default so it never reads like QEError.
+ *
  * Visual basis: LoadErrorCard (pages/trade-journal.tsx) and the GEX hub
  * loading/error panels. Colours are NEXUS tokens (styles/nexus.css) with
  * dark-palette fallbacks so the states also render outside `.nexus-vars`.
@@ -136,22 +140,26 @@ export function QEError({
 export function QEEmpty({
   message,
   action,
+  title,
+  icon,
   className,
 }: {
   /** Measured-empty wording — the request worked and returned nothing. */
   message: ReactNode;
   /** Optional action, e.g. a "Run Discovery now" button. */
   action?: ReactNode;
+  /** Optional one-line headline above the message. */
+  title?: ReactNode;
+  /** Optional small icon (a lucide icon element). */
+  icon?: ReactNode;
   className?: string;
 }) {
   return (
-    <div
-      className={cn("rounded-lg px-4 py-6 text-center", className)}
-      style={{ border: `1px dashed ${T.border}`, fontFamily: MONO }}
-      data-testid="qe-empty"
-    >
-      <div style={{ fontSize: "var(--fs-11, 12px)", color: T.mute, lineHeight: 1.5 }}>{message}</div>
-      {action && <div className="mt-3 flex justify-center">{action}</div>}
+    <div className={cn("lx-empty", className)} data-testid="qe-empty">
+      {icon && <div className="lx-empty-icon" aria-hidden>{icon}</div>}
+      {title && <div className="lx-empty-title">{title}</div>}
+      <div>{message}</div>
+      {action && <div className="mt-1 flex justify-center">{action}</div>}
     </div>
   );
 }
