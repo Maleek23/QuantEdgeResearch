@@ -59,6 +59,13 @@ export const GEX_TOOLS: ToolDef[] = [
     ageInside: true, defaultSize: { w: 7, h: 13 }, minSize: { w: 5, h: 8 }, Component: lazyTool(gex, 'GexSetupsTool'),
   },
   {
+    id: 'squeeze-radar', category: 'GEX', title: 'Squeeze radar · gamma squeeze build',
+    what: 'Per-ticker 0–100 squeeze score with its components: near-dated OTM call build, call-wall migration, customer call buying, dealer short gamma (customer-long-calls assumption), room to the squeeze strike, IV with spot, RV expansion, OCC customer calls, short interest. Stage + key strikes. Unvalidated — measuring.',
+    units: 'score 0–100 (not a probability), strikes $', source: 'Squeeze radar (GEX rankings chain reads + tape + OCC + bars)',
+    backing: 'SqueezeRadarTool (tools/gex/squeeze-radar-tool.tsx) → /api/gex-vex/squeeze-radar',
+    defaultSize: { w: 5, h: 14 }, minSize: { w: 4, h: 8 }, Component: lazyTool(() => import('../tools/gex/squeeze-radar-tool'), 'SqueezeRadarTool'),
+  },
+  {
     id: 'gex-hub', category: 'GEX', title: 'GEX Hub (all-in-one)',
     what: 'The previous GEX page in one tile: ranked list, near-term map, strike × expiry surface and context rail.',
     units: 'GEX $/1% move, VEX $/IV pt', source: ENGINE, backing: 'GexHubNexus (components/gex/gex-hub-nexus.tsx)',

@@ -3682,3 +3682,25 @@ export const gexSnapshots = pgTable("gex_snapshots", {
 export const insertGexSnapshotSchema = createInsertSchema(gexSnapshots).omit({ id: true, createdAt: true });
 export type InsertGexSnapshot = z.infer<typeof insertGexSnapshotSchema>;
 export type GexSnapshotRecord = typeof gexSnapshots.$inferSelect;
+
+// ─── Squeeze radar forward log (docs/GAMMA_SQUEEZE.md; migrations/0004_squeeze_radar_log.sql) ───
+// Append-only: server/squeeze-radar.ts inserts ON CONFLICT DO NOTHING, never updates,
+// so every day's read can be scored later against what the stock actually did.
+export const squeezeRadarLog = pgTable("squeeze_radar_log", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  sessionDate: varchar("session_date", { length: 10 }).notNull(), // ET session date YYYY-MM-DD
+  slot: varchar("slot", { length: 8 }).notNull(),                 // 'open' (≥10:30 ET) | 'close' (≥15:30 ET)
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  score: integer("score").notNull(),
+  coverage: integer("coverage").notNull(),
+  stage: varchar("stage", { length: 12 }).notNull(),
+  spot: doublePrecision("spot"),
+  components: jsonb("components"), // { componentKey: points | null }
+  inputs: jsonb("inputs"),         // compact chain read + source + OI date
+  loggedAt: timestamp("logged_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  uniqueIndex("uq_squeeze_radar_log_day_slot_symbol").on(table.sessionDate, table.slot, table.symbol),
+  index("idx_squeeze_radar_log_symbol_date").on(table.symbol, table.sessionDate),
+]);
+export type SqueezeRadarLogRecord = typeof squeezeRadarLog.$inferSelect;

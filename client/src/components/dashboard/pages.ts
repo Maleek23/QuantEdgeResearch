@@ -94,7 +94,7 @@ const MARKET_CONTEXT = [
 /** Compact flow read for the GEX workspace (the full flow tools live on FLOW). */
 const FLOW_CONTEXT = ['flow-context'];
 /** Compact GEX read for the FLOW workspace (the full GEX tools live on GEX). */
-const GEX_CONTEXT = ['gex-levels', 'gex-regime'];
+const GEX_CONTEXT = ['gex-levels', 'gex-regime', 'squeeze-radar'];
 
 export const GEX_CATALOG: ToolCatalog = { categories: ['GEX'], tools: [...CHART_TOOLS, ...MARKET_CONTEXT, ...FLOW_CONTEXT] };
 export const FLOW_CATALOG: ToolCatalog = { categories: ['Options', 'Dark Pool'], tools: [...CHART_TOOLS, ...MARKET_CONTEXT, ...GEX_CONTEXT] };
