@@ -28,8 +28,8 @@
  * concurrent callers for the same chain share one in-flight fetch.
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { logger } from './logger';
-import { rateLimited } from './provider-cache';
 
 const DATA_BASE = 'https://data.alpaca.markets';
 const tradingBase = () => (process.env.ALPACA_PAPER !== 'false' ? 'https://paper-api.alpaca.markets' : 'https://api.alpaca.markets');
@@ -100,10 +100,50 @@ export function alpacaOptionsStatus() {
   };
 }
 
-async function alpacaGet(url: string): Promise<{ status: number; json: any | null }> {
+// ─── Priority lane ───────────────────────────────────────────────────────
+// One serial queue at SPACING_MS (the budget is unchanged), but a request a
+// user is WAITING on (the focused symbol's dealer map) is dequeued before
+// background hub/scan fetches. Before this, a cold hub build queued dozens of
+// chains FIFO and the focused SPY terminal waited >60 s behind them.
+const priorityCtx = new AsyncLocalStorage<{ high: boolean }>();
+/** Run fn with its Alpaca requests in the priority lane. */
+export function withAlpacaPriority<T>(fn: () => Promise<T>): Promise<T> {
+  return priorityCtx.run({ high: true }, fn);
+}
+const isPriority = () => priorityCtx.getStore()?.high === true;
+
+interface Job { high: () => boolean; run: () => Promise<void> }
+const jobs: Job[] = [];
+let pumping = false;
+let lastCallAt = 0;
+function schedule<T>(high: () => boolean, fn: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    jobs.push({ high, run: () => fn().then(resolve, reject) });
+    void pump();
+  });
+}
+async function pump() {
+  if (pumping) return;
+  pumping = true;
+  try {
+    while (jobs.length) {
+      const wait = SPACING_MS - (Date.now() - lastCallAt);
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      let i = jobs.findIndex((j) => j.high());
+      if (i < 0) i = 0;
+      const [job] = jobs.splice(i, 1);
+      lastCallAt = Date.now();
+      await job.run().catch(() => undefined);
+    }
+  } finally {
+    pumping = false;
+  }
+}
+
+async function alpacaGet(url: string, high: () => boolean = () => false): Promise<{ status: number; json: any | null }> {
   if (!isAlpacaOptionsConfigured()) return { status: 0, json: null };
   if (Date.now() < cooldownUntil) return { status: 429, json: null };
-  return rateLimited('alpaca', SPACING_MS, async () => {
+  return schedule(high, async () => {
     if (Date.now() < cooldownUntil) return { status: 429, json: null };
     if (Date.now() - minuteStart >= 60_000) { minuteStart = Date.now(); requestsThisMinute = 0; }
     requestsThisMinute++;
@@ -159,8 +199,8 @@ function inCashHours(at = new Date()): boolean {
 
 // ─── Fetchers ────────────────────────────────────────────────────────────
 
-async function fetchSpot(sym: string): Promise<{ spot: number | null; spotTime: string | null; prevClose: number | null; changePct: number | null; requests: number }> {
-  const { json } = await alpacaGet(`${DATA_BASE}/v2/stocks/${encodeURIComponent(sym)}/snapshot?feed=iex`);
+async function fetchSpot(sym: string, high: () => boolean = () => false): Promise<{ spot: number | null; spotTime: string | null; prevClose: number | null; changePct: number | null; requests: number }> {
+  const { json } = await alpacaGet(`${DATA_BASE}/v2/stocks/${encodeURIComponent(sym)}/snapshot?feed=iex`, high);
   const last = num(json?.latestTrade?.p) ?? num(json?.dailyBar?.c);
   const prev = num(json?.prevDailyBar?.c);
   return {
@@ -176,7 +216,7 @@ interface OIRow { oi: number | null; oiDate: string | null; close: number | null
 const oiCache = new Map<string, { at: number; rows: Map<string, OIRow>; requests: number }>();
 const OI_TTL_MS = 30 * 60_000;
 
-async function fetchOpenInterest(sym: string, expLte: string, lo: number | null, hi: number | null): Promise<{ rows: Map<string, OIRow>; requests: number }> {
+async function fetchOpenInterest(sym: string, expLte: string, lo: number | null, hi: number | null, high: () => boolean = () => false): Promise<{ rows: Map<string, OIRow>; requests: number }> {
   const key = `${sym}|${expLte}|${lo ?? ''}|${hi ?? ''}`;
   const hit = oiCache.get(key);
   if (hit && Date.now() - hit.at < OI_TTL_MS) return { rows: hit.rows, requests: 0 };
@@ -187,7 +227,7 @@ async function fetchOpenInterest(sym: string, expLte: string, lo: number | null,
     if (lo != null) qs.set('strike_price_gte', lo.toFixed(2));
     if (hi != null) qs.set('strike_price_lte', hi.toFixed(2));
     if (token) qs.set('page_token', token);
-    const { json } = await alpacaGet(`${tradingBase()}/v2/options/contracts?${qs}`);
+    const { json } = await alpacaGet(`${tradingBase()}/v2/options/contracts?${qs}`, high);
     requests++;
     if (!json) break;
     for (const c of json.option_contracts ?? []) {
@@ -206,7 +246,7 @@ async function fetchOpenInterest(sym: string, expLte: string, lo: number | null,
 }
 
 const chainCache = new Map<string, { expiresAt: number; chain: AlpacaChain }>();
-const inflight = new Map<string, Promise<AlpacaChain | null>>();
+const inflight = new Map<string, { p: Promise<AlpacaChain | null>; boost: { high: boolean } }>();
 
 /**
  * Full chain for one underlying. Defaults: expiries within 180 days, strikes
@@ -227,10 +267,16 @@ export async function getAlpacaOptionsChain(
   const hit = chainCache.get(key);
   if (hit && hit.expiresAt > Date.now()) return hit.chain;
   const running = inflight.get(key);
-  if (running) return running;
+  if (running) {
+    // A user-facing caller joining a background fetch lifts its remaining requests into the priority lane.
+    if (isPriority()) running.boost.high = true;
+    return running.p;
+  }
 
+  const boost = { high: isPriority() };
+  const high = () => boost.high;
   const p = (async (): Promise<AlpacaChain | null> => {
-    const spotRead = await fetchSpot(sym);
+    const spotRead = await fetchSpot(sym, high);
     let requests = spotRead.requests;
     const S = spotRead.spot;
     const lo = S ? S * (1 - band) : null;
@@ -246,7 +292,7 @@ export async function getAlpacaOptionsChain(
       if (lo != null) qs.set('strike_price_gte', lo.toFixed(2));
       if (hi != null) qs.set('strike_price_lte', hi.toFixed(2));
       if (token) qs.set('page_token', token);
-      const { json, status } = await alpacaGet(`${DATA_BASE}/v1beta1/options/snapshots/${encodeURIComponent(sym)}?${qs}`);
+      const { json, status } = await alpacaGet(`${DATA_BASE}/v1beta1/options/snapshots/${encodeURIComponent(sym)}?${qs}`, high);
       requests++;
       if (!json) {
         if (page === 0) { logger.warn(`[ALPACA-OPT] ${sym}: snapshots HTTP ${status}`); return null; }
@@ -258,7 +304,7 @@ export async function getAlpacaOptionsChain(
     }
     if (!snaps.length) return null;
 
-    const oi = await fetchOpenInterest(sym, expLte, lo, hi);
+    const oi = await fetchOpenInterest(sym, expLte, lo, hi, high);
     requests += oi.requests;
 
     const contracts: AlpacaOptionContract[] = [];
@@ -305,7 +351,7 @@ export async function getAlpacaOptionsChain(
     logger.warn(`[ALPACA-OPT] ${sym}: ${e?.message ?? e}`);
     return null;
   }).finally(() => inflight.delete(key));
-  inflight.set(key, p);
+  inflight.set(key, { p, boost });
   return p;
 }
 

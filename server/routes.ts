@@ -32758,8 +32758,11 @@ Use this checklist before entering any trade:
       const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
       const yahooSymbol = symbol === 'SPX' ? '^SPX' : symbol;
 
-      // 1. Try Tradier-first GEX (live data when market open)
-      let gex = await calculateAggregateGammaExposure(symbol);
+      // 1. Try Tradier-first GEX (live data when market open). A user is waiting
+      // on this one: its Alpaca chain requests jump ahead of background hub/scan
+      // fetches (same budget, priority lane — alpaca-options.ts).
+      const { withAlpacaPriority } = await import('./alpaca-options');
+      let gex = await withAlpacaPriority(() => calculateAggregateGammaExposure(symbol));
 
       // 2. CBOE fallback (works on weekends + after-hours)
       let cboeFallbackUsed = false;

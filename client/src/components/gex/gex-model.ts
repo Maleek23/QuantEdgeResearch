@@ -44,11 +44,30 @@ const getJson = (path: string) => async () => {
   return r.json();
 };
 
+/** Past this the terminal request is abandoned: an honest error + retry beats an endless "reading". */
+export const TERMINAL_TIMEOUT_MS = 45_000;
+
 /* ── shared queries — the hub's keys, so hub + tools share one fetch ── */
 export const useGexTerminal = (symbol: string) => useQuery<TerminalData>({
   queryKey: ['/api/gex-vex/terminal', symbol, 'nexus'],
-  queryFn: getJson(`/api/gex-vex/terminal/${encodeURIComponent(symbol)}?interval=15m&lookback=5`),
-  staleTime: 60_000, refetchInterval: 120_000, retry: 1,
+  queryFn: async ({ signal }) => {
+    const ctl = new AbortController();
+    const onAbort = () => ctl.abort();
+    signal?.addEventListener('abort', onAbort);
+    const timer = setTimeout(() => ctl.abort(), TERMINAL_TIMEOUT_MS);
+    try {
+      const r = await fetch(`/api/gex-vex/terminal/${encodeURIComponent(symbol)}?interval=15m&lookback=5`, { credentials: 'include', signal: ctl.signal });
+      if (!r.ok) throw new Error(`${symbol} dealer map: HTTP ${r.status}`);
+      return await r.json();
+    } catch (e) {
+      if (ctl.signal.aborted && !signal?.aborted) throw new Error(`${symbol} chain read timed out after ${TERMINAL_TIMEOUT_MS / 1000}s — the options-data queue is busy`);
+      throw e;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+    }
+  },
+  staleTime: 60_000, refetchInterval: 120_000, retry: 1, retryDelay: 3_000,
 });
 export const useGexHub = () => useQuery<HubPayload>({
   queryKey: ['/api/gex-vex/hub', 'nexus'], queryFn: getJson('/api/gex-vex/hub'),
