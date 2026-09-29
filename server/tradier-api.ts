@@ -343,9 +343,16 @@ export interface OptionMark {
   bid: number;
   ask: number;
   mid: number;
-  /** Which venue actually answered. Never inferred — always the real one. */
-  source: 'tradier' | 'cboe';
-  /** True when the mark is the ~15-min delayed CBOE chain. */
+  /**
+   * Which venue actually answered. Never inferred — always the real one.
+   * 'alpaca' = Alpaca's free INDICATIVE options feed (not the OPRA NBBO).
+   */
+  source: 'tradier' | 'alpaca' | 'cboe' | 'yahoo';
+  /**
+   * False only for a real-time Tradier quote. Alpaca indicative, CBOE (~15 min)
+   * and Yahoo are all flagged delayed, so every existing "delayed quote" gate
+   * (e.g. the bot's opening-price-discovery wait) still applies to them.
+   */
   delayed: boolean;
 }
 
@@ -410,12 +417,12 @@ async function resolveOptionMark(
   // premium and reported a permanent +0.0%. Tradier is now the PREFERRED source,
   // not the only one: if it can't answer, fall through to the CBOE delayed chain.
   if (!key) {
-    return cboeOptionQuote(optionSymbol, params);
+    return fallbackOptionMark(optionSymbol, params);
   }
 
   // Breaker open → the round-trip is already known to fail. Go straight to CBOE.
   if (skipTradier(apiKey)) {
-    return cboeOptionQuote(optionSymbol, params);
+    return fallbackOptionMark(optionSymbol, params);
   }
 
   try {
@@ -431,14 +438,14 @@ async function resolveOptionMark(
       // 401 = unfunded/expired key, 4xx/5xx = outage. Either way Tradier can't price
       // this contract right now, and a stale mark is worse than a delayed one.
       noteTradierFailure(apiKey, `HTTP ${response.status}`);
-      return cboeOptionQuote(optionSymbol, params);
+      return fallbackOptionMark(optionSymbol, params);
     }
 
     const data = await response.json();
     const quote = data.quotes?.quote;
 
     if (!quote) {
-      return cboeOptionQuote(optionSymbol, params);
+      return fallbackOptionMark(optionSymbol, params);
     }
 
     const last = quote.last || 0;
@@ -450,12 +457,94 @@ async function resolveOptionMark(
     // contract Tradier doesn't cover. Treat it as a miss rather than marking the
     // position to $0.00 and booking a fabricated -100%.
     if (mid <= 0 && last <= 0) {
-      return cboeOptionQuote(optionSymbol, params);
+      return fallbackOptionMark(optionSymbol, params);
     }
 
     return { last, bid, ask, mid, source: 'tradier', delayed: false };
   } catch (error) {
-    return cboeOptionQuote(optionSymbol, params);
+    return fallbackOptionMark(optionSymbol, params);
+  }
+}
+
+/**
+ * Non-Tradier mark chain — the same provider order the Contract Engine uses for
+ * chains (server/contract-engine.ts): Alpaca indicative → CBOE delayed → Yahoo.
+ * Tradier's platform token is dead (401), so in practice this IS the option
+ * mark for the quant bot, paper positions and realtime pricing. Alpaca requests
+ * ride its process-wide budget in the BACKGROUND lane (no priority wrapper).
+ */
+async function fallbackOptionMark(
+  occSymbol: string,
+  params: { underlying?: string; expiryDate?: string; optionType?: 'call' | 'put'; strike?: number },
+): Promise<OptionMark | null> {
+  return (await alpacaOptionQuote(occSymbol, params))
+    ?? (await cboeOptionQuote(occSymbol, params))
+    ?? (await yahooOptionQuote(occSymbol, params));
+}
+
+function resolveContractParts(
+  occSymbol: string,
+  params: { underlying?: string; expiryDate?: string; optionType?: 'call' | 'put'; strike?: number },
+): { underlying: string; expiry: string; optionType: 'call' | 'put'; strike: number } | null {
+  let { underlying, expiryDate: expiry, optionType, strike } = params;
+  if (!underlying || !expiry || !optionType || !strike) {
+    const parsed = parseOptionSymbol(occSymbol);
+    if (!parsed) return null;
+    underlying = underlying || parsed.underlying;
+    expiry = expiry || parsed.expiry;
+    optionType = optionType || parsed.optionType;
+    strike = strike || parsed.strike;
+  }
+  if (!underlying || !expiry || !optionType || !strike) return null;
+  return { underlying, expiry: String(expiry).slice(0, 10), optionType, strike: Number(strike) };
+}
+
+/** Bid/ask/last → a delayed mark, or null when there is no price (never a $0.00 contract). */
+function toDelayedMark(bidRaw: unknown, askRaw: unknown, lastRaw: unknown, source: OptionMark['source']): OptionMark | null {
+  const bid = Number(bidRaw) || 0;
+  const ask = Number(askRaw) || 0;
+  const last = Number(lastRaw) || 0;
+  const mid = bid > 0 && ask > 0 ? (bid + ask) / 2 : ask || bid;
+  if (!(mid > 0)) return null;
+  return { last: last > 0 ? last : mid, bid, ask, mid, source, delayed: true };
+}
+
+async function alpacaOptionQuote(
+  occSymbol: string,
+  params: { underlying?: string; expiryDate?: string; optionType?: 'call' | 'put'; strike?: number },
+): Promise<OptionMark | null> {
+  try {
+    const parts = resolveContractParts(occSymbol, params);
+    if (!parts) return null;
+    const { getAlpacaContractQuote } = await import('./alpaca-options');
+    const q = await getAlpacaContractQuote(buildOptionSymbol(parts.underlying, parts.expiry, parts.optionType, parts.strike));
+    if (!q) return null;
+    // A quote with neither side is not a mark — fall through to CBOE.
+    if (!((q.bid ?? 0) > 0 || (q.ask ?? 0) > 0)) return null;
+    return toDelayedMark(q.bid, q.ask, q.last, 'alpaca');
+  } catch {
+    return null;
+  }
+}
+
+async function yahooOptionQuote(
+  occSymbol: string,
+  params: { underlying?: string; expiryDate?: string; optionType?: 'call' | 'put'; strike?: number },
+): Promise<OptionMark | null> {
+  try {
+    const parts = resolveContractParts(occSymbol, params);
+    if (!parts) return null;
+    const { getYahooEngineChain } = await import('./yahoo-options-fallback');
+    const { chain } = await getYahooEngineChain(parts.underlying, [parts.expiry]);
+    const row: any = chain.find((o: any) =>
+      o.option_type === parts.optionType &&
+      Math.abs(Number(o.strike) - parts.strike) < 0.01 &&
+      String(o.expiration_date).slice(0, 10) === parts.expiry,
+    );
+    if (!row) return null;
+    return toDelayedMark(row.bid, row.ask, row.last, 'yahoo');
+  } catch {
+    return null;
   }
 }
 
