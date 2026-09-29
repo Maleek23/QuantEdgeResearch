@@ -1077,18 +1077,18 @@
   --panel-solid:#ffffff;
   --panel-2:#f2f5f9;
   --panel-hi:#e7ecf3;
-  --nx-border:rgba(13,148,136,0.16);
-  --nx-border-hi:rgba(13,148,136,0.32);
-  --nx-border-glow:rgba(13,148,136,0.4);
+  --nx-border:rgba(29,99,209,0.16); /* was teal rgba(13,148,136) — off-palette */
+  --nx-border-hi:rgba(29,99,209,0.32);
+  --nx-border-glow:rgba(29,99,209,0.4);
   --text:#121826;
   --text-dim:#46536b;
   --text-mute:#5f697d; /* was #8a94a6 (2.6–3.1:1 on light panels); 4.7–5.5:1 now */
-  --cyan:#1d6ce0;
+  --cyan:#1a63d1; /* was #1d6ce0: 4.49:1 on --bg, 4.14:1 on --bg-2 — below AA; 5.1 / 4.7 now */
   --cyan-bright:#1557c0;
   --cyan-dim:#b8d4ff;
   --green:#047857;
-  --red:#c2410c;
-  --amber:#a16207;
+  --red:#b23c0b; /* was #c2410c (4.36:1 on --bg-2); 5.4 / 5.0 now */
+  --amber:#8f5706; /* was #a16207 (4.50 / 4.15:1); 5.4 / 5.0 now */
   --purple:#7c3aed;
   --blue:#2563eb;
   --pink:#db2777;
