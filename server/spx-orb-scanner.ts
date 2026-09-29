@@ -667,6 +667,14 @@ async function generateBreakoutSignal(
  */
 async function saveBreakoutAsTradeIdea(breakout: ORBBreakout): Promise<void> {
   try {
+    // `breakout.riskReward` is a display string ("1:2.0"). The column is a
+    // REAL, so writing the string threw `invalid input syntax for type real`
+    // on every ORB breakout that got past the gate (19 of 134 in the five
+    // sessions to 2026-09-29; the other 115 died on the catalyst gate, fixed
+    // separately). Store the number the levels actually imply.
+    const orbRisk = Math.abs(breakout.entry - breakout.stop);
+    const orbRR = orbRisk > 0 ? Math.abs(breakout.target1 - breakout.entry) / orbRisk : 0;
+
     // Convert ORB breakout to trade idea format
     const tradeIdea = {
       symbol: breakout.symbol,
@@ -675,7 +683,7 @@ async function saveBreakoutAsTradeIdea(breakout: ORBBreakout): Promise<void> {
       entryPrice: breakout.entry,
       targetPrice: breakout.target1,
       stopLoss: breakout.stop,
-      riskRewardRatio: breakout.riskReward,
+      riskRewardRatio: Number(orbRR.toFixed(2)),
       catalyst: `ORB ${breakout.timeframe} ${breakout.direction} breakout`,
       analysis: breakout.thesis,
       sessionContext: `${breakout.sessionPhase} - ${breakout.breakoutType} trade`,

@@ -51,6 +51,12 @@ export interface GexIdeaCandidate {
   callWall: number | null;
   putWall: number | null;
   regime: GexSnapshot["regime"];
+  /**
+   * Set when the setup has no GEX wall on its side to aim at. The target is
+   * then read from chart structure in finalizeCandidate() — never filled with a
+   * fixed percentage (the old `spot × 1.025` made an invented T1 look measured).
+   */
+  needsStructuralTarget?: boolean;
 }
 
 const DUPE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -76,26 +82,24 @@ function buildCandidate(snap: GexSnapshot): GexIdeaCandidate | null {
   // ── Setup 1: Flip Cross — negative gamma + close to flip ──
   if (regime === "negative_gamma" && Math.abs(flipDist) <= FLIP_PROXIMITY_PCT) {
     const direction: "long" | "short" = aboveFlip ? "long" : "short";
-    const target =
+    const wallTarget =
       direction === "long"
-        ? callWall && callWall > spot
-          ? callWall
-          : spot * 1.025
-        : putWall && putWall < spot
-          ? putWall
-          : spot * 0.975;
+        ? callWall && callWall > spot ? callWall : null
+        : putWall && putWall < spot ? putWall : null;
     const stop = direction === "long" ? Math.min(flipPoint, spot * 0.99) : Math.max(flipPoint, spot * 1.01);
     const risk = Math.abs(spot - stop);
-    const reward = Math.abs(target - spot);
-    if (risk <= 0 || reward / risk < MIN_RR) return null;
+    if (risk <= 0) return null;
+    const reward = wallTarget != null ? Math.abs(wallTarget - spot) : 0;
+    if (wallTarget != null && reward / risk < MIN_RR) return null;
     return {
       symbol: snap.symbol,
       setup: "flip_cross",
       direction,
       entry: round(spot),
-      target: round(target),
+      target: wallTarget != null ? round(wallTarget) : 0,
       stop: round(stop),
-      riskRewardRatio: +(reward / risk).toFixed(2),
+      riskRewardRatio: wallTarget != null ? +(reward / risk).toFixed(2) : 0,
+      needsStructuralTarget: wallTarget == null,
       confidence: 72,
       thesis: `Negative gamma flip cross — dealers must hedge ${direction === "long" ? "into rallies" : "into selloffs"}. Spot ${spot.toFixed(2)} just ${aboveFlip ? "above" : "below"} flip ${flipPoint.toFixed(2)}.`,
       flipPoint,
@@ -205,6 +209,42 @@ function round(x: number): number {
   return Math.round(x * 100) / 100;
 }
 
+/**
+ * Resolve a candidate that has no wall to aim at: read T1 from chart structure
+ * (prior swing / GEX wall within reach — server/structural-levels.ts) and keep
+ * the setup's own flip-based stop. No measured target → no idea.
+ */
+async function finalizeCandidate(c: GexIdeaCandidate): Promise<GexIdeaCandidate | null> {
+  if (!c.needsStructuralTarget) return c;
+  try {
+    const { deriveStructuralPlan } = await import("./structural-levels");
+    const d = await deriveStructuralPlan({
+      symbol: c.symbol,
+      direction: c.direction,
+      spot: c.entry,
+      horizon: c.setup === "flip_cross" ? "day" : "swing",
+      assetType: "option",
+      useGexWalls: false, // the snapshot already said there is no wall on this side
+    });
+    if (!d.plan) {
+      logger.info(`[GEX-SCANNER] ${c.symbol} ${c.setup}: no measured target — ${d.reason}`);
+      return null;
+    }
+    const risk = Math.abs(c.entry - c.stop);
+    const reward = Math.abs(d.plan.target - c.entry);
+    if (risk <= 0 || reward / risk < MIN_RR) return null;
+    return {
+      ...c,
+      target: round(d.plan.target),
+      riskRewardRatio: +(reward / risk).toFixed(2),
+      thesis: `${c.thesis} T1 from chart structure: ${d.plan.rationale}`,
+      needsStructuralTarget: false,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function isDuplicateRecent(
   symbol: string,
   setup: GexSetup,
@@ -226,8 +266,10 @@ async function isDuplicateRecent(
   }
 }
 
-async function persistCandidate(c: GexIdeaCandidate): Promise<boolean> {
-  if (await isDuplicateRecent(c.symbol, c.setup, c.direction)) return false;
+async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
+  if (await isDuplicateRecent(candidate.symbol, candidate.setup, candidate.direction)) return false;
+  const c = await finalizeCandidate(candidate);
+  if (!c) return false;
   const sector = getSector(c.symbol);
   const holdingPeriod = c.setup === "flip_cross" ? ("day" as const) : ("swing" as const);
 
@@ -364,7 +406,8 @@ export async function scanTickerForGexIdea(symbol: string): Promise<{
   const snap = await getGexSnapshot(symbol.toUpperCase());
   if (!snap) return { candidate: null, persisted: false, cached: false };
 
-  const candidate = buildCandidate(snap);
+  const raw = buildCandidate(snap);
+  const candidate = raw ? await finalizeCandidate(raw) : null;
   if (!candidate) return { candidate: null, persisted: false, cached: false };
 
   const persisted = await persistCandidate(candidate);
@@ -385,10 +428,11 @@ export async function scanBatchForGexIdeas(symbols: string[]): Promise<GexScanRe
 
   const snaps = await getGexSnapshotBatch(batch);
   const candidates: GexIdeaCandidate[] = [];
-  Array.from(snaps.values()).forEach((snap) => {
-    const c = buildCandidate(snap);
+  for (const snap of Array.from(snaps.values())) {
+    const raw = buildCandidate(snap);
+    const c = raw ? await finalizeCandidate(raw) : null;
     if (c) candidates.push(c);
-  });
+  }
 
   let persisted = 0;
   for (const c of candidates) {
@@ -417,10 +461,11 @@ export async function runGexIdeaScanner(): Promise<GexScanResult> {
   const snaps = await getGexSnapshotBatch(batch);
 
   const candidates: GexIdeaCandidate[] = [];
-  Array.from(snaps.values()).forEach((snap) => {
-    const c = buildCandidate(snap);
+  for (const snap of Array.from(snaps.values())) {
+    const raw = buildCandidate(snap);
+    const c = raw ? await finalizeCandidate(raw) : null;
     if (c) candidates.push(c);
-  });
+  }
   logger.info(`[GEX-SCANNER] ${candidates.length} candidates from ${snaps.size} snapshots`);
 
   let persisted = 0;

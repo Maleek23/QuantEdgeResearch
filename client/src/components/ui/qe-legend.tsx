@@ -18,14 +18,14 @@ import { HelpCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { bandColor } from '@/lib/design-tokens';
 import { cn } from '@/lib/utils';
+import { CONVICTION_BAND_CUTOFFS } from '@shared/conviction-bands';
+import { RATING_ACCURACY_SNAPSHOT } from '@shared/rating-accuracy';
 
 /**
- * Conviction band floors on the 13-layer conviction score.
- * Mirror of server/convictions-engine.ts band cutoffs (BAND_CUTOFFS = S 25 / A 19 / B 13).
- * Replace with the shared/conviction-bands.ts import once that module lands —
- * the server value is the only source of truth; do not tune these here.
+ * Conviction band floors on the conviction score — the server's own cutoffs
+ * (shared/conviction-bands.ts), imported rather than copied.
  */
-export const LEGEND_BAND_CUTOFFS = { S: 25, A: 19, B: 13 } as const;
+export const LEGEND_BAND_CUTOFFS = CONVICTION_BAND_CUTOFFS;
 
 const BAND_ROWS: { band: 'S' | 'A' | 'B' | 'C'; rule: string; meaning: string }[] = [
   { band: 'S', rule: `score ≥ ${LEGEND_BAND_CUTOFFS.S}`, meaning: 'Elite — meant to be rare (roughly the top 5% at fit time).' },
@@ -69,6 +69,60 @@ export function BandLegend() {
       <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
         The band is the one authoritative quality label: it is cut from the same conviction score the lists sort on.
         Cutoffs are the server&apos;s, not a client copy.
+      </p>
+      <RatingAccuracyNote />
+    </div>
+  );
+}
+
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+const r2 = (x: number) => `${x >= 0 ? '+' : ''}${x.toFixed(2)}R`;
+
+/**
+ * "How accurate are the ratings?" — the measured record, with n and 95%
+ * intervals, from a dated study (shared/rating-accuracy.ts). Shown wherever the
+ * bands are explained so a band is never read as a win probability it has not
+ * earned.
+ */
+export function RatingAccuracyNote() {
+  const s = RATING_ACCURACY_SNAPSHOT;
+  return (
+    <div className="mt-2 rounded-md border border-border/50 bg-muted/20 p-2.5">
+      <h4 className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-foreground/85">
+        How accurate are the ratings?
+      </h4>
+      <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{s.verdict}</p>
+      <table className="mt-2 w-full font-mono text-[10px] tabular-nums">
+        <caption className="sr-only">Measured outcomes by conviction band</caption>
+        <thead>
+          <tr className="text-left text-muted-foreground">
+            <th scope="col" className="pb-1 font-normal">Band</th>
+            <th scope="col" className="pb-1 font-normal">n</th>
+            <th scope="col" className="pb-1 font-normal">Hit rate (95% CI)</th>
+            <th scope="col" className="pb-1 font-normal">Avg R (95% CI)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {s.bands.map((b) => (
+            <tr key={b.band} className="text-foreground/85">
+              <td className="py-0.5 font-bold" style={{ color: bandColor(b.band) }}>{b.band}</td>
+              <td className="py-0.5">{b.n}</td>
+              <td className="py-0.5">{pct(b.hitRate)} <span className="text-muted-foreground">({pct(b.hitRateCI95[0])}–{pct(b.hitRateCI95[1])})</span></td>
+              <td className="py-0.5">{r2(b.expectancyR)} <span className="text-muted-foreground">({r2(b.expectancyCI95[0])} to {r2(b.expectancyCI95[1])})</span></td>
+            </tr>
+          ))}
+          <tr className="border-t border-border/40 text-foreground/85">
+            <td className="pt-1">All</td>
+            <td className="pt-1">{s.overall.n}</td>
+            <td className="pt-1">{pct(s.overall.hitRate)} <span className="text-muted-foreground">(break-even {pct(s.overall.breakEvenHitRate)})</span></td>
+            <td className="pt-1">{r2(s.overall.expectancyR)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+        Score vs outcome: Spearman {s.scoreVsOutcome.spearman.toFixed(2)} (95% CI {s.scoreVsOutcome.ci95[0].toFixed(2)} to{' '}
+        {s.scoreVsOutcome.ci95[1].toFixed(2)}, n={s.scoreVsOutcome.n}). Ideas published {s.window.from} to {s.window.to}; study as of {s.asOf}.
+        Hit rate counts ideas that reached target or stop; avg R includes ideas that timed out.
       </p>
     </div>
   );

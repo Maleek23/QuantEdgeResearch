@@ -27,14 +27,46 @@ const QUOTE_TTL_MS = 8_000;
 let _throttled429Until = 0;
 
 /**
+ * Cash indices have no equity ticker, so Yahoo only knows them by their caret
+ * symbol. The terminal keeps the canonical names (SPX, VIX) and callers pass
+ * them straight through — measured over 2026-09-24..29 in production, that was
+ * 2,511 `404`s on /chart/VIX and /chart/SPX, each one also costing a slot in
+ * the shared rate budget that then 429'd the requests that mattered.
+ *
+ * Translate only at the provider boundary. DJX and XSP are deliberately absent:
+ * they are fractional versions of an index (DJIA/100, SPX/10), so mapping them
+ * to the parent would return a price ten or a hundred times too large.
+ */
+const YAHOO_INDEX_SYMBOLS: Record<string, string> = {
+  SPX: '^GSPC',
+  GSPC: '^GSPC',
+  VIX: '^VIX',
+  VIX9D: '^VIX9D',
+  VIX3M: '^VIX3M',
+  VVIX: '^VVIX',
+  NDX: '^NDX',
+  RUT: '^RUT',
+  DJI: '^DJI',
+};
+
+/** Provider-boundary symbol for Yahoo's chart API ("SPX" → "^GSPC"). Idempotent. */
+export function toYahooSymbol(symbol: string): string {
+  let s = String(symbol ?? '').trim();
+  try { s = decodeURIComponent(s); } catch { /* already plain */ }
+  const upper = s.toUpperCase();
+  return YAHOO_INDEX_SYMBOLS[upper] ?? upper;
+}
+
+/**
  * Raw throttled GET against Yahoo's chart API. Returns null rather than throwing:
  * a missing quote must degrade a panel, never take down a request that was
  * fetching twenty other things.
  */
 export async function yahooChart(
-  symbol: string,
+  rawSymbol: string,
   opts: { range?: string; interval?: string; includePrePost?: boolean } = {},
 ): Promise<any | null> {
+  const symbol = toYahooSymbol(rawSymbol);
   const range = opts.range ?? '1d';
   const interval = opts.interval ?? '1m';
   const pre = opts.includePrePost ? '&includePrePost=true' : '';

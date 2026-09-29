@@ -1,0 +1,1061 @@
+{
+  "generatedAt": "2026-09-29T18:44:56.878Z",
+  "cutoffs": {
+    "S": 25,
+    "A": 19,
+    "B": 13
+  },
+  "sample": {
+    "resolvedValid": 797,
+    "unitSkipped": 1,
+    "replayed": 794,
+    "noData": 2,
+    "scored": 612,
+    "firstIdea": "2026-08-24T13:00:20.834Z",
+    "lastIdea": "2026-09-25T19:37:00.000Z",
+    "storedBandMatchesCurrentCutoffs": 1
+  },
+  "overall": {
+    "n": 796,
+    "replayed": 794,
+    "replay": {
+      "decided": 580,
+      "targets": 132,
+      "stops": 448,
+      "timeouts": 214,
+      "hitRate": 0.228,
+      "hitRateCI95": [
+        0.195,
+        0.263
+      ],
+      "breakEvenHitRate": 0.303,
+      "expectancyR": -0.175,
+      "expectancyCI95": [
+        -0.272,
+        -0.075
+      ]
+    },
+    "tracker": {
+      "decided": 281,
+      "targets": 64,
+      "stops": 217,
+      "expired": 515,
+      "hitRate": 0.228,
+      "hitRateCI95": [
+        0.183,
+        0.28
+      ]
+    }
+  },
+  "byBand": {
+    "S": {
+      "n": 41,
+      "replayed": 41,
+      "replay": {
+        "decided": 33,
+        "targets": 9,
+        "stops": 24,
+        "timeouts": 8,
+        "hitRate": 0.273,
+        "hitRateCI95": [
+          0.151,
+          0.442
+        ],
+        "breakEvenHitRate": 0.328,
+        "expectancyR": 0.082,
+        "expectancyCI95": [
+          -0.432,
+          0.638
+        ]
+      },
+      "tracker": {
+        "decided": 16,
+        "targets": 6,
+        "stops": 10,
+        "expired": 25,
+        "hitRate": 0.375,
+        "hitRateCI95": [
+          0.185,
+          0.614
+        ]
+      }
+    },
+    "A": {
+      "n": 101,
+      "replayed": 101,
+      "replay": {
+        "decided": 79,
+        "targets": 5,
+        "stops": 74,
+        "timeouts": 22,
+        "hitRate": 0.063,
+        "hitRateCI95": [
+          0.027,
+          0.14
+        ],
+        "breakEvenHitRate": 0.259,
+        "expectancyR": -0.636,
+        "expectancyCI95": [
+          -0.809,
+          -0.444
+        ]
+      },
+      "tracker": {
+        "decided": 31,
+        "targets": 5,
+        "stops": 26,
+        "expired": 70,
+        "hitRate": 0.161,
+        "hitRateCI95": [
+          0.071,
+          0.326
+        ]
+      }
+    },
+    "B": {
+      "n": 140,
+      "replayed": 140,
+      "replay": {
+        "decided": 101,
+        "targets": 23,
+        "stops": 78,
+        "timeouts": 39,
+        "hitRate": 0.228,
+        "hitRateCI95": [
+          0.157,
+          0.319
+        ],
+        "breakEvenHitRate": 0.248,
+        "expectancyR": 0.038,
+        "expectancyCI95": [
+          -0.224,
+          0.326
+        ]
+      },
+      "tracker": {
+        "decided": 29,
+        "targets": 9,
+        "stops": 20,
+        "expired": 111,
+        "hitRate": 0.31,
+        "hitRateCI95": [
+          0.173,
+          0.492
+        ]
+      }
+    },
+    "C": {
+      "n": 330,
+      "replayed": 328,
+      "replay": {
+        "decided": 236,
+        "targets": 60,
+        "stops": 176,
+        "timeouts": 92,
+        "hitRate": 0.254,
+        "hitRateCI95": [
+          0.203,
+          0.313
+        ],
+        "breakEvenHitRate": 0.312,
+        "expectancyR": -0.131,
+        "expectancyCI95": [
+          -0.279,
+          0.016
+        ]
+      },
+      "tracker": {
+        "decided": 128,
+        "targets": 28,
+        "stops": 100,
+        "expired": 202,
+        "hitRate": 0.219,
+        "hitRateCI95": [
+          0.156,
+          0.298
+        ]
+      }
+    },
+    "unscored": {
+      "n": 184,
+      "replayed": 184,
+      "replay": {
+        "decided": 131,
+        "targets": 35,
+        "stops": 96,
+        "timeouts": 53,
+        "hitRate": 0.267,
+        "hitRateCI95": [
+          0.199,
+          0.349
+        ],
+        "breakEvenHitRate": 0.348,
+        "expectancyR": -0.219,
+        "expectancyCI95": [
+          -0.427,
+          -0.001
+        ]
+      },
+      "tracker": {
+        "decided": 77,
+        "targets": 16,
+        "stops": 61,
+        "expired": 107,
+        "hitRate": 0.208,
+        "hitRateCI95": [
+          0.132,
+          0.311
+        ]
+      }
+    }
+  },
+  "monotonicity": {
+    "n": 610,
+    "spearmanScoreVsR": -0.14,
+    "spearmanCI95": [
+      -0.218,
+      -0.054
+    ],
+    "highMinusLowExpectancyR": -0.348,
+    "highN": 142,
+    "lowN": 468,
+    "permutationP_oneSided": 0.994,
+    "bandsStrictlyOrderedByExpectancy": false
+  },
+  "bySource": {
+    "flow": {
+      "n": 4,
+      "replayed": 4,
+      "replay": {
+        "decided": 4,
+        "targets": 1,
+        "stops": 3,
+        "timeouts": 0,
+        "hitRate": 0.25,
+        "hitRateCI95": [
+          0.046,
+          0.699
+        ],
+        "breakEvenHitRate": 0.333,
+        "expectancyR": -0.419,
+        "expectancyCI95": [
+          -1.508,
+          1.25
+        ]
+      },
+      "tracker": {
+        "decided": 4,
+        "targets": 1,
+        "stops": 3,
+        "expired": 0,
+        "hitRate": 0.25,
+        "hitRateCI95": [
+          0.046,
+          0.699
+        ]
+      }
+    },
+    "gex_scanner": {
+      "n": 31,
+      "replayed": 31,
+      "replay": {
+        "decided": 14,
+        "targets": 2,
+        "stops": 12,
+        "timeouts": 17,
+        "hitRate": 0.143,
+        "hitRateCI95": [
+          0.04,
+          0.399
+        ],
+        "breakEvenHitRate": 0.347,
+        "expectancyR": -0.464,
+        "expectancyCI95": [
+          -0.813,
+          -0.144
+        ]
+      },
+      "tracker": {
+        "decided": 12,
+        "targets": 4,
+        "stops": 8,
+        "expired": 19,
+        "hitRate": 0.333,
+        "hitRateCI95": [
+          0.138,
+          0.609
+        ]
+      }
+    },
+    "hybrid": {
+      "n": 1,
+      "replayed": 1,
+      "replay": {
+        "decided": 0,
+        "targets": 0,
+        "stops": 0,
+        "timeouts": 1,
+        "hitRate": null,
+        "hitRateCI95": null,
+        "breakEvenHitRate": null,
+        "expectancyR": 0.034,
+        "expectancyCI95": null
+      },
+      "tracker": {
+        "decided": 0,
+        "targets": 0,
+        "stops": 0,
+        "expired": 1,
+        "hitRate": null,
+        "hitRateCI95": null
+      }
+    },
+    "manual": {
+      "n": 1,
+      "replayed": 1,
+      "replay": {
+        "decided": 1,
+        "targets": 1,
+        "stops": 0,
+        "timeouts": 0,
+        "hitRate": 1,
+        "hitRateCI95": [
+          0.207,
+          1
+        ],
+        "breakEvenHitRate": 0.5,
+        "expectancyR": 1,
+        "expectancyCI95": null
+      },
+      "tracker": {
+        "decided": 0,
+        "targets": 0,
+        "stops": 0,
+        "expired": 1,
+        "hitRate": null,
+        "hitRateCI95": null
+      }
+    },
+    "market_scanner": {
+      "n": 242,
+      "replayed": 242,
+      "replay": {
+        "decided": 163,
+        "targets": 17,
+        "stops": 146,
+        "timeouts": 79,
+        "hitRate": 0.104,
+        "hitRateCI95": [
+          0.066,
+          0.161
+        ],
+        "breakEvenHitRate": 0.216,
+        "expectancyR": -0.165,
+        "expectancyCI95": [
+          -0.359,
+          0.041
+        ]
+      },
+      "tracker": {
+        "decided": 22,
+        "targets": 2,
+        "stops": 20,
+        "expired": 220,
+        "hitRate": 0.091,
+        "hitRateCI95": [
+          0.025,
+          0.278
+        ]
+      }
+    },
+    "quant": {
+      "n": 332,
+      "replayed": 330,
+      "replay": {
+        "decided": 245,
+        "targets": 71,
+        "stops": 174,
+        "timeouts": 85,
+        "hitRate": 0.29,
+        "hitRateCI95": [
+          0.237,
+          0.35
+        ],
+        "breakEvenHitRate": 0.299,
+        "expectancyR": -0.093,
+        "expectancyCI95": [
+          -0.232,
+          0.05
+        ]
+      },
+      "tracker": {
+        "decided": 135,
+        "targets": 43,
+        "stops": 92,
+        "expired": 197,
+        "hitRate": 0.319,
+        "hitRateCI95": [
+          0.246,
+          0.401
+        ]
+      }
+    },
+    "spx_session": {
+      "n": 184,
+      "replayed": 184,
+      "replay": {
+        "decided": 152,
+        "targets": 39,
+        "stops": 113,
+        "timeouts": 32,
+        "hitRate": 0.257,
+        "hitRateCI95": [
+          0.194,
+          0.331
+        ],
+        "breakEvenHitRate": 0.396,
+        "expectancyR": -0.301,
+        "expectancyCI95": [
+          -0.49,
+          -0.086
+        ]
+      },
+      "tracker": {
+        "decided": 107,
+        "targets": 13,
+        "stops": 94,
+        "expired": 77,
+        "hitRate": 0.121,
+        "hitRateCI95": [
+          0.072,
+          0.197
+        ]
+      }
+    },
+    "tradingview": {
+      "n": 1,
+      "replayed": 1,
+      "replay": {
+        "decided": 1,
+        "targets": 1,
+        "stops": 0,
+        "timeouts": 0,
+        "hitRate": 1,
+        "hitRateCI95": [
+          0.207,
+          1
+        ],
+        "breakEvenHitRate": 0.34,
+        "expectancyR": 1.938,
+        "expectancyCI95": null
+      },
+      "tracker": {
+        "decided": 1,
+        "targets": 1,
+        "stops": 0,
+        "expired": 0,
+        "hitRate": 1,
+        "hitRateCI95": [
+          0.207,
+          1
+        ]
+      }
+    }
+  },
+  "bySourceBand": {
+    "gex_scanner": {
+      "S": {
+        "n": 0,
+        "replayed": 0,
+        "replay": {
+          "decided": 0,
+          "targets": 0,
+          "stops": 0,
+          "timeouts": 0,
+          "hitRate": null,
+          "hitRateCI95": null,
+          "breakEvenHitRate": null,
+          "expectancyR": null,
+          "expectancyCI95": null
+        },
+        "tracker": {
+          "decided": 0,
+          "targets": 0,
+          "stops": 0,
+          "expired": 0,
+          "hitRate": null,
+          "hitRateCI95": null
+        }
+      },
+      "A": {
+        "n": 1,
+        "replayed": 1,
+        "replay": {
+          "decided": 0,
+          "targets": 0,
+          "stops": 0,
+          "timeouts": 1,
+          "hitRate": null,
+          "hitRateCI95": null,
+          "breakEvenHitRate": null,
+          "expectancyR": 0.867,
+          "expectancyCI95": null
+        },
+        "tracker": {
+          "decided": 1,
+          "targets": 1,
+          "stops": 0,
+          "expired": 0,
+          "hitRate": 1,
+          "hitRateCI95": [
+            0.207,
+            1
+          ]
+        }
+      },
+      "B": {
+        "n": 2,
+        "replayed": 2,
+        "replay": {
+          "decided": 1,
+          "targets": 0,
+          "stops": 1,
+          "timeouts": 1,
+          "hitRate": 0,
+          "hitRateCI95": [
+            0,
+            0.793
+          ],
+          "breakEvenHitRate": 0.286,
+          "expectancyR": -0.604,
+          "expectancyCI95": [
+            -1,
+            -0.208
+          ]
+        },
+        "tracker": {
+          "decided": 2,
+          "targets": 1,
+          "stops": 1,
+          "expired": 0,
+          "hitRate": 0.5,
+          "hitRateCI95": [
+            0.095,
+            0.905
+          ]
+        }
+      },
+      "C": {
+        "n": 18,
+        "replayed": 18,
+        "replay": {
+          "decided": 9,
+          "targets": 2,
+          "stops": 7,
+          "timeouts": 9,
+          "hitRate": 0.222,
+          "hitRateCI95": [
+            0.063,
+            0.547
+          ],
+          "breakEvenHitRate": 0.368,
+          "expectancyR": -0.522,
+          "expectancyCI95": [
+            -1.037,
+            -0.022
+          ]
+        },
+        "tracker": {
+          "decided": 8,
+          "targets": 2,
+          "stops": 6,
+          "expired": 10,
+          "hitRate": 0.25,
+          "hitRateCI95": [
+            0.071,
+            0.591
+          ]
+        }
+      }
+    },
+    "market_scanner": {
+      "S": {
+        "n": 10,
+        "replayed": 10,
+        "replay": {
+          "decided": 7,
+          "targets": 3,
+          "stops": 4,
+          "timeouts": 3,
+          "hitRate": 0.429,
+          "hitRateCI95": [
+            0.158,
+            0.75
+          ],
+          "breakEvenHitRate": 0.371,
+          "expectancyR": 1.074,
+          "expectancyCI95": [
+            -0.383,
+            2.821
+          ]
+        },
+        "tracker": {
+          "decided": 0,
+          "targets": 0,
+          "stops": 0,
+          "expired": 10,
+          "hitRate": null,
+          "hitRateCI95": null
+        }
+      },
+      "A": {
+        "n": 51,
+        "replayed": 51,
+        "replay": {
+          "decided": 39,
+          "targets": 1,
+          "stops": 38,
+          "timeouts": 12,
+          "hitRate": 0.026,
+          "hitRateCI95": [
+            0.005,
+            0.132
+          ],
+          "breakEvenHitRate": 0.231,
+          "expectancyR": -0.586,
+          "expectancyCI95": [
+            -0.829,
+            -0.325
+          ]
+        },
+        "tracker": {
+          "decided": 2,
+          "targets": 0,
+          "stops": 2,
+          "expired": 49,
+          "hitRate": 0,
+          "hitRateCI95": [
+            0,
+            0.658
+          ]
+        }
+      },
+      "B": {
+        "n": 95,
+        "replayed": 95,
+        "replay": {
+          "decided": 62,
+          "targets": 5,
+          "stops": 57,
+          "timeouts": 33,
+          "hitRate": 0.081,
+          "hitRateCI95": [
+            0.035,
+            0.175
+          ],
+          "breakEvenHitRate": 0.202,
+          "expectancyR": -0.159,
+          "expectancyCI95": [
+            -0.493,
+            0.189
+          ]
+        },
+        "tracker": {
+          "decided": 9,
+          "targets": 0,
+          "stops": 9,
+          "expired": 86,
+          "hitRate": 0,
+          "hitRateCI95": [
+            0,
+            0.299
+          ]
+        }
+      },
+      "C": {
+        "n": 78,
+        "replayed": 78,
+        "replay": {
+          "decided": 48,
+          "targets": 5,
+          "stops": 43,
+          "timeouts": 30,
+          "hitRate": 0.104,
+          "hitRateCI95": [
+            0.045,
+            0.222
+          ],
+          "breakEvenHitRate": 0.188,
+          "expectancyR": -0.069,
+          "expectancyCI95": [
+            -0.398,
+            0.325
+          ]
+        },
+        "tracker": {
+          "decided": 9,
+          "targets": 0,
+          "stops": 9,
+          "expired": 69,
+          "hitRate": 0,
+          "hitRateCI95": [
+            0,
+            0.299
+          ]
+        }
+      }
+    },
+    "quant": {
+      "S": {
+        "n": 28,
+        "replayed": 28,
+        "replay": {
+          "decided": 23,
+          "targets": 5,
+          "stops": 18,
+          "timeouts": 5,
+          "hitRate": 0.217,
+          "hitRateCI95": [
+            0.097,
+            0.419
+          ],
+          "breakEvenHitRate": 0.315,
+          "expectancyR": -0.239,
+          "expectancyCI95": [
+            -0.7,
+            0.282
+          ]
+        },
+        "tracker": {
+          "decided": 13,
+          "targets": 5,
+          "stops": 8,
+          "expired": 15,
+          "hitRate": 0.385,
+          "hitRateCI95": [
+            0.177,
+            0.645
+          ]
+        }
+      },
+      "A": {
+        "n": 48,
+        "replayed": 48,
+        "replay": {
+          "decided": 39,
+          "targets": 4,
+          "stops": 35,
+          "timeouts": 9,
+          "hitRate": 0.103,
+          "hitRateCI95": [
+            0.041,
+            0.236
+          ],
+          "breakEvenHitRate": 0.285,
+          "expectancyR": -0.712,
+          "expectancyCI95": [
+            -0.951,
+            -0.433
+          ]
+        },
+        "tracker": {
+          "decided": 27,
+          "targets": 4,
+          "stops": 23,
+          "expired": 21,
+          "hitRate": 0.148,
+          "hitRateCI95": [
+            0.059,
+            0.325
+          ]
+        }
+      },
+      "B": {
+        "n": 41,
+        "replayed": 41,
+        "replay": {
+          "decided": 36,
+          "targets": 17,
+          "stops": 19,
+          "timeouts": 5,
+          "hitRate": 0.472,
+          "hitRateCI95": [
+            0.32,
+            0.63
+          ],
+          "breakEvenHitRate": 0.32,
+          "expectancyR": 0.508,
+          "expectancyCI95": [
+            0.024,
+            0.961
+          ]
+        },
+        "tracker": {
+          "decided": 16,
+          "targets": 8,
+          "stops": 8,
+          "expired": 25,
+          "hitRate": 0.5,
+          "hitRateCI95": [
+            0.28,
+            0.72
+          ]
+        }
+      },
+      "C": {
+        "n": 141,
+        "replayed": 139,
+        "replay": {
+          "decided": 102,
+          "targets": 35,
+          "stops": 67,
+          "timeouts": 37,
+          "hitRate": 0.343,
+          "hitRateCI95": [
+            0.258,
+            0.439
+          ],
+          "breakEvenHitRate": 0.3,
+          "expectancyR": 0.06,
+          "expectancyCI95": [
+            -0.152,
+            0.282
+          ]
+        },
+        "tracker": {
+          "decided": 49,
+          "targets": 17,
+          "stops": 32,
+          "expired": 92,
+          "hitRate": 0.347,
+          "hitRateCI95": [
+            0.229,
+            0.487
+          ]
+        }
+      }
+    },
+    "spx_session": {
+      "S": {
+        "n": 0,
+        "replayed": 0,
+        "replay": {
+          "decided": 0,
+          "targets": 0,
+          "stops": 0,
+          "timeouts": 0,
+          "hitRate": null,
+          "hitRateCI95": null,
+          "breakEvenHitRate": null,
+          "expectancyR": null,
+          "expectancyCI95": null
+        },
+        "tracker": {
+          "decided": 0,
+          "targets": 0,
+          "stops": 0,
+          "expired": 0,
+          "hitRate": null,
+          "hitRateCI95": null
+        }
+      },
+      "A": {
+        "n": 0,
+        "replayed": 0,
+        "replay": {
+          "decided": 0,
+          "targets": 0,
+          "stops": 0,
+          "timeouts": 0,
+          "hitRate": null,
+          "hitRateCI95": null,
+          "breakEvenHitRate": null,
+          "expectancyR": null,
+          "expectancyCI95": null
+        },
+        "tracker": {
+          "decided": 0,
+          "targets": 0,
+          "stops": 0,
+          "expired": 0,
+          "hitRate": null,
+          "hitRateCI95": null
+        }
+      },
+      "B": {
+        "n": 2,
+        "replayed": 2,
+        "replay": {
+          "decided": 2,
+          "targets": 1,
+          "stops": 1,
+          "timeouts": 0,
+          "hitRate": 0.5,
+          "hitRateCI95": [
+            0.095,
+            0.905
+          ],
+          "breakEvenHitRate": 0.361,
+          "expectancyR": 0.357,
+          "expectancyCI95": [
+            -1,
+            1.714
+          ]
+        },
+        "tracker": {
+          "decided": 2,
+          "targets": 0,
+          "stops": 2,
+          "expired": 0,
+          "hitRate": 0,
+          "hitRateCI95": [
+            0,
+            0.658
+          ]
+        }
+      },
+      "C": {
+        "n": 92,
+        "replayed": 92,
+        "replay": {
+          "decided": 77,
+          "targets": 18,
+          "stops": 59,
+          "timeouts": 15,
+          "hitRate": 0.234,
+          "hitRateCI95": [
+            0.153,
+            0.34
+          ],
+          "breakEvenHitRate": 0.4,
+          "expectancyR": -0.398,
+          "expectancyCI95": [
+            -0.632,
+            -0.154
+          ]
+        },
+        "tracker": {
+          "decided": 62,
+          "targets": 9,
+          "stops": 53,
+          "expired": 30,
+          "hitRate": 0.145,
+          "hitRateCI95": [
+            0.078,
+            0.253
+          ]
+        }
+      }
+    }
+  },
+  "byWeekBand": {
+    "2026-08-24": {
+      "S": {
+        "n": 29,
+        "expectancyR": -0.195,
+        "hitRate": 0.217
+      },
+      "B": {
+        "n": 41,
+        "expectancyR": 0.535,
+        "hitRate": 0.486
+      },
+      "A": {
+        "n": 45,
+        "expectancyR": -0.658,
+        "hitRate": 0.111
+      },
+      "unscored": {
+        "n": 142,
+        "expectancyR": -0.324,
+        "hitRate": 0.25
+      },
+      "C": {
+        "n": 214,
+        "expectancyR": -0.099,
+        "hitRate": 0.317
+      }
+    },
+    "2026-08-31": {
+      "unscored": {
+        "n": 29,
+        "expectancyR": 0.311,
+        "hitRate": 0.364
+      },
+      "C": {
+        "n": 69,
+        "expectancyR": -0.259,
+        "hitRate": 0.026
+      },
+      "S": {
+        "n": 3,
+        "expectancyR": -0.409,
+        "hitRate": 0.333
+      },
+      "B": {
+        "n": 49,
+        "expectancyR": -0.182,
+        "hitRate": 0.067
+      },
+      "A": {
+        "n": 22,
+        "expectancyR": -0.892,
+        "hitRate": 0.053
+      }
+    },
+    "2026-09-07": {
+      "unscored": {
+        "n": 10,
+        "expectancyR": -0.379,
+        "hitRate": 0.143
+      },
+      "C": {
+        "n": 37,
+        "expectancyR": 0.04,
+        "hitRate": 0.192
+      },
+      "B": {
+        "n": 49,
+        "expectancyR": -0.154,
+        "hitRate": 0.088
+      },
+      "A": {
+        "n": 32,
+        "expectancyR": -0.463,
+        "hitRate": 0
+      },
+      "S": {
+        "n": 6,
+        "expectancyR": 1.821,
+        "hitRate": 0.5
+      }
+    },
+    "2026-09-21": {
+      "C": {
+        "n": 8,
+        "expectancyR": -0.67,
+        "hitRate": 0.2
+      },
+      "A": {
+        "n": 2,
+        "expectancyR": -0.066,
+        "hitRate": 0
+      },
+      "S": {
+        "n": 3,
+        "expectancyR": -0.226,
+        "hitRate": 0.333
+      },
+      "unscored": {
+        "n": 3,
+        "expectancyR": 0.181,
+        "hitRate": 0.5
+      },
+      "B": {
+        "n": 1,
+        "expectancyR": -0.208,
+        "hitRate": null
+      }
+    }
+  }
+}

@@ -149,6 +149,10 @@ class MultiSourceMarketData {
   private async fetchTradier(symbol: string): Promise<PriceData | null> {
     const key = process.env.TRADIER_API_KEY;
     if (!key) return null;
+    // Honour the shared breaker: a rejected platform key 401s forever, and this
+    // leg was logging "tradier failed for ^VIX" ~2,500 times in five sessions.
+    const { isPlatformTradierUsable, reportPlatformTradierFailure } = await import('./tradier-api');
+    if (!isPlatformTradierUsable()) return null;
 
     const baseUrl = process.env.TRADIER_USE_SANDBOX === 'true'
       ? 'https://sandbox.tradier.com'
@@ -164,7 +168,10 @@ class MultiSourceMarketData {
       }
     );
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      reportPlatformTradierFailure(response.status);
+      throw new Error(`HTTP ${response.status}`);
+    }
 
     const data = await response.json();
     const quote = data?.quotes?.quote;
