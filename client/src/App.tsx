@@ -385,7 +385,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
+  const publicPages = ['/', '/w', '/landing', '/features', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/admin/old', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog', '/pricing'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {

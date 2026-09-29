@@ -1,13 +1,19 @@
 /**
  * JOURNAL — "How do I get better"
  *
- * Tabs: Trade Log | History | Metrics | Backtest
+ * Tabs: Trade Log | Track record | Backtest  (+ an "Import flow" action)
  */
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// Flow Import (Bullflow paste-box) lost its only surface when the Trade Desk
+// was retired (SR 11-7 F7.10). It is re-homed here as a small action: the
+// journal is where you record what you saw and took.
+const FlowImport = lazy(() => import('@/components/trade-desk/flow-import').then(m => ({ default: m.FlowImport })));
 
 const Performance       = lazy(() => import('@/pages/performance'));
 const TradeJournal      = lazy(() => import('@/pages/trade-journal'));
@@ -43,10 +49,41 @@ const VALID_TABS = TABS.map(t => t.id);
 
 export default function JournalShell() {
   const [tab, setTab] = useTabState<Tab>('log', VALID_TABS, 'jtab');
+  const [importOpen, setImportOpen] = useState(false);
 
   return (
     <div className="space-y-3 px-4 py-3">
-      <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
+      <QETabs
+        items={TABS}
+        active={tab}
+        onChange={setTab}
+        prefixLabel="VIEW"
+        ariaLabel="Journal views"
+        rightSlot={
+          <button
+            type="button"
+            onClick={() => setImportOpen((o) => !o)}
+            aria-expanded={importOpen}
+            aria-controls="journal-flow-import"
+            className={cn(
+              'inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-[10px] font-bold uppercase transition-colors',
+              importOpen
+                ? 'text-[var(--brand-cyan)] bg-[var(--brand-cyan)]/10 ring-1 ring-[var(--brand-cyan)]/40'
+                : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]',
+            )}
+          >
+            <Upload className="h-3 w-3" /> Import flow
+          </button>
+        }
+      />
+
+      {importOpen && (
+        <div id="journal-flow-import" className="rounded-lg border border-border/40 bg-card/60 p-3">
+          <Suspense fallback={<Loading />}>
+            <FlowImport bare />
+          </Suspense>
+        </div>
+      )}
 
       <PageErrorBoundary label={`Journal · ${tab}`}>
         <Suspense fallback={<Loading />}>

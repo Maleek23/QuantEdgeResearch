@@ -15,6 +15,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Bell, Volume2, VolumeX, Trash2, Loader2, AlertTriangle, RotateCw } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import type { ConvictionsResponse } from '@/lib/convictions';
 import {
@@ -195,13 +199,34 @@ export default function AlertsPage() {
               </CardDescription>
             </div>
             {feed.length > 0 && (
-              <Button
-                variant="ghost" size="sm"
-                onClick={() => { clearFeed(); setFeed([]); }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear
-              </Button>
+              // Clearing the feed is irreversible — confirm first (SR 11-7 F7.9 / T8).
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost" size="sm"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Clear
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear the alert feed?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This removes all {feed.length} alert{feed.length === 1 ? '' : 's'} stored on this device. It cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep them</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-[var(--trade-bearish)] text-white hover:bg-[var(--trade-bearish)]/90"
+                      onClick={() => { clearFeed(); setFeed([]); }}
+                    >
+                      Clear feed
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </CardHeader>
           <CardContent className="px-0">

@@ -16,7 +16,16 @@
  *   the Terminal; that redirect could never fire.
  * - Parametric sources (/stock/:symbol etc.) keep their param substitution.
  *
- * To retire another URL: add one line to LEGACY_REDIRECTS. Nothing else changes.
+ * - 2026-09-24 retirements (/trade-desk, /automations, /performance) re-broke
+ *   the "one hop" rule: a dozen rows still pointed at them (SR 11-7 F7.8). Those
+ *   rows now name the final destination, AND the resolver follows chains
+ *   (visited set, max 3 hops) and carries query params across every hop, so a
+ *   future retirement degrades to an extra hop instead of a dropped query.
+ *   research/check-legacy-redirects.ts asserts every row lands on a live route
+ *   in one hop — run it after editing this table.
+ *
+ * To retire another URL: add one line to LEGACY_REDIRECTS, and repoint any rows
+ * that targeted it. Nothing else changes.
  */
 
 export type LegacyTarget = string | ((params: Record<string, string>) => string);
@@ -86,12 +95,12 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/command/:symbol", (p) => `/r/${p.symbol}?tab=chart`],
   ["/gex/:symbol", (p) => `/r/${p.symbol}?tab=gex`],
 
-  // ── Trade Desk ─────────────────────────────────────────────────────────
-  ["/trade-desk-v2", "/trade-desk"],
-  ["/discover", "/trade-desk"],
-  ["/wsb-trending", "/trade-desk"],
-  ["/social-trends", "/trade-desk"],
-  ["/ai-stock-picker", "/trade-desk"],
+  // ── Trade Desk (retired 2026-09-24 → Slate) ───────────────────────────
+  ["/trade-desk-v2", "/slate"],
+  ["/discover", "/slate"],
+  ["/wsb-trending", "/slate"],
+  ["/social-trends", "/slate"],
+  ["/ai-stock-picker", "/slate"],
   ["/trade-ideas", "/slate"],
   // Retired 2026-09-24 (nav-architecture test N6): Trade Desk duplicated the
   // NEXUS board and Slate and read "0 ideas" while the board had them;
@@ -100,22 +109,24 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/automations", "/t?tab=bot"],
   // PERF duplicated JOURNAL › Track record (same component, two doors).
   ["/performance", "/t?tab=journal&jtab=metrics"],
-  ["/convictions", "/trade-desk?preset=todays-best"],
-  ["/futures", "/trade-desk?tab=futures"],
-  ["/futures-research", "/trade-desk?tab=futures"],
+  // Slate is the ranked-ideas surface Trade Desk's "todays-best" preset was.
+  ["/convictions", "/slate"],
+  // The Trade Desk futures tab has no successor surface; Slate is the ideas home.
+  ["/futures", "/slate"],
+  ["/futures-research", "/slate"],
 
-  // ── Performance ────────────────────────────────────────────────────────
-  ["/trading-engine", "/performance"],
-  ["/historical-intelligence", "/performance"],
-  ["/smart-advisor", "/performance"],
-  ["/convictions/backtest", "/performance"],
-  ["/data-audit", "/performance"],
-  ["/insights", "/performance"],
-  ["/analytics", "/performance"],
-  ["/signals", "/performance"],
+  // ── Performance (retired 2026-09-24 → JOURNAL › Track record) ───────────
+  ["/trading-engine", "/t?tab=journal&jtab=metrics"],
+  ["/historical-intelligence", "/t?tab=journal&jtab=metrics"],
+  ["/smart-advisor", "/t?tab=journal&jtab=metrics"],
+  ["/convictions/backtest", "/t?tab=journal&jtab=metrics"],
+  ["/data-audit", "/t?tab=journal&jtab=metrics"],
+  ["/insights", "/t?tab=journal&jtab=metrics"],
+  ["/analytics", "/t?tab=journal&jtab=metrics"],
+  ["/signals", "/t?tab=journal&jtab=metrics"],
 
   // ── Misc ───────────────────────────────────────────────────────────────
-  ["/watchlist-bot", "/automations"],
+  ["/watchlist-bot", "/t?tab=bot"], // Automations retired 2026-09-24 → BOT tab
   ["/account", "/settings"],
   ["/my-account", "/settings"],
   ["/trading-guide", "/blog/how-to-trade-like-a-pro"],
@@ -148,11 +159,8 @@ const COMPILED: CompiledEntry[] = LEGACY_REDIRECTS.map(([pattern, target]) => ({
   target,
 }));
 
-/**
- * Resolve a legacy pathname to its redirect target, or null if it isn't legacy.
- * Pure function — no router dependency, safe to unit test.
- */
-export function resolveLegacyRedirect(pathname: string): string | null {
+/** One table lookup, no chain following. Exported for the hygiene check. */
+export function resolveLegacyRedirectOnce(pathname: string): string | null {
   const path = pathname.split("?")[0].split("#")[0];
   for (const { regex, keys, target } of COMPILED) {
     const m = regex.exec(path);
@@ -165,6 +173,59 @@ export function resolveLegacyRedirect(pathname: string): string | null {
     return target(params);
   }
   return null;
+}
+
+/** Max redirects followed for one legacy URL (T11). */
+export const MAX_REDIRECT_HOPS = 3;
+
+function splitUrl(url: string): { path: string; params: URLSearchParams } {
+  const noHash = url.split("#")[0];
+  const q = noHash.indexOf("?");
+  return q < 0
+    ? { path: noHash, params: new URLSearchParams() }
+    : { path: noHash.slice(0, q), params: new URLSearchParams(noHash.slice(q + 1)) };
+}
+
+/**
+ * Resolve a legacy URL to its FINAL destination, or null if it isn't legacy.
+ *
+ * - Follows chains (a target that is itself legacy) with a visited set and at
+ *   most MAX_REDIRECT_HOPS hops, so a cycle can't spin.
+ * - Preserves query params across every hop: the incoming query is kept, and a
+ *   hop's own target params win on conflicts (they are what route it — e.g.
+ *   `tab=bot`). `/performance?jtab=x` still lands on the Track record tab.
+ *
+ * `search` is the incoming query string. wouter's useLocation() returns only
+ * the pathname, so when it is omitted and `pathname` carries no query, the
+ * current window.location.search is used — but only if window's pathname is
+ * the one being resolved. Without a window (tests, scripts) this is pure.
+ */
+export function resolveLegacyRedirect(pathname: string, search?: string): string | null {
+  let { path, params } = splitUrl(pathname);
+  if (search === undefined && !pathname.includes("?") && typeof window !== "undefined" && window.location?.pathname === path) {
+    search = window.location.search;
+  }
+  if (search) {
+    new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).forEach((v, k) => {
+      if (!params.has(k)) params.set(k, v);
+    });
+  }
+
+  const visited = new Set<string>([path]);
+  let resolved = false;
+  for (let hop = 0; hop < MAX_REDIRECT_HOPS; hop++) {
+    const next = resolveLegacyRedirectOnce(path);
+    if (next == null) break;
+    const { path: nextPath, params: nextParams } = splitUrl(next);
+    nextParams.forEach((v, k) => params.set(k, v)); // hop target wins on conflicts
+    path = nextPath;
+    resolved = true;
+    if (visited.has(path)) break; // cycle — stop where we are
+    visited.add(path);
+  }
+  if (!resolved) return null;
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
 }
 
 /**

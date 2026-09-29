@@ -51,7 +51,7 @@ export default function HowToPage() {
       <Section title="What Each Page Does" subtitle="Eight destinations — that's the whole product.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <PageCard icon={Home}       url="/t"      title="Terminal"        desc="NEXUS home — market briefing, rotation, signals, and every tab" />
-          <PageCard icon={Target}     url="/radar"  title="Thesis Radar"    desc="6 patterns × 120 tickers, scanned 5×/day, A+ pushes to Trade Desk" />
+          <PageCard icon={Target}     url="/radar"  title="Thesis Radar"    desc="6 patterns × 120 tickers, scanned 5×/day, A+ pushes to the Slate" />
           <PageCard icon={Bitcoin}    url="/t?tab=crypto" title="BTC Radar" desc="Live BTC + 14 crypto-equity beta tracker, fires on level breaks" />
           <PageCard icon={Crosshair}  url="/slate" title="Slate"  desc="Today's measured setups and the pre-market gappers" />
           <PageCard icon={Zap}        url="/t?tab=gex" title="GEX & Flow"   desc="Dealer gamma walls + options flow — your entry/exit lens" />
@@ -87,7 +87,7 @@ export default function HowToPage() {
             </p>
             <p>
               <span className="text-[var(--brand-cyan)]">4.</span>{' '}
-              Picks ≥ <strong>B+</strong> auto-push to Trade Desk + Discord (when webhook configured)
+              Picks ≥ <strong>B+</strong> auto-push to the <Link href="/slate" className="text-[var(--brand-cyan)] underline">Slate</Link> + Discord (when webhook configured)
             </p>
             <p>
               <span className="text-[var(--brand-cyan)]">5.</span>{' '}

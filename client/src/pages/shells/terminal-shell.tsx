@@ -80,6 +80,8 @@ const CatalystNexus = lazy(() => import('@/components/catalyst/catalyst-nexus').
 import { TABS, PAGES, type Tab } from '@/components/shell/nav-model';
 import { MobileDock } from '@/components/shell/mobile-dock';
 import { CustomizePanel } from '@/components/shell/customize-panel';
+import { SkipLink, MAIN_CONTENT_ID } from '@/components/shell/skip-link';
+import { useDismissable } from '@/hooks/use-dismissable';
 export { TABS };
 export type { Tab };
 
@@ -101,6 +103,12 @@ const isTab = (v: string | null): v is Tab => !!v && TABS.some((t) => t.id === v
 const MOVED_TABS: Record<string, Tab> = { prism: 'gex', heatmap: 'gex' };
 const resolveTab = (v: string | null): Tab =>
   isTab(v) ? v : (v && MOVED_TABS[v]) || 'oracle';
+/** A ?tab= value that is neither a tab nor a known move — surfaced, not swallowed (F7.12). */
+const unknownTabOf = (v: string | null): string | null =>
+  v && !isTab(v) && !MOVED_TABS[v] ? v : null;
+
+/** First-run flag: absent → the guide opens on the first /t visit (T9). */
+const ONBOARDED_KEY = 'qe-onboarded-v1';
 
 type MarketFocus = 'pulse' | 'rotation' | 'brief';
 const MARKET_FOCUS_COPY: Record<MarketFocus, { eyebrow: string; title: string; description: string }> = {
@@ -127,6 +135,7 @@ export default function TerminalShell() {
   const [location, setLocation] = useLocation();
   const urlTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
   const [tab, setTabState] = useState<Tab>(resolveTab(urlTab));
+  const [unknownTab, setUnknownTab] = useState<string | null>(unknownTabOf(urlTab));
 
   const setTab = useCallback((next: Tab) => {
     setTabState(next);
@@ -140,12 +149,30 @@ export default function TerminalShell() {
   // Follow back/forward and external navigations that change ?tab=
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    setTabState((cur) => (isTab(t) ? t : 'oracle') === cur ? cur : (isTab(t) ? t : 'oracle'));
+    // resolveTab (not a bare isTab) so MOVED_TABS (prism/heatmap → gex) survive
+    // this effect's first run instead of being reset to NEXUS.
+    const next = resolveTab(t);
+    setTabState((cur) => (next === cur ? cur : next));
+    setUnknownTab(unknownTabOf(t));
   }, [location]);
 
   const [guideOpen, setGuideOpen] = useState(false);
+  // First /t visit: open the guide once. Storage can throw (private mode) — then
+  // we simply don't auto-open rather than nag on every visit.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARDED_KEY)) setGuideOpen(true);
+    } catch { /* storage unavailable — skip onboarding */ }
+  }, []);
+  const closeGuide = useCallback(() => {
+    setGuideOpen(false);
+    try { localStorage.setItem(ONBOARDED_KEY, new Date().toISOString()); } catch { /* non-critical */ }
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const accountTriggerRef = useRef<HTMLButtonElement>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  useDismissable(accountOpen, () => setAccountOpen(false), { panelRef: accountMenuRef, triggerRef: accountTriggerRef });
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -222,6 +249,7 @@ export default function TerminalShell() {
       <KitStyles />
       {/* ── persistent chrome — the reference terminal's topbar, verbatim
              classes from styles/nexus.css. Every tab wears it. ── */}
+      <SkipLink />
       <header className="sticky top-0 z-20">
         <div className="topbar" style={{ minHeight: 44 }}>
           <Link href="/today" className="brand" aria-label="Quant Edge Labs — home" style={{ textDecoration: 'none' }}>
@@ -294,9 +322,11 @@ export default function TerminalShell() {
               stays pixel-true to the reference. */}
           <div className="relative">
               <button
+                ref={accountTriggerRef}
                 onClick={() => setAccountOpen((open) => !open)}
                 aria-label="Open account menu"
                 aria-expanded={accountOpen}
+                aria-haspopup="menu"
                 className="user-chip"
               >
                 <div className="user-avatar">{accountInitial}</div>
@@ -313,6 +343,8 @@ export default function TerminalShell() {
               <AnimatePresence>
                 {accountOpen && (
                   <motion.div
+                    ref={accountMenuRef}
+                    aria-label="Account"
                     className="absolute right-0 top-9 z-40 w-52 rounded-lg border border-border/70 bg-card p-1.5 shadow-xl shadow-black/30"
                     initial={reduce ? false : { opacity: 0, y: -4, scale: .98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -380,7 +412,20 @@ export default function TerminalShell() {
       </div>
 
       {/* ── tab content (cross-fades) ── */}
-      <main className="min-h-0 min-w-0 flex-1 overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <main id={MAIN_CONTENT_ID} tabIndex={-1} className="min-h-0 min-w-0 flex-1 outline-none overflow-x-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        {unknownTab && (
+          <div role="status" className="flex items-center gap-3 border-b border-[var(--brand-gold)]/30 bg-[var(--brand-gold)]/[0.06] px-4 py-2 font-mono text-[11px] text-foreground/85">
+            <span>Unknown tab ‘{unknownTab}’ — showing NEXUS.</span>
+            <button
+              type="button"
+              onClick={() => setUnknownTab(null)}
+              aria-label="Dismiss notice"
+              className="ml-auto inline-flex cursor-pointer items-center rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
         {/* Some market modules keep long-lived subscriptions and nested layout
             animations. `mode="wait"` can leave the outgoing module mounted at
             opacity 0 while it waits for every descendant to finish exiting,
@@ -488,7 +533,7 @@ export default function TerminalShell() {
 
       {guideOpen && (
         <Suspense fallback={null}>
-          <TerminalGuide tab={tab} open onClose={() => setGuideOpen(false)} />
+          <TerminalGuide tab={tab} open onClose={closeGuide} />
         </Suspense>
       )}
       {settingsOpen && (

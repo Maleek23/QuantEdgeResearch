@@ -20,7 +20,7 @@
  *   - 'gold'           — secondary (sort selectors etc.)
  *   - 'subtle'         — for tertiary in-card tabs
  */
-import type { ReactNode } from 'react';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 export type QETabsVariant = 'cyan' | 'gold' | 'subtle';
@@ -57,6 +57,8 @@ export interface QETabsProps<T extends string = string> {
   /** Slot rendered after the tabs (right-aligned) */
   rightSlot?: ReactNode;
   className?: string;
+  /** Accessible name for the tablist (WAI-ARIA). Falls back to prefixLabel. */
+  ariaLabel?: string;
 }
 
 // Active tab — filled accent chip with a soft outer glow (premium segmented look).
@@ -80,16 +82,49 @@ export function QETabs<T extends string = string>({
   prefixLabel,
   rightSlot,
   className,
+  ariaLabel,
 }: QETabsProps<T>) {
+  // WAI-ARIA tabs pattern: role=tablist/tab, aria-selected, roving tabIndex
+  // (only the active tab is in the Tab order), Left/Right/Home/End move focus
+  // between enabled tabs and activate them (automatic activation).
+  const tabRefs = useRef(new Map<string, HTMLButtonElement>());
+  const enabled = items.filter((i) => !i.disabled);
+  // If the active id isn't an enabled tab, keep the first enabled one reachable.
+  const focusableId = enabled.some((i) => i.id === active) ? active : enabled[0]?.id;
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    if (enabled.length === 0) return;
+    const current = enabled.findIndex((i) => tabRefs.current.get(i.id) === document.activeElement);
+    const from = current >= 0 ? current : Math.max(0, enabled.findIndex((i) => i.id === active));
+    let next = from;
+    if (e.key === 'ArrowLeft') next = (from - 1 + enabled.length) % enabled.length;
+    else if (e.key === 'ArrowRight') next = (from + 1) % enabled.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = enabled.length - 1;
+    e.preventDefault();
+    const target = enabled[next];
+    tabRefs.current.get(target.id)?.focus();
+    if (target.id !== active) onChange(target.id);
+  };
+
   const renderTab = (item: QETabItem<T>) => (
     <button
       key={item.id}
+      ref={(el) => {
+        if (el) tabRefs.current.set(item.id, el);
+        else tabRefs.current.delete(item.id);
+      }}
       type="button"
+      role="tab"
+      aria-selected={active === item.id}
+      aria-disabled={item.disabled || undefined}
+      tabIndex={item.id === focusableId ? 0 : -1}
       disabled={item.disabled}
       onClick={() => !item.disabled && onChange(item.id)}
       title={item.hint}
       className={cn(
-        'font-mono font-bold uppercase rounded-md transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer',
+        'font-mono font-bold uppercase rounded-md transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-cyan)]/70',
         SIZE_PADDING[size],
         item.disabled && 'opacity-40 cursor-not-allowed text-muted-foreground',
         !item.disabled && active === item.id
@@ -129,17 +164,19 @@ export function QETabs<T extends string = string>({
             {prefixLabel}
           </span>
         )}
-        {clusters.map((cluster, ci) => (
-          <div key={cluster.group || ci} className="flex min-w-0 flex-wrap items-center gap-1">
-            {ci > 0 && <span className="mx-1 h-5 w-px bg-border/40" aria-hidden />}
-            {cluster.group && (
-              <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground mr-0.5 self-center select-none">
-                {cluster.group}
-              </span>
-            )}
-            {cluster.items.map(renderTab)}
-          </div>
-        ))}
+        <div role="tablist" aria-label={ariaLabel ?? prefixLabel} aria-orientation="horizontal" onKeyDown={onKeyDown} className="contents">
+          {clusters.map((cluster, ci) => (
+            <div key={cluster.group || ci} role="presentation" className="flex min-w-0 flex-wrap items-center gap-1">
+              {ci > 0 && <span className="mx-1 h-5 w-px bg-border/40" aria-hidden />}
+              {cluster.group && (
+                <span aria-hidden className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground mr-0.5 self-center select-none">
+                  {cluster.group}
+                </span>
+              )}
+              {cluster.items.map(renderTab)}
+            </div>
+          ))}
+        </div>
         {rightSlot && <div className="ml-auto">{rightSlot}</div>}
       </div>
     );
@@ -152,7 +189,9 @@ export function QETabs<T extends string = string>({
           {prefixLabel}
         </span>
       )}
-      {items.map(renderTab)}
+      <div role="tablist" aria-label={ariaLabel ?? prefixLabel} aria-orientation="horizontal" onKeyDown={onKeyDown} className="contents">
+        {items.map(renderTab)}
+      </div>
       {rightSlot && <div className="ml-auto">{rightSlot}</div>}
     </div>
   );
