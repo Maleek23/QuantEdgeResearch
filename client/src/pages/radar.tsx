@@ -14,13 +14,18 @@
  * Phase 4: one hero metric (actionable forming setups first), compact
  * pick cards capped at 30 with show-more, a single legend for the jargon,
  * and error states that are distinct from empty states.
+ *
+ * 2026-09-29: drawn in the page template (components/lux/lux-page.tsx) —
+ * header, panels, tags and the track-record table match the Journal.
  */
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
 import { QELegendButton, type LegendSection } from '@/components/ui/qe-legend';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
-import { Loader2, RefreshCw, Zap, Target, History, Eye, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Zap, History, Eye } from 'lucide-react';
+import { LuxButton, LuxPage, LuxPageHeader, LuxPanel, LuxTableWrap, LuxTag, type LuxTone } from '@/components/lux';
+import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 
 type Tab = 'forming' | 'picks' | 'patterns' | 'track';
 
@@ -83,41 +88,34 @@ export default function RadarPage() {
   }, [picks, loading]);
 
   return (
-    <div className="space-y-3 px-4 py-3">
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-mono font-bold uppercase tracking-widest text-foreground flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Thesis Radar
-          </h1>
-          <HeroLine hero={hero} loading={loading} error={error} />
-          <p className="text-[11px] font-mono text-muted-foreground">
-            Autonomous setup discovery — 6 patterns, ~120 tickers, 5 scans/day.
-          </p>
-        </div>
-        <RescanButton onScan={loadPicks} />
-      </header>
+    <LuxPage>
+      <LuxPageHeader
+        section="Radar"
+        context="6 patterns · ~120 tickers · 5 scans/day"
+        title="Thesis Radar"
+        purpose={<HeroLine hero={hero} loading={loading} error={error} />}
+        actions={<RescanButton onScan={loadPicks} />}
+      >
+        <QETabs
+          items={TABS}
+          active={tab}
+          onChange={setTab}
+          prefixLabel="VIEW"
+          rightSlot={
+            <QELegendButton
+              title="Radar legend"
+              description="Radar picks carry a letter grade from the thesis-radar engine. The S/A/B/C conviction bands are what Slate and NEXUS show for the same names."
+              sections={RADAR_LEGEND}
+              showBands
+            />
+          }
+        />
+      </LuxPageHeader>
 
-      <QETabs
-        items={TABS}
-        active={tab}
-        onChange={setTab}
-        prefixLabel="VIEW"
-        rightSlot={
-          <QELegendButton
-            title="Radar legend"
-            description="Radar picks carry a letter grade from the thesis-radar engine. The S/A/B/C conviction bands are what Slate and NEXUS show for the same names."
-            sections={RADAR_LEGEND}
-            showBands
-          />
-        }
-      />
-
-      <div className="text-[9px] font-mono text-muted-foreground">
-        {TABS.find(t => t.id === tab)?.hint}
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <p className="lx-panel-sub" style={{ margin: 0 }}>{TABS.find(t => t.id === tab)?.hint}</p>
+        <Legend />
       </div>
-
-      <Legend />
 
       <PageErrorBoundary label={`Radar · ${tab}`}>
         {tab === 'forming'  && <FormingTab query={query} />}
@@ -125,7 +123,7 @@ export default function RadarPage() {
         {tab === 'patterns' && <PatternsTab />}
         {tab === 'track'    && <TrackTab />}
       </PageErrorBoundary>
-    </div>
+    </LuxPage>
   );
 }
 
@@ -137,32 +135,32 @@ type Hero =
 
 function HeroLine({ hero, loading, error }: { hero: Hero; loading: boolean; error: boolean }) {
   if (loading) {
-    return <div className="text-sm font-mono text-muted-foreground animate-pulse">Reading radar…</div>;
+    return <span className="animate-pulse">Reading radar…</span>;
   }
   if (error || !hero) {
-    return <div className="text-sm font-mono text-muted-foreground">Couldn't reach the radar API.</div>;
+    return <span>Couldn't reach the radar API.</span>;
   }
   if (hero.kind === 'forming') {
     return (
-      <div className="text-sm font-mono flex items-center gap-2 flex-wrap">
-        <span className="font-bold text-amber-500">{hero.count} forming</span>
-        <span className="text-muted-foreground text-[11px]">top:</span>
-        <span className="font-bold text-foreground">{hero.symbol}</span>
+      <span className="inline-flex items-center gap-2 flex-wrap">
+        <b className="lx-tone-caution">{hero.count} forming</b>
+        <span>· top</span>
+        <b className="text-foreground" style={{ fontFamily: 'var(--lx-font-data)' }}>{hero.symbol}</b>
         <GradePill grade={hero.grade} />
-      </div>
+      </span>
     );
   }
   if (hero.kind === 'latest') {
     return (
-      <div className="text-sm font-mono flex items-center gap-2 flex-wrap">
-        <span className="text-muted-foreground text-[11px]">latest pick:</span>
-        <span className="font-bold text-foreground">{hero.symbol}</span>
+      <span className="inline-flex items-center gap-2 flex-wrap">
+        <span>Latest pick</span>
+        <b className="text-foreground" style={{ fontFamily: 'var(--lx-font-data)' }}>{hero.symbol}</b>
         <GradePill grade={hero.grade} />
-        <span className="text-muted-foreground text-[11px]">· {hero.count} fired</span>
-      </div>
+        <span>· {hero.count} fired</span>
+      </span>
     );
   }
-  return <div className="text-sm font-mono text-muted-foreground">No picks on record yet — the next scan will appear here.</div>;
+  return <span>No picks on record yet — the next scan will appear here.</span>;
 }
 
 // ─── Legend — the one place jargon gets explained ────────────────────
@@ -182,10 +180,8 @@ const RADAR_LEGEND: LegendSection[] = [
 
 function Legend() {
   return (
-    <details className="text-[10px] font-mono text-muted-foreground">
-      <summary className="cursor-pointer text-primary/80 hover:text-primary w-fit">
-        Legend — grades, statuses, terms
-      </summary>
+    <details className="lx-disclose text-xs text-muted-foreground">
+      <summary>Legend — grades, statuses, terms</summary>
       <div className="mt-2 space-y-1.5 max-w-2xl">
         <div>
           <span className="font-bold text-foreground/80">Grade&nbsp;</span>
@@ -252,7 +248,7 @@ function PicksTab({ query }: { query: PicksQuery }) {
   if (!picks || picks.length === 0) {
     return (
       <EmptyState
-        icon={<Eye className="h-8 w-8 text-muted-foreground" />}
+        icon={<Eye aria-hidden />}
         title="No picks fired yet"
         message="Scans run at 09:35, 12:00, 15:55 ET on weekdays. Check back after the next scan, or trigger one manually with the Re-scan button."
       />
@@ -261,15 +257,12 @@ function PicksTab({ query }: { query: PicksQuery }) {
 
   const visible = showAll ? picks : picks.slice(0, PICKS_CAP);
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {visible.map(p => <PickCard key={p.id} pick={p} />)}
       {picks.length > PICKS_CAP && (
-        <button
-          onClick={() => setShowAll(v => !v)}
-          className="w-full text-[10px] font-mono py-2 rounded border border-border/40 text-muted-foreground hover:text-foreground hover:border-primary/40 transition"
-        >
+        <LuxButton onClick={() => setShowAll(v => !v)} className="w-full">
           {showAll ? 'Show less' : `Show all ${picks.length} picks`}
-        </button>
+        </LuxButton>
       )}
     </div>
   );
@@ -279,30 +272,27 @@ function PickCard({ pick }: { pick: RadarPick }) {
   const isLong = pick.direction === 'long' || pick.direction === 'long_vol';
   const hasDetail = pick.signals.length > 0 || pick.targets?.t1 || pick.invalidation;
   return (
-    <div className="qe-card border border-border/40 rounded-md p-3 space-y-1.5 hover:border-primary/30 transition">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`font-mono text-xs ${isLong ? 'text-[var(--trade-bullish)]' : 'text-rose-500'}`}>
-            {isLong ? '↑' : '↓'}
-          </span>
-          <div className="font-mono font-bold text-sm truncate">{pick.symbol}</div>
+    <LuxPanel
+      as="article"
+      headingLevel={3}
+      title={<span style={{ fontFamily: 'var(--lx-font-data)' }}>{pick.symbol}</span>}
+      sub={<span style={{ fontFamily: 'var(--lx-font-data)' }}>${pick.spotAtFire.toFixed(2)} at fire · {pick.patternId.replace(/_/g, ' ')}</span>}
+      meta={
+        <>
+          <LuxTag tone={isLong ? 'gain' : 'loss'}>{isLong ? '▲ LONG' : '▼ SHORT'}</LuxTag>
           <GradePill grade={pick.finalGrade} />
-          <div className="text-[10px] font-mono text-muted-foreground truncate">
-            ${pick.spotAtFire.toFixed(2)} · {pick.patternId.replace(/_/g, ' ')}
-          </div>
-        </div>
-        <div className="text-[10px] font-mono text-muted-foreground shrink-0">
-          {new Date(pick.firedAt).toLocaleString()}
-        </div>
-      </div>
-
-      <p className="text-[11px] font-mono text-muted-foreground leading-relaxed line-clamp-2">
+          {pick.status === 'forming' && <LuxTag tone="caution">FORMING</LuxTag>}
+          <span className="lx-panel-sub" style={{ margin: 0, fontFamily: 'var(--lx-font-data)' }}>{new Date(pick.firedAt).toLocaleString()}</span>
+        </>
+      }
+    >
+      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2" style={{ margin: 0 }}>
         {pick.synthesis}
       </p>
 
       {hasDetail && (
-        <details className="text-[10px] font-mono">
-          <summary className="cursor-pointer text-primary/80 hover:text-primary w-fit">
+        <details className="lx-disclose mt-2">
+          <summary>
             {pick.signals.length > 0 ? `${pick.signals.length} signals` : 'Details'}
             {(pick.targets?.t1 || pick.invalidation) ? ' · levels' : ''}
           </summary>
@@ -310,27 +300,23 @@ function PickCard({ pick }: { pick: RadarPick }) {
             {pick.signals.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {pick.signals.map((s, i) => (
-                  <div
-                    key={i}
-                    className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-muted/30 border border-border/30"
-                    title={s.source}
-                  >
+                  <LuxTag key={i} title={s.source}>
                     {s.label} <span className="text-muted-foreground">{s.grade}</span>
-                  </div>
+                  </LuxTag>
                 ))}
               </div>
             )}
             {(pick.targets?.t1 || pick.invalidation) && (
-              <div className="flex items-center gap-3">
-                {pick.targets?.t1 && <span className="text-[var(--trade-bullish)]">T1: ${pick.targets.t1.toFixed(2)}</span>}
-                {pick.targets?.t2 && <span className="text-[var(--trade-bullish)]">T2: ${pick.targets.t2.toFixed(2)}</span>}
-                {pick.invalidation && <span className="text-rose-500">Stop: ${pick.invalidation.toFixed(2)}</span>}
+              <div className="flex flex-wrap items-center gap-3 text-xs" style={{ fontFamily: 'var(--lx-font-data)' }}>
+                {pick.targets?.t1 && <span>T1 <b>${pick.targets.t1.toFixed(2)}</b></span>}
+                {pick.targets?.t2 && <span>T2 <b>${pick.targets.t2.toFixed(2)}</b></span>}
+                {pick.invalidation && <span className="lx-tone-loss">Stop <b>${pick.invalidation.toFixed(2)}</b></span>}
               </div>
             )}
           </div>
         </details>
       )}
-    </div>
+    </LuxPanel>
   );
 }
 
@@ -354,13 +340,13 @@ function FormingTab({ query }: { query: PicksQuery }) {
   if (forming.length === 0) {
     return (
       <EmptyState
-        icon={<Zap className="h-8 w-8 text-amber-500/40" />}
+        icon={<Zap aria-hidden />}
         title="No forming setups right now"
         message="This tab watches for patterns that matched but haven't confirmed an entry trigger yet. When one fires, it appears here first — ahead of the Picks tab."
       />
     );
   }
-  return <div className="space-y-2">{forming.map(p => <PickCard key={p.id} pick={p} />)}</div>;
+  return <div className="space-y-3">{forming.map(p => <PickCard key={p.id} pick={p} />)}</div>;
 }
 
 // ─── Patterns tab ───────────────────────────────────────────────────
@@ -399,7 +385,7 @@ function PatternsTab() {
   if (patterns.length === 0) {
     return (
       <EmptyState
-        icon={<Eye className="h-8 w-8 text-muted-foreground" />}
+        icon={<Eye aria-hidden />}
         title="No patterns configured"
         message="The engine didn't return any pattern signatures. If this persists, the scan configuration may need attention."
       />
@@ -408,33 +394,26 @@ function PatternsTab() {
   return (
     <div className="space-y-3">
       {patterns.map(p => (
-        <div key={p.id} className="qe-card border border-border/40 rounded-md p-4 space-y-3">
-          <div>
-            <h3 className="font-mono font-bold text-sm uppercase">{p.name}</h3>
-            <p className="text-[11px] font-mono text-muted-foreground mt-1">{p.thesis}</p>
-          </div>
-          <div className="flex items-center gap-3 text-[10px] font-mono">
-            <div className="text-muted-foreground">
-              Horizon: <span className="text-foreground">{p.horizon}</span>
-            </div>
-            <div className="text-muted-foreground">
-              Target hit rate: <span className="text-foreground">{(p.targetHitRate * 100).toFixed(0)}%</span>
-            </div>
-            <div className="text-muted-foreground">
-              Filters: <span className="text-foreground">{p.filters.length}</span>
-            </div>
-          </div>
-          <details className="text-[10px] font-mono">
-            <summary className="cursor-pointer text-primary/80 hover:text-primary">View filters</summary>
-            <ul className="mt-2 space-y-1.5 pl-4">
+        <LuxPanel key={p.id} as="article" headingLevel={3} title={p.name} sub={p.thesis}
+          meta={
+            <>
+              <LuxTag title="Holding horizon">{p.horizon}</LuxTag>
+              <LuxTag tone="accent" title="Target hit rate (design goal, not realised)">target {(p.targetHitRate * 100).toFixed(0)}%</LuxTag>
+              <LuxTag title="Filters in this signature">{p.filters.length} filters</LuxTag>
+            </>
+          }
+        >
+          <details className="lx-disclose">
+            <summary>View filters</summary>
+            <ul className="mt-2 space-y-1.5 pl-4 text-xs">
               {p.filters.map((f, i) => (
                 <li key={i} className="text-muted-foreground">
-                  <span className="text-primary/60">[{f.domain}]</span> {f.explain}
+                  <span className="lx-tone-accent" style={{ fontFamily: 'var(--lx-font-data)' }}>[{f.domain}]</span> {f.explain}
                 </li>
               ))}
             </ul>
           </details>
-        </div>
+        </LuxPanel>
       ))}
     </div>
   );
@@ -476,86 +455,78 @@ function TrackTab() {
   if (stats.length === 0) {
     return (
       <EmptyState
-        icon={<History className="h-8 w-8 text-muted-foreground" />}
+        icon={<History aria-hidden />}
         title="No resolved picks yet"
         message="Track record builds as picks fire and the daily resolve cron marks outcomes. Check back after a few weeks of operation."
       />
     );
   }
   return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-7 gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-3 py-2 border-b border-border/30">
-        <div className="col-span-2">Pattern</div>
-        <div>Picks</div>
-        <div>Resolved</div>
-        <div>Hit Rate</div>
-        <div>Avg Pct</div>
-        <div>Avg Days</div>
-      </div>
-      {stats.map(s => (
-        <div key={s.patternId} className="grid grid-cols-7 gap-3 text-[11px] font-mono px-3 py-2 hover:bg-muted/20">
-          <div className="col-span-2 text-foreground">{s.patternId.replace(/_/g, ' ')}</div>
-          <div>{s.totalPicks}</div>
-          <div>{s.resolved}</div>
-          <div className={s.hitRate >= 0.5 ? 'text-[var(--trade-bullish)]' : 'text-rose-500'}>
-            {(s.hitRate * 100).toFixed(0)}%
-          </div>
-          <div className={s.avgOutcomePct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-rose-500'}>
-            {s.avgOutcomePct >= 0 ? '+' : ''}{s.avgOutcomePct.toFixed(1)}%
-          </div>
-          <div>{s.avgDaysToResolve.toFixed(1)}</div>
-        </div>
-      ))}
-    </div>
+    <LuxPanel flush title="Track record by pattern" sub="Resolved picks only — hit rate is hits ÷ resolved; averages are per resolved pick."
+      meta={<LuxTag>n={stats.reduce((m, s) => m + s.resolved, 0)} resolved</LuxTag>}>
+      <LuxTableWrap label="Radar track record">
+        <table>
+          <thead>
+            <tr>
+              <th>Pattern</th>
+              <th className="text-right">Picks</th>
+              <th className="text-right">Resolved</th>
+              <th className="text-right">Hit rate</th>
+              <th className="text-right">Avg outcome</th>
+              <th className="text-right">Avg days</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.map(s => (
+              <tr key={s.patternId}>
+                <td>{s.patternId.replace(/_/g, ' ')}</td>
+                <td data-num>{s.totalPicks}</td>
+                <td data-num>{s.resolved}</td>
+                <td data-num>{(s.hitRate * 100).toFixed(0)}%</td>
+                <td data-num className={s.avgOutcomePct > 0 ? 'lx-tone-gain' : s.avgOutcomePct < 0 ? 'lx-tone-loss' : undefined}>
+                  {s.avgOutcomePct > 0 ? '+' : s.avgOutcomePct < 0 ? '−' : ''}{Math.abs(s.avgOutcomePct).toFixed(1)}%
+                </td>
+                <td data-num>{s.avgDaysToResolve.toFixed(1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </LuxTableWrap>
+    </LuxPanel>
   );
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
+/** Letter grade as a tag. Tint by band (A accent · B neutral · C caution ·
+ *  D/F loss) — the letter itself is the information. */
 function GradePill({ grade }: { grade: string }) {
-  const color =
-    grade.startsWith('A') ? 'bg-emerald-500/15 text-[var(--trade-bullish)]' :
-    grade.startsWith('B') ? 'bg-blue-500/15 text-blue-500' :
-    grade.startsWith('C') ? 'bg-amber-500/15 text-amber-500' :
-    'bg-rose-500/15 text-rose-500';
+  const tone: LuxTone =
+    grade.startsWith('A') ? 'accent' :
+    grade.startsWith('B') ? undefined :
+    grade.startsWith('C') ? 'caution' :
+    'loss';
   return (
-    <div
-      className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${color}`}
-      title={`Conviction grade ${grade} — engine letter grade, A+ highest`}
-    >
+    <LuxTag tone={tone} title={`Conviction grade ${grade} — engine letter grade, A+ highest`}>
       {grade}
-    </div>
+    </LuxTag>
   );
 }
 
 function LoadingState({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center py-12 text-[11px] font-mono text-muted-foreground">
-      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-      {label}
-    </div>
-  );
+  return <QELoading rows={3} label={label} />;
 }
 
 function EmptyState({ icon, title, message }: { icon: React.ReactNode; title: string; message: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-      {icon}
-      <div className="font-mono text-sm text-foreground">{title}</div>
-      <div className="font-mono text-[10px] text-muted-foreground max-w-md">{message}</div>
-    </div>
-  );
+  return <QEEmpty title={title} icon={icon} message={message} />;
 }
 
 function ErrorState({ title, message }: { title: string; message?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
-      <AlertTriangle className="h-8 w-8 text-amber-500/60" />
-      <div className="font-mono text-sm text-foreground">{title}</div>
-      <div className="font-mono text-[10px] text-muted-foreground max-w-md">
-        {message ?? "The radar API didn't respond. This doesn't mean the radar is empty — try the Re-scan button or reload the page."}
-      </div>
-    </div>
+    <QEError
+      title={title}
+      message={message ?? "The radar API didn't respond. This doesn't mean the radar is empty — try the Re-scan button or reload the page."}
+    />
   );
 }
 
@@ -579,15 +550,11 @@ function RescanButton({ onScan }: { onScan?: () => void }) {
   };
   return (
     <div className="flex items-center gap-2">
-      {lastResult && <div className="text-[10px] font-mono text-muted-foreground">{lastResult}</div>}
-      <button
-        onClick={handleRescan}
-        disabled={loading}
-        className="text-[10px] font-mono px-3 py-1.5 rounded border border-border/40 hover:border-primary/40 hover:bg-muted/30 flex items-center gap-2 disabled:opacity-50"
-      >
-        <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-        Re-scan
-      </button>
+      {lastResult && <span className="lx-panel-sub" role="status" style={{ margin: 0 }}>{lastResult}</span>}
+      <LuxButton onClick={handleRescan} disabled={loading}>
+        <RefreshCw aria-hidden className={loading ? 'animate-spin' : undefined} />
+        {loading ? 'Scanning…' : 'Re-scan'}
+      </LuxButton>
     </div>
   );
 }

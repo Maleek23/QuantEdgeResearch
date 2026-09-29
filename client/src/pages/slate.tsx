@@ -2,11 +2,16 @@
  * /slate — the daily slate: BMT-style evening watchlist cards built from the
  * platform's own measured ideas (aggressor tape, bottom reversals, crypto
  * transmissions). Presentation only — every number comes from the board.
+ *
+ * 2026-09-29: drawn in the page template (LuxPage / LuxPageHeader / LuxKpi /
+ * lux-panel cards — components/lux/lux-page.tsx), the Journal's language.
  */
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
+import { RefreshCw } from "lucide-react";
 import { QEEmpty, QEError, QELoading } from "@/components/ui/qe-states";
+import { LuxButton, LuxFootnote, LuxKpi, LuxKpiGrid, LuxPage, LuxPageHeader, LuxTag } from "@/components/lux";
 
 interface SlateCard {
   symbol: string;
@@ -61,140 +66,121 @@ export default function SlatePage() {
     : null;
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", padding: "clamp(16px, 4vw, 40px) clamp(16px, 4vw, 48px)" }}>
-      <div style={{ maxWidth: 1500, margin: "0 auto" }}>
-        <div style={{ fontSize: 11, letterSpacing: 2, color: "var(--text-mute)", marginBottom: 8 }}>
-          <Link href="/t" style={{ color: "var(--text-mute)", textDecoration: "none" }}>← TERMINAL</Link>
-          <span style={{ margin: "0 12px" }}>·</span>QUANTEDGE DAILY SLATE
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", gap: "8px 16px" }}>
-          <h1 style={{ fontSize: "clamp(26px, 6vw, 40px)", fontWeight: 700, margin: "0 0 6px", fontFamily: "inherit" }}>{today}</h1>
-          {/* F7.15: manual refresh — the slate otherwise waits on its 5-min poll. */}
-          <button
-            type="button"
-            onClick={refreshAll}
-            disabled={refreshing}
-            data-testid="slate-refresh"
-            style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 600, letterSpacing: 1, color: "var(--text)", background: "var(--panel-solid)", border: "1px solid var(--nx-border-hi)", borderRadius: 6, padding: "8px 14px", minHeight: 40, cursor: refreshing ? "default" : "pointer", opacity: refreshing ? 0.6 : 1 }}
-          >
-            {refreshing ? "REFRESHING…" : "↻ REFRESH"}
-          </button>
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 28, minHeight: "2.8em" }}>
-          {slateQ.isError && !slateQ.data
-            ? "slate unavailable"
-            : <>{cards.length} setups · all measured · {slateQ.data?.basis ?? "loading…"}{updatedAt ? ` · updated ${updatedAt} ET` : ""}</>}
-        </div>
+    <LuxPage>
+      <LuxPageHeader
+        section="Slate"
+        context={today}
+        title="Daily slate"
+        purpose={slateQ.isError && !slateQ.data
+          ? "Slate unavailable — see the error below."
+          : <>{cards.length} setups · all measured · {slateQ.data?.basis ?? "loading…"}{updatedAt ? ` · updated ${updatedAt} ET` : ""}</>}
+        actions={
+          /* F7.15: manual refresh — the slate otherwise waits on its 5-min poll. */
+          <LuxButton onClick={refreshAll} disabled={refreshing} data-testid="slate-refresh">
+            <RefreshCw aria-hidden className={refreshing ? "animate-spin" : undefined} />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </LuxButton>
+        }
+      />
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "16px 40px", borderTop: "1px solid var(--nx-border)", borderBottom: "1px solid var(--nx-border)", padding: "18px 0", marginBottom: 32 }}>
-          {(["SPY", "QQQ", "IWM"] as const).map((s) => {
-            const q = idx[s];
-            const up = (q?.changePercent ?? 0) >= 0;
-            return (
-              <div key={s} style={{ minWidth: 96, flex: "1 1 96px", maxWidth: 200 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-dim)" }}>
-                  <span>${s}</span>
-                  <span style={{ color: q ? (up ? "var(--green)" : "var(--red)") : "var(--text-mute)" }}>
-                    {q ? `${up ? "↑" : "↓"} ${Math.abs(q.changePercent).toFixed(2)}%` : "—"}
-                  </span>
+      <LuxKpiGrid cols={3}>
+        {(["SPY", "QQQ", "IWM"] as const).map((s) => {
+          const q = idx[s];
+          const up = (q?.changePercent ?? 0) >= 0;
+          return (
+            <LuxKpi
+              key={s}
+              label={s}
+              value={q ? fmt(q.price) : "—"}
+              sub={q
+                ? <span className={up ? "lx-tone-gain" : "lx-tone-loss"}>{up ? "▲ +" : "▼ −"}{Math.abs(q.changePercent).toFixed(2)}% today</span>
+                : "no quote"}
+            />
+          );
+        })}
+      </LuxKpiGrid>
+
+      {idxQ.isError && (
+        <QEError
+          title="Index quotes didn't respond"
+          message={idxQ.data ? "SPY/QQQ/IWM above are from the last successful load and may be stale." : "SPY/QQQ/IWM prices couldn't be loaded — the dashes above are missing quotes, not flat markets."}
+          onRetry={() => void idxQ.refetch()}
+          retrying={idxQ.isFetching}
+        />
+      )}
+
+      {/* Pre-market gappers moved here when the Trade Desk was retired
+          (2026-09-24): it was the Desk's only surface not already on the
+          board, and the gap is the leading read before the open. */}
+      <PreMarketGappersCard defaultExpanded />
+
+      <h2 className="lx-section-t">Setups{cards.length ? ` · ${cards.length}` : ""}</h2>
+
+      {slateQ.isLoading && <QELoading rows={3} label="building slate from the board…" />}
+      {slateQ.isError && (
+        <QEError
+          title="Slate API didn't respond"
+          message={
+            slateQ.data
+              ? "Showing the last slate that loaded — it may be stale. This is a connection failure, not a change in the board."
+              : "The slate couldn't be loaded. This is a connection failure, not an empty board — setups may exist."
+          }
+          onRetry={() => void slateQ.refetch()}
+          retrying={slateQ.isFetching}
+        />
+      )}
+      {!slateQ.isLoading && !slateQ.isError && cards.length === 0 && (
+        <QEEmpty message="No measured ideas qualify right now — measured-empty, not broken. The sweeps repopulate through the session." />
+      )}
+
+      <div className="grid gap-3 md:gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))" }}>
+        {cards.map((c) => (
+          <Link key={c.symbol} href={`/r/${c.symbol}`} className="lx-panel" aria-label={`${c.symbol} — open research`}>
+            <div className="lx-panel-h">
+              <div className="lx-panel-h-main">
+                <div className="lx-panel-h-line">
+                  <span className="lx-panel-t" style={{ fontSize: 20 }}>{c.symbol}</span>
+                  <LuxTag tone="gain">{c.contract ? `▲ ${c.contract.split("·")[0].trim()}` : "▲ LONG"}</LuxTag>
+                  {c.band && <LuxTag tone="accent" title="Conviction band and score">{c.band}{c.score != null ? ` · ${c.score}` : ""}</LuxTag>}
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2 }}>{q ? fmt(q.price) : "—"}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        {idxQ.isError && (
-          <QEError
-            title="Index quotes didn't respond"
-            message={idxQ.data ? "SPY/QQQ/IWM above are from the last successful load and may be stale." : "SPY/QQQ/IWM prices couldn't be loaded — the dashes above are missing quotes, not flat markets."}
-            onRetry={() => void idxQ.refetch()}
-            retrying={idxQ.isFetching}
-            className="mb-7"
-          />
-        )}
-
-        {/* Pre-market gappers moved here when the Trade Desk was retired
-            (2026-09-24): it was the Desk's only surface not already on the
-            board, and the gap is the leading read before the open. */}
-        <div style={{ marginBottom: 28 }}>
-          <PreMarketGappersCard defaultExpanded />
-        </div>
-
-        {slateQ.isLoading && <QELoading rows={3} label="building slate from the board…" />}
-        {slateQ.isError && (
-          <QEError
-            title="Slate API didn't respond"
-            message={
-              slateQ.data
-                ? "Showing the last slate that loaded — it may be stale. This is a connection failure, not a change in the board."
-                : "The slate couldn't be loaded. This is a connection failure, not an empty board — setups may exist."
-            }
-            onRetry={() => void slateQ.refetch()}
-            retrying={slateQ.isFetching}
-            className="mb-4"
-          />
-        )}
-        {!slateQ.isLoading && !slateQ.isError && cards.length === 0 && (
-          <QEEmpty message="No measured ideas qualify right now — measured-empty, not broken. The sweeps repopulate through the session." />
-        )}
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(270px, 100%), 1fr))", gap: 16 }}>
-          {cards.map((c) => (
-            <Link key={c.symbol} href={`/r/${c.symbol}`} style={{ textDecoration: "none", color: "inherit" }}>
-              <div style={{ background: "var(--panel-solid)", border: "1px solid var(--nx-border)", borderLeft: "3px solid var(--green)", borderRadius: 8, padding: "20px 18px", cursor: "pointer", height: "100%" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <span style={{ fontSize: 24, fontWeight: 700 }}>${c.symbol}</span>
-                  <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 700 }}>
-                    {c.contract ? `▲ ${c.contract.split("·")[0].trim()}` : "▲ LONG"}
-                  </span>
-                </div>
-                <div style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: "var(--text-mute)", marginTop: 4 }}>
+                <p className="lx-panel-sub" style={{ fontFamily: "var(--lx-font-data)" }}>
                   {fmt(c.lastClose)} close{c.contract ? ` · ${c.contract.split("·").slice(1).join("·").trim()}` : " · no contract yet — engine picks at the open"}
-                  {c.band ? ` · ${c.band}-band ${c.score ?? ""}` : ""}
-                </div>
-
-                <div style={{ marginTop: 16, fontSize: 11, letterSpacing: 1.2, color: "var(--green)", fontWeight: 700 }}>
-                  ● {c.patternLabel}
-                </div>
-                <div style={{ fontSize: 11.5, color: "var(--text)", marginTop: 6, lineHeight: 1.5, minHeight: 34 }}>
-                  {c.provenance}
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 16, fontSize: 'var(--fs-10, 10px)' }}>
-                  <div>
-                    <div style={{ color: "var(--text-mute)", marginBottom: 3 }}>ENTRY</div>
-                    <div style={{ fontWeight: 700, fontSize: 11 }}>
-                      {c.entryZoneLow != null ? `${c.entryZoneLow.toFixed(2)}–${c.entryZoneHigh?.toFixed(2)}` : "—"}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ color: "var(--text-mute)", marginBottom: 3 }}>STOP</div>
-                    <div style={{ fontWeight: 700, fontSize: 12, color: "var(--red)" }}>{fmt(c.stop)}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: "var(--text-mute)", marginBottom: 3 }}>TARGET 1</div>
-                    <div style={{ fontWeight: 700, fontSize: 12 }}>{fmt(c.t1)}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: "var(--text-mute)", marginBottom: 3 }} title={c.t2Basis}>TARGET 2</div>
-                    <div style={{ fontWeight: 700, fontSize: 12 }}>{fmt(c.t2)}</div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--nx-border)", fontSize: 'var(--fs-10, 10px)', color: "var(--text-dim)" }}>
-                  FLOW&nbsp;&nbsp;{c.flowNote}
-                </div>
+                </p>
               </div>
-            </Link>
-          ))}
-        </div>
+            </div>
+            <div className="lx-panel-body">
+              <div className="lx-panel-num" style={{ letterSpacing: "0.08em" }}>{c.patternLabel}</div>
+              <p style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.5, color: "var(--lx-text)", minHeight: 36 }}>{c.provenance}</p>
 
-        <div style={{ marginTop: 36, fontSize: 'var(--fs-10-5, 10.5px)', color: "var(--text-mute)", textAlign: "center" }}>
-          Setups derived from measured detectors (aggressor tape · bottom reversals · crypto transmission) ·
-          T2 hover shows its basis · Re-validate at the open · Not financial advice
-        </div>
+              <div className="grid grid-cols-4 gap-2" style={{ marginTop: 14 }}>
+                <Level label="Entry" value={c.entryZoneLow != null ? `${c.entryZoneLow.toFixed(2)}–${c.entryZoneHigh?.toFixed(2)}` : "—"} />
+                <Level label="Stop" value={fmt(c.stop)} tone="loss" />
+                <Level label="Target 1" value={fmt(c.t1)} />
+                <Level label="Target 2" value={fmt(c.t2)} hint={c.t2Basis} />
+              </div>
+
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: "1px solid var(--lx-line)", fontSize: 11.5, color: "var(--lx-dim)" }}>
+                <span className="lx-tag" style={{ marginRight: 8 }}>FLOW</span>{c.flowNote}
+              </div>
+            </div>
+          </Link>
+        ))}
       </div>
+
+      <LuxFootnote>
+        Setups derived from measured detectors (aggressor tape · bottom reversals · crypto transmission) ·
+        T2 hover shows its basis · Re-validate at the open · Not financial advice
+      </LuxFootnote>
+    </LuxPage>
+  );
+}
+
+/** One price level on a slate card — caption over a mono figure. */
+function Level({ label, value, tone, hint }: { label: string; value: string; tone?: "loss"; hint?: string }) {
+  return (
+    <div style={{ minWidth: 0 }} title={hint}>
+      <div className="lx-card-title" style={{ fontSize: 10.5 }}>{label}</div>
+      <div className={tone === "loss" ? "lx-tone-loss" : undefined} style={{ marginTop: 3, fontFamily: "var(--lx-font-data)", fontWeight: 700, fontSize: 12, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>{value}</div>
     </div>
   );
 }

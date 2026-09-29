@@ -18,6 +18,9 @@
  *   → children that read currentStock see the right ticker without prop-drilling.
  *
  * GEX → Per-Symbol shortcut redirects here with ?tab=gex (no duplication).
+ *
+ * 2026-09-29: header in the page template (LuxPageHeader — the Journal's
+ * eyebrow / display title / purpose / actions), tabs in the controls row.
  */
 import { useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
@@ -30,6 +33,7 @@ import { TickerSwitcher } from '@/components/ticker-switcher';
 import { useTabState } from '@/hooks/use-tab-state';
 import { useStockContext } from '@/contexts/stock-context';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
+import { LuxButton, LuxPage, LuxPageHeader } from '@/components/lux';
 
 // Lazy children — each is the existing implementation, now reading symbol via context
 const TerminalHeatmap  = lazy(() => import('@/components/research/terminal-heatmap'));
@@ -100,59 +104,70 @@ export default function ResearchShell() {
     setLocation(`/r/${sym.toUpperCase()}${tab !== 'workup' ? `?tab=${tab}` : ''}`);
   };
 
+  const up = (quote?.changePct ?? 0) >= 0;
+  const gex = tab === 'gex';
   return (
     // The GEX surface is a full-height workspace: the shell becomes exactly
     // main's height and hands the rest to the grid, which scrolls inside itself.
-    <div className={tab === 'gex' ? 'flex h-[var(--qe-main-h,100dvh)] min-h-[520px] flex-col gap-3 px-4 py-3' : 'space-y-3 px-4 py-3'}>
-      {/* HEADER — ticker switcher + price + sector tags */}
-      <header className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setLocation(returnTab && returnTab !== 'oracle' ? `/t?tab=${returnTab}` : '/t')}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-[var(--brand-cyan)]/50 hover:text-foreground"
-            title={returnTab ? `Back to ${returnTab}` : 'Back to terminal'}
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Terminal
-          </button>
-          <TickerSwitcher
-            value={symbol}
-            onChange={handleSymbolChange}
-            price={quote?.price}
-            changePct={quote?.changePct}
-          />
-          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            Research · one symbol, every engine
-          </span>
-        </div>
-      </header>
-
-      {/* SUB-NAV TABS */}
-      <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
-
-      <div className="text-[9px] font-mono text-muted-foreground">
-        {TABS.find(t => t.id === tab)?.hint}
-      </div>
+    <LuxPage
+      width="full"
+      className={gex ? 'h-[var(--qe-main-h,100dvh)] min-h-[520px]' : undefined}
+      style={gex ? { paddingBottom: 12, gap: 12 } : undefined}
+    >
+      <LuxPageHeader
+        section="Research"
+        context="one symbol · every engine"
+        title={symbol}
+        purpose={
+          <>
+            {quote && Number.isFinite(quote.price) ? (
+              <span style={{ fontFamily: 'var(--lx-font-data)' }}>
+                <b className="text-foreground">${quote.price.toFixed(2)}</b>{' '}
+                {Number.isFinite(quote.changePct) && <span className={up ? 'lx-tone-gain' : 'lx-tone-loss'}>{up ? '▲ +' : '▼ −'}{Math.abs(quote.changePct).toFixed(2)}%</span>}
+                <span> · live, refreshes 30s</span>
+              </span>
+            ) : (
+              <span style={{ fontFamily: 'var(--lx-font-data)' }}>quote loading…</span>
+            )}
+            <span> — {TABS.find(t => t.id === tab)?.hint}</span>
+          </>
+        }
+        actions={
+          <>
+            <LuxButton
+              variant="ghost"
+              onClick={() => setLocation(returnTab && returnTab !== 'oracle' ? `/t?tab=${returnTab}` : '/t')}
+              title={returnTab ? `Back to ${returnTab}` : 'Back to terminal'}
+            >
+              <ArrowLeft aria-hidden /> {returnTab && returnTab !== 'oracle' ? `Back to ${returnTab}` : 'Terminal'}
+            </LuxButton>
+            <TickerSwitcher value={symbol} onChange={handleSymbolChange} />
+          </>
+        }
+      >
+        {/* SUB-NAV TABS */}
+        <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
+      </LuxPageHeader>
 
       {/* CONTENT */}
       <PageErrorBoundary label={`Research · ${symbol} · ${tab}`}>
         <Suspense fallback={<Loading />}>
           {/* Re-key on (symbol, tab) so children get fresh state on switch */}
-          <div key={`${symbol}-${tab}`} className={tab === 'gex' ? 'flex min-h-0 flex-1 flex-col' : undefined}>
+          <div key={`${symbol}-${tab}`} className={gex ? 'flex min-h-0 flex-1 flex-col' : undefined}>
             {tab === 'workup'  && <TickerWorkup symbol={symbol} mode="embedded" initialTab={initialWorkupTab} onNavigate={(next) => { if (next === 'gex') setTab('gex'); }} />}
             {tab === 'gex'     && <TerminalHeatmap />}
             {tab === 'analyze' && <ContractAnalyzer />}
           </div>
         </Suspense>
       </PageErrorBoundary>
-    </div>
+    </LuxPage>
   );
 }
 
 function Loading() {
   return (
     <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-4 h-4 animate-spin text-[var(--brand-cyan)]" />
+      <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--lx-accent-text)' }} aria-label="Loading" />
     </div>
   );
 }
