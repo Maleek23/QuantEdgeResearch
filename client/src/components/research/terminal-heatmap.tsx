@@ -10,7 +10,6 @@ import { useQuery } from '@tanstack/react-query';
 import { HeatseekerToolbar, type ExposureMode } from '@/components/heatseeker/heatseeker-toolbar';
 import { GEXExpiryMatrix } from '@/components/gex/gex-expiry-matrix';
 import { useStockContext } from '@/contexts/stock-context';
-import { cn } from '@/lib/utils';
 import type { GEXTerminalData } from '../../../../shared/gex-types';
 
 export default function TerminalHeatmapPage() {
@@ -24,7 +23,6 @@ export default function TerminalHeatmapPage() {
     }
   }, [currentStock?.symbol]); // eslint-disable-line react-hooks/exhaustive-deps
   const [mode, setMode] = useState<ExposureMode>('gex');
-  const [expanded, setExpanded] = useState(false);
 
   const { data, isFetching, isError, refetch } = useQuery<GEXTerminalData>({
     queryKey: ['/api/gex-vex/terminal', symbol, '15m'],
@@ -46,7 +44,6 @@ export default function TerminalHeatmapPage() {
 
   const handleSymbolChange = (s: string) => {
     setSymbol(s);
-    setExpanded(false);
   };
 
   return (
@@ -60,23 +57,9 @@ export default function TerminalHeatmapPage() {
         spotPrice={data?.snapshot.spotPrice}
         onRefresh={() => refetch()}
         isFetching={isFetching}
-        extra={
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className={cn(
-              'px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-widest rounded border transition-colors',
-              expanded
-                ? 'border-amber-400/30 text-amber-400 bg-amber-400/10'
-                : 'border-border/30 text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {expanded ? 'COLLAPSE' : 'ALL STRIKES'}
-          </button>
-        }
       />
 
-      {/* Matrix — uses built-in week dropdown filter */}
+      {/* Matrix — every strike, scrolled (no expand); DTE presets built in */}
       <div className="flex-1 min-h-0 px-4 py-3 flex flex-col">
         {isError ? (
           <div className="flex items-center justify-center h-64">
@@ -112,7 +95,6 @@ export default function TerminalHeatmapPage() {
             matrix={data.strikeExpiryMatrix}
             snapshot={data.snapshot}
             externalMode={mode}
-            externalExpanded={expanded}
           />
         ) : (
           <div className="flex items-center justify-center h-64">

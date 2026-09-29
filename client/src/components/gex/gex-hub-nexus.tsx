@@ -28,9 +28,9 @@ import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
-import { robustMax } from '@/components/viz';
 import type { StrikeExpiryCell, GEXSnapshot } from '@shared/gex-types';
-import { exposureBg, exposureText, regimeColor, fmtGexB, fmtVexM, fmtAge } from './gex-colors';
+import { exposureCellBg, exposureText, regimeColor, fmtGexB, fmtVexM, fmtAge, LEVEL_COLORS } from './gex-colors';
+import { GexStrikeLadder, GexStrikeMatrix, type GridLevels } from './gex-strike-grid';
 import { describeLegacyRegime, type GammaRegime } from '@shared/gex-regime';
 import '@/styles/nexus.css';
 
@@ -87,8 +87,6 @@ type BucketId = typeof DTE_BUCKETS[number]['id'];
  * answers on hover, so "visually nothing" never turns into "claimed zero".
  */
 const fmtCell = (v: number, metric: 'gex' | 'vex') => (metric === 'vex' ? fmtVexM(v) : fmtGexB(v));
-const unitOf = (metric: 'gex' | 'vex') => (metric === 'vex' ? '/IV pt' : '/1%');
-const isDust = (v: number, metric: 'gex' | 'vex') => Math.abs(v) < (metric === 'vex' ? 1e-3 : 1e-6); // < $1K
 
 /** The three hub views, named for what they show. */
 const WORKSPACES = [
@@ -115,8 +113,6 @@ export function GexHubNexus() {
   const [view3d, setView3d] = useState(false);
   const [metric, setMetric] = useState<'gex' | 'vex'>('gex');
   const [bucket, setBucket] = useState<BucketId>('0-7');
-  const [showAbove, setShowAbove] = useState(false);
-  const [showBelow, setShowBelow] = useState(false);
   const leftRail = useColResize('nx-gex-left', 320, { sign: 1, min: 240, max: 520 });
   const rightRail = useColResize('nx-gex-right', 320, { sign: -1, min: 240, max: 520 });
 
@@ -185,6 +181,8 @@ export function GexHubNexus() {
     const dominant = [...all].sort((a, b) => Math.abs(b.gex) - Math.abs(a.gex))[0] ?? null;
     return {
       levels: nearest,
+      /** every listed strike in the 0–7 DTE scope — the scrollable ladder */
+      all,
       positive,
       negative,
       dominant,
@@ -216,21 +214,9 @@ export function GexHubNexus() {
       DTE_BUCKETS.map((b) => [b.id, expiryAll.filter(([d]) => b.test(d)).length]),
     ) as Record<BucketId, number>;
 
-    const strikesAll = [...new Set(cells.map((c) => c.strike))].sort((a, b) => b - a);
-    const WINDOW = 12;
-    const nearestIdx = strikesAll.reduce((best, s, i) =>
-      Math.abs(s - spot) < Math.abs(strikesAll[best] - spot) ? i : best, 0);
-    const from = showAbove ? 0 : Math.max(0, nearestIdx - WINDOW);
-    const to = showBelow ? strikesAll.length : Math.min(strikesAll.length, nearestIdx + WINDOW + 1);
-    const strikes = strikesAll.slice(from, to);
-    const hiddenAbove = from;
-    const hiddenBelow = strikesAll.length - to;
-
-    const byKey = new Map<string, StrikeExpiryCell>();
-    cells.forEach((c) => byKey.set(`${c.strike}|${c.dte}`, c));
-
-    const vals = cells.map((c) => Math.abs(valOf(c)));
-    const rMax = robustMax(vals, 1e-9, 0.985);
+    // Every listed strike is shown — the grid scrolls (gex-strike-grid.tsx);
+    // there is no spot window and nothing to "expand".
+    const strikeCount = new Set(cells.map((c) => c.strike)).size;
 
     /* strongest listed nodes above / below spot — the context rail's read */
     let above: StrikeExpiryCell | null = null; let below: StrikeExpiryCell | null = null;
@@ -249,20 +235,10 @@ export function GexHubNexus() {
       ? Math.min(99.9, Math.max(0.1, (pos / (pos + neg)) * 100))
       : null;
 
-    return { expiries, expiryAll, bucketCounts, strikes, hiddenAbove, hiddenBelow, byKey, rMax, above, below, callPct, total: cells.length };
+    return { expiries, expiryAll, bucketCounts, strikeCount, above, below, callPct, total: cells.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matrix, bucket, showAbove, showBelow, spot, metric]);
+  }, [matrix, bucket, spot, metric]);
 
-  const cellClass = (v: number) => {
-    if (v === 0) return '';
-    const a = Math.abs(v);
-    let cls = v > 0 ? 'pos' : 'neg';
-    if (a >= shaped.rMax) cls += ' mega';
-    else if (a >= shaped.rMax * 0.25) cls += ' hot';
-    return cls;
-  };
-
-  const profile = flat7.levels.length ? flat7 : { levels: [], max: 1e-9 };
 
   /**
    * ONE regime read for every panel on this page (shared/gex-regime.ts):
@@ -286,6 +262,14 @@ export function GexHubNexus() {
   }, [snap]);
   const negGamma = reg ? reg.regime === 'negative' : false;
   const zeroGamma = snap ? (snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null) : null;
+  /** Structural levels every strike grid marks (all listed expiries). */
+  const gridLevels: GridLevels = useMemo(() => ({
+    spot,
+    callWall: snap?.callWall ?? null,
+    putWall: snap?.putWall ?? null,
+    maxGamma: snap?.maxGammaStrike ?? null,
+    zeroGamma,
+  }), [spot, snap?.callWall, snap?.putWall, snap?.maxGammaStrike, zeroGamma]);
 
   const EXPECT: Record<GammaRegime, string> = {
     negative: 'Breaks can accelerate. Wait for price to clear a wall, then trade with the confirmed direction instead of fading it.',
@@ -646,6 +630,23 @@ export function GexHubNexus() {
                 </div>
               </section>
 
+              {/* The ladder leads the map: every strike, scrollable, walls banded. */}
+              <section className="dealer-profile-card">
+                <div className="dealer-card-head" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                  <div><span>Gamma by strike · 0–7 DTE</span><strong>Net GEX at every listed strike · $ per 1% move · scroll ↕ · S = spot</strong></div>
+                  <small>
+                    bar length = |GEX| relative to the largest strike · <i style={{ fontStyle: 'normal', color: 'var(--cyan-bright)' }}>+ blue: dealers long gamma, provide liquidity</i> / <i style={{ fontStyle: 'normal', color: 'var(--red)' }}>− vermilion: dealers short gamma, take liquidity</i> · <i style={{ fontStyle: 'normal', color: LEVEL_COLORS.callWall }}>call wall</i>, <i style={{ fontStyle: 'normal', color: LEVEL_COLORS.putWall }}>put wall</i>, <i style={{ fontStyle: 'normal', color: LEVEL_COLORS.magnet }}>max γ</i> and <i style={{ fontStyle: 'normal', color: LEVEL_COLORS.zeroGamma }}>zero-γ</i> come from all listed expiries · sign assumes dealers long calls / short puts
+                  </small>
+                </div>
+                <GexStrikeLadder
+                  levelsByStrike={flat7.all}
+                  levels={gridLevels}
+                  centerKey={`${symbol}|map`}
+                  scopeLabel="0–7 DTE"
+                  emptyText={termLoading ? 'Building the dealer map…' : 'No material gamma levels returned.'}
+                />
+              </section>
+
               <section className="gex-three-axis" aria-label="Spot, expiry clock, and gamma context">
                 <div className="gex-axis-card">
                   <span>01 · spot vs zero-γ</span>
@@ -684,31 +685,6 @@ export function GexHubNexus() {
                 ))}
               </section>
 
-              <section className="dealer-profile-card">
-                <div className="dealer-card-head">
-                  <div><span>Gamma by strike · 0–7 DTE</span><strong>Net GEX at the 17 strikes nearest spot ($ per 1% move)</strong></div>
-                  <small>bar length = relative |GEX| · <span style={{ color: 'var(--cyan-bright)' }}>+ blue: dealers long gamma, provide liquidity</span> / <span style={{ color: 'var(--red)' }}>− vermilion: dealers short gamma, take liquidity</span> · sign assumes dealers long calls / short puts</small>
-                </div>
-                <div className="dealer-profile">
-                  {profile.levels.map((level) => {
-                    const width = Math.max(2, Math.abs(level.gex) / profile.max * 48);
-                    const positive = level.gex >= 0;
-                    const special = level.strike === flat7.dominant?.strike || level.strike === flat7.positive?.strike || level.strike === flat7.negative?.strike;
-                    return (
-                      <div className={`dealer-profile-row${special ? ' special' : ''}`} key={level.strike}>
-                        <div className="dealer-strike" title={`$${level.strike} · ${fmtGexB(level.gex)}/1%`}>${level.strike}</div>
-                        <div className="dealer-bar-axis">
-                          <div className={`dealer-bar ${positive ? 'positive' : 'negative'}`} style={positive ? { left: '50%', width: `${width}%` } : { right: '50%', width: `${width}%` }} />
-                          {Math.abs(level.strike - spot) <= Math.max(0.5, spot * 0.001) && <i className="dealer-spot-line" />}
-                        </div>
-                        <div className="dealer-role">{level.strike === flat7.dominant?.strike ? 'DOMINANT' : level.strike === flat7.positive?.strike ? '+ NODE' : level.strike === flat7.negative?.strike ? '− NODE' : `${level.distancePct >= 0 ? '+' : ''}${level.distancePct.toFixed(1)}%`}</div>
-                      </div>
-                    );
-                  })}
-                  {!profile.levels.length && <div className="dealer-empty">{termLoading ? 'Building the dealer map…' : 'No material gamma levels returned.'}</div>}
-                </div>
-              </section>
-
               <section className="dealer-actions">
                 <div>
                   <span>IF PRICE HOLDS INSIDE</span>
@@ -725,29 +701,21 @@ export function GexHubNexus() {
           )}
 
           {workspace === 'surface' && <>
-          {/* Matrix intensity legend — the single canonical key for cell color and brightness. */}
-          <div
+          {/* 3D legend. The 2D grid carries its own key (scale, levels, dust) in its toolbar. */}
+          {view3d && <div
             style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', alignItems: 'center', padding: '8px 2px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={metric === 'vex' ? '+VEX — dealers buy as IV rises (provides liquidity)' : '+GEX — dealer long gamma, hedging provides liquidity (calls, under the naive sign)'}>
-              <span style={{ width: 20, height: 12, borderRadius: 2, background: exposureBg(metric, 1, 1) }} />
+              <span style={{ width: 20, height: 12, borderRadius: 2, background: exposureCellBg(metric, 1, 1) }} />
               {metric === 'vex' ? '+VEX provides liquidity' : '+GEX provides liquidity'}
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={metric === 'vex' ? '−VEX — dealers sell as IV rises (takes liquidity; crash fuel)' : '−GEX — dealer short gamma, hedging takes liquidity (puts, under the naive sign)'}>
-              <span style={{ width: 20, height: 12, borderRadius: 2, background: exposureBg(metric, -1, 1) }} />
+              <span style={{ width: 20, height: 12, borderRadius: 2, background: exposureCellBg(metric, -1, 1) }} />
               {metric === 'vex' ? '⚠ −VEX takes liquidity' : '−GEX takes liquidity'}
             </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Tint strength scales with |exposure| relative to the strongest listed node in this book">
-              <span style={{ width: 20, height: 12, borderRadius: 2, background: `linear-gradient(90deg, ${exposureBg(metric, 1, 100)}, ${exposureBg(metric, 1, 1)})` }} />
-              tint = magnitude
-            </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title="mega — the single strongest listed exposure in this book">
-              <span style={{ width: 20, height: 12, borderRadius: 2, background: exposureBg(metric, 1, 1), boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15), 0 0 6px rgba(255,255,255,0.35)' }} />
-              mega = book max
-            </span>
-            <span title="Empty cell — the chain never listed that strike × expiry. Not a zero.">empty = not listed</span>
-            <span title="GEX cells: $ of underlying dealers trade per 1% move. VEX cells: $ per 1 IV point. Under $1K is dust: no text, hover still answers.">{metric === 'vex' ? 'cells: $ per 1 IV point' : 'cells: $ per 1% move'}</span>
-          </div>
+            <span title="Empty cell — the chain never listed that strike × expiry. Not a zero.">blank = not listed · · = listed dust</span>
+            <span title="GEX cells: $ of underlying dealers trade per 1% move. VEX cells: $ per 1 IV point. Dust (below the chosen % of the largest cell) is hidden behind the toggle and still answers on hover.">{metric === 'vex' ? 'cells: $ per 1 IV point' : 'cells: $ per 1% move'}</span>
+          </div>}
 
           {view3d ? (
             <div className="three-wrap">
@@ -767,78 +735,26 @@ export function GexHubNexus() {
               </Suspense>
             </div>
           ) : (
-            <div className="matrix-wrap">
-              {shaped.hiddenAbove > 0 && !showAbove && (
-                <div className="expand-row" onClick={() => setShowAbove(true)}>
-                  <span>▲ {shaped.hiddenAbove} strikes above · click to expand</span>
-                </div>
-              )}
+            <div className="matrix-wrap" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '0 2px 4px' }}>
               {termLoading ? (
                 <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
                   reading the surface…
                 </div>
-              ) : termError && !shaped.strikes.length ? (
+              ) : termError && !matrix.length ? (
                 <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', gap: 8, alignContent: 'center' }}>
                   <span>couldn't read the surface</span>
                   <button onClick={() => refetchTerm()} style={{ color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, textDecoration: 'underline', padding: 0 }}>retry</button>
                 </div>
-              ) : !shaped.strikes.length ? (
-                <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)' }}>
-                  no listed cells for {symbol}
-                </div>
               ) : (
-                <table className="matrix">
-                  <thead>
-                    <tr>
-                      <th className="sticky-col">STRIKE</th>
-                      {shaped.expiries.map(([dte, label]) => <th key={dte}>{label}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shaped.strikes.map((strike) => {
-                      const dist = strike - spot;
-                      const pct = spot > 0 ? ((dist / spot) * 100).toFixed(1) : '0';
-                      const isSpot = Math.abs(dist) < (spot * 0.0008 + 0.01);
-                      const rowCls = isSpot ? 'spot' : dist > 0 ? 'above' : 'below';
-                      return (
-                        <tr key={strike} className="strike-row">
-                          <td className={`sticky-col ${rowCls}`}>
-                            ${strike}
-                            {!isSpot && <span className="pct">{dist > 0 ? '+' : ''}{pct}%</span>}
-                            {snap?.putWall === strike && <span className="star" title="put support">★</span>}
-                            {snap?.callWall === strike && <span style={{ color: 'var(--cyan)', marginLeft: 3 }} title="call wall">⊙</span>}
-                          </td>
-                          {shaped.expiries.map(([dte]) => {
-                            const cell = shaped.byKey.get(`${strike}|${dte}`);
-                            const v = cell ? valOf(cell) : null;
-                            return (
-                              <td key={dte}>
-                                {/* Absent = the chain never listed it — an empty cell,
-                                    not a zero (the value/zero/missing rule). Dust
-                                    (<$1K) shows no text but still answers on hover. */}
-                                {v == null || v === 0
-                                  ? <div className="cell" />
-                                  : isDust(v, metric)
-                                    ? <div className="cell" title={`$${strike} · ${cell!.expiryLabel} · ${metric.toUpperCase()} ${fmtCell(v, metric)}${unitOf(metric)} (dust)`} />
-                                    : <div className={`cell ${cellClass(v)}`} style={{ cursor: 'pointer', background: exposureBg(metric, v, shaped.rMax) }} title={`$${strike} · ${cell!.expiryLabel} · ${metric.toUpperCase()} ${fmtCell(v, metric)}${unitOf(metric)} (${v > 0 ? 'provides' : 'takes'} liquidity) — click to drill in`} onClick={(e) => { e.stopPropagation(); setDrill(cell!); }}>{fmtCell(v, metric)}</div>}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-              {shaped.hiddenBelow > 0 && !showBelow && (
-                <div className="expand-row" onClick={() => setShowBelow(true)}>
-                  <span>▼ {shaped.hiddenBelow} strikes below · click to expand</span>
-                </div>
-              )}
-              {(showAbove || showBelow) && (
-                <div className="expand-row" onClick={() => { setShowAbove(false); setShowBelow(false); }}>
-                  <span>collapse to the spot window</span>
-                </div>
+                <GexStrikeMatrix
+                  cells={matrix}
+                  expiries={shaped.expiries}
+                  levels={gridLevels}
+                  metric={metric}
+                  centerKey={`${symbol}|surface`}
+                  onCellClick={setDrill}
+                  emptyText={`no listed cells for ${symbol}`}
+                />
               )}
             </div>
           )}
