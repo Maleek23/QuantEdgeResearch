@@ -231,6 +231,29 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-details[open]>summary .chev{transform:rotate(90deg)}
 .jr-notes{white-space:pre-wrap;font-size:13px;line-height:1.6;color:var(--text)}
 
+/* ── journal switcher + basis line (2026-09-29: Mine · Bot · Trade desk · traders) ── */
+.jr-books{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.jr-books-l{font-family:var(--jr-mono);font-size:10.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-mute)}
+.jr-books .jr-seg button{min-height:32px;padding:4px 12px;font-size:11.5px}
+.jr-basis{border:1px solid var(--jr-line);border-left:2px solid var(--jr-accent);border-radius:8px;padding:8px 12px;
+  background:rgba(59,140,255,0.03);font-size:12.5px;color:var(--text-dim);line-height:1.5}
+.jr-basis b{color:var(--text)}
+.jr-basis-k{font-family:var(--jr-mono);font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--jr-accent-hi)}
+.jr-basis-s{font-size:11.5px;color:var(--text-mute);margin-top:3px}
+
+/* notes (Discord analysis posts etc.) */
+.jr-note-item{border:1px solid var(--jr-line);border-radius:8px;padding:9px 11px;background:rgba(127,178,255,0.02);display:flex;flex-direction:column;gap:5px;min-width:0}
+.jr-note-item .h{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--text-mute)}
+.jr-note-item .b{white-space:pre-wrap;font-size:12.5px;line-height:1.55;color:var(--text);overflow-wrap:anywhere}
+.jr-note-item .att{display:flex;flex-wrap:wrap;gap:6px}
+.jr-note-item .att a{font-size:11.5px;color:var(--jr-accent-hi);overflow-wrap:anywhere}
+
+/* import preview table */
+.jr-preview{max-height:320px;overflow:auto;border:1px solid var(--jr-line);border-radius:8px}
+.jr-preview .jr-table td,.jr-preview .jr-n{white-space:normal}
+.jr-state{font-family:var(--jr-mono);font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase}
+.jr-state.new{color:var(--jr-gain)} .jr-state.update{color:var(--amber,#facc15)} .jr-state.unchanged{color:var(--text-mute)}
+
 @media (prefers-reduced-motion:reduce){.jr *{transition:none!important;animation:none!important}}
 
 /* light re-ground: --cyan-dim is a pale tint in .light, so the primary gradient ends on --cyan-bright instead */

@@ -116,7 +116,7 @@ export default function DashboardView() {
 
         <Card className="jr-span-6" num="05" title="By setup"
           meta={<button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('analytics', 'jr-breakdowns')}>All breakdowns <ArrowRight className="h-3.5 w-3.5" /></button>}>
-          <BucketBars buckets={setups} empty="Tag trades with a setup (Edit trade → Setup) to see which setups pay." />
+          <BucketBars buckets={setups} empty={data.meta?.canWrite === false ? 'No setup tags on these trades.' : 'Tag trades with a setup (Edit trade → Setup) to see which setups pay.'} />
         </Card>
 
         <Card className="jr-span-6" num="06" title="Insights"
@@ -139,8 +139,65 @@ export default function DashboardView() {
             </div>
           )}
         </Card>
+
+        <NotesCard />
       </div>
     </div>
+  );
+}
+
+/**
+ * Notes that aren't trades — a trader's analysis posts, charts, exits that had
+ * no matching entry — filtered by the same symbol and date filters as the rest.
+ */
+function NotesCard() {
+  const { data, filters } = useJournal();
+  const { notesQ } = data;
+  const f = filters.resolved;
+  const [limit, setLimit] = useState(12);
+  const all = notesQ.data?.notes ?? [];
+  const shown = useMemo(() => all
+    .filter((n) => (!f.from || n.day >= f.from) && (!f.to || n.day <= f.to))
+    .filter((n) => !f.symbols?.length || (n.symbols ?? []).some((s) => f.symbols!.includes(s.toUpperCase())))
+    .sort((a, b) => Date.parse(b.postedAt) - Date.parse(a.postedAt)), [all, f.from, f.to, f.symbols]);
+  if (!notesQ.isError && (notesQ.isLoading || !all.length)) return null;
+  return (
+    <Card className="jr-span-12" num="07" title="Notes & analysis" id="jr-notes" meta={<N n={shown.length} unit="notes" />}>
+      {notesQ.isError ? (
+        <QEError title="Journal notes didn't load" message="The notes request failed — trades and metrics above are unaffected." onRetry={() => notesQ.refetch()} retrying={notesQ.isFetching} />
+      ) : !shown.length ? (
+        <QEEmpty message={`None of the ${all.length} notes match these filters.`} />
+      ) : (
+        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))' }}>
+          {shown.slice(0, limit).map((n) => (
+            <article key={n.id} className="jr-note-item">
+              <div className="h">
+                <time dateTime={n.postedAt}>{new Date(n.postedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: '2-digit', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })} ET</time>
+                {n.reason && n.reason !== 'analysis' && <span className="jr-tag">{n.reason === 'unmatched_exit' ? 'exit, no entry found' : n.reason === 'unpriced_exit' ? 'closed without price' : 'entry without price'}</span>}
+                {(n.symbols ?? []).slice(0, 5).map((s) => (
+                  <button key={s} type="button" className="jr-chip" style={{ cursor: 'pointer', background: 'transparent' }}
+                    onClick={() => filters.setFilter('symbols', [s])} aria-label={`Filter the journal to ${s}`}>{s}</button>
+                ))}
+              </div>
+              <div className="b">{n.body.length > 700 ? `${n.body.slice(0, 700)}…` : n.body}</div>
+              {!!n.attachments?.length && (
+                <div className="att">
+                  {n.attachments.slice(0, 4).map((a) => (
+                    <a key={a.url} href={a.url} target="_blank" rel="noreferrer noopener">{a.isImage ? '▣ ' : '⎘ '}{a.name}</a>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+      {shown.length > limit && (
+        <button type="button" className="jr-btn" style={{ width: '100%', marginTop: 10 }} onClick={() => setLimit((l) => l + 24)}>
+          Show more · {shown.length - limit} hidden
+        </button>
+      )}
+      {all.some((n) => n.source === 'discord') && <p className="jr-note">Imported from Discord. Attachment links point at Discord's CDN and can expire; re-importing refreshes them.</p>}
+    </Card>
   );
 }
 

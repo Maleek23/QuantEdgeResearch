@@ -111,3 +111,19 @@ export const BROKERS = [
   { value: 'fidelity', label: 'Fidelity' },
   { value: 'etrade', label: 'E*TRADE' },
 ] as const;
+
+/** A journal note (GET /api/journal/notes) — analysis or commentary that isn't a trade leg. */
+export interface JournalNoteRow {
+  id: string;
+  ownerId: string;
+  symbols: string[] | null;
+  /** New York trading day, YYYY-MM-DD. */
+  day: string;
+  postedAt: string;
+  body: string;
+  attachments: { url: string; name: string; isImage: boolean }[] | null;
+  source: string;
+  sourceMessageId: string | null;
+  /** analysis | unmatched_exit | unpriced_exit | entry_without_price */
+  reason: string | null;
+}

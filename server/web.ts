@@ -73,6 +73,8 @@ app.get("/health", (req: Request, res: Response) => {
 // Journal writes carry whole broker CSV exports and downscaled chart screenshots
 // (see server/index.ts — keep the two entry points in step).
 app.use(['/api/journal/import-csv', '/api/journal/trade'], express.json({ limit: '4mb' }));
+// Discord imports upload a whole DiscordChatExporter file (JSON/CSV) for preview.
+app.use('/api/journal/discord/preview', express.json({ limit: '12mb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(cookieParser());

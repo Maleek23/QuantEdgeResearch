@@ -32063,18 +32063,36 @@ Use this checklist before entering any trade:
   // TRADE JOURNAL — Personal trade imports + analytics
   // ═══════════════════════════════════════════════════════════
 
-  /** Upload broker CSV → parse → store personal trades */
+  // Every journal route names its book with ?journal= (mine | bot | desk |
+  // trader:<slug>, default mine) and resolves the owner through journal-sources:
+  // the signed-in user for "mine", trader:<id> for a trader (admin or the trader
+  // only), and read-only for the bot and trade-desk books.
+  const journalOwnerFor = async (req: Request, res: Response) => {
+    const { journalActor, writableOwner, JournalAccessError } = await import('./journal-sources');
+    const { parseJournalKey } = await import('@shared/journal-sources');
+    try {
+      const actor = await journalActor(req);
+      return await writableOwner(actor, parseJournalKey((req.query.journal as string) ?? req.body?.journal));
+    } catch (err) {
+      if (err instanceof JournalAccessError) { res.status(err.status).json({ error: err.message }); return null; }
+      throw err;
+    }
+  };
+
+  /** Upload broker CSV → parse → store trades in the chosen (writable) journal */
   app.post("/api/journal/import-csv", requireBetaAccess, async (req, res) => {
     try {
       const { csv, broker } = req.body as { csv: string; broker?: string };
       if (!csv || typeof csv !== 'string') {
         return res.status(400).json({ error: "Missing csv field (string)" });
       }
+      const owner = await journalOwnerFor(req, res);
+      if (!owner) return;
       const { parseBrokerCSV } = await import('./broker-csv-parser');
       const result = parseBrokerCSV(csv, broker as any);
 
       // Persist parsed trades
-      const userId = (req as any).user?.id || 'default';
+      const userId = owner.ownerId;
       const batchId = `import_${Date.now()}`;
       const existing = await storage.getJournalTrades(userId);
       const fingerprint = (t: any) => [
@@ -32166,12 +32184,13 @@ Use this checklist before entering any trade:
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid trade", issues: parsed.error.issues.map((i) => `${i.path.join('.') || 'trade'}: ${i.message}`) });
       }
-      const userId = (req as any).user?.id || 'default';
+      const owner = await journalOwnerFor(req, res);
+      if (!owner) return;
       const input = parsed.data;
       const saved = await storage.createJournalTrade({
         ...input,
         ...deriveJournalTradeFields(input),
-        userId,
+        userId: owner.ownerId,
         broker: 'manual',
       } as any);
       res.json({ success: true, trade: saved });
@@ -32181,7 +32200,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  /** Edit a trade you own. Pricing edits re-derive P&L; note/tag edits leave imported P&L alone. */
+  /** Edit a trade in a journal you may write. Pricing edits re-derive P&L; note/tag edits leave imported P&L alone. */
   app.patch("/api/journal/trade/:id", requireBetaAccess, async (req, res) => {
     try {
       const { journalTradePatchSchema, buildJournalTradeUpdate } = await import('./journal-trade-input');
@@ -32189,9 +32208,10 @@ Use this checklist before entering any trade:
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid update", issues: parsed.error.issues.map((i) => `${i.path.join('.') || 'trade'}: ${i.message}`) });
       }
-      const userId = (req as any).user?.id || 'default';
+      const owner = await journalOwnerFor(req, res);
+      if (!owner) return;
       const existing = await storage.getJournalTradeById(req.params.id);
-      if (!existing || existing.userId !== userId) {
+      if (!existing || existing.userId !== owner.ownerId) {
         return res.status(404).json({ error: "Trade not found" });
       }
       const updated = await storage.updateJournalTrade(existing.id, buildJournalTradeUpdate(existing, parsed.data));
@@ -32202,26 +32222,43 @@ Use this checklist before entering any trade:
     }
   });
 
-  /** Get all personal trades */
+  /** Rows of a journal book + the basis they are computed on (journal meta). */
   app.get("/api/journal/trades", requireBetaAccess, async (req, res) => {
     try {
-      const userId = (req as any).user?.id || 'default';
-      const trades = await storage.getJournalTrades(userId);
-      res.json({ trades, count: trades.length });
+      const { journalActor, resolveJournal, loadJournal, JournalAccessError } = await import('./journal-sources');
+      const { parseJournalKey } = await import('@shared/journal-sources');
+      try {
+        const j = await resolveJournal(await journalActor(req), parseJournalKey(req.query.journal as string));
+        const { rows, meta } = await loadJournal(j);
+        res.json({ trades: rows, count: rows.length, journal: meta });
+      } catch (err) {
+        if (err instanceof JournalAccessError) return res.status(err.status).json({ error: err.message });
+        throw err;
+      }
     } catch (error: any) {
+      logger.error("[JOURNAL] trades read failed", { error: error?.message });
       res.status(500).json({ error: "Failed to fetch trades", message: error?.message });
     }
   });
 
-  /** Full analytics on personal trades */
+  /** Full analytics on a journal book's rows */
   app.get("/api/journal/analytics", requireBetaAccess, async (req, res) => {
     try {
-      const { getJournalAnalytics } = await import('./trade-journal-analytics');
-      const userId = (req as any).user?.id || 'default';
+      const { getJournalAnalyticsFor } = await import('./trade-journal-analytics');
+      const { journalActor, resolveJournal, loadJournal, JournalAccessError } = await import('./journal-sources');
+      const { parseJournalKey } = await import('@shared/journal-sources');
+      let rows;
+      try {
+        const j = await resolveJournal(await journalActor(req), parseJournalKey(req.query.journal as string));
+        rows = (await loadJournal(j)).rows;
+      } catch (err) {
+        if (err instanceof JournalAccessError) return res.status(err.status).json({ error: err.message });
+        throw err;
+      }
       // Same filter keys the client applies to its rows, so insights and timing
       // describe the same sample as the KPIs next to them.
       const filters = parseJournalFilters((k) => (typeof req.query[k] === 'string' ? (req.query[k] as string) : null));
-      const analytics = await getJournalAnalytics(userId, countJournalFilters(filters) ? filters : undefined);
+      const analytics = await getJournalAnalyticsFor(rows, countJournalFilters(filters) ? filters : undefined);
       res.json(analytics);
     } catch (error: any) {
       logger.error("[JOURNAL] analytics failed", { error: error?.message });
@@ -32229,13 +32266,14 @@ Use this checklist before entering any trade:
     }
   });
 
-  /** Delete a trade or import batch */
+  /** Delete a trade in a journal you may write */
   app.delete("/api/journal/trade/:id", requireBetaAccess, async (req, res) => {
     try {
-      // Ownership check: an id alone must never delete another user's trade.
-      const userId = (req as any).user?.id || 'default';
+      // Ownership check: an id alone must never delete another journal's trade.
+      const owner = await journalOwnerFor(req, res);
+      if (!owner) return;
       const existing = await storage.getJournalTradeById(req.params.id);
-      if (!existing || existing.userId !== userId) {
+      if (!existing || existing.userId !== owner.ownerId) {
         return res.status(404).json({ error: "Trade not found" });
       }
       await storage.deleteJournalTrade(existing.id);
@@ -32245,11 +32283,12 @@ Use this checklist before entering any trade:
     }
   });
 
-  /** Delete ALL journal trades for the logged-in user (reset) */
+  /** Delete ALL trades of a journal you may write (reset) */
   app.delete("/api/journal/trades/all", requireBetaAccess, async (req, res) => {
     try {
-      const userId = (req as any).user?.id || 'default';
-      const trades = await storage.getJournalTrades(userId);
+      const owner = await journalOwnerFor(req, res);
+      if (!owner) return;
+      const trades = await storage.getJournalTrades(owner.ownerId);
       let deleted = 0;
       for (const t of trades) {
         await storage.deleteJournalTrade(t.id);
@@ -32260,6 +32299,12 @@ Use this checklist before entering any trade:
       res.status(500).json({ error: "Bulk delete failed", message: error?.message });
     }
   });
+
+  // Sources, traders + watchlists, notes, Discord import, Alpaca (server/journals-routes.ts)
+  {
+    const { registerJournalsRoutes } = await import('./journals-routes');
+    registerJournalsRoutes(app, requireBetaAccess);
+  }
 
   /**
    * INDEX SCALP SCANNER — manual trigger

@@ -27,7 +27,7 @@ import {
 // board's actual premiums). The old 'Quant Bot' 10K book stays in the DB
 // untouched for audit; this name creates a fresh ledger aligned with
 // OUTCOME_BASELINE_DATE.
-const BOT_PORTFOLIO_NAME = 'Quant Bot · 100K';
+export const BOT_PORTFOLIO_NAME = 'Quant Bot · 100K';
 const BOT_USER = 'system-quant-bot';
 
 export interface BotConfig {

@@ -62,6 +62,8 @@ app.get("/health", (req: Request, res: Response) => {
 // Scoped to these paths (app.use prefix-matches /api/journal/trade/:id too);
 // express.json skips a body that is already parsed.
 app.use(['/api/journal/import-csv', '/api/journal/trade'], express.json({ limit: '4mb' }));
+// Discord imports upload a whole DiscordChatExporter file (JSON/CSV) for preview.
+app.use('/api/journal/discord/preview', express.json({ limit: '12mb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(cookieParser());
