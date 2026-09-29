@@ -17,8 +17,9 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
+import { Inbox, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { QEError, QELoading } from "@/components/ui/qe-states";
 
 import {
   TradeIdeaCard,
@@ -208,6 +209,9 @@ export function TradeIdeasPanel({
   const {
     data: setupsData,
     isLoading: setupsLoading,
+    isError: setupsError,
+    isFetching: setupsFetching,
+    refetch: refetchSetups,
   } = useQuery<BestSetupsResponse>({
     queryKey: ["/api/trade-ideas/best-setups", "weekly-all"],
     queryFn: async () => {
@@ -313,15 +317,23 @@ export function TradeIdeasPanel({
         totalCount={allIdeas.length}
       />
 
-      {/* Body */}
+      {/* Body — a failed fetch must never fall through to the empty state
+          (SR 11-7 T3): error is checked before "no ideas". */}
+      {setupsError && (
+        <QEError
+          title="Trade ideas API didn't respond"
+          message={
+            setupsData
+              ? "Showing the last ideas that loaded — they may be stale. This is a connection failure, not a change in the book."
+              : "Ideas couldn't be loaded. This is a connection failure, not an empty book — open ideas may exist."
+          }
+          onRetry={() => void refetchSetups()}
+          retrying={setupsFetching}
+        />
+      )}
       {setupsLoading ? (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          <span className="text-[11px] font-mono uppercase tracking-wider">
-            Loading ideas
-          </span>
-        </div>
-      ) : filteredIdeas.length === 0 ? (
+        <QELoading rows={4} label="Loading ideas" />
+      ) : setupsError && !setupsData ? null : filteredIdeas.length === 0 ? (
         <EmptyState
           totalCount={allIdeas.length}
           allIdeas={allIdeas}

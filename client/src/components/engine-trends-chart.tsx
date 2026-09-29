@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, Tooltip, Legend } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { safeToFixed } from "@/lib/utils";
+import { QEEmpty, QEError } from "@/components/ui/qe-states";
 import { AnalyticsChart, AnalyticsXAxis, AnalyticsYAxis, AnalyticsGrid, CHART_COLORS } from "@/components/ui/analytics-chart";
 
 interface WeekData {
@@ -17,7 +18,7 @@ interface WeekData {
 }
 
 export default function EngineTrendsChart() {
-  const { data, isLoading } = useQuery<WeekData[]>({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<WeekData[]>({
     queryKey: ['/api/performance/engine-trends'],
     staleTime: 30000,
   });
@@ -36,17 +37,34 @@ export default function EngineTrendsChart() {
     );
   }
 
+  // Error before empty: a failed fetch is not "not enough history" (SR 11-7 T3).
+  if (isError && (!data || data.length === 0)) {
+    return (
+      <Card data-testid="card-engine-trends-error">
+        <CardHeader>
+          <CardTitle>Engine Performance Trends (Last 8 Weeks)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <QEError
+            title="Engine trends API didn't respond"
+            message="The weekly engine win rates couldn't be loaded. This is a connection failure, not a lack of history."
+            onRetry={() => void refetch()}
+            retrying={isFetching}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!data || data.length === 0) {
     return (
       <Card data-testid="card-engine-trends-empty">
         <CardHeader>
           <CardTitle>Engine Performance Trends (Last 8 Weeks)</CardTitle>
-          <CardDescription>Data loading...</CardDescription>
+          <CardDescription>Weekly win rate comparison across all trading engines</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Not enough historical data to display engine performance trends.
-          </p>
+          <QEEmpty message="Not enough resolved history yet to chart weekly engine win rates." />
         </CardContent>
       </Card>
     );
@@ -83,6 +101,15 @@ export default function EngineTrendsChart() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {isError && (
+          <QEError
+            className="mb-4"
+            title="Engine trends API didn't respond"
+            message="Showing the last trends that loaded — they may be stale."
+            onRetry={() => void refetch()}
+            retrying={isFetching}
+          />
+        )}
         <AnalyticsChart config={{}} className="h-96">
           <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
             <AnalyticsGrid opacity={0.3} />
