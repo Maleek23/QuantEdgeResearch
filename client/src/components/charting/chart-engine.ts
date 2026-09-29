@@ -178,12 +178,81 @@ export interface DrawOpts {
   /** A sibling chart's hovered candle time — draws a synced dashed cursor
    *  when the local mouse is outside this plot. */
   syncTime?: number | null;
+  /** MA20/MA50 lines (default on). */
+  showMA?: boolean;
+  /** Volume pane (default on). */
+  showVolume?: boolean;
+  /** Layer hooks: `underlay` runs before the candles, `overlay` after them
+   *  (before the crosshair). Both get the frame's geometry, clipped to the
+   *  price plot. Used by the CHART tab's GEX / dark-pool / flow layers. */
+  underlay?: (ctx: CanvasRenderingContext2D, geo: ChartGeometry) => void;
+  overlay?: (ctx: CanvasRenderingContext2D, geo: ChartGeometry) => void;
+  /** Unclipped pass after the live-price tag — price-axis tags. */
+  axisOverlay?: (ctx: CanvasRenderingContext2D, geo: ChartGeometry) => void;
   onHover: (c: Candle | null, x: number, y: number) => void;
 }
 
-export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opts: DrawOpts) {
+/** One frame's coordinate system — what overlays draw and hit-test with. */
+export interface ChartGeometry {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+  right: number;
+  priceH: number;
+  volTop: number;
+  volumeH: number;
+  candleW: number;
+  min: number;
+  max: number;
+  candles: Candle[];
+  /** Median spacing between bars, ms. */
+  barMs: number;
+  priceToY: (p: number) => number;
+  yToPrice: (y: number) => number;
+  /** Index of the bar containing time t (last bar with time <= t), or -1
+   *  when t is outside the visible window. */
+  indexAt: (t: number) => number;
+  /** x of the bar containing t, or null outside the window. */
+  timeToX: (t: number) => number | null;
+}
+
+function buildGeometry(
+  w: number, h: number,
+  padding: { top: number; right: number; left: number },
+  priceH: number, volTop: number, volumeH: number,
+  candleW: number, min: number, max: number, candles: Candle[],
+): ChartGeometry {
+  const range = max - min || 1;
+  const gaps: number[] = [];
+  for (let i = 1; i < candles.length; i++) gaps.push(candles[i].time - candles[i - 1].time);
+  gaps.sort((a, b) => a - b);
+  const barMs = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 60_000;
+  const indexAt = (t: number) => {
+    if (!candles.length || t < candles[0].time || t >= candles[candles.length - 1].time + barMs) return -1;
+    let lo = 0; let hi = candles.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (candles[mid].time <= t) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  };
+  return {
+    width: w, height: h, left: padding.left, top: padding.top, right: w - padding.right,
+    priceH, volTop, volumeH, candleW, min, max, candles, barMs,
+    priceToY: (p) => padding.top + ((max - p) / range) * priceH,
+    yToPrice: (y) => max - ((y - padding.top) / priceH) * range,
+    indexAt,
+    timeToX: (t) => {
+      const i = indexAt(t);
+      return i < 0 ? null : padding.left + i * candleW + candleW / 2;
+    },
+  };
+}
+
+export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opts: DrawOpts): ChartGeometry | null {
   const ctx = chartCanvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx) return null;
   const rect = chartCanvas.getBoundingClientRect();
   const w = rect.width; const h = rect.height;
   chartCanvas.width = w * devicePixelRatio;
@@ -306,6 +375,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   }
 
   // Moving averages
+  const showMA = opts.showMA !== false;
   const ma20 = calcMA(candles, 20);
   const ma50 = calcMA(candles, 50);
   const strokeMA = (ma: (number | null)[], style: string) => {
@@ -321,13 +391,23 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     });
     ctx.stroke();
   };
-  strokeMA(ma50, 'rgba(167, 139, 250, 0.6)');
-  strokeMA(ma20, 'rgba(59,140,255, 0.7)');
+  if (showMA) {
+    strokeMA(ma50, 'rgba(167, 139, 250, 0.6)');
+    strokeMA(ma20, 'rgba(59,140,255, 0.7)');
+  }
 
   // Volume bars
   const volTop = padding.top + priceH + 10;
   const candleW = chartW / candles.length;
-  candles.forEach((c, i) => {
+  const geo = buildGeometry(w, h, padding, priceH, volTop, volumeH, candleW, min, max, candles);
+  const clipped = (fn: (ctx: CanvasRenderingContext2D, geo: ChartGeometry) => void) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(padding.left, padding.top, chartW, priceH);
+    ctx.clip();
+    try { fn(ctx, geo); } finally { ctx.restore(); }
+  };
+  if (opts.showVolume !== false) candles.forEach((c, i) => {
     const x = padding.left + i * candleW;
     const barH = maxVol > 0 ? (c.volume / maxVol) * volumeH : 0;
     ctx.fillStyle = c.close >= c.open ? 'rgba(110,231,183, 0.25)' : 'rgba(255,107,61, 0.25)';
@@ -362,6 +442,8 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
       ctx.setLineDash([]);
     }
   }
+
+  if (opts.underlay) clipped(opts.underlay);
 
   // Candles or line
   if (opts.type === 'candles') {
@@ -420,6 +502,8 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     ctx.shadowBlur = 0;
   }
 
+  if (opts.overlay) clipped(opts.overlay);
+
   // Current price line + tag
   const lastCandle = candles[candles.length - 1];
   const lastY = padding.top + ((max - lastCandle.close) / priceRange) * priceH;
@@ -437,6 +521,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   ctx.font = '700 10px "JetBrains Mono", monospace';
   ctx.textAlign = 'left';
   ctx.fillText(lastCandle.close.toFixed(2), w - padding.right + 6, lastY + 3);
+  if (opts.axisOverlay) { ctx.save(); try { opts.axisOverlay(ctx, geo); } finally { ctx.restore(); } }
 
   // Crosshair
   if (inPlot) {
@@ -464,4 +549,5 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   } else {
     opts.onHover(null, 0, 0);
   }
+  return geo;
 }

@@ -252,6 +252,10 @@ app.use((req, res, next) => {
         }
       }).catch(() => {});
 
+      // CHART tab GEX timeline — records per-strike GEX every 5 min for the
+      // watched set so the bubbles have a real history (none is back-filled).
+      void import('./chart-overlays').then((co) => co.startChartOverlayRecorder()).catch(() => {});
+
       // Flow cluster sentry — the push channel the META miss exposed. Every
       // 5 min in cash hours: same-name premium clusters (>=$5M, >=3 prints)
       // fire ONCE per tier to the Pulse + Discord with the aggressor lean.

@@ -15148,6 +15148,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(502).json({ error: 'Bullflow context unavailable' });
     }
   });
+  // CHART overlays — GEX-through-time bubbles, multi-day dark-pool levels and
+  // Bullflow prints for the CHART tab. Every layer carries source/asOf/age;
+  // the GEX timeline starts when recording started (see server/chart-overlays).
+  app.get("/api/chart/overlays/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol ?? '').trim().toUpperCase();
+      if (!/^[A-Z.^]{1,10}$/.test(symbol)) return res.status(400).json({ error: 'Invalid symbol' });
+      const rawRange = String(req.query.range ?? '1D').toUpperCase();
+      const range = ['1D', '2D', '5D'].includes(rawRange) ? rawRange : '1D';
+      const spot = Number(req.query.spot);
+      const { buildChartOverlays } = await import('./chart-overlays');
+      res.json(await buildChartOverlays(symbol, range, Number.isFinite(spot) && spot > 0 ? spot : null));
+    } catch (error: any) {
+      logger.warn(`[CHART-OVERLAYS] failed: ${error?.message}`);
+      res.status(500).json({ error: 'Chart overlays unavailable' });
+    }
+  });
   app.get("/api/bullflow/leaders", async (_req, res) => {
     try {
       const bf = await import("./bullflow-service");

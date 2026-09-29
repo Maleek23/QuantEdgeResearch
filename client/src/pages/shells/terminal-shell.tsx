@@ -7,7 +7,7 @@
  *
  * This is the consolidation target for AUDIT.md / BLUEPRINT.md / TERMINAL_SPEC.md.
  */
-import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { onWorkup } from '@/lib/workup-bus';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -48,6 +48,35 @@ const TerminalSettings = lazy(() => import('@/components/terminal/terminal-setti
 // CHART = the reference Chart Lab mock, wired (chart-lab-nexus). The prior
 // EpochChart-based lab stays in the tree at charting/chart-lab.tsx.
 const ChartLab = lazy(() => import('@/components/charting/chart-lab-nexus').then(m => ({ default: m.ChartLabBoard })));
+// Default CHART view: the flow chart (GEX bubbles through time, dark-pool
+// levels, options prints on the candles). Chart Lab stays one click away.
+const FlowChart = lazy(() => import('@/components/charting/flow-chart-nexus').then(m => ({ default: m.FlowChartBoard })));
+const CHART_VIEW_KEY = 'qe-chart-view';
+function ChartTabHost() {
+  const [view, setView] = useState<'flow' | 'lab'>(() => {
+    try { return localStorage.getItem(CHART_VIEW_KEY) === 'lab' ? 'lab' : 'flow'; } catch { return 'flow'; }
+  });
+  const choose = (next: 'flow' | 'lab') => {
+    setView(next);
+    try { localStorage.setItem(CHART_VIEW_KEY, next); } catch { /* non-critical */ }
+  };
+  if (view === 'flow') return <FlowChart onOpenLab={() => choose('lab')} />;
+  return (
+    <div>
+      <div className="flex items-center gap-2 border-b border-border/45 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        <button
+          type="button"
+          onClick={() => choose('flow')}
+          className="cursor-pointer rounded border border-border/60 px-2 py-1 transition-colors hover:border-[var(--brand-cyan)] hover:text-foreground"
+        >
+          ← Flow chart
+        </button>
+        <span>Chart Lab · published levels, watchlist, ES translation</span>
+      </div>
+      <ChartLab />
+    </div>
+  );
+}
 
 // Nexus now uses the focused live decision workspace. The legacy board mixed
 // market-overview modules (pulse, rotation, radar, heatmap, watchlist) into the
@@ -427,7 +456,7 @@ export default function TerminalShell() {
                   <NexusBoard />
                 </div>
               )}
-              {tab === 'chart' && <ChartLab />}
+              {tab === 'chart' && <ChartTabHost />}
               {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it.
                   Full-bleed: the FLOW mock owns its own two-column layout. */}
               {tab === 'flow' && <FlowBoard onSelectSymbol={(sym) => openResearch(sym, undefined, 'flow')} />}

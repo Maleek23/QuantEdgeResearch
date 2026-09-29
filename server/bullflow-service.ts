@@ -440,6 +440,14 @@ export async function getDarkPoolTrades(ticker: string, minNotional = 1_000_000)
   const today = marketDateET();
   return cachedGet('/v1/data/darkPoolTrades', { ticker: ticker.toUpperCase(), from: today, to: today, minNotional: String(minNotional) }, 6 * 60_000);
 }
+/**
+ * Multi-day dark-pool window (chart DP levels). Long TTL: these levels are
+ * days old by nature, and every uncached call spends a slot of the shared
+ * 8/min budget.
+ */
+export async function getDarkPoolTradesRange(ticker: string, from: string, to: string, minNotional = 1_000_000): Promise<any | null> {
+  return cachedGet('/v1/data/darkPoolTrades', { ticker: ticker.toUpperCase(), from, to, minNotional: String(minNotional) }, 30 * 60_000);
+}
 export async function getPeakReturn(occ: string, oldPrice: number, tradeTsSec: number): Promise<{ peakPrice: number; peakPct: number } | null> {
   const d = await cachedGet('/v1/data/peakReturn', { sym: occ, old_price: String(oldPrice), trade_timestamp: String(Math.floor(tradeTsSec)) }, 10 * 60_000);
   if (!d) return null;

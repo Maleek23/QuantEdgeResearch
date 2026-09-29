@@ -15,10 +15,10 @@
  * Pan/zoom is a windowed VIEW over the real series — never resampled, never
  * interpolated: `span` bars ending `offset` bars before the latest.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   drawChart, renderedCandleRange, useCandles, TF_CONFIG,
-  type Candle, type Level, type Zone,
+  type Candle, type Level, type Zone, type DrawOpts,
 } from '@/components/charting/chart-engine';
 import '@/styles/nexus.css';
 
@@ -36,18 +36,36 @@ const DEFAULT_VISIBLE_BARS: Record<keyof typeof TF_CONFIG, number> = {
   '1W': 156,
 };
 
+// Stable defaults: a fresh `[]` per render re-ran the redraw effect, whose
+// onHoverCandle → parent setState → render → new `[]` looped until React
+// aborted ("Maximum update depth exceeded" on Chart Lab).
+const NO_LEVELS: (Level & { dashed?: boolean })[] = [];
+const NO_ZONES: Zone[] = [];
+
 const SYNC_BUS = new Map<string, Set<(t: number | null) => void>>();
 
 export function NexusPriceChart({
   symbol,
   initialTf = '1D',
   height = 340,
-  levels = [],
-  zones = [],
+  levels = NO_LEVELS,
+  zones = NO_ZONES,
   fill = false,
   expandable = true,
   onHoverCandle,
   syncGroup,
+  tf: controlledTf,
+  onTfChange,
+  hideControls = false,
+  transformBars,
+  showMA = true,
+  showVolume = true,
+  crosshairTip = true,
+  underlay,
+  overlay,
+  axisOverlay,
+  resetKey,
+  defaultVisibleBars,
 }: {
   symbol: string;
   initialTf?: keyof typeof TF_CONFIG;
@@ -63,14 +81,37 @@ export function NexusPriceChart({
   /** Charts sharing a group share a crosshair: hovering one marks the same
    *  time on the others. */
   syncGroup?: string;
+  /** Controlled timeframe (the caller owns the TF picker). */
+  tf?: keyof typeof TF_CONFIG;
+  onTfChange?: (tf: keyof typeof TF_CONFIG) => void;
+  /** Hide the built-in TF bar and candles/line toggle (caller's toolbar owns them). */
+  hideControls?: boolean;
+  /** Filter/cut the full series (session range, extended hours, replay). Memoize it. */
+  transformBars?: (bars: Candle[]) => Candle[];
+  showMA?: boolean;
+  showVolume?: boolean;
+  /** The floating OHLCV tooltip (off when the caller renders its own readout). */
+  crosshairTip?: boolean;
+  underlay?: DrawOpts['underlay'];
+  overlay?: DrawOpts['overlay'];
+  axisOverlay?: DrawOpts['axisOverlay'];
+  /** Changing this resets pan/zoom (e.g. a new session range). */
+  resetKey?: string;
+  /** Initial window width in bars (default: timeframe-sized). */
+  defaultVisibleBars?: number;
 }) {
-  const [tf, setTf] = useState<keyof typeof TF_CONFIG>(
+  const [localTf, setLocalTf] = useState<keyof typeof TF_CONFIG>(
     TF_CONFIG[initialTf] ? initialTf : '1D',
   );
+  const tf = controlledTf && TF_CONFIG[controlledTf] ? controlledTf : localTf;
+  const setTf = (next: keyof typeof TF_CONFIG) => { setLocalTf(next); onTfChange?.(next); };
   const [type, setType] = useState<'candles' | 'line'>('candles');
   const [expanded, setExpanded] = useState(false);
   const { data: series, isLoading, isError } = useCandles(symbol, tf);
-  const all = series?.bars;
+  const all = useMemo(
+    () => (series?.bars && transformBars ? transformBars(series.bars) : series?.bars),
+    [series, transformBars],
+  );
 
   /* windowed view over the series: span bars, ending `offset` bars before now */
   const [view, setView] = useState<{ span: number | null; offset: number }>({ span: null, offset: 0 });
@@ -78,12 +119,15 @@ export function NexusPriceChart({
   useEffect(() => {
     setView({ span: null, offset: 0 });
     setPriceView({ scale: 1, shift: 0 });
-  }, [symbol, tf]);
+  }, [symbol, tf, resetKey]);
   const len = all?.length ?? 0;
-  const defaultSpan = Math.min(len, DEFAULT_VISIBLE_BARS[tf]);
+  const defaultSpan = Math.min(len, defaultVisibleBars ?? DEFAULT_VISIBLE_BARS[tf]);
   const span = view.span == null ? defaultSpan : Math.min(view.span, len);
   const offset = Math.min(view.offset, Math.max(0, len - span));
-  const candles = all ? all.slice(Math.max(0, len - span - offset), len - offset) : undefined;
+  const candles = useMemo(
+    () => (all ? all.slice(Math.max(0, len - span - offset), len - offset) : undefined),
+    [all, len, span, offset],
+  );
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -124,6 +168,7 @@ export function NexusPriceChart({
     if (!canvas || !candles || candles.length < 2) return;
     drawChart(canvas, candles, {
       type, tf, showCrosshair: true, showLevels: true,
+      showMA, showVolume, underlay, overlay, axisOverlay,
       levels: levels.filter((l) => Number.isFinite(l.price)),
       priceScale: priceView.scale,
       priceShift: priceView.shift,
@@ -140,7 +185,7 @@ export function NexusPriceChart({
         publishSync(c?.time ?? null);
         const tip = tipRef.current; const wrap = wrapRef.current;
         if (!tip || !wrap) return;
-        if (!c || pan.current?.moved) { tip.classList.remove('show'); return; }
+        if (!c || pan.current?.moved || !crosshairTip) { tip.classList.remove('show'); return; }
         const d = new Date(c.time);
         tip.querySelector('[data-tip=time]')!.textContent = d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
         tip.querySelector('[data-tip=o]')!.textContent = c.open.toFixed(2);
@@ -162,7 +207,7 @@ export function NexusPriceChart({
     });
   };
 
-  useEffect(() => { redraw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [candles, type, tf, levels, zones, priceView]);
+  useEffect(() => { redraw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [candles, type, tf, levels, zones, priceView, showMA, showVolume, underlay, overlay, axisOverlay]);
   useEffect(() => {
     const onResize = () => redraw();
     window.addEventListener('resize', onResize);
@@ -172,7 +217,7 @@ export function NexusPriceChart({
     if (observer && wrapRef.current) observer.observe(wrapRef.current);
     return () => { window.removeEventListener('resize', onResize); observer?.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, type, tf, levels, zones, priceView]);
+  }, [candles, type, tf, levels, zones, priceView, showMA, showVolume, underlay, overlay, axisOverlay]);
 
   /* wheel zoom — native listener so preventDefault actually stops page scroll */
   useEffect(() => {
@@ -183,7 +228,7 @@ export function NexusPriceChart({
       e.preventDefault();
       setView((v) => {
         const curSpan = v.span == null
-          ? Math.min(all.length, DEFAULT_VISIBLE_BARS[tf])
+          ? Math.min(all.length, defaultVisibleBars ?? DEFAULT_VISIBLE_BARS[tf])
           : Math.min(v.span, all.length);
         // Delta-proportional zoom. The old fixed 1.25x step compounded per
         // EVENT, and a trackpad fires dozens of small-delta events per flick —
@@ -204,7 +249,7 @@ export function NexusPriceChart({
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [all, tf]);
+  }, [all, tf, defaultVisibleBars]);
 
   const visibleQuarantined = candles?.reduce(
     (count, candle) => count + Number(Boolean(candle.clampedHigh)) + Number(Boolean(candle.clampedLow)),
@@ -342,19 +387,19 @@ export function NexusPriceChart({
         />
       )}
 
-      <div className="timeframe-bar" style={{ top: 8, left: 8 }}>
+      {!hideControls && <div className="timeframe-bar" style={{ top: 8, left: 8 }}>
         {(Object.keys(TF_CONFIG) as (keyof typeof TF_CONFIG)[]).map((k) => (
           <button key={k} className={`tf-btn${tf === k ? ' active' : ''}`} style={{ padding: '3px 8px' }} onClick={() => setTf(k)}>{k}</button>
         ))}
-      </div>
-      <div className="chart-type-toggle" style={{ position: 'absolute', top: 8, right: 8, zIndex: 3, display: 'flex', gap: 2 }}>
+      </div>}
+      {!hideControls && <div className="chart-type-toggle" style={{ position: 'absolute', top: 8, right: 8, zIndex: 3, display: 'flex', gap: 2 }}>
         {(['candles', 'line'] as const).map((t) => (
           <button key={t} className={`chart-type-btn${type === t ? ' active' : ''}`} onClick={() => setType(t)}>{t}</button>
         ))}
         {expandable && !expanded && (
           <button className="chart-type-btn" title="Expand" onClick={() => setExpanded(true)}>⤢</button>
         )}
-      </div>
+      </div>}
 
       <div className="chart-info-overlay" style={{ bottom: 8, left: 8, padding: '4px 8px' }}>
         <span>TF <b>{TF_CONFIG[tf].label}</b></span>
