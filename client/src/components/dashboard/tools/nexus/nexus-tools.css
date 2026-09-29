@@ -1,0 +1,83 @@
+/* NEXUS tools — the nxp-* board (styles/nexus-prototype.css) re-scoped to fit a
+   resizable tile: denser rows, no viewport heights, container queries instead
+   of viewport media queries. CVD-safe: bull/reward = --green (mint),
+   bear/risk = --red (vermilion). */
+
+.flowdash .nxd{--p:var(--green);--n:var(--red);--text-primary:var(--text);--border-subtle:var(--nx-border);color:var(--text)}
+.flowdash .nxd-controls{gap:5px}
+.flowdash .nxd-search{display:inline-flex;align-items:center;gap:5px;flex:1 1 90px;min-width:70px;max-width:180px;height:26px;padding:0 7px;border:1px solid var(--nx-border-hi);border-radius:5px;background:var(--bg-2);color:var(--text-mute)}
+.flowdash .nxd-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font:600 11px var(--fd-mono)}
+.flowdash .nxd-count{margin-left:auto;font:700 10.5px var(--fd-mono);color:var(--text-mute)}
+.flowdash .nxd-hint{font-size:10.5px}
+
+/* dense queue rows */
+.flowdash .nxd .nxp-rows{padding:3px 4px}
+.flowdash .nxd .nxp-row{grid-template-columns:22px 1fr auto 12px;gap:7px;padding:5px 7px;border-radius:5px}
+.flowdash .nxd .nxp-row.selected{transform:none;border-color:color-mix(in srgb,var(--cyan) 40%,transparent);background:color-mix(in srgb,var(--cyan) 10%,transparent)}
+.flowdash .nxd .nxp-row-main{gap:1px}
+.flowdash .nxd .nxp-row-main strong,.flowdash .nxd .nxp-row-status strong{font-size:12px}
+.flowdash .nxd .nxp-row small{font-size:9.5px;line-height:1.3}
+
+/* detail — fills the tile, scrolls inside it */
+.flowdash .nxd-detail{container-type:inline-size}
+.flowdash .nxd .nxp-detail{padding:10px 12px 12px}
+.flowdash .nxd .nxp-symbol-line h2{font-size:22px}
+.flowdash .nxd .nxp-detail-head p{margin-top:6px;font-size:12px;line-height:1.5}
+.flowdash .nxd .nxp-score strong{font-size:26px}
+.flowdash .nxd .nxp-chart-card{margin-top:12px;padding:8px 10px 6px;border-radius:8px}
+.flowdash .nxd .nxp-levels{margin-top:8px;border-radius:8px}
+.flowdash .nxd .nxp-levels>div{padding:8px 10px}
+.flowdash .nxd .nxp-levels strong{margin:4px 0 2px;font-size:14px}
+.flowdash .nxd .nxp-detail-tabs{margin-top:8px;padding:4px;background:var(--panel-solid)}
+.flowdash .nxd .nxp-detail-tabs button{padding:6px}
+.flowdash .nxd .nxp-thesis,.flowdash .nxd .nxp-execution{padding:12px}
+.flowdash .nxd .nxp-dev-summary{margin-top:12px}
+.flowdash .nxd .nxp-dev-summary>div{padding:8px 10px}
+.flowdash .nxd .nxp-dev-grid>article,.flowdash .nxd .nxp-dev-grid>aside{padding:12px}
+.flowdash .nxd .nxp-empty{min-height:0;height:100%;padding:24px 12px}
+@container (max-width:720px){
+  .flowdash .nxd .nxp-bottom-grid,.flowdash .nxd .nxp-dev-grid,.flowdash .nxd .nxp-technical-grid,.flowdash .nxd .nxp-manage-grid{grid-template-columns:1fr}
+  .flowdash .nxd .nxp-levels,.flowdash .nxd .nxp-dev-summary{grid-template-columns:1fr 1fr}
+  .flowdash .nxd .nxp-levels>div:nth-child(2),.flowdash .nxd .nxp-dev-summary>div:nth-child(2){border-right:0}
+  .flowdash .nxd .nxp-evidence{grid-template-columns:1fr}
+  .flowdash .nxd .nxp-dev-levels{grid-template-columns:1fr 1fr}
+}
+@container (max-width:420px){
+  .flowdash .nxd .nxp-detail-head{flex-direction:column;gap:8px}
+  .flowdash .nxd .nxp-score,.flowdash .nxd .nxp-dev-status{text-align:left;align-items:flex-start}
+  .flowdash .nxd .nxp-detail-tabs{overflow-x:auto}
+  .flowdash .nxd .nxp-detail-tabs button{min-width:68px}
+}
+
+/* developing lane: list + inline detail when no detail tool is placed */
+.flowdash .nxd-developing{container-type:inline-size}
+.flowdash .nxd-split{flex:1;min-height:0;display:grid;grid-template-columns:minmax(200px,260px) minmax(0,1fr)}
+.flowdash .nxd-split-list{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--nx-border)}
+@container (max-width:620px){
+  .flowdash .nxd-split{grid-template-columns:1fr;grid-template-rows:minmax(120px,38%) minmax(0,1fr)}
+  .flowdash .nxd-split-list{border-right:0;border-bottom:1px solid var(--nx-border)}
+}
+
+/* market context, inline instead of a drawer */
+.flowdash .nxd-context .nxp-market-summary{display:flex;flex-wrap:wrap;gap:6px 10px;margin:8px 10px 0;padding:7px 10px;border-color:var(--nx-border);border-radius:6px;background:var(--bg-2);backdrop-filter:none}
+.flowdash .nxd-context .nxp-market-summary>span,.flowdash .nxd-context .nxp-market-summary>strong{display:inline}
+.flowdash .nxd .nxd-context-inline{position:static;z-index:auto;width:auto;height:auto;padding:10px 12px 4px;border:0;background:transparent;box-shadow:none}
+.flowdash .nxd-context-inline .nxp-context-head h2{margin:3px 0 0;font-size:18px}
+.flowdash .nxd-context-inline .nxp-context-score{margin:10px 0;padding:10px 12px;border-radius:8px}
+.flowdash .nxd-context-inline .nxp-context-score strong{font-size:28px}
+.flowdash .nxd-context-inline .nxp-macro-oracle{margin:10px 0;padding:10px 12px;border-radius:8px}
+.flowdash .nxd-context-inline dl{margin:0}
+.flowdash .nxd-context-inline dl div{padding:6px 0}
+.flowdash .nxd-context-inline h3{margin-top:14px}
+.flowdash .nxd-context-inline ul{margin:6px 0 0;padding-left:16px}
+.flowdash .nxd-context-inline li{margin:5px 0;font-size:11.5px}
+
+/* classic all-in-one: the page's shell fills the tile, not the viewport */
+.flowdash .fd-legacy.nxd-classic{container-type:inline-size}
+.flowdash .fd-legacy>.nxp-shell{box-sizing:border-box;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:10px 12px}
+.flowdash .fd-legacy>.nxp-shell>.nxp-header{max-width:none;width:100%;flex:none;padding-bottom:10px}
+.flowdash .fd-legacy>.nxp-shell>.nxp-header h1{font-size:28px}
+.flowdash .fd-legacy>.nxp-shell>.nxp-workspace,.flowdash .fd-legacy>.nxp-shell>.nxp-alt-view{max-width:none;width:100%;height:auto;min-height:0;flex:1 1 auto;margin:0}
+.flowdash .fd-legacy>.nxp-shell>.nxp-workspace{grid-template-columns:clamp(260px,26%,360px) minmax(0,1fr)}
+.flowdash .fd-legacy>.nxp-shell .nxp-queue,.flowdash .fd-legacy>.nxp-shell .nxp-stage{height:100%;min-height:0}
+.flowdash .fd-legacy>.nxp-shell .nxp-stage{overflow-y:auto}

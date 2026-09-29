@@ -1,0 +1,31 @@
+/* CRYPTO tools — Crypto board sections inside dashboard tiles. Sections keep
+   their nexus.css classes; this compacts the mock's page-scale padding and
+   makes the chart deck fill its tile. */
+.flowdash .cx-tool{flex:1;min-height:0;display:flex;flex-direction:column}
+.flowdash .cx-tool.fd-scroll{display:block;overflow:auto}
+
+.flowdash .cx-tool .crypto-header{padding:10px 12px;background:transparent;backdrop-filter:none}
+.flowdash .cx-tool .crypto-title{font-size:17px}
+.flowdash .cx-tool .spot-section,.flowdash .cx-tool .proxy-section,.flowdash .cx-tool .how-section{padding:10px 12px;border-bottom:0;background:transparent}
+.flowdash .cx-tool .spot-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.flowdash .cx-tool .crypto-spot-card{padding:12px}
+.flowdash .cx-tool .crypto-spot-card:hover,.flowdash .cx-tool .proxy-card:hover,.flowdash .cx-tool .how-step:hover{transform:none}
+.flowdash .cx-tool .crypto-spot-price{font-size:22px}
+.flowdash .cx-tool .proxy-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.flowdash .cx-tool .proxy-card{padding:10px}
+.flowdash .cx-tool .how-steps{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.flowdash .cx-tool .summary,.flowdash .cx-tool .correlation{padding:10px 12px;border-bottom:0}
+.flowdash .cx-tool .fear-greed{padding:10px 12px !important;border-bottom:0 !important}
+.flowdash .cx-tool>section[aria-label="Crypto proxy promotion gate"]{border:0;padding:10px 12px}
+
+/* chart deck: fill the tile; the strip and note stay pinned below the chart */
+.flowdash .cx-chart{overflow:hidden}
+.flowdash .cx-chart>.crypto-chart-deck.fill{display:flex;flex-direction:column;flex:1;min-height:0;margin:0;border:0;border-radius:0;background:transparent}
+.flowdash .cx-chart .crypto-chart-head{flex:none;padding:6px 10px}
+.flowdash .cx-chart .crypto-chart-title{font-size:13px}
+.flowdash .cx-chart .crypto-level-strip,.flowdash .cx-chart .crypto-chart-note{flex:none}
+.flowdash .cx-chart .crypto-level-strip>div{padding:6px 10px}
+.flowdash .cx-chart .crypto-chart-note{padding:5px 10px}
+@media (max-width:767px){
+  .flowdash .cx-chart .crypto-level-strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+}

@@ -1,0 +1,37 @@
+/* POSITIONS tools — the heat-map page's parts sized for tiles.
+   Gain = --green (mint), loss = --red (vermilion), neutral = --amber. */
+.flowdash .ph-kpis{display:grid;grid-template-columns:minmax(150px,1.6fr) repeat(4,minmax(80px,1fr));gap:1px;background:var(--nx-border);align-content:start}
+.flowdash .ph-kpis>div{display:flex;flex-direction:column;gap:2px;padding:7px 10px;background:var(--panel-solid);min-width:0}
+.flowdash .ph-lbl{font:600 9.5px var(--fd-mono);letter-spacing:.7px;text-transform:uppercase;color:var(--text-mute);white-space:nowrap}
+.flowdash .ph-kpis b{font:700 16px var(--fd-mono);color:var(--text);font-variant-numeric:tabular-nums}
+.flowdash .ph-hero b{font-size:22px}
+.flowdash .ph-kpis b.up{color:var(--green)}
+.flowdash .ph-kpis b.down{color:var(--red)}
+.flowdash .ph-kpis b.warn{color:var(--amber)}
+.flowdash .ph-sub{font:500 10px var(--fd-mono);color:var(--text-mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.flowdash .ph-controls{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--nx-border)}
+.flowdash .ph-note{font:500 9.5px var(--fd-mono);color:var(--text-mute)}
+.flowdash .ph-heat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
+.flowdash .ph-heat-grid .p-3{padding:8px}
+.flowdash .ph-heat-grid .text-xl{font-size:16px;line-height:1.3}
+.flowdash .ph-more{margin-top:8px;border:0;background:transparent;color:var(--text-mute);font:500 11px var(--fd-mono);cursor:pointer}
+.flowdash .ph-more:hover{color:var(--text)}
+
+.flowdash .ph-bw{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;align-content:start}
+.flowdash .ph-bw .text-3xl{font-size:22px}
+.flowdash .ph-bw .text-2xl{font-size:18px}
+
+.flowdash table.ph-mix+table.ph-mix{margin-top:6px}
+.flowdash .ph-mix tbody tr{cursor:default}
+
+.flowdash .ph-table tbody tr{cursor:pointer}
+.flowdash .ph-table td,.flowdash .ph-table th{white-space:nowrap}
+
+/* the whole page in a tile: fill it, don't claim the viewport */
+.flowdash .ph-classic>.min-h-screen{min-height:0;padding:12px}
+
+@media (max-width:767px){
+  .flowdash .ph-kpis{grid-template-columns:1fr 1fr}
+  .flowdash .ph-hero{grid-column:1 / -1}
+}

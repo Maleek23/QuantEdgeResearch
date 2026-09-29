@@ -28,8 +28,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
 import {
-  drawChart, useCandles, TF_CONFIG, CANDLES_POLL_MS,
-  type Candle, type Level, type Zone, type CandleSeries, type EHQuote, type EHPayload,
+  useCandles, TF_CONFIG, CANDLES_POLL_MS,
+  type Candle, type Level, type EHQuote, type EHPayload,
 } from '@/components/charting/chart-engine';
 import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
 // Re-exported so existing engine imports keep working.
@@ -99,34 +99,35 @@ const q = (path: string) => async () => {
 const DEFAULT_INSTRUMENTS = ['SPY', 'QQQ', 'IWM', 'SMH', 'XBI'];
 const APPROVED_INSTRUMENTS = getAllApprovedSymbols().sort();
 
-export function ChartLabBoard() {
+/* ────────────────────────────────────────────────────────────────
+   SHARED QUERIES — every section (and every dashboard tool cut from
+   this board) calls these with IDENTICAL react-query keys, so N
+   sections on screen still cost one request per endpoint.
+   ──────────────────────────────────────────────────────────────── */
+
+export type ChartLabTf = keyof typeof TF_CONFIG;
+/** The board's candle TF (the summary's "next poll" counts to this query). */
+export const CHART_LAB_TF: ChartLabTf = '1h';
+
+/** The terminal's shared ticker (StockContext). */
+export function useChartLabSymbol() {
   const { currentStock, setCurrentStock } = useStockContext();
   const symbol = currentStock?.symbol?.toUpperCase() || 'SPY';
+  return { symbol, setSymbol: (sym: string) => setCurrentStock({ symbol: sym }) };
+}
 
-  const [tf, setTf] = useState<keyof typeof TF_CONFIG>('1h');
-  const [type, setType] = useState<'candles' | 'line'>('candles');
-  const [showCrosshair, setShowCrosshair] = useState(true);
-  const [showLevels, setShowLevels] = useState(true);
-  const [instrumentOpen, setInstrumentOpen] = useState(false);
-  const [instrumentQuery, setInstrumentQuery] = useState('');
-  const [futuresRisk, setFuturesRisk] = useState({ accountSize: 50_000, riskPct: 0.5, stopPoints: 5 });
-  // Sidebar rail: drag its border left to widen, double-click to expand.
-  const rail = useColResize('nx-chart-side', 300, { sign: -1, min: 240, max: 620 });
-
-  const { data: series, isLoading, isError, dataUpdatedAt } = useCandles(symbol, tf);
-  const candles = series?.bars;
-
-  const { data: convictions } = useQuery<ConvictionsResponse>({
+export function useChartLabConvictions() {
+  return useQuery<ConvictionsResponse>({
     queryKey: ['/api/convictions', 'chart-lab'],
     queryFn: q('/api/convictions?limit=100&minScore=0'),
     staleTime: 60_000,
     retry: 1,
   });
-  const pick = useMemo(
-    () => convictions?.picks?.find((c: ConvictionPick) => c.symbol.toUpperCase() === symbol),
-    [convictions, symbol],
-  );
-  const { data: dealer } = useQuery<{ snapshot?: {
+}
+
+export interface ChartLabDealer {
+  generatedAt?: string; cachedAt?: string; cached?: boolean;
+  snapshot?: {
     spotPrice?: number | null;
     putWall?: number | null;
     gammaFlipPrice?: number | null;
@@ -141,11 +142,27 @@ export function ChartLabBoard() {
       openInterest?: number;
       distancePct?: number;
     }>;
-  } }>({
+  };
+}
+
+export function useChartLabDealer(symbol: string) {
+  return useQuery<ChartLabDealer>({
     queryKey: ['/api/gex-vex/terminal', symbol, 'chart-overlay'],
     queryFn: q(`/api/gex-vex/terminal/${symbol}?interval=15m&lookback=5`),
     staleTime: 120_000, refetchInterval: 180_000, retry: 1,
   });
+}
+
+/** Published execution levels + measured dealer structure for one ticker. */
+export function useChartLabLevels(symbol: string) {
+  const convictionsQ = useChartLabConvictions();
+  const dealerQ = useChartLabDealer(symbol);
+  const convictions = convictionsQ.data;
+  const dealer = dealerQ.data;
+  const pick = useMemo(
+    () => convictions?.picks?.find((c: ConvictionPick) => c.symbol.toUpperCase() === symbol),
+    [convictions, symbol],
+  );
   // One price plane: execution levels plus measured dealer structure. This is
   // the useful part of a TradingView-style GEX indicator without pretending a
   // modeled wall is a guaranteed support/resistance level.
@@ -190,39 +207,17 @@ export function ChartLabBoard() {
     const seen = new Set<string>();
     return rows.filter((l) => Number.isFinite(l.price) && !seen.has(`${l.label}:${l.price}`) && seen.add(`${l.label}:${l.price}`));
   }, [pick, dealer]);
+  return { pick, levels, convictionsQ, dealerQ };
+}
 
-  const { data: extended } = useQuery<EHPayload>({
+/** Extended-hours sweep → one quote per symbol (first list wins). */
+export function useChartLabTape() {
+  const extendedQ = useQuery<EHPayload & { asOf?: string | null }>({
     queryKey: ['/api/extended-hours', 'oracle-tape'],
     queryFn: q('/api/extended-hours'),
     staleTime: 60_000, refetchInterval: 120_000, retry: 1,
   });
-  const { data: realtime } = useQuery<{ prices?: { crypto?: Record<string, { price: number }> } }>({
-    queryKey: ['/api/realtime-status', 'nexus'],
-    queryFn: q('/api/realtime-status'),
-    refetchInterval: 5_000, staleTime: 4_000, retry: 1,
-  });
-  const { data: watchlist } = useQuery<{ symbol: string }[]>({
-    queryKey: ['/api/watchlist'], refetchInterval: 120_000, retry: 1,
-  });
-  const { data: pulse } = useQuery<{ macro?: { vix?: number } }>({
-    queryKey: ['market-pulse'],
-    queryFn: q('/api/market-pulse'),
-    staleTime: 60_000, refetchInterval: 120_000, retry: 1,
-  });
-  const { data: botStatus } = useQuery<{ bots: { name: string; status: string }[] }>({
-    queryKey: ['/api/automations/status'], refetchInterval: 60_000, retry: 1,
-  });
-  const { data: esContext } = useQuery<{
-    asOf: string; session: string;
-    prices: { es: number | null; spx: number | null; spy: number | null };
-    translation: { basis: number | null; spyPerSpx: number | null; note: string };
-    risk: { riskBudget: number; stopPoints: number; contracts: Array<{ symbol: string; riskPerContract: number; maxContracts: number }> };
-  }>({
-    queryKey: ['/api/futures/es-context', 'chart-lab', futuresRisk.accountSize, futuresRisk.riskPct, futuresRisk.stopPoints],
-    queryFn: q(`/api/futures/es-context?accountSize=${futuresRisk.accountSize}&riskPct=${futuresRisk.riskPct}&stopPoints=${futuresRisk.stopPoints}`),
-    staleTime: 15_000, refetchInterval: 30_000, retry: 1,
-  });
-
+  const extended = extendedQ.data;
   const quoteBySym = useMemo(() => {
     const m = new Map<string, EHQuote>();
     for (const list of [extended?.mostActive, extended?.gainers, extended?.losers]) {
@@ -230,21 +225,67 @@ export function ChartLabBoard() {
     }
     return m;
   }, [extended]);
+  return { extended, extendedQ, quoteBySym };
+}
 
-  /* clock / uptime / next-poll — all real */
+export function useChartLabWatchlist() {
+  return useQuery<{ symbol: string }[]>({
+    queryKey: ['/api/watchlist'], refetchInterval: 120_000, retry: 1,
+  });
+}
+
+export interface ChartLabEsContext {
+  asOf: string; session: string;
+  prices: { es: number | null; spx: number | null; spy: number | null };
+  translation: { basis: number | null; spyPerSpx: number | null; note: string };
+  risk: { riskBudget: number; stopPoints: number; contracts: Array<{ symbol: string; riskPerContract: number; maxContracts: number }> };
+}
+export interface FuturesRiskInputs { accountSize: number; riskPct: number; stopPoints: number }
+export const DEFAULT_FUTURES_RISK: FuturesRiskInputs = { accountSize: 50_000, riskPct: 0.5, stopPoints: 5 };
+
+export function useChartLabEsContext(futuresRisk: FuturesRiskInputs) {
+  return useQuery<ChartLabEsContext>({
+    queryKey: ['/api/futures/es-context', 'chart-lab', futuresRisk.accountSize, futuresRisk.riskPct, futuresRisk.stopPoints],
+    queryFn: q(`/api/futures/es-context?accountSize=${futuresRisk.accountSize}&riskPct=${futuresRisk.riskPct}&stopPoints=${futuresRisk.stopPoints}`),
+    staleTime: 15_000, refetchInterval: 30_000, retry: 1,
+  });
+}
+
+export function useChartLabRealtime() {
+  return useQuery<{ prices?: { crypto?: Record<string, { price: number }> } }>({
+    queryKey: ['/api/realtime-status', 'nexus'],
+    queryFn: q('/api/realtime-status'),
+    refetchInterval: 5_000, staleTime: 4_000, retry: 1,
+  });
+}
+
+/** Ticks every second — wall clock, uptime and next-poll readouts. */
+function useSecondClock() {
   const [now, setNow] = useState(() => Date.now());
-  const mountedAt = useRef(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const clock = new Date(now).toTimeString().slice(0, 8);
-  const upSec = Math.floor((now - mountedAt.current) / 1000);
-  const uptime = `${pad(Math.floor(upSec / 3600))}:${pad(Math.floor((upSec % 3600) / 60))}:${pad(upSec % 60)}`;
-  const nextPoll = dataUpdatedAt ? Math.max(0, Math.ceil((dataUpdatedAt + CANDLES_POLL_MS - now) / 1000)) : null;
+  return now;
+}
+const pad = (n: number) => String(n).padStart(2, '0');
 
+/* ────────────────────────────────────────────────────────────────
+   SECTIONS — the board is these, in its own grid. Each also stands
+   alone as a dashboard tool (components/dashboard/tools/chart).
+   ──────────────────────────────────────────────────────────────── */
+
+/** Chart area: header, instrument picker, OHLC readout, the shared engine. */
+export function ChartLabChartPane() {
+  const { symbol, setSymbol } = useChartLabSymbol();
+  const [instrumentOpen, setInstrumentOpen] = useState(false);
+  const [instrumentQuery, setInstrumentQuery] = useState('');
+  const { pick, levels, convictionsQ } = useChartLabLevels(symbol);
+  const convictions = convictionsQ.data;
+  const { extended, quoteBySym } = useChartLabTape();
+  const { data: watchlist } = useChartLabWatchlist();
   const [ohlc, setOhlc] = useState<Candle | null>(null);
+  const setCurrentStock = ({ symbol: sym }: { symbol: string }) => setSymbol(sym);
 
   const instruments = useMemo(() => {
     const priority = [
@@ -260,13 +301,152 @@ export function ChartLabBoard() {
       .slice(0, needle ? 80 : 40);
   }, [watchlist, convictions?.picks, symbol, instrumentQuery]);
 
-  const spyQ = quoteBySym.get('SPY');
-  const btc = realtime?.prices?.crypto?.BTC;
-  const vix = pulse?.macro?.vix;
-  const runningBots = botStatus?.bots?.filter((b) => b.status === 'running').length;
-  const bullish = pick && pick.direction !== 'short';
   const isUp = ohlc ? ohlc.close >= ohlc.open : true;
 
+  return (
+    <div className="chart-area">
+      <div className="chart-header">
+        <div className="chart-eyebrow">Price intelligence</div>
+        <div className="chart-title-row">
+          <div className="chart-title">Chart Lab · {symbol}</div>
+          <div className={`chart-badge${pick ? ' has-signal' : ''}`}>
+            <span className="dot" />
+            {pick
+              ? `${pick.convictionBand} · ${pick.convictionScore > 0 ? '+' : ''}${pick.convictionScore} evidence`
+              : 'no published signal'}
+          </div>
+        </div>
+        <div className="chart-desc">One chart, every timeframe, with published QuantEdge levels anchored to the same ticker used across Oracle, Flow and GEX.</div>
+      </div>
+
+      <div className="instrument-bar">
+        <div className="instrument-label">Instrument</div>
+        <div className="instrument-selector" onClick={() => setInstrumentOpen((o) => !o)}>
+          <span className="instrument-sym">{symbol}</span>
+          <svg className="instrument-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: instrumentOpen ? 'rotate(180deg)' : undefined }}><path d="M6 9l6 6 6-6" /></svg>
+          {instrumentOpen && (
+            <div className="instrument-menu" onClick={(e) => e.stopPropagation()}>
+              <div style={{ position: 'sticky', top: 0, zIndex: 2, padding: 6, background: 'var(--panel-solid)' }}>
+                <input
+                  autoFocus
+                  value={instrumentQuery}
+                  onChange={(e) => setInstrumentQuery(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && instrumentQuery.trim()) {
+                      setCurrentStock({ symbol: instrumentQuery.trim().toUpperCase() });
+                      setInstrumentOpen(false);
+                      setInstrumentQuery('');
+                    }
+                    if (e.key === 'Escape') setInstrumentOpen(false);
+                  }}
+                  placeholder="Search any ticker"
+                  aria-label="Search chart instrument"
+                  style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border-hi)', borderRadius: 4, background: 'var(--panel-2)', color: 'var(--text)', padding: '7px 8px', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, outline: 'none' }}
+                />
+              </div>
+              {instruments.map((sym) => (
+                <button key={sym} onClick={() => { setCurrentStock({ symbol: sym }); setInstrumentOpen(false); setInstrumentQuery(''); }}>
+                  <span>{sym}</span>
+                  {quoteBySym.get(sym) && (
+                    <span style={{ color: quoteBySym.get(sym)!.changePct >= 0 ? 'var(--green)' : 'var(--red)', fontSize: 'var(--fs-10, 10px)' }}>
+                      {quoteBySym.get(sym)!.changePct >= 0 ? '+' : ''}{quoteBySym.get(sym)!.changePct.toFixed(1)}%
+                    </span>
+                  )}
+                </button>
+              ))}
+              {!instruments.length && instrumentQuery.trim() && (
+                <button onClick={() => { setCurrentStock({ symbol: instrumentQuery.trim().toUpperCase() }); setInstrumentOpen(false); setInstrumentQuery(''); }}>
+                  <span>Open {instrumentQuery.trim().toUpperCase()}</span>
+                  <span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-9, 9px)' }}>verify from feed</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {extended?.session && extended.session !== 'regular' && (
+          <div className="ext-hours">{extended.session === 'closed' ? 'last close' : 'ext hours'}</div>
+        )}
+
+        <div className="ohlc">
+          <div className="ohlc-item"><span className="ohlc-label">O</span><span className="ohlc-val">{ohlc ? ohlc.open.toFixed(2) : '—'}</span></div>
+          <div className="ohlc-item"><span className="ohlc-label">H</span><span className="ohlc-val up">{ohlc ? ohlc.high.toFixed(2) : '—'}</span></div>
+          <div className="ohlc-item"><span className="ohlc-label">L</span><span className="ohlc-val down">{ohlc ? ohlc.low.toFixed(2) : '—'}</span></div>
+          <div className="ohlc-item"><span className="ohlc-label">C</span><span className={`ohlc-val ${isUp ? 'up' : 'down'}`}>{ohlc ? ohlc.close.toFixed(2) : '—'}</span></div>
+        </div>
+      </div>
+
+      {/* The shared engine — pan/zoom, TF bar, candles/line, crosshair,
+          expand-to-modal. One chart everywhere. */}
+      <NexusPriceChart
+        key={symbol}
+        symbol={symbol}
+        initialTf="1h"
+        fill
+        levels={levels}
+        onHoverCandle={setOhlc}
+      />
+    </div>
+  );
+}
+
+/** Summary cards: SPY last close, BTC live, next candle poll, wall clock. */
+export function ChartLabSummary() {
+  const { symbol } = useChartLabSymbol();
+  const { dataUpdatedAt } = useCandles(symbol, CHART_LAB_TF);
+  const { quoteBySym } = useChartLabTape();
+  const { data: realtime } = useChartLabRealtime();
+  const now = useSecondClock();
+  const clock = new Date(now).toTimeString().slice(0, 8);
+  const nextPoll = dataUpdatedAt ? Math.max(0, Math.ceil((dataUpdatedAt + CANDLES_POLL_MS - now) / 1000)) : null;
+  const spyQ = quoteBySym.get('SPY');
+  const btc = realtime?.prices?.crypto?.BTC;
+  return (
+    <div className="summary">
+      <div className="summary-grid">
+        <div className="summary-card">
+          <div className="summary-label">Last close · SPY</div>
+          {spyQ ? (
+            <>
+              <div className={`summary-val ${spyQ.changePct >= 0 ? 'up' : 'down'}`}>{spyQ.lastPrice.toFixed(2)}</div>
+              <div className="summary-sub" style={{ color: spyQ.changePct >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                {spyQ.changePct >= 0 ? '+' : ''}{spyQ.changePct.toFixed(2)}%
+              </div>
+            </>
+          ) : (
+            <div className="summary-val" style={{ color: 'var(--text-mute)' }}>—</div>
+          )}
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">BTC · live</div>
+          {btc ? (
+            <>
+              <div className="summary-val">${Math.round(btc.price).toLocaleString()}</div>
+              <div className="summary-sub">realtime stream</div>
+            </>
+          ) : (
+            <div className="summary-val" style={{ color: 'var(--text-mute)' }}>—</div>
+          )}
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">Next poll</div>
+          <div className="summary-val">{nextPoll != null ? `${nextPoll}s` : '—'}</div>
+          <div className="summary-sub">candle refetch</div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">Local time</div>
+          <div className="summary-val">{clock}</div>
+          <div className="summary-sub">wall clock</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** QuantEdge levels: published STOP/ENTRY/T1 + dealer walls/flip/nodes. */
+export function ChartLabLevels() {
+  const { symbol } = useChartLabSymbol();
+  const { pick, levels } = useChartLabLevels(symbol);
+  const bullish = pick && pick.direction !== 'short';
   /* Sidebar level bars: width = the level's real position inside the span the
      published levels cover. The mock's widths were hardcoded ranks. */
   const levelRows = useMemo(() => {
@@ -280,8 +460,192 @@ export function ChartLabBoard() {
       kind: l.label === 'STOP' ? 'resist' : 'support',
     }));
   }, [levels]);
+  return (
+    <div className="levels-section">
+      <div className="levels-head">
+        <div className="levels-title">QuantEdge Levels</div>
+        <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol}</div>
+      </div>
+      {levelRows.length ? levelRows.map((l) => (
+        <div className="level-row" key={l.label}>
+          <div className="level-name" style={l.label === 'ENTRY' ? { color: 'var(--cyan-bright)' } : undefined}>{l.label}</div>
+          <div className="level-bar"><div className={`level-bar-fill ${l.kind}`} style={{ width: `${l.widthPct}%` }} /></div>
+          <div className="level-val" style={{ color: l.color }}>{l.price.toFixed(2)}</div>
+        </div>
+      )) : (
+        <div style={{ fontSize: 11, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", padding: '4px 0' }}>
+          {/* Absence, stated — the mock's pivot ladder was invented numbers. */}
+          no published signal for {symbol} — levels appear when the book carries one
+        </div>
+      )}
+      {pick && (
+        <div style={{ marginTop: 8, fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', fontFamily: "'JetBrains Mono',monospace" }}>
+          {bullish ? '▲ LONG' : '▼ SHORT'} · R:R {pick.riskRewardRatio ? `${pick.riskRewardRatio.toFixed(1)}:1` : '—'}
+        </div>
+      )}
+    </div>
+  );
+}
 
+const ES_SYMBOLS = ['SPX', 'SPY', 'ES', 'MES', 'QQQ'];
+
+/**
+ * ES translation + futures risk sizer. On the board it shows only while an
+ * index ticker is charted; `always` (the dashboard tool) shows it regardless —
+ * the ES/SPX context does not depend on the focused ticker. Inputs may be
+ * lifted (`risk`/`onRisk`) so a tool can keep them across remounts.
+ */
+export function ChartLabEsRisk({ always = false, risk, onRisk }: {
+  always?: boolean;
+  risk?: FuturesRiskInputs;
+  onRisk?: (next: FuturesRiskInputs) => void;
+} = {}) {
+  const { symbol } = useChartLabSymbol();
+  const [ownRisk, setOwnRisk] = useState<FuturesRiskInputs>(DEFAULT_FUTURES_RISK);
+  const futuresRisk = risk ?? ownRisk;
+  const setFuturesRisk = (fn: (v: FuturesRiskInputs) => FuturesRiskInputs) => {
+    const next = fn(futuresRisk);
+    if (onRisk) onRisk(next); else setOwnRisk(next);
+  };
+  const { data: esContext } = useChartLabEsContext(futuresRisk);
+  if (!always && !ES_SYMBOLS.includes(symbol)) return null;
+  return (
+    <div className="levels-section" aria-label="ES translation and futures risk">
+      <div className="levels-head">
+        <div className="levels-title">ES translation</div>
+        <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{esContext?.session ?? 'unavailable'}</div>
+      </div>
+      <div className="level-row"><div className="level-name">ES</div><div className="level-bar" /><div className="level-val">{esContext?.prices.es?.toFixed(2) ?? '—'}</div></div>
+      <div className="level-row"><div className="level-name">SPX</div><div className="level-bar" /><div className="level-val">{esContext?.prices.spx?.toFixed(2) ?? '—'}</div></div>
+      <div className="level-row"><div className="level-name">BASIS</div><div className="level-bar" /><div className="level-val">{esContext?.translation.basis == null ? '—' : `${esContext.translation.basis >= 0 ? '+' : ''}${esContext.translation.basis.toFixed(2)}`}</div></div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5, marginTop: 8 }}>
+        {([
+          ['accountSize', 'ACCOUNT', 100],
+          ['riskPct', 'RISK %', 0.05],
+          ['stopPoints', 'STOP PTS', 0.25],
+        ] as const).map(([key, label, step]) => (
+          <label key={key} style={{ display: 'grid', gap: 3, font: "7px 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>
+            {label}
+            <input type="number" min={step} step={step} value={futuresRisk[key]} onChange={(event) => setFuturesRisk((value) => ({ ...value, [key]: Math.max(step, Number(event.target.value) || step) }))} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border)', borderRadius: 3, background: 'var(--panel-2)', color: 'var(--text)', padding: '4px 5px', font: "9px 'JetBrains Mono',monospace" }} />
+          </label>
+        ))}
+      </div>
+      <div style={{ marginTop: 8, font: "9px/1.5 'JetBrains Mono',monospace", color: 'var(--text-dim)' }}>
+        {esContext?.risk.stopPoints ?? futuresRisk.stopPoints}pt stop · ${esContext?.risk.riskBudget.toFixed(0) ?? '—'} risk: MES {esContext?.risk.contracts.find((c) => c.symbol === 'MES')?.maxContracts ?? '—'} max · ES {esContext?.risk.contracts.find((c) => c.symbol === 'ES')?.maxContracts ?? '—'} max
+      </div>
+      <div style={{ marginTop: 5, font: "9px/1.45 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>{esContext?.translation.note ?? 'Waiting for measured ES and cash-index quotes.'}</div>
+    </div>
+  );
+}
+
+/** Watchlist: Mine + one tab per trader, 5d sparks, click to chart. */
+export function ChartLabWatchlist() {
+  const { symbol, setSymbol } = useChartLabSymbol();
+  const setCurrentStock = ({ symbol: sym }: { symbol: string }) => setSymbol(sym);
+  const { data: watchlist } = useChartLabWatchlist();
+  const { quoteBySym } = useChartLabTape();
   const watchSyms = (watchlist ?? []).slice(0, 10);
+  return (
+    <div className="watch-section">
+      <div className="watch-head">
+        <div className="watch-title">Watchlist</div>
+      </div>
+      {/* Mine + one tab per trader (Femi, Malik, Uzo, Bean…) — 2026-09-29. */}
+      <TraderWatchlistTabs
+        mineCount={watchlist?.length ?? 0}
+        renderSymbol={(sym, note) => {
+          const wq = quoteBySym.get(sym);
+          const up = wq != null && wq.changePct >= 0;
+          return (
+            <div
+              className={`watch-item${sym === symbol ? ' active' : ''}`}
+              role="button"
+              tabIndex={0}
+              title={note ?? `Chart ${sym}`}
+              onClick={() => setCurrentStock({ symbol: sym })}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentStock({ symbol: sym }); } }}
+            >
+              <div className="watch-sym">{sym}</div>
+              <div className="watch-name" />
+              <WatchSpark symbol={sym} up={wq ? up : true} />
+              {wq
+                ? <div className={`watch-chg ${up ? 'up' : 'down'}`}>{up ? '+' : ''}{wq.changePct.toFixed(1)}%</div>
+                : <div className="watch-chg" style={{ color: 'var(--text-mute)' }}>—</div>}
+            </div>
+          );
+        }}
+        mine={
+          <div>
+            {watchSyms.map(({ symbol: sym }) => {
+              const wq = quoteBySym.get(sym);
+              const up = wq != null && wq.changePct >= 0;
+              return (
+                <div
+                  className={`watch-item${sym === symbol ? ' active' : ''}`}
+                  key={sym}
+                  onClick={() => setCurrentStock({ symbol: sym })}
+                >
+                  <div className="watch-sym">{sym}</div>
+                  <div className="watch-name" />
+                  <WatchSpark symbol={sym} up={wq ? up : true} />
+                  {wq
+                    ? <div className={`watch-chg ${up ? 'up' : 'down'}`}>{up ? '+' : ''}{wq.changePct.toFixed(1)}%</div>
+                    : <div className="watch-chg" style={{ color: 'var(--text-mute)' }}>—</div>}
+                </div>
+              );
+            })}
+            {!watchSyms.length && (
+              <div style={{ fontSize: 11, color: 'var(--text-mute)', padding: '4px 0' }}>
+                No names on the watchlist yet.
+              </div>
+            )}
+          </div>
+        }
+      />
+    </div>
+  );
+}
+
+export function useChartLabBots() {
+  return useQuery<{ bots: { name: string; status: string }[] }>({
+    queryKey: ['/api/automations/status'], refetchInterval: 60_000, retry: 1,
+  });
+}
+export function useChartLabPulse() {
+  return useQuery<{ macro?: { vix?: number }; timestamp?: string; asOf?: string }>({
+    queryKey: ['market-pulse'],
+    queryFn: q('/api/market-pulse'),
+    staleTime: 60_000, refetchInterval: 120_000, retry: 1,
+  });
+}
+
+/** System strip: session uptime, running bots, watchlist size, VIX. */
+export function ChartLabSysStatus() {
+  const now = useSecondClock();
+  const mountedAt = useRef(Date.now());
+  const upSec = Math.floor((now - mountedAt.current) / 1000);
+  const uptime = `${pad(Math.floor(upSec / 3600))}:${pad(Math.floor((upSec % 3600) / 60))}:${pad(upSec % 60)}`;
+  const { data: watchlist } = useChartLabWatchlist();
+  const { data: pulse } = useChartLabPulse();
+  const { data: botStatus } = useChartLabBots();
+  const vix = pulse?.macro?.vix;
+  const runningBots = botStatus?.bots?.filter((b) => b.status === 'running').length;
+  return (
+    <div className="sys-status">
+      <div className="sys-row"><span className="k">Uptime</span><span className="v">{uptime}</span></div>
+      <div className="sys-row"><span className="k">Bots</span><span className="v">{runningBots ?? '—'}</span></div>
+      <div className="sys-row"><span className="k">Watchlist</span><span className="v">{watchlist?.length ?? '—'}</span></div>
+      <div className="sys-row"><span className="k">VIX</span><span className={`v${vix != null && vix >= 20 ? ' warn' : ''}`}>{vix != null ? vix.toFixed(1) : '—'}</span></div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOARD — the sections in the mock's chart + resizable right rail.
+   ──────────────────────────────────────────────────────────────── */
+export function ChartLabBoard() {
+  // Sidebar rail: drag its border left to widen, double-click to expand.
+  const rail = useColResize('nx-chart-side', 300, { sign: -1, min: 240, max: 620 });
 
   return (
     <div className="chartlab">
@@ -296,88 +660,7 @@ export function ChartLabBoard() {
           {...rail.handleProps}
         />
         {/* ══════════ CHART AREA ══════════ */}
-        <div className="chart-area">
-          <div className="chart-header">
-            <div className="chart-eyebrow">Price intelligence</div>
-            <div className="chart-title-row">
-              <div className="chart-title">Chart Lab · {symbol}</div>
-              <div className={`chart-badge${pick ? ' has-signal' : ''}`}>
-                <span className="dot" />
-                {pick
-                  ? `${pick.convictionBand} · ${pick.convictionScore > 0 ? '+' : ''}${pick.convictionScore} evidence`
-                  : 'no published signal'}
-              </div>
-            </div>
-            <div className="chart-desc">One chart, every timeframe, with published QuantEdge levels anchored to the same ticker used across Oracle, Flow and GEX.</div>
-          </div>
-
-          <div className="instrument-bar">
-            <div className="instrument-label">Instrument</div>
-            <div className="instrument-selector" onClick={() => setInstrumentOpen((o) => !o)}>
-              <span className="instrument-sym">{symbol}</span>
-              <svg className="instrument-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: instrumentOpen ? 'rotate(180deg)' : undefined }}><path d="M6 9l6 6 6-6" /></svg>
-              {instrumentOpen && (
-                <div className="instrument-menu" onClick={(e) => e.stopPropagation()}>
-                  <div style={{ position: 'sticky', top: 0, zIndex: 2, padding: 6, background: 'var(--panel-solid)' }}>
-                    <input
-                      autoFocus
-                      value={instrumentQuery}
-                      onChange={(e) => setInstrumentQuery(e.target.value.toUpperCase())}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && instrumentQuery.trim()) {
-                          setCurrentStock({ symbol: instrumentQuery.trim().toUpperCase() });
-                          setInstrumentOpen(false);
-                          setInstrumentQuery('');
-                        }
-                        if (e.key === 'Escape') setInstrumentOpen(false);
-                      }}
-                      placeholder="Search any ticker"
-                      aria-label="Search chart instrument"
-                      style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border-hi)', borderRadius: 4, background: 'var(--panel-2)', color: 'var(--text)', padding: '7px 8px', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, outline: 'none' }}
-                    />
-                  </div>
-                  {instruments.map((sym) => (
-                    <button key={sym} onClick={() => { setCurrentStock({ symbol: sym }); setInstrumentOpen(false); setInstrumentQuery(''); }}>
-                      <span>{sym}</span>
-                      {quoteBySym.get(sym) && (
-                        <span style={{ color: quoteBySym.get(sym)!.changePct >= 0 ? 'var(--green)' : 'var(--red)', fontSize: 'var(--fs-10, 10px)' }}>
-                          {quoteBySym.get(sym)!.changePct >= 0 ? '+' : ''}{quoteBySym.get(sym)!.changePct.toFixed(1)}%
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                  {!instruments.length && instrumentQuery.trim() && (
-                    <button onClick={() => { setCurrentStock({ symbol: instrumentQuery.trim().toUpperCase() }); setInstrumentOpen(false); setInstrumentQuery(''); }}>
-                      <span>Open {instrumentQuery.trim().toUpperCase()}</span>
-                      <span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-9, 9px)' }}>verify from feed</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-            {extended?.session && extended.session !== 'regular' && (
-              <div className="ext-hours">{extended.session === 'closed' ? 'last close' : 'ext hours'}</div>
-            )}
-
-            <div className="ohlc">
-              <div className="ohlc-item"><span className="ohlc-label">O</span><span className="ohlc-val">{ohlc ? ohlc.open.toFixed(2) : '—'}</span></div>
-              <div className="ohlc-item"><span className="ohlc-label">H</span><span className="ohlc-val up">{ohlc ? ohlc.high.toFixed(2) : '—'}</span></div>
-              <div className="ohlc-item"><span className="ohlc-label">L</span><span className="ohlc-val down">{ohlc ? ohlc.low.toFixed(2) : '—'}</span></div>
-              <div className="ohlc-item"><span className="ohlc-label">C</span><span className={`ohlc-val ${isUp ? 'up' : 'down'}`}>{ohlc ? ohlc.close.toFixed(2) : '—'}</span></div>
-            </div>
-          </div>
-
-          {/* The shared engine — pan/zoom, TF bar, candles/line, crosshair,
-              expand-to-modal. One chart everywhere. */}
-          <NexusPriceChart
-            key={symbol}
-            symbol={symbol}
-            initialTf="1h"
-            fill
-            levels={levels}
-            onHoverCandle={setOhlc}
-          />
-        </div>
+        <ChartLabChartPane />
 
         {/* ══════════ RIGHT SIDEBAR ══════════ */}
         <div className="sidebar">
@@ -391,161 +674,11 @@ export function ChartLabBoard() {
             </div>
           </div>
 
-          <div className="summary">
-            <div className="summary-grid">
-              <div className="summary-card">
-                <div className="summary-label">Last close · SPY</div>
-                {spyQ ? (
-                  <>
-                    <div className={`summary-val ${spyQ.changePct >= 0 ? 'up' : 'down'}`}>{spyQ.lastPrice.toFixed(2)}</div>
-                    <div className="summary-sub" style={{ color: spyQ.changePct >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                      {spyQ.changePct >= 0 ? '+' : ''}{spyQ.changePct.toFixed(2)}%
-                    </div>
-                  </>
-                ) : (
-                  <div className="summary-val" style={{ color: 'var(--text-mute)' }}>—</div>
-                )}
-              </div>
-              <div className="summary-card">
-                <div className="summary-label">BTC · live</div>
-                {btc ? (
-                  <>
-                    <div className="summary-val">${Math.round(btc.price).toLocaleString()}</div>
-                    <div className="summary-sub">realtime stream</div>
-                  </>
-                ) : (
-                  <div className="summary-val" style={{ color: 'var(--text-mute)' }}>—</div>
-                )}
-              </div>
-              <div className="summary-card">
-                <div className="summary-label">Next poll</div>
-                <div className="summary-val">{nextPoll != null ? `${nextPoll}s` : '—'}</div>
-                <div className="summary-sub">candle refetch</div>
-              </div>
-              <div className="summary-card">
-                <div className="summary-label">Local time</div>
-                <div className="summary-val">{clock}</div>
-                <div className="summary-sub">wall clock</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="levels-section">
-            <div className="levels-head">
-              <div className="levels-title">QuantEdge Levels</div>
-              <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{symbol}</div>
-            </div>
-            {levelRows.length ? levelRows.map((l) => (
-              <div className="level-row" key={l.label}>
-                <div className="level-name" style={l.label === 'ENTRY' ? { color: 'var(--cyan-bright)' } : undefined}>{l.label}</div>
-                <div className="level-bar"><div className={`level-bar-fill ${l.kind}`} style={{ width: `${l.widthPct}%` }} /></div>
-                <div className="level-val" style={{ color: l.color }}>{l.price.toFixed(2)}</div>
-              </div>
-            )) : (
-              <div style={{ fontSize: 11, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", padding: '4px 0' }}>
-                {/* Absence, stated — the mock's pivot ladder was invented numbers. */}
-                no published signal for {symbol} — levels appear when the book carries one
-              </div>
-            )}
-            {pick && (
-              <div style={{ marginTop: 8, fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)', fontFamily: "'JetBrains Mono',monospace" }}>
-                {bullish ? '▲ LONG' : '▼ SHORT'} · R:R {pick.riskRewardRatio ? `${pick.riskRewardRatio.toFixed(1)}:1` : '—'}
-              </div>
-            )}
-          </div>
-
-          {(['SPX', 'SPY', 'ES', 'MES'].includes(symbol) || symbol === 'QQQ') && (
-            <div className="levels-section" aria-label="ES translation and futures risk">
-              <div className="levels-head">
-                <div className="levels-title">ES translation</div>
-                <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{esContext?.session ?? 'unavailable'}</div>
-              </div>
-              <div className="level-row"><div className="level-name">ES</div><div className="level-bar" /><div className="level-val">{esContext?.prices.es?.toFixed(2) ?? '—'}</div></div>
-              <div className="level-row"><div className="level-name">SPX</div><div className="level-bar" /><div className="level-val">{esContext?.prices.spx?.toFixed(2) ?? '—'}</div></div>
-              <div className="level-row"><div className="level-name">BASIS</div><div className="level-bar" /><div className="level-val">{esContext?.translation.basis == null ? '—' : `${esContext.translation.basis >= 0 ? '+' : ''}${esContext.translation.basis.toFixed(2)}`}</div></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5, marginTop: 8 }}>
-                {([
-                  ['accountSize', 'ACCOUNT', 100],
-                  ['riskPct', 'RISK %', 0.05],
-                  ['stopPoints', 'STOP PTS', 0.25],
-                ] as const).map(([key, label, step]) => (
-                  <label key={key} style={{ display: 'grid', gap: 3, font: "7px 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>
-                    {label}
-                    <input type="number" min={step} step={step} value={futuresRisk[key]} onChange={(event) => setFuturesRisk((value) => ({ ...value, [key]: Math.max(step, Number(event.target.value) || step) }))} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border)', borderRadius: 3, background: 'var(--panel-2)', color: 'var(--text)', padding: '4px 5px', font: "9px 'JetBrains Mono',monospace" }} />
-                  </label>
-                ))}
-              </div>
-              <div style={{ marginTop: 8, font: "9px/1.5 'JetBrains Mono',monospace", color: 'var(--text-dim)' }}>
-                {esContext?.risk.stopPoints ?? futuresRisk.stopPoints}pt stop · ${esContext?.risk.riskBudget.toFixed(0) ?? '—'} risk: MES {esContext?.risk.contracts.find((c) => c.symbol === 'MES')?.maxContracts ?? '—'} max · ES {esContext?.risk.contracts.find((c) => c.symbol === 'ES')?.maxContracts ?? '—'} max
-              </div>
-              <div style={{ marginTop: 5, font: "9px/1.45 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>{esContext?.translation.note ?? 'Waiting for measured ES and cash-index quotes.'}</div>
-            </div>
-          )}
-
-          <div className="watch-section">
-            <div className="watch-head">
-              <div className="watch-title">Watchlist</div>
-            </div>
-            {/* Mine + one tab per trader (Femi, Malik, Uzo, Bean…) — 2026-09-29. */}
-            <TraderWatchlistTabs
-              mineCount={watchlist?.length ?? 0}
-              renderSymbol={(sym, note) => {
-                const wq = quoteBySym.get(sym);
-                const up = wq != null && wq.changePct >= 0;
-                return (
-                  <div
-                    className={`watch-item${sym === symbol ? ' active' : ''}`}
-                    role="button"
-                    tabIndex={0}
-                    title={note ?? `Chart ${sym}`}
-                    onClick={() => setCurrentStock({ symbol: sym })}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCurrentStock({ symbol: sym }); } }}
-                  >
-                    <div className="watch-sym">{sym}</div>
-                    <div className="watch-name" />
-                    <WatchSpark symbol={sym} up={wq ? up : true} />
-                    {wq
-                      ? <div className={`watch-chg ${up ? 'up' : 'down'}`}>{up ? '+' : ''}{wq.changePct.toFixed(1)}%</div>
-                      : <div className="watch-chg" style={{ color: 'var(--text-mute)' }}>—</div>}
-                  </div>
-                );
-              }}
-              mine={
-                <div>
-                  {watchSyms.map(({ symbol: sym }) => {
-                    const wq = quoteBySym.get(sym);
-                    const up = wq != null && wq.changePct >= 0;
-                    return (
-                      <div
-                        className={`watch-item${sym === symbol ? ' active' : ''}`}
-                        key={sym}
-                        onClick={() => setCurrentStock({ symbol: sym })}
-                      >
-                        <div className="watch-sym">{sym}</div>
-                        <div className="watch-name" />
-                        <WatchSpark symbol={sym} up={wq ? up : true} />
-                        {wq
-                          ? <div className={`watch-chg ${up ? 'up' : 'down'}`}>{up ? '+' : ''}{wq.changePct.toFixed(1)}%</div>
-                          : <div className="watch-chg" style={{ color: 'var(--text-mute)' }}>—</div>}
-                      </div>
-                    );
-                  })}
-                  {!watchSyms.length && (
-                    <div style={{ fontSize: 11, color: 'var(--text-mute)', padding: '4px 0' }}>
-                      No names on the watchlist yet.
-                    </div>
-                  )}
-                </div>
-              }
-            />
-          </div>
-
-          <div className="sys-status">
-            <div className="sys-row"><span className="k">Uptime</span><span className="v">{uptime}</span></div>
-            <div className="sys-row"><span className="k">Bots</span><span className="v">{runningBots ?? '—'}</span></div>
-            <div className="sys-row"><span className="k">Watchlist</span><span className="v">{watchlist?.length ?? '—'}</span></div>
-            <div className="sys-row"><span className="k">VIX</span><span className={`v${vix != null && vix >= 20 ? ' warn' : ''}`}>{vix != null ? vix.toFixed(1) : '—'}</span></div>
-          </div>
+          <ChartLabSummary />
+          <ChartLabLevels />
+          <ChartLabEsRisk />
+          <ChartLabWatchlist />
+          <ChartLabSysStatus />
 
           <div className="disclaimer">
             Educational only · not investment advice.<br />

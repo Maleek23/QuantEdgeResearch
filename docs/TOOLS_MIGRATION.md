@@ -1,4 +1,43 @@
-# FLOW tools — migration map
+# Dashboard tools — framework + migration map
+
+**Phase 2 (IA_SYSTEM_DESIGN.md §5.1), 2026-09-29, branch feat/dash.** The FLOW tab's
+tool board is now the platform framework (`client/src/components/dashboard/`), and every
+terminal tab except JOURNAL — plus `/today` — renders `<Dashboard page="…" />`.
+`/t?tab=…` URLs are unchanged; each tab's previous board is still reachable as an
+"all-in-one (classic)" tool.
+
+## Framework
+
+| File | Role |
+|---|---|
+| `tool-def.ts` | The tool contract: `{id, category, title, what, units, source, backing, ageInside?, staticContent?, needs?: ['symbol'], defaultSize, minSize, Component}` + `lazyTool` + `DefaultLayout` |
+| `registry.ts` | ONE global registry assembled from `defs/<category>.ts`; any tool can be added to any page |
+| `pages.ts` | Page specs: storage prefix (`gex:`, `nexus:`… FLOW keeps `flowdash:`), shipped default layouts, the page's own categories (listed first in Add tool) |
+| `use-dashboards.ts` | Per-page named dashboards via `/api/user/:id/layouts` (ownership-checked), pageId `<page>:<dashboardId>` e.g. `gex:default`. Shipped defaults stay *pristine* (never written) until changed, so better defaults reach users who never customised; **Restore default** deletes the customised row; shipped dashboards can't be deleted |
+| `dashboard.tsx` | Bar (dashboard switcher, focus-ticker picker, Add tool with search, Auto-arrange, Restore default, Clear, save state), 12-col drag/resize grid, keyboard move/resize, per-tool error boundary, phone = one column |
+| `frame.tsx` | Tool chrome (title · ticker chip · source · age · what · units), `useToolReport`, `useFocusSymbol`, `useDashState` (per-page shared state), `useToolSetting` (per-placement settings) |
+
+**Server load.** Tool code is `React.lazy`; a tool mounts only when scrolled into view and
+unmounts (its polling stops) after 20 s off-screen; tools that read the same endpoint use
+the same react-query key (e.g. every GEX ticker tool shares one `/api/gex-vex/terminal/:sym`
+query). The terminal route's Alpaca chain requests run in a priority lane ahead of background
+hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
+
+**Fit.** Desktop: the page is `100dvh − chrome`; only the grid and tool bodies scroll.
+
+## Registry (83 tools)
+
+| Category | id | Title | Defined in |
+|---|---|---|---|
+{table}
+
+## Default layouts — `tool (x,y w×h)`, 12 columns, 40 px rows
+
+{layouts}
+
+---
+
+# FLOW tools — original migration map (flowdash)
 
 The FLOW tab (`/t?tab=flow`) is now a tool dashboard (`client/src/components/flowdash/`),
 modelled on Bullflow's "Add tool" layout: named dashboards, a grouped catalogue,

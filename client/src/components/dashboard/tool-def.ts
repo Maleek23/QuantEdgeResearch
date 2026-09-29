@@ -42,6 +42,8 @@ export interface ToolDef {
   backing: string;
   /** the wrapped component already stamps an age on every row */
   ageInside?: boolean;
+  /** content is code/config, not a feed — the frame says so instead of an age */
+  staticContent?: boolean;
   needs?: ToolNeed[];
   defaultSize: { w: number; h: number };
   minSize: { w: number; h: number };

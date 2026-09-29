@@ -269,3 +269,77 @@
   .td-index-grid{grid-template-columns:minmax(0,1fr)}
 }
 @media(prefers-reduced-motion:reduce){.td-index-row{transition:none}}
+
+/* ── TODAY as dashboard tools (2026-09-29) ───────────────────────────────
+   Each tool body wraps in `.landing .today-l .td-tool`, so the landing blocks
+   above and in nexus.css style it as before. These rules only fit those
+   blocks into a tile: no page-scale padding, no 3D tilt, no scroll reveal,
+   and layout driven by the TILE width (container queries), not the viewport.
+   Specificity (.flowdash .today-l.td-tool …) beats the .qe-terminal .today-l
+   page rules above, which still match because the dashboard sits in NexusFrame. */
+.flowdash .today-l.td-tool{flex:1;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;background:transparent;padding:12px 14px;font-size:13px;line-height:1.5;container-type:inline-size}
+.flowdash .today-l.td-tool .btn-lg{min-height:34px;padding:0 12px;font-size:12px;border-radius:6px}
+.flowdash .today-l.td-tool .hero-actions{gap:8px;margin-bottom:12px}
+.flowdash .today-l.td-tool .td-tool-sub{margin-bottom:8px;font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .today-l.td-tool .td-tool-more{display:inline-block;margin-top:10px;font-size:12px;color:var(--accent-hi);text-decoration:none}
+.flowdash .today-l.td-tool .td-tool-more:hover{text-decoration:underline}
+
+/* week dealer map (hero) */
+.flowdash .today-l.td-week .hero-grid{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:18px;align-items:start}
+.flowdash .today-l.td-week .hero-eyebrow{margin-bottom:10px;border-radius:5px}
+.flowdash .today-l.td-week .hero-title{max-width:none;margin-bottom:10px;font-size:clamp(20px,3.3cqi,34px);line-height:1.12;letter-spacing:-.025em}
+.flowdash .today-l.td-week .hero-sub{max-width:none;margin-bottom:12px;font-size:12.5px;line-height:1.55}
+.flowdash .today-l.td-week .tl-keys{margin-top:0;max-width:none;border-radius:6px}
+.flowdash .today-l.td-week .tl-keys>div{padding:8px 10px}
+.flowdash .today-l.td-week .tl-keys b{font-size:17px}
+.flowdash .today-l.td-week .lterminal{transform:none;box-shadow:none;border-radius:7px}
+.flowdash .today-l.td-week .lterminal-body{padding:10px;gap:8px}
+.flowdash .today-l.td-week .tl-map-empty{height:200px}
+.flowdash .today-l.td-week .tl-map-foot{margin-top:8px;font-size:10.5px;text-align:left}
+@container (max-width:760px){
+  .flowdash .today-l.td-week .hero-grid{grid-template-columns:minmax(0,1fr)}
+  .flowdash .today-l.td-week .hero-title{font-size:clamp(19px,4.6cqi,28px)}
+}
+@container (max-width:420px){
+  .flowdash .today-l.td-week .lterminal-body{grid-template-columns:minmax(0,1fr)}
+}
+
+/* best idea */
+.flowdash .today-l.td-best .feature{grid-template-columns:minmax(0,1fr);gap:14px;margin:0;padding:0;border:0;background:none;align-items:start}
+.flowdash .today-l.td-best .feature-num{margin-bottom:8px}
+.flowdash .today-l.td-best .feature-title{margin-bottom:10px;font-size:clamp(18px,5cqi,26px)}
+.flowdash .today-l.td-best .feature-desc{margin-bottom:12px;font-size:12.5px;line-height:1.55}
+.flowdash .today-l.td-best .feature-visual{padding:12px;box-shadow:none;border-radius:7px}
+.flowdash .today-l.td-best .tl-ladder{margin-top:16px;max-width:none}
+.flowdash .today-l.td-best .hero-actions{margin:16px 0 0}
+@container (min-width:640px){
+  .flowdash .today-l.td-best .feature{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
+}
+
+/* ranked book */
+.flowdash .today-l.td-book .tl-book{margin-top:0;gap:10px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.flowdash .today-l.td-book .tl-book-why{font-size:12.5px}
+
+/* index desk */
+.flowdash .today-l.td-idx .td-index-grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+
+/* book stats + model record */
+.flowdash .today-l.td-stats .stats-grid,.flowdash .today-l.td-record .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;border:0}
+.flowdash .today-l.td-stats .stat-item,.flowdash .today-l.td-record .stat-item{padding:4px 0}
+.flowdash .today-l.td-tool .lstat-val{font-size:clamp(24px,7cqi,32px)}
+.flowdash .today-l.td-tool .td-of{font-size:18px;color:var(--text-mute);-webkit-text-fill-color:var(--text-mute)}
+.flowdash .today-l.td-record .cta-sub{max-width:none;margin:14px 0;font-size:12.5px;line-height:1.55;text-align:left}
+.flowdash .today-l.td-record .cta-actions{justify-content:flex-start;gap:8px}
+
+/* rotation */
+.flowdash .today-l.td-rot .td-rot-grid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:14px;align-items:start}
+.flowdash .today-l.td-rot .feature-visual{padding:12px;box-shadow:none;border-radius:7px}
+.flowdash .today-l.td-rot .rot-map{height:200px}
+.flowdash .today-l.td-rot .flow-viz{margin-top:10px}
+@container (max-width:560px){
+  .flowdash .today-l.td-rot .td-rot-grid{grid-template-columns:minmax(0,1fr)}
+}
+
+/* tape */
+.flowdash .today-l.td-tape{display:flex;align-items:center;padding:0;overflow:hidden}
+.flowdash .today-l.td-tape .ltape{flex:1;min-width:0}

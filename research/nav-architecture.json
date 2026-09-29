@@ -10,6 +10,7 @@
     "client/src/components/ai-chatbot-popup.tsx",
     "client/src/components/auto-lotto-dashboard.tsx",
     "client/src/components/expiry-pattern-insights.tsx",
+    "client/src/components/flowdash/dashboard.tsx",
     "client/src/components/gex-big-gainers.tsx",
     "client/src/components/gex/EngineStatusFooter.tsx",
     "client/src/components/market-overview-widget.tsx",

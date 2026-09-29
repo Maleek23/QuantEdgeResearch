@@ -24,9 +24,6 @@ import { SessionBrief } from '@/components/oracle/session-brief';
 import { OracleMarketField } from '@/components/oracle/oracle-market-field';
 import { FooterMarketLine } from '@/components/oracle/oracle-rails';
 import { LiveStatsBar } from '@/components/footer';
-// LEAPS = the fifth reference mock, wired. The prior LeapTracker stays at
-// components/hunt/leap-tracker.
-const LeapTracker = lazy(() => import('@/components/hunt/leaps-nexus').then(m => ({ default: m.LeapsNexus })));
 import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/terminal/terminal-alerts';
 import { useQuery } from '@tanstack/react-query';
 import type { ConvictionsResponse } from '@/lib/convictions';
@@ -45,67 +42,13 @@ import { CommandPalette } from '@/components/terminal/command-palette';
 const TerminalGuide = lazy(() => import('@/components/terminal/terminal-guide').then(m => ({ default: m.TerminalGuide })));
 const TerminalSettings = lazy(() => import('@/components/terminal/terminal-settings').then(m => ({ default: m.TerminalSettings })));
 
-// CHART = the reference Chart Lab mock, wired (chart-lab-nexus). The prior
-// EpochChart-based lab stays in the tree at charting/chart-lab.tsx.
-const ChartLab = lazy(() => import('@/components/charting/chart-lab-nexus').then(m => ({ default: m.ChartLabBoard })));
-// Default CHART view: the flow chart (GEX bubbles through time, dark-pool
-// levels, options prints on the candles). Chart Lab stays one click away.
-const FlowChart = lazy(() => import('@/components/charting/flow-chart-nexus').then(m => ({ default: m.FlowChartBoard })));
-const CHART_VIEW_KEY = 'qe-chart-view';
-function ChartTabHost() {
-  const [view, setView] = useState<'flow' | 'lab'>(() => {
-    try { return localStorage.getItem(CHART_VIEW_KEY) === 'lab' ? 'lab' : 'flow'; } catch { return 'flow'; }
-  });
-  const choose = (next: 'flow' | 'lab') => {
-    setView(next);
-    try { localStorage.setItem(CHART_VIEW_KEY, next); } catch { /* non-critical */ }
-  };
-  if (view === 'flow') return <FlowChart onOpenLab={() => choose('lab')} />;
-  return (
-    <div>
-      <div className="flex items-center gap-2 border-b border-border/45 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-        <button
-          type="button"
-          onClick={() => choose('flow')}
-          className="cursor-pointer rounded border border-border/60 px-2 py-1 transition-colors hover:border-[var(--brand-cyan)] hover:text-foreground"
-        >
-          ← Flow chart
-        </button>
-        <span>Chart Lab · published levels, watchlist, ES translation</span>
-      </div>
-      <ChartLab />
-    </div>
-  );
-}
-
-// Nexus now uses the focused live decision workspace. The legacy board mixed
-// market-overview modules (pulse, rotation, radar, heatmap, watchlist) into the
-// signal workflow; those belong on Today. Cockpit remains wired through the
-// shell's universal openWorkup listener below.
-const NexusBoard    = lazy(() => import('@/pages/nexus-prototype'));
 // Every tab below is a TOOL DASHBOARD (components/dashboard — the FLOW tab's
 // framework generalised): named dashboards, Add tool from the one registry,
 // drag/resize grid, Restore default. The previous boards live on as tools.
 const Dashboard     = lazy(() => import('@/components/dashboard/dashboard').then(m => ({ default: m.Dashboard })));
-// The old flow-heatmap page is the SECTOR TREEMAP with a flow overlay (breadth, net flow,
-// sweeps, whales + per-ticker flow detail). That's the Heatmap surface, not the tape — so
-// it belongs on HEATMAP. Keeping it preserves the strongest part of the old design.
-// PRISM = the strike x expiry gamma surface (what the walkthrough actually shows),
-// not the premium-spectrum strike picker that used to sit here.
-
-// CATALYST — the event calendar joined to the signals we publish, so a call and the
-// news pointing the other way land on the same screen instead of two separate ones.
-// CRYPTO = the sixth reference mock, wired. Prior CryptoTerminal stays in tree.
-const CryptoTerminal = lazy(() => import('@/components/crypto/crypto-nexus').then(m => ({ default: m.CryptoNexus })));
-// BOT = the seventh reference mock: the real automation layer, reported honestly.
-const BotNexus = lazy(() => import('@/components/bot/bot-nexus').then(m => ({ default: m.BotNexus })));
-// POSITIONS + JOURNAL — folded in from their own shells/routes (Phase 2: one chrome).
-// Positions is a single panel (its shell was only a header around the heatmap);
-// Journal keeps its own sub-tabs, synced to ?jtab= so it never fights the shell's ?tab=.
-const PositionsPanel = lazy(() => import('@/pages/positions-heatmap'));
+// JOURNAL keeps its own sub-tabs (owned by the journal branch), synced to ?jtab=.
+// Every other tab's previous board is registered as an "all-in-one" tool.
 const JournalPanel = lazy(() => import('@/pages/shells/journal-shell'));
-// CATALYST = composed from docs/DESIGN_SYSTEM.md (no mock). Prior CatalystBoard stays in tree.
-const CatalystNexus = lazy(() => import('@/components/catalyst/catalyst-nexus').then(m => ({ default: m.CatalystNexus })));
 
 // Tabs, mobile dock and "More" live in ONE shared model so the terminal and
 // every standalone page (NexusFrame) wear identical navigation.
@@ -462,23 +405,17 @@ export default function TerminalShell() {
             transition={{ duration: DUR.base, ease: EASE }}
           >
             <Suspense fallback={<Fallback />}>
-              {tab === 'oracle' && (
-                /* NEXUS — focused ranked book + selected setup. Today owns the
-                   market-overview modules; Cockpit owns the deep workup. */
-                <div className="nexus-embed-host">
-                  <NexusBoard />
-                </div>
-              )}
-              {tab === 'chart' && <ChartTabHost />}
+              {tab === 'oracle' && <Dashboard page="nexus" />}
+              {tab === 'chart' && <Dashboard page="chart" />}
               {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it.
                   Full-bleed: the FLOW mock owns its own two-column layout. */}
               {tab === 'flow' && <Dashboard page="flow" />}
               {tab === 'gex' && <Dashboard page="gex" />}
-              {tab === 'leaps' && <LeapTracker />}
-              {tab === 'crypto' && <CryptoTerminal />}
-              {tab === 'catalyst' && <CatalystNexus />}
-              {tab === 'bot' && <BotNexus />}
-              {tab === 'positions' && <PositionsPanel />}
+              {tab === 'leaps' && <Dashboard page="leaps" />}
+              {tab === 'crypto' && <Dashboard page="crypto" />}
+              {tab === 'catalyst' && <Dashboard page="catalyst" />}
+              {tab === 'bot' && <Dashboard page="bot" />}
+              {tab === 'positions' && <Dashboard page="positions" />}
               {tab === 'journal' && <JournalPanel />}
             </Suspense>
           </motion.div>

@@ -1,0 +1,29 @@
+/* LEAPS tools — one LeapsNexus section per tile (`only` prop). The page's
+   own .leapslab classes, compacted to fill a tile instead of the viewport. */
+
+.flowdash .fd-legacy>.leapslab.leaps-only{display:flex;flex-direction:column;height:100%;min-height:0;overflow:auto;overscroll-behavior:contain;container-type:inline-size}
+.flowdash .fd-legacy>.leapslab.leaps-only-list{overflow:hidden}
+
+/* card list */
+.flowdash .leaps-only .leaps-area{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;border-right:0}
+.flowdash .leapslab.leaps-only .filters-bar{flex:none;flex-wrap:wrap;gap:10px;padding:6px 8px;border-bottom:1px solid var(--nx-border)}
+.flowdash .leaps-only .list-wrap{flex:1;min-height:0;padding:8px}
+.flowdash .leaps-only .leap-card{gap:12px;padding:8px 10px;margin-bottom:6px}
+.flowdash .leaps-only .leap-card:hover{transform:none;box-shadow:none}
+.flowdash .leaps-only .grade-block{min-width:44px}
+.flowdash .leaps-only .grade-badge{width:30px;height:30px;font-size:15px}
+.flowdash .leaps-only .ticker-sym-big{font-size:15px}
+.flowdash .leaps-only .contract-block{min-width:160px;padding:6px 10px}
+.flowdash .leaps-only .action-btn{padding:5px 10px}
+.flowdash .leaps-only .list-footer{flex:none;padding:6px 10px;font-size:10px;line-height:1.5}
+@container (max-width:620px){
+  .flowdash .leaps-only .leap-card{grid-template-columns:auto 1fr}
+  .flowdash .leaps-only .contract-block{grid-column:1 / -1;min-width:0}
+  .flowdash .leaps-only .action-block{grid-column:1 / -1;flex-direction:row;align-items:center;justify-content:flex-end}
+}
+
+/* rail sections */
+.flowdash .leaps-only .leaps-meta{margin:0;padding:8px 10px 0}
+.flowdash .leaps-only .summary,.flowdash .leaps-only .grade-dist,.flowdash .leaps-only .how-graded{padding:8px 10px}
+.flowdash .leaps-only .summary-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+.flowdash .leaps-only .summary-card{padding:7px 9px}

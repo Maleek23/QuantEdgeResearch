@@ -21,7 +21,6 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { openWorkup as openWorkupModal } from '@/lib/workup-bus';
-import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
@@ -30,38 +29,38 @@ import { Heartbeat } from '@/components/viz';
 import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
 import '@/styles/nexus.css';
 
-interface CryptoAsset {
+export interface CryptoAsset {
   symbol: string; name: string; price: number;
   change24h: number | null; change7d: number | null; change30d: number | null;
   rsi14d: number | null; realizedVol30d: number | null;
   closes?: { timestamp: number; close: number }[];
 }
-interface PulsePayload { asOf?: string; assets?: CryptoAsset[] }
-interface RealtimePayload {
+export interface PulsePayload { asOf?: string; assets?: CryptoAsset[] }
+export interface RealtimePayload {
   coinbase?: { connected?: boolean };
   futures?: { connected?: boolean };
 }
-interface SentimentPayload {
+export interface SentimentPayload {
   asOf?: string;
   fearGreed?: { value: number; label: string; asOf: string } | null;
   btcDominance?: number | null;
 }
-interface ProxyCandidate {
+export interface ProxyCandidate {
   underlying: string; underlying7d: number | null; underlyingGatePassed: boolean;
   symbol: string; route: string; proxyNet: number | null; tapeGatePassed: boolean;
   entry: number | null; invalidation: number | null; invalidationBasis: string | null;
   eligible: boolean; reason: string;
 }
-interface ProxyCandidatePayload { asOf?: string; eligible?: number; rows?: ProxyCandidate[]; methodology?: string }
+export interface ProxyCandidatePayload { asOf?: string; eligible?: number; rows?: ProxyCandidate[]; methodology?: string }
 
-const BTC_PROXIES = [
+export const BTC_PROXIES = [
   { sym: 'IBIT', type: 'spot ETF', desc: 'Direct BTC wrapper — tightest correlation, lowest idiosyncratic risk.' },
   { sym: 'MSTR', type: 'treasury', desc: 'BTC balance-sheet exposure — leveraged to BTC moves, equity volatility overlay.' },
   { sym: 'COIN', type: 'exchange', desc: 'Crypto activity + equities — revenue tied to volume, not just price.' },
   { sym: 'MARA', type: 'miner', desc: 'Operating leverage to BTC — fixed cost base amplifies BTC moves.' },
   { sym: 'RIOT', type: 'miner', desc: 'Operating leverage to BTC — similar to MARA, different cost structure.' },
 ];
-const ETH_PROXIES = [
+export const ETH_PROXIES = [
   { sym: 'ETHA', type: 'spot ETF', desc: 'Direct ETH wrapper — cleanest transmission, check liquidity before sizing.' },
   { sym: 'ETHE', type: 'trust', desc: 'ETH wrapper — check liquidity and premium/discount vs NAV.' },
   { sym: 'COIN', type: 'exchange', desc: 'ETH activity + equities — shared with BTC routes, dual exposure.' },
@@ -192,55 +191,53 @@ function CorrRow({ sym, underlying }: { sym: string; underlying?: CryptoAsset })
   );
 }
 
-export function CryptoNexus() {
-  const [, setLocation] = useLocation();
-  const { setCurrentStock } = useStockContext();
-  const rail = useColResize('nx-crypto-side', 320, { sign: -1, min: 240, max: 520 });
-  const [chartCoin, setChartCoin] = useState<'BTC' | 'ETH' | 'SOL' | 'XRP' | 'QNT'>('BTC');
+/* ────────────────────────────────────────────────────────────────
+   SHARED QUERIES — identical keys everywhere, so the board and any
+   number of dashboard tools cut from it share one request each.
+   ──────────────────────────────────────────────────────────────── */
+const getJson = (path: string, err: string) => async () => {
+  const r = await fetch(path, { credentials: 'include' });
+  if (!r.ok) throw new Error(err);
+  return r.json();
+};
 
-  const { data: pulse } = useQuery<PulsePayload>({
+export function useCryptoPulse() {
+  return useQuery<PulsePayload>({
     queryKey: ['/api/crypto/pulse', 'nexus'],
-    queryFn: async () => {
-      const r = await fetch('/api/crypto/pulse', { credentials: 'include' });
-      if (!r.ok) throw new Error('crypto pulse failed');
-      return r.json();
-    },
+    queryFn: getJson('/api/crypto/pulse', 'crypto pulse failed'),
     staleTime: 60_000, refetchInterval: 120_000, retry: 1,
   });
-  const { data: realtime } = useQuery<RealtimePayload>({
+}
+export function useCryptoRealtime() {
+  return useQuery<RealtimePayload>({
     queryKey: ['/api/realtime-status', 'nexus'],
-    queryFn: async () => {
-      const r = await fetch('/api/realtime-status', { credentials: 'include' });
-      if (!r.ok) throw new Error('realtime failed');
-      return r.json();
-    },
+    queryFn: getJson('/api/realtime-status', 'realtime failed'),
     refetchInterval: 30_000, staleTime: 20_000, retry: 1,
   });
-  // Fear & Greed (alternative.me) + BTC dominance (CoinGecko) — the two feeds
-  // this tab previously disclosed as missing. Server-cached 30 min.
-  const { data: sentiment } = useQuery<SentimentPayload>({
+}
+// Fear & Greed (alternative.me) + BTC dominance (CoinGecko) — the two feeds
+// this tab previously disclosed as missing. Server-cached 30 min.
+export function useCryptoSentiment() {
+  return useQuery<SentimentPayload>({
     queryKey: ['/api/crypto/sentiment', 'nexus'],
-    queryFn: async () => {
-      const r = await fetch('/api/crypto/sentiment', { credentials: 'include' });
-      if (!r.ok) throw new Error('sentiment failed');
-      return r.json();
-    },
+    queryFn: getJson('/api/crypto/sentiment', 'sentiment failed'),
     staleTime: 15 * 60_000, refetchInterval: 30 * 60_000, retry: 1,
   });
-  const { data: proxyTrace, isError: proxyTraceError } = useQuery<ProxyCandidatePayload>({
+}
+export function useCryptoProxyTrace() {
+  return useQuery<ProxyCandidatePayload>({
     queryKey: ['/api/crypto/proxy-candidates', 'nexus'],
-    queryFn: async () => {
-      const r = await fetch('/api/crypto/proxy-candidates', { credentials: 'include' });
-      if (!r.ok) throw new Error('proxy candidate trace failed');
-      return r.json();
-    },
+    queryFn: getJson('/api/crypto/proxy-candidates', 'proxy candidate trace failed'),
     staleTime: 5 * 60_000, refetchInterval: 5 * 60_000, retry: 1,
   });
+}
 
+/** BTC/ETH out of the pulse, plus the ETH/BTC ratio and its 7d change. */
+export function useCryptoMajors() {
+  const pulseQ = useCryptoPulse();
+  const pulse = pulseQ.data;
   const btc = pulse?.assets?.find((a) => a.symbol === 'BTC');
   const eth = pulse?.assets?.find((a) => a.symbol === 'ETH');
-  const chartAsset = pulse?.assets?.find((a) => a.symbol === chartCoin);
-
   /* ETH/BTC — real arithmetic on the two live series */
   const ethBtc = btc && eth && btc.price > 0 ? eth.price / btc.price : null;
   const ethBtc7d = useMemo(() => {
@@ -251,61 +248,359 @@ export function CryptoNexus() {
     const now = e[e.length - 1].close / b[b.length - 1].close;
     return then > 0 ? ((now - then) / then) * 100 : null;
   }, [btc, eth]);
+  return { pulseQ, pulse, btc, eth, ethBtc, ethBtc7d };
+}
 
+export function useCryptoFeedsLive() {
+  const realtimeQ = useCryptoRealtime();
+  const realtime = realtimeQ.data;
   const feedsLive = (realtime?.coinbase?.connected ? 1 : 0) + (realtime?.futures?.connected ? 1 : 0);
+  return { realtimeQ, feedsLive };
+}
 
-  const openWorkup = (sym: string) => {
+/** Click → focus the shared ticker and open the universal dossier over the tab. */
+export function useOpenCryptoWorkup() {
+  const { setCurrentStock } = useStockContext();
+  return (sym: string) => {
     setCurrentStock({ symbol: sym });
     openWorkupModal(sym); // the universal dossier, over this tab
   };
+}
 
-  const SpotCard = ({ a, kind }: { a?: CryptoAsset; kind: 'btc' | 'eth' }) => {
-    const accent = kind === 'btc' ? '#f7931a' : '#8b7ee0';
-    const rsi = a?.rsi14d ?? null;
-    const rsiExt = rsi != null && (rsi >= 70 || rsi <= 30);
-    const vol = a?.realizedVol30d ?? null;
-    return (
-      <div className={`crypto-spot-card ${kind}`}>
-        <div className="crypto-spot-head">
-          <div className={`spot-icon ${kind}`}>{kind === 'btc' ? '₿' : 'Ξ'}</div>
-          <div>
-            <div className="spot-name">{a ? `${a.symbol} · ${a.name}` : kind.toUpperCase()}</div>
-            <div className="spot-sub">{kind === 'btc' ? 'Largest crypto · store of value' : 'Smart contracts · DeFi layer'}</div>
-          </div>
-        </div>
-        <div className="crypto-spot-price">{a ? `$${Math.round(a.price).toLocaleString()}` : '—'}</div>
-        <MiniChart closes={a?.closes} color={accent} />
-        <div className="spot-perf">
-          {([['24h', a?.change24h], ['7d', a?.change7d], ['30d', a?.change30d]] as const).map(([label, v]) => (
-            <div className="perf-item" key={label}>
-              <div className="perf-label">{label}</div>
-              <div className={`perf-val ${v != null && v < 0 ? 'down' : 'up'}`} style={v == null ? { color: 'var(--text-mute)' } : undefined}>{pct(v)}</div>
-            </div>
-          ))}
-        </div>
-        <div className="spot-stats">
-          <div className="stat-item">
-            <div className="stat-k">RSI · 14d</div>
-            {rsi == null ? <div className="stat-v" style={{ color: 'var(--text-mute)' }}>—</div> : (
-              <>
-                <div className="stat-v">{Math.round(rsi)} <span className={`rsi-pill ${rsiExt ? 'ext' : 'ok'}`}>{rsiExt ? 'extended' : 'in range'}</span></div>
-                <div className="rsi-bar"><div className={`rsi-fill ${rsiExt ? 'ext' : 'ok'}`} style={{ width: `${Math.min(100, rsi)}%` }} /></div>
-              </>
-            )}
-          </div>
-          <div className="stat-item">
-            <div className="stat-k">Realized vol · 30d</div>
-            {vol == null ? <div className="stat-v" style={{ color: 'var(--text-mute)' }}>—</div> : (
-              <>
-                <div className="stat-v">{Math.round(vol)}%</div>
-                <div className="rsi-bar"><div className={`rsi-fill ${vol >= 60 ? 'ext' : 'ok'}`} style={{ width: `${Math.min(100, vol)}%` }} /></div>
-              </>
-            )}
-          </div>
+/* ────────────────────────────────────────────────────────────────
+   SECTIONS — the board is these; each also stands alone as a
+   dashboard tool (components/dashboard/tools/crypto).
+   ──────────────────────────────────────────────────────────────── */
+
+export function SpotCard({ a, kind }: { a?: CryptoAsset; kind: 'btc' | 'eth' }) {
+  const accent = kind === 'btc' ? '#f7931a' : '#8b7ee0';
+  const rsi = a?.rsi14d ?? null;
+  const rsiExt = rsi != null && (rsi >= 70 || rsi <= 30);
+  const vol = a?.realizedVol30d ?? null;
+  return (
+    <div className={`crypto-spot-card ${kind}`}>
+      <div className="crypto-spot-head">
+        <div className={`spot-icon ${kind}`}>{kind === 'btc' ? '₿' : 'Ξ'}</div>
+        <div>
+          <div className="spot-name">{a ? `${a.symbol} · ${a.name}` : kind.toUpperCase()}</div>
+          <div className="spot-sub">{kind === 'btc' ? 'Largest crypto · store of value' : 'Smart contracts · DeFi layer'}</div>
         </div>
       </div>
-    );
-  };
+      <div className="crypto-spot-price">{a ? `$${Math.round(a.price).toLocaleString()}` : '—'}</div>
+      <MiniChart closes={a?.closes} color={accent} />
+      <div className="spot-perf">
+        {([['24h', a?.change24h], ['7d', a?.change7d], ['30d', a?.change30d]] as const).map(([label, v]) => (
+          <div className="perf-item" key={label}>
+            <div className="perf-label">{label}</div>
+            <div className={`perf-val ${v != null && v < 0 ? 'down' : 'up'}`} style={v == null ? { color: 'var(--text-mute)' } : undefined}>{pct(v)}</div>
+          </div>
+        ))}
+      </div>
+      <div className="spot-stats">
+        <div className="stat-item">
+          <div className="stat-k">RSI · 14d</div>
+          {rsi == null ? <div className="stat-v" style={{ color: 'var(--text-mute)' }}>—</div> : (
+            <>
+              <div className="stat-v">{Math.round(rsi)} <span className={`rsi-pill ${rsiExt ? 'ext' : 'ok'}`}>{rsiExt ? 'extended' : 'in range'}</span></div>
+              <div className="rsi-bar"><div className={`rsi-fill ${rsiExt ? 'ext' : 'ok'}`} style={{ width: `${Math.min(100, rsi)}%` }} /></div>
+            </>
+          )}
+        </div>
+        <div className="stat-item">
+          <div className="stat-k">Realized vol · 30d</div>
+          {vol == null ? <div className="stat-v" style={{ color: 'var(--text-mute)' }}>—</div> : (
+            <>
+              <div className="stat-v">{Math.round(vol)}%</div>
+              <div className="rsi-bar"><div className={`rsi-fill ${vol >= 60 ? 'ext' : 'ok'}`} style={{ width: `${Math.min(100, vol)}%` }} /></div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Page header: title, spot-read heartbeat, feeds live, proxy count. */
+export function CryptoHeader() {
+  const { pulse } = useCryptoMajors();
+  const { feedsLive } = useCryptoFeedsLive();
+  return (
+    <div className="crypto-header">
+      <div className="crypto-eyebrow">Crypto intelligence</div>
+      <div className="crypto-title-row">
+        <div className="crypto-title">Trade the tape, then choose the proxy.</div>
+      </div>
+      <div className="crypto-desc">
+        <b>BTC</b> and <span className="eth">ETH</span> establish the market context. Equity proxies are a separate trade with their own chart, option chain, liquidity, and risk.
+      </div>
+      <div className="crypto-meta">
+        <span className="tag btc" style={{ display: 'inline-flex', gap: 6 }}>
+          spot read <Heartbeat since={pulse?.asOf ?? null} staleAfterSec={600} />
+        </span>
+        <span className={`tag ${feedsLive === 2 ? 'live' : 'mute'}`}><span className="dot" />{feedsLive}/2 feeds live</span>
+        <span className="tag mute">{BTC_PROXIES.length + ETH_PROXIES.length} proxies</span>
+      </div>
+    </div>
+  );
+}
+
+/** BTC + ETH spot cards (price, 60d mini chart, 24h/7d/30d, RSI, realized vol). */
+export function CryptoSpotRead() {
+  const { btc, eth } = useCryptoMajors();
+  return (
+    <div className="spot-section">
+      <div className="spot-label">Spot read</div>
+      <div className="spot-grid">
+        <SpotCard a={btc} kind="btc" />
+        <SpotCard a={eth} kind="eth" />
+      </div>
+    </div>
+  );
+}
+
+export const CHART_COINS = ['BTC', 'ETH', 'SOL', 'XRP', 'QNT'] as const;
+export type ChartCoin = typeof CHART_COINS[number];
+
+/** Structure lab: coin tabs, interactive chart, level strip. `fill` = flex to the parent. */
+export function CryptoChartDeck({ coin, onCoin, fill = false }: {
+  coin?: ChartCoin; onCoin?: (c: ChartCoin) => void; fill?: boolean;
+} = {}) {
+  const [ownCoin, setOwnCoin] = useState<ChartCoin>('BTC');
+  const chartCoin = coin ?? ownCoin;
+  const setChartCoin = onCoin ?? setOwnCoin;
+  const { pulse } = useCryptoMajors();
+  const chartAsset = pulse?.assets?.find((a) => a.symbol === chartCoin);
+  return (
+    <section className={`crypto-chart-deck${fill ? ' fill' : ''}`} aria-label="Interactive crypto chart and levels">
+      <div className="crypto-chart-head">
+        <div>
+          <div className="spot-label">Structure lab</div>
+          <div className="crypto-chart-title">{chartCoin}/USD · interactive tape</div>
+        </div>
+        <div className="crypto-chart-tabs">
+          {CHART_COINS.map((c) => (
+            <button key={c} type="button" className={c === chartCoin ? 'active' : ''} onClick={() => setChartCoin(c)}>{c}</button>
+          ))}
+        </div>
+      </div>
+      {fill
+        ? <NexusPriceChart key={chartCoin} symbol={`${chartCoin}-USD`} initialTf="1h" fill expandable />
+        : <NexusPriceChart key={chartCoin} symbol={`${chartCoin}-USD`} initialTf="1h" height={330} expandable />}
+      <div className="crypto-level-strip">
+        <div><span>spot</span><b>{chartAsset ? `$${chartAsset.price.toLocaleString(undefined, { maximumFractionDigits: chartAsset.price < 10 ? 4 : 0 })}` : '—'}</b></div>
+        <div><span>7d</span><b className={(chartAsset?.change7d ?? 0) >= 0 ? 'up' : 'down'}>{pct(chartAsset?.change7d)}</b></div>
+        <div><span>30d</span><b className={(chartAsset?.change30d ?? 0) >= 0 ? 'up' : 'down'}>{pct(chartAsset?.change30d)}</b></div>
+        <div><span>RSI 14d</span><b>{chartAsset?.rsi14d == null ? '—' : chartAsset.rsi14d.toFixed(0)}</b></div>
+        <div><span>realized vol</span><b>{chartAsset?.realizedVol30d == null ? '—' : `${chartAsset.realizedVol30d.toFixed(0)}%`}</b></div>
+      </div>
+      <p className="crypto-chart-note">Levels come from traded price structure on the selected coin. Equity proxies remain separate trades: their own trend, tape, liquidity and invalidation must confirm.</p>
+    </section>
+  );
+}
+
+/** Nexus promotion gate: which proxies may become trade ideas now. */
+export function CryptoProxyGate() {
+  const { data: proxyTrace, isError: proxyTraceError } = useCryptoProxyTrace();
+  const openWorkup = useOpenCryptoWorkup();
+  return (
+    <section className="border-y border-border/45 px-4 py-4 md:px-6" aria-label="Crypto proxy promotion gate">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--brand-cyan)]">Nexus promotion gate</div>
+          <h2 className="mt-1 text-sm font-semibold text-foreground">Which proxies can become trade ideas now</h2>
+          <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-muted-foreground">The coin move only opens the search. A proxy needs its own bullish options tape and a measured chart invalidation before the publisher may send it to Nexus.</p>
+        </div>
+        <div className="font-mono text-[10px] text-muted-foreground"><b className="text-foreground">{proxyTrace?.eligible ?? 0}</b> eligible · <Heartbeat since={proxyTrace?.asOf ?? null} staleAfterSec={600} /></div>
+      </div>
+      {proxyTraceError ? (
+        <div className="mt-3 rounded border border-[var(--trade-bearish)]/30 bg-[var(--trade-bearish)]/5 px-3 py-2 font-mono text-[10px] text-[var(--trade-bearish)]">Proxy evidence feed failed. No eligibility is implied.</div>
+      ) : (
+        <div className="mt-3 grid gap-2 xl:grid-cols-2">
+          {(proxyTrace?.rows ?? []).map((row) => (
+            <button key={`${row.underlying}-${row.symbol}`} type="button" onClick={() => openWorkup(row.symbol)} className="grid cursor-pointer grid-cols-[58px_64px_1fr_auto] items-center gap-2 rounded border border-border/45 bg-background/20 px-3 py-2 text-left transition-colors hover:border-[var(--brand-cyan)]/50 hover:bg-foreground/[0.025]">
+              <span className="font-mono text-[11px] font-bold text-foreground">{row.symbol}</span>
+              <span className="font-mono text-[9px] text-muted-foreground">{row.underlying} {row.underlying7d == null ? '—' : `${row.underlying7d >= 0 ? '+' : ''}${(row.underlying7d * 100).toFixed(1)}%`}</span>
+              <span className="min-w-0 truncate text-[10px] text-muted-foreground" title={row.reason}>{row.reason}</span>
+              <span className="rounded border px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider" style={{ color: row.eligible ? 'var(--green)' : row.tapeGatePassed ? 'var(--amber)' : 'var(--text-mute)', borderColor: row.eligible ? 'color-mix(in srgb,var(--green) 35%,transparent)' : 'var(--nx-border)' }}>{row.eligible ? 'QUALIFIED' : row.tapeGatePassed ? 'NEEDS LEVEL' : 'WATCH'}</span>
+            </button>
+          ))}
+          {!proxyTrace?.rows?.length && <div className="font-mono text-[10px] text-muted-foreground">Reading the crypto transmission gates…</div>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Proxy board: BTC and ETH equity routes with measured ~30d correlation. */
+export function CryptoProxyBoard() {
+  const { btc, eth } = useCryptoMajors();
+  const openWorkup = useOpenCryptoWorkup();
+  return (
+    <div className="proxy-section">
+      <div className="proxy-head">
+        <div className="proxy-label">Proxy board</div>
+        <div className="proxy-sub">Equities to investigate after the crypto read · open = full ticker workup</div>
+      </div>
+
+      <div className="proxy-group">
+        <div className="proxy-group-head">
+          <div className="proxy-group-sym btc">BTC routes</div>
+          {btc?.change24h != null && (
+            <div className={`proxy-group-chg ${btc.change24h >= 0 ? 'up' : 'down'}`}>underlying {pct(btc.change24h)}</div>
+          )}
+          <div className="proxy-group-label">{BTC_PROXIES.length} proxies</div>
+        </div>
+        <div className="proxy-grid">
+          {BTC_PROXIES.map((p) => <ProxyCard key={`b-${p.sym}`} p={p} underlying={btc} accent="#f7931a" onOpen={openWorkup} />)}
+        </div>
+      </div>
+
+      <div className="proxy-group">
+        <div className="proxy-group-head">
+          <div className="proxy-group-sym eth">ETH routes</div>
+          {eth?.change24h != null && (
+            <div className={`proxy-group-chg ${eth.change24h >= 0 ? 'up' : 'down'}`}>underlying {pct(eth.change24h)}</div>
+          )}
+          <div className="proxy-group-label">{ETH_PROXIES.length} proxies</div>
+        </div>
+        <div className="proxy-grid">
+          {ETH_PROXIES.map((p) => <ProxyCard key={`e-${p.sym}`} p={p} underlying={eth} accent="#8b7ee0" onOpen={openWorkup} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** How to use this — the three-step method and the no-shortcut rule. */
+export function CryptoHowTo() {
+  return (
+    <div className="how-section">
+      <div className="how-label">How to use this</div>
+      <div className="how-steps">
+        <div className="how-step">
+          <div className="how-num">01</div>
+          <div className="how-title">Read the underlying</div>
+          <div className="how-desc">BTC/ETH trend, 24h range, RSI, and realized volatility describe <b>crypto</b> — not a stock option trade.</div>
+        </div>
+        <div className="how-step">
+          <div className="how-num">02</div>
+          <div className="how-title">Select the transmission</div>
+          <div className="how-desc">A proxy may be <b>direct (ETF)</b>, balance-sheet driven, or operating leverage. It can diverge materially.</div>
+        </div>
+        <div className="how-step">
+          <div className="how-num">03</div>
+          <div className="how-title">Validate the option</div>
+          <div className="how-desc">Open the ticker workup. <b>Entry, structural targets, premiums, OI, spread, and expiry</b> must be measured there.</div>
+        </div>
+      </div>
+      <div className="how-warning">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><path d="M12 9v4M12 17h.01" /></svg>
+        <div><b>No shortcut:</b> no proxy is graded as a trade solely because BTC or ETH moved. Each must pass its own evidence bar in Oracle.</div>
+      </div>
+    </div>
+  );
+}
+
+/** Right-rail summary: BTC, ETH, ETH/BTC ratio, feeds live. */
+export function CryptoSummary() {
+  const { btc, eth, ethBtc, ethBtc7d } = useCryptoMajors();
+  const { feedsLive } = useCryptoFeedsLive();
+  return (
+    <div className="summary">
+      <div className="summary-grid">
+        <div className="summary-card btc">
+          <div className="summary-label">BTC · spot</div>
+          <div className="summary-val btc">{btc ? `$${Math.round(btc.price).toLocaleString()}` : '—'}</div>
+          <div className="summary-sub" style={{ color: (btc?.change24h ?? 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>{pct(btc?.change24h)} · 24h</div>
+        </div>
+        <div className="summary-card eth">
+          <div className="summary-label">ETH · spot</div>
+          <div className="summary-val eth">{eth ? `$${Math.round(eth.price).toLocaleString()}` : '—'}</div>
+          <div className="summary-sub" style={{ color: (eth?.change24h ?? 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>{pct(eth?.change24h)} · 24h</div>
+        </div>
+        <div className="summary-card eth">
+          <div className="summary-label">ETH / BTC</div>
+          <div className="summary-val">{ethBtc != null ? ethBtc.toFixed(4) : '—'}</div>
+          <div className="summary-sub" style={ethBtc7d != null ? { color: ethBtc7d >= 0 ? 'var(--green)' : 'var(--red)' } : undefined}>{ethBtc7d != null ? `${pct(ethBtc7d)} · 7d` : 'ratio of live spots'}</div>
+        </div>
+        <div className="summary-card btc">
+          <div className="summary-label">Feeds</div>
+          <div className="summary-val" style={{ color: feedsLive === 2 ? 'var(--green)' : 'var(--amber)' }}>{feedsLive}/2</div>
+          <div className="summary-sub">coinbase · futures</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const CORR_BTC = ['IBIT', 'MSTR', 'MARA', 'COIN', 'RIOT'];
+export const CORR_ETH = ['HOOD'];
+
+/** Proxy correlation · ~30d — Pearson r of daily log returns vs the underlying. */
+export function CryptoCorrelation() {
+  const { btc, eth } = useCryptoMajors();
+  return (
+    <div className="correlation">
+      <div className="correlation-head">
+        <div className="correlation-label">Proxy correlation · ~30d</div>
+        <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>daily log returns</div>
+      </div>
+      <div className="correlation-list">
+        {CORR_BTC.map((s) => <CorrRow key={s} sym={s} underlying={btc} />)}
+        {CORR_ETH.map((s) => <CorrRow key={s} sym={s} underlying={eth} />)}
+      </div>
+    </div>
+  );
+}
+
+/** Crypto Fear & Greed (alternative.me) + BTC dominance. */
+export function CryptoSentiment() {
+  const { data: sentiment } = useCryptoSentiment();
+  return (
+    <div className="fear-greed" style={{ padding: '14px 16px', borderBottom: '1px solid var(--nx-border)' }}>
+      <div className="correlation-head">
+        <div className="correlation-label">Crypto Fear &amp; Greed</div>
+        {sentiment?.fearGreed && (
+          <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>alternative.me</div>
+        )}
+      </div>
+      {sentiment?.fearGreed ? (() => {
+        const fg = sentiment.fearGreed!;
+        const color = fg.value >= 75 ? 'var(--red)' : fg.value >= 55 ? 'var(--amber)' : fg.value >= 45 ? 'var(--text-dim)' : fg.value >= 25 ? 'var(--btc-bright)' : 'var(--green)';
+        return (
+          <div style={{ padding: '10px 0 4px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 22, fontWeight: 700, color }}>{fg.value}</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color }}>{fg.label}</span>
+            </div>
+            <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'linear-gradient(90deg, var(--green), var(--amber) 50%, var(--red))', opacity: 0.9 }}>
+              <div style={{ position: 'absolute', top: -3, left: `calc(${Math.min(100, Math.max(0, fg.value))}% - 2px)`, width: 4, height: 12, borderRadius: 2, background: '#fff', boxShadow: '0 0 6px rgba(255,255,255,0.6)' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
+              <span>fear</span><span>greed</span>
+            </div>
+          </div>
+        );
+      })() : (
+        <div style={{ padding: '14px 0 6px', textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontStyle: 'italic', color: 'var(--text-mute)' }}>
+          NOT MEASURED — sentiment feed unreachable
+        </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, padding: '7px 10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 'var(--fs-10, 10px)' }}>
+        <span style={{ color: 'var(--text-dim)' }}>BTC dominance</span>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: sentiment?.btcDominance != null ? 'var(--btc-bright)' : 'var(--text-mute)' }}>
+          {sentiment?.btcDominance != null ? `${sentiment.btcDominance.toFixed(1)}%` : '—'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BOARD — the sections in the mock's main column + resizable rail.
+   ──────────────────────────────────────────────────────────────── */
+export function CryptoNexus() {
+  const rail = useColResize('nx-crypto-side', 320, { sign: -1, min: 240, max: 520 });
 
   return (
     <div className="cryptolab">
@@ -314,137 +609,12 @@ export function CryptoNexus() {
 
         {/* ══════════ CRYPTO AREA ══════════ */}
         <div className="col crypto-area">
-          <div className="crypto-header">
-            <div className="crypto-eyebrow">Crypto intelligence</div>
-            <div className="crypto-title-row">
-              <div className="crypto-title">Trade the tape, then choose the proxy.</div>
-            </div>
-            <div className="crypto-desc">
-              <b>BTC</b> and <span className="eth">ETH</span> establish the market context. Equity proxies are a separate trade with their own chart, option chain, liquidity, and risk.
-            </div>
-            <div className="crypto-meta">
-              <span className="tag btc" style={{ display: 'inline-flex', gap: 6 }}>
-                spot read <Heartbeat since={pulse?.asOf ?? null} staleAfterSec={600} />
-              </span>
-              <span className={`tag ${feedsLive === 2 ? 'live' : 'mute'}`}><span className="dot" />{feedsLive}/2 feeds live</span>
-              <span className="tag mute">{BTC_PROXIES.length + ETH_PROXIES.length} proxies</span>
-            </div>
-          </div>
-
-          <div className="spot-section">
-            <div className="spot-label">Spot read</div>
-            <div className="spot-grid">
-              <SpotCard a={btc} kind="btc" />
-              <SpotCard a={eth} kind="eth" />
-            </div>
-          </div>
-
-          <section className="crypto-chart-deck" aria-label="Interactive crypto chart and levels">
-            <div className="crypto-chart-head">
-              <div>
-                <div className="spot-label">Structure lab</div>
-                <div className="crypto-chart-title">{chartCoin}/USD · interactive tape</div>
-              </div>
-              <div className="crypto-chart-tabs">
-                {(['BTC', 'ETH', 'SOL', 'XRP', 'QNT'] as const).map((coin) => (
-                  <button key={coin} type="button" className={coin === chartCoin ? 'active' : ''} onClick={() => setChartCoin(coin)}>{coin}</button>
-                ))}
-              </div>
-            </div>
-            <NexusPriceChart key={chartCoin} symbol={`${chartCoin}-USD`} initialTf="1h" height={330} expandable />
-            <div className="crypto-level-strip">
-              <div><span>spot</span><b>{chartAsset ? `$${chartAsset.price.toLocaleString(undefined, { maximumFractionDigits: chartAsset.price < 10 ? 4 : 0 })}` : '—'}</b></div>
-              <div><span>7d</span><b className={(chartAsset?.change7d ?? 0) >= 0 ? 'up' : 'down'}>{pct(chartAsset?.change7d)}</b></div>
-              <div><span>30d</span><b className={(chartAsset?.change30d ?? 0) >= 0 ? 'up' : 'down'}>{pct(chartAsset?.change30d)}</b></div>
-              <div><span>RSI 14d</span><b>{chartAsset?.rsi14d == null ? '—' : chartAsset.rsi14d.toFixed(0)}</b></div>
-              <div><span>realized vol</span><b>{chartAsset?.realizedVol30d == null ? '—' : `${chartAsset.realizedVol30d.toFixed(0)}%`}</b></div>
-            </div>
-            <p className="crypto-chart-note">Levels come from traded price structure on the selected coin. Equity proxies remain separate trades: their own trend, tape, liquidity and invalidation must confirm.</p>
-          </section>
-
-          <section className="border-y border-border/45 px-4 py-4 md:px-6" aria-label="Crypto proxy promotion gate">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <div className="font-mono text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--brand-cyan)]">Nexus promotion gate</div>
-                <h2 className="mt-1 text-sm font-semibold text-foreground">Which proxies can become trade ideas now</h2>
-                <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-muted-foreground">The coin move only opens the search. A proxy needs its own bullish options tape and a measured chart invalidation before the publisher may send it to Nexus.</p>
-              </div>
-              <div className="font-mono text-[10px] text-muted-foreground"><b className="text-foreground">{proxyTrace?.eligible ?? 0}</b> eligible · <Heartbeat since={proxyTrace?.asOf ?? null} staleAfterSec={600} /></div>
-            </div>
-            {proxyTraceError ? (
-              <div className="mt-3 rounded border border-[var(--trade-bearish)]/30 bg-[var(--trade-bearish)]/5 px-3 py-2 font-mono text-[10px] text-[var(--trade-bearish)]">Proxy evidence feed failed. No eligibility is implied.</div>
-            ) : (
-              <div className="mt-3 grid gap-2 xl:grid-cols-2">
-                {(proxyTrace?.rows ?? []).map((row) => (
-                  <button key={`${row.underlying}-${row.symbol}`} type="button" onClick={() => openWorkup(row.symbol)} className="grid cursor-pointer grid-cols-[58px_64px_1fr_auto] items-center gap-2 rounded border border-border/45 bg-background/20 px-3 py-2 text-left transition-colors hover:border-[var(--brand-cyan)]/50 hover:bg-foreground/[0.025]">
-                    <span className="font-mono text-[11px] font-bold text-foreground">{row.symbol}</span>
-                    <span className="font-mono text-[9px] text-muted-foreground">{row.underlying} {row.underlying7d == null ? '—' : `${row.underlying7d >= 0 ? '+' : ''}${(row.underlying7d * 100).toFixed(1)}%`}</span>
-                    <span className="min-w-0 truncate text-[10px] text-muted-foreground" title={row.reason}>{row.reason}</span>
-                    <span className="rounded border px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider" style={{ color: row.eligible ? 'var(--green)' : row.tapeGatePassed ? 'var(--amber)' : 'var(--text-mute)', borderColor: row.eligible ? 'color-mix(in srgb,var(--green) 35%,transparent)' : 'var(--nx-border)' }}>{row.eligible ? 'QUALIFIED' : row.tapeGatePassed ? 'NEEDS LEVEL' : 'WATCH'}</span>
-                  </button>
-                ))}
-                {!proxyTrace?.rows?.length && <div className="font-mono text-[10px] text-muted-foreground">Reading the crypto transmission gates…</div>}
-              </div>
-            )}
-          </section>
-
-          <div className="proxy-section">
-            <div className="proxy-head">
-              <div className="proxy-label">Proxy board</div>
-              <div className="proxy-sub">Equities to investigate after the crypto read · open = full ticker workup</div>
-            </div>
-
-            <div className="proxy-group">
-              <div className="proxy-group-head">
-                <div className="proxy-group-sym btc">BTC routes</div>
-                {btc?.change24h != null && (
-                  <div className={`proxy-group-chg ${btc.change24h >= 0 ? 'up' : 'down'}`}>underlying {pct(btc.change24h)}</div>
-                )}
-                <div className="proxy-group-label">{BTC_PROXIES.length} proxies</div>
-              </div>
-              <div className="proxy-grid">
-                {BTC_PROXIES.map((p) => <ProxyCard key={`b-${p.sym}`} p={p} underlying={btc} accent="#f7931a" onOpen={openWorkup} />)}
-              </div>
-            </div>
-
-            <div className="proxy-group">
-              <div className="proxy-group-head">
-                <div className="proxy-group-sym eth">ETH routes</div>
-                {eth?.change24h != null && (
-                  <div className={`proxy-group-chg ${eth.change24h >= 0 ? 'up' : 'down'}`}>underlying {pct(eth.change24h)}</div>
-                )}
-                <div className="proxy-group-label">{ETH_PROXIES.length} proxies</div>
-              </div>
-              <div className="proxy-grid">
-                {ETH_PROXIES.map((p) => <ProxyCard key={`e-${p.sym}`} p={p} underlying={eth} accent="#8b7ee0" onOpen={openWorkup} />)}
-              </div>
-            </div>
-          </div>
-
-          <div className="how-section">
-            <div className="how-label">How to use this</div>
-            <div className="how-steps">
-              <div className="how-step">
-                <div className="how-num">01</div>
-                <div className="how-title">Read the underlying</div>
-                <div className="how-desc">BTC/ETH trend, 24h range, RSI, and realized volatility describe <b>crypto</b> — not a stock option trade.</div>
-              </div>
-              <div className="how-step">
-                <div className="how-num">02</div>
-                <div className="how-title">Select the transmission</div>
-                <div className="how-desc">A proxy may be <b>direct (ETF)</b>, balance-sheet driven, or operating leverage. It can diverge materially.</div>
-              </div>
-              <div className="how-step">
-                <div className="how-num">03</div>
-                <div className="how-title">Validate the option</div>
-                <div className="how-desc">Open the ticker workup. <b>Entry, structural targets, premiums, OI, spread, and expiry</b> must be measured there.</div>
-              </div>
-            </div>
-            <div className="how-warning">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><path d="M12 9v4M12 17h.01" /></svg>
-              <div><b>No shortcut:</b> no proxy is graded as a trade solely because BTC or ETH moved. Each must pass its own evidence bar in Oracle.</div>
-            </div>
-          </div>
+          <CryptoHeader />
+          <CryptoSpotRead />
+          <CryptoChartDeck />
+          <CryptoProxyGate />
+          <CryptoProxyBoard />
+          <CryptoHowTo />
         </div>
 
         {/* ══════════ RIGHT SIDEBAR ══════════ */}
@@ -459,78 +629,9 @@ export function CryptoNexus() {
             </div>
           </div>
 
-          <div className="summary">
-            <div className="summary-grid">
-              <div className="summary-card btc">
-                <div className="summary-label">BTC · spot</div>
-                <div className="summary-val btc">{btc ? `$${Math.round(btc.price).toLocaleString()}` : '—'}</div>
-                <div className="summary-sub" style={{ color: (btc?.change24h ?? 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>{pct(btc?.change24h)} · 24h</div>
-              </div>
-              <div className="summary-card eth">
-                <div className="summary-label">ETH · spot</div>
-                <div className="summary-val eth">{eth ? `$${Math.round(eth.price).toLocaleString()}` : '—'}</div>
-                <div className="summary-sub" style={{ color: (eth?.change24h ?? 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>{pct(eth?.change24h)} · 24h</div>
-              </div>
-              <div className="summary-card eth">
-                <div className="summary-label">ETH / BTC</div>
-                <div className="summary-val">{ethBtc != null ? ethBtc.toFixed(4) : '—'}</div>
-                <div className="summary-sub" style={ethBtc7d != null ? { color: ethBtc7d >= 0 ? 'var(--green)' : 'var(--red)' } : undefined}>{ethBtc7d != null ? `${pct(ethBtc7d)} · 7d` : 'ratio of live spots'}</div>
-              </div>
-              <div className="summary-card btc">
-                <div className="summary-label">Feeds</div>
-                <div className="summary-val" style={{ color: feedsLive === 2 ? 'var(--green)' : 'var(--amber)' }}>{feedsLive}/2</div>
-                <div className="summary-sub">coinbase · futures</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="correlation">
-            <div className="correlation-head">
-              <div className="correlation-label">Proxy correlation · ~30d</div>
-              <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>daily log returns</div>
-            </div>
-            <div className="correlation-list">
-              {['IBIT', 'MSTR', 'MARA', 'COIN', 'RIOT'].map((s) => <CorrRow key={s} sym={s} underlying={btc} />)}
-              {['HOOD'].map((s) => <CorrRow key={s} sym={s} underlying={eth} />)}
-            </div>
-          </div>
-
-          <div className="fear-greed" style={{ padding: '14px 16px', borderBottom: '1px solid var(--nx-border)' }}>
-            <div className="correlation-head">
-              <div className="correlation-label">Crypto Fear &amp; Greed</div>
-              {sentiment?.fearGreed && (
-                <div style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>alternative.me</div>
-              )}
-            </div>
-            {sentiment?.fearGreed ? (() => {
-              const fg = sentiment.fearGreed!;
-              const color = fg.value >= 75 ? 'var(--red)' : fg.value >= 55 ? 'var(--amber)' : fg.value >= 45 ? 'var(--text-dim)' : fg.value >= 25 ? 'var(--btc-bright)' : 'var(--green)';
-              return (
-                <div style={{ padding: '10px 0 4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 22, fontWeight: 700, color }}>{fg.value}</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color }}>{fg.label}</span>
-                  </div>
-                  <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'linear-gradient(90deg, var(--green), var(--amber) 50%, var(--red))', opacity: 0.9 }}>
-                    <div style={{ position: 'absolute', top: -3, left: `calc(${Math.min(100, Math.max(0, fg.value))}% - 2px)`, width: 4, height: 12, borderRadius: 2, background: '#fff', boxShadow: '0 0 6px rgba(255,255,255,0.6)' }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>
-                    <span>fear</span><span>greed</span>
-                  </div>
-                </div>
-              );
-            })() : (
-              <div style={{ padding: '14px 0 6px', textAlign: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontStyle: 'italic', color: 'var(--text-mute)' }}>
-                NOT MEASURED — sentiment feed unreachable
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, padding: '7px 10px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--nx-border)', borderRadius: 4, fontSize: 'var(--fs-10, 10px)' }}>
-              <span style={{ color: 'var(--text-dim)' }}>BTC dominance</span>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: sentiment?.btcDominance != null ? 'var(--btc-bright)' : 'var(--text-mute)' }}>
-                {sentiment?.btcDominance != null ? `${sentiment.btcDominance.toFixed(1)}%` : '—'}
-              </span>
-            </div>
-          </div>
+          <CryptoSummary />
+          <CryptoCorrelation />
+          <CryptoSentiment />
 
           <div className="disclaimer">
             Educational only · not investment advice.<br />

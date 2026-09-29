@@ -1,0 +1,21 @@
+/* CHART tools — Chart Lab sections inside dashboard tiles. The sections keep
+   their nexus.css classes; this only compacts them and makes them fill the
+   tile (the frame already prints title/source/age, so the board's own
+   headline chrome is trimmed). */
+.flowdash .cl-tool{flex:1;min-height:0;display:flex;flex-direction:column}
+.flowdash .cl-tool.fd-scroll{display:block;overflow:auto}
+
+/* chart pane: fill the tile, header compacted */
+.flowdash .cl-chart{overflow:hidden}
+.flowdash .cl-chart>.chart-area{flex:1;min-height:0;border-right:0}
+.flowdash .cl-chart .chart-header{padding:6px 10px 6px}
+.flowdash .cl-chart .chart-eyebrow,.flowdash .cl-chart .chart-desc{display:none}
+.flowdash .cl-chart .chart-title-row{margin-bottom:0;gap:10px;flex-wrap:wrap}
+.flowdash .cl-chart .chart-title{font-size:15px}
+.flowdash .cl-chart .instrument-bar{padding:6px 10px;gap:10px}
+.flowdash .cl-chart .ohlc{gap:10px}
+
+/* rail sections: tighter padding in a tile */
+.flowdash .cl-tool .summary,.flowdash .cl-tool .levels-section,.flowdash .cl-tool .watch-section{padding:10px 12px}
+.flowdash .cl-tool .watch-section{border-top:0}
+.flowdash .cl-tool .sys-status{padding:8px 12px}

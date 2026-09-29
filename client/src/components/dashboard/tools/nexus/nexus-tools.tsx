@@ -1,0 +1,326 @@
+/**
+ * NEXUS tools — the NEXUS board (pages/nexus-prototype.tsx) split into
+ * dashboard tools.
+ *
+ * All tools read the page's own queries through nexus-parts.tsx (identical
+ * react-query keys), so N tools on screen = one request per endpoint.
+ *
+ * Selection is shared per page through useDashState('nexus:selection'):
+ *   { kind: 'setup', id }        — a ranked setup or a bot-held position
+ *   { kind: 'developing', symbol } — a pattern-scan candidate
+ * The board, positions and developing lanes write it (and re-point the focus
+ * ticker so chart / GEX tools follow); the detail tool shows whatever was
+ * selected last.
+ */
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { Activity, Search } from 'lucide-react';
+import { SignalGrid } from '@/components/hunt/cockpit/signal-grid';
+import { SignalTable } from '@/components/hunt/cockpit/signal-table';
+import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
+import { openWorkup } from '@/lib/workup-bus';
+import type { ConvictionPick } from '@/lib/convictions';
+import NexusPrototype from '@/pages/nexus-prototype';
+import { useDashState, useDashboard, useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
+import { HorizonBook } from '@/components/ideas/horizon-book';
+import { ageLabel } from '../flow/tape';
+import {
+  ContextBody, DevelopingDetail, DevelopingRow, MarketSummary, SetupDetail, SetupRow,
+  macroRisk, rankDeveloping, rankRows, spySourceOf, withSpxRow,
+  useDevelopingQuote, useNexusConvictions, useNexusExtended, useNexusPatterns, useNexusPulse, useSpxExpression,
+  RANKS, SIDES, type DetailTab, type PatternHit, type Rank, type Side,
+} from './nexus-parts';
+import './nexus-tools.css';
+
+/* ── shared selection ── */
+export type NexusSelection = { kind: 'setup'; id: string } | { kind: 'developing'; symbol: string } | null;
+export const NEXUS_SELECTION_KEY = 'nexus:selection';
+const DETAIL_ID = 'nexus-detail';
+
+function useNexusSelection() {
+  return useDashState<NexusSelection>(NEXUS_SELECTION_KEY, null);
+}
+
+/** Select a setup/position/candidate AND re-point the focus ticker. */
+function useSelect() {
+  const [, setSel] = useNexusSelection();
+  const [, setFocus] = useFocusSymbol();
+  return {
+    setup: (pick: ConvictionPick) => { setSel({ kind: 'setup', id: pick.ideaId }); setFocus(pick.symbol); },
+    developing: (hit: PatternHit) => { setSel({ kind: 'developing', symbol: hit.symbol }); setFocus(hit.symbol); },
+  };
+}
+
+/** The book (+ SPX-linked expression row), from the shared convictions query. */
+function useSetupBook() {
+  const convictions = useNexusConvictions();
+  const spySource = spySourceOf(convictions.data?.picks);
+  const spx = useSpxExpression(spySource);
+  const all = useMemo(() => withSpxRow(convictions.data?.picks, spySource, spx.data), [convictions.data, spySource, spx.data]);
+  return { convictions, spx, all };
+}
+
+function useBookReport(c: ReturnType<typeof useNexusConvictions>, note?: string) {
+  useToolReport({
+    asOf: c.data ? c.data.generatedAt : c.isError ? null : undefined,
+    source: 'convictions engine · /api/convictions',
+    note: c.isError ? (c.data ? 'refresh failed' : 'unavailable') : note,
+    tone: c.isError ? 'warn' : 'ok',
+  });
+}
+
+function bookGate(c: ReturnType<typeof useNexusConvictions>, what: string): ReactNode | null {
+  if (c.isLoading) return <QELoading rows={5} className="fd-pad" label={`loading the ${what}…`} />;
+  if (c.isError && !c.data) return <QEError className="fd-m" title={`The ${what} didn't load`} onRetry={() => c.refetch()} retrying={c.isFetching} />;
+  return null;
+}
+
+/* ── filter bar (Bullflow-style segmented controls) ── */
+function FilterBar({ side, onSide, query, onQuery, placeholder, rank, onRank, count, children }: {
+  side: Side; onSide: (s: Side) => void;
+  query: string; onQuery: (q: string) => void; placeholder: string;
+  rank?: Rank; onRank?: (r: Rank) => void;
+  count: number;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="of-controls nxd-controls">
+      <div className="of-seg" role="group" aria-label="Side">
+        {SIDES.map((s) => <button key={s} type="button" className={side === s ? 'on' : ''} onClick={() => onSide(s)}>{s.toUpperCase()}</button>)}
+      </div>
+      {rank && onRank && <div className="of-seg" role="group" aria-label="Rank">
+        {RANKS.map((r) => <button key={r} type="button" className={rank === r ? 'on' : ''} onClick={() => onRank(r)} title={RANK_HELP[r]}>{r.toUpperCase()}</button>)}
+      </div>}
+      <label className="nxd-search"><Search size={12} aria-hidden /><input value={query} onChange={(e) => onQuery(e.target.value)} placeholder={placeholder} aria-label={placeholder} /></label>
+      {children}
+      <span className="nxd-count">{count}</span>
+    </div>
+  );
+}
+const RANK_HELP: Record<Rank, string> = {
+  all: 'Every published setup, highest conviction first',
+  new: 'Published in the last 24 hours',
+  best: 'Top 10 by conviction',
+  conviction: 'S and A evidence bands only',
+};
+
+function DetailHint() {
+  const { hasTool, addTool } = useDashboard();
+  if (hasTool(DETAIL_ID)) return null;
+  return <div className="of-hint nxd-hint">Rows open in the detail tool. <button type="button" onClick={() => addTool(DETAIL_ID)}>Add detail</button></div>;
+}
+
+/* ════════════ Ranked setups board ════════════ */
+export function NexusBoardTool() {
+  const { convictions, all } = useSetupBook();
+  const [sel] = useNexusSelection();
+  const select = useSelect();
+  const [side, setSide] = useToolSetting<Side>('side', 'all');
+  const [rank, setRank] = useToolSetting<Rank>('rank', 'all');
+  const [query, setQuery] = useToolSetting('query', '');
+  const [view, setView] = useToolSetting<'list' | 'grid' | 'table'>('view', 'list');
+  const rows = useMemo(() => rankRows(all, { scope: 'setups', side, query, rank }), [all, side, query, rank]);
+  useBookReport(convictions, `${rows.length} shown`);
+  const blocked = bookGate(convictions, 'live book');
+  // Nothing chosen yet → the detail tool shows the top setup, so mark it.
+  const topId = useMemo(() => rankRows(all, { scope: 'setups', side: 'all', query: '', rank: 'all' })[0]?.ideaId, [all]);
+  const activeId = sel?.kind === 'setup' ? sel.id : sel == null ? topId : undefined;
+  const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) select.setup(p); };
+  return (
+    <div className="fd-fill nxd nxd-board">
+      <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or sector" rank={rank} onRank={setRank} count={rows.length}>
+        <div className="of-seg" role="group" aria-label="View">
+          {(['list', 'grid', 'table'] as const).map((v) => <button key={v} type="button" className={view === v ? 'on' : ''} onClick={() => setView(v)}>{v.toUpperCase()}</button>)}
+        </div>
+      </FilterBar>
+      <DetailHint />
+      {blocked ?? (rows.length === 0
+        ? <QEEmpty className="fd-m" message={all.some((p) => !p.isBotHeld) ? 'No setups match this view.' : 'The engine published no setups in this read.'} />
+        : view === 'grid'
+          ? <div className="fd-scroll fd-pad"><SignalGrid picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>
+          : view === 'table'
+            ? <div className="fd-scroll fd-pad"><SignalTable picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>
+            : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} selected={activeId === pick.ideaId} onSelect={() => select.setup(pick)} />)}</div>)}
+    </div>
+  );
+}
+
+/* ════════════ Positions lane (bot-held) ════════════ */
+export function NexusPositionsTool() {
+  const { convictions, all } = useSetupBook();
+  const [sel] = useNexusSelection();
+  const select = useSelect();
+  const [side, setSide] = useToolSetting<Side>('side', 'all');
+  const [query, setQuery] = useToolSetting('query', '');
+  const held = useMemo(() => all.filter((p) => p.isBotHeld), [all]);
+  const rows = useMemo(() => rankRows(all, { scope: 'positions', side, query, rank: 'all' }), [all, side, query]);
+  useBookReport(convictions, `${held.length} held`);
+  const blocked = bookGate(convictions, 'bot book');
+  return (
+    <div className="fd-fill nxd nxd-positions">
+      <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker" count={rows.length} />
+      {blocked ?? (rows.length === 0
+        ? <QEEmpty className="fd-m" message={held.length === 0 ? 'The bot holds no positions in this read.' : 'No held positions match this filter.'} />
+        : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} selected={sel?.kind === 'setup' && sel.id === pick.ideaId} onSelect={() => select.setup(pick)} />)}</div>)}
+      <div className="fd-foot">Sorted by unrealized P&amp;L %. Held rows carry live P&amp;L, not a conviction score.</div>
+    </div>
+  );
+}
+
+/* ════════════ Developing lane (pattern-scan candidates) ════════════ */
+function DevelopingPane({ hit }: { hit: PatternHit }) {
+  const quote = useDevelopingQuote(hit.symbol, true);
+  return <DevelopingDetail hit={hit} quote={quote.data} onOpen={() => openWorkup(hit.symbol)} />;
+}
+
+export function NexusDevelopingTool() {
+  const patterns = useNexusPatterns();
+  const convictions = useNexusConvictions();
+  const [sel] = useNexusSelection();
+  const select = useSelect();
+  const { hasTool } = useDashboard();
+  const [side, setSide] = useToolSetting<Side>('side', 'all');
+  const [query, setQuery] = useToolSetting('query', '');
+  const hits = useMemo(() => rankDeveloping(patterns.data?.hits, convictions.data?.picks, { query, side }), [patterns.data, convictions.data, query, side]);
+  const selSymbol = sel?.kind === 'developing' ? sel.symbol : undefined;
+  // With no detail tool on the page, the lane carries its own DevelopingDetail.
+  const inline = !hasTool(DETAIL_ID);
+  const inlineHit = inline ? (hits.find((h) => h.symbol === selSymbol) ?? hits[0]) : undefined;
+  const d = patterns.data;
+  useToolReport({
+    asOf: d ? d.asOf : patterns.isError ? null : undefined,
+    source: 'pattern scanner · /api/patterns/scan',
+    note: patterns.isError ? 'refresh failed' : d ? `${d.scanned} scanned${d.failed ? ` · ${d.failed} failed` : ''}${d.scanning ? ' · scanning' : ''}` : undefined,
+    tone: patterns.isError || (d?.failed ?? 0) > 0 ? 'warn' : 'ok',
+  });
+  let list: ReactNode;
+  if (patterns.isLoading) list = <QELoading rows={5} className="fd-pad" label="scanning the opportunity funnel…" />;
+  else if (patterns.isError && !d) list = <QEError className="fd-m" title="The pattern scan didn't load" onRetry={() => patterns.refetch()} retrying={patterns.isFetching} />;
+  else if (hits.length === 0) list = <QEEmpty className="fd-m" message="No measured developing structures match this view." />;
+  else list = <div className="fd-scroll nxp-rows">{hits.map((hit) => <DevelopingRow key={`${hit.symbol}-${hit.pattern}`} hit={hit} selected={(inlineHit?.symbol ?? selSymbol) === hit.symbol} onSelect={() => select.developing(hit)} />)}</div>;
+  return (
+    <div className="fd-fill nxd nxd-developing">
+      <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or pattern" count={hits.length} />
+      {inline && inlineHit
+        ? <div className="nxd-split"><div className="nxd-split-list">{list}</div><div className="fd-scroll nxd-detail"><DevelopingPane key={inlineHit.symbol} hit={inlineHit} /></div></div>
+        : list}
+      <div className="fd-foot">Research observations within 20% of their trigger, not yet published as setups — not entries or bot orders.</div>
+    </div>
+  );
+}
+
+/* ════════════ Selected detail ════════════ */
+export function NexusDetailTool() {
+  const [sel] = useNexusSelection();
+  const [tab, setTab] = useToolSetting<DetailTab>('tab', 'overview');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const selKey = sel == null ? '' : sel.kind === 'setup' ? `s:${sel.id}` : `d:${sel.symbol}`;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    setTab('overview');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selKey]);
+  return (
+    <div ref={scrollRef} className="fd-scroll nxd nxd-detail">
+      {sel?.kind === 'developing'
+        ? <DetailDeveloping symbol={sel.symbol} />
+        : <DetailSetup id={sel?.kind === 'setup' ? sel.id : undefined} tab={tab} onTab={setTab} />}
+    </div>
+  );
+}
+
+function DetailSetup({ id, tab, onTab }: { id?: string; tab: DetailTab; onTab: (t: DetailTab) => void }) {
+  const { convictions, spx, all } = useSetupBook();
+  const top = useMemo(() => rankRows(all, { scope: 'setups', side: 'all', query: '', rank: 'all' })[0], [all]);
+  const found = id ? all.find((p) => p.ideaId === id) : undefined;
+  const selected = found ?? top;
+  useBookReport(convictions, id && !found && convictions.data ? 'selection left the book · showing top setup' : selected ? selected.symbol : undefined);
+  const blocked = bookGate(convictions, 'live book');
+  if (blocked) return blocked;
+  if (!selected) return <div className="nxp-empty"><Activity /><h2>Select a setup</h2><p>The engine published no setups in this read; pick a developing candidate or position instead.</p></div>;
+  return <SetupDetail selected={selected} spxExpression={spx.data} spxLoading={spx.isLoading} tab={tab} onTab={onTab} />;
+}
+
+function DetailDeveloping({ symbol }: { symbol: string }) {
+  const patterns = useNexusPatterns();
+  const convictions = useNexusConvictions();
+  const hit = useMemo(
+    () => rankDeveloping(patterns.data?.hits, convictions.data?.picks, { query: '', side: 'all' }).find((h) => h.symbol === symbol)
+      ?? patterns.data?.hits.find((h) => h.symbol === symbol),
+    [patterns.data, convictions.data, symbol],
+  );
+  const quote = useDevelopingQuote(symbol, true);
+  useToolReport({
+    asOf: quote.data?.asOf ?? (patterns.data ? patterns.data.asOf : patterns.isError ? null : undefined),
+    source: quote.data ? 'extended-hours quote + pattern scan' : 'pattern scanner · /api/patterns/scan',
+    note: quote.data ? `${symbol} · ${quote.data.session}${quote.data.isCurrent ? '' : ' · not current'}` : `${symbol} · snapshot only`,
+    tone: quote.data && !quote.data.isCurrent ? 'warn' : 'ok',
+  });
+  if (patterns.isLoading) return <QELoading rows={5} className="fd-pad" label={`reading ${symbol} structure…`} />;
+  if (patterns.isError && !patterns.data) return <QEError className="fd-m" title="The pattern scan didn't load" onRetry={() => patterns.refetch()} retrying={patterns.isFetching} />;
+  if (!hit) return <QEEmpty className="fd-m" message={`${symbol} is no longer in the pattern scan.`} />;
+  return <DevelopingDetail hit={hit} quote={quote.data} onOpen={() => openWorkup(hit.symbol)} />;
+}
+
+/* ════════════ Market context (Market) ════════════ */
+export function NexusContextTool() {
+  const convictions = useNexusConvictions();
+  const pulse = useNexusPulse();
+  const extended = useNexusExtended();
+  const now = useNow();
+  const market = convictions.data?.marketContext;
+  const bonds = extended.data?.assetClasses?.find((a) => a.key === 'bonds');
+  const macro = useMemo(() => macroRisk(pulse.data, bonds?.changePct), [pulse.data, bonds?.changePct]);
+  const stamps = [convictions.data?.generatedAt, pulse.data?.asOf, extended.data?.asOf].filter((s): s is string => Boolean(s));
+  const newest = stamps.length ? stamps.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a)) : null;
+  const anyLoading = convictions.isLoading || pulse.isLoading || extended.isLoading;
+  const failed = [convictions.isError && 'regime', pulse.isError && '10Y/VIX', extended.isError && 'TLT'].filter(Boolean) as string[];
+  useToolReport({
+    asOf: newest ?? (anyLoading ? undefined : null),
+    source: 'convictions regime + market pulse + extended hours',
+    note: failed.length ? `${failed.join(', ')} failed` : extended.data?.isStale ? 'TLT stale' : undefined,
+    tone: failed.length || extended.data?.isStale ? 'warn' : 'ok',
+  });
+  if (convictions.isLoading && pulse.isLoading && extended.isLoading) return <QELoading rows={5} className="fd-pad" label="reading regime and rates…" />;
+  if (convictions.isError && pulse.isError && extended.isError) return <QEError className="fd-m" title="Market context didn't load" onRetry={() => { convictions.refetch(); pulse.refetch(); extended.refetch(); }} retrying={convictions.isFetching || pulse.isFetching || extended.isFetching} />;
+  const age = (iso?: string | null) => (iso ? ageLabel(iso, now) : 'n/a');
+  return (
+    <div className="fd-scroll nxd nxd-context">
+      <MarketSummary market={market} pulse={pulse.data} bonds={bonds} macro={macro} />
+      <div className="nxp-context nxd-context-inline">
+        <div className="nxp-context-head"><div><span>Market context</span><h2>{market?.regime ?? 'Unavailable'}</h2></div></div>
+        <ContextBody market={market} macro={macro} pulse={pulse.data} bonds={bonds} extended={extended.data} />
+      </div>
+      <div className="fd-foot">Ages · regime {age(convictions.data?.generatedAt)} · 10Y/VIX {age(pulse.data?.asOf)} · TLT {age(extended.data?.asOf)}</div>
+    </div>
+  );
+}
+
+/* ════════════ NEXUS (classic, all-in-one) ════════════ */
+export function NexusClassicTool() {
+  const convictions = useNexusConvictions();
+  useBookReport(convictions);
+  return <div className="fd-fill fd-legacy nxd-classic"><NexusPrototype /></div>;
+}
+
+
+/**
+ * Book by horizon — every published (not bot-held) idea, cut by 0DTE ·
+ * weekly · swing · monthly · position · LEAPS (shared/idea-horizon.ts), as a
+ * sortable table. Selecting a row opens it in the detail tool.
+ */
+export function NexusHorizonTool() {
+  const convictions = useNexusConvictions();
+  const select = useSelect();
+  const picks = (convictions.data?.picks ?? []).filter((p) => !p.isBotHeld);
+  if (convictions.isError) return <QEError title="Convictions feed didn't respond" message="The book by horizon needs /api/convictions." onRetry={() => { void convictions.refetch(); }} />;
+  if (convictions.isLoading) return <QELoading rows={6} />;
+  return (
+    <HorizonBook
+      picks={picks}
+      storageKey="qe.dash.horizon"
+      onSelect={(id) => { const pick = picks.find((p) => p.ideaId === id); if (pick) select.setup(pick); }}
+    />
+  );
+}

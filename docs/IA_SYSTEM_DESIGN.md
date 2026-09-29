@@ -1,6 +1,6 @@
 # QuantEdge — Information Architecture: a top-down system design
 
-Status: **Phase 1 implemented** on `feat/ia` (2026-09-29). Phases 2–5 are specified here and depend on in-flight branches (see §5.3).
+Status: **Phase 1 implemented** on `feat/ia`; **Phase 2 framework + terminal dashboards** on `feat/dash` (2026-09-29, see docs/TOOLS_MIGRATION.md). Phases 2–5 are specified here and depend on in-flight branches (see §5.3).
 Owner instrument: `research/nav-architecture.py` (the automated V-model checks in §4) + `research/check-legacy-redirects.ts`.
 
 The operator's brief: *"I love how the flow page works with moving and resizing — can we make the whole platform like that; we need to reduce redundancy; check all pages in the navs, think like a systems engineer, top-down: are things flowing how they should and are things where they should be."*
