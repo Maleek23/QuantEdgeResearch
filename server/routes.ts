@@ -8,6 +8,7 @@ import { eq, desc, and, sql } from "drizzle-orm";
 import { tradeIdeas, secFilings, governmentContracts, catalystEvents, paperPositions, symbolBehaviorProfiles, confidenceCalibration, historicalIntelligenceSummary } from "@shared/schema";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { buildMonotoneCalibration, interpolateCalibration } from "@shared/isotonic-calibration";
+import { parseJournalFilters, countJournalFilters } from "@shared/journal-filters";
 // LAZY-LOADED: ai-service, quant-ideas-generator, quantitative-engine, flow-scanner
 // These are imported via await import() inside route handlers to reduce startup memory
 // LAZY-LOADED: diagnostic-export — imported via await import() in handlers
@@ -32167,16 +32168,47 @@ Use this checklist before entering any trade:
     }
   });
 
-  /** Add a single trade manually */
+  /** Add a single trade manually — validated; P&L/outcome/status derived server-side. */
   app.post("/api/journal/trade", requireBetaAccess, async (req, res) => {
     try {
+      const { journalTradeInputSchema, deriveJournalTradeFields } = await import('./journal-trade-input');
+      const parsed = journalTradeInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid trade", issues: parsed.error.issues.map((i) => `${i.path.join('.') || 'trade'}: ${i.message}`) });
+      }
       const userId = (req as any).user?.id || 'default';
-      const trade = { ...req.body, userId, broker: 'manual' };
-      const saved = await storage.createJournalTrade(trade);
+      const input = parsed.data;
+      const saved = await storage.createJournalTrade({
+        ...input,
+        ...deriveJournalTradeFields(input),
+        userId,
+        broker: 'manual',
+      } as any);
       res.json({ success: true, trade: saved });
     } catch (error: any) {
       logger.error("[JOURNAL] manual trade add failed", { error: error?.message });
       res.status(500).json({ error: "Failed to add trade", message: error?.message });
+    }
+  });
+
+  /** Edit a trade you own. Pricing edits re-derive P&L; note/tag edits leave imported P&L alone. */
+  app.patch("/api/journal/trade/:id", requireBetaAccess, async (req, res) => {
+    try {
+      const { journalTradePatchSchema, buildJournalTradeUpdate } = await import('./journal-trade-input');
+      const parsed = journalTradePatchSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid update", issues: parsed.error.issues.map((i) => `${i.path.join('.') || 'trade'}: ${i.message}`) });
+      }
+      const userId = (req as any).user?.id || 'default';
+      const existing = await storage.getJournalTradeById(req.params.id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ error: "Trade not found" });
+      }
+      const updated = await storage.updateJournalTrade(existing.id, buildJournalTradeUpdate(existing, parsed.data));
+      res.json({ success: true, trade: updated });
+    } catch (error: any) {
+      logger.error("[JOURNAL] trade update failed", { error: error?.message });
+      res.status(500).json({ error: "Update failed", message: error?.message });
     }
   });
 
@@ -32196,7 +32228,10 @@ Use this checklist before entering any trade:
     try {
       const { getJournalAnalytics } = await import('./trade-journal-analytics');
       const userId = (req as any).user?.id || 'default';
-      const analytics = await getJournalAnalytics(userId);
+      // Same filter keys the client applies to its rows, so insights and timing
+      // describe the same sample as the KPIs next to them.
+      const filters = parseJournalFilters((k) => (typeof req.query[k] === 'string' ? (req.query[k] as string) : null));
+      const analytics = await getJournalAnalytics(userId, countJournalFilters(filters) ? filters : undefined);
       res.json(analytics);
     } catch (error: any) {
       logger.error("[JOURNAL] analytics failed", { error: error?.message });
@@ -32207,7 +32242,13 @@ Use this checklist before entering any trade:
   /** Delete a trade or import batch */
   app.delete("/api/journal/trade/:id", requireBetaAccess, async (req, res) => {
     try {
-      await storage.deleteJournalTrade(req.params.id);
+      // Ownership check: an id alone must never delete another user's trade.
+      const userId = (req as any).user?.id || 'default';
+      const existing = await storage.getJournalTradeById(req.params.id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ error: "Trade not found" });
+      }
+      await storage.deleteJournalTrade(existing.id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: "Delete failed", message: error?.message });

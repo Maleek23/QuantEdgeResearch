@@ -16,6 +16,7 @@
 
 import { storage } from './storage';
 import { logger } from './logger';
+import { matchesJournalFilters, type JournalFilters } from '@shared/journal-filters';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -1152,14 +1153,17 @@ function detectBehaviors(trades: TradeRecord[], metrics: PerformanceMetrics): Be
 
 // ─── Main Export ─────────────────────────────────────────────
 
-export async function getJournalAnalytics(userId?: string): Promise<JournalAnalytics> {
+export async function getJournalAnalytics(userId?: string, filters?: JournalFilters): Promise<JournalAnalytics> {
   try {
     // If userId provided, pull from personal journal trades
     // Otherwise fall back to platform trade ideas for demo
     let trades: TradeRecord[];
 
     if (userId) {
-      const journalTrades = await storage.getJournalTrades(userId);
+      const allJournalTrades = await storage.getJournalTrades(userId);
+      const journalTrades = filters
+        ? allJournalTrades.filter((j) => matchesJournalFilters(j, filters))
+        : allJournalTrades;
       trades = journalTrades.map((j: any) => ({
         id: j.id,
         symbol: j.symbol,
@@ -1261,30 +1265,9 @@ export async function getJournalAnalytics(userId?: string): Promise<JournalAnaly
       emotionAnalysis,
     };
   } catch (err) {
+    // A computation failure must surface as an error (the route answers 500),
+    // never as an all-zero analytics payload that reads as "no trades".
     logger.error('[JOURNAL] Analytics computation failed:', err);
-    return {
-      metrics: computeMetrics([]),
-      pnlCurve: [],
-      timingByHour: [],
-      timingByDay: [],
-      timingBySession: [],
-      tickerBreakdown: [],
-      setupBreakdown: [],
-      insights: [],
-      recentTrades: [],
-      dteBreakdown: [],
-      dayOfWeekPnL: [],
-      tradeCountOptimum: [],
-      weeklyPnL: [],
-      drawdown: {
-        maxDrawdown: 0,
-        maxDrawdownPercent: 0,
-        currentDrawdown: 0,
-        peakEquity: 0,
-        recoveryTrades: 0,
-        drawdownPeriods: [],
-      },
-      emotionAnalysis: [],
-    };
+    throw err;
   }
 }
