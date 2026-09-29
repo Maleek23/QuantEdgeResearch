@@ -778,6 +778,8 @@ async function attachOptionContract(args: {
       t1: args.t1,
       conviction: args.confidence,
       asOfSpot: chain.spot,
+      // Loss rule 4: a multi-day hold gets a 30–60 DTE vehicle (flag LOSS_RULE_DTE_FIT).
+      applyDteFit: true,
     };
     const sel = selectFromChain(thesis, chain.spot, chain.rawChain);
     if (sel.status !== 'ok' || sel.picks.length === 0) return null;

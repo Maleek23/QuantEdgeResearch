@@ -2075,7 +2075,7 @@ export async function generateQuantIdeas(
         expiryDate: idea.expiryDate || undefined
       };
       
-      const enrichedOption = await enrichOptionIdea(aiIdea);
+      const enrichedOption = await enrichOptionIdea(aiIdea, { holdingPeriod: idea.holdingPeriod });
       
       if (enrichedOption) {
         // Replace stock-based prices with real option premium prices
