@@ -563,9 +563,9 @@ function TradingGuideContent() {
           <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
             Put what you've learned into practice with our AI-powered research tools
           </p>
-          <Link href="/slate">
+          <Link href="/today">
             <Button size="lg" className="gap-2 bg-sky-500 text-foreground" data-testid="button-go-to-trade-desk">
-              Go to Slate
+              Go to Today
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>

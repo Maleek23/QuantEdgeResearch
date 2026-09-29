@@ -200,6 +200,8 @@ flowchart TB
 
 **Navigation order** *(2026-09-29, operator):* the phone bottom nav is **Today · NEXUS · FLOW · GEX · More** (`MOBILE_DOCK`, nav-model.tsx). CHART is a research tool, so it moved out of the primary tabs into the **Research** group (Chart · LEAPS · Crypto · Catalysts) on the desktop rail and in the More sheet; the rail's Trade group is NEXUS · FLOW · GEX. URLs are unchanged (`/t?tab=chart` still works, every legacy redirect still lands).
 
+**Slate and Radar retired** *(2026-09-29, operator: "remove Slate page and Radar")*: the rail's *Daily* group and the More sheet no longer list them, the palette dropped *Ideas* and *Thesis Radar*, and their routes are gone. `/slate` and `/radar` (and every row that pointed at them: `/trade-desk*`, `/discover`, `/wsb-trending`, `/social-trends`, `/trade-ideas`, `/discovery`, `/ai-stock-picker`) redirect to **/today** — the ranked book, best idea and model record live there; the pattern-scanner rows (`/smart-signals`, `/market-scanner`, `/swing-scanner`, `/bullish-trends`, `/pattern-scanner`) land on **/t** (NEXUS › Developing candidates). Workflows W2 (morning: Today → NEXUS → Positions) and W3 (evening review: Today → Research → Journal track record) were rewritten without them. The pre-market gap read (`ideas.gappers`) has no surface until it is re-homed on Today. `client/src/pages/slate.tsx` and `radar.tsx` are unrouted and listed by nav-architecture.py N3c until deleted.
+
 **Search.** One palette on every page (framed pages *and* the terminal): tickers (universal `/api/search/symbols`), the six destinations (⌘1–⌘6 in job order), named dashboards, tools ("add GEX Setups to this dashboard"), and actions. Enter on a ticker → `/r/:symbol`.
 
 ### 3.2 Persistence

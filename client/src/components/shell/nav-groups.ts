@@ -54,8 +54,6 @@ export const TAB_HINT: Record<Tab, string> = {
 const PAGE_SHORT: Record<string, string> = { '/how-to': 'Guide' };
 const PAGE_HINT: Record<string, string> = {
   '/today': 'Market brief and the day’s ranked setups',
-  '/slate': 'Evening slate for the next session',
-  '/radar': 'Forming setups and picks',
   '/alerts': 'Your alerts',
   '/how-to': 'How to use the platform',
   '/settings': 'Account and display settings',
@@ -68,7 +66,6 @@ export const NAV_GROUPS: Array<{ id: string; label: string; tabs?: Tab[]; pages?
   { id: 'trade', label: 'Trade', tabs: ['oracle', 'flow', 'gex'] },
   { id: 'research', label: 'Research', tabs: ['chart', 'leaps', 'crypto', 'catalyst'] },
   { id: 'manage', label: 'Manage', tabs: ['bot', 'positions', 'journal'] },
-  { id: 'daily', label: 'Daily', pages: ['/slate', '/radar'] },
 ];
 
 export interface NavTarget {

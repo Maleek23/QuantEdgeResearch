@@ -129,7 +129,12 @@ while stack:
     if f in seen: continue
     seen.add(f); stack.extend(graph.get(f, ()))
 dead_modules = sorted(rel(f) for f in all_mods if f not in seen and os.path.basename(f) != "main.tsx")
-orphans = sorted(m for m in dead_modules if "/pages/" in m)
+# Page files retired from the router whose deletion is left to the operator
+# (Slate and Radar, 2026-09-29: routes, nav and links removed; /slate and
+# /radar redirect to /today). Delete the files, then empty this list.
+RETIRED_PAGE_FILES = {"client/src/pages/slate.tsx", "client/src/pages/radar.tsx"}
+retired_present = sorted(m for m in dead_modules if m in RETIRED_PAGE_FILES)
+orphans = sorted(m for m in dead_modules if "/pages/" in m and m not in RETIRED_PAGE_FILES)
 
 # ── N4 unreachable routes ──────────────────────────────────────────────────
 linked_paths = set(t.split("?")[0].rstrip("/") or "/" for t in links)
@@ -145,9 +150,9 @@ for p in route_paths:
 # function in the target IA; `current` = the surfaces that serve it TODAY.
 FUNCTIONS = {
     # FIND
-    "Rank today's trade ideas":         {"owner": "ideas.ranked-book",   "current": ["/today Ranked setups", "/t NEXUS board", "/slate cards", "/radar Picks"]},
-    "Discover forming setups":          {"owner": "ideas.forming",       "current": ["/radar Forming", "NEXUS forming rail"]},
-    "Pre-market gap read":              {"owner": "ideas.gappers",       "current": ["/slate PreMarketGappersCard"]},
+    "Rank today's trade ideas":         {"owner": "ideas.ranked-book",   "current": ["/today Ranked setups", "/t NEXUS board"]},
+    "Discover forming setups":          {"owner": "ideas.forming",       "current": ["NEXUS developing candidates"]},
+    "Pre-market gap read":              {"owner": "ideas.gappers",       "current": []},  # /slate retired 2026-09-29; gap read to be re-homed on Today
     "Market regime + weekly path":      {"owner": "markets.weekly-path", "current": ["/today dealer map"]},
     "Sector rotation":                  {"owner": "markets.rotation",    "current": ["/today RotQuad", "RotationMap (terminal overlay, unreachable)", "landing RotQuad"]},
     "Market pulse / leadership":        {"owner": "markets.pulse",       "current": ["OracleMarketField (overlay, unreachable)", "SessionBrief (overlay, unreachable)"]},
@@ -170,7 +175,7 @@ FUNCTIONS = {
     # PROVE
     "Journal trades":                   {"owner": "journal.trades",      "current": ["/t?tab=journal Trades"]},
     "Journal analytics":                {"owner": "journal.analytics",   "current": ["/t?tab=journal Analytics"]},
-    "Track record (model)":             {"owner": "journal.track-record", "current": ["Journal Track record", "/radar Track Record", "/today Model record"]},
+    "Track record (model)":             {"owner": "journal.track-record", "current": ["Journal Track record", "/today Model record"]},
     "Backtest":                         {"owner": "journal.backtest",    "current": ["Journal backtest (pages/backtest)", "strategy-simulator"]},
     "Idea audit trail":                 {"owner": "journal.idea-audit",  "current": ["/trade-ideas/:id/audit"]},
     # PLATFORM
@@ -209,9 +214,10 @@ for src, tgt in redirects:
 EXPECT_TAB = {
     "/pos": "tab=positions", "/j": "tab=journal", "/g": "tab=gex", "/btc": "tab=crypto", "/crypto": "tab=crypto",
     "/whale-flow": "tab=flow", "/smart-money": "tab=flow", "/automations": "tab=bot", "/watchlist-bot": "tab=bot",
-    "/paper-trading": "tab=bot", "/discovery": "tab=picks", "/ai-stock-picker": "tab=picks",
-    "/smart-signals": "tab=forming", "/market-scanner": "tab=forming", "/swing-scanner": "tab=forming",
-    "/bullish-trends": "tab=forming", "/pattern-scanner": "tab=patterns", "/geopolitical": "tab=catalyst",
+    "/paper-trading": "tab=bot", "/geopolitical": "tab=catalyst",
+    # /discovery, /ai-stock-picker (→ /today) and the scanner rows (→ /t, NEXUS
+    # developing candidates) lost their Radar tabs when Radar was retired
+    # 2026-09-29; they land on the page that now owns the function.
     "/futures": "tab=chart", "/futures-research": "tab=chart",
     "/performance": "jtab=record", "/insights": "jtab=insights", "/analytics": "jtab=analytics",
     "/convictions/backtest": "jtab=backtest", "/history": "jtab=trades", "/options-analyzer": "tab=options",
@@ -229,14 +235,14 @@ def norm(u):
     return p + ("?" + "&".join(keep) if keep else "")
 GLOBAL_N = {norm(u) for u in GLOBAL}
 PAGE_FILES = {  # the files that render a workflow step (their links are 1-click exits)
-    "/today": ["client/src/pages/today.tsx"], "/slate": ["client/src/pages/slate.tsx"], "/radar": ["client/src/pages/radar.tsx"],
+    "/today": ["client/src/pages/today.tsx"],
     "/t?tab=gex": ["client/src/components/gex/gex-hub-nexus.tsx", "client/src/components/gex/gex-rankings-panel.tsx"],
     "/t": ["client/src/pages/nexus-prototype.tsx"],
 }
 WORKFLOWS = {
     "W1 magnet → research → trade → review": ["/t?tab=gex", "/r/:symbol", "/t?tab=positions", "/t?tab=journal"],
-    "W2 morning routine": ["/today", "/t", "/radar", "/t?tab=positions"],
-    "W3 evening slate": ["/slate", "/r/:symbol", "/t?tab=journal&jtab=record"],
+    "W2 morning routine": ["/today", "/t", "/t?tab=positions"],
+    "W3 evening review": ["/today", "/r/:symbol", "/t?tab=journal&jtab=record"],
     "W4 check an idea's evidence": ["/today", "/trade-ideas/:id/audit"],
     "W5 flow → chart → research": ["/t?tab=flow", "/t?tab=chart", "/r/:symbol"],
 }
@@ -340,6 +346,7 @@ hard = [
 print("REPORT (debt — must trend down)")
 print(f"  N2  links through a redirect: {len(via_redirect)}  {sorted(via_redirect)[:12]}")
 print(f"  N3b client modules unreachable from main.tsx: {len(dead_modules)}")
+print(f"  N3c retired page files awaiting deletion: {retired_present}")
 print(f"  N6b functions served by >1 current surface: {len(redundancy_debt)} / {len(FUNCTIONS)}")
 print(f"  N12 allowlisted dead state: {dead_state}")
 for name, steps in workflow_ok.items():

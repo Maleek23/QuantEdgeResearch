@@ -7,7 +7,7 @@
  * 2026-09-29: drawn in the page template (components/lux/lux-page.tsx).
  */
 import { Link } from 'wouter';
-import { Target, Bitcoin, Home, Wallet, Crosshair, Zap, BookOpen, Microscope, ArrowRight } from 'lucide-react';
+import { Target, Bitcoin, Home, Wallet, Zap, BookOpen, Microscope, ArrowRight } from 'lucide-react';
 import { LuxPage, LuxPageHeader, LuxPanel, LuxTag } from '@/components/lux';
 
 export default function HowToPage() {
@@ -27,7 +27,7 @@ export default function HowToPage() {
             time="MORNING (8:00–9:30 AM ET)"
             actions={[
               { url: '/t',     label: 'Terminal — NEXUS',     why: 'Market briefing — regime, rotation, signals' },
-              { url: '/radar', label: 'Thesis Radar → Picks', why: 'See what fired overnight (auto)' },
+              { url: '/today', label: 'Today — ranked book', why: 'See what the engines published overnight' },
               { url: '/t?tab=crypto', label: 'Terminal — Crypto', why: 'BTC level breaks — MARA/COIN/MSTR plays' },
               { url: '/t?tab=positions', label: 'Positions',  why: 'Adjust stops on existing trades' },
             ]}
@@ -42,19 +42,18 @@ export default function HowToPage() {
           <Step
             time="LUNCH + CLOSE (12:00 PM, 3:55 PM)"
             actions={[
-              { url: '/radar', label: 'Re-check Radar', why: 'Cron fires fresh picks at these exact times' },
+              { url: '/t', label: 'Re-check NEXUS', why: 'Fresh setups and developing candidates land through the day' },
             ]}
           />
         </div>
       </Section>
 
       {/* What each page is for */}
-      <Section num="02" title="What each page does" subtitle="Eight destinations — that's the whole product.">
+      <Section num="02" title="What each page does" subtitle="Every destination — that's the whole product.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <PageCard icon={Home}       url="/t"      title="Terminal"        desc="NEXUS home — market briefing, rotation, signals, and every tab" />
-          <PageCard icon={Target}     url="/radar"  title="Thesis Radar"    desc="6 patterns × 120 tickers, scanned 5×/day, A+ pushes to the Slate" />
+          <PageCard icon={Target}     url="/today"  title="Today"           desc="Weekly dealer map, the best idea and the ranked book" />
           <PageCard icon={Bitcoin}    url="/t?tab=crypto" title="BTC Radar" desc="Live BTC + 14 crypto-equity beta tracker, fires on level breaks" />
-          <PageCard icon={Crosshair}  url="/slate" title="Slate"  desc="Today's measured setups and the pre-market gappers" />
           <PageCard icon={Zap}        url="/t?tab=gex" title="GEX & Flow"   desc="Dealer gamma walls + options flow — your entry/exit lens" />
           <PageCard icon={Microscope} url="/r/SPY"  title="Research"        desc="Per-ticker dossier — chart, options, GEX surface, contract lab" />
           <PageCard icon={Wallet}     url="/t?tab=positions" title="Positions" desc="Your open book — alerts, stops, exits" />
@@ -88,11 +87,11 @@ export default function HowToPage() {
             </p>
             <p>
               <span className="lx-panel-num">4.</span>{' '}
-              Picks ≥ <strong>B+</strong> auto-push to the <Link href="/slate" className="lx-tone-accent underline underline-offset-2">Slate</Link> + Discord (when webhook configured)
+              Picks ≥ <strong>B+</strong> feed the ranked book on <Link href="/today" className="lx-tone-accent underline underline-offset-2">Today</Link> + Discord (when webhook configured)
             </p>
             <p>
               <span className="lx-panel-num">5.</span>{' '}
-              You wake up to a ranked picks list at <Link href="/radar" className="lx-tone-accent underline underline-offset-2">/radar</Link>
+              Forming pattern setups show on <Link href="/t" className="lx-tone-accent underline underline-offset-2">NEXUS › Developing candidates</Link>
             </p>
           </div>
         </div>
@@ -103,15 +102,15 @@ export default function HowToPage() {
         <div className="space-y-1.5 text-[12.5px]">
           {/* Canonical URLs only — the old aliases (/p, /g, /pos, /j, /h, /btc)
               are redirects, and /p?tab=earnings dropped its tab on the way. */}
-          <DecisionRow q="What should I trade today?"               a={['/today', '/slate']} />
+          <DecisionRow q="What should I trade today?"               a={['/today', '/t']} />
           <DecisionRow q="Is the market bullish or bearish?"        a={['/t']} />
           <DecisionRow q="Where's QCOM going?"                       a={['/r/QCOM', '/t?tab=gex']} />
-          <DecisionRow q="What just got published today?"           a={['/slate']} />
+          <DecisionRow q="What just got published today?"           a={['/today']} />
           <DecisionRow q="What earnings are this week?"             a={['/t?tab=catalyst']} />
           <DecisionRow q="BTC moving — which equities follow?"      a={['/t?tab=crypto']} />
           <DecisionRow q="My open positions?"                        a={['/t?tab=positions']} />
           <DecisionRow q="My win rate / track record?"               a={['/t?tab=journal&jtab=record']} />
-          <DecisionRow q="A pattern setup I want to follow?"        a={['/radar?tab=forming']} />
+          <DecisionRow q="A pattern setup I want to follow?"        a={['/t']} />
         </div>
       </Section>
 

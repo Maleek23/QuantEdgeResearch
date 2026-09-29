@@ -1,15 +1,15 @@
 /**
  * ONE NAVIGATION MODEL for the whole signed-in platform.
  *
- * The terminal (/t) and every standalone page (/slate, /radar,
+ * The terminal (/t) and every standalone page (/today,
  * /performance, /alerts, /how-to, /settings…) read their tabs, the mobile dock
  * and the "More" sheet from here. Before 2026-09-24 the standalone pages wore a
  * second, older design — a left sidebar with its own header and footer — so
  * moving between the board and a page changed the whole chrome under you.
  */
 import {
-  Activity, Bell, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Crosshair,
-  Grid3X3, HelpCircle, LineChart, ListChecks, Radar, SlidersHorizontal, TrendingUp, Wallet, Home,
+  Activity, Bell, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart,
+  Grid3X3, HelpCircle, LineChart, Radar, SlidersHorizontal, TrendingUp, Wallet, Home,
 } from 'lucide-react';
 
 export type Tab = 'oracle' | 'chart' | 'flow' | 'gex' | 'leaps' | 'crypto' | 'catalyst' | 'bot' | 'positions' | 'journal';
@@ -48,8 +48,6 @@ export const MOBILE_MORE: Tab[] = ['chart', 'leaps', 'crypto', 'catalyst', 'bot'
 export interface PageLink { href: string; label: string; short: string; icon: typeof Radar }
 export const PAGES: PageLink[] = [
   { href: '/today',       label: 'Today',       short: 'TODAY',  icon: Home },
-  { href: '/slate',       label: 'Slate',       short: 'SLATE',  icon: ListChecks },
-  { href: '/radar',       label: 'Radar',       short: 'RADAR',  icon: Crosshair },
 ];
 export const UTILITY_PAGES: PageLink[] = [
   { href: '/alerts',   label: 'Alerts',   short: 'ALERTS',   icon: Bell },

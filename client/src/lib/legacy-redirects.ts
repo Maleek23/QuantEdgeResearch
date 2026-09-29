@@ -59,12 +59,12 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/weekly-watchlist", "/t"],
 
   // ── Scanners → Radar (the setup-discovery surface) ─────────────────────
-  ["/discovery", "/radar?tab=picks"], // was /h?tab=ai-picks
-  ["/smart-signals", "/radar?tab=forming"], // was /h?tab=surges
-  ["/market-scanner", "/radar?tab=forming"],
-  ["/swing-scanner", "/radar?tab=forming"],
-  ["/bullish-trends", "/radar?tab=forming"],
-  ["/pattern-scanner", "/radar?tab=patterns"],
+  ["/discovery", "/today"], // was /h?tab=ai-picks → /radar picks (Radar retired 2026-09-29; the ranked book is on Today)
+  ["/smart-signals", "/t"], // was /h?tab=surges → /radar forming; forming setups = NEXUS › Developing candidates
+  ["/market-scanner", "/t"],
+  ["/swing-scanner", "/t"],
+  ["/bullish-trends", "/t"],
+  ["/pattern-scanner", "/t"],
 
   // ── Flow and GEX ────────────────────────────────────────────────────────
   ["/whale-flow", "/t?tab=flow"], // whale prints are options flow
@@ -99,13 +99,18 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/gex/:symbol", (p) => `/r/${p.symbol}?tab=gex`],
 
   // ── Ideas (Trade Desk retired 2026-09-24) ──────────────────────────────
-  ["/trade-desk-v2", "/slate"],
-  ["/trade-desk", "/slate"],
-  ["/discover", "/slate"],
-  ["/wsb-trending", "/slate"],
-  ["/social-trends", "/slate"],
-  ["/ai-stock-picker", "/radar?tab=picks"],
-  ["/trade-ideas", "/slate"],
+  // Slate and Radar retired 2026-09-29 (operator: "remove Slate page and
+  // Radar"): the ranked book, best idea and gap read live on Today; forming
+  // pattern setups on NEXUS › Developing candidates.
+  ["/slate", "/today"],
+  ["/radar", "/today"],
+  ["/trade-desk-v2", "/today"],
+  ["/trade-desk", "/today"],
+  ["/discover", "/today"],
+  ["/wsb-trending", "/today"],
+  ["/social-trends", "/today"],
+  ["/ai-stock-picker", "/today"],
+  ["/trade-ideas", "/today"],
   // "Today's best convictions" (the old ?preset=todays-best) is exactly the
   // ranked book Today renders from /api/convictions. Slate has no presets.
   ["/convictions", "/today"],
