@@ -31,10 +31,21 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { StrikeExpiryCell } from '@shared/gex-types';
 import { robustMax } from '@/components/viz';
 import {
-  exposureCellBg, exposureStrength, exposureText, exposureVar, fmtGexB, fmtVexM, LEVEL_COLORS,
+  exposureStrength, fmtGexB, fmtVexM, LEVEL_COLORS, rampColor, rampGradient, rampInk,
 } from './gex-colors';
 
 export type Metric = 'gex' | 'vex';
+/**
+ * Colour scale of the matrix:
+ *   column   — each expiry column 0 → its OWN max (default). Near-term gamma
+ *              is 10–100× the monthly book; one shared scale washed every later
+ *              column out (operator 2026-09-29). Compare cells DOWN a column.
+ *   absolute — one max for every cell. Compare ACROSS expiries.
+ */
+export type MatrixScale = 'column' | 'absolute';
+
+/** Signed text colour from the grid ramp (light end on dark panels, dark end in the light theme). */
+const signInk = (v: number) => (v === 0 || !Number.isFinite(v) ? 'var(--text-mute, #8a93a6)' : rampColor(v, 0.9));
 
 export interface GridLevels {
   spot: number;
@@ -178,7 +189,22 @@ function onGridKey(e: React.KeyboardEvent<HTMLDivElement>, rowH: number, jump: (
    ──────────────────────────────────────────────────────────────── */
 
 const M_ROW = 30;
-const M_HEAD = 34;
+const M_HEAD = 50;
+
+/** Legend: the diverging ramp with its value → colour ticks for the active scale. */
+function RampLegend({ scale, max, metric }: { scale: MatrixScale; max: number; metric: Metric }) {
+  const lab = (f: number) => (scale === 'column' ? (f === 0 ? '0' : `${f < 0 ? '−' : '+'}${Math.abs(f) === 1 ? 'max' : '¼'}`) : f === 0 ? '0' : fmtVal(f * max, metric));
+  return (
+    <span className="gx-ramp" title={scale === 'column'
+      ? 'Colour = √(|value| ÷ that expiry column\'s own max). The middle stop (¼ of max) is half-way along the ramp. Blue = + (dealers long gamma, provides liquidity); orange = − (dealers short gamma, takes liquidity).'
+      : 'Colour = √(|value| ÷ the largest cell in the grid, robust 98.5th pct). Blue = +, orange = −.'}>
+      <span className="gx-ramp-bar" style={{ background: rampGradient() }} />
+      <span className="gx-ramp-ticks">
+        {[-1, -0.25, 0, 0.25, 1].map((f) => <span key={f}>{lab(f)}</span>)}
+      </span>
+    </span>
+  );
+}
 
 export function GexStrikeMatrix({
   cells,
@@ -188,6 +214,8 @@ export function GexStrikeMatrix({
   centerKey,
   onCellClick,
   emptyText,
+  scale: scaleProp,
+  onScaleChange,
 }: {
   /** every listed cell for the symbol (all expiries) — shares are of this book */
   cells: StrikeExpiryCell[];
@@ -199,7 +227,13 @@ export function GexStrikeMatrix({
   centerKey: string;
   onCellClick?: (cell: StrikeExpiryCell) => void;
   emptyText?: ReactNode;
+  /** controlled colour scale (defaults to per-expiry, owned here when omitted) */
+  scale?: MatrixScale;
+  onScaleChange?: (s: MatrixScale) => void;
 }) {
+  const [ownScale, setOwnScale] = useState<MatrixScale>('column');
+  const scale = scaleProp ?? ownScale;
+  const setScale = onScaleChange ?? setOwnScale;
   const [showDust, setShowDust] = useState(false);
   const [dustPct, setDustPct] = useState(0.5);
   const val = useCallback((c: StrikeExpiryCell) => (metric === 'vex' ? (c.netVEX ?? 0) : c.netGEX), [metric]);
@@ -226,7 +260,23 @@ export function GexStrikeMatrix({
     const rMax = robustMax(shownVals, 1e-12, 0.985);
     const trueMax = shownVals.reduce((m, v) => Math.max(m, v), 0);
     const rowMax = [...rowTotal.values()].reduce((m, v) => Math.max(m, Math.abs(v)), 0) || 1e-12;
-    return { strikes, byKey, rowTotal, rowMax, gross, rMax, trueMax };
+    // Per-expiry column stats: its own robust max (the per-expiry scale), its
+    // true max (dust threshold), its net (header summary) and its top-2 cells.
+    const byCol = new Map<number, StrikeExpiryCell[]>();
+    for (const c of byKey.values()) { const a = byCol.get(c.dte); if (a) a.push(c); else byCol.set(c.dte, [c]); }
+    const col = new Map<number, { rMax: number; trueMax: number; net: number; gross: number; top: Map<number, number> }>();
+    for (const [dte, list] of byCol) {
+      const abs = list.map((c) => Math.abs(val(c)));
+      const ranked = [...list].filter((c) => val(c) !== 0).sort((a, b) => Math.abs(val(b)) - Math.abs(val(a)));
+      col.set(dte, {
+        rMax: robustMax(abs, 1e-12, 0.985),
+        trueMax: abs.reduce((m, v) => Math.max(m, v), 0),
+        net: list.reduce((s2, c) => s2 + val(c), 0),
+        gross: abs.reduce((s2, v) => s2 + v, 0),
+        top: new Map(ranked.slice(0, 2).map((c, i) => [c.strike, i + 1])),
+      });
+    }
+    return { strikes, byKey, rowTotal, rowMax, gross, rMax, trueMax, col };
   }, [cells, expiries, val]);
 
   const { ref, onScroll, first, last, scrollTop, viewH } = useVirtualRows(model.strikes.length, M_ROW);
@@ -236,7 +286,8 @@ export function GexStrikeMatrix({
   const spotDir = spotRowY == null ? null : spotRowY < scrollTop + M_HEAD ? 'up' : spotRowY > scrollTop + viewH - M_ROW ? 'down' : null;
   const zgY = priceY(model.strikes, levels.zeroGamma, M_ROW, M_HEAD);
   const spotY = priceY(model.strikes, levels.spot, M_ROW, M_HEAD);
-  const dustCut = model.trueMax * (dustPct / 100);
+  const scaleMaxOf = (dte: number) => (scale === 'column' ? model.col.get(dte)?.rMax ?? model.rMax : model.rMax);
+  const dustCutOf = (dte: number) => (scale === 'column' ? model.col.get(dte)?.trueMax ?? model.trueMax : model.trueMax) * (dustPct / 100);
 
   /* hover card — one floating element, event-delegated */
   // The card's CONTENT changes only when the hovered cell changes (React state);
@@ -274,17 +325,27 @@ export function GexStrikeMatrix({
   return (
     <div className="gx-wrap" ref={wrapRef} onMouseLeave={() => setHover(null)}>
       <div className="gx-toolbar">
-        <label className="gx-toggle" title={`Cells smaller than ${dustPct}% of the largest shown cell are dust. Hidden, they print a faint dot (listed, but immaterial); hover still answers. Blank = the chain never listed that strike × expiry.`}>
+        <span className="gx-scale-seg" role="group" aria-label="Colour scale">
+          <b>Scale</b>
+          {(['column', 'absolute'] as const).map((k) => (
+            <button key={k} type="button" className={scale === k ? 'on' : ''} aria-pressed={scale === k} onClick={() => setScale(k)}
+              title={k === 'column' ? 'Each expiry column is coloured 0 → its own max. Later expiries stay readable; compare cells DOWN a column.' : 'One max for every cell. Compare ACROSS expiries; later expiries will look faint because near-term gamma dominates.'}>
+              {k === 'column' ? 'Per expiry' : 'Absolute'}
+            </button>
+          ))}
+        </span>
+        <span className="gx-scale-now" role="status">
+          {scale === 'column' ? 'each column 0 → its own max' : `one max for all cells · ${fmtVal(model.rMax, metric)}`}
+        </span>
+        <RampLegend scale={scale} max={model.rMax} metric={metric} />
+        <span className="gx-sign"><b style={{ color: signInk(1) }}>+ blue provides</b> / <b style={{ color: signInk(-1) }}>− orange takes</b> liquidity · {unitOf(metric).replace('/', '$ per ')} · ①② = top-2 per expiry · blank = not listed</span>
+        <label className="gx-toggle" title={`Cells smaller than ${dustPct}% of the largest cell in their scale are dust. Hidden, they print a faint dot (listed, but immaterial); hover still answers. The top-2 cells of every expiry are never hidden. Blank = the chain never listed that strike × expiry.`}>
           <input type="checkbox" checked={showDust} onChange={(e) => setShowDust(e.target.checked)} />
           show dust
           <select value={dustPct} onChange={(e) => setDustPct(Number(e.target.value))} aria-label="Dust threshold">
             {[0.1, 0.5, 1, 2].map((p) => <option key={p} value={p}>&lt; {p}% of max</option>)}
           </select>
         </label>
-        <span className="gx-scale" title="Tint strength ∝ √(|value| / largest shown cell). Square-root keeps small real nodes visible next to one giant node.">
-          <span className="gx-scale-bar" style={{ background: `linear-gradient(90deg, ${exposureCellBg(metric, -1, 1)}, ${exposureCellBg(metric, -0.02, 1)} 45%, transparent 50%, ${exposureCellBg(metric, 0.02, 1)} 55%, ${exposureCellBg(metric, 1, 1)})` }} />
-          <span>{fmtVal(-model.trueMax, metric)}</span><span>0</span><span>{fmtVal(model.trueMax, metric)}</span>
-        </span>
         <span className="gx-legend">
           <i style={{ background: LEVEL_COLORS.callWall }} />call wall
           <i style={{ background: LEVEL_COLORS.putWall }} />put wall
@@ -292,7 +353,6 @@ export function GexStrikeMatrix({
           <i className="dash" style={{ borderColor: LEVEL_COLORS.zeroGamma }} />zero-γ
           <i style={{ background: LEVEL_COLORS.spot }} />spot
         </span>
-        <span className="gx-sign"><b style={{ color: exposureText(metric, 1) }}>+ provides</b> / <b style={{ color: exposureText(metric, -1) }}>− takes</b> liquidity · {unitOf(metric).replace('/', '$ per ')} · blank = not listed</span>
         <span className="gx-count">{model.strikes.length} strikes · {cols} exp · ↕ scroll · S = spot</span>
       </div>
 
@@ -314,7 +374,15 @@ export function GexStrikeMatrix({
           <thead>
             <tr style={{ height: M_HEAD }}>
               <th className="gx-sticky-l">STRIKE</th>
-              {expiries.map(([dte, label]) => <th key={dte} title={`${label} · ${dte} days to expiry`}>{label}<small>{dte}d</small></th>)}
+              {expiries.map(([dte, label]) => {
+                const cs = model.col.get(dte);
+                return (
+                  <th key={dte} title={`${label} · ${dte} days to expiry\nNet ${metric.toUpperCase()} this expiry (all listed strikes): ${cs ? fmtVal(cs.net, metric) : '—'}${unitOf(metric)}\nGross |${metric.toUpperCase()}|: ${cs ? fmtVal(cs.gross, metric).replace(/^[+−]/, '') : '—'} · ${model.gross > 0 && cs ? ((cs.gross / model.gross) * 100).toFixed(1) : '0'}% of the book\n${scale === 'column' ? `Colour max for this column: ${cs ? fmtVal(cs.rMax, metric).replace(/^[+−]/, '') : '—'}` : 'Colour: one max for all columns'}`}>
+                    {label}<small>{dte}d</small>
+                    <em className="gx-colnet" style={{ color: cs ? signInk(cs.net) : undefined }}>{cs ? `Σ ${fmtVal(cs.net, metric)}` : '—'}</em>
+                  </th>
+                );
+              })}
               <th className="gx-sticky-r" title="Net of the shown expiries at this strike — why a wall is a wall even when each single expiry is small">Σ SHOWN</th>
             </tr>
           </thead>
@@ -344,27 +412,29 @@ export function GexStrikeMatrix({
                     if (!c) return <td key={dte} />;
                     const v = val(c);
                     if (v === 0) return <td key={dte} data-k={`${strike}|${dte}`}><span className="gx-dot" /></td>;
-                    const dust = Math.abs(v) < dustCut;
+                    const rank = model.col.get(dte)?.top.get(strike);
+                    const dust = !rank && Math.abs(v) < dustCutOf(dte);
                     if (dust && !showDust) return <td key={dte} data-k={`${strike}|${dte}`}><span className="gx-dot" /></td>;
-                    const t = exposureStrength(v, model.rMax);
+                    const t = exposureStrength(v, scaleMaxOf(dte));
                     return (
                       <td key={dte} data-k={`${strike}|${dte}`}>
                         <button
                           type="button"
                           tabIndex={-1}
-                          className={`gx-cell${dust ? ' dust' : ''}${t >= 0.999 ? ' max' : ''}`}
-                          style={{ background: exposureCellBg(metric, v, model.rMax), color: t > 0.62 ? 'var(--text)' : exposureText(metric, v) }}
+                          className={`gx-cell${dust ? ' dust' : ''}${rank ? ' top' : ''}`}
+                          data-rank={rank ? (rank === 1 ? '①' : '②') : undefined}
+                          style={{ background: rampColor(v, t), color: rampInk(t) }}
                           onClick={onCellClick ? () => onCellClick(c) : undefined}
+                          aria-label={rank ? `${fmtVal(v, metric)}, #${rank} in this expiry` : undefined}
                         >
                           {fmtVal(v, metric)}
-                          <i style={{ width: `${Math.round(t * 100)}%`, background: exposureVar(metric, v) }} />
                         </button>
                       </td>
                     );
                   })}
                   <td className="gx-sticky-r gx-sum" data-k={`${strike}|sum`}>
-                    <span className="gx-sum-bar"><i style={{ width: `${tw}%`, background: exposureVar(metric, total), opacity: total === 0 ? 0 : 1 }} /></span>
-                    <span style={{ color: exposureText(metric, total) }}>{total === 0 ? '—' : fmtVal(total, metric)}</span>
+                    <span className="gx-sum-bar"><i style={{ width: `${tw}%`, background: rampColor(total, 0.55), opacity: total === 0 ? 0 : 1 }} /></span>
+                    <span style={{ color: signInk(total) }}>{total === 0 ? '—' : fmtVal(total, metric)}</span>
                   </td>
                 </tr>
               );
@@ -385,11 +455,13 @@ export function GexStrikeMatrix({
         return (
           <div ref={cardRef} className="gx-hover" style={{ left: p.left, top: p.top }} role="tooltip">
             <div className="gx-hover-h">{fmtStrike(hover.strike)} · {c ? `${c.expiryLabel} (${c.dte}d)` : 'Σ shown expiries'}</div>
-            <div><span>{metric.toUpperCase()}</span><b style={{ color: exposureText(metric, v) }}>{fmtVal(v, metric)}{unitOf(metric)}</b></div>
+            <div><span>{metric.toUpperCase()}</span><b style={{ color: signInk(v) }}>{fmtVal(v, metric)}{unitOf(metric)}</b></div>
+            {c && model.col.get(c.dte)?.top.get(hover.strike) && <div><span>rank in {c.expiryLabel}</span><b>#{model.col.get(c.dte)!.top.get(hover.strike)}</b></div>}
+            {c && <div><span>colour scale</span><b>{scale === 'column' ? `per expiry · max ${fmtVal(scaleMaxOf(c.dte), metric).replace(/^[+−]/, '')}` : 'absolute'}</b></div>}
             <div><span>share of gross book</span><b>{model.gross > 0 ? `${((Math.abs(v) / model.gross) * 100).toFixed(2)}%` : '—'}</b></div>
             {c && <div><span>share of {fmtStrike(hover.strike)} row</span><b>{rowTotal !== 0 ? `${((v / rowTotal) * 100).toFixed(0)}%` : '—'}</b></div>}
             <div><span>vs spot</span><b>{levels.spot > 0 ? `${(((hover.strike - levels.spot) / levels.spot) * 100).toFixed(2)}%` : '—'}</b></div>
-            {c && Math.abs(v) < dustCut && <div className="gx-hover-note">dust — under {dustPct}% of the largest shown cell</div>}
+            {c && Math.abs(v) < dustCutOf(c.dte) && <div className="gx-hover-note">dust — under {dustPct}% of the largest cell in its scale</div>}
             {roles.map((r) => <div key={r} className="gx-hover-note" style={{ color: ROLE_COLOR[r] }}>{ROLE_LABEL[r]} · all listed expiries</div>)}
             <div className="gx-hover-note">{v > 0 ? 'dealers long gamma here — hedging provides liquidity' : v < 0 ? 'dealers short gamma here — hedging takes liquidity' : ''}</div>
           </div>
@@ -426,6 +498,8 @@ export function GexStrikeLadder({
   const strikes = useMemo(() => rows.map((r) => r.strike), [rows]);
   const max = useMemo(() => rows.reduce((m, r) => Math.max(m, Math.abs(r.gex)), 0) || 1e-12, [rows]);
   const gross = useMemo(() => rows.reduce((s, r) => s + Math.abs(r.gex), 0), [rows]);
+  // The two largest |net GEX| strikes in scope — labelled so the dominant nodes read at a glance.
+  const top = useMemo(() => new Map([...rows].filter((r) => r.gex !== 0).sort((a, b) => Math.abs(b.gex) - Math.abs(a.gex)).slice(0, 2).map((r, i) => [r.strike, i + 1])), [rows]);
   const { ref, onScroll, first, last, scrollTop, viewH } = useVirtualRows(rows.length, L_ROW);
   const sIdx = spotIndex(strikes, levels.spot);
   const jump = useCenterOnSpot(ref, sIdx, L_ROW, L_HEAD, centerKey, rows.length > 0);
@@ -453,7 +527,7 @@ export function GexStrikeLadder({
         </div>
         <div className="gx-ladder-head" style={{ height: L_HEAD }}>
           <span>STRIKE</span>
-          <span className="gx-axis-labels" title="Left of centre: negative net GEX — dealers short gamma, hedging takes liquidity. Right: positive — dealers long gamma, hedging provides liquidity."><em style={{ color: 'var(--red)' }}>← − takes</em><em style={{ color: 'var(--cyan-bright)' }}>+ provides →</em></span>
+          <span className="gx-axis-labels" title="Left of centre: negative net GEX — dealers short gamma, hedging takes liquidity. Right: positive — dealers long gamma, hedging provides liquidity."><em style={{ color: signInk(-1) }}>← − takes</em><em style={{ color: signInk(1) }}>+ provides →</em></span>
           <span style={{ textAlign: 'right' }}>$ /1%</span>
           <span />
         </div>
@@ -463,11 +537,13 @@ export function GexStrikeLadder({
           const lead = roles[0];
           const isSpotRow = strikes[sIdx] === r.strike;
           const w = (Math.abs(r.gex) / max) * 50;
+          const t = Math.sqrt(Math.abs(r.gex) / max);
+          const rank = top.get(r.strike);
           const dist = levels.spot > 0 ? ((r.strike - levels.spot) / levels.spot) * 100 : 0;
           return (
             <div
               key={r.strike}
-              className={`gx-lrow${lead ? ' marked' : ''}${isSpotRow ? ' spot' : ''}`}
+              className={`gx-lrow${lead ? ' marked' : ''}${isSpotRow ? ' spot' : ''}${rank ? ' top' : ''}`}
               style={{ height: L_ROW, ...(lead ? { ['--band' as string]: ROLE_COLOR[lead] } : {}) }}
               title={`${fmtStrike(r.strike)} · ${scopeLabel} · net GEX ${fmtGexB(r.gex)}/1% · ${gross > 0 ? ((Math.abs(r.gex) / gross) * 100).toFixed(1) : '0'}% of gross · ${dist >= 0 ? '+' : ''}${dist.toFixed(2)}% vs spot`}
             >
@@ -476,11 +552,12 @@ export function GexStrikeLadder({
                 {r.gex !== 0 && (
                   <i
                     className={r.gex > 0 ? 'pos' : 'neg'}
-                    style={r.gex > 0 ? { left: '50%', width: `${Math.max(0.4, w)}%` } : { right: '50%', width: `${Math.max(0.4, w)}%` }}
+                    // length AND ramp lightness carry magnitude; hue carries sign
+                    style={{ ...(r.gex > 0 ? { left: '50%' } : { right: '50%' }), width: `${Math.max(0.4, w)}%`, background: rampColor(r.gex, 0.3 + 0.7 * t) }}
                   />
                 )}
               </span>
-              <span className="gx-lval" style={{ color: exposureText('gex', r.gex) }}>{r.gex === 0 ? '—' : fmtGexB(r.gex)}</span>
+              <span className="gx-lval" style={{ color: signInk(r.gex) }} data-rank={rank ? (rank === 1 ? '①' : '②') : undefined}>{r.gex === 0 ? '—' : fmtGexB(r.gex)}</span>
               <span className="gx-lrole">{roles.length ? <RoleChips roles={roles} /> : null}</span>
             </div>
           );

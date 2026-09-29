@@ -18,7 +18,7 @@ export const GEX_TOOLS: ToolDef[] = [
   },
   {
     id: 'gex-matrix', category: 'GEX', title: 'Strike × expiry matrix',
-    what: 'Every listed strike × expiry cell, GEX or VEX, filterable by days to expiry; click a cell for its share of the strike and expiry.',
+    what: 'Every listed strike × expiry cell, GEX or VEX, filterable by days to expiry. Coloured per expiry by default (each column 0 → its own max; toggle Absolute), top-2 cells of every expiry labelled, net per expiry in the header; click a cell to drill.',
     units: 'GEX $/1% move · VEX $/IV pt', source: ENGINE, backing: `GexStrikeMatrix (gex-strike-grid.tsx) ← ${TERMINAL}`,
     needs: ['symbol'], defaultSize: { w: 6, h: 14 }, minSize: { w: 4, h: 8 }, Component: lazyTool(gex, 'GexMatrixTool'),
   },

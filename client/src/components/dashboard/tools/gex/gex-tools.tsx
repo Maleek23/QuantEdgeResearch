@@ -13,7 +13,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import type { StrikeExpiryCell } from '@shared/gex-types';
 import { describeLegacyRegime } from '@shared/gex-regime';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
-import { GexStrikeLadder, GexStrikeMatrix } from '@/components/gex/gex-strike-grid';
+import { GexStrikeLadder, GexStrikeMatrix, type MatrixScale } from '@/components/gex/gex-strike-grid';
 import { GexHubNexus } from '@/components/gex/gex-hub-nexus';
 import { GexRankingsPanel } from '@/components/gex/gex-rankings-panel';
 import { exposureText, fmtGexB, fmtVexM, LEVEL_COLORS, regimeColor } from '@/components/gex/gex-colors';
@@ -93,6 +93,7 @@ export function GexMatrixTool() {
   const g = useGexFocus();
   const [metric, setMetric] = useToolSetting<'gex' | 'vex'>('metric', 'gex');
   const [bucket, setBucket] = useToolSetting<BucketId>('bucket', 'all');
+  const [scale, setScale] = useToolSetting<MatrixScale>('scale', 'column');
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
   const shaped = useMemo(() => shapeMatrix(g.matrix, bucket, g.spot, metric), [g.matrix, bucket, g.spot, metric]);
   const blocked = gate(g, 'strike × expiry surface');
@@ -111,7 +112,7 @@ export function GexMatrixTool() {
             <button key={b.id} type="button" className={bucket === b.id ? 'on' : ''} onClick={() => setBucket(b.id)}>{b.label}<span className="dim"> {shaped.bucketCounts[b.id]}</span></button>
           ))}
         </div>
-        <span className="gx-note">{shaped.expiries.length}/{shaped.expiryAll.length} expiries{last ? ` · max ${last[1]} (${last[0]}d)` : ''} · click a cell to drill</span>
+        <span className="gx-note">{shaped.expiries.length}/{shaped.expiryAll.length} expiries{last ? ` · max ${last[1]} (${last[0]}d)` : ''} · colour: <b>{scale === 'column' ? 'per expiry' : 'absolute'}</b> · click a cell to drill</span>
       </div>
       <div className="gx-grow matrix-wrap">
         <GexStrikeMatrix
@@ -121,6 +122,8 @@ export function GexMatrixTool() {
           metric={metric}
           centerKey={`${g.symbol}|tool-surface|${metric}`}
           onCellClick={setDrill}
+          scale={scale}
+          onScaleChange={setScale}
           emptyText={`no listed cells for ${g.symbol} in this DTE bucket`}
         />
       </div>
