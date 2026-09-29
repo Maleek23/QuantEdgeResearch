@@ -1,0 +1,43 @@
+/* CATALYST tools — one CatalystNexus section per tile (`only` prop).
+   The page's own .catalystlab classes, compacted to fill a tile: the tile
+   scrolls, not the viewport; the frame already titles the tool, so the
+   section's own big headings are hidden. */
+
+.flowdash .fd-legacy>.catalystlab.cat-only{display:flex;flex-direction:column;height:100%;min-height:0;overflow:auto;overscroll-behavior:contain;container-type:inline-size}
+
+/* calendars */
+.flowdash .cat-only .econ-card,.flowdash .cat-only .earnings-card{display:flex;flex-direction:column;flex:1;min-height:0;padding:6px 8px;border:0;border-radius:0;background:transparent;overflow:visible}
+.flowdash .cat-only .econ-card::before,.flowdash .cat-only .earnings-card::before{display:none}
+.flowdash .cat-only .econ-head{display:none}
+.flowdash .cat-only .earnings-head{justify-content:flex-end;margin-bottom:6px}
+.flowdash .cat-only .earnings-title{display:none}
+.flowdash .cat-only .earnings-days{max-height:none;gap:6px}
+.flowdash .cat-only .earnings-day{padding:6px 8px}
+.flowdash .cat-only .earnings-day-head{margin-bottom:5px;padding-bottom:4px}
+.flowdash .cat-only .econ-list{gap:4px}
+.flowdash .cat-only .econ-item{padding:6px 8px;gap:8px}
+.flowdash .cat-only .econ-date{min-width:68px}
+
+/* impact table */
+.flowdash .cat-only .impact-section{display:flex;flex-direction:column;flex:1 0 auto;padding:0;background:transparent}
+.flowdash .cat-only .impact-head{flex:none;margin:0;padding:6px 8px;border-bottom:1px solid var(--nx-border)}
+.flowdash .cat-only .impact-label{display:none}
+.flowdash .cat-only .impact-filters{flex-wrap:wrap;gap:4px}
+.flowdash .cat-only .impact-filter{padding:3px 7px}
+.flowdash .cat-only .impact-table th{padding:6px 8px}
+.flowdash .cat-only .impact-table td{padding:6px 8px}
+.flowdash .cat-only .impact-ticker{font-size:12px}
+.flowdash .cat-only .impact-response{padding:3px 7px;white-space:nowrap}
+.flowdash .cat-only .impact-note{padding:8px 10px;font-size:10.5px;line-height:1.5}
+@container (max-width:560px){
+  .flowdash .cat-only .impact-table th:nth-child(6),.flowdash .cat-only .impact-table td:nth-child(6){display:none}
+  .flowdash .cat-only .impact-event .detail{display:none}
+}
+
+/* rail sections */
+.flowdash .cat-only .summary,.flowdash .cat-only .coverage,.flowdash .cat-only .impact-dist,.flowdash .cat-only .sys-status{padding:8px 10px}
+.flowdash .cat-only .summary-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+.flowdash .cat-only .summary-card{padding:7px 9px}
+.flowdash .cat-only .impact-dist-head{display:none}
+.flowdash .cat-only .impact-dist{border-bottom:0}
+.flowdash .cat-only .dist-item{padding:5px 8px}

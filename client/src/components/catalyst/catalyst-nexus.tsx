@@ -74,13 +74,22 @@ type Filter = 'all' | Bucket;
 const RESPONSE = { risk: 'SIZE DOWN', conflict: 'RE-READ', confluence: 'CONFIRMS', nosignal: 'WATCH' } as const;
 const TYPE_LABEL = { risk: 'EVENT RISK', conflict: 'CONFLICT', confluence: 'CONFLUENCE', nosignal: 'NO SIGNAL' } as const;
 
-export function CatalystNexus() {
+/* The three feeds, exported so dashboard tools (dashboard/tools/catalyst)
+   observe the SAME react-query keys — N catalyst tools = one request each. */
+export const useCatalystBoard = () => useQuery<BoardPayload>({ queryKey: ['/api/catalysts/board', 'cat'], queryFn: fetchJson('/api/catalysts/board'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
+export const useCatalystEarnings = () => useQuery<EarningsPayload>({ queryKey: ['/api/earnings/calendar', 7], queryFn: fetchJson('/api/earnings/calendar?days=7'), refetchInterval: 1800_000, staleTime: 900_000, retry: 1 });
+export const useCatalystEcon = () => useQuery<EconPayload>({ queryKey: ['/api/economic-calendar', 'cat'], queryFn: fetchJson('/api/economic-calendar'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
+
+/** Dashboard tools render one section of the board; no prop = the full page. */
+export type CatalystSection = 'impact' | 'earnings' | 'econ' | 'summary' | 'distance';
+
+export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
   const rail = useColResize('nx-cat-side', 320, { sign: -1, min: 240, max: 520 });
   const [filter, setFilter] = useState<Filter>('all');
 
-  const { data: board } = useQuery<BoardPayload>({ queryKey: ['/api/catalysts/board', 'cat'], queryFn: fetchJson('/api/catalysts/board'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });
-  const { data: earn } = useQuery<EarningsPayload>({ queryKey: ['/api/earnings/calendar', 7], queryFn: fetchJson('/api/earnings/calendar?days=7'), refetchInterval: 1800_000, staleTime: 900_000, retry: 1 });
-  const { data: econ } = useQuery<EconPayload>({ queryKey: ['/api/economic-calendar', 'cat'], queryFn: fetchJson('/api/economic-calendar'), refetchInterval: 600_000, staleTime: 300_000, retry: 1 });
+  const { data: board } = useCatalystBoard();
+  const { data: earn } = useCatalystEarnings();
+  const { data: econ } = useCatalystEcon();
 
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
@@ -130,6 +139,217 @@ export function CatalystNexus() {
   const distClass = (d: number | undefined) => (d ?? 99) <= 2 ? 'close' : (d ?? 99) <= 6 ? 'med' : 'far';
   const distWidth = (d: number | undefined) => `${Math.max(15, 100 - ((d ?? 10) * 10))}%`;
 
+  const econCard = (
+    <div className="econ-card">
+      <div className="econ-head">
+        <div className="econ-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+        </div>
+        <div>
+          <div className="econ-title">Economic Events</div>
+          <div className="econ-sub">High-impact macro releases</div>
+        </div>
+      </div>
+      <div className="econ-list">
+        {upcoming.slice(0, only === 'econ' ? undefined : 5).map((e) => (
+          <div className="econ-item" key={`${e.name}-${e.date}`}>
+            <div className="econ-date">
+              {dayHead(e.date)}<br />
+              <span style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>{e.time ?? ''}{e.date === today ? ' · today' : ''}</span>
+            </div>
+            <div>
+              <div className="econ-name">{e.name}</div>
+              <div className="econ-desc">{e.tradingImpact ?? e.description ?? ''}</div>
+            </div>
+            <div className="econ-impact">{(e.importance ?? 'high').toUpperCase()}</div>
+          </div>
+        ))}
+        {upcoming.length === 0 && <div className="impact-empty">No releases in the calendar window.</div>}
+      </div>
+    </div>
+  );
+  const earningsCard = (
+    <div className="earnings-card">
+      <div className="earnings-head">
+        <div className="earnings-title">
+          <div className="earnings-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 3v18h18" /><path d="M18 17V9M13 17V5M8 17v-3" /></svg>
+          </div>
+          Earnings · market calendar
+        </div>
+        <div className="earnings-count">{earnRange ? `${earnRange} · ` : ''}{earnCount} reports</div>
+      </div>
+      <div className="earnings-days">
+        {earnDays.map((day) => (
+          <div className="earnings-day" key={day.date}>
+            <div className="earnings-day-head">
+              <div className="earnings-day-date">{dayHead(day.date)}</div>
+              {day.label && <div className="earnings-day-label">· {day.label}</div>}
+              <div className="earnings-day-count">{day.tickers.length} reports</div>
+            </div>
+            <div className="earnings-tickers">
+              {day.tickers.map((t) => {
+                const eps = fmtEps(t.epsForecast);
+                return (
+                  <div className={`earnings-ticker${trackedSyms.has(t.symbol) ? ' tracked' : ''}`} key={`${day.date}-${t.symbol}`}
+                    title={`${t.companyName ?? t.symbol}${trackedSyms.has(t.symbol) ? ' · in the active book' : ''}`}
+                    onClick={() => openWorkup(t.symbol)}>
+                    {t.symbol}
+                    <span className="time">{t.session ? SESSION_LABEL[t.session] : 'TBD'}</span>
+                    {eps && <span className={`eps${eps.neg ? ' neg' : ''}`}>{eps.text}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {earnDays.length === 0 && <div className="impact-empty">Earnings calendar unreachable — nothing is shown in its place.</div>}
+      </div>
+    </div>
+  );
+  const impactSection = (
+    <div className="impact-section">
+      <div className="impact-head">
+        <div className="impact-label">Signal impact · how the verified calendar changes the active book</div>
+        <div className="impact-filters">
+          {([['all', 'All', rows.length], ['conflict', 'CONFLICT', counts.conflict], ['risk', 'EVENT RISK', counts.risk], ['confluence', 'CONFLUENCE', counts.confluence], ['nosignal', 'NO SIGNAL', counts.nosignal]] as const).map(([k, label, n]) => (
+            <div key={k} className={`impact-filter${filter === k ? ' active' : ''}`} onClick={() => setFilter(k as Filter)}>
+              {label} <span className="count">{n}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <table className="impact-table">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Impact</th>
+            <th>Oracle side</th>
+            <th>Verified event</th>
+            <th>Distance</th>
+            <th>Response</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.map((d) => {
+            const side = (d.direction ?? 'long').toUpperCase();
+            return (
+              <tr key={`${d.type}-${d.symbol}-${d.event?.date}`} onClick={() => openWorkup(d.symbol)}>
+                <td>
+                  <div className="impact-ticker">
+                    {d.symbol}
+                    {d.convictionScore != null && <span className="score">{Math.round(d.convictionScore)}</span>}
+                  </div>
+                </td>
+                <td><div className={`impact-type ${d.type === 'nosignal' ? 'conflict' : d.type}`}>{TYPE_LABEL[d.type]}</div></td>
+                <td>
+                  <div className={`impact-side ${side === 'SHORT' ? 'short' : 'long'}`}>
+                    <span className="arrow">{side === 'SHORT' ? '▼' : '▲'}</span>
+                    {side}{d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}
+                  </div>
+                </td>
+                <td>
+                  <div className="impact-event">
+                    <b>{d.event?.title ?? '—'}</b>
+                    {d.note && <div className="detail">{d.note}</div>}
+                  </div>
+                </td>
+                <td><div className="impact-distance">{d.event?.daysAway != null ? (d.event.daysAway === 0 ? 'today' : `${d.event.daysAway}d`) : '—'}</div></td>
+                <td><div className="impact-response" title="The platform's standing rule for this join — enforced in scoring, not a button">{RESPONSE[d.type]} ↗</div></td>
+              </tr>
+            );
+          })}
+          {filtered.length === 0 && (
+            <tr><td colSpan={6}><div className="impact-empty">No tracked catalyst in this bucket — see the note below for what empty means.</div></td></tr>
+          )}
+        </tbody>
+      </table>
+
+      <div className="impact-note">
+        <b>Catalysts joined to live conviction picks.</b> {board?._meta?.note?.replace(/^Catalysts joined to live conviction picks\.?\s*/, '') ?? "'conflict' = tracked events whose polarity opposes the direction we published; it is a flag to re-read the thesis, not an automatic exit. Binary events (earnings) are counted as risk, never as directional tilt. Empty sections mean no tracked catalyst fell inside the horizon — not that none exists."}
+      </div>
+    </div>
+  );
+  const summaryBlock = (
+    <div className="summary">
+      <div className="summary-grid">
+        <div className="summary-card">
+          <div className="summary-label">Tracked signals</div>
+          <div className="summary-val event">{rows.length}</div>
+          <div className="summary-sub">of {scanned} live</div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">Event risk</div>
+          <div className="summary-val" style={{ color: 'var(--red)', textShadow: '0 0 6px rgba(255,107,61,0.3)' }}>{counts.risk}</div>
+          <div className="summary-sub">earnings inside horizon</div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">Conflicts</div>
+          <div className="summary-val" style={{ color: 'var(--amber)', textShadow: '0 0 6px rgba(250,204,21,0.3)' }}>{counts.conflict}</div>
+          <div className="summary-sub">polarity mismatch</div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">Confluence</div>
+          <div className="summary-val cyan">{counts.confluence}</div>
+          <div className="summary-sub">event supports thesis</div>
+        </div>
+      </div>
+    </div>
+  );
+  const coverageBlock = (
+    <div className="coverage">
+      <div className="coverage-head">
+        <div className="coverage-label">Catalyst coverage</div>
+        <div className="coverage-stat">{withCats} of {scanned}</div>
+      </div>
+      <div className="coverage-bar">
+        <div className="coverage-fill" style={{ width: `${coveragePct}%` }} />
+      </div>
+      <div className="coverage-note">
+        <b>{withCats} of {scanned}</b> live signals have a tracked event inside their horizon. Coverage expands as more earnings are verified.
+      </div>
+    </div>
+  );
+  const distanceBlock = (
+    <div className="impact-dist">
+      <div className="impact-dist-head">
+        <div className="impact-dist-label">Distance to event</div>
+      </div>
+      <div className="impact-dist-list">
+        {rows.filter((r) => r.event?.daysAway != null).slice(0, only === 'distance' ? undefined : 8).map((r) => (
+          <div className="dist-item" key={`d-${r.symbol}-${r.event?.date}`} onClick={() => openWorkup(r.symbol)}>
+            <div className="dist-ticker">{r.symbol}</div>
+            <div className="dist-bar"><div className={`dist-fill ${distClass(r.event?.daysAway)}`} style={{ width: distWidth(r.event?.daysAway) }} /></div>
+            <div className="dist-val">{r.event!.daysAway === 0 ? 'now' : `${r.event!.daysAway}d`}</div>
+          </div>
+        ))}
+        {rows.every((r) => r.event?.daysAway == null) && <div className="impact-empty">No dated events on tracked signals.</div>}
+      </div>
+    </div>
+  );
+  const statusBlock = (
+    <div className="sys-status">
+      <div className="sys-row"><span className="k">Board</span><span className="v">{relTime(board?.generatedAt)}</span></div>
+      <div className="sys-row"><span className="k">Reports 7d</span><span className="v" style={{ color: 'var(--event-bright)' }}>{earnCount}</span></div>
+      <div className="sys-row"><span className="k">Macro window</span><span className="v">{upcoming.length} releases</span></div>
+      <div className="sys-row"><span className="k">Calendar</span><span className={`v ${econ?.coverage?.current ? 'ok' : 'warn'}`}>{econ?.coverage?.current ? '● calendar live' : 'stale'}</span></div>
+    </div>
+  );
+
+  /* dashboard tool: one section, same data, fills its tile (tools/catalyst/catalyst-tools.css) */
+  if (only) {
+    return (
+      <div className={`catalystlab cat-only cat-only-${only}`}>
+        {only === 'impact' && impactSection}
+        {only === 'earnings' && earningsCard}
+        {only === 'econ' && econCard}
+        {only === 'summary' && <>{summaryBlock}{coverageBlock}{statusBlock}</>}
+        {only === 'distance' && distanceBlock}
+      </div>
+    );
+  }
+
   return (
     <div className="catalystlab">
       <div className={`nx-resize${rail.dragging ? ' active' : ''}`} style={{ right: rail.width - 4 }} title="Drag to resize · double-click to expand" {...rail.handleProps} />
@@ -157,139 +377,16 @@ export function CatalystNexus() {
           <div className="calendar-grid">
 
             {/* Economic Calendar */}
-            <div className="econ-card">
-              <div className="econ-head">
-                <div className="econ-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
-                </div>
-                <div>
-                  <div className="econ-title">Economic Events</div>
-                  <div className="econ-sub">High-impact macro releases</div>
-                </div>
-              </div>
-              <div className="econ-list">
-                {upcoming.slice(0, 5).map((e) => (
-                  <div className="econ-item" key={`${e.name}-${e.date}`}>
-                    <div className="econ-date">
-                      {dayHead(e.date)}<br />
-                      <span style={{ fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}>{e.time ?? ''}{e.date === today ? ' · today' : ''}</span>
-                    </div>
-                    <div>
-                      <div className="econ-name">{e.name}</div>
-                      <div className="econ-desc">{e.tradingImpact ?? e.description ?? ''}</div>
-                    </div>
-                    <div className="econ-impact">{(e.importance ?? 'high').toUpperCase()}</div>
-                  </div>
-                ))}
-                {upcoming.length === 0 && <div className="impact-empty">No releases in the calendar window.</div>}
-              </div>
-            </div>
+            {econCard}
 
             {/* Earnings Calendar */}
-            <div className="earnings-card">
-              <div className="earnings-head">
-                <div className="earnings-title">
-                  <div className="earnings-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 3v18h18" /><path d="M18 17V9M13 17V5M8 17v-3" /></svg>
-                  </div>
-                  Earnings · market calendar
-                </div>
-                <div className="earnings-count">{earnRange ? `${earnRange} · ` : ''}{earnCount} reports</div>
-              </div>
-              <div className="earnings-days">
-                {earnDays.map((day) => (
-                  <div className="earnings-day" key={day.date}>
-                    <div className="earnings-day-head">
-                      <div className="earnings-day-date">{dayHead(day.date)}</div>
-                      {day.label && <div className="earnings-day-label">· {day.label}</div>}
-                      <div className="earnings-day-count">{day.tickers.length} reports</div>
-                    </div>
-                    <div className="earnings-tickers">
-                      {day.tickers.map((t) => {
-                        const eps = fmtEps(t.epsForecast);
-                        return (
-                          <div className={`earnings-ticker${trackedSyms.has(t.symbol) ? ' tracked' : ''}`} key={`${day.date}-${t.symbol}`}
-                            title={`${t.companyName ?? t.symbol}${trackedSyms.has(t.symbol) ? ' · in the active book' : ''}`}
-                            onClick={() => openWorkup(t.symbol)}>
-                            {t.symbol}
-                            <span className="time">{t.session ? SESSION_LABEL[t.session] : 'TBD'}</span>
-                            {eps && <span className={`eps${eps.neg ? ' neg' : ''}`}>{eps.text}</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-                {earnDays.length === 0 && <div className="impact-empty">Earnings calendar unreachable — nothing is shown in its place.</div>}
-              </div>
-            </div>
+            {earningsCard}
 
           </div>
         </div>
 
         {/* SIGNAL IMPACT */}
-        <div className="impact-section">
-          <div className="impact-head">
-            <div className="impact-label">Signal impact · how the verified calendar changes the active book</div>
-            <div className="impact-filters">
-              {([['all', 'All', rows.length], ['conflict', 'CONFLICT', counts.conflict], ['risk', 'EVENT RISK', counts.risk], ['confluence', 'CONFLUENCE', counts.confluence], ['nosignal', 'NO SIGNAL', counts.nosignal]] as const).map(([k, label, n]) => (
-                <div key={k} className={`impact-filter${filter === k ? ' active' : ''}`} onClick={() => setFilter(k as Filter)}>
-                  {label} <span className="count">{n}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <table className="impact-table">
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Impact</th>
-                <th>Oracle side</th>
-                <th>Verified event</th>
-                <th>Distance</th>
-                <th>Response</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((d) => {
-                const side = (d.direction ?? 'long').toUpperCase();
-                return (
-                  <tr key={`${d.type}-${d.symbol}-${d.event?.date}`} onClick={() => openWorkup(d.symbol)}>
-                    <td>
-                      <div className="impact-ticker">
-                        {d.symbol}
-                        {d.convictionScore != null && <span className="score">{Math.round(d.convictionScore)}</span>}
-                      </div>
-                    </td>
-                    <td><div className={`impact-type ${d.type === 'nosignal' ? 'conflict' : d.type}`}>{TYPE_LABEL[d.type]}</div></td>
-                    <td>
-                      <div className={`impact-side ${side === 'SHORT' ? 'short' : 'long'}`}>
-                        <span className="arrow">{side === 'SHORT' ? '▼' : '▲'}</span>
-                        {side}{d.holdingPeriod ? ` · ${d.holdingPeriod}` : ''}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="impact-event">
-                        <b>{d.event?.title ?? '—'}</b>
-                        {d.note && <div className="detail">{d.note}</div>}
-                      </div>
-                    </td>
-                    <td><div className="impact-distance">{d.event?.daysAway != null ? (d.event.daysAway === 0 ? 'today' : `${d.event.daysAway}d`) : '—'}</div></td>
-                    <td><div className="impact-response" title="The platform's standing rule for this join — enforced in scoring, not a button">{RESPONSE[d.type]} ↗</div></td>
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr><td colSpan={6}><div className="impact-empty">No tracked catalyst in this bucket — see the note below for what empty means.</div></td></tr>
-              )}
-            </tbody>
-          </table>
-
-          <div className="impact-note">
-            <b>Catalysts joined to live conviction picks.</b> {board?._meta?.note?.replace(/^Catalysts joined to live conviction picks\.?\s*/, '') ?? "'conflict' = tracked events whose polarity opposes the direction we published; it is a flag to re-read the thesis, not an automatic exit. Binary events (earnings) are counted as risk, never as directional tilt. Empty sections mean no tracked catalyst fell inside the horizon — not that none exists."}
-          </div>
-        </div>
+        {impactSection}
       </div>
 
       {/* ══════════ RIGHT SIDEBAR ══════════ */}
@@ -304,66 +401,13 @@ export function CatalystNexus() {
           </div>
         </div>
 
-        <div className="summary">
-          <div className="summary-grid">
-            <div className="summary-card">
-              <div className="summary-label">Tracked signals</div>
-              <div className="summary-val event">{rows.length}</div>
-              <div className="summary-sub">of {scanned} live</div>
-            </div>
-            <div className="summary-card">
-              <div className="summary-label">Event risk</div>
-              <div className="summary-val" style={{ color: 'var(--red)', textShadow: '0 0 6px rgba(255,107,61,0.3)' }}>{counts.risk}</div>
-              <div className="summary-sub">earnings inside horizon</div>
-            </div>
-            <div className="summary-card">
-              <div className="summary-label">Conflicts</div>
-              <div className="summary-val" style={{ color: 'var(--amber)', textShadow: '0 0 6px rgba(250,204,21,0.3)' }}>{counts.conflict}</div>
-              <div className="summary-sub">polarity mismatch</div>
-            </div>
-            <div className="summary-card">
-              <div className="summary-label">Confluence</div>
-              <div className="summary-val cyan">{counts.confluence}</div>
-              <div className="summary-sub">event supports thesis</div>
-            </div>
-          </div>
-        </div>
+        {summaryBlock}
 
-        <div className="coverage">
-          <div className="coverage-head">
-            <div className="coverage-label">Catalyst coverage</div>
-            <div className="coverage-stat">{withCats} of {scanned}</div>
-          </div>
-          <div className="coverage-bar">
-            <div className="coverage-fill" style={{ width: `${coveragePct}%` }} />
-          </div>
-          <div className="coverage-note">
-            <b>{withCats} of {scanned}</b> live signals have a tracked event inside their horizon. Coverage expands as more earnings are verified.
-          </div>
-        </div>
+        {coverageBlock}
 
-        <div className="impact-dist">
-          <div className="impact-dist-head">
-            <div className="impact-dist-label">Distance to event</div>
-          </div>
-          <div className="impact-dist-list">
-            {rows.filter((r) => r.event?.daysAway != null).slice(0, 8).map((r) => (
-              <div className="dist-item" key={`d-${r.symbol}-${r.event?.date}`} onClick={() => openWorkup(r.symbol)}>
-                <div className="dist-ticker">{r.symbol}</div>
-                <div className="dist-bar"><div className={`dist-fill ${distClass(r.event?.daysAway)}`} style={{ width: distWidth(r.event?.daysAway) }} /></div>
-                <div className="dist-val">{r.event!.daysAway === 0 ? 'now' : `${r.event!.daysAway}d`}</div>
-              </div>
-            ))}
-            {rows.every((r) => r.event?.daysAway == null) && <div className="impact-empty">No dated events on tracked signals.</div>}
-          </div>
-        </div>
+        {distanceBlock}
 
-        <div className="sys-status">
-          <div className="sys-row"><span className="k">Board</span><span className="v">{relTime(board?.generatedAt)}</span></div>
-          <div className="sys-row"><span className="k">Reports 7d</span><span className="v" style={{ color: 'var(--event-bright)' }}>{earnCount}</span></div>
-          <div className="sys-row"><span className="k">Macro window</span><span className="v">{upcoming.length} releases</span></div>
-          <div className="sys-row"><span className="k">Calendar</span><span className={`v ${econ?.coverage?.current ? 'ok' : 'warn'}`}>{econ?.coverage?.current ? '● calendar live' : 'stale'}</span></div>
-        </div>
+        {statusBlock}
 
         <div className="disclaimer">
           Educational only · not investment advice.<br />
