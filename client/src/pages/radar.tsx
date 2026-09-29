@@ -8,7 +8,8 @@
  *   TRACK RECORD  Every pick logged with hit/miss/expired status
  *
  * The Radar is QuantEdge's autonomous discovery engine — it runs every 09:35,
- * 12:00, 15:55 ET on weekdays and pushes A+ picks straight to Trade Desk.
+ * 12:00, 15:55 ET on weekdays; picks ≥ B+ feed the Slate (/slate). (Trade
+ * Desk, the old destination, was retired 2026-09-24.)
  *
  * Phase 4: one hero metric (actionable forming setups first), compact
  * pick cards capped at 30 with show-more, a single legend for the jargon,

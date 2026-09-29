@@ -463,6 +463,12 @@ export default function TodayPage() {
                   <Link href={`/r/${best.symbol}`} className="btn btn-primary btn-lg">Full analysis
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
                   </Link>
+                  {/* PROVE before you ACT: the idea's own audit trail (entry
+                      evidence, snapshots, outcome). Was routed but linked from
+                      nowhere until 2026-09-29. */}
+                  {best.ideaId && (
+                    <Link href={`/trade-ideas/${encodeURIComponent(best.ideaId)}/audit`} className="btn btn-ghost btn-lg">Audit trail</Link>
+                  )}
                 </div>
               </div>
               <div className="feature-visual reveal">

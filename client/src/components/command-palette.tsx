@@ -7,7 +7,7 @@
  *
  * What it searches:
  *   - Tickers (typed → /r/SYMBOL)
- *   - Pages   (Terminal, GEX, Research, Positions, Journal, Trade Desk — and tabs within)
+ *   - Pages   (Today, Ideas, Markets, Research, Book, Journal — and tabs within)
  *   - Quick actions (thesis radar, settings)
  *
  * Wraps shadcn Command primitive — keyboard-first, accessible, fast.
@@ -45,17 +45,20 @@ interface NavTarget {
   keywords?: string[];
 }
 
+// The six destinations of docs/IA_SYSTEM_DESIGN.md §3, in job order
+// (FIND → UNDERSTAND → ACT → PROVE). ⌘1–⌘6 follow this order.
 const PRIMARY_DESTINATIONS: NavTarget[] = [
-  { href: '/t',              label: 'Terminal',   icon: Home,      hint: 'NEXUS home · tape · rotation · signals', keywords: ['dashboard','pulse','overview','nexus'] },
-  { href: '/t?tab=gex',      label: 'GEX',        icon: Zap,       hint: 'Gamma hub · market-wide and per-symbol', keywords: ['gamma','vex','dealer','flow'] },
-  { href: '/r',              label: 'Research',   icon: Microscope,hint: 'Per-ticker chart · options · GEX', keywords: ['terminal','chart','options','ticker'] },
-  { href: '/t?tab=positions',label: 'Positions',  icon: Wallet,    hint: 'My book · open positions · P&L heat map', keywords: ['heatmap','book','pnl'] },
+  { href: '/today',          label: 'Today',      icon: Home,      hint: 'Weekly dealer map · best idea · ranked book', keywords: ['home','morning','brief','convictions','best'] },
+  { href: '/slate',          label: 'Ideas',      icon: Crosshair, hint: "Slate · today's measured setups + pre-market gappers", keywords: ['slate','discovery','scanner','picks','setups','trade desk','gappers','evening'] },
+  { href: '/t',              label: 'Markets',    icon: Zap,       hint: 'Terminal · NEXUS board, chart, flow, GEX, crypto', keywords: ['terminal','dashboard','pulse','overview','nexus','tape'] },
+  { href: '/r',              label: 'Research',   icon: Microscope,hint: 'Per-ticker dossier · chart · options · GEX', keywords: ['chart','options','ticker','dossier'] },
+  { href: '/t?tab=positions',label: 'Book',       icon: Wallet,    hint: 'Positions · open risk · P&L heat map', keywords: ['positions','heatmap','pnl'] },
   { href: '/t?tab=journal',  label: 'Journal',    icon: BookOpen,  hint: 'Dashboard · trades · analytics · track record', keywords: ['history','performance','backtest','calendar','pnl'] },
-  { href: '/slate',          label: 'Slate', icon: Crosshair, hint: "Today's measured setups + pre-market gappers", keywords: ['discovery','scanner','picks','setups','trade desk','gappers'] },
 ];
 
 const NESTED_TABS: NavTarget[] = [
   // Terminal tabs
+  { href: '/t?tab=gex',      label: 'Terminal → GEX',      icon: Zap,  keywords: ['gamma','vex','dealer','walls'] },
   { href: '/t?tab=chart',    label: 'Terminal → Chart',    icon: Home, keywords: ['price','levels','candle'] },
   { href: '/t?tab=flow',     label: 'Terminal → Flow',     icon: Home, keywords: ['tape','premium','sweeps','whales'] },
   { href: '/t?tab=leaps',    label: 'Terminal → LEAPS',    icon: Home, keywords: ['long','dated','thesis'] },
