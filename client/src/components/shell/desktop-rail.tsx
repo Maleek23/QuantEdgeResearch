@@ -1,38 +1,21 @@
-import { Link } from 'wouter';
-import { useEffect } from 'react';
-import {
-  Activity, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart,
-  Grid3X3, PanelLeftClose, PanelLeftOpen, Radar, TrendingUp, Wallet,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'wouter';
+import { Moon, Sun } from 'lucide-react';
+import { LuxSidebar } from '@/components/lux';
+import { useTheme } from '@/components/theme-provider';
 import { useRailCollapsed } from './rail-state';
-import { cn } from '@/lib/utils';
 import qeMark from '@assets/qe-mark.svg';
-import { PAGES, TABS, UTILITY_PAGES, tabHref, type Tab } from './nav-model';
-
-const TAB_ICONS: Record<Tab, typeof Radar> = {
-  oracle: Radar,
-  chart: CandlestickChart,
-  flow: Activity,
-  gex: Grid3X3,
-  leaps: TrendingUp,
-  crypto: Bitcoin,
-  catalyst: CalendarDays,
-  bot: Bot,
-  positions: Wallet,
-  journal: BookOpen,
-};
-
-const GROUPS: Array<{ label: string; tabs: Tab[] }> = [
-  { label: 'Workspace', tabs: ['oracle', 'chart', 'flow', 'gex'] },
-  { label: 'Research', tabs: ['leaps', 'crypto', 'catalyst'] },
-  { label: 'Operations', tabs: ['bot', 'positions', 'journal'] },
-];
+import { navGroups, utilityItems } from './nav-groups';
+import type { Tab } from './nav-model';
 
 /**
- * Desktop navigation rail. Collapses to an icon-only 56px strip (toggle at the
- * bottom, or ⌘/Ctrl+\\); the choice is remembered. Collapsed, every item keeps
- * its accessible name (aria-label) and shows its label as a tooltip on hover
- * AND on keyboard focus — icons alone are never the only carrier.
+ * Desktop navigation rail — the shared LuxSidebar in its `rail` placement:
+ * short grouped labels, collapsible to a 56px icon strip (edge trigger or
+ * ⌘/Ctrl+\\), the choice remembered (rail-state.ts). Collapsed, every item
+ * keeps its accessible name and shows its label as a tooltip on hover AND on
+ * keyboard focus — icons alone are never the only carrier. ↑/↓ move between
+ * items. The same component draws the journal's page list and the phone
+ * "More" sheet, so there is one sidebar implementation.
  */
 export function DesktopRail({
   activeTab,
@@ -44,6 +27,10 @@ export function DesktopRail({
   onTab?: (tab: Tab) => void;
 }) {
   const [collapsed, toggle] = useRailCollapsed();
+  const [, setLocation] = useLocation();
+  const { theme, setTheme } = useTheme();
+  const [ready, setReady] = useState(false);
+  useEffect(() => { const id = requestAnimationFrame(() => setReady(true)); return () => cancelAnimationFrame(id); }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') { e.preventDefault(); toggle(); }
@@ -51,72 +38,37 @@ export function DesktopRail({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [toggle]);
-  const tip = (label: string) => (collapsed ? { 'data-tip': label, 'aria-label': label } : {});
+
+  const target = { activeTab, currentPath, onTab, go: setLocation };
+  const light = theme === 'nexus-light' || theme === 'light';
 
   return (
-    <aside className={cn('qe-desktop-rail hidden lg:flex', collapsed && 'collapsed')} aria-label="Primary navigation">
-      <Link href="/today" className="qe-rail-brand" aria-label="QuantEdge home" {...(collapsed ? { 'data-tip': 'QuantEdge home' } : {})}>
-        <img src={qeMark} alt="" width={24} height={24} />
-        <span><b>QUANTEDGE</b><small>RESEARCH TERMINAL</small></span>
-      </Link>
-
-      <nav className="qe-rail-nav">
-        <section className="qe-rail-group" aria-label="Start">
-          <div className="qe-rail-label">Start</div>
-          {PAGES.slice(0, 1).map((page) => {
-            const Icon = page.icon;
-            const active = currentPath === page.href;
-            return <Link key={page.href} href={page.href} className={cn('qe-rail-item', active && 'active')} aria-current={active ? 'page' : undefined} {...tip(page.label)}><Icon aria-hidden /><span>{page.label}</span>{active && <i aria-hidden />}</Link>;
-          })}
-        </section>
-
-        {GROUPS.map((group) => (
-          <section key={group.label} className="qe-rail-group" aria-label={group.label}>
-            <div className="qe-rail-label">{group.label}</div>
-            {group.tabs.map((id) => {
-              const item = TABS.find((tab) => tab.id === id)!;
-              const Icon = TAB_ICONS[id];
-              const active = activeTab === id;
-              const body = <><Icon aria-hidden /><span>{item.label}</span>{active && <i aria-hidden />}</>;
-              return onTab ? (
-                <button key={id} type="button" className={cn('qe-rail-item', active && 'active')} onClick={() => onTab(id)} aria-current={active ? 'page' : undefined} {...tip(item.label)}>{body}</button>
-              ) : (
-                <Link key={id} href={tabHref(id)} className="qe-rail-item" {...tip(item.label)}>{body}</Link>
-              );
-            })}
-          </section>
-        ))}
-
-        <section className="qe-rail-group" aria-label="Daily workflow">
-          <div className="qe-rail-label">Daily workflow</div>
-          {PAGES.slice(1).map((page) => {
-            const Icon = page.icon;
-            const active = currentPath === page.href;
-            return <Link key={page.href} href={page.href} className={cn('qe-rail-item', active && 'active')} aria-current={active ? 'page' : undefined} {...tip(page.label)}><Icon aria-hidden /><span>{page.label}</span>{active && <i aria-hidden />}</Link>;
-          })}
-        </section>
-      </nav>
-
-      <div className="qe-rail-utility">
-        {UTILITY_PAGES.map((page) => {
-          const Icon = page.icon;
-          const active = currentPath === page.href;
-          return <Link key={page.href} href={page.href} className={cn('qe-rail-item', active && 'active')} aria-current={active ? 'page' : undefined} {...tip(page.label)}><Icon aria-hidden /><span>{page.label}</span></Link>;
-        })}
-        <button
-          type="button"
-          className="qe-rail-item qe-rail-toggle"
-          onClick={() => toggle()}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-          title={`${collapsed ? 'Expand' : 'Collapse'} navigation (⌘/Ctrl + \\)`}
-          {...(collapsed ? { 'data-tip': 'Expand navigation' } : {})}
-        >
-          {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
-          <span>Collapse</span>
-        </button>
-        <div className="qe-rail-disclosure"><span />Decision support only<br />Data quality is surfaced</div>
-      </div>
-    </aside>
+    <LuxSidebar
+      id="qe-rail"
+      placement="rail"
+      label="Primary navigation"
+      collapsed={collapsed}
+      onToggle={() => toggle()}
+      toggleShortcut="⌘\"
+      toggleKeys="Meta+Backslash Control+Backslash"
+      ready={ready}
+      brand={{
+        href: '/today',
+        label: 'QuantEdge',
+        mark: <img src={qeMark} alt="" width={20} height={20} />,
+        onSelect: () => setLocation('/today'),
+      }}
+      groups={navGroups(target)}
+      footerItems={[
+        ...utilityItems(target),
+        {
+          id: 'theme',
+          label: light ? 'Dark mode' : 'Light mode',
+          icon: light ? Moon : Sun,
+          onSelect: () => setTheme(light ? 'nexus' : 'nexus-light'),
+        },
+      ]}
+      note={<>Decision support only.<br />Not investment advice.</>}
+    />
   );
 }

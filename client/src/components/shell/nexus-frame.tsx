@@ -10,10 +10,8 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useMainHeightVar } from './main-height';
 import { Link, useLocation } from 'wouter';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { BookOpen, LogOut, Moon, SlidersHorizontal, Bell, Search } from 'lucide-react';
+import { BookOpen, LogOut, Moon, Settings, SlidersHorizontal, Bell, Search, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EASE, DUR } from '@/lib/motion';
 import { useTheme } from '@/components/theme-provider';
 import { useAuth } from '@/hooks/useAuth';
 import qeMark from '@assets/qe-mark.svg';
@@ -23,7 +21,10 @@ import { MobileDock } from './mobile-dock';
 import { CustomizePanel } from './customize-panel';
 import { DesktopRail } from './desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from './skip-link';
-import { useDismissable } from '@/hooks/use-dismissable';
+import { LuxTopBar } from '@/components/lux/lux-topbar';
+import { LuxMenu, LuxMenuContent, LuxMenuItem, LuxMenuLabel, LuxMenuSeparator, LuxMenuTrigger } from '@/components/lux/lux-menu';
+import { usePageReveal } from '@/components/lux/lux-motion';
+import { pageShort } from './nav-groups';
 
 /**
  * ONE search for every framed page: the global CommandPalette (App.tsx) owns
@@ -38,41 +39,44 @@ export function NexusFrame({ children }: { children: ReactNode }) {
   const path = location.split('?')[0];
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
-  const reduce = useReducedMotion();
-  const [accountOpen, setAccountOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
-  const accountTriggerRef = useRef<HTMLButtonElement>(null);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
-  useDismissable(accountOpen, () => setAccountOpen(false), { panelRef: accountMenuRef, triggerRef: accountTriggerRef });
   const mainRef = useRef<HTMLElement>(null);
   useMainHeightVar(mainRef);
+  usePageReveal(mainRef, path);
   const nexusLight = theme === 'nexus-light';
   const page = [...PAGES, ...UTILITY_PAGES].find((p) => p.href === path)
     ?? (path.startsWith('/r') ? { href: path, label: 'Research', short: 'RESEARCH', icon: PAGES[0].icon } : undefined);
   const accountLabel = (user as any)?.firstName || (user as any)?.email?.split('@')[0] || 'Account';
+  const pageTitle = page ? pageShort(page) : undefined;
+  // /r/META → "Research / META" in the bar; the page itself owns its <h1>.
+  const researchSym = path.startsWith('/r/') ? decodeURIComponent(path.split('/')[2] ?? '').toUpperCase() : '';
 
   return (
     <div className={cn('qe-terminal nexus-vars flex h-[100dvh] overflow-hidden w-full min-w-0 max-w-[100vw] flex-col', nexusLight && 'light')}>
       <DesktopRail activeTab={null} currentPath={path} />
       <SkipLink />
       <header className="relative z-20 shrink-0 lg:pl-[var(--qe-rail-w,196px)]">
-        <div className="topbar" style={{ minHeight: 44 }}>
-          <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home">
-            <img className="brand-logo" src={qeMark} alt="" width={22} height={22} />
-            <span className="brand-name">QUANTEDGE</span>
-            <span className="brand-slash">{'//'}</span>
-            <span className="brand-sub">{page ? page.short : 'TERMINAL'}</span>
-          </Link>
-
-          <div className="top-spacer" />
-
+        <LuxTopBar
+          className="topbar lx-topbar"
+          title={researchSym || pageTitle}
+          crumb={researchSym ? 'Research' : undefined}
+          titleDesktopOnly
+          leading={
+            <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home">
+              <img className="brand-logo" src={qeMark} alt="" width={22} height={22} />
+              <span className="brand-name">QUANTEDGE</span>
+              <span className="brand-slash">{'//'}</span>
+              <span className="brand-sub">{page ? page.short : 'TERMINAL'}</span>
+            </Link>
+          }
+        >
           {/* Phones: icon trigger — the palette is a full-width dialog there. */}
           <button
             type="button"
             onClick={openPalette}
             aria-label="Search tickers and pages"
             data-testid="frame-search-mobile"
-            className="grid h-9 w-9 place-items-center rounded border border-border/55 text-muted-foreground transition-colors hover:text-foreground lg:hidden"
+            className="lx-icon-btn lg:hidden"
           >
             <Search className="h-4 w-4" />
           </button>
@@ -87,52 +91,35 @@ export function NexusFrame({ children }: { children: ReactNode }) {
               style={{ cursor: 'pointer', background: 'transparent' }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-              <span style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--text-mute)' }}>search any ticker or page</span>
+              <span style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--text-mute)' }}>Search any ticker or page</span>
               <span className="search-kbd">⌘K</span>
             </button>
           </div>
 
-          <div className="relative">
-            <button ref={accountTriggerRef} onClick={() => setAccountOpen((o) => !o)} aria-label="Open account menu" aria-expanded={accountOpen} aria-haspopup="menu" className="user-chip">
+          <LuxMenu>
+            <LuxMenuTrigger aria-label="Open account menu" className="user-chip">
               <div className="user-avatar">{accountLabel.slice(0, 1).toUpperCase()}</div>
               <span className="user-name hidden lg:inline">{accountLabel}</span>
-            </button>
-            <AnimatePresence>
-              {accountOpen && (
-                <motion.div
-                  ref={accountMenuRef}
-                  role="menu"
-                  aria-label="Account"
-                  className="absolute right-0 top-10 z-40 w-52 rounded-lg border border-border/70 bg-card p-1.5 shadow-xl shadow-black/30"
-                  initial={reduce ? false : { opacity: 0, y: -4, scale: .98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -4, scale: .98 }}
-                  transition={{ duration: DUR.fast, ease: EASE }}
-                >
-                  {[
-                    { icon: Bell, label: 'Alerts', go: () => setLocation('/alerts') },
-                    { icon: BookOpen, label: 'How to use', go: () => setLocation('/how-to') },
-                    { icon: SlidersHorizontal, label: 'Display & layout', go: () => setCustomizeOpen(true) },
-                    { icon: SlidersHorizontal, label: 'Settings', go: () => setLocation('/settings') },
-                  ].map(({ icon: Icon, label, go }) => (
-                    <button key={label} role="menuitem" onClick={() => { setAccountOpen(false); go(); }} className="flex min-h-10 w-full items-center gap-2 rounded px-2.5 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                      <Icon className="h-3.5 w-3.5" /> {label}
-                    </button>
-                  ))}
-                  <button role="menuitem" onClick={() => setTheme(nexusLight ? 'nexus' : 'nexus-light')} className="flex min-h-10 w-full items-center gap-2 rounded px-2.5 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                    {nexusLight ? <Moon className="h-3.5 w-3.5" /> : <span className="grid h-3.5 w-3.5 place-items-center text-[11px] leading-none">☀</span>}
-                    {nexusLight ? 'Dark mode' : 'Light mode'}
-                  </button>
-                  {user && (
-                    <button role="menuitem" onClick={() => { setAccountOpen(false); logout(); }} className="flex min-h-10 w-full items-center gap-2 rounded px-2.5 text-left font-mono text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                      <LogOut className="h-3.5 w-3.5" /> Sign out
-                    </button>
-                  )}
-                </motion.div>
+            </LuxMenuTrigger>
+            <LuxMenuContent aria-label="Account">
+              <LuxMenuLabel title={accountLabel} sub={(user as any)?.email ?? 'Guest'} />
+              <LuxMenuSeparator />
+              <LuxMenuItem icon={<Bell />} onSelect={() => setLocation('/alerts')}>Alerts</LuxMenuItem>
+              <LuxMenuItem icon={<BookOpen />} onSelect={() => setLocation('/how-to')}>How to use</LuxMenuItem>
+              <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display & layout</LuxMenuItem>
+              <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Settings</LuxMenuItem>
+              <LuxMenuItem icon={nexusLight ? <Moon /> : <Sun />} onSelect={() => setTheme(nexusLight ? 'nexus' : 'nexus-light')}>
+                {nexusLight ? 'Dark mode' : 'Light mode'}
+              </LuxMenuItem>
+              {user && (
+                <>
+                  <LuxMenuSeparator />
+                  <LuxMenuItem icon={<LogOut />} onSelect={() => logout()}>Sign out</LuxMenuItem>
+                </>
               )}
-            </AnimatePresence>
-          </div>
-        </div>
+            </LuxMenuContent>
+          </LuxMenu>
+        </LuxTopBar>
       </header>
 
       {/* overflow-x contained HERE: one wide table (the GEX strike matrix, a filter

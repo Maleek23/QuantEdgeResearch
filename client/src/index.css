@@ -519,10 +519,10 @@ button:not([disabled]):active,
   /* core surfaces — #06070a / #0a0c11 / #0e1117 / #131720 */
   --background: 225 25% 3%;
   --foreground: 218 31% 93%;        /* #e8ecf3 */
-  --border: 187 30% 10%;            /* rgba(59,140,255,.08) composited on bg */
+  --border: 216 38% 13%;            /* accent-blue hairline (was 187° — a teal no token names); matches --lx-line */
   --card: 220 24% 7%;               /* #0e1117 */
   --card-foreground: 218 31% 93%;
-  --card-border: 187 30% 12%;
+  --card-border: 216 36% 15%;       /* was 187° teal */
   --popover: 220 24% 7%;
   --popover-foreground: 218 31% 93%;
   --secondary: 222 25% 10%;         /* #131720 */
@@ -2775,37 +2775,43 @@ button:not([disabled]):active,
    tokens and overrides only what carries the look.
    ═══════════════════════════════════════════════════════════════ */
 .light.terminal-nexus-light {
+  /* 2026-09-29 lux/colour pass: the light bridge now matches .nexus-vars.light
+     and --lx-* (docs/DESIGN_SYSTEM.md "Light theme") — accent blue #1a63d1, not
+     teal #0d9488; loss vermilion #b23c0b, not rose #e11d48 (rose vs green is
+     the red–green CVD trap the colour law exists to avoid). */
   --background: 210 33% 96%;        /* #f2f5f9 */
   --foreground: 222 30% 10%;        /* #121826 */
-  --border: 174 30% 82%;
+  --border: 214 45% 86%;            /* blue-tinted hairline (was 174° teal) */
   --card: 0 0% 100%;
-  --card-border: 174 30% 84%;
-  --muted-foreground: 220 14% 38%;
-  --accent: 174 84% 29%;            /* #0d9488 — the cyan family, darkened to read */
-  --ring: 174 84% 29%;
+  --card-border: 214 42% 84%;
+  --muted-foreground: 220 21% 35%;  /* #46536b */
+  --accent: 216 78% 46%;            /* #1a63d1 — 5.1:1 on the ground */
+  --accent-foreground: 0 0% 100%;
+  --ring: 216 78% 46%;
+  --destructive: 18 88% 37%;        /* #b23c0b */
+  --chart-4: 18 88% 37%;
 
-  /* consciously-kept light-theme legibility step of the same ramp (dark teal) */
-  --brand-cyan: #1d6ce0;
-  --brand-teal: #0d9488;
+  --brand-cyan: #1a63d1;
+  --brand-teal: #1a63d1;            /* retired hue — aliased to the accent */
   --brand-blue: #2563eb;
-  --brand-gold: #b45309;
+  --brand-gold: #8f5706;
 
-  --trade-bullish: #059669;
-  --trade-bullish-bg: rgba(5, 150, 105, .08);
-  --trade-bullish-bg-subtle: rgba(5, 150, 105, .04);
-  --trade-bearish: #e11d48;
-  --trade-bearish-bg: rgba(225, 29, 72, .08);
-  --trade-bearish-bg-subtle: rgba(225, 29, 72, .04);
-  --trade-neutral: #b45309;
-  --trade-neutral-bg: rgba(180, 83, 9, .08);
-  --trade-neutral-bg-subtle: rgba(180, 83, 9, .04);
+  --trade-bullish: #047857;
+  --trade-bullish-bg: rgba(4, 120, 87, .08);
+  --trade-bullish-bg-subtle: rgba(4, 120, 87, .04);
+  --trade-bearish: #b23c0b;
+  --trade-bearish-bg: rgba(178, 60, 11, .08);
+  --trade-bearish-bg-subtle: rgba(178, 60, 11, .04);
+  --trade-neutral: #8f5706;
+  --trade-neutral-bg: rgba(143, 87, 6, .08);
+  --trade-neutral-bg-subtle: rgba(143, 87, 6, .04);
 
-  --grade-s: #059669;
-  --grade-a: #0d9488;
-  --grade-b: #b45309;
-  --grade-c: #64748b;
+  --grade-s: #047857;
+  --grade-a: #1a63d1;
+  --grade-b: #8f5706;
+  --grade-c: #5f697d;
   --grade-d: #c2410c;
-  --grade-f: #e11d48;
+  --grade-f: #b23c0b;
 
   --font-sans: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Spline Sans Mono', Menlo, Monaco, 'Courier New', monospace;

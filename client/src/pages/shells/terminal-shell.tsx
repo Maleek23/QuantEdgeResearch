@@ -12,9 +12,9 @@ import { Link, useLocation } from 'wouter';
 import { onWorkup } from '@/lib/workup-bus';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-  Activity, Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3, Loader2,
+  Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3, Loader2,
   LogOut, Moon, MoreHorizontal, Radar, Search, SlidersHorizontal,
-  TrendingUp, UserRound, Wallet, X, Zap,
+  TrendingUp, UserRound, Wallet, X, Zap, Bell, Settings, Sun,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
@@ -58,7 +58,9 @@ import { CustomizePanel } from '@/components/shell/customize-panel';
 import { DesktopRail } from '@/components/shell/desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from '@/components/shell/skip-link';
 import { useMainHeightVar } from '@/components/shell/main-height';
-import { useDismissable } from '@/hooks/use-dismissable';
+import { LuxTopBar } from '@/components/lux/lux-topbar';
+import { LuxMenu, LuxMenuContent, LuxMenuItem, LuxMenuLabel, LuxMenuSeparator, LuxMenuTrigger } from '@/components/lux/lux-menu';
+import { TAB_SHORT } from '@/components/shell/nav-groups';
 export { TABS };
 export type { Tab };
 
@@ -151,10 +153,6 @@ export default function TerminalShell() {
     try { localStorage.setItem(ONBOARDED_KEY, new Date().toISOString()); } catch { /* non-critical */ }
   }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
-  const accountTriggerRef = useRef<HTMLButtonElement>(null);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
-  useDismissable(accountOpen, () => setAccountOpen(false), { panelRef: accountMenuRef, triggerRef: accountTriggerRef });
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -236,13 +234,20 @@ export default function TerminalShell() {
              classes from styles/nexus.css. Every tab wears it. ── */}
       <SkipLink />
       <header className="relative z-20 shrink-0 lg:pl-[var(--qe-rail-w,196px)]">
-        <div className="topbar" style={{ minHeight: 44 }}>
-          <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home" style={{ textDecoration: 'none' }}>
-            <img className="brand-logo" src={quantEdgeLogoUrl} alt="Quant Edge Labs" />
-            <span className="brand-name">QUANTEDGE</span>
-            <span className="brand-slash">{'//'}</span>
-            <span className="brand-sub hidden sm:inline">TERMINAL</span>
-          </Link>
+        <LuxTopBar
+          className="topbar lx-topbar"
+          title={TAB_SHORT[tab]}
+          crumb="Terminal"
+          titleDesktopOnly
+          leading={
+            <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home" style={{ textDecoration: 'none' }}>
+              <img className="brand-logo" src={quantEdgeLogoUrl} alt="Quant Edge Labs" />
+              <span className="brand-name">QUANTEDGE</span>
+              <span className="brand-slash">{'//'}</span>
+              <span className="brand-sub hidden sm:inline">TERMINAL</span>
+            </Link>
+          }
+        >
           <div className="status-chip ok hidden sm:flex"><span className="dot" />Engaged</div>
           <div
             className={cn('status-chip hidden lg:flex', dataPartial ? 'warn' : 'ok')}
@@ -251,22 +256,18 @@ export default function TerminalShell() {
             <span className="dot" />{dataPartial ? 'Data partial' : 'Data ready'}
           </div>
 
-          {/* His nav sits LEFT, immediately after the chips — not centered. */}
-          <div className="top-spacer" />
-
-          {/* His search box — same typeahead engine, his shell around it. */}
+          {/* Phones: inline ticker search row below the bar. */}
           <button
             type="button"
             onClick={() => setMobileSearchOpen((open) => !open)}
             aria-label="Search ticker"
             aria-expanded={mobileSearchOpen}
-            className="grid h-9 w-9 place-items-center rounded border border-border/55 text-muted-foreground transition-colors hover:text-foreground lg:hidden"
+            className="lx-icon-btn lg:hidden"
           >
             <Search className="h-4 w-4" />
           </button>
           {/* Desktop search is a ⌘K PALETTE TRIGGER, not an inline dropdown —
-              same .search chrome the mock drew, but clicking it (or ⌘K from
-              anywhere) opens the command palette. */}
+              clicking it (or ⌘K from anywhere) opens the command palette. */}
           <div className="hidden lg:block">
             <button
               type="button"
@@ -275,83 +276,50 @@ export default function TerminalShell() {
               aria-label="Open command palette"
               style={{ cursor: 'pointer', background: 'transparent' }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
               {currentStock?.symbol ? (
                 <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700, letterSpacing: 0.8, color: 'var(--cyan-bright, #3b8cff)' }}>{currentStock.symbol}</span>
               ) : (
-                <span style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--text-mute)' }}>search any ticker</span>
+                <span style={{ fontSize: 'var(--fs-10-5, 10.5px)', color: 'var(--text-mute)' }}>Search any ticker</span>
               )}
               <span className="search-kbd">⌘K</span>
             </button>
           </div>
 
-          {/* His user-chip. Everything the mock's header doesn't show — alerts,
-              settings, guide, the ☀/☾ — lives in this menu, so the bar itself
-              stays pixel-true to the reference. */}
-          <div className="relative">
-              <button
-                ref={accountTriggerRef}
-                onClick={() => setAccountOpen((open) => !open)}
-                aria-label="Open account menu"
-                aria-expanded={accountOpen}
-                aria-haspopup="menu"
-                className="user-chip"
-              >
-                <div className="user-avatar">{accountInitial}</div>
-                <span className="user-name hidden lg:inline">{accountLabel}</span>
-                {alerts.unread > 0 && (
-                  <span
-                    className="grid h-4 min-w-4 place-items-center rounded-full px-1 font-mono text-[9px] font-bold"
-                    style={{ background: 'rgba(59,140,255,0.15)', color: 'var(--cyan-bright)', border: '1px solid rgba(59,140,255,0.3)' }}
-                  >
-                    {alerts.unread}
-                  </span>
-                )}
-              </button>
-              <AnimatePresence>
-                {accountOpen && (
-                  <motion.div
-                    ref={accountMenuRef}
-                    aria-label="Account"
-                    className="absolute right-0 top-9 z-40 w-52 rounded-lg border border-border/70 bg-card p-1.5 shadow-xl shadow-black/30"
-                    initial={reduce ? false : { opacity: 0, y: -4, scale: .98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -4, scale: .98 }}
-                    transition={{ duration: DUR.fast, ease: EASE }}
-                  >
-                    <div className="border-b border-border/45 px-2.5 py-2 font-mono">
-                      <div className="truncate text-[11px] font-bold text-foreground">{accountLabel}</div>
-                      <div className="truncate text-[9px] text-muted-foreground">{user?.email ?? 'Guest terminal'}</div>
-                    </div>
-                    {/* Controls the reference header doesn't carry — parked here
-                        so the bar matches it exactly. */}
-                    <button onClick={() => { setAccountOpen(false); setAlertsOpen(true); alerts.setUnread(0); }} className="mt-1 flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                      <Activity className="h-3.5 w-3.5" /> Alerts{alerts.unread > 0 ? ` · ${alerts.unread}` : ''}
-                    </button>
-                    <button onClick={() => { setAccountOpen(false); setGuideOpen(true); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                      <BookOpen className="h-3.5 w-3.5" /> Guide
-                    </button>
-                    <button onClick={() => setTheme(nextTheme)} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                      {nexusLight ? <Moon className="h-3.5 w-3.5" /> : <span className="grid h-3.5 w-3.5 place-items-center text-[11px] leading-none">☀</span>}
-                      {nexusLight ? 'Dark mode' : 'Light mode'}
-                    </button>
-                    <button onClick={() => { setAccountOpen(false); setCustomizeOpen(true); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                      <SlidersHorizontal className="h-3.5 w-3.5" /> Display & layout
-                    </button>
-                    <button onClick={() => { setAccountOpen(false); setSettingsOpen(true); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                      <UserRound className="h-3.5 w-3.5" /> Preferences & risk
-                    </button>
-                    <button onClick={() => { setAccountOpen(false); setLocation('/settings'); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                      <SlidersHorizontal className="h-3.5 w-3.5" /> Full account settings
-                    </button>
-                    {user && <button onClick={() => { setAccountOpen(false); logout(); }} className="flex w-full cursor-pointer items-center gap-2 rounded px-2.5 py-2 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground">
-                      <LogOut className="h-3.5 w-3.5" /> Sign out
-                    </button>}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-          </div>
-        </div>
+          {/* Account menu — alerts, guide, theme, layout and settings live here
+              so the bar itself stays calm. One menu implementation (LuxMenu). */}
+          <LuxMenu>
+            <LuxMenuTrigger aria-label="Open account menu" className="user-chip">
+              <div className="user-avatar">{accountInitial}</div>
+              <span className="user-name hidden lg:inline">{accountLabel}</span>
+              {alerts.unread > 0 && (
+                <span
+                  className="grid h-4 min-w-4 place-items-center rounded-full px-1 font-mono text-[9px] font-bold"
+                  style={{ background: 'rgba(59,140,255,0.15)', color: 'var(--cyan-bright)', border: '1px solid rgba(59,140,255,0.3)' }}
+                  aria-label={`${alerts.unread} unread alerts`}
+                >
+                  {alerts.unread}
+                </span>
+              )}
+            </LuxMenuTrigger>
+            <LuxMenuContent aria-label="Account">
+              <LuxMenuLabel title={accountLabel} sub={user?.email ?? 'Guest terminal'} />
+              <LuxMenuSeparator />
+              <LuxMenuItem icon={<Bell />} end={alerts.unread > 0 ? alerts.unread : undefined} onSelect={() => { setAlertsOpen(true); alerts.setUnread(0); }}>Alerts</LuxMenuItem>
+              <LuxMenuItem icon={<BookOpen />} onSelect={() => setGuideOpen(true)}>Guide</LuxMenuItem>
+              <LuxMenuItem icon={nexusLight ? <Moon /> : <Sun />} onSelect={() => setTheme(nextTheme)}>{nexusLight ? 'Dark mode' : 'Light mode'}</LuxMenuItem>
+              <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display & layout</LuxMenuItem>
+              <LuxMenuItem icon={<UserRound />} onSelect={() => setSettingsOpen(true)}>Preferences & risk</LuxMenuItem>
+              <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Full account settings</LuxMenuItem>
+              {user && (
+                <>
+                  <LuxMenuSeparator />
+                  <LuxMenuItem icon={<LogOut />} onSelect={() => logout()}>Sign out</LuxMenuItem>
+                </>
+              )}
+            </LuxMenuContent>
+          </LuxMenu>
+        </LuxTopBar>
         <AnimatePresence initial={false}>
           {mobileSearchOpen && (
             <motion.div
