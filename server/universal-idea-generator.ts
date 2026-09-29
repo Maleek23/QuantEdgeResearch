@@ -788,7 +788,7 @@ async function attachOptionContract(args: {
     const pick: ContractCandidate =
       sel.picks.find((p) => p.tier === sel.recommendedTier) ??
       [...sel.picks].sort((a, b) => b.score - a.score)[0];
-    const isLotto = pick.delta < 0.30;
+    const isLotto = Math.abs(pick.delta) < 0.30; // put deltas are negative — compare magnitude (every bearish idea was tagged lotto)
     const tradeType: AttachedContract['tradeType'] = isLotto
       ? 'lotto'
       : args.holdingPeriod === 'day'
