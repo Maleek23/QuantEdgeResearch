@@ -10,9 +10,10 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useMainHeightVar } from './main-height';
 import { Link, useLocation } from 'wouter';
-import { BookOpen, LogOut, Moon, Settings, SlidersHorizontal, Bell, Search, Sun } from 'lucide-react';
+import { BookOpen, LogOut, Settings, SlidersHorizontal, Bell, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/theme-provider';
+import { ModeMenuItems } from '@/components/shell/mode-menu';
 import { useAuth } from '@/hooks/useAuth';
 import qeMark from '@assets/qe-mark.svg';
 import '@/styles/nexus.css';
@@ -37,7 +38,7 @@ const openPalette = () => window.dispatchEvent(new Event('qe:open-command-palett
 export function NexusFrame({ children }: { children: ReactNode }) {
   const [location, setLocation] = useLocation();
   const path = location.split('?')[0];
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   const { user, logout } = useAuth();
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
@@ -108,9 +109,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
               <LuxMenuItem icon={<BookOpen />} onSelect={() => setLocation('/how-to')}>How to use</LuxMenuItem>
               <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display & layout</LuxMenuItem>
               <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Settings</LuxMenuItem>
-              <LuxMenuItem icon={nexusLight ? <Moon /> : <Sun />} onSelect={() => setTheme(nexusLight ? 'nexus' : 'nexus-light')}>
-                {nexusLight ? 'Dark mode' : 'Light mode'}
-              </LuxMenuItem>
+              <ModeMenuItems />
               {user && (
                 <>
                   <LuxMenuSeparator />

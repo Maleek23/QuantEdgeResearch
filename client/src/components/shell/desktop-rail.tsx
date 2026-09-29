@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { Moon, Sun } from 'lucide-react';
 import { LuxSidebar } from '@/components/lux';
 import { useTheme } from '@/components/theme-provider';
+import { toggleLight } from '@/lib/visual-mode';
 import { useRailCollapsed } from './rail-state';
 import qeMark from '@assets/qe-mark.svg';
 import { navGroups, utilityItems } from './nav-groups';
@@ -28,7 +29,7 @@ export function DesktopRail({
 }) {
   const [collapsed, toggle] = useRailCollapsed();
   const [, setLocation] = useLocation();
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   const [ready, setReady] = useState(false);
   useEffect(() => { const id = requestAnimationFrame(() => setReady(true)); return () => cancelAnimationFrame(id); }, []);
   useEffect(() => {
@@ -62,10 +63,13 @@ export function DesktopRail({
       footerItems={[
         ...utilityItems(target),
         {
+          // Quick ☀/☾: light ↔ the dark-ground mode you came from (Dark,
+          // Midnight, Dim or High contrast). All five modes: account menu or
+          // Settings › Display.
           id: 'theme',
           label: light ? 'Dark mode' : 'Light mode',
           icon: light ? Moon : Sun,
-          onSelect: () => setTheme(light ? 'nexus' : 'nexus-light'),
+          onSelect: () => toggleLight(),
         },
       ]}
       note={<>Decision support only.<br />Not investment advice.</>}

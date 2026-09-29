@@ -14,7 +14,15 @@
  * unmounts — and no new one mounts within a frame — the boot screen fades
  * out (≤150 ms, instant under prefers-reduced-motion) and never returns:
  * every later load is a page skeleton inside the mounted shell.
+ *
+ * VISUAL MODE (2026-09-29): the boot screen is drawn in the saved mode. An
+ * inline script in client/index.html sets html[data-mode] (+ the legacy
+ * .dark/.light classes) before first paint, and the loader's colours are
+ * per-mode CSS variables keyed on that attribute — so there is no flash of
+ * the wrong ground at boot or when the loader fades. armBoot() re-asserts the
+ * mode if that script did not run (lib/visual-mode.ts is the source of truth).
  */
+import { applyMode, getMode } from './visual-mode';
 
 const LOADER_ID = 'app-loader';
 const SETTLE_MS = 60;      // a hold swapped for the next one in the same commit must not flash
@@ -48,6 +56,7 @@ export function holdBoot(): () => void {
 /** Called once after the first React render: release as soon as nothing holds. */
 export function armBoot() {
   if (typeof window === 'undefined') return;
+  if (!document.documentElement.hasAttribute('data-mode')) applyMode(getMode());
   requestAnimationFrame(() => schedule());
   setTimeout(releaseBoot, HARD_CAP_MS);
 }

@@ -1,95 +1,46 @@
-import { createContext, useContext, useEffect, useState } from "react";
+/**
+ * ThemeProvider / useTheme — a thin adapter over the visual-mode store
+ * (lib/visual-mode.ts).
+ *
+ * Since 2026-09-29 the app has five VISUAL MODES (dark · midnight · dim ·
+ * light · high contrast) on `html[data-mode]`. `theme` is kept for the many
+ * existing readers that only need "is this the light ground?": it is
+ * 'nexus-light' in light mode and 'nexus' in every dark-ground mode.
+ * `setTheme(legacyValue)` still works (maps onto a mode), so an older caller
+ * cannot put the app into a state the mode store does not know about.
+ *
+ * The store is module-level, so useTheme() works with or without the
+ * provider; ThemeProvider stays so App.tsx's tree is unchanged.
+ */
+import type { ReactNode } from "react";
+import { fromLegacyTheme, isVisualMode, useVisualMode, type VisualMode } from "@/lib/visual-mode";
 
 export type Theme = "dark" | "night" | "nexus" | "nexus-light" | "light" | "system";
 
 type ThemeProviderProps = {
-  children: React.ReactNode;
+  children: ReactNode;
+  /** Kept for API compatibility; the default is lib/visual-mode DEFAULT_MODE. */
   defaultTheme?: Theme;
+  /** Kept for API compatibility; the legacy key is only read once, to migrate. */
   storageKey?: string;
 };
 
-type ThemeProviderState = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-};
-
-const initialState: ThemeProviderState = {
-  theme: "system",
-  setTheme: () => null,
-};
-
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
-
-export function ThemeProvider({
-  children,
-  defaultTheme = "dark",
-  storageKey = "quantedge-theme",
-  ...props
-}: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  );
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-
-    root.classList.remove("light", "dark", "terminal-night", "terminal-nexus", "terminal-nexus-light");
-
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light";
-
-      root.classList.add(systemTheme);
-      return;
-    }
-
-    // Night is not a second fake dark theme: it inherits the semantic dark
-    // palette, then narrows the surfaces for a lower-luminance desk setting.
-    if (theme === "night") {
-      root.classList.add("dark", "terminal-night");
-      return;
-    }
-
-    // Nexus is the operator's reference-terminal palette, verbatim — teal-cyan
-    // accents, saturated bull/bear, cyan-tinted borders. Same mechanism as
-    // night: inherit dark's semantics, override the tokens.
-    if (theme === "nexus") {
-      root.classList.add("dark", "terminal-nexus");
-      return;
-    }
-
-    // The day-shift half of the reference palette: light ground, same accent
-    // hues at contrast-correct luminance.
-    if (theme === "nexus-light") {
-      root.classList.add("light", "terminal-nexus-light");
-      return;
-    }
-
-    root.classList.add(theme);
-  }, [theme]);
-
-  const value = {
-    theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
-    },
-  };
-
-  return (
-    <ThemeProviderContext.Provider {...props} value={value}>
-      {children}
-    </ThemeProviderContext.Provider>
-  );
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  return <>{children}</>;
 }
 
-export const useTheme = () => {
-  const context = useContext(ThemeProviderContext);
-
-  if (context === undefined)
-    throw new Error("useTheme must be used within a ThemeProvider");
-
-  return context;
-};
+export function useTheme(): {
+  /** 'nexus-light' on the light ground, 'nexus' on every dark ground */
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  mode: VisualMode;
+  setMode: (mode: VisualMode) => void;
+} {
+  const [mode, setMode] = useVisualMode();
+  return {
+    theme: mode === 'light' ? 'nexus-light' : 'nexus',
+    setTheme: (t: Theme) => setMode(isVisualMode(t) ? t : t === 'nexus' ? 'dark' : fromLegacyTheme(t)),
+    mode,
+    setMode,
+  };
+}

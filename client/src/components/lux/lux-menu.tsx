@@ -8,6 +8,7 @@
  */
 import type { ComponentProps, ReactNode } from 'react';
 import * as Menu from '@radix-ui/react-dropdown-menu';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const LuxMenu = Menu.Root;
@@ -40,6 +41,24 @@ export function LuxMenuItem({
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {end != null && <span className="lx-menu-item-end">{end}</span>}
     </Menu.Item>
+  );
+}
+
+/** A single-choice group (e.g. the display mode): arrow keys move, Enter picks, the checked item is announced. */
+export const LuxMenuRadioGroup = Menu.RadioGroup;
+
+export function LuxMenuRadioItem({
+  className,
+  icon,
+  children,
+  ...props
+}: ComponentProps<typeof Menu.RadioItem> & { icon?: ReactNode }) {
+  return (
+    <Menu.RadioItem className={cn('lx-menu-item', className)} {...props}>
+      {icon}
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      <Menu.ItemIndicator className="lx-menu-item-end" aria-hidden><Check /></Menu.ItemIndicator>
+    </Menu.RadioItem>
   );
 }
 

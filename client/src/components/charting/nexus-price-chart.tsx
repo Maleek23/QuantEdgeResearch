@@ -16,6 +16,7 @@
  * interpolated: `span` bars ending `offset` bars before the latest.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useVisualMode } from '@/lib/visual-mode';
 import {
   drawChart, renderedCandleRange, useCandles, useLiveCandles, TF_CONFIG, TF_BAR_MS,
   type Candle, type Level, type Zone, type DrawOpts,
@@ -223,7 +224,10 @@ export function NexusPriceChart({
     });
   };
 
-  useEffect(() => { redraw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [candles, type, tf, levels, zones, priceView, showMA, showVolume, underlay, overlay, axisOverlay]);
+  // `mode`: the canvas resolves the active visual mode's tokens (chart-engine
+  // chartPalette), so a mode change must repaint.
+  const [mode] = useVisualMode();
+  useEffect(() => { redraw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [candles, type, tf, levels, zones, priceView, showMA, showVolume, underlay, overlay, axisOverlay, mode]);
   useEffect(() => {
     const onResize = () => redraw();
     window.addEventListener('resize', onResize);

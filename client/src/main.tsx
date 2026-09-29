@@ -4,6 +4,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import "./components/lux/lux.css";
+import "./styles/modes.css"; // visual modes — html[data-mode] token overrides (lib/visual-mode.ts)
+import "./lib/visual-mode"; // applies the saved mode (index.html already did, pre-paint)
 import { ErrorBoundary } from "./components/error-boundary";
 import { initClientObservability } from "./lib/observability";
 import { installStaleBundleGuard } from "./lib/stale-bundle";

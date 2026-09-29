@@ -39,6 +39,7 @@ import {
 import { safeToFixed } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { ModePicker } from "@/components/shell/mode-menu";
 import { apiRequest } from "@/lib/queryClient";
 import type { 
   UserPreferences, 
@@ -487,6 +488,18 @@ export default function SettingsPage() {
 
         {/* Preferences Tab */}
         <TabsContent value="preferences" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Palette className="h-4 w-4" />
+                Display mode
+              </CardTitle>
+              <CardDescription>Applies instantly and is saved on this device. High contrast raises every text tier to at least 7:1, draws solid borders and thicker focus rings.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ModePicker />
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">

@@ -59,7 +59,7 @@ Usage rules (enforced in the 2026-09-29 colour pass):
   text — none of them is a loss.
 - Colour is never the only carrier: every signed value prints its sign, levels
   carry text chips (CALL WALL / PUT WALL / MAX γ / ZERO-γ / SPOT).
-- Body text ≥ 4.5:1 on every panel in both themes (see the ratios above).
+- Body text ≥ 4.5:1 on every panel in every visual mode (see "Visual modes" below).
 
 ### Light theme (nexus-light) — AA fixes 2026-09-29
 ```
@@ -75,6 +75,65 @@ Usage rules (enforced in the 2026-09-29 colour pass):
 --destructive       15 100% 62%   (#ff6b3d) — was 350°, a pink-red (#ff5270) that matched no token
 --chart-4           15 100% 62%   loss vermilion
 ```
+
+### Visual modes — five grounds, one attribute (2026-09-29, feat/modes)
+The mode is `html[data-mode="dark|midnight|dim|light|contrast"]`
+(`client/src/lib/visual-mode.ts`), chosen from the account menu (terminal and
+framed pages), Settings › Display, the Customize panel and the terminal settings
+drawer; the rail's ☀/☾ is a quick light ↔ last-dark-ground toggle. Saved **per
+device** (`localStorage['qe-mode']`, every access in try/catch; the old
+`quantedge-theme` value migrates once: nexus/dark → Dark, night → Midnight,
+*light → Light, system → the OS preference). `client/index.html` applies it
+**before first paint** (inline script: attribute + legacy `.dark.terminal-nexus` /
+`.light.terminal-nexus-light` classes + `color-scheme` + `<meta theme-color>`), and
+the boot screen's colours are per-mode variables keyed on the attribute, so
+neither boot nor the loader fade flashes the wrong ground (`lib/boot.ts`
+re-asserts it if the script did not run).
+
+Token overrides live in `client/src/styles/modes.css` for all three families
+(`--lx-*` on `<html>`; the NEXUS palette + `--gx-*` ramp on
+`html[data-mode] .nexus-vars`; the shadcn HSL bridge on `html.dark[data-mode]`).
+Dark and Light are the existing palettes (lux.css, nexus.css, index.css). The
+canvas chart engine resolves the active mode's `--lx-*` tokens once per mode
+change (`chartPalette` in `charting/chart-engine.ts`); the GEX surfaces are pure
+CSS variables (`gex/gex-colors.ts`), so they re-ground with no JS.
+
+| Mode | For | What changes |
+|---|---|---|
+| **Dark** (default) | the terminal as designed | nothing — the NEXUS palette |
+| **Midnight** | OLED, dark rooms | `#000` grounds, text one step dimmer (`#d6dbe4`), same accents, vignette off |
+| **Dim** | long daylight sessions, glare | grey grounds (`#1a1e26`…), accents re-tuned lighter for grey, near-black chrome bands re-grounded |
+| **Light** | bright rooms | the day-shift palette (unchanged) |
+| **High contrast** | low vision, sunlight, projectors | AAA text everywhere, solid `#7d8698` hairlines, no translucency / blur / glow / CRT overlay, 3px white focus ring (+2px offset, black halo), alpha-suffixed muted text drawn at full token strength, gradient titles as plain text |
+
+**Measured contrast** (WCAG 2.x relative luminance; each cell = ratio on
+ground · surface · surface-hi, the three text grounds of every mode):
+
+| Mode | Ground / surface / surface-hi | text | dim | mute | accent-as-text | accent | gain | loss | caution | ink on accent |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Dark** | `#06070a` / `#0e1117` / `#1a1f2a` | `#e8ecf3` 17.0 · 15.9 · 13.9 | `#8b93a3` 6.5 · 6.1 · 5.3 | `#7f889a` 5.7 · 5.3 · 4.6 | `#7fb2ff` 9.3 · 8.7 · 7.6 | `#3b8cff` 6.1 · 5.7 · 5.0 | `#6ee7b7` 13.2 · 12.4 · 10.8 | `#ff6b3d` 7.1 · 6.7 · 5.8 | `#facc15` 13.2 · 12.3 · 10.8 | 6.1 |
+| **Midnight** | `#000000` / `#07080b` / `#12151c` | `#d6dbe4` 15.1 · 14.4 · 13.1 | `#868e9d` 6.4 · 6.1 · 5.5 | `#7a8394` 5.5 · 5.2 · 4.8 | `#7fb2ff` 9.7 · 9.3 · 8.4 | `#3b8cff` 6.4 · 6.1 · 5.6 | `#6ee7b7` 13.8 · 13.1 · 12.0 | `#ff6b3d` 7.4 · 7.1 · 6.5 | `#facc15` 13.7 · 13.1 · 11.9 | 6.4 |
+| **Dim** | `#1a1e26` / `#232933` / `#303744` | `#e6e9ef` 13.7 · 12.0 · 9.8 | `#b0b8c6` 8.4 · 7.3 · 6.0 | `#a2abba` 7.2 · 6.3 · 5.2 | `#93c1ff` 9.0 · 7.9 · 6.4 | `#66a4ff` 6.6 · 5.8 · 4.7 | `#78ebbf` 11.5 · 10.0 · 8.2 | `#ff8f66` 7.5 · 6.5 · 5.3 | `#fad33d` 11.5 · 10.1 · 8.2 | 7.4 |
+| **Light** | `#f2f5f9` / `#ffffff` / `#e7ecf3` | `#121826` 16.2 · 17.7 · 14.9 | `#46536b` 7.1 · 7.7 · 6.5 | `#5f697d` 5.0 · 5.5 · 4.7 | `#1557c0` 6.1 · 6.7 · 5.6 | `#1a63d1` 5.1 · 5.6 · 4.7 | `#047857` 5.0 · 5.5 · 4.6 | `#b23c0b` 5.4 · 5.9 · 5.0 | `#8f5706` 5.4 · 5.9 · 5.0 | 5.6 |
+| **High contrast** | `#000000` / `#0a0a0c` / `#17191f` | `#ffffff` 21.0 · 19.8 · 17.6 | `#e2e6ed` 16.8 · 15.8 · 14.0 | `#cdd3dd` 14.0 · 13.1 · 11.7 | `#a9cbff` 12.7 · 11.9 · 10.6 | `#7ab2ff` 9.6 · 9.1 · 8.1 | `#86f2c8` 15.5 · 14.6 · 13.0 | `#ff9a73` 10.1 · 9.5 · 8.5 | `#ffdc55` 15.6 · 14.7 · 13.1 | 9.6 |
+
+- Every mode clears AA (≥ 4.5:1) for every text tier on every ground; High
+  contrast clears **AAA (≥ 7:1)** for every tier on every ground (lowest: accent
+  fill used as text, 8.1:1). Its hairlines are 5.7:1 (`--lx-line`) and 9.9:1
+  (`--lx-line-hi`) against `#000` (non-text ≥ 3:1); the focus ring is white, 21:1.
+- **CVD-safe semantics are the same in every mode** — accent blue (`#3b8cff`
+  family), gain mint (`#6ee7b7` family), loss vermilion (`#ff6b3d` family),
+  caution yellow (`#facc15` family) — only their lightness moves with the ground
+  (Light darkens them, Dim and High contrast lighten them).
+- The GEX diverging ramp is re-valued per mode (`--gx-*`), its zero stop = the
+  mode's panel: Midnight `#15294a…#a4d8fe` / `#3f1d11…#ffc898` on `#000`;
+  Dim `#2a4466…#a9dafe` / `#5a3324…#ffcba0` on `#232933`; High contrast
+  `#1e3c6e…#c4e6ff` / `#6a2f18…#ffd6b3` on `#000` with white/black ink.
+- Known limit: component-local literal colours (inline `style={{ color: '#…' }}`,
+  Tailwind palette classes such as `text-emerald-400`) do not follow the modes;
+  they read on every dark ground but are not re-tuned for High contrast.
+- Calm mode (Customize › Look) is independent of the visual mode: it only
+  removes motion, glow and the ambient canvas.
 
 ### GEX levels (client/src/components/gex/gex-colors.ts → LEVEL_COLORS)
 ```
@@ -226,10 +285,14 @@ Rules:
 - Auto-arrange = the same packing: reading order, rows filled left → right,
   widths stretched to span 12, equal height per row, row heights scaled to fill
   18 rows when the tools' minimum heights allow.
-- **Simple pages** (`PageSpec.simple`): CHART (full-bleed price chart + collapsible
+- **Page modes** (`PageSpec.mode`, docs/TOOLS_MIGRATION.md "Page modes"): only
+  **GEX** and **FLOW** are *workspaces* (Add tool from a curated catalogue, drag,
+  resize, Auto-arrange, Clear, Restore default, named dashboards). Every other
+  dashboard page is *fixed* — the same tiles in the curated default, nothing
+  editable, bar says "curated layout".
+- **Simple pages** (`mode: 'simple'`): CHART (full-bleed price chart + collapsible
   watchlist rail), LEAPS and POSITIONS render one primary tool with no grid and
-  no tool chrome (its source · age moves to the page bar). "Customize" switches
-  that device to the page's dashboards; "Simple view" switches back.
+  no tool chrome (its source · age moves to the page bar). No Customize switch.
 
 ## 09 · LIVE DATA PATTERNS (integrity-gated)
 
@@ -241,7 +304,9 @@ Rules:
 
 ## 10 · ACCESSIBILITY
 
-- Contrast ≥ 4.5:1 body, 3:1 display. Never color alone — pair icon/label/position.
+- Contrast ≥ 4.5:1 body, 3:1 display in every visual mode; ≥ 7:1 for every text
+  tier in High contrast (measured table in §02 "Visual modes"). Never color
+  alone — pair icon/label/position.
 - Monospace for anything compared numerically. Touch targets ≥ 32px.
 - `prefers-reduced-motion`: disable particles, tape scroll, pulses.
 

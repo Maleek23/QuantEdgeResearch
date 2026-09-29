@@ -1,6 +1,10 @@
 /**
- * GEX / VEX colour law — one mapping for the whole GEX hub (CVD-safe palette,
- * tokens from nexus.css so the light theme re-grounds them):
+ * GEX / VEX colour law — one mapping for the whole GEX hub (CVD-safe palette).
+ * Every colour here is a CSS custom property, never a literal: the values come
+ * from the ACTIVE visual mode — nexus.css (dark, light) and styles/modes.css
+ * (midnight, dim, high contrast re-value --cyan/--red/--green/--amber and the
+ * --gx-* ramp on `html[data-mode] .nexus-vars`) — so switching mode re-grounds
+ * every GEX surface with no JS. The hex after each var() is only the fallback:
  *
  *   +GEX  dealer long gamma, liquidity PROVIDED, stabilising  → accent blue  (--cyan  #3b8cff)
  *   −GEX  dealer short gamma, liquidity TAKEN                  → vermilion    (--red   #ff6b3d)
@@ -103,9 +107,10 @@ export function fmtAge(sec: number | null | undefined): string {
  *     −GEX vermilion law, so the meaning never flips. (Cividis/vik/berlin
  *     class — dark-centred like berlin because the panels are dark.)
  *
- * Stops are CSS tokens (styles/nexus.css `--gx-pos-*` / `--gx-neg-*`,
- * re-grounded for the light theme, where the ramp runs light → dark); the
- * hex values below are the fallbacks = the dark-theme ramp (OKLCH → sRGB):
+ * Stops are CSS tokens (styles/nexus.css `--gx-pos-*` / `--gx-neg-*`, re-valued
+ * per visual mode in styles/modes.css — the zero stop is each mode's own panel,
+ * and in light the ramp runs light → dark); the hex values below are the
+ * fallbacks = the dark-mode ramp (OKLCH → sRGB):
  *
  *            t=0 (≈0)    t=½ (¼ of max)   t=1 (max)
  *   + side   #1d3559     #3680dd          #a4d8fe     L .33 → .60 → .86, h≈255

@@ -11,12 +11,12 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { X, Check, Loader2, Moon, Monitor, Zap } from 'lucide-react';
+import { X, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiRequest } from '@/lib/queryClient';
 import { EASE, DUR } from '@/lib/motion';
 import { TC } from '@/lib/design-tokens';
-import { useTheme } from '@/components/theme-provider';
+import { ModePicker } from '@/components/shell/mode-menu';
 import { ToolSkeleton } from '@/components/ui/qe-loading';
 
 export interface UserPrefs {
@@ -54,7 +54,6 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
   const { data, isLoading } = useUserPrefs();
   const [draft, setDraft] = useState<Partial<UserPrefs>>({});
   const [saved, setSaved] = useState(false);
-  const { theme, setTheme } = useTheme();
 
   useEffect(() => { if (data) setDraft(data); }, [data]);
   useEffect(() => {
@@ -78,10 +77,6 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
   });
 
   const set = <K extends keyof UserPrefs>(k: K, v: UserPrefs[K]) => setDraft((d) => ({ ...d, [k]: v }));
-  const setAppearance = (next: 'dark' | 'night' | 'nexus') => {
-    setTheme(next);
-    set('theme', next);
-  };
   const risk$ = ((draft.accountSize ?? 0) * (draft.maxRiskPerTrade ?? 0)) / 100;
 
   return (
@@ -158,25 +153,9 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
 
                 {/* ── how it reads ── */}
                 <Section title="Display">
-                  <Field label="Appearance">
-                    <span className="flex items-center gap-0.5 rounded bg-foreground/5 p-0.5">
-                      <button onClick={() => setAppearance('dark')}
-                        className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                          theme !== 'night' && theme !== 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#3b8cff)]' : 'text-muted-foreground hover:text-foreground')}>
-                        <Monitor className="h-3 w-3" /> Terminal
-                      </button>
-                      <button onClick={() => setAppearance('night')}
-                        className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                          theme === 'night' ? 'bg-foreground/10 text-[var(--brand-cyan,#3b8cff)]' : 'text-muted-foreground hover:text-foreground')}>
-                        <Moon className="h-3 w-3" /> Night
-                      </button>
-                      {/* The reference-terminal palette, verbatim — see .terminal-nexus in index.css */}
-                      <button onClick={() => setAppearance('nexus')}
-                        className={cn('flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-label font-mono uppercase tracking-wider transition-colors',
-                          theme === 'nexus' ? 'bg-foreground/10 text-[var(--brand-cyan,#3b8cff)]' : 'text-muted-foreground hover:text-foreground')}>
-                        <Zap className="h-3 w-3" /> Nexus
-                      </button>
-                    </span>
+                  <Field label="Mode">
+                    {/* Per device (lib/visual-mode.ts) — applies instantly, not part of Save. */}
+                    <ModePicker />
                   </Field>
                   <Field label="Density">
                     <Seg options={DENSITIES} value={draft.layoutDensity ?? 'comfortable'} onChange={(v) => set('layoutDensity', v as any)} />

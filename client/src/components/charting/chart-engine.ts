@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { subscribeLivePrice, type LiveTick } from '@/lib/live-price-bus';
+import { modeVersion } from '@/lib/visual-mode';
 
 /* ────────────────────────────────────────────────────────────────
    DATA
@@ -360,9 +361,59 @@ function buildGeometry(
   };
 }
 
+/* ────────────────────────────────────────────────────────────────
+   PALETTE — the canvas reads the ACTIVE visual mode's tokens
+   (lib/visual-mode.ts, styles/modes.css): --lx-accent / gain / loss /
+   caution / dim / marker / surface / text / accent-ink. Resolved once per
+   mode change (modeVersion), never per frame. Fallbacks = the dark palette.
+   ──────────────────────────────────────────────────────────────── */
+export interface ChartPalette {
+  accent: string; gain: string; loss: string; caution: string; dim: string; marker: string;
+  surface: string; text: string; ink: string;
+  /** alpha multipliers: High contrast draws grid/axes at full strength */
+  gridA: number; axisA: number;
+}
+const DARK_PALETTE: ChartPalette = {
+  accent: '#3b8cff', gain: '#6ee7b7', loss: '#ff6b3d', caution: '#facc15', dim: '#8b93a3', marker: '#a78bfa',
+  surface: '#0e1117', text: '#e8ecf3', ink: '#031917', gridA: 1, axisA: 1,
+};
+let paletteCache: { v: number; p: ChartPalette } | null = null;
+export function chartPalette(el?: Element | null): ChartPalette {
+  const v = modeVersion();
+  if (paletteCache && paletteCache.v === v) return paletteCache.p;
+  if (typeof window === 'undefined' || typeof getComputedStyle === 'undefined') return DARK_PALETTE;
+  const cs = getComputedStyle(el ?? document.documentElement);
+  const tok = (name: string, fb: string) => cs.getPropertyValue(name).trim() || fb;
+  const contrast = document.documentElement.getAttribute('data-mode') === 'contrast';
+  const p: ChartPalette = {
+    accent: tok('--lx-accent', DARK_PALETTE.accent),
+    gain: tok('--lx-gain', DARK_PALETTE.gain),
+    loss: tok('--lx-loss', DARK_PALETTE.loss),
+    caution: tok('--lx-caution', DARK_PALETTE.caution),
+    dim: tok('--lx-dim', DARK_PALETTE.dim),
+    marker: tok('--lx-marker', DARK_PALETTE.marker),
+    surface: tok('--lx-surface', DARK_PALETTE.surface),
+    text: tok('--lx-text', DARK_PALETTE.text),
+    ink: tok('--lx-accent-ink', DARK_PALETTE.ink),
+    gridA: contrast ? 4 : 1,
+    axisA: contrast ? 1.6 : 1,
+  };
+  paletteCache = { v, p };
+  return p;
+}
+/** '#rrggbb' / '#rgb' + alpha → rgba(); anything else is returned unchanged. */
+export function withAlpha(color: string, a: number): string {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+  if (!m) return color;
+  const h = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1];
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${Math.max(0, Math.min(1, a))})`;
+}
+
 export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opts: DrawOpts): ChartGeometry | null {
   const ctx = chartCanvas.getContext('2d');
   if (!ctx) return null;
+  const pal = chartPalette(chartCanvas);
   const rect = chartCanvas.getBoundingClientRect();
   const w = rect.width; const h = rect.height;
   chartCanvas.width = w * devicePixelRatio;
@@ -397,7 +448,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   const priceRange = max - min || 1;
 
   // Grid + price labels
-  ctx.strokeStyle = 'rgba(59,140,255, 0.05)';
+  ctx.strokeStyle = withAlpha(pal.accent, 0.05 * pal.gridA);
   ctx.lineWidth = 1;
   const gridLines = 6;
   for (let i = 0; i <= gridLines; i++) {
@@ -407,14 +458,14 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     ctx.lineTo(w - padding.right, y);
     ctx.stroke();
     const price = max - (priceRange / gridLines) * i;
-    ctx.fillStyle = 'rgba(139, 147, 163, 0.6)';
+    ctx.fillStyle = withAlpha(pal.dim, 0.6 * pal.axisA);
     ctx.font = '10px "JetBrains Mono", monospace';
     ctx.textAlign = 'left';
     ctx.fillText(price.toFixed(2), w - padding.right + 8, y + 3);
   }
 
   // Time labels
-  ctx.fillStyle = 'rgba(139, 147, 163, 0.5)';
+  ctx.fillStyle = withAlpha(pal.dim, 0.5 * pal.axisA);
   ctx.font = '9.5px "JetBrains Mono", monospace';
   ctx.textAlign = 'center';
   const timeStep = Math.max(1, Math.floor(candles.length / 6));
@@ -433,10 +484,10 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     if (bot > max || top < min) continue;
     const y1 = padding.top + ((max - Math.min(top, max)) / priceRange) * priceH;
     const y2 = padding.top + ((max - Math.max(bot, min)) / priceRange) * priceH;
-    ctx.fillStyle = (z.color ?? '#facc15') + '14';
+    ctx.fillStyle = withAlpha(z.color ?? pal.caution, 0.08);
     ctx.fillRect(padding.left, y1, chartW, Math.max(1, y2 - y1));
     if (z.label) {
-      ctx.fillStyle = (z.color ?? '#facc15') + '99';
+      ctx.fillStyle = withAlpha(z.color ?? pal.caution, 0.6);
       ctx.font = '700 8px "JetBrains Mono", monospace';
       ctx.textAlign = 'right';
       ctx.fillText(z.label, w - padding.right - 4, y1 + 9);
@@ -502,8 +553,8 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     ctx.stroke();
   };
   if (showMA) {
-    strokeMA(ma50, 'rgba(167, 139, 250, 0.6)');
-    strokeMA(ma20, 'rgba(59,140,255, 0.7)');
+    strokeMA(ma50, withAlpha(pal.marker, 0.6));
+    strokeMA(ma20, withAlpha(pal.accent, 0.7));
   }
 
   // Volume bars
@@ -520,7 +571,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   if (opts.showVolume !== false) candles.forEach((c, i) => {
     const x = padding.left + i * candleW;
     const barH = maxVol > 0 ? (c.volume / maxVol) * volumeH : 0;
-    ctx.fillStyle = c.close >= c.open ? 'rgba(110,231,183, 0.25)' : 'rgba(255,107,61, 0.25)';
+    ctx.fillStyle = withAlpha(c.close >= c.open ? pal.gain : pal.loss, 0.25);
     ctx.fillRect(x + candleW * 0.15, volTop + volumeH - barH, candleW * 0.7, barH);
   });
 
@@ -545,7 +596,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     }
     if (best >= 0) {
       const sx = padding.left + best * candleW + candleW / 2;
-      ctx.strokeStyle = 'rgba(110,231,219,0.35)';
+      ctx.strokeStyle = withAlpha(pal.gain, 0.35);
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 4]);
       ctx.beginPath(); ctx.moveTo(sx, padding.top); ctx.lineTo(sx, padding.top + priceH); ctx.stroke();
@@ -561,7 +612,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
       const x = padding.left + i * candleW;
       const cx = x + candleW / 2;
       const isUp = c.close >= c.open;
-      const color = isUp ? '#6ee7b7' : '#ff6b3d';
+      const color = isUp ? pal.gain : pal.loss;
       const openY = padding.top + ((max - c.open) / priceRange) * priceH;
       const closeY = padding.top + ((max - c.close) / priceRange) * priceH;
       const rendered = renderedCandleRange(c);
@@ -579,14 +630,14 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
       ctx.fillStyle = color;
       ctx.fillRect(cx - bodyW / 2, bodyTop, bodyW, bodyH);
       if (i === hoveredIdx) {
-        ctx.fillStyle = color + '30';
+        ctx.fillStyle = withAlpha(color, 0.19);
         ctx.fillRect(x, padding.top, candleW, priceH + volumeH + 10);
       }
     });
   } else {
     const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + priceH);
-    grad.addColorStop(0, 'rgba(59,140,255, 0.25)');
-    grad.addColorStop(1, 'rgba(59,140,255, 0)');
+    grad.addColorStop(0, withAlpha(pal.accent, 0.25));
+    grad.addColorStop(1, withAlpha(pal.accent, 0));
     ctx.beginPath();
     candles.forEach((c, i) => {
       const x = padding.left + (i / (candles.length - 1)) * chartW;
@@ -604,9 +655,9 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
       const y = padding.top + ((max - c.close) / priceRange) * priceH;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
-    ctx.strokeStyle = '#3b8cff';
+    ctx.strokeStyle = pal.accent;
     ctx.lineWidth = 1.8;
-    ctx.shadowColor = '#3b8cff';
+    ctx.shadowColor = pal.accent;
     ctx.shadowBlur = 8;
     ctx.stroke();
     ctx.shadowBlur = 0;
@@ -617,7 +668,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   // Current price line + tag
   const lastCandle = candles[candles.length - 1];
   const lastY = padding.top + ((max - lastCandle.close) / priceRange) * priceH;
-  ctx.strokeStyle = 'rgba(59,140,255, 0.5)';
+  ctx.strokeStyle = withAlpha(pal.accent, 0.5);
   ctx.lineWidth = 1;
   ctx.setLineDash([2, 3]);
   ctx.beginPath();
@@ -625,9 +676,9 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
   ctx.lineTo(w - padding.right, lastY);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = '#3b8cff';
+  ctx.fillStyle = pal.accent;
   ctx.fillRect(w - padding.right, lastY - 9, 60, 18);
-  ctx.fillStyle = '#031917';
+  ctx.fillStyle = pal.ink;
   ctx.font = '700 10px "JetBrains Mono", monospace';
   ctx.textAlign = 'left';
   ctx.fillText(lastCandle.close.toFixed(2), w - padding.right + 6, lastY + 3);
@@ -635,7 +686,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
 
   // Crosshair
   if (inPlot) {
-    ctx.strokeStyle = 'rgba(59,140,255, 0.3)';
+    ctx.strokeStyle = withAlpha(pal.accent, 0.3 * pal.axisA);
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -646,11 +697,11 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
     ctx.stroke();
     ctx.setLineDash([]);
     const cursorPrice = max - ((opts.mouseY - padding.top) / priceH) * priceRange;
-    ctx.fillStyle = 'rgba(14,17,23,0.9)';
+    ctx.fillStyle = withAlpha(pal.surface, 0.94);
     ctx.fillRect(w - padding.right, opts.mouseY - 9, 60, 18);
-    ctx.strokeStyle = 'rgba(59,140,255, 0.5)';
+    ctx.strokeStyle = withAlpha(pal.accent, 0.5);
     ctx.strokeRect(w - padding.right, opts.mouseY - 9, 60, 18);
-    ctx.fillStyle = '#e8ecf3';
+    ctx.fillStyle = pal.text;
     ctx.font = '600 10px "JetBrains Mono", monospace';
     ctx.textAlign = 'left';
     ctx.fillText(cursorPrice.toFixed(2), w - padding.right + 6, opts.mouseY + 3);

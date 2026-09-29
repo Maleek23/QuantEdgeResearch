@@ -13,8 +13,8 @@ import { onWorkup } from '@/lib/workup-bus';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Bitcoin, Bot, BookOpen, CalendarDays, CandlestickChart, Grid3X3,
-  LogOut, Moon, MoreHorizontal, Radar, Search, SlidersHorizontal,
-  TrendingUp, UserRound, Wallet, X, Zap, Bell, Settings, Sun,
+  LogOut, MoreHorizontal, Radar, Search, SlidersHorizontal,
+  TrendingUp, UserRound, Wallet, X, Zap, Bell, Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE } from '@/lib/motion';
@@ -29,6 +29,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ConvictionsResponse } from '@/lib/convictions';
 import { useStockContext } from '@/contexts/stock-context';
 import { useTheme } from '@/components/theme-provider';
+import { ModeMenuItems } from '@/components/shell/mode-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { KitStyles } from '@/components/templates/kit';
 import quantEdgeLogoUrl from '@assets/qe-mark.svg';
@@ -208,7 +209,7 @@ export default function TerminalShell() {
     setLocation(`/r/${encodeURIComponent(sym)}?${params.toString()}`);
   }, [setCurrentStock, setLocation, tab]);
   useEffect(() => onWorkup((sym) => openResearch(sym)), [openResearch]);
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   const { user, logout } = useAuth();
   const { data: health } = useQuery<{
     status?: string;
@@ -227,10 +228,6 @@ export default function TerminalShell() {
     refetchInterval: 60_000,
     retry: 0,
   });
-  const nexusLight = theme === 'nexus-light';
-  // The chrome button is the ☀/☾ from the reference topbar: dark blue ↔ light.
-  // Night/dark remain reachable from the settings panel's labelled picker.
-  const nextTheme = nexusLight ? 'nexus' as const : 'nexus-light' as const;
   // Server-side truth (server/data-provider-health.ts): partial only when a feed
   // the product actually uses is down — never because of a retired provider.
   const dataPartial = health?.dataPartial === true;
@@ -327,7 +324,7 @@ export default function TerminalShell() {
               <LuxMenuSeparator />
               <LuxMenuItem icon={<Bell />} end={alerts.unread > 0 ? alerts.unread : undefined} onSelect={() => { setAlertsOpen(true); alerts.setUnread(0); }}>Alerts</LuxMenuItem>
               <LuxMenuItem icon={<BookOpen />} onSelect={() => setGuideOpen(true)}>Guide</LuxMenuItem>
-              <LuxMenuItem icon={nexusLight ? <Moon /> : <Sun />} onSelect={() => setTheme(nextTheme)}>{nexusLight ? 'Dark mode' : 'Light mode'}</LuxMenuItem>
+              <ModeMenuItems />
               <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display & layout</LuxMenuItem>
               <LuxMenuItem icon={<UserRound />} onSelect={() => setSettingsOpen(true)}>Preferences & risk</LuxMenuItem>
               <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Full account settings</LuxMenuItem>

@@ -8,6 +8,7 @@ import { ChevronUp, ChevronDown, RotateCcw, X } from 'lucide-react';
 import {
   usePrefs, setPrefs, resetPrefs, movePanel, CARD_PARTS, LEFT_PANELS, RIGHT_PANELS, type BoardPrefs,
 } from '@/lib/board-prefs';
+import { ModePicker } from '@/components/shell/mode-menu';
 
 type RailMode = 'min' | 'hidden' | 'shown' | undefined;
 
@@ -81,6 +82,7 @@ export function CustomizePanel({ open, onClose, railUi, setRail, explainCards, o
 
         <section>
           <h3>Look</h3>
+          <div className="qc-row qc-row-stack"><span className="qc-name">Mode<small>Dark · Midnight (OLED) · Dim · Light · High contrast</small></span><ModePicker /></div>
           <label className="qc-row">
             <span className="qc-name">Calm mode<small>No moving background, glow or pulsing</small></span>
             <input type="checkbox" className="qc-switch" checked={p.calm} onChange={(e) => setPrefs({ calm: e.target.checked })} />

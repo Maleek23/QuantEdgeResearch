@@ -1,0 +1,368 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   VISUAL MODES — token overrides on html[data-mode] (lib/visual-mode.ts).
+
+     dark      the default: lux.css :root, nexus.css .nexus-vars, index.css
+               .dark.terminal-nexus — nothing here re-values it
+     midnight  true-black OLED ground, text one step dimmer, same accents
+     dim       softer dark grey ground; accents re-tuned for contrast on grey
+     light     lux.css html.light, nexus.css .nexus-vars.light, index.css
+               .light.terminal-nexus-light — nothing here re-values it
+     contrast  WCAG AAA (≥ 7:1) body text on every ground, solid borders,
+               3px focus rings, no translucency, no glow
+
+   Three token families move together in every mode:
+     --lx-*        lux primitives (set on <html>)
+     --bg/--text/--cyan/…, --gx-*   the NEXUS terminal palette + GEX ramp
+                   (set on .nexus-vars, so the override targets .nexus-vars
+                   under the mode — specificity 0,2,1 beats .nexus-vars 0,1,0)
+     --background/--foreground/…   shadcn HSL triplets (html.dark[data-mode]
+                   0,2,1 beats .dark.terminal-nexus 0,2,0)
+
+   CVD-safe semantics hold in every mode — accent blue (#3b8cff family),
+   gain mint (#6ee7b7 family), loss vermilion (#ff6b3d family), caution
+   yellow (#facc15 family) — re-tuned only in lightness for each ground.
+   Measured contrast: docs/DESIGN_SYSTEM.md "Visual modes".
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ───────────────────────── MIDNIGHT (OLED) ───────────────────────── */
+html[data-mode="midnight"] {
+  --lx-bg: #000000;
+  --lx-bg-2: #030406;
+  --lx-surface: #07080b;
+  --lx-surface-2: #0b0d12;
+  --lx-surface-hi: #12151c;
+  --lx-line: rgba(59, 140, 255, 0.09);
+  --lx-line-hi: rgba(59, 140, 255, 0.2);
+  --lx-text: #d6dbe4;   /* 15.1:1 on #000 — a step under dark's #e8ecf3 */
+  --lx-dim: #868e9d;    /*  6.4:1 */
+  --lx-mute: #7a8394;   /*  5.5:1 on #000, 4.8:1 on --lx-surface-hi */
+  --lx-accent-ink: #000000;
+  --lx-title-from: #d6dbe4;
+  --lx-overlay: rgba(0, 0, 0, 0.72);
+  --lx-grid: rgba(134, 142, 157, 0.1);
+  --lx-baseline: rgba(134, 142, 157, 0.3);
+}
+html.dark[data-mode="midnight"] {
+  --background: 0 0% 0%;
+  --foreground: 219 21% 87%;
+  --card: 225 22% 4%;
+  --card-foreground: 219 21% 87%;
+  --popover: 225 22% 4%;
+  --popover-foreground: 219 21% 87%;
+  --secondary: 223 24% 6%;
+  --muted: 223 24% 6%;
+  --secondary-foreground: 219 11% 57%;
+  --muted-foreground: 219 11% 57%;
+  --border: 220 31% 11%;
+  --card-border: 220 32% 13%;
+  --input: 225 22% 4%;
+  --surface-base: #000000;
+  --surface-raised: #07080b;
+  --surface-overlay: rgba(0, 0, 0, 0.92);
+  --surface-glass: rgba(7, 8, 11, 0.78);
+  --terminal-bg: #07080b;
+  --terminal-bg-secondary: #030406;
+  --terminal-bg-tertiary: #0b0d12;
+  --terminal-text: #d6dbe4;
+  --terminal-text-secondary: #868e9d;
+  --terminal-text-muted: #7a8394;
+}
+html[data-mode="midnight"] .nexus-vars {
+  --bg: #000000;
+  --bg-2: #030406;
+  --panel: rgba(7, 8, 11, 0.78);
+  --panel-solid: #07080b;
+  --panel-2: #0b0d12;
+  --panel-hi: #12151c;
+  --nx-border: rgba(59, 140, 255, 0.07);
+  --nx-border-hi: rgba(59, 140, 255, 0.16);
+  --text: #d6dbe4;
+  --text-dim: #868e9d;
+  --text-mute: #7a8394;
+  --gx-pos-0: #15294a; --gx-pos-1: #3680dd; --gx-pos-2: #a4d8fe;
+  --gx-neg-0: #3f1d11; --gx-neg-1: #de6129; --gx-neg-2: #ffc898;
+  --gx-ink-lo: #d6dbe4; --gx-ink-hi: #000000; --gx-zero: #000000;
+}
+/* The vignette darkens toward black; on a black ground it only costs contrast. */
+html[data-mode="midnight"] .qe-terminal::after { display: none; }
+
+/* ───────────────────────── DIM (soft grey) ───────────────────────── */
+html[data-mode="dim"] {
+  --lx-bg: #1a1e26;
+  --lx-bg-2: #1e232c;
+  --lx-surface: #232933;
+  --lx-surface-2: #29303b;
+  --lx-surface-hi: #303744;
+  --lx-line: rgba(160, 175, 200, 0.14);
+  --lx-line-hi: rgba(160, 175, 200, 0.26);
+  --lx-text: #e6e9ef;         /* 13.7:1 on --lx-bg, 9.8:1 on --lx-surface-hi */
+  --lx-dim: #b0b8c6;          /*  8.4:1 / 6.0:1 */
+  --lx-mute: #a2abba;         /*  7.2:1 / 5.2:1 */
+  --lx-accent: #66a4ff;       /* fills + rules: 6.6:1 on --lx-bg, 4.7:1 on --lx-surface-hi */
+  --lx-accent-text: #93c1ff;  /* accent as text: 9.0:1 / 6.4:1 */
+  --lx-accent-ink: #0b1220;
+  --lx-gain: #78ebbf;
+  --lx-loss: #ff8f66;         /* 7.5:1 / 5.3:1 */
+  --lx-caution: #fad33d;
+  --lx-info: #7fb4ff;
+  --lx-marker: #b9a3ff;
+  --lx-hover: rgba(255, 255, 255, 0.05);
+  --lx-hover-strong: rgba(255, 255, 255, 0.085);
+  --lx-active-bg: rgba(102, 164, 255, 0.16);
+  --lx-overlay: rgba(10, 12, 16, 0.6);
+  --lx-title-from: #e6e9ef;
+  --lx-grid: rgba(176, 184, 198, 0.13);
+  --lx-baseline: rgba(176, 184, 198, 0.34);
+  --lx-series-1: #66a4ff;
+  --lx-series-4: #7fb4ff;
+  --lx-series-6: #b0b8c6;
+}
+html.dark[data-mode="dim"] {
+  --background: 220 19% 13%;
+  --foreground: 220 22% 92%;
+  --card: 218 19% 17%;
+  --card-foreground: 220 22% 92%;
+  --popover: 218 19% 17%;
+  --popover-foreground: 220 22% 92%;
+  --secondary: 217 18% 20%;
+  --muted: 217 18% 20%;
+  --secondary-foreground: 218 16% 73%;
+  --muted-foreground: 218 16% 73%;
+  --border: 218 18% 27%;
+  --card-border: 219 17% 30%;
+  --input: 217 18% 20%;
+  --accent: 216 100% 70%;
+  --accent-foreground: 220 45% 8%;
+  --ring: 216 100% 70%;
+  --destructive: 16 100% 70%;
+  --chart-4: 16 100% 70%;
+  --surface-base: #1a1e26;
+  --surface-raised: #232933;
+  --surface-overlay: rgba(26, 30, 38, 0.94);
+  --surface-glass: rgba(35, 41, 51, 0.86);
+  --surface-glass-border: rgba(160, 175, 200, 0.2);
+  --terminal-bg: #232933;
+  --terminal-bg-secondary: #1e232c;
+  --terminal-bg-tertiary: #29303b;
+  --terminal-border: rgba(160, 175, 200, 0.14);
+  --terminal-border-hover: rgba(160, 175, 200, 0.26);
+  --terminal-text: #e6e9ef;
+  --terminal-text-secondary: #b0b8c6;
+  --terminal-text-muted: #a2abba;
+  --brand-cyan: #66a4ff;
+  --brand-teal: #66a4ff;
+  --trade-bullish: #78ebbf;
+  --trade-bullish-bg: rgba(120, 235, 191, 0.1);
+  --trade-bearish: #ff8f66;
+  --trade-bearish-bg: rgba(255, 143, 102, 0.1);
+  --trade-neutral: #fad33d;
+  --trade-neutral-bg: rgba(250, 211, 61, 0.1);
+  --grade-s: #78ebbf;
+  --grade-a: #66a4ff;
+  --grade-c: #b0b8c6;
+  --grade-f: #ff8f66;
+}
+html[data-mode="dim"] .nexus-vars {
+  --bg: #1a1e26;
+  --bg-2: #1e232c;
+  --panel: rgba(35, 41, 51, 0.86);
+  --panel-solid: #232933;
+  --panel-2: #29303b;
+  --panel-hi: #303744;
+  --nx-border: rgba(160, 175, 200, 0.13);
+  --nx-border-hi: rgba(160, 175, 200, 0.26);
+  --nx-border-glow: rgba(102, 164, 255, 0.4);
+  --text: #e6e9ef;
+  --text-dim: #b0b8c6;
+  --text-mute: #a2abba;
+  --cyan: #66a4ff;
+  --cyan-bright: #93c1ff;
+  --cyan-dim: #3a6fbf;
+  --green: #78ebbf;
+  --red: #ff8f66;
+  --amber: #fad33d;
+  --purple: #b9a3ff;
+  --blue: #7fb4ff;
+  --pink: #f58cc4;
+  --gx-pos-0: #2a4466; --gx-pos-1: #3f86e0; --gx-pos-2: #a9dafe;
+  --gx-neg-0: #5a3324; --gx-neg-1: #e0692f; --gx-neg-2: #ffcba0;
+  --gx-ink-lo: #eef1f6; --gx-ink-hi: #07121f; --gx-zero: #232933;
+}
+
+/* The NEXUS stylesheet paints a few chrome surfaces with literal near-black
+   rgba() (the mock's). On the grey ground they would read as black bands, so
+   Dim re-grounds them on its own panels; High contrast makes them solid. */
+html[data-mode="dim"] .nexus-vars :is(.topbar, .sec-head, .filters, .bottombar, .chart-header, .flow-header, .filters-bar, .prism-header, .leaps-header, .crypto-header),
+html[data-mode="dim"] :is(.botlab .bot-header, .botlab .sec-head, .catalystlab .catalyst-header, .catalystlab .sec-head, .workuplab .workup-head, .workuplab .workup-foot) {
+  background: color-mix(in srgb, var(--bg-2) 94%, transparent);
+}
+html[data-mode="dim"] .nexus-vars :is(.search, .user-chip, .mode-toggle, .timeframe-bar, .instrument-menu, .chart-info-overlay, .crosshair-tip, .quad-wrap),
+html[data-mode="dim"] .nexus-vars .chart-controls .chart-ctrl {
+  background: var(--panel);
+}
+html[data-mode="dim"] .nexus-vars .ticker-tape { background: linear-gradient(90deg, var(--bg-2), var(--panel-solid), var(--bg-2)); }
+html[data-mode="dim"] .nexus-vars :is(.chartlab, .flowlab) .sidebar,
+html[data-mode="dim"] :is(.workuplab .workup-left, .workuplab .workup-right, .workuplab .workup-tabs) { background: var(--bg-2); }
+html[data-mode="dim"] .qe-terminal::after { background: radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / .14) 100%); }
+
+/* ───────────────────────── HIGH CONTRAST ───────────────────────── */
+html[data-mode="contrast"] {
+  --lx-bg: #000000;
+  --lx-bg-2: #000000;
+  --lx-surface: #0a0a0c;
+  --lx-surface-2: #101115;
+  --lx-surface-hi: #17191f;
+  --lx-line: #7d8698;         /* solid hairlines: 5.7:1 against #000 (non-text ≥ 3:1) */
+  --lx-line-hi: #aab3c2;
+  --lx-text: #ffffff;         /* 21:1 / 17.6:1 on --lx-surface-hi */
+  --lx-dim: #e2e6ed;          /* 16.8:1 / 14.0:1 */
+  --lx-mute: #cdd3dd;         /* 14.0:1 / 11.7:1 — AAA even for the faintest tier */
+  --lx-accent: #7ab2ff;       /*  9.6:1 / 8.1:1 */
+  --lx-accent-text: #a9cbff;  /* 12.7:1 / 10.6:1 */
+  --lx-accent-ink: #000000;
+  --lx-gain: #86f2c8;         /* 15.5:1 / 13.0:1 */
+  --lx-loss: #ff9a73;         /* 10.1:1 /  8.5:1 */
+  --lx-caution: #ffdc55;      /* 15.6:1 / 13.1:1 */
+  --lx-info: #a9cbff;
+  --lx-marker: #c9b8ff;
+  --lx-hover: #1f2229;
+  --lx-hover-strong: #2a2e37;
+  --lx-active-bg: #1b2c47;
+  --lx-overlay: rgba(0, 0, 0, 0.9);
+  --lx-shadow-pop: 0 0 0 1px #aab3c2;
+  --lx-shadow-sheen: none;
+  --lx-title-from: #ffffff;
+  --lx-grid: #3a3f4a;
+  --lx-baseline: #7d8698;
+  --lx-series-1: #7ab2ff;
+  --lx-series-2: #ffdc55;
+  --lx-series-3: #c9b8ff;
+  --lx-series-4: #a9cbff;
+  --lx-series-5: #ff9fd0;
+  --lx-series-6: #cdd3dd;
+  --lx-focus: #ffffff;
+}
+html.dark[data-mode="contrast"] {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 240 9% 4%;
+  --card-foreground: 0 0% 100%;
+  --popover: 240 9% 4%;
+  --popover-foreground: 0 0% 100%;
+  --secondary: 228 14% 7%;
+  --muted: 228 14% 7%;
+  --secondary-foreground: 218 23% 91%;
+  --muted-foreground: 218 23% 91%;
+  --border: 220 12% 54%;
+  --card-border: 220 12% 54%;
+  --input: 228 14% 7%;
+  --accent: 215 100% 74%;
+  --accent-foreground: 0 0% 0%;
+  --ring: 0 0% 100%;
+  --destructive: 17 100% 73%;
+  --destructive-foreground: 0 0% 0%;
+  --chart-4: 17 100% 73%;
+  --surface-base: #000000;
+  --surface-raised: #0a0a0c;
+  --surface-overlay: #0a0a0c;
+  --surface-glass: #0a0a0c;
+  --surface-glass-border: #7d8698;
+  --terminal-bg: #0a0a0c;
+  --terminal-bg-secondary: #000000;
+  --terminal-bg-tertiary: #101115;
+  --terminal-border: #7d8698;
+  --terminal-border-hover: #aab3c2;
+  --terminal-text: #ffffff;
+  --terminal-text-secondary: #e2e6ed;
+  --terminal-text-muted: #cdd3dd;
+  --brand-cyan: #7ab2ff;
+  --brand-teal: #7ab2ff;
+  --brand-blue: #a9cbff;
+  --brand-gold: #ffdc55;
+  --trade-bullish: #86f2c8;
+  --trade-bullish-bg: #0d2a20;
+  --trade-bullish-bg-subtle: #08180f;
+  --trade-bearish: #ff9a73;
+  --trade-bearish-bg: #2e1509;
+  --trade-bearish-bg-subtle: #1a0c05;
+  --trade-neutral: #ffdc55;
+  --trade-neutral-bg: #2b2408;
+  --trade-neutral-bg-subtle: #171304;
+  --grade-s: #86f2c8;
+  --grade-a: #7ab2ff;
+  --grade-b: #ffdc55;
+  --grade-c: #cdd3dd;
+  --grade-d: #ffb27a;
+  --grade-f: #ff9a73;
+  --shadow-sm: none; --shadow: none; --shadow-md: none; --shadow-lg: none; --shadow-xl: none; --shadow-2xl: none;
+}
+html[data-mode="contrast"] .nexus-vars {
+  --bg: #000000;
+  --bg-2: #000000;
+  --panel: #0a0a0c;            /* solid — no translucency in this mode */
+  --panel-solid: #0a0a0c;
+  --panel-2: #101115;
+  --panel-hi: #17191f;
+  --nx-border: #7d8698;
+  --nx-border-hi: #aab3c2;
+  --nx-border-glow: #ffffff;
+  --text: #ffffff;
+  --text-dim: #e2e6ed;
+  --text-mute: #cdd3dd;
+  --cyan: #7ab2ff;
+  --cyan-bright: #a9cbff;
+  --cyan-dim: #2f5fa8;
+  --green: #86f2c8;
+  --red: #ff9a73;
+  --amber: #ffdc55;
+  --purple: #c9b8ff;
+  --blue: #a9cbff;
+  --pink: #ff9fd0;
+  --gx-pos-0: #1e3c6e; --gx-pos-1: #4a95ff; --gx-pos-2: #c4e6ff;
+  --gx-neg-0: #6a2f18; --gx-neg-1: #ff7a3d; --gx-neg-2: #ffd6b3;
+  --gx-ink-lo: #ffffff; --gx-ink-hi: #000000; --gx-zero: #000000;
+}
+/* No translucency: nothing blurs what is behind it, overlays are solid. */
+html[data-mode="contrast"] *,
+html[data-mode="contrast"] *::before,
+html[data-mode="contrast"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  text-shadow: none !important;
+}
+html[data-mode="contrast"] .qe-terminal::before,
+html[data-mode="contrast"] .qe-terminal::after,
+html[data-mode="contrast"] #bgCanvas { display: none !important; }
+html[data-mode="contrast"] .nexus-vars :is(.topbar, .sec-head, .filters, .bottombar, .chart-header, .flow-header, .filters-bar, .prism-header, .leaps-header, .crypto-header, .search, .user-chip, .mode-toggle, .timeframe-bar, .instrument-menu, .chart-info-overlay, .crosshair-tip, .quad-wrap, .ticker-tape),
+html[data-mode="contrast"] :is(.botlab .bot-header, .botlab .sec-head, .catalystlab .catalyst-header, .catalystlab .sec-head, .workuplab .workup-head, .workuplab .workup-foot, .workuplab .workup-left, .workuplab .workup-right, .workuplab .workup-tabs) {
+  background: var(--panel-solid) !important;
+}
+/* Gradient-clipped titles become plain text (a gradient end can fall below 7:1). */
+html[data-mode="contrast"] :is(.qe-ov2-title, .nexus-vars .sec-title, .nexus-vars .brand-name, .nexus-vars .pulse-ticker, .nexus-vars .chart-title, .nexus-vars .flow-title) {
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  color: var(--lx-text) !important;
+}
+/* Alpha-suffixed muted text (`text-muted-foreground/60`) composites below AAA;
+   in this mode every such tier is drawn at the token's full strength. */
+html[data-mode="contrast"] [class*="text-muted-foreground/"] { color: hsl(var(--muted-foreground)) !important; }
+html[data-mode="contrast"] [class*="text-foreground/"] { color: hsl(var(--foreground)) !important; }
+/* Thicker, unmissable focus: 3px white ring, offset off the control. */
+html[data-mode="contrast"] :focus-visible {
+  outline: 3px solid var(--lx-focus, #ffffff) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 5px #000000 !important;
+}
+
+/* ───────────────────────── the mode picker (components/shell/mode-menu.tsx) ───────────────────────── */
+.qe-mode-picker { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--lx-line); border-radius: var(--lx-radius); background: var(--lx-bg-2); }
+.qe-mode-opt {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px;
+  border: 1px solid transparent; border-radius: var(--lx-radius-sm); background: transparent;
+  color: var(--lx-dim); font: 600 12px/1 var(--lx-font-ui); cursor: pointer;
+}
+.qe-mode-opt:hover { background: var(--lx-hover-strong); color: var(--lx-text); }
+.qe-mode-opt.on { border-color: var(--lx-line-hi); background: var(--lx-active-bg); color: var(--lx-text); }
+.qe-mode-opt.on svg { color: var(--lx-accent-text); }
+.qe-mode-opt:focus-visible { outline: 2px solid var(--lx-accent); outline-offset: 1px; }
+.qc-row.qc-row-stack { flex-direction: column; align-items: stretch; }
