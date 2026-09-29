@@ -32164,6 +32164,19 @@ Use this checklist before entering any trade:
     }
   });
 
+  // SQUEEZE RADAR (docs/GAMMA_SQUEEZE.md) — scored at the end of each rankings
+  // cycle from the same chain reads; unvalidated, logged forward for scoring.
+  app.get("/api/gex-vex/squeeze-radar", requireBetaAccess, async (req, res) => {
+    try {
+      const { getSqueezeRadar } = await import('./squeeze-radar');
+      const limit = Math.max(5, Math.min(200, parseInt(String(req.query.limit ?? '40'), 10) || 40));
+      res.json(getSqueezeRadar(limit));
+    } catch (error: any) {
+      logger.error("Squeeze radar error", { error: error?.message });
+      res.status(500).json({ error: "Squeeze radar unavailable", message: error?.message });
+    }
+  });
+
   /**
    * GEX IDEA SCANNER — manual trigger
    * =================================

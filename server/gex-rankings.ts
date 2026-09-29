@@ -48,6 +48,7 @@ import {
 import { classifyGammaRegime } from '../shared/gex-regime';
 import { detectMagnets, MAGNET_RULES, type MagnetSetup, type MagnetStrikeAgg } from './gex-magnet';
 import { magnetActionStats } from './gex-magnet-actions';
+import { extractSqueezeChainInputs, type SqueezeChainInputs } from '../shared/squeeze-radar';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -105,6 +106,8 @@ export interface GexRankRow {
   openInterestDate: string | null;
   quoteTime: string | null;         // provider payload timestamp (UTC), ISO
   fetchedAt: string;                // when WE pulled it, ISO
+  /** Squeeze-radar chain read from the same parse (shared/squeeze-radar.ts); absent on rows persisted before it existed. */
+  squeeze?: SqueezeChainInputs | null;
 }
 
 export type GexRankView = 'setups' | 'magnet' | 'negVex' | 'lowGexPlus' | 'pins';
@@ -146,6 +149,12 @@ export const SIGN_CONVENTION_NOTE = SHARED_SIGN_NOTE;
 
 /** Liquid high-beta names the operator wants covered regardless of tiering. */
 export const HIGH_BETA_EXTRAS = ['BE', 'STX', 'MSTR', 'COIN', 'SMCI', 'PLTR', 'TSLA', 'NVDA', 'AMD', 'SNDK', 'MU', 'WDC'];
+/**
+ * Squeeze-radar watch names (docs/GAMMA_SQUEEZE.md): the operator's case-study
+ * names and watchlist names that are not already in the tiers. Same queue, same
+ * pacing — they only join the one chain read per ticker per cycle.
+ */
+export const SQUEEZE_WATCH = ['IONQ', 'RKLB', 'SPCE', 'ASTS', 'BE', 'AMD', 'TSLA', 'LUNR', 'OKLO', 'AAOI', 'CRCL', 'CRWV', 'NBIS', 'APP', 'RGTI', 'QBTS', 'HOOD'];
 
 const FETCH_SPACING_MS = 1500;
 const MARKET_CADENCE_MS = 10 * 60_000;
@@ -329,6 +338,8 @@ export function computeRankRowFromCboe(
   const read = classifyGammaRegime({ netGEX, grossGEX, spot: S, zeroGamma: profile.zeroGamma });
 
   const iv30 = Number(d?.iv30);
+  let squeeze: SqueezeChainInputs | null = null;
+  try { squeeze = extractSqueezeChainInputs(parsed, S, now); } catch { squeeze = null; }
   return {
     symbol: symbol.toUpperCase(),
     spot: S,
@@ -355,6 +366,7 @@ export function computeRankRowFromCboe(
     openInterestDate: meta.openInterestDate ?? null,
     quoteTime: parseCboeTimestamp(payload?.timestamp),
     fetchedAt: new Date(fetchedAt).toISOString(),
+    squeeze,
   };
 }
 
@@ -475,6 +487,7 @@ async function buildUniverse(): Promise<string[]> {
   add('gexScan', [...INDEX_TICKERS, ...S_TIER, ...A_TIER, ...SECONDARY, ...SMALL_ACCOUNT_TIER] as string[]);
   // 2) liquid high-beta names
   add('highBeta', HIGH_BETA_EXTRAS);
+  add('squeezeWatch', SQUEEZE_WATCH);
   // 3) today's top movers (mover-discovery; has its own fallback cache when Yahoo 429s)
   // discoverMovers() hits Yahoo and records attention, so call it at most every
   // 30 min from here; between calls the last top-N list is reused.
@@ -514,7 +527,7 @@ async function buildUniverse(): Promise<string[]> {
   universeInfo = { total: out.size, sources };
   // Movers + high-beta first: they are the reason this ranking exists, and a
   // rate-limit abort mid-cycle should cost the long tail, not them.
-  const priority = new Set([...HIGH_BETA_EXTRAS, ...moverSyms, ...leaderSyms]);
+  const priority = new Set([...HIGH_BETA_EXTRAS, ...SQUEEZE_WATCH, ...moverSyms, ...leaderSyms]);
   return [...out].sort((a, b) => Number(priority.has(b)) - Number(priority.has(a)));
 }
 
@@ -558,6 +571,12 @@ export async function runRankingCycle(): Promise<void> {
     } catch (e: any) {
       logger.warn(`[GEX-RANK] setup actions failed: ${e?.message ?? e}`);
     }
+    try {
+      const { runSqueezeRadarCycle } = await import('./squeeze-radar');
+      await runSqueezeRadarCycle([...rows.values()]);
+    } catch (e: any) {
+      logger.warn(`[GEX-RANK] squeeze radar failed: ${e?.message ?? e}`);
+    }
   } catch (e: any) {
     cycle.aborted = `cycle error: ${e?.message ?? 'unknown'}`;
     logger.error('[GEX-RANK] cycle failed', { error: e?.message });
@@ -589,7 +608,8 @@ export function getGexRankings(limit = 30): GexRankingsPayload {
   const list = [...rows.values()];
   const aged = list.map((r) => {
     const ageSec = Math.max(0, Math.round((now - Date.parse(r.fetchedAt)) / 1000));
-    return { ...r, setups: r.setups ?? [], ageSec, stale: ageSec * 1000 > staleAfter };
+    const { squeeze: _squeeze, ...lean } = r; // the radar serves its own payload
+    return { ...lean, setups: r.setups ?? [], ageSec, stale: ageSec * 1000 > staleAfter };
   });
   const setups = aged
     .flatMap((r) => r.setups.map((x) => ({ ...x, ageSec: r.ageSec, stale: r.stale, dataSource: r.dataSource, spot: r.spot })))
