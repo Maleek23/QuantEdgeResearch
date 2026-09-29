@@ -5,6 +5,9 @@
  *
  *   GET    /api/journal/sources                     switcher list + caller's rights
  *   GET    /api/journal/notes?journal=              notes for a book
+ *   POST   /api/journal/notes?journal=              day note / notebook / missed / playbook (writable books)
+ *   DELETE /api/journal/notes/:id?journal=          remove a manual note (writable books)
+ *   GET    /api/journal/bot                         the Quant Bot's rules (config) + paper portfolios
  *   GET    /api/traders                             traders (with watchlist counts)
  *   POST   /api/traders                             create            (admin)
  *   PATCH  /api/traders/:slug                       handle/source/…   (admin)
@@ -23,8 +26,8 @@ import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from './db';
 import { logger } from './logger';
-import { traders, traderWatchlistItems } from '@shared/schema';
-import { TRADER_SLUG_RE, parseJournalKey, type JournalSourceListItem } from '@shared/journal-sources';
+import { journalNotes, paperPortfolios, traders, traderWatchlistItems } from '@shared/schema';
+import { JOURNAL_NOTE_KINDS, TRADER_SLUG_RE, journalNoteKey, parseJournalKey, type JournalSourceListItem } from '@shared/journal-sources';
 import {
   JournalAccessError, canWriteTrader, getTraderBySlug, journalActor, listTraders, loadJournalNotes, resolveJournal, writableOwner,
 } from './journal-sources';
@@ -78,6 +81,80 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
       const notes = await loadJournalNotes(j);
       res.json({ notes, count: notes.length });
     } catch (err) { fail(res, err, 'Journal notes'); }
+  });
+
+  // Notes written from the journal (day notes, notebook entries, missed trades,
+  // playbook definitions). Only writable books; only source='manual' rows.
+  const noteBody = z.object({
+    kind: z.enum(JOURNAL_NOTE_KINDS),
+    day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'day: YYYY-MM-DD'),
+    body: z.string().max(20_000),
+    symbols: z.array(z.string().trim().toUpperCase().regex(SYMBOL_RE)).max(12).optional(),
+    /** playbook: the setup name the definition belongs to. */
+    ref: z.string().trim().min(1).max(60).optional(),
+  }).strict();
+
+  app.post('/api/journal/notes', requireBetaAccess, async (req, res) => {
+    try {
+      const actor = await journalActor(req);
+      const j = await writableOwner(actor, parseJournalKey(req.query.journal as string));
+      const parsed = noteBody.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: 'Invalid note', issues: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) });
+      const { kind, day, symbols } = parsed.data;
+      const body = parsed.data.body.trim();
+      if (kind === 'playbook' && !parsed.data.ref) return res.status(400).json({ error: 'A playbook definition needs the setup name (ref)' });
+      const key = journalNoteKey(kind, kind === 'playbook' ? parsed.data.ref! : day);
+      const values = {
+        ownerId: j.ownerId, day, body, source: 'manual', reason: kind, sourceMessageId: key,
+        symbols: symbols?.length ? [...new Set(symbols)] : null, postedAt: new Date().toISOString(),
+      };
+      if (key) {
+        // One per day / per setup: an empty body clears it.
+        if (!body) {
+          await db.delete(journalNotes).where(and(eq(journalNotes.ownerId, j.ownerId), eq(journalNotes.source, 'manual'), eq(journalNotes.sourceMessageId, key)));
+          return res.json({ note: null, cleared: true });
+        }
+        const [note] = await db.insert(journalNotes).values(values)
+          .onConflictDoUpdate({ target: [journalNotes.ownerId, journalNotes.source, journalNotes.sourceMessageId], set: { body, symbols: values.symbols, postedAt: values.postedAt, day } })
+          .returning();
+        return res.json({ note });
+      }
+      if (!body) return res.status(400).json({ error: 'Write something first' });
+      const [note] = await db.insert(journalNotes).values(values).returning();
+      res.status(201).json({ note });
+    } catch (err) { fail(res, err, 'Save journal note'); }
+  });
+
+  app.delete('/api/journal/notes/:id', requireBetaAccess, async (req, res) => {
+    try {
+      const actor = await journalActor(req);
+      const j = await writableOwner(actor, parseJournalKey(req.query.journal as string));
+      const del = await db.delete(journalNotes)
+        .where(and(eq(journalNotes.id, String(req.params.id)), eq(journalNotes.ownerId, j.ownerId), eq(journalNotes.source, 'manual')))
+        .returning({ id: journalNotes.id });
+      if (!del.length) return res.status(404).json({ error: 'No such note in this journal (imported notes are removed by re-importing)' });
+      res.json({ success: true });
+    } catch (err) { fail(res, err, 'Delete journal note'); }
+  });
+
+  // ── Bot book: its rules (config) and paper accounts ─────
+  app.get('/api/journal/bot', requireBetaAccess, async (_req, res) => {
+    try {
+      const { BOT_PORTFOLIO_NAME, DEFAULT_BOT_CONFIG, BOT_USER_ID } = await import('./quant-bot');
+      const portfolios = await db.select().from(paperPortfolios).where(eq(paperPortfolios.userId, BOT_USER_ID));
+      res.json({
+        asOf: new Date().toISOString(),
+        config: DEFAULT_BOT_CONFIG,
+        activePortfolio: BOT_PORTFOLIO_NAME,
+        portfolios: portfolios.map((p) => ({
+          id: p.id, name: p.name, active: p.name === BOT_PORTFOLIO_NAME,
+          startingCapital: p.startingCapital, cashBalance: p.cashBalance, totalValue: p.totalValue,
+          totalPnL: p.totalPnL, totalPnLPercent: p.totalPnLPercent, winCount: p.winCount, lossCount: p.lossCount,
+          riskPerTrade: p.riskPerTrade, maxPositionSize: p.maxPositionSize,
+          createdAt: p.createdAt, updatedAt: p.updatedAt,
+        })),
+      });
+    } catch (err) { fail(res, err, 'Bot rules'); }
   });
 
   // ── Traders ──────────────────────────────────────────────

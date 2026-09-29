@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/theme-provider';
 import {
-  fmtMoney, fmtPct, fmtRatio, LOW_SAMPLE, type BucketStats, type TradeStatus,
+  fmtDuration, fmtMoney, fmtPct, fmtRatio, LOW_SAMPLE, type BucketStats, type TradeStatus,
 } from '@/lib/journal/metrics';
 
 /** Class list for portaled journal surfaces (dialogs/sheets render outside .nexus-vars). */
@@ -104,10 +104,12 @@ export function BucketBars({ buckets, empty }: { buckets: BucketStats[]; empty: 
   );
 }
 
-export function BucketTable({ buckets, keyLabel, onPick }: {
+export function BucketTable({ buckets, keyLabel, onPick, showHold = false }: {
   buckets: BucketStats[];
   keyLabel: string;
   onPick?: (key: string) => void;
+  /** Add an average-holding-time column (Reports). */
+  showHold?: boolean;
 }) {
   return (
     <div className="jr-table-wrap">
@@ -119,6 +121,7 @@ export function BucketTable({ buckets, keyLabel, onPick }: {
             <th scope="col" className="num">Win %</th>
             <th scope="col" className="num">Profit factor</th>
             <th scope="col" className="num">Expectancy</th>
+            {showHold && <th scope="col" className="num">Avg hold</th>}
             <th scope="col" className="num">Net P&amp;L</th>
           </tr>
         </thead>
@@ -140,6 +143,7 @@ export function BucketTable({ buckets, keyLabel, onPick }: {
               <td className="num">{fmtPct(b.winRate)}</td>
               <td className="num">{fmtRatio(b.profitFactor, b.profitFactorIsInfinite)}</td>
               <td className="num"><Pnl value={b.expectancy} /></td>
+              {showHold && <td className="num">{fmtDuration(b.avgDurationMs)}</td>}
               <td className="num"><Pnl value={b.netPnl} /></td>
             </tr>
           ))}
@@ -147,4 +151,15 @@ export function BucketTable({ buckets, keyLabel, onPick }: {
       </table>
     </div>
   );
+}
+
+/** "Tue, Sep 1, 2026" for a New York day key (YYYY-MM-DD). */
+export function fmtDayLabel(day: string, opts: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }): string {
+  const d = new Date(`${day}T12:00:00Z`);
+  return Number.isFinite(d.getTime()) ? d.toLocaleDateString('en-US', { ...opts, timeZone: 'UTC' }) : day;
+}
+
+/** "Mine · n=42 trades" — which book a page's numbers come from, and how many. */
+export function BookN({ label, n, unit = 'trades' }: { label: string; n: number; unit?: string }) {
+  return <span className="jr-n" title="Book and sample size behind this page">{label} · n={n} {unit}</span>;
 }

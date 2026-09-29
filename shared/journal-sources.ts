@@ -73,3 +73,21 @@ export interface JournalSourceListItem {
   readOnly: boolean;
   canWrite: boolean;
 }
+
+/**
+ * journal_notes.reason values written from the journal UI (source = 'manual').
+ * Imports write their own reasons (analysis, unmatched_exit, …).
+ *   day_note  the free-text note for one trading day (one per day, upserted)
+ *   note      a free notebook entry, tagged by ticker/day
+ *   missed    a trade you saw and did not take
+ *   playbook  the written definition of one setup (one per setup, upserted)
+ */
+export const JOURNAL_NOTE_KINDS = ['day_note', 'note', 'missed', 'playbook'] as const;
+export type JournalNoteKind = (typeof JOURNAL_NOTE_KINDS)[number];
+
+/** Idempotency key for the one-per-thing kinds (unique on owner + source + key). */
+export function journalNoteKey(kind: JournalNoteKind, ref: string): string | null {
+  if (kind === 'day_note') return `day:${ref}`;
+  if (kind === 'playbook') return `playbook:${ref.trim().toLowerCase()}`;
+  return null;
+}
