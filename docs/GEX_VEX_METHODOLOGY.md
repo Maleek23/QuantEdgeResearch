@@ -344,6 +344,7 @@ The weights are judgment, not fitted. **The score orders setups; it is not a pro
 ## 9. Open items
 
 - Replace naive signs with flow-inferred dealer positioning (Bullflow prints or Open-Close data) at least at the magnet strike.
+  - Partial step shipped: the Squeeze Radar (`docs/GAMMA_SQUEEZE.md`) reports a turnover-weighted customer-long re-sign of near-dated OTM calls beside the naive book, and uses OCC customer-account call volume as a history-capable proxy.
 - Accumulate the live setup archive and add a base-rate comparison before any score threshold is tuned.
 - `market-pulse.ts`: its "flip" is the midpoint of the OI walls.
 - `gex-vex-projector.ts`: uses absolute $0.5B thresholds.
