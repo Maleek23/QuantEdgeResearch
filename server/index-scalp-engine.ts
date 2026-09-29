@@ -1,6 +1,18 @@
 /**
  * INDEX SCALP ENGINE
  * ==================
+ * 2026-09-29: the setups that PUBLISH now come from the pre-registered,
+ * structure-gated policies in server/zero-dte-policies.ts (A: negative-gamma
+ * continuation, B: positive-gamma wall fade / power-hour pin, C: no trade),
+ * which gate on zero-gamma + walls AND VWAP / opening range / prior-day levels
+ * from 5-minute bars, carry a 15:55 ET time stop, and say they are unvalidated.
+ * The older proximity builders below (flip bounce, wall fade/break, trend
+ * continuation, and a power-hour play that fired "even if no structural
+ * trigger") are kept for scripts/test-index-scalps.ts only — they read the
+ * legacy regime enum, which reads 'transitioning' whenever spot is within 1%
+ * of zero-gamma (SPY most of 2026-09-29), so they almost never fired, and the
+ * power-hour one had no structure at all.
+ *
  * Generates intraday SPX/SPY/QQQ scalp ideas using GEX structural levels.
  * Targets liquid 0DTE contracts only when the structural thesis, executable
  * chain, and account-risk limits agree. Large returns are measured outcomes,
@@ -22,6 +34,8 @@ import { logger } from './logger';
 import { storage } from './storage';
 import { getGexSnapshotBatch, type GexSnapshot } from './gex-snapshot-service';
 import { fetchYahooFinancePrice } from './market-api';
+import { getIntradayStructure } from './zero-dte-structure';
+import { evaluateZeroDte, timeStopIso, ZERO_DTE_PROVENANCE, TIME_STOP_ET, type ZeroDtePolicy } from './zero-dte-policies';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -48,6 +62,13 @@ export interface IndexScalpIdea {
   callWall: number | null;
   putWall: number | null;
   regime: string;
+  // Structure-gated policy provenance (server/zero-dte-policies.ts)
+  policy?: ZeroDtePolicy;
+  evidence?: string[];
+  /** ISO — hard time stop (15:55 ET). */
+  exitBy?: string;
+  /** ISO — the trigger is stale after this. */
+  entryValidUntil?: string;
 }
 
 // ─── Constants ──────────────────────────────────────────────
@@ -504,25 +525,21 @@ function getTodayExpiry(): string {
   return etDate.toISOString().split('T')[0];
 }
 
-async function isDuplicate(symbol: string, setup: ScalpSetup, bias: string): Promise<boolean> {
-  try {
-    const all = await storage.getAllTradeIdeas();
-    const cutoff = Date.now() - DUPE_WINDOW_MS;
-    return all.some(
-      (i: any) =>
-        i.symbol === symbol &&
-        i.source === 'gex_scanner' &&
-        (i.dataSourceUsed || '').includes('scalp') &&
-        (i.dataSourceUsed || '').includes(setup) &&
-        new Date(i.timestamp).getTime() > cutoff,
-    );
-  } catch { return false; }
+// In-process dedup. The old version loaded EVERY trade idea (getAllTradeIdeas)
+// on each candidate — on a 1-vCPU droplet, every minute. The spine's own
+// dedup window in createTradeIdea covers a restart.
+const recentPublishes = new Map<string, number>();
+function isDuplicate(symbol: string, setup: string, bias: string): boolean {
+  const now = Date.now();
+  for (const [k, t] of recentPublishes) if (now - t > DUPE_WINDOW_MS) recentPublishes.delete(k);
+  return recentPublishes.has(`${symbol}|${setup}|${bias}`);
 }
 
 // ─── Persistence ────────────────────────────────────────────
 
-async function persistScalp(idea: IndexScalpIdea): Promise<boolean> {
-  if (await isDuplicate(idea.symbol, idea.setup, idea.bias)) return false;
+async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = {}): Promise<boolean> {
+  const dedupKey = idea.policy ?? idea.setup;
+  if (isDuplicate(idea.symbol, dedupKey, idea.bias)) return false;
 
   // A price-level signal is not an option contract. Resolve the actual vehicle
   // against the live chain and the user's stated small-account guardrails. The
@@ -589,6 +606,17 @@ async function persistScalp(idea: IndexScalpIdea): Promise<boolean> {
 
   const packageQuantity = Math.max(1, Math.min(5, Math.floor(maxDebitDollars / (contract.entryPremium * 100))));
   const packageDebit = contract.entryPremium * 100 * packageQuantity;
+  // Label the contract by its REAL days to expiry. 2026-09-29 published an IWM
+  // 2026-09-30 contract as "IWM 0DTE CALLS" — it was a 1DTE.
+  const todayEt = getTodayExpiry();
+  const dteDays = Math.round((Date.parse(`${contract.expiry}T12:00:00Z`) - Date.parse(`${todayEt}T12:00:00Z`)) / 864e5);
+  const dteLabel = dteDays <= 0 ? '0DTE' : `${dteDays}DTE`;
+  const setupLabel = idea.policy === 'A_neg_gamma_continuation' ? 'A · −γ continuation'
+    : idea.policy === 'B_pos_gamma_wall_fade' ? (idea.isPowerHour ? 'B · +γ power-hour pin' : 'B · +γ wall fade')
+    : idea.setup.replace('_', ' ');
+  const evidenceText = idea.evidence?.length ? ` Evidence: ${idea.evidence.join(' | ')}.` : '';
+  const provenanceText = idea.policy ? ` ${ZERO_DTE_PROVENANCE}` : '';
+  const timeStopText = ` Hard time stop ${TIME_STOP_ET} ET — flat before the close whatever the P&L.${dteDays > 0 ? ` (No same-day expiry fit the account gate; the ${contract.expiry} contract is held intraday only.)` : ''}`;
 
   const tradeIdea = {
     symbol: vehicle.symbol,
@@ -603,12 +631,17 @@ async function persistScalp(idea: IndexScalpIdea): Promise<boolean> {
     strikePrice: contract.strike,
     expiryDate: contract.expiry,
     entryPremium: Number(contract.entryPremium.toFixed(2)),
-    catalyst: `${idea.isPowerHour ? '⚡ POWER HOUR ' : ''}${vehicle.symbol} 0DTE ${idea.bias.toUpperCase()} — ${idea.setup.replace('_', ' ')} | ${contract.tier} ${contract.grade} · ${packageQuantity}x @ $${contract.entryPremium.toFixed(2)} (≤$${packageDebit.toFixed(0)} debit) · modeled +${contract.roiAtT1Pct.toFixed(0)}% at T1`,
-    analysis: `${idea.thesis}${vehicle.symbol !== idea.symbol ? ` Account-fit execution uses ${vehicle.symbol}; the thesis was measured on ${idea.symbol}.` : ''}`,
+    catalyst: `${idea.isPowerHour ? '⚡ POWER HOUR ' : ''}${vehicle.symbol} ${dteLabel} ${idea.bias.toUpperCase()} — ${setupLabel} | ${contract.tier} ${contract.grade} · ${packageQuantity}x @ $${contract.entryPremium.toFixed(2)} (≤$${packageDebit.toFixed(0)} debit) · modeled +${contract.roiAtT1Pct.toFixed(0)}% at T1`,
+    analysis: `${idea.thesis}${vehicle.symbol !== idea.symbol ? ` Account-fit execution uses ${vehicle.symbol}; the thesis was measured on ${idea.symbol}.` : ''}${evidenceText}${timeStopText}${provenanceText}`,
     source: 'gex_scanner',
-    dataSourceUsed: `GEX_index_scalp_${idea.setup}`,
+    dataSourceUsed: `GEX_index_scalp_${idea.policy ?? idea.setup}`,
     sessionContext: idea.isPowerHour ? 'power_hour' : 'intraday',
     timestamp: new Date().toISOString(),
+    exitBy: idea.exitBy ?? timeStopIso(),
+    ...(idea.entryValidUntil ? { entryValidUntil: idea.entryValidUntil } : {}),
+    expiryTier: dteDays <= 0 ? '0DTE' : 'DAILY',
+    optionDte: Math.max(0, dteDays),
+    tradeType: 'scalp' as const,
     outcomeStatus: 'open' as const,
     confidenceScore: idea.confidence,
     holdingPeriod: 'day' as const,
@@ -627,11 +660,16 @@ async function persistScalp(idea: IndexScalpIdea): Promise<boolean> {
       `package_qty:${packageQuantity}`,
       `package_debit:${packageDebit.toFixed(0)}`,
       idea.isPowerHour ? 'power_hour' : '',
+      idea.policy ? `policy:${idea.policy}` : '',
+      idea.policy ? 'validated:false' : '',
+      `time_stop:${TIME_STOP_ET}ET`,
+      `contract_dte:${dteDays}`,
     ].filter(Boolean),
   };
 
   try {
-    await storage.createTradeIdea(tradeIdea as any);
+    await storage.createTradeIdea(tradeIdea as any, { dedupWindowHours: 0.5 });
+    recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
     logger.info(
       `[INDEX-SCALP] ✅ ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} @ $${contract.entryPremium.toFixed(2)} | ${idea.setup} | ${idea.isPowerHour ? '⚡ POWER HOUR' : 'intraday'}`,
     );
@@ -657,7 +695,9 @@ async function persistScalp(idea: IndexScalpIdea): Promise<boolean> {
 
     // Fire a Discord callout for the fresh scalp (gated on DISCORD_WEBHOOK_SPX;
     // no-ops cleanly if unconfigured). Fire-and-forget — never block persist.
-    import('./discord-service')
+    // The web-process schedule publishes only (idea-producer-schedule.ts rule);
+    // it passes discord:false unless INDEX_0DTE_DISCORD=1.
+    if (opts.discord !== false) import('./discord-service')
       .then(({ sendIndexScalpToDiscord }) =>
         sendIndexScalpToDiscord({
           symbol: vehicle.symbol,
@@ -692,37 +732,82 @@ export interface IndexScalpResult {
   scanned: number;
   ideas: IndexScalpIdea[];
   persisted: number;
+  /** Why each symbol did not fire this pass (policy C / gates) — WAIT is a result. */
+  waits?: Record<string, string[]>;
+  /** ISO — when this pass ran (a cached result is returned inside the min interval). */
+  ranAt?: string;
 }
 
+function etMinutesNow(now = new Date()): number {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(now);
+  return (Number(p.find((x) => x.type === 'hour')?.value ?? 0) % 24) * 60 + Number(p.find((x) => x.type === 'minute')?.value ?? 0);
+}
+
+/** Policy C event gate: a high-impact release within ±30 min of now (today's calendar). */
+async function eventBlockNow(etMin: number): Promise<string | null> {
+  try {
+    const { getTodayEvents } = await import('./economic-calendar');
+    for (const e of getTodayEvents()) {
+      if (e.importance !== 'high') continue;
+      const m = /(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(e.time ?? '');
+      if (!m) continue;
+      const mins = ((Number(m[1]) % 12) + (m[3].toUpperCase() === 'PM' ? 12 : 0)) * 60 + Number(m[2]);
+      if (Math.abs(etMin - mins) <= 30) return `${e.name} at ${e.time}`;
+    }
+  } catch { /* calendar unavailable — disclosed in logs, not a block */ }
+  return null;
+}
+
+let inflightScan: Promise<IndexScalpResult> | null = null;
+let lastScan: { at: number; result: IndexScalpResult } | null = null;
+const MIN_SCAN_INTERVAL_MS = 60_000;
+
 /**
- * Run the index scalp scanner.
- * Fetches GEX snapshots for SPY + QQQ, generates 0DTE scalp ideas,
- * and persists them to trade_ideas for Trade Desk display.
+ * Run the index 0DTE scanner.
+ * GEX snapshot (zero-gamma, walls, sign) + 5-minute structure for SPY/QQQ/IWM
+ * → server/zero-dte-policies.ts → live-chain account-fit contract → trade_ideas.
+ * SPY setups are expressed on SPX first (SPY GEX levels translated by the live
+ * SPX/SPY ratio) with SPY as the account-fit fallback.
+ *
+ * Throttled: concurrent callers share one pass and a pass inside 60 s of the
+ * last returns that result (the GEX hub fires this on every hub load).
  */
-export async function runIndexScalpScanner(): Promise<IndexScalpResult> {
+export async function runIndexScalpScanner(opts: { discord?: boolean } = {}): Promise<IndexScalpResult> {
+  if (inflightScan) return inflightScan;
+  if (lastScan && Date.now() - lastScan.at < MIN_SCAN_INTERVAL_MS) return lastScan.result;
+  inflightScan = runIndexScalpScannerOnce(opts)
+    .then((r) => { lastScan = { at: Date.now(), result: r }; return r; })
+    .finally(() => { inflightScan = null; });
+  return inflightScan;
+}
+
+async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<IndexScalpResult> {
   const session = getScalpSession();
+  const ranAt = new Date().toISOString();
 
   if (!session.isMarketOpen) {
-    logger.info('[INDEX-SCALP] Market closed — skipping scan');
-    return { session, scanned: 0, ideas: [], persisted: 0 };
+    return { session, scanned: 0, ideas: [], persisted: 0, waits: {}, ranAt };
   }
 
-  const symbols = Object.keys(INDEX_MAP); // SPY, QQQ
-  logger.info(`[INDEX-SCALP] Scanning ${symbols.join(', ')} | session=${session.sessionLabel} | powerHour=${session.isPowerHour} | ${session.minutesToClose}min to close`);
+  const symbols = Object.keys(INDEX_MAP); // SPY, QQQ, IWM
+  const etMin = etMinutesNow();
+  const waits: Record<string, string[]> = {};
+  if (etMin < 585 || etMin > 945) {
+    for (const s of symbols) waits[s] = ['outside 09:45–15:45 ET entry window'];
+    return { session, scanned: 0, ideas: [], persisted: 0, waits, ranAt };
+  }
 
-  const snaps = await getGexSnapshotBatch(symbols);
+  const [snaps, eventBlock] = await Promise.all([getGexSnapshotBatch(symbols), eventBlockNow(etMin)]);
 
   // SPX is not SPY × 10. The ratio drifts enough to move a 0DTE suggestion by
   // several strikes (today it was roughly 10.056). Resolve the live cash-index
   // ratio once per scan before translating SPY GEX levels into SPX levels.
-  // Keep 10 only as a clearly logged fallback when the cash quote is absent.
   const spySnap = snaps.get('SPY');
-  if (spySnap?.spot > 0) {
-    const spySpot = spySnap.spot;
+  if (spySnap && spySnap.spot > 0) {
     try {
       const spxCash = await fetchYahooFinancePrice('%5EGSPC');
       if (spxCash?.currentPrice && spxCash.currentPrice > 1_000) {
-        INDEX_MAP.SPY.multiplier = spxCash.currentPrice / spySpot;
+        INDEX_MAP.SPY.multiplier = spxCash.currentPrice / spySnap.spot;
       } else {
         logger.warn('[INDEX-SCALP] SPX cash quote unavailable — using fallback SPY×10 translation');
       }
@@ -730,29 +815,61 @@ export async function runIndexScalpScanner(): Promise<IndexScalpResult> {
       logger.warn('[INDEX-SCALP] SPX cash quote failed — using fallback SPY×10 translation');
     }
   }
+
   const ideas: IndexScalpIdea[] = [];
-
-  for (const snap of snaps.values()) {
-    // Try all setup types — first match wins per symbol
-    const setups = [
-      buildFlipBounce(snap, session),
-      buildWallFade(snap, session),
-      buildWallBreak(snap, session),
-      buildTrendContinuation(snap, session),
-      buildPowerHourPlay(snap, session),
-    ].filter(Boolean) as IndexScalpIdea[];
-
-    ideas.push(...setups);
+  const now = Date.now();
+  for (const sym of symbols) {
+    const snap = snaps.get(sym);
+    if (!snap) { waits[sym] = ['no GEX snapshot (chain fetch failed or timed out)']; continue; }
+    const st = await getIntradayStructure(sym);
+    if (!st) { waits[sym] = ['no intraday bars']; continue; }
+    const verdict = evaluateZeroDte(sym, {
+      spot: snap.spot, zeroGamma: snap.flipPoint, callWall: snap.callWall, putWall: snap.putWall,
+      sign: snap.netGexSign, fetchedAt: snap.fetchedAt, modelledGrossShare: snap.modelledGrossShare ?? null,
+    }, st, now, etMin, eventBlock);
+    if (!verdict.setup) { waits[sym] = verdict.wait; continue; }
+    const v = verdict.setup;
+    const config = INDEX_MAP[sym];
+    const scale = config.spx ? config.multiplier : 1;
+    const tradeSym = config.spx ? 'SPX' : sym;
+    const bias: 'calls' | 'puts' = v.direction === 'long' ? 'calls' : 'puts';
+    ideas.push({
+      symbol: tradeSym,
+      underlying: sym,
+      setup: v.powerHour ? 'power_hour' : v.policy === 'A_neg_gamma_continuation' ? 'wall_break' : 'wall_fade',
+      direction: v.direction,
+      bias,
+      spotPrice: v.entry * scale,
+      suggestedStrike: roundStrike(v.entry * scale, config.strikeInterval),
+      expiryDate: getTodayExpiry(),
+      premiumRange: 'live chain',
+      target: v.target * scale,
+      stop: v.stop * scale,
+      riskRewardRatio: +v.rr.toFixed(2),
+      // A rank placeholder, not a probability — the policy is unvalidated.
+      confidence: 65,
+      thesis: `${v.powerHour ? '⚡ ' : ''}${sym} ${v.direction === 'long' ? 'long' : 'short'} — trigger ${v.trigger.name} $${v.trigger.price.toFixed(2)}, target ${v.targetLevel.name} $${v.targetLevel.price.toFixed(2)}, stop $${v.stop.toFixed(2)} (${v.rr.toFixed(2)}R on ${sym}).`,
+      isPowerHour: v.powerHour,
+      gammaFlip: snap.flipPoint,
+      callWall: snap.callWall,
+      putWall: snap.putWall,
+      regime: snap.regime ?? snap.netGexSign,
+      policy: v.policy,
+      evidence: v.evidence,
+      exitBy: timeStopIso(now),
+      entryValidUntil: new Date(now + 10 * 60_000).toISOString(),
+    });
   }
 
-  logger.info(`[INDEX-SCALP] Found ${ideas.length} scalp ideas`);
+  const waitLine = Object.entries(waits).map(([k, w]) => `${k}: ${w[0] ?? '—'}`).join(' · ');
+  logger.info(`[INDEX-SCALP] ${session.sessionLabel} ${ideas.length} setup(s)${waitLine ? ` · waits — ${waitLine}` : ''}`);
 
   let persisted = 0;
   for (const idea of ideas) {
-    if (await persistScalp(idea)) persisted++;
+    if (await persistScalp(idea, opts)) persisted++;
   }
 
-  return { session, scanned: snaps.size, ideas, persisted };
+  return { session, scanned: snaps.size, ideas, persisted, waits, ranAt };
 }
 
 // ─── Intraday Scheduler ─────────────────────────────────────

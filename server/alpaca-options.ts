@@ -30,6 +30,10 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { logger } from './logger';
+import { fillMissingGreeks, type GreekSource, type GreekSourceCounts } from '../shared/iv-fill';
+
+/** Risk-free rate for the gap-fill inversion — the same 4.5% options-exposures.ts prices greeks with. */
+const FILL_RISK_FREE = 0.045;
 
 const DATA_BASE = 'https://data.alpaca.markets';
 const tradingBase = () => (process.env.ALPACA_PAPER !== 'false' ? 'https://paper-api.alpaca.markets' : 'https://api.alpaca.markets');
@@ -61,7 +65,14 @@ export interface AlpacaOptionContract {
   bid: number | null;
   ask: number | null;
   last: number | null;
+  /** Time of the last trade (latestTrade.t) — a stale last is not inverted. */
+  lastTime: string | null;
   quoteTime: string | null;
+  /**
+   * Where gamma/delta/IV came from: Alpaca itself, inverted from this contract's
+   * own quote/last, interpolated across the expiry's smile, or nowhere (see shared/iv-fill.ts).
+   */
+  greekSource: GreekSource;
   openInterest: number | null;
   openInterestDate: string | null;
   closePrice: number | null;
@@ -82,6 +93,10 @@ export interface AlpacaChain {
   openInterestDate: string | null;
   coverage: { expirationLte: string; strikeLo: number | null; strikeHi: number | null };
   requests: number;
+  /** Per-source contract counts after the gap-fill (shared/iv-fill.ts). */
+  greekSources: GreekSourceCounts;
+  /** (implied-from-price + smile-interpolated) / contracts — the modelled share of the chain's greeks. */
+  modelledShare: number;
 }
 
 // ─── Process-wide budget + cooldown ──────────────────────────────────────
@@ -324,13 +339,19 @@ export async function getAlpacaOptionsChain(
         iv: iv && iv > 0 ? iv : null,
         volume: num(s?.dailyBar?.v) ?? 0,
         bid: num(s?.latestQuote?.bp), ask: num(s?.latestQuote?.ap), last: num(s?.latestTrade?.p),
+        lastTime: s?.latestTrade?.t ?? null,
         quoteTime: s?.latestQuote?.t ?? null,
+        greekSource: 'provider', // re-stamped by fillMissingGreeks below
         openInterest: o?.oi ?? null,
         openInterestDate: o?.oiDate ?? null,
         closePrice: o?.close ?? null,
       });
     }
     if (!contracts.length) return null;
+    // Illiquid strikes come back with no greeks and no IV — fill them from the
+    // contract's own quote, else the expiry's smile, and stamp the source.
+    const fill = S ? fillMissingGreeks(contracts, S, { r: FILL_RISK_FREE })
+      : { counts: { provider: contracts.length, impliedFromPrice: 0, smileInterpolated: 0, none: 0 }, modelledShare: 0 };
     const oiDate = [...oiDates.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     const chain: AlpacaChain = {
       underlying: sym, contracts,
@@ -339,13 +360,16 @@ export async function getAlpacaOptionsChain(
       feed: ALPACA_OPTIONS_FEED, fetchedAt: Date.now(), openInterestDate: oiDate,
       coverage: { expirationLte: expLte, strikeLo: lo, strikeHi: hi },
       requests,
+      greekSources: fill.counts,
+      modelledShare: fill.modelledShare,
     };
     chainCache.set(key, { expiresAt: Date.now() + (inCashHours() ? 90_000 : 15 * 60_000), chain });
     if (chainCache.size > 400) {
       const oldest = [...chainCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0];
       if (oldest) chainCache.delete(oldest[0]);
     }
-    logger.info(`[ALPACA-OPT] ${sym}: ${contracts.length} contracts, ${chain.expirations.length} expiries, OI date ${oiDate ?? '—'}, ${requests} requests`);
+    const gs = fill.counts;
+    logger.info(`[ALPACA-OPT] ${sym}: ${contracts.length} contracts, ${chain.expirations.length} expiries, OI date ${oiDate ?? '—'}, ${requests} requests; greeks provider ${gs.provider} / implied ${gs.impliedFromPrice} / smile ${gs.smileInterpolated} / none ${gs.none}`);
     return chain;
   })().catch((e: any) => {
     logger.warn(`[ALPACA-OPT] ${sym}: ${e?.message ?? e}`);
@@ -376,6 +400,7 @@ export function alpacaToTradierShape(chain: AlpacaChain, expiration?: string): a
         theta: c.theta ?? undefined,
         mid_iv: c.iv ?? undefined,
       },
+      greek_source: c.greekSource,
       source: 'alpaca',
     }));
 }
@@ -403,6 +428,7 @@ export function alpacaToCboeShape(chain: AlpacaChain): any | null {
         bid: c.bid ?? 0,
         ask: c.ask ?? 0,
         last_trade_price: c.last ?? 0,
+        greek_source: c.greekSource,
       })),
     },
   };

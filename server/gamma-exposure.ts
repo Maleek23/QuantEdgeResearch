@@ -47,6 +47,8 @@ interface GammaByStrike {
   callVEX?: number;
   putVEX?: number;
   netVEX?: number;
+  /** Share of this strike's gross GEX on modelled gamma (0–1). */
+  modelledShare?: number;
 }
 
 export interface GammaExposureResult {
@@ -116,6 +118,12 @@ export interface GammaExposureResult {
     bsComputedShare?: number;
     /** The fixed Black-Scholes assumptions those computed greeks used. */
     bsAssumptions?: ExposureSnapshot['bsAssumptions'];
+    /** Contracts by where their gamma came from (provider / implied-from-price / smile-interpolated / bs-feed-iv / default-iv). */
+    greekSources?: ExposureSnapshot['greekSources'];
+    /** Share of contracts whose gamma was modelled, not feed-supplied. */
+    modelledShare?: number;
+    /** Share of gross GEX resting on modelled gamma — state this beside any level. */
+    modelledGrossShare?: number;
   };
   strikeExpiryMatrix?: StrikeExpiryCell[];
 }
@@ -279,6 +287,7 @@ function snapshotToLegacy(
     callVEX: s.callVEX,
     putVEX: s.putVEX,
     netVEX: s.netVEX,
+    modelledShare: s.modelledShare,
   }));
 
   return {
@@ -351,6 +360,9 @@ function snapshotToLegacy(
       ivFallbackShare: snap.ivFallbackShare,
       bsComputedShare: used > 0 ? snap.bsComputedCount / used : 0,
       bsAssumptions: snap.bsAssumptions,
+      greekSources: snap.greekSources,
+      modelledShare: snap.modelledShare,
+      modelledGrossShare: snap.modelledGrossShare,
     },
   };
 }

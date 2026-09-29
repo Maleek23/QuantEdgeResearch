@@ -130,6 +130,12 @@ export interface GEXSnapshot {
     openInterestDate?: string | null;
     ivFallbackShare?: number;
     profileExcludedGrossShare?: number;
+    /** Contracts by gamma source (server/options-exposures.ts ExposureGreekSource). */
+    greekSources?: Record<'provider' | 'implied-from-price' | 'smile-interpolated' | 'bs-feed-iv' | 'default-iv', number>;
+    /** Share of contracts whose gamma was modelled (implied / smile / Black-Scholes here). */
+    modelledShare?: number;
+    /** Share of gross GEX on modelled gamma — the figure to state beside levels. */
+    modelledGrossShare?: number;
   };
 }
 

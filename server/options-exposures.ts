@@ -26,6 +26,17 @@ import {
   type GammaContract,
 } from '../shared/gex-math';
 import { classifyGammaRegime, type GammaRegimeRead } from '../shared/gex-regime';
+import type { GreekSource } from '../shared/iv-fill';
+
+/**
+ * Where one aggregated contract's gamma came from.
+ *   provider            — the feed's own gamma
+ *   implied-from-price  — IV inverted from the contract's quote/last (shared/iv-fill.ts)
+ *   smile-interpolated  — IV interpolated across the expiry's smile (shared/iv-fill.ts)
+ *   bs-feed-iv          — Black-Scholes here on the feed's IV (feed had IV, no gamma)
+ *   default-iv          — Black-Scholes here on DEFAULT_IV (no IV anywhere)
+ */
+export type ExposureGreekSource = 'provider' | 'implied-from-price' | 'smile-interpolated' | 'bs-feed-iv' | 'default-iv';
 
 
 // ─── Types ──────────────────────────────────────────────────
@@ -38,6 +49,8 @@ export interface OptionInput {
   impliedVolatility: number;        // decimal, e.g. 0.25 for 25%
   /** True when the source had no IV and DEFAULT_IV was substituted (set by optionToInput). */
   ivDefaulted?: boolean;
+  /** Set by the chain adapter when it modelled the greeks itself (Alpaca gap-fill). */
+  greekSource?: GreekSource;
   daysToExpiry: number;
   greeks?: {
     delta?: number;
@@ -72,6 +85,8 @@ export interface StrikeExposure {
   putVolume: number;
   // Data quality
   dtes: number[];       // Expirations contributing to this strike
+  /** Share of this strike's gross GEX resting on modelled (not feed-supplied) gamma, 0–1. */
+  modelledShare: number;
 }
 
 export interface ExposureSnapshot {
@@ -168,6 +183,12 @@ export interface ExposureSnapshot {
   profileExcludedGrossShare: number;
   /** The fixed assumptions behind every computed greek. */
   bsAssumptions: { riskFreeRate: number; dividendYield: number; defaultIV: number };
+  /** Contracts used, by where their gamma came from (see ExposureGreekSource). */
+  greekSources: Record<ExposureGreekSource, number>;
+  /** Share of contracts used whose gamma was modelled rather than feed-supplied, 0–1. */
+  modelledShare: number;
+  /** Share of gross GEX resting on modelled gamma, 0–1 — the number the UI should state. */
+  modelledGrossShare: number;
 }
 
 export interface StrikeExpiryCell {
@@ -282,6 +303,12 @@ export function computeExposures(
   let ivFallbackCount = 0;
   let grossGEXDollars = 0;
   let grossExcludedFromProfile = 0;
+  const greekSources: Record<ExposureGreekSource, number> = {
+    'provider': 0, 'implied-from-price': 0, 'smile-interpolated': 0, 'bs-feed-iv': 0, 'default-iv': 0,
+  };
+  let modelledGrossDollars = 0;
+  const strikeModelledGross = new Map<number, number>();
+  const strikeGross = new Map<number, number>();
   // Book totals over EVERY strike. The per-strike table/matrix below keeps only
   // ±40% of spot (display), but truncating the totals there dropped the OTM
   // wings of high-IV names: measured 2026-09-29 on BE (IV ~90%) it cut net GEX
@@ -315,6 +342,7 @@ export function computeExposures(
     let vanna = opt.greeks?.vanna;
     let delta = opt.greeks?.delta;
     let charm = opt.greeks?.charm;
+    let coreComputedHere = false;
 
     const needsCompute = !Number.isFinite(gamma) || gamma === 0 ||
                          !Number.isFinite(vanna) ||
@@ -326,6 +354,7 @@ export function computeExposures(
       const coreGreekComputed =
         !Number.isFinite(gamma!) || gamma === 0 || !Number.isFinite(delta!) || delta === 0;
       if (coreGreekComputed) {
+        coreComputedHere = true;
         bsComputedCount++;
         if (ivDefaulted) ivFallbackCount++;
       }
@@ -338,6 +367,13 @@ export function computeExposures(
     // GEX $ per 1% move: Γ·OI·100·S²·0.01 (the 100 multiplier and 0.01 cancel), in $B.
     const gexAbs = gexPer1Pct(gamma!, oi, S);
     grossGEXDollars += gexAbs;
+    const src: ExposureGreekSource =
+      opt.greekSource === 'implied-from-price' || opt.greekSource === 'smile-interpolated' ? opt.greekSource
+      : coreComputedHere ? (ivDefaulted ? 'default-iv' : 'bs-feed-iv')
+      : 'provider';
+    greekSources[src]++;
+    const modelled = src !== 'provider';
+    if (modelled) modelledGrossDollars += gexAbs;
     const callGexContribution = isCall ? gexAbs / 1e9 : 0;
     const putGexContribution = !isCall ? -gexAbs / 1e9 : 0;
 
@@ -381,10 +417,12 @@ export function computeExposures(
         netDEX: 0, netCharm: 0,
         callGamma: 0, putGamma: 0, callVanna: 0, putVanna: 0,
         callOI: 0, putOI: 0, callVolume: 0, putVolume: 0,
-        dtes: [],
+        dtes: [], modelledShare: 0,
       });
     }
     const entry = strikeMap.get(opt.strike)!;
+    strikeGross.set(opt.strike, (strikeGross.get(opt.strike) ?? 0) + gexAbs);
+    if (modelled) strikeModelledGross.set(opt.strike, (strikeModelledGross.get(opt.strike) ?? 0) + gexAbs);
 
     if (isCall) {
       entry.callGEX += callGexContribution;
@@ -426,7 +464,12 @@ export function computeExposures(
   for (const entry of Array.from(strikeMap.values())) {
     entry.netGEX = entry.callGEX + entry.putGEX;
     entry.netVEX = entry.callVEX + entry.putVEX;
+    const g = strikeGross.get(entry.strike) ?? 0;
+    entry.modelledShare = g > 0 ? (strikeModelledGross.get(entry.strike) ?? 0) / g : 0;
   }
+  const modelledCount = contractsUsed - greekSources.provider;
+  const modelledShare = contractsUsed > 0 ? modelledCount / contractsUsed : 0;
+  const modelledGrossShare = grossGEXDollars > 0 ? modelledGrossDollars / grossGEXDollars : 0;
 
   const strikes = Array.from(strikeMap.values()).sort((a, b) => a.strike - b.strike);
   const bsAssumptions = { riskFreeRate: RISK_FREE, dividendYield: DIVIDEND_YIELD, defaultIV: DEFAULT_IV };
@@ -449,6 +492,7 @@ export function computeExposures(
       ivFallbackShare: contractsUsed > 0 ? ivFallbackCount / contractsUsed : 0,
       profileExcludedGrossShare: 0,
       bsAssumptions,
+      greekSources, modelledShare, modelledGrossShare,
     };
   }
 
@@ -545,7 +589,8 @@ export function computeExposures(
     `GEX=${totalGEX.toFixed(3)}B/1% VEX=${totalVEX.toFixed(2)}M/IVpt DEX=${totalDEX.toFixed(2)}B ` +
     `zeroγ=$${gammaFlipPrice?.toFixed(2) ?? '—'} vflip≈$${vannaFlipPrice || '—'} ` +
     `maxγ=$${maxGammaStrike} walls ${walls.putWall ?? '—'}/${walls.callWall ?? '—'} ` +
-    `bal=${gammaConcentration.toFixed(3)} regime=${regime}/${vexRegime}`,
+    `bal=${gammaConcentration.toFixed(3)} regime=${regime}/${vexRegime} ` +
+    `modelled=${(modelledGrossShare * 100).toFixed(1)}%gross`,
   );
 
   return {
@@ -576,6 +621,7 @@ export function computeExposures(
     ivFallbackShare: contractsUsed > 0 ? ivFallbackCount / contractsUsed : 0,
     profileExcludedGrossShare: grossGEXDollars > 0 ? grossExcludedFromProfile / grossGEXDollars : 0,
     bsAssumptions,
+    greekSources, modelledShare, modelledGrossShare,
   };
 }
 
@@ -611,6 +657,8 @@ export function optionToInput(opt: any, expDateStr?: string): OptionInput | null
     volume: opt.volume || 0,
     impliedVolatility: iv,
     ivDefaulted,
+    greekSource: opt.greek_source === 'implied-from-price' || opt.greek_source === 'smile-interpolated' || opt.greek_source === 'provider'
+      ? opt.greek_source : undefined,
     daysToExpiry: dte,
     greeks: {
       delta: g.delta,

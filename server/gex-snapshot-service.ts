@@ -33,6 +33,8 @@ export interface GexSnapshot {
   /** Sign of total net GEX (positive = pinned, negative = volatile). */
   netGexSign: "positive" | "negative" | "neutral";
   fetchedAt: string;
+  /** Share of gross GEX resting on modelled (not feed-supplied) gamma — shared/iv-fill.ts. */
+  modelledGrossShare?: number | null;
 }
 
 interface CacheEntry {
@@ -42,11 +44,16 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = 6000;
+// 12 s, was 6 s: a cold Alpaca SPY chain is ~11 paced requests (≥330 ms apart)
+// plus open interest, so 6 s timed out on every cold index fetch and the null
+// was then cached for the full 5 minutes — the index 0DTE scan saw "no GEX".
+const REQUEST_TIMEOUT_MS = 12_000;
+/** A failed fetch is retried after 30 s, not after the full TTL. */
+const NULL_TTL_MS = 30_000;
 
 function isFresh(entry: CacheEntry | undefined): boolean {
   if (!entry) return false;
-  return Date.now() - entry.cachedAt < CACHE_TTL_MS;
+  return Date.now() - entry.cachedAt < (entry.snap ? CACHE_TTL_MS : NULL_TTL_MS);
 }
 
 async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
@@ -88,6 +95,7 @@ async function fetchOne(symbol: string): Promise<GexSnapshot | null> {
     vexRegime: (result.vexRegime as GexSnapshot["vexRegime"]) ?? null,
     netGexSign: netSign,
     fetchedAt: new Date().toISOString(),
+    modelledGrossShare: result.dataQuality?.modelledGrossShare ?? null,
   };
 }
 
