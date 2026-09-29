@@ -30,6 +30,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { logger } from './logger';
+import { httpOk, noteProvider } from './data-provider-health';
 import { fillMissingGreeks, type GreekSource, type GreekSourceCounts } from '../shared/iv-fill';
 
 /** Risk-free rate for the gap-fill inversion — the same 4.5% options-exposures.ts prices greeks with. */
@@ -176,11 +177,14 @@ async function alpacaGet(url: string, high: () => boolean = () => false): Promis
       if (r.status === 429) {
         cooldownUntil = Date.now() + COOLDOWN_MS;
         logger.warn(`[ALPACA-OPT] 429 — parking all Alpaca option calls for ${COOLDOWN_MS / 1000}s`);
+        noteProvider('alpaca', false, 'HTTP 429 (rate-limited)');
         return { status: 429, json: null };
       }
+      noteProvider('alpaca', httpOk(r.status), `HTTP ${r.status}`);
       if (!r.ok) return { status: r.status, json: null };
       return { status: r.status, json: await r.json() };
-    } catch {
+    } catch (e: any) {
+      noteProvider('alpaca', false, e?.name === 'AbortError' ? 'timeout' : (e?.message ?? 'network error'));
       return { status: 0, json: null };
     } finally {
       clearTimeout(timer);

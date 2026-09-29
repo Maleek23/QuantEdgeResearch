@@ -19,6 +19,7 @@
  */
 
 import { logger } from './logger';
+import { noteProvider } from './data-provider-health';
 import { getTradierQuote } from './tradier-api';
 import { getChartLastPrice, safeQuote, getBestPrice } from './yahoo-finance-service';
 import { getSchwabQuote, isSchwabConfigured } from './schwab-options-adapter';
@@ -94,6 +95,10 @@ interface SourceHealth {
 const sourceHealthMap = new Map<QuoteSource, SourceHealth>();
 
 function updateHealth(source: QuoteSource, ok: boolean, latencyMs: number, error?: string) {
+  // Feed the product-level provider health (/api/health `dataProviders`). A
+  // Yahoo 'no_data' answer is an answer; only thrown errors count as failures.
+  if (source === 'yahoo_chart' || source === 'yahoo_quote') noteProvider('yahoo', ok || error === 'no_data', error);
+  else if (source === 'schwab') noteProvider('schwab', ok || error === 'no_data', error);
   let h = sourceHealthMap.get(source);
   if (!h) {
     h = {

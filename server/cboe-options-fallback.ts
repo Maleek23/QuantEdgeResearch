@@ -9,6 +9,7 @@
  */
 
 import { logger } from './logger';
+import { httpOk, noteProvider } from './data-provider-health';
 
 interface CBOEOption {
   option: string;         // OCC symbol
@@ -127,6 +128,8 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
       },
     }));
 
+    // 403/404 = CBOE has no delayed chain for this symbol — answered, not failed.
+    noteProvider('cboe', httpOk(res.status) || res.status === 403, `HTTP ${res.status}`);
     if (!res.ok) {
       logger.warn(`[CBOE-OPT] API ${res.status} for ${symbol}`);
       return null;
@@ -135,7 +138,7 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
     const data = await res.json();
     // CBOE moved the underlying quote fields up one level: they used to live on
     // data.quote, and now sit directly on data. Accept BOTH shapes — reading only the
-    // old path silently returned null here, which killed every Tradier fallback that
+    // old path silently returned null here, which killed every chain fallback that
     // depends on this (options-flow ingestion and GEX included).
     const payload = data?.data ?? {};
     const quote: Partial<CBOEQuote> = payload.quote ?? payload;
@@ -236,6 +239,7 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
     return { options, allOptions, spotPrice, expirations, source: 'cboe' };
   } catch (e: any) {
     logger.warn(`[CBOE-OPT] Error for ${symbol}: ${e.message}`);
+    noteProvider('cboe', false, e?.message ?? 'error');
     return null;
   }
 }

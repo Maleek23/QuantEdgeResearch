@@ -51,7 +51,10 @@ class MarketDataStatusService {
 
   private initializeProviders() {
     const defaultProviders = [
-      { name: 'tradier', displayName: 'Tradier (Options)', quotaLimit: 120, quotaPeriod: 'per minute' },
+      // Retired as a product data source 2026-09-29 (token rejected; chains come
+      // from Alpaca → CBOE → Yahoo). Kept so the circuit-broken tradier-api.ts
+      // paths still log somewhere; /api/data-status and /api/health ignore it.
+      { name: 'tradier', displayName: 'Tradier (retired — not used for status)', quotaLimit: 120, quotaPeriod: 'per minute' },
       { name: 'yahoo_finance', displayName: 'Yahoo Finance (Quotes)', quotaLimit: 2000, quotaPeriod: 'per hour' },
       { name: 'alpha_vantage', displayName: 'Alpha Vantage (News)', quotaLimit: 25, quotaPeriod: 'per day' },
       { name: 'coingecko', displayName: 'CoinGecko (Crypto)', quotaLimit: 30, quotaPeriod: 'per minute' },

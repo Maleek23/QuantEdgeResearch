@@ -212,7 +212,10 @@ export default function TerminalShell() {
   const { user, logout } = useAuth();
   const { data: health } = useQuery<{
     status?: string;
-    dependencies?: { tradier?: boolean; postgres?: { ok?: boolean } };
+    /** true only when a configured provider the product uses (Alpaca, Schwab, CBOE, Yahoo, Bullflow) is down */
+    dataPartial?: boolean;
+    dataPartialProviders?: string[];
+    checks?: { postgres?: { ok?: boolean } };
   }>({
     queryKey: ['/api/health', 'terminal-chrome'],
     queryFn: async () => {
@@ -228,7 +231,10 @@ export default function TerminalShell() {
   // The chrome button is the ☀/☾ from the reference topbar: dark blue ↔ light.
   // Night/dark remain reachable from the settings panel's labelled picker.
   const nextTheme = nexusLight ? 'nexus' as const : 'nexus-light' as const;
-  const dataPartial = health?.status === 'degraded' || health?.dependencies?.tradier === false;
+  // Server-side truth (server/data-provider-health.ts): partial only when a feed
+  // the product actually uses is down — never because of a retired provider.
+  const dataPartial = health?.dataPartial === true;
+  const dbDown = health?.checks?.postgres?.ok === false;
   const mainRef = useRef<HTMLElement>(null);
   useMainHeightVar(mainRef);
   const accountLabel = user?.firstName || user?.email?.split('@')[0] || 'Account';
@@ -258,10 +264,16 @@ export default function TerminalShell() {
         >
           <div className="status-chip ok hidden sm:flex"><span className="dot" />Engaged</div>
           <div
-            className={cn('status-chip hidden lg:flex', dataPartial ? 'warn' : 'ok')}
-            title={dataPartial ? 'Some premium and chain-dependent reads are unavailable' : 'Primary data dependencies are healthy'}
+            className={cn('status-chip hidden lg:flex', !health ? '' : dataPartial || dbDown ? 'warn' : 'ok')}
+            title={!health
+              ? 'Data status unknown — the health check has not answered yet'
+              : dbDown
+                ? 'The database is unreachable — saved data may not load'
+                : dataPartial
+                  ? `Down now: ${(health.dataPartialProviders ?? []).join(', ') || 'a data provider'}. Reads that depend on it fall back to the next provider or show their age.`
+                  : 'Data providers in use (Alpaca · CBOE delayed · Yahoo, plus Bullflow / Schwab when configured) are answering'}
           >
-            <span className="dot" />{dataPartial ? 'Data partial' : 'Data ready'}
+            <span className="dot" />{!health ? 'Data …' : dbDown ? 'Data offline' : dataPartial ? 'Data partial' : 'Data ready'}
           </div>
 
           {/* Phones: inline ticker search row below the bar. */}

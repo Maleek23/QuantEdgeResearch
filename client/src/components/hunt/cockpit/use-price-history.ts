@@ -30,7 +30,7 @@ export function usePriceHistory(symbol: string | undefined, range = '1mo', inter
       if (!res.ok) throw new Error('history failed');
       const body: (HistoryResponse & { error?: string }) = await res.json();
       // The endpoint sometimes 200s with an { error } body when the upstream
-      // provider rate-limits (Tradier 429 → CBOE fallback race). Treat an
+      // provider rate-limits (a 429 mid-fallback). Treat an
       // empty/errored payload as a failure so React Query retries instead of
       // caching a blank chart.
       const points = (body.data ?? []).map((d) => ({ time: d.time, close: d.close }));

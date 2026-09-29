@@ -2,8 +2,9 @@
  * Broker Import Component
  *
  * Allows users to:
- * - Connect to brokers with API support (Tradier)
- * - Import positions via CSV (Webull, Robinhood, etc.)
+ * - Import positions via CSV (Webull, Robinhood, Schwab, Fidelity, manual)
+ *   (Tradier's API connection was removed from the UI 2026-09-29: the
+ *   platform no longer uses Tradier, and it was never a CSV format here.)
  * - View unified portfolio across all brokers
  */
 
@@ -54,7 +55,7 @@ import {
 } from "@/components/ui/collapsible";
 
 // Broker types matching backend
-type BrokerType = 'tradier' | 'webull' | 'robinhood' | 'manual' | 'td_ameritrade' | 'schwab' | 'fidelity';
+type BrokerType = 'webull' | 'robinhood' | 'manual' | 'td_ameritrade' | 'schwab' | 'fidelity';
 
 interface BrokerConfig {
   type: BrokerType;
@@ -67,14 +68,6 @@ interface BrokerConfig {
 }
 
 const BROKERS: BrokerConfig[] = [
-  {
-    type: 'tradier',
-    name: 'Tradier',
-    hasApi: true,
-    csvImport: false,
-    instructions: 'Connect via API key from Tradier dashboard',
-    color: 'bg-blue-500',
-  },
   {
     type: 'webull',
     name: 'Webull',

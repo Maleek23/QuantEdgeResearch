@@ -119,13 +119,13 @@ export default function HowToPage() {
       <Section num="05" title="What QuantEdge isn't" subtitle="Honest disclosure">
         <div className="text-[12.5px] text-muted-foreground space-y-2">
           <p>
-            <strong className="text-foreground">Real-time data:</strong> we use CBOE delayed (15 min) + Yahoo Finance + Tradier when token is alive. We're <strong>not</strong> Unusual Whales (no curated dark pool prints) or Polygon ($99/mo institutional real-time).
+            <strong className="text-foreground">Real-time data:</strong> option chains come from Alpaca's indicative feed, then CBOE delayed (~15 min), then Yahoo Finance; options flow from Bullflow. Every dashboard tool shows its source and data age. We're <strong>not</strong> Unusual Whales (no curated dark pool prints) or Polygon ($99/mo institutional real-time).
           </p>
           <p>
             <strong className="text-foreground">Best for:</strong> swing trades + LEAPS where 15-min lag doesn't kill you. Thesis discovery. Pattern recognition. Auto-graded conviction.
           </p>
           <p>
-            <strong className="text-foreground">Not best for:</strong> 0DTE scalping (need real-time, refresh Tradier first). Pre-market options data (limited). Overnight stock alerts (closed market).
+            <strong className="text-foreground">Not best for:</strong> 0DTE scalping (you need a real-time exchange feed; ours is indicative or delayed). Pre-market options data (limited). Overnight stock alerts (closed market).
           </p>
         </div>
       </Section>

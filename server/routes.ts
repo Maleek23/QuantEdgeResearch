@@ -578,14 +578,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * /api/health — real liveness + dependency check.
    *
-   * Returns 200 if all deps are reachable, 503 if any are degraded.
+   * Returns 503 only when Postgres is down; `status: 'degraded'` (HTTP 200)
+   * when a data provider the product uses is down (`dataPartial`).
    * Designed for uptime monitors (Better Uptime, Pingdom, UptimeRobot).
    *
    * Output shape kept stable — monitors parse this. Add new fields, never remove.
    */
   app.get('/api/health', async (_req, res) => {
     const start = Date.now();
-    const checks: Record<string, { ok: boolean; latencyMs?: number; message?: string }> = {};
+    const checks: Record<string, { ok: boolean; latencyMs?: number; message?: string; required?: boolean }> = {};
 
     // ─── Postgres (Neon) ───
     try {
@@ -597,60 +598,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       checks.postgres = { ok: false, message: e?.message ?? 'unknown' };
     }
 
-    // ─── Tradier (must use AUTHENTICATED endpoint — /markets/clock is public!) ───
-    // Previously used /markets/clock which returns 200 even with invalid auth,
-    // so the check was lying about Tradier health. We now hit /markets/quotes
-    // which requires real auth and returns either 401 OR a {fault:...} body.
-    if (process.env.TRADIER_API_KEY) {
-      try {
-        const t0 = Date.now();
-        const r = await fetch('https://api.tradier.com/v1/markets/quotes?symbols=SPY', {
-          headers: { Authorization: `Bearer ${process.env.TRADIER_API_KEY}`, Accept: 'application/json' },
-          signal: AbortSignal.timeout(3000),
-        });
-        const latencyMs = Date.now() - t0;
-        // Tradier sometimes returns HTTP 200 with a {fault:...} body on bad auth
-        let bodyHasFault = false;
-        let faultDetail: string | undefined;
-        try {
-          const body = await r.json() as { fault?: { faultstring?: string } };
-          if (body?.fault) {
-            bodyHasFault = true;
-            faultDetail = body.fault.faultstring ?? 'unknown fault';
-          }
-        } catch { /* non-JSON response — treat r.ok as truth */ }
-        const ok = r.ok && !bodyHasFault;
-        checks.tradier = {
-          ok,
-          latencyMs,
-          message: ok ? undefined : faultDetail ?? `HTTP ${r.status}`,
-        };
-      } catch (e: any) {
-        checks.tradier = { ok: false, message: e?.message ?? 'timeout' };
-      }
-    } else {
-      checks.tradier = { ok: false, message: 'TRADIER_API_KEY unset' };
+    // ─── Tradier: RETIRED as a product data source (2026-09-29) ───
+    // Its token is rejected; options and quotes come from Alpaca → CBOE → Yahoo
+    // (server/data-provider-health.ts). No live ping any more (it cost one
+    // doomed request per health hit), and it is NOT part of `status`. The key
+    // stays in `checks` only because monitors parse this shape.
+    try {
+      const { isPlatformTradierUsable, getTradierBreakerState } = await import('./tradier-api');
+      checks.tradier = { ok: isPlatformTradierUsable(), required: false, message: 'retired — not a product data source; not part of status' };
+      const breaker = getTradierBreakerState();
+      checks.tradierBreaker = { ok: !breaker.open, required: false, message: `retired provider — breaker ${breaker.open ? 'open' : 'closed'} (${breaker.failures} recent failures)` };
+    } catch {
+      checks.tradier = { ok: false, required: false, message: 'retired — not a product data source; not part of status' };
     }
 
-    // ─── Tradier circuit breaker state ───
-    try {
-      const { getTradierBreakerState } = await import('./tradier-api');
-      const breaker = getTradierBreakerState();
-      checks.tradierBreaker = {
-        ok: !breaker.open,
-        message: breaker.open
-          ? `breaker OPEN — ${Math.round(breaker.cooldownRemainingMs / 1000)}s until retry (${breaker.failures} failures)`
-          : `breaker closed — ${breaker.failures} recent failures`,
-      };
-    } catch { /* ignore */ }
+    // ─── Data providers the product actually uses (observed, no probe calls) ───
+    const { getDataProviderHealth } = await import('./data-provider-health');
+    let bullflowStream: string | undefined;
+    try { bullflowStream = (await import('./bullflow-service')).getBullflowPrints().state; } catch { /* stream module unavailable */ }
+    const providerHealth = getDataProviderHealth({ bullflowStream });
 
     // ─── Process info ───
     const memMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
     const uptimeSec = Math.round(process.uptime());
 
-    // Determine overall status: postgres MUST be up; others can be degraded
+    // Overall status: postgres MUST be up (else 503); 'degraded' when a data
+    // provider the product uses is down (dataPartial). Tradier is not consulted.
     const pgOk = checks.postgres?.ok === true;
-    const status = pgOk ? (checks.tradier?.ok ? 'ok' : 'degraded') : 'degraded';
+    const status = pgOk && !providerHealth.dataPartial ? 'ok' : 'degraded';
     const httpStatus = pgOk ? 200 : 503;
 
     res.status(httpStatus).json({
@@ -661,6 +636,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       version: process.env.GIT_SHA ?? 'unknown',
       env: process.env.NODE_ENV ?? 'unknown',
       checks,
+      /** true only when a configured provider the product uses is down */
+      dataPartial: providerHealth.dataPartial,
+      dataPartialProviders: providerHealth.partial,
+      dataProviders: providerHealth.providers,
       latencyMs: Date.now() - start,
     });
   });
@@ -2840,6 +2819,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // System Health Check (SECURITY: No API key presence disclosure)
   app.get("/api/admin/system-health", requireAdminJWT, async (_req, res) => {
     try {
+      // Market data: the providers the product actually uses, as observed
+      // (server/data-provider-health.ts) — not hardcoded 'operational', and no
+      // Tradier (retired as a data source 2026-09-29).
+      const { getDataProviderHealth } = await import('./data-provider-health');
+      const providerHealth = getDataProviderHealth();
+      const marketData = Object.fromEntries(providerHealth.providers.map((p) => [p.id, {
+        status: p.state === 'ok' ? 'operational' : p.state, label: p.label, detail: p.detail,
+      }]));
       const health = {
         database: { status: 'operational', message: 'PostgreSQL connected' },
         aiProviders: {
@@ -2847,12 +2834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           anthropic: { status: 'operational', model: 'claude-sonnet-4-20250514' },
           gemini: { status: 'operational', model: 'gemini-2.5-flash' }
         },
-        marketData: {
-          alphaVantage: { status: 'operational' },
-          yahooFinance: { status: 'operational' },
-          coinGecko: { status: 'operational' },
-          tradier: { status: 'operational' }
-        },
+        marketData,
         services: {
           mlEngine: { status: 'operational' },
           watchlistMonitor: { status: 'operational' },
@@ -3028,22 +3010,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { apiCache } = await import('./api-cache');
       const { apiThrottle } = await import('./api-throttle');
       
-      const allStatuses = marketDataStatus.getAllStatuses();
+      const { getDataProviderHealth } = await import('./data-provider-health');
+      // Tradier is retired as a data source (its token is rejected; nothing the
+      // product shows depends on it) — it must not make this report unhealthy.
+      const allStatuses = marketDataStatus.getAllStatuses().filter((p) => p.name !== 'tradier');
       const degradedProviders = allStatuses.filter(p => 
         p.status === 'rate_limited' || p.status === 'degraded' || p.status === 'down'
       );
+      let bullflowStream: string | undefined;
+      try { bullflowStream = (await import('./bullflow-service')).getBullflowPrints().state; } catch { /* stream module unavailable */ }
+      const feeds = getDataProviderHealth({ bullflowStream });
+      const feedIssues = feeds.providers.filter((p) => p.configured && (p.state === 'down' || p.state === 'degraded'));
       
       const cacheStats = apiCache.getStats();
       const queueStats = apiThrottle.getQueueStats();
       
       res.json({
-        healthy: degradedProviders.length === 0,
-        degradedProviders: degradedProviders.map(p => ({
-          name: p.displayName,
-          status: p.status,
-          reason: p.statusReason,
-          resetsAt: p.quota?.resetsAt,
-        })),
+        healthy: degradedProviders.length === 0 && !feeds.dataPartial,
+        degradedProviders: [
+          ...feedIssues.map((p) => ({ name: p.label, status: p.state, reason: p.detail ?? undefined, resetsAt: undefined })),
+          ...degradedProviders.map(p => ({
+            name: p.displayName,
+            status: p.status,
+            reason: p.statusReason,
+            resetsAt: p.quota?.resetsAt,
+          })),
+        ],
         cacheEntries: cacheStats.entries,
         queuedRequests: Object.values(queueStats).reduce((sum, q) => sum + q.pending, 0),
       });
@@ -32897,7 +32889,7 @@ Use this checklist before entering any trade:
         }
         return res.status(503).json({
           error: `Options data unavailable for ${symbol}`,
-          reason: 'All data sources failed (Tradier, CBOE, Yahoo). Symbol may not have listed options.',
+          reason: 'All data sources failed (Alpaca, CBOE, Yahoo). Symbol may not have listed options.',
           symbol,
         });
       }
@@ -33118,7 +33110,7 @@ Use this checklist before entering any trade:
         }
         return res.status(503).json({
           error: `Options data unavailable for ${symbol}`,
-          reason: 'All data sources failed (Tradier, Yahoo, CBOE). Market may be closed or API keys may need renewal.',
+          reason: 'All data sources failed (Alpaca, CBOE, Yahoo). Market may be closed or API keys may need renewal.',
           symbol,
         });
       }
@@ -34206,7 +34198,7 @@ Use this checklist before entering any trade:
 
       const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
 
-      // Same source chain as the GEX terminal: Tradier → CBOE → last good
+      // Same source chain as the GEX terminal: Alpaca → Schwab (if configured) → CBOE → Yahoo, then CBOE direct, then last good
       // projection (stamped with its age — never passed off as current).
       let gex = await calculateAggregateGammaExposure(symbol);
       if (!gex) {
@@ -34220,7 +34212,7 @@ Use this checklist before entering any trade:
         }
         return res.status(503).json({
           error: `Options data unavailable for ${symbol}`,
-          reason: 'All data sources failed (Tradier, CBOE). Market may be closed or API keys may need renewal.',
+          reason: 'All data sources failed (Alpaca, CBOE). Market may be closed or API keys may need renewal.',
           symbol,
         });
       }

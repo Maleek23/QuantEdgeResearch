@@ -331,6 +331,7 @@ export function SystemStatusBlock({ className }: { className?: string }) {
     refetchInterval: 120_000,
     retry: 1,
   });
+  // /api/health `dataPartial`: a provider the product uses (Alpaca, Schwab, CBOE, Yahoo, Bullflow) is down.
   const { data: health } = useQuery<{ dataPartial?: boolean }>({
     queryKey: ['/api/health', 'terminal-chrome'],
     queryFn: async () => {
@@ -366,7 +367,7 @@ export function SystemStatusBlock({ className }: { className?: string }) {
 
   return (
     <div className={cn('border-t border-border/50 px-4 py-3', className)}>
-      <Row k="Feed" v={health?.dataPartial ? 'partial' : 'connected'} tone={health?.dataPartial ? 'warn' : 'ok'} />
+      <Row k="Feed" v={!health ? '—' : health.dataPartial ? 'partial' : 'connected'} tone={!health ? undefined : health.dataPartial ? 'warn' : 'ok'} />
       <Row k="Bots" v={runningBots ?? '—'} />
       <Row k="Watchlist" v={watchlistData?.length ?? '—'} />
       {/* VIX above ~20 is the conventional caution line; below it stays neutral. */}
