@@ -21,7 +21,7 @@
  */
 import { db } from './db';
 import { optionsFlowHistory } from '@shared/schema';
-import { and, desc, gte } from 'drizzle-orm';
+import { and, desc, gte, inArray } from 'drizzle-orm';
 import { marketDateET, marketDateDaysAgo } from '@shared/market-day';
 import { logger } from './logger';
 
@@ -49,6 +49,8 @@ export interface TapeRow {
 export interface TapePayload {
   generatedAt: string;
   windowDays: number;
+  /** set when the tape was read for ONE underlying (no market-wide row cap applies to it) */
+  symbol: string | null;
   rows: TapeRow[];
   truncated: boolean;
   sources: {
@@ -59,7 +61,9 @@ export interface TapePayload {
 
 const MAX_CHAIN_ROWS = 1500;
 const TTL_MS = 15_000;
-const cache = new Map<number, { at: number; data: TapePayload }>();
+/** keyed `${days}|${symbol ?? '*'}`; bounded so per-ticker reads can't grow it without limit */
+const cache = new Map<string, { at: number; data: TapePayload }>();
+const MAX_CACHE_KEYS = 64;
 
 function bullflowKind(name: string): TapeRow['kind'] {
   const n = name.toLowerCase();
@@ -84,9 +88,18 @@ const CHAIN_LABEL: Record<string, string> = {
 const newest = (rows: TapeRow[]) =>
   rows.reduce<string | null>((m, r) => (r.at && (!m || r.at > m) ? r.at : m), null);
 
-export async function buildFlowTape(days: number): Promise<TapePayload> {
+/**
+ * `symbol` narrows both sources to one underlying (SPX also matches SPXW).
+ * The market-wide read caps chain-scan rows at 1,500 newest, so a busy day
+ * can push a ticker's earlier observations out of it; the per-symbol read has
+ * its own 1,500 cap for that ticker alone, which is what the ticker tools use.
+ */
+export async function buildFlowTape(days: number, symbolRaw?: string | null): Promise<TapePayload> {
   const windowDays = [1, 2, 5, 7].includes(days) ? days : 1;
-  const hit = cache.get(windowDays);
+  const symbol = symbolRaw && /^[A-Z.]{1,10}$/.test(symbolRaw.toUpperCase()) ? symbolRaw.toUpperCase() : null;
+  const roots = symbol ? (symbol === 'SPX' || symbol === 'SPXW' ? ['SPX', 'SPXW'] : [symbol]) : null;
+  const ck = `${windowDays}|${symbol ?? '*'}`;
+  const hit = cache.get(ck);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.data;
 
   const fromDate = windowDays === 1 ? marketDateET() : marketDateDaysAgo(windowDays - 1);
@@ -101,7 +114,7 @@ export async function buildFlowTape(days: number): Promise<TapePayload> {
     const { state, prints } = bf.getBullflowPrints();
     bfState = state;
     bfRows = prints
-      .filter((p) => marketDateET(new Date(p.at)) >= fromDate)
+      .filter((p) => (!roots || roots.includes(p.underlying)) && marketDateET(new Date(p.at)) >= fromDate)
       .map((p): TapeRow => ({
         id: `bf-${p.id}`,
         source: 'bullflow',
@@ -132,7 +145,9 @@ export async function buildFlowTape(days: number): Promise<TapePayload> {
   try {
     const rows = await db.select()
       .from(optionsFlowHistory)
-      .where(and(gte(optionsFlowHistory.detectedDate, fromDate)))
+      .where(roots
+        ? and(gte(optionsFlowHistory.detectedDate, fromDate), inArray(optionsFlowHistory.symbol, roots))
+        : and(gte(optionsFlowHistory.detectedDate, fromDate)))
       .orderBy(desc(optionsFlowHistory.detectedAt))
       .limit(MAX_CHAIN_ROWS + 1);
     truncated = rows.length > MAX_CHAIN_ROWS;
@@ -171,6 +186,7 @@ export async function buildFlowTape(days: number): Promise<TapePayload> {
   const data: TapePayload = {
     generatedAt: new Date().toISOString(),
     windowDays,
+    symbol,
     rows,
     truncated,
     sources: {
@@ -179,6 +195,12 @@ export async function buildFlowTape(days: number): Promise<TapePayload> {
     },
   };
   // Don't pin a failed DB read for the TTL — let the next request retry.
-  if (chainOk) cache.set(windowDays, { at: Date.now(), data });
+  if (chainOk) {
+    cache.set(ck, { at: Date.now(), data });
+    if (cache.size > MAX_CACHE_KEYS) {
+      const oldest = [...cache.entries()].sort((a, b) => a[1].at - b[1].at)[0]?.[0];
+      if (oldest) cache.delete(oldest);
+    }
+  }
   return data;
 }

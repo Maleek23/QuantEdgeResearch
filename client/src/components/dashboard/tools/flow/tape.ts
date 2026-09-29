@@ -29,6 +29,7 @@ export interface TapeRow {
 export interface TapePayload {
   generatedAt: string;
   windowDays: number;
+  symbol?: string | null;
   rows: TapeRow[];
   truncated: boolean;
   sources: {
@@ -37,17 +38,25 @@ export interface TapePayload {
   };
 }
 
-export function useFlowTape(days: number) {
+/**
+ * The tape. Without a symbol: the market-wide read (Options Flow, Flow Alerts,
+ * Sweeps & blocks, Unusual, tape Top Tickers) — one shared key per window.
+ * With a symbol: that underlying only (ladder, heatmap, timeline, context) —
+ * one shared key per symbol + window, so the ticker tools cost one request.
+ */
+export function useFlowTape(days: number, symbol?: string | null, enabled = true) {
+  const sym = symbol ? symbol.toUpperCase() : null;
   return useQuery<TapePayload>({
-    queryKey: ['/api/flow/tape', days],
+    queryKey: sym ? ['/api/flow/tape', days, sym] : ['/api/flow/tape', days],
     queryFn: async () => {
-      const r = await fetch(`/api/flow/tape?days=${days}`, { credentials: 'include' });
+      const r = await fetch(`/api/flow/tape?days=${days}${sym ? `&symbol=${encodeURIComponent(sym)}` : ''}`, { credentials: 'include' });
       if (!r.ok) throw new Error(`flow tape ${r.status}`);
       return r.json();
     },
     staleTime: 10_000,
     refetchInterval: 15_000,
     retry: 1,
+    enabled,
   });
 }
 

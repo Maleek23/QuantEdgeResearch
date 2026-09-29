@@ -49,9 +49,11 @@ const spec = (id: PageId, label: string, defaults: DefaultLayout[], primary: Too
 
 export const PAGES: Record<PageId, PageSpec> = {
   flow: {
-    id: 'flow', label: 'FLOW', defaults: FLOW_DEFAULTS, primary: ['Options', 'Market', 'Dark Pool'],
-    storagePrefix: 'flowdash:', lsKey: 'qe-flowdash-v1', lsActive: 'qe-flowdash-active', seedOnlyWhenEmpty: true,
-    starters: ['options-flow', 'stock-chart'],
+    // Shipped defaults (Market flow, Ticker flow) now always show, like every
+    // other page: pre-framework random-id rows stay alongside as the user's own.
+    id: 'flow', label: 'FLOW', defaults: FLOW_DEFAULTS, primary: ['Options', 'Dark Pool', 'Market'],
+    storagePrefix: 'flowdash:', lsKey: 'qe-flowdash-v1', lsActive: 'qe-flowdash-active',
+    starters: ['options-flow', 'net-flow-strike', 'flow-strike-expiry'],
   },
   gex: spec('gex', 'GEX', GEX_DEFAULTS, ['GEX', 'Market'], ['gex-dealer-map', 'gex-levels', 'stock-chart']),
   nexus: spec('nexus', 'NEXUS', NEXUS_DEFAULTS, ['Ideas', 'Market'], NEXUS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),

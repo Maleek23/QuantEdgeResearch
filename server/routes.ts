@@ -15339,11 +15339,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   // FLOW DASHBOARD — Options Flow tool read model (server/flow-tape.ts):
   // Bullflow alert ring + chain-scan observations, source-tagged, 15s cache.
+  // ?symbol=X narrows to one underlying (the FLOW ticker tools: ladder,
+  // strike × expiry heatmap, timeline) so the market-wide row cap can't hide it.
   app.get("/api/flow/tape", requireBetaAccess, async (req, res) => {
     try {
       const { buildFlowTape } = await import("./flow-tape");
       const days = parseInt(String(req.query.days ?? '1'), 10) || 1;
-      res.json(await buildFlowTape(days));
+      const symbol = typeof req.query.symbol === 'string' ? req.query.symbol.trim().toUpperCase() : '';
+      if (symbol && !/^[A-Z.]{1,10}$/.test(symbol)) return res.status(400).json({ error: 'Invalid symbol' });
+      res.json(await buildFlowTape(days, symbol || null));
     } catch (error: any) {
       logger.error("[FLOW-TAPE] build failed", { error: error?.message });
       res.status(500).json({ error: "Flow tape unavailable" });
