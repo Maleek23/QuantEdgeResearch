@@ -333,6 +333,7 @@ export function noteKindLabel(reason: string | null, source: string): string {
     case 'unmatched_exit': return 'exit, no entry found';
     case 'unpriced_exit': return 'closed without price';
     case 'entry_without_price': return 'entry without price';
+    case 'discord_post': return 'Discord';
     default: return source === 'discord' ? 'Discord post' : 'imported note';
   }
 }

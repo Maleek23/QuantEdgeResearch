@@ -9,8 +9,12 @@
  *   4. Reset journal  → DELETE /api/journal/trades/all, behind a typed confirmation
  *   5. Connect broker → Alpaca, read-only fill import (your journal)
  *   6. Discord        → a trader's Discord history, preview then confirm (trader journals)
+ *   7. Discord forum  → (admin) every trader's journal thread in one forum: posts to
+ *                       each trader's Notebook, parsed trades to their journal
+ *                       (components/journal/discord-forum-import.tsx)
  */
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Download, FileUp, Link2, Loader2, MessageSquare, Plus, Trash2, Upload } from 'lucide-react';
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent,
@@ -18,16 +22,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { apiRequest } from '@/lib/queryClient';
 import { BROKERS } from '@/lib/journal/types';
-import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
+import { JOURNAL_NOTES_KEY, JOURNAL_SOURCES_KEY, readApiError, useJournalMutations } from '@/lib/journal/use-journal';
 import { useJournalPortalClass } from './parts';
 import { useJournal } from './journal-context';
 import { AlpacaConnect } from './alpaca-connect';
+import { DiscordForumImport } from './discord-forum-import';
 import { ImportHistory, ImportReconciliation, type ImportResult } from './import-reconciliation';
 import { ToolSkeleton } from '@/components/ui/qe-loading';
 
 const FlowImport = lazy(() => import('@/components/trade-desk/flow-import').then((m) => ({ default: m.FlowImport })));
 
-export type ImportSection = 'csv' | 'manual' | 'flow' | 'reset' | 'broker' | 'discord';
+export type ImportSection = 'csv' | 'manual' | 'flow' | 'reset' | 'broker' | 'discord' | 'forum';
 
 function CsvImport({ onDone, qs }: { onDone: () => void; qs: string }) {
   const [broker, setBroker] = useState('');
@@ -111,8 +116,9 @@ export function ImportSections({ focus, tradeCount, onLogTrade }: {
   onLogTrade: () => void;
 }) {
   const portal = useJournalPortalClass();
-  const { data } = useJournal();
+  const { data, sources } = useJournal();
   const { refresh, resetAll, qs } = useJournalMutations(data.key);
+  const qc = useQueryClient();
   const trader = data.key.startsWith('trader:') ? data.key.slice(7) : null;
   const book = data.meta?.label ?? (trader ?? 'your');
   const whose = trader ? `${book}'s` : 'your';
@@ -130,12 +136,29 @@ export function ImportSections({ focus, tradeCount, onLogTrade }: {
   return (
     <>
       <div className="jr-grid">
+        {sources?.isAdmin && (
+          <section className="jr-card jr-span-12 jr-anchor" id="jr-imp-sec-forum" aria-labelledby="jr-imp-forum">
+            <h3 className="jr-section-h" id="jr-imp-forum"><MessageSquare className="h-4 w-4" /> Discord forum · every trader's journal thread</h3>
+            <p className="jr-note" style={{ marginTop: 0 }}>
+              One forum, one thread per trader. Each thread's messages become entries in that trader's <b>Notebook</b> (as posted, with links back to Discord);
+              calls the parser can read become trades in their journal (P&amp;L only where entry and exit were both posted); the rest go to a review list.
+              {sources.capabilities.discordBot ? ' The server can read the forum with its bot token.' : ' No bot token on the server — upload DiscordChatExporter exports (docs/DISCORD_IMPORT.md).'}
+            </p>
+            <DiscordForumImport botAvailable={sources.capabilities.discordBot} onDone={() => {
+              refresh();
+              qc.invalidateQueries({ queryKey: [JOURNAL_NOTES_KEY] });
+              qc.invalidateQueries({ queryKey: ['/api/traders'] });
+              qc.invalidateQueries({ queryKey: JOURNAL_SOURCES_KEY });
+              qc.invalidateQueries({ queryKey: ['/api/trader-calls'] });
+            }} />
+          </section>
+        )}
         {trader ? (
           <section className="jr-card jr-span-12 jr-anchor" id="jr-imp-sec-discord" aria-labelledby="jr-imp-discord">
             <h3 className="jr-section-h" id="jr-imp-discord"><MessageSquare className="h-4 w-4" /> From Discord</h3>
             <p className="jr-note" style={{ margin: 0 }}>
-              Discord calls go to {book}'s <b>watchlist</b>, not this journal — open Chart › Watchlist › {book} › "Import from Discord".
-              {' '}They show up here in the Notebook as read-only calls. {book} keeps this journal themselves once they have an account.
+              A single Discord channel's calls go to {book}'s <b>watchlist</b> — Chart › Watchlist › {book} › "Import from Discord".
+              {' '}A Discord <b>forum</b> of journal threads (above, admin) imports {book}'s thread into this journal: posts to the Notebook, parsed calls to Trades.
             </p>
           </section>
         ) : (

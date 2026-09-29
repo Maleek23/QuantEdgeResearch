@@ -10,7 +10,7 @@ import type { ImportSection } from '@/components/journal/import-drawer';
 export type JournalView =
   | 'dashboard' | 'calendar' | 'daily' | 'trades' | 'reports' | 'loss' | 'notebook' | 'playbooks' | 'progress' | 'missed'
   | 'import' | 'accounts' | 'settings'
-  | 'record';
+  | 'record' | 'traders';
 
 export type JournalIntent =
   | { kind: 'anchor'; id: string }
@@ -42,10 +42,11 @@ export const JOURNAL_PAGES: readonly { id: JournalView; label: string; group: Jo
   { id: 'progress', label: 'Progress', group: 'improve', hint: 'Streaks, goals vs actual, rolling win rate' },
   { id: 'missed', label: 'Missed', group: 'improve', hint: 'Trades not taken — and what they did' },
   { id: 'notebook', label: 'Notebook', group: 'improve', hint: 'All notes, searchable, tagged by ticker and day' },
-  { id: 'import', label: 'Import', group: 'setup', hint: 'Broker CSV, manual entry, flow alerts' },
+  { id: 'import', label: 'Import', group: 'setup', hint: 'Broker CSV, Discord forum, manual entry, flow alerts' },
   { id: 'accounts', label: 'Accounts', group: 'setup', hint: 'Broker connections and balances' },
   { id: 'settings', label: 'Settings', group: 'setup', hint: 'Default book, display, timezone' },
   { id: 'record', label: 'Track record', group: 'platform', hint: "How the platform's published ideas did, plus the backtester" },
+  { id: 'traders', label: 'Trader ranking', group: 'platform', hint: 'Imported trader journals analysed and ranked — stated P&L and calls measured on the underlying' },
 ];
 
 /** Pages whose content is the selected book's trades (filters apply; empty book → empty state). */
@@ -70,7 +71,11 @@ export const LEGACY_JTAB: Record<string, { view: JournalView; intent?: JournalIn
   accounts: { view: 'accounts' },
   settings: { view: 'settings' },
   record: { view: 'record' },
+  traders: { view: 'traders' },
   // aliases for the new pages
+  leaderboard: { view: 'traders' },
+  ranking: { view: 'traders' },
+  forum: { view: 'import', intent: { kind: 'import', section: 'forum' } },
   losses: { view: 'loss' },
   'loss-analysis': { view: 'loss' },
   why: { view: 'loss' },

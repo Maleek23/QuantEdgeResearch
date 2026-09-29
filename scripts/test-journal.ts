@@ -110,7 +110,7 @@ for (const [alias, view] of [['journal', 'daily'], ['notes', 'notebook'], ['setu
 // Every sidebar page is reachable by its own id, and the 4 old destination ids still resolve.
 for (const p of JOURNAL_PAGES) assert.equal(resolveJournalTab(p.id).view, p.id, `page ${p.id} resolves to itself`);
 for (const old of ['dashboard', 'trades', 'analytics', 'record']) assert.ok(Object.prototype.hasOwnProperty.call(LEGACY_JTAB, old), `old view id ${old}`);
-assert.deepEqual(JOURNAL_PAGES.map((p) => p.id), ['dashboard', 'calendar', 'daily', 'trades', 'reports', 'loss', 'playbooks', 'progress', 'missed', 'notebook', 'import', 'accounts', 'settings', 'record']);
+assert.deepEqual(JOURNAL_PAGES.map((p) => p.id), ['dashboard', 'calendar', 'daily', 'trades', 'reports', 'loss', 'playbooks', 'progress', 'missed', 'notebook', 'import', 'accounts', 'settings', 'record', 'traders']);
 assert.deepEqual(JOURNAL_GROUPS.map((g) => g.id), ['overview', 'trades', 'improve', 'setup', 'platform']);
 for (const g of JOURNAL_GROUPS) assert.ok(JOURNAL_PAGES.some((p) => p.group === g.id), `group ${g.id} has pages`);
 assert.equal(resolveJournalTab('losses').view, 'loss');

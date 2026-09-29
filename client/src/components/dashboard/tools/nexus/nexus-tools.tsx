@@ -29,6 +29,8 @@ import {
   useDevelopingQuote, useNexusConvictions, useNexusExtended, useNexusPatterns, useNexusPulse, useSpxExpression,
   RANKS, SIDES, type DetailTab, type PatternHit, type Rank, type Side,
 } from './nexus-parts';
+import { TraderCallLine } from './trader-calls';
+import { useTraderCalls } from '@/lib/trader-calls';
 import './nexus-tools.css';
 
 /* ── shared selection ── */
@@ -163,6 +165,49 @@ export function NexusPositionsTool() {
         ? <QEEmpty className="fd-m" message={held.length === 0 ? 'The bot holds no positions in this read.' : 'No held positions match this filter.'} />
         : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} selected={sel?.kind === 'setup' && sel.id === pick.ideaId} onSelect={() => select.setup(pick)} />)}</div>)}
       <div className="fd-foot">Sorted by unrealized P&amp;L %. Held rows carry live P&amp;L, not a conviction score.</div>
+    </div>
+  );
+}
+
+/* ════════════ Trader calls (evidence from ranked traders) ════════════ */
+export function NexusTraderCallsTool() {
+  const q = useTraderCalls();
+  const { all } = useSetupBook();
+  const [sel] = useNexusSelection();
+  const select = useSelect();
+  const [, setFocus] = useFocusSymbol();
+  const calls = q.data?.calls ?? [];
+  useToolReport({
+    asOf: q.data ? q.data.asOf : q.isError ? null : undefined,
+    source: 'imported Discord journals · /api/trader-calls',
+    note: q.isError ? 'unavailable' : `${calls.length} open call${calls.length === 1 ? '' : 's'} · ${q.data?.traders.length ?? 0} ranked trader${q.data?.traders.length === 1 ? '' : 's'} pass`,
+    tone: q.isError ? 'warn' : 'ok',
+  });
+  if (q.isLoading) return <QELoading rows={3} className="fd-pad" label="loading trader calls…" />;
+  if (q.isError && !q.data) return <QEError className="fd-m" title="Trader calls didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  const cfg = q.data!.config;
+  return (
+    <div className="fd-fill nxd">
+      {calls.length === 0 ? (
+        <QEEmpty className="fd-m" message={q.data!.traders.length === 0
+          ? `No trader passes the ranking threshold yet (score ≥ ${cfg.minScore} on ≥ ${cfg.minSample} scored calls). Import their Discord journals in Journal › Import.`
+          : `No open calls from ${q.data!.traders.map((t) => t.name).join(', ')} in the last ${cfg.maxAgeTradingDays} trading days.`} />
+      ) : (
+        <div className="fd-scroll nxtc-list">
+          {calls.map((c) => {
+            const pick = all.find((p) => p.symbol === c.symbol);
+            return (
+              <div key={c.id} role="button" tabIndex={0} style={{ cursor: 'pointer', outline: sel?.kind === 'setup' && pick && sel.id === pick.ideaId ? '1px solid var(--border-subtle)' : undefined }}
+                onClick={(e) => { if ((e.target as HTMLElement).closest('a')) return; if (pick) select.setup(pick); else setFocus(c.symbol); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { if (pick) select.setup(pick); else setFocus(c.symbol); } }}
+                aria-label={`${c.trader.name}'s ${c.symbol} call${pick ? ' — open the setup' : ''}`}>
+                <TraderCallLine c={c} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="fd-foot">Evidence, not a signal: open calls ≤ {cfg.maxAgeTradingDays} trading days old from traders ranked ≥ {cfg.minScore}. Stated prices are as posted; the underlying is repriced live. Not used by the bot.</div>
     </div>
   );
 }

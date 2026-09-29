@@ -10,7 +10,7 @@
  *   Trades    Trades · Reports · Loss analysis
  *   Improve   Playbooks · Progress · Missed · Notebook
  *   Setup     Import · Accounts · Settings
- *   Platform  Track record
+ *   Platform  Track record · Trader ranking
  *
  * Fit to screen: the journal is exactly the shell's measured main area
  * (--qe-main-h); the sidebar and the one-row header stay put and only the
@@ -59,6 +59,7 @@ const ImportView = lazy(() => import('@/pages/journal/import-view'));
 const AccountsView = lazy(() => import('@/pages/journal/accounts-view'));
 const SettingsView = lazy(() => import('@/pages/journal/settings-view'));
 const RecordView = lazy(() => import('@/pages/journal/record-view'));
+const TradersView = lazy(() => import('@/pages/journal/traders-view'));
 const TradeView = lazy(() => import('@/pages/journal/trade-view'));
 
 const TRADE_PARAM = 'jtrade';
@@ -235,6 +236,7 @@ export default function JournalShell() {
         {view === 'import' && <ImportView focus={initial.intent?.kind === 'import' ? initial.intent.section : undefined} onLogTrade={() => setEditor({ open: true, row: null })} />}
         {view === 'accounts' && <AccountsView />}
         {view === 'settings' && <SettingsView />}
+        {view === 'traders' && <TradersView />}
       </>
     );
   }

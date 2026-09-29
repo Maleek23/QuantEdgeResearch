@@ -20,6 +20,7 @@ import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
 import { convictionPercent, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
+import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import '@/styles/nexus-prototype.css';
 
 /* ── wire types ── */
@@ -196,7 +197,7 @@ export function SetupRow({ pick, selected, onSelect }: { pick: ConvictionPick; s
   return (
     <button type="button" className={`nxp-row ${selected ? 'selected' : ''}`} onClick={onSelect}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
-      <span className="nxp-row-main"><strong>{pick.symbol}</strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small></span>
+      <span className="nxp-row-main"><strong>{pick.symbol}<TraderCallBadge symbol={pick.symbol} /></strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small></span>
       <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}</small></span>
       <ChevronRight size={14} />
     </button>
@@ -317,6 +318,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
             <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full workup <ChevronRight size={16} /></button>
           </aside>
         </div>}
+        {tab === 'overview' && <TraderCallEvidence symbol={selected.symbol} />}
         {tab === 'technical' && <div className="nxp-technical-grid"><TASummary symbol={selected.symbol} /><div className="nxp-components"><div className="nxp-section-title"><span>Signal components</span><small>{selected.layers.length} layers</small></div><SignalComponents layers={selected.layers} max={99} /></div></div>}
         {tab === 'manage' && <div className="nxp-manage-grid"><PriceLadder pick={selected} live={live} /><ProfitPlan pick={selected} live={live} /></div>}
         {tab === 'risk' && <RiskPanel pick={selected} live={live} />}

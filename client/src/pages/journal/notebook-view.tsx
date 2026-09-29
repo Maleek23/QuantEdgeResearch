@@ -6,10 +6,16 @@
  *                        entry/exit reasons; for the Trade desk: none)
  *   · trader calls       for a trader book, the Discord calls imported onto their
  *                        watchlist (read-only; the importer lives on the watchlist)
+ *   · Discord posts      (2026-09-29, feat/forum) every message of the trader's
+ *                        forum thread, as posted — author, time, link back to
+ *                        Discord, images as links. Read them oldest → newest with
+ *                        "only <trader>'s posts" to follow their analysis; the
+ *                        REVIEW filter lists trade-looking posts the parser could
+ *                        not turn into a trade. The trader picker switches book.
  * Writing is offered only on books the caller can write.
  */
 import { useMemo, useState } from 'react';
-import { Loader2, Search, Trash2 } from 'lucide-react';
+import { ExternalLink, Loader2, Search, Trash2 } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useJournal } from '@/components/journal/journal-context';
@@ -18,11 +24,20 @@ import {
   fmtStamp, noteKindLabel, readApiError, useJournalNoteMutations, useTraderWatchlist,
 } from '@/lib/journal/use-journal';
 
-type Kind = 'all' | 'day_note' | 'note' | 'missed' | 'imported' | 'trade' | 'calls';
+type Kind = 'all' | 'day_note' | 'note' | 'missed' | 'imported' | 'trade' | 'calls' | 'discord' | 'review';
+type ItemKind = Exclude<Kind, 'all' | 'review'>;
+
+interface PostMeta { authorName?: string; byTrader?: boolean; link?: string | null; review?: string | null; threadName?: string; parsed?: { kind: string; symbol: string | null; confidence: number } | null }
+const REVIEW_TEXT: Record<string, string> = {
+  entry_without_price: 'entry without a price',
+  unmatched_exit: 'exit with no open entry',
+  unpriced_exit: 'closed without a price',
+  trade_looking: 'reads like a trade — not parsed',
+};
 
 interface Item {
   id: string;
-  kind: Exclude<Kind, 'all'>;
+  kind: ItemKind;
   label: string;
   day: string | null;
   at: string | null;
@@ -32,12 +47,17 @@ interface Item {
   noteId?: string;
   tradeId?: string;
   attachments?: { url: string; name: string; isImage: boolean }[] | null;
+  author?: string;
+  byTrader?: boolean;
+  link?: string | null;
+  review?: string | null;
+  parsed?: PostMeta['parsed'];
 }
 
 const SYM_RE = /\$?\b[A-Z]{1,5}\b/g;
 
 export default function NotebookView() {
-  const { data, filters, canWrite, bookLabel, openTrade, openDay, prefs } = useJournal();
+  const { data, filters, canWrite, bookLabel, openTrade, openDay, prefs, sources, setJournal } = useJournal();
   const { notesQ, trades } = data;
   const slug = data.key.startsWith('trader:') ? data.key.slice(7) : null;
   const callsQ = useTraderWatchlist(slug);
@@ -45,6 +65,10 @@ export default function NotebookView() {
   const [q, setQ] = useState('');
   const [kind, setKind] = useState<Kind>('all');
   const [limit, setLimit] = useState(40);
+  const [order, setOrder] = useState<'new' | 'old'>('new');
+  const [onlyTrader, setOnlyTrader] = useState(false);
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const traderBooks = (sources?.sources ?? []).filter((x) => x.kind === 'trader');
   const [delErr, setDelErr] = useState('');
   const f = filters.resolved;
 
@@ -52,6 +76,15 @@ export default function NotebookView() {
     const out: Item[] = [];
     for (const n of notesQ.data?.notes ?? []) {
       if (n.reason === 'playbook' || n.reason === 'trade_review') continue; // playbook definitions live on Playbooks, trade reviews on the trade page
+      if (n.reason === 'discord_post') {
+        const m = (n.meta ?? {}) as PostMeta;
+        out.push({
+          id: `n:${n.id}`, kind: 'discord', label: `Discord · ${m.authorName ?? 'unknown'}`, day: n.day, at: n.postedAt,
+          symbols: (n.symbols ?? []).map((x) => x.toUpperCase()), body: n.body, attachments: n.attachments,
+          author: m.authorName, byTrader: m.byTrader !== false, link: m.link ?? null, review: m.review ?? null, parsed: m.parsed ?? null,
+        });
+        continue;
+      }
       const k: Item['kind'] = n.source === 'manual' && (n.reason === 'day_note' || n.reason === 'note' || n.reason === 'missed') ? n.reason : 'imported';
       out.push({ id: `n:${n.id}`, kind: k, label: noteKindLabel(n.reason, n.source), day: n.day, at: n.postedAt, symbols: (n.symbols ?? []).map((s) => s.toUpperCase()), body: n.body, noteId: n.source === 'manual' ? n.id : undefined, attachments: n.attachments });
     }
@@ -64,21 +97,27 @@ export default function NotebookView() {
       if (!c.note?.trim()) continue;
       out.push({ id: `c:${c.id}`, kind: 'calls', label: 'watchlist call', day: c.addedAt ? journalDayKey(c.addedAt) : null, at: c.addedAt, symbols: [c.symbol.toUpperCase()], body: c.note });
     }
-    return out.sort((a, b) => (Date.parse(b.at ?? '') || 0) - (Date.parse(a.at ?? '') || 0));
+    return out;
   }, [notesQ.data, trades, callsQ.data]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const i of items) c[i.kind] = (c[i.kind] ?? 0) + 1;
+    for (const i of items) {
+      c[i.kind] = (c[i.kind] ?? 0) + 1;
+      if (i.review) c.review = (c.review ?? 0) + 1;
+    }
     return c;
   }, [items]);
 
   const needle = q.trim().toLowerCase();
   const shown = useMemo(() => items.filter((i) =>
-    (kind === 'all' || i.kind === kind)
-    && (!needle || i.body.toLowerCase().includes(needle) || i.symbols.some((s) => s.toLowerCase().includes(needle)) || (i.day ?? '').includes(needle))
+    (kind === 'all' || (kind === 'review' ? !!i.review : i.kind === kind))
+    && (!onlyTrader || i.kind !== 'discord' || i.byTrader)
+    && (!needle || i.body.toLowerCase().includes(needle) || i.symbols.some((s) => s.toLowerCase().includes(needle)) || (i.day ?? '').includes(needle) || (i.author ?? '').toLowerCase().includes(needle))
     && (!f.symbols?.length || i.symbols.some((s) => f.symbols!.includes(s)))
-    && (!i.day || ((!f.from || i.day >= f.from) && (!f.to || i.day <= f.to)))), [items, kind, needle, f.symbols, f.from, f.to]);
+    && (!i.day || ((!f.from || i.day >= f.from) && (!f.to || i.day <= f.to))))
+    .sort((a, b) => ((Date.parse(b.at ?? '') || 0) - (Date.parse(a.at ?? '') || 0)) * (order === 'new' ? 1 : -1)),
+  [items, kind, needle, f.symbols, f.from, f.to, onlyTrader, order]);
 
   const KINDS: { id: Kind; label: string }[] = [
     { id: 'all', label: 'All' },
@@ -88,6 +127,8 @@ export default function NotebookView() {
     { id: 'imported', label: 'Imported' },
     { id: 'trade', label: 'Trade notes' },
     ...(slug ? [{ id: 'calls' as Kind, label: 'Watchlist calls' }] : []),
+    ...(counts.discord ? [{ id: 'discord' as Kind, label: 'Discord' }] : []),
+    ...(counts.review ? [{ id: 'review' as Kind, label: 'Review' }] : []),
   ];
 
   const loading = notesQ.isLoading && notesQ.fetchStatus !== 'idle';
@@ -102,6 +143,22 @@ export default function NotebookView() {
             <input className="jr-input" style={{ width: '100%', paddingLeft: 28 }} type="search" aria-label="Search notes" placeholder="Search text, ticker or YYYY-MM-DD"
               value={q} onChange={(e) => { setQ(e.target.value); setLimit(40); }} />
           </div>
+          {traderBooks.length > 0 && (
+            <select className="jr-select" aria-label="Trader" value={slug ? `trader:${slug}` : ''} style={{ minHeight: 32 }}
+              onChange={(e) => { if (e.target.value) { setJournal(e.target.value as any); setLimit(40); } }}>
+              {!slug && <option value="">Trader…</option>}
+              {traderBooks.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+          )}
+          <div className="jr-seg" role="group" aria-label="Order">
+            <button type="button" aria-pressed={order === 'new'} onClick={() => setOrder('new')}>NEWEST</button>
+            <button type="button" aria-pressed={order === 'old'} onClick={() => setOrder('old')}>OLDEST</button>
+          </div>
+          {!!counts.discord && slug && (
+            <label className="jr-n" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <input type="checkbox" checked={onlyTrader} onChange={(e) => setOnlyTrader(e.target.checked)} /> only {bookLabel}'s posts
+            </label>
+          )}
           <div className="jr-seg" role="group" aria-label="Note kind">
             {KINDS.map((k) => (
               <button key={k.id} type="button" aria-pressed={kind === k.id} onClick={() => { setKind(k.id); setLimit(40); }}>
@@ -131,6 +188,9 @@ export default function NotebookView() {
                   <span className="jr-tag">{n.label}</span>
                   {n.day && <button type="button" className="jr-cell-btn jr-n" onClick={() => openDay(n.day!)} aria-label={`Open ${n.day} in the Daily journal`}>{fmtDayLabel(n.day, { month: 'short', day: 'numeric', year: '2-digit' })}</button>}
                   {n.at && n.kind !== 'calls' && <time dateTime={n.at}>{fmtStamp(n.at, prefs.timeDisplay, { hour: 'numeric', minute: '2-digit' })}</time>}
+                  {n.review && <span className="jr-tag" title="On the review list: the parser did not turn this into a trade">review · {REVIEW_TEXT[n.review] ?? n.review}</span>}
+                  {n.parsed && <span className="jr-n" title="What the parser read in this post">{n.parsed.kind}{n.parsed.symbol ? ` ${n.parsed.symbol}` : ''} · {Math.round(n.parsed.confidence * 100)}%</span>}
+                  {n.link && <a className="jr-n" href={n.link} target="_blank" rel="noreferrer noopener" aria-label="Open this post in Discord" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>Discord <ExternalLink className="h-3 w-3" /></a>}
                   {n.symbols.slice(0, 5).map((s) => (
                     <button key={s} type="button" className="jr-chip" style={{ cursor: 'pointer', background: 'transparent' }}
                       onClick={() => filters.setFilter('symbols', [s])} aria-label={`Filter the journal to ${s}`}>{s}</button>
@@ -148,10 +208,16 @@ export default function NotebookView() {
                     </button>
                   )}
                 </div>
-                <div className="b">{n.body.length > 900 ? `${n.body.slice(0, 900)}…` : n.body}</div>
+                <div className="b" style={{ whiteSpace: 'pre-wrap' }}>{n.body.length > 900 && !open.has(n.id) ? `${n.body.slice(0, 900)}…` : n.body}</div>
+                {n.body.length > 900 && (
+                  <button type="button" className="jr-cell-btn jr-n" style={{ alignSelf: 'flex-start' }}
+                    onClick={() => setOpen((o) => { const x = new Set(o); if (x.has(n.id)) x.delete(n.id); else x.add(n.id); return x; })}>
+                    {open.has(n.id) ? 'Show less' : `Read all ${n.body.length.toLocaleString()} characters`}
+                  </button>
+                )}
                 {!!n.attachments?.length && (
                   <div className="att">
-                    {n.attachments.slice(0, 4).map((a) => <a key={a.url} href={a.url} target="_blank" rel="noreferrer noopener">{a.isImage ? '▣ ' : '⎘ '}{a.name}</a>)}
+                    {n.attachments.slice(0, 6).map((a) => <a key={a.url} href={a.url} target="_blank" rel="noreferrer noopener">{a.isImage ? '▣ ' : '⎘ '}{a.name}</a>)}
                   </div>
                 )}
               </article>
@@ -161,6 +227,7 @@ export default function NotebookView() {
         {shown.length > limit && (
           <button type="button" className="jr-btn" style={{ width: '100%', marginTop: 10 }} onClick={() => setLimit((l) => l + 40)}>Show more · {shown.length - limit} hidden</button>
         )}
+        {(counts.discord ?? 0) > 0 && <p className="jr-note">Discord posts are {bookLabel}'s forum thread, imported as posted (Journal › Import › Discord forum). Images stay on Discord's CDN as links; re-importing updates edits and never duplicates. Trades parsed from them are in Trades; ranking in Trader ranking.</p>}
         {slug && (counts.calls ?? 0) > 0 && <p className="jr-note">Watchlist calls are {bookLabel}'s imported Discord calls (latest call per ticker) — read-only here; manage them on the trader's watchlist.</p>}
       </Card>
     </div>

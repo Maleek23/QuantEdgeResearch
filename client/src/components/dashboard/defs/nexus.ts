@@ -42,6 +42,12 @@ export const NEXUS_TOOLS: ToolDef[] = [
     defaultSize: { w: 3, h: 9 }, minSize: { w: 3, h: 5 }, Component: lazyTool(nexus, 'NexusContextTool'),
   },
   {
+    id: 'nexus-trader-calls', category: 'Ideas', title: 'Trader calls',
+    what: "Open calls (≤ 5 trading days old) from traders whose imported Discord journals rank above the threshold — trader, age, message link, stated entry as posted, underlying repriced live. Evidence only: not scored into conviction, not used by the bot.",
+    units: 'stated premium/price (as posted), underlying $ (live), ranking score /100', source: 'imported Discord journals', backing: 'TraderCallLine (tools/nexus/trader-calls.tsx) ← GET /api/trader-calls (server/trader-analysis.ts)',
+    defaultSize: { w: 3, h: 6 }, minSize: { w: 3, h: 4 }, Component: lazyTool(nexus, 'NexusTraderCallsTool'),
+  },
+  {
     id: 'nexus-horizon', category: 'Ideas', title: 'Book by horizon',
     what: 'Every published idea cut by horizon — 0DTE · weekly (1–7D) · swing (8–30D) · monthly (31–60D) · position · LEAPS (>180D) — as a sortable table; click a row to open it.',
     units: 'DTE days, conviction /100, price $', source: BOOK, backing: 'HorizonBook (components/ideas) ← GET /api/convictions (horizon from shared/idea-horizon.ts)',
@@ -58,13 +64,15 @@ export const NEXUS_TOOLS: ToolDef[] = [
 /**
  * NEXUS default — one screen (12 × 18):
  *
- *   ┌ ranked ┬──────── setup detail 6×11 ────────┬ context 3×11 ┐
- *   │ setups │ chart, levels, tabs               │ regime, macro │
- *   │ 3×18   ├──── developing 5×7 ──────┬── bot positions 4×7 ──┤
+ *   ┌ ranked ┬──────── setup detail 6×11 ────────┬ context 3×6  ┐
+ *   │ setups │ chart, levels, tabs               ├ trader calls ┤
+ *   │ 3×18   │                                   │ 3×5          │
+ *   │        ├──── developing 5×7 ──────┬── bot positions 4×7 ──┤
  *   └────────┴──────────────────────────┴───────────────────────┘
  *
  * Master → detail left to right; the market context that frames every idea
- * on the right; the funnel (developing) and what the bot holds underneath.
+ * on the right, with ranked traders' recent calls (evidence, not signals)
+ * under it; the funnel (developing) and what the bot holds underneath.
  * Book by horizon, stock chart, GEX levels and flow context: Add tool.
  */
 export const NEXUS_DEFAULTS: DefaultLayout[] = [{
@@ -72,7 +80,8 @@ export const NEXUS_DEFAULTS: DefaultLayout[] = [{
   tools: [
     ['nexus-board', 0, 0, 3, 18],
     ['nexus-detail', 3, 0, 6, 11],
-    ['nexus-context', 9, 0, 3, 11],
+    ['nexus-context', 9, 0, 3, 6],
+    ['nexus-trader-calls', 9, 6, 3, 5],
     ['nexus-developing', 3, 11, 5, 7],
     ['nexus-positions', 8, 11, 4, 7],
   ],

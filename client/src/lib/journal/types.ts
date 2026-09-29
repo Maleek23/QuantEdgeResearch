@@ -129,6 +129,8 @@ export interface JournalNoteRow {
   attachments: { url: string; name: string; isImage: boolean }[] | null;
   source: string;
   sourceMessageId: string | null;
-  /** analysis | unmatched_exit | unpriced_exit | entry_without_price */
+  /** analysis | unmatched_exit | unpriced_exit | entry_without_price | discord_post | manual kinds */
   reason: string | null;
+  /** Import metadata — Discord forum posts: shared/discord-forum.ts DiscordPostMeta. */
+  meta?: import('@shared/discord-forum').DiscordPostMeta | Record<string, unknown> | null;
 }

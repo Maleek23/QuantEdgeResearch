@@ -23,7 +23,7 @@ import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { LuxSidebar, type LuxNavGroup } from '@/components/lux/lux-sidebar';
 import {
   BarChart3, BookmarkPlus, BookOpen, BookOpenCheck, BookText, CalendarDays, ChevronDown, Import, LayoutDashboard, ListChecks,
-  ListOrdered, NotebookPen, SearchX, Settings, Wallet,
+  ListOrdered, NotebookPen, SearchX, Settings, Trophy, Wallet,
 } from 'lucide-react';
 import { JOURNAL_GROUPS, JOURNAL_PAGES, type JournalView } from '@/lib/journal/legacy-jtab';
 import type { JournalKey } from '@shared/journal-sources';
@@ -45,6 +45,7 @@ const ICON: Record<JournalView, ComponentType<{ className?: string }>> = {
   accounts: Wallet,
   settings: Settings,
   record: BookOpenCheck,
+  traders: Trophy,
 };
 
 /** Same URL with ?jtab= set to the page (dashboard = no param), ?jpage= dropped. */

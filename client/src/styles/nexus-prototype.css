@@ -35,3 +35,17 @@
 .nxp-dev-warning{display:flex;gap:12px;margin-top:12px;padding:12px 14px;border:1px solid rgba(255,116,109,.28);border-radius:9px;background:rgba(255,116,109,.055)}.nxp-dev-warning strong{flex:0 0 auto;color:var(--n);font:700 11px 'Space Grotesk',sans-serif}.nxp-dev-warning span{color:var(--text-dim);font:500 11px/1.45 Inter,sans-serif}
 .nxp-dev-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(250px,.65fr);gap:12px;margin-top:12px}.nxp-dev-grid>article,.nxp-dev-grid>aside{padding:17px;border:1px solid var(--border-subtle);border-radius:10px;background:rgba(255,255,255,.014)}.nxp-dev-grid h3{margin:14px 0;color:var(--text-primary);font:600 13px/1.5 'Space Grotesk',sans-serif}.nxp-dev-levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.nxp-dev-levels>div{min-width:0;padding:9px;border-radius:7px;background:rgba(255,255,255,.025)}.nxp-dev-levels span,.nxp-dev-levels strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nxp-dev-levels span{color:var(--text-mute);font:600 8px 'JetBrains Mono',monospace;text-transform:uppercase}.nxp-dev-levels strong{margin-top:5px;font:650 11px 'JetBrains Mono',monospace}.nxp-dev-grid ol{margin:15px 0;padding-left:20px;color:var(--text-dim);font:500 11px/1.8 Inter,sans-serif}.nxp-dev-grid aside p{color:var(--text-mute);font:500 10px/1.5 Inter,sans-serif}.nxp-dev-grid .nxp-cockpit{margin-top:14px}
 @media(max-width:1000px){.nxp-dev-summary{grid-template-columns:1fr 1fr}.nxp-dev-summary>div:nth-child(2){border-right:0}.nxp-dev-grid{grid-template-columns:1fr}.nxp-dev-levels{grid-template-columns:1fr 1fr}}@media(max-width:720px){.nxp-dev-warning{flex-direction:column}.nxp-dev-levels{grid-template-columns:1fr 1fr}}
+/* Trader calls — evidence from ranked traders (components/dashboard/tools/nexus/trader-calls.tsx) */
+.nxtc-evidence{margin-top:12px;padding:14px 16px;border:1px solid var(--border-subtle);border-radius:11px;background:rgba(255,255,255,.015)}
+.nxtc-call{display:flex;flex-direction:column;gap:5px;padding:10px 0;border-bottom:1px solid var(--border-subtle)}
+.nxtc-call:last-child{border-bottom:0}
+.nxtc-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:600 11px 'JetBrains Mono',monospace;color:var(--text-mute)}
+.nxtc-head strong{color:var(--text-primary);font:700 12px 'Space Grotesk',sans-serif}
+.nxtc-head a{display:inline-flex;align-items:center;gap:3px;margin-left:auto;color:var(--text-dim);text-decoration:underline;text-underline-offset:2px}
+.nxtc-tag{padding:2px 6px;border:1px solid var(--border-subtle);border-radius:4px;font:700 9.5px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim)}
+.nxtc-body{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font:600 12px 'JetBrains Mono',monospace;color:var(--text-primary)}
+.nxtc-side.bull{color:var(--p)}.nxtc-side.bear{color:var(--n)}
+.nxtc-stated{color:var(--text-mute);font-weight:500}
+.nxtc-foot{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font:500 10.5px/1.5 'JetBrains Mono',monospace;color:var(--text-mute)}
+.nxtc-badge{margin-left:6px;padding:1px 5px;border:1px solid var(--border-subtle);border-radius:4px;font:700 9px 'JetBrains Mono',monospace;color:var(--text-dim);vertical-align:middle}
+.nxtc-list{padding:4px 12px}
