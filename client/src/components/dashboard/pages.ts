@@ -10,11 +10,17 @@
  *              Add tool (a CURATED catalogue — `catalog` below — never the
  *              whole registry), drag / resize, Auto-arrange, Clear, Restore
  *              default. Layouts persist per user (use-dashboards.ts).
- *   fixed      Every other dashboard page (Today, NEXUS, CATALYST, CRYPTO,
- *              BOT, JOURNAL). Same tile format, the curated default layout,
- *              and nothing editable: no Add tool, drag, resize, clear, restore
- *              or dashboard switcher. A layout saved for the page before this
- *              change is IGNORED (never read, never deleted).
+ *   page       Today, NEXUS, CATALYST, CRYPTO, BOT (operator 2026-09-29: "the
+ *              other pages don't need that Bullflow card look — I have to
+ *              scroll down inside the cards"). A NORMAL PAGE: the same tools as
+ *              sections at their natural height, laid out from the default's
+ *              columns on desktop and one column on phones; the PAGE scrolls,
+ *              no tile chrome, no scroll areas inside sections (a very long
+ *              section clips with "Show all", never a nested scrollbar).
+ *   fixed      JOURNAL only (owned by the journal branch). Same tile format,
+ *              the curated default layout, nothing editable. A layout saved
+ *              for the page before this change is IGNORED (never read, never
+ *              deleted).
  *   simple     CHART, LEAPS, POSITIONS: one primary tool full bleed (+ an
  *              optional rail). No Customize switch any more.
  *
@@ -39,7 +45,7 @@ import { JOURNAL_DEFAULTS } from './defs/journal';
 
 export type PageId = 'flow' | 'gex' | 'nexus' | 'chart' | 'crypto' | 'catalyst' | 'leaps' | 'bot' | 'positions' | 'today' | 'journal';
 
-export type PageMode = 'workspace' | 'fixed' | 'simple';
+export type PageMode = 'workspace' | 'fixed' | 'page' | 'simple';
 
 /** A workspace's Add-tool catalogue: whole categories plus named tools. */
 export interface ToolCatalog {
@@ -49,7 +55,7 @@ export interface ToolCatalog {
 
 export interface PageSpec {
   id: PageId;
-  /** workspace (GEX, FLOW) · fixed · simple — see the header comment */
+  /** workspace (GEX, FLOW) · page · fixed (journal) · simple — see the header comment */
   mode: PageMode;
   /** workspace only: the tools its "Add tool" menu offers */
   catalog?: ToolCatalog;
@@ -76,6 +82,19 @@ export interface PageSpec {
    * the docs; they are never rendered as a grid.)
    */
   simple?: { tool: string; rail?: { tool: string; label: string } };
+  /**
+   * PHONE (< 768px) — the page is one column, not a squeezed desktop grid.
+   * `lead`: a page header rendered above the stack (dashboard.tsx PHONE_LEAD);
+   * `first`: tool ids pulled to the top of the stack in this order (the rest
+   * follow in reading order — stack, never hide); `tall`: tools that get a
+   * near-full-screen tile instead of their grid height.
+   */
+  phone?: { lead?: boolean; first?: string[]; tall?: string[] };
+  /**
+   * PAGE mode: tools whose body is a chart that fills its box (no natural
+   * height) — they get a fixed, viewport-scaled body instead of collapsing.
+   */
+  fill?: string[];
 }
 
 const spec = (id: PageId, label: string, defaults: DefaultLayout[], primary: ToolCategory[], starters: string[], mode: PageMode = 'fixed'): PageSpec => ({
@@ -113,16 +132,22 @@ export const PAGES: Record<PageId, PageSpec> = {
     storagePrefix: 'flowdash:', lsKey: 'qe-flowdash-v1', lsActive: 'qe-flowdash-active',
     starters: ['options-flow', 'net-flow-strike', 'flow-strike-expiry'],
   },
-  gex: { ...spec('gex', 'GEX', GEX_DEFAULTS, ['GEX', 'Market'], ['gex-dealer-map', 'gex-levels', 'stock-chart'], 'workspace'), catalog: GEX_CATALOG },
-  nexus: spec('nexus', 'NEXUS', NEXUS_DEFAULTS, ['Ideas', 'Market'], NEXUS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
+  gex: {
+    ...spec('gex', 'GEX', GEX_DEFAULTS, ['GEX', 'Market'], ['gex-dealer-map', 'gex-levels', 'stock-chart'], 'workspace'),
+    catalog: GEX_CATALOG,
+    // Phone: levels + regime strip on top, then the matrix full width (4-expiry
+    // snap view, strikes scroll inside), then the secondary tools.
+    phone: { lead: true, first: ['gex-matrix', 'gex-levels', 'gex-regime'], tall: ['gex-matrix', 'gex-hub'] },
+  },
+  nexus: spec('nexus', 'NEXUS', NEXUS_DEFAULTS, ['Ideas', 'Market'], NEXUS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
   chart: { ...spec('chart', 'CHART', CHART_DEFAULTS, ['Market', 'Research'], ['stock-chart'], 'simple'), simple: { tool: 'stock-chart', rail: { tool: 'chart-watchlists', label: 'Watchlist' } } },
-  crypto: spec('crypto', 'CRYPTO', CRYPTO_DEFAULTS, ['Crypto', 'Market'], CRYPTO_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
-  catalyst: spec('catalyst', 'CATALYST', CATALYST_DEFAULTS, ['Catalyst', 'Ideas'], CATALYST_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
+  crypto: { ...spec('crypto', 'CRYPTO', CRYPTO_DEFAULTS, ['Crypto', 'Market'], CRYPTO_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'), fill: ['crypto-chart'] },
+  catalyst: spec('catalyst', 'CATALYST', CATALYST_DEFAULTS, ['Catalyst', 'Ideas'], CATALYST_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
   leaps: { ...spec('leaps', 'LEAPS', LEAPS_DEFAULTS, ['Ideas', 'Research'], LEAPS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'simple'), simple: { tool: 'leaps-classic' } },
-  bot: spec('bot', 'BOT', BOT_DEFAULTS, ['Bot', 'Book'], BOT_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
+  bot: spec('bot', 'BOT', BOT_DEFAULTS, ['Bot', 'Book'], BOT_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
   positions: { ...spec('positions', 'POSITIONS', POSITIONS_DEFAULTS, ['Book', 'Bot'], POSITIONS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'simple'), simple: { tool: 'positions-classic' } },
   journal: spec('journal', 'JOURNAL', JOURNAL_DEFAULTS, ['Journal'], ['journal-net-pnl', 'journal-equity', 'journal-calendar']),
-  today: spec('today', 'TODAY', TODAY_DEFAULTS, ['Market', 'Ideas', 'Book'], TODAY_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? []),
+  today: spec('today', 'TODAY', TODAY_DEFAULTS, ['Market', 'Ideas', 'Book'], TODAY_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
 };
 
 /** Where a page's loading skeleton puts its tiles — the page's own default grid. */

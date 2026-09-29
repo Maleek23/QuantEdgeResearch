@@ -26,7 +26,7 @@
  * column in reading order — stack, never hide; drag/resize are desktop-only.
  */
 import {
-  Component, Suspense, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+  Component, Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type CSSProperties, type ErrorInfo, type RefObject, type KeyboardEvent as RKeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode,
 } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -43,6 +43,39 @@ import { COLS, ROW_H, GAP, autoArrange, clampTool, compact, fitRowHeight, readin
 import { DashboardCtx, ReportCtx, ToolFrame, ToolInstanceCtx, provenanceOf, useFocusSymbol, useNow, type ToolReport } from './frame';
 import { materialize, useDashboards } from './use-dashboards';
 import { PAGES, inCatalog, skeletonTiles, type PageId, type PageSpec } from './pages';
+
+/** Phone page headers (PageSpec.phone.lead) — rendered above the one-column stack. */
+const PHONE_LEAD: Partial<Record<PageId, ReturnType<typeof lazy>>> = {
+  gex: lazy(() => import('./tools/gex/gex-tools').then((m) => ({ default: m.GexPhoneSummary }))),
+};
+
+/** Phone stack order: the page's `phone.first` tools on top, the rest in reading order. */
+function phoneOrder(spec: PageSpec, tools: PlacedTool[]): PlacedTool[] {
+  const ordered = readingOrder(tools);
+  const first = spec.phone?.first ?? [];
+  if (!first.length) return ordered;
+  const rank = (t: PlacedTool) => { const i = first.indexOf(t.type); return i < 0 ? first.length : i; };
+  return ordered.map((t, n) => [t, n] as const).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([t]) => t);
+}
+
+/** Phone tile height: tall tools fill the screen under the chrome; others keep their grid height. */
+function phoneTileStyle(spec: PageSpec, t: PlacedTool): CSSProperties {
+  // --qe-main-h = the shell's measured main area (above the dock): the tile fits it exactly.
+  if (spec.phone?.tall?.includes(t.type)) return { height: 'calc(var(--qe-main-h, calc(100dvh - 132px)) - 16px)', minHeight: 420 };
+  return { height: `min(${Math.max(300, t.h * ROW_H)}px, 88dvh)`, minHeight: 300 };
+}
+
+function PhoneLead({ page }: { page: PageId }) {
+  const L = PHONE_LEAD[page];
+  if (!L || !PAGES[page].phone?.lead) return null;
+  return (
+    <ToolBoundary title={`${PAGES[page].label} summary`}>
+      <Suspense fallback={<ToolSkeleton />}>
+        <L />
+      </Suspense>
+    </ToolBoundary>
+  );
+}
 
 /** A tool off-screen this long unmounts (its polling stops). */
 const PAUSE_AFTER_MS = 20_000;
@@ -63,7 +96,7 @@ class ToolBoundary extends Component<{ title: string; children: ReactNode }, { e
 /* ── lazy mount + off-screen pause ── */
 const ScrollRootCtx = createContext<Element | null>(null);
 
-function useLiveMount(ref: RefObject<HTMLElement>) {
+function useLiveMount(ref: RefObject<HTMLElement>, pause = true) {
   const root = useContext(ScrollRootCtx);
   const [state, setState] = useState<'idle' | 'live' | 'paused'>('idle');
   useEffect(() => {
@@ -73,11 +106,11 @@ function useLiveMount(ref: RefObject<HTMLElement>) {
     const io = new IntersectionObserver(([e]) => {
       clearTimeout(t);
       if (e.isIntersecting) setState('live');
-      else t = setTimeout(() => setState((s) => (s === 'live' ? 'paused' : s)), PAUSE_AFTER_MS);
+      else if (pause) t = setTimeout(() => setState((s) => (s === 'live' ? 'paused' : s)), PAUSE_AFTER_MS);
     }, { root, rootMargin: '240px 0px' });
     io.observe(el);
     return () => { io.disconnect(); clearTimeout(t); };
-  }, [ref, root]);
+  }, [ref, root, pause]);
   return state;
 }
 
@@ -395,6 +428,7 @@ export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome
   const spec = PAGES[page];
   if (spec.mode === 'simple' && spec.simple) return <SimpleView key={page} spec={spec} />;
   if (spec.mode === 'workspace') return <GridDashboard key={page} page={page} chrome={chrome} />;
+  if (spec.mode === 'page') return <PageView key={page} page={page} />;
   return <FixedDashboard key={page} page={page} chrome={chrome} />;
 }
 
@@ -422,6 +456,112 @@ function useGridGeometry(isMobile: boolean, remeasure: unknown) {
   const rowH = isMobile ? ROW_H : fitRowHeight(viewH);
   const colW = (gridW - GAP * (COLS - 1)) / COLS;
   return { gridRef, scroller, setScroller, rowH, colW, stepX: colW + GAP, stepY: rowH + GAP };
+}
+
+/* ── PAGE mode: a normal page — sections at natural height, the PAGE scrolls ── */
+
+/** A section taller than this clips behind "Show all" — never a nested scrollbar. */
+const SECTION_CAP = 720;
+
+/**
+ * Desktop placement from the default layout: the tool keeps its columns; rows
+ * are the default's distinct y-bands at NATURAL height (a tool that spanned
+ * two bands, e.g. NEXUS's board, spans two rows).
+ */
+function pagePlacement(tools: PlacedTool[]) {
+  const bands = [...new Set(tools.map((t) => t.y))].sort((a, b) => a - b);
+  return new Map(tools.map((t) => {
+    const r0 = bands.indexOf(t.y);
+    let r1 = bands.findIndex((y) => y >= t.y + t.h);
+    if (r1 < 0) r1 = bands.length;
+    return [t.i, {
+      ['--pg-x' as string]: t.x + 1, ['--pg-w' as string]: t.w,
+      ['--pg-r' as string]: r0 + 1, ['--pg-rs' as string]: Math.max(1, r1 - r0),
+      ['--pg-w2' as string]: t.w >= 6 ? 12 : 6,
+    } as CSSProperties];
+  }));
+}
+
+function PageSection({ tool, symbol, style, fill = false }: { tool: PlacedTool; symbol?: string; style?: CSSProperties; fill?: boolean }) {
+  const def = TOOL_BY_ID.get(tool.type)!;
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const live = useLiveMount(bodyRef, false);
+  const [report, setReport] = useState<ToolReport>({});
+  const now = useNow();
+  const [tall, setTall] = useState(false);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    // Natural content height = the body's scrollHeight (it only clips, never
+    // scrolls). Observe the body and whatever the tool currently renders.
+    const measure = () => setTall(el.scrollHeight > SECTION_CAP + 48);
+    const ro = new ResizeObserver(measure);
+    const watch = () => { ro.disconnect(); ro.observe(el); for (const c of Array.from(el.children)) ro.observe(c); measure(); };
+    const mo = new MutationObserver(watch);
+    mo.observe(el, { childList: true });
+    watch();
+    return () => { ro.disconnect(); mo.disconnect(); };
+  }, [live]);
+  const { src, age } = provenanceOf(def, report, now);
+  const capped = !fill && tall && !open;
+  const headId = `pg-${tool.i}`;
+  return (
+    <section className="pg-sec" data-tool={def.id} style={style} aria-labelledby={headId}>
+      <header className="pg-sec-head" title={`${def.what}\nUnits: ${def.units}\nData source: ${src}`}>
+        <h2 id={headId}>{def.title}</h2>
+        {symbol && <span className="fd-sym">{symbol}</span>}
+        <span className={cn('pg-prov', report.tone === 'warn' && 'warn')}>{src} · {age}{report.note ? ` · ${report.note}` : ''}</span>
+      </header>
+      <div ref={bodyRef} className={cn('pg-sec-body', capped && 'capped', fill && 'fill')} style={capped ? { maxHeight: SECTION_CAP } : undefined}>
+        {live === 'live' ? (
+          <BareTool def={def} instance={tool.i} onReport={setReport} />
+        ) : (
+          <ToolSkeleton label="loads when scrolled into view" />
+        )}
+      </div>
+      {tall && !fill && (
+        <button type="button" className="pg-more" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          {open ? 'Show less' : 'Show all'}
+        </button>
+      )}
+    </section>
+  );
+}
+
+function PageView({ page }: { page: PageId }) {
+  const spec = PAGES[page];
+  const isMobile = useIsMobile();
+  const [focus] = useFocusSymbol();
+  const tools = useMemo(() => (spec.defaults[0] ? materialize(spec.defaults[0]).tools : []), [spec]);
+  const present = useMemo(() => new Set(tools.map((t) => t.type)), [tools]);
+  const ctx = useMemo(() => ({ page, hasTool: (t: string) => present.has(t), addTool: () => {}, editable: false }), [page, present]);
+  const needsFocus = tools.some((t) => TOOL_BY_ID.get(t.type)?.needs?.includes('symbol'));
+  const symbolOf = (t: PlacedTool) => (TOOL_BY_ID.get(t.type)?.needs?.includes('symbol') ? focus : undefined);
+  const place = useMemo(() => pagePlacement(tools), [tools]);
+  const ordered = isMobile ? phoneOrder(spec, tools) : readingOrder(tools);
+  return (
+    <DashboardCtx.Provider value={ctx}>
+      <div className={cn('flowdash dash-page', `dash-${page}`)} data-page={page} data-view="page">
+        <div className="fd-bar">
+          <div className="fd-bar-title">
+            <span className="fd-eyebrow">{spec.label}</span>
+            {needsFocus && <FocusBox />}
+          </div>
+        </div>
+        {!tools.length ? (
+          <QEError className="fd-m" title={`${spec.label} has no default layout`} message="No tools are defined for this page." />
+        ) : (
+          <div className="pg-grid">
+            {isMobile && <PhoneLead page={page} />}
+            {ordered.map((t) => (
+              <PageSection key={t.i} tool={t} symbol={symbolOf(t)} style={isMobile ? undefined : place.get(t.i)} fill={spec.fill?.includes(t.type)} />
+            ))}
+          </div>
+        )}
+      </div>
+    </DashboardCtx.Provider>
+  );
 }
 
 /* ── FIXED page: the curated default, same tiles, nothing editable ── */
@@ -456,8 +596,9 @@ function FixedDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
               <QEError className="fd-m" title={`${spec.label} has no default layout`} message="No tools are defined for this page." />
             ) : isMobile ? (
               <div className="fd-stack" ref={gridRef}>
-                {readingOrder(tools).map((t) => (
-                  <div key={t.i} className="fd-tile stacked" style={{ height: `min(${Math.max(300, t.h * ROW_H)}px, 88dvh)`, minHeight: 300 }}>
+                <PhoneLead page={page} />
+                {phoneOrder(spec, tools).map((t) => (
+                  <div key={t.i} className="fd-tile stacked" data-tool={t.type} style={phoneTileStyle(spec, t)}>
                     <ToolFrame def={TOOL_BY_ID.get(t.type)!} symbol={symbolOf(t)} compact={false} grip={false}>
                       <ToolBody tool={t} />
                     </ToolFrame>
@@ -576,11 +717,11 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
           </div>
           <div className="fd-bar-actions">
             <AddToolMenu spec={spec} onAdd={addTool} present={present} />
-            <button type="button" className="fd-btn" disabled={!tools.length || isMobile}
+            {!isMobile && <button type="button" className="fd-btn" disabled={!tools.length}
               onClick={() => api.updateActive((ts) => autoArrange(ts, (t) => TOOL_BY_ID.get(t)?.minSize.h ?? 3, (t) => TOOL_BY_ID.get(t)?.minSize.w ?? 2))}
               title="Pack tools row by row in reading order: no gaps, equal heights per row, sized to fill the screen when the tools' minimum heights allow">
               <LayoutGrid size={13} /> Auto-arrange
-            </button>
+            </button>}
             <button type="button" className="fd-btn" disabled={!spec.defaults.length || !!api.active?.pristine}
               onClick={() => { if (window.confirm(`Restore "${api.active?.name}" to the ${spec.label} default layout? Your changes to this dashboard are replaced.`)) void api.restoreDefault(); }}
               title="Put this dashboard back to the page's shipped default layout">
@@ -610,10 +751,11 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
               </div>
             ) : isMobile ? (
               <div className="fd-stack" ref={gridRef}>
-                {readingOrder(tools).map((t) => {
+                <PhoneLead page={page} />
+                {phoneOrder(spec, tools).map((t) => {
                   const def = TOOL_BY_ID.get(t.type)!;
                   return (
-                    <div key={t.i} className="fd-tile stacked" style={{ height: `min(${Math.max(300, t.h * ROW_H)}px, 88dvh)`, minHeight: 300 }}>
+                    <div key={t.i} className="fd-tile stacked" data-tool={t.type} style={phoneTileStyle(spec, t)}>
                       <ToolFrame def={def} symbol={symbolOf(t)} compact={false} onRemove={() => remove(t.i)}>
                         <ToolBody tool={t} />
                       </ToolFrame>
