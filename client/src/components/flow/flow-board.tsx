@@ -123,6 +123,25 @@ function IndexZeroDtePulse({ intel, scalps, stream }: { intel?: IndexPulseData; 
   );
 }
 
+/**
+ * The pulse strip on its own, for the FLOW dashboard's "Index 0DTE Pulse"
+ * tool. Same query keys as FlowBoard below, so both on screen share one fetch.
+ */
+export function IndexZeroDtePulsePanel() {
+  const get = (url: string) => async () => {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) throw new Error(`${url} failed`);
+    return r.json();
+  };
+  const intel = useQuery<IndexPulseData>({ queryKey: ['/api/spx/intelligence', 'SPX', 'flow-pulse'], queryFn: get('/api/spx/intelligence?symbol=SPX'), staleTime: 15_000, refetchInterval: 30_000, retry: 0 });
+  const scalps = useQuery<IndexScalpResponse>({ queryKey: ['/api/index-scalps', 'flow-pulse'], queryFn: get('/api/index-scalps'), staleTime: 8_000, refetchInterval: 15_000, retry: 0 });
+  const stream = useQuery<BullflowPulse>({ queryKey: ['/api/bullflow/status', 'flow-pulse'], queryFn: get('/api/bullflow/status'), staleTime: 5_000, refetchInterval: 10_000, retry: 0 });
+  if (intel.isError && scalps.isError && stream.isError) {
+    return <Empty title="Index pulse unavailable" body="SPX intelligence, index scalps and the tape status all failed to respond. This is a connection failure, not a quiet market." />;
+  }
+  return <IndexZeroDtePulse intel={intel.data} scalps={scalps.data} stream={stream.data} />;
+}
+
 /** Normalise whatever the API returns into the shape the scorer expects. */
 function toPrint(t: any): FlowPrint | null {
   const symbol = t?.symbol ?? t?.ticker;

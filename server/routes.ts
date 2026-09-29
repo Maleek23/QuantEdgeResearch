@@ -15210,6 +15210,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "net premium lookup failed" });
     }
   });
+  // FLOW DASHBOARD — intraday net-premium SERIES (Net Premium / Market Flow
+  // Tide tools). Shares the service's 3-min cache entry with the lean read.
+  // Guarded so dashboards can't spend the process-wide Bullflow budget the
+  // scanners need: 3-min route cache per symbol, and at most 2 cold symbols
+  // per minute from this route — beyond that it answers `throttled` and the
+  // tool says so instead of showing an empty chart.
+  {
+    const seriesCache = new Map<string, { at: number; body: any }>();
+    const coldHits: number[] = [];
+    app.get("/api/bullflow/net-premium-series/:symbol", requireBetaAccess, async (req, res) => {
+      try {
+        const symbol = String(req.params.symbol ?? '').trim().toUpperCase();
+        if (!/^[A-Z.]{1,10}$/.test(symbol)) return res.status(400).json({ error: 'Invalid symbol' });
+        const bf = await import("./bullflow-service");
+        if (!bf.bullflowEnabled()) return res.json({ enabled: false, symbol, series: null });
+        const hit = seriesCache.get(symbol);
+        if (hit && Date.now() - hit.at < 3 * 60_000) return res.json(hit.body);
+        const now = Date.now();
+        while (coldHits.length && now - coldHits[0] > 60_000) coldHits.shift();
+        if (coldHits.length >= 2) {
+          if (hit) return res.json(hit.body);
+          return res.json({ enabled: true, symbol, series: null, throttled: true, generatedAt: new Date().toISOString() });
+        }
+        coldHits.push(now);
+        const series = await bf.getNetPremiumSeriesToday(symbol);
+        const body = { enabled: true, symbol, series, source: 'Bullflow netPremiumSeries (provider ask/bid-side inference)', generatedAt: new Date().toISOString() };
+        seriesCache.set(symbol, { at: Date.now(), body });
+        res.json(body);
+      } catch {
+        res.status(500).json({ error: "net premium series lookup failed" });
+      }
+    });
+  }
+  // FLOW DASHBOARD — Options Flow tool read model (server/flow-tape.ts):
+  // Bullflow alert ring + chain-scan observations, source-tagged, 15s cache.
+  app.get("/api/flow/tape", requireBetaAccess, async (req, res) => {
+    try {
+      const { buildFlowTape } = await import("./flow-tape");
+      const days = parseInt(String(req.query.days ?? '1'), 10) || 1;
+      res.json(await buildFlowTape(days));
+    } catch (error: any) {
+      logger.error("[FLOW-TAPE] build failed", { error: error?.message });
+      res.status(500).json({ error: "Flow tape unavailable" });
+    }
+  });
 
   // ── SYSTEM PULSE — the machine narrating its own real work ────────────────
   app.get("/api/pulse", async (req, res) => {
@@ -19804,7 +19849,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User Page Layouts API
-  app.get("/api/user/:userId/layouts", async (req, res) => {
+  // Ownership guard: these four routes took :userId from the URL with no
+  // session check, so any caller could read or overwrite anyone's layouts.
+  // The FLOW dashboard persists named dashboards here, so the hole is closed
+  // before anything more is stored in it.
+  const ownsLayoutUser = (req: any, res: any, next: any) => {
+    const sid = req.session?.userId ?? req.user?.claims?.sub;
+    if (!sid) return res.status(401).json({ error: "Unauthorized" });
+    if (String(sid) !== String(req.params.userId)) return res.status(403).json({ error: "Forbidden" });
+    next();
+  };
+  app.get("/api/user/:userId/layouts", ownsLayoutUser, async (req, res) => {
     try {
       const { userId } = req.params;
       const layouts = await storage.getUserPageLayouts(userId);
@@ -19815,7 +19870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/user/:userId/layouts/:pageId", async (req, res) => {
+  app.get("/api/user/:userId/layouts/:pageId", ownsLayoutUser, async (req, res) => {
     try {
       const { userId, pageId } = req.params;
       const layout = await storage.getUserPageLayout(userId, pageId);
@@ -19829,7 +19884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/user/:userId/layouts/:pageId", async (req, res) => {
+  app.put("/api/user/:userId/layouts/:pageId", ownsLayoutUser, async (req, res) => {
     try {
       const { userId, pageId } = req.params;
       const layout = await storage.saveUserPageLayout({
@@ -19852,7 +19907,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/user/:userId/layouts/:pageId", async (req, res) => {
+  app.delete("/api/user/:userId/layouts/:pageId", ownsLayoutUser, async (req, res) => {
     try {
       const { userId, pageId } = req.params;
       await storage.deleteUserPageLayout(userId, pageId);
