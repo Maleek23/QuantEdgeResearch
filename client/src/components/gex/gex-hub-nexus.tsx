@@ -12,7 +12,6 @@
  *                     intensity from a robust max (hot/mega are relative to
  *                     THIS book, not invented bands); GEX/VEX toggle switches
  *                     the measured field; DTE chips carry real counts
- *   3D                the existing GammaSurface — already the honest surface
  *                     (LISTED mode, overflow ticks); VEX view maps the same
  *                     real matrix through netVEX
  *   context rail      snapshot walls + matrix-derived gravity and strongest
@@ -29,7 +28,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
 import type { StrikeExpiryCell } from '@shared/gex-types';
-import { exposureCellBg, exposureText, regimeColor, fmtGexB, fmtVexM, fmtAge, LEVEL_COLORS } from './gex-colors';
+import { exposureText, regimeColor, fmtGexB, fmtVexM, fmtAge, LEVEL_COLORS } from './gex-colors';
 import { GexStrikeLadder, GexStrikeMatrix, type GridLevels } from './gex-strike-grid';
 import { describeLegacyRegime } from '@shared/gex-regime';
 import {
@@ -41,9 +40,6 @@ import {
 import { DealerStructureRail, GammaProfileChart, GexCellDrill } from './gex-parts';
 import '@/styles/nexus.css';
 
-// Three.js is substantial and only needed after the trader explicitly selects
-// 3D. Keeping it out of the default 7D map removes that cost from first paint.
-const GammaSurface = lazy(() => import('@/components/prism/gamma-surface').then((m) => ({ default: m.GammaSurface })));
 const GexRankingsPanel = lazy(() => import('./gex-rankings-panel').then((m) => ({ default: m.GexRankingsPanel })));
 
 interface SearchResult { symbol: string; name?: string; type?: string }
@@ -74,7 +70,6 @@ export function GexHubNexus() {
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
 
   const [workspace, setWorkspace] = useState<'map' | 'surface' | 'rank'>('map');
-  const [view3d, setView3d] = useState(false);
   const [metric, setMetric] = useState<'gex' | 'vex'>('gex');
   const [bucket, setBucket] = useState<BucketId>('0-7');
   const leftRail = useColResize('nx-gex-left', 320, { sign: 1, min: 240, max: 520 });
@@ -391,11 +386,6 @@ export function GexHubNexus() {
               ))}
             </div>
             {workspace === 'surface' && <div className="view-toggle">
-              {(['2d', '3d'] as const).map((v) => (
-                <button key={v} className={`view-btn${(v === '3d') === view3d ? ' active' : ''}`} style={{ background: (v === '3d') === view3d ? undefined : 'transparent', border: 'none' }} onClick={() => setView3d(v === '3d')} title={v === '3d' ? '3D gamma surface — the honest surface, listed cells only' : '2D strike × expiry grid'}>{v.toUpperCase()}</button>
-              ))}
-            </div>}
-            {workspace === 'surface' && <div className="view-toggle">
               {(['gex', 'vex'] as const).map((m) => (
                   <button key={m} className={`view-btn${metric === m ? ' active' : ''}`} style={{ background: metric === m ? undefined : 'transparent', border: 'none' }} onClick={() => setMetric(m)} title={m === 'gex' ? 'GEX — $ dealers trade per 1% spot move (gamma)' : 'VEX — $ dealers trade per 1 IV point (vanna: ∂delta/∂vol)'}>{m.toUpperCase()}</button>
               ))}
@@ -515,41 +505,7 @@ export function GexHubNexus() {
             </div>
           )}
 
-          {workspace === 'surface' && <>
-          {/* 3D legend. The 2D grid carries its own key (scale, levels, dust) in its toolbar. */}
-          {view3d && <div
-            style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', alignItems: 'center', padding: '8px 2px 2px', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)' }}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={metric === 'vex' ? '+VEX — dealers buy as IV rises (provides liquidity)' : '+GEX — dealer long gamma, hedging provides liquidity (calls, under the naive sign)'}>
-              <span style={{ width: 20, height: 12, borderRadius: 2, background: exposureCellBg(metric, 1, 1) }} />
-              {metric === 'vex' ? '+VEX provides liquidity' : '+GEX provides liquidity'}
-            </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={metric === 'vex' ? '−VEX — dealers sell as IV rises (takes liquidity; crash fuel)' : '−GEX — dealer short gamma, hedging takes liquidity (puts, under the naive sign)'}>
-              <span style={{ width: 20, height: 12, borderRadius: 2, background: exposureCellBg(metric, -1, 1) }} />
-              {metric === 'vex' ? '⚠ −VEX takes liquidity' : '−GEX takes liquidity'}
-            </span>
-            <span title="Empty cell — the chain never listed that strike × expiry. Not a zero.">blank = not listed · · = listed dust</span>
-            <span title="GEX cells: $ of underlying dealers trade per 1% move. VEX cells: $ per 1 IV point. Dust (below the chosen % of the largest cell) is hidden behind the toggle and still answers on hover.">{metric === 'vex' ? 'cells: $ per 1 IV point' : 'cells: $ per 1% move'}</span>
-          </div>}
-
-          {view3d ? (
-            <div className="three-wrap">
-              {/* GammaSurface is already the honest 3D: LISTED mode for absent
-                  cells, overflow ticks past the robust max. VEX maps the same
-                  real matrix through netVEX. */}
-              <Suspense fallback={<div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>loading 3D surface…</div>}>
-                <GammaSurface
-                  className="h-full w-full"
-                  points={(metric === 'vex' ? matrix.map((c) => ({ ...c, netGEX: c.netVEX ?? 0 })) : matrix) as any}
-                  spot={spot}
-                  symbol={symbol}
-                  callWall={snap?.callWall}
-                  putWall={snap?.putWall}
-                  flipPrice={snap?.gammaFlipPrice ?? null}
-                />
-              </Suspense>
-            </div>
-          ) : (
+          {workspace === 'surface' && (
             <div className="matrix-wrap" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '0 2px 4px' }}>
               {termLoading ? (
                 <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
@@ -573,7 +529,6 @@ export function GexHubNexus() {
               )}
             </div>
           )}
-          </>}
         </div>
 
         {/* ══════════ RIGHT — CONTEXT ══════════ */}

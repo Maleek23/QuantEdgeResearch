@@ -219,7 +219,6 @@
 .flowdash .gx-col{display:flex;flex-direction:column;overflow:hidden}
 .flowdash .gx-grow{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .flowdash .gx-grow.matrix-wrap{overflow:hidden;padding:0 2px 2px}
-.flowdash .gx-grow.three-wrap{min-height:160px}
 .flowdash .gx-pad{padding:0 10px}
 .flowdash .gx-legend{flex:none;padding:5px 10px;border-bottom:1px solid var(--nx-border);font:500 9.5px/1.45 var(--fd-mono);color:var(--text-mute)}
 .flowdash .gx-legend i{font-style:normal}

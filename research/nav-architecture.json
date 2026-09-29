@@ -28,8 +28,6 @@
     "client/src/components/ui/empty-state.tsx",
     "client/src/components/ui/qe-bar.tsx",
     "client/src/components/ui/qe-num.tsx",
-    "client/src/components/ui/qe-section.tsx",
-    "client/src/components/ui/qe-stat.tsx",
     "client/src/components/win-rate-widget.tsx",
     "client/src/lib/trade-desk-filters.ts"
   ],

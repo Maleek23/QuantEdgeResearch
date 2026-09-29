@@ -59,12 +59,6 @@ export const GEX_TOOLS: ToolDef[] = [
     ageInside: true, defaultSize: { w: 7, h: 13 }, minSize: { w: 5, h: 8 }, Component: lazyTool(gex, 'GexSetupsTool'),
   },
   {
-    id: 'gex-surface-3d', category: 'GEX', title: '3D gamma surface',
-    what: 'The strike × expiry exposure as a 3D surface (listed cells only; overflow ticks past the robust max). Loads three.js only when shown.',
-    units: 'GEX $/1% move · VEX $/IV pt', source: ENGINE, backing: `GammaSurface (components/prism/gamma-surface.tsx) ← ${TERMINAL}`,
-    needs: ['symbol'], defaultSize: { w: 5, h: 13 }, minSize: { w: 4, h: 8 }, Component: lazyTool(gex, 'GexSurface3DTool'),
-  },
-  {
     id: 'gex-hub', category: 'GEX', title: 'GEX Hub (all-in-one)',
     what: 'The previous GEX page in one tile: ranked list, near-term map, strike × expiry surface and context rail.',
     units: 'GEX $/1% move, VEX $/IV pt', source: ENGINE, backing: 'GexHubNexus (components/gex/gex-hub-nexus.tsx)',
@@ -84,7 +78,7 @@ export const GEX_TOOLS: ToolDef[] = [
  * below, the full strike × expiry matrix, profile, gravity and the
  * cross-ticker rankings with the one compact flow-context tool (links to
  * FLOW — the flow views themselves live there); then magnet setups and the
- * 3D surface.
+ * (3D surface removed 2026-09-29).
  */
 export const GEX_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'GEX',
@@ -99,6 +93,5 @@ export const GEX_DEFAULTS: DefaultLayout[] = [{
     ['gex-rankings', 9, 16, 3, 8],
     ['flow-context', 9, 24, 3, 6],
     ['gex-setups', 0, 30, 7, 13],
-    ['gex-surface-3d', 7, 30, 5, 13],
   ],
 }];

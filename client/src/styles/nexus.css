@@ -1736,7 +1736,6 @@
 .nexus-vars .matrix .cell.mega{font-weight:800;text-shadow:0 0 8px rgba(255,255,255,0.5)}
 .nexus-vars .expand-row{padding:10px 24px;background:var(--bg-2);border-bottom:1px solid var(--nx-border);display:flex;align-items:center;gap:10px;font-size:var(--fs-11);color:var(--text-dim);cursor:pointer;transition:all 0.15s;font-family:'JetBrains Mono',monospace;border-top:1px solid var(--nx-border)}
 .nexus-vars .expand-row:hover{color:var(--cyan);background:rgba(59,140,255,0.03)}
-.nexus-vars .three-wrap{flex:1;position:relative;background:radial-gradient(ellipse at center, rgba(59,140,255,0.04), transparent 60%), var(--bg)}
 
 /* right — context */
 .nexus-vars .context-card{padding:14px 16px;border-bottom:1px solid var(--nx-border)}
