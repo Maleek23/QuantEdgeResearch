@@ -53,7 +53,7 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 
 **Fit.** Desktop: the page is `100dvh − chrome`; only the grid and tool bodies scroll.
 
-## Registry (90 tools)
+## Registry (91 tools)
 
 | Category | id | Title | Defined in |
 |---|---|---|---|
@@ -82,6 +82,7 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 | GEX | `gex-gravity` | Gravity & strongest nodes | `defs/gex.ts` |
 | GEX | `gex-rankings` | Cross-ticker rankings | `defs/gex.ts` |
 | GEX | `gex-setups` | Magnet setups · screener | `defs/gex.ts` |
+| GEX | `squeeze-radar` | Squeeze radar · gamma squeeze build (also in FLOW's catalogue via `GEX_CONTEXT`; docs/GAMMA_SQUEEZE.md) | `defs/gex.ts` |
 | GEX | `gex-hub` | GEX Hub (all-in-one) | `defs/gex.ts` |
 | Market | `money-flow` | Money flow · sector rotation | `defs/gex.ts` |
 | Ideas | `nexus-board` | Ranked setups | `defs/nexus.ts` |
