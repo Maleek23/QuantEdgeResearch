@@ -25,15 +25,165 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 
 **Fit.** Desktop: the page is `100dvh − chrome`; only the grid and tool bodies scroll.
 
-## Registry (83 tools)
+## Registry (90 tools)
 
 | Category | id | Title | Defined in |
 |---|---|---|---|
-{table}
+| Options | `options-flow` | Options Flow | `defs/flow.ts` |
+| Options | `top-tickers` | Top tickers | `defs/flow.ts` |
+| Options | `flow-sweeps-blocks` | Sweeps & blocks | `defs/flow.ts` |
+| Options | `flow-unusual` | Unusual activity · vol/OI | `defs/flow.ts` |
+| Options | `repeat-buyers` | Repeat & position builders | `defs/flow.ts` |
+| Options | `flow-alerts` | Flow Alerts | `defs/flow.ts` |
+| Options | `market-tide` | Market Flow Tide | `defs/flow.ts` |
+| Options | `flow-setups` | Flow-driven setups | `defs/flow.ts` |
+| Options | `index-pulse` | Index 0DTE Pulse | `defs/flow.ts` |
+| Options | `historical-flow` | Historical Flow (classic) | `defs/flow.ts` |
+| Options | `net-flow-strike` | Flow by strike · call vs put ladder | `defs/flow.ts` |
+| Options | `flow-strike-expiry` | Flow by expiry · strike × expiry heatmap | `defs/flow.ts` |
+| Options | `flow-timeline` | Premium timeline | `defs/flow.ts` |
+| Options | `net-premium` | Net premium · provider | `defs/flow.ts` |
+| Options | `flow-gex-convergence` | Flow × GEX convergence | `defs/flow.ts` |
+| Options | `flow-context` | Flow context | `defs/flow.ts` |
+| Dark Pool | `dark-pool-flow` | Dark pool · levels & prints | `defs/flow.ts` |
+| GEX | `gex-dealer-map` | Dealer map · near-term ladder | `defs/gex.ts` |
+| GEX | `gex-matrix` | Strike × expiry matrix | `defs/gex.ts` |
+| GEX | `gex-profile` | Gamma profile · zero-γ | `defs/gex.ts` |
+| GEX | `gex-levels` | Key levels · walls / magnet / flip | `defs/gex.ts` |
+| GEX | `gex-regime` | Regime & narrative | `defs/gex.ts` |
+| GEX | `gex-gravity` | Gravity & strongest nodes | `defs/gex.ts` |
+| GEX | `gex-rankings` | Cross-ticker rankings | `defs/gex.ts` |
+| GEX | `gex-setups` | Magnet setups · screener | `defs/gex.ts` |
+| GEX | `gex-surface-3d` | 3D gamma surface | `defs/gex.ts` |
+| GEX | `gex-hub` | GEX Hub (all-in-one) | `defs/gex.ts` |
+| Market | `money-flow` | Money flow · sector rotation | `defs/gex.ts` |
+| Ideas | `nexus-board` | Ranked setups | `defs/nexus.ts` |
+| Ideas | `nexus-detail` | Setup detail | `defs/nexus.ts` |
+| Ideas | `nexus-developing` | Developing candidates | `defs/nexus.ts` |
+| Ideas | `nexus-positions` | Bot positions | `defs/nexus.ts` |
+| Market | `nexus-context` | Market context · macro risk | `defs/nexus.ts` |
+| Ideas | `nexus-horizon` | Book by horizon | `defs/nexus.ts` |
+| Ideas | `nexus-classic` | NEXUS (all-in-one, classic) | `defs/nexus.ts` |
+| Market | `chart-lab-chart` | Chart Lab · levels chart | `defs/chart.ts` |
+| Research | `chart-levels` | QuantEdge levels | `defs/chart.ts` |
+| Market | `chart-es-risk` | ES translation · futures risk | `defs/chart.ts` |
+| Market | `chart-watchlists` | Watchlists · mine + traders | `defs/chart.ts` |
+| Market | `chart-readouts` | Market readouts | `defs/chart.ts` |
+| Research | `chart-lab` | Chart Lab (all-in-one, classic) | `defs/chart.ts` |
+| Crypto | `crypto-spot` | Spot read · BTC / ETH | `defs/crypto.ts` |
+| Crypto | `crypto-chart` | Structure lab · coin chart | `defs/crypto.ts` |
+| Crypto | `crypto-summary` | Crypto summary · ratio & feeds | `defs/crypto.ts` |
+| Crypto | `crypto-sentiment` | Fear & Greed · BTC dominance | `defs/crypto.ts` |
+| Crypto | `crypto-correlation` | Proxy correlation · ~30d | `defs/crypto.ts` |
+| Crypto | `crypto-proxy-gate` | Proxy promotion gate | `defs/crypto.ts` |
+| Crypto | `crypto-proxy-board` | Proxy board · BTC & ETH routes | `defs/crypto.ts` |
+| Crypto | `crypto-guide` | How to read crypto | `defs/crypto.ts` |
+| Crypto | `crypto-board` | Crypto (all-in-one, classic) | `defs/crypto.ts` |
+| Catalyst | `catalyst-impact` | Signal impact · calendar × book | `defs/catalyst.ts` |
+| Catalyst | `catalyst-earnings` | Earnings calendar · 7 days | `defs/catalyst.ts` |
+| Catalyst | `catalyst-econ` | Economic calendar · macro releases | `defs/catalyst.ts` |
+| Catalyst | `catalyst-summary` | Catalyst summary · coverage | `defs/catalyst.ts` |
+| Catalyst | `catalyst-distance` | Distance to event | `defs/catalyst.ts` |
+| Catalyst | `catalyst-classic` | Catalyst (all-in-one) | `defs/catalyst.ts` |
+| Ideas | `leaps-list` | LEAPS · ranked contracts | `defs/leaps.ts` |
+| Ideas | `leaps-summary` | LEAPS summary | `defs/leaps.ts` |
+| Ideas | `leaps-grades` | LEAPS grade distribution | `defs/leaps.ts` |
+| Ideas | `leaps-classic` | LEAPS (all-in-one) | `defs/leaps.ts` |
+| Bot | `bot-stats` | Automation KPIs | `defs/bot.ts` |
+| Bot | `bot-jobs` | Engines & jobs | `defs/bot.ts` |
+| Bot | `bot-book` | Paper book · open positions | `defs/bot.ts` |
+| Bot | `bot-history` | Paper trade history | `defs/bot.ts` |
+| Bot | `bot-ledger` | Blocked ledger · shadow shorts | `defs/bot.ts` |
+| Bot | `bot-rules` | Gates & rules | `defs/bot.ts` |
+| Bot | `bot-log` | Activity log | `defs/bot.ts` |
+| Bot | `bot-queue` | Macro queue · FRED | `defs/bot.ts` |
+| Bot | `bot-outcomes` | Outcome integrity · SR 11-7 | `defs/bot.ts` |
+| Bot | `bot-status` | Safeguards & system status | `defs/bot.ts` |
+| Bot | `bot-classic` | BOT board (all-in-one, classic) | `defs/bot.ts` |
+| Book | `positions-pnl` | Net open P&L · KPIs | `defs/positions.ts` |
+| Book | `positions-heat` | Position heat map | `defs/positions.ts` |
+| Book | `positions-best-worst` | Best vs worst | `defs/positions.ts` |
+| Book | `positions-mix` | Book mix · source / asset | `defs/positions.ts` |
+| Book | `positions-table` | Positions detail table | `defs/positions.ts` |
+| Book | `positions-classic` | Position heat map (all-in-one, classic) | `defs/positions.ts` |
+| Market | `today-week-map` | Week dealer map · SPY | `defs/today.ts` |
+| Ideas | `today-best-idea` | Best idea · top ranked setup | `defs/today.ts` |
+| Ideas | `today-ranked-book` | Ranked book | `defs/today.ts` |
+| Market | `today-index-desk` | Index desk · SPX SPY QQQ IWM | `defs/today.ts` |
+| Ideas | `today-book-stats` | Book stats | `defs/today.ts` |
+| Journal | `today-model-record` | Model record | `defs/today.ts` |
+| Market | `today-rotation` | Rotation · sector quadrant | `defs/today.ts` |
+| Market | `today-tape` | Sector & crypto tape | `defs/today.ts` |
+| Market | `stock-chart` | Stock Chart | `defs/market.ts` |
+| Market | `watchlist` | Watchlist | `defs/market.ts` |
+| Market | `market-pulse` | Market pulse | `defs/market.ts` |
+| Market | `market-rotation` | Rotation map | `defs/market.ts` |
+| Market | `market-session-brief` | Session brief | `defs/market.ts` |
 
 ## Default layouts — `tool (x,y w×h)`, 12 columns, 40 px rows
 
-{layouts}
+- **flow:default** (Market flow) — `options-flow` (0,0 8×14), `top-tickers` (8,0 4×7), `flow-sweeps-blocks` (8,7 4×7), `market-tide` (0,14 4×8), `flow-unusual` (4,14 4×8), `flow-setups` (8,14 4×8), `net-flow-strike` (0,22 3×16), `flow-strike-expiry` (3,22 5×16), `stock-chart` (8,22 4×16), `flow-timeline` (0,38 4×10), `flow-gex-convergence` (4,38 4×10), `dark-pool-flow` (8,38 4×10), `repeat-buyers` (0,48 7×9), `flow-alerts` (7,48 5×9)
+- **flow:ticker** (Ticker flow) — `net-flow-strike` (0,0 3×18), `stock-chart` (3,0 5×18), `flow-gex-convergence` (8,0 4×10), `net-premium` (8,10 4×8), `flow-strike-expiry` (0,18 7×14), `flow-timeline` (7,18 5×7), `dark-pool-flow` (7,25 5×7), `flow-sweeps-blocks` (0,32 6×9), `repeat-buyers` (6,32 6×9), `flow-unusual` (0,41 6×8), `flow-setups` (6,41 6×8)
+- **gex:default** (GEX) — `gex-regime` (0,0 3×7), `gex-levels` (0,7 3×9), `stock-chart` (3,0 5×16), `gex-dealer-map` (8,0 4×16), `gex-matrix` (0,16 6×14), `gex-profile` (6,16 3×6), `gex-gravity` (6,22 3×8), `gex-rankings` (9,16 3×8), `flow-context` (9,24 3×6), `gex-setups` (0,30 7×13), `gex-surface-3d` (7,30 5×13)
+- **nexus:default** (NEXUS) — `nexus-board` (0,0 3×16), `nexus-detail` (3,0 6×16), `nexus-context` (9,0 3×9), `nexus-positions` (9,9 3×7), `nexus-developing` (0,16 5×12), `stock-chart` (5,16 4×12), `gex-levels` (9,16 3×12), `nexus-horizon` (0,28 8×10), `flow-context` (8,28 4×10)
+- **chart:default** (Chart) — `stock-chart` (0,0 8×16), `chart-levels` (8,0 4×7), `chart-watchlists` (8,7 4×9), `chart-lab-chart` (0,16 8×14), `chart-es-risk` (8,16 4×8), `chart-readouts` (8,24 4×6)
+- **chart:lab** (Chart Lab) — `chart-lab` (0,0 12×20)
+- **crypto:default** (Crypto) — `crypto-chart` (0,0 7×16), `crypto-spot` (7,0 5×10), `crypto-summary` (7,10 5×6), `crypto-proxy-gate` (0,16 8×8), `crypto-sentiment` (8,16 4×6), `crypto-correlation` (8,22 4×7), `crypto-proxy-board` (0,24 8×12), `crypto-guide` (8,29 4×7)
+- **catalyst:default** (Catalyst) — `catalyst-impact` (0,0 7×16), `catalyst-summary` (7,0 5×8), `catalyst-earnings` (7,8 5×8), `catalyst-econ` (0,16 7×10), `catalyst-distance` (7,16 5×10)
+- **leaps:default** (LEAPS) — `leaps-list` (0,0 8×16), `leaps-summary` (8,0 4×6), `leaps-grades` (8,6 4×10), `stock-chart` (0,16 12×12)
+- **bot:default** (BOT) — `bot-stats` (0,0 12×4), `bot-book` (0,4 5×8), `bot-ledger` (5,4 4×8), `bot-outcomes` (9,4 3×8), `bot-jobs` (0,12 8×10), `bot-queue` (8,12 4×5), `bot-status` (8,17 4×5), `bot-history` (0,22 6×9), `bot-log` (6,22 6×9), `bot-rules` (0,31 12×10)
+- **positions:default** (POSITIONS) — `positions-pnl` (0,0 12×3), `positions-heat` (0,3 8×13), `positions-best-worst` (8,3 4×6), `positions-mix` (8,9 4×7), `positions-table` (0,16 12×12)
+- **today:default** (Today) — `today-week-map` (0,0 8×11), `today-best-idea` (8,0 4×11), `today-tape` (0,11 12×3), `today-ranked-book` (0,14 8×12), `today-index-desk` (8,14 4×6), `today-book-stats` (8,20 4×6), `today-rotation` (0,26 7×9), `today-model-record` (7,26 5×9), `nexus-horizon` (0,35 12×10)
+
+## FLOW domain — one owner for everything options-flow (feat/flowdom, 2026-09-29)
+
+The FLOW page owns every options-flow function. Each function has exactly one
+tool; any page may *add* a flow tool, but other pages' **default** layouts carry
+at most the compact `flow-context` tool (which links to `/t?tab=flow`). In
+reverse, FLOW's default carries one GEX-reading tool — `flow-gex-convergence`,
+which reads the GEX page's own query and links to `/t?tab=gex` — never the GEX
+workspace.
+
+| Function | Owning tool | Data source (real feeds only) | Limits / honesty |
+|---|---|---|---|
+| Market-wide tape | `options-flow` | `/api/flow/tape` = Bullflow SSE ring (no provider call) + `options_flow_history` chain scan, 15 s cache | chain scan capped at newest 1,500 rows market-wide; no aggressor side on either feed |
+| Leaders | `top-tickers` | Bullflow `optionsTopTickers` (6-min cache) **or** our tape (toggle) | provider net = ask − bid (provider inference); tape = premium activity |
+| Sweeps & blocks | `flow-sweeps-blocks` | tape | chain-scan patterns are inferred ("-like") |
+| Unusual (vol/OI) | `flow-unusual` | tape, chain-scan rows only | Bullflow alerts carry no OI |
+| Position builders | `repeat-buyers` (upgraded) | `/api/flow/repeats`, `/api/flow/exits` (OI history) + repeat prints from tape | session-level; coverage warning shown when history is thin/stale |
+| Alerts | `flow-alerts` | tape, Bullflow rows | stream state in the frame |
+| Market tide | `market-tide` | Bullflow `netPremiumSeries` SPY (3-min cache, 2 cold symbols/min) | SPY proxy, not the whole tape |
+| Flow-driven setups | `flow-setups` | `/api/convictions` (shared NEXUS key) | flow-originated = source `flow` / "Aggressor tape:" catalyst; flow-confirmed = a positive layer whose reason cites flow |
+| Flow by strike | `net-flow-strike` (upgraded) | `/api/flow/tape?symbol=` (new param; per-ticker 1,500 cap) + spot `/api/quotes/batch` | Auto source = chain scan if it has rows, else Bullflow — never summed unless "Both" is picked |
+| Flow by expiry | `flow-strike-expiry` | same per-symbol tape | √-scaled tint, value printed |
+| Premium timeline | `flow-timeline` | per-symbol or market tape | chain-scan rows sit at first-detection time, not trade time (stated) |
+| Provider net premium (ticker) | `net-premium` | Bullflow `netPremiumSeries` | throttled state shown |
+| Flow × GEX | `flow-gex-convergence` (replaces the scanner ConvergenceCard) | per-symbol tape + `useGexTerminal` (GEX page query, not recomputed) | co-location, not direction; frame age = older of the two |
+| Dark pool | `dark-pool-flow` (upgraded) | `/api/chart/overlays` darkPool (28-day levels, 30-min + disk cache) or `/api/bullflow/context` (today ≥ $1M, 6-min cache) | levels, not direction; truncation disclosed |
+| Flow context (other pages) | `flow-context` | per-symbol tape, today | compact; link to FLOW |
+| 0DTE index context | `index-pulse` | SPX intelligence + Bullflow status | unchanged |
+| Classic board | `historical-flow` | FlowBoard → `/api/options-flow` | kept as the all-in-one (still hosts the scanner convergence rail) |
+
+Bullflow's process-wide 8 req/min budget: no new tool calls Bullflow per
+render; every Bullflow read goes through the existing cached helpers above.
+Colours: calls blue / puts vermilion (`tools/flow/flow-colors.ts`, the GEX
+convention), never green/red. The ticker tools share one window / source / DTE
+setting (`useDashState('flow:*')`) and one `/api/flow/tape?symbol=` request.
+
+**Defaults.** FLOW ships two dashboards and they now always show (the old
+`seedOnlyWhenEmpty` flag is off for FLOW; pre-framework rows stay as the
+user's own): *Market flow* (market tape on top → focused-ticker ladder /
+heatmap / chart → timeline / Flow × GEX / dark pool → builders / alerts) and
+*Ticker flow* (one symbol; list tools start scoped to it).
+
+**What moved out of / into other pages' defaults.** No other page's default
+contained a flow view (audited: GEX, NEXUS, Today, Chart, Crypto, Catalyst,
+LEAPS, BOT, Positions). GEX and NEXUS defaults each gained the single compact
+`flow-context` tool (GEX: under cross-ticker rankings; NEXUS: beside the
+horizon book). `stock-chart` and `watchlist` definitions moved from
+`defs/flow.ts` to `defs/market.ts` (ids unchanged) — they are Market functions
+(`research.chart`, `markets.watchlist`), not flow. `market-tide` moved from the
+Market to the Options (flow) category.
 
 ---
 
@@ -56,7 +206,7 @@ the duplicated surfaces can be retired later. **Nothing has been deleted yet.**
 | OPTIONS | Net Flow By Strike | `GET /api/flow/tape` (shared with Options Flow) | Call vs put premium per strike for the focused ticker from loaded prints only — activity, not direction. |
 | OPTIONS | Flow Alerts | `GET /api/flow/tape` (Bullflow rows) | Bullflow algo + custom alerts, alert names verbatim. |
 | OPTIONS | Repeat Buyers & Exits | `RepeatBuyers` → `/api/flow/repeats`, `/api/flow/exits` | As before (was the old FLOW sidebar). |
-| OPTIONS | Flow × GEX Convergence | `ConvergenceCard` → `/api/flow-gex-convergence/top` | As before (was the old FLOW sidebar). |
+| OPTIONS | Flow × GEX Convergence | ~~`ConvergenceCard` → `/api/flow-gex-convergence/top`~~ superseded 2026-09-29 by the per-ticker tool (see FLOW domain above); ConvergenceCard remains inside Historical Flow | — |
 | OPTIONS | Index 0DTE Pulse | `IndexZeroDtePulsePanel` (exported from flow-board.tsx) → `/api/spx/intelligence`, `/api/index-scalps`, `/api/bullflow/status` | As before (was the strip at the top of the old FLOW tab). |
 | MARKET | Stock Chart | `FlowChartBoard` (`components/charting/flow-chart-nexus.tsx`) | Follows the shared ticker; a row click in any flow tool re-points it. GEX bubbles, dark-pool levels, flow markers per its own layers. |
 | MARKET | Watchlist | `WatchlistRail` (`components/oracle/oracle-rails.tsx`) → `/api/watchlist` + `/api/extended-hours` | User's watchlist; age = extended-hours scan age. |

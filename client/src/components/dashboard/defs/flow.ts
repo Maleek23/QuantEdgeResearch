@@ -1,62 +1,75 @@
 /**
- * FLOW tools (Options, Market, Dark Pool) — the original flowdash registry.
+ * FLOW tools — the FLOW page is the ONE owner of everything options-flow
+ * (docs/IA_SYSTEM_DESIGN.md §2, docs/TOOLS_MIGRATION.md "FLOW domain").
+ * Every function below has exactly one tool; other pages may place any of
+ * them, but their DEFAULT layouts carry at most the compact `flow-context`
+ * tool, which links here for the full view.
+ *
  * Ids are persisted in saved layouts (`flowdash:<id>` rows) — never rename.
- * See docs/TOOLS_MIGRATION.md for what each one replaces.
+ * `net-flow-strike`, `repeat-buyers`, `flow-gex-convergence`, `top-tickers`
+ * and `dark-pool-flow` keep their ids; their components were upgraded in
+ * place (tools/flow/flow-depth.tsx) so saved dashboards get the new tool.
+ * Stock Chart and Watchlist are Market tools (defs/market.ts), not flow.
  */
 import { lazyTool, type DefaultLayout, type ToolDef } from '../tool-def';
 
 const flow = () => import('../tools/flow/flow-tools');
+const depth = () => import('../tools/flow/flow-depth');
+const TAPE = 'GET /api/flow/tape (Bullflow SSE ring + options_flow_history, 15s server cache; no provider call)';
+const TICKER_TAPE = 'GET /api/flow/tape?symbol= (one underlying, 15s cache) — window / source / DTE shared by the FLOW ticker tools';
 
 export const FLOW_TOOLS: ToolDef[] = [
-  // ── Options ──
+  // ── Options: market-wide tape ──
   {
     id: 'options-flow', category: 'Options', title: 'Options Flow',
     what: 'Every print in the window — Bullflow alerts and our chain-scan observations, source-tagged, sortable, filterable.',
     units: 'premium $, strike $, size contracts, SigScore 0–1',
-    source: 'Bullflow alerts + chain scan', backing: 'GET /api/flow/tape (Bullflow SSE ring + options_flow_history, 15s cache)',
+    source: 'Bullflow alerts + chain scan', backing: TAPE,
     defaultSize: { w: 8, h: 16 }, minSize: { w: 4, h: 8 }, Component: lazyTool(() => import('../tools/flow/options-flow'), 'OptionsFlowTool'),
   },
   {
-    id: 'top-tickers', category: 'Options', title: 'Top Tickers',
-    what: 'Market-wide leaders by provider-measured net premium (ask-side minus bid-side), ETFs excluded.',
-    units: 'net premium $', source: 'Bullflow optionsTopTickers', backing: 'GET /api/bullflow/leaders (6-min service cache)',
-    defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flow, 'TopTickersTool'),
+    id: 'top-tickers', category: 'Options', title: 'Top tickers',
+    what: 'Market-wide leaders: Bullflow net premium (ask − bid, provider-measured) or total premium per ticker in our own tape.',
+    units: 'net premium $ · premium $', source: 'Bullflow optionsTopTickers / flow tape',
+    backing: 'GET /api/bullflow/leaders (6-min service cache) · /api/flow/tape',
+    defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(depth, 'TopTickersTool'),
   },
   {
-    id: 'historical-flow', category: 'Options', title: 'Historical Flow',
-    what: 'The previous FLOW board — 1D/1W/1M/all windows, desk score, cards view, repeats and GEX convergence rail.',
-    units: 'premium $, score 0–100', source: 'options_flow_history + Bullflow', backing: 'FlowBoard (components/flow/flow-board.tsx) → /api/options-flow',
-    ageInside: true, defaultSize: { w: 12, h: 18 }, minSize: { w: 6, h: 10 }, Component: lazyTool(flow, 'HistoricalFlowTool'),
+    id: 'flow-sweeps-blocks', category: 'Options', title: 'Sweeps & blocks',
+    what: 'Today\'s sweeps and block / grenade prints, market-wide or the focused ticker, with a premium floor.',
+    units: 'premium $, contracts', source: 'Bullflow alerts + chain scan (pattern inferred)', backing: TAPE,
+    defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(depth, 'SweepsBlocksTool'),
   },
   {
-    id: 'net-premium', category: 'Options', title: 'Net Premium',
-    what: 'Intraday cumulative call vs put NET premium for the focused ticker (provider aggressor inference).',
-    units: 'cumulative net premium $', source: 'Bullflow netPremiumSeries', backing: 'GET /api/bullflow/net-premium-series/:symbol (3-min cache, 2 cold symbols/min)',
-    needs: ['symbol'], defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flow, 'NetPremiumTool'),
+    id: 'flow-unusual', category: 'Options', title: 'Unusual activity · vol/OI',
+    what: 'Contracts that traded at least 2× / 5× / 10× their open interest — chain-scan rows only (the only feed with OI).',
+    units: 'volume ÷ OI, contracts, premium $', source: 'chain scan (options_flow_history)', backing: TAPE,
+    defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(depth, 'UnusualActivityTool'),
   },
   {
-    id: 'net-flow-strike', category: 'Options', title: 'Net Flow By Strike',
-    what: 'Call vs put premium summed per strike for the focused ticker, from prints in the loaded tape only.',
-    units: 'premium $ per strike', source: 'flow tape (Bullflow + chain scan)', backing: 'GET /api/flow/tape (shared with Options Flow)',
-    needs: ['symbol'], defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flow, 'NetFlowByStrikeTool'),
+    id: 'repeat-buyers', category: 'Options', title: 'Repeat & position builders',
+    what: 'Open interest building or unwinding across sessions, or the same contract printed repeatedly in the tape.',
+    units: 'contracts, OI change, prints', source: 'OI history + flow tape',
+    backing: 'GET /api/flow/repeats, /api/flow/exits (same key as RepeatBuyers) · /api/flow/tape',
+    defaultSize: { w: 6, h: 9 }, minSize: { w: 3, h: 6 }, Component: lazyTool(depth, 'PositionBuildersTool'),
   },
   {
     id: 'flow-alerts', category: 'Options', title: 'Flow Alerts',
     what: 'Bullflow algo + custom alert prints as they land today (Sizable Sweep, Urgent Repeater, Grenade…).',
-    units: 'premium $', source: 'Bullflow SSE alerts', backing: 'GET /api/flow/tape (Bullflow rows only)',
+    units: 'premium $', source: 'Bullflow SSE alerts', backing: `${TAPE} — Bullflow rows only`,
     defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flow, 'FlowAlertsTool'),
   },
   {
-    id: 'repeat-buyers', category: 'Options', title: 'Repeat Buyers & Exits',
-    what: 'Contracts whose open interest keeps building (or unwinding) across sessions.',
-    units: 'contracts, OI change', source: 'OI history', backing: 'RepeatBuyers (components/flow/repeat-buyers.tsx) → /api/flow/repeats, /api/flow/exits',
-    ageInside: true, defaultSize: { w: 4, h: 10 }, minSize: { w: 3, h: 6 }, Component: lazyTool(flow, 'RepeatBuyersTool'),
+    id: 'market-tide', category: 'Options', title: 'Market Flow Tide',
+    what: 'SPY cumulative call vs put net premium today — a market proxy, not the whole tape.',
+    units: 'cumulative net premium $', source: 'Bullflow netPremiumSeries (SPY)', backing: 'GET /api/bullflow/net-premium-series/SPY (3-min cache, 2 cold symbols/min)',
+    defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flow, 'MarketTideTool'),
   },
   {
-    id: 'flow-gex-convergence', category: 'Options', title: 'Flow × GEX Convergence',
-    what: 'Where flow and dealer positioning point the same way.',
-    units: 'score, premium $', source: 'flow + GEX engines', backing: 'ConvergenceCard (components/flow/convergence-card.tsx) → /api/flow-gex-convergence/top',
-    ageInside: true, defaultSize: { w: 4, h: 10 }, minSize: { w: 3, h: 6 }, Component: lazyTool(flow, 'ConvergenceTool'),
+    id: 'flow-setups', category: 'Options', title: 'Flow-driven setups',
+    what: 'Published setups whose evidence is flow: flow-originated (flow scanner / aggressor tape) or flow-confirmed (a scoring layer cites flow).',
+    units: 'conviction /100', source: 'convictions engine', backing: 'GET /api/convictions (shared NEXUS key)',
+    defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(depth, 'FlowSetupsTool'),
   },
   {
     id: 'index-pulse', category: 'Options', title: 'Index 0DTE Pulse',
@@ -64,42 +77,105 @@ export const FLOW_TOOLS: ToolDef[] = [
     units: 'index points, score /100', source: 'SPX intelligence + Bullflow', backing: 'IndexZeroDtePulsePanel (flow-board.tsx) → /api/spx/intelligence, /api/index-scalps, /api/bullflow/status',
     defaultSize: { w: 12, h: 5 }, minSize: { w: 6, h: 4 }, Component: lazyTool(flow, 'IndexPulseTool'),
   },
-  // ── Market ──
   {
-    id: 'stock-chart', category: 'Market', title: 'Stock Chart',
-    what: 'Price with GEX-through-time bubbles, multi-day dark-pool levels and flow prints for the focused ticker.',
-    units: 'price $, GEX $/1%, notional $', source: 'candles + /api/chart/overlays', backing: 'FlowChartBoard (components/charting/flow-chart-nexus.tsx)',
-    ageInside: true, needs: ['symbol'], defaultSize: { w: 4, h: 16 }, minSize: { w: 4, h: 10 }, Component: lazyTool(flow, 'StockChartTool'),
+    id: 'historical-flow', category: 'Options', title: 'Historical Flow (classic)',
+    what: 'The previous FLOW board — 1D/1W/1M/all windows, desk score, cards view, repeats and scanner convergence rail.',
+    units: 'premium $, score 0–100', source: 'options_flow_history + Bullflow', backing: 'FlowBoard (components/flow/flow-board.tsx) → /api/options-flow',
+    ageInside: true, defaultSize: { w: 12, h: 18 }, minSize: { w: 6, h: 10 }, Component: lazyTool(flow, 'HistoricalFlowTool'),
+  },
+  // ── Options: focused ticker ──
+  {
+    id: 'net-flow-strike', category: 'Options', title: 'Flow by strike · call vs put ladder',
+    what: 'Call vs put premium at every strike the focused ticker traded, with the spot line — the flow counterpart of the GEX ladder. Click a strike for its expiries.',
+    units: 'premium $ per strike', source: 'flow tape (Auto: chain scan, else Bullflow)', backing: `${TICKER_TAPE} · spot /api/quotes/batch`,
+    needs: ['symbol'], defaultSize: { w: 3, h: 16 }, minSize: { w: 3, h: 6 }, Component: lazyTool(depth, 'FlowStrikeLadderTool'),
   },
   {
-    id: 'watchlist', category: 'Market', title: 'Watchlist',
-    what: 'Your watchlist with the latest extended-hours move; unpriced names show a dash.',
-    units: '% change', source: 'watchlist + extended-hours scan', backing: 'WatchlistRail (components/oracle/oracle-rails.tsx) → /api/watchlist',
-    ageInside: true, defaultSize: { w: 3, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flow, 'WatchlistTool'),
+    id: 'flow-strike-expiry', category: 'Options', title: 'Flow by expiry · strike × expiry heatmap',
+    what: 'Premium in every strike × expiry cell for the focused ticker (calls, puts or both), spot row marked — the flow counterpart of the GEX matrix.',
+    units: 'premium $ per cell', source: 'flow tape (Auto: chain scan, else Bullflow)', backing: `${TICKER_TAPE} · spot /api/quotes/batch`,
+    needs: ['symbol'], defaultSize: { w: 6, h: 14 }, minSize: { w: 4, h: 7 }, Component: lazyTool(depth, 'FlowExpiryHeatmapTool'),
   },
   {
-    id: 'market-tide', category: 'Market', title: 'Market Flow Tide',
-    what: 'SPY cumulative call vs put net premium today — a market proxy, not the whole tape.',
-    units: 'cumulative net premium $', source: 'Bullflow netPremiumSeries (SPY)', backing: 'GET /api/bullflow/net-premium-series/SPY',
-    defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flow, 'MarketTideTool'),
+    id: 'flow-timeline', category: 'Options', title: 'Premium timeline',
+    what: 'Call vs put premium through the session (5-min bins; hourly for multi-day) for the focused ticker or the whole tape, as bars or cumulative.',
+    units: 'premium $ per bin / cumulative $', source: 'flow tape', backing: `${TICKER_TAPE} · /api/flow/tape (market scope)`,
+    needs: ['symbol'], defaultSize: { w: 4, h: 9 }, minSize: { w: 3, h: 6 }, Component: lazyTool(depth, 'FlowTimelineTool'),
+  },
+  {
+    id: 'net-premium', category: 'Options', title: 'Net premium · provider',
+    what: 'Intraday cumulative call vs put NET premium for the focused ticker (provider aggressor inference).',
+    units: 'cumulative net premium $', source: 'Bullflow netPremiumSeries', backing: 'GET /api/bullflow/net-premium-series/:symbol (3-min cache, 2 cold symbols/min)',
+    needs: ['symbol'], defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flow, 'NetPremiumTool'),
+  },
+  {
+    id: 'flow-gex-convergence', category: 'Options', title: 'Flow × GEX convergence',
+    what: 'Where the focused ticker\'s traded premium sits against the GEX engine\'s walls, magnet and flip, and the dealer gamma at its heaviest flow strikes.',
+    units: 'premium $, strike $, GEX $/1%', source: 'flow tape + GEX engine (read, not recomputed)',
+    backing: `${TICKER_TAPE} · useGexTerminal (gex-model.ts, the GEX page's shared query)`,
+    needs: ['symbol'], defaultSize: { w: 4, h: 10 }, minSize: { w: 3, h: 6 }, Component: lazyTool(depth, 'FlowGexConvergenceTool'),
+  },
+  {
+    id: 'flow-context', category: 'Options', title: 'Flow context',
+    what: 'Compact read of the focused ticker\'s options flow today (calls vs puts, sweeps, top strike, last alert) with a link to FLOW for the full view.',
+    units: 'premium $, prints', source: 'flow tape (Auto: chain scan, else Bullflow)', backing: 'GET /api/flow/tape?symbol=&days=1',
+    needs: ['symbol'], defaultSize: { w: 4, h: 6 }, minSize: { w: 3, h: 4 }, Component: lazyTool(depth, 'FlowContextTool'),
   },
   // ── Dark Pool ──
   {
-    id: 'dark-pool-flow', category: 'Dark Pool', title: 'Dark Pool Flow',
-    what: 'Largest dark-pool prints today (≥ $1M notional) for the focused ticker. Levels, not direction.',
-    units: 'price $, notional $, % of day volume', source: 'Bullflow darkPoolTrades', backing: 'GET /api/bullflow/context/:ticker (6-min service cache)',
-    needs: ['symbol'], defaultSize: { w: 4, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flow, 'DarkPoolTool'),
+    id: 'dark-pool-flow', category: 'Dark Pool', title: 'Dark pool · levels & prints',
+    what: 'The focused ticker\'s dark-pool levels (prints summed by price over ~28 days, near spot) or today\'s largest prints ≥ $1M. Levels, not direction.',
+    units: 'price $, notional $, prints', source: 'Bullflow darkPoolTrades',
+    backing: 'GET /api/chart/overlays/:symbol darkPool (30-min + disk cache) · /api/bullflow/context/:ticker (6-min cache)',
+    needs: ['symbol'], defaultSize: { w: 4, h: 9 }, minSize: { w: 3, h: 5 }, Component: lazyTool(depth, 'DarkPoolTool'),
   },
 ];
 
-/** FLOW default — unchanged from the flowdash default the operator signed off. */
-export const FLOW_DEFAULTS: DefaultLayout[] = [{
-  id: 'default', name: 'Flow',
-  tools: [
-    ['options-flow', 0, 0, 8, 16],
-    ['stock-chart', 8, 0, 4, 16],
-    ['top-tickers', 0, 16, 4, 8],
-    ['market-tide', 4, 16, 4, 8],
-    ['net-flow-strike', 8, 16, 4, 8],
-  ],
-}];
+/**
+ * FLOW shipped dashboards.
+ *
+ * Market flow — situational, top to bottom: the market-wide tape and its
+ * leaders first; then the focused ticker (ladder · heatmap · chart); then
+ * the ticker's timeline, its one GEX context (Flow × GEX, which links to the
+ * GEX page) and dark pool; then position builders and alerts.
+ *
+ * Ticker flow — one symbol, everything about its flow; list tools start
+ * scoped to the focused ticker (instance ids `ticker-…`).
+ */
+export const FLOW_DEFAULTS: DefaultLayout[] = [
+  {
+    id: 'default', name: 'Market flow',
+    tools: [
+      ['options-flow', 0, 0, 8, 14],
+      ['top-tickers', 8, 0, 4, 7],
+      ['flow-sweeps-blocks', 8, 7, 4, 7],
+      ['market-tide', 0, 14, 4, 8],
+      ['flow-unusual', 4, 14, 4, 8],
+      ['flow-setups', 8, 14, 4, 8],
+      ['net-flow-strike', 0, 22, 3, 16],
+      ['flow-strike-expiry', 3, 22, 5, 16],
+      ['stock-chart', 8, 22, 4, 16],
+      ['flow-timeline', 0, 38, 4, 10],
+      ['flow-gex-convergence', 4, 38, 4, 10],
+      ['dark-pool-flow', 8, 38, 4, 10],
+      ['repeat-buyers', 0, 48, 7, 9],
+      ['flow-alerts', 7, 48, 5, 9],
+    ],
+  },
+  {
+    id: 'ticker', name: 'Ticker flow',
+    tools: [
+      ['net-flow-strike', 0, 0, 3, 18],
+      ['stock-chart', 3, 0, 5, 18],
+      ['flow-gex-convergence', 8, 0, 4, 10],
+      ['net-premium', 8, 10, 4, 8],
+      ['flow-strike-expiry', 0, 18, 7, 14],
+      ['flow-timeline', 7, 18, 5, 7],
+      ['dark-pool-flow', 7, 25, 5, 7],
+      ['flow-sweeps-blocks', 0, 32, 6, 9],
+      ['repeat-buyers', 6, 32, 6, 9],
+      ['flow-unusual', 0, 41, 6, 8],
+      ['flow-setups', 6, 41, 6, 8],
+    ],
+  },
+];

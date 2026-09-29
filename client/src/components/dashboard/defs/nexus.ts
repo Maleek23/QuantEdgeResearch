@@ -58,7 +58,8 @@ export const NEXUS_TOOLS: ToolDef[] = [
 /**
  * NEXUS default — ranked board left, selected detail centre, market context
  * and bot positions right (all in the first 16 rows); below, the developing
- * funnel with the stock chart and GEX levels following the selection.
+ * funnel with the stock chart and GEX levels following the selection, and
+ * the one compact flow-context tool (links to FLOW) beside the horizon book.
  */
 export const NEXUS_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'NEXUS',
@@ -70,6 +71,7 @@ export const NEXUS_DEFAULTS: DefaultLayout[] = [{
     ['nexus-developing', 0, 16, 5, 12],
     ['stock-chart', 5, 16, 4, 12],
     ['gex-levels', 9, 16, 3, 12],
-    ['nexus-horizon', 0, 28, 12, 10],
+    ['nexus-horizon', 0, 28, 8, 10],
+    ['flow-context', 8, 28, 4, 10],
   ],
 }];

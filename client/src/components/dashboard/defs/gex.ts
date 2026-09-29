@@ -82,7 +82,9 @@ export const GEX_TOOLS: ToolDef[] = [
  * GEX default — a pro GEX terminal: regime + levels on the left, the stock
  * chart with GEX overlay in the middle, the near-term ladder on the right;
  * below, the full strike × expiry matrix, profile, gravity and the
- * cross-ticker rankings; then magnet setups and the 3D surface.
+ * cross-ticker rankings with the one compact flow-context tool (links to
+ * FLOW — the flow views themselves live there); then magnet setups and the
+ * 3D surface.
  */
 export const GEX_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'GEX',
@@ -94,7 +96,8 @@ export const GEX_DEFAULTS: DefaultLayout[] = [{
     ['gex-matrix', 0, 16, 6, 14],
     ['gex-profile', 6, 16, 3, 6],
     ['gex-gravity', 6, 22, 3, 8],
-    ['gex-rankings', 9, 16, 3, 14],
+    ['gex-rankings', 9, 16, 3, 8],
+    ['flow-context', 9, 24, 3, 6],
     ['gex-setups', 0, 30, 7, 13],
     ['gex-surface-3d', 7, 30, 5, 13],
   ],

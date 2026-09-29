@@ -17,6 +17,7 @@ import { Info } from 'lucide-react';
 import { openWorkup } from '@/lib/workup-bus';
 import { cn } from '@/lib/utils';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
+import { CALL, CALL_FILL, PUT } from './flow-colors';
 import { useDashboard, useFocusSymbol, useNow, useToolReport } from '../../frame';
 import {
   useFlowTape, sigScore, contractKey, dte, money, etTime, ageLabel,
@@ -211,7 +212,7 @@ export function OptionsFlowTool() {
         <div className="of-stat of-tide" title="Cumulative call vs put premium through today, from the rows below. Premium traded — NOT bull/bear: neither feed measures whether the print was bought or sold.">
           <div className="of-lbl">Premium tide <span className="of-sub">today · calls vs puts</span></div>
           <Tide pts={stats.tide} />
-          <div className="of-sub"><span style={{ color: 'var(--green)' }}>C {money(stats.tide.at(-1)?.c ?? 0)}</span> / <span style={{ color: 'var(--red)' }}>P {money(stats.tide.at(-1)?.p ?? 0)}</span></div>
+          <div className="of-sub"><span style={{ color: CALL }}>C {money(stats.tide.at(-1)?.c ?? 0)}</span> / <span style={{ color: PUT }}>P {money(stats.tide.at(-1)?.p ?? 0)}</span></div>
         </div>
         <div className="of-stat">
           <div className="of-lbl">Flow trades</div>
@@ -225,14 +226,14 @@ export function OptionsFlowTool() {
         </div>
         <div className="of-stat of-pc">
           <div className="of-pc-row">
-            <div><div className="of-lbl">Puts</div><div className="of-val" style={{ color: 'var(--red)' }}>{stats.putN.toLocaleString()}</div><div className="of-sub">{money(stats.puts)}</div></div>
+            <div><div className="of-lbl">Puts</div><div className="of-val" style={{ color: PUT }}>{stats.putN.toLocaleString()}</div><div className="of-sub">{money(stats.puts)}</div></div>
             <div className="of-mid"><div className="of-lbl" title="Put premium ÷ call premium">P/C $</div><div className="of-val">{pcRatio != null ? pcRatio.toFixed(2) : '—'}</div></div>
-            <div className="r"><div className="of-lbl">Calls</div><div className="of-val" style={{ color: 'var(--green)' }}>{stats.callN.toLocaleString()}</div><div className="of-sub">{money(stats.calls)}</div></div>
+            <div className="r"><div className="of-lbl">Calls</div><div className="of-val" style={{ color: CALL }}>{stats.callN.toLocaleString()}</div><div className="of-sub">{money(stats.calls)}</div></div>
           </div>
           <div className="of-ratio" role="img" aria-label={ratioPut != null ? `Puts ${(ratioPut * 100).toFixed(0)}% of premium` : 'no premium'}>
             {ratioPut != null && <>
-              <span style={{ width: `${ratioPut * 100}%`, background: 'var(--red)' }} />
-              <span style={{ width: `${(1 - ratioPut) * 100}%`, background: 'var(--green)' }} />
+              <span style={{ width: `${ratioPut * 100}%`, background: PUT }} />
+              <span style={{ width: `${(1 - ratioPut) * 100}%`, background: CALL_FILL }} />
             </>}
           </div>
         </div>
@@ -302,7 +303,7 @@ export function OptionsFlowTool() {
                       <td><span className="of-tk">{r.symbol}</span></td>
                       <td className="r">{r.spot != null ? r.spot.toFixed(2) : <span className="dim">—</span>}</td>
                       <td className="r">{r.strike}</td>
-                      <td style={{ color: r.optionType === 'call' ? 'var(--green)' : 'var(--red)' }}>{r.optionType === 'call' ? 'Call' : 'Put'}</td>
+                      <td style={{ color: r.optionType === 'call' ? CALL : PUT }}>{r.optionType === 'call' ? 'Call' : 'Put'}</td>
                       <td>{r.expiry.slice(2)}</td>
                       <td className="lbl" title={r.label}>{r.label}</td>
                       <td className="r">{r.price != null ? r.price.toFixed(2) : <span className="dim">—</span>}</td>
@@ -340,8 +341,8 @@ function Tide({ pts }: { pts: { t: number; c: number; p: number }[] }) {
   const d = (k: 'c' | 'p') => pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p[k]).toFixed(1)}`).join('');
   return (
     <svg className="of-tide-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Cumulative call and put premium today">
-      <path d={d('c')} fill="none" stroke="var(--green)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      <path d={d('p')} fill="none" stroke="var(--red)" strokeWidth="1.5" strokeDasharray="4 2" vectorEffect="non-scaling-stroke" />
+      <path d={d('c')} fill="none" stroke={CALL_FILL} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      <path d={d('p')} fill="none" stroke={PUT} strokeWidth="1.5" strokeDasharray="4 2" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
