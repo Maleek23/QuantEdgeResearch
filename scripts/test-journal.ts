@@ -6,6 +6,11 @@
  *   npx tsx scripts/test-journal.ts
  */
 import assert from 'node:assert/strict';
+import { parseBrokerCSV } from '../server/broker-csv-parser';
+import { planJournalImport } from '../server/journal-import-plan';
+import { EXPIRED_NOTE_HEAD, expiryCloseIso, isExpiredUnclosed, settleExpiredRows } from '../shared/journal-expiry';
+import { behaviorInsights, buildInsights, concentration, costBucket, dteAtEntry, keepDoing, sessionOf, stopDoing } from '../client/src/lib/journal/insights';
+import { fitTabs } from '../client/src/components/journal/journal-nav';
 import { journalDayKey, matchesJournalFilters, parseJournalFilters, journalFiltersToParams, journalRowOutcome } from '../shared/journal-filters';
 import { buildJournalTradeUpdate, deriveJournalTradeFields, journalTradeInputSchema } from '../server/journal-trade-input';
 import {
@@ -94,8 +99,9 @@ assert.equal(drawdownPeriods(equityCurve(trades))[0].depth, 300);
 assert.equal(resolveJournalTab('metrics').view, 'record');
 assert.equal(resolveJournalTab('log').view, 'dashboard');
 assert.equal(resolveJournalTab('backtest').intent?.kind, 'backtest');
-assert.deepEqual(resolveJournalTab('timing'), { view: 'reports', intent: { kind: 'anchor', id: 'jr-time' } }, 'Trade Log → Timing now lives in Reports');
-assert.deepEqual(resolveJournalTab('insights'), { view: 'reports', intent: { kind: 'anchor', id: 'jr-insights' } });
+assert.deepEqual(resolveJournalTab('timing'), { view: 'insights', intent: { kind: 'anchor', id: 'jr-ins-time' } }, 'Trade Log → Timing lives on Insights');
+assert.deepEqual(resolveJournalTab('insights'), { view: 'insights' }, 'Insights is a first-class page (feat/jnav)');
+assert.equal(resolveJournalTab('tilt').view, 'insights');
 assert.equal(resolveJournalTab('analytics').view, 'reports', 'the 4-tab Analytics id resolves to Reports');
 assert.equal(resolveJournalTab('simulator').view, 'trades');
 assert.equal(resolveJournalTab('import').view, 'import', 'import is a page now, not a drawer intent');
@@ -110,8 +116,9 @@ for (const [alias, view] of [['journal', 'daily'], ['notes', 'notebook'], ['setu
 // Every sidebar page is reachable by its own id, and the 4 old destination ids still resolve.
 for (const p of JOURNAL_PAGES) assert.equal(resolveJournalTab(p.id).view, p.id, `page ${p.id} resolves to itself`);
 for (const old of ['dashboard', 'trades', 'analytics', 'record']) assert.ok(Object.prototype.hasOwnProperty.call(LEGACY_JTAB, old), `old view id ${old}`);
-assert.deepEqual(JOURNAL_PAGES.map((p) => p.id), ['dashboard', 'calendar', 'daily', 'trades', 'reports', 'loss', 'playbooks', 'progress', 'missed', 'notebook', 'import', 'accounts', 'settings', 'record']);
-assert.deepEqual(JOURNAL_GROUPS.map((g) => g.id), ['overview', 'trades', 'improve', 'setup', 'platform']);
+assert.deepEqual(JOURNAL_PAGES.map((p) => p.id), ['dashboard', 'calendar', 'daily', 'trades', 'missed', 'insights', 'reports', 'loss', 'playbooks', 'progress', 'notebook', 'import', 'accounts', 'settings', 'record']);
+assert.deepEqual(JOURNAL_GROUPS.map((g) => g.id), ['overview', 'trades', 'insights', 'improve', 'setup', 'platform']);
+assert.ok(TRADE_PAGES.has('insights') && FILTERED_PAGES.has('insights'), 'Insights reads the filtered book');
 for (const g of JOURNAL_GROUPS) assert.ok(JOURNAL_PAGES.some((p) => p.group === g.id), `group ${g.id} has pages`);
 assert.equal(resolveJournalTab('losses').view, 'loss');
 assert.ok(TRADE_PAGES.has('loss') && FILTERED_PAGES.has('loss'), 'Loss analysis reads the filtered book');
@@ -515,7 +522,7 @@ assert.throws(() => normalizeDiscordExport('hello,world\n1,2'), /Unrecognised fi
   const sum = summariseLosses(all);
   assert.equal(sum.classes.reduce((s, x) => s + x.n, 0), all.length);
   assert.equal(Math.round(sum.classes.reduce((s, x) => s + x.lost, 0)), Math.round(sum.lost));
-  assert.deepEqual(LOSS_CLASSES.map((x) => x.id), ['unknown', 'gave_back', 'stop_tight', 'late_entry', 'theta', 'target_far', 'wrong_direction', 'normal']);
+  assert.deepEqual(LOSS_CLASSES.map((x) => x.id), ['unknown', 'unresolved', 'gave_back', 'stop_tight', 'late_entry', 'theta', 'target_far', 'wrong_direction', 'normal']);
   assert.ok(sum.classes.find((x) => x.id === 'wrong_direction')!.fired >= 2, 'fired counts outranked losses too');
 
   // Drivers: sorted by $ lost; PF = won / lost.
@@ -534,6 +541,128 @@ assert.throws(() => normalizeDiscordExport('hello,world\n1,2'), /Unrecognised fi
   assert.equal(plan.net, plan.baseNet);
   assert.equal(plan.firstHalfDelta + plan.secondHalfDelta, 0);
   assert.equal(cf.find((x) => x.id === 'rth')!.n, 3, 'all three stamped in regular hours');
+}
+
+// ── accuracy audit regressions (feat/jnav) — SYNTHETIC fixture, never the operator's exports ──
+{
+  const HEAD = 'Name,Symbol,Side,Status,Filled,Total Qty,Price,Avg Price,Time-in-Force,Placed Time,Filled Time';
+  const L = (name: string, sym: string, side: string, status: string, filled: number | string, total: number | string, px: number | string, t: string) =>
+    `${name},${sym},${side},${status},${filled},${total},@${px},${px},DAY,${t},${t}`;
+  // Webull order exports list the NEWEST order first.
+  const csv = [
+    HEAD,
+    L('NVDA260918C00190000', 'NVDA260918C00190000', 'Sell', 'Filled', 1, 1, 1.2, '09/16/2026 09:45:00 EDT'),
+    L('NVDA260918C00190000', 'NVDA260918C00190000', 'Buy', 'Filled', 1, 1, 1.0, '09/16/2026 09:45:00 EDT'),
+    L('SPXW260915C06600000', 'SPXW260915C06600000', 'Sell', 'Filled', 2, 2, 1.5, '09/15/2026 10:30:00 EDT'),
+    L('SPXW260915C06600000', 'SPXW260915C06600000', 'Buy', 'Filled', 2, 2, 1.0, '09/15/2026 10:00:00 EDT'),
+    L('AMD261016C00200000', 'AMD261016C00200000', 'Buy', 'Filled', 1, 1, 2.0, '09/14/2026 11:00:00 EDT'),
+    L('SPY260930C00650000', 'SPY260930C00650000', 'Buy', 'Partial Filled', 1, 3, 0.8, '09/14/2026 10:00:00 EDT'),
+    L('XYZ260918C00010000', 'XYZ260918C00010000', 'Buy', 'Cancelled', 0, 1, '', '09/12/2026 10:00:00 EDT'),
+    L('QQQ260911P00500000', 'QQQ260911P00500000', 'Buy', 'Filled', 3, 3, 0.4, '09/10/2026 15:30:00 EDT'),
+    L('Blackberry', 'BB', 'Sell', 'Filled', 6.60799, 6.60799, 9.25, '09/08/2026 14:56:08 EDT'),
+    L('Blackberry', 'BB', 'Buy', 'Filled', 6.60799, 6.60799, 9.84, '09/02/2026 13:01:25 EST'.replace('EST', 'EDT')),
+  ].join('\n');
+  const now = Date.parse('2026-09-16T20:30:00Z'); // 16:30 ET Sep 16
+  const res = parseBrokerCSV(csv, undefined, now);
+  assert.equal(res.broker, 'webull');
+  assert.equal(res.fillRows, 9, 'cancelled row skipped; the partial fill counts');
+  const by = (sym: string) => res.trades.filter((t) => t.symbol === sym);
+  const spxw = by('SPXW')[0];
+  assert.deepEqual([spxw.status, spxw.direction, spxw.quantity, spxw.realizedPnL], ['closed', 'long', 2, 100], 'option P&L carries the ×100 multiplier');
+  assert.equal(spxw.entryTime, '2026-09-15T14:00:00.000Z', 'EDT stamp → UTC');
+  const nv = by('NVDA')[0];
+  assert.deepEqual([nv.direction, nv.status, nv.realizedPnL], ['long', 'closed', 20], 'same-second buy/sell in a newest-first export pairs as long, not sell-to-open');
+  const qqq = by('QQQ')[0];
+  assert.deepEqual([qqq.status, qqq.exitPrice, qqq.realizedPnL, qqq.exitTime], ['closed', 0, -120, '2026-09-11T20:00:00.000Z'], 'an option held past expiry with no sell settles at $0 at 16:00 ET');
+  assert.ok(qqq.notes?.startsWith(EXPIRED_NOTE_HEAD));
+  assert.equal(by('AMD')[0].status, 'open', 'not yet expired → still open');
+  assert.deepEqual([by('SPY')[0].quantity, by('SPY')[0].status], [1, 'open'], 'partial fill = filled quantity');
+  const bb = by('BB')[0];
+  assert.deepEqual([bb.quantity, bb.realizedPnL], [6.60799, -3.9], 'fractional shares: (9.25 − 9.84) × 6.60799');
+  // Same parse on the expiry day before 16:15 ET: the put is still open.
+  assert.equal(parseBrokerCSV(csv, undefined, Date.parse('2026-09-11T20:05:00Z')).trades.find((t) => t.symbol === 'QQQ')!.status, 'open', 'expiry session not over yet');
+  assert.equal(expiryCloseIso('2026-12-18'), '2026-12-18T21:00:00.000Z', 'EST expiry closes 21:00Z');
+
+  // Rows imported before the fix: settled on read, flagged, only for CSV imports.
+  const legacy = (p: Partial<JournalTradeRow>): JournalTradeRow => row({ assetType: 'option', optionType: 'put', expiryDate: '2026-09-11', status: 'open', realizedPnL: null, exitPrice: null, exitTime: null, quantity: 3, entryPrice: 0.4, broker: 'webull', entryTime: '2026-09-10T19:30:00Z', ...p });
+  const [lg, bot, man, shortOpt] = settleExpiredRows([legacy({}), legacy({ broker: 'quant-bot' }), legacy({ broker: 'manual' }), legacy({ direction: 'short' })], now);
+  assert.deepEqual([lg.status, lg.realizedPnL, lg.exitPrice, lg.expiredAssumed], ['closed', -120, 0, true]);
+  assert.equal(bot.status, 'open', 'the bot settles its own expiries');
+  assert.equal(man.status, 'open', 'manual rows are left alone');
+  assert.equal(shortOpt.realizedPnL, 120, 'a sold option that expired keeps the premium');
+  assert.equal(settleExpiredRows([{ ...legacy({}), status: 'closed', realizedPnL: -120, notes: EXPIRED_NOTE_HEAD + ' …' }], now)[0].expiredAssumed, true, 'importer-settled rows are flagged too');
+  assert.equal(isExpiredUnclosed(legacy({ expiryDate: '2026-09-16' }), Date.parse('2026-09-16T20:10:00Z')), false, '16:10 ET on expiry day: not yet');
+  const mSettled = computeMetrics(settleExpiredRows([legacy({}), row({ realizedPnL: 100 })], now).map(toTrade));
+  assert.deepEqual([mSettled.closedTrades, mSettled.netPnl, mSettled.openTrades], [2, -20, 0], 'expired premium is in net P&L');
+
+  // Import plan: re-importing closes the stale open lot instead of adding a second copy.
+  const openLot = { id: 'e1', broker: 'webull', symbol: 'QQQ', assetType: 'option', optionType: 'put', strikePrice: 500, expiryDate: '2026-09-11', direction: 'long', quantity: 3, entryPrice: 0.4, entryTime: '2026-09-10T19:30:00.000Z', exitTime: null, exitPrice: null, status: 'open' };
+  const plan = planJournalImport([openLot, { ...spxw, id: 'e2' } as never], [qqq, spxw, nv]);
+  assert.deepEqual(plan.map((a) => a.kind), ['close', 'duplicate', 'insert']);
+  assert.equal((plan[0] as { existing: { id: string } }).existing.id, 'e1');
+
+  // Holding time: exact stamps, not the whole-minute rounding (4m40s is "< 5m").
+  const quick = toTrade(row({ entryTime: '2026-09-01T14:00:00Z', exitTime: '2026-09-01T14:04:40Z', holdingMinutes: 5 }));
+  assert.equal(quick.durationMs, 280_000);
+  assert.equal(reportBuckets([quick], 'duration')[0].key, '< 5m');
+  // Hours and weekdays are New York: 01:00Z Wed is Tue 21:00 ET.
+  assert.deepEqual(reportBuckets([toTrade(row({ entryTime: '2026-09-16T01:00:00Z', exitTime: '2026-09-16T02:00:00Z' }))], 'weekday').map((b) => b.key), ['Tue']);
+  assert.deepEqual(reportBuckets([toTrade(row({ entryTime: '2026-09-15T14:00:00Z' }))], 'hour').map((b) => b.key), ['10:00']);
+}
+
+// ── Insights engine (lib/journal/insights.ts) ──
+{
+  let k = 0;
+  const T = (day: number, hourEt: number, pnl: number, p: Partial<JournalTradeRow> = {}) => {
+    const entry = new Date(Date.UTC(2026, 8, day, hourEt + 4, 5 + (k % 40))).toISOString(); // EDT = UTC−4
+    const exit = new Date(Date.parse(entry) + 20 * 60_000).toISOString();
+    k++;
+    return toTrade(row({ id: `i${k}`, entryTime: entry, exitTime: exit, realizedPnL: pnl, ...p }));
+  };
+  // Power-hour entries lose in both halves; mornings win.
+  const tr = [
+    ...[1, 2, 3, 8, 9, 10].map((d) => T(d, 15, -50)),
+    ...[1, 2, 3, 8, 9, 10, 14, 15, 16, 17].map((d) => T(d, 10, 40)),
+  ];
+  const model = buildInsights(tr);
+  assert.equal(model.closed, 16);
+  const stops = stopDoing(model);
+  const ph = stops.find((f) => f.dim === 'session' && f.key === 'Power hour 15:00–16:00')!;
+  assert.ok(ph, 'power hour is a leak');
+  assert.deepEqual([ph.n, ph.net, ph.impact, ph.bothHalves, ph.lowSample], [6, -300, 300, true, true]);
+  assert.equal(ph.netWithout, model.net + 300);
+  assert.ok(stops.every((f) => f.n >= 5 && f.net < 0), 'findings need n ≥ 5 and a loss');
+  assert.ok(keepDoing(model).some((f) => f.key === 'Morning 10:00–12:00'));
+  const cards = behaviorInsights(model, { n: 2, pnl: -80 });
+  assert.equal(cards[0].id, 'expired-unclosed');
+  assert.ok(cards.some((c) => c.title === 'Stop: Power hour 15:00–16:00'));
+  assert.equal(concentration(model).top5Share, 1);
+  // Tilt: the trade after a loss.
+  assert.ok(model.buckets.tilt.some((b) => b.key === 'Next trade after a loss' && b.n > 0));
+  // DTE from the New York entry day: a 15:00 ET entry on the day before expiry is 1 DTE, not 0.
+  assert.equal(dteAtEntry(T(15, 15, 1, { assetType: 'option', optionType: 'call', expiryDate: '2026-09-16' })), 1);
+  assert.equal(dteAtEntry(T(16, 9, 1, { assetType: 'option', optionType: 'call', expiryDate: '2026-09-16' })), 0);
+  assert.equal(costBucket(299.99), '$100–300');
+  assert.equal(sessionOf({ weekday: 'Mon', hour: 9, minute: 45 }), 'Open 09:30–10:00');
+  assert.equal(sessionOf({ weekday: 'Mon', hour: 16, minute: 0 }), 'Outside regular hours');
+}
+
+// ── journal tab row fit (components/journal/journal-nav.tsx) ──
+{
+  const groups = [{ id: 'a', pages: [{ id: 'p1' }, { id: 'p2' }] }, { id: 'b', pages: [{ id: 'p3' }] }];
+  const w = { tab: { p1: 100, p2: 100, p3: 100 }, label: { a: 50, b: 50 }, sep: 10, more: 80 };
+  assert.deepEqual(fitTabs(500, w, groups), { labels: true, visible: new Set(['p1', 'p2', 'p3']) });
+  assert.equal(fitTabs(320, w, groups).labels, false, 'captions go first');
+  assert.equal(fitTabs(320, w, groups).visible.size, 3);
+  assert.deepEqual([...fitTabs(290, w, groups).visible], ['p1', 'p2'], 'then trailing tabs move to More (prefix kept)');
+}
+
+// ── loss analysis: a hold shorter than one bar is not classified ──
+{
+  const t0 = Date.parse('2026-09-01T13:30:00Z');
+  const bars: Bar[] = Array.from({ length: 12 }, (_, i) => ({ time: t0 + i * 3_600_000, open: 100, high: 103, low: 97, close: 100 }));
+  const scalp = analyseTrade({ id: 's', symbol: 'TST', assetType: 'option', optionType: 'call', direction: 'long', entryPrice: 1, entryTime: new Date(t0 + 10 * 60_000).toISOString(), exitTime: new Date(t0 + 25 * 60_000).toISOString(), realizedPnL: -40, status: 'closed' }, { h1: bars, d1: null }, t0 + 100 * 3_600_000);
+  assert.equal(scalp.cls, 'unresolved', 'a 15-minute trade on hourly bars cannot be measured');
 }
 
 // ── journal dashboard defaults tile 12×18 (fit the journal's visible area) ──

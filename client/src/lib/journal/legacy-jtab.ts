@@ -1,14 +1,16 @@
 /**
  * ?jtab= → journal page. The journal went from 3 tabs (+6 nested under Trade
  * Log, +6 under Track record's Advanced switch) to 4 destinations, then
- * (2026-09-29) to a LuxAlgo-style sidebar of pages. Every id any link, bookmark
+ * (2026-09-29) to a LuxAlgo-style sidebar of pages, and (same day, feat/jnav) to
+ * a grouped tab row in the journal's top bar — the app rail is the only side
+ * nav. Every id any link, bookmark
  * or redirect has ever used resolves here. ?jpage= is accepted as an alias of
  * ?jtab= (jpage wins when both are present); the shell writes ?jtab=.
  */
 import type { ImportSection } from '@/components/journal/import-drawer';
 
 export type JournalView =
-  | 'dashboard' | 'calendar' | 'daily' | 'trades' | 'reports' | 'loss' | 'notebook' | 'playbooks' | 'progress' | 'missed'
+  | 'dashboard' | 'calendar' | 'daily' | 'trades' | 'insights' | 'reports' | 'loss' | 'notebook' | 'playbooks' | 'progress' | 'missed'
   | 'import' | 'accounts' | 'settings'
   | 'record';
 
@@ -19,28 +21,30 @@ export type JournalIntent =
   | { kind: 'sim' }
   | { kind: 'backtest' };
 
-export type JournalPageGroup = 'overview' | 'trades' | 'improve' | 'setup' | 'platform';
+export type JournalPageGroup = 'overview' | 'trades' | 'insights' | 'improve' | 'setup' | 'platform';
 
-/** Sidebar groups, in order (2026-09-29 nav redesign: short labels, five clear groups). */
+/** Tab-row groups, in order (feat/jnav: Overview · Trades · Insights · Improve · Setup · Platform). */
 export const JOURNAL_GROUPS: readonly { id: JournalPageGroup; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'trades', label: 'Trades' },
+  { id: 'insights', label: 'Insights' },
   { id: 'improve', label: 'Improve' },
   { id: 'setup', label: 'Setup' },
   { id: 'platform', label: 'Platform' },
 ];
 
-/** Sidebar order and grouping. */
+/** Tab order and grouping. */
 export const JOURNAL_PAGES: readonly { id: JournalView; label: string; group: JournalPageGroup; hint: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', group: 'overview', hint: 'P&L, calendar, recent trades' },
+  { id: 'dashboard', label: 'Dashboard', group: 'overview', hint: 'P&L, equity, calendar, recent trades' },
   { id: 'calendar', label: 'Calendar', group: 'overview', hint: 'Month and week P&L, day drill-down' },
   { id: 'daily', label: 'Daily', group: 'overview', hint: 'Each trading day: its trades, notes and a day note' },
   { id: 'trades', label: 'Trades', group: 'trades', hint: 'Every trade — review, edit, export' },
-  { id: 'reports', label: 'Reports', group: 'trades', hint: 'By symbol, setup, tag, time, weekday, holding time' },
-  { id: 'loss', label: 'Loss analysis', group: 'trades', hint: 'Why each loss happened — MFE/MAE from bars, loss classes, drivers, what would have helped' },
+  { id: 'missed', label: 'Missed', group: 'trades', hint: 'Trades not taken — and what they did' },
+  { id: 'insights', label: 'Insights', group: 'insights', hint: 'What to stop doing, in $ with n: time of day, weekday × hour, DTE, size, holding time, tilt, ticker concentration' },
+  { id: 'reports', label: 'Reports', group: 'insights', hint: 'Break the book down by any dimension; compare two sets' },
+  { id: 'loss', label: 'Loss analysis', group: 'insights', hint: 'Why each loss happened — MFE/MAE from bars, loss classes, drivers, what would have helped' },
   { id: 'playbooks', label: 'Playbooks', group: 'improve', hint: 'Each setup: its definition and live stats' },
   { id: 'progress', label: 'Progress', group: 'improve', hint: 'Streaks, goals vs actual, rolling win rate' },
-  { id: 'missed', label: 'Missed', group: 'improve', hint: 'Trades not taken — and what they did' },
   { id: 'notebook', label: 'Notebook', group: 'improve', hint: 'All notes, searchable, tagged by ticker and day' },
   { id: 'import', label: 'Import', group: 'setup', hint: 'Broker CSV, manual entry, flow alerts' },
   { id: 'accounts', label: 'Accounts', group: 'setup', hint: 'Broker connections and balances' },
@@ -49,9 +53,9 @@ export const JOURNAL_PAGES: readonly { id: JournalView; label: string; group: Jo
 ];
 
 /** Pages whose content is the selected book's trades (filters apply; empty book → empty state). */
-export const TRADE_PAGES: ReadonlySet<JournalView> = new Set(['dashboard', 'calendar', 'trades', 'reports', 'loss', 'progress']);
+export const TRADE_PAGES: ReadonlySet<JournalView> = new Set(['dashboard', 'calendar', 'trades', 'insights', 'reports', 'loss', 'progress']);
 /** Pages that read the filtered rows or notes, so the filter bar is shown. */
-export const FILTERED_PAGES: ReadonlySet<JournalView> = new Set(['dashboard', 'calendar', 'daily', 'trades', 'reports', 'loss', 'notebook', 'playbooks', 'progress']);
+export const FILTERED_PAGES: ReadonlySet<JournalView> = new Set(['dashboard', 'calendar', 'daily', 'trades', 'insights', 'reports', 'loss', 'notebook', 'playbooks', 'progress']);
 
 /** Every ?jtab= the journal has ever used → where it lives now. */
 export const LEGACY_JTAB: Record<string, { view: JournalView; intent?: JournalIntent }> = {
@@ -60,6 +64,7 @@ export const LEGACY_JTAB: Record<string, { view: JournalView; intent?: JournalIn
   calendar: { view: 'calendar' },
   daily: { view: 'daily' },
   trades: { view: 'trades' },
+  insights: { view: 'insights' },
   reports: { view: 'reports' },
   loss: { view: 'loss' },
   notebook: { view: 'notebook' },
@@ -94,8 +99,12 @@ export const LEGACY_JTAB: Record<string, { view: JournalView; intent?: JournalIn
   overview: { view: 'dashboard' },         // Trade Log → Overview
   simulator: { view: 'trades', intent: { kind: 'sim' } },            // Trade Log → P&L Sim
   sim: { view: 'trades', intent: { kind: 'sim' } },
-  insights: { view: 'reports', intent: { kind: 'anchor', id: 'jr-insights' } }, // Trade Log → Insights
-  timing: { view: 'reports', intent: { kind: 'anchor', id: 'jr-time' } },       // Trade Log → Timing
+  // Trade Log → Insights / Timing: first-class Insights page since feat/jnav.
+  timing: { view: 'insights', intent: { kind: 'anchor', id: 'jr-ins-time' } },
+  behaviour: { view: 'insights' },
+  behavior: { view: 'insights' },
+  patterns: { view: 'insights' },
+  tilt: { view: 'insights', intent: { kind: 'anchor', id: 'jr-ins-tilt' } },
   metrics: { view: 'record' },             // Track record (old id)
   performance: { view: 'record' },
   backtest: { view: 'record', intent: { kind: 'backtest' } },        // Backtest tab

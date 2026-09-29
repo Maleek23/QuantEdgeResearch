@@ -155,3 +155,38 @@ engine, server.
   out of scope here).
 - The un-authed gate page on framed routes paints its own dark ground in light
   mode (pre-existing).
+
+## 8 · Journal page inventory vs LuxAlgo Trade Journal (feat/jnav, 2026-09-29)
+
+Source: `git clone --depth 1 https://github.com/LuxAlgo/trade-journal` —
+`apps/web/src/app/**/page.tsx` (16 page routes) and the nav in
+`apps/web/src/components/shell.tsx`. Ours: `client/src/lib/journal/legacy-jtab.ts`
+(`JOURNAL_PAGES`), served inside `/t?tab=journal&jtab=<id>`.
+
+| LuxAlgo route | LuxAlgo nav label | Ours (`?jtab=`) | Status |
+|---|---|---|---|
+| `/` | Dashboard | `dashboard` | Ported; since feat/jnav a normal page (KPI strip, cumulative P&L + relative DD, edge score, stop-doing teaser, calendar, activity, weekday×hour) — no tile grid |
+| `/calendar` | Calendar | `calendar` | Ported |
+| `/journal` | Daily journal | `daily` | Ported |
+| `/journal/[date]` | (day page) | `daily` + `focusDay` (calendar/day click) | Ported (same page, day focused) |
+| `/trades` | Trades | `trades` | Ported (+ options P&L simulator) |
+| `/trades/[key]` | (trade page) | `?jtrade=<id>` full page + drawer | Ported |
+| `/reports` | Reports | `reports` | Ported (breakdowns, cross, comparison, explorer, trends, export) |
+| `/notebook` | Notebook | `notebook` | Ported |
+| `/playbooks` | Playbooks | `playbooks` | Ported |
+| `/progress` | Progress | `progress` | Ported |
+| `/missed` | Missed trades | `missed` | Ported |
+| `/import` | Import | `import` | Ported (broker CSV, Discord, flow alerts, reconciliation) |
+| `/accounts` | Accounts | `accounts` | Ported (Alpaca, balances) |
+| `/settings` | Settings | `settings` | Ported |
+| `/prop-firms` | Prop firms | — | **Not built** — prop-challenge rule tracking; no user has a prop account on the platform. Revisit if asked. |
+| `/login` | — | platform auth | N/A (platform login) |
+| API only: `/api/ai/{ask,critique,recap}` | — | — | Not ported (LLM features; no page in LuxAlgo either) |
+| — | — | `insights` | **Added (ours)** — first-class Insights: what to stop doing ($, n, win %, PF, both-halves check, book-without), behaviour, weekday×hour, time of day, tilt & streaks, trade # of day, trades per day, DTE, position cost, holding time, contract side, ticker concentration; links to Loss analysis |
+| — | — | `loss` | Ours — Loss analysis (MFE/MAE from bars, loss classes, drivers, counterfactuals) |
+| — | — | `record` | Ours — platform Track record + backtester |
+
+Navigation: LuxAlgo uses its own left sidebar. We do NOT: the app rail is the
+only side nav; the journal's pages are a grouped tab row in its top bar
+(`components/journal/journal-nav.tsx`: Overview · Trades · Insights · Improve ·
+Setup · Platform, overflow → More ▾; phones: book select + scrollable strip).

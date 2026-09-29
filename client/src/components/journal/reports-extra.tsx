@@ -157,7 +157,8 @@ const COLS: Col[] = [
 const DEFAULT_COLS = ['closed', 'symbol', 'side', 'qty', 'entry', 'exit', 'net', 'hold', 'status', 'setup', 'rating'];
 const COLS_KEY = 'qe-journal-explorer-cols-v1';
 const ROW_H = 34;
-const VIEW_H = 460;
+/** Rows shown before "show more" — the journal body is the only scroller (feat/jnav). */
+const PAGE = 50;
 
 export function TradeExplorerCard({ num }: { num: string }) {
   const { data, openTrade, openTradePage } = useJournal();
@@ -169,8 +170,7 @@ export function TradeExplorerCard({ num }: { num: string }) {
   useEffect(() => { try { localStorage.setItem(COLS_KEY, JSON.stringify(cols)); } catch { /* this session only */ } }, [cols]);
   const [sort, setSort] = useState<{ id: string; dir: 1 | -1 }>({ id: 'closed', dir: -1 });
   const [chooser, setChooser] = useState(false);
-  const [top, setTop] = useState(0);
-  const scroller = useRef<HTMLDivElement>(null);
+  const [limit, setLimit] = useState(PAGE);
 
   const extra = (t: JTrade) => {
     const c = reviews.get(t.id)?.checklist ?? {};
@@ -190,8 +190,8 @@ export function TradeExplorerCard({ num }: { num: string }) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.trades, sort, reviews]);
-  const first = Math.max(0, Math.floor(top / ROW_H) - 6);
-  const last = Math.min(rows.length, Math.ceil((top + VIEW_H) / ROW_H) + 6);
+  const first = 0;
+  const last = Math.min(rows.length, limit);
   const order = rows.map((t) => t.id);
   const grid = `repeat(${shown.length}, minmax(96px, 1fr))`;
 
@@ -216,7 +216,7 @@ export function TradeExplorerCard({ num }: { num: string }) {
       }>
       {!rows.length ? <QEEmpty message="No trades in view." /> : (
         <div className="jr-explorer" role="table" aria-label="Trade explorer" aria-rowcount={rows.length + 1}>
-          <div className="jr-explorer-scroll" ref={scroller} style={{ height: Math.min(VIEW_H, rows.length * ROW_H + ROW_H + 2) }} onScroll={(e) => setTop((e.target as HTMLDivElement).scrollTop)}>
+          <div className="jr-explorer-scroll">
             <div className="jr-explorer-head" role="row" style={{ gridTemplateColumns: grid }}>
               {shown.map((c) => (
                 <button key={c.id} type="button" role="columnheader" className={c.num ? 'num' : undefined}
@@ -226,12 +226,12 @@ export function TradeExplorerCard({ num }: { num: string }) {
                 </button>
               ))}
             </div>
-            <div style={{ height: rows.length * ROW_H, position: 'relative' }}>
+            <div>
               {rows.slice(first, last).map((t, i) => {
                 const x = extra(t);
                 return (
                   <div key={t.id} role="row" aria-rowindex={first + i + 2} className="jr-explorer-row" tabIndex={0}
-                    style={{ top: (first + i) * ROW_H, height: ROW_H, gridTemplateColumns: grid }}
+                    style={{ position: 'relative', height: ROW_H, gridTemplateColumns: grid }}
                     onClick={() => openTrade(t.id, order)}
                     onKeyDown={(e) => { if (e.key === 'Enter') openTradePage(t.id, order); if (e.key === ' ') { e.preventDefault(); openTrade(t.id, order); } }}>
                     {shown.map((c) => {
@@ -245,7 +245,10 @@ export function TradeExplorerCard({ num }: { num: string }) {
           </div>
         </div>
       )}
-      <p className="jr-note">Filtered by the filter bar. Only the rows in view are rendered, so thousands of trades scroll smoothly. Click a row for the quick view; Enter opens the full trade page. Columns are remembered on this device.</p>
+      {rows.length > limit && (
+        <button type="button" className="jr-btn jr-btn-sm jr-more-rows" onClick={() => setLimit((l) => l + PAGE)}>Show {Math.min(PAGE, rows.length - limit)} more · {limit} of {rows.length}</button>
+      )}
+      <p className="jr-note">Filtered by the filter bar; sorted by the column you pick. Click a row for the quick view; Enter opens the full trade page. Columns are remembered on this device.</p>
     </Card>
   );
 }

@@ -1,8 +1,8 @@
 /**
  * Journal switcher — which book the journal is computed on:
  *   Books: Mine · Bot · Trade desk | Traders: Femi · Malik · Uzo · Bean
- * Since the 2026-09-29 nav redesign it is a grouped select at the top of the
- * journal sidebar (phones: the top strip). The basis line names what every number on the
+ * Since feat/jnav it is a grouped select at the left of the journal's tab
+ * row (phones: above the tab strip). The basis line names what every number on the
  * page is computed on, its sizing rule, and anything the source held that the
  * journal could not score.
  */
@@ -91,9 +91,12 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
   /** One line (book + n) that expands to the full basis — the fit-to-screen header uses this. */
   compact?: boolean;
   /** Rows in view — the Bot book names which runs they cover. */
-  rows?: { runId?: string | null; status: string; realizedPnL?: number | null }[];
+  rows?: { runId?: string | null; status: string; realizedPnL?: number | null; expiredAssumed?: boolean }[];
 }) {
   if (!meta) return null;
+  // Options settled at $0 because the export had no closing fill (shared/journal-expiry.ts).
+  const expired = (rows ?? []).filter((r) => r.expiredAssumed);
+  const expiredPnl = expired.reduce((s, r) => s + Number(r.realizedPnL ?? 0), 0);
   const runs = meta.runs ?? [];
   const runLine = runs.length && rows ? (() => {
     const per = runs.map((r) => {
@@ -120,6 +123,12 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
       {meta.sizing && (sizing === 'show' || compact
         ? <div className="jr-basis-s">{meta.sizing}</div>
         : <details className="jr-basis-s"><summary style={{ cursor: 'pointer' }}>How P&amp;L is sized</summary>{meta.sizing}</details>)}
+      {expired.length > 0 && (
+        <div className="jr-basis-s">
+          {expired.length} option{expired.length === 1 ? '' : 's'} expired with no closing fill in the broker export and {expired.length === 1 ? 'is' : 'are'} settled at $0 (assumed worthless):{' '}
+          {expiredPnl < 0 ? '−' : '+'}${Math.abs(expiredPnl).toLocaleString('en-US', { maximumFractionDigits: 0 })}. One that finished in the money is understated — edit its exit.
+        </div>
+      )}
       {nExcluded > 0 && (
         <details className="jr-basis-s">
           <summary style={{ cursor: 'pointer' }}>{nExcluded} source row{nExcluded === 1 ? '' : 's'} not scored — why</summary>
@@ -137,6 +146,7 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
         <summary>
           <span className="jr-basis-k">Computed on</span> <b>{head}</b>{' '}{n}
           {nExcluded > 0 && <span className="jr-n"> · {nExcluded} not scored</span>}
+          {expired.length > 0 && <span className="jr-n"> · {expired.length} expired options at $0</span>}
           <span className="jr-basis-more">details</span>
         </summary>
         {rest.length ? <div className="jr-basis-s">{rest.join(' — ')}.</div> : null}
