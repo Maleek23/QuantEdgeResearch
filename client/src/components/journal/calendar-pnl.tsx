@@ -11,6 +11,7 @@
  * scales with magnitude (lightness carries magnitude, which survives colour
  * vision deficiency; the printed number carries sign).
  */
+import { useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { calendarMonth, fmtMoney, type DayStats } from '@/lib/journal/metrics';
 import { Pnl } from './parts';
@@ -24,7 +25,7 @@ function cellMoney(v: number): string {
   return r > 0 ? `+$${r}` : r < 0 ? `−$${-r}` : '$0';
 }
 
-export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, showWeeks = true }: {
+export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, showWeeks = true, renderPreview }: {
   days: DayStats[];
   year: number;
   month: number;
@@ -32,7 +33,10 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
   selected?: string | null;
   onSelect?: (date: string | null) => void;
   showWeeks?: boolean;
+  /** Day preview shown while a traded day is hovered or focused (LuxAlgo calendar-day-preview). */
+  renderPreview?: (day: DayStats) => ReactNode;
 }) {
+  const [peek, setPeek] = useState<string | null>(null);
   const cal = calendarMonth(days, year, month);
   const maxAbs = Math.max(1, ...cal.weeks.flatMap((w) => w.days.map((d) => Math.abs(d?.netPnl ?? 0))));
   const label = new Date(Date.UTC(year, month - 1, 15)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -64,8 +68,12 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
               const hue = day.netPnl > 0 ? 'var(--jr-gain)' : day.netPnl < 0 ? 'var(--jr-loss)' : 'var(--text-mute)';
               const isSel = selected === day.date;
               return (
-                <div key={day.date} role="gridcell" style={{ display: 'contents' }}>
+                <div key={day.date} role="gridcell" className={renderPreview ? 'jr-cal-cell' : undefined} style={renderPreview ? undefined : { display: 'contents' }}
+                  onMouseEnter={renderPreview ? () => setPeek(day.date) : undefined} onMouseLeave={renderPreview ? () => setPeek(null) : undefined}>
                   <button
+                    onFocus={renderPreview ? () => setPeek(day.date) : undefined}
+                    onBlur={renderPreview ? () => setPeek(null) : undefined}
+                    aria-describedby={renderPreview && peek === day.date ? `jr-peek-${day.date}` : undefined}
                     type="button"
                     className="jr-cal-day"
                     aria-pressed={isSel}
@@ -77,6 +85,9 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
                     <span className="jr-cal-p">{cellMoney(day.netPnl)}</span>
                     <span className="jr-cal-t">{day.trades} trade{day.trades === 1 ? '' : 's'}</span>
                   </button>
+                  {renderPreview && peek === day.date && (
+                    <div className={`jr-peek${di >= 4 ? ' left' : ''}${wi >= cal.weeks.length - 2 ? ' up' : ''}`} role="tooltip" id={`jr-peek-${day.date}`}>{renderPreview(day)}</div>
+                  )}
                 </div>
               );
             })}

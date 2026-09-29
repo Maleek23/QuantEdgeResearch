@@ -51,7 +51,7 @@ export default function NotebookView() {
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
     for (const n of notesQ.data?.notes ?? []) {
-      if (n.reason === 'playbook') continue; // playbook definitions live on Playbooks
+      if (n.reason === 'playbook' || n.reason === 'trade_review') continue; // playbook definitions live on Playbooks, trade reviews on the trade page
       const k: Item['kind'] = n.source === 'manual' && (n.reason === 'day_note' || n.reason === 'note' || n.reason === 'missed') ? n.reason : 'imported';
       out.push({ id: `n:${n.id}`, kind: k, label: noteKindLabel(n.reason, n.source), day: n.day, at: n.postedAt, symbols: (n.symbols ?? []).map((s) => s.toUpperCase()), body: n.body, noteId: n.source === 'manual' ? n.id : undefined, attachments: n.attachments });
     }
