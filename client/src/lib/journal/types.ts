@@ -30,6 +30,11 @@ export interface JournalTradeRow {
   rating?: number | null;
   screenshot?: string | null;
   broker: string;
+  /** Bot book only: the run (paper portfolio) this fill belongs to — see shared/bot-runs.ts. */
+  runId?: string | null;
+  runLabel?: string | null;
+  /** Open bot rows: last mark + its time. Absent = never marked (P&L unknown, not 0). */
+  mark?: { price: number; asOf: string; unrealizedPnL: number } | null;
   importBatchId?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;

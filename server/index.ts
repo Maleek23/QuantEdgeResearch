@@ -608,7 +608,7 @@ app.use((req, res, next) => {
     // off-hours the re-price still refreshes marks and expiry settlement.
     setTimeout(() => {
       void import('./quant-bot').then(async (m) => {
-        const r = await m.runBotCycle();
+        const r = await m.runBotCycle(undefined, 'index boot');
         if (r.closed.length) log(`🤖 [QUANT-BOT] wake-up cycle closed ${r.closed.length} position(s) — see exit reasons`);
       }).catch((err) => logger.error('[QUANT-BOT] wake-up cycle failed:', err));
     }, 90 * 1000);
@@ -619,7 +619,7 @@ app.use((req, res, next) => {
     cron.default.schedule('*/10 9-16 * * 1-5', async () => {
       try {
         const { runBotCycle } = await import('./quant-bot');
-        const r = await runBotCycle();
+        const r = await runBotCycle(undefined, 'index');
         if (r.opened.length || r.closed.length) {
           log(`🤖 [QUANT-BOT] +${r.opened.length} opened, -${r.closed.length} closed, ${r.openCount} open`);
         }

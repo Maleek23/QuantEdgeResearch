@@ -244,7 +244,7 @@ export default function JournalShell() {
               </header>
 
               {personal && tradesQ.isSuccess && view !== 'settings' && (
-                <JournalBasis meta={data.meta} shown={data.rows.length} total={total} sizing={prefs.sizing} />
+                <JournalBasis meta={data.meta} shown={data.rows.length} total={total} sizing={prefs.sizing} rows={data.rows} />
               )}
 
               <div className="jr-pagebar">

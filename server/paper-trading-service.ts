@@ -608,16 +608,15 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
         };
       }
       
-      // For options, pass current price as fallback to avoid using stock prices
-      const fallbackPrice = position.assetType === 'option' 
-        ? (position.currentPrice || position.entryPrice) 
-        : undefined;
-      
+      // No fallback price. Passing the old mark back in used to re-save it with
+      // lastPriceUpdate = now, so a contract nobody could price (an expired one,
+      // a dead chain) looked freshly marked forever. No quote → the row keeps its
+      // last mark AND that mark's real timestamp; readers show the age.
       const currentPrice = await fetchCurrentPrice(
         position.symbol, 
         position.assetType as AssetType,
         optionDetails,
-        fallbackPrice
+        undefined
       );
       
       if (currentPrice !== null) {
@@ -700,6 +699,21 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
         }
 
         await storage.updatePaperPosition(position.id, updateData);
+      }
+    }
+
+    // total_value is cash + open positions at their marks — keep the stored
+    // column equal to that after every re-price instead of only at the daily
+    // equity snapshot (it drifted: Run 3 stored $95,781 vs $96,061 marked).
+    if (openPositions.length) {
+      const v = await calculatePortfolioValue(portfolioId);
+      const pf = v ? await storage.getPaperPortfolioById(portfolioId) : null;
+      if (v && pf) {
+        await storage.updatePaperPortfolio(portfolioId, {
+          totalValue: v.totalValue,
+          totalPnL: v.totalValue - pf.startingCapital,
+          totalPnLPercent: pf.startingCapital > 0 ? ((v.totalValue - pf.startingCapital) / pf.startingCapital) * 100 : 0,
+        });
       }
     }
 

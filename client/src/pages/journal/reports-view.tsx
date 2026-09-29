@@ -24,12 +24,14 @@ import type { BehaviorInsight, TimingInsight } from '@/lib/journal/types';
 const shortDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
 
 const DIMS: ReportDim[] = ['symbol', 'setup', 'mistake', 'emotion', 'weekday', 'hour', 'duration', 'side', 'asset', 'broker', 'rating'];
-const dimOptions = DIMS.map((g) => <option key={g} value={g}>{REPORT_DIM_LABEL[g]}</option>);
 
 export default function ReportsView() {
   const { data, filters } = useJournal();
   const { trades, curve, days, metrics: m, analyticsQ } = data;
-  const [by, setBy] = useState<ReportDim>('symbol');
+  // The Bot book can be broken down by run (each paper portfolio the bot traded).
+  const hasRuns = data.options.runs.length > 0;
+  const dimOptions = (hasRuns ? ['run' as ReportDim, ...DIMS] : DIMS).map((g) => <option key={g} value={g}>{REPORT_DIM_LABEL[g]}</option>);
+  const [by, setBy] = useState<ReportDim>(hasRuns ? 'run' : 'symbol');
   const [crossA, setCrossA] = useState<ReportDim>('setup');
   const [crossB, setCrossB] = useState<ReportDim>('weekday');
 
@@ -45,9 +47,10 @@ export default function ReportsView() {
 
   /** Click a bucket → filter the whole journal to it (LuxAlgo: breakdowns drill into filters). */
   const FILTER_OF: Partial<Record<ReportDim, keyof JournalFilters>> = { setup: 'setup', mistake: 'mistake', emotion: 'emotion', side: 'side', asset: 'asset', broker: 'broker' };
-  const pickable = by === 'symbol' || !!FILTER_OF[by];
+  const pickable = by === 'symbol' || by === 'run' || !!FILTER_OF[by];
   const pick = (key: string) => {
     if (by === 'symbol') filters.setFilter('symbols', [key]);
+    else if (by === 'run') filters.setFilter('run', data.options.runs.find((r) => r.label === key)?.id);
     else if (FILTER_OF[by]) filters.setFilter(FILTER_OF[by]!, key as never);
   };
 

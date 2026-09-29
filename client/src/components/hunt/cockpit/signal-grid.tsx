@@ -36,9 +36,9 @@
  * on a bullish card, because that disagreement is the most useful thing on the
  * card and must not be tinted away.
  */
+import { useQuantBotStatus } from '@/lib/bot/use-bot-status';
 import { useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/queryClient';
-import { useQuery } from '@tanstack/react-query';
 import { openWorkup } from '@/lib/workup-bus';
 import { RecordCard } from '@/components/templates/surfaces';
 import { Distribution } from '@/components/templates/charts';
@@ -69,16 +69,10 @@ export function SignalGrid({
   // Bot's live book + config — powers the per-card "Bot?" verdict, which runs
   // the same rules the bot itself runs (floor, trigger, invalidation, chase)
   // and answers in one line instead of leaving absence a mystery.
-  const { data: bot } = useQuery<{ openPositions?: { symbol: string }[]; config?: { minConviction?: number; maxProgressPct?: number } }>({
-    queryKey: ['/api/quant-bot/status', 'grid'],
-    queryFn: async () => {
-      const r = await fetch('/api/quant-bot/status', { credentials: 'include' });
-      if (!r.ok) throw new Error('bot status failed');
-      return r.json();
-    },
-    staleTime: 60_000, retry: 1,
-  });
-  const held = useMemo(() => new Set((bot?.openPositions ?? []).map((p) => p.symbol)), [bot]);
+  // The one shared status query (lib/bot/use-bot-status) — no second key/poll.
+  const { data: bot } = useQuantBotStatus();
+  // Only the run the bot TRADES decides "held" — retired runs' positions don't block entries.
+  const held = useMemo(() => new Set((bot?.openPositions ?? []).filter((p) => !p.runId || p.runId === bot?.portfolioId).map((p) => p.symbol)), [bot]);
   const [verdicts, setVerdicts] = useState<Record<string, string>>({});
   const [watched, setWatched] = useState<Record<string, string>>({});
 

@@ -26,7 +26,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from './db';
 import { logger } from './logger';
-import { journalNotes, paperPortfolios, traders, traderWatchlistItems } from '@shared/schema';
+import { journalNotes, traders, traderWatchlistItems } from '@shared/schema';
 import { JOURNAL_NOTE_KINDS, TRADER_SLUG_RE, journalNoteKey, parseJournalKey, type JournalSourceListItem } from '@shared/journal-sources';
 import {
   JournalAccessError, canWriteTrader, getTraderBySlug, journalActor, listTraders, loadJournalNotes, resolveJournal, writableOwner,
@@ -140,19 +140,34 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
   // ── Bot book: its rules (config) and paper accounts ─────
   app.get('/api/journal/bot', requireBetaAccess, async (_req, res) => {
     try {
-      const { BOT_PORTFOLIO_NAME, DEFAULT_BOT_CONFIG, BOT_USER_ID } = await import('./quant-bot');
-      const portfolios = await db.select().from(paperPortfolios).where(eq(paperPortfolios.userId, BOT_USER_ID));
+      const { BOT_PORTFOLIO_NAME, DEFAULT_BOT_CONFIG } = await import('./quant-bot');
+      const { loadBotLedger } = await import('./bot-ledger');
+      const { portfolios, positions, runs } = await loadBotLedger();
       res.json({
         asOf: new Date().toISOString(),
         config: DEFAULT_BOT_CONFIG,
         activePortfolio: BOT_PORTFOLIO_NAME,
-        portfolios: portfolios.map((p) => ({
-          id: p.id, name: p.name, active: p.name === BOT_PORTFOLIO_NAME,
-          startingCapital: p.startingCapital, cashBalance: p.cashBalance, totalValue: p.totalValue,
-          totalPnL: p.totalPnL, totalPnLPercent: p.totalPnLPercent, winCount: p.winCount, lossCount: p.lossCount,
-          riskPerTrade: p.riskPerTrade, maxPositionSize: p.maxPositionSize,
-          createdAt: p.createdAt, updatedAt: p.updatedAt,
-        })),
+        runs,
+        portfolios: runs.map((run) => {
+          const p = portfolios.find((x) => x.id === run.id)!;
+          const open = positions.filter((x) => x.portfolioId === run.id && x.status !== 'closed');
+          // Value = cash + open positions at their marks, computed now. The stored
+          // total_value column drifted from that and is returned only for audit.
+          const positionsValue = open.reduce((s2, x) => s2 + Number(x.currentPrice ?? x.entryPrice) * x.quantity * (x.assetType === 'option' ? 100 : 1), 0);
+          const marks = open.map((x) => x.lastPriceUpdate).filter((x): x is string => !!x).sort();
+          return {
+            id: p.id, name: p.name, displayName: run.displayName, runLabel: run.label, runNo: run.runNo, active: run.active,
+            startingCapital: p.startingCapital, cashBalance: p.cashBalance,
+            positionsValue: Math.round(positionsValue * 100) / 100,
+            totalValue: Math.round((p.cashBalance + positionsValue) * 100) / 100,
+            storedTotalValue: p.totalValue,
+            openCount: open.length, unmarked: open.filter((x) => x.currentPrice == null || !x.lastPriceUpdate).length,
+            oldestMarkAt: marks[0] ?? null, newestMarkAt: marks[marks.length - 1] ?? null,
+            totalPnL: p.totalPnL, totalPnLPercent: p.totalPnLPercent, winCount: p.winCount, lossCount: p.lossCount,
+            riskPerTrade: p.riskPerTrade, maxPositionSize: p.maxPositionSize,
+            createdAt: p.createdAt, updatedAt: p.updatedAt,
+          };
+        }),
       });
     } catch (err) { fail(res, err, 'Bot rules'); }
   });

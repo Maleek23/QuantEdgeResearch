@@ -5472,10 +5472,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/quant-bot/run", async (_req, res) => {
+  // Admin only: a cycle can open paper positions. This was unauthenticated —
+  // anyone could trigger entries. The cycle itself holds the bot-cycle lock.
+  app.post("/api/quant-bot/run", requireAdminJWT, async (_req, res) => {
     try {
       const { runBotCycle } = await import("./quant-bot");
-      res.json(await runBotCycle());
+      res.json(await runBotCycle(undefined, 'api'));
     } catch (error) {
       logger.error("[API] quant-bot run failed:", error);
       res.status(500).json({ error: "Bot cycle failed" });

@@ -6,6 +6,7 @@
  * page is computed on, its sizing rule, and anything the source held that the
  * journal could not score.
  */
+import { runsCovered } from '@shared/bot-runs';
 import { useEffect, useState } from 'react';
 import { Loader2, Lock, Plus, Settings2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -63,8 +64,21 @@ export function JournalSwitcher({ value, onChange, sources, loading }: {
 }
 
 /** "Computed on …" — present on every journal view so no number is unattributed. */
-export function JournalBasis({ meta, shown, total, sizing = 'show' }: { meta: JournalSourceMeta | null; shown: number; total: number; sizing?: 'show' | 'hide' }) {
+export function JournalBasis({ meta, shown, total, sizing = 'show', rows }: {
+  meta: JournalSourceMeta | null; shown: number; total: number; sizing?: 'show' | 'hide';
+  /** Rows in view — the Bot book names which runs they cover. */
+  rows?: { runId?: string | null; status: string; realizedPnL?: number | null }[];
+}) {
   if (!meta) return null;
+  const runs = meta.runs ?? [];
+  const runLine = runs.length && rows ? (() => {
+    const per = runs.map((r) => {
+      const mine = rows.filter((x) => x.runId === r.id);
+      const closed = mine.filter((x) => x.status === 'closed' && x.realizedPnL != null).length;
+      return { r, n: mine.length, closed, open: mine.length - closed };
+    }).filter((x) => x.n > 0);
+    return per.length ? { text: runsCovered(per.map((x) => x.r.id), runs), per } : null;
+  })() : null;
   const excluded = (meta.excluded ?? []).filter((e) => e.count > 0);
   const nExcluded = excluded.reduce((s, e) => s + e.count, 0);
   // The basis names its book first ("Trade desk — every idea…"); bold that part.
@@ -76,6 +90,14 @@ export function JournalBasis({ meta, shown, total, sizing = 'show' }: { meta: Jo
         <b>{head}</b>{rest.length ? <> — {rest.join(' — ')}</> : null}.{' '}
         <span className="jr-n">n={shown}{shown !== total ? ` of ${total}` : ''} trades{meta.readOnly ? ' · read-only' : ''}</span>
       </div>
+      {runs.length > 0 && (
+        <div className="jr-basis-s">
+          <span className="jr-basis-k">Runs</span>{' '}
+          {runLine ? <><b>{runLine.text}</b> — {runLine.per.map((x, i) => (
+            <span key={x.r.id} title={`portfolio "${x.r.displayName}" · ${x.r.id}`}>{i ? ' · ' : ''}{x.r.label}{x.r.active ? ' (trading)' : ''}: n={x.closed} closed{x.open ? `, ${x.open} open` : ''}</span>
+          ))}</> : 'no run in view'}
+        </div>
+      )}
       {meta.sizing && (sizing === 'show'
         ? <div className="jr-basis-s">{meta.sizing}</div>
         : <details className="jr-basis-s"><summary style={{ cursor: 'pointer' }}>How P&amp;L is sized</summary>{meta.sizing}</details>)}

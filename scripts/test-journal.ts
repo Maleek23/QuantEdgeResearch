@@ -10,13 +10,15 @@ import { journalDayKey, matchesJournalFilters, parseJournalFilters, journalFilte
 import { buildJournalTradeUpdate, deriveJournalTradeFields, journalTradeInputSchema } from '../server/journal-trade-input';
 import {
   calendarMonth, computeMetrics, crossBuckets, dailyStats, dayStreaks, drawdownPeriods, equityCurve, groupBy, missingDim, noteLine,
-  peakConcurrent, periodStart, reportBuckets, rollingStats, ruleOfReason, toTrade,
+  peakConcurrent, periodStart, reportBuckets, rollingStats, ruleOfReason, runRecords, toTrade,
 } from '../client/src/lib/journal/metrics';
 import { FILTERED_PAGES, JOURNAL_PAGES, LEGACY_JTAB, TRADE_PAGES, resolveJournalPage, resolveJournalTab } from '../client/src/lib/journal/legacy-jtab';
 import type { JournalTradeRow } from '../client/src/lib/journal/types';
 import { parseJournalKey, traderOwnerId, journalKindOf, journalNoteKey } from '../shared/journal-sources';
 import { decodeOccSymbol, pairFills, type BrokerFill } from '../shared/fill-pairing';
 import { mapDeskIdea, type DeskIdea } from '../server/journal-row-maps';
+import { labelBotRuns, pickActiveBotPortfolio, runsCovered } from '../shared/bot-runs';
+import { dueForSettlement, expirySessionOver, nyCloseIso, settleAtExpiry, type OpenBotOptionRow } from '../server/bot-expiry-plan';
 import {
   normalizeDiscordExport, pairDiscordMessages, parseDiscordMessage, resolveExpiry, type DiscordMsg,
 } from '../shared/discord-journal-parser';
@@ -252,5 +254,75 @@ assert.equal(nc.messages[1].content, 'out NVDA 190c @ 3.15, great "squeeze"', 'q
 assert.equal(normalizeDiscordExport(dceCsv).messages[0].id, nc.messages[0].id, 'CSV ids are stable hashes');
 assert.equal(pairDiscordMessages(nc.messages).trades[0].exitPrice, 3.15);
 assert.throws(() => normalizeDiscordExport('hello,world\n1,2'), /Unrecognised file/);
+
+// ── bot runs: every portfolio, labelled; multi-run record through metrics.ts ──
+{
+  const pfs = [
+    { id: 'aaaaaaaa-1', name: 'Quant Bot', startingCapital: 10_000, createdAt: '2026-08-24T13:00:00Z' },
+    { id: 'bbbbbbbb-2', name: 'Quant Bot · 100K', startingCapital: 100_000, createdAt: '2026-08-26T19:45:00Z' },
+    { id: 'cccccccc-3', name: 'Quant Bot · 100K', startingCapital: 100_000, createdAt: '2026-09-23T20:16:00Z' },
+  ];
+  const spans = [
+    { portfolioId: 'aaaaaaaa-1', status: 'open', entryTime: '2026-08-24T13:30:00Z', exitTime: null },
+    { portfolioId: 'bbbbbbbb-2', status: 'closed', entryTime: '2026-08-26T19:49:00Z', exitTime: '2026-08-27T14:30:00Z' },
+    { portfolioId: 'bbbbbbbb-2', status: 'closed', entryTime: '2026-09-09T14:52:00Z', exitTime: '2026-09-10T14:00:00Z' },
+    { portfolioId: 'bbbbbbbb-2', status: 'open', entryTime: '2026-09-09T13:57:00Z', exitTime: null },
+    { portfolioId: 'cccccccc-3', status: 'closed', entryTime: '2026-09-24T18:39:00Z', exitTime: '2026-09-25T16:10:00Z' },
+  ];
+  const runs = labelBotRuns(pfs, spans, 'Quant Bot · 100K');
+  assert.deepEqual(runs.map((r) => r.label), ['Run 1 · 10K · Aug 24', 'Run 2 · 100K · Aug 26–Sep 10', 'Run 3 · 100K · Sep 24–']);
+  assert.deepEqual(runs.map((r) => r.active), [false, false, true], 'the MOST RECENT same-named portfolio is the one traded');
+  assert.equal(runs[1].displayName, 'Quant Bot · 100K #bbbbbb', 'duplicate names disambiguated for display');
+  assert.equal(runs[0].displayName, 'Quant Bot', 'unique names untouched');
+  assert.deepEqual([runs[1].closed, runs[1].open], [2, 1]);
+  assert.equal(pickActiveBotPortfolio([...pfs].reverse(), 'Quant Bot · 100K')!.id, 'cccccccc-3', 'order-independent');
+  assert.equal(runsCovered(['bbbbbbbb-2', 'cccccccc-3'], runs), 'Run 2 + Run 3');
+  assert.equal(runsCovered(['aaaaaaaa-1', 'bbbbbbbb-2', 'cccccccc-3'], runs), 'all 3 runs');
+
+  const br = (runId: string, label: string, p: Partial<JournalTradeRow>) => row({ runId, runLabel: label, broker: 'quant-bot', assetType: 'option', ...p });
+  const botRows = [
+    br('bbbbbbbb-2', runs[1].label, { realizedPnL: 861 }),
+    br('bbbbbbbb-2', runs[1].label, { realizedPnL: -432 }),
+    br('bbbbbbbb-2', runs[1].label, { status: 'open', realizedPnL: null, exitPrice: null, exitTime: null, mark: { price: 3.25, asOf: '2026-09-10T14:10:00Z', unrealizedPnL: 93 } }),
+    br('cccccccc-3', runs[2].label, { realizedPnL: -630 }),
+    br('cccccccc-3', runs[2].label, { realizedPnL: -2870 }),
+    br('cccccccc-3', runs[2].label, { status: 'open', realizedPnL: null, exitPrice: null, exitTime: null, mark: null }),
+  ];
+  const rr = runRecords(botRows.map(toTrade));
+  assert.deepEqual(rr.runs.map((r) => [r.key, r.closed, r.wins, r.netPnl, r.open, r.openMarked, r.unrealized]), [
+    ['Run 2 · 100K · Aug 26–Sep 10', 2, 1, 429, 1, 1, 93],
+    ['Run 3 · 100K · Sep 24–', 2, 0, -3500, 1, 0, null],
+  ], 'per-run record; an unmarked open is unknown, never $0');
+  assert.deepEqual([rr.combined.closed, rr.combined.wins, rr.combined.netPnl, rr.combined.winRate], [4, 1, -3071, 0.25], 'combined = every run, nothing hidden');
+  assert.equal(computeMetrics(botRows.map(toTrade)).netPnl, rr.combined.netPnl, 'journal headline and run table agree');
+  const onlyRun3 = parseJournalFilters((k) => new URLSearchParams('jrun=cccccccc-3').get(k));
+  assert.deepEqual(onlyRun3, { run: 'cccccccc-3' });
+  assert.equal(botRows.filter((r) => matchesJournalFilters(r, onlyRun3)).length, 3, 'run filter');
+  assert.deepEqual(groupBy(botRows.map(toTrade), 'run').map((b) => b.key), [runs[1].label, runs[2].label]);
+}
+
+// ── expiry settlement: intrinsic at the underlying's expiry-day close ──
+{
+  const opt = (p: Partial<OpenBotOptionRow>): OpenBotOptionRow => ({
+    id: 'x', portfolioId: 'p', symbol: 'AAPL', assetType: 'option', status: 'open', optionType: 'call', strikePrice: 325,
+    expiryDate: '2026-09-18', entryPrice: 2.94, quantity: 3, currentPrice: 3.25, lastPriceUpdate: '2026-09-10T14:10:00Z', ...p,
+  });
+  const now = new Date('2026-09-29T20:00:00Z');
+  const { due, skipped } = dueForSettlement([
+    opt({ id: 'a' }),
+    opt({ id: 'stock', assetType: 'stock' }),                       // shares never auto-close
+    opt({ id: 'live', expiryDate: '2026-10-16' }),                    // not expired
+    opt({ id: 'nostrike', strikePrice: null }),
+  ], now);
+  assert.deepEqual(due.map((r) => r.id), ['a']);
+  assert.deepEqual(skipped.map((r) => r.id), ['nostrike']);
+  const s = settleAtExpiry(opt({}), 336.13);
+  assert.deepEqual([s.exitPrice, s.realizedPnL, s.proceeds, s.exitTime], [11.13, 2457, 3339, '2026-09-18T20:00:00.000Z']);
+  assert.equal(settleAtExpiry(opt({ symbol: 'COPX', strikePrice: 105, entryPrice: 1.73, quantity: 1 }), 87.28).realizedPnL, -173, 'OTM call expires worthless');
+  assert.equal(settleAtExpiry(opt({ optionType: 'put', strikePrice: 340 }), 336.13).exitPrice, 3.87, 'put intrinsic');
+  assert.equal(nyCloseIso('2026-12-18'), '2026-12-18T21:00:00.000Z', 'EST close');
+  assert.equal(expirySessionOver('2026-09-29', new Date('2026-09-29T20:10:00Z')), false, 'same day before 16:15 ET');
+  assert.equal(expirySessionOver('2026-09-29', new Date('2026-09-29T20:20:00Z')), true);
+}
 
 console.log('journal checks passed');

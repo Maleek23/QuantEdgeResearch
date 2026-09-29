@@ -204,7 +204,7 @@ function isMarketCurrentlyOpen(): boolean {
   cron.default.schedule('*/10 9-16 * * 1-5', async () => {
     try {
       const { runBotCycle } = await import('./quant-bot');
-      const r = await runBotCycle();
+      const r = await runBotCycle(undefined, 'worker');
       if (r.opened.length || r.closed.length) {
         log(`🤖 [QUANT-BOT] +${r.opened.length} opened, -${r.closed.length} closed, ${r.openCount} open`);
       }

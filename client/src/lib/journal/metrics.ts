@@ -339,7 +339,7 @@ export function groupInto(trades: JTrade[], keysOf: (t: JTrade) => string[]): Bu
 
 const tagOf = (v: string | null | undefined) => (v && v.trim() ? [v.trim()] : []);
 
-export type GroupBy = 'setup' | 'symbol' | 'mistake' | 'emotion' | 'side' | 'asset' | 'broker' | 'rating';
+export type GroupBy = 'setup' | 'symbol' | 'mistake' | 'emotion' | 'side' | 'asset' | 'broker' | 'rating' | 'run';
 
 export const GROUP_BY_LABEL: Record<GroupBy, string> = {
   setup: 'Setup',
@@ -350,6 +350,7 @@ export const GROUP_BY_LABEL: Record<GroupBy, string> = {
   asset: 'Asset type',
   broker: 'Source',
   rating: 'Self-rating',
+  run: 'Bot run',
 };
 
 export function groupBy(trades: JTrade[], by: GroupBy): BucketStats[] {
@@ -362,6 +363,7 @@ export function groupBy(trades: JTrade[], by: GroupBy): BucketStats[] {
     case 'asset': return groupInto(trades, (t) => [t.assetType]);
     case 'broker': return groupInto(trades, (t) => [t.row.broker || 'manual']);
     case 'rating': return groupInto(trades, (t) => (t.row.rating ? [`${t.row.rating}/5`] : [])).sort((a, b) => b.key.localeCompare(a.key));
+    case 'run': return groupInto(trades, (t) => tagOf(t.row.runLabel)).sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
   }
 }
 
@@ -539,6 +541,7 @@ export function dimKeys(t: JTrade, dim: ReportDim): string[] {
     case 'asset': return [t.assetType];
     case 'broker': return [t.row.broker || 'manual'];
     case 'rating': return t.row.rating ? [`${t.row.rating}/5`] : [];
+    case 'run': return tagOf(t.row.runLabel);
     case 'weekday': { const w = nyParts(t.openedAt).weekday; return w ? [w] : []; }
     case 'hour': { const h = nyParts(t.openedAt).hour; return Number.isFinite(h) ? [`${String(h).padStart(2, '0')}:00`] : []; }
     case 'duration': return t.durationMs == null ? [] : [DURATION_BUCKETS.find((b) => t.durationMs! < b.maxMs)!.key];
@@ -551,6 +554,7 @@ function orderBuckets(dim: ReportDim, buckets: BucketStats[]): BucketStats[] {
   if (dim === 'hour') return buckets.sort((a, b) => a.key.localeCompare(b.key));
   if (dim === 'duration') { const o = DURATION_BUCKETS.map((b) => b.key as string); return buckets.sort((a, b) => o.indexOf(a.key) - o.indexOf(b.key)); }
   if (dim === 'rating') return buckets.sort((a, b) => b.key.localeCompare(a.key));
+  if (dim === 'run') return buckets.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
   return buckets;
 }
 
@@ -634,4 +638,45 @@ export function ruleOfReason(reason: string): string {
 /** YYYY-MM-DD of the Monday starting the week of `today` / first of its month. */
 export function periodStart(today: string, period: 'week' | 'month'): string {
   return period === 'week' ? weekKey(today) : `${today.slice(0, 7)}-01`;
+}
+
+// ─── Bot runs (2026-09-29) ───────────────────────────────────
+
+export interface RunRecord extends BucketStats {
+  runId: string | null;
+  /** Open rows in the run, and how many of them carry a mark. */
+  open: number;
+  openMarked: number;
+  /** Sum of the marked open rows' unrealized P&L; null when none is marked. */
+  unrealized: number | null;
+}
+
+/**
+ * The bot's record per run AND combined — one function, the same bucketStats
+ * the journal uses everywhere, so the Bot book and the BOT tab cannot disagree.
+ * Rows without a run (non-bot books) come back as a single "combined" row only.
+ */
+export function runRecords(trades: JTrade[]): { runs: RunRecord[]; combined: RunRecord } {
+  const byRun = new Map<string, JTrade[]>();
+  for (const t of trades) {
+    const k = t.row.runId ?? '';
+    const g = byRun.get(k);
+    if (g) g.push(t); else byRun.set(k, [t]);
+  }
+  const rec = (key: string, runId: string | null, g: JTrade[]): RunRecord => {
+    const open = g.filter((t) => t.status === 'open');
+    const marked = open.filter((t) => t.row.mark);
+    return {
+      ...bucketStats(key, g),
+      runId,
+      open: open.length,
+      openMarked: marked.length,
+      unrealized: marked.length ? marked.reduce((s, t) => s + (t.row.mark?.unrealizedPnL ?? 0), 0) : null,
+    };
+  };
+  const runs = [...byRun.entries()]
+    .filter(([k]) => k)
+    .map(([k, g]) => rec(g[0].row.runLabel ?? k, k, g))
+    .sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
+  return { runs, combined: rec('Combined', null, trades) };
 }

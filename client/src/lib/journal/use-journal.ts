@@ -146,15 +146,26 @@ export function useJournalSources() {
   });
 }
 
-export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine') {
-  const tradesQ = useQuery<{ trades: JournalTradeRow[]; count: number; journal?: JournalSourceMeta }>({
-    queryKey: [...JOURNAL_TRADES_KEY, key],
-    queryFn: async () => {
+export type JournalTradesPayload = { trades: JournalTradeRow[]; count: number; journal?: JournalSourceMeta };
+
+/**
+ * The one query behind a book's rows. The BOT tab reads the bot's record through
+ * this same key and fetch (useBotLedger), so the journal's Bot book and the BOT
+ * tab share one request and one cache entry — they cannot show two records.
+ */
+export function journalTradesQuery(key: JournalKey) {
+  return {
+    queryKey: [...JOURNAL_TRADES_KEY, key] as const,
+    queryFn: async (): Promise<JournalTradesPayload> => {
       const res = await fetch(withQs('/api/journal/trades', journalQs(key)), { credentials: 'include' });
       if (!res.ok) throw new Error(`Journal trades request failed (${res.status})`);
       return res.json();
     },
-  });
+  };
+}
+
+export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine') {
+  const tradesQ = useQuery<JournalTradesPayload>(journalTradesQuery(key));
 
   const qs = journalFiltersToParams(filters).toString();
   const analyticsQ = useQuery<JournalAnalytics>({
@@ -198,8 +209,10 @@ export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine'
       assets: uniq(allRows.map((r) => r.assetType)),
       brokers: uniq(allRows.map((r) => r.broker?.toLowerCase())),
       symbols: uniq(allRows.map((r) => r.symbol.toUpperCase())),
+      /** Bot book: every run, labelled (id → label), oldest first. */
+      runs: (tradesQ.data?.journal?.runs ?? []).map((r) => ({ id: r.id, label: r.label, displayName: r.displayName })),
     };
-  }, [allRows]);
+  }, [allRows, tradesQ.data]);
 
   const meta = tradesQ.data?.journal ?? null;
   return { key, meta, tradesQ, analyticsQ, notesQ, allRows, rows, trades, days, curve, metrics, options };
@@ -388,8 +401,12 @@ export interface BotBookInfo {
     minContractRoiAtT1Pct: number; delayedFillNotBeforeEtMinutes: number;
   };
   activePortfolio: string;
+  runs?: import('@shared/bot-runs').BotRunInfo[];
   portfolios: {
-    id: string; name: string; active: boolean; startingCapital: number; cashBalance: number; totalValue: number;
+    id: string; name: string; displayName?: string; runLabel?: string; runNo?: number; active: boolean; startingCapital: number; cashBalance: number;
+    /** cash + open positions at their marks, computed at read. */
+    totalValue: number; positionsValue?: number; storedTotalValue?: number;
+    openCount?: number; unmarked?: number; oldestMarkAt?: string | null; newestMarkAt?: string | null;
     totalPnL: number; totalPnLPercent: number; winCount: number; lossCount: number; riskPerTrade: number | null;
     maxPositionSize: number | null; createdAt: string | null; updatedAt: string | null;
   }[];

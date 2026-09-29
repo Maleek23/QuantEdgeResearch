@@ -16,7 +16,7 @@ import { and, asc, eq, gte, inArray, isNull, ne, or } from 'drizzle-orm';
 import { db } from './db';
 import { storage } from './storage';
 import {
-  journalNotes, paperPortfolios, paperPositions, tradeIdeas, traders,
+  journalNotes, tradeIdeas, traders,
   type JournalTrade, type Trader,
 } from '@shared/schema';
 import { OUTCOME_BASELINE_DATE } from '@shared/constants';
@@ -129,12 +129,15 @@ function ago(iso: string | null | undefined, now: number): string {
 // ─── Bot: the Quant Bot's paper ledger ───────────────────────
 
 async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Partial<JournalSourceMeta> }> {
-  const { BOT_PORTFOLIO_NAME } = await import('./quant-bot');
-  const [portfolio] = await db.select().from(paperPortfolios).where(eq(paperPortfolios.name, BOT_PORTFOLIO_NAME)).limit(1);
-  if (!portfolio) {
-    return { rows: [], meta: { basis: `Quant Bot paper ledger — the "${BOT_PORTFOLIO_NAME}" portfolio does not exist yet (the bot has not run a cycle)` } };
+  // EVERY run the bot has traded — not the first portfolio matching a name. Two
+  // portfolios share the name "Quant Bot · 100K"; the old name lookup with
+  // LIMIT 1 showed Run 2 (+$429) and hid Run 3 (−$3,500).
+  const { loadBotLedger } = await import('./bot-ledger');
+  const { runs, positions } = await loadBotLedger();
+  if (!runs.length) {
+    return { rows: [], meta: { basis: 'Quant Bot paper ledger — the bot owns no paper portfolio yet (it has not run a cycle)', runs: [] } };
   }
-  const positions = await db.select().from(paperPositions).where(eq(paperPositions.portfolioId, portfolio.id));
+  const runOf = new Map(runs.map((r) => [r.id, r]));
   const ideaIds = [...new Set(positions.map((p) => p.tradeIdeaId).filter((x): x is string => !!x))];
   const ideas = ideaIds.length
     ? await db.select({ id: tradeIdeas.id, source: tradeIdeas.source }).from(tradeIdeas).where(inArray(tradeIdeas.id, ideaIds))
@@ -149,7 +152,10 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
     const pnl = closed ? r2(p.realizedPnL!) : null;
     const option = p.assetType === 'option';
     const thesis = option && p.direction === 'short' ? 'bearish thesis' : option ? 'bullish thesis' : null;
+    const run = runOf.get(p.portfolioId);
+    const marked = !closed && p.currentPrice != null && !!p.lastPriceUpdate;
     const notes = [
+      run ? `Run: ${run.label} (portfolio "${run.displayName}")` : null,
       p.entryReason ? `Entry: ${p.entryReason}` : null,
       thesis ? `Bought ${p.optionType ?? 'option'} contract (${thesis}); P&L is the contract's.` : null,
       p.targetPrice != null || p.stopLoss != null ? `Plan: target ${p.targetPrice ?? '—'} · stop ${p.stopLoss ?? '—'}` : null,
@@ -186,12 +192,20 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
       screenshot: null,
       importBatchId: null,
       broker: 'quant-bot',
+      runId: run?.id ?? null,
+      runLabel: run?.label ?? null,
+      mark: marked ? {
+        price: p.currentPrice!,
+        asOf: p.lastPriceUpdate!,
+        unrealizedPnL: r2((p.currentPrice! - p.entryPrice) * p.quantity * (option ? 100 : 1) * (option || p.direction !== 'short' ? 1 : -1)),
+      } : null,
     });
   }
   return {
     rows,
     meta: {
-      basis: `Quant Bot paper ledger — every fill in the "${BOT_PORTFOLIO_NAME}" portfolio (paper_positions), at the bot's own size`,
+      basis: `Quant Bot paper ledger — every fill in all ${runs.length} of the bot's paper portfolios (${runs.map((r) => r.short).join(', ')}; paper_positions), at the bot's own size`,
+      runs,
       sizing: 'Bot-sized paper fills; fees and slippage are not modelled. Setup = the engine that published the signal.',
       excluded: unpriced ? [{ count: unpriced, reason: 'closed without a recorded P&L' }] : [],
     },
@@ -237,7 +251,7 @@ export async function loadJournal(j: ResolvedJournal): Promise<{ rows: JournalWi
   const base = { key: j.key, kind: j.kind, label: j.label, readOnly: j.readOnly, canWrite: j.canWrite, asOf: new Date(now).toISOString() };
   if (j.kind === 'bot') {
     const { rows, meta } = await loadBot(now);
-    return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [] } };
+    return { rows, meta: { ...base, basis: meta.basis!, sizing: meta.sizing ?? null, excluded: meta.excluded ?? [], runs: meta.runs ?? [] } };
   }
   if (j.kind === 'desk') {
     const { rows, meta } = await loadDesk();
