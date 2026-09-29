@@ -16,6 +16,7 @@
  */
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
+import { QELegendButton, type LegendSection } from '@/components/ui/qe-legend';
 import { useTabState } from '@/hooks/use-tab-state';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
 import { Loader2, RefreshCw, Zap, Target, History, Eye, AlertTriangle } from 'lucide-react';
@@ -96,7 +97,20 @@ export default function RadarPage() {
         <RescanButton onScan={loadPicks} />
       </header>
 
-      <QETabs items={TABS} active={tab} onChange={setTab} prefixLabel="VIEW" />
+      <QETabs
+        items={TABS}
+        active={tab}
+        onChange={setTab}
+        prefixLabel="VIEW"
+        rightSlot={
+          <QELegendButton
+            title="Radar legend"
+            description="Radar picks carry a letter grade from the thesis-radar engine. The S/A/B/C conviction bands are what Slate and NEXUS show for the same names."
+            sections={RADAR_LEGEND}
+            showBands
+          />
+        }
+      />
 
       <div className="text-[9px] font-mono text-muted-foreground">
         {TABS.find(t => t.id === tab)?.hint}
@@ -151,6 +165,19 @@ function HeroLine({ hero, loading, error }: { hero: Hero; loading: boolean; erro
 }
 
 // ─── Legend — the one place jargon gets explained ────────────────────
+
+const RADAR_LEGEND: LegendSection[] = [
+  {
+    heading: 'Radar terms',
+    entries: [
+      { term: 'Grade', def: 'Letter-grade conviction from the radar engine, A+ highest through D — the coloured chip on every pick.' },
+      { term: 'Forming', def: "Pattern matched but the entry trigger hasn't confirmed yet — the actionable watchlist." },
+      { term: 'Fired pick', def: 'A setup the engine acted on: entry spot, targets T1/T2, and invalidation (stop).' },
+      { term: 'Signals', def: 'The graded inputs behind a pick — each chip shows label + grade, hover for the source.' },
+      { term: 'Hit rate', def: 'Share of resolved picks that hit; Avg pct / Avg days are the mean outcome and mean days to resolve.' },
+    ],
+  },
+];
 
 function Legend() {
   return (

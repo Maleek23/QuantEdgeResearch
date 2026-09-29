@@ -5,7 +5,9 @@
  * in-context instead of in a manual. Content is the actual desk workflow, not
  * generic help: what the tab answers, how to read it, and what it hands off to.
  */
+import { useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { useDismissable } from '@/hooks/use-dismissable';
 import { X } from 'lucide-react';
 import { EASE, DUR } from '@/lib/motion';
 
@@ -130,18 +132,22 @@ export const GUIDES: Record<Tab, Guide> = {
     title: 'Journal Guide',
     question: 'Am I getting better?',
     read: [
-      'Trade Log is every trade you took — History is your past AI chats and research runs. They answer different questions.',
-      'Metrics cuts win rate and average R by setup type: that is where your edge (or lack of one) actually shows.',
+      'Trade Log is every trade you took. Its Overview view cuts win rate and average R by setup type: that is where your edge (or lack of one) actually shows.',
+      'Track record is how the platform’s published ideas actually did — hit rate, expectancy and sample size. It grades the engine, not you.',
       'Backtest runs a strategy on historicals before you risk capital on it.',
+      'Import flow (top right) takes pasted Bullflow alerts, grades each contract, and saves only B- and up as ideas.',
       'The journal only works if exits get logged with the reason. An unlogged trade teaches nothing.',
     ],
-    next: 'Take a pattern from Metrics and pressure-test it in Backtest.',
+    next: 'Take a setup type from Trade Log › Overview and pressure-test it in Backtest.',
   },
 };
 
 export function TerminalGuide({ tab, open, onClose }: { tab: Tab; open: boolean; onClose: () => void }) {
   const reduce = useReducedMotion();
   const g = GUIDES[tab];
+  // Escape closes, focus stays inside while open (it is a modal drawer).
+  const panelRef = useRef<HTMLElement>(null);
+  useDismissable(open, onClose, { panelRef, trap: true });
 
   return (
     <AnimatePresence>
@@ -161,7 +167,9 @@ export function TerminalGuide({ tab, open, onClose }: { tab: Tab; open: boolean;
             animate={{ x: 0 }}
             exit={reduce ? undefined : { x: '100%' }}
             transition={{ duration: DUR.base, ease: EASE }}
+            ref={panelRef}
             role="dialog"
+            aria-modal="true"
             aria-label={g.title}
           >
             <div className="sticky top-0 flex items-center justify-between border-b border-border/40 bg-card px-4 py-3">

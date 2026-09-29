@@ -8,6 +8,10 @@ import {
   Trophy, ShieldAlert, Timer, Lightbulb, Eye, Star, Ban,
   Upload, FileText, Plus, X, Check, Trash2, Download, LineChart,
 } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import PositionPnLSimulator, { type SimPosition } from '@/components/position-pnl-simulator';
 
 // ─── Types ──────────────────────────────────────────────────
@@ -1328,8 +1332,9 @@ function PersonalTradesTable({ trades, onDelete }: { trades: JournalTradeRow[]; 
                 <td className="py-2 text-center">
                   <button
                     onClick={() => onDelete(t.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-[var(--trade-bearish)]"
+                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-muted-foreground hover:text-[var(--trade-bearish)]"
                     title="Delete trade"
+                    aria-label={`Delete ${t.symbol} trade`}
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -1886,6 +1891,10 @@ export default function TradeJournal() {
 
   const tradeCount = tradesData?.count ?? 0;
   const personalTrades = tradesData?.trades ?? [];
+  // Single-entry delete confirms like delete-all does (SR 11-7 F7.9 / T8):
+  // no exceptions for "small" irreversible deletes.
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const pendingDelete = pendingDeleteId ? personalTrades.find((t) => t.id === pendingDeleteId) : undefined;
   const hasNoTrades = tradeCount === 0 && !isLoading && !tradesError;
 
   // Trades-list fetch failed: surface an error, never the "no trades" empty state
@@ -2242,8 +2251,30 @@ export default function TradeJournal() {
           </div>
           <PersonalTradesTable
             trades={personalTrades}
-            onDelete={(id) => deleteMutation.mutate(id)}
+            onDelete={(id) => setPendingDeleteId(id)}
           />
+          <AlertDialog open={pendingDeleteId != null} onOpenChange={(o) => { if (!o) setPendingDeleteId(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this trade?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {pendingDelete
+                    ? `${pendingDelete.symbol} ${pendingDelete.direction} · ${new Date(pendingDelete.entryTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. `
+                    : ''}
+                  This removes it from your journal and every metric built on it. It cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep it</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-[var(--trade-bearish)] text-white hover:bg-[var(--trade-bearish)]/90"
+                  onClick={() => { if (pendingDeleteId) deleteMutation.mutate(pendingDeleteId); setPendingDeleteId(null); }}
+                >
+                  Delete trade
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 

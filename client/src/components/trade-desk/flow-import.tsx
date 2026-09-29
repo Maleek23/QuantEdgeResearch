@@ -4,7 +4,8 @@
  * The $39.99 Bullflow consumer tier has no API, so instead of a live feed the
  * user pastes the alerts they see in the Bullflow app. Each line is parsed,
  * graded by the same option engine that powers the Oracle Option Pick, and only
- * B-/B-and-up contracts are pushed to the Trade Desk. Nothing is fabricated —
+ * B-/B-and-up contracts are saved as trade ideas (the Trade Desk page was
+ * retired 2026-09-24; this box now lives in Journal as "Import flow"). Nothing is fabricated —
  * unparseable or quote-less lines come back labeled, not invented.
  */
 import { useState } from "react";
@@ -66,7 +67,7 @@ export function FlowImport({ bare = false }: { bare?: boolean }) {
         queryClient.invalidateQueries({ queryKey: ["/api/trade-ideas/best-setups"] });
         toast({
           title: `${data.pushedCount} contract${data.pushedCount > 1 ? "s" : ""} pushed`,
-          description: `B- and up added to the Trade Desk.`,
+          description: `B- and up saved as trade ideas.`,
         });
       } else {
         toast({
@@ -129,7 +130,7 @@ export function FlowImport({ bare = false }: { bare?: boolean }) {
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--brand-cyan)]">Flow Import</span>
           <span className="text-[10px] font-mono text-muted-foreground">
-            Paste Bullflow alerts → engine grades → B- and up hit the desk
+            Paste Bullflow alerts → engine grades → B- and up saved as ideas
           </span>
         </div>
         {open && editor}
@@ -146,7 +147,7 @@ export function FlowImport({ bare = false }: { bare?: boolean }) {
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--brand-cyan)]">Flow Import</span>
           <span className="text-[10px] font-mono text-muted-foreground">
-            Paste Bullflow alerts → engine grades → B- and up hit the desk
+            Paste Bullflow alerts → engine grades → B- and up saved as ideas
           </span>
         </div>
         <span className="text-xs text-muted-foreground">{open ? "−" : "+"}</span>

@@ -51,6 +51,7 @@ import {
 } from "@/components/hunt/cockpit/signal-filters";
 import { Segmented } from "@/components/templates/charts";
 import { Readout, BandScale } from "@/components/templates/kit";
+import { QELegendButton } from "@/components/ui/qe-legend";
 import {
   PriceLadder,
   ContextPanel,
@@ -1987,6 +1988,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                             >
                               {selected.convictionBand} evidence · +{selected.convictionScore}
                             </span>
+                            <QELegendButton title="Conviction band legend" showBands />
                             <span
                               className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
                               style={{

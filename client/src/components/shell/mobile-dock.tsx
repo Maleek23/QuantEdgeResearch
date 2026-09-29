@@ -3,12 +3,13 @@
  * Four primary sections + More. More opens a sheet with the remaining
  * instruments and the standalone pages. Touch targets are ≥ 44pt (Apple HIG).
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
+import { useDismissable } from '@/hooks/use-dismissable';
 import { TABS, MOBILE_PRIMARY, MOBILE_MORE, PAGES, UTILITY_PAGES, MobileTabIcon, tabHref, type Tab } from './nav-model';
 
 export function MobileDock({ activeTab, onTab }: {
@@ -20,6 +21,10 @@ export function MobileDock({ activeTab, onTab }: {
   const [open, setOpen] = useState(false);
   const [location, setLocation] = useLocation();
   const reduce = useReducedMotion();
+  // "More" sheet: Escape closes, Tab stays inside, focus returns to the More button.
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useDismissable(open, () => setOpen(false), { panelRef: sheetRef, triggerRef: moreRef, trap: true });
   const path = location.split('?')[0];
   const go = (t: Tab) => { setOpen(false); onTab ? onTab(t) : setLocation(tabHref(t)); };
   const goPage = (href: string) => { setOpen(false); setLocation(href); };
@@ -51,9 +56,11 @@ export function MobileDock({ activeTab, onTab }: {
             );
           })}
           <button
+            ref={moreRef}
             type="button"
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
+            aria-haspopup="dialog"
             className={cn(
               'relative flex flex-col items-center justify-center gap-1 font-mono text-[10px] font-bold uppercase tracking-[0.1em] transition-colors',
               moreActive ? 'text-[var(--brand-cyan)]' : 'text-muted-foreground',
@@ -71,6 +78,7 @@ export function MobileDock({ activeTab, onTab }: {
           <>
             <motion.button
               type="button"
+              tabIndex={-1}
               aria-label="Close menu"
               className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm lg:hidden"
               initial={reduce ? false : { opacity: 0 }}
@@ -79,7 +87,9 @@ export function MobileDock({ activeTab, onTab }: {
               onClick={() => setOpen(false)}
             />
             <motion.div
+              ref={sheetRef}
               role="dialog"
+              aria-modal="true"
               aria-label="More sections"
               className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 max-h-[70dvh] overflow-y-auto rounded-xl border border-border/75 bg-card shadow-2xl lg:hidden"
               initial={reduce ? false : { opacity: 0, y: 16, scale: .98 }}
