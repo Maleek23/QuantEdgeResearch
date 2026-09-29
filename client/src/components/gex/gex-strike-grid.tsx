@@ -411,6 +411,12 @@ export function GexStrikeMatrix({
           <i className="dash" style={{ borderColor: LEVEL_COLORS.zeroGamma }} />zero-γ
           <i style={{ background: LEVEL_COLORS.spot }} />spot
         </span>
+        {cols > geo.perView && (
+          <span className="gx-pager" role="group" aria-label="Scroll expiries">
+            <button type="button" onClick={() => ref.current?.scrollBy({ left: -(geo.colW || 120) * geo.perView, behavior: 'smooth' })} aria-label="Earlier expiries" title="Earlier expiries (or Shift+wheel / swipe)">‹</button>
+            <button type="button" onClick={() => ref.current?.scrollBy({ left: (geo.colW || 120) * geo.perView, behavior: 'smooth' })} aria-label="Later expiries" title="Later expiries (or Shift+wheel / swipe)">›</button>
+          </span>
+        )}
         <span className="gx-count">{model.strikes.length} strikes · {Math.min(cols, geo.perView)} of {cols} exp in view{cols > geo.perView ? ' · ↔ swipe' : ''} · ↕ scroll{geo.size === 'narrow' ? ` · ${metric === 'vex' ? '$ per IV pt' : '$ per 1%'}` : ' · S = spot'}</span>
       </div>
 

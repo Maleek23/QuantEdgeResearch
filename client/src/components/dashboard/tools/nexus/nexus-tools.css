@@ -81,3 +81,6 @@
 .flowdash .fd-legacy>.nxp-shell>.nxp-workspace{grid-template-columns:clamp(260px,26%,360px) minmax(0,1fr)}
 .flowdash .fd-legacy>.nxp-shell .nxp-queue,.flowdash .fd-legacy>.nxp-shell .nxp-stage{height:100%;min-height:0}
 .flowdash .fd-legacy>.nxp-shell .nxp-stage{overflow-y:auto}
+/* Light mode: the detail tab panel was a 62% near-black wash on a white ground
+   (mid-grey behind dark text, 1.0–3.3:1 — device-audit.ts). */
+html[data-mode=light] .nxp-tab-panel{background:rgba(15,23,42,.03)}

@@ -631,7 +631,7 @@ export function TickerWorkup({ symbol, onClose, onNavigate, mode = 'modal', hist
                   </>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 0' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'center' }}>No signal · not in the current conviction book</div>
+                    <div className="wu-note" style={{ fontSize: 'var(--wu-note-fs, 11px)', color: 'var(--text-dim)', textAlign: 'center' }}>No signal · not in the current conviction book</div>
                     {engineState !== 'done' ? (
                       <button
                         className="wa-btn"

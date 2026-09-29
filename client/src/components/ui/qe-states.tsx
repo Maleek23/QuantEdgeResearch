@@ -91,8 +91,9 @@ export function QEError({
     >
       <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: T.amber }} aria-hidden />
       <div className="min-w-0 flex-1">
-        <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{title}</div>
-        <div style={{ fontSize: "var(--fs-10-5, 12.5px)", color: T.dim, marginTop: 4, lineHeight: 1.5 }}>
+        {/* sizes via tokens so phones can raise them (index.css touch & readability floor) */}
+        <div style={{ fontSize: "var(--qe-state-title, 13px)", fontWeight: 700, color: T.text }}>{title}</div>
+        <div style={{ fontSize: "var(--qe-state-msg, var(--fs-10-5, 12.5px))", color: T.dim, marginTop: 4, lineHeight: 1.5 }}>
           {message ?? "This is a connection failure, not an empty result — what's shown may be missing."}
         </div>
         {onRetry && (

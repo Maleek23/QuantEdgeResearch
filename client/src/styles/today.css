@@ -159,7 +159,7 @@
    the tokens the dealer map/ladder read, search, key levels, the book grid. */
 .today-l{
   --line:rgba(127,178,255,0.10); --line-hi:rgba(127,178,255,0.22);
-  --text-dim:#9aa3b5; --text-mute:#7f889a;
+  --text-dim:#9aa3b5; --text-mute:#8e97a8; /* was #7f889a: 4.4:1 on the key-level cells, under AA */
   --accent:#3b8cff; --accent-hi:#7fb2ff; --gain:#6ee7b7; --loss:#ff6b3d; --amber:#facc15;
   --mono:'JetBrains Mono',ui-monospace,monospace; --ui:'Inter',system-ui,sans-serif;
 }

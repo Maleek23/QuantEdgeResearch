@@ -29,9 +29,11 @@ export const TABS: { id: Tab; label: string }[] = [
 
 /**
  * The phone dock, left to right (operator order, 2026-09-29): TODAY, NEXUS,
- * FLOW, GEX, then More. TODAY is a standalone page, the other three are
- * terminal tabs. CHART moved to the Research group (it is a research tool,
- * not a daily section) and is reached from More / the rail like LEAPS.
+ * FLOW, GEX, CHART — five destinations, no "More" slot. Everything else
+ * (Research group, Manage group, Alerts, Guide, Settings) opens from the
+ * menu button in the phone top bar (MobileMenuButton). On the desktop rail
+ * CHART stays in the Research group; the dock carries it because it is the
+ * phone's most-used research view.
  */
 export type DockItem = { kind: 'page'; href: string } | { kind: 'tab'; tab: Tab };
 export const MOBILE_DOCK: DockItem[] = [
@@ -39,10 +41,11 @@ export const MOBILE_DOCK: DockItem[] = [
   { kind: 'tab', tab: 'oracle' },
   { kind: 'tab', tab: 'flow' },
   { kind: 'tab', tab: 'gex' },
+  { kind: 'tab', tab: 'chart' },
 ];
-export const MOBILE_PRIMARY: Tab[] = ['oracle', 'flow', 'gex'];
+export const MOBILE_PRIMARY: Tab[] = ['oracle', 'flow', 'gex', 'chart'];
 export const MOBILE_PRIMARY_PAGES: string[] = ['/today'];
-export const MOBILE_MORE: Tab[] = ['chart', 'leaps', 'crypto', 'catalyst', 'bot', 'positions', 'journal'];
+export const MOBILE_MORE: Tab[] = ['leaps', 'crypto', 'catalyst', 'bot', 'positions', 'journal'];
 
 /** Standalone pages — same chrome as the terminal, reached from the nav and "More". */
 export interface PageLink { href: string; label: string; short: string; icon: typeof Radar }

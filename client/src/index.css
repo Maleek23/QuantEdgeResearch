@@ -2821,3 +2821,27 @@ button:not([disabled]):active,
 .light.terminal-nexus-light .qe-terminal::after {
   background: radial-gradient(ellipse at center, transparent 55%, rgb(15 23 42 / .08) 100%);
 }
+
+/* ══════════════ TOUCH & READABILITY FLOOR (feat/mobile, 2026-09-29) ══════════════
+   Measured by research/device-audit.ts at 393/360/768/1024 px in Dark, Light and
+   High contrast. On phones and touch tablets every control is a ≥ 44×44 CSS px
+   target (Apple HIG / WCAG 2.5.5); prose on phones is ≥ 14px. The GEX matrix's
+   data cells (tap-to-drill data, not controls) and inline links inside prose are
+   exempt. The journal (.jr) is owned by the journal branch and is left alone. */
+@media (max-width:767px),(pointer:coarse){
+  :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],[role=option],select,summary,
+      input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell):not(.jr *){min-height:44px!important}
+  :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],summary):not(.gx-cell):not(.jr *){min-width:44px!important}
+  a[href]:not(p a):not(.jr *):not(.sr-only){min-height:44px!important}
+  label:has(> input[type=checkbox]):not(.jr *),label:has(> input[type=radio]):not(.jr *){min-height:44px;display:inline-flex;align-items:center}
+}
+@media (max-width:599px){
+  #main-content :is(p,li,dd,blockquote,figcaption):not(.jr *){font-size:max(14px,1em)}
+}
+@media (max-width:599px){
+  :root{--qe-state-title:15px;--qe-state-msg:14px;--wu-note-fs:14px}
+  #main-content :is(.lx-empty,.fd-tool-blurb,.bot-desc-text,.wu-empty,.wu-note,.of-hint,.tl-map-foot,.gx-ps-read,.gx-hero-posture,.gx-expect,.hero-sub,.today-l .kind):not(.jr *){font-size:14px}
+}
+/* Keyboard focus is always visible on form fields (many use outline-none and rely on a
+   wrapper's :focus-within, which a screen magnifier or the audit cannot see on the field). */
+#main-content :is(input,select,textarea):focus-visible:not(.jr *){outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:2px}

@@ -86,10 +86,14 @@ export interface PageSpec {
    * PHONE (< 768px) — the page is one column, not a squeezed desktop grid.
    * `lead`: a page header rendered above the stack (dashboard.tsx PHONE_LEAD);
    * `first`: tool ids pulled to the top of the stack in this order (the rest
-   * follow in reading order — stack, never hide); `tall`: tools that get a
-   * near-full-screen tile instead of their grid height.
+   * follow in reading order — stack, never hide); `fill`: tools whose body
+   * FILLS a box (charts, ladders, the GEX matrix, the virtualised flow feed)
+   * with the CSS height of that box. Every other tool is a section at its
+   * natural height inside the one page scroller (operator: "I literally have
+   * to find where to scroll"). 'auto' = natural height, never clipped (the
+   * GEX matrix, whose own scroller is a fixed 60vh frame on phones).
    */
-  phone?: { lead?: boolean; first?: string[]; tall?: string[] };
+  phone?: { lead?: boolean; first?: string[]; fill?: Record<string, string> };
   /**
    * PAGE mode: tools whose body is a chart that fills its box (no natural
    * height) — they get a fixed, viewport-scaled body instead of collapsing.
@@ -130,14 +134,21 @@ export const PAGES: Record<PageId, PageSpec> = {
     storagePrefix: 'flowdash:', lsKey: 'qe-flowdash-v1', lsActive: 'qe-flowdash-active',
     starters: ['options-flow', 'net-flow-strike', 'flow-strike-expiry'],
     // Phone: the feed, then the tide, then top tickers, then the rest.
-    phone: { first: ['options-flow', 'market-tide', 'top-tickers'], tall: ['options-flow'] },
+    phone: {
+      first: ['options-flow', 'market-tide', 'top-tickers'],
+      fill: { 'options-flow': '70vh', 'market-tide': '300px', 'stock-chart': 'min(56vh, 480px)', 'net-flow-strike': '60vh', 'flow-strike-expiry': '60vh', 'flow-timeline': '300px' },
+    },
   },
   gex: {
     ...spec('gex', 'GEX', GEX_DEFAULTS, ['GEX', 'Market'], ['gex-dealer-map', 'gex-levels', 'stock-chart'], 'workspace'),
     catalog: GEX_CATALOG,
     // Phone: levels + regime strip on top, then the matrix full width (4-expiry
     // snap view, strikes scroll inside), then the secondary tools.
-    phone: { lead: true, first: ['gex-matrix', 'gex-levels', 'gex-regime'], tall: ['gex-matrix', 'gex-hub'] },
+    phone: {
+      lead: true,
+      first: ['gex-matrix', 'gex-levels', 'gex-regime'],
+      fill: { 'gex-matrix': 'auto', 'gex-dealer-map': '60vh', 'stock-chart': 'min(56vh, 480px)', 'gex-profile': '320px', 'gex-hub': '80vh' },
+    },
   },
   nexus: spec('nexus', 'NEXUS', NEXUS_DEFAULTS, ['Ideas', 'Market'], NEXUS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
   chart: { ...spec('chart', 'CHART', CHART_DEFAULTS, ['Market', 'Research'], ['stock-chart'], 'simple'), simple: { tool: 'stock-chart', rail: { tool: 'chart-watchlists', label: 'Watchlist' } } },

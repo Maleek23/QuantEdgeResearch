@@ -23,8 +23,9 @@ and runs these tests. Each maps to a requirement id in the design doc (§4).
                           trigger for search / the palette                                   (R-NAV-4)
   N12 Dead UI state       a useState whose setter is only ever called with null/false
                           (a panel that can never open) — allowlisted debt only              (R-NAV-5)
-  N14 Phone dock order    the bottom nav reads TODAY, NEXUS, FLOW, GEX (+ More) and CHART
-                          sits in the Research group, rail and More sheet alike              (R-NAV-6)
+  N14 Phone dock order    the bottom dock reads TODAY, NEXUS, FLOW, GEX, CHART (no More —
+                          the rest opens from the top-bar menu); on the desktop rail CHART
+                          sits in the Research group                                          (R-NAV-6)
 
   REPORT (tracked debt; trend must go down phase over phase)
   N2  Redirect links      live code still linking to a retired URL (costs a hop)
@@ -298,7 +299,8 @@ for f in files:
             if key not in KNOWN_DEAD_STATE: dead_state_new.append(key)
 
 # ── N14 phone dock order + CHART in Research (operator 2026-09-29) ─────────
-EXPECT_DOCK = ["page:/today", "tab:oracle", "tab:flow", "tab:gex"]
+menu_ok = "MobileMenuButton" in frame and "MobileMenuButton" in term
+EXPECT_DOCK = ["page:/today", "tab:oracle", "tab:flow", "tab:gex", "tab:chart"]
 dock_m = re.search(r"MOBILE_DOCK: DockItem\[\] = \[([\s\S]*?)\];", nav)
 dock = [f"page:{h}" if k == "page" else f"tab:{t}" for k, h, t in
         re.findall(r"\{ kind: '(page|tab)', (?:href: '([^']+)'|tab: '(\w+)') \}", dock_m.group(1))] if dock_m else []
@@ -311,6 +313,7 @@ dock_fail = []
 if dock != EXPECT_DOCK: dock_fail.append(f"dock={dock} want {EXPECT_DOCK}")
 if "chart" not in research_tabs: dock_fail.append(f"chart not in Research group ({research_tabs})")
 if "chart" in trade_tabs: dock_fail.append("chart still in Trade group")
+if not menu_ok: dock_fail.append("top-bar menu button missing in NexusFrame or terminal")
 
 # ── report ─────────────────────────────────────────────────────────────────
 res = {
@@ -341,7 +344,7 @@ hard = [
     line("N10 workflows reachable in <=2 clicks", not workflow_fail, f"{len(WORKFLOWS)} workflows" + (f"  fail={workflow_fail}" if workflow_fail else "")),
     line("N11 search on every chrome (desktop+phone)", not search_fail, "; ".join(search_fail)),
     line("N12 no new dead UI state", not dead_state_new, (f"new={dead_state_new}" if dead_state_new else f"{len(dead_state)} allowlisted debt")),
-    line("N14 phone dock TODAY·NEXUS·FLOW·GEX, CHART in Research", not dock_fail, "; ".join(dock_fail) if dock_fail else " · ".join(dock)),
+    line("N14 phone dock TODAY·NEXUS·FLOW·GEX·CHART, rail CHART in Research", not dock_fail, "; ".join(dock_fail) if dock_fail else " · ".join(dock)),
 ]
 print("REPORT (debt — must trend down)")
 print(f"  N2  links through a redirect: {len(via_redirect)}  {sorted(via_redirect)[:12]}")

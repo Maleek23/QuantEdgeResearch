@@ -175,7 +175,8 @@
     "page:/today",
     "tab:oracle",
     "tab:flow",
-    "tab:gex"
+    "tab:gex",
+    "tab:chart"
   ],
   "N14_researchTabs": [
     "chart",

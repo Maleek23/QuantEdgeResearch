@@ -54,7 +54,7 @@ const JournalPanel = lazy(() => import('@/pages/shells/journal-shell'));
 // Tabs, mobile dock and "More" live in ONE shared model so the terminal and
 // every standalone page (NexusFrame) wear identical navigation.
 import { TABS, type Tab } from '@/components/shell/nav-model';
-import { MobileDock } from '@/components/shell/mobile-dock';
+import { MobileDock, MobileMenuButton } from '@/components/shell/mobile-dock';
 import { CustomizePanel } from '@/components/shell/customize-panel';
 import { DesktopRail } from '@/components/shell/desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from '@/components/shell/skip-link';
@@ -278,11 +278,13 @@ export default function TerminalShell() {
             type="button"
             onClick={() => setMobileSearchOpen((open) => !open)}
             aria-label="Search ticker"
+            title="Search tickers and pages"
             aria-expanded={mobileSearchOpen}
             className="lx-icon-btn lg:hidden"
           >
             <Search className="h-4 w-4" />
           </button>
+          <MobileMenuButton activeTab={tab} onTab={setTab} />
           {/* Desktop search is a ⌘K PALETTE TRIGGER, not an inline dropdown —
               clicking it (or ⌘K from anywhere) opens the command palette. */}
           <div className="hidden lg:block">

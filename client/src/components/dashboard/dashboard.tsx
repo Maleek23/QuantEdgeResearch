@@ -31,7 +31,7 @@ import {
 } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DndContext, PointerSensor, useDraggable, useSensor, useSensors, type DragEndEvent, type DragMoveEvent } from '@dnd-kit/core';
-import { Check, ChevronDown, Crosshair, Eraser, GripVertical, LayoutGrid, PanelRightClose, PanelRightOpen, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Crosshair, Eraser, GripVertical, LayoutGrid, MoreHorizontal, PanelRightClose, PanelRightOpen, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { QEError } from '@/components/ui/qe-states';
@@ -56,13 +56,6 @@ function phoneOrder(spec: PageSpec, tools: PlacedTool[]): PlacedTool[] {
   if (!first.length) return ordered;
   const rank = (t: PlacedTool) => { const i = first.indexOf(t.type); return i < 0 ? first.length : i; };
   return ordered.map((t, n) => [t, n] as const).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([t]) => t);
-}
-
-/** Phone tile height: tall tools fill the screen under the chrome; others keep their grid height. */
-function phoneTileStyle(spec: PageSpec, t: PlacedTool): CSSProperties {
-  // --qe-main-h = the shell's measured main area (above the dock): the tile fits it exactly.
-  if (spec.phone?.tall?.includes(t.type)) return { height: 'calc(var(--qe-main-h, calc(100dvh - 132px)) - 16px)', minHeight: 420 };
-  return { height: `min(${Math.max(300, t.h * ROW_H)}px, 88dvh)`, minHeight: 300 };
 }
 
 function PhoneLead({ page }: { page: PageId }) {
@@ -114,13 +107,74 @@ function useLiveMount(ref: RefObject<HTMLElement>, pause = true) {
   return state;
 }
 
+/**
+ * Scroll affordance for a tile (operator: "I literally have to find where to
+ * scroll"). Finds the tile's ONE scroller (the largest element that actually
+ * overflows), makes it keyboard-focusable (arrows / PageUp / PageDown scroll
+ * it), and reports whether there is more above / below so the tile can draw a
+ * fade and a "more" cue. Scrollbars themselves are always visible (CSS).
+ */
+function useScrollCue(ref: RefObject<HTMLElement>, enabled: boolean) {
+  const [cue, setCue] = useState({ up: false, down: false });
+  const scRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root || !enabled || typeof ResizeObserver === 'undefined') return;
+    let sc: HTMLElement | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const update = () => {
+      if (!sc) { setCue((c) => (c.up || c.down ? { up: false, down: false } : c)); return; }
+      const up = sc.scrollTop > 2;
+      const down = sc.scrollTop + sc.clientHeight < sc.scrollHeight - 2;
+      setCue((c) => (c.up === up && c.down === down ? c : { up, down }));
+    };
+    const pick = () => {
+      let best = null as HTMLElement | null; let area = 0;
+      for (const e of Array.from(root.querySelectorAll<HTMLElement>('*'))) {
+        if (e.scrollHeight <= e.clientHeight + 4) continue;
+        const oy = getComputedStyle(e).overflowY;
+        if (oy !== 'auto' && oy !== 'scroll') continue;
+        const a = e.clientWidth * e.clientHeight;
+        if (a > area) { area = a; best = e; }
+      }
+      if (best !== sc) {
+        sc?.removeEventListener('scroll', update);
+        sc = best;
+        scRef.current = sc;
+        if (sc) {
+          sc.addEventListener('scroll', update, { passive: true });
+          sc.classList.add('fd-tile-scroller');
+          if (!sc.hasAttribute('tabindex')) { sc.tabIndex = 0; if (!sc.getAttribute('aria-label') && !sc.getAttribute('role')) sc.setAttribute('aria-label', 'Scrollable tool content — arrow keys scroll'); }
+        }
+      }
+      update();
+    };
+    // throttled, not debounced: a live feed mutates constantly and must still get picked
+    const soon = () => { if (timer) return; timer = setTimeout(() => { timer = undefined; pick(); }, 600); };
+    const ro = new ResizeObserver(soon);
+    ro.observe(root);
+    const mo = new MutationObserver(soon);
+    mo.observe(root, { childList: true, subtree: true });
+    soon();
+    return () => { ro.disconnect(); mo.disconnect(); clearTimeout(timer); sc?.removeEventListener('scroll', update); };
+  }, [ref, enabled]);
+  const scroll = (dir: 1 | -1) => { const el = scRef.current; if (el) el.scrollBy({ top: dir * el.clientHeight * 0.8, behavior: 'smooth' }); };
+  return { ...cue, scroll };
+}
+
 function ToolBody({ tool }: { tool: PlacedTool }) {
   const def = TOOL_BY_ID.get(tool.type)!;
   const ref = useRef<HTMLDivElement>(null);
   const live = useLiveMount(ref);
+  const cue = useScrollCue(ref, live === 'live');
   const C = def.Component;
   return (
-    <div ref={ref} className="fd-live">
+    <div ref={ref} className={cn('fd-live', cue.up && 'more-up', cue.down && 'more-down')}>
+      {cue.down && (
+        <button type="button" className="fd-cue" onClick={() => cue.scroll(1)} aria-label={`Scroll ${def.title} down`} title="More below — scroll this tool">
+          ↓ more
+        </button>
+      )}
       {live === 'live' ? (
         <ToolInstanceCtx.Provider value={tool.i}>
           <ToolBoundary title={def.title}>
@@ -232,6 +286,43 @@ function AddToolMenu({ spec, onAdd, present }: { spec: PageSpec; onAdd: (id: str
             );
           })}
           <div className="fd-menu-note">Only tools that belong on {spec.label} are listed. Not offered (no data source yet): Option Chart · Dark Pool Alerts · Trade Terminal.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── phone: every workspace control in ONE small menu (operator: no 3 rows of buttons) ── */
+function WorkspaceMenu({ spec, present, onAdd, onRestore, canRestore, onClear, canClear }: {
+  spec: PageSpec; present: Set<string>; onAdd: (id: string) => void;
+  onRestore: () => void; canRestore: boolean; onClear: () => void; canClear: boolean;
+}) {
+  const { open, setOpen, ref } = useMenu();
+  const offered = useMemo(() => TOOLS.filter((t) => inCatalog(spec, t)), [spec]);
+  const cats = useMemo(() => categoriesFor(spec.primary).filter((c) => offered.some((t) => t.category === c)), [spec.primary, offered]);
+  return (
+    <div className="fd-menu-wrap" ref={ref}>
+      <button type="button" className="fd-btn fd-ws-menu" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu"
+        aria-label={`${spec.label} workspace options — add a tool, restore default, clear`} title="Workspace options">
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div className="fd-menu fd-menu-wide fd-ws-sheet" role="menu">
+          <div className="fd-menu-group">
+            <button type="button" role="menuitem" className="fd-menu-item" disabled={!canRestore} onClick={() => { setOpen(false); onRestore(); }}><span><RotateCcw size={13} /> Restore default layout</span></button>
+            <button type="button" role="menuitem" className="fd-menu-item" disabled={!canClear} onClick={() => { setOpen(false); onClear(); }}><span><Eraser size={13} /> Clear all tools</span></button>
+          </div>
+          {cats.map((c) => (
+            <div key={c} className="fd-menu-group">
+              <div className="fd-menu-head">ADD · {c.toUpperCase()}</div>
+              {offered.filter((t) => t.category === c).map((t) => (
+                <button key={t.id} type="button" role="menuitem" className="fd-menu-item" onClick={() => { onAdd(t.id); setOpen(false); }}>
+                  <span><Plus size={12} /> {t.title}</span>
+                  {present.has(t.id) && <span className="fd-menu-on" aria-label="already on this dashboard"><Check size={11} /></span>}
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -482,7 +573,13 @@ function pagePlacement(tools: PlacedTool[]) {
   }));
 }
 
-function PageSection({ tool, symbol, style, fill = false }: { tool: PlacedTool; symbol?: string; style?: CSSProperties; fill?: boolean }) {
+function PageSection({ tool, symbol, style, fill, onRemove }: {
+  tool: PlacedTool; symbol?: string; style?: CSSProperties;
+  /** CSS height of a box the tool fills (charts, ladders, matrix, virtualised feed); omit for natural height */
+  fill?: string;
+  /** workspace pages on phones: remove the tool from this dashboard */
+  onRemove?: () => void;
+}) {
   const def = TOOL_BY_ID.get(tool.type)!;
   const bodyRef = useRef<HTMLDivElement>(null);
   const live = useLiveMount(bodyRef, false);
@@ -504,6 +601,9 @@ function PageSection({ tool, symbol, style, fill = false }: { tool: PlacedTool; 
     return () => { ro.disconnect(); mo.disconnect(); };
   }, [live]);
   const { src, age } = provenanceOf(def, report, now);
+  // fill 'auto' = natural height that must never clip (the phone GEX matrix sizes its own scroller)
+  const natural = fill === 'auto';
+  const boxed = !!fill && !natural;
   const capped = !fill && tall && !open;
   const headId = `pg-${tool.i}`;
   return (
@@ -512,15 +612,20 @@ function PageSection({ tool, symbol, style, fill = false }: { tool: PlacedTool; 
         <h2 id={headId}>{def.title}</h2>
         {symbol && <span className="fd-sym">{symbol}</span>}
         <span className={cn('pg-prov', report.tone === 'warn' && 'warn')}>{src} · {age}{report.note ? ` · ${report.note}` : ''}</span>
+        {onRemove && (
+          <button type="button" className="pg-remove fd-icon-btn" onClick={onRemove} aria-label={`Remove ${def.title}`} title={`Remove ${def.title} from this dashboard`}>
+            <X size={14} />
+          </button>
+        )}
       </header>
-      <div ref={bodyRef} className={cn('pg-sec-body', capped && 'capped', fill && 'fill')} style={capped ? { maxHeight: SECTION_CAP } : undefined}>
+      <div ref={bodyRef} className={cn('pg-sec-body', capped && 'capped', boxed && 'fill')} style={capped ? { maxHeight: SECTION_CAP } : boxed ? { height: fill } : undefined}>
         {live === 'live' ? (
           <BareTool def={def} instance={tool.i} onReport={setReport} />
         ) : (
           <ToolSkeleton label="loads when scrolled into view" />
         )}
       </div>
-      {tall && !fill && (
+      {tall && !fill && !natural && (
         <button type="button" className="pg-more" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {open ? 'Show less' : 'Show all'}
         </button>
@@ -555,7 +660,8 @@ function PageView({ page }: { page: PageId }) {
           <div className="pg-grid">
             {isMobile && <PhoneLead page={page} />}
             {ordered.map((t) => (
-              <PageSection key={t.i} tool={t} symbol={symbolOf(t)} style={isMobile ? undefined : place.get(t.i)} fill={spec.fill?.includes(t.type)} />
+              <PageSection key={t.i} tool={t} symbol={symbolOf(t)} style={isMobile ? undefined : place.get(t.i)}
+                fill={(isMobile ? spec.phone?.fill?.[t.type] : undefined) ?? (spec.fill?.includes(t.type) ? 'clamp(340px, 56vh, 640px)' : undefined)} />
             ))}
           </div>
         )}
@@ -598,7 +704,7 @@ function FixedDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
               <div className="fd-stack" ref={gridRef}>
                 <PhoneLead page={page} />
                 {phoneOrder(spec, tools).map((t) => (
-                  <div key={t.i} className="fd-tile stacked" data-tool={t.type} style={phoneTileStyle(spec, t)}>
+                  <div key={t.i} className="fd-tile stacked" data-tool={t.type} style={{ height: `min(${Math.max(300, t.h * ROW_H)}px, 88dvh)`, minHeight: 300 }}>
                     <ToolFrame def={TOOL_BY_ID.get(t.type)!} symbol={symbolOf(t)} compact={false} grip={false}>
                       <ToolBody tool={t} />
                     </ToolFrame>
@@ -715,6 +821,15 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
             <DashSwitcher api={api} />
             {needsFocus && <FocusBox />}
           </div>
+          {isMobile ? (
+          <div className="fd-bar-actions">
+            <WorkspaceMenu spec={spec} present={present} onAdd={addTool}
+              canRestore={!!spec.defaults.length && !api.active?.pristine}
+              onRestore={() => { if (window.confirm(`Restore "${api.active?.name}" to the ${spec.label} default layout? Your changes to this dashboard are replaced.`)) void api.restoreDefault(); }}
+              canClear={!!tools.length}
+              onClear={() => { if (window.confirm(`Remove all ${tools.length} tools from "${api.active?.name}"?`)) api.updateActive(() => []); }} />
+          </div>
+          ) : (
           <div className="fd-bar-actions">
             <AddToolMenu spec={spec} onAdd={addTool} present={present} />
             {!isMobile && <button type="button" className="fd-btn" disabled={!tools.length}
@@ -732,6 +847,7 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
             </button>
             <SaveBadge api={api} />
           </div>
+          )}
         </div>
 
         <ScrollRootCtx.Provider value={isMobile ? null : scroller}>
@@ -752,16 +868,9 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
             ) : isMobile ? (
               <div className="fd-stack" ref={gridRef}>
                 <PhoneLead page={page} />
-                {phoneOrder(spec, tools).map((t) => {
-                  const def = TOOL_BY_ID.get(t.type)!;
-                  return (
-                    <div key={t.i} className="fd-tile stacked" data-tool={t.type} style={phoneTileStyle(spec, t)}>
-                      <ToolFrame def={def} symbol={symbolOf(t)} compact={false} onRemove={() => remove(t.i)}>
-                        <ToolBody tool={t} />
-                      </ToolFrame>
-                    </div>
-                  );
-                })}
+                {phoneOrder(spec, tools).map((t) => (
+                  <PageSection key={t.i} tool={t} symbol={symbolOf(t)} fill={spec.phone?.fill?.[t.type]} onRemove={() => remove(t.i)} />
+                ))}
               </div>
             ) : (
               <DndContext sensors={sensors} onDragStart={(e) => setDragId(String(e.active.id))} onDragMove={onDragMove} onDragEnd={onDragEnd} onDragCancel={() => { setDragId(null); setGhost(null); }}>

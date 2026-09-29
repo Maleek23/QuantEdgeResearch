@@ -18,7 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import qeMark from '@assets/qe-mark.svg';
 import '@/styles/nexus.css';
 import { PAGES, UTILITY_PAGES } from './nav-model';
-import { MobileDock } from './mobile-dock';
+import { MobileDock, MobileMenuButton } from './mobile-dock';
 import { CustomizePanel } from './customize-panel';
 import { DesktopRail } from './desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from './skip-link';
@@ -76,11 +76,13 @@ export function NexusFrame({ children }: { children: ReactNode }) {
             type="button"
             onClick={openPalette}
             aria-label="Search tickers and pages"
+            title="Search tickers and pages"
             data-testid="frame-search-mobile"
             className="lx-icon-btn lg:hidden"
           >
             <Search className="h-4 w-4" />
           </button>
+          <MobileMenuButton activeTab={null} />
           {/* Desktop: the terminal's .search chrome, as a ⌘K palette trigger. */}
           <div className="hidden lg:block">
             <button

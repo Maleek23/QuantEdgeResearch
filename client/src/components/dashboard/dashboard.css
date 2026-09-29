@@ -358,7 +358,7 @@
 .flowdash .pg-prov.warn{color:var(--amber)}
 .flowdash .pg-sec-body{position:relative;display:flex;flex-direction:column;min-width:0}
 .flowdash .pg-sec-body.capped{overflow:hidden}
-.flowdash .pg-sec-body.capped::after{content:'';position:absolute;left:0;right:0;bottom:0;height:64px;pointer-events:none;background:linear-gradient(to bottom,transparent,var(--panel-solid))}
+.flowdash .pg-sec-body.capped{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 72px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 72px),transparent)}
 .flowdash .pg-more{align-self:flex-start;margin-top:10px;min-height:40px;padding:0 14px;border:1px solid var(--nx-border-hi);border-radius:6px;background:var(--panel-2);color:var(--text);font:600 12px var(--fd-mono);cursor:pointer}
 .flowdash .pg-more:hover{border-color:var(--cyan)}
 /* flatten every inner scroller / fill container a tool brings from the tile world */
@@ -388,3 +388,49 @@
 .flowdash .pg-sec .pg-sec-body.fill{display:flex;flex-direction:column;height:clamp(340px,56vh,640px)}
 .flowdash .pg-sec .pg-sec-body.fill>*{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important}
 @media (max-width:767px){.flowdash .gx-legend,.flowdash .gx-sub-head,.flowdash .gx-stats span,.flowdash .gx-nodes span{font-size:10.5px}}
+/* Today's tools are the landing's dark graphic language (today.css .today-l tokens and
+   blocks are dark-only). In Light mode each sits on a dark panel so its text keeps
+   ≥ 4.5:1 instead of washing out on a light ground (device-audit.ts, light mode). */
+html[data-mode=light] .flowdash .pg-sec:has(.today-l){--accent:#3b8cff;--accent-hi:#7fb2ff;--gain:#6ee7b7;--loss:#ff6b3d;--amber:#facc15;--cyan:#3b8cff;--cyan-bright:#6aa8ff;--blue:#6aa8ff;--green:#6ee7b7;--red:#ff6b3d;--brand-cyan:#6aa8ff;--p:#6aa8ff;--text:#eef2f8;--text-dim:#aab3c5;--text-mute:#8e97a8;--panel-solid:#0e1117;--panel-2:#131720;--nx-border:rgba(127,178,255,.16);--nx-border-hi:rgba(127,178,255,.26);background:#0e1117;color:#eef2f8;border-color:rgba(127,178,255,.22)}
+/* the count inside the active DTE bucket read 4.2:1 on the selected fill (device audit) */
+.flowdash .gx-controls .of-seg button.on .dim{color:var(--text-dim)}
+/* light-mode AA fixes found by research/device-audit.ts */
+html[data-mode=light] .flowdash .gx-pct{color:var(--text-dim)}
+/* phone workspace bar: eyebrow · dashboard · focus ticker · ⋯ — one row */
+@media (max-width:767px){
+  .flowdash[data-view=dashboard] .fd-bar{flex-wrap:nowrap}
+  .flowdash[data-view=dashboard] .fd-bar-title{flex-wrap:nowrap;min-width:0}
+  .flowdash .fd-ws-sheet{position:fixed;left:12px;right:12px;top:auto;max-height:65dvh;min-width:0}
+  .flowdash .pg-remove{margin-left:auto}
+  .flowdash .fd-stack>.pg-sec+.pg-sec,.flowdash .fd-stack>.gx-phone-sum+.pg-sec{margin-top:0}
+}
+.flowdash .pg-sec-head .pg-remove{margin-left:auto;flex:none}
+
+/* ══════════════ tile scrolling you can find (operator 2026-09-29) ══════════════
+   Every tile has ONE scroller (useScrollCue marks it .fd-tile-scroller). Its
+   scrollbar is always drawn (not an overlay that hides), the edge fades when
+   there is more, and a "↓ more" cue scrolls it. The workspace page itself
+   never scrolls on desktop, so a tile at its end has nothing to pass the wheel
+   to — no trap. */
+.flowdash .fd-tile ::-webkit-scrollbar{width:9px;height:9px}
+.flowdash .fd-tile ::-webkit-scrollbar-track{background:color-mix(in srgb,var(--text-mute) 8%,transparent);border-radius:5px}
+.flowdash .fd-tile ::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--text-mute) 55%,transparent);border-radius:5px;border:2px solid transparent;background-clip:padding-box}
+.flowdash .fd-tile ::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--text-dim) 75%,transparent);background-clip:padding-box}
+@supports not selector(::-webkit-scrollbar){.flowdash .fd-tile *{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--text-mute) 55%,transparent) transparent}}
+.flowdash .fd-live{position:relative}
+.flowdash .fd-live.more-down::after,.flowdash .fd-live.more-up::before{content:'';position:absolute;left:0;right:12px;height:28px;pointer-events:none;z-index:8}
+.flowdash .fd-live.more-down::after{bottom:0;background:linear-gradient(to bottom,transparent,color-mix(in srgb,var(--panel-solid) 92%,transparent))}
+.flowdash .fd-live.more-up::before{top:0;background:linear-gradient(to top,transparent,color-mix(in srgb,var(--panel-solid) 80%,transparent))}
+.flowdash .fd-cue{position:absolute;right:18px;bottom:6px;z-index:9;height:24px;padding:0 9px;border:1px solid var(--nx-border-hi);border-radius:12px;background:var(--panel-2);color:var(--text-dim);font:600 10.5px var(--fd-mono);cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.flowdash .fd-cue:hover,.flowdash .fd-cue:focus-visible{color:var(--text);border-color:var(--cyan)}
+.flowdash .fd-tile-scroller:focus-visible{outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:-2px}
+@media (max-width:767px){.flowdash .gx-scroll{overscroll-behavior-y:auto}}
+/* section head on phones: title · ticker · × on one row, provenance under it */
+.flowdash .pg-sec-head h2{flex:0 1 auto}
+@media (max-width:767px){
+  .flowdash .pg-sec-head{align-items:center}
+  .flowdash .pg-sec-head .pg-prov{order:3;flex-basis:100%}
+  /* the phone GEX matrix: ONE scroller, a clear 60vh frame; toolbar above it at natural height */
+  .flowdash .pg-sec[data-tool=gex-matrix] .gx-grow,.flowdash .pg-sec[data-tool=gex-matrix] .gx-wrap{flex:none;overflow:visible}
+  .flowdash .pg-sec[data-tool=gex-matrix] .gx-scroll{flex:none;height:60vh;min-height:320px;border-color:var(--nx-border-hi)}
+}
