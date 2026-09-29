@@ -8,7 +8,9 @@
  * 1. OPTIONS counted by REAL contract P&L (optionPercentGain = exit vs entry
  *    premium). Option ideas WITHOUT a captured contract P&L are still excluded
  *    (we can't measure them honestly) — but resolved option ideas now count.
- * 2. NEUTRAL trades excluded from win rate (expired, breakeven)
+ * 2. NEUTRAL trades excluded from win rate (expired, breakeven). Expired ideas
+ *    with no measured exit (isUnmeasuredExpiry — the 0.00 default) are also
+ *    reported on their own as `unmeasured`, never averaged in.
  * 3. A target/stop event is decisive; ±3% applies only when an outcome status is absent
  * 4. Tiered output: summary for users, detailed for admin
  */
@@ -19,6 +21,7 @@ import {
   isRealLoss, 
   classifyTrade,
   isCurrentGenEngine,
+  isUnmeasuredExpiry,
   CANONICAL_WIN_THRESHOLD,
   CANONICAL_LOSS_THRESHOLD
 } from '@shared/constants';
@@ -37,6 +40,8 @@ export interface WinRateResult {
   wins: number;
   losses: number;
   neutral: number;
+  /** Subset of `neutral`: expired with no measured exit. Excluded from winRate and expectancy. */
+  unmeasured: number;
   total: number;
   decided: number;
   winRate: number;
@@ -174,7 +179,7 @@ export class WinRateService {
       methodology: {
         winDefinition: `stocks: hit_target OR P&L >= +${CANONICAL_WIN_THRESHOLD}%; options: contract P&L >= +${CANONICAL_WIN_THRESHOLD}%`,
         lossDefinition: `stocks: hit_stop OR P&L <= -${CANONICAL_LOSS_THRESHOLD}% when no status exists; options: contract P&L <= -${CANONICAL_LOSS_THRESHOLD}%`,
-        neutralDefinition: 'expired, manual_exit, status-less |P&L| < 3%, or option without captured contract P&L',
+        neutralDefinition: 'expired, manual_exit, status-less |P&L| < 3%, or option without captured contract P&L; expired with no measured exit is additionally counted as `unmeasured`',
         optionsIncluded: true, // measured options (real contract P&L) always count now
         legacyIncluded: filters.includeAllVersions ?? false,
       },
@@ -251,6 +256,7 @@ export class WinRateService {
     const wins = ideas.filter(i => this.classifyIdea(i) === 'win');
     const losses = ideas.filter(i => this.classifyIdea(i) === 'loss');
     const neutral = ideas.filter(i => this.classifyIdea(i) === 'neutral');
+    const unmeasured = neutral.filter(i => isUnmeasuredExpiry(i));
 
     const decided = wins.length + losses.length;
     const winRate = decided > 0 ? (wins.length / decided) * 100 : 0;
@@ -280,6 +286,7 @@ export class WinRateService {
       wins: wins.length,
       losses: losses.length,
       neutral: neutral.length,
+      unmeasured: unmeasured.length,
       total: ideas.length,
       decided,
       winRate: Math.round(winRate * 10) / 10,
@@ -374,6 +381,12 @@ export class WinRateService {
       wins: wins.length,
       losses: losses.length,
       neutral: neutral.length,
+      // Expired positions with no realized P&L recorded — same policy as ideas.
+      unmeasured: closedPositions.filter(p =>
+        p.status === 'expired' &&
+        (p.realizedPnLPercent === null || p.realizedPnLPercent === undefined) &&
+        (p.realizedPnL === null || p.realizedPnL === undefined)
+      ).length,
       total: closedPositions.length,
       decided,
       winRate: Math.round(winRate * 10) / 10,

@@ -77,6 +77,7 @@ import {
   type ConvictionsResponse,
 } from "@/lib/convictions";
 import { CONVICTION_FAMILIES } from "@shared/conviction-layers";
+import { CONVICTION_BAND_CUTOFFS } from "@shared/conviction-bands";
 
 const RANGES = [
   { id: "5d", label: "1H", range: "5d", interval: "60m" },
@@ -2282,7 +2283,7 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                  "this is bad" when it means "we are very sure about this". The
                  side is already stated by the ▲BULL chip and the P&L. */
                       valueTone="structural"
-                      note={`+${plusPoints} support · ${minusPoints || 0} challenge · ${selected.layerCount} active layers · S starts at +25${selected.publishedConvictionScore != null ? ` · published +${selected.publishedConvictionScore}` : ""}`}
+                      note={`+${plusPoints} support · ${minusPoints || 0} challenge · ${selected.layerCount} active layers · S starts at +${CONVICTION_BAND_CUTOFFS.S}${selected.publishedConvictionScore != null ? ` · published +${selected.publishedConvictionScore}` : ""}`}
                     >
                       {/* Was a radial gauge drawing the same number stated 40px above it,
                   under four stacked glow filters. This shows what the numeral
@@ -2330,11 +2331,11 @@ export default function HuntCockpit({ initialView, lockedView }: { initialView?:
                             )}
                             <p className="bg-card px-2.5 py-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground">
                               <b className="text-foreground">+{selected.convictionScore} is the raw evidence total.</b>{" "}
-                              It adds supporting layers and subtracts challenging ones. Bands use raw points: C &lt;+13 · B +13–18 · A +19–24 · S +25+.
+                              It adds supporting layers and subtracts challenging ones. Bands use raw points: C &lt;+{CONVICTION_BAND_CUTOFFS.B} · B +{CONVICTION_BAND_CUTOFFS.B}–{CONVICTION_BAND_CUTOFFS.A - 1} · A +{CONVICTION_BAND_CUTOFFS.A}–{CONVICTION_BAND_CUTOFFS.S - 1} · S +{CONVICTION_BAND_CUTOFFS.S}+.
                             </p>
                             <div className="bg-card px-2.5 py-2">
                               <p className="mb-2 font-mono text-[10px] font-medium leading-relaxed text-muted-foreground">
-                                There is no honest fixed “out of” denominator: layers are conditional. This plan is {selected.convictionScore >= 25 ? `${selected.convictionScore - 25} points into S` : `${25 - selected.convictionScore} points from S`}. The four evidence families below show what was available and what actually fired.
+                                There is no honest fixed “out of” denominator: layers are conditional. This plan is {selected.convictionScore >= CONVICTION_BAND_CUTOFFS.S ? `${selected.convictionScore - CONVICTION_BAND_CUTOFFS.S} points into S` : `${CONVICTION_BAND_CUTOFFS.S - selected.convictionScore} points from S`}. The four evidence families below show what was available and what actually fired.
                               </p>
                               <div className="grid gap-px border border-border/45 bg-border/45 sm:grid-cols-2">
                                 {CONVICTION_FAMILIES.map((family) => {
