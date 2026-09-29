@@ -3,24 +3,25 @@
  *
  * Linked from the account menu (How to use) and ⌘K. Static page with no API calls.
  * Goal: replace "I don't know how to use this" with "I know exactly where to go."
+ *
+ * 2026-09-29: drawn in the page template (components/lux/lux-page.tsx).
  */
 import { Link } from 'wouter';
 import { Target, Bitcoin, Home, Wallet, Crosshair, Zap, BookOpen, Microscope, ArrowRight } from 'lucide-react';
+import { LuxPage, LuxPageHeader, LuxPanel, LuxTag } from '@/components/lux';
 
 export default function HowToPage() {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-mono font-bold uppercase tracking-widest">
-          How to use QuantEdge
-        </h1>
-        <p className="text-[12px] font-mono text-muted-foreground">
-          One terminal, three windows of time, one workflow. Read this once.
-        </p>
-      </header>
+    <LuxPage width="narrow">
+      <LuxPageHeader
+        section="Guide"
+        context="static · read once"
+        title="How to use QuantEdge"
+        purpose="One terminal, three windows of time, one workflow. Read this once."
+      />
 
       {/* Daily Workflow */}
-      <Section title="Your Daily Workflow" subtitle="3 windows of time, 3 things to check">
+      <Section num="01" title="Your daily workflow" subtitle="3 windows of time, 3 things to check">
         <div className="space-y-3">
           <Step
             time="MORNING (8:00–9:30 AM ET)"
@@ -48,7 +49,7 @@ export default function HowToPage() {
       </Section>
 
       {/* What each page is for */}
-      <Section title="What Each Page Does" subtitle="Eight destinations — that's the whole product.">
+      <Section num="02" title="What each page does" subtitle="Eight destinations — that's the whole product.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <PageCard icon={Home}       url="/t"      title="Terminal"        desc="NEXUS home — market briefing, rotation, signals, and every tab" />
           <PageCard icon={Target}     url="/radar"  title="Thesis Radar"    desc="6 patterns × 120 tickers, scanned 5×/day, A+ pushes to the Slate" />
@@ -62,18 +63,18 @@ export default function HowToPage() {
       </Section>
 
       {/* What Thesis Radar does */}
-      <Section title="How Thesis Radar Works" subtitle="The autonomous discovery engine">
-        <div className="qe-card border border-border/40 rounded-md p-4 space-y-3">
-          <div className="text-[11px] font-mono space-y-2">
+      <Section num="03" title="How Thesis Radar works" subtitle="The autonomous discovery engine">
+        <div>
+          <div className="text-[12.5px] space-y-2">
             <p>
-              <span className="text-[var(--brand-cyan)]">1.</span>{' '}
+              <span className="lx-panel-num">1.</span>{' '}
               Cron runs at <strong>09:35, 12:00, 15:55, 20:00 ET</strong> on weekdays
             </p>
             <p>
-              <span className="text-[var(--brand-cyan)]">2.</span>{' '}
+              <span className="lx-panel-num">2.</span>{' '}
               Scans <strong>~120 tickers</strong> against <strong>6 pattern signatures</strong>:
             </p>
-            <ul className="ml-6 space-y-1 text-muted-foreground text-[11px]">
+            <ul className="ml-6 space-y-1 text-muted-foreground text-[12px]">
               <li>• <strong>DGXX Setup</strong> — small-cap + AI-adjacent + call vol spike + hyperscaler news</li>
               <li>• <strong>Aschenbrenner 2nd Derivative</strong> — layer hasn't run yet vs first-order layer</li>
               <li>• <strong>Bottleneck Whisper</strong> — "constrained / shortage" mentions cluster</li>
@@ -82,24 +83,24 @@ export default function HowToPage() {
               <li>• <strong>Gamma Squeeze</strong> — UNH-style penny call premium juice</li>
             </ul>
             <p>
-              <span className="text-[var(--brand-cyan)]">3.</span>{' '}
+              <span className="lx-panel-num">3.</span>{' '}
               Each match graded on <strong>7 signals</strong> (price action, options flow, news, IV, analysts, institutional, sector rotation) → composite letter grade A+ to F
             </p>
             <p>
-              <span className="text-[var(--brand-cyan)]">4.</span>{' '}
-              Picks ≥ <strong>B+</strong> auto-push to the <Link href="/slate" className="text-[var(--brand-cyan)] underline">Slate</Link> + Discord (when webhook configured)
+              <span className="lx-panel-num">4.</span>{' '}
+              Picks ≥ <strong>B+</strong> auto-push to the <Link href="/slate" className="lx-tone-accent underline underline-offset-2">Slate</Link> + Discord (when webhook configured)
             </p>
             <p>
-              <span className="text-[var(--brand-cyan)]">5.</span>{' '}
-              You wake up to a ranked picks list at <Link href="/radar" className="text-[var(--brand-cyan)] underline">/radar</Link>
+              <span className="lx-panel-num">5.</span>{' '}
+              You wake up to a ranked picks list at <Link href="/radar" className="lx-tone-accent underline underline-offset-2">/radar</Link>
             </p>
           </div>
         </div>
       </Section>
 
       {/* Quick decision tree */}
-      <Section title="When Stuck — Quick Decision Tree" subtitle="">
-        <div className="space-y-2 text-[11px] font-mono">
+      <Section num="04" title="When stuck — quick decision tree" subtitle="Question → where to go">
+        <div className="space-y-1.5 text-[12.5px]">
           {/* Canonical URLs only — the old aliases (/p, /g, /pos, /j, /h, /btc)
               are redirects, and /p?tab=earnings dropped its tab on the way. */}
           <DecisionRow q="What should I trade today?"               a={['/today', '/slate']} />
@@ -115,8 +116,8 @@ export default function HowToPage() {
       </Section>
 
       {/* Limits to know */}
-      <Section title="What QuantEdge ISN'T" subtitle="Honest disclosure">
-        <div className="text-[11px] font-mono text-muted-foreground space-y-2">
+      <Section num="05" title="What QuantEdge isn't" subtitle="Honest disclosure">
+        <div className="text-[12.5px] text-muted-foreground space-y-2">
           <p>
             <strong className="text-foreground">Real-time data:</strong> we use CBOE delayed (15 min) + Yahoo Finance + Tradier when token is alive. We're <strong>not</strong> Unusual Whales (no curated dark pool prints) or Polygon ($99/mo institutional real-time).
           </p>
@@ -128,33 +129,29 @@ export default function HowToPage() {
           </p>
         </div>
       </Section>
-    </div>
+    </LuxPage>
   );
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
-function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Section({ num, title, subtitle, children }: { num?: string; title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-2">
-      <div>
-        <h2 className="text-[13px] font-mono uppercase tracking-wider text-foreground">{title}</h2>
-        {subtitle && <p className="text-[11px] font-mono text-muted-foreground">{subtitle}</p>}
-      </div>
+    <LuxPanel num={num} title={title} sub={subtitle || undefined}>
       {children}
-    </section>
+    </LuxPanel>
   );
 }
 
 function Step({ time, actions }: { time: string; actions: { url: string; label: string; why: string }[] }) {
   return (
-    <div className="qe-card border border-border/40 rounded-md p-3">
-      <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--brand-cyan)] mb-2">{time}</div>
-      <div className="space-y-1.5">
+    <div className="lx-kpi" style={{ padding: '10px 8px 8px' }}>
+      <div className="lx-card-title" style={{ padding: '0 10px 4px', color: 'var(--lx-accent-text)' }}>{time}</div>
+      <div>
         {actions.map((a, i) => (
-          <Link key={i} href={a.url} className="flex items-center gap-2 text-[11px] font-mono hover:bg-muted/30 px-2 py-1 rounded transition">
-            <ArrowRight className="h-3 w-3 text-muted-foreground" />
-            <span className="text-foreground min-w-[200px]">{a.label}</span>
+          <Link key={i} href={a.url} className="lx-rowlink text-[12.5px]">
+            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 self-center" aria-hidden />
+            <span className="text-foreground font-semibold sm:min-w-[200px]">{a.label}</span>
             <span className="text-muted-foreground">{a.why}</span>
           </Link>
         ))}
@@ -165,24 +162,24 @@ function Step({ time, actions }: { time: string; actions: { url: string; label: 
 
 function PageCard({ icon: Icon, url, title, desc }: { icon: any; url: string; title: string; desc: string }) {
   return (
-    <Link href={url} className="qe-card border border-border/40 rounded-md p-3 hover:border-[var(--brand-cyan)]/40 transition">
-      <div className="flex items-center gap-2 mb-1">
-        <Icon className="h-3.5 w-3.5 text-[var(--brand-cyan)]" />
-        <div className="text-[12px] font-mono font-bold uppercase">{title}</div>
-        <div className="text-[11px] font-mono text-muted-foreground">{url}</div>
+    <Link href={url} className="lx-panel" style={{ padding: '12px 14px' }}>
+      <div className="flex items-center gap-2 mb-1 min-w-0">
+        <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--lx-accent-text)' }} aria-hidden />
+        <div className="lx-panel-t" style={{ fontSize: 14 }}>{title}</div>
+        <LuxTag tone="mute" className="ml-auto">{url}</LuxTag>
       </div>
-      <p className="text-[11px] font-mono text-muted-foreground">{desc}</p>
+      <p className="text-[12px] text-muted-foreground" style={{ margin: 0 }}>{desc}</p>
     </Link>
   );
 }
 
 function DecisionRow({ q, a }: { q: string; a: string[] }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2 border border-border/30 rounded">
-      <span className="flex-1 text-foreground">{q}</span>
-      <div className="flex gap-1">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2" style={{ border: '1px solid var(--lx-line)', borderRadius: 'var(--lx-radius)' }}>
+      <span className="flex-1 min-w-[180px] text-foreground">{q}</span>
+      <div className="flex flex-wrap gap-1">
         {a.map((url, i) => (
-          <Link key={i} href={url} className="px-2 py-0.5 rounded bg-[var(--brand-cyan)]/10 text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/20 text-[11px] font-mono">
+          <Link key={i} href={url} className="lx-tag" data-tone="accent">
             {url}
           </Link>
         ))}

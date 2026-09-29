@@ -17,6 +17,10 @@ export { LuxMenu, LuxMenuTrigger, LuxMenuContent, LuxMenuItem, LuxMenuLabel, Lux
 export { LuxFilterBar, LuxFilterButton, LuxButton, LuxChip } from './lux-filter';
 export { LuxTableWrap, LuxSortHead, nextSort, type LuxSortDir } from './lux-table';
 export { LuxChartFrame, usePageReveal } from './lux-motion';
+export {
+  LuxPage, LuxPageHeader, LuxPanel, LuxKpiGrid, LuxKpi, LuxTag, LuxFootnote,
+  LuxCard, LuxCardHeader, LuxCardTitle, LuxCardDescription, LuxCardContent, type LuxTone,
+} from './lux-page';
 export { useVizTokens, readVizTokens, vizTooltipStyle, type LuxVizTokens } from './lux-viz';
 
 // Upgraded existing primitives — same components, lux look.

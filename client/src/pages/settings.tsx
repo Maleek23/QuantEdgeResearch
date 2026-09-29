@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+// 2026-09-29: panels + header from the page template (components/lux/lux-page.tsx).
+import {
+  LuxCard as Card, LuxCardContent as CardContent, LuxCardDescription as CardDescription,
+  LuxCardHeader as CardHeader, LuxCardTitle as CardTitle, LuxPage, LuxPageHeader, QETabs,
+} from "@/components/lux";
 import { Button } from "@/components/ui/button";
 import { GlassInput } from "@/components/ui/glass-input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +14,7 @@ import { GlassToggle } from "@/components/ui/glass-toggle";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { 
   Save, 
   RotateCcw,
@@ -61,6 +65,15 @@ interface BotStatus {
   tradesExecuted: number;
   profitLoss: number;
 }
+
+type SettingsTab = "profile" | "notifications" | "trading" | "bots" | "preferences";
+const SETTINGS_TABS = [
+  { id: "profile", label: "Profile", icon: <User aria-hidden /> },
+  { id: "notifications", label: "Notifications", icon: <Bell aria-hidden /> },
+  { id: "trading", label: "Trading", icon: <Wallet aria-hidden /> },
+  { id: "bots", label: "Bots", icon: <Bot aria-hidden /> },
+  { id: "preferences", label: "Display", icon: <Palette aria-hidden /> },
+] as const satisfies readonly { id: SettingsTab; label: string; icon: JSX.Element }[];
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -234,50 +247,34 @@ export default function SettingsPage() {
   const technicals = (formData.technicalThresholds as TechnicalThresholdConfig) || DEFAULT_TECHNICAL_THRESHOLDS;
 
   return (
-    <div className="container max-w-5xl py-3 sm:py-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-semibold">Settings</h1>
-          <p className="text-muted-foreground text-[10px]">Customize your trading preferences</p>
-        </div>
-        {hasChanges && (
-          <div className="flex gap-2">
+    <LuxPage width="narrow" style={{ maxWidth: 1024 }}>
+      <LuxPageHeader
+        section="Settings"
+        context={hasChanges ? "unsaved changes" : "saved to your account"}
+        title="Settings"
+        purpose="Your profile, alerts, trading defaults, bots and display preferences."
+        actions={hasChanges ? (
+          <>
             <Button variant="outline" size="sm" onClick={handleReset} disabled={saveMutation.isPending} data-testid="button-reset">
               <RotateCcw className="h-4 w-4 mr-1" />
               Reset
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-sky-500 hover:bg-sky-400 text-foreground" data-testid="button-save">
+            <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-[var(--lx-accent)] hover:bg-[var(--lx-accent)]/90 text-[var(--lx-accent-ink)]" data-testid="button-save">
               <Save className="h-4 w-4 mr-1" />
               {saveMutation.isPending ? "Saving..." : "Save"}
             </Button>
-          </div>
-        )}
-      </div>
+          </>
+        ) : undefined}
+      >
+        <QETabs
+          ariaLabel="Settings sections"
+          active={activeTab as SettingsTab}
+          onChange={(t) => setActiveTab(t)}
+          items={SETTINGS_TABS}
+        />
+      </LuxPageHeader>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex flex-wrap gap-1 h-auto p-1 mb-6" data-testid="tabs-settings">
-          <TabsTrigger value="profile" data-testid="tab-profile" className="flex-1 min-w-[80px]">
-            <User className="h-4 w-4 mr-2" />
-            Profile
-          </TabsTrigger>
-          <TabsTrigger value="notifications" data-testid="tab-notifications" className="flex-1 min-w-[80px]">
-            <Bell className="h-4 w-4 mr-2" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="trading" data-testid="tab-trading" className="flex-1 min-w-[80px]">
-            <Wallet className="h-4 w-4 mr-2" />
-            Trading
-          </TabsTrigger>
-          <TabsTrigger value="bots" data-testid="tab-bots" className="flex-1 min-w-[80px]">
-            <Bot className="h-4 w-4 mr-2" />
-            Bots
-          </TabsTrigger>
-          <TabsTrigger value="preferences" data-testid="tab-preferences" className="flex-1 min-w-[80px]">
-            <Palette className="h-4 w-4 mr-2" />
-            Display
-          </TabsTrigger>
-        </TabsList>
-
         {/* Profile Tab */}
         <TabsContent value="profile" className="space-y-4">
           <Card>
@@ -363,7 +360,7 @@ export default function SettingsPage() {
                 </Select>
               </div>
               <Button size="sm" onClick={() => profileSaveMutation.mutate()} disabled={profileSaveMutation.isPending}
-                className="bg-sky-500 text-foreground hover:bg-sky-400" data-testid="button-save-profile">
+                className="bg-[var(--lx-accent)] text-[var(--lx-accent-ink)] hover:bg-[var(--lx-accent)]/90" data-testid="button-save-profile">
                 <Save className="mr-1 h-4 w-4" />
                 {profileSaveMutation.isPending ? 'Saving...' : 'Save profile'}
               </Button>
@@ -812,15 +809,15 @@ export default function SettingsPage() {
             <RotateCcw className="h-4 w-4 mr-1" />
             Reset
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-sky-500 hover:bg-sky-400 text-foreground">
+          <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="bg-[var(--lx-accent)] hover:bg-[var(--lx-accent)]/90 text-[var(--lx-accent-ink)]">
             <Save className="h-4 w-4 mr-1" />
             {saveMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       )}
 
-      <Card className="border-amber-500/30 bg-amber-500/5">
-        <CardContent className="flex items-start gap-3 pt-4">
+      <Card style={{ borderColor: 'color-mix(in srgb, var(--lx-caution) 32%, transparent)' }}>
+        <CardContent className="flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-[var(--trade-neutral)] shrink-0 mt-0.5" />
           <p className="text-sm text-muted-foreground">
             Quant Edge Labs is for <strong className="text-foreground">educational and research purposes only</strong>. 
@@ -828,6 +825,6 @@ export default function SettingsPage() {
           </p>
         </CardContent>
       </Card>
-    </div>
+    </LuxPage>
   );
 }
