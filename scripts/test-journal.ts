@@ -18,6 +18,10 @@ import { parseJournalKey, traderOwnerId, journalKindOf, journalNoteKey } from '.
 import { decodeOccSymbol, pairFills, type BrokerFill } from '../shared/fill-pairing';
 import { mapDeskIdea, type DeskIdea } from '../server/journal-row-maps';
 import {
+  calendarInsights, dayEquity, dayRecap, decodeTradeReview, edgeScore, encodeTradeReview, groupImportErrors, marketWindow, maxDrawdownPct,
+  performanceTrends, planLevels, playbookAdherence, playbookRules, relativeDrawdown, timeGrid, toCsv, tradeTimeframe, type TradeReview,
+} from '../client/src/lib/journal/metrics-extra';
+import {
   normalizeDiscordExport, pairDiscordMessages, parseDiscordMessage, resolveExpiry, type DiscordMsg,
 } from '../shared/discord-journal-parser';
 
@@ -252,5 +256,100 @@ assert.equal(nc.messages[1].content, 'out NVDA 190c @ 3.15, great "squeeze"', 'q
 assert.equal(normalizeDiscordExport(dceCsv).messages[0].id, nc.messages[0].id, 'CSV ids are stable hashes');
 assert.equal(pairDiscordMessages(nc.messages).trades[0].exitPrice, 3.15);
 assert.throws(() => normalizeDiscordExport('hello,world\n1,2'), /Unrecognised file/);
+
+// ── metrics-extra (LuxAlgo-parity pages) ──
+{
+  let k = 0;
+  const xr = (p: Partial<JournalTradeRow>): JournalTradeRow => ({
+    id: `x${++k}`, symbol: 'SPY', assetType: 'stock', direction: 'long', quantity: 1, entryPrice: 100, exitPrice: 101,
+    entryTime: '2026-09-01T14:00:00Z', exitTime: '2026-09-01T15:00:00Z', status: 'closed', realizedPnL: 1, fees: 0, broker: 'manual', ...p,
+  });
+  const xs = [
+    xr({ realizedPnL: 100, setupType: 'ORB', entryTime: '2026-09-01T13:45:00Z', exitTime: '2026-09-01T15:00:00Z' }), // Tue 09:45 ET
+    xr({ realizedPnL: -50, setupType: 'ORB', entryTime: '2026-09-02T14:10:00Z', exitTime: '2026-09-02T15:00:00Z' }), // Wed 10:10
+    xr({ realizedPnL: 200, symbol: 'NVDA', entryTime: '2026-09-03T14:00:00Z', exitTime: '2026-09-03T15:00:00Z' }),
+    xr({ realizedPnL: -300, entryTime: '2026-09-04T14:00:00Z', exitTime: '2026-09-04T15:00:00Z' }),
+    xr({ realizedPnL: 150, entryTime: '2026-09-08T14:00:00Z', exitTime: '2026-09-08T16:00:00Z' }),
+  ].map(toTrade);
+  const d = dailyStats(xs), c = equityCurve(xs), m = computeMetrics(xs, d, c);
+  // Edge score: without a balance the drawdown axis is null and the composite is WITHHELD (never a neutral 50).
+  const noBal = edgeScore(m, c, null);
+  assert.equal(noBal.score, null);
+  assert.equal(noBal.components.drawdown, null);
+  assert.match(noBal.withheld!, /balance/);
+  assert.equal(edgeScore({ ...m, closedTrades: 4 }, c, 10_000).withheld, 'Needs 5+ closed trades (n=4).');
+  // curve: 100, 50, 250, -50, 100 → peak 250, max DD 300 at base 10000+250.
+  assert.equal(maxDrawdownPct(c, 10_000)!.toFixed(6), (300 / 10_250).toFixed(6));
+  const withBal = edgeScore(m, c, 10_000);
+  assert.ok(withBal.score != null && withBal.score > 0 && withBal.score <= 100);
+  assert.equal(Math.round(withBal.components.winRate), 100, '60% win rate = full marks (3/5 = 60%)');
+  assert.deepEqual(relativeDrawdown(c, null), [], 'no balance → no relative drawdown series');
+  assert.equal(relativeDrawdown(c, 10_000).length, c.length);
+  // Weekday × hour grid (New York entry time).
+  const g = timeGrid(xs);
+  assert.equal(g.n, 5);
+  assert.equal(g.cells.get('Tue|9')!.netPnl, 100, 'Tue 09:45 ET bucket');
+  assert.equal(g.cells.get('Wed|10')!.netPnl, -50);
+  // Calendar insights.
+  const ci = calendarInsights(d);
+  assert.deepEqual([ci.tradingDays, ci.greenDays, ci.redDays], [5, 3, 2]);
+  assert.equal(ci.maxGreenStreak, 1);
+  assert.ok(ci.bestWeekday && ci.worstWeekday);
+  // Rolling trends: window 3 over 5 closes → 3 points; PF null when a window has no losses.
+  const tr = performanceTrends(xs, 3);
+  assert.equal(tr.length, 3);
+  assert.equal(tr[0].winRate.toFixed(4), (2 / 3).toFixed(4));
+  assert.equal(performanceTrends([xs[0], xs[2]], 2)[0].profitFactor, null);
+  // Playbook rules from a definition.
+  assert.deepEqual(playbookRules('Opening range breakout\n- Wait 15 minutes\n- Stop under OR low\n\nnote'), ['Wait 15 minutes', 'Stop under OR low']);
+  assert.deepEqual(playbookRules('Desc line\nRule one\nRule two'), ['Rule one', 'Rule two'], 'no bullets: every line after the description');
+  assert.deepEqual(playbookRules(''), []);
+  // Trade review codec: round-trip, tolerant decode, empty → ''.
+  const rv: TradeReview = { v: 1, notes: '## ok', checklist: { 'Wait 15 minutes': 'followed', 'Stop under OR low': 'broken' }, annotations: [{ id: 'a', text: 'entry', at: '2026-09-01T13:45:00Z', price: 101 }], stop: 99, target: 110 };
+  assert.deepEqual(decodeTradeReview(encodeTradeReview(rv)), rv);
+  assert.equal(decodeTradeReview('plain old text').notes, 'plain old text');
+  assert.equal(decodeTradeReview('{"v":1,"checklist":{"x":"maybe"},"stop":-4}').stop, null);
+  assert.deepEqual(decodeTradeReview('{"v":1,"checklist":{"x":"maybe"}}').checklist, {});
+  assert.equal(encodeTradeReview({ v: 1, notes: '  ', checklist: {}, annotations: [], stop: null, target: null }), '');
+  // Adherence: ORB trades xs[0] (+100, all followed) and xs[1] (−50, one broken).
+  const reviews = new Map<string, TradeReview>([
+    [xs[0].id, { ...rv, checklist: { 'Wait 15 minutes': 'followed', 'Stop under OR low': 'followed' } }],
+    [xs[1].id, { ...rv, checklist: { 'Wait 15 minutes': 'followed', 'Stop under OR low': 'broken' } }],
+  ]);
+  const [ad] = playbookAdherence(xs, [{ setup: 'orb', rules: ['Wait 15 minutes', 'Stop under OR low'] }], reviews);
+  assert.deepEqual([ad.trades, ad.reviewed, ad.followedAll.closed, ad.brokeAny.closed, ad.unassessed], [2, 2, 1, 1, 0]);
+  assert.equal(ad.rate, 0.75);
+  assert.deepEqual([ad.perRule[1].rate, ad.perRule[1].followed.netPnl, ad.perRule[1].broken.netPnl], [0.5, 100, -50]);
+  // Planned levels from ledger notes (trade desk format).
+  assert.deepEqual(planLevels('Published LONG SPY\nplan: entry 412 · target 430.5 · stop 405'), { stop: 405, target: 430.5 });
+  assert.deepEqual(planLevels('plan: entry 412 · target — · stop —'), { stop: null, target: null });
+  // Day curve + measured recap (no generated prose: every number is the day's).
+  assert.deepEqual(dayEquity(xs, '2026-09-01').map((p) => p.cum), [100]);
+  const recap = dayRecap('2026-09-01', xs, d);
+  assert.match(recap[0].text, /Closed 1 trade for \+\$100\.00 net/);
+  assert.match(recap[0].text, /n=4 days/);
+  assert.deepEqual(dayRecap('2026-01-01', xs, d), [], 'no closes → no recap');
+  // Market window from bars: entry at bar 1, exit at bar 3.
+  const bars = [0, 1, 2, 3, 4, 5].map((i) => ({ time: Date.parse('2026-09-01T13:30:00Z') + i * 3_600_000, open: 100 + i, high: 102 + i, low: 99 + i, close: 101 + i }));
+  const mw = marketWindow(bars, '1h', bars[1].time + 60_000, bars[3].time + 60_000, 'long', 101);
+  assert.deepEqual([mw.barsInTrade, mw.underlyingAtEntry, mw.underlyingAtExit, mw.highInTrade, mw.lowInTrade], [3, 102, 104, 105, 100]);
+  assert.equal(mw.mfePct!.toFixed(4), (4 / 101).toFixed(4));
+  assert.equal(mw.maePct!.toFixed(4), (-1 / 101).toFixed(4));
+  assert.equal(mw.afterExitBars, 2, 'after-exit window is capped by the bars that exist');
+  assert.equal(marketWindow(bars, '1h', Date.parse('2020-01-01'), null, 'long', 1).barsInTrade, 0, 'entry outside the bars → no window');
+  // Timeframe: a 30-minute trade yesterday → 1m; a trade 3 months ago → 1h; 3 years ago → 1W.
+  const now = Date.parse('2026-09-29T16:00:00Z');
+  assert.equal(tradeTimeframe(now - 86_400_000, now - 86_400_000 + 1_800_000, now), '1m');
+  assert.equal(tradeTimeframe(now - 90 * 86_400_000, now - 89 * 86_400_000, now), '1h');
+  assert.equal(tradeTimeframe(now - 3 * 365 * 86_400_000, null, now), '1W');
+  // CSV: quoting and formula-injection guard.
+  assert.equal(toCsv([['a,b', '=SUM(A1)', -5, null, 'x"y']]), '"a,b",\'=SUM(A1),-5,,"x""y"\r\n');
+  // Import reconciliation: row errors grouped by reason.
+  const ge = groupImportErrors(['Row 3: bad price 1.2', 'Row 9: bad price 4', 'Save failed for SPY: boom', 'odd']);
+  assert.deepEqual(ge.rejected, [{ reason: 'bad price #', rows: [3, 9] }]);
+  assert.deepEqual([ge.saves.length, ge.other.length], [1, 1]);
+  // Review notes key.
+  assert.equal(journalNoteKey('trade_review', 'abc-123'), 'trade:abc-123');
+}
 
 console.log('journal checks passed');

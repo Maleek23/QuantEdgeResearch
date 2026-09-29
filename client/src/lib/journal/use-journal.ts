@@ -286,8 +286,9 @@ export interface JournalNoteInput {
   day: string;
   body: string;
   symbols?: string[];
-  /** playbook: the setup the definition belongs to. */
+  /** playbook: the setup the definition belongs to; trade_review: the trade id. */
   ref?: string;
+  attachments?: { url: string; name: string; isImage: boolean }[];
 }
 
 export function useJournalNoteMutations(key: JournalKey) {
@@ -315,6 +316,7 @@ export function noteKindLabel(reason: string | null, source: string): string {
     case 'missed': return 'missed trade';
     case 'note': return 'note';
     case 'playbook': return 'playbook';
+    case 'trade_review': return 'trade review';
     case 'unmatched_exit': return 'exit, no entry found';
     case 'unpriced_exit': return 'closed without price';
     case 'entry_without_price': return 'entry without price';
