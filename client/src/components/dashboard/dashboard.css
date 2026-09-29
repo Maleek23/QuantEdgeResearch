@@ -192,3 +192,72 @@
   .flowdash .of-val{font-size:13px}
   .flowdash .fd-tool-blurb{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 }
+
+/* ══════════════ platform framework additions (2026-09-29) ══════════════ */
+/* Desktop: the page fits the viewport — bar fixed, only the grid (and each
+   tool's own body) scrolls. --dash-chrome = app chrome height around main. */
+@media (min-width:768px){
+  .flowdash.dash-fit{display:flex;flex-direction:column;height:calc(100dvh - var(--dash-chrome,98px));min-height:420px;padding-bottom:6px}
+  .flowdash.dash-fit .fd-bar{flex:none}
+  .flowdash.dash-fit .fd-scroller{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-bottom:12px;scrollbar-gutter:stable}
+}
+.flowdash .fd-live{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.flowdash .fd-idle{display:grid;place-items:center;flex:1;padding:16px;font:500 10.5px var(--fd-mono);color:var(--text-mute);text-align:center}
+.flowdash .fd-sym{flex:none;padding:0 5px;border:1px solid color-mix(in srgb,var(--cyan) 40%,transparent);border-radius:3px;font:700 10px var(--fd-mono);color:var(--cyan-bright,var(--cyan));letter-spacing:.4px}
+.flowdash .fd-menu-wide{min-width:280px}
+.flowdash .fd-menu-search{width:100%;height:28px;margin-bottom:4px;padding:0 8px;border:1px solid var(--nx-border-hi);border-radius:5px;background:var(--bg-2);color:var(--text);font:500 12px Inter,system-ui,sans-serif}
+.flowdash .fd-menu-tag{margin-left:6px;padding:0 4px;border:1px solid var(--nx-border-hi);border-radius:3px;font:600 9px var(--fd-mono);font-style:normal;color:var(--text-mute);text-transform:uppercase;letter-spacing:.5px}
+.flowdash .fd-focus b{font:700 11px var(--fd-mono);color:var(--cyan-bright,var(--cyan));letter-spacing:.5px}
+
+/* wrapped legacy boards: fill the tile instead of the viewport */
+.flowdash .fd-legacy>*{min-height:0}
+.flowdash .fd-legacy>.gexlab,.flowdash .fd-legacy>.leapslab,.flowdash .fd-legacy>.cryptolab,.flowdash .fd-legacy>.catalystlab,
+.flowdash .fd-legacy>.botlab,.flowdash .fd-legacy>.chartlab,.flowdash .fd-legacy>.flowlab{height:100%;min-height:0}
+
+/* ══════════════ GEX tools — hub classes, compacted for tiles ══════════════ */
+.flowdash .gx-tool{flex:1;min-height:0;font-family:Inter,system-ui,sans-serif}
+.flowdash .gx-col{display:flex;flex-direction:column;overflow:hidden}
+.flowdash .gx-grow{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.flowdash .gx-grow.matrix-wrap{overflow:hidden;padding:0 2px 2px}
+.flowdash .gx-grow.three-wrap{min-height:160px}
+.flowdash .gx-pad{padding:0 10px}
+.flowdash .gx-legend{flex:none;padding:5px 10px;border-bottom:1px solid var(--nx-border);font:500 9.5px/1.45 var(--fd-mono);color:var(--text-mute)}
+.flowdash .gx-legend i{font-style:normal}
+.flowdash .gx-controls{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--nx-border)}
+.flowdash .gx-controls .of-seg button .dim{color:var(--text-mute);font-weight:500}
+.flowdash .gx-note{font:500 9.5px var(--fd-mono);color:var(--text-mute)}
+.flowdash .gx-kv-line{display:flex;flex-wrap:wrap;gap:4px 14px;font:500 10.5px var(--fd-mono);color:var(--text-dim)}
+.flowdash .gx-kv-line b{color:var(--text)}
+.flowdash .gx-profile{justify-content:center;margin-top:6px}
+.flowdash .gx-profile svg{flex:1;min-height:60px}
+.flowdash .gx-spot{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:8px 10px 0;font:600 12px var(--fd-mono);color:var(--text-dim)}
+.flowdash .gx-spot b{color:var(--text);font-size:14px}
+.flowdash .gx-spot-sym{font:700 15px 'Space Grotesk',Inter,sans-serif;color:var(--cyan-bright,var(--cyan))}
+.flowdash .gx-tool .context-grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}
+.flowdash .gx-tool .context-item{padding:7px 9px}
+.flowdash .gx-tool .context-v{font-size:13px}
+.flowdash .gx-sub-head{padding:10px 10px 4px;font:600 9.5px var(--fd-mono);letter-spacing:.9px;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .gx-nodes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding-bottom:10px}
+.flowdash .gx-nodes>div{display:flex;flex-direction:column;gap:3px;padding:6px 8px;border:1px solid var(--nx-border);border-radius:6px;background:var(--panel-2)}
+.flowdash .gx-nodes span{font:600 9px var(--fd-mono);letter-spacing:.6px;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .gx-nodes b{font:700 13px var(--fd-mono)}
+.flowdash .gx-hero{display:flex;align-items:center;gap:10px;margin:8px 10px;padding:8px 10px;border:1px solid;border-radius:7px}
+.flowdash .gx-glyph{font:800 22px/1 var(--fd-mono)}
+.flowdash .gx-hero-title{font:700 11px Inter,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text)}
+.flowdash .gx-hero-posture{margin-top:2px;font-size:11px;color:var(--text-dim);line-height:1.4}
+.flowdash .gx-hero-basis{margin-top:2px;font:500 9px var(--fd-mono);color:var(--text-mute)}
+.flowdash .gx-expect{margin:0 10px 8px;font-size:11px;line-height:1.5;color:var(--text-dim)}
+.flowdash .gx-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:1px;margin:0 10px 8px;border:1px solid var(--nx-border);border-radius:6px;overflow:hidden;background:var(--nx-border)}
+.flowdash .gx-stats>div{display:flex;flex-direction:column;gap:2px;padding:6px 8px;background:var(--panel-solid)}
+.flowdash .gx-stats span{font:600 9px var(--fd-mono);letter-spacing:.6px;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .gx-stats b{font:700 12px var(--fd-mono);color:var(--text)}
+.flowdash .gx-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;margin:0 10px 6px}
+.flowdash .gx-actions>div{padding:8px 10px;border:1px solid var(--nx-border);border-radius:6px;background:var(--panel-2)}
+.flowdash .gx-actions span{font:600 9px var(--fd-mono);letter-spacing:.7px;text-transform:uppercase;color:var(--text-mute)}
+.flowdash .gx-actions strong{display:block;margin:4px 0;font:700 12px var(--fd-mono);color:var(--text)}
+.flowdash .gx-actions p{margin:0;font-size:10.5px;line-height:1.5;color:var(--text-dim)}
+.flowdash .gx-tool .gravity-card,.flowdash .gx-tool .insight-card{padding:8px 10px}
+.flowdash .gx-tool .gravity-bar{height:22px;margin:6px 0}
+.flowdash .gx-tool .flow-wrap{margin-top:0}
+/* the hub's rankings table inside a tile */
+.flowdash .fd-scroll>.gexrank{min-width:0}

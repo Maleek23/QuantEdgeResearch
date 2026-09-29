@@ -83,12 +83,10 @@ function ChartTabHost() {
 // signal workflow; those belong on Today. Cockpit remains wired through the
 // shell's universal openWorkup listener below.
 const NexusBoard    = lazy(() => import('@/pages/nexus-prototype'));
-// GEX = the reference GEX Hub mock, wired.
-const GexHub        = lazy(() => import('@/components/gex/gex-hub-nexus').then(m => ({ default: m.GexHubNexus })));
-// FLOW = the tool dashboard (Bullflow-style: Add tool, named dashboards, drag/
-// resize grid). The previous FlowBoard lives on as the "Historical Flow" tool,
-// and its sidebar pieces (repeats, convergence, 0DTE pulse) as tools of their own.
-const FlowDashboard = lazy(() => import('@/components/flowdash/dashboard').then(m => ({ default: m.FlowDashboard })));
+// Every tab below is a TOOL DASHBOARD (components/dashboard — the FLOW tab's
+// framework generalised): named dashboards, Add tool from the one registry,
+// drag/resize grid, Restore default. The previous boards live on as tools.
+const Dashboard     = lazy(() => import('@/components/dashboard/dashboard').then(m => ({ default: m.Dashboard })));
 // The old flow-heatmap page is the SECTOR TREEMAP with a flow overlay (breadth, net flow,
 // sweeps, whales + per-ticker flow detail). That's the Heatmap surface, not the tape — so
 // it belongs on HEATMAP. Keeping it preserves the strongest part of the old design.
@@ -474,8 +472,8 @@ export default function TerminalShell() {
               {tab === 'chart' && <ChartTabHost />}
               {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it.
                   Full-bleed: the FLOW mock owns its own two-column layout. */}
-              {tab === 'flow' && <FlowDashboard />}
-              {tab === 'gex' && <GexHub />}
+              {tab === 'flow' && <Dashboard page="flow" />}
+              {tab === 'gex' && <Dashboard page="gex" />}
               {tab === 'leaps' && <LeapTracker />}
               {tab === 'crypto' && <CryptoTerminal />}
               {tab === 'catalyst' && <CatalystNexus />}
