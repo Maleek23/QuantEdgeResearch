@@ -99,20 +99,20 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/trade-desk", "/slate"],
   ["/automations", "/t?tab=bot"],
   // PERF duplicated JOURNAL › Track record (same component, two doors).
-  ["/performance", "/t?tab=journal&jtab=metrics"],
+  ["/performance", "/t?tab=journal&jtab=record"],
   ["/convictions", "/slate?preset=todays-best"],
   ["/futures", "/slate?tab=futures"],
   ["/futures-research", "/slate?tab=futures"],
 
   // ── Performance ────────────────────────────────────────────────────────
-  ["/trading-engine", "/t?tab=journal&jtab=metrics"],
-  ["/historical-intelligence", "/t?tab=journal&jtab=metrics"],
-  ["/smart-advisor", "/t?tab=journal&jtab=metrics"],
-  ["/convictions/backtest", "/t?tab=journal&jtab=metrics"],
-  ["/data-audit", "/t?tab=journal&jtab=metrics"],
-  ["/insights", "/t?tab=journal&jtab=metrics"],
-  ["/analytics", "/t?tab=journal&jtab=metrics"],
-  ["/signals", "/t?tab=journal&jtab=metrics"],
+  ["/trading-engine", "/t?tab=journal&jtab=record"],
+  ["/historical-intelligence", "/t?tab=journal&jtab=record"],
+  ["/smart-advisor", "/t?tab=journal&jtab=record"],
+  ["/convictions/backtest", "/t?tab=journal&jtab=record"],
+  ["/data-audit", "/t?tab=journal&jtab=record"],
+  ["/insights", "/t?tab=journal&jtab=record"],
+  ["/analytics", "/t?tab=journal&jtab=record"],
+  ["/signals", "/t?tab=journal&jtab=record"],
 
   // ── Misc ───────────────────────────────────────────────────────────────
   ["/watchlist-bot", "/t?tab=bot"],

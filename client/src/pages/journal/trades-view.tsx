@@ -1,0 +1,214 @@
+/**
+ * Journal · Trades — the full log (was Trade Log → Trades, plus the P&L Sim tab
+ * folded in as a section). Sortable table on desktop, card list on phones; a
+ * row opens the trade drawer (notes, screenshot, edit, delete). Export writes
+ * exactly the rows in view.
+ */
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, ChevronRight, Download, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useJournal } from '@/components/journal/journal-context';
+import { Card, N, OutcomeChip, Pnl, SideChip, useJournalPortalClass } from '@/components/journal/parts';
+import { OptionsSim } from '@/components/journal/options-sim';
+import { fmtDuration, fmtPrice, type JTrade } from '@/lib/journal/metrics';
+import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
+
+type SortKey = 'date' | 'symbol' | 'pnl' | 'qty' | 'hold';
+
+const PAGE = 50;
+
+function csvCell(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function exportCsv(trades: JTrade[]) {
+  const cols = ['entryTime', 'exitTime', 'symbol', 'assetType', 'direction', 'optionType', 'strikePrice', 'expiryDate', 'quantity',
+    'entryPrice', 'exitPrice', 'fees', 'realizedPnL', 'realizedPnLPercent', 'status', 'setupType', 'mistakeTag', 'emotion', 'rating', 'broker', 'notes'] as const;
+  const lines = [cols.join(','), ...trades.map((t) => cols.map((c) => csvCell(t.row[c])).join(','))];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `journal-trades-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+export default function TradesView() {
+  const { data, openTrade, openEditor, simSymbol } = useJournal();
+  const { trades, rows } = data;
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'date', dir: -1 });
+  const [limit, setLimit] = useState(PAGE);
+  const [simOpen, setSimOpen] = useState(!!simSymbol || new URLSearchParams(window.location.search).get('jsim') === '1');
+  useEffect(() => { if (simSymbol) setSimOpen(true); }, [simSymbol]);
+  const portal = useJournalPortalClass();
+  const { remove } = useJournalMutations();
+  const [pendingDelete, setPendingDelete] = useState<JTrade | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+
+  const sorted = useMemo(() => {
+    const val = (t: JTrade): number | string => {
+      switch (sort.key) {
+        case 'symbol': return t.symbol;
+        case 'pnl': return t.status === 'open' ? Number.NEGATIVE_INFINITY : t.netPnl;
+        case 'qty': return t.quantity;
+        case 'hold': return t.durationMs ?? -1;
+        default: return Date.parse(t.closedAt ?? t.openedAt);
+      }
+    };
+    return [...trades].sort((a, b) => {
+      const x = val(a), y = val(b);
+      return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
+    });
+  }, [trades, sort]);
+  const order = sorted.map((t) => t.id);
+  const shown = sorted.slice(0, limit);
+
+  const th = (key: SortKey, label: string, num = false) => {
+    const active = sort.key === key;
+    return (
+      <th scope="col" className={num ? 'num' : undefined} aria-sort={active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+        <button type="button" onClick={() => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : key === 'symbol' ? 1 : -1 }))}>
+          {label}{active && (sort.dir === 1 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+        </button>
+      </th>
+    );
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <Card num="01" title="Trade log"
+        meta={
+          <>
+            <N n={trades.length} unit="trades" />
+            <select className="jr-select jr-phone-only" aria-label="Sort trades" value={`${sort.key}:${sort.dir}`}
+              onChange={(e) => { const [k, d] = e.target.value.split(':'); setSort({ key: k as SortKey, dir: Number(d) as 1 | -1 }); }}>
+              <option value="date:-1">Newest first</option>
+              <option value="date:1">Oldest first</option>
+              <option value="pnl:-1">Best P&amp;L</option>
+              <option value="pnl:1">Worst P&amp;L</option>
+              <option value="symbol:1">Symbol A–Z</option>
+            </select>
+            <button type="button" className="jr-btn jr-btn-sm" onClick={() => exportCsv(sorted)} disabled={!sorted.length}>
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
+            <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => openEditor()}>
+              <Plus className="h-3.5 w-3.5" /> Add trade
+            </button>
+          </>
+        }>
+        <div className="jr-table-wrap jr-desktop-only">
+          <table className="jr-table">
+            <thead>
+              <tr>
+                {th('date', 'Date')}
+                {th('symbol', 'Symbol')}
+                <th scope="col">Side</th>
+                {th('qty', 'Qty', true)}
+                <th scope="col" className="num">Entry</th>
+                <th scope="col" className="num">Exit</th>
+                {th('pnl', 'Net P&L', true)}
+                <th scope="col">Result</th>
+                {th('hold', 'Held', true)}
+                <th scope="col">Setup</th>
+                <th scope="col">Source</th>
+                <th scope="col"><span className="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((t) => (
+                <tr key={t.id} onClick={() => openTrade(t.id, order)}>
+                  <td className="jr-dim">{new Date(t.closedAt ?? t.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit', timeZone: 'America/New_York' })}</td>
+                  <td>
+                    <button type="button" className="jr-cell-btn jr-sym" onClick={(e) => { e.stopPropagation(); openTrade(t.id, order); }}
+                      aria-label={`Open ${t.symbol} ${t.direction} trade details`}>{t.symbol}</button>{' '}
+                    {t.assetType === 'option' && <span className="jr-chip opt">{(t.row.optionType ?? '').toUpperCase()} {t.row.strikePrice ?? ''}</span>}
+                    {t.row.notes && <span className="jr-mute" title="Has notes"> ✎</span>}
+                    {t.row.screenshot && <span className="jr-mute" title="Has a screenshot"> ▣</span>}
+                  </td>
+                  <td><SideChip direction={t.direction} /></td>
+                  <td className="num">{t.quantity}</td>
+                  <td className="num">{fmtPrice(t.row.entryPrice)}</td>
+                  <td className="num">{t.row.exitPrice != null ? fmtPrice(t.row.exitPrice) : '—'}</td>
+                  <td className="num">{t.status === 'open' ? <span className="jr-dim">—</span> : <Pnl value={t.netPnl} />}</td>
+                  <td><OutcomeChip status={t.status} /></td>
+                  <td className="num jr-dim">{fmtDuration(t.durationMs)}</td>
+                  <td>{t.row.setupType ? <span className="jr-tag">{t.row.setupType}</span> : <span className="jr-mute">—</span>}</td>
+                  <td className="jr-dim">{t.row.broker}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <button type="button" className="jr-icon-btn" aria-label={`Edit ${t.symbol} trade`} onClick={() => openEditor(t.row)}><Pencil className="h-3.5 w-3.5" /></button>
+                    <button type="button" className="jr-icon-btn danger" aria-label={`Delete ${t.symbol} trade (asks to confirm)`} onClick={() => { setDeleteError(''); setPendingDelete(t); }}><Trash2 className="h-3.5 w-3.5" /></button>
+                    <ChevronRight className="h-4 w-4" style={{ color: 'var(--text-mute)' }} aria-hidden />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="jr-list jr-phone-only">
+          {shown.map((t) => (
+            <button key={t.id} type="button" className="jr-row-card" onClick={() => openTrade(t.id, order)}>
+              <span><span className="jr-sym">{t.symbol}</span> <SideChip direction={t.direction} /></span>
+              <span className="r">{t.status === 'open' ? <span className="jr-dim">open</span> : <Pnl value={t.netPnl} />}</span>
+              <span className="meta">
+                <OutcomeChip status={t.status} />
+                {new Date(t.closedAt ?? t.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })}
+                {' · '}{t.quantity} @ {fmtPrice(t.row.entryPrice)}{t.row.exitPrice != null ? ` → ${fmtPrice(t.row.exitPrice)}` : ''}
+                {t.row.setupType && <span className="jr-tag">{t.row.setupType}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+        {deleteError && <div className="jr-err" role="alert" style={{ marginTop: 10 }}>{deleteError}</div>}
+        {sorted.length > limit && (
+          <button type="button" className="jr-btn" style={{ width: '100%', marginTop: 10 }} onClick={() => setLimit((l) => l + PAGE)}>
+            Show {Math.min(PAGE, sorted.length - limit)} more · {sorted.length - limit} hidden
+          </button>
+        )}
+      </Card>
+
+      <section className="jr-card" id="jr-sim">
+        <details className="jr-details" open={simOpen} onToggle={(e) => setSimOpen((e.target as HTMLDetailsElement).open)}>
+          <summary className="jr-card-h" style={{ marginBottom: simOpen ? 12 : 0 }}>
+            <ChevronRight className="chev h-4 w-4" aria-hidden />
+            <span className="jr-sec-num">02</span>
+            <h3 className="jr-card-t">Options P&amp;L simulator</h3>
+            <span className="jr-card-meta jr-n">at-expiry payoff of your option legs</span>
+          </summary>
+          {simOpen && <OptionsSim rows={rows} preselect={simSymbol} />}
+        </details>
+      </section>
+
+      <AlertDialog open={pendingDelete != null} onOpenChange={(o) => { if (!o) setPendingDelete(null); }}>
+        <AlertDialogContent className={portal} style={{ background: 'var(--bg-2)' }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this trade?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete && `${pendingDelete.symbol} ${pendingDelete.direction} · ${new Date(pendingDelete.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. `}
+              This removes it from your journal and every metric built on it. It cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[var(--jr-loss)] text-white hover:bg-[var(--jr-loss)]/90"
+              onClick={async () => {
+                const t = pendingDelete;
+                setPendingDelete(null);
+                if (!t) return;
+                try { await remove.mutateAsync(t.id); } catch (err) { setDeleteError(`Delete failed: ${await readApiError(err)}`); }
+              }}
+            >
+              Delete trade
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

@@ -1,105 +1,222 @@
 /**
  * JOURNAL — "How do I get better"
  *
- * Tabs: Trade Log | Track record | Backtest  (+ an "Import flow" action)
+ * Rebuilt 2026-09-29 on LuxAlgo Trade Journal's information architecture
+ * (https://github.com/LuxAlgo/trade-journal, MIT): a few destinations, global
+ * filters, and trades that open in a drawer instead of new pages.
+ *
+ * Before: 3 journal tabs (Trade Log · Track record · Backtest) + an Import-flow
+ * toggle, with Trade Log carrying 6 more tabs of its own (Overview · Insights ·
+ * Timing · Trades · P&L Sim · Import) and Track record 6 more behind an
+ * "Advanced" switch — up to three stacked tab bars.
+ *
+ * Now: four destinations, one level —
+ *   Dashboard · Trades · Analytics · Track record
+ * with Add trade / Import as header actions (editor dialog, import drawer).
+ * Every old ?jtab= value still resolves — see lib/journal/legacy-jtab.ts.
  */
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { BarChart3, BookOpenCheck, LayoutDashboard, ListOrdered, Loader2, Plus, Upload } from 'lucide-react';
 import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
-import { useTabState } from '@/hooks/use-tab-state';
+import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { PageErrorBoundary } from '@/components/page-error-boundary';
-import { Loader2, Upload } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { JournalContext, type JournalCtx, type JournalView } from '@/components/journal/journal-context';
+import { JournalFilterBar } from '@/components/journal/filter-bar';
+import { ImportDrawer, type ImportSection } from '@/components/journal/import-drawer';
+import { TradeDrawer } from '@/components/journal/trade-drawer';
+import { TradeEditor } from '@/components/journal/trade-editor';
+import type { JournalTradeRow } from '@/lib/journal/types';
+import { useJournalData, useJournalFilterState } from '@/lib/journal/use-journal';
+import { resolveJournalTab } from '@/lib/journal/legacy-jtab';
+import '@/styles/journal.css';
 
-// Flow Import (Bullflow paste-box) lost its only surface when the Trade Desk
-// was retired (SR 11-7 F7.10). It is re-homed here as a small action: the
-// journal is where you record what you saw and took.
-const FlowImport = lazy(() => import('@/components/trade-desk/flow-import').then(m => ({ default: m.FlowImport })));
+const DashboardView = lazy(() => import('@/pages/journal/dashboard-view'));
+const TradesView = lazy(() => import('@/pages/journal/trades-view'));
+const AnalyticsView = lazy(() => import('@/pages/journal/analytics-view'));
+const RecordView = lazy(() => import('@/pages/journal/record-view'));
 
-const Performance       = lazy(() => import('@/pages/performance'));
-const TradeJournal      = lazy(() => import('@/pages/trade-journal'));
-const StrategySim       = lazy(() => import('@/pages/strategy-simulator'));
-
-type Tab = 'log' | 'metrics' | 'backtest';
-
-/**
- * Trade Log pointed at pages/history.tsx, which renders /api/ai/chat/history and
- * /api/research-history — your AI chats and research runs, under a tab whose own
- * hint read "Every trade you took". The actual trade log, pages/trade-journal.tsx,
- * was orphaned with six live /api/journal/* endpoints and no way in.
- *
- * Trade Log now shows trades. The chat/research history keeps its own tab rather
- * than being deleted, since it was the only door to those two endpoints.
- *
- * The 'mistakes' tab is gone — it rendered ComingSoon and was not in this array
- * anyway, so it was an unreachable branch advertising a feature that does not exist.
- *
- * The 'academy' tab was removed per product decision (2026-09-09): the Academy
- * rendered the full standalone /academy page inside the Terminal, duplicating it.
- * /academy remains the canonical home for learning content.
- */
-const TABS: readonly QETabItem<Tab>[] = [
-  { id: 'log',      label: 'Trade Log', hint: 'Every trade you took' },
-  // Consolidated 2026-09-24: the standalone PERF page rendered this exact
-  // component a second time; /performance now redirects here.
-  { id: 'metrics',  label: 'Track record', hint: 'How the published ideas actually did — hit rate, expectancy, sample size' },
-  { id: 'backtest', label: 'Backtest',  hint: 'Run strategies on historicals' },
+const TABS: readonly QETabItem<JournalView>[] = [
+  { id: 'dashboard', label: 'Dashboard', hint: 'P&L, calendar, recent trades', icon: <LayoutDashboard className="h-3 w-3" /> },
+  { id: 'trades', label: 'Trades', hint: 'Every trade you took — review, edit, export', icon: <ListOrdered className="h-3 w-3" /> },
+  { id: 'analytics', label: 'Analytics', hint: 'By setup, symbol, time, risk; behaviour insights', icon: <BarChart3 className="h-3 w-3" /> },
+  { id: 'record', label: 'Track record', hint: "How the platform's published ideas did, plus the backtester", icon: <BookOpenCheck className="h-3 w-3" /> },
 ];
 
-const VALID_TABS = TABS.map(t => t.id);
+const PANEL_PREFIX = 'journal-views';
 
 export default function JournalShell() {
-  const [tab, setTab] = useTabState<Tab>('log', VALID_TABS, 'jtab');
-  const [importOpen, setImportOpen] = useState(false);
+  const initial = useMemo(() => resolveJournalTab(typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('jtab')), []);
+  const [view, setView] = useState<JournalView>(initial.view);
+  const [anchor, setAnchor] = useState<string | null>(initial.intent?.kind === 'anchor' ? initial.intent.id : null);
+  const [backtestOpen, setBacktestOpen] = useState(initial.intent?.kind === 'backtest');
+  const [simSymbol, setSimSymbol] = useState<string | null>(null);
 
-  return (
-    <div className="space-y-3 px-4 py-3">
-      <QETabs
-        items={TABS}
-        active={tab}
-        onChange={setTab}
-        prefixLabel="VIEW"
-        ariaLabel="Journal views"
-        rightSlot={
-          <button
-            type="button"
-            onClick={() => setImportOpen((o) => !o)}
-            aria-expanded={importOpen}
-            aria-controls="journal-flow-import"
-            className={cn(
-              'inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-[10px] font-bold uppercase transition-colors',
-              importOpen
-                ? 'text-[var(--brand-cyan)] bg-[var(--brand-cyan)]/10 ring-1 ring-[var(--brand-cyan)]/40'
-                : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]',
-            )}
-          >
-            <Upload className="h-3 w-3" /> Import flow
-          </button>
+  const filters = useJournalFilterState();
+  const data = useJournalData(filters.resolved);
+
+  const [drawer, setDrawer] = useState<{ id: string; order: string[] } | null>(null);
+  const [editor, setEditor] = useState<{ open: boolean; row: JournalTradeRow | null }>({ open: initial.intent?.kind === 'add', row: null });
+  const [imp, setImp] = useState<{ open: boolean; section?: ImportSection }>(
+    initial.intent?.kind === 'import' ? { open: true, section: initial.intent.section } : { open: false },
+  );
+
+  // Canonical ?jtab= (old values are rewritten once resolved; dashboard is the default → no param).
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (view === 'dashboard') url.searchParams.delete('jtab');
+    else url.searchParams.set('jtab', view);
+    url.searchParams.delete('jsim');
+    window.history.replaceState(window.history.state, '', url.toString());
+  }, [view]);
+
+  // Scroll to a section after the destination renders.
+  useEffect(() => {
+    if (!anchor) return;
+    let tries = 0;
+    const tick = window.setInterval(() => {
+      const el = document.getElementById(anchor);
+      if (el || ++tries > 20) {
+        window.clearInterval(tick);
+        el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        setAnchor(null);
+      }
+    }, 100);
+    return () => window.clearInterval(tick);
+  }, [anchor, view]);
+
+  const goTo = useCallback((v: JournalView, a?: string) => { setView(v); if (a) setAnchor(a); }, []);
+  const rowsById = useMemo(() => new Map(data.allRows.map((r) => [r.id, r])), [data.allRows]);
+
+  const ctx: JournalCtx = useMemo(() => ({
+    filters,
+    data,
+    openTrade: (id, order) => setDrawer({ id, order: order ?? [id] }),
+    openEditor: (row) => setEditor({ open: true, row: row ?? null }),
+    openImport: (section) => setImp({ open: true, section }),
+    goTo,
+    simSymbol,
+    simulate: (symbol) => { setSimSymbol(symbol); setDrawer(null); goTo('trades', 'jr-sim'); },
+  }), [filters, data, goTo, simSymbol]);
+
+  const current = drawer ? rowsById.get(drawer.id) ?? null : null;
+  const idx = drawer ? drawer.order.indexOf(drawer.id) : -1;
+  const neighbours = { prev: idx > 0 ? drawer!.order[idx - 1] : undefined, next: idx >= 0 && idx < (drawer?.order.length ?? 0) - 1 ? drawer!.order[idx + 1] : undefined };
+
+  const { tradesQ } = data;
+  const total = data.allRows.length;
+  const personal = view !== 'record';
+
+  let body: React.ReactNode;
+  if (!personal) {
+    body = <RecordView backtestOpen={backtestOpen} />;
+  } else if (tradesQ.isError) {
+    body = (
+      <QEError
+        title="Couldn't load your journal"
+        message="The journal service didn't respond. Your trades are safe — this is a connection failure, not an empty journal."
+        onRetry={() => tradesQ.refetch()}
+        retrying={tradesQ.isFetching}
+      />
+    );
+  } else if (tradesQ.isLoading) {
+    body = <QELoading rows={4} label="loading your trades…" />;
+  } else if (total === 0) {
+    body = (
+      <QEEmpty
+        message={<>Your journal is empty. Import a broker CSV or log a trade and the dashboard, calendar and analytics fill in from your real fills.</>}
+        action={
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button type="button" className="jr-btn jr-btn-primary" onClick={() => setImp({ open: true, section: 'csv' })}><Upload className="h-4 w-4" /> Import CSV</button>
+            <button type="button" className="jr-btn" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Log a trade</button>
+          </div>
         }
       />
+    );
+  } else if (data.rows.length === 0) {
+    body = (
+      <QEEmpty
+        message={`None of your ${total} trades match these filters.`}
+        action={<button type="button" className="jr-btn" onClick={filters.clear}>Clear filters</button>}
+      />
+    );
+  } else {
+    body = (
+      <>
+        {view === 'dashboard' && <DashboardView />}
+        {view === 'trades' && <TradesView />}
+        {view === 'analytics' && <AnalyticsView />}
+      </>
+    );
+  }
 
-      {importOpen && (
-        <div id="journal-flow-import" className="rounded-lg border border-border/40 bg-card/60 p-3">
-          <Suspense fallback={<Loading />}>
-            <FlowImport bare />
-          </Suspense>
-        </div>
-      )}
-
-      <PageErrorBoundary label={`Journal · ${tab}`}>
-        <Suspense fallback={<Loading />}>
-          {tab === 'log'      && <TradeJournal />}
-          {tab === 'metrics'  && <Performance />}
-          {tab === 'backtest' && <StrategySim />}
-        </Suspense>
-      </PageErrorBoundary>
-    </div>
-  );
-}
-
-function Loading() {
+  const m = data.metrics;
   return (
-    <div className="flex items-center justify-center h-48">
-      <Loader2 className="w-4 h-4 animate-spin text-[var(--brand-cyan)]" />
-    </div>
+    <JournalContext.Provider value={ctx}>
+      <div className="jr">
+        <div className="jr-page">
+          <header className="jr-head">
+            <div style={{ minWidth: 0 }}>
+              <div className="jr-eyebrow"><span className="pill">JOURNAL</span>{personal ? 'your trades' : 'published ideas'}</div>
+              <h1 className="jr-title">{personal ? 'How am I actually trading?' : 'How did the ideas do?'}</h1>
+              <p className="jr-sub">
+                {personal
+                  ? tradesQ.isSuccess
+                    ? total
+                      ? <>{data.rows.length === total ? `${total} trades` : `${data.rows.length} of ${total} trades in view`} · {m.closedTrades} closed · {m.openTrades} open</>
+                      : 'No trades yet'
+                    : ' '
+                  : 'Hit rate, expectancy and sample size of every published idea'}
+              </p>
+            </div>
+            <div className="jr-head-actions">
+              <button type="button" className="jr-btn" onClick={() => setImp({ open: true, section: 'csv' })}><Upload className="h-4 w-4" /> Import</button>
+              <button type="button" className="jr-btn jr-btn-primary" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Add trade</button>
+            </div>
+          </header>
+
+          <QETabs
+            items={TABS}
+            active={view}
+            onChange={(v) => { setView(v); if (v === 'record') setBacktestOpen(false); }}
+            ariaLabel="Journal"
+            panelIdPrefix={PANEL_PREFIX}
+          />
+
+          {personal && tradesQ.isSuccess && total > 0 && (
+            <JournalFilterBar api={filters} options={data.options} shown={data.rows.length} total={total} />
+          )}
+
+          <div role="tabpanel" id={`${PANEL_PREFIX}-panel-${view}`} aria-labelledby={`${PANEL_PREFIX}-tab-${view}`} tabIndex={-1}>
+            <PageErrorBoundary label={`Journal · ${view}`}>
+              <Suspense fallback={<div style={{ display: 'grid', placeItems: 'center', height: 200 }}><Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--jr-accent)' }} /></div>}>
+                {body}
+              </Suspense>
+            </PageErrorBoundary>
+          </div>
+        </div>
+
+        <TradeDrawer
+          trade={current}
+          open={!!drawer && !!current}
+          onOpenChange={(o) => { if (!o) setDrawer(null); }}
+          onEdit={(row) => setEditor({ open: true, row })}
+          onNavigate={(id) => setDrawer((d) => (d ? { ...d, id } : d))}
+          neighbours={neighbours}
+          onSimulate={ctx.simulate}
+        />
+        <TradeEditor
+          open={editor.open}
+          trade={editor.row}
+          onOpenChange={(o) => setEditor((e) => ({ ...e, open: o }))}
+        />
+        <ImportDrawer
+          open={imp.open}
+          focus={imp.section}
+          onOpenChange={(o) => setImp((s) => ({ ...s, open: o }))}
+          tradeCount={total}
+          onLogTrade={() => { setImp({ open: false }); setEditor({ open: true, row: null }); }}
+        />
+      </div>
+    </JournalContext.Provider>
   );
 }

@@ -548,7 +548,7 @@ export default function TodayPage() {
                 : 'The record is replayed on 5-minute bars, not marked to the close.'}
             </p>
             <div className="cta-actions">
-              <Link href="/t?tab=journal&jtab=metrics" className="btn btn-primary btn-lg">See the track record</Link>
+              <Link href="/t?tab=journal&jtab=record" className="btn btn-primary btn-lg">See the track record</Link>
               <Link href="/t" className="btn btn-ghost btn-lg">Open the terminal</Link>
             </div>
           </div>
