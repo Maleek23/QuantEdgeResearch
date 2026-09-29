@@ -24,6 +24,15 @@
  * Nothing here auto-adds anything. It produces a ranked promotion list with the
  * evidence attached, and a human decides. A screen that silently rewrites its own
  * universe is a screen that cannot be audited.
+ *
+ * SURVIVORSHIP / POINT-IN-TIME DISCLOSURE (SR 11-7 F3.8 / P2-9): the candidate
+ * set is drawn from TODAY's Yahoo screeners, filtered by TODAY's price/volume/
+ * dollar-volume floors, minus TODAY's approved list. Nothing here records
+ * point-in-time screener membership and nothing handles delisted names. That is
+ * fine for live idea generation, but it means discovery performance CANNOT be
+ * backtested: any "discovery would have found X" claim replays history through
+ * a survivor-only, look-ahead universe. Archive point-in-time membership first
+ * before making such a claim.
  */
 import { logger } from './logger';
 import { yahooScreener, yahooChart } from './yahoo-client';

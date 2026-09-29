@@ -16,6 +16,12 @@
  *   3. Each scanner's domain-specific symbols
  *
  * User watchlist symbols are ALWAYS included and scanned first (priority).
+ *
+ * HISTORICAL-USE WARNING (SR 11-7 F3.8 / P2-9): this is a CURRENT-membership
+ * universe (today's watchlists + today's approved tickers + current movers).
+ * It is not point-in-time and has no delisted-name handling, so it carries
+ * survivorship and look-ahead bias. Do not use it as the universe for any
+ * backtest or historical hit-rate study; that needs archived as-of membership.
  */
 
 import { storage } from "./storage";

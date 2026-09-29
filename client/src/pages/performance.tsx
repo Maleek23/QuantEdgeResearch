@@ -3,7 +3,7 @@ import { useMarketPoll, POLL } from "@/hooks/use-market-poll";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Target, Activity, Calendar, Brain, BarChart3, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw, History, Lock, Bot, Info, Wallet } from "lucide-react";
+import { Download, Target, Activity, Calendar, Brain, BarChart3, TrendingUp, Database, CheckCircle, XCircle, AlertTriangle, RefreshCw, History, Lock, Wallet } from "lucide-react";
 import BrokerImport from "@/components/broker-import";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,7 +12,6 @@ import { useState, useMemo, lazy, Suspense } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn, safeToFixed } from "@/lib/utils";
-import { CanonRate } from "@/components/canon";
 import { getPnlColor } from "@/lib/signal-grade";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -71,206 +70,12 @@ interface PerformanceStats {
   bySignalType: Array<{ signal: string; totalIdeas: number; wonIdeas: number; lostIdeas: number; winRate: number; avgPercentGain: number; }>;
 }
 
-interface AutoLottoBotPerformance {
-  overall: { totalTrades: number; wins: number; losses: number; winRate: number; totalPnL: number; avgPnL: number; openPositions: number; unrealizedPnL: number; };
-  options: { totalTrades: number; wins: number; losses: number; winRate: number; totalPnL: number; portfolio: any; };
-  futures: { totalTrades: number; wins: number; losses: number; winRate: number; totalPnL: number; portfolio: any; };
-  byExitReason: Array<{ reason: string; count: number; wins: number; winRate: number; }>;
-  bestTrade: { symbol: string; optionType: string; strikePrice?: number; pnl: number; pnlPercent?: number; } | null;
-  worstTrade: { symbol: string; optionType: string; strikePrice?: number; pnl: number; pnlPercent?: number; } | null;
-  recentTrades: Array<{ symbol: string; optionType: string; strikePrice?: number; realizedPnL: number; realizedPnLPercent?: number; exitReason: string; closedAt: string; }>;
-  unrealizedPnL: number;
-}
-
-interface EngineMetrics {
-  ideasGenerated: number; ideasPublished: number; tradesResolved: number; tradesWon: number;
-  tradesLost: number; tradesExpired: number; winRate: number | null; avgGainPercent: number | null;
-  avgLossPercent: number | null; expectancy: number | null; avgHoldingTimeMinutes: number | null;
-  avgConfidenceScore: number | null;
-}
-
-interface EngineHealthData {
-  todayMetrics: Record<string, EngineMetrics>;
-  weekMetrics: Record<string, EngineMetrics>;
-  historicalMetrics: Array<{ date: string; engine: string; winRate: number | null; }>;
-  activeAlerts: any[];
-}
-
 interface DataIntegrityCheck {
   checkName: string;
   status: 'pass' | 'fail' | 'warning';
   expected: number;
   actual: number;
   details?: string;
-}
-
-const ENGINE_CONFIG = {
-  flow: { label: "Flow", icon: Activity, color: "text-[var(--trade-bullish)]", bg: "bg-emerald-500/10" },
-  quant: { label: "Quant", icon: BarChart3, color: "text-blue-400", bg: "bg-blue-500/10" },
-  ai: { label: "AI", icon: Brain, color: "text-purple-400", bg: "bg-purple-500/10" },
-  lotto: { label: "Lotto", icon: Target, color: "text-[var(--trade-neutral)]", bg: "bg-amber-500/10" },
-} as const;
-
-type EngineKey = keyof typeof ENGINE_CONFIG;
-
-function getWinRateColor(rate: number | null): string {
-  if (rate === null) return "text-muted-foreground";
-  if (rate >= 70) return "text-[var(--trade-bullish)]";
-  if (rate >= 50) return "text-[var(--trade-neutral)]";
-  return "text-[var(--trade-bearish)]";
-}
-
-// ============================================================
-// TIER 1: HERO STATS - Clean, minimal, essential metrics only
-// ============================================================
-function HeroStats({ stats, botPnL }: { stats: PerformanceStats; botPnL: number }) {
-  const { equities, options, overall } = stats.segmentedWinRates;
-  
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="hero-stats">
-      {/* Hit Rate - Primary Focus */}
-      <Card className="col-span-2 md:col-span-1">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-1 mb-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Hit Rate</p>
-            <span className="text-[10px] text-muted-foreground font-mono">n={overall.decided}</span>
-            <span className="group relative inline-block">
-              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-              <span className="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 w-48 p-2 text-[10px] bg-popover text-popover-foreground border rounded shadow-lg z-50">
-                Count-based: wins / decided trades. Excludes &#177;3% breakeven trades.
-              </span>
-            </span>
-          </div>
-          {/* The headline number. Was safeToFixed(winRate) — and safeToFixed
-              renders null as '0.00', so a suppressed rate would have shown as a
-              red 0.0%. CanonRate owns the below-floor rendering instead. */}
-          <div className="text-3xl" data-testid="stat-win-rate">
-            <CanonRate className="text-3xl font-bold" wins={overall.wins} decided={overall.decided} />
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {overall.wins}W / {overall.losses}L ({overall.decided} decided)
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Segmented Rates */}
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">By Asset Type</p>
-          <div className="space-y-1">
-            {/* Equities was rendering a red 0% off a single decided trade — one
-                stopped-out equity idea presented as "equities never win". The
-                segment counts below stay, so a thin segment reads as thin
-                rather than as a losing one. */}
-            <div className="flex justify-between items-center gap-2">
-              <span className="text-xs">Equities</span>
-              <CanonRate wins={equities.wins} decided={equities.decided} />
-            </div>
-            <div className="flex justify-between items-center gap-2">
-              <span className="text-xs">Options</span>
-              <CanonRate wins={options.wins} decided={options.decided} />
-            </div>
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-2">
-            EQ: {equities.wins}W/{equities.losses}L · OPT: {options.wins}W/{options.losses}L
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Bot P&L */}
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Bot P&L</p>
-          <p className={cn("text-3xl font-bold font-mono", botPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")} data-testid="stat-pnl">
-            {botPnL >= 0 ? '+' : ''}${safeToFixed(botPnL, 0)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">Realized gains</p>
-        </CardContent>
-      </Card>
-
-      {/* Trade Count */}
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Ideas</p>
-          <p className="text-3xl font-bold font-mono text-[var(--trade-bullish)]" data-testid="stat-total">
-            {stats.overall.totalIdeas}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {stats.overall.openIdeas} open · {stats.overall.closedIdeas} closed
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ============================================================
-// TIER 2: ENGINE PERFORMANCE GRID - Quick comparison view
-// ============================================================
-function EngineGrid({ engineHealthData, isLoading }: { engineHealthData?: EngineHealthData; isLoading: boolean }) {
-  const engines: EngineKey[] = ["flow", "quant", "ai", "lotto"];
-  
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)}
-      </div>
-    );
-  }
-
-  // Detect engines with no resolved trades (likely excluded due to broken option-premium pricing)
-  const excludedEngines = engines.filter((key) => {
-    const metrics = engineHealthData?.weekMetrics?.[key];
-    return !metrics || (metrics.tradesWon === 0 && metrics.tradesLost === 0 && metrics.tradesExpired === 0);
-  });
-
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engine-grid">
-        {engines.map((key) => {
-          const config = ENGINE_CONFIG[key];
-          const Icon = config.icon;
-          const metrics = engineHealthData?.weekMetrics?.[key];
-          const winRate = metrics?.winRate ?? null;
-          const isExcluded = excludedEngines.includes(key);
-
-          return (
-            <Card key={key} className={cn("hover-elevate cursor-default", isExcluded && "opacity-60")}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={cn("p-1.5 rounded", config.bg)}>
-                    <Icon className={cn("h-3.5 w-3.5", config.color)} />
-                  </div>
-                  <span className="text-sm font-medium">{config.label}</span>
-                  {isExcluded && (
-                    <Badge variant="outline" className="text-[9px] px-1 py-0 text-[var(--trade-neutral)] border-amber-500/40">
-                      Paused
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className={cn("text-2xl font-bold font-mono", getWinRateColor(winRate))}>
-                    {winRate !== null ? `${safeToFixed(winRate, 0)}%` : '—'}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {metrics?.tradesWon ?? 0}W/{metrics?.tradesLost ?? 0}L
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      {/* Disclosure: excluded engines */}
-      <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20 text-xs text-muted-foreground">
-        <AlertTriangle className="h-3.5 w-3.5 text-[var(--trade-neutral)] mt-0.5 shrink-0" />
-        <span>
-          <strong>Options validation under maintenance</strong> — Flow (1,127) and Lotto (341) ideas excluded from stats.
-          Option-premium pricing is being rebuilt; these engines will return once validation is reliable.
-        </span>
-      </div>
-    </div>
-  );
 }
 
 // ============================================================
@@ -445,56 +250,6 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
               <p className="text-muted-foreground">Hit Rate <span className="font-mono">(n={stats.segmentedWinRates.overall.decided})</span></p>
               <p className="font-mono font-bold tabular-nums">{safeToFixed(stats.segmentedWinRates.overall.winRate, 1)}%</p>
             </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ============================================================
-// AUTO-LOTTO BOT SUMMARY - Compact view
-// ============================================================
-function BotSummary({ data, isLoading }: { data?: AutoLottoBotPerformance; isLoading: boolean }) {
-  if (isLoading) return <Skeleton className="h-20" />;
-  if (!data) return null;
-
-  return (
-    <Card data-testid="bot-summary">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Bot className="h-4 w-4 text-[var(--trade-neutral)]" />
-            <span className="font-medium text-sm">Auto-Lotto Bot</span>
-          </div>
-          <Badge variant="outline" className="text-xs">
-            {data.overall.openPositions} open
-          </Badge>
-        </div>
-        <div className="grid grid-cols-4 gap-3 text-center">
-          <div>
-            <p className="text-xs text-muted-foreground">Trades</p>
-            <p className="font-mono font-bold tabular-nums">{data.overall.totalTrades}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Hit Rate</p>
-            <p className={cn("font-mono font-bold", getWinRateColor(data.overall.winRate))}>
-              {safeToFixed(data.overall.winRate, 0)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">W/L</p>
-            <p className="font-mono">
-              <span className="text-[var(--trade-bullish)]">{data.overall.wins}</span>
-              <span className="text-muted-foreground">/</span>
-              <span className="text-[var(--trade-bearish)]">{data.overall.losses}</span>
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">P&L</p>
-            <p className={cn("font-mono font-bold", data.overall.totalPnL >= 0 ? "text-[var(--trade-bullish)]" : "text-[var(--trade-bearish)]")}>
-              {data.overall.totalPnL >= 0 ? '+' : ''}${safeToFixed(data.overall.totalPnL, 0)}
-            </p>
           </div>
         </div>
       </CardContent>

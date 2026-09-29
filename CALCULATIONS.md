@@ -100,23 +100,29 @@ adjustedScore = clamp(confidenceScore + bonus, 0, 100)
 
 ### Base Confidence by Source
 
-Each idea source starts with a base confidence:
+Each idea source starts from `SOURCE_BASE_CONFIDENCE` in `server/universal-idea-generator.ts`.
+This table mirrors the code (reconciled 2026-09 per SR 11-7 finding F3.9 / P1-8; the code is
+the source of truth — update this table in the same commit as any change to the constant).
+Unknown sources fall back to 50. These starting points are **judgmental**, not fitted to outcomes.
 
 | Source | Base Confidence |
 |--------|-----------------|
-| quant_signal | 60% |
-| ai_analysis | 55% |
-| options_flow | 55% |
-| bullish_trend | 55% |
-| chart_analysis | 55% |
-| news_catalyst | 52% |
-| market_scanner | 50% |
-| watchlist | 50% |
-| crypto_scanner | 50% |
-| sector_rotation | 50% |
-| earnings_play | 48% |
-| social_sentiment | 45% |
-| manual | 40% |
+| bot_screener | 58 |
+| quant_signal | 55 |
+| surge_detection | 55 |
+| ai_analysis | 52 |
+| chart_analysis | 52 |
+| tradingview | 52 |
+| options_flow | 50 |
+| bullish_trend | 50 |
+| news_catalyst | 50 |
+| sector_rotation | 50 |
+| market_scanner | 48 |
+| watchlist | 48 |
+| earnings_play | 48 |
+| crypto_scanner | 45 |
+| social_sentiment | 40 |
+| manual | 35 |
 
 ### Signal Weight System
 
@@ -222,53 +228,73 @@ Signals in the same group are considered redundant. Only the **highest-weight si
 
 ### Saturation Curve
 
-Diminishing returns beyond 3 signals to prevent grade inflation:
+Diminishing returns as positive signals stack (step function in code, applied to the
+correlation-penalised signal-weight sum):
 
 ```typescript
-// Positive signals only (excluding risk penalties)
+// Positive signals only (risk penalties excluded from the count)
 signalCount = count(signals where weight > 0)
 
-// Saturation factor decreases with more signals
-saturationFactor = signalCount <= 3 ? 1.0 : 1 / (1 + 0.1 × (signalCount - 3))
-
-// Effect on final signal contribution:
-// 3 signals: factor = 1.00 (100% weight)
-// 4 signals: factor = 0.91 (91% weight)
-// 5 signals: factor = 0.83 (83% weight)
-// 6 signals: factor = 0.77 (77% weight)
-// 8 signals: factor = 0.67 (67% weight)
+saturationFactor = signalCount <= 2 ? 0.90
+                 : signalCount === 3 ? 0.85
+                 : signalCount === 4 ? 0.75
+                 :                     0.65   // 5+
 ```
 
 ### Confluence Bonus
 
-Additional bonuses for 3-5 confirming signals only:
-- 3-5 signals: +5 points
-- >5 signals: No additional bonus (saturation curve applies)
+- Exactly 3–4 signals (all signals, not only positive): **+3 points**
+- Fewer than 3 or more than 4: no bonus
+
+### Regime Multipliers (async path only)
+
+`calculateConfidenceWithVIX` additionally scales each signal weight by the VIX filter and the
+ML-regime signal multiplier, then after the confluence bonus multiplies the whole score:
+
+- `CRISIS` regime: × 0.8
+- `HIGH_VOLATILITY` regime: × 0.9
+
+The sync `calculateConfidence` path applies neither.
+
+### Soft Cap and Clamp
+
+```typescript
+if (confidence > 70) {
+  excess = confidence - 70
+  confidence = 70 + excess × (1 − excess / 100)   // dampening above 70
+}
+confidence = clamp(round(confidence), 0, 94)      // hard ceiling 94, not 100
+```
+
+The dampening term is only monotone for excess ≤ 50 and would invert for excess > 100; that
+region is unreachable in practice given the base + saturated weights, and the 94 clamp bounds
+the output regardless. Later adjustments (loss analyzer, ML enhancement, news reconciliation)
+each re-clamp to [0, 94]. The async path then passes the clamped value through
+`applyMLCalibration`.
 
 ### Final Confidence Formula
 
 ```typescript
-// Step 1: Calculate total signal weight with correlation penalties
-totalWeight = 0
-appliedSignals = Set()
-for each signal:
-  weight = SIGNAL_WEIGHTS[signal.type]
-  if (primary signal already applied && signal is correlated):
-    weight *= 0.5  // Correlation penalty
-  totalWeight += weight
-  appliedSignals.add(signal.type)
+// Step 1: signal weights with correlation penalties (order-independent):
+//   within each SIGNAL_CORRELATION_GROUP only the highest-weight signal gets full credit;
+//   every other signal in that group gets × 0.5
+totalWeight = Σ adjustedWeight
 
-// Step 2: Apply saturation curve
-adjustedWeight = totalWeight × saturationFactor
+// Step 2: saturation
+confidence = BASE_CONFIDENCE[source] + totalWeight × saturationFactor
 
-// Step 3: Calculate final confidence
-confidence = BASE_CONFIDENCE[source]
-           + adjustedWeight
-           + confluenceBonus  // +5 for 3-5 signals only
-           + lossAdjustment   // from Loss Analyzer
-
-confidence = clamp(confidence, 0, 100)
+// Step 3: confluence bonus (+3 for 3–4 signals)
+// Step 4: regime multiplier (async path: crisis × 0.8 / high-vol × 0.9)
+// Step 5: soft cap above 70, clamp to [0, 94]
+// Step 6 (async path): applyMLCalibration
 ```
+
+> **Model-risk note (SR 11-7 F3.9):** the base confidences, saturation factors
+> (0.9 / 0.85 / 0.75 / 0.65), confluence bonus (+3), correlation penalty (50%),
+> crisis (× 0.8) and high-volatility (× 0.9) multipliers, soft-cap knee (70) and clamp (94) are
+> **judgmental parameters chosen by hand**. None has been fitted to or validated against
+> realized outcomes. Treat the resulting "confidence" as an ordinal score, not a calibrated
+> probability.
 
 ---
 
@@ -793,6 +819,12 @@ The Auto-Lotto Bot is an autonomous trading system that scans markets, analyzes 
 ---
 
 ## Scanners
+
+> **Universe bias (SR 11-7 F3.8):** the scanner universe (`server/scanner-universe.ts`) and the
+> discovery scanner (`server/discovery-scanner.ts`) use *current* membership only — today's
+> watchlists, approved tickers, movers and Yahoo screeners, with no delisted names and no
+> point-in-time archive — so they carry survivorship and look-ahead bias and cannot be used
+> to backtest scanner or discovery performance.
 
 ### Breakout Scanner
 
