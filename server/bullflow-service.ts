@@ -30,6 +30,29 @@ export function bullflowEnabled(): boolean { return !!key(); }
 
 // ── tiny per-endpoint cache ─────────────────────────────────────────────────
 const cache = new Map<string, { at: number; data: any }>();
+/**
+ * One budget for the whole process. Bullflow allows 10 req/min per key; every
+ * scanner called in on its own schedule, so per-ticker netPremiumSeries reads
+ * blew through it — 18.8k HTTP 429s between 2026-09-24 and 09-29, which left
+ * the flow-primary ideas (the top of the board) with no fresh tape. Now: a
+ * sliding window of 8 calls/min, and a 65s cooldown after any 429. A call
+ * that can't get a slot returns the cached read (stale beats nothing) instead
+ * of queuing up to be refused.
+ */
+const WINDOW_MS = 60_000;
+const MAX_PER_WINDOW = 8;
+const recentCalls: number[] = [];
+let coolUntil = 0;
+let skippedSinceLog = 0;
+function takeSlot(): boolean {
+  const now = Date.now();
+  if (now < coolUntil) return false;
+  while (recentCalls.length && now - recentCalls[0] > WINDOW_MS) recentCalls.shift();
+  if (recentCalls.length >= MAX_PER_WINDOW) return false;
+  recentCalls.push(now);
+  return true;
+}
+
 async function cachedGet(path: string, params: Record<string, string>, ttlMs: number): Promise<any | null> {
   const k = key();
   if (!k) return null;
@@ -37,9 +60,14 @@ async function cachedGet(path: string, params: Record<string, string>, ttlMs: nu
   const ck = `${path}?${qs}`;
   const hit = cache.get(ck);
   if (hit && Date.now() - hit.at < ttlMs) return hit.data;
+  if (!takeSlot()) {
+    if (++skippedSinceLog % 50 === 1) logger.info(`[BULLFLOW] rate budget full — serving cache (${skippedSinceLog} skipped)`);
+    return hit?.data ?? null;
+  }
   try {
     const r = await fetch(`${BASE}${path}?${qs}`, { headers: { 'X-API-Key': k } });
     if (!r.ok) {
+      if (r.status === 429) coolUntil = Date.now() + 65_000;
       logger.warn(`[BULLFLOW] ${path} HTTP ${r.status}`);
       return hit?.data ?? null; // stale beats nothing; null when never fetched
     }

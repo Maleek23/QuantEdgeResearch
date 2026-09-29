@@ -241,7 +241,15 @@ export function validateTradeIdeaForCreate(
 
   // Catalyst sentiment vs direction
   const catalyst = ((idea as any).catalyst ?? "").toString();
-  if (catalyst) {
+  // A catalyst that names the idea's own side ("ORB 5min SHORT breakout",
+  // "LONG breakdown reclaim") is describing a move in that direction —
+  // "breakout" there is not a bullish read. The keyword gate only arbitrates
+  // catalysts that don't say which way they point (2026-09-29: every ORB
+  // short was being rejected as "catalyst is bullish").
+  const namesOwnSide = dir === "short"
+    ? /\b(short|downside|puts?)\b/i.test(catalyst)
+    : /\b(long|upside|calls?)\b/i.test(catalyst);
+  if (catalyst && !namesOwnSide) {
     if (dir === "long" && BEARISH_KEYWORDS.test(catalyst) && !BULLISH_KEYWORDS.test(catalyst)) {
       return { ok: false, reason: `long but catalyst is bearish: "${catalyst.slice(0, 60)}"` };
     }
