@@ -820,11 +820,36 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
     // meaningless. Also reject when spot is missing/invalid (price feed down).
     // Better to surface NOTHING than a confident-looking degenerate signal.
     const MIN_TARGET_DISTANCE_PCT = 0.008; // 0.8% minimum room to target
-    const effTarget = play.target || play.spotPrice * (direction === 'long' ? 1.03 : 0.97);
     if (!(play.spotPrice > 0)) {
       logger.warn(`[GEX-HUB] ⛔ skip ${play.symbol} — invalid spot (price feed unavailable)`);
       continue;
     }
+
+    // Levels come from the play (GEX walls / magnet). When a side is missing it
+    // used to be filled with a fixed ±3% target / ∓2% stop — an invented ladder
+    // indistinguishable on the card from a measured one. Read the missing side
+    // from structure instead (server/structural-levels.ts), or skip the play.
+    let underlyingTarget: number | null = play.target && play.target > 0 ? play.target : null;
+    let underlyingStop: number | null = play.stop && play.stop > 0 ? play.stop : null;
+    let derivedNote = '';
+    if (underlyingTarget == null || underlyingStop == null) {
+      const { deriveStructuralPlan } = await import('./structural-levels');
+      const d = await deriveStructuralPlan({
+        symbol: play.symbol,
+        direction,
+        spot: play.spotPrice,
+        horizon: play.playScore >= 65 ? 'day' : 'swing',
+        assetType: 'option',
+      });
+      if (!d.plan) {
+        logger.info(`[GEX-HUB] ⛔ skip ${play.symbol} — no measured ${underlyingTarget == null ? 'target' : 'stop'} (${d.reason})`);
+        continue;
+      }
+      underlyingTarget ??= d.plan.target;
+      underlyingStop ??= d.plan.stop;
+      derivedNote = ` ${d.plan.rationale}`;
+    }
+    const effTarget = underlyingTarget;
     const targetDistPct = Math.abs(effTarget - play.spotPrice) / play.spotPrice;
     if (targetDistPct < MIN_TARGET_DISTANCE_PCT) {
       logger.warn(`[GEX-HUB] ⛔ skip ${play.symbol} — degenerate target (${(targetDistPct * 100).toFixed(2)}% from spot, walls clustered at price)`);
@@ -836,8 +861,8 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
       assetType: 'option',
       direction,
       entryPrice: play.spotPrice,
-      targetPrice: play.target || play.spotPrice * (direction === 'long' ? 1.03 : 0.97),
-      stopLoss: play.stop || play.spotPrice * (direction === 'long' ? 0.98 : 1.02),
+      targetPrice: underlyingTarget,
+      stopLoss: underlyingStop,
       catalyst: `GEX Hub top play — ${play.vexSignal} VEX, ${play.regime} regime`,
       analysis: play.insight,
       sessionContext: 'regular',
@@ -847,8 +872,6 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
     try {
       const enriched = await enrichOptionIdea(aiShape);
       if (enriched) {
-        const underlyingTarget = play.target || play.spotPrice * (direction === 'long' ? 1.03 : 0.97);
-        const underlyingStop = play.stop || play.spotPrice * (direction === 'long' ? 0.98 : 1.02);
         const risk = Math.abs(play.spotPrice - underlyingStop);
         const reward = Math.abs(underlyingTarget - play.spotPrice);
         tradeIdea = {
@@ -870,7 +893,7 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
           strikePrice: enriched.strikePrice,
           expiryDate: enriched.expiryDate,
           catalyst: `GEX top play — ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} exp ${enriched.expiryDate}`,
-          analysis: `${play.insight} | OPTIONS: ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} @ $${enriched.entryPrice.toFixed(2)} contract mid. Underlying target $${underlyingTarget.toFixed(2)}.`,
+          analysis: `${play.insight} | OPTIONS: ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} @ $${enriched.entryPrice.toFixed(2)} contract mid. Underlying target $${underlyingTarget.toFixed(2)}.${derivedNote}`,
           source: 'gex_scanner',
           dataSourceUsed: `GEX_top_play_${play.vexSignal}`,
           sessionContext: 'regular',
@@ -895,20 +918,19 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
       }
     } catch {
       // Fallback: stock-level idea
-      const stockRR = play.target && play.stop
-        ? Math.abs(((play.target || 0) - play.spotPrice) / (play.spotPrice - (play.stop || play.spotPrice)))
-        : 2.0;
+      const stockRisk = Math.abs(play.spotPrice - underlyingStop);
+      const stockRR = stockRisk > 0 ? Math.abs(underlyingTarget - play.spotPrice) / stockRisk : 0;
       tradeIdea = {
         symbol: play.symbol,
         sector: play.sector ?? null,
         assetType: 'stock',
         direction,
         entryPrice: play.spotPrice,
-        targetPrice: play.target || play.spotPrice * (direction === 'long' ? 1.03 : 0.97),
-        stopLoss: play.stop || play.spotPrice * (direction === 'long' ? 0.98 : 1.02),
+        targetPrice: underlyingTarget,
+        stopLoss: underlyingStop,
         riskRewardRatio: +stockRR.toFixed(2),
         catalyst: `GEX Hub top play — ${play.vexSignal} VEX, ${play.regime} regime`,
-        analysis: play.insight,
+        analysis: `${play.insight}${derivedNote}`,
         source: 'gex_scanner',
         dataSourceUsed: `GEX_top_play_${play.vexSignal}`,
         sessionContext: 'regular',

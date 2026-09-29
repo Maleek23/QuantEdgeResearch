@@ -1036,13 +1036,42 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     // name received a plausible-looking 2R ladder whether or not the chart had
     // an actual destination or invalidation. Discovery stays useful, but it
     // cannot be published as an Oracle plan until a source supplies both levels.
+    //
+    // Before giving up, READ the levels the chart and the options book already
+    // show — a stop beyond the nearest swing (ATR-padded) and a T1 at the
+    // nearest prior swing or GEX wall — see server/structural-levels.ts. Only
+    // measured levels qualify; a name with no visible destination stays
+    // coverage-only exactly as before. (2026-09-29: 524 of 530 options-flow
+    // conversions in five sessions died here for want of this step.)
+    let derivedLevelNote: string | null = null;
+    let targetPrice: number;
+    let stopLoss: number;
     if (typeof input.targetPrice !== 'number' || typeof input.stopLoss !== 'number') {
-      logger.info(`[IDEA] ${input.symbol}: coverage only — missing structural target or invalidation`);
-      return null;
+      if (input.direction === 'neutral') {
+        logger.info(`[IDEA] ${input.symbol}: coverage only — neutral read has no side to plan`);
+        return null;
+      }
+      const { deriveStructuralPlan } = await import('./structural-levels');
+      const derived = await deriveStructuralPlan({
+        symbol: input.symbol,
+        direction: input.direction === 'bullish' ? 'long' : 'short',
+        spot: currentPrice,
+        horizon: holdingPeriod === 'day' ? 'day' : holdingPeriod === 'position' ? 'position' : 'swing',
+        assetType: input.assetType,
+      });
+      if (!derived.plan) {
+        logger.info(`[IDEA] ${input.symbol}: coverage only — ${derived.reason}`);
+        return null;
+      }
+      // A caller-supplied level is still the caller's; only the missing side is read.
+      targetPrice = typeof input.targetPrice === 'number' ? input.targetPrice : derived.plan.target;
+      stopLoss = typeof input.stopLoss === 'number' ? input.stopLoss : derived.plan.stop;
+      derivedLevelNote = derived.plan.rationale;
+      logger.info(`[IDEA] ${input.symbol}: levels derived — stop $${stopLoss} / T1 $${targetPrice} (${derived.plan.targetSource}, ${derived.plan.riskReward}R)`);
+    } else {
+      targetPrice = input.targetPrice;
+      stopLoss = input.stopLoss;
     }
-
-    const targetPrice = input.targetPrice;
-    const stopLoss = input.stopLoss;
 
     // ── Sanity clamp ────────────────────────────────────────────────
     // A source-provided target/stop must imply a realistic move for its
@@ -1104,9 +1133,12 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
     }
     
     // Generate analysis text
-    const analysis = input.analysis || `${getEngineType(input.source)} signal detected: ${signalDescriptions.slice(0, 3).join(', ')}. ` +
+    const baseAnalysis = input.analysis || `${getEngineType(input.source)} signal detected: ${signalDescriptions.slice(0, 3).join(', ')}. ` +
       `${input.direction === 'bullish' ? 'Bullish' : 'Bearish'} setup with ${confidence}% confidence.`;
-    
+    // Derived levels must say where they came from — the source did not state them.
+    const analysis = derivedLevelNote ? `${baseAnalysis} ${derivedLevelNote}` : baseAnalysis;
+    if (derivedLevelNote) signalDescriptions.push('Levels: measured structure (derived)');
+
     // ── Attach a concrete option contract ──────────────────────────
     // Every directional equity idea should carry a REAL option (strike/expiry/
     // greeks) picked by the canonical engine — not just stock key levels.

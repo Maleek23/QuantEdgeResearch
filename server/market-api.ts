@@ -350,7 +350,11 @@ export async function fetchYahooFinancePrice(
   symbol: string
 ): Promise<ExternalMarketData | null> {
   const startTime = Date.now();
-  const cacheKey = symbol.toUpperCase();
+  // "SPX"/"VIX" are not Yahoo symbols — see toYahooSymbol. Callers keep the
+  // canonical name; only the request (and the cache key) use Yahoo's.
+  const { toYahooSymbol } = await import('./yahoo-client');
+  const providerSymbol = toYahooSymbol(symbol);
+  const cacheKey = providerSymbol;
   const memo = yahooQuoteCache.get(cacheKey);
   if (memo && Date.now() - memo.timestamp < YAHOO_QUOTE_TTL) return memo.data;
 
@@ -365,7 +369,7 @@ export async function fetchYahooFinancePrice(
 
   try {
     const response = await fetch(
-      `${YAHOO_FINANCE_API}/${symbol}?interval=1d&range=1d`
+      `${YAHOO_FINANCE_API}/${encodeURIComponent(providerSymbol)}?interval=1d&range=1d`
     );
 
     if (!response.ok) {

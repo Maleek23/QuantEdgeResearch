@@ -284,6 +284,18 @@ app.use((req, res, next) => {
       log('📸 [WEB] GEX history archiver scheduled (hourly, market hours)');
     }
 
+    // ── Idea producers ────────────────────────────────────────────────────
+    // Same story as the flow scan above, for every producer that PUBLISHES
+    // ideas: they were scheduled only in worker.ts / index.ts, neither of which
+    // production starts, so the prod book was fed almost entirely by whatever
+    // happened to be running elsewhere. See server/idea-producer-schedule.ts.
+    try {
+      const { ideaProducersEnabledInWeb, scheduleIdeaProducers } = await import('./idea-producer-schedule');
+      if (ideaProducersEnabledInWeb()) await scheduleIdeaProducers(log);
+    } catch (err) {
+      logger.error('[WEB] idea producer scheduling failed:', err);
+    }
+
     // Warm the conviction board immediately, then keep it warm.
     //
     // A cold build takes over two minutes, so without this the first person to

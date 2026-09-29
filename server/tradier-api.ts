@@ -214,6 +214,30 @@ function noteTradierFailure(apiKey: string | undefined, reason: string): void {
   if (!apiKey) recordBreakerFailure(reason);
 }
 
+/**
+ * For modules that call Tradier with raw fetch() on the PLATFORM key instead of
+ * going through the helpers here. They bypassed the breaker entirely: with the
+ * key rejected, the options-flow scan alone sent 20,140 doomed `expirations`
+ * requests in five sessions (2026-09-24..29) — two per symbol per scan — before
+ * falling back to CBOE every single time. Ask first; report auth failures so
+ * the breaker (and the boot-time disable) cover these callers too.
+ */
+export function isPlatformTradierUsable(): boolean {
+  return !!process.env.TRADIER_API_KEY && !isBreakerOpen();
+}
+
+export function reportPlatformTradierFailure(status: number | string): void {
+  if (status === 401 || status === 403) {
+    // Auth failures do not heal inside a process lifetime (see validateTradierAPI).
+    if (!_disabledForBoot) {
+      logger.warn(`[TRADIER] platform key rejected (${status}) — Tradier disabled for this boot; CBOE/Yahoo carry the chains`);
+    }
+    _disabledForBoot = true;
+    return;
+  }
+  recordBreakerFailure(`HTTP ${status}`);
+}
+
 export function getTradierBreakerState(): { open: boolean; failures: number; cooldownRemainingMs: number } {
   return {
     open: isBreakerOpen(),

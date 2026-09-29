@@ -16,6 +16,7 @@
  * parallelism here costs no extra load on Yahoo.
  */
 import { cachedFetchWithStale } from './provider-cache';
+import { toYahooSymbol } from './yahoo-client';
 
 export interface Candle {
   time: number;
@@ -65,7 +66,8 @@ export async function fetchCandles(
   const r = normalizeRange(range, '6mo');
   // Public-facing terminal symbols do not always match Yahoo's chart symbols.
   // Keep the UI canonical (SPX) and translate only at the provider boundary.
-  const providerSymbol = symbol.toUpperCase() === 'SPX' ? '^SPX' : symbol;
+  // (SPX → ^GSPC, VIX → ^VIX, …) — see toYahooSymbol.
+  const providerSymbol = toYahooSymbol(symbol);
   // Intraday charts need overnight/premarket context. The old omission of 1m
   // made the most time-sensitive view regular-session-only while 5m/15m were
   // extended-hours, so the same move appeared differently by timeframe.

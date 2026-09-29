@@ -10,7 +10,7 @@
 
 import { logger } from './logger';
 import { getBullflowPrints } from './bullflow-service';
-import { tradierBase } from './tradier-api';
+import { tradierBase, isPlatformTradierUsable, reportPlatformTradierFailure } from './tradier-api';
 import { storage } from './storage';
 import { recordSymbolAttention } from './attention-tracking-service';
 import { db } from './db';
@@ -246,7 +246,11 @@ async function fetchTradierChain(symbol: string): Promise<any[]> {
       logger.warn('[OPTIONS-FLOW] No Tradier API key configured — will use CBOE fallback');
       return [];
     }
-    
+    // A rejected key does not recover mid-process; the shared breaker knows.
+    // Skip straight to the CBOE/Yahoo legs instead of spending a request (and
+    // a warning line) per symbol per scan on a known 401.
+    if (!isPlatformTradierUsable()) return [];
+
     // Step 1: Get available expirations first (REQUIRED by Tradier)
     const expResponse = await fetch(
       `${tradierBase()}/markets/options/expirations?symbol=${symbol}`,
@@ -260,6 +264,7 @@ async function fetchTradierChain(symbol: string): Promise<any[]> {
     
     if (!expResponse.ok) {
       logger.warn(`[OPTIONS-FLOW] Failed to get expirations for ${symbol}: ${expResponse.status}`);
+      reportPlatformTradierFailure(expResponse.status);
       return [];
     }
     
