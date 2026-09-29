@@ -85,7 +85,10 @@ function ChartTabHost() {
 const NexusBoard    = lazy(() => import('@/pages/nexus-prototype'));
 // GEX = the reference GEX Hub mock, wired.
 const GexHub        = lazy(() => import('@/components/gex/gex-hub-nexus').then(m => ({ default: m.GexHubNexus })));
-const FlowBoard     = lazy(() => import('@/components/flow/flow-board').then(m => ({ default: m.FlowBoard })));
+// FLOW = the tool dashboard (Bullflow-style: Add tool, named dashboards, drag/
+// resize grid). The previous FlowBoard lives on as the "Historical Flow" tool,
+// and its sidebar pieces (repeats, convergence, 0DTE pulse) as tools of their own.
+const FlowDashboard = lazy(() => import('@/components/flowdash/dashboard').then(m => ({ default: m.FlowDashboard })));
 // The old flow-heatmap page is the SECTOR TREEMAP with a flow overlay (breadth, net flow,
 // sweeps, whales + per-ticker flow detail). That's the Heatmap surface, not the tape — so
 // it belongs on HEATMAP. Keeping it preserves the strongest part of the old design.
@@ -459,7 +462,7 @@ export default function TerminalShell() {
               {tab === 'chart' && <ChartTabHost />}
               {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it.
                   Full-bleed: the FLOW mock owns its own two-column layout. */}
-              {tab === 'flow' && <FlowBoard onSelectSymbol={(sym) => openResearch(sym, undefined, 'flow')} />}
+              {tab === 'flow' && <FlowDashboard />}
               {tab === 'gex' && <GexHub />}
               {tab === 'leaps' && <LeapTracker />}
               {tab === 'crypto' && <CryptoTerminal />}

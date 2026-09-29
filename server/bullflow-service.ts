@@ -412,6 +412,25 @@ export async function getNetPremiumToday(ticker: string): Promise<NetPremiumRead
   };
 }
 
+/**
+ * The full intraday series behind getNetPremiumToday. Same path + params, so
+ * it shares that cache entry (3-min TTL) — a chart of the series costs no
+ * extra slot of the process-wide budget when the lean was already read.
+ */
+export async function getNetPremiumSeriesToday(ticker: string): Promise<{ ticker: string; points: { t: string; calls: number; puts: number }[] } | null> {
+  const today = marketDateET();
+  const d = await cachedGet('/v1/data/netPremiumSeries',
+    { ticker: ticker.toUpperCase(), from: today, to: today, period: '1D' }, 3 * 60_000);
+  const pts: any[] = d?.points ?? [];
+  if (!pts.length) return null;
+  return {
+    ticker: ticker.toUpperCase(),
+    points: pts
+      .map((p) => ({ t: new Date((Number(p.timestamp) || 0) * 1000).toISOString(), calls: Number(p.callsNetPremium) || 0, puts: Number(p.putsNetPremium) || 0 }))
+      .filter((p) => p.t > '2000'),
+  };
+}
+
 // ── market-wide leaders / chains / dark pool ────────────────────────────────
 export async function getTopTickers(metric: 'volume' | 'premium' | 'net_premium' = 'net_premium', opts: { excludeEtfs?: boolean; sweepsOnly?: boolean; bullishBearish?: boolean; date?: string; from?: string; to?: string } = {}): Promise<any | null> {
   return cachedGet('/v1/data/optionsTopTickers', {
