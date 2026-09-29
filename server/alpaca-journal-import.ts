@@ -54,6 +54,14 @@ export async function verifyAlpaca(creds: AlpacaCreds): Promise<{ accountNumberH
   return { accountNumberHint: num ? `…${num.slice(-4)}` : '—', status: String(acct?.status ?? 'unknown') };
 }
 
+/** Account equity now (read-only GET /v2/account) — the journal's balance for Mine. */
+export async function fetchAlpacaEquity(creds: AlpacaCreds): Promise<{ equity: number; asOf: string }> {
+  const acct = await alpacaGet(creds, '/v2/account');
+  const equity = Number(acct?.equity);
+  if (!Number.isFinite(equity) || equity <= 0) throw new Error('account reported no equity');
+  return { equity, asOf: new Date().toISOString() };
+}
+
 export async function fetchAlpacaFills(creds: AlpacaCreds): Promise<BrokerFill[]> {
   const fills: BrokerFill[] = [];
   let token: string | null = null;

@@ -46,6 +46,8 @@ export interface ParseResult {
   errors: string[];
   totalRows: number;
   parsedRows: number;
+  /** Data rows the broker parser read as a fill (the rest were not trades, or errored). */
+  fillRows?: number;
 }
 
 // ─── CSV Parsing Core ───────────────────────────────────────
@@ -541,5 +543,6 @@ export function parseBrokerCSV(rawCsv: string, brokerHint?: JournalBroker): Pars
     errors,
     totalRows: lines.length - 1,
     parsedRows: matched.length,
+    fillRows: raw.length,
   };
 }
