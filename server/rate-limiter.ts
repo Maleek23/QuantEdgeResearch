@@ -11,7 +11,10 @@ const isLocalhost = (req: any): boolean => {
 // General API rate limiter - 500 requests per 15 minutes (generous for dev)
 export const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Increased from 100 to 500
+  // Signed-in users are counted per account with a budget sized for a live
+  // dashboard (a dozen polling tools); anonymous traffic stays per-IP at 500.
+  max: (req: any) => (req.session?.userId ? 6000 : 500),
+  keyGenerator: (req: any) => (req.session?.userId ? `u:${req.session.userId}` : `ip:${req.ip}`),
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,

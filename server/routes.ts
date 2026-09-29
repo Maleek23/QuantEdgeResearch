@@ -688,8 +688,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ invalidated: count, pattern });
   });
 
-  // Apply general rate limiting to all API routes
-  app.use('/api/', generalApiLimiter);
   
   // NOTE: Session middleware is initialized ONCE inside setupAuth() - do not add it here
   // This prevents duplicate session handling which can cause login persistence issues
@@ -697,6 +695,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth (Google OAuth) - registers /api/login, /api/callback, /api/logout
   // This also initializes session middleware and passport
   await setupAuth(app);
+
+  // General API rate limiting — after session setup so signed-in users are
+  // counted per account rather than per IP.
+  app.use('/api/', generalApiLimiter);
   
   // Setup Direct Google OAuth - registers /api/auth/google and /api/auth/google/callback
   await setupGoogleAuth(app);
