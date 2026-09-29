@@ -11,8 +11,10 @@ import { BookOpen, Loader2, X } from 'lucide-react';
 import { QETabs, type QETabItem } from '@/components/ui/qe-tabs';
 import { apiRequest } from '@/lib/queryClient';
 import { readApiError } from '@/lib/journal/use-journal';
+import { DiscordImport } from '@/components/journal/discord-import';
 
 interface TraderLite { id: string; slug: string; name: string; handle: string | null; watchlistCount: number; canWrite: boolean }
+interface JournalSources { capabilities?: { discordBot?: boolean } }
 interface TraderWatchlist { canWrite: boolean; items: { id: string; symbol: string; note: string | null; addedAt: string }[] }
 
 const mono = "'JetBrains Mono',monospace";
@@ -73,6 +75,12 @@ function TraderPanel({ trader, renderSymbol }: { trader: TraderLite; renderSymbo
   const [sym, setSym] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
+  const srcQ = useQuery<JournalSources>({
+    queryKey: ['/api/journal/sources'],
+    queryFn: async () => { const r = await fetch('/api/journal/sources', { credentials: 'include' }); if (!r.ok) throw new Error(String(r.status)); return r.json(); },
+    enabled: importOpen, staleTime: 300_000,
+  });
 
   const refresh = () => { qc.invalidateQueries({ queryKey: key }); qc.invalidateQueries({ queryKey: ['/api/traders'] }); };
   const add = async () => {
@@ -134,6 +142,19 @@ function TraderPanel({ trader, renderSymbol }: { trader: TraderLite; renderSymbo
             </form>
           )}
           {err && <div role="alert" style={{ fontSize: 10.5, color: 'var(--red, #ff6b3d)', marginTop: 4, fontFamily: mono }}>{err}</div>}
+          {q.data?.canWrite && (
+            <div style={{ marginTop: 8 }}>
+              <button type="button" aria-expanded={importOpen} onClick={() => setImportOpen((v) => !v)}
+                style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'var(--cyan-bright)', fontFamily: mono, fontSize: 10, fontWeight: 700 }}>
+                {importOpen ? '▾' : '▸'} IMPORT {trader.name.toUpperCase()}'S CALLS FROM DISCORD
+              </button>
+              {importOpen && (
+                <div style={{ marginTop: 8 }}>
+                  <DiscordImport traderSlug={trader.slug} traderName={trader.name} botAvailable={!!srcQ.data?.capabilities?.discordBot} onDone={refresh} />
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

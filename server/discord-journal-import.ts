@@ -1,5 +1,11 @@
 /**
- * Discord → a trader's journal: read, preview, then commit.
+ * Discord → a trader's WATCHLIST: read, preview, then commit.
+ *
+ * 2026-09-29 (operator): Discord importing is for the watchlist, not the
+ * journal — traders keep their own journal once they have accounts. So the
+ * parsed calls/analysis are folded into one watchlist row per ticker they
+ * posted (mention count, last mention, a one-line note of their latest call);
+ * nothing is written to journal_trades or journal_notes.
  *
  * Two ways in (docs/DISCORD_IMPORT.md):
  *   1. file   — a DiscordChatExporter JSON/CSV export, uploaded by an admin. Works
@@ -12,21 +18,19 @@
  *
  * Nothing is written on preview. The preview is held server-side for 30 minutes
  * under a random token bound to the admin who made it and the trader it targets;
- * commit writes exactly what was previewed (the client never supplies trade
- * data). Keys are Discord message ids, so importing the same history twice
- * updates the same rows instead of duplicating them.
+ * commit writes exactly what was previewed (the client never supplies the
+ * rows). One row per (trader, ticker), so importing the same history twice
+ * refreshes notes instead of duplicating names.
  */
 import { randomBytes } from 'node:crypto';
-import { sql } from 'drizzle-orm';
 import { db } from './db';
-import { storage } from './storage';
 import { logger } from './logger';
-import { journalNotes } from '@shared/schema';
+import { traders, traderWatchlistItems } from '@shared/schema';
+import { and, eq } from 'drizzle-orm';
 import {
   discordAuthors, normalizeDiscordExport, pairDiscordMessages,
   type DiscordMsg, type DiscordNote, type DiscordTrade, type NormalizeResult,
 } from '@shared/discord-journal-parser';
-import { deriveJournalTradeFields } from './journal-trade-input';
 
 // ─── Path 1: Discord REST (bot token) ────────────────────────
 
@@ -105,16 +109,54 @@ function sweep() {
 
 export type RowState = 'new' | 'update' | 'unchanged';
 
-function tradeEconomics(t: DiscordTrade) {
-  const d = deriveJournalTradeFields({
-    direction: t.direction, assetType: t.assetType, quantity: t.quantity, entryPrice: t.entryPrice,
-    exitPrice: t.exitPrice, fees: 0, entryTime: new Date(t.entryTime).toISOString(), exitTime: t.exitTime ? new Date(t.exitTime).toISOString() : null,
-  });
-  return {
-    symbol: t.symbol, assetType: t.assetType, direction: t.direction, optionType: t.optionType, strikePrice: t.strikePrice,
-    expiryDate: t.expiryDate, quantity: t.quantity, entryPrice: t.entryPrice, exitPrice: t.exitPrice, fees: 0,
-    entryTime: new Date(t.entryTime).toISOString(), exitTime: t.exitTime ? new Date(t.exitTime).toISOString() : null, ...d,
+export interface WatchCandidate {
+  symbol: string;
+  mentions: number;
+  lastAt: string;
+  /** One line describing their most recent call on this ticker. */
+  note: string;
+  state: RowState;
+}
+
+const SYMBOL_OK = /^[A-Z][A-Z.]{0,5}$/;
+const shortDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+const px = (n: number | null) => (n == null ? '' : n >= 100 ? n.toFixed(0) : n.toFixed(2).replace(/\.00$/, ''));
+
+function tradeLine(t: DiscordTrade): string {
+  const contract = t.assetType === 'option'
+    ? `${t.strikePrice ?? ''}${(t.optionType ?? '').charAt(0).toUpperCase()}${t.expiryDate ? ` ${t.expiryDate.slice(5).replace('-', '/')}` : ''} `
+    : '';
+  const exit = t.exitPrice != null
+    ? ` → out ${px(t.exitPrice)}${t.entryPrice ? ` (${(((t.exitPrice - t.entryPrice) / t.entryPrice) * (t.direction === 'short' ? -100 : 100)).toFixed(0)}%)` : ''}`
+    : ' (open)';
+  return `${t.direction === 'short' ? 'short ' : ''}${contract}@${px(t.entryPrice)}${exit}`.trim();
+}
+
+/** Fold parsed trades + analysis notes into one watchlist candidate per ticker. */
+function watchCandidates(trades: DiscordTrade[], notes: DiscordNote[]) {
+  const by = new Map<string, { symbol: string; mentions: number; lastAt: string; note: string }>();
+  const touch = (sym: string, at: string, line: string) => {
+    const symbol = sym.toUpperCase().replace(/^\$/, '');
+    if (!SYMBOL_OK.test(symbol)) return;
+    const cur = by.get(symbol);
+    if (!cur) { by.set(symbol, { symbol, mentions: 1, lastAt: at, note: line }); return; }
+    cur.mentions++;
+    if (Date.parse(at) >= Date.parse(cur.lastAt)) { cur.lastAt = at; cur.note = line; }
   };
+  for (const t of trades) touch(t.symbol, t.exitTime ?? t.entryTime, tradeLine(t));
+  for (const n of notes) {
+    const excerpt = n.body.replace(/\s+/g, ' ').trim().slice(0, 140);
+    for (const sym of n.symbols) touch(sym, n.postedAt, excerpt);
+  }
+  return [...by.values()]
+    .map((c) => ({ ...c, note: `${c.note} · ${shortDay(c.lastAt)}`.slice(0, 280) }))
+    .sort((a, b) => Date.parse(b.lastAt) - Date.parse(a.lastAt));
+}
+
+async function traderBySlug(slug: string) {
+  const [t] = await db.select().from(traders).where(eq(traders.slug, slug)).limit(1);
+  if (!t) throw Object.assign(new Error(`No trader "${slug}"`), { status: 404 });
+  return t;
 }
 
 export interface PreviewInput {
@@ -147,26 +189,19 @@ export async function buildDiscordPreview(input: PreviewInput) {
   const msgs: DiscordMsg[] = selected ? norm.messages.filter((m) => m.authorId === selected) : norm.messages;
   const { trades, notes, stats } = pairDiscordMessages(msgs);
 
-  // Diff against what this journal already holds (idempotency is by message id).
-  const existing = (await storage.getJournalTrades(input.ownerId)).filter((r) => r.broker === 'discord' && r.brokerOrderId);
-  const byKey = new Map(existing.map((r) => [r.brokerOrderId!, r]));
-  const knownNotes = new Set((await db.select({ id: journalNotes.sourceMessageId }).from(journalNotes)
-    .where(sql`${journalNotes.ownerId} = ${input.ownerId} AND ${journalNotes.source} = 'discord'`)).map((r) => r.id));
-
-  const tradeRows = trades.map((t) => {
-    const econ = tradeEconomics(t);
-    const prev = byKey.get(`discord:${t.key}`);
-    const state: RowState = !prev ? 'new'
-      : (['quantity', 'entryPrice', 'exitPrice', 'status', 'realizedPnL'] as const).some((k) => (prev as any)[k] !== (econ as any)[k]) ? 'update' : 'unchanged';
-    return { ...t, realizedPnL: econ.realizedPnL, realizedPnLPercent: econ.realizedPnLPercent, state };
+  const trader = await traderBySlug(input.traderSlug);
+  const existing = await db.select().from(traderWatchlistItems).where(eq(traderWatchlistItems.traderId, trader.id));
+  const have = new Map(existing.map((r) => [r.symbol, r]));
+  const candidates: WatchCandidate[] = watchCandidates(trades, notes).map((c) => {
+    const prev = have.get(c.symbol);
+    return { ...c, state: !prev ? 'new' : prev.note === c.note ? 'unchanged' : 'update' };
   });
-  const noteRows = notes.map((n) => ({ ...n, state: (knownNotes.has(n.messageId) ? 'unchanged' : 'new') as RowState }));
 
   const token = randomBytes(18).toString('base64url');
   previews.set(token, {
     token, actorId: input.actorId, ownerId: input.ownerId, traderSlug: input.traderSlug,
-    expires: Date.now() + TTL_MS, trades, notes,
-  });
+    expires: Date.now() + TTL_MS, trades, notes, candidates,
+  } as any);
 
   return {
     token,
@@ -178,64 +213,35 @@ export async function buildDiscordPreview(input: PreviewInput) {
     stats,
     skipped: norm.skipped,
     counts: {
-      tradesNew: tradeRows.filter((t) => t.state === 'new').length,
-      tradesUpdated: tradeRows.filter((t) => t.state === 'update').length,
-      tradesUnchanged: tradeRows.filter((t) => t.state === 'unchanged').length,
-      notesNew: noteRows.filter((n) => n.state === 'new').length,
-      notesUnchanged: noteRows.filter((n) => n.state === 'unchanged').length,
+      symbolsNew: candidates.filter((c) => c.state === 'new').length,
+      symbolsUpdated: candidates.filter((c) => c.state === 'update').length,
+      symbolsUnchanged: candidates.filter((c) => c.state === 'unchanged').length,
+      alreadyOnList: existing.length,
     },
-    trades: tradeRows,
-    // The preview lists the newest 300 notes in full; every note is still committed.
-    notes: noteRows.slice(-300).map((n) => ({ ...n, body: n.body.length > 600 ? `${n.body.slice(0, 600)}…` : n.body })),
+    candidates,
   };
 }
 
 export async function commitDiscordPreview(token: string, actorId: string, traderSlug: string) {
   sweep();
-  const p = previews.get(token);
+  const p = previews.get(token) as any;
   if (!p || p.actorId !== actorId || p.traderSlug !== traderSlug) {
     throw Object.assign(new Error('Preview expired or not yours — run the preview again'), { status: 410 });
   }
   previews.delete(token);
-
-  const existing = (await storage.getJournalTrades(p.ownerId)).filter((r) => r.broker === 'discord' && r.brokerOrderId);
-  const byKey = new Map(existing.map((r) => [r.brokerOrderId!, r]));
-  const batchId = `discord_${Date.now()}`;
-  let created = 0, updated = 0, unchanged = 0, notesCreated = 0;
-
-  for (const t of p.trades) {
-    const econ = tradeEconomics(t);
-    const key = `discord:${t.key}`;
-    const prev = byKey.get(key);
-    const screenshot = t.screenshot && /^https:\/\/\S+$/i.test(t.screenshot) && t.screenshot.length < 2000 ? t.screenshot : null;
+  const trader = await traderBySlug(traderSlug);
+  let added = 0, updated = 0, unchanged = 0;
+  for (const c of (p.candidates ?? []) as WatchCandidate[]) {
+    const [prev] = await db.select().from(traderWatchlistItems)
+      .where(and(eq(traderWatchlistItems.traderId, trader.id), eq(traderWatchlistItems.symbol, c.symbol))).limit(1);
     if (!prev) {
-      await storage.createJournalTrade({
-        ...econ, userId: p.ownerId, broker: 'discord', brokerOrderId: key, importBatchId: batchId,
-        notes: t.notes.slice(0, 20_000), setupType: t.setupType, screenshot,
-        rawCsvRow: { messageIds: t.messageIds, flags: t.flags, authorId: t.authorId } as any,
-      } as any);
-      created++;
-      continue;
-    }
-    const changed = (['quantity', 'entryPrice', 'exitPrice', 'status', 'realizedPnL'] as const).some((k) => (prev as any)[k] !== (econ as any)[k]);
-    if (!changed) { unchanged++; continue; }
-    // Economics + the Discord timeline; tags / rating / emotion an admin added stay.
-    await storage.updateJournalTrade(prev.id, {
-      ...econ, notes: t.notes.slice(0, 20_000), rawCsvRow: { messageIds: t.messageIds, flags: t.flags, authorId: t.authorId } as any, updatedAt: new Date(),
-    } as any);
-    updated++;
+      await db.insert(traderWatchlistItems).values({ traderId: trader.id, symbol: c.symbol, note: c.note, addedBy: actorId }).onConflictDoNothing();
+      added++;
+    } else if (prev.note !== c.note) {
+      await db.update(traderWatchlistItems).set({ note: c.note }).where(eq(traderWatchlistItems.id, prev.id));
+      updated++;
+    } else unchanged++;
   }
-
-  for (let i = 0; i < p.notes.length; i += 200) {
-    const chunk = p.notes.slice(i, i + 200).map((n) => ({
-      ownerId: p.ownerId, symbols: n.symbols, day: n.day, postedAt: n.postedAt, body: n.body.slice(0, 20_000),
-      attachments: n.attachments, source: 'discord', sourceMessageId: n.messageId, reason: n.reason,
-    }));
-    if (!chunk.length) continue;
-    const res = await db.insert(journalNotes).values(chunk).onConflictDoNothing().returning({ id: journalNotes.id });
-    notesCreated += res.length;
-  }
-
-  logger.info(`[JOURNAL-DISCORD] ${traderSlug}: ${created} trades created, ${updated} updated, ${notesCreated} notes`);
-  return { created, updated, unchanged, notesCreated, notesSkipped: p.notes.length - notesCreated };
+  logger.info(`[WATCHLIST-DISCORD] ${traderSlug}: ${added} added, ${updated} notes updated, ${unchanged} unchanged`);
+  return { added, updated, unchanged };
 }

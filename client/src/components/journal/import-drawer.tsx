@@ -23,7 +23,6 @@ import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
 import { useJournalPortalClass } from './parts';
 import { useJournal } from './journal-context';
 import { AlpacaConnect } from './alpaca-connect';
-import { DiscordImport } from './discord-import';
 
 const FlowImport = lazy(() => import('@/components/trade-desk/flow-import').then((m) => ({ default: m.FlowImport })));
 
@@ -167,7 +166,7 @@ export function ImportDrawer({ open, onOpenChange, focus, tradeCount, onLogTrade
             <SheetTitle className="jr-title" style={{ fontSize: 24 }}>Add to {whose} journal</SheetTitle>
             <SheetDescription className="jr-sub">
               {trader
-                ? `Import ${book}'s Discord history (preview first), or log a trade by hand.`
+                ? `${book}'s journal is theirs to keep once they have an account; their Discord calls land on their watchlist.`
                 : 'Import a broker statement, connect Alpaca, log a trade by hand, or bring in flow alerts.'}
             </SheetDescription>
           </SheetHeader>
@@ -175,7 +174,10 @@ export function ImportDrawer({ open, onOpenChange, focus, tradeCount, onLogTrade
             {trader ? (
               <section id="jr-imp-sec-discord" aria-labelledby="jr-imp-discord">
                 <h3 className="jr-section-h" id="jr-imp-discord"><MessageSquare className="h-4 w-4" /> From Discord</h3>
-                <DiscordImport traderSlug={trader} traderName={book} botAvailable={discordBot} onDone={refresh} />
+                <p className="jr-note" style={{ margin: 0 }}>
+                  Discord calls go to {book}'s <b>watchlist</b>, not this journal — open Chart › Watchlist › {book} › "Import from Discord".
+                  {' '}{book} keeps this journal themselves once they have an account.
+                </p>
               </section>
             ) : (
               <>

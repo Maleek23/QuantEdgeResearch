@@ -1,5 +1,12 @@
 # Discord → trader journal import
 
+> **2026-09-29 — target changed.** Discord imports now fill a trader's **watchlist**
+> (one row per ticker they posted: mention count, last mention, their latest call
+> as the note), not their journal. Traders keep their own journal once they have
+> accounts. The importer lives in Chart › Watchlist › *trader* › "Import from Discord".
+> The parsing grammar below is unchanged.
+
+
 Fills a trader's journal (Journal → Traders → *name* → **Import from Discord**) from
 their Discord channel. Two paths; both end in the same **preview → confirm** step and
 nothing is written until you confirm. **Nothing here sends anything to Discord** — the

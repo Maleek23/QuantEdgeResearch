@@ -1,40 +1,27 @@
 /**
- * Discord → trader journal: upload a DiscordChatExporter export (or read the
- * channel with the server's bot token), review exactly what will be written,
- * then confirm. Nothing is saved until "Import". Re-importing the same history
- * updates the same rows (keys are Discord message ids). Nothing is ever sent to
- * Discord. Setup: docs/DISCORD_IMPORT.md.
+ * Discord → a trader's WATCHLIST (not their journal — traders keep their own
+ * journal once they have accounts). Upload a DiscordChatExporter export (or
+ * read the channel with the server's bot token), review the tickers they
+ * posted — mentions, last mention, their latest call as a note — then confirm.
+ * Nothing is saved until "Add". Re-importing refreshes notes; one row per
+ * ticker. Nothing is ever sent to Discord. Setup: docs/DISCORD_IMPORT.md.
  */
 import { useCallback, useRef, useState } from 'react';
 import { Check, FileUp, Loader2, X } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
-import { fmtMoney, fmtPrice } from '@/lib/journal/metrics';
 import { readApiError } from '@/lib/journal/use-journal';
-import { Pnl } from './parts';
+import '@/styles/journal.css';
 
-interface PreviewTrade {
-  key: string; symbol: string; assetType: string; optionType: string | null; strikePrice: number | null; expiryDate: string | null;
-  direction: string; quantity: number; qtyStated: boolean; entryPrice: number; entryTime: string; exitPrice: number | null;
-  exitTime: string | null; status: string; realizedPnL: number | null; flags: string[]; state: 'new' | 'update' | 'unchanged';
-}
-interface PreviewNote { messageId: string; day: string; symbols: string[]; body: string; reason: string; state: string; attachments: { url: string; name: string }[] }
+interface Candidate { symbol: string; mentions: number; lastAt: string; note: string; state: 'new' | 'update' | 'unchanged' }
 interface Preview {
   token: string; expiresAt: string; format: string; channel: string | null;
   authors: { authorId: string; authorName: string; messages: number }[];
   selectedAuthorId: string | null;
   stats: { messages: number; entries: number; exits: number; trims: number; notes: number; ignored: number; closedTrades: number; openTrades: number };
   skipped: { reason: string; count: number }[];
-  counts: { tradesNew: number; tradesUpdated: number; tradesUnchanged: number; notesNew: number; notesUnchanged: number };
-  trades: PreviewTrade[];
-  notes: PreviewNote[];
+  counts: { symbolsNew: number; symbolsUpdated: number; symbolsUnchanged: number; alreadyOnList: number };
+  candidates: Candidate[];
 }
-
-const REASON: Record<string, string> = {
-  analysis: 'analysis',
-  unmatched_exit: 'exit with no open entry',
-  unpriced_exit: 'closed without price',
-  entry_without_price: 'entry without price',
-};
 
 const MAX_BYTES = 11_000_000;
 
@@ -51,7 +38,7 @@ export function DiscordImport({ traderSlug, traderName, botAvailable, onDone }: 
   const [busy, setBusy] = useState<'preview' | 'commit' | null>(null);
   const [err, setErr] = useState('');
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [done, setDone] = useState<{ created: number; updated: number; notesCreated: number } | null>(null);
+  const [done, setDone] = useState<{ added: number; updated: number } | null>(null);
   const [drag, setDrag] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
@@ -87,7 +74,7 @@ export function DiscordImport({ traderSlug, traderName, botAvailable, onDone }: 
     try {
       const res = await apiRequest('POST', '/api/journal/discord/commit', { token: preview.token, trader: traderSlug });
       const r = await res.json();
-      setDone({ created: r.created, updated: r.updated, notesCreated: r.notesCreated });
+      setDone({ added: r.added, updated: r.updated });
       setPreview(null);
       onDone();
     } catch (e) {
@@ -97,10 +84,10 @@ export function DiscordImport({ traderSlug, traderName, botAvailable, onDone }: 
     }
   };
 
-  const writes = preview ? preview.counts.tradesNew + preview.counts.tradesUpdated + preview.counts.notesNew : 0;
+  const writes = preview ? preview.counts.symbolsNew + preview.counts.symbolsUpdated : 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="jr" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div className="jr-seg" role="group" aria-label="Discord source">
         <button type="button" aria-pressed={mode === 'file'} onClick={() => { setMode('file'); setPreview(null); }}>EXPORT FILE</button>
         <button type="button" aria-pressed={mode === 'bot'} onClick={() => { setMode('bot'); setPreview(null); }} disabled={!botAvailable}
@@ -137,8 +124,8 @@ export function DiscordImport({ traderSlug, traderName, botAvailable, onDone }: 
       {err && <div className="jr-err" role="alert"><div style={{ display: 'flex', gap: 6, alignItems: 'center', fontWeight: 700 }}><X className="h-4 w-4" /> Nothing was imported</div>{err}</div>}
       {done && (
         <div className="jr-ok" role="status">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}><Check className="h-4 w-4" /> Imported into {traderName}'s journal</div>
-          {done.created} new trade{done.created === 1 ? '' : 's'}, {done.updated} updated, {done.notesCreated} note{done.notesCreated === 1 ? '' : 's'}.
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}><Check className="h-4 w-4" /> Added to {traderName}'s watchlist</div>
+          {done.added} new ticker{done.added === 1 ? '' : 's'}, {done.updated} note{done.updated === 1 ? '' : 's'} refreshed.
         </div>
       )}
 
@@ -146,9 +133,9 @@ export function DiscordImport({ traderSlug, traderName, botAvailable, onDone }: 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} aria-live="polite">
           <div className="jr-stats">
             <div><span>Messages read</span><b>{preview.stats.messages}</b><small>{preview.channel ?? preview.format}</small></div>
-            <div><span>Trades</span><b>{preview.trades.length}</b><small>{preview.stats.closedTrades} closed · {preview.stats.openTrades} open</small></div>
-            <div><span>Will write</span><b>{preview.counts.tradesNew + preview.counts.tradesUpdated} trades</b><small>{preview.counts.tradesNew} new · {preview.counts.tradesUpdated} updated · {preview.counts.tradesUnchanged} already here</small></div>
-            <div><span>Notes</span><b>{preview.counts.notesNew} new</b><small>{preview.counts.notesUnchanged} already here · {preview.stats.ignored} chatter skipped</small></div>
+            <div><span>Tickers found</span><b>{preview.candidates.length}</b><small>{preview.stats.entries} calls · {preview.stats.notes} analysis posts</small></div>
+            <div><span>Will add</span><b>{preview.counts.symbolsNew}</b><small>{preview.counts.symbolsUpdated} notes refreshed · {preview.counts.symbolsUnchanged} unchanged</small></div>
+            <div><span>On the list now</span><b>{preview.counts.alreadyOnList}</b><small>{preview.stats.ignored} chatter skipped</small></div>
           </div>
 
           {preview.authors.length > 1 && (
@@ -159,7 +146,7 @@ export function DiscordImport({ traderSlug, traderName, botAvailable, onDone }: 
                 <option value="">Everyone in the export ({preview.authors.reduce((s, a) => s + a.messages, 0)} messages)</option>
                 {preview.authors.map((a) => <option key={a.authorId} value={a.authorId}>{a.authorName} — {a.messages} messages</option>)}
               </select>
-              <span className="jr-note" style={{ marginTop: 0 }}>Shared channels mix people — pick {traderName} so only their calls become trades.</span>
+              <span className="jr-note" style={{ marginTop: 0 }}>Shared channels mix people — pick {traderName} so only their calls land on the list.</span>
             </div>
           )}
 
@@ -167,54 +154,33 @@ export function DiscordImport({ traderSlug, traderName, botAvailable, onDone }: 
             <p className="jr-note" style={{ margin: 0 }}>Skipped: {preview.skipped.map((s) => `${s.count} ${s.reason}`).join(' · ')}</p>
           )}
 
-          {preview.trades.length > 0 && (
+          {preview.candidates.length > 0 ? (
             <div className="jr-preview">
               <table className="jr-table">
-                <thead><tr><th scope="col">State</th><th scope="col">Trade</th><th scope="col" className="num jr-desktop-only">Entry → exit</th><th scope="col" className="num">P&amp;L</th></tr></thead>
+                <thead><tr><th scope="col">State</th><th scope="col">Ticker</th><th scope="col" className="num">Mentions</th><th scope="col">Latest call / note</th></tr></thead>
                 <tbody>
-                  {preview.trades.map((t) => (
-                    <tr key={t.key} style={{ cursor: 'default' }} title={t.flags.join('\n')}>
-                      <td><span className={`jr-state ${t.state}`}>{t.state}</span></td>
-                      <td>
-                        <span className="jr-sym">{t.symbol}</span>{' '}
-                        {t.assetType === 'option' && <span className="jr-chip opt">{t.strikePrice}{(t.optionType ?? '').charAt(0).toUpperCase()} {t.expiryDate?.slice(5) ?? 'no exp'}</span>}
-                        <div className="jr-n">{new Date(t.entryTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })} · {t.direction} · {t.quantity}{t.qtyStated ? '' : ' (size not stated)'}{t.flags.length ? ` · ${t.flags.length} note${t.flags.length === 1 ? '' : 's'}` : ''}</div>
-                        <div className="jr-n jr-phone-only">{fmtPrice(t.entryPrice)} → {t.exitPrice != null ? fmtPrice(t.exitPrice) : 'open'}</div>
-                      </td>
-                      <td className="num jr-desktop-only">{fmtPrice(t.entryPrice)} → {t.exitPrice != null ? fmtPrice(t.exitPrice) : 'open'}</td>
-                      <td className="num">{t.status === 'open' ? <span className="jr-dim">open</span> : <Pnl value={t.realizedPnL} />}</td>
+                  {preview.candidates.map((c) => (
+                    <tr key={c.symbol} style={{ cursor: 'default' }}>
+                      <td><span className={`jr-state ${c.state}`}>{c.state}</span></td>
+                      <td><span className="jr-sym">{c.symbol}</span></td>
+                      <td className="num">{c.mentions}</td>
+                      <td style={{ whiteSpace: 'normal' }}><span className="jr-n">{c.note}</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
-
-          {preview.notes.length > 0 && (
-            <details className="jr-details">
-              <summary className="jr-dim" style={{ fontSize: 12 }}>{preview.counts.notesNew + preview.counts.notesUnchanged} notes (analysis posts, unpaired exits) — show newest</summary>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, maxHeight: 260, overflowY: 'auto' }}>
-                {preview.notes.slice(-40).reverse().map((n) => (
-                  <div key={n.messageId} className="jr-note-item">
-                    <div className="h"><span className={`jr-state ${n.state}`}>{n.state}</span>{n.day}<span className="jr-tag">{REASON[n.reason] ?? n.reason}</span>{n.symbols.slice(0, 4).map((s) => <span key={s} className="jr-chip">{s}</span>)}</div>
-                    <div className="b">{n.body}</div>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-
-          {preview.trades.length === 0 && preview.notes.length === 0 && (
-            <p className="jr-note" style={{ margin: 0 }}>No trades or notes found in these messages. If entries look like "BE 300c 10/2 @1.00" and still didn't parse, check the grammar in docs/DISCORD_IMPORT.md.</p>
+          ) : (
+            <p className="jr-note" style={{ margin: 0 }}>No tickers found in these messages. Calls like "BE 300c 10/2 @1.00" or "$NVDA" are picked up — see docs/DISCORD_IMPORT.md.</p>
           )}
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" className="jr-btn jr-btn-primary" disabled={!!busy || writes === 0} onClick={commit}>
               {busy === 'commit' && <Loader2 className="h-4 w-4 animate-spin" />}
-              {writes === 0 ? 'Nothing new to import' : `Import into ${traderName}'s journal`}
+              {writes === 0 ? 'Nothing new to add' : `Add to ${traderName}'s watchlist`}
             </button>
             <button type="button" className="jr-btn" disabled={!!busy} onClick={() => setPreview(null)}>Discard preview</button>
-            <span className="jr-n">P&amp;L shown at stated size; {fmtMoney(preview.trades.reduce((s, t) => s + (t.realizedPnL ?? 0), 0))} closed total</span>
+            <span className="jr-n">One row per ticker · the note is their most recent call</span>
           </div>
         </div>
       )}
