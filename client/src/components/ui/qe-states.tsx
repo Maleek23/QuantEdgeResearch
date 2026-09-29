@@ -23,7 +23,7 @@
 import type { ReactNode } from "react";
 import { AlertTriangle, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ToolSkeleton } from "@/components/ui/qe-loading";
 
 const T = {
   panel: "var(--panel-solid, #0e1117)",
@@ -40,6 +40,11 @@ const MONO = "'JetBrains Mono', ui-monospace, monospace";
 
 // ─── Loading ─────────────────────────────────────────────────
 
+/**
+ * Loading = THE tool skeleton (components/ui/qe-loading.tsx), so every
+ * in-flight surface — dashboard tool, page section, drawer — looks the same.
+ * `rows` sets the skeleton lines; `label` names what is loading.
+ */
 export function QELoading({
   rows = 3,
   label,
@@ -50,26 +55,7 @@ export function QELoading({
   label?: string;
   className?: string;
 }) {
-  const widths = ["100%", "86%", "72%", "92%", "64%"];
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-      className={cn("space-y-2.5", className)}
-      data-testid="qe-loading"
-    >
-      {label && (
-        <div style={{ fontFamily: MONO, fontSize: "var(--fs-10, 12px)", color: T.mute, letterSpacing: "0.08em" }}>
-          {label}
-        </div>
-      )}
-      {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className="h-10" style={{ width: widths[i % widths.length] }} />
-      ))}
-      {!label && <span className="sr-only">Loading</span>}
-    </div>
-  );
+  return <ToolSkeleton rows={rows} label={label} className={className} />;
 }
 
 // ─── Error ───────────────────────────────────────────────────

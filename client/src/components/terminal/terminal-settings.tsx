@@ -17,6 +17,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { EASE, DUR } from '@/lib/motion';
 import { TC } from '@/lib/design-tokens';
 import { useTheme } from '@/components/theme-provider';
+import { ToolSkeleton } from '@/components/ui/qe-loading';
 
 export interface UserPrefs {
   accountSize: number;
@@ -108,7 +109,7 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
             </div>
 
             {isLoading ? (
-              <div className="flex h-40 items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+              <ToolSkeleton rows={3} />
             ) : (
               <div className="space-y-5 px-4 py-4">
                 {/* ── risk: the settings that change the numbers ── */}

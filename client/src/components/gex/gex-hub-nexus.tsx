@@ -39,6 +39,7 @@ import {
 } from './gex-model';
 import { DealerStructureRail, GammaProfileChart, GexCellDrill } from './gex-parts';
 import '@/styles/nexus.css';
+import { ToolSkeleton } from '@/components/ui/qe-loading';
 
 const GexRankingsPanel = lazy(() => import('./gex-rankings-panel').then((m) => ({ default: m.GexRankingsPanel })));
 
@@ -410,7 +411,7 @@ export function GexHubNexus() {
           </div>
 
           {workspace === 'rank' && (
-            <Suspense fallback={<div style={{ padding: 32, textAlign: 'center', color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>loading rankings…</div>}>
+            <Suspense fallback={<ToolSkeleton rows={6} label="loading rankings…" />}>
               <GexRankingsPanel onPick={(sym) => { setAnchor(sym.toUpperCase()); setWorkspace('map'); }} />
             </Suspense>
           )}

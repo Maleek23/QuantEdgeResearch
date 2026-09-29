@@ -22,6 +22,7 @@ import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
 import { useJournalPortalClass } from './parts';
 import { useJournal } from './journal-context';
 import { AlpacaConnect } from './alpaca-connect';
+import { ToolSkeleton } from '@/components/ui/qe-loading';
 
 const FlowImport = lazy(() => import('@/components/trade-desk/flow-import').then((m) => ({ default: m.FlowImport })));
 
@@ -195,7 +196,7 @@ export function ImportSections({ focus, tradeCount, onLogTrade }: {
         {!trader && <section className="jr-card jr-span-12 jr-anchor" id="jr-imp-sec-flow" aria-labelledby="jr-imp-flow">
           <h3 className="jr-section-h" id="jr-imp-flow">Bullflow alerts → trade ideas</h3>
           <p className="jr-note" style={{ marginTop: 0 }}>Paste alerts you saw in Bullflow. Each line is graded by the option engine; B-and-up contracts become trade ideas (not journal trades).</p>
-          <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin" />}>
+          <Suspense fallback={<ToolSkeleton rows={2} />}>
             <FlowImport bare />
           </Suspense>
         </section>}

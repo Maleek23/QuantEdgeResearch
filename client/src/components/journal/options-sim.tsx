@@ -3,9 +3,9 @@
  * Groups legs by underlying; the drawer's "Simulate P&L" preselects one.
  */
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import type { SimPosition } from '@/components/position-pnl-simulator';
 import type { JournalTradeRow } from '@/lib/journal/types';
+import { ToolSkeleton } from '@/components/ui/qe-loading';
 
 const PositionPnLSimulator = lazy(() => import('@/components/position-pnl-simulator'));
 
@@ -47,7 +47,7 @@ export function OptionsSim({ rows, preselect }: { rows: JournalTradeRow[]; prese
         </select>
         <span className="jr-note" style={{ margin: 0 }}>At-expiry payoff of every logged leg on this underlying (open and closed), from your entry premiums.</span>
       </div>
-      <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin" />}>
+      <Suspense fallback={<ToolSkeleton rows={2} />}>
         <PositionPnLSimulator positions={groups.get(sym) ?? []} symbol={sym} />
       </Suspense>
     </div>

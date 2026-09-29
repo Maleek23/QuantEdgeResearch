@@ -25,7 +25,7 @@ export function usePageReveal(ref: RefObject<HTMLElement>, key: string) {
     if (previous.current === key) return;
     previous.current = key;
     if (typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const animation = ref.current?.animate?.([{ opacity: 0.7 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
+    const animation = ref.current?.animate?.([{ opacity: 0.7 }, { opacity: 1 }], { duration: 120, easing: 'ease-out' });
     return () => animation?.cancel();
   }, [key, ref]);
 }

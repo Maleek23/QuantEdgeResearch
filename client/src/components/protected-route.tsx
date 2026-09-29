@@ -13,6 +13,7 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
+import { RouteFallback } from "@/components/ui/qe-loading";
 import { Loader2, Lock, Mail } from "lucide-react";
 import {
   Card,
@@ -53,17 +54,8 @@ export function ProtectedRoute({
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showWaitlistModal, setShowWaitlistModal] = useState(true);
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2
-          className="h-8 w-8 animate-spin text-sky-400"
-          data-testid="loading-spinner"
-        />
-      </div>
-    );
-  }
+  // Loading state — the one route fallback (boot screen during boot, page skeleton after)
+  if (isLoading) return <RouteFallback />;
 
   // Not logged in - show waitlist modal
   if (!user) {
@@ -241,13 +233,7 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
-      </div>
-    );
-  }
+  if (isLoading) return <RouteFallback />;
 
   // Not logged in or not admin - show generic "not found" (don't reveal admin exists)
   const isAdmin = user?.isAdmin || user?.subscriptionTier === "admin";

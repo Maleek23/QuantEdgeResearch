@@ -10,7 +10,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTracking } from "@/hooks/use-analytics";
-import { Loader2 } from "lucide-react";
+import { RouteFallback } from "@/components/ui/qe-loading";
 import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-route";
 import { PreferencesProvider } from "@/contexts/preferences-context";
 import { ContentDensityProvider } from "@/hooks/use-content-density";
@@ -102,12 +102,9 @@ function preloadCriticalRoutes() {
   });
 }
 
+/** Route-chunk / auth fallback: holds the boot screen during boot, then the page skeleton (ui/qe-loading.tsx). */
 function PageLoader() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] w-full">
-      <Loader2 className="h-8 w-8 animate-spin text-sky-400/60" />
-    </div>
-  );
+  return <RouteFallback />;
 }
 
 function withBetaProtection<P extends object>(Component: ComponentType<P>) {
