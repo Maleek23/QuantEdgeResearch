@@ -5,6 +5,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { CANONICAL_LOSS_THRESHOLD } from "@shared/constants";
 import { isOutcomeEligible, readOracleExecutionAudit } from "@shared/oracle-lifecycle";
 import { isOptionScaleIncoherent, optionScaleReason } from "@shared/option-unit-guard";
+import { evaluateTimeStop, planTimeStop, readLossRulesConfig, readLossRulesStamp } from "@shared/loss-rules";
 
 /**
  * REALISED P&L PER CONTRACT — for options and shares, not just futures.
@@ -1182,6 +1183,49 @@ export class PerformanceValidator {
         highestPriceReached: highestPrice,
         lowestPriceReached: lowestPrice,
       };
+    }
+
+    // LOSS RULES v1 — TIME STOP (shared/loss-rules.ts). Only ideas published
+    // under the rule set carry a plan (convergenceSignalsJson.lossRules.timeStop);
+    // older rows are untouched. Barriers above win: a target/stop touched before
+    // the deadline resolves as that. At the deadline an idea that is not at least
+    // minR in profit is closed at the live price — outcome 'expired' with a
+    // MEASURED % (resolutionReason 'auto_time_stop'), so the rule's effect is in
+    // the record. LOSS_RULE_TIME_STOP=off stops these exits immediately.
+    const lossStamp = readLossRulesStamp(idea.convergenceSignalsJson);
+    if (lossStamp?.timeStop && currentPrice && readLossRulesConfig(process.env).timeStop) {
+      const ts = lossStamp.timeStop;
+      const trig = Date.parse(String(executionAudit?.triggerObservedAt ?? ''));
+      const anchor = Math.max(createdAt.getTime(), Number.isFinite(trig) ? trig : 0);
+      const plan = planTimeStop(anchor, ts.horizonDays, ts.fraction, ts.minR);
+      const verdict = evaluateTimeStop({
+        direction: directionForValidation as 'long' | 'short',
+        entry: idea.entryPrice, stop: idea.stopLoss, price: currentPrice, nowMs: now.getTime(), atIso: plan.atIso, minR: ts.minR,
+      });
+      if (verdict.exit) {
+        const percentGain = this.calculatePercentGain(directionForValidation, idea.entryPrice, currentPrice);
+        let realizedPnL = 0;
+        if (idea.assetType !== 'future') {
+          const r = computeRealisedPnl(idea, currentPrice);
+          if (r) realizedPnL = Math.round(r.pnl * 100) / 100;
+        }
+        console.log(`⏱️ [VALIDATION] ${idea.symbol} ${verdict.reason}`);
+        return {
+          shouldUpdate: true,
+          outcomeStatus: 'expired',
+          exitPrice: currentPrice,
+          percentGain,
+          realizedPnL,
+          resolutionReason: 'auto_time_stop',
+          exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+          actualHoldingTimeMinutes: holdingTimeMinutes,
+          predictionAccurate: this.checkPredictionAccuracy(idea, currentPrice, highestPrice, lowestPrice),
+          predictionAccuracyPercent: this.calculatePredictionAccuracyPercent(idea, currentPrice, highestPrice, lowestPrice),
+          predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+          highestPriceReached: highestPrice,
+          lowestPriceReached: lowestPrice,
+        };
+      }
     }
 
     // Still open - update price extremes if they changed

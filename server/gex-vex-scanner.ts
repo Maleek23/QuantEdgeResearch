@@ -881,7 +881,7 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
 
     let tradeIdea: Record<string, any>;
     try {
-      const enriched = await enrichOptionIdea(aiShape);
+      const enriched = await enrichOptionIdea(aiShape, { holdingPeriod: play.playScore >= 65 ? 'day' : 'swing' });
       if (enriched) {
         const risk = Math.abs(play.spotPrice - underlyingStop);
         const reward = Math.abs(underlyingTarget - play.spotPrice);

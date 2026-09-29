@@ -10309,17 +10309,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const blockedDay = e.blockedAt.slice(0, 10);
           const since = bars.filter((b) => new Date(b.time * 1000).toISOString().slice(0, 10) >= blockedDay);
           if (since.length === 0) {
-            out.push({ ...e, replay: "no bars yet", outcome: "open", wouldBePercent: null });
+            out.push({ ...e, direction: e.direction ?? "short", kind: e.kind ?? "short_gate", replay: "no bars yet", outcome: "open", wouldBePercent: null });
             continue;
           }
           const highest = Math.max(...since.map((b) => b.high));
           const lowest = Math.min(...since.map((b) => b.low));
-          const barrier = resolveBarriers({ direction: "short", target: e.targetPrice, stop: e.stopLoss, highest, lowest });
+          // Short-gate rows are always shorts; the bot's loss-rule skips carry their side.
+          const direction: "long" | "short" = e.direction ?? "short";
+          const barrier = resolveBarriers({ direction, target: e.targetPrice, stop: e.stopLoss, highest, lowest });
           const last = since[since.length - 1].close;
           const exit = barrier.outcome === "hit_target" ? e.targetPrice : barrier.outcome === "hit_stop" ? e.stopLoss : last;
-          // Short P&L: entry above exit is a gain.
-          const wouldBePercent = e.entryPrice > 0 ? ((e.entryPrice - exit) / e.entryPrice) * 100 : null;
-          out.push({ ...e, outcome: barrier.outcome, wouldBePercent, lastPrice: last });
+          // Side-aware P&L on the underlying: a short gains when exit < entry.
+          const wouldBePercent = e.entryPrice > 0 ? ((direction === "short" ? e.entryPrice - exit : exit - e.entryPrice) / e.entryPrice) * 100 : null;
+          out.push({ ...e, direction, kind: e.kind ?? "short_gate", outcome: barrier.outcome, wouldBePercent, lastPrice: last });
         }
       }
       const decided = out.filter((r) => r.outcome === "hit_target" || r.outcome === "hit_stop");
@@ -10333,8 +10335,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         blockedWinners: cost.length,
         blockedLosers: saved.length,
         netWouldBePercent: Math.round(sum(decided) * 100) / 100,
+        byKind: {
+          shortGate: out.filter((r) => r.kind === "short_gate").length,
+          botSkip: out.filter((r) => r.kind === "bot_skip").length,
+        },
         entries: out.sort((a, b) => b.blockedAt.localeCompare(a.blockedAt)),
         _meta: {
+          kinds: "kind 'short_gate' = pattern-shorts the discipline gate refused; kind 'bot_skip' = Quant Bot refusals under the loss rules (code: confluence | entry_window | stale_close_untriggered | no_session_bars | dte_fit …), each replayed on its own side (direction).",
           note: "Shadow trades — never published, never in the win rate. Replayed on daily bars, so intraday sequencing inside one bar is unknowable; both-barriers-in-one-bar ties go to the stop, matching live validation. netWouldBePercent > 0 means the gate is BLOCKING profitable shorts; sustained positive is the signal to revisit the rule, not to ignore the ledger.",
         },
       });
@@ -32481,6 +32488,9 @@ Use this checklist before entering any trade:
   {
     const { registerJournalsRoutes } = await import('./journals-routes');
     registerJournalsRoutes(app, requireBetaAccess);
+    // Loss rules v1: before/after + hypothetical counterfactual (server/loss-rules-report.ts)
+    const { registerLossRulesRoutes } = await import('./loss-rules-report');
+    registerLossRulesRoutes(app, requireBetaAccess);
   }
 
   /**

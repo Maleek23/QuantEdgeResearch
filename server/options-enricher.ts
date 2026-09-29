@@ -71,7 +71,15 @@ interface EnrichedOptionTrade {
  * @param aiIdea - AI-generated option idea (uses stock prices)
  * @returns Enriched option trade with real premiums, or null if unable to enrich
  */
-export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOptionTrade | null> {
+export async function enrichOptionIdea(
+  aiIdea: AITradeIdea,
+  /**
+   * Loss rule 4 (DTE fit, flag LOSS_RULE_DTE_FIT): pass the idea's holding
+   * period and a multi-day hold (swing/position, ≥3 trading days) only takes a
+   * 30–60 DTE contract. Omitted → the pre-rules selection (any expiry).
+   */
+  opts?: { holdingPeriod?: string | null },
+): Promise<EnrichedOptionTrade | null> {
   try {
     logger.info(`[OPTIONS-ENRICH] Processing ${aiIdea.symbol} ${aiIdea.direction} option from AI...`);
 
@@ -175,8 +183,27 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
       return null;
     }
 
+    // Loss rule 4 — DTE fit. Measured: options at 8–30 DTE held for days lost
+    // −$5,755 over 119 trades (theta). A multi-day hold buys 30–60 DTE or nothing.
+    let pool = goodOptions;
+    if (opts?.holdingPeriod != null) {
+      const { dteFitWindow, holdDaysForSetup, readLossRulesConfig } = await import('../shared/loss-rules');
+      const cfg = readLossRulesConfig(process.env);
+      const fit = cfg.dteFit ? dteFitWindow(holdDaysForSetup(opts.holdingPeriod), cfg) : null;
+      if (fit) {
+        pool = goodOptions.filter((opt) => {
+          const dte = Math.ceil((new Date(opt.expiration_date).getTime() - Date.now()) / 86_400_000);
+          return dte >= fit.min && dte <= fit.max;
+        });
+        if (pool.length === 0) {
+          logger.warn(`[OPTIONS-ENRICH] ${aiIdea.symbol}: no liquid ${optionType} in the ${fit.min}–${fit.max} DTE window a ${opts.holdingPeriod} hold requires (loss rule 4) — no contract`);
+          return null;
+        }
+      }
+    }
+
     // Pick the most liquid option (highest volume)
-    const selectedOption = goodOptions[0];
+    const selectedOption = pool[0];
     // 🔒 PRICING FIX: Use bid/ask mid-price for accurate entry premium
     const hasBidAsk = selectedOption.bid && selectedOption.bid > 0 && selectedOption.ask && selectedOption.ask > 0;
     const entryPremium = hasBidAsk ? (selectedOption.bid + selectedOption.ask) / 2 : selectedOption.last;

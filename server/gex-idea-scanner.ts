@@ -288,7 +288,7 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
 
   let tradeIdea: Record<string, any>;
   try {
-    const enriched = await enrichOptionIdea(aiShape);
+    const enriched = await enrichOptionIdea(aiShape, { holdingPeriod });
     if (enriched) {
       tradeIdea = {
         symbol: c.symbol,

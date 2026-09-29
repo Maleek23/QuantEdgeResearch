@@ -59,6 +59,7 @@ import {
   getTradierOptionExpirations,
   getTradierOptionsChain,
 } from './tradier-api';
+import { dteFitWindow, holdDaysForSetup, readLossRulesConfig } from '../shared/loss-rules';
 
 // ─── Public types ──────────────────────────────────────────────────
 
@@ -108,6 +109,26 @@ export interface PriceActionThesis {
   minRoiAtT1Pct?: number;
   /** Explicit escape hatch for the dedicated index-0DTE engine only. */
   allowZeroDte?: boolean;
+  /**
+   * LOSS RULE 4 — DTE fit (shared/loss-rules.ts, flag LOSS_RULE_DTE_FIT).
+   * Opt-in per caller: idea generation and the Quant Bot set it; interactive
+   * contract pickers keep the user's chosen tier. When set, a multi-day hold
+   * (≥3 trading days from holdingDays, else the setup) is bound to 30–60 DTE
+   * with no fallback outside it. Never applied to LEAP or the 0DTE engine.
+   */
+  applyDteFit?: boolean;
+}
+
+/**
+ * The DTE-fit window for a thesis, or null when rule 4 does not apply to it.
+ * Exported for the unit tests and for callers that pre-fetch expiries.
+ */
+export function dteFitFor(thesis: Pick<PriceActionThesis, 'applyDteFit' | 'allowZeroDte' | 'setup' | 'holdingDays' | 'expiryTier'>):
+  { min: number; max: number; ideal: number; fallbackMaxDte: number; label: string } | null {
+  if (!thesis.applyDteFit || thesis.allowZeroDte || thesis.expiryTier === 'LEAP') return null;
+  const cfg = readLossRulesConfig(process.env);
+  if (!cfg.dteFit) return null;
+  return dteFitWindow(holdDaysForSetup(thesis.setup, thesis.holdingDays), cfg);
 }
 
 export interface ContractCandidate {
@@ -793,7 +814,7 @@ export function selectFromChain(
     ? 0
     : minDteForConviction(thesis.conviction);
   const gated = dteFloor > tierWin.min;
-  const win = gated
+  const gatedWin = gated
     ? {
         ...tierWin,
         min: dteFloor,
@@ -801,6 +822,10 @@ export function selectFromChain(
         ideal: Math.max(tierWin.ideal, dteFloor + 5),
       }
     : tierWin;
+  // Loss rule 4: a multi-day hold is bound to 30–60 DTE (the conviction floor
+  // is always below 30, so the fit window supersedes it).
+  const fit = dteFitFor(thesis);
+  const win = fit ?? gatedWin;
   const base = {
     symbol: thesis.symbol,
     direction: thesis.direction,
@@ -811,7 +836,9 @@ export function selectFromChain(
     expiryTier,
     dteWindow: { min: win.min, max: win.max },
     gradeSource: 'shared/contract-engine' as const,
-    dteGateNote: gated
+    dteGateNote: fit
+      ? `DTE fit (loss rule 4): multi-day hold → ${fit.min}–${fit.max} DTE only`
+      : gated
       ? `Conviction ${Math.round(thesis.conviction ?? 0)} — short-dated withheld, minimum ${dteFloor} DTE`
       : undefined,
   };
@@ -971,7 +998,8 @@ export async function selectContracts(
 ): Promise<ContractSelection> {
   const optionType: 'call' | 'put' = thesis.direction === 'bullish' ? 'call' : 'put';
   const expiryTier = resolveExpiryTier(thesis);
-  const win = EXPIRY_TIERS[expiryTier];
+  // Fetch windows follow loss rule 4 when it applies (selectFromChain re-derives it).
+  const win = dteFitFor(thesis) ?? EXPIRY_TIERS[expiryTier];
   const unavailable = (note: string, spot = 0): ContractSelection => ({
     symbol: thesis.symbol,
     direction: thesis.direction,

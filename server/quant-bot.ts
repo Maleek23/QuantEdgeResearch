@@ -600,20 +600,54 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
         logger.info(`[QUANT-BOT] selective tape — half size (${(riskFraction * 100).toFixed(1)}%/trade), floor unchanged at ${minConviction}`);
       }
 
-      const candidates = (board.picks ?? [])
+      // LOSS RULES v1 (shared/loss-rules.ts, flags LOSS_RULE_*): every refusal
+      // below is written to the blocked-trade ledger with its reason (Missed · Bot).
+      const { lossRulesConfig, botConfluenceGate, botEntryWindowGate, noteBotSkip } = await import('./loss-rules');
+      const { LOSS_RULES_TAG } = await import('@shared/loss-rules');
+      const rules = lossRulesConfig();
+
+      const ranked = (board.picks ?? [])
         .filter((p) => p.convictionScore >= minConviction)
         .filter((p) => !heldSymbols.has(p.symbol))
         .filter((p) => {
-          if (!triggered(p)) { skipped++; return false; }          // pending trigger
-          if (stoppedOut(p)) { skipped++; return false; }          // already invalidated
-          if (chaseGuard(p) > cfg.maxProgressPct) { skipped++; return false; } // chasing
+          if (!triggered(p)) { skipped++; return false; }          // pending trigger (waiting, not refused)
+          if (stoppedOut(p)) { skipped++; noteBotSkip(p, 'stopped_out', 'price already through the stop — idea invalidated'); return false; }
+          if (chaseGuard(p) > cfg.maxProgressPct) { skipped++; noteBotSkip(p, 'chase', `${chaseGuard(p).toFixed(0)}% of the way to T1 already (limit ${cfg.maxProgressPct}%)`); return false; }
           return true;
         })
-        .sort((a, b) => b.convictionScore - a.convictionScore)
-        .slice(0, slots);
+        .sort((a, b) => b.convictionScore - a.convictionScore);
+
+      // Rules 1 + 2 run BEFORE a slot is assigned, so a refused name never
+      // occupies a slot a qualifying name could have filled.
+      const ideaCache = new Map<string, any>();
+      const loadIdea = async (id: string) => {
+        if (!ideaCache.has(id)) ideaCache.set(id, await storage.getTradeIdeaById(id).catch(() => null));
+        return ideaCache.get(id);
+      };
+      const confluenceOf = new Map<string, string[]>();
+      const candidates: typeof ranked = [];
+      for (const p of ranked) {
+        if (candidates.length >= slots) break;
+        const idea: any = await loadIdea(p.ideaId);
+        if (rules.botEntryWindow) {
+          const w = await botEntryWindowGate({ symbol: p.symbol, direction: p.direction, entryPrice: p.entryPrice, currentPrice: p.currentPrice }, idea);
+          if (!w.ok) { skipped++; noteBotSkip(p, w.code, w.reason); continue; }
+        }
+        if (rules.botConfluence) {
+          const c = await botConfluenceGate({ symbol: p.symbol, direction: p.direction, layers: p.layers as any, source: p.source }, idea);
+          if (!c.passed) {
+            skipped++;
+            noteBotSkip(p, 'confluence', c.reason);
+            logger.info(`[QUANT-BOT] skipped ${p.symbol}: ${c.reason}`);
+            continue;
+          }
+          confluenceOf.set(p.ideaId, c.families);
+        }
+        candidates.push(p);
+      }
 
       for (const pick of candidates) {
-        const idea: any = await storage.getTradeIdeaById(pick.ideaId).catch(() => null);
+        const idea: any = await loadIdea(pick.ideaId);
         if (!idea) { skipped++; continue; }
 
         // Most signals are tagged assetType 'option', but the platform stores the
@@ -650,6 +684,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
 
           if (!directionValid || underlyingRR < cfg.minUnderlyingRR) {
             skipped++;
+            noteBotSkip(pick, 'weak_plan', `invalid/weak underlying plan (R:R ${underlyingRR.toFixed(2)}, minimum ${cfg.minUnderlyingRR.toFixed(2)})`);
             logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: invalid/weak underlying plan (R:R ${underlyingRR.toFixed(2)}, minimum ${cfg.minUnderlyingRR.toFixed(2)})`);
             continue;
           }
@@ -717,7 +752,9 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
             entry: underlyingEntry,
             stop: underlyingStop,
             t1: underlyingT1,
-            holdingDays: Number(pick.horizonDays ?? idea.horizonDays ?? 0) || undefined,
+            holdingDays: Number((pick as any).horizonDays ?? idea.horizonDays ?? 0) || undefined,
+            // Loss rule 4: multi-day holds get 30–60 DTE (flag LOSS_RULE_DTE_FIT).
+            applyDteFit: true,
             conviction: convictionDisplayPercent(pick.convictionScore ?? 0),
             asOfSpot: Number(pick.currentPrice ?? 0) || undefined,
             accountSize: cash,
@@ -737,6 +774,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
             : null;
           if (!selected) {
             skipped++;
+            noteBotSkip(pick, selection.dteGateNote?.startsWith('DTE fit') ? 'dte_fit' : 'no_contract', `${selection.dteGateNote ? `${selection.dteGateNote} — ` : ''}${selection.note ?? 'no contract clears reachability/account gates'}`);
             logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: ${selection.note ?? 'no contract clears reachability/account gates'}`);
             continue;
           }
@@ -751,6 +789,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
 
           if (!q) {
             skipped++;
+            noteBotSkip(pick, 'no_quote', 'no contract mark from any source');
             logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: no contract mark from any source`);
             continue;
           }
@@ -760,11 +799,13 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
           const spreadPct = quoteMid > 0 ? (quoteAsk - quoteBid) / quoteMid : Number.POSITIVE_INFINITY;
           if (!(quoteBid > 0 && quoteAsk > 0) || spreadPct > cfg.maxOptionSpreadPct) {
             skipped++;
+            noteBotSkip(pick, 'non_executable', `non-executable option market (spread ${(spreadPct * 100).toFixed(1)}%)`);
             logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: non-executable option market (spread ${(spreadPct * 100).toFixed(1)}%)`);
             continue;
           }
           if (q.delayed && easternMinutes() < cfg.delayedFillNotBeforeEtMinutes) {
             skipped++;
+            noteBotSkip(pick, 'delayed_quote', 'delayed option quote during opening-price discovery');
             logger.warn(`[QUANT-BOT] skipped ${idea.symbol}: delayed option quote during opening-price discovery`);
             continue;
           }
@@ -800,7 +841,19 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
           //
           // A signal with no contract is simply not tradeable by this bot. Skip it.
           skipped++;
+          noteBotSkip(pick, 'not_option', 'idea has no option vehicle — the bot trades contracts only');
           continue;
+        }
+
+        // Rule 5 — measurement: the fill carries the rule-set version and the
+        // evidence families that cleared it (paper_positions.entry_signals).
+        if (rules.botConfluence || rules.botEntryWindow || rules.dteFit) {
+          const fams = confluenceOf.get(pick.ideaId);
+          tradeable.qualitySignals = [
+            ...(Array.isArray(tradeable.qualitySignals) ? tradeable.qualitySignals : []),
+            LOSS_RULES_TAG,
+            ...(fams?.length ? [`confluence:${fams.join('+')}`] : []),
+          ];
         }
 
         const selectedMaxContracts = tradeable.assetType === 'option'
@@ -847,6 +900,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
           }
         } else {
           skipped++;
+          noteBotSkip(pick, 'no_fill', res.error ?? 'no fill');
           logger.debug(`[QUANT-BOT] skipped ${pick.symbol}: ${res.error ?? 'no fill'}`);
         }
       }

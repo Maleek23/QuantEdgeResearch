@@ -16,6 +16,7 @@
     "test:redirects": "tsx scripts/verify-redirects.ts",
     "test:journal": "tsx scripts/test-journal.ts",
     "test:sr-controls": "tsx scripts/test-sr-controls.ts",
+    "test:loss-rules": "tsx scripts/test-loss-rules.ts",
     "test:model-determinism": "node scripts/verify-model-determinism.mjs",
     "test:sr117": "npm run test:tsc-gate && npm run test:redirects && npm run test:sr-controls && npm run test:model-determinism && npm run build",
     "health": "curl -fsS http://localhost:5000/api/health | (jq . 2>/dev/null || cat)",
