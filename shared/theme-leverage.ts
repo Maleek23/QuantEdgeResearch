@@ -280,6 +280,7 @@ export const DRIVERS: Record<string, { proxy: string; label: string }> = {
   bitcoin:  { proxy: 'IBIT', label: 'Bitcoin' },
   semis:    { proxy: 'SMH',  label: 'Semiconductors' },
   software: { proxy: 'IGV',  label: 'Software' },
+  cyber:    { proxy: 'CIBR', label: 'Cybersecurity' },
   biotech:  { proxy: 'XBI',  label: 'Biotech' },
   energy:   { proxy: 'XLE',  label: 'Energy' },
   uranium:  { proxy: 'URA',  label: 'Uranium' },

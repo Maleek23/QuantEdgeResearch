@@ -22,7 +22,7 @@ import { yahooChart } from './yahoo-client';
 import { DISCOVERY_UNIVERSE } from './multi-signal-discovery';
 
 /** Sectors get scanned as first-class tickers, not as an afterthought. */
-const SECTOR_ETFS = ['XLK','XLF','XLE','XLV','XLI','XLY','XLP','XLU','XLB','XLRE','XLC','SMH','IGV','XBI','ITA','KRE','XRT','JETS'];
+const SECTOR_ETFS = ['XLK','XLF','XLE','XLV','XLI','XLY','XLP','XLU','XLB','XLRE','XLC','SMH','IGV','CIBR','XBI','ITA','KRE','XRT','JETS'];
 
 export interface GapCandidate {
   symbol: string;

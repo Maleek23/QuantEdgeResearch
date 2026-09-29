@@ -43,7 +43,7 @@ export const PEER_GROUPS: readonly PeerGroup[] = [
   { id: 'enterprise_software', label: 'software', etf: 'IGV', members: ['CRM', 'NOW', 'ADBE', 'WDAY', 'ORCL', 'SAP', 'HUBS', 'IBM', 'INTA'] },
   { id: 'data_cloud_software', label: 'cloud-software', etf: 'IGV', members: ['SNOW', 'DDOG', 'MDB', 'NET', 'ESTC', 'PATH', 'FSLY', 'GTLB'] },
   { id: 'ai_software', label: 'AI-software', etf: 'IGV', members: ['PLTR', 'APP', 'SOUN', 'BBAI', 'PATH'] },
-  { id: 'cybersecurity', label: 'cybersecurity', etf: 'IGV', members: ['CRWD', 'PANW', 'ZS', 'FTNT', 'NET', 'S', 'OKTA'] },
+  { id: 'cybersecurity', label: 'cybersecurity', etf: 'CIBR', members: ['CRWD', 'PANW', 'ZS', 'FTNT', 'NET', 'S', 'OKTA', 'CYBR', 'CHKP', 'QLYS', 'TENB', 'RPD', 'VRNS'] },
   { id: 'consumer_internet', label: 'consumer-internet', etf: 'XLY', members: ['SHOP', 'UBER', 'ABNB', 'DKNG', 'DUOL', 'RBLX', 'CHWY'] },
 
   // ── Financials ──
