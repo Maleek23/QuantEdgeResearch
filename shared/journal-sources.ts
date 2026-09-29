@@ -83,13 +83,18 @@ export interface JournalSourceListItem {
  *   note      a free notebook entry, tagged by ticker/day
  *   missed    a trade you saw and did not take
  *   playbook  the written definition of one setup (one per setup, upserted)
+ *   trade_review  the review of one trade (one per trade, upserted): body is a
+ *             JSON envelope — markdown notes, rule checklist, annotations,
+ *             stop/target — see client/src/lib/journal/metrics-extra.ts
+ *             (encodeTradeReview). Attachments ride in the attachments column.
  */
-export const JOURNAL_NOTE_KINDS = ['day_note', 'note', 'missed', 'playbook'] as const;
+export const JOURNAL_NOTE_KINDS = ['day_note', 'note', 'missed', 'playbook', 'trade_review'] as const;
 export type JournalNoteKind = (typeof JOURNAL_NOTE_KINDS)[number];
 
 /** Idempotency key for the one-per-thing kinds (unique on owner + source + key). */
 export function journalNoteKey(kind: JournalNoteKind, ref: string): string | null {
   if (kind === 'day_note') return `day:${ref}`;
   if (kind === 'playbook') return `playbook:${ref.trim().toLowerCase()}`;
+  if (kind === 'trade_review') return `trade:${ref.trim()}`;
   return null;
 }

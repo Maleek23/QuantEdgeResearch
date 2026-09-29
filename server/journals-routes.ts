@@ -8,6 +8,7 @@
  *   POST   /api/journal/notes?journal=              day note / notebook / missed / playbook (writable books)
  *   DELETE /api/journal/notes/:id?journal=          remove a manual note (writable books)
  *   GET    /api/journal/bot                         the Quant Bot's rules (config) + paper portfolios
+ *   GET    /api/journal/balance?journal=            the book's account balance, when one exists (edge score / relative drawdown)
  *   GET    /api/traders                             traders (with watchlist counts)
  *   POST   /api/traders                             create            (admin)
  *   PATCH  /api/traders/:slug                       handle/source/…   (admin)
@@ -26,7 +27,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from './db';
 import { logger } from './logger';
-import { journalNotes, traders, traderWatchlistItems } from '@shared/schema';
+import { journalNotes, journalTrades, paperPortfolios, traders, traderWatchlistItems } from '@shared/schema';
 import { JOURNAL_NOTE_KINDS, TRADER_SLUG_RE, journalNoteKey, parseJournalKey, type JournalSourceListItem } from '@shared/journal-sources';
 import {
   JournalAccessError, canWriteTrader, getTraderBySlug, journalActor, listTraders, loadJournalNotes, resolveJournal, writableOwner,
@@ -43,6 +44,20 @@ function fail(res: Response, err: unknown, context: string) {
 }
 
 const SYMBOL_RE = /^[A-Z][A-Z0-9.\-/]{0,11}$/;
+
+/** A note attachment: an https link or a compact inline image/PDF (the client downscales images first). */
+const MAX_ATTACHMENT_CHARS = 2_500_000;
+const attachmentSchema = z.object({
+  url: z.string().max(MAX_ATTACHMENT_CHARS, 'attachment is too large (max ~1.8MB)').refine(
+    (s) => /^https:\/\/\S+$/i.test(s) || /^data:(image\/(png|jpeg|webp)|application\/pdf);base64,[A-Za-z0-9+/=]+$/.test(s),
+    'attachment must be an https link or a PNG/JPEG/WebP image or PDF',
+  ),
+  name: z.string().trim().min(1).max(120),
+  isImage: z.boolean(),
+}).strict();
+
+/** Account balance cache (Alpaca /v2/account is rate-limited; one read per user per minute). */
+const balanceCache = new Map<string, { at: number; value: unknown }>();
 
 export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
   // ── Sources ──────────────────────────────────────────────
@@ -88,10 +103,12 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
   const noteBody = z.object({
     kind: z.enum(JOURNAL_NOTE_KINDS),
     day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'day: YYYY-MM-DD'),
-    body: z.string().max(20_000),
+    body: z.string().max(60_000),
     symbols: z.array(z.string().trim().toUpperCase().regex(SYMBOL_RE)).max(12).optional(),
-    /** playbook: the setup name the definition belongs to. */
-    ref: z.string().trim().min(1).max(60).optional(),
+    /** playbook: the setup name the definition belongs to; trade_review: the trade id. */
+    ref: z.string().trim().min(1).max(80).optional(),
+    /** day_note / note / trade_review: up to 6 attachments (≤ ~6MB total — see the route's body limit). */
+    attachments: z.array(attachmentSchema).max(6).optional(),
   }).strict();
 
   app.post('/api/journal/notes', requireBetaAccess, async (req, res) => {
@@ -103,19 +120,28 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
       const { kind, day, symbols } = parsed.data;
       const body = parsed.data.body.trim();
       if (kind === 'playbook' && !parsed.data.ref) return res.status(400).json({ error: 'A playbook definition needs the setup name (ref)' });
-      const key = journalNoteKey(kind, kind === 'playbook' ? parsed.data.ref! : day);
+      if (kind === 'trade_review') {
+        if (!parsed.data.ref) return res.status(400).json({ error: 'A trade review needs the trade id (ref)' });
+        // Reviews attach only to a trade in this same book.
+        const [t] = await db.select({ id: journalTrades.id }).from(journalTrades)
+          .where(and(eq(journalTrades.id, parsed.data.ref), eq(journalTrades.userId, j.ownerId))).limit(1);
+        if (!t) return res.status(404).json({ error: 'No such trade in this journal' });
+      }
+      if (kind === 'playbook' && parsed.data.attachments?.length) return res.status(400).json({ error: 'Playbook definitions do not take attachments' });
+      const attachments = parsed.data.attachments?.length ? parsed.data.attachments : null;
+      const key = journalNoteKey(kind, kind === 'playbook' || kind === 'trade_review' ? parsed.data.ref! : day);
       const values = {
-        ownerId: j.ownerId, day, body, source: 'manual', reason: kind, sourceMessageId: key,
+        ownerId: j.ownerId, day, body, source: 'manual', reason: kind, sourceMessageId: key, attachments,
         symbols: symbols?.length ? [...new Set(symbols)] : null, postedAt: new Date().toISOString(),
       };
       if (key) {
-        // One per day / per setup: an empty body clears it.
-        if (!body) {
+        // One per day / per setup / per trade: an empty body with no attachments clears it.
+        if (!body && !attachments) {
           await db.delete(journalNotes).where(and(eq(journalNotes.ownerId, j.ownerId), eq(journalNotes.source, 'manual'), eq(journalNotes.sourceMessageId, key)));
           return res.json({ note: null, cleared: true });
         }
         const [note] = await db.insert(journalNotes).values(values)
-          .onConflictDoUpdate({ target: [journalNotes.ownerId, journalNotes.source, journalNotes.sourceMessageId], set: { body, symbols: values.symbols, postedAt: values.postedAt, day } })
+          .onConflictDoUpdate({ target: [journalNotes.ownerId, journalNotes.source, journalNotes.sourceMessageId], set: { body, symbols: values.symbols, postedAt: values.postedAt, day, attachments } })
           .returning();
         return res.json({ note });
       }
@@ -170,6 +196,46 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
         }),
       });
     } catch (err) { fail(res, err, 'Bot rules'); }
+  });
+
+  // ── Account balance behind a book (for % drawdown and the edge score) ──
+  // Only real balances: the bot's paper portfolio starting capital, or (Mine)
+  // the connected Alpaca account's equity. Every other book answers
+  // balance: null with the reason — the client never substitutes a number.
+  app.get('/api/journal/balance', requireBetaAccess, async (req, res) => {
+    try {
+      const actor = await journalActor(req);
+      const key = parseJournalKey(req.query.journal as string);
+      const j = await resolveJournal(actor, key);
+      const none = (reason: string) => res.json({ key, balance: null, reason });
+      if (key === 'bot') {
+        const { BOT_PORTFOLIO_NAME, BOT_USER_ID } = await import('./quant-bot');
+        const [p] = await db.select().from(paperPortfolios)
+          .where(and(eq(paperPortfolios.userId, BOT_USER_ID), eq(paperPortfolios.name, BOT_PORTFOLIO_NAME))).limit(1);
+        if (!p || !(Number(p.startingCapital) > 0)) return none('The bot has no paper portfolio with a starting capital.');
+        return res.json({
+          key, balance: { kind: 'starting', amount: Number(p.startingCapital), label: `${p.name} starting capital`, source: 'paper_portfolios.starting_capital', asOf: p.updatedAt ?? null },
+        });
+      }
+      if (key === 'mine') {
+        if (!actor.userId) return none('Sign in to read a connected account.');
+        const mod = await import('./alpaca-journal-import');
+        const row = await mod.getAlpacaConnection(actor.userId);
+        if (!row) return none('No account balance for Mine — connect Alpaca (Accounts) to anchor drawdown % to your equity.');
+        const hit = balanceCache.get(actor.userId);
+        if (hit && Date.now() - hit.at < 60_000) return res.json(hit.value);
+        try {
+          const eq0 = await mod.fetchAlpacaEquity(mod.credsFromConnection(row));
+          const value = { key, balance: { kind: 'equity', amount: eq0.equity, label: `Alpaca ${row.paper ? 'paper' : 'live'} equity now`, source: 'Alpaca GET /v2/account', asOf: eq0.asOf } };
+          balanceCache.set(actor.userId, { at: Date.now(), value });
+          return res.json(value);
+        } catch (e) {
+          return none(`Alpaca account read failed (${(e as Error).message}) — no balance this time.`);
+        }
+      }
+      if (key === 'desk') return none('The trade desk book sizes each idea on its own (1 contract / $1,000 notional) — there is no account balance behind it.');
+      return none(`${j.label}'s journal has no account balance on record.`);
+    } catch (err) { fail(res, err, 'Journal balance'); }
   });
 
   // ── Traders ──────────────────────────────────────────────

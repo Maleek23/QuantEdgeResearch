@@ -24,6 +24,8 @@ export interface JournalCtx {
   canWrite: boolean;
   /** Open the detail drawer; `order` is the list it was opened from (for ← / →). */
   openTrade: (id: string, order?: string[]) => void;
+  /** Open the full trade page (?jtrade=<id>); `order` drives its prev / next. */
+  openTradePage: (id: string, order?: string[]) => void;
   openEditor: (row?: JournalTradeRow | null) => void;
   /** Go to the Import page (optionally at a section). */
   openImport: (section?: ImportSection) => void;

@@ -32285,11 +32285,14 @@ Use this checklist before entering any trade:
       const known = new Set(existing.map(fingerprint));
       let saved = 0;
       let duplicates = 0;
+      // Reconciliation detail for the Import page: which round trips were skipped as duplicates.
+      const duplicateRows: { symbol: string; direction: string; entryTime: string; exitTime: string | null; quantity: number }[] = [];
       for (const t of result.trades) {
         try {
           const key = fingerprint(t);
           if (known.has(key)) {
             duplicates++;
+            if (duplicateRows.length < 200) duplicateRows.push({ symbol: t.symbol, direction: t.direction, entryTime: t.entryTime, exitTime: t.exitTime || null, quantity: Number(t.quantity) || 0 });
             continue;
           }
           await storage.createJournalTrade({
@@ -32337,6 +32340,9 @@ Use this checklist before entering any trade:
         parsed: result.parsedRows,
         saved,
         duplicates,
+        duplicateRows,
+        fillRows: result.fillRows ?? null,
+        roundTrips: result.trades.length,
         open: result.trades.filter((t) => t.status === 'open').length,
         closed: result.trades.filter((t) => t.status === 'closed').length,
         errors: result.errors,

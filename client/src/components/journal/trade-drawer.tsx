@@ -5,7 +5,7 @@
  * edits go through the full editor; delete always confirms.
  */
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, LineChart, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Expand, LineChart, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -23,7 +23,7 @@ const when = (iso?: string | null) => (iso
   ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET'
   : '—');
 
-export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, neighbours, onSimulate }: {
+export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, neighbours, onSimulate, onOpenPage }: {
   trade: JournalTradeRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -32,6 +32,8 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
   /** Previous / next trade ids in the current list order. */
   neighbours: { prev?: string; next?: string };
   onSimulate?: (symbol: string) => void;
+  /** Open the full trade page (chart, review, checklist). */
+  onOpenPage?: (id: string) => void;
 }) {
   const portal = useJournalPortalClass();
   const { data } = useJournal();
@@ -104,6 +106,7 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
 
           <div className="jr-drawer" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {onOpenPage && <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => onOpenPage(trade.id)}><Expand className="h-3.5 w-3.5" /> Full page</button>}
               {!readOnly && <button type="button" className="jr-btn jr-btn-sm" onClick={() => onEdit(trade)}><Pencil className="h-3.5 w-3.5" /> Edit trade</button>}
               {isOpt && onSimulate && (
                 <button type="button" className="jr-btn jr-btn-sm" onClick={() => onSimulate(trade.symbol)}><LineChart className="h-3.5 w-3.5" /> Simulate P&amp;L</button>

@@ -4,6 +4,11 @@
  * a week view, a year strip of monthly totals, and a day drill-down with that
  * day's closed trades and notes. Computed from the filtered rows of the
  * selected book; days are New York trading days.
+ *
+ * 2026-09-29 (LuxAlgo calendar-day-preview / calendar-insights parity):
+ * hovering or focusing a day previews its running P&L and trades, and an
+ * insights card reads the filtered days — green-day %, average green/red day,
+ * best / worst weekday (with n days each) and day streaks.
  */
 import { useMemo, useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -11,9 +16,11 @@ import { journalDayKey } from '@shared/journal-filters';
 import { CalendarPnl } from '@/components/journal/calendar-pnl';
 import { useJournal } from '@/components/journal/journal-context';
 import { Card, N, Pnl, fmtDayLabel } from '@/components/journal/parts';
-import { fmtMoney, fmtPct, weekKey, type DayStats } from '@/lib/journal/metrics';
+import { fmtMoney, fmtPct, weekKey, type DayStats, type JTrade } from '@/lib/journal/metrics';
+import { calendarInsights, dayEquity } from '@/lib/journal/metrics-extra';
+import { Sparkline } from '@/components/journal/lux-charts';
 import { fmtStamp, noteKindLabel } from '@/lib/journal/use-journal';
-import { TradeMiniList } from './dashboard-view';
+import { TradeMiniList } from '@/components/journal/trade-mini-list';
 
 const addDays = (day: string, n: number) => {
   const d = new Date(`${day}T12:00:00Z`);
@@ -57,7 +64,7 @@ export default function CalendarView() {
   const selectDay = (d: string | null) => { setDay(d); if (d) setWeekOf(weekKey(d)); };
   const dayTrades = day ? (closedOn.get(day) ?? []).slice().sort((a, b) => Date.parse(a.closedAt!) - Date.parse(b.closedAt!)) : [];
   const dayStats = day ? byDate.get(day) ?? null : null;
-  const dayNotes = day ? (notesQ.data?.notes ?? []).filter((n) => n.day === day && n.reason !== 'playbook') : [];
+  const dayNotes = day ? (notesQ.data?.notes ?? []).filter((n) => n.day === day && n.reason !== 'playbook' && n.reason !== 'trade_review') : [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -74,7 +81,8 @@ export default function CalendarView() {
           }>
           {mode === 'month' ? (
             <div className="jr-cal-lg">
-              <CalendarPnl days={days} year={ym.y} month={ym.m} onMonth={(y, m) => { setYm({ y, m }); selectDay(null); }} selected={day} onSelect={selectDay} showWeeks />
+              <CalendarPnl days={days} year={ym.y} month={ym.m} onMonth={(y, m) => { setYm({ y, m }); selectDay(null); }} selected={day} onSelect={selectDay} showWeeks
+                renderPreview={(d) => <DayPreview day={d} trades={closedOn.get(d.date) ?? []} notes={(notesQ.data?.notes ?? []).filter((n) => n.day === d.date && n.reason !== 'playbook' && n.reason !== 'trade_review').length} />} />
             </div>
           ) : (
             <div>
@@ -142,7 +150,9 @@ export default function CalendarView() {
         </Card>
       </div>
 
-      <Card num="03" title={`${ym.y} by month`} meta={
+      <CalendarInsightsCard days={days} />
+
+      <Card num="04" title={`${ym.y} by month`} meta={
         <div className="jr-cal-nav">
           <button type="button" className="jr-icon-btn" onClick={() => setYm((v) => ({ ...v, y: v.y - 1 }))} aria-label="Previous year"><ChevronLeft className="h-4 w-4" /></button>
           <span className="jr-n">{ym.y}</span>
@@ -161,5 +171,63 @@ export default function CalendarView() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/** Hover / focus preview of one day (LuxAlgo calendar-day-preview): running P&L step line + its trades. */
+function DayPreview({ day, trades, notes }: { day: DayStats; trades: JTrade[]; notes: number }) {
+  const curve = dayEquity(trades, day.date);
+  const sorted = [...trades].sort((a, b) => Math.abs(b.netPnl) - Math.abs(a.netPnl));
+  return (
+    <div style={{ width: 240, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+        <b>{fmtDayLabel(day.date, { weekday: 'short', month: 'short', day: 'numeric' })}</b>
+        <Pnl value={day.netPnl} />
+      </div>
+      {curve.length > 0 && <Sparkline values={curve.map((p) => p.cum)} height={42} label={`Running net P&L across ${curve.length} closes`} />}
+      <span className="jr-n">{day.trades} closed · {day.wins}W/{day.losses}L{day.breakevens ? `/${day.breakevens}BE` : ''} · fees {fmtMoney(day.fees, { signed: false })}{notes ? ` · ${notes} note${notes === 1 ? '' : 's'}` : ''}</span>
+      {sorted.slice(0, 4).map((t) => (
+        <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+          <span className="jr-sym">{t.symbol} <span className="jr-n">{t.direction}</span></span><Pnl value={t.netPnl} compact />
+        </div>
+      ))}
+      {sorted.length > 4 && <span className="jr-n">+{sorted.length - 4} more · click the day</span>}
+    </div>
+  );
+}
+
+/** calendar-insights on the filtered days. */
+function CalendarInsightsCard({ days }: { days: DayStats[] }) {
+  const ci = calendarInsights(days);
+  if (!ci.tradingDays) return null;
+  const maxAbs = Math.max(1, ...ci.weekdays.map((w) => Math.abs(w.avg ?? 0)));
+  return (
+    <Card num="03" title="Calendar insights" meta={<N n={ci.tradingDays} unit="trading days" />}>
+      <div className="jr-grid" style={{ gap: 12 }}>
+        <div className="jr-span-6">
+          <div className="jr-stats">
+            <div><span>Green days</span><b>{fmtPct(ci.greenPct)}</b><small>{ci.greenDays} green · {ci.redDays} red{ci.flatDays ? ` · ${ci.flatDays} flat` : ''}</small></div>
+            <div><span>Average day</span><b><Pnl value={ci.avgDay} /></b><small>n={ci.tradingDays} days</small></div>
+            <div><span>Avg green / red day</span><b style={{ fontSize: 13 }}><Pnl value={ci.avgGreenDay} compact /> / <Pnl value={ci.avgRedDay} compact /></b><small>{ci.greenDays} / {ci.redDays} days</small></div>
+            <div><span>Day streaks</span><b>{ci.maxGreenStreak}G / {ci.maxRedStreak}R</b><small>now {ci.currentStreak > 0 ? `${ci.currentStreak} green` : ci.currentStreak < 0 ? `${-ci.currentStreak} red` : '—'}</small></div>
+            <div><span>Best weekday</span><b>{ci.bestWeekday?.weekday ?? '—'}</b><small>{ci.bestWeekday ? <>avg <Pnl value={ci.bestWeekday.avg} compact /> · n={ci.bestWeekday.days} days</> : '—'}</small></div>
+            <div><span>Worst weekday</span><b>{ci.worstWeekday?.weekday ?? '—'}</b><small>{ci.worstWeekday ? <>avg <Pnl value={ci.worstWeekday.avg} compact /> · n={ci.worstWeekday.days} days</> : 'needs 2+ weekdays'}</small></div>
+          </div>
+        </div>
+        <div className="jr-span-6">
+          <div className="jr-kpi-l" style={{ marginBottom: 6 }}>Average day by weekday <span className="jr-n">closing day, ET</span></div>
+          <div className="jr-bars">
+            {ci.weekdays.map((w) => (
+              <div className="jr-bar-row" key={w.weekday}>
+                <span className="jr-bar-k">{w.weekday}</span>
+                <span className="jr-bar-track" aria-hidden><span className={`jr-bar-fill ${(w.avg ?? 0) >= 0 ? 'pos' : 'neg'}`} style={{ width: `${(Math.abs(w.avg ?? 0) / maxAbs) * 50}%` }} /></span>
+                <span className="jr-bar-v"><Pnl value={w.avg} compact /> <span className="jr-n">· {w.green}/{w.days} green · n={w.days}d</span></span>
+              </div>
+            ))}
+          </div>
+          <p className="jr-note">A weekday with few days is an anecdote — read its n before its average.</p>
+        </div>
+      </div>
+    </Card>
   );
 }

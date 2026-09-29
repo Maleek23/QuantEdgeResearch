@@ -4,10 +4,15 @@
  * header drawer (components/journal/import-drawer.tsx) to a page. Read-only
  * books have nothing to import into and say so. Discord import is not here: a
  * trader's Discord calls land on their watchlist.
+ *
+ * 2026-09-29: a CSV import now reports its reconciliation (rows → fills →
+ * round trips → imported / duplicates / rejected with reasons), and the page
+ * lists the book's import history batch by batch (import-reconciliation.tsx).
  */
 import { QEEmpty } from '@/components/ui/qe-states';
 import { useJournal } from '@/components/journal/journal-context';
 import { ImportSections, type ImportSection } from '@/components/journal/import-drawer';
+import { ImportHistory } from '@/components/journal/import-reconciliation';
 
 export default function ImportView({ focus, onLogTrade }: { focus?: ImportSection; onLogTrade: () => void }) {
   const { data, canWrite, bookLabel, goTo } = useJournal();
@@ -24,5 +29,10 @@ export default function ImportView({ focus, onLogTrade }: { focus?: ImportSectio
       />
     );
   }
-  return <ImportSections focus={focus} tradeCount={data.allRows.length} onLogTrade={onLogTrade} />;
+  return (
+    <>
+      <ImportSections focus={focus} tradeCount={data.allRows.length} onLogTrade={onLogTrade} />
+      <div className="jr-grid" style={{ marginTop: 14 }}><ImportHistory /></div>
+    </>
+  );
 }

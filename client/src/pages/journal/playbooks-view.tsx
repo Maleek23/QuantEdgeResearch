@@ -10,6 +10,11 @@
  *     ledger shows about it. Rules whose refusals the bot only logs (never
  *     stores) say so instead of showing a number. Exits are grouped by the
  *     rule that closed them. The short gate's refusals are on Missed.
+ *   · 2026-09-29 (LuxAlgo rule-checklist / adherence-report parity): a written
+ *     definition's rules (one per line / bullet) become a checklist every
+ *     trade of that setup is reviewed against on its trade page; each card
+ *     then reports, per rule, the share of assessed trades that followed it
+ *     and the P&L when followed vs broken (metrics-extra.ts playbookAdherence).
  */
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Loader2, Plus } from 'lucide-react';
@@ -23,6 +28,8 @@ import {
 } from '@/lib/journal/metrics';
 import type { JournalNoteRow } from '@/lib/journal/types';
 import { readApiError, useBotBook, useJournalNoteMutations, type BotBookInfo } from '@/lib/journal/use-journal';
+import { playbookAdherence, playbookRules, type PlaybookAdherence } from '@/lib/journal/metrics-extra';
+import { useTradeReviews } from '@/lib/journal/use-journal-extra';
 
 const etMinutes = (iso: string) => {
   const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(iso));
@@ -43,6 +50,12 @@ export default function PlaybooksView() {
     }
     return m;
   }, [notesQ.data]);
+
+  const { reviews } = useTradeReviews(notesQ.data?.notes);
+  const adherence = useMemo(() => {
+    const books = [...defs.entries()].map(([k, n]) => ({ setup: k, rules: playbookRules(n.body) }));
+    return new Map(playbookAdherence(trades, books, reviews).map((a) => [a.setup, a]));
+  }, [defs, trades, reviews]);
 
   // Written playbooks with no trades in view still show (n=0), so a new playbook has a home.
   const defOnly = [...defs.entries()].filter(([k]) => !setups.some((s) => s.key.toLowerCase() === k));
@@ -70,11 +83,11 @@ export default function PlaybooksView() {
       ) : (
         <div className="jr-grid">
           {setups.map((b) => (
-            <PlaybookCard key={b.key} name={b.key} stats={b} def={defs.get(b.key.toLowerCase()) ?? null}
+            <PlaybookCard key={b.key} name={b.key} stats={b} def={defs.get(b.key.toLowerCase()) ?? null} adherence={adherence.get(b.key.toLowerCase()) ?? null}
               onFilter={() => filters.setFilter('setup', b.key)} readOnlyNote={isBot || data.key === 'desk' ? 'Setup = the engine that published the signal.' : null} />
           ))}
           {defOnly.map(([k, n]) => (
-            <PlaybookCard key={k} name={k.charAt(0).toUpperCase() + k.slice(1)} stats={bucketStats(k, [])} def={n} readOnlyNote={null} />
+            <PlaybookCard key={k} name={k.charAt(0).toUpperCase() + k.slice(1)} stats={bucketStats(k, [])} def={n} adherence={adherence.get(k) ?? null} readOnlyNote={null} />
           ))}
         </div>
       )}
@@ -82,10 +95,11 @@ export default function PlaybooksView() {
   );
 }
 
-function PlaybookCard({ name, stats: b, def, onFilter, readOnlyNote }: {
+function PlaybookCard({ name, stats: b, def, onFilter, readOnlyNote, adherence }: {
   name: string;
   stats: BucketStats;
   def: JournalNoteRow | null;
+  adherence: PlaybookAdherence | null;
   onFilter?: () => void;
   readOnlyNote: string | null;
 }) {
@@ -107,12 +121,55 @@ function PlaybookCard({ name, stats: b, def, onFilter, readOnlyNote }: {
         <div><span>Avg hold</span><b>{fmtDuration(b.avgDurationMs)}</b><small>closed trades</small></div>
         <div><span>Sample</span><b>n={b.closed}</b><small>{b.closed < 20 ? 'under 20 — anecdote' : 'closed trades'}</small></div>
       </div>
+      {adherence && adherence.rules.length > 0 && <Adherence a={adherence} />}
       <div style={{ marginTop: 10 }}>
         {canWrite ? <DefinitionEditor setup={name} def={def} /> : def ? <div className="jr-notes">{def.body}</div> : (
           <p className="jr-note" style={{ margin: 0 }}>{readOnlyNote ?? 'No written definition for this setup.'}</p>
         )}
       </div>
     </section>
+  );
+}
+
+/** Rule checklist + adherence (adherence-report.tsx): per rule, followed share and P&L followed vs broken. */
+function Adherence({ a }: { a: PlaybookAdherence }) {
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="jr-kpi-l" style={{ marginBottom: 6 }}>
+        Rule checklist · adherence <span className="jr-n">{a.reviewed} of {a.trades} closed trades reviewed{a.rate != null ? ` · ${fmtPct(a.rate)} of checks followed` : ''}</span>
+      </div>
+      {a.reviewed === 0 ? (
+        <>
+          <ul className="jr-rule-list">{a.rules.map((r) => <li key={r}>{r}</li>)}</ul>
+          <p className="jr-note" style={{ margin: 0 }}>No trade of this setup has been checked against these rules yet — open a trade's full page and mark each rule followed or broken.</p>
+        </>
+      ) : (
+        <>
+          <div className="jr-table-wrap">
+            <table className="jr-table jr-table-wrapcells">
+              <thead><tr><th scope="col">Rule</th><th scope="col" className="num">Checked n</th><th scope="col" className="num">Followed</th><th scope="col" className="num">P&amp;L followed</th><th scope="col" className="num">P&amp;L broken</th></tr></thead>
+              <tbody>
+                {a.perRule.map((r) => (
+                  <tr key={r.rule} style={{ cursor: 'default' }}>
+                    <td>{r.rule}</td>
+                    <td className="num">{r.evaluated}</td>
+                    <td className="num">{fmtPct(r.rate)}</td>
+                    <td className="num">{r.followed.closed ? <><Pnl value={r.followed.netPnl} compact /> <span className="jr-n">n={r.followed.closed} · exp <Pnl value={r.followed.expectancy} compact /></span></> : '—'}</td>
+                    <td className="num">{r.broken.closed ? <><Pnl value={r.broken.netPnl} compact /> <span className="jr-n">n={r.broken.closed} · exp <Pnl value={r.broken.expectancy} compact /></span></> : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(3,minmax(0,1fr))', marginTop: 8 }}>
+            <div><span>Followed every rule</span><b><Pnl value={a.followedAll.closed ? a.followedAll.netPnl : null} /></b><small>n={a.followedAll.closed} · {fmtPct(a.followedAll.winRate)} win · exp {fmtMoney(a.followedAll.expectancy, { compact: true })}</small></div>
+            <div><span>Broke a rule</span><b><Pnl value={a.brokeAny.closed ? a.brokeAny.netPnl : null} /></b><small>n={a.brokeAny.closed} · {fmtPct(a.brokeAny.winRate)} win · exp {fmtMoney(a.brokeAny.expectancy, { compact: true })}</small></div>
+            <div><span>Not fully assessed</span><b>{a.unassessed}</b><small>closed trades</small></div>
+          </div>
+          <p className="jr-note">"Followed every rule" needs every rule assessed on that trade. Small n on either side is an anecdote.</p>
+        </>
+      )}
+    </div>
   );
 }
 
