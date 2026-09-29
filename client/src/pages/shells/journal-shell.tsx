@@ -19,6 +19,10 @@
  * Bean…) — kept in ?journal=, and the basis line names that book, its sizing
  * rule and anything it could not score. Bot and Trade desk are read-only
  * mappings of their ledgers, so every write action is hidden on them.
+ *
+ * A trade opens in the drawer (quick view) or as a full page (?jtrade=<id>,
+ * pages/journal/trade-view.tsx) inside the same shell; Back returns to the page
+ * it was opened from.
  */
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Plus, Upload } from 'lucide-react';
@@ -49,6 +53,9 @@ const ImportView = lazy(() => import('@/pages/journal/import-view'));
 const AccountsView = lazy(() => import('@/pages/journal/accounts-view'));
 const SettingsView = lazy(() => import('@/pages/journal/settings-view'));
 const RecordView = lazy(() => import('@/pages/journal/record-view'));
+const TradeView = lazy(() => import('@/pages/journal/trade-view'));
+
+const TRADE_PARAM = 'jtrade';
 
 /** Header copy per book — the question each journal answers. */
 function headCopy(key: JournalKey, label: string) {
@@ -81,6 +88,16 @@ export default function JournalShell() {
   const canWrite = data.meta?.canWrite ?? source?.canWrite ?? false;
 
   const [drawer, setDrawer] = useState<{ id: string; order: string[] } | null>(null);
+  const [tradePage, setTradePage] = useState<{ id: string; order: string[] } | null>(() => {
+    const id = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(TRADE_PARAM);
+    return id ? { id, order: [] } : null;
+  });
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (tradePage) url.searchParams.set(TRADE_PARAM, tradePage.id);
+    else url.searchParams.delete(TRADE_PARAM);
+    window.history.replaceState(window.history.state, '', url.toString());
+  }, [tradePage]);
   const [editor, setEditor] = useState<{ open: boolean; row: JournalTradeRow | null }>({ open: initial.intent?.kind === 'add', row: null });
 
   // Canonical ?jtab= (old values and ?jpage= are rewritten once resolved; dashboard → no param).
@@ -110,6 +127,7 @@ export default function JournalShell() {
 
   const goTo = useCallback((v: JournalView, a?: string) => {
     setView(v);
+    setTradePage(null);
     if (v === 'record') setBacktestOpen(false);
     if (a) setAnchor(a);
     else document.getElementById('jr-main')?.scrollIntoView({ block: 'start' });
@@ -123,6 +141,7 @@ export default function JournalShell() {
     bookLabel,
     canWrite,
     openTrade: (id, order) => setDrawer({ id, order: order ?? [id] }),
+    openTradePage: (id, order) => { setDrawer(null); setTradePage({ id, order: order ?? [] }); document.getElementById('jr-main')?.scrollIntoView({ block: 'start' }); },
     openEditor: (row) => { if (canWrite) setEditor({ open: true, row: row ?? null }); },
     openImport: (section) => goTo('import', section ? `jr-imp-sec-${section}` : undefined),
     goTo,
@@ -130,7 +149,7 @@ export default function JournalShell() {
     focusDay,
     simSymbol,
     simulate: (symbol) => { setSimSymbol(symbol); setDrawer(null); goTo('trades', 'jr-sim'); },
-    setJournal: (key) => { setDrawer(null); setEditor({ open: false, row: null }); setJournalKey(key); if (view === 'record') setView('dashboard'); },
+    setJournal: (key) => { setDrawer(null); setTradePage(null); setEditor({ open: false, row: null }); setJournalKey(key); if (view === 'record') setView('dashboard'); },
     sources: sourcesQ.data,
     prefs,
     setPrefs,
@@ -143,7 +162,7 @@ export default function JournalShell() {
   const { tradesQ } = data;
   const total = data.allRows.length;
   const personal = view !== 'record';
-  const tradePage = TRADE_PAGES.has(view);
+  const tradePageView = TRADE_PAGES.has(view);
 
   let body: React.ReactNode;
   if (!personal) {
@@ -161,7 +180,13 @@ export default function JournalShell() {
     );
   } else if (tradesQ.isLoading && view !== 'settings') {
     body = <QELoading rows={4} label={`loading ${journalKey === 'mine' ? 'your' : `the ${bookLabel}`} trades…`} />;
-  } else if (tradePage && total === 0) {
+  } else if (tradePage) {
+    body = (
+      <TradeView id={tradePage.id} order={tradePage.order}
+        onNavigate={(id) => setTradePage((p) => (p ? { ...p, id } : p))}
+        onClose={() => setTradePage(null)} />
+    );
+  } else if (tradePageView && total === 0) {
     const excluded = (data.meta?.excluded ?? []).reduce((n, e) => n + e.count, 0);
     body = (
       <QEEmpty
@@ -179,7 +204,7 @@ export default function JournalShell() {
         ) : undefined}
       />
     );
-  } else if (tradePage && data.rows.length === 0) {
+  } else if (tradePageView && data.rows.length === 0) {
     body = (
       <QEEmpty
         message={`None of the ${total} trades in ${journalKey === 'mine' ? 'your journal' : `the ${bookLabel} journal`} match these filters.`}
@@ -207,7 +232,7 @@ export default function JournalShell() {
 
   const m = data.metrics;
   const copy = headCopy(journalKey, bookLabel);
-  const pageLabel = PAGE_LABEL.get(view) ?? view;
+  const pageLabel = tradePage ? 'Trade' : PAGE_LABEL.get(view) ?? view;
   return (
     <JournalContext.Provider value={ctx}>
       <div className="jr">
@@ -256,7 +281,7 @@ export default function JournalShell() {
                 )}
               </div>
 
-              {personal && tradesQ.isSuccess && total > 0 && FILTERED_PAGES.has(view) && (
+              {personal && tradesQ.isSuccess && total > 0 && FILTERED_PAGES.has(view) && !tradePage && (
                 <JournalFilterBar api={filters} options={data.options} shown={data.rows.length} total={total} />
               )}
 
@@ -279,6 +304,7 @@ export default function JournalShell() {
           onNavigate={(id) => setDrawer((d) => (d ? { ...d, id } : d))}
           neighbours={neighbours}
           onSimulate={ctx.simulate}
+          onOpenPage={(id) => ctx.openTradePage(id, drawer?.order)}
         />
         {canWrite && (
           <TradeEditor
