@@ -4,10 +4,16 @@
  *
  *   <Dashboard page="gex" />
  *
- * Named dashboards per page, an "Add tool" catalogue of EVERY registry tool
- * grouped by category (the page's own categories first), drag (dnd-kit) and
- * corner-resize on a 12-column grid, keyboard move/resize, Auto-arrange,
- * Restore default, Clear. Layouts persist per user (use-dashboards.ts).
+ * Three page modes (pages.ts `mode`):
+ *   workspace  GEX, FLOW — named dashboards, an "Add tool" menu of the page's
+ *              CURATED catalogue grouped by category, drag (dnd-kit) and
+ *              corner-resize on a 12-column grid, keyboard move/resize,
+ *              Auto-arrange, Restore default, Clear. Layouts persist per user
+ *              (use-dashboards.ts).
+ *   fixed      every other dashboard page — the same tiles in the page's
+ *              curated default layout; nothing to add, move, resize or save,
+ *              and any layout saved for the page earlier is ignored.
+ *   simple     CHART, LEAPS, POSITIONS — one primary tool full bleed.
  *
  * Server load (small droplet): tool code is React.lazy, a tool mounts only
  * once it scrolls into view, and a tool that stays off-screen for
@@ -25,7 +31,7 @@ import {
 } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DndContext, PointerSensor, useDraggable, useSensor, useSensors, type DragEndEvent, type DragMoveEvent } from '@dnd-kit/core';
-import { Check, ChevronDown, Crosshair, Eraser, GripVertical, LayoutGrid, Maximize2, PanelRightClose, PanelRightOpen, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Crosshair, Eraser, GripVertical, LayoutGrid, PanelRightClose, PanelRightOpen, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { QEError } from '@/components/ui/qe-states';
@@ -35,8 +41,8 @@ import './dashboard.css';
 import { TOOLS, TOOL_BY_ID, categoriesFor, type ToolDef } from './registry';
 import { COLS, ROW_H, GAP, autoArrange, clampTool, compact, fitRowHeight, readingOrder, slotFor, uid, type PlacedTool } from './layout';
 import { DashboardCtx, ReportCtx, ToolFrame, ToolInstanceCtx, provenanceOf, useFocusSymbol, useNow, type ToolReport } from './frame';
-import { useDashboards } from './use-dashboards';
-import { PAGES, readViewMode, skeletonTiles, viewModeKey, type PageId, type PageSpec, type ViewMode } from './pages';
+import { materialize, useDashboards } from './use-dashboards';
+import { PAGES, inCatalog, skeletonTiles, type PageId, type PageSpec } from './pages';
 
 /** A tool off-screen this long unmounts (its polling stops). */
 const PAUSE_AFTER_MS = 20_000;
@@ -160,11 +166,12 @@ function useMenu() {
   return { open, setOpen, ref };
 }
 
-/* ── add-tool menu: every registry tool, the page's categories first ── */
+/* ── add-tool menu: the workspace's curated catalogue, its own categories first ── */
 function AddToolMenu({ spec, onAdd, present }: { spec: PageSpec; onAdd: (id: string) => void; present: Set<string> }) {
   const { open, setOpen, ref } = useMenu();
   const [q, setQ] = useState('');
-  const cats = useMemo(() => categoriesFor(spec.primary), [spec.primary]);
+  const offered = useMemo(() => TOOLS.filter((t) => inCatalog(spec, t)), [spec]);
+  const cats = useMemo(() => categoriesFor(spec.primary).filter((c) => offered.some((t) => t.category === c)), [spec.primary, offered]);
   const needle = q.trim().toLowerCase();
   const match = (t: (typeof TOOLS)[number]) => !needle || `${t.title} ${t.what} ${t.category}`.toLowerCase().includes(needle);
   return (
@@ -174,9 +181,9 @@ function AddToolMenu({ spec, onAdd, present }: { spec: PageSpec; onAdd: (id: str
       </button>
       {open && (
         <div className="fd-menu fd-menu-wide" role="menu">
-          <input className="fd-menu-search" autoFocus placeholder={`Search ${TOOLS.length} tools…`} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tools" />
+          <input className="fd-menu-search" autoFocus placeholder={`Search ${offered.length} ${spec.label} tools…`} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tools" />
           {cats.map((c) => {
-            const list = TOOLS.filter((t) => t.category === c && match(t));
+            const list = offered.filter((t) => t.category === c && match(t));
             if (!list.length) return null;
             return (
               <div key={c} className="fd-menu-group">
@@ -191,7 +198,7 @@ function AddToolMenu({ spec, onAdd, present }: { spec: PageSpec; onAdd: (id: str
               </div>
             );
           })}
-          <div className="fd-menu-note">Not offered (no data source yet): Option Chart · Dark Pool Alerts · Trade Terminal.</div>
+          <div className="fd-menu-note">Only tools that belong on {spec.label} are listed. Not offered (no data source yet): Option Chart · Dark Pool Alerts · Trade Terminal.</div>
         </div>
       )}
     </div>
@@ -297,17 +304,6 @@ function SaveBadge({ api }: { api: ReturnType<typeof useDashboards> }) {
 
 /* ── simple page: one primary tool, full bleed, optional right rail ── */
 
-/** This device's view of a simple page ('simple' | 'dashboard'), remembered. */
-function useViewMode(page: PageId): [ViewMode, (m: ViewMode) => void] {
-  const [mode, setModeState] = useState<ViewMode>(() => readViewMode(page));
-  useEffect(() => { setModeState(readViewMode(page)); }, [page]);
-  const setMode = useCallback((m: ViewMode) => {
-    setModeState(m);
-    try { localStorage.setItem(viewModeKey(page), m); } catch { /* private mode: session only */ }
-  }, [page]);
-  return [mode, setMode];
-}
-
 /** A tool body with no frame: provenance is reported up to the page bar. */
 function BareTool({ def, instance, onReport }: { def: ToolDef; instance: string; onReport: (r: ToolReport) => void }) {
   const C = def.Component;
@@ -333,7 +329,7 @@ function Provenance({ def, report, now }: { def: ToolDef; report: ToolReport; no
   );
 }
 
-function SimpleView({ spec, onCustomize }: { spec: PageSpec; onCustomize: () => void }) {
+function SimpleView({ spec }: { spec: PageSpec }) {
   const simple = spec.simple!;
   const main = TOOL_BY_ID.get(simple.tool);
   const rail = simple.rail ? TOOL_BY_ID.get(simple.rail.tool) : undefined;
@@ -343,7 +339,7 @@ function SimpleView({ spec, onCustomize }: { spec: PageSpec; onCustomize: () => 
   const [mainReport, setMainReport] = useState<ToolReport>({});
   const [railReport, setRailReport] = useState<ToolReport>({});
   const now = useNow();
-  const ctx = useMemo(() => ({ page: spec.id, hasTool: (t: string) => t === simple.tool || t === simple.rail?.tool, addTool: () => onCustomize() }), [spec.id, simple, onCustomize]);
+  const ctx = useMemo(() => ({ page: spec.id, hasTool: (t: string) => t === simple.tool || t === simple.rail?.tool, addTool: () => {}, editable: false }), [spec.id, simple]);
   if (!main) return <QEError className="fd-m" title={`${spec.label}'s primary tool is not in the registry`} message={simple.tool} />;
   return (
     <DashboardCtx.Provider value={ctx}>
@@ -361,9 +357,6 @@ function SimpleView({ spec, onCustomize }: { spec: PageSpec; onCustomize: () => 
                 {railOpen ? <PanelRightClose size={13} /> : <PanelRightOpen size={13} />} {simple.rail!.label}
               </button>
             )}
-            <button type="button" className="fd-btn" onClick={onCustomize} title={`Switch ${spec.label} to a customizable tool dashboard (add, move and resize tools). Remembered on this device.`}>
-              <LayoutGrid size={13} /> Customize
-            </button>
           </div>
         </div>
         <div className={cn('fd-simple', rail && railOpen && 'with-rail')}>
@@ -393,26 +386,20 @@ function SimpleView({ spec, onCustomize }: { spec: PageSpec; onCustomize: () => 
 /* ══════════════════════════════ main ══════════════════════════════ */
 
 /**
- * <Dashboard page="gex" /> — a page. A SIMPLE page (PageSpec.simple: CHART,
- * LEAPS, POSITIONS) renders its one primary tool full bleed until the viewer
- * chooses Customize; every other page is the tool grid.
+ * <Dashboard page="gex" /> — a page, rendered by its mode (pages.ts):
+ * SIMPLE (CHART, LEAPS, POSITIONS) is its one primary tool full bleed;
+ * WORKSPACE (GEX, FLOW) is the editable tool grid; everything else is the
+ * FIXED grid — the curated default, not editable.
  */
 export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome above+below — fallback only; the shell's measured --qe-main-h wins */ chrome?: number }) {
   const spec = PAGES[page];
-  const [mode, setMode] = useViewMode(page);
-  const customize = useCallback(() => setMode('dashboard'), [setMode]);
-  const simplify = useCallback(() => setMode('simple'), [setMode]);
-  if (spec.simple && mode === 'simple') return <SimpleView key={page} spec={spec} onCustomize={customize} />;
-  return <GridDashboard key={page} page={page} chrome={chrome} onSimple={spec.simple ? simplify : undefined} />;
+  if (spec.mode === 'simple' && spec.simple) return <SimpleView key={page} spec={spec} />;
+  if (spec.mode === 'workspace') return <GridDashboard key={page} page={page} chrome={chrome} />;
+  return <FixedDashboard key={page} page={page} chrome={chrome} />;
 }
 
-function GridDashboard({ page, chrome, onSimple }: { page: PageId; chrome?: number; onSimple?: () => void }) {
-  const spec = PAGES[page];
-  const api = useDashboards(spec);
-  const isMobile = useIsMobile();
-  const tools = api.active?.tools ?? [];
-  const [focus] = useFocusSymbol();
-
+/** Grid geometry: measured width, rows that fit VIEW_ROWS to the viewport. */
+function useGridGeometry(isMobile: boolean, remeasure: unknown) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const [gridW, setGridW] = useState(1200);
@@ -422,7 +409,7 @@ function GridDashboard({ page, chrome, onSimple }: { page: PageId; chrome?: numb
     const ro = new ResizeObserver(() => setGridW(el.clientWidth));
     ro.observe(el); setGridW(el.clientWidth);
     return () => ro.disconnect();
-  }, [isMobile, api.active?.id, tools.length > 0]);
+  }, [isMobile, remeasure]);
   // Rows scale with the viewport: VIEW_ROWS rows always fill the grid area,
   // so a VIEW_ROWS-tall default tiles exactly at 1440×900, 1920×1080, 2513×1260…
   const [viewH, setViewH] = useState(0);
@@ -434,7 +421,75 @@ function GridDashboard({ page, chrome, onSimple }: { page: PageId; chrome?: numb
   }, [scroller]);
   const rowH = isMobile ? ROW_H : fitRowHeight(viewH);
   const colW = (gridW - GAP * (COLS - 1)) / COLS;
-  const stepX = colW + GAP, stepY = rowH + GAP;
+  return { gridRef, scroller, setScroller, rowH, colW, stepX: colW + GAP, stepY: rowH + GAP };
+}
+
+/* ── FIXED page: the curated default, same tiles, nothing editable ── */
+function FixedDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
+  const spec = PAGES[page];
+  const isMobile = useIsMobile();
+  const [focus] = useFocusSymbol();
+  // Always the shipped default — a layout saved for this page before it became
+  // fixed is deliberately not read (and not deleted).
+  const tools = useMemo(() => (spec.defaults[0] ? materialize(spec.defaults[0]).tools : []), [spec]);
+  const { gridRef, scroller, setScroller, rowH, colW, stepX, stepY } = useGridGeometry(isMobile, tools.length);
+  const present = useMemo(() => new Set(tools.map((t) => t.type)), [tools]);
+  const ctx = useMemo(() => ({ page, hasTool: (t: string) => present.has(t), addTool: () => {}, editable: false }), [page, present]);
+  const needsFocus = tools.some((t) => TOOL_BY_ID.get(t.type)?.needs?.includes('symbol'));
+  const symbolOf = (t: PlacedTool) => (TOOL_BY_ID.get(t.type)?.needs?.includes('symbol') ? focus : undefined);
+  const bottom = tools.reduce((m, t) => Math.max(m, t.y + t.h), 0);
+  return (
+    <DashboardCtx.Provider value={ctx}>
+      <div className={cn('flowdash dash-fit dash-fixed', `dash-${page}`)} data-page={page} data-view="fixed" style={chrome != null ? ({ ['--dash-chrome' as string]: `${chrome}px` }) : undefined}>
+        <div className="fd-bar">
+          <div className="fd-bar-title">
+            <span className="fd-eyebrow">{spec.label}</span>
+            {needsFocus && <FocusBox />}
+          </div>
+          <div className="fd-bar-actions">
+            <span className="fd-save" title={`${spec.label} is a fixed, curated layout. GEX and FLOW are the customizable workspaces.`}>curated layout</span>
+          </div>
+        </div>
+        <ScrollRootCtx.Provider value={isMobile ? null : scroller}>
+          <div className="fd-scroller" ref={setScroller}>
+            {!tools.length ? (
+              <QEError className="fd-m" title={`${spec.label} has no default layout`} message="No tools are defined for this page." />
+            ) : isMobile ? (
+              <div className="fd-stack" ref={gridRef}>
+                {readingOrder(tools).map((t) => (
+                  <div key={t.i} className="fd-tile stacked" style={{ height: `min(${Math.max(300, t.h * ROW_H)}px, 88dvh)`, minHeight: 300 }}>
+                    <ToolFrame def={TOOL_BY_ID.get(t.type)!} symbol={symbolOf(t)} compact={false} grip={false}>
+                      <ToolBody tool={t} />
+                    </ToolFrame>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="fd-grid" ref={gridRef} style={{ height: Math.max(1, bottom) * stepY - GAP }}>
+                {tools.map((t) => (
+                  <div key={t.i} className="fd-tile" style={{ left: t.x * stepX, top: t.y * stepY, width: t.w * colW + (t.w - 1) * GAP, height: t.h * rowH + (t.h - 1) * GAP }}>
+                    <ToolFrame def={TOOL_BY_ID.get(t.type)!} symbol={symbolOf(t)} grip={false}>
+                      <ToolBody tool={t} />
+                    </ToolFrame>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </ScrollRootCtx.Provider>
+      </div>
+    </DashboardCtx.Provider>
+  );
+}
+
+/* ── WORKSPACE page (GEX, FLOW): the editable tool grid ── */
+function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
+  const spec = PAGES[page];
+  const api = useDashboards(spec);
+  const isMobile = useIsMobile();
+  const tools = api.active?.tools ?? [];
+  const [focus] = useFocusSymbol();
+  const { gridRef, scroller, setScroller, rowH, colW, stepX, stepY } = useGridGeometry(isMobile, `${api.active?.id}|${tools.length > 0}`);
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [ghost, setGhost] = useState<PlacedTool | null>(null);
@@ -495,7 +550,7 @@ function GridDashboard({ page, chrome, onSimple }: { page: PageId; chrome?: numb
     });
   }, [api]);
   const present = useMemo(() => new Set(tools.map((t) => t.type)), [tools]);
-  const ctx = useMemo(() => ({ page, hasTool: (t: string) => present.has(t), addTool }), [page, present, addTool]);
+  const ctx = useMemo(() => ({ page, hasTool: (t: string) => present.has(t), addTool, editable: true }), [page, present, addTool]);
   const needsFocus = tools.some((t) => TOOL_BY_ID.get(t.type)?.needs?.includes('symbol'));
   const symbolOf = (t: PlacedTool) => (TOOL_BY_ID.get(t.type)?.needs?.includes('symbol') ? focus : undefined);
 
@@ -534,11 +589,6 @@ function GridDashboard({ page, chrome, onSimple }: { page: PageId; chrome?: numb
             <button type="button" className="fd-btn" disabled={!tools.length} onClick={() => { if (window.confirm(`Remove all ${tools.length} tools from "${api.active?.name}"?`)) api.updateActive(() => []); }}>
               <Eraser size={13} /> Clear
             </button>
-            {onSimple && (
-              <button type="button" className="fd-btn" onClick={onSimple} title={`Back to the simple ${spec.label} page: one full-bleed view, no tool grid. Your dashboards are kept.`}>
-                <Maximize2 size={13} /> Simple view
-              </button>
-            )}
             <SaveBadge api={api} />
           </div>
         </div>
@@ -546,13 +596,13 @@ function GridDashboard({ page, chrome, onSimple }: { page: PageId; chrome?: numb
         <ScrollRootCtx.Provider value={isMobile ? null : scroller}>
           <div className="fd-scroller" ref={setScroller}>
             {!api.dashboards ? (
-              <PageSkeleton fill bar={false} tiles={skeletonTiles(page, 'dashboard')} label="loading your dashboards…" />
+              <PageSkeleton fill bar={false} tiles={skeletonTiles(page)} label="loading your dashboards…" />
             ) : !tools.length ? (
               <div className="fd-empty">
                 <p>This dashboard has no tools.</p>
-                <p className="dim">Add any tool from the catalogue{spec.defaults.length ? ', or restore the default layout' : ''}.</p>
+                <p className="dim">Add a tool from the {spec.label} catalogue{spec.defaults.length ? ', or restore the default layout' : ''}.</p>
                 <div className="fd-empty-actions">
-                  {spec.starters.filter((s) => TOOL_BY_ID.has(s)).map((s, n) => (
+                  {spec.starters.filter((s) => { const d = TOOL_BY_ID.get(s); return !!d && inCatalog(spec, d); }).map((s, n) => (
                     <button key={s} type="button" className={cn('fd-btn', n === 0 && 'primary')} onClick={() => addTool(s)}><Plus size={13} /> {TOOL_BY_ID.get(s)!.title}</button>
                   ))}
                   {!!spec.defaults.length && <button type="button" className="fd-btn" onClick={() => void api.restoreDefault()}><RotateCcw size={13} /> Restore default</button>}

@@ -1,10 +1,12 @@
 /**
- * Journal · Dashboard — LuxAlgo's customisable dashboard (apps/web/src/app/
- * page.tsx + dashboard-customizer / saved layouts), built on OUR dashboard
- * framework instead of porting their customiser: every widget is a registry
- * tool in the 'journal' page namespace (components/dashboard/defs/journal.ts),
- * so the operator can add / remove / drag / resize them, keep several named
- * dashboards (saved to the account, per page), and restore the default.
+ * Journal · Dashboard — LuxAlgo's dashboard (apps/web/src/app/page.tsx),
+ * built on OUR dashboard framework instead of porting their customiser: every
+ * widget is a registry tool in the 'journal' page namespace
+ * (components/dashboard/defs/journal.ts).
+ *
+ * Since 2026-09-29 JOURNAL is a FIXED page (pages.ts `mode`): the curated
+ * default layout, no add / move / resize — only GEX and FLOW are editable
+ * workspaces. A layout saved here earlier is ignored, not deleted.
  *
  * The tools read the journal context — the selected book and the filter bar
  * above — so every number moves with the filters, and each tool's frame names

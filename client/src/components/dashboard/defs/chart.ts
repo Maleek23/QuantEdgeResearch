@@ -56,8 +56,8 @@ export const CHART_TOOLS: ToolDef[] = [
 
 /**
  * CHART is a SIMPLE page (pages.ts `simple`): one full-bleed price chart with
- * its own toolbar and a collapsible watchlist rail. These layouts are what
- * "Customize" switches to.
+ * its own toolbar and a collapsible watchlist rail. There is no Customize
+ * switch (2026-09-29): these grid layouts are not rendered, only documented.
  *
  *   Chart      ┌────────── stock chart 8×18 ──────────┬ watchlists 4×11 ┐
  *              │                                      ├ QE levels 4×7   ┤

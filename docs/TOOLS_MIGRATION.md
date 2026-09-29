@@ -6,16 +6,44 @@ terminal tab except JOURNAL — plus `/today` — renders `<Dashboard page="…"
 `/t?tab=…` URLs are unchanged; each tab's previous board is still reachable as an
 "all-in-one (classic)" tool.
 
+## Page modes (operator decision, 2026-09-29, branch feat/modes)
+
+Only **GEX** and **FLOW** are *workspaces*; every other dashboard page is *fixed*.
+The mode is `PageSpec.mode` in `pages.ts`; `dashboard.tsx` renders by it.
+
+| Page | Mode | What the viewer can change | Add-tool catalogue |
+|---|---|---|---|
+| GEX (`/t?tab=gex`) | **workspace** | Add tool, drag / resize, keyboard move, Auto-arrange, Clear, Restore default, named dashboards (switcher, rename, new, delete) — saved per user (`gex:*` rows) | `GEX_CATALOG`: category **GEX** + chart tools (`stock-chart`, `chart-lab-chart`, `chart-levels`) + market context (`nexus-context`, `market-pulse`, `market-session-brief`, `market-rotation`, `today-rotation`, `money-flow`, `today-index-desk`, `today-week-map`, `today-tape`, `chart-readouts`, `chart-es-risk`) + compact flow read `flow-context` |
+| FLOW (`/t?tab=flow`) | **workspace** | same as GEX — saved per user (`flowdash:*` rows, unchanged) | `FLOW_CATALOG`: categories **Options** + **Dark Pool** + the same chart tools + the same market context + compact GEX read (`gex-levels`, `gex-regime`) |
+| Today (`/today`) | fixed | nothing (focus ticker only, if a tool follows it) | — |
+| NEXUS (`/t`) | fixed | nothing (focus ticker) | — |
+| CATALYST, CRYPTO, BOT | fixed | nothing (focus ticker) | — |
+| JOURNAL dashboard view | fixed | nothing (the journal's own book/filter bar still applies) | — |
+| CHART, LEAPS, POSITIONS | simple | CHART's watchlist rail open/closed (per device) | — (the *Customize* switch is gone) |
+
+A **fixed** page renders `defaults[0]` through `materialize()` in the same tiles
+(same frame, provenance, lazy mount, phone stacking) with no grip, remove, resize,
+bar actions or dashboard switcher; the bar says *curated layout*. It never calls
+`useDashboards`, so a layout a user saved for that page before this change is
+ignored — not read, not deleted (the `nexus:*`, `today:*`… rows stay in
+`user_page_layouts`). Tools that used to offer "add X" (`today-week-map`'s
+*Today's best idea*, NEXUS's *Add detail* hint, Options Flow's *Add Stock Chart*)
+check `useDashboard().editable` and do not offer an add on a fixed page.
+
+A workspace's saved layout keeps working even if it holds a tool that is no longer
+in its catalogue (the registry, not the catalogue, decides what renders); the
+catalogue only limits what *Add tool* offers.
+
 ## Framework
 
 | File | Role |
 |---|---|
 | `tool-def.ts` | The tool contract: `{id, category, title, what, units, source, backing, ageInside?, staticContent?, needs?: ['symbol'], defaultSize, minSize, Component}` + `lazyTool` + `DefaultLayout` |
-| `registry.ts` | ONE global registry assembled from `defs/<category>.ts`; any tool can be added to any page |
-| `pages.ts` | Page specs: storage prefix (`gex:`, `nexus:`… FLOW keeps `flowdash:`), shipped default layouts, the page's own categories (listed first in Add tool) |
+| `registry.ts` | ONE global registry assembled from `defs/<category>.ts`; what a page may *add* is its catalogue, not the registry |
+| `pages.ts` | Page specs: `mode` (workspace / fixed / simple), workspace `catalog` (`GEX_CATALOG`, `FLOW_CATALOG`, `inCatalog()`), storage prefix (`gex:`, `nexus:`… FLOW keeps `flowdash:`), shipped default layouts, the page's own categories (listed first in Add tool) |
 | `use-dashboards.ts` | Per-page named dashboards via `/api/user/:id/layouts` (ownership-checked), pageId `<page>:<dashboardId>` e.g. `gex:default`. Shipped defaults stay *pristine* (never written) until changed, so better defaults reach users who never customised; **Restore default** deletes the customised row; shipped dashboards can't be deleted |
-| `dashboard.tsx` | Bar (dashboard switcher, focus-ticker picker, Add tool with search, Auto-arrange, Restore default, Clear, save state), 12-col drag/resize grid, keyboard move/resize, per-tool error boundary, phone = one column |
-| `frame.tsx` | Tool chrome (title · ticker chip · source · age · what · units), `useToolReport`, `useFocusSymbol`, `useDashState` (per-page shared state), `useToolSetting` (per-placement settings) |
+| `dashboard.tsx` | By mode: `GridDashboard` (workspace — bar with dashboard switcher, focus-ticker picker, Add tool with search over the catalogue, Auto-arrange, Restore default, Clear, save state; 12-col drag/resize grid, keyboard move/resize), `FixedDashboard` (fixed — same tiles, no editing), `SimpleView` (simple); per-tool error boundary, phone = one column |
+| `frame.tsx` | Tool chrome (title · ticker chip · source · age · what · units; `grip={false}` on fixed pages), `useToolReport`, `useFocusSymbol`, `useDashboard()` (`page`, `hasTool`, `addTool`, `editable`), `useDashState` (per-page shared state), `useToolSetting` (per-placement settings) |
 
 **Server load.** Tool code is `React.lazy`; a tool mounts only when scrolled into view and
 unmounts (its polling stops) after 20 s off-screen; tools that read the same endpoint use
@@ -121,7 +149,7 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 
 ## Default layouts — `tool (x,y w×h)`, 12 columns × 18 rows (rows scale to the viewport)
 
-Every default tiles 12 × 18 exactly (DEV assertion `tilingIssues`, pages.ts). CHART, LEAPS and POSITIONS are SIMPLE pages (`PageSpec.simple`: `stock-chart` + `chart-watchlists` rail, `leaps-classic`, `positions-classic`); their layouts below are what *Customize* opens.
+Every default tiles 12 × 18 exactly (DEV assertion `tilingIssues`, pages.ts). Only the GEX and FLOW layouts are starting points a viewer can edit; every other page below renders exactly this layout (fixed). CHART, LEAPS and POSITIONS are SIMPLE pages (`PageSpec.simple`: `stock-chart` + `chart-watchlists` rail, `leaps-classic`, `positions-classic`); their grid layouts below are kept only for the loading skeleton's reference and are not rendered.
 
 - **flow:default** (Market flow) — `options-flow` (0,0 8×11), `top-tickers` (8,0 4×11), `market-tide` (0,11 4×7), `flow-sweeps-blocks` (4,11 4×7), `flow-unusual` (8,11 4×7)
 - **flow:ticker** (Ticker flow) — `stock-chart` (0,0 6×11), `net-flow-strike` (6,0 3×11), `flow-gex-convergence` (9,0 3×11), `flow-strike-expiry` (0,11 6×7), `flow-timeline` (6,11 3×7), `dark-pool-flow` (9,11 3×7)
@@ -139,8 +167,8 @@ Every default tiles 12 × 18 exactly (DEV assertion `tilingIssues`, pages.ts). C
 ## FLOW domain — one owner for everything options-flow (feat/flowdom, 2026-09-29)
 
 The FLOW page owns every options-flow function. Each function has exactly one
-tool; any page may *add* a flow tool, but other pages' **default** layouts carry
-at most the compact `flow-context` tool (which links to `/t?tab=flow`). In
+tool; only the GEX workspace may *add* a flow tool (and only `flow-context`), and
+other pages' **default** layouts carry at most the compact `flow-context` tool (which links to `/t?tab=flow`). In
 reverse, FLOW's default carries one GEX-reading tool — `flow-gex-convergence`,
 which reads the GEX page's own query and links to `/t?tab=gex` — never the GEX
 workspace.

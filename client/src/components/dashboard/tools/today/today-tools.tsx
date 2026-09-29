@@ -8,7 +8,7 @@
  * live in today-model.tsx; every tool shares its queries.
  */
 import { useMemo, useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { convictionDisplayPercent } from '@shared/conviction-display';
 import { Spark, RotQuad, SigCard, CHECK } from '@/components/landing/live-widgets';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
@@ -31,7 +31,8 @@ export function TodayWeekMapTool() {
   const book = useBook();
   const rotation = useRotation();
   const spyIntra = useSpyIntraday();
-  const { hasTool, addTool } = useDashboard();
+  const { hasTool, addTool, editable } = useDashboard();
+  const [, setLocation] = useLocation();
   const now = useNow();
   const [ref, width] = useElementWidth<HTMLDivElement>();
 
@@ -57,7 +58,8 @@ export function TodayWeekMapTool() {
 
   const toBest = () => {
     if (hasTool('today-best-idea')) document.querySelector('[data-tool="today-best-idea"]')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    else addTool('today-best-idea');
+    else if (editable) addTool('today-best-idea');
+    else setLocation('/t'); // fixed page without the tool: the ranked board is NEXUS (/t)
   };
   const narrow = width > 0 && width < 560;
 
@@ -87,7 +89,7 @@ export function TodayWeekMapTool() {
                 : 'Long-gamma dealers buy dips and sell rips, so ranges tighten.'}${sigma != null && refPx ? ` ${wp.data.volSource === 'realized-20d' ? 'Lately SPY has moved' : 'Expect'} about ±${fmt(sigma, 0)} points (${fmt(sigma / refPx * 100, 1)}%) in a typical week${wp.data.volSource === 'realized-20d' ? `${wp.data.impliedVol && spyPx ? ` — options price more, ±${fmt(spyPx * wp.data.impliedVol * Math.sqrt(5 / 252), 0)}` : ''}` : wp.data.volSource === 'vix' ? ' (from VIX)' : ' (estimated)'}.` : ''}${magnet && sigma != null && spyPx != null && !pinClose ? ` The biggest strike, ${fmt(magnet, 0)}, is ${fmt(Math.abs(magnet - spyPx), 0)} points away — further than dealers usually drag price in a week.` : ''}`}
           </p>
           <div className="hero-actions">
-            <button type="button" className="btn btn-primary btn-lg" onClick={toBest} title={hasTool('today-best-idea') ? 'Scroll to the Best idea tool' : 'Add the Best idea tool to this dashboard'}>
+            <button type="button" className="btn btn-primary btn-lg" onClick={toBest} title={hasTool('today-best-idea') ? 'Scroll to the Best idea tool' : editable ? 'Add the Best idea tool to this dashboard' : 'Open the ranked setups on NEXUS'}>
               Today&rsquo;s best idea
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12l7 7 7-7" /></svg>
             </button>

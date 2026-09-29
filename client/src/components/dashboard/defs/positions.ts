@@ -51,7 +51,7 @@ export const POSITIONS_TOOLS: ToolDef[] = [
 
 /**
  * POSITIONS is a SIMPLE page (pages.ts `simple`: the heat-map page full
- * bleed). This is what "Customize" switches to — one screen (12 × 18):
+ * bleed). No Customize switch since 2026-09-29; this grid is documentation only (12 × 18):
  *   ┌──────────────────── net open P&L 12×3 ────────────────────┐
  *   ├────────── heat map 8×9 ──────────┬ best vs worst 4×5 ──────┤
  *   │                                  ├ book mix 4×4 ───────────┤

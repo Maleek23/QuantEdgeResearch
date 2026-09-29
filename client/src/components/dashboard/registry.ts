@@ -3,8 +3,10 @@
  *
  * One registry for the whole platform (docs/IA_SYSTEM_DESIGN.md §2): a tool is
  * the single owner of one function; a page is just a default arrangement of
- * tools, and any tool can be added to any page. Each category's definitions
- * live in defs/<category>.ts; this file only assembles them.
+ * tools. Only the two WORKSPACE pages (GEX, FLOW) let the viewer add tools,
+ * and each offers only its curated catalogue (pages.ts `catalog`); every
+ * other page is a fixed layout. Each category's definitions live in
+ * defs/<category>.ts; this file only assembles them.
  *
  * A tool WRAPS an existing component or endpoint wherever one exists. Tools
  * we have no data for (Option Chart, Dark Pool Alerts, Trade Terminal) are

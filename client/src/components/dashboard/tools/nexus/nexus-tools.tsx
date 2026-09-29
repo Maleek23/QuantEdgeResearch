@@ -104,8 +104,9 @@ const RANK_HELP: Record<Rank, string> = {
 };
 
 function DetailHint() {
-  const { hasTool, addTool } = useDashboard();
-  if (hasTool(DETAIL_ID)) return null;
+  const { hasTool, addTool, editable } = useDashboard();
+  // Only a workspace can add a tool; NEXUS is a fixed page that ships with the detail tool.
+  if (hasTool(DETAIL_ID) || !editable) return null;
   return <div className="of-hint nxd-hint">Rows open in the detail tool. <button type="button" onClick={() => addTool(DETAIL_ID)}>Add detail</button></div>;
 }
 

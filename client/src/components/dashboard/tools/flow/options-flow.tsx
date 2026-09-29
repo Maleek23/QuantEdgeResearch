@@ -80,7 +80,7 @@ export function OptionsFlowTool() {
   const [chips, setChips] = useState<Set<ChipId>>(new Set());
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'at', dir: -1 });
   const [focus, setFocus] = useFocusSymbol();
-  const { hasTool, addTool } = useDashboard();
+  const { hasTool, addTool, editable } = useDashboard();
   const tape = useFlowTape(days);
   const now = useNow();
 
@@ -258,7 +258,7 @@ export function OptionsFlowTool() {
         </div>
       </div>
 
-      {!hasTool('stock-chart') && (
+      {!hasTool('stock-chart') && editable && (
         <div className="of-hint">
           Focus: <b>{focus}</b> — row clicks re-point the terminal's ticker.
           <button type="button" onClick={() => addTool('stock-chart')}>Add Stock Chart</button> to see it with flow markers.

@@ -38,7 +38,7 @@ export const LEAPS_TOOLS: ToolDef[] = [
 
 /**
  * LEAPS is a SIMPLE page (pages.ts `simple`: the ranked LEAPS board full
- * bleed). This is what "Customize" switches to — one screen (12 × 18):
+ * bleed). No Customize switch since 2026-09-29; this grid is documentation only (12 × 18):
  *   ┌──────── ranked contracts 7×18 ────────┬ stock chart 5×11 ┐
  *   │                                       ├ summary 5×7      ┤
  * The chart follows whichever card was clicked. Grades: Add tool.

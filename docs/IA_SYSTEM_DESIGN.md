@@ -1,6 +1,6 @@
 # QuantEdge — Information Architecture: a top-down system design
 
-Status: **Phase 1 implemented** on `feat/ia`; **Phase 2 framework + terminal dashboards** on `feat/dash` (2026-09-29, see docs/TOOLS_MIGRATION.md). Phases 2–5 are specified here and depend on in-flight branches (see §5.3).
+Status: **Phase 1 implemented** on `feat/ia`; **Phase 2 framework + terminal dashboards** on `feat/dash` (2026-09-29, see docs/TOOLS_MIGRATION.md); **page modes** (only GEX + FLOW editable) on `feat/modes`. Phases 2–5 are specified here and depend on in-flight branches (see §5.3).
 Owner instrument: `research/nav-architecture.py` (the automated V-model checks in §4) + `research/check-legacy-redirects.ts`.
 
 The operator's brief: *"I love how the flow page works with moving and resizing — can we make the whole platform like that; we need to reduce redundancy; check all pages in the navs, think like a systems engineer, top-down: are things flowing how they should and are things where they should be."*
@@ -192,9 +192,9 @@ flowchart TB
 | 6 | **Journal** | `/journal` | PROVE | `journal.trades` · `journal.analytics` · `journal.track-record` · `journal.backtest` · `journal.idea-audit` (per idea) | Dashboard · Trades · Analytics · Track record (the journal branch's four views become four presets) |
 | — | **Account menu** | `/settings`, `/how-to`, drawer | PLATFORM | Settings (profile · notifications · trading & risk · bots · display & layout), Guide, Theme, Alerts shortcut, Sign out | — |
 
-**Every destination is a dashboard.** The user can **move, resize, add (from a job-grouped catalogue), remove** tools and **Restore defaults**. Named dashboards are per user. Defaults carry a `defaultsVersion`; when we ship a better default, users who never customised get it, users who did get a one-line "new default available — apply?".
+**Every destination is a dashboard of tools — but only two are editable.** *Amended 2026-09-29 (operator decision, feat/modes):* **GEX** and **FLOW** are *workspaces* — the user can **move, resize, add, remove** tools, **Auto-arrange**, **Clear**, **Restore default** and keep **named dashboards** (per user). Each workspace's *Add tool* lists only its curated catalogue (GEX: GEX + chart + market context + the compact flow read; FLOW: flow + dark pool + chart + market context + the compact GEX read — never bot, crypto, journal…). Every other dashboard page (Today, NEXUS, CATALYST, CRYPTO, BOT, JOURNAL) is *fixed*: the same tiles in the curated default, nothing editable, and any layout saved for it earlier is ignored. CHART, LEAPS and POSITIONS are *simple* pages (one tool full bleed) with no Customize switch. Mode per page: `PageSpec.mode` (`client/src/components/dashboard/pages.ts`); table in docs/TOOLS_MIGRATION.md "Page modes". Shipped defaults stay pristine until a workspace user changes them, so a better default reaches everyone who never customised.
 
-**Phones** (< 768 px): dashboards render as a single column in layout order (stack, never hide); editing is a list with reorder/remove, no free drag or resize. Search is an icon in the topbar that opens the same palette full-width.
+**Phones** (< 768 px): dashboards render as a single column in layout order (stack, never hide); on a workspace, editing is remove only (no free drag or resize). Search is an icon in the topbar that opens the same palette full-width.
 
 **Search.** One palette on every page (framed pages *and* the terminal): tickers (universal `/api/search/symbols`), the six destinations (⌘1–⌘6 in job order), named dashboards, tools ("add GEX Setups to this dashboard"), and actions. Enter on a ticker → `/r/:symbol`.
 
@@ -233,7 +233,7 @@ flowchart LR
 | R-FLOW-1 | Every operator workflow step reachable in ≤2 clicks from the previous step | **N10** (global chrome/palette or a direct link from the previous step's page) | PASS (W1–W5) |
 | R-MIG-1 | Every old URL resolves in one hop to a live route, query preserved | **N8** + `check-legacy-redirects.ts` | PASS (79 rows) |
 | R-MIG-2 | A retired page with a successor tab lands on that tab | **N9** (26 rows) | PASS |
-| R-LAYOUT-1 | Layouts persist per user; Restore defaults works; defaults versioned | Phase 2: unit tests on `layout.ts` + API round-trip | spec |
+| R-LAYOUT-1 | Workspace (GEX, FLOW) layouts persist per user; Restore defaults works; fixed pages always render their shipped default | Phase 2: unit tests on `layout.ts` + API round-trip | spec |
 | R-MOB-1 | Every tool renders at 375 px with no horizontal page scroll | Phase 2: Playwright at 375×812 per default dashboard | spec |
 | R-DATA-1 | Every tool shows its source and data age | Phase 2: registry lint — `source` non-empty, `ageInside` or frame age stamp | spec |
 

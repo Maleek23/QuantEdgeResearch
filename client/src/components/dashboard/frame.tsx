@@ -41,9 +41,12 @@ export function useToolReport(r: ToolReport) {
 interface DashCtx {
   page: string;
   hasTool: (id: string) => boolean;
+  /** no-op unless `editable` (only the GEX / FLOW workspaces are) */
   addTool: (id: string) => void;
+  /** the viewer may change this page's layout (workspace pages only) */
+  editable: boolean;
 }
-export const DashboardCtx = createContext<DashCtx>({ page: 'none', hasTool: () => false, addTool: () => {} });
+export const DashboardCtx = createContext<DashCtx>({ page: 'none', hasTool: () => false, addTool: () => {}, editable: false });
 export const useDashboard = () => useContext(DashboardCtx);
 
 /* ── this placement's instance id ── */
@@ -114,11 +117,13 @@ export function provenanceOf(def: ToolDef, report: ToolReport, now: number) {
 }
 
 export function ToolFrame({
-  def, onRemove, dragHandle, resizeHandle, children, compact, symbol,
+  def, onRemove, dragHandle, resizeHandle, children, compact, symbol, grip = true,
 }: {
   def: ToolDef;
   onRemove?: () => void;
   dragHandle?: ReactNode;
+  /** false on a fixed page: no grip glyph, since the tile cannot move */
+  grip?: boolean;
   resizeHandle?: ReactNode;
   children: ReactNode;
   compact?: boolean;
@@ -131,7 +136,7 @@ export function ToolFrame({
   return (
     <section className="fd-tool" aria-label={def.title} data-tool={def.id}>
       <header className="fd-tool-head">
-        {dragHandle ?? <span className="fd-grip-ph" aria-hidden><GripVertical size={12} /></span>}
+        {dragHandle ?? (grip ? <span className="fd-grip-ph" aria-hidden><GripVertical size={12} /></span> : null)}
         <div className="fd-tool-titles">
           <div className="fd-tool-title">
             <span>{def.title}</span>
