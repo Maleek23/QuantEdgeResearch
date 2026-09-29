@@ -9,12 +9,20 @@
  * even when markets are closed — perfect for "last known good" data.
  *
  * Returns the same GEXSnapshot shape as toSnapshot() so callers
- * can drop it in transparently.
+ * can drop it in transparently. Same math and units as options-exposures v2
+ * (shared/gex-math.ts): GEX $B per 1%, VEX $M per IV point, spot-grid
+ * zero-gamma, gamma-ranked walls, shared regime.
  */
 
 import { logger } from './logger';
 import type { GEXSnapshot } from '../shared/gex-types';
 import { bucketizeChain, dealerFlowPer1PctFromGamma, type BucketContract } from './gex-dte-buckets';
+import { rateLimited } from './provider-cache';
+import {
+  bsGamma, bsVanna, gexPer1Pct, vannaPerVolPt, gammaProfile, thinProfile, pickWalls,
+  expiryInstantMs, YEAR_MS, MIN_T_YEARS, type GammaContract,
+} from '../shared/gex-math';
+import { classifyGammaRegime } from '../shared/gex-regime';
 
 interface CBOEContract {
   option: string;
@@ -57,152 +65,98 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
     // contracts inside the payload still use OCC roots such as SPX and SPXW.
     const cboeSymbol = symbol.toUpperCase() === 'SPX' ? '_SPX' : symbol;
     const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${cboeSymbol}.json`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, redirect: 'follow' });
+    // Shared CBOE queue — the bulk caller below used to fire 8 of these at once
+    // and CBOE answers bursts with a blanket 429.
+    const r = await rateLimited('cboe', 500, () => fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, redirect: 'follow' }));
     if (!r.ok) return null;
     const j: CBOEResponse = await r.json();
     const data = j?.data;
     if (!data?.current_price || !data?.options?.length) return null;
 
     const spot = data.current_price;
-    const opts = data.options;
-    // Aggregate by strike
+    const now = Date.now();
     const byStrike = new Map<number, AggregatedStrike>();
-    let totalCallGEX = 0, totalPutGEX = 0;
-    let totalCallVEX = 0, totalPutVEX = 0;
-
-    // For DTE bucketing — we collect raw contracts as we walk
+    let totalCallGEX = 0, totalPutGEX = 0; // unsigned $ per 1%
+    let totalVEX = 0;                        // $ per IV point, liquidity sign
     const contractList: BucketContract[] = [];
+    const profileContracts: GammaContract[] = [];
     let netGammaSum = 0; // for dealer-flow calc
+    let excludedGross = 0;
+    const byExpiry = new Map<string, { days: number; net: number }>();
 
-    for (const o of opts) {
-      const s = o.option;
+    for (const o of data.options) {
       // OCC compact symbol: ROOT + YYMMDD + C/P + 8-digit strike. SPX chains
-      // mix monthly SPX and weekly SPXW roots, so slicing by request-symbol
-      // length corrupts most 0DTE contracts. Parse the contract itself.
-      const parsed = /^([A-Z]+)(\d{6})([CP])(\d{8})$/.exec(s);
+      // mix monthly SPX and weekly SPXW roots, so parse the contract itself.
+      const parsed = /^([A-Z]+)(\d{6})([CP])(\d{8})$/.exec(o.option);
       if (!parsed) continue;
       const [, , expiryCode, cp, strikeCode] = parsed;
       const strike = parseInt(strikeCode, 10) / 1000;
       if (!Number.isFinite(strike) || strike <= 0) continue;
       const oi = o.open_interest || 0;
       if (oi === 0) continue;
-      const gamma = o.gamma || 0;
-      const vega = o.vega || 0;
-      const yy = expiryCode.slice(0, 2);
-      const mm = expiryCode.slice(2, 4);
-      const dd = expiryCode.slice(4, 6);
-      const expirationDate = `20${yy}-${mm}-${dd}`;
+      const expirationDate = `20${expiryCode.slice(0, 2)}-${expiryCode.slice(2, 4)}-${expiryCode.slice(4, 6)}`;
+      const T = (expiryInstantMs(expirationDate) - now) / YEAR_MS;
+      if (T <= 0) continue; // expired contracts carry no forward exposure
+      const isCall = cp === 'C';
+      const sign = isCall ? 1 : -1;
+      const iv = o.iv > 0 ? o.iv : 0;
+      const gamma = o.gamma > 0 ? o.gamma : iv > 0 ? bsGamma(spot, strike, Math.max(T, MIN_T_YEARS), iv) : 0;
       contractList.push({ expirationDate, strike, cp: cp as 'C' | 'P', oi, gamma });
-      netGammaSum += oi * gamma * (cp === 'P' ? -1 : 1);
+      netGammaSum += oi * gamma * sign;
 
-      // GEX in dollars per 1% underlying move.
-      // The 100-share contract multiplier and the 0.01 move cancel, so adding
-      // another ×100 here would inflate the fallback exposure by two orders of
-      // magnitude relative to the canonical options-exposures implementation.
-      const gexContribution = oi * gamma * spot * spot;
-      // VEX = OI × vega × spot × 100 (vanna proxy via vega)
-      const vexContribution = oi * vega * spot * 100;
+      // GEX $ per 1% move: Γ·OI·100·S²·0.01 (multiplier and 1% cancel).
+      const gexContribution = gexPer1Pct(gamma, oi, spot);
+      const be = byExpiry.get(expirationDate) ?? { days: T * 365, net: 0 };
+      be.net += sign * gexContribution;
+      byExpiry.set(expirationDate, be);
+      // VEX $ per IV point with REAL Black-Scholes vanna (v1 used OI·vega·S·100,
+      // which is not vanna and is positive for every contract).
+      const vanna = iv > 0 ? bsVanna(spot, strike, Math.max(T, MIN_T_YEARS), iv) : 0;
+      const vexContribution = -sign * vannaPerVolPt(vanna, oi, spot);
+      totalVEX += vexContribution;
+      if (iv > 0) profileContracts.push({ strike, T: Math.max(T, MIN_T_YEARS), iv, oi, isCall });
+      else excludedGross += gexContribution;
 
       const existing = byStrike.get(strike) || {
         strike, callGEX: 0, putGEX: 0, netGEX: 0, callOI: 0, putOI: 0, callVEX: 0, putVEX: 0
       };
-
-      if (cp === 'C') {
+      if (isCall) {
         existing.callGEX += gexContribution;
         existing.callOI += oi;
         existing.callVEX += vexContribution;
         totalCallGEX += gexContribution;
-        totalCallVEX += vexContribution;
       } else {
         existing.putGEX += gexContribution;
         existing.putOI += oi;
         existing.putVEX += vexContribution;
         totalPutGEX += gexContribution;
-        totalPutVEX += vexContribution;
       }
       existing.netGEX = existing.callGEX - existing.putGEX;
       byStrike.set(strike, existing);
     }
 
     if (byStrike.size === 0) return null;
-
-    // Sort strikes ascending
     const strikes = Array.from(byStrike.values()).sort((a, b) => a.strike - b.strike);
 
-    // Find call wall (largest +GEX above spot)
-    let callWall: number | null = null;
-    let callWallGEX = 0;
-    for (const s of strikes) {
-      if (s.strike > spot && s.netGEX > callWallGEX && s.callOI > 100) {
-        callWall = s.strike;
-        callWallGEX = s.netGEX;
-      }
-    }
+    // Walls + zero-gamma + regime: the shared definitions (docs/GEX_VEX_METHODOLOGY.md).
+    const walls = pickWalls(strikes, spot);
+    const callWall = walls.callWall;
+    const putWall = walls.putWall;
 
-    // Find put wall (largest -GEX below spot)
-    let putWall: number | null = null;
-    let putWallGEX = 0;
-    for (const s of strikes) {
-      if (s.strike < spot && s.netGEX < putWallGEX && s.putOI > 100) {
-        putWall = s.strike;
-        putWallGEX = s.netGEX;
-      }
-    }
-
-    // Find max gamma strike (largest |netGEX|)
     let maxGammaStrike = strikes[0].strike;
     let maxAbs = 0;
     for (const s of strikes) {
-      if (Math.abs(s.netGEX) > maxAbs) {
-        maxAbs = Math.abs(s.netGEX);
-        maxGammaStrike = s.strike;
-      }
+      if (Math.abs(s.netGEX) > maxAbs) { maxAbs = Math.abs(s.netGEX); maxGammaStrike = s.strike; }
     }
 
-    // Approximate the actionable flip with the nearest strike-to-strike net-GEX
-    // sign change. Starting a cumulative sum at the chain's lowest strike made
-    // broad index chains report absurd flips thousands of points from spot
-    // (SPX returned 5400 while trading near 7743).
-    let gammaFlipPrice: number | null = null;
-    let nearestFlipDistance = Infinity;
-    for (let i = 1; i < strikes.length; i++) {
-      const left = strikes[i - 1];
-      const right = strikes[i];
-      if (Math.sign(left.netGEX) === Math.sign(right.netGEX)) continue;
-      const midpoint = (left.strike + right.strike) / 2;
-      const distance = Math.abs(midpoint - spot);
-      if (distance < nearestFlipDistance) {
-        gammaFlipPrice = midpoint;
-        nearestFlipDistance = distance;
-      }
-    }
-
-    // Sparse chains can have no local sign transition. Retain the cumulative
-    // fallback only when it lands near the traded price plane.
-    let cumulative = 0;
-    if (gammaFlipPrice == null) {
-      for (let i = 0; i < strikes.length; i++) {
-        const prev = cumulative;
-        cumulative += strikes[i].netGEX;
-        if ((prev <= 0 && cumulative > 0) || (prev >= 0 && cumulative < 0)) {
-          const candidate = strikes[i].strike;
-          if (Math.abs(candidate / spot - 1) <= 0.2) gammaFlipPrice = candidate;
-          break;
-        }
-      }
-    }
+    const profile = gammaProfile(profileContracts, spot, { lo: 0.8, hi: 1.2, steps: 120 });
+    const gammaFlipPrice = profile.zeroGamma;
 
     const totalGEX = totalCallGEX - totalPutGEX;
-    const totalVEX = totalCallVEX - totalPutVEX;
+    const grossGEX = totalCallGEX + totalPutGEX;
     const putCallRatio = totalCallGEX > 0 ? Math.abs(totalPutGEX) / totalCallGEX : 0;
-
-    const regime: GEXSnapshot['regime'] =
-      totalGEX > 0 && Math.abs(totalGEX) > 1e9 ? 'positive_gamma' :
-      totalGEX < 0 && Math.abs(totalGEX) > 1e9 ? 'negative_gamma' :
-      'neutral';
-
-    // zeroGammaProjection: closest strike to gamma flip (if exists)
-    const zeroGammaProjection = gammaFlipPrice;
+    const regimeRead = classifyGammaRegime({ netGEX: totalGEX, grossGEX, spot, zeroGamma: gammaFlipPrice });
+    const zeroGammaProjection = totalGEX > 0 ? maxGammaStrike : gammaFlipPrice;
 
     // Build levels for rendering (top 20 by |netGEX|, sorted by strike)
     const levelsRaw = [...strikes]
@@ -224,7 +178,7 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
         gex: l.netGEX / 1e9,
         callGex: l.callGEX / 1e9,
         putGex: -l.putGEX / 1e9,
-        vex: (l.callVEX - l.putVEX) / 1e6,
+        vex: (l.callVEX + l.putVEX) / 1e6,
         gammaPct: totalAbsStrikeGEX > 0 ? Math.abs(l.netGEX) / totalAbsStrikeGEX : 0,
         openInterest: l.callOI + l.putOI,
         role,
@@ -240,24 +194,42 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       symbol,
       spotPrice: spot,
       calculatedAt: Date.now(),
-      totalGEX: totalGEX / 1e9,         // billions ($/1.0 move)
+      unitsVersion: 2,
+      totalGEX: totalGEX / 1e9,         // $B per 1% move
       totalNetGEX: totalGEX / 1e9,
-      totalVEX: totalVEX / 1e6,         // millions — match Tradier-path convention
+      grossGEX: grossGEX / 1e9,
+      gexByScope: (() => {
+        const e = [...byExpiry.values()].sort((a, b) => a.days - b.days);
+        return {
+          all: totalGEX / 1e9,
+          frontExpiry: e.length ? e[0].net / 1e9 : 0,
+          frontExpiryDays: e.length ? Math.round(e[0].days * 100) / 100 : null,
+          le7d: e.filter((x) => x.days <= 7).reduce((a, x) => a + x.net, 0) / 1e9,
+        };
+      })(),
+      totalVEX: totalVEX / 1e6,         // $M per 1 IV point — same as options-exposures v2
       callGEX: totalCallGEX / 1e9,
       putGEX: -totalPutGEX / 1e9,
       putCallRatio,
       gammaFlipPrice,
+      zeroGammaLevel: gammaFlipPrice,
+      gammaProfile: thinProfile(profile.points, 41).map((p) => ({ spot: p.spot, netGEX: p.netGEX / 1e9 })),
       maxGammaStrike,
       callWall,
       putWall,
+      callWallOI: walls.callWallOI,
+      putWallOI: walls.putWallOI,
       zeroGammaProjection,
       levels,
-      regime,
-      volatilityRegime: 'normal',
+      regime: regimeRead.legacy,
+      regimeRead,
       dealerFlowPer1Pct,
       byDte,
-      source: 'mixed',
+      source: 'cboe',
       expirationsUsed: [...new Set(contractList.map((contract) => contract.expirationDate))],
+      chainFeed: 'cboe-delayed',
+      chainFetchedAt: new Date(now).toISOString(),
+      profileExcludedGrossShare: grossGEX > 0 ? excludedGross / grossGEX : 0,
     } as GEXSnapshot;
   } catch (e: any) {
     logger.warn(`[GEX-CBOE-FALLBACK] failed ${symbol}: ${e.message}`);

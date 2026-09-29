@@ -13,13 +13,13 @@
 export interface GEXLevel {
   /** Option strike price */
   strike: number;
-  /** Net gamma exposure in billions ($/1% move × 1e9) */
+  /** Net gamma exposure, $B per 1% move (units v2: unweighted) */
   gex: number;
   /** Call-side gamma exposure */
   callGex: number;
   /** Put-side gamma exposure */
   putGex: number;
-  /** Net vanna exposure in billions */
+  /** Net vanna exposure, $M per 1 IV point; + = dealers buy as IV rises */
   vex: number;
   /** Percentage of total |GEX| concentrated at this strike */
   gammaPct: number;
@@ -52,32 +52,55 @@ export interface GEXSnapshot {
   calculatedAt: number;
 
   // Aggregate exposures
-  totalGEX: number;       // net dealer gamma exposure ($/1% move, billions)
+  totalGEX: number;       // net dealer gamma exposure, $B per 1% move (units v2: unweighted)
   /** Same value as totalGEX. The wire has always used this name; both are sent
    *  so neither the six components reading totalGEX nor anything reading
    *  totalNetGEX silently receives undefined. See server/gamma-exposure.ts. */
   totalNetGEX?: number;
-  totalVEX: number;       // net dealer vanna exposure (billions)
+  totalVEX: number;       // net vanna exposure, $M per 1 IV point; + = dealers buy as IV rises
   callGEX: number;
   putGEX: number;
   putCallRatio: number;   // |put GEX| / call GEX
 
   // Key structural levels
-  gammaFlipPrice: number | null;     // where dealer gamma flips from + to -
+  gammaFlipPrice: number | null;     // zero-gamma level: spot-grid re-priced crossing nearest spot
   maxGammaStrike: number;            // strike with largest |GEX|
-  callWall: number | null;           // largest positive-GEX strike above spot
-  putWall: number | null;            // largest negative-GEX strike below spot
-  zeroGammaProjection: number | null; // near-term magnet target (Skylit "projection")
+  callWall: number | null;           // strike above spot with the largest call GEX (SpotGamma definition)
+  putWall: number | null;            // strike below spot with the largest put GEX
+  zeroGammaProjection: number | null; // legacy: max-gamma strike when net GEX > 0, else the zero-gamma level
+
+  // ─── v2 fields (docs/GEX_VEX_METHODOLOGY.md) — optional so cached v1 payloads still type ───
+  /** 2 = unweighted GEX ($B/1%), VEX $M per IV point. Absent on v1 payloads. */
+  unitsVersion?: 2;
+  /** Σ|contract GEX|, $B per 1%. */
+  grossGEX?: number;
+  /** Net GEX by expiry scope, $B per 1%: all listed (headline), nearest expiry (0DTE in session), ≤7 days. */
+  gexByScope?: { all: number; frontExpiry: number; frontExpiryDays: number | null; le7d: number };
+  /** Same as gammaFlipPrice, named for what it is. */
+  zeroGammaLevel?: number | null;
+  /** Net GEX ($B per 1%) re-priced across hypothetical spots 0.8–1.2×. */
+  gammaProfile?: Array<{ spot: number; netGEX: number }>;
+  /** Walls ranked by open interest instead of gamma. */
+  callWallOI?: number | null;
+  putWallOI?: number | null;
+  /** The shared regime read (shared/gex-regime.ts). */
+  regimeRead?: import('./gex-regime').GammaRegimeRead;
+  /** Chain provenance when no cross-validated dataQuality block exists (CBOE fallback). */
+  chainFeed?: string;
+  chainFetchedAt?: string;
+  /** Share of gross GEX left out of the zero-gamma sweep because the feed had no IV. */
+  profileExcludedGrossShare?: number;
 
   // Top-N levels for rendering
   levels: GEXLevel[];
 
   // Regime / environment
   regime: 'positive_gamma' | 'negative_gamma' | 'neutral' | 'transitioning';
-  volatilityRegime: 'low' | 'normal' | 'high' | 'extreme';
+  /** Never populated from a measurement yet — v1 hard-coded 'normal'. Optional so nothing fabricates it. */
+  volatilityRegime?: 'low' | 'normal' | 'high' | 'extreme';
 
   // Data provenance
-  source: 'schwab' | 'tradier' | 'yahoo' | 'mixed' | 'none';
+  source: 'alpaca' | 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
   expirationsUsed: string[];
 
   // ─── ACTIONABLE FIELDS (P0 — added for trader workflows) ───
@@ -101,6 +124,12 @@ export interface GEXSnapshot {
     spreadPct: number;
     isStale: boolean;
     hasDisagreement: boolean;
+    chainFetchedAt?: string;
+    chainAgeMs?: number;
+    chainFeed?: string;
+    openInterestDate?: string | null;
+    ivFallbackShare?: number;
+    profileExcludedGrossShare?: number;
   };
 }
 
@@ -146,7 +175,7 @@ export interface ConfluenceRow {
 
   // Aggregate exposures (used by GEX Hub for top-N rankings)
   totalGEX: number;            // net dealer gamma in $B / 1% move
-  totalVEX: number;            // net dealer vanna in $B
+  totalVEX: number;            // net vanna, $M per 1 IV point (+ = dealers buy as IV rises)
   regime: 'positive_gamma' | 'negative_gamma' | 'neutral' | 'transitioning';
   sector: string;              // sector slug from approved-tickers.SECTOR_MAP
 
@@ -157,7 +186,7 @@ export interface ConfluenceRow {
   riskReward: number | null;
 
   // Data freshness
-  dataSource: 'schwab' | 'tradier' | 'yahoo' | 'mixed' | 'none';
+  dataSource: 'alpaca' | 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
   calculatedAt: number;
   note?: string;
 

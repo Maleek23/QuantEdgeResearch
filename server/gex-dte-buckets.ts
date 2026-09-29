@@ -48,11 +48,17 @@ export function dealerFlowPer1PctFromGamma(gammaSum: number, spot: number): numb
 }
 
 /**
- * Convert totalGEX (billions, $/1.0 move) → dollar dealer flow per 1% move.
- * GEX in $B per full move × 1e9 × 0.01 = dollars per 1% move.
+ * Convert totalGEX ($B per 1% move) → dollars of dealer hedging per 1% move.
+ *
+ * Every producer of totalGEX (options-exposures, the CBOE fallback) already
+ * computes Γ·OI·100·S²·0.01 — i.e. PER 1% — then divides by 1e9. v1 of this
+ * helper assumed "$B per 1.0 move" and multiplied by 0.01 again, so the main
+ * path reported dealer flow 100× too small while the CBOE path (which uses
+ * dealerFlowPer1PctFromGamma) was right. Measured 2026-09-29 on SPY:
+ * −$80M (this helper, v1) vs −$10.1B (reference). Units: docs/GEX_VEX_METHODOLOGY.md.
  */
 export function dealerFlowFromTotalGEX(totalGEXBillions: number): number {
-  return totalGEXBillions * 1e9 * 0.01;
+  return totalGEXBillions * 1e9;
 }
 
 /**

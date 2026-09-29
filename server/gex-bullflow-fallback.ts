@@ -13,6 +13,7 @@
  * through one queue with a 2.6s gap, so a 120-name rescue takes ~10 min in
  * the background scan rather than tripping the limiter.
  */
+import { classifyGammaRegime } from '../shared/gex-regime';
 import { logger } from './logger';
 import type { GEXSnapshot, GEXLevel } from '@shared/gex-types';
 
@@ -101,7 +102,13 @@ export async function computeGEXFromBullflow(symbol: string): Promise<GEXSnapsho
         distancePct: ((k - spot) / spot) * 100,
       }));
 
-    const regime = totalGEX > 0.05 ? 'positive_gamma' : totalGEX < -0.05 ? 'negative_gamma' : 'transitioning';
+    // Shared regime definition (shared/gex-regime.ts). Bullflow's per-strike
+    // values are vendor-computed; their unit is not documented, so only the
+    // SIGN and the net/gross balance are used here — both are unit-free.
+    // The flip above is a cumulative-strike estimate (no contracts to re-price).
+    const grossAbs = Math.abs(totalCall) + Math.abs(totalPut);
+    const regimeRead = classifyGammaRegime({ netGEX: totalCall + totalPut, grossGEX: grossAbs, spot, zeroGamma: gammaFlipPrice });
+    const regime = regimeRead.legacy;
 
     return {
       symbol: symbol.toUpperCase(),
@@ -120,8 +127,9 @@ export async function computeGEXFromBullflow(symbol: string): Promise<GEXSnapsho
       zeroGammaProjection: gammaFlipPrice,
       levels,
       regime,
-      volatilityRegime: 'normal',
-      dealerFlowPer1Pct: 0,
+      regimeRead,
+      chainFeed: 'bullflow (vendor GEX; unit undocumented)',
+      chainFetchedAt: new Date().toISOString(),
       byDte: undefined,
     } as GEXSnapshot;
   } catch (e: any) {

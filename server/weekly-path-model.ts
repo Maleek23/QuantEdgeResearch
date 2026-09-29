@@ -187,7 +187,7 @@ function buildPhases(snap: GEXSnapshot): WeeklyPhase[] {
 export interface VolInput { annualVol: number; source: 'realized-20d' | 'vix' | 'regime-estimate'; impliedVol?: number }
 
 /** Fallback when no live implied vol is available — stamped as an estimate. */
-const REGIME_VOL: Record<GEXSnapshot['volatilityRegime'], number> = { low: 0.12, normal: 0.17, high: 0.26, extreme: 0.38 };
+const REGIME_VOL: Record<NonNullable<GEXSnapshot['volatilityRegime']>, number> = { low: 0.12, normal: 0.17, high: 0.26, extreme: 0.38 };
 
 /**
  * Projected path, sized by the options market's own implied move.
@@ -316,7 +316,7 @@ function getWeekBounds(): { monday: string; friday: string } {
 // ─── Public API ──────────────────────────────────────────────
 
 export function computeWeeklyPath(snap: GEXSnapshot, volIn?: VolInput): WeeklyPathProjection {
-  const vol: VolInput = volIn ?? { annualVol: REGIME_VOL[snap.volatilityRegime] ?? 0.17, source: 'regime-estimate' };
+  const vol: VolInput = volIn ?? { annualVol: (snap.volatilityRegime ? REGIME_VOL[snap.volatilityRegime] : undefined) ?? 0.17, source: 'regime-estimate' };
   const levels = buildLevels(snap);
   const phases = buildPhases(snap);
   const { points: path, sigmaWeek } = buildPath(snap, vol);
@@ -325,7 +325,8 @@ export function computeWeeklyPath(snap: GEXSnapshot, volIn?: VolInput): WeeklyPa
 
   // Overall confidence: based on data quality + regime clarity
   const regimeClarity = snap.regime === 'positive_gamma' || snap.regime === 'negative_gamma' ? 0.8 : 0.5;
-  const gexStrength = Math.min(1, Math.abs(snap.totalGEX) / 5e9);
+  // totalGEX is $B per 1% — v1 divided by 5e9 as if it were dollars, pinning this term at ~0.
+  const gexStrength = Math.min(1, Math.abs(snap.totalGEX) / 5);
   const confidence = Math.round((regimeClarity * 0.6 + gexStrength * 0.4) * 100) / 100;
 
   return {
@@ -339,7 +340,7 @@ export function computeWeeklyPath(snap: GEXSnapshot, volIn?: VolInput): WeeklyPa
     phases,
     entryZones,
     regime: snap.regime,
-    vexRegime: snap.volatilityRegime,
+    vexRegime: snap.totalVEX > 0 ? 'vol_tailwind' : snap.totalVEX < 0 ? 'vol_headwind' : 'vol_neutral', // was volatilityRegime (always 'normal')
     netGEX: snap.totalGEX,
     netVEX: snap.totalVEX,
     confidence,

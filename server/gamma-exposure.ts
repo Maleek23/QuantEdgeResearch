@@ -1,7 +1,10 @@
 /**
  * Net Gamma Exposure (GEX) Calculator — v2
  * =========================================
- * NO GAPS: real VEX, cross-validated spot, Schwab → Tradier → Yahoo cascade.
+ * Chain cascade: Alpaca (indicative feed, primary) → Schwab (if configured) →
+ * CBOE delayed → Yahoo → Tradier (token currently rejected; last).
+ * Math: server/options-exposures.ts + shared/gex-math.ts; methodology in
+ * docs/GEX_VEX_METHODOLOGY.md. Every result says which source it came from.
  *
  * Backwards-compatible contract:
  *   calculateGammaExposure(symbol, expiration?)  →  GammaExposureResult
@@ -26,6 +29,8 @@ import {
   type StrikeExpiryCell,
 } from './options-exposures';
 import { tradierBase } from './tradier-api';
+import { getAlpacaOptionsChain, alpacaToTradierShape, isAlpacaOptionsConfigured } from './alpaca-options';
+import type { GammaRegimeRead } from '../shared/gex-regime';
 
 // ─── Legacy-compat types ───────────────────────────────────
 
@@ -69,8 +74,18 @@ export interface GammaExposureResult {
   maxVannaStrike?: number;
   zeroGammaProjection?: number | null;
   regime?: ExposureSnapshot['regime'];
+  regimeRead?: GammaRegimeRead;
   vexRegime?: ExposureSnapshot['vexRegime'];
-  dataSource?: 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
+  /** Units v2: GEX $B per 1% (unweighted), VEX $M per IV point. */
+  unitsVersion?: 2;
+  grossGEX?: number;
+  gexByScope?: ExposureSnapshot['gexByScope'];
+  zeroGammaLevel?: number | null;
+  zeroGammaCrossings?: number[];
+  gammaProfile?: Array<{ spot: number; netGEX: number }>;
+  callWallOI?: number | null;
+  putWallOI?: number | null;
+  dataSource?: 'alpaca' | 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
   dataQuality?: {
     grade: 'A' | 'B' | 'C' | 'D' | 'F';
     score: number;
@@ -89,6 +104,12 @@ export interface GammaExposureResult {
     chainStaleReason?: string;
     /** True when any leg came from CBOE's delayed (~15 min) feed. */
     chainDelayedFeed?: boolean;
+    /** Feed label — 'indicative' for Alpaca (not OPRA), 'cboe-delayed', etc. */
+    chainFeed?: string;
+    /** Open-interest as-of date (Alpaca: lags 1–2 sessions). */
+    openInterestDate?: string | null;
+    /** Share of gross GEX on contracts excluded from the zero-gamma sweep (no feed IV). */
+    profileExcludedGrossShare?: number;
     /** Share of aggregated contracts whose greeks were computed on the DEFAULT_IV fallback. */
     ivFallbackShare?: number;
     /** Share of aggregated contracts whose gamma/delta were computed by Black-Scholes here (not feed-supplied). */
@@ -101,19 +122,32 @@ export interface GammaExposureResult {
 
 // ─── Options Fetch Cascade ─────────────────────────────────
 
-type OptionsSource = 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
+type OptionsSource = 'alpaca' | 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
 type OptionsFetchResult = {
   options: any[];
   source: OptionsSource;
   /** When this cascade received the chain (ms epoch) — the chain's own age, F3.5. */
   fetchedAt: number;
+  openInterestDate?: string | null;
 };
 
 async function fetchOptionsChain(
   symbol: string,
   expiration?: string,
 ): Promise<OptionsFetchResult> {
-  // 1. Schwab (real-time, free for brokerage account holders)
+  // 1. Alpaca (indicative feed, greeks + IV + OI; throttled process-wide)
+  if (isAlpacaOptionsConfigured()) {
+    try {
+      const chain = await getAlpacaOptionsChain(symbol, expiration ? { expiration } : {});
+      if (chain && chain.contracts.length > 0) {
+        return { options: alpacaToTradierShape(chain, expiration), source: 'alpaca', fetchedAt: chain.fetchedAt, openInterestDate: chain.openInterestDate };
+      }
+    } catch (e: any) {
+      logger.warn(`[GEX] Alpaca chain failed for ${symbol}: ${e.message}`);
+    }
+  }
+
+  // 2. Schwab (real-time, when the operator has configured it)
   if (isSchwabConfigured()) {
     try {
       const schwab = await getSchwabOptionsChain(symbol, expiration);
@@ -125,17 +159,27 @@ async function fetchOptionsChain(
     }
   }
 
-  // 2. Tradier (paid, reliable)
+  // 3. CBOE delayed (free, no key, ~15-min delay)
   try {
-    const tradier = await getTradierOptionsChain(symbol, expiration);
-    if (tradier.length > 0) {
-      return { options: tradier, source: 'tradier', fetchedAt: Date.now() };
+    const cboe = await getCBOEOptionsChain(symbol);
+    if (cboe && cboe.options.length > 0) {
+      // CBOE returns all expirations at once. Use the FULL strike ladder
+      // (allOptions): the ±15% `options` slice drops the OTM wings that carry
+      // most of the vanna — measured 2026-09-29 on BE it cut VEX by 94%.
+      const all = (cboe.allOptions ?? cboe.options).filter((o: any) => (o.open_interest || 0) > 0 || (o.volume || 0) > 0);
+      let filtered = all;
+      if (expiration) {
+        filtered = all.filter((o: any) => o.expiration_date === expiration);
+      }
+      if (filtered.length > 0) {
+        return { options: filtered, source: 'cboe', fetchedAt: Date.now() };
+      }
     }
   } catch (e: any) {
-    logger.warn(`[GEX] Tradier chain failed for ${symbol}: ${e.message}`);
+    logger.warn(`[GEX] CBOE chain failed for ${symbol}: ${e.message}`);
   }
 
-  // 3. Yahoo (free fallback, BS greeks)
+  // 4. Yahoo (free, BS greeks, 429-prone)
   try {
     const yahoo = await getYahooOptionsChain(symbol, expiration);
     if (yahoo.length > 0) {
@@ -145,27 +189,29 @@ async function fetchOptionsChain(
     logger.warn(`[GEX] Yahoo chain failed for ${symbol}: ${e.message}`);
   }
 
-  // 4. CBOE delayed (free, no key, 15-min delay — last resort)
-  try {
-    const cboe = await getCBOEOptionsChain(symbol);
-    if (cboe && cboe.options.length > 0) {
-      // CBOE returns all expirations at once; filter to requested if specified
-      let filtered = cboe.options;
-      if (expiration) {
-        filtered = cboe.options.filter((o: any) => o.expiration_date === expiration);
+  // 5. Tradier (token currently rejected — kept last so it cannot delay the rest)
+  if (process.env.TRADIER_API_KEY) {
+    try {
+      const tradier = await getTradierOptionsChain(symbol, expiration);
+      if (tradier.length > 0) {
+        return { options: tradier, source: 'tradier', fetchedAt: Date.now() };
       }
-      if (filtered.length > 0) {
-        return { options: filtered, source: 'cboe' as any, fetchedAt: Date.now() };
-      }
+    } catch (e: any) {
+      logger.warn(`[GEX] Tradier chain failed for ${symbol}: ${e.message}`);
     }
-  } catch (e: any) {
-    logger.warn(`[GEX] CBOE chain failed for ${symbol}: ${e.message}`);
   }
 
   return { options: [], source: 'none', fetchedAt: Date.now() };
 }
 
 async function fetchExpirationsCascade(symbol: string): Promise<string[]> {
+  if (isAlpacaOptionsConfigured()) {
+    try {
+      const chain = await getAlpacaOptionsChain(symbol);
+      if (chain && chain.expirations.length > 0) return chain.expirations;
+    } catch { /* fall through */ }
+  }
+
   if (isSchwabConfigured()) {
     try {
       const schwab = await getSchwabExpirations(symbol);
@@ -173,7 +219,22 @@ async function fetchExpirationsCascade(symbol: string): Promise<string[]> {
     } catch { /* fall through */ }
   }
 
-  // Tradier expirations
+  // CBOE delayed (free, no key, ~15-min delay)
+  try {
+    const cboeExps = await getCBOEExpirations(symbol);
+    if (cboeExps.length > 0) {
+      logger.info(`[GEX-AGG] Using CBOE delayed expirations for ${symbol}`);
+      return cboeExps;
+    }
+  } catch { /* fall through */ }
+
+  // Yahoo
+  try {
+    const yahooExps = await getYahooExpirations(symbol);
+    if (yahooExps.length > 0) return yahooExps;
+  } catch { /* fall through */ }
+
+  // Tradier expirations (token currently rejected)
   try {
     const apiKey = process.env.TRADIER_API_KEY;
     if (apiKey) {
@@ -189,21 +250,6 @@ async function fetchExpirationsCascade(symbol: string): Promise<string[]> {
     }
   } catch { /* fall through */ }
 
-  // Yahoo
-  try {
-    const yahooExps = await getYahooExpirations(symbol);
-    if (yahooExps.length > 0) return yahooExps;
-  } catch { /* fall through */ }
-
-  // CBOE delayed (last resort — free, no key, 15-min delay)
-  try {
-    const cboeExps = await getCBOEExpirations(symbol);
-    if (cboeExps.length > 0) {
-      logger.info(`[GEX-AGG] Using CBOE delayed expirations for ${symbol}`);
-      return cboeExps;
-    }
-  } catch { /* fall through */ }
-
   return [];
 }
 
@@ -214,7 +260,7 @@ function snapshotToLegacy(
   expirationLabel: string,
   source: OptionsSource,
   cq: Awaited<ReturnType<typeof getCrossValidatedQuote>>,
-  chain: { fetchedAt: number; expirationsUsed: string[]; delayedFeed: boolean },
+  chain: { fetchedAt: number; expirationsUsed: string[]; delayedFeed: boolean; feed?: string; openInterestDate?: string | null },
 ): GammaExposureResult {
   // Chain age + staleness verdict (F3.5). assessOptionsStaleness existed with
   // no callers; this is its first. Levels built from an old chain are old levels.
@@ -274,7 +320,16 @@ function snapshotToLegacy(
     vannaFlipPrice: snap.vannaFlipPrice,
     maxVannaStrike: snap.maxVannaStrike,
     zeroGammaProjection: snap.zeroGammaProjection,
+    zeroGammaLevel: snap.zeroGammaLevel,
+    zeroGammaCrossings: snap.zeroGammaCrossings,
+    gammaProfile: snap.gammaProfile,
+    callWallOI: snap.callWallOI,
+    putWallOI: snap.putWallOI,
+    grossGEX: snap.grossGEX,
+    gexByScope: snap.gexByScope,
+    unitsVersion: snap.unitsVersion,
     regime: snap.regime,
+    regimeRead: snap.regimeRead,
     vexRegime: snap.vexRegime,
     strikeExpiryMatrix: snap.strikeExpiryMatrix,
     dataSource: source === 'none' ? undefined : source,
@@ -290,6 +345,9 @@ function snapshotToLegacy(
       chainIsFresh: staleness.isFresh,
       chainStaleReason: staleness.reason,
       chainDelayedFeed: chain.delayedFeed,
+      chainFeed: chain.feed ?? (source === 'alpaca' ? 'indicative' : source === 'cboe' ? 'cboe-delayed' : source),
+      openInterestDate: chain.openInterestDate ?? null,
+      profileExcludedGrossShare: snap.profileExcludedGrossShare,
       ivFallbackShare: snap.ivFallbackShare,
       bsComputedShare: used > 0 ? snap.bsComputedCount / used : 0,
       bsAssumptions: snap.bsAssumptions,
@@ -312,7 +370,7 @@ export async function calculateGammaExposure(
     }
 
     // 2. Fetch options chain via cascade
-    const { options, source, fetchedAt } = await fetchOptionsChain(symbol, expiration);
+    const { options, source, fetchedAt, openInterestDate } = await fetchOptionsChain(symbol, expiration);
     if (options.length === 0) {
       logger.warn(`[GEX] No options data for ${symbol} from any source`);
       return null;
@@ -339,6 +397,7 @@ export async function calculateGammaExposure(
       fetchedAt,
       expirationsUsed: [actualExpiration],
       delayedFeed: source === 'cboe',
+      openInterestDate,
     });
   } catch (error: any) {
     logger.error(`[GEX] Error calculating gamma exposure for ${symbol}: ${error?.message || error}`);
@@ -357,6 +416,33 @@ export async function calculateAggregateGammaExposure(
     if (cq.bestPrice <= 0) {
       logger.warn(`[GEX-AGG] No valid spot price for ${symbol}`);
       return null;
+    }
+
+    // 1.25 — Alpaca full chain (indicative feed): every expiry ≤180d, strikes ±40%,
+    // greeks + IV + OI in a handful of paginated calls instead of 30 per-expiry fetches.
+    if (isAlpacaOptionsConfigured()) {
+      try {
+        const chain = await getAlpacaOptionsChain(symbol);
+        if (chain && chain.contracts.length >= 10) {
+          const inputs: OptionInput[] = [];
+          for (const opt of alpacaToTradierShape(chain)) {
+            const input = optionToInput(opt, opt.expiration_date);
+            if (input) inputs.push(input);
+          }
+          if (inputs.length >= 10) {
+            const snap = computeExposures(symbol, cq.bestPrice, inputs, chain.expirations);
+            return snapshotToLegacy(snap, `Aggregate (${chain.expirations.length} exp · Alpaca indicative)`, 'alpaca', cq, {
+              fetchedAt: chain.fetchedAt,
+              expirationsUsed: chain.expirations,
+              delayedFeed: false,
+              feed: 'indicative',
+              openInterestDate: chain.openInterestDate,
+            });
+          }
+        }
+      } catch (e: any) {
+        logger.warn(`[GEX-AGG] ${symbol}: Alpaca chain unusable — ${e?.message ?? e}`);
+      }
     }
 
     // 1.5 — Massive chain snapshot: the whole chain (greeks, IV, OI, volume)
@@ -378,6 +464,34 @@ export async function calculateAggregateGammaExposure(
         });
       }
     } catch { /* fall through to the cascade */ }
+
+    // 1.75 — CBOE delayed full chain in ONE fetch (every listed expiry, full
+    // strike ladder). The per-expiry loop below capped at 30 expiries and 30
+    // cascade calls; CBOE already returns the whole book in one payload.
+    try {
+      const cboe = await getCBOEOptionsChain(symbol);
+      if (cboe && (cboe.allOptions ?? cboe.options).length > 0) {
+        const fetchedAt = Date.now();
+        const inputs: OptionInput[] = [];
+        for (const opt of cboe.allOptions ?? cboe.options) {
+          if (!((opt.open_interest || 0) > 0 || (opt.volume || 0) > 0)) continue;
+          const input = optionToInput(opt, opt.expiration_date);
+          if (input) inputs.push(input);
+        }
+        if (inputs.length >= 10) {
+          const exps = cboe.expirations.filter((e) => Date.parse(`${e}T21:00:00Z`) > Date.now() - 6 * 3600_000);
+          const snap = computeExposures(symbol, cq.bestPrice, inputs, exps);
+          return snapshotToLegacy(snap, `Aggregate (${exps.length} exp · CBOE delayed)`, 'cboe', cq, {
+            fetchedAt,
+            expirationsUsed: exps,
+            delayedFeed: true,
+            feed: 'cboe-delayed',
+          });
+        }
+      }
+    } catch (e: any) {
+      logger.warn(`[GEX-AGG] ${symbol}: CBOE full chain unusable — ${e?.message ?? e}`);
+    }
 
     // 2. Get expirations
     const allExps = await fetchExpirationsCascade(symbol);
@@ -407,8 +521,10 @@ export async function calculateAggregateGammaExposure(
     const sourcesUsed = new Set<string>();
     // Oldest leg governs the aggregate's chain age — the book is only as fresh as its stalest expiry.
     let oldestChainFetchedAt = Number.POSITIVE_INFINITY;
+    let oiDate: string | null = null;
     for (let i = 0; i < chainResults.length; i++) {
-      const { options, source, fetchedAt } = chainResults[i];
+      const { options, source, fetchedAt, openInterestDate } = chainResults[i];
+      if (openInterestDate && (!oiDate || openInterestDate < oiDate)) oiDate = openInterestDate;
       if (options.length === 0) continue;
       expsUsed.push(nearExps[i]);
       sourcesUsed.add(source);
@@ -437,6 +553,7 @@ export async function calculateAggregateGammaExposure(
       fetchedAt: oldestChainFetchedAt,
       expirationsUsed: expsUsed,
       delayedFeed: sourcesUsed.has('cboe'),
+      openInterestDate: oiDate,
     });
   } catch (error: any) {
     logger.error(`[GEX] Aggregate calculation error for ${symbol}: ${error?.message || error}`);

@@ -32824,9 +32824,16 @@ Use this checklist before entering any trade:
       const payload = {
         symbol,
         generatedAt: new Date().toISOString(),
+        // The CHAIN's source — v1 printed cq.bestSource, which is the spot-quote
+        // provider, so a CBOE-built dealer map was labelled "yahoo".
         optionsSource: cboeFallbackUsed
           ? 'CBOE delayed fallback'
-          : (cq.bestSource || snapshot.source || 'primary options feed'),
+          : gex?.dataSource === 'alpaca'
+            ? `Alpaca indicative (not OPRA)${gex.dataQuality?.openInterestDate ? ` · OI ${gex.dataQuality.openInterestDate}` : ''}`
+            : gex?.dataSource === 'cboe'
+              ? 'CBOE delayed (~15 min)'
+              : (gex?.dataSource || snapshot.source || 'unknown'),
+        spotSource: cq.bestSource ?? null,
         snapshot,
         candles,
         orbs,

@@ -2,36 +2,31 @@
  * Unified Options Exposures Calculator
  * =====================================
  * Computes GEX + VEX + DEX + CHARM aggregates from any options source.
+ * Methodology, sources and assumptions: docs/GEX_VEX_METHODOLOGY.md.
+ * The per-contract math lives in shared/gex-math.ts (one implementation for
+ * the hub, the CBOE fallback and the cross-ticker rankings).
  *
- * Handles the "no gaps" problem:
- *   - Computes vanna locally (Tradier doesn't return it)
- *   - Computes charm locally (neither source returns it)
- *   - Falls back to Black-Scholes when greeks missing
- *   - Handles missing IV via ATM proxy
- *   - Aggregates across multiple expirations
- *   - Weights near-term expirations higher (they dominate dealer hedging)
+ *   - Computes vanna/charm locally (no feed returns them)
+ *   - Falls back to Black-Scholes when feed greeks are missing (disclosed share)
+ *   - Aggregates across expirations UNWEIGHTED (units v2 — see EXPOSURE_UNITS_VERSION)
  *
- * Formulas:
- *   GEX(strike) = OI × Gamma × 100 × S² × sign_convention / 1e9
- *   VEX(strike) = OI × Vanna × 100 × S  / 1e6      (per 1% vol move, in $M)
- *   DEX(strike) = OI × Delta × 100 × S              / 1e9
- *   Charm(strike) = OI × dDelta/dt  × 100 × S       / 1e9
+ * Units (v2):
+ *   GEX(strike)  = Σ sign · Γ · OI · 100 · S² · 0.01 / 1e9      $B per 1% move
+ *   VEX(strike)  = Σ −sign · vanna · OI · 100 · S · 0.01 / 1e6   $M per 1 IV point
+ *   DEX(strike)  = Σ sign · Δ · OI · 100 · S / 1e9               $B dealer delta notional
+ *   Charm(strike)= Σ sign · ∂Δ/∂t · OI · 100 · S / 1e9            $B per year of decay
  *
- * Sign convention: dealers are assumed short calls (positive GEX), long puts (negative GEX).
+ * Sign convention (naive-OI, an assumption): dealers LONG calls (+GEX) and
+ * SHORT puts (−GEX). VEX is liquidity-signed: + = dealers buy as IV rises.
  */
 
 import { logger } from './logger';
+import {
+  gammaProfile, thinProfile, pickWalls, gexPer1Pct, vannaPerVolPt, MIN_T_YEARS, expiryInstantMs,
+  type GammaContract,
+} from '../shared/gex-math';
+import { classifyGammaRegime, type GammaRegimeRead } from '../shared/gex-regime';
 
-/**
- * Gamma concentration cut-offs, on net/gross in [-1, 1].
- *
- * Provisional pending a full trading-day sample — set deliberately WIDE so the
- * layer starts scoring the clearly one-sided books first rather than every
- * symbol at once. Each computed snapshot logs its concentration so the cut can
- * be tightened against real spread instead of guessed twice.
- */
-const CONC_CUT = 0.25;
-const CONC_NEUTRAL = 0.08;
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -56,7 +51,7 @@ export interface OptionInput {
 
 export interface StrikeExposure {
   strike: number;
-  // Aggregates (all in $ billions, normalized)
+  // GEX in $B per 1% move; VEX in $M per 1 IV point (units v2)
   netGEX: number;
   callGEX: number;
   putGEX: number;
@@ -83,9 +78,19 @@ export interface ExposureSnapshot {
   symbol: string;
   spotPrice: number;
   calculatedAt: number;
+  /** 2 = units documented in the file header (unweighted, VEX per IV point). */
+  unitsVersion: 2;
 
-  // Totals (billions)
+  // Totals: GEX/DEX/charm $B, VEX $M per IV point
   totalGEX: number;
+  /** Σ|contract GEX|, $B per 1% — the denominator of gammaConcentration. */
+  grossGEX: number;
+  /**
+   * Net GEX by expiry scope, $B per 1%. `all` is the headline (every listed
+   * expiry — SqueezeMetrics/Perfiliev); `frontExpiry` is the nearest listed
+   * expiry (= 0DTE in session — what Bullflow's chart shows); `le7d` ≤ 7 days.
+   */
+  gexByScope: { all: number; frontExpiry: number; frontExpiryDays: number | null; le7d: number };
   totalVEX: number;
   totalDEX: number;
   totalCharm: number;
@@ -95,6 +100,8 @@ export interface ExposureSnapshot {
 
   // Regime
   regime: 'positive_gamma' | 'negative_gamma' | 'neutral' | 'transitioning';
+  /** The shared regime read (shared/gex-regime.ts) — words, sign, zero-gamma distance. */
+  regimeRead: GammaRegimeRead;
   /**
    * Net GEX as a share of the symbol's OWN gross gamma, in [-1, 1].
    *
@@ -112,12 +119,23 @@ export interface ExposureSnapshot {
   vexRegime: 'vol_tailwind' | 'vol_headwind' | 'vol_neutral';
 
   // Key structural levels
+  /** = zeroGammaLevel (kept under the old name for consumers). */
   gammaFlipPrice: number | null;
+  /** Spot-grid re-priced zero-gamma level nearest spot (null = no crossing within ±20%). */
+  zeroGammaLevel: number | null;
+  zeroGammaCrossings: number[];
+  /** Net GEX ($B per 1%) re-priced across spot 0.8–1.2×, 41 points. */
+  gammaProfile: Array<{ spot: number; netGEX: number }>;
   vannaFlipPrice: number | null;
   maxGammaStrike: number;
   maxVannaStrike: number;
+  /** Strike above spot with the largest call GEX (all expiries) — SpotGamma definition. */
   callWall: number | null;
+  /** Strike below spot with the largest put GEX (all expiries). */
   putWall: number | null;
+  /** Same walls ranked by open interest instead of gamma. */
+  callWallOI: number | null;
+  putWallOI: number | null;
   zeroGammaProjection: number | null;
 
   // Strike detail (top-N by |GEX|)
@@ -146,6 +164,8 @@ export interface ExposureSnapshot {
   ivFallbackCount: number;
   /** ivFallbackCount / contractsUsed (0 when nothing was used). */
   ivFallbackShare: number;
+  /** Share of gross GEX on contracts left out of the zero-gamma sweep (no feed IV). */
+  profileExcludedGrossShare: number;
   /** The fixed assumptions behind every computed greek. */
   bsAssumptions: { riskFreeRate: number; dividendYield: number; defaultIV: number };
 }
@@ -154,8 +174,8 @@ export interface StrikeExpiryCell {
   strike: number;
   expiryLabel: string;  // e.g. "APR 14"
   dte: number;
-  netGEX: number;       // in billions
-  netVEX: number;       // in millions
+  netGEX: number;       // $B per 1% move (units v2)
+  netVEX: number;       // $M per 1 IV point (units v2)
 }
 
 // ─── Black-Scholes helpers ──────────────────────────────────
@@ -233,6 +253,16 @@ function computeAllGreeks(
 
 // ─── Main Aggregator ────────────────────────────────────────
 
+/**
+ * Units version of this snapshot's numbers. v2 (2026-09-29, docs/GEX_VEX_METHODOLOGY.md):
+ *   - GEX totals / strikes / matrix: $B per 1% move, UNWEIGHTED (v1 multiplied each expiry
+ *     by a 1.0/0.7/0.45/0.2 DTE weight, so "$/1%" was not true of the number)
+ *   - VEX: $M per 1 IV point (v1 was $M per 1.00 of vol = 100 points, and DTE-weighted)
+ *   - DEX / charm: dealer sign consistent with GEX (dealers long calls / short puts)
+ *   - flip = spot-grid zero-gamma (v1: first sign change of a cumulative strike sum)
+ */
+export const EXPOSURE_UNITS_VERSION = 2 as const;
+
 export function computeExposures(
   symbol: string,
   spotPrice: number,
@@ -245,36 +275,40 @@ export function computeExposures(
 
   const strikeMap = new Map<number, StrikeExposure>();
   const expiryMap = new Map<string, StrikeExpiryCell>(); // key: "strike|dte"
+  const profileContracts: GammaContract[] = [];
   let vannaComputedCount = 0;
   let contractsUsed = 0;
   let bsComputedCount = 0;
   let ivFallbackCount = 0;
-  const S2 = spotPrice * spotPrice;
-  const MULT = 100;
-
-  // Near-term weighting: 0-7 DTE = 1.0, 7-21 = 0.7, 21-45 = 0.45, 45+ = 0.2
-  function dteWeight(dte: number): number {
-    if (dte <= 7) return 1.0;
-    if (dte <= 21) return 0.7;
-    if (dte <= 45) return 0.45;
-    return 0.2;
-  }
+  let grossGEXDollars = 0;
+  let grossExcludedFromProfile = 0;
+  // Book totals over EVERY strike. The per-strike table/matrix below keeps only
+  // ±40% of spot (display), but truncating the totals there dropped the OTM
+  // wings of high-IV names: measured 2026-09-29 on BE (IV ~90%) it cut net GEX
+  // by 13% and net VEX by 50% vs the full-ladder reference.
+  let bookGEX = 0; let bookVEX = 0; let bookDEX = 0; let bookCharm = 0;
+  let bookCallGEX = 0; let bookPutGEX = 0;
+  // Net GEX per expiry (key = days to expiry, 2dp) — for the scope breakdown that
+  // makes our headline comparable to vendors that chart 0DTE only (Bullflow).
+  const byExpiry = new Map<number, number>();
+  const S = spotPrice;
 
   for (const opt of options) {
     const oi = opt.openInterest || 0;
     const vol = opt.volume || 0;
-    if (oi === 0 && vol === 0) continue;
+    // GEX is an open-interest measure: a contract with no OI has no dealer
+    // inventory to hedge yet. (v1 substituted volume for OI here; that counted
+    // intraday round-trips as inventory. Volume is still carried for vol/OI reads.)
+    if (oi <= 0 && vol <= 0) continue;
 
-    // Filter to meaningful strikes (within 40% of spot). Widened from 25% so
-    // far-OTM strikes (the cheap lottery wings) are available to scroll/expand
-    // in the matrix — the frontend already decides what to show vs collapse.
-    if (opt.strike < spotPrice * 0.6 || opt.strike > spotPrice * 1.4) continue;
+    const inBand = opt.strike >= S * 0.6 && opt.strike <= S * 1.4;
 
     const isCall = opt.optionType === 'call';
+    const sign = isCall ? 1 : -1;
     const ivDefaulted = opt.ivDefaulted === true || !(opt.impliedVolatility > 0);
-    const iv = opt.impliedVolatility > 0 ? opt.impliedVolatility : DEFAULT_IV; // fallback IV
+    const iv = opt.impliedVolatility > 0 ? opt.impliedVolatility : DEFAULT_IV;
     contractsUsed++;
-    const tte = Math.max(0.001, opt.daysToExpiry / 365.25);
+    const tte = Math.max(MIN_T_YEARS, opt.daysToExpiry / 365.25);
 
     // Use provided greeks if valid, else compute
     let gamma = opt.greeks?.gamma;
@@ -288,7 +322,7 @@ export function computeExposures(
                          !Number.isFinite(charm);
 
     if (needsCompute) {
-      const bs = computeAllGreeks(spotPrice, opt.strike, tte, iv, isCall);
+      const bs = computeAllGreeks(S, opt.strike, tte, iv, isCall);
       const coreGreekComputed =
         !Number.isFinite(gamma!) || gamma === 0 || !Number.isFinite(delta!) || delta === 0;
       if (coreGreekComputed) {
@@ -301,42 +335,43 @@ export function computeExposures(
       if (!Number.isFinite(charm!)) charm = bs.charm;
     }
 
-    // OI-weighted effective quantity (use volume as proxy when OI is 0 — common after hours)
-    const effectiveOI = oi > 0 ? oi : Math.max(0, vol);
-    const weight = dteWeight(opt.daysToExpiry);
+    // GEX $ per 1% move: Γ·OI·100·S²·0.01 (the 100 multiplier and 0.01 cancel), in $B.
+    const gexAbs = gexPer1Pct(gamma!, oi, S);
+    grossGEXDollars += gexAbs;
+    const callGexContribution = isCall ? gexAbs / 1e9 : 0;
+    const putGexContribution = !isCall ? -gexAbs / 1e9 : 0;
 
-    // GEX: call = +, put = − (dealer convention)
-    // Formula: OI × Gamma × 100 × 0.01 × S² / 1e9  (per 1% move, in $B)
-    // The 100 (contract multiplier) × 0.01 (1% factor) cancel to 1.
-    const callGexContribution = isCall
-      ? effectiveOI * gamma! * S2 * weight / 1e9
-      : 0;
-    const putGexContribution = !isCall
-      ? -effectiveOI * gamma! * S2 * weight / 1e9
-      : 0;
+    // VEX $ per 1 IV point, liquidity sign: −(dealer vanna). Dealers long calls /
+    // short puts ⇒ dealer vanna = sign·vanna, so VEX = −sign·vanna·OI·100·S·0.01.
+    // + = dealers BUY underlying as IV rises. In $M.
+    const vexContribution = (-sign * vannaPerVolPt(vanna!, oi, S)) / 1e6;
 
-    // VEX: vanna · OI · contract × spot (normalized to millions)
-    // Sign convention: positive vanna → price up when IV up
-    // For calls: dealer short → dealer's vanna negative contribution
-    // For puts: dealer long → dealer's vanna positive contribution
-    // Note: VEX uses /1e6 (not /1e9 like GEX) because vanna×S produces values
-    // ~250x smaller than gamma×S² — using /1e9 makes most VEX values sub-threshold.
-    //
-    // KNOWN INCONSISTENCY (audited 2026-08-26): GEX above assumes dealers are
-    // LONG calls / SHORT puts (calls +, puts −); this VEX sign assumes the
-    // OPPOSITE dealer book (calls −, puts +). Each is a defensible convention
-    // alone, but together the two surfaces tell contradictory dealer stories.
-    // Every vexSignal label and insight string downstream is calibrated to
-    // THIS sign, so flipping it here without re-deriving all of those would
-    // silently invert their meaning — do that as one deliberate pass, not a
-    // drive-by. Until then: treat net VEX as a put-minus-call vanna tilt.
-    const vexContribution = (isCall ? -1 : 1) * effectiveOI * vanna! * MULT * spotPrice * weight / 1e6;
+    // DEX: dealer delta notional ($B) — dealers long calls (+Δ), short puts (−Δ_put ⇒ +).
+    const dexContribution = (sign * oi * delta! * 100 * S) / 1e9;
 
-    // DEX (delta exposure)
-    const dexContribution = (isCall ? -1 : 1) * effectiveOI * delta! * MULT * spotPrice * weight / 1e9;
+    // Charm: dealer delta decay per year, notional ($B). Same dealer sign as DEX.
+    const charmContribution = (sign * oi * charm! * 100 * S) / 1e9;
 
-    // Charm (per day delta decay)
-    const charmContribution = (isCall ? -1 : 1) * effectiveOI * charm! * MULT * spotPrice * weight / 1e9;
+    // Zero-gamma sweep input. Contracts whose IV was defaulted are excluded (a flat
+    // 30% would move the crossing by assumption, not by data); their gross share is disclosed.
+    if (oi > 0) {
+      if (!ivDefaulted) profileContracts.push({ strike: opt.strike, T: tte, iv, oi, isCall });
+      else grossExcludedFromProfile += gexAbs;
+    }
+
+    bookGEX += callGexContribution + putGexContribution;
+    {
+      const k = Math.round(opt.daysToExpiry * 100) / 100;
+      byExpiry.set(k, (byExpiry.get(k) ?? 0) + callGexContribution + putGexContribution);
+    }
+    bookVEX += vexContribution;
+    bookDEX += dexContribution;
+    bookCharm += charmContribution;
+    if (isCall) bookCallGEX += callGexContribution; else bookPutGEX += -putGexContribution;
+
+    // Per-strike rows and the matrix: ±40% of spot only — beyond that the rows
+    // are display noise (their exposure is already in the book totals above).
+    if (!inBand) continue;
 
     if (!strikeMap.has(opt.strike)) {
       strikeMap.set(opt.strike, {
@@ -373,7 +408,7 @@ export function computeExposures(
       entry.dtes.push(opt.daysToExpiry);
     }
 
-    // Per-expiry matrix accumulation
+    // Per-expiry matrix accumulation — same units as the strike rows ($B GEX, $M VEX per IV pt).
     const dteBucket = Math.round(opt.daysToExpiry);
     const expiryKey = `${opt.strike}|${dteBucket}`;
     const gexContrib = callGexContribution + putGexContribution;
@@ -394,65 +429,52 @@ export function computeExposures(
   }
 
   const strikes = Array.from(strikeMap.values()).sort((a, b) => a.strike - b.strike);
+  const bsAssumptions = { riskFreeRate: RISK_FREE, dividendYield: DIVIDEND_YIELD, defaultIV: DEFAULT_IV };
 
   if (strikes.length === 0) {
+    const read = classifyGammaRegime({ netGEX: 0, grossGEX: 0, spot: S, zeroGamma: null });
     return {
-      symbol, spotPrice, calculatedAt: Date.now(),
-      totalGEX: 0, totalVEX: 0, totalDEX: 0, totalCharm: 0, gammaConcentration: 0,
+      symbol, spotPrice, calculatedAt: Date.now(), unitsVersion: EXPOSURE_UNITS_VERSION,
+      totalGEX: 0, grossGEX: 0, gexByScope: { all: 0, frontExpiry: 0, frontExpiryDays: null, le7d: 0 }, totalVEX: 0, totalDEX: 0, totalCharm: 0, gammaConcentration: 0,
       callGEX: 0, putGEX: 0, putCallGEXRatio: 0,
-      regime: 'neutral', vexRegime: 'vol_neutral',
-      gammaFlipPrice: null, vannaFlipPrice: null,
+      regime: 'neutral', regimeRead: read, vexRegime: 'vol_neutral',
+      gammaFlipPrice: null, zeroGammaLevel: null, zeroGammaCrossings: [], gammaProfile: [],
+      vannaFlipPrice: null,
       maxGammaStrike: spotPrice, maxVannaStrike: spotPrice,
-      callWall: null, putWall: null, zeroGammaProjection: null,
+      callWall: null, putWall: null, callWallOI: null, putWallOI: null, zeroGammaProjection: null,
       strikes: [],
       strikeExpiryMatrix: [],
       expirationsUsed, strikesScanned: 0, strikesWithOI: 0, vannaComputed: 0,
       contractsUsed, bsComputedCount, ivFallbackCount,
       ivFallbackShare: contractsUsed > 0 ? ivFallbackCount / contractsUsed : 0,
-      bsAssumptions: { riskFreeRate: RISK_FREE, dividendYield: DIVIDEND_YIELD, defaultIV: DEFAULT_IV },
+      profileExcludedGrossShare: 0,
+      bsAssumptions,
     };
   }
 
-  // Aggregate totals
-  const totalGEX = strikes.reduce((sum, s) => sum + s.netGEX, 0);
-  const totalVEX = strikes.reduce((sum, s) => sum + s.netVEX, 0);
-  const totalDEX = strikes.reduce((sum, s) => sum + s.netDEX, 0);
-  const totalCharm = strikes.reduce((sum, s) => sum + s.netCharm, 0);
-  const callGEX = strikes.reduce((sum, s) => sum + Math.max(0, s.callGEX), 0);
-  const putGEX = Math.abs(strikes.reduce((sum, s) => sum + Math.min(0, s.putGEX), 0));
+  // Aggregate totals — the whole book, every strike (see bookGEX above).
+  const totalGEX = bookGEX;
+  const totalVEX = bookVEX;
+  const totalDEX = bookDEX;
+  const totalCharm = bookCharm;
+  const callGEX = bookCallGEX;
+  const putGEX = bookPutGEX;
+  const grossGEX = grossGEXDollars / 1e9;
 
   /**
-   * Gamma flip — the crossing NEAREST SPOT, not the first one found.
+   * Zero-gamma level — spot-grid re-pricing (Perfiliev / SpotGamma method).
    *
-   * The old loop walked strikes ascending and `break`-ed on the first sign
-   * change of cumulative gamma. Strikes start ~15% below spot where netGEX is
-   * order 1e-9 — pure noise — so the very first jitter down there won. Measured
-   * on SPY 2026-08-31 (spot 766.28): it reported a flip of 656, the second
-   * strike in the book, while the real crossing sat at 753. A flip 14% below
-   * spot is not a level anyone can trade, and it made the regime read
-   * nonsensically against it.
-   *
-   * Collect every crossing, then take the one closest to spot. Far-OTM noise
-   * still produces crossings; it just no longer outranks the real one.
+   * Every contract's Black-Scholes gamma is re-priced at each hypothetical spot
+   * in [0.8·S, 1.2·S] with its own IV and tenor held fixed; the net GEX curve's
+   * crossing nearest spot is bisected. The v1 "flip" was the first sign change of
+   * a cumulative per-strike sum evaluated at TODAY's spot — measured 2026-09-29 it
+   * returned no level at all for SPY (reference 767.78, spot 763.76) and 270 for BE
+   * (reference 257.60).
    */
-  let gammaFlipPrice: number | null = null;
-  {
-    const crossings: number[] = [];
-    let cumGamma = 0;
-    let prevSign = 0;
-    for (const s of strikes) {
-      cumGamma += s.netGEX;
-      const sign = Math.sign(cumGamma);
-      if (prevSign !== 0 && sign !== 0 && sign !== prevSign) crossings.push(s.strike);
-      if (sign !== 0) prevSign = sign;
-    }
-    if (crossings.length > 0) {
-      gammaFlipPrice = crossings.reduce((best, k) =>
-        Math.abs(k - spotPrice) < Math.abs(best - spotPrice) ? k : best, crossings[0]);
-    }
-  }
+  const profile = gammaProfile(profileContracts, S, { lo: 0.8, hi: 1.2, steps: 120, r: RISK_FREE });
+  const gammaFlipPrice = profile.zeroGamma;
 
-  // Vanna flip (where cumulative VEX crosses zero)
+  // Vanna flip — still the cumulative-strike estimate (no re-pricing); disclosed as such.
   let vannaFlipPrice: number | null = null;
   let cumVex = 0;
   let prevVexSign = 0;
@@ -483,113 +505,65 @@ export function computeExposures(
   }
 
   /**
-   * Walls — measured on the RELEVANT LEG, not on net gamma.
-   *
-   * A call wall is where dealers are short calls: as price rises into it they
-   * must sell to stay hedged, so it acts as resistance. That is a property of
-   * CALL gamma alone. The old code filtered on `netGEX > 0`, which subtracts
-   * put gamma at the same strike — so the strike carrying the most calls is
-   * excluded outright whenever puts happen to dominate it.
-   *
-   * SPY 2026-08-31 (spot 766.28) is the clean example. Strike 766 held the
-   * largest call gamma in the book (+0.955) but netted −1.512 because its put
-   * gamma was −2.467, so the `netGEX > 0` filter threw it away and the function
-   * returned 780 — a strike with negligible call gamma. The reported wall was
-   * not where the calls were.
-   *
-   * The put wall had the mirror problem: filtering on the most-negative netGEX
-   * lands on whatever strike puts dominate most, which is almost always the
-   * money. It returned 766 against a spot of 766.28 — 0.04% away. "Support is
-   * exactly here" is not a level, it is a restatement of the spot price.
-   *
-   * Walls are also required to stand clear of spot. A wall inside the noise
-   * band around the money tells you nothing you cannot see on the tape.
+   * Walls — shared/gex-math pickWalls(): SpotGamma's definition, ranked by the
+   * leg's gamma $ summed over ALL expiries (unweighted), call wall above spot,
+   * put wall below. v1 ranked by OI; with v1's DTE weighting, gamma ranking had
+   * collapsed onto the ATM 0DTE strike. Unweighted, SPY 2026-09-29 gives call
+   * wall 785 (+2.8%) by gamma vs 800 by OI, put wall 760 by gamma vs 500 by OI
+   * (a collar strike 35% below spot). Both variants ship; the OI pair is labelled.
    */
-  /**
-   * Walls are ranked by OPEN INTEREST, not by gamma.
-   *
-   * Gamma is a bell curve centred on spot: dGamma/dStrike peaks at the money and
-   * decays either side. So "the strike above spot with the most gamma" is
-   * arithmetically forced to be the FIRST strike above spot, whatever the book
-   * looks like. It is not a level — it is the spot price with extra steps, and
-   * it moves every time price ticks.
-   *
-   * Open interest is not spot-centred. It accumulates at round numbers and at
-   * strikes people actually sold, and it stays there while price travels toward
-   * it. That is what makes a wall readable.
-   *
-   * Measured 2026-08-31, gamma-ranked vs OI-ranked call wall:
-   *
-   *   SPY    767  (+0.09%, 2,826 OI)   vs   785  (+2.44%, 37,955 OI)
-   *   QQQ    716  (+0.12%, 2,994 OI)   vs   745  (+4.18%, 21,629 OI)
-   *   TSLA 367.5  (+0.11%, 1,731 OI)   vs   400  (+8.96%, 12,507 OI)
-   *
-   * The OI walls carry 10-15x the open interest and sit far enough away to
-   * trade against. The gamma walls all sit within 0.12% of spot.
-   *
-   * maxGammaStrike is kept separately above — that one IS the gamma peak, and
-   * it is the right number for a pin, just not for a wall.
-   */
-  const callWall = strikes
-    .filter((s) => s.strike > spotPrice && s.callOI > 0)
-    .sort((a, b) => b.callOI - a.callOI)[0]?.strike ?? null;
+  const walls = pickWalls(
+    strikes.map((s) => ({ strike: s.strike, callOI: s.callOI, putOI: s.putOI, callGEX: s.callGEX, putGEX: Math.abs(s.putGEX) })),
+    S,
+  );
 
-  const putWall = strikes
-    .filter((s) => s.strike < spotPrice && s.putOI > 0)
-    .sort((a, b) => b.putOI - a.putOI)[0]?.strike ?? null;
-
-  // Zero-gamma projection
-  // In positive gamma regime → price magnetizes to max gamma
-  // In negative gamma regime → breaks toward flip
+  // Kept for wire compatibility. Positive book → max-gamma strike (pin magnet);
+  // otherwise the zero-gamma level. The hub labels which one it is.
   const zeroGammaProjection = totalGEX > 0 ? maxGammaStrike : gammaFlipPrice;
 
-  // How one-sided is dealer gamma, relative to this symbol's own book?
-  const grossGEX = strikes.reduce((sum, s) => sum + Math.abs(s.netGEX), 0);
   const gammaConcentration = grossGEX > 0 ? totalGEX / grossGEX : 0;
+  const expKeys = [...byExpiry.keys()].sort((a, b) => a - b);
+  const gexByScope = {
+    all: totalGEX,
+    frontExpiry: expKeys.length ? byExpiry.get(expKeys[0])! : 0,
+    frontExpiryDays: expKeys.length ? expKeys[0] : null,
+    le7d: expKeys.filter((k) => k <= 7).reduce((a, k) => a + byExpiry.get(k)!, 0),
+  };
+  const regimeRead = classifyGammaRegime({ netGEX: totalGEX * 1e9, grossGEX: grossGEX * 1e9, spot: S, zeroGamma: gammaFlipPrice });
+  const regime: ExposureSnapshot['regime'] = regimeRead.legacy;
 
-  // Regimes — absolute OR relative.
-  //
-  // The absolute bar is kept so index readings do not move: SPY at −4.42B stays
-  // negative_gamma exactly as before. The relative bar is what lets a single
-  // name qualify at all, since none of them reach ±$0.5B.
-  //
-  // CONC_CUT is set from measurement, not taste — see the logged distribution.
-  const regime: ExposureSnapshot['regime'] =
-    (totalGEX > 0.5 || gammaConcentration > CONC_CUT) ? 'positive_gamma'
-    : (totalGEX < -0.5 || gammaConcentration < -CONC_CUT) ? 'negative_gamma'
-    : Math.abs(gammaConcentration) < CONC_NEUTRAL ? 'neutral'
-    : 'transitioning';
-
-  // VEX regime: positive VEX = vol tailwind (higher vol = higher price via vanna)
-  // VEX is in $M (not $B like GEX), so thresholds are 1000× the old values
+  // VEX regime: + = dealers buy as IV rises. $M per IV point; ±1.5 = v1's ±150 ($M per 100 pts).
   const vexRegime: ExposureSnapshot['vexRegime'] =
-    totalVEX > 150 ? 'vol_tailwind'
-    : totalVEX < -150 ? 'vol_headwind'
+    totalVEX > 1.5 ? 'vol_tailwind'
+    : totalVEX < -1.5 ? 'vol_headwind'
     : 'vol_neutral';
 
   const strikesWithOI = strikes.filter((s) => s.callOI + s.putOI > 0).length;
 
   logger.info(
     `[EXPOSURES] ${symbol}: ${strikes.length} strikes, ` +
-    `GEX=${totalGEX.toFixed(2)}B VEX=${totalVEX.toFixed(1)}M DEX=${totalDEX.toFixed(2)}B ` +
-    `flip=$${gammaFlipPrice || '—'} vflip=$${vannaFlipPrice || '—'} ` +
-    `maxγ=$${maxGammaStrike} maxV=$${maxVannaStrike} ` +
-    `conc=${gammaConcentration.toFixed(3)} regime=${regime}/${vexRegime} vannaComputed=${vannaComputedCount}`,
+    `GEX=${totalGEX.toFixed(3)}B/1% VEX=${totalVEX.toFixed(2)}M/IVpt DEX=${totalDEX.toFixed(2)}B ` +
+    `zeroγ=$${gammaFlipPrice?.toFixed(2) ?? '—'} vflip≈$${vannaFlipPrice || '—'} ` +
+    `maxγ=$${maxGammaStrike} walls ${walls.putWall ?? '—'}/${walls.callWall ?? '—'} ` +
+    `bal=${gammaConcentration.toFixed(3)} regime=${regime}/${vexRegime}`,
   );
 
   return {
-    symbol, spotPrice, calculatedAt: Date.now(),
-    totalGEX, totalVEX, totalDEX, totalCharm, gammaConcentration,
+    symbol, spotPrice, calculatedAt: Date.now(), unitsVersion: EXPOSURE_UNITS_VERSION,
+    totalGEX, grossGEX, gexByScope, totalVEX, totalDEX, totalCharm, gammaConcentration,
     callGEX, putGEX,
     putCallGEXRatio: callGEX > 0 ? putGEX / callGEX : 0,
-    regime, vexRegime,
-    gammaFlipPrice, vannaFlipPrice,
+    regime, regimeRead, vexRegime,
+    gammaFlipPrice,
+    zeroGammaLevel: gammaFlipPrice,
+    zeroGammaCrossings: profile.crossings,
+    gammaProfile: thinProfile(profile.points, 41).map((p) => ({ spot: p.spot, netGEX: p.netGEX / 1e9 })),
+    vannaFlipPrice,
     maxGammaStrike, maxVannaStrike,
-    callWall, putWall, zeroGammaProjection,
+    callWall: walls.callWall, putWall: walls.putWall,
+    callWallOI: walls.callWallOI, putWallOI: walls.putWallOI,
+    zeroGammaProjection,
     strikes,
-    // Include all strikes with any OI — let the frontend decide visibility.
-    // Previous filter (netGEX > 0.0001) excluded far-OTM strikes, making
-    // "ALL STRIKES" show the same data as collapsed view.
     strikeExpiryMatrix: Array.from(expiryMap.values())
       .sort((a, b) => b.strike - a.strike || a.dte - b.dte),
     expirationsUsed,
@@ -600,7 +574,8 @@ export function computeExposures(
     bsComputedCount,
     ivFallbackCount,
     ivFallbackShare: contractsUsed > 0 ? ivFallbackCount / contractsUsed : 0,
-    bsAssumptions: { riskFreeRate: RISK_FREE, dividendYield: DIVIDEND_YIELD, defaultIV: DEFAULT_IV },
+    profileExcludedGrossShare: grossGEXDollars > 0 ? grossExcludedFromProfile / grossGEXDollars : 0,
+    bsAssumptions,
   };
 }
 
@@ -614,7 +589,12 @@ export function optionToInput(opt: any, expDateStr?: string): OptionInput | null
   const exp = expDateStr || opt.expiration_date || opt.expiration || '';
   let dte = 0;
   if (exp) {
-    const expTime = new Date(exp + (exp.length <= 10 ? 'T16:00:00' : '')).getTime();
+    // Expiry instant = 16:00 America/New_York (was 16:00 in the SERVER's zone —
+    // noon ET on a UTC droplet). Contracts already past expiry carry no forward
+    // exposure and are dropped rather than floored to T≈0 (which gave an expired
+    // ATM 0DTE contract near-infinite gamma after the close).
+    const expTime = /^\d{4}-\d{2}-\d{2}$/.test(exp) ? expiryInstantMs(exp) : new Date(exp).getTime();
+    if (Number.isFinite(expTime) && expTime <= Date.now()) return null;
     dte = Math.max(0, (expTime - Date.now()) / 86400000);
   }
 

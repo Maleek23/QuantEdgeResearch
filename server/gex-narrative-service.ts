@@ -52,11 +52,11 @@ function buildUserPrompt(snap: GEXSnapshot): string {
   return `Generate a terse regime insight for ${snap.symbol}:
 
 - Spot: $${snap.spotPrice.toFixed(2)}
-- Total GEX: ${snap.totalGEX.toFixed(2)}B (dealers ${gexDir} gamma)
-- Total VEX: ${snap.totalVEX.toFixed(1)}M (vol ${vexDir})
+- Net GEX: ${snap.totalGEX.toFixed(2)}B per 1% move (dealers ${gexDir} gamma; sign assumes dealers long calls / short puts)
+- Net VEX: ${snap.totalVEX.toFixed(2)}M per 1 IV point (${snap.totalVEX > 0 ? 'dealers buy as IV rises' : 'dealers sell as IV rises'})
 - Regime: ${snap.regime}
 - Put/Call GEX ratio: ${snap.putCallRatio.toFixed(2)}
-- Gamma flip: ${snap.gammaFlipPrice ? '$' + snap.gammaFlipPrice : 'none'}
+- Zero-gamma level: ${snap.gammaFlipPrice ? '$' + snap.gammaFlipPrice.toFixed(2) : 'none within ±20% of spot'}
 - Call wall: ${snap.callWall ? '$' + snap.callWall : 'none'}
 - Put wall: ${snap.putWall ? '$' + snap.putWall : 'none'}
 - Max gamma strike: $${snap.maxGammaStrike}
@@ -120,15 +120,16 @@ export function fallbackNarrative(snap: GEXSnapshot): string {
   }
 
   // VEX line if meaningful
-  if (Math.abs(snap.totalVEX) > 150) {
+  // VEX is $M per 1 IV point (units v2); 1.5 = v1's 150 ($M per 100 vol points).
+  if (Math.abs(snap.totalVEX) > 1.5) {
     const sameSign = Math.sign(snap.totalGEX) === Math.sign(snap.totalVEX);
     if (sameSign) {
       parts.push(
-        `Vanna is ${snap.totalVEX > 0 ? 'tailwind' : 'headwind'} ($${(snap.totalVEX / 1000).toFixed(1)}B) — aligned with gamma, reinforcing the move.`,
+        `Vanna is ${snap.totalVEX > 0 ? 'tailwind' : 'headwind'} (${snap.totalVEX > 0 ? '+' : '−'}$${Math.abs(snap.totalVEX).toFixed(1)}M per IV point) — aligned with gamma, reinforcing the move.`,
       );
     } else {
       parts.push(
-        `Vanna ($${(snap.totalVEX / 1000).toFixed(1)}B) diverges from gamma — regime shift risk elevated.`,
+        `Vanna (${snap.totalVEX > 0 ? '+' : '−'}$${Math.abs(snap.totalVEX).toFixed(1)}M per IV point) diverges from gamma — regime shift risk elevated.`,
       );
     }
   }
