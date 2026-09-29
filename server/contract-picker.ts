@@ -1,19 +1,29 @@
 /**
- * ADAPTIVE CONTRACT PICKER — the contract engine made interactive.
+ * ADAPTIVE CONTRACT PICKER — now a thin adapter over the Contract Engine.
  *
  * Operator ask (2026-09-23): pick per DTE and account size, and have the
- * engine warn instead of silently choosing. This module turns one delayed
- * CBOE chain fetch into ranked candidates for a chosen DTE window and
- * budget, each carrying explicit warnings a trader can act on:
- * spread cost, theta burn at this DTE, position size vs account, thin OI.
+ * engine warn instead of silently choosing. Since 2026-09-29 the ranking is
+ * NOT computed here any more: pickContracts() runs server/contract-engine.ts
+ * (chain Alpaca indicative → CBOE delayed → Yahoo; grading in
+ * shared/contract-engine.ts) and reshapes its result into the original
+ * PickerResult shape, so GET /api/contract-picker and the index-swing
+ * scanner's contract note keep working unchanged.
  *
- * Data honesty: the chain is CBOE DELAYED quotes (the Tradier key is dead —
- * 401 since Aug 26; renewing it upgrades this to live). Every response says
- * so. Greeks are the chain's own, never invented; a contract without greeks
- * shows what it lacks instead of a fabricated theta.
+ * Mapping: `budget` → account size, `maxCost` → max debit per contract (a hard
+ * limit — over-cap contracts are excluded, as before), `target` → T1. No max
+ * loss is implied. `score` is the Contract Engine's 0–100 quality score and
+ * `grade` its letter; `roiAtT1` stays a FRACTION (0.42 = +42%) as before, now
+ * modelled on the chain's IV instead of a delta approximation.
+ *
+ * Data honesty: `dataSource` names the chain actually used and `note` carries
+ * its disclosure. Greeks are the chain's own (or labelled modelled).
  */
 import { fetchCboeChain } from './contract-analyzer/cboe-chain';
 import { logger } from './logger';
+import type { ChainSourceKind, Letter } from '../shared/contract-engine';
+
+const dteOf = (expiry: string): number =>
+  Math.max(0, Math.round((new Date(expiry + 'T21:00:00Z').getTime() - Date.now()) / 86_400_000));
 
 export interface PickerCandidate {
   label: string;            // "CALL $370 · 09/30 · 7 DTE"
@@ -32,22 +42,23 @@ export interface PickerCandidate {
   volume: number;
   costPerContract: number;    // mid * 100
   pctOfBudget: number | null;
-  roiAtT1: number | null;     // delta-approx % on premium if the stock reaches T1
+  roiAtT1: number | null;     // modelled fraction on premium if the stock reaches T1
   contractsAffordable: number | null; // floor(maxCost-or-budget / cost)
   warnings: string[];
+  /** Contract Engine quality score (0–100). */
   score: number;
+  /** Contract Engine quality letter (A–F). Added 2026-09-29. */
+  grade?: Letter;
 }
 
 export interface PickerResult {
   symbol: string;
   spot: number;
-  dataSource: 'cboe_delayed';
+  /** Chain actually used ('cboe_delayed' was the only value before 2026-09-29). */
+  dataSource: ChainSourceKind;
   note: string;
   candidates: PickerCandidate[];
 }
-
-const dteOf = (expiry: string): number =>
-  Math.max(0, Math.round((new Date(expiry + 'T21:00:00Z').getTime() - Date.now()) / 86_400_000));
 
 export async function pickContracts(
   symbol: string,
@@ -60,94 +71,69 @@ export async function pickContracts(
   const maxCost = opts.maxCost && opts.maxCost > 0 ? opts.maxCost : null;
   const target = opts.target && opts.target > 0 ? opts.target : null;
 
-  const chain = await fetchCboeChain(symbol);
-  if (!chain || !chain.rawChain.length || !(chain.spot > 0)) {
+  const { runContractEngine } = await import('./contract-engine');
+  const r = await runContractEngine(
+    symbol,
+    { direction, t1: target, stop: null, entry: null, holdingDays: null },
+    {
+      accountSize: budget ?? Number.POSITIVE_INFINITY,
+      maxLossDollars: Number.POSITIVE_INFINITY,
+      maxDebitDollars: maxCost ?? Number.POSITIVE_INFINITY,
+      dteMin,
+      dteMax,
+    },
+  );
+  if (r.status === 'no_chain' || r.spot == null || !r.source) {
     logger.warn(`[PICKER] no chain for ${symbol}`);
     return null;
   }
-  const wantType = direction === 'long' ? 'call' : 'put';
 
-  const candidates: PickerCandidate[] = [];
-  for (const o of chain.rawChain) {
-    if (String(o.option_type).toLowerCase() !== wantType) continue;
-    const dte = dteOf(o.expiration_date);
-    if (dte < dteMin || dte > dteMax) continue;
-    const bid = Number(o.bid) || 0;
-    const ask = Number(o.ask) || 0;
-    if (!(ask > 0)) continue;
-    const mid = bid > 0 ? (bid + ask) / 2 : ask;
-    if (mid < 0.05) continue;
-    // Moneyness window: near-the-money is where directional trades live.
-    const money = o.strike / chain.spot;
-    const otmReach = maxCost != null ? 0.25 : 0.15;
-    if (wantType === 'call' && (money < 0.9 || money > 1 + otmReach)) continue;
-    if (wantType === 'put' && (money > 1.1 || money < 1 - otmReach)) continue;
-    // Under a spend cap, a strike that can't plausibly reach T1 is a lottery ticket.
-    if (maxCost != null && target != null && wantType === 'call' && o.strike > target * 1.03) continue;
-    if (maxCost != null && target != null && wantType === 'put' && o.strike < target * 0.97) continue;
-
-    const delta = o.greeks?.delta != null ? Math.abs(Number(o.greeks.delta)) : null;
-    const theta = o.greeks?.theta != null ? Math.abs(Number(o.greeks.theta)) : null;
-    const iv = o.greeks?.mid_iv != null ? Number(o.greeks.mid_iv) : null;
-    const oi = Number(o.open_interest) || 0;
-    const vol = Number(o.volume) || 0;
-    const spreadPct = mid > 0 && bid > 0 ? (ask - bid) / mid : null;
-    const thetaPerDayPct = theta != null && mid > 0 ? theta / mid : null;
-    const cost = mid * 100;
-    // Per-contract spend cap: 'I can afford $100-600' means never show $1,770.
-    if (maxCost != null && cost > maxCost) continue;
+  const cap = maxCost ?? budget;
+  const candidates: PickerCandidate[] = r.within.slice(0, 8).map((c) => {
+    const cost = c.debitPerContract;
     const pctOfBudget = budget ? cost / budget : null;
-    const roiAtT1 = target != null && delta != null
-      ? (delta * (wantType === 'call' ? target - chain.spot : chain.spot - target)) / mid
-      : null;
-    const cap = maxCost ?? budget;
-    const contractsAffordable = cap != null ? Math.floor(cap / cost) : null;
-
+    const thetaPerDayPct = c.theta != null && c.mid > 0 ? Math.abs(c.theta) / c.mid : null;
+    const oi = c.openInterest ?? 0;
+    const vol = c.volume ?? 0;
     const warnings: string[] = [];
-    if (spreadPct == null) warnings.push('no bid — spread unknowable, exit may be ugly');
-    else if (spreadPct > 0.10) warnings.push(`spread ${(spreadPct * 100).toFixed(0)}% of premium — you pay it entering AND exiting`);
-    if (oi < 100) warnings.push(`OI ${oi} — thin interest, harder fills`);
+    if (c.spreadPct > 0.10) warnings.push(`spread ${(c.spreadPct * 100).toFixed(0)}% of premium — you pay it entering AND exiting`);
+    if (c.openInterest == null) warnings.push('open interest unknown on this feed');
+    else if (oi < 100) warnings.push(`OI ${oi} — thin interest, harder fills`);
     if (vol === 0) warnings.push('zero volume this session');
-    if (thetaPerDayPct != null && thetaPerDayPct > 0.04) warnings.push(`theta burns ${(thetaPerDayPct * 100).toFixed(1)}%/day of the premium at ${dte} DTE`);
+    if (thetaPerDayPct != null && thetaPerDayPct > 0.04) warnings.push(`theta burns ${(thetaPerDayPct * 100).toFixed(1)}%/day of the premium at ${c.dte} DTE`);
     if (pctOfBudget != null && pctOfBudget > 0.15) warnings.push(`one contract = ${(pctOfBudget * 100).toFixed(0)}% of the account — sizing risk`);
-    if (pctOfBudget != null && pctOfBudget > 1) warnings.push('one contract exceeds the whole budget');
-    if (delta == null) warnings.push('greeks unavailable on the delayed chain for this strike');
-
-    // Score: liquidity + delta sweet spot (~0.40) + spread + budget fit.
-    let score = 50;
-    score += Math.min(15, Math.log10(Math.max(1, oi)) * 5);
-    if (delta != null) score += 15 - Math.min(15, Math.abs(delta - 0.4) * 60);
-    if (spreadPct != null) score += 10 - Math.min(10, spreadPct * 100);
-    if (pctOfBudget != null) score += pctOfBudget <= 0.10 ? 10 : pctOfBudget <= 0.25 ? 5 : 0;
-    if (roiAtT1 != null) score += Math.max(0, Math.min(12, roiAtT1 * 10));
-    score -= warnings.length * 3;
-
-    candidates.push({
-      label: `${wantType.toUpperCase()} $${o.strike} · ${o.expiration_date.slice(5).replace('-', '/')} · ${dte} DTE`,
-      optionType: wantType as 'call' | 'put',
-      strike: o.strike,
-      expiry: o.expiration_date,
-      dte, bid, ask,
-      mid: Number(mid.toFixed(2)),
-      spreadPct, delta,
-      thetaPerDayPct, iv,
-      openInterest: oi, volume: vol,
+    for (const f of c.flags) if (!warnings.includes(f)) warnings.push(f);
+    return {
+      label: `${c.optionType.toUpperCase()} $${c.strike} · ${c.expiry.slice(5).replace('-', '/')} · ${c.dte} DTE`,
+      optionType: c.optionType,
+      strike: c.strike,
+      expiry: c.expiry,
+      dte: c.dte,
+      bid: c.bid,
+      ask: c.ask,
+      mid: Number(c.mid.toFixed(2)),
+      spreadPct: c.spreadPct,
+      delta: Math.abs(c.delta),
+      thetaPerDayPct,
+      iv: c.iv,
+      openInterest: oi,
+      volume: vol,
       costPerContract: Number(cost.toFixed(0)),
       pctOfBudget,
-      roiAtT1: roiAtT1 != null ? Number(roiAtT1.toFixed(2)) : null,
-      contractsAffordable,
+      roiAtT1: c.roiAtT1Pct != null ? Number((c.roiAtT1Pct / 100).toFixed(2)) : null,
+      contractsAffordable: cap != null ? Math.floor(cap / cost) : null,
       warnings,
-      score: Math.round(score),
-    });
-  }
+      score: c.score,
+      grade: c.grade,
+    };
+  });
 
-  candidates.sort((a, b) => b.score - a.score);
   return {
-    symbol: symbol.toUpperCase(),
-    spot: chain.spot,
-    dataSource: 'cboe_delayed',
-    note: 'CBOE delayed chain — renew the Tradier key at tradier.com for live quotes/greeks',
-    candidates: candidates.slice(0, 8),
+    symbol: r.symbol,
+    spot: r.spot,
+    dataSource: r.source.kind,
+    note: `${r.source.label}: ${r.source.note}${r.emptyReason ? ` ${r.emptyReason}` : ''} Ranked by the Contract Engine (shared/contract-engine.ts).`,
+    candidates,
   };
 }
 

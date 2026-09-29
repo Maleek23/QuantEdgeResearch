@@ -581,8 +581,11 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
     // $0.20–$2.00 contract that can be sized inside the debit cap while still
     // clearing reachability, return and R:R gates. It avoids both $2k SPXW
     // contracts and five-cent lottery tickets whose spread is the whole trade.
+    // fitsAccount is the limit CONSTRAINT (never a grade deduction); grade is
+    // contract quality from shared/contract-engine.ts — an F is never published.
     const eligible = result.picks.filter((p) =>
       p.fitsAccount &&
+      p.grade !== 'F' &&
       p.targetCrossesStrike &&
       p.entryPremium >= 0.20 &&
       p.entryPremium * 100 <= maxDebitDollars &&

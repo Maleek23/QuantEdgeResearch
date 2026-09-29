@@ -7592,10 +7592,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Adaptive contract picker — DTE window + account budget in, ranked
-  // candidates with explicit warnings out. CBOE delayed chain (Tradier dead).
+  // DEPRECATED (2026-09-29) — no client caller; use GET /api/contract-engine/:symbol.
+  // Kept as a thin adapter: pickContracts() now runs the Contract Engine
+  // (Alpaca → CBOE → Yahoo chain, shared/contract-engine.ts grading) and returns
+  // the original PickerResult shape (+ `grade` per candidate).
   app.get("/api/contract-picker/:symbol", requireBetaAccess, async (req, res) => {
     try {
+      res.setHeader("Deprecation", "true");
+      res.setHeader("Link", '</api/contract-engine/:symbol>; rel="successor-version"');
       const { pickContracts } = await import("./contract-picker");
       const r = await pickContracts(String(req.params.symbol).toUpperCase(), {
         direction: req.query.direction === "short" ? "short" : "long",
@@ -8746,12 +8750,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Canonical option-premium selection — given a price-action thesis, return up to
-  // 3 risk-tiered contract picks (conservative/balanced/aggressive) ranked by ROI.
-  // Additive surface over server/option-selection-engine.ts; never fabricates prices
-  // and does NOT alter signal generation or existing persistence paths.
+  // DEPRECATED (2026-09-29) — no client caller; use GET /api/contract-engine/:symbol.
+  // Thin adapter over server/option-selection-engine.ts selectContracts(), whose
+  // grades now come from shared/contract-engine.ts: account limits are
+  // constraints (fitsAccount + limitReasons), never grade deductions. Same
+  // ContractSelection response shape (plus additive fields). Never fabricates prices.
   app.post("/api/options/select", async (req: any, res) => {
     try {
+      res.setHeader("Deprecation", "true");
+      res.setHeader("Link", '</api/contract-engine/:symbol>; rel="successor-version"');
       const b = req.body ?? {};
       const symbol = typeof b.symbol === 'string' ? b.symbol.trim().toUpperCase() : '';
       const direction =
