@@ -133,7 +133,7 @@ function tradeLine(t: DiscordTrade): string {
 }
 
 /** Fold parsed trades + analysis notes into one watchlist candidate per ticker. */
-function watchCandidates(trades: DiscordTrade[], notes: DiscordNote[]) {
+export function watchCandidates(trades: DiscordTrade[], notes: DiscordNote[]) {
   const by = new Map<string, { symbol: string; mentions: number; lastAt: string; note: string }>();
   const touch = (sym: string, at: string, line: string) => {
     const symbol = sym.toUpperCase().replace(/^\$/, '');
@@ -243,5 +243,26 @@ export async function commitDiscordPreview(token: string, actorId: string, trade
     } else unchanged++;
   }
   logger.info(`[WATCHLIST-DISCORD] ${traderSlug}: ${added} added, ${updated} notes updated, ${unchanged} unchanged`);
+  return { added, updated, unchanged };
+}
+
+/**
+ * The same watchlist fold for callers that already hold parsed trades/notes
+ * (the forum import): one row per ticker, note = their latest call.
+ */
+export async function upsertTraderWatchlist(traderId: string, trades: DiscordTrade[], notes: DiscordNote[], actorId: string) {
+  const existing = await db.select().from(traderWatchlistItems).where(eq(traderWatchlistItems.traderId, traderId));
+  const have = new Map(existing.map((r) => [r.symbol, r]));
+  let added = 0, updated = 0, unchanged = 0;
+  for (const c of watchCandidates(trades, notes)) {
+    const prev = have.get(c.symbol);
+    if (!prev) {
+      await db.insert(traderWatchlistItems).values({ traderId, symbol: c.symbol, note: c.note, addedBy: actorId }).onConflictDoNothing();
+      added++;
+    } else if (prev.note !== c.note) {
+      await db.update(traderWatchlistItems).set({ note: c.note }).where(eq(traderWatchlistItems.id, prev.id));
+      updated++;
+    } else unchanged++;
+  }
   return { added, updated, unchanged };
 }

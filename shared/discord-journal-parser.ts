@@ -232,6 +232,17 @@ export interface ParsedMessage {
   setup: string | null;
   /** Cleaned text (markdown/emoji/mentions stripped). */
   text: string;
+  /** Stated stop ("stop 2.5", "sl 440") — same units as the entry (premium for options). */
+  stop: number | null;
+  /** Stated target ("pt 3", "target 460", "tgt 1.5"). */
+  target: number | null;
+  /**
+   * How sure the grammar is that this reading is right, 0–1. Notes are 0.
+   * Built from what was stated: instrument, full contract, price, explicit verb, size.
+   */
+  confidence: number;
+  /** A note that still reads like a trade (contract, or ticker + trade words) — goes to the review list. */
+  tradeLooking: boolean;
 }
 
 const VERB_WORDS = new Set([
@@ -316,6 +327,11 @@ const ENTRY_LEAD_RE = /^(?:in|long|buy|add|grabbing|taking)\b/i;
 const IN_BEFORE_RE = /\b(?:in|long|buy|add)\s+(?:on\s+|some\s+)?\$?[A-Za-z]{1,6}\b(?:\s+\d|\s*@|\s+at\b|\s*$)/i;
 const SHORT_RE = /\b(short(?:ed|ing)?|sto|sold to open)\b/i;
 const LOSS_WORDS_RE = /\b(loss|stopped|stop(?:ped)? hit|down|red|cut)\b/i;
+/** "stop 2.5", "stop @ 1.2", "stop loss at 440", "sl 140" — never "stopped". */
+const STOP_CLAUSE_RE = new RegExp(String.raw`\b(?:stop(?!ped)(?:[\s-]?loss)?|sl)\s*(?::|@|at|=)?\s*\$?${NUM}(?!\s?%)`, 'i');
+/** "pt 3", "target 460", "tgt: 1.5", "targets 3/4" (first one), "take profit at 5". */
+const TARGET_CLAUSE_RE = new RegExp(String.raw`\b(?:targets?|tgt|pt|take[\s-]profit)\s*(?::|@|at|=)?\s*\$?${NUM}(?!\s?%)`, 'i');
+const TRADE_WORDS_RE = /\b(calls?|puts?|entry|entered|bought|sold|long|short|stop|target|pt|trim(?:med)?|scal(?:ed|ing)|filled|contracts?|strike|exp(?:iry)?|leaps?|0\s?dte|lotto)\b/i;
 
 function numberOf(s: string | undefined): number | null {
   if (s == null) return null;
@@ -329,6 +345,7 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
   const base: ParsedMessage = {
     msg, kind: 'note', symbol: null, assetType: null, optionType: null, strike: null, expiry: null,
     price: null, pct: null, qty: null, side: 'long', tickers: [], setup: null, text,
+    stop: null, target: null, confidence: 0, tradeLooking: false,
   };
 
   // Instrument ─────────────────────────────
@@ -371,14 +388,20 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
   }
 
   // Numbers ────────────────────────────────
-  const priceM = PRICE_RE.exec(text);
+  // Stop / target clauses are read first and removed, so "stop at 440" is never the entry price.
+  const stopM = STOP_CLAUSE_RE.exec(text);
+  const targetM = TARGET_CLAUSE_RE.exec(text);
+  base.stop = numberOf(stopM?.[1]);
+  base.target = numberOf(targetM?.[1]);
+  const priceText = text.replace(STOP_CLAUSE_RE, ' ').replace(TARGET_CLAUSE_RE, ' ');
+  const priceM = PRICE_RE.exec(priceText);
   base.price = numberOf(priceM?.[1]);
   if (base.price == null && base.assetType === 'stock' && base.symbol) {
     // "long AMD 145.20" — a decimal right after the ticker.
-    const m = new RegExp(String.raw`\$?${base.symbol.replace('.', '\\.')}\s+\$?(\d{1,6}\.\d{1,4})\b(?!\s?%)`, 'i').exec(text);
+    const m = new RegExp(String.raw`\$?${base.symbol.replace('.', '\\.')}\s+\$?(\d{1,6}\.\d{1,4})\b(?!\s?%)`, 'i').exec(priceText);
     base.price = numberOf(m?.[1]);
   }
-  const pctM = PCT_RE.exec(text);
+  const pctM = PCT_RE.exec(priceText);
   if (pctM) {
     let v = numberOf(pctM[1]);
     if (v != null && !/[+-]/.test(pctM[1]) && LOSS_WORDS_RE.test(text)) v = -Math.abs(v);
@@ -410,6 +433,26 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
     if (base.symbol && CRYPTO.has(base.symbol)) base.assetType = 'stock';
     if (!base.assetType) base.assetType = 'stock';
   }
+
+  // Confidence ─────────────────────────────
+  const explicitVerb = ENTRY_RE.test(text) || ENTRY_LEAD_RE.test(lead) || IN_BEFORE_RE.test(text) || isShort;
+  if (base.kind === 'entry') {
+    let c = 0.4;
+    if (base.symbol) c += 0.1;
+    if (base.price != null) c += 0.2;
+    if (base.assetType === 'option') c += base.strike != null && base.expiry ? 0.15 : 0.05;
+    else if (/\$[A-Za-z]/.test(text)) c += 0.1;
+    if (explicitVerb) c += 0.1;
+    if (base.qty != null) c += 0.05;
+    base.confidence = Math.min(0.99, Math.round(c * 100) / 100);
+  } else if (base.kind === 'exit' || base.kind === 'trim') {
+    let c = 0.5;
+    if (base.price != null) c += 0.25; else if (base.pct != null) c += 0.15;
+    if (base.symbol) c += 0.1;
+    base.confidence = Math.min(0.99, Math.round(c * 100) / 100);
+  } else {
+    base.tradeLooking = base.assetType === 'option' || (base.tickers.length > 0 && TRADE_WORDS_RE.test(text) && (base.stop != null || base.target != null || base.price != null || /\b(calls?|puts?|entry|entered|bought|sold|filled|contracts?)\b/i.test(text)));
+  }
   return base;
 }
 
@@ -439,7 +482,17 @@ export interface DiscordTrade {
   /** Timeline of the trade's messages, then the parser's disclosures. */
   notes: string;
   flags: string[];
+  /** Stated stop / target (entry message, adds, or replies to the trade), same units as the entry. */
+  stop: number | null;
+  target: number | null;
+  /** How the exit found this trade — a reply is certain, "the only open position" is a guess. */
+  exitVia: ExitVia | null;
+  /** Parse confidence 0–1: min(entry, exit) readings × how the exit was matched. */
+  confidence: number;
 }
+
+export type ExitVia = 'reply' | 'contract' | 'ticker' | 'only-open';
+const VIA_FACTOR: Record<ExitVia, number> = { reply: 1, contract: 0.95, ticker: 0.85, 'only-open': 0.7 };
 
 export type DiscordNoteReason = 'analysis' | 'unmatched_exit' | 'unpriced_exit' | 'entry_without_price';
 
@@ -462,7 +515,7 @@ export interface PairResult {
   stats: { messages: number; entries: number; exits: number; trims: number; notes: number; ignored: number; closedTrades: number; openTrades: number };
 }
 
-interface Leg { price: number | null; qty: number | null; time: string; id: string; pct?: number | null }
+interface Leg { price: number | null; qty: number | null; time: string; id: string; pct?: number | null; conf?: number; via?: ExitVia }
 
 interface Position {
   key: string;
@@ -477,6 +530,8 @@ interface Position {
   ids: Set<string>;
   shots: string[];
   setup: string | null;
+  stop: number | null;
+  target: number | null;
 }
 
 const instrumentKey = (p: Pick<ParsedMessage, 'symbol' | 'optionType' | 'strike' | 'expiry'>) =>
@@ -517,24 +572,29 @@ export function pairDiscordMessages(input: DiscordMsg[]): PairResult {
     byMsg.set(p.msg.id, pos);
     for (const a of p.msg.attachments) if (a.isImage) pos.shots.push(a.url);
     if (!pos.setup && p.setup) pos.setup = p.setup;
+    if (pos.stop == null && p.stop != null) pos.stop = p.stop;
+    if (pos.target == null && p.target != null) pos.target = p.target;
   };
 
-  const findOpen = (p: ParsedMessage): Position | null => {
+  const findOpen = (p: ParsedMessage): [Position, ExitVia] | null => {
     const mine = open.filter((o) => o.authorId === p.msg.authorId);
     if (p.msg.replyTo) {
       const hit = byMsg.get(p.msg.replyTo);
-      if (hit && open.includes(hit)) return hit;
+      if (hit && open.includes(hit)) return [hit, 'reply'];
     }
     if (p.symbol && p.assetType === 'option') {
       const k = instrumentKey(p);
       const exact = [...mine].reverse().find((o) => o.instrument === k);
-      if (exact) return exact;
+      if (exact) return [exact, 'contract'];
       // Same contract without the expiry restated ("out BE 300c +300%").
       const loose = [...mine].reverse().find((o) => o.first.symbol === p.symbol && o.first.strike === p.strike && o.first.optionType === p.optionType);
-      if (loose) return loose;
+      if (loose) return [loose, 'contract'];
     }
-    if (p.symbol) return [...mine].reverse().find((o) => o.first.symbol === p.symbol) ?? null;
-    return mine.length === 1 ? mine[0] : null;
+    if (p.symbol) {
+      const t = [...mine].reverse().find((o) => o.first.symbol === p.symbol);
+      return t ? [t, 'ticker'] : null;
+    }
+    return mine.length === 1 ? [mine[0], 'only-open'] : null;
   };
 
   for (const p of parsed) {
@@ -550,8 +610,8 @@ export function pairDiscordMessages(input: DiscordMsg[]): PairResult {
       }
       const pos: Position = {
         key: p.msg.id, instrument: k, authorId: p.msg.authorId, first: p, side: p.side,
-        entries: [{ price: p.price, qty: p.qty, time: p.msg.timestamp, id: p.msg.id }],
-        trims: [], exit: null, lines: [], ids: new Set(), shots: [], setup: null,
+        entries: [{ price: p.price, qty: p.qty, time: p.msg.timestamp, id: p.msg.id, conf: p.confidence }],
+        trims: [], exit: null, lines: [], ids: new Set(), shots: [], setup: null, stop: null, target: null,
       };
       line(pos, p, 'entry');
       open.push(pos);
@@ -559,8 +619,9 @@ export function pairDiscordMessages(input: DiscordMsg[]): PairResult {
     }
 
     if (p.kind === 'exit' || p.kind === 'trim') {
-      const pos = findOpen(p);
-      if (!pos) { note(p, 'unmatched_exit'); continue; }
+      const found = findOpen(p);
+      if (!found) { note(p, 'unmatched_exit'); continue; }
+      const [pos, via] = found;
       if (p.kind === 'trim') {
         stats.trims++;
         pos.trims.push({ price: p.price, qty: p.qty, time: p.msg.timestamp, id: p.msg.id, pct: p.pct });
@@ -568,7 +629,7 @@ export function pairDiscordMessages(input: DiscordMsg[]): PairResult {
         continue;
       }
       stats.exits++;
-      pos.exit = { price: p.price, qty: p.qty, time: p.msg.timestamp, id: p.msg.id, pct: p.pct };
+      pos.exit = { price: p.price, qty: p.qty, time: p.msg.timestamp, id: p.msg.id, pct: p.pct, conf: p.confidence, via };
       line(pos, p, 'exit');
       open.splice(open.indexOf(pos), 1);
       done.push(pos);
@@ -642,6 +703,13 @@ export function pairDiscordMessages(input: DiscordMsg[]): PairResult {
     if (f.assetType === 'option' && !f.expiry) flags.push('Expiry not stated.');
 
     if (status === 'closed') stats.closedTrades++; else stats.openTrades++;
+    const entryConf = pos.entries[0].conf ?? 0.5;
+    let confidence = entryConf;
+    if (pos.exit && status === 'closed') {
+      confidence = Math.min(entryConf, pos.exit.conf ?? 0.5) * VIA_FACTOR[pos.exit.via ?? 'only-open'];
+      if (derived != null) confidence -= 0.05;
+    }
+    confidence = Math.max(0.05, Math.round(confidence * 100) / 100);
     trades.push({
       key: pos.key,
       authorId: pos.authorId,
@@ -664,6 +732,10 @@ export function pairDiscordMessages(input: DiscordMsg[]): PairResult {
       messageIds: [...pos.ids],
       notes: [...pos.lines, ...(pos.shots.length > 1 ? [`Charts: ${pos.shots.slice(1).join(' ')}`] : []), ...(flags.length ? ['', ...flags.map((x) => `· ${x}`)] : [])].join('\n'),
       flags,
+      stop: pos.stop,
+      target: pos.target,
+      exitVia: status === 'closed' ? pos.exit?.via ?? null : null,
+      confidence,
     });
   }
 

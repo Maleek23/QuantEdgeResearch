@@ -3599,11 +3599,18 @@ export const journalNotes = pgTable("journal_notes", {
   source: text("source").notNull().default('manual'),
   /** Idempotency key for imports (Discord message id). */
   sourceMessageId: text("source_message_id"),
-  /** 'analysis' | 'unmatched_exit' | 'unpriced_exit' | 'entry_without_price' */
+  /** 'analysis' | 'unmatched_exit' | 'unpriced_exit' | 'entry_without_price' | 'discord_post' */
   reason: text("reason"),
+  /**
+   * Import metadata. Discord forum posts (reason 'discord_post'): author, message
+   * link, thread, what the parser read, review flag — shared/discord-forum.ts
+   * DiscordPostMeta. Migration: migrations/0003_discord_forum.sql.
+   */
+  meta: jsonb("meta").$type<Record<string, unknown>>(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("idx_journal_notes_owner_day").on(table.ownerId, table.day),
+  index("idx_journal_notes_owner_reason").on(table.ownerId, table.reason),
   uniqueIndex("uq_journal_notes_source_msg").on(table.ownerId, table.source, table.sourceMessageId),
 ]);
 export type JournalNote = typeof journalNotes.$inferSelect;

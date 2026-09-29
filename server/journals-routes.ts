@@ -18,6 +18,11 @@
  *   DELETE /api/traders/:slug/watchlist/:id         remove            (admin or the trader)
  *   POST   /api/journal/discord/preview             parse, no writes  (admin or the trader)
  *   POST   /api/journal/discord/commit              write previewed   (same person who previewed)
+ *   POST   /api/journal/discord/forum/preview       forum → threads → traders, no writes (admin)
+ *   POST   /api/journal/discord/forum/commit        write previewed threads with the confirmed mapping (admin)
+ *   GET    /api/traders/leaderboard                 ranked traders (stated + measured-on-underlying)
+ *   GET    /api/traders/:slug/analysis              one trader's stats, calls, rank
+ *   GET    /api/trader-calls?symbol=                NEXUS evidence: recent open calls from ranked traders, repriced live
  *   GET    /api/journal/broker/alpaca               connection status (never keys)
  *   POST   /api/journal/broker/alpaca               connect (verify, seal, store)
  *   DELETE /api/journal/broker/alpaca               disconnect
@@ -410,6 +415,82 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
       const { commitDiscordPreview } = await import('./discord-journal-import');
       res.json({ success: true, ...(await commitDiscordPreview(token, actor.userId!, slug)) });
     } catch (err) { fail(res, err, 'Discord import'); }
+  });
+
+  // ── Discord FORUM import (admin): every trader's thread at once ──
+  const forumPreviewBody = z.object({
+    source: z.enum(['bot', 'files']),
+    forumId: z.string().trim().regex(/^\d{15,22}$/, 'numeric Discord channel id').optional(),
+    files: z.array(z.object({ name: z.string().trim().min(1).max(200), content: z.string().max(15_000_000) }).strict()).max(80).optional(),
+  }).strict();
+
+  app.post('/api/journal/discord/forum/preview', requireBetaAccess, async (req, res) => {
+    try {
+      const actor = await journalActor(req);
+      if (!actor.isAdmin || !actor.userId) return res.status(403).json({ error: 'Only an admin can import a Discord forum' });
+      const parsed = forumPreviewBody.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: 'Invalid forum import request', issues: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) });
+      const { source, forumId, files } = parsed.data;
+      if (source === 'bot' && !forumId) return res.status(400).json({ error: 'Enter the forum channel id' });
+      if (source === 'files' && !files?.length) return res.status(400).json({ error: 'Upload DiscordChatExporter JSON exports of the threads (or a .zip of them)' });
+      const { buildForumPreview } = await import('./discord-forum-import');
+      res.json(await buildForumPreview({
+        actorId: actor.userId,
+        source: source === 'bot' ? { kind: 'bot', forumId: forumId! } : { kind: 'files', files: files! },
+      }));
+    } catch (err) { fail(res, err, 'Discord forum preview'); }
+  });
+
+  const forumCommitBody = z.object({
+    token: z.string().min(8).max(64),
+    threads: z.array(z.object({
+      threadId: z.string().trim().min(1).max(240),
+      /** null = skip this thread. */
+      slug: z.string().trim().toLowerCase().regex(TRADER_SLUG_RE).nullable(),
+      /** Required when slug is a NEW trader: the operator's confirmation, with the display name. */
+      createName: z.string().trim().min(1).max(60).nullish(),
+    }).strict()).min(1).max(200),
+  }).strict();
+
+  app.post('/api/journal/discord/forum/commit', requireBetaAccess, async (req, res) => {
+    try {
+      const actor = await journalActor(req);
+      if (!actor.isAdmin || !actor.userId) return res.status(403).json({ error: 'Only an admin can import a Discord forum' });
+      const parsed = forumCommitBody.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: 'Invalid forum commit', issues: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) });
+      const { commitForumPreview } = await import('./discord-forum-import');
+      res.json({ success: true, ...(await commitForumPreview(parsed.data.token, actor.userId, parsed.data.threads)) });
+    } catch (err) { fail(res, err, 'Discord forum import'); }
+  });
+
+  // ── Trader analysis, leaderboard, NEXUS trader-call evidence ──
+  app.get('/api/traders/leaderboard', requireBetaAccess, async (_req, res) => {
+    try {
+      const { leaderboard } = await import('./trader-analysis');
+      res.json(await leaderboard());
+    } catch (err) { fail(res, err, 'Trader leaderboard'); }
+  });
+
+  app.get('/api/traders/:slug/analysis', requireBetaAccess, async (req, res) => {
+    try {
+      const slug = String(req.params.slug).toLowerCase();
+      if (!TRADER_SLUG_RE.test(slug)) return res.status(400).json({ error: 'Invalid trader' });
+      const { traderAnalysis, leaderboard } = await import('./trader-analysis');
+      const a = await traderAnalysis(slug);
+      if (!a) return res.status(404).json({ error: 'No such trader' });
+      const board = await leaderboard();
+      const row = board.rows.find((r) => r.slug === slug) ?? null;
+      res.json({ ...a, rank: row?.rank ?? null, passes: row?.passes ?? false, config: board.config, rankedOf: board.rows.filter((r) => r.rank != null).length });
+    } catch (err) { fail(res, err, 'Trader analysis'); }
+  });
+
+  app.get('/api/trader-calls', requireBetaAccess, async (req, res) => {
+    try {
+      const symbol = typeof req.query.symbol === 'string' && SYMBOL_RE.test(req.query.symbol.toUpperCase()) ? req.query.symbol.toUpperCase() : null;
+      const { traderCallsFeed } = await import('./trader-analysis');
+      res.setHeader('Cache-Control', 'private, max-age=30');
+      res.json(await traderCallsFeed({ symbol }));
+    } catch (err) { fail(res, err, 'Trader calls'); }
   });
 
   // ── Alpaca (read-only) ───────────────────────────────────

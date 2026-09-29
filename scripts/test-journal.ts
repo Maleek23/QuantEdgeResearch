@@ -542,3 +542,6 @@ for (const d of JOURNAL_DEFAULTS) {
 }
 
 console.log('journal checks passed');
+
+// Discord forum import: pagination, thread → trader mapping, parse accuracy, ranking.
+await import('./test-discord-forum');
