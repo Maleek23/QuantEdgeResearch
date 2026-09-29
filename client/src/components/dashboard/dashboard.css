@@ -387,3 +387,4 @@
 /* chart tools in a page section (PageSpec.fill): a fixed, viewport-scaled box the chart fills */
 .flowdash .pg-sec .pg-sec-body.fill{display:flex;flex-direction:column;height:clamp(340px,56vh,640px)}
 .flowdash .pg-sec .pg-sec-body.fill>*{flex:1 1 auto!important;min-height:0!important;overflow:hidden!important}
+@media (max-width:767px){.flowdash .gx-legend,.flowdash .gx-sub-head,.flowdash .gx-stats span,.flowdash .gx-nodes span{font-size:10.5px}}

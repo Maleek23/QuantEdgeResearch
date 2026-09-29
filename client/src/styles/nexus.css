@@ -16,6 +16,13 @@
      thumb. Rows and cards are already taller; inline text links are exempt. */
   .qe-terminal button:not(.nav-tab),.qe-terminal [role=tab],.qe-terminal select,.workuplab button{min-height:28px;min-width:28px}
 }
+/* Phones (feat/mobile 2026-09-29): every control in the page body is a ≥ 40px
+   thumb target — buttons, tabs, selects, inputs (the matrix's own cells and
+   the chart canvas are exempt; they are data, tapped for a drill). */
+@media (max-width:767px){
+  #main-content button:not(.gx-cell):not(.nav-tab),#main-content [role=tab],#main-content select,
+  #main-content input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:40px}
+}
 .qe-terminal p,.qe-terminal li,.workuplab p,.workuplab li,.landing p{
   font-family:'Inter',system-ui,-apple-system,sans-serif;
   text-transform:none;letter-spacing:normal;line-height:1.55;

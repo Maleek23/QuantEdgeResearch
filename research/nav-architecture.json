@@ -177,17 +177,17 @@
   "N12_knownDebt": {
     "client/src/pages/shells/terminal-shell.tsx:marketFocus": "Phase 2 (terminal UX branch owns the file): remove overlay; RotationMap/OracleMarketField/SessionBrief become Markets tools"
   },
-  "N13_dock": [
+  "N14_dock": [
     "page:/today",
     "tab:oracle",
     "tab:flow",
     "tab:gex"
   ],
-  "N13_researchTabs": [
+  "N14_researchTabs": [
     "chart",
     "leaps",
     "crypto",
     "catalyst"
   ],
-  "N13_fail": []
+  "N14_fail": []
 }
