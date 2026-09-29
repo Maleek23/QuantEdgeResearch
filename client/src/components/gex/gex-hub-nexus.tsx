@@ -23,12 +23,14 @@
  * The mock's genGEX() random matrix, spot jitter and looping countdown do not
  * ship — same rule as every board before it.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
-import { GammaSurface } from '@/components/prism/gamma-surface';
+// three.js (+ @react-three) is ~750 kB — load it only when the 3D view opens,
+// so it stays out of the GEX hub / terminal chunk (SR 11-7 §5.1, P2-1).
+const GammaSurface = lazy(() => import('@/components/prism/gamma-surface').then(m => ({ default: m.GammaSurface })));
 import { robustMax } from '@/components/viz';
 import type { StrikeExpiryCell, GEXSnapshot } from '@shared/gex-types';
 import '@/styles/nexus.css';
@@ -512,15 +514,21 @@ export function GexHubNexus() {
               {/* GammaSurface is already the honest 3D: LISTED mode for absent
                   cells, overflow ticks past the robust max. VEX maps the same
                   real matrix through netVEX. */}
-              <GammaSurface
-                className="h-full w-full"
-                points={(metric === 'vex' ? matrix.map((c) => ({ ...c, netGEX: c.netVEX ?? 0 })) : matrix) as any}
-                spot={spot}
-                symbol={symbol}
-                callWall={snap?.callWall}
-                putWall={snap?.putWall}
-                flipPrice={snap?.gammaFlipPrice ?? null}
-              />
+              <Suspense fallback={
+                <div style={{ display: 'grid', placeItems: 'center', height: '100%', minHeight: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+                  loading 3d surface…
+                </div>
+              }>
+                <GammaSurface
+                  className="h-full w-full"
+                  points={(metric === 'vex' ? matrix.map((c) => ({ ...c, netGEX: c.netVEX ?? 0 })) : matrix) as any}
+                  spot={spot}
+                  symbol={symbol}
+                  callWall={snap?.callWall}
+                  putWall={snap?.putWall}
+                  flipPrice={snap?.gammaFlipPrice ?? null}
+                />
+              </Suspense>
             </div>
           ) : (
             <div className="matrix-wrap">
