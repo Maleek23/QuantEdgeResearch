@@ -66,6 +66,7 @@ export default function LossView() {
   const [dim, setDim] = useState<DriverDim>('source');
   const drivers = useMemo(() => lossDrivers(allCtx, dim), [allCtx, dim]);
   const [showAll, setShowAll] = useState(false);
+  const [allDrivers, setAllDrivers] = useState(false);
 
   if (!closedRows.length) {
     return <p className="jr-note">No closed trades in view for the {bookLabel} journal — nothing to analyse.</p>;
@@ -74,9 +75,10 @@ export default function LossView() {
   const lossesN = closedRows.filter((r) => Number(r.realizedPnL) < 0).length;
   const noExit = data.rows.filter((r) => r.status !== 'open' && r.realizedPnL != null && !r.exitTime).length;
   const lostAll = closedRows.reduce((s, r) => s + Math.min(0, Number(r.realizedPnL)), 0);
-  const withBars = summary.losses.filter((a) => a.cls !== 'unknown').length;
+  const withBars = summary.losses.filter((a) => a.cls !== 'unknown' && a.cls !== 'unresolved').length;
+  const tooShort = summary.losses.filter((a) => a.cls === 'unresolved').length;
   const withR = summary.losses.filter((a) => a.risk != null).length;
-  const ranked = summary.classes.filter((c) => c.n > 0 && c.id !== 'unknown').sort((a, b) => a.lost - b.lost);
+  const ranked = summary.classes.filter((c) => c.n > 0 && c.id !== 'unknown' && c.id !== 'unresolved').sort((a, b) => a.lost - b.lost);
   const lossesSorted = [...summary.losses].sort((a, b) => (a.ctx.pnl ?? 0) - (b.ctx.pnl ?? 0));
   const shown = showAll ? lossesSorted : lossesSorted.slice(0, 40);
   const order = lossesSorted.map((a) => a.ctx.id);
@@ -90,7 +92,7 @@ export default function LossView() {
       <div className="jr-span-12 jr-kpis" aria-live="polite">
         <Kpi label="Losing trades" value={`${lossesN}`} sub={`of ${closedRows.length} closed · ${fmtPct(closedRows.length ? lossesN / closedRows.length : null)}${noExit ? ` · ${noExit} closed without an exit time not analysed` : ''}`} />
         <Kpi label="$ lost (losers)" value={<Pnl value={lostAll} compact />} sub={`n=${lossesN} losses`} tone="loss" />
-        <Kpi label="Explained by bars" value={`${withBars} / ${summary.losses.length}`} sub={loading ? `loading bars ${barsState.done}/${barsState.total} symbols` : `${summary.losses.length - withBars} unknown (no bars)`} />
+        <Kpi label="Explained by bars" value={`${withBars} / ${summary.losses.length}`} sub={loading ? `loading bars ${barsState.done}/${barsState.total} symbols` : `${summary.losses.length - withBars - tooShort} no bars · ${tooShort} shorter than a bar`} />
         <Kpi label="With a usable stop (R)" value={`${withR}`} sub={`of ${summary.losses.length} losses — rest use % thresholds`} />
         <Kpi label="Largest class" value={ranked[0] ? <span className="jr-kpi-wrap">{ranked[0].label}</span> : '—'} sub={ranked[0] ? `${fmtMoney(ranked[0].lost, { compact: true })} · n=${ranked[0].n}` : loading ? 'measuring…' : 'no classified losses'} />
         <Kpi label="Bars" value={loading ? `${barsState.done}/${barsState.total}` : 'ready'} sub={barsState.failed.length ? `${barsState.failed.length} symbol(s) failed to load` : 'hourly (ext. hours) ≤6 mo, else daily'} />
@@ -166,13 +168,13 @@ export default function LossView() {
         <div className="jr-seg" role="group" aria-label="Break down by" style={{ marginBottom: 10 }}>
           {DIMS.map((d) => <button key={d} type="button" aria-pressed={dim === d} onClick={() => setDim(d)}>{DRIVER_DIM_LABEL[d]}</button>)}
         </div>
-        <div className="jr-table-wrap" style={{ maxHeight: 420 }}>
+        <div className="jr-table-wrap">
           <table className="jr-table">
             <thead>
               <tr><th>{DRIVER_DIM_LABEL[dim]}</th><th className="num">n</th><th className="num">W / L</th><th className="num">win %</th><th className="num">$ lost</th><th className="num">net</th><th className="num">PF</th></tr>
             </thead>
             <tbody>
-              {drivers.map((r) => (
+              {(allDrivers ? drivers : drivers.slice(0, 12)).map((r) => (
                 <tr key={r.key} style={{ cursor: 'default' }}>
                   <td>{r.key} <Small n={r.n} /></td>
                   <td className="num">{r.n}</td>
@@ -186,6 +188,9 @@ export default function LossView() {
             </tbody>
           </table>
         </div>
+        {drivers.length > 12 && (
+          <button type="button" className="jr-btn jr-btn-sm jr-more-rows" onClick={() => setAllDrivers((v) => !v)}>{allDrivers ? 'Show the top 12' : `Show all ${drivers.length}`}</button>
+        )}
         <p className="jr-note">
           Entry hour, weekday and session are New York time of the entry stamp. DTE = expiry − entry day. Exit reason is the recorded one (desk outcome / bot exit); "not recorded" means the book doesn't store it.
           Source / setup is the publishing engine on the Bot and Trade desk books.
@@ -246,7 +251,7 @@ export default function LossView() {
       </Card>
 
       <Card className="jr-span-12" num="05" title="Every loss, measured" meta={<><N n={lossesSorted.length} unit="losses" /><span className="jr-n">worst first · a row opens the trade</span></>}>
-        <div className="jr-table-wrap" style={{ maxHeight: 520 }}>
+        <div className="jr-table-wrap">
           <table className="jr-table">
             <thead>
               <tr>
@@ -277,7 +282,7 @@ function LossRowView({ a, onOpen }: { a: TradeAnalysis; onOpen: () => void }) {
     <tr tabIndex={0} onClick={onOpen} onKeyDown={(e) => { if (e.key === 'Enter') onOpen(); }}>
       <td>{Number.isFinite(row.entryMs) ? shortDate(row.entryMs) : '—'}</td>
       <td><span className="jr-sym">{row.symbol}</span>{row.isOption ? <span className="jr-n"> {row.instrument.replace(' option', '')}{row.dte != null ? ` ${row.dte}d` : ''}</span> : null}</td>
-      <td>{a.cls ? <span className={`jr-chip jr-cls-${a.cls}`}>{a.cls === 'unknown' ? 'unknown' : a.cls.replace('_', ' ')}</span> : '—'}</td>
+      <td>{a.cls ? <span className={`jr-chip jr-cls-${a.cls}`}>{a.cls === 'unknown' ? 'unknown' : a.cls === 'unresolved' ? 'too short' : a.cls.replace('_', ' ')}</span> : '—'}</td>
       <td className="num"><Pnl value={row.pnl} /></td>
       <td className="num">{fmtSPct(row.resultPct)}</td>
       <td className="num">{ex(a.mfePct, a.mfeR)}</td>

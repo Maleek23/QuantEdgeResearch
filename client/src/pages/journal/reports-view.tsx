@@ -5,9 +5,11 @@
  * old Trade Log → Insights and → Timing tabs and the Overview's ticker/setup
  * tables, drawdown and weekly P&L cards.
  *
- * Client-computed (filtered rows): breakdowns, weekday/hour/hold time, risk,
- * weekly. Server-computed with the same filters: behaviour insights, session
- * timing, trades-per-day optimum, DTE. Each block says its sample size.
+ * Everything is client-computed from the filtered rows (New York time) — since
+ * feat/jnav the session / trades-per-day / DTE blocks come from
+ * lib/journal/insights.ts instead of the server engine (which bucketed by the
+ * server's clock and counted a 1-DTE afternoon entry as 0 DTE), and behaviour
+ * insights moved to their own page (Insights). Each block says its sample size.
  *
  * 2026-09-29 (LuxAlgo Reports parity, components/journal/reports-extra.tsx):
  * Comparison (two filter sets side by side), Trade explorer (virtualised
@@ -16,7 +18,8 @@
  */
 import { useMemo, useState } from 'react';
 import type { JournalFilters } from '@shared/journal-filters';
-import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
+import { ArrowRight } from 'lucide-react';
+import { QEEmpty } from '@/components/ui/qe-states';
 import { UnderwaterChart } from '@/components/journal/equity-chart';
 import { useJournal } from '@/components/journal/journal-context';
 import { BucketBars, BucketTable, Card, LowSample, N, Pnl } from '@/components/journal/parts';
@@ -24,7 +27,7 @@ import {
   byDuration, byHour, byWeek, byWeekday, crossBuckets, fmtMoney, fmtPct, fmtRatio, missingDim, reportBuckets,
   REPORT_DIM_LABEL, drawdownPeriods, underwater, type ReportDim,
 } from '@/lib/journal/metrics';
-import type { BehaviorInsight, TimingInsight } from '@/lib/journal/types';
+import { buildInsights, type InsightBucket } from '@/lib/journal/insights';
 import { ComparisonCard, PerformanceTrendsCard, ReviewExportCard, TradeExplorerCard } from '@/components/journal/reports-extra';
 
 const shortDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
@@ -32,8 +35,9 @@ const shortDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { mo
 const DIMS: ReportDim[] = ['symbol', 'setup', 'mistake', 'emotion', 'weekday', 'hour', 'duration', 'side', 'asset', 'broker', 'rating'];
 
 export default function ReportsView() {
-  const { data, filters } = useJournal();
-  const { trades, curve, days, metrics: m, analyticsQ } = data;
+  const { data, filters, goTo } = useJournal();
+  const { trades, curve, days, metrics: m } = data;
+  const ins = useMemo(() => buildInsights(trades), [trades]);
   // The Bot book can be broken down by run (each paper portfolio the bot traded).
   const hasRuns = data.options.runs.length > 0;
   const dimOptions = (hasRuns ? ['run' as ReportDim, ...DIMS] : DIMS).map((g) => <option key={g} value={g}>{REPORT_DIM_LABEL[g]}</option>);
@@ -60,10 +64,6 @@ export default function ReportsView() {
     else if (FILTER_OF[by]) filters.setFilter(FILTER_OF[by]!, key as never);
   };
 
-  const a = analyticsQ.data;
-  const serverBlock = (render: () => React.ReactNode) => (analyticsQ.isError
-    ? <QEError title="Journal analytics request failed" message="Server-computed sections are unavailable; everything computed from your rows on this page is unaffected." onRetry={() => analyticsQ.refetch()} retrying={analyticsQ.isFetching} />
-    : analyticsQ.isLoading ? <QELoading rows={2} /> : render());
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -72,7 +72,7 @@ export default function ReportsView() {
         <a href="#jr-cross">Cross-analysis</a>
         <a href="#jr-time">Time</a>
         <a href="#jr-risk">Risk</a>
-        <a href="#jr-insights">Insights</a>
+        <a href="?jtab=insights" onClick={(e) => { e.preventDefault(); goTo('insights'); }}>Insights →</a>
         <a href="#jr-compare">Comparison</a>
         <a href="#jr-explorer">Trade explorer</a>
         <a href="#jr-trends">Trends</a>
@@ -130,34 +130,14 @@ export default function ReportsView() {
         <Card className="jr-span-4" num="05" title="By holding time">
           <BucketBars buckets={hold} empty="No closed trades with an exit time in view." />
         </Card>
-        <Card className="jr-span-6" num="06" title="By session" meta={<span className="jr-n">server engine</span>}>
-          {serverBlock(() => <TimingList data={a?.timingBySession ?? []} empty="No session data in view." />)}
+        <Card className="jr-span-4" num="06" title="By time of day" meta={<span className="jr-n">entry, New York</span>}>
+          <InsightBars rows={ins.buckets.session} empty="No closed trades in view." />
         </Card>
-        <Card className="jr-span-6" num="07" title="Trades per day" meta={<span className="jr-n">server engine</span>}>
-          {serverBlock(() => (a?.tradeCountOptimum ?? []).length ? (
-            <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-              {a!.tradeCountOptimum.map((b) => (
-                <div key={b.label}>
-                  <span>{b.label} / day</span>
-                  <b><Pnl value={b.avgPnL} /></b>
-                  <small>avg per day · n={b.days} day{b.days === 1 ? '' : 's'} · {b.winRate.toFixed(0)}% win</small>
-                </div>
-              ))}
-            </div>
-          ) : <QEEmpty message="Not enough trading days in view to compare daily trade counts." />)}
+        <Card className="jr-span-4" num="07" title="Trades per day" meta={<span className="jr-n">closed trades on days with…</span>}>
+          <InsightBars rows={ins.buckets.dayLoad} empty="No closed trades in view." />
         </Card>
-        <Card className="jr-span-12" num="08" title="Options by days to expiry" meta={<span className="jr-n">server engine · option trades with an expiry</span>}>
-          {serverBlock(() => (a?.dteBreakdown ?? []).length ? (
-            <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-              {a!.dteBreakdown.map((d) => (
-                <div key={d.label}>
-                  <span>{d.label}</span>
-                  <b><Pnl value={d.totalPnL} /></b>
-                  <small>n={d.trades} · {d.winRate.toFixed(0)}% win · avg {fmtMoney(d.avgPnL)}</small>
-                </div>
-              ))}
-            </div>
-          ) : <QEEmpty message="No option trades with expiry dates in view." />)}
+        <Card className="jr-span-4" num="08" title="Options by days to expiry" meta={<span className="jr-n">New York entry day → expiry</span>}>
+          <InsightBars rows={ins.buckets.dte} empty="No option trades with an expiry in view." />
         </Card>
       </div>
 
@@ -206,8 +186,9 @@ export default function ReportsView() {
         </Card>
       </div>
 
-      <Card id="jr-insights" className="jr-anchor" num="12" title="Behaviour insights" meta={<span className="jr-n">server engine · same filters</span>}>
-        {serverBlock(() => <InsightGroups insights={a?.insights ?? []} />)}
+      <Card id="jr-insights" className="jr-anchor" num="12" title="Behaviour insights">
+        <p className="jr-note" style={{ marginTop: 0 }}>What to stop doing (in $, with n), tilt, time of day, DTE, size and ticker concentration have their own page.</p>
+        <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('insights')}>Open Insights <ArrowRight className="h-3.5 w-3.5" /></button>
       </Card>
 
       <ComparisonCard num="13" />
@@ -218,48 +199,11 @@ export default function ReportsView() {
   );
 }
 
-function TimingList({ data, empty }: { data: TimingInsight[]; empty: string }) {
-  if (!data.length) return <QEEmpty message={empty} />;
+function InsightBars({ rows, empty }: { rows: InsightBucket[]; empty: string }) {
   return (
-    <div className="jr-bars">
-      {data.map((t) => (
-        <div className="jr-bar-row" key={t.label} style={{ gridTemplateColumns: 'minmax(90px,140px) minmax(0,1fr) auto' }}>
-          <span className="jr-bar-k">{t.label}</span>
-          <span className="jr-bar-track" aria-hidden style={{ background: 'rgba(127,178,255,0.05)' }}>
-            <span className="jr-bar-fill pos" style={{ left: 0, width: `${Math.min(100, t.winRate)}%`, background: 'color-mix(in srgb, var(--jr-accent) 45%, transparent)' }} />
-          </span>
-          <span className="jr-bar-v">{t.winRate.toFixed(0)}% win · <Pnl value={t.avgPnL} /> avg <span className="jr-n">n={t.trades}</span></span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function InsightGroups({ insights }: { insights: BehaviorInsight[] }) {
-  if (!insights.length) return <QEEmpty message="No behavioural patterns detected in this view. The engine needs roughly 5+ closed trades to say anything." />;
-  const groups: [string, BehaviorInsight[]][] = [
-    ['Strengths', insights.filter((i) => i.severity === 'positive')],
-    ['Areas to improve', insights.filter((i) => i.severity === 'warning' || i.severity === 'critical')],
-    ['Coaching', insights.filter((i) => i.category === 'coaching' && i.severity === 'neutral')],
-    ['Other notes', insights.filter((i) => i.severity === 'neutral' && i.category !== 'coaching')],
-  ];
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {groups.filter(([, xs]) => xs.length).map(([title, xs]) => (
-        <div key={title}>
-          <h4 className="jr-section-h" style={{ fontSize: 13 }}>{title} <span className="jr-n">{xs.length}</span></h4>
-          <div className="jr-grid" style={{ gap: 8 }}>
-            {xs.map((i) => (
-              <div key={i.id} className={`jr-insight ${i.severity} jr-span-6`}>
-                <span className="sev">{i.category}</span>
-                <h4>{i.title}{i.metric && <span className="jr-n"> · {i.metric}</span>}</h4>
-                <p>{i.description}</p>
-                {i.suggestion && <p style={{ color: 'var(--text)' }}><b>Try:</b> {i.suggestion}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
+    <BucketBars
+      buckets={rows.map((r) => ({ key: r.key, trades: r.n, closed: r.n, wins: r.wins, netPnl: r.net, winRate: r.winRate, profitFactor: r.pf, profitFactorIsInfinite: false, expectancy: r.expectancy }))}
+      empty={empty}
+    />
   );
 }

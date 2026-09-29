@@ -15,6 +15,7 @@
 
 import { logger } from './logger';
 import type { JournalBroker } from '../shared/schema';
+import { EXPIRED_ASSUMED_NOTE, expiredSettlement, isExpiredUnclosed } from '../shared/journal-expiry';
 
 // ─── Unified parsed trade ───────────────────────────────────
 
@@ -35,6 +36,8 @@ export interface ParsedTrade {
   status: 'open' | 'closed';
   broker: JournalBroker;
   brokerOrderId?: string;
+  /** Set when the importer wrote the row (e.g. an option settled at expiry with no closing fill). */
+  notes?: string;
   /** Fill side from the broker export. Used internally to reconstruct lots. */
   transactionSide?: 'buy' | 'sell';
   rawCsvRow: Record<string, string>;
@@ -409,13 +412,19 @@ function parseGeneric(row: Record<string, string>): ParsedTrade | null {
 
 // ─── Trade Matching (pair opens with closes) ─────────────────
 
-function matchTrades(trades: ParsedTrade[]): ParsedTrade[] {
+function matchTrades(trades: ParsedTrade[], nowMs: number): ParsedTrade[] {
   type Lot = ParsedTrade & { remaining: number; allocatedFees: number };
   const opens = new Map<string, Lot[]>();
   const matched: ParsedTrade[] = [];
 
-  const sorted = [...trades].sort((a, b) =>
-    new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime());
+  // Chronological. Exports list newest first, so a same-second tie keeps the
+  // LATER row (the older fill) first — a buy and its sell stamped in the same
+  // second must not pair as a sell-to-open.
+  const newestFirst = trades.length > 1 && Date.parse(trades[0].entryTime) > Date.parse(trades[trades.length - 1].entryTime);
+  const sorted = trades
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => (Date.parse(a.t.entryTime) - Date.parse(b.t.entryTime)) || (newestFirst ? b.i - a.i : a.i - b.i))
+    .map((x) => x.t);
 
   for (const t of sorted) {
     // Expiry belongs in the identity. Without it, AAPL 200C Jan and AAPL 200C
@@ -477,16 +486,24 @@ function matchTrades(trades: ParsedTrade[]): ParsedTrade[] {
     else opens.delete(key);
   }
 
-  // Add unmatched opens
+  // Add unmatched opens. An OPTION whose expiry session is over has no closing
+  // fill because it expired: settle it at $0 (shared/journal-expiry.ts) instead
+  // of leaving it "open" forever and out of every number.
   opens.forEach((remaining) => {
     for (const t of remaining) {
       const { remaining: quantity, allocatedFees: _allocatedFees, ...rest } = t;
-      matched.push({
+      const open: ParsedTrade = {
         ...rest,
         quantity,
         fees: +Math.max(0, rest.fees - _allocatedFees).toFixed(4),
         status: 'open',
-      });
+      };
+      if (isExpiredUnclosed({ ...open, broker: open.broker }, nowMs)) {
+        const s = expiredSettlement(open);
+        matched.push({ ...open, status: 'closed', exitPrice: 0, exitTime: s.exitTime, realizedPnL: s.realizedPnL, notes: EXPIRED_ASSUMED_NOTE });
+      } else {
+        matched.push(open);
+      }
     }
   });
 
@@ -495,7 +512,7 @@ function matchTrades(trades: ParsedTrade[]): ParsedTrade[] {
 
 // ─── Main Export ─────────────────────────────────────────────
 
-export function parseBrokerCSV(rawCsv: string, brokerHint?: JournalBroker): ParseResult {
+export function parseBrokerCSV(rawCsv: string, brokerHint?: JournalBroker, nowMs = Date.now()): ParseResult {
   const lines = parseCSVLines(rawCsv);
   if (lines.length < 2) {
     return { broker: brokerHint || 'csv', trades: [], errors: ['CSV has no data rows'], totalRows: 0, parsedRows: 0 };
@@ -533,7 +550,7 @@ export function parseBrokerCSV(rawCsv: string, brokerHint?: JournalBroker): Pars
   }
 
   // Try to match buy/sell pairs into complete trades
-  const matched = matchTrades(raw);
+  const matched = matchTrades(raw, nowMs);
 
   logger.info(`[CSV-PARSER] Parsed ${matched.length} trades from ${lines.length - 1} rows (broker=${broker}, errors=${errors.length})`);
 

@@ -32275,32 +32275,39 @@ Use this checklist before entering any trade:
       const userId = owner.ownerId;
       const batchId = `import_${Date.now()}`;
       const existing = await storage.getJournalTrades(userId);
-      const fingerprint = (t: any) => [
-        t.broker,
-        t.brokerOrderId || '',
-        t.symbol,
-        t.assetType,
-        t.optionType || '',
-        t.strikePrice ?? '',
-        t.expiryDate || '',
-        t.direction,
-        Number(t.quantity || 0).toFixed(6),
-        Number(t.entryPrice || 0).toFixed(6),
-        Number(t.exitPrice || 0).toFixed(6),
-        t.entryTime,
-        t.exitTime || '',
-      ].join('|');
-      const known = new Set(existing.map(fingerprint));
+      // Duplicate / close-the-open-lot / insert — server/journal-import-plan.ts.
+      const { planJournalImport } = await import('./journal-import-plan');
+      const plan = planJournalImport(existing as any[], result.trades);
       let saved = 0;
       let duplicates = 0;
+      let closedExisting = 0;
       // Reconciliation detail for the Import page: which round trips were skipped as duplicates.
       const duplicateRows: { symbol: string; direction: string; entryTime: string; exitTime: string | null; quantity: number }[] = [];
-      for (const t of result.trades) {
+      for (const [i, t] of result.trades.entries()) {
         try {
-          const key = fingerprint(t);
-          if (known.has(key)) {
+          const action = plan[i];
+          if (action.kind === 'duplicate') {
             duplicates++;
             if (duplicateRows.length < 200) duplicateRows.push({ symbol: t.symbol, direction: t.direction, entryTime: t.entryTime, exitTime: t.exitTime || null, quantity: Number(t.quantity) || 0 });
+            continue;
+          }
+          if (action.kind === 'close') {
+            // The journal holds this lot still open; the new export closed it (or it expired).
+            await storage.updateJournalTrade(action.existing.id, {
+              exitPrice: t.exitPrice ?? null,
+              exitTime: t.exitTime || null,
+              fees: t.fees,
+              holdingMinutes: t.exitTime ? Math.round((new Date(t.exitTime).getTime() - new Date(t.entryTime).getTime()) / 60000) : null,
+              realizedPnL: t.realizedPnL ?? null,
+              realizedPnLPercent: t.realizedPnL != null && t.entryPrice > 0
+                ? +((t.realizedPnL / (t.entryPrice * t.quantity * (t.assetType === 'option' ? 100 : 1))) * 100).toFixed(2)
+                : null,
+              grossPnL: t.realizedPnL != null ? +(t.realizedPnL + t.fees).toFixed(2) : null,
+              status: 'closed',
+              outcome: t.realizedPnL != null ? (t.realizedPnL > 0 ? 'win' : t.realizedPnL < 0 ? 'loss' : 'breakeven') : 'open',
+              notes: t.notes ? [(action.existing as any).notes, t.notes].filter(Boolean).join('\n') : (action.existing as any).notes ?? null,
+            } as any);
+            closedExisting++;
             continue;
           }
           await storage.createJournalTrade({
@@ -32332,9 +32339,9 @@ Use this checklist before entering any trade:
             broker: t.broker,
             brokerOrderId: t.brokerOrderId || null,
             importBatchId: batchId,
+            notes: t.notes ?? null,
             rawCsvRow: t.rawCsvRow,
           } as any);
-          known.add(key);
           saved++;
         } catch (err: any) {
           result.errors.push(`Save failed for ${t.symbol}: ${err.message}`);
@@ -32348,6 +32355,7 @@ Use this checklist before entering any trade:
         parsed: result.parsedRows,
         saved,
         duplicates,
+        closedExisting,
         duplicateRows,
         fillRows: result.fillRows ?? null,
         roundTrips: result.trades.length,

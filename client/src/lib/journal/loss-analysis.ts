@@ -73,7 +73,7 @@ export const LOSS_RULES = {
   STOCK_HORIZON_MS: 5 * 86_400_000,
 } as const;
 
-export type LossClass = 'unknown' | 'gave_back' | 'stop_tight' | 'late_entry' | 'theta' | 'target_far' | 'wrong_direction' | 'normal';
+export type LossClass = 'unknown' | 'unresolved' | 'gave_back' | 'stop_tight' | 'late_entry' | 'theta' | 'target_far' | 'wrong_direction' | 'normal';
 
 /** Primary-class order = the precedence the classifier applies. */
 export const LOSS_CLASSES: readonly { id: LossClass; label: string; rule: string; lesson: string }[] = [
@@ -81,6 +81,11 @@ export const LOSS_CLASSES: readonly { id: LossClass; label: string; rule: string
     id: 'unknown', label: 'Unknown (no bars)',
     rule: 'The price feed had no bars covering the trade (symbol not served, or older than the feed reaches). Not classified — never guessed.',
     lesson: 'Nothing to learn until the bars exist.',
+  },
+  {
+    id: 'unresolved', label: 'Too short for the bars',
+    rule: 'Held for less than one price bar (1 hour on hourly bars, one session on daily bars). That bar\'s high and low may have printed before the entry or after the exit, so the excursion inside the trade cannot be measured. Not classified — never guessed.',
+    lesson: 'Scalps need minute bars to diagnose — judge them in aggregate on Insights (time of day, DTE, premium size).',
   },
   {
     id: 'gave_back', label: 'Gave back a winner',
@@ -227,7 +232,8 @@ export function tradeContext(row: LossRow): TradeContext {
   const entryDay = Number.isFinite(entryMs) ? Date.parse(new Date(entryMs).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })) : NaN;
   const dte = expiryMs != null && Number.isFinite(entryDay) ? Math.round((Date.parse(row.expiryDate!.slice(0, 10)) - entryDay) / 86_400_000) : null;
   const p = Number.isFinite(entryMs) ? etParts(entryMs) : { weekday: '—', hour: 0, minute: 0 };
-  const holdMs = row.holdingMinutes != null ? row.holdingMinutes * 60_000 : exitMs != null ? Math.max(0, exitMs - entryMs) : null;
+  // Exact stamps first (holdingMinutes is rounded to whole minutes at import).
+  const holdMs = exitMs != null && Number.isFinite(exitMs) && Number.isFinite(entryMs) ? Math.max(0, exitMs - entryMs) : row.holdingMinutes != null ? row.holdingMinutes * 60_000 : null;
   const closed = row.status !== 'open' && row.realizedPnL != null && Number.isFinite(Number(row.realizedPnL));
   return {
     id: row.id,
@@ -315,6 +321,8 @@ export interface TradeAnalysis {
   atr: number | null;
   cls: LossClass | null;
   flags: LossFlag[];
+  /** Held shorter than one bar of the series — the path inside the trade is not measurable. */
+  unresolved?: boolean;
 }
 
 const dirSign = (thesis: 'long' | 'short') => (thesis === 'long' ? 1 : -1);
@@ -356,6 +364,8 @@ export function analyseTrade(row: LossRow, bars: SymbolBars | undefined, nowMs =
     if (ends[i] > ctx.entryMs && series.bars[i].time <= ctx.exitMs) idx.push(i);
   }
   if (!idx.length || series.bars[idx[0]].time > ctx.entryMs + 3.5 * 86_400_000) return finish({ ...empty, barKind: series.kind });
+  // A hold shorter than one bar cannot be resolved: the bar's extremes may lie outside the trade.
+  if (ctx.holdMs != null && ctx.holdMs < (series.kind === 'h1' ? 3_600_000 : DAY_SESSION_MS)) return finish({ ...empty, barKind: series.kind, unresolved: true });
   const B = series.bars;
   const s = dirSign(ctx.thesis);
   const first = B[idx[0]];
@@ -440,6 +450,7 @@ function finish(a: TradeAnalysis): TradeAnalysis {
 
   const isLoss = ctx.pnl != null && ctx.pnl < 0;
   if (!isLoss) return { ...a, flags, cls: null };
+  if (a.unresolved) return { ...a, flags, cls: 'unresolved' };
   if (a.barKind == null || a.barsInTrade === 0 || a.mfePct == null) return { ...a, flags, cls: 'unknown' };
 
   const fired = new Set<LossClass>();

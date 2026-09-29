@@ -189,17 +189,28 @@ export interface JournalAnalytics {
 
 // ─── Analytics Computation ──────────────────────────────────
 
+// New York clock, never the server's (the droplet runs UTC, which put a 10:00 ET
+// entry in the "14:00" bucket and a Monday-evening entry on Tuesday).
+const NY_PARTS = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'long', hour: '2-digit', hourCycle: 'h23' });
+function nyPart(ts: string, type: 'weekday' | 'hour'): string | null {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  return NY_PARTS.formatToParts(d).find((p) => p.type === type)?.value ?? null;
+}
+
 function getHour(ts: string): number {
-  try {
-    return new Date(ts).getHours();
-  } catch { return 12; }
+  const h = Number(nyPart(ts, 'hour'));
+  return Number.isFinite(h) ? h % 24 : 12;
 }
 
 function getDayOfWeek(ts: string): string {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  try {
-    return days[new Date(ts).getDay()];
-  } catch { return 'Unknown'; }
+  return nyPart(ts, 'weekday') ?? 'Unknown';
+}
+
+/** New York trading day (YYYY-MM-DD) of a timestamp. */
+function nyDay(ts: string): string {
+  const d = new Date(ts);
+  return Number.isNaN(d.getTime()) ? ts.split('T')[0] : d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
 function getSession(ts: string): string {
@@ -485,7 +496,7 @@ function computeTradeCountOptimum(trades: TradeRecord[]): TradeCountBucket[] {
   const dayGroups = new Map<string, TradeRecord[]>();
 
   for (const t of closed) {
-    const day = t.timestamp.split('T')[0];
+    const day = nyDay(t.timestamp);
     const arr = dayGroups.get(day) || [];
     arr.push(t);
     dayGroups.set(day, arr);
@@ -840,7 +851,7 @@ function detectBehaviors(trades: TradeRecord[], metrics: PerformanceMetrics): Be
   // ── Overtrading detection ──
   const dayGroups = new Map<string, TradeRecord[]>();
   for (const t of closed) {
-    const day = t.timestamp.split('T')[0];
+    const day = nyDay(t.timestamp);
     const arr = dayGroups.get(day) || [];
     arr.push(t);
     dayGroups.set(day, arr);

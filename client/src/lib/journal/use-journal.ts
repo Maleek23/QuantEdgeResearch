@@ -15,6 +15,7 @@ import {
 import {
   JOURNAL_PARAM, parseJournalKey, type JournalKey, type JournalNoteKind, type JournalSourceListItem, type JournalSourceMeta,
 } from '@shared/journal-sources';
+import { settleExpiredRows } from '@shared/journal-expiry';
 import { apiRequest } from '@/lib/queryClient';
 import { computeMetrics, dailyStats, equityCurve, toTrade } from './metrics';
 import type { JournalAnalytics, JournalNoteRow, JournalTradeRow } from './types';
@@ -191,7 +192,10 @@ export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine'
     staleTime: 60_000,
   });
 
-  const allRows = tradesQ.data?.trades ?? [];
+  // Options that expired with no closing fill are settled at $0 (shared/journal-expiry.ts) —
+  // left "open" they fell out of every number. Rows carry expiredAssumed so the basis line names them.
+  const rawRows = tradesQ.data?.trades;
+  const allRows = useMemo(() => settleExpiredRows(rawRows ?? []), [rawRows]);
   const rows = useMemo(() => allRows.filter((r) => matchesJournalFilters(r, filters)), [allRows, filters]);
   const trades = useMemo(() => rows.map(toTrade), [rows]);
   const days = useMemo(() => dailyStats(trades), [trades]);
