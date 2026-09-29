@@ -338,7 +338,7 @@ export function GexStrikeMatrix({
           {scale === 'column' ? 'each column 0 → its own max' : `one max for all cells · ${fmtVal(model.rMax, metric)}`}
         </span>
         <RampLegend scale={scale} max={model.rMax} metric={metric} />
-        <span className="gx-sign"><b style={{ color: signInk(1) }}>+ blue provides</b> / <b style={{ color: signInk(-1) }}>− orange takes</b> liquidity · {unitOf(metric).replace('/', '$ per ')} · ①② = top-2 per expiry · blank = not listed</span>
+        <span className="gx-sign" title="Blue = + (dealers long gamma, hedging provides liquidity). Orange = − (dealers short gamma, hedging takes liquidity). ①② = the two largest |cells| of each expiry, never hidden. Blank = the chain never listed that strike × expiry."><b style={{ color: signInk(1) }}>+ provides</b> · <b style={{ color: signInk(-1) }}>− takes</b> · {unitOf(metric).replace('/', '$ per ')} · ①② top-2/expiry · blank = not listed</span>
         <label className="gx-toggle" title={`Cells smaller than ${dustPct}% of the largest cell in their scale are dust. Hidden, they print a faint dot (listed, but immaterial); hover still answers. The top-2 cells of every expiry are never hidden. Blank = the chain never listed that strike × expiry.`}>
           <input type="checkbox" checked={showDust} onChange={(e) => setShowDust(e.target.checked)} />
           show dust
