@@ -80,3 +80,36 @@ export function fmtAge(sec: number | null | undefined): string {
   if (sec < 172800) return `${(sec / 3600).toFixed(sec < 36000 ? 1 : 0)}h`;
   return `${Math.round(sec / 86400)}d`;
 }
+
+/**
+ * Perceptual cell tint for the strike × expiry grids.
+ *
+ * exposureBg's 8–48% ramp left most of a real book near-invisible: with one
+ * node holding the book max, a +$9K cell beside a +$2K cell read as the same
+ * dark smudge (operator screenshot, SPY $786–$802). This ramp starts at a
+ * visible 16% and runs to 72%, on √(|v|/max) — square-root is the standard
+ * perceptual compression for magnitude-as-lightness, so a node 4× larger reads
+ * 2× stronger rather than disappearing its neighbours. Sign stays the hue
+ * (+GEX blue, −GEX vermilion, +VEX mint); the value is always printed too.
+ */
+export function exposureCellBg(kind: ExposureKind, v: number, maxAbs: number): string {
+  if (!Number.isFinite(v) || v === 0 || !(maxAbs > 0)) return 'transparent';
+  const t = Math.min(1, Math.sqrt(Math.abs(v) / maxAbs));
+  const pct = Math.round(16 + 56 * t);
+  return `color-mix(in srgb, ${exposureVar(kind, v)} ${pct}%, transparent)`;
+}
+
+/** 0..1 magnitude on the same √ scale — drives in-cell bars and legend stops. */
+export function exposureStrength(v: number, maxAbs: number): number {
+  if (!Number.isFinite(v) || !(maxAbs > 0)) return 0;
+  return Math.min(1, Math.sqrt(Math.abs(v) / maxAbs));
+}
+
+/** Structural level colours — one law for every strike grid and ladder. */
+export const LEVEL_COLORS = {
+  callWall: CYAN_BRIGHT,              // largest call γ above spot — same hue as +GEX
+  putWall: RED,                       // largest put γ below spot — same hue as −GEX
+  magnet: 'var(--purple, #a78bfa)',   // max |γ| strike — distinct from both signs
+  zeroGamma: AMBER,                   // regime boundary — caution
+  spot: 'var(--text, #e8ecf3)',
+} as const;
