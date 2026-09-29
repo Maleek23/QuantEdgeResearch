@@ -102,21 +102,19 @@ const spec = (id: PageId, label: string, defaults: DefaultLayout[], primary: Too
   storagePrefix: `${id}:`, lsKey: `qe-dash-${id}-v1`, lsActive: `qe-dash-${id}-active`,
 });
 
-/* ── workspace catalogues: only what belongs next to GEX / FLOW work ── */
-/** Price charts that follow the focus ticker. */
-const CHART_TOOLS = ['stock-chart', 'chart-lab-chart', 'chart-levels'];
-/** Market context: regime, macro, rotation, index desk, tape, readouts. */
-const MARKET_CONTEXT = [
-  'nexus-context', 'market-pulse', 'market-session-brief', 'market-rotation', 'today-rotation', 'money-flow',
-  'today-index-desk', 'today-week-map', 'today-tape', 'chart-readouts', 'chart-es-risk',
-];
+/* ── workspace catalogues: only what belongs next to GEX / FLOW work ──
+   Operator 2026-09-29: "don't confuse people" — each workspace's Add tool
+   lists its own category, the price chart, and the other workspace's
+   COMPACT read. No generic market-context tiles (those live on Today/NEXUS). */
+/** Price chart that follows the focus ticker (+ its level readout on GEX). */
+const CHART_TOOLS = ['stock-chart'];
 /** Compact flow read for the GEX workspace (the full flow tools live on FLOW). */
 const FLOW_CONTEXT = ['flow-context'];
 /** Compact GEX read for the FLOW workspace (the full GEX tools live on GEX). */
 const GEX_CONTEXT = ['gex-levels', 'gex-regime'];
 
-export const GEX_CATALOG: ToolCatalog = { categories: ['GEX'], tools: [...CHART_TOOLS, ...MARKET_CONTEXT, ...FLOW_CONTEXT] };
-export const FLOW_CATALOG: ToolCatalog = { categories: ['Options', 'Dark Pool'], tools: [...CHART_TOOLS, ...MARKET_CONTEXT, ...GEX_CONTEXT] };
+export const GEX_CATALOG: ToolCatalog = { categories: ['GEX'], tools: [...CHART_TOOLS, 'chart-levels', ...FLOW_CONTEXT] };
+export const FLOW_CATALOG: ToolCatalog = { categories: ['Options', 'Dark Pool'], tools: [...CHART_TOOLS, ...GEX_CONTEXT] };
 
 /** Is this tool in the workspace's catalogue? (A non-workspace page offers nothing.) */
 export function inCatalog(p: PageSpec, tool: { id: string; category: ToolCategory }): boolean {
@@ -131,6 +129,8 @@ export const PAGES: Record<PageId, PageSpec> = {
     id: 'flow', label: 'FLOW', mode: 'workspace', catalog: FLOW_CATALOG, defaults: FLOW_DEFAULTS, primary: ['Options', 'Dark Pool', 'Market'],
     storagePrefix: 'flowdash:', lsKey: 'qe-flowdash-v1', lsActive: 'qe-flowdash-active',
     starters: ['options-flow', 'net-flow-strike', 'flow-strike-expiry'],
+    // Phone: the feed, then the tide, then top tickers, then the rest.
+    phone: { first: ['options-flow', 'market-tide', 'top-tickers'], tall: ['options-flow'] },
   },
   gex: {
     ...spec('gex', 'GEX', GEX_DEFAULTS, ['GEX', 'Market'], ['gex-dealer-map', 'gex-levels', 'stock-chart'], 'workspace'),
