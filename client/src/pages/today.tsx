@@ -17,7 +17,8 @@
  */
 import { lazy, Suspense } from 'react';
 import { Link } from 'wouter';
-import { QELoading } from '@/components/ui/qe-states';
+import { RouteFallback } from '@/components/ui/qe-loading';
+import { skeletonTiles } from '@/components/dashboard/pages';
 import '@/styles/nexus.css';
 import '@/styles/today.css';
 
@@ -34,7 +35,7 @@ export function AuditTrailLink({ ideaId, className }: { ideaId: string; classNam
 
 export default function TodayPage() {
   return (
-    <Suspense fallback={<QELoading rows={4} className="p-4" label="loading today…" />}>
+    <Suspense fallback={<RouteFallback tiles={skeletonTiles('today')} />}>
       <Dashboard page="today" chrome={70} />
     </Suspense>
   );

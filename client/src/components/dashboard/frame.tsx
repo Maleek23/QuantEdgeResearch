@@ -27,7 +27,7 @@ export interface ToolReport {
   tone?: 'ok' | 'warn';
 }
 
-const ReportCtx = createContext<(r: ToolReport) => void>(() => {});
+export const ReportCtx = createContext<(r: ToolReport) => void>(() => {});
 
 /** Tools call this with their freshness; re-reports on every change. */
 export function useToolReport(r: ToolReport) {
@@ -101,6 +101,18 @@ export function useToolSetting<T>(name: string, initial: T) {
   return useDashState<T>(`tool:${inst}:${name}`, initial);
 }
 
+/** The provenance line every tool carries: source and age of the newest datum. */
+export function provenanceOf(def: ToolDef, report: ToolReport, now: number) {
+  const age = def.staticContent
+    ? 'static · defined in code'
+    : def.ageInside
+    ? 'age shown per row'
+    : report.asOf !== undefined
+      ? (report.asOf ? ageLabel(report.asOf, now) : 'no data yet')
+      : 'loading…';
+  return { src: report.source ?? def.source, age };
+}
+
 export function ToolFrame({
   def, onRemove, dragHandle, resizeHandle, children, compact, symbol,
 }: {
@@ -115,14 +127,7 @@ export function ToolFrame({
 }) {
   const [report, setReport] = useState<ToolReport>({});
   const now = useNow();
-  const age = def.staticContent
-    ? 'static · defined in code'
-    : def.ageInside
-    ? 'age shown per row'
-    : report.asOf !== undefined
-      ? (report.asOf ? ageLabel(report.asOf, now) : 'no data yet')
-      : 'loading…';
-  const src = report.source ?? def.source;
+  const { src, age } = provenanceOf(def, report, now);
   return (
     <section className="fd-tool" aria-label={def.title} data-tool={def.id}>
       <header className="fd-tool-head">

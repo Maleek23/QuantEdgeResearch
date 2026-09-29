@@ -25,17 +25,18 @@ import {
 } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DndContext, PointerSensor, useDraggable, useSensor, useSensors, type DragEndEvent, type DragMoveEvent } from '@dnd-kit/core';
-import { Check, ChevronDown, Crosshair, Eraser, GripVertical, LayoutGrid, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Crosshair, Eraser, GripVertical, LayoutGrid, Maximize2, PanelRightClose, PanelRightOpen, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { QEError, QELoading } from '@/components/ui/qe-states';
+import { QEError } from '@/components/ui/qe-states';
+import { PageSkeleton, ToolSkeleton } from '@/components/ui/qe-loading';
 import '@/styles/nexus.css';
 import './dashboard.css';
-import { TOOLS, TOOL_BY_ID, categoriesFor } from './registry';
-import { COLS, ROW_H, GAP, autoArrange, clampTool, compact, readingOrder, slotFor, uid, type PlacedTool } from './layout';
-import { DashboardCtx, ToolFrame, ToolInstanceCtx, useFocusSymbol, useNow } from './frame';
+import { TOOLS, TOOL_BY_ID, categoriesFor, type ToolDef } from './registry';
+import { COLS, ROW_H, GAP, autoArrange, clampTool, compact, fitRowHeight, readingOrder, slotFor, uid, type PlacedTool } from './layout';
+import { DashboardCtx, ReportCtx, ToolFrame, ToolInstanceCtx, provenanceOf, useFocusSymbol, useNow, type ToolReport } from './frame';
 import { useDashboards } from './use-dashboards';
-import { PAGES, type PageId, type PageSpec } from './pages';
+import { PAGES, readViewMode, skeletonTiles, viewModeKey, type PageId, type PageSpec, type ViewMode } from './pages';
 
 /** A tool off-screen this long unmounts (its polling stops). */
 const PAUSE_AFTER_MS = 20_000;
@@ -84,15 +85,15 @@ function ToolBody({ tool }: { tool: PlacedTool }) {
       {live === 'live' ? (
         <ToolInstanceCtx.Provider value={tool.i}>
           <ToolBoundary title={def.title}>
-            <Suspense fallback={<QELoading rows={3} className="fd-pad" label={`loading ${def.title}…`} />}>
+            <Suspense fallback={<ToolSkeleton />}>
               <C />
             </Suspense>
           </ToolBoundary>
         </ToolInstanceCtx.Provider>
+      ) : live === 'idle' ? (
+        <ToolSkeleton label="loads when scrolled into view" />
       ) : (
-        <div className="fd-idle" role="status">
-          {live === 'idle' ? 'Loads when scrolled into view.' : 'Paused while off-screen — no polling. Resumes when visible.'}
-        </div>
+        <div className="fd-idle" role="status">Paused while off-screen — no polling. Resumes when visible.</div>
       )}
     </div>
   );
@@ -294,9 +295,118 @@ function SaveBadge({ api }: { api: ReturnType<typeof useDashboards> }) {
   return <span className={cn('fd-save', api.save === 'error' && 'warn')} role="status">{txt}</span>;
 }
 
+/* ── simple page: one primary tool, full bleed, optional right rail ── */
+
+/** This device's view of a simple page ('simple' | 'dashboard'), remembered. */
+function useViewMode(page: PageId): [ViewMode, (m: ViewMode) => void] {
+  const [mode, setModeState] = useState<ViewMode>(() => readViewMode(page));
+  useEffect(() => { setModeState(readViewMode(page)); }, [page]);
+  const setMode = useCallback((m: ViewMode) => {
+    setModeState(m);
+    try { localStorage.setItem(viewModeKey(page), m); } catch { /* private mode: session only */ }
+  }, [page]);
+  return [mode, setMode];
+}
+
+/** A tool body with no frame: provenance is reported up to the page bar. */
+function BareTool({ def, instance, onReport }: { def: ToolDef; instance: string; onReport: (r: ToolReport) => void }) {
+  const C = def.Component;
+  return (
+    <ReportCtx.Provider value={onReport}>
+      <ToolInstanceCtx.Provider value={instance}>
+        <ToolBoundary title={def.title}>
+          <Suspense fallback={<ToolSkeleton />}>
+            <C />
+          </Suspense>
+        </ToolBoundary>
+      </ToolInstanceCtx.Provider>
+    </ReportCtx.Provider>
+  );
+}
+
+function Provenance({ def, report, now }: { def: ToolDef; report: ToolReport; now: number }) {
+  const { src, age } = provenanceOf(def, report, now);
+  return (
+    <span className={cn('fd-prov', report.tone === 'warn' && 'warn')} title={`${def.title} — ${def.what}\nUnits: ${def.units}\nData source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
+      {def.title} · {src} · {age}{report.note ? ` · ${report.note}` : ''}
+    </span>
+  );
+}
+
+function SimpleView({ spec, onCustomize }: { spec: PageSpec; onCustomize: () => void }) {
+  const simple = spec.simple!;
+  const main = TOOL_BY_ID.get(simple.tool);
+  const rail = simple.rail ? TOOL_BY_ID.get(simple.rail.tool) : undefined;
+  const railKey = `qe-dash-${spec.id}-rail`;
+  const [railOpen, setRailOpenState] = useState(() => { try { return localStorage.getItem(railKey) !== 'closed'; } catch { return true; } });
+  const setRailOpen = (open: boolean) => { setRailOpenState(open); try { localStorage.setItem(railKey, open ? 'open' : 'closed'); } catch { /* ignore */ } };
+  const [mainReport, setMainReport] = useState<ToolReport>({});
+  const [railReport, setRailReport] = useState<ToolReport>({});
+  const now = useNow();
+  const ctx = useMemo(() => ({ page: spec.id, hasTool: (t: string) => t === simple.tool || t === simple.rail?.tool, addTool: () => onCustomize() }), [spec.id, simple, onCustomize]);
+  if (!main) return <QEError className="fd-m" title={`${spec.label}'s primary tool is not in the registry`} message={simple.tool} />;
+  return (
+    <DashboardCtx.Provider value={ctx}>
+      <div className={cn('flowdash dash-fit dash-simple', `dash-${spec.id}`)} data-page={spec.id} data-view="simple">
+        <div className="fd-bar">
+          <div className="fd-bar-title">
+            <span className="fd-eyebrow">{spec.label}</span>
+            {/* no focus box: the primary tool owns its own ticker control (the chart's toolbar) */}
+            <Provenance def={main} report={mainReport} now={now} />
+          </div>
+          <div className="fd-bar-actions">
+            {rail && (
+              <button type="button" className="fd-btn" onClick={() => setRailOpen(!railOpen)} aria-expanded={railOpen} aria-controls={`${spec.id}-rail`}
+                title={railOpen ? `Hide the ${simple.rail!.label.toLowerCase()} rail` : `Show the ${simple.rail!.label.toLowerCase()} rail`}>
+                {railOpen ? <PanelRightClose size={13} /> : <PanelRightOpen size={13} />} {simple.rail!.label}
+              </button>
+            )}
+            <button type="button" className="fd-btn" onClick={onCustomize} title={`Switch ${spec.label} to a customizable tool dashboard (add, move and resize tools). Remembered on this device.`}>
+              <LayoutGrid size={13} /> Customize
+            </button>
+          </div>
+        </div>
+        <div className={cn('fd-simple', rail && railOpen && 'with-rail')}>
+          <section className="fd-simple-main" aria-label={main.title} data-tool={main.id}>
+            <div className="fd-live">
+              <BareTool def={main} instance={`simple-${spec.id}-main`} onReport={setMainReport} />
+            </div>
+          </section>
+          {rail && railOpen && (
+            <aside id={`${spec.id}-rail`} className="fd-simple-rail" aria-label={rail.title} data-tool={rail.id}>
+              <header className="fd-simple-rail-head">
+                <span className="fd-simple-rail-title">{simple.rail!.label}</span>
+                <Provenance def={rail} report={railReport} now={now} />
+                <button type="button" className="fd-icon-btn" onClick={() => setRailOpen(false)} aria-label={`Hide ${simple.rail!.label}`} title="Hide rail"><PanelRightClose size={13} /></button>
+              </header>
+              <div className="fd-live">
+                <BareTool def={rail} instance={`simple-${spec.id}-rail`} onReport={setRailReport} />
+              </div>
+            </aside>
+          )}
+        </div>
+      </div>
+    </DashboardCtx.Provider>
+  );
+}
+
 /* ══════════════════════════════ main ══════════════════════════════ */
 
-export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome above+below (fit-to-viewport) */ chrome?: number }) {
+/**
+ * <Dashboard page="gex" /> — a page. A SIMPLE page (PageSpec.simple: CHART,
+ * LEAPS, POSITIONS) renders its one primary tool full bleed until the viewer
+ * chooses Customize; every other page is the tool grid.
+ */
+export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome above+below — fallback only; the shell's measured --qe-main-h wins */ chrome?: number }) {
+  const spec = PAGES[page];
+  const [mode, setMode] = useViewMode(page);
+  const customize = useCallback(() => setMode('dashboard'), [setMode]);
+  const simplify = useCallback(() => setMode('simple'), [setMode]);
+  if (spec.simple && mode === 'simple') return <SimpleView key={page} spec={spec} onCustomize={customize} />;
+  return <GridDashboard key={page} page={page} chrome={chrome} onSimple={spec.simple ? simplify : undefined} />;
+}
+
+function GridDashboard({ page, chrome, onSimple }: { page: PageId; chrome?: number; onSimple?: () => void }) {
   const spec = PAGES[page];
   const api = useDashboards(spec);
   const isMobile = useIsMobile();
@@ -313,8 +423,18 @@ export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome
     ro.observe(el); setGridW(el.clientWidth);
     return () => ro.disconnect();
   }, [isMobile, api.active?.id, tools.length > 0]);
+  // Rows scale with the viewport: VIEW_ROWS rows always fill the grid area,
+  // so a VIEW_ROWS-tall default tiles exactly at 1440×900, 1920×1080, 2513×1260…
+  const [viewH, setViewH] = useState(0);
+  useEffect(() => {
+    if (!scroller) return;
+    const ro = new ResizeObserver(() => setViewH(scroller.clientHeight));
+    ro.observe(scroller); setViewH(scroller.clientHeight);
+    return () => ro.disconnect();
+  }, [scroller]);
+  const rowH = isMobile ? ROW_H : fitRowHeight(viewH);
   const colW = (gridW - GAP * (COLS - 1)) / COLS;
-  const stepX = colW + GAP, stepY = ROW_H + GAP;
+  const stepX = colW + GAP, stepY = rowH + GAP;
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [ghost, setGhost] = useState<PlacedTool | null>(null);
@@ -382,7 +502,7 @@ export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome
   const rectOf = (t: PlacedTool) => {
     const w = resize?.i === t.i ? resize.w : t.w;
     const h = resize?.i === t.i ? resize.h : t.h;
-    return { left: t.x * stepX, top: t.y * stepY, width: w * colW + (w - 1) * GAP, height: h * ROW_H + (h - 1) * GAP };
+    return { left: t.x * stepX, top: t.y * stepY, width: w * colW + (w - 1) * GAP, height: h * rowH + (h - 1) * GAP };
   };
   const bottom = Math.max(
     tools.reduce((m, t) => Math.max(m, t.y + (resize?.i === t.i ? resize.h : t.h)), 0),
@@ -392,7 +512,7 @@ export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome
 
   return (
     <DashboardCtx.Provider value={ctx}>
-      <div className={cn('flowdash dash-fit', `dash-${page}`)} data-page={page} style={chrome != null ? ({ ['--dash-chrome' as string]: `${chrome}px` }) : undefined}>
+      <div className={cn('flowdash dash-fit', `dash-${page}`)} data-page={page} data-view="dashboard" style={chrome != null ? ({ ['--dash-chrome' as string]: `${chrome}px` }) : undefined}>
         <div className="fd-bar">
           <div className="fd-bar-title">
             <span className="fd-eyebrow">{spec.label}</span>
@@ -401,7 +521,9 @@ export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome
           </div>
           <div className="fd-bar-actions">
             <AddToolMenu spec={spec} onAdd={addTool} present={present} />
-            <button type="button" className="fd-btn" disabled={!tools.length || isMobile} onClick={() => api.updateActive((ts) => autoArrange(ts))} title="Pack tools into the fewest rows, reading order kept">
+            <button type="button" className="fd-btn" disabled={!tools.length || isMobile}
+              onClick={() => api.updateActive((ts) => autoArrange(ts, (t) => TOOL_BY_ID.get(t)?.minSize.h ?? 3, (t) => TOOL_BY_ID.get(t)?.minSize.w ?? 2))}
+              title="Pack tools row by row in reading order: no gaps, equal heights per row, sized to fill the screen when the tools' minimum heights allow">
               <LayoutGrid size={13} /> Auto-arrange
             </button>
             <button type="button" className="fd-btn" disabled={!spec.defaults.length || !!api.active?.pristine}
@@ -412,6 +534,11 @@ export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome
             <button type="button" className="fd-btn" disabled={!tools.length} onClick={() => { if (window.confirm(`Remove all ${tools.length} tools from "${api.active?.name}"?`)) api.updateActive(() => []); }}>
               <Eraser size={13} /> Clear
             </button>
+            {onSimple && (
+              <button type="button" className="fd-btn" onClick={onSimple} title={`Back to the simple ${spec.label} page: one full-bleed view, no tool grid. Your dashboards are kept.`}>
+                <Maximize2 size={13} /> Simple view
+              </button>
+            )}
             <SaveBadge api={api} />
           </div>
         </div>
@@ -419,7 +546,7 @@ export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome
         <ScrollRootCtx.Provider value={isMobile ? null : scroller}>
           <div className="fd-scroller" ref={setScroller}>
             {!api.dashboards ? (
-              <QELoading rows={4} className="fd-pad" label="loading your dashboards…" />
+              <PageSkeleton fill bar={false} tiles={skeletonTiles(page, 'dashboard')} label="loading your dashboards…" />
             ) : !tools.length ? (
               <div className="fd-empty">
                 <p>This dashboard has no tools.</p>
@@ -446,7 +573,7 @@ export function Dashboard({ page, chrome }: { page: PageId; /** px of app chrome
               </div>
             ) : (
               <DndContext sensors={sensors} onDragStart={(e) => setDragId(String(e.active.id))} onDragMove={onDragMove} onDragEnd={onDragEnd} onDragCancel={() => { setDragId(null); setGhost(null); }}>
-                <div className="fd-grid" ref={gridRef} style={{ height: Math.max(1, bottom) * stepY }}>
+                <div className="fd-grid" ref={gridRef} style={{ height: Math.max(1, bottom) * stepY - GAP }}>
                   {ghost && <div className="fd-ghost" style={rectOf(ghost)} aria-hidden />}
                   {tools.map((t) => (
                     <Tile key={t.i} tool={t} rect={rectOf(t)} symbol={symbolOf(t)}
