@@ -2970,3 +2970,38 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-lrow.marked .gx-lstrike b{color:var(--band);font-size:11.5px}
 .gx-lrow.spot .gx-lstrike b{text-decoration:underline;text-underline-offset:3px}
 .nexus-vars.light .gx-line.spot span{color:#fff}
+/* Fitted matrix (matrixGeometry in gex-strike-grid.tsx): fixed column widths
+   measured from the box — exactly 4–5 expiries per horizontal view, snapping
+   by expiry; strike + Σ columns pinned, strikes scroll vertically. */
+.gx-table.gx-fit{table-layout:fixed;min-width:0}
+/* the pinned headers sit above the scrolling expiry headers (the td rule after the z-7 rule had knocked sticky-r th back to 4) */
+.gx-table thead th.gx-sticky-l,.gx-table thead th.gx-sticky-r{z-index:7}
+.gx-table.gx-fit td{min-width:0}
+.gx-table.gx-fit td.gx-strike,.gx-table.gx-fit td.gx-sum{min-width:0;overflow:hidden;text-overflow:clip}
+.gx-table.gx-fit th.gx-exp{overflow:hidden;text-overflow:ellipsis;padding:4px 3px}
+.gx-scroll.gx-snap{scroll-snap-type:x mandatory}
+.gx-scroll.gx-snap th.gx-exp{scroll-snap-align:start}
+.gx-line.spot span{left:calc(var(--gx-strike-w,176px) + 14px);margin-left:calc(var(--gx-strike-w,176px) + 14px)}
+.gx-line.zg span{left:calc(var(--gx-strike-w,176px) + 124px);margin-left:calc(var(--gx-strike-w,176px) + 124px)}
+.gx-mid .gx-table td.gx-strike{padding:0 6px}
+.gx-mid .gx-sum-bar{width:26px;margin-right:5px}
+.gx-mid .gx-table td.gx-sum{padding:0 5px}
+.gx-mid .gx-sign,.gx-mid .gx-scale-now{display:none}
+/* phone-portrait: strike + lead role only, Σ value without the bar, a lean toolbar */
+.gx-narrow .gx-table td.gx-strike{padding:0 4px}
+.gx-narrow .gx-pct,.gx-narrow .gx-sum-bar{display:none}
+.gx-narrow .gx-chips{margin-left:3px}
+.gx-narrow .gx-chip{padding:0 3px;font-size:8px}
+.gx-narrow .gx-table td.gx-sum{padding:0 4px;font-size:var(--fs-9,9px)}
+.gx-narrow .gx-table th.gx-sticky-l{padding:4px}
+.gx-narrow .gx-cell{padding:0 3px}
+.gx-narrow .gx-cell.top{padding-left:10px}
+.gx-narrow .gx-toolbar{gap:4px 8px}
+.gx-narrow .gx-sign,.gx-narrow .gx-scale-now{display:none}
+.gx-narrow .gx-legend{display:none}
+.gx-narrow .gx-ramp{min-width:120px}
+.gx-narrow .gx-count{margin-left:0;flex-basis:100%}
+.gx-narrow .gx-line.spot span{left:calc(var(--gx-strike-w) + 4px);margin-left:calc(var(--gx-strike-w) + 4px)}
+.gx-narrow .gx-line.zg span{left:calc(var(--gx-strike-w) + 64px);margin-left:calc(var(--gx-strike-w) + 64px)}
+.gx-narrow .gx-scale-seg button{height:32px;padding:0 10px}
+.gx-narrow .gx-jump{padding:10px 12px}
