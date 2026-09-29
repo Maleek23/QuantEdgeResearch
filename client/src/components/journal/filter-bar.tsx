@@ -44,6 +44,13 @@ export function JournalFilterBar({ api, options, shown, total }: {
           <input type="date" className="jr-input" aria-label="To date" value={f.to ?? ''} onChange={(e) => setFilter('to', e.target.value || undefined)} />
         </>
       )}
+      {options.runs.length > 0 && (
+        // Bot book: which run(s) every number on the page covers. Default = all runs, combined.
+        <select className="jr-select" aria-label="Bot run" value={f.run ?? ''} onChange={(e) => setFilter('run', e.target.value || undefined)}>
+          <option value="">All {options.runs.length} runs · combined</option>
+          {options.runs.map((r) => <option key={r.id} value={r.id} title={r.displayName}>{r.label}</option>)}
+        </select>
+      )}
       <input
         className="jr-input"
         style={{ width: 150 }}

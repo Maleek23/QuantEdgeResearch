@@ -298,6 +298,18 @@ app.use((req, res, next) => {
       logger.error('[WEB] idea producer scheduling failed:', err);
     }
 
+    // ── Quant bot (paper) ─────────────────────────────────────────────────
+    // Same story again: runBotCycle was scheduled only in worker.ts/index.ts,
+    // so production never traded, managed or settled the bot's book. See
+    // server/quant-bot-schedule.ts for the book it trades and the safeguards.
+    try {
+      const { quantBotEnabledInWeb, scheduleQuantBotInWeb } = await import('./quant-bot-schedule');
+      if (quantBotEnabledInWeb()) await scheduleQuantBotInWeb(log);
+      else log('🤖 [WEB] Quant bot NOT scheduled here (QUANT_BOT_IN_WEB=false or WORKER_ENABLED=true)');
+    } catch (err) {
+      logger.error('[WEB] quant bot scheduling failed:', err);
+    }
+
     // Warm the conviction board immediately, then keep it warm.
     //
     // A cold build takes over two minutes, so without this the first person to

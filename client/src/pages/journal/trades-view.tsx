@@ -132,11 +132,16 @@ export default function TradesView() {
                     {t.row.notes && <span className="jr-mute" title="Has notes"> ✎</span>}
                     {t.row.screenshot && <span className="jr-mute" title="Has a screenshot"> ▣</span>}
                   </td>
-                  <td><SideChip direction={t.direction} /></td>
+                  <td><SideChip direction={t.direction} />{t.row.runLabel && <span className="jr-mute" title={t.row.runLabel}> {t.row.runLabel.split(' · ')[0]}</span>}</td>
                   <td className="num">{t.quantity}</td>
                   <td className="num">{fmtPrice(t.row.entryPrice)}</td>
                   <td className="num">{t.row.exitPrice != null ? fmtPrice(t.row.exitPrice) : '—'}</td>
-                  <td className="num">{t.status === 'open' ? <span className="jr-dim">—</span> : <Pnl value={t.netPnl} />}</td>
+                  <td className="num">{t.status === 'open'
+                    ? t.row.mark
+                      // Open bot rows: the last mark's unrealized P&L, stamped with its age — not realized, not 0.
+                      ? <span className="jr-dim" title={`unrealized at last mark $${t.row.mark.price} · ${new Date(t.row.mark.asOf).toLocaleString('en-US', { timeZone: 'America/New_York' })} ET`}><Pnl value={t.row.mark.unrealizedPnL} /> <small>mark {markAge(t.row.mark.asOf)}</small></span>
+                      : <span className="jr-dim">—</span>
+                    : <Pnl value={t.netPnl} />}</td>
                   <td><OutcomeChip status={t.status} /></td>
                   <td className="num jr-dim">{fmtDuration(t.durationMs)}</td>
                   <td>{t.row.setupType ? <span className="jr-tag">{t.row.setupType}</span> : <span className="jr-mute">—</span>}</td>
@@ -214,4 +219,10 @@ export default function TradesView() {
       </AlertDialog>
     </div>
   );
+}
+
+function markAge(iso: string): string {
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60_000);
+  if (!Number.isFinite(m)) return 'age unknown';
+  return m < 60 ? `${m}m old` : m < 1440 ? `${Math.round(m / 60)}h old` : `${Math.round(m / 1440)}d old`;
 }

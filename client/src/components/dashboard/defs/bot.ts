@@ -26,16 +26,16 @@ export const BOT_TOOLS: ToolDef[] = [
   },
   {
     id: 'bot-book', category: 'Bot', title: 'Paper book · open positions',
-    what: 'What the quant bot holds on paper: value, cash, P&L, each open position with brackets and where the mark sits between stop and target. ⤢ = chart + barriers; row → workup.',
+    what: 'What the quant bot holds on paper, in every run (each paper portfolio it traded): value = cash + open positions at their marks, each position with its mark age, brackets and where the mark sits between stop and target. ⤢ = chart + barriers; row → workup.',
     units: '$, % (option rows in contract premium)', source: 'paper execution ledger',
     backing: `${BACK} only="book" ← GET /api/quant-bot/status (60s)`,
     defaultSize: { w: 5, h: 8 }, minSize: { w: 4, h: 5 }, Component: lazyTool(bot, 'BotBookTool'),
   },
   {
-    id: 'bot-history', category: 'Bot', title: 'Paper trade history',
-    what: 'Every closed paper position, wins and losses uncurated, newest exit first, with exit reason and realized P&L.',
-    units: '$, % from entry', source: 'paper execution ledger',
-    backing: `${BACK} only="history" ← GET /api/quant-bot/status (closedPositions, newest 40)`,
+    id: 'bot-history', category: 'Bot', title: 'Bot track record · every run',
+    what: 'The bot\'s record per run and combined (n closed, W–L, win rate withheld under n=30, realized, open), with a run filter, then every closed paper position newest first. Same rows and metrics as the journal\'s Bot book.',
+    units: '$, % from entry', source: 'paper execution ledger (all bot portfolios)',
+    backing: `${BACK} only="history" ← GET /api/journal/trades?journal=bot (5m) · metrics.ts runRecords`,
     defaultSize: { w: 6, h: 9 }, minSize: { w: 4, h: 5 }, Component: lazyTool(bot, 'BotHistoryTool'),
   },
   {

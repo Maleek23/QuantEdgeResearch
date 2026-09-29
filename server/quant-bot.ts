@@ -15,8 +15,8 @@ import { storage } from './storage';
 import { convictionDisplayPercent } from '@shared/conviction-display';
 import {
   executeTradeIdea, checkStopsAndTargets, updatePositionPrices, closePosition,
-  calculatePortfolioValue, recordEquitySnapshot,
-  getOpenPositions, getClosedPositions,
+  recordEquitySnapshot,
+  getOpenPositions,
 } from './paper-trading-service';
 
 // The 10K book could not buy ONE contract of the board it measures: at 1-2%
@@ -94,11 +94,39 @@ function easternDateKey(date = new Date()): string {
   return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
-/** Read the dedicated portfolio without changing account state. */
+/**
+ * Read the dedicated portfolio without changing account state.
+ *
+ * Two bot portfolios carry the name "Quant Bot · 100K" (Run 2, Aug 26–Sep 9, and
+ * Run 3 from Sep 24). The bot trades the MOST RECENT one it owns — decided here
+ * explicitly rather than by whatever order the DB returned. Older runs stay in
+ * the DB, untouched, and every record surface reads them (see shared/bot-runs.ts).
+ */
 async function findBotPortfolio() {
   const all = await storage.getAllPaperPortfolios();
-  const existing = Array.isArray(all) ? all.find((p: any) => p.name === BOT_PORTFOLIO_NAME) : null;
-  return existing ?? null;
+  const { pickActiveBotPortfolio } = await import('@shared/bot-runs');
+  const mine = (Array.isArray(all) ? all : []).filter((p: any) => p.userId === BOT_USER);
+  return pickActiveBotPortfolio(mine as any[], BOT_PORTFOLIO_NAME);
+}
+
+/** Every paper portfolio the bot owns (all runs), oldest first. */
+async function botPortfolios(): Promise<any[]> {
+  const all = await storage.getAllPaperPortfolios();
+  return (Array.isArray(all) ? all : [])
+    .filter((p: any) => p.userId === BOT_USER)
+    .sort((a: any, b: any) => Date.parse(a.createdAt ?? 0) - Date.parse(b.createdAt ?? 0));
+}
+
+/** Re-price open, unexpired contracts in runs the bot no longer trades. */
+async function repriceRetiredRuns(activeId: string): Promise<void> {
+  const today = easternDateKey();
+  for (const p of await botPortfolios()) {
+    if (p.id === activeId) continue;
+    const open = await getOpenPositions(p.id);
+    // An expired contract has no chain to price — the reconciler settles it instead.
+    if (!open.some((x: any) => !x.expiryDate || String(x.expiryDate).slice(0, 10) >= today)) continue;
+    await updatePositionPrices(p.id);
+  }
 }
 
 /** The bot trades one dedicated portfolio; create it only when a cycle is explicitly run. */
@@ -144,7 +172,16 @@ export interface BotRunResult {
  * in the log and another way in Discord. A notification failure must never roll
  * back a real close, hence the swallow.
  */
+/**
+ * Discord side effects of a cycle (entry/exit alerts, new-signal announcements).
+ * On for the worker/dev entry points as before; the web-process schedule turns
+ * them OFF unless QUANT_BOT_DISCORD=1 — same rule as the web idea producers.
+ */
+let discordAlerts = true;
+export function setBotDiscordAlerts(on: boolean): void { discordAlerts = on; }
+
 async function announceExit(pos: any, exitPrice: number, reason: string): Promise<void> {
+  if (!discordAlerts) return;
   try {
     const { sendBotTradeExitToDiscord } = await import('./discord-service');
     const mult = pos.assetType === 'option' ? 100 : 1;
@@ -167,7 +204,47 @@ async function announceExit(pos: any, exitPrice: number, reason: string): Promis
   }
 }
 
-export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<BotRunResult> {
+/**
+ * One cycle, at most ONE at a time ANYWHERE. Before 2026-09-29 nothing stopped
+ * two processes cycling the same book: the prod web tier, a worker, a laptop dev
+ * server pointed at the prod DB (Run 3's entries and exits all came from one),
+ * or the unauthenticated POST /api/quant-bot/run. Two cycles racing can fill the
+ * same slot twice. A Postgres advisory lock (held for the cycle, on a dedicated
+ * pool client) makes the second caller skip; an in-process guard skips re-entry.
+ */
+const BOT_CYCLE_LOCK_KEY = 8_531_2027;
+let cycleInFlight: Promise<BotRunResult> | null = null;
+
+export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG, origin = 'manual'): Promise<BotRunResult> {
+  if (cycleInFlight) return cycleInFlight;
+  cycleInFlight = (async () => {
+    const { pool } = await import('./db');
+    const client = await pool.connect();
+    let locked = false;
+    try {
+      const r = await client.query('SELECT pg_try_advisory_lock($1) AS ok', [BOT_CYCLE_LOCK_KEY]);
+      locked = r.rows?.[0]?.ok === true;
+      if (!locked) {
+        const skipped: BotRunResult = { ranAt: new Date().toISOString(), portfolioId: '', opened: [], closed: [], skipped: 0, openCount: 0, gapWatch: [], error: 'another process is running a bot cycle — skipped' };
+        logger.info(`[QUANT-BOT] ${origin}: another process holds the bot-cycle lock — skipped`);
+        noteBotCycle(origin, skipped, skipped.error);
+        return skipped;
+      }
+      const res = await runBotCycleInner(cfg);
+      noteBotCycle(origin, res, res.error);
+      return res;
+    } catch (err) {
+      noteBotCycle(origin, null, (err as Error)?.message ?? String(err));
+      throw err;
+    } finally {
+      if (locked) await client.query('SELECT pg_advisory_unlock($1)', [BOT_CYCLE_LOCK_KEY]).catch(() => {});
+      client.release();
+    }
+  })().finally(() => { cycleInFlight = null; });
+  return cycleInFlight;
+}
+
+async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
   const ranAt = new Date().toISOString();
   const opened: BotRunResult['opened'] = [];
   const closed: BotRunResult['closed'] = [];
@@ -196,6 +273,10 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
   } catch (err) {
     logger.warn('[QUANT-BOT] re-price failed:', err);
   }
+  // Retired runs still hold live contracts (e.g. Run 2's DKS/JNJ Oct 16 calls).
+  // They are not managed any more, but their marks must not freeze at the day
+  // the run stopped — the record shows them with a mark and its age.
+  try { await repriceRetiredRuns(portfolio.id); } catch (err) { logger.warn('[QUANT-BOT] retired-run re-price failed:', err); }
 
   // 2 — settle expiries. An option is not a share: at expiry it either has intrinsic
   //     value or it is worth nothing, and either way it leaves the book.
@@ -222,28 +303,32 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
         continue;
       }
 
-      // Intrinsic value at expiry — everything else (time value) is gone.
-      const spot = Number(pos.underlyingPrice ?? pos.currentUnderlyingPrice ?? 0);
-      const strike = Number(pos.strikePrice ?? 0);
-      let settle = 0;
-      if (spot > 0 && strike > 0) {
-        settle = pos.optionType === 'call'
-          ? Math.max(0, spot - strike)
-          : Math.max(0, strike - spot);
-      }
-      const settlePx = Number(settle.toFixed(2));
-      await closePosition(pos.id, settlePx, settle > 0 ? 'expired_itm' : 'expired_worthless');
-      await announceExit(pos, settlePx, settle > 0 ? `expired ITM at $${settlePx.toFixed(2)}` : 'expired worthless');
-      closed.push({ symbol: pos.symbol, reason: settle > 0 ? `expired ITM at $${settle.toFixed(2)}` : 'expired worthless' });
+      // After the close: left to the reconciler below (intrinsic at the
+      // underlying's expiry-day close, every run, exit reason 'expired').
     }
   } catch (err) {
     logger.warn('[QUANT-BOT] expiry settlement failed:', err);
   }
 
+  // 2b — settle every contract past expiry, in EVERY run the bot owns (retired
+  //      runs included — their opens were never settled). The old inline
+  //      settlement read pos.underlyingPrice, a column that does not exist, so it
+  //      would have booked every expiry as worthless. See server/bot-reconcile.ts.
+  try {
+    const { reconcileExpiredBotPositions } = await import('./bot-reconcile');
+    const rec = await reconcileExpiredBotPositions({ apply: true });
+    for (const st of rec.settlements) {
+      closed.push({ symbol: st.symbol, reason: `expired — intrinsic $${st.exitPrice.toFixed(2)} at ${st.symbol} close $${st.underlyingClose}` });
+    }
+    for (const sk of rec.skipped) logger.warn(`[QUANT-BOT] expiry not settled: ${sk.contract} — ${sk.reason}`);
+  } catch (err) {
+    logger.warn('[QUANT-BOT] expiry reconciliation failed:', err);
+  }
+
   // Announce anything the board has newly published. Piggy-backs on the bot cycle
   // because it already holds a fresh conviction set; a separate cron would rebuild
   // the same expensive thing on its own schedule and drift out of step with it.
-  try {
+  if (discordAlerts) try {
     const { alertNewSignals } = await import('./signal-alerts');
     // peekConvictions() is a CACHE-ONLY read that returns null on a cold cache and
     // never computes. Using it here meant alerts fired only if a human had loaded
@@ -729,7 +814,7 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
           // and nothing ever called it from here, so the bot has been trading
           // silently — you only found out what it did by opening the page.
           // Never let a notification failure roll back a real fill.
-          try {
+          if (discordAlerts) try {
             const { sendBotTradeEntryToDiscord } = await import('./discord-service');
             await sendBotTradeEntryToDiscord({
               symbol: pick.symbol,
@@ -765,6 +850,11 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
 
   // 3 — snapshot the curve so performance is measurable over time
   try { await recordEquitySnapshot(portfolio.id); } catch { /* non-fatal */ }
+  // total_value = cash + open positions at their marks, for every run, every cycle.
+  try {
+    const { syncBotPortfolioValue } = await import('./bot-reconcile');
+    for (const p of await botPortfolios()) await syncBotPortfolioValue(p.id);
+  } catch (err) { logger.warn('[QUANT-BOT] value sync failed:', err); }
 
   const openCount = (await getOpenPositions(portfolio.id)).length;
   logger.info(`[QUANT-BOT] cycle: +${opened.length} opened, -${closed.length} closed, ${openCount} open`);
@@ -794,57 +884,156 @@ export async function runBotCycle(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<
   return { ranAt, portfolioId: portfolio.id, opened, closed, skipped, openCount, gapWatch };
 }
 
+export interface BotOpenPositionView {
+  [k: string]: any;
+  runId: string;
+  runLabel: string;
+  /** Minutes since the mark was taken; null when the row was never marked. */
+  markAgeMin: number | null;
+  /** True when no mark exists — P&L must render as unknown, never as $0. */
+  unmarked: boolean;
+}
+
+export interface BotRunStatus {
+  id: string; name: string; displayName: string; runNo: number; label: string; short: string;
+  start: string | null; end: string | null; active: boolean;
+  startingCapital: number;
+  cashBalance: number;
+  /** Open positions at their marks (cost for a never-marked row, counted in `unmarked`). */
+  positionsValue: number;
+  /** cash + positionsValue — computed at read, never the stored column. */
+  totalValue: number;
+  /** What paper_portfolios.total_value says, for audit (it used to drift). */
+  storedTotalValue: number;
+  realizedPnL: number;
+  unrealizedPnL: number | null;
+  closed: number;
+  open: number;
+  unmarked: number;
+  oldestMarkAt: string | null;
+}
+
 export interface BotStatus {
+  /** The run the bot trades now. */
   portfolioId: string;
   name: string;
+  label: string;
   startingCapital: number;
   cashBalance: number;
   totalValue: number;
   totalPnL: number;
   totalPnLPercent: number;
-  /** All closed exits, before the UI limits the rendered history to 25 rows. */
+  /** Closed exits in the ACTIVE run. */
   closedCount: number;
-  openPositions: any[];
+  /** Open positions in EVERY run, each labelled with its run and mark age. */
+  openPositions: BotOpenPositionView[];
+  /** Newest 40 exits across every run, labelled. */
   closedPositions: any[];
+  runs: BotRunStatus[];
   config: BotConfig;
+  /** When marks were last refreshed by a read (re-pricing is throttled to 1/min). */
+  repricedAt: string | null;
+  lastCycle: BotCycleStamp | null;
+}
+
+export interface BotCycleStamp { at: string; origin: string; opened: number; closed: number; openCount: number; error?: string }
+let lastCycle: BotCycleStamp | null = null;
+export function noteBotCycle(origin: string, r: BotRunResult | null, error?: string): void {
+  lastCycle = { at: new Date().toISOString(), origin, opened: r?.opened.length ?? 0, closed: r?.closed.length ?? 0, openCount: r?.openCount ?? 0, error };
+}
+export function getLastBotCycle(): BotCycleStamp | null { return lastCycle; }
+
+// One re-price at a time, at most once a minute. The status endpoint used to
+// re-price the whole book on EVERY read (2–33 s each on prod) and three
+// components polled it independently — which is what tripped the rate limiter.
+let repricedAt = 0;
+let repricing: Promise<void> | null = null;
+async function repriceThrottled(activeId: string): Promise<void> {
+  if (repricing) return repricing;
+  if (Date.now() - repricedAt < 60_000) return;
+  repricing = (async () => {
+    try { await updatePositionPrices(activeId); } catch { /* stale marks keep their age */ }
+    try { await repriceRetiredRuns(activeId); } catch { /* same */ }
+    repricedAt = Date.now();
+  })().finally(() => { repricing = null; });
+  return repricing;
 }
 
 export async function getBotStatus(cfg: BotConfig = DEFAULT_BOT_CONFIG): Promise<BotStatus | null> {
-  // A GET must never create a portfolio or disguise a storage failure as an empty $10k book.
-  // The explicit "Re-price & manage" cycle remains the only place that may create one.
+  // A GET must never create a portfolio or disguise a storage failure as an empty book.
   const portfolio: any = await findBotPortfolio();
   if (!portfolio?.id) return null;
 
-  try { await updatePositionPrices(portfolio.id); } catch { /* stale marks are still usable */ }
+  await repriceThrottled(portfolio.id);
 
-  // These are the execution ledger. If any cannot be read, the caller must show an
-  // unavailable state rather than inventing an empty portfolio from fallback values.
-  const [open, closedAll, value] = await Promise.all([
-    getOpenPositions(portfolio.id),
-    getClosedPositions(portfolio.id),
-    calculatePortfolioValue(portfolio.id),
-  ]);
-
-  const startingCapital = portfolio.startingCapital ?? cfg.startingCapital;
-  const totalValue = value?.totalValue ?? portfolio.totalValue ?? startingCapital;
-
+  const { loadBotLedger } = await import('./bot-ledger');
+  const ledger = await loadBotLedger();
+  const now = Date.now();
+  const runStatus: BotRunStatus[] = [];
+  const openAll: BotOpenPositionView[] = [];
+  const closedAll: any[] = [];
+  for (const run of ledger.runs) {
+    const pf: any = ledger.portfolios.find((p) => p.id === run.id);
+    const rows = ledger.positions.filter((x) => x.portfolioId === run.id);
+    let positionsValue = 0; let unreal = 0; let unmarked = 0; let oldest: string | null = null; let realized = 0;
+    for (const x of rows) {
+      if (x.status === 'closed') {
+        realized += Number(x.realizedPnL ?? 0);
+        closedAll.push({ ...x, runId: run.id, runLabel: run.label });
+        continue;
+      }
+      const mult = x.assetType === 'option' ? 100 : 1;
+      const marked = x.currentPrice != null && Number.isFinite(Number(x.currentPrice)) && !!x.lastPriceUpdate;
+      positionsValue += Number(marked ? x.currentPrice : x.entryPrice) * Number(x.quantity) * mult;
+      if (marked) {
+        unreal += (Number(x.currentPrice) - Number(x.entryPrice)) * Number(x.quantity) * mult * (x.assetType === 'option' || x.direction === 'long' ? 1 : -1);
+        if (!oldest || String(x.lastPriceUpdate) < oldest) oldest = String(x.lastPriceUpdate);
+      } else unmarked++;
+      const age = marked ? (now - Date.parse(String(x.lastPriceUpdate))) / 60_000 : null;
+      openAll.push({
+        ...x,
+        runId: run.id,
+        runLabel: run.label,
+        markAgeMin: age != null && Number.isFinite(age) ? Math.max(0, Math.round(age)) : null,
+        unmarked: !marked,
+        // Never a zero standing in for "unknown".
+        unrealizedPnL: marked ? x.unrealizedPnL : null,
+        unrealizedPnLPercent: marked ? x.unrealizedPnLPercent : null,
+      });
+    }
+    const cash = Number(pf?.cashBalance ?? 0);
+    runStatus.push({
+      id: run.id, name: run.name, displayName: run.displayName, runNo: run.runNo, label: run.label, short: run.short,
+      start: run.start, end: run.end, active: run.active, startingCapital: run.startingCapital,
+      cashBalance: cash,
+      positionsValue: Math.round(positionsValue * 100) / 100,
+      totalValue: Math.round((cash + positionsValue) * 100) / 100,
+      storedTotalValue: Number(pf?.totalValue ?? 0),
+      realizedPnL: Math.round(realized * 100) / 100,
+      unrealizedPnL: run.open - unmarked > 0 ? Math.round(unreal * 100) / 100 : run.open ? null : 0,
+      closed: run.closed, open: run.open, unmarked, oldestMarkAt: oldest,
+    });
+  }
+  const active = runStatus.find((r) => r.id === portfolio.id)!;
+  const startingCapital = active?.startingCapital ?? cfg.startingCapital;
+  const totalValue = active?.totalValue ?? startingCapital;
   return {
     portfolioId: portfolio.id,
     name: portfolio.name,
+    label: active?.label ?? portfolio.name,
     startingCapital,
-    cashBalance: value?.cashBalance ?? portfolio.cashBalance ?? 0,
+    cashBalance: active?.cashBalance ?? 0,
     totalValue,
-    // PortfolioValue reports UNREALISED only, so total P&L is measured against the
-    // starting capital — that captures realised and unrealised together.
-    totalPnL: totalValue - startingCapital,
+    totalPnL: Math.round((totalValue - startingCapital) * 100) / 100,
     totalPnLPercent: startingCapital > 0 ? ((totalValue - startingCapital) / startingCapital) * 100 : 0,
-    closedCount: closedAll.length,
-    openPositions: open,
-    // Newest exits first — the tab renders this as the win/loss history, and
-    // an unsorted slice would show an arbitrary 25.
-    closedPositions: [...closedAll]
-      .sort((a: any, b: any) => Date.parse(b.exitTime ?? b.updatedAt ?? 0) - Date.parse(a.exitTime ?? a.updatedAt ?? 0))
+    closedCount: active?.closed ?? 0,
+    openPositions: openAll,
+    closedPositions: closedAll
+      .sort((a, b) => Date.parse(b.exitTime ?? 0) - Date.parse(a.exitTime ?? 0))
       .slice(0, 40),
+    runs: runStatus,
     config: cfg,
+    repricedAt: repricedAt ? new Date(repricedAt).toISOString() : null,
+    lastCycle,
   };
 }

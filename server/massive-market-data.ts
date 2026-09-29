@@ -95,6 +95,20 @@ export async function fetchDailyCloses(symbol: string, periods = 60): Promise<nu
     .slice(-periods);
 }
 
+/**
+ * The official (UNADJUSTED) close of one session, or null when that exact day
+ * has no bar (holiday, not yet published, provider off). Used to settle option
+ * expiries — a dividend-adjusted close would misstate intrinsic value.
+ */
+export async function fetchUnadjustedCloseOn(symbol: string, day: string): Promise<number | null> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  const data = await call(
+    `/v2/aggs/ticker/${encodeURIComponent(symbol.toUpperCase())}/range/1/day/${day}/${day}?adjusted=false&sort=asc&limit=5`,
+  );
+  const bar: AggBar | undefined = (data?.results ?? [])[0];
+  return bar && Number.isFinite(bar.c) && bar.c > 0 ? bar.c : null;
+}
+
 /** Daily OHLC, oldest first. */
 export async function fetchDailyOHLC(
   symbol: string,

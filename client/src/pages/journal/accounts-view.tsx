@@ -55,21 +55,27 @@ function BotAccounts() {
   const { portfolios, activePortfolio } = q.data;
   if (!portfolios.length) return <QEEmpty message={`The bot has no paper portfolio yet — "${activePortfolio}" is created the first time a bot cycle runs.`} />;
   return (
-    <Card num="01" title="Paper portfolios" meta={<N n={portfolios.length} unit="portfolios" />}>
+    <Card num="01" title="Paper portfolios · one per bot run" meta={<N n={portfolios.length} unit="runs" />}>
       <div className="jr-grid">
         {portfolios.map((p) => (
-          <section key={p.id} className="jr-span-6" aria-label={p.name}>
+          <section key={p.id} className="jr-span-6" aria-label={p.runLabel ?? p.name}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-              <b className="jr-sym">{p.name}</b>
+              <b className="jr-sym">{p.runLabel ?? p.name}</b>
               <span className={p.active ? 'jr-chip open' : 'jr-chip'}>{p.active ? 'TRADING' : 'RETIRED · KEPT FOR AUDIT'}</span>
+              <span className="jr-mute" title={p.id}>{p.displayName ?? p.name}</span>
             </div>
             <div className="jr-stats">
-              <div><span>Total value</span><b>{fmtMoney(p.totalValue, { signed: false })}</b><small>started {fmtMoney(p.startingCapital, { signed: false })}</small></div>
+              <div><span>Total value</span><b>{fmtMoney(p.totalValue, { signed: false })}</b><small>cash + {p.openCount ?? 0} open at marks · started {fmtMoney(p.startingCapital, { signed: false })}</small></div>
               <div><span>Cash</span><b>{fmtMoney(p.cashBalance, { signed: false })}</b><small>uninvested</small></div>
               <div><span>P&amp;L</span><b><Pnl value={p.totalValue - p.startingCapital} /></b><small>value − starting capital</small></div>
               <div><span>Risk / trade</span><b>{p.riskPerTrade != null ? `${(p.riskPerTrade * 100).toFixed(1)}%` : '—'}</b><small>max position {fmtMoney(p.maxPositionSize, { signed: false })}</small></div>
             </div>
-            <p className="jr-note">Stored balance, last written {ago(p.updatedAt)}{p.updatedAt ? ` (${new Date(p.updatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })})` : ''} — not a live mark; the Bot tab re-prices open positions.</p>
+            <p className="jr-note">
+              {(p.openCount ?? 0) > 0
+                ? <>Open positions valued at their last marks — oldest mark {ago(p.oldestMarkAt ?? null)}{p.newestMarkAt && p.newestMarkAt !== p.oldestMarkAt ? `, newest ${ago(p.newestMarkAt)}` : ''}{p.unmarked ? ` · ${p.unmarked} never marked (at cost)` : ''}. Not a live quote unless the age says so.</>
+                : <>No open positions — value is cash.</>}
+              {p.storedTotalValue != null && Math.abs(p.storedTotalValue - p.totalValue) >= 1 && <> Stored total_value {fmtMoney(p.storedTotalValue, { signed: false })} differs (written {ago(p.updatedAt)}); the figure above is recomputed now.</>}
+            </p>
           </section>
         ))}
       </div>

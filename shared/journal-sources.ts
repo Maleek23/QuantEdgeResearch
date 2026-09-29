@@ -62,6 +62,8 @@ export interface JournalSourceMeta {
   canWrite: boolean;
   /** ISO time the rows were read. */
   asOf: string;
+  /** Bot book: every run (paper portfolio) the rows come from, labelled. */
+  runs?: import('./bot-runs').BotRunInfo[];
 }
 
 /** Entry in the switcher list (GET /api/journal/sources). */

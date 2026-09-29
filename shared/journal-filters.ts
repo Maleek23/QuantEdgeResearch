@@ -24,6 +24,8 @@ export interface JournalFilters {
   asset?: string;
   outcome?: JournalOutcomeFilter;
   broker?: string;
+  /** Bot book: one run (paper portfolio id). Absent = every run, combined. */
+  run?: string;
 }
 
 /** URL parameter name for each filter — `j`-prefixed so they never collide with the shell's params. */
@@ -38,6 +40,7 @@ export const JOURNAL_FILTER_PARAMS = {
   asset: 'jasset',
   outcome: 'jout',
   broker: 'jbroker',
+  run: 'jrun',
 } as const satisfies Record<keyof JournalFilters, string>;
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -74,6 +77,8 @@ export function parseJournalFilters(get: (key: string) => string | null | undefi
   if (outcome && OUTCOMES.includes(outcome)) f.outcome = outcome;
   const broker = clean(get(JOURNAL_FILTER_PARAMS.broker));
   if (broker) f.broker = broker.toLowerCase();
+  const run = clean(get(JOURNAL_FILTER_PARAMS.run), 64);
+  if (run && /^[a-zA-Z0-9-]+$/.test(run)) f.run = run;
   return f;
 }
 
@@ -123,6 +128,7 @@ export interface JournalFilterableRow {
   mistakeTag?: string | null;
   emotion?: string | null;
   broker?: string | null;
+  runId?: string | null;
 }
 
 /** Closed-with-a-price → win/loss/breakeven by sign; anything else is open. */
@@ -148,6 +154,7 @@ export function matchesJournalFilters(row: JournalFilterableRow, f: JournalFilte
   if (f.side && row.direction !== f.side) return false;
   if (f.asset && !same(row.assetType, f.asset)) return false;
   if (f.broker && !same(row.broker, f.broker)) return false;
+  if (f.run && row.runId !== f.run) return false;
   if (f.outcome && journalRowOutcome(row) !== f.outcome) return false;
   return true;
 }

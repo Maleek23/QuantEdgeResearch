@@ -30,6 +30,8 @@ import { useColResize } from '@/lib/use-col-resize';
 import { openWorkup } from '@/lib/workup-bus';
 import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
 import { Heartbeat } from '@/components/viz';
+import { useBotLedger, useQuantBotStatus, type BotPositionView } from '@/lib/bot/use-bot-status';
+import { fmtMoney, runRecords, toTrade, type RunRecord } from '@/lib/journal/metrics';
 import '@/styles/nexus.css';
 
 /* ── payloads ── */
@@ -54,24 +56,8 @@ interface OutcomePayload {
   asOf?: string;
 }
 interface OutcomeSlice { name: string; decided: number; win: number; loss: number; unresolved: number; coverage: number; winRate: number | null; averageR: number | null; sampleSize: number }
-interface PaperPosition {
-  id: string; symbol: string; assetType?: string; optionType?: string | null;
-  strikePrice?: number | null; expiryDate?: string | null;
-  entryPrice: number; currentPrice?: number | null; quantity?: number;
-  targetPrice?: number | null; stopLoss?: number | null;
-  useTrailingStop?: boolean; trailingStopPercent?: number | null;
-  unrealizedPnL?: number | null; unrealizedPnLPercent?: number | null;
-  entryTime?: string;
-  exitPrice?: number | null; exitTime?: string | null; exitReason?: string | null;
-  realizedPnL?: number | null;
-}
-interface QuantBotStatus {
-  name?: string; startingCapital?: number; cashBalance?: number; totalValue?: number;
-  totalPnL?: number; totalPnLPercent?: number; closedCount?: number;
-  openPositions?: PaperPosition[];
-  closedPositions?: PaperPosition[];
-  config?: { minConviction?: number; maxOpen?: number; riskPerTradePct?: number };
-}
+/** One labelled, run-aware shape for the bot's positions (lib/bot/use-bot-status.ts). */
+type PaperPosition = BotPositionView;
 
 /**
  * Where the position sits between its barriers, as a fraction 0..1
@@ -148,14 +134,15 @@ export type BotSection =
   | 'stats' | 'jobs' | 'book' | 'history' | 'ledger' | 'rules' | 'log'
   | 'queue' | 'outcomes' | 'status';
 
-type BotFeed = 'conv' | 'flow' | 'leaps' | 'econ' | 'cats' | 'outcomes' | 'pulse' | 'realtime' | 'ledger' | 'book';
+type BotFeed = 'conv' | 'flow' | 'leaps' | 'econ' | 'cats' | 'outcomes' | 'pulse' | 'realtime' | 'ledger' | 'book' | 'record';
 const JOB_FEEDS: BotFeed[] = ['conv', 'flow', 'leaps', 'econ', 'cats', 'pulse', 'realtime'];
 /** Which feeds each section reads — a lone section only polls what it shows. */
 const SECTION_FEEDS: Record<BotSection, BotFeed[]> = {
   stats: [...JOB_FEEDS, 'outcomes'],
   jobs: JOB_FEEDS,
   book: ['book'],
-  history: ['book'],
+  // The record reads the journal's Bot-book rows (every run) through metrics.ts.
+  history: ['record'],
   ledger: ['ledger'],
   rules: [],
   log: ['conv', 'cats'],
@@ -183,8 +170,10 @@ export function useBotFeeds(only?: BotSection) {
   const pulse = useQuery<CryptoPulse>({ queryKey: ['/api/crypto/pulse', 'bot'], queryFn: fetchJson('/api/crypto/pulse'), refetchInterval: 300_000, staleTime: 120_000, retry: 1, enabled: on('pulse') });
   const realtime = useQuery<RealtimePayload>({ queryKey: ['/api/realtime-status', 'bot'], queryFn: fetchJson('/api/realtime-status'), refetchInterval: 30_000, staleTime: 20_000, retry: 1, enabled: on('realtime') });
   const ledger = useQuery<LedgerPayload>({ queryKey: ['/api/discipline/ledger', 'bot'], queryFn: fetchJson('/api/discipline/ledger'), refetchInterval: 600_000, staleTime: 300_000, retry: 1, enabled: on('ledger') });
-  const book = useQuery<QuantBotStatus>({ queryKey: ['/api/quant-bot/status', 'bot'], queryFn: fetchJson('/api/quant-bot/status'), refetchInterval: 60_000, staleTime: 30_000, retry: 1, enabled: on('book') });
-  return { conv, flow, leaps, econ, cats, outcomes, pulse, realtime, ledger, book };
+  // One shared status query for every surface (no per-component key/interval).
+  const book = useQuantBotStatus(on('book'));
+  const record = useBotLedger(on('record'));
+  return { conv, flow, leaps, econ, cats, outcomes, pulse, realtime, ledger, book, record };
 }
 export type BotFeeds = ReturnType<typeof useBotFeeds>;
 
@@ -210,6 +199,19 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
   const realtime = feeds.realtime.data;
   const ledger = feeds.ledger.data;
   const book = feeds.book.data;
+  const ledgerRows = feeds.record.data?.trades;
+  const botRuns = feeds.record.data?.journal?.runs ?? [];
+  const [runPick, setRunPick] = useState<string>('');
+  const record = useMemo(() => {
+    const trades = (ledgerRows ?? []).map(toTrade);
+    const all = runRecords(trades);
+    const inView = runPick ? trades.filter((t) => t.row.runId === runPick) : trades;
+    const closedInView = inView
+      .filter((t) => t.status !== 'open')
+      .sort((a, b) => Date.parse(b.closedAt ?? '') - Date.parse(a.closedAt ?? ''));
+    const sel: RunRecord = runPick ? all.runs.find((r) => r.runId === runPick) ?? all.combined : all.combined;
+    return { all, sel, closedInView };
+  }, [ledgerRows, runPick]);
 
   /* ── the real jobs, status from their own output freshness ── */
   const lastFlow = flow?.trades?.length ? flow.trades.reduce<string | undefined>((m, t) => (!m || (t.detectedAt && t.detectedAt > m) ? t.detectedAt : m), undefined) : undefined;
@@ -402,119 +404,173 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
       </div>
     </>
   );
+  const runsStatus = book?.runs ?? [];
+  const activeRun = runsStatus.find((r) => r.active);
+  const openByRun = runsStatus
+    .map((r) => ({ r, pos: (book?.openPositions ?? []).filter((p) => p.runId === r.id) }))
+    .filter((x) => x.pos.length || x.r.active);
   const bookEl = (
     <>
-      {/* PAPER BOOK — what the bot is actually holding */}
+      {/* PAPER BOOK — what the bot is actually holding, in every run */}
       <div className="book-section">
         <div className="book-head">
-          <div className="book-label">Paper book · what the bot holds</div>
+          <div className="book-label">Paper book · what the bot holds{activeRun ? ` · trading ${activeRun.label}` : ''}</div>
           <div className="book-meta">
-            <span>Value <b>{book?.totalValue != null ? `$` + book.totalValue.toLocaleString() : `—`}</b></span>
-            <span>Cash <b>{book?.cashBalance != null ? `$` + book.cashBalance.toLocaleString() : `—`}</b></span>
-            <span>P&L <b style={{ color: (book?.totalPnL ?? 0) >= 0 ? `var(--green)` : `var(--red)` }}>{(book?.totalPnL ?? 0) >= 0 ? `+` : ``}{`$` + String(book?.totalPnL ?? 0)} ({(book?.totalPnLPercent ?? 0).toFixed(2)}%)</b></span>
-            <span>{book?.closedCount ?? 0} closed · floor {book?.config?.minConviction ?? `—`} · max {book?.config?.maxOpen ?? `—`} · {book?.config?.riskPerTradePct ?? `—`}%/trade</span>
+            {activeRun ? (
+              <>
+                <span title="cash + open positions at their last marks, computed at read">Value <b>{fmtMoney(activeRun.totalValue, { signed: false })}</b></span>
+                <span>Cash <b>{fmtMoney(activeRun.cashBalance, { signed: false })}</b></span>
+                <span>P&L <b style={{ color: activeRun.totalValue - activeRun.startingCapital >= 0 ? `var(--green)` : `var(--red)` }}>{fmtMoney(activeRun.totalValue - activeRun.startingCapital)} ({(((activeRun.totalValue - activeRun.startingCapital) / activeRun.startingCapital) * 100).toFixed(2)}%)</b></span>
+              </>
+            ) : <span>—</span>}
+            <span>floor {book?.config?.minConviction ?? `—`} · max {book?.config?.maxOpen ?? `—`} · {book?.config?.riskPerTradePct ?? `—`}%/trade</span>
+            <span title={book?.lastCycle?.error ?? ''}>last cycle {book?.lastCycle ? `${fmtAge(ageMin(book.lastCycle.at))} (${book.lastCycle.origin})` : 'none in this process'}</span>
           </div>
         </div>
-        {(book?.openPositions ?? []).map((p) => {
-          const pnl = p.unrealizedPnLPercent ?? 0;
-          const up = pnl >= 0;
-          const contract = p.assetType === `option` && p.strikePrice != null
-            ? `$` + p.strikePrice + (p.optionType ?? `c`).charAt(0).toUpperCase() + ` ` + (p.expiryDate ? new Date(p.expiryDate).toLocaleDateString([], { month: `short`, day: `numeric` }) : ``) + ` · ` + (p.quantity ?? 1) + `x @ $` + p.entryPrice
-            : (p.quantity ?? 1) + `x @ $` + p.entryPrice;
-          const prog = barrierProgress(p);
-          const entryFrac = (() => {
-            const s = Number(p.stopLoss), t = Number(p.targetPrice);
-            if (!(Number.isFinite(s) && Number.isFinite(t)) || t === s) return null;
-            return Math.max(0, Math.min(1, (Number(p.entryPrice) - s) / (t - s)));
-          })();
-          return (
-            <div className="book-pos" key={p.id} style={{ [`--pos-accent` as string]: up ? `var(--green)` : `var(--red)`, flexWrap: 'wrap' }} onClick={() => openWorkup(p.symbol)} title="Open the ticker workup">
-              <div>
-                <div className="bp-sym">{p.symbol}</div>
-                <div className="bp-contract">{contract}</div>
-              </div>
-              <div className="bp-brackets">
-                {p.targetPrice != null && <span className="t">T ${p.targetPrice}</span>}
-                {p.stopLoss != null && <span className="s">S ${p.stopLoss}</span>}
-                {p.useTrailingStop && <span className="tr">trail {p.trailingStopPercent ?? `—`}%</span>}
-              </div>
-              <div className="bp-kv">now<b>{p.currentPrice != null ? `$` + p.currentPrice : `—`}</b></div>
-              <div className="bp-kv">held<b>{p.entryTime ? Math.max(0, Math.round((Date.now() - Date.parse(p.entryTime)) / 86_400_000)) + `d` : `—`}</b></div>
-              <div className={up ? `bp-pnl up` : `bp-pnl down`}>{up ? `+` : ``}{pnl.toFixed(1)}%</div>
-              <div className="bp-kv">P&L $<b style={{ color: up ? `var(--green)` : `var(--red)` }}>{(p.unrealizedPnL ?? 0) >= 0 ? `+` : ``}{p.unrealizedPnL ?? 0}</b></div>
-              <button
-                onClick={(ev) => { ev.stopPropagation(); setExpandPos(p); }}
-                title="Expand — chart + where price sits between the barriers"
-                style={{ padding: '3px 8px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700 }}
-              >⤢</button>
-              {prog != null && (
-                <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }} title={`stop $${p.stopLoss} ── entry $${p.entryPrice} ── target $${p.targetPrice} · mark $${p.currentPrice ?? '—'}${p.assetType === 'option' ? ' (contract premium)' : ''}`}>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--red)' }}>S</span>
-                  <div style={{ position: 'relative', flex: 1, height: 5, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,107,61,0.35), rgba(148,163,184,0.12) 40%, rgba(110,231,183,0.35))' }}>
-                    {entryFrac != null && <div style={{ position: 'absolute', left: `${entryFrac * 100}%`, top: -2, width: 1.5, height: 9, background: 'var(--text-dim)' }} title="entry" />}
-                    <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 4px)`, top: -1.5, width: 8, height: 8, borderRadius: '50%', background: up ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 6px ${up ? 'var(--green)' : 'var(--red)'}` }} title={`mark $${p.currentPrice ?? '—'}`} />
-                  </div>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--green)' }}>T</span>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', minWidth: 58, textAlign: 'right' }}>{(prog * 100).toFixed(0)}% to T</span>
-                </div>
-              )}
+        {openByRun.map(({ r, pos }) => (
+          <div key={r.id}>
+            <div className="book-meta" style={{ padding: '6px 12px 2px', opacity: 0.9 }} title={`portfolio "${r.displayName}" · ${r.id}`}>
+              <span><b>{r.label}</b>{r.active ? ' · trading' : ' · retired, not managed'}</span>
+              <span>value {fmtMoney(r.totalValue, { signed: false })} = cash {fmtMoney(r.cashBalance, { signed: false })} + {r.open} open at marks</span>
+              {r.oldestMarkAt && <span>oldest mark {fmtAge(ageMin(r.oldestMarkAt))}</span>}
+              {r.unmarked > 0 && <span style={{ color: 'var(--amber)' }}>{r.unmarked} never marked (at cost)</span>}
             </div>
-          );
-        })}
-        {(book?.openPositions ?? []).length === 0 && (
-          <div className="book-empty">Flat — the bot holds nothing. Entries require conviction ≥ {book?.config?.minConviction ?? `—`} and pass the same gates as the board.</div>
-        )}
+            {pos.map((p) => {
+              const marked = !p.unmarked && p.unrealizedPnLPercent != null;
+              const pnl = p.unrealizedPnLPercent ?? 0;
+              const up = pnl >= 0;
+              const stale = (p.markAgeMin ?? 0) > 24 * 60;
+              const contract = p.assetType === `option` && p.strikePrice != null
+                ? `$` + p.strikePrice + (p.optionType ?? `c`).charAt(0).toUpperCase() + ` ` + (p.expiryDate ? new Date(p.expiryDate + 'T12:00:00Z').toLocaleDateString([], { month: `short`, day: `numeric` }) : ``) + ` · ` + (p.quantity ?? 1) + `x @ $` + p.entryPrice
+                : (p.quantity ?? 1) + `x @ $` + p.entryPrice;
+              const prog = barrierProgress(p);
+              const entryFrac = (() => {
+                const s0 = Number(p.stopLoss), t = Number(p.targetPrice);
+                if (!(Number.isFinite(s0) && Number.isFinite(t)) || t === s0) return null;
+                return Math.max(0, Math.min(1, (Number(p.entryPrice) - s0) / (t - s0)));
+              })();
+              return (
+                <div className="book-pos" key={p.id} style={{ [`--pos-accent` as string]: !marked ? `var(--text-mute)` : up ? `var(--green)` : `var(--red)`, flexWrap: 'wrap' }} onClick={() => openWorkup(p.symbol)} title="Open the ticker workup">
+                  <div>
+                    <div className="bp-sym">{p.symbol}</div>
+                    <div className="bp-contract">{contract}</div>
+                  </div>
+                  <div className="bp-brackets">
+                    {p.targetPrice != null && <span className="t">T ${p.targetPrice}</span>}
+                    {p.stopLoss != null && <span className="s">S ${p.stopLoss}</span>}
+                    {p.useTrailingStop && <span className="tr">trail {p.trailingStopPercent ?? `—`}%</span>}
+                  </div>
+                  <div className="bp-kv" title={p.lastPriceUpdate ? `marked ${new Date(p.lastPriceUpdate).toLocaleString()}` : 'never marked'}>mark<b>{marked && p.currentPrice != null ? `$` + p.currentPrice : `—`}</b><small style={{ color: stale ? 'var(--amber)' : 'var(--text-mute)' }}>{p.markAgeMin != null ? fmtAge(p.markAgeMin) : 'no mark'}</small></div>
+                  <div className="bp-kv">held<b>{p.entryTime ? Math.max(0, Math.round((Date.now() - Date.parse(p.entryTime)) / 86_400_000)) + `d` : `—`}</b></div>
+                  <div className={!marked ? `bp-pnl` : up ? `bp-pnl up` : `bp-pnl down`}>{marked ? `${up ? `+` : ``}${pnl.toFixed(1)}%` : `—`}</div>
+                  <div className="bp-kv">unreal. $<b style={{ color: !marked ? 'var(--text-mute)' : up ? `var(--green)` : `var(--red)` }}>{marked && p.unrealizedPnL != null ? `${p.unrealizedPnL >= 0 ? `+` : ``}${Math.round(p.unrealizedPnL)}` : `—`}</b></div>
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); setExpandPos(p); }}
+                    title="Expand — chart + where price sits between the barriers"
+                    style={{ padding: '3px 8px', borderRadius: 3, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', color: 'var(--bot-bright)', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', fontWeight: 700 }}
+                  >⤢</button>
+                  {prog != null && marked && (
+                    <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }} title={`stop $${p.stopLoss} ── entry $${p.entryPrice} ── target $${p.targetPrice} · mark $${p.currentPrice ?? '—'}${p.assetType === 'option' ? ' (contract premium)' : ''}`}>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--red)' }}>S</span>
+                      <div style={{ position: 'relative', flex: 1, height: 5, borderRadius: 3, background: 'linear-gradient(90deg, rgba(255,107,61,0.35), rgba(148,163,184,0.12) 40%, rgba(110,231,183,0.35))' }}>
+                        {entryFrac != null && <div style={{ position: 'absolute', left: `${entryFrac * 100}%`, top: -2, width: 1.5, height: 9, background: 'var(--text-dim)' }} title="entry" />}
+                        <div style={{ position: 'absolute', left: `calc(${prog * 100}% - 4px)`, top: -1.5, width: 8, height: 8, borderRadius: '50%', background: up ? 'var(--green)' : 'var(--red)', boxShadow: `0 0 6px ${up ? 'var(--green)' : 'var(--red)'}` }} title={`mark $${p.currentPrice ?? '—'}`} />
+                      </div>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', color: 'var(--green)' }}>T</span>
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, color: 'var(--text-mute)', minWidth: 58, textAlign: 'right' }}>{(prog * 100).toFixed(0)}% to T</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {pos.length === 0 && r.active && (
+              <div className="book-empty">Flat — {r.label} holds nothing. Entries require conviction ≥ {book?.config?.minConviction ?? `—`} and pass the same gates as the board.</div>
+            )}
+          </div>
+        ))}
+        {!runsStatus.length && <div className="book-empty">No bot portfolio yet.</div>}
       </div>
     </>
   );
+  const recRow = (r: RunRecord, label: string, title?: string) => {
+    const reportable = r.closed >= MIN_N;
+    return (
+      <tr key={label} title={title}>
+        <td style={{ padding: '3px 8px 3px 0' }}>{label}</td>
+        <td style={{ textAlign: 'right', padding: '3px 8px' }}>{r.closed}</td>
+        <td style={{ textAlign: 'right', padding: '3px 8px' }}><b style={{ color: 'var(--green)' }}>{r.wins}W</b>–<b style={{ color: 'var(--red)' }}>{r.closed - r.wins}L</b></td>
+        <td style={{ textAlign: 'right', padding: '3px 8px' }} title={reportable ? '' : `withheld: n=${r.closed} < ${MIN_N}`}>{r.winRate == null ? '—' : reportable ? `${(r.winRate * 100).toFixed(0)}%` : <span style={{ color: 'var(--text-mute)' }}>n&lt;{MIN_N}</span>}</td>
+        <td style={{ textAlign: 'right', padding: '3px 8px', color: r.netPnl >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmtMoney(r.netPnl)}</td>
+        <td style={{ textAlign: 'right', padding: '3px 0 3px 8px', color: 'var(--text-mute)' }}>{r.open ? `${r.open} open${r.unrealized != null ? ` · ${fmtMoney(r.unrealized)} unreal.` : ''}` : '—'}</td>
+      </tr>
+    );
+  };
   const historyEl = (
     <>
-      {/* TRADE HISTORY — every closed position, wins and losses, no curation */}
+      {/* TRACK RECORD — every run, the journal's Bot-book rows through metrics.ts */}
       <div className="book-section">
         <div className="book-head">
-          <div className="book-label">Trade history · closed positions</div>
+          <div className="book-label">Track record · closed positions · every run</div>
           <div className="book-meta">
-            {(() => {
-              const closed = book?.closedPositions ?? [];
-              const wins = closed.filter((c) => (c.realizedPnL ?? 0) > 0).length;
-              const losses = closed.filter((c) => (c.realizedPnL ?? 0) < 0).length;
-              const realized = closed.reduce((s, c) => s + (c.realizedPnL ?? 0), 0);
-              return (
-                <>
-                  <span><b style={{ color: 'var(--green)' }}>{wins}W</b> · <b style={{ color: 'var(--red)' }}>{losses}L</b> shown of {book?.closedCount ?? 0} closed</span>
-                  <span>realized (shown) <b style={{ color: realized >= 0 ? 'var(--green)' : 'var(--red)' }}>{realized >= 0 ? '+' : ''}${Math.round(realized).toLocaleString()}</b></span>
-                  {(book?.closedCount ?? 0) < MIN_N && <span style={{ color: 'var(--text-mute)' }}>n&lt;{MIN_N} — rates not yet reportable</span>}
-                </>
-              );
-            })()}
+            <select value={runPick} onChange={(e) => setRunPick(e.target.value)} aria-label="Bot run"
+              style={{ background: 'transparent', color: 'inherit', border: '1px solid var(--nx-border)', borderRadius: 3, fontFamily: 'inherit', fontSize: 'inherit', padding: '1px 4px' }}>
+              <option value="">All {botRuns.length} runs · combined</option>
+              {botRuns.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+            </select>
+            <span>
+              n={record.sel.closed} closed · {runPick ? (botRuns.find((r) => r.id === runPick)?.short ?? 'run') : `all ${botRuns.length} runs`}
+            </span>
+            <span>realized <b style={{ color: record.sel.netPnl >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmtMoney(record.sel.netPnl)}</b></span>
           </div>
         </div>
-        {(book?.closedPositions ?? []).map((c) => {
-          const won = (c.realizedPnL ?? 0) > 0;
-          const flat = (c.realizedPnL ?? 0) === 0;
-          const pct = c.entryPrice > 0 && c.exitPrice != null ? ((c.exitPrice - c.entryPrice) / c.entryPrice) * 100 : null;
+        <div style={{ padding: '6px 12px 10px', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)' }}>
+            <thead>
+              <tr style={{ color: 'var(--text-mute)', textAlign: 'right' }}>
+                <th style={{ textAlign: 'left', fontWeight: 500 }}>Run</th><th style={{ fontWeight: 500 }}>n closed</th><th style={{ fontWeight: 500 }}>W–L</th><th style={{ fontWeight: 500 }}>Win rate</th><th style={{ fontWeight: 500 }}>Realized</th><th style={{ fontWeight: 500 }}>Open</th>
+              </tr>
+            </thead>
+            <tbody>
+              {record.all.runs.map((r) => {
+                const info = botRuns.find((x) => x.id === r.runId);
+                return recRow(r, `${r.key}${info?.active ? ' · trading' : ''}`, info ? `portfolio "${info.displayName}"` : undefined);
+              })}
+              {record.all.runs.length > 1 && recRow(record.all.combined, `Combined · all ${record.all.runs.length} runs`)}
+            </tbody>
+          </table>
+          <div style={{ marginTop: 5, color: 'var(--text-dim)', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 9px)' }}>
+            Same rows and metrics as the journal's Bot book. Win = realized P&L &gt; 0; win rate withheld under n={MIN_N}. Open P&L is unrealized at the last mark, never counted as realized.
+          </div>
+        </div>
+        {record.closedInView.slice(0, 40).map((t) => {
+          const c = t.row;
+          const pnl = t.netPnl;
+          const won = pnl > 0;
+          const flat = Math.abs(pnl) < 0.005;
+          const pct = c.realizedPnLPercent ?? null;
           const contract = c.assetType === 'option' && c.strikePrice != null
-            ? `$${c.strikePrice}${(c.optionType ?? 'c').charAt(0).toUpperCase()} ${c.expiryDate ? new Date(c.expiryDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''} · ${c.quantity ?? 1}x`
+            ? `$${c.strikePrice}${(c.optionType ?? 'c').charAt(0).toUpperCase()} ${c.expiryDate ? new Date(String(c.expiryDate).slice(0, 10) + 'T12:00:00Z').toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''} · ${c.quantity ?? 1}x`
             : `${c.quantity ?? 1}x`;
-          const reason = (c.exitReason ?? '').replace(/_/g, ' ') || '—';
+          const reason = (/Exit: (.*)/.exec(c.notes ?? '')?.[1] ?? '').replace(/_/g, ' ') || '—';
           return (
-            <div className="book-pos" key={c.id} style={{ ['--pos-accent' as string]: flat ? 'var(--text-mute)' : won ? 'var(--green)' : 'var(--red)' }} onClick={() => openWorkup(c.symbol)} title="Open the ticker workup">
+            <div className="book-pos" key={c.id} style={{ ['--pos-accent' as string]: flat ? 'var(--text-mute)' : won ? 'var(--green)' : 'var(--red)' }} onClick={() => openWorkup(c.symbol)} title={`${c.runLabel ?? ''} · open the ticker workup`}>
               <div>
                 <div className="bp-sym">{c.symbol}</div>
-                <div className="bp-contract">{contract}</div>
+                <div className="bp-contract">{contract}{c.runLabel ? ` · ${c.runLabel.split(' · ')[0]}` : ''}</div>
               </div>
               <div className="bp-kv">in<b>${c.entryPrice}</b></div>
               <div className="bp-kv">out<b>{c.exitPrice != null ? `$${c.exitPrice}` : '—'}</b></div>
               <div className="bp-kv" style={{ minWidth: 110 }} title={`exit reason: ${reason}`}>why<b style={{ textTransform: 'lowercase' }}>{reason.slice(0, 22)}</b></div>
               <div className={won ? 'bp-pnl up' : flat ? 'bp-pnl' : 'bp-pnl down'}>
-                {(c.realizedPnL ?? 0) >= 0 ? '+' : ''}${Math.round(c.realizedPnL ?? 0)}{pct != null ? ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%` : ''}
+                {pnl >= 0 ? '+' : ''}${Math.round(pnl)}{pct != null ? ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%` : ''}
               </div>
-              <div className="bp-kv">closed<b>{c.exitTime ? new Date(c.exitTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '—'}</b></div>
+              <div className="bp-kv">closed<b>{t.closedAt ? new Date(t.closedAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '—'}</b></div>
             </div>
           );
         })}
-        {(book?.closedPositions ?? []).length === 0 && (
-          <div className="book-empty">No closed trades yet on this book — history fills as barriers and expiries decide positions.</div>
+        {record.closedInView.length > 40 && <div className="book-empty">Newest 40 of {record.closedInView.length} shown — the journal's Bot book lists all.</div>}
+        {record.closedInView.length === 0 && (
+          <div className="book-empty">No closed trades {runPick ? 'in this run' : 'yet'} — history fills as barriers and expiries decide positions.</div>
         )}
       </div>
     </>
@@ -772,7 +828,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', marginBottom: 6 }}>
                       <span style={{ color: 'var(--red)' }}>stop ${expandPos.stopLoss ?? '—'}</span>
-                      <span style={{ color: 'var(--text-dim)' }}>entry ${expandPos.entryPrice} → mark ${expandPos.currentPrice ?? '—'}{expandPos.assetType === 'option' ? ' (premium)' : ''} · <b style={{ color: pnl >= 0 ? 'var(--green)' : 'var(--red)' }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}% · {(expandPos.unrealizedPnL ?? 0) >= 0 ? '+' : ''}${expandPos.unrealizedPnL ?? 0}</b></span>
+                      <span style={{ color: 'var(--text-dim)' }}>entry ${expandPos.entryPrice} → mark ${expandPos.currentPrice ?? '—'}{expandPos.assetType === 'option' ? ' (premium)' : ''} · {expandPos.unrealizedPnL == null ? <b>P&L unknown — no mark</b> : <b style={{ color: pnl >= 0 ? 'var(--green)' : 'var(--red)' }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}% · {expandPos.unrealizedPnL >= 0 ? '+' : ''}${Math.round(expandPos.unrealizedPnL)}</b>}{expandPos.markAgeMin != null ? ` · mark ${fmtAge(expandPos.markAgeMin)}` : ''}</span>
                       <span style={{ color: 'var(--green)' }}>target ${expandPos.targetPrice ?? '—'}</span>
                     </div>
                     {prog != null && (

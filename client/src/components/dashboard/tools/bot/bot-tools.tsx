@@ -53,9 +53,12 @@ function reportFor(only: BotSection, f: BotFeeds): ToolReport {
         : { asOf: iso(f.book.dataUpdatedAt), note: 'flat · read time', tone: f.book.isError ? 'warn' : 'ok' };
     }
     case 'history': {
-      const b = f.book.data;
-      if (!b) return { asOf: f.book.isError ? null : undefined, note: f.book.isError ? 'ledger unavailable' : undefined, tone: f.book.isError ? 'warn' : 'ok' };
-      return { asOf: newest(...(b.closedPositions ?? []).map((c) => c.exitTime)), note: `${b.closedCount ?? 0} closed · newest exit` };
+      const r = f.record.data;
+      if (!r) return { asOf: f.record.isError ? null : undefined, note: f.record.isError ? 'record unavailable' : undefined, tone: f.record.isError ? 'warn' : 'ok' };
+      const rows = r.trades ?? [];
+      const closed = rows.filter((x) => x.status === 'closed');
+      const runs = r.journal?.runs?.length ?? 0;
+      return { asOf: newest(...closed.map((c) => c.exitTime)), note: `${closed.length} closed · ${runs} run${runs === 1 ? '' : 's'} · newest exit`, tone: f.record.isError ? 'warn' : 'ok' };
     }
     case 'ledger': {
       if (!f.ledger.data) return { asOf: f.ledger.isError ? null : undefined, note: f.ledger.isError ? 'refresh failed' : undefined, tone: f.ledger.isError ? 'warn' : 'ok' };
@@ -89,7 +92,7 @@ function reportFor(only: BotSection, f: BotFeeds): ToolReport {
 /** The feed a section cannot render honestly without. */
 const PRIMARY: Partial<Record<BotSection, { feed: keyof BotFeeds; what: string }>> = {
   book: { feed: 'book', what: 'Paper book' },
-  history: { feed: 'book', what: 'Trade history' },
+  history: { feed: 'record', what: 'Track record' },
   ledger: { feed: 'ledger', what: 'Shadow ledger' },
   queue: { feed: 'econ', what: 'Macro calendar' },
   outcomes: { feed: 'outcomes', what: 'Outcome model' },

@@ -10,7 +10,15 @@ export type JournalWireRow = Pick<JournalTrade,
   'id' | 'symbol' | 'assetType' | 'direction' | 'optionType' | 'strikePrice' | 'expiryDate' | 'quantity' | 'entryPrice' |
   'exitPrice' | 'fees' | 'entryTime' | 'exitTime' | 'holdingMinutes' | 'realizedPnL' | 'realizedPnLPercent' | 'grossPnL' |
   'status' | 'outcome' | 'notes' | 'emotion' | 'setupType' | 'mistakeTag' | 'rating' | 'screenshot' | 'importBatchId'
-> & { broker: string; userId?: string };
+> & {
+  broker: string;
+  userId?: string;
+  /** Bot book only: the run (paper portfolio) the fill belongs to. */
+  runId?: string | null;
+  runLabel?: string | null;
+  /** Open bot rows: the last mark and when it was taken — never a 0 standing in for "unknown". */
+  mark?: { price: number; asOf: string; unrealizedPnL: number } | null;
+};
 
 export const r2 = (v: number) => Math.round(v * 100) / 100;
 export const minutesBetween = (a: string, b: string | null | undefined) => {
