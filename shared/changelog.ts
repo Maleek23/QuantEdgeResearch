@@ -37,6 +37,46 @@ export interface ChangeEntry {
 export const CHANGELOG: ChangeEntry[] = [
   // ─── Most recent first ───────────────────────────────────────
   {
+    id: '2026-09-29-v3-1-workspace',
+    date: '2026-09-29',
+    title: 'v3.1 Workspace — GEX & FLOW workspaces',
+    blurb: 'GEX and FLOW are movable tool workspaces; every other page is a plain page. Five visual modes in Settings › Display.',
+    link: '/t?tab=gex',
+    tag: 'design',
+  },
+  {
+    id: '2026-09-29-journals',
+    date: '2026-09-29',
+    title: 'Trade journals: Insights, Loss analysis, broker import',
+    blurb: 'Import your broker CSV; Insights ranks what to stop doing with $ and sample size. Expired options now count at $0.',
+    link: '/t?tab=journal&jtab=insights',
+    tag: 'feature',
+  },
+  {
+    id: '2026-09-29-discord-traders',
+    date: '2026-09-29',
+    title: 'Trader journals from Discord',
+    blurb: 'The trading-journals forum imports into each trader\'s Notebook and book, with a Trader ranking page.',
+    link: '/t?tab=journal&jtab=traders',
+    tag: 'workflow',
+  },
+  {
+    id: '2026-09-29-squeeze-radar',
+    date: '2026-09-29',
+    title: 'Squeeze radar (measuring)',
+    blurb: 'Scores gamma-squeeze conditions with GEX re-signed for customer call buying. Unvalidated — logging daily to measure it.',
+    link: '/t?tab=gex',
+    tag: 'data',
+  },
+  {
+    id: '2026-09-29-loss-rules',
+    date: '2026-09-29',
+    title: 'Bot loss rules',
+    blurb: 'Bot entries 09:30–11:30 ET, targets capped to the expected move with a time stop, swing contracts 30–60 DTE.',
+    link: '/t?tab=bot',
+    tag: 'fix',
+  },
+  {
     id: '2026-06-05-leap-tracker-fundamentals',
     date: '2026-06-05',
     title: 'LEAP Tracker — 52 names + live fundamentals (EPS · revenue · cash)',

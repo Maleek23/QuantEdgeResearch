@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { QEDrawer } from '@/components/ui/qe-drawer';
 import { QECard } from '@/components/ui/qe-card';
 import { QEPill } from '@/components/ui/qe-pill';
+import { RELEASE_LABEL } from '../../../shared/release';
 import { CHANGELOG, getUnreadEntries, getMostRecentId, type ChangeEntry, type ChangeTag } from '../../../shared/changelog';
 
 const STORAGE_KEY = 'qe_changelog_seen';
@@ -213,7 +214,7 @@ export function WhatsNewDrawer() {
       open={open}
       onClose={handleClose}
       title="What's New"
-      subtitle={`${CHANGELOG.length} updates · press ⌘? to reopen`}
+      subtitle={`${RELEASE_LABEL} · ${CHANGELOG.length} updates · press ⌘? to reopen`}
       size="md"
     >
       <div className="p-3 space-y-4">

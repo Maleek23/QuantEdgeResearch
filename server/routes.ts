@@ -40,6 +40,7 @@ import {
   passwordResetLimiter,
   trackingLimiter,
 } from "./rate-limiter";
+import { RELEASE_LABEL } from "@shared/release";
 // LAZY-LOADED: auto-idea-generator — imported via await import() in handlers
 import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
@@ -629,6 +630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const httpStatus = pgOk ? 200 : 503;
 
     res.status(httpStatus).json({
+      release: RELEASE_LABEL,
       status,
       timestamp: new Date().toISOString(),
       uptimeSec,
