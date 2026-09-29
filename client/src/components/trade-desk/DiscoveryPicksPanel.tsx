@@ -17,8 +17,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SignalCard } from '@/components/signal-card';
-import type { SignalData } from '@/components/signal-card';
+import type { SignalCardData } from '@/components/signal-card';
 import { queryClient } from '@/lib/queryClient';
+import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import {
   matchesAssetFilter,
   type PageAssetFilter,
@@ -59,6 +60,9 @@ export function useDiscoveryPicks(sourceFilter = 'quant_signal', maxItems = 10) 
           body: JSON.stringify({ minScore: 70, maxIdeas: maxItems })
         });
         const r2 = await fetch(`/api/trade-ideas?source=${sourceFilter}&limit=${maxItems}`);
+        // A failed retry must surface as an error, not parse an error body
+        // into `{ ideas: undefined }` and read as "no picks" (SR 11-7 T3).
+        if (!r2.ok) throw new Error(`trade-ideas ${r2.status}`);
         return r2.json();
       }
       return res.json();
@@ -89,15 +93,15 @@ export function DiscoveryPicksPanel({
 }: Props) {
   const [selectedSize, setSelectedSize] = useState(size);
 
-  const { data, isLoading } = useDiscoveryPicks(sourceFilter, maxItems);
+  const { data, isLoading, isError, isFetching, refetch } = useDiscoveryPicks(sourceFilter, maxItems);
 
-  // Page-level asset filter applies before the SignalData translation.
+  // Page-level asset filter applies before the card translation.
   const rawIdeas = (data?.ideas || []).filter((idea) =>
     matchesAssetFilter(idea, assetFilter, watchlistSymbols),
   );
 
-  // Transform raw ideas → SignalData
-  const signals: SignalData[] = rawIdeas.map(translateToSignal);
+  // Transform raw ideas → SignalCard shape (+ explicitly-unknown live fields)
+  const signals: DiscoveryPick[] = rawIdeas.map(translateToSignal);
 
   const sizeToggle = (
     <div className="flex gap-1">
@@ -125,32 +129,63 @@ export function DiscoveryPicksPanel({
     queryClient.invalidateQueries({ queryKey: ['discovery-picks'] });
   };
 
+  const errorCard = isError ? (
+    <QEError
+      title="Discovery picks API didn't respond"
+      message={
+        data
+          ? 'Showing the last picks that loaded — they may be stale.'
+          : "Discovery picks couldn't be loaded. This is a connection failure, not an empty queue — picks may exist."
+      }
+      onRetry={() => void refetch()}
+      retrying={isFetching}
+      className="mb-3"
+    />
+  ) : null;
+
   const body = isLoading ? (
-    <div className="text-sm text-zinc-500 italic">Loading Discovery picks...</div>
-  ) : signals.length === 0 ? (
-    <div className="text-center py-8 text-zinc-500">
-      <p className="text-sm">No Discovery picks yet.</p>
-      <button
-        onClick={runDiscoveryNow}
-        className="mt-3 text-xs px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-[var(--trade-bullish)] hover:bg-emerald-500/20"
-      >
-        🎯 Run Discovery Now
-      </button>
-    </div>
+    <QELoading rows={3} label="Loading Discovery picks…" />
+  ) : isError && !data ? (
+    errorCard
   ) : (
-    <div className={`grid gap-3 ${
-      selectedSize === 'mini' ? 'grid-cols-2 lg:grid-cols-3' :
-      selectedSize === 'full' ? 'grid-cols-1' :
-      'grid-cols-1 lg:grid-cols-2'
-    }`}>
-      {signals.map((signal) => (
-        <SignalCard
-          key={signal.id}
-          signal={signal}
-          size={selectedSize}
+    <>
+      {errorCard}
+      {signals.length === 0 ? (
+        <QEEmpty
+          message="No Discovery picks yet — the convergence engine hasn't pushed any ideas scoring ≥ 70."
+          action={
+            <button
+              onClick={runDiscoveryNow}
+              className="text-xs px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded text-[var(--trade-bullish)] hover:bg-emerald-500/20"
+            >
+              🎯 Run Discovery Now
+            </button>
+          }
         />
-      ))}
-    </div>
+      ) : (
+        <div className={`grid gap-3 ${
+          selectedSize === 'mini' ? 'grid-cols-2 lg:grid-cols-3' :
+          selectedSize === 'full' ? 'grid-cols-1' :
+          'grid-cols-1 lg:grid-cols-2'
+        }`}>
+          {signals.map((pick) => (
+            <div key={pick.id} className="flex flex-col gap-1">
+              <SignalCard d={pick.card} />
+              {/* F5.2: no live quote is merged into this payload yet, so live
+                  P&L and today's move are unknown — rendered as "—", never 0. */}
+              <div
+                className="flex gap-3 px-1 font-mono text-[10px] text-zinc-500 tabular-nums"
+                title="No live quote merged into Discovery picks — live P&L and today's move are unknown"
+              >
+                <span>P&amp;L {fmtPct(pick.pnlPct)}</span>
+                <span>TODAY {fmtPct(pick.spotChangeToday)}</span>
+                <span>{pick.daysActive}d active</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 
   if (bare) {
@@ -190,64 +225,60 @@ export function DiscoveryPicksPanel({
 }
 
 // ═══════════════════════════════════════════════════════════════
-// HELPER: Raw trade idea → SignalData shape
+// HELPER: Raw trade idea → SignalCard shape
 // ═══════════════════════════════════════════════════════════════
-function translateToSignal(idea: RawIdea): SignalData {
-  const direction =
-    idea.direction === 'long' ? 'BULL' :
-    idea.direction === 'short' ? 'BEAR' :
-    'NEUTRAL';
 
+/** A Discovery pick as rendered: the card data plus the live fields this
+ *  payload does NOT carry. `null` means unknown — there is no live quote
+ *  merged in yet, so these must render "—", never a fabricated 0. */
+export interface DiscoveryPick {
+  id: string;
+  card: SignalCardData;
+  pnlPct: number | null;
+  pnlAbs: number | null;
+  spotChangeToday: number | null;
+  daysActive: number;
+}
+
+function fmtPct(n: number | null): string {
+  if (n == null || !Number.isFinite(n)) return '—';
+  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  t1_hit: 'T1 HIT',
+  t2_hit: 'T2 HIT',
+  stopped: 'STOPPED',
+};
+
+function translateToSignal(idea: RawIdea): DiscoveryPick {
   const issued = new Date(idea.timestamp);
   const daysActive = Math.max(1, Math.floor((Date.now() - issued.getTime()) / 86400000));
-  const totalMove = Math.abs(idea.targetPrice - idea.entryPrice);
+  const isOption = idea.assetType === 'option';
 
-  // We don't have live spot in this payload — would need to merge with /api/quote/:symbol
-  // For now estimate based on entry as placeholder; will be replaced when wired
-  const spot = idea.entryPrice; // TODO: merge with live quote
-  const pnlPct = ((spot - idea.entryPrice) / idea.entryPrice) * 100;
-  const pnlAbs = spot - idea.entryPrice;
-
-  // Determine status
-  let status: SignalData['status'] = 'TRIGGER_PENDING';
-  if (idea.status === 't1_hit') status = 'T1_HIT';
-  else if (idea.status === 't2_hit') status = 'T2_HIT';
-  else if (idea.status === 'stopped') status = 'STOPPED';
-  else if (Math.abs(pnlPct) > 0.5) status = 'TRIGGER_CONFIRMED';
+  const card: SignalCardData = {
+    symbol: idea.symbol,
+    direction: idea.direction === 'short' ? 'short' : 'long',
+    // No live quote in this payload — leave price unset rather than echo entry.
+    price: undefined,
+    confidence: typeof idea.confidenceScore === 'number' ? Math.round(idea.confidenceScore) : undefined,
+    entry: idea.entryPrice,
+    target: idea.targetPrice,
+    stop: idea.stopLoss,
+    riskReward: typeof idea.riskRewardRatio === 'number' ? idea.riskRewardRatio : undefined,
+    horizon: isOption ? (idea.expiryDate ? `OPTION · exp ${idea.expiryDate}` : 'OPTION') : 'SWING',
+    setup: idea.catalyst ? String(idea.catalyst).slice(0, 64) : undefined,
+    status: (idea.status && STATUS_LABEL[idea.status]) || (idea.status ? idea.status.toUpperCase() : undefined),
+    optionType: isOption ? idea.optionType ?? null : null,
+    strike: isOption ? idea.strikePrice ?? null : null,
+  };
 
   return {
     id: idea.id,
-    symbol: idea.symbol,
-    direction,
-    spot,
-    spotChangeToday: 0,  // TODO: live merge
-    confidence: idea.confidenceScore || 70,
-    confidenceDelta: 0,
-    holdPeriodLabel: idea.assetType === 'option' ? 'OPTION' : 'SWING',
-    entry: idea.entryPrice,
-    t1: idea.targetPrice,
-    stop: idea.stopLoss,
-    pnlPct,
-    pnlAbs,
+    card,
+    pnlPct: null,          // unknown until a live quote is merged
+    pnlAbs: null,
+    spotChangeToday: null,
     daysActive,
-    status,
-    issuedAt: idea.timestamp,
-    targetDate: idea.expiryDate,
-    trigger: { confirmed: status !== 'TRIGGER_PENDING', price: idea.entryPrice },
-    geometry: {
-      stopRMultiple: Math.abs(spot - idea.stopLoss) / Math.max(0.01, Math.abs(idea.entryPrice - idea.stopLoss)),
-      horizonUsedPct: idea.expiryDate
-        ? Math.min(100, (daysActive / Math.max(1, Math.floor((new Date(idea.expiryDate).getTime() - issued.getTime()) / 86400000))) * 100)
-        : Math.min(100, daysActive * 2)
-    },
-    oracleOption: idea.assetType === 'option' && idea.strikePrice && idea.expiryDate ? {
-      strike: idea.strikePrice,
-      expiry: idea.expiryDate,
-      optionType: (idea.optionType as 'call' | 'put') || 'call',
-      premiumAtIssue: idea.entryPrice,
-      premiumNow: spot,
-      pctChange: pnlPct
-    } : undefined,
-    source: idea.source || 'unknown'
   };
 }

@@ -6,6 +6,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import PreMarketGappersCard from "@/components/trade-desk/PreMarketGappersCard";
+import { QEEmpty, QEError, QELoading } from "@/components/ui/qe-states";
 
 interface SlateCard {
   symbol: string;
@@ -50,6 +51,14 @@ export default function SlatePage() {
   });
   const cards = slateQ.data?.cards ?? [];
   const idx = idxQ.data?.quotes ?? {};
+  const refreshing = slateQ.isFetching || idxQ.isFetching;
+  const refreshAll = () => {
+    void slateQ.refetch();
+    void idxQ.refetch();
+  };
+  const updatedAt = slateQ.dataUpdatedAt
+    ? new Date(slateQ.dataUpdatedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" })
+    : null;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", color: "var(--text)", fontFamily: "'JetBrains Mono', ui-monospace, monospace", padding: "clamp(16px, 4vw, 40px) clamp(16px, 4vw, 48px)" }}>
@@ -58,9 +67,23 @@ export default function SlatePage() {
           <Link href="/t" style={{ color: "var(--text-mute)", textDecoration: "none" }}>← TERMINAL</Link>
           <span style={{ margin: "0 12px" }}>·</span>QUANTEDGE DAILY SLATE
         </div>
-        <h1 style={{ fontSize: "clamp(26px, 6vw, 40px)", fontWeight: 700, margin: "0 0 6px", fontFamily: "inherit" }}>{today}</h1>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", gap: "8px 16px" }}>
+          <h1 style={{ fontSize: "clamp(26px, 6vw, 40px)", fontWeight: 700, margin: "0 0 6px", fontFamily: "inherit" }}>{today}</h1>
+          {/* F7.15: manual refresh — the slate otherwise waits on its 5-min poll. */}
+          <button
+            type="button"
+            onClick={refreshAll}
+            disabled={refreshing}
+            data-testid="slate-refresh"
+            style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 600, letterSpacing: 1, color: "var(--text)", background: "var(--panel-solid)", border: "1px solid var(--nx-border-hi)", borderRadius: 6, padding: "8px 14px", minHeight: 40, cursor: refreshing ? "default" : "pointer", opacity: refreshing ? 0.6 : 1 }}
+          >
+            {refreshing ? "REFRESHING…" : "↻ REFRESH"}
+          </button>
+        </div>
         <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 28, minHeight: "2.8em" }}>
-          {cards.length} setups · all measured · {slateQ.data?.basis ?? "loading…"}
+          {slateQ.isError && !slateQ.data
+            ? "slate unavailable"
+            : <>{cards.length} setups · all measured · {slateQ.data?.basis ?? "loading…"}{updatedAt ? ` · updated ${updatedAt} ET` : ""}</>}
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: "16px 40px", borderTop: "1px solid var(--nx-border)", borderBottom: "1px solid var(--nx-border)", padding: "18px 0", marginBottom: 32 }}>
@@ -71,8 +94,8 @@ export default function SlatePage() {
               <div key={s} style={{ minWidth: 96, flex: "1 1 96px", maxWidth: 200 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-dim)" }}>
                   <span>${s}</span>
-                  <span style={{ color: up ? "var(--green)" : "var(--red)" }}>
-                    {up ? "↑" : "↓"} {q ? Math.abs(q.changePercent).toFixed(2) : "—"}%
+                  <span style={{ color: q ? (up ? "var(--green)" : "var(--red)") : "var(--text-mute)" }}>
+                    {q ? `${up ? "↑" : "↓"} ${Math.abs(q.changePercent).toFixed(2)}%` : "—"}
                   </span>
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2 }}>{q ? fmt(q.price) : "—"}</div>
@@ -81,6 +104,16 @@ export default function SlatePage() {
           })}
         </div>
 
+        {idxQ.isError && (
+          <QEError
+            title="Index quotes didn't respond"
+            message={idxQ.data ? "SPY/QQQ/IWM above are from the last successful load and may be stale." : "SPY/QQQ/IWM prices couldn't be loaded — the dashes above are missing quotes, not flat markets."}
+            onRetry={() => void idxQ.refetch()}
+            retrying={idxQ.isFetching}
+            className="mb-7"
+          />
+        )}
+
         {/* Pre-market gappers moved here when the Trade Desk was retired
             (2026-09-24): it was the Desk's only surface not already on the
             board, and the gap is the leading read before the open. */}
@@ -88,11 +121,22 @@ export default function SlatePage() {
           <PreMarketGappersCard defaultExpanded />
         </div>
 
-        {slateQ.isLoading && <div style={{ color: "var(--text-dim)", fontSize: 13 }}>building slate from the board…</div>}
-        {!slateQ.isLoading && cards.length === 0 && (
-          <div style={{ color: "var(--text-dim)", fontSize: 13 }}>
-            No measured ideas qualify right now — measured-empty, not broken. The sweeps repopulate through the session.
-          </div>
+        {slateQ.isLoading && <QELoading rows={3} label="building slate from the board…" />}
+        {slateQ.isError && (
+          <QEError
+            title="Slate API didn't respond"
+            message={
+              slateQ.data
+                ? "Showing the last slate that loaded — it may be stale. This is a connection failure, not a change in the board."
+                : "The slate couldn't be loaded. This is a connection failure, not an empty board — setups may exist."
+            }
+            onRetry={() => void slateQ.refetch()}
+            retrying={slateQ.isFetching}
+            className="mb-4"
+          />
+        )}
+        {!slateQ.isLoading && !slateQ.isError && cards.length === 0 && (
+          <QEEmpty message="No measured ideas qualify right now — measured-empty, not broken. The sweeps repopulate through the session." />
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(270px, 100%), 1fr))", gap: 16 }}>
