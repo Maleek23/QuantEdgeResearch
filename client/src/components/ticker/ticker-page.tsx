@@ -284,7 +284,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
             }}>{s.label}</a>
         ))}
         <span className="tk-nav-sep" aria-hidden />
-        <button className="tk-nav-a" data-active={view === 'gex'} onClick={() => onView(view === 'gex' ? 'page' : 'gex')}>GEX surface</button>
+        <button className="tk-nav-a" data-active={view === 'gex'} onClick={() => onView(view === 'gex' ? 'page' : 'gex')}>Open in GEX</button>
         <button className="tk-nav-a" data-active={view === 'lab'} onClick={() => onView(view === 'lab' ? 'page' : 'lab')}>Contract lab</button>
       </div>
     </nav>

@@ -2754,7 +2754,8 @@
 .landing .lfooter-bottom .disclaimer{max-width:600px;line-height:1.5;font-style:italic}
 .landing .lspark-tip{position:absolute;pointer-events:none;background:rgba(10,12,17,0.95);border:1px solid var(--nx-border-hi);border-radius:4px;padding:3px 7px;font-family:'JetBrains Mono',monospace;font-size:var(--fs-9);color:var(--text);white-space:nowrap;z-index:5;transform:translate(-50%, -130%)}
 .landing .lspark-tip b{color:var(--cyan-bright)}
-.landing .reveal{opacity:0;transform:translateY(20px);transition:opacity 0.8s, transform 0.8s}
+.landing .reveal{opacity:1;transform:translateY(12px);transition:transform 0.25s ease-out}
+@media (prefers-reduced-motion: reduce){.landing .reveal{transform:none;transition:none}}
 .landing .reveal.visible{opacity:1;transform:translateY(0)}
 @media (max-width: 960px){.landing .hero-grid{grid-template-columns:1fr;gap:40px}.landing .lterminal{transform:none}.landing .modules-grid{grid-template-columns:repeat(2,1fr)}.landing .feature{grid-template-columns:1fr;gap:30px}.landing .feature.reverse{direction:ltr}.landing .workflow-grid{grid-template-columns:repeat(2,1fr)}.landing .pricing-grid{grid-template-columns:1fr}.landing .stats-grid{grid-template-columns:repeat(2,1fr);gap:24px}.landing .lnav-links{display:none}}
 @media (max-width: 560px){.landing .modules-grid{grid-template-columns:1fr}.landing .workflow-grid{grid-template-columns:1fr}.landing section{padding:70px 0}.landing .hero{padding:110px 0 60px}}
@@ -2971,3 +2972,11 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-lrow.marked .gx-lstrike b{color:var(--band);font-size:11.5px}
 .gx-lrow.spot .gx-lstrike b{text-decoration:underline;text-underline-offset:3px}
 .nexus-vars.light .gx-line.spot span{color:#fff}
+
+/* Landing header on phones: sign in / get access must always be on screen. */
+@media (max-width:760px){
+  .landing .lnav-inner{gap:10px;padding:10px 16px}
+  .landing .lnav-links,.landing .lnav-status,.landing .brand-sub{display:none}
+  .landing .lnav-inner .btn{min-height:44px;padding:0 14px;white-space:nowrap}
+}
+@media (max-width:380px){.landing .brand-slash,.landing .brand-name{display:none}}

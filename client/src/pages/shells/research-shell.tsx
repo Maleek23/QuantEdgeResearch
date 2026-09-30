@@ -9,7 +9,7 @@
  * still points old routes here with their ?tab=):
  *   /r/:symbol                       the page
  *   /r/:symbol#options|setups|…      a section
- *   /r/:symbol?tab=gex               GEX surface (full dealer workspace)
+ *   /r/:symbol?tab=gex               → the ONE GEX workspace (/t?tab=gex) focused on :symbol
  *   /r/:symbol?tab=analyze           Contract lab
  *   ?tab=chart|options|flow|events|workup   → the page, scrolled to that section
  *
@@ -45,6 +45,14 @@ export default function ResearchShell() {
   useEffect(() => {
     if (currentStock?.symbol !== symbol) setCurrentStock({ symbol });
   }, [symbol, currentStock, setCurrentStock]);
+
+  // One GEX page: ?tab=gex hands off to the GEX workspace with this ticker
+  // focused (the ticker page keeps only its levels strip).
+  useEffect(() => {
+    if (tab !== 'gex') return;
+    setCurrentStock({ symbol });
+    setLocation('/t?tab=gex', { replace: true });
+  }, [tab, symbol, setCurrentStock, setLocation]);
 
   // A legacy section tab is consumed once: drop it from the URL (keeping any
   // other params) and let the page scroll to the section.
