@@ -701,17 +701,19 @@ async function rebuildPlanAfterOpen(nowMs: number): Promise<void> {
   const { fetchCandles } = await import('./historical-candles');
   const cats = await catalystMap();
   const inputs: MoverInput[] = []; const ctxs = new Map<string, PlanContext>();
-  // Gap from the daily bars first (cheap, cached 10 min), then full context for survivors.
+  // Gap from the pre-market snapshot (last 1m bar inside today's PM window vs
+  // the prior close) — works after the open too. The daily-bar route missed
+  // everything on 2026-09-30: the 10-min daily cache was filled pre-open and
+  // had no bar for today, so every name was skipped.
   const firstCut: Array<{ sym: string; prevClose: number }> = [];
-  for (const sym of syms) {
-    const d = (await fetchCandles(sym, '3mo', '1d')) as Bar[];
-    const done = d.filter((b) => etParts(b.time * 1000).dateKey < et.dateKey);
-    const todayBar = d.find((b) => etParts(b.time * 1000).dateKey === et.dateKey);
-    const prev = done[done.length - 1];
-    if (!prev || !todayBar) continue;
-    const gap = (todayBar.open / prev.close - 1) * 100;
-    if (Math.abs(gap) >= (INDEX_ETFS.has(sym) ? PM_CFG.minGapIndexPct : PM_CFG.minGapStockPct)) firstCut.push({ sym, prevClose: prev.close });
+  const { getPreMarketBatch } = await import('./pre-market-service');
+  const snaps = await getPreMarketBatch(syms);
+  for (const snap of Array.from(snaps.values())) {
+    const gap = snap.preMarketGapPct;
+    if (gap == null || !(snap.previousClose > 0)) continue;
+    if (Math.abs(gap) >= (INDEX_ETFS.has(snap.symbol) ? PM_CFG.minGapIndexPct : PM_CFG.minGapStockPct)) firstCut.push({ sym: snap.symbol, prevClose: snap.previousClose });
   }
+  firstCut.sort((a, b) => Math.abs((snaps.get(b.sym)?.preMarketGapPct ?? 0)) - Math.abs((snaps.get(a.sym)?.preMarketGapPct ?? 0)));
   for (const { sym, prevClose } of firstCut.slice(0, 20)) {
     const b = await buildPlanContext(sym, et.dateKey, prevClose);
     if (!b) continue;
