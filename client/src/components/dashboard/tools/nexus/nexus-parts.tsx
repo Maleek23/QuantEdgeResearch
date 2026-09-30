@@ -9,6 +9,7 @@
  * request per refresh. Derivations (ranking, developing funnel, macro risk)
  * are pure functions of those responses — nothing is invented here.
  */
+import { WatchStar } from '@/components/watch/watch-star';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronRight, PanelRightOpen, Target } from 'lucide-react';
@@ -234,7 +235,7 @@ export function DevelopingDetail({ hit, quote, onOpen, chartHeight = 260 }: { hi
   return <motion.div key={`${hit.symbol}-${hit.pattern}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail nxp-developing-detail">
     <div className="nxp-detail-head">
       <div>
-        <div className="nxp-symbol-line"><TickerLogo symbol={hit.symbol} size="lg" /><h2>{hit.symbol}</h2><span className={hit.bias === 'short' ? 'bear' : 'bull'}>{hit.bias === 'short' ? 'Bearish' : hit.bias === 'long' ? 'Bullish' : 'Two-sided'}</span><span>{hit.core ? 'core universe' : 'watch universe'}</span></div>
+        <div className="nxp-symbol-line"><TickerLogo symbol={hit.symbol} size="lg" /><h2>{hit.symbol}</h2><WatchStar sym={hit.symbol} size={15} /><span className={hit.bias === 'short' ? 'bear' : 'bull'}>{hit.bias === 'short' ? 'Bearish' : hit.bias === 'long' ? 'Bullish' : 'Two-sided'}</span><span>{hit.core ? 'core universe' : 'watch universe'}</span></div>
         <p>{hit.note || `${hit.pattern.replaceAll('_', ' ')} detected; awaiting a measured break.`}</p>
       </div>
       <div className={`nxp-dev-status ${status.toLowerCase().replaceAll(' ', '-')}`}><strong>{status}</strong><span>{quote?.isCurrent ? `${quote.session} tape` : 'snapshot only'}</span></div>
@@ -279,7 +280,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
     <motion.div key={selected.ideaId} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail">
       <div className="nxp-detail-head">
         <div>
-          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span><span>{selected.convictionBand} evidence</span></div>
+          <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span><span>{selected.convictionBand} evidence</span></div>
           <p>{selected.catalyst || selected.thesis || 'No written catalyst was returned.'}</p>
         </div>
         <div className="nxp-score"><strong>{selected.isBotHeld ? `${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(selected.convictionScore)}</strong><span>{selected.isBotHeld ? 'position P&L' : 'confidence / 100'}</span></div>

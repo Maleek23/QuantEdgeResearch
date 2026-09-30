@@ -11,6 +11,7 @@
  * to whatever opened it. Page entries (Today/Slate/Radar/Alerts/Settings/How-to)
  * come from the shared nav model so ⌘K reaches every signed-in surface.
  */
+import { WatchStar } from '@/components/watch/watch-star';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
@@ -214,6 +215,7 @@ export function CommandPalette({
                     fontSize: 11, color: item.changePct != null ? (item.changePct >= 0 ? 'var(--green, #34d399)' : 'var(--red, #ff6b3d)') : 'var(--text-dim, #8b93a7)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
                   }}>{item.name ?? ''}</span>
+                  {item.name !== 'open directly' && <WatchStar sym={item.symbol} size={12} />}
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-9, 8px)', letterSpacing: 1, color: 'var(--text-mute)', textTransform: 'uppercase' }}>↵ workup</span>
                 </>
               )}

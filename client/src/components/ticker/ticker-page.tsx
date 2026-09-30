@@ -19,6 +19,8 @@
  * Deep views on the same URL: ?tab=gex (GEX surface), ?tab=analyze
  * (Contract lab). Empty states are one line — never a "No signal" card.
  */
+import { toggleWatch, useWatchlist, watchLabel } from '@/hooks/use-watchlist';
+import { failToast, undoToast } from '@/lib/undo-toast';
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Bell, Cpu, Star } from 'lucide-react';
@@ -107,24 +109,37 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   }, [initialSection, view, sym]);
 
   /* header actions */
-  const [watch, setWatch] = useState<'idle' | 'saving' | 'done' | 'fail'>('idle');
+  const wl = useWatchlist();
+  const watched = wl.isWatched(sym);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertPx, setAlertPx] = useState('');
   const [alertState, setAlertState] = useState<'idle' | 'armed' | 'fail'>('idle');
   const [engine, setEngine] = useState<'idle' | 'running' | 'done' | 'fail'>('idle');
   const [engineResult, setEngineResult] = useState<any>(null);
-  useEffect(() => { setWatch('idle'); setAlertState('idle'); setAlertOpen(false); setEngine('idle'); setEngineResult(null); }, [sym]);
+  useEffect(() => { setAlertState('idle'); setAlertOpen(false); setEngine('idle'); setEngineResult(null); }, [sym]);
 
-  const addWatch = async () => {
-    if (watch !== 'idle') return;
-    setWatch('saving');
-    try { const r = await apiRequest('POST', '/api/watchlist', { symbol: sym }); setWatch(r.ok ? 'done' : 'fail'); } catch { setWatch('fail'); }
-  };
   const armAlert = async () => {
     const px = Number(alertPx);
-    if (!Number.isFinite(px) || px <= 0) { setAlertState('fail'); return; }
-    try { const r = await apiRequest('POST', '/api/alerts/level', { symbol: sym, price: px }); setAlertState(r.ok ? 'armed' : 'fail'); } catch { setAlertState('fail'); }
+    if (!Number.isFinite(px) || px <= 0) { setAlertState('fail'); failToast('Alert not armed', new Error('Enter a price above 0.')); return; }
+    setAlertState('armed'); // optimistic: the chip reads "armed" at once, rolled back below on failure
     setAlertOpen(false);
+    try {
+      const r = await apiRequest('POST', '/api/alerts/level', { symbol: sym, price: px });
+      const body = await r.json().catch(() => ({}));
+      const id: string | undefined = body?.alert?.id;
+      undoToast({
+        title: `Alert armed · ${sym} through $${px}`,
+        onUndo: async () => {
+          if (!id) return;
+          setAlertState('idle');
+          try { await apiRequest('DELETE', `/api/alerts/level/${encodeURIComponent(id)}`); }
+          catch (e) { setAlertState('armed'); failToast(`Couldn't remove the ${sym} alert`, e); }
+        },
+      });
+    } catch (e) {
+      setAlertState('fail');
+      failToast(`Couldn't arm the ${sym} alert`, e, () => void armAlert());
+    }
   };
   const runEngine = async () => {
     setEngine('running');
@@ -224,7 +239,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
         </div>
         <div className="tk-actions">
           {backTo && <LuxButton variant="ghost" onClick={backTo.onClick}><ArrowLeft aria-hidden /> {backTo.label}</LuxButton>}
-          <LuxButton onClick={addWatch} aria-pressed={watch === 'done'}><Star aria-hidden /> {watch === 'done' ? 'Watching' : watch === 'saving' ? 'Saving…' : watch === 'fail' ? 'Watch failed' : 'Watch'}</LuxButton>
+          <LuxButton onClick={() => void toggleWatch(sym)} aria-pressed={watched} aria-label={watchLabel(sym, watched)} disabled={wl.isBusy(sym)}><Star aria-hidden fill={watched ? 'currentColor' : 'none'} /> {watched ? 'Watching' : 'Watch'}</LuxButton>
           {alertOpen ? (
             <span className="tk-alert-edit">
               <input autoFocus inputMode="decimal" aria-label="Alert price" value={alertPx} onChange={(e) => setAlertPx(e.target.value)}

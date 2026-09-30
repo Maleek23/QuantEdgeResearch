@@ -162,10 +162,15 @@ function toast({ ...props }: Toast) {
     },
   })
 
-  // Auto-dismiss after 1.5 seconds
-  setTimeout(() => {
-    dismiss()
-  }, AUTO_DISMISS_DELAY)
+  // Plain notices auto-dismiss after 1.5 seconds. A toast that carries an
+  // action (Undo, Retry) or its own `duration` is timed by Radix instead, which
+  // pauses the countdown while the toast is hovered or focused — an Undo that
+  // vanishes under the pointer is not an undo.
+  if (!props.action && props.duration == null) {
+    setTimeout(() => {
+      dismiss()
+    }, AUTO_DISMISS_DELAY)
+  }
 
   return {
     id: id,

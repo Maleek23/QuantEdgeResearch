@@ -28,6 +28,7 @@
  * DTE setting per page (useDashState 'flow:*'), so they always describe the
  * same slice, and one /api/flow/tape?symbol= request per refresh.
  */
+import { WatchStar } from '@/components/watch/watch-star';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
@@ -756,7 +757,7 @@ function LeaderRow({ r, max, selected, onFocus }: { r: Leader; max: number; sele
   const flash = useTickFlash(net);
   return (
     <tr className={selected ? 'sel' : ''} onClick={onFocus} onDoubleClick={() => openWorkup(r.ticker)} {...rowKeys(onFocus)} title="Click / Enter: focus · double-click: workup">
-      <td className="tk">{r.ticker}</td>
+      <td className="tk"><WatchStar sym={r.ticker} size={11} /> {r.ticker}</td>
       <td className="r" style={{ position: 'relative' }}>
         <span className="fd-nbar" style={{ width: `${(Math.abs(net ?? 0) / max) * 100}%`, background: signColor(net) }} />
         <span className={flash} style={{ position: 'relative', color: signColor(net) }}>{net == null ? '—' : `${net >= 0 ? '+' : ''}${money(net)}`}</span>
@@ -772,7 +773,7 @@ function TapeLeaderRow({ r, max, selected, onFocus }: { r: { t: string; call: nu
   const flash = useTickFlash(r.call + r.put);
   return (
     <tr className={selected ? 'sel' : ''} onClick={onFocus} onDoubleClick={() => openWorkup(r.t)} {...rowKeys(onFocus)}>
-      <td className="tk">{r.t}</td>
+      <td className="tk"><WatchStar sym={r.t} size={11} /> {r.t}</td>
       <td className="r" style={{ position: 'relative' }}>
         <span className="fx-cpbar" style={{ width: `${((r.call + r.put) / max) * 100}%` }}>
           <i style={{ flex: r.call, background: CALL_FILL }} /><i style={{ flex: r.put, background: PUT }} />

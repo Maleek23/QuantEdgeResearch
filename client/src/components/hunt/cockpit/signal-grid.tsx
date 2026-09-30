@@ -36,9 +36,9 @@
  * on a bullish card, because that disagreement is the most useful thing on the
  * card and must not be tinted away.
  */
+import { toggleWatch, useWatchlist } from '@/hooks/use-watchlist';
 import { useQuantBotStatus } from '@/lib/bot/use-bot-status';
 import { useMemo, useState } from 'react';
-import { apiRequest } from '@/lib/queryClient';
 import { openWorkup } from '@/lib/workup-bus';
 import { RecordCard } from '@/components/templates/surfaces';
 import { Distribution } from '@/components/templates/charts';
@@ -74,7 +74,7 @@ export function SignalGrid({
   // Only the run the bot TRADES decides "held" — retired runs' positions don't block entries.
   const held = useMemo(() => new Set((bot?.openPositions ?? []).filter((p) => !p.runId || p.runId === bot?.portfolioId).map((p) => p.symbol)), [bot]);
   const [verdicts, setVerdicts] = useState<Record<string, string>>({});
-  const [watched, setWatched] = useState<Record<string, string>>({});
+  const wl = useWatchlist();
 
   const botVerdict = (p: ConvictionPick, px: number, pending: boolean): string => {
     const floor = bot?.config?.minConviction ?? 18;
@@ -90,13 +90,7 @@ export function SignalGrid({
     return 'qualifies — fills on the next 10-min cycle (mark + sizing permitting)';
   };
 
-  const addWatch = async (sym: string) => {
-    setWatched((w) => ({ ...w, [sym]: '…' }));
-    try {
-      const r = await apiRequest('POST', '/api/watchlist', { symbol: sym });
-      setWatched((w) => ({ ...w, [sym]: r.ok ? '✓' : '✗' }));
-    } catch { setWatched((w) => ({ ...w, [sym]: '✗' })); }
-  };
+
 
   // Geometry once per pick — the card and its progress bar need the same numbers.
   const filtered = useMemo(
@@ -174,7 +168,7 @@ export function SignalGrid({
                 {/* QUICK ACTIONS — interaction reveals measured data: the Bot?
                     verdict runs the bot's own rules for THIS symbol right now. */}
                 <div className="mb-2 flex items-center gap-1.5 font-mono text-[9px]" onClick={(e) => e.stopPropagation()}>
-                  {([['Workup', () => openWorkup(p.symbol)], [watched[p.symbol] ? `Watch ${watched[p.symbol]}` : 'Watch', () => addWatch(p.symbol)], ['Bot?', () => setVerdicts((vv) => ({ ...vv, [p.ideaId]: vv[p.ideaId] ? '' : botVerdict(p, live?.get(p.symbol) ?? p.currentPrice ?? p.entryPrice ?? 0, pending) }))]] as const).map(([label, fn]) => (
+                  {([['Workup', () => openWorkup(p.symbol)], [wl.isWatched(p.symbol) ? 'Watching ★' : 'Watch', () => void toggleWatch(p.symbol)], ['Bot?', () => setVerdicts((vv) => ({ ...vv, [p.ideaId]: vv[p.ideaId] ? '' : botVerdict(p, live?.get(p.symbol) ?? p.currentPrice ?? p.entryPrice ?? 0, pending) }))]] as const).map(([label, fn]) => (
                     <button key={label as string} onClick={fn as () => void}
                       className="rounded-[3px] border border-border/60 px-1.5 py-0.5 uppercase tracking-wider text-muted-foreground transition-colors hover:border-[color:var(--brand-cyan)] hover:text-foreground">
                       {label}
