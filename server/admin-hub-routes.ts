@@ -32,6 +32,11 @@ export function registerAdminHubRoutes(app: Express, requireAdmin: RequestHandle
       };
     } catch { /* monitoring unavailable */ }
 
+    // Memory budget view (docs/MEMORY_BUDGET.md): per-cache entries/approx MB,
+    // watchdog trims, heavy-job gate queue. Observed in this process.
+    let memory: unknown = null;
+    try { memory = (await import('./lib/memory-guard')).memorySnapshot(); } catch { /* guard unavailable */ }
+
     res.set('Cache-Control', 'no-store');
     res.json({
       release: { label: RELEASE_LABEL, version: CURRENT_RELEASE.version, series: CURRENT_RELEASE.series, date: CURRENT_RELEASE.date },
@@ -44,9 +49,11 @@ export function registerAdminHubRoutes(app: Express, requireAdmin: RequestHandle
         rssMb: mb(mem.rss),
         heapUsedMb: mb(mem.heapUsed),
         heapTotalMb: mb(mem.heapTotal),
+        externalMb: mb(mem.external),
         // pm2 puts pm_id / name into the env; the restart counter only when it passes pm2_env through.
         pm2: process.env.pm_id != null ? { id: num(process.env.pm_id), name: process.env.name ?? null, restarts: num(process.env.restart_time) } : null,
       },
+      memory,
       faultsSinceBoot: faults,
       discord: { botConfigured: discordBot },
       ideaProducersInWeb,

@@ -34,6 +34,7 @@ import {
   type Candle, type CoinRead, type CryptoPlan, type PerpContext, type Trend,
 } from '@shared/crypto-ideas-core';
 import { LOSS_RULES_VERSION, readLossRulesConfig, type LossRulesStamp } from '@shared/loss-rules';
+import { BoundedCache } from './lib/bounded-cache';
 
 export const CRYPTO_SOURCE = 'crypto_engine';
 const COINBASE = 'https://api.exchange.coinbase.com';
@@ -64,7 +65,7 @@ async function politeJson(url: string, init?: RequestInit): Promise<any> {
   } finally { clearTimeout(t); }
 }
 
-const cache = new Map<string, { at: number; value: any }>();
+const cache = new BoundedCache<string, { at: number; value: any }>({ name: 'crypto.reads', maxEntries: 300, ttlMs: 6 * 3_600_000, maxBytes: 24 * 1024 * 1024 });
 async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<{ value: T; at: number }> {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < ttlMs) return { value: hit.value as T, at: hit.at };

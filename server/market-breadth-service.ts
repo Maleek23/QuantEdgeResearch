@@ -23,6 +23,7 @@
 import { logger } from "./logger";
 import { getRealtimeBatchQuotes, type RealtimeQuote } from "./realtime-pricing-service";
 import { fetchHistoricalPrices } from "./market-api";
+import { BoundedCache } from './lib/bounded-cache';
 import {
   MEGA_CAP_TECH,
   FINANCIALS,
@@ -143,7 +144,7 @@ interface HistoryEntry {
   fetchedAt: number;
 }
 
-const historyCache = new Map<string, HistoryEntry>();
+const historyCache = new BoundedCache<string, HistoryEntry>({ name: 'breadth.history', maxEntries: 600, ttlMs: 7 * 3_600_000 });
 const HISTORY_TTL_MS = 6 * 60 * 60 * 1000; // 6h
 
 async function getHistoryFor(symbol: string): Promise<number[] | null> {

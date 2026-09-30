@@ -17,6 +17,7 @@ import { logger } from './logger';
 import { getCachedProjection, type ProjectorResult, type ProjectionRange } from './gex-vex-projector';
 import { getScenarioMatrix, type ScenarioMatrix, type Scenario } from './geopolitical-matrix';
 import { recordProjection } from './projection-validator';
+import { BoundedCache } from './lib/bounded-cache';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -1677,7 +1678,7 @@ function computeHorizonOutlook(
 
 // ─── Cache ───────────────────────────────────────────────────
 
-const predictionCache = new Map<string, { data: UnifiedPrediction; ts: number }>();
+const predictionCache = new BoundedCache<string, { data: UnifiedPrediction; ts: number }>({ name: 'unified.predictions', maxEntries: 60, ttlMs: 30 * 60_000, maxBytes: 32 * 1024 * 1024 });
 const CACHE_TTL = 5 * 60 * 1000; // 5 min — options chain data doesn't change that fast
 
 export async function getCachedUnifiedPrediction(

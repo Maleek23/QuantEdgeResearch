@@ -28,6 +28,7 @@
  */
 
 import { logger } from './logger';
+import { registerCacheProbe } from './lib/bounded-cache';
 
 const BASE = 'https://api.polygon.io';
 
@@ -154,6 +155,17 @@ const GROUPED_MAX_DAYS = 4;                        // memory cap: whole-market m
 /** One request per day in flight — concurrent callers share it (2026-09-30:
  *  229 whole-market downloads in 10 min from callers racing the cache). */
 const groupedInFlight = new Map<string, Promise<GroupedBar[]>>();
+registerCacheProbe('massive.groupedDaily', () => {
+  let bars = 0;
+  for (const e of groupedCache.values()) bars += e.bars.size;
+  // ~12k tickers/day; a GroupedBar + its Map slot is ~200 bytes.
+  return { entries: groupedCache.size, maxEntries: GROUPED_MAX_DAYS, approxBytes: bars * 200 };
+}, (f) => {
+  const keys = [...groupedCache.entries()].sort((a, b) => a[1].fetchedAt - b[1].fetchedAt).map(([k]) => k);
+  const drop = keys.length - Math.floor(keys.length * f);
+  for (const k of keys.slice(0, Math.max(0, drop))) groupedCache.delete(k);
+  return Math.max(0, drop);
+});
 
 /**
  * Every US stock's OHLCV for one session, keyed by ticker.

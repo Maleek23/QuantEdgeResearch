@@ -13,6 +13,7 @@
  * Honesty rule: every number here is derived from real candles. If there aren't
  * enough candles to compute something, the field is omitted/empty — never faked.
  */
+import { BoundedCache } from './lib/bounded-cache';
 import {
   calculateFibonacciLevels,
   detectCandlestickPatterns,
@@ -87,7 +88,7 @@ const KEY_FIB_RATIOS = new Set([0.382, 0.5, 0.618]);
 // Daily candles only change once per session, so a single fetch is reused for
 // hours. This is what lets the conviction engine enrich its whole shortlist with
 // TA without blasting Yahoo on every rebuild.
-const _taCache = new Map<string, { at: number; read: TARead | null }>();
+const _taCache = new BoundedCache<string, { at: number; read: TARead | null }>({ name: 'ta.reads', maxEntries: 600, ttlMs: 2 * 3_600_000 + 60_000, maxBytes: 24 * 1024 * 1024 });
 const TA_TTL_MS = 2 * 60 * 60 * 1000;      // 2h for a good read (daily candles)
 const TA_NEG_TTL_MS = 45 * 1000;           // 45s for a miss — a transient 429 must
                                            // NOT poison the symbol for hours.

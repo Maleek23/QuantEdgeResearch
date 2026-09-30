@@ -34,10 +34,18 @@
  * IDEA_PRODUCERS_IN_WEB=false turns the whole block off without a deploy.
  */
 import { logger } from './logger';
+import { runHeavy, type HeavyOptions } from './lib/heavy-job-gate';
+
+type HeavyPriority = NonNullable<HeavyOptions['priority']>;
 
 type LogFn = (msg: string) => void;
 
-function guarded(name: string, fn: () => Promise<unknown>): () => Promise<void> {
+/**
+ * Every producer runs through the process-wide heavy-job gate
+ * (server/lib/heavy-job-gate.ts): one heavy job at a time on the 1 vCPU box,
+ * minute-sensitive ones ('high') ahead of the queue.
+ */
+function guarded(name: string, fn: () => Promise<unknown>, priority: HeavyPriority = 'normal'): () => Promise<void> {
   let running = false;
   return async () => {
     if (running) {
@@ -47,7 +55,7 @@ function guarded(name: string, fn: () => Promise<unknown>): () => Promise<void> 
     running = true;
     const t0 = Date.now();
     try {
-      const out = await fn();
+      const out = await runHeavy(`producer:${name}`, fn, { priority });
       const n = typeof out === 'number' ? out : (out as any)?.persisted ?? (out as any)?.published;
       logger.info(`[IDEA-PRODUCERS] ${name}: done in ${((Date.now() - t0) / 1000).toFixed(1)}s${n != null ? ` — ${n} published` : ''}`);
     } catch (err) {
@@ -72,15 +80,22 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
   // Hourly, offset, instead of the worker's every-30-minutes: the setups are
   // read from daily bars, so a second intraday pass mostly re-finds the same
   // shapes, and the CPU is better spent elsewhere.
-  cron.schedule('5 10-15 * * 1-5', guarded('bull-flag', async () => {
+  // MINUTE MAP (2026-09-30 memory/CPU diet). The 5-minute cadences own
+  // minutes ≡0 (index 0DTE) and ≡1 (0DTE desk) mod 5, the quant bot ≡4 mod 10;
+  // every other heavy job is placed on a ≡2/≡3 minute so none shares a start:
+  //   :02/:12/…  tape      :03/:18/:33/:48  flow scan (web.ts)
+  //   :08        GEX archive (web.ts)       :13 bull-flag  :23 bear-flag  :38 base-reclaim
+  //   :17/:47    GEX setups                 :27/:57 quant sweep
+  //   :43 leader-swing (10,14)  :49 crypto-proxy  :53 index-swing  :58 premium-discount (9,13)
+  cron.schedule('13 10-15 * * 1-5', guarded('bull-flag', async () => {
     const { ingestBullFlagIdeas } = await import('./bull-flag-scanner');
     return ingestBullFlagIdeas();
   }), ET);
-  cron.schedule('20 10-15 * * 1-5', guarded('bear-flag', async () => {
+  cron.schedule('23 10-15 * * 1-5', guarded('bear-flag', async () => {
     const { ingestBearFlagIdeas } = await import('./bear-flag-scanner');
     return ingestBearFlagIdeas();
   }), ET);
-  cron.schedule('35 10-15 * * 1-5', guarded('base-reclaim', async () => {
+  cron.schedule('38 10-15 * * 1-5', guarded('base-reclaim', async () => {
     const { ingestBaseReclaimIdeas } = await import('./base-reclaim-scanner');
     return ingestBaseReclaimIdeas();
   }), ET);
@@ -97,17 +112,17 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
 
   // ── Aggressor tape (Bullflow) — every 10 min in session. Bullflow calls are
   // held to the process-wide budget in bullflow-service.ts. ──
-  cron.schedule('*/10 9-15 * * 1-5', guarded('tape', async () => {
+  cron.schedule('2-59/10 9-15 * * 1-5', guarded('tape', async () => {
     const { runBullflowTapeScan } = await import('./bullflow-tape-scanner');
     return runBullflowTapeScan();
   }), ET);
 
   // ── Twice-daily measured scanners (same slots index.ts uses, in ET) ──
-  cron.schedule('45 9,13 * * 1-5', guarded('crypto-proxy', async () => {
+  cron.schedule('49 9,13 * * 1-5', guarded('crypto-proxy', async () => {
     const { runCryptoProxyPromotion } = await import('./crypto-proxy-promoter');
     return runCryptoProxyPromotion();
   }), ET);
-  cron.schedule('55 9,13 * * 1-5', guarded('index-swing', async () => {
+  cron.schedule('53 9,13 * * 1-5', guarded('index-swing', async () => {
     const { runIndexSwingScan } = await import('./index-swing-scanner');
     return runIndexSwingScan();
   }), ET);
@@ -115,7 +130,7 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     const { runPremiumDiscountScan } = await import('./index-swing-scanner');
     return runPremiumDiscountScan();
   }), ET);
-  cron.schedule('5 10,14 * * 1-5', guarded('leader-swing', async () => {
+  cron.schedule('43 10,14 * * 1-5', guarded('leader-swing', async () => {
     const { runLeaderSwingScan } = await import('./index-swing-scanner');
     return runLeaderSwingScan();
   }), ET);
@@ -133,7 +148,7 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule(CRYPTO_TRACKER_CRON, guarded('crypto-tracker', async () => {
       const { trackCryptoIdeas } = await import('./crypto-ideas-engine');
       return (await trackCryptoIdeas()).resolved;
-    }), { timezone: 'UTC' });
+    }, 'low'), { timezone: 'UTC' });
   }
 
   // ── Evening reversal slate off completed daily bars ──
@@ -144,7 +159,7 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
 
   // ── GEX setups (flip cross / wall fade / squeeze) — every 30 min, 10:00–15:30.
   // Shares the 5-minute GEX snapshot cache with the conviction build. ──
-  cron.schedule('0,30 10-15 * * 1-5', guarded('gex-setups', async () => {
+  cron.schedule('17,47 10-15 * * 1-5', guarded('gex-setups', async () => {
     const { runGexIdeaScanner } = await import('./gex-idea-scanner');
     return runGexIdeaScanner();
   }), ET);
@@ -160,7 +175,7 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
   const index0dte = guarded('index-0dte', async () => {
     const { runIndexScalpScanner } = await import('./index-scalp-engine');
     return runIndexScalpScanner({ discord: process.env.INDEX_0DTE_DISCORD === '1' });
-  });
+  }, 'high');
   cron.schedule('*/5 9-14 * * 1-5', index0dte, ET);
   cron.schedule('*/2 15 * * 1-5', index0dte, ET);
 
@@ -171,7 +186,7 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
   const desk0dte = guarded('0dte-desk', async () => {
     const { runZeroDteDeskScan } = await import('./zero-dte-desk');
     return (await runZeroDteDeskScan()).published;
-  });
+  }, 'high');
   cron.schedule('1-59/5 9-14 * * 1-5', desk0dte, ET);
   cron.schedule('1-59/2 15 * * 1-5', desk0dte, ET);
   cron.schedule('30 10,14 * * 1-5', guarded('short-swings', async () => {
@@ -194,13 +209,13 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     const pmTrig = guarded('premarket-triggers', async () => {
       const { runPremarketTriggers } = await import('./premarket-ideas');
       return runPremarketTriggers();
-    });
+    }, 'high');
     cron.schedule('30-59/2 9 * * 1-5', pmTrig, ET);
     cron.schedule('0-30/2 10 * * 1-5', pmTrig, ET);
   }
 
   // ── Quant sweep — publish only (no paper execution, no Discord). ──
-  cron.schedule('12,42 9-15 * * 1-5', guarded('quant', async () => {
+  cron.schedule('27,57 9-15 * * 1-5', guarded('quant', async () => {
     const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
     const mins = et.getHours() * 60 + et.getMinutes();
     if (mins < 9 * 60 + 40 || mins > 15 * 60 + 45) return 0; // after the open settles, before the close
@@ -221,5 +236,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m, index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m (IDEA_PRODUCERS_IN_WEB=false disables)');
+  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m (IDEA_PRODUCERS_IN_WEB=false disables)');
 }

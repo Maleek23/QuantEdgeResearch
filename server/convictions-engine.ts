@@ -79,6 +79,7 @@ function neutralMarketContext(isOpen: boolean): MarketContext {
 export type { ConvictionLayerKind } from "@shared/conviction-layers";
 import type { ConvictionLayerKind } from "@shared/conviction-layers";
 import { isLeadershipName } from "@shared/leadership-universe";
+import { BoundedCache } from "./lib/bounded-cache";
 
 export interface ConvictionLayer {
   kind: ConvictionLayerKind;
@@ -1944,7 +1945,10 @@ export async function revalidateBestSetups(
 // every other tick, long enough to absorb a refresh storm.
 // ─────────────────────────────────────────────────────────────
 
-const _convictionsCache = new Map<string, { data: ConvictionsResponse; expiresAt: number }>();
+// Bounded: keys include per-user weekly options, and each board is several MB.
+const _convictionsCache = new BoundedCache<string, { data: ConvictionsResponse; expiresAt: number }>({
+  name: 'convictions.boards', maxEntries: 8, ttlMs: 30 * 60_000, maxBytes: 48 * 1024 * 1024,
+});
 /**
  * MUST exceed the build time. A measured cold build is ~137s, and this was set
  * to 60s — so the entry expired more than twice as fast as it could possibly be
@@ -2036,13 +2040,7 @@ export async function getCachedConvictions(
     const p = buildConvictions(merged)
       .then((data) => {
         _convictionsCache.set(key, { data, expiresAt: Date.now() + CONVICTIONS_CACHE_TTL_MS });
-        // Bound the cache so distinct option combos don't grow unbounded.
-        if (_convictionsCache.size > 16) {
-          const oldest = Array.from(_convictionsCache.entries()).sort(
-            (a, b) => a[1].expiresAt - b[1].expiresAt,
-          )[0];
-          if (oldest) _convictionsCache.delete(oldest[0]);
-        }
+        // Bounded by BoundedCache (8 boards / ~48 MB, LRU).
         return data;
       })
       .finally(() => { _convictionsInflight.delete(key); });

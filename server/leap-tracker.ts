@@ -29,6 +29,7 @@ import { logger } from './logger';
 import { selectContracts, type ContractCandidate, type ContractSelection } from './option-selection-engine';
 import { getRotationMatrix, type Quadrant, type RotationMatrixData } from './sector-rotation';
 import { getRealtimeBatchQuotes } from './realtime-pricing-service';
+import { BoundedCache } from './lib/bounded-cache';
 
 // ─── Public types ──────────────────────────────────────────────────
 
@@ -217,7 +218,7 @@ async function fetchDaily(symbol: string): Promise<DailyHistory | null> {
 
 // ─── Fundamentals (EPS / revenue / cash) via Yahoo quoteSummary ────────
 // Honest: any field Yahoo doesn't return stays null and the UI omits it.
-const _fundCache = new Map<string, { at: number; data: LeapFundamentals | null }>();
+const _fundCache = new BoundedCache<string, { at: number; data: LeapFundamentals | null }>({ name: 'leap.fundamentals', maxEntries: 400, ttlMs: 24 * 3_600_000 });
 const FUND_TTL = 6 * 60 * 60 * 1000; // 6h — fundamentals barely move intraday
 
 async function fetchFundamentals(symbol: string): Promise<LeapFundamentals | null> {

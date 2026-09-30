@@ -36,6 +36,7 @@
  */
 import { logger } from './logger';
 import { getPeerSet, type PeerSet } from '@shared/sector-peers';
+import { BoundedCache } from './lib/bounded-cache';
 
 export interface PeerMove {
   symbol: string;
@@ -50,7 +51,7 @@ interface CacheEntry { move: PeerMove | null; fetchedAt: number }
 const CACHE_TTL_MS = 3 * 60_000;
 const CHUNK = 20;
 const YAHOO_MIN_GAP_MS = 350; // same cadence yahoo-client uses for the shared limiter
-const cache = new Map<string, CacheEntry>();
+const cache = new BoundedCache<string, CacheEntry>({ name: 'peerConfirmation', maxEntries: 400, ttlMs: 6 * 3_600_000 });
 
 function fresh(e: CacheEntry | undefined): boolean {
   return !!e && Date.now() - e.fetchedAt < CACHE_TTL_MS;

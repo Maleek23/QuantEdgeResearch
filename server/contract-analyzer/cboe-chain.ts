@@ -13,6 +13,7 @@
  * We prefer current_price, then bid, then close as last resort.
  */
 import type { RawChainOption } from '../option-selection-engine';
+import { BoundedCache } from '../lib/bounded-cache';
 
 export interface CboeChain {
   /** Epoch ms the chain was actually fetched — never "now" for a cached copy. */
@@ -90,7 +91,7 @@ export function findContractLiquidity(
 // cause of the blank "Thesis / Option" column when attachment kept failing).
 // Quotes are delayed anyway, so a ~60s TTL costs us nothing in freshness.
 const CHAIN_TTL_MS = 60_000;
-const chainCache = new Map<string, { at: number; chain: CboeChain }>();
+const chainCache = new BoundedCache<string, { at: number; chain: CboeChain }>({ name: 'cboe.contractChains', maxEntries: 40, ttlMs: 10 * 60_000, maxBytes: 48 * 1024 * 1024 });
 
 const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
 

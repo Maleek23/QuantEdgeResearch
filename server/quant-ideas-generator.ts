@@ -22,6 +22,7 @@ import { enrichOptionIdea } from './options-enricher';
 import { validateTradeWithChart, analyzeChart } from './chart-analysis';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 import { historicalIntelligenceService } from './historical-intelligence-service';
+import { BoundedCache } from './lib/bounded-cache';
 
 // v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
 // Real 20-day average volume for the curated path, from the same candle feed
@@ -29,7 +30,7 @@ import { historicalIntelligenceService } from './historical-intelligence-service
 // re-fetching ninety histories every 4-minute cycle would be pure waste. When
 // history is unavailable the value stays null, which still scores 0 on the
 // volume component: unavailable stays unearned, it does not become 1.0×.
-const avgVolCache = new Map<string, { at: number; avg: number | null; bars: { time: number; open: number; high: number; low: number; close: number }[] }>();
+const avgVolCache = new BoundedCache<string, { at: number; avg: number | null; bars: { time: number; open: number; high: number; low: number; close: number }[] }>({ name: 'quant.avgVolBars', maxEntries: 800, ttlMs: 24 * 3_600_000, maxBytes: 32 * 1024 * 1024 });
 // Real recent OHLC for pattern detection — the same candles the avg-volume
 // fetch already downloads. The analyzer previously faked highs/lows as
 // closes +/-1%, which makes bar-range patterns (inside bars, coils)

@@ -27,6 +27,7 @@ import { eq, desc, gte, and, sql } from 'drizzle-orm';
 import { getTradierQuote, getTradierOptionsChain } from './tradier-api';
 
 import { marketDateET } from '@shared/market-day';
+import { BoundedCache } from './lib/bounded-cache';
 // ═══════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════
@@ -75,7 +76,7 @@ interface GEXKeyLevels {
 // CACHE
 // ═══════════════════════════════════════════════════════════════
 
-const convergenceCache = new Map<string, { data: ConvergenceSignal; ts: number }>();
+const convergenceCache = new BoundedCache<string, { data: ConvergenceSignal; ts: number }>({ name: 'flowGex.convergence', maxEntries: 200, ttlMs: 3_600_000 });
 const CACHE_TTL = 60_000; // 60 seconds
 
 // ═══════════════════════════════════════════════════════════════

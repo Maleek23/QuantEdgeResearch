@@ -4,6 +4,7 @@ import { getTradierQuote, getOptionMark } from './tradier-api';
 import { yahooQuote } from './yahoo-client';
 import { getFuturesPrice, getFuturesPrices } from './futures-data-service';
 import { changeFromPercent } from '../shared/price-change';
+import { BoundedCache } from './lib/bounded-cache';
 
 export interface RealtimeQuote {
   symbol: string;
@@ -42,7 +43,7 @@ const CACHE_TTL: Record<AssetType, number> = {
   futures: 5 * 1000,    // 5 seconds (Yahoo Finance)
 };
 
-const quoteCache = new Map<string, CacheEntry>();
+const quoteCache = new BoundedCache<string, CacheEntry>({ name: 'realtime.quotes', maxEntries: 3000, ttlMs: 24 * 3_600_000, noSizing: true });
 
 function getCacheKey(symbol: string, assetType: AssetType): string {
   return `${assetType}:${symbol.toUpperCase()}`;

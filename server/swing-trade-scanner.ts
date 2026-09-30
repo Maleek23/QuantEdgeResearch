@@ -1,6 +1,7 @@
 import { logger } from "./logger";
 import { storage } from "./storage";
 import { postDiscordWebhook } from './discord-service';
+import { BoundedCache } from './lib/bounded-cache';
 
 interface SwingOpportunity {
   symbol: string;
@@ -43,7 +44,7 @@ const SWING_TICKERS = [
 ];
 
 // Cache for daily data
-const dailyDataCache = new Map<string, { data: any; timestamp: Date }>();
+const dailyDataCache = new BoundedCache<string, { data: any; timestamp: Date }>({ name: 'swing.daily', maxEntries: 300, ttlMs: 3_600_000, maxBytes: 32 * 1024 * 1024 });
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 /**

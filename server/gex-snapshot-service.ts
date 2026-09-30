@@ -20,6 +20,7 @@
 import { logger } from "./logger";
 import { calculateAggregateGammaExposure } from "./gamma-exposure";
 import { summarizeGammaMetrics, type GammaCompare } from "../shared/gex-adjusted";
+import { BoundedCache } from './lib/bounded-cache';
 
 export interface GexSnapshot {
   symbol: string;
@@ -48,7 +49,7 @@ interface CacheEntry {
   cachedAt: number;
 }
 
-const cache = new Map<string, CacheEntry>();
+const cache = new BoundedCache<string, CacheEntry>({ name: 'gex.snapshots', maxEntries: 80, ttlMs: 30 * 60_000, maxBytes: 32 * 1024 * 1024 });
 const CACHE_TTL_MS = 5 * 60 * 1000;
 // 12 s, was 6 s: a cold Alpaca SPY chain is ~11 paced requests (≥330 ms apart)
 // plus open interest, so 6 s timed out on every cold index fetch and the null

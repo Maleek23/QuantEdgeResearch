@@ -5,6 +5,7 @@ import { massiveEnabled, fetchDailyCloses as fetchMassiveDailyCloses } from './m
 import { logAPIError, logAPISuccess } from './monitoring-service';
 import { getCryptoPrice as getRealtimeCryptoPrice, getFuturesPrice as getRealtimeFuturesPrice } from './realtime-price-service';
 import { marketData as multiSourceMarketData, getStockPrice as getMultiSourcePrice } from './multi-source-market-data';
+import { BoundedCache } from './lib/bounded-cache';
 
 export interface ExternalMarketData {
   symbol: string;
@@ -339,7 +340,7 @@ export async function fetchCryptoPriceFromYahoo(symbol: string): Promise<Externa
 // evict the last good price — VIX going to 0.0 on the footer is worse than VIX
 // being 30 seconds old — so on a throttle we suppress the retry but keep serving
 // the last real quote we actually received.
-const yahooQuoteCache = new Map<string, { data: ExternalMarketData; timestamp: number }>();
+const yahooQuoteCache = new BoundedCache<string, { data: ExternalMarketData; timestamp: number }>({ name: 'marketApi.yahooQuotes', maxEntries: 2000, ttlMs: 3_600_000, noSizing: true });
 const yahooQuoteCooldown = new Map<string, number>();
 const YAHOO_QUOTE_TTL = 30 * 1000;
 const YAHOO_QUOTE_ERROR_TTL = 60 * 1000;
@@ -1754,7 +1755,7 @@ export interface FundamentalData {
 }
 
 // Fundamental data cache to avoid rate limiting (15 minute TTL)
-const fundamentalCache = new Map<string, { data: FundamentalData; timestamp: number }>();
+const fundamentalCache = new BoundedCache<string, { data: FundamentalData; timestamp: number }>({ name: 'marketApi.fundamentals', maxEntries: 1000, ttlMs: 24 * 3_600_000, noSizing: true });
 const FUNDAMENTAL_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 /**

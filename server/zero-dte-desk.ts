@@ -45,6 +45,7 @@ import {
   type IntradayRead, type RecordRow, type SessionPhase, type SwingPlan,
 } from './zero-dte-desk-core';
 import { evaluateZeroDte, timeStopIso, zeroDteWallsEnabled, ZERO_DTE_PROVENANCE, TIME_STOP_ET, type PolicyVerdict, type ZeroDteSetup } from './zero-dte-policies';
+import { BoundedCache } from './lib/bounded-cache';
 import {
   capsFor, ENTRY_WINDOW_MIN, ideaStage, KIND_LABEL, kindForSetup, occSymbol, pickIdeaContract, sortIdeas, watchSetups, zeroDteEligibility,
   type Eligibility, type IdeaContract, type IdeaStage, type SetupKind, type WatchSetup,
@@ -63,7 +64,7 @@ const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> =>
 // ─── chains ──────────────────────────────────────────────────────────────
 
 interface DeskChain { rows: DeskChainRow[]; expirations: string[]; spot: number; source: string; fetchedAt: number }
-const chainCache = new Map<string, { at: number; c: DeskChain | null }>();
+const chainCache = new BoundedCache<string, { at: number; c: DeskChain | null }>({ name: '0dte.deskChains', maxEntries: 30, ttlMs: 30 * 60_000, maxBytes: 32 * 1024 * 1024 });
 
 async function getDeskChain(sym: string, priority: boolean): Promise<DeskChain | null> {
   const hit = chainCache.get(sym);
@@ -414,7 +415,7 @@ const qs = (r: IdeaLite, prefix: string) => (r.qualitySignals ?? []).find((s) =>
 const qn = (r: IdeaLite, prefix: string) => { const v = Number(qs(r, prefix)); return Number.isFinite(v) && v > 0 ? v : null; };
 const hhmmEt = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }) : null);
 
-const quoteCache = new Map<string, { at: number; q: IdeaQuote | null }>();
+const quoteCache = new BoundedCache<string, { at: number; q: IdeaQuote | null }>({ name: '0dte.quotes', maxEntries: 500, ttlMs: 30 * 60_000, noSizing: true });
 /** Reprice one contract: Alpaca (chain cache first, else one snapshot) for equity roots; the desk's CBOE chain (delayed) for SPXW. */
 async function repriceContract(c: { occ: string; root: string; optionType: 'call' | 'put'; strike: number; expiry: string }, priority: boolean): Promise<IdeaQuote | null> {
   const hit = quoteCache.get(c.occ);

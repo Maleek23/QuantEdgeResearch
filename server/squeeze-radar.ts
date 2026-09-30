@@ -37,6 +37,7 @@ import {
   type SqueezeRadarPayload, type SqueezeRadarResult, type SqueezeRadarRow, type SqueezeChainInputs,
 } from '@shared/squeeze-radar';
 import type { GexRankRow } from './gex-rankings';
+import { BoundedCache } from './lib/bounded-cache';
 
 const DIR = path.join(process.cwd(), '.cache', 'squeeze-radar');
 const LOG_FILE = path.join(DIR, 'log.jsonl');
@@ -141,7 +142,7 @@ let dbWarned = false;
 
 // ─── Daily bars ─────────────────────────────────────────────────────────
 
-const barsCache = new Map<string, { at: number; read: SqueezeBarsRead | null }>();
+const barsCache = new BoundedCache<string, { at: number; read: SqueezeBarsRead | null }>({ name: 'squeeze.bars', maxEntries: 400, ttlMs: 12 * 3_600_000, maxBytes: 32 * 1024 * 1024 });
 
 async function barsFor(symbol: string, budget: { cold: number }): Promise<SqueezeBarsRead | null> {
   const hit = barsCache.get(symbol);
@@ -226,7 +227,7 @@ function finishFlow(a: FlowAgg | undefined, spot: number): SqueezeFlowRead | nul
 // ─── OCC daily volume by account type ───────────────────────────────────
 
 type OccDay = Record<string, { cC: number; fC: number; mC: number; cP: number; fP: number; mP: number }>;
-const occMem = new Map<string, OccDay | 'none'>();
+const occMem = new BoundedCache<string, OccDay | 'none'>({ name: 'squeeze.occDays', maxEntries: 25, maxBytes: 32 * 1024 * 1024 });
 
 /** Parse an OCC volume-query CSV (all underlyings, one day) into per-underlying sides. Exported for tests/research. */
 export function parseOccCsv(txt: string): OccDay {

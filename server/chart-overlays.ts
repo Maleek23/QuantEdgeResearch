@@ -24,6 +24,8 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from './logger';
 import { marketDateET } from '@shared/market-day';
+import { BoundedCache } from './lib/bounded-cache';
+import { runHeavy } from './lib/heavy-job-gate';
 
 const DEFAULT_WATCH = ['SPY', 'QQQ', 'SPX', 'IWM', 'TSLA', 'NVDA', 'AMD', 'MSTR', 'META', 'AAPL', 'MSFT', 'AMZN', 'BE'];
 const VIEW_TTL_MS = 2 * 60 * 60_000;
@@ -46,7 +48,7 @@ export interface GexSample {
   levels: Array<[number, number]>;
 }
 
-const timeline = new Map<string, Map<string, GexSample[]>>(); // sym → date → samples
+const timeline = new BoundedCache<string, Map<string, GexSample[]>>({ name: 'chart.gexTimeline', maxEntries: 40 }); // sym → date → samples
 const lastViewed = new Map<string, number>();
 const inFlight = new Map<string, Promise<GexSample | null>>();
 let recorderStarted = false;
@@ -172,7 +174,9 @@ export function startChartOverlayRecorder(): void {
     for (const sym of watchedSymbols()) {
       const last = latestSample(sym);
       if (last && Date.now() - last.t < SAMPLE_EVERY_MS - 30_000) continue;
-      await recordSample(sym);
+      // Per symbol through the heavy-job gate: each chain parse is its own
+      // short slot, so a 20-symbol tick cannot hold the CPU for a minute.
+      await runHeavy(`chart-gex:${sym}`, () => recordSample(sym), { priority: 'low', maxWaitMs: SAMPLE_EVERY_MS });
     }
   };
   setTimeout(() => { void tick(); }, 90_000);
@@ -207,7 +211,7 @@ function datesFor(range: string, sym?: string): string[] {
 
 interface DarkPoolLevel { price: number; notional: number; prints: number; firstAt: number | null; lastAt: number | null }
 interface DarkPoolRead { at: number; windowFrom: string; windowTo: string; rows: number; truncated: boolean; levels: DarkPoolLevel[]; source: string }
-const dpCache = new Map<string, DarkPoolRead>();
+const dpCache = new BoundedCache<string, DarkPoolRead>({ name: 'chart.darkPool', maxEntries: 60, ttlMs: 12 * 3_600_000 });
 const DP_TTL_MS = 30 * 60_000;
 /** Provider rejects windows over 30 days ('Date range cannot exceed 30 days'). */
 const DP_WINDOW_DAYS = 28;
@@ -271,7 +275,7 @@ function loadDpDisk(sym: string): DarkPoolRead | undefined {
 
 /* ────────────────────────────── flow ────────────────────────────── */
 
-const flowDayCache = new Map<string, { at: number; prints: any[] }>();
+const flowDayCache = new BoundedCache<string, { at: number; prints: any[] }>({ name: 'chart.flowDays', maxEntries: 6, ttlMs: 30 * 60_000, maxBytes: 32 * 1024 * 1024 });
 async function printsForDate(date: string): Promise<any[]> {
   const hit = flowDayCache.get(date);
   const ttl = date === marketDateET() ? 60_000 : 30 * 60_000;

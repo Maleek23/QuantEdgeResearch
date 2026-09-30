@@ -10,6 +10,7 @@
 
 import { logger } from './logger';
 import { httpOk, noteProvider } from './data-provider-health';
+import { BoundedCache } from './lib/bounded-cache';
 
 interface CBOEOption {
   option: string;         // OCC symbol
@@ -72,7 +73,7 @@ export function parseOccSymbol(occ: string): { root: string; expirationDate: str
  * costs nothing in accuracy.
  */
 const _cboeInflight = new Map<string, Promise<any>>();
-const _cboeCache = new Map<string, { data: any; expiresAt: number }>();
+const _cboeCache = new BoundedCache<string, { data: any; expiresAt: number }>({ name: 'cboe.chains', maxEntries: 40, ttlMs: 5 * 60_000, maxBytes: 96 * 1024 * 1024, sizeOf: (v) => (v.data ? 4096 + (v.data.allOptions?.length ?? 0) * 900 + (v.data.options?.length ?? 0) * 16 : 64) });
 const CBOE_TTL_MS = 60_000;
 
 export async function getCBOEOptionsChain(symbol: string): Promise<{
@@ -95,10 +96,6 @@ export async function getCBOEOptionsChain(symbol: string): Promise<{
   const p = _fetchCBOEOptionsChain(symbol)
     .then((data) => {
       _cboeCache.set(key, { data, expiresAt: Date.now() + CBOE_TTL_MS });
-      if (_cboeCache.size > 300) {
-        const oldest = Array.from(_cboeCache.entries()).sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0];
-        if (oldest) _cboeCache.delete(oldest[0]);
-      }
       return data;
     })
     .finally(() => { _cboeInflight.delete(key); });
@@ -175,6 +172,7 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
     const lowerBound = spotPrice * 0.85;
     const upperBound = spotPrice * 1.15;
 
+    const updatedAt = new Date().toISOString(); // one shared string, not one per contract
     const toCompatible = ({ opt, occ }: (typeof decoded)[number]) => ({
         symbol: opt.option,
         description: `${symbol} ${occ.expirationDate} ${occ.strike} ${occ.optionType}`,
@@ -202,7 +200,7 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
           mid_iv: opt.iv || 0,
           ask_iv: opt.iv || 0,
           smv_vol: opt.iv || 0,
-          updated_at: new Date().toISOString(),
+          updated_at: updatedAt,
         },
         change_percentage: opt.percent_change || 0,
         average_volume: opt.volume || 0,
@@ -228,11 +226,14 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
     // Analytics callers only need the liquid near-money slice. Position
     // marking is different: it must be able to find the exact far-OTM contract
     // the ledger owns. Keep both views from the same downloaded chain.
+    // The near-money slice REUSES the allOptions objects instead of building a
+    // second copy of every contract: a cached SPY chain was ~2× its size.
     const allOptions = decoded.map(toCompatible);
-    const options = decoded
-      .filter(({ occ }) => occ.strike >= lowerBound && occ.strike <= upperBound)
-      .filter(({ opt }) => (opt.open_interest || 0) > 0 || (opt.volume || 0) > 0)
-      .map(toCompatible);
+    const options = allOptions.filter((_, i) => {
+      const { opt, occ } = decoded[i];
+      return occ.strike >= lowerBound && occ.strike <= upperBound &&
+        ((opt.open_interest || 0) > 0 || (opt.volume || 0) > 0);
+    });
 
     logger.info(`[CBOE-OPT] ${symbol}: ${options.length} options across ${expirations.length} expirations, spot=$${spotPrice.toFixed(2)}`);
 

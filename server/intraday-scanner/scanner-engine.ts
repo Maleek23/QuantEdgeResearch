@@ -16,6 +16,7 @@ import { detectBullFlag, detectBreakout20d, detectGapAndGo } from './detectors';
 import { v4 as uuidv4 } from 'uuid';
 import { MOVERS_UNIVERSE } from '@shared/movers-types';
 import type { IntradayPattern, IntradaySetup, IntradayScanResult } from '@shared/intraday-scanner-types';
+import { BoundedCache } from '../lib/bounded-cache';
 
 const UA = 'Mozilla/5.0';
 
@@ -30,7 +31,7 @@ interface OHLCBar {
   volume?: number;
 }
 
-const _ohlcCache = new Map<string, { bars: OHLCBar[]; fetchedAt: number }>();
+const _ohlcCache = new BoundedCache<string, { bars: OHLCBar[]; fetchedAt: number }>({ name: 'intraday.ohlc', maxEntries: 300, ttlMs: 3_600_000, maxBytes: 32 * 1024 * 1024 });
 const OHLC_TTL_MS = 15 * 60 * 1000; // 15 min cache
 
 async function fetchOHLC(symbol: string, days = 60): Promise<OHLCBar[] | null> {

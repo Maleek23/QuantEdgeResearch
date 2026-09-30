@@ -17,6 +17,7 @@ import { logger } from './logger';
 import { fetchStockPrice, fetchYahooFinancePrice } from './market-api';
 import { storage } from './storage';
 import { timeStopIso } from './zero-dte-policies';
+import { BoundedCache } from './lib/bounded-cache';
 
 // ============================================
 // MARKET DATA HELPERS
@@ -39,7 +40,7 @@ interface StockQuote {
 }
 
 // Intraday price cache
-const intradayCache = new Map<string, { data: IntradayPrice[]; timestamp: number }>();
+const intradayCache = new BoundedCache<string, { data: IntradayPrice[]; timestamp: number }>({ name: 'spxOrb.intraday', maxEntries: 20, ttlMs: 30 * 60_000 });
 const INTRADAY_CACHE_TTL = 60 * 1000; // 1 minute cache
 
 /**

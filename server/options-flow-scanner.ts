@@ -166,6 +166,7 @@ const DEFAULT_OPTIONS_WATCHLIST = [
 // were structurally invisible. The operator's core list is a living input;
 // union it in so a name they trade can never be missing from flow coverage.
 import { USER_CORE_WATCHLIST } from './ticker-universe';
+import { BoundedCache } from './lib/bounded-cache';
 const OPTIONS_WATCHLIST = Array.from(new Set([
   ...DEFAULT_OPTIONS_WATCHLIST,
   ...USER_CORE_WATCHLIST.map((t) => t.toUpperCase()),
@@ -189,7 +190,7 @@ let scannerStatus: ScannerStatus = {
  * Gets expirations first, then fetches chains for each expiration
  */
 /** Last known spot per symbol for the current scan pass (set by fetchChainWithSpot). */
-const spotBySymbol = new Map<string, number>();
+const spotBySymbol = new BoundedCache<string, number>({ name: 'flowScanner.spot', maxEntries: 2000, ttlMs: 24 * 3_600_000, noSizing: true });
 
 /**
  * Fetch a chain plus the underlying spot price.

@@ -20,6 +20,7 @@
  */
 import { logger } from './logger';
 import { marketDateET } from '@shared/market-day';
+import { BoundedCache } from './lib/bounded-cache';
 
 const BASE = 'https://api.bullflow.io';
 
@@ -29,7 +30,7 @@ function key(): string | null {
 export function bullflowEnabled(): boolean { return !!key(); }
 
 // ── tiny per-endpoint cache ─────────────────────────────────────────────────
-const cache = new Map<string, { at: number; data: any }>();
+const cache = new BoundedCache<string, { at: number; data: any }>({ name: 'bullflow.reads', maxEntries: 300, ttlMs: 2 * 3_600_000, maxBytes: 24 * 1024 * 1024 });
 /**
  * One budget for the whole process. Bullflow allows 10 req/min per key; every
  * scanner called in on its own schedule, so per-ticker netPremiumSeries reads
@@ -125,15 +126,46 @@ async function persistPrint(p: BullflowPrint): Promise<void> {
   } catch { /* persistence is best-effort; the live ring still serves */ }
 }
 
-/** All persisted prints for one ET market date (scorer + restart recovery). */
+/**
+ * All persisted prints for one ET market date (scorer + restart recovery).
+ *
+ * The JSONL file is append-only and never rotated, so reading it whole
+ * (readFile → split) allocated the entire history — every session since the
+ * file began — on each call, and chart overlays called it once a minute per
+ * viewer. Now it streams line by line, parses only lines whose timestamp can
+ * fall on the requested ET date (UTC date or the next UTC date), and shares
+ * one short-lived result per date across the scorer, squeeze radar and charts.
+ */
+const printsByDate = new BoundedCache<string, { at: number; p: Promise<BullflowPrint[]> }>({
+  name: 'bullflow.persistedPrintsByDate', maxEntries: 6, ttlMs: 30 * 60_000,
+  sizeOf: () => 0,
+});
 export async function readPersistedPrints(dateET: string): Promise<BullflowPrint[]> {
+  const ttl = dateET === marketDateET() ? 30_000 : 10 * 60_000;
+  const hit = printsByDate.get(dateET);
+  if (hit && Date.now() - hit.at < ttl) return hit.p;
+  const p = scanPersistedPrints(dateET);
+  printsByDate.set(dateET, { at: Date.now(), p });
+  p.catch(() => printsByDate.delete(dateET));
+  return p;
+}
+
+async function scanPersistedPrints(dateET: string): Promise<BullflowPrint[]> {
   try {
-    const fs = await import('fs/promises');
+    const fs = await import('fs');
     const path = await import('path');
-    const raw = await fs.readFile(path.join(process.cwd(), 'server', 'data', 'bullflow-prints.jsonl'), 'utf8');
+    const readline = await import('readline');
+    const file = path.join(process.cwd(), 'server', 'data', 'bullflow-prints.jsonl');
+    if (!fs.existsSync(file)) return [];
+    // ET date D spans UTC D 04:00/05:00 → D+1 04:00/05:00.
+    const next = new Date(Date.parse(`${dateET}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    const keys = [`"at":"${dateET}`, `"at":"${next}`];
     const out: BullflowPrint[] = [];
-    for (const line of raw.split('\n')) {
-      if (!line.trim()) continue;
+    const rl = readline.createInterface({ input: fs.createReadStream(file, { encoding: 'utf8' }), crlfDelay: Infinity });
+    for await (const line of rl) {
+      if (!line) continue;
+      // Cheap pre-filter; a line without a plain ISO "at" is still parsed.
+      if (line.includes('"at":"') && !line.includes(keys[0]) && !line.includes(keys[1])) continue;
       try {
         const p = JSON.parse(line) as BullflowPrint;
         if (marketDateET(new Date(p.at)) === dateET) out.push(p);

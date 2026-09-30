@@ -13,7 +13,14 @@ module.exports = {
       name: 'quantedge-web',
       script: 'dist/web.js',
       env: { NODE_ENV: 'production', PORT: 3000 },
-      max_memory_restart: '900M',
+      // Memory budget (docs/MEMORY_BUDGET.md): caches are bounded and the
+      // in-process guard trims them above 900 MB RSS; pm2 restarts at 1100M as
+      // the last-resort safety net. Keep the heap cap at 1024 until the admin
+      // System-health memory panel shows heapUsed peaking < ~550 MB for a week,
+      // then 768 is safe. Prod's /opt/quantedge/eco.config.cjs must carry the
+      // same two lines.
+      node_args: '--max-old-space-size=1024',
+      max_memory_restart: '1100M',
       autorestart: true,
       time: true,
     },

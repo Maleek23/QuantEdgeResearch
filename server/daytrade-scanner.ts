@@ -1,5 +1,6 @@
 import { logger } from "./logger";
 import { shouldAllowSessionEntry, getTradingSession, checkUnifiedEntryGate } from "./market-context-service";
+import { BoundedCache } from './lib/bounded-cache';
 
 export interface DayTradeOpportunity {
   symbol: string;
@@ -35,7 +36,7 @@ const DAYTRADE_TICKERS = [
   'BA', 'DIS', 'NFLX', 'UBER', 'ABNB'
 ];
 
-const intradayCache = new Map<string, { data: any; timestamp: Date }>();
+const intradayCache = new BoundedCache<string, { data: any; timestamp: Date }>({ name: 'daytrade.intraday', maxEntries: 100, ttlMs: 30 * 60_000, maxBytes: 16 * 1024 * 1024 });
 const CACHE_TTL = 5 * 60 * 1000;
 
 async function fetchIntradayData(symbol: string): Promise<any> {

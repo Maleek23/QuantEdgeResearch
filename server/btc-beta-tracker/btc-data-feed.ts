@@ -14,6 +14,7 @@
  */
 
 import { logger } from '../logger';
+import { BoundedCache } from '../lib/bounded-cache';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ interface CacheEntry<T> {
 const CACHE_TTL_CURRENT = 5 * 60 * 1000;   // 5 min for current price
 const CACHE_TTL_HISTORY = 60 * 60 * 1000;  // 1 hour for historical
 const _currentCache = new Map<string, CacheEntry<number>>();
-const _historyCache = new Map<string, CacheEntry<PriceBar[]>>();
+const _historyCache = new BoundedCache<string, CacheEntry<PriceBar[]>>({ name: 'btcBeta.history', maxEntries: 50, ttlMs: 2 * 3_600_000 });
 
 // ─── Current BTC price (CoinGecko) ──────────────────────────────────
 

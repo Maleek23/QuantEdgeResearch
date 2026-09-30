@@ -9,6 +9,7 @@
  */
 
 import { logger } from './logger';
+import { BoundedCache } from './lib/bounded-cache';
 
 // API Priority Order (free first!)
 const API_PRIORITY = {
@@ -38,7 +39,7 @@ interface HistoricalData {
 }
 
 class MultiSourceMarketData {
-  private cache: Map<string, { data: any; expires: number }> = new Map();
+  private cache: Map<string, { data: any; expires: number }> = new BoundedCache<string, { data: any; expires: number }>({ name: 'multiSource.reads', maxEntries: 1000, ttlMs: 6 * 3_600_000, maxBytes: 16 * 1024 * 1024 });
   private rateLimits: Map<string, { count: number; resetAt: number }> = new Map();
 
   // 5-minute cache for price data

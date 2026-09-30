@@ -28,6 +28,7 @@
  */
 
 import { logger } from "./logger";
+import { BoundedCache } from './lib/bounded-cache';
 
 // ─── Result Shape ────────────────────────────────────────────────
 
@@ -109,7 +110,7 @@ const BEAR_FLAG_UNIVERSE = [
 
 // ─── Data Cache ──────────────────────────────────────────────────
 
-const dailyCache = new Map<string, { data: any; ts: number }>();
+const dailyCache = new BoundedCache<string, { data: any; ts: number }>({ name: 'bearFlag.daily', maxEntries: 300, ttlMs: 3_600_000, maxBytes: 32 * 1024 * 1024 });
 const CACHE_TTL = 15 * 60 * 1000; // 15 min
 
 async function fetchDaily(symbol: string): Promise<any> {

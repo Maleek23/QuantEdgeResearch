@@ -16,6 +16,7 @@
 import { logger } from './logger';
 import { calculateGammaExposure, calculateAggregateGammaExposure } from './gamma-exposure';
 import { calculateVannaExposure, calculateAggregateVEX } from './vanna-exposure';
+import { BoundedCache } from './lib/bounded-cache';
 
 // ---- Types ---------------------------------------------------------------
 
@@ -783,7 +784,7 @@ function buildNarrative(
 
 // ---- Cache ---------------------------------------------------------------
 
-const projectionCache = new Map<string, { data: ProjectorResult; ts: number }>();
+const projectionCache = new BoundedCache<string, { data: ProjectorResult; ts: number }>({ name: 'gexvex.projections', maxEntries: 60, ttlMs: 30 * 60_000, maxBytes: 32 * 1024 * 1024 });
 const CACHE_TTL = 5 * 60 * 1000; // 5 min
 
 export async function getCachedProjection(

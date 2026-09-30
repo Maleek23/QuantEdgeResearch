@@ -32,6 +32,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { logger } from './logger';
 import { httpOk, noteProvider } from './data-provider-health';
 import { fillMissingGreeks, type GreekSource, type GreekSourceCounts } from '../shared/iv-fill';
+import { BoundedCache } from './lib/bounded-cache';
 
 /** Risk-free rate for the gap-fill inversion — the same 4.5% options-exposures.ts prices greeks with. */
 const FILL_RISK_FREE = 0.045;
@@ -232,7 +233,7 @@ async function fetchSpot(sym: string, high: () => boolean = () => false): Promis
 }
 
 interface OIRow { oi: number | null; oiDate: string | null; close: number | null; multiplier: number }
-const oiCache = new Map<string, { at: number; rows: Map<string, OIRow>; requests: number }>();
+const oiCache = new BoundedCache<string, { at: number; rows: Map<string, OIRow>; requests: number }>({ name: 'alpaca.openInterest', maxEntries: 40, ttlMs: 30 * 60_000, sizeOf: (v) => 256 + v.rows.size * 160 });
 const OI_TTL_MS = 30 * 60_000;
 
 async function fetchOpenInterest(sym: string, expLte: string, lo: number | null, hi: number | null, high: () => boolean = () => false): Promise<{ rows: Map<string, OIRow>; requests: number }> {
@@ -264,7 +265,7 @@ async function fetchOpenInterest(sym: string, expLte: string, lo: number | null,
   return { rows, requests };
 }
 
-const chainCache = new Map<string, { expiresAt: number; chain: AlpacaChain }>();
+const chainCache = new BoundedCache<string, { expiresAt: number; chain: AlpacaChain }>({ name: 'alpaca.chains', maxEntries: 40, ttlMs: 20 * 60_000, maxBytes: 96 * 1024 * 1024, sizeOf: (v) => 2048 + v.chain.contracts.length * 520 });
 const inflight = new Map<string, { p: Promise<AlpacaChain | null>; boost: { high: boolean } }>();
 
 /**
@@ -368,10 +369,6 @@ export async function getAlpacaOptionsChain(
       modelledShare: fill.modelledShare,
     };
     chainCache.set(key, { expiresAt: Date.now() + (inCashHours() ? 90_000 : 15 * 60_000), chain });
-    if (chainCache.size > 400) {
-      const oldest = [...chainCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0];
-      if (oldest) chainCache.delete(oldest[0]);
-    }
     const gs = fill.counts;
     logger.info(`[ALPACA-OPT] ${sym}: ${contracts.length} contracts, ${chain.expirations.length} expiries, OI date ${oiDate ?? '—'}, ${requests} requests; greeks provider ${gs.provider} / implied ${gs.impliedFromPrice} / smile ${gs.smileInterpolated} / none ${gs.none}`);
     return chain;

@@ -39,6 +39,8 @@ import { initializeBotNotificationService } from "./bot-notification-service";
 import { initializeWeeklyTracker } from "./weekly-tracker";
 import { securityHeaders } from "./security";
 import { csrfMiddleware, validateCSRF } from "./csrf";
+import { runHeavy } from "./lib/heavy-job-gate";
+import { startMemoryGuard } from "./lib/memory-guard";
 
 const app = express();
 
@@ -254,12 +256,14 @@ app.use((req, res, next) => {
     // process scans too. If a real worker service is ever added, set
     // DISABLE_WEB_FLOW_CRON=1 here so the two don't both scan the same window.
     if (process.env.DISABLE_WEB_FLOW_CRON !== '1') {
-      cron.default.schedule('*/15 9-15 * * 1-5', async () => {
+      // :03/:18/:33/:48 — off the :00/:30 pile-up (see the minute map in
+      // idea-producer-schedule.ts); runs under the heavy-job gate.
+      cron.default.schedule('3-59/15 9-15 * * 1-5', async () => {
         try {
           const { scanOptionsFlow, setOptionsFlowActive, getOptionsFlowStatus } = await import('./options-flow-scanner');
           if (!getOptionsFlowStatus().isActive) setOptionsFlowActive(true);
-          const flows = await scanOptionsFlow();
-          log(`💸 [FLOW] scan complete — ${flows.length} qualifying prints`);
+          const flows = await runHeavy('flow-scan', () => scanOptionsFlow());
+          if (flows) log(`💸 [FLOW] scan complete — ${flows.length} qualifying prints`);
         } catch (err) {
           logger.error('[FLOW] Scheduled scan failed:', err);
         }
@@ -270,7 +274,7 @@ app.use((req, res, next) => {
       // worker.ts, which production never starts, so gex_snapshots has sat at 0 rows
       // and there is no history to browse or to measure levels against. Hourly,
       // market hours, matching the worker's cadence.
-      cron.default.schedule('0 * * * *', async () => {
+      cron.default.schedule('8 * * * *', async () => {
         try {
           const nowEt = Number(
             new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false })
@@ -278,8 +282,8 @@ app.use((req, res, next) => {
           );
           if (nowEt < 9 || nowEt > 16) return;
           const { archiveGexSnapshots } = await import('./gex-history-archiver');
-          const result = await archiveGexSnapshots();
-          logger.info(`📸 [GEX-ARCHIVE] Hourly snapshot: ${result.archived} symbols archived`);
+          const result = await runHeavy('gex-archive', () => archiveGexSnapshots(), { priority: 'low' });
+          if (result) logger.info(`📸 [GEX-ARCHIVE] Hourly snapshot: ${result.archived} symbols archived`);
         } catch (err) {
           logger.error('[GEX-ARCHIVE] Scheduled archive failed:', err);
         }
@@ -340,14 +344,18 @@ app.use((req, res, next) => {
     void (async () => {
       try {
         const { warmConvictions } = await import('./convictions-engine');
-        await warmConvictions('boot');
+        await runHeavy('convictions-warm', () => warmConvictions('boot'), { priority: 'low', maxWaitMs: 10 * 60_000 });
         // Refresh ahead of the 5-minute TTL so the entry is replaced before it
-        // can expire, and nobody ever meets a cold cache.
-        setInterval(() => { void warmConvictions('interval'); }, 4 * 60_000);
+        // can expire, and nobody ever meets a cold cache. Gated: the ~2-minute
+        // build never overlaps another heavy job.
+        setInterval(() => { void runHeavy('convictions-warm', () => warmConvictions('interval'), { priority: 'low' }); }, 4 * 60_000);
       } catch (err) {
         logger.warn('[WEB] conviction warm-up failed to start:', err);
       }
     })();
+
+    // Memory watchdog: top cache sizes every 10 min; trims caches above the RSS line.
+    startMemoryGuard();
 
     log('✅ [WEB] Process ready — serving HTTP + WebSocket + SPX scanners');
   });

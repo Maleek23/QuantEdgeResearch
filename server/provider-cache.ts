@@ -14,18 +14,32 @@
  * requests per symbol into one.
  */
 import { logger } from './logger';
+import { BoundedCache, approxBytes } from './lib/bounded-cache';
 
 interface Entry<T> { data: T; expiresAt: number }
 
-const _cache = new Map<string, Entry<any>>();
+/**
+ * Bounded: at most 400 payloads and ~64 MB (estimated). It used to hold 800
+ * entries and prune only on overflow, so expired Yahoo chart payloads (1m/5m
+ * intraday series are 100–300 KB each) sat in memory indefinitely. Entries are
+ * also dropped once they are past the longest stale window any caller uses.
+ */
+const STALE_KEEP_MS = 30 * 60_000;
+const _cache = new BoundedCache<string, Entry<any>>({
+  name: 'provider.yahooEtc',
+  maxEntries: 400,
+  maxBytes: 64 * 1024 * 1024,
+  sizeOf: (e) => approxBytes(e.data),
+});
 const _inflight = new Map<string, Promise<any>>();
-const MAX_ENTRIES = 800;
+let _lastPrune = 0;
 
 function prune() {
-  if (_cache.size <= MAX_ENTRIES) return;
-  const sorted = Array.from(_cache.entries()).sort((a, b) => a[1].expiresAt - b[1].expiresAt);
-  for (let i = 0; i < Math.ceil(MAX_ENTRIES * 0.2); i++) {
-    if (sorted[i]) _cache.delete(sorted[i][0]);
+  const now = Date.now();
+  if (now - _lastPrune < 30_000) return;
+  _lastPrune = now;
+  for (const [k, e] of [..._cache]) {
+    if (now - e.expiresAt > STALE_KEEP_MS) _cache.delete(k);
   }
 }
 

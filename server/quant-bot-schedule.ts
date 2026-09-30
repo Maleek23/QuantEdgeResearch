@@ -52,7 +52,12 @@ function etMinutes(d = new Date()): { mins: number; weekday: boolean } {
 async function cycle(origin: string): Promise<void> {
   try {
     const { runBotCycle } = await import('./quant-bot');
-    const r = await runBotCycle(undefined, origin);
+    const { runHeavy } = await import('./lib/heavy-job-gate');
+    // One heavy job at a time on the 1 vCPU box; the 15:56 flatten jumps the queue.
+    const r = await runHeavy(`quant-bot:${origin}`, () => runBotCycle(undefined, origin), {
+      priority: /flatten|settle/.test(origin) ? 'high' : 'normal',
+    });
+    if (!r) return; // dropped by the gate (duplicate queued / waited past its slot)
     if (r.error) logger.info(`🤖 [QUANT-BOT] ${origin}: ${r.error}`);
     else logger.info(`🤖 [QUANT-BOT] ${origin}: +${r.opened.length} opened, -${r.closed.length} closed, ${r.openCount} open`);
   } catch (err) {
