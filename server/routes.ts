@@ -8733,7 +8733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // grades now come from shared/contract-engine.ts: account limits are
   // constraints (fitsAccount + limitReasons), never grade deductions. Same
   // ContractSelection response shape (plus additive fields). Never fabricates prices.
-  app.post("/api/options/select", async (req: any, res) => {
+  app.post("/api/options/select", requireBetaAccess, async (req: any, res) => {
     try {
       res.setHeader("Deprecation", "true");
       res.setHeader("Link", '</api/contract-engine/:symbol>; rel="successor-version"');
@@ -9797,7 +9797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Performance Tracking Routes
-  app.post("/api/performance/validate", async (_req, res) => {
+  app.post("/api/performance/validate", requireBetaAccess, async (_req, res) => {
     try {
       const { PerformanceValidator } = await import("./performance-validator");
       const openIdeas = await storage.getOpenTradeIdeas();
@@ -19948,7 +19948,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User-Specific Preferences (for logged-in users)
-  app.get("/api/user/:userId/preferences", async (req, res) => {
+  // Preferences belong to the signed-in user. "guest" reads get defaults;
+  // nobody can read or write another user's row.
+  const ownsPrefsUser = (req: any, res: any, next: any) => {
+    if (req.method === 'GET' && req.params.userId === 'guest') return next();
+    const sid = req.session?.userId ?? req.user?.claims?.sub;
+    if (!sid) return res.status(401).json({ error: "Unauthorized" });
+    if (String(sid) !== String(req.params.userId)) return res.status(403).json({ error: "Forbidden" });
+    next();
+  };
+  app.get("/api/user/:userId/preferences", ownsPrefsUser, async (req, res) => {
     try {
       const { userId } = req.params;
       const prefs = await storage.getUserPreferencesByUserId(userId);
@@ -19970,7 +19979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/user/:userId/preferences", async (req, res) => {
+  app.patch("/api/user/:userId/preferences", ownsPrefsUser, async (req, res) => {
     try {
       const { userId } = req.params;
       const validated = insertUserPreferencesSchema.partial().parse(req.body);
@@ -21891,7 +21900,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   });
 
   // Test Discord trade alert (admin only)
-  app.post("/api/admin/test-discord", async (req, res) => {
+  app.post("/api/admin/test-discord", requireAdminJWT, async (req, res) => {
     try {
       const { sendTradeIdeaToDiscord } = await import("./discord-service");
       
@@ -22006,7 +22015,7 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   });
 
   // Test Discord watchlist alert (admin only)
-  app.post("/api/admin/test-watchlist-discord", async (req, res) => {
+  app.post("/api/admin/test-watchlist-discord", requireAdminJWT, async (req, res) => {
     try {
       const { sendDiscordAlert } = await import("./discord-service");
       
