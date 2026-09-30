@@ -112,6 +112,7 @@ export default function SettingsPage() {
           {SECTIONS.map((s) => (
             <a key={s.id} href={`#${s.id}`} onClick={(e) => { e.preventDefault(); goTo(s.id); }}>{s.label}</a>
           ))}
+          <a href="/guide/QuantEdge-How-To-Use.pdf" download data-testid="link-guide-pdf">User guide (PDF)</a>
           {isAdmin && <Link href="/admin" className="st-jump-admin"><ShieldCheck aria-hidden size={13} /> Admin hub</Link>}
         </nav>
       </LuxPageHeader>
