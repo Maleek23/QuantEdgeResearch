@@ -35,7 +35,7 @@ import { storage } from './storage';
 import { getGexSnapshotBatch, type GexSnapshot } from './gex-snapshot-service';
 import { fetchYahooFinancePrice } from './market-api';
 import { getIntradayStructure } from './zero-dte-structure';
-import { evaluateZeroDte, timeStopIso, ZERO_DTE_PROVENANCE, TIME_STOP_ET, type ZeroDtePolicy } from './zero-dte-policies';
+import { evaluateZeroDte, timeStopIso, zeroDteWallsEnabled, ZERO_DTE_PROVENANCE, TIME_STOP_ET, type ZeroDtePolicy, type ZeroDteBucketInput } from './zero-dte-policies';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -529,6 +529,8 @@ function getTodayExpiry(): string {
 // on each candidate — on a 1-vCPU droplet, every minute. The spine's own
 // dedup window in createTradeIdea covers a restart.
 const recentPublishes = new Map<string, number>();
+/** Last reason a triggered setup was NOT published, per GEX underlying (0DTE desk reads it). */
+const lastWithheld = new Map<string, { at: number; reason: string }>();
 function isDuplicate(symbol: string, setup: string, bias: string): boolean {
   const now = Date.now();
   for (const [k, t] of recentPublishes) if (now - t > DUPE_WINDOW_MS) recentPublishes.delete(k);
@@ -604,6 +606,7 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
   }
   if (!contract) {
     logger.info(`[INDEX-SCALP] ${idea.symbol} ${idea.setup} withheld: ${selection?.note ?? 'no account-fit 0DTE contract'}`);
+    lastWithheld.set(idea.underlying, { at: Date.now(), reason: selection?.note ?? 'no account-fit 0DTE contract' });
     return false;
   }
 
@@ -665,6 +668,7 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
       idea.isPowerHour ? 'power_hour' : '',
       idea.policy ? `policy:${idea.policy}` : '',
       idea.policy ? 'validated:false' : '',
+      idea.evidence?.some((e) => e.includes('0DTE-only levels')) ? 'levels:0dte_walls' : '',
       `time_stop:${TIME_STOP_ET}ET`,
       `contract_dte:${dteDays}`,
     ].filter(Boolean),
@@ -761,6 +765,33 @@ async function eventBlockNow(etMin: number): Promise<string | null> {
   return null;
 }
 
+/**
+ * 0DTE-only walls for the index underlyings (power-hour fix, 2026-09-29).
+ * Same default Alpaca chain the GEX snapshot just used (shared cache key), so
+ * this costs no extra provider request when the snapshot was fresh.
+ */
+async function zeroDteBucketFor(sym: string, spot: number, nowMs: number): Promise<ZeroDteBucketInput | null> {
+  if (!zeroDteWallsEnabled()) return null;
+  try {
+    const { getAlpacaOptionsChain, alpacaToTradierShape } = await import('./alpaca-options');
+    const chain = await getAlpacaOptionsChain(sym);
+    if (!chain?.contracts.length) return null;
+    const { pickDeskExpiry, expiryBucketLevels, etDateKey } = await import('./zero-dte-desk-core');
+    const ex = pickDeskExpiry(chain.expirations, etDateKey(nowMs));
+    if (!ex.expiry || !ex.sameDay) return null; // only a SAME-DAY expiry pins into the close
+    const lv = expiryBucketLevels(sym, alpacaToTradierShape(chain) as any, spot, ex.expiry);
+    return lv ? { expiry: lv.expiry, callWall: lv.callWall, putWall: lv.putWall, maxGamma: lv.maxGamma, zeroGamma: lv.zeroGamma } : null;
+  } catch (e) {
+    logger.warn(`[INDEX-SCALP] ${sym} 0DTE bucket failed: ${(e as Error).message}`);
+    return null;
+  }
+}
+
+/** The last completed pass (the 0DTE desk shows its waits for SPX) + withheld reasons. */
+export function getLastIndexScan(): { at: number; result: IndexScalpResult; withheld: Record<string, { at: number; reason: string }> } | null {
+  return lastScan ? { ...lastScan, withheld: Object.fromEntries(lastWithheld) } : null;
+}
+
 let inflightScan: Promise<IndexScalpResult> | null = null;
 let lastScan: { at: number; result: IndexScalpResult } | null = null;
 const MIN_SCAN_INTERVAL_MS = 60_000;
@@ -826,10 +857,11 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
     if (!snap) { waits[sym] = ['no GEX snapshot (chain fetch failed or timed out)']; continue; }
     const st = await getIntradayStructure(sym);
     if (!st) { waits[sym] = ['no intraday bars']; continue; }
+    const zeroDte = await zeroDteBucketFor(sym, snap.spot, now);
     const verdict = evaluateZeroDte(sym, {
       spot: snap.spot, zeroGamma: snap.flipPoint, callWall: snap.callWall, putWall: snap.putWall,
       sign: snap.netGexSign, fetchedAt: snap.fetchedAt, modelledGrossShare: snap.modelledGrossShare ?? null,
-    }, st, now, etMin, eventBlock);
+    }, st, now, etMin, eventBlock, { zeroDte });
     if (!verdict.setup) { waits[sym] = verdict.wait; continue; }
     const v = verdict.setup;
     const config = INDEX_MAP[sym];

@@ -148,6 +148,21 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
   cron.schedule('*/5 9-14 * * 1-5', index0dte, ET);
   cron.schedule('*/2 15 * * 1-5', index0dte, ET);
 
+  // ── 0DTE desk (server/zero-dte-desk.ts): the watched single names
+  // (ZERO_DTE_WATCH minus the index names, default TSLA/MSTR/KWEB) through the
+  // same policies on their own levels, one minute after the index pass so the
+  // two never contend for the chain queue; 2–4 day swings at 10:30 / 14:30. ──
+  const desk0dte = guarded('0dte-desk', async () => {
+    const { runZeroDteDeskScan } = await import('./zero-dte-desk');
+    return (await runZeroDteDeskScan()).published;
+  });
+  cron.schedule('1-59/5 9-14 * * 1-5', desk0dte, ET);
+  cron.schedule('1-59/2 15 * * 1-5', desk0dte, ET);
+  cron.schedule('30 10,14 * * 1-5', guarded('short-swings', async () => {
+    const { runShortSwingPublish } = await import('./zero-dte-desk');
+    return runShortSwingPublish();
+  }), ET);
+
   // ── Quant sweep — publish only (no paper execution, no Discord). ──
   cron.schedule('12,42 9-15 * * 1-5', guarded('quant', async () => {
     const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -170,5 +185,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m, index/leader swing + crypto proxy 2×/day, reversal slate nightly (IDEA_PRODUCERS_IN_WEB=false disables)');
+  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m, index/leader swing + crypto proxy 2×/day, reversal slate nightly (IDEA_PRODUCERS_IN_WEB=false disables)');
 }
