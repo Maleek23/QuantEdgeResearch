@@ -13,12 +13,11 @@ import { Link, useLocation } from 'wouter';
 import { BookOpen, LogOut, Settings, SlidersHorizontal, Bell, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/theme-provider';
-import { ModeMenuItems } from '@/components/shell/mode-menu';
 import { useAuth } from '@/hooks/useAuth';
 import qeMark from '@assets/qe-mark.svg';
 import '@/styles/nexus.css';
 import { PAGES, UTILITY_PAGES } from './nav-model';
-import { MobileDock } from './mobile-dock';
+import { MobileDock, MobileMenuButton } from './mobile-dock';
 import { CustomizePanel } from './customize-panel';
 import { DesktopRail } from './desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from './skip-link';
@@ -76,11 +75,13 @@ export function NexusFrame({ children }: { children: ReactNode }) {
             type="button"
             onClick={openPalette}
             aria-label="Search tickers and pages"
+            title="Search tickers and pages"
             data-testid="frame-search-mobile"
             className="lx-icon-btn lg:hidden"
           >
             <Search className="h-4 w-4" />
           </button>
+          <MobileMenuButton activeTab={null} />
           {/* Desktop: the terminal's .search chrome, as a ⌘K palette trigger. */}
           <div className="hidden lg:block">
             <button
@@ -109,7 +110,6 @@ export function NexusFrame({ children }: { children: ReactNode }) {
               <LuxMenuItem icon={<BookOpen />} onSelect={() => setLocation('/how-to')}>How to use</LuxMenuItem>
               <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display & layout</LuxMenuItem>
               <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Settings</LuxMenuItem>
-              <ModeMenuItems />
               {user && (
                 <>
                   <LuxMenuSeparator />
@@ -124,7 +124,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
       {/* overflow-x contained HERE: one wide table (the GEX strike matrix, a filter
           row) used to widen the whole document, and iOS then zoomed the entire
           page out — dock included (measured: /r/META 1572px on a 393px phone). */}
-      <main ref={mainRef} id={MAIN_CONTENT_ID} tabIndex={-1} className="outline-none min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[var(--qe-rail-w,196px)]">
+      <main ref={mainRef} id={MAIN_CONTENT_ID} tabIndex={-1} className="outline-none min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[var(--qe-rail-w,196px)]">
         {children}
       </main>
 

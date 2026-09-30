@@ -16,6 +16,13 @@
      thumb. Rows and cards are already taller; inline text links are exempt. */
   .qe-terminal button:not(.nav-tab),.qe-terminal [role=tab],.qe-terminal select,.workuplab button{min-height:28px;min-width:28px}
 }
+/* Phones (feat/mobile 2026-09-29): every control in the page body is a ≥ 40px
+   thumb target — buttons, tabs, selects, inputs (the matrix's own cells and
+   the chart canvas are exempt; they are data, tapped for a drill). */
+@media (max-width:767px){
+  #main-content button:not(.gx-cell):not(.nav-tab),#main-content [role=tab],#main-content select,
+  #main-content input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:40px}
+}
 .qe-terminal p,.qe-terminal li,.workuplab p,.workuplab li,.landing p{
   font-family:'Inter',system-ui,-apple-system,sans-serif;
   text-transform:none;letter-spacing:normal;line-height:1.55;
@@ -156,6 +163,7 @@
   color:var(--green);
   box-shadow:0 0 12px rgba(110,231,183,0.15);
 }
+html[data-mode=light] .nexus-vars .status-chip.ok{color:#1d4ed8} /* 4.2 → 6.2:1 on its tint */
 .nexus-vars .status-chip.warn{
   background:rgba(250,204,21,0.08);
   border:1px solid rgba(250,204,21,0.25);
@@ -2980,3 +2988,74 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
   .landing .lnav-inner .btn{min-height:44px;padding:0 14px;white-space:nowrap}
 }
 @media (max-width:380px){.landing .brand-slash,.landing .brand-name{display:none}}
+/* Fitted matrix (matrixGeometry in gex-strike-grid.tsx): fixed column widths
+   measured from the box — exactly 4–5 expiries per horizontal view, snapping
+   by expiry; strike + Σ columns pinned, strikes scroll vertically. */
+.gx-table.gx-fit{table-layout:fixed;min-width:0}
+/* the pinned headers sit above the scrolling expiry headers (the td rule after the z-7 rule had knocked sticky-r th back to 4) */
+.gx-table thead th.gx-sticky-l,.gx-table thead th.gx-sticky-r{z-index:7}
+.gx-table.gx-fit td{min-width:0}
+.gx-table.gx-fit td.gx-strike,.gx-table.gx-fit td.gx-sum{min-width:0;overflow:hidden;text-overflow:clip}
+.gx-table.gx-fit th.gx-exp{overflow:hidden;text-overflow:ellipsis;padding:4px 3px}
+.gx-scroll.gx-snap{scroll-snap-type:x mandatory}
+.gx-scroll.gx-snap th.gx-exp{scroll-snap-align:start}
+.gx-line.spot span{left:calc(var(--gx-strike-w,176px) + 14px);margin-left:calc(var(--gx-strike-w,176px) + 14px)}
+.gx-line.zg span{left:calc(var(--gx-strike-w,176px) + 124px);margin-left:calc(var(--gx-strike-w,176px) + 124px)}
+.gx-mid .gx-table td.gx-strike{padding:0 6px}
+.gx-mid .gx-sum-bar{width:26px;margin-right:5px}
+.gx-mid .gx-table td.gx-sum{padding:0 5px}
+.gx-mid .gx-sign,.gx-mid .gx-scale-now{display:none}
+/* phone-portrait (operator 2026-09-29 "readability and size"): fewer, bigger —
+   cells 13px tabular, strikes 14px, headers 12px, rows 38px, 3–4 expiries per
+   view; ONE toolbar row that scrolls sideways; spot is a row chip + a toolbar
+   button, never a label floating over cells. */
+.gx-narrow .gx-table{font-size:13px}
+.gx-narrow .gx-table td.gx-strike{padding:0 4px}
+.gx-narrow .gx-strike b,.gx-narrow .gx-row.marked td.gx-strike b{font-size:14px}
+.gx-narrow .gx-pct,.gx-narrow .gx-sum-bar{display:none}
+.gx-narrow .gx-chips{margin-left:3px}
+.gx-narrow .gx-chip{padding:1px 3px;font-size:11px}
+.gx-narrow .gx-chip-spot{color:var(--text,#e8ecf3);border-color:color-mix(in srgb,var(--text,#e8ecf3) 55%,transparent)}
+.gx-narrow .gx-table td.gx-sum{padding:0 4px;font-size:13px;font-variant-numeric:tabular-nums}
+.gx-narrow .gx-table thead th{padding:4px 2px;font-size:12px;letter-spacing:0;white-space:normal;line-height:1.2}
+.gx-narrow .gx-table thead th small{font-size:12px}
+.gx-narrow .gx-table thead th .gx-colnet{font-size:12px}
+.gx-narrow .gx-table.gx-fit th.gx-exp{text-overflow:clip}
+.gx-narrow .gx-cell{height:32px;padding:0 2px;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.gx-narrow .gx-cell.top{padding-left:9px}
+.gx-narrow .gx-cell.top::before{font-size:9px}
+.gx-narrow .gx-toolbar{flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:6px;scrollbar-width:none}
+.gx-narrow .gx-toolbar>*{flex:none}
+.gx-narrow .gx-sign,.gx-narrow .gx-scale-now,.gx-narrow .gx-legend,.gx-narrow .gx-count{display:none}
+.gx-narrow .gx-ramp{min-width:64px}
+.gx-narrow .gx-ramp-ticks{display:none}
+.gx-narrow .gx-toggle{font-size:12px}
+.gx-narrow .gx-line.spot span{display:none}
+.gx-narrow .gx-line.zg span{left:calc(var(--gx-strike-w) + 4px);margin-left:calc(var(--gx-strike-w) + 4px);font-size:11px}
+.gx-narrow .gx-scale-seg b{display:none}
+.gx-narrow .gx-scale-seg button{font-size:12px;padding:0 10px}
+.gx-spot-btn{height:26px;padding:0 10px;border:1px solid var(--nx-border-hi,rgba(148,163,184,.3));border-radius:6px;background:transparent;color:var(--text,#e8ecf3);font:700 12px 'JetBrains Mono',monospace;white-space:nowrap;cursor:pointer}
+.gx-spot-btn.off{background:var(--cyan-bright,#6aa8ff);color:var(--bg,#07090d);border-color:transparent}
+
+/* ‹ › expiry pager (a page = the columns in view) */
+.gx-pager{display:inline-flex;gap:4px}
+.gx-pager button{min-width:28px;height:24px;padding:0 8px;border:1px solid var(--nx-border-hi,rgba(148,163,184,.3));border-radius:5px;background:transparent;color:var(--text,#e8ecf3);font:700 13px/1 'JetBrains Mono',monospace;cursor:pointer}
+.gx-pager button:hover,.gx-pager button:focus-visible{border-color:var(--cyan-bright,#6aa8ff)}
+.gx-narrow .gx-spot-btn{order:-2}
+.gx-narrow .gx-pager{order:-1}
+.gx-narrow .gx-table thead th.gx-exp{white-space:nowrap;padding:4px 1px}
+.gx-narrow .gx-cell.top{padding-left:2px}
+.gx-narrow .gx-cell.top::before{display:none} /* rank still shown by the ring + aria-label; no glyph crowding a 13px value */
+
+/* ── King node + intensity (operator reference heatmap, 2026-09-29) ──
+   rank-1 cell of each expiry: ★ + solid amber, dark ink; near-zero cells a
+   neutral grey so the dominant nodes pop; the book's largest node also stars
+   its strike label. Signs keep the CVD-safe blue/orange ramp. */
+.gx-cell.king{background:#facc15!important;color:#1a1300!important;font-weight:800;box-shadow:0 0 0 1.5px #fff6c4 inset,0 0 10px rgba(250,204,21,.45)}
+.gx-cell.king::before{display:none}
+.gx-cell.faint{background:color-mix(in srgb,var(--text-mute,#8a93a6) 16%,transparent);color:var(--text-dim,#aab3c5);font-weight:500}
+.gx-king-star{margin-right:3px;color:#facc15}
+/* Σ per strike keeps a small signed bar on phones too (under the value; the sticky cell is its containing block) */
+.gx-narrow .gx-sum-bar{display:block;position:absolute;left:4px;right:4px;bottom:3px;width:auto;height:3px;margin:0}
+/* spot line: a price tag pinned at the strike column on phones */
+.gx-narrow .gx-line.spot span{display:inline-block;left:2px;margin-left:2px;font-size:12px;padding:0 4px}

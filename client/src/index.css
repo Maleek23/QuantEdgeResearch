@@ -2821,3 +2821,78 @@ button:not([disabled]):active,
 .light.terminal-nexus-light .qe-terminal::after {
   background: radial-gradient(ellipse at center, transparent 55%, rgb(15 23 42 / .08) 100%);
 }
+
+/* ══════════════ TOUCH & READABILITY FLOOR (feat/mobile, 2026-09-29) ══════════════
+   Measured by research/device-audit.ts at 393/360/768/1024 px in Dark, Light and
+   High contrast. On phones and touch tablets every control is a ≥ 44×44 CSS px
+   target (Apple HIG / WCAG 2.5.5); prose on phones is ≥ 14px. The GEX matrix's
+   data cells (tap-to-drill data, not controls) and inline links inside prose are
+   exempt. The journal (.jr) is owned by the journal branch and is left alone. */
+@media (max-width:767px){
+  :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],[role=option],select,summary,
+      input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell){min-height:44px!important}
+  :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],summary):not(.gx-cell){min-width:44px!important}
+  a[href]:not(p a):not(.sr-only){min-height:44px!important}
+  label:has(> input[type=checkbox]),label:has(> input[type=radio]){min-height:44px;display:inline-flex;align-items:center}
+}
+@media (max-width:599px){
+  #main-content :is(p,li,dd,blockquote,figcaption){font-size:max(14px,1em)}
+}
+@media (max-width:599px){
+  :root{--qe-state-title:15px;--qe-state-msg:14px;--wu-note-fs:14px}
+  #main-content :is(.lx-empty,.fd-tool-blurb,.bot-desc-text,.wu-empty,.wu-note,.of-hint,.tl-map-foot,.gx-ps-read,.gx-hero-posture,.gx-expect,.hero-sub,.today-l .kind){font-size:14px}
+}
+/* Keyboard focus is always visible on form fields (many use outline-none and rely on a
+   wrapper's :focus-within, which a screen magnifier or the audit cannot see on the field). */
+#main-content :is(input,select,textarea):focus-visible{outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:2px}
+
+/* ══════════════ PHONE TYPE FLOOR — CSS only (replaces the DOM observer) ══════════════
+   Size tokens remap to ≥ 12px on phones; inputs are 16px so iOS never zooms on
+   focus. Literal sizes in older tool CSS are raised by the class rules below. */
+@media (max-width:599px){
+  :root{--fs-8:12px;--fs-9:12px;--fs-9-5:12px;--fs-10:12.5px;--fs-10-5:13px;--fs-11:13px}
+  #main-content :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){font-size:16px!important}
+  #main-content :is(small,.dim,.fd-foot,.fd-age,.pg-prov,.gx-note,.gx-legend,.gx-pct,.of-lbl,.of-d,.of-sub,.nxp-row-main small,.nxp-row-status small,.nxp-section-title small,.lx-eyebrow-pill,.jr-book-l,.tl-keys span,.context-sub,.context-k,.insight-desc,.gravity-note,.gx-stats span,.gx-nodes span,.gx-actions span,.gx-hero-basis,.fd-menu-note,.fd-menu-head,.of-stat .of-lbl,.lsig-level .l,.lsig-ev,.kind){font-size:max(12px,1em)}
+}
+
+/* ══════════════ ONE focus ring (UI/UX audit 2026-09-29) ══════════════
+   Many components set outline:none and rely on a faint background tint; the
+   ring below wins everywhere a keyboard lands (:focus-visible only). */
+:root{--qe-focus:#6aa8ff}
+html[data-mode=light]{--qe-focus:#1d4ed8}
+:where(a,button,input,select,textarea,summary,[tabindex],[role=button],[role=tab],[role=menuitem],[role=option],[role=switch]):focus-visible{outline:2px solid var(--qe-focus)!important;outline-offset:2px!important}
+
+/* desktop: no control under 32px (UI/UX audit) */
+@media (min-width:768px){
+  .flowdash .fd-icon-btn,.flowdash .fd-grip,.flowdash .of-chip{min-width:32px;min-height:32px}
+}
+/* tablets + desktop: no control under 32px (UI/UX audit; device-audit.ts checks 768/1024) */
+@media (min-width:768px){
+  #main-content :is(button,[role=button],[role=tab],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell){min-height:32px}
+  #main-content :is(button,[role=button],[role=tab]):not(.gx-cell){min-width:32px}
+  .brand,.lx-topbar .brand{min-height:32px;display:inline-flex;align-items:center}
+}
+@media (max-width:767px){ .brand,.lx-topbar .brand{min-height:44px;display:inline-flex;align-items:center} }
+/* phones: remaining literal sub-12px text found by the audit */
+@media (max-width:599px){
+  #main-content :is(.fd-focus b,.nxd button,.nxd .nxp-row small,.of-seg button,.fd-btn,.lx-eyebrow-ctx,.lx-eyebrow-pill,.td-tool-sub,.of-tk,.of-chip,.gx-controls .of-seg button,.nxd-search input,.nxp-detail-tabs button,.of-hint,.of-stat .of-lbl){font-size:12px}
+}
+@media (max-width:599px){
+  #main-content :is(.qe-skel-label,.fd-sym,.nxd-count,.td-charts-toggle,.of-hint button,.nxd-chip,.nxd-tag){font-size:12px!important}
+  #main-content .today-l .lsig-type .kind,#main-content .of-hint{font-size:14px!important}
+}
+@media (min-width:768px){
+  .lx-sidebar-trigger{min-width:32px!important;min-height:32px!important}
+  #main-content .today-l .td-tool-more{display:inline-flex;align-items:center;min-height:32px}
+}
+@media (max-width:599px){
+  /* NEXUS detail/context captions, GEX chips + sub-heads (device-audit readability) */
+  #main-content :is(.nxp-market-summary,.nxp-section-title,.nxp-symbol-line,.nxp-chart-meta,.nxp-context,.nxp-score,.nxp-context-score) :is(span,small,strong,b,dt,h3),
+  #main-content :is(.nxp-context h3,.nxp-market-summary dt,.nxd dt,.gx-sub-head,.chart-canvas-wrap > div){font-size:12px!important}
+  #main-content .gx-chip{font-size:12px!important;padding:0 2px!important}
+}
+@media (max-width:599px){
+  #main-content :is(.nxp-level-strip,.nxp-levels,.nxp-price-strip) :is(span,small){font-size:12px!important}
+  #main-content .gx-hero-title{font-size:12px!important}
+}
+@media (max-width:599px){ #main-content .nxp-execution :is(span,small,dt,dd){font-size:max(12px,1em)!important} #main-content .nxp-execution span{font-size:12px!important} }

@@ -80,26 +80,21 @@ export const GEX_TOOLS: ToolDef[] = [
 ];
 
 /**
- * GEX default — one screen (12 × 18, rows scale to the viewport):
+ * GEX default — the essentials only, one screen (12 × 18). Operator
+ * 2026-09-29: "users should have discretion to add a lot of these things,
+ * like all the GEX stuff" — the price chart, near-term ladder, gamma profile,
+ * gravity, rankings, magnet setups and money flow are one click away in Add
+ * tool.
  *
- *   ┌──────────── matrix 7×10 ───────────┬──── stock chart 5×10 ────┐
- *   │ strike × expiry, per-expiry colour │ price + GEX bubbles       │
- *   ├── ladder 3×8 ─┬── levels 3×8 ──┬── regime 3×8 ─┬── profile 3×8 ─┤
- *   └───────────────┴────────────────┴───────────────┴────────────────┘
- *
- * The book (matrix) is the page's point, top-left and largest, with price
- * beside it; the near-term ladder sits next to the levels it defines, then
- * the regime read and the zero-γ profile. Gravity, rankings, magnet setups,
- * money flow and flow context are one click away in Add tool.
+ *   ┌──────────── strike × expiry matrix 8×18 ────────────┬ key levels 4×9 ─┐
+ *   │ per-expiry colour, 4–5 expiries per view             ├ regime 4×9 ─────┤
+ *   └──────────────────────────────────────────────────────┴─────────────────┘
  */
 export const GEX_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'GEX',
   tools: [
-    ['gex-matrix', 0, 0, 7, 10],
-    ['stock-chart', 7, 0, 5, 10],
-    ['gex-dealer-map', 0, 10, 3, 8],
-    ['gex-levels', 3, 10, 3, 8],
-    ['gex-regime', 6, 10, 3, 8],
-    ['gex-profile', 9, 10, 3, 8],
+    ['gex-matrix', 0, 0, 8, 18],
+    ['gex-levels', 8, 0, 4, 9],
+    ['gex-regime', 8, 9, 4, 9],
   ],
 }];

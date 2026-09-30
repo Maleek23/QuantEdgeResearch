@@ -29,7 +29,6 @@ import { useQuery } from '@tanstack/react-query';
 import type { ConvictionsResponse } from '@/lib/convictions';
 import { useStockContext } from '@/contexts/stock-context';
 import { useTheme } from '@/components/theme-provider';
-import { ModeMenuItems } from '@/components/shell/mode-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { KitStyles } from '@/components/templates/kit';
 import quantEdgeLogoUrl from '@assets/qe-mark.svg';
@@ -56,7 +55,7 @@ const NexusViews = lazy(() => import('@/components/zerodte/nexus-views'));
 // Tabs, mobile dock and "More" live in ONE shared model so the terminal and
 // every standalone page (NexusFrame) wear identical navigation.
 import { TABS, type Tab } from '@/components/shell/nav-model';
-import { MobileDock } from '@/components/shell/mobile-dock';
+import { MobileDock, MobileMenuButton } from '@/components/shell/mobile-dock';
 import { CustomizePanel } from '@/components/shell/customize-panel';
 import { DesktopRail } from '@/components/shell/desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from '@/components/shell/skip-link';
@@ -281,11 +280,13 @@ export default function TerminalShell() {
             type="button"
             onClick={() => setMobileSearchOpen((open) => !open)}
             aria-label="Search ticker"
+            title="Search tickers and pages"
             aria-expanded={mobileSearchOpen}
             className="lx-icon-btn lg:hidden"
           >
             <Search className="h-4 w-4" />
           </button>
+          <MobileMenuButton activeTab={tab} onTab={setTab} />
           {/* Desktop search is a ⌘K PALETTE TRIGGER, not an inline dropdown —
               clicking it (or ⌘K from anywhere) opens the command palette. */}
           <div className="hidden lg:block">
@@ -327,7 +328,6 @@ export default function TerminalShell() {
               <LuxMenuSeparator />
               <LuxMenuItem icon={<Bell />} end={alerts.unread > 0 ? alerts.unread : undefined} onSelect={() => { setAlertsOpen(true); alerts.setUnread(0); }}>Alerts</LuxMenuItem>
               <LuxMenuItem icon={<BookOpen />} onSelect={() => setGuideOpen(true)}>Guide</LuxMenuItem>
-              <ModeMenuItems />
               <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display & layout</LuxMenuItem>
               <LuxMenuItem icon={<UserRound />} onSelect={() => setSettingsOpen(true)}>Preferences & risk</LuxMenuItem>
               <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Full account settings</LuxMenuItem>
@@ -362,7 +362,7 @@ export default function TerminalShell() {
       </header>
 
       {/* ── tab content (cross-fades) ── */}
-      <main ref={mainRef} id={MAIN_CONTENT_ID} tabIndex={-1} className="relative outline-none min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[var(--qe-rail-w,196px)]">
+      <main ref={mainRef} id={MAIN_CONTENT_ID} tabIndex={-1} className="relative outline-none min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[var(--qe-rail-w,196px)]">
         {unknownTab && (
           <div role="status" className="flex items-center gap-3 border-b border-[var(--brand-gold)]/30 bg-[var(--brand-gold)]/[0.06] px-4 py-2 font-mono text-[11px] text-foreground/85">
             <span>Unknown tab ‘{unknownTab}’ — showing NEXUS.</span>

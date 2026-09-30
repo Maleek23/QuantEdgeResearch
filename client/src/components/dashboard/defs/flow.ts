@@ -134,25 +134,31 @@ export const FLOW_TOOLS: ToolDef[] = [
 /**
  * FLOW shipped dashboards — each one screen (12 × 18).
  *
- * Market flow — the whole tape first, then its three cuts:
- *   ┌──────────── options flow 8×11 ────────────┬ top tickers 4×11 ┐
- *   ├── market tide 4×7 ──┬── sweeps & blocks 4×7 ──┬ unusual 4×7 ──┤
+ * Market flow (operator layout 2026-09-29) — the feed is the page:
+ *   ┌──────────── options flow 8×12 ────────────┬ market tide 4×6 ─┐
+ *   │                                           ├ GEX levels 4×6 ──┤
+ *   ├──────────── top tickers 8×6 ──────────────┼ dark pool 4×6 ───┤
+ *   └───────────────────────────────────────────┴──────────────────┘
+ * Right column = what a flow reader checks against the tape for the focused
+ * ticker: the SPY tide, its dealer levels (compact GEX), its dark-pool levels.
+ * Phone: feed, tide, top tickers, then the rest (PageSpec.phone.first).
  *
  * Ticker flow — one symbol (list tools follow the focus ticker):
  *   ┌──── stock chart 6×11 ────┬ strike ladder 3×11 ┬ flow×GEX 3×11 ┐
  *   ├── strike × expiry 6×7 ───┬── timeline 3×7 ────┬ dark pool 3×7 ┤
  *
- * Alerts, setups, builders, net premium and Index pulse: Add tool.
+ * Sweeps & blocks, unusual, alerts, setups, builders, net premium and Index
+ * pulse: Add tool.
  */
 export const FLOW_DEFAULTS: DefaultLayout[] = [
   {
     id: 'default', name: 'Market flow',
     tools: [
-      ['options-flow', 0, 0, 8, 11],
-      ['top-tickers', 8, 0, 4, 11],
-      ['market-tide', 0, 11, 4, 7],
-      ['flow-sweeps-blocks', 4, 11, 4, 7],
-      ['flow-unusual', 8, 11, 4, 7],
+      ['options-flow', 0, 0, 8, 12],
+      ['market-tide', 8, 0, 4, 6],
+      ['gex-levels', 8, 6, 4, 6],
+      ['top-tickers', 0, 12, 8, 6],
+      ['dark-pool-flow', 8, 12, 4, 6],
     ],
   },
   {

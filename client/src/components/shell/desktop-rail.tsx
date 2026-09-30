@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { Moon, Sun } from 'lucide-react';
 import { LuxSidebar } from '@/components/lux';
-import { useTheme } from '@/components/theme-provider';
-import { toggleLight } from '@/lib/visual-mode';
 import { useRailCollapsed } from './rail-state';
 import qeMark from '@assets/qe-mark.svg';
 import { navGroups, utilityItems } from './nav-groups';
@@ -29,7 +26,6 @@ export function DesktopRail({
 }) {
   const [collapsed, toggle] = useRailCollapsed();
   const [, setLocation] = useLocation();
-  const { theme } = useTheme();
   const [ready, setReady] = useState(false);
   useEffect(() => { const id = requestAnimationFrame(() => setReady(true)); return () => cancelAnimationFrame(id); }, []);
   useEffect(() => {
@@ -41,7 +37,6 @@ export function DesktopRail({
   }, [toggle]);
 
   const target = { activeTab, currentPath, onTab, go: setLocation };
-  const light = theme === 'nexus-light' || theme === 'light';
 
   return (
     <LuxSidebar
@@ -61,16 +56,8 @@ export function DesktopRail({
       }}
       groups={navGroups(target)}
       footerItems={[
+        // Visual modes live ONLY in Settings › Display (operator 2026-09-29).
         ...utilityItems(target),
-        {
-          // Quick ☀/☾: light ↔ the dark-ground mode you came from (Dark,
-          // Midnight, Dim or High contrast). All five modes: account menu or
-          // Settings › Display.
-          id: 'theme',
-          label: light ? 'Dark mode' : 'Light mode',
-          icon: light ? Moon : Sun,
-          onSelect: () => toggleLight(),
-        },
       ]}
       note={<>Decision support only.<br />Not investment advice.</>}
     />

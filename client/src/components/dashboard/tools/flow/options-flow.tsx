@@ -297,7 +297,10 @@ export function OptionsFlowTool() {
                   {slice.map(({ r, sig, n }) => (
                     <tr key={r.id} className={cn(`k-${r.kind}`, r.symbol === focus && 'sel')} style={{ height: ROW }}
                       onClick={() => setFocus(r.symbol)} onDoubleClick={() => openWorkup(r.symbol)}
-                      title="Click: focus chart · double-click: workup">
+                      // keyboard: Tab reaches each row, Enter/Space focuses its ticker (same as click)
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFocus(r.symbol); } }}
+                      title="Click / Enter: focus chart · double-click: workup">
                       <td className="mono dim">{etTime(r.at)}{days > 1 && r.at ? <span className="of-d"> {r.at.slice(5, 10)}</span> : null}</td>
                       <td className="r val">{money(r.premium)}</td>
                       <td><span className="of-tk">{r.symbol}</span></td>

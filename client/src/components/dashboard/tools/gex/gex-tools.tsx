@@ -88,6 +88,65 @@ export function GexDealerMapTool() {
   );
 }
 
+/* ════════════ Phone lead — levels + regime in one glance ════════════ */
+/**
+ * GEX on a phone (< 768px) leads with this strip, above the stacked tools:
+ * spot, the regime in words and the four structural levels with their
+ * distance from spot. Same shared terminal query as every GEX tool; age is
+ * stamped (live, not carried). Not a registry tool — it is the phone
+ * layout's header, so it cannot be removed or moved off the top.
+ */
+export function GexPhoneSummary() {
+  const g = useGexFocus();
+  const now = useNow(15_000);
+  const blocked = gate(g);
+  if (blocked) return <section className="gx-phone-sum" aria-label="GEX summary">{blocked}</section>;
+  const snap = g.snap!; const spot = g.spot;
+  const reg = regimeView(snap);
+  const zg = zeroGammaOf(snap);
+  const read = regimeNarrative(reg, zg);
+  const color = regimeColor(reg?.regime, reg?.nearFlip);
+  const asOf = terminalAsOf(g.q.data);
+  const ageS = asOf ? Math.max(0, Math.round((now - new Date(asOf).getTime()) / 1000)) : null;
+  const age = ageS == null || !Number.isFinite(ageS) ? 'age —' : ageS < 90 ? `${ageS}s ago` : ageS < 5400 ? `${Math.round(ageS / 60)}m ago` : `${Math.round(ageS / 3600)}h ago`;
+  const dist = (v: number | null | undefined) => (v != null && spot ? `${v >= spot ? '+' : ''}${(((v - spot) / spot) * 100).toFixed(1)}%` : '');
+  const lv: Array<[string, number | null | undefined, string, number]> = [
+    ['Call', snap.callWall, LEVEL_COLORS.callWall, 0],
+    ['Put', snap.putWall, LEVEL_COLORS.putWall, 0],
+    ['Max γ', snap.maxGammaStrike, LEVEL_COLORS.magnet, 0],
+    ['Zero-γ', zg, LEVEL_COLORS.zeroGamma, 2],
+  ];
+  return (
+    <section className="gx-phone-sum" aria-label={`${g.symbol} GEX summary`}>
+      <div className="gx-ps-top">
+        <span className="gx-spot-sym">{g.symbol}</span>
+        <b className="gx-ps-spot">{px(spot)}</b>
+        <span className="gx-ps-age" title="Time since the dealer map was computed">{g.q.data?.cached ? 'cached · ' : ''}{age}</span>
+      </div>
+      <div className="gx-ps-regime" style={{ borderColor: `color-mix(in srgb, ${color} 40%, transparent)`, background: `color-mix(in srgb, ${color} 8%, transparent)` }}>
+        <span className="gx-glyph" style={{ color }}>{reg?.glyph}</span>
+        <div>
+          <div className="gx-ps-title">{reg?.title ?? 'Regime —'}</div>
+          <div className="gx-ps-read">{read.headline}</div>
+        </div>
+      </div>
+      <div className="gx-ps-levels">
+        {lv.map(([k, v, c, d]) => (
+          <div key={k} className="gx-ps-lv" title={k === 'Call' || k === 'Put' ? `${k} wall — all listed expiries` : `${k} — all listed expiries`}>
+            <span><i style={{ background: c }} />{k}</span>
+            <b style={{ color: c }}>{px(v ?? null, d)}</b>
+            <small>{dist(v) || '—'}</small>
+          </div>
+        ))}
+      </div>
+      <div className="gx-ps-net">
+        <span>Net GEX <b style={{ color: exposureText('gex', snap.totalGEX) }}>{fmtGexB(snap.totalGEX)}/1%</b></span>
+        <span>Net VEX <b style={{ color: exposureText('vex', snap.totalVEX ?? 0) }}>{fmtVexM(snap.totalVEX)}</b></span>
+      </div>
+    </section>
+  );
+}
+
 /* ════════════ Strike × expiry matrix ════════════ */
 export function GexMatrixTool() {
   const g = useGexFocus();
@@ -112,7 +171,7 @@ export function GexMatrixTool() {
             <button key={b.id} type="button" className={bucket === b.id ? 'on' : ''} onClick={() => setBucket(b.id)}>{b.label}<span className="dim"> {shaped.bucketCounts[b.id]}</span></button>
           ))}
         </div>
-        <span className="gx-note">{shaped.expiries.length}/{shaped.expiryAll.length} expiries{last ? ` · max ${last[1]} (${last[0]}d)` : ''} · colour: <b>{scale === 'column' ? 'per expiry' : 'absolute'}</b> · click a cell to drill</span>
+        <span className="gx-note gx-note-detail">{shaped.expiries.length}/{shaped.expiryAll.length} expiries{last ? ` · max ${last[1]} (${last[0]}d)` : ''} · colour: <b>{scale === 'column' ? 'per expiry' : 'absolute'}</b> · click a cell to drill</span>
       </div>
       <div className="gx-grow matrix-wrap">
         <GexStrikeMatrix
@@ -157,9 +216,15 @@ export function GexProfileTool() {
 }
 
 /* ════════════ Key levels — walls / magnet / flip ════════════ */
+const ageText = (iso: string, now: number) => {
+  const sec = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+  return !Number.isFinite(sec) ? 'age —' : sec < 90 ? `${sec}s old` : sec < 5400 ? `${Math.round(sec / 60)}m old` : `${Math.round(sec / 3600)}h old`;
+};
+
 export function GexKeyLevelsTool() {
   const g = useGexFocus();
   const eh = useExtendedHoursNexus();
+  const now = useNow(15_000);
   const near = useMemo(() => nearTermByStrike(g.matrix, g.spot), [g.matrix, g.spot]);
   const blocked = gate(g);
   if (blocked) return blocked;
@@ -172,9 +237,15 @@ export function GexKeyLevelsTool() {
     <div className="gx-tool fd-scroll">
       <div className="gx-spot">
         <div><span className="gx-spot-sym">{g.symbol}</span> <b>{px(spot)}</b>{' '}
-          {quote ? <span style={{ color: quote.changePct >= 0 ? 'var(--green)' : 'var(--red)' }}>{quote.changePct >= 0 ? '+' : ''}{quote.changePct.toFixed(2)}%</span> : <span className="dim">chg —</span>}
+          {quote ? <span style={{ color: quote.changePct >= 0 ? 'var(--green)' : 'var(--red)' }}>{quote.changePct >= 0 ? '+' : ''}{quote.changePct.toFixed(2)}%</span> : null}
         </div>
-        <span className="dim">{sessionLabelOf(eh.data)}</span>
+        {/* Never a bare "chg —" / "Last close": say which feed and how old, or that it is missing. */}
+        <span className="dim" title="Spot is the GEX engine's chain spot; the change comes from the extended-hours quote feed">
+          {eh.isError && !eh.data ? 'change: quote feed unavailable · spot from GEX chain'
+            : eh.isLoading ? 'change: loading quote…'
+            : !quote ? `change: no ${g.symbol} quote in the extended-hours feed · spot from GEX chain`
+            : `${sessionLabelOf(eh.data)} quote${eh.data?.asOf ? ` · ${ageText(eh.data.asOf, now)}` : ''}`}
+        </span>
       </div>
       <DealerStructureRail snap={snap} spot={spot} zeroGamma={zg} negGamma={reg?.regime === 'negative'} />
       <div className="context-grid gx-pad">

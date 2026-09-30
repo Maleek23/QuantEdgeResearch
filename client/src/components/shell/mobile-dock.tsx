@@ -1,23 +1,28 @@
 /**
- * The bottom navigation — ONE component for the terminal and every page.
- * Four primary sections + More. More opens a sheet with the remaining
- * instruments and the standalone pages. Touch targets are ≥ 44pt (Apple HIG).
+ * PHONE NAVIGATION — ONE model for the terminal and every page.
  *
- * 2026-09-29 lux pass: the dock and the rail share names, icons and grouping
- * (nav-groups.ts) — short sentence-case labels, accent bar on the active item —
- * and the More sheet IS the shared LuxSidebar (placement="sheet"), so the
- * phone and desktop menus are one implementation.
+ *   MobileDock        a floating, rounded dock at the bottom (safe-area aware):
+ *                     Today · NEXUS · FLOW · GEX · Chart (nav-model MOBILE_DOCK).
+ *                     Active item = a pill with icon + label; every item is a
+ *                     ≥ 48px target; labels are 11px, never oversized.
+ *   MobileMenuButton  the menu button in the phone TOP BAR. It opens the rest
+ *                     of the navigation (Research, Manage, Account groups) as
+ *                     a sheet — the shared LuxSidebar in its `sheet` placement,
+ *                     so phone and desktop menus are one implementation.
+ *
+ * Operator 2026-09-29: "should show 4–5 including chart" and the More slot
+ * moves out of the dock into the top bar.
  */
 import { useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { MoreHorizontal } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE, DUR } from '@/lib/motion';
 import { useDismissable } from '@/hooks/use-dismissable';
 import { LuxSidebar } from '@/components/lux/lux-sidebar';
-import { MOBILE_PRIMARY, MOBILE_MORE, PAGES, UTILITY_PAGES, MobileTabIcon, tabHref, type Tab } from './nav-model';
-import { TAB_SHORT, navGroups, utilityItems } from './nav-groups';
+import { MOBILE_DOCK, MOBILE_PRIMARY, MOBILE_PRIMARY_PAGES, MOBILE_MORE, PAGES, UTILITY_PAGES, MobileTabIcon, tabHref, type Tab } from './nav-model';
+import { TAB_SHORT, navGroups, pageShort, utilityItems } from './nav-groups';
 
 export function MobileDock({ activeTab, onTab }: {
   /** The terminal tab in view, or null on a standalone page. */
@@ -25,61 +30,82 @@ export function MobileDock({ activeTab, onTab }: {
   /** In the terminal, switch tabs in place; elsewhere omit it and the dock navigates. */
   onTab?: (t: Tab) => void;
 }) {
+  const [location, setLocation] = useLocation();
+  const path = location.split('?')[0];
+  const go = (t: Tab) => (onTab ? onTab(t) : setLocation(tabHref(t)));
+
+  return (
+    <nav
+      aria-label="Sections"
+      className="qe-dock fixed inset-x-2 z-50 lg:hidden"
+      style={{ bottom: 'calc(8px + env(safe-area-inset-bottom))' }}
+    >
+      <ul className="grid grid-cols-5 gap-1 rounded-2xl border border-[var(--lx-line-hi)] bg-[color-mix(in_srgb,var(--lx-surface)_94%,transparent)] p-1.5 shadow-[var(--lx-shadow-pop)] backdrop-blur-xl">
+        {MOBILE_DOCK.map((item) => {
+          const page = item.kind === 'page' ? PAGES.find((p) => p.href === item.href) : undefined;
+          const key = item.kind === 'page' ? item.href : item.tab;
+          const label = item.kind === 'page' ? (page ? pageShort(page) : item.href) : TAB_SHORT[item.tab];
+          const active = item.kind === 'page' ? activeTab == null && path === item.href : activeTab === item.tab;
+          const PageIcon = page?.icon;
+          return (
+            <li key={key} className="min-w-0">
+              <button
+                type="button"
+                onClick={() => (item.kind === 'page' ? setLocation(item.href) : go(item.tab))}
+                aria-current={active ? 'page' : undefined}
+                data-testid={`dock-${item.kind === 'page' ? item.href.slice(1) : item.tab}`}
+                className={cn(
+                  'lx-focus relative flex h-12 w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-semibold leading-none transition-colors',
+                  active ? 'text-[var(--lx-accent-text)]' : 'text-[var(--lx-dim)] hover:text-[var(--lx-text)]',
+                )}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="qe-dock-pill"
+                    aria-hidden
+                    className="absolute inset-0 rounded-xl border border-[color-mix(in_srgb,var(--lx-accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--lx-accent)_16%,transparent)]"
+                    transition={{ duration: DUR.fast, ease: EASE }}
+                  />
+                )}
+                <span className="relative">{item.kind === 'page' ? (PageIcon ? <PageIcon className="h-[18px] w-[18px]" /> : null) : <MobileTabIcon tab={item.tab} />}</span>
+                <span className="relative max-w-full truncate">{label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+/** Phone top-bar menu: every destination that is not in the dock, plus account pages. */
+export function MobileMenuButton({ activeTab, onTab }: { activeTab: Tab | null; onTab?: (t: Tab) => void }) {
   const [open, setOpen] = useState(false);
   const [location, setLocation] = useLocation();
   const reduce = useReducedMotion();
-  // "More" sheet: Escape closes, Tab stays inside, focus returns to the More button.
-  const moreRef = useRef<HTMLButtonElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
-  useDismissable(open, () => setOpen(false), { panelRef: sheetRef, triggerRef: moreRef, trap: true });
+  useDismissable(open, () => setOpen(false), { panelRef: sheetRef, triggerRef: btnRef, trap: true });
   const path = location.split('?')[0];
-  const go = (t: Tab) => { setOpen(false); onTab ? onTab(t) : setLocation(tabHref(t)); };
-  const target = { activeTab, currentPath: path, onTab, go: setLocation, omitTabs: MOBILE_PRIMARY };
-  const onPage = [...PAGES, ...UTILITY_PAGES].some((p) => p.href === path);
-  const moreActive = open || (activeTab != null && MOBILE_MORE.includes(activeTab)) || onPage;
+  const target = { activeTab, currentPath: path, onTab, go: setLocation, omitTabs: MOBILE_PRIMARY, omitPages: MOBILE_PRIMARY_PAGES };
+  const inMenu = (activeTab != null && MOBILE_MORE.includes(activeTab))
+    || [...PAGES, ...UTILITY_PAGES].some((p) => p.href === path && !MOBILE_PRIMARY_PAGES.includes(p.href));
 
   return (
     <>
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--lx-line)] bg-[color-mix(in_srgb,var(--lx-bg)_96%,transparent)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
-        <nav className="grid h-16 grid-cols-5 px-1" aria-label="Sections">
-          {MOBILE_PRIMARY.map((id) => {
-            const label = TAB_SHORT[id];
-            const active = activeTab === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => go(id)}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'lx-focus relative flex min-w-0 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors',
-                  active ? 'text-[var(--lx-accent-text)]' : 'text-[var(--lx-dim)]',
-                )}
-              >
-                {active && <motion.span layoutId="mobile-dock-active" className="absolute inset-x-5 top-0 h-[3px] rounded-b-full bg-[var(--lx-accent)]" />}
-                <MobileTabIcon tab={id} />
-                <span>{label}</span>
-              </button>
-            );
-          })}
-          <button
-            ref={moreRef}
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-            aria-haspopup="dialog"
-            className={cn(
-              'lx-focus relative flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors',
-              moreActive ? 'text-[var(--lx-accent-text)]' : 'text-[var(--lx-dim)]',
-            )}
-          >
-            {moreActive && !open && <motion.span layoutId="mobile-dock-active" className="absolute inset-x-5 top-0 h-[3px] rounded-b-full bg-[var(--lx-accent)]" />}
-            <MoreHorizontal className="h-[18px] w-[18px]" />
-            <span>More</span>
-          </button>
-        </nav>
-      </div>
-
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={open ? 'Close menu' : 'Open menu — Research, Manage, Account'}
+        title="Menu — Research, Manage, Account"
+        data-testid="mobile-menu"
+        className={cn('lx-icon-btn lg:hidden', inMenu && !open && 'text-[var(--lx-accent-text)]')}
+      >
+        {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+      </button>
       <AnimatePresence>
         {open && (
           <>
@@ -87,7 +113,7 @@ export function MobileDock({ activeTab, onTab }: {
               type="button"
               tabIndex={-1}
               aria-label="Close menu"
-              className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-[70] bg-background/60 backdrop-blur-sm lg:hidden"
               initial={reduce ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={reduce ? undefined : { opacity: 0 }}
@@ -97,16 +123,16 @@ export function MobileDock({ activeTab, onTab }: {
               ref={sheetRef}
               role="dialog"
               aria-modal="true"
-              aria-label="More sections"
-              className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 max-h-[70dvh] overflow-y-auto rounded-xl border border-[var(--lx-line-hi)] bg-[var(--lx-surface)] shadow-[var(--lx-shadow-pop)] lg:hidden"
-              initial={reduce ? false : { opacity: 0, y: 16, scale: .98 }}
+              aria-label="Menu"
+              className="fixed inset-x-2 top-[calc(52px+env(safe-area-inset-top))] z-[71] max-h-[calc(100dvh-140px)] overflow-y-auto rounded-2xl border border-[var(--lx-line-hi)] bg-[var(--lx-surface)] shadow-[var(--lx-shadow-pop)] lg:hidden"
+              initial={reduce ? false : { opacity: 0, y: -12, scale: .98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduce ? undefined : { opacity: 0, y: 12, scale: .98 }}
+              exit={reduce ? undefined : { opacity: 0, y: -8, scale: .98 }}
               transition={{ duration: DUR.fast, ease: EASE }}
             >
               <LuxSidebar
                 placement="sheet"
-                label="More destinations"
+                label="Menu destinations"
                 groups={[...navGroups(target), { id: 'more-utility', label: 'Account', items: utilityItems(target) }]}
                 onAnyItem={() => setOpen(false)}
               />

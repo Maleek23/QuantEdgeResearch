@@ -67,6 +67,24 @@ const ROLE_HINT: Record<Role, string> = {
 };
 
 const fmtVal = (v: number, metric: Metric) => (metric === 'vex' ? fmtVexM(v) : fmtGexB(v));
+/**
+ * Phone-portrait cell text: the same value in ≤ 6 characters (sign, 3
+ * significant digits, K/M/B; no "$" — the toolbar states the unit), so a
+ * ~55px column never clips a number. Hover / the drill still show the full
+ * formatted value.
+ */
+function fmtCompact(v: number, metric: Metric): string {
+  if (!Number.isFinite(v) || v === 0) return '0';
+  const usd = Math.abs(v) * (metric === 'vex' ? 1e6 : 1e9);
+  const sign = v < 0 ? '−' : '+';
+  // pick the unit AFTER rounding, so 999.7M prints as 1B, never 1000M
+  const units: Array<[number, string]> = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K'], [1, '']];
+  const [div, u] = units.find(([d], i) => usd >= d * 0.9995 || i === units.length - 1)!;
+  const n = usd / div;
+  // ≤ 5 characters with the sign: −93M, +1.1B, −470K
+  const txt = n >= 10 ? n.toFixed(0) : n.toFixed(1).replace(/\.0$/, '');
+  return `${sign}${txt}${u}`;
+}
 const unitOf = (metric: Metric) => (metric === 'vex' ? '/IV pt' : '/1%');
 const fmtStrike = (s: number) => `$${Number.isInteger(s) ? s : s.toFixed(1)}`;
 const sameStrike = (a: number | null | undefined, b: number) => a != null && Math.abs(a - b) < 1e-6;
@@ -79,13 +97,15 @@ function rolesFor(strike: number, lv: GridLevels): Role[] {
   return r;
 }
 
-function RoleChips({ roles }: { roles: Role[] }) {
+const ROLE_SHORT: Record<Role, string> = { call: 'CW', put: 'PW', magnet: 'Mγ' };
+
+function RoleChips({ roles, short = false }: { roles: Role[]; short?: boolean }) {
   if (!roles.length) return null;
   return (
     <span className="gx-chips">
       {roles.map((r) => (
-        <span key={r} className="gx-chip" style={{ color: ROLE_COLOR[r], borderColor: `color-mix(in srgb, ${ROLE_COLOR[r]} 55%, transparent)`, background: `color-mix(in srgb, ${ROLE_COLOR[r]} 14%, transparent)` }} title={ROLE_HINT[r]}>
-          {ROLE_LABEL[r]}
+        <span key={r} className="gx-chip" aria-label={ROLE_LABEL[r]} style={{ color: ROLE_COLOR[r], borderColor: `color-mix(in srgb, ${ROLE_COLOR[r]} 55%, transparent)`, background: `color-mix(in srgb, ${ROLE_COLOR[r]} 14%, transparent)` }} title={ROLE_HINT[r]}>
+          {short ? ROLE_SHORT[r] : ROLE_LABEL[r]}
         </span>
       ))}
     </span>
@@ -100,12 +120,14 @@ function useVirtualRows(count: number, rowH: number, overscan = 12) {
   const ref = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewH, setViewH] = useState(600);
+  const [viewW, setViewW] = useState(0);
   const raf = useRef<number | null>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    setViewH(el.clientHeight || 600);
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => setViewH(el.clientHeight || 600)) : null;
+    const measure = () => { setViewH(el.clientHeight || 600); setViewW(el.clientWidth || 0); };
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
     ro?.observe(el);
     return () => ro?.disconnect();
   }, []);
@@ -119,7 +141,7 @@ function useVirtualRows(count: number, rowH: number, overscan = 12) {
   useEffect(() => () => { if (raf.current != null) cancelAnimationFrame(raf.current); }, []);
   const first = Math.max(0, Math.floor(scrollTop / rowH) - overscan);
   const last = Math.min(count, Math.ceil((scrollTop + viewH) / rowH) + overscan);
-  return { ref, onScroll, first, last, scrollTop, viewH };
+  return { ref, onScroll, first, last, scrollTop, viewH, viewW };
 }
 
 /** Index of the row nearest spot in a descending strike list. */
@@ -175,13 +197,13 @@ function JumpToSpot({ spot, direction, onClick }: { spot: number; direction: 'up
   );
 }
 
-function onGridKey(e: React.KeyboardEvent<HTMLDivElement>, rowH: number, jump: () => void) {
+function onGridKey(e: React.KeyboardEvent<HTMLDivElement>, rowH: number, jump: () => void, colW = 120) {
   const el = e.currentTarget;
   if (e.key === 's' || e.key === 'S') { e.preventDefault(); jump(); return; }
   if (e.key === 'ArrowDown') { e.preventDefault(); el.scrollTop += rowH; }
   if (e.key === 'ArrowUp') { e.preventDefault(); el.scrollTop -= rowH; }
-  if (e.key === 'ArrowRight') { e.preventDefault(); el.scrollLeft += 120; }
-  if (e.key === 'ArrowLeft') { e.preventDefault(); el.scrollLeft -= 120; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); el.scrollLeft += colW; }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); el.scrollLeft -= colW; }
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -190,6 +212,43 @@ function onGridKey(e: React.KeyboardEvent<HTMLDivElement>, rowH: number, jump: (
 
 const M_ROW = 30;
 const M_HEAD = 50;
+/** Phone rows / header: ≥ 36px rows (thumb-sized), a 3-line 12px header (date · dte · net). */
+const M_ROW_NARROW = 38;
+const M_HEAD_NARROW = 62;
+/** "OCT 02" → "Oct 2" (short, never ellipsised on a phone). */
+const shortExpiry = (label: string) => label.replace(/^([A-Z])([A-Z]+)\s+0?(\d+)$/, (_m, a: string, b: string, d: string) => `${a}${b.toLowerCase()} ${d}`);
+
+/**
+ * Column geometry — FITS the matrix to its measured box (operator 2026-09-29:
+ * "4–5 days per one scroll"). The strike and Σ columns are pinned; the width
+ * between them holds exactly `perView` expiry columns — 5, or 4 when five
+ * would be narrower than MIN_COL (a phone in portrait) — and the rest of the
+ * expiries are one horizontal swipe / scroll away, snapping by expiry. When
+ * fewer expiries are shown than fit, they share the width. Strikes never
+ * expand: they scroll vertically inside the tile.
+ */
+export const MIN_COL = 58;
+/** Phone portrait: the narrowest column that still fits a ≤ 5-char value at 13px (tabular). */
+export const MIN_COL_NARROW = 48;
+export interface MatrixGeometry {
+  size: 'narrow' | 'mid' | 'wide';
+  strikeW: number;
+  sumW: number;
+  colW: number;
+  perView: number;
+  tableW: number;
+}
+export function matrixGeometry(width: number, cols: number): MatrixGeometry {
+  const w = Math.max(0, width);
+  const size = w < 560 ? 'narrow' : w < 900 ? 'mid' : 'wide';
+  const strikeW = size === 'narrow' ? 60 : size === 'mid' ? 128 : 176;
+  const sumW = size === 'narrow' ? 54 : size === 'mid' ? 96 : 132;
+  const avail = Math.max(0, w - strikeW - sumW);
+  // phones: bigger, fewer — at most 4 per view, 3 when 4 would not fit a 13px value
+  const perView = size === 'narrow' ? (avail / 4 >= MIN_COL_NARROW ? 4 : 3) : avail / 5 >= MIN_COL ? 5 : 4;
+  const colW = cols <= 0 ? 0 : Math.floor(avail / Math.min(perView, cols));
+  return { size, strikeW, sumW, colW, perView, tableW: strikeW + sumW + colW * cols };
+}
 
 /** Legend: the diverging ramp with its value → colour ticks for the active scale. */
 function RampLegend({ scale, max, metric }: { scale: MatrixScale; max: number; metric: Metric }) {
@@ -276,16 +335,26 @@ export function GexStrikeMatrix({
         top: new Map(ranked.slice(0, 2).map((c, i) => [c.strike, i + 1])),
       });
     }
-    return { strikes, byKey, rowTotal, rowMax, gross, rMax, trueMax, col };
+    // KING NODE — the single largest |cell| in the shown book (its strike label gets ★ too)
+    let king: StrikeExpiryCell | null = null;
+    for (const c of byKey.values()) if (!king || Math.abs(val(c)) > Math.abs(val(king))) king = c;
+    return { strikes, byKey, rowTotal, rowMax, gross, rMax, trueMax, col, king };
   }, [cells, expiries, val]);
 
-  const { ref, onScroll, first, last, scrollTop, viewH } = useVirtualRows(model.strikes.length, M_ROW);
+  // Row height follows the measured size class (phones get taller rows); the
+  // class is known after the first measure, so it lives in state.
+  const [narrowRows, setNarrowRows] = useState(false);
+  const ROW = narrowRows ? M_ROW_NARROW : M_ROW;
+  const HEAD = narrowRows ? M_HEAD_NARROW : M_HEAD;
+  const { ref, onScroll, first, last, scrollTop, viewH, viewW } = useVirtualRows(model.strikes.length, ROW);
+  const geo = matrixGeometry(viewW, expiries.length);
+  useEffect(() => { setNarrowRows(geo.size === 'narrow'); }, [geo.size]);
   const sIdx = spotIndex(model.strikes, levels.spot);
-  const jump = useCenterOnSpot(ref, sIdx, M_ROW, M_HEAD, centerKey, model.strikes.length > 0);
-  const spotRowY = sIdx >= 0 ? M_HEAD + sIdx * M_ROW : null;
-  const spotDir = spotRowY == null ? null : spotRowY < scrollTop + M_HEAD ? 'up' : spotRowY > scrollTop + viewH - M_ROW ? 'down' : null;
-  const zgY = priceY(model.strikes, levels.zeroGamma, M_ROW, M_HEAD);
-  const spotY = priceY(model.strikes, levels.spot, M_ROW, M_HEAD);
+  const jump = useCenterOnSpot(ref, sIdx, ROW, HEAD, centerKey, model.strikes.length > 0);
+  const spotRowY = sIdx >= 0 ? HEAD + sIdx * ROW : null;
+  const spotDir = spotRowY == null ? null : spotRowY < scrollTop + HEAD ? 'up' : spotRowY > scrollTop + viewH - ROW ? 'down' : null;
+  const zgY = priceY(model.strikes, levels.zeroGamma, ROW, HEAD);
+  const spotY = priceY(model.strikes, levels.spot, ROW, HEAD);
   const scaleMaxOf = (dte: number) => (scale === 'column' ? model.col.get(dte)?.rMax ?? model.rMax : model.rMax);
   const dustCutOf = (dte: number) => (scale === 'column' ? model.col.get(dte)?.trueMax ?? model.trueMax : model.trueMax) * (dustPct / 100);
 
@@ -323,7 +392,14 @@ export function GexStrikeMatrix({
   const visible = model.strikes.slice(first, last);
 
   return (
-    <div className="gx-wrap" ref={wrapRef} onMouseLeave={() => setHover(null)}>
+    <div
+      className={`gx-wrap gx-${geo.size}`}
+      ref={wrapRef}
+      onMouseLeave={() => setHover(null)}
+      data-per-view={geo.perView}
+      data-col-w={geo.colW}
+      style={{ ['--gx-strike-w' as string]: `${geo.strikeW}px`, ['--gx-sum-w' as string]: `${geo.sumW}px` }}
+    >
       <div className="gx-toolbar">
         <span className="gx-scale-seg" role="group" aria-label="Colour scale">
           <b>Scale</b>
@@ -353,41 +429,60 @@ export function GexStrikeMatrix({
           <i className="dash" style={{ borderColor: LEVEL_COLORS.zeroGamma }} />zero-γ
           <i style={{ background: LEVEL_COLORS.spot }} />spot
         </span>
-        <span className="gx-count">{model.strikes.length} strikes · {cols} exp · ↕ scroll · S = spot</span>
+        {geo.size === 'narrow' && levels.spot > 0 && sIdx >= 0 && (
+          <button type="button" className={`gx-spot-btn${spotDir ? ' off' : ''}`} onClick={() => jump(true)} title="Scroll spot to the centre">
+            {spotDir === 'up' ? '↑' : spotDir === 'down' ? '↓' : '◎'} Spot ${levels.spot.toFixed(2)}
+          </button>
+        )}
+        {cols > geo.perView && (
+          <span className="gx-pager" role="group" aria-label="Scroll expiries">
+            <button type="button" onClick={() => ref.current?.scrollBy({ left: -(geo.colW || 120) * geo.perView, behavior: 'smooth' })} aria-label="Earlier expiries" title="Earlier expiries (or Shift+wheel / swipe)">‹</button>
+            <button type="button" onClick={() => ref.current?.scrollBy({ left: (geo.colW || 120) * geo.perView, behavior: 'smooth' })} aria-label="Later expiries" title="Later expiries (or Shift+wheel / swipe)">›</button>
+          </span>
+        )}
+        <span className="gx-count">{model.strikes.length} strikes · {Math.min(cols, geo.perView)} of {cols} exp in view{cols > geo.perView ? ' · ↔ swipe' : ''} · ↕ scroll{geo.size === 'narrow' ? ` · ${metric === 'vex' ? '$ per IV pt' : '$ per 1%'}` : ' · S = spot'}</span>
       </div>
 
       <div
         ref={ref}
-        className="gx-scroll"
+        className="gx-scroll gx-snap"
         tabIndex={0}
         role="region"
-        aria-label={`Strike by expiry ${metric.toUpperCase()} grid, ${model.strikes.length} strikes. Arrow keys scroll, S jumps to spot.`}
+        aria-label={`Strike by expiry ${metric.toUpperCase()} grid, ${model.strikes.length} strikes, ${Math.min(cols, geo.perView)} of ${cols} expiries in view. Arrow keys scroll, S jumps to spot.`}
+        style={{ scrollPaddingLeft: geo.strikeW, scrollPaddingRight: geo.sumW }}
         onScroll={onScroll}
-        onKeyDown={(e) => onGridKey(e, M_ROW, () => jump(true))}
+        onKeyDown={(e) => onGridKey(e, ROW, () => jump(true), geo.colW || 120)}
         onMouseMove={onMove}
       >
-        <div className="gx-lines" style={{ height: M_HEAD + model.strikes.length * M_ROW }} aria-hidden>
+        <div className="gx-lines" style={{ height: HEAD + model.strikes.length * ROW }} aria-hidden>
           {zgY != null && <div className="gx-line zg" style={{ top: zgY }}><span>ZERO-γ ${levels.zeroGamma!.toFixed(2)}</span></div>}
           {spotY != null && <div className="gx-line spot" style={{ top: spotY }}><span>SPOT ${levels.spot.toFixed(2)}</span></div>}
         </div>
-        <table className="gx-table">
+        <table className="gx-table gx-fit" style={geo.colW ? { width: geo.tableW } : undefined}>
+          {geo.colW > 0 && (
+            <colgroup>
+              <col style={{ width: geo.strikeW }} />
+              {expiries.map(([dte]) => <col key={dte} style={{ width: geo.colW }} />)}
+              <col style={{ width: geo.sumW }} />
+            </colgroup>
+          )}
           <thead>
-            <tr style={{ height: M_HEAD }}>
+            <tr style={{ height: HEAD }}>
               <th className="gx-sticky-l">STRIKE</th>
               {expiries.map(([dte, label]) => {
                 const cs = model.col.get(dte);
                 return (
-                  <th key={dte} title={`${label} · ${dte} days to expiry\nNet ${metric.toUpperCase()} this expiry (all listed strikes): ${cs ? fmtVal(cs.net, metric) : '—'}${unitOf(metric)}\nGross |${metric.toUpperCase()}|: ${cs ? fmtVal(cs.gross, metric).replace(/^[+−]/, '') : '—'} · ${model.gross > 0 && cs ? ((cs.gross / model.gross) * 100).toFixed(1) : '0'}% of the book\n${scale === 'column' ? `Colour max for this column: ${cs ? fmtVal(cs.rMax, metric).replace(/^[+−]/, '') : '—'}` : 'Colour: one max for all columns'}`}>
-                    {label}<small>{dte}d</small>
-                    <em className="gx-colnet" style={{ color: cs ? signInk(cs.net) : undefined }}>{cs ? `Σ ${fmtVal(cs.net, metric)}` : '—'}</em>
+                  <th key={dte} className="gx-exp" title={`${label} · ${dte} days to expiry\nNet ${metric.toUpperCase()} this expiry (all listed strikes): ${cs ? fmtVal(cs.net, metric) : '—'}${unitOf(metric)}\nGross |${metric.toUpperCase()}|: ${cs ? fmtVal(cs.gross, metric).replace(/^[+−]/, '') : '—'} · ${model.gross > 0 && cs ? ((cs.gross / model.gross) * 100).toFixed(1) : '0'}% of the book\n${scale === 'column' ? `Colour max for this column: ${cs ? fmtVal(cs.rMax, metric).replace(/^[+−]/, '') : '—'}` : 'Colour: one max for all columns'}`}>
+                    {geo.size === 'narrow' ? shortExpiry(label) : label}<small>{dte}d</small>
+                    <em className="gx-colnet" style={{ color: cs ? signInk(cs.net) : undefined }}>{cs ? (geo.size === 'narrow' ? fmtCompact(cs.net, metric) : `Σ ${fmtVal(cs.net, metric)}`) : '—'}</em>
                   </th>
                 );
               })}
-              <th className="gx-sticky-r" title="Net of the shown expiries at this strike — why a wall is a wall even when each single expiry is small">Σ SHOWN</th>
+              <th className="gx-sticky-r" title="Net of the shown expiries at this strike — why a wall is a wall even when each single expiry is small">{geo.size === 'narrow' ? 'Σ' : 'Σ SHOWN'}</th>
             </tr>
           </thead>
           <tbody>
-            {first > 0 && <tr style={{ height: first * M_ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
+            {first > 0 && <tr style={{ height: first * ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
             {visible.map((strike) => {
               const roles = rolesFor(strike, levels);
               const lead = roles[0];
@@ -400,12 +495,12 @@ export function GexStrikeMatrix({
                 <tr
                   key={strike}
                   className={`gx-row${lead ? ' marked' : ''}${isSpotRow ? ' spot' : ''}`}
-                  style={{ height: M_ROW, ...(band ? { ['--band' as string]: band } : {}) }}
+                  style={{ height: ROW, ...(band ? { ['--band' as string]: band } : {}) }}
                 >
                   <td className="gx-sticky-l gx-strike" data-k={`${strike}|sum`}>
-                    <b>{fmtStrike(strike)}</b>
+                    <b>{model.king?.strike === strike ? <span className="gx-king-star" title="King node — the largest |exposure| cell in the book">★</span> : null}{fmtStrike(strike)}</b>
                     <span className="gx-pct">{dist >= 0 ? '+' : ''}{dist.toFixed(1)}%</span>
-                    <RoleChips roles={roles} />
+                    {geo.size === 'narrow' && isSpotRow && !roles.length ? <span className="gx-chips"><span className="gx-chip gx-chip-spot" title={`Nearest strike to spot $${levels.spot.toFixed(2)}`}>◎</span></span> : <RoleChips roles={geo.size === 'narrow' ? roles.slice(0, 1) : roles} short={geo.size !== 'wide'} />}
                   </td>
                   {expiries.map(([dte]) => {
                     const c = model.byKey.get(`${strike}|${dte}`);
@@ -416,35 +511,41 @@ export function GexStrikeMatrix({
                     const dust = !rank && Math.abs(v) < dustCutOf(dte);
                     if (dust && !showDust) return <td key={dte} data-k={`${strike}|${dte}`}><span className="gx-dot" /></td>;
                     const t = exposureStrength(v, scaleMaxOf(dte));
+                    // King node of this expiry (rank 1): ★ + solid amber highlight. Near-zero
+                    // cells (under 12% intensity) are neutral grey so the 3–5 dominant nodes pop;
+                    // sign stays the CVD-safe blue (+) / orange (−) pair everywhere else.
+                    const king = rank === 1;
+                    const faint = !king && t < 0.12;
                     return (
                       <td key={dte} data-k={`${strike}|${dte}`}>
                         <button
                           type="button"
-                          tabIndex={-1}
-                          className={`gx-cell${dust ? ' dust' : ''}${rank ? ' top' : ''}`}
-                          data-rank={rank ? (rank === 1 ? '①' : '②') : undefined}
-                          style={{ background: rampColor(v, t), color: rampInk(t) }}
+                          // the two top nodes of each expiry are keyboard stops (Enter = drill); the rest are reached by hover/tap
+                          tabIndex={rank ? 0 : -1}
+                          className={`gx-cell${dust ? ' dust' : ''}${rank ? ' top' : ''}${king ? ' king' : ''}${faint ? ' faint' : ''}`}
+                          data-rank={rank ? (rank === 1 ? '★' : '②') : undefined}
+                          style={king || faint ? undefined : { background: rampColor(v, t), color: rampInk(t) }}
                           onClick={onCellClick ? () => onCellClick(c) : undefined}
-                          aria-label={rank ? `${fmtVal(v, metric)}, #${rank} in this expiry` : undefined}
+                          aria-label={rank ? `${fmtVal(v, metric)}, ${rank === 1 ? 'king node (largest)' : '#2'} in this expiry` : geo.size === 'narrow' ? fmtVal(v, metric) : undefined}
                         >
-                          {fmtVal(v, metric)}
+                          {king && geo.size !== 'narrow' ? '★ ' : ''}{geo.size === 'narrow' ? fmtCompact(v, metric) : fmtVal(v, metric)}
                         </button>
                       </td>
                     );
                   })}
                   <td className="gx-sticky-r gx-sum" data-k={`${strike}|sum`}>
                     <span className="gx-sum-bar"><i style={{ width: `${tw}%`, background: rampColor(total, 0.55), opacity: total === 0 ? 0 : 1 }} /></span>
-                    <span style={{ color: signInk(total) }}>{total === 0 ? '—' : fmtVal(total, metric)}</span>
+                    <span style={{ color: signInk(total) }}>{total === 0 ? '—' : geo.size === 'narrow' ? fmtCompact(total, metric) : fmtVal(total, metric)}</span>
                   </td>
                 </tr>
               );
             })}
-            {last < model.strikes.length && <tr style={{ height: (model.strikes.length - last) * M_ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
+            {last < model.strikes.length && <tr style={{ height: (model.strikes.length - last) * ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
           </tbody>
         </table>
       </div>
 
-      {levels.spot > 0 && sIdx >= 0 && <JumpToSpot spot={levels.spot} direction={spotDir} onClick={() => jump(true)} />}
+      {geo.size !== 'narrow' && levels.spot > 0 && sIdx >= 0 && <JumpToSpot spot={levels.spot} direction={spotDir} onClick={() => jump(true)} />}
 
       {hover && (() => {
         const rowTotal = model.rowTotal.get(hover.strike) ?? 0;

@@ -71,11 +71,11 @@ export const NEXUS_TOOLS: ToolDef[] = [
 /**
  * NEXUS default — one screen (12 × 18):
  *
- *   ┌ ranked ┬──────── setup detail 6×11 ────────┬ context 3×6  ┐
- *   │ setups │ chart, levels, tabs               ├ trader calls ┤
- *   │ 3×18   │                                   │ 3×5          │
- *   │        ├──── developing 5×7 ──────┬── bot positions 4×7 ──┤
- *   └────────┴──────────────────────────┴───────────────────────┘
+ *   ┌ ranked ┬──────── setup detail ─────────────┬ context ──────┐
+ *   │ setups │ chart, levels, tabs               │ regime, macro │   three columns, each the
+ *   │ 3×12   │ 6×12                              │ 3×12          │   height of the screen and
+ *   ├────────┴────── developing 6×6 ───┬──── bot positions 6×6 ──┤   its own framed scroller
+ *   └──────────────────────────────────┴─────────────────────────┘   (PageSpec.columns)
  *
  * Master → detail left to right; the market context that frames every idea
  * on the right, with ranked traders' recent calls (evidence, not signals)
@@ -85,11 +85,11 @@ export const NEXUS_TOOLS: ToolDef[] = [
 export const NEXUS_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'NEXUS',
   tools: [
-    ['nexus-board', 0, 0, 3, 18],
-    ['nexus-detail', 3, 0, 6, 11],
-    ['nexus-context', 9, 0, 3, 6],
-    ['nexus-trader-calls', 9, 6, 3, 5],
-    ['nexus-developing', 3, 11, 5, 7],
-    ['nexus-positions', 8, 11, 4, 7],
+    ['nexus-board', 0, 0, 3, 12],
+    ['nexus-detail', 3, 0, 6, 12],
+    ['nexus-context', 9, 0, 3, 12],
+    ['nexus-developing', 0, 12, 6, 6],
+    ['nexus-positions', 6, 12, 6, 6],
+    ['nexus-trader-calls', 0, 18, 12, 5],
   ],
 }];

@@ -13,8 +13,8 @@ The mode is `PageSpec.mode` in `pages.ts`; `dashboard.tsx` renders by it.
 
 | Page | Mode | What the viewer can change | Add-tool catalogue |
 |---|---|---|---|
-| GEX (`/t?tab=gex`) | **workspace** | Add tool, drag / resize, keyboard move, Auto-arrange, Clear, Restore default, named dashboards (switcher, rename, new, delete) — saved per user (`gex:*` rows) | `GEX_CATALOG`: category **GEX** + chart tools (`stock-chart`, `chart-lab-chart`, `chart-levels`) + market context (`nexus-context`, `market-pulse`, `market-session-brief`, `market-rotation`, `today-rotation`, `money-flow`, `today-index-desk`, `today-week-map`, `today-tape`, `chart-readouts`, `chart-es-risk`) + compact flow read `flow-context` |
-| FLOW (`/t?tab=flow`) | **workspace** | same as GEX — saved per user (`flowdash:*` rows, unchanged) | `FLOW_CATALOG`: categories **Options** + **Dark Pool** + the same chart tools + the same market context + compact GEX read (`gex-levels`, `gex-regime`) |
+| GEX (`/t?tab=gex`) | **workspace** | Add tool, drag / resize, keyboard move, Auto-arrange, Clear, Restore default, named dashboards (switcher, rename, new, delete) — saved per user (`gex:*` rows) | Default GEX layout (2026-09-29): matrix 8×18 · key levels 4×9 · regime 4×9 — everything else via Add tool. `GEX_CATALOG` (trimmed 2026-09-29, "don't confuse people"): category **GEX** + `stock-chart`, `chart-levels` + compact flow read `flow-context` — no generic market-context tiles |
+| FLOW (`/t?tab=flow`) | **workspace** | same as GEX — saved per user (`flowdash:*` rows, unchanged) | `FLOW_CATALOG` (trimmed 2026-09-29): categories **Options** + **Dark Pool** + `stock-chart` + compact GEX read (`gex-levels`, `gex-regime`). Default *Market flow*: Options Flow 8×12 top-left, Top tickers 8×6 under it, right column Market tide · GEX levels · Dark pool (4×6 each); phone order feed → tide → top tickers → rest |
 | Today (`/today`) | fixed | nothing (focus ticker only, if a tool follows it) | — |
 | NEXUS (`/t`) | fixed | nothing (focus ticker) | — |
 | CATALYST, CRYPTO, BOT | fixed | nothing (focus ticker) | — |

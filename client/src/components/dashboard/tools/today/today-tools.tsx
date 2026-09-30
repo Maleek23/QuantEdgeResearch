@@ -11,6 +11,7 @@ import { regimeFromLegacy } from '@shared/gex-regime';
 import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { convictionDisplayPercent } from '@shared/conviction-display';
+import { setPrefs, usePrefs } from '@/lib/board-prefs';
 import { Spark, RotQuad, SigCard, CHECK } from '@/components/landing/live-widgets';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { AuditTrailLink } from '@/pages/today';
@@ -155,6 +156,7 @@ export function TodayWeekMapTool() {
 
 /* ════════════ Best idea ════════════ */
 export function TodayBestIdeaTool() {
+  const cardCharts = useCardCharts();
   const book = useBook();
   const now = useNow();
   const best = book.ideas[0];
@@ -188,11 +190,27 @@ export function TodayBestIdeaTool() {
           </div>
         </div>
         <div className="feature-visual">
-          <SigCard p={best as never} />
-          {book.ideas[1] && <SigCard p={book.ideas[1] as never} />}
+          <SigCard p={best as never} chart={cardCharts} />
+          {book.ideas[1] && <SigCard p={book.ideas[1] as never} chart={cardCharts} />}
         </div>
       </div>
     </div>
+  );
+}
+
+/* Mini price charts on the idea cards are OPT-IN (operator 2026-09-29: "no need to
+   put charts in all pages … users should have discretion"). One switch for Today,
+   remembered on this device (board prefs `sections`). */
+const CARD_CHARTS_KEY = 'today:card-charts';
+function useCardCharts() { return !!usePrefs().sections[CARD_CHARTS_KEY]; }
+function ChartsToggle() {
+  const on = useCardCharts();
+  return (
+    <button type="button" className="td-charts-toggle" aria-pressed={on}
+      onClick={() => setPrefs((p) => ({ sections: { ...p.sections, [CARD_CHARTS_KEY]: !on } }))}
+      title={on ? 'Hide the 1-month mini charts on the idea cards' : 'Show a 1-month mini chart on each idea card'}>
+      {on ? 'Hide mini charts' : '+ Show mini charts'}
+    </button>
   );
 }
 
@@ -200,6 +218,7 @@ export function TodayBestIdeaTool() {
 const BOOK_ROWS = 9;
 export function TodayRankedBookTool() {
   const book = useBook();
+  const cardCharts = useCardCharts();
   const { hasTool } = useDashboard();
   // The Best idea tool already shows ranks 1–2; without it, the book starts at 1.
   const start = hasTool('today-best-idea') ? 2 : 0;
@@ -217,11 +236,14 @@ export function TodayRankedBookTool() {
   const more = book.ideas.length - start - rows.length;
   return (
     <div className={`${WRAP} td-book`}>
-      <div className="td-tool-sub">Active book · ranked by evidence · #{start + 1}–{start + rows.length}{start ? ' (#1–2 in Best idea)' : ''}</div>
+      <div className="td-tool-sub" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span>Active book · ranked by evidence · #{start + 1}–{start + rows.length}{start ? ' (#1–2 in Best idea)' : ''}</span>
+        <ChartsToggle />
+      </div>
       <div className="tl-book">
         {rows.map((p) => (
           <div className="tl-book-item" key={p.ideaId}>
-            <SigCard p={p as never} />
+            <SigCard p={p as never} chart={cardCharts} />
             <p className="tl-book-why">{explain(p).headline}</p>
           </div>
         ))}

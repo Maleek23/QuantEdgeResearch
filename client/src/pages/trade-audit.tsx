@@ -756,10 +756,10 @@ export default function TradeAudit() {
   if (error || !data) {
     return (
       <div className="p-3 sm:p-4 space-y-3 max-w-[1600px] mx-auto">
-        <Link href="/slate">
+        <Link href="/today">
           <Button variant="ghost" size="sm" data-testid="button-back">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Slate
+            Back to Today
           </Button>
         </Link>
         <Card className="glass-card">
@@ -785,7 +785,7 @@ export default function TradeAudit() {
     <div className="p-3 sm:p-4 space-y-3 max-w-[1600px] mx-auto" data-testid="trade-audit-page">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
-          <Link href="/slate">
+          <Link href="/today">
             <Button variant="ghost" size="sm" data-testid="button-back">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back

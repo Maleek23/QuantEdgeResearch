@@ -23,6 +23,9 @@ and runs these tests. Each maps to a requirement id in the design doc (§4).
                           trigger for search / the palette                                   (R-NAV-4)
   N12 Dead UI state       a useState whose setter is only ever called with null/false
                           (a panel that can never open) — allowlisted debt only              (R-NAV-5)
+  N14 Phone dock order    the bottom dock reads TODAY, NEXUS, FLOW, GEX, CHART (no More —
+                          the rest opens from the top-bar menu); on the desktop rail CHART
+                          sits in the Research group                                          (R-NAV-6)
 
   REPORT (tracked debt; trend must go down phase over phase)
   N2  Redirect links      live code still linking to a retired URL (costs a hop)
@@ -127,7 +130,12 @@ while stack:
     if f in seen: continue
     seen.add(f); stack.extend(graph.get(f, ()))
 dead_modules = sorted(rel(f) for f in all_mods if f not in seen and os.path.basename(f) != "main.tsx")
-orphans = sorted(m for m in dead_modules if "/pages/" in m)
+# Page files retired from the router whose deletion is left to the operator
+# (Slate and Radar, 2026-09-29: routes, nav and links removed; /slate and
+# /radar redirect to /today). Delete the files, then empty this list.
+RETIRED_PAGE_FILES: set = set()
+retired_present = sorted(m for m in dead_modules if m in RETIRED_PAGE_FILES)
+orphans = sorted(m for m in dead_modules if "/pages/" in m and m not in RETIRED_PAGE_FILES)
 
 # ── N4 unreachable routes ──────────────────────────────────────────────────
 linked_paths = set(t.split("?")[0].rstrip("/") or "/" for t in links)
@@ -143,9 +151,9 @@ for p in route_paths:
 # function in the target IA; `current` = the surfaces that serve it TODAY.
 FUNCTIONS = {
     # FIND
-    "Rank today's trade ideas":         {"owner": "ideas.ranked-book",   "current": ["/today Ranked setups", "/t NEXUS board", "/slate cards", "/radar Picks"]},
-    "Discover forming setups":          {"owner": "ideas.forming",       "current": ["/radar Forming", "NEXUS forming rail"]},
-    "Pre-market gap read":              {"owner": "ideas.gappers",       "current": ["/slate PreMarketGappersCard"]},
+    "Rank today's trade ideas":         {"owner": "ideas.ranked-book",   "current": ["/today Ranked setups", "/t NEXUS board"]},
+    "Discover forming setups":          {"owner": "ideas.forming",       "current": ["NEXUS developing candidates"]},
+    "Pre-market gap read":              {"owner": "ideas.gappers",       "current": []},  # /slate retired 2026-09-29; gap read to be re-homed on Today
     "Market regime + weekly path":      {"owner": "markets.weekly-path", "current": ["/today dealer map"]},
     "Sector rotation":                  {"owner": "markets.rotation",    "current": ["/today RotQuad", "RotationMap (terminal overlay, unreachable)", "landing RotQuad"]},
     "Market pulse / leadership":        {"owner": "markets.pulse",       "current": ["OracleMarketField (overlay, unreachable)", "SessionBrief (overlay, unreachable)"]},
@@ -168,7 +176,7 @@ FUNCTIONS = {
     # PROVE
     "Journal trades":                   {"owner": "journal.trades",      "current": ["/t?tab=journal Trades"]},
     "Journal analytics":                {"owner": "journal.analytics",   "current": ["/t?tab=journal Analytics"]},
-    "Track record (model)":             {"owner": "journal.track-record", "current": ["Journal Track record", "/radar Track Record", "/today Model record"]},
+    "Track record (model)":             {"owner": "journal.track-record", "current": ["Journal Track record", "/today Model record"]},
     "Backtest":                         {"owner": "journal.backtest",    "current": ["Journal backtest (pages/backtest)", "strategy-simulator"]},
     "Idea audit trail":                 {"owner": "journal.idea-audit",  "current": ["/trade-ideas/:id/audit"]},
     # PLATFORM
@@ -207,9 +215,10 @@ for src, tgt in redirects:
 EXPECT_TAB = {
     "/pos": "tab=positions", "/j": "tab=journal", "/g": "tab=gex", "/btc": "tab=crypto", "/crypto": "tab=crypto",
     "/whale-flow": "tab=flow", "/smart-money": "tab=flow", "/automations": "tab=bot", "/watchlist-bot": "tab=bot",
-    "/paper-trading": "tab=bot", "/discovery": "tab=picks", "/ai-stock-picker": "tab=picks",
-    "/smart-signals": "tab=forming", "/market-scanner": "tab=forming", "/swing-scanner": "tab=forming",
-    "/bullish-trends": "tab=forming", "/pattern-scanner": "tab=patterns", "/geopolitical": "tab=catalyst",
+    "/paper-trading": "tab=bot", "/geopolitical": "tab=catalyst",
+    # /discovery, /ai-stock-picker (→ /today) and the scanner rows (→ /t, NEXUS
+    # developing candidates) lost their Radar tabs when Radar was retired
+    # 2026-09-29; they land on the page that now owns the function.
     "/futures": "tab=chart", "/futures-research": "tab=chart",
     "/performance": "jtab=record", "/insights": "jtab=insights", "/analytics": "jtab=analytics",
     "/convictions/backtest": "jtab=backtest", "/history": "jtab=trades", "/options-analyzer": "tab=options",
@@ -227,14 +236,14 @@ def norm(u):
     return p + ("?" + "&".join(keep) if keep else "")
 GLOBAL_N = {norm(u) for u in GLOBAL}
 PAGE_FILES = {  # the files that render a workflow step (their links are 1-click exits)
-    "/today": ["client/src/pages/today.tsx"], "/slate": ["client/src/pages/slate.tsx"], "/radar": ["client/src/pages/radar.tsx"],
+    "/today": ["client/src/pages/today.tsx"],
     "/t?tab=gex": ["client/src/components/gex/gex-hub-nexus.tsx", "client/src/components/gex/gex-rankings-panel.tsx"],
     "/t": ["client/src/pages/nexus-prototype.tsx"],
 }
 WORKFLOWS = {
     "W1 magnet → research → trade → review": ["/t?tab=gex", "/r/:symbol", "/t?tab=positions", "/t?tab=journal"],
-    "W2 morning routine": ["/today", "/t", "/radar", "/t?tab=positions"],
-    "W3 evening slate": ["/slate", "/r/:symbol", "/t?tab=journal&jtab=record"],
+    "W2 morning routine": ["/today", "/t", "/t?tab=positions"],
+    "W3 evening review": ["/today", "/r/:symbol", "/t?tab=journal&jtab=record"],
     "W4 check an idea's evidence": ["/today", "/trade-ideas/:id/audit"],
     "W5 flow → chart → research": ["/t?tab=flow", "/t?tab=chart", "/r/:symbol"],
 }
@@ -289,6 +298,23 @@ for f in files:
             dead_state.append(key)
             if key not in KNOWN_DEAD_STATE: dead_state_new.append(key)
 
+# ── N14 phone dock order + CHART in Research (operator 2026-09-29) ─────────
+menu_ok = "MobileMenuButton" in frame and "MobileMenuButton" in term
+EXPECT_DOCK = ["page:/today", "tab:oracle", "tab:flow", "tab:gex", "tab:chart"]
+dock_m = re.search(r"MOBILE_DOCK: DockItem\[\] = \[([\s\S]*?)\];", nav)
+dock = [f"page:{h}" if k == "page" else f"tab:{t}" for k, h, t in
+        re.findall(r"\{ kind: '(page|tab)', (?:href: '([^']+)'|tab: '(\w+)') \}", dock_m.group(1))] if dock_m else []
+groups_src = rd(os.path.join(SRC, "components", "shell", "nav-groups.ts"))
+research_m = re.search(r"id: 'research'[^\n]*tabs: \[([^\]]*)\]", groups_src)
+research_tabs = re.findall(r"'(\w+)'", research_m.group(1)) if research_m else []
+trade_m = re.search(r"id: 'trade'[^\n]*tabs: \[([^\]]*)\]", groups_src)
+trade_tabs = re.findall(r"'(\w+)'", trade_m.group(1)) if trade_m else []
+dock_fail = []
+if dock != EXPECT_DOCK: dock_fail.append(f"dock={dock} want {EXPECT_DOCK}")
+if "chart" not in research_tabs: dock_fail.append(f"chart not in Research group ({research_tabs})")
+if "chart" in trade_tabs: dock_fail.append("chart still in Trade group")
+if not menu_ok: dock_fail.append("top-bar menu button missing in NexusFrame or terminal")
+
 # ── report ─────────────────────────────────────────────────────────────────
 res = {
     "routes": len(route_paths), "redirects": len(redirect_paths), "tabs": len(tabs), "linkTargets": len(links),
@@ -298,6 +324,7 @@ res = {
     "N7_phantomChrome": phantom, "N8_chains": chains, "N8_dangling": dangling, "N9_tabDropped": tab_dropped,
     "N10_workflowFail": workflow_fail, "N10_workflowOk": workflow_ok, "N11_searchFail": search_fail,
     "N12_deadState": dead_state, "N12_knownDebt": KNOWN_DEAD_STATE,
+    "N14_dock": dock, "N14_researchTabs": research_tabs, "N14_fail": dock_fail,
 }
 json.dump(res, open(os.path.join(ROOT, "research", "nav-architecture.json"), "w"), indent=2)
 
@@ -317,10 +344,12 @@ hard = [
     line("N10 workflows reachable in <=2 clicks", not workflow_fail, f"{len(WORKFLOWS)} workflows" + (f"  fail={workflow_fail}" if workflow_fail else "")),
     line("N11 search on every chrome (desktop+phone)", not search_fail, "; ".join(search_fail)),
     line("N12 no new dead UI state", not dead_state_new, (f"new={dead_state_new}" if dead_state_new else f"{len(dead_state)} allowlisted debt")),
+    line("N14 phone dock TODAY·NEXUS·FLOW·GEX·CHART, rail CHART in Research", not dock_fail, "; ".join(dock_fail) if dock_fail else " · ".join(dock)),
 ]
 print("REPORT (debt — must trend down)")
 print(f"  N2  links through a redirect: {len(via_redirect)}  {sorted(via_redirect)[:12]}")
 print(f"  N3b client modules unreachable from main.tsx: {len(dead_modules)}")
+print(f"  N3c retired page files awaiting deletion: {retired_present}")
 print(f"  N6b functions served by >1 current surface: {len(redundancy_debt)} / {len(FUNCTIONS)}")
 print(f"  N12 allowlisted dead state: {dead_state}")
 for name, steps in workflow_ok.items():

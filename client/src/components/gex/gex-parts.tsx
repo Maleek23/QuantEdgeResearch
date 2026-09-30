@@ -6,6 +6,7 @@
  *   DealerStructureRail   put wall … zero-γ … call wall on a price axis + spot
  *   GexCellDrill          strike × expiry cell drill-down (modal)
  */
+import { useEffect, useRef } from 'react';
 import type { GEXSnapshot, StrikeExpiryCell } from '@shared/gex-types';
 import { exposureText, fmtGexB, fmtVexM } from './gex-colors';
 import { fmtCell } from './gex-model';
@@ -88,12 +89,23 @@ export function GexCellDrill({ drill, matrix, metric, spot, symbol, onClose }: {
   const expiryTotal = expiryCells.reduce((a, c) => a + val(c), 0);
   const v = val(drill);
   const dist = spot ? ((drill.strike - spot) / spot) * 100 : null;
+  // a real dialog: focus moves in, Escape closes from anywhere, focus returns to the cell
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const back = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } };
+    window.addEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', onKey); back?.focus?.(); };
+  }, [onClose]);
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 85, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'grid', placeItems: 'center' }} onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }} role="dialog" aria-modal="true" aria-label={`${symbol} $${drill.strike} ${drill.expiryLabel} drill-down`}>
       <div style={{ width: 320, background: 'linear-gradient(135deg, var(--panel-solid), var(--panel-2))', border: '1px solid var(--nx-border-hi)', borderRadius: 10, padding: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.7)' }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 16 }}>{symbol} ${drill.strike}</div>
           <div style={{ fontFamily: mono, fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>{drill.expiryLabel} · {drill.dte}d</div>
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="Close drill-down" title="Close (Esc)"
+            style={{ marginLeft: 8, minWidth: 32, minHeight: 32, border: '1px solid var(--nx-border-hi)', borderRadius: 6, background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>✕</button>
         </div>
         {[
           ['net GEX', `${fmtGexB(drill.netGEX)}/1%`],
@@ -107,7 +119,7 @@ export function GexCellDrill({ drill, matrix, metric, spot, symbol, onClose }: {
             <span style={{ fontWeight: 700, color: k === 'net GEX' ? exposureText('gex', drill.netGEX) : k === 'net VEX' ? exposureText('vex', drill.netVEX ?? 0) : undefined }}>{val2}</span>
           </div>
         ))}
-        <div style={{ marginTop: 10, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: mono, fontStyle: 'italic' }}>listed-chain node · click away to close</div>
+        <div style={{ marginTop: 10, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: mono, fontStyle: 'italic' }}>listed-chain node · Esc, ✕ or click away to close</div>
       </div>
     </div>
   );

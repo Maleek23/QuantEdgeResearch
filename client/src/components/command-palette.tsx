@@ -27,7 +27,6 @@ import {
 import {
   Home,
   Bell,
-  Crosshair,
   Zap,
   Microscope,
   Wallet,
@@ -45,11 +44,10 @@ interface NavTarget {
   keywords?: string[];
 }
 
-// The six destinations of docs/IA_SYSTEM_DESIGN.md §3, in job order
-// (FIND → UNDERSTAND → ACT → PROVE). ⌘1–⌘6 follow this order.
+// The destinations of docs/IA_SYSTEM_DESIGN.md §3, in job order (Ideas/Slate retired 2026-09-29 → Today)
+// (FIND → UNDERSTAND → ACT → PROVE). ⌘1–⌘5 follow this order.
 const PRIMARY_DESTINATIONS: NavTarget[] = [
-  { href: '/today',          label: 'Today',      icon: Home,      hint: 'Weekly dealer map · best idea · ranked book', keywords: ['home','morning','brief','convictions','best'] },
-  { href: '/slate',          label: 'Ideas',      icon: Crosshair, hint: "Slate · today's measured setups + pre-market gappers", keywords: ['slate','discovery','scanner','picks','setups','trade desk','gappers','evening'] },
+  { href: '/today',          label: 'Today',      icon: Home,      hint: 'Weekly dealer map · best idea · ranked book', keywords: ['home','morning','brief','convictions','best','slate','radar','ideas','picks','gappers'] },
   { href: '/t',              label: 'Markets',    icon: Zap,       hint: 'Terminal · NEXUS board, chart, flow, GEX, crypto', keywords: ['terminal','dashboard','pulse','overview','nexus','tape'] },
   { href: '/r',              label: 'Research',   icon: Microscope,hint: 'Per-ticker dossier · chart · options · GEX', keywords: ['chart','options','ticker','dossier'] },
   { href: '/t?tab=positions',label: 'Book',       icon: Wallet,    hint: 'Positions · open risk · P&L heat map', keywords: ['positions','heatmap','pnl'] },
@@ -260,10 +258,6 @@ export function CommandPalette() {
           <CommandItem onSelect={() => go('/alerts')}>
             <Bell className="w-3.5 h-3.5 mr-2" />
             <span className="text-xs">Alerts</span>
-          </CommandItem>
-          <CommandItem onSelect={() => go('/radar')}>
-            <Crosshair className="w-3.5 h-3.5 mr-2" />
-            <span className="text-xs">Thesis Radar</span>
           </CommandItem>
           <CommandItem onSelect={() => go('/settings')}>
             <Search className="w-3.5 h-3.5 mr-2" />

@@ -1,8 +1,8 @@
 {
-  "routes": 31,
-  "redirects": 85,
+  "routes": 35,
+  "redirects": 81,
   "tabs": 10,
-  "linkTargets": 55,
+  "linkTargets": 57,
   "N1_dead": {},
   "N2_viaRedirect": {},
   "N3_orphanPageFiles": [],
@@ -17,6 +17,7 @@
     "client/src/components/research/flow-table.tsx",
     "client/src/components/signal-card.tsx",
     "client/src/components/trade-desk/DiscoveryPicksPanel.tsx",
+    "client/src/components/trade-desk/PreMarketGappersCard.tsx",
     "client/src/components/trade-desk/idea-detail-drawer.tsx",
     "client/src/components/trade-desk/todays-picks.tsx",
     "client/src/components/trade-desk/trade-filters-bar.tsx",
@@ -27,17 +28,20 @@
     "client/src/components/trade-idea-detail-v2.tsx",
     "client/src/components/ui/empty-state.tsx",
     "client/src/components/ui/qe-bar.tsx",
+    "client/src/components/ui/qe-legend.tsx",
     "client/src/components/ui/qe-num.tsx",
     "client/src/components/win-rate-widget.tsx",
-    "client/src/lib/trade-desk-filters.ts"
+    "client/src/lib/trade-desk-filters.ts",
+    "client/src/pages/radar.tsx",
+    "client/src/pages/slate.tsx"
   ],
   "N4_unreachableRoutes": [],
   "N5_navModel": {
     "tabs": [
       "NEXUS",
-      "CHART",
       "FLOW",
       "GEX",
+      "CHART",
       "LEAPS",
       "CRYPTO",
       "CATALYST",
@@ -47,8 +51,7 @@
     ],
     "pages": [
       "/today",
-      "/slate",
-      "/radar",
+      "/today",
       "/alerts",
       "/how-to",
       "/settings"
@@ -59,13 +62,7 @@
   "N6b_redundancyDebt": {
     "Rank today's trade ideas": [
       "/today Ranked setups",
-      "/t NEXUS board",
-      "/slate cards",
-      "/radar Picks"
-    ],
-    "Discover forming setups": [
-      "/radar Forming",
-      "NEXUS forming rail"
+      "/t NEXUS board"
     ],
     "Sector rotation": [
       "/today RotQuad",
@@ -116,7 +113,6 @@
     ],
     "Track record (model)": [
       "Journal Track record",
-      "/radar Track Record",
       "/today Model record"
     ],
     "Backtest": [
@@ -154,11 +150,10 @@
     ],
     "W2 morning routine": [
       "/today \u2192 /t [chrome/palette]",
-      "/t \u2192 /radar [chrome/palette]",
-      "/radar \u2192 /t?tab=positions [chrome/palette]"
+      "/t \u2192 /t?tab=positions [chrome/palette]"
     ],
-    "W3 evening slate": [
-      "/slate \u2192 /r/:symbol [chrome/palette]",
+    "W3 evening review": [
+      "/today \u2192 /r/:symbol [chrome/palette]",
       "/r/:symbol \u2192 /t?tab=journal&jtab=record [chrome/palette]"
     ],
     "W4 check an idea's evidence": [
@@ -175,5 +170,19 @@
   ],
   "N12_knownDebt": {
     "client/src/pages/shells/terminal-shell.tsx:marketFocus": "Phase 2 (terminal UX branch owns the file): remove overlay; RotationMap/OracleMarketField/SessionBrief become Markets tools"
-  }
+  },
+  "N14_dock": [
+    "page:/today",
+    "tab:oracle",
+    "tab:flow",
+    "tab:gex",
+    "tab:chart"
+  ],
+  "N14_researchTabs": [
+    "chart",
+    "leaps",
+    "crypto",
+    "catalyst"
+  ],
+  "N14_fail": []
 }

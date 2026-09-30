@@ -29,7 +29,6 @@ import { NexusFrame } from "@/components/shell/nexus-frame";
 const TerminalShell  = lazyWithRetry(() => import("@/pages/shells/terminal-shell"),  "terminal-shell");
 
 const ResearchShell  = lazyWithRetry(() => import("@/pages/shells/research-shell"),  "research-shell");
-const RadarPage      = lazyWithRetry(() => import("@/pages/radar"),                  "radar");
 const HowToPage      = lazyWithRetry(() => import("@/pages/how-to"),                 "how-to");
 
 // The tenth reference mock: the wired marketing page. Prior landing stays at @/pages/landing.
@@ -37,7 +36,6 @@ const Landing = lazyWithRetry(() => import("@/pages/landing-nexus"), "landing");
 const PublicWatchlist = lazyWithRetry(() => import("@/pages/public-watchlist"), "public-watchlist");
 const Login = lazyWithRetry(() => import("@/pages/login"), "login");
 const Signup = lazyWithRetry(() => import("@/pages/signup"), "signup");
-const SlatePage     = lazyWithRetry(() => import("@/pages/slate"), "slate");
 const TodayPage     = lazyWithRetry(() => import("@/pages/today"), "today");
 // REMOVED — Market page consolidated, redirect to /home
 const SettingsPage = lazyWithRetry(() => import("@/pages/settings"), "settings");
@@ -128,9 +126,7 @@ function withAdminProtection<P extends object>(Component: ComponentType<P>) {
 // (the /api/pulse?since=0 storm), every query refired, every chart rebuilt.
 const ProtectedTerminalShell = withBetaProtection(TerminalShell);
 const ProtectedResearchShell = withBetaProtection(ResearchShell);
-const ProtectedRadarPage = withBetaProtection(RadarPage);
 const ProtectedTodayPage = withBetaProtection(TodayPage);
-const ProtectedSlatePage = withBetaProtection(SlatePage);
 const ProtectedTradeAudit = withBetaProtection(TradeAudit);
 const ProtectedSettingsPage = withBetaProtection(SettingsPage);
 const ProtectedAlertsPage = withBetaProtection(AlertsPage);
@@ -189,7 +185,6 @@ function Router() {
 
         <Route path="/r/:symbol"  component={ProtectedResearchShell} />
         <Route path="/r"          component={ProtectedResearchShell} />
-        <Route path="/radar"      component={ProtectedRadarPage} />
 
         <Route path="/how-to"     component={HowToPage} />
 
@@ -205,7 +200,6 @@ function Router() {
             repointed. Restoring the route is the small fix; deleting the pages
             would have been the expensive one. */}
         <Route path="/today"       component={ProtectedTodayPage} />
-        <Route path="/slate"       component={ProtectedSlatePage} />
         {/* HOME IS THE TERMINAL. Confirmed by the owner, against two rival
             candidates that both call themselves the dashboard in their own headers:
             pages/home.tsx ("Command Center", 1,186 lines) and pages/home-glass.tsx

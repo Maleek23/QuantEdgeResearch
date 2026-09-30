@@ -17,7 +17,7 @@ export function SkipLink({ targetId = MAIN_CONTENT_ID }: { targetId?: string }) 
         target.focus();
         target.scrollIntoView({ block: 'start' });
       }}
-      className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[200] focus:rounded-md focus:border focus:border-[var(--brand-cyan)] focus:bg-card focus:px-3 focus:py-2 focus:font-mono focus:text-[11px] focus:font-bold focus:uppercase focus:tracking-wider focus:text-foreground focus:shadow-xl focus:outline-none"
+      className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[200] focus:rounded-md focus:border focus:border-[var(--brand-cyan)] focus:bg-card focus:px-3 focus:py-2 focus:font-mono focus:text-[11px] focus:font-bold focus:uppercase focus:tracking-wider focus:text-foreground focus:shadow-xl focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[var(--brand-cyan)]"
     >
       Skip to content
     </a>
