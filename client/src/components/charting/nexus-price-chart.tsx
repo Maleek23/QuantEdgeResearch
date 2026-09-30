@@ -69,6 +69,10 @@ export function NexusPriceChart({
   resetKey,
   defaultVisibleBars,
   live = true,
+  active = true,
+  chartType: controlledType,
+  minimalInfo = false,
+  touchScroll = false,
 }: {
   symbol: string;
   initialTf?: keyof typeof TF_CONFIG;
@@ -105,17 +109,28 @@ export function NexusPriceChart({
   /** Form the last candle from live ticks (default on). Off for Replay — the
    *  past must not be edited by the present. */
   live?: boolean;
+  /** False while the chart is off-screen: no live subscription, no history
+   *  refetch. Cached bars stay drawn. */
+  active?: boolean;
+  /** Controlled candles/line (the caller's settings own it). */
+  chartType?: 'candles' | 'line';
+  /** Compact embeds: the info strip shows only the LIVE/DELAYED stamp. */
+  minimalInfo?: boolean;
+  /** Embedded in a scrolling page (phone): vertical swipes scroll the PAGE
+   *  (touch-action: pan-y); only horizontal drags and pinches move the chart. */
+  touchScroll?: boolean;
 }) {
   const [localTf, setLocalTf] = useState<keyof typeof TF_CONFIG>(
     TF_CONFIG[initialTf] ? initialTf : '1D',
   );
   const tf = controlledTf && TF_CONFIG[controlledTf] ? controlledTf : localTf;
   const setTf = (next: keyof typeof TF_CONFIG) => { setLocalTf(next); onTfChange?.(next); };
-  const [type, setType] = useState<'candles' | 'line'>('candles');
+  const [localType, setType] = useState<'candles' | 'line'>('candles');
+  const type = controlledType ?? localType;
   const [expanded, setExpanded] = useState(false);
-  const { data: series, isLoading, isError } = useCandles(symbol, tf);
+  const { data: series, isLoading, isError } = useCandles(symbol, tf, active);
   // History + the forming bar from live prints (WS, or 1 s polling fallback).
-  const { bars: liveBars, lastTick } = useLiveCandles(symbol, tf, series?.bars, live);
+  const { bars: liveBars, lastTick } = useLiveCandles(symbol, tf, series?.bars, live && active);
   const all = useMemo(
     () => (liveBars && transformBars ? transformBars(liveBars) : liveBars),
     [liveBars, transformBars],
@@ -161,7 +176,7 @@ export function NexusPriceChart({
     startPriceShift: number;
     moved: boolean;
   } | null>(null);
-  const touch = useRef<{ x: number; offset: number; dist: number | null; span: number } | null>(null);
+  const touch = useRef<{ x: number; y: number; axis: 'x' | 'y' | null; offset: number; dist: number | null; span: number } | null>(null);
   const syncTime = useRef<number | null>(null);
   const publishSync = (t: number | null) => {
     if (!syncGroup) return;
@@ -276,9 +291,51 @@ export function NexusPriceChart({
     0,
   ) ?? 0;
 
+  /* ── accessibility: a text summary for the canvas, keyboard pan/zoom, and a
+     visually hidden table of the recent bars + levels ── */
+  const a11ySummary = useMemo(() => {
+    if (!candles?.length) return `${symbol} price chart, no data`;
+    const last = candles[candles.length - 1];
+    const hi = Math.max(...candles.map((c) => renderedCandleRange(c).high));
+    const lo = Math.min(...candles.map((c) => renderedCandleRange(c).low));
+    const lv = levels.filter((l) => Number.isFinite(l.price)).map((l) => `${l.label} ${l.price.toFixed(2)}`).join(', ');
+    return `${symbol} ${TF_CONFIG[tf].label} ${type} chart, ${candles.length} bars. Last ${last.close.toFixed(2)}; visible range ${lo.toFixed(2)} to ${hi.toFixed(2)}.${lv ? ` Levels: ${lv}.` : ''} Arrow keys pan, plus and minus zoom, 0 resets.`;
+  }, [candles, levels, symbol, tf, type]);
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!all || all.length < MIN_SPAN) return;
+    const step = Math.max(1, Math.round(span * 0.1));
+    let handled = true;
+    if (e.key === 'ArrowLeft') setView((v) => ({ ...v, offset: Math.min(Math.max(0, len - span), offset + step) }));
+    else if (e.key === 'ArrowRight') setView((v) => ({ ...v, offset: Math.max(0, offset - step) }));
+    else if (e.key === '+' || e.key === '=') setView({ span: Math.max(MIN_SPAN, Math.round(span * 0.8)), offset });
+    else if (e.key === '-' || e.key === '_') { const ns = Math.min(len, Math.round(span * 1.25)); setView({ span: ns, offset: Math.min(offset, Math.max(0, len - ns)) }); }
+    else if (e.key === '0' || e.key === 'Home') { setView({ span: null, offset: 0 }); setPriceView({ scale: 1, shift: 0 }); }
+    else if (e.key === 'End') setView((v) => ({ ...v, offset: 0 }));
+    else handled = false;
+    if (handled) e.preventDefault();
+  };
+  const srTable = candles?.length ? (
+    <table className="sr-only">
+      <caption>{symbol} · {TF_CONFIG[tf].label} · most recent {Math.min(20, candles.length)} bars</caption>
+      <thead><tr><th scope="col">Time</th><th scope="col">Open</th><th scope="col">High</th><th scope="col">Low</th><th scope="col">Close</th><th scope="col">Volume</th></tr></thead>
+      <tbody>
+        {candles.slice(-20).reverse().map((c) => (
+          <tr key={c.time}><td>{new Date(c.time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td>{c.open.toFixed(2)}</td><td>{renderedCandleRange(c).high.toFixed(2)}</td><td>{renderedCandleRange(c).low.toFixed(2)}</td><td>{c.close.toFixed(2)}</td><td>{c.volume}</td></tr>
+        ))}
+        {levels.filter((l) => Number.isFinite(l.price)).map((l) => (
+          <tr key={`lv-${l.label}-${l.price}`}><th scope="row">{l.label}</th><td colSpan={5}>{l.price.toFixed(2)}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  ) : null;
+
   const chartBody = (
     <>
-      {isLoading ? (
+      {!active && !series ? (
+        <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+          {symbol} · loads when in view
+        </div>
+      ) : isLoading ? (
         <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
           loading {symbol} · {TF_CONFIG[tf].label}…
         </div>
@@ -289,21 +346,33 @@ export function NexusPriceChart({
       ) : (
         <canvas
           ref={canvasRef}
-          style={{ cursor: 'crosshair', touchAction: 'none' }}
+          role="img"
+          aria-label={a11ySummary}
+          style={{ cursor: 'crosshair', touchAction: touchScroll ? 'pan-y' : 'none' }}
           onTouchStart={(e) => {
             if (!all) return;
             if (e.touches.length === 2) {
               const dx = e.touches[0].clientX - e.touches[1].clientX;
               const dy = e.touches[0].clientY - e.touches[1].clientY;
-              touch.current = { x: 0, offset, dist: Math.hypot(dx, dy), span };
+              touch.current = { x: 0, y: 0, axis: 'x', offset, dist: Math.hypot(dx, dy), span };
             } else if (e.touches.length === 1) {
-              touch.current = { x: e.touches[0].clientX, offset, dist: null, span };
+              touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, axis: null, offset, dist: null, span };
             }
           }}
           onTouchMove={(e) => {
             const t0 = touch.current;
             if (!t0 || !all) return;
-            e.preventDefault();
+            // Axis lock on the first real move: a vertical swipe on an embedded
+            // chart belongs to the page (touch-action: pan-y already lets the
+            // browser scroll); only a horizontal drag pans the chart.
+            if (t0.axis == null && e.touches.length === 1) {
+              const dx = Math.abs(e.touches[0].clientX - t0.x);
+              const dy = Math.abs(e.touches[0].clientY - t0.y);
+              if (dx < 6 && dy < 6) return;
+              t0.axis = dx >= dy ? 'x' : 'y';
+            }
+            if (touchScroll && t0.axis === 'y') return;
+            if (e.cancelable) e.preventDefault();
             if (e.touches.length === 2 && t0.dist != null) {
               // pinch: scale the visible span around the current window
               const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -422,10 +491,13 @@ export function NexusPriceChart({
       </div>}
 
       <div className="chart-info-overlay" style={{ bottom: 8, left: 8, padding: '4px 8px' }}>
-        <span>TF <b>{TF_CONFIG[tf].label}</b></span>
-        <span>BARS <b>{candles?.length ?? 0}{(candles?.length ?? 0) < len ? ` / ${len}` : ''}</b></span>
-        <span style={{ color: view.span != null || priceView.scale !== 1 || priceView.shift !== 0 ? 'var(--cyan-bright)' : undefined }}>plot ↔↕ · axes scale · dbl-click reset</span>
-        {live && lastTick && all?.length ? <LiveBadge tick={lastTick} tf={tf} lastBarTime={all[all.length - 1].time} /> : null}
+        {!minimalInfo && <span>TF <b>{TF_CONFIG[tf].label}</b></span>}
+        {!minimalInfo && <span>BARS <b>{candles?.length ?? 0}{(candles?.length ?? 0) < len ? ` / ${len}` : ''}</b></span>}
+        {!minimalInfo && <span style={{ color: view.span != null || priceView.scale !== 1 || priceView.shift !== 0 ? 'var(--cyan-bright)' : undefined }}>plot ↔↕ · axes scale · dbl-click reset</span>}
+        {live && !active && all?.length ? <span style={{ color: 'var(--text-mute)' }}>❚❚ paused off-screen</span> : null}
+        {live && active && lastTick && all?.length ? <LiveBadge tick={lastTick} tf={tf} lastBarTime={all[all.length - 1].time} /> : null}
+        {live && active && !lastTick && all?.length ? <span style={{ color: 'var(--amber, #facc15)' }} title="No live print or quote has arrived yet — the last bar is the history feed's.">○ HISTORY · waiting for tape</span> : null}
+        {!live && all?.length ? <span style={{ color: 'var(--text-mute)' }} title="This chart shows a fixed window of history; live ticks are off.">HISTORY · not live</span> : null}
         {visibleQuarantined > 0 && (
           <span style={{ color: 'var(--amber)' }}>{visibleQuarantined} SOURCE ANOMAL{visibleQuarantined === 1 ? 'Y' : 'IES'} HIDDEN</span>
         )}
@@ -446,12 +518,17 @@ export function NexusPriceChart({
     <>
       <div
         ref={wrapRef}
-        className="chart-canvas-wrap"
+        className="chart-canvas-wrap focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-400"
+        tabIndex={0}
+        role="region"
+        aria-label={`${symbol} chart — arrow keys pan, plus / minus zoom, 0 resets`}
+        onKeyDown={onKeyDown}
         style={fill
           ? { flex: 1, minHeight: 0, position: 'relative' }
           : { height: Math.max(height, 380), flex: 'none', borderRadius: 6, border: '1px solid var(--nx-border, rgba(59,140,255,0.08))' }}
       >
         {chartBody}
+        {srTable}
       </div>
 
       {/* mini-expand: same chart, big, over a blurred backdrop. A separate

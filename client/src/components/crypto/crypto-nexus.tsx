@@ -26,7 +26,7 @@ import { useStockContext } from '@/contexts/stock-context';
 import { useColResize } from '@/lib/use-col-resize';
 import { usePriceHistory } from '@/components/hunt/cockpit/use-price-history';
 import { Heartbeat } from '@/components/viz';
-import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
+import { QEChart } from '@/components/charting/qe-chart';
 import '@/styles/nexus.css';
 
 export interface CryptoAsset {
@@ -384,8 +384,8 @@ export function CryptoChartDeck({ coin, onCoin, fill = false }: {
         </div>
       </div>
       {fill
-        ? <NexusPriceChart key={chartCoin} symbol={`${chartCoin}-USD`} initialTf="1h" fill expandable />
-        : <NexusPriceChart key={chartCoin} symbol={`${chartCoin}-USD`} initialTf="1h" height={330} expandable />}
+        ? <QEChart key={chartCoin} symbol={`${chartCoin}-USD`} title={`${chartCoin}/USD`} initialTf="1h" fill />
+        : <QEChart key={chartCoin} symbol={`${chartCoin}-USD`} title={`${chartCoin}/USD`} initialTf="1h" height={380} />}
       <div className="crypto-level-strip">
         <div><span>spot</span><b>{chartAsset ? `$${chartAsset.price.toLocaleString(undefined, { maximumFractionDigits: chartAsset.price < 10 ? 4 : 0 })}` : '—'}</b></div>
         <div><span>7d</span><b className={(chartAsset?.change7d ?? 0) >= 0 ? 'up' : 'down'}>{pct(chartAsset?.change7d)}</b></div>

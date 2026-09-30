@@ -88,7 +88,9 @@ export function aggregateCandles(bars: Candle[], minutes: number): Candle[] {
   }));
 }
 
-export function useCandles(symbol: string, tf: string) {
+/** `enabled=false` (a chart scrolled off-screen) keeps whatever is cached but
+ *  stops the 2-min history refetch until the chart is back in view. */
+export function useCandles(symbol: string, tf: string, enabled = true) {
   const cfg = TF_CONFIG[tf];
   const tol = WICK_TOLERANCE[tf] ?? 0.05;
   return useQuery<CandleSeries>({
@@ -130,7 +132,8 @@ export function useCandles(symbol: string, tf: string) {
       return { bars, clampedWicks };
     },
     staleTime: 60_000,
-    refetchInterval: CANDLES_POLL_MS,
+    refetchInterval: enabled ? CANDLES_POLL_MS : false,
+    enabled: enabled && !!symbol,
     retry: 1,
   });
 }
@@ -245,6 +248,10 @@ export function useLiveCandles(symbol: string, tf: string, history: Candle[] | u
 
 export interface Level {
   price: number;
+  /** A palette role ('accent' · 'gain' · 'loss' · 'caution' · 'marker' ·
+   *  'dim' · 'call' · 'put' · 'info') resolved per visual mode, a CSS
+   *  'var(--token)', or a literal colour (legacy callers). Prefer a role: a
+   *  literal hex cannot follow the Light / Contrast modes. */
   color: string;
   label: string;
   /** Dealer-positioning levels render as sized nodes, not generic trade lines. */
@@ -370,12 +377,15 @@ function buildGeometry(
 export interface ChartPalette {
   accent: string; gain: string; loss: string; caution: string; dim: string; marker: string;
   surface: string; text: string; ink: string;
+  /** options side colours — calls / call wall and puts / put wall. Not gain
+   *  and loss: a call wall is structure, not profit. */
+  call: string; put: string; info: string;
   /** alpha multipliers: High contrast draws grid/axes at full strength */
   gridA: number; axisA: number;
 }
 const DARK_PALETTE: ChartPalette = {
   accent: '#3b8cff', gain: '#6ee7b7', loss: '#ff6b3d', caution: '#facc15', dim: '#8b93a3', marker: '#a78bfa',
-  surface: '#0e1117', text: '#e8ecf3', ink: '#031917', gridA: 1, axisA: 1,
+  surface: '#0e1117', text: '#e8ecf3', ink: '#031917', call: '#60a5fa', put: '#a78bfa', info: '#60a5fa', gridA: 1, axisA: 1,
 };
 let paletteCache: { v: number; p: ChartPalette } | null = null;
 export function chartPalette(el?: Element | null): ChartPalette {
@@ -395,6 +405,9 @@ export function chartPalette(el?: Element | null): ChartPalette {
     surface: tok('--lx-surface', DARK_PALETTE.surface),
     text: tok('--lx-text', DARK_PALETTE.text),
     ink: tok('--lx-accent-ink', DARK_PALETTE.ink),
+    info: tok('--lx-info', DARK_PALETTE.info),
+    call: tok('--lx-call', tok('--lx-info', DARK_PALETTE.call)),
+    put: tok('--lx-put', tok('--lx-marker', DARK_PALETTE.put)),
     gridA: contrast ? 4 : 1,
     axisA: contrast ? 1.6 : 1,
   };
@@ -408,6 +421,17 @@ export function withAlpha(color: string, a: number): string {
   const h = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1];
   const n = parseInt(h, 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${Math.max(0, Math.min(1, a))})`;
+}
+
+const LEVEL_ROLES = new Set(['accent', 'gain', 'loss', 'caution', 'dim', 'marker', 'text', 'call', 'put', 'info']);
+/** Level colour → a concrete colour for the active visual mode. */
+export function resolveLevelColor(color: string, pal: ChartPalette, el?: Element | null): string {
+  if (LEVEL_ROLES.has(color)) return pal[color as keyof ChartPalette] as string;
+  const m = /^var\((--[\w-]+)\)$/.exec(color.trim());
+  if (m && typeof getComputedStyle !== 'undefined') {
+    return getComputedStyle(el ?? document.documentElement).getPropertyValue(m[1]).trim() || pal.accent;
+  }
+  return color;
 }
 
 export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opts: DrawOpts): ChartGeometry | null {
@@ -500,8 +524,9 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
       if (lvl.price >= min && lvl.price <= max) {
         const y = padding.top + ((max - lvl.price) / priceRange) * priceH;
         const isNode = lvl.kind === 'gex-node' || lvl.kind === 'gex-anchor';
+        const color = resolveLevelColor(lvl.color, pal, chartCanvas);
         const strength = Math.max(0, Math.min(1, lvl.strength ?? 0.45));
-        ctx.strokeStyle = lvl.color + (isNode ? '55' : '40');
+        ctx.strokeStyle = withAlpha(color, isNode ? 0.33 : 0.25);
         ctx.lineWidth = isNode ? 0.8 + strength * 1.2 : 1;
         ctx.setLineDash(isNode ? [2, 5] : [4, 4]);
         ctx.beginPath();
@@ -509,7 +534,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
         ctx.lineTo(w - padding.right, y);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = lvl.color;
+        ctx.fillStyle = color;
         ctx.font = '700 9px "JetBrains Mono", monospace';
         ctx.textAlign = 'left';
         ctx.fillText(lvl.label, padding.left + 4, y - 3);
@@ -517,7 +542,8 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
           const nodeX = w - padding.right - 10;
           const radius = 3 + strength * 4;
           ctx.save();
-          ctx.shadowColor = lvl.color;
+          ctx.shadowColor = color;
+          ctx.fillStyle = color;
           ctx.shadowBlur = 5 + strength * 8;
           ctx.globalAlpha = 0.82;
           ctx.beginPath();
@@ -525,7 +551,7 @@ export function drawChart(chartCanvas: HTMLCanvasElement, candles: Candle[], opt
           ctx.fill();
           ctx.restore();
           if (lvl.meta) {
-            ctx.fillStyle = lvl.color + 'cc';
+            ctx.fillStyle = withAlpha(color, 0.8);
             ctx.font = '700 8px "JetBrains Mono", monospace';
             ctx.textAlign = 'right';
             ctx.fillText(lvl.meta, nodeX - radius - 5, y + 3);

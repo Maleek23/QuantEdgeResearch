@@ -28,7 +28,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useColResize } from '@/lib/use-col-resize';
 import { openWorkup } from '@/lib/workup-bus';
-import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
+import { QEChart } from '@/components/charting/qe-chart';
 import { Heartbeat } from '@/components/viz';
 import { useBotLedger, useQuantBotStatus, type BotPositionView } from '@/lib/bot/use-bot-status';
 import { fmtMoney, runRecords, toTrade, type RunRecord } from '@/lib/journal/metrics';
@@ -776,11 +776,11 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                 blocked {new Date(replay.blockedAt).toLocaleString()} · {replay.reason}
               </div>
             </div>
-            <NexusPriceChart key={`replay-${replay.symbol}`} symbol={replay.symbol} initialTf="1D" height={340} expandable={false} live={false}
+            <QEChart key={`replay-${replay.symbol}`} symbol={replay.symbol} initialTf="1D" height={380} live={false}
               levels={[
-                { price: replay.entryPrice, color: '#3b8cff', label: 'blocked entry' },
-                { price: replay.stopLoss, color: '#ff6b3d', label: 'would-be stop' },
-                { price: replay.targetPrice, color: '#6ee7b7', label: 'would-be target' },
+                { price: replay.entryPrice, color: 'accent', label: 'blocked entry' },
+                { price: replay.stopLoss, color: 'loss', label: 'would-be stop' },
+                { price: replay.targetPrice, color: 'gain', label: 'would-be target' },
               ]} />
             <div style={{ marginTop: 10, fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-dim)' }}>
               Replay verdict: <b style={{ color: replay.outcome === 'hit_target' ? 'var(--red)' : replay.outcome === 'hit_stop' ? 'var(--green)' : 'var(--amber)' }}>
@@ -812,13 +812,13 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                 cannot honestly be drawn on a share chart — so the chart carries
                 the strike (a real underlying level) and the barrier rail below
                 stays in the contract's own units. */}
-            <NexusPriceChart key={`expand-${expandPos.id}`} symbol={expandPos.symbol} initialTf="1D" height={320} expandable={false}
+            <QEChart key={`expand-${expandPos.id}`} symbol={expandPos.symbol} initialTf="1D" height={380}
               levels={expandPos.assetType === 'option' && expandPos.strikePrice != null
-                ? [{ price: expandPos.strikePrice, color: '#facc15', label: `strike $${expandPos.strikePrice}` }]
+                ? [{ price: expandPos.strikePrice, color: 'caution', label: `strike $${expandPos.strikePrice}` }]
                 : [
-                    { price: Number(expandPos.entryPrice), color: '#3b8cff', label: 'entry' },
-                    ...(expandPos.stopLoss != null ? [{ price: Number(expandPos.stopLoss), color: '#ff6b3d', label: 'stop' }] : []),
-                    ...(expandPos.targetPrice != null ? [{ price: Number(expandPos.targetPrice), color: '#6ee7b7', label: 'target' }] : []),
+                    { price: Number(expandPos.entryPrice), color: 'accent', label: 'entry' },
+                    ...(expandPos.stopLoss != null ? [{ price: Number(expandPos.stopLoss), color: 'loss', label: 'stop' }] : []),
+                    ...(expandPos.targetPrice != null ? [{ price: Number(expandPos.targetPrice), color: 'gain', label: 'target' }] : []),
                   ]} />
             <div style={{ marginTop: 12 }}>
               {(() => {
