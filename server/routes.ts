@@ -5090,7 +5090,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               quote.fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh || null;
               quote.fiftyTwoWeekLow = meta.fiftyTwoWeekLow || null;
               quote.averageVolume = meta.averageDailyVolume10Day || null;
-              quote.previousClose = meta.chartPreviousClose || meta.previousClose || null;
+              // range=1y → chartPreviousClose is the close a YEAR ago. The prior
+              // regular close comes from the canonical quote (shared/price-change.ts).
+              quote.previousClose = (quote as any).previousClose ?? null;
               // Estimate market cap from price × shares if available
               if (meta.sharesOutstanding) {
                 quote.marketCap = (quote.price || 0) * meta.sharesOutstanding;
@@ -5683,6 +5685,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Data-quality layer: provider agreement for one symbol (shared/price-crosscheck.ts,
+  // ported from vivek-v-rao/price-check, MIT). Reports; never repairs. Cached 10 min.
+  app.get("/api/data-quality/price-crosscheck/:symbol", async (req, res) => {
+    try {
+      const symbol = String(req.params.symbol || '').toUpperCase().replace(/[^A-Z0-9.^-]/g, '').slice(0, 10);
+      if (!symbol) return res.status(400).json({ error: 'symbol required' });
+      const { crossCheckPrices } = await import('./price-crosscheck');
+      const days = Number(req.query.days) || 20;
+      res.json(await crossCheckPrices(symbol, { days }));
+    } catch (error: any) {
+      logger.error('price-crosscheck failed', error);
+      res.status(500).json({ error: 'cross-check failed', message: error?.message });
+    }
+  });
+
   app.get("/api/quotes/batch/:symbols", async (req, res) => {
     try {
       const { symbols } = req.params;
@@ -5702,7 +5719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         symbolList.map((symbol) => ({ symbol, assetType: 'stock' as RTAssetType }))
       );
 
-      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number; asOf: string }> = {};
+      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number | null; volume: number; asOf: string; source: string | null; session: string | null; previousClose: number | null; delayed: boolean; stale: boolean }> = {};
       for (const symbol of symbolList) {
         const q = quotesMap.get(symbol);
         if (q && q.price) {
@@ -5710,11 +5727,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             symbol,
             price: q.price,
             change: q.change || 0,
-            changePercent: q.changePercent || 0,
+            // null (not 0) when the provider gave no change — a missing move is not a flat day.
+            changePercent: Number.isFinite(q.changePercent) ? q.changePercent : null,
             volume: q.volume || 0,
             // Source timestamp, not API-response time. The client can therefore
             // show an honest stale marker when Yahoo has not printed a new tick.
             asOf: q.lastUpdate.toISOString(),
+            source: q.source ?? null,
+            // pre/regular/post/closed — changePercent is the latest print vs the prior
+            // regular close (shared/price-change.ts), so after 16:00 it includes the
+            // after-hours move; surfaces label it from this field.
+            session: q.session ?? null,
+            previousClose: q.previousClose ?? null,
+            delayed: !!q.delayed,
+            stale: !!q.stale,
           };
         }
       }
@@ -6630,88 +6656,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Dashboard API Routes
   app.get("/api/dashboard/stats", async (req: any, res) => {
+    // Rewritten in the 2026-09-29 consistency audit. v1: portfolioValue read
+    // `p.balance` (not a column → always 0), daily/weekly P&L summed dollar
+    // realizedPnL with PERCENT percentGain, days were server-local (UTC) midnight,
+    // and the win rate was v1 hit_target over all time (23% while the canonical
+    // record said otherwise). Now: the canonical record, dollars only, ET days.
     try {
       const userId = req.session?.userId || (req.user as any)?.claims?.sub;
-      
-      // Get all trade ideas for stats
+      const { computeModelRecord, etDateKey, isSyntheticOutcome } = await import('@shared/model-record');
+      const { OUTCOME_BASELINE_DATE } = await import('@shared/constants');
       const allIdeas = await storage.getAllTradeIdeas();
-      // Outcomes live on outcomeStatus — `status` is the publish lifecycle
-      // (draft/published/archived), so the old filter matched nothing. Decided =
-      // hit_target + isRealLoss; expired ideas with no measured exit are excluded
-      // (isUnmeasuredExpiry) and reported as `unmeasuredExpired`, never counted
-      // as non-wins in the denominator.
-      const { isUnmeasuredExpiry } = await import('@shared/constants');
-      const decidedIdeas = allIdeas.filter(i => i.outcomeStatus === 'hit_target' || isRealLoss(i));
-      const unmeasuredExpired = allIdeas.filter(i => isUnmeasuredExpiry(i)).length;
-      const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
-      
-      // Calculate win rate
-      const wins = decidedIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
-      const winRate = decidedIdeas.length > 0 ? (wins / decidedIdeas.length) * 100 : 0;
-      
-      // Get paper portfolios for portfolio value (use user's portfolios if logged in)
-      let totalPortfolioValue = 0;
+      const record = computeModelRecord(allIdeas as any[]);
+      const sinceMs = Date.parse(`${OUTCOME_BASELINE_DATE}T00:00:00-04:00`);
+      const inWindow = (allIdeas as any[]).filter((i) => Date.parse(String(i.timestamp)) >= sinceMs && !i.excludeFromTraining && !isSyntheticOutcome(i));
+      const openIdeas = inWindow.filter((i) => i.outcomeStatus === 'open');
+
+      let totalPortfolioValue: number | null = null;
       if (userId) {
         const portfolios = await storage.getPaperPortfoliosByUser(userId);
-        totalPortfolioValue = portfolios.reduce((sum, p) => sum + (p.balance || 0), 0);
+        totalPortfolioValue = portfolios.reduce((sum: number, p: any) => sum + (Number(p.totalValue ?? p.cashBalance) || 0), 0);
       }
-      
-      // Calculate daily P&L from today's closed trades.
-      // A5 audit fix: previously summed (currentPrice - suggestedEntry) which
-      // referenced fields not in the schema and produced ~0 for most rows.
-      // Now uses realizedPnL (written by performance-validation-service) and
-      // falls back to percentGain × $100 notional when realizedPnL is null,
-      // so the figure is at least directionally honest.
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const ideaRealizedPnL = (i: any): number => {
-        if (typeof i.realizedPnL === 'number') return i.realizedPnL;
-        if (typeof i.percentGain === 'number') return i.percentGain; // %, not $ — labeled as such on the client
-        return 0;
-      };
-      const todayIdeas = decidedIdeas.filter(i => {
-        const closeDate = i.updatedAt ? new Date(i.updatedAt) : null;
-        return closeDate && closeDate >= today;
-      });
-      const dailyPnL = todayIdeas.reduce((sum, i) => sum + ideaRealizedPnL(i), 0);
 
-      // Weekly performance data — A5 audit fix: previously hardcoded
-      // +$50 per win and -$25 per loss regardless of actual P&L. Now sums
-      // realizedPnL (or percentGain fallback) per day so the chart reflects
-      // real outcomes. Days with no closes show 0.
+      // Dollar P&L only: realizedPnL when written; a close without it is counted as
+      // unmeasured rather than folded in as a percent.
+      const closed = inWindow.filter((i) => i.outcomeStatus && i.outcomeStatus !== 'open');
+      const dayOf = (i: any) => etDateKey(new Date(i.exitDate ?? i.updatedAt ?? i.timestamp).getTime());
+      const todayKey = etDateKey(Date.now());
+      const dayBuckets = new Map<string, { pnl: number; measured: number; unmeasured: number }>();
+      for (const i of closed) {
+        const k = dayOf(i);
+        const b = dayBuckets.get(k) ?? { pnl: 0, measured: 0, unmeasured: 0 };
+        if (typeof i.realizedPnL === 'number' && Number.isFinite(i.realizedPnL)) { b.pnl += i.realizedPnL; b.measured++; }
+        else b.unmeasured++;
+        dayBuckets.set(k, b);
+      }
+      const today = dayBuckets.get(todayKey);
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const weeklyPerformance = [];
-      for (let i = 4; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        date.setHours(0, 0, 0, 0);
-        const nextDate = new Date(date);
-        nextDate.setDate(nextDate.getDate() + 1);
-
-        const dayIdeas = decidedIdeas.filter(idea => {
-          const closeDate = idea.updatedAt ? new Date(idea.updatedAt) : null;
-          return closeDate && closeDate >= date && closeDate < nextDate;
-        });
-
-        const dayPnL = dayIdeas.reduce((sum, i) => sum + ideaRealizedPnL(i), 0);
-
-        weeklyPerformance.push({
-          day: dayNames[date.getDay()],
-          pnl: Math.round(dayPnL * 100) / 100
-        });
+      for (let d = 4; d >= 0; d--) {
+        const k = etDateKey(Date.now() - d * 86_400_000);
+        const b = dayBuckets.get(k);
+        const dow = new Date(`${k}T12:00:00Z`).getUTCDay();
+        weeklyPerformance.push({ day: dayNames[dow], date: k, pnl: b && b.measured ? Math.round(b.pnl * 100) / 100 : null, measured: b?.measured ?? 0, unmeasured: b?.unmeasured ?? 0 });
       }
-      
-      // Asset allocation calculated from active trade ideas
+
       const assetCounts = { stock: 0, option: 0, crypto: 0, future: 0 };
-      openIdeas.forEach(idea => {
+      openIdeas.forEach((idea: any) => {
         const type = idea.assetType?.toLowerCase() || 'stock';
-        if (type === 'stock' || type === 'equity') assetCounts.stock++;
-        else if (type === 'option' || type === 'options') assetCounts.option++;
+        if (type === 'option' || type === 'options') assetCounts.option++;
         else if (type === 'crypto' || type === 'cryptocurrency') assetCounts.crypto++;
         else if (type === 'future' || type === 'futures') assetCounts.future++;
-        else assetCounts.stock++; // Default to stock
+        else assetCounts.stock++;
       });
-      
       const totalPositions = assetCounts.stock + assetCounts.option + assetCounts.crypto + assetCounts.future;
       const assetAllocation = totalPositions > 0 ? [
         { name: 'Stocks', value: Math.round((assetCounts.stock / totalPositions) * 100), color: '#22d3ee' },
@@ -6719,46 +6715,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { name: 'Crypto', value: Math.round((assetCounts.crypto / totalPositions) * 100), color: '#f59e0b' },
         { name: 'Futures', value: Math.round((assetCounts.future / totalPositions) * 100), color: '#10b981' },
       ].filter(a => a.value > 0) : [];
-      
-      // Win/Loss ratio
-      const winLossRatio = [
-        { name: 'Wins', value: Math.round(winRate), color: '#22c55e' },
-        { name: 'Losses', value: Math.round(100 - winRate), color: '#ef4444' },
-      ];
-      
-      // Strict hit rate: wins / (wins + losses), excluding expired/breakeven
-      const losses = decidedIdeas.filter(i => isRealLoss(i)).length;
-      const expired = allIdeas.filter(i => i.outcomeStatus === 'expired').length;
-      const strictWinRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
 
       res.json({
         portfolioValue: totalPortfolioValue,
-        dailyPnL,
-        dailyPnLPercent: totalPortfolioValue > 0 ? (dailyPnL / totalPortfolioValue) * 100 : 0,
-        totalTrades: decidedIdeas.length,
-        winRate: strictWinRate,
-        hitRate: strictWinRate,
+        dailyPnL: today && today.measured ? Math.round(today.pnl * 100) / 100 : null,
+        dailyPnLPercent: today && today.measured && totalPortfolioValue ? (today.pnl / totalPortfolioValue) * 100 : null,
+        totalTrades: record.decided,
+        winRate: record.winRate,
+        hitRate: record.winRate,
         activePositions: openIdeas.length,
         weeklyPerformance,
         assetAllocation,
-        winLossRatio: [
-          { name: 'Wins', value: Math.round(strictWinRate), color: '#22c55e' },
-          { name: 'Losses', value: Math.round(100 - strictWinRate), color: '#ef4444' },
+        winLossRatio: record.winRate == null ? [] : [
+          { name: 'Wins', value: Math.round(record.winRate), color: '#22c55e' },
+          { name: 'Losses', value: Math.round(100 - record.winRate), color: '#ef4444' },
         ],
+        modelRecord: record,
         recentBriefs: [],
         systemStatus: [],
         _meta: {
           dataSource: "trade_ideas_db",
-          cachedAt: new Date().toISOString(),
-          decidedCount: decidedIdeas.length,
-          openCount: openIdeas.length,
-          wins,
-          losses,
-          expired,
-          breakevenExcluded: expired,
-          unmeasuredExpired,
-          sampleSize: wins + losses,
-          note: "Hit rate = wins / (wins + losses). Expired/breakeven trades excluded from rate calculation; unmeasuredExpired = expiries with no recorded exit, excluded rather than counted as 0.00.",
+          asOf: new Date().toISOString(),
+          since: record.since,
+          note: "winRate = shared/model-record.ts (outcome v2 since the baseline; null under the sample floor). P&L is realized dollars only, bucketed by ET day; closes with no realizedPnL are counted as unmeasured, never summed as percent.",
         },
       });
     } catch (error) {
@@ -10519,12 +10498,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * THE model record — one definition for every "how has the model done" tile
+   * (shared/model-record.ts): published ideas since OUTCOME_BASELINE_DATE, outcome v2,
+   * synthetic backfill and excludeFromTraining rows out, rate null under the floor.
+   */
+  const modelRecordCache: { at: number; data: any } = { at: 0, data: null };
+  app.get("/api/performance/model-record", async (_req, res) => {
+    try {
+      if (modelRecordCache.data && Date.now() - modelRecordCache.at < 120_000) return res.json(modelRecordCache.data);
+      const { computeModelRecord } = await import('@shared/model-record');
+      const rec = computeModelRecord((await storage.getAllTradeIdeas()) as any[]);
+      const data = { ...rec, asOf: new Date().toISOString(), source: 'trade_ideas (outcome v2)' };
+      modelRecordCache.at = Date.now(); modelRecordCache.data = data;
+      res.json(data);
+    } catch (error) {
+      logger.error('model-record error', error);
+      res.status(500).json({ error: 'Failed to compute the model record' });
+    }
+  });
+
   app.get("/api/performance/stats", async (req, res) => {
     try {
       const now = Date.now();
       
       // Parse query parameters for filtering
-      const startDate = req.query.startDate as string | undefined;
+      // Default window = OUTCOME_BASELINE_DATE. Before it the stats layer erased
+      // sub-3% stop-outs, so an "all time" rate mixes invalid outcomes in (audit
+      // 2026-09-29: this endpoint said 22.8% while by-signal, which starts at the
+      // baseline, disagreed). An explicit startDate still wins.
+      const { OUTCOME_BASELINE_DATE: PERF_BASELINE } = await import('@shared/constants');
+      const startDate = (req.query.startDate as string | undefined) || PERF_BASELINE;
       const endDate = req.query.endDate as string | undefined;
       const source = req.query.source as string | undefined;
       const includeOptions = req.query.includeOptions === 'true';
@@ -10544,7 +10548,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`[PERF-STATS] Filter values: startDate=${startDate}, endDate=${endDate}, source=${source}, includeOptions=${includeOptions}`);
       
       const filters = { startDate, endDate, source, includeOptions };
-      const stats = await storage.getPerformanceStats(filters);
+      const rawStats: any = await storage.getPerformanceStats(filters);
+      // The canonical record (shared/model-record.ts) rides along so a surface that
+      // shows this payload can show the same headline number as every other one.
+      const { computeModelRecord } = await import('@shared/model-record');
+      const stats = {
+        ...rawStats,
+        modelRecord: computeModelRecord((await storage.getAllTradeIdeas()) as any[], { since: startDate }),
+        _meta: { window: { startDate, endDate: endDate ?? null }, asOf: new Date().toISOString(),
+          note: 'overall.* is the legacy v1 breakdown (hit_target vs stop, mixed populations); modelRecord is the platform headline (outcome v2).' },
+      };
       
       // Update cache for this filter combination
       performanceStatsCache.set(cacheKey, { data: stats, timestamp: now });
@@ -10743,8 +10756,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/performance/outcome-model", async (_req, res) => {
     try {
       const { classifyOutcomeV2, realisedR } = await import("@shared/constants");
+      const { OUTCOME_BASELINE_DATE: OM_BASELINE } = await import("@shared/constants");
+      const { isSyntheticOutcome } = await import("@shared/model-record");
       const allIdeas = await storage.getAllTradeIdeas();
-      const ideas = allIdeas.filter((idea) => !idea.excludeFromTraining);
+      // Same population as /api/performance/model-record: since the baseline, no
+      // synthetic backfill (modelled outcomes), no excludeFromTraining rows.
+      const omSinceMs = Date.parse(`${OM_BASELINE}T00:00:00-04:00`);
+      const ideas = allIdeas.filter((idea: any) =>
+        !idea.excludeFromTraining && !isSyntheticOutcome(idea) && Date.parse(String(idea.timestamp)) >= omSinceMs);
 
       type Counts = { win: number; loss: number; unresolved: number; rValues: number[] };
       const empty = (): Counts => ({ win: 0, loss: 0, unresolved: 0, rValues: [] });
@@ -10826,6 +10845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         model: 'Outcome model v2',
+        since: OM_BASELINE,
         totalPublished: ideas.length,
         outcomes: {
           win: totals.win,
@@ -31290,158 +31310,45 @@ Use this checklist before entering any trade:
   const gexHeatmapCache = new Map<string, { data: any; ts: number }>();
 
   app.get("/api/gex-heatmap/:symbol", async (req, res) => {
+    // Adapter over the canonical exposure engine (options-exposures computeExposures).
+    // v1 had its own GEX: Γ·OI·100·S² with no 0.01 (100x the platform's per-1% unit),
+    // 6 expiries, ±5% strikes, a cumulative-sum flip (SPY 730 vs the engine's ~768).
+    // Same wire shape; cells are $M per 1% move from the engine's strike×expiry matrix.
     try {
       const symbol = req.params.symbol?.toUpperCase();
       if (!symbol) return res.status(400).json({ error: "Symbol required" });
-
-      // 60-second cache
       const cached = gexHeatmapCache.get(symbol);
-      if (cached && Date.now() - cached.ts < 60_000) {
-        return res.json(cached.data);
-      }
+      if (cached && Date.now() - cached.ts < 60_000) return res.json(cached.data);
 
-      const { getTradierOptionsChain, getTradierQuote } = await import("./tradier-api");
-      const { getYahooOptionsChain, getYahooExpirations } = await import("./yahoo-options-fallback");
-      const { getChartLastPrice, safeQuote, getBestPrice } = await import("./yahoo-finance-service");
-      const apiKey = process.env.TRADIER_API_KEY;
-
-      // ── 1. Get spot price: Tradier → chart candle → Yahoo quote (matches calculateGammaExposure pattern)
-      let spotPrice = 0;
-      if (apiKey) {
-        const tradierQuote = await getTradierQuote(symbol);
-        spotPrice = tradierQuote?.last || tradierQuote?.close || 0;
-      }
-      const chartPrice = await getChartLastPrice(symbol);
-      if (chartPrice > 0 && (spotPrice <= 0 || Math.abs(chartPrice - spotPrice) / spotPrice > 0.01)) {
-        spotPrice = chartPrice;
-      }
-      if (spotPrice <= 0) {
-        const yQuote = await safeQuote(symbol);
-        spotPrice = getBestPrice(yQuote);
-      }
-      if (spotPrice <= 0) {
-        return res.status(404).json({ error: `No quote for ${symbol}` });
-      }
-
-      // ── 2. Get expirations: Tradier → Yahoo fallback
-      let expirations: string[] = [];
-      if (apiKey) {
-        try {
-          const baseUrl = 'https://api.tradier.com/v1';
-          const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
-            headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' }
-          });
-          if (expResponse.ok) {
-            const expData = await expResponse.json();
-            expirations = (expData.expirations?.date || []).slice(0, 6);
-          }
-        } catch (e) {
-          logger.warn(`[GEX heatmap] Tradier expirations failed for ${symbol}, falling back to Yahoo`, { error: e });
-        }
-      }
-      if (expirations.length === 0) {
-        const yExps = await getYahooExpirations(symbol);
-        expirations = yExps.slice(0, 6);
-      }
-      if (expirations.length === 0) {
-        return res.status(404).json({ error: "No expirations available" });
-      }
-
-      // ── 3. Fetch chains for all expirations: Tradier → Yahoo fallback per-expiration
-      const chains: any[][] = await Promise.all(
-        expirations.map(async (exp) => {
-          if (apiKey) {
-            const tChain = await getTradierOptionsChain(symbol, exp);
-            if (tChain && tChain.length > 0) return tChain;
-          }
-          const yChain = await getYahooOptionsChain(symbol, exp);
-          return (yChain || []) as any[];
-        })
-      );
-
-      // 4. Build strike → expiration → netGEX matrix
-      const spotSquared = spotPrice * spotPrice;
+      const { calculateAggregateGammaExposure } = await import('./gamma-exposure');
+      const agg: any = await calculateAggregateGammaExposure(symbol);
+      if (!agg || !(agg.spotPrice > 0)) return res.status(404).json({ error: `No GEX data for ${symbol}` });
+      const spotPrice = agg.spotPrice;
+      const cells: Array<{ strike: number; expiryLabel: string; dte: number; netGEX: number }> = agg.strikeExpiryMatrix ?? [];
+      const expOrder = Array.from(new Map(cells.slice().sort((a, b) => a.dte - b.dte).map((c) => [c.expiryLabel, c.dte])).keys()).slice(0, 6);
       const heatmap: Record<string, Record<string, number>> = {};
-      const strikePriceRange = spotPrice * 0.05; // ±5% of spot
-
-      for (let i = 0; i < expirations.length; i++) {
-        const exp = expirations[i];
-        const opts = chains[i];
-        // Group by strike, calculate GEX
-        const strikeGex = new Map<number, number>();
-
-        for (const opt of opts) {
-          const strike = opt.strike;
-          // Filter to ±5% of spot
-          if (Math.abs(strike - spotPrice) > strikePriceRange) continue;
-
-          const gamma = opt.greeks?.gamma || 0;
-          const oi = opt.open_interest || 0;
-          const isCall = opt.option_type === 'call';
-
-          // GEX = OI × Gamma × 100 × Spot² / 1e9 (calls positive, puts negative)
-          const gex = isCall
-            ? oi * gamma * 100 * spotSquared / 1e9
-            : -(oi * gamma * 100 * spotSquared / 1e9);
-
-          strikeGex.set(strike, (strikeGex.get(strike) || 0) + gex);
-        }
-
-        for (const [strike, netGex] of strikeGex) {
-          const key = String(strike);
-          if (!heatmap[key]) heatmap[key] = {};
-          // Store as raw number (frontend formats)
-          heatmap[key][exp] = Math.round(netGex * 1000); // Convert B → M for readability
-        }
+      for (const c of cells) {
+        if (!expOrder.includes(c.expiryLabel)) continue;
+        if (Math.abs(c.strike - spotPrice) > spotPrice * 0.05) continue;
+        const key = String(c.strike);
+        const row = (heatmap[key] ??= {});
+        row[c.expiryLabel] = (row[c.expiryLabel] ?? 0) + Math.round(c.netGEX * 1000); // $B → $M
       }
-
-      // 5. Get sorted strike list
-      const strikes = Object.keys(heatmap)
-        .map(Number)
-        .sort((a, b) => b - a); // Descending (highest strike first, like reference)
-
-      // 6. Find flip point & max gamma strike from aggregate
-      let flipPoint: number | null = null;
-      let maxGammaStrike = strikes[0] || spotPrice;
-      let maxGamma = 0;
-
-      // Aggregate across all expirations per strike for flip/max
-      const aggregateByStrike = new Map<number, number>();
-      for (const strike of strikes) {
-        const key = String(strike);
-        let total = 0;
-        for (const exp of expirations) {
-          total += heatmap[key]?.[exp] || 0;
-        }
-        aggregateByStrike.set(strike, total);
-        if (Math.abs(total) > maxGamma) {
-          maxGamma = Math.abs(total);
-          maxGammaStrike = strike;
-        }
-      }
-
-      // Find flip point (ascending order)
-      const ascStrikes = [...strikes].sort((a, b) => a - b);
-      let cumGex = 0;
-      let prevSign = 0;
-      for (const s of ascStrikes) {
-        cumGex += aggregateByStrike.get(s) || 0;
-        const sign = Math.sign(cumGex);
-        if (prevSign !== 0 && sign !== prevSign) { flipPoint = s; break; }
-        prevSign = sign;
-      }
-
+      const strikes = Object.keys(heatmap).map(Number).sort((a, b) => b - a);
       const result = {
         symbol,
         spotPrice,
-        expirations,
+        expirations: expOrder,
         strikes,
         heatmap,
-        flipPoint,
-        maxGammaStrike,
-        timestamp: new Date().toISOString(),
+        flipPoint: agg.zeroGammaLevel ?? agg.flipPoint ?? null,
+        maxGammaStrike: agg.maxGammaStrike,
+        callWall: agg.callWall ?? null,
+        putWall: agg.putWall ?? null,
+        source: agg.dataSource ?? null,
+        units: '$M per 1% move (cells); levels are the all-expiry headline levels',
+        timestamp: agg.timestamp ?? new Date().toISOString(),
       };
-
       gexHeatmapCache.set(symbol, { data: result, ts: Date.now() });
       res.json(result);
     } catch (error) {
@@ -32035,11 +31942,23 @@ Use this checklist before entering any trade:
         symbol: snap.symbol,
         spotPrice: snap.spotPrice,
         calculatedAt: snap.calculatedAt,
+        asOf: new Date(snap.calculatedAt).toISOString(),
         source: snap.source,
         regime: snap.regime,
         totalGEX: snap.totalGEX,
         dealerFlowPer1Pct: snap.dealerFlowPer1Pct ?? null,
+        // Headline (all-expiry) levels — the same numbers the GEX terminal shows,
+        // so a bucket can be read against them without a second request.
+        callWall: snap.callWall ?? null,
+        putWall: snap.putWall ?? null,
+        zeroGammaLevel: snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null,
+        maxGammaStrike: snap.maxGammaStrike ?? null,
+        gexByScope: snap.gexByScope ?? null,
         byDte: snap.byDte ?? {},
+        _meta: {
+          units: 'totalGEX $B per 1% move; dealerFlowPer1Pct $ per 1% move',
+          levels: 'shared/gex-buckets.ts — walls by leg gamma (pickWalls), flip = re-priced zero-gamma per bucket (null when the bucket never changes sign in 0.8-1.2x spot)',
+        },
       });
     } catch (e: any) {
       res.status(500).json({ error: 'buckets failed', message: e?.message });
@@ -34220,12 +34139,11 @@ Use this checklist before entering any trade:
 
       // Same source chain as the GEX terminal: Alpaca → Schwab (if configured) → CBOE → Yahoo, then CBOE direct, then last good
       // projection (stamped with its age — never passed off as current).
-      let gex = await calculateAggregateGammaExposure(symbol);
-      if (!gex) {
-        const cboeSnapshot = await computeGEXFromCBOE(symbol);
-        if (cboeSnapshot) gex = { snapshot: cboeSnapshot, dataQuality: 'cboe_fallback' } as any;
-      }
-      if (!gex) {
+      const gex = await calculateAggregateGammaExposure(symbol);
+      // The CBOE fallback already returns a GEXSnapshot. v1 wrapped it as
+      // { snapshot } and passed it to toSnapshot(), which threw on `strikes` (500).
+      const cboeSnapshot = gex ? null : await computeGEXFromCBOE(symbol);
+      if (!gex && !cboeSnapshot) {
         const cached = loadLastGood('weekly-path', symbol);
         if (cached && Date.now() - cached.cachedAt < 24 * 3600_000) {
           return res.json({ ...cached.data, cached: true, cachedAt: new Date(cached.cachedAt).toISOString() });
@@ -34237,7 +34155,7 @@ Use this checklist before entering any trade:
         });
       }
 
-      const snapshot = toSnapshot(gex);
+      const snapshot = gex ? toSnapshot(gex) : cboeSnapshot!;
       // Size the week with the market's own implied vol: VIX for the S&P
       // complex; everything else falls back to a stamped regime estimate.
       // Size the week on how far the symbol has ACTUALLY been moving (20-day

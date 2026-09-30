@@ -16,6 +16,7 @@
  * Cache: 60s on quote, 5min on full universe scan results.
  */
 
+import { priorRegularCloseFromDailyChart } from '../../shared/price-change';
 import { logger } from '../logger';
 
 interface YahooQuote {
@@ -66,7 +67,9 @@ export async function fetchYahooQuote(symbol: string): Promise<YahooQuote | null
       postMarketPrice: meta.postMarketPrice ? Number(meta.postMarketPrice) : undefined,
       postMarketChangePercent: meta.postMarketChangePercent ? Number(meta.postMarketChangePercent) : undefined,
       marketState: meta.marketState ?? undefined,
-      chartPreviousClose: Number(meta.chartPreviousClose ?? meta.previousClose ?? 0),
+      // range=2d → chartPreviousClose is the close TWO sessions back. Use the prior
+      // regular close from the daily bars (shared/price-change.ts).
+      chartPreviousClose: Number(priorRegularCloseFromDailyChart(result) ?? meta.previousClose ?? 0),
     };
     _quoteCache.set(symbol, { quote, fetchedAt: Date.now() });
     return quote;

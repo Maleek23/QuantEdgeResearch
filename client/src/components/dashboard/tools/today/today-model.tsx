@@ -28,8 +28,9 @@ export interface Pick {
   convictionScore?: number | null; convictionBand?: string | null; layers?: Layer[]; optionType?: string; strikePrice?: number; expiryDate?: string;
   lifecycleState?: string; isBotHeld?: boolean; generatedAt?: string;
 }
-export interface Perf { overall?: { winRate?: number; winRateDecided?: number; expectancy?: number; profitFactor?: number; totalIdeas?: number } }
-export interface Quote { price?: number; lastPrice?: number; changePercent?: number; asOf?: string }
+/** /api/performance/model-record — shared/model-record.ts (outcome v2, since OUTCOME_BASELINE_DATE). */
+export interface Perf { since?: string; asOf?: string; winRate?: number | null; wins?: number; losses?: number; decided?: number; unresolved?: number; total?: number; expectancyR?: number | null; rSampleSize?: number; coveragePct?: number; sampleFloor?: number }
+export interface Quote { price?: number; lastPrice?: number; changePercent?: number; asOf?: string; session?: 'pre' | 'regular' | 'post' | 'closed' | null; source?: string | null }
 export interface IndexScalp {
   id: string; symbol: string; direction: 'long' | 'short'; bias: string;
   setup?: string; strike?: number | null; expiry?: string | null;
@@ -83,7 +84,7 @@ export function useBook() {
 }
 
 export const usePerf = () =>
-  useQuery<Perf>({ queryKey: ['/api/performance/stats/', 'today'], queryFn: get('/api/performance/stats/'), staleTime: 600_000 });
+  useQuery<Perf>({ queryKey: ['/api/performance/model-record', 'today'], queryFn: get('/api/performance/model-record'), staleTime: 600_000 });
 
 export const useRotation = () =>
   useQuery<RotationPayload>({ queryKey: ['/api/sector-rotation', 'landing'], queryFn: fetchJson('/api/sector-rotation'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });

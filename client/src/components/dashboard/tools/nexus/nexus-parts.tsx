@@ -25,7 +25,7 @@ import '@/styles/nexus-prototype.css';
 
 /* ── wire types ── */
 export interface SpxExpression { symbol: 'SPX'; source: string; asOf: string; ratio: number; spot: number; entry: number; stop: number; target: number; chainStatus: string; chainNote?: string; chainAsOf?: string; chainContractsScored: number; contract: { optionType: 'call' | 'put'; strike: number; expiry: string; dte: number; entryPremium: number; optionSymbol: string } | null; }
-export interface MarketPulseRead { asOf: string; macro: { yield10Y: number; yieldDirection: 'RISING' | 'FALLING'; vix: number; dxy: number }; }
+export interface MarketPulseRead { asOf: string; macro: { yield10Y: number; yieldDirection: 'RISING' | 'FALLING'; vix: number | null; dxy: number }; }
 export interface ExtendedHoursRead { asOf: string | null; session: string; isStale: boolean; assetClasses: Array<{ key: string; label: string; symbol: string; changePct: number | null; stance: string | null }>; }
 export interface PatternHit { symbol: string; core?: boolean; pattern: string; bias: string; note: string; detectedAt?: string; levels: Record<string, number>; context?: { last?: number; above200d?: boolean | null; ema20AboveEma50?: boolean | null }; }
 export interface PatternScanRead { asOf: string | null; scanned: number; failed: number; scanning: boolean; hits: PatternHit[]; }

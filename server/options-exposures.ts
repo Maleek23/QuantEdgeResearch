@@ -26,6 +26,7 @@ import {
   type GammaContract,
 } from '../shared/gex-math';
 import { classifyGammaRegime, type GammaRegimeRead } from '../shared/gex-regime';
+import { bucketizeLegs, type BucketLeg, type GexBucketKey, type GexBucketSummary } from '../shared/gex-buckets';
 import type { GreekSource } from '../shared/iv-fill';
 
 /**
@@ -158,6 +159,12 @@ export interface ExposureSnapshot {
 
   // Strike × Expiration matrix (for Skylit-style heatmap)
   strikeExpiryMatrix: StrikeExpiryCell[];
+
+  /**
+   * Per-horizon levels (shared/gex-buckets.ts) — same wall/flip definitions as
+   * the headline, computed from the same contracts. /api/gex/buckets reads this.
+   */
+  byDte?: Partial<Record<GexBucketKey, GexBucketSummary>>;
 
   // Diagnostics
   expirationsUsed: string[];
@@ -318,6 +325,7 @@ export function computeExposures(
   // Net GEX per expiry (key = days to expiry, 2dp) — for the scope breakdown that
   // makes our headline comparable to vendors that chart 0DTE only (Bullflow).
   const byExpiry = new Map<number, number>();
+  const bucketLegs: BucketLeg[] = [];
   const S = spotPrice;
 
   for (const opt of options) {
@@ -393,6 +401,10 @@ export function computeExposures(
     if (oi > 0) {
       if (!ivDefaulted) profileContracts.push({ strike: opt.strike, T: tte, iv, oi, isCall });
       else grossExcludedFromProfile += gexAbs;
+      bucketLegs.push({
+        strike: opt.strike, dte: opt.daysToExpiry, isCall, oi, gexDollars: gexAbs,
+        T: ivDefaulted ? undefined : tte, iv: ivDefaulted ? undefined : iv,
+      });
     }
 
     bookGEX += callGexContribution + putGexContribution;
@@ -611,6 +623,7 @@ export function computeExposures(
     strikes,
     strikeExpiryMatrix: Array.from(expiryMap.values())
       .sort((a, b) => b.strike - a.strike || a.dte - b.dte),
+    byDte: bucketizeLegs(bucketLegs, S),
     expirationsUsed,
     strikesScanned: strikes.length,
     strikesWithOI,

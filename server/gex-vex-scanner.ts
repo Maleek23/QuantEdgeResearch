@@ -237,7 +237,9 @@ export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calcula
       if (s.strike === maxGammaStrike) role = 'max_gamma';
       else if (s.strike === callWall) role = 'call_wall';
       else if (s.strike === putWall) role = 'put_wall';
-      else if (s.strike === flipPoint) role = 'flip';
+      // The zero-gamma level is bisected (not a listed strike), so the flip role
+      // goes to the nearest strike within half a strike step (<=0.25% of spot).
+      else if (flipPoint != null && Math.abs(s.strike - flipPoint) <= Math.max(0.5, spotPrice * 0.0025)) role = 'flip';
       else if (s.netGEX > 0 && s.strike > spotPrice) role = 'resistance';
       else if (s.netGEX < 0 && s.strike < spotPrice) role = 'support';
 
@@ -267,8 +269,11 @@ export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calcula
   const regime: GEXSnapshot['regime'] = regimeExtra ?? read.legacy;
 
   // P0: per-DTE buckets + dealer-flow per 1% move
+  // Canonical per-horizon levels come from the exposure engine (shared/gex-buckets.ts).
+  // bucketizeMatrix is only a fallback for results that pre-date it, and it no
+  // longer invents a flip (it has no per-contract IV to re-price with).
   const matrix = (result as any).strikeExpiryMatrix as Array<{ strike: number; dte: number; netGEX: number }> | undefined;
-  const byDte = matrix && matrix.length > 0 ? bucketizeMatrix(matrix, spotPrice) : undefined;
+  const byDte = result.byDte ?? (matrix && matrix.length > 0 ? bucketizeMatrix(matrix, spotPrice) : undefined);
   const dealerFlowPer1Pct = dealerFlowFromTotalGEX(totalNetGEX); // $B per 1% → $ per 1%
 
   return {

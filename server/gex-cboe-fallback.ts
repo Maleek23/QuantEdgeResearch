@@ -101,7 +101,7 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       const sign = isCall ? 1 : -1;
       const iv = o.iv > 0 ? o.iv : 0;
       const gamma = o.gamma > 0 ? o.gamma : iv > 0 ? bsGamma(spot, strike, Math.max(T, MIN_T_YEARS), iv) : 0;
-      contractList.push({ expirationDate, strike, cp: cp as 'C' | 'P', oi, gamma });
+      contractList.push({ expirationDate, strike, cp: cp as 'C' | 'P', oi, gamma, iv: iv > 0 ? iv : undefined, T: Math.max(T, MIN_T_YEARS) });
       netGammaSum += oi * gamma * sign;
 
       // GEX $ per 1% move: Γ·OI·100·S²·0.01 (multiplier and 1% cancel).
@@ -170,7 +170,7 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       if (l.strike === maxGammaStrike) role = 'max_gamma';
       else if (l.strike === callWall) role = 'call_wall';
       else if (l.strike === putWall) role = 'put_wall';
-      else if (gammaFlipPrice != null && Math.abs(l.strike - gammaFlipPrice) <= 2.5) role = 'flip';
+      else if (gammaFlipPrice != null && Math.abs(l.strike - gammaFlipPrice) <= Math.max(0.5, spot * 0.0025)) role = 'flip'; // same tolerance as toSnapshot
       else if (l.netGEX > 0 && l.strike > spot) role = 'resistance';
       else if (l.netGEX < 0 && l.strike < spot) role = 'support';
       return {
@@ -209,7 +209,7 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
       })(),
       totalVEX: totalVEX / 1e6,         // $M per 1 IV point — same as options-exposures v2
       callGEX: totalCallGEX / 1e9,
-      putGEX: -totalPutGEX / 1e9,
+      putGEX: totalPutGEX / 1e9,       // magnitude, same sign as the main engine's snapshot (v1 was negative here only)
       putCallRatio,
       gammaFlipPrice,
       zeroGammaLevel: gammaFlipPrice,

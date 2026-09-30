@@ -38,7 +38,7 @@ export function TodayWeekMapTool() {
 
   const snap = g.snap;
   const magnet = snap?.maxGammaStrike;
-  const shortGamma = wp.data?.regime?.includes('negative');
+  const shortGamma = wp.data?.regime === 'negative_gamma'; // 'transitioning' = near the flip, not short gamma (shared/gex-regime.ts)
   const sigma = wp.data?.expectedMove;
   const spy = book.quote('SPY');
   // Live SPY only — the model's start price is publish-time and never shown as "now".
@@ -110,7 +110,7 @@ export function TodayWeekMapTool() {
           </div>
           <div className="lterminal-body">
             <div className="t-panel" style={{ gridColumn: '1/-1' }}>
-              <div className="t-panel-head"><span>This week · implied range · walls</span><span>{sigma != null ? `1σ ±${fmt(sigma, 0)} pts · ${wp.data?.volSource === 'realized-20d' ? `realized ${((wp.data.annualVol ?? 0) * 100).toFixed(1)}%` : wp.data?.volSource === 'vix' ? `VIX ${((wp.data?.annualVol ?? 0) * 100).toFixed(1)}` : 'est.'}` : ''}</span></div>
+              <div className="t-panel-head"><span>This week · {wp.data?.volSource === 'realized-20d' ? 'realized range' : wp.data?.volSource === 'vix' ? 'implied range (VIX)' : 'range'} · walls</span><span>{sigma != null ? `1σ ±${fmt(sigma, 0)} pts · ${wp.data?.volSource === 'realized-20d' ? `realized ${((wp.data.annualVol ?? 0) * 100).toFixed(1)}%` : wp.data?.volSource === 'vix' ? `VIX ${((wp.data?.annualVol ?? 0) * 100).toFixed(1)}` : 'est.'}` : ''}</span></div>
               {wp.data && !g.q.isLoading
                 ? <WeekMap wp={wp.data} snap={snap} narrow={narrow} />
                 : <div className="tl-map-empty">{feedDown ? 'Options feed down — retrying' : 'Reading dealer positioning…'}</div>}
@@ -118,7 +118,7 @@ export function TodayWeekMapTool() {
             <div className="t-panel">
               <div className="t-panel-head"><span>Market pulse · SPY</span>{spy?.asOf ? <span className="live">{ageLabel(spy.asOf, now)}</span> : <span>no quote</span>}</div>
               <div className="t-price">SPY {fmt(spyPx)}</div>
-              <div className={`t-change${(spy?.changePercent ?? 0) >= 0 ? ' up' : ''}`}>{spy?.changePercent != null ? `${spy.changePercent >= 0 ? '+' : ''}${spy.changePercent.toFixed(2)}% · ${rotation.data?.sessionLabel ?? 'session'}` : '—'}</div>
+              <div className={`t-change${(spy?.changePercent ?? 0) >= 0 ? ' up' : ''}`}>{spy?.changePercent != null ? `${spy.changePercent >= 0 ? '+' : ''}${spy.changePercent.toFixed(2)}% · ${spy.session === 'post' ? 'incl. after-hours' : spy.session === 'pre' ? 'pre-market vs prior close' : rotation.data?.sessionLabel ?? 'session'}` : '—'}</div>
               <div className="t-chart"><Spark bars={spyBars} color={(spy?.changePercent ?? 0) >= 0 ? '#6ee7b7' : '#ff6b3d'} height={54} /></div>
             </div>
             <div className="t-panel">
@@ -283,12 +283,10 @@ export function TodayBookStatsTool() {
 /* ════════════ Model record ════════════ */
 export function TodayModelRecordTool() {
   const perf = usePerf();
-  const o = perf.data?.overall;
+  const o = perf.data;
   useToolReport({
-    // The stats payload carries no timestamp: this is when the server computed
-    // it for us (its cache holds a result for up to 5 minutes).
-    asOf: perf.isError && !perf.data ? null : perf.dataUpdatedAt ? new Date(perf.dataUpdatedAt).toISOString() : undefined,
-    note: perf.isError ? 'refresh failed' : perf.data ? 'fetched · server cache ≤5m' : undefined,
+    asOf: perf.isError && !perf.data ? null : o?.asOf ?? (perf.dataUpdatedAt ? new Date(perf.dataUpdatedAt).toISOString() : undefined),
+    note: perf.isError ? 'refresh failed' : o ? `outcome v2 · since ${o.since}` : undefined,
     tone: perf.isError ? 'warn' : 'ok',
   });
   if (perf.isLoading) return <QELoading rows={2} className="fd-pad" label="loading the record…" />;
@@ -299,17 +297,17 @@ export function TodayModelRecordTool() {
         <div className="stat-item">
           <div className="lstat-val">{o?.winRate != null ? `${o.winRate.toFixed(0)}%` : '—'}</div>
           <div className="lstat-label">Win rate, decided ideas</div>
-          <div className="lstat-sub">{o?.winRateDecided != null ? `n = ${o.winRateDecided} hit target or stop` : 'measuring'}</div>
+          <div className="lstat-sub">{o?.decided != null ? `${o.wins ?? 0} of ${o.decided} decided${o.winRate == null ? ` · needs ${o.sampleFloor ?? 30}` : ''}` : 'measuring'}</div>
         </div>
         <div className="stat-item">
-          <div className="lstat-val">{o?.expectancy != null ? `${o.expectancy >= 0 ? '+' : ''}${o.expectancy.toFixed(2)}%` : '—'}</div>
+          <div className="lstat-val">{o?.expectancyR != null ? `${o.expectancyR >= 0 ? '+' : ''}${o.expectancyR.toFixed(2)}R` : '—'}</div>
           <div className="lstat-label">Average per idea</div>
-          <div className="lstat-sub">{o?.profitFactor != null ? `profit factor ${o.profitFactor.toFixed(2)}` : 'measuring'}</div>
+          <div className="lstat-sub">{o?.coveragePct != null ? `${o.coveragePct.toFixed(0)}% of ${o.total ?? 0} published ideas resolved` : 'measuring'}</div>
         </div>
       </div>
       <p className="cta-sub">
-        {o?.winRate != null && o.winRateDecided != null
-          ? `${o.winRate.toFixed(0)}% of ${o.winRateDecided} decided ideas hit target before stop. Losers stay on the record, and every rate carries its sample size.`
+        {o?.decided != null
+          ? `Every idea published since ${o.since}: target, stop, or a measured close. Unresolved ideas are counted, never scored.`
           : 'The record is replayed on 5-minute bars, not marked to the close.'}
       </p>
       <div className="cta-actions">

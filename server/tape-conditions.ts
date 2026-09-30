@@ -129,12 +129,18 @@ export async function getTapeConditions(): Promise<TapeConditions> {
     const { computeGEXFromCBOE } = await import('./gex-cboe-fallback');
     const gex = await computeGEXFromCBOE('SPY');
     if (gex?.regime) {
-      const neg = String(gex.regime).includes('negative');
+      // One regime rule (shared/gex-regime.ts): sign of net GEX with a 5%-of-gross
+      // neutral band. v1 read "not negative" as long gamma, so a balanced or
+      // near-flip book scored +1 as if dealers were dampening.
+      const { regimeFromLegacy } = await import('@shared/gex-regime');
+      const r = (gex as any).regimeRead?.regime ?? regimeFromLegacy(gex.regime);
       signals.push({
-        key: 'gamma', label: 'Dealer gamma', points: neg ? -2 : 1,
-        detail: neg
+        key: 'gamma', label: 'Dealer gamma', points: r === 'negative' ? -2 : r === 'positive' ? 1 : 0,
+        detail: r === 'negative'
           ? 'SPY in negative gamma — dealers hedge WITH the move, so ranges extend and reasonable stops get taken.'
-          : 'SPY in positive gamma — dealers dampen the move, ranges stay contained.',
+          : r === 'positive'
+            ? 'SPY in positive gamma — dealers dampen the move, ranges stay contained.'
+            : 'SPY dealer gamma is balanced — neither dampening nor amplifying is dominant.',
       });
     }
   } catch { /* optional */ }
