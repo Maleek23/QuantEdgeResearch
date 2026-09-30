@@ -341,3 +341,30 @@ ${APP_NAME} - For Educational & Research Purposes Only
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
+
+export async function sendPrivacyRequestNotice(
+  to: string,
+  req: { requestId: string; userId: string; kind: string; requestedAt: string },
+): Promise<{ success: boolean; error?: string }> {
+  if (!resend) return { success: false, error: 'Email service not configured' };
+  try {
+    const { error } = await resend.emails.send({
+      from: `${APP_NAME} <${FROM_EMAIL}>`,
+      to,
+      subject: `[${APP_NAME}] Privacy request: ${req.kind}`,
+      text: [
+        `A user asked for: ${req.kind}.`,
+        `Request id: ${req.requestId}`,
+        `User id: ${req.userId}`,
+        `Requested at: ${req.requestedAt}`,
+        '',
+        `Review it at ${APP_URL} (admin) and the runbook in docs/PRIVACY_IMPACT_ASSESSMENT.md §8.`,
+        'Nothing has been deleted automatically.',
+      ].join('\n'),
+    });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
