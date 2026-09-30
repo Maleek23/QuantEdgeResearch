@@ -174,7 +174,8 @@ export const PAGES: Record<PageId, PageSpec> = {
   bot: spec('bot', 'BOT', BOT_DEFAULTS, ['Bot', 'Book'], BOT_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
   positions: { ...spec('positions', 'POSITIONS', POSITIONS_DEFAULTS, ['Book', 'Bot'], POSITIONS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'simple'), simple: { tool: 'positions-classic' } },
   journal: spec('journal', 'JOURNAL', JOURNAL_DEFAULTS, ['Journal'], ['journal-net-pnl', 'journal-equity', 'journal-calendar']),
-  // Today: an editorial page (today.css .dash-today) — the hero and the best idea are never clipped.
+  // Today: UNUSED since 2026-09-30 — /today is again the hand-composed landing-style page
+  // (pages/today.tsx), not a dashboard. Kept so saved layouts / tool ids still resolve.
   today: { ...spec('today', 'TODAY', TODAY_DEFAULTS, ['Market', 'Ideas', 'Book'], TODAY_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'), natural: ['today-week-map', 'today-best-idea'] },
 };
 

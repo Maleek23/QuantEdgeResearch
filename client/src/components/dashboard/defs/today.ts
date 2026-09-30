@@ -1,6 +1,9 @@
 /**
- * TODAY tools — the /today page split into dashboard tools
- * (tools/today/today-tools.tsx; data + drawing in today-model.tsx).
+ * TODAY tools — the /today page split into dashboard tools. UNUSED by /today
+ * since 2026-09-30 (the page is hand-composed again: pages/today.tsx reuses
+ * today-model.tsx directly); kept registered so persisted ids resolve.
+ *
+ * Tools: tools/today/today-tools.tsx (data + drawing in today-model.tsx).
  * Every tool shares the page's queries, so a full TODAY dashboard costs one
  * request per endpoint. Ids are persisted in saved layouts — never rename.
  */

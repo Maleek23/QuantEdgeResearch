@@ -538,3 +538,112 @@ html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-t
   .flowdash .td-pm-chips.qp-row{padding-bottom:2px}
   .flowdash .td-week .hero-sub.qp-clamp{margin-bottom:0}
 }
+
+/* ── TODAY restored as a hand-composed landing page (2026-09-30) ──────────
+   pages/today.tsx is again the pre-dashboard page (ecf8f177): landing bands
+   in one reading column, no tiles, no section header bars. The rules above
+   (.qe-terminal .today-l …) still lay it out; these add the few pieces
+   carried over from the dashboard era — provenance stamps, stale-not-blank
+   notes, the pre-market strip and the 0DTE band — in the same language, and
+   the phone readability floor (prose ≥ 14px, numbers ≥ 18px, 44px targets). */
+.today-page .tl-band-foot{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:10px}
+.today-page .tl-stamp{font:500 11px var(--mono);color:var(--text-mute);letter-spacing:.02em}
+.today-page .tl-stamp.warn{color:var(--amber)}
+.today-page .tl-stale{font-size:12px}
+.today-page .tl-band-msg{padding:14px 12px;border:1px dashed var(--line-hi);border-radius:7px;color:var(--text-dim);font-size:13.5px;line-height:1.5}
+.today-page .tl-link-btn{display:inline-flex;align-items:center;min-height:32px;padding:0 10px;border:1px solid var(--line-hi);border-radius:6px;background:transparent;color:var(--accent-hi);font:600 12px var(--ui);text-decoration:none;cursor:pointer;white-space:nowrap}
+.today-page .tl-link-btn:hover,.today-page .tl-link-btn:focus-visible{border-color:rgba(59,140,255,.5);color:#fff}
+.today-page .tl-link-btn[aria-pressed="true"]{color:var(--text-dim)}
+.today-page .tl-of{font-size:20px;color:var(--text-mute);-webkit-text-fill-color:var(--text-mute)}
+.today-page .t-src{margin-top:4px;font:500 10.5px var(--mono);color:var(--text-mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.today-page .t-sig-dir{font-size:var(--fs-10,10px)}
+.today-page .t-sig-dir.bull{color:var(--green)} .today-page .t-sig-dir.bear{color:var(--red)}
+.today-page .tl-book-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.today-page .tl-more{display:inline-flex;align-items:center;min-height:34px;margin-top:14px;font-size:14px;color:var(--accent-hi);text-decoration:none}
+.today-page .tl-more:hover{text-decoration:underline}
+.today-page .tl-best-actions{margin-top:24px}
+.today-page .tl-keys+.tl-band-foot{margin-top:8px}
+
+/* pre-market strip: one line under the tape, chips when the window is open */
+.today-page .tl-pm{padding:14px 0 4px}
+.today-page .tl-pm-head{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px}
+.today-page .tl-kicker{font:700 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent-hi)}
+.today-page .tl-pm-line{font-size:13px;color:var(--text-dim)}
+.today-page .tl-pm-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.today-page .tl-pm-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 10px;border-radius:6px;border:1px solid var(--line-hi);background:rgba(59,140,255,.05);color:inherit;text-decoration:none;font:500 13px var(--mono);white-space:nowrap}
+.today-page .tl-pm-chip:hover,.today-page .tl-pm-chip:focus-visible{border-color:rgba(59,140,255,.5)}
+.today-page .tl-pm-chip b{font-family:'Space Grotesk',sans-serif;font-weight:700}
+.today-page .tl-pm-chip.up .v{color:var(--gain)} .today-page .tl-pm-chip.down .v{color:var(--loss)} .today-page .tl-pm-chip.flat .v{color:var(--text-mute)}
+.today-page .tl-pm-chip em{font-style:normal;font-size:11px;color:var(--text-mute)}
+.today-page .tl-pm-chip em.confirms{color:var(--gain)} .today-page .tl-pm-chip em.against{color:var(--amber)}
+.today-page .tl-pm-more{min-height:34px;background:none;border:1px dashed var(--line-hi);border-radius:6px;padding:6px 10px;color:var(--text-dim);font:600 12px var(--mono);cursor:pointer}
+
+/* 0DTE band: the index desk's row language, stage on the left rule */
+.qe-terminal .today-page section.td-index-desk{padding:24px 0 8px}
+.qe-terminal .today-page section.tl-pm{padding:16px 0 4px}
+.qe-terminal .today-page section.tl-0dte{padding:16px 0 12px;background:transparent}
+.today-page .tl-0dte-row.st-triggered{box-shadow:inset 3px 0 0 var(--amber)}
+.today-page .tl-0dte-row.st-in_play{box-shadow:inset 3px 0 0 var(--gain)}
+.today-page .tl-0dte-row.st-watch{box-shadow:inset 2px 0 0 var(--line-hi)}
+.today-page .tl-0dte .td-index-head span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.today-page .td-index-desk .td-index-head a{display:inline-flex;align-items:center;min-height:32px}
+
+/* phone: readable (prose ≥ 14px, numbers ≥ 18px, no text < 12px, 44px targets), one column */
+@media (max-width:767px){
+  .today-page .tl-desk-only{display:none}
+  .qe-terminal .today-page .hero-title{font-size:24px;line-height:1.2}
+  .qe-terminal .today-page .hero-sub{font-size:15px;line-height:1.6}
+  .qe-terminal .today-page .btn-lg{min-height:44px;padding:0 16px;font-size:14px}
+  .today-page .hero-actions{flex-wrap:wrap;gap:10px}
+  .qe-terminal .today-page .tl-keys b{font-size:20px}
+  .today-page .tl-keys span,.today-page .tl-keys small{font-size:12px}
+  .today-page .lterminal-head{display:none}
+  .today-page .t-panel-head{font-size:12px}
+  .today-page .t-panel-head span{font-size:12px}
+  .today-page .t-price{font-size:24px}
+  .today-page .t-change,.today-page .t-src,.today-page .t-row,.today-page .t-sig-dir{font-size:13px}
+  .today-page .t-signal-link{min-height:44px;align-items:center}
+  .today-page .td-map.narrow .td-phase-t{font-size:12px}
+  .today-page .tl-map-foot{font-size:13px;line-height:1.5}
+  .today-page .tl-stamp{font-size:12px}
+  .today-page .ltape-item{font-size:13px}
+  .today-page .tl-pm-line{font-size:14px}
+  .today-page .tl-kicker{font-size:12px}
+  .today-page .tl-more{min-height:44px}
+  .today-page .tl-pm-chip{min-height:44px;align-items:center;font-size:14px}
+  .today-page .tl-pm-chip em{font-size:12px}
+  .today-page .tl-pm-more{min-height:44px}
+  .today-page .tl-link-btn{min-height:44px;padding:0 14px;font-size:14px}
+  .today-page .tl-band-msg{font-size:14px}
+  .today-page .td-index-head b{font-size:16px}
+  .today-page .td-index-head span{font-size:12px}
+  .today-page .td-index-desk .td-index-head a{min-height:44px;font-size:14px}
+  .today-page .td-index-row{padding:12px 14px;min-height:44px}
+  .today-page .td-index-row strong{font-size:18px}
+  .today-page .td-index-row small,.today-page .td-index-row>span,.today-page .td-index-row>em{font-size:12px}
+  .today-page .td-index-row>b{font-size:18px}
+  .qe-terminal .today-page .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .qe-terminal .today-page .stat-item{padding:14px 12px}
+  .today-page .lstat-val{font-size:30px}
+  .today-page .lstat-label{font-size:13px}
+  .today-page .lstat-sub{font-size:12px}
+  .qe-terminal .today-page .feature{padding:16px;grid-template-columns:minmax(0,1fr)}
+  .qe-terminal .today-page .feature-title{font-size:22px;line-height:1.25}
+  .qe-terminal .today-page .feature-desc{font-size:15px}
+  .today-page .feature-num{font-size:12px}
+  .today-page .feature-list-item{font-size:15px}
+  .today-page .td-ladder-labels{font-size:13px}
+  .today-page .td-ladder-labels b{font-size:18px;display:block;margin:2px 0 0}
+  .today-page .lsig-level .l{font-size:12px}
+  .today-page .lsig-level .v{font-size:18px}
+  .today-page .lsig-ticker{font-size:20px}
+  .today-page .lsig-ev,.today-page .lsig-type{font-size:13px}
+  .today-page .tl-book-why{font-size:14px}
+  .qe-terminal .today-page .lsec-title{font-size:24px}
+  .today-page .sec-eyebrow{font-size:12px}
+  .today-page .rot-label,.today-page .rot-axis{font-size:12px}
+  .today-page .lflow-sym,.today-page .lflow-val{font-size:14px}
+  .qe-terminal .today-page .cta-title{font-size:24px}
+  .today-page .cta-sub{font-size:15px}
+  .today-page .cta-actions{flex-wrap:wrap}
+}
