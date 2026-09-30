@@ -17,7 +17,7 @@
  * before the next warm. Nothing here fabricates: a cold, failed warm returns
  * an empty list and consumers fall back to their curated sets.
  */
-import { promises as fs } from 'fs';
+import { promises as fs, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import path from 'path';
 import { logger } from './logger';
 import { fetchGroupedDaily } from './massive-market-data';
@@ -231,6 +231,15 @@ export async function getUniverseBars(days = 70): Promise<Map<string, UBar[]>> {
   }
 }
 
+const DAY_DIR = path.join(process.cwd(), '.cache', 'universe-bars');
+type DayRow = [string, number, number, number, number, number];
+function readDayFile(day: string): DayRow[] | null {
+  try { return JSON.parse(readFileSync(path.join(DAY_DIR, `${day}.json`), 'utf8')) as DayRow[]; } catch { return null; }
+}
+function writeDayFile(day: string, rows: DayRow[]) {
+  try { mkdirSync(DAY_DIR, { recursive: true }); writeFileSync(path.join(DAY_DIR, `${day}.json`), JSON.stringify(rows)); } catch { /* cache is optional */ }
+}
+
 async function buildUniverseBars(days: number): Promise<Map<string, UBar[]>> {
   const out = new Map<string, UBar[]>();
   const want = new Set(getLiquidSymbols());
@@ -242,19 +251,34 @@ async function buildUniverseBars(days: number): Promise<Map<string, UBar[]>> {
     const dow = date.getUTCDay();
     if (dow === 0 || dow === 6) continue;
     try {
-      const bars = await fetchGroupedDaily(date);
-      if (bars.size === 0) continue;
-      sessions++;
+      const dayKey = date.toISOString().slice(0, 10);
       const t = Math.floor(date.getTime() / 1000);
-      for (const [sym, b] of bars.entries()) {
+      // A finished session never changes: read its filtered bars from disk and
+      // only download (the whole US market, ~12k rows) days we have never seen.
+      // 2026-09-30: rebuilding ~170 sessions from whole-market downloads spiked
+      // the 2 GB droplet to 1.5 GB RSS.
+      let rows = back > 0 ? readDayFile(dayKey) : null;
+      if (!rows) {
+        const bars = await fetchGroupedDaily(date);
+        if (bars.size === 0) continue;
+        rows = [];
+        for (const [sym, b] of bars.entries()) {
+          const a: any = b;
+          if (!(a.c > 0 && a.h > 0 && a.l > 0 && a.o > 0)) continue;
+          rows.push([sym, a.o, a.h, a.l, a.c, a.v ?? 0]);
+        }
+        if (back > 0) writeDayFile(dayKey, rows.filter((r) => want.has(r[0] as string)));
+      }
+      if (rows.length === 0) continue;
+      sessions++;
+      for (const r of rows) {
+        const sym = r[0] as string;
         if (!want.has(sym)) continue;
-        const a: any = b;
-        if (!(a.c > 0 && a.h > 0 && a.l > 0 && a.o > 0)) continue;
         let arr = out.get(sym);
         if (!arr) { arr = []; out.set(sym, arr); }
-        arr.push({ time: t, open: a.o, high: a.h, low: a.l, close: a.c, volume: a.v ?? 0 });
+        arr.push({ time: t, open: r[1] as number, high: r[2] as number, low: r[3] as number, close: r[4] as number, volume: r[5] as number });
       }
-      seen.push(date.toISOString().slice(0, 10));
+      seen.push(dayKey);
     } catch { /* a missing day is a skipped session, not a fabricated one */ }
   }
   // Grouped walks newest→oldest; series must be oldest→newest.
