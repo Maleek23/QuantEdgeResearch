@@ -18,6 +18,8 @@
  *   Connected accounts Alpaca (journal broker link) · Discord bot (read-only)
  *   Journal            default book · sizing display           → this device
  *   Data & privacy     export my journal CSV · delete my journal (typed confirm)
+ *                      · request account deletion → /api/account/deletion-request
+ *                      (queued for the operator, never auto-deleted) · privacy policy link
  *   Admin              the hub link, operator only
  *
  * "This device" settings apply instantly (no Save); account settings have
@@ -474,7 +476,54 @@ function DataSection() {
           </span>
         )}
       </Row>
+      <AccountDeletionRow />
+      <Row label="Privacy policy" help="What we collect, who processes it and how long we keep it.">
+        <Link href="/privacy" className="st-link">Read the privacy policy <ArrowRight size={12} aria-hidden /></Link>
+      </Row>
     </LuxPanel>
+  );
+}
+
+/* ── Account deletion request ───────────────────────────────────────────────
+   Queues a request for the operator (server/privacy-routes.ts). Nothing is
+   deleted from this button — the operator verifies and removes the account
+   by hand, then marks the request completed. */
+type DeletionRequest = { id: string; status: 'pending' | 'completed' | 'rejected'; requestedAt: string; resolvedAt: string | null };
+
+function AccountDeletionRow() {
+  const { toast } = useToast();
+  const [asking, setAsking] = useState(false);
+  const q = useQuery<{ request: DeletionRequest | null }>({ queryKey: ['/api/account/deletion-request'], retry: 0 });
+  const ask = useMutation({
+    mutationFn: async () => (await (await apiRequest('POST', '/api/account/deletion-request')).json()) as { request: DeletionRequest; alreadyOpen?: boolean },
+    onSuccess: (r) => {
+      setAsking(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/account/deletion-request'] });
+      toast({ title: r.alreadyOpen ? 'Request already open' : 'Deletion requested', description: 'We’ll confirm by email once your account and its data are removed.' });
+    },
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Couldn’t send your request', description: reasonOf(e) }),
+  });
+  const req = q.data?.request ?? null;
+  const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : '');
+
+  return (
+    <Row label="Delete my account" help="Asks us to delete your account and everything tied to it — profile, preferences, watchlist, journal, notes, broker keys and usage history. Export your journal first. Some records (billing, the request itself) may be kept where the law requires.">
+      {q.isError ? <span className="st-help">Sign in to request account deletion.</span>
+        : req?.status === 'pending' ? <span className="st-help">Requested {day(req.requestedAt)} — pending review.</span>
+        : !asking ? (
+          <span className="st-confirm">
+            {req?.status === 'completed' && <span className="st-help">Last request completed {day(req.resolvedAt)}.</span>}
+            {req?.status === 'rejected' && <span className="st-help">Last request closed {day(req.resolvedAt)} — contact us if that’s wrong.</span>}
+            <LuxButton className="st-danger" onClick={() => setAsking(true)}><Trash2 aria-hidden /> Request account deletion…</LuxButton>
+          </span>
+        ) : (
+          <span className="st-confirm">
+            <span className="st-help">We’ll review and delete within 30 days.</span>
+            <LuxButton className="st-danger" disabled={ask.isPending} onClick={() => ask.mutate()}>{ask.isPending ? 'Sending…' : 'Send deletion request'}</LuxButton>
+            <LuxButton variant="ghost" onClick={() => setAsking(false)}>Cancel</LuxButton>
+          </span>
+        )}
+    </Row>
   );
 }
 

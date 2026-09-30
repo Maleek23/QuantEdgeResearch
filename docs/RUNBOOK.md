@@ -40,6 +40,25 @@ Quotes/chains resolve **Tradier → CBOE (delayed) → Yahoo**. If flow/chains l
 - `npm run health` → `/api/health`.
 - Railway logs per process (`web`, `worker`). Filter for the failing service.
 
+### Log & backup retention (privacy — docs/PRIVACY_IMPACT_ASSESSMENT.md §9)
+Logs hold IP addresses and, on auth events, email addresses; they are personal data.
+- **PM2 stdout/stderr** (`~/.pm2/logs/*.log`) grow without limit (≈370 MB seen on the droplet).
+  Install rotation once on the droplet (operator step — not done from the repo):
+  ```sh
+  pm2 install pm2-logrotate
+  pm2 set pm2-logrotate:max_size 20M      # rotate a file at 20 MB
+  pm2 set pm2-logrotate:retain 14         # keep 14 rotated files per stream
+  pm2 set pm2-logrotate:compress true
+  pm2 set pm2-logrotate:rotateInterval '0 0 * * *'   # also rotate daily
+  pm2 flush                               # after confirming nothing in the old logs is needed
+  ```
+  Target: ≤ 30 days of process logs.
+- **Winston files** (`logs/error.log`, `logs/combined.log`, production only) already cap at 5 × 5 MB each (server/logger.ts).
+- **Caddy access logs** (if enabled) — set `roll_size 20MiB`, `roll_keep 10`, `roll_keep_for 720h` in the Caddyfile `log` block.
+- **DB backups** (`/root/db-backups`) — keep a rolling 30 days: `find /root/db-backups -type f -mtime +30 -delete` in root's crontab.
+  Deleted accounts survive in backups until then — that is what the privacy policy says.
+- **Stale copies at dead vendors** (Supabase paused org, Neon) — delete those projects once the droplet DB is the verified source of truth.
+
 ## Secrets
 - All secrets are env vars (see ONBOARDING for the list). Rotate by updating Railway env + `.env`.
 - Never commit them; never echo them in chat/issues/PRs. If one leaks, rotate immediately.

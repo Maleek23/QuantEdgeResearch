@@ -1045,8 +1045,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referralCode: referralCode || null,
       });
       
-      // Send Discord notification
-      const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+      // Discord notification — dedicated operator webhook only, email redacted to
+      // its domain by default (server/privacy-redact.ts; docs/PRIVACY_IMPACT_ASSESSMENT.md).
+      const { waitlistDiscordConfig, waitlistEmailForDiscord, emailDomain } = await import('./privacy-redact');
+      const { webhookUrl, detail } = waitlistDiscordConfig();
       if (webhookUrl) {
         try {
           const response = await fetch(webhookUrl, {
@@ -1057,7 +1059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 title: "New Beta Waitlist Signup",
                 color: 0x06B6D4,
                 fields: [
-                  { name: "Email", value: emailLower, inline: true },
+                  { name: "Email", value: waitlistEmailForDiscord(emailLower, detail), inline: true },
                   { name: "Source", value: source || 'landing', inline: true },
                   { name: "Referral", value: referralCode || 'None', inline: true },
                 ],
@@ -1075,7 +1077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      logger.info('New beta waitlist signup', { email: emailLower, source });
+      logger.info('New beta waitlist signup', { emailDomain: emailDomain(emailLower), waitlistId: entry.id, source });
       res.json({ 
         success: true, 
         message: "Welcome to the Lab! We'll be in touch soon.",
@@ -2039,6 +2041,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin hub › System health: process / pm2 / faults / Discord bot / rate limits (server/admin-hub-routes.ts)
   { const { registerAdminHubRoutes } = await import('./admin-hub-routes'); registerAdminHubRoutes(app, requireAdminJWT); }
+
+  // Account-deletion requests (queued, never auto-deleted) — server/privacy-routes.ts
+  { const { registerPrivacyRoutes } = await import('./privacy-routes'); registerPrivacyRoutes(app, requireAdminJWT); }
 
   app.get("/api/admin/stats", requireAdminJWT, async (_req, res) => {
     try {
@@ -3960,6 +3965,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { activityType, description, metadata, sessionId } = req.body;
+      // Privacy requests are written only by server/privacy-routes.ts — never via analytics.
+      if (typeof activityType !== 'string' || activityType === 'privacy_request') {
+        return res.status(400).json({ error: "Invalid activity type" });
+      }
       const userAgent = req.headers['user-agent'] || '';
       const isMobile = /mobile|android|iphone|ipad/i.test(userAgent);
       const device = isMobile ? 'mobile' : 'desktop';
