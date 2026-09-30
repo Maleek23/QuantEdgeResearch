@@ -308,7 +308,7 @@ function serve(): Promise<http.Server> {
       const hp = p.match(/^\/api\/historical-prices\/([^/]+)/);
       if (hp) return json(200, mockHistory(decodeURIComponent(hp[1]).toUpperCase(), url.searchParams.get('range') ?? '1mo', url.searchParams.get('interval') ?? '5m'));
       const co = p.match(/^\/api\/chart\/overlays\/([^/]+)/);
-      if (co) { const sym = decodeURIComponent(co[1]).toUpperCase(); const h = mockHistory(sym, '1mo', '5m').data; return json(200, mockOverlays(sym, Number(url.searchParams.get('spot')) || h[h.length - 1]?.close || 575)); }
+      if (co) { const sym = decodeURIComponent(co[1]).toUpperCase(); const h = sym === 'SPY' ? mockBars().data : mockHistory(sym, '1mo', '5m').data; return json(200, mockOverlays(sym, Number(url.searchParams.get('spot')) || h[h.length - 1]?.close || 575)); }
       if (p === '/api/flow/tape') return json(200, mockFlowTape(url.searchParams.get('symbol')));
       if (p === '/api/journal/trades') return json(200, mockJournalTrades());
       if (p === '/api/journal/analytics') return json(200, { timingByHour: [], timingByDay: [], timingBySession: [], insights: [], dteBreakdown: [], tradeCountOptimum: [], emotionAnalysis: [] });

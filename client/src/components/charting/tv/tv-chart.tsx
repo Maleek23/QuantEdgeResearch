@@ -207,6 +207,36 @@ export function TvChart({
     return { net: sample.net, top, asOf: new Date(sample.t).toISOString(), source: sample.source };
   }, [ov, cutoff]);
 
+  /* Why no orbs are on screen, said plainly instead of an empty chart:
+     nothing recorded yet, or the newest recording is an earlier session than
+     the 1D view (pre-market / before the recorder's 09:00 ET start). */
+  const orbStatus = useMemo((): { text: string; show?: [number, number] } | null => {
+    if (prefs.gex !== 'bubbles' || !layersOk || !ov || cutoff != null) return null;
+    const tl = ov.gexTimeline;
+    const cadence = tl.sampleEveryMin || 5;
+    const nowEt = etInfo(now);
+    const dow = new Date(`${nowEt.date}T12:00:00Z`).getUTCDay();
+    const inWindow = dow >= 1 && dow <= 5 && nowEt.mins >= 9 * 60 && nowEt.mins <= 16 * 60 + 30;
+    if (!tl.samples.length) {
+      const since = Date.parse(tl.recorderLastRun ?? ov.generatedAt);
+      return inWindow
+        ? { text: `GEX orbs: recording since ${etClock(since)} ET — first orbs in ~${cadence}m` }
+        : { text: `GEX orbs: none recorded yet — samples every ${cadence}m, 09:00–16:30 ET weekdays` };
+    }
+    const bars = sessionBars;
+    if (!intraday || range !== '1D' || bars.length < 2) return null;
+    const last = tl.samples[tl.samples.length - 1];
+    const lastDate = etInfo(last.t).date;
+    if (lastDate === etInfo(bars[bars.length - 1].time).date) return null;
+    if (last.t < bars[0].time) return null;
+    const first = tl.samples.find((x) => etInfo(x.t).date === lastDate) ?? last;
+    const day = new Date(last.t).toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: '2-digit', day: '2-digit' });
+    return {
+      text: `GEX orbs: last recorded ${day} ${etClock(first.t)}–${etClock(last.t)} ET${inWindow ? ` — next in ~${cadence}m` : ' — today\'s start 09:00 ET'}`,
+      show: [first.t, last.t],
+    };
+  }, [prefs.gex, layersOk, ov, cutoff, now, intraday, range, sessionBars]);
+
   const layers = useMemo(() => ({
     ov: ov ?? null, gex: prefs.gex, dp: prefs.dp, flow: prefs.flow,
     gexTop: gexRead?.top ?? null, gexTopAsOf: gexRead ? Date.parse(gexRead.asOf) : null,
@@ -355,6 +385,14 @@ export function TvChart({
           <span className="tv-dim">{cutoff != null ? 'at cursor' : `${ageOf(gexRead.asOf, now)} ago`} · {gexRead.source}</span>
         </>
       ) : <span className="tv-dim">{ovLoading ? 'loading…' : ovError ? 'overlay feed unavailable' : 'no GEX snapshot for this symbol yet'}</span>, () => set('gex', 'off'))}
+      {orbStatus && (
+        <div className="tv-leg-row tv-leg-ind" key="orb-status">
+          <span className="tv-orb-chip" role="status">
+            {orbStatus.text}
+            {orbStatus.show && <button type="button" onClick={() => paneRef.current?.showTime(orbStatus.show![0], orbStatus.show![1])} title="Scroll the chart to the recorded GEX orbs">Show</button>}
+          </span>
+        </div>
+      )}
       {prefs.dp && layersOk && legendRow('dp', 'Dark pool', ov
         ? <span className="tv-dim">{ov.darkPool.levels.length ? `${ov.darkPool.levels.length} levels near price` : 'none near price'}{ov.darkPool.asOf ? ` · ${ageOf(ov.darkPool.asOf, now)} old` : ''}</span>
         : <span className="tv-dim">{ovError ? 'feed unavailable' : 'loading…'}</span>, () => set('dp', false))}
@@ -776,9 +814,14 @@ const TV_CSS = `
 .tv-tool-name{display:none}
 .tv-main{position:relative;flex:1;min-width:0;display:flex}
 .tv-pane{position:relative;flex:1;min-width:0;display:flex}
-.tv-gamma-wm{position:absolute;left:50%;top:50%;width:min(46%,420px);transform:translate(-50%,-50%);opacity:.06;pointer-events:none;user-select:none;z-index:1}
-html[data-mode=light] .tv-gamma-wm{opacity:.08}
-@media (max-width:767px){.tv-gamma-wm{width:60%}}
+.tv-wm{position:absolute;left:50%;top:50%;width:min(46%,420px);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;opacity:.07;pointer-events:none;user-select:none;z-index:1;color:var(--tv-text)}
+.tv-wm-sym{font:800 clamp(44px,7vw,104px)/.95 'JetBrains Mono',ui-monospace,monospace;letter-spacing:-.02em;white-space:nowrap}
+.tv-wm-tf{font:700 clamp(12px,1.3vw,18px)/1.4 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.2em;margin:2px 0 6px}
+.tv-gamma-wm{display:block;width:100%;height:auto}
+html[data-mode=light] .tv-wm{opacity:.09}
+@media (max-width:767px){.tv-wm{width:60%}.tv-wm-sym{font-size:clamp(32px,11vw,56px)}.tv-wm-tf{font-size:11px;margin-bottom:4px}}
+.tv-orb-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:1px 8px;border:1px solid color-mix(in srgb,var(--tv-accent) 45%,transparent);border-radius:999px;background:color-mix(in srgb,var(--tv-accent) 12%,transparent);color:var(--tv-text);font-size:11px;pointer-events:auto}
+.tv-orb-chip button{padding:0 6px;border:0;border-radius:999px;background:var(--tv-accent);color:#fff;font:700 10px/1.6 'JetBrains Mono',monospace;cursor:pointer}
 .tv-canvas{position:absolute;inset:0;touch-action:none}
 .tv-legend{position:absolute;top:6px;left:8px;right:80px;z-index:4;pointer-events:none;display:flex;flex-direction:column;gap:1px;font-size:12px;line-height:1.5;text-shadow:0 0 3px var(--tv-bg),0 0 6px var(--tv-bg)}
 .tv-leg-row{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;min-width:0}

@@ -13,8 +13,8 @@
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import {
   AreaSeries, BarSeries, CandlestickSeries, CrosshairMode, HistogramSeries, LineSeries, LineStyle, PriceScaleMode,
-  TickMarkType, createChart, createTextWatermark,
-  type IChartApi, type IPriceLine, type ISeriesApi, type ITextWatermarkPluginApi, type Logical, type MouseEventParams,
+  TickMarkType, createChart,
+  type IChartApi, type IPriceLine, type ISeriesApi, type Logical, type MouseEventParams,
   type SeriesType, type Time, type UTCTimestamp,
 } from 'lightweight-charts';
 import {
@@ -137,6 +137,8 @@ export interface TvPaneHandle {
   /** Data point under the pointer (for Alt+H at the cursor), when over the pane. */
   pointerAnchor(): Anchor | null;
   cancelDraft(): boolean;
+  /** Scroll/zoom the time axis to cover [fromMs, toMs] (e.g. the last GEX recording). */
+  showTime(fromMs: number, toMs: number): void;
 }
 
 export interface TvPaneProps {
@@ -192,7 +194,6 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   const volRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const ma20Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const ma50Ref = useRef<ISeriesApi<'Line'> | null>(null);
-  const wmRef = useRef<ITextWatermarkPluginApi<Time> | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
   const colorsRef = useRef<TvColors | null>(null);
   const legend = useMemo(() => new LegendStore(), []);
@@ -259,7 +260,6 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     volRef.current = vol;
     ma20Ref.current = chart.addSeries(LineSeries, { color: c.accent, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, visible: false });
     ma50Ref.current = chart.addSeries(LineSeries, { color: c.caution, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, visible: false });
-    wmRef.current = createTextWatermark(chart.panes()[0], { horzAlign: 'center', vertAlign: 'center', lines: [] });
 
     const onMove = (p: MouseEventParams<Time>) => {
       const bs = barsRef.current;
@@ -275,7 +275,6 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
     chart.subscribeCrosshairMove(onMove);
     return () => {
       chart.unsubscribeCrosshairMove(onMove);
-      wmRef.current?.detach(); wmRef.current = null;
       chart.remove();
       chartRef.current = null; mainRef.current = null; volRef.current = null; ma20Ref.current = null; ma50Ref.current = null;
       linesRef.current = [];
@@ -408,12 +407,6 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
   useEffect(() => {
     chartRef.current?.applyOptions({ crosshair: { mode: magnet ? CrosshairMode.MagnetOHLC : CrosshairMode.Normal } });
   }, [magnet]);
-
-  /* watermark */
-  useEffect(() => {
-    const c = colors();
-    wmRef.current?.applyOptions({ lines: [{ text: `${symbol} · ${tfLabel}`, color: withAlpha(c.text, 0.05), fontSize: 64, fontStyle: '700', fontFamily: "'JetBrains Mono', ui-monospace, monospace", lineHeight: 72 }] });
-  }, [symbol, tfLabel, mode, colors]);
 
   /* dealer levels → price lines with axis tags */
   useEffect(() => {
@@ -697,6 +690,15 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
       if (!p || !inPane(p.x, p.y)) return null;
       return toAnchor(p.x, p.y);
     },
+    showTime(fromMs, toMs) {
+      const ts = chartRef.current?.timeScale();
+      const bs = barsRef.current;
+      if (!ts || bs.length < 2) return;
+      const idx = (t: number) => { let i = 0; while (i < bs.length - 1 && bs[i + 1].time <= t) i++; return i; };
+      const a = idx(fromMs); const b = idx(toMs);
+      const pad = Math.max(4, Math.round((b - a) * 0.06));
+      ts.setVisibleLogicalRange({ from: (a - pad) as Logical, to: (b + pad) as Logical });
+    },
     cancelDraft() {
       if (!interact.current.draft) return false;
       interact.current.draft = null; drawPrim.set({ draft: null });
@@ -717,8 +719,13 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
         role="img"
         aria-label={`${symbol} ${tfLabel} price chart${drawings.length ? `, ${drawings.length} drawing${drawings.length === 1 ? '' : 's'}` : ''}`}
       />
-      {/* the gamma mark — QuantEdge's second logo, a faint watermark behind the price action */}
-      <img className="tv-gamma-wm" src="/gamma-mark.svg" alt="" aria-hidden="true" draggable={false} />
+      {/* the watermark lockup — ticker over the gamma mark (QuantEdge's second
+          logo), one faint mark behind the price action */}
+      <div className="tv-wm" aria-hidden="true">
+        <span className="tv-wm-sym">{symbol}</span>
+        <span className="tv-wm-tf">{tfLabel}</span>
+        <img className="tv-gamma-wm" src="/gamma-mark.svg" alt="" draggable={false} />
+      </div>
       <Legend store={legend} symbol={symbol} tfLabel={tfLabel} showVolume={showVolume} extras={legendExtras} fmt={fmt} />
       <div className="tv-tip" ref={tipRef} role="tooltip" />
     </div>

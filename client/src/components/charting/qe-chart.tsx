@@ -279,6 +279,15 @@ function QEChartCompact({
 
   /* ── canvas layers ── */
   const hostRef = useRef<HTMLDivElement>(null);
+  // Watermark lockup (ticker over the gamma mark) only where it has room.
+  const [hostH, setHostH] = useState(0);
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => setHostH(Math.round(e.contentRect.height)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const tipRef = useRef<HTMLDivElement>(null);
   const mouse = useRef({ x: -1, y: -1 });
   const frame = useRef<Frame | null>(null);
@@ -346,7 +355,7 @@ function QEChartCompact({
         const g = b.vals[idx];
         if (!Number.isFinite(g)) continue;
         const d = Math.abs(f.geo.priceToY(b.strike) - my);
-        const r = 0.8 + (f.rMax - 0.8) * Math.sqrt(Math.abs(g) / f.maxAbs);
+        const r = 1 + (f.rMax - 1) * Math.sqrt(Math.abs(g) / f.maxAbs);
         if (d <= Math.max(r, 5) && (!hit || d < hit.d)) hit = { d, strike: b.strike, g, t: b.times[idx], src: b.srcs[idx] };
       }
       if (hit) {
@@ -410,7 +419,7 @@ function QEChartCompact({
         f.bubbles.push({ strike: s.strike, vals, times, srcs });
       }
       f.maxAbs = maxAbs || 1;
-      f.rMax = Math.max(1.6, Math.min(4.5, geo.candleW * 0.6));
+      f.rMax = Math.max(2.2, Math.min(5, geo.candleW * 0.65));
       for (const b of f.bubbles) {
         const y = geo.priceToY(b.strike);
         for (let i = 0; i < n; i++) {
@@ -418,8 +427,8 @@ function QEChartCompact({
           if (!Number.isFinite(g)) continue;
           const m = Math.sqrt(Math.abs(g) / f.maxAbs);
           if (m < 0.04) continue;
-          const r = 0.8 + (f.rMax - 0.8) * m;
-          ctx.globalAlpha = 0.22 + 0.7 * m;
+          const r = 1 + (f.rMax - 1) * m;
+          ctx.globalAlpha = 0.3 + 0.65 * m;
           ctx.fillStyle = g >= 0 ? tk.pos : tk.neg;
           const x = geo.left + i * geo.candleW + geo.candleW / 2;
           if (r < 1.4) ctx.fillRect(x - r, y - r, r * 2, r * 2);
@@ -672,7 +681,9 @@ function QEChartCompact({
           {layersOk && (
             <span className="fc-mini-layers">
               {prefs.walls && layerDot(!!snap, tk0.call, 'WALLS', snap ? `Call wall ${snap.callWall ?? '—'} · put wall ${snap.putWall ?? '—'} · zero-γ ${zeroGamma != null ? zeroGamma.toFixed(2) : '—'} · ${dealerSource} · ${ageOf(dealerAsOf, now)} old` : dealerQ.isError ? 'Dealer map unavailable' : 'Reading the chain…')}
-              {prefs.gex !== 'off' && layerDot(!!gexRead, tk0.pos, 'GEX', gexRead ? `GEX ${prefs.gex} · ${ageOf(gexRead.asOf, now)} old · ${gexRead.source}` : ovLoading ? 'GEX loading' : 'No GEX snapshot for this symbol yet')}
+              {prefs.gex !== 'off' && (ov && prefs.gex === 'bubbles' && !ov.gexTimeline.samples.length
+                ? <span className="fc-chip" title={`GEX orbs: recording since ${etClock(Date.parse(ov.gexTimeline.recorderLastRun ?? ov.generatedAt))} ET — first orbs in ~${ov.gexTimeline.sampleEveryMin || 5}m (09:00–16:30 ET weekdays)`}><i style={{ background: tk0.pos }} />GEX rec · orbs ~{ov.gexTimeline.sampleEveryMin || 5}m</span>
+                : layerDot(!!gexRead, tk0.pos, 'GEX', gexRead ? `GEX ${prefs.gex} · ${ageOf(gexRead.asOf, now)} old · ${gexRead.source}` : ovLoading ? 'GEX loading' : 'No GEX snapshot for this symbol yet'))}
               {prefs.dp && layerDot(!!ov?.darkPool.levels.length, tk0.dp, 'DP', ov ? `Dark pool: ${ov.darkPool.levels.length} levels near price${ov.darkPool.asOf ? ` · ${ageOf(ov.darkPool.asOf, now)} old` : ''}` : 'Dark pool loading')}
               {prefs.flow && layerDot(!!ov?.flow.prints.length, tk0.call, 'FLOW', ov ? `Flow: ${ov.flow.prints.length} prints · stream ${ov.flow.streamState}` : 'Flow loading')}
               {ovError && <span className="fc-chip warn" title="Overlay feed unavailable — price only">layers ✕</span>}
@@ -688,6 +699,12 @@ function QEChartCompact({
           )}
         </div>
         <div className="fc-chart" ref={hostRef} {...chartHandlers}>
+          {hostH >= 240 && (
+            <div className="fc-wm" aria-hidden="true">
+              <span className="fc-wm-sym">{symbol}</span>
+              <img src="/gamma-mark.svg" alt="" draggable={false} />
+            </div>
+          )}
           {priceChart}
           <div className="fc-tip" ref={tipRef} role="tooltip" />
         </div>
@@ -777,6 +794,11 @@ const FC_CSS = `
 .fc-root.fc-fill{flex:1 1 0;height:auto;min-height:0}
 .fc-compact{min-height:0;background:transparent;border:1px solid var(--nx-border);border-radius:6px;overflow:hidden}
 .fc-compact .fc-chart{min-height:0}
+.fc-wm{position:absolute;left:50%;top:50%;width:min(40%,300px);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;opacity:.07;pointer-events:none;user-select:none;z-index:1;color:var(--text)}
+.fc-wm-sym{font:800 clamp(28px,5vw,64px)/.95 'JetBrains Mono',ui-monospace,monospace;letter-spacing:-.02em;white-space:nowrap}
+.fc-wm img{display:block;width:100%;height:auto}
+html[data-mode=light] .fc-wm{opacity:.09}
+@media (max-width:767px){.fc-wm{width:56%}.fc-wm-sym{font-size:clamp(24px,9vw,44px)}}
 .fc-mini-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:4px 6px 4px 8px;border-bottom:1px solid var(--nx-border);font-size:11px;min-height:30px}
 .fc-mini-head b{color:var(--cyan-bright)}
 .fc-mini-px{color:var(--text)}

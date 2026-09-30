@@ -23,7 +23,7 @@ export interface OverlayPayload {
   gexNow: null | { net: number; spot: number | null; topStrikes: { strike: number; gex: number }[]; asOf: string; ageSec: number | null; source: string };
   gexTimeline: {
     sampleEveryMin: number; recordingSince: string | null; asOf: string | null; ageSec: number | null;
-    sources: string[]; note: string; watched: boolean;
+    sources: string[]; note: string; watched: boolean; recorderLastRun?: string | null;
     samples: { t: number; spot: number | null; net: number; source: string }[];
     series: { strike: number; points: [number, number][] }[];
   };
