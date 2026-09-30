@@ -25,6 +25,7 @@ import {
   OUTCOME_BASELINE_DATE, MIN_REPORTABLE_SAMPLE, classifyOutcomeV2, realisedR, reportableRate,
   type OutcomeV2Input,
 } from './constants';
+import type { RunUpSummary } from './run-up';
 
 export interface RecordIdea extends OutcomeV2Input {
   timestamp?: string | Date | null;
@@ -51,6 +52,11 @@ export interface ModelRecord {
   coveragePct: number;
   sampleFloor: number;
   excluded: { beforeBaseline: number; excludedFromTraining: number; synthetic: number };
+  /**
+   * Run-up after trigger (shared/run-up.ts) — attached by the route, never part of
+   * wins/losses. "Reached +5% after trigger, before stop — not the win rate."
+   */
+  runUp?: RunUpSummary;
 }
 
 /** Rows the option backfill wrote with modelled (not observed) outcomes. */

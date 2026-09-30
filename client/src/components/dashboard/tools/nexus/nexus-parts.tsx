@@ -255,6 +255,27 @@ export function DevelopingDetail({ hit, quote, onOpen, chartHeight = 260 }: { hi
   </motion.div>;
 }
 
+/* ── run-up since trigger (shared/run-up.ts) — a measurement, never a win ── */
+interface IdeaRunUpRead { triggered: boolean; bestPct: number | null; reached5BeforeStop: boolean; result: { stopHit: boolean; barsUsed: number } | null; computedAt: string; label: string; barInterval: string | null }
+function RunUpLine({ ideaId }: { ideaId: string }) {
+  const q = useQuery<IdeaRunUpRead>({
+    queryKey: ['/api/ideas', ideaId, 'run-up'],
+    queryFn: () => get<IdeaRunUpRead>(`/api/ideas/${encodeURIComponent(ideaId)}/run-up`),
+    enabled: !!ideaId, staleTime: 300_000, refetchInterval: 600_000, retry: false,
+  });
+  const r = q.data;
+  if (!r?.triggered || r.bestPct == null) return null;
+  const at = new Date(r.computedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return (
+    <p className="nxp-runup" title={`${r.label}. Underlying high since the trigger vs the plan entry, ${r.barInterval ?? ''} bars; a +5% touch in the same bar as the stop counts as stop first. Measured ${at}.`}
+      style={{ margin: '8px 2px 0', fontSize: 12, color: 'var(--nx-muted, #8a93a6)' }}>
+      Best since trigger <strong style={{ color: r.bestPct >= 0 ? 'var(--trade-bullish, #3b8cff)' : 'var(--trade-bearish, #e0674f)' }}>{r.bestPct >= 0 ? '+' : ''}{r.bestPct.toFixed(1)}%</strong>
+      {' · '}reached +5% {r.reached5BeforeStop ? '✓' : '✗'}{r.result?.stopHit ? ' · stop hit' : ''}
+      <span style={{ opacity: 0.7 }}> · run-up, not a win · as of {at}</span>
+    </p>
+  );
+}
+
 /* ── selected setup detail: head, chart, levels, tabs ── */
 export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, chartHeight = 238 }: {
   selected: ConvictionPick;
@@ -301,6 +322,8 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
         <div className="risk"><span>Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
         <div className="reward"><span>First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>
       </div>
+
+      {!pendingEntry && selected.lifecycleState !== 'closed' && <RunUpLine ideaId={selected.ideaId} />}
 
       <div className="nxp-detail-tabs">
         {DETAIL_TABS.map((t) => <button key={t} className={tab === t ? 'active' : ''} onClick={() => onTab(t)}>{t}</button>)}

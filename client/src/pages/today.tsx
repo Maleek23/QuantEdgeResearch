@@ -440,6 +440,9 @@ export default function TodayPage() {
               <div className="lstat-val">{o?.winRate != null ? `${o.winRate.toFixed(0)}%` : '—'}</div>
               <div className="lstat-label">Win rate, decided ideas</div>
               <div className="lstat-sub">{o?.decided != null ? `${o.wins ?? 0} of ${o.decided} decided${o.winRate == null ? ` · needs ${o.sampleFloor ?? 30}` : ''}` : perf.isError ? 'record didn’t load' : 'measuring'}</div>
+              {o?.runUp && o.runUp.triggered > 0 && (
+                <div className="lstat-sub" title={o.runUp.label}>{`Run-up: ${o.runUp.rate != null ? `${o.runUp.rate.toFixed(0)}%` : '—'} reached +5% before stop (${o.runUp.reached5BeforeStop}/${o.runUp.triggered} triggered) — not the win rate`}</div>
+              )}
             </div>
             <div className="stat-item reveal">
               <div className="lstat-val">{o?.expectancyR != null ? `${o.expectancyR >= 0 ? '+' : ''}${o.expectancyR.toFixed(2)}R` : '—'}</div>

@@ -30,7 +30,9 @@ export interface Pick {
   lifecycleState?: string; isBotHeld?: boolean; generatedAt?: string;
 }
 /** /api/performance/model-record — shared/model-record.ts (outcome v2, since OUTCOME_BASELINE_DATE). */
-export interface Perf { since?: string; asOf?: string; winRate?: number | null; wins?: number; losses?: number; decided?: number; unresolved?: number; total?: number; expectancyR?: number | null; rSampleSize?: number; coveragePct?: number; sampleFloor?: number }
+export interface Perf { since?: string; asOf?: string; winRate?: number | null; wins?: number; losses?: number; decided?: number; unresolved?: number; total?: number; expectancyR?: number | null; rSampleSize?: number; coveragePct?: number; sampleFloor?: number; runUp?: RunUpRead | null }
+/** model-record.runUp — shared/run-up.ts. Run-up after trigger, NOT the win rate. */
+export interface RunUpRead { label: string; since: string; triggered: number; reached3: number; reached5BeforeStop: number; reached10: number; rate: number | null; pending: number; medianMinutesTo5: number | null }
 export interface Quote { price?: number; lastPrice?: number; changePercent?: number; asOf?: string; session?: 'pre' | 'regular' | 'post' | 'closed' | null; source?: string | null }
 export interface IndexScalp {
   id: string; symbol: string; direction: 'long' | 'short'; bias: string;

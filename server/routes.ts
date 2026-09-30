@@ -10584,13 +10584,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (modelRecordCache.data && Date.now() - modelRecordCache.at < 120_000) return res.json(modelRecordCache.data);
       const { computeModelRecord } = await import('@shared/model-record');
-      const rec = computeModelRecord((await storage.getAllTradeIdeas()) as any[]);
-      const data = { ...rec, asOf: new Date().toISOString(), source: 'trade_ideas (outcome v2)' };
+      const all = await storage.getAllTradeIdeas();
+      const rec = computeModelRecord(all as any[]);
+      // Run-up after trigger rides alongside, separately labelled — never a win.
+      // Bounded: returns cached results and schedules one ≤25-idea background pass.
+      let runUp: any = null;
+      try {
+        const { getRunUpSummary } = await import('./lib/run-up-tracker');
+        runUp = getRunUpSummary(all as any[]);
+      } catch (e) { logger.warn('model-record run-up unavailable', e); }
+      const data = { ...rec, runUp, asOf: new Date().toISOString(), source: 'trade_ideas (outcome v2)' };
       modelRecordCache.at = Date.now(); modelRecordCache.data = data;
       res.json(data);
     } catch (error) {
       logger.error('model-record error', error);
       res.status(500).json({ error: 'Failed to compute the model record' });
+    }
+  });
+
+  /**
+   * Run-up after trigger for ONE idea (NEXUS setup detail): best underlying move
+   * since the trigger and whether +3/+5/+10% came before the stop. Not a win —
+   * see shared/run-up.ts. Cached; open ideas refresh every 10 minutes.
+   */
+  app.get("/api/ideas/:id/run-up", async (req, res) => {
+    try {
+      const idea = await storage.getTradeIdeaById(String(req.params.id));
+      if (!idea) return res.status(404).json({ error: 'idea not found' });
+      const { getIdeaRunUp } = await import('./lib/run-up-tracker');
+      const { RUN_UP_LABEL } = await import('@shared/run-up');
+      const r = await getIdeaRunUp(idea as any);
+      res.json({ ...r, label: RUN_UP_LABEL });
+    } catch (error) {
+      logger.error('idea run-up error', error);
+      res.status(500).json({ error: 'Failed to compute run-up' });
     }
   });
 

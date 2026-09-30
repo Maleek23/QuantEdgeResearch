@@ -350,6 +350,13 @@ export function TodayModelRecordTool() {
           <div className="lstat-label">Average per idea</div>
           <div className="lstat-sub">{o?.coveragePct != null ? `${o.coveragePct.toFixed(0)}% of ${o.total ?? 0} published ideas resolved` : 'measuring'}</div>
         </div>
+        {o?.runUp && (
+          <div className="stat-item" title={o.runUp.label}>
+            <div className="lstat-val">{o.runUp.rate != null ? `${o.runUp.rate.toFixed(0)}%` : '—'}</div>
+            <div className="lstat-label">Reached +5% before stop</div>
+            <div className="lstat-sub">{`${o.runUp.reached5BeforeStop} of ${o.runUp.triggered} triggered · run-up, not the win rate${o.runUp.pending ? ` · ${o.runUp.pending} still measuring` : ''}`}</div>
+          </div>
+        )}
       </div>
       <Clamp className="cta-sub">
         {o?.decided != null
