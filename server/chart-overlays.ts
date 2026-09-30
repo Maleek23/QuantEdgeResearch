@@ -163,6 +163,15 @@ function latestSample(sym: string): GexSample | null {
   return rows.length ? rows[rows.length - 1] : null;
 }
 
+/**
+ * Read-only: today's latest RECORDED GEX sample for `sym` (memory or today's
+ * file), or null. Never fetches a chain. The 0DTE sniper reads its GEX zones
+ * from here (server/zero-dte-sniper.ts).
+ */
+export function peekLatestGexSample(sym: string): GexSample | null {
+  return latestSample(sym.toUpperCase());
+}
+
 export function watchedSymbols(): string[] {
   const now = Date.now();
   const viewed = [...lastViewed.entries()]

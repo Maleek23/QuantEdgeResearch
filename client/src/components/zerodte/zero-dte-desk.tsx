@@ -209,6 +209,91 @@ function RecordBlock({ rec }: { rec: DeskRec }) {
   );
 }
 
+/* ── Sniper (GET /api/zero-dte/sniper, server/zero-dte-sniper.ts) ── */
+interface SniperPick { variant: 'otm1' | 'lotto' | 'lotto_near'; occ: string; strike: number; type: 'call' | 'put'; expiry: string; bid: number | null; ask: number | null; volume: number }
+interface SniperRow {
+  symbol: string; setup: string; setupLabel: string; side: Side; triggerAt: string; triggerEt: string; triggerPrice: number; level: number; levelName: string; note: string;
+  touch: number | null; zoneKind: string | null; volume: { triggerRvol: number | null; label: string; source: string; asOf: string | null } | null;
+  status: 'published' | 'watch'; reason: string | null; contracts: SniperPick[]; chainSource: string | null; ideaId: string | null;
+}
+const ZONE_KIND: { [k: string]: string } = { prior_day: 'prior day', premarket: 'pre-market', round: 'round number', session_pivot: 'today\'s swing', gex: 'GEX (live, unmeasured)' };
+interface SniperCycle { at: string; skipped: string | null; universeSize: number; universeCut: string[]; feed: string | null; triggersFresh: number; triggersStale: number; chainFetches: { used: number; cap: number; deferred: string[] }; cycleMs: number; memory: { rssBeforeMb: number; rssAfterMb: number }; published: unknown[]; errors: string[] }
+interface SniperState { enabled: boolean; lastCycle: SniperCycle | null; today: SniperRow[]; publishable: Array<{ key: string; exit: string }> }
+const VARIANT_SHORT: { [k: string]: string } = { otm1: 'OTM', lotto: 'lotto', lotto_near: 'near lotto' };
+
+function SniperSection() {
+  const q = useQuery<SniperState>({
+    queryKey: ['/api/zero-dte/sniper'],
+    queryFn: async () => {
+      const r = await fetch('/api/zero-dte/sniper', { credentials: 'include' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const s = q.data; const c = s?.lastCycle ?? null;
+  // Reactive-zone touches fire many times a day; a zone touch with no chain read (stage-2 cap) is counted, not listed.
+  const all = [...(s?.today ?? [])].reverse();
+  const rows = all.filter((r) => r.status === 'published' || r.contracts.length > 0 || r.setup !== 'reactive_zone');
+  const hiddenZone = all.length - rows.length;
+  return (
+    <section className="zd-section" aria-label="0DTE sniper, board-wide classic setups">
+      <h4><Crosshair size={13} aria-hidden /> Sniper — board-wide classic setups <span className="zd-lown" title="Replay-selected where anything survived both walk-forward halves; unproven live">MEASURING</span></h4>
+      <p className="zd-note">
+        Every name on the board (ETFs, the 0DTE watch list, NEXUS ideas) is checked every 2 min 09:45–15:50 ET on 1-minute price bars for ORB, VWAP reclaim/loss, level hold → VWAP reclaim, prior-day break &amp; hold, failed breakout, power-hour continuation and opening flush → reclaim. An option chain is read only for names that fired (a few per cycle). Only setups that held in both halves of the replay publish; the rest are watch rows.
+        {s && !s.enabled && ' Engine is OFF (ZERO_DTE_SNIPER not set) — rows below appear only when it runs.'}
+        {s && ` Publishable combinations: ${s.publishable.length ? s.publishable.map((p) => p.key).join(', ') : 'none'}.`}
+      </p>
+      {q.isError && !s && <p className="zd-err">Sniper state unavailable: {reasonOf(q.error)}</p>}
+      {c && (
+        <p className="zd-note zd-mono">
+          Last cycle {etTime(c.at)} ({ageIso(c.at)}){c.skipped ? ` · skipped: ${c.skipped}` : ` · ${c.universeSize} names${c.universeCut.length ? ` (${c.universeCut.length} cut)` : ''} · ${c.triggersFresh} fresh / ${c.triggersStale} stale · chains ${c.chainFetches.used}/${c.chainFetches.cap}${c.chainFetches.deferred.length ? ` (deferred ${c.chainFetches.deferred.join(', ')})` : ''} · ${c.published.length} published · ${c.cycleMs} ms · RSS ${c.memory.rssBeforeMb}→${c.memory.rssAfterMb} MB${c.feed ? ` · ${c.feed} bars` : ''}`}
+          {c.errors.length > 0 && ` · ${c.errors.join(' · ')}`}
+        </p>
+      )}
+      {hiddenZone > 0 && <p className="zd-note">{hiddenZone} more reactive-zone touch{hiddenZone === 1 ? '' : 'es'} today without a chain read (stage-2 cap) — not listed.</p>}
+      {rows.length === 0
+        ? <p className="zd-note">{s ? 'No sniper triggers today.' : 'Loading sniper state…'}</p>
+        : (
+          <div className="zd-table-wrap">
+            <table className="zd-table">
+              <thead><tr><th>Trigger (ET)</th><th>Name</th><th>Setup</th><th>Side</th><th>Price · level / zone</th><th>Volume</th><th>Contract · premium</th><th>Status</th></tr></thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={`${r.symbol}|${r.setup}|${r.side}|${r.triggerAt}`}>
+                    <td className="zd-mono" title={r.triggerAt}>{r.triggerEt}</td>
+                    <td><Link href={tickerHref(r.symbol)} className="zd-sym-link"><b>{r.symbol}</b></Link></td>
+                    <td title={r.note}>{r.setupLabel}</td>
+                    <td className={sideCls(r.side)}>{r.side}</td>
+                    <td>
+                      {px(r.triggerPrice)} <small>· {r.levelName} {px(r.level)}</small>
+                      {r.touch != null && <div><small>zone: {ZONE_KIND[r.zoneKind ?? ''] ?? r.zoneKind} · touch #{r.touch}</small></div>}
+                    </td>
+                    <td title={r.volume ? `${r.volume.source}${r.volume.asOf ? ` · bars to ${etTime(r.volume.asOf)}` : ''}` : 'read only for names that got a chain'}>
+                      {r.volume?.triggerRvol != null ? `trigger bar ${r.volume.triggerRvol.toFixed(1)}× normal` : '—'}
+                    </td>
+                    <td className="zd-mono">
+                      {r.contracts.length === 0 ? '—' : r.contracts.map((p) => (
+                        <div key={p.variant} title={`${p.occ} · bid ${px(p.bid)} · vol ${p.volume} · ${r.chainSource ?? ''}`}>{VARIANT_SHORT[p.variant] ?? p.variant}: {p.strike}{p.type === 'call' ? 'C' : 'P'} @ {px(p.ask)}</div>
+                      ))}
+                    </td>
+                    <td>
+                      {r.status === 'published' && r.ideaId
+                        ? <Link href={nexusIdeaHref({ ideaId: r.ideaId, symbol: r.symbol })} className="zd-idea-link"><b>published</b></Link>
+                        : <b>watch</b>}
+                      <small> · measuring{r.reason ? ` · ${r.reason}` : ''}</small>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+    </section>
+  );
+}
+
 /** The whole desk. `dense` = inside a dashboard tile. */
 export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
   const q = useZeroDteDesk();
@@ -220,6 +305,7 @@ export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
     <div className={`zd ${dense ? 'zd-dense' : ''}`}>
       <ZeroDteIdeas d={d} />
       <SessionClock phase={d.phase} />
+      <SniperSection />
       <section className="zd-section" aria-label="Sector ignition, intraday">
         <h4><Waves size={13} aria-hidden /> Sector ignition — intraday</h4>
         <p className="zd-note">Groups igniting since the open (VWAP breadth, ETF vs SPY, ORB breadth, 30-min flow cluster, pre-market gap). Igniting groups feed the ideas list above as WATCH (ETF or best laggard, same contract picker); logged only when the trigger prints. Measuring.</p>

@@ -24,6 +24,7 @@
     "test:squeeze": "tsx scripts/test-squeeze.ts",
     "test:gamma-adjusted": "tsx scripts/test-gamma-adjusted.ts",
     "test:zero-dte": "tsx scripts/test-zero-dte-desk.ts",
+    "test:zero-dte-sniper": "tsx scripts/test-zero-dte-sniper.ts",
     "test:roles": "tsx scripts/test-roles.ts",
     "test:sector-ignition": "tsx scripts/test-sector-ignition.ts",
     "test:model-determinism": "node scripts/verify-model-determinism.mjs",
