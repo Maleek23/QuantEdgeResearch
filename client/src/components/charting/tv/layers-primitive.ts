@@ -68,8 +68,10 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
   private bubbles: Bubble[] = [];
   private maxAbs = 1;
   private barMs = 60_000;
-  private frame: { dp: { y: number; lvl: DpLevel }[]; flow: { x: number; y: number; r: number; p: FlowPrint }[]; lines: { y: number; strike: number; gex: number }[]; rMax: number; spacing: number } =
+  private frame: { dp: { y: number; lvl: DpLevel }[]; flow: { x: number; y: number; r: number; p: FlowPrint }[]; lines: { y: number; strike: number; gex: number }[]; rMax: number; spacing: number; norm?: number } =
     { dp: [], flow: [], lines: [], rMax: 3, spacing: 6 };
+  /** Orbs painted in the last frame (0 = none on screen). */
+  orbsDrawn = 0;
   private readonly views: IPrimitivePaneView[];
   private axis: ISeriesPrimitiveAxisView[] = [];
 
@@ -208,26 +210,40 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
 
       if (gex === 'bubbles' && this.bubbles.length && n > 1) {
         const [from, to] = this.visibleRange(n);
-        const rMax = Math.max(1.6, Math.min(4.5, spacing * 0.6));
+        const rMax = Math.max(2.2, Math.min(5, spacing * 0.65));
         this.frame.rMax = rMax;
+        // Scale to what is on screen: a huge wall 3% away (off the price
+        // scale) or an old session must not shrink every visible orb to
+        // nothing — that was the "no orbs" chart on a quiet 1D view.
+        const onScreen: { b: Bubble; y: number }[] = [];
+        let visMax = 0;
         for (const b of this.bubbles) {
           const y = series.priceToCoordinate(b.strike);
           if (y == null || y < -10 || y > h + 10) continue;
+          onScreen.push({ b, y });
+          for (let i = from; i <= to; i++) { const a = Math.abs(b.vals[i]); if (a > visMax) visMax = a; }
+        }
+        const norm = visMax || this.maxAbs;
+        this.frame.norm = norm;
+        let drawn = 0;
+        for (const { b, y } of onScreen) {
           for (let i = from; i <= to; i++) {
             const g = b.vals[i];
             if (!Number.isFinite(g)) continue;
-            const m = Math.sqrt(Math.abs(g) / this.maxAbs);
+            const m = Math.sqrt(Math.abs(g) / norm);
             if (m < 0.04) continue;
             const x = this.xOf(i); if (x == null) continue;
-            const r = 0.8 + (rMax - 0.8) * m;
-            ctx.globalAlpha = 0.22 + 0.7 * m;
+            const r = 1 + (rMax - 1) * m;
+            ctx.globalAlpha = 0.3 + 0.65 * m;
             ctx.fillStyle = g >= 0 ? c.pos : c.neg;
             if (r < 1.4) ctx.fillRect(x - r, y - r, r * 2, r * 2);
             else { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+            drawn++;
           }
         }
         ctx.globalAlpha = 1;
-      }
+        this.orbsDrawn = drawn;
+      } else this.orbsDrawn = 0;
 
       const top = this.input.gexTop;
       if (gex === 'lines' && top?.length) {
@@ -327,7 +343,7 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
           const by = this.series.priceToCoordinate(b.strike);
           if (by == null) continue;
           const d = Math.abs(by - y);
-          const r = 0.8 + (f.rMax - 0.8) * Math.sqrt(Math.abs(g) / this.maxAbs);
+          const r = 1 + (f.rMax - 1) * Math.sqrt(Math.min(1, Math.abs(g) / (f.norm ?? this.maxAbs)));
           if (d <= Math.max(r, 5) && d < hd) { hd = d; hit = { kind: 'orb', strike: b.strike, g, t: b.times[idx], src: b.srcs[idx] }; }
         }
         if (hit) return hit;
