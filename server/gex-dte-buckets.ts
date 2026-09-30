@@ -13,6 +13,10 @@
  *   "Dealers must buy/sell $X notional per 1% spot move."
  */
 import type { GEXBucketSummary } from '../shared/gex-types';
+import { GEX_DTE_BUCKETS, bucketizeLegs, type BucketLeg, type GexBucketKey } from '../shared/gex-buckets';
+import { gexPer1Pct, expiryInstantMs } from '../shared/gex-math';
+
+type BucketKey = GexBucketKey;
 
 export interface BucketContract {
   expirationDate: string;     // YYYY-MM-DD
@@ -20,17 +24,10 @@ export interface BucketContract {
   cp: 'C' | 'P';
   oi: number;
   gamma: number;
+  /** Optional IV (decimal) + years to expiry — enables the re-priced per-bucket flip. */
+  iv?: number;
+  T?: number;
 }
-
-const DTE_BUCKETS = [
-  { key: 'today',   min: 0,  max: 1   },
-  { key: 'week',    min: 1,  max: 7   },
-  { key: 'month',   min: 7,  max: 30  },
-  { key: 'quarter', min: 30, max: 90  },
-  { key: 'leaps',   min: 90, max: 9999 },
-] as const;
-
-type BucketKey = typeof DTE_BUCKETS[number]['key'];
 
 /** Days between an ISO date string and now. */
 export function dteFromIso(iso: string, now = Date.now()): number {
@@ -62,161 +59,69 @@ export function dealerFlowFromTotalGEX(totalGEXBillions: number): number {
 }
 
 /**
- * Bucket a per-expiration matrix (strike × expiry) into DTE summaries.
- * Used by the Tradier path where we already have aggregated cells, not raw contracts.
+ * Fallback only: bucket a per-expiration NET matrix (strike × expiry) when the
+ * exposure engine did not supply canonical byDte. The matrix carries no leg split
+ * and no IV, so walls are the net-GEX extremes and the flip is NOT computed (null)
+ * rather than invented — see shared/gex-buckets.ts for why the old cumulative
+ * flip was wrong (it returned the lowest listed strike).
  */
 export function bucketizeMatrix(
   matrix: Array<{ strike: number; dte: number; netGEX: number }>,
   spot: number,
 ): Partial<Record<BucketKey, GEXBucketSummary>> {
   const out: Partial<Record<BucketKey, GEXBucketSummary>> = {};
-  for (const b of DTE_BUCKETS) {
-    const cells = matrix.filter(c => c.dte >= b.min && c.dte <= b.max);
+  for (const b of GEX_DTE_BUCKETS) {
+    const cells = matrix.filter(c => c.dte >= b.min && c.dte < b.max);
     if (cells.length === 0) continue;
-
-    // Aggregate by strike within bucket
     const byStrike = new Map<number, number>();
-    for (const c of cells) {
-      byStrike.set(c.strike, (byStrike.get(c.strike) ?? 0) + c.netGEX);
-    }
-    const strikes = Array.from(byStrike.entries())
-      .map(([strike, netGEX]) => ({ strike, netGEX }))
-      .sort((a, b) => a.strike - b.strike);
-
+    for (const c of cells) byStrike.set(c.strike, (byStrike.get(c.strike) ?? 0) + c.netGEX);
     let callWall: number | null = null, callWallGEX = 0;
     let putWall: number | null = null, putWallGEX = 0;
     let maxGammaStrike: number | null = null, maxAbs = 0;
-    for (const s of strikes) {
-      if (s.strike > spot && s.netGEX > callWallGEX) { callWallGEX = s.netGEX; callWall = s.strike; }
-      if (s.strike < spot && s.netGEX < putWallGEX) { putWallGEX = s.netGEX; putWall = s.strike; }
-      if (Math.abs(s.netGEX) > maxAbs) { maxAbs = Math.abs(s.netGEX); maxGammaStrike = s.strike; }
+    let total = 0;
+    for (const [strike, netGEX] of byStrike) {
+      total += netGEX;
+      if (strike > spot && netGEX > callWallGEX) { callWallGEX = netGEX; callWall = strike; }
+      if (strike < spot && netGEX < putWallGEX) { putWallGEX = netGEX; putWall = strike; }
+      if (Math.abs(netGEX) > maxAbs) { maxAbs = Math.abs(netGEX); maxGammaStrike = strike; }
     }
-
-    let gammaFlipPrice: number | null = null;
-    let cum = 0;
-    for (const s of strikes) {
-      const prev = cum;
-      cum += s.netGEX;
-      if ((prev <= 0 && cum > 0) || (prev >= 0 && cum < 0)) { gammaFlipPrice = s.strike; break; }
-    }
-
-    const totalGEXBillions = strikes.reduce((sum, s) => sum + s.netGEX, 0);
-    const expsCount = new Set(cells.map(c => c.dte)).size;
-
     out[b.key] = {
-      expirationsCount: expsCount,
-      totalGEX: totalGEXBillions,
+      expirationsCount: new Set(cells.map(c => c.dte)).size,
+      totalGEX: total,
       callWall,
       putWall,
       maxGammaStrike,
-      gammaFlipPrice,
-      dealerFlowPer1Pct: dealerFlowFromTotalGEX(totalGEXBillions),
+      gammaFlipPrice: null,
+      dealerFlowPer1Pct: dealerFlowFromTotalGEX(total),
     };
   }
   return out;
 }
 
 /**
- * Build per-DTE bucket summaries from a flat list of contracts.
- * Each bucket gets its own walls + flip + dealer flow.
+ * Build per-DTE bucket summaries from a flat list of contracts (CBOE fallback).
+ * Delegates to shared/gex-buckets.ts so the fallback reports exactly the same
+ * definitions and units ($B per 1%) as the main engine. (v1 omitted the 0.01
+ * per-1% factor here: totalGEX came out 100x the main path's.)
  */
 export function bucketizeChain(
   contracts: BucketContract[],
   spot: number,
   now = Date.now(),
 ): Partial<Record<BucketKey, GEXBucketSummary>> {
-  const buckets: Partial<Record<BucketKey, BucketContract[]>> = {};
-  const expsByBucket: Partial<Record<BucketKey, Set<string>>> = {};
-
+  const legs: BucketLeg[] = [];
   for (const c of contracts) {
-    if (!c.oi || c.oi <= 0) continue;
-    const dte = dteFromIso(c.expirationDate, now);
-    const b = DTE_BUCKETS.find(b => dte >= b.min && dte <= b.max);
-    if (!b) continue;
-    (buckets[b.key] ??= []).push(c);
-    (expsByBucket[b.key] ??= new Set()).add(c.expirationDate);
+    if (!c.oi || c.oi <= 0 || !Number.isFinite(c.gamma)) continue;
+    legs.push({
+      strike: c.strike,
+      dte: Math.max(0, (expiryInstantMs(c.expirationDate) - now) / 86_400_000),
+      isCall: c.cp === 'C',
+      oi: c.oi,
+      gexDollars: gexPer1Pct(Math.abs(c.gamma), c.oi, spot),
+      iv: c.iv,
+      T: c.T,
+      expiry: c.expirationDate,
+    });
   }
-
-  const out: Partial<Record<BucketKey, GEXBucketSummary>> = {};
-  for (const [key, list] of Object.entries(buckets) as [BucketKey, BucketContract[]][]) {
-    if (!list?.length) continue;
-    out[key] = summarizeBucket(list, spot, expsByBucket[key]?.size ?? 0);
-  }
-  return out;
-}
-
-function summarizeBucket(
-  contracts: BucketContract[],
-  spot: number,
-  expirationsCount: number,
-): GEXBucketSummary {
-  // Aggregate by strike
-  const byStrike = new Map<number, { netGEX: number; callGEX: number; putGEX: number; callOI: number; putOI: number }>();
-  let gammaSum = 0;
-
-  for (const c of contracts) {
-    const gex = c.oi * c.gamma * spot * spot * 100;
-    gammaSum += c.oi * c.gamma * (c.cp === 'P' ? -1 : 1);
-    const e = byStrike.get(c.strike) ?? { netGEX: 0, callGEX: 0, putGEX: 0, callOI: 0, putOI: 0 };
-    if (c.cp === 'C') {
-      e.callGEX += gex;
-      e.callOI += c.oi;
-    } else {
-      e.putGEX += gex;
-      e.putOI += c.oi;
-    }
-    e.netGEX = e.callGEX - e.putGEX;
-    byStrike.set(c.strike, e);
-  }
-
-  const strikes = Array.from(byStrike.entries())
-    .map(([strike, v]) => ({ strike, ...v }))
-    .sort((a, b) => a.strike - b.strike);
-
-  // Walls
-  let callWall: number | null = null;
-  let callWallGEX = 0;
-  let putWall: number | null = null;
-  let putWallGEX = 0;
-  let maxGammaStrike: number | null = null;
-  let maxAbs = 0;
-
-  for (const s of strikes) {
-    if (s.strike > spot && s.netGEX > callWallGEX && s.callOI > 50) {
-      callWallGEX = s.netGEX; callWall = s.strike;
-    }
-    if (s.strike < spot && s.netGEX < putWallGEX && s.putOI > 50) {
-      putWallGEX = s.netGEX; putWall = s.strike;
-    }
-    if (Math.abs(s.netGEX) > maxAbs) {
-      maxAbs = Math.abs(s.netGEX);
-      maxGammaStrike = s.strike;
-    }
-  }
-
-  // Gamma flip — cumulative netGEX sign change
-  let gammaFlipPrice: number | null = null;
-  let cum = 0;
-  for (const s of strikes) {
-    const prev = cum;
-    cum += s.netGEX;
-    if ((prev <= 0 && cum > 0) || (prev >= 0 && cum < 0)) {
-      gammaFlipPrice = s.strike;
-      break;
-    }
-  }
-
-  // Total GEX (billions) and dealer flow
-  const totalGEX = strikes.reduce((sum, s) => sum + s.netGEX, 0) / 1e9;
-  const dealerFlow = dealerFlowPer1PctFromGamma(gammaSum, spot);
-
-  return {
-    expirationsCount,
-    totalGEX,
-    callWall,
-    putWall,
-    maxGammaStrike,
-    gammaFlipPrice,
-    dealerFlowPer1Pct: dealerFlow,
-  };
+  return bucketizeLegs(legs, spot);
 }

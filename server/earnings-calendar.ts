@@ -29,7 +29,7 @@ export interface EarningsEvent {
 }
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-let _cache: { at: number; events: EarningsEvent[] } | null = null;
+let _cache: { at: number; events: EarningsEvent[]; days: number } | null = null;
 
 function parseSession(t: string | null | undefined): 'pre' | 'post' | null {
   const s = String(t ?? '').toLowerCase();
@@ -86,7 +86,17 @@ async function fetchDay(date: string): Promise<EarningsEvent[]> {
  * fewer request against a source we do not want to hammer.
  */
 export async function getUpcomingEarnings(days = 21, force = false): Promise<EarningsEvent[]> {
-  if (!force && _cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.events;
+  // The cache covers the horizon it was FILLED with. v1 returned it for any `days`,
+  // so whichever caller ran first (3, 7, 21 or 30) set the horizon for everyone for
+  // six hours, and daysAway froze with it. Serve the cache only when it covers the
+  // ask, trim to the ask, and recompute daysAway against today (ET).
+  if (!force && _cache && _cache.days >= days && Date.now() - _cache.at < CACHE_TTL_MS) {
+    const today = marketDateET();
+    const t0 = new Date(`${today}T12:00:00Z`).getTime();
+    return _cache.events
+      .map((e) => ({ ...e, daysAway: Math.round((new Date(`${e.date}T12:00:00Z`).getTime() - t0) / 86_400_000) }))
+      .filter((e) => e.daysAway >= 0 && e.daysAway <= days);
+  }
 
   const out: EarningsEvent[] = [];
   for (let i = 0; i <= days; i++) {
@@ -100,7 +110,7 @@ export async function getUpcomingEarnings(days = 21, force = false): Promise<Ear
     }
   }
 
-  _cache = { at: Date.now(), events: out };
+  _cache = { at: Date.now(), events: out, days };
   logger.info(`[EARNINGS] ${out.length} upcoming reports across ${days} days`);
   return out;
 }

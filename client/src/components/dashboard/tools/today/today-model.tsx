@@ -8,6 +8,7 @@
  * the weekly path is a MODEL projection labelled "not a forecast"; nothing
  * publish-time is shown as current (live quotes carry their own timestamp).
  */
+import { CONVICTIONS_QUERY_KEY, isLiveBookPick } from '@/lib/convictions';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -19,8 +20,8 @@ export interface WPLevel { price: number; label: string; type: string; side: str
 export interface WPPoint { dayOffset: number; price: number; lo?: number; hi?: number; confidence: number }
 export interface WPPhase { label: string; description: string; startDay: number; endDay: number; type: string }
 export interface WeeklyPath { cached?: boolean; cachedAt?: string; symbol: string; spotPrice: number; weekStart: string; weekEnd: string; levels: WPLevel[]; path: WPPoint[]; phases: WPPhase[]; regime: string; confidence: number; expectedMove?: number; annualVol?: number; volSource?: string; impliedVol?: number }
-export interface GexLevel { strike: number; gammaPct: number; role?: string }
-export interface GexSnap { spotPrice: number; callWall?: number; putWall?: number; maxGammaStrike?: number; gammaFlipPrice?: number; levels?: GexLevel[] }
+export interface GexLevel { strike: number; gammaPct: number; role?: string; gex?: number }
+export interface GexSnap { spotPrice: number; callWall?: number; putWall?: number; maxGammaStrike?: number; gammaFlipPrice?: number; zeroGammaLevel?: number | null; regime?: string; regimeRead?: { regime?: 'positive' | 'negative' | 'neutral'; nearFlip?: boolean }; totalGEX?: number; levels?: GexLevel[] }
 export interface Layer { kind: string; why: string; points: number }
 export interface Pick {
   ideaId: string; symbol: string; direction: 'long' | 'short'; sector?: string; thesis?: string;
@@ -28,8 +29,9 @@ export interface Pick {
   convictionScore?: number | null; convictionBand?: string | null; layers?: Layer[]; optionType?: string; strikePrice?: number; expiryDate?: string;
   lifecycleState?: string; isBotHeld?: boolean; generatedAt?: string;
 }
-export interface Perf { overall?: { winRate?: number; winRateDecided?: number; expectancy?: number; profitFactor?: number; totalIdeas?: number } }
-export interface Quote { price?: number; lastPrice?: number; changePercent?: number; asOf?: string }
+/** /api/performance/model-record — shared/model-record.ts (outcome v2, since OUTCOME_BASELINE_DATE). */
+export interface Perf { since?: string; asOf?: string; winRate?: number | null; wins?: number; losses?: number; decided?: number; unresolved?: number; total?: number; expectancyR?: number | null; rSampleSize?: number; coveragePct?: number; sampleFloor?: number }
+export interface Quote { price?: number; lastPrice?: number; changePercent?: number; asOf?: string; session?: 'pre' | 'regular' | 'post' | 'closed' | null; source?: string | null }
 export interface IndexScalp {
   id: string; symbol: string; direction: 'long' | 'short'; bias: string;
   setup?: string; strike?: number | null; expiry?: string | null;
@@ -66,9 +68,11 @@ export function useSpyGex() {
 }
 
 export function useBook() {
-  const conv = useQuery<{ picks?: Pick[]; generatedAt?: string }>({ queryKey: ['/api/convictions', 'today'], queryFn: get('/api/convictions'), staleTime: 60_000, refetchInterval: 90_000 });
+  // Same query key + cadence as NEXUS (one fetch, one snapshot) and the same
+  // membership rule (isLiveBookPick) so "N live" and the scores match NEXUS exactly.
+  const conv = useQuery<{ picks?: Pick[]; generatedAt?: string }>({ queryKey: [...CONVICTIONS_QUERY_KEY], queryFn: get('/api/convictions'), staleTime: 30_000, refetchInterval: 60_000 });
   const ideas = useMemo(() => (conv.data?.picks ?? [])
-    .filter((p) => typeof p.convictionScore === 'number' && !p.isBotHeld && p.lifecycleState !== 'executed')
+    .filter((p) => isLiveBookPick(p as never))
     .sort((a, b) => (b.convictionScore ?? 0) - (a.convictionScore ?? 0)), [conv.data]);
   const syms = ideas.slice(0, 12).map((p) => p.symbol).concat('SPY').join(',');
   const quotes = useQuery<{ quotes: Record<string, Quote> }>({
@@ -83,7 +87,7 @@ export function useBook() {
 }
 
 export const usePerf = () =>
-  useQuery<Perf>({ queryKey: ['/api/performance/stats/', 'today'], queryFn: get('/api/performance/stats/'), staleTime: 600_000 });
+  useQuery<Perf>({ queryKey: ['/api/performance/model-record', 'today'], queryFn: get('/api/performance/model-record'), staleTime: 600_000 });
 
 export const useRotation = () =>
   useQuery<RotationPayload>({ queryKey: ['/api/sector-rotation', 'landing'], queryFn: fetchJson('/api/sector-rotation'), refetchInterval: 300_000, staleTime: 120_000, retry: 1 });

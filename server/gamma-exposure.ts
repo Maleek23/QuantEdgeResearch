@@ -85,6 +85,8 @@ export interface GammaExposureResult {
   zeroGammaLevel?: number | null;
   zeroGammaCrossings?: number[];
   gammaProfile?: Array<{ spot: number; netGEX: number }>;
+  /** Per-horizon levels from the same contracts (shared/gex-buckets.ts). */
+  byDte?: ExposureSnapshot['byDte'];
   callWallOI?: number | null;
   putWallOI?: number | null;
   dataSource?: 'alpaca' | 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
@@ -341,6 +343,7 @@ function snapshotToLegacy(
     regimeRead: snap.regimeRead,
     vexRegime: snap.vexRegime,
     strikeExpiryMatrix: snap.strikeExpiryMatrix,
+    byDte: snap.byDte,
     dataSource: source === 'none' ? undefined : source,
     dataQuality: {
       grade: cq.qualityGrade,

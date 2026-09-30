@@ -185,12 +185,14 @@ export async function buildTickerRead(symbol: string, bars: Bar[], spyBars: Bar[
     const snap = await computeGEXFromCBOE(sym);
     if (snap && snap.spotPrice > 0) {
       const cw = Number(snap.callWall), pw = Number(snap.putWall);
-      const neg = String(snap.regime).includes('negative');
+      const { regimeFromLegacy } = await import('@shared/gex-regime');
+      const gr = (snap as any).regimeRead?.regime ?? regimeFromLegacy(snap.regime); // shared rule, 5% neutral band
+      const neg = gr === 'negative';
       dims.push({
         key: 'gamma',
         label: 'Dealer gamma',
         state: neg ? 'caution' : 'neutral',
-        value: `${neg ? 'short' : 'long'} gamma${Number.isFinite(cw) ? ` · wall $${cw}` : ''}`,
+        value: `${neg ? 'short' : gr === 'positive' ? 'long' : 'balanced'} gamma${Number.isFinite(cw) ? ` · wall $${cw}` : ''}`,
         read: neg
           ? `Dealers are short gamma — they hedge WITH the move, so pushes tend to extend rather than fade.${Number.isFinite(pw) ? ` Put wall $${pw}.` : ''}`
           : `Dealers are long gamma — they hedge against the move, which damps range.${Number.isFinite(cw) ? ` Call wall $${cw} caps rallies.` : ''}`,

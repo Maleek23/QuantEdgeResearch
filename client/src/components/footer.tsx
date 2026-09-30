@@ -116,7 +116,7 @@ export function LiveStatsBar() {
   const activeBots = botStatus?.bots?.filter(b => b.status === "active")?.length || 0;
   const watchlistCount = watchlistData?.length || 0;
   const regime = pulseData?.regime?.label || pulseData?.macro?.vixState || regimeData?.current || "Unknown";
-  const vix = pulseData?.macro?.vix ?? regimeData?.indicators?.vix ?? 0;
+  const vix = pulseData?.macro?.vix ?? regimeData?.indicators?.vix ?? null; // null = no read — show a dash, never 0.0
 
   const getRegimeColor = (r: string) => {
     const lower = r.toLowerCase();
@@ -148,7 +148,7 @@ export function LiveStatsBar() {
         <Activity className="h-3.5 w-3.5 text-[var(--trade-neutral)]" />
         <span className="text-muted-foreground">VIX:</span>
         <span className={cn("font-medium", getRegimeColor(regime))}>
-          {safeToFixed(vix, 1)}
+          {vix == null ? '—' : safeToFixed(vix, 1)}
         </span>
       </div>
     </div>

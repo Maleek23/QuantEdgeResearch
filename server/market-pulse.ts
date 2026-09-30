@@ -13,6 +13,8 @@
  */
 
 import { logger } from './logger';
+import { dayChangeFromIntradayChart, priorCloseFromDaily } from '../shared/price-change';
+import { toYahooSymbol } from './yahoo-client';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -90,7 +92,8 @@ interface SectorRotation {
 }
 
 interface MacroContext {
-  vix: number;
+  /** null when the VIX fetch failed — never a 0 that reads as a real level. */
+  vix: number | null;
   vixState: 'CALM' | 'NORMAL' | 'ELEVATED' | 'PANIC';
   yield10Y: number;
   yieldDirection: 'RISING' | 'FALLING';
@@ -170,23 +173,24 @@ async function fetchYahoo(symbol: string): Promise<{
   price: number; change: number; marketState: string; preMarket: number | null
 } | null> {
   try {
-    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?range=2d&interval=1d&includePrePost=true`;
+    // range=1d: Yahoo's chartPreviousClose is the prior regular close ONLY for a
+    // 1-day range. v1 asked for range=2d, so every "today" change here (indices,
+    // sectors, BTC, the regime inputs) was a TWO-day move — SPY −0.93% on prod
+    // 2026-09-29 while the session was −0.18%. The math is now the platform's one
+    // definition (shared/price-change.ts), identical to /api/quotes/batch.
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(toYahooSymbol(symbol))}?range=1d&interval=5m&includePrePost=true`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     const j: any = await r.json();
     const res = j?.chart?.result?.[0];
-    if (!res) return null;
+    const dc = dayChangeFromIntradayChart(res);
+    if (!dc) return null;
     const m = res.meta;
-    const closes = res.indicators?.quote?.[0]?.close || [];
-    let li = closes.length - 1;
-    while (li >= 0 && closes[li] == null) li--;
-    const last = closes[li];
-    const prev = m.chartPreviousClose;
     return {
-      price: +last.toFixed(2),
-      change: +((last - prev) / prev * 100).toFixed(2),
-      marketState: m.marketState || 'CLOSED',
-      preMarket: m.preMarketPrice
-        ? +(((m.preMarketPrice - last) / last) * 100).toFixed(2)
+      price: +dc.price.toFixed(2),
+      change: +dc.changePercent.toFixed(2),
+      marketState: m.marketState || (dc.session === 'regular' ? 'REGULAR' : dc.session === 'pre' ? 'PRE' : dc.session === 'post' ? 'POST' : 'CLOSED'),
+      preMarket: m.preMarketPrice && dc.previousClose > 0
+        ? +(((m.preMarketPrice - dc.previousClose) / dc.previousClose) * 100).toFixed(2)
         : null
     };
   } catch (e) {
@@ -294,19 +298,21 @@ export async function getMarketPulse(watchlist: string[] = []): Promise<MarketPu
   // Macro context
   const [vix, tnx, dxy, btc, gld] = macroData;
   const macro: MacroContext = {
-    vix: vix?.price || 0,
-    vixState: classifyVix(vix?.price || 16),
+    // v1 wrote 0 on a failed fetch and then classified 16 ("NORMAL"), fed 0 into
+    // the regime (biasing BULL) and into fear/greed (vixScore 160). Missing = null.
+    vix: vix?.price ?? null,
+    vixState: vix?.price != null ? classifyVix(vix.price) : 'NORMAL',
     yield10Y: tnx?.price || 0,
     yieldDirection: (tnx?.change || 0) > 0 ? 'RISING' : 'FALLING',
     dxy: dxy?.price || 0,
     btc: { price: btc?.price || 0, change: btc?.change || 0 },
-    riskTone: classifyRiskTone(vix?.price || 16, btc?.change || 0, gld?.change || 0)
+    riskTone: classifyRiskTone(vix?.price ?? NaN, btc?.change || 0, gld?.change || 0)
   };
 
   // Regime
   const spy = indices.find(i => i.symbol === 'SPY');
   const greenSectors = sectors.filter(s => s.change > 0).length / sectors.length;
-  const regime = classifyRegime(spy?.change || 0, macro.vix, greenSectors);
+  const regime = classifyRegime(spy?.change || 0, macro.vix ?? NaN, greenSectors);
 
   // Watchlist movers
   const moves: TickerMove[] = watchlistData
@@ -327,7 +333,7 @@ export async function getMarketPulse(watchlist: string[] = []): Promise<MarketPu
   const bottomSector = sectors[sectors.length - 1];
   const narrative = `Market ${marketColor === 'GREEN' ? '🟢' : marketColor === 'RED' ? '🔴' : '🟡'}. ` +
     `${topSector.name} leading (+${topSector.change}%), ${bottomSector.name} lagging (${bottomSector.change}%). ` +
-    `VIX ${macro.vix.toFixed(1)} ${macro.vixState.toLowerCase()}, ${macro.riskTone}. ` +
+    `${macro.vix != null ? `VIX ${macro.vix.toFixed(1)} ${macro.vixState.toLowerCase()}` : 'VIX unavailable'}, ${macro.riskTone}. ` +
     `Regime: ${regime.label.replace('_', ' ').toLowerCase()}.`;
 
   // ───── DEEP CONTEXT — pulled in parallel with the rest ─────
@@ -384,8 +390,13 @@ async function computeBreadth(): Promise<BreadthSignals | undefined> {
       if (!res) return null;
       const closes = (res.indicators?.quote?.[0]?.close || []).filter((c: any) => c != null);
       if (closes.length < 50) return null;
-      const last = closes[closes.length - 1];
-      const prev = res.meta?.chartPreviousClose;
+      // Daily bars: the prior close is the bar before the latest one. v1 used
+      // chartPreviousClose, which for range=3mo is the close three months ago —
+      // "advance" meant "up over the quarter".
+      const lc = priorCloseFromDaily(closes);
+      if (!lc) return null;
+      const last = lc.last;
+      const prev = lc.prev;
       const ma50 = closes.slice(-50).reduce((a: number, b: number) => a + b, 0) / 50;
       const hi52 = res.meta?.fiftyTwoWeekHigh || 0;
       const lo52 = res.meta?.fiftyTwoWeekLow || 0;
@@ -482,14 +493,18 @@ async function computeGEXLevels(): Promise<GEXLevelsSummary | undefined> {
   return { spy, qqq };
 }
 
-function computeFearGreed(input: { vix: number; breadthScore: number; pcr: number; spyChange: number }): FearGreedSignal {
-  // Composite 0-100 (greedy)
-  const vixScore = Math.max(0, 100 - (input.vix - 12) * 5);     // 12=100, 32=0
-  const breadthScore = input.breadthScore;
-  const pcrScore = Math.max(0, 100 - (input.pcr - 0.7) * 100);  // 0.7=100, 1.7=0
-  const momentumScore = Math.max(0, Math.min(100, 50 + input.spyChange * 50));
+function computeFearGreed(input: { vix: number | null; breadthScore: number; pcr: number; spyChange: number }): FearGreedSignal {
+  // Composite 0-100 (greedy). Every component is clamped to [0,100] (v1 let VIX<12
+  // or PCR<0.7 push a component past 100), and a missing VIX is left out of the
+  // average instead of being scored as VIX 0.
+  const clamp = (x: number) => Math.max(0, Math.min(100, x));
+  const vixScore = input.vix != null && input.vix > 0 ? clamp(100 - (input.vix - 12) * 5) : null; // 12=100, 32=0
+  const breadthScore = clamp(input.breadthScore);
+  const pcrScore = clamp(100 - (input.pcr - 0.7) * 100);  // 0.7=100, 1.7=0
+  const momentumScore = clamp(50 + input.spyChange * 50);
 
-  const value = Math.round((vixScore + breadthScore + pcrScore + momentumScore) / 4);
+  const parts = [vixScore, breadthScore, pcrScore, momentumScore].filter((x): x is number => x != null);
+  const value = Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
   const label =
     value >= 75 ? 'EXTREME_GREED' :
     value >= 55 ? 'GREED' :
@@ -501,7 +516,7 @@ function computeFearGreed(input: { vix: number; breadthScore: number; pcr: numbe
     value,
     label,
     components: {
-      vix: Math.round(vixScore),
+      vix: vixScore != null ? Math.round(vixScore) : (null as unknown as number),
       breadth: Math.round(breadthScore),
       pcr: Math.round(pcrScore),
       momentum: Math.round(momentumScore)
@@ -610,9 +625,10 @@ export async function detectRegimeChange(): Promise<RegimeChange> {
   const current = {
     label: pulse.regime.label,
     color: pulse.marketColor,
-    vix: pulse.macro.vix,
+    vix: pulse.macro.vix ?? NaN, // NaN: no VIX read this pass — never compared as a spike
     ts: Date.now()
   };
+  const fv = (v: number) => (Number.isFinite(v) ? v.toFixed(1) : 'n/a');
 
   // First scan or stale (>4 hours) — initialize
   if (!lastKnownRegime || (Date.now() - lastKnownRegime.ts) > 4 * 3600 * 1000) {
@@ -620,7 +636,7 @@ export async function detectRegimeChange(): Promise<RegimeChange> {
     return {
       changed: false,
       current,
-      message: `Initialized: ${current.label} (${current.color}), VIX ${current.vix.toFixed(1)}`
+      message: `Initialized: ${current.label} (${current.color}), VIX ${fv(current.vix)}`
     };
   }
 
@@ -633,7 +649,7 @@ export async function detectRegimeChange(): Promise<RegimeChange> {
     const reasons: string[] = [];
     if (labelChanged) reasons.push(`Regime: ${previous.label} → ${current.label}`);
     if (colorChanged) reasons.push(`Tape: ${previous.color} → ${current.color}`);
-    if (vixSpike) reasons.push(`VIX: ${lastKnownRegime.vix.toFixed(1)} → ${current.vix.toFixed(1)}`);
+    if (vixSpike) reasons.push(`VIX: ${fv(lastKnownRegime.vix)} → ${fv(current.vix)}`);
     lastKnownRegime = current;
     return {
       changed: true,
@@ -646,6 +662,6 @@ export async function detectRegimeChange(): Promise<RegimeChange> {
   return {
     changed: false,
     current,
-    message: `No change: ${current.label} (${current.color}), VIX ${current.vix.toFixed(1)}`
+    message: `No change: ${current.label} (${current.color}), VIX ${fv(current.vix)}`
   };
 }

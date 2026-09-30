@@ -3,6 +3,7 @@ import { fetchStockPrice, fetchCryptoPrice, fetchYahooFinancePrice } from './mar
 import { getTradierQuote, getOptionMark } from './tradier-api';
 import { yahooQuote } from './yahoo-client';
 import { getFuturesPrice, getFuturesPrices } from './futures-data-service';
+import { changeFromPercent } from '../shared/price-change';
 
 export interface RealtimeQuote {
   symbol: string;
@@ -19,6 +20,12 @@ export interface RealtimeQuote {
   source?: string;
   /** True when the venue reports a delayed chain rather than a realtime mark. */
   delayed?: boolean;
+  /** Session of the print (Yahoo path) — lets a surface label an after-hours move. */
+  session?: 'pre' | 'regular' | 'post' | 'closed';
+  /** Prior regular close used for change/changePercent, when known. */
+  previousClose?: number;
+  /** True when this is an expired cache entry served because the live fetch failed. */
+  stale?: boolean;
 }
 
 export type AssetType = 'stock' | 'crypto' | 'option' | 'futures';
@@ -64,6 +71,7 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
         volume: quote.volume,
         lastUpdate: new Date(),
         assetType: 'stock',
+        source: 'tradier',
       };
     }
   }
@@ -85,6 +93,9 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
       volume: yq.volume,
       lastUpdate: new Date(yq.at),
       assetType: 'stock',
+      source: 'yahoo',
+      session: yq.session,
+      previousClose: yq.previousClose,
     };
   }
 
@@ -113,13 +124,16 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
       symbol: marketData.symbol,
       name: marketData.symbol,
       price: marketData.currentPrice,
-      change: (marketData.currentPrice * marketData.changePercent) / 100,
+      // change = price − prevClose, where prevClose = price/(1+pct). v1 used
+      // price·pct/100, which takes today's price as the base.
+      change: changeFromPercent(marketData.currentPrice, marketData.changePercent),
       changePercent: marketData.changePercent,
       high: marketData.high24h || marketData.currentPrice,
       low: marketData.low24h || marketData.currentPrice,
       volume: marketData.volume,
       lastUpdate: new Date(),
       assetType: 'stock',
+      source: `legacy:${(marketData as any).source ?? 'unknown'}`,
     };
   }
 
@@ -153,6 +167,9 @@ async function fetchIndexQuote(symbol: string): Promise<RealtimeQuote | null> {
       volume: 0,
       lastUpdate: new Date(),
       assetType: 'stock',
+      source: 'cboe',
+      delayed: true, // CBOE index levels are 15-minute delayed
+      previousClose: Number.isFinite(prev) && prev > 0 ? prev : undefined,
     };
   } catch {
     return null;
@@ -166,7 +183,7 @@ async function fetchCryptoQuote(symbol: string): Promise<RealtimeQuote | null> {
       symbol: marketData.symbol,
       name: marketData.symbol,
       price: marketData.currentPrice,
-      change: (marketData.currentPrice * marketData.changePercent) / 100,
+      change: changeFromPercent(marketData.currentPrice, marketData.changePercent),
       changePercent: marketData.changePercent,
       high: marketData.high24h || marketData.currentPrice,
       low: marketData.low24h || marketData.currentPrice,
@@ -225,7 +242,7 @@ async function fetchFuturesQuote(symbol: string): Promise<RealtimeQuote | null> 
         symbol: yahooData.symbol,
         name: yahooData.symbol,
         price: yahooData.currentPrice,
-        change: (yahooData.currentPrice * yahooData.changePercent) / 100,
+        change: changeFromPercent(yahooData.currentPrice, yahooData.changePercent),
         changePercent: yahooData.changePercent,
         high: yahooData.high24h || yahooData.currentPrice,
         low: yahooData.low24h || yahooData.currentPrice,
@@ -304,14 +321,15 @@ export async function getRealtimeQuote(
       // known price rather than dropping the symbol — keeps the UI consistent
       // (no disappearing rows / divergent prices) instead of showing a gap.
       logger.warn(`[REALTIME-PRICING] No fresh data for ${assetType} ${symbol}, serving stale cache (${Math.round((Date.now() - cached.timestamp) / 1000)}s old)`);
-      return cached.quote;
+      // Flag it: a carried price must never be presented as current.
+      return { ...cached.quote, stale: true };
     } else {
       logger.warn(`[REALTIME-PRICING] No data returned for ${assetType} ${symbol}`);
     }
   } catch (error) {
     logger.error(`[REALTIME-PRICING] Error fetching ${assetType} quote for ${symbol}:`, error);
-    // Fall back to stale cache on hard error too.
-    if (cached) return cached.quote;
+    // Fall back to stale cache on hard error too — flagged stale.
+    if (cached) return { ...cached.quote, stale: true };
     return null;
   }
 

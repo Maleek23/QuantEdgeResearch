@@ -11,6 +11,8 @@ export interface MarketContext {
   reasons: string[];
   spyData: { price: number; change: number; relativeVolume: number } | null;
   vixLevel: number | null;
+  /** Which feed the SPY/QQQ/VIX inputs came from (audit 2026-09-29: Tradier-only v1 was always empty). */
+  dataSource?: string;
   timestamp: Date;
 }
 
@@ -37,13 +39,29 @@ export async function getMarketContext(forceRefresh = false): Promise<MarketCont
   }
 
   try {
-    const [spyQuote, qqqQuote, vixQuote] = await Promise.all([
+    // Tradier first; when it has nothing (401 on an unfunded key, and it never
+    // returns index symbols such as VIX) fall back to the platform's canonical
+    // quote (realtime-pricing-service → throttled Yahoo) and the canonical ^VIX
+    // read used by /api/market-pulse, so this panel's VIX equals the footer's.
+    const [tSpy, tQqq] = await Promise.all([
       getTradierQuote('SPY').catch(() => null),
       getTradierQuote('QQQ').catch(() => null),
-      getTradierQuote('VIX').catch(() => null),
-    ]) as [QuoteData | null, QuoteData | null, QuoteData | null];
+    ]) as [QuoteData | null, QuoteData | null];
+    const { getRealtimeQuote } = await import('./realtime-pricing-service');
+    const { getVixLevel } = await import('./market-pulse');
+    const adapt = (q: any): QuoteData | null => q && q.price > 0 ? {
+      last: q.price, change_percentage: q.changePercent ?? 0, volume: q.volume ?? 0, average_volume: 0,
+      high: q.high ?? 0, low: q.low ?? 0, week_52_high: 0, week_52_low: 0,
+    } : null;
+    const [spyQuote, qqqQuote, vixLevel] = await Promise.all([
+      tSpy ? Promise.resolve(tSpy) : getRealtimeQuote('SPY', 'stock').then(adapt).catch(() => null),
+      tQqq ? Promise.resolve(tQqq) : getRealtimeQuote('QQQ', 'stock').then(adapt).catch(() => null),
+      getVixLevel().catch(() => null),
+    ]);
+    const vixQuote = vixLevel != null ? ({ last: vixLevel } as QuoteData) : null;
 
     const context = analyzeMarketConditions(spyQuote, qqqQuote, vixQuote);
+    context.dataSource = `${tSpy ? 'tradier' : 'realtime-pricing (yahoo)'}; VIX yahoo ^VIX`;
     
     cachedContext = context;
     lastFetchTime = now;

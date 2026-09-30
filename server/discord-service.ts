@@ -557,7 +557,10 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
     const source = (idea as any).source || '';
     const isSPXSource = source === 'orb_scanner' || source === 'spx_session';
     const allowedGrades = isSPXSource ? SECONDARY_DISCORD_GRADES : VALID_DISCORD_GRADES;
-    if (!allowedGrades.includes(grade)) {
+    // A conviction-band S/A signal already passed the engine's own gate (signal-alerts.ts);
+    // its letter can legitimately be B- (raw 19–20), which this list would drop.
+    const bandPass = ['S', 'A'].includes(String((idea as any).convictionBand || ''));
+    if (!bandPass && !allowedGrades.includes(grade)) {
       logger.debug(`[DISCORD] Skipped ${idea.symbol} - grade ${grade} not in ${isSPXSource ? 'SPX' : 'A/A+'} tier`);
       return;
     }

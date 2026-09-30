@@ -13,6 +13,7 @@
  * short gate verdict rides along so a bearish lean is always shown next to
  * whether the discipline rule would even allow acting on it.
  */
+import { convictionBandForScore, convictionLetterGrade } from '../shared/conviction-bands';
 import { logger } from './logger';
 
 export interface QuantinumLayer {
@@ -27,7 +28,9 @@ export interface QuantinumLayer {
 export interface QuantinumDossier {
   symbol: string;
   asOf: string;
-  price: { last: number | null; changePercent: number | null };
+  price: { last: number | null; changePercent: number | null; source: string | null; asOf: string | null; session: string | null; stale: boolean };
+  /** Canonical dealer levels (server/gex-snapshot-service → options-exposures), same numbers as the GEX page. */
+  gex: { spot: number; callWall: number | null; putWall: number | null; zeroGamma: number | null; regime: string | null; netGexSign: string; asOf: string } | null;
   layers: QuantinumLayer[];
   unavailable: string[];
   bullPoints: number;
@@ -48,6 +51,8 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
   const unavailable: string[] = [];
   let last: number | null = null;
   let changePercent: number | null = null;
+  let quoteSource: string | null = null; let quoteAsOf: string | null = null; let quoteSession: string | null = null; let quoteStale = false;
+  let gex: QuantinumDossier['gex'] = null;
   let above200 = false;
   let hasEventCatalyst = false;
 
@@ -58,6 +63,10 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
     if (q && Number.isFinite(q.price) && q.price > 0) {
       last = q.price;
       changePercent = Number.isFinite(q.changePercent) ? q.changePercent : null;
+      quoteSource = q.source ?? null;
+      quoteAsOf = q.lastUpdate instanceof Date ? q.lastUpdate.toISOString() : null;
+      quoteSession = q.session ?? null;
+      quoteStale = !!q.stale;
     }
   } catch { /* quote layer reports below */ }
   if (changePercent != null && Math.abs(changePercent) >= 1.5) {
@@ -253,10 +262,13 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
     const pick: any = (board?.picks ?? []).find((p: any) => p.symbol === sym);
     if (pick) {
       const dirLong = pick.direction !== 'short';
-      const pts = (pick.convictionScore >= 40 ? 6 : pick.convictionScore >= 25 ? 4 : 2) * (dirLong ? 1 : -1);
+      // Points by the shared band (S/A/B/C) — v1 used private 40/25 cutoffs and printed
+      // pick.grade, a field ConvictionPick does not carry.
+      const band = convictionBandForScore(pick.convictionScore);
+      const pts = (band === 'S' ? 6 : band === 'A' ? 4 : 2) * (dirLong ? 1 : -1);
       layers.push({
         kind: 'cockpit', label: 'Cockpit signal', points: pts,
-        why: `board publishes ${dirLong ? 'LONG' : 'SHORT'} at conviction ${pick.convictionScore}${pick.grade ? ` (${pick.grade})` : ''} — the funnel's own live pick on this name`,
+        why: `board publishes ${dirLong ? 'LONG' : 'SHORT'} at conviction ${pick.convictionScore} (band ${band} · ${convictionLetterGrade(pick.convictionScore)}) — the funnel's own live pick on this name`,
         source: 'conviction board',
       });
     }
@@ -276,7 +288,24 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
     unavailable.push('market tape (read failed)');
   }
 
-  unavailable.push('dealer positioning (GEX) — open the GEX hub for this name; not yet wired into Quantinum');
+  // ── dealer positioning (GEX) — the canonical snapshot, reported not scored ──
+  // Levels are context, so they carry 0 points: the dossier's lean is unchanged,
+  // but the numbers now match the GEX page instead of saying "open the hub".
+  try {
+    const { getGexSnapshot } = await import('./gex-snapshot-service');
+    const g = await getGexSnapshot(sym);
+    if (g) {
+      gex = { spot: g.spot, callWall: g.callWall, putWall: g.putWall, zeroGamma: g.flipPoint, regime: g.regime, netGexSign: g.netGexSign, asOf: g.fetchedAt };
+      const fmt = (v: number | null) => (v == null ? 'n/a' : v.toFixed(2));
+      layers.push({
+        kind: 'gex' as any, label: 'Dealer positioning', points: 0,
+        why: `${g.regime ?? 'unknown'} · put wall ${fmt(g.putWall)} · zero-gamma ${fmt(g.flipPoint)} · call wall ${fmt(g.callWall)} (context, not scored)`,
+        source: 'options exposure engine',
+      });
+    } else unavailable.push('dealer positioning (GEX) — no options chain for this name right now');
+  } catch {
+    unavailable.push('dealer positioning (GEX) — read failed');
+  }
 
   // ── verdict ───────────────────────────────────────────────────────────────
   const bullPoints = layers.filter((l) => l.points > 0).reduce((a, l) => a + l.points, 0);
@@ -314,7 +343,8 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
   return {
     symbol: sym,
     asOf: new Date().toISOString(),
-    price: { last, changePercent },
+    price: { last, changePercent, source: quoteSource, asOf: quoteAsOf, session: quoteSession, stale: quoteStale },
+    gex,
     layers,
     unavailable,
     bullPoints,
