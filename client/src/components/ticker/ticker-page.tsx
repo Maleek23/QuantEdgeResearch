@@ -25,7 +25,7 @@ import { ArrowLeft, Bell, Cpu, Star } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { openWorkup } from '@/lib/workup-bus';
 import { getPeerSet } from '@shared/sector-peers';
-import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
+import { QEChart } from '@/components/charting/qe-chart';
 import type { Level, Zone } from '@/components/charting/chart-engine';
 import { TickerSwitcher } from '@/components/ticker-switcher';
 import { LuxButton, LuxPage, LuxTag } from '@/components/lux';
@@ -199,9 +199,9 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   /* chart levels: dealer anchors + published execution levels + 1σ week band */
   const levels: Level[] = useMemo(() => {
     const rows: Level[] = [];
-    if (snap?.putWall != null) rows.push({ price: snap.putWall, color: '#ef6461', label: 'PUT WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
-    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: '#f4b942', label: 'ZERO Γ', kind: 'gex-anchor', strength: 0.7, meta: 'Γ flip' });
-    if (snap?.callWall != null) rows.push({ price: snap.callWall, color: '#38d9a9', label: 'CALL WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
+    if (snap?.putWall != null) rows.push({ price: snap.putWall, color: 'put', label: 'PUT WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
+    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: 'caution', label: 'ZERO Γ', kind: 'gex-anchor', strength: 0.7, meta: 'Γ flip' });
+    if (snap?.callWall != null) rows.push({ price: snap.callWall, color: 'call', label: 'CALL WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
     if (pick && pick.levelBasis !== 'contract') {
       if (pick.targetPrice != null) rows.push({ price: pick.targetPrice, color: '#6ee7b7', label: 'T1', kind: 'execution' });
       if (pick.entryPrice != null) rows.push({ price: pick.entryPrice, color: '#3b8cff', label: 'ENTRY', kind: 'execution' });
@@ -341,7 +341,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       </div>
 
       <div className="tk-chart" id="chart">
-        <NexusPriceChart key={`tk-${sym}`} symbol={sym} initialTf="1D" height={380} levels={levels} zones={zones} expandable />
+        <QEChart key={`tk-${sym}`} symbol={sym} initialTf="1D" height={380} levels={levels} zones={zones} />
         <p className="tk-footnote">Drawn: call/put walls and zero-γ from the live chain{zones.length ? ', the week’s 1σ band' : ''}{levels.some((l) => l.kind === 'execution') ? ', the published entry/stop/target' : ''}. Walls are modelled dealer positioning, not guaranteed support or resistance.</p>
       </div>
 

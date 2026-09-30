@@ -8,7 +8,7 @@
  * This is the consolidation target for AUDIT.md / BLUEPRINT.md / TERMINAL_SPEC.md.
  */
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { onWorkup } from '@/lib/workup-bus';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
@@ -128,6 +128,7 @@ export default function TerminalShell() {
   // Tab lives in the URL (?tab=gex) so it's deep-linkable, shareable, survives a reload,
   // and lets legacy routes redirect straight to the right surface.
   const [location, setLocation] = useLocation();
+  const search = useSearch(); // ?tab= changes within /t must re-run the sync below
   const urlTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
   const [tab, setTabState] = useState<Tab>(resolveTab(urlTab));
   const [unknownTab, setUnknownTab] = useState<string | null>(unknownTabOf(urlTab));
@@ -149,7 +150,7 @@ export default function TerminalShell() {
     const next = resolveTab(t);
     setTabState((cur) => (next === cur ? cur : next));
     setUnknownTab(unknownTabOf(t));
-  }, [location]);
+  }, [location, search]);
 
   const [guideOpen, setGuideOpen] = useState(false);
   // First /t visit: open the guide once. Storage can throw (private mode) — then
