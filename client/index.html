@@ -121,6 +121,16 @@
       html[data-mode=dim] #app-loader{--b-bg:#1a1e26;--b-fg:#a2abba;--b-name:#e6e9ef;--b-acc:#66a4ff;--b-track:rgba(162,171,186,.22)}
       html[data-mode=light] #app-loader{--b-bg:#f2f5f9;--b-fg:#5b6475;--b-name:#0e1726;--b-acc:#1a63d1;--b-track:rgba(70,83,107,.18)}
       html[data-mode=contrast] #app-loader{--b-bg:#000;--b-fg:#cdd3dd;--b-name:#fff;--b-acc:#7ab2ff;--b-track:#3a3f4a}
+      /* gamma mark — the second logo: puts below (orange), calls above (blue), rolling as a wave */
+      #app-loader{--b-call:#2f5aa8;--b-put:#9a4430}
+      html[data-mode=light] #app-loader{--b-call:#2a5bb8;--b-put:#b4532f}
+      html[data-mode=contrast] #app-loader{--b-call:#5b93ff;--b-put:#ff8a5c}
+      #app-loader .qe-boot-gamma{display:block;max-width:70vw;height:auto}
+      #app-loader .qe-boot-gamma rect{transform-box:fill-box;animation:qe-boot-wave 1.6s ease-in-out infinite}
+      #app-loader .qe-boot-gamma rect.c{fill:var(--b-call);transform-origin:50% 100%}
+      #app-loader .qe-boot-gamma rect.p{fill:var(--b-put);transform-origin:50% 0%}
+      @keyframes qe-boot-wave{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+      @media (prefers-reduced-motion:reduce){#app-loader .qe-boot-gamma rect{animation:none}}
       #app-loader.out{opacity:0;pointer-events:none}
       #app-loader .qe-boot-mark{display:flex;align-items:center;gap:10px}
       #app-loader .qe-boot-mark img{width:28px;height:28px}
@@ -136,6 +146,7 @@
   <body>
     <div id="app-loader" role="status" aria-label="Loading QuantEdge">
       <div class="qe-boot-mark"><img src="/favicon.svg" alt="" width="28" height="28" /><span class="qe-boot-name">QUANTEDGE</span><span class="qe-boot-sub">// TERMINAL</span></div>
+      <svg class="qe-boot-gamma" viewBox="0 0 260 100" width="208" height="80" aria-hidden="true"><rect class="p" style="animation-delay:0.00s" x="1.5" y="60.4" width="7" height="1.2" rx="1"/><rect class="p" style="animation-delay:0.06s" x="11.5" y="60.4" width="7" height="1.2" rx="1"/><rect class="p" style="animation-delay:0.12s" x="21.5" y="60.4" width="7" height="1.2" rx="1"/><rect class="p" style="animation-delay:0.18s" x="31.5" y="60.4" width="7" height="1.3" rx="1"/><rect class="p" style="animation-delay:0.24s" x="41.5" y="60.4" width="7" height="4.4" rx="1"/><rect class="p" style="animation-delay:0.30s" x="51.5" y="60.4" width="7" height="11.6" rx="1"/><rect class="p" style="animation-delay:0.36s" x="61.5" y="60.4" width="7" height="22.9" rx="1"/><rect class="p" style="animation-delay:0.42s" x="71.5" y="60.4" width="7" height="34.6" rx="1"/><rect class="p" style="animation-delay:0.48s" x="81.5" y="60.4" width="7" height="39.6" rx="1"/><rect class="p" style="animation-delay:0.54s" x="91.5" y="60.4" width="7" height="34.4" rx="1"/><rect class="p" style="animation-delay:0.60s" x="101.5" y="60.4" width="7" height="22.1" rx="1"/><rect class="p" style="animation-delay:0.66s" x="111.5" y="60.4" width="7" height="9.2" rx="1"/><rect class="c" style="animation-delay:0.72s" x="121.5" y="58.8" width="7" height="1.5" rx="1"/><rect class="c" style="animation-delay:0.78s" x="131.5" y="48.7" width="7" height="11.6" rx="1"/><rect class="c" style="animation-delay:0.84s" x="141.5" y="36.7" width="7" height="23.6" rx="1"/><rect class="c" style="animation-delay:0.90s" x="151.5" y="22.4" width="7" height="37.9" rx="1"/><rect class="c" style="animation-delay:0.96s" x="161.5" y="8.6" width="7" height="51.7" rx="1"/><rect class="c" style="animation-delay:1.02s" x="171.5" y="0.0" width="7" height="60.4" rx="1"/><rect class="c" style="animation-delay:1.08s" x="181.5" y="0.0" width="7" height="60.4" rx="1"/><rect class="c" style="animation-delay:1.14s" x="191.5" y="8.6" width="7" height="51.7" rx="1"/><rect class="c" style="animation-delay:1.20s" x="201.5" y="22.4" width="7" height="38.0" rx="1"/><rect class="c" style="animation-delay:1.26s" x="211.5" y="36.4" width="7" height="23.9" rx="1"/><rect class="c" style="animation-delay:1.32s" x="221.5" y="47.5" width="7" height="12.9" rx="1"/><rect class="c" style="animation-delay:1.38s" x="231.5" y="54.4" width="7" height="6.0" rx="1"/><rect class="c" style="animation-delay:1.44s" x="241.5" y="58.0" width="7" height="2.4" rx="1"/><rect class="c" style="animation-delay:1.50s" x="251.5" y="59.2" width="7" height="1.2" rx="1"/></svg>
       <div class="qe-boot-track" aria-hidden="true"><i></i></div>
       <p></p>
     </div>

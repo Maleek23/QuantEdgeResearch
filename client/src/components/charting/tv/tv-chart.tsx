@@ -776,6 +776,9 @@ const TV_CSS = `
 .tv-tool-name{display:none}
 .tv-main{position:relative;flex:1;min-width:0;display:flex}
 .tv-pane{position:relative;flex:1;min-width:0;display:flex}
+.tv-gamma-wm{position:absolute;left:50%;top:50%;width:min(46%,420px);transform:translate(-50%,-50%);opacity:.06;pointer-events:none;user-select:none;z-index:1}
+html[data-mode=light] .tv-gamma-wm{opacity:.08}
+@media (max-width:767px){.tv-gamma-wm{width:60%}}
 .tv-canvas{position:absolute;inset:0;touch-action:none}
 .tv-legend{position:absolute;top:6px;left:8px;right:80px;z-index:4;pointer-events:none;display:flex;flex-direction:column;gap:1px;font-size:12px;line-height:1.5;text-shadow:0 0 3px var(--tv-bg),0 0 6px var(--tv-bg)}
 .tv-leg-row{display:flex;align-items:center;flex-wrap:wrap;gap:0 8px;min-width:0}

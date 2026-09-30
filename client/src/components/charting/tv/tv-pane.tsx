@@ -717,6 +717,8 @@ export const TvPane = forwardRef<TvPaneHandle, TvPaneProps>(function TvPane(prop
         role="img"
         aria-label={`${symbol} ${tfLabel} price chart${drawings.length ? `, ${drawings.length} drawing${drawings.length === 1 ? '' : 's'}` : ''}`}
       />
+      {/* the gamma mark — QuantEdge's second logo, a faint watermark behind the price action */}
+      <img className="tv-gamma-wm" src="/gamma-mark.svg" alt="" aria-hidden="true" draggable={false} />
       <Legend store={legend} symbol={symbol} tfLabel={tfLabel} showVolume={showVolume} extras={legendExtras} fmt={fmt} />
       <div className="tv-tip" ref={tipRef} role="tooltip" />
     </div>
