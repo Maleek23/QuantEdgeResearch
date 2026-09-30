@@ -45,7 +45,7 @@ const organizationSchema = {
   email: 'support@quantedgelabs.net',
   founder: { '@id': FOUNDER_ID },
   // TODO(operator): add the company's X/Twitter and LinkedIn page URLs when they exist.
-  sameAs: ['https://discord.gg/3QF8QEKkYq'],
+  sameAs: ['https://discord.gg/ppjjxVfsc'],
 };
 
 const founderSchema = {
