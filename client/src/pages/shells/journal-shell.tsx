@@ -272,8 +272,8 @@ export default function JournalShell() {
               </div>
               {personal && canWrite && (
                 <div className="jr-head-actions">
-                  {view !== 'import' && <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('import')}><Upload className="h-4 w-4" /> Import</button>}
-                  <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Add trade</button>
+                  {view !== 'import' && <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('import')} aria-label="Import trades" title="Import trades"><Upload className="h-4 w-4" aria-hidden /> <span className="jr-btn-label">Import</span></button>}
+                  <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => setEditor({ open: true, row: null })} aria-label="Add trade" title="Add trade"><Plus className="h-4 w-4" aria-hidden /> <span className="jr-btn-label">Add trade</span></button>
                 </div>
               )}
             </header>

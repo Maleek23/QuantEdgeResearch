@@ -70,17 +70,17 @@ export const TODAY_TOOLS: ToolDef[] = [
 
 /**
  * TODAY default — the old page's reading order on one screen (12 × 18):
- *   ┌────────── week dealer map · SPY 8×9 ───────────┬ best idea 4×9 ─┐
- *   ├──────────────────── sector & crypto tape 12×3 ───────────────────┤
+ *   ┌──────────── sector & crypto tape 12×3 (a free-flowing row) ──────┐
+ *   ├────────── week dealer map · SPY 8×9 ───────────┬ best idea 4×9 ─┤
  *   ├───── ranked book 6×6 ─────┬ index desk 3×6 ┬ model record 3×6 ──┤
  * Book stats, rotation and book by horizon: Add tool.
  */
 export const TODAY_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'Today',
   tools: [
-    ['today-week-map', 0, 0, 8, 9],
-    ['today-best-idea', 8, 0, 4, 9],
-    ['today-tape', 0, 9, 12, 3],
+    ['today-tape', 0, 0, 12, 3],
+    ['today-week-map', 0, 3, 8, 9],
+    ['today-best-idea', 8, 3, 4, 9],
     ['today-ranked-book', 0, 12, 6, 6],
     ['today-index-desk', 6, 12, 3, 6],
     ['today-model-record', 9, 12, 3, 6],

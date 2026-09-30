@@ -489,3 +489,24 @@ button.jr-heat-c{cursor:pointer}
 .jr-cls-wrong_direction,.jr-cls-late_entry{color:var(--jr-loss);border-color:color-mix(in srgb,var(--jr-loss) 40%,transparent)}
 .jr-cls-theta,.jr-cls-target_far{color:var(--purple,#a78bfa);border-color:color-mix(in srgb,var(--purple,#a78bfa) 40%,transparent)}
 .jr-cls-unknown{opacity:.7}
+
+/* ══ PHONE (feat/mobile 2026-09-29): one scroller — the header scrolls away with
+   the content; compact header rows; icon actions; the basis banner is a
+   one-line chip; the range presets scroll sideways in one row. ══ */
+@media (max-width:768px){
+  .jr{height:auto;overflow:visible}
+  .jr-layout,.jr-main{min-height:0;overflow:visible}
+  .jr-body{overflow:visible;flex:none;padding-bottom:24px}
+  .jr-top{flex-wrap:nowrap;gap:8px}
+  .jr-top-t{flex-wrap:nowrap;min-width:0;overflow:hidden}
+  .jr-top-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+  .jr-top .jr-head-actions{flex:none;display:flex;gap:6px}
+  .jr-btn-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .jr-top .jr-btn{min-width:44px;min-height:44px;justify-content:center;padding:0 10px}
+  .jr-basis{padding:6px 10px;border-radius:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+  .jr-basis .jr-basis-s,.jr-basis details{display:none}
+  .jr-filters{flex-wrap:wrap;gap:6px}
+  .jr-filters .jr-seg{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}
+  .jr-filters .jr-seg button{flex:none;min-height:40px}
+  .jr-strip-page{min-height:44px}
+}

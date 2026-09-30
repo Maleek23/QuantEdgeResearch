@@ -99,6 +99,14 @@ export interface PageSpec {
    * height) — they get a fixed, viewport-scaled body instead of collapsing.
    */
   fill?: string[];
+  /**
+   * PAGE mode, desktop (≥ 1200px): tools drawn as full-height COLUMNS — each
+   * exactly the main area's height and its own framed scroller (NEXUS: ranked
+   * setups · setup detail · context). The rest flows below at natural height.
+   */
+  columns?: string[];
+  /** PAGE mode: keep bordered panels (Crypto). Every other page is flat. */
+  framed?: boolean;
 }
 
 const spec = (id: PageId, label: string, defaults: DefaultLayout[], primary: ToolCategory[], starters: string[], mode: PageMode = 'fixed'): PageSpec => ({
@@ -150,9 +158,9 @@ export const PAGES: Record<PageId, PageSpec> = {
       fill: { 'gex-matrix': 'auto', 'gex-dealer-map': '60vh', 'stock-chart': 'min(56vh, 480px)', 'gex-profile': '320px', 'gex-hub': '80vh' },
     },
   },
-  nexus: spec('nexus', 'NEXUS', NEXUS_DEFAULTS, ['Ideas', 'Market'], NEXUS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
+  nexus: { ...spec('nexus', 'NEXUS', NEXUS_DEFAULTS, ['Ideas', 'Market'], NEXUS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'), columns: ['nexus-board', 'nexus-detail', 'nexus-context'] },
   chart: { ...spec('chart', 'CHART', CHART_DEFAULTS, ['Market', 'Research'], ['stock-chart'], 'simple'), simple: { tool: 'stock-chart', rail: { tool: 'chart-watchlists', label: 'Watchlist' } } },
-  crypto: { ...spec('crypto', 'CRYPTO', CRYPTO_DEFAULTS, ['Crypto', 'Market'], CRYPTO_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'), fill: ['crypto-chart'] },
+  crypto: { ...spec('crypto', 'CRYPTO', CRYPTO_DEFAULTS, ['Crypto', 'Market'], CRYPTO_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'), fill: ['crypto-chart'], framed: true },
   catalyst: spec('catalyst', 'CATALYST', CATALYST_DEFAULTS, ['Catalyst', 'Ideas'], CATALYST_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
   leaps: { ...spec('leaps', 'LEAPS', LEAPS_DEFAULTS, ['Ideas', 'Research'], LEAPS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'simple'), simple: { tool: 'leaps-classic' } },
   bot: spec('bot', 'BOT', BOT_DEFAULTS, ['Bot', 'Book'], BOT_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),

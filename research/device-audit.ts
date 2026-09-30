@@ -14,6 +14,7 @@
  *   AUDIT_MODES       comma list of dark,light,contrast
  *   AUDIT_PORT        port for the built-in static server (default 5392)
  *   AUDIT_OUT         JSON output path (default research/device-audit.json)
+ *   AUDIT_SERVE_ONLY  1 = only run the harness server (browse it by hand)
  *
  * The built-in server serves the BUILT client (with a TEST HARNESS banner) and answers /api with
  * synthetic FIXTURES (a GEX book and a conviction list) or 404, so
@@ -30,6 +31,10 @@
  *             AND a tooltip (title / aria-describedby)
  *   contrast  text vs its composited background ≥ 4.5:1 (3:1 for large text);
  *             disabled controls exempt; text over images/gradients skipped
+ *   readability phones: GEX cells ≥ 13px, strikes ≥ 14px, headers ≥ 12px, rows ≥ 36px,
+ *             section/card titles ≥ 16px, no visible text < 12px
+ *   scrollCue desktop workspaces: every overflowing scroller inside a tile is the
+ *             tile's marked scroller (visible scrollbar, fade + "more" cue)
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -53,6 +58,7 @@ const PAGES: Array<{ path: string; name: string; readOnly?: boolean }> = [
   { path: '/settings', name: 'Settings' },
 ];
 const SIZES = [
+  { w: 375, h: 812, label: 'iPhone 375', touch: true },
   { w: 393, h: 852, label: 'iPhone 393', touch: true },
   { w: 360, h: 800, label: 'Android 360', touch: true },
   { w: 768, h: 1024, label: 'Tablet 768', touch: true },
@@ -253,7 +259,39 @@ function pageAudit(opts: { touch: boolean; phone: boolean }) {
     checked++;
     if (ratio < need - 0.005) lowContrast.push(`${ratio.toFixed(2)} "${(el.innerText || '').trim().slice(0, 24)}" ${cs.color}→${`rgb(${bg.slice(0, 3).map(Math.round).join(',')})`} @${where(el)}`);
   }
-  return { overflowX, controls: ctrls.length, smallTargets, smallBody, unlabeled, noTooltip, lowContrast, textRuns: checked };
+  // readability on phones (operator 2026-09-29): matrix cells ≥ 13px, strikes ≥ 14px,
+  // headers ≥ 12px, rows ≥ 36px, section titles ≥ 16px, no visible text under 12px
+  const readability: string[] = [];
+  if (opts.phone) {
+    const px = (el: Element) => parseFloat(getComputedStyle(el).fontSize);
+    const need = (sel: string, min: number, what: string, measure: (e: Element) => number = px) => {
+      const bad = Array.from(document.querySelectorAll(sel)).filter(isVis).filter((e) => measure(e) < min - 0.01);
+      if (bad.length) readability.push(`${bad.length}× ${what} < ${min}px (e.g. ${measure(bad[0]).toFixed(1)}px @${where(bad[0])})`);
+    };
+    need('.gx-cell', 13, 'GEX matrix cell text');
+    need('.gx-strike b', 14, 'GEX strike label');
+    need('.gx-table thead th', 12, 'GEX expiry header');
+    need('.gx-row', 36, 'GEX matrix row height', (e) => e.getBoundingClientRect().height);
+    need('.pg-sec-head h2, .fd-tool-title > span:first-child', 16, 'section/card title');
+    const tiny = runs.filter((el) => !el.closest('[data-harness],svg') && parseFloat(getComputedStyle(el).fontSize) < 12 - 0.01);
+    if (tiny.length) readability.push(`${tiny.length}× text < 12px (e.g. ${parseFloat(getComputedStyle(tiny[0]).fontSize)}px "${(tiny[0].innerText || '').trim().slice(0, 20)}" <${tiny[0].tagName.toLowerCase()}.${(tiny[0].className?.toString?.() ?? '').split(' ')[0]}> @${where(tiny[0])})`);
+  }
+
+  // scroll affordance (desktop workspaces): every tile whose content overflows has its
+  // ONE scroller marked (focusable, always-visible scrollbar, fade + "more" cue)
+  const hiddenScroll: string[] = [];
+  if (!opts.phone) {
+    document.querySelectorAll('.fd-tile').forEach((tile) => {
+      Array.from(tile.querySelectorAll<HTMLElement>('*')).forEach((e) => {
+        if (e.scrollHeight <= e.clientHeight + 4 || e.clientHeight < 60) return;
+        const cs = getComputedStyle(e);
+        if (cs.overflowY !== 'auto' && cs.overflowY !== 'scroll') return;
+        const marked = e.classList.contains('fd-tile-scroller') || e.classList.contains('gx-scroll');
+        if (!marked || cs.scrollbarWidth === 'none') hiddenScroll.push(`${(e.className?.toString?.() ?? e.tagName).slice(0, 40)} @${where(e)}`);
+      });
+    });
+  }
+  return { overflowX, controls: ctrls.length, smallTargets, smallBody, unlabeled, noTooltip, lowContrast, textRuns: checked, readability, hiddenScroll };
 }
 
 async function focusAudit(page: any) {
@@ -315,6 +353,8 @@ async function run() {
             focus: !row.error && (row.focusMissing?.length ?? 0) === 0,
             icons: !row.error && (row.unlabeled?.length ?? 0) === 0 && (row.noTooltip?.length ?? 0) === 0,
             contrast: !row.error && (row.lowContrast?.length ?? 0) === 0,
+            readability: !row.error && (row.readability?.length ?? 0) === 0,
+            scrollCue: !row.error && (row.hiddenScroll?.length ?? 0) === 0,
           };
           results.push(row);
           process.stderr.write(`${pg.name.padEnd(9)} ${row.size.padEnd(9)} ${mode.padEnd(8)} ${Object.entries(row.pass).map(([k, v]) => `${k}:${v ? 'ok' : 'FAIL'}`).join(' ')}${row.error ? ' ERR ' + row.error : ''}\n`);
@@ -330,8 +370,8 @@ async function run() {
   fs.writeFileSync(out, JSON.stringify({ ranAt: new Date().toISOString(), seconds: Math.round((Date.now() - t0) / 1000), data: 'TEST HARNESS fixtures (research/device-audit.ts built-in server) — not market data', results }, null, 2));
 
   // table: page × size, one cell per mode = failing checks (counts)
-  const checks = ['overflow', 'targets', 'bodyText', 'focus', 'icons', 'contrast'] as const;
-  const count = (r: any, c: string) => ({ overflow: r.overflowX, targets: r.smallTargets?.length, bodyText: r.smallBody?.length, focus: r.focusMissing?.length, icons: (r.unlabeled?.length ?? 0) + (r.noTooltip?.length ?? 0), contrast: r.lowContrast?.length } as any)[c];
+  const checks = ['overflow', 'targets', 'bodyText', 'focus', 'icons', 'contrast', 'readability', 'scrollCue'] as const;
+  const count = (r: any, c: string) => ({ overflow: r.overflowX, targets: r.smallTargets?.length, bodyText: r.smallBody?.length, focus: r.focusMissing?.length, icons: (r.unlabeled?.length ?? 0) + (r.noTooltip?.length ?? 0), contrast: r.lowContrast?.length, readability: r.readability?.length, scrollCue: r.hiddenScroll?.length } as any)[c];
   console.log(`\n| Page | Size | ${modes.join(' | ')} |\n|---|---|${modes.map(() => '---').join('|')}|`);
   for (const pg of pages) for (const s of sizes) {
     const cells = modes.map((m) => {
@@ -347,4 +387,9 @@ async function run() {
   console.log(`\n${passed}/${total} page×size×mode combinations pass every check (Journal reported, not counted). Details: research/device-audit.json`);
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+if (process.env.AUDIT_SERVE_ONLY) {
+  // Just the harness server (for looking at pages by hand): AUDIT_SERVE_ONLY=1 npx tsx research/device-audit.ts
+  serve().then(() => console.log(`test harness on ${BASE} — synthetic fixtures, not market data`));
+} else {
+  run().catch((e) => { console.error(e); process.exit(1); });
+}

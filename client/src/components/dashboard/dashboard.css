@@ -448,3 +448,22 @@ html[data-mode=light] .flowdash .gx-pct{color:var(--text-dim)}
   .flowdash .gx-tool .context-v{font-size:18px}
   .flowdash .gx-tool .context-k,.flowdash .gx-tool .context-sub{font-size:12px}
 }
+
+/* ══════════════ PAGE mode look (operator 2026-09-29) ══════════════
+   Plain pages are FLAT: no bordered cards — sections separated by space and a
+   hairline. Crypto keeps its framed panels (.framed). NEXUS's three columns are
+   framed scrollers the height of the screen. Today's tape is a free row. */
+.flowdash.dash-page:not(.framed) .pg-sec{border:0;border-top:1px solid color-mix(in srgb,var(--nx-border) 70%,transparent);border-radius:0;background:transparent;padding:16px 4px 20px}
+.flowdash.dash-page:not(.framed) .pg-grid{gap:8px 28px}
+.flowdash.dash-page:not(.framed) .pg-sec-body.capped{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 72px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 72px),transparent)}
+.flowdash.dash-today .pg-sec[data-tool=today-tape]{border-top:0;padding:4px 0 8px}
+.flowdash.dash-today .pg-sec[data-tool=today-tape] .pg-sec-head{display:none}
+.flowdash.dash-today .pg-sec[data-tool=today-tape] .pg-sec-body *{border-color:transparent}
+html[data-mode=light] .flowdash.dash-page:not(.framed) .pg-sec:has(.today-l){border-radius:10px;padding:16px}
+/* NEXUS columns */
+.flowdash .pg-sec.pg-col{position:relative;height:calc(var(--qe-main-h,calc(100dvh - 98px)) - 64px);min-height:520px;border:1px solid var(--nx-border-hi)!important;border-radius:10px!important;background:var(--panel-solid)!important;padding:12px 4px 12px 14px!important}
+.flowdash .pg-sec.pg-col .pg-sec-body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:8px;scrollbar-gutter:stable}
+.flowdash .pg-sec.pg-col .pg-sec-body::-webkit-scrollbar{width:9px}
+.flowdash .pg-sec.pg-col .pg-sec-body::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--text-mute) 55%,transparent);border-radius:5px;border:2px solid transparent;background-clip:padding-box}
+.flowdash .pg-sec.pg-col.more-down::after{content:'';position:absolute;left:1px;right:14px;bottom:1px;height:32px;border-radius:0 0 10px 10px;pointer-events:none;background:linear-gradient(to bottom,transparent,var(--panel-solid))}
+.flowdash .pg-col-cue{bottom:10px;right:22px}

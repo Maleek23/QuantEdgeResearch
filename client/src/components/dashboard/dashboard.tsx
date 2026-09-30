@@ -573,8 +573,10 @@ function pagePlacement(tools: PlacedTool[]) {
   }));
 }
 
-function PageSection({ tool, symbol, style, fill, onRemove }: {
+function PageSection({ tool, symbol, style, fill, onRemove, column = false }: {
   tool: PlacedTool; symbol?: string; style?: CSSProperties;
+  /** desktop full-height column: the body is this section's one framed scroller */
+  column?: boolean;
   /** CSS height of a box the tool fills (charts, ladders, matrix, virtualised feed); omit for natural height */
   fill?: string;
   /** workspace pages on phones: remove the tool from this dashboard */
@@ -604,10 +606,12 @@ function PageSection({ tool, symbol, style, fill, onRemove }: {
   // fill 'auto' = natural height that must never clip (the phone GEX matrix sizes its own scroller)
   const natural = fill === 'auto';
   const boxed = !!fill && !natural;
-  const capped = !fill && tall && !open;
+  const capped = !column && !fill && tall && !open;
+  const secRef = useRef<HTMLElement>(null);
+  const cue = useScrollCue(secRef, column && live === 'live');
   const headId = `pg-${tool.i}`;
   return (
-    <section className="pg-sec" data-tool={def.id} style={style} aria-labelledby={headId}>
+    <section ref={secRef} className={cn('pg-sec', column && 'pg-col', column && cue.up && 'more-up', column && cue.down && 'more-down')} data-tool={def.id} style={style} aria-labelledby={headId}>
       <header className="pg-sec-head" title={`${def.what}\nUnits: ${def.units}\nData source: ${src}`}>
         <h2 id={headId}>{def.title}</h2>
         {symbol && <span className="fd-sym">{symbol}</span>}
@@ -625,7 +629,10 @@ function PageSection({ tool, symbol, style, fill, onRemove }: {
           <ToolSkeleton label="loads when scrolled into view" />
         )}
       </div>
-      {tall && !fill && !natural && (
+      {column && cue.down && (
+        <button type="button" className="fd-cue pg-col-cue" onClick={() => cue.scroll(1)} aria-label={`Scroll ${def.title} down`} title="More below — scroll this column">↓ more</button>
+      )}
+      {tall && !column && !fill && !natural && (
         <button type="button" className="pg-more" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {open ? 'Show less' : 'Show all'}
         </button>
@@ -645,9 +652,11 @@ function PageView({ page }: { page: PageId }) {
   const symbolOf = (t: PlacedTool) => (TOOL_BY_ID.get(t.type)?.needs?.includes('symbol') ? focus : undefined);
   const place = useMemo(() => pagePlacement(tools), [tools]);
   const ordered = isMobile ? phoneOrder(spec, tools) : readingOrder(tools);
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1200);
+  useEffect(() => { const on = () => setWide(window.innerWidth >= 1200); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on); }, []);
   return (
     <DashboardCtx.Provider value={ctx}>
-      <div className={cn('flowdash dash-page', `dash-${page}`)} data-page={page} data-view="page">
+      <div className={cn('flowdash dash-page', `dash-${page}`, spec.framed && 'framed')} data-page={page} data-view="page">
         <div className="fd-bar">
           <div className="fd-bar-title">
             <span className="fd-eyebrow">{spec.label}</span>
@@ -661,6 +670,7 @@ function PageView({ page }: { page: PageId }) {
             {isMobile && <PhoneLead page={page} />}
             {ordered.map((t) => (
               <PageSection key={t.i} tool={t} symbol={symbolOf(t)} style={isMobile ? undefined : place.get(t.i)}
+                column={!isMobile && wide && !!spec.columns?.includes(t.type)}
                 fill={(isMobile ? spec.phone?.fill?.[t.type] : undefined) ?? (spec.fill?.includes(t.type) ? 'clamp(340px, 56vh, 640px)' : undefined)} />
             ))}
           </div>
