@@ -233,17 +233,30 @@ export interface DeskPayload {
   notes: string[];
 }
 
-/** All-book levels for the swing plan: expiries ≤ 60 days, strikes ±25% (bounded CPU; disclosed). */
-function swingBookLevels(sym: string, rows: DeskChainRow[], spot: number) {
+/**
+ * All-book levels for the swing plan: expiries ≤ 60 days, strikes ±25% (±10%
+ * for SPX, whose chain is ~30k contracts). Bounded CPU on the 1-vCPU droplet
+ * and computed once per chain fetch (cached with the chain's fetchedAt).
+ */
+const bookCache = new Map<string, { fetchedAt: number; v: SwingBook | null }>();
+type SwingBook = { regime: 'positive' | 'negative' | 'neutral'; zeroGamma: number | null; callWall: number | null; putWall: number | null; maxGamma: number | null; basis: string };
+async function swingBookLevels(sym: string, chain: DeskChain): Promise<SwingBook | null> {
+  const hit = bookCache.get(sym);
+  if (hit && hit.fetchedAt === chain.fetchedAt) return hit.v;
+  const spot = chain.spot;
+  const band = sym === 'SPX' ? 0.10 : 0.25;
   const maxKey = etDateKey(Date.now() + 60 * 864e5);
   const today = etDateKey(Date.now());
-  const inputs = rows.filter((r) => r.expiration_date >= today && r.expiration_date <= maxKey && r.strike >= spot * 0.75 && r.strike <= spot * 1.25);
-  return import('./options-exposures').then(({ computeExposures, optionToInput }) => {
-    const ins = inputs.map((r) => optionToInput(r, r.expiration_date)).filter((x): x is NonNullable<typeof x> => !!x && x.openInterest > 0);
-    if (ins.length < 10) return null;
-    const s = computeExposures(sym, spot, ins, [...new Set(inputs.map((r) => r.expiration_date))]);
-    return { regime: s.regimeRead.regime, zeroGamma: s.zeroGammaLevel, callWall: s.callWall, putWall: s.putWall, maxGamma: s.maxGammaStrike || null, basis: `${s.regimeRead.basis} · book = expiries ≤60d, strikes ±25%` };
-  });
+  const rows = chain.rows.filter((r) => r.expiration_date >= today && r.expiration_date <= maxKey && r.strike >= spot * (1 - band) && r.strike <= spot * (1 + band));
+  const { computeExposures, optionToInput } = await import('./options-exposures');
+  const ins = rows.map((r) => optionToInput(r, r.expiration_date)).filter((x): x is NonNullable<typeof x> => !!x && x.openInterest > 0);
+  let v: SwingBook | null = null;
+  if (ins.length >= 10) {
+    const s = computeExposures(sym, spot, ins, [...new Set(rows.map((r) => r.expiration_date))]);
+    v = { regime: s.regimeRead.regime, zeroGamma: s.zeroGammaLevel, callWall: s.callWall, putWall: s.putWall, maxGamma: s.maxGammaStrike || null, basis: `${s.regimeRead.basis} · book = expiries ≤60d, strikes ±${Math.round(band * 100)}%` };
+  }
+  bookCache.set(sym, { fetchedAt: chain.fetchedAt, v });
+  return v;
 }
 
 async function buildRow(sym: string, phase: SessionPhase, ideas: IdeaLite[], priority: boolean, nowMs: number): Promise<DeskRow> {
@@ -304,7 +317,7 @@ async function buildRow(sym: string, phase: SessionPhase, ideas: IdeaLite[], pri
 
   // Short swing
   const sig = spot ? await sigmaDaily(sym) : null;
-  const book = chain && spot ? await swingBookLevels(sym, chain.rows, spot).catch(() => null) : null;
+  const book = chain && spot ? await swingBookLevels(sym, chain).catch(() => null) : null;
   const swing = planShortSwing({
     symbol: sym, spot: spot ?? 0, sigmaDaily: sig, regime: book?.regime ?? 'neutral', zeroGamma: book?.zeroGamma ?? null,
     callWall: book?.callWall ?? null, putWall: book?.putWall ?? null, maxGamma: book?.maxGamma ?? null,

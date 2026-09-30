@@ -92,6 +92,7 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 | Market | `nexus-context` | Market context · macro risk | `defs/nexus.ts` |
 | Ideas | `nexus-trader-calls` | Trader calls · ranked traders' open calls (evidence) | `defs/nexus.ts` |
 | Ideas | `nexus-horizon` | Book by horizon | `defs/nexus.ts` |
+| Ideas | `nexus-0dte` | 0DTE desk (NEXUS "0DTE" view; ?nx=0dte) | `defs/nexus.ts` |
 | Ideas | `nexus-classic` | NEXUS (all-in-one, classic) | `defs/nexus.ts` |
 | Market | `chart-lab-chart` | Chart Lab · levels chart | `defs/chart.ts` |
 | Research | `chart-levels` | QuantEdge levels | `defs/chart.ts` |
