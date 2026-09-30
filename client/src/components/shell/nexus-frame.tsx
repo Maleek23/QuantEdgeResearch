@@ -13,7 +13,6 @@ import { Link, useLocation } from 'wouter';
 import { BookOpen, LogOut, Settings, SlidersHorizontal, Bell, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/theme-provider';
-import { ModeMenuItems } from '@/components/shell/mode-menu';
 import { useAuth } from '@/hooks/useAuth';
 import qeMark from '@assets/qe-mark.svg';
 import '@/styles/nexus.css';
@@ -111,7 +110,6 @@ export function NexusFrame({ children }: { children: ReactNode }) {
               <LuxMenuItem icon={<BookOpen />} onSelect={() => setLocation('/how-to')}>How to use</LuxMenuItem>
               <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display & layout</LuxMenuItem>
               <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Settings</LuxMenuItem>
-              <ModeMenuItems />
               {user && (
                 <>
                   <LuxMenuSeparator />
