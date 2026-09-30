@@ -21,6 +21,7 @@ import {
 } from "./universal-idea-generator";
 import { getSymbolAdjustment } from "./loss-analyzer-service";
 import { logger } from "./logger";
+import { stripFormulaTargetClaims } from "./levels/level-map";
 
 /**
  * Leveraged/inverse wrappers are blocked at the shared gate (2026-09-23: UCO
@@ -379,6 +380,43 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
   let stopLoss = input.stopLoss ?? input.suggestedStop;
   let stopNote = '';
   const entryPx = input.currentPrice;
+  let targetPx = input.targetPrice ?? input.suggestedTarget;
+
+  // Gate 4b: STRUCTURAL LEVEL SNAP (server/levels/level-map.ts, env LEVEL_SNAP,
+  // default ON; new ideas only — nothing here touches an existing row). Formula
+  // targets/stops ("T1 = 2R", "stop = 1.25× ATR") move to the nearest level
+  // where ≥2 independent level kinds agree — targets only ever get CLOSER (and
+  // stay inside the loss-rule expected-move cap), stops only ever get WIDER
+  // (the 1.25× ATR floor below is honoured first for swing/position, so it
+  // never needs to widen the snapped stop again). Unvalidated → "measuring".
+  let snapText = '';
+  let snapStamp: Record<string, unknown> | null = null;
+  if (
+    typeof stopLoss === 'number' && typeof targetPx === 'number' && typeof entryPx === 'number' && entryPx > 0 &&
+    input.assetType !== 'crypto'
+  ) {
+    try {
+      const { snapPlanForPublish } = await import('./levels/level-map');
+      const snap = await snapPlanForPublish({
+        symbol,
+        direction: /short|bear/i.test(String(input.direction)) ? 'short' : 'long',
+        entry: entryPx,
+        stop: stopLoss,
+        targets: [targetPx],
+        horizon: input.holdingPeriod ?? 'swing',
+        expiryDate: input.expiryDate ?? null,
+      });
+      if (snap) {
+        snapText = snap.result.text;
+        snapStamp = snap.stamp;
+        if (snap.result.changed) {
+          logger.info(`[INGESTION] ${symbol}: level snap stop $${stopLoss.toFixed(2)}→$${snap.result.stop.toFixed(2)}, T1 $${targetPx.toFixed(2)}→$${snap.result.targets[0].toFixed(2)}`);
+        }
+        stopLoss = snap.result.stop;
+        targetPx = snap.result.targets[0];
+      }
+    } catch { /* level map unavailable — formula plan publishes unchanged */ }
+  }
   if (
     typeof stopLoss === 'number' && typeof entryPx === 'number' && entryPx > 0 &&
     input.holdingPeriod !== 'day' && input.assetType !== 'crypto'
@@ -397,7 +435,7 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
           if (widened > 0) {
             // Restate the trade on the widened stop: the producer's level stays
             // the thesis line, but the stop and the R multiple are now different.
-            const tgt = input.targetPrice ?? input.suggestedTarget;
+            const tgt = targetPx;
             const newR = typeof tgt === 'number' ? Math.abs(tgt - entryPx) / Math.abs(entryPx - widened) : null;
             stopNote = `Stop widened from $${stopLoss.toFixed(2)} to $${widened.toFixed(2)} (1.25× ATR $${atr.toFixed(2)}): stops inside a normal day's range were the #1 measured loss driver. ` +
               `$${stopLoss.toFixed(2)} stays the thesis line (a close through it means the read was wrong); the hard stop is $${widened.toFixed(2)}` +
@@ -424,12 +462,13 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
       // from a confirmed trade. Once a source has cleared publication gates,
       // preserve those measured levels instead of replacing them with the
       // generator's percentage fallback.
-      targetPrice: input.targetPrice ?? input.suggestedTarget,
+      targetPrice: targetPx,
       stopLoss,
       catalyst: input.catalyst,
-      // A widened stop voids the producer's "T1 is 2R" line — drop it; stopNote restates R.
-      analysis: stopNote
-        ? `${input.analysis ? input.analysis.replace(/\s*T1 \$[\d.,]+ is stated plainly as 2R[^.]*\./, '') + ' ' : ''}${stopNote}`
+      // A widened stop or a level snap voids the producer's "T1 is 2R" line —
+      // drop it; the snap text / stopNote restate the plan and its R.
+      analysis: snapText || stopNote
+        ? [stripFormulaTargetClaims(input.analysis), snapText, stopNote].filter(Boolean).join(' ')
         : input.analysis,
       technicalSignals: input.technicalSignals,
       optionType: input.optionType,
@@ -439,7 +478,9 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
       signalTimestamp: input.signalTimestamp,
       dataSourceUsed: input.dataSourceUsed,
       sourceMetadata: input.sourceMetadata,
-      convergenceAnalysis: input.convergenceAnalysis,
+      convergenceAnalysis: snapStamp
+        ? ({ ...(input.convergenceAnalysis ?? {}), levelSnap: snapStamp } as any)
+        : input.convergenceAnalysis,
     });
     
     if (success) {

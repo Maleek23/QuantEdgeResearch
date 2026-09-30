@@ -32553,6 +32553,38 @@ Use this checklist before entering any trade:
     }
   });
 
+  /**
+   * Structural level map for a symbol (server/levels/level-map.ts): VWAP + σ
+   * bands, anchored VWAPs, prior D/W/M H/L/C, pre-market H/L, opening range,
+   * floor + Camarilla pivots, bar-approximated volume profile, round numbers,
+   * and GEX / dark-pool levels only when already cached. Clusters within ±15%
+   * of last. Every level carries source + asOf. 60 s server cache.
+   */
+  app.get("/api/levels/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const sym = String(req.params.symbol || '').toUpperCase();
+      if (!/^[A-Z.^-]{1,10}$/.test(sym)) return res.status(400).json({ error: 'bad symbol' });
+      const { getLevelMap, levelSnapEnabled } = await import('./levels/level-map');
+      const map = await getLevelMap(sym);
+      if (!map) return res.json({ symbol: sym, asOf: new Date().toISOString(), last: null, clusters: [], notes: ['no bars available — no levels computed'], snapEnabled: levelSnapEnabled() });
+      const last = map.last ?? 0;
+      const clusters = map.clusters
+        .filter((c) => !last || Math.abs(c.price / last - 1) <= 0.15)
+        .map((c) => ({
+          price: c.price, low: c.low, high: c.high, score: c.score, kinds: c.kinds, families: c.families, label: c.label,
+          members: c.members.map((l) => ({ price: l.price, kind: l.kind, label: l.label, source: l.source, asOf: l.asOf, strength: l.strength })),
+        }));
+      res.set('Cache-Control', 'private, max-age=30');
+      res.json({
+        symbol: map.symbol, asOf: map.asOf, last: map.last, tolerance: map.tolerance, atr5m: map.atr5m, atrDaily: map.atrDaily,
+        session: map.session, priorSession: map.priorSession, notes: map.notes, clusters, snapEnabled: levelSnapEnabled(),
+        status: 'measuring',
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message ?? 'level map failed' });
+    }
+  });
+
   app.get("/api/journal/marks", requireBetaAccess, async (req, res) => {
     try {
       const { journalActor, resolveJournal, JournalAccessError } = await import('./journal-sources');

@@ -316,6 +316,18 @@ async function darkPoolFor(sym: string): Promise<{ read: DarkPoolRead | null; st
   return { read, stale: false };
 }
 
+/**
+ * Read-only: the cached dark-pool level read for `sym` (memory, else the disk
+ * copy), or null. Never calls Bullflow. SPX is not mapped here (that needs a
+ * live SPX/SPY ratio) — callers get null for SPX.
+ */
+export function peekDarkPoolLevels(sym: string): { at: number; source: string; levels: Array<{ price: number; notional: number; prints: number }> } | null {
+  const s = sym.toUpperCase();
+  if (s === 'SPX') return null;
+  const r = dpCache.peek(s) ?? loadDpDisk(s);
+  return r ? { at: r.at, source: r.source, levels: r.levels.map((l) => ({ price: l.price, notional: l.notional, prints: l.prints })) } : null;
+}
+
 function loadDpDisk(sym: string): DarkPoolRead | undefined {
   try {
     const r = JSON.parse(fs.readFileSync(path.join(CACHE_DIR, `dp-${safeSym(sym)}.json`), 'utf8'));

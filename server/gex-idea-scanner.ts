@@ -268,10 +268,34 @@ async function isDuplicateRecent(
 
 async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
   if (await isDuplicateRecent(candidate.symbol, candidate.setup, candidate.direction)) return false;
-  const c = await finalizeCandidate(candidate);
-  if (!c) return false;
+  const finalized = await finalizeCandidate(candidate);
+  if (!finalized) return false;
+  let c = finalized;
   const sector = getSector(c.symbol);
   const holdingPeriod = c.setup === "flip_cross" ? ("day" as const) : ("swing" as const);
+
+  // Structural level snap (server/levels/level-map.ts, env LEVEL_SNAP, default
+  // ON, new ideas only). This scanner writes straight to storage, so it gets
+  // the snap here rather than in trade-idea-ingestion. Measuring, not validated.
+  let snapText = "";
+  let snapStamp: Record<string, unknown> | null = null;
+  try {
+    const { snapPlanForPublish } = await import("./levels/level-map");
+    const snap = await snapPlanForPublish({
+      symbol: c.symbol, direction: c.direction, entry: c.entry, stop: c.stop, targets: [c.target], horizon: holdingPeriod,
+    });
+    if (snap) {
+      snapText = snap.result.text;
+      snapStamp = snap.stamp;
+      c = {
+        ...c,
+        stop: snap.result.stop,
+        target: snap.result.targets[0],
+        riskRewardRatio: snap.result.riskReward ?? c.riskRewardRatio,
+      };
+    }
+  } catch { /* level map unavailable — GEX plan publishes unchanged */ }
+  const withSnap = (text: string | undefined) => (snapText ? `${text ? `${text} ` : ""}${snapText}` : text);
 
   // ── Try to enrich with real option contract (strike + expiry + premium) ──
   const aiShape: AITradeIdea = {
@@ -309,7 +333,7 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
         strikePrice: enriched.strikePrice,
         expiryDate: enriched.expiryDate,
         catalyst: `GEX ${c.setup.replace("_", " ")} — ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} exp ${enriched.expiryDate}`,
-        analysis: enriched.analysis,
+        analysis: withSnap(enriched.analysis),
         source: "gex_scanner",
         dataSourceUsed: `GEX_${c.setup}`,
         sessionContext: "regular",
@@ -345,7 +369,7 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
       stopLoss: c.stop,
       riskRewardRatio: c.riskRewardRatio,
       catalyst: `GEX ${c.setup.replace("_", " ")} setup`,
-      analysis: c.thesis,
+      analysis: withSnap(c.thesis),
       source: "gex_scanner",
       dataSourceUsed: `GEX_${c.setup}`,
       sessionContext: "regular",
@@ -361,6 +385,8 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
       ].filter(Boolean),
     };
   }
+
+  if (snapStamp) tradeIdea.convergenceSignalsJson = { ...(tradeIdea.convergenceSignalsJson ?? {}), levelSnap: snapStamp };
 
   try {
     const created = await storage.createTradeIdea(tradeIdea as any);
