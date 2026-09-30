@@ -34,7 +34,8 @@
     "backtest:bullflow-0dte": "node --env-file=.env node_modules/.bin/tsx scripts/backtest-bullflow-index-0dte.ts",
     "db:push": "drizzle-kit push",
     "test:consistency": "tsx scripts/test-consistency.ts",
-    "check:consistency": "tsx research/consistency-check.ts"
+    "check:consistency": "tsx research/consistency-check.ts",
+    "test:publish-gates": "tsx scripts/test-publish-gates.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

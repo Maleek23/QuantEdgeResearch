@@ -2681,6 +2681,27 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // 🧯 Publish gates from docs/LOSS_ATTRIBUTION_2026-09-30.md (ranked fixes #1, #2, #5).
+    if (!ALWAYS_INSERT.has(src) && (idea as any).sessionContext !== "backfill") {
+      const { publishGateFor } = await import("./lib/publish-gates");
+      const g = publishGateFor(idea as any, Date.now());
+      if (g) {
+        logger.info(`[PUBLISH-GATE] ${src || "unknown"} ${(idea as any).symbol} ${idea.direction}: ${g}`);
+        throw new Error(`Publish gate: ${g}`);
+      }
+      // #5 any-strike duplicates within the ET session: same symbol + side +
+      // source + option, whatever the strike — 59 ideas, −$2,621 closed.
+      if (String((idea as any).assetType) === "option" && opts?.dedupWindowHours !== 0) {
+        const { etSessionStartMs } = await import("./lib/instrument-dedup");
+        const hours = Math.max(1, (Date.now() - etSessionStartMs(Date.now())) / 3_600_000);
+        const sameSession = await this.findRecentDuplicateIdea(idea, hours);
+        if (sameSession) {
+          logger.info(`[SESSION-DEDUP] ${src} ${(idea as any).symbol} ${idea.direction} option: already published this session (${sameSession.id}) — returning existing`);
+          return markDedupedResult(sameSession);
+        }
+      }
+    }
+
     // 🔁 Same-instrument rule (server/lib/instrument-dedup.ts). The window
     // above is publish-time only and producers shrink it (index-scalp 0.5 h),
     // so 2026-09-30 published IWM 279P 0DTE ×3 and CRM 220P ×2. This asks "is
