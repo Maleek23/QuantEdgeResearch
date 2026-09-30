@@ -2345,7 +2345,9 @@ export type UserActivityType =
   | 'run_scanner'
   | 'view_performance'
   | 'settings_change'
-  | 'subscription_action';
+  | 'subscription_action'
+  /** A data-subject request (account deletion) — server/privacy-routes.ts. metadata: { kind, status, requestedAt } */
+  | 'privacy_request';
 
 export const userActivityEvents = pgTable("user_activity_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
