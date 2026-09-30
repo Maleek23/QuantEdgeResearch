@@ -837,8 +837,17 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
     if (!a) return;
     const dashId = a.id;
     const snapshot = a.tools;
+    const wasPristine = !!a.pristine;
     change();
-    undoToast({ title, onUndo: () => apiRef.current.setTools(dashId, snapshot) });
+    undoToast({
+      title,
+      onUndo: () => {
+        const cur = apiRef.current;
+        // an untouched shipped default goes back to pristine (not a saved "customised" copy)
+        if (wasPristine && cur.active?.id === dashId && cur.isShipped(dashId)) void cur.restoreDefault();
+        else cur.setTools(dashId, snapshot);
+      },
+    });
   };
   const remove = (i: string) => {
     const t = tools.find((x) => x.i === i);
