@@ -9,6 +9,7 @@ import { tradeIdeas, secFilings, governmentContracts, catalystEvents, paperPosit
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { buildMonotoneCalibration, interpolateCalibration } from "@shared/isotonic-calibration";
 import { parseJournalFilters, countJournalFilters } from "@shared/journal-filters";
+import { WATCHLIST_ORDER_PAGE, applyWatchlistOrder, sanitizeWatchlistOrder } from "@shared/watchlist-order";
 // LAZY-LOADED: ai-service, quant-ideas-generator, quantitative-engine, flow-scanner
 // These are imported via await import() inside route handlers to reduce startup memory
 // LAZY-LOADED: diagnostic-export — imported via await import() in handlers
@@ -16720,8 +16721,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await storage.getWatchlistByUser(userId)
           : [];
       
-      logger.info(`[WATCHLIST] Returning ${watchlist.length} items (isAdmin=${isAdmin})`);
-      res.json(watchlist);
+      // The user's own order (Settings → Watchlist → reorder), stored as a layout row.
+      let ordered = watchlist;
+      if (userId) {
+        try {
+                    const row = await storage.getUserPageLayout(String(userId), WATCHLIST_ORDER_PAGE);
+          const ids = Array.isArray(row?.widgets) ? row!.widgets.map((w: any) => String(w?.id ?? '')).filter(Boolean) : [];
+          if (ids.length) ordered = applyWatchlistOrder(watchlist, ids);
+        } catch { /* order is cosmetic — never fail the list over it */ }
+      }
+      logger.info(`[WATCHLIST] Returning ${ordered.length} items (isAdmin=${isAdmin})`);
+      res.json(ordered);
     } catch (error) {
       logger.error('[WATCHLIST] Error fetching watchlist:', error);
       res.status(500).json({ error: "Failed to fetch watchlist" });
@@ -16877,14 +16887,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/watchlist", async (req: any, res) => {
     try {
-      console.log("POST /api/watchlist - Request body:", JSON.stringify(req.body));
-      const validated = insertWatchlistSchema.parse(req.body);
-      
-      // Add userId from session if not provided
+      // A watchlist row always belongs to the signed-in user: the body can no
+      // longer name another user's list (or create an ownerless row).
       const userId = req.session?.userId;
-      if (userId && !validated.userId) {
-        validated.userId = userId;
-      }
+      if (!userId) return res.status(401).json({ error: "Sign in to use a watchlist" });
+      const body = { assetType: 'stock', ...(req.body ?? {}) };
+      if (typeof body.symbol === 'string') body.symbol = body.symbol.trim().toUpperCase();
+      const validated = insertWatchlistSchema.parse(body);
+      validated.userId = String(userId);
+
+      // Idempotent star: the same symbol twice returns the existing row (the
+      // weekly focus list is a separate category and does not count).
+      const mine = await storage.getWatchlistByUser(String(userId));
+      const dup = mine.find((w) => w.symbol.toUpperCase() === validated.symbol.toUpperCase() && (w.category ?? 'active') !== 'weekly' && (validated.category ?? 'active') !== 'weekly');
+      if (dup) return res.status(200).json(dup);
       
       // Add timestamp
       const itemWithTimestamp = {
@@ -16892,7 +16908,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         addedAt: new Date().toISOString(),
       };
       
-      console.log("POST /api/watchlist - Validated:", JSON.stringify(itemWithTimestamp));
       const item = await storage.addToWatchlist(itemWithTimestamp as any);
       // Invalidate scanner universe cache so next scan picks up the new symbol
       try { const { invalidateScannerUniverse } = await import("./scanner-universe"); invalidateScannerUniverse(); } catch {}
@@ -16994,8 +17009,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Ownership for /api/watchlist/:id writes: the row's owner, or the operator.
+  // (These took any id with no session check, so anyone could edit or delete
+  // anyone's watchlist rows.)
+  const watchlistRowAccess = async (req: any, id: string): Promise<{ ok: true; item: any } | { ok: false; status: number; error: string }> => {
+    const sid = req.session?.userId;
+    if (!sid) return { ok: false, status: 401, error: "Sign in to change your watchlist" };
+    const item = await storage.getWatchlistItem(id);
+    if (!item) return { ok: false, status: 404, error: "Watchlist item not found" };
+    if (item.userId && String(item.userId) === String(sid)) return { ok: true, item };
+    const adminEmail = process.env.ADMIN_EMAIL || "";
+    const me = adminEmail ? await storage.getUser(String(sid)) : undefined;
+    if (adminEmail && me?.email === adminEmail) return { ok: true, item };
+    return { ok: false, status: 403, error: "That watchlist row belongs to another account" };
+  };
+
+  // Save the signed-in user's watchlist order: { ids: [rowId, …] } (own rows only).
+  app.put("/api/watchlist/order", async (req: any, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) return res.status(401).json({ error: "Sign in to reorder your watchlist" });
+            const mine = await storage.getWatchlistByUser(String(userId));
+      const ids = sanitizeWatchlistOrder(req.body?.ids, new Set(mine.map((w) => w.id)));
+      await storage.saveUserPageLayout({
+        userId: String(userId), pageId: WATCHLIST_ORDER_PAGE, layoutName: 'watchlist order',
+        widgets: ids.map((id, i) => ({ id, type: 'watchlist-row', x: 0, y: i, width: 1, height: 1, visible: true })),
+        columns: 1, rowHeight: 1, panelSizes: null, isDefault: false,
+      } as any);
+      res.json({ ok: true, ids });
+    } catch (error: any) {
+      logger.error('[WATCHLIST] order save failed:', error);
+      res.status(500).json({ error: "Couldn't save the watchlist order" });
+    }
+  });
+
   app.patch("/api/watchlist/:id", async (req, res) => {
     try {
+      const access = await watchlistRowAccess(req, req.params.id);
+      if (!access.ok) return res.status(access.status).json({ error: access.error });
       console.log("PATCH /api/watchlist/:id - Request body:", JSON.stringify(req.body));
       
       // Get existing item to check current price and validate alerts
@@ -17072,6 +17123,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/watchlist/:id", async (req, res) => {
     try {
+      const access = await watchlistRowAccess(req, req.params.id);
+      if (!access.ok) return res.status(access.status).json({ error: access.error });
       const deleted = await storage.removeFromWatchlist(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: "Watchlist item not found" });

@@ -169,6 +169,25 @@ export function useDashboards(spec: PageSpec) {
     commit(dashboards.map((d) => (d.id === active.id ? changed : d)), changed);
   }, [dashboards, active, commit]);
 
+  /** Replace one dashboard's tools (Undo of remove-tile / Clear / Restore default). */
+  const setTools = useCallback((id: string, tools: PlacedTool[]) => {
+    if (!dashboards) return;
+    const cur = dashboards.find((d) => d.id === id);
+    if (!cur) return;
+    const changed: PageDashboard = { ...cur, pristine: false, tools };
+    commit(dashboards.map((d) => (d.id === id ? changed : d)), changed);
+  }, [dashboards, commit]);
+
+  /** Put a deleted dashboard back (Undo of delete) and re-save it. */
+  const reinstate = useCallback((d: PageDashboard, index?: number) => {
+    if (!dashboards || dashboards.some((x) => x.id === d.id)) return;
+    const back: PageDashboard = { ...d, pristine: false };
+    const next = [...dashboards];
+    next.splice(Math.max(0, Math.min(next.length, index ?? next.length)), 0, back);
+    commit(next, back);
+    setActiveId(back.id);
+  }, [dashboards, commit, setActiveId]);
+
   const rename = useCallback((id: string, name: string) => {
     if (!dashboards) return;
     const clean = name.trim().slice(0, 40) || 'Dashboard';
@@ -223,5 +242,5 @@ export function useDashboards(spec: PageSpec) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dashboards, active, spec, userId, commit, writeLocal]);
 
-  return { dashboards, active, setActiveId, updateActive, rename, create, remove, restoreDefault, isShipped, save, savedAt, signedIn: !!userId };
+  return { dashboards, active, setActiveId, updateActive, setTools, reinstate, rename, create, remove, restoreDefault, isShipped, save, savedAt, signedIn: !!userId };
 }

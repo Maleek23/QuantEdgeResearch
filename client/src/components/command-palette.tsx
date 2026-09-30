@@ -12,6 +12,7 @@
  *
  * Wraps shadcn Command primitive — keyboard-first, accessible, fast.
  */
+import { WatchStar } from '@/components/watch/watch-star';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
@@ -248,6 +249,7 @@ export function CommandPalette() {
                 </span>
               )}
               <span className="ml-auto text-[9px] font-mono text-muted-foreground">/r/{sym}</span>
+              <WatchStar sym={sym} size={12} />
             </CommandItem>
           )})}
         </CommandGroup>

@@ -7,10 +7,6 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Expand, LineChart, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { fmtDuration, fmtPrice, toTrade } from '@/lib/journal/metrics';
 import type { JournalTradeRow } from '@/lib/journal/types';
@@ -38,10 +34,9 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
   const portal = useJournalPortalClass();
   const { data } = useJournal();
   const readOnly = !(data.meta?.canWrite ?? data.key === 'mine');
-  const { save, remove } = useJournalMutations(data.key);
+  const { save, patchWithUndo, removeWithUndo } = useJournalMutations(data.key);
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [confirm, setConfirm] = useState(false);
   useEffect(() => { setNotes(trade?.notes ?? ''); setMsg(null); }, [trade?.id, trade?.notes]);
 
   // ← / → step through trades while the drawer is open (not while typing).
@@ -64,7 +59,7 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
   const patch = async (input: Record<string, unknown>, okText: string) => {
     setMsg(null);
     try {
-      await save.mutateAsync({ id: trade.id, input });
+      await patchWithUndo(trade, input, `${okText} · ${trade.symbol}`);
       setMsg({ ok: true, text: okText });
     } catch (err) {
       setMsg({ ok: false, text: await readApiError(err) });
@@ -111,7 +106,7 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
               {isOpt && onSimulate && (
                 <button type="button" className="jr-btn jr-btn-sm" onClick={() => onSimulate(trade.symbol)}><LineChart className="h-3.5 w-3.5" /> Simulate P&amp;L</button>
               )}
-              {!readOnly && <button type="button" className="jr-btn jr-btn-sm jr-btn-danger" onClick={() => setConfirm(true)}><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
+              {!readOnly && <button type="button" className="jr-btn jr-btn-sm jr-btn-danger" onClick={() => { removeWithUndo(trade); onOpenChange(false); }}><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
               {readOnly && <span className="jr-tag" title="This book is computed from its source ledger">read-only · {data.meta?.label ?? 'journal'}</span>}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
                 <button type="button" className="jr-icon-btn" disabled={!neighbours.prev} onClick={() => neighbours.prev && onNavigate(neighbours.prev)} aria-label="Previous trade (←)"><ChevronLeft className="h-4 w-4" /></button>
@@ -164,33 +159,6 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={confirm} onOpenChange={setConfirm}>
-        <AlertDialogContent className={portal} style={{ background: 'var(--bg-2)' }}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this trade?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {trade.symbol} {trade.direction} · {new Date(trade.entryTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.
-              This removes it from your journal and every metric built on it. It cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep it</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-[var(--jr-loss)] text-white hover:bg-[var(--jr-loss)]/90"
-              onClick={async () => {
-                try {
-                  await remove.mutateAsync(trade.id);
-                  onOpenChange(false);
-                } catch (err) {
-                  setMsg({ ok: false, text: `Delete failed: ${await readApiError(err)}` });
-                }
-              }}
-            >
-              Delete trade
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

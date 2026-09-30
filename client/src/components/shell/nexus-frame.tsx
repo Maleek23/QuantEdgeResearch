@@ -7,6 +7,7 @@
  * tabs and the same mobile bottom dock as /t, so moving between the board and a
  * page no longer swaps the entire interface underneath you.
  */
+import { CopyLinkButton } from '@/components/shell/copy-link-button';
 import { useRef, useState, type ReactNode } from 'react';
 import { useMainHeightVar } from './main-height';
 import { Link, useLocation } from 'wouter';
@@ -98,6 +99,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
             </button>
           </div>
 
+          <CopyLinkButton />
           <LuxMenu>
             <LuxMenuTrigger aria-label="Open account menu" className="user-chip">
               <div className="user-avatar">{accountLabel.slice(0, 1).toUpperCase()}</div>

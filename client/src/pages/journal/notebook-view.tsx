@@ -82,7 +82,7 @@ export default function NotebookView() {
   const { notesQ, trades } = data;
   const slug = data.key.startsWith('trader:') ? data.key.slice(7) : null;
   const callsQ = useTraderWatchlist(slug);
-  const { remove } = useJournalNoteMutations(data.key);
+  const { removeWithUndo } = useJournalNoteMutations(data.key);
   const [q, setQ] = useState('');
   const [kind, setKind] = useState<Kind>('all');
   const [limit, setLimit] = useState(40);
@@ -221,12 +221,7 @@ export default function NotebookView() {
                   {n.tradeId && <button type="button" className="jr-btn jr-btn-sm" style={{ marginLeft: 'auto', minHeight: 26 }} onClick={() => openTrade(n.tradeId!)}>Open trade</button>}
                   {canWrite && n.noteId && (
                     <button type="button" className="jr-icon-btn danger" style={{ marginLeft: n.tradeId ? 0 : 'auto', width: 26, height: 26 }} aria-label="Delete this note"
-                      disabled={remove.isPending}
-                      onClick={async () => {
-                        if (!window.confirm('Delete this note? This cannot be undone.')) return;
-                        setDelErr('');
-                        try { await remove.mutateAsync(n.noteId!); } catch (e) { setDelErr(await readApiError(e)); }
-                      }}>
+                      onClick={() => { setDelErr(''); removeWithUndo(n.noteId!, 'Note deleted'); }}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   )}

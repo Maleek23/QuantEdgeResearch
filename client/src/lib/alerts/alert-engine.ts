@@ -184,3 +184,11 @@ export function detectAlerts(picks: ConvictionPick[], prefs: AlertPrefs): AlertE
 }
 
 export function clearFeed() { write(FEED_KEY, []); }
+/** Put a cleared feed back (Undo), merged with anything that fired since, newest first. */
+export function restoreFeed(events: AlertEvent[]): AlertEvent[] {
+  const now = loadFeed();
+  const have = new Set(now.map((e) => e.id));
+  const feed = [...now, ...events.filter((e) => !have.has(e.id))].sort((a, b) => b.at - a.at).slice(0, MAX_FEED);
+  write(FEED_KEY, feed);
+  return feed;
+}

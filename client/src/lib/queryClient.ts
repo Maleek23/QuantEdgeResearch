@@ -16,6 +16,7 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  opts?: { keepalive?: boolean },
 ): Promise<Response> {
   const headers: Record<string, string> = {};
   
@@ -33,6 +34,8 @@ export async function apiRequest(
     headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
+    // keepalive: a deferred (undo-window) commit flushed on pagehide still reaches the server
+    ...(opts?.keepalive ? { keepalive: true } : {}),
   });
 
   await throwIfResNotOk(res);

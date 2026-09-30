@@ -70,12 +70,53 @@ export function useNow(everyMs = 15_000) {
    A tiny key/value store per dashboard PAGE (module-level, so it survives a
    tab switch and a tool being paused off-screen). Tools that must agree —
    NEXUS's board and its detail pane, GEX's metric toggle — read the same key.
-   Not persisted to the account: it is working state, not layout. */
+
+   SETTINGS survive a reload too: every per-placement setting (`tool:<inst>:*`,
+   useToolSetting) and the page-level settings in PERSISTED_PAGE_KEYS are
+   mirrored to localStorage (`qe-dash-state:<page>`). Selections and other
+   working state (NEXUS's selected setup, the shared strike) stay in memory
+   only — a reload should not resurrect a stale selection. Values must be
+   JSON (store Sets as arrays). */
 type Store = { vals: Map<string, unknown>; subs: Set<() => void> };
 const STORES = new Map<string, Store>();
+const LS_PREFIX = 'qe-dash-state:';
+/** page-level (not per-placement) keys that are settings, not selections */
+const PERSISTED_PAGE_KEYS = new Set(['flow:days', 'flow:src', 'flow:dte']);
+const MAX_PERSISTED = 400;
+export const isPersistedKey = (key: string) => key.startsWith('tool:') || PERSISTED_PAGE_KEYS.has(key);
+
+function hydrate(page: string, vals: Map<string, unknown>) {
+  try {
+    const raw = localStorage.getItem(LS_PREFIX + page);
+    if (!raw) return;
+    const obj = JSON.parse(raw) as Record<string, unknown>;
+    for (const [k, v] of Object.entries(obj)) if (isPersistedKey(k) && v !== undefined) vals.set(k, v);
+  } catch { /* corrupt or blocked storage: start clean */ }
+}
+const writeTimers = new Map<string, ReturnType<typeof setTimeout>>();
+function persist(page: string, store: Store) {
+  clearTimeout(writeTimers.get(page));
+  writeTimers.set(page, setTimeout(() => {
+    writeTimers.delete(page);
+    try {
+      const out: Record<string, unknown> = {};
+      let n = 0;
+      // newest keys win the cap (Map keeps insertion order; re-set keys move to the end below)
+      const entries = [...store.vals.entries()].filter(([k]) => isPersistedKey(k));
+      for (const [k, v] of entries.slice(-MAX_PERSISTED)) { out[k] = v; n++; }
+      if (n) localStorage.setItem(LS_PREFIX + page, JSON.stringify(out));
+      else localStorage.removeItem(LS_PREFIX + page);
+    } catch { /* private mode / quota: in-memory still works for this session */ }
+  }, 250));
+}
+
 const storeFor = (page: string): Store => {
   let s = STORES.get(page);
-  if (!s) { s = { vals: new Map(), subs: new Set() }; STORES.set(page, s); }
+  if (!s) {
+    s = { vals: new Map(), subs: new Set() };
+    if (typeof window !== 'undefined') hydrate(page, s.vals);
+    STORES.set(page, s);
+  }
   return s;
 };
 
@@ -91,14 +132,16 @@ export function useDashState<T>(key: string, initial: T): [T, (v: T | ((prev: T)
     const prev = (store.vals.has(key) ? store.vals.get(key) : initRef.current) as T;
     const next = typeof v === 'function' ? (v as (p: T) => T)(prev) : v;
     if (Object.is(next, prev)) return;
+    store.vals.delete(key); // re-insert so the persisted cap keeps the most recently used settings
     store.vals.set(key, next);
     store.subs.forEach((f) => f());
-  }, [store, key]);
+    if (isPersistedKey(key)) persist(page, store);
+  }, [store, key, page]);
   return [value, set];
 }
 
 /** Per-placement setting (e.g. this matrix's DTE bucket) that survives the
- *  tool being paused off-screen and remounted. */
+ *  tool being paused off-screen and remounted, and a reload (localStorage). */
 export function useToolSetting<T>(name: string, initial: T) {
   const inst = useToolInstance();
   return useDashState<T>(`tool:${inst}:${name}`, initial);

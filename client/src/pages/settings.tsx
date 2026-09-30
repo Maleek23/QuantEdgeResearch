@@ -13,7 +13,7 @@
  *                      account size / risk % / options budget / capital per
  *                      idea → /api/preferences (read by signal sizing,
  *                      shared/sizing.ts, and the terminal risk drawer);
- *                      watchlist → read from /api/watchlist, managed on NEXUS
+ *                      watchlist → /api/watchlist: list, remove (Undo), reorder
  *   Alerts             the alert engine's own prefs (qe-alert-prefs-v1)
  *   Connected accounts Alpaca (journal broker link) · Discord bot (read-only)
  *   Journal            default book · sizing display           → this device
@@ -26,7 +26,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ArrowRight, Check, Download, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, Check, Download, ShieldCheck, Trash2, X } from 'lucide-react';
+import { removeWatch, reorderWatch, useWatchlist } from '@/hooks/use-watchlist';
 import { LuxButton, LuxPage, LuxPageHeader, LuxPanel, LuxSegmented, LuxTag } from '@/components/lux';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -281,8 +282,6 @@ function TradingSection() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/preferences'] }); toast({ title: 'Sizing saved', description: 'Signals size from these numbers now.' }); },
     onError: (e: Error) => toast({ variant: 'destructive', title: 'Not saved', description: e.message }),
   });
-  const watch = useQuery<{ id: string; symbol: string }[]>({ queryKey: ['/api/watchlist'], retry: 1, staleTime: 60_000 });
-  const symbols = useMemo(() => [...new Set((watch.data ?? []).map((w) => w.symbol))].sort(), [watch.data]);
   const risk$ = draft ? (draft.accountSize * draft.maxRiskPerTrade) / 100 : NaN;
 
   return (
@@ -324,14 +323,8 @@ function TradingSection() {
         </>
       )}
 
-      <Row label="Watchlist" help="The tickers the scanners and alerts follow. Add or remove them on NEXUS.">
-        <div className="st-tickers">
-          {watch.isLoading ? <span className="st-help">Loading…</span>
-            : watch.isError ? <span className="st-help">Couldn't load the watchlist.</span>
-            : symbols.length ? <>{symbols.slice(0, 24).map((s) => <LuxTag key={s}>{s}</LuxTag>)}{symbols.length > 24 && <span className="st-help">+{symbols.length - 24} more</span>}</>
-            : <span className="st-help">No tickers yet.</span>}
-          <Link href="/t" className="st-link">Manage on NEXUS <ArrowRight aria-hidden size={12} /></Link>
-        </div>
+      <Row label="Watchlist" help="The tickers the scanners and alerts follow. Star (★) any ticker to add it; remove or reorder here." scope="account">
+        <WatchlistManager />
       </Row>
     </LuxPanel>
   );
@@ -372,6 +365,8 @@ function ConnectionsSection() {
     onError: (e: Error) => toast({ variant: 'destructive', title: 'Not disconnected', description: e.message }),
   });
   const conn = alpaca.data?.connection;
+  // In-app two-step confirm (was window.confirm): deleting stored keys can't be undone.
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never');
 
   return (
@@ -384,8 +379,15 @@ function ConnectionsSection() {
           : conn ? (
             <span className="st-inline">
               <LuxTag tone="accent">CONNECTED</LuxTag>
-              <LuxButton variant="ghost" disabled={disconnect.isPending}
-                onClick={() => { if (window.confirm('Disconnect Alpaca? The saved keys are deleted; imported trades stay.')) disconnect.mutate(); }}>Disconnect</LuxButton>
+              {confirmDisconnect ? (
+                <span className="st-inline" role="alertdialog" aria-label="Confirm disconnect">
+                  <span className="st-warn-inline">Delete the saved keys? Imported trades stay.</span>
+                  <LuxButton variant="ghost" disabled={disconnect.isPending} onClick={() => { setConfirmDisconnect(false); disconnect.mutate(); }}>Disconnect</LuxButton>
+                  <LuxButton variant="ghost" autoFocus onClick={() => setConfirmDisconnect(false)}>Keep</LuxButton>
+                </span>
+              ) : (
+                <LuxButton variant="ghost" disabled={disconnect.isPending} onClick={() => setConfirmDisconnect(true)}>Disconnect</LuxButton>
+              )}
             </span>
           ) : (
             <span className="st-inline">
@@ -471,5 +473,34 @@ function DataSection() {
         )}
       </Row>
     </LuxPanel>
+  );
+}
+
+/* ── Watchlist management: list · remove (with Undo) · reorder ─────────────
+   Adds happen wherever a ticker is shown (the ★). The order saved here is the
+   order /api/watchlist returns everywhere else. */
+function WatchlistManager() {
+  const wl = useWatchlist();
+  const rows = wl.rows;
+  if (!wl.signedIn) return <span className="st-help">Sign in to keep a watchlist.</span>;
+  if (wl.query.isLoading) return <span className="st-help">Loading…</span>;
+  if (wl.query.isError && !wl.query.data) {
+    return <span className="st-help">Couldn't load the watchlist. <button type="button" className="st-linkbtn" onClick={() => wl.query.refetch()}>Retry</button></span>;
+  }
+  if (!rows.length) return <span className="st-help">No tickers yet — star (★) one on a ticker page, NEXUS, FLOW or in search (⌘K).</span>;
+  return (
+    <ol className="st-watch" aria-label="Your watchlist, in order">
+      {rows.map((r, i) => (
+        <li key={r.id} className="st-watch-row">
+          <span className="st-mono st-watch-n" aria-hidden>{i + 1}</span>
+          <Link href={`/r/${encodeURIComponent(r.symbol)}`} className="st-link st-mono">{r.symbol.toUpperCase()}</Link>
+          <span className="st-watch-actions">
+            <button type="button" className="st-linkbtn" disabled={i === 0 || r.id.startsWith('tmp-')} aria-label={`Move ${r.symbol} up`} onClick={() => void reorderWatch(i, i - 1)}><ArrowUp size={12} aria-hidden /></button>
+            <button type="button" className="st-linkbtn" disabled={i === rows.length - 1 || r.id.startsWith('tmp-')} aria-label={`Move ${r.symbol} down`} onClick={() => void reorderWatch(i, i + 1)}><ArrowDown size={12} aria-hidden /></button>
+            <button type="button" className="st-linkbtn" disabled={r.id.startsWith('tmp-')} aria-label={`Remove ${r.symbol} from watchlist`} onClick={() => removeWatch(r.symbol)}><X size={12} aria-hidden /></button>
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }

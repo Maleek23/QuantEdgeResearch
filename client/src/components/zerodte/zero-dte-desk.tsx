@@ -14,6 +14,7 @@
  * Integrity: every block stamps its own age; a missing input renders "—",
  * never a placeholder number. Plans are model output, labelled unvalidated.
  */
+import { WatchStar } from '@/components/watch/watch-star';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { nexusIdeaHref } from '@/lib/nexus-link';
@@ -110,7 +111,7 @@ function NameCard({ r }: { r: Row }) {
     <article className="zd-card" aria-label={`${r.symbol} 0DTE`}>
       <header className="zd-card-head">
         <div>
-          <h3><Link href={tickerHref(r.symbol)} className="zd-sym-link" title={`Open the ${r.symbol} ticker page`}>{r.symbol}</Link>{r.optionRoot !== r.symbol && <small> · {r.optionRoot}</small>}</h3>
+          <h3><Link href={tickerHref(r.symbol)} className="zd-sym-link" title={`Open the ${r.symbol} ticker page`}>{r.symbol}</Link>{r.optionRoot !== r.symbol && <small> · {r.optionRoot}</small>}<WatchStar sym={r.symbol} size={13} /></h3>
           <span className="zd-sub">{px(r.spot)} · {r.chainSource ?? 'no chain'} · {age(r.chainAgeSec)}</span>
         </div>
         <span className={`zd-exp ${r.expiry.sameDay ? 'same' : ''}`} title={r.expiry.upcoming.length ? `listed: ${r.expiry.upcoming.join(', ')}` : undefined}>{r.expiry.label}</span>

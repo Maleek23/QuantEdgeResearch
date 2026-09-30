@@ -24,7 +24,13 @@ import {
   nearTermDisagrees, sessionClock, sessionLabelOf, terminalAsOf, TERMINAL_TIMEOUT_MS,
 } from '@/components/gex/gex-model';
 import { DealerStructureRail, GammaProfileChart, GexCellDrill } from '@/components/gex/gex-parts';
-import { useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
+import { useDashboard, useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
+import { oneOf, useUrlParam } from '@/lib/url-state';
+
+/** GEX view state in the URL (g.*) — read by the matrix; a copied link reproduces the view. */
+const G_METRIC = oneOf<'gex' | 'vex'>(['gex', 'vex'], 'gex');
+const G_BUCKET = oneOf<BucketId>(DTE_BUCKETS.map((b) => b.id), 'all');
+const G_SCALE = oneOf<MatrixScale>(['column', 'absolute'], 'column');
 
 const mono = "'JetBrains Mono',monospace";
 const px = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? '—' : `$${v.toFixed(d).replace(/\.00$/, '')}`);
@@ -153,6 +159,10 @@ export function GexMatrixTool() {
   const [metric, setMetric] = useToolSetting<'gex' | 'vex'>('metric', 'gex');
   const [bucket, setBucket] = useToolSetting<BucketId>('bucket', 'all');
   const [scale, setScale] = useToolSetting<MatrixScale>('scale', 'column');
+  const urlOn = useDashboard().page === 'gex';
+  useUrlParam('g.metric', metric, setMetric, G_METRIC, urlOn);
+  useUrlParam('g.exp', bucket, setBucket, G_BUCKET, urlOn);
+  useUrlParam('g.scale', scale, setScale, G_SCALE, urlOn);
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
   const shaped = useMemo(() => shapeMatrix(g.matrix, bucket, g.spot, metric), [g.matrix, bucket, g.spot, metric]);
   const blocked = gate(g, 'strike × expiry surface');

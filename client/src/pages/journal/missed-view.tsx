@@ -108,7 +108,7 @@ function DeskMissed() {
 function LoggedMissed() {
   const { data, canWrite, bookLabel, prefs } = useJournal();
   const { notesQ } = data;
-  const { remove } = useJournalNoteMutations(data.key);
+  const { removeWithUndo } = useJournalNoteMutations(data.key);
   const [err, setErr] = useState('');
   const missed = useMemo(() => (notesQ.data?.notes ?? []).filter((n) => n.reason === 'missed').sort((a, b) => b.day.localeCompare(a.day) || Date.parse(b.postedAt) - Date.parse(a.postedAt)), [notesQ.data]);
   return (
@@ -130,8 +130,7 @@ function LoggedMissed() {
                   {(n.symbols ?? []).map((s) => <span key={s} className="jr-chip">{s}</span>)}
                   <span>logged {fmtStamp(n.postedAt, prefs.timeDisplay)}</span>
                   {canWrite && (
-                    <button type="button" className="jr-icon-btn danger" style={{ marginLeft: 'auto', width: 26, height: 26 }} aria-label="Delete this missed trade" disabled={remove.isPending}
-                      onClick={async () => { if (!window.confirm('Delete this missed trade?')) return; setErr(''); try { await remove.mutateAsync(n.id); } catch (e) { setErr(await readApiError(e)); } }}>
+                    <button type="button" className="jr-icon-btn danger" style={{ marginLeft: 'auto', width: 26, height: 26 }} aria-label="Delete this missed trade" onClick={() => { setErr(''); removeWithUndo(n.id, 'Missed trade deleted'); }}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   )}
