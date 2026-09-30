@@ -92,9 +92,16 @@ export function useJournalFilterState() {
     });
   }, []);
   const clear = useCallback(() => setState({ range: 'all', filters: {} }), []);
+  /** Replace every filter at once (a drill-down); the range preset is kept. */
+  const setAll = useCallback((filters: JournalFilters) => setState((s) => ({ ...s, filters })), []);
+  /** Leave a drill-down: drop the id list and its label, keep everything else. */
+  const clearDrill = useCallback(() => setState((s) => {
+    const { ids: _ids, drill: _drill, ...rest } = s.filters;
+    return { ...s, filters: rest };
+  }), []);
 
   const resolved = useMemo(() => resolveFilters(state), [state]);
-  return { state, resolved, setRange, setFilter, clear, activeCount: countJournalFilters(resolved) };
+  return { state, resolved, setRange, setFilter, setAll, clearDrill, clear, activeCount: countJournalFilters(resolved) };
 }
 
 export const JOURNAL_TRADES_KEY = ['journal-trades'] as const;

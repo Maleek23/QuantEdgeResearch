@@ -5,7 +5,8 @@
  * height: the host subtracts the 34px segment from --qe-main-h, so this adds a
  * view without touching the NEXUS layout itself.
  */
-import { lazy, Suspense, useCallback, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { useSearch } from 'wouter';
 import { RouteFallback } from '@/components/ui/qe-loading';
 import { skeletonTiles } from '@/components/dashboard/pages';
 import './zero-dte-desk.css';
@@ -20,6 +21,9 @@ const readView = (): View => {
 
 export function NexusViews() {
   const [view, setViewState] = useState<View>(readView);
+  // Follow in-app navigations within /t (e.g. a 0DTE idea link → /t?idea=… opens the board).
+  const search = useSearch();
+  useEffect(() => { setViewState(readView()); }, [search]);
   const setView = useCallback((v: View) => {
     setViewState(v);
     try {

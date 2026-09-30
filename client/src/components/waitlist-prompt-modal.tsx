@@ -15,12 +15,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Check, Sparkles, ArrowRight, Zap, TrendingUp, BarChart3 } from "lucide-react";
+import { authHref } from "@/lib/return-to";
 
 interface WaitlistPromptModalProps {
   open: boolean;
   onClose: () => void;
   title?: string;
   description?: string;
+  /** Deep link to land on after sign-in / sign-up (sanitised again by the auth pages). */
+  returnTo?: string | null;
 }
 
 export function WaitlistPromptModal({
@@ -28,18 +31,14 @@ export function WaitlistPromptModal({
   onClose,
   title = "Join the Waitlist",
   description = "Get access to QuantEdge's AI-powered trading research tools",
+  returnTo,
 }: WaitlistPromptModalProps) {
   const [, setLocation] = useLocation();
 
-  const handleSignup = () => {
-    onClose();
-    setLocation("/signup");
-  };
-
-  const handleLogin = () => {
-    onClose();
-    setLocation("/login");
-  };
+  // Navigate straight to the auth page — NOT through onClose, which for the
+  // route gate means "dismissed" (go home + reminder toast).
+  const handleSignup = () => setLocation(authHref("/signup", returnTo));
+  const handleLogin = () => setLocation(authHref("/login", returnTo));
 
   const benefits = [
     {
@@ -73,7 +72,7 @@ export function WaitlistPromptModal({
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-md bg-card border-border">
         <DialogHeader className="text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center mb-4">

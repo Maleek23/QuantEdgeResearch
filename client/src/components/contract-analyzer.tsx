@@ -92,10 +92,13 @@ interface ContractAnalyzerProps {
   onClose?: () => void;
   /** Compact mode — smaller fonts, less padding */
   compact?: boolean;
+  /** Ticker context (e.g. the ticker page): prefills the input with the symbol so only the contract is typed. */
+  symbol?: string;
 }
 
-export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact }: ContractAnalyzerProps) {
-  const [input, setInput] = useState(initialInput);
+export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact, symbol }: ContractAnalyzerProps) {
+  const sym = symbol?.trim().toUpperCase() || '';
+  const [input, setInput] = useState(initialInput || (sym ? `${sym} ` : ''));
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<ContractAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -175,7 +178,10 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
         <div className="flex items-center gap-2 mb-3">
           <input
             type="text"
-            placeholder='Paste a trade: "QCOM 300C 1/27 @ $18.50 x 1"'
+            placeholder={`Paste a trade: "${sym || 'QCOM'} 300C 1/27 @ $18.50 x 1"`}
+            aria-label={sym ? `Contract on ${sym} to analyze` : 'Contract to analyze'}
+            autoFocus={!!sym}
+            onFocus={(e) => { const n = e.currentTarget.value.length; e.currentTarget.setSelectionRange(n, n); }}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && analyze()}

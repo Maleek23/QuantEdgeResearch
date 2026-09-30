@@ -55,13 +55,13 @@ export default function TradersView() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {slug && (
         aQ.isLoading ? <QELoading rows={4} label={`analysing ${bookLabel}'s calls (reading bars for open calls)…`} />
-          : aQ.isError ? <QEError title={`${bookLabel}'s analysis didn't load`} onRetry={() => aQ.refetch()} retrying={aQ.isFetching} />
+          : aQ.isError && !aQ.data ? <QEError title={`${bookLabel}'s analysis didn't load`} onRetry={() => aQ.refetch()} retrying={aQ.isFetching} />
             : aQ.data && <TraderAnalysisCard a={aQ.data} />
       )}
 
       <Card num={slug ? '04' : '01'} title="Leaderboard · imported trader journals" meta={boardQ.data ? <span className="jr-n">as of {new Date(boardQ.data.asOf).toLocaleString()}</span> : null}>
         {boardQ.isLoading ? <QELoading rows={3} label="ranking traders…" />
-          : boardQ.isError ? <QEError title="Leaderboard didn't load" onRetry={() => boardQ.refetch()} retrying={boardQ.isFetching} />
+          : boardQ.isError && !boardQ.data ? <QEError title="Leaderboard didn't load" onRetry={() => boardQ.refetch()} retrying={boardQ.isFetching} />
             : !boardQ.data?.rows.length ? <QEEmpty message="No trader has scored calls yet. Import their Discord journals in Import › Discord forum." />
               : (
                 <div className="jr-table-wrap">

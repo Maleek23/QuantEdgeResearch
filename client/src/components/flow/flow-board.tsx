@@ -568,7 +568,7 @@ export function FlowBoard({ onSelectSymbol }: { onSelectSymbol?: (s: string) => 
               <div className="flex h-40 items-center justify-center gap-2 text-label font-mono uppercase tracking-widest text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> reading the tape…
               </div>
-            ) : isError ? (
+            ) : isError && !data ? (
               <Empty title="Flow unavailable" body="The flow feed did not respond. It will retry automatically." />
             ) : sorted.length === 0 ? (
               <Empty

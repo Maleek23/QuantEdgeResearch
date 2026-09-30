@@ -32,7 +32,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { openWorkup } from '@/lib/workup-bus';
-import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
+import { QEEmpty, QEError, QELoading, QEStale } from '@/components/ui/qe-states';
+import { useTickFlash } from '@/lib/use-tick-flash';
 import { useGexTerminal, regimeView, zeroGammaOf, terminalAsOf } from '@/components/gex/gex-model';
 import { fmtGexB, regimeColor, LEVEL_COLORS } from '@/components/gex/gex-colors';
 import { useDashState, useDashboard, useFocusSymbol, useNow, useToolInstance, useToolReport, useToolSetting } from '../../frame';
@@ -749,6 +750,42 @@ export function PositionBuildersTool() {
 
 interface Leader { ticker: string; totalNetPremium?: number; totalPremium?: number; callPremium?: number; putPremium?: number }
 
+/** One provider leader row; the net cell flashes when a refresh changes it (lib/use-tick-flash.ts). */
+function LeaderRow({ r, max, selected, onFocus }: { r: Leader; max: number; selected: boolean; onFocus: () => void }) {
+  const net = r.totalNetPremium ?? null;
+  const flash = useTickFlash(net);
+  return (
+    <tr className={selected ? 'sel' : ''} onClick={onFocus} onDoubleClick={() => openWorkup(r.ticker)} {...rowKeys(onFocus)} title="Click / Enter: focus · double-click: workup">
+      <td className="tk">{r.ticker}</td>
+      <td className="r" style={{ position: 'relative' }}>
+        <span className="fd-nbar" style={{ width: `${(Math.abs(net ?? 0) / max) * 100}%`, background: signColor(net) }} />
+        <span className={flash} style={{ position: 'relative', color: signColor(net) }}>{net == null ? '—' : `${net >= 0 ? '+' : ''}${money(net)}`}</span>
+      </td>
+      <td className="r" style={{ color: CALL }}>{money(r.callPremium)}</td>
+      <td className="r" style={{ color: PUT }}>{money(r.putPremium)}</td>
+    </tr>
+  );
+}
+
+/** One tape-ranked row; premium flashes as new prints land. */
+function TapeLeaderRow({ r, max, selected, onFocus }: { r: { t: string; call: number; put: number; n: number; sweeps: number }; max: number; selected: boolean; onFocus: () => void }) {
+  const flash = useTickFlash(r.call + r.put);
+  return (
+    <tr className={selected ? 'sel' : ''} onClick={onFocus} onDoubleClick={() => openWorkup(r.t)} {...rowKeys(onFocus)}>
+      <td className="tk">{r.t}</td>
+      <td className="r" style={{ position: 'relative' }}>
+        <span className="fx-cpbar" style={{ width: `${((r.call + r.put) / max) * 100}%` }}>
+          <i style={{ flex: r.call, background: CALL_FILL }} /><i style={{ flex: r.put, background: PUT }} />
+        </span>
+        <span className={flash} style={{ position: 'relative' }}>{money(r.call + r.put)}</span>
+      </td>
+      <td className="r" style={{ color: CALL }}>{money(r.call)}</td>
+      <td className="r" style={{ color: PUT }}>{money(r.put)}</td>
+      <td className="r">{r.n}{r.sweeps ? <span className="dim"> · {r.sweeps}sw</span> : null}</td>
+    </tr>
+  );
+}
+
 export function TopTickersTool() {
   const [focus, setFocus] = useFocusSymbol();
   const [mode, setMode] = useToolSetting<'provider' | 'tape'>('mode', 'provider');
@@ -792,32 +829,20 @@ export function TopTickersTool() {
   );
   if (mode === 'provider') {
     if (pq.isLoading) return <div className="fx-root">{controls}<QELoading rows={5} className="fd-pad" /></div>;
-    if (pq.isError) return <div className="fx-root">{controls}<QEError className="fd-m" title="Top tickers didn't load" onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>;
+    if (pq.isError && !pq.data) return <div className="fx-root">{controls}<QEError className="fd-m" title="Top tickers didn't load" onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>;
     if (!pq.data?.enabled) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message="Bullflow is not configured on this server, so provider net-premium leaders are not available." action={<button type="button" className="fd-btn" onClick={() => setMode('tape')}>Rank from our tape</button>} /></div>;
     const rows = pq.data.rows ?? [];
-    if (!rows.length) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message="Provider returned no leaders for today yet." /></div>;
+    if (!rows.length) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message="Provider returned no leaders for today yet." action={<button type="button" className="fd-btn" onClick={() => setMode('tape')}>Rank from our tape</button>} /></div>;
     const max = Math.max(...rows.map((r) => Math.abs(r.totalNetPremium ?? 0)), 1);
     return (
       <div className="fx-root">
         {controls}
+        {pq.isError && <div className="fd-stale"><QEStale what="Leaders refresh" updatedAt={pq.dataUpdatedAt} onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>}
         <div className="fx-scroll">
           <table className="fd-mini">
             <thead><tr><th>Ticker</th><th className="r" title="Ask-side minus bid-side premium (provider)">Net</th><th className="r">Call $</th><th className="r">Put $</th></tr></thead>
             <tbody>
-              {rows.map((r) => {
-                const net = r.totalNetPremium ?? null;
-                return (
-                  <tr key={r.ticker} className={r.ticker === focus ? 'sel' : ''} onClick={() => setFocus(r.ticker)} onDoubleClick={() => openWorkup(r.ticker)} {...rowKeys(() => setFocus(r.ticker))} title="Click / Enter: focus · double-click: workup">
-                    <td className="tk">{r.ticker}</td>
-                    <td className="r" style={{ position: 'relative' }}>
-                      <span className="fd-nbar" style={{ width: `${(Math.abs(net ?? 0) / max) * 100}%`, background: signColor(net) }} />
-                      <span style={{ position: 'relative', color: signColor(net) }}>{net == null ? '—' : `${net >= 0 ? '+' : ''}${money(net)}`}</span>
-                    </td>
-                    <td className="r" style={{ color: CALL }}>{money(r.callPremium)}</td>
-                    <td className="r" style={{ color: PUT }}>{money(r.putPremium)}</td>
-                  </tr>
-                );
-              })}
+              {rows.map((r) => <LeaderRow key={r.ticker} r={r} max={max} selected={r.ticker === focus} onFocus={() => setFocus(r.ticker)} />)}
             </tbody>
           </table>
         </div>
@@ -827,7 +852,8 @@ export function TopTickersTool() {
   }
   const gate = tapeGate(tq, 'flow tape');
   if (gate) return <div className="fx-root">{controls}{gate}</div>;
-  if (!tapeRows.length) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message={`No prints in today's tape yet. ${sourceStateLine(tq.data, now)}.`} /></div>;
+  if (!tapeRows.length) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message={`No prints in today's tape yet. ${sourceStateLine(tq.data, now)}.`}
+    action={!etfs ? <button type="button" className="fd-btn" onClick={() => setEtfs(true)}>Include ETFs</button> : <button type="button" className="fd-btn" onClick={() => setMode('provider')}>Use provider ranking</button>} /></div>;
   const max = Math.max(...tapeRows.map((r) => r.call + r.put), 1);
   return (
     <div className="fx-root">
@@ -836,20 +862,7 @@ export function TopTickersTool() {
         <table className="fd-mini">
           <thead><tr><th>Ticker</th><th className="r">Premium</th><th className="r">Call $</th><th className="r">Put $</th><th className="r">Prints</th></tr></thead>
           <tbody>
-            {tapeRows.map((r) => (
-              <tr key={r.t} className={r.t === focus ? 'sel' : ''} onClick={() => setFocus(r.t)} onDoubleClick={() => openWorkup(r.t)} {...rowKeys(() => setFocus(r.t))}>
-                <td className="tk">{r.t}</td>
-                <td className="r" style={{ position: 'relative' }}>
-                  <span className="fx-cpbar" style={{ width: `${((r.call + r.put) / max) * 100}%` }}>
-                    <i style={{ flex: r.call, background: CALL_FILL }} /><i style={{ flex: r.put, background: PUT }} />
-                  </span>
-                  <span style={{ position: 'relative' }}>{money(r.call + r.put)}</span>
-                </td>
-                <td className="r" style={{ color: CALL }}>{money(r.call)}</td>
-                <td className="r" style={{ color: PUT }}>{money(r.put)}</td>
-                <td className="r">{r.n}{r.sweeps ? <span className="dim"> · {r.sweeps}sw</span> : null}</td>
-              </tr>
-            ))}
+            {tapeRows.map((r) => <TapeLeaderRow key={r.t} r={r} max={max} selected={r.t === focus} onFocus={() => setFocus(r.t)} />)}
           </tbody>
         </table>
       </div>
@@ -918,12 +931,13 @@ export function DarkPoolTool() {
     );
   }
   if (pq.isLoading) return <div className="fx-root">{controls}<QELoading rows={4} className="fd-pad" /></div>;
-  if (pq.isError) return <div className="fx-root">{controls}<QEError className="fd-m" title={`${focus} dark-pool prints didn't load`} onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>;
+  if (pq.isError && !pq.data) return <div className="fx-root">{controls}<QEError className="fd-m" title={`${focus} dark-pool prints didn't load`} onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>;
   if (!pq.data?.enabled) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message="Bullflow is not configured on this server — no dark-pool prints." /></div>;
   if (!prints.length) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message={`No ${focus} dark-pool prints ≥ $1M notional today.`} /></div>;
   return (
     <div className="fx-root">
       {controls}
+      {pq.isError && <div className="fd-stale"><QEStale what="Dark-pool refresh" updatedAt={pq.dataUpdatedAt} onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>}
       <div className="fx-scroll">
         <table className="fd-mini">
           <thead><tr><th>Time ET</th><th className="r">Price</th><th className="r">Notional</th><th className="r">Shares</th><th className="r" title="Share of today's volume">% day vol</th></tr></thead>

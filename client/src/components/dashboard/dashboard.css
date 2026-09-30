@@ -467,3 +467,7 @@ html[data-mode=light] .flowdash.dash-page:not(.framed) .pg-sec:has(.today-l){bor
 .flowdash .pg-sec.pg-col .pg-sec-body::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--text-mute) 55%,transparent);border-radius:5px;border:2px solid transparent;background-clip:padding-box}
 .flowdash .pg-sec.pg-col.more-down::after{content:'';position:absolute;left:1px;right:14px;bottom:1px;height:32px;border-radius:0 0 10px 10px;pointer-events:none;background:linear-gradient(to bottom,transparent,var(--panel-solid))}
 .flowdash .pg-col-cue{bottom:10px;right:22px}
+
+/* Batch A · a failed background refresh keeps the last good rows on screen */
+.flowdash .of-stale{flex:none;padding:4px 8px 0}
+.flowdash .fd-stale{flex:none;padding:4px 8px}

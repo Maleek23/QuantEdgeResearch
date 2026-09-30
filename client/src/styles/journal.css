@@ -556,3 +556,17 @@ button.jr-heat-c{cursor:pointer}
   .jr-filters .jr-seg button{flex:none;min-height:40px}
   .jr-strip-page{min-height:44px}
 }
+
+/* Batch A · drill-downs: a summary row opens exactly its trades on the Trades page */
+.jr-drill-btn{background:none;border:0;padding:0;margin:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.jr-drill-btn:hover b,.jr-drill-btn:focus-visible b{color:var(--jr-accent-hi);text-decoration:underline;text-underline-offset:3px}
+tr.jr-drill-row:hover>td{background:color-mix(in srgb,var(--jr-accent-hi,#3b8cff) 6%,transparent)}
+.jr-bar-row.jr-drill-row{cursor:pointer;border-radius:4px}
+.jr-bar-row.jr-drill-row:hover,.jr-bar-row.jr-drill-row:focus-visible{background:color-mix(in srgb,var(--jr-accent-hi,#3b8cff) 7%,transparent)}
+.jr-bar-row.jr-drill-row:hover .jr-bar-k{text-decoration:underline;text-underline-offset:3px}
+button.jr-heat-c{font:inherit;color:inherit;border:0;cursor:pointer}
+button.jr-heat-c:hover,button.jr-heat-c:focus-visible{outline:1px solid var(--jr-accent-hi,#3b8cff);outline-offset:-1px}
+.jr-drill-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:2px 4px 2px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--jr-accent-hi,#3b8cff) 45%,transparent);background:color-mix(in srgb,var(--jr-accent-hi,#3b8cff) 10%,transparent);font-size:12px;white-space:nowrap}
+.jr-drill-chip span{overflow:hidden;text-overflow:ellipsis}
+.jr-drill-chip button{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;border:0;background:transparent;color:inherit;cursor:pointer}
+.jr-drill-chip button:hover,.jr-drill-chip button:focus-visible{background:color-mix(in srgb,var(--jr-accent-hi,#3b8cff) 20%,transparent)}

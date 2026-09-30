@@ -18,7 +18,7 @@ export function JournalFilterBar({ api, options, shown, total }: {
   shown: number;
   total: number;
 }) {
-  const { state, setRange, setFilter, clear, activeCount } = api;
+  const { state, setRange, setFilter, clear, clearDrill, activeCount } = api;
   const f = state.filters;
   const [open, setOpen] = useState(false);
   const symKey = (f.symbols ?? []).join(', ');
@@ -33,6 +33,13 @@ export function JournalFilterBar({ api, options, shown, total }: {
 
   return (
     <div className="jr-filters" role="search" aria-label="Journal filters">
+      {f.ids?.length ? (
+        // A drill-down from Insights / Loss analysis / the time heatmap: exactly these trades.
+        <span className="jr-drill-chip" title={`Showing exactly the ${f.ids.length} trades behind: ${f.drill ?? 'a summary row'}`}>
+          <span>{f.drill ?? 'Selected trades'} · {f.ids.length} trade{f.ids.length === 1 ? '' : 's'}</span>
+          <button type="button" onClick={clearDrill} aria-label="Remove this drill-down filter"><X className="h-3 w-3" /></button>
+        </span>
+      ) : null}
       <div className="jr-seg" role="group" aria-label="Date range">
         {RANGE_PRESETS.map((r) => (
           <button key={r.id} type="button" aria-pressed={state.range === r.id} onClick={() => setRange(r.id)}>{r.label}</button>

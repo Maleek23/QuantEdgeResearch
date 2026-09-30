@@ -14,8 +14,9 @@
  * Loss analysis (why each loss happened, from price bars) is one link away.
  */
 import { useMemo, useState, type ReactNode } from 'react';
+import type React from 'react';
 import { ArrowRight } from 'lucide-react';
-import { useJournal } from '@/components/journal/journal-context';
+import { useJournal, useJournalDrill } from '@/components/journal/journal-context';
 import { LowSample, N, Pnl } from '@/components/journal/parts';
 import { TimeHeatmap } from '@/components/journal/lux-charts';
 import { dayStreaks, fmtMoney, fmtPct, fmtRatio } from '@/lib/journal/metrics';
@@ -39,6 +40,7 @@ export default function InsightsView() {
   const grid = useMemo(() => timeGrid(trades), [trades]);
   const ds = useMemo(() => dayStreaks(days), [days]);
   const [allStops, setAllStops] = useState(false);
+  const drill = useJournalDrill();
 
   if (!model.closed) return <p className="jr-note">No closed trades in view for the {bookLabel} journal — nothing to find yet.</p>;
   const b = model.buckets;
@@ -101,7 +103,10 @@ export default function InsightsView() {
       </Sec>
 
       <Sec id="jr-ins-time" num="03" title="When you trade" meta={<span className="jr-n">entry time, New York</span>}>
-        <TimeHeatmap grid={grid} />
+        <TimeHeatmap grid={grid} onPick={(w, h) => {
+          const cell = grid.cells.get(`${w}|${h}`);
+          if (cell) drill(cell.ids, `${w} ${String(h).padStart(2, '0')}:00 ET entries`)?.();
+        }} />
         <div className="jr-cols">
           <div><h3 className="jr-sub-h">Time of day</h3><Bars rows={b.session} /></div>
           <div><h3 className="jr-sub-h">Weekday</h3><Bars rows={b.weekday} /></div>
@@ -167,9 +172,18 @@ function Stat({ k, v, s }: { k: string; v: string; s: string }) {
 }
 
 function FindingRow({ f }: { f: Finding }) {
+  const open = useJournalDrill()(f.ids, `${INSIGHT_DIM_LABEL[f.dim]}: ${f.key}`);
+  const label = <><span className="jr-n">{INSIGHT_DIM_LABEL[f.dim]}</span><br /><b>{f.key}</b></>;
   return (
-    <tr style={{ cursor: 'default' }}>
-      <td><span className="jr-n">{INSIGHT_DIM_LABEL[f.dim]}</span><br /><b>{f.key}</b> <LowSample n={f.n} /></td>
+    // The whole row opens the trades (mouse); the button in the first cell is the keyboard / screen-reader handle.
+    <tr className={open ? 'jr-drill-row' : undefined} style={{ cursor: open ? 'pointer' : 'default' }} onClick={open ?? undefined}
+      title={open ? `Open these ${f.n} trades on the Trades page` : `${f.n} trades — too many to open as one list; filter on Reports`}>
+      <td>
+        {open
+          ? <button type="button" className="jr-drill-btn" onClick={(e) => { e.stopPropagation(); open(); }} aria-label={`${INSIGHT_DIM_LABEL[f.dim]} ${f.key}: open these ${f.n} trades`}>{label}</button>
+          : label}
+        {' '}<LowSample n={f.n} />
+      </td>
       <td className="num">{f.n}</td>
       <td className="num">{fmtPct(f.winRate)}</td>
       <td className="num">{fmtRatio(f.pf, f.pf == null && f.won > 0)}</td>
@@ -184,19 +198,28 @@ function FindingRow({ f }: { f: Finding }) {
 
 /** Diverging bars (zero baseline), n and win % on every row. */
 function Bars({ rows, empty = 'No trades in view.' }: { rows: InsightBucket[]; empty?: string }) {
+  const drill = useJournalDrill();
   if (!rows.length) return <p className="jr-note">{empty}</p>;
   const max = Math.max(1, ...rows.map((r) => Math.abs(r.net)));
   return (
     <div className="jr-bars">
-      {rows.map((r) => (
-        <div className="jr-bar-row" key={r.key}>
+      {rows.map((r) => {
+        const open = drill(r.ids, `${INSIGHT_DIM_LABEL[r.dim]}: ${r.key}`);
+        return (
+        <div className={`jr-bar-row${open ? ' jr-drill-row' : ''}`} key={r.key}
+          {...(open ? {
+            role: 'link', tabIndex: 0, onClick: open,
+            title: `Open these ${r.n} trades on the Trades page`,
+            onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } },
+          } : {})}>
           <span className="jr-bar-k" title={r.key}>{r.key}</span>
           <span className="jr-bar-track" aria-hidden>
             <span className={`jr-bar-fill ${r.net >= 0 ? 'pos' : 'neg'}`} style={{ width: `${(Math.abs(r.net) / max) * 50}%` }} />
           </span>
           <span className="jr-bar-v"><Pnl value={r.net} compact /> <span className="jr-n">· {fmtPct(r.winRate)} · n={r.n}</span>{r.n < 20 ? <> <LowSample n={r.n} /></> : null}</span>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

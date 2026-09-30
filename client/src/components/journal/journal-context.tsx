@@ -8,6 +8,7 @@ import { createContext, useContext } from 'react';
 import type { JournalTradeRow } from '@/lib/journal/types';
 import type { JournalData, JournalPrefs, JournalSourcesResponse, useJournalFilterState } from '@/lib/journal/use-journal';
 import type { JournalKey } from '@shared/journal-sources';
+import { buildJournalDrill } from '@shared/journal-filters';
 import type { JournalView } from '@/lib/journal/legacy-jtab';
 import type { ImportSection } from './import-drawer';
 
@@ -50,4 +51,19 @@ export function useJournal(): JournalCtx {
   const ctx = useContext(JournalContext);
   if (!ctx) throw new Error('useJournal must be used inside the journal shell');
   return ctx;
+}
+
+/**
+ * Drill-down: open the Trades page filtered to exactly `ids` (the trades a
+ * summary row / heatmap cell describes), on top of the filters in view.
+ * Returns null when the row cannot be opened exactly (too many trades for a
+ * URL) so callers render it as plain text instead of a dead button.
+ */
+export function useJournalDrill() {
+  const { filters, goTo } = useJournal();
+  return (ids: readonly string[], label: string): (() => void) | null => {
+    const next = buildJournalDrill(filters.state.filters, ids, label);
+    if (!next) return null;
+    return () => { filters.setAll(next); goTo('trades'); };
+  };
 }

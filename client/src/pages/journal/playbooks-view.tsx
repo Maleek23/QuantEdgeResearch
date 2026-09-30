@@ -253,7 +253,7 @@ function BotRulebook({ trades }: { trades: JTrade[] }) {
     return [r && r !== 'reason not recorded' ? ruleOfReason(r) : 'not recorded'];
   }), [trades]);
 
-  if (q.isError) return <QEError title="The bot's rules didn't load" message={`/api/journal/bot failed (${q.error instanceof Error ? q.error.message : 'no response'}). The setup stats below are unaffected.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError title="The bot's rules didn't load" message={`/api/journal/bot failed (${q.error instanceof Error ? q.error.message : 'no response'}). The setup stats below are unaffected.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (q.isLoading || !q.data) return <QELoading rows={3} label="loading the bot's rulebook…" />;
   const rows = botRules(q.data.config, trades);
 

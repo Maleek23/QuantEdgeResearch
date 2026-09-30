@@ -21,6 +21,10 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
+import {
+  Bitcoin as BitcoinIcon, Bot as BotIcon, CalendarClock as CalendarClockIcon, ChartCandlestick as ChartCandlestickIcon,
+  Crosshair as CrosshairIcon, Hourglass as HourglassIcon, Magnet as MagnetIcon, Waves as WavesIcon, type LucideIcon,
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { convictionDisplayPercent } from '@shared/conviction-display';
 import {
@@ -86,15 +90,15 @@ export default function LandingNexus() {
   // market being shut, not the data failing. Say which one it is.
   const closed = !fresh && /close/i.test(rotation?.sessionLabel ?? '');
 
-  const MODULES: { name: string; desc: string; tag: string; color: string }[] = [
-    { name: 'Oracle', desc: 'Evidence-ranked signals with a full audit trail. Every layer that argues for or against a setup, visible at a glance.', tag: 'Core · Live', color: '#3b8cff' },
-    { name: 'Chart', desc: 'Interactive multi-frame price action — pan, zoom, expand — with published levels drawn on the real bars.', tag: 'Price · Interactive', color: '#60a5fa' },
-    { name: 'Flow', desc: 'Unusual options prints — whales, sweeps, blocks — with premium sums and honest freshness on every row.', tag: 'Options · 15m cycles', color: '#6ee7b7' },
-    { name: 'GEX', desc: 'Gamma exposure by strike and expiry — dealer walls and the flip level where hedging pressure reverses. Know where the market is magnetized.', tag: 'Options · Live', color: '#f472b6' },
-    { name: 'Leaps', desc: 'Long-dated calls graded on trend, value and momentum — with budget and grade filters over real premiums.', tag: 'Options · Daily', color: '#a78bfa' },
-    { name: 'Crypto', desc: 'BTC/ETH spot reads with measured proxy correlations — the equity route chosen from evidence, not vibes.', tag: '24/7 · Live', color: '#fbbf24' },
-    { name: 'Catalyst', desc: 'Earnings, macro releases and impact-graded news joined to live signals. Binary events are risk, never tilt.', tag: 'Events · Live', color: '#fb7185' },
-    { name: 'Bot', desc: 'The real automation layer — jobs, gates and a paper ledger that measures every published signal.', tag: 'Measurement', color: '#3b8cff' },
+  const MODULES: { name: string; desc: string; tag: string; color: string; href: string; Icon: LucideIcon }[] = [
+    { name: 'Oracle', desc: 'Evidence-ranked signals with a full audit trail. Every layer that argues for or against a setup, visible at a glance.', tag: 'Core · Live', color: '#3b8cff', href: '/t', Icon: CrosshairIcon },
+    { name: 'Chart', desc: 'Interactive multi-frame price action — pan, zoom, expand — with published levels drawn on the real bars.', tag: 'Price · Interactive', color: '#60a5fa', href: '/t?tab=chart', Icon: ChartCandlestickIcon },
+    { name: 'Flow', desc: 'Unusual options prints — whales, sweeps, blocks — with premium sums and honest freshness on every row.', tag: 'Options · 15m cycles', color: '#6ee7b7', href: '/t?tab=flow', Icon: WavesIcon },
+    { name: 'GEX', desc: 'Gamma exposure by strike and expiry — dealer walls and the flip level where hedging pressure reverses. Know where the market is magnetized.', tag: 'Options · Live', color: '#f472b6', href: '/t?tab=gex', Icon: MagnetIcon },
+    { name: 'Leaps', desc: 'Long-dated calls graded on trend, value and momentum — with budget and grade filters over real premiums.', tag: 'Options · Daily', color: '#a78bfa', href: '/t?tab=leaps', Icon: HourglassIcon },
+    { name: 'Crypto', desc: 'BTC/ETH spot reads with measured proxy correlations — the equity route chosen from evidence, not vibes.', tag: '24/7 · Live', color: '#fbbf24', href: '/t?tab=crypto', Icon: BitcoinIcon },
+    { name: 'Catalyst', desc: 'Earnings, macro releases and impact-graded news joined to live signals. Binary events are risk, never tilt.', tag: 'Events · Live', color: '#fb7185', href: '/t?tab=catalyst', Icon: CalendarClockIcon },
+    { name: 'Bot', desc: 'The real automation layer — jobs, gates and a paper ledger that measures every published signal.', tag: 'Measurement', color: '#3b8cff', href: '/t?tab=bot', Icon: BotIcon },
   ];
 
   return (
@@ -242,9 +246,9 @@ export default function LandingNexus() {
           </div>
           <div className="modules-grid">
             {MODULES.map((m) => (
-              <Link href="/t" key={m.name} className="lmodule reveal" style={{ ['--mod-color' as string]: m.color }}>
+              <Link href={m.href} key={m.name} className="lmodule reveal" style={{ ['--mod-color' as string]: m.color }}>
                 <div className="lmodule-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /></svg>
+                  <m.Icon size={20} strokeWidth={2} aria-hidden />
                 </div>
                 <div className="lmodule-name">{m.name}</div>
                 <div className="lmodule-desc">{m.desc}</div>

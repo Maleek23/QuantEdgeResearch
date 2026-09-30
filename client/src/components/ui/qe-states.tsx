@@ -16,6 +16,9 @@
  * shared .lx-empty surface (components/lux/lux.css); still dashed + icon-less
  * by default so it never reads like QEError.
  *
+ * QEStale (Batch A 2026-09-30): a REFETCH failed while good data is on
+ * screen — keep the data, add a small amber chip with its age + Retry.
+ *
  * Visual basis: LoadErrorCard (pages/trade-journal.tsx) and the GEX hub
  * loading/error panels. Colours are NEXUS tokens (styles/nexus.css) with
  * dark-palette fallbacks so the states also render outside `.nexus-vars`.
@@ -147,6 +150,71 @@ export function QEEmpty({
       {title && <div className="lx-empty-title">{title}</div>}
       <div>{message}</div>
       {action && <div className="mt-1 flex justify-center">{action}</div>}
+    </div>
+  );
+}
+
+// ─── Stale (refresh failed, last good data still on screen) ──
+
+function staleAge(ms: number | undefined, now: number): string | null {
+  if (!ms || !Number.isFinite(ms)) return null;
+  const s = Math.max(0, Math.round((now - ms) / 1000));
+  return s < 90 ? `${s}s old` : s < 5400 ? `${Math.round(s / 60)}m old` : `${(s / 3600).toFixed(1)}h old`;
+}
+
+/**
+ * QEStale — a background refetch FAILED but the last good data is still valid
+ * to look at: keep the table on screen and say so in one small chip
+ * ("refresh failed · showing 45s old · Retry") instead of replacing good rows
+ * with QEError. Use QEError only when there is NO data (`isError && !data`).
+ * `updatedAt` = the query's dataUpdatedAt (ms).
+ */
+export function QEStale({
+  what = "refresh",
+  updatedAt,
+  onRetry,
+  retrying = false,
+  className,
+}: {
+  /** What failed, e.g. "Flow tape refresh". */
+  what?: string;
+  updatedAt?: number;
+  onRetry?: () => void;
+  retrying?: boolean;
+  className?: string;
+}) {
+  const age = staleAge(updatedAt, Date.now());
+  return (
+    <div
+      role="status"
+      className={cn("inline-flex max-w-full items-center gap-2 rounded-md px-2 py-1", className)}
+      style={{
+        background: "color-mix(in srgb, var(--amber, #facc15) 10%, transparent)",
+        border: `1px solid color-mix(in srgb, var(--amber, #facc15) 40%, transparent)`,
+        color: T.text,
+        fontFamily: MONO,
+        fontSize: "var(--fs-11, 12px)",
+        lineHeight: 1.3,
+      }}
+      data-testid="qe-stale"
+    >
+      <AlertTriangle className="h-3.5 w-3.5 shrink-0" style={{ color: T.amber }} aria-hidden />
+      <span className="min-w-0 truncate">
+        {what} failed{age ? ` · showing ${age}` : " · showing the last good read"}
+      </span>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={retrying}
+          className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 hover:bg-white/10 disabled:opacity-60"
+          style={{ fontFamily: "inherit", fontSize: "inherit", fontWeight: 600, color: T.text, border: `1px solid ${T.borderHi}`, background: "transparent", cursor: retrying ? "default" : "pointer" }}
+          data-testid="qe-stale-retry"
+        >
+          <RotateCw className={cn("h-3 w-3", retrying && "animate-spin")} aria-hidden />
+          {retrying ? "Retrying…" : "Retry"}
+        </button>
+      )}
     </div>
   );
 }

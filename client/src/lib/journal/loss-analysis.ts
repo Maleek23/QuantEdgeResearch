@@ -559,7 +559,7 @@ export function driverKey(ctx: TradeContext, dim: DriverDim): string {
   }
 }
 
-export interface DriverRow { key: string; n: number; wins: number; losses: number; net: number; lost: number; won: number; pf: number | null; winRate: number | null }
+export interface DriverRow { key: string; n: number; wins: number; losses: number; net: number; lost: number; won: number; pf: number | null; winRate: number | null; /** closed trades in the row (drill-down) */ ids: string[] }
 
 /** $ lost / PF per bucket over CLOSED trades, sorted by $ lost (most first). */
 export function lossDrivers(ctxs: TradeContext[], dim: DriverDim): DriverRow[] {
@@ -568,8 +568,9 @@ export function lossDrivers(ctxs: TradeContext[], dim: DriverDim): DriverRow[] {
     if (c.pnl == null) continue;
     const k = driverKey(c, dim);
     let r = m.get(k);
-    if (!r) { r = { key: k, n: 0, wins: 0, losses: 0, net: 0, lost: 0, won: 0, pf: null, winRate: null }; m.set(k, r); }
+    if (!r) { r = { key: k, n: 0, wins: 0, losses: 0, net: 0, lost: 0, won: 0, pf: null, winRate: null, ids: [] }; m.set(k, r); }
     r.n++;
+    r.ids.push(c.id);
     r.net += c.pnl;
     if (c.pnl > 0) { r.wins++; r.won += c.pnl; } else if (c.pnl < 0) { r.losses++; r.lost += c.pnl; }
   }

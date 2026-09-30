@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Info } from 'lucide-react';
 import { openWorkup } from '@/lib/workup-bus';
 import { cn } from '@/lib/utils';
-import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
+import { QEEmpty, QEError, QELoading, QEStale } from '@/components/ui/qe-states';
 import { CALL, CALL_FILL, PUT } from './flow-colors';
 import { useDashboard, useFocusSymbol, useNow, useToolReport } from '../../frame';
 import {
@@ -268,17 +268,24 @@ export function OptionsFlowTool() {
       {/* ── table ── */}
       {tape.isLoading ? (
         <QELoading rows={6} className="fd-pad" label="reading the tape…" />
-      ) : tape.isError ? (
+      ) : tape.isError && !tape.data ? (
         <QEError className="fd-m" title="Flow tape API didn't respond" onRetry={() => tape.refetch()} retrying={tape.isFetching} />
       ) : (
         <>
+          {/* A failed BACKGROUND refresh keeps the last good tape on screen, stamped with its age. */}
+          {tape.isError && <div className="of-stale"><QEStale what="Flow tape refresh" updatedAt={tape.dataUpdatedAt} onRetry={() => tape.refetch()} retrying={tape.isFetching} /></div>}
           {cs && !cs.ok && (
             <div className="of-warn" role="alert">Chain-scan read failed — only Bullflow alerts are shown. This is a missing source, not a quiet tape.</div>
           )}
           {sorted.length === 0 ? (
             <QEEmpty className="fd-m" message={scored.length === 0
               ? `No prints in the ${days}D window yet. Bullflow stream: ${bf?.enabled ? bf.streamState : 'not configured'}; chain scan newest ${ageLabel(cs?.newestAt, now)}.`
-              : 'Nothing matches these filters. Clear chips or widen the window.'} />
+              : 'Nothing matches these filters.'}
+              action={scored.length === 0
+                ? (days < 5 ? <button type="button" className="fd-btn" onClick={() => setDays(5)}>Widen to 5D</button> : undefined)
+                : (chips.size > 0 || q || src !== 'all')
+                  ? <button type="button" className="fd-btn" onClick={() => { setChips(new Set()); setQ(''); setSrc('all'); }}>Clear filters</button>
+                  : days < 5 ? <button type="button" className="fd-btn" onClick={() => setDays(5)}>Widen to 5D</button> : undefined} />
           ) : (
             <div className="of-scroll" ref={setScroller} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
               <table className="of-table" style={{ width: TABLE_W }}>

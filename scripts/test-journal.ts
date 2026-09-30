@@ -15,7 +15,7 @@ import {
 import { planExpiryResettle, settleParsedExpiries, type ExpiryBarFetcher } from '../server/journal-expiry-settle';
 import { behaviorInsights, buildInsights, concentration, costBucket, dteAtEntry, keepDoing, sessionOf, stopDoing } from '../client/src/lib/journal/insights';
 import { fitTabs } from '../client/src/components/journal/journal-nav';
-import { journalDayKey, matchesJournalFilters, parseJournalFilters, journalFiltersToParams, journalRowOutcome } from '../shared/journal-filters';
+import { buildJournalDrill, countJournalFilters, JOURNAL_DRILL_MAX_IDS, journalDayKey, matchesJournalFilters, parseJournalFilters, journalFiltersToParams, journalRowOutcome } from '../shared/journal-filters';
 import { buildJournalTradeUpdate, deriveJournalTradeFields, journalTradeInputSchema } from '../server/journal-trade-input';
 import {
   calendarMonth, fridayWithWeekend, computeMetrics, crossBuckets, dailyStats, dayStreaks, drawdownPeriods, equityCurve, groupBy, missingDim, noteLine,
@@ -806,6 +806,50 @@ for (const d of JOURNAL_DEFAULTS) {
   assert.equal(again[0].kind, 'duplicate', 'already at intrinsic → duplicate');
   const zeroParse = { ...spx, exitPrice: 0, realizedPnL: -200, notes: miss.noteLine };
   assert.equal(planJournalImport([{ ...oldRow, ...leg.patch } as never], [zeroParse])[0].kind, 'duplicate', 'never downgraded to $0 by a re-import');
+}
+
+
+// ── drill-down URL builders (Insights / Loss drivers / weekday × hour → Trades) ──
+{
+  const base = { symbols: ['SPY'], side: 'long' as const, from: '2026-09-01' };
+  const drill = buildJournalDrill(base, ['bot:a1', 'desk:7', 'bot:a1', 'u-3'], 'Loss driver · Exit: stop hit')!;
+  assert.deepEqual(drill.ids, ['bot:a1', 'desk:7', 'u-3'], 'ids de-duplicated, order kept');
+  assert.equal(drill.drill, 'Loss driver · Exit: stop hit');
+  assert.deepEqual({ ...drill, ids: undefined, drill: undefined }, { ...base, ids: undefined, drill: undefined }, 'filters in view are kept');
+  const qs = journalFiltersToParams(drill);
+  assert.equal(qs.get('jids'), 'bot:a1,desk:7,u-3');
+  assert.equal(qs.get('jdrill'), 'Loss driver · Exit: stop hit');
+  assert.equal(qs.get('jsym'), 'SPY');
+  // URL round trip is exact (what the Trades page reads back = what the row built)
+  const back = parseJournalFilters((k) => new URLSearchParams(qs.toString()).get(k));
+  assert.deepEqual(back, drill);
+  assert.equal(countJournalFilters(back), 4, 'the drill label is not a filter; ids is one');
+  // predicate: exactly those rows (and still AND-ed with the other filters)
+  const r = (id: string, p: Partial<JournalTradeRow> = {}) => row({ id, symbol: 'SPY', direction: 'long', entryTime: '2026-09-02T14:00:00Z', exitTime: '2026-09-02T15:00:00Z', ...p });
+  assert.ok(matchesJournalFilters(r('desk:7'), back));
+  assert.ok(!matchesJournalFilters(r('desk:8'), back), 'an id outside the drill is excluded');
+  assert.ok(!matchesJournalFilters(r('bot:a1', { symbol: 'QQQ' }), back), 'other filters still apply');
+  assert.ok(!matchesJournalFilters({ ...r('x'), id: undefined } as never, { ids: ['x'] }), 'a row without an id never matches an id drill');
+  // refusals: nothing to open, too many ids for a URL, ids that would not survive the URL
+  assert.equal(buildJournalDrill({}, [], 'x'), null);
+  assert.equal(buildJournalDrill({}, Array.from({ length: JOURNAL_DRILL_MAX_IDS + 1 }, (_, i) => `t${i}`), 'x'), null);
+  assert.ok(buildJournalDrill({}, Array.from({ length: JOURNAL_DRILL_MAX_IDS }, (_, i) => `t${i}`), 'x'));
+  assert.equal(buildJournalDrill({}, ['ok-1', 'has space'], 'x'), null, 'an id the URL parser would drop → not exact → refused');
+  assert.equal(buildJournalDrill({}, ['a'], '   ')!.drill, undefined, 'blank label omitted');
+  assert.equal(buildJournalDrill({}, ['a'], 'x'.repeat(200))!.drill!.length, 80, 'label capped');
+  // a hostile / oversized jids param is cleaned on the way in
+  const dirty = parseJournalFilters((k) => new URLSearchParams(`jids=${encodeURIComponent('a,<b>,a,c d,' + Array.from({ length: 400 }, (_, i) => `z${i}`).join(','))}&jdrill=hi`).get(k));
+  assert.equal(dirty.ids![0], 'a');
+  assert.ok(!dirty.ids!.includes('<b>') && !dirty.ids!.includes('c d'));
+  assert.equal(dirty.ids!.length, JOURNAL_DRILL_MAX_IDS);
+  assert.equal(parseJournalFilters((k) => new URLSearchParams('jdrill=orphan').get(k)).drill, undefined, 'a label without ids is dropped');
+  // bucket ids feed the drill: heatmap cells and insight buckets carry their closed trades
+  const drillRows = [r('h1', { entryTime: '2026-09-01T13:45:00Z', realizedPnL: 10 }), r('h2', { entryTime: '2026-09-01T13:50:00Z', realizedPnL: -5 }), r('h3', { entryTime: '2026-09-02T15:10:00Z' })];
+  const grid = timeGrid(drillRows.map(toTrade));
+  assert.deepEqual(grid.cells.get('Tue|9')!.ids, ['h1', 'h2']);
+  const model = buildInsights(drillRows.map(toTrade));
+  const wd = model.buckets.weekday.find((b) => b.key.startsWith('Tue'))!;
+  assert.deepEqual([...wd.ids].sort(), ['h1', 'h2']);
 }
 
 console.log('journal checks passed');

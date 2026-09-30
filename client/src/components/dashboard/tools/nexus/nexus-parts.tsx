@@ -19,6 +19,7 @@ import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
+import { useTickFlash } from '@/lib/use-tick-flash';
 import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import '@/styles/nexus-prototype.css';
@@ -212,6 +213,7 @@ export function DevelopingRow({ hit, selected, onSelect }: { hit: PatternHit; se
 export function DevelopingDetail({ hit, quote, onOpen, chartHeight = 260 }: { hit: PatternHit; quote?: ExtendedSymbolQuote; onOpen: () => void; chartHeight?: number }) {
   const detected = Number(hit.context?.last);
   const current = quote?.lastPrice ?? detected;
+  const currentFlash = useTickFlash(quote?.lastPrice, { resetKey: hit.symbol });
   const displacement = Number.isFinite(detected) && detected > 0 && Number.isFinite(current) ? ((current / detected) - 1) * 100 : null;
   const staleSnapshot = Boolean(quote?.isCurrent && displacement != null && Math.abs(displacement) >= 5);
   const decision = patternDecision(hit, current);
@@ -238,7 +240,7 @@ export function DevelopingDetail({ hit, quote, onOpen, chartHeight = 260 }: { hi
       <div className={`nxp-dev-status ${status.toLowerCase().replaceAll(' ', '-')}`}><strong>{status}</strong><span>{quote?.isCurrent ? `${quote.session} tape` : 'snapshot only'}</span></div>
     </div>
     <div className="nxp-dev-summary">
-      <div><span>Current</span><strong>{money(current)}</strong><small>{quote ? `${quote.changePct >= 0 ? '+' : ''}${quote.changePct.toFixed(2)}% vs close · ${quote.session}` : 'quote unavailable'}</small></div>
+      <div><span>Current</span><strong className={currentFlash}>{money(current)}</strong><small>{quote ? `${quote.changePct >= 0 ? '+' : ''}${quote.changePct.toFixed(2)}% vs close · ${quote.session}` : 'quote unavailable'}</small></div>
       <div><span>Detected at</span><strong>{money(detected)}</strong><small>{hit.detectedAt ? new Date(hit.detectedAt).toLocaleString() : 'scanner snapshot'}</small></div>
       <div className={staleSnapshot ? 'risk' : ''}><span>Since detection</span><strong>{displacement == null ? '—' : `${displacement >= 0 ? '+' : ''}${displacement.toFixed(1)}%`}</strong><small>{staleSnapshot ? 'old levels cannot be traded as-is' : 'inside freshness tolerance'}</small></div>
       <div><span>Pattern</span><strong>{hit.pattern.replaceAll('_', ' ')}</strong><small>{hit.bias === 'neutral' ? 'break direction decides' : `${hit.bias} observation`}</small></div>
@@ -265,6 +267,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
   const reduceMotion = useReducedMotion();
   const positive = selected.direction === 'long';
   const live = selected.currentPrice ?? selected.entryPrice;
+  const liveFlash = useTickFlash(selected.currentPrice, { resetKey: selected.ideaId });
   const progress = selected.targetPrice !== selected.entryPrice
     ? Math.max(0, Math.min(100, ((live - selected.entryPrice) / (selected.targetPrice - selected.entryPrice)) * 100))
     : 0;
@@ -283,7 +286,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       </div>
 
       <div className="nxp-chart-card">
-        <div className="nxp-chart-meta"><span>1 month structure</span><strong>{money(live)}</strong></div>
+        <div className="nxp-chart-meta"><span>1 month structure</span><strong className={liveFlash}>{money(live)}</strong></div>
         <QEChart symbol={selected.symbol} initialTf="1D" height={Math.max(chartHeight, 380)} levels={[
           { price: selected.entryPrice, label: pendingEntry ? 'TRIGGER' : 'ENTRY', color: 'accent' },
           { price: selected.stopLoss, label: 'STOP', color: 'loss' },
@@ -292,7 +295,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       </div>
 
       <div className="nxp-levels">
-        <div><span>Live</span><strong>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1</small></div>
+        <div><span>Live</span><strong className={liveFlash}>{money(live)}</strong><small>{progress.toFixed(0)}% toward T1</small></div>
         <div><span>{pendingEntry ? 'Trigger' : 'Recorded entry'}</span><strong>{money(selected.entryPrice)}</strong><small>{pendingEntry ? 'Waiting for confirmation' : stateLabel(selected)}</small></div>
         <div className="risk"><span>Invalidation</span><strong>{money(selected.stopLoss)}</strong><small>Risk boundary</small></div>
         <div className="reward"><span>First target</span><strong>{money(selected.targetPrice)}</strong><small>{selected.riskRewardRatio.toFixed(1)}R plan</small></div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { authHref, clearStashedReturnTo, readReturnTo, stashReturnTo } from "@/lib/return-to";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -33,6 +34,7 @@ export default function Signup() {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [returnTo] = useState(() => (typeof window === "undefined" ? null : readReturnTo(window.location.search)));
 
   const form = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
@@ -59,7 +61,8 @@ export default function Signup() {
         title: "Account created!",
         description: "Welcome to Quant Edge Labs. Your account has been created successfully.",
       });
-      setLocation("/t");
+      clearStashedReturnTo();
+      setLocation(returnTo ?? "/t");
     },
     onError: (error: Error) => {
       toast({
@@ -105,7 +108,7 @@ export default function Signup() {
           </div>
           
           <div className="space-y-4">
-            <a href="/api/auth/google" className="w-full">
+            <a href="/api/auth/google" className="w-full" onClick={() => stashReturnTo(returnTo)}>
               <Button
                 type="button"
                 variant="glass-secondary"
@@ -282,7 +285,7 @@ export default function Signup() {
             <div className="flex flex-col gap-4 mt-6">
               <div className="text-sm text-muted-foreground text-center">
                 Already have an account?{" "}
-                <Link href="/login" className="text-sky-400 hover:text-sky-300 transition-colors font-medium" data-testid="link-login">
+                <Link href={authHref("/login", returnTo)} className="text-sky-400 hover:text-sky-300 transition-colors font-medium" data-testid="link-login">
                   Log in
                 </Link>
               </div>

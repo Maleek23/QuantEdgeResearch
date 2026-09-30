@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { Link } from "wouter";
 import qeMark from "@assets/qe-mark.svg";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -59,7 +60,7 @@ function fmtUpdated(iso: string | null): string {
 }
 
 export default function PublicWatchlist() {
-  const { data, isLoading, isError } = useQuery<PublicResponse>({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<PublicResponse>({
     queryKey: ["/api/public/watchlist"],
     queryFn: async () => {
       const res = await fetch("/api/public/watchlist");
@@ -105,10 +106,19 @@ export default function PublicWatchlist() {
           </ul>
         )}
         {isError && (
-          <div className="py-16 text-center text-[var(--trade-bearish)]">Couldn't load the watchlist. Try refreshing.</div>
+          <div className="py-16 text-center">
+            <p className="text-[var(--trade-bearish)]">Couldn't load the watchlist — a connection failure, not an empty list.</p>
+            <button type="button" onClick={() => void refetch()} disabled={isFetching}
+              className="mt-3 rounded-md border border-white/15 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/10 disabled:opacity-60">
+              {isFetching ? "Retrying…" : "Try again"}
+            </button>
+          </div>
         )}
         {!isLoading && !isError && items.length === 0 && (
-          <div className="py-16 text-center text-slate-400">No tickers on the list yet.</div>
+          <div className="py-16 text-center text-slate-400">
+            <p>No tickers on the list yet.</p>
+            <Link href="/t" className="mt-3 inline-block rounded-md border border-sky-400/40 px-3 py-1.5 text-sm text-sky-300 hover:bg-sky-400/10">Browse today's setups on NEXUS</Link>
+          </div>
         )}
 
         {/* List */}
@@ -120,7 +130,9 @@ export default function PublicWatchlist() {
               const mom = it.momentum5d;
               const fresh = isNew(it.addedAt);
               return (
-                <li key={it.symbol} className="flex items-center gap-3 py-3">
+                <li key={it.symbol}>
+                <Link href={`/r/${encodeURIComponent(it.symbol)}`} title={`Open the ${it.symbol} ticker page`}
+                  className="-mx-2 flex items-center gap-3 rounded-md px-2 py-3 text-inherit no-underline transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06]">
                   {/* Rank */}
                   <span className="w-6 shrink-0 text-right font-mono text-xs text-slate-500">
                     {i + 1}
@@ -172,10 +184,19 @@ export default function PublicWatchlist() {
                       </div>
                     )}
                   </div>
+                </Link>
                 </li>
               );
             })}
           </ul>
+        )}
+
+        {/* The next step from a shared list: the same names, live, in the product. */}
+        {items.length > 0 && (
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/t" className="rounded-md bg-sky-500/90 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500">Open the live desk in QuantEdge</Link>
+            <span className="text-xs text-slate-500">Tap any row for its full ticker page.</span>
+          </div>
         )}
 
         {/* Footer */}

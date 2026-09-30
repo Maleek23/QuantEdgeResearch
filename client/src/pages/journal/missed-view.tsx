@@ -31,7 +31,7 @@ const pct = (v: number | null | undefined) => (v == null || !Number.isFinite(v) 
 function BotBlocked() {
   const q = useBlockedLedger(true);
   const [limit, setLimit] = useState(40);
-  if (q.isError) return <QEError title="The blocked-trade ledger didn't load" message={`/api/discipline/ledger failed (${q.error instanceof Error ? q.error.message : 'no response'}). This is a failure, not an empty ledger.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError title="The blocked-trade ledger didn't load" message={`/api/discipline/ledger failed (${q.error instanceof Error ? q.error.message : 'no response'}). This is a failure, not an empty ledger.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (q.isLoading || !q.data) return <QELoading rows={4} label="replaying blocked trades…" />;
   const l = q.data;
   const rows = l.entries ?? [];
@@ -115,7 +115,7 @@ function LoggedMissed() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {canWrite && <LogMissed />}
       <Card num={canWrite ? '02' : '01'} title="Missed trades" meta={<N n={missed.length} unit="logged" />}>
-        {notesQ.isError ? (
+        {notesQ.isError && !notesQ.data ? (
           <QEError title="Missed trades didn't load" message="The journal notes request failed — this is a failure, not an empty list." onRetry={() => notesQ.refetch()} retrying={notesQ.isFetching} />
         ) : notesQ.isLoading ? <QELoading rows={2} /> : !missed.length ? (
           <QEEmpty message={canWrite

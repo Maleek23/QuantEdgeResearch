@@ -142,7 +142,7 @@ export function nyWeekdayHour(iso: string): { weekday: string; hour: number } | 
   return weekday && Number.isFinite(hour) ? { weekday, hour } : null;
 }
 
-export interface TimeCell { weekday: string; hour: number; closed: number; wins: number; netPnl: number }
+export interface TimeCell { weekday: string; hour: number; closed: number; wins: number; netPnl: number; /** closed trades in the cell (drill-down) */ ids: string[] }
 export interface TimeGrid {
   weekdays: string[];
   hours: number[];
@@ -163,8 +163,9 @@ export function timeGrid(trades: JTrade[]): TimeGrid {
     if (!p) continue;
     n++;
     const k = `${p.weekday}|${p.hour}`;
-    const c = cells.get(k) ?? { weekday: p.weekday, hour: p.hour, closed: 0, wins: 0, netPnl: 0 };
+    const c = cells.get(k) ?? { weekday: p.weekday, hour: p.hour, closed: 0, wins: 0, netPnl: 0, ids: [] };
     c.closed++;
+    c.ids.push(t.id);
     if (t.status === 'win') c.wins++;
     c.netPnl += t.netPnl;
     cells.set(k, c);

@@ -106,7 +106,7 @@ function TraderPanel({ trader, renderSymbol }: { trader: TraderLite; renderSymbo
           <BookOpen className="h-3 w-3" aria-hidden /> {trader.name}'s journal →
         </a>
       </div>
-      {q.isError ? (
+      {q.isError && !q.data ? (
         <div role="alert" style={{ fontSize: 11, color: 'var(--amber, #facc15)', padding: '4px 0', fontFamily: mono }}>
           {trader.name}'s watchlist didn't load. <button type="button" onClick={() => q.refetch()} style={{ color: 'var(--cyan-bright)', background: 'none', border: 0, cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline' }}>Retry</button>
         </div>

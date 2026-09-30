@@ -172,7 +172,7 @@ export function GexRankingsPanel({ onPick }: { onPick: (symbol: string) => void 
 
       {isLoading ? (
         <div className="gexrank-empty">reading the rankings…</div>
-      ) : isError ? (
+      ) : isError && !data ? (
         <div className="gexrank-empty">rankings unavailable · <button onClick={() => refetch()}>retry</button></div>
       ) : view === 'setups' ? (
         !setups.length ? <div className="gexrank-empty">{emptyNote}</div> : (

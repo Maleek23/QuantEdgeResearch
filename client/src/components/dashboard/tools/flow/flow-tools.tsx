@@ -75,12 +75,12 @@ function NetPremiumSeries({ symbol }: { symbol: string }) {
   const pts = q.data?.series?.points ?? [];
   const last = pts.at(-1);
   useToolReport({
-    asOf: q.isError ? null : last?.t ?? (q.data ? null : undefined),
-    note: q.isError ? 'request failed' : q.data?.throttled ? 'throttled — retry in ~1m' : undefined,
+    asOf: q.isError && !q.data ? null : last?.t ?? (q.data ? null : undefined),
+    note: q.isError ? (q.data ? 'refresh failed · showing last read' : 'request failed') : q.data?.throttled ? 'throttled — retry in ~1m' : undefined,
     tone: q.isError || q.data?.throttled ? 'warn' : 'ok',
   });
   if (q.isLoading) return <QELoading rows={3} className="fd-pad" />;
-  if (q.isError) return <QEError className="fd-m" title={`${symbol} net-premium series didn't load`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError className="fd-m" title={`${symbol} net-premium series didn't load`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (!q.data?.enabled) return <QEEmpty className="fd-m" message="Bullflow is not configured on this server — no aggressor-inferred net premium." />;
   if (q.data.throttled && !pts.length) return <QEEmpty className="fd-m" message={`${symbol}: dashboard share of the Bullflow rate budget is spent for this minute (scanners get priority). It will fill on the next refresh.`} />;
   if (pts.length < 2) return <QEEmpty className="fd-m" message={`No net-premium points for ${symbol} today yet — the provider series starts after the open.`} />;
@@ -124,12 +124,12 @@ export function FlowAlertsTool() {
   const alerts = useMemo(() => (q.data?.rows ?? []).filter((r) => r.source === 'bullflow').slice(0, 150), [q.data]);
   const bf = q.data?.sources.bullflow;
   useToolReport({
-    asOf: q.isError ? null : q.data ? (bf?.newestAt ?? null) : undefined,
-    note: q.isError ? 'request failed' : bf ? `stream ${bf.streamState}` : undefined,
+    asOf: q.isError && !q.data ? null : q.data ? (bf?.newestAt ?? null) : undefined,
+    note: q.isError ? (q.data ? 'refresh failed · showing last read' : 'request failed') : bf ? `stream ${bf.streamState}` : undefined,
     tone: q.isError || (bf && bf.streamState !== 'live') ? 'warn' : 'ok',
   });
   if (q.isLoading) return <QELoading rows={4} className="fd-pad" />;
-  if (q.isError) return <QEError className="fd-m" title="Flow tape didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError className="fd-m" title="Flow tape didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (!bf?.enabled) return <QEEmpty className="fd-m" message="Bullflow is not configured on this server, so there is no alert stream." />;
   if (!alerts.length) return <QEEmpty className="fd-m" message={`No Bullflow alerts today yet (stream ${bf.streamState}).`} />;
   return (

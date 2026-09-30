@@ -38,7 +38,7 @@ function exportCsv(trades: JTrade[], book: string) {
 }
 
 export default function TradesView() {
-  const { data, openTrade, openEditor, simSymbol } = useJournal();
+  const { data, openTrade, openEditor, openImport, simSymbol, filters } = useJournal();
   const { trades, rows } = data;
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'date', dir: -1 });
   const [limit, setLimit] = useState(PAGE);
@@ -172,6 +172,24 @@ export default function TradesView() {
             </button>
           ))}
         </div>
+        {sorted.length === 0 && (
+          // One line + one next action — never a blank table.
+          <div className="lx-empty" data-testid="qe-empty" style={{ marginTop: 10 }}>
+            {filters.activeCount > 0 ? (
+              <>
+                <div>No trades match these filters{filters.state.filters.ids?.length ? ' (the drilled-down trades are outside the other filters)' : ''}.</div>
+                <div className="mt-1 flex justify-center"><button type="button" className="jr-btn jr-btn-sm" onClick={filters.clear}>Clear filters</button></div>
+              </>
+            ) : readOnly ? (
+              <div>This book has no trades yet.</div>
+            ) : (
+              <>
+                <div>No trades logged yet — import a broker file (or use Add trade above).</div>
+                <div className="mt-1 flex justify-center"><button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => openImport()}>Import trades</button></div>
+              </>
+            )}
+          </div>
+        )}
         {deleteError && <div className="jr-err" role="alert" style={{ marginTop: 10 }}>{deleteError}</div>}
         {sorted.length > limit && (
           <button type="button" className="jr-btn" style={{ width: '100%', marginTop: 10 }} onClick={() => setLimit((l) => l + PAGE)}>

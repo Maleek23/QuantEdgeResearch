@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
+import { nexusIdeaHref } from '@/lib/nexus-link';
 import { useQuery } from '@tanstack/react-query';
 import { convictionDisplayPercent } from '@shared/conviction-display';
 
@@ -16,6 +17,7 @@ export interface Pick {
   entryPrice?: number | null; stopLoss?: number | null; targetPrice?: number | null; riskRewardRatio?: number | null;
   convictionScore?: number | null; publishedConvictionBand?: string | null; convictionBand?: string | null;
   currentPrice?: number | null;
+  ideaId?: string | null;
 }
 export interface ConvictionsPayload { generatedAt?: string; picks?: Pick[] }
 export interface CryptoPulse { assets?: { symbol: string; price: number; change24h?: number | null }[] }
@@ -163,8 +165,9 @@ export function RotQuad({ sectors, height = 260 }: { sectors: Sector[]; height?:
 
 export const CHECK = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>;
 
-/** `chart` false = no mini price chart (and no series request) — plain pages make charts opt-in. */
-export function SigCard({ p, chart = true }: { p: Pick; chart?: boolean }) {
+/** `chart` false = no mini price chart (and no series request) — plain pages make charts opt-in.
+ *  The card opens THIS idea selected on NEXUS (lib/nexus-link.ts) unless `href` overrides. */
+export function SigCard({ p, chart = true, href }: { p: Pick; chart?: boolean; href?: string }) {
   const { data } = useDaily(p.symbol, '1mo', '1d', chart);
   const bars = data?.data ?? [];
   const band = (p.publishedConvictionBand ?? p.convictionBand ?? 'C').charAt(0);
@@ -174,7 +177,8 @@ export function SigCard({ p, chart = true }: { p: Pick; chart?: boolean }) {
   const pnl = live != null && entry ? ((live - entry) / entry) * (dir === 'short' ? -100 : 100) : null;
   const fmt = (v?: number | null) => v == null ? '—' : `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(2)}`;
   return (
-    <Link href="/t" className="lsig-card" style={{ ['--band-color' as string]: bandColor, display: 'block' }}>
+    <Link href={href ?? nexusIdeaHref(p)} className="lsig-card" style={{ ['--band-color' as string]: bandColor, display: 'block' }}
+      title={`Open ${p.symbol} selected on NEXUS`}>
       <div className="lsig-head">
         <div className="lsig-ticker">{p.symbol}</div>
         <div className="lsig-band" style={{ background: `${bandColor}26`, color: bandColor, border: `1px solid ${bandColor}4d` }}>{band}</div>

@@ -43,7 +43,7 @@ const journalHref = (params: Record<string, string>) => `/t?${new URLSearchParam
 function Standalone({ children }: { children: ReactNode }) {
   const data = useJournalData({}, 'mine');
   const ctx = useMemo<JournalCtx>(() => ({
-    filters: { state: { range: 'all', filters: {} }, resolved: {}, setRange: noop, setFilter: noop, clear: noop, activeCount: 0 },
+    filters: { state: { range: 'all', filters: {} }, resolved: {}, setRange: noop, setFilter: noop, setAll: noop, clearDrill: noop, clear: noop, activeCount: 0 },
     data,
     view: 'dashboard',
     bookLabel: 'Mine',
@@ -74,7 +74,7 @@ function Body({ children, pad = true }: { children: ReactNode; pad?: boolean }) 
     asOf: data.meta?.asOf ?? (data.tradesQ.dataUpdatedAt ? new Date(data.tradesQ.dataUpdatedAt).toISOString() : null),
     source: `journal · ${bookLabel} · n=${data.rows.length}${data.rows.length !== data.allRows.length ? ` of ${data.allRows.length}` : ''} trades`,
   });
-  if (data.tradesQ.isError) return <QEError className="fd-m" title={`Couldn't load the ${bookLabel} journal`} message="The journal request failed — this is a failure, not an empty book." onRetry={() => data.tradesQ.refetch()} />;
+  if (data.tradesQ.isError && !data.tradesQ.data) return <QEError className="fd-m" title={`Couldn't load the ${bookLabel} journal`} message="The journal request failed — this is a failure, not an empty book." onRetry={() => data.tradesQ.refetch()} />;
   if (data.tradesQ.isLoading) return <QELoading rows={2} className="fd-pad" label="loading trades…" />;
   if (!data.allRows.length) return <QEEmpty className="fd-m" message={`The ${bookLabel} journal has no trades yet.`} />;
   if (!data.rows.length) return <QEEmpty className="fd-m" message="No trades match the journal filters." />;
@@ -316,7 +316,7 @@ export const JournalBySetupTool = scoped(function BySetup() {
 export const JournalInsightsTool = scoped(function Insights() {
   const { data } = useJ();
   const q = data.analyticsQ;
-  if (q.isError) return <QEError title="Journal insights didn't load" message="The insight engine request failed — the other tools are unaffected (computed from your rows)." onRetry={() => q.refetch()} />;
+  if (q.isError && !q.data) return <QEError title="Journal insights didn't load" message="The insight engine request failed — the other tools are unaffected (computed from your rows)." onRetry={() => q.refetch()} />;
   if (q.isLoading) return <QELoading rows={2} />;
   const ins = q.data?.insights ?? [];
   if (!ins.length) return <QEEmpty message="No behavioural patterns detected in this view yet — the engine needs about 5+ closed trades." />;
@@ -341,7 +341,7 @@ export const JournalNotesTool = scoped(function Notes() {
     .filter((n) => (!f.from || n.day >= f.from) && (!f.to || n.day <= f.to))
     .sort((a, b) => Date.parse(b.postedAt) - Date.parse(a.postedAt)), [data.notesQ.data, f.from, f.to]);
   if (data.key === 'bot' || data.key === 'desk') return <p className="jr-note">This book is a ledger — it carries no notes.</p>;
-  if (data.notesQ.isError) return <QEError title="Journal notes didn't load" message="Trades and metrics are unaffected." onRetry={() => data.notesQ.refetch()} />;
+  if (data.notesQ.isError && !data.notesQ.data) return <QEError title="Journal notes didn't load" message="Trades and metrics are unaffected." onRetry={() => data.notesQ.refetch()} />;
   if (data.notesQ.isLoading) return <QELoading rows={2} />;
   return (
     <>

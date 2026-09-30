@@ -15,6 +15,8 @@
  * never a placeholder number. Plans are model output, labelled unvalidated.
  */
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
+import { nexusIdeaHref } from '@/lib/nexus-link';
 import { Clock3, Crosshair, Gauge, History, Timer, Waves } from 'lucide-react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useToolReport } from '@/components/dashboard/frame';
@@ -93,9 +95,14 @@ function SessionClock({ phase }: { phase: Phase }) {
   );
 }
 
-function Kv({ k, v, cls, title }: { k: string; v: string; cls?: string; title?: string }) {
+function Kv({ k, v, cls, title, href }: { k: string; v: string; cls?: string; title?: string; href?: string }) {
+  // A level with a value is a handle: it opens the GEX workspace focused on this name.
+  if (href && v !== '—') return <Link href={href} className="zd-kv zd-kv-link" title={title ?? `${k} — open GEX focused on this name`}><span>{k}</span><strong className={cls}>{v}</strong></Link>;
   return <div className="zd-kv" title={title}><span>{k}</span><strong className={cls}>{v}</strong></div>;
 }
+
+const tickerHref = (sym: string) => `/r/${encodeURIComponent(sym)}`;
+const gexHref = (sym: string) => `/r/${encodeURIComponent(sym)}?tab=gex`;
 
 function NameCard({ r }: { r: Row }) {
   const L = r.levels; const em = r.expectedMove; const f = r.flow; const i = r.intraday;
@@ -103,7 +110,7 @@ function NameCard({ r }: { r: Row }) {
     <article className="zd-card" aria-label={`${r.symbol} 0DTE`}>
       <header className="zd-card-head">
         <div>
-          <h3>{r.symbol}{r.optionRoot !== r.symbol && <small> · {r.optionRoot}</small>}</h3>
+          <h3><Link href={tickerHref(r.symbol)} className="zd-sym-link" title={`Open the ${r.symbol} ticker page`}>{r.symbol}</Link>{r.optionRoot !== r.symbol && <small> · {r.optionRoot}</small>}</h3>
           <span className="zd-sub">{px(r.spot)} · {r.chainSource ?? 'no chain'} · {age(r.chainAgeSec)}</span>
         </div>
         <span className={`zd-exp ${r.expiry.sameDay ? 'same' : ''}`} title={r.expiry.upcoming.length ? `listed: ${r.expiry.upcoming.join(', ')}` : undefined}>{r.expiry.label}</span>
@@ -119,11 +126,11 @@ function NameCard({ r }: { r: Row }) {
       <div className="zd-grid">
         <Kv k="Exp. move today" v={em ? `±${px(em.today)} (${pct(em.todayPct)})` : '—'} title={em?.basis} />
         <Kv k={`To ${em?.expiry ?? 'expiry'}`} v={em ? `±${px(em.toExpiry)} · ${em.source === 'atm_straddle' ? 'straddle' : 'IV'}` : '—'} title={em?.basis} />
-        <Kv k="Call wall" v={px(L?.callWall)} cls="zd-dn" />
-        <Kv k="Put wall" v={px(L?.putWall)} cls="zd-up" />
-        <Kv k="Zero-γ" v={px(L?.zeroGamma)} />
-        <Kv k="Max-γ" v={px(L?.maxGamma)} />
-        <Kv k="Regime" v={L ? `${L.regimeTitle}${L.nearFlip ? ' · near flip' : ''}` : '—'} cls={L?.regime === 'negative' ? 'zd-dn' : L?.regime === 'positive' ? 'zd-up' : undefined} title={L?.basis} />
+        <Kv k="Call wall" v={px(L?.callWall)} cls="zd-dn" href={gexHref(r.symbol)} />
+        <Kv k="Put wall" v={px(L?.putWall)} cls="zd-up" href={gexHref(r.symbol)} />
+        <Kv k="Zero-γ" v={px(L?.zeroGamma)} href={gexHref(r.symbol)} />
+        <Kv k="Max-γ" v={px(L?.maxGamma)} href={gexHref(r.symbol)} />
+        <Kv k="Regime" v={L ? `${L.regimeTitle}${L.nearFlip ? ' · near flip' : ''}` : '—'} cls={L?.regime === 'negative' ? 'zd-dn' : L?.regime === 'positive' ? 'zd-up' : undefined} title={L?.basis} href={gexHref(r.symbol)} />
         <Kv k="VWAP" v={i.vwap != null ? `${px(i.vwap)} · ${i.vwapSide ?? '—'}` : '—'} title={r.intradayNote ?? undefined} />
         <Kv k="Opening range" v={i.orbState === 'n/a' ? '—' : `${i.orbState}${i.or30High != null ? ` · ${px(i.or30Low)}–${px(i.or30High)}` : ''}`} />
         <Kv k="Flow tide (exp.)" v={f.prints ? `${f.lean ?? '—'} · C ${usdK(f.callPremium)} / P ${usdK(f.putPremium)}` : 'no prints'} cls={sideCls(f.lean)} title={f.basis} />
@@ -135,7 +142,7 @@ function NameCard({ r }: { r: Row }) {
       {r.todaysIdeas.length > 0 && (
         <ul className="zd-ideas">
           {r.todaysIdeas.map((x) => (
-            <li key={x.id}><span className={sideCls(x.direction)}>{x.direction}</span> {x.kind === 'swing' ? 'swing' : '0DTE'} {x.contract ?? ''} · {px(x.entry)} → {px(x.target)} / stop {px(x.stop)} · <b>{x.outcomeStatus ?? 'open'}</b> · {etTime(x.timestamp)}</li>
+            <li key={x.id}><Link href={nexusIdeaHref({ ideaId: x.id, symbol: r.symbol })} className="zd-idea-link" title="Open this idea on NEXUS"><span className={sideCls(x.direction)}>{x.direction}</span> {x.kind === 'swing' ? 'swing' : '0DTE'} {x.contract ?? ''} · {px(x.entry)} → {px(x.target)} / stop {px(x.stop)} · <b>{x.outcomeStatus ?? 'open'}</b> · {etTime(x.timestamp)}</Link></li>
           ))}
         </ul>
       )}
@@ -157,7 +164,7 @@ function SwingTable({ rows }: { rows: Row[] }) {
               const s = r.swing;
               return (
                 <tr key={r.symbol}>
-                  <td><b>{r.symbol}</b><small>{r.swingLevels ? ` ${r.swingLevels.regime} γ` : ''}</small></td>
+                  <td><Link href={tickerHref(r.symbol)} className="zd-sym-link"><b>{r.symbol}</b></Link><small>{r.swingLevels ? ` ${r.swingLevels.regime} γ` : ''}</small></td>
                   <td className={s.verdict === 'plan' ? sideCls(s.direction) : 'zd-flat'}>{s.verdict === 'plan' ? s.direction : 'no plan'}</td>
                   <td>{px(s.entry)}</td>
                   <td>{px(s.stop)}</td>
@@ -199,9 +206,10 @@ function RecordBlock({ rec }: { rec: DeskRec }) {
 /** The whole desk. `dense` = inside a dashboard tile. */
 export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
   const q = useZeroDteDesk();
-  if (q.isLoading) return <QELoading rows={6} label="reading chains, levels and the tape…" className="fd-pad" />;
   if (q.isError && !q.data) return <QEError title="The 0DTE desk didn't load" message={(q.error as Error)?.message} onRetry={() => q.refetch()} retrying={q.isFetching} className="fd-m" />;
-  const d = q.data!;
+  // Pending (incl. a paused / not-yet-started fetch), never `q.data!` on undefined.
+  if (!q.data) return <QELoading rows={6} label="reading chains, levels and the tape…" className="fd-pad" />;
+  const d = q.data;
   return (
     <div className={`zd ${dense ? 'zd-dense' : ''}`}>
       <SessionClock phase={d.phase} />

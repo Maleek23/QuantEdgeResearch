@@ -54,6 +54,8 @@ export interface InsightBucket {
   /** n in each half. */
   firstN: number;
   secondN: number;
+  /** The closed trades in this bucket (drill-down to exactly these on the Trades page). */
+  ids: string[];
 }
 
 /** Position cost at entry: premium × 100 × contracts for options, price × shares otherwise. */
@@ -189,9 +191,10 @@ export function buildInsights(trades: JTrade[]): InsightModel {
     for (const c of ctx) {
       for (const key of keysOf(c, dim)) {
         let b = m.get(key);
-        if (!b) { b = { dim, key, n: 0, wins: 0, net: 0, won: 0, lost: 0, winRate: null, pf: null, expectancy: null, firstHalf: 0, secondHalf: 0, firstN: 0, secondN: 0 }; m.set(key, b); }
+        if (!b) { b = { dim, key, n: 0, wins: 0, net: 0, won: 0, lost: 0, winRate: null, pf: null, expectancy: null, firstHalf: 0, secondHalf: 0, firstN: 0, secondN: 0, ids: [] }; m.set(key, b); }
         const p = c.t.netPnl;
         b.n++;
+        b.ids.push(c.t.id);
         if (c.t.status === 'win') b.wins++;
         b.net += p;
         if (p > 0) b.won += p; else b.lost += p;

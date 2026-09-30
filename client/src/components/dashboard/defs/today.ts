@@ -60,6 +60,13 @@ export const TODAY_TOOLS: ToolDef[] = [
     defaultSize: { w: 7, h: 9 }, minSize: { w: 4, h: 7 }, Component: lazyTool(today, 'TodayRotationTool'),
   },
   {
+    id: 'today-premarket', category: 'Market', title: 'Pre-market · gaps',
+    what: 'The leading direction read before the open: each name\'s pre-market gap vs the prior close (04:00–09:30 ET), book ideas first with whether the gap confirms or goes against them, then the weekly watchlist. Collapsed and stamped outside the window.',
+    units: 'gap % vs prior close, $', source: 'Yahoo pre/post quotes (60s server cache)',
+    backing: 'GET /api/premarket/gappers?minGapPct=0 (server/pre-market-service.ts) + the ranked book',
+    defaultSize: { w: 4, h: 3 }, minSize: { w: 3, h: 2 }, Component: lazyTool(today, 'TodayPremarketTool'),
+  },
+  {
     id: 'today-tape', category: 'Market', title: 'Sector & crypto tape',
     what: 'A scrolling tape of every sector ETF (session %) and the crypto majors (24h %); hover to pause.',
     units: 'session % (sectors), 24h % (crypto), $', source: 'sector rotation + crypto pulse',
@@ -70,7 +77,7 @@ export const TODAY_TOOLS: ToolDef[] = [
 
 /**
  * TODAY default — the old page's reading order on one screen (12 × 18):
- *   ┌──────────── sector & crypto tape 12×3 (a free-flowing row) ──────┐
+ *   ┌──────── sector & crypto tape 8×3 ────────┬ pre-market 4×3 ─────┐
  *   ├────────── week dealer map · SPY 8×9 ───────────┬ best idea 4×9 ─┤
  *   ├───── ranked book 6×6 ─────┬ index desk 3×6 ┬ model record 3×6 ──┤
  * Book stats, rotation and book by horizon: Add tool.
@@ -78,7 +85,8 @@ export const TODAY_TOOLS: ToolDef[] = [
 export const TODAY_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'Today',
   tools: [
-    ['today-tape', 0, 0, 12, 3],
+    ['today-tape', 0, 0, 8, 3],
+    ['today-premarket', 8, 0, 4, 3],
     ['today-week-map', 0, 3, 8, 9],
     ['today-best-idea', 8, 3, 4, 9],
     ['today-ranked-book', 0, 12, 6, 6],

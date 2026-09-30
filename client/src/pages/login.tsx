@@ -13,6 +13,7 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from "lucide
 import { SiGoogle } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/qe-mark.svg";
 import { WaitlistPopup } from "@/components/waitlist-popup";
+import { RETURN_TO_PARAM, clearStashedReturnTo, readReturnTo, stashReturnTo } from "@/lib/return-to";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -29,6 +30,9 @@ export default function Login() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
+  // Deep link the visitor was sent here from (sanitised: same-origin relative paths only).
+  const [returnTo] = useState(() => (typeof window === "undefined" ? null : readReturnTo(window.location.search)));
+  const landing = returnTo ?? "/t";
 
   // Handle URL error parameters from OAuth callbacks
   useEffect(() => {
@@ -45,7 +49,7 @@ export default function Login() {
       };
 
       setAuthError(errorMessages[error] || 'An error occurred during sign-in.');
-      window.history.replaceState({}, '', '/login');
+      window.history.replaceState({}, '', returnTo ? `/login?${RETURN_TO_PARAM}=${encodeURIComponent(returnTo)}` : '/login');
     }
   }, []);
 
@@ -59,7 +63,8 @@ export default function Login() {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ title: "Welcome!", description: "Admin login successful." });
-      setLocation("/t");
+      clearStashedReturnTo();
+      setLocation(landing);
     },
     onError: (error: Error) => {
       toast({
@@ -84,7 +89,8 @@ export default function Login() {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({ title: "Welcome back!", description: "You have been logged in successfully." });
-      setTimeout(() => setLocation("/t"), 100);
+      clearStashedReturnTo();
+      setTimeout(() => setLocation(landing), 100);
     },
     onError: (error: Error) => {
       toast({
@@ -240,7 +246,8 @@ export default function Login() {
           </div>
 
           {/* Google Sign In */}
-          <a href="/api/auth/google" className="block mb-4">
+          {/* Google returns through the server (fixed redirect), so the deep link rides in sessionStorage. */}
+          <a href="/api/auth/google" className="block mb-4" onClick={() => stashReturnTo(returnTo)}>
             <Button
               type="button"
               className="w-full h-11 bg-white dark:bg-card border border-gray-200 dark:border-border text-foreground dark:text-foreground hover:bg-gray-50 dark:hover:bg-muted hover:border-gray-300 dark:hover:border-border"

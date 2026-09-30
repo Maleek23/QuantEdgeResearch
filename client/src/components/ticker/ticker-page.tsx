@@ -24,6 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Bell, Cpu, Star } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { openWorkup } from '@/lib/workup-bus';
+import { useTickFlash } from '@/lib/use-tick-flash';
 import { getPeerSet } from '@shared/sector-peers';
 import { QEChart } from '@/components/charting/qe-chart';
 import type { Level, Zone } from '@/components/charting/chart-engine';
@@ -88,6 +89,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   const d = useTickerData(symbol);
   const { sym } = d;
   const q: Quote | undefined = d.quote.data?.[sym];
+  const priceFlash = useTickFlash(q?.price, { resetKey: sym });
   const bars = d.bars.data?.data ?? [];
   const qtm = d.qtm.data;
   const snap = d.dealer.data?.snapshot;
@@ -244,7 +246,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       <div className="tk-quote" aria-live="polite">
         {q ? (
           <>
-            <span className="tk-price">{fmtPx(q.price)}</span>
+            <span className={`tk-price ${priceFlash}`}>{fmtPx(q.price)}</span>
             <span className={`tk-chg ${up ? 'lx-tone-gain' : 'lx-tone-loss'}`}>{up ? '▲' : '▼'} {q.change >= 0 ? '+' : '−'}${Math.abs(q.change).toFixed(2)} · {fmtPct(q.changePercent)}</span>
             <span className="tk-src" title={q.asOf ?? undefined}>{q.source ?? 'realtime quote'}{q.delayed ? ' · delayed' : ''} · {age(q.asOf)}</span>
           </>
@@ -295,7 +297,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       <LuxPage width="full" className="tk-page">
         {header}
         {miniNav}
-        <DeepView view={view} />
+        <DeepView view={view} sym={sym} />
       </LuxPage>
     );
   }
@@ -359,11 +361,11 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
 const TerminalHeatmap = lazy(() => import('@/components/research/terminal-heatmap'));
 const ContractAnalyzer = lazy(() => import('@/components/contract-analyzer').then((m) => ({ default: m.ContractAnalyzer })));
 
-function DeepView({ view }: { view: TickerView }) {
+function DeepView({ view, sym }: { view: TickerView; sym: string }) {
   return (
     <Suspense fallback={<Empty>Loading {view === 'gex' ? 'GEX surface' : 'Contract lab'}…</Empty>}>
       <div className={view === 'gex' ? 'tk-deep tk-deep-gex' : 'tk-deep'}>
-        {view === 'gex' ? <TerminalHeatmap /> : <ContractAnalyzer />}
+        {view === 'gex' ? <TerminalHeatmap /> : <ContractAnalyzer key={sym} symbol={sym} />}
       </div>
     </Suspense>
   );

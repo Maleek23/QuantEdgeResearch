@@ -150,7 +150,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
           </div>
           {isLoading ? (
             <Skeleton className="h-20" />
-          ) : isError ? (
+          ) : isError && !integrityData ? (
             <div className="flex items-center justify-between p-3 rounded bg-muted/20 text-xs">
               <span className="flex items-center gap-2 text-muted-foreground">
                 <XCircle className="h-3.5 w-3.5 text-[var(--trade-bearish)]" />
@@ -186,7 +186,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
           <p className="text-sm font-medium">Sample Trades (Verification)</p>
           {isLoading ? (
             <Skeleton className="h-32" />
-          ) : isError ? null : (
+          ) : isError && !integrityData ? null : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
@@ -327,7 +327,7 @@ export default function PerformancePage() {
   }
 
   // A fetch failure must not read as "no data".
-  if (isError) {
+  if (isError && !stats) {
     return (
       <div className="max-w-5xl mx-auto p-4 sm:p-6">
         <Card className="p-8 text-center">

@@ -26,7 +26,19 @@ export interface JournalFilters {
   broker?: string;
   /** Bot book: one run (paper portfolio id). Absent = every run, combined. */
   run?: string;
+  /**
+   * Drill-down: exactly these trade ids (an Insights / Loss-driver row or a
+   * weekday × hour cell opens the Trades page on the trades it summarises).
+   * Capped at JOURNAL_DRILL_MAX_IDS so the URL stays shareable.
+   */
+  ids?: string[];
+  /** Display-only name of the drill ("Loss driver · Exit: stop hit") — never filters. */
+  drill?: string;
 }
+
+/** Most trade ids a drill-down URL carries (~40 chars each → ≤ 6 KB of query). */
+export const JOURNAL_DRILL_MAX_IDS = 150;
+const ID_RE = /^[A-Za-z0-9:_.-]{1,80}$/;
 
 /** URL parameter name for each filter — `j`-prefixed so they never collide with the shell's params. */
 export const JOURNAL_FILTER_PARAMS = {
@@ -41,6 +53,8 @@ export const JOURNAL_FILTER_PARAMS = {
   outcome: 'jout',
   broker: 'jbroker',
   run: 'jrun',
+  ids: 'jids',
+  drill: 'jdrill',
 } as const satisfies Record<keyof JournalFilters, string>;
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -79,7 +93,29 @@ export function parseJournalFilters(get: (key: string) => string | null | undefi
   if (broker) f.broker = broker.toLowerCase();
   const run = clean(get(JOURNAL_FILTER_PARAMS.run), 64);
   if (run && /^[a-zA-Z0-9-]+$/.test(run)) f.run = run;
+  const ids = clean(get(JOURNAL_FILTER_PARAMS.ids), JOURNAL_DRILL_MAX_IDS * 81)
+    ?.split(',')
+    .map((s) => s.trim())
+    .filter((s) => ID_RE.test(s));
+  if (ids?.length) f.ids = [...new Set(ids)].slice(0, JOURNAL_DRILL_MAX_IDS);
+  const drill = clean(get(JOURNAL_FILTER_PARAMS.drill));
+  if (drill && f.ids) f.drill = drill;
   return f;
+}
+
+/**
+ * A drill-down from a summary row: the filters in view PLUS exactly these trade
+ * ids (a subset of the rows in view, so the combination is exact). null when
+ * there is nothing to open or too many trades to carry in a URL.
+ */
+export function buildJournalDrill(current: JournalFilters, ids: readonly string[], label: string): JournalFilters | null {
+  const uniq = [...new Set(ids)];
+  // Every id must survive the URL round trip, or the drill would not be exact.
+  if (!uniq.length || uniq.length > JOURNAL_DRILL_MAX_IDS || !uniq.every((id) => ID_RE.test(id))) return null;
+  const next: JournalFilters = { ...current, ids: uniq };
+  const l = label.trim().slice(0, 80);
+  if (l) next.drill = l; else delete next.drill;
+  return next;
 }
 
 /** Serialise to URL params (only set keys). */
@@ -96,6 +132,7 @@ export function journalFiltersToParams(f: JournalFilters): URLSearchParams {
 
 export function countJournalFilters(f: JournalFilters): number {
   return (Object.keys(f) as (keyof JournalFilters)[]).filter((k) => {
+    if (k === 'drill') return false; // a label, not a filter
     const v = f[k];
     return Array.isArray(v) ? v.length > 0 : v != null && v !== '';
   }).length;
@@ -117,6 +154,8 @@ export function journalDayKey(iso: string | Date): string {
 
 /** The minimum row shape the predicate reads — satisfied by JournalTrade on both sides. */
 export interface JournalFilterableRow {
+  /** Needed only by the `ids` drill-down filter. */
+  id?: string;
   symbol: string;
   direction: string;
   assetType: string;
@@ -156,5 +195,6 @@ export function matchesJournalFilters(row: JournalFilterableRow, f: JournalFilte
   if (f.broker && !same(row.broker, f.broker)) return false;
   if (f.run && row.runId !== f.run) return false;
   if (f.outcome && journalRowOutcome(row) !== f.outcome) return false;
+  if (f.ids?.length && !(row.id && f.ids.includes(row.id))) return false;
   return true;
 }

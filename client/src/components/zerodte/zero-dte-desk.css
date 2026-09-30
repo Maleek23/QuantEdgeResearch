@@ -79,3 +79,11 @@
   .zd-grid{grid-template-columns:1fr}
   .zd-phases{grid-template-columns:1fr}
 }
+
+/* Batch A · the desk's names, levels and ideas are handles, not labels */
+.zd-kv-link{color:inherit;text-decoration:none;cursor:pointer;border-radius:3px}
+.zd-kv-link:hover strong,.zd-kv-link:focus-visible strong{text-decoration:underline;text-underline-offset:2px}
+.zd-sym-link{color:inherit;text-decoration:none}
+.zd-sym-link:hover,.zd-sym-link:focus-visible{text-decoration:underline;text-underline-offset:3px}
+.zd-idea-link{color:inherit;text-decoration:none;display:block}
+.zd-idea-link:hover,.zd-idea-link:focus-visible{text-decoration:underline;text-underline-offset:2px}

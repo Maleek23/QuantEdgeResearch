@@ -27,6 +27,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { WaitlistPromptModal } from "@/components/waitlist-prompt-modal";
+import { ToastAction } from "@/components/ui/toast";
+import { authHref, currentLocationTarget, describeTarget } from "@/lib/return-to";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -53,6 +55,8 @@ export function ProtectedRoute({
   const [inviteCode, setInviteCode] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showWaitlistModal, setShowWaitlistModal] = useState(true);
+  // The deep link the visitor asked for (path + query + hash), kept through sign-in.
+  const [returnTo] = useState(currentLocationTarget);
 
   // Loading state — the one route fallback (boot screen during boot, page skeleton after)
   if (isLoading) return <RouteFallback />;
@@ -78,7 +82,22 @@ export function ProtectedRoute({
 
         <WaitlistPromptModal
           open={showWaitlistModal}
-          onClose={() => setLocation("/")}
+          returnTo={returnTo}
+          onClose={() => {
+            // Dismissing the gate is not the end of the link: go home, but keep
+            // a one-tap way back to exactly what was requested.
+            setShowWaitlistModal(false);
+            setLocation("/");
+            if (returnTo) {
+              const href = authHref("/login", returnTo);
+              toast({
+                title: `Sign in to open ${describeTarget(returnTo)}`,
+                description: "Your link is kept — sign in and you land right back on it.",
+                duration: 10_000, // an action toast needs time to be used (the global default is 1.5s)
+                action: <ToastAction altText="Sign in" onClick={() => setLocation(href)}>Sign in</ToastAction>,
+              });
+            }
+          }}
           title="Create Your Account"
           description="Sign up to unlock market data, AI trials, and more"
         />

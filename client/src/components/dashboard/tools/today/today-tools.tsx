@@ -15,6 +15,12 @@ import { setPrefs, usePrefs } from '@/lib/board-prefs';
 import { Spark, RotQuad, SigCard, CHECK } from '@/components/landing/live-widgets';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { AuditTrailLink } from '@/pages/today';
+import { nexusIdeaHref } from '@/lib/nexus-link';
+import { useTickFlash } from '@/lib/use-tick-flash';
+import { useQuery } from '@tanstack/react-query';
+import { fetchJson } from '@/components/landing/live-widgets';
+import { QEStale } from '@/components/ui/qe-states';
+import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, type GapPhase } from '@/lib/premarket';
 import { useDashboard, useNow, useToolReport } from '../../frame';
 import { ageLabel } from '../flow/tape';
 import {
@@ -57,6 +63,7 @@ export function TodayWeekMapTool() {
   // Live SPY only — the model's start price is publish-time and never shown as "now".
   const spyPx = spy?.price ?? spy?.lastPrice;
   const refPx = spyPx ?? wp.data?.spotPrice;
+  const spyFlash = useTickFlash(spyPx);
   const spyBars = spyIntra.data?.data ?? [];
   const pinClose = !magnetIsPut && magnet != null && sigma != null && spyPx != null && Math.abs(magnet - spyPx) <= 0.75 * sigma;
   const feedDown = wp.isError && !wp.data;
@@ -131,18 +138,18 @@ export function TodayWeekMapTool() {
             </div>
             <div className="t-panel">
               <div className="t-panel-head"><span>Market pulse · SPY</span>{spy?.asOf ? <span className="live">{ageLabel(spy.asOf, now)}</span> : <span>no quote</span>}</div>
-              <div className="t-price">SPY {fmt(spyPx)}</div>
+              <div className="t-price"><span className={spyFlash}>SPY {fmt(spyPx)}</span></div>
               <div className={`t-change${(spy?.changePercent ?? 0) >= 0 ? ' up' : ''}`}>{spy?.changePercent != null ? `${spy.changePercent >= 0 ? '+' : ''}${spy.changePercent.toFixed(2)}% · ${spy.session === 'post' ? 'incl. after-hours' : spy.session === 'pre' ? 'pre-market vs prior close' : rotation.data?.sessionLabel ?? 'session'}` : '—'}</div>
               <div className="t-chart"><Spark bars={spyBars} color={(spy?.changePercent ?? 0) >= 0 ? '#6ee7b7' : '#ff6b3d'} height={54} /></div>
             </div>
             <div className="t-panel">
               <div className="t-panel-head"><span>The book · {book.ideas.length} live</span>{book.asOf ? <span className="live">{ageLabel(book.asOf, now)}</span> : <span>—</span>}</div>
               {book.ideas.slice(0, 3).map((p) => (
-                <div className="t-signal" key={p.ideaId}>
+                <Link href={nexusIdeaHref(p)} className="t-signal t-signal-link" key={p.ideaId} title={`Open ${p.symbol} selected on NEXUS`}>
                   <span className="ticker">{p.symbol}</span>
                   <span style={{ fontSize: 'var(--fs-10, 10px)', color: p.direction === 'short' ? 'var(--red)' : 'var(--green)' }}>{p.direction === 'short' ? '▼ short' : '▲ long'}</span>
                   <span className="dir">{convictionDisplayPercent(p.convictionScore ?? 0)}</span>
-                </div>
+                </Link>
               ))}
               <div className="t-row"><span className="k">Long / Short</span><span className="v"><span style={{ color: 'var(--green)' }}>{book.longs}</span> / <span style={{ color: 'var(--red)' }}>{book.ideas.length - book.longs}</span></span></div>
             </div>
@@ -169,7 +176,7 @@ export function TodayBestIdeaTool() {
   });
   if (book.conv.isLoading) return <QELoading rows={4} className="fd-pad" label="loading the book…" />;
   if (book.conv.isError && !book.conv.data) return <QEError className="fd-m" title="The idea book didn't load" onRetry={() => book.conv.refetch()} retrying={book.conv.isFetching} />;
-  if (!best || !bestX) return <QEEmpty className="fd-m" message="The board is between publishes — ideas appear here the moment they exist." />;
+  if (!best || !bestX) return <QEEmpty className="fd-m" message="The board is between publishes — ideas appear here the moment they exist." action={<Link href="/t?nx=0dte" className="fd-btn">Open the 0DTE desk</Link>} />;
   return (
     <div className={`${WRAP} td-best`}>
       <div className="feature">
@@ -185,6 +192,7 @@ export function TodayBestIdeaTool() {
             <Link href={`/r/${best.symbol}`} className="btn btn-primary btn-lg">Full analysis
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
             </Link>
+            <Link href={nexusIdeaHref(best)} className="btn btn-ghost btn-lg">Open on NEXUS</Link>
             {/* PROVE before you ACT: the idea's own audit trail (entry evidence, snapshots, outcome). */}
             {best.ideaId && <AuditTrailLink ideaId={best.ideaId} className="btn btn-ghost btn-lg" />}
           </div>
@@ -231,7 +239,8 @@ export function TodayRankedBookTool() {
   if (book.conv.isLoading) return <QELoading rows={4} className="fd-pad" label="loading the book…" />;
   if (book.conv.isError && !book.conv.data) return <QEError className="fd-m" title="The idea book didn't load" onRetry={() => book.conv.refetch()} retrying={book.conv.isFetching} />;
   if (!rows.length) {
-    return <QEEmpty className="fd-m" message={book.ideas.length ? 'Every live idea is already shown in the Best idea tool.' : 'The board is between publishes — ideas appear here the moment they exist.'} />;
+    return <QEEmpty className="fd-m" message={book.ideas.length ? 'Every live idea is already shown in the Best idea tool.' : 'The board is between publishes — ideas appear here the moment they exist.'}
+      action={<Link href={book.ideas.length ? '/t' : '/t?nx=0dte'} className="fd-btn">{book.ideas.length ? 'Open the NEXUS board' : 'Open the 0DTE desk'}</Link>} />;
   }
   const more = book.ideas.length - start - rows.length;
   return (
@@ -369,7 +378,7 @@ export function TodayRotationTool() {
   });
   if (rotation.isLoading) return <QELoading rows={3} className="fd-pad" label="mapping sectors…" />;
   if (rotation.isError && !rotation.data) return <QEError className="fd-m" title="Sector rotation didn't load" onRetry={() => rotation.refetch()} retrying={rotation.isFetching} />;
-  if (!sectors.length) return <QEEmpty className="fd-m" message="No sectors returned for this session." />;
+  if (!sectors.length) return <QEEmpty className="fd-m" message="No sectors returned for this session." action={<button type="button" className="fd-btn" onClick={() => rotation.refetch()} disabled={rotation.isFetching}>{rotation.isFetching ? 'Reading…' : 'Read again'}</button>} />;
   return (
     <div className={`${WRAP} td-rot`}>
       <div className="td-rot-grid">
@@ -404,14 +413,28 @@ export function TodayRotationTool() {
 }
 
 /* ════════════ Sector & crypto tape ════════════ */
+/** One tape item; its % (and crypto price) flash on a live change (lib/use-tick-flash.ts). */
+function TapeItem({ t }: { t: { sym: string; price: string; px: number | null; chg: number } }) {
+  const chgFlash = useTickFlash(t.chg, { resetKey: t.sym });
+  const pxFlash = useTickFlash(t.px, { resetKey: t.sym });
+  return (
+    <div className="ltape-item">
+      <span className="ltape-sym">{t.sym}</span>
+      {t.price && <span className={`ltape-price ${pxFlash}`}>{t.price}</span>}
+      <span className={`ltape-chg ${t.chg >= 0 ? 'up' : 'down'} ${chgFlash}`}>{t.chg >= 0 ? '+' : ''}{t.chg.toFixed(2)}%</span>
+      <span className="ltape-sep">·</span>
+    </div>
+  );
+}
+
 export function TodayTapeTool() {
   const rotation = useRotation();
   const pulse = usePulse();
   const [paused, setPaused] = useState(false);
   const tape = useMemo(() => {
-    const rows: { sym: string; price: string; chg: number }[] = [];
-    (rotation.data?.sectors ?? []).forEach((x) => rows.push({ sym: x.etf, price: '', chg: x.change }));
-    (pulse.data?.assets ?? []).forEach((x) => rows.push({ sym: x.symbol, price: `$${Math.round(x.price).toLocaleString()}`, chg: x.change24h ?? 0 }));
+    const rows: { sym: string; price: string; px: number | null; chg: number }[] = [];
+    (rotation.data?.sectors ?? []).forEach((x) => rows.push({ sym: x.etf, price: '', px: null, chg: x.change }));
+    (pulse.data?.assets ?? []).forEach((x) => rows.push({ sym: x.symbol, price: `$${Math.round(x.price).toLocaleString()}`, px: x.price, chg: x.change24h ?? 0 }));
     return rows;
   }, [rotation.data, pulse.data]);
   const bothDown = rotation.isError && pulse.isError;
@@ -422,21 +445,90 @@ export function TodayTapeTool() {
   });
   if (rotation.isLoading && pulse.isLoading) return <QELoading rows={1} className="fd-pad" label="loading the tape…" />;
   if (bothDown) return <QEError className="fd-m" title="The tape didn't load" onRetry={() => { void rotation.refetch(); void pulse.refetch(); }} retrying={rotation.isFetching || pulse.isFetching} />;
-  if (!tape.length) return <QEEmpty className="fd-m" message="No sector or crypto quotes returned." />;
+  if (!tape.length) return <QEEmpty className="fd-m" message="No sector or crypto quotes returned." action={<button type="button" className="fd-btn" onClick={() => { void rotation.refetch(); void pulse.refetch(); }}>Read again</button>} />;
   return (
     <div className={`${WRAP} td-tape`}>
       <div className="ltape" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
         <div className={`ltape-track${paused ? ' paused' : ''}`}>
-          {[...tape, ...tape].map((t, i) => (
-            <div className="ltape-item" key={i}>
-              <span className="ltape-sym">{t.sym}</span>
-              {t.price && <span className="ltape-price">{t.price}</span>}
-              <span className={`ltape-chg ${t.chg >= 0 ? 'up' : 'down'}`}>{t.chg >= 0 ? '+' : ''}{t.chg.toFixed(2)}%</span>
-              <span className="ltape-sep">·</span>
-            </div>
-          ))}
+          {[...tape, ...tape].map((t, i) => <TapeItem key={i} t={t} />)}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ════════════ Pre-market gap strip ════════════
+   Re-homed from the retired Slate page (PreMarketGappersCard). The gap is the
+   LEADING direction read before the open (operator rule): a gap with an idea
+   confirms it, a gap against it means the setup may already have moved. Open
+   04:00–09:30 ET; outside it the strip collapses to one stamped line and only
+   reads the feed when asked. Source + per-name age come from the server. */
+interface GapRow { symbol: string; price: number; previousClose: number; gapPct: number; preMarketGapPct?: number | null; direction: 'up' | 'down' | 'flat'; phase: GapPhase; isWeekly: boolean; fetchedAt?: string }
+interface GapPayload { phase: GapPhase; scanned: number; gappers: GapRow[]; generatedAt?: string; oldestFetchedAt?: string | null; source?: string }
+const PM_SHOW = 12;
+
+export function TodayPremarketTool() {
+  const now = useNow(30_000);
+  const inWindow = isPreMarketWindow(new Date(now));
+  const [asked, setAsked] = useState(false);
+  const [all, setAll] = useState(false);
+  const show = inWindow || asked;
+  const q = useQuery<GapPayload>({
+    queryKey: ['/api/premarket/gappers', 'all'], queryFn: fetchJson('/api/premarket/gappers?minGapPct=0'),
+    enabled: show, refetchInterval: show ? 60_000 : false, staleTime: 30_000, retry: 1,
+  });
+  const book = useBook();
+  const dirOf = useMemo(() => new Map(book.ideas.map((p) => [p.symbol, p.direction ?? 'long'] as const)), [book.ideas]);
+  const rows = useMemo(() => rankGappers(q.data?.gappers ?? [], (s) => dirOf.has(s)), [q.data, dirOf]);
+  const phase: GapPhase = q.data?.phase ?? (inWindow ? 'pre_market' : 'closed');
+  const asOf = q.data ? (q.data.oldestFetchedAt ?? q.data.generatedAt ?? null) : null;
+  useToolReport({
+    asOf: !show ? null : q.isError && !q.data ? null : q.data ? asOf : undefined,
+    source: q.data?.source ?? 'Yahoo pre/post quotes · /api/premarket/gappers',
+    note: !show ? 'opens 04:00 ET' : q.isError ? (q.data ? 'refresh failed · showing last read' : 'feed failed') : q.data ? `${GAP_BASIS[phase]} · ${q.data.scanned} names` : undefined,
+    tone: q.isError ? 'warn' : 'ok',
+  });
+
+  if (!show) {
+    return (
+      <div className={`${WRAP} td-pm td-pm-closed`}>
+        <p className="td-pm-line">
+          <b>Pre-market</b> gaps show 04:00–09:30 ET — the leading direction read before the open.
+          {q.data ? <> Last read {ageLabel(asOf, now)} ({GAP_BASIS[q.data.phase]}).</> : ' Not read this session.'}
+        </p>
+        <button type="button" className="fd-btn" onClick={() => setAsked(true)}>Show current gaps</button>
+      </div>
+    );
+  }
+  if (q.isLoading) return <QELoading rows={1} className="fd-pad" label="reading pre-market quotes…" />;
+  if (q.isError && !q.data) return <QEError className="fd-m" title="Pre-market quotes didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (!rows.length) return <QEEmpty className="fd-m" message={`No quotes returned for the ${q.data?.scanned ?? 0} names scanned.`} action={<button type="button" className="fd-btn" onClick={() => q.refetch()} disabled={q.isFetching}>Read again</button>} />;
+  const shown = all ? rows : rows.slice(0, PM_SHOW);
+  return (
+    <div className={`${WRAP} td-pm`}>
+      <div className="td-pm-head">
+        <span className="td-tool-sub" style={{ margin: 0 }}>{phase === 'pre_market' ? 'Pre-market' : 'Gaps'} · {GAP_BASIS[phase]}</span>
+        {q.isError && <QEStale what="Pre-market refresh" updatedAt={q.dataUpdatedAt} onRetry={() => q.refetch()} retrying={q.isFetching} />}
+        {!inWindow && <button type="button" className="td-pm-hide" onClick={() => setAsked(false)}>Hide</button>}
+      </div>
+      <div className="td-pm-chips">
+        {shown.map((g) => {
+          const dir = dirOf.get(g.symbol);
+          const al = dir ? gapAlignment(g.gapPct, dir) : 'flat';
+          const cls = Math.abs(g.gapPct) < GAP_FLAT_PCT ? 'flat' : g.gapPct > 0 ? 'up' : 'down';
+          return (
+            <Link key={g.symbol} href={`/r/${encodeURIComponent(g.symbol)}`} className={`td-pm-chip ${cls}`}
+              title={`${g.symbol} $${g.price.toFixed(2)} vs prior close $${g.previousClose.toFixed(2)} · ${GAP_BASIS[g.phase]}${g.fetchedAt ? ` · ${ageLabel(g.fetchedAt, now)}` : ''}${dir ? ` · book: ${dir}` : ''}${g.isWeekly ? ' · weekly watchlist' : ''}`}>
+              {g.isWeekly && <span aria-label="weekly watchlist">★</span>}
+              <b>{g.symbol}</b>
+              <span className="v">{g.gapPct >= 0 ? '+' : ''}{g.gapPct.toFixed(2)}%</span>
+              {dir && al !== 'flat' && <em className={al}>{al === 'confirms' ? `confirms ${dir}` : `against ${dir}`}</em>}
+            </Link>
+          );
+        })}
+        {rows.length > PM_SHOW && <button type="button" className="td-pm-more" onClick={() => setAll((v) => !v)}>{all ? 'Fewer' : `+${rows.length - PM_SHOW} more`}</button>}
+      </div>
+      <p className="td-pm-foot">A gap with a book idea confirms it; against it, the setup may already have moved without you. Book names first, then your weekly watchlist (★).</p>
     </div>
   );
 }

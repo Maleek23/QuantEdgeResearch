@@ -7830,14 +7830,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           direction: s.gapDirection,
           phase: s.phase,
           isWeekly: weeklySymbols.has(s.symbol),
+          // Per-name fetch time: snapshots are cached up to 60s, so the response
+          // time alone would overstate freshness (live-not-carried rule).
+          fetchedAt: s.fetchedAt,
+          preMarketGapPct: s.preMarketGapPct != null ? Number(s.preMarketGapPct.toFixed(2)) : null,
         }))
         .sort((a, b) => Math.abs(b.gapPct) - Math.abs(a.gapPct));
+      const oldest = gappers.reduce<string | null>((m, g) => (!m || g.fetchedAt < m ? g.fetchedAt : m), null);
 
       res.json({
         phase: currentMarketPhase(),
         scanned: snaps.size,
         gappers,
         generatedAt: new Date().toISOString(),
+        oldestFetchedAt: oldest,
+        source: "Yahoo Finance chart meta (includePrePost) · 60s cache",
       });
     } catch (error) {
       logger.error("[API] Pre-market gappers error:", error);

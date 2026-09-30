@@ -18,7 +18,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
 import { expiryCounts, expiryCountsText } from '@shared/journal-expiry';
-import { useJournal } from '@/components/journal/journal-context';
+import { useJournal, useJournalDrill } from '@/components/journal/journal-context';
 import { LowSample, N, Pnl } from '@/components/journal/parts';
 import { CalendarPnl } from '@/components/journal/calendar-pnl';
 import { EquityChart } from '@/components/journal/equity-chart';
@@ -33,6 +33,7 @@ export { TradeMiniList } from '@/components/journal/trade-mini-list';
 
 export default function DashboardView() {
   const { data, openDay, openTrade, goTo } = useJournal();
+  const drill = useJournalDrill();
   const m = data.metrics;
 
   // Balance behind the book → anchor for % drawdown (null + reason when none).
@@ -139,7 +140,10 @@ export default function DashboardView() {
       </div>
 
       <Sec title="Trade time performance" meta={<><N n={grid.n} /><span className="jr-n">entry weekday × hour, New York</span></>}>
-        <TimeHeatmap grid={grid} />
+        <TimeHeatmap grid={grid} onPick={(w, h) => {
+          const cell = grid.cells.get(`${w}|${h}`);
+          if (cell) drill(cell.ids, `${w} ${String(h).padStart(2, '0')}:00 ET entries`)?.();
+        }} />
       </Sec>
     </div>
   );

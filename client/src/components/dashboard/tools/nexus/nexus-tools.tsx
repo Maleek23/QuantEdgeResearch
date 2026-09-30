@@ -13,6 +13,8 @@
  * selected last.
  */
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { Link, useSearch } from 'wouter';
+import { NEXUS_IDEA_PARAM, NEXUS_SYM_PARAM, readNexusTarget } from '@/lib/nexus-link';
 import { Activity, Search } from 'lucide-react';
 import { SignalGrid } from '@/components/hunt/cockpit/signal-grid';
 import { SignalTable } from '@/components/hunt/cockpit/signal-table';
@@ -42,14 +44,67 @@ function useNexusSelection() {
   return useDashState<NexusSelection>(NEXUS_SELECTION_KEY, null);
 }
 
+/* ── URL ⇄ selection (lib/nexus-link.ts) ──
+   /t?idea=<id>&sym=<SYM> opens that idea selected; selecting a row writes the
+   same params back with replaceState, so the address bar is always the link to
+   what is on screen. `applied` remembers the last URL target handled so our own
+   write-back (which wouter re-broadcasts) never re-applies. */
+let applied: string | null = null;
+/** Set when ?idea= was not in the live book and the symbol's current setup was shown instead. */
+let substituted: { requested: string; shown: string } | null = null;
+const targetKey = (t: { ideaId: string | null; symbol: string | null } | null) => (t ? `${t.ideaId ?? ''}|${t.symbol ?? ''}` : '');
+
+function writeSelectionToUrl(ideaId: string | null, symbol: string | null) {
+  try {
+    if (window.location.pathname !== '/t') return;
+    const u = new URL(window.location.href);
+    const tab = u.searchParams.get('tab');
+    if (tab && tab !== 'oracle' && tab !== 'nexus') return;
+    if (ideaId) u.searchParams.set(NEXUS_IDEA_PARAM, ideaId); else u.searchParams.delete(NEXUS_IDEA_PARAM);
+    if (symbol) u.searchParams.set(NEXUS_SYM_PARAM, symbol.toUpperCase()); else u.searchParams.delete(NEXUS_SYM_PARAM);
+    applied = targetKey(readNexusTarget(u.search));
+    window.history.replaceState(window.history.state, '', `${u.pathname}${u.search}${u.hash}`);
+  } catch { /* URL sync is a convenience */ }
+}
+
 /** Select a setup/position/candidate AND re-point the focus ticker. */
 function useSelect() {
   const [, setSel] = useNexusSelection();
   const [, setFocus] = useFocusSymbol();
   return {
-    setup: (pick: ConvictionPick) => { setSel({ kind: 'setup', id: pick.ideaId }); setFocus(pick.symbol); },
-    developing: (hit: PatternHit) => { setSel({ kind: 'developing', symbol: hit.symbol }); setFocus(hit.symbol); },
+    setup: (pick: ConvictionPick) => { setSel({ kind: 'setup', id: pick.ideaId }); setFocus(pick.symbol); writeSelectionToUrl(pick.ideaId, pick.symbol); },
+    developing: (hit: PatternHit) => { setSel({ kind: 'developing', symbol: hit.symbol }); setFocus(hit.symbol); writeSelectionToUrl(null, hit.symbol); },
   };
+}
+
+/**
+ * Apply ?idea= / ?sym= once the book has loaded: the exact idea if it is still
+ * in the book, else that symbol's top setup, else just the focus ticker (the
+ * detail then says the selection left the book). Mounted by the board and the
+ * detail tool; the module-level `applied` key makes it run once per target.
+ */
+function useApplyUrlSelection(all: ConvictionPick[], loaded: boolean) {
+  const search = useSearch();
+  const [, setSel] = useNexusSelection();
+  const [, setFocus] = useFocusSymbol();
+  useEffect(() => {
+    const t = readNexusTarget(search);
+    const key = targetKey(t);
+    if (!t || key === applied || !loaded) return;
+    applied = key;
+    const bySym = t.symbol ? rankRows(all, { scope: 'setups', side: 'all', query: '', rank: 'all' }).find((p) => p.symbol === t.symbol) ?? all.find((p) => p.symbol === t.symbol) : undefined;
+    const exact = t.ideaId ? all.find((p) => p.ideaId === t.ideaId) : undefined;
+    const pick = exact ?? bySym;
+    substituted = t.ideaId && !exact && pick ? { requested: t.ideaId, shown: pick.ideaId } : null;
+    if (pick) {
+      setSel({ kind: 'setup', id: pick.ideaId });
+      setFocus(pick.symbol);
+      window.requestAnimationFrame(() => document.querySelector('.nxd-board .selected')?.scrollIntoView({ block: 'nearest' }));
+    } else {
+      if (t.ideaId) setSel({ kind: 'setup', id: t.ideaId }); // detail: "selection left the book · showing top setup"
+      if (t.symbol) setFocus(t.symbol);
+    }
+  }, [search, all, loaded, setSel, setFocus]);
 }
 
 /** The book (+ SPX-linked expression row), from the shared convictions query. */
@@ -122,6 +177,7 @@ export function NexusBoardTool() {
   const [query, setQuery] = useToolSetting('query', '');
   const [view, setView] = useToolSetting<'list' | 'grid' | 'table'>('view', 'list');
   const rows = useMemo(() => rankRows(all, { scope: 'setups', side, query, rank }), [all, side, query, rank]);
+  useApplyUrlSelection(all, !!convictions.data);
   useBookReport(convictions, `${rows.length} shown`);
   const blocked = bookGate(convictions, 'live book');
   // Nothing chosen yet → the detail tool shows the top setup, so mark it.
@@ -137,7 +193,10 @@ export function NexusBoardTool() {
       </FilterBar>
       <DetailHint />
       {blocked ?? (rows.length === 0
-        ? <QEEmpty className="fd-m" message={all.some((p) => !p.isBotHeld) ? 'No setups match this view.' : 'The engine published no setups in this read.'} />
+        ? <QEEmpty className="fd-m" message={all.some((p) => !p.isBotHeld) ? 'No setups match this view.' : 'The engine published no setups in this read.'}
+            action={all.some((p) => !p.isBotHeld)
+              ? <button type="button" className="fd-btn" onClick={() => { setSide('all'); setRank('all'); setQuery(''); }}>Show every setup</button>
+              : <Link href="/t?nx=0dte" className="fd-btn">Open the 0DTE desk</Link>} />
         : view === 'grid'
           ? <div className="fd-scroll fd-pad"><SignalGrid picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>
           : view === 'table'
@@ -162,7 +221,10 @@ export function NexusPositionsTool() {
     <div className="fd-fill nxd nxd-positions">
       <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker" count={rows.length} />
       {blocked ?? (rows.length === 0
-        ? <QEEmpty className="fd-m" message={held.length === 0 ? 'The bot holds no positions in this read.' : 'No held positions match this filter.'} />
+        ? <QEEmpty className="fd-m" message={held.length === 0 ? 'The bot holds no positions in this read.' : 'No held positions match this filter.'}
+            action={held.length === 0
+              ? <Link href="/t?tab=bot" className="fd-btn">Open the bot</Link>
+              : <button type="button" className="fd-btn" onClick={() => { setSide('all'); setQuery(''); }}>Clear filter</button>} />
         : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} selected={sel?.kind === 'setup' && sel.id === pick.ideaId} onSelect={() => select.setup(pick)} />)}</div>)}
       <div className="fd-foot">Sorted by unrealized P&amp;L %. Held rows carry live P&amp;L, not a conviction score.</div>
     </div>
@@ -191,7 +253,8 @@ export function NexusTraderCallsTool() {
       {calls.length === 0 ? (
         <QEEmpty className="fd-m" message={q.data!.traders.length === 0
           ? `No trader passes the ranking threshold yet (score ≥ ${cfg.minScore} on ≥ ${cfg.minSample} scored calls). Import their Discord journals in Journal › Import.`
-          : `No open calls from ${q.data!.traders.map((t) => t.name).join(', ')} in the last ${cfg.maxAgeTradingDays} trading days.`} />
+          : `No open calls from ${q.data!.traders.map((t) => t.name).join(', ')} in the last ${cfg.maxAgeTradingDays} trading days.`}
+          action={q.data!.traders.length === 0 ? <Link href="/t?tab=journal&jtab=import" className="fd-btn">Import a trader journal</Link> : undefined} />
       ) : (
         <div className="fd-scroll nxtc-list">
           {calls.map((c) => {
@@ -241,7 +304,10 @@ export function NexusDevelopingTool() {
   let list: ReactNode;
   if (patterns.isLoading) list = <QELoading rows={5} className="fd-pad" label="scanning the opportunity funnel…" />;
   else if (patterns.isError && !d) list = <QEError className="fd-m" title="The pattern scan didn't load" onRetry={() => patterns.refetch()} retrying={patterns.isFetching} />;
-  else if (hits.length === 0) list = <QEEmpty className="fd-m" message="No measured developing structures match this view." />;
+  else if (hits.length === 0) list = <QEEmpty className="fd-m" message="No measured developing structures match this view."
+    action={side !== 'all' || query
+      ? <button type="button" className="fd-btn" onClick={() => { setSide('all'); setQuery(''); }}>Clear filter</button>
+      : <button type="button" className="fd-btn" onClick={() => patterns.refetch()} disabled={patterns.isFetching}>{patterns.isFetching ? 'Scanning…' : 'Scan again'}</button>} />;
   else list = <div className="fd-scroll nxp-rows">{hits.map((hit) => <DevelopingRow key={`${hit.symbol}-${hit.pattern}`} hit={hit} selected={(inlineHit?.symbol ?? selSymbol) === hit.symbol} onSelect={() => select.developing(hit)} />)}</div>;
   return (
     <div className="fd-fill nxd nxd-developing">
@@ -278,10 +344,14 @@ export function NexusDetailTool() {
 
 function DetailSetup({ id, tab, onTab }: { id?: string; tab: DetailTab; onTab: (t: DetailTab) => void }) {
   const { convictions, spx, all } = useSetupBook();
+  useApplyUrlSelection(all, !!convictions.data);
   const top = useMemo(() => rankRows(all, { scope: 'setups', side: 'all', query: '', rank: 'all' })[0], [all]);
   const found = id ? all.find((p) => p.ideaId === id) : undefined;
   const selected = found ?? top;
-  useBookReport(convictions, id && !found && convictions.data ? 'selection left the book · showing top setup' : selected ? selected.symbol : undefined);
+  const note = id && !found && convictions.data ? 'selection left the book · showing top setup'
+    : selected && substituted?.shown === selected.ideaId ? `linked idea is not in the live book · showing ${selected.symbol}'s current setup`
+    : selected ? selected.symbol : undefined;
+  useBookReport(convictions, note);
   const blocked = bookGate(convictions, 'live book');
   if (blocked) return blocked;
   if (!selected) return <div className="nxp-empty"><Activity /><h2>Select a setup</h2><p>The engine published no setups in this read; pick a developing candidate or position instead.</p></div>;
@@ -360,7 +430,7 @@ export function NexusHorizonTool() {
   const convictions = useNexusConvictions();
   const select = useSelect();
   const picks = (convictions.data?.picks ?? []).filter((p) => !p.isBotHeld);
-  if (convictions.isError) return <QEError title="Convictions feed didn't respond" message="The book by horizon needs /api/convictions." onRetry={() => { void convictions.refetch(); }} />;
+  if (convictions.isError && !convictions.data) return <QEError title="Convictions feed didn't respond" message="The book by horizon needs /api/convictions." onRetry={() => { void convictions.refetch(); }} />;
   if (convictions.isLoading) return <QELoading rows={6} />;
   return (
     <HorizonBook

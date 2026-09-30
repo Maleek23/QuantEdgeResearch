@@ -64,7 +64,7 @@ export function AlpacaConnect({ onSynced }: { onSynced: () => void }) {
     }
   };
 
-  if (q.isError) return <QEError title="Alpaca connection status didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError title="Alpaca connection status didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (q.isLoading || !q.data) return <QELoading rows={1} />;
   const { connection: c, canStoreKeys, serverAccount } = q.data;
 

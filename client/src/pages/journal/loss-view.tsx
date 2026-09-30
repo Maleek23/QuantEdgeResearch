@@ -14,8 +14,8 @@
  * Honesty: no bars → 'unknown' (counted, never guessed); option premiums are
  * never simulated (no option bars exist) — replays are on the underlying in R.
  */
-import { useMemo, useState } from 'react';
-import { useJournal } from '@/components/journal/journal-context';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useJournal, useJournalDrill } from '@/components/journal/journal-context';
 import { Card, Kpi, N, Pnl } from '@/components/journal/parts';
 import { fmtDuration, fmtMoney, fmtPct, fmtRatio } from '@/lib/journal/metrics';
 import {
@@ -175,7 +175,7 @@ export default function LossView() {
             </thead>
             <tbody>
               {(allDrivers ? drivers : drivers.slice(0, 12)).map((r) => (
-                <tr key={r.key} style={{ cursor: 'default' }}>
+                <DriverTr key={r.key} ids={r.ids} n={r.n} label={`Loss driver · ${DRIVER_DIM_LABEL[dim]}: ${r.key}`}>
                   <td>{r.key} <Small n={r.n} /></td>
                   <td className="num">{r.n}</td>
                   <td className="num">{r.wins} / {r.losses}</td>
@@ -183,7 +183,7 @@ export default function LossView() {
                   <td className="num"><Pnl value={r.lost} /></td>
                   <td className="num"><Pnl value={r.net} /></td>
                   <td className="num">{r.pf == null ? (r.won > 0 ? '∞' : '—') : fmtRatio(r.pf)}</td>
-                </tr>
+                </DriverTr>
               ))}
             </tbody>
           </table>
@@ -292,6 +292,19 @@ function LossRowView({ a, onOpen }: { a: TradeAnalysis; onOpen: () => void }) {
       <td className="num">{a.postFavPct == null ? '—' : r ? fmtR(a.postFavR) : fmtSPct(a.postFavPct)}{a.targetAfterExit ? <span className="jr-n"> · target</span> : null}</td>
       <td>{row.source}</td>
       <td style={{ whiteSpace: 'normal', minWidth: 160 }}>{a.flags.map((f) => <span key={f} className="jr-tag" style={{ marginRight: 3, fontSize: 10.5 }}>{LOSS_FLAG_LABEL[f]}</span>)}</td>
+    </tr>
+  );
+}
+
+/** A loss-driver row that opens exactly its trades on the Trades page (row click; Enter/Space when focused). */
+function DriverTr({ ids, n, label, children }: { ids: string[]; n: number; label: string; children: ReactNode }) {
+  const open = useJournalDrill()(ids, label);
+  if (!open) return <tr style={{ cursor: 'default' }} title={`${n} trades — too many to open as one list; filter on Reports`}>{children}</tr>;
+  return (
+    <tr className="jr-drill-row" style={{ cursor: 'pointer' }} tabIndex={0} onClick={open}
+      aria-label={`${label}: open these ${n} trades`} title={`Open these ${n} trades on the Trades page`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } }}>
+      {children}
     </tr>
   );
 }

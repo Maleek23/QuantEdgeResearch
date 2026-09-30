@@ -138,7 +138,7 @@ export function ConvergenceCard({ className }: { className?: string }) {
         <div className="grid place-items-center py-10 text-label font-mono uppercase tracking-widest text-muted-foreground">
           reading gamma…
         </div>
-      ) : isError ? (
+      ) : isError && !data ? (
         <div className="grid place-items-center py-10 text-label font-mono uppercase tracking-widest text-muted-foreground">
           convergence unavailable
         </div>

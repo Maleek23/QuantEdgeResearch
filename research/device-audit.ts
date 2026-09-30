@@ -15,6 +15,7 @@
  *   AUDIT_PORT        port for the built-in static server (default 5392)
  *   AUDIT_OUT         JSON output path (default research/device-audit.json)
  *   AUDIT_SERVE_ONLY  1 = only run the harness server (browse it by hand)
+ *   AUDIT_SIGNED_OUT  1 = /api/auth/me answers 401 (check the sign-in gate / return-to)
  *
  * The built-in server serves the BUILT client (with a TEST HARNESS banner) and answers /api with
  * synthetic FIXTURES (a GEX book and a conviction list) or 404, so
@@ -130,6 +131,15 @@ function mockConvictions() {
     }),
   };
 }
+/** Synthetic pre-market gaps (TEST HARNESS — not market data). */
+function mockGappers() {
+  const at = new Date(Date.now() - 40_000).toISOString();
+  const rows: Array<[string, number, boolean]> = [['NVDA', 2.4, true], ['TSLA', -3.1, true], ['AAPL', 0.2, false], ['AMD', -1.4, false], ['META', 1.1, false], ['PLTR', 4.8, false], ['COIN', -0.6, true]];
+  return {
+    phase: 'pre_market', scanned: rows.length, generatedAt: at, oldestFetchedAt: at, source: 'TEST HARNESS fixture',
+    gappers: rows.map(([symbol, gapPct, isWeekly]) => ({ symbol, price: +(100 * (1 + gapPct / 100)).toFixed(2), previousClose: 100, gapPct, preMarketGapPct: gapPct, direction: gapPct > 0.5 ? 'up' : gapPct < -0.5 ? 'down' : 'flat', phase: 'pre_market', isWeekly, fetchedAt: at })),
+  };
+}
 /** Every harness page says so, big: a watermark and a red strip (aria-hidden, pointer-events none). */
 const HARNESS_BANNER = '<div aria-hidden="true" data-harness style="position:fixed;inset:0;z-index:2147483646;pointer-events:none;display:grid;place-items:center;overflow:hidden"><div style="transform:rotate(-24deg);font:800 64px/1.1 system-ui,sans-serif;letter-spacing:.08em;color:rgba(255,64,64,.14);text-align:center;white-space:nowrap">TEST HARNESS<br><span style="font-size:22px;letter-spacing:.04em">synthetic fixtures · not market data</span></div></div><div aria-hidden="true" data-harness style="position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:2147483647;pointer-events:none;padding:2px 12px;border-radius:0 0 8px 8px;background:#b91c1c;color:#fff;font:700 11px/1.6 system-ui,sans-serif;letter-spacing:.06em">TEST HARNESS · SYNTHETIC FIXTURES · NOT MARKET DATA</div>';
 
@@ -141,7 +151,8 @@ function serve(): Promise<http.Server> {
     const url = new URL(req.url ?? '/', 'http://x'); const p = url.pathname;
     const json = (code: number, body: unknown) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
     if (p.startsWith('/api/')) {
-      if (p === '/api/auth/me' || p === '/api/auth/user') return json(200, user);
+      if (p === '/api/auth/me' || p === '/api/auth/user') return process.env.AUDIT_SIGNED_OUT ? json(401, { error: 'test harness: signed out' }) : json(200, user);
+      if (p === '/api/premarket/gappers') return json(200, mockGappers());
       const m = p.match(/^\/api\/gex-vex\/terminal\/([^/]+)/);
       if (m) return json(200, mockTerminal(decodeURIComponent(m[1]).toUpperCase()));
       if (p === '/api/convictions') return json(200, mockConvictions());

@@ -61,7 +61,7 @@ export default function TerminalHeatmapPage() {
 
       {/* Matrix — every strike, scrolled (no expand); DTE presets built in */}
       <div className="flex-1 min-h-0 px-4 py-3 flex flex-col">
-        {isError ? (
+        {isError && !data ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center space-y-3">
               <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--gex-negative)]">

@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
+import { takeStashedReturnTo } from "@/lib/return-to";
 import { usePageTracking } from "@/hooks/use-analytics";
 import { RouteFallback } from "@/components/ui/qe-loading";
 import { ProtectedRoute, AdminProtectedRoute } from "@/components/protected-route";
@@ -172,8 +173,25 @@ function LegacyRedirect() {
   return <Redirect to={target} />;
 }
 
+/**
+ * OAuth deep-link return: Google's callback always lands on a fixed page, so a
+ * target stashed by the login page (lib/return-to.ts) is followed once the
+ * session exists. Email/password logins navigate directly and clear the stash.
+ */
+function useConsumeReturnTo() {
+  const { user } = useAuth();
+  const [location, setLocation] = useLocation();
+  useEffect(() => {
+    if (!user) return;
+    const target = takeStashedReturnTo();
+    if (target && target !== location) setLocation(target, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+}
+
 function Router() {
   usePageTracking();
+  useConsumeReturnTo();
 
   return (
     <Suspense fallback={<PageLoader />}>

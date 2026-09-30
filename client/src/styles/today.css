@@ -345,3 +345,28 @@
 .flowdash .today-l.td-tape .ltape{flex:1;min-width:0}
 .flowdash .today-l .td-charts-toggle{min-height:28px;padding:0 10px;border:1px solid var(--line-hi);border-radius:6px;background:transparent;color:var(--accent-hi);font:600 11px var(--mono);letter-spacing:.04em;text-transform:none;cursor:pointer}
 .flowdash .today-l .td-charts-toggle[aria-pressed="true"]{color:var(--text-dim)}
+
+/* Batch A · the book rows on the week map open that idea on NEXUS */
+.landing .t-signal-link{color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s ease-out}
+.landing .t-signal-link:hover,.landing .t-signal-link:focus-visible{border-color:rgba(59,140,255,.45)}
+
+/* Batch A · Pre-market gap strip (TodayPremarketTool) — compact, beside the tape */
+.flowdash .today-l.td-pm{display:flex;flex-direction:column;gap:6px}
+.flowdash .today-l.td-pm-closed{flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.flowdash .today-l .td-pm-line{margin:0;font-size:12.5px;line-height:1.45;color:var(--text-dim)}
+.flowdash .today-l .td-pm-line b{color:var(--text)}
+.flowdash .today-l .td-pm-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.flowdash .today-l .td-pm-hide{margin-left:auto;background:none;border:0;color:var(--text-mute);font:600 11px var(--mono);cursor:pointer;min-height:24px}
+.flowdash .today-l .td-pm-hide:hover{color:var(--text)}
+.flowdash .today-l .td-pm-chips{display:flex;flex-wrap:wrap;gap:6px}
+.flowdash .today-l .td-pm-chip{display:inline-flex;align-items:baseline;gap:5px;padding:4px 8px;border-radius:4px;border:1px solid rgba(59,140,255,.15);background:rgba(59,140,255,.05);color:inherit;text-decoration:none;font:500 12px var(--mono);white-space:nowrap}
+.flowdash .today-l .td-pm-chip:hover,.flowdash .today-l .td-pm-chip:focus-visible{border-color:rgba(59,140,255,.45)}
+.flowdash .today-l .td-pm-chip b{font-family:'Space Grotesk',sans-serif;font-weight:700}
+.flowdash .today-l .td-pm-chip.up .v{color:var(--green)}
+.flowdash .today-l .td-pm-chip.down .v{color:var(--red)}
+.flowdash .today-l .td-pm-chip.flat .v{color:var(--text-mute)}
+.flowdash .today-l .td-pm-chip em{font-style:normal;font-size:10.5px;color:var(--text-mute)}
+.flowdash .today-l .td-pm-chip em.confirms{color:var(--green)}
+.flowdash .today-l .td-pm-chip em.against{color:var(--amber,#facc15)}
+.flowdash .today-l .td-pm-more{background:none;border:1px dashed rgba(59,140,255,.25);border-radius:4px;padding:4px 8px;color:var(--text-dim);font:600 11px var(--mono);cursor:pointer}
+.flowdash .today-l .td-pm-foot{margin:0;font-size:11.5px;color:var(--text-mute);line-height:1.4}
