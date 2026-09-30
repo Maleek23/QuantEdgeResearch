@@ -71,6 +71,9 @@ def resolve(target):
         if m and m.group(1) not in TAB_IDS and m.group(1) not in MOVED_TABS:
             return "dead-tab"
         return "route"
+    # static files served from client/public (e.g. the PDF guide) are not SPA routes
+    if os.path.isfile(os.path.join("client", "public", path.lstrip("/"))):
+        return "route"
     for p, rx in R_ROUTE:
         if rx.match(path): return "route"
     for p, rx in R_REDIR:
