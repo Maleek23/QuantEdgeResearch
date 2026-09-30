@@ -45,15 +45,18 @@ export default function LandingNexus() {
   const spyChg = spyLast && spyPrev ? ((spyLast - spyPrev) / spyPrev) * 100 : null;
 
   const picks = conv?.picks ?? [];
-  const top2 = [...picks].sort((a, b) => (b.convictionScore ?? 0) - (a.convictionScore ?? 0)).slice(0, 2);
+  // Only scored ideas carry an evidence score (bot-held positions don't) —
+  // an unscored pick must never read as "0/100".
+  const scored = picks.filter((p) => typeof p.convictionScore === 'number');
+  const top2 = [...scored].sort((a, b) => (b.convictionScore ?? 0) - (a.convictionScore ?? 0)).slice(0, 2);
   const longs = picks.filter((p) => (p.direction ?? 'long') !== 'short').length;
   const shorts = picks.length - longs;
   // Raw confluence points are NOT percentages — the shared display transform
   // maps them onto the 0-100 confidence index every product surface uses.
   // "17/100" was raw points wearing a percent sign; that class of units lie
   // is exactly what this platform exists to kill.
-  const topScore = convictionDisplayPercent(top2[0]?.convictionScore ?? 0);
-  const avgScore = picks.length ? Math.round(picks.reduce((a, p) => a + convictionDisplayPercent(p.convictionScore ?? 0), 0) / picks.length) : 0;
+  const topScore: number | string = top2[0] ? convictionDisplayPercent(top2[0].convictionScore as number) : '—';
+  const avgScore: number | string = scored.length ? Math.round(scored.reduce((a, p) => a + convictionDisplayPercent(p.convictionScore as number), 0) / scored.length) : '—';
 
   const sectors = rotation?.sectors ?? [];
   const flows = useMemo(() => {

@@ -177,7 +177,7 @@ export function SigCard({ p }: { p: Pick }) {
       <div className="lsig-head">
         <div className="lsig-ticker">{p.symbol}</div>
         <div className="lsig-band" style={{ background: `${bandColor}26`, color: bandColor, border: `1px solid ${bandColor}4d` }}>{band}</div>
-        <div className="lsig-ev"><b>{convictionDisplayPercent(p.convictionScore ?? 0)}</b>/100 evidence{pnl != null && <span style={{ marginLeft: 8, color: pnl >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%</span>}</div>
+        <div className="lsig-ev">{typeof p.convictionScore === 'number' ? <><b>{convictionDisplayPercent(p.convictionScore)}</b>/100 evidence</> : <b>open position</b>}{pnl != null && <span style={{ marginLeft: 8, color: pnl >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%</span>}</div>
       </div>
       <div className="lsig-type">
         <span className={`dir ${dir === 'short' ? 'bear' : 'bull'}`}>{dir === 'short' ? '▼ BEAR' : '▲ BULL'}</span>
