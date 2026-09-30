@@ -299,6 +299,18 @@ app.use((req, res, next) => {
       logger.error('[WEB] idea producer scheduling failed:', err);
     }
 
+    // ── Outcome tracker (stock/option ideas) — only index.ts/worker.ts ever
+    // started it, and prod runs web.js alone, so outcomes were graded only
+    // while a dev server happened to be connected. Delayed 2 min after boot
+    // so it doesn't stack on startup work. OUTCOME_TRACKER_IN_WEB=false disables.
+    if (process.env.OUTCOME_TRACKER_IN_WEB !== 'false') {
+      setTimeout(() => {
+        void import('./performance-validation-service')
+          .then(({ performanceValidationService }) => { performanceValidationService.start(); log('🎯 [WEB] Outcome tracker started'); })
+          .catch((err) => logger.error('[WEB] outcome tracker failed to start:', err));
+      }, 120_000);
+    }
+
     // ── Chart GEX timeline (orbs) — record from boot, not first chart view,
     // so a restart mid-session doesn't leave a hole in the orbs.
     void import('./chart-overlays').then((co) => co.startChartOverlayRecorder()).catch((err) => logger.error('[WEB] chart overlay recorder failed:', err));
