@@ -253,13 +253,13 @@ function BotRulebook({ trades }: { trades: JTrade[] }) {
     return [r && r !== 'reason not recorded' ? ruleOfReason(r) : 'not recorded'];
   }), [trades]);
 
-  if (q.isError && !q.data) return <QEError title="The bot's rules didn't load" message={`/api/journal/bot failed (${q.error instanceof Error ? q.error.message : 'no response'}). The setup stats below are unaffected.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError title="Quantinum Bot's rules didn't load" message={`/api/journal/bot failed (${q.error instanceof Error ? q.error.message : 'no response'}). The setup stats below are unaffected.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (q.isLoading || !q.data) return <QELoading rows={3} label="loading the bot's rulebook…" />;
   const rows = botRules(q.data.config, trades);
 
   return (
     <>
-      <Card num="01" title="The bot's rulebook" meta={<><N n={trades.length} unit="fills in view" /><span className="jr-n">config as deployed · server/quant-bot.ts</span></>}>
+      <Card num="01" title="Quantinum Bot's rulebook" meta={<><N n={trades.length} unit="fills in view" /><span className="jr-n">config as deployed · server/quant-bot.ts</span></>}>
         <div className="jr-table-wrap">
           <table className="jr-table jr-table-wrapcells">
             <thead>

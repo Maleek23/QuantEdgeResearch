@@ -37,6 +37,15 @@ export interface ChangeEntry {
 export const CHANGELOG: ChangeEntry[] = [
   // ─── Most recent first ───────────────────────────────────────
   {
+    id: '2026-09-30-names',
+    date: '2026-09-30',
+    title: 'One name per product: NEXUS, Quantinum, Quantinum Bot',
+    blurb: 'NEXUS is the trading desk, Quantinum is the read on every ticker, Quantinum Bot is the paper-trading bot. Same pages, same links.',
+    link: '/how-to',
+    linkLabel: 'Open the Guide',
+    tag: 'design',
+  },
+  {
     id: '2026-09-29-v3-1-workspace',
     date: '2026-09-29',
     title: 'v3.1 Workspace — GEX & FLOW workspaces',
@@ -71,8 +80,8 @@ export const CHANGELOG: ChangeEntry[] = [
   {
     id: '2026-09-29-loss-rules',
     date: '2026-09-29',
-    title: 'Bot loss rules',
-    blurb: 'Bot entries 09:30–11:30 ET, targets capped to the expected move with a time stop, swing contracts 30–60 DTE.',
+    title: 'Quantinum Bot loss rules',
+    blurb: 'Quantinum Bot entries 09:30–11:30 ET, targets capped to the expected move with a time stop, swing contracts 30–60 DTE.',
     link: '/t?tab=bot',
     tag: 'fix',
   },

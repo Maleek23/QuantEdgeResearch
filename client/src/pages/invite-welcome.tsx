@@ -23,9 +23,9 @@ export default function InviteWelcome() {
   };
 
   const features = [
-    { icon: Sparkles, label: "AI-powered analysis" },
-    { icon: BarChart3, label: "Quantitative signals" },
-    { icon: LineChart, label: "Chart pattern detection" },
+    { icon: Sparkles, label: "Dealer positioning (GEX)" },
+    { icon: BarChart3, label: "Evidence-ranked setups" },
+    { icon: LineChart, label: "Options flow & charts" },
     { icon: BookOpen, label: "Trading journal" },
   ];
 

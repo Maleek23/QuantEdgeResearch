@@ -225,7 +225,7 @@ export function CatalystNexus({ only }: { only?: CatalystSection } = {}) {
           <tr>
             <th>Ticker</th>
             <th>Impact</th>
-            <th>Oracle side</th>
+            <th>NEXUS side</th>
             <th>Verified event</th>
             <th>Distance</th>
             <th>Response</th>

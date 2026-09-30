@@ -155,11 +155,11 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       }
     } catch { setEngine('fail'); }
   };
-  const engineLine = engine === 'running' ? 'Engine running — every detector and gate on this name…'
-    : engine === 'fail' ? 'Engine run failed — retry.'
+  const engineLine = engine === 'running' ? 'Quantinum running — every detector and gate on this name…'
+    : engine === 'fail' ? 'Quantinum run failed — retry.'
     : engine === 'done' ? (engineResult?.published
-        ? `Engine published ${engineResult.idea?.signal ?? 'a setup'} ${String(engineResult.idea?.direction ?? '').toUpperCase()} — score ${engineResult.idea?.score ?? '—'}, R:R ${engineResult.idea?.riskRewardRatio ?? '—'}:1. See Setups.`
-        : engineResult?.blocked ?? engineResult?.reason ?? 'Engine ran — no qualifying setup on this name right now.')
+        ? `Quantinum published ${engineResult.idea?.signal ?? 'a setup'} ${String(engineResult.idea?.direction ?? '').toUpperCase()} — score ${engineResult.idea?.score ?? '—'}, R:R ${engineResult.idea?.riskRewardRatio ?? '—'}:1 to NEXUS. See Setups.`
+        : engineResult?.blocked ?? engineResult?.reason ?? 'Quantinum ran — no qualifying setup on this name right now.')
     : null;
 
   /* indicators — daily series, never a price */
@@ -253,8 +253,8 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
               <Bell aria-hidden /> {alertState === 'armed' ? 'Alert armed' : alertState === 'fail' ? 'Alert failed' : 'Alert'}
             </LuxButton>
           )}
-          <LuxButton variant="primary" onClick={runEngine} disabled={engine === 'running'} title="Run the publisher's own engine — every detector, every gate — on this name now. A qualifying setup publishes into the book.">
-            <Cpu aria-hidden /> {engine === 'running' ? 'Running…' : 'Run engine'}
+          <LuxButton variant="primary" onClick={runEngine} disabled={engine === 'running'} title="Quantinum runs the publisher's own engine — every detector, every gate — on this name now. A qualifying setup publishes to NEXUS.">
+            <Cpu aria-hidden /> {engine === 'running' ? 'Running…' : 'Run Quantinum'}
           </LuxButton>
           <TickerSwitcher value={sym} onChange={onSymbol} />
         </div>
@@ -278,6 +278,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       <Clamp className="tk-verdict">
         {qtm ? (
           <>
+            <span className="tk-verdict-label">Quantinum read · </span>
             <b className={`lx-tone-${leanTone}`}>{leanGlyph} {qtm.lean === 'quiet' ? 'Quiet' : `${qtm.lean[0].toUpperCase()}${qtm.lean.slice(1)} lean`}</b>
             <span className="tk-verdict-pts"> · +{qtm.bullPoints} / −{qtm.bearPoints}</span>
             {topLayers.length > 0
@@ -287,7 +288,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
         ) : d.qtm.isError ? (
           <span>Quantinum read unavailable. <button className="tk-link" onClick={() => void d.qtm.refetch()}>Retry</button></span>
         ) : (
-          <span>Reading every engine on {sym}…</span>
+          <span>Quantinum is reading every engine on {sym}…</span>
         )}
       </Clamp>
       {engineLine && <p className="tk-engine-line" data-state={engineResult?.published ? 'published' : engine}>{engineLine}</p>}
@@ -516,7 +517,7 @@ function SetupsSection({ sym, pick, qtmGate, earnDays }: {
           {pick.thesis && <p className="tk-body">{pick.thesis}</p>}
         </div>
       ) : (
-        <Empty>No live idea for {sym} in the book{/* Run engine lives in the header */} — use Run engine above to put it through the publisher now.</Empty>
+        <Empty>No live idea for {sym} on NEXUS{/* Run Quantinum lives in the header */} — use Run Quantinum above to put it through the publisher now.</Empty>
       )}
 
       <h3 className="tk-h3">Record on {sym}</h3>
@@ -564,7 +565,7 @@ function EvidenceSection({ qtm, loading, pickLayers }: {
 }) {
   const layers = qtm?.layers ?? [];
   return (
-    <Section id="evidence" title="Evidence">
+    <Section id="evidence" title="Quantinum evidence">
       {!qtm ? (
         <Empty>{loading ? 'Quantinum is reading every engine…' : 'Quantinum read unavailable.'}</Empty>
       ) : (

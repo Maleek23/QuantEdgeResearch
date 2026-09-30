@@ -19,9 +19,9 @@ export default function ImportView({ focus, onLogTrade }: { focus?: ImportSectio
   const { data, canWrite, bookLabel, goTo } = useJournal();
   if (!canWrite) {
     const why = data.key === 'bot'
-      ? "The Bot book is the Quant Bot's own paper ledger — it fills itself, so nothing can be imported into it."
+      ? "The Quantinum Bot book is the bot's own paper ledger — it fills itself, so nothing can be imported into it."
       : data.key === 'desk'
-        ? 'The Trade desk book is computed from published ideas — nothing can be imported into it.'
+        ? 'The NEXUS ideas book is computed from published ideas — nothing can be imported into it.'
         : `${bookLabel}'s journal is read-only for you — only an admin or ${bookLabel} can import into it. Their Discord calls go to their watchlist.`;
     return (
       <QEEmpty

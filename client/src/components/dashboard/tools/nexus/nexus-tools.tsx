@@ -225,9 +225,9 @@ export function NexusPositionsTool() {
     <div className="fd-fill nxd nxd-positions">
       <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker" count={rows.length} />
       {blocked ?? (rows.length === 0
-        ? <QEEmpty className="fd-m" message={held.length === 0 ? 'The bot holds no positions in this read.' : 'No held positions match this filter.'}
+        ? <QEEmpty className="fd-m" message={held.length === 0 ? 'Quantinum Bot holds no positions in this read.' : 'No held positions match this filter.'}
             action={held.length === 0
-              ? <Link href="/t?tab=bot" className="fd-btn">Open the bot</Link>
+              ? <Link href="/t?tab=bot" className="fd-btn">Open Quantinum Bot</Link>
               : <button type="button" className="fd-btn" onClick={() => { setSide('all'); setQuery(''); }}>Clear filter</button>} />
         : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} selected={sel?.kind === 'setup' && sel.id === pick.ideaId} onSelect={() => select.setup(pick)} />)}</div>)}
       <div className="fd-foot">Sorted by unrealized P&amp;L %. Held rows carry live P&amp;L, not a conviction score.</div>
@@ -274,7 +274,7 @@ export function NexusTraderCallsTool() {
           })}
         </div>
       )}
-      <div className="fd-foot">Evidence, not a signal: open calls ≤ {cfg.maxAgeTradingDays} trading days old from traders ranked ≥ {cfg.minScore}. Stated prices are as posted; the underlying is repriced live. Not used by the bot.</div>
+      <div className="fd-foot">Evidence, not a signal: open calls ≤ {cfg.maxAgeTradingDays} trading days old from traders ranked ≥ {cfg.minScore}. Stated prices are as posted; the underlying is repriced live. Not used by Quantinum Bot.</div>
     </div>
   );
 }

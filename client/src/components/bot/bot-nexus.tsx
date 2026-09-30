@@ -414,7 +414,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
       {/* PAPER BOOK — what the bot is actually holding, in every run */}
       <div className="book-section">
         <div className="book-head">
-          <div className="book-label">Paper book · what the bot holds{activeRun ? ` · trading ${activeRun.label}` : ''}</div>
+          <div className="book-label">Paper book · what Quantinum Bot holds{activeRun ? ` · trading ${activeRun.label}` : ''}</div>
           <div className="book-meta">
             {activeRun ? (
               <>
@@ -909,9 +909,9 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
       <div className="col bot-area" style={{ ['--nx-side' as string]: `${rail.width}px` }}>
         <div className="bot-header">
           <div className="bot-eyebrow">Automation</div>
-          <div className="bot-title-row"><div className="bot-title">BOT</div></div>
+          <div className="bot-title-row"><div className="bot-title">QUANTINUM BOT</div></div>
           <div className="bot-desc">
-            The platform's real automation layer: <b>scanner jobs</b>, <b>hard gates</b> and <b>ingest crons</b>, reported from their own output.
+            Quantinum Bot trades NEXUS's published ideas on paper — with the platform's real automation layer: <b>scanner jobs</b>, <b>hard gates</b> and <b>ingest crons</b>, reported from their own output.
             No broker is connected — nothing here places orders. Discipline is enforced in code, not clicked on.
           </div>
           <div className="bot-meta">
@@ -943,7 +943,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
           <div className="sec-title" style={{ background: 'linear-gradient(135deg,#fff,var(--bot-bright))', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Discipline, running.</div>
           <div className="sec-sub">The jobs and gates that keep the terminal honest — reported from their own output, not a claimed status.</div>
           <div className="sec-meta">
-            <span className="tag bot">BOT</span>
+            <span className="tag bot">QUANTINUM BOT</span>
             <span className="tag live"><span className="dot" />engaged</span>
           </div>
         </div>

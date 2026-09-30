@@ -409,7 +409,7 @@ function ConnectionsSection() {
 function JournalSection() {
   const [jp, setJp] = useJournalPrefs();
   const sources = useQuery<SourcesResp>({ queryKey: ['/api/journal/sources'], retry: 0, staleTime: 60_000 });
-  const books = sources.data?.sources?.length ? sources.data.sources : [{ key: 'mine', label: 'Mine' }, { key: 'bot', label: 'Bot' }, { key: 'desk', label: 'Trade desk' }];
+  const books = sources.data?.sources?.length ? sources.data.sources : [{ key: 'mine', label: 'Mine' }, { key: 'bot', label: 'Quantinum Bot' }, { key: 'desk', label: 'NEXUS ideas' }];
   return (
     <LuxPanel id="st-journal" num="06" title="Journal" sub="Defaults for the trade journal. Saved on this device."
       meta={<Link href="/t?tab=journal" className="st-link">Open journal <ArrowRight aria-hidden size={12} /></Link>}>
@@ -460,7 +460,7 @@ function DataSection() {
       <Row label="Export my journal" help="Every trade in your Mine book as CSV, all columns.">
         <LuxButton onClick={exportCsv} disabled={exporting}><Download aria-hidden /> {exporting ? 'Exporting…' : 'Download CSV'}</LuxButton>
       </Row>
-      <Row label="Delete my journal" help="Permanently deletes every trade in your Mine book. Export first — this can't be undone. Bot, Trade desk and trader books are not touched.">
+      <Row label="Delete my journal" help="Permanently deletes every trade in your Mine book. Export first — this can't be undone. Quantinum Bot, NEXUS ideas and trader books are not touched.">
         {!asking ? (
           <LuxButton className="st-danger" onClick={() => setAsking(true)}><Trash2 aria-hidden /> Delete…</LuxButton>
         ) : (

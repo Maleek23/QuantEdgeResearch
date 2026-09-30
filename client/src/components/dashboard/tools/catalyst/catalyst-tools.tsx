@@ -36,7 +36,7 @@ function useBoardReport() {
   const b = q.data as (NonNullable<typeof q.data> & { warming?: boolean }) | undefined;
   useToolReport({
     asOf: q.isError && !q.data ? null : q.data ? (b?.generatedAt ?? null) : undefined,
-    note: q.isError ? 'refresh failed' : b?.warming ? 'signals warming — board empty until ORACLE builds' : b ? `${b.signalsScanned ?? 0} live signals joined` : undefined,
+    note: q.isError ? 'refresh failed' : b?.warming ? 'signals warming — board empty until NEXUS builds' : b ? `${b.signalsScanned ?? 0} live signals joined` : undefined,
     tone: q.isError || b?.warming ? 'warn' : 'ok',
   });
   return q;

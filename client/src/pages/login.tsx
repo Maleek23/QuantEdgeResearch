@@ -137,47 +137,28 @@ export default function Login() {
           </div>
 
           <div className="space-y-8">
+            {/* docs/POSITIONING.md — no user counts or testimonials we cannot show. */}
             <div>
               <h1 className="text-4xl font-medium text-foreground dark:text-foreground mb-4 leading-tight">
-                Multi-engine.<br />
-                One edge.
+                The trading research terminal.
               </h1>
               <p className="text-muted-foreground dark:text-muted-foreground text-lg max-w-md">
-                Join thousands of traders using AI-powered analysis to find their next trade.
+                Stocks, options and crypto — every number carries its evidence and its record.
               </p>
             </div>
 
-            {/* Stats */}
-            <div className="flex gap-8">
-              <div>
-                <div className="text-2xl font-mono text-foreground dark:text-foreground">2,500+</div>
-                <div className="text-sm text-muted-foreground dark:text-muted-foreground">Traders joined</div>
-              </div>
-              <div>
-                <div className="text-2xl font-mono text-foreground dark:text-foreground">Multi</div>
-                <div className="text-sm text-muted-foreground dark:text-muted-foreground">Engine convergence</div>
-              </div>
-              <div>
-                <div className="text-2xl font-mono text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)]">24/7</div>
-                <div className="text-sm text-muted-foreground dark:text-muted-foreground">Market analysis</div>
-              </div>
-            </div>
-
-            {/* Testimonial */}
-            <div className="bg-white dark:bg-card border border-gray-200 dark:border-border rounded-lg p-5 max-w-md">
-              <p className="text-muted-foreground dark:text-foreground/80 text-sm mb-3">
-                "Finally, a platform that gives retail traders the same analysis tools institutions have been using for years."
-              </p>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <span className="text-[var(--trade-bullish)] dark:text-[var(--trade-bullish)] text-xs font-medium">JM</span>
-                </div>
-                <div>
-                  <div className="text-sm text-foreground dark:text-foreground">James M.</div>
-                  <div className="text-xs text-muted-foreground dark:text-muted-foreground">Beta tester</div>
-                </div>
-              </div>
-            </div>
+            <ul className="space-y-4 max-w-md">
+              {[
+                ['See the positioning', 'GEX and VEX by strike, walls, zero-γ, the squeeze radar, options flow and dark-pool levels.'],
+                ['Rank the setup', 'NEXUS scores every idea layer by layer, with entry, stop and target — plus a 0DTE desk and charts.'],
+                ['Prove the record', 'A paper-trading bot with a public ledger, and a journal for your own trades: import, insights, loss analysis.'],
+              ].map(([t, d]) => (
+                <li key={t} className="border-l-2 border-[var(--trade-bullish)]/50 pl-4">
+                  <div className="text-sm font-medium text-foreground">{t}</div>
+                  <div className="text-sm text-muted-foreground">{d}</div>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div className="text-xs text-muted-foreground dark:text-muted-foreground">

@@ -37,8 +37,8 @@ export function JournalSwitcher({ value, onChange, sources, loading, collapsed =
   const list = sources?.sources ?? [
     // Before /sources answers, the three fixed books are still switchable.
     { key: 'mine' as const, kind: 'mine' as const, label: 'Mine', hint: 'Your trades', readOnly: false, canWrite: true },
-    { key: 'bot' as const, kind: 'bot' as const, label: 'Bot', hint: "The Quant Bot's paper fills", readOnly: true, canWrite: false },
-    { key: 'desk' as const, kind: 'desk' as const, label: 'Trade desk', hint: 'Every published idea', readOnly: true, canWrite: false },
+    { key: 'bot' as const, kind: 'bot' as const, label: 'Quantinum Bot', hint: "Quantinum Bot's paper fills", readOnly: true, canWrite: false },
+    { key: 'desk' as const, kind: 'desk' as const, label: 'NEXUS ideas', hint: 'Every idea NEXUS published', readOnly: true, canWrite: false },
   ];
   const books = list.filter((s) => s.kind !== 'trader');
   const people = list.filter((s) => s.kind === 'trader');

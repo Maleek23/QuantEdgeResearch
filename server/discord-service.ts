@@ -334,7 +334,7 @@ export async function sendBotTradeEntryToDiscord(trade: {
   if (trade.assetType === 'future' || trade.source === 'futures') {
     portfolioId = 'futures';
   }
-  const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
+  const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Quantinum Bot', emoji: '🤖' };
   const isSmallAccount = trade.isSmallAccount || portfolioId === 'small_account';
   // Lotto branding only for actual lotto plays, NOT for small account portfolio
   const isLotto = (trade.isLotto || trade.source === 'lotto') && !isSmallAccount;
@@ -385,7 +385,7 @@ export async function sendBotTradeEntryToDiscord(trade: {
       : grade || 'N/A';
 
     const embed: DiscordEmbed = {
-      title: `${meta.emoji} ${isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT'} ENTRY: ${trade.symbol} ${trade.optionType?.toUpperCase() || ''} ${trade.strikePrice ? '$' + trade.strikePrice : ''} [${grade}] ${trade.confidence || ''}%`,
+      title: `${meta.emoji} ${isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 QUANTINUM BOT'} ENTRY: ${trade.symbol} ${trade.optionType?.toUpperCase() || ''} ${trade.strikePrice ? '$' + trade.strikePrice : ''} [${grade}] ${trade.confidence || ''}%`,
       description: cleanAnalysis,
       color: isSmallAccount ? 0xfbbf24 : color,
       fields: [
@@ -397,7 +397,7 @@ export async function sendBotTradeEntryToDiscord(trade: {
         { name: '📊 Details', value: deltaDisplay || `Qty: ${trade.quantity}`, inline: true }
       ],
       timestamp: new Date().toISOString(),
-      footer: { text: `Quant Edge Labs • ${meta.name} | ${gradeWithConfidence}` }
+      footer: { text: `QuantEdge • ${meta.name} | ${gradeWithConfidence}` }
     };
 
     if (trade.expiryDate) {
@@ -465,7 +465,7 @@ export async function sendBotTradeExitToDiscord(exit: {
     logger.debug(`📱 [DISCORD] Auto-detected portfolio type: ${portfolioId} for ${exit.symbol} (asset: ${exit.assetType})`);
   }
   
-  const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
+  const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Quantinum Bot', emoji: '🤖' };
   
   // Small Account entries/exits go to #quantbot channel (per user request)
   // Only pure lotto plays (not small account) go to lotto channel
@@ -491,7 +491,7 @@ export async function sendBotTradeExitToDiscord(exit: {
     const portfolioLabel = portfolioId === 'small_account' ? '💰 SMALL ACCOUNT' 
       : portfolioId === 'futures' ? '📈 FUTURES'
       : portfolioId === 'crypto' ? '₿ CRYPTO'
-      : '🤖 BOT';
+      : '🤖 QUANTINUM BOT';
     
     const embed: DiscordEmbed = {
       title: `${isProfit ? '🎉' : '💀'} ${portfolioLabel} EXIT: ${exit.symbol} (${isProfit ? 'PROFIT' : 'LOSS'})`,
@@ -504,7 +504,7 @@ export async function sendBotTradeExitToDiscord(exit: {
         { name: '📋 Reason', value: exitReason, inline: false },
       ],
       timestamp: new Date().toISOString(),
-      footer: { text: `Quant Edge Labs • ${meta.name}` }
+      footer: { text: `QuantEdge • ${meta.name}` }
     };
 
     await postDiscordWebhook(webhookUrl, {
@@ -608,7 +608,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceB
     const color = isTVSignal ? 0xa855f7 : (isLong ? COLORS.LONG : COLORS.SHORT); // Purple for TV signals
     const isOracleSignal = ideaSource === 'oracle-signal';
     const titleEmoji = isTVSignal ? '📺' : isOracleSignal ? '✦' : (isLong ? '🟢' : '🔴');
-    const titlePrefix = isTVSignal ? 'TV SIGNAL' : isOracleSignal ? 'ORACLE SIGNAL' : idea.direction.toUpperCase();
+    const titlePrefix = isTVSignal ? 'TV SIGNAL' : isOracleSignal ? 'NEXUS SIGNAL' : idea.direction.toUpperCase();
     const embed: DiscordEmbed = {
       title: `${titleEmoji} ${titlePrefix}: ${idea.symbol} ${idea.direction.toUpperCase()}`,
       description: idea.analysis || 'New trade idea detected.',
@@ -946,7 +946,7 @@ export async function sendWeeklyWatchlistToDiscord(items: any[]): Promise<void> 
       description: `Top picks for the week ahead. B grade or higher.`,
       color: COLORS.QUANT,
       fields,
-      footer: { text: 'Quant Edge Labs Weekly Watchlist' },
+      footer: { text: 'QuantEdge Weekly Watchlist' },
       timestamp: new Date().toISOString()
     };
 
@@ -984,7 +984,7 @@ export async function sendNextWeekPicksToDiscord(picks: any[], range: any): Prom
         { name: 'Bullish', value: `${picks.filter((p: any) => p.direction === 'long').length}`, inline: true },
         { name: 'Bearish', value: `${picks.filter((p: any) => p.direction === 'short').length}`, inline: true }
       ],
-      footer: { text: 'Quant Edge Labs Weekly Picks' },
+      footer: { text: 'QuantEdge Weekly Picks' },
       timestamp: new Date().toISOString()
     };
 
@@ -1035,7 +1035,7 @@ export async function sendDailySummaryToDiscord(ideas: any[]): Promise<void> {
         { name: 'B+ Grade', value: `${ideas.filter((i: any) => ['A+', 'A', 'A-', 'B+'].includes(i.grade)).length}`, inline: true },
         { name: 'Options', value: `${ideas.filter((i: any) => i.assetType === 'option').length}`, inline: true }
       ],
-      footer: { text: 'Quant Edge Labs • Daily Preview at 8:00 AM ET' },
+      footer: { text: 'QuantEdge • Daily Preview at 8:00 AM ET' },
       timestamp: new Date().toISOString()
     };
 
@@ -1474,7 +1474,7 @@ export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
       color: flow.optionType === 'call' ? COLORS.LONG : COLORS.SHORT,
       fields: [],
       timestamp: new Date().toISOString(),
-      footer: { text: `Quant Edge Labs • Confidence: ${confidenceDisplay}` }
+      footer: { text: `QuantEdge • Confidence: ${confidenceDisplay}` }
     };
     
     // Add confidence field first
@@ -1625,7 +1625,7 @@ export async function sendMarketMoversAlertToDiscord(movers: {
       description: `${filteredMovers.length} stocks with >5% moves detected`,
       color: surges.length > drops.length ? COLORS.LONG : COLORS.SHORT,
       fields,
-      footer: { text: 'Quant Edge Labs Real-time Scanner' },
+      footer: { text: 'QuantEdge Real-time Scanner' },
       timestamp: new Date().toISOString()
     };
     
@@ -1720,7 +1720,7 @@ export async function sendPreMoveAlertToDiscord(signal: {
       description: signal.details,
       color,
       fields,
-      footer: { text: `Quant Edge Labs Pre-Move Detection • ${gradeDisplay}` },
+      footer: { text: `QuantEdge Pre-Move Detection • ${gradeDisplay}` },
       timestamp: signal.timestamp.toISOString()
     };
     
@@ -1906,7 +1906,7 @@ export async function sendPremiumOptionsAlertToDiscord(trade: {
         { name: '⚖️ R:R', value: `${rrRatio}:1`, inline: true },
         { name: '📅 Expiry', value: trade.expiryDate.split('T')[0], inline: true },
       ],
-      footer: { text: `Quant Edge Labs • ${trade.grade} ${trade.confidence}% • ${tradeTypeLabel.toUpperCase()}` },
+      footer: { text: `QuantEdge • ${trade.grade} ${trade.confidence}% • ${tradeTypeLabel.toUpperCase()}` },
       timestamp: new Date().toISOString()
     };
     
@@ -1980,7 +1980,7 @@ export async function sendIndexScalpToDiscord(
       { name: '🧭 Regime', value: scalp.regime.replace('_', ' '), inline: true },
       { name: '⏱️ Setup', value: setupLabel, inline: true },
     ],
-    footer: { text: `Quant Edge Labs • Index Scalp • 0DTE${scalp.isPowerHour ? ' • POWER HOUR' : ''}` },
+    footer: { text: `QuantEdge • Index Scalp • 0DTE${scalp.isPowerHour ? ' • POWER HOUR' : ''}` },
     timestamp: new Date().toISOString(),
   };
 
@@ -2169,7 +2169,7 @@ export async function sendConvergenceAlertToDiscord(signal: {
         { name: '💵 Spot', value: `$${signal.spotPrice.toFixed(2)}`, inline: true },
         { name: '📋 Strategy', value: signal.strategy, inline: false },
       ],
-      footer: { text: 'Flow Edge • GEX Convergence • QuantEdge Labs' },
+      footer: { text: 'Flow Edge • GEX Convergence • QuantEdge' },
       timestamp: new Date().toISOString(),
     };
 
@@ -2265,7 +2265,7 @@ export async function sendDailyPreview(): Promise<{ success: boolean; message: s
     // Create the embed
     const embed: DiscordEmbed = {
       title: `📊 DAILY PREVIEW - ${dateStr}`,
-      description: `**Quant Edge Labs Morning Briefing**\nGenerated at ${timeStr} CT`,
+      description: `**QuantEdge Morning Briefing**\nGenerated at ${timeStr} CT`,
       color: 0x3b82f6, // Blue
       fields: [
         { 
@@ -2289,7 +2289,7 @@ export async function sendDailyPreview(): Promise<{ success: boolean; message: s
           inline: false
         }
       ],
-      footer: { text: 'Quant Edge Labs • Quality over quantity • B grade and above alerts' },
+      footer: { text: 'QuantEdge • Quality over quantity • B grade and above alerts' },
       timestamp: new Date().toISOString()
     };
     

@@ -1,7 +1,7 @@
 {
-  "name": "QuantEdge Terminal",
+  "name": "QuantEdge — Trading Research Terminal",
   "short_name": "QuantEdge",
-  "description": "Multi-engine trading terminal — measured data, honest labels.",
+  "description": "Trading research terminal for stocks, options and crypto — dealer positioning, options flow, evidence-ranked setups, a paper-trading bot and trading journals.",
   "start_url": "/t",
   "display": "standalone",
   "background_color": "#0a0c10",

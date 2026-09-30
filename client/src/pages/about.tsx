@@ -1,7 +1,7 @@
 import {
   Activity, Target, Shield, Zap, Brain, TrendingUp, BarChart3,
   LineChart, Eye, Users, Award, Lock, Server, CheckCircle2,
-  ArrowLeft, Sparkles, Globe, Clock, ChartCandlestick
+  ArrowLeft, Sparkles, Globe, Clock, ChartCandlestick, Magnet, Waves, Crosshair, BookOpen, Bot as BotIcon
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,37 +13,24 @@ import { Link } from "wouter";
 import qeMark from "@assets/qe-mark.svg";
 import profileImage from "@assets/malikpic-480.jpg";
 
+// The modules, one line each — docs/POSITIONING.md is the source.
 const engines = [
-  {
-    name: "Technical Layer",
-    icon: LineChart,
-    color: "from-blue-500 to-blue-600",
-    description: "Multi-timeframe pattern recognition across 50+ indicators including RSI, MACD, Bollinger Bands, and proprietary momentum signals."
-  },
-  {
-    name: "Fundamental Layer",
-    icon: BarChart3,
-    color: "from-emerald-500 to-emerald-600",
-    description: "Real-time financial analysis covering earnings, revenue growth, P/E ratios, debt levels, and sector comparisons."
-  },
-  {
-    name: "Sentiment Layer",
-    icon: Brain,
-    color: "from-purple-500 to-purple-600",
-    description: "NLP-powered analysis of news, social media, and analyst reports to gauge market sentiment and crowd psychology."
-  },
-  {
-    name: "Options Flow Layer",
-    icon: Eye,
-    color: "from-amber-500 to-amber-600",
-    description: "Track unusual options activity, smart money positioning, and institutional hedging patterns in real-time."
-  },
-  {
-    name: "Convergence Layer",
-    icon: Target,
-    color: "from-sky-500 to-sky-600",
-    description: "Our proprietary algorithm that synthesizes all layers into a unified signal strength score with graded bands."
-  }
+  { name: "Dealer positioning · GEX", icon: Magnet, color: "from-pink-500 to-pink-600",
+    description: "GEX and VEX by strike and expiry, call and put walls, zero-γ, regime and the squeeze radar — each tile with its source and data age." },
+  { name: "Options flow · FLOW", icon: Waves, color: "from-emerald-500 to-emerald-600",
+    description: "Prints, sweeps and blocks, top tickers, market tide, flow by strike and expiry, and dark-pool levels." },
+  { name: "Evidence-ranked setups · NEXUS", icon: Crosshair, color: "from-blue-500 to-blue-600",
+    description: `The conviction engine scores each idea across ${CONVICTION_LAYER_COUNT} layers; every layer shows what argued for or against it, with entry, stop and target printed.` },
+  { name: "0DTE desk", icon: Activity, color: "from-amber-500 to-amber-600",
+    description: "Same-day index context — levels, dealer map and flow for the session, with the data's age on screen." },
+  { name: "Charts & ticker pages", icon: ChartCandlestick, color: "from-sky-500 to-sky-600",
+    description: "Multi-timeframe charts with walls, zero-γ and idea levels on the real bars; one page per ticker with its own record." },
+  { name: "Paper-trading bot", icon: BotIcon, color: "from-indigo-500 to-indigo-600",
+    description: "Takes the platform's own published ideas into a simulated book with real contract marks, so the record is earned in public." },
+  { name: "Trading journals", icon: BookOpen, color: "from-teal-500 to-teal-600",
+    description: "Broker and Discord import, calendar, insights, loss analysis and playbooks — and imported trader journals, measured the same way." },
+  { name: "LEAPS, crypto & catalysts", icon: TrendingUp, color: "from-purple-500 to-purple-600",
+    description: "Long-dated calls graded on trend and value, BTC/ETH with measured equity proxies, and earnings and macro events joined to the book." },
 ];
 
 const values = [
@@ -58,8 +45,8 @@ const values = [
     icon: Eye
   },
   {
-    title: "Continuous Learning",
-    description: "Our models improve daily based on market feedback and performance tracking.",
+    title: "Measured, Not Promised",
+    description: "Every model is scored against its own record. Win rates travel with their sample size, and the models that failed validation are published too.",
     icon: Brain
   },
   {
@@ -129,15 +116,16 @@ export default function About() {
           </Badge>
           <h1 className="text-4xl sm:text-5xl font-bold">
             <span className="text-[var(--trade-bullish)]">
-              Multi-Engine Intelligence
+              A trading research terminal
             </span>
             <br />
-            <span className="text-foreground">for Smarter Trading</span>
+            <span className="text-foreground">that shows its evidence</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            We built QuantEdge Labs because we were tired of scattered data, conflicting signals,
-            and analysis paralysis. Our platform scores every setup through {CONVICTION_LAYER_COUNT} layers and publishes
-            its measured hit rate — including the models that failed validation.
+            QuantEdge is one terminal for stocks, options and crypto: dealer positioning, options flow
+            and dark pool, evidence-ranked setups, a 0DTE desk, charts, a paper-trading bot with a public
+            record, and trading journals. Every number carries its evidence and its record — including the
+            models that failed validation.
           </p>
         </section>
 
@@ -186,7 +174,7 @@ export default function About() {
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <h2 className="text-2xl font-semibold">{CONVICTION_LAYER_COUNT} Conviction Layers</h2>
+            <h2 className="text-2xl font-semibold">What's in the terminal</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {engines.map((engine, i) => (
@@ -280,8 +268,8 @@ export default function About() {
             ))}
           </div>
           <p className="text-sm text-muted-foreground text-center">
-            QuantEdge Labs is a research and analysis platform only. We never execute trades on your behalf
-            or require brokerage credentials. Your data stays secure with enterprise-grade encryption.
+            QuantEdge Labs is a research and analysis platform only. We never place trades on your behalf —
+            the bot trades on paper — and all traffic is encrypted in transit (TLS).
           </p>
         </section>
 
@@ -361,9 +349,9 @@ export default function About() {
 
         {/* CTA Section */}
         <section className="text-center space-y-6 py-8">
-          <h2 className="text-2xl font-semibold">Ready to Trade Smarter?</h2>
+          <h2 className="text-2xl font-semibold">See it for yourself</h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            Join the beta and experience multi-engine analysis that gives you the edge.
+            Open the terminal free, and judge it by its record.
           </p>
           <div className="flex gap-4 justify-center">
             <Link href="/signup">
@@ -374,7 +362,7 @@ export default function About() {
             </Link>
             <Link href="/">
               <Button size="lg" variant="outline">
-                View Features
+                See the terminal
               </Button>
             </Link>
           </div>

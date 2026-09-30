@@ -193,7 +193,7 @@ export default function LossView() {
         )}
         <p className="jr-note">
           Entry hour, weekday and session are New York time of the entry stamp. DTE = expiry − entry day. Exit reason is the recorded one (desk outcome / bot exit); "not recorded" means the book doesn't store it.
-          Source / setup is the publishing engine on the Bot and Trade desk books.
+          Source / setup is the publishing engine on the Quantinum Bot and NEXUS ideas books.
         </p>
       </Card>
 

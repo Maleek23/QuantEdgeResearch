@@ -54,7 +54,7 @@ export async function getLossRulesReport(journal: 'desk' | 'bot', opts: { vol?: 
     const closes = opts.vol ? await loadCloses([...new Set(trades.map((t) => t.symbol))]) : null;
     return buildLossRulesReport({
       journal, trades, peers: ideas.map(peerRow), closesBySymbol: closes, cfg, includeTrades: opts.includeTrades,
-      basis: `Trade desk — ideas published since ${OUTCOME_BASELINE_DATE}, closed with a measured result, unit-sized as in the journal (${trades.length} trades of ${ideas.length} ideas).`,
+      basis: `NEXUS ideas — ideas published since ${OUTCOME_BASELINE_DATE}, closed with a measured result, unit-sized as in the journal (${trades.length} trades of ${ideas.length} ideas).`,
     });
   }
   const { loadBotLedger } = await import('./bot-ledger');
@@ -71,7 +71,7 @@ export async function getLossRulesReport(journal: 'desk' | 'bot', opts: { vol?: 
   const closes = opts.vol ? await loadCloses([...new Set(trades.map((t) => t.symbol))]) : null;
   return buildLossRulesReport({
     journal, trades, peers: peers.map(peerRow), closesBySymbol: closes, cfg, includeTrades: opts.includeTrades,
-    basis: `Quant Bot paper ledger — every closed fill across ${runs.length} run(s) (${trades.length} trades).`,
+    basis: `Quantinum Bot paper ledger — every closed fill across ${runs.length} run(s) (${trades.length} trades).`,
   });
 }
 

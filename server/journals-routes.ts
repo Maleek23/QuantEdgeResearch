@@ -104,8 +104,8 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
       const list = await listTraders();
       const items: JournalSourceListItem[] = [
         { key: 'mine', kind: 'mine', label: 'Mine', hint: 'Your trades — manual, broker CSV, Alpaca', readOnly: false, canWrite: !!actor.userId },
-        { key: 'bot', kind: 'bot', label: 'Bot', hint: "The Quant Bot's paper fills", readOnly: true, canWrite: false },
-        { key: 'desk', kind: 'desk', label: 'Trade desk', hint: 'Every published idea, scored as a trade', readOnly: true, canWrite: false },
+        { key: 'bot', kind: 'bot', label: 'Quantinum Bot', hint: "Quantinum Bot's paper fills", readOnly: true, canWrite: false },
+        { key: 'desk', kind: 'desk', label: 'NEXUS ideas', hint: 'Every idea NEXUS published, scored as a trade', readOnly: true, canWrite: false },
         ...list.map((t): JournalSourceListItem => {
           const canWrite = canWriteTrader(actor, t);
           return { key: `trader:${t.slug}`, kind: 'trader', label: t.name, hint: `${t.name}'s journal${t.source ? ` · from ${t.source}` : ''}`, readOnly: !canWrite, canWrite };

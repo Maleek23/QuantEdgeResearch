@@ -961,7 +961,7 @@ export default function BrokerImport() {
           <Link2Off className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-white mb-2">No Brokers Connected</h3>
           <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-            Connect your broker accounts to track positions, analyze performance, and get AI-powered insights on your portfolio.
+            Connect your broker accounts to track positions, analyze performance, and get measured insights on your own trades.
           </p>
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <Info className="w-4 h-4" />

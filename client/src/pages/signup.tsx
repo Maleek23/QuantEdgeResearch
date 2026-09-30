@@ -103,7 +103,7 @@ export default function Signup() {
             </p>
             <h2 className="text-2xl font-bold text-center">Create an account</h2>
             <p className="text-center text-muted-foreground text-sm">
-              Enter your details to get started with Quant Edge Labs
+              Open the QuantEdge trading research terminal — stocks, options and crypto.
             </p>
           </div>
           

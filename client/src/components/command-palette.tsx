@@ -49,8 +49,8 @@ interface NavTarget {
 // (FIND → UNDERSTAND → ACT → PROVE). ⌘1–⌘5 follow this order.
 const PRIMARY_DESTINATIONS: NavTarget[] = [
   { href: '/today',          label: 'Today',      icon: Home,      hint: 'Weekly dealer map · best idea · ranked book', keywords: ['home','morning','brief','convictions','best','slate','radar','ideas','picks','gappers'] },
-  { href: '/t',              label: 'Markets',    icon: Zap,       hint: 'Terminal · NEXUS board, chart, flow, GEX, crypto', keywords: ['terminal','dashboard','pulse','overview','nexus','tape'] },
-  { href: '/r',              label: 'Research',   icon: Microscope,hint: 'Per-ticker dossier · chart · options · GEX', keywords: ['chart','options','ticker','dossier'] },
+  { href: '/t',              label: 'Markets',    icon: Zap,       hint: 'Terminal · NEXUS trading desk, chart, flow, GEX, crypto', keywords: ['terminal','dashboard','pulse','overview','nexus','desk','setups','tape'] },
+  { href: '/r',              label: 'Research',   icon: Microscope,hint: 'Ticker page · Quantinum read · chart · options · GEX', keywords: ['chart','options','ticker','dossier','quantinum','evidence'] },
   { href: '/t?tab=positions',label: 'Book',       icon: Wallet,    hint: 'Positions · open risk · P&L heat map', keywords: ['positions','heatmap','pnl'] },
   { href: '/t?tab=journal',  label: 'Journal',    icon: BookOpen,  hint: 'Dashboard · trades · analytics · track record', keywords: ['history','performance','backtest','calendar','pnl'] },
 ];
@@ -63,7 +63,7 @@ const NESTED_TABS: NavTarget[] = [
   { href: '/t?tab=leaps',    label: 'Terminal → LEAPS',    icon: Home, keywords: ['long','dated','thesis'] },
   { href: '/t?tab=crypto',   label: 'Terminal → Crypto',   icon: Home, keywords: ['bitcoin','btc'] },
   { href: '/t?tab=catalyst', label: 'Terminal → Catalyst', icon: Home, keywords: ['events','earnings','calendar'] },
-  { href: '/t?tab=bot',      label: 'Terminal → Bot',      icon: Home, keywords: ['automation','paper'] },
+  { href: '/t?tab=bot',      label: 'Terminal → Quantinum Bot', icon: Home, keywords: ['bot','automation','paper','quantinum'] },
   // Ticker page (the per-ticker home — search a ticker → lands here; docs/TICKER_PAGE.md)
   { href: '/r/SPY?tab=chart',    label: 'Ticker page → Chart',    icon: Microscope, keywords: ['price','levels','candle'] },
   { href: '/r/SPY?tab=options',  label: 'Ticker page → Options',  icon: Microscope, keywords: ['chain','greeks','iv'] },

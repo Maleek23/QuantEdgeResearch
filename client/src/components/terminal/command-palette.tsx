@@ -27,7 +27,8 @@ type PaletteItem =
 
 const PALETTE_PAGES = [...PAGES, ...UTILITY_PAGES];
 
-interface PaletteTab { id: string; label: string }
+/** label = the nav id-label (NEXUS, BOT…); display = the product name shown (docs/POSITIONING.md). */
+interface PaletteTab { id: string; label: string; display?: string }
 
 const readRecents = (): string[] => {
   try { return JSON.parse(localStorage.getItem('nx-recent-syms') || '[]'); } catch { return []; }
@@ -97,7 +98,7 @@ export function CommandPalette({
     const out: PaletteItem[] = [];
     if (q) {
       for (const t of tabs) {
-        if (t.label.startsWith(q)) out.push({ kind: 'tab', tab: t.id, label: `Go to ${t.label}` });
+        if (t.label.startsWith(q) || t.display?.toUpperCase().startsWith(q)) out.push({ kind: 'tab', tab: t.id, label: `Go to ${t.display ?? t.label}` });
       }
       for (const p of PALETTE_PAGES) {
         if (p.label.toUpperCase().startsWith(q) || p.short.startsWith(q) || p.href.slice(1).toUpperCase().startsWith(q)) {
@@ -108,7 +109,7 @@ export function CommandPalette({
       if (!out.length && !isFetching) out.push({ kind: 'ticker', symbol: q, name: 'open directly' });
     } else {
       for (const s of readRecents()) out.push({ kind: 'ticker', symbol: s, name: 'recent' });
-      if (!out.length) for (const t of tabs.slice(0, 4)) out.push({ kind: 'tab', tab: t.id, label: `Go to ${t.label}` });
+      if (!out.length) for (const t of tabs.slice(0, 4)) out.push({ kind: 'tab', tab: t.id, label: `Go to ${t.display ?? t.label}` });
       for (const p of PALETTE_PAGES) out.push({ kind: 'page', href: p.href, label: `Open ${p.label}` });
     }
     return out;

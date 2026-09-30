@@ -68,8 +68,8 @@ const SCROLL_ID = 'jr-scroll';
 
 /** Header copy per book — the question each journal answers. */
 function headCopy(key: JournalKey, label: string) {
-  if (key === 'bot') return { eyebrow: 'bot paper ledger', title: 'How is the bot actually trading?' };
-  if (key === 'desk') return { eyebrow: 'published ideas, as trades', title: 'How did the trade desk trade?' };
+  if (key === 'bot') return { eyebrow: 'Quantinum Bot · paper ledger', title: 'How is Quantinum Bot actually trading?' };
+  if (key === 'desk') return { eyebrow: 'NEXUS ideas, as trades', title: 'How did NEXUS\'s ideas trade?' };
   if (key.startsWith('trader:')) return { eyebrow: `${label}'s trades`, title: `How is ${label} trading?` };
   return { eyebrow: 'your trades', title: 'How am I actually trading?' };
 }
@@ -201,7 +201,7 @@ export default function JournalShell() {
       <QEEmpty
         message={
           journalKey === 'mine' ? <>Your journal is empty. Import a broker CSV, connect Alpaca, or log a trade and the dashboard, calendar and reports fill in from your real fills.</>
-          : journalKey === 'bot' ? <>The bot's paper ledger has no positions yet{data.meta?.basis ? <> — {data.meta.basis}</> : null}.</>
+          : journalKey === 'bot' ? <>Quantinum Bot's paper ledger has no positions yet{data.meta?.basis ? <> — {data.meta.basis}</> : null}.</>
           : journalKey === 'desk' ? <>No published idea since the clean-era baseline could be scored as a trade{excluded ? ` (${excluded} held but not scorable — see the basis line)` : ''}.</>
           : <>{bookLabel}'s journal is empty.{canWrite ? ' Log a trade for them, or import a broker CSV.' : ` Only an admin or ${bookLabel} can add to it.`}</>
         }
