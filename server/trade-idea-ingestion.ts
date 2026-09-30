@@ -395,7 +395,13 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
         if (atr > 0 && dist < floor) {
           const widened = Number((isLong ? entryPx - floor : entryPx + floor).toFixed(2));
           if (widened > 0) {
-            stopNote = `Stop widened from $${stopLoss.toFixed(2)} to $${widened.toFixed(2)} (1.25× ATR $${atr.toFixed(2)}): stops inside a normal day's range were the #1 measured loss driver.`;
+            // Restate the trade on the widened stop: the producer's level stays
+            // the thesis line, but the stop and the R multiple are now different.
+            const tgt = input.targetPrice ?? input.suggestedTarget;
+            const newR = typeof tgt === 'number' ? Math.abs(tgt - entryPx) / Math.abs(entryPx - widened) : null;
+            stopNote = `Stop widened from $${stopLoss.toFixed(2)} to $${widened.toFixed(2)} (1.25× ATR $${atr.toFixed(2)}): stops inside a normal day's range were the #1 measured loss driver. ` +
+              `$${stopLoss.toFixed(2)} stays the thesis line (a close through it means the read was wrong); the hard stop is $${widened.toFixed(2)}` +
+              (newR != null && typeof tgt === 'number' ? `, so T1 $${tgt.toFixed(2)} is ${newR.toFixed(1)}R on this stop${newR < 1 ? ' — below 1R, size down or pass' : ''}.` : '.');
             logger.info(`[INGESTION] ${symbol}: ${stopNote}`);
             stopLoss = widened;
           }
@@ -421,7 +427,10 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
       targetPrice: input.targetPrice ?? input.suggestedTarget,
       stopLoss,
       catalyst: input.catalyst,
-      analysis: stopNote ? `${input.analysis ? input.analysis + ' ' : ''}${stopNote}` : input.analysis,
+      // A widened stop voids the producer's "T1 is 2R" line — drop it; stopNote restates R.
+      analysis: stopNote
+        ? `${input.analysis ? input.analysis.replace(/\s*T1 \$[\d.,]+ is stated plainly as 2R[^.]*\./, '') + ' ' : ''}${stopNote}`
+        : input.analysis,
       technicalSignals: input.technicalSignals,
       optionType: input.optionType,
       strikePrice: input.strikePrice,

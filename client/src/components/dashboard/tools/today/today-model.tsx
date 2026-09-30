@@ -226,8 +226,13 @@ export function explain(p: Pick): { headline: string; reasons: string[]; against
   if (m && flow) {
     const bull = m[3].toLowerCase() === 'bullish';
     const lead = flow.match(bull ? /calls (bought|sold) \+\$([\d.]+)M/i : /puts (bought|sold) \+\$([\d.]+)M/i);
-    headline = `Options traders put $${m[2]}M ${bull ? 'behind' : 'against'} it yesterday` +
-      (lead && Number(lead[2]) > 0 ? `, $${lead[2]}M of it in ${bull ? 'calls' : 'puts'} ${lead[1]}.` : '.');
+    // $X is NET premium; the lead leg is GROSS and can exceed it (offset by the other side),
+    // so never phrase the leg as "of it". The day comes from the flow line, not "yesterday".
+    const d = flow.match(/on (\d{4}-\d{2}-\d{2})/)?.[1];
+    const todayEt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
+    const when = !d ? 'in the last session' : d === todayEt ? 'today' : `on ${new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`;
+    headline = `Options flow ${when}: $${m[2]}M net ${bull ? 'bullish' : 'bearish'}` +
+      (lead && Number(lead[2]) > 0 ? ` — $${lead[2]}M in ${bull ? 'calls' : 'puts'} ${lead[1]} at the ${lead[1] === 'bought' ? 'ask' : 'bid'}.` : '.');
   } else if (pattern) {
     const lvl = pattern.match(/\$([\d.,]+) bottom/)?.[1] ?? pattern.match(/bottomed \$([\d.,]+)/)?.[1];
     if (/Higher-Lows/i.test(pattern)) headline = `Building higher lows off the $${lvl} bottom.`;
