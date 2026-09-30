@@ -124,30 +124,14 @@ export function displayedScoreBarPct(idea: ScoredIdea | null | undefined): numbe
 //   C band  → D+ / D / D- / F (<13)
 
 import { getLetterGrade as confidenceToGrade, type GradeLetter } from "@shared/grading";
-import { convictionBandForScore, isHighConvictionBand } from "@shared/conviction-bands";
+import { convictionBandForScore, isHighConvictionBand, convictionLetterGrade } from "@shared/conviction-bands";
 
 export type LetterGrade = GradeLetter;
 
-const CONVICTION_GRADE_CUTOFFS: Array<[number, LetterGrade]> = [
-  [35, "A+"],
-  [30, "A"],
-  [25, "A-"],
-  [23, "B+"],
-  [21, "B"],
-  [19, "B-"],
-  [17, "C+"],
-  [15, "C"],
-  [13, "C-"],
-  [9,  "D+"],
-  [5,  "D"],
-  [1,  "D-"],
-];
-
+// The table lives in shared/conviction-bands.ts (CONVICTION_GRADE_CUTOFFS) so the
+// server (Discord alerts, dossier) grades a raw score exactly as this badge does.
 function convictionScoreToGrade(score: number): LetterGrade {
-  for (const [cutoff, grade] of CONVICTION_GRADE_CUTOFFS) {
-    if (score >= cutoff) return grade;
-  }
-  return "F";
+  return convictionLetterGrade(score) as LetterGrade;
 }
 
 function isValidGradeString(g: unknown): g is LetterGrade {

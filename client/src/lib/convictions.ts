@@ -232,3 +232,14 @@ export function layerBarPct(points: number): number {
   const pct = (Math.abs(points) / 10) * 100;
   return Math.max(6, Math.min(100, pct));
 }
+
+/**
+ * THE live book — one membership rule for Today ("The book · N live", best idea)
+ * and NEXUS (ranked list). Audit 2026-09-29: Today dropped `executed` picks and NEXUS
+ * did not, and each fetched /api/convictions under its own query key and cadence,
+ * so the two counts could differ at the same moment.
+ */
+export const CONVICTIONS_QUERY_KEY = ['/api/convictions', 'nexus-prototype'] as const;
+export function isLiveBookPick(p: { isBotHeld?: boolean | null; lifecycleState?: string | null; convictionScore?: number | null }): boolean {
+  return typeof p.convictionScore === 'number' && !p.isBotHeld && p.lifecycleState !== 'executed' && p.lifecycleState !== 'closed';
+}

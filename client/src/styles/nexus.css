@@ -2846,6 +2846,7 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .qc-name{font-size:14px;display:flex;flex-direction:column}
 .qc-name small{font-size:12px;color:var(--text-mute);margin-top:2px}
 .qc-sub{font-size:12px;color:var(--text-dim);margin:10px 0 6px}
+.qc-link{font-size:12px;font-weight:600;color:var(--cyan-bright,#7fb2ff);text-decoration:none;white-space:nowrap}.qc-link:hover{text-decoration:underline}
 .qc-seg{display:inline-flex;border:1px solid var(--nx-border);border-radius:8px;overflow:hidden}
 .qc-seg button{min-height:36px;padding:0 12px;font-size:13px;background:transparent;border:0;border-right:1px solid var(--nx-border);color:var(--text-dim);cursor:pointer}
 .qc-seg button:last-child{border-right:0}

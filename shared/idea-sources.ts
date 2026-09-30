@@ -66,6 +66,7 @@ const META: Record<string, { short: string; label: string; tone: IdeaSourceTone 
   institutional_flow: { short: "INSTL", label: "Institutional Flow", tone: "flow" },
   whale_flow: { short: "WHALE", label: "Whale Flow", tone: "flow" },
   gex_scanner: { short: "GEX", label: "GEX Scanner", tone: "flow" },
+  zero_dte_desk: { short: "0DTE", label: "0DTE Desk", tone: "scanner" },
   news: { short: "NEWS", label: "News", tone: "news" },
   news_catalyst: { short: "NEWS", label: "News Catalyst", tone: "news" },
   news_nlp: { short: "NEWS", label: "News NLP", tone: "news" },

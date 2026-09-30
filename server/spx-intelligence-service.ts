@@ -1135,13 +1135,14 @@ async function computeAllSignals(symbol: string = 'SPY'): Promise<SPXIntelligenc
             gex.flipPoint = Math.round(gex.flipPoint * ratio);
           }
           gex.maxGammaStrike = Math.round(gex.maxGammaStrike * ratio);
-          // Scale net gamma by ratio (SPX notional ~10x SPY)
-          gex.totalNetGEX = Math.round(gex.totalNetGEX * ratio * 1000) / 1000;
+          // Strikes are re-expressed on the SPX price scale (a labelled SPY proxy), but
+          // GEX DOLLARS are NOT multiplied: $ per 1% move is already a notional, and SPY
+          // dealer gamma × 10 is not SPX dealer gamma (audit 2026-09-29, dimensionally wrong).
           gex.topLevels = gex.topLevels.map(l => ({
             ...l,
             strike: Math.round(l.strike * ratio),
-            netGEX: Math.round(l.netGEX * ratio * 1000) / 1000,
           }));
+          (gex as any).proxy = { of: 'SPY', ratio: Math.round(ratio * 10000) / 10000, note: 'SPY dealer book; strikes scaled to SPX, dollars unscaled' };
           // Scale IV skew ATM strike too
           if (ivSkew) {
             ivSkew.atmStrike = Math.round(ivSkew.atmStrike * ratio);

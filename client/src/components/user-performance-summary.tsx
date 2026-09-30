@@ -106,10 +106,14 @@ export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: strin
     );
   }
 
-  const overallWinRate = stats?.segmentedWinRates?.overall?.winRate ?? 0;
-  const totalDecided = stats?.segmentedWinRates?.overall?.decided ?? 0;
-  const wins = stats?.segmentedWinRates?.overall?.wins ?? 0;
-  const losses = stats?.segmentedWinRates?.overall?.losses ?? 0;
+  // Headline = the canonical model record (shared/model-record.ts) when the payload
+  // carries it, so this card matches Today and the Bot page. A null rate (under the
+  // sample floor) stays null — v1 coerced it to 0 and rendered a false "F".
+  const mr = (stats as any)?.modelRecord as { winRate: number | null; decided: number; wins: number; losses: number } | undefined;
+  const overallWinRate: number | null = mr ? mr.winRate : (stats?.segmentedWinRates?.overall?.winRate ?? null);
+  const totalDecided = mr ? mr.decided : (stats?.segmentedWinRates?.overall?.decided ?? 0);
+  const wins = mr ? mr.wins : (stats?.segmentedWinRates?.overall?.wins ?? 0);
+  const losses = mr ? mr.losses : (stats?.segmentedWinRates?.overall?.losses ?? 0);
   const overallGrade = getGrade(overallWinRate);
   // Hero metric: expectancy = (win% x avg win) - (loss% x avg loss), in
   // percentage points per idea. It answers "do the engines make money" in a
@@ -168,7 +172,7 @@ export function UserPerformanceSummary({ apiFilters = "" }: { apiFilters?: strin
               <div className="text-center">
                 <p className="text-xs text-muted-foreground uppercase">Hit Rate</p>
                 <p className={cn("text-2xl font-bold font-mono", getWinRateColor(overallWinRate))}>
-                  {safeToFixed(overallWinRate, 0)}%
+                  {overallWinRate != null ? `${safeToFixed(overallWinRate, 0)}%` : '—'}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">{wins}W/{losses}L</p>
               </div>

@@ -15,6 +15,7 @@
  */
 import { logger } from './logger';
 import { rateLimited, cachedFetch } from './provider-cache';
+import { dayChangeFromIntradayChart, type QuoteSession } from '../shared/price-change';
 
 const HOSTS = ['query2', 'query1'] as const;
 
@@ -113,44 +114,40 @@ export interface YahooQuote {
   changePercent: number;
   volume: number;
   at: number;
+  /** Session of the latest print (shared/price-change.ts). */
+  session: QuoteSession;
+  regularMarketPrice: number | null;
+  regularChangePercent: number | null;
 }
 
-/** A single current quote, or null when the provider genuinely has nothing. */
+/**
+ * A single current quote, or null when the provider genuinely has nothing.
+ * Price/prev-close/% come from shared/price-change.ts — the one definition of
+ * "% change today" (latest print, pre/post included, vs the prior regular close).
+ */
 export async function yahooQuote(symbol: string): Promise<YahooQuote | null> {
   const j = await yahooChart(symbol, { range: '1d', interval: '1m', includePrePost: true });
   const res = j?.chart?.result?.[0];
-  const m = res?.meta;
-  if (!m) return null;
-
-  // `regularMarketPrice` freezes at yesterday's close outside regular hours.
-  // The final non-null 1m chart bar is the real latest print in pre/post market;
-  // use it so the terminal does not pretend a moving tape is static.
-  const closes: unknown[] = res.indicators?.quote?.[0]?.close ?? [];
-  const timestamps: unknown[] = res.timestamp ?? [];
+  const dc = dayChangeFromIntradayChart(res);
+  if (!dc) return null;
+  const m = res.meta;
   const volumes: unknown[] = res.indicators?.quote?.[0]?.volume ?? [];
-  let index = closes.length - 1;
-  while (index >= 0 && !Number.isFinite(Number(closes[index]))) index--;
-
-  const chartPrice = index >= 0 ? Number(closes[index]) : NaN;
-  const price = Number.isFinite(chartPrice) && chartPrice > 0
-    ? chartPrice
-    : Number(m.regularMarketPrice ?? m.previousClose);
-  const prev = Number(m.chartPreviousClose ?? m.previousClose ?? price);
-  if (!(price > 0)) return null;
-
-  const barAt = Number(timestamps[index]);
-  const barVolume = Number(volumes[index]);
-
+  let vi = volumes.length - 1;
+  while (vi >= 0 && (volumes[vi] == null || !Number.isFinite(Number(volumes[vi])))) vi--;
+  const lastVol = vi >= 0 ? Number(volumes[vi]) : NaN;
   return {
     symbol: symbol.toUpperCase(),
-    price,
-    previousClose: prev,
-    change: price - prev,
-    changePercent: prev > 0 ? ((price - prev) / prev) * 100 : 0,
-    volume: Number.isFinite(barVolume) ? barVolume : Number(m.regularMarketVolume ?? 0),
+    price: dc.price,
+    previousClose: dc.previousClose,
+    change: dc.change,
+    changePercent: dc.changePercent,
+    volume: Number.isFinite(lastVol) ? lastVol : Number(m.regularMarketVolume ?? 0),
     // Preserve the market's timestamp. Consumer UI uses this to distinguish a
     // fresh print from a fresh HTTP response that happened to contain old data.
-    at: Number.isFinite(barAt) && barAt > 0 ? barAt * 1000 : Date.now(),
+    at: dc.at ?? Date.now(),
+    session: dc.session,
+    regularMarketPrice: dc.regularMarketPrice,
+    regularChangePercent: dc.regularChangePercent,
   };
 }
 

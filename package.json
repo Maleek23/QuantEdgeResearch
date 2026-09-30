@@ -18,11 +18,14 @@
     "test:sr-controls": "tsx scripts/test-sr-controls.ts",
     "test:loss-rules": "tsx scripts/test-loss-rules.ts",
     "test:squeeze": "tsx scripts/test-squeeze.ts",
+    "test:zero-dte": "tsx scripts/test-zero-dte-desk.ts",
     "test:model-determinism": "node scripts/verify-model-determinism.mjs",
     "test:sr117": "npm run test:tsc-gate && npm run test:redirects && npm run test:sr-controls && npm run test:model-determinism && npm run build",
     "health": "curl -fsS http://localhost:5000/api/health | (jq . 2>/dev/null || cat)",
     "backtest:bullflow-0dte": "node --env-file=.env node_modules/.bin/tsx scripts/backtest-bullflow-index-0dte.ts",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test:consistency": "tsx scripts/test-consistency.ts",
+    "check:consistency": "tsx research/consistency-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

@@ -19,13 +19,13 @@ import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
-import { convictionPercent, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
+import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import '@/styles/nexus-prototype.css';
 
 /* ── wire types ── */
 export interface SpxExpression { symbol: 'SPX'; source: string; asOf: string; ratio: number; spot: number; entry: number; stop: number; target: number; chainStatus: string; chainNote?: string; chainAsOf?: string; chainContractsScored: number; contract: { optionType: 'call' | 'put'; strike: number; expiry: string; dte: number; entryPremium: number; optionSymbol: string } | null; }
-export interface MarketPulseRead { asOf: string; macro: { yield10Y: number; yieldDirection: 'RISING' | 'FALLING'; vix: number; dxy: number }; }
+export interface MarketPulseRead { asOf: string; macro: { yield10Y: number; yieldDirection: 'RISING' | 'FALLING'; vix: number | null; dxy: number }; }
 export interface ExtendedHoursRead { asOf: string | null; session: string; isStale: boolean; assetClasses: Array<{ key: string; label: string; symbol: string; changePct: number | null; stance: string | null }>; }
 export interface PatternHit { symbol: string; core?: boolean; pattern: string; bias: string; note: string; detectedAt?: string; levels: Record<string, number>; context?: { last?: number; above200d?: boolean | null; ema20AboveEma50?: boolean | null }; }
 export interface PatternScanRead { asOf: string | null; scanned: number; failed: number; scanning: boolean; hits: PatternHit[]; }
@@ -117,7 +117,7 @@ export function withSpxRow(picks: ConvictionPick[] | undefined, spySource: Convi
 export function rankRows(sourceRows: ConvictionPick[], f: { scope: Exclude<Scope, 'developing'>; side: Side; query: string; rank: Rank }): ConvictionPick[] {
   const needle = f.query.trim().toUpperCase();
   const ranked = sourceRows
-    .filter((pick) => f.scope === 'positions' ? pick.isBotHeld : !pick.isBotHeld)
+    .filter((pick) => f.scope === 'positions' ? pick.isBotHeld : isLiveBookPick(pick)) // same rule as Today's book
     .filter((pick) => f.side === 'all' || pick.direction === f.side)
     .filter((pick) => !needle || pick.symbol.includes(needle) || (pick.sector ?? '').toUpperCase().includes(needle))
     .sort((a, b) => f.scope === 'positions'
@@ -153,7 +153,7 @@ export function rankDeveloping(hits: PatternHit[] | undefined, picks: Conviction
 
 /* ── shared queries (keys unchanged from the page) ── */
 export const useNexusConvictions = () => useQuery<ConvictionsResponse>({
-  queryKey: ['/api/convictions', 'nexus-prototype'],
+  queryKey: [...CONVICTIONS_QUERY_KEY],
   queryFn: () => get('/api/convictions'),
   staleTime: 30_000,
   refetchInterval: 60_000,

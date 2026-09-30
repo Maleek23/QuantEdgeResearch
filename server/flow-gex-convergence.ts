@@ -150,38 +150,19 @@ async function fetchGEXFromCBOE(symbol: string): Promise<GEXHeatmapData | null> 
     // already summed across expiries, so present it as a single synthetic column.
     // aggregateGex sums over expiries either way, so the maths is unchanged.
     const column: Record<string, number> = {};
-    for (const l of snap.levels as any[]) column[String(l.strike)] = Number(l.netGEX) || 0;
+    // GEXLevel carries the net GEX as `gex` ($B per 1%). v1 read `l.netGEX`, a field
+    // the level does not have, so every strike was 0 and the regime read NEUTRAL.
+    for (const l of snap.levels as any[]) column[String(l.strike)] = Number(l.gex ?? l.netGEX) || 0;
 
-    // The snapshot's own gammaFlipPrice is unreliable — it returns 230 for SPY at
-    // $762, i.e. outside the strike ladder entirely. A flip point that isn't in the
-    // ladder is not a regime boundary, and passing it through produced a bogus
-    // Long/Short Gamma call; dropping it left the regime Neutral and every symbol
-    // NO_SIGNAL. So derive it from the ladder instead, which is the actual
-    // definition: walk strikes upward accumulating net GEX and take the level where
-    // the running total changes sign — below it dealers are short gamma and amplify
-    // moves, above it they're long gamma and dampen them.
-    const rawFlip = Number(snap.gammaFlipPrice);
-    let flipPoint: number | null =
-      Number.isFinite(rawFlip) && rawFlip >= strikes[0] && rawFlip <= strikes[strikes.length - 1]
+    // The CBOE snapshot's zero-gamma is the canonical re-priced level
+    // (shared/gex-math gammaProfile, searched in 0.8-1.2x spot). Use it as-is; when
+    // the book never changes sign in range it is null and stays null — a
+    // cumulative strike-sum walk (v1) invents a level that the engine rejected.
+    const rawFlip = Number(snap.zeroGammaLevel ?? snap.gammaFlipPrice);
+    const flipPoint: number | null =
+      Number.isFinite(rawFlip) && rawFlip >= snap.spotPrice * 0.8 && rawFlip <= snap.spotPrice * 1.2
         ? rawFlip
         : null;
-
-    if (flipPoint == null) {
-      const ladder = [...(snap.levels as any[])]
-        .map((l) => ({ strike: Number(l.strike), gex: Number(l.netGEX) || 0 }))
-        .filter((l) => Number.isFinite(l.strike))
-        .sort((a, b) => a.strike - b.strike);
-      let cum = 0;
-      let prevCum = 0;
-      for (const lvl of ladder) {
-        prevCum = cum;
-        cum += lvl.gex;
-        if (prevCum !== 0 && Math.sign(cum) !== Math.sign(prevCum)) {
-          flipPoint = lvl.strike;
-          break;
-        }
-      }
-    }
 
     return {
       spotPrice: snap.spotPrice,

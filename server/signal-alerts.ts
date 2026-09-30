@@ -15,7 +15,7 @@ import { logger } from './logger';
 import { signalKey } from '@shared/signal-continuity';
 import { marketDateET } from '@shared/market-day';
 import { convictionDisplayPercent } from '@shared/conviction-display';
-import { CONVICTION_BAND_CUTOFFS } from '@shared/conviction-bands';
+import { CONVICTION_BAND_CUTOFFS, convictionLetterGrade, convictionBandForScore } from '@shared/conviction-bands';
 
 /** Ideas already announced. Keyed by idea id, cleared daily. */
 let _sent = new Set<string>();
@@ -101,6 +101,10 @@ export async function alertNewSignals(picks: AlertablePick[]): Promise<number> {
         targetPrice: p.targetPrice,
         stopLoss: p.stopLoss,
         confidenceScore: convictionDisplayPercent(p.convictionScore),
+        // Grade from the shared raw-score table (same letter as the web badge), and the
+        // band that already passed MIN_CONVICTION so Discord's grade gate cannot drop it.
+        grade: convictionLetterGrade(p.convictionScore),
+        convictionBand: convictionBandForScore(p.convictionScore),
         riskRewardRatio: p.riskRewardRatio ?? undefined,
         optionType: p.optionType ?? undefined,
         strikePrice: p.strikePrice ?? undefined,

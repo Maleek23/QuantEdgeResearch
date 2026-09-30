@@ -1,0 +1,48 @@
+/* Admin hub chrome (components/admin/admin-layout.tsx). --lx-* tokens, so it
+   follows the visual mode like every other page. */
+.ah-root { min-height: 100vh; background: var(--lx-bg); color: var(--lx-text); }
+.ah-center { display: flex; align-items: center; justify-content: center; }
+.ah-mute { color: var(--lx-dim); font-size: 13px; }
+.ah-page { display: flex; flex-direction: column; gap: 14px; padding-top: 12px; padding-bottom: 40px; }
+.ah-top { display: flex; justify-content: space-between; gap: 8px; }
+.ah-back {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--lx-dim);
+  text-decoration: none; background: none; border: 0; padding: 4px 0; cursor: pointer; font-family: inherit;
+}
+.ah-back:hover { color: var(--lx-text); }
+.ah-nav { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--lx-line); }
+.ah-tab {
+  padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--lx-dim); text-decoration: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.ah-tab:hover { color: var(--lx-text); }
+.ah-tab.on { color: var(--lx-text); border-bottom-color: var(--lx-accent); }
+.ah-subnav { display: flex; gap: 6px; margin-top: 10px; flex-basis: 100%; width: 100%; }
+.ah-sub {
+  font-size: 12px; font-weight: 600; color: var(--lx-dim); text-decoration: none; padding: 4px 10px;
+  border: 1px solid var(--lx-line); border-radius: var(--lx-radius-sm); background: var(--lx-surface);
+}
+.ah-sub.on { color: var(--lx-accent-text); border-color: color-mix(in srgb, var(--lx-accent) 45%, transparent); background: var(--lx-active-bg); }
+.ah-tab:focus-visible, .ah-sub:focus-visible, .ah-back:focus-visible { outline: 2px solid var(--lx-accent); outline-offset: 2px; }
+.ah-main { min-width: 0; }
+.ah-gate { background: var(--lx-surface) !important; border: 1px solid var(--lx-line-hi) !important; color: var(--lx-text); }
+.ah-gate-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--lx-accent-text); background: var(--lx-active-bg); border: 1px solid var(--lx-line-hi); }
+.ah-primary { background: var(--lx-accent) !important; color: var(--lx-accent-ink) !important; }
+
+/* System health page */
+.ah-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .ah-grid { grid-template-columns: minmax(0, 1fr); } }
+.ah-list { display: flex; flex-direction: column; }
+.ah-li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 9px 0; border-top: 1px solid var(--lx-line); }
+.ah-li:first-child { border-top: 0; }
+.ah-li b { font-size: 13px; font-weight: 600; }
+.ah-li small { grid-column: 1 / -1; font-size: 12px; color: var(--lx-dim); line-height: 1.4; }
+.ah-kv { font-family: var(--lx-font-data); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--lx-text); }
+.ah-note { font-size: 12px; color: var(--lx-dim); margin: 8px 0 0; }
+.ah-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ah-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--lx-mute); padding: 6px 8px 6px 0; border-bottom: 1px solid var(--lx-line); }
+.ah-table td { padding: 7px 8px 7px 0; border-bottom: 1px solid var(--lx-line); font-family: var(--lx-font-data); font-variant-numeric: tabular-nums; }
+.ah-table td:first-child { font-family: var(--lx-font-ui); }
+.ah-scroll { overflow-x: auto; }
+.ah-link { font-weight: 600; color: var(--lx-accent-text); text-decoration: none; }
+.ah-link:hover { text-decoration: underline; }

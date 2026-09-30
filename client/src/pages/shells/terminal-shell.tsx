@@ -50,6 +50,8 @@ const Dashboard     = lazy(() => import('@/components/dashboard/dashboard').then
 // JOURNAL keeps its own sub-tabs (owned by the journal branch), synced to ?jtab=.
 // Every other tab's previous board is registered as an "all-in-one" tool.
 const JournalPanel = lazy(() => import('@/pages/shells/journal-shell'));
+// NEXUS = the board + a 0DTE view (?nx=0dte) — components/zerodte/nexus-views.tsx.
+const NexusViews = lazy(() => import('@/components/zerodte/nexus-views'));
 
 // Tabs, mobile dock and "More" live in ONE shared model so the terminal and
 // every standalone page (NexusFrame) wear identical navigation.
@@ -392,7 +394,7 @@ export default function TerminalShell() {
             transition={{ duration: 0.12, ease: EASE }}
           >
             <Suspense fallback={<Fallback tab={tab} />}>
-              {tab === 'oracle' && <Dashboard page="nexus" />}
+              {tab === 'oracle' && <NexusViews />}
               {tab === 'chart' && <Dashboard page="chart" />}
               {/* clicking a ticker sets the shared symbol, so PRISM/GEX follow it.
                   Full-bleed: the FLOW mock owns its own two-column layout. */}

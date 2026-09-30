@@ -65,11 +65,11 @@ const NESTED_TABS: NavTarget[] = [
   { href: '/t?tab=crypto',   label: 'Terminal → Crypto',   icon: Home, keywords: ['bitcoin','btc'] },
   { href: '/t?tab=catalyst', label: 'Terminal → Catalyst', icon: Home, keywords: ['events','earnings','calendar'] },
   { href: '/t?tab=bot',      label: 'Terminal → Bot',      icon: Home, keywords: ['automation','paper'] },
-  // Research tabs (the per-ticker home — search a ticker → lands here)
-  { href: '/r/SPY?tab=chart',    label: 'Research → Chart',    icon: Microscope, keywords: ['price','levels','candle'] },
-  { href: '/r/SPY?tab=options',  label: 'Research → Options',  icon: Microscope, keywords: ['chain','greeks','iv'] },
-  { href: '/r/SPY?tab=gex',      label: 'Research → GEX',      icon: Microscope, keywords: ['gamma','walls','flip','per-symbol'] },
-  { href: '/r/SPY?tab=analyze',  label: 'Research → Analyze',  icon: Microscope, keywords: ['contract','grade','bullflow','a+'] },
+  // Ticker page (the per-ticker home — search a ticker → lands here; docs/TICKER_PAGE.md)
+  { href: '/r/SPY?tab=chart',    label: 'Ticker page → Chart',    icon: Microscope, keywords: ['price','levels','candle'] },
+  { href: '/r/SPY?tab=options',  label: 'Ticker page → Options',  icon: Microscope, keywords: ['chain','greeks','iv'] },
+  { href: '/r/SPY?tab=gex',      label: 'Ticker page → GEX surface',      icon: Microscope, keywords: ['gamma','walls','flip','per-symbol'] },
+  { href: '/r/SPY?tab=analyze',  label: 'Ticker page → Contract lab',  icon: Microscope, keywords: ['contract','grade','bullflow','a+'] },
   // Journal sub-tabs (nested — the journal reads ?jtab= so it never fights the shell's ?tab=)
   { href: '/t?tab=journal&jtab=trades',    label: 'Journal → Trades',       icon: BookOpen, keywords: ['history','trades','log','edit','export'] },
   { href: '/t?tab=journal&jtab=analytics', label: 'Journal → Analytics',    icon: BookOpen, keywords: ['setup','symbol','timing','insights','drawdown'] },
@@ -171,7 +171,7 @@ export function CommandPalette() {
               <div>
                 Press <kbd className="px-1 py-0.5 bg-muted rounded text-[var(--brand-cyan)] font-mono">Enter</kbd> to open
                 <span className="font-mono font-bold text-[var(--brand-cyan)] mx-1">{search.toUpperCase()}</span>
-                in Research → <span className="font-mono text-muted-foreground">/r/{search.toUpperCase()}</span>
+                on its ticker page → <span className="font-mono text-muted-foreground">/r/{search.toUpperCase()}</span>
               </div>
             ) : (
               <>

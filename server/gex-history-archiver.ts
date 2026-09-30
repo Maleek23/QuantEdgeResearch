@@ -97,14 +97,16 @@ async function archiveTicker(symbol: string): Promise<boolean> {
     await storage.createGexSnapshot({
       symbol,
       spotPrice: cq.bestPrice > 0 ? cq.bestPrice : snapshot.spotPrice,
-      flipPoint: snapshot.flipPoint ?? null,
+      // GEXSnapshot has no `flipPoint`; v1 read it and archived null on every row.
+      flipPoint: snapshot.zeroGammaLevel ?? snapshot.gammaFlipPrice ?? null,
       callWall: snapshot.callWall ?? null,
       putWall: snapshot.putWall ?? null,
-      flipDistancePct: snapshot.flipPoint && snapshot.spotPrice > 0
-        ? ((snapshot.flipPoint - snapshot.spotPrice) / snapshot.spotPrice) * 100
+      flipDistancePct: (snapshot.zeroGammaLevel ?? snapshot.gammaFlipPrice) && snapshot.spotPrice > 0
+        ? (((snapshot.zeroGammaLevel ?? snapshot.gammaFlipPrice)! - snapshot.spotPrice) / snapshot.spotPrice) * 100
         : null,
       regime: snapshot.regime ?? null,
-      vexRegime: snapshot.regime ?? null,
+      // v1 wrote the GAMMA regime into vexRegime. The VEX regime is its own read.
+      vexRegime: (gex as any).vexRegime ?? null,
       netGexSign: snapshot.totalGEX > 0 ? 'positive' : snapshot.totalGEX < 0 ? 'negative' : 'neutral',
       totalGex: snapshot.totalGEX,
       maxGammaStrike: snapshot.maxGammaStrike ?? null,

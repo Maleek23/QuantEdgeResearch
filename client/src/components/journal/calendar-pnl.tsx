@@ -6,6 +6,9 @@
  * LuxAlgo Global, LLC (notice: client/src/lib/journal/LICENSE-luxalgo.txt).
  * Changes: Monday-first weeks, month navigation, days are buttons that select a
  * day (instead of Next.js links to a daily-journal route), our tokens.
+ * 2026-09-29: Mon–Fri columns only. Saturday/Sunday closes (crypto) roll into
+ * the Friday cell, which then prints a "+wknd" note and says so in its label;
+ * the week column still totals all seven days.
  *
  * Each traded day prints its signed P&L and trade count; the background tint
  * scales with magnitude (lightness carries magnitude, which survives colour
@@ -13,10 +16,10 @@
  */
 import { useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { calendarMonth, fmtMoney, type DayStats } from '@/lib/journal/metrics';
+import { calendarMonth, fmtMoney, fridayWithWeekend, type DayStats } from '@/lib/journal/metrics';
 import { Pnl } from './parts';
 
-const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 /** Cell-sized money: whole dollars under $1K, compact above. The exact value is in the label. */
 function cellMoney(v: number): string {
@@ -38,7 +41,12 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
 }) {
   const [peek, setPeek] = useState<string | null>(null);
   const cal = calendarMonth(days, year, month);
-  const maxAbs = Math.max(1, ...cal.weeks.flatMap((w) => w.days.map((d) => Math.abs(d?.netPnl ?? 0))));
+  // The fifth cell of each row is Friday + that week's weekend (see metrics.fridayWithWeekend).
+  const rows = cal.weeks.map((w) => {
+    const fw = fridayWithWeekend(w);
+    return { week: w, cells: [...w.days.slice(0, 4), fw.cell], weekend: fw.weekend };
+  });
+  const maxAbs = Math.max(1, ...rows.flatMap((r) => r.cells.map((d) => Math.abs(d?.netPnl ?? 0))));
   const label = new Date(Date.UTC(year, month - 1, 15)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   const step = (delta: number) => {
     const d = new Date(Date.UTC(year, month - 1 + delta, 1));
@@ -55,12 +63,14 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
       <div className={`jr-cal${showWeeks ? ' with-weeks' : ''}`} role="grid" aria-label={`P&L calendar, ${label}`}>
         {WD.map((w) => <div key={w} className="jr-cal-wd" role="columnheader">{w}</div>)}
         {showWeeks && <div className="jr-cal-weekhead" role="columnheader">Week</div>}
-        {cal.weeks.map((week, wi) => (
+        {rows.map(({ week, cells, weekend }, wi) => (
           <div key={wi} role="row" style={{ display: 'contents' }}>
-            {week.days.map((day, di) => {
+            {cells.map((day, di) => {
               if (!day) return <div key={di} className="jr-cal-day blank" role="gridcell" />;
               const traded = day.trades > 0;
               const dom = Number(day.date.slice(8));
+              const wk = di === 4 && weekend.length > 0;
+              const wkNote = wk ? `incl. weekend ${weekend.map((w) => `${w.date.slice(5)} ${fmtMoney(w.netPnl)}`).join(', ')}` : '';
               if (!traded) {
                 return <div key={day.date} className="jr-cal-day" role="gridcell"><span className="jr-cal-d">{dom}</span></div>;
               }
@@ -77,16 +87,18 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
                     type="button"
                     className="jr-cal-day"
                     aria-pressed={isSel}
-                    aria-label={`${day.date}: ${fmtMoney(day.netPnl)}, ${day.trades} trade${day.trades === 1 ? '' : 's'}, ${day.wins} win${day.wins === 1 ? '' : 's'}`}
+                    aria-label={`${day.date}: ${fmtMoney(day.netPnl)}, ${day.trades} trade${day.trades === 1 ? '' : 's'}, ${day.wins} win${day.wins === 1 ? '' : 's'}${wk ? ` (${wkNote})` : ''}`}
+                    title={wk ? wkNote : undefined}
                     onClick={() => onSelect?.(isSel ? null : day.date)}
                     style={{ background: `color-mix(in srgb, ${hue} ${Math.round(intensity * 100)}%, var(--panel-solid, #0e1117))` }}
                   >
                     <span className="jr-cal-d">{dom}</span>
                     <span className="jr-cal-p">{cellMoney(day.netPnl)}</span>
                     <span className="jr-cal-t">{day.trades} trade{day.trades === 1 ? '' : 's'}</span>
+                    {wk && <span className="jr-cal-wk">+wknd</span>}
                   </button>
                   {renderPreview && peek === day.date && (
-                    <div className={`jr-peek${di >= 4 ? ' left' : ''}${wi >= cal.weeks.length - 2 ? ' up' : ''}`} role="tooltip" id={`jr-peek-${day.date}`}>{renderPreview(day)}</div>
+                    <div className={`jr-peek${di >= 3 ? ' left' : ''}${wi >= cal.weeks.length - 2 ? ' up' : ''}`} role="tooltip" id={`jr-peek-${day.date}`}>{renderPreview(day)}</div>
                   )}
                 </div>
               );
@@ -105,6 +117,7 @@ export function CalendarPnl({ days, year, month, onMonth, selected, onSelect, sh
         ))}
       </div>
       <div className="jr-cal-foot">
+        {rows.some((r) => r.weekend.length > 0) && <span>Mon–Fri · weekend closes roll into Friday (+wknd)</span>}
         <span>{cal.tradingDays} trading day{cal.tradingDays === 1 ? '' : 's'} · {cal.winningDays} green · {cal.monthTrades} closed trades</span>
         <span>Month: <Pnl value={cal.monthNetPnl} /></span>
       </div>

@@ -116,7 +116,8 @@ function AdminInvitesContent() {
       const csrfToken = getCSRFToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (csrfToken) headers['x-csrf-token'] = csrfToken;
-      const res = await fetch(`/api/admin/invites/${inviteId}/send`, {
+      // There is no /send route: /resend emails any pending or sent invite and marks it sent.
+      const res = await fetch(`/api/admin/invites/${inviteId}/resend`, {
         method: 'POST',
         headers,
         credentials: 'include',
@@ -160,8 +161,9 @@ function AdminInvitesContent() {
       const csrfToken = getCSRFToken();
       const headers: Record<string, string> = {};
       if (csrfToken) headers['x-csrf-token'] = csrfToken;
-      const res = await fetch(`/api/admin/invites/${inviteId}`, {
-        method: 'DELETE',
+      // The server revokes with POST /:id/revoke (there is no DELETE route).
+      const res = await fetch(`/api/admin/invites/${inviteId}/revoke`, {
+        method: 'POST',
         headers,
         credentials: 'include',
       });

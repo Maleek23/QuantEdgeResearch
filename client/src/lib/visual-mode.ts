@@ -35,6 +35,22 @@ export const VISUAL_MODES: { id: VisualMode; label: string; hint: string }[] = [
   { id: 'contrast', label: 'High contrast', hint: 'AAA text contrast, solid borders, thick focus rings' },
 ];
 
+/**
+ * Each mode's palette as literal values, for the Settings › Display previews
+ * (a preview has to show a mode that is NOT the active one, so it cannot read
+ * the live --lx-* variables). Values are the measured tokens in
+ * styles/modes.css / docs/DESIGN_SYSTEM.md "Visual modes" — keep in sync.
+ */
+export const MODE_SWATCH: Record<VisualMode, {
+  bg: string; surface: string; hi: string; line: string; text: string; dim: string; accent: string; gain: string; loss: string; caution: string;
+}> = {
+  dark:     { bg: '#06070a', surface: '#0e1117', hi: '#1a1f2a', line: 'rgba(59,140,255,0.22)', text: '#e8ecf3', dim: '#8b93a3', accent: '#3b8cff', gain: '#6ee7b7', loss: '#ff6b3d', caution: '#facc15' },
+  midnight: { bg: '#000000', surface: '#07080b', hi: '#12151c', line: 'rgba(59,140,255,0.2)', text: '#d6dbe4', dim: '#868e9d', accent: '#3b8cff', gain: '#6ee7b7', loss: '#ff6b3d', caution: '#facc15' },
+  dim:      { bg: '#1a1e26', surface: '#232933', hi: '#303744', line: 'rgba(160,175,200,0.26)', text: '#e6e9ef', dim: '#b0b8c6', accent: '#66a4ff', gain: '#78ebbf', loss: '#ff8f66', caution: '#fad33d' },
+  light:    { bg: '#f2f5f9', surface: '#ffffff', hi: '#e7ecf3', line: 'rgba(29,99,209,0.22)', text: '#121826', dim: '#46536b', accent: '#1a63d1', gain: '#047857', loss: '#b23c0b', caution: '#8f5706' },
+  contrast: { bg: '#000000', surface: '#0a0a0c', hi: '#17191f', line: '#aab3c2', text: '#ffffff', dim: '#e2e6ed', accent: '#7ab2ff', gain: '#86f2c8', loss: '#ff9a73', caution: '#ffdc55' },
+};
+
 export const MODE_KEY = 'qe-mode';
 /** The pre-2026-09-29 theme key (ThemeProvider storageKey). Read once to migrate. */
 export const LEGACY_KEY = 'quantedge-theme';

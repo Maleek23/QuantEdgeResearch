@@ -47,13 +47,7 @@ const AdminUsers = lazyWithRetry(() => import("@/pages/admin/users"), "admin-use
 const AdminInvites = lazyWithRetry(() => import("@/pages/admin/invites"), "admin-invites");
 const AdminWaitlist = lazyWithRetry(() => import("@/pages/admin/waitlist"), "admin-waitlist");
 const AdminSystem = lazyWithRetry(() => import("@/pages/admin/system"), "admin-system");
-const AdminReports = lazyWithRetry(() => import("@/pages/admin/reports"), "admin-reports");
-const AdminSecurity = lazyWithRetry(() => import("@/pages/admin/security"), "admin-security");
-const AdminWinLoss = lazyWithRetry(() => import("@/pages/admin/win-loss"), "admin-win-loss");
-const AdminCredits = lazyWithRetry(() => import("@/pages/admin/credits"), "admin-credits");
-const AdminBetaInvites = lazyWithRetry(() => import("@/pages/admin/beta-invites"), "admin-beta-invites");
 const AdminBlog = lazyWithRetry(() => import("@/pages/admin/blog"), "admin-blog");
-const AdminTradeIdeas = lazyWithRetry(() => import("@/pages/admin/trade-ideas"), "admin-trade-ideas");
 const About = lazyWithRetry(() => import("@/pages/about"), "about");
 const PrivacyPolicy = lazyWithRetry(() => import("@/pages/privacy-policy"), "privacy-policy");
 const TermsOfService = lazyWithRetry(() => import("@/pages/terms-of-service"), "terms-of-service");
@@ -254,19 +248,14 @@ function Router() {
       <Route path="/settings" component={ProtectedSettingsPage} />
       <Route path="/alerts" component={ProtectedAlertsPage} />
 
-      {/* Admin Pages - Have their own password auth via AdminLayout */}
+      {/* Admin hub — own access gate (AdminLayout). Four sections; the retired
+          admin pages redirect via lib/legacy-redirects.ts (docs/ADMIN_HUB.md). */}
       <Route path="/admin" component={AdminOverview} />
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/invites" component={AdminInvites} />
       <Route path="/admin/waitlist" component={AdminWaitlist} />
       <Route path="/admin/system" component={AdminSystem} />
-      <Route path="/admin/trade-ideas" component={AdminTradeIdeas} />
       <Route path="/admin/blog" component={AdminBlog} />
-      <Route path="/admin/reports" component={AdminReports} />
-      <Route path="/admin/security" component={AdminSecurity} />
-      <Route path="/admin/win-loss" component={AdminWinLoss} />
-      <Route path="/admin/credits" component={AdminCredits} />
-      <Route path="/admin/beta-invites" component={AdminBetaInvites} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}
@@ -317,7 +306,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/trade-ideas', '/admin/reports', '/admin/security', '/admin/win-loss', '/admin/credits', '/admin/beta-invites', '/admin/blog', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog', '/pricing'];
+  const publicPages = ['/', '/w', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog', '/pricing'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {

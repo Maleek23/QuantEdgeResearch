@@ -1,4 +1,5 @@
 import { db } from './db';
+import { priorRegularCloseFromDailyChart } from '../shared/price-change';
 import { bullishTrends, type BullishTrend, type TrendStrength, type TrendPhase, type TrendCategory } from '@shared/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { logger } from './logger';
@@ -146,14 +147,17 @@ async function fetchQuotesYahooFallback(symbols: string[]): Promise<QuoteData[]>
         const meta = result?.meta;
         
         if (meta) {
+          // range=5d → chartPreviousClose is five sessions back; v1's "change %" was a
+          // 5-day move. Prior regular close from the daily bars instead.
+          const prevClose = priorRegularCloseFromDailyChart(result) ?? 0;
           results.push({
             symbol: meta.symbol,
             shortName: meta.symbol,
             longName: meta.symbol,
             regularMarketPrice: meta.regularMarketPrice || 0,
-            regularMarketPreviousClose: meta.chartPreviousClose || meta.previousClose || 0,
-            regularMarketChange: (meta.regularMarketPrice || 0) - (meta.chartPreviousClose || meta.regularMarketPrice || 0),
-            regularMarketChangePercent: meta.chartPreviousClose ? ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose) * 100 : 0,
+            regularMarketPreviousClose: prevClose,
+            regularMarketChange: prevClose ? (meta.regularMarketPrice || 0) - prevClose : 0,
+            regularMarketChangePercent: prevClose ? ((meta.regularMarketPrice - prevClose) / prevClose) * 100 : 0,
             regularMarketVolume: meta.regularMarketVolume || 0,
             fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
             fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
