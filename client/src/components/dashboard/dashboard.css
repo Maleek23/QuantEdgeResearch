@@ -471,3 +471,101 @@ html[data-mode=light] .flowdash.dash-page:not(.framed) .pg-sec:has(.today-l){bor
 /* Batch A · a failed background refresh keeps the last good rows on screen */
 .flowdash .of-stale{flex:none;padding:4px 8px 0}
 .flowdash .fd-stale{flex:none;padding:4px 8px}
+
+/* ══════════════ PHONE DENSITY (operator 2026-09-30) — section heads ══════════════
+   One row: title (one line, whole words — phone titles are the part before " · ")
+   · ticker chip · ● age · ⓘ · ×. The description, units and full source move
+   into the ⓘ sheet (frame.tsx PhoneMeta); desktop keeps the provenance line. */
+@media (max-width:767px){
+  .flowdash .pg-sec-head,.flowdash .fd-tool-title{flex-wrap:nowrap;align-items:center;gap:8px;min-width:0}
+  .flowdash .pg-sec-head{margin-bottom:8px;min-height:32px}
+  .flowdash .pg-sec-head h2,.flowdash .fd-tool-title>span:first-child{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
+  .flowdash .qp-meta{display:inline-flex;align-items:center;gap:2px;margin-left:auto;flex:none}
+  .flowdash .pg-sec-head .pg-remove{margin-left:0}
+  .flowdash .fd-tool-head{align-items:center}
+  .flowdash .fd-tool-titles{display:flex;align-items:center;min-width:0}
+  .flowdash .fd-tool-title{flex:1}
+  /* rule 7: 16px gutter, 12–16px between sections, no card inside a card */
+  .flowdash .pg-grid{gap:12px}
+  .flowdash.dash-page:not(.framed) .pg-sec{padding:12px 0 14px}
+  .flowdash .fd-stack{gap:12px}
+}
+/* FLOW options feed on phones: numbers first, one control row, 4-column table + row sheet */
+@media (max-width:767px){
+  .flowdash .of-val{font-size:18px}
+  .flowdash .of-stat .of-sub{font-size:12px}
+  .flowdash .of-lbl{font-size:12px}
+  .flowdash .of-controls.qp-row{gap:6px;padding:6px 24px 6px 8px}
+  .flowdash .of-controls.qp-row .of-chips{display:contents}
+  .flowdash .of-controls.qp-row .of-search{flex:none;width:88px;min-height:36px}
+  .flowdash .of-controls.qp-row .of-chip{min-height:36px}
+  .flowdash table.of-table{font-size:13px}
+  .flowdash .of-table th button{font-size:12px}
+  .flowdash .of-table td .dim{font-size:12px}
+  .flowdash .of-legend{font-size:12px}
+}
+/* GEX on phones: control strips fade at the edge they scroll past */
+@media (max-width:767px){
+  .flowdash .gx-controls{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);padding-right:24px}
+  .flowdash .gx-ps-lv b{font-size:18px}
+}
+
+/* ══════════════ GEX PHONE MATRIX (operator 2026-09-30, ITMatrix reference) ══════════════
+   Phone only. ONE compact header, then the grid full-bleed down to the dock.
+   The workspace bar (dashboards · focus · ⋯) moves below the stack: nothing
+   but the header sits above the grid. Colours: the CVD-safe ramp (gex-colors). */
+@media (max-width:767px){
+  .flowdash.dash-gex[data-view=dashboard]{display:flex;flex-direction:column;padding-top:0}
+  .flowdash.dash-gex[data-view=dashboard]>.fd-bar{order:2;margin:16px 0 0}
+  .flowdash.dash-gex[data-view=dashboard]>.fd-scroller{order:1}
+  .flowdash .gxp-page{margin:0 -16px;display:flex;flex-direction:column}
+  .flowdash .gxp-head{padding:6px 16px 8px;border-bottom:1px solid var(--nx-border)}
+  .flowdash .gxp-head-row{display:flex;align-items:center;gap:8px;min-height:44px}
+  .flowdash .gxp-ticker>button{min-height:44px}
+  .flowdash .gxp-metric{margin-left:auto}
+  .flowdash .gxp-metric button{min-height:44px;min-width:48px;font-size:12px}
+  .flowdash .gxp-levels-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border:1px solid var(--nx-border-hi);border-radius:8px;background:var(--panel-2);color:var(--text);font:600 13px Inter,system-ui,sans-serif;cursor:pointer}
+  .flowdash .gxp-quote{display:flex;align-items:baseline;gap:10px;min-width:0;white-space:nowrap}
+  .flowdash .gxp-px{font:700 24px/1.1 var(--fd-mono);color:var(--text);font-variant-numeric:tabular-nums}
+  .flowdash .gxp-chg{font:600 14px var(--fd-mono);font-variant-numeric:tabular-nums}
+  .flowdash .gxp-snap .qp-stamp{text-transform:none}
+  .flowdash .gxp-snap{display:inline-flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden;text-overflow:ellipsis;font:500 12px var(--fd-mono);color:var(--text-mute);letter-spacing:.02em;text-transform:uppercase}
+  .flowdash .gxp-snap .qp-stamp{align-self:center}
+
+  .flowdash .gxp-scroll{overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:var(--gx-zero,#0b0f16)}
+  .flowdash .gxp-scroll:focus-visible{outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:-2px}
+  .flowdash table.gxp-table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:var(--fd-mono);font-variant-numeric:tabular-nums}
+  .flowdash .gxp-table col.gxp-col-k{width:62px}
+  .flowdash .gxp-table thead th{position:sticky;top:0;z-index:3;height:34px;padding:0 2px;background:var(--bg-2,#0e1117);border-bottom:1px solid var(--nx-border-hi);color:var(--text-dim);font:600 13px var(--fd-mono);letter-spacing:.06em;text-align:center;white-space:nowrap}
+  .flowdash .gxp-table th.gxp-k{position:sticky;left:0;z-index:2;padding:0 6px;background:var(--bg-2,#0e1117);border-right:1px solid var(--nx-border-hi);color:var(--text-dim);font:600 13px var(--fd-mono);text-align:left;white-space:nowrap}
+  .flowdash .gxp-table thead th.gxp-k{z-index:4}
+  .flowdash .gxp-table tbody tr{height:38px}
+  .flowdash .gxp-table tbody td{padding:0;border-bottom:1px solid color-mix(in srgb,var(--gx-zero,#0b0f16) 70%,#000)}
+  .flowdash .gxp-table tbody th{border-bottom:1px solid var(--nx-border)}
+  .flowdash .gxp-cell{position:static;display:block;width:100%;height:37px;min-height:0!important;min-width:0!important;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--text-dim);font:700 15px var(--fd-mono);font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap;overflow:hidden;cursor:pointer}
+  .flowdash .gxp-cell.gxp-top{box-shadow:inset 0 0 0 2px var(--gxp-ring,var(--text))}
+  .flowdash .gxp-cell.gxp-king{background:var(--gx-king,#facc15)!important;color:#0b0f16!important;box-shadow:inset 0 0 0 2px #0b0f16}
+  .flowdash .gxp-cell:focus-visible{outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:-3px}
+  .flowdash .gxp-table tr.spot th.gxp-k{padding:0 2px}
+  .flowdash .gxp-spot{display:inline-block;padding:2px 4px;border-radius:4px;background:var(--cyan-bright,#6aa8ff);color:#07121f;font:700 12px var(--fd-mono);letter-spacing:-.02em}
+  .flowdash .gxp-table tfoot td,.flowdash .gxp-table tfoot th{position:sticky;bottom:0;z-index:3;height:34px;background:var(--bg-2,#0e1117);border-top:1px solid var(--nx-border-hi);font:700 14px var(--fd-mono);text-align:center;white-space:nowrap}
+  .flowdash .gxp-table tfoot th.gxp-k{z-index:4;color:var(--text-mute);font-size:12px;text-align:left}
+
+  .flowdash .gxp-bar{display:flex;align-items:center;gap:10px;padding:6px 16px;border-top:1px solid var(--nx-border)}
+  .flowdash .gxp-chips{display:flex;gap:6px;min-width:0;flex:1;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 20px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 20px),transparent)}
+  .flowdash .gxp-chips::-webkit-scrollbar{display:none}
+  .flowdash .gxp-chips button,.flowdash .gxp-pager button{flex:none;min-width:44px;min-height:44px;padding:0 10px;border:1px solid var(--nx-border-hi);border-radius:6px;background:transparent;color:var(--text-dim);font:600 13px var(--fd-mono);letter-spacing:.06em;cursor:pointer}
+  .flowdash .gxp-chips button.on{border-color:var(--cyan-bright,#6aa8ff);color:var(--cyan-bright,#6aa8ff);background:color-mix(in srgb,var(--cyan) 10%,transparent)}
+  .flowdash .gxp-pager{display:flex;flex:none;border:1px solid var(--nx-border-hi);border-radius:8px;overflow:hidden}
+  .flowdash .gxp-pager button{border:0;border-radius:0}
+  .flowdash .gxp-pager button.on{background:var(--cyan-bright,#6aa8ff);color:#07121f}
+}
+.gxp-levels-sheet .gxp-levels-body{padding:0;background:transparent}
+.gxp-levels-sheet .gx-phone-sum{border:0;padding:4px 0 8px;background:transparent}
+/* plain pages on phones: a bar that only repeats the page name (the dock already
+   says where you are) is dropped; a bar with the focus ticker stays */
+@media (max-width:767px){
+  .flowdash.dash-page>.fd-bar:not(:has(.fd-focus,.fd-bar-actions>*)){display:none}
+}
+/* light mode: the accent is a deep blue there — white ink on the spot tag / active page (AA) */
+html[data-mode=light] .flowdash .gxp-spot,html[data-mode=light] .flowdash .gxp-pager button.on{color:#fff}

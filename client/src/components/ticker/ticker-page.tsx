@@ -37,6 +37,7 @@ import {
   type CatalystRow, type EconEvent, type FlowTrade, type LedgerRow, type Pick, type Quote, type VolRead,
 } from './ticker-data';
 import './ticker-page.css';
+import { Clamp, FreshStamp, PhoneNote } from '@/components/ui/qe-phone';
 
 const ContractPickerPanel = lazy(() => import('@/components/workup/contract-picker-panel').then((m) => ({ default: m.ContractPickerPanel })));
 
@@ -52,12 +53,13 @@ export const SECTIONS = [
 
 /* ─────────────────────────── small pieces ─────────────────────────── */
 
-function Stat({ k, v, sub, tone, title }: { k: string; v: ReactNode; sub?: ReactNode; tone?: 'gain' | 'loss' | 'caution' | 'accent' | 'mute'; title?: string }) {
+/** `unit`: the sub only restates the label's basis ("daily", "exchange-reported") — hidden on phones. */
+function Stat({ k, v, sub, tone, title, unit }: { k: string; v: ReactNode; sub?: ReactNode; tone?: 'gain' | 'loss' | 'caution' | 'accent' | 'mute'; title?: string; unit?: boolean }) {
   return (
     <div className="tk-stat" title={title}>
       <div className="tk-stat-k">{k}</div>
       <div className="tk-stat-v" data-tone={tone}>{v}</div>
-      {sub != null && <div className="tk-stat-s">{sub}</div>}
+      {sub != null && <div className={unit ? 'tk-stat-s qp-desk-only' : 'tk-stat-s'}>{sub}</div>}
     </div>
   );
 }
@@ -234,7 +236,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
     <header className="tk-head">
       <div className="tk-head-top">
         <div className="tk-id">
-          <span className="tk-eyebrow">Ticker</span>
+          <span className="tk-eyebrow qp-desk-only">Ticker</span>
           <h1 className="tk-sym">{sym}</h1>
         </div>
         <div className="tk-actions">
@@ -263,7 +265,8 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
           <>
             <span className={`tk-price ${priceFlash}`}>{fmtPx(q.price)}</span>
             <span className={`tk-chg ${up ? 'lx-tone-gain' : 'lx-tone-loss'}`}>{up ? '▲' : '▼'} {q.change >= 0 ? '+' : '−'}${Math.abs(q.change).toFixed(2)} · {fmtPct(q.changePercent)}</span>
-            <span className="tk-src" title={q.asOf ?? undefined}>{q.source ?? 'realtime quote'}{q.delayed ? ' · delayed' : ''} · {age(q.asOf)}</span>
+            <span className="tk-src qp-desk-only" title={q.asOf ?? undefined}>{q.source ?? 'realtime quote'}{q.delayed ? ' · delayed' : ''} · {age(q.asOf)}</span>
+            <FreshStamp className="qp-phone-only" asOf={q.asOf} warn={!!q.delayed} />
           </>
         ) : d.quote.isError ? (
           <span className="tk-src">Quote unavailable — every provider in the realtime chain failed for {sym}.</span>
@@ -272,7 +275,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
         )}
       </div>
 
-      <p className="tk-verdict">
+      <Clamp className="tk-verdict">
         {qtm ? (
           <>
             <b className={`lx-tone-${leanTone}`}>{leanGlyph} {qtm.lean === 'quiet' ? 'Quiet' : `${qtm.lean[0].toUpperCase()}${qtm.lean.slice(1)} lean`}</b>
@@ -286,7 +289,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
         ) : (
           <span>Reading every engine on {sym}…</span>
         )}
-      </p>
+      </Clamp>
       {engineLine && <p className="tk-engine-line" data-state={engineResult?.published ? 'published' : engine}>{engineLine}</p>}
     </header>
   );
@@ -323,21 +326,22 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       {miniNav}
 
       <div className="tk-stats" id="overview" aria-label="Key stats">
-        <Stat k="Volume" v={fmtBig(liveVol)} sub={volRatio != null ? `${volRatio.toFixed(1)}× 20d avg` : '20d avg —'} tone={volRatio != null && volRatio >= 1.5 ? 'accent' : undefined} />
-        <Stat k="ATR 14" v={fmtPx(stats.atr)} sub={stats.atr != null && price ? `${((stats.atr / price) * 100).toFixed(1)}% of price` : 'daily'} />
-        <Stat k="RSI 14" v={stats.rsi != null ? Math.round(stats.rsi) : '—'} sub={stats.rsi == null ? 'daily' : stats.rsi >= 70 ? 'overbought' : stats.rsi <= 30 ? 'oversold' : 'daily'} tone={stats.rsi != null && (stats.rsi >= 70 || stats.rsi <= 30) ? 'caution' : undefined} />
+        <Stat k="Volume" v={fmtBig(liveVol)} sub={volRatio != null ? `${volRatio.toFixed(1)}× 20d avg` : '20d avg —'} unit={volRatio == null} tone={volRatio != null && volRatio >= 1.5 ? 'accent' : undefined} />
+        <Stat k="ATR 14" v={fmtPx(stats.atr)} sub={stats.atr != null && price ? `${((stats.atr / price) * 100).toFixed(1)}% of price` : 'daily'} unit={!(stats.atr != null && price)} />
+        <Stat k="RSI 14" v={stats.rsi != null ? Math.round(stats.rsi) : '—'} sub={stats.rsi == null ? 'daily' : stats.rsi >= 70 ? 'overbought' : stats.rsi <= 30 ? 'oversold' : 'daily'} unit={stats.rsi == null || (stats.rsi < 70 && stats.rsi > 30)} tone={stats.rsi != null && (stats.rsi >= 70 || stats.rsi <= 30) ? 'caution' : undefined} />
         <Stat k="52w range" v={pos52 != null ? `${Math.round(pos52)}%` : '—'} sub={`${fmtPx(stats.l52)} – ${fmtPx(stats.h52)}`} title="Where the live price sits between the 52-week low (0%) and high (100%)" />
-        <Stat k="Short % float" v={shortInt.data?.shortPercentOfFloat != null ? `${(shortInt.data.shortPercentOfFloat * 100).toFixed(1)}%` : '—'} sub={shortInt.data?.shortRatio != null ? `${shortInt.data.shortRatio.toFixed(1)}d to cover` : 'exchange-reported'} tone={(shortInt.data?.shortPercentOfFloat ?? 0) >= 0.15 ? 'caution' : undefined} />
-        <Stat k="30 day" v={fmtPct(stats.ret30, 1)} tone={stats.ret30 == null ? undefined : stats.ret30 >= 0 ? 'gain' : 'loss'} sub="daily closes" />
+        <Stat k="Short % float" v={shortInt.data?.shortPercentOfFloat != null ? `${(shortInt.data.shortPercentOfFloat * 100).toFixed(1)}%` : '—'} sub={shortInt.data?.shortRatio != null ? `${shortInt.data.shortRatio.toFixed(1)}d to cover` : 'exchange-reported'} unit={shortInt.data?.shortRatio == null} tone={(shortInt.data?.shortPercentOfFloat ?? 0) >= 0.15 ? 'caution' : undefined} />
+        <Stat k="30 day" v={fmtPct(stats.ret30, 1)} tone={stats.ret30 == null ? undefined : stats.ret30 >= 0 ? 'gain' : 'loss'} sub="daily closes" unit />
       </div>
 
       <div className="tk-dealer" aria-label="Dealer map">
         <div className="tk-dealer-h">
           <span>Dealer map · this week</span>
-          <span className="tk-src">
+          <span className={snap && !d.dealer.isLoading ? 'tk-src qp-desk-only' : 'tk-src'}>
             {d.dealer.isLoading ? 'computing from the option chain…'
               : snap ? `${d.dealer.data?.cached ? 'last good · ' : ''}chain ${age(dealerAge)}` : 'chain unavailable'}
           </span>
+          {snap && !d.dealer.isLoading && <FreshStamp className="qp-phone-only" asOf={dealerAge} warn={!!d.dealer.data?.cached} />}
         </div>
         {d.dealer.isError || (!d.dealer.isLoading && !snap) ? (
           <Empty>No option chain answered for {sym} (Alpaca, CBOE, Yahoo) — walls and zero-γ need listed options.</Empty>
@@ -352,14 +356,14 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
             sub={em != null && emSpot ? `${emPct != null ? `±${emPct.toFixed(1)}% · ` : ''}${fmtPx(emSpot - em)}–${fmtPx(emSpot + em)}` : 'no vol series'}
             title={emBasis ? `1σ for five sessions, sized on ${emBasis} — the Today weekly-path model` : undefined} />
           <Stat k="Next earnings" v={earn ? shortDate(earn.date) : INDEX_ETFS.has(sym) ? 'n/a · ETF' : d.earnings.isLoading ? '…' : 'none ≤30d'}
-            sub={earn ? `${earn.session === 'pre' ? 'before open' : earn.session === 'post' ? 'after close' : 'time n/a'} · ${earn.daysAway}d` : 'Nasdaq calendar'}
+            sub={earn ? `${earn.session === 'pre' ? 'before open' : earn.session === 'post' ? 'after close' : 'time n/a'} · ${earn.daysAway}d` : 'Nasdaq calendar'} unit={!earn}
             tone={earn && earn.daysAway <= 7 ? 'caution' : undefined} />
         </div>
       </div>
 
       <div className="tk-chart" id="chart">
         <QEChart key={`tk-${sym}`} symbol={sym} initialTf="1D" height={380} levels={levels} zones={zones} />
-        <p className="tk-footnote">Drawn: call/put walls and zero-γ from the live chain{zones.length ? ', the week’s 1σ band' : ''}{levels.some((l) => l.kind === 'execution') ? ', the published entry/stop/target' : ''}. Walls are modelled dealer positioning, not guaranteed support or resistance.</p>
+        <PhoneNote label="What's drawn"><p className="tk-footnote">Drawn: call/put walls and zero-γ from the live chain{zones.length ? ', the week’s 1σ band' : ''}{levels.some((l) => l.kind === 'execution') ? ', the published entry/stop/target' : ''}. Walls are modelled dealer positioning, not guaranteed support or resistance.</p></PhoneNote>
       </div>
 
       <OptionsSection sym={sym} pick={pick} />

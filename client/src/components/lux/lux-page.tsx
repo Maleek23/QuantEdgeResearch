@@ -22,6 +22,7 @@
  * Colour is never the only carrier: KPI tones and tags always print their
  * meaning as text (sign, ▲/▼, WIN/LOSS, a word) — the tint only reinforces.
  */
+import { InfoSheet } from '@/components/ui/qe-phone';
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { HelpHint } from './lux-tooltip';
@@ -71,8 +72,12 @@ export function LuxPageHeader({
               {context && <span className="lx-eyebrow-ctx">{context}</span>}
             </div>
           )}
-          <h1 className="lx-page-title" id={titleId}>{title}</h1>
-          {purpose && <p className="lx-page-purpose">{purpose}</p>}
+          <div className="lx-page-title-row">
+            <h1 className="lx-page-title" id={titleId}>{title}</h1>
+            {/* phones: the purpose line is one tap away (qe-phone InfoSheet) */}
+            {purpose && <InfoSheet className="qp-phone-only" title={typeof title === 'string' ? title : 'This page'} what={purpose} label="About this page" />}
+          </div>
+          {purpose && <p className="lx-page-purpose qp-desk-only">{purpose}</p>}
         </div>
         {actions && <div className="lx-page-actions">{actions}</div>}
       </div>
@@ -112,8 +117,9 @@ export const LuxPanel = forwardRef<HTMLElement, Omit<HTMLAttributes<HTMLElement>
               {num && <span className="lx-panel-num">{num}</span>}
               {title && <H className="lx-panel-t">{title}</H>}
               {help && <HelpHint heading={typeof title === 'string' ? title : 'this panel'}>{help}</HelpHint>}
+              {sub && <InfoSheet className="qp-phone-only lx-panel-info" title={typeof title === 'string' ? title : 'About this panel'} what={sub} label={typeof title === 'string' ? `About ${title}` : 'About this panel'} />}
             </div>
-            {sub && <p className="lx-panel-sub">{sub}</p>}
+            {sub && <p className="lx-panel-sub qp-desk-only">{sub}</p>}
           </div>
           {meta && <div className="lx-panel-meta">{meta}</div>}
         </div>

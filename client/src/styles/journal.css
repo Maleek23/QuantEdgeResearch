@@ -570,3 +570,11 @@ button.jr-heat-c:hover,button.jr-heat-c:focus-visible{outline:1px solid var(--jr
 .jr-drill-chip span{overflow:hidden;text-overflow:ellipsis}
 .jr-drill-chip button{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;border:0;background:transparent;color:inherit;cursor:pointer}
 .jr-drill-chip button:hover,.jr-drill-chip button:focus-visible{background:color-mix(in srgb,var(--jr-accent-hi,#3b8cff) 20%,transparent)}
+
+/* ── phone density (operator 2026-09-30): numbers first, one meta line less ── */
+@media (max-width:767px){
+  .jr-top-n{display:none}
+  .jr-kpi-v,.jr-kpis .jr-kpi-v{font-size:20px}
+  .jr-kpi-l,.jr-kpi-s{font-size:12px}
+  .jr-sec-h .jr-n,.jr-card-h .jr-n{font-size:12px}
+}

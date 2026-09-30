@@ -17,6 +17,8 @@ import { Info } from 'lucide-react';
 import { openWorkup } from '@/lib/workup-bus';
 import { cn } from '@/lib/utils';
 import { QEEmpty, QEError, QELoading, QEStale } from '@/components/ui/qe-states';
+import { QEDrawer } from '@/components/ui/qe-drawer';
+import { usePhone } from '@/components/ui/qe-phone';
 import { CALL, CALL_FILL, PUT } from './flow-colors';
 import { useDashboard, useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
 import { idSet, intIn, oneOf, sortCodec, text, useUrlParam } from '@/lib/url-state';
@@ -76,7 +78,15 @@ const SRC_CODEC = oneOf<SrcId>(['all', 'bullflow', 'chain-scan'], 'all');
 const Q_CODEC = text(12);
 const CHIPS_CODEC = idSet<ChipId>(CHIPS.map((c) => c.id));
 const SORT_CODEC = sortCodec<SortKey>(COLS.map((c) => c.key), SORT_DEFAULT);
+/** Phone (< 768px): four essential columns — the rest is one tap away in the row sheet. */
+const PHONE_KEYS: SortKey[] = ['at', 'symbol', 'strike', 'premium'];
+const PHONE_COLS: Col[] = PHONE_KEYS.map((k) => {
+  const c = COLS.find((x) => x.key === k)!;
+  return k === 'strike' ? { ...c, label: 'Contract', w: 84 } : c;
+});
 const ROW = 28;
+/** Phone rows are touch targets: 44px. */
+const PHONE_ROW = 44;
 
 interface Scored { r: TapeRow; sig: SigParts; n: number }
 
@@ -104,6 +114,10 @@ export function OptionsFlowTool() {
   useUrlParam('f.sort', sort, setSort, SORT_CODEC, urlOn);
   const tape = useFlowTape(days);
   const now = useNow();
+  const phone = usePhone();
+  const cols = phone ? PHONE_COLS : COLS;
+  const rowH = phone ? PHONE_ROW : ROW;
+  const [detail, setDetail] = useState<Scored | null>(null);
 
   const scored: Scored[] = useMemo(() => {
     const rows = tape.data?.rows ?? [];
@@ -216,8 +230,8 @@ export function OptionsFlowTool() {
     if (scroller) scroller.scrollTop = 0;
     setScrollTop(0);
   }, [scroller, chipKey, src, q, days, sort.key, sort.dir]);
-  const start = Math.max(0, Math.floor(scrollTop / ROW) - 20);
-  const end = Math.min(sorted.length, start + Math.ceil(viewH / ROW) + 40);
+  const start = Math.max(0, Math.floor(scrollTop / rowH) - 20);
+  const end = Math.min(sorted.length, start + Math.ceil(viewH / rowH) + 40);
   const slice = sorted.slice(start, end);
 
   const toggleChip = (c: ChipId) => setChips((s) => { const n = new Set(s); n.has(c) ? n.delete(c) : n.add(c); return n; });
@@ -231,19 +245,19 @@ export function OptionsFlowTool() {
       {/* ── header stats ── */}
       <div className="of-stats">
         <div className="of-stat of-tide" title="Cumulative call vs put premium through today, from the rows below. Premium traded — NOT bull/bear: neither feed measures whether the print was bought or sold.">
-          <div className="of-lbl">Premium tide <span className="of-sub">today · calls vs puts</span></div>
+          <div className="of-lbl">Premium tide <span className="of-sub qp-desk-only">today · calls vs puts</span></div>
           <Tide pts={stats.tide} />
           <div className="of-sub"><span style={{ color: CALL }}>C {money(stats.tide.at(-1)?.c ?? 0)}</span> / <span style={{ color: PUT }}>P {money(stats.tide.at(-1)?.p ?? 0)}</span></div>
         </div>
         <div className="of-stat">
           <div className="of-lbl">Flow trades</div>
           <div className="of-val">{stats.n.toLocaleString()}</div>
-          <div className="of-sub">{tape.data?.truncated ? 'chain scan capped at 1,500' : `of ${scored.length.toLocaleString()} in window`}</div>
+          <div className="of-sub qp-desk-only">{tape.data?.truncated ? 'chain scan capped at 1,500' : `of ${scored.length.toLocaleString()} in window`}</div>
         </div>
         <div className="of-stat">
           <div className="of-lbl" title="Sweeps ÷ trades in the filtered set. Chain-scan sweeps are inferred ('sweep-like').">Sweep %</div>
           <div className="of-val">{stats.n ? `${((stats.sweeps / stats.n) * 100).toFixed(1)}%` : '—'}</div>
-          <div className="of-sub">{stats.sweeps.toLocaleString()} sweeps</div>
+          <div className="of-sub qp-desk-only">{stats.sweeps.toLocaleString()} sweeps</div>
         </div>
         <div className="of-stat of-pc">
           <div className="of-pc-row">
@@ -261,7 +275,7 @@ export function OptionsFlowTool() {
       </div>
 
       {/* ── controls + chips ── */}
-      <div className="of-controls">
+      <div className="of-controls qp-row">
         <div className="of-seg" role="group" aria-label="Window">
           {[1, 2, 5].map((d) => <button key={d} type="button" className={cn(days === d && 'on')} onClick={() => setDays(d)}>{d}D</button>)}
         </div>
@@ -280,7 +294,7 @@ export function OptionsFlowTool() {
       </div>
 
       {!hasTool('stock-chart') && editable && (
-        <div className="of-hint">
+        <div className="of-hint qp-desk-only">
           Focus: <b>{focus}</b> — row clicks re-point the terminal's ticker.
           <button type="button" onClick={() => addTool('stock-chart')}>Add Stock Chart</button> to see it with flow markers.
         </div>
@@ -309,11 +323,11 @@ export function OptionsFlowTool() {
                   : days < 5 ? <button type="button" className="fd-btn" onClick={() => setDays(5)}>Widen to 5D</button> : undefined} />
           ) : (
             <div className="of-scroll" ref={setScroller} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
-              <table className="of-table" style={{ width: TABLE_W }}>
-                <colgroup>{COLS.map((c) => <col key={c.key} style={{ width: c.w }} />)}</colgroup>
+              <table className="of-table" style={{ width: phone ? '100%' : TABLE_W }}>
+                <colgroup>{cols.map((c) => <col key={c.key} style={{ width: c.w }} />)}</colgroup>
                 <thead>
                   <tr>
-                    {COLS.map((c) => (
+                    {cols.map((c) => (
                       <th key={c.key} className={cn(c.r && 'r', sort.key === c.key && 'on')} title={c.title} aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
                         <button type="button" onClick={() => onSort(c.key)}>{c.label}{sort.key === c.key ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}</button>
                       </th>
@@ -321,9 +335,18 @@ export function OptionsFlowTool() {
                   </tr>
                 </thead>
                 <tbody>
-                  {start > 0 && <tr style={{ height: start * ROW }} aria-hidden><td colSpan={COLS.length} /></tr>}
-                  {slice.map(({ r, sig, n }) => (
-                    <tr key={r.id} className={cn(`k-${r.kind}`, r.symbol === focus && 'sel')} style={{ height: ROW }}
+                  {start > 0 && <tr style={{ height: start * rowH }} aria-hidden><td colSpan={cols.length} /></tr>}
+                  {slice.map((row) => { const { r, sig, n } = row; return phone ? (
+                    <tr key={r.id} className={cn(`k-${r.kind}`, 'qp-row-tap', r.symbol === focus && 'sel')} style={{ height: rowH }}
+                      onClick={() => setDetail(row)} tabIndex={0} aria-haspopup="dialog"
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetail(row); } }}>
+                      <td className="mono dim">{etTime(r.at).slice(0, 5)}</td>
+                      <td><span className="of-tk">{r.symbol}</span></td>
+                      <td style={{ color: r.optionType === 'call' ? CALL : PUT }}>{r.strike}{r.optionType === 'call' ? 'C' : 'P'} <span className="dim">{r.expiry.slice(5)}</span></td>
+                      <td className="r val">{money(r.premium)}</td>
+                    </tr>
+                  ) : (
+                    <tr key={r.id} className={cn(`k-${r.kind}`, r.symbol === focus && 'sel')} style={{ height: rowH }}
                       onClick={() => setFocus(r.symbol)} onDoubleClick={() => openWorkup(r.symbol)}
                       // keyboard: Tab reaches each row, Enter/Space focuses its ticker (same as click)
                       tabIndex={0}
@@ -346,19 +369,47 @@ export function OptionsFlowTool() {
                       </td>
                       <td className="dim">{r.source === 'bullflow' ? 'BF' : 'CS'}</td>
                     </tr>
-                  ))}
-                  {end < sorted.length && <tr style={{ height: (sorted.length - end) * ROW }} aria-hidden><td colSpan={COLS.length} /></tr>}
+                  ); })}
+                  {end < sorted.length && <tr style={{ height: (sorted.length - end) * rowH }} aria-hidden><td colSpan={cols.length} /></tr>}
                 </tbody>
               </table>
             </div>
           )}
           <div className="of-legend">
             <span><i className="k-sweep" />Sweep</span><span><i className="k-block" />Block / Grenade</span><span><i className="k-repeater" />Repeater</span><span><i className="k-unusual" />Unusual</span>
-            <span className="dim">· BF newest {ageLabel(bf?.newestAt, now)} · CS newest {cs?.ok ? ageLabel(cs?.newestAt, now) : 'read failed'} · side (bid/ask) not measured</span>
+            <span className="dim qp-desk-only">· BF newest {ageLabel(bf?.newestAt, now)} · CS newest {cs?.ok ? ageLabel(cs?.newestAt, now) : 'read failed'} · side (bid/ask) not measured</span>
           </div>
         </>
       )}
+      {detail && <PrintSheet row={detail} now={now} onClose={() => setDetail(null)} onFocus={() => { setFocus(detail.r.symbol); setDetail(null); }} />}
     </div>
+  );
+}
+
+/** Phone row sheet: every column the phone table leaves out, plus the row's actions. */
+function PrintSheet({ row, now, onClose, onFocus }: { row: Scored; now: number; onClose: () => void; onFocus: () => void }) {
+  const { r, sig, n } = row;
+  const kv: Array<[string, string]> = [
+    ['Time ET', `${etTime(r.at)}${r.at ? ` · ${r.at.slice(5, 10)} · ${ageLabel(r.at, now)}` : ''}`],
+    ['Value', money(r.premium)],
+    ['Contract', `${r.symbol} ${r.strike} ${r.optionType === 'call' ? 'Call' : 'Put'} · exp ${r.expiry}`],
+    ['Spot', r.spot != null ? r.spot.toFixed(2) : '— (Bullflow alerts do not carry it)'],
+    ['Type', r.label],
+    ['Price', r.price != null ? r.price.toFixed(2) : '—'],
+    ['Size', r.size != null ? r.size.toLocaleString() : '—'],
+    ['Vol/OI', r.volOI != null ? `${r.volOI.toFixed(1)}×` : '— (chain scan only)'],
+    ['SigScore', `${sig.total.toFixed(2)} = 0.40×size ${sig.size.toFixed(2)} + 0.20×aggr ${sig.aggression.toFixed(2)} + 0.20×repeat ${sig.repeat.toFixed(2)} (n=${n}) + 0.20×vol/OI ${sig.volOI == null ? 'n/a→0' : sig.volOI.toFixed(2)}`],
+    ['Source', r.source === 'bullflow' ? 'Bullflow alert' : 'our chain scan'],
+  ];
+  return (
+    <QEDrawer open onClose={onClose} title={`${r.symbol} ${r.strike}${r.optionType === 'call' ? 'C' : 'P'} · ${money(r.premium)}`} side="bottom" className="qp-sheet">
+      <dl className="qp-sheet-dl">{kv.map(([k, v]) => (<div key={k}><dt>{k}</dt><dd>{v}</dd></div>))}</dl>
+      <div className="qp-sheet-actions">
+        <button type="button" className="fd-btn primary" onClick={onFocus}>Focus {r.symbol}</button>
+        <button type="button" className="fd-btn" onClick={() => { onClose(); openWorkup(r.symbol); }}>Open workup</button>
+      </div>
+      <p className="qp-sheet-mute">Side (bid/ask) is not measured by either feed — premium traded, not bull/bear.</p>
+    </QEDrawer>
   );
 }
 

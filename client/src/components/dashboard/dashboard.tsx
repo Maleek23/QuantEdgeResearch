@@ -40,14 +40,16 @@ import '@/styles/nexus.css';
 import './dashboard.css';
 import { TOOLS, TOOL_BY_ID, categoriesFor, type ToolDef } from './registry';
 import { COLS, ROW_H, GAP, autoArrange, clampTool, compact, fitRowHeight, readingOrder, slotFor, uid, type PlacedTool } from './layout';
-import { DashboardCtx, ReportCtx, ToolFrame, ToolInstanceCtx, provenanceOf, useFocusSymbol, useNow, type ToolReport } from './frame';
+import { DashboardCtx, PhoneMeta, ReportCtx, ToolFrame, ToolInstanceCtx, phoneTitleOf, provenanceOf, useFocusSymbol, useNow, type ToolReport } from './frame';
+import { usePhone } from '@/components/ui/qe-phone';
 import { materialize, useDashboards } from './use-dashboards';
 import { undoToast } from '@/lib/undo-toast';
 import { PAGES, inCatalog, skeletonTiles, type PageId, type PageSpec } from './pages';
 
 /** Phone page headers (PageSpec.phone.lead) — rendered above the one-column stack. */
 const PHONE_LEAD: Partial<Record<PageId, ReturnType<typeof lazy>>> = {
-  gex: lazy(() => import('./tools/gex/gex-tools').then((m) => ({ default: m.GexPhoneSummary }))),
+  // the matrix IS the GEX phone page (ITMatrix reference, 2026-09-30); levels/regime sit in its Levels sheet
+  gex: lazy(() => import('./tools/gex/gex-tools').then((m) => ({ default: m.GexPhoneMatrixView }))),
 };
 
 /** Phone stack order: the page's `phone.first` tools on top, the rest in reading order. */
@@ -455,9 +457,12 @@ function BareTool({ def, instance, onReport }: { def: ToolDef; instance: string;
 function Provenance({ def, report, now }: { def: ToolDef; report: ToolReport; now: number }) {
   const { src, age } = provenanceOf(def, report, now);
   return (
-    <span className={cn('fd-prov', report.tone === 'warn' && 'warn')} title={`${def.title} — ${def.what}\nUnits: ${def.units}\nData source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
+    <>
+    <PhoneMeta def={def} report={report} now={now} />
+    <span className={cn('fd-prov qp-desk-only', report.tone === 'warn' && 'warn')} title={`${def.title} — ${def.what}\nUnits: ${def.units}\nData source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
       {def.title} · {src} · {age}{report.note ? ` · ${report.note}` : ''}
     </span>
+    </>
   );
 }
 
@@ -611,6 +616,7 @@ function PageSection({ tool, symbol, style, fill, onRemove, column = false }: {
     return () => { ro.disconnect(); mo.disconnect(); };
   }, [live]);
   const { src, age } = provenanceOf(def, report, now);
+  const phone = usePhone();
   // fill 'auto' = natural height that must never clip (the phone GEX matrix sizes its own scroller)
   const natural = fill === 'auto';
   const boxed = !!fill && !natural;
@@ -620,10 +626,11 @@ function PageSection({ tool, symbol, style, fill, onRemove, column = false }: {
   const headId = `pg-${tool.i}`;
   return (
     <section ref={secRef} className={cn('pg-sec', column && 'pg-col', column && cue.up && 'more-up', column && cue.down && 'more-down')} data-tool={def.id} style={style} aria-labelledby={headId}>
-      <header className="pg-sec-head" title={`${def.what}\nUnits: ${def.units}\nData source: ${src}`}>
-        <h2 id={headId}>{def.title}</h2>
+      <header className="pg-sec-head" title={phone ? undefined : `${def.what}\nUnits: ${def.units}\nData source: ${src}`}>
+        <h2 id={headId}>{phone ? phoneTitleOf(def) : def.title}</h2>
         {symbol && <span className="fd-sym">{symbol}</span>}
-        <span className={cn('pg-prov', report.tone === 'warn' && 'warn')}>{src} · {age}{report.note ? ` · ${report.note}` : ''}</span>
+        <span className={cn('pg-prov qp-desk-only', report.tone === 'warn' && 'warn')}>{src} · {age}{report.note ? ` · ${report.note}` : ''}</span>
+        <PhoneMeta def={def} report={report} now={now} />
         {onRemove && (
           <button type="button" className="pg-remove fd-icon-btn" onClick={onRemove} aria-label={`Remove ${def.title}`} title={`Remove ${def.title} from this dashboard`}>
             <X size={14} />
@@ -912,7 +919,7 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
             ) : isMobile ? (
               <div className="fd-stack" ref={gridRef}>
                 <PhoneLead page={page} />
-                {phoneOrder(spec, tools).map((t) => (
+                {phoneOrder(spec, tools).filter((t) => !spec.phone?.leadReplaces?.includes(t.type)).map((t) => (
                   <PageSection key={t.i} tool={t} symbol={symbolOf(t)} fill={spec.phone?.fill?.[t.type]} onRemove={() => remove(t.i)} />
                 ))}
               </div>

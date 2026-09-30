@@ -20,6 +20,7 @@ import { useTickFlash } from '@/lib/use-tick-flash';
 import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from '@/components/landing/live-widgets';
 import { QEStale } from '@/components/ui/qe-states';
+import { Clamp, PhoneNote } from '@/components/ui/qe-phone';
 import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, type GapPhase } from '@/lib/premarket';
 import { useDashboard, useNow, useToolReport } from '../../frame';
 import { ageLabel } from '../flow/tape';
@@ -87,7 +88,7 @@ export function TodayWeekMapTool() {
     <div className={`${WRAP} td-week`} ref={ref}>
       <div className="hero-grid">
         <div>
-          <div className="hero-eyebrow"><span className="pill">TODAY</span>Index desk{weekOf ? ` · week of ${weekOf}` : ''}</div>
+          <div className="hero-eyebrow qp-desk-only"><span className="pill">TODAY</span>Index desk{weekOf ? ` · week of ${weekOf}` : ''}</div>
           {feedDown ? (
             <h1 className="hero-title">Options positioning is unavailable.</h1>
           ) : !wp.data ? (
@@ -100,7 +101,7 @@ export function TodayWeekMapTool() {
                 : null}
             </h1>
           )}
-          <p className="hero-sub">
+          <Clamp className="hero-sub">
             {feedDown
               ? 'We only draw the map from measured positioning. It comes back the moment the feed does — this tool retries every 30 seconds.'
               : !wp.data ? ''
@@ -108,7 +109,7 @@ export function TodayWeekMapTool() {
                 ? 'Short-gamma dealers sell into drops and buy into rips, so ranges widen.'
                 : balanced ? 'Dealer gamma is close to flat, so hedging neither caps nor extends moves much.'
                 : 'Long-gamma dealers buy dips and sell rips, so ranges tighten.'}${sigma != null && refPx ? ` ${wp.data.volSource === 'realized-20d' ? 'Lately SPY has moved' : 'Expect'} about ±${fmt(sigma, 0)} points (${fmt(sigma / refPx * 100, 1)}%) in a typical week${wp.data.volSource === 'realized-20d' ? `${wp.data.impliedVol && spyPx ? ` — options price more, ±${fmt(spyPx * wp.data.impliedVol * Math.sqrt(5 / 252), 0)}` : ''}` : wp.data.volSource === 'vix' ? ' (from VIX)' : ' (estimated)'}.` : ''}${magnet && sigma != null && spyPx != null && Math.abs(magnet - spyPx) > 0.75 * sigma ? ` The biggest strike, ${fmt(magnet, 0)}, is ${fmt(Math.abs(magnet - spyPx), 0)} points away — further than dealers usually drag price in a week.` : ''}`}
-          </p>
+          </Clamp>
           <div className="hero-actions">
             <button type="button" className="btn btn-primary btn-lg" onClick={toBest} title={hasTool('today-best-idea') ? 'Scroll to the Best idea tool' : editable ? 'Add the Best idea tool to this dashboard' : 'Open the ranked setups on NEXUS'}>
               Today&rsquo;s best idea
@@ -183,7 +184,7 @@ export function TodayBestIdeaTool() {
         <div>
           <div className="feature-num">TOP RANKED SETUP · {best.symbol} · {best.direction === 'short' ? 'SHORT' : 'LONG'}{best.optionType ? ` · ${best.optionType.toUpperCase()} ${best.strikePrice ?? ''}` : ''}</div>
           <h3 className="feature-title">{bestX.headline}</h3>
-          {bestX.against && <p className="feature-desc"><b style={{ color: 'var(--red)' }}>Against it:</b> {bestX.against}</p>}
+          {bestX.against && <Clamp className="feature-desc" text={`Against it: ${bestX.against}`}><b style={{ color: 'var(--red)' }}>Against it:</b> {bestX.against}</Clamp>}
           <div className="feature-list">
             {bestX.reasons.map((r) => <div className="feature-list-item" key={r}>{CHECK}<div><b>{r}</b></div></div>)}
           </div>
@@ -247,14 +248,14 @@ export function TodayRankedBookTool() {
   return (
     <div className={`${WRAP} td-book`}>
       <div className="td-tool-sub" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span>Active book · ranked by evidence · #{start + 1}–{start + rows.length}{start ? ' (#1–2 in Best idea)' : ''}</span>
+        <span className="qp-desk-only">Active book · ranked by evidence · #{start + 1}–{start + rows.length}{start ? ' (#1–2 in Best idea)' : ''}</span>
         <ChartsToggle />
       </div>
       <div className="tl-book">
         {rows.map((p) => (
           <div className="tl-book-item" key={p.ideaId}>
             <SigCard p={p as never} chart={cardCharts} />
-            <p className="tl-book-why">{explain(p).headline}</p>
+            <Clamp className="tl-book-why">{explain(p).headline}</Clamp>
           </div>
         ))}
       </div>
@@ -277,7 +278,7 @@ export function TodayIndexDeskTool() {
   return (
     <div className={`${WRAP} td-idx`}>
       <div className="td-index-head">
-        <div><b>Index desk</b><span>SPX · SPY · QQQ · IWM</span></div>
+        <div className="qp-desk-only"><b>Index desk</b><span>SPX · SPY · QQQ · IWM</span></div>
         <Link href="/t">Open in Nexus</Link>
       </div>
       <div className="td-index-grid">
@@ -350,11 +351,11 @@ export function TodayModelRecordTool() {
           <div className="lstat-sub">{o?.coveragePct != null ? `${o.coveragePct.toFixed(0)}% of ${o.total ?? 0} published ideas resolved` : 'measuring'}</div>
         </div>
       </div>
-      <p className="cta-sub">
+      <Clamp className="cta-sub">
         {o?.decided != null
           ? `Every idea published since ${o.since}: target, stop, or a measured close. Unresolved ideas are counted, never scored.`
           : 'The record is replayed on 5-minute bars, not marked to the close.'}
-      </p>
+      </Clamp>
       <div className="cta-actions">
         <Link href="/t?tab=journal&jtab=record" className="btn btn-primary btn-lg">See the track record</Link>
         <Link href="/t" className="btn btn-ghost btn-lg">Open the terminal</Link>
@@ -538,10 +539,10 @@ export function TodayPremarketTool() {
   if (!show) {
     return (
       <div className={`${WRAP} td-pm td-pm-closed`}>
-        <p className="td-pm-line">
+        <Clamp className="td-pm-line" text="Pre-market gaps show 04:00–09:30 ET — the leading direction read before the open. Not read this session.">
           <b>Pre-market</b> gaps show 04:00–09:30 ET — the leading direction read before the open.
           {q.data ? <> Last read {ageLabel(asOf, now)} ({GAP_BASIS[q.data.phase]}).</> : ' Not read this session.'}
-        </p>
+        </Clamp>
         <button type="button" className="fd-btn" onClick={() => setAsked(true)}>Show current gaps</button>
       </div>
     );
@@ -553,11 +554,11 @@ export function TodayPremarketTool() {
   return (
     <div className={`${WRAP} td-pm`}>
       <div className="td-pm-head">
-        <span className="td-tool-sub" style={{ margin: 0 }}>{phase === 'pre_market' ? 'Pre-market' : 'Gaps'} · {GAP_BASIS[phase]}</span>
+        <span className="td-tool-sub qp-desk-only" style={{ margin: 0 }}>{phase === 'pre_market' ? 'Pre-market' : 'Gaps'} · {GAP_BASIS[phase]}</span>
         {q.isError && <QEStale what="Pre-market refresh" updatedAt={q.dataUpdatedAt} onRetry={() => q.refetch()} retrying={q.isFetching} />}
         {!inWindow && <button type="button" className="td-pm-hide" onClick={() => setAsked(false)}>Hide</button>}
       </div>
-      <div className="td-pm-chips">
+      <div className="td-pm-chips qp-row">
         {shown.map((g) => {
           const dir = dirOf.get(g.symbol);
           const al = dir ? gapAlignment(g.gapPct, dir) : 'flat';
@@ -574,7 +575,7 @@ export function TodayPremarketTool() {
         })}
         {rows.length > PM_SHOW && <button type="button" className="td-pm-more" onClick={() => setAll((v) => !v)}>{all ? 'Fewer' : `+${rows.length - PM_SHOW} more`}</button>}
       </div>
-      <p className="td-pm-foot">A gap with a book idea confirms it; against it, the setup may already have moved without you. Book names first, then your weekly watchlist (★).</p>
+      <PhoneNote label="How to read gaps"><p className="td-pm-foot">A gap with a book idea confirms it; against it, the setup may already have moved without you. Book names first, then your weekly watchlist (★).</p></PhoneNote>
     </div>
   );
 }

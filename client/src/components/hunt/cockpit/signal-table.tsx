@@ -11,6 +11,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { geometryFor } from '@/components/oracle/signal-detail';
 import { convictionPercent, type ConvictionPick } from '@/lib/convictions';
 import { cn } from '@/lib/utils';
+import { usePhone } from '@/components/ui/qe-phone';
 
 const money = (value?: number | null) =>
   Number.isFinite(value) ? `$${Number(value).toFixed(2)}` : '—';
@@ -36,6 +37,9 @@ export function SignalTable({
   live?: Map<string, number>;
 }) {
   const reduce = useReducedMotion();
+  // Phone: # · ticker · side · evidence · live; every other column is in the setup detail a row tap opens.
+  const phone = usePhone();
+  const x = phone ? 'qp-col-x' : '';
 
   if (picks.length === 0) {
     return (
@@ -49,22 +53,22 @@ export function SignalTable({
     <div className="overflow-hidden rounded-lg border border-card-border bg-card shadow-[0_18px_60px_rgba(0,0,0,0.16)]">
       <div className="h-px bg-gradient-to-r from-[var(--trade-bearish)] via-[var(--brand-gold)] to-[var(--brand-cyan)] opacity-70" />
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1180px] border-collapse text-left font-mono tabular-nums">
+        <table className={cn("w-full border-collapse text-left font-mono tabular-nums", !phone && "min-w-[1180px]")}>
           <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-xl">
             <tr className="border-b border-border/70 text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-              <th className="w-10 px-3 py-2 text-right">#</th>
+              <th className={cn("w-10 px-3 py-2 text-right", x)}>#</th>
               <th className="px-3 py-2">Ticker ↕</th>
               <th className="px-3 py-2">Side</th>
               <th className="px-3 py-2">Evidence ↓</th>
-              <th className="px-3 py-2">Triggered</th>
+              <th className={cn("px-3 py-2", x)}>Triggered</th>
               <th className="px-3 py-2 text-right">Live ↕</th>
-              <th className="px-3 py-2 text-right">Entry</th>
-              <th className="px-3 py-2 text-right">Stop</th>
-              <th className="px-3 py-2 text-right">T1</th>
-              <th className="px-3 py-2 text-right">To trigger / path</th>
-              <th className="px-3 py-2 text-right">R:R</th>
-              <th className="px-3 py-2">Contract</th>
-              <th className="px-3 py-2 text-right">Horizon</th>
+              <th className={cn("px-3 py-2 text-right", x)}>Entry</th>
+              <th className={cn("px-3 py-2 text-right", x)}>Stop</th>
+              <th className={cn("px-3 py-2 text-right", x)}>T1</th>
+              <th className={cn("px-3 py-2 text-right", x)}>To trigger / path</th>
+              <th className={cn("px-3 py-2 text-right", x)}>R:R</th>
+              <th className={cn("px-3 py-2", x)}>Contract</th>
+              <th className={cn("px-3 py-2 text-right", x)}>Horizon</th>
             </tr>
           </thead>
           <motion.tbody layout>
@@ -87,7 +91,7 @@ export function SignalTable({
                     selectedId === pick.ideaId && 'bg-[var(--brand-cyan)]/[0.07]',
                   )}
                 >
-                  <td className="px-3 py-2 text-right text-muted-foreground">{index + 1}</td>
+                  <td className={cn("px-3 py-2 text-right text-muted-foreground", x)}>{index + 1}</td>
                   <td className="px-3 py-2">
                     <div className="flex items-baseline gap-2">
                       <span className="text-[13px] font-bold tracking-[0.04em] text-foreground">{pick.symbol}</span>
@@ -110,19 +114,19 @@ export function SignalTable({
                       <span className="text-[9px] text-muted-foreground">{pick.convictionBand} · {pick.layerCount}L</span>
                     </div>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className={cn("px-3 py-2", x)}>
                     <span className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-semibold" style={{ color: pending ? 'var(--brand-gold)' : 'var(--trade-bullish)', borderColor: `color-mix(in srgb, ${pending ? 'var(--brand-gold)' : 'var(--trade-bullish)'} 30%, transparent)`, background: `color-mix(in srgb, ${pending ? 'var(--brand-gold)' : 'var(--trade-bullish)'} 8%, transparent)` }}>
                       <span className="h-1.5 w-1.5 rounded-full bg-current" />{pending ? 'PENDING' : 'TRIGGERED'}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right font-semibold text-foreground">{money(px)}</td>
-                  <td className="px-3 py-2 text-right" title={(pick as any).levelBasis === 'contract' ? "Levels are the option contract's PREMIUM, not share prices" : undefined}>
+                  <td className={cn("px-3 py-2 text-right", x)} title={(pick as any).levelBasis === 'contract' ? "Levels are the option contract's PREMIUM, not share prices" : undefined}>
                     {(pick as any).levelBasis === 'contract' && <span className="mr-1 text-[9px] font-bold tracking-wider" style={{ color: 'var(--brand-gold)' }}>PREM</span>}
                     {money(pick.entryPrice)}
                   </td>
-                  <td className="px-3 py-2 text-right text-[var(--trade-bearish)]">{money(pick.stopLoss)}</td>
-                  <td className="px-3 py-2 text-right text-[var(--trade-bullish)]">{money(pick.targetPrice)}</td>
-                  <td className="px-3 py-2 text-right">
+                  <td className={cn("px-3 py-2 text-right text-[var(--trade-bearish)]", x)}>{money(pick.stopLoss)}</td>
+                  <td className={cn("px-3 py-2 text-right text-[var(--trade-bullish)]", x)}>{money(pick.targetPrice)}</td>
+                  <td className={cn("px-3 py-2 text-right", x)}>
                     <div className="flex items-center justify-end gap-2">
                       <div className="h-1 w-12 overflow-hidden rounded-full bg-foreground/[0.07]">
                         <div
@@ -135,10 +139,10 @@ export function SignalTable({
                       </span>
                     </div>
                   </td>
-                  <td className={cn('px-3 py-2 text-right', (pick.riskRewardRatio ?? 0) > 5 && 'text-[var(--brand-gold)]')}>
+                  <td className={cn('px-3 py-2 text-right', (pick.riskRewardRatio ?? 0) > 5 && 'text-[var(--brand-gold)]', x)}>
                     {pick.riskRewardRatio ? `${pick.riskRewardRatio.toFixed(1)}:1` : '—'}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className={cn("px-3 py-2", x)}>
                     <div className="flex items-baseline gap-2">
                       <span className="text-foreground">{contractFor(pick)}</span>
                       <span className="text-[9px] text-muted-foreground">
@@ -146,7 +150,7 @@ export function SignalTable({
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className={cn("px-3 py-2 text-right", x)}>
                     <span style={{ color: g.horizonUsedPct > 70 ? 'var(--brand-gold)' : undefined }} title={g.horizonBasis}>
                       {pick.optionDte != null || pick.expiryDate
                         ? `${g.horizonUsedPct.toFixed(0)}% / ${g.horizonDays}d`
@@ -160,8 +164,8 @@ export function SignalTable({
         </table>
       </div>
       <div className="flex items-center justify-between border-t border-border/50 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-        <span>{picks.length} signals · click a row to open the cockpit</span>
-        <span>live path · fixed published levels</span>
+        <span>{picks.length} signals{phone ? ' · tap a row for its detail' : ' · click a row to open the cockpit'}</span>
+        <span className={x}>live path · fixed published levels</span>
       </div>
     </div>
   );

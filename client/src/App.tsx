@@ -4,6 +4,7 @@ import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { PhoneAutoClamp } from "@/components/ui/qe-phone";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -333,6 +334,7 @@ function App() {
                 <WhatsNewDrawer />
                 <WhatsNewToast />
                 <Toaster />
+                <PhoneAutoClamp />
               </StockContextProvider>
             </RealtimePricesProvider>
           </TooltipProvider>
@@ -389,6 +391,7 @@ function App() {
                       <WhatsNewDrawer />
                       <WhatsNewToast />
                       <Toaster />
+                      <PhoneAutoClamp />
                     </DensityProvider>
                   </ContentDensityProvider>
                 </PreferencesProvider>
@@ -427,6 +430,7 @@ function App() {
                     <WhatsNewDrawer />
                     <WhatsNewToast />
                     <Toaster />
+                    <PhoneAutoClamp />
                   </DensityProvider>
                 </ContentDensityProvider>
               </PreferencesProvider>
