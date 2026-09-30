@@ -22,7 +22,7 @@ export interface LiveMark {
 export const MARKS_POLL_MS = 30_000;
 
 export function useJournalMarks(key: JournalKey, openCount: number) {
-  const eligible = key === 'mine' || key.startsWith('trader:');
+  const eligible = key === 'mine' || key === 'desk' || key.startsWith('trader:');
   const q = useQuery<{ marks: Record<string, LiveMark>; asOf: string }>({
     queryKey: ['/api/journal/marks', key],
     queryFn: async () => {
@@ -31,7 +31,7 @@ export function useJournalMarks(key: JournalKey, openCount: number) {
       return res.json();
     },
     enabled: eligible && openCount > 0,
-    refetchInterval: MARKS_POLL_MS,
+    refetchInterval: key === 'desk' ? 60_000 : MARKS_POLL_MS,
     refetchIntervalInBackground: false,
     staleTime: MARKS_POLL_MS - 1_000,
   });

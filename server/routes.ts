@@ -32605,10 +32605,19 @@ Use this checklist before entering any trade:
       const { liveMarksFor } = await import('./journal-marks');
       try {
         const j = await resolveJournal(await journalActor(req), parseJournalKey(req.query.journal as string));
-        if ((j.kind !== 'mine' && j.kind !== 'trader') || !j.ownerId) {
-          return res.json({ marks: {}, asOf: new Date().toISOString(), note: 'Live marks cover Mine and trader books; the bot and NEXUS books carry their own ledgers.' });
+        let rows: any[];
+        if (j.kind === 'desk') {
+          // NEXUS ideas: mark the 60 most recently opened open rows (memory/quote budget on the 2 GB box).
+          const { loadJournal } = await import('./journal-sources');
+          const all = (await loadJournal(j)).rows as any[];
+          rows = all.filter((r) => String(r.status).toLowerCase() === 'open')
+            .sort((a, b) => String(b.entryTime ?? '').localeCompare(String(a.entryTime ?? '')))
+            .slice(0, 60);
+        } else if ((j.kind === 'mine' || j.kind === 'trader') && j.ownerId) {
+          rows = await storage.getJournalTrades(j.ownerId);
+        } else {
+          return res.json({ marks: {}, asOf: new Date().toISOString(), note: 'The Quantinum Bot book carries its own ledger marks.' });
         }
-        const rows = await storage.getJournalTrades(j.ownerId);
         const marks = await liveMarksFor(rows as any);
         res.json({ marks, asOf: new Date().toISOString() });
       } catch (err) {
