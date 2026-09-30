@@ -12,13 +12,16 @@
  *
  * Operator 2026-09-29: "should show 4–5 including chart" and the More slot
  * moves out of the dock into the top bar.
+ *
+ * Perf 2026-09-30: CSS transitions, not framer-motion. This file is imported by
+ * NexusFrame, which lives in the app entry chunk, so its framer import put the
+ * whole animation library (~40 KB gzip) on the first paint of every page —
+ * including the public landing page, which never shows the dock.
  */
 import { useRef, useState } from 'react';
 import { useLocation } from 'wouter';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { EASE, DUR } from '@/lib/motion';
 import { useDismissable } from '@/hooks/use-dismissable';
 import { LuxSidebar } from '@/components/lux/lux-sidebar';
 import { MOBILE_DOCK, MOBILE_PRIMARY, MOBILE_PRIMARY_PAGES, MOBILE_MORE, PAGES, UTILITY_PAGES, MobileTabIcon, tabHref, type Tab } from './nav-model';
@@ -60,11 +63,9 @@ export function MobileDock({ activeTab, onTab }: {
                 )}
               >
                 {active && (
-                  <motion.span
-                    layoutId="qe-dock-pill"
+                  <span
                     aria-hidden
-                    className="absolute inset-0 rounded-xl border border-[color-mix(in_srgb,var(--lx-accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--lx-accent)_16%,transparent)]"
-                    transition={{ duration: DUR.fast, ease: EASE }}
+                    className="absolute inset-0 rounded-xl border border-[color-mix(in_srgb,var(--lx-accent)_45%,transparent)] bg-[color-mix(in_srgb,var(--lx-accent)_16%,transparent)] animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none"
                   />
                 )}
                 <span className="relative">{item.kind === 'page' ? (PageIcon ? <PageIcon className="h-[18px] w-[18px]" /> : null) : <MobileTabIcon tab={item.tab} />}</span>
@@ -82,7 +83,6 @@ export function MobileDock({ activeTab, onTab }: {
 export function MobileMenuButton({ activeTab, onTab }: { activeTab: Tab | null; onTab?: (t: Tab) => void }) {
   const [open, setOpen] = useState(false);
   const [location, setLocation] = useLocation();
-  const reduce = useReducedMotion();
   const btnRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   useDismissable(open, () => setOpen(false), { panelRef: sheetRef, triggerRef: btnRef, trap: true });
@@ -106,40 +106,31 @@ export function MobileMenuButton({ activeTab, onTab }: { activeTab: Tab | null; 
       >
         {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
       </button>
-      <AnimatePresence>
-        {open && (
-          <>
-            <motion.button
-              type="button"
-              tabIndex={-1}
-              aria-label="Close menu"
-              className="fixed inset-0 z-[70] bg-background/60 backdrop-blur-sm lg:hidden"
-              initial={reduce ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={reduce ? undefined : { opacity: 0 }}
-              onClick={() => setOpen(false)}
+      {open && (
+        <>
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Close menu"
+            className="fixed inset-0 z-[70] bg-background/60 backdrop-blur-sm lg:hidden animate-in fade-in duration-200 motion-reduce:animate-none"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            ref={sheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu"
+            className="fixed inset-x-2 top-[calc(52px+env(safe-area-inset-top))] z-[71] max-h-[calc(100dvh-140px)] overflow-y-auto rounded-2xl border border-[var(--lx-line-hi)] bg-[var(--lx-surface)] shadow-[var(--lx-shadow-pop)] lg:hidden animate-in fade-in slide-in-from-top-3 zoom-in-[.98] duration-200 motion-reduce:animate-none"
+          >
+            <LuxSidebar
+              placement="sheet"
+              label="Menu destinations"
+              groups={[...navGroups(target), { id: 'more-utility', label: 'Account', items: utilityItems(target) }]}
+              onAnyItem={() => setOpen(false)}
             />
-            <motion.div
-              ref={sheetRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Menu"
-              className="fixed inset-x-2 top-[calc(52px+env(safe-area-inset-top))] z-[71] max-h-[calc(100dvh-140px)] overflow-y-auto rounded-2xl border border-[var(--lx-line-hi)] bg-[var(--lx-surface)] shadow-[var(--lx-shadow-pop)] lg:hidden"
-              initial={reduce ? false : { opacity: 0, y: -12, scale: .98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduce ? undefined : { opacity: 0, y: -8, scale: .98 }}
-              transition={{ duration: DUR.fast, ease: EASE }}
-            >
-              <LuxSidebar
-                placement="sheet"
-                label="Menu destinations"
-                groups={[...navGroups(target), { id: 'more-utility', label: 'Account', items: utilityItems(target) }]}
-                onAnyItem={() => setOpen(false)}
-              />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          </div>
+        </>
+      )}
     </>
   );
 }

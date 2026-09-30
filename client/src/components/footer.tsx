@@ -101,7 +101,9 @@ export function LiveStatsBar() {
   const { data: pulseData } = useQuery<{ macro?: { vix?: number; vixState?: string }; regime?: { label?: string } }>({
     queryKey: ["market-pulse"],
     queryFn: async () => {
-      const res = await fetch("/api/market-pulse");
+      // Shared key with the rails / NEXUS / chart lab — never cache an error body.
+      const res = await fetch("/api/market-pulse", { credentials: "include" });
+      if (!res.ok) throw new Error("market-pulse failed");
       return res.json();
     },
     refetchInterval: 60000,

@@ -25,7 +25,8 @@ export default function TerminalHeatmapPage() {
   const [mode, setMode] = useState<ExposureMode>('gex');
 
   const { data, isFetching, isError, refetch } = useQuery<GEXTerminalData>({
-    queryKey: ['/api/gex-vex/terminal', symbol, '15m'],
+    // Same key as gex-model / chart-layers: one (expensive) chain read per symbol.
+    queryKey: ['/api/gex-vex/terminal', symbol, 'nexus'],
     queryFn: async () => {
       const res = await fetch(`/api/gex-vex/terminal/${symbol}?interval=15m&lookback=5`, {
         credentials: 'include',

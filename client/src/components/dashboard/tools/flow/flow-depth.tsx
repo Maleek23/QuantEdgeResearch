@@ -520,7 +520,20 @@ export function SweepsBlocksTool() {
   const q = scope === 'all' ? mq : fq;
   const rows = useMemo(() => (q.data?.rows ?? [])
     .filter((r) => (kind === 'both' ? isSweep(r) || isBlock(r) : kind === 'sweep' ? isSweep(r) : isBlock(r)) && r.premium >= minP), [q.data, kind, minP]);
-  const sw = rows.filter(isSweep); const bl = rows.filter(isBlock);
+  const sw = useMemo(() => rows.filter(isSweep), [rows]); const bl = useMemo(() => rows.filter(isBlock), [rows]);
+  const list = useMemo(() => rows.slice(0, 300), [rows]);
+  // Up to 300 print rows: build them only when the rows or the focus change,
+  // not on every 15 s useNow() tick (perf 2026-09-30).
+  const printRows = useMemo(() => list.map((r) => (
+    <button key={r.id} type="button" className={`fx-print${r.symbol === focus ? ' sel' : ''}`} onClick={() => setFocus(r.symbol)} onDoubleClick={() => openWorkup(r.symbol)} title="Click: focus every FLOW ticker tool · double-click: workup">
+      <span className="t">{etTime(r.at).slice(0, 5)}</span>
+      <span className="tk">{r.symbol}</span>
+      <span className="c" style={{ color: typeColor(r.optionType) }}>{cShort(r)}</span>
+      <span className="p">{money(r.premium)}</span>
+      <span className="n">{r.label}{r.size != null ? ` · ${r.size.toLocaleString()} ct` : ''}</span>
+      <span className="s">{r.source === 'bullflow' ? 'BF' : 'CS'}</span>
+    </button>
+  )), [list, focus, setFocus]);
   useToolReport({
     asOf: q.isError && !q.data ? null : q.data ? newestAt(rows) : undefined,
     note: q.isError ? 'refresh failed' : q.data ? `${scope === 'focus' ? focus : 'all tickers'} · today` : undefined,
@@ -535,7 +548,6 @@ export function SweepsBlocksTool() {
   );
   const gate = tapeGate(q, 'flow tape');
   if (gate) return <div className="fx-root">{controls}{gate}</div>;
-  const list = rows.slice(0, 300);
   return (
     <div className="fx-root">
       {controls}
@@ -548,16 +560,7 @@ export function SweepsBlocksTool() {
         <QEEmpty className="fd-m" message={`No ${kind === 'both' ? 'sweeps or blocks' : `${kind}s`}${minP ? ` ≥ ${money(minP)}` : ''} ${scope === 'focus' ? `for ${focus} ` : ''}today. ${sourceStateLine(q.data, now)}.`} />
       ) : (
         <div className="fx-scroll">
-          {list.map((r) => (
-            <button key={r.id} type="button" className={`fx-print${r.symbol === focus ? ' sel' : ''}`} onClick={() => setFocus(r.symbol)} onDoubleClick={() => openWorkup(r.symbol)} title="Click: focus every FLOW ticker tool · double-click: workup">
-              <span className="t">{etTime(r.at).slice(0, 5)}</span>
-              <span className="tk">{r.symbol}</span>
-              <span className="c" style={{ color: typeColor(r.optionType) }}>{cShort(r)}</span>
-              <span className="p">{money(r.premium)}</span>
-              <span className="n">{r.label}{r.size != null ? ` · ${r.size.toLocaleString()} ct` : ''}</span>
-              <span className="s">{r.source === 'bullflow' ? 'BF' : 'CS'}</span>
-            </button>
-          ))}
+          {printRows}
         </div>
       )}
       <div className="fd-foot">BF = Bullflow alert (named by the provider) · CS = our chain scan (pattern inferred, "-like"). Execution style, not direction.</div>
@@ -579,6 +582,19 @@ export function UnusualActivityTool() {
   const rows = useMemo(() => (q.data?.rows ?? [])
     .filter((r) => r.source === 'chain-scan' && ((r.volOI != null && r.volOI >= th) || (r.volOI == null && r.kind === 'unusual')))
     .sort((a, b) => (b.volOI ?? -1) - (a.volOI ?? -1) || b.premium - a.premium), [q.data, th]);
+  // ≤250 rows, rebuilt only when the rows / focus / window change — not per useNow() tick.
+  const unusualRows = useMemo(() => rows.slice(0, 250).map((r) => (
+                <tr key={r.id} className={r.symbol === focus ? 'sel' : ''} onClick={() => setFocus(r.symbol)} onDoubleClick={() => openWorkup(r.symbol)} {...rowKeys(() => setFocus(r.symbol))} title="Click / Enter: focus · double-click: workup">
+                  <td className="tk">{r.symbol}</td>
+                  <td style={{ color: typeColor(r.optionType) }}>{cShort(r)}</td>
+                  <td className="r">{r.size != null ? r.size.toLocaleString() : '—'}</td>
+                  <td className="r">{r.openInterest != null ? r.openInterest.toLocaleString() : '—'}</td>
+                  <td className="r"><b>{r.volOI != null ? `${r.volOI.toFixed(1)}×` : 'flagged'}</b></td>
+                  <td className="r">{money(r.premium)}</td>
+                  <td className="r">{r.spot != null ? r.spot.toFixed(2) : '—'}</td>
+                  <td className="r dim">{days > 1 && r.at ? `${r.at.slice(5, 10)} ` : ''}{etTime(r.at).slice(0, 5)}</td>
+                </tr>
+  )), [rows, focus, setFocus, days]);
   useToolReport({
     asOf: q.isError && !q.data ? null : q.data ? newestAt(rows) : undefined,
     source: 'chain scan (OI-bearing rows)',
@@ -605,18 +621,7 @@ export function UnusualActivityTool() {
           <table className="fd-mini">
             <thead><tr><th>Ticker</th><th>Contract</th><th className="r">Vol</th><th className="r">OI</th><th className="r" title="Day volume ÷ open interest at detection">Vol/OI</th><th className="r">Premium</th><th className="r" title="Underlying at observation">Spot</th><th className="r">Seen</th></tr></thead>
             <tbody>
-              {rows.slice(0, 250).map((r) => (
-                <tr key={r.id} className={r.symbol === focus ? 'sel' : ''} onClick={() => setFocus(r.symbol)} onDoubleClick={() => openWorkup(r.symbol)} {...rowKeys(() => setFocus(r.symbol))} title="Click / Enter: focus · double-click: workup">
-                  <td className="tk">{r.symbol}</td>
-                  <td style={{ color: typeColor(r.optionType) }}>{cShort(r)}</td>
-                  <td className="r">{r.size != null ? r.size.toLocaleString() : '—'}</td>
-                  <td className="r">{r.openInterest != null ? r.openInterest.toLocaleString() : '—'}</td>
-                  <td className="r"><b>{r.volOI != null ? `${r.volOI.toFixed(1)}×` : 'flagged'}</b></td>
-                  <td className="r">{money(r.premium)}</td>
-                  <td className="r">{r.spot != null ? r.spot.toFixed(2) : '—'}</td>
-                  <td className="r dim">{days > 1 && r.at ? `${r.at.slice(5, 10)} ` : ''}{etTime(r.at).slice(0, 5)}</td>
-                </tr>
-              ))}
+              {unusualRows}
             </tbody>
           </table>
         </div>

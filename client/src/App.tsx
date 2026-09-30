@@ -20,7 +20,7 @@ import { DensityProvider } from "@/components/ui/qe-density";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { StockContextProvider } from "@/contexts/stock-context";
 import { lazyWithRetry } from "@/lib/lazy-import";
-import { CommandPalette } from "@/components/command-palette";
+import { CommandPaletteHost } from "@/components/command-palette-host";
 import { WhatsNewDrawer, WhatsNewToast } from "@/components/whats-new";
 import { NexusFrame } from "@/components/shell/nexus-frame";
 
@@ -87,11 +87,20 @@ const ResetPassword = lazyWithRetry(() => import("@/pages/reset-password"), "res
 function preloadCriticalRoutes() {
   // Use requestIdleCallback (or setTimeout fallback) to avoid blocking initial paint
   const schedule = typeof requestIdleCallback !== "undefined" ? requestIdleCallback : (fn: () => void) => setTimeout(fn, 2000);
+  // Warm only the canonical terminal shell. The previous list downloaded three
+  // legacy/heavy pages (including an unrouted Home) immediately after first paint,
+  // competing with the live Oracle requests the user was actually waiting for.
+  // Only for a signed-in session (perf 2026-09-30): an anonymous landing-page
+  // visitor cannot open /t, and the shell chunk was ~145 KB gzip of wasted
+  // bandwidth + parse on the marketing page's first load.
+  const warm = () => { import("@/pages/shells/terminal-shell").catch(() => {}); };
+  const signedIn = () => !!queryClient.getQueryData(["/api/auth/me"]);
   schedule(() => {
-    // Warm only the canonical terminal shell. The previous list downloaded three
-    // legacy/heavy pages (including an unrouted Home) immediately after first paint,
-    // competing with the live Oracle requests the user was actually waiting for.
-    import("@/pages/shells/terminal-shell").catch(() => {});
+    if (signedIn()) return warm();
+    const cache = queryClient.getQueryCache();
+    const unsubscribe = cache.subscribe(() => {
+      if (signedIn()) { unsubscribe(); warm(); }
+    });
   });
 }
 
@@ -329,7 +338,7 @@ function App() {
             <RealtimePricesProvider>
               <StockContextProvider>
                 <Router />
-                <CommandPalette />
+                <CommandPaletteHost />
                 <WhatsNewDrawer />
                 <WhatsNewToast />
                 <Toaster />
@@ -425,7 +434,7 @@ function App() {
                         </ErrorBoundary>
                       </NexusFrame>
                     </SidebarProvider>
-                    <CommandPalette />
+                    <CommandPaletteHost />
                     <WhatsNewDrawer />
                     <WhatsNewToast />
                     <Toaster />

@@ -161,7 +161,9 @@ export const useNexusConvictions = () => useQuery<ConvictionsResponse>({
   refetchInterval: 60_000,
 });
 export const useNexusPulse = () => useQuery<MarketPulseRead>({
-  queryKey: ['/api/market-pulse', 'nexus-macro'],
+  // Same key as the terminal footer / rails / chart lab: one /api/market-pulse
+  // request per interval for the whole terminal, not one per consumer.
+  queryKey: ['market-pulse'],
   queryFn: () => get('/api/market-pulse'),
   staleTime: 30_000,
   refetchInterval: 60_000,

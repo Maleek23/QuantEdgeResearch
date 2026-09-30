@@ -8,7 +8,7 @@
  * page no longer swaps the entire interface underneath you.
  */
 import { CopyLinkButton } from '@/components/shell/copy-link-button';
-import { useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useRef, useState, type ReactNode } from 'react';
 import { useMainHeightVar } from './main-height';
 import { Link, useLocation } from 'wouter';
 import { BookOpen, LogOut, Settings, SlidersHorizontal, Bell, Search } from 'lucide-react';
@@ -19,7 +19,8 @@ import qeMark from '@assets/qe-mark.svg';
 import '@/styles/nexus.css';
 import { PAGES, UTILITY_PAGES } from './nav-model';
 import { MobileDock, MobileMenuButton } from './mobile-dock';
-import { CustomizePanel } from './customize-panel';
+// Renders nothing while closed — loaded on first open (perf 2026-09-30).
+const CustomizePanel = lazy(() => import('./customize-panel').then((m) => ({ default: m.CustomizePanel })));
 import { DesktopRail } from './desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from './skip-link';
 import { LuxTopBar } from '@/components/lux/lux-topbar';
@@ -131,7 +132,11 @@ export function NexusFrame({ children }: { children: ReactNode }) {
       </main>
 
       <MobileDock activeTab={null} />
-      <CustomizePanel open={customizeOpen} onClose={() => setCustomizeOpen(false)} />
+      {customizeOpen && (
+        <Suspense fallback={null}>
+          <CustomizePanel open onClose={() => setCustomizeOpen(false)} />
+        </Suspense>
+      )}
 
       <footer className="bottombar hidden shrink-0 lg:flex lg:pl-[var(--qe-rail-w,196px)]" style={{ minHeight: 26 }}>
         <div className="bb-item"><span className="dot" /><b>{page ? page.short : 'PAGE'}</b></div>

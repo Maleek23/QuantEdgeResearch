@@ -58,7 +58,9 @@ export const useToolInstance = () => useContext(ToolInstanceCtx);
  *  clicked here also re-points every other page's symbol tools. */
 export function useFocusSymbol(fallback = 'SPY'): [string, (s: string) => void] {
   const { currentStock, setCurrentStock } = useStockContext();
-  return [(currentStock?.symbol || fallback).toUpperCase(), (s: string) => setCurrentStock({ symbol: s.toUpperCase() })];
+  // Stable setter so tools can memoise large row lists on it (perf 2026-09-30).
+  const setFocus = useCallback((s: string) => setCurrentStock({ symbol: s.toUpperCase() }), [setCurrentStock]);
+  return [(currentStock?.symbol || fallback).toUpperCase(), setFocus];
 }
 
 export function useNow(everyMs = 15_000) {
