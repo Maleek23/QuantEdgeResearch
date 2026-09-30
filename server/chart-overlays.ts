@@ -248,7 +248,28 @@ const DP_WINDOW_DAYS = 28;
 const INDEX_ETFS = new Set(['SPY', 'QQQ', 'IWM', 'DIA']);
 
 async function darkPoolFor(sym: string): Promise<{ read: DarkPoolRead | null; stale: boolean; reason?: string }> {
-  if (sym === 'SPX') return { read: null, stale: false, reason: 'SPX is an index — it has no dark-pool prints (see SPY)' };
+  if (sym === 'SPX') {
+    // SPX has no prints of its own; SPY's dark-pool levels are carried over at
+    // the live SPX/SPY ratio and labelled as such (operator 2026-09-30).
+    const spy = await darkPoolFor('SPY');
+    if (!spy.read) return { read: null, stale: spy.stale, reason: spy.reason ?? 'SPY dark-pool read unavailable' };
+    let k: number | null = null;
+    try {
+      const { getRealtimeQuote } = await import('./realtime-pricing-service');
+      const [a, b]: any[] = await Promise.all([getRealtimeQuote('SPX', 'stock'), getRealtimeQuote('SPY', 'stock')]);
+      const x = Number(a?.price) / Number(b?.price);
+      if (Number.isFinite(x) && x > 5 && x < 15) k = x;
+    } catch { /* ratio unavailable */ }
+    if (k == null) return { read: null, stale: false, reason: 'SPX/SPY ratio unavailable — see SPY for dark-pool levels' };
+    return {
+      stale: spy.stale,
+      read: {
+        ...spy.read,
+        source: `${spy.read.source} · SPY levels × live SPX/SPY ${k.toFixed(4)} (SPX has no prints of its own)`,
+        levels: spy.read.levels.map((l) => ({ ...l, price: Math.round(l.price * k! * 100) / 100 })),
+      },
+    };
+  }
   const hit = dpCache.get(sym) ?? loadDpDisk(sym);
   if (hit && Date.now() - hit.at < DP_TTL_MS) return { read: hit, stale: false };
   const bf = await import('./bullflow-service');
