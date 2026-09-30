@@ -305,6 +305,7 @@ export function toSnapshot(result: NonNullable<Awaited<ReturnType<typeof calcula
     dataQuality,
     dealerFlowPer1Pct,
     byDte,
+    ...(result.gammaMetrics ? { gammaMetrics: result.gammaMetrics } : {}),
   };
 }
 

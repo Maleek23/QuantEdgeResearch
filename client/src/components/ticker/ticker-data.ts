@@ -21,6 +21,8 @@ export interface QuantinumDossier {
   lean: 'bullish' | 'bearish' | 'mixed' | 'quiet';
   confidence: number;
   shortGate: { open: boolean; why: string };
+  /** Raw vs Δ-adjusted vs flow-signed dealer gamma (docs/GAMMA_RAW_VS_ADJUSTED.md) — context, 0 points. */
+  gexCompare?: import('@shared/gex-adjusted').GammaCompare | null;
 }
 export interface Pick {
   symbol: string; direction?: string | null; tradeType?: string | null; holdingPeriod?: string | null;

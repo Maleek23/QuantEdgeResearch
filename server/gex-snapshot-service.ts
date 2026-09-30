@@ -19,6 +19,7 @@
 
 import { logger } from "./logger";
 import { calculateAggregateGammaExposure } from "./gamma-exposure";
+import { summarizeGammaMetrics, type GammaCompare } from "../shared/gex-adjusted";
 
 export interface GexSnapshot {
   symbol: string;
@@ -35,6 +36,11 @@ export interface GexSnapshot {
   fetchedAt: string;
   /** Share of gross GEX resting on modelled (not feed-supplied) gamma — shared/iv-fill.ts. */
   modelledGrossShare?: number | null;
+  /**
+   * Raw vs Δ-adjusted vs flow-signed GEX: regime and levels under each
+   * (docs/GAMMA_RAW_VS_ADJUSTED.md). Context only — no scorer reads it.
+   */
+  gammaCompare?: GammaCompare | null;
 }
 
 interface CacheEntry {
@@ -96,6 +102,7 @@ async function fetchOne(symbol: string): Promise<GexSnapshot | null> {
     netGexSign: netSign,
     fetchedAt: new Date().toISOString(),
     modelledGrossShare: result.dataQuality?.modelledGrossShare ?? null,
+    gammaCompare: result.gammaMetrics ? summarizeGammaMetrics(result.gammaMetrics, spot) : null,
   };
 }
 

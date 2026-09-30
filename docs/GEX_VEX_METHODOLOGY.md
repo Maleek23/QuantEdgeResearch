@@ -109,6 +109,8 @@ All per contract line, then summed.
 | DEX | sign · Δ · OI · 100 · S | $ dealer delta notional | dealers long calls / short puts |
 | Charm | sign · ∂Δ/∂t · OI · 100 · S | $ per year of decay | same |
 
+**Raw vs Δ-adjusted vs flow-signed.** Beside raw GEX, the exposures engine also ships a Δ-adjusted GEX (delta re-priced at spot ±1%: the hedge a real 1% move needs) and a flow-signed estimate (the Squeeze Radar re-sign), in the same unit, with levels under each (`snapshot.gammaMetrics`, cell `netGEXAdj` / `netGEXFlow`). Raw stays the headline. Definitions, vendor survey and a worked SPY example: `docs/GAMMA_RAW_VS_ADJUSTED.md`.
+
 **Wire scaling.**
 - Hub, scanner and CBOE-fallback snapshots carry `totalGEX` in **$B per 1%** and `totalVEX` in **$M per IV point**.
 - Snapshot field `unitsVersion: 2` marks this.

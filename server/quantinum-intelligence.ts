@@ -31,6 +31,12 @@ export interface QuantinumDossier {
   price: { last: number | null; changePercent: number | null; source: string | null; asOf: string | null; session: string | null; stale: boolean };
   /** Canonical dealer levels (server/gex-snapshot-service → options-exposures), same numbers as the GEX page. */
   gex: { spot: number; callWall: number | null; putWall: number | null; zeroGamma: number | null; regime: string | null; netGexSign: string; asOf: string } | null;
+  /**
+   * Raw vs Δ-adjusted vs flow-signed dealer gamma — regime and key levels under
+   * each (docs/GAMMA_RAW_VS_ADJUSTED.md). Context layer, 0 points: no replay has
+   * shown either variant predicts better than raw.
+   */
+  gexCompare: import('../shared/gex-adjusted').GammaCompare | null;
   layers: QuantinumLayer[];
   unavailable: string[];
   bullPoints: number;
@@ -53,6 +59,7 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
   let changePercent: number | null = null;
   let quoteSource: string | null = null; let quoteAsOf: string | null = null; let quoteSession: string | null = null; let quoteStale = false;
   let gex: QuantinumDossier['gex'] = null;
+  let gexCompare: QuantinumDossier['gexCompare'] = null;
   let above200 = false;
   let hasEventCatalyst = false;
 
@@ -302,6 +309,14 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
         why: `${g.regime ?? 'unknown'} · put wall ${fmt(g.putWall)} · zero-gamma ${fmt(g.flipPoint)} · call wall ${fmt(g.callWall)} (context, not scored)`,
         source: 'options exposure engine',
       });
+      if (g.gammaCompare) {
+        gexCompare = g.gammaCompare;
+        layers.push({
+          kind: 'gex-adjusted' as any, label: 'Dealer gamma · raw vs Δ-adjusted', points: 0,
+          why: `${g.gammaCompare.read}${g.gammaCompare.regimeAgrees ? '' : ' · regime DISAGREES between raw and Δ-adjusted'} (context, not scored — no evidence yet that either variant predicts)`,
+          source: 'options exposure engine · docs/GAMMA_RAW_VS_ADJUSTED.md',
+        });
+      } else unavailable.push('dealer gamma raw vs Δ-adjusted — this chain path does not carry the comparison');
     } else unavailable.push('dealer positioning (GEX) — no options chain for this name right now');
   } catch {
     unavailable.push('dealer positioning (GEX) — read failed');
@@ -345,6 +360,7 @@ export async function getQuantinumDossier(symbol: string): Promise<QuantinumDoss
     asOf: new Date().toISOString(),
     price: { last, changePercent, source: quoteSource, asOf: quoteAsOf, session: quoteSession, stale: quoteStale },
     gex,
+    gexCompare,
     layers,
     unavailable,
     bullPoints,

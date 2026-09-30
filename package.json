@@ -18,6 +18,7 @@
     "test:sr-controls": "tsx scripts/test-sr-controls.ts",
     "test:loss-rules": "tsx scripts/test-loss-rules.ts",
     "test:squeeze": "tsx scripts/test-squeeze.ts",
+    "test:gamma-adjusted": "tsx scripts/test-gamma-adjusted.ts",
     "test:zero-dte": "tsx scripts/test-zero-dte-desk.ts",
     "test:model-determinism": "node scripts/verify-model-determinism.mjs",
     "test:sr117": "npm run test:tsc-gate && npm run test:redirects && npm run test:sr-controls && npm run test:model-determinism && npm run build",

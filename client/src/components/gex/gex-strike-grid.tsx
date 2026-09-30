@@ -34,7 +34,10 @@ import {
   exposureStrength, fmtGexB, fmtVexM, LEVEL_COLORS, rampColor, rampGradient, rampInk,
 } from './gex-colors';
 
-export type Metric = 'gex' | 'vex';
+/** 'gexAdj' = Δ-adjusted GEX (docs/GAMMA_RAW_VS_ADJUSTED.md) — same unit as 'gex'. */
+export type Metric = 'gex' | 'gexAdj' | 'vex';
+const metricLabel = (m: Metric) => (m === 'vex' ? 'VEX' : m === 'gexAdj' ? 'Δ-ADJ GEX' : 'GEX');
+const cellVal = (c: StrikeExpiryCell, m: Metric) => (m === 'vex' ? (c.netVEX ?? 0) : m === 'gexAdj' ? (c.netGEXAdj ?? 0) : c.netGEX);
 /**
  * Colour scale of the matrix:
  *   column   — each expiry column 0 → its OWN max (default). Near-term gamma
@@ -265,11 +268,70 @@ function RampLegend({ scale, max, metric }: { scale: MatrixScale; max: number; m
   );
 }
 
+interface ColStat { rMax: number; trueMax: number; net: number; gross: number; top: Map<number, number> }
+interface MatrixModel {
+  strikes: number[];
+  byKey: Map<string, StrikeExpiryCell>;
+  rowTotal: Map<number, number>;
+  rowMax: number;
+  gross: number;
+  rMax: number;
+  trueMax: number;
+  col: Map<number, ColStat>;
+  king: StrikeExpiryCell | null;
+}
+
+/** One metric's view of the shown book: robust scales, per-expiry stats, row totals, king node. */
+function buildMatrixModel(cells: StrikeExpiryCell[], expiries: Array<[number, string]>, val: (c: StrikeExpiryCell) => number): MatrixModel {
+  const listed = cells.filter((c) => Number.isFinite(c.strike) && Number.isFinite(c.dte) && c.dte >= 0);
+  const shownDte = new Set(expiries.map(([d]) => d));
+  const byKey = new Map<string, StrikeExpiryCell>();
+  const rowTotal = new Map<number, number>();
+  let gross = 0;
+  const strikeSet = new Set<number>();
+  for (const c of listed) {
+    strikeSet.add(c.strike);
+    const v = val(c);
+    gross += Math.abs(v);
+    if (!shownDte.has(c.dte)) continue;
+    byKey.set(`${c.strike}|${c.dte}`, c);
+    rowTotal.set(c.strike, (rowTotal.get(c.strike) ?? 0) + v);
+  }
+  const strikes = [...strikeSet].sort((a, b) => b - a);
+  const shownVals = [...byKey.values()].map((c) => Math.abs(val(c)));
+  // Robust max (98.5th pct) so one outlier node does not wash out the book;
+  // the book's true max still paints at full strength (t clamps at 1).
+  const rMax = robustMax(shownVals, 1e-12, 0.985);
+  const trueMax = shownVals.reduce((m, v) => Math.max(m, v), 0);
+  const rowMax = [...rowTotal.values()].reduce((m, v) => Math.max(m, Math.abs(v)), 0) || 1e-12;
+  // Per-expiry column stats: its own robust max (the per-expiry scale), its
+  // true max (dust threshold), its net (header summary) and its top-2 cells.
+  const byCol = new Map<number, StrikeExpiryCell[]>();
+  for (const c of byKey.values()) { const a = byCol.get(c.dte); if (a) a.push(c); else byCol.set(c.dte, [c]); }
+  const col = new Map<number, ColStat>();
+  for (const [dte, list] of byCol) {
+    const abs = list.map((c) => Math.abs(val(c)));
+    const ranked = [...list].filter((c) => val(c) !== 0).sort((a, b) => Math.abs(val(b)) - Math.abs(val(a)));
+    col.set(dte, {
+      rMax: robustMax(abs, 1e-12, 0.985),
+      trueMax: abs.reduce((m, v) => Math.max(m, v), 0),
+      net: list.reduce((s2, c) => s2 + val(c), 0),
+      gross: abs.reduce((s2, v) => s2 + v, 0),
+      top: new Map(ranked.slice(0, 2).map((c, i) => [c.strike, i + 1])),
+    });
+  }
+  // KING NODE — the single largest |cell| in the shown book (its strike label gets ★ too)
+  let king: StrikeExpiryCell | null = null;
+  for (const c of byKey.values()) if (!king || Math.abs(val(c)) > Math.abs(val(king))) king = c;
+  return { strikes, byKey, rowTotal, rowMax, gross, rMax, trueMax, col, king };
+}
+
 export function GexStrikeMatrix({
   cells,
   expiries,
   levels,
   metric,
+  compare = false,
   centerKey,
   onCellClick,
   emptyText,
@@ -282,6 +344,12 @@ export function GexStrikeMatrix({
   expiries: Array<[number, string]>;
   levels: GridLevels;
   metric: Metric;
+  /**
+   * Side by side: two narrow columns per expiry — raw GEX | Δ-adjusted GEX
+   * (docs/GAMMA_RAW_VS_ADJUSTED.md). Ignored for VEX. Each half keeps its own
+   * colour scale and its own ★/② ranks, so a node that moves is visible.
+   */
+  compare?: boolean;
   /** change to re-centre on spot (symbol, metric) */
   centerKey: string;
   onCellClick?: (cell: StrikeExpiryCell) => void;
@@ -295,51 +363,12 @@ export function GexStrikeMatrix({
   const setScale = onScaleChange ?? setOwnScale;
   const [showDust, setShowDust] = useState(false);
   const [dustPct, setDustPct] = useState(0.5);
-  const val = useCallback((c: StrikeExpiryCell) => (metric === 'vex' ? (c.netVEX ?? 0) : c.netGEX), [metric]);
-
-  const model = useMemo(() => {
-    const listed = cells.filter((c) => Number.isFinite(c.strike) && Number.isFinite(c.dte) && c.dte >= 0);
-    const shownDte = new Set(expiries.map(([d]) => d));
-    const byKey = new Map<string, StrikeExpiryCell>();
-    const rowTotal = new Map<number, number>();
-    let gross = 0;
-    const strikeSet = new Set<number>();
-    for (const c of listed) {
-      strikeSet.add(c.strike);
-      const v = val(c);
-      gross += Math.abs(v);
-      if (!shownDte.has(c.dte)) continue;
-      byKey.set(`${c.strike}|${c.dte}`, c);
-      rowTotal.set(c.strike, (rowTotal.get(c.strike) ?? 0) + v);
-    }
-    const strikes = [...strikeSet].sort((a, b) => b - a);
-    const shownVals = [...byKey.values()].map((c) => Math.abs(val(c)));
-    // Robust max (98.5th pct) so one outlier node does not wash out the book;
-    // the book's true max still paints at full strength (t clamps at 1).
-    const rMax = robustMax(shownVals, 1e-12, 0.985);
-    const trueMax = shownVals.reduce((m, v) => Math.max(m, v), 0);
-    const rowMax = [...rowTotal.values()].reduce((m, v) => Math.max(m, Math.abs(v)), 0) || 1e-12;
-    // Per-expiry column stats: its own robust max (the per-expiry scale), its
-    // true max (dust threshold), its net (header summary) and its top-2 cells.
-    const byCol = new Map<number, StrikeExpiryCell[]>();
-    for (const c of byKey.values()) { const a = byCol.get(c.dte); if (a) a.push(c); else byCol.set(c.dte, [c]); }
-    const col = new Map<number, { rMax: number; trueMax: number; net: number; gross: number; top: Map<number, number> }>();
-    for (const [dte, list] of byCol) {
-      const abs = list.map((c) => Math.abs(val(c)));
-      const ranked = [...list].filter((c) => val(c) !== 0).sort((a, b) => Math.abs(val(b)) - Math.abs(val(a)));
-      col.set(dte, {
-        rMax: robustMax(abs, 1e-12, 0.985),
-        trueMax: abs.reduce((m, v) => Math.max(m, v), 0),
-        net: list.reduce((s2, c) => s2 + val(c), 0),
-        gross: abs.reduce((s2, v) => s2 + v, 0),
-        top: new Map(ranked.slice(0, 2).map((c, i) => [c.strike, i + 1])),
-      });
-    }
-    // KING NODE — the single largest |cell| in the shown book (its strike label gets ★ too)
-    let king: StrikeExpiryCell | null = null;
-    for (const c of byKey.values()) if (!king || Math.abs(val(c)) > Math.abs(val(king))) king = c;
-    return { strikes, byKey, rowTotal, rowMax, gross, rMax, trueMax, col, king };
-  }, [cells, expiries, val]);
+  const both = compare && metric !== 'vex';
+  const primary: Metric = both ? 'gex' : metric;
+  const val = useCallback((c: StrikeExpiryCell) => cellVal(c, primary), [primary]);
+  const model = useMemo(() => buildMatrixModel(cells, expiries, val), [cells, expiries, val]);
+  const model2 = useMemo(() => (both ? buildMatrixModel(cells, expiries, (c) => cellVal(c, 'gexAdj')) : null), [both, cells, expiries]);
+  const sub = both ? 2 : 1;
 
   // Row height follows the measured size class (phones get taller rows); the
   // class is known after the first measure, so it lives in state.
@@ -347,7 +376,8 @@ export function GexStrikeMatrix({
   const ROW = narrowRows ? M_ROW_NARROW : M_ROW;
   const HEAD = narrowRows ? M_HEAD_NARROW : M_HEAD;
   const { ref, onScroll, first, last, scrollTop, viewH, viewW } = useVirtualRows(model.strikes.length, ROW);
-  const geo = matrixGeometry(viewW, expiries.length);
+  const geo = matrixGeometry(viewW, expiries.length * sub);
+  const compact = geo.size === 'narrow' || both;
   useEffect(() => { setNarrowRows(geo.size === 'narrow'); }, [geo.size]);
   const sIdx = spotIndex(model.strikes, levels.spot);
   const jump = useCenterOnSpot(ref, sIdx, ROW, HEAD, centerKey, model.strikes.length > 0);
@@ -355,8 +385,8 @@ export function GexStrikeMatrix({
   const spotDir = spotRowY == null ? null : spotRowY < scrollTop + HEAD ? 'up' : spotRowY > scrollTop + viewH - ROW ? 'down' : null;
   const zgY = priceY(model.strikes, levels.zeroGamma, ROW, HEAD);
   const spotY = priceY(model.strikes, levels.spot, ROW, HEAD);
-  const scaleMaxOf = (dte: number) => (scale === 'column' ? model.col.get(dte)?.rMax ?? model.rMax : model.rMax);
-  const dustCutOf = (dte: number) => (scale === 'column' ? model.col.get(dte)?.trueMax ?? model.trueMax : model.trueMax) * (dustPct / 100);
+  const scaleMaxOf = (m: MatrixModel, dte: number) => (scale === 'column' ? m.col.get(dte)?.rMax ?? m.rMax : m.rMax);
+  const dustCutOf = (m: MatrixModel, dte: number) => (scale === 'column' ? m.col.get(dte)?.trueMax ?? m.trueMax : m.trueMax) * (dustPct / 100);
 
   /* hover card — one floating element, event-delegated */
   // The card's CONTENT changes only when the hovered cell changes (React state);
@@ -390,10 +420,49 @@ export function GexStrikeMatrix({
 
   const cols = expiries.length;
   const visible = model.strikes.slice(first, last);
+  const fmtCell2 = (v: number, mt: Metric) => (compact ? fmtCompact(v, mt) : fmtVal(v, mt));
+
+  /** One cell of one metric (both halves in side-by-side share this). */
+  const renderCell = (strike: number, dte: number, m: MatrixModel, mt: Metric, half: '' | 'raw' | 'adj') => {
+    const key = `${dte}${half}`;
+    const cls = half ? ` gx-half gx-half-${half}` : '';
+    const c = m.byKey.get(`${strike}|${dte}`);
+    if (!c) return <td key={key} className={cls.trim() || undefined} />;
+    const v = cellVal(c, mt);
+    if (v === 0) return <td key={key} className={cls.trim() || undefined} data-k={`${strike}|${dte}`}><span className="gx-dot" /></td>;
+    const rank = m.col.get(dte)?.top.get(strike);
+    const dust = !rank && Math.abs(v) < dustCutOf(m, dte);
+    if (dust && !showDust) return <td key={key} className={cls.trim() || undefined} data-k={`${strike}|${dte}`}><span className="gx-dot" /></td>;
+    const t = exposureStrength(v, scaleMaxOf(m, dte));
+    // King node of this expiry (rank 1): ★ + solid amber highlight. Near-zero
+    // cells (under 12% intensity) are neutral grey so the 3–5 dominant nodes pop;
+    // sign stays the CVD-safe blue (+) / orange (−) pair everywhere else.
+    const king = rank === 1;
+    const faint = !king && t < 0.12;
+    return (
+      <td key={key} className={cls.trim() || undefined} data-k={`${strike}|${dte}`}>
+        <button
+          type="button"
+          // the two top nodes of each expiry are keyboard stops (Enter = drill); the rest are reached by hover/tap
+          tabIndex={rank ? 0 : -1}
+          className={`gx-cell${dust ? ' dust' : ''}${rank ? ' top' : ''}${king ? ' king' : ''}${faint ? ' faint' : ''}`}
+          data-rank={rank ? (rank === 1 ? '★' : '②') : undefined}
+          style={king || faint ? undefined : { background: rampColor(v, t), color: rampInk(t) }}
+          onClick={onCellClick ? () => onCellClick(c) : undefined}
+          aria-label={`${half ? `${half === 'raw' ? 'raw' : 'Δ-adjusted'} ` : ''}${fmtVal(v, mt)}${rank ? `, ${rank === 1 ? 'king node (largest)' : '#2'} in this expiry` : ''}`}
+        >
+          {king && !compact ? '★ ' : ''}{fmtCell2(v, mt)}
+        </button>
+      </td>
+    );
+  };
+
+  const kingStrikes = new Set([model.king?.strike, model2?.king?.strike].filter((k): k is number => k != null));
+  const title = both ? 'RAW | Δ-ADJ GEX' : metricLabel(metric);
 
   return (
     <div
-      className={`gx-wrap gx-${geo.size}`}
+      className={`gx-wrap gx-${geo.size}${both ? ' gx-compare' : ''}`}
       ref={wrapRef}
       onMouseLeave={() => setHover(null)}
       data-per-view={geo.perView}
@@ -411,10 +480,11 @@ export function GexStrikeMatrix({
           ))}
         </span>
         <span className="gx-scale-now" role="status">
-          {scale === 'column' ? 'each column 0 → its own max' : `one max for all cells · ${fmtVal(model.rMax, metric)}`}
+          {scale === 'column' ? `each column 0 → its own max${both ? ' (raw and Δ-adj halves scaled separately)' : ''}` : `one max for all cells · ${fmtVal(model.rMax, primary)}`}
         </span>
-        <RampLegend scale={scale} max={model.rMax} metric={metric} />
-        <span className="gx-sign" title="Blue = + (dealers long gamma, hedging provides liquidity). Orange = − (dealers short gamma, hedging takes liquidity). ①② = the two largest |cells| of each expiry, never hidden. Blank = the chain never listed that strike × expiry."><b style={{ color: signInk(1) }}>+ provides</b> · <b style={{ color: signInk(-1) }}>− takes</b> · {unitOf(metric).replace('/', '$ per ')} · ①② top-2/expiry · blank = not listed</span>
+        <RampLegend scale={scale} max={model.rMax} metric={primary} />
+        <span className="gx-sign" title="Blue = + (dealers long gamma, hedging provides liquidity). Orange = − (dealers short gamma, hedging takes liquidity). ①② = the two largest |cells| of each expiry, never hidden. Blank = the chain never listed that strike × expiry."><b style={{ color: signInk(1) }}>+ provides</b> · <b style={{ color: signInk(-1) }}>− takes</b> · {unitOf(primary).replace('/', '$ per ')} · ①② top-2/expiry · blank = not listed</span>
+        {both && <span className="gx-compare-key" title="Left half of each expiry = raw GEX (Γ·OI·100·S²·0.01). Right half, underlined = Δ-adjusted (delta re-priced at spot ±1%). Same unit, $ per 1% move; each half ranks its own ★ and ②."><b>R</b> raw · <b className="gx-adj-tag">Δ</b> Δ-adjusted</span>}
         <label className="gx-toggle" title={`Cells smaller than ${dustPct}% of the largest cell in their scale are dust. Hidden, they print a faint dot (listed, but immaterial); hover still answers. The top-2 cells of every expiry are never hidden. Blank = the chain never listed that strike × expiry.`}>
           <input type="checkbox" checked={showDust} onChange={(e) => setShowDust(e.target.checked)} />
           show dust
@@ -434,13 +504,13 @@ export function GexStrikeMatrix({
             {spotDir === 'up' ? '↑' : spotDir === 'down' ? '↓' : '◎'} Spot ${levels.spot.toFixed(2)}
           </button>
         )}
-        {cols > geo.perView && (
+        {cols * sub > geo.perView && (
           <span className="gx-pager" role="group" aria-label="Scroll expiries">
             <button type="button" onClick={() => ref.current?.scrollBy({ left: -(geo.colW || 120) * geo.perView, behavior: 'smooth' })} aria-label="Earlier expiries" title="Earlier expiries (or Shift+wheel / swipe)">‹</button>
             <button type="button" onClick={() => ref.current?.scrollBy({ left: (geo.colW || 120) * geo.perView, behavior: 'smooth' })} aria-label="Later expiries" title="Later expiries (or Shift+wheel / swipe)">›</button>
           </span>
         )}
-        <span className="gx-count">{model.strikes.length} strikes · {Math.min(cols, geo.perView)} of {cols} exp in view{cols > geo.perView ? ' · ↔ swipe' : ''} · ↕ scroll{geo.size === 'narrow' ? ` · ${metric === 'vex' ? '$ per IV pt' : '$ per 1%'}` : ' · S = spot'}</span>
+        <span className="gx-count">{model.strikes.length} strikes · {Math.min(cols, Math.floor(geo.perView / sub) || 1)} of {cols} exp in view{cols * sub > geo.perView ? ' · ↔ swipe' : ''} · ↕ scroll{geo.size === 'narrow' ? ` · ${metric === 'vex' ? '$ per IV pt' : '$ per 1%'}` : ' · S = spot'}</span>
       </div>
 
       <div
@@ -448,7 +518,7 @@ export function GexStrikeMatrix({
         className="gx-scroll gx-snap"
         tabIndex={0}
         role="region"
-        aria-label={`Strike by expiry ${metric.toUpperCase()} grid, ${model.strikes.length} strikes, ${Math.min(cols, geo.perView)} of ${cols} expiries in view. Arrow keys scroll, S jumps to spot.`}
+        aria-label={`Strike by expiry ${title} grid, ${model.strikes.length} strikes, ${cols} expiries. Arrow keys scroll, S jumps to spot.`}
         style={{ scrollPaddingLeft: geo.strikeW, scrollPaddingRight: geo.sumW }}
         onScroll={onScroll}
         onKeyDown={(e) => onGridKey(e, ROW, () => jump(true), geo.colW || 120)}
@@ -462,7 +532,9 @@ export function GexStrikeMatrix({
           {geo.colW > 0 && (
             <colgroup>
               <col style={{ width: geo.strikeW }} />
-              {expiries.map(([dte]) => <col key={dte} style={{ width: geo.colW }} />)}
+              {expiries.flatMap(([dte]) => (both
+                ? [<col key={`${dte}r`} style={{ width: geo.colW }} />, <col key={`${dte}a`} style={{ width: geo.colW }} />]
+                : [<col key={dte} style={{ width: geo.colW }} />]))}
               <col style={{ width: geo.sumW }} />
             </colgroup>
           )}
@@ -471,26 +543,36 @@ export function GexStrikeMatrix({
               <th className="gx-sticky-l">STRIKE</th>
               {expiries.map(([dte, label]) => {
                 const cs = model.col.get(dte);
+                const cs2 = model2?.col.get(dte);
                 return (
-                  <th key={dte} className="gx-exp" title={`${label} · ${dte} days to expiry\nNet ${metric.toUpperCase()} this expiry (all listed strikes): ${cs ? fmtVal(cs.net, metric) : '—'}${unitOf(metric)}\nGross |${metric.toUpperCase()}|: ${cs ? fmtVal(cs.gross, metric).replace(/^[+−]/, '') : '—'} · ${model.gross > 0 && cs ? ((cs.gross / model.gross) * 100).toFixed(1) : '0'}% of the book\n${scale === 'column' ? `Colour max for this column: ${cs ? fmtVal(cs.rMax, metric).replace(/^[+−]/, '') : '—'}` : 'Colour: one max for all columns'}`}>
+                  <th key={dte} colSpan={sub} className="gx-exp" title={`${label} · ${dte} days to expiry\nNet ${metricLabel(primary)} this expiry (all listed strikes): ${cs ? fmtVal(cs.net, primary) : '—'}${unitOf(primary)}${cs2 ? `\nNet Δ-ADJ GEX this expiry: ${fmtVal(cs2.net, 'gexAdj')}/1%` : ''}\nGross |${metricLabel(primary)}|: ${cs ? fmtVal(cs.gross, primary).replace(/^[+−]/, '') : '—'} · ${model.gross > 0 && cs ? ((cs.gross / model.gross) * 100).toFixed(1) : '0'}% of the book\n${scale === 'column' ? `Colour max for this column: ${cs ? fmtVal(cs.rMax, primary).replace(/^[+−]/, '') : '—'}` : 'Colour: one max for all columns'}`}>
                     {geo.size === 'narrow' ? shortExpiry(label) : label}<small>{dte}d</small>
-                    <em className="gx-colnet" style={{ color: cs ? signInk(cs.net) : undefined }}>{cs ? (geo.size === 'narrow' ? fmtCompact(cs.net, metric) : `Σ ${fmtVal(cs.net, metric)}`) : '—'}</em>
+                    {both ? (
+                      <em className="gx-colnet gx-colnet-pair">
+                        <span style={{ color: cs ? signInk(cs.net) : undefined }}>R {cs ? fmtCompact(cs.net, 'gex') : '—'}</span>
+                        <span className="gx-adj-tag" style={{ color: cs2 ? signInk(cs2.net) : undefined }}>Δ {cs2 ? fmtCompact(cs2.net, 'gexAdj') : '—'}</span>
+                      </em>
+                    ) : (
+                      <em className="gx-colnet" style={{ color: cs ? signInk(cs.net) : undefined }}>{cs ? (geo.size === 'narrow' ? fmtCompact(cs.net, metric) : `Σ ${fmtVal(cs.net, metric)}`) : '—'}</em>
+                    )}
                   </th>
                 );
               })}
-              <th className="gx-sticky-r" title="Net of the shown expiries at this strike — why a wall is a wall even when each single expiry is small">{geo.size === 'narrow' ? 'Σ' : 'Σ SHOWN'}</th>
+              <th className="gx-sticky-r" title="Net of the shown expiries at this strike — why a wall is a wall even when each single expiry is small">{geo.size === 'narrow' ? 'Σ' : both ? 'Σ RAW · Δ' : 'Σ SHOWN'}</th>
             </tr>
           </thead>
           <tbody>
-            {first > 0 && <tr style={{ height: first * ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
+            {first > 0 && <tr style={{ height: first * ROW }} aria-hidden><td colSpan={cols * sub + 2} /></tr>}
             {visible.map((strike) => {
               const roles = rolesFor(strike, levels);
               const lead = roles[0];
               const isSpotRow = model.strikes[sIdx] === strike;
               const dist = levels.spot > 0 ? ((strike - levels.spot) / levels.spot) * 100 : 0;
               const total = model.rowTotal.get(strike) ?? 0;
+              const total2 = model2?.rowTotal.get(strike) ?? 0;
               const tw = Math.max(0, Math.min(100, (Math.abs(total) / model.rowMax) * 100));
               const band = lead ? ROLE_COLOR[lead] : null;
+              const kingHere = kingStrikes.has(strike);
               return (
                 <tr
                   key={strike}
@@ -498,49 +580,24 @@ export function GexStrikeMatrix({
                   style={{ height: ROW, ...(band ? { ['--band' as string]: band } : {}) }}
                 >
                   <td className="gx-sticky-l gx-strike" data-k={`${strike}|sum`}>
-                    <b>{model.king?.strike === strike ? <span className="gx-king-star" title="King node — the largest |exposure| cell in the book">★</span> : null}{fmtStrike(strike)}</b>
+                    <b>{kingHere ? <span className="gx-king-star" title={both
+                      ? `King node — ${model.king?.strike === strike ? 'raw' : ''}${model.king?.strike === strike && model2?.king?.strike === strike ? ' and ' : ''}${model2?.king?.strike === strike ? 'Δ-adjusted' : ''}: the largest |cell| in the book`
+                      : 'King node — the largest |exposure| cell in the book'}>★</span> : null}{fmtStrike(strike)}</b>
                     <span className="gx-pct">{dist >= 0 ? '+' : ''}{dist.toFixed(1)}%</span>
                     {geo.size === 'narrow' && isSpotRow && !roles.length ? <span className="gx-chips"><span className="gx-chip gx-chip-spot" title={`Nearest strike to spot $${levels.spot.toFixed(2)}`}>◎</span></span> : <RoleChips roles={geo.size === 'narrow' ? roles.slice(0, 1) : roles} short={geo.size !== 'wide'} />}
                   </td>
-                  {expiries.map(([dte]) => {
-                    const c = model.byKey.get(`${strike}|${dte}`);
-                    if (!c) return <td key={dte} />;
-                    const v = val(c);
-                    if (v === 0) return <td key={dte} data-k={`${strike}|${dte}`}><span className="gx-dot" /></td>;
-                    const rank = model.col.get(dte)?.top.get(strike);
-                    const dust = !rank && Math.abs(v) < dustCutOf(dte);
-                    if (dust && !showDust) return <td key={dte} data-k={`${strike}|${dte}`}><span className="gx-dot" /></td>;
-                    const t = exposureStrength(v, scaleMaxOf(dte));
-                    // King node of this expiry (rank 1): ★ + solid amber highlight. Near-zero
-                    // cells (under 12% intensity) are neutral grey so the 3–5 dominant nodes pop;
-                    // sign stays the CVD-safe blue (+) / orange (−) pair everywhere else.
-                    const king = rank === 1;
-                    const faint = !king && t < 0.12;
-                    return (
-                      <td key={dte} data-k={`${strike}|${dte}`}>
-                        <button
-                          type="button"
-                          // the two top nodes of each expiry are keyboard stops (Enter = drill); the rest are reached by hover/tap
-                          tabIndex={rank ? 0 : -1}
-                          className={`gx-cell${dust ? ' dust' : ''}${rank ? ' top' : ''}${king ? ' king' : ''}${faint ? ' faint' : ''}`}
-                          data-rank={rank ? (rank === 1 ? '★' : '②') : undefined}
-                          style={king || faint ? undefined : { background: rampColor(v, t), color: rampInk(t) }}
-                          onClick={onCellClick ? () => onCellClick(c) : undefined}
-                          aria-label={rank ? `${fmtVal(v, metric)}, ${rank === 1 ? 'king node (largest)' : '#2'} in this expiry` : geo.size === 'narrow' ? fmtVal(v, metric) : undefined}
-                        >
-                          {king && geo.size !== 'narrow' ? '★ ' : ''}{geo.size === 'narrow' ? fmtCompact(v, metric) : fmtVal(v, metric)}
-                        </button>
-                      </td>
-                    );
-                  })}
+                  {expiries.flatMap(([dte]) => (both && model2
+                    ? [renderCell(strike, dte, model, 'gex', 'raw'), renderCell(strike, dte, model2, 'gexAdj', 'adj')]
+                    : [renderCell(strike, dte, model, metric, '')]))}
                   <td className="gx-sticky-r gx-sum" data-k={`${strike}|sum`}>
-                    <span className="gx-sum-bar"><i style={{ width: `${tw}%`, background: rampColor(total, 0.55), opacity: total === 0 ? 0 : 1 }} /></span>
-                    <span style={{ color: signInk(total) }}>{total === 0 ? '—' : geo.size === 'narrow' ? fmtCompact(total, metric) : fmtVal(total, metric)}</span>
+                    {!both && <span className="gx-sum-bar"><i style={{ width: `${tw}%`, background: rampColor(total, 0.55), opacity: total === 0 ? 0 : 1 }} /></span>}
+                    <span style={{ color: signInk(total) }}>{total === 0 ? '—' : compact ? fmtCompact(total, primary) : fmtVal(total, primary)}</span>
+                    {both && <span className="gx-adj-tag gx-sum2" style={{ color: signInk(total2) }}> · Δ {total2 === 0 ? '—' : fmtCompact(total2, 'gexAdj')}</span>}
                   </td>
                 </tr>
               );
             })}
-            {last < model.strikes.length && <tr style={{ height: (model.strikes.length - last) * ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
+            {last < model.strikes.length && <tr style={{ height: (model.strikes.length - last) * ROW }} aria-hidden><td colSpan={cols * sub + 2} /></tr>}
           </tbody>
         </table>
       </div>
@@ -552,17 +609,20 @@ export function GexStrikeMatrix({
         const roles = rolesFor(hover.strike, levels);
         const c = hover.dte != null ? model.byKey.get(`${hover.strike}|${hover.dte}`) : undefined;
         const v = c ? val(c) : rowTotal;
+        const v2 = model2 ? (c ? cellVal(c, 'gexAdj') : model2.rowTotal.get(hover.strike) ?? 0) : null;
         const p = place(hover.x, hover.y);
         return (
           <div ref={cardRef} className="gx-hover" style={{ left: p.left, top: p.top }} role="tooltip">
             <div className="gx-hover-h">{fmtStrike(hover.strike)} · {c ? `${c.expiryLabel} (${c.dte}d)` : 'Σ shown expiries'}</div>
-            <div><span>{metric.toUpperCase()}</span><b style={{ color: signInk(v) }}>{fmtVal(v, metric)}{unitOf(metric)}</b></div>
-            {c && model.col.get(c.dte)?.top.get(hover.strike) && <div><span>rank in {c.expiryLabel}</span><b>#{model.col.get(c.dte)!.top.get(hover.strike)}</b></div>}
-            {c && <div><span>colour scale</span><b>{scale === 'column' ? `per expiry · max ${fmtVal(scaleMaxOf(c.dte), metric).replace(/^[+−]/, '')}` : 'absolute'}</b></div>}
+            <div><span>{both ? 'RAW GEX' : metricLabel(metric)}</span><b style={{ color: signInk(v) }}>{fmtVal(v, primary)}{unitOf(primary)}</b></div>
+            {v2 != null && <div><span>Δ-ADJ GEX</span><b style={{ color: signInk(v2) }}>{fmtVal(v2, 'gexAdj')}/1%{v !== 0 ? ` (×${(v2 / v).toFixed(2)})` : ''}</b></div>}
+            {c && model.col.get(c.dte)?.top.get(hover.strike) && <div><span>rank in {c.expiryLabel}{both ? ' · raw' : ''}</span><b>#{model.col.get(c.dte)!.top.get(hover.strike)}</b></div>}
+            {c && model2?.col.get(c.dte)?.top.get(hover.strike) && <div><span>rank in {c.expiryLabel} · Δ-adj</span><b>#{model2.col.get(c.dte)!.top.get(hover.strike)}</b></div>}
+            {c && <div><span>colour scale</span><b>{scale === 'column' ? `per expiry · max ${fmtVal(scaleMaxOf(model, c.dte), primary).replace(/^[+−]/, '')}` : 'absolute'}</b></div>}
             <div><span>share of gross book</span><b>{model.gross > 0 ? `${((Math.abs(v) / model.gross) * 100).toFixed(2)}%` : '—'}</b></div>
             {c && <div><span>share of {fmtStrike(hover.strike)} row</span><b>{rowTotal !== 0 ? `${((v / rowTotal) * 100).toFixed(0)}%` : '—'}</b></div>}
             <div><span>vs spot</span><b>{levels.spot > 0 ? `${(((hover.strike - levels.spot) / levels.spot) * 100).toFixed(2)}%` : '—'}</b></div>
-            {c && Math.abs(v) < dustCutOf(c.dte) && <div className="gx-hover-note">dust — under {dustPct}% of the largest cell in its scale</div>}
+            {c && Math.abs(v) < dustCutOf(model, c.dte) && <div className="gx-hover-note">dust — under {dustPct}% of the largest cell in its scale</div>}
             {roles.map((r) => <div key={r} className="gx-hover-note" style={{ color: ROLE_COLOR[r] }}>{ROLE_LABEL[r]} · all listed expiries</div>)}
             <div className="gx-hover-note">{v > 0 ? 'dealers long gamma here — hedging provides liquidity' : v < 0 ? 'dealers short gamma here — hedging takes liquidity' : ''}</div>
           </div>
@@ -586,9 +646,19 @@ export function GexStrikeLadder({
   scopeLabel,
   height = 'clamp(360px, 58vh, 760px)',
   emptyText,
+  compareByStrike,
+  valueLabel = 'GEX',
 }: {
   /** strike → net GEX ($B per 1%) for the ladder's scope */
   levelsByStrike: Array<{ strike: number; gex: number }>;
+  /**
+   * Side by side: a second series drawn under each bar (Δ-adjusted GEX,
+   * docs/GAMMA_RAW_VS_ADJUSTED.md) on the SAME scale, so the two read against
+   * each other strike by strike. Its own top-2 are ranked separately.
+   */
+  compareByStrike?: Array<{ strike: number; gex: number }>;
+  /** name of the primary series in tooltips ('GEX', 'Δ-adj GEX') */
+  valueLabel?: string;
   levels: GridLevels;
   centerKey: string;
   scopeLabel: string;
@@ -597,7 +667,12 @@ export function GexStrikeLadder({
 }) {
   const rows = useMemo(() => [...levelsByStrike].filter((r) => Number.isFinite(r.strike)).sort((a, b) => b.strike - a.strike), [levelsByStrike]);
   const strikes = useMemo(() => rows.map((r) => r.strike), [rows]);
-  const max = useMemo(() => rows.reduce((m, r) => Math.max(m, Math.abs(r.gex)), 0) || 1e-12, [rows]);
+  const cmp = useMemo(() => (compareByStrike ? new Map(compareByStrike.map((r) => [r.strike, r.gex])) : null), [compareByStrike]);
+  const max = useMemo(() => Math.max(
+    rows.reduce((m, r) => Math.max(m, Math.abs(r.gex)), 0),
+    cmp ? [...cmp.values()].reduce((m, v) => Math.max(m, Math.abs(v)), 0) : 0,
+  ) || 1e-12, [rows, cmp]);
+  const top2 = useMemo(() => (cmp ? new Map([...cmp.entries()].filter(([, v]) => v !== 0).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 2).map(([k], i) => [k, i + 1])) : null), [cmp]);
   const gross = useMemo(() => rows.reduce((s, r) => s + Math.abs(r.gex), 0), [rows]);
   // The two largest |net GEX| strikes in scope — labelled so the dominant nodes read at a glance.
   const top = useMemo(() => new Map([...rows].filter((r) => r.gex !== 0).sort((a, b) => Math.abs(b.gex) - Math.abs(a.gex)).slice(0, 2).map((r, i) => [r.strike, i + 1])), [rows]);
@@ -612,7 +687,7 @@ export function GexStrikeLadder({
   if (!rows.length) return <div className="gx-empty">{emptyText ?? 'No material gamma levels returned.'}</div>;
 
   return (
-    <div className="gx-wrap ladder" style={{ height }}>
+    <div className={`gx-wrap ladder${cmp ? ' pair' : ''}`} style={{ height }}>
       <div
         ref={ref}
         className="gx-scroll"
@@ -629,7 +704,7 @@ export function GexStrikeLadder({
         <div className="gx-ladder-head" style={{ height: L_HEAD }}>
           <span>STRIKE</span>
           <span className="gx-axis-labels" title="Left of centre: negative net GEX — dealers short gamma, hedging takes liquidity. Right: positive — dealers long gamma, hedging provides liquidity."><em style={{ color: signInk(-1) }}>← − takes</em><em style={{ color: signInk(1) }}>+ provides →</em></span>
-          <span style={{ textAlign: 'right' }}>$ /1%</span>
+          <span style={{ textAlign: 'right' }}>{cmp ? <>raw · <b className="gx-adj-tag">Δ</b> $/1%</> : '$ /1%'}</span>
           <span />
         </div>
         <div style={{ height: first * L_ROW }} aria-hidden />
@@ -641,24 +716,37 @@ export function GexStrikeLadder({
           const t = Math.sqrt(Math.abs(r.gex) / max);
           const rank = top.get(r.strike);
           const dist = levels.spot > 0 ? ((r.strike - levels.spot) / levels.spot) * 100 : 0;
+          const g2 = cmp?.get(r.strike) ?? 0;
+          const w2 = (Math.abs(g2) / max) * 50;
+          const t2 = Math.sqrt(Math.abs(g2) / max);
+          const rank2 = top2?.get(r.strike);
           return (
             <div
               key={r.strike}
               className={`gx-lrow${lead ? ' marked' : ''}${isSpotRow ? ' spot' : ''}${rank ? ' top' : ''}`}
               style={{ height: L_ROW, ...(lead ? { ['--band' as string]: ROLE_COLOR[lead] } : {}) }}
-              title={`${fmtStrike(r.strike)} · ${scopeLabel} · net GEX ${fmtGexB(r.gex)}/1% · ${gross > 0 ? ((Math.abs(r.gex) / gross) * 100).toFixed(1) : '0'}% of gross · ${dist >= 0 ? '+' : ''}${dist.toFixed(2)}% vs spot`}
+              title={`${fmtStrike(r.strike)} · ${scopeLabel} · ${cmp ? 'raw' : 'net'} ${valueLabel} ${fmtGexB(r.gex)}/1%${cmp ? ` · Δ-adjusted ${fmtGexB(g2)}/1%${r.gex !== 0 ? ` (×${(g2 / r.gex).toFixed(2)})` : ''}${rank2 ? ` · Δ-adj #${rank2}` : ''}` : ''} · ${gross > 0 ? ((Math.abs(r.gex) / gross) * 100).toFixed(1) : '0'}% of gross · ${dist >= 0 ? '+' : ''}${dist.toFixed(2)}% vs spot`}
             >
               <span className="gx-lstrike"><b>{fmtStrike(r.strike)}</b><small>{dist >= 0 ? '+' : ''}{dist.toFixed(1)}%</small></span>
-              <span className="gx-laxis">
+              <span className={`gx-laxis${cmp ? ' pair' : ''}`}>
                 {r.gex !== 0 && (
                   <i
-                    className={r.gex > 0 ? 'pos' : 'neg'}
+                    className={`${r.gex > 0 ? 'pos' : 'neg'}${cmp ? ' a' : ''}`}
                     // length AND ramp lightness carry magnitude; hue carries sign
                     style={{ ...(r.gex > 0 ? { left: '50%' } : { right: '50%' }), width: `${Math.max(0.4, w)}%`, background: rampColor(r.gex, 0.3 + 0.7 * t) }}
                   />
                 )}
+                {cmp && g2 !== 0 && (
+                  <i
+                    className={`${g2 > 0 ? 'pos' : 'neg'} b`}
+                    style={{ ...(g2 > 0 ? { left: '50%' } : { right: '50%' }), width: `${Math.max(0.4, w2)}%`, background: rampColor(g2, 0.3 + 0.7 * t2) }}
+                  />
+                )}
               </span>
-              <span className="gx-lval" style={{ color: signInk(r.gex) }} data-rank={rank ? (rank === 1 ? '①' : '②') : undefined}>{r.gex === 0 ? '—' : fmtGexB(r.gex)}</span>
+              <span className="gx-lval" style={{ color: signInk(r.gex) }} data-rank={rank ? (rank === 1 ? '①' : '②') : undefined}>
+                {r.gex === 0 ? '—' : cmp ? fmtCompact(r.gex, 'gex') : fmtGexB(r.gex)}
+                {cmp && <span className="gx-adj-tag gx-lval2" style={{ color: signInk(g2) }} data-rank={rank2 ? (rank2 === 1 ? '①' : '②') : undefined}>{g2 === 0 ? '—' : fmtCompact(g2, 'gexAdj')}</span>}
+              </span>
               <span className="gx-lrole">{roles.length ? <RoleChips roles={roles} /> : null}</span>
             </div>
           );

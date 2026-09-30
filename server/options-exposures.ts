@@ -23,8 +23,13 @@
 import { logger } from './logger';
 import {
   gammaProfile, thinProfile, pickWalls, gexPer1Pct, vannaPerVolPt, MIN_T_YEARS, expiryInstantMs,
+  deltaMoveSplit,
   type GammaContract,
 } from '../shared/gex-math';
+import {
+  GAMMA_METRIC_DEFS, flowResignWeight, levelsFor, diffLevels, overlapCount,
+  type GammaMetricsBlock,
+} from '../shared/gex-adjusted';
 import { classifyGammaRegime, type GammaRegimeRead } from '../shared/gex-regime';
 import { bucketizeLegs, type BucketLeg, type GexBucketKey, type GexBucketSummary } from '../shared/gex-buckets';
 import type { GreekSource } from '../shared/iv-fill';
@@ -74,6 +79,16 @@ export interface StrikeExposure {
   putVEX: number;
   netDEX: number;
   netCharm: number;
+  /**
+   * Δ-adjusted GEX, $B per 1% (docs/GAMMA_RAW_VS_ADJUSTED.md): the hedge a
+   * ±1% move actually requires, delta re-priced at both ends. call/put are
+   * signed like callGEX (+) / putGEX (−).
+   */
+  callGEXAdj: number;
+  putGEXAdj: number;
+  netGEXAdj: number;
+  /** Flow-signed estimate, $B per 1%: raw with today's opened near-dated OTM call OI re-signed dealer-short. */
+  netGEXFlow: number;
   // Raw gamma/vanna values (unweighted) for diagnostics
   callGamma: number;
   putGamma: number;
@@ -196,6 +211,8 @@ export interface ExposureSnapshot {
   modelledShare: number;
   /** Share of gross GEX resting on modelled gamma, 0–1 — the number the UI should state. */
   modelledGrossShare: number;
+  /** Raw vs Δ-adjusted vs flow-signed GEX with levels under each (shared/gex-adjusted.ts). */
+  gammaMetrics?: GammaMetricsBlock;
 }
 
 export interface StrikeExpiryCell {
@@ -204,6 +221,10 @@ export interface StrikeExpiryCell {
   dte: number;
   netGEX: number;       // $B per 1% move (units v2)
   netVEX: number;       // $M per 1 IV point (units v2)
+  /** Δ-adjusted GEX, $B per 1% (finite ±1% move, delta re-priced) */
+  netGEXAdj?: number;
+  /** Flow-signed GEX estimate, $B per 1% */
+  netGEXFlow?: number;
 }
 
 // ─── Black-Scholes helpers ──────────────────────────────────
@@ -327,6 +348,11 @@ export function computeExposures(
   const byExpiry = new Map<number, number>();
   const bucketLegs: BucketLeg[] = [];
   const S = spotPrice;
+  // Δ-adjusted and flow-signed books (docs/GAMMA_RAW_VS_ADJUSTED.md). Same
+  // contracts, same loop — no extra provider call.
+  let adjNet = 0; let adjGross = 0; let adjUp = 0; let adjDown = 0;
+  let flowNet = 0; let flowResigned = 0;
+  const flowProfileContracts: GammaContract[] = [];
 
   for (const opt of options) {
     const oi = opt.openInterest || 0;
@@ -396,11 +422,29 @@ export function computeExposures(
     // Charm: dealer delta decay per year, notional ($B). Same dealer sign as DEX.
     const charmContribution = (sign * oi * charm! * 100 * S) / 1e9;
 
+    // Δ-adjusted: shares traded for a ±1% move with delta re-priced at both ends
+    // (BS on the contract's IV — feed deltas exist only at today's spot).
+    const mv = oi > 0 ? deltaMoveSplit(S, opt.strike, tte, iv, oi, RISK_FREE) : { up: 0, down: 0 };
+    const adjAbs = (mv.up + mv.down) / 2;
+    const adjContribution = (sign * adjAbs) / 1e9;
+    adjNet += adjContribution; adjGross += adjAbs / 1e9;
+    adjUp += (sign * mv.up) / 1e9; adjDown += (sign * mv.down) / 1e9;
+    // Flow-signed: w of this line's OI assumed customer-long (dealer-short).
+    const w = flowResignWeight(isCall, opt.strike, S, opt.daysToExpiry, vol, oi);
+    const flowContribution = (sign * gexAbs - 2 * w * gexAbs) / 1e9;
+    flowNet += flowContribution; flowResigned += (w * gexAbs) / 1e9;
+
     // Zero-gamma sweep input. Contracts whose IV was defaulted are excluded (a flat
     // 30% would move the crossing by assumption, not by data); their gross share is disclosed.
     if (oi > 0) {
-      if (!ivDefaulted) profileContracts.push({ strike: opt.strike, T: tte, iv, oi, isCall });
-      else grossExcludedFromProfile += gexAbs;
+      if (!ivDefaulted) {
+        profileContracts.push({ strike: opt.strike, T: tte, iv, oi, isCall });
+        // isCall:false on the re-signed share only flips the sign (BS gamma is call/put-symmetric).
+        if (w > 0) {
+          flowProfileContracts.push({ strike: opt.strike, T: tte, iv, oi: oi * w, isCall: false });
+          if (w < 1) flowProfileContracts.push({ strike: opt.strike, T: tte, iv, oi: oi * (1 - w), isCall });
+        } else flowProfileContracts.push({ strike: opt.strike, T: tte, iv, oi, isCall });
+      } else grossExcludedFromProfile += gexAbs;
       bucketLegs.push({
         strike: opt.strike, dte: opt.daysToExpiry, isCall, oi, gexDollars: gexAbs,
         T: ivDefaulted ? undefined : tte, iv: ivDefaulted ? undefined : iv,
@@ -427,6 +471,7 @@ export function computeExposures(
         netGEX: 0, callGEX: 0, putGEX: 0,
         netVEX: 0, callVEX: 0, putVEX: 0,
         netDEX: 0, netCharm: 0,
+        callGEXAdj: 0, putGEXAdj: 0, netGEXAdj: 0, netGEXFlow: 0,
         callGamma: 0, putGamma: 0, callVanna: 0, putVanna: 0,
         callOI: 0, putOI: 0, callVolume: 0, putVolume: 0,
         dtes: [], modelledShare: 0,
@@ -454,6 +499,8 @@ export function computeExposures(
 
     entry.netDEX += dexContribution;
     entry.netCharm += charmContribution;
+    if (isCall) entry.callGEXAdj += adjContribution; else entry.putGEXAdj += adjContribution;
+    entry.netGEXFlow += flowContribution;
     if (!entry.dtes.includes(opt.daysToExpiry)) {
       entry.dtes.push(opt.daysToExpiry);
     }
@@ -465,17 +512,20 @@ export function computeExposures(
     if (!expiryMap.has(expiryKey)) {
       const expiryDate = new Date(Date.now() + dteBucket * 86400000);
       const expiryLabel = expiryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
-      expiryMap.set(expiryKey, { strike: opt.strike, expiryLabel, dte: dteBucket, netGEX: 0, netVEX: 0 });
+      expiryMap.set(expiryKey, { strike: opt.strike, expiryLabel, dte: dteBucket, netGEX: 0, netVEX: 0, netGEXAdj: 0, netGEXFlow: 0 });
     }
     const expiryCell = expiryMap.get(expiryKey)!;
     expiryCell.netGEX += gexContrib;
     expiryCell.netVEX += vexContribution;
+    expiryCell.netGEXAdj! += adjContribution;
+    expiryCell.netGEXFlow! += flowContribution;
   }
 
   // Compute net exposures
   for (const entry of Array.from(strikeMap.values())) {
     entry.netGEX = entry.callGEX + entry.putGEX;
     entry.netVEX = entry.callVEX + entry.putVEX;
+    entry.netGEXAdj = entry.callGEXAdj + entry.putGEXAdj;
     const g = strikeGross.get(entry.strike) ?? 0;
     entry.modelledShare = g > 0 ? (strikeModelledGross.get(entry.strike) ?? 0) / g : 0;
   }
@@ -595,6 +645,47 @@ export function computeExposures(
     : 'vol_neutral';
 
   const strikesWithOI = strikes.filter((s) => s.callOI + s.putOI > 0).length;
+  const strikeExpiryMatrix = Array.from(expiryMap.values())
+    .sort((a, b) => b.strike - a.strike || a.dte - b.dte);
+
+  // ── Raw vs Δ-adjusted vs flow-signed (docs/GAMMA_RAW_VS_ADJUSTED.md) ──
+  // Levels use the same ±40% strike rows and the same wall/zero-γ definitions
+  // as the headline, so "raw" here reproduces callWall/putWall/maxGammaStrike.
+  const gammaMetrics: GammaMetricsBlock = (() => {
+    const bal = (n: number, g: number) => (g > 0 ? n / g : null);
+    const rawLv = levelsFor(
+      strikes.map((s) => ({ strike: s.strike, call: s.callGEX, put: s.putGEX, net: s.netGEX, callOI: s.callOI, putOI: s.putOI })),
+      strikeExpiryMatrix.map((c) => ({ strike: c.strike, dte: c.dte, value: c.netGEX })), S, gammaFlipPrice,
+    );
+    // Coarser grid than the headline (60 vs 120 steps): bisection makes the crossing exact either way.
+    const adjZ = profileContracts.length ? gammaProfile(profileContracts, S, { lo: 0.8, hi: 1.2, steps: 60, r: RISK_FREE, kernel: 'delta1pct' }).zeroGamma : null;
+    const adjLv = levelsFor(
+      strikes.map((s) => ({ strike: s.strike, call: s.callGEXAdj, put: s.putGEXAdj, net: s.netGEXAdj, callOI: s.callOI, putOI: s.putOI })),
+      strikeExpiryMatrix.map((c) => ({ strike: c.strike, dte: c.dte, value: c.netGEXAdj ?? 0 })), S, adjZ,
+    );
+    const flowZ = flowResigned > 0 && flowProfileContracts.length
+      ? gammaProfile(flowProfileContracts, S, { lo: 0.8, hi: 1.2, steps: 60, r: RISK_FREE }).zeroGamma
+      : gammaFlipPrice;
+    const flowLv = levelsFor(
+      strikes.map((s) => ({ strike: s.strike, call: s.callGEX, put: s.putGEX, net: s.netGEXFlow, callOI: s.callOI, putOI: s.putOI })),
+      strikeExpiryMatrix.map((c) => ({ strike: c.strike, dte: c.dte, value: c.netGEXFlow ?? 0 })), S, flowZ,
+    );
+    const notes = [
+      'All three are $ of underlying per 1% move under the naive-OI dealer sign (calls +, puts −) unless stated.',
+      'Δ-adjusted re-prices Black-Scholes delta at spot ±1% on each contract\'s own IV (r = 4.5%); raw uses feed gamma where supplied.',
+      'Flow-signed re-signs only near-dated (0.75–21 d) OTM (+2–25%) calls, in proportion to today\'s volume ÷ OI — an assumption, not observed trade sides.',
+    ];
+    if (grossGEXDollars > 0 && grossExcludedFromProfile / grossGEXDollars > 0.02) notes.push('Contracts without feed IV are left out of every zero-γ sweep (share disclosed as profileExcludedGrossShare).');
+    return {
+      version: 1, unit: '$B per 1% move', defs: GAMMA_METRIC_DEFS,
+      raw: { net: totalGEX, gross: grossGEX, balance: bal(totalGEX, grossGEX), levels: rawLv },
+      deltaAdjusted: { net: adjNet, gross: adjGross, balance: bal(adjNet, adjGross), levels: adjLv, moveUp: adjUp, moveDown: adjDown },
+      flowSigned: { net: flowNet, gross: grossGEX, balance: bal(flowNet, grossGEX), levels: flowLv, resignedGross: flowResigned, resignedShare: grossGEX > 0 ? flowResigned / grossGEX : null },
+      differs: { deltaAdjusted: diffLevels(rawLv, adjLv, S), flowSigned: diffLevels(rawLv, flowLv, S) },
+      keyStrikeOverlap: overlapCount(rawLv.keyStrikes, adjLv.keyStrikes),
+      notes,
+    };
+  })();
 
   logger.info(
     `[EXPOSURES] ${symbol}: ${strikes.length} strikes, ` +
@@ -621,8 +712,8 @@ export function computeExposures(
     callWallOI: walls.callWallOI, putWallOI: walls.putWallOI,
     zeroGammaProjection,
     strikes,
-    strikeExpiryMatrix: Array.from(expiryMap.values())
-      .sort((a, b) => b.strike - a.strike || a.dte - b.dte),
+    strikeExpiryMatrix,
+    gammaMetrics,
     byDte: bucketizeLegs(bucketLegs, S),
     expirationsUsed,
     strikesScanned: strikes.length,
