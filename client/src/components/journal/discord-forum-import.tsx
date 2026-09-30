@@ -6,13 +6,16 @@
  *   export mode  DiscordChatExporter JSON exports of the threads — several
  *                files, or a .zip of them (unzipped here, in the browser)
  *
- * Preview first (nothing written): one row per thread — who it maps to (an
- * existing trader, or a NEW trader the operator must confirm with a name),
- * message counts (new vs already imported), parsed trades with confidence,
- * the review list. "Import" sends only the mapping; the server writes exactly
- * what it previewed. Nothing is ever sent to Discord. Admin only.
+ * Preview first (nothing written, no model called): one row per thread — the
+ * book it maps to (Mine for the operator's own thread — malik = leek; an
+ * existing trader; a known trader such as Ayo; or a NEW trader to confirm),
+ * message counts, screenshots to read with the estimated cost, parsed trades,
+ * the review list. "Import" sends only the mapping and starts a background job
+ * on the server: screenshots are read by the vision model (progress polled
+ * here: images done / total, trades found), then every thread is written.
+ * Nothing is ever sent to Discord. Admin only.
  */
-import { Fragment, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, ExternalLink, FileUp, Loader2, X } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { readApiError } from '@/lib/journal/use-journal';
@@ -28,7 +31,8 @@ interface PThread {
   messages: number; posts: number; alreadyImported: number; newPosts: number; firstAt: string | null; lastAt: string | null;
   primary: { authorId: string; authorName: string } | null;
   authors: { authorId: string; authorName: string; messages: number }[];
-  match: { slug: string; name: string; existing: boolean; via: string } | null;
+  match: { slug: string; name: string; existing: boolean; via: string; book: 'mine' | 'trader'; confirm: boolean } | null;
+  images: number; imagesCached: number;
   parse: { entries: number; exits: number; trims: number; closed: number; open: number; review: number; avgConfidence: number | null };
   trades: PTrade[];
   review: { messageId: string; at: string; reason: string; label: string; excerpt: string; link: string | null }[];
@@ -36,11 +40,26 @@ interface PThread {
 interface Preview {
   token: string; expiresAt: string; forum: { id: string | null; name: string | null };
   skipped: { reason: string; count: number }[];
-  traders: { slug: string; name: string }[];
+  traders: { slug: string; name: string; pending: boolean }[];
+  mine: { slug: string; label: string; aliases: string[] };
+  vision: {
+    provider: string | null; model: string | null; cap: number; note: string;
+    estimate: { images: number; billable: number; cached: number; cap: number; perImageUsd: number; usd: number; model: string; basis: string };
+  };
   threads: PThread[];
 }
 interface Choice { slug: string | null; createName: string; confirmed: boolean }
-interface CommitResult { threads: { threadId: string; name: string; trader: string; created: boolean; posts: number; tradesNew: number; tradesUpdated: number; tradesUnchanged: number; watchlist: { added: number; updated: number } }[] }
+interface ThreadResult {
+  threadId: string; name: string; book: 'mine' | 'trader'; trader: string; created: boolean; posts: number;
+  tradesNew: number; tradesUpdated: number; tradesUnchanged: number; tradesRemoved: number; tradesLinked: number; tradesFlagged: number;
+  fromScreenshots: number; review: number; watchlist: { added: number; updated: number } | null;
+}
+interface Job {
+  id: string; status: 'running' | 'done' | 'failed'; phase: string; startedAt: string; finishedAt: string | null; error: string | null;
+  threads: { done: number; total: number };
+  vision: { total: number; done: number; cached: number; called: number; failed: number; skippedBudget: number; lowConfidence: number; tradesFound: number; retries: number; usd: number; provider: string | null; model: string | null; cap: number };
+  results: ThreadResult[];
+}
 
 const MAX_TOTAL = 38_000_000;
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
@@ -55,21 +74,23 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
   const [preview, setPreview] = useState<Preview | null>(null);
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [done, setDone] = useState<CommitResult | null>(null);
+  const [job, setJob] = useState<Job | null>(null);
   const [fileNote, setFileNote] = useState('');
   const input = useRef<HTMLInputElement>(null);
 
   const run = async (body: unknown) => {
-    setBusy('preview'); setErr(''); setDone(null); setPreview(null);
+    setBusy('preview'); setErr(''); setJob(null); setPreview(null);
     try {
       const res = await apiRequest('POST', '/api/journal/discord/forum/preview', body);
       const p: Preview = await res.json();
       setPreview(p);
       const init: Record<string, Choice> = {};
       for (const t of p.threads) {
+        // Pre-selected; confirmed only where the mapping is certain (Mine, existing traders, Ayo…).
+        // Tommi/Teejay and any NEW trader wait for the operator's tick.
         init[t.threadId] = t.posts === 0 || !t.match
           ? { slug: null, createName: '', confirmed: false }
-          : { slug: t.match.slug, createName: t.match.existing ? '' : t.match.name, confirmed: t.match.existing };
+          : { slug: t.match.slug, createName: t.match.existing ? '' : t.match.name, confirmed: !t.match.confirm };
       }
       setChoices(init);
     } catch (e) {
@@ -105,7 +126,9 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
   };
 
   const set = (id: string, patch: Partial<Choice>) => setChoices((c) => ({ ...c, [id]: { ...c[id], ...patch } }));
-  const known = useMemo(() => new Set(preview?.traders.map((t) => t.slug) ?? []), [preview]);
+  const known = useMemo(() => new Set([...(preview?.traders.map((t) => t.slug) ?? []), ...(preview ? [preview.mine.slug] : [])]), [preview]);
+  const pending = useMemo(() => new Set(preview?.traders.filter((t) => t.pending).map((t) => t.slug) ?? []), [preview]);
+  const needsTick = (t: PThread, c: Choice | undefined) => !!c?.slug && !!t.match?.confirm && known.has(c.slug) && c.slug === t.match.slug;
 
   const rows = preview?.threads ?? [];
   const problems = rows.flatMap((t) => {
@@ -113,8 +136,32 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
     if (!c?.slug) return [];
     if (!SLUG_RE.test(c.slug)) return [`${t.name}: "${c.slug}" is not a valid slug`];
     if (!known.has(c.slug) && (!c.confirmed || !c.createName.trim())) return [`${t.name}: confirm the new trader "${c.slug}" and give it a name`];
+    if (needsTick(t, c) && !c.confirmed) return [`${t.name}: confirm it goes to ${t.match!.name}'s book (or pick another / skip)`];
     return [];
   });
+  const selectedImages = rows.filter((t) => choices[t.threadId]?.slug).reduce((s, t) => ({ images: s.images + t.images, cached: s.cached + t.imagesCached }), { images: 0, cached: 0 });
+  const est = preview ? (() => {
+    const billable = Math.min(Math.max(0, selectedImages.images - selectedImages.cached), preview.vision.cap);
+    return { billable, usd: Math.round(billable * preview.vision.estimate.perImageUsd * 100) / 100 };
+  })() : null;
+
+  // Poll the running import job.
+  useEffect(() => {
+    if (!job || job.status !== 'running') return;
+    let stop = false;
+    const id = window.setTimeout(async () => {
+      try {
+        const r = await apiRequest('GET', `/api/journal/discord/forum/jobs/${encodeURIComponent(job.id)}`);
+        const j: Job = await r.json();
+        if (stop) return;
+        setJob(j);
+        if (j.status !== 'running') { setBusy(null); if (j.status === 'done') onDone(); }
+      } catch (e) {
+        if (!stop) setJob((cur) => (cur ? { ...cur } : cur)); // retry on the next tick
+      }
+    }, 1500);
+    return () => { stop = true; window.clearTimeout(id); };
+  }, [job, onDone]);
   const included = rows.filter((t) => choices[t.threadId]?.slug);
 
   const commit = async () => {
@@ -126,12 +173,11 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
         return { threadId: t.threadId, slug: c?.slug ?? null, createName: c?.slug && !known.has(c.slug) ? c.createName.trim() : null };
       });
       const res = await apiRequest('POST', '/api/journal/discord/forum/commit', { token: preview.token, threads });
-      setDone(await res.json());
+      const body: { jobId: string; job: Job } = await res.json();
+      setJob(body.job);
       setPreview(null);
-      onDone();
     } catch (e) {
       setErr(await readApiError(e));
-    } finally {
       setBusy(null);
     }
   };
@@ -174,16 +220,7 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
 
       {err && <div className="jr-err" role="alert"><div style={{ display: 'flex', gap: 6, alignItems: 'center', fontWeight: 700 }}><X className="h-4 w-4" /> Nothing was imported</div>{err}</div>}
 
-      {done && (
-        <div className="jr-ok" role="status">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}><Check className="h-4 w-4" /> Imported {done.threads.length} thread{done.threads.length === 1 ? '' : 's'}</div>
-          <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-            {done.threads.map((t) => (
-              <li key={t.threadId}><b>{t.trader}</b>{t.created ? ' (new trader)' : ''} — {t.posts} posts in the Notebook · {t.tradesNew} new / {t.tradesUpdated} updated trades · watchlist +{t.watchlist.added}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {job && <JobPanel job={job} />}
 
       {preview && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} aria-live="polite">
@@ -192,7 +229,17 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
             <div><span>Posts</span><b>{rows.reduce((s, t) => s + t.posts, 0)}</b><small>{rows.reduce((s, t) => s + t.newPosts, 0)} not yet imported</small></div>
             <div><span>Parsed trades</span><b>{rows.reduce((s, t) => s + t.parse.closed + t.parse.open, 0)}</b><small>{rows.reduce((s, t) => s + t.parse.closed, 0)} closed · {rows.reduce((s, t) => s + t.parse.open, 0)} open</small></div>
             <div><span>For review</span><b>{rows.reduce((s, t) => s + t.parse.review, 0)}</b><small>trade-looking, not parsed</small></div>
+            <div><span>Screenshots</span><b>{selectedImages.images}</b><small>{selectedImages.cached ? `${selectedImages.cached} already read · ` : ''}in the selected threads</small></div>
           </div>
+          <p className="jr-note" style={{ margin: 0 }} role="note">
+            {preview.vision.provider ? (
+              <>Import reads <b>{est?.billable ?? 0}</b> screenshot{est?.billable === 1 ? '' : 's'} with {preview.vision.model} — est. <b>${(est?.usd ?? 0).toFixed(2)}</b>
+                {' '}(~${preview.vision.estimate.perImageUsd.toFixed(4)}/image; {preview.vision.estimate.basis}).
+                {selectedImages.images - selectedImages.cached > preview.vision.cap && <> Capped at {preview.vision.cap} per import (FORUM_VISION_MAX_IMAGES) — run Import again for the rest.</>}
+                {' '}{preview.vision.note}</>
+            ) : preview.vision.note}
+            {' '}Trades above are from the post text only; screenshot trades are added on Import.
+          </p>
           {preview.skipped.length > 0 && <p className="jr-note" style={{ margin: 0 }}>Skipped: {preview.skipped.map((s) => `${s.count} ${s.reason}`).join(' · ')}</p>}
 
           <div className="jr-preview">
@@ -217,17 +264,20 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
                         <td style={{ whiteSpace: 'normal', minWidth: 180 }}>
                           <div style={{ fontWeight: 600, color: 'var(--text)' }}>{t.name}</div>
                           <div className="jr-n">{t.primary ? `by ${t.primary.authorName}` : 'no author'} · {day(t.firstAt)} → {day(t.lastAt)}{t.archived ? ' · archived' : ''}</div>
+                          {t.images > 0 && <div className="jr-n">{t.images} screenshot{t.images === 1 ? '' : 's'}{t.imagesCached ? ` (${t.imagesCached} already read)` : ''}</div>}
                         </td>
                         <td style={{ minWidth: 200 }}>
                           <select className="jr-select" aria-label={`Trader book for ${t.name}`} value={c.slug == null ? '' : known.has(c.slug) ? c.slug : '__new'}
                             onChange={(e) => {
                               const v = e.target.value;
                               if (v === '') set(t.threadId, { slug: null });
-                              else if (v === '__new') set(t.threadId, { slug: t.match && !t.match.existing ? t.match.slug : '', createName: t.match && !t.match.existing ? t.match.name : '', confirmed: false });
+                              else if (v === '__new') set(t.threadId, { slug: t.match && !t.match.existing && !known.has(t.match.slug) ? t.match.slug : '', createName: t.match && !t.match.existing ? t.match.name : '', confirmed: false });
+                              // Choosing a book by hand is the confirmation.
                               else set(t.threadId, { slug: v, confirmed: true });
                             }}>
                             <option value="">Skip this thread</option>
-                            {preview.traders.map((x) => <option key={x.slug} value={x.slug}>{x.name} ({x.slug})</option>)}
+                            <option value={preview.mine.slug}>{preview.mine.label}</option>
+                            {preview.traders.map((x) => <option key={x.slug} value={x.slug}>{x.name} ({x.slug}){x.pending ? ' — new, created on import' : ''}</option>)}
                             <option value="__new">New trader…</option>
                           </select>
                           {isNew && (
@@ -243,7 +293,14 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
                               </label>
                             </div>
                           )}
-                          {!isNew && c.slug && t.match?.existing && t.match.slug === c.slug && <div className="jr-n">matched by {t.match.via}</div>}
+                          {needsTick(t, c) && (
+                            <label className="jr-n" style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+                              <input type="checkbox" checked={c.confirmed} onChange={(e) => set(t.threadId, { confirmed: e.target.checked })} /> confirm: this is {t.match!.name}'s journal
+                            </label>
+                          )}
+                          {c.slug === preview.mine.slug && <div className="jr-n">your own book — trades matched to your broker rows are linked, not added twice</div>}
+                          {!isNew && c.slug && c.slug !== preview.mine.slug && pending.has(c.slug) && <div className="jr-n">new trader, created on import</div>}
+                          {!isNew && c.slug && t.match?.slug === c.slug && t.match.book === 'trader' && <div className="jr-n">matched by {t.match.via}</div>}
                         </td>
                         <td className="num">{t.posts}<div className="jr-n">{t.alreadyImported ? `${t.newPosts} new` : 'all new'}</div></td>
                         <td className="num">{t.parse.closed + t.parse.open}<div className="jr-n">{t.parse.closed} closed · {t.parse.open} open</div></td>
@@ -297,12 +354,55 @@ export function DiscordForumImport({ botAvailable, onDone }: { botAvailable: boo
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" className="jr-btn jr-btn-primary" disabled={!!busy || !included.length || problems.length > 0} onClick={commit}>
               {busy === 'commit' && <Loader2 className="h-4 w-4 animate-spin" />}
-              {included.length ? `Import ${included.length} thread${included.length === 1 ? '' : 's'}` : 'Pick at least one thread'}
+              {included.length ? `Import ${included.length} thread${included.length === 1 ? '' : 's'}${est?.billable ? ` · read ${est.billable} screenshots (~$${est.usd.toFixed(2)})` : ''}` : 'Pick at least one thread'}
             </button>
             <button type="button" className="jr-btn" disabled={!!busy} onClick={() => setPreview(null)}>Discard preview</button>
-            <span className="jr-n">Posts → each trader's Notebook · trades → their journal · tickers → their watchlist. Re-importing updates, never duplicates.</span>
+            <span className="jr-n">Posts → each book's Notebook · trades → its journal · tickers → the trader's watchlist. Runs in the background; re-importing updates, never duplicates, and never re-reads a screenshot.</span>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function JobPanel({ job }: { job: Job }) {
+  const v = job.vision;
+  const pct = v.total ? Math.round((v.done / v.total) * 100) : job.status === 'running' ? 0 : 100;
+  const cls = job.status === 'failed' ? 'jr-err' : job.status === 'done' ? 'jr-ok' : 'jr-note';
+  return (
+    <div className={cls} role={job.status === 'running' ? 'status' : job.status === 'failed' ? 'alert' : 'status'} aria-live="polite">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+        {job.status === 'running' ? <Loader2 className="h-4 w-4 animate-spin" /> : job.status === 'done' ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+        {job.status === 'running' ? `Importing — ${job.phase}` : job.status === 'done' ? `Imported ${job.results.length} thread${job.results.length === 1 ? '' : 's'}` : 'Import failed'}
+      </div>
+      {v.total > 0 && (
+        <div style={{ margin: '6px 0' }}>
+          <div role="progressbar" aria-label="Screenshots read" aria-valuemin={0} aria-valuemax={v.total} aria-valuenow={v.done}
+            style={{ height: 6, borderRadius: 3, background: 'var(--line, rgba(127,127,127,.25))', overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent, currentColor)', transition: 'width .3s' }} />
+          </div>
+          <div className="jr-n" style={{ marginTop: 3 }}>
+            Screenshots {v.done} / {v.total} · {v.tradesFound} trade{v.tradesFound === 1 ? '' : 's'} found · {v.cached} reused · {v.called} read{v.model ? ` (${v.model})` : ''}
+            {v.failed ? ` · ${v.failed} unreadable` : ''}{v.lowConfidence ? ` · ${v.lowConfidence} low-confidence → review` : ''}{v.skippedBudget ? ` · ${v.skippedBudget} over the ${v.cap}-image cap` : ''}
+            {v.retries ? ` · ${v.retries} rate-limit retries` : ''}{v.usd ? ` · ~$${v.usd.toFixed(2)} spent` : ''}
+          </div>
+        </div>
+      )}
+      {v.total === 0 && job.status === 'running' && <div className="jr-n">No screenshots to read{v.provider ? '' : ' (no vision provider configured)'} — writing posts and trades…</div>}
+      <div className="jr-n">Threads written {job.threads.done} / {job.threads.total}</div>
+      {job.error && <div>{job.error}</div>}
+      {job.results.length > 0 && (
+        <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+          {job.results.map((t) => (
+            <li key={t.threadId}>
+              <b>{t.book === 'mine' ? 'Mine' : t.trader}</b>{t.created ? ' (new trader)' : ''} — {t.posts} posts in the Notebook ·{' '}
+              {t.tradesNew} new / {t.tradesUpdated} updated trades{t.tradesRemoved ? ` · ${t.tradesRemoved} re-paired` : ''}
+              {t.book === 'mine' ? ` · ${t.tradesLinked} matched to your broker rows (not added) · ${t.tradesFlagged} flagged from Discord` : ''}
+              {t.fromScreenshots ? ` · ${t.fromScreenshots} from screenshots` : ''}{t.review ? ` · ${t.review} for review` : ''}
+              {t.watchlist ? ` · watchlist +${t.watchlist.added}` : ''}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

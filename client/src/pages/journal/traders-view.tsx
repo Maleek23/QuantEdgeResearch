@@ -30,6 +30,7 @@ interface Call {
   id: string; symbol: string; assetType: string; direction: string; optionType: string | null; strike: number | null; expiry: string | null;
   status: string; entryPrice: number; exitPrice: number | null; stop: number | null; target: number | null; entryTime: string; exitTime: string | null;
   statedPnlPct: number | null; confidence: number | null; link: string | null; measured: Measured | null; source: string;
+  evidence?: 'text' | 'vision' | 'text+vision' | null;
 }
 interface Analysis { trader: { slug: string; name: string }; asOf: string; stats: Stats; calls: Call[]; notes: string[]; rank: number | null; passes: boolean; rankedOf: number; config: Board['config'] }
 
@@ -151,7 +152,9 @@ function TraderAnalysisCard({ a }: { a: Analysis }) {
                             {pct(c.measured.closePct)} underlying{c.measured.hit ? ` · ${c.measured.hit} first` : ''}{c.measured.complete ? '' : ' · pending'}</span>
                             : <span className="jr-n">not measured</span>}
                       </td>
-                      <td className="num jr-n">{c.confidence != null ? `${Math.round(c.confidence * 100)}%` : '—'}</td>
+                      <td className="num jr-n" title={c.evidence === 'vision' ? 'Read from a screenshot' : c.evidence === 'text+vision' ? 'Post text + screenshot' : 'Post text'}>
+                        {c.confidence != null ? `${Math.round(c.confidence * 100)}%` : '—'}{c.evidence && c.evidence !== 'text' ? ' · img' : ''}
+                      </td>
                       <td>{c.link && <a href={c.link} target="_blank" rel="noreferrer noopener" aria-label="Open the post in Discord"><ExternalLink className="h-3.5 w-3.5" /></a>}</td>
                     </tr>
                   ))}

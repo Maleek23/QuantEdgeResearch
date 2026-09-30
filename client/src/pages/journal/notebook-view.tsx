@@ -12,11 +12,18 @@
  *                        "only <trader>'s posts" to follow their analysis; the
  *                        REVIEW filter lists trade-looking posts the parser could
  *                        not turn into a trade. The trader picker switches book.
+ *                        (fix/fvision) Each post shows what was read from its
+ *                        screenshots — the chart analysis (ticker, timeframe,
+ *                        levels, bias, thesis), fills / P&L read, text-vs-image
+ *                        conflicts — and, in Mine, the broker trade it was
+ *                        matched to. The operator's own thread (malik = leek)
+ *                        lands in Mine.
  * Writing is offered only on books the caller can write.
  */
 import { useMemo, useState } from 'react';
 import { ExternalLink, Loader2, Search, Trash2 } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
+import type { DiscordPostMeta } from '@shared/discord-forum';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useJournal } from '@/components/journal/journal-context';
 import { Card, N, fmtDayLabel } from '@/components/journal/parts';
@@ -27,12 +34,23 @@ import {
 type Kind = 'all' | 'day_note' | 'note' | 'missed' | 'imported' | 'trade' | 'calls' | 'discord' | 'review';
 type ItemKind = Exclude<Kind, 'all' | 'review'>;
 
-interface PostMeta { authorName?: string; byTrader?: boolean; link?: string | null; review?: string | null; threadName?: string; parsed?: { kind: string; symbol: string | null; confidence: number } | null }
+type VisionSummary = NonNullable<DiscordPostMeta['visionSummary']>;
+interface PostMeta {
+  authorName?: string; byTrader?: boolean; link?: string | null; review?: string | null; threadName?: string;
+  parsed?: { kind: string; symbol: string | null; confidence: number } | null;
+  visionSummary?: VisionSummary | null; conflicts?: string[]; linkedTradeId?: string | null; tradeKey?: string | null;
+}
 const REVIEW_TEXT: Record<string, string> = {
   entry_without_price: 'entry without a price',
   unmatched_exit: 'exit with no open entry',
   unpriced_exit: 'closed without a price',
   trade_looking: 'reads like a trade — not parsed',
+  vision_low_confidence: 'screenshot hard to read — not booked',
+  vision_unreadable: 'screenshot could not be read',
+  vision_conflict: 'text and screenshot disagree',
+};
+const KIND_TEXT: Record<string, string> = {
+  broker_fill: 'broker fill', order_confirmation: 'order confirmation', position: 'position', pnl_summary: 'P&L summary', chart: 'chart', other: 'image',
 };
 
 interface Item {
@@ -52,6 +70,9 @@ interface Item {
   link?: string | null;
   review?: string | null;
   parsed?: PostMeta['parsed'];
+  vision?: VisionSummary | null;
+  conflicts?: string[];
+  linkedTradeId?: string | null;
 }
 
 const SYM_RE = /\$?\b[A-Z]{1,5}\b/g;
@@ -82,6 +103,8 @@ export default function NotebookView() {
           id: `n:${n.id}`, kind: 'discord', label: `Discord · ${m.authorName ?? 'unknown'}`, day: n.day, at: n.postedAt,
           symbols: (n.symbols ?? []).map((x) => x.toUpperCase()), body: n.body, attachments: n.attachments,
           author: m.authorName, byTrader: m.byTrader !== false, link: m.link ?? null, review: m.review ?? null, parsed: m.parsed ?? null,
+          vision: m.visionSummary ?? null, conflicts: m.conflicts ?? [], linkedTradeId: m.linkedTradeId ?? null,
+          ...(m.linkedTradeId ? { tradeId: m.linkedTradeId } : {}),
         });
         continue;
       }
@@ -154,9 +177,9 @@ export default function NotebookView() {
             <button type="button" aria-pressed={order === 'new'} onClick={() => setOrder('new')}>NEWEST</button>
             <button type="button" aria-pressed={order === 'old'} onClick={() => setOrder('old')}>OLDEST</button>
           </div>
-          {!!counts.discord && slug && (
+          {!!counts.discord && (
             <label className="jr-n" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-              <input type="checkbox" checked={onlyTrader} onChange={(e) => setOnlyTrader(e.target.checked)} /> only {bookLabel}'s posts
+              <input type="checkbox" checked={onlyTrader} onChange={(e) => setOnlyTrader(e.target.checked)} /> only {slug ? `${bookLabel}'s` : 'your'} posts
             </label>
           )}
           <div className="jr-seg" role="group" aria-label="Note kind">
@@ -215,6 +238,13 @@ export default function NotebookView() {
                     {open.has(n.id) ? 'Show less' : `Read all ${n.body.length.toLocaleString()} characters`}
                   </button>
                 )}
+                {n.vision && <VisionBlock v={n.vision} />}
+                {!!n.conflicts?.length && (
+                  <div className="jr-n" role="note" style={{ borderLeft: '2px solid var(--warn, #b8860b)', paddingLeft: 6 }}>
+                    Text vs screenshot: {n.conflicts.join(' · ')}
+                  </div>
+                )}
+                {n.linkedTradeId && <div className="jr-n">Matched to your broker trade — linked, not imported twice.</div>}
                 {!!n.attachments?.length && (
                   <div className="att">
                     {n.attachments.slice(0, 6).map((a) => <a key={a.url} href={a.url} target="_blank" rel="noreferrer noopener">{a.isImage ? '▣ ' : '⎘ '}{a.name}</a>)}
@@ -227,7 +257,7 @@ export default function NotebookView() {
         {shown.length > limit && (
           <button type="button" className="jr-btn" style={{ width: '100%', marginTop: 10 }} onClick={() => setLimit((l) => l + 40)}>Show more · {shown.length - limit} hidden</button>
         )}
-        {(counts.discord ?? 0) > 0 && <p className="jr-note">Discord posts are {bookLabel}'s forum thread, imported as posted (Journal › Import › Discord forum). Images stay on Discord's CDN as links; re-importing updates edits and never duplicates. Trades parsed from them are in Trades; ranking in Trader ranking.</p>}
+        {(counts.discord ?? 0) > 0 && <p className="jr-note">Discord posts are {slug ? `${bookLabel}'s` : 'your'} forum thread, imported as posted (Journal › Import › Discord forum). Screenshots were read at import — what was read is shown under each post; the images themselves are not stored (the Discord links expire after about a day). Re-importing updates edits and never duplicates. Trades from text and screenshots are in Trades{slug ? '; ranking in Trader ranking' : ' — ones matched to your broker rows are linked, not added twice; unmatched ones are flagged “from your Discord post”'}.</p>}
         {slug && (counts.calls ?? 0) > 0 && <p className="jr-note">Watchlist calls are {bookLabel}'s imported Discord calls (latest call per ticker) — read-only here; manage them on the trader's watchlist.</p>}
       </Card>
     </div>
@@ -278,5 +308,28 @@ function NewNote() {
         </div>
       </form>
     </Card>
+  );
+}
+
+function VisionBlock({ v }: { v: VisionSummary }) {
+  const fmtN = (x: number) => (Math.abs(x) >= 100 ? x.toFixed(2).replace(/\.00$/, '') : String(x));
+  const kinds = v.kinds.map((k) => KIND_TEXT[k] ?? k).join(', ');
+  return (
+    <div className="jr-n" style={{ display: 'grid', gap: 3, borderLeft: '2px solid var(--line, rgba(127,127,127,.35))', paddingLeft: 6 }}>
+      <div>
+        Screenshot{v.images === 1 ? '' : 's'} read: {v.read}/{v.images}{kinds ? ` · ${kinds}` : ''}{v.trades ? ` · ${v.trades} fill${v.trades === 1 ? '' : 's'}/position${v.trades === 1 ? '' : 's'}` : ''}
+        {v.statedPnl && (v.statedPnl.amount != null || v.statedPnl.percent != null) && (
+          <> · stated P&amp;L {v.statedPnl.amount != null ? `${v.statedPnl.amount >= 0 ? '+' : '−'}$${fmtN(Math.abs(v.statedPnl.amount))}` : ''}{v.statedPnl.percent != null ? ` ${v.statedPnl.percent >= 0 ? '+' : ''}${v.statedPnl.percent}%` : ''}</>
+        )}
+      </div>
+      {v.charts.map((c, i) => (
+        <div key={i}>
+          <b style={{ color: 'var(--text)' }}>Chart{c.ticker ? ` ${c.ticker}` : ''}{c.timeframe ? ` · ${c.timeframe}` : ''}</b>
+          {c.bias ? ` · ${c.bias}` : ''}{c.levels.length ? ` · levels ${c.levels.slice(0, 8).map(fmtN).join(', ')}` : ''}
+          {c.thesis && <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text)' }}>{c.thesis}</div>}
+        </div>
+      ))}
+      {v.notes.map((x, i) => <div key={`n${i}`}>{x}</div>)}
+    </div>
   );
 }

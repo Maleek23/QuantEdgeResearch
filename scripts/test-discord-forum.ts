@@ -192,7 +192,9 @@ import {
   }
   console.log(`parse accuracy on ${unseen.length} held-out fixture messages: ${ue}/${unseen.length} exact, ${ur}/${uf} fields (${((ur / uf) * 100).toFixed(1)}%)`);
   if (umiss.length) console.log(`  misses:\n  ${umiss.join('\n  ')}`);
-  assert.ok(ue >= 7 && ur / uf >= 0.85, 'held-out accuracy regressed (was 7/12 exact, 36/42 fields)');
+  // 7/12 before fix/fvision; its misses (TP mid-sentence, "shares of F", "Stop hit on RIVN", "long ES 5850", "for 2.5")
+  // were then fixed, so this set is now tuned — the fresh held-out set lives in scripts/test-forum-vision.ts.
+  assert.ok(ue >= 11 && ur / uf >= 0.95, 'held-out accuracy regressed (12/12 exact, 42/42 fields after fix/fvision)');
   (globalThis as any).__forumParseAccuracy = { tuned: { exact, n: cases.length, fields: right, of: fields }, heldOut: { exact: ue, n: unseen.length, fields: ur, of: uf } };
 
   // Confidence: a full contract with price and verb scores above a bare stock mention.
@@ -331,3 +333,6 @@ import {
 }
 
 console.log('discord forum checks passed');
+
+// Screenshots (vision, mocked model), Mine mapping + broker dedupe, FIFO pairing, parser fixes.
+await import('./test-forum-vision');
