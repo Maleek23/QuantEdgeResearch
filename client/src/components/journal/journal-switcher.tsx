@@ -7,6 +7,7 @@
  * journal could not score.
  */
 import { runsCovered } from '@shared/bot-runs';
+import { expiryCounts, expiryCountsText } from '@shared/journal-expiry';
 import { useEffect, useState } from 'react';
 import { Loader2, Lock, Plus, Settings2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -91,12 +92,11 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
   /** One line (book + n) that expands to the full basis — the fit-to-screen header uses this. */
   compact?: boolean;
   /** Rows in view — the Bot book names which runs they cover. */
-  rows?: { runId?: string | null; status: string; realizedPnL?: number | null; expiredAssumed?: boolean }[];
+  rows?: { runId?: string | null; status: string; realizedPnL?: number | null; expiredAssumed?: boolean; notes?: string | null }[];
 }) {
   if (!meta) return null;
-  // Options settled at $0 because the export had no closing fill (shared/journal-expiry.ts).
-  const expired = (rows ?? []).filter((r) => r.expiredAssumed);
-  const expiredPnl = expired.reduce((s, r) => s + Number(r.realizedPnL ?? 0), 0);
+  // Options with no closing fill, settled at intrinsic on expiry day (shared/journal-expiry.ts).
+  const exp = expiryCounts(rows ?? []);
   const runs = meta.runs ?? [];
   const runLine = runs.length && rows ? (() => {
     const per = runs.map((r) => {
@@ -123,10 +123,11 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
       {meta.sizing && (sizing === 'show' || compact
         ? <div className="jr-basis-s">{meta.sizing}</div>
         : <details className="jr-basis-s"><summary style={{ cursor: 'pointer' }}>How P&amp;L is sized</summary>{meta.sizing}</details>)}
-      {expired.length > 0 && (
+      {exp.n > 0 && (
         <div className="jr-basis-s">
-          {expired.length} option{expired.length === 1 ? '' : 's'} expired with no closing fill in the broker export and {expired.length === 1 ? 'is' : 'are'} settled at $0 (assumed worthless):{' '}
-          {expiredPnl < 0 ? '−' : '+'}${Math.abs(expiredPnl).toLocaleString('en-US', { maximumFractionDigits: 0 })}. One that finished in the money is understated — edit its exit.
+          {expiryCountsText(exp)} — no closing fill in the broker export:{' '}
+          {exp.pnl < 0 ? '−' : '+'}${Math.abs(exp.pnl).toLocaleString('en-US', { maximumFractionDigits: 0 })}.
+          {exp.unverified > 0 ? ' Unverified ones stay at $0 (no close available) — Import › Re-settle expired options retries them.' : ''}
         </div>
       )}
       {nExcluded > 0 && (
@@ -146,7 +147,7 @@ export function JournalBasis({ meta, shown, total, sizing = 'show', rows, compac
         <summary>
           <span className="jr-basis-k">Computed on</span> <b>{head}</b>{' '}{n}
           {nExcluded > 0 && <span className="jr-n"> · {nExcluded} not scored</span>}
-          {expired.length > 0 && <span className="jr-n"> · {expired.length} expired options at $0</span>}
+          {exp.n > 0 && <span className="jr-n"> · {expiryCountsText(exp)}</span>}
           <span className="jr-basis-more">details</span>
         </summary>
         {rest.length ? <div className="jr-basis-s">{rest.join(' — ')}.</div> : null}

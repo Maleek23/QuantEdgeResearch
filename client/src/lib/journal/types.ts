@@ -36,7 +36,7 @@ export interface JournalTradeRow {
   /** Open bot rows: last mark + its time. Absent = never marked (P&L unknown, not 0). */
   mark?: { price: number; asOf: string; unrealizedPnL: number } | null;
   importBatchId?: string | null;
-  /** Client-derived: an option with no closing fill, settled at $0 after expiry (shared/journal-expiry.ts). */
+  /** Client-derived: an option with no closing fill, settled by the expiry rule — at intrinsic by the server, or $0 unverified (shared/journal-expiry.ts). */
   expiredAssumed?: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;

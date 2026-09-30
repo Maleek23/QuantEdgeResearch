@@ -13,6 +13,7 @@ import { QEEmpty } from '@/components/ui/qe-states';
 import { useJournal } from '@/components/journal/journal-context';
 import { ImportSections, type ImportSection } from '@/components/journal/import-drawer';
 import { ImportHistory } from '@/components/journal/import-reconciliation';
+import { ExpiryResettle } from '@/components/journal/expiry-resettle';
 
 export default function ImportView({ focus, onLogTrade }: { focus?: ImportSection; onLogTrade: () => void }) {
   const { data, canWrite, bookLabel, goTo } = useJournal();
@@ -32,6 +33,7 @@ export default function ImportView({ focus, onLogTrade }: { focus?: ImportSectio
   return (
     <>
       <ImportSections focus={focus} tradeCount={data.allRows.length} onLogTrade={onLogTrade} />
+      <div className="jr-grid" style={{ marginTop: 14 }}><ExpiryResettle /></div>
       <div className="jr-grid" style={{ marginTop: 14 }}><ImportHistory /></div>
     </>
   );

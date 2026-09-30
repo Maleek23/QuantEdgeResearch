@@ -32285,6 +32285,13 @@ Use this checklist before entering any trade:
       if (!owner) return;
       const { parseBrokerCSV } = await import('./broker-csv-parser');
       const result = parseBrokerCSV(csv, broker as any);
+      // Options held to expiry (no closing fill): settle at intrinsic from the
+      // underlying's expiry-day print, not $0 — server/journal-expiry-settle.ts.
+      const { settleParsedExpiries } = await import('./journal-expiry-settle');
+      const expirySettled = await settleParsedExpiries(result.trades).catch((err: any) => {
+        logger.warn('[JOURNAL] expiry settlement at intrinsic failed — lots stay at $0 (unverified)', { error: err?.message });
+        return null;
+      });
 
       // Persist parsed trades
       const userId = owner.ownerId;
@@ -32296,6 +32303,7 @@ Use this checklist before entering any trade:
       let saved = 0;
       let duplicates = 0;
       let closedExisting = 0;
+      let resettled = 0;
       // Reconciliation detail for the Import page: which round trips were skipped as duplicates.
       const duplicateRows: { symbol: string; direction: string; entryTime: string; exitTime: string | null; quantity: number }[] = [];
       for (const [i, t] of result.trades.entries()) {
@@ -32304,6 +32312,22 @@ Use this checklist before entering any trade:
           if (action.kind === 'duplicate') {
             duplicates++;
             if (duplicateRows.length < 200) duplicateRows.push({ symbol: t.symbol, direction: t.direction, entryTime: t.entryTime, exitTime: t.exitTime || null, quantity: Number(t.quantity) || 0 });
+            continue;
+          }
+          if (action.kind === 'resettle') {
+            // Already in the journal, closed by the expiry rule; this import settled it at intrinsic.
+            const { replaceExpiryNote } = await import('@shared/journal-expiry');
+            const line = String(t.notes ?? '').split('\n').filter((l) => l.includes('[expiry-settlement:')).pop() ?? t.notes ?? '';
+            await storage.updateJournalTrade(action.existing.id, {
+              exitPrice: t.exitPrice ?? 0,
+              exitTime: t.exitTime || null,
+              realizedPnL: t.realizedPnL ?? null,
+              realizedPnLPercent: t.realizedPnL != null && t.entryPrice > 0 ? +((t.realizedPnL / (t.entryPrice * t.quantity * 100)) * 100).toFixed(2) : null,
+              grossPnL: t.realizedPnL != null ? +(t.realizedPnL + t.fees).toFixed(2) : null,
+              outcome: t.realizedPnL != null ? (t.realizedPnL > 0 ? 'win' : t.realizedPnL < 0 ? 'loss' : 'breakeven') : 'open',
+              notes: replaceExpiryNote((action.existing as any).notes, line),
+            } as any);
+            resettled++;
             continue;
           }
           if (action.kind === 'close') {
@@ -32371,6 +32395,8 @@ Use this checklist before entering any trade:
         saved,
         duplicates,
         closedExisting,
+        resettled,
+        expirySettled,
         duplicateRows,
         fillRows: result.fillRows ?? null,
         roundTrips: result.trades.length,
@@ -32382,6 +32408,37 @@ Use this checklist before entering any trade:
     } catch (error: any) {
       logger.error("[JOURNAL] CSV import failed", { error: error?.message });
       res.status(500).json({ error: "CSV import failed", message: error?.message });
+    }
+  });
+
+  /**
+   * Re-settle expired broker-CSV option lots at intrinsic (owner / admin of the
+   * book — same writable-journal check as import). Touches ONLY rows the expiry
+   * rule closed (marker or the older $0 note, exit still the value the rule wrote)
+   * and CSV-imported option lots still open past expiry; never a real exit fill,
+   * never bot / desk / manual / Discord rows. Idempotent. ?dryRun=1 plans only.
+   */
+  app.post("/api/journal/resettle-expired", requireBetaAccess, async (req, res) => {
+    try {
+      const owner = await journalOwnerFor(req, res);
+      if (!owner) return;
+      const dryRun = String(req.query.dryRun ?? req.body?.dryRun ?? '') === '1' || req.body?.dryRun === true;
+      const { planExpiryResettle } = await import('./journal-expiry-settle');
+      const rows = await storage.getJournalTrades(owner.ownerId);
+      const { summary, changes } = await planExpiryResettle(rows as any[]);
+      let written = 0;
+      const errors: string[] = [];
+      if (!dryRun) {
+        for (const c of changes) {
+          try { await storage.updateJournalTrade(c.id, c.patch as any); written++; }
+          catch (err: any) { errors.push(`${c.contract}: ${err?.message ?? 'update failed'}`); }
+        }
+      }
+      logger.info(`[JOURNAL] resettle-expired ${dryRun ? '(dry run) ' : ''}owner=${owner.ownerId} eligible=${summary.eligible} changed=${summary.changed} delta=${summary.pnlDelta}`);
+      res.json({ success: errors.length === 0, dryRun, written, errors, ...summary });
+    } catch (error: any) {
+      logger.error("[JOURNAL] resettle-expired failed", { error: error?.message });
+      res.status(500).json({ error: "Re-settle failed", message: error?.message });
     }
   });
 
