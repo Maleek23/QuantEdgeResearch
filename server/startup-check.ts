@@ -52,7 +52,9 @@ export function checkEnvironment(): { ok: boolean; missing: string[]; warnings: 
       console.log(`   [${check.category}] ${check.name} - not set (optional)`);
     } else {
       available.push(check.name);
-      const maskedValue = value.substring(0, 4) + '...' + value.substring(value.length - 4);
+      // Never print any characters of a secret (the old 4+4 mask leaked 8 chars of
+      // SESSION_SECRET into a pasted log that is now in git history).
+      const maskedValue = `set (${value.length} chars)`;
       console.log(`   [${check.category}] ${check.name} - ${maskedValue}`);
     }
   }

@@ -702,7 +702,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // General API rate limiting — after session setup so signed-in users are
   // counted per account rather than per IP.
   app.use('/api/', generalApiLimiter);
-  
+
+  // Route guards (server/route-guards.ts): routes that registered with no auth
+  // middleware but must not be public — the Alpaca executor, the operator's
+  // portfolio/SMS, idea-book writes, Discord posts, full idea dumps. Registered
+  // before every route below so no handler runs for an unauthorised caller.
+  {
+    const { guardFor } = await import('./route-guards');
+    const sessionUserId = (req: any): string | null =>
+      req.session?.userId ?? req.user?.claims?.sub ?? null;
+    app.use(async (req: any, res, next) => {
+      const level = guardFor(req.method, req.path);
+      if (!level) return next();
+      if (level === 'member') return requireBetaAccess(req, res, next);
+      // Same local-dev convenience as requireBetaAccess; production always checks.
+      if (process.env.NODE_ENV !== 'production' && !process.env.REPL_ID) return next();
+      const uid = sessionUserId(req);
+      if (level === 'signed-in') {
+        return uid ? next() : res.status(401).json({ error: 'Authentication required' });
+      }
+      // operator: a valid admin JWT, or a signed-in user who is the admin.
+      const token = req.cookies?.admin_token
+        || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+      if (token && verifyAdminToken(token)?.isAdmin) return next();
+      if (uid) {
+        try {
+          if (checkIsAdmin(await storage.getUser(uid))) return next();
+        } catch (error) {
+          logError(error as Error, { context: 'route-guard operator check' });
+          return res.status(500).json({ error: 'Access check failed' });
+        }
+        return res.status(403).json({ error: 'Operator access required' });
+      }
+      return res.status(401).json({ error: 'Authentication required' });
+    });
+  }
+
   // Setup Direct Google OAuth - registers /api/auth/google and /api/auth/google/callback
   await setupGoogleAuth(app);
 
@@ -1425,7 +1460,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Quick dev login - creates test user if needed and logs in
-  app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
+  // authLimiter: this code alone yields an admin session, so it gets the same
+  // brute-force budget as the password login (it had none — CSRF-exempt too).
+  app.post("/api/auth/dev-login", authLimiter, async (req: Request, res: Response) => {
     try {
       const accessCode = req.body.accessCode;
       const adminCode = process.env.ADMIN_ACCESS_CODE;
@@ -1925,7 +1962,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/login", adminLimiter, (req, res) => {
     try {
-      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || req.ip || 'unknown';
+      // req.ip honours 'trust proxy' (1 hop = Caddy). The LEFTMOST X-Forwarded-For
+      // entry is client-supplied, so keying the lockout on it let an attacker rotate it.
+      const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
       
       // Check if IP is blocked due to too many failed attempts
       const blockStatus = checkLoginBlock(clientIp);
@@ -3773,7 +3812,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get additional user data
-      const preferences = await storage.getUserPreferences();
+      const preferences = await storage.getUserPreferencesByUserId(req.params.userId);
       const watchlistItems = await storage.getWatchlistByUser(req.params.userId);
       
       res.json({
@@ -17273,7 +17312,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             momentum5d,
             upside,
             topSignal,
-            thesis: it.weeklyThesis || it.thesis || it.addedReason || it.notes || null,
+            // Never a member's private notes/addedReason: this endpoint is public.
+            thesis: it.weeklyThesis || it.thesis || null,
             addedAt: it.addedAt ?? null,
             currentPrice: it.currentPrice ?? null,
             lastEvaluatedAt: it.lastEvaluatedAt ?? null,
@@ -20009,16 +20049,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User Preferences Routes
+  // SECURITY (review 2026-09-30): these used to read/write the FIRST row of
+  // user_preferences with no session check — any visitor could read another
+  // member's sizing (and discordWebhookUrl) and overwrite it, including its
+  // userId. Now scoped to the signed-in user; a signed-out read gets defaults.
+  const PREFS_DEFAULTS = {
+    accountSize: 10000, maxRiskPerTrade: 1, defaultCapitalPerIdea: 1000, defaultOptionsBudget: 250,
+    preferredAssets: ["stock", "option", "crypto"], holdingHorizon: "intraday", theme: "dark",
+    timezone: "America/Chicago", defaultViewMode: "card", compactMode: false,
+    enableTradeAlerts: true, enablePriceAlerts: true, enablePerformanceAlerts: false, enableWeeklyReport: false,
+    defaultAssetFilter: "all", defaultConfidenceFilter: "all", autoRefreshEnabled: true,
+  };
+  const prefsUserId = (req: any): string | null => {
+    const id = req.session?.userId ?? req.user?.claims?.sub;
+    return id ? String(id) : null;
+  };
   app.get("/api/preferences", async (req: any, res) => {
     try {
-      let prefs = await storage.getUserPreferences();
+      const userId = prefsUserId(req);
+      if (!userId) return res.json({ ...PREFS_DEFAULTS, userId: null });
       // A user with no saved preferences is the NORMAL first-run state, not an error.
-      // 404ing here meant the settings UI could never load, which is why none of the
-      // personalization in this table was ever reachable. Create the defaults instead.
-      if (!prefs) {
-        const userId = req.user?.id || req.user?.claims?.sub || 'default';
-        prefs = await storage.updateUserPreferences({ userId });
-      }
+      const prefs = (await storage.getUserPreferencesByUserId(userId))
+        ?? (await storage.updateUserPreferencesByUserId(userId, {}));
       res.json(prefs);
     } catch (error) {
       logger.error("[API] Failed to fetch/create preferences:", error);
@@ -20026,10 +20078,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/preferences", async (req, res) => {
+  const writePrefs = async (req: any, res: any) => {
+    const userId = prefsUserId(req);
+    if (!userId) return res.status(401).json({ error: "Sign in to save preferences" });
     try {
-      const validated = insertUserPreferencesSchema.partial().parse(req.body);
-      const prefs = await storage.updateUserPreferences(validated);
+      // userId is never taken from the body: a row cannot be moved to another user.
+      const { userId: _ignored, ...validated } = insertUserPreferencesSchema.partial().parse(req.body);
+      const prefs = await storage.updateUserPreferencesByUserId(userId, validated);
       res.json(prefs);
     } catch (error: any) {
       console.error("Preferences validation error:", error);
@@ -20038,21 +20093,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: error.message || error.toString()
       });
     }
-  });
-
-  app.put("/api/preferences", async (req, res) => {
-    try {
-      const validated = insertUserPreferencesSchema.partial().parse(req.body);
-      const prefs = await storage.updateUserPreferences(validated);
-      res.json(prefs);
-    } catch (error: any) {
-      console.error("Preferences validation error:", error);
-      res.status(400).json({ 
-        error: "Invalid preferences data",
-        details: error.message || error.toString()
-      });
-    }
-  });
+  };
+  app.patch("/api/preferences", writePrefs);
+  app.put("/api/preferences", writePrefs);
 
   // User-Specific Preferences (for logged-in users)
   // Preferences belong to the signed-in user. "guest" reads get defaults;
@@ -20089,7 +20132,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/user/:userId/preferences", ownsPrefsUser, async (req, res) => {
     try {
       const { userId } = req.params;
-      const validated = insertUserPreferencesSchema.partial().parse(req.body);
+      // userId comes from the (ownership-checked) URL only, never the body.
+      const { userId: _ignored, ...validated } = insertUserPreferencesSchema.partial().parse(req.body);
       const prefs = await storage.updateUserPreferencesByUserId(userId, validated);
       res.json(prefs);
     } catch (error: any) {
