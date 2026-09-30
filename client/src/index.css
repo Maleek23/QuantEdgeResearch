@@ -2891,3 +2891,8 @@ html[data-mode=light]{--qe-focus:#1d4ed8}
   #main-content :is(.nxp-context h3,.nxp-market-summary dt,.nxd dt,.gx-sub-head,.chart-canvas-wrap > div){font-size:12px!important}
   #main-content .gx-chip{font-size:12px!important;padding:0 2px!important}
 }
+@media (max-width:599px){
+  #main-content :is(.nxp-level-strip,.nxp-levels,.nxp-price-strip) :is(span,small){font-size:12px!important}
+  #main-content .gx-hero-title{font-size:12px!important}
+}
+@media (max-width:599px){ #main-content .nxp-execution :is(span,small,dt,dd){font-size:max(12px,1em)!important} #main-content .nxp-execution span{font-size:12px!important} }
