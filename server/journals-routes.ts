@@ -37,7 +37,7 @@ import { logger } from './logger';
 import { journalNotes, journalTrades, paperPortfolios, traders, traderWatchlistItems } from '@shared/schema';
 import { JOURNAL_NOTE_KINDS, TRADER_SLUG_RE, journalNoteKey, parseJournalKey, type JournalSourceListItem } from '@shared/journal-sources';
 import {
-  JournalAccessError, canWriteTrader, getTraderBySlug, journalActor, listTraders, loadJournalNotes, personalBookLabel, resolveJournal, writableOwner,
+  JournalAccessError, canWriteTrader, getTraderBySlug, isTraderLocked, journalActor, listTraders, loadJournalNotes, personalBookLabel, resolveJournal, writableOwner,
 } from './journal-sources';
 
 type Mw = (req: Request, res: Response, next: NextFunction) => unknown;
@@ -98,6 +98,51 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
   });
 
   // ── Sources ──────────────────────────────────────────────
+  // ── Passcode-protected trader books (operator 2026-09-30: every trader book
+  // locked except NEXUS and Bot). Unlock lasts for the login session. Brute
+  // force: 5 wrong codes per session per 15 min, then 429.
+  app.post('/api/journal/traders/:slug/unlock', requireBetaAccess, async (req, res) => {
+    try {
+      const slug = String(req.params.slug || '').toLowerCase();
+      const code = String(req.body?.passcode ?? '');
+      const t = await getTraderBySlug(slug);
+      if (!t) return res.status(404).json({ error: 'No such trader' });
+      if (!t.passcodeHash) return res.json({ ok: true, unlocked: slug });
+      const sess: any = (req as any).session;
+      if (!sess) return res.status(401).json({ error: 'Sign in first' });
+      const now = Date.now();
+      const tries: number[] = (Array.isArray(sess.journalUnlockFails) ? sess.journalUnlockFails : []).filter((x: number) => now - x < 15 * 60_000);
+      if (tries.length >= 5) return res.status(429).json({ error: 'Too many wrong passcodes — try again in 15 minutes' });
+      const bcrypt = (await import('bcrypt')).default;
+      const ok = code.length > 0 && code.length <= 128 && await bcrypt.compare(code, t.passcodeHash);
+      if (!ok) { sess.journalUnlockFails = [...tries, now]; return res.status(403).json({ error: 'Wrong passcode' }); }
+      const list: string[] = Array.isArray(sess.journalUnlocks) ? sess.journalUnlocks : [];
+      sess.journalUnlocks = Array.from(new Set([...list, slug]));
+      sess.journalUnlockFails = [];
+      res.json({ ok: true, unlocked: slug });
+    } catch (err) { fail(res, err, 'Unlock'); }
+  });
+
+  /** Admin: set or clear a trader book's passcode ({ passcode: '' } clears). */
+  app.put('/api/journal/traders/:slug/passcode', requireBetaAccess, async (req, res) => {
+    try {
+      const actor = await journalActor(req);
+      if (!actor.isAdmin) return res.status(403).json({ error: 'Admins only' });
+      const slug = String(req.params.slug || '').toLowerCase();
+      const code = String(req.body?.passcode ?? '');
+      if (code && (code.length < 6 || code.length > 128)) return res.status(400).json({ error: 'Passcode must be 6–128 characters' });
+      const t = await getTraderBySlug(slug);
+      if (!t) return res.status(404).json({ error: 'No such trader' });
+      const bcrypt = (await import('bcrypt')).default;
+      const hash = code ? await bcrypt.hash(code, 12) : null;
+      const { db } = await import('./db');
+      const { traders } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      await db.update(traders).set({ passcodeHash: hash }).where(eq(traders.slug, slug));
+      res.json({ ok: true, locked: !!hash });
+    } catch (err) { fail(res, err, 'Set passcode'); }
+  });
+
   app.get('/api/journal/sources', requireBetaAccess, async (req, res) => {
     try {
       const actor = await journalActor(req);
@@ -112,7 +157,7 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
         { key: 'mine', kind: 'mine', label: mineLabel, hint: 'Your trades — manual, broker CSV, Alpaca', readOnly: false, canWrite: !!actor.userId },
         ...list.filter((t) => !(actor.userId && t.linkedUserId === actor.userId)).map((t): JournalSourceListItem => {
           const canWrite = canWriteTrader(actor, t);
-          return { key: `trader:${t.slug}`, kind: 'trader', label: t.name, hint: `${t.name}'s journal${t.source ? ` · from ${t.source}` : ''}`, readOnly: !canWrite, canWrite };
+          return { key: `trader:${t.slug}`, kind: 'trader', label: t.name, hint: `${t.name}'s journal${t.source ? ` · from ${t.source}` : ''}`, readOnly: !canWrite, canWrite, locked: isTraderLocked(actor, t) };
         }),
       ];
       const { discordBotConfigured } = await import('./discord-journal-import');

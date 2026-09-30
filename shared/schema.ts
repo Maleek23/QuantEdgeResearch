@@ -3562,6 +3562,9 @@ export const traders = pgTable("traders", {
   discordAuthorId: text("discord_author_id"),
   /** A platform user who IS this trader — may edit their own watchlist/journal. */
   linkedUserId: varchar("linked_user_id"),
+  /** bcrypt hash of the book's passcode — set = the book is locked to everyone
+   *  except admins, the linked user, and sessions that entered the code. */
+  passcodeHash: text("passcode_hash"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });

@@ -33,6 +33,15 @@ import {
 export interface JournalActor {
   userId: string | null;
   isAdmin: boolean;
+  /** Trader slugs whose passcode this session entered. */
+  unlocked?: string[];
+}
+
+/** A trader book is locked when it has a passcode and the caller isn't admin, linked, or unlocked. */
+export function isTraderLocked(actor: JournalActor, trader: Pick<Trader, 'slug' | 'passcodeHash' | 'linkedUserId'>): boolean {
+  if (!trader.passcodeHash) return false;
+  if (canWriteTrader(actor, trader)) return false;
+  return !(actor.unlocked ?? []).includes(trader.slug);
 }
 
 const isDevBypass = () => process.env.NODE_ENV !== 'production' && !process.env.REPL_ID;
@@ -51,15 +60,17 @@ function isAdminUser(user: { email?: string | null; subscriptionTier?: string | 
  * to the historical 'default' owner and is treated as admin, dev only.
  */
 export async function journalActor(req: Request): Promise<JournalActor> {
+  const raw = (req as any).session?.journalUnlocks;
+  const unlocked: string[] = Array.isArray(raw) ? raw.filter((x: unknown) => typeof x === 'string') : [];
   const beta = (req as any).betaUser;
-  if (beta?.id) return { userId: String(beta.id), isAdmin: isAdminUser(beta) };
+  if (beta?.id) return { userId: String(beta.id), isAdmin: isAdminUser(beta), unlocked };
   const sessionId = (req as any).session?.userId ?? (req as any).user?.claims?.sub;
   if (sessionId) {
     const user = await storage.getUser(String(sessionId)).catch(() => undefined);
-    return { userId: String(sessionId), isAdmin: isAdminUser(user) || (isDevBypass() && !user) };
+    return { userId: String(sessionId), isAdmin: isAdminUser(user) || (isDevBypass() && !user), unlocked };
   }
-  if (isDevBypass()) return { userId: 'default', isAdmin: true };
-  return { userId: null, isAdmin: false };
+  if (isDevBypass()) return { userId: 'default', isAdmin: true, unlocked };
+  return { userId: null, isAdmin: false, unlocked };
 }
 
 // ─── Traders ─────────────────────────────────────────────────
@@ -115,6 +126,7 @@ export async function resolveJournal(actor: JournalActor, key: JournalKey): Prom
   if (kind === 'desk') return { key, kind, label: 'NEXUS ideas', ownerId: null, trader: null, readOnly: true, canWrite: false };
   const trader = await getTraderBySlug(traderSlugOf(key)!);
   if (!trader) throw new JournalAccessError(404, 'No such trader');
+  if (isTraderLocked(actor, trader)) throw new JournalAccessError(423, `locked:${trader.slug} — ${trader.name}'s journal is passcode-protected`);
   const canWrite = canWriteTrader(actor, trader);
   return { key, kind, label: trader.name, ownerId: traderOwnerId(trader.id), trader, readOnly: !canWrite, canWrite };
 }

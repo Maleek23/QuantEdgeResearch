@@ -74,6 +74,8 @@ export interface JournalSourceListItem {
   hint: string;
   readOnly: boolean;
   canWrite: boolean;
+  /** Passcode-protected and not yet unlocked in this session. */
+  locked?: boolean;
 }
 
 /**

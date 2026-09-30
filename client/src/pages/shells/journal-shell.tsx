@@ -39,7 +39,9 @@ import { JournalNav } from '@/components/journal/journal-nav';
 import { TradeDrawer } from '@/components/journal/trade-drawer';
 import { TradeEditor } from '@/components/journal/trade-editor';
 import type { JournalTradeRow } from '@/lib/journal/types';
-import { useJournalData, useJournalFilterState, useJournalKey, useJournalPrefs, useJournalSources } from '@/lib/journal/use-journal';
+import { JournalLockedError, useJournalData, useJournalFilterState, useJournalKey, useJournalPrefs, useJournalSources } from '@/lib/journal/use-journal';
+import { JournalUnlock } from '@/components/journal/journal-unlock';
+import { queryClient } from '@/lib/queryClient';
 import type { JournalKey } from '@shared/journal-sources';
 import { FILTERED_PAGES, JOURNAL_PAGES, TRADE_PAGES, resolveJournalPage } from '@/lib/journal/legacy-jtab';
 import '@/styles/journal.css';
@@ -177,6 +179,8 @@ export default function JournalShell() {
   let body: React.ReactNode;
   if (!personal) {
     body = <RecordView backtestOpen={backtestOpen} />;
+  } else if (tradesQ.error instanceof JournalLockedError && journalKey.startsWith('trader:')) {
+    body = <JournalUnlock slug={journalKey.slice('trader:'.length)} label={bookLabel} onUnlocked={() => { void tradesQ.refetch(); void queryClient.invalidateQueries({ queryKey: ['/api/journal/sources'] }); }} />;
   } else if (tradesQ.isError && view !== 'settings') {
     body = (
       <QEError

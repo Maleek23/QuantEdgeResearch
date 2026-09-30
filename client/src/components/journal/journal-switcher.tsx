@@ -68,7 +68,7 @@ export function JournalSwitcher({ value, onChange, sources, loading, collapsed =
             {books.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </optgroup>
           <optgroup label={loading && !people.length ? 'Traders (loading…)' : !people.length && !sources ? 'Traders (unavailable)' : 'Traders'}>
-            {people.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+            {people.map((s) => <option key={s.key} value={s.key}>{s.locked ? `🔒 ${s.label}` : s.label}</option>)}
           </optgroup>
           {!list.some((s) => s.key === value) && <option value={value}>{label}</option>}
         </select>

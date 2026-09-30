@@ -168,10 +168,17 @@ export function journalTradesQuery(key: JournalKey) {
     queryKey: [...JOURNAL_TRADES_KEY, key] as const,
     queryFn: async (): Promise<JournalTradesPayload> => {
       const res = await fetch(withQs('/api/journal/trades', journalQs(key)), { credentials: 'include' });
+      if (res.status === 423) throw new JournalLockedError();
       if (!res.ok) throw new Error(`Journal trades request failed (${res.status})`);
       return res.json();
     },
+    retry: (n: number, err: unknown) => !(err instanceof JournalLockedError) && n < 2,
   };
+}
+
+/** A passcode-protected trader book this session hasn't unlocked (HTTP 423). */
+export class JournalLockedError extends Error {
+  constructor() { super('This journal is passcode-protected'); this.name = 'JournalLockedError'; }
 }
 
 export function useJournalData(filters: JournalFilters, key: JournalKey = 'mine') {
