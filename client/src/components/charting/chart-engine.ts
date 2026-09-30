@@ -88,7 +88,9 @@ export function aggregateCandles(bars: Candle[], minutes: number): Candle[] {
   }));
 }
 
-export function useCandles(symbol: string, tf: string) {
+/** `enabled=false` (a chart scrolled off-screen) keeps whatever is cached but
+ *  stops the 2-min history refetch until the chart is back in view. */
+export function useCandles(symbol: string, tf: string, enabled = true) {
   const cfg = TF_CONFIG[tf];
   const tol = WICK_TOLERANCE[tf] ?? 0.05;
   return useQuery<CandleSeries>({
@@ -130,7 +132,8 @@ export function useCandles(symbol: string, tf: string) {
       return { bars, clampedWicks };
     },
     staleTime: 60_000,
-    refetchInterval: CANDLES_POLL_MS,
+    refetchInterval: enabled ? CANDLES_POLL_MS : false,
+    enabled: enabled && !!symbol,
     retry: 1,
   });
 }

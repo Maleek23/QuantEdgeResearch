@@ -69,6 +69,9 @@ export function NexusPriceChart({
   resetKey,
   defaultVisibleBars,
   live = true,
+  active = true,
+  chartType: controlledType,
+  minimalInfo = false,
 }: {
   symbol: string;
   initialTf?: keyof typeof TF_CONFIG;
@@ -105,17 +108,25 @@ export function NexusPriceChart({
   /** Form the last candle from live ticks (default on). Off for Replay — the
    *  past must not be edited by the present. */
   live?: boolean;
+  /** False while the chart is off-screen: no live subscription, no history
+   *  refetch. Cached bars stay drawn. */
+  active?: boolean;
+  /** Controlled candles/line (the caller's settings own it). */
+  chartType?: 'candles' | 'line';
+  /** Compact embeds: the info strip shows only the LIVE/DELAYED stamp. */
+  minimalInfo?: boolean;
 }) {
   const [localTf, setLocalTf] = useState<keyof typeof TF_CONFIG>(
     TF_CONFIG[initialTf] ? initialTf : '1D',
   );
   const tf = controlledTf && TF_CONFIG[controlledTf] ? controlledTf : localTf;
   const setTf = (next: keyof typeof TF_CONFIG) => { setLocalTf(next); onTfChange?.(next); };
-  const [type, setType] = useState<'candles' | 'line'>('candles');
+  const [localType, setType] = useState<'candles' | 'line'>('candles');
+  const type = controlledType ?? localType;
   const [expanded, setExpanded] = useState(false);
-  const { data: series, isLoading, isError } = useCandles(symbol, tf);
+  const { data: series, isLoading, isError } = useCandles(symbol, tf, active);
   // History + the forming bar from live prints (WS, or 1 s polling fallback).
-  const { bars: liveBars, lastTick } = useLiveCandles(symbol, tf, series?.bars, live);
+  const { bars: liveBars, lastTick } = useLiveCandles(symbol, tf, series?.bars, live && active);
   const all = useMemo(
     () => (liveBars && transformBars ? transformBars(liveBars) : liveBars),
     [liveBars, transformBars],
@@ -278,7 +289,11 @@ export function NexusPriceChart({
 
   const chartBody = (
     <>
-      {isLoading ? (
+      {!active && !series ? (
+        <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+          {symbol} · loads when in view
+        </div>
+      ) : isLoading ? (
         <div style={{ display: 'grid', placeItems: 'center', height: '100%', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
           loading {symbol} · {TF_CONFIG[tf].label}…
         </div>
@@ -422,10 +437,13 @@ export function NexusPriceChart({
       </div>}
 
       <div className="chart-info-overlay" style={{ bottom: 8, left: 8, padding: '4px 8px' }}>
-        <span>TF <b>{TF_CONFIG[tf].label}</b></span>
-        <span>BARS <b>{candles?.length ?? 0}{(candles?.length ?? 0) < len ? ` / ${len}` : ''}</b></span>
-        <span style={{ color: view.span != null || priceView.scale !== 1 || priceView.shift !== 0 ? 'var(--cyan-bright)' : undefined }}>plot ↔↕ · axes scale · dbl-click reset</span>
-        {live && lastTick && all?.length ? <LiveBadge tick={lastTick} tf={tf} lastBarTime={all[all.length - 1].time} /> : null}
+        {!minimalInfo && <span>TF <b>{TF_CONFIG[tf].label}</b></span>}
+        {!minimalInfo && <span>BARS <b>{candles?.length ?? 0}{(candles?.length ?? 0) < len ? ` / ${len}` : ''}</b></span>}
+        {!minimalInfo && <span style={{ color: view.span != null || priceView.scale !== 1 || priceView.shift !== 0 ? 'var(--cyan-bright)' : undefined }}>plot ↔↕ · axes scale · dbl-click reset</span>}
+        {live && !active && all?.length ? <span style={{ color: 'var(--text-mute)' }}>❚❚ paused off-screen</span> : null}
+        {live && active && lastTick && all?.length ? <LiveBadge tick={lastTick} tf={tf} lastBarTime={all[all.length - 1].time} /> : null}
+        {live && active && !lastTick && all?.length ? <span style={{ color: 'var(--amber, #facc15)' }} title="No live print or quote has arrived yet — the last bar is the history feed's.">○ HISTORY · waiting for tape</span> : null}
+        {!live && all?.length ? <span style={{ color: 'var(--text-mute)' }} title="This chart shows a fixed window of history; live ticks are off.">HISTORY · not live</span> : null}
         {visibleQuarantined > 0 && (
           <span style={{ color: 'var(--amber)' }}>{visibleQuarantined} SOURCE ANOMAL{visibleQuarantined === 1 ? 'Y' : 'IES'} HIDDEN</span>
         )}

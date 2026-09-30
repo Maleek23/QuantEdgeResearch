@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronRight, PanelRightOpen, Target } from 'lucide-react';
 import { TickerLogo } from '@/components/hunt/cockpit/ticker-logo';
-import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
+import { QEChart } from '@/components/charting/qe-chart';
 import { PriceLadder, ProfitPlan, RiskPanel } from '@/components/oracle/signal-detail';
 import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { TASummary } from '@/components/hunt/cockpit/ta-summary';
@@ -244,7 +244,7 @@ export function DevelopingDetail({ hit, quote, onOpen, chartHeight = 260 }: { hi
       <div><span>Pattern</span><strong>{hit.pattern.replaceAll('_', ' ')}</strong><small>{hit.bias === 'neutral' ? 'break direction decides' : `${hit.bias} observation`}</small></div>
     </div>
     {staleSnapshot && <div className="nxp-dev-warning"><strong>Snapshot dislocated from live tape.</strong><span>The detector saw {money(detected)}, while the current {quote?.session} print is {money(current)}. Rescan levels and options before this can become a trade.</span></div>}
-    <div className="nxp-chart-card"><div className="nxp-chart-meta"><span>Price structure · detector levels</span><strong>{quote?.isCurrent ? 'CURRENT TAPE' : 'HISTORICAL'}</strong></div><NexusPriceChart symbol={hit.symbol} initialTf="1D" height={chartHeight} levels={chartLevels} /></div>
+    <div className="nxp-chart-card"><div className="nxp-chart-meta"><span>Price structure · detector levels</span><strong>{quote?.isCurrent ? 'CURRENT TAPE' : 'HISTORICAL'}</strong></div><QEChart symbol={hit.symbol} initialTf="1D" height={Math.max(chartHeight, 380)} levels={chartLevels} /></div>
     <div className="nxp-dev-grid">
       <article><div className="nxp-section-title"><span>Measured evidence</span><small>{levelRows.length} fields</small></div><h3>{decision.detail}</h3><div className="nxp-dev-levels">{levelRows.map(([key, value]) => <div key={key}><span>{key.replaceAll('_', ' ')}</span><strong>{formatLevel(key, Number(value))}</strong></div>)}</div></article>
       <aside><div className="nxp-section-title"><span>Promotion gate</span><small>candidate → setup</small></div><ol><li>Fresh quote agrees with the structure</li><li>Decision level triggers and holds</li><li>Risk level survives normal volatility</li><li>Liquid contract fits account risk</li></ol><p>Developing candidates are research observations—not entries, confidence grades, or bot orders.</p><button className="nxp-cockpit" type="button" onClick={onOpen}>Open full workup <ChevronRight size={16} /></button></aside>
@@ -284,7 +284,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
 
       <div className="nxp-chart-card">
         <div className="nxp-chart-meta"><span>1 month structure</span><strong>{money(live)}</strong></div>
-        <NexusPriceChart symbol={selected.symbol} initialTf="1D" height={chartHeight} levels={[
+        <QEChart symbol={selected.symbol} initialTf="1D" height={Math.max(chartHeight, 380)} levels={[
           { price: selected.entryPrice, label: pendingEntry ? 'TRIGGER' : 'ENTRY', color: '#3b8cff' },
           { price: selected.stopLoss, label: 'STOP', color: '#ff746d' },
           { price: selected.targetPrice, label: 'T1', color: '#42d5b1' },

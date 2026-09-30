@@ -28,7 +28,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useColResize } from '@/lib/use-col-resize';
 import { openWorkup } from '@/lib/workup-bus';
-import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
+import { QEChart } from '@/components/charting/qe-chart';
 import { Heartbeat } from '@/components/viz';
 import { useBotLedger, useQuantBotStatus, type BotPositionView } from '@/lib/bot/use-bot-status';
 import { fmtMoney, runRecords, toTrade, type RunRecord } from '@/lib/journal/metrics';
@@ -776,7 +776,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                 blocked {new Date(replay.blockedAt).toLocaleString()} · {replay.reason}
               </div>
             </div>
-            <NexusPriceChart key={`replay-${replay.symbol}`} symbol={replay.symbol} initialTf="1D" height={340} expandable={false} live={false}
+            <QEChart key={`replay-${replay.symbol}`} symbol={replay.symbol} initialTf="1D" height={380} live={false}
               levels={[
                 { price: replay.entryPrice, color: '#3b8cff', label: 'blocked entry' },
                 { price: replay.stopLoss, color: '#ff6b3d', label: 'would-be stop' },
@@ -812,7 +812,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
                 cannot honestly be drawn on a share chart — so the chart carries
                 the strike (a real underlying level) and the barrier rail below
                 stays in the contract's own units. */}
-            <NexusPriceChart key={`expand-${expandPos.id}`} symbol={expandPos.symbol} initialTf="1D" height={320} expandable={false}
+            <QEChart key={`expand-${expandPos.id}`} symbol={expandPos.symbol} initialTf="1D" height={380}
               levels={expandPos.assetType === 'option' && expandPos.strikePrice != null
                 ? [{ price: expandPos.strikePrice, color: '#facc15', label: `strike $${expandPos.strikePrice}` }]
                 : [
