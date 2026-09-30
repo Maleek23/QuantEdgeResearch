@@ -45,14 +45,6 @@ export async function updateVIXCache(): Promise<number> {
   }
   return _cachedVIX;
 }
-
-/**
- * Check if VIX cache is stale
- */
-export function isVIXCacheStale(): boolean {
-  return Date.now() - _vixLastUpdated > VIX_CACHE_TTL;
-}
-
 // ============================================================================
 // TYPES & INTERFACES
 // ============================================================================
@@ -233,74 +225,6 @@ export function calculateHistoricalVaR(
   
   return Math.abs(varReturn * portfolioValue);
 }
-
-/**
- * Parametric VaR (variance-covariance method)
- * Assumes normal distribution of returns
- */
-export function calculateParametricVaR(
-  returns: number[],
-  portfolioValue: number,
-  confidenceLevel: number = 0.95,
-  holdingPeriod: number = 1 // days
-): number {
-  if (returns.length < 10) {
-    return portfolioValue * 0.02;
-  }
-  
-  const mu = mean(returns);
-  const sigma = standardDeviation(returns);
-  
-  // Z-score for confidence level
-  const zScores: Record<number, number> = {
-    0.90: 1.282,
-    0.95: 1.645,
-    0.99: 2.326,
-    0.999: 3.090
-  };
-  const z = zScores[confidenceLevel] || 1.645;
-  
-  // Scale for holding period
-  const scaledVaR = (mu - z * sigma) * Math.sqrt(holdingPeriod) * portfolioValue;
-  
-  return Math.abs(scaledVaR);
-}
-
-/**
- * Monte Carlo VaR
- * Simulates thousands of scenarios for robust VaR estimation
- */
-export function calculateMonteCarloVaR(
-  returns: number[],
-  portfolioValue: number,
-  confidenceLevel: number = 0.95,
-  simulations: number = 10000,
-  holdingPeriod: number = 1
-): number {
-  if (returns.length < 10) {
-    return portfolioValue * 0.02;
-  }
-  
-  const mu = mean(returns);
-  const sigma = standardDeviation(returns);
-  
-  const simulatedReturns: number[] = [];
-  
-  for (let i = 0; i < simulations; i++) {
-    let cumulativeReturn = 0;
-    for (let day = 0; day < holdingPeriod; day++) {
-      cumulativeReturn += randomNormal(mu, sigma);
-    }
-    simulatedReturns.push(cumulativeReturn);
-  }
-  
-  simulatedReturns.sort((a, b) => a - b);
-  const varPercentile = 1 - confidenceLevel;
-  const varIndex = Math.floor(varPercentile * simulations);
-  
-  return Math.abs(simulatedReturns[varIndex] * portfolioValue);
-}
-
 /**
  * Conditional VaR (Expected Shortfall)
  * Average loss in the worst (1-confidence)% of cases
@@ -729,16 +653,4 @@ export class RiskEngine {
 
 // Export singleton for bot usage
 let botRiskEngine: RiskEngine | null = null;
-
-export function getBotRiskEngine(portfolioValue: number = 300): RiskEngine {
-  if (!botRiskEngine) {
-    botRiskEngine = new RiskEngine(portfolioValue);
-  }
-  return botRiskEngine;
-}
-
-export function resetBotRiskEngine(): void {
-  botRiskEngine = null;
-}
-
 logger.info('[RISK-ENGINE] Institutional risk engine loaded');

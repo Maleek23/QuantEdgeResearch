@@ -484,15 +484,6 @@ export function scoreToTier(score: number): ConfluenceRow['scoreTier'] {
   if (score >= 40) return 'watch';
   return 'weak';
 }
-
-/** Map a GEX value to a heatmap intensity 0..1 (log-scaled) */
-export function gexToIntensity(gex: number, maxAbs: number): number {
-  if (maxAbs <= 0) return 0;
-  const normalized = Math.abs(gex) / maxAbs;
-  // Log scale so small values are still visible
-  return Math.min(1, Math.log1p(normalized * 9) / Math.log(10));
-}
-
 // ─────────────────────────────────────────────────────────────
 // WEEKLY PATH PROJECTION TYPES
 // ─────────────────────────────────────────────────────────────
@@ -556,20 +547,4 @@ export interface WeeklyPathProjection {
   volSource?: 'realized-20d' | 'vix' | 'regime-estimate';
   /** VIX-implied vol (decimal), for reference beside the realized figure. */
   impliedVol?: number;
-}
-
-/** Format GEX in billions with sign */
-export function formatGEX(gex: number): string {
-  const sign = gex >= 0 ? '+' : '−';
-  const abs = Math.abs(gex);
-  if (abs >= 1) return `${sign}$${abs.toFixed(2)}B`;
-  if (abs >= 0.001) return `${sign}$${(abs * 1000).toFixed(1)}M`;
-  if (abs >= 0.000001) return `${sign}$${(abs * 1_000_000).toFixed(0)}K`;
-  if (abs === 0) return '$0';
-  return `${sign}$${(abs * 1_000_000).toFixed(1)}K`;
-}
-
-/** Format a percentage of total gamma */
-export function formatGammaPct(pct: number): string {
-  return `${(pct * 100).toFixed(1)}%`;
 }

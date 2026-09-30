@@ -33,7 +33,6 @@ export interface MarketPulse {
   // ─── DEEP CONTEXT (MomoEdge-tier additions) ────────────────
   breadth?: BreadthSignals;           // advance/decline, %above 50DMA
   optionsContext?: OptionsContext;    // put/call ratio, vol surge
-  gexLevels?: GEXLevelsSummary;       // SPY/QQQ flip + walls
   fearGreed?: FearGreedSignal;        // composite from VIX + breadth + flow
   futures?: FuturesSnapshot[];        // ES, NQ, RTY pre-market
   preMarketMovers?: PreMarketMovers;  // overnight gappers
@@ -51,11 +50,6 @@ interface OptionsContext {
   pcrLabel: 'BULLISH' | 'NEUTRAL' | 'BEARISH';
   spyOptionsVolumeSurge: number;        // x avg
   smartMoneyDirection: 'BULL' | 'BEAR' | 'NEUTRAL';
-}
-
-interface GEXLevelsSummary {
-  spy: { spot: number; flip: number; callWall: number; putWall: number; regime: 'POSITIVE' | 'NEGATIVE' };
-  qqq: { spot: number; flip: number; callWall: number; putWall: number; regime: 'POSITIVE' | 'NEGATIVE' };
 }
 
 interface FearGreedSignal {
@@ -337,10 +331,9 @@ export async function getMarketPulse(watchlist: string[] = []): Promise<MarketPu
     `Regime: ${regime.label.replace('_', ' ').toLowerCase()}.`;
 
   // ───── DEEP CONTEXT — pulled in parallel with the rest ─────
-  const [breadth, optionsContext, gexLevels, futures, preMarketMovers] = await Promise.all([
+  const [breadth, optionsContext, futures, preMarketMovers] = await Promise.all([
     computeBreadth().catch(() => undefined),
     computeOptionsContext().catch(() => undefined),
-    computeGEXLevels().catch(() => undefined),
     fetchFutures().catch(() => undefined),
     computePreMarketMovers(watchlist).catch(() => undefined)
   ]);
@@ -365,7 +358,6 @@ export async function getMarketPulse(watchlist: string[] = []): Promise<MarketPu
     narrative,
     breadth,
     optionsContext,
-    gexLevels,
     fearGreed,
     futures,
     preMarketMovers
@@ -451,46 +443,6 @@ async function computeOptionsContext(): Promise<OptionsContext | undefined> {
       smartMoneyDirection: pcr > 1.2 ? 'BEAR' : pcr < 0.7 ? 'BULL' : 'NEUTRAL'
     };
   } catch { return undefined; }
-}
-
-async function computeGEXLevels(): Promise<GEXLevelsSummary | undefined> {
-  const fetchGEX = async (sym: string) => {
-    try {
-      const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${sym}.json`;
-      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-      const j: any = await r.json();
-      const data = j?.data;
-      if (!data?.current_price) return null;
-      const spot = data.current_price;
-      const opts = data.options || [];
-      let totalGEX = 0;
-      const callOI: Record<number, number> = {};
-      const putOI: Record<number, number> = {};
-      const slen = sym.length;
-      for (const o of opts) {
-        const s = o.option || '';
-        try {
-          const base = s.slice(slen);
-          const cp = base[6];
-          const strike = parseInt(base.slice(7)) / 1000;
-          const oi = o.open_interest || 0;
-          const gamma = o.gamma || 0;
-          const sign = cp === 'C' ? 1 : -1;
-          totalGEX += oi * gamma * spot * spot * 100 * sign;
-          if (cp === 'C') callOI[strike] = (callOI[strike] || 0) + oi;
-          else putOI[strike] = (putOI[strike] || 0) + oi;
-        } catch {}
-      }
-      let callWall = 0, callWallOI = 0, putWall = 0, putWallOI = 0;
-      for (const k in callOI) { const sk = parseFloat(k); if (sk > spot && callOI[k] > callWallOI) { callWall = sk; callWallOI = callOI[k]; }}
-      for (const k in putOI) { const sk = parseFloat(k); if (sk < spot && putOI[k] > putWallOI) { putWall = sk; putWallOI = putOI[k]; }}
-      const flip = (callWall + putWall) / 2;  // approximation
-      return { spot, flip, callWall, putWall, regime: totalGEX > 0 ? 'POSITIVE' as const : 'NEGATIVE' as const };
-    } catch { return null; }
-  };
-  const [spy, qqq] = await Promise.all([fetchGEX('SPY'), fetchGEX('QQQ')]);
-  if (!spy || !qqq) return undefined;
-  return { spy, qqq };
 }
 
 function computeFearGreed(input: { vix: number | null; breadthScore: number; pcr: number; spyChange: number }): FearGreedSignal {

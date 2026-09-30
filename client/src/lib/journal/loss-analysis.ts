@@ -123,9 +123,6 @@ export const LOSS_CLASSES: readonly { id: LossClass; label: string; rule: string
     lesson: 'Cost of doing business at this win rate — judge in aggregate.',
   },
 ];
-
-export const LOSS_CLASS_LABEL: Record<LossClass, string> = Object.fromEntries(LOSS_CLASSES.map((c) => [c.id, c.label])) as Record<LossClass, string>;
-
 export type LossFlag =
   | 'outside_rth' | 'chased' | 'never_in_profit' | 'gave_back' | 'stop_tight' | 'late_gap' | 'theta' | 'target_far'
   | 'target_after_exit' | 'stop_printed' | 'coarse_bars';

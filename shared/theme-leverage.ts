@@ -269,19 +269,3 @@ export function measureLeverage(
 
   return out.sort((a, b) => b.catchUpScore - a.catchUpScore);
 }
-
-/**
- * Drivers worth pointing this at. The value is that it works on ANY series —
- * these are a starting set, not a limit.
- */
-export const DRIVERS: Record<string, { proxy: string; label: string }> = {
-  gold:     { proxy: 'GLD',  label: 'Gold' },
-  silver:   { proxy: 'SLV',  label: 'Silver' },
-  bitcoin:  { proxy: 'IBIT', label: 'Bitcoin' },
-  semis:    { proxy: 'SMH',  label: 'Semiconductors' },
-  software: { proxy: 'IGV',  label: 'Software' },
-  cyber:    { proxy: 'CIBR', label: 'Cybersecurity' },
-  biotech:  { proxy: 'XBI',  label: 'Biotech' },
-  energy:   { proxy: 'XLE',  label: 'Energy' },
-  uranium:  { proxy: 'URA',  label: 'Uranium' },
-};

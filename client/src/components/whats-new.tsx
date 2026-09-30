@@ -103,44 +103,6 @@ export function useWhatsNew() {
 
   return { open: state.open, unread, unreadCount, handleOpen, handleClose };
 }
-
-// ─── Bell button (for sidebar) ──────────────────────────────────────
-
-export function WhatsNewBell({ collapsed }: { collapsed?: boolean }) {
-  const { unreadCount, handleOpen } = useWhatsNew();
-  return (
-    <button
-      type="button"
-      onClick={handleOpen}
-      title={`What's new${unreadCount > 0 ? ` — ${unreadCount} new` : ''}  (⌘?)`}
-      className={cn(
-        'relative flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all text-[13px] w-full text-left',
-        'group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0',
-        unreadCount > 0
-          ? 'text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/5'
-          : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/40',
-      )}
-      data-testid="nav-whats-new"
-    >
-      <Bell className={cn('w-4 h-4 shrink-0', unreadCount > 0 && 'text-[var(--brand-cyan)]')} />
-      <span className="truncate font-mono uppercase tracking-wider text-[11px] group-data-[collapsible=icon]:hidden">
-        What's New
-      </span>
-      {unreadCount > 0 && (
-        <span
-          className={cn(
-            'absolute right-1 top-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--brand-cyan)] text-black text-[9px] font-bold font-mono flex items-center justify-center',
-            // In icon-collapsed mode shrink to a corner dot (no number, no overflow)
-            'group-data-[collapsible=icon]:right-0.5 group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:w-2 group-data-[collapsible=icon]:h-2 group-data-[collapsible=icon]:min-w-0 group-data-[collapsible=icon]:px-0',
-          )}
-        >
-          <span className="group-data-[collapsible=icon]:hidden">{unreadCount}</span>
-        </span>
-      )}
-    </button>
-  );
-}
-
 // ─── Toast (auto-shown on first visit with unread) ──────────────────
 
 export function WhatsNewToast() {

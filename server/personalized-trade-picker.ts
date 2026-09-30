@@ -380,8 +380,3 @@ export function updatePicksConfig(newConfig: Partial<DailyPicksConfig>): void {
   config = { ...config, ...newConfig };
   logger.info('[PERSONAL-PICKS] Config updated');
 }
-
-export function resetToDefaults(): void {
-  config = { ...DEFAULT_CONFIG };
-  logger.info('[PERSONAL-PICKS] Config reset to defaults');
-}

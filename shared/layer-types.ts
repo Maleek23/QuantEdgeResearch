@@ -111,5 +111,3 @@ export function classifyStage(m: LayerMetrics): { stage: CycleStage; reason: str
   // PRE — flat / inactive
   return { stage: 'pre', reason: `breadth ${breadth.toFixed(0)}%, 20d ${ret20 >= 0 ? '+' : ''}${ret20.toFixed(1)}%` };
 }
-
-export const STAGES: CycleStage[] = ['pre', 'early', 'mid', 'late', 'topped', 'rolling'];

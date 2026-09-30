@@ -16,11 +16,6 @@ if (resend) {
 const APP_NAME = 'Quant Edge Labs';
 const APP_URL = process.env.APP_URL || 'https://quantedgelabs.net';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
-
-export function generateInviteToken(): string {
-  return randomBytes(32).toString('hex');
-}
-
 export function getInviteLink(token: string): string {
   return `${APP_URL}/invite?code=${token}`;
 }
@@ -256,97 +251,6 @@ To stop receiving emails: ${unsubscribeUrl}
     return { success: false, error: errorMessage };
   }
 }
-
-export async function sendWelcomeEmail(
-  email: string,
-  firstName?: string
-): Promise<{ success: boolean; error?: string }> {
-  if (!resend) {
-    console.warn('[Email] Resend not configured - RESEND_API_KEY missing');
-    return { success: false, error: 'Email service not configured' };
-  }
-
-  const name = firstName || 'Trader';
-
-  try {
-    const { data, error } = await resend.emails.send({
-      from: `${APP_NAME} <${FROM_EMAIL}>`,
-      to: email,
-      subject: `Welcome to ${APP_NAME}, ${name}!`,
-      html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; padding: 40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; border: 1px solid #334155;">
-          
-          <tr>
-            <td style="padding: 40px; text-align: center;">
-              <div style="font-size: 28px; font-weight: 700; color: #22d3ee; margin-bottom: 16px;">
-                Welcome to ${APP_NAME}!
-              </div>
-              <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
-                Hey ${name}, you're officially part of the beta! We're excited to have you on board.
-              </p>
-              <a href="${APP_URL}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #06b6d4, #0891b2); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600;">
-                Go to Dashboard →
-              </a>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding: 0 40px 40px;">
-              <div style="background: #1e293b; border-radius: 12px; padding: 20px;">
-                <p style="color: #f1f5f9; font-size: 14px; font-weight: 600; margin: 0 0 12px;">Quick Start:</p>
-                <p style="color: #94a3b8; font-size: 14px; margin: 0;">
-                  1. Explore the <strong style="color: #22d3ee;">Trade Desk</strong> for AI-powered research<br>
-                  2. Check out <strong style="color: #22d3ee;">Chart Analysis</strong> for pattern recognition<br>
-                  3. Join our <a href="https://discord.gg/3QF8QEKkYq" style="color: #22d3ee;">Discord</a> for community support
-                </p>
-              </div>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding: 24px 40px; border-top: 1px solid #334155; text-align: center;">
-              <p style="color: #475569; font-size: 11px; margin: 0;">
-                ${APP_NAME} • For Educational & Research Purposes Only
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-      `,
-    });
-
-    if (error) {
-      console.error('[Email] Failed to send welcome email:', error);
-      return { success: false, error: error.message };
-    }
-
-    console.log('[Email] Welcome email sent:', data?.id);
-    return { success: true };
-  } catch (err) {
-    console.error('[Email] Error sending welcome email:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
-  }
-}
-
-export function isEmailServiceConfigured(): boolean {
-  return !!resend;
-}
-
 export async function sendPasswordResetEmail(
   email: string,
   token: string

@@ -360,18 +360,3 @@ export function updateReportSettings(settings: Partial<ReportSettings>): void {
   reportSettings = { ...reportSettings, ...settings };
   logger.info('[WEEKLY-REPORT] Settings updated');
 }
-
-/**
- * Check if it's time to send the weekly report
- */
-export function shouldSendReport(): boolean {
-  const now = new Date();
-  const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-  const currentHour = now.getHours();
-  
-  return (
-    reportSettings.isEnabled &&
-    dayOfWeek === reportSettings.sendOnDay &&
-    currentHour === reportSettings.sendAtHour
-  );
-}

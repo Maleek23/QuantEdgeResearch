@@ -161,47 +161,6 @@ export async function archiveGexSnapshots(): Promise<ArchiveResult> {
   logger.info(`[GEX-ARCHIVE] Complete: ${archived} archived, ${failed} failed`);
   return { archived, failed, symbols: archivedSymbols };
 }
-
-/**
- * Get available dates for a symbol's GEX history.
- */
-export async function getGexHistoryDates(symbol: string): Promise<string[]> {
-  const snapshots = await storage.getGexSnapshots(symbol);
-  // Group by date, return unique dates
-  const dates = new Set<string>();
-  for (const s of snapshots) {
-    const d = new Date(s.snapshotAt).toISOString().split('T')[0];
-    dates.add(d);
-  }
-  return Array.from(dates).sort().reverse();
-}
-
-/**
- * Get GEX snapshots for a symbol on a specific date.
- * Returns all hourly snapshots for that day, sorted by time.
- */
-export async function getGexHistoryForDate(
-  symbol: string,
-  date: string,
-): Promise<any[]> {
-  const all = await storage.getGexSnapshots(symbol);
-  return all
-    .filter(s => new Date(s.snapshotAt).toISOString().startsWith(date))
-    .sort((a, b) => new Date(a.snapshotAt).getTime() - new Date(b.snapshotAt).getTime());
-}
-
-/**
- * Get the latest snapshot for a symbol from the archive.
- * Falls back to live computation if no archive exists.
- */
-export async function getLatestArchivedSnapshot(symbol: string): Promise<any | null> {
-  const snapshots = await storage.getGexSnapshots(symbol);
-  if (snapshots.length === 0) return null;
-  return snapshots.sort(
-    (a, b) => new Date(b.snapshotAt).getTime() - new Date(a.snapshotAt).getTime()
-  )[0];
-}
-
 // ─── GROWING GAMMA DETECTION ─────────────────────────────────────────
 // Compares current gamma profile vs historical to detect building activity.
 // Growing gamma = dealers hedging more = something is about to move.

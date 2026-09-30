@@ -158,8 +158,3 @@ export function fmtDayLabel(day: string, opts: Intl.DateTimeFormatOptions = { we
   const d = new Date(`${day}T12:00:00Z`);
   return Number.isFinite(d.getTime()) ? d.toLocaleDateString('en-US', { ...opts, timeZone: 'UTC' }) : day;
 }
-
-/** "Mine · n=42 trades" — which book a page's numbers come from, and how many. */
-export function BookN({ label, n, unit = 'trades' }: { label: string; n: number; unit?: string }) {
-  return <span className="jr-n" title="Book and sample size behind this page">{label} · n={n} {unit}</span>;
-}

@@ -97,32 +97,6 @@ export interface ReEntrySignal {
   ready: boolean;
   reason: string;
 }
-
-/**
- * Has the gap that caused an exit since filled? If so the reason for leaving is
- * gone and the name is a re-entry candidate — which is the other half of the
- * trade the bot was missing. It does NOT assert the setup is good again; the
- * conviction engine still has to publish a signal. This only clears the block.
- */
-export function checkGapFilled(bars: Bar[], exitGapLevel: number, direction: 'long' | 'short' = 'long'): ReEntrySignal {
-  const report = analyzeGaps(bars);
-  if (!report) return { ready: false, reason: 'No price history' };
-
-  const stillOpen = report.unfilled.some(
-    (g) => Math.abs(Math.min(g.from, g.to) - exitGapLevel) < 0.01 || Math.abs(Math.max(g.from, g.to) - exitGapLevel) < 0.01,
-  );
-
-  if (stillOpen) {
-    const away = ((exitGapLevel - report.spot) / report.spot) * 100;
-    return { ready: false, reason: `Gap at $${exitGapLevel.toFixed(2)} still open, ${Math.abs(away).toFixed(1)}% away` };
-  }
-
-  return {
-    ready: true,
-    reason: `Gap at $${exitGapLevel.toFixed(2)} has filled — the reason for exiting is gone. Re-entry needs a fresh signal.`,
-  };
-}
-
 /** Convenience for logging a decision without duplicating the format. */
 export function describeGapExit(symbol: string, s: GapExitSignal): string {
   return `[GAP-EXIT] ${symbol}: ${s.action.toUpperCase()} — ${s.reason}`;
@@ -146,13 +120,4 @@ export async function setBotGapWatch(entries: { symbol: string; level: number }[
     if (_gapWatch.some((w) => w.symbol === e.symbol && Math.abs(w.level - e.level) < 0.01)) continue;
     _gapWatch.push({ ...e, since: now });
   }
-}
-
-export function getBotGapWatch(): { symbol: string; level: number; since: number }[] {
-  return [..._gapWatch];
-}
-
-/** Drop a watch once its gap has filled — the block is cleared. */
-export function clearGapWatch(symbol: string, level: number): void {
-  _gapWatch = _gapWatch.filter((w) => !(w.symbol === symbol && Math.abs(w.level - level) < 0.01));
 }

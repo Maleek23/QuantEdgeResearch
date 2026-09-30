@@ -18,12 +18,6 @@ export function convictionBandForScore(score: number): ConvictionBand {
 export function isHighConvictionBand(band: string | null | undefined): boolean {
   return band === "S" || band === "A";
 }
-
-/** Human legend, e.g. "S ≥ 25 · A ≥ 19 · B ≥ 13 · C < 13". */
-export const CONVICTION_BAND_LEGEND =
-  `S ≥ ${CONVICTION_BAND_CUTOFFS.S} · A ≥ ${CONVICTION_BAND_CUTOFFS.A} · ` +
-  `B ≥ ${CONVICTION_BAND_CUTOFFS.B} · C < ${CONVICTION_BAND_CUTOFFS.B}`;
-
 /**
  * Letter grade for a RAW conviction score (the same ~0–60 points the bands use).
  * One table for every surface — the web badge (client/src/lib/conviction-display.ts),

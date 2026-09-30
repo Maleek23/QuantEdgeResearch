@@ -406,13 +406,6 @@ export function startBullflowStream(): void {
     }
   })();
 }
-
-export function stopBullflowStream(): void {
-  abort?.abort();
-  abort = null;
-  streamState = 'off';
-}
-
 // ── DIRECTIONAL NET PREMIUM — the aggressor read ────────────────────────────
 export interface NetPremiumRead {
   ticker: string;

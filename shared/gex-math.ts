@@ -29,8 +29,6 @@ export const GEX_UNITS = {
   vex: '$ of underlying dealers must trade per 1 IV point (0.01 abs vol); + = dealers buy as IV rises',
   gexPlus: 'GEX + VEX — additive only under the stated equivalence "1% spot move ≡ 1 IV point"',
 } as const;
-
-export const SIGN_CONVENTION = 'naive-oi' as const;
 export const SIGN_CONVENTION_NOTE =
   'naive-oi: open interest carries no side, so calls count + (dealer long) and puts − (dealer short). ' +
   'Where customers are opening calls (volume > OI) the true dealer sign there is likely the opposite — the squeeze case.';

@@ -1,37 +1,6 @@
 import { isOptionScaleIncoherent } from './option-unit-guard';
-/**
- * Shared constants for consistent terminology across the platform
- * Use these labels everywhere instead of hardcoding strings
- */
-
-// Engine/Source terminology - use "Engine" consistently
-export const ENGINE_LABELS: Record<string, string> = {
-  ai: 'AI',
-  quant: 'Quant',
-  hybrid: 'Hybrid',
-  flow_scanner: 'Flow Scanner',
-  chart_analysis: 'Chart Analysis',
-  lotto_scanner: 'Lotto Scanner',
-} as const;
-
 export const ENGINE_KEYS = ['ai', 'quant', 'hybrid', 'flow_scanner', 'chart_analysis', 'lotto_scanner'] as const;
 export type EngineKey = typeof ENGINE_KEYS[number];
-
-// DEPRECATED: Legacy confidence bands - use SIGNAL_STRENGTH_BANDS instead
-// These are kept for backward compatibility but should not be used for new code
-export const CONFIDENCE_BANDS = {
-  HIGH: { key: 'high', label: 'High', range: '70+', min: 70, max: 100 },
-  MEDIUM: { key: 'medium', label: 'Medium', range: '50-69', min: 50, max: 69 },
-  LOW: { key: 'low', label: 'Low', range: '<50', min: 0, max: 49 },
-} as const;
-
-// DEPRECATED: Use SIGNAL_STRENGTH_BAND_LABELS instead
-export const CONFIDENCE_BAND_LABELS: Record<string, string> = {
-  high: 'High (70+)',
-  medium: 'Medium (50-69)',
-  low: 'Low (<50)',
-};
-
 // NEW: Signal Strength band labels - based on indicator consensus, not probability
 export const SIGNAL_STRENGTH_BAND_LABELS: Record<string, string> = {
   'A': 'A (5+ signals)',
@@ -41,22 +10,6 @@ export const SIGNAL_STRENGTH_BAND_LABELS: Record<string, string> = {
   'C': 'C (1 signal)',
   'D': 'D (0 signals)',
 };
-
-// DEPRECATED: Get confidence band for a given score - use getSignalStrengthBand instead
-export function getConfidenceBand(score: number): 'high' | 'medium' | 'low' {
-  if (score >= 70) return 'high';
-  if (score >= 50) return 'medium';
-  return 'low';
-}
-
-// Trade outcome terminology
-export const OUTCOME_LABELS = {
-  win: 'Win',
-  loss: 'Loss',
-  pending: 'Pending',
-  expired: 'Expired',
-} as const;
-
 // Asset class terminology
 export const ASSET_CLASSES = {
   stock: 'Stock',
@@ -64,14 +17,6 @@ export const ASSET_CLASSES = {
   crypto: 'Crypto',
   futures: 'Futures',
 } as const;
-
-// Tier terminology
-export const TIER_LABELS = {
-  free: 'Free',
-  advanced: 'Advanced',
-  pro: 'Pro',
-} as const;
-
 // Performance thresholds
 export const PERFORMANCE_THRESHOLDS = {
   MIN_LOSS_PERCENT: 3, // Trades must lose at least 3% to count as a loss
@@ -198,15 +143,6 @@ export function isRealLoss(idea: { outcomeStatus?: string | null; percentGain?: 
   // Expired/manual statuses remain unresolved under this legacy classifier.
   return !status && idea.percentGain != null && idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
 }
-
-/**
- * Check if a trade is "neutral" (breakeven or unresolved)
- * These trades are EXCLUDED from win rate calculations
- */
-export function isNeutral(idea: { outcomeStatus?: string | null; percentGain?: number | null }): boolean {
-  return !isRealWin(idea) && !isRealLoss(idea);
-}
-
 /**
  * Classify a trade into win/loss/neutral
  */
@@ -467,26 +403,6 @@ export function getSignalLabel(signalCount: number): string {
   if (band === 'D') return 'Low Signal';
   return `${band} Signal`;
 }
-
-/**
- * Get styling classes for signal strength band
- */
-export function getSignalStrengthStyles(band: SignalStrengthBand): { bg: string; text: string; border: string } {
-  switch (band) {
-    case 'A+':
-      return { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/50' };
-    case 'A':
-      return { bg: 'bg-green-500/15', text: 'text-green-400', border: 'border-green-500/40' };
-    case 'B':
-      return { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/50' };
-    case 'C':
-      return { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/50' };
-    case 'D':
-    default:
-      return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/50' };
-  }
-}
-
 /**
  * EXPECTED VALUE CALCULATION
  * 
@@ -573,23 +489,4 @@ export function normalizeEngineKey(engine: string): string {
   };
   
   return engineMap[normalized] || normalized;
-}
-
-/**
- * Get expected value for an engine
- */
-export function getEngineExpectedValue(engine: string): { ev: number; formatted: string; data: ExpectedValueData } | null {
-  const normalizedEngine = normalizeEngineKey(engine);
-  const data = ENGINE_HISTORICAL_PERFORMANCE[normalizedEngine];
-  
-  if (!data || data.totalTrades < 3) {
-    return null; // Not enough data
-  }
-  
-  const ev = calculateExpectedValue(data);
-  return {
-    ev,
-    formatted: formatExpectedValue(ev),
-    data
-  };
 }

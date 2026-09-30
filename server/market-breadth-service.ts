@@ -396,11 +396,3 @@ export async function getMarketBreadth(): Promise<MarketBreadthSnapshot> {
 
   return inflight;
 }
-
-/** For diagnostics / admin endpoints. */
-export function getBreadthCacheInfo(): { hasCache: boolean; ageMs: number | null } {
-  return {
-    hasCache: cache !== null,
-    ageMs: cache ? Date.now() - cache.computedAt : null,
-  };
-}

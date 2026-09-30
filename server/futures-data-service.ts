@@ -11,23 +11,6 @@ interface PriceCacheEntry {
 
 const priceCache = new Map<string, PriceCacheEntry>();
 const FUTURES_ROOTS = new Set(['NQ', 'ES', 'YM', 'RTY', 'GC', 'SI', 'HG', 'PL', 'PA', 'CL', 'NG', 'ZB', 'ZN']);
-
-/**
- * Check if Databento API is available
- * TODO: Replace with actual Databento API key check when available
- * Reference: https://databento.com/docs/api-reference/authentication
- */
-export function isDatentoAvailable(): boolean {
-  const apiKey = process.env.DATABENTO_API_KEY;
-  const isAvailable = !!apiKey && apiKey.length > 0;
-  
-  if (!isAvailable) {
-    logger.info('[FUTURES-SERVICE] Databento API key not available - futures marks must come from the verified quote fallback');
-  }
-  
-  return isAvailable;
-}
-
 /**
  * Get active front month contract for a root symbol
  * @param rootSymbol - Futures root symbol (e.g., 'NQ', 'GC', 'HG', 'CL')
@@ -194,16 +177,6 @@ export async function getFuturesHistory(contractCode: string): Promise<number[]>
     return [];
   }
 }
-
-/**
- * Clear price cache (useful for testing or forcing refresh)
- */
-export function clearPriceCache(): void {
-  const size = priceCache.size;
-  priceCache.clear();
-  logger.info(`[FUTURES-SERVICE] Cleared price cache (${size} entries)`);
-}
-
 /**
  * Get cache statistics (for monitoring/debugging)
  */

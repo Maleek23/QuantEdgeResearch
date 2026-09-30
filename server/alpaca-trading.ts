@@ -158,20 +158,9 @@ export async function getPositions(): Promise<AlpacaPosition[]> {
   const positions = await alpacaRequest<AlpacaPosition[]>('/v2/positions');
   return positions || [];
 }
-
-export async function getPosition(symbol: string): Promise<AlpacaPosition | null> {
-  return alpacaRequest<AlpacaPosition>(`/v2/positions/${symbol}`);
-}
-
 export async function closePosition(symbol: string): Promise<AlpacaOrder | null> {
   return alpacaRequest<AlpacaOrder>(`/v2/positions/${symbol}`, 'DELETE');
 }
-
-export async function closeAllPositions(): Promise<AlpacaOrder[]> {
-  const result = await alpacaRequest<AlpacaOrder[]>('/v2/positions', 'DELETE');
-  return result || [];
-}
-
 // ============================================
 // ORDERS
 // ============================================
@@ -199,26 +188,6 @@ export async function submitOrder(request: TradeRequest): Promise<AlpacaOrder | 
 
   return order;
 }
-
-export async function getOrders(status: 'open' | 'closed' | 'all' = 'open'): Promise<AlpacaOrder[]> {
-  const orders = await alpacaRequest<AlpacaOrder[]>(`/v2/orders?status=${status}`);
-  return orders || [];
-}
-
-export async function getOrder(orderId: string): Promise<AlpacaOrder | null> {
-  return alpacaRequest<AlpacaOrder>(`/v2/orders/${orderId}`);
-}
-
-export async function cancelOrder(orderId: string): Promise<boolean> {
-  const result = await alpacaRequest<any>(`/v2/orders/${orderId}`, 'DELETE');
-  return result !== null;
-}
-
-export async function cancelAllOrders(): Promise<boolean> {
-  const result = await alpacaRequest<any>('/v2/orders', 'DELETE');
-  return result !== null;
-}
-
 // ============================================
 // BRACKET ORDERS (Entry + Stop Loss + Take Profit)
 // ============================================
@@ -263,34 +232,6 @@ export async function submitBracketOrder(request: BracketOrderRequest): Promise<
 
   return order;
 }
-
-// ============================================
-// MARKET DATA
-// ============================================
-
-export async function getLatestQuote(symbol: string): Promise<{ ask: number; bid: number; last: number } | null> {
-  try {
-    const response = await fetch(`${ALPACA_URLS.dataBaseUrl}/v2/stocks/${symbol}/quotes/latest`, {
-      headers: {
-        'APCA-API-KEY-ID': getAlpacaApiKey(),
-        'APCA-API-SECRET-KEY': getAlpacaSecretKey(),
-      },
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return {
-      ask: data.quote?.ap || 0,
-      bid: data.quote?.bp || 0,
-      last: (data.quote?.ap + data.quote?.bp) / 2 || 0,
-    };
-  } catch (error) {
-    logger.error(`[ALPACA] Quote error for ${symbol}:`, error);
-    return null;
-  }
-}
-
 // ============================================
 // TRADING STATUS
 // ============================================
@@ -312,33 +253,6 @@ export async function isMarketOpen(): Promise<boolean> {
     return false;
   }
 }
-
-export async function getTradingStatus(): Promise<{
-  isOpen: boolean;
-  nextOpen: string;
-  nextClose: string;
-} | null> {
-  try {
-    const response = await fetch(`${ALPACA_URLS.paperBaseUrl}/v2/clock`, {
-      headers: {
-        'APCA-API-KEY-ID': getAlpacaApiKey(),
-        'APCA-API-SECRET-KEY': getAlpacaSecretKey(),
-      },
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return {
-      isOpen: data.is_open,
-      nextOpen: data.next_open,
-      nextClose: data.next_close,
-    };
-  } catch (error) {
-    return null;
-  }
-}
-
 // ============================================
 // INITIALIZATION
 // ============================================

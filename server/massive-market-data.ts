@@ -109,31 +109,6 @@ export async function fetchUnadjustedCloseOn(symbol: string, day: string): Promi
   const bar: AggBar | undefined = (data?.results ?? [])[0];
   return bar && Number.isFinite(bar.c) && bar.c > 0 ? bar.c : null;
 }
-
-/** Daily OHLC, oldest first. */
-export async function fetchDailyOHLC(
-  symbol: string,
-  periods = 60,
-): Promise<{ opens: number[]; highs: number[]; lows: number[]; closes: number[]; dates: string[] } | null> {
-  const to = new Date();
-  const from = new Date(to.getTime() - Math.ceil(periods * 1.6) * 86_400_000);
-  const data = await call(
-    `/v2/aggs/ticker/${encodeURIComponent(symbol.toUpperCase())}/range/1/day/${iso(from)}/${iso(to)}?adjusted=true&sort=asc&limit=5000`,
-  );
-  const bars: AggBar[] = (data?.results ?? []).filter(
-    (b: AggBar) => Number.isFinite(b?.c) && Number.isFinite(b?.o),
-  );
-  if (bars.length === 0) return null;
-  const slice = bars.slice(-periods);
-  return {
-    opens: slice.map((b) => b.o),
-    highs: slice.map((b) => b.h),
-    lows: slice.map((b) => b.l),
-    closes: slice.map((b) => b.c),
-    dates: slice.map((b) => new Date(b.t).toISOString().slice(0, 10)),
-  };
-}
-
 // ─── WHOLE-MARKET SNAPSHOT ───────────────────────────────────────────────────
 //
 // One request covers every US ticker. Cached for the session because the
@@ -207,20 +182,4 @@ export async function fetchGroupedDaily(date?: Date): Promise<Map<string, Groupe
   }
   logger.warn('[MASSIVE] grouped daily returned nothing across a 5-day window');
   return new Map();
-}
-
-/**
- * Session change percent for many symbols from a single request.
- * Symbols with no bar are omitted rather than defaulted to zero — a missing
- * quote is not a flat quote.
- */
-export async function fetchBatchChangePct(symbols: string[]): Promise<Map<string, number>> {
-  const bars = await fetchGroupedDaily();
-  const out = new Map<string, number>();
-  for (const raw of symbols) {
-    const bar = bars.get(raw.toUpperCase());
-    if (!bar || !Number.isFinite(bar.o) || !Number.isFinite(bar.c) || bar.o <= 0) continue;
-    out.set(raw.toUpperCase(), ((bar.c - bar.o) / bar.o) * 100);
-  }
-  return out;
 }

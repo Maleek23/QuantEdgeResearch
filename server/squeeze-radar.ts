@@ -442,8 +442,3 @@ export function getSqueezeRadar(limit = 40): SqueezeRadarPayload {
     logged: { sessions: sorted.length, lastDate: sorted[sorted.length - 1] ?? null, sink: 'file .cache/squeeze-radar/log.jsonl + table squeeze_radar_log (if migrated)' },
   };
 }
-
-export function getSqueezeRadarSymbol(symbol: string): SqueezeRadarRow | null {
-  const s = latest.get(symbol.toUpperCase());
-  return s ? toRow(s) : null;
-}

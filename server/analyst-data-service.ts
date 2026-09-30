@@ -118,29 +118,3 @@ export async function getAnalystSnapshot(symbol: string): Promise<AnalystSnapsho
   }
   return snap;
 }
-
-/**
- * Batch helper — fetches multiple symbols with bounded concurrency.
- * Yahoo has no documented batch endpoint for this module, so we
- * parallelize at concurrency=4 to stay polite.
- */
-export async function getAnalystSnapshots(symbols: string[]): Promise<Map<string, AnalystSnapshot>> {
-  const results = new Map<string, AnalystSnapshot>();
-  const concurrency = 4;
-  let cursor = 0;
-
-  async function worker() {
-    while (cursor < symbols.length) {
-      const i = cursor++;
-      const sym = symbols[i];
-      const snap = await getAnalystSnapshot(sym);
-      if (snap) results.set(sym, snap);
-    }
-  }
-  await Promise.all(Array.from({ length: concurrency }, () => worker()));
-  return results;
-}
-
-export function clearAnalystCache(): void {
-  cache.clear();
-}

@@ -116,13 +116,6 @@ export function setChartPref<K extends keyof ChartPrefs>(key: K, value: ChartPre
   try { localStorage.setItem(CHART_PREFS_KEY, JSON.stringify(state)); } catch { /* private mode */ }
   listeners.forEach((l) => l());
 }
-
-export function resetChartPrefs() {
-  state = DEFAULT_CHART_PREFS;
-  try { localStorage.removeItem(CHART_PREFS_KEY); } catch { /* */ }
-  listeners.forEach((l) => l());
-}
-
 // Another tab changed the settings: follow it.
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {

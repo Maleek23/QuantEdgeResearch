@@ -744,20 +744,3 @@ export async function updatePatternStatus(
     .set(updates)
     .where(eq(patternSignals.id, patternId));
 }
-
-/**
- * Deactivate stale patterns (older than 7 days without confirmation)
- */
-export async function cleanupStalePatterns(): Promise<number> {
-  const staleDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  
-  const result = await db.update(patternSignals)
-    .set({ isActive: false, patternStatus: 'failed' as PatternStatus })
-    .where(and(
-      eq(patternSignals.isActive, true),
-      eq(patternSignals.patternStatus, 'forming'),
-      sql`${patternSignals.detectedAt} < ${staleDate.toISOString()}`
-    ));
-  
-  return 0; // Drizzle doesn't return count easily
-}

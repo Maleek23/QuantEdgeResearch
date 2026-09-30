@@ -47,16 +47,6 @@ if (isProduction) {
     })
   );
 }
-
-// Helper function to log API requests
-export function logRequest(req: any, message: string) {
-  logger.info(message, {
-    method: req.method,
-    path: req.path,
-    ip: req.ip,
-  });
-}
-
 // Helper function to log errors
 export function logError(error: Error, context?: any) {
   logger.error(error.message, {

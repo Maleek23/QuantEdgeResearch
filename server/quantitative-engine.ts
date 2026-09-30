@@ -19,10 +19,6 @@ import { getLetterGrade } from './grading';
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
 export const FUTURES_ENGINE_VERSION = "v1.0.0";
-export const FUTURES_ENGINE_CHANGELOG = {
-  "v1.0.0": "Initial futures engine - NQ and GC support with tick-based pricing, RSI/VWAP/volume signals, margin calculation, CME market hours validation",
-};
-
 // Futures contract specifications
 interface FuturesSpec {
   rootSymbol: 'NQ' | 'GC';

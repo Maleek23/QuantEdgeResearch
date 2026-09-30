@@ -148,34 +148,6 @@ export async function getWatchlistConfidenceBoost(symbol: string): Promise<{
     isPremiumOpportunity: match.premiumOpportunity
   };
 }
-
-/**
- * Get elite symbols only (S and A tier) for priority scanning
- */
-export async function getEliteSymbols(): Promise<string[]> {
-  const priorities = await getWatchlistPrioritySymbols();
-  return priorities
-    .filter(p => ['S', 'A'].includes(p.grade))
-    .map(p => p.symbol);
-}
-
-/**
- * Get symbols with cheap premium opportunities
- */
-export async function getCheapPremiumSymbols(): Promise<PrioritySymbol[]> {
-  const priorities = await getWatchlistPrioritySymbols();
-  return priorities.filter(p => p.premiumOpportunity);
-}
-
-/**
- * Invalidate cache (call after watchlist updates)
- */
-export function invalidateWatchlistCache(): void {
-  cachedInsights = null;
-  cacheTimestamp = 0;
-  logger.debug('[WATCHLIST-PRIORITY] Cache invalidated');
-}
-
 /**
  * Get summary for logging/display
  */

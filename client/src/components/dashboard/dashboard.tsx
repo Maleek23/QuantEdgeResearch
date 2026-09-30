@@ -943,8 +943,4 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
     </DashboardCtx.Provider>
   );
 }
-
-/** FLOW tab — kept as a named export for existing importers. */
-export function FlowDashboard() { return <Dashboard page="flow" />; }
-
 export default Dashboard;

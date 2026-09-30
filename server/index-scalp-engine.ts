@@ -948,11 +948,3 @@ export function startIndexScalpScheduler(): void {
 
   logger.info('[INDEX-SCALP] Intraday scheduler started');
 }
-
-export function stopIndexScalpScheduler(): void {
-  if (scalpInterval) {
-    clearInterval(scalpInterval);
-    scalpInterval = null;
-  }
-  logger.info('[INDEX-SCALP] Intraday scheduler stopped');
-}

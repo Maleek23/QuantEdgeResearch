@@ -450,7 +450,3 @@ export async function backtestConvictions(opts: { lookbackDays?: number } = {}):
   cache = { report, computedAt: Date.now(), lookbackDays };
   return report;
 }
-
-export function clearBacktestCache(): void {
-  cache = null;
-}

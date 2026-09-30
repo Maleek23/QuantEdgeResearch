@@ -178,16 +178,6 @@ export function normalizeDateString(dateInput: string | Date): string {
   }
   return dateInput.toISOString().split('T')[0];
 }
-
-/**
- * Check if an option has expired (comparing dates properly)
- */
-export function isOptionExpired(expiryDate: string): boolean {
-  const today = getETDateString();
-  const expiryNormalized = normalizeDateString(expiryDate);
-  return expiryNormalized <= today;
-}
-
 /**
  * Calculate days to expiry for an option
  */

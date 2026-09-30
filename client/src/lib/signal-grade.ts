@@ -49,40 +49,6 @@ export function getSignalConfluence(qualitySignals: string[] | null | undefined)
   }
   return { count, label: 'Low', description: 'Few indicators aligned' };
 }
-
-/**
- * @deprecated Use getSignalConfluence instead. Signal count is NOT a grade.
- * Trade grades should come from stored probabilityBand field.
- */
-export function getSignalGrade(qualitySignals: string[] | null | undefined) {
-  const info = getSignalConfluence(qualitySignals);
-  return {
-    grade: info.label.charAt(0).toUpperCase(), // Legacy compat
-    label: `${info.count} Signals`,
-    color: info.count >= 4 ? 'text-[var(--trade-bullish)]' : info.count >= 3 ? 'text-sky-400' : 'text-amber-400',
-    description: info.description,
-    signalCount: info.count
-  };
-}
-
-/**
- * @deprecated Use stored probabilityBand instead of calculating from signals
- */
-export function getSignalGradeLetter(qualitySignals: string[] | null | undefined): string {
-  const count = qualitySignals?.length || 0;
-  return count >= 4 ? 'Strong' : count >= 3 ? 'Moderate' : 'Weak';
-}
-
-/**
- * @deprecated Use getGradeStyle from shared/grading.ts
- */
-export function getSignalGradeColor(qualitySignals: string[] | null | undefined): string {
-  const count = qualitySignals?.length || 0;
-  if (count >= 4) return 'text-[var(--trade-bullish)]';
-  if (count >= 3) return 'text-sky-400';
-  return 'text-amber-400';
-}
-
 /**
  * Resolution reason icon types (use lucide-react icons instead of emoji)
  */
@@ -95,91 +61,6 @@ export type ResolutionIcon =
   | 'skull' 
   | 'coins' 
   | 'help-circle';
-
-/**
- * Human-readable resolution reasons for expired/closed trades
- * Uses lucide-react icon names instead of emoji for consistent rendering
- */
-export function getResolutionReasonLabel(reason: string | null | undefined): {
-  label: string;
-  description: string;
-  color: string;
-  iconName: ResolutionIcon;
-} {
-  switch (reason) {
-    case 'missed_entry_would_have_won':
-      return {
-        label: 'Missed Entry (Would Have Won)',
-        description: 'Entry window closed before entry was made, but price did reach target',
-        color: 'text-yellow-500',
-        iconName: 'clock'
-      };
-    case 'missed_entry_would_have_lost':
-      return {
-        label: 'Missed Entry (Would Have Lost)',
-        description: 'Entry window closed before entry was made, price hit stop level',
-        color: 'text-slate-400',
-        iconName: 'clock'
-      };
-    case 'missed_entry_no_outcome':
-      return {
-        label: 'Missed Entry (No Outcome)',
-        description: 'Entry window closed, trade never reached target or stop',
-        color: 'text-slate-500',
-        iconName: 'clock'
-      };
-    case 'auto_expired':
-      return {
-        label: 'Time Expired',
-        description: 'Trade idea exceeded 7-day holding period without resolution',
-        color: 'text-slate-400',
-        iconName: 'hourglass'
-      };
-    case 'auto_breakeven':
-      return {
-        label: 'Breakeven Exit',
-        description: 'Trade exited near entry price (minimal loss/gain)',
-        color: 'text-slate-400',
-        iconName: 'minus'
-      };
-    case 'auto_target_hit':
-      return {
-        label: 'Target Hit',
-        description: 'Price reached the target price - trade successful',
-        color: 'text-[var(--trade-bullish)]',
-        iconName: 'target'
-      };
-    case 'auto_stop_hit':
-      return {
-        label: 'Stop Hit',
-        description: 'Price hit stop loss level - trade closed at loss',
-        color: 'text-[var(--trade-bearish)]',
-        iconName: 'octagon'
-      };
-    case 'option_expired_worthless':
-      return {
-        label: 'Option Expired Worthless',
-        description: 'Option contract expired out of the money',
-        color: 'text-[var(--trade-bearish)]',
-        iconName: 'skull'
-      };
-    case 'option_expired_itm':
-      return {
-        label: 'Option Expired ITM',
-        description: 'Option contract expired in the money',
-        color: 'text-[var(--trade-bullish)]',
-        iconName: 'coins'
-      };
-    default:
-      return {
-        label: reason || 'Unknown',
-        description: 'Trade closed - reason not specified',
-        color: 'text-slate-500',
-        iconName: 'help-circle'
-      };
-  }
-}
-
 /**
  * CANONICAL Trade Outcome Styling
  * Use this instead of percentGain-based color decisions

@@ -136,44 +136,4 @@ export function fallbackNarrative(snap: GEXSnapshot): string {
 
   return parts.join(' ');
 }
-
-// ─── Scanner Row Narrative (shorter) ──────────────────────
-
-export async function generateConfluenceNarrative(row: ConfluenceRow): Promise<string> {
-  const prompt = `One-line thesis for ${row.symbol} (score ${row.score}/100):
-
-- Bias: ${row.bias}
-- Tier: ${row.tier || 'untiered'}
-- Gamma flip: ${row.gammaFlip ? '$' + row.gammaFlip : 'none'}
-- Call wall: ${row.callWall ? '$' + row.callWall : 'none'}  |  Put wall: ${row.putWall ? '$' + row.putWall : 'none'}
-- Target: ${row.target ? '$' + row.target : '—'}  |  Stop: ${row.stop ? '$' + row.stop : '—'}
-- R:R: ${row.riskReward?.toFixed(1) || '—'}
-
-Write ONE sentence (max 20 words) describing why this setup ranks high.`;
-
-  try {
-    const text = await generateAI(prompt, {
-      system: 'You are a prop trader. Be terse. No disclaimers.',
-      strategy: 'cheap',
-    });
-    return text.trim().replace(/^["']|["']$/g, '');
-  } catch {
-    return `${row.symbol} ${row.bias} @ $${row.spotPrice.toFixed(2)} — ${row.scoreTier} confluence, R:R ${row.riskReward?.toFixed(1) || '—'}`;
-  }
-}
-
-// ─── Batch Narratives ─────────────────────────────────────
-
-export async function generateBatchNarratives(snaps: GEXSnapshot[]): Promise<Map<string, string>> {
-  const result = new Map<string, string>();
-  // Limit concurrency to 3 to respect free-tier rate limits
-  const BATCH = 3;
-  for (let i = 0; i < snaps.length; i += BATCH) {
-    const batch = snaps.slice(i, i + BATCH);
-    const narratives = await Promise.all(batch.map((s) => generateGEXNarrative(s)));
-    batch.forEach((s, idx) => result.set(s.symbol, narratives[idx]));
-  }
-  return result;
-}
-
 logger.info('[GEX-NARRATIVE] Narrative service loaded (Groq-first, fallback to rule-based)');

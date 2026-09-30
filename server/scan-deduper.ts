@@ -95,30 +95,3 @@ export function checkAndMarkScanned(
     reason: 'New scan allowed',
   };
 }
-
-export function getScanCacheStats(): { size: number; entries: { symbol: string; source: string; minutesAgo: number }[] } {
-  const now = Date.now();
-  const entries = Array.from(scanCache.values()).map(e => ({
-    symbol: e.symbol,
-    source: e.source,
-    minutesAgo: Math.round((now - e.lastScanAt) / 60000),
-  }));
-  return { size: scanCache.size, entries };
-}
-
-export function clearScanCache(): void {
-  scanCache.clear();
-  logger.info('[SCAN-DEDUP] Cache cleared');
-}
-
-export function getRecentlyScannedSymbols(): Set<string> {
-  const now = Date.now();
-  const recent = new Set<string>();
-  const entries = Array.from(scanCache.entries());
-  for (const [key, entry] of entries) {
-    if (now - entry.lastScanAt < SCAN_TTL_MS) {
-      recent.add(key);
-    }
-  }
-  return recent;
-}

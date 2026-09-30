@@ -548,13 +548,6 @@ export async function sendBotTradeExitToDiscord(exit: {
     logger.error('❌ Failed to send Discord bot exit alert:', error);
   }
 }
-
-export function meetsQualityThreshold(idea: any): boolean {
-  const signalCount = idea.qualitySignals?.length || 0;
-  const confidence = idea.confidenceScore || 50;
-  return confidence >= MIN_CONFIDENCE_REQUIRED && signalCount >= MIN_SIGNALS_REQUIRED;
-}
-
 export async function sendTradeIdeaToDiscord(idea: TradeIdea, options?: { forceBypassFilters?: boolean }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
@@ -862,55 +855,6 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     logger.warn(`[DISCORD] Lotto notification error: ${e}`);
   }
 }
-
-export async function sendBatchTradeIdeasToDiscord(ideas: TradeIdea[], source: string): Promise<void> {
-  if (DISCORD_DISABLED || ideas.length === 0) return;
-  
-  // STRICT GRADE FILTER: Only A/A+ ideas in batches
-  const qualityIdeas = ideas.filter((i: any) => {
-    const grade = i.grade || getLetterGrade(i.confidenceScore || 0);
-    return VALID_DISCORD_GRADES.includes(grade);
-  });
-  
-  if (qualityIdeas.length === 0) {
-    logger.debug(`[DISCORD] Batch skipped - no A/A+ grade ideas in ${ideas.length} total`);
-    return;
-  }
-  
-  const webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL;
-  if (!webhookUrl) return;
-  try {
-    const description = qualityIdeas.slice(0, 10).map((i: any) => {
-      const optionType = i.optionType ? i.optionType.toUpperCase() : '';
-      const strike = i.strikePrice ? `$${i.strikePrice}` : '';
-      // Support both expiryDate and expirationDate field names
-      const rawExpiry = i.expiryDate || i.expirationDate;
-      const expiry = rawExpiry ? `exp ${String(rawExpiry).split('T')[0]}` : '';
-      // Format price properly - avoid "$N/A"
-      const priceStr = i.entryPrice != null ? `$${Number(i.entryPrice).toFixed(2)}` : 'N/A';
-      
-      // Format: INTC CALL $25 @ $0.48 (exp 2026-01-09)
-      if (i.assetType === 'option' && optionType && strike) {
-        return `${i.symbol} ${optionType} ${strike} @ ${priceStr} ${expiry ? `(${expiry})` : ''}`;
-      }
-      return `${i.symbol}: ${priceStr}`;
-    }).join('\n');
-    
-    const embed: DiscordEmbed = {
-      title: `📢 BATCH: ${source.toUpperCase()} - ${qualityIdeas.length} A/A+ Ideas`,
-      description,
-      color: COLORS.QUANT,
-      fields: [],
-      timestamp: new Date().toISOString()
-    };
-    await postDiscordWebhook(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ embeds: [embed] }),
-    });
-  } catch (e) {}
-}
-
 // Send generic Discord alert to QUANTFLOOR (main channel)
 export async function sendDiscordAlert(content: string, type: 'info' | 'warn' | 'error' = 'info'): Promise<void> {
   if (DISCORD_DISABLED) return;
@@ -1216,25 +1160,6 @@ export function markPennyScannerNotificationSent(scannerType: 'standard' | 'subp
 
   logger.info(`[DISCORD] Marked ${scannerType} penny scanner notification sent for ${symbols.length} symbols`);
 }
-
-/**
- * Get penny scanner notification stats (for debugging)
- */
-export function getPennyScannerNotificationStats(): {
-  standardLastSent: string | null;
-  subpennyLastSent: string | null;
-  symbolCacheSize: number;
-} {
-  const standardLast = pennyScannerLastNotification.get('standard');
-  const subpennyLast = pennyScannerLastNotification.get('subpenny');
-
-  return {
-    standardLastSent: standardLast ? new Date(standardLast).toISOString() : null,
-    subpennyLastSent: subpennyLast ? new Date(subpennyLast).toISOString() : null,
-    symbolCacheSize: pennyScannerSymbolCache.size
-  };
-}
-
 // ============ UNIVERSAL SCANNER NOTIFICATION DEDUPLICATION ============
 // Prevents spam from ALL scanner types sending duplicate Discord messages
 type ScannerType = 'options_flow' | 'social_sentiment' | 'swing_trade' | 'breakout';
@@ -1313,25 +1238,6 @@ export function markScannerNotificationSent(scannerType: ScannerType, symbols: s
 
   logger.info(`[DISCORD] Marked ${scannerType} notification sent for ${symbols.length} symbols`);
 }
-
-/**
- * Get all scanner notification stats (for debugging)
- */
-export function getAllScannerNotificationStats(): Record<string, any> {
-  const stats: Record<string, any> = {};
-
-  for (const scannerType of ['options_flow', 'social_sentiment', 'swing_trade', 'breakout'] as ScannerType[]) {
-    const lastSent = scannerLastNotification.get(scannerType);
-    stats[scannerType] = {
-      lastSent: lastSent ? new Date(lastSent).toISOString() : null,
-      cooldownRemaining: lastSent ? Math.max(0, SCANNER_GLOBAL_COOLDOWN_MS - (Date.now() - lastSent)) / 60000 : 0
-    };
-  }
-
-  stats.symbolCacheSize = scannerSymbolCache.size;
-  return stats;
-}
-
 // Global QUANTFLOOR cooldown to prevent burst spam  
 let lastQuantFloorBatchTime = 0;
 const QUANTFLOOR_BATCH_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 HOURS between batch summaries
@@ -2150,76 +2056,6 @@ export async function sendWhaleFlowAlertToDiscord(whale: {
 // High-conviction signals when institutional flow aligns with gamma exposure regime
 
 const convergenceCooldown = new Map<string, number>();
-
-export async function sendConvergenceAlertToDiscord(signal: {
-  symbol: string;
-  conviction: 'HIGH' | 'MEDIUM' | 'LOW';
-  gexBias: string;
-  gexRegime: string;
-  flowBias: string;
-  flowCount: number;
-  totalPremium: number;
-  callCount: number;
-  putCount: number;
-  gexAnchor: number;
-  gexFlipPoint: number | null;
-  spotPrice: number;
-  gexRating: number;
-  reasoning: string;
-  strategy: string;
-}): Promise<void> {
-  if (DISCORD_DISABLED) return;
-
-  // Only alert HIGH conviction
-  if (signal.conviction !== 'HIGH') return;
-
-  // Rate limit: 30 min per symbol
-  const lastSent = convergenceCooldown.get(signal.symbol) || 0;
-  if (Date.now() - lastSent < 30 * 60 * 1000) return;
-
-  const webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
-  if (!webhookUrl) return;
-
-  try {
-    const isBullish = signal.flowBias === 'BULLISH';
-    const emoji = isBullish ? '🟢' : '🔴';
-    const premiumStr = signal.totalPremium >= 1_000_000
-      ? `$${(signal.totalPremium / 1_000_000).toFixed(1)}M`
-      : `$${(signal.totalPremium / 1000).toFixed(0)}K`;
-
-    const embed: DiscordEmbed = {
-      title: `🎯 CONVERGENCE SIGNAL: ${signal.symbol}`,
-      description: `**${signal.conviction} Conviction** — GEX + Flow alignment detected\n\n${signal.reasoning}`,
-      color: isBullish ? COLORS.LONG : COLORS.SHORT,
-      fields: [
-        { name: '⚡ GEX Regime', value: `${signal.gexBias} (${signal.gexRating}/5)`, inline: true },
-        { name: `${emoji} Flow Bias`, value: `${signal.flowBias} (${signal.flowCount} trades)`, inline: true },
-        { name: '💰 Flow Premium', value: premiumStr, inline: true },
-        { name: '🎯 Anchor', value: `$${signal.gexAnchor}`, inline: true },
-        { name: '🔄 Flip Point', value: signal.gexFlipPoint ? `$${signal.gexFlipPoint}` : 'N/A', inline: true },
-        { name: '💵 Spot', value: `$${signal.spotPrice.toFixed(2)}`, inline: true },
-        { name: '📋 Strategy', value: signal.strategy, inline: false },
-      ],
-      footer: { text: 'Flow Edge • GEX Convergence • QuantEdge' },
-      timestamp: new Date().toISOString(),
-    };
-
-    await postDiscordWebhook(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: `🎯 **CONVERGENCE**: ${signal.symbol} — ${signal.conviction} conviction | ${signal.gexBias} + ${signal.flowBias} flow | ${premiumStr} premium`,
-        embeds: [embed],
-      }),
-    });
-
-    convergenceCooldown.set(signal.symbol, Date.now());
-    logger.info(`[DISCORD] Sent convergence alert: ${signal.symbol} ${signal.conviction} ${signal.flowBias}`);
-  } catch (e) {
-    logger.error(`[DISCORD] Failed to send convergence alert: ${e}`);
-  }
-}
-
 // ============ DAILY PREVIEW SYSTEM ============
 // Sends a single consolidated morning preview instead of individual alerts throughout the day
 
@@ -2348,30 +2184,4 @@ export async function sendDailyPreview(): Promise<{ success: boolean; message: s
     logger.error('[DISCORD] Failed to send daily preview', { error });
     return { success: false, message: `Error: ${error}` };
   }
-}
-
-// Check if daily preview should be sent (call this from a scheduler)
-export function shouldSendDailyPreview(): boolean {
-  const now = new Date();
-  const today = now.toISOString().split('T')[0];
-  // Evaluate the send window in CT. Production runs on UTC, so raw
-  // getHours()/getDay() would fire this at the wrong time (or never).
-  const ct = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-  const hour = ct.getHours();
-  const day = ct.getDay();
-
-  // Only on weekdays, around market open (8-9 AM CT)
-  if (day === 0 || day === 6) return false;
-  if (hour < 8 || hour > 9) return false;
-  
-  // Don't send if already sent today
-  if (lastPreviewDate === today) return false;
-  
-  return true;
-}
-
-// Reset daily preview flag (call at midnight or when needed)
-export function resetDailyPreview(): void {
-  dailyPreviewSent = false;
-  lastPreviewDate = '';
 }

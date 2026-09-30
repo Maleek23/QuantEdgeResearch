@@ -121,8 +121,3 @@ class APIThrottle {
 }
 
 export const apiThrottle = new APIThrottle();
-
-export async function withThrottle<T>(provider: string, fn: () => Promise<T>): Promise<T> {
-  await apiThrottle.throttle(provider);
-  return fn();
-}

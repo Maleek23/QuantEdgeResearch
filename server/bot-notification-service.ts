@@ -96,11 +96,3 @@ export function initializeBotNotificationService(httpServer: Server): void {
   
   logger.info('[BOT-WS] Bot notification WebSocket server started on /ws/bot');
 }
-
-export function shutdownBotNotificationService(): void {
-  if (botWss) {
-    botWss.close();
-    botWss = null;
-    logger.info('[BOT-WS] Bot notification service shut down');
-  }
-}

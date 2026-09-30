@@ -19,6 +19,7 @@
  */
 
 import type { GammaRegime } from '@shared/gex-regime';
+import { fmtUsd } from '@/lib/format';
 
 export type ExposureKind = 'gex' | 'vex' | 'gexPlus';
 
@@ -67,15 +68,7 @@ export const fmtGexB = (billions: number | null | undefined) => (billions == nul
 export const fmtVexM = (millions: number | null | undefined) => (millions == null ? '—' : fmtSignedUsd(millions * 1e6));
 
 /** Signed dollars: +$5.29M / −$24.4M / +$812K. Input in whole dollars. */
-export function fmtSignedUsd(v: number | null | undefined): string {
-  if (v == null || !Number.isFinite(v)) return '—';
-  const a = Math.abs(v);
-  const s = v > 0 ? '+' : v < 0 ? '−' : '';
-  if (a >= 1e9) return `${s}$${(a / 1e9).toFixed(2)}B`;
-  if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(1)}M`;
-  if (a >= 1e3) return `${s}$${(a / 1e3).toFixed(0)}K`;
-  return `${s}$${a.toFixed(0)}`;
-}
+export const fmtSignedUsd = (v: number | null | undefined): string => fmtUsd(v, { compact: true, signed: true });
 
 export function fmtAge(sec: number | null | undefined): string {
   if (sec == null || !Number.isFinite(sec)) return '—';
@@ -147,13 +140,6 @@ export function rampGradient(steps = 8): string {
   for (let i = 1; i <= steps; i++) stops.push(rampColor(1, i / steps));
   return `linear-gradient(90deg, ${stops.join(', ')})`;
 }
-
-/** Cell tint for any strike grid — the diverging ramp on √(|v|/max). */
-export function exposureCellBg(_kind: ExposureKind, v: number, maxAbs: number): string {
-  if (!Number.isFinite(v) || v === 0 || !(maxAbs > 0)) return 'transparent';
-  return rampColor(v, Math.min(1, Math.sqrt(Math.abs(v) / maxAbs)));
-}
-
 /** 0..1 magnitude on the same √ scale — drives in-cell bars and legend stops. */
 export function exposureStrength(v: number, maxAbs: number): number {
   if (!Number.isFinite(v) || !(maxAbs > 0)) return 0;

@@ -976,50 +976,6 @@ export async function getTradierOptionsChainsByDTE(
     return [];
   }
 }
-
-// Get market status
-export async function getTradierMarketStatus(apiKey?: string): Promise<{
-  state: 'premarket' | 'open' | 'postmarket' | 'closed';
-  description: string;
-  timestamp: string;
-} | null> {
-  const key = apiKey || process.env.TRADIER_API_KEY;
-  if (!key) {
-    logger.error('Tradier API key not found');
-    return null;
-  }
-
-  if (skipTradier(apiKey)) return null;
-
-  try {
-    const baseUrl = getBaseUrl(key);
-    const response = await fetch(`${baseUrl}/markets/clock`, {
-      headers: {
-        'Authorization': `Bearer ${key}`,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      logger.error(`Tradier market clock error: ${response.status}`);
-      noteTradierFailure(apiKey, `HTTP ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-    const clock = data.clock;
-    
-    return {
-      state: clock.state,
-      description: clock.description,
-      timestamp: clock.timestamp
-    };
-  } catch (error) {
-    logger.error('Tradier market clock fetch error:', error);
-    return null;
-  }
-}
-
 // Find optimal option strike based on current price and direction
 /**
  * Free fallback strike picker off the CBOE delayed chain — used when Tradier is

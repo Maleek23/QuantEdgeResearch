@@ -83,11 +83,6 @@ export async function cachedFetchWithStale<T>(
     throw err;
   }
 }
-
-export function providerCacheStats() {
-  return { cached: _cache.size, inflight: _inflight.size };
-}
-
 /**
  * GLOBAL RATE LIMITER — one queue per upstream host.
  *

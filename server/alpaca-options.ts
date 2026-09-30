@@ -106,17 +106,6 @@ export interface AlpacaChain {
 let cooldownUntil = 0;
 let requestsThisMinute = 0;
 let minuteStart = Date.now();
-
-export function alpacaOptionsStatus() {
-  return {
-    configured: isAlpacaOptionsConfigured(),
-    coolingDown: Date.now() < cooldownUntil,
-    cooldownUntil: cooldownUntil > Date.now() ? new Date(cooldownUntil).toISOString() : null,
-    requestsThisMinute,
-    feed: ALPACA_OPTIONS_FEED,
-  };
-}
-
 // ─── Priority lane ───────────────────────────────────────────────────────
 // One serial queue at SPACING_MS (the budget is unchanged), but a request a
 // user is WAITING on (the focused symbol's dealer map) is dequeued before

@@ -326,24 +326,3 @@ class GreeksIntegration {
 
 // Singleton instance
 export const greeksIntegration = new GreeksIntegration();
-
-// Helper functions
-export async function getGreeksForLEAP(
-  symbol: string,
-  strike: number,
-  expiry: string,
-  optionType: 'call' | 'put'
-): Promise<OptionsGreeks | null> {
-  return greeksIntegration.fetchGreeks(symbol, strike, expiry, optionType);
-}
-
-export async function batchGetGreeks(
-  leaps: Array<{
-    symbol: string;
-    strike: number;
-    expiry: string;
-    optionType: 'call' | 'put';
-  }>
-): Promise<Map<string, OptionsGreeks>> {
-  return greeksIntegration.batchFetchGreeks(leaps);
-}

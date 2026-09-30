@@ -95,19 +95,3 @@ export function getMarketStatus(): MarketStatus {
     statusMessage: `After Hours (opens tomorrow at 9:30 AM ET)`
   };
 }
-
-export function getMetricsUpdateMessage(): string {
-  const status = getMarketStatus();
-  
-  if (status.isOpen) {
-    return 'Live market data updating every 30 seconds';
-  }
-  
-  return `${status.statusMessage} - Metrics update when market reopens`;
-}
-
-// Debug function to check what the browser thinks the time is
-export function debugMarketTime(): string {
-  const et = getEasternTime();
-  return `ET: ${et.hour}:${et.minute.toString().padStart(2, '0')} (${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][et.dayOfWeek]})`;
-}

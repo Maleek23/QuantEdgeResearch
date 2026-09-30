@@ -439,28 +439,6 @@ export async function enrichStockWithCatalysts(symbol: string): Promise<StockWit
     catalystSummary: summaryParts.join(' | '),
   };
 }
-
-/**
- * Get symbols with high-impact catalysts (for surge detection boost)
- */
-export async function getSymbolsWithCatalysts(): Promise<string[]> {
-  const feed = await fetchAllCatalysts();
-  return Object.keys(feed.bySymbol);
-}
-
-/**
- * Check if symbol has recent catalyst (last 7 days)
- */
-export async function hasRecentCatalyst(symbol: string): Promise<boolean> {
-  const catalysts = await getCatalystsForSymbol(symbol);
-  if (catalysts.length === 0) return false;
-
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-  return catalysts.some(c => new Date(c.announcedAt) > sevenDaysAgo);
-}
-
 /**
  * Format catalyst for display in UI
  */

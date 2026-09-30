@@ -26,15 +26,6 @@ export function getAcademicGrade(score: number) {
   const result = _scoreToGrade(score);
   return { grade: result.grade, description: result.description };
 }
-
-export function getWinRateGrade(winRate: number): string {
-  return _getLetterGrade(winRate);
-}
-
-export function getConfidenceGrade(confidence: number): string {
-  return _getLetterGrade(confidence);
-}
-
 export function getReliabilityGrade(reliability: number): string {
   return _getLetterGrade(reliability);
 }

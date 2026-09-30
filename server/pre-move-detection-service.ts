@@ -568,11 +568,3 @@ export function startPreMoveScanner(): void {
   // Initial scan
   scanForPreMoveSignals(DEFENSE_TICKERS).catch(console.error);
 }
-
-export function stopPreMoveScanner(): void {
-  if (scanInterval) {
-    clearInterval(scanInterval);
-    scanInterval = null;
-    logger.info('[PRE-MOVE] Pre-Move Detection Scanner stopped');
-  }
-}

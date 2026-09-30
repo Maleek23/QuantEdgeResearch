@@ -381,54 +381,6 @@ export function generateAdaptiveExitStrategy(params: {
     momentumHoldEnabled: confidenceScore >= 70
   };
 }
-
-/**
- * Check if we should continue holding based on momentum
- */
-export function shouldContinueHolding(params: {
-  currentGainPercent: number;
-  highestGainPercent: number;
-  trailingStop: number;
-  stages: ExitStage[];
-  remainingPositionPercent: number;
-}): { hold: boolean; reason: string; suggestedAction?: string } {
-  const { currentGainPercent, highestGainPercent, trailingStop, stages, remainingPositionPercent } = params;
-  
-  // Check if trailing stop hit
-  const drawdownFromHigh = highestGainPercent - currentGainPercent;
-  if (drawdownFromHigh >= trailingStop && currentGainPercent > 0) {
-    return {
-      hold: false,
-      reason: `Trailing stop hit: ${drawdownFromHigh.toFixed(1)}% drawdown from high of +${highestGainPercent.toFixed(1)}%`,
-      suggestedAction: 'EXIT_ALL'
-    };
-  }
-  
-  // Check if any exit stage reached
-  for (const stage of stages) {
-    if (currentGainPercent >= stage.targetPercent && !stage.trailAfter) {
-      return {
-        hold: true,
-        reason: `Stage target +${stage.targetPercent}% reached`,
-        suggestedAction: `EXIT_${stage.exitPercent}%`
-      };
-    }
-  }
-  
-  // Continue holding if still profitable and above trailing threshold
-  if (currentGainPercent > 0) {
-    return {
-      hold: true,
-      reason: `Holding with +${currentGainPercent.toFixed(1)}% gain (high: +${highestGainPercent.toFixed(1)}%)`
-    };
-  }
-  
-  return {
-    hold: true,
-    reason: 'Position within normal range'
-  };
-}
-
 /**
  * Format exit strategy for display
  */

@@ -1161,13 +1161,6 @@ function detectBehaviors(trades: TradeRecord[], metrics: PerformanceMetrics): Be
 
   return insights;
 }
-
-// ─── Main Export ─────────────────────────────────────────────
-
-export async function getJournalAnalytics(userId?: string, filters?: JournalFilters): Promise<JournalAnalytics> {
-  return getJournalAnalyticsFor(userId ? await storage.getJournalTrades(userId) : null, filters);
-}
-
 /**
  * Analytics over any journal book's rows (mine, bot, desk, a trader) — rows in the
  * journal_trades shape. `null` keeps the legacy platform-ideas demo fallback.

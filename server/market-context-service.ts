@@ -1255,44 +1255,6 @@ const STRATEGY_ATR_MULTIPLIERS: Record<StrategyType, { stop: number; target: num
   mean_reversion: { stop: 1.0, target: 2.0 }, // Standard for reversals
   momentum: { stop: 1.5, target: 3.0 }, // Let winners run
 };
-
-export function calculateAtrRiskBands(
-  entryPrice: number,
-  atr: number,
-  direction: 'long' | 'short',
-  strategy: StrategyType,
-  maxRiskDollars: number = 50
-): AtrRiskBands {
-  const multipliers = STRATEGY_ATR_MULTIPLIERS[strategy];
-  
-  const stopDistance = atr * multipliers.stop;
-  const targetDistance = atr * multipliers.target;
-  
-  let stopPrice: number;
-  let targetPrice: number;
-  
-  if (direction === 'long') {
-    stopPrice = entryPrice - stopDistance;
-    targetPrice = entryPrice + targetDistance;
-  } else {
-    stopPrice = entryPrice + stopDistance;
-    targetPrice = entryPrice - targetDistance;
-  }
-  
-  const riskRewardRatio = targetDistance / stopDistance;
-  const positionSizeForRisk = Math.floor(maxRiskDollars / stopDistance);
-  
-  return {
-    atr,
-    stopDistance,
-    targetDistance,
-    stopPrice: Number(stopPrice.toFixed(2)),
-    targetPrice: Number(targetPrice.toFixed(2)),
-    riskRewardRatio: Number(riskRewardRatio.toFixed(2)),
-    positionSizeForRisk: Math.max(1, positionSizeForRisk),
-  };
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // 🚫 WIN RATE IMPROVEMENT: EXIT INTELLIGENCE ENTRY VETO
 // Blocks entries on exhausted moves by simulating exit intelligence

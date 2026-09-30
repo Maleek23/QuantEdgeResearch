@@ -317,34 +317,6 @@ export async function getMoversInsights(): Promise<ContextualInsight[]> {
 
   return insights;
 }
-
-/**
- * Get insights for search results
- */
-export async function getSearchInsights(symbols: string[]): Promise<ContextualInsight[]> {
-  const insights: ContextualInsight[] = [];
-
-  if (symbols.length === 0) return insights;
-
-  // Check how many have active (open) ideas
-  const activeIdeas = await db
-    .select()
-    .from(tradeIdeas)
-    .where(eq(tradeIdeas.outcomeStatus, 'open'));
-
-  const symbolsWithIdeas = new Set(activeIdeas.map(i => i.symbol));
-  const matchCount = symbols.filter(s => symbolsWithIdeas.has(s.toUpperCase())).length;
-
-  if (matchCount > 0) {
-    insights.push({
-      text: `${matchCount} result${matchCount > 1 ? 's have' : ' has'} active trade ideas`,
-      type: 'info',
-    });
-  }
-
-  return insights;
-}
-
 /**
  * Get a quick market summary (for headers/status bars)
  */

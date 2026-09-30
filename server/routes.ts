@@ -353,7 +353,6 @@ const CALIBRATION_CURVE = buildMonotoneCalibration([
   { score: 100, winRate: 78.4, sampleSize: 37 },
 ]);
 
-
 // Get calibrated confidence from raw score
 // Uses linear interpolation between lookup points
 function getCalibratedConfidence(rawScore: number): number {
@@ -465,13 +464,6 @@ function getCoarseBand(detailedBand: string): string {
 function getProbabilityBand(confidenceScore: number): string {
   const detailed = getDetailedProbabilityBand(confidenceScore);
   return getCoarseBand(detailed);
-}
-
-// Export helper for getting both bands
-export function getBandInfo(confidenceScore: number): { band: string; detailedBand: string } {
-  const detailedBand = getDetailedProbabilityBand(confidenceScore);
-  const band = getCoarseBand(detailedBand);
-  return { band, detailedBand };
 }
 
 // Beta access middleware - verifies user has beta access for protected API routes
@@ -2139,7 +2131,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch ideas" });
     }
   });
-
 
   app.get("/api/admin/export-csv", requireAdminJWT, async (_req, res) => {
     try {
@@ -18470,18 +18461,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Multi-Factor Analysis - Get market regime context
-  app.get("/api/market-regime", async (_req, res) => {
-    try {
-      const { assessMarketRegime } = await import('./multi-factor-analysis');
-      const regime = await assessMarketRegime();
-      res.json(regime);
-    } catch (error) {
-      logError(error as Error, { context: 'GET /api/market-regime' });
-      res.status(500).json({ error: "Failed to assess market regime" });
-    }
-  });
-
   // 🚀 Market Movers Scanner - Top Gainers, Losers, After-Hours Surges
   app.get("/api/market-movers", async (_req, res) => {
     try {
@@ -19779,7 +19758,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch futures price" });
     }
   });
-
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CRYPTO BOT MANAGEMENT
@@ -26525,30 +26503,6 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
     }
   });
 
-  // Blog Routes
-  app.get("/api/blog", async (_req, res) => {
-    try {
-      const posts = await storage.getBlogPosts("published");
-      res.json(posts);
-    } catch (error) {
-      console.error("Error fetching blog posts:", error);
-      res.status(500).json({ error: "Failed to fetch blog posts" });
-    }
-  });
-
-  app.get("/api/blog/:slug", async (req, res) => {
-    try {
-      const post = await storage.getBlogPostBySlug(req.params.slug);
-      if (!post) {
-        return res.status(404).json({ error: "Post not found" });
-      }
-      res.json(post);
-    } catch (error) {
-      console.error("Error fetching blog post:", error);
-      res.status(500).json({ error: "Failed to fetch blog post" });
-    }
-  });
-
   // POST /api/admin/seed-blog - Seed educational blog content (admin only)
   app.post("/api/admin/seed-blog", requireAdminJWT, async (_req: Request, res: Response) => {
     try {
@@ -28962,42 +28916,6 @@ Use this checklist before entering any trade:
   // CATALYST INTELLIGENCE - Track WHY stocks move
   // Insider buying, government contracts, M&A, unusual options
   // ============================================
-
-  // Cache for catalyst data
-  const catalystCache = {
-    feed: { data: null as any, timestamp: 0 },
-  };
-  const CATALYST_CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache
-
-  // GET /api/catalysts - Get all active catalysts
-  app.get("/api/catalysts", async (_req, res) => {
-    try {
-      const now = Date.now();
-
-      // Return cached data if fresh
-      if (catalystCache.feed.data && (now - catalystCache.feed.timestamp) < CATALYST_CACHE_TTL) {
-        return res.json({
-          ...catalystCache.feed.data,
-          cached: true,
-          cacheAge: Math.round((now - catalystCache.feed.timestamp) / 1000)
-        });
-      }
-
-      const { fetchAllCatalysts } = await import("./catalyst-tracker-service");
-      const feed = await fetchAllCatalysts();
-
-      // Update cache
-      catalystCache.feed = { data: feed, timestamp: now };
-
-      res.json({
-        ...feed,
-        cached: false
-      });
-    } catch (error) {
-      logger.error("Error fetching catalysts", { error });
-      res.status(500).json({ error: "Failed to fetch catalysts" });
-    }
-  });
 
   // GET /api/catalysts/:symbol - Get catalysts for specific symbol
   // Registered BEFORE /api/catalysts/:symbol, because Express matches in registration
@@ -32007,27 +31925,6 @@ Use this checklist before entering any trade:
       res.json(result);
     } catch (e: any) {
       res.status(500).json({ error: 'earnings hub failed', message: e?.message });
-    }
-  });
-
-  /**
-   * EARNINGS CALENDAR — full universe (all ~1500 reports/week).
-   * Lightweight (no chain enrichment, no beat history) so it's fast even at full scale.
-   *
-   * GET /api/earnings/calendar?days=7        → next 7 days, all reporters
-   * GET /api/earnings/calendar?refresh=1     → force re-scan
-   *
-   * Returns: days grouped (with BMO/AMC/TBD sub-groups), plus top-30 by market cap.
-   */
-  app.get("/api/earnings/calendar", async (req, res) => {
-    try {
-      const { buildEarningsCalendar } = await import('./earnings-hub');
-      const days = req.query.days ? Number(req.query.days) : 7;
-      const force = req.query.refresh === '1' || req.query.refresh === 'true';
-      const result = await buildEarningsCalendar({ daysAhead: Math.max(1, Math.min(14, days)) }, force);
-      res.json(result);
-    } catch (e: any) {
-      res.status(500).json({ error: 'earnings calendar failed', message: e?.message });
     }
   });
 

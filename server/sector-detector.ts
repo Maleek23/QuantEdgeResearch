@@ -197,25 +197,6 @@ export function detectResearchHorizon(
   
   return 'intraday';
 }
-
-export function getEducationalDisclaimer(riskProfile: RiskProfile, sectorFocus?: SectorFocus): string {
-  const baseDisclaimer = 'Educational research only - not financial advice.';
-  
-  if (riskProfile === 'speculative') {
-    return `⚠️ HIGH-VARIANCE RESEARCH SCENARIO: This represents an extremely speculative opportunity with potential for total capital loss. ${baseDisclaimer} Suitable only for risk capital you can afford to lose entirely.`;
-  }
-  
-  if (riskProfile === 'aggressive') {
-    return `⚠️ ELEVATED RISK SCENARIO: This represents an aggressive opportunity with higher-than-average volatility. ${baseDisclaimer} Consider position sizing carefully.`;
-  }
-  
-  if (sectorFocus === 'quantum_computing' || sectorFocus === 'nuclear') {
-    return `🔬 EMERGING TECHNOLOGY: ${sectorFocus === 'quantum_computing' ? 'Quantum computing' : 'Nuclear energy'} is an early-stage sector with binary outcomes. ${baseDisclaimer}`;
-  }
-  
-  return baseDisclaimer;
-}
-
 export function isPennyStock(symbol: string, price: number): boolean {
   return PENNY_STOCK_SYMBOLS.has(symbol.toUpperCase()) || price < 5;
 }

@@ -76,66 +76,6 @@ const ARBITRAGE_KEYWORDS = {
   tech: ['ai', 'openai', 'google', 'apple', 'microsoft', 'tesla', 'spacex', 'launch', 'ipo'],
   sports: ['superbowl', 'nfl', 'nba', 'mlb', 'championship', 'playoffs', 'finals', 'world series'],
 };
-
-export async function fetchPolymarketEvents(category?: string, limit: number = 50): Promise<PolymarketEvent[]> {
-  try {
-    const params = new URLSearchParams({
-      limit: limit.toString(),
-      active: 'true',
-      closed: 'false',
-      order: 'volume',
-      ascending: 'false'
-    });
-    
-    if (category) {
-      params.append('tag', category);
-    }
-    
-    const url = `${POLYMARKET_API_BASE}/events?${params}`;
-    logger.info(`[POLYMARKET] Fetching events: ${url}`);
-    
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'QuantEdgeLabs/1.0'
-      }
-    });
-    
-    if (!response.ok) {
-      logger.error(`[POLYMARKET] API error: HTTP ${response.status}`);
-      return [];
-    }
-    
-    const events = await response.json();
-    logger.info(`[POLYMARKET] Fetched ${events.length} active events`);
-    return events;
-  } catch (error) {
-    logger.error(`[POLYMARKET] Failed to fetch events:`, error);
-    return [];
-  }
-}
-
-export async function fetchMarketById(marketId: string): Promise<PolymarketMarket | null> {
-  try {
-    const url = `${POLYMARKET_API_BASE}/markets/${marketId}`;
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'QuantEdgeLabs/1.0'
-      }
-    });
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    return await response.json();
-  } catch (error) {
-    logger.error(`[POLYMARKET] Failed to fetch market ${marketId}:`, error);
-    return null;
-  }
-}
-
 export async function fetchTrendingMarkets(limit: number = 20): Promise<PolymarketMarket[]> {
   try {
     const params = new URLSearchParams({

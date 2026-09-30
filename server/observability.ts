@@ -181,19 +181,3 @@ async function postWebhook(payload: any): Promise<void> {
     // intentionally silent — observability must never throw
   }
 }
-
-// ─── Express middleware to wrap routes ─────────────────────────────
-
-export function observabilityErrorMiddleware(
-  err: any,
-  req: any,
-  _res: any,
-  next: any,
-): void {
-  captureException(err, {
-    context: `${req.method} ${req.originalUrl}`,
-    tags: { method: req.method, path: req.route?.path || req.path },
-    extra: { query: req.query, ip: req.ip },
-  });
-  next(err);
-}

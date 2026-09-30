@@ -103,10 +103,3 @@ export async function resolveCiks(tickers: string[]): Promise<Map<string, string
   }
   return out;
 }
-
-/** How much of a given list SEC can actually be asked about. */
-export async function cikCoverage(tickers: string[]): Promise<{ resolved: number; total: number; missing: string[] }> {
-  const m = await resolveCiks(tickers);
-  const missing = tickers.filter((t) => !m.has(t.toUpperCase()));
-  return { resolved: m.size, total: tickers.length, missing };
-}

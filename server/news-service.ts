@@ -330,12 +330,3 @@ export function getNewsServiceStatus() {
     isHealthy: !rateLimited && fetchedRecently,
   };
 }
-
-/**
- * Manually reset quota (for testing purposes)
- */
-export function resetQuotaForTesting(): void {
-  dailyAPICallCount = 0;
-  lastResetDate = new Date().toDateString();
-  logger.info('📰 [NEWS] Quota manually reset for testing');
-}

@@ -23,7 +23,7 @@
 import { logger } from './logger';
 import {
   gammaProfile, thinProfile, pickWalls, gexPer1Pct, vannaPerVolPt, MIN_T_YEARS, expiryInstantMs,
-  deltaMoveSplit,
+  deltaMoveSplit, normCdf, normPdf,
   type GammaContract,
 } from '../shared/gex-math';
 import {
@@ -229,19 +229,7 @@ export interface StrikeExpiryCell {
 
 // ─── Black-Scholes helpers ──────────────────────────────────
 
-function normalCDF(x: number): number {
-  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
-  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
-  const sign = x < 0 ? -1 : 1;
-  const ax = Math.abs(x) / Math.SQRT2;
-  const t = 1 / (1 + p * ax);
-  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-ax * ax);
-  return 0.5 * (1 + sign * y);
-}
-
-function normalPDF(x: number): number {
-  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
-}
+// normCdf / normPdf come from shared/gex-math (same A-S 7.1.26 polynomial).
 
 const RISK_FREE = 0.045; // 4.5% — approx 3-month T-bill, adjust later if needed
 // IV substituted when the feed supplies none. Judgmental, not measured: a flat
@@ -275,9 +263,9 @@ function computeAllGreeks(
   const sqrtT = Math.sqrt(tte);
   const d1 = (Math.log(spot / strike) + (RISK_FREE + 0.5 * iv * iv) * tte) / (iv * sqrtT);
   const d2 = d1 - iv * sqrtT;
-  const nd1 = normalPDF(d1);
+  const nd1 = normPdf(d1);
 
-  const delta = isCall ? normalCDF(d1) : normalCDF(d1) - 1;
+  const delta = isCall ? normCdf(d1) : normCdf(d1) - 1;
   const gamma = nd1 / (spot * iv * sqrtT);
   const vega = spot * nd1 * sqrtT / 100; // per 1% IV
 
