@@ -35,6 +35,8 @@
 import type { Express, Request, Response, NextFunction } from 'express';
 import { and, gte, like, or, eq } from 'drizzle-orm';
 import { logger } from './logger';
+import { readShared, sharedStamp, writeSharedSync } from './lib/shared-state';
+import { readsSharedState, writesSharedState } from './lib/process-role';
 import { tradeIdeas } from '@shared/schema';
 import { OUTCOME_BASELINE_DATE } from '@shared/constants';
 import { realizedVolDaily } from '@shared/loss-rules';
@@ -246,6 +248,8 @@ export interface DeskPayload {
   ideasInfo: IdeasInfo;
   record: DeskRecord & { perName: Record<string, { n: number; wins: number; losses: number; total: number }> };
   provenance: string;
+  /** ROLE=web: age of the worker's last evaluation pass. */
+  engineState?: { source: string; asOf: string | null; ageSec: number | null; stale: boolean };
   notes: string[];
 }
 
@@ -542,7 +546,24 @@ async function assembleIdeas(watch: string[], rows: DeskRow[], ideas: IdeaLite[]
 let deskCache: { at: number; p: DeskPayload } | null = null;
 let deskInflight: Promise<DeskPayload> | null = null;
 
+// Split deployment: the worker's producer passes (runZeroDteDeskScan) publish
+// the per-name evaluation memos; the web desk adopts them (ROLE=web only).
+const DESK_SHARED = 'zero-dte-eval';
+let deskHydratedAt = 0;
+let engineStamp: ReturnType<typeof sharedStamp> | null = null;
+function hydrateDeskEval(): void {
+  if (!readsSharedState()) return;
+  const r = readShared<{ lastEval: Array<[string, EvalMemo]>; ideaEval: Array<[string, IdeaEval]> }>(DESK_SHARED, 10 * 60_000);
+  engineStamp = sharedStamp(r);
+  if (!r || r.writtenAtMs <= deskHydratedAt) return;
+  deskHydratedAt = r.writtenAtMs;
+  lastEval.clear(); for (const [k, v] of r.data.lastEval ?? []) lastEval.set(k, v);
+  ideaEval.clear(); for (const [k, v] of r.data.ideaEval ?? []) ideaEval.set(k, v);
+  deskCache = null;
+}
+
 export async function getZeroDteDesk(opts: { priority?: boolean } = {}): Promise<DeskPayload> {
+  hydrateDeskEval();
   if (deskCache && Date.now() - deskCache.at < DESK_TTL_MS) return deskCache.p;
   if (deskInflight) return deskInflight;
   deskInflight = (async () => {
@@ -571,6 +592,7 @@ export async function getZeroDteDesk(opts: { priority?: boolean } = {}): Promise
       asOf: new Date(nowMs).toISOString(), watch, phase, rows, ideas: assembled.ideas, ideasInfo: assembled.info,
       record: { ...summarizeDeskRecord(recRows, OUTCOME_BASELINE_DATE), perName },
       provenance: ZERO_DTE_PROVENANCE,
+      ...(engineStamp ? { engineState: engineStamp } : {}),
       notes: [
         `Every 0DTE idea has a hard time stop at ${TIME_STOP_ET} ET.`,
         zeroDteWallsEnabled() ? 'Same-day-expiry walls are added to policies A/B (desk addition 2026-09-29, not in the pre-registered spec).' : 'Same-day-expiry walls are OFF in the policies (ZERO_DTE_WALLS_IN_POLICY=false).',
@@ -810,6 +832,9 @@ export async function runZeroDteDeskScan(): Promise<{ evaluated: number; publish
     }
   }
   deskCache = null;
+  if (writesSharedState()) {
+    writeSharedSync(DESK_SHARED, { lastEval: Array.from(lastEval.entries()), ideaEval: Array.from(ideaEval.entries()) });
+  }
   logger.info(`[0DTE-DESK] ${phase.label}: ${evaluated} evaluated, ${published} published · ${Object.entries(waits).map(([k, w]) => `${k}: ${w[0] ?? '—'}`).join(' · ')}`);
   return { evaluated, published, waits };
 }

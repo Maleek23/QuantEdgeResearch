@@ -36,6 +36,8 @@
 import fs from 'fs';
 import path from 'path';
 import { logger } from './logger';
+import { readShared, writeSharedSync } from './lib/shared-state';
+import { readsSharedState, writesSharedState } from './lib/process-role';
 import { rateLimited } from './provider-cache';
 import {
   INDEX_TICKERS, S_TIER, A_TIER, SECONDARY, SMALL_ACCOUNT_TIER,
@@ -583,7 +585,31 @@ export async function runRankingCycle(): Promise<void> {
   } finally {
     cycle.inProgress = false;
     cycle.finishedAt = new Date().toISOString();
+    publishMeta();
   }
+}
+
+// ── Split deployment: the worker runs the cycle; the web process serves the
+// persisted last-good rows (reloaded when the file changes) + this meta file. ──
+const META_SHARED = 'gex-rankings-meta';
+function publishMeta(): void {
+  if (!writesSharedState()) return;
+  let alerts = { discordConfigured: false, sentToday: 0, ideasToday: 0 };
+  try { alerts = magnetActionStats(); } catch { /* */ }
+  writeSharedSync(META_SHARED, { cycle, universeInfo, alerts });
+}
+let lastGoodMtime = 0;
+function hydrateFromWorker(): { alerts: ReturnType<typeof magnetActionStats> } | null {
+  if (!readsSharedState()) return null;
+  try {
+    const m = fs.statSync(lastGoodFile).mtimeMs;
+    if (m !== lastGoodMtime) { lastGoodMtime = m; rows.clear(); loadFromDisk(); }
+  } catch { /* no file yet */ }
+  const r = readShared<{ cycle: GexRankCycle; universeInfo: typeof universeInfo; alerts: ReturnType<typeof magnetActionStats> }>(META_SHARED);
+  if (!r) return null;
+  Object.assign(cycle, r.data.cycle);
+  universeInfo = r.data.universeInfo;
+  return { alerts: r.data.alerts };
 }
 
 function scheduleNext(): void {
@@ -603,6 +629,7 @@ export function startGexRankingJob(firstDelayMs = 90_000): void {
 }
 
 export function getGexRankings(limit = 30): GexRankingsPayload {
+  const fromWorker = hydrateFromWorker();
   const now = Date.now();
   const staleAfter = inCashHours() ? STALE_MARKET_MS : 24 * 60 * 60_000;
   const list = [...rows.values()];
@@ -616,7 +643,7 @@ export function getGexRankings(limit = 30): GexRankingsPayload {
     .sort((a, b) => Number(a.stale) - Number(b.stale) || b.score - a.score)
     .slice(0, limit);
   let alerts = { discordConfigured: false, sentToday: 0, ideasToday: 0 };
-  try { alerts = magnetActionStats(); } catch { /* module not loaded yet */ }
+  try { alerts = fromWorker?.alerts ?? magnetActionStats(); } catch { /* module not loaded yet */ }
   return {
     generatedAt: new Date(now).toISOString(),
     rows: aged,

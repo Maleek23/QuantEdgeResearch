@@ -1,6 +1,8 @@
 import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from './logger';
 import type { Server } from 'http';
+import { appendSharedLine, tailSharedLines } from './lib/shared-state';
+import { readsSharedState, writesSharedState } from './lib/process-role';
 
 export type BotEventType = 'looking' | 'signal' | 'entry' | 'exit' | 'skip' | 'error';
 
@@ -25,8 +27,28 @@ export interface BotNotification {
 }
 
 let botWss: WebSocketServer | null = null;
+const BOT_EVENTS = 'bot-events';
+
+/** ROLE=web: relay bot events the worker appended to .cache/shared/bot-events.jsonl. */
+let relayStarted = false;
+export function startWorkerEventRelay(): void {
+  if (relayStarted || !readsSharedState()) return;
+  relayStarted = true;
+  tailSharedLines(BOT_EVENTS, (ev) => {
+    if (!botWss || !ev || typeof ev !== 'object') return;
+    const payload = JSON.stringify({ type: 'bot_event', ...ev });
+    botWss.clients.forEach((c) => { if (c.readyState === WebSocket.OPEN) c.send(payload); });
+  });
+  logger.info('[BOT-WS] relaying worker bot events from .cache/shared/bot-events.jsonl');
+}
 
 export function broadcastBotEvent(notification: Omit<BotNotification, 'type' | 'timestamp'>): void {
+  if (!botWss && writesSharedState()) {
+    // ROLE=worker has no socket server: hand the event to the web process,
+    // which relays it to /ws/bot clients (startWorkerEventRelay).
+    appendSharedLine(BOT_EVENTS, { ...notification, timestamp: new Date().toISOString() });
+    return;
+  }
   if (!botWss) {
     logger.debug('[BOT-WS] No WebSocket server, skipping broadcast');
     return;

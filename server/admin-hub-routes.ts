@@ -21,7 +21,18 @@ export function registerAdminHubRoutes(app: Express, requireAdmin: RequestHandle
     let discordBot = false;
     try { discordBot = (await import('./discord-journal-import')).discordBotConfigured(); } catch { /* module unavailable */ }
     let ideaProducersInWeb: boolean | null = null;
-    try { ideaProducersInWeb = (await import('./idea-producer-schedule')).ideaProducersEnabledInWeb(); } catch { /* */ }
+    const roleMod = await import('./lib/process-role');
+    const role = roleMod.processRole();
+    try { ideaProducersInWeb = roleMod.runsWorkerJobs() && (await import('./idea-producer-schedule')).ideaProducersEnabledInWeb(); } catch { /* */ }
+    // Split deployment: the worker's own memory/heavy-gate snapshot (written every 60s).
+    let worker: unknown = null;
+    if (roleMod.readsSharedState()) {
+      try {
+        const { readShared, sharedStamp } = await import('./lib/shared-state');
+        const r = readShared<unknown>('worker-health', 3 * 60_000);
+        worker = r ? { ...(r.data as object), ...sharedStamp(r) } : { ...sharedStamp(null), note: 'no worker health file — is quantedge-worker running?' };
+      } catch { /* */ }
+    }
     let api: { summary: unknown; rateLimited: { provider: string; endpoint: string; failureCount: number; lastFailure: string | null }[] } | null = null;
     try {
       const { monitoringService } = await import('./monitoring-service');
@@ -54,6 +65,8 @@ export function registerAdminHubRoutes(app: Express, requireAdmin: RequestHandle
         pm2: process.env.pm_id != null ? { id: num(process.env.pm_id), name: process.env.name ?? null, restarts: num(process.env.restart_time) } : null,
       },
       memory,
+      role,
+      worker,
       faultsSinceBoot: faults,
       discord: { botConfigured: discordBot },
       ideaProducersInWeb,

@@ -12,6 +12,8 @@
  */
 
 import { logger } from './logger';
+import { readShared, writeSharedSync } from './lib/shared-state';
+import { readsSharedState } from './lib/process-role';
 import { fetchStockPrice } from './market-api';
 import { storage } from './storage';
 
@@ -1147,17 +1149,35 @@ export async function runSessionScan(): Promise<SessionScanResult> {
 // API HELPERS
 // ============================================
 
+// ── Split deployment: the worker publishes levels/signals; ROLE=web reads them. ──
+const SESSION_SHARED = 'spx-session';
+export function publishSessionState(): void {
+  writeSharedSync(SESSION_SHARED, { date: state.date, levels: Array.from(state.levels.entries()), signals: state.signals });
+}
+let sessionHydratedAt = 0;
+function hydrateSession(): void {
+  if (!readsSharedState()) return;
+  const r = readShared<{ date: string; levels: Array<[string, DayLevels]>; signals: SPXSignal[] }>(SESSION_SHARED);
+  if (!r || r.writtenAtMs <= sessionHydratedAt) return;
+  sessionHydratedAt = r.writtenAtMs;
+  const signals = (r.data.signals ?? []).map((x) => ({ ...x, timestamp: new Date(x.timestamp as unknown as string), expiresAt: new Date(x.expiresAt as unknown as string) }));
+  state = { ...state, date: r.data.date, levels: new Map(r.data.levels ?? []), signals };
+}
+
 export function getActiveSignals(): SPXSignal[] {
+  hydrateSession();
   const now = new Date();
   return state.signals.filter(s => s.expiresAt > now);
 }
 
 export function getSignalsByStrategy(strategy: StrategyType): SPXSignal[] {
+  hydrateSession();
   const now = new Date();
   return state.signals.filter(s => s.strategy === strategy && s.expiresAt > now);
 }
 
 export function getLevels(): DayLevels[] {
+  hydrateSession();
   return Array.from(state.levels.values());
 }
 

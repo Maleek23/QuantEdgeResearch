@@ -20,6 +20,8 @@
  *                 the persisted JSONL). The print's aggressor SIDE is not in
  *                 the feed — we say so rather than guess it.
  */
+import { readShared, writeSharedSync } from './lib/shared-state';
+import { readsSharedState, runsWorkerJobs, writesSharedState } from './lib/process-role';
 import fs from 'fs';
 import path from 'path';
 import { logger } from './logger';
@@ -68,7 +70,8 @@ function daySamples(sym: string, date: string): GexSample[] {
   let byDate = timeline.get(sym);
   if (!byDate) { byDate = new Map(); timeline.set(sym, byDate); }
   const cached = byDate.get(date);
-  if (cached) return cached;
+  // ROLE=web: the worker appends to today's file every 5 min — re-read when it changed.
+  if (cached && !(readsSharedState() && fileChanged(sym, date))) return cached;
   let rows: GexSample[] = [];
   try {
     const raw = JSON.parse(fs.readFileSync(fileFor(sym, date), 'utf8'));
@@ -76,6 +79,16 @@ function daySamples(sym: string, date: string): GexSample[] {
   } catch { /* no file for that day — nothing was recorded */ }
   byDate.set(date, rows);
   return rows;
+}
+
+const fileMtimes = new Map<string, number>();
+function fileChanged(sym: string, date: string): boolean {
+  const f = fileFor(sym, date);
+  let m = 0;
+  try { m = fs.statSync(f).mtimeMs; } catch { return false; }
+  if (fileMtimes.get(f) === m) return false;
+  fileMtimes.set(f, m);
+  return true;
 }
 
 function persist(sym: string, date: string, rows: GexSample[]) {
@@ -156,7 +169,13 @@ export function watchedSymbols(): string[] {
     .filter(([, at]) => now - at < VIEW_TTL_MS)
     .sort((a, b) => b[1] - a[1])
     .map(([s]) => s);
-  return [...new Set([...DEFAULT_WATCH, ...viewed])].slice(0, MAX_WATCH);
+  // Split deployment: symbols charted in the web process (published there).
+  let webViewed: string[] = [];
+  if (writesSharedState() || readsSharedState()) {
+    const r = readShared<Array<[string, number]>>('chart-watch');
+    if (r) webViewed = r.data.filter(([, at]) => now - at < VIEW_TTL_MS).sort((a, b) => b[1] - a[1]).map(([s]) => s);
+  }
+  return [...new Set([...DEFAULT_WATCH, ...viewed, ...webViewed])].slice(0, MAX_WATCH);
 }
 
 /** Session window for the scheduled recorder: weekdays 09:00–16:30 ET. */
@@ -294,9 +313,13 @@ export async function buildChartOverlays(symbolRaw: string, range: string, spotH
   const sym = safeSym(symbolRaw);
   const now = Date.now();
   lastViewed.set(sym, now);
-  // Production runs dist/web.js (index.ts's schedulers never start there), so
-  // the recorder also starts on first use.
-  startChartOverlayRecorder();
+  if (readsSharedState()) {
+    // ROLE=web: tell the worker's recorder which symbols people are charting.
+    writeSharedSync('chart-watch', [...lastViewed.entries()].filter(([, at]) => now - at < VIEW_TTL_MS));
+  } else if (runsWorkerJobs()) {
+    // ROLE=all: the recorder also starts on first use (pre-split behaviour).
+    startChartOverlayRecorder();
+  }
   const dates = datesFor(range, sym);
   const sinceDate = dates[dates.length - 1];
 
@@ -304,7 +327,10 @@ export async function buildChartOverlays(symbolRaw: string, range: string, spotH
   let latest = latestSample(sym);
   const { dow, mins } = etParts();
   const onDemandOk = dow >= 1 && dow <= 5 && mins >= 4 * 60 && mins <= 20 * 60;
-  if ((!latest || now - latest.t > ON_DEMAND_MIN_GAP_MS) && (onDemandOk || !latest)) {
+  // ROLE=web: only a never-recorded symbol gets an on-demand chain parse here;
+  // refreshing a recorded one is the worker's 5-minute job.
+  const onDemandAllowed = readsSharedState() ? !latest : (!latest || now - latest.t > ON_DEMAND_MIN_GAP_MS) && (onDemandOk || !latest);
+  if (onDemandAllowed) {
     const fresh = await Promise.race([
       recordSample(sym),
       new Promise<null>((r) => setTimeout(() => r(null), 12_000)),

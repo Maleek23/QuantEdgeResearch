@@ -8,6 +8,8 @@
  * 4. Improves predictions over time
  */
 
+import { readShared, writeSharedSync } from './lib/shared-state';
+import { readsSharedState, writesSharedState } from './lib/process-role';
 import { logger } from './logger';
 import { storage } from './storage';
 import type { TradeIdea } from '@shared/schema';
@@ -145,6 +147,9 @@ class SelfLearningService {
       }
 
       this.lastAnalysis = new Date();
+      if (writesSharedState()) {
+        writeSharedSync('self-learning', { metrics: Array.from(enginePerformanceCache.entries()), thresholds: LEARNED_THRESHOLDS, lastAnalysis: this.lastAnalysis.toISOString() });
+      }
       logger.info('🧠 Learning cycle complete');
 
     } catch (error) {
@@ -599,7 +604,21 @@ class SelfLearningService {
   /**
    * Get current learned thresholds for engines to use
    */
+  /** ROLE=web: adopt the worker's last cycle (metrics + thresholds) when it is newer. */
+  private hydrate(): void {
+    if (!readsSharedState()) return;
+    const r = readShared<{ metrics: Array<[string, EngineMetrics]>; thresholds: typeof LEARNED_THRESHOLDS; lastAnalysis: string }>('self-learning');
+    if (!r || r.writtenAtMs <= this.hydratedAt) return;
+    this.hydratedAt = r.writtenAtMs;
+    enginePerformanceCache.clear();
+    for (const [k, v] of r.data.metrics ?? []) enginePerformanceCache.set(k, v);
+    if (r.data.thresholds) Object.assign(LEARNED_THRESHOLDS, r.data.thresholds);
+    this.lastAnalysis = new Date(r.data.lastAnalysis);
+  }
+  private hydratedAt = 0;
+
   getLearnedThresholds() {
+    this.hydrate();
     return { ...LEARNED_THRESHOLDS };
   }
 
@@ -607,6 +626,7 @@ class SelfLearningService {
    * Get performance metrics for a specific engine
    */
   getEngineMetrics(engine: string): EngineMetrics | undefined {
+    this.hydrate();
     return enginePerformanceCache.get(engine);
   }
 
@@ -614,6 +634,7 @@ class SelfLearningService {
    * Get all engine metrics
    */
   getAllEngineMetrics(): Map<string, EngineMetrics> {
+    this.hydrate();
     return new Map(enginePerformanceCache);
   }
 
@@ -693,5 +714,6 @@ class SelfLearningService {
 // Singleton instance
 export const selfLearning = new SelfLearningService();
 
-// Auto-start on import
-selfLearning.start();
+// Started by the job registry (server/background-jobs.ts, role 'worker') — no
+// longer on import, which ran the hourly cycle in whichever process first
+// imported this module (the web process, via routes).

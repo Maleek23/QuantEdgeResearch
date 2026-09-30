@@ -25,7 +25,7 @@
  * SAFEGUARDS (same as the worker, plus)
  *   • Paper only: the cycle calls paper-trading-service; there is no broker.
  *   • QUANT_BOT_IN_WEB=false turns the whole block off without a deploy.
- *   • WORKER_ENABLED=true (a worker owns the jobs) → web schedules nothing.
+ *   • Which process runs it: server/background-jobs.ts (role 'worker'; ROLE=all runs it in web).
  *   • guarded-cron: only the scheduler-lock leader registers the crons.
  *   • runBotCycle holds a Postgres advisory lock for the cycle, so a worker, a
  *     second instance or a dev server on the same DB is skipped, never doubled.
@@ -39,7 +39,6 @@ type LogFn = (msg: string) => void;
 
 export function quantBotEnabledInWeb(): boolean {
   if (process.env.QUANT_BOT_IN_WEB === 'false') return false;
-  if (process.env.WORKER_ENABLED === 'true') return false;
   return true;
 }
 
@@ -65,7 +64,10 @@ async function cycle(origin: string): Promise<void> {
   }
 }
 
-export async function scheduleQuantBotInWeb(log: LogFn): Promise<void> {
+/** Back-compat name. */
+export const scheduleQuantBotInWeb = (log: LogFn) => scheduleQuantBot(log);
+
+export async function scheduleQuantBot(log: LogFn): Promise<void> {
   const { setBotDiscordAlerts } = await import('./quant-bot');
   setBotDiscordAlerts(process.env.QUANT_BOT_DISCORD === '1');
   const cron = (await import('./guarded-cron')).default;

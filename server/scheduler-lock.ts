@@ -50,6 +50,7 @@ let isLeader = false;
  * because the lock itself failed.
  */
 export async function acquireSchedulerLock(): Promise<boolean> {
+  if (holder && isLeader) return true; // idempotent — already the leader
   if (process.env.DISABLE_SCHEDULERS === 'true') {
     logger.info('[SCHEDULER-LOCK] DISABLE_SCHEDULERS=true — this process will not run background jobs');
     return false;
@@ -58,12 +59,14 @@ export async function acquireSchedulerLock(): Promise<boolean> {
   // instance and does not want an extra connection open.
   if (process.env.SCHEDULER_LOCK === 'off') {
     logger.warn('[SCHEDULER-LOCK] disabled by SCHEDULER_LOCK=off — duplicate schedulers are NOT prevented');
+    isLeader = true;
     return true;
   }
 
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     logger.warn('[SCHEDULER-LOCK] no DATABASE_URL — running schedulers unguarded');
+    isLeader = true;
     return true;
   }
 
@@ -101,6 +104,9 @@ export async function acquireSchedulerLock(): Promise<boolean> {
     return true;
   } catch (err: any) {
     logger.warn(`[SCHEDULER-LOCK] could not acquire (${err?.message ?? err}) — running schedulers unguarded`);
+    // The docstring promise: a failed lock attempt must not silently disable the
+    // schedulers. guarded-cron reads isLeader, so it has to be set here too.
+    isLeader = true;
     return true;
   }
 }

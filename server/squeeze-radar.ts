@@ -30,6 +30,8 @@
 import fs from 'fs';
 import path from 'path';
 import { logger } from './logger';
+import { readShared, writeSharedSync } from './lib/shared-state';
+import { readsSharedState, writesSharedState } from './lib/process-role';
 import { marketDateET } from '@shared/market-day';
 import {
   scoreSqueezeRadar, squeezeMedian, SQUEEZE_RULES, SQUEEZE_WEIGHTS,
@@ -377,6 +379,7 @@ export async function runSqueezeRadarCycle(rows: GexRankRow[]): Promise<void> {
     latest.clear();
     for (const s of scored) latest.set(s.row.symbol, s);
     lastRunAt = new Date().toISOString();
+    if (writesSharedState()) writeSharedSync(RADAR_SHARED, { lastRunAt, latest: [...latest.values()] });
 
     // Forward log: one line per symbol per slot per day.
     const slot = logSlotFor();
@@ -422,7 +425,22 @@ function toRow(s: Scored): SqueezeRadarRow {
   return { ...s.result, chainAsOf: asOf, chainSource: s.row.dataSource, openInterestDate: s.row.openInterestDate, ageSec, stale: ageSec == null || ageSec * 1000 > STALE_MS };
 }
 
+// Split deployment: the cycle runs in the worker (inside the GEX ranking job);
+// the web process serves its last result from the shared file.
+const RADAR_SHARED = 'squeeze-radar';
+let radarHydratedAt = 0;
+function hydrateRadar(): void {
+  if (!readsSharedState()) return;
+  const r = readShared<{ lastRunAt: string | null; latest: Scored[] }>(RADAR_SHARED);
+  if (!r || r.writtenAtMs <= radarHydratedAt) return;
+  radarHydratedAt = r.writtenAtMs;
+  latest.clear();
+  for (const x of r.data.latest ?? []) latest.set(x.row.symbol, x);
+  lastRunAt = r.data.lastRunAt;
+}
+
 export function getSqueezeRadar(limit = 40): SqueezeRadarPayload {
+  hydrateRadar();
   const all = [...latest.values()].map(toRow);
   const stageRank: Record<string, number> = { igniting: 0, primed: 1, building: 2, exhausted: 3, quiet: 4, illiquid: 5 };
   all.sort((a, b) => Number(a.stale) - Number(b.stale) || stageRank[a.stage] - stageRank[b.stage] || b.score - a.score);
