@@ -147,8 +147,28 @@ export async function botConfluenceGate(pick: { symbol: string; direction: 'long
 }
 
 /** Rule 2 for one bot candidate. Intraday bars are fetched only when a next-session trigger must be proven. */
-export async function botEntryWindowGate(pick: { symbol: string; direction: 'long' | 'short'; entryPrice: number; currentPrice?: number | null }, idea: any, nowMs = Date.now()): Promise<EntryWindowResult> {
-  const cfg = lossRulesConfig();
+/**
+ * Flow-led ideas (direction read from ask-vs-bid fills, source options_flow /
+ * flow / bullflow_tape) — loss-rules-v1.1, operator 2026-09-30. On the bot's
+ * own fills the single-source group (mostly flow) was PF 1.67 / +$4,235 (n=23)
+ * while the ≥2-family group the confluence rule KEPT was PF 0.51 / −$4,132
+ * (n=17); on desk ideas RTH-after-11:30 was PF 1.08 vs 0.85 inside. So flow-led
+ * picks skip the confluence rule and may enter until 15:00 ET. Measuring —
+ * LOSS_RULE_FLOW_EXEMPT=false restores v1.
+ */
+export function isFlowLed(source: unknown): boolean {
+  return /flow|bullflow/i.test(String(source ?? ''));
+}
+export function flowExemptEnabled(): boolean {
+  return process.env.LOSS_RULE_FLOW_EXEMPT !== 'false';
+}
+const FLOW_WINDOW_END_ET = 15 * 60;
+
+export async function botEntryWindowGate(pick: { symbol: string; direction: 'long' | 'short'; entryPrice: number; currentPrice?: number | null; source?: string }, idea: any, nowMs = Date.now()): Promise<EntryWindowResult> {
+  const base0 = lossRulesConfig();
+  const cfg = flowExemptEnabled() && isFlowLed(idea?.source ?? pick.source)
+    ? { ...base0, entryWindowEndEt: Math.max(base0.entryWindowEndEt, FLOW_WINDOW_END_ET) }
+    : base0;
   const publishedAt = idea?.timestamp ?? idea?.generationTimestamp ?? null;
   const base = { nowMs, publishedAt, direction: pick.direction, entry: Number(pick.entryPrice), live: pick.currentPrice ?? null, cfg };
   const first = checkEntryWindow(base);

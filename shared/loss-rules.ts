@@ -28,7 +28,7 @@
  * guarded, not rewritten).
  */
 
-export const LOSS_RULES_VERSION = 'loss-rules-v1';
+export const LOSS_RULES_VERSION = 'loss-rules-v1.1'; // v1.1 (2026-09-30): flow-led picks exempt from bot confluence, bot entry window to 15:00 ET
 /** Tag written into a bot fill's entry_signals / a report row's provenance. */
 export const LOSS_RULES_TAG = `rules:${LOSS_RULES_VERSION}`;
 
