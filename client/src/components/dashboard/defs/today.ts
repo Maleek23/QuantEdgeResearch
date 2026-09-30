@@ -7,6 +7,7 @@
 import { lazyTool, type DefaultLayout, type ToolDef } from '../tool-def';
 
 const today = () => import('../tools/today/today-tools');
+const zeroDteIdeas = () => import('@/components/zerodte/zero-dte-ideas');
 const BOOK = 'convictions engine (ranked book)';
 const BOOK_API = 'GET /api/convictions (90s refresh) + /api/quotes/batch (live prices)';
 
@@ -73,14 +74,22 @@ export const TODAY_TOOLS: ToolDef[] = [
     backing: 'GET /api/sector-rotation + /api/crypto/pulse',
     defaultSize: { w: 12, h: 3 }, minSize: { w: 4, h: 2 }, Component: lazyTool(today, 'TodayTapeTool'),
   },
+  {
+    id: 'today-0dte-ideas', category: 'Ideas', title: '0DTE ideas',
+    what: 'The live 0DTE ideas on SPX / MSTR / META / BE / TSLA — stage (WATCH → TRIGGERED → IN PLAY), side, exact contract, premium now, trigger and stop — linking to the full 0DTE desk on NEXUS. Model ideas, unvalidated; the engine record shows as "measuring · n=".',
+    units: 'price $, premium $', source: '0DTE desk',
+    backing: 'ZeroDteIdeas (components/zerodte/zero-dte-ideas.tsx) ← GET /api/zero-dte/desk (server/zero-dte-desk.ts)',
+    defaultSize: { w: 3, h: 6 }, minSize: { w: 3, h: 4 }, Component: lazyTool(zeroDteIdeas, 'ZeroDteIdeasTool'),
+  },
 ];
 
 /**
  * TODAY default — the old page's reading order on one screen (12 × 18):
  *   ┌──────── sector & crypto tape 8×3 ────────┬ pre-market 4×3 ─────┐
  *   ├────────── week dealer map · SPY 8×9 ───────────┬ best idea 4×9 ─┤
- *   ├───── ranked book 6×6 ─────┬ index desk 3×6 ┬ model record 3×6 ──┤
- * Book stats, rotation and book by horizon: Add tool.
+ *   ├───── ranked book 6×6 ─────┬ 0DTE ideas 3×6 ┬ model record 3×6 ──┤
+ * Book stats, rotation, book by horizon and the index desk (SPX's calls now
+ * appear in 0DTE ideas): Add tool.
  */
 export const TODAY_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'Today',
@@ -90,7 +99,7 @@ export const TODAY_DEFAULTS: DefaultLayout[] = [{
     ['today-week-map', 0, 3, 8, 9],
     ['today-best-idea', 8, 3, 4, 9],
     ['today-ranked-book', 0, 12, 6, 6],
-    ['today-index-desk', 6, 12, 3, 6],
+    ['today-0dte-ideas', 6, 12, 3, 6],
     ['today-model-record', 9, 12, 3, 6],
   ],
 }];
