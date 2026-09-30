@@ -63,17 +63,20 @@ const defaultPreferences: UserUIPreferences = {
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const userId = (user as { id?: string } | null)?.id || "guest";
+  // Wait for the auth check: fetching "guest" while it is in flight fired a
+  // wasted guest prefs+layouts pair on every signed-in load, then the real pair.
+  const ready = !authLoading;
 
   const { data: preferences = defaultPreferences, isLoading } = useQuery<UserUIPreferences>({
     queryKey: ["/api/user", userId, "preferences"],
-    enabled: !!userId,
+    enabled: ready && !!userId,
   });
 
   const { data: layoutsData = [] } = useQuery<PageLayout[]>({
     queryKey: ["/api/user", userId, "layouts"],
-    enabled: !!userId,
+    enabled: ready && !!userId,
   });
 
   const layouts = useMemo(() => {

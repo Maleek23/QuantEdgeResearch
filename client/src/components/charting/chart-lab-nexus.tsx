@@ -147,7 +147,8 @@ export interface ChartLabDealer {
 
 export function useChartLabDealer(symbol: string) {
   return useQuery<ChartLabDealer>({
-    queryKey: ['/api/gex-vex/terminal', symbol, 'chart-overlay'],
+    // Same key as gex-model / chart-layers: one (expensive) chain read per symbol.
+    queryKey: ['/api/gex-vex/terminal', symbol, 'nexus'],
     queryFn: q(`/api/gex-vex/terminal/${symbol}?interval=15m&lookback=5`),
     staleTime: 120_000, refetchInterval: 180_000, retry: 1,
   });

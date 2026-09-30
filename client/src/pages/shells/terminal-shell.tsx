@@ -19,15 +19,17 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EASE } from '@/lib/motion';
-import { RotationMap } from '@/components/rotation-map';
-import { SessionBrief } from '@/components/oracle/session-brief';
 ;
-import { OracleMarketField } from '@/components/oracle/oracle-market-field';
+// Market-focus overlays render only when opened — keep them (and their chart
+// code) out of the eager /t chunk.
+const RotationMap = lazy(() => import('@/components/rotation-map').then(m => ({ default: m.RotationMap })));
+const SessionBrief = lazy(() => import('@/components/oracle/session-brief').then(m => ({ default: m.SessionBrief })));
+const OracleMarketField = lazy(() => import('@/components/oracle/oracle-market-field').then(m => ({ default: m.OracleMarketField })));
 import { FooterMarketLine } from '@/components/oracle/oracle-rails';
 import { LiveStatsBar } from '@/components/footer';
 import { TerminalAlerts, AlertBell, useSignalAlerts } from '@/components/terminal/terminal-alerts';
 import { useQuery } from '@tanstack/react-query';
-import type { ConvictionsResponse } from '@/lib/convictions';
+import { CONVICTIONS_QUERY_KEY, type ConvictionsResponse } from '@/lib/convictions';
 import { useStockContext } from '@/contexts/stock-context';
 import { useTheme } from '@/components/theme-provider';
 import { useAuth } from '@/hooks/useAuth';
@@ -36,7 +38,8 @@ import quantEdgeLogoUrl from '@assets/qe-mark.svg';
 import '@/styles/nexus.css';
 import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
 import { SystemPulse } from '@/components/terminal/system-pulse';
-import { CommandPalette } from '@/components/terminal/command-palette';
+// The palette renders nothing while closed, so load it on first open.
+const CommandPalette = lazy(() => import('@/components/terminal/command-palette').then(m => ({ default: m.CommandPalette })));
 // Non-default tabs and closed overlays must not tax Oracle's first paint. Keeping
 // these as static imports made charting, bot analytics and settings code part of
 // every terminal visit even when the user never opened those surfaces.
@@ -57,7 +60,8 @@ const NexusViews = lazy(() => import('@/components/zerodte/nexus-views'));
 // every standalone page (NexusFrame) wear identical navigation.
 import { TABS, type Tab } from '@/components/shell/nav-model';
 import { MobileDock, MobileMenuButton } from '@/components/shell/mobile-dock';
-import { CustomizePanel } from '@/components/shell/customize-panel';
+// Renders nothing while closed — loaded on first open (perf 2026-09-30).
+const CustomizePanel = lazy(() => import('@/components/shell/customize-panel').then((m) => ({ default: m.CustomizePanel })));
 import { DesktopRail } from '@/components/shell/desktop-rail';
 import { SkipLink, MAIN_CONTENT_ID } from '@/components/shell/skip-link';
 import { useMainHeightVar } from '@/components/shell/main-height';
@@ -187,7 +191,7 @@ export default function TerminalShell() {
   const { data: convictions } = useQuery<ConvictionsResponse>({
     // Same key as every other unparameterised /api/convictions reader
     // (Today, Alerts) so React Query dedupes them into one request.
-    queryKey: ['/api/convictions', 'all'],
+    queryKey: [...CONVICTIONS_QUERY_KEY],
     queryFn: async () => {
       const r = await fetch('/api/convictions', { credentials: 'include' });
       if (!r.ok) throw new Error('convictions failed');
@@ -416,7 +420,11 @@ export default function TerminalShell() {
 
 
       <MobileDock activeTab={tab} onTab={setTab} />
-      <CustomizePanel open={customizeOpen} onClose={() => setCustomizeOpen(false)} />
+      {customizeOpen && (
+        <Suspense fallback={null}>
+          <CustomizePanel open onClose={() => setCustomizeOpen(false)} />
+        </Suspense>
+      )}
 
       {/* Each live market view has a full-screen focus mode. The stage stays comparable
           at a glance; a reader can then inspect one real source without it becoming
@@ -456,9 +464,11 @@ export default function TerminalShell() {
                 </button>
               </div>
               <div className="min-h-0 overflow-y-auto p-3 md:p-5">
-                {marketFocus === 'pulse' && <OracleMarketField expanded onSelectSymbol={(sym) => openResearch(sym)} />}
-                {marketFocus === 'rotation' && <RotationMap expanded />}
-                {marketFocus === 'brief' && <SessionBrief expanded onSelectSymbol={(sym) => openResearch(sym)} />}
+                <Suspense fallback={<div className="p-4 font-mono text-[11px] text-muted-foreground">Loading…</div>}>
+                  {marketFocus === 'pulse' && <OracleMarketField expanded onSelectSymbol={(sym) => openResearch(sym)} />}
+                  {marketFocus === 'rotation' && <RotationMap expanded />}
+                  {marketFocus === 'brief' && <SessionBrief expanded onSelectSymbol={(sym) => openResearch(sym)} />}
+                </Suspense>
               </div>
             </motion.section>
           </motion.div>
@@ -484,13 +494,17 @@ export default function TerminalShell() {
         update={alerts.update}
       />
 
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        onTicker={(symbol, name) => openResearch(symbol, name)}
-        onTab={(t) => setTab(t as Tab)}
-        tabs={TABS.map((t) => ({ ...t, display: TAB_SHORT[t.id] }))}
-      />
+      {paletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette
+            open
+            onClose={() => setPaletteOpen(false)}
+            onTicker={(symbol, name) => openResearch(symbol, name)}
+            onTab={(t) => setTab(t as Tab)}
+            tabs={TABS.map((t) => ({ ...t, display: TAB_SHORT[t.id] }))}
+          />
+        </Suspense>
+      )}
 
       {/* ── footer — the reference bottombar. Same real content as before:
              LiveStatsBar (bots/watchlist/VIX) and the market line (session ·

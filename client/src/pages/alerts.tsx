@@ -18,7 +18,7 @@ import { Bell, Trash2, Loader2 } from 'lucide-react';
 import { LuxKpi, LuxKpiGrid, LuxPage, LuxPageHeader, LuxPanel, LuxTag } from '@/components/lux';
 import { QEEmpty, QEError } from '@/components/ui/qe-states';
 import { cn } from '@/lib/utils';
-import type { ConvictionsResponse } from '@/lib/convictions';
+import { CONVICTIONS_QUERY_KEY, type ConvictionsResponse } from '@/lib/convictions';
 import {
   useSignalAlerts,
   AlertTypeToggles,
@@ -47,7 +47,7 @@ const fmtHour = (h: number) => `${String(h).padStart(2, '0')}:00`;
 export default function AlertsPage() {
   // Identical query key to the terminal shell — one cached fetch, shared.
   const { data: convictions, isLoading, isError, refetch } = useQuery<ConvictionsResponse>({
-    queryKey: ['/api/convictions', 'all'],
+    queryKey: [...CONVICTIONS_QUERY_KEY],
     queryFn: async () => {
       const r = await fetch('/api/convictions', { credentials: 'include' });
       if (!r.ok) throw new Error('convictions failed');

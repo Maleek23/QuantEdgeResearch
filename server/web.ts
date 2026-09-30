@@ -26,7 +26,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import compression from "compression";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic, log } from "./static";
 import { logger } from "./logger";
 import { validateTradierAPI } from "./tradier-api";
 import { getRealtimeStatus } from "./realtime-price-service";
@@ -123,6 +123,8 @@ app.use((req, res, next) => {
 
   // Serve frontend
   if (app.get("env") === "development") {
+    // Dev only: dynamic so the prod bundle never pulls vite/rollup/babel.
+    const { setupVite } = await import("./vite");
     await setupVite(app, server);
   } else {
     serveStatic(app);

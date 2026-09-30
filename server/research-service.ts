@@ -1,5 +1,5 @@
 import { generateAIAnalysis } from "./ai-service";
-import { log } from "./vite";
+import { log } from "./static";
 
 interface AnalysisRequest {
   symbol: string;

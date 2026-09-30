@@ -84,8 +84,8 @@ const POPULAR_TICKERS = [
   'VST','CEG','OKLO','NNE','VRT','GEV','ETN','DDOG','NET','HUBS','SNOW','MDB','PANW','CRWD',
 ];
 
-export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+export function CommandPalette({ defaultOpen = false }: { defaultOpen?: boolean } = {}) {
+  const [open, setOpen] = useState(defaultOpen);
   const [search, setSearch] = useState('');
   const [, setLocation] = useLocation();
   const tickerQuery = search.trim().toUpperCase();

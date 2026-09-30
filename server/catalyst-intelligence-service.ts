@@ -16,7 +16,7 @@ import {
   type CatalystEventType
 } from "@shared/schema";
 import { eq, desc, and, gte, sql, inArray } from "drizzle-orm";
-import { log } from "./vite";
+import { log } from "./static";
 import { recordSymbolAttention } from "./attention-tracking-service";
 
 const SEC_EDGAR_BASE_URL = "https://data.sec.gov";
