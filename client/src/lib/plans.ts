@@ -36,7 +36,7 @@ export const PLANS: Plan[] = [
       { name: '7-day performance history', included: true },
       { name: 'Stocks & crypto only', included: true },
       { name: '3 watchlist items', included: true },
-      { name: 'Real-time market data', included: false },
+      { name: 'Delayed market data', included: true },
       { name: 'Chart analysis', included: false },
       { name: 'Discord alerts', included: false },
       { name: 'Advanced analytics', included: false },
@@ -51,7 +51,8 @@ export const PLANS: Plan[] = [
     popular: true,
     features: [
       { name: 'Unlimited research briefs', included: true },
-      { name: 'Real-time market data', included: true },
+      // Not licensed for redistribution yet (docs/PRICING_AND_UNIT_ECONOMICS.md) — never advertise real-time.
+      { name: 'Delayed market data (real-time once licensed)', included: true },
       { name: 'Unlimited chart analyses', included: true },
       { name: 'Unlimited AI generations', included: true },
       { name: 'Full performance history', included: true },
