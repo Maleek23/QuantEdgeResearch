@@ -233,7 +233,7 @@ async function loadDesk(): Promise<{ rows: JournalWireRow[]; meta: Partial<Journ
     outcomeStatus: tradeIdeas.outcomeStatus, resolutionReason: tradeIdeas.resolutionReason, exitDate: tradeIdeas.exitDate,
     timestamp: tradeIdeas.timestamp, source: tradeIdeas.source, catalyst: tradeIdeas.catalyst, genConvictionBand: tradeIdeas.genConvictionBand,
     // Only the [exit-time:…] tag, not the notes text (shared/exit-hit-time.ts).
-    exitTimeSource: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\[exit-time:([a-z_]+)\]')`,
+    exitTimeSource: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\\[exit-time:([a-z_]+)\\]')`,
   }).from(tradeIdeas).where(and(
     gte(tradeIdeas.timestamp, OUTCOME_BASELINE_DATE),
     ne(tradeIdeas.status, 'draft'),
