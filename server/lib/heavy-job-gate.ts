@@ -76,6 +76,21 @@ export interface HeavyOptions {
  * Run `fn` under the gate. Resolves with fn's result, or `undefined` when the
  * run was dropped (duplicate already queued, or it waited past maxWaitMs).
  */
+/**
+ * Heavy jobs (chain parses, GEX books, board builds) leave 150–250 MB of dead
+ * objects; V8 collects them lazily, so RSS rode past pm2's cap between jobs
+ * (2026-09-30: worker 334 → 1,046 MB in 8 s). When the process runs with
+ * --expose-gc, collect right after each heavy job — at most every 5 s — so
+ * jemalloc can hand the pages back. No-op without the flag.
+ */
+let lastGc = 0;
+function collectAfterHeavy(): void {
+  const gc = (globalThis as any).gc as (() => void) | undefined;
+  if (typeof gc !== 'function' || Date.now() - lastGc < 5_000) return;
+  lastGc = Date.now();
+  setImmediate(() => { try { gc(); } catch { /* ignore */ } });
+}
+
 export function runHeavy<T>(name: string, fn: () => Promise<T>, opts: HeavyOptions = {}): Promise<T | undefined> {
   if (queue.some((q) => q.name === name)) {
     stats.droppedDuplicate++;
@@ -114,7 +129,7 @@ export function runHeavy<T>(name: string, fn: () => Promise<T>, opts: HeavyOptio
       Promise.resolve()
         .then(fn)
         .then((v) => resolve(v), (e) => { stats.failed++; reject(e); })
-        .finally(() => { clearTimeout(hold); release(); });
+        .finally(() => { clearTimeout(hold); release(); collectAfterHeavy(); });
     };
     insert({ name, priority: opts.priority ?? 'normal', enqueuedAt, maxWaitMs: opts.maxWaitMs ?? 4 * 60_000, start, drop: () => resolve(undefined) });
     pump();

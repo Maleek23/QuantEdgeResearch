@@ -311,7 +311,9 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
           <VolumeLine symbol={selected.symbol} triggeredAt={selected.triggeredAt ?? null} />
           <p>{selected.catalyst || selected.thesis || 'No written catalyst was returned.'}</p>
         </div>
-        <div className="nxp-score"><strong>{selected.isBotHeld ? `${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(selected.convictionScore)}</strong><span>{selected.isBotHeld ? 'paper P&L' : 'evidence score / 100'}</span></div>
+        {selected.isBotHeld
+          ? <div className="nxp-score"><strong>{`${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%`}</strong><span>paper P&amp;L</span></div>
+          : <EvidenceRing score={convictionPercent(selected.convictionScore)} band={selected.convictionBand} support={support.length} against={challenge.length} />}
       </div>
 
       <div className="nxp-chart-card">
@@ -426,5 +428,28 @@ function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: stri
       {v.trigger && <span> · trigger bar <strong>{fmtX(v.trigger.rvol)}</strong></span>}
       {age && <span> · as of {age} ET</span>}
     </p>
+  );
+}
+
+/**
+ * Evidence score as a ring gauge: arc = score / 100, colour by band, with the
+ * count of layers for and against underneath. The number stays the headline;
+ * the ring is how fast you read it across setups.
+ */
+function EvidenceRing({ score, band, support, against }: { score: number; band: string; support: number; against: number }) {
+  const r = 30, c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, score)) / 100;
+  const tone = band === 'S' || band === 'A' ? 'var(--p)' : band === 'B' ? 'var(--accent, #6aa9ff)' : 'var(--text-mute)';
+  return (
+    <div className="nxp-score nxp-ring" role="img" aria-label={`Evidence ${score} out of 100, band ${band}, ${support} layers for, ${against} against`}>
+      <svg viewBox="0 0 76 76" width="76" height="76" aria-hidden>
+        <circle cx="38" cy="38" r={r} fill="none" stroke="var(--border-subtle)" strokeWidth="6" />
+        <circle cx="38" cy="38" r={r} fill="none" stroke={tone} strokeWidth="6" strokeLinecap="round"
+          strokeDasharray={`${c * pct} ${c}`} transform="rotate(-90 38 38)" />
+        <text x="38" y="43" textAnchor="middle" className="nxp-ring-n">{score}</text>
+      </svg>
+      <span>evidence / 100 · {band}</span>
+      <span className="nxp-ring-split"><b className="bull">{support}</b> for · <b className="bear">{against}</b> against</span>
+    </div>
   );
 }
