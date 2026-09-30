@@ -38,6 +38,25 @@ export const EXIT_TIME_TAG_RE = /\[exit-time:(bar_hit|deadline|live)\]/;
 export function exitTimeNote(source: ExitTimeSource, detail: string): string {
   return `[exit-time:${source}] ${detail}`.trim();
 }
+/**
+ * A barrier exit whose touch could not be located in bars was stamped with the
+ * tracker's cycle time. 2026-09-30: five gex_scanner option exits (CRM ×3, XBI,
+ * KLAC) all read 11:40 ET — one tracker pass, not five simultaneous touches.
+ * That stamp must never pass as the hit time: the note says so in words, and
+ * the journal (server/journal-row-maps.ts) renders it as
+ * "resolved at <cycle time> (hit time unknown)".
+ */
+export const HIT_TIME_UNKNOWN = 'hit time unknown';
+export function etClock(ms: number): string {
+  return `${formatInTimeZone(new Date(ms), 'America/New_York', 'yyyy-MM-dd HH:mm')} ET`;
+}
+export function unresolvedExitLabel(resolvedMs: number): string {
+  return `resolved at ${etClock(resolvedMs)} (${HIT_TIME_UNKNOWN})`;
+}
+/** Barrier exit whose time is the cycle time, not the touch: tagged live on a target/stop outcome. */
+export function isHitTimeUnknown(outcomeStatus: string | null | undefined, exitTimeSource: string | null | undefined): boolean {
+  return (outcomeStatus === 'hit_target' || outcomeStatus === 'hit_stop') && exitTimeSource === 'live';
+}
 export function appendNote(existing: string | null | undefined, note: string): string {
   const base = (existing ?? '').trim();
   return base ? `${base}\n${note}` : note;
@@ -143,9 +162,15 @@ export function planExitTiming(
   const nowSec = Math.floor(nowMs / 1000);
   const hold = (ms: number) => Math.max(0, Math.floor((ms - createdMs) / 60_000));
   const iv = opts.barInterval ? `${opts.barInterval} ` : '';
+  const barrierOutcome = res.outcomeStatus === 'hit_target' || res.outcomeStatus === 'hit_stop';
   const live = (why: string): ExitTimingPlan => ({
     source: 'live', exitMs: nowMs, exitDate: formatExitDate(nowMs), holdingMinutes: hold(nowMs),
-    note: exitTimeNote('live', `decided from the quote at resolution — ${why}`), unresolved: why,
+    // A barrier was touched at SOME earlier time we could not find — say so
+    // rather than letting the cycle time read as the hit time.
+    note: barrierOutcome
+      ? exitTimeNote('live', `${unresolvedExitLabel(nowMs)} — ${why}`)
+      : exitTimeNote('live', `decided from the quote at resolution — ${why}`),
+    unresolved: why,
   });
 
   if (res.outcomeStatus === 'hit_target' || res.outcomeStatus === 'hit_stop') {

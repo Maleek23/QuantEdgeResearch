@@ -132,7 +132,7 @@ export default function TradesView() {
                     {t.row.notes && <span className="jr-mute" title="Has notes"> ✎</span>}
                     {t.row.screenshot && <span className="jr-mute" title="Has a screenshot"> ▣</span>}
                   </td>
-                  <td><SideChip direction={t.direction} />{t.row.runLabel && <span className="jr-mute" title={t.row.runLabel}> {t.row.runLabel.split(' · ')[0]}</span>}</td>
+                  <td><SideChip direction={t.direction} assetType={t.assetType} optionType={t.row.optionType} />{t.row.runLabel && <span className="jr-mute" title={t.row.runLabel}> {t.row.runLabel.split(' · ')[0]}</span>}</td>
                   <td className="num">{t.quantity}</td>
                   <td className="num">{fmtPrice(t.row.entryPrice)}</td>
                   <td className="num">{t.row.exitPrice != null ? fmtPrice(t.row.exitPrice) : '—'}</td>
@@ -164,7 +164,7 @@ export default function TradesView() {
         <div className="jr-list jr-phone-only">
           {shown.map((t) => (
             <button key={t.id} type="button" className="jr-row-card" onClick={() => openTrade(t.id, order)}>
-              <span><span className="jr-sym">{t.symbol}</span> <SideChip direction={t.direction} /></span>
+              <span><span className="jr-sym">{t.symbol}</span> <SideChip direction={t.direction} assetType={t.assetType} optionType={t.row.optionType} /></span>
               <span className="r">{t.status === 'open' ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} compact /> : <Pnl value={t.netPnl} />}</span>
               <span className="meta">
                 <OutcomeChip status={t.status} />

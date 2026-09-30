@@ -962,8 +962,9 @@ export async function persistTopPlaysAsIdeas(plays: TopPlay[]): Promise<number> 
     }
 
     try {
-      await storage.createTradeIdea(tradeIdea as any);
-      persisted++;
+      const created = await storage.createTradeIdea(tradeIdea as any);
+      const { isDedupedResult } = await import('./lib/instrument-dedup');
+      if (!isDedupedResult(created)) persisted++;
     } catch (err) {
       logger.warn(`[GEX-HUB] TopPlay persist failed ${play.symbol}: ${(err as Error).message}`);
     }

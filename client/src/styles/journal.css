@@ -116,6 +116,7 @@
 .jr-chip.win{color:var(--jr-gain);border-color:color-mix(in srgb,var(--jr-gain) 40%,transparent);background:color-mix(in srgb,var(--jr-gain) 8%,transparent)}
 .jr-chip.loss{color:var(--jr-loss);border-color:color-mix(in srgb,var(--jr-loss) 40%,transparent);background:color-mix(in srgb,var(--jr-loss) 8%,transparent)}
 .jr-chip.open{color:var(--jr-accent-hi);border-color:color-mix(in srgb,var(--jr-accent) 40%,transparent)}
+.jr-chip .jr-chip-sub{font-weight:500;opacity:.72;text-transform:none;letter-spacing:0}
 .jr-chip.opt{color:var(--purple,#a78bfa);border-color:color-mix(in srgb,var(--purple,#a78bfa) 40%,transparent)}
 .jr-tag{display:inline-flex;padding:1px 7px;border-radius:100px;font-size:11px;color:var(--text-dim);border:1px solid var(--jr-line-hi);white-space:nowrap}
 

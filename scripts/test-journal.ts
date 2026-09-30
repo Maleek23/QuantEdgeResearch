@@ -26,6 +26,7 @@ import type { JournalTradeRow } from '../client/src/lib/journal/types';
 import { parseJournalKey, traderOwnerId, journalKindOf, journalNoteKey } from '../shared/journal-sources';
 import { decodeOccSymbol, pairFills, type BrokerFill } from '../shared/fill-pairing';
 import { mapDeskIdea, type DeskIdea } from '../server/journal-row-maps';
+import { positionBias, positionBiasText } from '../shared/position-bias';
 import { labelBotRuns, pickActiveBotPortfolio, runsCovered } from '../shared/bot-runs';
 import { dueForSettlement, expirySessionOver, nyCloseIso, settleAtExpiry, type OpenBotOptionRow } from '../server/bot-expiry-plan';
 import {
@@ -220,6 +221,29 @@ assert.equal(deskRow({ direction: 'short', outcomeStatus: 'hit_stop', exitPrice:
 assert.equal(deskRow({ assetType: 'option', optionType: 'call', strikePrice: 100, entryPremium: 2, exitPremium: 3.5, outcomeStatus: 'hit_target', exitDate: '2026-09-02T14:00:00Z' }).realizedPnL, 150, '1 contract');
 assert.equal(deskRow({ assetType: 'option', optionType: 'put', direction: 'short', entryPremium: 2, optionPercentGain: -40, outcomeStatus: 'hit_stop', exitDate: '2026-09-02T14:00:00Z' }).direction, 'long', 'bought put = long contract');
 assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', percentGain: 0 })), 'unmeasured expiry is excluded, not scored 0');
+// ── position bias: a bought put is BEARISH, not "▲ LONG" (shared/position-bias.ts) ──
+{
+  const putRow = deskRow({ assetType: 'option', optionType: 'put', direction: 'short', entryPremium: 2, strikePrice: 279, expiryDate: '2026-09-30' });
+  const pb = positionBias(putRow);
+  assert.deepEqual([pb.bias, pb.arrow, pb.label, pb.leg], ['bear', '▼', 'BEAR', 'long put'], 'desk put row (direction long) renders bearish');
+  assert.equal(positionBiasText(putRow), '▼ BEAR · long put');
+  assert.equal(positionBiasText(putRow, true), '▼ BEAR');
+  assert.equal(positionBiasText(deskRow({ assetType: 'option', optionType: 'call', entryPremium: 2 })), '▲ BULL · long call');
+  assert.equal(positionBiasText({ direction: 'long', assetType: 'stock' }), '▲ BULL · long stock');
+  assert.equal(positionBiasText({ direction: 'short', assetType: 'stock' }), '▼ BEAR · short stock');
+  assert.equal(positionBiasText({ direction: 'short', assetType: 'option', optionType: 'call' }), '▼ BEAR · short call');
+  assert.equal(positionBiasText({ direction: 'short', assetType: 'option', optionType: 'put' }), '▲ BULL · short put');
+  assert.equal(positionBias({ direction: 'long', assetType: 'option', optionType: 'PUT' }).bias, 'bear', 'case-insensitive option type');
+  assert.equal(positionBias({ direction: 'long', assetType: 'option', optionType: null }).leg, 'long option', 'option without a type falls back to side');
+  // every journal SideChip site passes the instrument, so the chip can see the put
+  const fsx = await import('node:fs');
+  for (const f of ['client/src/pages/journal/trades-view.tsx', 'client/src/components/journal/trade-mini-list.tsx', 'client/src/pages/journal/trade-view.tsx', 'client/src/components/journal/trade-drawer.tsx']) {
+    const txt = fsx.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+    const chips = txt.match(/<SideChip [^>]*\/>/g) ?? [];
+    assert.ok(chips.length > 0 && chips.every((c) => c.includes('optionType=')), `${f}: every SideChip passes optionType`);
+  }
+}
+
 assert.ok('excluded' in mapDeskIdea(idea({ assetType: 'option', entryPremium: null })), 'option without premium is excluded');
 assert.ok('excluded' in mapDeskIdea(idea({ outcomeStatus: 'expired', resolutionReason: 'missed_entry_would_have_won', percentGain: 12 })), 'never-entered idea is not a trade');
 

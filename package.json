@@ -25,6 +25,7 @@
     "test:gamma-adjusted": "tsx scripts/test-gamma-adjusted.ts",
     "test:zero-dte": "tsx scripts/test-zero-dte-desk.ts",
     "test:roles": "tsx scripts/test-roles.ts",
+    "test:idea-dedup": "tsx scripts/test-idea-dedup.ts",
     "test:sector-ignition": "tsx scripts/test-sector-ignition.ts",
     "test:model-determinism": "node scripts/verify-model-determinism.mjs",
     "test:sr117": "npm run test:tsc-gate && npm run test:redirects && npm run test:sr-controls && npm run test:model-determinism && npm run build",

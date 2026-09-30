@@ -363,7 +363,9 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
   }
 
   try {
-    await storage.createTradeIdea(tradeIdea as any);
+    const created = await storage.createTradeIdea(tradeIdea as any);
+    const { isDedupedResult } = await import("./lib/instrument-dedup");
+    if (isDedupedResult(created)) return false;
     const label = tradeIdea.assetType === "option"
       ? `${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} exp ${tradeIdea.expiryDate}`
       : `stock ${c.direction}`;

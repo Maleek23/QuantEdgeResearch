@@ -1400,7 +1400,12 @@ export async function createAndSaveUniversalIdea(input: UniversalIdeaInput): Pro
   }
 
   try {
-    await storage.createTradeIdea(idea);
+    const created = await storage.createTradeIdea(idea);
+    const { isDedupedResult } = await import('./lib/instrument-dedup');
+    if (isDedupedResult(created)) {
+      logger.info(`[UNIVERSAL] ${idea.symbol} from ${input.source} not saved — duplicate of existing idea ${(created as any)?.id}`);
+      return false;
+    }
     logger.info(`[UNIVERSAL] Saved trade idea: ${idea.symbol} from ${input.source}`);
     return true;
   } catch (error) {

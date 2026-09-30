@@ -677,7 +677,14 @@ async function persistScalp(idea: IndexScalpIdea, opts: { discord?: boolean } = 
   };
 
   try {
-    await storage.createTradeIdea(tradeIdea as any, { dedupWindowHours: 0.5 });
+    const created = await storage.createTradeIdea(tradeIdea as any, { dedupWindowHours: 0.5 });
+    const { isDedupedResult } = await import('./lib/instrument-dedup');
+    if (isDedupedResult(created)) {
+      // Same contract already open / published this session — no re-alert.
+      recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
+      logger.info(`[INDEX-SCALP] ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} not republished — existing idea ${(created as any)?.id}`);
+      return false;
+    }
     recentPublishes.set(`${idea.symbol}|${dedupKey}|${idea.bias}`, Date.now());
     logger.info(
       `[INDEX-SCALP] ✅ ${vehicle.symbol} ${contract.optionType.toUpperCase()} $${contract.strike} ${contract.expiry} @ $${contract.entryPremium.toFixed(2)} | ${idea.setup} | ${idea.isPowerHour ? '⚡ POWER HOUR' : 'intraday'}`,

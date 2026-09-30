@@ -17,6 +17,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
+import { positionBiasText } from '@shared/position-bias';
 import { CalendarPnl } from '@/components/journal/calendar-pnl';
 import { useJournal } from '@/components/journal/journal-context';
 import { Card, N, Pnl, fmtDayLabel } from '@/components/journal/parts';
@@ -213,7 +214,7 @@ function DayPreview({ day, trades, notes }: { day: DayStats; trades: JTrade[]; n
       <span className="jr-n">{day.trades} closed · {day.wins}W/{day.losses}L{day.breakevens ? `/${day.breakevens}BE` : ''} · fees {fmtMoney(day.fees, { signed: false })}{notes ? ` · ${notes} note${notes === 1 ? '' : 's'}` : ''}</span>
       {sorted.slice(0, 4).map((t) => (
         <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
-          <span className="jr-sym">{t.symbol} <span className="jr-n">{t.direction}</span></span><Pnl value={t.netPnl} compact />
+          <span className="jr-sym">{t.symbol} <span className="jr-n">{positionBiasText({ direction: t.direction, assetType: t.assetType, optionType: t.row.optionType })}</span></span><Pnl value={t.netPnl} compact />
         </div>
       ))}
       {sorted.length > 4 && <span className="jr-n">+{sorted.length - 4} more · click the day</span>}

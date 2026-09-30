@@ -116,6 +116,11 @@ import { db } from "./db";
 import { recordPaperExecution } from "@shared/oracle-lifecycle";
 import { eq, and, or, gte, lte, desc, isNull, not, sql as drizzleSql } from "drizzle-orm";
 import {
+  findSameInstrumentDuplicate,
+  describeInstrument,
+  markDedupedResult,
+} from "./lib/instrument-dedup";
+import {
   tradeIdeas,
   marketData as marketDataTable,
   catalysts as catalystsTable,
@@ -2672,7 +2677,30 @@ export class DatabaseStorage implements IStorage {
         logger.debug(
           `[SPINE-DEDUP] ${src || "unknown"} ${idea.symbol} ${idea.direction} within ${dedupWindow}h — returning existing ${existing.id}`,
         );
-        return existing;
+        return markDedupedResult(existing);
+      }
+    }
+
+    // 🔁 Same-instrument rule (server/lib/instrument-dedup.ts). The window
+    // above is publish-time only and producers shrink it (index-scalp 0.5 h),
+    // so 2026-09-30 published IWM 279P 0DTE ×3 and CRM 220P ×2. This asks "is
+    // this exact instrument already open, or published/closed in the last
+    // 24 h (0DTE: this session)?" for every automated source. Explicit
+    // dedupWindowHours: 0 (a producer with its own dedup, e.g. crypto) and
+    // synthetic backfill rows are the only bypasses.
+    if (
+      !ALWAYS_INSERT.has(src) &&
+      opts?.dedupWindowHours !== 0 &&
+      (idea as any).sessionContext !== "backfill"
+    ) {
+      const hit = await this.findSameInstrumentIdea(idea);
+      if (hit) {
+        logger.info(
+          `[INSTRUMENT-DEDUP] rejected ${src || "unknown"} ${describeInstrument(idea as any)} ${idea.direction}: ` +
+          `existing idea ${hit.row.id} (${hit.why.replace("_", " ")}, published ${hit.row.timestamp}` +
+          `${hit.row.exitDate ? `, closed ${hit.row.exitDate}` : ""}) — returning existing`,
+        );
+        return markDedupedResult(hit.row);
       }
     }
 
@@ -2713,6 +2741,33 @@ export class DatabaseStorage implements IStorage {
    * contract refresh—not a new thesis. Other option sources retain leg-level
    * matching because an explicitly chosen contract can be the thing being tracked.
    */
+  /**
+   * DB half of the same-instrument rule: pull the candidate rows that could
+   * block (same symbol, source, asset type; open, or published/closed within
+   * the last 48 h — a superset of the 24 h / session lookback) and let the pure
+   * matcher decide. A failed lookup never blocks publication.
+   */
+  private async findSameInstrumentIdea(idea: InsertTradeIdea) {
+    try {
+      const since = new Date(Date.now() - 48 * 3600_000).toISOString();
+      const rows = await db.select().from(tradeIdeas).where(and(
+        drizzleSql`upper(${tradeIdeas.symbol}) = ${String(idea.symbol).toUpperCase()}`,
+        eq(tradeIdeas.source, (idea as any).source),
+        eq(tradeIdeas.assetType, idea.assetType as any),
+        not(eq(tradeIdeas.status, 'archived')),
+        or(
+          eq(tradeIdeas.outcomeStatus, 'open'),
+          gte(tradeIdeas.timestamp, since),
+          gte(tradeIdeas.exitDate, since),
+        ),
+      )).orderBy(desc(tradeIdeas.timestamp)).limit(200);
+      return findSameInstrumentDuplicate(idea as any, rows as any[], Date.now());
+    } catch (err) {
+      logger.warn(`[INSTRUMENT-DEDUP] lookup failed for ${idea.symbol}: ${(err as Error)?.message ?? err}`);
+      return null;
+    }
+  }
+
   private async findRecentDuplicateIdea(
     idea: InsertTradeIdea,
     windowHours: number,

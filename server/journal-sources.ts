@@ -12,7 +12,7 @@
  * and the idea table directly, so they cannot drift from their sources.
  */
 import type { Request } from 'express';
-import { and, asc, eq, gte, inArray, isNull, ne, or } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { db } from './db';
 import { storage } from './storage';
 import {
@@ -232,6 +232,8 @@ async function loadDesk(): Promise<{ rows: JournalWireRow[]; meta: Partial<Journ
     optionPercentGain: tradeIdeas.optionPercentGain, exitPrice: tradeIdeas.exitPrice, percentGain: tradeIdeas.percentGain,
     outcomeStatus: tradeIdeas.outcomeStatus, resolutionReason: tradeIdeas.resolutionReason, exitDate: tradeIdeas.exitDate,
     timestamp: tradeIdeas.timestamp, source: tradeIdeas.source, catalyst: tradeIdeas.catalyst, genConvictionBand: tradeIdeas.genConvictionBand,
+    // Only the [exit-time:…] tag, not the notes text (shared/exit-hit-time.ts).
+    exitTimeSource: sql<string | null>`substring(${tradeIdeas.outcomeNotes} from '\[exit-time:([a-z_]+)\]')`,
   }).from(tradeIdeas).where(and(
     gte(tradeIdeas.timestamp, OUTCOME_BASELINE_DATE),
     ne(tradeIdeas.status, 'draft'),

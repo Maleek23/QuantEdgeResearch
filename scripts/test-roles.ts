@@ -91,6 +91,31 @@ async function main() {
   }
   ok(!/^\s*selfLearning\.start\(\)/m.test(strip(src('server/self-learning-service.ts'))), 'self-learning no longer auto-starts on import');
 
+  console.log('2b. worker boot stagger (docs/WORKER_SPLIT.md)');
+  {
+    const { bootPlan } = await import('../server/background-jobs');
+    const wjobs = JOBS.filter((j) => j.role === 'worker');
+    ok(wjobs.every((j) => typeof j.bootDelayMs === 'number'), 'every worker job declares a bootDelayMs');
+    const plan = bootPlan(wjobs);
+    const at = (n: string) => plan.find((p) => p.job.name === n)!.delayMs;
+    ok(plan[0].delayMs === 0 && at('convictions-warm') === 0, 'conviction boot build starts first (t=0)');
+    const nonZero = plan.filter((p) => p.delayMs > 0).map((p) => p.delayMs);
+    ok(new Set(nonZero).size === nonZero.length, 'no two delayed jobs start on the same second');
+    const gaps = nonZero.slice(1).map((d, i) => d - nonZero[i]);
+    ok(gaps.every((g) => g >= 20_000 && g <= 60_000) && nonZero[0] >= 20_000, `delayed jobs spread 20–60 s apart (${nonZero.map((d) => d / 1000).join(', ')} s)`);
+    // Full-chain GEX first passes: chart recorder (+90 s internal), GEX rankings (+90 s internal), hourly archive, index scans (producers).
+    ok(at('chart-gex-recorder') + 90_000 >= 240_000 && at('gex-rankings') + 90_000 >= 300_000 && at('gex-archive') >= 180_000 && at('idea-producers') >= 60_000,
+      'chart recorder / GEX rankings / archive / index scans cannot share the first minutes');
+    const code = strip(src('server/background-jobs.ts'));
+    ok(/runHeavy\('paper-reconcile:boot'/.test(code), 'boot paper reconcile runs through runHeavy');
+    ok(!/setTimeout\(\(\) => \{\s*void import\('\.\/performance-validation-service'\)/.test(code), 'outcome tracker has no second boot timer (registry delay only)');
+    const pvs = strip(src('server/performance-validation-service.ts'));
+    const startBody = pvs.slice(pvs.indexOf('start()'), pvs.indexOf('this.intervalId = setInterval'));
+    ok(/runHeavy\('outcome-tracker'/.test(startBody) && /runHeavy\('contract-backfill'/.test(startBody), 'outcome tracker first sweep + contract backfill go through runHeavy');
+    ok(/runHeavy\('self-learning'/.test(strip(src('server/self-learning-service.ts'))), 'self-learning passes go through runHeavy');
+    ok(/runHeavy\(`gex-rank:\$\{sym\}`/.test(strip(src('server/gex-rankings.ts'))), 'GEX ranking chain parses go through runHeavy, per symbol');
+  }
+
   console.log('3. process-role + shared-state');
   const role = await import('../server/lib/process-role');
   const saved = { ROLE: process.env.ROLE, WORKER_ENABLED: process.env.WORKER_ENABLED };

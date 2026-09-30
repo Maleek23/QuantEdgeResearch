@@ -16,7 +16,7 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useJournal } from '@/components/journal/journal-context';
-import { Card, Kpi, LowSample, N, fmtDayLabel } from '@/components/journal/parts';
+import { Card, Kpi, LowSample, N, SideChip, fmtDayLabel } from '@/components/journal/parts';
 import { fmtPrice } from '@/lib/journal/metrics';
 import { fmtStamp, readApiError, useBlockedLedger, useJournalNoteMutations } from '@/lib/journal/use-journal';
 import { fmtPct } from '@/lib/format';
@@ -67,7 +67,7 @@ function BotBlocked() {
                   {rows.slice(0, limit).map((e) => (
                     <tr key={`${e.symbol}-${e.blockedAt}`} style={{ cursor: 'default' }}>
                       <td>{fmtDayLabel(e.blockedAt.slice(0, 10), { month: 'short', day: 'numeric', year: '2-digit' })}</td>
-                      <td><span className="jr-sym">{e.symbol}</span> <span className="jr-chip">▼ SHORT</span></td>
+                      <td><span className="jr-sym">{e.symbol}</span> <SideChip direction="short" assetType="stock" /></td>
                       <td className="jr-dim" style={{ whiteSpace: 'normal', minWidth: 180 }}>{e.reason}</td>
                       <td className="num">{fmtPrice(e.entryPrice)}</td>
                       <td className="num">{fmtPrice(e.stopLoss)}</td>

@@ -36,6 +36,8 @@ export interface JournalTradeRow {
   /** Open bot rows: last mark + its time. Absent = never marked (P&L unknown, not 0). */
   mark?: { price: number; asOf: string; unrealizedPnL: number } | null;
   importBatchId?: string | null;
+  /** Desk rows: a target/stop exit whose time is the tracker cycle, not the touch — "resolved at … ET (hit time unknown)". */
+  exitTimeNote?: string | null;
   /** Client-derived: an option with no closing fill, settled by the expiry rule — at intrinsic by the server, or $0 unverified (shared/journal-expiry.ts). */
   expiredAssumed?: boolean;
   createdAt?: string | null;

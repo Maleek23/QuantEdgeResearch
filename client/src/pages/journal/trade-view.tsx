@@ -79,7 +79,7 @@ export default function TradeView({ id, order, onNavigate, onClose }: {
       <div className="jr-trade-head">
         <button type="button" className="jr-btn jr-btn-sm" onClick={onClose}><ArrowLeft className="h-3.5 w-3.5" /> Back</button>
         <h2 className="jr-title" style={{ fontSize: 26 }}>{row.symbol}</h2>
-        <SideChip direction={row.direction} />
+        <SideChip direction={row.direction} assetType={row.assetType} optionType={row.optionType} />
         <OutcomeChip status={t.status} />
         {isOpt && <span className="jr-chip opt">{(row.optionType ?? 'option').toUpperCase()} {row.strikePrice ?? ''} {row.expiryDate?.slice(0, 10) ?? ''}</span>}
         <span style={{ fontSize: 18, fontWeight: 700 }}>{t.status === 'open' ? <span className="jr-dim">open</span> : <Pnl value={t.netPnl} />}</span>
@@ -133,7 +133,7 @@ function TradeBody({ rowId }: { rowId: string }) {
     ['Exit', row.exitPrice != null ? fmtPrice(row.exitPrice) : 'open'],
     ['Fees', fmtPrice(row.fees ?? 0)],
     ['Opened', when(row.entryTime)],
-    ['Closed', when(row.exitTime)],
+    ['Closed', row.exitTimeNote ?? when(row.exitTime)],
     ['Held', fmtDuration(t.durationMs)],
     ['Source', row.broker || 'manual'],
     ['Setup', row.setupType || '—'],

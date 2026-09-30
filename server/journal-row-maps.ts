@@ -4,6 +4,7 @@
  */
 import type { JournalTrade } from '@shared/schema';
 import { isUnmeasuredExpiry } from '@shared/constants';
+import { isHitTimeUnknown, unresolvedExitLabel } from '@shared/exit-hit-time';
 
 /** The journal wire row (client/src/lib/journal/types.ts JournalTradeRow). */
 export type JournalWireRow = Pick<JournalTrade,
@@ -18,6 +19,11 @@ export type JournalWireRow = Pick<JournalTrade,
   runLabel?: string | null;
   /** Open bot rows: the last mark and when it was taken — never a 0 standing in for "unknown". */
   mark?: { price: number; asOf: string; unrealizedPnL: number } | null;
+  /**
+   * Desk rows: set when a target/stop exit's time is the tracker cycle that
+   * graded it, not the bar that touched — "resolved at 11:40 ET (hit time unknown)".
+   */
+  exitTimeNote?: string | null;
 };
 
 export const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -61,6 +67,8 @@ export interface DeskIdea {
   source: string | null;
   catalyst: string | null;
   genConvictionBand: string | null;
+  /** The [exit-time:…] tag from outcomeNotes (bar_hit | deadline | live), when present. */
+  exitTimeSource?: string | null;
 }
 
 export type DeskMapResult = { row: JournalWireRow } | { excluded: string };
@@ -104,11 +112,15 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
     }
   }
   const exitTime = resolved ? i.exitDate ?? null : null;
+  const exitMs = exitTime ? Date.parse(exitTime) : NaN;
+  const exitTimeNote = exitTime && Number.isFinite(exitMs) && isHitTimeUnknown(status, i.exitTimeSource)
+    ? unresolvedExitLabel(exitMs) : null;
   const plan = [
     `Published ${i.direction.toUpperCase()} ${i.symbol}${option ? ` ${i.strikePrice ?? ''}${(i.optionType ?? '').charAt(0).toUpperCase()} ${i.expiryDate?.slice(0, 10) ?? ''}` : ''}`.trim(),
     `plan: entry ${i.entryPrice} · target ${i.targetPrice ?? '—'} · stop ${i.stopLoss ?? '—'}${i.riskRewardRatio ? ` · R:R ${i.riskRewardRatio.toFixed(1)}` : ''}`,
     i.genConvictionBand ? `conviction band at publish: ${i.genConvictionBand}` : null,
     resolved ? `outcome: ${status}${i.resolutionReason ? ` (${i.resolutionReason})` : ''}` : 'still open — no live mark carried here',
+    exitTimeNote ? `exit time: ${exitTimeNote} — the tracker could not find the bar that touched the ${status === 'hit_stop' ? 'stop' : 'target'}` : null,
     i.catalyst ? `catalyst: ${i.catalyst}` : null,
   ].filter(Boolean).join('\n');
   const rp = pnl == null ? null : r2(pnl);
@@ -142,6 +154,7 @@ export function mapDeskIdea(i: DeskIdea): DeskMapResult {
       screenshot: null,
       importBatchId: null,
       broker: 'trade-desk',
+      ...(exitTimeNote ? { exitTimeNote } : {}),
     },
   };
 }

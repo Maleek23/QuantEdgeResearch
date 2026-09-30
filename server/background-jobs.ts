@@ -40,7 +40,32 @@ export interface JobDef {
   /** Env kill switch: returns a reason string when the job is disabled. */
   disabled?: () => string | null;
   start: (ctx: JobCtx) => void | Promise<void>;
+  /**
+   * Worker boot stagger: how long after the scheduler lock is acquired this
+   * job's start() runs. See BOOT STAGGER below and docs/WORKER_SPLIT.md.
+   * Web jobs ignore it (websockets must be up with the HTTP server).
+   */
+  bootDelayMs?: number;
 }
+
+/**
+ * BOOT STAGGER (2026-09-30). The worker sat at 220–640 MB in steady state but
+ * went past 1.0–1.27 GB within ~10 min of every boot: every job's first pass
+ * landed together — the conviction boot build, the GEX ranking universe loop
+ * (ungated), the chart GEX recorder, the outcome tracker's first sweep and
+ * contract backfill (ungated), self-learning's full trade_ideas read (ungated,
+ * immediate), the quant bot boot cycle, the paper reconcile (ungated) and the
+ * first 0DTE index pass. Each is fine alone; their dead chains and row sets
+ * piled up faster than V8 collected them.
+ *
+ * Now: the conviction board is built first, alone; the other jobs start 20–60 s
+ * apart; every job whose FIRST pass is heavy runs it through runHeavy (one at a
+ * time); and the full-chain GEX first passes (index 0DTE via producers ≥ 60 s,
+ * chart recorder ≥ 290 s, GEX rankings ≥ 360 s, hourly archive registered at
+ * 240 s) can no longer share the first minutes. WORKER_BOOT_STAGGER=0 restores
+ * the old all-at-once start.
+ */
+export const BOOT_STAGGER_ENABLED = () => process.env.WORKER_BOOT_STAGGER !== '0';
 
 const ET = { timezone: 'America/New_York' };
 
@@ -101,7 +126,7 @@ export const JOBS: JobDef[] = [
 
   // ─────────────────────────── worker ───────────────────────────
   {
-    name: 'memory-guard:worker', role: 'worker',
+    name: 'memory-guard:worker', role: 'worker', bootDelayMs: 0,
     what: "worker's own RSS watch/trim + health snapshot to .cache/shared/worker-health.json every 60s",
     disabled: () => (process.env.MEMORY_GUARD === 'false' ? 'MEMORY_GUARD=false' : null),
     start: async () => {
@@ -111,7 +136,7 @@ export const JOBS: JobDef[] = [
     },
   },
   {
-    name: 'watchlist-monitor', role: 'worker',
+    name: 'watchlist-monitor', role: 'worker', bootDelayMs: 40_000,
     what: 'watchlist price alerts every 5 min (DB updates + Discord)',
     start: async ({ log }) => {
       const { startWatchlistMonitor } = await import('./watchlist-monitor');
@@ -120,7 +145,7 @@ export const JOBS: JobDef[] = [
     },
   },
   {
-    name: 'spx-scanners', role: 'worker',
+    name: 'spx-scanners', role: 'worker', bootDelayMs: 100_000,
     what: 'SPX ORB 60s / session 30s / swing catcher 2m / index intelligence 60s (publish ideas; state → shared files); 09:25 start, 16:05 stop',
     start: async ({ log }) => {
       setTimeout(() => { void startSPXScanners(log); }, 5000);
@@ -146,7 +171,7 @@ export const JOBS: JobDef[] = [
     },
   },
   {
-    name: 'flow-scan', role: 'worker',
+    name: 'flow-scan', role: 'worker', bootDelayMs: 80_000,
     what: 'options-flow scan :03/:18/:33/:48 09–15 ET (heavy gate)',
     disabled: () => (process.env.DISABLE_WEB_FLOW_CRON === '1' ? 'DISABLE_WEB_FLOW_CRON=1' : null),
     start: async ({ log }) => {
@@ -165,7 +190,7 @@ export const JOBS: JobDef[] = [
     },
   },
   {
-    name: 'gex-archive', role: 'worker',
+    name: 'gex-archive', role: 'worker', bootDelayMs: 240_000,
     what: 'hourly GEX snapshot archive (:08, 09–16 ET) → gex_snapshots',
     disabled: () => (process.env.DISABLE_WEB_FLOW_CRON === '1' ? 'DISABLE_WEB_FLOW_CRON=1' : null),
     start: async () => {
@@ -185,7 +210,7 @@ export const JOBS: JobDef[] = [
     },
   },
   {
-    name: 'idea-producers', role: 'worker',
+    name: 'idea-producers', role: 'worker', bootDelayMs: 60_000,
     what: 'every idea producer in server/idea-producer-schedule.ts (0DTE index/desk, flags, tape, GEX setups, quant, swings, crypto engine + tracker, pre-market plan/triggers, reversal slate)',
     disabled: () => (process.env.IDEA_PRODUCERS_IN_WEB === 'false' ? 'IDEA_PRODUCERS_IN_WEB=false' : null),
     start: async ({ log }) => {
@@ -194,7 +219,7 @@ export const JOBS: JobDef[] = [
     },
   },
   {
-    name: 'trigger-observer', role: 'worker',
+    name: 'trigger-observer', role: 'worker', bootDelayMs: 20_000,
     what: 'oracle lifecycle: triggered/stale ideas every 2 min weekdays + paper reconcile at boot',
     disabled: () => (process.env.TRIGGER_OBSERVER_IN_WEB === 'false' ? 'TRIGGER_OBSERVER_IN_WEB=false' : null),
     start: async ({ log }) => {
@@ -204,29 +229,33 @@ export const JOBS: JobDef[] = [
         try { await observeTriggeredIdeas(); await expireStaleIdeas(); }
         catch (err) { logger.error('[ORACLE LIFECYCLE] Trigger observation failed', err); }
       });
-      setTimeout(() => { void reconcileOpenPaperExecutions().catch((err) => logger.error('[ORACLE LIFECYCLE] reconcile failed', err)); }, 90_000);
+      const { runHeavy } = await import('./lib/heavy-job-gate');
+      setTimeout(() => {
+        void runHeavy('paper-reconcile:boot', () => reconcileOpenPaperExecutions(), { priority: 'low', maxWaitMs: 10 * 60_000 })
+          .catch((err) => logger.error('[ORACLE LIFECYCLE] reconcile failed', err));
+      }, 90_000);
       log('🎯 Trigger observer started — open setups checked against live price every 2 min');
     },
   },
   {
-    name: 'outcome-tracker', role: 'worker',
-    what: 'performance-validation-service (stock/option outcome grading), 2 min after boot',
+    name: 'outcome-tracker', role: 'worker', bootDelayMs: 120_000,
+    what: 'performance-validation-service (stock/option outcome grading), 2 min after boot; first sweep + backfill through the heavy gate',
     disabled: () => (process.env.OUTCOME_TRACKER_IN_WEB === 'false' ? 'OUTCOME_TRACKER_IN_WEB=false' : null),
     start: ({ log }) => {
-      setTimeout(() => {
-        void import('./performance-validation-service')
-          .then(({ performanceValidationService }) => { performanceValidationService.start(); log('🎯 Outcome tracker started'); })
-          .catch((err) => logger.error('outcome tracker failed to start:', err));
-      }, 120_000);
+      // The 2-minute delay is the registry's bootDelayMs (applied under ROLE=all
+      // too) — no second timer here.
+      void import('./performance-validation-service')
+        .then(({ performanceValidationService }) => { performanceValidationService.start(); log('🎯 Outcome tracker started'); })
+        .catch((err) => logger.error('outcome tracker failed to start:', err));
     },
   },
   {
-    name: 'chart-gex-recorder', role: 'worker',
+    name: 'chart-gex-recorder', role: 'worker', bootDelayMs: 200_000,
     what: 'chart GEX timeline (orbs) sampler every 5 min 09:00–16:30 ET → .cache/chart-gex files',
     start: async () => { (await import('./chart-overlays')).startChartOverlayRecorder(); },
   },
   {
-    name: 'quant-bot', role: 'worker',
+    name: 'quant-bot', role: 'worker', bootDelayMs: 150_000,
     what: 'paper quant bot cycle every 10 min in session + 15:56 flatten + 16:20 settle + boot reconcile',
     disabled: () => (process.env.QUANT_BOT_IN_WEB === 'false' ? 'QUANT_BOT_IN_WEB=false' : null),
     start: async ({ log }) => {
@@ -235,7 +264,7 @@ export const JOBS: JobDef[] = [
     },
   },
   {
-    name: 'convictions-warm', role: 'worker',
+    name: 'convictions-warm', role: 'worker', bootDelayMs: 0,
     what: 'conviction board build at boot + every 4 min (heavy gate); ROLE=worker publishes boards to .cache/shared',
     start: () => {
       void (async () => {
@@ -251,17 +280,25 @@ export const JOBS: JobDef[] = [
     },
   },
   {
-    name: 'gex-rankings', role: 'worker',
+    name: 'gex-rankings', role: 'worker', bootDelayMs: 270_000,
     what: 'cross-ticker GEX ranking cycle (CBOE/Alpaca chains) + magnet setup actions + squeeze radar cycle',
     disabled: () => (process.env.GEX_RANKINGS_JOB === 'off' ? 'GEX_RANKINGS_JOB=off' : null),
     start: async () => { (await import('./gex-rankings')).startGexRankingJob(); },
   },
   {
-    name: 'self-learning', role: 'worker',
-    what: 'hourly self-learning analysis of closed trades (used to auto-start on first import, in whichever process)',
+    name: 'self-learning', role: 'worker', bootDelayMs: 300_000,
+    what: 'hourly self-learning analysis of closed trades, each pass through the heavy gate (used to auto-start on first import, in whichever process)',
     start: async () => { (await import('./self-learning-service')).selfLearning.start(); },
   },
 ];
+
+/** Worker start order: by bootDelayMs (missing = 0), registry order within a tie. */
+export function bootPlan(jobs: JobDef[]): { job: JobDef; delayMs: number }[] {
+  return jobs
+    .map((job, i) => ({ job, i, delayMs: Math.max(0, job.bootDelayMs ?? 0) }))
+    .sort((a, b) => a.delayMs - b.delayMs || a.i - b.i)
+    .map(({ job, delayMs }) => ({ job, delayMs }));
+}
 
 /** Jobs a given process role runs. ROLE=all = web ∪ worker. */
 export function jobsForRole(role: ProcessRole): JobDef[] {
@@ -295,8 +332,19 @@ export async function startJobs(which: JobRole, ctx: JobCtx): Promise<void> {
   const { acquireSchedulerLock } = await import('./scheduler-lock');
   const go = async () => {
     workerJobsStarted = true;
-    for (const j of JOBS.filter((x) => x.role === 'worker')) await startOne(j, ctx);
-    ctx.log(`✅ [JOBS] worker jobs running in this process (ROLE=${processRole()})`);
+    const plan = bootPlan(JOBS.filter((x) => x.role === 'worker'));
+    if (!BOOT_STAGGER_ENABLED()) {
+      for (const { job } of plan) await startOne(job, ctx);
+      ctx.log(`✅ [JOBS] worker jobs running in this process (ROLE=${processRole()}; boot stagger off)`);
+      return;
+    }
+    ctx.log(`🪜 [JOBS] boot stagger: ${plan.map((p) => `${p.job.name}@${Math.round(p.delayMs / 1000)}s`).join(', ')}`);
+    for (const { job, delayMs } of plan) {
+      if (delayMs <= 0) { await startOne(job, ctx); continue; }
+      setTimeout(() => { void startOne(job, ctx); }, delayMs).unref?.();
+    }
+    const last = plan.reduce((m, p) => Math.max(m, p.delayMs), 0);
+    setTimeout(() => ctx.log(`✅ [JOBS] all worker jobs started in this process (ROLE=${processRole()})`), last + 1_000).unref?.();
   };
   if (await acquireSchedulerLock()) { await go(); return; }
   if (process.env.DISABLE_SCHEDULERS === 'true') return;

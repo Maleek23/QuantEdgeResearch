@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { positionBias } from '@shared/position-bias';
 import { useTheme } from '@/components/theme-provider';
 import {
   fmtDuration, fmtMoney, fmtPct, fmtRatio, LOW_SAMPLE, type BucketStats, type TradeStatus,
@@ -72,8 +73,21 @@ export function OutcomeChip({ status }: { status: TradeStatus }) {
   return <span className={cn('jr-chip', status === 'win' && 'win', status === 'loss' && 'loss', status === 'open' && 'open')}>{label}</span>;
 }
 
-export function SideChip({ direction }: { direction: string }) {
-  return <span className="jr-chip">{direction === 'short' ? '▼ SHORT' : '▲ LONG'}</span>;
+/**
+ * Position BIAS, not ticket side: a bought put is "▼ BEAR · long put", never
+ * "▲ LONG" (shared/position-bias.ts). `compact` drops the secondary leg text
+ * for narrow rows; it stays in the title/aria-label.
+ */
+export function SideChip({ direction, assetType, optionType, compact = false }: {
+  direction: string; assetType?: string | null; optionType?: string | null; compact?: boolean;
+}) {
+  const b = positionBias({ direction, assetType, optionType });
+  return (
+    <span className={cn('jr-chip', 'jr-side', b.bias)} title={`${b.label === 'BULL' ? 'Bullish' : 'Bearish'} — ${b.leg}`}
+      aria-label={`${b.label === 'BULL' ? 'Bullish' : 'Bearish'}, ${b.leg}`}>
+      {b.arrow} {b.label}{!compact && <span className="jr-chip-sub">· {b.leg}</span>}
+    </span>
+  );
 }
 
 export function tone(v: number | null | undefined): 'gain' | 'loss' | null {

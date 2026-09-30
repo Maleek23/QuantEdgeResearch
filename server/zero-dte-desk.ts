@@ -863,12 +863,19 @@ export async function runZeroDteDeskScan(): Promise<{ evaluated: number; publish
                   'validated:false', 'desk:zero_dte', `contract_dte:${dte}`, `time_stop:${TIME_STOP_ET}ET`, bucket ? 'levels:0dte_walls' : '', s.powerHour ? 'power_hour' : '',
                 ].filter(Boolean),
               } as any, { dedupWindowHours: 0.5 });
+              const { isDedupedResult } = await import('./lib/instrument-dedup');
+              if (isDedupedResult(created)) {
+                // Same contract already open / published this session (server/lib/instrument-dedup.ts).
+                recentPublishes.set(key, nowMs);
+                withheld = `same contract already on the book (idea ${(created as any)?.id})`;
+              } else {
               recentPublishes.set(key, nowMs); published++; ideasCache = null; deskCache = null;
               logger.info(`[0DTE-DESK] ✅ TRIGGERED ${sym} ${KIND_LABEL[kind]} ${s.direction} → ${c.optionType} ${c.strike} ${c.expiry} @ $${c.mid.toFixed(2)}`);
               void notifyTriggered(
                 `0DTE TRIGGERED · ${sym} ${c.strike}${c.optionType === 'call' ? 'C' : 'P'} ${c.expiry.slice(5)} @ ~$${c.mid.toFixed(2)} · ${KIND_LABEL[kind]} · stop $${s.stop.toFixed(2)} → T1 $${s.target.toFixed(2)} · out by ${TIME_STOP_ET} ET (unvalidated)`,
                 { symbol: sym, optionType: c.optionType, strike: c.strike, expiry: c.expiry, price: c.mid, qty: c.qty, ideaId: (created as any)?.id },
               );
+              }
             } catch (e) { withheld = `write gate: ${(e as Error).message}`; }
           }
         }

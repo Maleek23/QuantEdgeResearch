@@ -72,7 +72,7 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
     ['Exit', trade.exitPrice != null ? fmtPrice(trade.exitPrice) : 'open'],
     ['Fees', fmtPrice(trade.fees ?? 0)],
     ['Opened', when(trade.entryTime)],
-    ['Closed', when(trade.exitTime)],
+    ['Closed', trade.exitTimeNote ?? when(trade.exitTime)],
     ['Held', fmtDuration(t.durationMs)],
     ['Source', trade.broker || 'manual'],
   ];
@@ -88,7 +88,7 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
           <SheetHeader className="text-left">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingRight: 28 }}>
               <SheetTitle className="jr-title" style={{ fontSize: 24 }}>{trade.symbol}</SheetTitle>
-              <SideChip direction={trade.direction} />
+              <SideChip direction={trade.direction} assetType={trade.assetType} optionType={trade.optionType} />
               <OutcomeChip status={t.status} />
               {isOpt && <span className="jr-chip opt">OPTION</span>}
             </div>

@@ -28,7 +28,8 @@ async function dryRun(): Promise<void> {
   console.log(`[worker --dry] ROLE=${role} — ${jobs.length} job(s) would start:`);
   for (const j of jobs) {
     const off = j.disabled?.();
-    console.log(`  ${j.role.padEnd(6)} ${j.name.padEnd(22)} ${off ? `(disabled: ${off}) ` : ''}${j.what}`);
+    const at = j.role === 'worker' ? `+${Math.round((j.bootDelayMs ?? 0) / 1000)}s`.padEnd(6) : ''.padEnd(6);
+    console.log(`  ${j.role.padEnd(6)} ${j.name.padEnd(22)} ${at} ${off ? `(disabled: ${off}) ` : ''}${j.what}`);
   }
 }
 

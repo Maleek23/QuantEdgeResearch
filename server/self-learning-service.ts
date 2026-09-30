@@ -81,13 +81,17 @@ class SelfLearningService {
   start() {
     logger.info('🧠 Self-Learning Service starting...');
 
-    // Run analysis every hour
-    this.learningInterval = setInterval(() => {
-      this.runLearningCycle();
-    }, 60 * 60 * 1000); // 1 hour
-
-    // Run immediately on startup
-    this.runLearningCycle();
+    // Each pass reads the whole trade_ideas table — heavy. Through the
+    // process-wide gate (server/lib/heavy-job-gate.ts) so it never overlaps a
+    // chain parse or board build; the worker registry already delays the
+    // first pass 5 min after boot (server/background-jobs.ts BOOT STAGGER).
+    const gated = () => {
+      void import('./lib/heavy-job-gate')
+        .then(({ runHeavy }) => runHeavy('self-learning', () => this.runLearningCycle(), { priority: 'low', maxWaitMs: 10 * 60_000 }))
+        .catch((err) => logger.warn(`🧠 learning cycle failed: ${(err as Error)?.message ?? err}`));
+    };
+    this.learningInterval = setInterval(gated, 60 * 60 * 1000); // 1 hour
+    gated();
   }
 
   stop() {

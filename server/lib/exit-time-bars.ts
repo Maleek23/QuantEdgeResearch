@@ -26,7 +26,22 @@ function etMinute(sec: number): number {
 }
 export const isRegularSession = (sec: number) => { const m = etMinute(sec); return m >= 570 && m < 960; };
 
-export interface BarsForExit { bars: TimedBar[]; interval: '5m' | '1d' | null }
+export interface BarsForExit {
+  bars: TimedBar[];
+  interval: '5m' | '1d' | null;
+  /**
+   * Equities only: the same 5m series INCLUDING pre/post-market. The validator's
+   * polled extremes can come from an extended-hours quote, so a touch that is
+   * not in the regular-session bars is looked for here before the exit is
+   * declared "hit time unknown".
+   */
+  extendedBars?: TimedBar[];
+}
+
+/** Does a 5m series reach back to the entry (bar at or before entry + 5 min)? */
+export function coversEntry(bars: TimedBar[], entryMs: number): boolean {
+  return bars.some((b) => b.time * 1000 <= entryMs + 5 * 60_000);
+}
 
 export async function barsSinceEntry(
   symbol: string, assetType: string | null | undefined, entryMs: number, nowMs = Date.now(),
@@ -38,7 +53,11 @@ export async function barsSinceEntry(
   if (ageDays <= 30) {
     const intraday = await fetchCandles(sym, ageDays <= 5 ? '5d' : '1mo', '5m');
     const bars = crypto ? intraday : intraday.filter((b) => isRegularSession(b.time));
-    if (bars.some((b) => b.time * 1000 <= entryMs + 5 * 60_000)) return { bars, interval: '5m' };
+    // Coverage is judged on the unfiltered series, so a pre-market entry on the
+    // first day of the window still counts as covered by its extended bars.
+    if (coversEntry(intraday, entryMs)) {
+      return crypto ? { bars, interval: '5m' } : { bars, interval: '5m', extendedBars: intraday };
+    }
     // 5m history does not reach back to entry — daily bars cover the gap.
   }
   const daily = await fetchCandles(sym, ageDays <= 90 ? '3mo' : '1y', '1d');

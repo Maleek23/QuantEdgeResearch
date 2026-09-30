@@ -49,6 +49,49 @@ Fixed along the way: when the lock could not be attempted (no DATABASE_URL, `SCH
 
 **Known gap (accepted):** a lifecycle write in the web process calls `invalidateConvictionsCache()`. Web then re-adopts the worker's last board, which can be up to one warm interval (4 min) old. Under ROLE=all nothing changes.
 
+## Boot stagger (2026-09-30)
+
+**Symptom.** After the jemalloc / `--max-old-space-size=768 --max-semi-space-size=8 --expose-gc` tuning, the worker was stable at 220–640 MB in steady state but went past 1.0–1.27 GB (pm2 cap 900 MB) within about 10 minutes of every boot.
+
+**Cause (from code; not measured locally, since ROLE=worker needs the prod DB).** Every job's *first* pass landed in the same few minutes. Several of those passes also ran outside `runHeavy`, so the one-at-a-time gate never saw them:
+
+| First pass at boot | Before | Gated before? |
+|---|---|---|
+| conviction boot build | t=0 | yes |
+| self-learning (`getAllTradeIdeas()` — the whole table) | t=0, immediate | **no** |
+| watchlist monitor | t=0 | no (light: quotes) |
+| SPX scanners | t=5 s | no (own intervals) |
+| GEX rankings universe loop (one full chain per symbol) | t=90 s | **no** |
+| chart GEX recorder (full chain per watched symbol) | t=90 s | yes, per symbol |
+| trigger-observer paper reconcile | t=90 s | **no** |
+| outcome tracker first sweep + contract backfill (bars per symbol) | t=120 s | **no** |
+| quant bot boot cycle / reconcile | t=120 s | cycle yes, reconcile no |
+| index 0DTE / desk (producers, full chains) | first */5 minute | yes |
+| GEX archive | first :08 | yes |
+
+**Fix.** `JobDef.bootDelayMs` in `server/background-jobs.ts`. `startJobs('worker')` starts jobs in `bootPlan()` order, each on its own timer after the scheduler lock is taken. It logs `🪜 [JOBS] boot stagger: …`, and `node dist/worker.js --dry` prints each job's `+Ns`.
+
+| t (s) | job | first heavy pass |
+|---|---|---|
+| 0 | memory-guard:worker, **convictions-warm** | conviction board, alone |
+| 20 | trigger-observer | cron `*/2`; paper reconcile at +90 s, **now through runHeavy** |
+| 40 | watchlist-monitor | light |
+| 60 | idea-producers | crons only; index 0DTE ≥ next `*/5` minute (gated, high) |
+| 80 | flow-scan | cron only (:03/:18/:33/:48) |
+| 100 | spx-scanners | +5 s |
+| 120 | outcome-tracker | first sweep + contract backfill **now through runHeavy** (internal 2-min timer removed; the registry delay replaces it) |
+| 150 | quant-bot | boot cycle at +120 s (≈ 270 s), gated |
+| 200 | chart-gex-recorder | first tick +90 s (≈ 290 s), gated per symbol |
+| 240 | gex-archive | cron registration; first run at the next :08, gated low |
+| 270 | gex-rankings | first cycle +90 s (≈ 360 s); **each symbol's chain parse now through runHeavy** (`gex-rank:<SYM>`) |
+| 300 | self-learning | **each hourly pass now through runHeavy** |
+
+So the conviction build runs first and alone. No two jobs start on the same second (gaps 20–60 s). The full-chain GEX first passes (index scans, chart recorder, rankings, archive) cannot share the first minute; each chain parse holds the gate for its own short slot, and `collectAfterHeavy()` runs after each one.
+
+`WORKER_BOOT_STAGGER=0` restores the old all-at-once start (every delay ignored). Under ROLE=all (web.ts) the same stagger applies after listen. `npm run test:roles` (section 2b) asserts the order, the spacing and the gated first passes.
+
+**Verify after deploy.** Run `pm2 monit` for the first 10 minutes after a worker restart; RSS should not step past about 700 MB. `[HEAVY-GATE] …: waited Ns` lines show the queue working. The worker health snapshot (`.cache/shared/worker-health.json`, memory snapshot `heavyJobs`) shows `droppedStale`; a few `gex-rank:*` drops at boot are expected and harmless (the next cycle retries them).
+
 ## Shared state helper
 
 `server/lib/shared-state.ts`:
@@ -105,7 +148,7 @@ Do not deploy 08:30–10:30 ET, because the pre-market plan and trigger windows 
 
 1. `cd /opt/quantedge && git fetch && git merge --ff-only <release>`, then `npm ci --include=dev && npm run build`.
 2. Check jemalloc: `ls /usr/lib/x86_64-linux-gnu/libjemalloc.so.2`. If it is missing, run `apt install libjemalloc2`.
-3. Dry-run the worker: `ROLE=worker node dist/worker.js --dry`. It needs no DB and should list 13 worker jobs.
+3. Dry-run the worker: `ROLE=worker node dist/worker.js --dry`. It needs no DB and should list 13 worker jobs, each with its boot delay (`+0s` … `+300s`).
 4. `cp /opt/quantedge/eco.config.cjs /opt/quantedge/eco.config.cjs.bak-$(date +%F)`, then write the content above.
 5. Start the worker **first**: `pm2 start eco.config.cjs --only quantedge-worker`. The running web (ROLE=all) still holds the scheduler lock, so the worker logs `scheduler lock held elsewhere — worker jobs wait` and starts nothing. No double runs.
 6. Flip the web: `pm2 reload eco.config.cjs --only quantedge-web --update-env`. The old web releases the lock on SIGTERM, and within 30 s the worker logs `scheduler lock acquired — starting worker jobs`.

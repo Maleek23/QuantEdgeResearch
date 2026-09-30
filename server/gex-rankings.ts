@@ -39,6 +39,7 @@ import { logger } from './logger';
 import { readShared, writeSharedSync } from './lib/shared-state';
 import { readsSharedState, writesSharedState } from './lib/process-role';
 import { rateLimited } from './provider-cache';
+import { runHeavy } from './lib/heavy-job-gate';
 import {
   INDEX_TICKERS, S_TIER, A_TIER, SECONDARY, SMALL_ACCOUNT_TIER,
 } from '../shared/approved-tickers';
@@ -529,7 +530,12 @@ export async function runRankingCycle(): Promise<void> {
     let consecutive429 = 0;
     for (const sym of universe) {
       cycle.attempted++;
-      const { row, status, source } = await rankSymbol(sym);
+      // Per symbol through the heavy gate (like the chart recorder): each chain
+      // parse is a short slot, so the universe loop cannot hold the CPU/heap
+      // alongside a board build. A dropped slot (waited too long) is a skip.
+      const gated = await runHeavy(`gex-rank:${sym}`, () => rankSymbol(sym), { priority: 'low', maxWaitMs: 5 * 60_000 });
+      if (!gated) { cycle.failed++; continue; }
+      const { row, status, source } = gated;
       if (row) {
         rows.set(sym, row);
         cycle.succeeded++;

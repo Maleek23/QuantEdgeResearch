@@ -1,6 +1,6 @@
 import { storage } from "./storage";
 import { PerformanceValidator, computeRealisedPnl } from "./performance-validator";
-import { planExitTiming, appendNote, formatExitDate, type ExitTimeSource } from "@shared/exit-hit-time";
+import { planExitTiming, appendNote, formatExitDate, isHitTimeUnknown, unresolvedExitLabel, type ExitTimeSource, type TimedBar } from "@shared/exit-hit-time";
 import { barsSinceEntry, toExitTimingIdea } from "./lib/exit-time-bars";
 import { readLossRulesStamp, progressR } from "@shared/loss-rules";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
@@ -38,14 +38,19 @@ class PerformanceValidationService {
     // fully open yet. This closes out Friday ideas that hit target/stop
     // over the weekend (which were skipped because isMarketOpen() returns false
     // on Saturday/Sunday).
+    // First sweep goes through the heavy gate like every later one. At boot
+    // it grades whatever printed while the worker was down, fetching 5m bars
+    // per symbol for the hit time (shared/exit-hit-time.ts); run ungated it
+    // landed on top of the conviction build and GEX first passes, and a
+    // failed/throttled bar fetch meant a cycle-time exit stamp.
     if (this.needsWeekendCatchup()) {
       console.log('📅 Monday morning catchup — validating open ideas from weekend gap');
-      this.validateAllOpenTrades(true).catch(err =>
+      runHeavy('outcome-tracker', () => this.validateAllOpenTrades(true), { priority: 'low', maxWaitMs: 10 * 60_000 }).catch(err =>
         console.error('❌ Weekend catchup validation failed:', err)
       );
     } else {
-      // Run immediately on startup
-      this.validateAllOpenTrades().catch(err =>
+      // Run on startup (the worker registry already delays this 2 min)
+      runHeavy('outcome-tracker', () => this.validateAllOpenTrades(), { priority: 'low', maxWaitMs: 10 * 60_000 }).catch(err =>
         console.error('❌ Initial performance validation failed:', err)
       );
     }
@@ -53,7 +58,7 @@ class PerformanceValidationService {
     // Retry contract attachment for any option-intent ideas that saved as stock
     // (CBOE chain unavailable at creation). Runs on startup + each cycle so the
     // "save-as-stock, retry later" fallback actually self-heals into real contracts.
-    backfillContractlessIdeas().catch(err =>
+    runHeavy('contract-backfill', () => backfillContractlessIdeas(), { priority: 'low', maxWaitMs: 10 * 60_000 }).catch(err =>
       console.error('❌ Initial contract backfill failed:', err)
     );
 
@@ -308,6 +313,14 @@ class PerformanceValidationService {
             outcomeNotes = await this.refineExitTiming(ideaForResult, result);
           } catch (err: any) {
             console.warn(`  ⚠️  exit-time refinement failed for ${ideaForResult.symbol} (keeping validator stamp):`, err?.message);
+            // The validator stamp is the cycle time. For a barrier hit that is
+            // NOT the hit time — label it instead of letting it pass as one.
+            if (isHitTimeUnknown(result.outcomeStatus, result.exitTimeSource)) {
+              outcomeNotes = appendNote(
+                ideaForResult.outcomeNotes,
+                `[exit-time:live] ${unresolvedExitLabel(Date.parse(result.exitDate ?? '') || Date.now())} — bar lookup failed: ${err?.message ?? err}`,
+              );
+            }
           }
         }
 
@@ -469,10 +482,19 @@ class PerformanceValidationService {
     const tIdea = toExitTimingIdea(idea as any);
     const needsBars = result.outcomeStatus === 'hit_target' || result.outcomeStatus === 'hit_stop'
       || (result.exitTimeSource === 'deadline' && !String(result.resolutionReason ?? '').startsWith('missed_entry'));
-    const { bars, interval } = needsBars
+    const { bars, interval, extendedBars } = needsBars
       ? await barsSinceEntry(idea.symbol, idea.assetType, tIdea.entryMs, now)
-      : { bars: [], interval: null };
-    const plan = planExitTiming(tIdea, result, bars, now, { barInterval: interval ?? undefined });
+      : { bars: [] as TimedBar[], interval: null, extendedBars: undefined };
+    let plan = planExitTiming(tIdea, result, bars, now, { barInterval: interval ?? undefined });
+    // Not in the regular session — the polled extreme may have been a pre/post
+    // market print. Look there before declaring the hit time unknown.
+    if (plan.source === 'live' && extendedBars?.length && isHitTimeUnknown(result.outcomeStatus, 'live')) {
+      const ext = planExitTiming(tIdea, result, extendedBars, now, { barInterval: '5m extended-hours' });
+      if (ext.source === 'bar_hit') plan = ext;
+    }
+    if (plan.source === 'live' && isHitTimeUnknown(result.outcomeStatus, 'live')) {
+      console.warn(`  ⏱️  ${idea.symbol}: ${plan.note}`);
+    }
 
     // A time stop is decided on the LIVE price. Repricing it at the deadline is
     // only honest when the deadline price would also have triggered it.

@@ -11,7 +11,9 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import {
   firstLevelTouch, firstBarrierTouch, planExitTiming, formatExitDate, barBefore, type TimedBar, type ExitTimingIdea,
+  isHitTimeUnknown, unresolvedExitLabel, HIT_TIME_UNKNOWN,
 } from '../shared/exit-hit-time';
+import { coversEntry } from '../server/lib/exit-time-bars';
 import { PerformanceValidator } from '../server/performance-validator';
 import { planRepairs, formatRepairTable, type RepairRow } from '../server/lib/exit-date-repair';
 import { mapDeskIdea } from '../server/journal-row-maps';
@@ -79,6 +81,69 @@ t('deadline outcome → deadline time, repriced at the last bar close before it'
 t('deadline is never stamped in the future', () => {
   const p = planExitTiming(idea, { outcomeStatus: 'expired', resolutionReason: 'auto_expired', deadlineMs: NOW + 86_400_000 }, [], NOW);
   assert.equal(p.exitMs, NOW);
+});
+
+// ── 2026-09-30: five gex_scanner option exits all stamped 11:40 ET ──────
+// One tracker pass graded stops that printed earlier. With bars, each exit
+// gets its own touch bar; without, it is labelled, not passed off as the hit.
+const CYCLE = Date.parse('2026-09-30T15:40:23Z'); // 11:40:23 ET — the pass
+t('one tracker pass, five earlier stop touches → five distinct bar times, none = cycle', () => {
+  const touches = ['2026-09-30T13:35:00Z', '2026-09-30T14:05:00Z', '2026-09-30T14:20:00Z', '2026-09-30T14:50:00Z', '2026-09-30T15:10:00Z'];
+  const out = touches.map((touch, k) => {
+    const put: ExitTimingIdea = { symbol: `S${k}`, timestamp: '2026-09-30T07:40:00Z', entryPrice: 100, targetPrice: 95, stopLoss: 102,
+      direction: 'short', entryMs: Date.parse('2026-09-30T07:40:00Z') };
+    const bs = [bar('2026-09-30T13:30:00Z', 99.5, 100.5), bar(touch, 100.5, 102.2), bar('2026-09-30T15:35:00Z', 101, 103)];
+    return planExitTiming(put, { outcomeStatus: 'hit_stop' }, bs, CYCLE, { barInterval: '5m' });
+  });
+  assert.deepEqual(out.map((p) => p.source), Array(5).fill('bar_hit'));
+  assert.deepEqual(out.map((p) => p.exitMs), touches.map((x) => Date.parse(x)));
+  assert.ok(out.every((p) => p.exitMs !== CYCLE));
+});
+t('barrier hit with no touching bar → labelled "resolved at <cycle> (hit time unknown)"', () => {
+  const p = planExitTiming(idea, { outcomeStatus: 'hit_stop' }, [bar('2026-09-30T14:00:00Z', 99, 101)], CYCLE, { barInterval: '5m' });
+  assert.equal(p.source, 'live');
+  assert.equal(unresolvedExitLabel(CYCLE), 'resolved at 2026-09-30 11:40 ET (hit time unknown)');
+  assert.match(p.note, /^\[exit-time:live\] resolved at 2026-09-30 11:40 ET \(hit time unknown\) — no 5m bar since entry crossed the stop 95/);
+  // deadline / non-barrier fallbacks keep their own wording
+  const q = planExitTiming(idea, { outcomeStatus: 'expired' }, [], CYCLE);
+  assert.ok(!q.note.includes(HIT_TIME_UNKNOWN));
+  assert.ok(isHitTimeUnknown('hit_stop', 'live') && isHitTimeUnknown('hit_target', 'live'));
+  assert.ok(!isHitTimeUnknown('hit_stop', 'bar_hit') && !isHitTimeUnknown('expired', 'live') && !isHitTimeUnknown('hit_stop', null));
+});
+t('extended-hours print: the touch is found in the extended series', () => {
+  const put: ExitTimingIdea = { symbol: 'CRM', timestamp: '2026-09-30T07:40:00Z', entryPrice: 230, targetPrice: 220, stopLoss: 234,
+    direction: 'short', entryMs: Date.parse('2026-09-30T07:40:00Z') };
+  const rth = [bar('2026-09-30T13:30:00Z', 229, 233)];
+  const ext = [bar('2026-09-30T11:15:00Z', 231, 234.5), ...rth];
+  assert.equal(planExitTiming(put, { outcomeStatus: 'hit_stop' }, rth, CYCLE).source, 'live');
+  const e = planExitTiming(put, { outcomeStatus: 'hit_stop' }, ext, CYCLE, { barInterval: '5m extended-hours' });
+  assert.equal(e.source, 'bar_hit'); assert.equal(e.exitMs, Date.parse('2026-09-30T11:15:00Z'));
+});
+t('5m coverage is judged on the unfiltered series', () => {
+  const entry = Date.parse('2026-09-30T08:02:00Z'); // 04:02 ET pre-market
+  assert.ok(coversEntry([bar('2026-09-30T08:00:00Z', 1, 2), bar('2026-09-30T13:30:00Z', 1, 2)], entry));
+  assert.ok(!coversEntry([bar('2026-09-30T13:30:00Z', 1, 2)], entry), 'RTH-only first-day bars would not cover a pre-market entry');
+});
+t('journal desk row: unknown hit time is shown as such, known hit time is not', () => {
+  const base = {
+    id: 'd9', symbol: 'CRM', assetType: 'option', direction: 'short', entryPrice: 230, targetPrice: 220, stopLoss: 234, riskRewardRatio: 2,
+    optionType: 'put', strikePrice: 220, expiryDate: '2026-11-20', entryPremium: 10.2, exitPremium: 8.1, optionPercentGain: null,
+    exitPrice: 234, percentGain: -1.7, outcomeStatus: 'hit_stop', resolutionReason: 'auto_stop_hit',
+    exitDate: formatExitDate(CYCLE), timestamp: '2026-09-30T07:40:00Z', source: 'gex_scanner', catalyst: null, genConvictionBand: null,
+  };
+  const live = (mapDeskIdea({ ...base, exitTimeSource: 'live' }) as any).row;
+  assert.equal(live.exitTimeNote, 'resolved at 2026-09-30 11:40 ET (hit time unknown)');
+  assert.match(live.notes, /exit time: resolved at 2026-09-30 11:40 ET \(hit time unknown\)/);
+  assert.equal((mapDeskIdea({ ...base, exitTimeSource: 'bar_hit' }) as any).row.exitTimeNote, undefined);
+  assert.equal((mapDeskIdea({ ...base }) as any).row.exitTimeNote, undefined, 'untagged legacy rows are not guessed at');
+});
+
+t('service wiring: extended-hours retry, and a failed lookup is labelled, not silent', () => {
+  const src = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), '../server/performance-validation-service.ts'), 'utf8');
+  assert.match(src, /extendedBars\?\.length && isHitTimeUnknown/);
+  assert.match(src, /bar lookup failed/);
+  const js = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), '../server/journal-sources.ts'), 'utf8');
+  assert.match(js, /exitTimeSource: sql/);
 });
 
 // ── E1: the validator's own stamps ───────────────────────────────────────
