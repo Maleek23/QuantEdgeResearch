@@ -17,6 +17,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
+import { expiryCounts, expiryCountsText } from '@shared/journal-expiry';
 import { useJournal } from '@/components/journal/journal-context';
 import { LowSample, N, Pnl } from '@/components/journal/parts';
 import { CalendarPnl } from '@/components/journal/calendar-pnl';
@@ -81,8 +82,7 @@ export default function DashboardView() {
 
       {expired.length > 0 && (
         <p className="jr-flag" role="note">
-          <b>{expired.length}</b> option{expired.length === 1 ? '' : 's'} expired with no closing fill in the broker export — counted at $0 (assumed worthless): <Pnl value={expired.reduce((s, r) => s + Number(r.realizedPnL ?? 0), 0)} />.
-          {' '}If one finished in the money, edit its exit.
+          {expiryCountsText(expiryCounts(expired))} — no closing fill in the broker export: <Pnl value={expired.reduce((s, r) => s + Number(r.realizedPnL ?? 0), 0)} />.
         </p>
       )}
 

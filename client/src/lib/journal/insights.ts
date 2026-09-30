@@ -279,9 +279,9 @@ export function behaviorInsights(model: InsightModel, expired?: { n: number; pnl
     out.push({
       id: 'expired-unclosed', category: 'data', severity: 'warning',
       title: `${expired.n} option${expired.n === 1 ? '' : 's'} held to expiry with no exit`,
-      description: `No closing fill in the broker export, so each is settled at $0 (assumed worthless): ${money(expired.pnl)} in total. Before this was counted they were missing from every number.`,
+      description: `No closing fill in the broker export, so each is settled at its intrinsic value from the underlying's expiry-day print (unverified ones at $0): ${money(expired.pnl)} in total. Before this was counted they were missing from every number.`,
       metric: `${money(expired.pnl)} · n=${expired.n}`,
-      suggestion: 'If any finished in the money (cash-settled or exercised), edit its exit on the trade.', icon: 'hourglass',
+      suggestion: 'Unverified ones (no close available) can be retried from Import › Re-settle expired options.', icon: 'hourglass',
     });
   }
   for (const f of stopDoing(model, 3)) {

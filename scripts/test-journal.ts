@@ -8,7 +8,11 @@
 import assert from 'node:assert/strict';
 import { parseBrokerCSV } from '../server/broker-csv-parser';
 import { planJournalImport } from '../server/journal-import-plan';
-import { EXPIRED_NOTE_HEAD, expiryCloseIso, isExpiredUnclosed, settleExpiredRows } from '../shared/journal-expiry';
+import {
+  EXPIRED_ASSUMED_NOTE, EXPIRED_NOTE_HEAD, expiryCloseIso, expiryCounts, expiryCountsText, intrinsicSettlement, isExpiredUnclosed, parseExpiryMarker,
+  settleExpiredRows, settlementUnderlying,
+} from '../shared/journal-expiry';
+import { planExpiryResettle, settleParsedExpiries, type ExpiryBarFetcher } from '../server/journal-expiry-settle';
 import { behaviorInsights, buildInsights, concentration, costBucket, dteAtEntry, keepDoing, sessionOf, stopDoing } from '../client/src/lib/journal/insights';
 import { fitTabs } from '../client/src/components/journal/journal-nav';
 import { journalDayKey, matchesJournalFilters, parseJournalFilters, journalFiltersToParams, journalRowOutcome } from '../shared/journal-filters';
@@ -668,6 +672,124 @@ assert.throws(() => normalizeDiscordExport('hello,world\n1,2'), /Unrecognised fi
 // ── journal dashboard defaults tile 12×18 (fit the journal's visible area) ──
 for (const d of JOURNAL_DEFAULTS) {
   assert.deepEqual(tilingIssues(d.tools.map(([type, x, y, w, h]) => ({ type, x, y, w, h }))), [], `journal default ${d.id} tiles 12×18`);
+}
+
+// ── expired option lots settled at INTRINSIC (feat/settle) — synthetic fixtures, mocked prints ──
+{
+  // Mock daily bars: underlying → day → { open, close }. No network.
+  const BARS: Record<string, Record<string, { open: number; close: number }>> = {
+    '^GSPC': { '2026-09-15': { open: 6590, close: 6612.34 }, '2026-09-18': { open: 6580.5, close: 6640 } },
+    QQQ: { '2026-09-11': { open: 505, close: 495.5 } },
+    NVDA: { '2026-09-11': { open: 180, close: 170 } },
+  };
+  const calls: string[] = [];
+  const fetcher: ExpiryBarFetcher = async (sym, _kind, days) => {
+    calls.push(`${sym}:${days.length}`);
+    const m = new Map();
+    for (const d of days) if (BARS[sym]?.[d]) m.set(d, BARS[sym][d]);
+    return m;
+  };
+  const lot = (p: Record<string, unknown>) => ({
+    symbol: 'SPXW', assetType: 'option', optionType: 'call', strikePrice: 6600, expiryDate: '2026-09-15', direction: 'long', status: 'closed',
+    broker: 'webull', quantity: 2, entryPrice: 1, fees: 0, entryTime: '2026-09-15T14:00:00.000Z', ...p,
+  }) as never as Parameters<typeof intrinsicSettlement>[0];
+  const P = (sym: string, day: string) => BARS[sym]?.[day] ?? null;
+
+  // Call ITM (SPXW PM-settled → close): (12.34 − 1) × 2 × 100.
+  const c1 = intrinsicSettlement(lot({}), P('^GSPC', '2026-09-15'));
+  assert.deepEqual([c1.source, c1.exitPrice, c1.realizedPnL, c1.outcome, c1.approximate, c1.exitTime], ['intrinsic', 12.34, 2268, 'win', false, '2026-09-15T20:00:00.000Z']);
+  assert.match(c1.noteLine, /\[expiry-settlement:intrinsic px=12\.34 S=6612\.34\]/);
+  // Call OTM → worthless, verified.
+  const c2 = intrinsicSettlement(lot({ strikePrice: 6700 }), P('^GSPC', '2026-09-15'));
+  assert.deepEqual([c2.source, c2.exitPrice, c2.realizedPnL], ['intrinsic', 0, -200]);
+  // Put ITM on an equity: physically settled → auto-exercise note, no share position.
+  const p1 = intrinsicSettlement(lot({ symbol: 'QQQ', optionType: 'put', strikePrice: 500, expiryDate: '2026-09-11', quantity: 3, entryPrice: 0.4 }), P('QQQ', '2026-09-11'));
+  assert.deepEqual([p1.exitPrice, p1.realizedPnL], [4.5, 1230], '(4.50 − 0.40) × 3 × 100');
+  assert.match(p1.noteLine, /auto-exercise assumed/);
+  // Put OTM.
+  const p2 = intrinsicSettlement(lot({ symbol: 'QQQ', optionType: 'put', strikePrice: 490, expiryDate: '2026-09-11', quantity: 3, entryPrice: 0.4 }), P('QQQ', '2026-09-11'));
+  assert.deepEqual([p2.exitPrice, p2.realizedPnL], [0, -120]);
+  assert.doesNotMatch(p2.noteLine, /auto-exercise/);
+  // Short call ITM mirrors: sold at 1, settles at 12.34 → −(11.34 × 200).
+  assert.equal(intrinsicSettlement(lot({ direction: 'short' }), P('^GSPC', '2026-09-15')).realizedPnL, -2268);
+  // SPXW (PM, close) vs SPX monthly on the 3rd Friday (AM → open, flagged approximate).
+  assert.deepEqual(settlementUnderlying('SPXW', '2026-09-18'), { symbol: '^GSPC', kind: 'index', field: 'close', scale: 1, style: 'pm-cash' });
+  const am = intrinsicSettlement(lot({ symbol: 'SPX', expiryDate: '2026-09-18' }), P('^GSPC', '2026-09-18'));
+  const pm = intrinsicSettlement(lot({ symbol: 'SPXW', expiryDate: '2026-09-18' }), P('^GSPC', '2026-09-18'));
+  assert.deepEqual([am.exitPrice, am.approximate, pm.exitPrice, pm.approximate], [0, true, 40, false], 'SPX AM uses the 6580.50 open; SPXW the 6640 close');
+  assert.match(am.noteLine, /approximate: AM-settled/);
+  assert.equal(parseExpiryMarker(am.noteLine)!.approximate, true);
+  assert.equal(settlementUnderlying('SPX', '2026-09-15')!.field, 'close', 'SPX root off the 3rd Friday = PM weekly');
+  assert.deepEqual([settlementUnderlying('XSP', '2026-09-15')!.scale, settlementUnderlying('NDXP', '2026-09-15')!.symbol, settlementUnderlying('RUTW', '2026-09-15')!.symbol], [0.1, '^NDX', '^RUT']);
+  assert.equal(intrinsicSettlement(lot({ symbol: 'XSP', strikePrice: 660 }), P('^GSPC', '2026-09-15')).exitPrice, 1.23, 'XSP = ^GSPC / 10 → 661.23 − 660');
+  // Missing close → stays $0, flagged unverified — never a neighbouring day.
+  const miss = intrinsicSettlement(lot({ expiryDate: '2026-09-16' }), null);
+  assert.deepEqual([miss.source, miss.exitPrice, miss.realizedPnL], ['zero', 0, -200]);
+  assert.match(miss.noteLine, /unverified — no close available/);
+  assert.equal(intrinsicSettlement(lot({ symbol: 'VIX' }), { open: 20, close: 20 }).source, 'zero', 'no honest VIX settlement source');
+
+  // Import time: the parser's $0 lot (QQQ 500P from a synthetic CSV) becomes intrinsic; batched per underlying.
+  const HEAD = 'Name,Symbol,Side,Status,Filled,Total Qty,Price,Avg Price,Time-in-Force,Placed Time,Filled Time';
+  const L = (sym: string, side: string, q: number, px: number, t: string) => `${sym},${sym},${side},Filled,${q},${q},@${px},${px},DAY,${t},${t}`;
+  const csv = [HEAD,
+    L('SPXW260915C06600000', 'Buy', 2, 1.0, '09/15/2026 10:00:00 EDT'),
+    L('SPXW260915C06650000', 'Buy', 1, 0.5, '09/15/2026 10:05:00 EDT'),
+    L('QQQ260911P00500000', 'Buy', 3, 0.4, '09/10/2026 15:30:00 EDT'),
+    L('ABCD260911C00010000', 'Buy', 1, 0.2, '09/10/2026 15:30:00 EDT'),
+  ].join('\n');
+  const parsed = parseBrokerCSV(csv, undefined, Date.parse('2026-09-16T20:30:00Z'));
+  assert.ok(parsed.trades.every((t) => t.status === 'closed' && t.exitPrice === 0), 'parser still closes at $0 synchronously');
+  calls.length = 0;
+  const counts = await settleParsedExpiries(parsed.trades, fetcher);
+  assert.deepEqual(counts, { settled: 4, itm: 2, worthless: 1, unverified: 1 });
+  assert.deepEqual(calls.sort(), ['ABCD:1', 'QQQ:1', '^GSPC:1'], 'one fetch per underlying, both SPXW lots share it');
+  const spx = parsed.trades.find((t) => t.symbol === 'SPXW' && t.strikePrice === 6600)!;
+  assert.deepEqual([spx.exitPrice, spx.realizedPnL], [12.34, 2268]);
+  assert.ok(spx.notes!.startsWith(EXPIRED_NOTE_HEAD) && !spx.notes!.includes('assumed worthless'), 'the $0 note is replaced, not stacked');
+  assert.equal(parsed.trades.find((t) => t.symbol === 'ABCD')!.notes!.includes('[expiry-settlement:zero]'), true);
+  const ec = expiryCounts(settleExpiredRows(parsed.trades.map((t, i) => ({ ...t, id: `p${i}` })) as never));
+  assert.equal(expiryCountsText(ec), '4 expired options settled at intrinsic (1 worthless, 2 in the money, 1 unverified)');
+
+  // Re-settle of rows already in a journal.
+  const exp = (id: string, p: Record<string, unknown>) => ({
+    id, symbol: 'SPXW', assetType: 'option', optionType: 'call', strikePrice: 6600, expiryDate: '2026-09-15', direction: 'long', status: 'closed',
+    broker: 'webull', quantity: 2, entryPrice: 1, fees: 0, entryTime: '2026-09-15T14:00:00.000Z',
+    exitPrice: 0, exitTime: '2026-09-15T20:00:00.000Z', realizedPnL: -200, notes: `my note\n${EXPIRED_ASSUMED_NOTE}`, ...p,
+  });
+  const book = [
+    exp('legacy', {}),                                                               // $0 by the old rule → 12.34
+    exp('manual', { broker: 'manual' }),                                             // manual row: untouched
+    exp('bot', { broker: 'quant-bot' }),                                             // bot row: untouched
+    exp('discord', { broker: 'discord' }),                                           // discord row: untouched
+    exp('realfill', { exitPrice: 3, exitTime: '2026-09-15T18:00:00.000Z', realizedPnL: 400, notes: null }), // real exit fill
+    exp('edited', { exitPrice: 9, realizedPnL: 1600 }),                              // operator edited the exit
+    exp('open', { status: 'open', exitPrice: null, exitTime: null, realizedPnL: null, notes: null }), // never settled
+    exp('nodata', { expiryDate: '2026-09-16', exitTime: '2026-09-16T20:00:00.000Z' }), // no print → zero, unverified
+  ];
+  const now = Date.parse('2026-09-29T15:00:00Z');
+  const r1 = await planExpiryResettle(book as never, fetcher, now);
+  assert.deepEqual(r1.changes.map((c) => c.id).sort(), ['legacy', 'nodata', 'open']);
+  assert.deepEqual([r1.summary.eligible, r1.summary.changed, r1.summary.pnlDelta], [3, 3, 4936], 'legacy +2468, open +2468 (vs $0 read), nodata relabel $0');
+  assert.deepEqual(r1.summary.counts, { itm: 2, worthless: 0, unverified: 1, approximate: 0 });
+  assert.deepEqual(r1.summary.bySymbol, [{ symbol: 'SPXW', rows: 3, delta: 4936 }]);
+  const leg = r1.changes.find((c) => c.id === 'legacy')!;
+  assert.equal((leg.patch.notes as string).split('\n')[0], 'my note', "operator's own note kept");
+  // Apply, then run again: idempotent.
+  const after = book.map((b) => { const c = r1.changes.find((x) => x.id === b.id); return c ? { ...b, ...c.patch } : b; });
+  const r2 = await planExpiryResettle(after as never, fetcher, now);
+  assert.deepEqual([r2.summary.changed, r2.summary.pnlDelta, r2.summary.unchanged], [0, 0, 3]);
+  // A verified row is never downgraded when the print is unavailable later.
+  const r3 = await planExpiryResettle(after as never, async () => new Map(), now);
+  assert.deepEqual([r3.summary.changed, r3.summary.keptVerified], [0, 2]);
+
+  // Re-import after the old $0 import: the row is re-settled in place, not duplicated.
+  const oldRow = { ...exp('e9', {}), strikePrice: 6600 };
+  const plan = planJournalImport([oldRow as never], [spx]);
+  assert.deepEqual([plan[0].kind, (plan[0] as { existing: { id: string } }).existing.id], ['resettle', 'e9']);
+  const again = planJournalImport([{ ...oldRow, ...leg.patch } as never], [spx]);
+  assert.equal(again[0].kind, 'duplicate', 'already at intrinsic → duplicate');
+  const zeroParse = { ...spx, exitPrice: 0, realizedPnL: -200, notes: miss.noteLine };
+  assert.equal(planJournalImport([{ ...oldRow, ...leg.patch } as never], [zeroParse])[0].kind, 'duplicate', 'never downgraded to $0 by a re-import');
 }
 
 console.log('journal checks passed');
