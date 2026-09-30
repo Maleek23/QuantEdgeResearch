@@ -188,7 +188,10 @@ export interface CalendarInsights {
   avgDay: number | null;
   avgGreenDay: number | null;
   avgRedDay: number | null;
+  /** Mon–Fri only (the calendar has no weekend columns). */
   weekdays: WeekdayDays[];
+  /** Saturday + Sunday closes (crypto) as one bucket; null when there are none. */
+  weekend: WeekdayDays | null;
   /** Highest average day (needs ≥ 1 day on that weekday; read n). */
   bestWeekday: WeekdayDays | null;
   worstWeekday: WeekdayDays | null;
@@ -205,10 +208,10 @@ export function calendarInsights(days: DayStats[]): CalendarInsights {
   const green = traded.filter((d) => d.netPnl > 0);
   const red = traded.filter((d) => d.netPnl < 0);
   const sum = (xs: DayStats[]) => xs.reduce((s, d) => s + d.netPnl, 0);
-  const weekdays: WeekdayDays[] = WEEKDAYS.map((w) => {
-    const ds = traded.filter((d) => weekdayOfDay(d.date) === w);
-    return { weekday: w, days: ds.length, netPnl: sum(ds), avg: ds.length ? sum(ds) / ds.length : null, green: ds.filter((d) => d.netPnl > 0).length, trades: ds.reduce((s, d) => s + d.trades, 0) };
-  }).filter((w) => w.days > 0);
+  const bucket = (weekday: string, ds: DayStats[]): WeekdayDays =>
+    ({ weekday, days: ds.length, netPnl: sum(ds), avg: ds.length ? sum(ds) / ds.length : null, green: ds.filter((d) => d.netPnl > 0).length, trades: ds.reduce((s, d) => s + d.trades, 0) });
+  const weekdays: WeekdayDays[] = WEEKDAYS.slice(0, 5).map((w) => bucket(w, traded.filter((d) => weekdayOfDay(d.date) === w))).filter((w) => w.days > 0);
+  const wkndDays = traded.filter((d) => { const w = weekdayOfDay(d.date); return w === 'Sat' || w === 'Sun'; });
   const byAvg = [...weekdays].sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
   const st = dayStreaks(traded);
   return {
@@ -221,6 +224,7 @@ export function calendarInsights(days: DayStats[]): CalendarInsights {
     avgGreenDay: green.length ? sum(green) / green.length : null,
     avgRedDay: red.length ? sum(red) / red.length : null,
     weekdays,
+    weekend: wkndDays.length ? bucket('Weekend', wkndDays) : null,
     bestWeekday: byAvg[0] ?? null,
     worstWeekday: byAvg.length > 1 ? byAvg[byAvg.length - 1] : null,
     maxGreenStreak: st.maxGreen,

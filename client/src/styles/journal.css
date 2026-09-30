@@ -159,8 +159,8 @@
 /* ── calendar (LuxAlgo calendar-pnl, Monday-first) ──── */
 .jr-cal-nav{display:flex;align-items:center;gap:6px}
 .jr-cal-month{font-family:var(--jr-disp);font-weight:700;font-size:14px;min-width:120px;text-align:center}
-.jr-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-@media (min-width:1280px){.jr-cal.with-weeks{grid-template-columns:repeat(7,minmax(0,1fr)) minmax(70px,.9fr)}}
+.jr-cal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px} /* Mon–Fri; weekend rolls into Friday */
+@media (min-width:1280px){.jr-cal.with-weeks{grid-template-columns:repeat(5,minmax(0,1fr)) minmax(70px,.9fr)}}
 .jr-cal-wd{font-size:10.5px;color:var(--text-mute);text-align:center;font-weight:600;letter-spacing:0.05em;padding-bottom:2px}
 .jr-cal-weekhead,.jr-cal-week{display:none}
 @media (min-width:1280px){.jr-cal.with-weeks .jr-cal-weekhead,.jr-cal.with-weeks .jr-cal-week{display:flex}}
@@ -332,7 +332,7 @@ button.jr-cal-day[aria-pressed="true"]{box-shadow:0 0 0 1px var(--jr-accent),0 0
 .jr-cal-lg .jr-cal-day{min-height:72px;padding:6px 7px}
 .jr-cal-lg .jr-cal-p{font-size:12.5px}
 @media (max-width:480px){.jr-cal-lg .jr-cal-day{min-height:48px;padding:3px}.jr-cal-lg .jr-cal-p{font-size:10px}}
-.jr-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.jr-week{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
 @media (max-width:600px){.jr-week{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .jr-week-day,.jr-month{display:flex;flex-direction:column;gap:3px;align-items:flex-start;min-height:74px;padding:8px;border-radius:8px;border:1px solid var(--jr-line);
   background:rgba(127,178,255,0.02);color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0}
@@ -533,3 +533,4 @@ button.jr-heat-c{cursor:pointer}
 .jr-nav2-phone .jr-nav2-top>.jr-book{width:100%}
 .jr-nav2-phone .jr-sec-tab{height:44px}
 .jr-nav2-phone .jr-sub-tab{height:40px}
+.jr-cal-wk{font-size:9.5px;color:var(--text-mute);font-family:var(--jr-mono);letter-spacing:.02em}

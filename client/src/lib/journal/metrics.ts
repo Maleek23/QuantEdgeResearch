@@ -437,7 +437,21 @@ export function byWeek(days: DayStats[]): { week: string; netPnl: number; trades
 
 // ─── Calendar (from aggregate.ts calendarMonthFromDays) ─────
 
-export interface CalendarWeek { days: (DayStats | null)[]; weekNetPnl: number; weekTrades: number }
+/**
+ * One calendar row: Monday–Friday only (2026-09-29, operator: "remove Saturday
+ * and Sunday from the calendar"). A Saturday/Sunday close (crypto) is not
+ * dropped — it is carried in `weekend` and ROLLS INTO THE FRIDAY CELL
+ * (`fridayWithWeekend`), which prints a small "+wknd" note. Week totals still
+ * sum all seven days of the row that fall in the month.
+ */
+export interface CalendarWeek {
+  /** Mon..Fri (length 5); null = outside the month. */
+  days: (DayStats | null)[];
+  /** Traded Saturday/Sunday days of this Monday-first week that fall in the month. */
+  weekend: DayStats[];
+  weekNetPnl: number;
+  weekTrades: number;
+}
 export interface CalendarMonth {
   year: number;
   month: number;
@@ -448,7 +462,34 @@ export interface CalendarMonth {
   winningDays: number;
 }
 
-/** Month grid, Monday-first (US equities trade Mon–Fri), with week and month totals. */
+/** Sum day rows into one (the Friday cell + its weekend). `date` stays the first row's. */
+export function mergeDays(date: string, rows: DayStats[]): DayStats {
+  return rows.reduce<DayStats>((a, d) => ({
+    date,
+    netPnl: a.netPnl + d.netPnl,
+    fees: a.fees + d.fees,
+    trades: a.trades + d.trades,
+    wins: a.wins + d.wins,
+    losses: a.losses + d.losses,
+    breakevens: a.breakevens + d.breakevens,
+  }), { date, netPnl: 0, fees: 0, trades: 0, wins: 0, losses: 0, breakevens: 0 });
+}
+
+/**
+ * The fifth column's cell: Friday plus the week's traded weekend days. When the
+ * Friday is outside the month (a month that starts on a Saturday or Sunday),
+ * the cell is the weekend alone, dated on its first traded day.
+ */
+export function fridayWithWeekend(week: CalendarWeek): { cell: DayStats | null; weekend: DayStats[] } {
+  const fri = week.days[4];
+  if (!week.weekend.length) return { cell: fri, weekend: [] };
+  const date = fri?.date ?? week.weekend[0].date;
+  return { cell: mergeDays(date, fri ? [fri, ...week.weekend] : week.weekend), weekend: week.weekend };
+}
+
+const EMPTY_STATS = (date: string): DayStats => ({ date, netPnl: 0, fees: 0, trades: 0, wins: 0, losses: 0, breakevens: 0 });
+
+/** Month grid, Monday-first, Mon–Fri columns (weekend rolls into Friday), with week and month totals. */
 export function calendarMonth(days: DayStats[], year: number, month: number): CalendarMonth {
   const prefix = `${year}-${String(month).padStart(2, '0')}`;
   const byDate = new Map(days.filter((d) => d.date.startsWith(prefix)).map((d) => [d.date, d]));
@@ -458,14 +499,19 @@ export function calendarMonth(days: DayStats[], year: number, month: number): Ca
   const cells: (DayStats | null)[] = Array.from({ length: leading }, () => null);
   for (let day = 1; day <= daysInMonth; day++) {
     const date = `${prefix}-${String(day).padStart(2, '0')}`;
-    cells.push(byDate.get(date) ?? { date, netPnl: 0, fees: 0, trades: 0, wins: 0, losses: 0, breakevens: 0 });
+    cells.push(byDate.get(date) ?? EMPTY_STATS(date));
   }
   while (cells.length % 7 !== 0) cells.push(null);
   const weeks: CalendarWeek[] = [];
   for (let i = 0; i < cells.length; i += 7) {
     const wd = cells.slice(i, i + 7);
+    const weekend = wd.slice(5).filter((d): d is DayStats => !!d && d.trades > 0);
+    const weekdays = wd.slice(0, 5);
+    // A row with no in-month weekday and no traded weekend day is empty — drop it.
+    if (weekdays.every((d) => !d) && !weekend.length) continue;
     weeks.push({
-      days: wd,
+      days: weekdays,
+      weekend,
       weekNetPnl: wd.reduce((s, d) => s + (d?.netPnl ?? 0), 0),
       weekTrades: wd.reduce((s, d) => s + (d?.trades ?? 0), 0),
     });
