@@ -7,6 +7,7 @@
  * tile-fit overrides in today.css under `.td-tool`. Data + drawing pieces
  * live in today-model.tsx; every tool shares its queries.
  */
+import { regimeFromLegacy } from '@shared/gex-regime';
 import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { convictionDisplayPercent } from '@shared/conviction-display';
@@ -38,14 +39,25 @@ export function TodayWeekMapTool() {
 
   const snap = g.snap;
   const magnet = snap?.maxGammaStrike;
-  const shortGamma = wp.data?.regime === 'negative_gamma'; // 'transitioning' = near the flip, not short gamma (shared/gex-regime.ts)
+  // Regime from the SAME snapshot as the walls on this card (GEX terminal = GEX page),
+  // by the shared rule (shared/gex-regime.ts): net-GEX sign with a 5% neutral band,
+  // plus near-flip. v1 read the weekly-path request's regime (a separate compute)
+  // and printed "long gamma" for anything not negative — including a −$5B book near its flip.
+  const gRead = snap?.regimeRead;
+  const gRegime = gRead?.regime ?? regimeFromLegacy(snap?.regime ?? wp.data?.regime);
+  const nearFlip = gRead?.nearFlip ?? (snap?.regime ?? wp.data?.regime) === 'transitioning';
+  const shortGamma = gRegime === 'negative';
+  const balanced = gRegime === 'neutral';
+  // Max |γ| strike is a "magnet" only when its net gamma is positive; a put-dominated
+  // max-gamma strike (often the same strike as the put wall) is a pivot, not a pin.
+  const magnetIsPut = (snap?.levels?.find((l) => l.strike === magnet)?.gex ?? 0) < 0;
   const sigma = wp.data?.expectedMove;
   const spy = book.quote('SPY');
   // Live SPY only — the model's start price is publish-time and never shown as "now".
   const spyPx = spy?.price ?? spy?.lastPrice;
   const refPx = spyPx ?? wp.data?.spotPrice;
   const spyBars = spyIntra.data?.data ?? [];
-  const pinClose = magnet != null && sigma != null && spyPx != null && Math.abs(magnet - spyPx) <= 0.75 * sigma;
+  const pinClose = !magnetIsPut && magnet != null && sigma != null && spyPx != null && Math.abs(magnet - spyPx) <= 0.75 * sigma;
   const feedDown = wp.isError && !wp.data;
   const weekOf = wp.data ? new Date(wp.data.weekStart + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
   const pathAsOf = wp.data ? (wp.data.cachedAt ?? (wp.dataUpdatedAt ? new Date(wp.dataUpdatedAt).toISOString() : null)) : null;
@@ -74,9 +86,9 @@ export function TodayWeekMapTool() {
             <h1 className="hero-title">Reading the dealer map…</h1>
           ) : (
             <h1 className="hero-title">
-              SPY is in <span className="grad">{shortGamma ? 'short' : 'long'} gamma</span>. Moves get {shortGamma ? 'amplified' : 'dampened'}.
+              SPY is <span className="grad">{shortGamma ? 'in short gamma' : balanced ? 'balanced on gamma' : 'in long gamma'}</span>{nearFlip ? ', near the flip' : ''}. {shortGamma ? 'Moves get amplified.' : balanced ? 'Neither side dominates.' : 'Moves get dampened.'}
               {sigma != null
-                ? <span className="accent"> {pinClose && !shortGamma ? `Price is near the ${fmt(magnet, 0)} magnet.` : `Weekly range: ±${fmt(sigma, 0)} points.`}</span>
+                ? <span className="accent"> {pinClose && gRegime === 'positive' ? `Price is near the ${fmt(magnet, 0)} magnet.` : `Weekly range: ±${fmt(sigma, 0)} points.`}</span>
                 : null}
             </h1>
           )}
@@ -86,7 +98,8 @@ export function TodayWeekMapTool() {
               : !wp.data ? ''
               : `${shortGamma
                 ? 'Short-gamma dealers sell into drops and buy into rips, so ranges widen.'
-                : 'Long-gamma dealers buy dips and sell rips, so ranges tighten.'}${sigma != null && refPx ? ` ${wp.data.volSource === 'realized-20d' ? 'Lately SPY has moved' : 'Expect'} about ±${fmt(sigma, 0)} points (${fmt(sigma / refPx * 100, 1)}%) in a typical week${wp.data.volSource === 'realized-20d' ? `${wp.data.impliedVol && spyPx ? ` — options price more, ±${fmt(spyPx * wp.data.impliedVol * Math.sqrt(5 / 252), 0)}` : ''}` : wp.data.volSource === 'vix' ? ' (from VIX)' : ' (estimated)'}.` : ''}${magnet && sigma != null && spyPx != null && !pinClose ? ` The biggest strike, ${fmt(magnet, 0)}, is ${fmt(Math.abs(magnet - spyPx), 0)} points away — further than dealers usually drag price in a week.` : ''}`}
+                : balanced ? 'Dealer gamma is close to flat, so hedging neither caps nor extends moves much.'
+                : 'Long-gamma dealers buy dips and sell rips, so ranges tighten.'}${sigma != null && refPx ? ` ${wp.data.volSource === 'realized-20d' ? 'Lately SPY has moved' : 'Expect'} about ±${fmt(sigma, 0)} points (${fmt(sigma / refPx * 100, 1)}%) in a typical week${wp.data.volSource === 'realized-20d' ? `${wp.data.impliedVol && spyPx ? ` — options price more, ±${fmt(spyPx * wp.data.impliedVol * Math.sqrt(5 / 252), 0)}` : ''}` : wp.data.volSource === 'vix' ? ' (from VIX)' : ' (estimated)'}.` : ''}${magnet && sigma != null && spyPx != null && Math.abs(magnet - spyPx) > 0.75 * sigma ? ` The biggest strike, ${fmt(magnet, 0)}, is ${fmt(Math.abs(magnet - spyPx), 0)} points away — further than dealers usually drag price in a week.` : ''}`}
           </p>
           <div className="hero-actions">
             <button type="button" className="btn btn-primary btn-lg" onClick={toBest} title={hasTool('today-best-idea') ? 'Scroll to the Best idea tool' : editable ? 'Add the Best idea tool to this dashboard' : 'Open the ranked setups on NEXUS'}>
@@ -96,7 +109,7 @@ export function TodayWeekMapTool() {
             <Link href="/t?tab=gex" className="btn btn-ghost btn-lg">Full GEX surface</Link>
           </div>
           <div className="tl-keys" title={g.asOf ? `Measured SPY dealer levels · ${ageLabel(g.asOf, now)}` : 'Measured SPY dealer levels'}>
-            {([['Magnet', magnet, 'max gamma', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
+            {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'max |gamma|', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
               <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
             ))}
           </div>

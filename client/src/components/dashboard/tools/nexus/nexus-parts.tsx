@@ -19,7 +19,7 @@ import { ContractEngine } from '@/components/contract-engine/contract-engine';
 import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
-import { convictionPercent, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
+import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import '@/styles/nexus-prototype.css';
 
@@ -117,7 +117,7 @@ export function withSpxRow(picks: ConvictionPick[] | undefined, spySource: Convi
 export function rankRows(sourceRows: ConvictionPick[], f: { scope: Exclude<Scope, 'developing'>; side: Side; query: string; rank: Rank }): ConvictionPick[] {
   const needle = f.query.trim().toUpperCase();
   const ranked = sourceRows
-    .filter((pick) => f.scope === 'positions' ? pick.isBotHeld : !pick.isBotHeld)
+    .filter((pick) => f.scope === 'positions' ? pick.isBotHeld : isLiveBookPick(pick)) // same rule as Today's book
     .filter((pick) => f.side === 'all' || pick.direction === f.side)
     .filter((pick) => !needle || pick.symbol.includes(needle) || (pick.sector ?? '').toUpperCase().includes(needle))
     .sort((a, b) => f.scope === 'positions'
@@ -153,7 +153,7 @@ export function rankDeveloping(hits: PatternHit[] | undefined, picks: Conviction
 
 /* ── shared queries (keys unchanged from the page) ── */
 export const useNexusConvictions = () => useQuery<ConvictionsResponse>({
-  queryKey: ['/api/convictions', 'nexus-prototype'],
+  queryKey: [...CONVICTIONS_QUERY_KEY],
   queryFn: () => get('/api/convictions'),
   staleTime: 30_000,
   refetchInterval: 60_000,
