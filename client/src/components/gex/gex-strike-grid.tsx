@@ -335,7 +335,10 @@ export function GexStrikeMatrix({
         top: new Map(ranked.slice(0, 2).map((c, i) => [c.strike, i + 1])),
       });
     }
-    return { strikes, byKey, rowTotal, rowMax, gross, rMax, trueMax, col };
+    // KING NODE — the single largest |cell| in the shown book (its strike label gets ★ too)
+    let king: StrikeExpiryCell | null = null;
+    for (const c of byKey.values()) if (!king || Math.abs(val(c)) > Math.abs(val(king))) king = c;
+    return { strikes, byKey, rowTotal, rowMax, gross, rMax, trueMax, col, king };
   }, [cells, expiries, val]);
 
   // Row height follows the measured size class (phones get taller rows); the
@@ -495,7 +498,7 @@ export function GexStrikeMatrix({
                   style={{ height: ROW, ...(band ? { ['--band' as string]: band } : {}) }}
                 >
                   <td className="gx-sticky-l gx-strike" data-k={`${strike}|sum`}>
-                    <b>{fmtStrike(strike)}</b>
+                    <b>{model.king?.strike === strike ? <span className="gx-king-star" title="King node — the largest |exposure| cell in the book">★</span> : null}{fmtStrike(strike)}</b>
                     <span className="gx-pct">{dist >= 0 ? '+' : ''}{dist.toFixed(1)}%</span>
                     {geo.size === 'narrow' && isSpotRow && !roles.length ? <span className="gx-chips"><span className="gx-chip gx-chip-spot" title={`Nearest strike to spot $${levels.spot.toFixed(2)}`}>◎</span></span> : <RoleChips roles={geo.size === 'narrow' ? roles.slice(0, 1) : roles} short={geo.size !== 'wide'} />}
                   </td>
@@ -508,18 +511,24 @@ export function GexStrikeMatrix({
                     const dust = !rank && Math.abs(v) < dustCutOf(dte);
                     if (dust && !showDust) return <td key={dte} data-k={`${strike}|${dte}`}><span className="gx-dot" /></td>;
                     const t = exposureStrength(v, scaleMaxOf(dte));
+                    // King node of this expiry (rank 1): ★ + solid amber highlight. Near-zero
+                    // cells (under 12% intensity) are neutral grey so the 3–5 dominant nodes pop;
+                    // sign stays the CVD-safe blue (+) / orange (−) pair everywhere else.
+                    const king = rank === 1;
+                    const faint = !king && t < 0.12;
                     return (
                       <td key={dte} data-k={`${strike}|${dte}`}>
                         <button
                           type="button"
-                          tabIndex={-1}
-                          className={`gx-cell${dust ? ' dust' : ''}${rank ? ' top' : ''}`}
-                          data-rank={rank ? (rank === 1 ? '①' : '②') : undefined}
-                          style={{ background: rampColor(v, t), color: rampInk(t) }}
+                          // the two top nodes of each expiry are keyboard stops (Enter = drill); the rest are reached by hover/tap
+                          tabIndex={rank ? 0 : -1}
+                          className={`gx-cell${dust ? ' dust' : ''}${rank ? ' top' : ''}${king ? ' king' : ''}${faint ? ' faint' : ''}`}
+                          data-rank={rank ? (rank === 1 ? '★' : '②') : undefined}
+                          style={king || faint ? undefined : { background: rampColor(v, t), color: rampInk(t) }}
                           onClick={onCellClick ? () => onCellClick(c) : undefined}
-                          aria-label={rank ? `${fmtVal(v, metric)}, #${rank} in this expiry` : geo.size === 'narrow' ? fmtVal(v, metric) : undefined}
+                          aria-label={rank ? `${fmtVal(v, metric)}, ${rank === 1 ? 'king node (largest)' : '#2'} in this expiry` : geo.size === 'narrow' ? fmtVal(v, metric) : undefined}
                         >
-                          {geo.size === 'narrow' ? fmtCompact(v, metric) : fmtVal(v, metric)}
+                          {king && geo.size !== 'narrow' ? '★ ' : ''}{geo.size === 'narrow' ? fmtCompact(v, metric) : fmtVal(v, metric)}
                         </button>
                       </td>
                     );

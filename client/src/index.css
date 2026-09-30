@@ -2828,7 +2828,7 @@ button:not([disabled]):active,
    target (Apple HIG / WCAG 2.5.5); prose on phones is ≥ 14px. The GEX matrix's
    data cells (tap-to-drill data, not controls) and inline links inside prose are
    exempt. The journal (.jr) is owned by the journal branch and is left alone. */
-@media (max-width:767px),(pointer:coarse){
+@media (max-width:767px){
   :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],[role=option],select,summary,
       input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell){min-height:44px!important}
   :is(button,[role=button],[role=tab],[role=menuitem],[role=switch],summary):not(.gx-cell){min-width:44px!important}
@@ -2845,3 +2845,24 @@ button:not([disabled]):active,
 /* Keyboard focus is always visible on form fields (many use outline-none and rely on a
    wrapper's :focus-within, which a screen magnifier or the audit cannot see on the field). */
 #main-content :is(input,select,textarea):focus-visible{outline:2px solid var(--cyan-bright,#6aa8ff);outline-offset:2px}
+
+/* ══════════════ PHONE TYPE FLOOR — CSS only (replaces the DOM observer) ══════════════
+   Size tokens remap to ≥ 12px on phones; inputs are 16px so iOS never zooms on
+   focus. Literal sizes in older tool CSS are raised by the class rules below. */
+@media (max-width:599px){
+  :root{--fs-8:12px;--fs-9:12px;--fs-9-5:12px;--fs-10:12.5px;--fs-10-5:13px;--fs-11:13px}
+  #main-content :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){font-size:16px!important}
+  #main-content :is(small,.dim,.fd-foot,.fd-age,.pg-prov,.gx-note,.gx-legend,.gx-pct,.of-lbl,.of-d,.of-sub,.nxp-row-main small,.nxp-row-status small,.nxp-section-title small,.lx-eyebrow-pill,.jr-book-l,.tl-keys span,.context-sub,.context-k,.insight-desc,.gravity-note,.gx-stats span,.gx-nodes span,.gx-actions span,.gx-hero-basis,.fd-menu-note,.fd-menu-head,.of-stat .of-lbl,.lsig-level .l,.lsig-ev,.kind){font-size:max(12px,1em)}
+}
+
+/* ══════════════ ONE focus ring (UI/UX audit 2026-09-29) ══════════════
+   Many components set outline:none and rely on a faint background tint; the
+   ring below wins everywhere a keyboard lands (:focus-visible only). */
+:root{--qe-focus:#6aa8ff}
+html[data-mode=light]{--qe-focus:#1d4ed8}
+:where(a,button,input,select,textarea,summary,[tabindex],[role=button],[role=tab],[role=menuitem],[role=option],[role=switch]):focus-visible{outline:2px solid var(--qe-focus)!important;outline-offset:2px!important}
+
+/* desktop: no control under 32px (UI/UX audit) */
+@media (min-width:768px){
+  .flowdash .fd-icon-btn,.flowdash .fd-grip,.flowdash .of-chip{min-width:32px;min-height:32px}
+}

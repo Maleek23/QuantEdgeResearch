@@ -8,7 +8,6 @@ import "./styles/modes.css"; // visual modes — html[data-mode] token overrides
 import "./lib/visual-mode"; // applies the saved mode (index.html already did, pre-paint)
 import { ErrorBoundary } from "./components/error-boundary";
 import { initClientObservability } from "./lib/observability";
-import { installPhoneTypeFloor } from "./lib/phone-type-floor";
 import { installStaleBundleGuard } from "./lib/stale-bundle";
 import { armBoot } from "./lib/boot";
 
@@ -48,7 +47,6 @@ function BootArm() {
   return null;
 }
 
-installPhoneTypeFloor();
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <BootArm />

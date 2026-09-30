@@ -3036,3 +3036,16 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-narrow .gx-table thead th.gx-exp{white-space:nowrap;padding:4px 1px}
 .gx-narrow .gx-cell.top{padding-left:2px}
 .gx-narrow .gx-cell.top::before{display:none} /* rank still shown by the ring + aria-label; no glyph crowding a 13px value */
+
+/* ── King node + intensity (operator reference heatmap, 2026-09-29) ──
+   rank-1 cell of each expiry: ★ + solid amber, dark ink; near-zero cells a
+   neutral grey so the dominant nodes pop; the book's largest node also stars
+   its strike label. Signs keep the CVD-safe blue/orange ramp. */
+.gx-cell.king{background:#facc15!important;color:#1a1300!important;font-weight:800;box-shadow:0 0 0 1.5px #fff6c4 inset,0 0 10px rgba(250,204,21,.45)}
+.gx-cell.king::before{display:none}
+.gx-cell.faint{background:color-mix(in srgb,var(--text-mute,#8a93a6) 16%,transparent);color:var(--text-dim,#aab3c5);font-weight:500}
+.gx-king-star{margin-right:3px;color:#facc15}
+/* Σ per strike keeps a small signed bar on phones too (under the value; the sticky cell is its containing block) */
+.gx-narrow .gx-sum-bar{display:block;position:absolute;left:4px;right:4px;bottom:3px;width:auto;height:3px;margin:0}
+/* spot line: a price tag pinned at the strike column on phones */
+.gx-narrow .gx-line.spot span{display:inline-block;left:2px;margin-left:2px;font-size:12px;padding:0 4px}

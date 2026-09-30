@@ -317,7 +317,7 @@ Rules:
 - Contrast ≥ 4.5:1 body, 3:1 display in every visual mode; ≥ 7:1 for every text
   tier in High contrast (measured table in §02 "Visual modes"). Never color
   alone — pair icon/label/position.
-- Monospace for anything compared numerically. Touch targets ≥ 32px.
+- Monospace for anything compared numerically. Touch targets ≥ 44px on touch sizes (≤ 767px: index.css touch floor), ≥ 32px on desktop. One focus ring everywhere: `:focus-visible` → 2px `--qe-focus` outline, offset 2px (index.css) — never a tint alone. Phones: no text under 12px (size tokens remap), inputs 16px (no iOS focus zoom). `research/device-audit.ts` checks all of it at 375/393/360/768/1024/1440 in Dark, Light and High contrast.
 - `prefers-reduced-motion`: disable particles, tape scroll, pulses.
 
 ## 11 · BEFORE BUILDING A NEW SCREEN
