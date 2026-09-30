@@ -25,9 +25,9 @@ import path from 'path';
 import { logger } from './logger';
 import { marketDateET } from '@shared/market-day';
 
-const DEFAULT_WATCH = ['SPY', 'QQQ', 'SPX', 'IWM', 'TSLA', 'NVDA', 'AMD', 'MSTR'];
+const DEFAULT_WATCH = ['SPY', 'QQQ', 'SPX', 'IWM', 'TSLA', 'NVDA', 'AMD', 'MSTR', 'META', 'AAPL', 'MSFT', 'AMZN', 'BE'];
 const VIEW_TTL_MS = 2 * 60 * 60_000;
-const MAX_WATCH = 12;
+const MAX_WATCH = 30; // defaults + anything charted in the last 2h (sequential; ~2–3s per chain)
 const SAMPLE_EVERY_MS = 5 * 60_000;
 const ON_DEMAND_MIN_GAP_MS = 4 * 60_000;
 const KEEP_DAYS = 10;

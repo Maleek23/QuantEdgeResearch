@@ -409,7 +409,9 @@ function QEChartCompact({
           const end = Math.min(nextT, t + span, limit === Infinity ? Date.now() : limit + 1);
           let i = geo.indexAt(t);
           if (i < 0) {
-            if (t < geo.candles[0].time && end > geo.candles[0].time) i = 0; else continue;
+            if (t < geo.candles[0].time && end > geo.candles[0].time) i = 0;
+            else if (t >= geo.candles[n - 1].time && t - geo.candles[n - 1].time <= cadence * 2.5) i = n - 1;
+            else continue;
           }
           for (; i < n && geo.candles[i].time < end; i++) {
             vals[i] = g; times[i] = t; srcs[i] = src;

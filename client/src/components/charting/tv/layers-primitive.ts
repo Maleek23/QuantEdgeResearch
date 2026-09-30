@@ -132,7 +132,11 @@ export class LayersPrimitive implements ISeriesPrimitive<Time> {
         const end = Math.min(nextT, t + span, limit === Infinity ? Date.now() : limit + 1);
         let i = indexAt(bars, t, this.barMs);
         if (i < 0) {
-          if (t < bars[0].time && end > bars[0].time) i = 0; else continue;
+          if (t < bars[0].time && end > bars[0].time) i = 0;
+          // a fresh sample stamped after the last bar (a newly charted ticker's
+          // first on-demand snapshot) belongs on the last bar, not off the chart
+          else if (t >= bars[n - 1].time && t - bars[n - 1].time <= cadence * 2.5) i = n - 1;
+          else continue;
         }
         for (; i < n && bars[i].time < end; i++) {
           vals[i] = g; times[i] = t; srcs[i] = src;
