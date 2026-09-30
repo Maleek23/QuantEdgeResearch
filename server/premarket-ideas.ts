@@ -509,7 +509,8 @@ async function buildPlanContext(symbol: string, todayKey: string, prevCloseFromS
   let gex: GexContext | null = null;
   try {
     const { getGexSnapshot } = await import('./gex-snapshot-service');
-    const g = await getGexSnapshot(symbol);
+    // GEX is context, not required — never let a slow chain stall the pass.
+    const g: any = await Promise.race([getGexSnapshot(symbol), new Promise((r) => setTimeout(() => r(null), 6_000))]);
     if (g) gex = { callWall: g.callWall, putWall: g.putWall, flip: g.flipPoint, regime: g.regime };
   } catch { /* GEX optional */ }
   return {
