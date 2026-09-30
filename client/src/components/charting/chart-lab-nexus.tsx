@@ -134,6 +134,12 @@ export interface ChartLabDealer {
     maxGammaStrike?: number | null;
     callWall?: number | null;
     regime?: string;
+    /** Shared regime classifier (shared/gex-regime.ts) — the legacy `regime` string lags it. */
+    regimeRead?: { regime?: 'positive' | 'negative' | 'neutral' | string; title?: string; short?: string } | null;
+    /** Per-expiry books; `next7` = everything expiring within 8 days (shared/gex-buckets.ts). */
+    byDte?: Partial<Record<'today' | 'week' | 'month' | 'quarter' | 'leaps' | 'next7', {
+      callWall: number | null; putWall: number | null; gammaFlipPrice: number | null; totalGEX: number; expirationsCount: number;
+    }>>;
     levels?: Array<{
       strike: number;
       gex: number;

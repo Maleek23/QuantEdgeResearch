@@ -40,6 +40,9 @@ import {
 import './ticker-page.css';
 import { Clamp, FreshStamp, PhoneNote } from '@/components/ui/qe-phone';
 
+/** Cash indices have no traded volume of their own. */
+const CASH_INDEX = new Set(['SPX', 'NDX', 'RUT', 'VIX', 'XSP', 'DJX']);
+
 const ContractPickerPanel = lazy(() => import('@/components/workup/contract-picker-panel').then((m) => ({ default: m.ContractPickerPanel })));
 
 export type TickerView = 'page' | 'gex' | 'lab';
@@ -194,7 +197,17 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   const leanGlyph = qtm?.lean === 'bullish' ? '▲' : qtm?.lean === 'bearish' ? '▼' : '◆';
 
   /* dealer map */
-  const regimeLabel = snap?.regime ? snap.regime.replace(/_/g, ' ') : null;
+  // "This week" = the book expiring within 8 days. The all-expiry walls sit on
+  // long-dated round strikes (SPX 8,000 / 7,000 on 2026-09-30) that say nothing
+  // about this week, so they are only used, and labelled, when no near book exists.
+  const wk = snap?.byDte?.next7 ?? null;
+  const wallBasis = wk ? `expiries ≤7d (${wk.expirationsCount})` : 'all expiries (no near-dated book)';
+  const callWallW = wk ? wk.callWall : snap?.callWall ?? null;
+  const putWallW = wk ? wk.putWall : snap?.putWall ?? null;
+  const flipW = wk?.gammaFlipPrice ?? snap?.gammaFlipPrice ?? null;
+  const rr = snap?.regimeRead?.regime;
+  const regimeKey = rr === 'negative' ? 'negative_gamma' : rr === 'positive' ? 'positive_gamma' : rr === 'neutral' ? 'neutral' : snap?.regime;
+  const regimeLabel = snap?.regimeRead?.title ?? (regimeKey ? regimeKey.replace(/_/g, ' ') : null);
   // The weekly-path model sizes the week on 20-day realized vol (VIX for the
   // S&P complex). When its history leg fails it falls back to a stamped
   // 'regime-estimate' (a fixed guess) — never printed as this name's move.
@@ -328,7 +341,9 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       {miniNav}
 
       <div className="tk-stats" id="overview" aria-label="Key stats">
-        <Stat k="Volume" v={fmtBig(liveVol)} sub={volRatio != null ? `${volRatio.toFixed(1)}× 20d avg` : '20d avg —'} unit={volRatio == null} tone={volRatio != null && volRatio >= 1.5 ? 'accent' : undefined} />
+        {CASH_INDEX.has(sym)
+          ? <Stat k="Volume" v="n/a" sub="cash index · see SPY" unit />
+          : <Stat k="Volume" v={fmtBig(liveVol)} sub={volRatio != null ? `${volRatio.toFixed(1)}× 20d avg` : '20d avg —'} unit={volRatio == null} tone={volRatio != null && volRatio >= 1.5 ? 'accent' : undefined} />}
         <Stat k="ATR 14" v={fmtPx(stats.atr)} sub={stats.atr != null && price ? `${((stats.atr / price) * 100).toFixed(1)}% of price` : 'daily'} unit={!(stats.atr != null && price)} />
         <Stat k="RSI 14" v={stats.rsi != null ? Math.round(stats.rsi) : '—'} sub={stats.rsi == null ? 'daily' : stats.rsi >= 70 ? 'overbought' : stats.rsi <= 30 ? 'oversold' : 'daily'} unit={stats.rsi == null || (stats.rsi < 70 && stats.rsi > 30)} tone={stats.rsi != null && (stats.rsi >= 70 || stats.rsi <= 30) ? 'caution' : undefined} />
         <Stat k="52w range" v={pos52 != null ? `${Math.round(pos52)}%` : '—'} sub={`${fmtPx(stats.l52)} – ${fmtPx(stats.h52)}`} title="Where the live price sits between the 52-week low (0%) and high (100%)" />
@@ -349,11 +364,11 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
           <Empty>No option chain answered for {sym} (Alpaca, CBOE, Yahoo) — walls and zero-γ need listed options.</Empty>
         ) : null}
         <div className="tk-stats tk-stats-dealer">
-          <Stat k="Call wall" v={fmtPx(snap?.callWall)} tone="gain" sub={snap?.callWall && price ? fmtPct(((snap.callWall - price) / price) * 100, 1) + ' away' : undefined} />
-          <Stat k="Put wall" v={fmtPx(snap?.putWall)} tone="loss" sub={snap?.putWall && price ? fmtPct(((snap.putWall - price) / price) * 100, 1) + ' away' : undefined} />
-          <Stat k="Zero-γ" v={snap?.gammaFlipPrice != null ? fmtPx(snap.gammaFlipPrice) : snap ? 'none near' : '—'} tone="caution"
-            sub={snap?.gammaFlipPrice != null && price ? (price >= snap.gammaFlipPrice ? 'price above zero-γ' : 'price below zero-γ') : snap ? 'net γ keeps one sign ±20%' : undefined} />
-          <Stat k="Regime" v={regimeLabel ?? '—'} sub={snap?.regime === 'positive_gamma' ? 'dealers damp moves' : snap?.regime === 'negative_gamma' ? 'dealers amplify moves' : undefined} tone={snap?.regime === 'negative_gamma' ? 'caution' : undefined} />
+          <Stat k="Call wall" v={fmtPx(callWallW)} tone="gain" title={`Call wall · ${wallBasis}`} sub={callWallW && price ? fmtPct(((callWallW - price) / price) * 100, 1) + ' away' : undefined} />
+          <Stat k="Put wall" v={fmtPx(putWallW)} tone="loss" title={`Put wall · ${wallBasis}`} sub={putWallW && price ? fmtPct(((putWallW - price) / price) * 100, 1) + ' away' : undefined} />
+          <Stat k="Zero-γ" v={flipW != null ? fmtPx(flipW) : snap ? 'none near' : '—'} tone="caution" title={`Zero-γ · ${wallBasis}`}
+            sub={flipW != null && price ? (price >= flipW ? 'price above zero-γ' : 'price below zero-γ') : snap ? 'net γ keeps one sign ±20%' : undefined} />
+          <Stat k="Regime" v={regimeLabel ?? '—'} sub={regimeKey === 'positive_gamma' ? 'dealers damp moves' : regimeKey === 'negative_gamma' ? 'dealers amplify moves' : undefined} tone={regimeKey === 'negative_gamma' ? 'caution' : undefined} />
           <Stat k="Week move 1σ" v={em != null ? `±${fmtPx(em)}` : d.week.isLoading ? '…' : '—'}
             sub={em != null && emSpot ? `${emPct != null ? `±${emPct.toFixed(1)}% · ` : ''}${fmtPx(emSpot - em)}–${fmtPx(emSpot + em)}` : 'no vol series'}
             title={emBasis ? `1σ for five sessions, sized on ${emBasis} — the Today weekly-path model` : undefined} />

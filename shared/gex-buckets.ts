@@ -102,7 +102,14 @@ export function summarizeBucketLegs(legs: BucketLeg[], spot: number): GexBucketS
 }
 
 /** Group legs by horizon and summarise each. Buckets with no legs are omitted. */
-export function bucketizeLegs(legs: BucketLeg[], spot: number): Partial<Record<GexBucketKey, GexBucketSummary>> {
+/**
+ * 'next7' = every contract expiring within 8 calendar days (today + week
+ * buckets together) — the book a "this week" dealer map should read. Kept
+ * outside GEX_DTE_BUCKETS so the disjoint buckets still sum to the headline.
+ */
+export type GexByDte = Partial<Record<GexBucketKey | 'next7', GexBucketSummary>>;
+
+export function bucketizeLegs(legs: BucketLeg[], spot: number): GexByDte {
   const groups = new Map<GexBucketKey, BucketLeg[]>();
   for (const l of legs) {
     const k = bucketForDte(l.dte);
@@ -111,10 +118,12 @@ export function bucketizeLegs(legs: BucketLeg[], spot: number): Partial<Record<G
     arr.push(l);
     groups.set(k, arr);
   }
-  const out: Partial<Record<GexBucketKey, GexBucketSummary>> = {};
+  const out: GexByDte = {};
   for (const b of GEX_DTE_BUCKETS) {
     const g = groups.get(b.key);
     if (g?.length) out[b.key] = summarizeBucketLegs(g, spot);
   }
+  const near = legs.filter((l) => Number.isFinite(l.dte) && l.dte >= 0 && l.dte < 8);
+  if (near.length) out.next7 = summarizeBucketLegs(near, spot);
   return out;
 }
