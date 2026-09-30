@@ -88,8 +88,8 @@ export const NEXUS_DEFAULTS: DefaultLayout[] = [{
     ['nexus-board', 0, 0, 3, 12],
     ['nexus-detail', 3, 0, 6, 12],
     ['nexus-context', 9, 0, 3, 12],
-    ['nexus-developing', 0, 12, 6, 6],
-    ['nexus-positions', 6, 12, 6, 6],
-    ['nexus-trader-calls', 0, 18, 12, 5],
+    ['nexus-developing', 0, 12, 4, 6],
+    ['nexus-positions', 4, 12, 4, 6],
+    ['nexus-trader-calls', 8, 12, 4, 6],
   ],
 }];

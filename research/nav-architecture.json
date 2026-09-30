@@ -1,8 +1,8 @@
 {
-  "routes": 35,
-  "redirects": 81,
+  "routes": 29,
+  "redirects": 87,
   "tabs": 10,
-  "linkTargets": 57,
+  "linkTargets": 52,
   "N1_dead": {},
   "N2_viaRedirect": {},
   "N3_orphanPageFiles": [],
@@ -31,9 +31,8 @@
     "client/src/components/ui/qe-legend.tsx",
     "client/src/components/ui/qe-num.tsx",
     "client/src/components/win-rate-widget.tsx",
-    "client/src/lib/trade-desk-filters.ts",
-    "client/src/pages/radar.tsx",
-    "client/src/pages/slate.tsx"
+    "client/src/hooks/use-tab-state.ts",
+    "client/src/lib/trade-desk-filters.ts"
   ],
   "N4_unreachableRoutes": [],
   "N5_navModel": {
