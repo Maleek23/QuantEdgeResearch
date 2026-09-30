@@ -214,6 +214,29 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule('0-30/2 10 * * 1-5', pmTrig, ET);
   }
 
+  // ── Sector ignition (server/sector-ignition.ts, shared/sector-ignition.ts):
+  // one model, four horizons, measuring. Intraday every 5 min 09:34–11:29 on
+  // the ≡4 mod 5 minutes (the quant bot shares ≡4 mod 10 — the heavy gate
+  // serialises them); the first-hour daily read rides the intraday pass.
+  // Pre-market daily read 09:05/09:20, end-of-day 16:10; swing 10:36 + 16:45;
+  // weekly Mon 09:12 + Fri 16:50 (watchlist only). SECTOR_IGNITION=false
+  // turns the block off; SECTOR_IGNITION_IDEAS=false keeps the reads, no ideas. ──
+  if (process.env.SECTOR_IGNITION !== 'false') {
+    const ign = (h: 'intraday' | 'daily' | 'swing' | 'weekly', phase?: 'premarket' | 'first_hour' | 'close') => guarded(`sector-ignition:${h}${phase ? `:${phase}` : ''}`, async () => {
+      const { runSectorIgnition } = await import('./sector-ignition');
+      return runSectorIgnition(h, phase ? { phase } : {});
+    });
+    cron.schedule('34-59/5 9 * * 1-5', ign('intraday'), ET);
+    cron.schedule('4-59/5 10 * * 1-5', ign('intraday'), ET);
+    cron.schedule('4-29/5 11 * * 1-5', ign('intraday'), ET);
+    cron.schedule('5,20 9 * * 1-5', ign('daily', 'premarket'), ET);
+    cron.schedule('10 16 * * 1-5', ign('daily', 'close'), ET);
+    cron.schedule('36 10 * * 1-5', ign('swing'), ET);
+    cron.schedule('45 16 * * 1-5', ign('swing'), ET);
+    cron.schedule('12 9 * * 1', ign('weekly'), ET);
+    cron.schedule('50 16 * * 5', ign('weekly'), ET);
+  }
+
   // ── Quant sweep — publish only (no paper execution, no Discord). ──
   cron.schedule('27,57 9-15 * * 1-5', guarded('quant', async () => {
     const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -236,5 +259,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m (IDEA_PRODUCERS_IN_WEB=false disables)');
+  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads (IDEA_PRODUCERS_IN_WEB=false disables)');
 }

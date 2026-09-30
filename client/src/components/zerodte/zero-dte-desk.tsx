@@ -25,6 +25,7 @@ import { Clock3, Crosshair, Gauge, History, Timer, Waves } from 'lucide-react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useToolReport } from '@/components/dashboard/frame';
 import { ZeroDteIdeas, type DeskIdea, type IdeasInfo } from './zero-dte-ideas';
+import { SectorIgnitionPanel } from '@/components/sector-ignition/sector-ignition';
 import './zero-dte-desk.css';
 
 /* ── wire types (server/zero-dte-desk.ts DeskPayload) ── */
@@ -219,6 +220,11 @@ export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
     <div className={`zd ${dense ? 'zd-dense' : ''}`}>
       <ZeroDteIdeas d={d} />
       <SessionClock phase={d.phase} />
+      <section className="zd-section" aria-label="Sector ignition, intraday">
+        <h4><Waves size={13} aria-hidden /> Sector ignition — intraday</h4>
+        <p className="zd-note">Groups igniting since the open (VWAP breadth, ETF vs SPY, ORB breadth, 30-min flow cluster, pre-market gap). Igniting groups feed the ideas list above as WATCH (ETF or best laggard, same contract picker); logged only when the trigger prints. Measuring.</p>
+        <SectorIgnitionPanel horizons={['intraday']} dense />
+      </section>
       {d.rows.length === 0
         ? <QEEmpty title="No tracked names" message="The 0DTE watchlist is empty, so there are no index names to read." />
         : <div className="zd-cards">{d.rows.map((r) => <NameCard key={r.symbol} r={r} />)}</div>}

@@ -567,6 +567,9 @@ export async function getZeroDteDesk(opts: { priority?: boolean } = {}): Promise
     }
     let assembled: { ideas: DeskIdea[]; info: IdeasInfo } = { ideas: [], info: { evaluated: {}, noZeroDte: [], cadence: '', caps: {}, honesty: '' } };
     try { assembled = await assembleIdeas(watch, rows, ideas, nowMs, opts.priority !== false); } catch (e) { logger.warn(`[0DTE-DESK] ideas failed: ${(e as Error).message}`); }
+    // Sector-ignition intraday vehicles join the list as WATCH first (server/sector-ignition.ts).
+    const ign = await ignitionIdeas(nowMs);
+    if (ign.length) assembled = { ...assembled, ideas: sortIdeas([...assembled.ideas, ...ign.filter((x) => !assembled.ideas.some((y) => y.symbol === x.symbol && y.direction === x.direction && y.stage !== 'done'))]) };
     const p: DeskPayload = {
       asOf: new Date(nowMs).toISOString(), watch, phase, rows, ideas: assembled.ideas, ideasInfo: assembled.info,
       record: { ...summarizeDeskRecord(recRows, OUTCOME_BASELINE_DATE), perName },
@@ -582,6 +585,44 @@ export async function getZeroDteDesk(opts: { priority?: boolean } = {}): Promise
     return p;
   })().finally(() => { deskInflight = null; });
   return deskInflight;
+}
+
+/**
+ * The desk's own 0DTE contract picker for a name outside ZERO_DTE_WATCH (used by
+ * server/sector-ignition.ts for intraday ignition vehicles): same chain source,
+ * same ≤ 2-DTE eligibility, same liquidity gates and $ caps as the desk ideas.
+ */
+export async function pickZeroDteContractFor(sym: string, direction: 'long' | 'short', entry: number, stop: number, target: number, target2: number | null): Promise<{ contract: IdeaContract | null; note: string | null; expiry: string | null }> {
+  const chain = await getDeskChain(sym.toUpperCase(), false);
+  if (!chain) return { contract: null, note: 'no option chain', expiry: null };
+  const ex = pickDeskExpiry(chain.expirations, etDateKey(Date.now()));
+  const elig = zeroDteEligibility(ex);
+  if (!elig.ok || !ex.expiry) return { contract: null, note: `no 0–2 DTE expiry (${elig.label})`, expiry: ex.expiry ?? null };
+  const r = await contractFor(sym.toUpperCase(), chain, ex.expiry, { direction, entry, stop, target, target2 }, null);
+  return { contract: r.contract, note: r.note, expiry: ex.expiry };
+}
+
+/** Sector-ignition intraday WATCH/published rows, shaped as desk ideas (they sort with the desk's own). */
+async function ignitionIdeas(nowMs: number): Promise<DeskIdea[]> {
+  try {
+    const { getIgnitionDeskWatch } = await import('./sector-ignition');
+    return getIgnitionDeskWatch(nowMs).filter((w) => w.status !== 'withheld' || nowMs - Date.parse(w.firstSeen) < 30 * 60_000).map((w): DeskIdea => {
+      const c = w.contract as IdeaContract | null;
+      return {
+        key: `ignition|${w.key}`, symbol: w.symbol, stage: w.status === 'published' ? 'triggered' : 'watch', doneReason: null,
+        direction: w.side, side: w.side === 'long' ? 'CALLS' : 'PUTS', kind: null, kindLabel: `Sector ignition · ${w.groupLabel}`, policy: null,
+        trigger: w.trigger, triggerText: w.triggerText, entry: w.entry ?? 0, stop: w.stop ?? 0,
+        target: { name: w.t1Basis ?? 'T1', price: w.t1 ?? 0 }, target2: w.t2 != null ? { name: 'T2', price: w.t2 } : null, rr: w.rr,
+        price: w.price, priceAt: w.priceAt, distPct: w.price && w.trigger ? Math.abs(w.trigger.price - w.price) / w.price * 100 : null,
+        expiryLabel: c ? `${c.expiry}` : 'no 0DTE contract',
+        contract: c ? { occ: c.occ, root: c.root, optionType: c.optionType, strike: c.strike, expiry: c.expiry, dte: null, delta: c.delta, openInterest: c.openInterest, spreadPct: c.spreadPct, qty: c.qty, riskDollars: c.riskDollars, debitDollars: c.debitDollars, premiumStop: c.premiumStop, premiumT1: c.premiumT1, premiumT2: c.premiumT2, basis: c.basis } : null,
+        quote: c ? { bid: c.bid, ask: c.ask, mid: c.mid, at: w.firstSeen, source: 'chain at WATCH time' } : null,
+        loggedPremium: null, contractNote: w.contractNote ?? w.note, vehicle: w.symbol, entryBy: null, exitBy: TIME_STOP_ET,
+        why: `${w.why} · measuring (sector ignition, unvalidated)`, grade: null, gradeWhy: [], at: w.firstSeen,
+        ideaId: w.ideaId, logged: w.status === 'published', loggedNote: w.status === 'published' ? 'logged by sector ignition' : w.note ?? 'WATCH is not logged — nothing is entered until the trigger prints',
+      };
+    });
+  } catch { return []; }
 }
 
 // ─── producers ───────────────────────────────────────────────────────────
