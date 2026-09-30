@@ -120,6 +120,22 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return runLeaderSwingScan();
   }), ET);
 
+  // ── Native crypto ideas — 24/7, weekends included (no weekday field, UTC
+  // clock). Scan + publish at :07/:37; the crypto path tracker every 5 min
+  // resolves crypto_engine ideas from Coinbase bars. CRYPTO_IDEAS=false turns
+  // both off. See server/crypto-ideas-engine.ts. ──
+  if (process.env.CRYPTO_IDEAS !== 'false') {
+    const { CRYPTO_ENGINE_CRON, CRYPTO_TRACKER_CRON } = await import('@shared/crypto-ideas-core');
+    cron.schedule(CRYPTO_ENGINE_CRON, guarded('crypto-ideas', async () => {
+      const { runCryptoIdeasEngine } = await import('./crypto-ideas-engine');
+      return runCryptoIdeasEngine();
+    }), { timezone: 'UTC' });
+    cron.schedule(CRYPTO_TRACKER_CRON, guarded('crypto-tracker', async () => {
+      const { trackCryptoIdeas } = await import('./crypto-ideas-engine');
+      return (await trackCryptoIdeas()).resolved;
+    }), { timezone: 'UTC' });
+  }
+
   // ── Evening reversal slate off completed daily bars ──
   cron.schedule('40 21 * * 1-5', guarded('bottom-reversal', async () => {
     const { runBottomReversalSweep } = await import('./bottom-reversal-scanner');
@@ -185,5 +201,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m, index/leader swing + crypto proxy 2×/day, reversal slate nightly (IDEA_PRODUCERS_IN_WEB=false disables)');
+  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m, index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly (IDEA_PRODUCERS_IN_WEB=false disables)');
 }

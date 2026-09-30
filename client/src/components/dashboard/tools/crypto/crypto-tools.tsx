@@ -15,6 +15,7 @@ import {
   type ChartCoin,
 } from '@/components/crypto/crypto-nexus';
 import { QEError, QELoading } from '@/components/ui/qe-states';
+import { CryptoIdeasList, useCryptoIdeas } from '@/components/crypto/crypto-ideas';
 import { useToolReport, useToolSetting } from '../../frame';
 import './crypto-tools.css';
 
@@ -123,4 +124,17 @@ export function CryptoGuideTool() {
       <CryptoHowTo />
     </div>
   );
+}
+
+/* ════════════ Crypto ideas · 24/7 (native engine) ════════════ */
+export function CryptoIdeasTool() {
+  const q = useCryptoIdeas();
+  const open = q.data?.ideas.filter((i) => i.outcomeStatus === 'open').length ?? 0;
+  useToolReport({
+    asOf: q.isLoading ? undefined : q.data?.lastScan?.at ?? null,
+    source: 'crypto engine · Coinbase spot + Hyperliquid perps · /api/crypto/ideas',
+    note: q.isError ? 'unavailable' : `${open} open · age = last scan${q.data?.record.lowN ? ' · record LOW N' : ''}`,
+    tone: q.isError ? 'warn' : 'ok',
+  });
+  return <div className="cx-tool fd-scroll"><CryptoIdeasList /></div>;
 }

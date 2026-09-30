@@ -126,14 +126,15 @@ class PerformanceValidationService {
       return { validated: 0, winners: 0, losers: 0, expired: 0 };
     }
 
-    // Skip validation on weekends and outside market hours
-    // (unless forceRun is true — used by Monday morning catchup)
-    if (!forceRun && !this.isMarketOpen()) {
+    // Outside market hours (and all weekend) only CRYPTO is validated — coins
+    // trade 24/7, and skipping them left a weekend hole in their outcomes.
+    // Stocks/options/futures still wait for the session (forceRun = Monday catchup).
+    const cryptoOnly = !forceRun && !this.isMarketOpen();
+    if (cryptoOnly) {
       const now = new Date();
       const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
       const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][etTime.getDay()];
-      console.log(`📊 Skipping validation - market closed (${dayName} ${etTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} ET)`);
-      return { validated: 0, winners: 0, losers: 0, expired: 0 };
+      console.log(`📊 Market closed (${dayName} ${etTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} ET) — validating crypto only`);
     }
 
     this.isValidating = true;
@@ -144,7 +145,11 @@ class PerformanceValidationService {
     let expired = 0;
 
     try {
-      const openIdeas = await storage.getOpenTradeIdeas();
+      // crypto_engine rows are resolved by their own 24/7 path tracker
+      // (server/crypto-ideas-engine.ts trackCryptoIdeas) from Coinbase bars.
+      const openIdeas = (await storage.getOpenTradeIdeas())
+        .filter(i => String(i.source) !== 'crypto_engine')
+        .filter(i => !cryptoOnly || i.assetType === 'crypto');
       
       if (openIdeas.length === 0) {
         console.log('📊 No open trade ideas to validate');
@@ -196,7 +201,10 @@ class PerformanceValidationService {
       // feed captures the full session regardless of poll timing.
       try {
         const { fetchCandlesBatch } = await import('./historical-candles');
-        const symbols = Array.from(new Set(openIdeas.map(i => i.symbol.toUpperCase())));
+        // Crypto is excluded: these candles are EQUITY bars, and BTC/LINK/… are
+        // also equity tickers — a $40 ETF low would "stop" a $100k BTC long.
+        const barIdeas = openIdeas.filter(i => i.assetType !== 'crypto');
+        const symbols = Array.from(new Set(barIdeas.map(i => i.symbol.toUpperCase())));
         const candles = await fetchCandlesBatch(symbols, '5d', '1d', 8);
         const today = new Date().toISOString().slice(0, 10);
         let enriched = 0;
@@ -207,7 +215,7 @@ class PerformanceValidationService {
         // price never touched after publication. Same-day ideas use 5m bars from
         // the publish minute; older ideas keep the full daily bar.
         const { fetchCandles } = await import('./historical-candles');
-        for (const idea of openIdeas) {
+        for (const idea of barIdeas) {
           const createdSec = new Date(idea.timestamp).getTime() / 1000;
           if (new Date(idea.timestamp).toISOString().slice(0, 10) === today) {
             // Regular session only, matching the daily bar used on later days.

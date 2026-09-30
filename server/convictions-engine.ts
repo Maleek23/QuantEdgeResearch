@@ -2290,6 +2290,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   const MEASURED_PREFIXES = ['Aggressor tape:', 'Higher-Lows Base', 'V-Recovery', 'Leader swing:', 'Index swing discount:', 'Premium discount:', 'Crypto transmission:'];
   const isMeasured = (idea: any) => {
     if (idea.source === 'tradingview') return true;
+    // Native 24/7 crypto ideas (server/crypto-ideas-engine.ts) are measured
+    // structure plans on their own evidence — coins are never on a stock watchlist.
+    if (idea.source === 'crypto_engine') return true;
     // Current index-scalp rows are measured, contract-backed intraday plans.
     // Requiring SPX/QQQ/IWM to also appear in a personal watchlist caused the
     // bot to publish a valid 0DTE plan that Cockpit could never display.
@@ -2324,7 +2327,15 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
   const ageGated = skipLiveRevalidation
     ? watchlistFiltered
     : watchlistFiltered.filter(
-        (idea: any) => ideaAgeHours(idea) <= maxAgeHoursForIdea(idea),
+        (idea: any) => {
+          // Crypto runs on the calendar clock: a crypto_engine idea lives until its
+          // own exitBy (12h intraday / 48h swing), weekends included.
+          if (idea.source === 'crypto_engine' && idea.exitBy) {
+            const until = Date.parse(String(idea.exitBy));
+            if (Number.isFinite(until)) return Date.now() < until;
+          }
+          return ideaAgeHours(idea) <= maxAgeHoursForIdea(idea);
+        },
       );
   if (!skipLiveRevalidation && watchlistFiltered.length !== ageGated.length) {
     logger.info(

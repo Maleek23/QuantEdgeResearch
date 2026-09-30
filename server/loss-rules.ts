@@ -47,6 +47,11 @@ export async function applyLossRulesToNewIdea<T extends Record<string, any>>(ide
   if (!cfg.targetCap && !cfg.timeStop) return idea;
   const source = String(idea.source ?? '').toLowerCase();
   if (EXEMPT_SOURCES.has(source)) return idea;
+  // Crypto trades 24/7: the crypto engine (server/crypto-ideas-engine.ts) applies
+  // the same cap on the CALENDAR clock (σ from Coinbase daily bars, calendar-day
+  // horizon, wall-clock time stop) and stamps it. The stock path below would read
+  // the equity ticker's candles (BTC is also an ETF symbol) and the RTH clock.
+  if (String(idea.assetType ?? '').toLowerCase() === 'crypto' && (idea as any).convergenceSignalsJson?.lossRules?.version) return idea;
 
   const stamp: LossRulesStamp = { version: LOSS_RULES_VERSION, appliedAt: new Date().toISOString() };
   const out: Record<string, any> = { ...idea };
