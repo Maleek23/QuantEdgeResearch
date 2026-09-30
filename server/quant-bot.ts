@@ -602,7 +602,7 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
 
       // LOSS RULES v1 (shared/loss-rules.ts, flags LOSS_RULE_*): every refusal
       // below is written to the blocked-trade ledger with its reason (Missed · Bot).
-      const { lossRulesConfig, botConfluenceGate, botEntryWindowGate, noteBotSkip, isFlowLed, flowExemptEnabled } = await import('./loss-rules');
+      const { lossRulesConfig, botConfluenceGate, botEntryWindowGate, noteBotSkip } = await import('./loss-rules');
       const { LOSS_RULES_TAG } = await import('@shared/loss-rules');
       const rules = lossRulesConfig();
 
@@ -630,10 +630,10 @@ async function runBotCycleInner(cfg: BotConfig): Promise<BotRunResult> {
         if (candidates.length >= slots) break;
         const idea: any = await loadIdea(p.ideaId);
         if (rules.botEntryWindow) {
-          const w = await botEntryWindowGate({ symbol: p.symbol, direction: p.direction, entryPrice: p.entryPrice, currentPrice: p.currentPrice, source: p.source }, idea);
+          const w = await botEntryWindowGate({ symbol: p.symbol, direction: p.direction, entryPrice: p.entryPrice, currentPrice: p.currentPrice }, idea);
           if (!w.ok) { skipped++; noteBotSkip(p, w.code, w.reason); continue; }
         }
-        if (rules.botConfluence && !(flowExemptEnabled() && isFlowLed(idea?.source ?? p.source))) {
+        if (rules.botConfluence) {
           const c = await botConfluenceGate({ symbol: p.symbol, direction: p.direction, layers: p.layers as any, source: p.source }, idea);
           if (!c.passed) {
             skipped++;
