@@ -27,9 +27,11 @@ import { marketDateET } from '@shared/market-day';
 import { BoundedCache } from './lib/bounded-cache';
 import { runHeavy } from './lib/heavy-job-gate';
 
-const DEFAULT_WATCH = ['SPY', 'QQQ', 'SPX', 'IWM', 'TSLA', 'NVDA', 'AMD', 'MSTR', 'META', 'AAPL', 'MSFT', 'AMZN', 'BE'];
+// Env-tunable: every recorded ticker re-pulls its full option chain every 5 min
+// (SPY ≈ 8k contracts, 11 requests) — the 2 GB box can't carry many (2026-09-30).
+const DEFAULT_WATCH = (process.env.CHART_RECORDER_WATCH ?? 'SPY,QQQ,SPX,IWM').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
 const VIEW_TTL_MS = 2 * 60 * 60_000;
-const MAX_WATCH = 20; // defaults + anything charted in the last 2h (sequential; ~2–3s per chain)
+const MAX_WATCH = Number(process.env.CHART_RECORDER_MAX ?? 8); // defaults + anything charted in the last 2h (sequential; ~2–3s per chain)
 const SAMPLE_EVERY_MS = 5 * 60_000;
 const ON_DEMAND_MIN_GAP_MS = 4 * 60_000;
 const KEEP_DAYS = 10;
