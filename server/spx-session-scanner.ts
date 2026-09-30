@@ -16,6 +16,7 @@ import { readShared, writeSharedSync } from './lib/shared-state';
 import { readsSharedState } from './lib/process-role';
 import { fetchStockPrice } from './market-api';
 import { storage } from './storage';
+import { pickSessionContract } from './lib/session-contract';
 
 // ============================================
 // TYPES
@@ -952,8 +953,18 @@ async function saveSignalAsTradeIdea(signal: SPXSignal): Promise<void> {
     const reward = Math.abs(signal.target1 - signal.entry);
     const riskRewardRatio = risk > 0 ? reward / risk : 2.0;
 
+    // Price the contract at publish (entry premium) so the idea is scorable.
+    let contract: { strike: number; mid: number } | null = null;
+    try {
+      const { fetchCboeChain } = await import('./contract-analyzer/cboe-chain');
+      const chain = await fetchCboeChain(signal.symbol);
+      if (chain) contract = pickSessionContract(chain.rawChain as any, signal.optionType, signal.suggestedStrike, signal.suggestedExpiry);
+    } catch (err) {
+      logger.debug(`[SPX-SESSION] chain lookup failed for ${signal.symbol}: ${(err as any)?.message ?? err}`);
+    }
+
     // Convert SPX signal to trade idea format
-    const tradeIdea = {
+    const optionIdea = {
       symbol: signal.symbol,
       assetType: 'option' as const,
       direction: signal.direction.toLowerCase(),
@@ -973,15 +984,23 @@ async function saveSignalAsTradeIdea(signal: SPXSignal): Promise<void> {
 
       // Option details
       optionType: signal.optionType,
-      strikePrice: signal.suggestedStrike,
+      strikePrice: contract?.strike ?? signal.suggestedStrike,
       expiryDate: signal.suggestedExpiry,
+      entryPremium: contract?.mid ?? null,
 
       // Quality signals
-      qualitySignals: signal.signals,
+      qualitySignals: contract ? [...signal.signals, `premium:${contract.mid.toFixed(2)}`] : signal.signals,
 
       // Meta
       isLottoPlay: signal.urgency === 'HIGH' && signal.confidence >= 65,
     };
+    // No priced contract → publish EXPLICITLY as an underlying-only idea (the
+    // idea says so) rather than an unscorable option. shared/option-premium-guard.ts.
+    const { ensureScorableOptionIdea } = await import('@shared/option-premium-guard');
+    const tradeIdea = ensureScorableOptionIdea(optionIdea).idea;
+    if (!contract) {
+      logger.info(`[SPX-SESSION] ${signal.symbol}: no two-sided quote for ${signal.suggestedStrike}${signal.optionType === 'call' ? 'C' : 'P'} ${signal.suggestedExpiry} — publishing underlying-only`);
+    }
 
     /**
      * One OPEN idea per (symbol, side) — the same rule every other producer follows.

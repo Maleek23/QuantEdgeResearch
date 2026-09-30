@@ -103,7 +103,7 @@ t('barrier hit with no touching bar → labelled "resolved at <cycle> (hit time 
   const p = planExitTiming(idea, { outcomeStatus: 'hit_stop' }, [bar('2026-09-30T14:00:00Z', 99, 101)], CYCLE, { barInterval: '5m' });
   assert.equal(p.source, 'live');
   assert.equal(unresolvedExitLabel(CYCLE), 'resolved at 2026-09-30 11:40 ET (hit time unknown)');
-  assert.match(p.note, /^\[exit-time:live\] resolved at 2026-09-30 11:40 ET \(hit time unknown\) — no 5m bar since entry crossed the stop 95/);
+  assert.match(p.note, /^\[exit-time:live\] resolved at 2026-09-30 11:40 ET \(hit time unknown\) — no 5m bar since publication crossed the stop 95/);
   // deadline / non-barrier fallbacks keep their own wording
   const q = planExitTiming(idea, { outcomeStatus: 'expired' }, [], CYCLE);
   assert.ok(!q.note.includes(HIT_TIME_UNKNOWN));

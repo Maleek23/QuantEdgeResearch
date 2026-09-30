@@ -27,6 +27,7 @@
  * a rule off restores the pre-rules behaviour exactly (the code paths are
  * guarded, not rewritten).
  */
+import { optionExpiryCloseMs } from './option-expiry';
 
 export const LOSS_RULES_VERSION = 'loss-rules-v1.1'; // v1.1 (2026-09-30): flow-led picks exempt from bot confluence, bot entry window to 15:00 ET
 /** Tag written into a bot fill's entry_signals / a report row's provenance. */
@@ -427,9 +428,9 @@ export function horizonTradingDays(args: { holdingPeriod?: string | null; expiry
     : hp.includes('week') || hp.includes('swing') ? 5
     : hp.includes('day') || hp.includes('scalp') || hp.includes('intraday') ? 1
     : 5;
-  const exp = String(args.expiryDate ?? '').slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(exp) && args.publishedMs && Number.isFinite(args.publishedMs)) {
-    const cal = (Date.parse(`${exp}T20:00:00Z`) - args.publishedMs) / 86_400_000;
+  const expClose = optionExpiryCloseMs(args.expiryDate);
+  if (Number.isFinite(expClose) && args.publishedMs && Number.isFinite(args.publishedMs)) {
+    const cal = (expClose - args.publishedMs) / 86_400_000;
     const trading = Math.max(1, Math.floor(cal * 5 / 7));
     days = Math.min(days, trading);
   }

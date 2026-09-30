@@ -3,6 +3,7 @@ import { logger } from "./logger";
 import { fetchStockPrice } from "./market-api";
 import { getRealtimeQuote } from "./realtime-pricing-service";
 import type { PaperPosition } from "@shared/schema";
+import { calendarDaysToExpiry } from "@shared/option-expiry";
 
 export interface ExitAdvisory {
   positionId: string;
@@ -90,10 +91,10 @@ async function getCachedPrice(symbol: string): Promise<number | null> {
 
 function calculateDTE(expiryDate: string | null): number | null {
   if (!expiryDate) return null;
-  const expiry = new Date(expiryDate);
-  const now = new Date();
-  const diffMs = expiry.getTime() - now.getTime();
-  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  // New York calendar days to the expiry date (shared/option-expiry.ts) —
+  // new Date('YYYY-MM-DD') is 8 PM ET the evening before.
+  const dte = calendarDaysToExpiry(expiryDate, Date.now());
+  return dte == null ? null : Math.max(0, dte);
 }
 
 function calculateThetaUrgency(dte: number | null): 'critical' | 'high' | 'moderate' | 'low' {

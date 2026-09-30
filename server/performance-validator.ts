@@ -6,6 +6,7 @@ import { formatExitDate, type ExitTimeSource } from "@shared/exit-hit-time";
 import { CANONICAL_LOSS_THRESHOLD } from "@shared/constants";
 import { isOutcomeEligible, readOracleExecutionAudit } from "@shared/oracle-lifecycle";
 import { isOptionScaleIncoherent, optionScaleReason } from "@shared/option-unit-guard";
+import { optionExpiryCloseMs } from "@shared/option-expiry";
 import { evaluateTimeStop, planTimeStop, readLossRulesConfig, readLossRulesStamp } from "@shared/loss-rules";
 
 /**
@@ -699,7 +700,12 @@ export class PerformanceValidator {
     // Options use expiryDate field instead of exitBy
     if (idea.assetType === 'option' && idea.expiryDate) {
       try {
-        const expiryDate = new Date(idea.expiryDate);
+        // 16:00 ET on the expiry date — NOT new Date('YYYY-MM-DD'), which is
+        // 00:00 UTC = 8 PM ET the evening before and expired every expiry-day
+        // idea on the first pass (SR 11-7 v6 F-3). See shared/option-expiry.ts.
+        // Never before publication: a deadline cannot precede the idea.
+        const expiryCloseMs = optionExpiryCloseMs(idea.expiryDate);
+        const expiryDate = new Date(Number.isFinite(expiryCloseMs) ? Math.max(expiryCloseMs, createdAt.getTime()) : NaN);
         
         if (!isNaN(expiryDate.getTime()) && now > expiryDate) {
           const hoursPastExpiry = (now.getTime() - expiryDate.getTime()) / (1000 * 60 * 60);

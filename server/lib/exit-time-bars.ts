@@ -81,5 +81,9 @@ export function toExitTimingIdea(idea: {
     // Underlying thesis direction — same normalisation as PerformanceValidator.getNormalizedDirection.
     direction: idea.direction === 'short' ? 'short' : 'long',
     entryMs: entryAnchorMs(idea),
+    // Barrier touches are searched from PUBLICATION, not the trigger observer's
+    // pass — a stop already breached when the observer triggered the idea was
+    // breached at its first crossing (SR 11-7 v6 F-2).
+    touchFromMs: Date.parse(idea.timestamp),
   };
 }

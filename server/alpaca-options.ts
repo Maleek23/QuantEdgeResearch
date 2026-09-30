@@ -420,6 +420,43 @@ export async function getAlpacaContractQuote(occ: string): Promise<AlpacaContrac
   return { occ: sym, bid, ask, last, quoteTime: s?.latestQuote?.t ?? null, feed: ALPACA_OPTIONS_FEED, via: 'snapshot' };
 }
 
+export interface AlpacaOptionBar { t: number; o: number; h: number; l: number; c: number; v: number }
+
+/**
+ * Historical bars for ONE contract — `GET /v1beta1/options/bars` (trade prints,
+ * indicative feed). Used by the outcome tracker to price an option exit at the
+ * bar where the underlying touched its stop/target instead of at the tracker
+ * pass. Rides the same budget/queue as every Alpaca call. The data plan rejects
+ * the most recent 15 minutes, so `end` is capped 16 minutes before now.
+ * Returns [] when unconfigured, cooling down or the contract has no prints.
+ */
+export async function getAlpacaOptionBars(
+  occ: string, fromMs: number, toMs: number, timeframe: '1Min' | '5Min' | '15Min' | '1Hour' = '5Min',
+): Promise<AlpacaOptionBar[]> {
+  if (!isAlpacaOptionsConfigured()) return [];
+  const sym = occ.toUpperCase().replace(/^O:/, '');
+  if (!parseOcc(sym)) return [];
+  const end = Math.min(toMs, Date.now() - 16 * 60_000);
+  if (!(end > fromMs)) return [];
+  const out: AlpacaOptionBar[] = [];
+  let token: string | null = null;
+  for (let page = 0; page < 3; page++) {
+    const qs = new URLSearchParams({ symbols: sym, timeframe, start: new Date(fromMs).toISOString(), end: new Date(end).toISOString(), limit: '10000' });
+    if (token) qs.set('page_token', token);
+    const high = isPriority();
+    const { json } = await alpacaGet(`${DATA_BASE}/v1beta1/options/bars?${qs}`, () => high);
+    if (!json) break;
+    for (const b of json?.bars?.[sym] ?? []) {
+      const t = Date.parse(b?.t);
+      const o = num(b?.o), h = num(b?.h), l = num(b?.l), c = num(b?.c);
+      if (Number.isFinite(t) && o != null && h != null && l != null && c != null) out.push({ t, o, h, l, c, v: num(b?.v) ?? 0 });
+    }
+    token = json?.next_page_token ?? null;
+    if (!token) break;
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+
 /** Tradier-compatible rows so optionToInput() consumes Alpaca unchanged. */
 export function alpacaToTradierShape(chain: AlpacaChain, expiration?: string): any[] {
   return chain.contracts

@@ -53,6 +53,7 @@ import { analyzeVolatility } from "./volatility-analysis-service";
 import { getCatalystsForSymbol, getUpcomingCatalysts, calculateCatalystScore } from "./catalyst-intelligence-service";
 import { checkCorrelationCaps } from "./correlation-position-caps";
 import { selfLearning, LEARNED_THRESHOLDS } from "./self-learning-service";
+import { calendarDaysToExpiry } from "@shared/option-expiry";
 
 // User preferences interface with defaults
 interface BotPreferences {
@@ -4351,9 +4352,8 @@ export async function monitorLottoPositions(): Promise<void> {
       // Calculate days to expiry for options
       let daysToExpiry = 7; // Default for non-options
       if (pos.expiryDate) {
-        const expDate = new Date(pos.expiryDate);
-        const now = new Date();
-        daysToExpiry = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        // New York calendar days (0 on expiry day) — shared/option-expiry.ts.
+        daysToExpiry = calendarDaysToExpiry(pos.expiryDate, Date.now()) ?? daysToExpiry;
       }
       
       // Compute highest price inline using max of current and entry

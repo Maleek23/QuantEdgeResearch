@@ -216,6 +216,8 @@ export function snapshotToIdeaInput(
     stopLoss: levels.stop,
     signals,
     holdingPeriod: workflow === 'today' ? 'day' : workflow === 'leaps' ? 'position' : 'swing',
+    // The workflow picks the expiry tier; the attached contract's DTE labels the hold.
+    holdingFromContractDte: true,
     catalyst,
     analysis: `Auto-generated from GEX Hub (${workflow.toUpperCase()} workflow) at ${new Date().toISOString()}. ` +
       `Spot $${snap.spotPrice.toFixed(2)} | Flip $${snap.gammaFlipPrice?.toFixed(0) ?? '—'} | ` +
@@ -259,6 +261,19 @@ export async function createIdeaFromGEX(
   }
 
   const input = snapshotToIdeaInput(snap, opts);
+  // This path calls createAndSaveUniversalIdea directly and never passed the
+  // ingestion gate's 1.25× ATR swing/position floor (SR 11-7 v6 F-8) — apply
+  // the same shared helper here.
+  const { applyAtrStopFloor } = await import('./lib/atr-stop-floor');
+  const floored = await applyAtrStopFloor({
+    symbol: sym, entry: input.currentPrice, stop: input.stopLoss, target: input.targetPrice,
+    direction: input.direction, holdingPeriod: input.holdingPeriod, assetType: input.assetType,
+  });
+  if (floored.widened && typeof floored.stopLoss === 'number') {
+    logger.info(`[GEX→DESK] ${sym}: ${floored.note}`);
+    input.stopLoss = floored.stopLoss;
+    input.analysis = `${input.analysis ?? ''} ${floored.note}`.trim();
+  }
   const success = await createAndSaveUniversalIdea(input);
 
   const bias = (input.direction === 'bullish' ? 'long' : input.direction === 'bearish' ? 'short' : 'neutral') as

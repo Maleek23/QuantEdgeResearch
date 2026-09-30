@@ -10,8 +10,12 @@
  * The rules here (pure, no I/O — the server wrapper fetches the bars):
  *
  *   - hit_target / hit_stop: exitDate = the start of the FIRST bar at or after
- *     entry whose high/low crossed the decided level. The exit price stays the
- *     level. Source 'bar_hit'.
+ *     PUBLICATION whose high/low crossed the decided level — not after the
+ *     trigger observer's pass (2026-09-30: six ideas triggered at 11:35 ET whose
+ *     stops were already breached that morning or days before all read 11:40,
+ *     SR 11-7 v6 F-2). The exit price is the level, except when the bar OPENED
+ *     beyond it (a gap through): then the fill is the bar's open. Source
+ *     'bar_hit'.
  *   - expiry / time-stop: exitDate = the deadline (never later than now). The
  *     exit price is the close of the last bar before the deadline when one
  *     exists; otherwise the resolution-time quote is kept and the note says so.
@@ -75,6 +79,23 @@ function window(bars: TimedBar[], fromSec: number, toSec?: number): TimedBar[] {
     .sort((a, b) => a.time - b.time);
 }
 
+/**
+ * The price a resting stop/target order at `level` fills at in the bar that
+ * crossed it: the level itself, or the bar's OPEN when the bar opened beyond
+ * the level (gapped through — an adverse fill for a stop, a better one for a
+ * target). A bar without an open fills at the level.
+ */
+export function barrierFill(
+  direction: Dir, kind: 'target' | 'stop', level: number, bar: TimedBar,
+): { price: number; gap: boolean } {
+  const o = bar.open;
+  if (o == null || !Number.isFinite(o)) return { price: level, gap: false };
+  const beyond = kind === 'stop'
+    ? (direction === 'long' ? o < level : o > level)
+    : (direction === 'long' ? o > level : o < level);
+  return beyond ? { price: o, gap: true } : { price: level, gap: false };
+}
+
 /** First bar at/after fromSec whose range crossed ONE level. */
 export function firstLevelTouch(
   bars: TimedBar[],
@@ -121,6 +142,12 @@ export interface ExitTimingIdea {
   direction: Dir;
   /** Entry anchor: publish time or later trigger time, epoch ms. */
   entryMs: number;
+  /**
+   * Where the search for a barrier TOUCH starts (epoch ms): publication. A
+   * level already crossed before the trigger observer noticed the setup was
+   * crossed then, not at the observer's pass. Defaults to entryMs.
+   */
+  touchFromMs?: number;
 }
 
 export interface ExitTimingInput {
@@ -142,6 +169,10 @@ export interface ExitTimingPlan {
   note: string;
   /** Set when the plan fell back to live (for the repair script's 'unchanged' list). */
   unresolved?: string;
+  /** Barrier exits: how the underlying exit price was filled. */
+  fill?: 'level' | 'gap_open';
+  /** Barrier exits: the underlying fill price (the level, or the gap bar's open). */
+  fillPrice?: number;
 }
 
 const iso = (sec: number) => new Date(sec * 1000).toISOString().slice(0, 16) + 'Z';
@@ -176,17 +207,26 @@ export function planExitTiming(
   if (res.outcomeStatus === 'hit_target' || res.outcomeStatus === 'hit_stop') {
     const kind = res.outcomeStatus === 'hit_target' ? 'target' : 'stop';
     const level = kind === 'target' ? idea.targetPrice : idea.stopLoss;
+    const touchFromSec = Math.floor((idea.touchFromMs ?? idea.entryMs) / 1000);
     if (!bars.length) return live('no bars since entry');
-    const bar = firstLevelTouch(bars, { direction: idea.direction, kind, level, fromSec, toSec: nowSec });
-    if (!bar) return live(`no ${iv}bar since entry crossed the ${kind} ${level}`);
+    const bar = firstLevelTouch(bars, { direction: idea.direction, kind, level, fromSec: touchFromSec, toSec: nowSec });
+    if (!bar) return live(`no ${iv}bar since publication crossed the ${kind} ${level}`);
     const exitMs = bar.time * 1000;
-    const first = firstBarrierTouch(bars, { direction: idea.direction, target: idea.targetPrice, stop: idea.stopLoss, fromSec, toSec: nowSec });
+    const first = firstBarrierTouch(bars, { direction: idea.direction, target: idea.targetPrice, stop: idea.stopLoss, fromSec: touchFromSec, toSec: nowSec });
     const disagree = first && first.outcome !== res.outcomeStatus
       ? ` · NOTE path touched the ${first.outcome === 'hit_stop' ? 'stop' : 'target'} first at ${iso(first.bar.time)}${first.sameBar ? ' (same bar as target)' : ''}`
       : '';
+    const preTrigger = exitMs < idea.entryMs
+      ? ` · NOTE crossed before the trigger was observed (${iso(idea.entryMs / 1000)})`
+      : '';
+    const fill = barrierFill(idea.direction, kind, level, bar);
+    const gapNote = fill.gap ? ` · bar opened through the level: filled at the open ${fill.price}` : '';
     return {
       source: 'bar_hit', exitMs, exitDate: formatExitDate(exitMs), holdingMinutes: hold(exitMs),
-      note: exitTimeNote('bar_hit', `first ${iv}bar crossing ${kind} ${level} at ${iso(bar.time)}${disagree}`),
+      fill: fill.gap ? 'gap_open' : 'level', fillPrice: fill.price,
+      // Only a gap fill changes the exit price; otherwise the caller keeps the level.
+      ...(fill.gap ? { exitPrice: fill.price, percentGain: pctMove(idea.direction, idea.entryPrice, fill.price) } : {}),
+      note: exitTimeNote('bar_hit', `first ${iv}bar crossing ${kind} ${level} at ${iso(bar.time)}${gapNote}${preTrigger}${disagree}`),
     };
   }
 

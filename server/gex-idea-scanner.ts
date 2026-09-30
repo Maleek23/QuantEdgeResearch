@@ -22,7 +22,7 @@
  *      towards whichever side the flip is closer to.
  *
  * Each candidate is written to `trade_ideas` with `source: 'gex_scanner'`,
- * `dataSourceUsed: 'GEX_<setup>'`, and `holdingPeriod: 'day' | 'swing'` so it
+ * `dataSourceUsed: 'GEX_<setup>'`, and a holdingPeriod from the contract's DTE so it
  * flows through the existing best-setups + convictions pipelines.
  *
  * Cadence: every 15 minutes during market hours via worker.
@@ -34,6 +34,7 @@ import { getGexSnapshotBatch, type GexSnapshot } from "./gex-snapshot-service";
 import { APPROVED_TICKERS, getSector } from "@shared/approved-tickers";
 import { enrichOptionIdea } from "./options-enricher";
 import type { AITradeIdea } from "./ai-service";
+import { optionPublishPlan as gexPublishPlan } from "./lib/option-publish-plan";
 
 export type GexSetup = "flip_cross" | "wall_fade" | "squeeze_break";
 
@@ -272,7 +273,10 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
   if (!finalized) return false;
   let c = finalized;
   const sector = getSector(c.symbol);
-  const holdingPeriod = c.setup === "flip_cross" ? ("day" as const) : ("swing" as const);
+  // The SETUP's horizon picks the contract; the CONTRACT's DTE labels the hold.
+  // 2026-09-30: flip_cross stamped 16-DTE IWM puts 'day', so the Loss Rules
+  // time stop closed them at 12:45 ET (SR 11-7 v6 F-7). See gexPublishPlan().
+  const setupHoldingPeriod = c.setup === "flip_cross" ? ("day" as const) : ("swing" as const);
 
   // Structural level snap (server/levels/level-map.ts, env LEVEL_SNAP, default
   // ON, new ideas only). This scanner writes straight to storage, so it gets
@@ -282,7 +286,7 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
   try {
     const { snapPlanForPublish } = await import("./levels/level-map");
     const snap = await snapPlanForPublish({
-      symbol: c.symbol, direction: c.direction, entry: c.entry, stop: c.stop, targets: [c.target], horizon: holdingPeriod,
+      symbol: c.symbol, direction: c.direction, entry: c.entry, stop: c.stop, targets: [c.target], horizon: setupHoldingPeriod,
     });
     if (snap) {
       snapText = snap.result.text;
@@ -312,8 +316,12 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
 
   let tradeIdea: Record<string, any>;
   try {
-    const enriched = await enrichOptionIdea(aiShape, { holdingPeriod });
+    const enriched = await enrichOptionIdea(aiShape, { holdingPeriod: setupHoldingPeriod });
     if (enriched) {
+      const plan = await gexPublishPlan({
+        symbol: c.symbol, direction: c.direction, entry: c.entry, stop: c.stop, target: c.target,
+        expiryDate: enriched.expiryDate, fallbackHolding: setupHoldingPeriod,
+      });
       tradeIdea = {
         symbol: c.symbol,
         sector: sector ?? null,
@@ -326,21 +334,21 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
         // the measured GEX share levels for entry/target/stop.
         entryPrice: c.entry,
         targetPrice: c.target,
-        stopLoss: c.stop,
-        riskRewardRatio: c.riskRewardRatio,
+        stopLoss: plan.stopLoss,
+        riskRewardRatio: plan.riskRewardRatio,
         entryPremium: enriched.entryPrice,
         optionType: enriched.optionType,
         strikePrice: enriched.strikePrice,
         expiryDate: enriched.expiryDate,
         catalyst: `GEX ${c.setup.replace("_", " ")} — ${enriched.optionType.toUpperCase()} $${enriched.strikePrice} exp ${enriched.expiryDate}`,
-        analysis: withSnap(enriched.analysis),
+        analysis: withSnap(plan.note ? `${enriched.analysis} ${plan.note}` : enriched.analysis),
         source: "gex_scanner",
         dataSourceUsed: `GEX_${c.setup}`,
         sessionContext: "regular",
         timestamp: new Date().toISOString(),
         outcomeStatus: "open" as const,
         confidenceScore: c.confidence,
-        holdingPeriod,
+        holdingPeriod: plan.holdingPeriod,
         qualitySignals: [
           `gamma_regime:${c.regime}`,
           `flip:${c.flipPoint?.toFixed(2)}`,
@@ -358,7 +366,12 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
       throw new Error("enrichment returned null");
     }
   } catch {
-    // Fallback: persist as stock-level idea when options chain unavailable
+    // Fallback: persist as stock-level idea when options chain unavailable.
+    // No contract → the setup's horizon stands; the ATR floor still applies.
+    const plan = await gexPublishPlan({
+      symbol: c.symbol, direction: c.direction, entry: c.entry, stop: c.stop, target: c.target,
+      expiryDate: null, fallbackHolding: setupHoldingPeriod,
+    });
     tradeIdea = {
       symbol: c.symbol,
       sector: sector ?? null,
@@ -366,17 +379,17 @@ async function persistCandidate(candidate: GexIdeaCandidate): Promise<boolean> {
       direction: c.direction,
       entryPrice: c.entry,
       targetPrice: c.target,
-      stopLoss: c.stop,
-      riskRewardRatio: c.riskRewardRatio,
+      stopLoss: plan.stopLoss,
+      riskRewardRatio: plan.riskRewardRatio,
       catalyst: `GEX ${c.setup.replace("_", " ")} setup`,
-      analysis: withSnap(c.thesis),
+      analysis: withSnap(plan.note ? `${c.thesis} ${plan.note}` : c.thesis),
       source: "gex_scanner",
       dataSourceUsed: `GEX_${c.setup}`,
       sessionContext: "regular",
       timestamp: new Date().toISOString(),
       outcomeStatus: "open" as const,
       confidenceScore: c.confidence,
-      holdingPeriod,
+      holdingPeriod: plan.holdingPeriod,
       qualitySignals: [
         `gamma_regime:${c.regime}`,
         `flip:${c.flipPoint?.toFixed(2)}`,
