@@ -18,7 +18,7 @@ import { fitTabs } from '../client/src/components/journal/journal-nav';
 import { journalDayKey, matchesJournalFilters, parseJournalFilters, journalFiltersToParams, journalRowOutcome } from '../shared/journal-filters';
 import { buildJournalTradeUpdate, deriveJournalTradeFields, journalTradeInputSchema } from '../server/journal-trade-input';
 import {
-  calendarMonth, computeMetrics, crossBuckets, dailyStats, dayStreaks, drawdownPeriods, equityCurve, groupBy, missingDim, noteLine,
+  calendarMonth, fridayWithWeekend, computeMetrics, crossBuckets, dailyStats, dayStreaks, drawdownPeriods, equityCurve, groupBy, missingDim, noteLine,
   peakConcurrent, periodStart, reportBuckets, rollingStats, ruleOfReason, runRecords, toTrade,
 } from '../client/src/lib/journal/metrics';
 import { FILTERED_PAGES, JOURNAL_GROUPS, JOURNAL_PAGES, LEGACY_JTAB, TRADE_PAGES, resolveJournalPage, resolveJournalTab } from '../client/src/lib/journal/legacy-jtab';
@@ -95,6 +95,22 @@ const cal = calendarMonth(dailyStats(trades), 2026, 9);
 assert.equal(cal.monthNetPnl, -50);
 assert.equal(cal.weeks[0].days[0], null, 'Sep 2026 starts on a Tuesday — Monday cell blank');
 assert.equal(cal.weeks[0].days[1]?.date, '2026-09-01');
+// Mon–Fri calendar (2026-09-29): five columns; a weekend close rolls into Friday; totals unchanged.
+{
+  const D = (date: string, netPnl: number) => ({ date, netPnl, fees: 0, trades: 1, wins: netPnl > 0 ? 1 : 0, losses: netPnl < 0 ? 1 : 0, breakevens: 0 });
+  const wk = calendarMonth([D('2026-09-04', 100), D('2026-09-05', 40), D('2026-09-06', -10)], 2026, 9);
+  assert.ok(wk.weeks.every((w) => w.days.length === 5), 'Mon–Fri columns only');
+  assert.deepEqual(wk.weeks[0].weekend.map((d) => d.date), ['2026-09-05', '2026-09-06']);
+  assert.equal(fridayWithWeekend(wk.weeks[0]).cell?.netPnl, 130, 'Fri 100 + Sat 40 + Sun −10');
+  assert.equal(fridayWithWeekend(wk.weeks[0]).cell?.trades, 3);
+  assert.equal(wk.weeks[0].weekNetPnl, 130, 'week total still counts the weekend');
+  assert.equal(wk.monthNetPnl, 130);
+  // Nov 2026 starts on a Sunday: the first row is weekend-only when Nov 1 traded, dropped when it did not.
+  assert.equal(calendarMonth([], 2026, 11).weeks[0].days[0]?.date, '2026-11-02', 'untraded weekend-only row dropped');
+  const nov = calendarMonth([D('2026-11-01', 25)], 2026, 11);
+  assert.equal(nov.weeks[0].days.every((d) => d === null), true);
+  assert.equal(fridayWithWeekend(nov.weeks[0]).cell?.date, '2026-11-01', 'weekend-only cell dated on its day');
+}
 const orb = groupBy(trades, 'setup').find((b) => b.key === 'ORB')!;
 assert.deepEqual([orb.closed, orb.netPnl, orb.winRate], [2, 50, 0.5]);
 assert.equal(drawdownPeriods(equityCurve(trades))[0].depth, 300);

@@ -9,6 +9,10 @@
  * hovering or focusing a day previews its running P&L and trades, and an
  * insights card reads the filtered days — green-day %, average green/red day,
  * best / worst weekday (with n days each) and day streaks.
+ *
+ * 2026-09-29: Mon–Fri only. Weekend (crypto) closes roll into the Friday cell
+ * — month grid, week view, the day drill-down and its preview all read
+ * Friday + the following Saturday/Sunday of the same month as one cell.
  */
 import { useMemo, useState } from 'react';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -16,7 +20,7 @@ import { journalDayKey } from '@shared/journal-filters';
 import { CalendarPnl } from '@/components/journal/calendar-pnl';
 import { useJournal } from '@/components/journal/journal-context';
 import { Card, N, Pnl, fmtDayLabel } from '@/components/journal/parts';
-import { fmtMoney, fmtPct, weekKey, type DayStats, type JTrade } from '@/lib/journal/metrics';
+import { fmtMoney, fmtPct, mergeDays, weekKey, type DayStats, type JTrade } from '@/lib/journal/metrics';
 import { calendarInsights, dayEquity } from '@/lib/journal/metrics-extra';
 import { Sparkline } from '@/components/journal/lux-charts';
 import { fmtStamp, noteKindLabel } from '@/lib/journal/use-journal';
@@ -28,6 +32,18 @@ const addDays = (day: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 const EMPTY_DAY = (date: string): DayStats => ({ date, netPnl: 0, fees: 0, trades: 0, wins: 0, losses: 0, breakevens: 0 });
+const dow = (day: string) => new Date(`${day}T12:00:00Z`).getUTCDay();
+/**
+ * The dates one calendar cell stands for: a Friday carries the Saturday and
+ * Sunday after it (same month only — the next month's grid shows its own);
+ * a weekend-only cell (its Friday is in the previous month) carries the rest
+ * of that weekend. Any other day is itself.
+ */
+function cellDates(day: string): string[] {
+  const w = dow(day);
+  const ext = w === 5 ? [1, 2] : w === 6 ? [1] : [];
+  return [day, ...ext.map((n) => addDays(day, n)).filter((d) => d.slice(0, 7) === day.slice(0, 7))];
+}
 
 export default function CalendarView() {
   const { data, openTrade, goTo, filters, openDay, prefs } = useJournal();
@@ -57,14 +73,23 @@ export default function CalendarView() {
     return { m: i + 1, net: ds.reduce((s, d) => s + d.netPnl, 0), trades: ds.reduce((s, d) => s + d.trades, 0), days: ds.length };
   }), [days, ym.y]);
 
-  const week = useMemo(() => Array.from({ length: 7 }, (_, i) => byDate.get(addDays(weekOf, i)) ?? EMPTY_DAY(addDays(weekOf, i))), [byDate, weekOf]);
-  const weekNet = week.reduce((s, d) => s + d.netPnl, 0);
-  const weekTrades = week.reduce((s, d) => s + d.trades, 0);
+  const statsOf = (d: string): DayStats => byDate.get(d) ?? EMPTY_DAY(d);
+  /** Mon–Fri of the week; Friday also carries Sat + Sun (weekKey is Monday-first). */
+  const weekAll = useMemo(() => Array.from({ length: 7 }, (_, i) => statsOf(addDays(weekOf, i))), [byDate, weekOf]); // eslint-disable-line react-hooks/exhaustive-deps
+  const week = useMemo(() => [...weekAll.slice(0, 4), mergeDays(weekAll[4].date, weekAll.slice(4))], [weekAll]);
+  const weekendTrades = weekAll[5].trades + weekAll[6].trades;
+  const weekNet = weekAll.reduce((s, d) => s + d.netPnl, 0);
+  const weekTrades = weekAll.reduce((s, d) => s + d.trades, 0);
+  /** One cell's trades / stats: the day plus, for a Friday, its weekend. */
+  const cellTrades = (d: string) => cellDates(d).flatMap((x) => closedOn.get(x) ?? []);
+  const cellStats = (d: string) => { const ds = cellDates(d).map(statsOf); return ds.length > 1 ? mergeDays(d, ds) : ds[0]; };
 
   const selectDay = (d: string | null) => { setDay(d); if (d) setWeekOf(weekKey(d)); };
-  const dayTrades = day ? (closedOn.get(day) ?? []).slice().sort((a, b) => Date.parse(a.closedAt!) - Date.parse(b.closedAt!)) : [];
-  const dayStats = day ? byDate.get(day) ?? null : null;
-  const dayNotes = day ? (notesQ.data?.notes ?? []).filter((n) => n.day === day && n.reason !== 'playbook' && n.reason !== 'trade_review') : [];
+  const daySpan = day ? cellDates(day) : [];
+  const dayTrades = day ? cellTrades(day).slice().sort((a, b) => Date.parse(a.closedAt!) - Date.parse(b.closedAt!)) : [];
+  const dayStats = day ? cellStats(day) : null;
+  const dayHasWeekend = daySpan.slice(1).some((d) => (byDate.get(d)?.trades ?? 0) > 0);
+  const dayNotes = day ? (notesQ.data?.notes ?? []).filter((n) => daySpan.includes(n.day) && n.reason !== 'playbook' && n.reason !== 'trade_review') : [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -82,21 +107,21 @@ export default function CalendarView() {
           {mode === 'month' ? (
             <div className="jr-cal-lg">
               <CalendarPnl days={days} year={ym.y} month={ym.m} onMonth={(y, m) => { setYm({ y, m }); selectDay(null); }} selected={day} onSelect={selectDay} showWeeks
-                renderPreview={(d) => <DayPreview day={d} trades={closedOn.get(d.date) ?? []} notes={(notesQ.data?.notes ?? []).filter((n) => n.day === d.date && n.reason !== 'playbook' && n.reason !== 'trade_review').length} />} />
+                renderPreview={(d) => <DayPreview day={d} trades={cellTrades(d.date)} notes={(notesQ.data?.notes ?? []).filter((n) => cellDates(d.date).includes(n.day) && n.reason !== 'playbook' && n.reason !== 'trade_review').length} />} />
             </div>
           ) : (
             <div>
               <div className="jr-cal-nav" style={{ marginBottom: 10 }}>
                 <button type="button" className="jr-icon-btn" onClick={() => setWeekOf(addDays(weekOf, -7))} aria-label="Previous week"><ChevronLeft className="h-4 w-4" /></button>
-                <div className="jr-cal-month" aria-live="polite">{fmtDayLabel(weekOf, { month: 'short', day: 'numeric' })} – {fmtDayLabel(addDays(weekOf, 6), { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                <div className="jr-cal-month" aria-live="polite">{fmtDayLabel(weekOf, { month: 'short', day: 'numeric' })} – {fmtDayLabel(addDays(weekOf, 4), { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                 <button type="button" className="jr-icon-btn" onClick={() => setWeekOf(addDays(weekOf, 7))} aria-label="Next week"><ChevronRight className="h-4 w-4" /></button>
               </div>
               <div className="jr-week">
-                {week.map((d) => (
+                {week.map((d, i) => (
                   <button key={d.date} type="button" className="jr-week-day" aria-pressed={day === d.date} disabled={d.trades === 0}
                     onClick={() => selectDay(day === d.date ? null : d.date)}
-                    aria-label={`${fmtDayLabel(d.date)}: ${d.trades ? `${fmtMoney(d.netPnl)}, ${d.trades} closed` : 'no closed trades'}`}>
-                    <span className="wd">{fmtDayLabel(d.date, { weekday: 'short', day: 'numeric' })}</span>
+                    aria-label={`${fmtDayLabel(d.date)}${i === 4 && weekendTrades ? ' incl. weekend' : ''}: ${d.trades ? `${fmtMoney(d.netPnl)}, ${d.trades} closed` : 'no closed trades'}`}>
+                    <span className="wd">{fmtDayLabel(d.date, { weekday: 'short', day: 'numeric' })}{i === 4 && weekendTrades > 0 && <span className="jr-cal-wk"> +wknd</span>}</span>
                     {d.trades ? (
                       <>
                         <Pnl value={d.netPnl} compact />
@@ -107,7 +132,7 @@ export default function CalendarView() {
                 ))}
               </div>
               <div className="jr-cal-foot">
-                <span>{week.filter((d) => d.trades).length} trading days · {weekTrades} closed trades</span>
+                <span>{weekAll.filter((d) => d.trades).length} trading days · {weekTrades} closed trades</span>
                 <span>Week: <Pnl value={weekNet} /></span>
               </div>
             </div>
@@ -115,7 +140,7 @@ export default function CalendarView() {
         </Card>
 
         <Card className="jr-span-4" num="02" title={day ? fmtDayLabel(day) : 'Day'} id="jr-cal-day"
-          meta={day ? <N n={dayTrades.length} unit="closed" /> : undefined}>
+          meta={day ? <N n={dayTrades.length} unit={dayHasWeekend ? 'closed incl. weekend' : 'closed'} /> : undefined}>
           {!day ? (
             <p className="jr-note" style={{ marginTop: 0 }}>Select a traded day to see its trades and notes.</p>
           ) : (
@@ -141,7 +166,7 @@ export default function CalendarView() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => openDay(day)}>Daily journal <ArrowRight className="h-3.5 w-3.5" /></button>
                 <button type="button" className="jr-btn jr-btn-sm"
-                  onClick={() => { filters.setRange('custom'); filters.setFilter('from', day); filters.setFilter('to', day); goTo('trades'); }}>
+                  onClick={() => { filters.setRange('custom'); filters.setFilter('from', day); filters.setFilter('to', dayHasWeekend ? daySpan[daySpan.length - 1] : day); goTo('trades'); }}>
                   Open in Trades <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -217,7 +242,7 @@ function CalendarInsightsCard({ days }: { days: DayStats[] }) {
         <div className="jr-span-6">
           <div className="jr-kpi-l" style={{ marginBottom: 6 }}>Average day by weekday <span className="jr-n">closing day, ET</span></div>
           <div className="jr-bars">
-            {ci.weekdays.map((w) => (
+            {[...ci.weekdays, ...(ci.weekend ? [{ ...ci.weekend, weekday: 'Wknd' }] : [])].map((w) => (
               <div className="jr-bar-row" key={w.weekday}>
                 <span className="jr-bar-k">{w.weekday}</span>
                 <span className="jr-bar-track" aria-hidden><span className={`jr-bar-fill ${(w.avg ?? 0) >= 0 ? 'pos' : 'neg'}`} style={{ width: `${(Math.abs(w.avg ?? 0) / maxAbs) * 50}%` }} /></span>
@@ -225,7 +250,7 @@ function CalendarInsightsCard({ days }: { days: DayStats[] }) {
               </div>
             ))}
           </div>
-          <p className="jr-note">A weekday with few days is an anecdote — read its n before its average.</p>
+          <p className="jr-note">A weekday with few days is an anecdote — read its n before its average.{ci.weekend ? ' Wknd = Saturday/Sunday closes (crypto); best/worst weekday read Mon–Fri only.' : ''}</p>
         </div>
       </div>
     </Card>

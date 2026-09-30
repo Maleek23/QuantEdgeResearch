@@ -6,8 +6,10 @@
  * it are classified here with the same function), counts are computed from the
  * picks handed in, and the choice is remembered per surface in localStorage
  * (a convenience only — the page renders the same without it).
+ * A surface with no remembered choice opens on the viewer's default horizon
+ * (Settings › Trading defaults, `qe-default-horizon`, this device).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   classifyIdeaHorizon, HORIZON_META, HORIZON_ORDER,
   type HorizonInput, type HorizonRead, type IdeaHorizon,
@@ -15,6 +17,16 @@ import {
 import { cn } from '@/lib/utils';
 
 export type HorizonFilterValue = IdeaHorizon | 'all';
+
+/** Settings › Trading defaults: the horizon a board opens on before you pick one there. */
+export const DEFAULT_HORIZON_KEY = 'qe-default-horizon';
+const isHorizonValue = (v: string | null): v is HorizonFilterValue => !!v && (v === 'all' || (HORIZON_ORDER as string[]).includes(v));
+export function readDefaultHorizon(): HorizonFilterValue {
+  try { const v = window.localStorage.getItem(DEFAULT_HORIZON_KEY); return isHorizonValue(v) ? v : 'all'; } catch { return 'all'; }
+}
+export function writeDefaultHorizon(v: HorizonFilterValue) {
+  try { window.localStorage.setItem(DEFAULT_HORIZON_KEY, v); } catch { /* storage blocked */ }
+}
 
 type Horizoned = HorizonInput & { horizon?: HorizonRead };
 
@@ -31,17 +43,20 @@ export function countHorizons(picks: Horizoned[]): Record<IdeaHorizon, number> {
 
 /** Filter state + filtered list, remembered under `storageKey` when given. */
 export function useHorizonFilter<T extends Horizoned>(picks: T[], storageKey?: string) {
-  const [value, setValue] = useState<HorizonFilterValue>(() => {
-    if (!storageKey) return 'all';
+  // Only an explicit pick is remembered (under `<key>.pick`; the old key was
+  // written on every mount, so it could not tell "chose All" from "never chose").
+  const pickKey = storageKey ? `${storageKey}.pick` : null;
+  const [value, setValueState] = useState<HorizonFilterValue>(() => {
+    if (!pickKey) return readDefaultHorizon();
     try {
-      const v = window.localStorage.getItem(storageKey);
-      return v && (v === 'all' || (HORIZON_ORDER as string[]).includes(v)) ? (v as HorizonFilterValue) : 'all';
+      const v = window.localStorage.getItem(pickKey);
+      return isHorizonValue(v) ? v : readDefaultHorizon();
     } catch { return 'all'; }
   });
-  useEffect(() => {
-    if (!storageKey) return;
-    try { window.localStorage.setItem(storageKey, value); } catch { /* storage blocked — filter still works */ }
-  }, [storageKey, value]);
+  const setValue = useCallback((v: HorizonFilterValue) => {
+    setValueState(v);
+    if (pickKey) { try { window.localStorage.setItem(pickKey, v); } catch { /* storage blocked — filter still works */ } }
+  }, [pickKey]);
   const counts = useMemo(() => countHorizons(picks), [picks]);
   const filtered = useMemo(() => {
     if (value === 'all') return picks;

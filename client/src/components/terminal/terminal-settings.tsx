@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { apiRequest } from '@/lib/queryClient';
 import { EASE, DUR } from '@/lib/motion';
 import { TC } from '@/lib/design-tokens';
-import { ModePicker } from '@/components/shell/mode-menu';
+import { Link } from 'wouter';
 import { ToolSkeleton } from '@/components/ui/qe-loading';
 
 export interface UserPrefs {
@@ -154,8 +154,8 @@ export function TerminalSettings({ open, onClose }: { open: boolean; onClose: ()
                 {/* ── how it reads ── */}
                 <Section title="Display">
                   <Field label="Mode">
-                    {/* Per device (lib/visual-mode.ts) — applies instantly, not part of Save. */}
-                    <ModePicker />
+                    {/* One home for the display mode: Settings › Display (operator, 2026-09-29). */}
+                    <Link href="/settings#display" onClick={onClose} className="text-label font-mono uppercase tracking-wider text-[var(--lx-accent-text,#7fb2ff)] hover:underline">Settings › Display</Link>
                   </Field>
                   <Field label="Density">
                     <Seg options={DENSITIES} value={draft.layoutDensity ?? 'comfortable'} onChange={(v) => set('layoutDensity', v as any)} />

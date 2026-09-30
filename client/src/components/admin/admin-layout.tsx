@@ -1,24 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-  SidebarFooter,
-} from "@/components/ui/sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   InputOTP,
   InputOTPGroup,
@@ -26,22 +11,10 @@ import {
 } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import {
-  Shield,
-  LayoutDashboard,
-  Users,
-  Mail,
-  UserPlus,
-  Activity,
-  Database,
-  Lock,
-  Eye,
-  FileBarChart,
-  CreditCard,
-  ChevronLeft,
-  Zap,
-  BookOpen,
-} from "lucide-react";
+import { Shield, Lock, ChevronLeft, LogOut } from "lucide-react";
+import { LuxPage, LuxPageHeader } from "@/components/lux";
+import { CURRENT_RELEASE } from "@shared/release";
+import "@/styles/admin-hub.css";
 import { cn } from "@/lib/utils";
 
 type AuthStep = "pin" | "password" | "authenticated";
@@ -49,6 +22,26 @@ type AuthStep = "pin" | "password" | "authenticated";
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
+
+/**
+ * The admin hub (2026-09-29 consolidation — docs/ADMIN_HUB.md).
+ * Four sections, down from twelve pages:
+ *   Overview · Users & access (users · invites · waitlist) · System health · Content (blog)
+ * Retired pages redirect (client/src/lib/legacy-redirects.ts). Drawn in the
+ * platform's page template (LuxPage), not a separate sidebar app. The access
+ * gate (access code → password → HTTP-only admin cookie) is unchanged.
+ */
+export const ADMIN_SECTIONS = [
+  { title: "Overview", href: "/admin", match: ["/admin"] },
+  { title: "Users & access", href: "/admin/users", match: ["/admin/users", "/admin/invites", "/admin/waitlist"] },
+  { title: "System health", href: "/admin/system", match: ["/admin/system"] },
+  { title: "Content", href: "/admin/blog", match: ["/admin/blog"] },
+] as const;
+const ACCESS_TABS = [
+  { title: "Users", href: "/admin/users" },
+  { title: "Invites", href: "/admin/invites" },
+  { title: "Waitlist", href: "/admin/waitlist" },
+] as const;
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [location] = useLocation();
@@ -128,10 +121,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   // Loading state
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-card flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <Shield className="h-12 w-12 text-sky-500" />
-          <p className="text-muted-foreground">Verifying access...</p>
+      <div className="ah-root ah-center">
+        <div className="flex flex-col items-center gap-3">
+          <Shield className="h-8 w-8" style={{ color: 'var(--lx-accent-text)' }} aria-hidden />
+          <p className="ah-mute">Checking admin access…</p>
         </div>
       </div>
     );
@@ -140,13 +133,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   // Authentication gate
   if (authStep !== 'authenticated') {
     return (
-      <div className="min-h-screen bg-card flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-card border-border">
+      <div className="ah-root ah-center p-4">
+        <Card className="ah-gate w-full max-w-md">
           <CardHeader className="text-center space-y-2">
-            <div className="mx-auto p-3 bg-sky-500/10 rounded-full w-fit border border-sky-500/20">
-              <Shield className="h-8 w-8 text-sky-500" />
-            </div>
-            <CardTitle className="text-2xl text-white">Admin Access</CardTitle>
+            <div className="ah-gate-icon mx-auto"><Shield className="h-6 w-6" aria-hidden /></div>
+            <CardTitle className="text-xl">Admin hub</CardTitle>
             <CardDescription className="text-muted-foreground">
               {authStep === 'pin' 
                 ? 'Enter your 4-digit access code' 
@@ -168,14 +159,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       <InputOTPSlot 
                         key={index} 
                         index={index} 
-                        className="h-14 w-14 text-2xl bg-muted border-border text-white" 
+                        className="h-14 w-14 text-2xl" 
                       />
                     ))}
                   </InputOTPGroup>
                 </InputOTP>
                 <Button 
                   onClick={handlePinSubmit} 
-                  className="w-full bg-sky-600 hover:bg-sky-700"
+                  className="ah-primary w-full"
                   disabled={pinCode.length !== 4}
                   data-testid="button-verify-pin"
                 >
@@ -190,12 +181,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-                  className="h-12 bg-muted border-border text-white placeholder:text-muted-foreground"
+                  className="h-12"
                   data-testid="input-admin-password"
                 />
                 <Button 
                   onClick={handlePasswordSubmit}
-                  className="w-full bg-sky-600 hover:bg-sky-700"
+                  className="ah-primary w-full"
                   disabled={!password}
                   data-testid="button-login"
                 >
@@ -210,140 +201,42 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  // Navigation items
-  const navItems = [
-    { title: "Overview", href: "/admin", icon: LayoutDashboard },
-    { title: "Users", href: "/admin/users", icon: Users },
-    { title: "Trade Ideas", href: "/admin/trade-ideas", icon: Zap },
-    { title: "Invites", href: "/admin/invites", icon: Mail },
-    { title: "Waitlist", href: "/admin/waitlist", icon: UserPlus },
-    { title: "System", href: "/admin/system", icon: Activity },
-  ];
-
-  const advancedItems = [
-    { title: "Blog", href: "/admin/blog", icon: BookOpen },
-    { title: "Reports", href: "/admin/reports", icon: FileBarChart },
-    { title: "Win/Loss", href: "/admin/win-loss", icon: Zap },
-    { title: "Credits", href: "/admin/credits", icon: CreditCard },
-    { title: "Security", href: "/admin/security", icon: Eye },
-  ];
-
-  const style = {
-    "--sidebar-width": "16rem",
-    "--sidebar-width-icon": "3.5rem",
+  const section = ADMIN_SECTIONS.find((s) => (s.match as readonly string[]).includes(location)) ?? ADMIN_SECTIONS[0];
+  const signOut = async () => {
+    try { await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' }); } catch { /* cookie expires anyway */ }
+    window.location.href = '/';
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex h-screen w-full bg-card">
-        <Sidebar className="border-r border-border">
-          <SidebarHeader className="border-b border-border p-4">
-            <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-white transition-colors">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="text-sm">Back to App</span>
-            </Link>
-            <div className="flex items-center gap-3 mt-4">
-              <div className="p-2 bg-sky-500/10 rounded-lg border border-sky-500/20">
-                <Shield className="h-5 w-5 text-sky-500" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-white">Admin Panel</h2>
-                <p className="text-xs text-muted-foreground">Quant Edge Labs</p>
-              </div>
-            </div>
-          </SidebarHeader>
-          
-          <SidebarContent className="px-2">
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider px-2">
-                Management
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {navItems.map((item) => {
-                    const isActive = location === item.href;
-                    return (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild>
-                          <Link 
-                            href={item.href}
-                            className={cn(
-                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                              isActive 
-                                ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" 
-                                : "text-muted-foreground hover:text-white hover:bg-muted"
-                            )}
-                            data-testid={`nav-${item.title.toLowerCase()}`}
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider px-2">
-                Advanced
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {advancedItems.map((item) => {
-                    const isActive = location === item.href;
-                    return (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild>
-                          <Link 
-                            href={item.href}
-                            className={cn(
-                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                              isActive 
-                                ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" 
-                                : "text-muted-foreground hover:text-white hover:bg-muted"
-                            )}
-                            data-testid={`nav-${item.title.toLowerCase().replace('/', '-')}`}
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span>{item.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-
-          <SidebarFooter className="border-t border-border p-4">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-[var(--trade-bullish)]/10 text-[var(--trade-bullish)] border-green-500/20">
-                Authenticated
-              </Badge>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-
-        <main className="flex-1 overflow-auto">
-          <div className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border">
-            <div className="flex items-center gap-4 px-6 py-4">
-              <SidebarTrigger className="text-muted-foreground hover:text-white" data-testid="button-sidebar-toggle" />
-              <h1 className="text-lg font-semibold text-white">
-                {navItems.find(item => item.href === location)?.title || 
-                 advancedItems.find(item => item.href === location)?.title || 
-                 'Admin'}
-              </h1>
-            </div>
-          </div>
-          <div className="p-6">
-            {children}
-          </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    <div className="ah-root">
+      <LuxPage width="default" className="ah-page">
+        <div className="ah-top">
+          <Link href="/t" className="ah-back"><ChevronLeft aria-hidden size={14} /> Back to app</Link>
+          <button type="button" className="ah-back" onClick={signOut}><LogOut aria-hidden size={13} /> Leave admin</button>
+        </div>
+        <LuxPageHeader section="Admin" context={`v${CURRENT_RELEASE.version} · ${CURRENT_RELEASE.series}`} title={section.title}
+          purpose={
+            section.title === 'Overview' ? 'Who is using the platform and whether it is healthy, at a glance.'
+            : section.title === 'Users & access' ? 'Accounts, tiers and the beta gate: invites and the waitlist.'
+            : section.title === 'System health' ? 'Data providers, process, database and API traffic — observed, not assumed.'
+            : 'Blog posts on the public site.'
+          }>
+          <nav className="ah-nav" aria-label="Admin sections">
+            {ADMIN_SECTIONS.map((s) => (
+              <Link key={s.href} href={s.href} className={cn('ah-tab', s === section && 'on')} aria-current={s === section ? 'page' : undefined}
+                data-testid={`nav-${s.title.toLowerCase().replace(/[^a-z]+/g, '-')}`}>{s.title}</Link>
+            ))}
+          </nav>
+          {section.title === 'Users & access' && (
+            <nav className="ah-subnav" aria-label="Users and access">
+              {ACCESS_TABS.map((t) => (
+                <Link key={t.href} href={t.href} className={cn('ah-sub', location === t.href && 'on')} aria-current={location === t.href ? 'page' : undefined}>{t.title}</Link>
+              ))}
+            </nav>
+          )}
+        </LuxPageHeader>
+        <main className="ah-main">{children}</main>
+      </LuxPage>
+    </div>
   );
 }

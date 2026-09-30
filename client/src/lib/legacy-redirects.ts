@@ -129,6 +129,14 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/my-account", "/settings"],
   ["/trading-guide", "/blog/how-to-trade-like-a-pro"],
   ["/learn-more", "/"],
+
+  // ── Admin hub (2026-09-29: 12 pages → 4 sections, docs/ADMIN_HUB.md) ─────
+  ["/admin/beta-invites", "/admin/invites"],   // duplicate of Invites + Waitlist
+  ["/admin/security", "/admin/system"],        // audit log + security stats folded into System health
+  ["/admin/trade-ideas", "/admin"],            // its stats endpoint never existed; ideas live on NEXUS
+  ["/admin/reports", "/admin"],                // platform-report generator, superseded by the SR 11-7 record
+  ["/admin/win-loss", "/t?tab=journal&jtab=record"], // the model record lives in JOURNAL › Track record
+  ["/admin/credits", "/admin/users"],          // AI-credit ledger; tiers are managed on Users
 ];
 
 interface CompiledEntry {
