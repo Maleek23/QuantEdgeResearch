@@ -177,7 +177,12 @@ export function NexusBoardTool() {
   const [rank, setRank] = useToolSetting<Rank>('rank', 'all');
   const [query, setQuery] = useToolSetting('query', '');
   const [view, setView] = useToolSetting<'list' | 'grid' | 'table'>('view', 'list');
-  const rows = useMemo(() => rankRows(all, { scope: 'setups', side, query, rank }), [all, side, query, rank]);
+  // CRYPTO chip: only native/any crypto ideas (assetType 'crypto') — 24/7 book.
+  const [cryptoOnly, setCryptoOnly] = useToolSetting<boolean>('cryptoOnly', false);
+  const rows = useMemo(() => {
+    const ranked = rankRows(all, { scope: 'setups', side, query, rank });
+    return cryptoOnly ? ranked.filter((p) => String(p.assetType).toLowerCase() === 'crypto') : ranked;
+  }, [all, side, query, rank, cryptoOnly]);
   useApplyUrlSelection(all, !!convictions.data);
   useBookReport(convictions, `${rows.length} shown`);
   const blocked = bookGate(convictions, 'live book');
@@ -191,15 +196,18 @@ export function NexusBoardTool() {
   return (
     <div className="fd-fill nxd nxd-board">
       <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or sector" rank={rank} onRank={setRank} count={rows.length}>
+        <div className="of-seg" role="group" aria-label="Asset">
+          <button type="button" className={cryptoOnly ? 'on' : ''} aria-pressed={cryptoOnly} onClick={() => setCryptoOnly(!cryptoOnly)} title="Crypto ideas only (24/7 crypto engine and any other crypto rows)">CRYPTO</button>
+        </div>
         <div className="of-seg" role="group" aria-label="View">
           {(['list', 'grid', 'table'] as const).map((v) => <button key={v} type="button" className={view === v ? 'on' : ''} onClick={() => setView(v)}>{v.toUpperCase()}</button>)}
         </div>
       </FilterBar>
       <DetailHint />
       {blocked ?? (rows.length === 0
-        ? <QEEmpty className="fd-m" message={all.some((p) => !p.isBotHeld) ? 'No setups match this view.' : 'The engine published no setups in this read.'}
+        ? <QEEmpty className="fd-m" message={cryptoOnly ? 'No open crypto idea on the board right now — the crypto engine scans every 30 minutes, 24/7.' : all.some((p) => !p.isBotHeld) ? 'No setups match this view.' : 'The engine published no setups in this read.'}
             action={all.some((p) => !p.isBotHeld)
-              ? <button type="button" className="fd-btn" onClick={() => { setSide('all'); setRank('all'); setQuery(''); }}>Show every setup</button>
+              ? <button type="button" className="fd-btn" onClick={() => { setSide('all'); setRank('all'); setQuery(''); setCryptoOnly(false); }}>Show every setup</button>
               : <Link href="/t?nx=0dte" className="fd-btn">Open the 0DTE desk</Link>} />
         : view === 'grid'
           ? <div className="fd-scroll fd-pad"><SignalGrid picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>

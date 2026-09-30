@@ -34618,6 +34618,19 @@ Use this checklist before entering any trade:
     }
   });
 
+  // Native 24/7 crypto ideas (server/crypto-ideas-engine.ts): open + recent
+  // ideas, the engine's record since first publish (n, LOW N), and the last
+  // scan's per-coin reads with source + age. Read-only.
+  app.get('/api/crypto/ideas', async (_req: any, res) => {
+    try {
+      const { getCryptoIdeasDesk } = await import('./crypto-ideas-engine');
+      res.json(await getCryptoIdeasDesk());
+    } catch (error: any) {
+      logger.error('[CRYPTO-ENGINE] desk read failed:', error);
+      res.status(500).json({ error: 'Crypto ideas read failed', detail: error.message });
+    }
+  });
+
   // Read-only decision trace for crypto-to-equity transmission. This endpoint
   // never publishes a trade; it explains which proxy gates passed and which
   // failed so the Crypto tab and Nexus can distinguish an idea from a watch.

@@ -11,6 +11,13 @@ const PULSE = 'crypto pulse';
 
 export const CRYPTO_TOOLS: ToolDef[] = [
   {
+    id: 'crypto-ideas', category: 'Crypto', title: 'Crypto ideas · 24/7',
+    what: 'Native crypto trade ideas (BTC, ETH, SOL, HYPE, QNT, XRP, DOGE, LINK, AVAX, SUI), long and short: trend pullback, range breakout / reclaim with volume, funding + OI squeeze / fade, BTC-regime filter for alts. Entry zone, stop, T1 (≤ 1σ of the horizon) / T2, time stop, why + evidence, crypto structure grade (CS-A/B, its own scale); BTC/ETH ideas list the equity proxies to WATCH (not confirmed until their own tape confirms); the engine\'s record since first publish with n (LOW N < 20).',
+    units: 'price $, R multiple, funding % APR, OI %', source: 'crypto engine (Coinbase spot candles + Hyperliquid perps), scans every 30 min 24/7',
+    backing: 'CryptoIdeasList (components/crypto/crypto-ideas.tsx) ← GET /api/crypto/ideas (server/crypto-ideas-engine.ts)',
+    defaultSize: { w: 12, h: 9 }, minSize: { w: 4, h: 5 }, Component: lazyTool(crypto, 'CryptoIdeasTool'),
+  },
+  {
     id: 'crypto-spot', category: 'Crypto', title: 'Spot read · BTC / ETH',
     what: 'BTC and ETH spot with 60 daily closes, 24h / 7d / 30d change, 14-day RSI (extended ≥70 or ≤30) and 30-day realized volatility.',
     units: 'price $, % change, RSI 0–100, annualized vol %', source: PULSE,
@@ -75,7 +82,7 @@ export const CRYPTO_TOOLS: ToolDef[] = [
 ];
 
 /**
- * CRYPTO default — one screen (12 × 18):
+ * CRYPTO default — the native ideas list (12×9) on top, then (12 × 18):
  *   ┌────────── coin chart 8×11 ──────────┬ spot read 4×11 ┐
  *   ├──── promotion gate 6×7 ─────┬ fear & greed 3×7 ┬ correlation 3×7 ┤
  * Proxy board, summary and the method: Add tool.
@@ -83,10 +90,11 @@ export const CRYPTO_TOOLS: ToolDef[] = [
 export const CRYPTO_DEFAULTS: DefaultLayout[] = [{
   id: 'default', name: 'Crypto',
   tools: [
-    ['crypto-chart', 0, 0, 8, 11],
-    ['crypto-spot', 8, 0, 4, 11],
-    ['crypto-proxy-gate', 0, 11, 6, 7],
-    ['crypto-sentiment', 6, 11, 3, 7],
-    ['crypto-correlation', 9, 11, 3, 7],
+    ['crypto-ideas', 0, 0, 12, 9],
+    ['crypto-chart', 0, 9, 8, 11],
+    ['crypto-spot', 8, 9, 4, 11],
+    ['crypto-proxy-gate', 0, 20, 6, 7],
+    ['crypto-sentiment', 6, 20, 3, 7],
+    ['crypto-correlation', 9, 20, 3, 7],
   ],
 }];
