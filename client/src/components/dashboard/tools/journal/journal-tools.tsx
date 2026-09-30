@@ -32,6 +32,7 @@ import {
 import { edgeScore, relativeDrawdown, timeGrid, EDGE_MIN_CLOSED } from '@/lib/journal/metrics-extra';
 import { readJournalPrefs, useJournalData } from '@/lib/journal/use-journal';
 import { balanceAnchor, useJournalBalance } from '@/lib/journal/use-journal-extra';
+import { useJournalMarks } from '@/lib/journal/use-journal-marks';
 import { useToolReport, useToolSetting } from '../../frame';
 import '@/styles/journal.css';
 
@@ -274,6 +275,8 @@ export const JournalActivityTool = scoped(function Activity() {
   const [tab, setTab] = useToolSetting<'recent' | 'open'>('tab', 'recent');
   const sorted = useMemo(() => [...data.trades].sort((a, b) => Date.parse(b.closedAt ?? b.openedAt) - Date.parse(a.closedAt ?? a.openedAt)), [data.trades]);
   const list: JTrade[] = tab === 'recent' ? sorted.filter((t) => t.status !== 'open').slice(0, 12) : sorted.filter((t) => t.status === 'open');
+  // Live marks only while the OPEN tab is showing (30 s poll, paused when hidden).
+  const marks = useJournalMarks(data.key, tab === 'open' ? data.metrics.openTrades : 0);
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -283,7 +286,7 @@ export const JournalActivityTool = scoped(function Activity() {
         </div>
         <button type="button" className="jr-btn jr-btn-sm" style={{ marginLeft: 'auto' }} onClick={() => goTo('trades')}>All {data.trades.length} <ArrowRight className="h-3.5 w-3.5" /></button>
       </div>
-      {list.length ? <TradeMiniList trades={list} onOpen={(id) => openTrade(id, list.map((t) => t.id))} /> : <p className="jr-note">{tab === 'open' ? 'Flat — no open positions in view.' : 'No closed trades in view.'}</p>}
+      {list.length ? <TradeMiniList trades={list} marks={marks} onOpen={(id) => openTrade(id, list.map((t) => t.id))} /> : <p className="jr-note">{tab === 'open' ? 'Flat — no open positions in view.' : 'No closed trades in view.'}</p>}
     </>
   );
 });
