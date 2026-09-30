@@ -42,6 +42,8 @@ export interface BoardPrefs {
   card: Record<CardPart, boolean>;
   phoneCount: number; // 0 = all
   order: { left: string[]; right: string[] };
+  /** Opt-in page sections / charts the viewer switched on (key: `page:thing`). Default off. */
+  sections: Record<string, boolean>;
 }
 
 export const DEFAULT_PREFS: BoardPrefs = {
@@ -49,16 +51,17 @@ export const DEFAULT_PREFS: BoardPrefs = {
   textSize: 'm',
   density: 'comfortable',
   columns: 'auto',
-  card: { thesis: true, chart: true, status: true, actions: true, progress: true, evidence: true, note: true, levels: true, foot: true },
+  card: { thesis: true, chart: false, /* mini charts opt-in (2026-09-29) */ status: true, actions: true, progress: true, evidence: true, note: true, levels: true, foot: true },
   phoneCount: 6,
   order: { left: LEFT_PANELS.map((p) => p.id), right: RIGHT_PANELS.map((p) => p.id) },
+  sections: {},
 };
 
 const KEY = 'qe-board-prefs-v1';
 function read(): BoardPrefs {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || '{}');
-    return { ...DEFAULT_PREFS, ...raw, card: { ...DEFAULT_PREFS.card, ...(raw.card || {}) }, order: { ...DEFAULT_PREFS.order, ...(raw.order || {}) } };
+    return { ...DEFAULT_PREFS, ...raw, card: { ...DEFAULT_PREFS.card, ...(raw.card || {}) }, order: { ...DEFAULT_PREFS.order, ...(raw.order || {}) }, sections: { ...(raw.sections || {}) } };
   } catch { return DEFAULT_PREFS; }
 }
 let state: BoardPrefs = typeof window === 'undefined' ? DEFAULT_PREFS : read();

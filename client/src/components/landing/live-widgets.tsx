@@ -163,8 +163,9 @@ export function RotQuad({ sectors, height = 260 }: { sectors: Sector[]; height?:
 
 export const CHECK = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>;
 
-export function SigCard({ p }: { p: Pick }) {
-  const { data } = useDaily(p.symbol, '1mo', '1d');
+/** `chart` false = no mini price chart (and no series request) — plain pages make charts opt-in. */
+export function SigCard({ p, chart = true }: { p: Pick; chart?: boolean }) {
+  const { data } = useDaily(p.symbol, '1mo', '1d', chart);
   const bars = data?.data ?? [];
   const band = (p.publishedConvictionBand ?? p.convictionBand ?? 'C').charAt(0);
   const dir = (p.direction ?? 'long').toLowerCase();
@@ -183,7 +184,7 @@ export function SigCard({ p }: { p: Pick }) {
         <span className={`dir ${dir === 'short' ? 'bear' : 'bull'}`}>{dir === 'short' ? '▼ BEAR' : '▲ BULL'}</span>
         <span className="kind">· {p.tradeType ?? 'swing'}{p.thesis ? ` · ${p.thesis.split('.')[0].slice(0, 34)}` : ''}</span>
       </div>
-      <div className="lsig-chart"><Spark bars={bars} color={dir === 'short' ? '#ff6b3d' : '#6ee7b7'} height={56} /></div>
+      {chart && <div className="lsig-chart"><Spark bars={bars} color={dir === 'short' ? '#ff6b3d' : '#6ee7b7'} height={56} /></div>}
       <div className="lsig-levels">
         <div className="lsig-level"><div className="l">Entry</div><div className="v">{fmt(p.entryPrice)}</div></div>
         <div className="lsig-level"><div className="l">Stop</div><div className="v stop">{fmt(p.stopLoss)}</div></div>

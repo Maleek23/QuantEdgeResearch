@@ -343,3 +343,5 @@
 /* tape */
 .flowdash .today-l.td-tape{display:flex;align-items:center;padding:0;overflow:hidden}
 .flowdash .today-l.td-tape .ltape{flex:1;min-width:0}
+.flowdash .today-l .td-charts-toggle{min-height:28px;padding:0 10px;border:1px solid var(--line-hi);border-radius:6px;background:transparent;color:var(--accent-hi);font:600 11px var(--mono);letter-spacing:.04em;text-transform:none;cursor:pointer}
+.flowdash .today-l .td-charts-toggle[aria-pressed="true"]{color:var(--text-dim)}

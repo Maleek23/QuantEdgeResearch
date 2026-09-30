@@ -84,3 +84,8 @@
 /* Light mode: the detail tab panel was a 62% near-black wash on a white ground
    (mid-grey behind dark text, 1.0–3.3:1 — device-audit.ts). */
 html[data-mode=light] .nxp-tab-panel{background:rgba(15,23,42,.03)}
+/* light-mode AA (device-audit.ts): the workup button's pale ink on its pale fill,
+   the board's meta line and the green risk pill */
+html[data-mode=light] .nxp-cockpit{color:#0b3d2e}
+html[data-mode=light] .flowdash .nxd .nxp-row small,html[data-mode=light] .nxp-row-main small,html[data-mode=light] .nxp-row-status small{color:#4b5563}
+html[data-mode=light] .nxp-risk-state.low{color:#035c43}
