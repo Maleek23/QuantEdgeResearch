@@ -17,6 +17,7 @@
     "test:journal": "tsx scripts/test-journal.ts",
     "test:sr-controls": "tsx scripts/test-sr-controls.ts",
     "test:loss-rules": "tsx scripts/test-loss-rules.ts",
+    "test:levels": "tsx scripts/test-levels.ts",
     "test:exit-dates": "tsx scripts/test-exit-dates.ts",
     "test:run-up": "tsx scripts/test-run-up.ts",
     "test:premarket-ideas": "tsx scripts/test-premarket-ideas.ts",

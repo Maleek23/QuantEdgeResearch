@@ -458,6 +458,17 @@ export async function calculateAggregateGammaExposure(
   return p;
 }
 
+/**
+ * Read-only: the last aggregate GEX result already computed for `symbol`, with
+ * its computation time, or null. NEVER starts a chain fetch — the level map
+ * (server/levels/level-map.ts) merges walls only when someone else already paid
+ * for the chain (memory on the 2 GB droplet).
+ */
+export function peekAggregateGammaExposure(symbol: string): { at: number; v: GammaExposureResult } | null {
+  const hit = _aggCache.get(symbol.toUpperCase());
+  return hit && hit.v ? { at: hit.at, v: hit.v } : null;
+}
+
 async function _calculateAggregateGammaExposure(
   symbol: string,
 ): Promise<GammaExposureResult | null> {

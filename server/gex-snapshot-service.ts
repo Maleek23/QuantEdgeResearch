@@ -58,6 +58,12 @@ const REQUEST_TIMEOUT_MS = 12_000;
 /** A failed fetch is retried after 30 s, not after the full TTL. */
 const NULL_TTL_MS = 30_000;
 
+/** Read-only: the cached snapshot for `symbol` with its fetch time, or null. Never fetches. */
+export function peekGexSnapshot(symbol: string): { at: number; snap: GexSnapshot } | null {
+  const c = cache.peek(symbol.toUpperCase());
+  return c && c.snap ? { at: c.cachedAt, snap: c.snap } : null;
+}
+
 function isFresh(entry: CacheEntry | undefined): boolean {
   if (!entry) return false;
   return Date.now() - entry.cachedAt < (entry.snap ? CACHE_TTL_MS : NULL_TTL_MS);

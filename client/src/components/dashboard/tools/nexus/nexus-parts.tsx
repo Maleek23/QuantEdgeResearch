@@ -278,6 +278,61 @@ function RunUpLine({ ideaId }: { ideaId: string }) {
   );
 }
 
+/* ── structural level map (server/levels/level-map.ts) — measuring, not validated ── */
+interface LevelClusterWire { price: number; low: number; high: number; score: number; kinds: string[]; label: string; members: Array<{ price: number; kind: string; label: string; source: string; asOf: string }> }
+interface LevelMapWire { symbol: string; asOf: string; last: number | null; tolerance?: number; clusters: LevelClusterWire[]; notes: string[]; snapEnabled: boolean }
+function LevelsList({ symbol, live, entry, stop, target }: { symbol: string; live: number; entry: number; stop: number; target: number }) {
+  const q = useQuery<LevelMapWire>({
+    queryKey: ['/api/levels', symbol],
+    queryFn: () => get<LevelMapWire>(`/api/levels/${encodeURIComponent(symbol)}`),
+    staleTime: 55_000, refetchInterval: 60_000, refetchIntervalInBackground: false, retry: false,
+  });
+  const m = q.data;
+  if (!m) return <p className="nxp-times" style={{ margin: '8px 2px 0' }}><span>Levels <strong>—</strong>{q.isLoading ? ' reading…' : ' unavailable'}</span></p>;
+  const tol = m.tolerance ?? 0;
+  const uses = (c: LevelClusterWire): string | null => {
+    const hit = (p: number) => p >= c.low - tol && p <= c.high + tol;
+    return hit(target) ? 'T1' : hit(stop) ? 'STOP' : hit(entry) ? 'ENTRY' : null;
+  };
+  const lo = Math.min(stop, target, entry);
+  const hi = Math.max(stop, target, entry);
+  const pad = (hi - lo) * 0.25;
+  // Confluent clusters (≥2 independent kinds) around the plan, plus any level the plan sits on.
+  const rows = m.clusters
+    .filter((c) => (c.score >= 2 && c.price >= lo - pad && c.price <= hi + pad) || uses(c))
+    .sort((a, b) => b.price - a.price)
+    .slice(0, 12);
+  const at = new Date(m.asOf).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+  return (
+    <div className="nxp-levels-map" style={{ margin: '10px 2px 0', fontSize: 12 }}>
+      <div className="nxp-section-title"><span>Levels</span><small>≥2 independent kinds · as of {at} ET · measuring</small></div>
+      {rows.length === 0
+        ? <p style={{ color: 'var(--nx-muted, #8a93a6)', margin: '4px 0' }}>No confluent level between the stop and T1 — the plan's numbers are formula levels, not structure.</p>
+        : <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tbody>
+            {rows.map((c) => {
+              const used = uses(c);
+              const dist = live > 0 ? ((c.price - live) / live) * 100 : null;
+              const tip = c.members.map((l) => `${l.label} $${l.price.toFixed(2)} — ${l.source}`).join(' | ');
+              return (
+                <tr key={`${c.price}-${c.label}`} title={tip}
+                  style={{ borderTop: '1px solid var(--nx-line, rgba(138,147,166,0.18))', fontWeight: used ? 600 : 400, background: used ? 'var(--nx-highlight, rgba(59,140,255,0.08))' : undefined }}>
+                  <td style={{ padding: '3px 6px', whiteSpace: 'nowrap' }}>{money(c.price)}</td>
+                  <td style={{ padding: '3px 6px' }}>{c.label}{c.score >= 2 ? <span style={{ opacity: 0.7 }}> · {c.score} kinds</span> : null}</td>
+                  <td style={{ padding: '3px 6px', textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--nx-muted, #8a93a6)' }}>{dist == null ? '—' : `${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%`}</td>
+                  <td style={{ padding: '3px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>{used ?? ''}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>}
+      <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--nx-muted, #8a93a6)' }}>
+        Yahoo 5-min + daily bars; volume profile is bar-approximated; GEX / dark-pool only when already cached. Hover a row for each level's source.
+      </p>
+    </div>
+  );
+}
+
 /* ── selected setup detail: head, chart, levels, tabs ── */
 export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, chartHeight = 238 }: {
   selected: ConvictionPick;
@@ -333,6 +388,8 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       </div>
 
       {!pendingEntry && selected.lifecycleState !== 'closed' && <RunUpLine ideaId={selected.ideaId} />}
+
+      <LevelsList symbol={selected.symbol} live={live} entry={selected.entryPrice} stop={selected.stopLoss} target={selected.targetPrice} />
 
       <div className="nxp-detail-tabs">
         {DETAIL_TABS.map((t) => <button key={t} className={tab === t ? 'active' : ''} onClick={() => onTab(t)}>{t}</button>)}
