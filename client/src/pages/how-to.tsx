@@ -19,7 +19,7 @@ export default function HowToPage() {
         section="Guide"
         context="static · read once"
         title="How to use QuantEdge"
-        purpose="One terminal, three windows of time, one workflow. Read this once."
+        purpose="QuantEdge is a trading research terminal for stocks, options and crypto — dealer positioning, options flow, evidence-ranked setups, a 0DTE desk, charts, a paper-trading bot and your journal. This is where each one lives. Read it once."
       >
         {/* The full illustrated guide (docs/QuantEdge-How-To-Use.pdf, served from client/public/guide). */}
         <a href={GUIDE_PDF} download className="lx-tag" data-tone="accent" data-testid="link-guide-pdf"
@@ -62,10 +62,13 @@ export default function HowToPage() {
           <PageCard icon={Home}       url="/t"      title="Terminal"        desc="NEXUS home — market briefing, rotation, signals, and every tab" />
           <PageCard icon={Target}     url="/today"  title="Today"           desc="Weekly dealer map, the best idea and the ranked book" />
           <PageCard icon={Bitcoin}    url="/t?tab=crypto" title="BTC Radar" desc="Live BTC + 14 crypto-equity beta tracker, fires on level breaks" />
-          <PageCard icon={Zap}        url="/t?tab=gex" title="GEX & Flow"   desc="Dealer gamma walls + options flow — your entry/exit lens" />
+          <PageCard icon={Zap}        url="/t?tab=gex" title="GEX"          desc="Dealer positioning — walls, zero-γ, VEX, squeeze radar" />
+          <PageCard icon={Zap}        url="/t?tab=flow" title="Flow"        desc="Options flow — sweeps, blocks, market tide, dark-pool levels" />
+          <PageCard icon={Target}     url="/t?nx=0dte" title="0DTE desk"    desc="Same-day index context — levels, dealer map, flow" />
+          <PageCard icon={Target}     url="/t?tab=bot" title="Quantinum Bot" desc="The paper-trading bot — every simulated fill on a public ledger" />
           <PageCard icon={Microscope} url="/r/SPY"  title="Research"        desc="Per-ticker dossier — chart, options, GEX surface, contract lab" />
           <PageCard icon={Wallet}     url="/t?tab=positions" title="Positions" desc="Your open book — alerts, stops, exits" />
-          <PageCard icon={BookOpen}   url="/t?tab=journal" title="Journal"  desc="Dashboard · trades · analytics · track record" />
+          <PageCard icon={BookOpen}   url="/t?tab=journal" title="Journal"  desc="Broker import · insights · loss analysis · track record · trader journals" />
         </div>
       </Section>
 

@@ -24,32 +24,36 @@ export const TAB_ICON: Record<Tab, LuxIcon> = {
   journal: BookOpen,
 };
 
-/** Short labels — one word each. */
+/** Short labels — product names per docs/POSITIONING.md (NEXUS = the trading desk,
+ *  Quantinum Bot = the paper-trading bot). Labels only; ids and URLs never change. */
 export const TAB_SHORT: Record<Tab, string> = {
-  oracle: 'Nexus',
+  oracle: 'NEXUS',
   chart: 'Chart',
   flow: 'Flow',
   gex: 'GEX',
   leaps: 'LEAPS',
   crypto: 'Crypto',
   catalyst: 'Catalysts',
-  bot: 'Bot',
+  bot: 'Quantinum Bot',
   positions: 'Positions',
   journal: 'Journal',
 };
 
 export const TAB_HINT: Record<Tab, string> = {
-  oracle: 'Ranked idea board',
+  oracle: 'The trading desk — ranked setups, setup detail, 0DTE desk, horizon book',
   chart: 'Price chart, levels and projections',
   flow: 'Options flow tape',
   gex: 'Dealer gamma and vanna map',
   leaps: 'Long-dated option ideas',
   crypto: 'Crypto spot and equity proxies',
   catalyst: 'Earnings and macro event calendar',
-  bot: 'Paper bot activity and rules',
+  bot: 'The paper-trading bot — its rules, positions and public record',
   positions: 'Open positions and risk',
   journal: 'Trade journal and track record',
 };
+
+/** Top-bar titles — the short label, or the product name with its role. */
+export const TAB_TITLE: Record<Tab, string> = { ...TAB_SHORT, oracle: 'NEXUS · Trading desk' };
 
 const PAGE_SHORT: Record<string, string> = { '/how-to': 'Guide' };
 const PAGE_HINT: Record<string, string> = {

@@ -30,7 +30,7 @@ export function WaitlistPromptModal({
   open,
   onClose,
   title = "Join the Waitlist",
-  description = "Get access to QuantEdge's AI-powered trading research tools",
+  description = "QuantEdge is a trading research terminal for stocks, options and crypto — every number carries its evidence and its record.",
   returnTo,
 }: WaitlistPromptModalProps) {
   const [, setLocation] = useLocation();
@@ -43,29 +43,29 @@ export function WaitlistPromptModal({
   const benefits = [
     {
       icon: TrendingUp,
-      title: "Free Market Data",
-      description: "Stock quotes, charts, news, and earnings calendar",
+      title: "Dealer positioning",
+      description: "GEX and VEX by strike, walls, zero-γ and the squeeze radar",
       color: "text-[var(--trade-bullish)]",
       bgColor: "bg-emerald-500/10",
     },
     {
       icon: Zap,
-      title: "Free AI Trials",
-      description: "Try each AI feature once - summaries, sentiment, predictions",
+      title: "Options flow",
+      description: "Sweeps, blocks, market tide and dark-pool levels, with source and age",
       color: "text-[var(--trade-neutral)]",
       bgColor: "bg-amber-500/10",
     },
     {
       icon: BarChart3,
-      title: "Save Your Watchlist",
-      description: "Track your favorite stocks and set price alerts",
+      title: "Evidence-ranked setups",
+      description: "NEXUS, the trading desk — plus Quantinum Bot, whose paper record is public",
       color: "text-sky-400",
       bgColor: "bg-sky-500/10",
     },
     {
       icon: Sparkles,
-      title: "Apply for Beta",
-      description: "Get unlimited access to trade ideas, 6-layer analysis & more",
+      title: "Your trading journal",
+      description: "Broker import, insights and loss analysis on your own trades",
       color: "text-purple-400",
       bgColor: "bg-purple-500/10",
     },
@@ -106,8 +106,8 @@ export function WaitlistPromptModal({
               <Check className="h-4 w-4 text-[var(--trade-bullish)] mt-0.5 flex-shrink-0" />
               <p className="text-xs text-foreground/80">
                 <span className="font-medium text-white">Free to browse!</span>{" "}
-                Explore market data instantly. Sign up to save watchlists and
-                try AI features. Apply for beta to unlock everything.
+                Create an account to open the terminal, save a watchlist and
+                keep a journal. Apply for beta to unlock everything.
               </p>
             </div>
           </div>

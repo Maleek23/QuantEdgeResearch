@@ -50,10 +50,10 @@ function MineAccounts() {
 
 function BotAccounts() {
   const q = useBotBook(true);
-  if (q.isError && !q.data) return <QEError title="The bot's paper accounts didn't load" message={`/api/journal/bot failed (${q.error instanceof Error ? q.error.message : 'no response'}).`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError title="Quantinum Bot's paper accounts didn't load" message={`/api/journal/bot failed (${q.error instanceof Error ? q.error.message : 'no response'}).`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (q.isLoading || !q.data) return <QELoading rows={2} label="loading paper portfolios…" />;
   const { portfolios, activePortfolio } = q.data;
-  if (!portfolios.length) return <QEEmpty message={`The bot has no paper portfolio yet — "${activePortfolio}" is created the first time a bot cycle runs.`} />;
+  if (!portfolios.length) return <QEEmpty message={`Quantinum Bot has no paper portfolio yet — "${activePortfolio}" is created the first time a bot cycle runs.`} />;
   return (
     <Card num="01" title="Paper portfolios · one per bot run" meta={<N n={portfolios.length} unit="runs" />}>
       <div className="jr-grid">

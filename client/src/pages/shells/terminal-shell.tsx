@@ -63,7 +63,7 @@ import { SkipLink, MAIN_CONTENT_ID } from '@/components/shell/skip-link';
 import { useMainHeightVar } from '@/components/shell/main-height';
 import { LuxTopBar } from '@/components/lux/lux-topbar';
 import { LuxMenu, LuxMenuContent, LuxMenuItem, LuxMenuLabel, LuxMenuSeparator, LuxMenuTrigger } from '@/components/lux/lux-menu';
-import { TAB_SHORT } from '@/components/shell/nav-groups';
+import { TAB_SHORT, TAB_TITLE } from '@/components/shell/nav-groups';
 import { RouteFallback } from '@/components/ui/qe-loading';
 import { skeletonTiles, type PageId } from '@/components/dashboard/pages';
 
@@ -250,7 +250,7 @@ export default function TerminalShell() {
       <header className="relative z-20 shrink-0 lg:pl-[var(--qe-rail-w,196px)]">
         <LuxTopBar
           className="topbar lx-topbar"
-          title={TAB_SHORT[tab]}
+          title={TAB_TITLE[tab]}
           crumb="Terminal"
           titleDesktopOnly
           leading={
@@ -489,14 +489,14 @@ export default function TerminalShell() {
         onClose={() => setPaletteOpen(false)}
         onTicker={(symbol, name) => openResearch(symbol, name)}
         onTab={(t) => setTab(t as Tab)}
-        tabs={TABS}
+        tabs={TABS.map((t) => ({ ...t, display: TAB_SHORT[t.id] }))}
       />
 
       {/* ── footer — the reference bottombar. Same real content as before:
              LiveStatsBar (bots/watchlist/VIX) and the market line (session ·
              SPY · BTC · next poll · clock) ride inside his chrome. ── */}
       <footer className="bottombar shrink-0 overflow-hidden whitespace-nowrap lg:pl-[var(--qe-rail-w,196px)]" style={{ height: 26 }}>
-        <div className="bb-item"><span className="dot" /><b>{tab.toUpperCase()}</b> engaged</div>
+        <div className="bb-item"><span className="dot" /><b>{TAB_SHORT[tab].toUpperCase()}</b> engaged</div>
         <div className="bb-sep" />
         <SystemPulse />
         <div className="bb-sep hidden md:block" />

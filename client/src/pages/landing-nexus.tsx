@@ -22,11 +22,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import {
-  Bitcoin as BitcoinIcon, Bot as BotIcon, CalendarClock as CalendarClockIcon, ChartCandlestick as ChartCandlestickIcon,
-  Crosshair as CrosshairIcon, Hourglass as HourglassIcon, Magnet as MagnetIcon, Waves as WavesIcon, type LucideIcon,
+  Bitcoin as BitcoinIcon, BookOpen as BookOpenIcon, Bot as BotIcon, BrainCircuit as BrainIcon, CalendarClock as CalendarClockIcon,
+  ChartCandlestick as ChartCandlestickIcon, Crosshair as CrosshairIcon, Hourglass as HourglassIcon, Magnet as MagnetIcon,
+  Sunrise as SunriseIcon, Timer as TimerIcon, Waves as WavesIcon, type LucideIcon,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { convictionDisplayPercent } from '@shared/conviction-display';
+import { CONVICTION_LAYER_COUNT } from '@shared/conviction-layers';
 import {
   Spark, RotQuad, SigCard, CHECK, fetchJson, useDaily,
   type RotationPayload, type ConvictionsPayload, type CryptoPulse,
@@ -90,15 +92,21 @@ export default function LandingNexus() {
   // market being shut, not the data failing. Say which one it is.
   const closed = !fresh && /close/i.test(rotation?.sessionLabel ?? '');
 
+  // Product names and one-liners: docs/POSITIONING.md. Tags say what a module
+  // is, never "Live" — freshness is on every tile inside the product.
   const MODULES: { name: string; desc: string; tag: string; color: string; href: string; Icon: LucideIcon }[] = [
-    { name: 'Oracle', desc: 'Evidence-ranked signals with a full audit trail. Every layer that argues for or against a setup, visible at a glance.', tag: 'Core · Live', color: '#3b8cff', href: '/t', Icon: CrosshairIcon },
-    { name: 'Chart', desc: 'Interactive multi-frame price action — pan, zoom, expand — with published levels drawn on the real bars.', tag: 'Price · Interactive', color: '#60a5fa', href: '/t?tab=chart', Icon: ChartCandlestickIcon },
-    { name: 'Flow', desc: 'Unusual options prints — whales, sweeps, blocks — with premium sums and honest freshness on every row.', tag: 'Options · 15m cycles', color: '#6ee7b7', href: '/t?tab=flow', Icon: WavesIcon },
-    { name: 'GEX', desc: 'Gamma exposure by strike and expiry — dealer walls and the flip level where hedging pressure reverses. Know where the market is magnetized.', tag: 'Options · Live', color: '#f472b6', href: '/t?tab=gex', Icon: MagnetIcon },
-    { name: 'Leaps', desc: 'Long-dated calls graded on trend, value and momentum — with budget and grade filters over real premiums.', tag: 'Options · Daily', color: '#a78bfa', href: '/t?tab=leaps', Icon: HourglassIcon },
-    { name: 'Crypto', desc: 'BTC/ETH spot reads with measured proxy correlations — the equity route chosen from evidence, not vibes.', tag: '24/7 · Live', color: '#fbbf24', href: '/t?tab=crypto', Icon: BitcoinIcon },
-    { name: 'Catalyst', desc: 'Earnings, macro releases and impact-graded news joined to live signals. Binary events are risk, never tilt.', tag: 'Events · Live', color: '#fb7185', href: '/t?tab=catalyst', Icon: CalendarClockIcon },
-    { name: 'Bot', desc: 'The real automation layer — jobs, gates and a paper ledger that measures every published signal.', tag: 'Measurement', color: '#3b8cff', href: '/t?tab=bot', Icon: BotIcon },
+    { name: 'Today', desc: 'The morning page: the week\'s dealer map, the best idea, the ranked book, the index desk and the model\'s record.', tag: 'Start here', color: '#60a5fa', href: '/today', Icon: SunriseIcon },
+    { name: 'NEXUS', desc: 'The trading desk. Every setup ranked by its evidence, with entry, stop and target printed and an audit trail behind it.', tag: 'Trading desk', color: '#3b8cff', href: '/t', Icon: CrosshairIcon },
+    { name: 'Quantinum', desc: `QuantEdge's intelligence: it weighs every engine's evidence for a ticker across ${CONVICTION_LAYER_COUNT} layers and shows each layer's argument for or against.`, tag: 'The read', color: '#93c5fd', href: '/r/SPY', Icon: BrainIcon },
+    { name: 'GEX', desc: 'Dealer positioning by strike and expiry — call and put walls, zero-γ, VEX, regime and the squeeze radar.', tag: 'Dealer positioning', color: '#f472b6', href: '/t?tab=gex', Icon: MagnetIcon },
+    { name: 'Flow', desc: 'Options flow — sweeps, blocks, top tickers, market tide, flow by strike and expiry, and dark-pool levels.', tag: 'Options · dark pool', color: '#6ee7b7', href: '/t?tab=flow', Icon: WavesIcon },
+    { name: '0DTE desk', desc: 'Same-day index context on NEXUS: levels, the single-expiry dealer map and flow for the session, with the data\'s age on screen.', tag: 'Index · same day', color: '#fbbf24', href: '/t?nx=0dte', Icon: TimerIcon },
+    { name: 'Chart', desc: 'Multi-timeframe price action with walls, zero-γ and published levels drawn on the real bars. One ticker page per symbol.', tag: 'Price · levels', color: '#60a5fa', href: '/t?tab=chart', Icon: ChartCandlestickIcon },
+    { name: 'Quantinum Bot', desc: 'The paper-trading bot. It trades NEXUS\'s published ideas with real contract marks and keeps a public record of every fill.', tag: 'Paper · public record', color: '#3b8cff', href: '/t?tab=bot', Icon: BotIcon },
+    { name: 'Journal', desc: 'Your trades: broker and Discord import, calendar, insights, loss analysis and playbooks — plus trader journals, measured the same way.', tag: 'Your record', color: '#2dd4bf', href: '/t?tab=journal', Icon: BookOpenIcon },
+    { name: 'LEAPS', desc: 'Long-dated calls graded on trend, value and momentum, with budget and grade filters over real premiums.', tag: 'Options · long-dated', color: '#a78bfa', href: '/t?tab=leaps', Icon: HourglassIcon },
+    { name: 'Crypto', desc: 'BTC and ETH reads with measured equity-proxy correlations — the route chosen from evidence, not vibes.', tag: 'Crypto · 24/7', color: '#fbbf24', href: '/t?tab=crypto', Icon: BitcoinIcon },
+    { name: 'Catalysts', desc: 'Earnings, macro releases and graded news joined to the book. Binary events are risk, never tilt.', tag: 'Events', color: '#fb7185', href: '/t?tab=catalyst', Icon: CalendarClockIcon },
   ];
 
   return (
@@ -113,7 +121,7 @@ export default function LandingNexus() {
             <span className="brand-sub">TERMINAL</span>
           </div>
           <div className="lnav-links">
-            {['Modules', 'Workflow', 'Pricing', 'FAQ'].map((l) => (
+            {['Product', 'Modules', 'Workflow', 'Pricing', 'FAQ'].map((l) => (
               <div key={l} className="lnav-link" onClick={() => document.getElementById(`sec-${l.toLowerCase()}`)?.scrollIntoView({ behavior: 'smooth' })}>{l}</div>
             ))}
           </div>
@@ -129,26 +137,27 @@ export default function LandingNexus() {
         <div className="container">
           <div className="hero-grid">
             <div>
-              <div className="hero-eyebrow"><span className="pill">LIVE</span>Evidence-ranked trading intelligence</div>
+              <div className="hero-eyebrow"><span className="pill">TERMINAL</span>Trading research for stocks, options &amp; crypto</div>
               <h1 className="hero-title">
-                Read the tape.<br />
+                See the positioning.<br />
                 <span className="grad">Rank the setup.</span><br />
-                <span className="accent">Execute the edge.</span>
+                <span className="accent">Prove the record.</span>
               </h1>
+              {/* docs/POSITIONING.md — the definition and the 25-word description. */}
               <p className="hero-sub">
-                QUANTEDGE is a multi-module terminal that fuses market intelligence, rotation mapping and evidence-ranked signals into one connected view — so you trade what's leading, not what's lagging.
+                QuantEdge is a trading research terminal: dealer positioning, options flow, <b>NEXUS</b> — the trading desk of evidence-ranked setups — a 0DTE desk, charts, <b>Quantinum Bot</b> on paper and your trading journal. Every number carries its evidence and its record.
               </p>
               <div className="hero-actions">
                 <Link href="/t" className="btn btn-primary btn-lg">
                   Open the terminal
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
                 </Link>
-                <Link href="/t?tab=chart" className="btn btn-ghost btn-lg">See a live chart</Link>
+                <a href="#sec-product" className="btn btn-ghost btn-lg" onClick={(e) => { e.preventDefault(); document.getElementById('sec-product')?.scrollIntoView({ behavior: 'smooth' }); }}>See the product</a>
               </div>
               <div className="hero-meta">
-                <div className="hero-meta-item">{CHECK}Every number is measured</div>
-                <div className="hero-meta-item">{CHECK}Unmeasured says so</div>
-                <div className="hero-meta-item">{CHECK}Signals carry their evidence</div>
+                <div className="hero-meta-item">{CHECK}Every number carries its evidence</div>
+                <div className="hero-meta-item">{CHECK}Delayed data says delayed</div>
+                <div className="hero-meta-item">{CHECK}Win rates travel with their n</div>
               </div>
             </div>
 
@@ -156,7 +165,7 @@ export default function LandingNexus() {
             <div className="lterminal">
               <div className="lterminal-head">
                 <div className="lterminal-dots"><span /><span /><span /></div>
-                <div className="lterminal-title">oracle · ranked book · live</div>
+                <div className="lterminal-title">nexus · ranked book · live</div>
                 <div className="lterminal-status"><span className="dot" />engaged</div>
               </div>
               <div className="lterminal-body">
@@ -190,6 +199,47 @@ export default function LandingNexus() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PRODUCT — real UI captures (desktop + phone) of the built app rendered
+          with the device-audit harness's illustrative fixtures. Nothing in them is
+          market data, and the frame says so. Explicit width/height = no layout
+          shift; lazy + async decode keep them off the hero's critical path. */}
+      <section id="sec-product" className="lshot" aria-labelledby="lshot-title">
+        <div className="container">
+          <div className="reveal lshot-head">
+            <div className="sec-eyebrow">The product</div>
+            <h2 className="lsec-title" id="lshot-title">This is the terminal. <span className="grad">Not a render of one.</span></h2>
+            <p className="lsec-sub">GEX dealer positioning on the desktop, NEXUS — the trading desk — on the phone. Every tile carries its source and its data age.</p>
+          </div>
+          <div className="lshot-stage reveal">
+            <figure className="lshot-desktop">
+              <div className="lshot-bar" aria-hidden="true">
+                <span className="lshot-dots"><i /><i /><i /></span>
+                <span className="lshot-url">quantedgelabs.net/t?tab=gex</span>
+              </div>
+              <img
+                src="/screenshots/qe-desktop-gex.webp"
+                width={1440}
+                height={900}
+                loading="lazy"
+                decoding="async"
+                alt="The QuantEdge GEX workspace on a desktop: a strike-by-expiry gamma exposure matrix, key levels with call wall, put wall and zero-gamma, and the dealer regime — shown with sample data."
+              />
+            </figure>
+            <figure className="lshot-phone">
+              <img
+                src="/screenshots/qe-phone-nexus.webp"
+                width={393}
+                height={852}
+                loading="lazy"
+                decoding="async"
+                alt="NEXUS, the QuantEdge trading desk, on a phone: ranked setups with evidence scores, entry, stop and target — shown with sample data."
+              />
+            </figure>
+            <p className="lshot-note">Sample data · illustrative, not live market data</p>
           </div>
         </div>
       </section>
@@ -230,7 +280,7 @@ export default function LandingNexus() {
             <div className="stat-item reveal">
               <div className="lstat-val">{convLoading ? '—' : (<>{topScore}<span style={{ fontSize: 20, color: 'var(--text-mute)' }}>/100</span></>)}</div>
               <div className="lstat-label">Top evidence score today</div>
-              <div className="lstat-sub">14-layer scoring, audited</div>
+              <div className="lstat-sub">{CONVICTION_LAYER_COUNT}-layer Quantinum scoring</div>
             </div>
           </div>
         </div>
@@ -241,8 +291,8 @@ export default function LandingNexus() {
         <div className="container">
           <div className="reveal">
             <div className="sec-eyebrow">01 · Modules</div>
-            <h2 className="lsec-title">Eight modules. <span className="grad">One connected view.</span></h2>
-            <p className="lsec-sub">Every module talks to every other. Rotation informs signals. Signals inform the ledger. The ledger keeps score on everything — including the rules.</p>
+            <h2 className="lsec-title">One terminal. <span className="grad">Every module connected.</span></h2>
+            <p className="lsec-sub">Positioning feeds the setups. Setups feed NEXUS. NEXUS feeds Quantinum Bot and your journal — and the record keeps score on everything, including the rules.</p>
           </div>
           <div className="modules-grid">
             {MODULES.map((m) => (
@@ -265,10 +315,10 @@ export default function LandingNexus() {
           <div className="feature">
             <div className="reveal">
               <div className="feature-num">FEATURE · 01</div>
-              <h3 className="feature-title">Signals ranked by evidence, not hype.</h3>
-              <p className="feature-desc">These two cards are the live board's top picks right now — real levels, real evidence scores, real P&L. Hover the charts: they're the platform's actual price series, and clicking any card opens the terminal on the real thing.</p>
+              <h3 className="feature-title">Setups ranked by evidence, not hype.</h3>
+              <p className="feature-desc">These two cards are NEXUS's top picks right now — real levels, real evidence scores, real P&L. Hover the charts: they're the platform's actual price series, and clicking any card opens the terminal on the real thing.</p>
               <div className="feature-list">
-                <div className="feature-list-item">{CHECK}<div><b>14-layer evidence scoring</b> <span>— technical, regime, GEX, catalyst, flow, pre-market and more.</span></div></div>
+                <div className="feature-list-item">{CHECK}<div><b>{CONVICTION_LAYER_COUNT}-layer Quantinum scoring</b> <span>— technical, regime, GEX, catalyst, flow, pre-market and more.</span></div></div>
                 <div className="feature-list-item">{CHECK}<div><b>Band grading S → C</b> <span>— conviction tiers, strongest to weakest; filter the book in one click.</span></div></div>
                 <div className="feature-list-item">{CHECK}<div><b>Entry, stop, T1 and R:R</b> <span>— first target and risk/reward, pre-computed on every signal. No guesswork.</span></div></div>
               </div>
@@ -327,8 +377,8 @@ export default function LandingNexus() {
             {[
               ['01', 'Read the tape', 'Open the terminal. Check the pulse, rotation map and pattern radar. Know what the market is doing before you look at any ticker.'],
               ['02', 'Rank the book', 'Filter by band, side, state. Sort by conviction, risk/reward or time-to-target. The top of the book is where your attention belongs.'],
-              ['03', 'Audit the evidence', 'Open any symbol\'s workup. See every layer that argues for it and against it. If the evidence doesn\'t clear your bar, skip it.'],
-              ['04', 'Let the ledger judge', 'Entry, stop and T1 are pre-set. The paper ledger measures every published signal — win rates carry their sample size, always.'],
+              ['03', 'Audit the evidence', 'Open any ticker page. The Quantinum read shows every layer that argues for it and against it. If the evidence doesn\'t clear your bar, skip it.'],
+              ['04', 'Let the record judge', 'Entry, stop and T1 are pre-set. Quantinum Bot trades every published idea on paper, your journal keeps your own — win rates carry their sample size, always.'],
             ].map(([n, t, d]) => (
               <div className="workflow-step reveal" key={n}>
                 <div className="workflow-num">{n}</div>
@@ -365,10 +415,12 @@ export default function LandingNexus() {
           </div>
           <div className="faq-list">
             {[
+              ['What is QuantEdge?', 'A trading research terminal for stocks, options and crypto. It shows dealer positioning (GEX/VEX, walls, zero-γ, the squeeze radar), options flow and dark-pool levels, NEXUS — the trading desk of evidence-ranked setups — a 0DTE desk and charts; Quantinum reads every ticker\'s evidence; Quantinum Bot trades the published ideas on paper; and a journal holds your own trades. Every number carries its evidence and its record.'],
               ['Is this investment advice?', 'No. QUANTEDGE is an educational and analytical tool. Every signal is a hypothesis ranked by evidence — not a recommendation. You remain fully responsible for your own execution and risk.'],
               ['What data powers the terminal?', 'Live equity, futures and crypto quotes; real daily and intraday bars for every chart; options chains from multiple sources with freshness disclosed on every surface — delayed data is labeled delayed, and anything unmeasured says NOT MEASURED instead of showing a made-up number.'],
-              ['How is "evidence" actually calculated?', 'Each signal is scored across up to 14 independent layers — technicals, market regime, GEX positioning, catalysts, flow, pre-market context and more. Layers argue for (+) or against (−) the setup, every layer shows its reasoning, and the sum is the evidence score. Win rates are only reported once a signal family has 30+ decided outcomes.'],
-              ['Does the bot trade my money?', 'No. The Bot module is a paper measurement ledger: it takes the platform\'s own published signals into a simulated book with real contract marks (source and delay disclosed on every fill), so the track record is earned in public. No broker custody, no execution of client funds.'],
+              ['How is "evidence" actually calculated?', `Quantinum scores each setup across up to ${CONVICTION_LAYER_COUNT} independent layers`+' — technicals, market regime, GEX positioning, catalysts, flow, pre-market context and more. Layers argue for (+) or against (−) the setup, every layer shows its reasoning, and the sum is the evidence score. Win rates are only reported once a signal family has 30+ decided outcomes.'],
+              ['Can I journal my own trades?', 'Yes. Import a broker CSV (or a Discord trading-journals forum), or enter trades by hand. The journal gives you a calendar, insights on what to stop doing in dollars with sample size, loss analysis from the bars, playbooks and progress — and the same analysis runs on imported trader journals.'],
+              ['Does Quantinum Bot trade my money?', 'No. Quantinum Bot is a paper-trading bot: it takes NEXUS\'s own published ideas into a simulated book with real contract marks (source and delay disclosed on every fill), so the track record is earned in public. No broker custody, no execution of client funds.'],
               ['Can I cancel anytime?', 'Yes. Monthly plans cancel anytime. Annual plans can be refunded pro-rata within the first 30 days. No retention calls, no friction.'],
             ].map(([q, a], i) => (
               <div className={`faq-item reveal${openFaq === i ? ' open' : ''}`} key={q}>
@@ -387,8 +439,8 @@ export default function LandingNexus() {
       <section>
         <div className="container">
           <div className="cta-box reveal">
-            <h2 className="cta-title">Stop trading the headline.<br /><span className="grad">Start trading the tape.</span></h2>
-            <p className="cta-sub">Join the operators using QUANTEDGE to read rotation, rank evidence and execute with discipline.</p>
+            <h2 className="cta-title">Stop trading the headline.<br /><span className="grad">Start trading the evidence.</span></h2>
+            <p className="cta-sub">Read the positioning, rank the setup on NEXUS and keep the record — on one terminal.</p>
             <div className="cta-actions">
               <Link href="/t" className="btn btn-primary btn-lg">
                 Open the terminal
@@ -410,6 +462,7 @@ export default function LandingNexus() {
               <Link key={href} href={href} style={{ color: 'var(--text-dim)', textDecoration: 'none', fontSize: 13, minHeight: 32, display: 'inline-flex', alignItems: 'center' }}>{label}</Link>
             ))}
           </nav>
+          <p className="lfooter-def">QuantEdge is a trading research terminal for stocks, options and crypto — every number carries its evidence and its record.</p>
           <div className="lfooter-bottom">
             <div>© 2026 QuantEdge Labs · All rights reserved.</div>
             <div className="disclaimer">Educational and analytical tool only. Not investment advice. Trading involves risk of loss. Past performance of signals does not guarantee future results — and every performance figure shown carries its sample size.</div>

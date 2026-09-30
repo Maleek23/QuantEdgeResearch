@@ -3059,3 +3059,29 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-narrow .gx-sum-bar{display:block;position:absolute;left:4px;right:4px;bottom:3px;width:auto;height:3px;margin:0}
 /* spot line: a price tag pinned at the strike column on phones */
 .gx-narrow .gx-line.spot span{display:inline-block;left:2px;margin-left:2px;font-size:12px;padding:0 4px}
+
+/* LANDING · PRODUCT MOCKUP (docs/POSITIONING.md) — a desktop frame with a phone
+   frame overlapping its lower-right corner. The <img>s carry width/height, so the
+   box is reserved before the WebP arrives (no layout shift). */
+.landing .lshot{padding:40px 0 90px;position:relative;z-index:2}
+.landing .lshot-head{text-align:center;margin-bottom:44px}
+.landing .lshot-head .sec-eyebrow,.landing .lshot-head .lsec-title,.landing .lshot-head .lsec-sub{margin-left:auto;margin-right:auto}
+.landing .lshot-stage{position:relative;padding:0 11% 64px 0;max-width:1180px;margin:0 auto}
+.landing .lshot figure{margin:0}
+.landing .lshot img{display:block;width:100%;height:auto}
+.landing .lshot-desktop{border:1px solid var(--nx-border-hi);border-radius:12px;overflow:hidden;background:var(--panel-solid);box-shadow:0 30px 80px rgba(0,0,0,0.55),0 0 0 1px rgba(59,140,255,0.06)}
+.landing .lshot-bar{display:flex;align-items:center;gap:14px;height:34px;padding:0 14px;border-bottom:1px solid var(--nx-border);background:var(--panel-2)}
+.landing .lshot-dots{display:flex;gap:6px}
+.landing .lshot-dots i{width:9px;height:9px;border-radius:50%;background:var(--nx-border-hi)}
+.landing .lshot-url{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-mute);padding:3px 12px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--nx-border)}
+.landing .lshot-phone{position:absolute;right:0;bottom:0;width:23%;border:6px solid #1c2230;border-radius:30px;overflow:hidden;background:#000;box-shadow:0 30px 70px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.06)}
+.landing .lshot-note{position:absolute;left:0;bottom:18px;margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.04em;color:var(--text-mute)}
+@media (max-width: 560px){
+  .landing .lshot{padding:10px 0 60px}
+  .landing .lshot-stage{padding:0}
+  .landing .lshot figure.lshot-phone{position:relative;width:62%;margin:-36px auto 0;border-width:5px;border-radius:24px}
+  .landing .lshot-bar{height:26px;gap:8px;padding:0 8px}
+  .landing .lshot-url{display:none}
+  .landing .lshot-note{position:static;margin-top:14px;text-align:center}
+}
+.landing .lfooter-def{margin:0 0 16px;max-width:640px;font-size:13px;line-height:1.55;color:var(--text-dim)}

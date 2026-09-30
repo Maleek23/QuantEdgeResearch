@@ -100,8 +100,8 @@ export async function resolveJournal(actor: JournalActor, key: JournalKey): Prom
     if (!actor.userId) throw new JournalAccessError(401, 'Sign in to open your journal');
     return { key, kind, label: 'Mine', ownerId: actor.userId, trader: null, readOnly: false, canWrite: true };
   }
-  if (kind === 'bot') return { key, kind, label: 'Bot', ownerId: null, trader: null, readOnly: true, canWrite: false };
-  if (kind === 'desk') return { key, kind, label: 'Trade desk', ownerId: null, trader: null, readOnly: true, canWrite: false };
+  if (kind === 'bot') return { key, kind, label: 'Quantinum Bot', ownerId: null, trader: null, readOnly: true, canWrite: false };
+  if (kind === 'desk') return { key, kind, label: 'NEXUS ideas', ownerId: null, trader: null, readOnly: true, canWrite: false };
   const trader = await getTraderBySlug(traderSlugOf(key)!);
   if (!trader) throw new JournalAccessError(404, 'No such trader');
   const canWrite = canWriteTrader(actor, trader);
@@ -135,7 +135,7 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
   const { loadBotLedger } = await import('./bot-ledger');
   const { runs, positions } = await loadBotLedger();
   if (!runs.length) {
-    return { rows: [], meta: { basis: 'Quant Bot paper ledger — the bot owns no paper portfolio yet (it has not run a cycle)', runs: [] } };
+    return { rows: [], meta: { basis: 'Quantinum Bot paper ledger — the bot owns no paper portfolio yet (it has not run a cycle)', runs: [] } };
   }
   const runOf = new Map(runs.map((r) => [r.id, r]));
   const ideaIds = [...new Set(positions.map((p) => p.tradeIdeaId).filter((x): x is string => !!x))];
@@ -204,7 +204,7 @@ async function loadBot(now: number): Promise<{ rows: JournalWireRow[]; meta: Par
   return {
     rows,
     meta: {
-      basis: `Quant Bot paper ledger — every fill in all ${runs.length} of the bot's paper portfolios (${runs.map((r) => r.short).join(', ')}; paper_positions), at the bot's own size`,
+      basis: `Quantinum Bot paper ledger — every fill in all ${runs.length} of the bot's paper portfolios (${runs.map((r) => r.short).join(', ')}; paper_positions), at the bot's own size`,
       runs,
       sizing: 'Bot-sized paper fills; fees and slippage are not modelled. Setup = the engine that published the signal.',
       excluded: unpriced ? [{ count: unpriced, reason: 'closed without a recorded P&L' }] : [],
@@ -237,7 +237,7 @@ async function loadDesk(): Promise<{ rows: JournalWireRow[]; meta: Partial<Journ
   return {
     rows,
     meta: {
-      basis: `Trade desk — every idea published since ${OUTCOME_BASELINE_DATE} (clean-era baseline), each scored as a trade from its published entry`,
+      basis: `NEXUS ideas — every idea NEXUS published since ${OUTCOME_BASELINE_DATE} (clean-era baseline), each scored as a trade from its published entry`,
       sizing: `Unit-sized: 1 contract per option idea at its recorded premiums; $${DESK_STOCK_NOTIONAL.toLocaleString()} notional per stock/crypto idea. Journal win = positive P&L; the canonical hit-target/hit-stop rate is on Track record. Setup = publishing engine.`,
       excluded: [...excluded.entries()].map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count),
     },

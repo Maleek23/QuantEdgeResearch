@@ -312,7 +312,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
             <div className="pt-3 border-t border-border/30 space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--brand-cyan)]">
-                  Oracle Upgrade
+                  Quantinum upgrade
                 </span>
                 <span className="text-[10px] font-mono text-muted-foreground">
                   {analysis.suggestionNote ?? 'Stronger contracts for the same thesis'}

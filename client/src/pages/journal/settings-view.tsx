@@ -23,7 +23,7 @@ export default function SettingsView() {
           <div className="jr-field">
             <label htmlFor="jr-set-book">Default book</label>
             <select id="jr-set-book" className="jr-select" value={prefs.defaultBook} onChange={(e) => setPrefs({ defaultBook: parseJournalKey(e.target.value) })}>
-              {(books.length ? books : [{ key: 'mine', label: 'Mine' }, { key: 'bot', label: 'Bot' }, { key: 'desk', label: 'Trade desk' }]).map((b) => (
+              {(books.length ? books : [{ key: 'mine', label: 'Mine' }, { key: 'bot', label: 'Quantinum Bot' }, { key: 'desk', label: 'NEXUS ideas' }]).map((b) => (
                 <option key={b.key} value={b.key}>{b.label}</option>
               ))}
             </select>

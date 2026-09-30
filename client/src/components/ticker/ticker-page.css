@@ -33,6 +33,7 @@
 .tk-verdict { margin: 0; max-width: 980px; color: var(--lx-dim); font-size: 14.5px; line-height: 1.5; }
 .tk-verdict b { font-family: var(--lx-font-data); letter-spacing: 0.02em; }
 .tk-verdict-pts { font-family: var(--lx-font-data); color: var(--lx-mute); }
+.tk-verdict-label { font-family: var(--lx-font-data); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lx-mute); }
 .tk-engine-line { margin: 0; padding: 6px 10px; border-left: 2px solid var(--lx-line-hi); color: var(--lx-dim); font-size: 13.5px; }
 .tk-engine-line[data-state='published'] { border-color: var(--lx-gain); color: var(--lx-gain); }
 .tk-engine-line[data-state='fail'] { border-color: var(--lx-loss); }

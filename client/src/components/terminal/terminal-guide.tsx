@@ -25,7 +25,7 @@ interface Guide {
 
 export const GUIDES: Record<Tab, Guide> = {
   oracle: {
-    title: 'Oracle Guide',
+    title: 'NEXUS Guide',
     question: 'What do I trade?',
     read: [
       'The orb is the market regime — risk-on, transition, or risk-off. Set your bias before you look at any ticker.',
@@ -34,7 +34,7 @@ export const GUIDES: Record<Tab, Guide> = {
       'The right rail is the WHY — confidence band, which layers fired, and the market context behind the call.',
       'Contract Engine turns the level plan into an actual strike: conservative / balanced / aggressive with ROI and R:R.',
     ],
-    next: 'Confirm structure in GEX or PRISM before you size in.',
+    next: 'Confirm structure in GEX or on the ticker page (the Quantinum read) before you size in.',
   },
   chart: {
     title: 'Chart Lab Guide',
@@ -42,11 +42,11 @@ export const GUIDES: Record<Tab, Guide> = {
     read: [
       'Search any ticker once. The same symbol follows you through Chart, Flow, GEX, LEAPS and Catalyst.',
       'Candles are the execution view; line mode removes intrabar noise when you are reading longer structure.',
-      'Published Oracle entry, stop and T1 levels are fixed overlays. Live price moves; the original plan does not silently move with it.',
+      'Published NEXUS entry, stop and T1 levels are fixed overlays. Live price moves; the original plan does not silently move with it.',
       'Change timeframe before changing the thesis. A valid daily setup can look broken on five-minute noise, and an intraday trigger can disappear on a weekly chart.',
       'No published signal means the chart remains research—not an invented trade plan.',
     ],
-    next: 'Validate the same ticker against Flow and GEX, then return to Oracle for execution context.',
+    next: 'Validate the same ticker against Flow and GEX, then return to NEXUS for execution context.',
   },
   flow: {
     title: 'Flow Guide',
@@ -58,7 +58,7 @@ export const GUIDES: Record<Tab, Guide> = {
       'Filter by score, direction, type, premium size, sweep, or whale to cut the tape down to what you actually trade.',
       'Always confirm against the chart: does price have room to move, and is the upside worth the risk?',
     ],
-    next: 'Take a flow hit into PRISM to see whether the strike lines up with gamma.',
+    next: 'Take a flow hit into GEX to see whether the strike lines up with gamma.',
   },
   gex: {
     title: 'GEX Guide',
@@ -69,7 +69,7 @@ export const GUIDES: Record<Tab, Guide> = {
       'The gamma flip is the pivot: above it, dealer hedging dampens moves (mean reversion); below it, moves get amplified.',
       'Positive gamma means drift and pinning. Negative gamma means momentum and bigger swings.',
     ],
-    next: 'Use these levels as targets and invalidation on the chart in ORACLE.',
+    next: 'Use these levels as targets and invalidation on the chart on NEXUS.',
   },
   leaps: {
     title: 'LEAPS Guide',
@@ -104,19 +104,19 @@ export const GUIDES: Record<Tab, Guide> = {
       'UNCLAIMED are strong catalysts on tickers with no live signal — the watchlist for what to look at next.',
       'An empty section means no TRACKED event landed inside the horizon. It does not mean no catalyst exists.',
     ],
-    next: 'Click any row to load that ticker, then go to ORACLE to read the full setup.',
+    next: 'Click any row to load that ticker, then go to NEXUS to read the full setup.',
   },
   bot: {
-    title: 'Bot Guide',
+    title: 'Quantinum Bot Guide',
     question: 'What would these signals have done?',
     read: [
-      'The bot paper-trades the board’s own published signals in OPTIONS, using the same strikes the Contract Engine picks.',
+      'Quantinum Bot paper-trades NEXUS’s own published signals in OPTIONS, using the same strikes the Contract Engine picks.',
       'Every fill and every mark is a real quote pulled at that moment — nothing is simulated or back-filled.',
       'Marks come from the CBOE delayed chain, so open P&L is roughly 15 minutes behind. It is a fair mark, not an execution price.',
       'Win rate stays blank until positions actually close. A number before then would be made up.',
       'Open positions re-price on each cycle; expired contracts settle at intrinsic value.',
     ],
-    next: 'Compare the bot’s entries against ORACLE — they are the same signals, so divergence means something broke.',
+    next: 'Compare Quantinum Bot’s entries against NEXUS — they are the same signals, so divergence means something broke.',
   },
   positions: {
     title: 'Positions Guide',

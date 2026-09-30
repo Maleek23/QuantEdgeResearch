@@ -131,10 +131,10 @@ function TradingGuideContent() {
 
         <div className="grid md:grid-cols-2 gap-4 mb-8">
           {[
-            { title: 'Trade Desk', desc: 'Fresh AI + Quant research briefs generated daily at market open', icon: Sparkles, color: 'from-sky-500 to-blue-600' },
-            { title: 'Flow Scanner', desc: 'Unusual options activity from institutional traders', icon: Zap, color: 'from-purple-500 to-pink-600' },
-            { title: 'Lotto Ideas', desc: 'High R:R weekly options with 2:1+ risk/reward', icon: Target, color: 'from-orange-500 to-red-600' },
-            { title: 'Chart Analysis', desc: 'Upload your own chart for AI-powered analysis', icon: BarChart3, color: 'from-green-500 to-emerald-600' },
+            { title: 'NEXUS', desc: 'Evidence-ranked setups — every layer that argued for or against, with entry, stop and target', icon: Sparkles, color: 'from-sky-500 to-blue-600' },
+            { title: 'Flow', desc: 'Options flow — sweeps, blocks, market tide and dark-pool levels', icon: Zap, color: 'from-purple-500 to-pink-600' },
+            { title: 'GEX', desc: 'Dealer positioning — walls, zero-γ, VEX and the squeeze radar', icon: Target, color: 'from-orange-500 to-red-600' },
+            { title: 'Journal', desc: 'Your trades — broker import, insights and loss analysis', icon: BarChart3, color: 'from-green-500 to-emerald-600' },
           ].map((item) => (
             <Card key={item.title} className="glass-card hover-elevate overflow-visible rounded-lg">
               <CardContent className="p-0">
@@ -561,7 +561,7 @@ function TradingGuideContent() {
           </div>
           <h3 className="text-xl font-semibold mb-2">Ready to Start Trading?</h3>
           <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
-            Put what you've learned into practice with our AI-powered research tools
+            Put what you've learned into practice on the QuantEdge trading research terminal
           </p>
           <Link href="/today">
             <Button size="lg" className="gap-2 bg-sky-500 text-foreground" data-testid="button-go-to-trade-desk">

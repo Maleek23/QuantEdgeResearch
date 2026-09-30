@@ -79,7 +79,7 @@ export function SignalGrid({
   const botVerdict = (p: ConvictionPick, px: number, pending: boolean): string => {
     const floor = bot?.config?.minConviction ?? 18;
     const maxProg = bot?.config?.maxProgressPct ?? 35;
-    if (held.has(p.symbol)) return 'held by the bot ✓';
+    if (held.has(p.symbol)) return 'held by Quantinum Bot ✓';
     if ((p.convictionScore ?? 0) < floor) return `below bot floor (${p.convictionScore} < ${floor})`;
     if (pending) return 'pending trigger — bot won\'t front-run its own entry';
     if (p.direction === 'long' ? px <= (p.stopLoss ?? 0) : px >= (p.stopLoss ?? Infinity)) return 'invalidated — stop already traded';

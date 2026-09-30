@@ -213,8 +213,8 @@ export function WhatsNewDrawer() {
     <QEDrawer
       open={open}
       onClose={handleClose}
-      title="What's New"
-      subtitle={`${RELEASE_LABEL} · ${CHANGELOG.length} updates · press ⌘? to reopen`}
+      title="What's new in QuantEdge"
+      subtitle={`The trading research terminal · ${RELEASE_LABEL} · ${CHANGELOG.length} updates · ⌘? to reopen`}
       size="md"
     >
       <div className="p-3 space-y-4">

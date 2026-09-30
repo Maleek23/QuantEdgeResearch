@@ -51,7 +51,7 @@ export function EngineStatusFooter({
             <div className="flex items-center gap-1.5">
               <div className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
               <span className={online ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}>
-                ORACLE {online ? 'ONLINE' : 'OFFLINE'}
+                QUANTINUM {online ? 'ONLINE' : 'OFFLINE'}
               </span>
             </div>
             <span className="text-zinc-600">·</span>

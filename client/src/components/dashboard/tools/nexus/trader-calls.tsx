@@ -62,7 +62,7 @@ export function TraderCallEvidence({ symbol }: { symbol: string }) {
   if (!calls.length) return null;
   return (
     <div className="nxtc-evidence" aria-label={`Trader calls on ${symbol}`}>
-      <div className="nxp-section-title"><span>Trader calls · evidence</span><small>not scored into conviction · not used by the bot</small></div>
+      <div className="nxp-section-title"><span>Trader calls · evidence</span><small>not scored into conviction · not used by Quantinum Bot</small></div>
       {calls.slice(0, 3).map((c) => <TraderCallLine key={c.id} c={c} />)}
     </div>
   );

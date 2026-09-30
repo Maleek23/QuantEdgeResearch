@@ -43,14 +43,15 @@ const softwareSchema = {
   applicationCategory: 'FinanceApplication',
   operatingSystem: 'Web',
   url: SITE_URL,
-  description: 'A quantitative market-research terminal for stocks, options, crypto, flow, gamma exposure and catalyst analysis.',
+  description: 'A trading research terminal for stocks, options and crypto: dealer positioning (GEX/VEX), options flow and dark pool, evidence-ranked setups, a 0DTE desk, charts, a paper-trading bot and trading journals.',
   author: { '@id': `${SITE_URL}/#organization` },
 };
 
 const PUBLIC_ROUTES: Record<string, SeoRoute> = {
   '/': {
-    title: 'QuantEdge Labs | Quantitative Market Research Terminal',
-    description: 'Research stocks, options and crypto in one terminal with transparent signal scoring, options flow, gamma exposure, catalysts and tracked outcomes.',
+    // docs/POSITIONING.md — this is what link previews (iMessage, X, Slack, Discord) read.
+    title: 'QuantEdge Labs | Trading Research Terminal for Stocks, Options & Crypto',
+    description: 'A trading research terminal for stocks, options and crypto: dealer positioning, options flow, evidence-ranked setups, a paper-trading bot and trading journals.',
     schema: [organizationSchema, softwareSchema],
   },
   '/about': {
@@ -60,7 +61,7 @@ const PUBLIC_ROUTES: Record<string, SeoRoute> = {
   },
   '/pricing': {
     title: 'QuantEdge Labs Pricing | Quantitative Research Tools',
-    description: 'Compare QuantEdge Labs plans for quantitative stock, options and crypto research, signal tracking, flow and gamma-exposure analysis.',
+    description: 'Compare QuantEdge Labs plans for the trading research terminal: dealer positioning, options flow, evidence-ranked setups, the paper-trading bot and trading journals.',
   },
   '/blog': {
     title: 'QuantEdge Labs Research Library | Markets and Model Risk',
@@ -72,7 +73,7 @@ const PUBLIC_ROUTES: Record<string, SeoRoute> = {
   },
   '/how-to': {
     title: 'How to Use QuantEdge Labs | Terminal Guide',
-    description: 'A practical guide to reading QuantEdge signals, evidence grades, price levels, options contracts, market context and tracked outcomes.',
+    description: 'A practical guide to the QuantEdge terminal: dealer positioning, options flow, evidence-ranked setups, the 0DTE desk, charts, the paper bot and your trading journal.',
   },
   '/privacy': {
     title: 'Privacy Policy | QuantEdge Labs',

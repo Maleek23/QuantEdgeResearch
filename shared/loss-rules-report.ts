@@ -274,7 +274,7 @@ export function buildLossRulesReport(args: {
       `Small samples: every group under 20 trades is flagged lowSample — treat as a hypothesis, not a result.`,
       isBot
         ? 'Bot P&L is the paper ledger at the bot\'s own size (fees and slippage not modelled), all runs.'
-        : 'Desk P&L is unit-sized (1 contract per option idea at recorded premiums; $1,000 notional per stock idea), same basis as the journal\'s Trade desk book.',
+        : 'Desk P&L is unit-sized (1 contract per option idea at recorded premiums; $1,000 notional per stock idea), same basis as the journal\'s NEXUS ideas book.',
       'Never invents data: a trade with no recorded P&L is excluded upstream, and an unclassifiable trade is counted as unknown, not guessed.',
     ],
   };
