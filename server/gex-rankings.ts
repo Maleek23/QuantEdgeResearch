@@ -387,22 +387,10 @@ export function buildViews(rows: GexRankRow[], limit = 30): Record<GexRankView, 
 // ─── Fetch (throttled) ──────────────────────────────────────────────────
 
 export async function fetchCboeRaw(symbol: string, timeoutMs = 20_000): Promise<{ status: number; payload: any | null; fetchedAt: number }> {
-  const cboeSymbol = symbol.toUpperCase() === 'SPX' ? '_SPX' : symbol.toUpperCase();
-  const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${encodeURIComponent(cboeSymbol)}.json`;
-  return rateLimited('cboe', FETCH_SPACING_MS, async () => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' }, redirect: 'follow', signal: controller.signal });
-      const fetchedAt = Date.now();
-      if (!r.ok) return { status: r.status, payload: null, fetchedAt };
-      return { status: r.status, payload: await r.json(), fetchedAt };
-    } catch {
-      return { status: 0, payload: null, fetchedAt: Date.now() };
-    } finally {
-      clearTimeout(timer);
-    }
-  });
+  // Shared loader: one parse at a time, trimmed to near expiries (lib/cboe-loader.ts).
+  const { loadCboeChain } = await import('./lib/cboe-loader');
+  // Keep the ranking cycle's own slower pacing (it walks hundreds of names).
+  return rateLimited('cboe-rank', FETCH_SPACING_MS, () => loadCboeChain(symbol, { timeoutMs }));
 }
 
 /**

@@ -63,13 +63,9 @@ export async function computeGEXFromCBOE(symbol: string): Promise<GEXSnapshot | 
   try {
     // CBOE exposes index chains behind underscored quote symbols. The option
     // contracts inside the payload still use OCC roots such as SPX and SPXW.
-    const cboeSymbol = symbol.toUpperCase() === 'SPX' ? '_SPX' : symbol;
-    const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${cboeSymbol}.json`;
-    // Shared CBOE queue — the bulk caller below used to fire 8 of these at once
-    // and CBOE answers bursts with a blanket 429.
-    const r = await rateLimited('cboe', 500, () => fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, redirect: 'follow' }));
-    if (!r.ok) return null;
-    const j: CBOEResponse = await r.json();
+    // Shared loader: one parse at a time, trimmed to near expiries (lib/cboe-loader.ts).
+    const { loadCboeChain } = await import('./lib/cboe-loader');
+    const j = (await loadCboeChain(symbol)).payload as CBOEResponse | null;
     const data = j?.data;
     if (!data?.current_price || !data?.options?.length) return null;
 

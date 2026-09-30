@@ -92,9 +92,8 @@ function fmtMoneyShort(num: number): string {
 async function fetchTickerFlow(symbol: string): Promise<FlowHeatmapTicker | null> {
   try {
     // Use CBOE chain (free, real data) — same source we used for discovery
-    const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${symbol}.json`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    const j: any = await r.json();
+    const { loadCboeChain } = await import('./lib/cboe-loader');
+    const j: any = (await loadCboeChain(symbol)).payload;
     const data = j?.data;
     if (!data?.current_price) return null;
 

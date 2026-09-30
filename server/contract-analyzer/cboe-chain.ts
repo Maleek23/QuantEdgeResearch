@@ -76,21 +76,19 @@ async function fetchCboeChainOnce(symbol: string, timeoutMs: number): Promise<{ 
   try {
     // CBOE's cash-index quote key is `_SPX`; contracts in the payload retain
     // their real OCC roots (`SPX` monthly and `SPXW` weekly).
-    const cboeSymbol = symbol.toUpperCase() === 'SPX' ? '_SPX' : symbol.toUpperCase();
-    const r = await fetch(
-      `https://cdn.cboe.com/api/global/delayed_quotes/options/${cboeSymbol}.json`,
-      { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' }, signal: controller.signal },
-    );
-    if (!r.ok) return { chain: null, status: r.status };
-    const data = (await r.json()) as {
+    // Shared loader: one parse at a time, trimmed to near expiries (lib/cboe-loader.ts).
+    const { loadCboeChain } = await import('../lib/cboe-loader');
+    const { status, payload } = await loadCboeChain(symbol, { timeoutMs });
+    if (!payload) return { chain: null, status };
+    const data = payload as {
       data?: { current_price?: number; bid?: number; close?: number; last?: number; options?: any[] };
     };
     const d = data.data;
-    if (!d) return { chain: null, status: r.status };
+    if (!d) return { chain: null, status: status };
 
     // Prefer the live intraday price; `close` is prior-session settlement.
     const spot = (d.current_price ?? d.bid ?? d.close ?? d.last) || 0;
-    if (!spot) return { chain: null, status: r.status };
+    if (!spot) return { chain: null, status: status };
 
     let totalChainOI = 0;
     let topStrikeOI = 0;
@@ -123,7 +121,7 @@ async function fetchCboeChainOnce(symbol: string, timeoutMs: number): Promise<{ 
         },
       });
     }
-    if (rawChain.length === 0) return { chain: null, status: r.status };
+    if (rawChain.length === 0) return { chain: null, status: status };
 
     // Spot-sanity cross-check: the derived underlying must sit within the listed
     // strike ladder. CBOE occasionally serves an internally-consistent but
@@ -136,10 +134,10 @@ async function fetchCboeChainOnce(symbol: string, timeoutMs: number): Promise<{ 
       console.warn(
         `[cboe-chain] ${symbol.toUpperCase()}: derived spot ${spot} is outside listed strike range [${minStrike}, ${maxStrike}] — rejecting chain as unreliable.`,
       );
-      return { chain: null, status: r.status };
+      return { chain: null, status: status };
     }
 
-    return { chain: { spot, rawChain, totalChainOI, topStrikeOI }, status: r.status };
+    return { chain: { spot, rawChain, totalChainOI, topStrikeOI }, status: status };
   } catch {
     return { chain: null, status: 0 };
   } finally {

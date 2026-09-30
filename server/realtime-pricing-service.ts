@@ -148,10 +148,9 @@ async function fetchIndexQuote(symbol: string): Promise<RealtimeQuote | null> {
   const sym = symbol.toUpperCase().replace(/^\^/, '');
   if (!CASH_INDICES.has(sym)) return null;
   try {
-    const res = await fetch(`https://cdn.cboe.com/api/global/delayed_quotes/options/_${sym}.json`);
-    if (!res.ok) return null;
-    const j: any = await res.json();
-    const d = j?.data;
+    // Quote endpoint (~0.5 KB) — this used to download the whole 13 MB SPX chain for one price.
+    const { loadCboeQuote } = await import('./lib/cboe-loader');
+    const d: any = await loadCboeQuote(sym);
     const price = Number(d?.current_price);
     if (!Number.isFinite(price) || price <= 0) return null;
     const prev = Number(d?.prev_day_close);

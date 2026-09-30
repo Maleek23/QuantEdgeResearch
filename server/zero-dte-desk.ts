@@ -575,7 +575,18 @@ export async function getZeroDteDesk(opts: { priority?: boolean } = {}): Promise
     const rows: DeskRow[] = [];
     // Sequential: a few names, and the provider queues are serial anyway.
     for (const s of watch) {
-      try { rows.push(await buildRow(s, phase, ideas, opts.priority !== false, nowMs)); } catch (e) {
+      try {
+        const row = await buildRow(s, phase, ideas, opts.priority !== false, nowMs);
+        rows.push(row);
+        // SPX has no Alpaca chain; when CBOE fails too, show SPY (Alpaca) so the
+        // index lane never goes dark. SPY is its own row with its own prices —
+        // nothing is rescaled or relabelled as SPX.
+        if (s === 'SPX' && !row.chainSource && !watch.includes('SPY')) {
+          const spy = await buildRow('SPY', phase, ideas, opts.priority !== false, nowMs);
+          spy.intradayNote = `Stand-in for SPX — the SPX chain is unavailable right now (${row.errors[0] ?? 'no chain'}).${spy.intradayNote ? ' ' + spy.intradayNote : ''}`;
+          rows.push(spy);
+        }
+      } catch (e) {
         logger.warn(`[0DTE-DESK] ${s} row failed: ${(e as Error).message}`);
       }
     }

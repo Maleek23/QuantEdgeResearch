@@ -421,9 +421,8 @@ async function computeBreadth(): Promise<BreadthSignals | undefined> {
 async function computeOptionsContext(): Promise<OptionsContext | undefined> {
   // Pull SPY options chain for put/call ratio
   try {
-    const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/SPY.json`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    const j: any = await r.json();
+    const { loadCboeChain } = await import('./lib/cboe-loader');
+    const j: any = (await loadCboeChain('SPY')).payload;
     const opts = j?.data?.options || [];
     let callVol = 0, putVol = 0;
     for (const o of opts) {

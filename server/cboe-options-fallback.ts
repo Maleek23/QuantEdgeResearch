@@ -112,27 +112,19 @@ async function _fetchCBOEOptionsChain(symbol: string): Promise<{
   source: 'cboe';
 } | null> {
   try {
-    // CBOE serves delayed quotes via their market data API
-    const url = `https://cdn.cboe.com/api/global/delayed_quotes/options/${symbol.toUpperCase()}.json`;
-
-    // Serialised behind a global limiter: the scanners request ~160 distinct symbols in
-    // bursts, and CBOE answers that with a blanket 429 that kills options pricing entirely.
-    const { rateLimited } = await import('./provider-cache');
-    const res = await rateLimited('cboe', 350, () => fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Accept': 'application/json',
-      },
-    }));
+    // Shared loader: one parse at a time, trimmed to near expiries, and the index key
+    // mapped (SPX → _SPX; a bare SPX.json is refused, which read as "no listed expiry").
+    const { loadCboeChain } = await import('./lib/cboe-loader');
+    const res = await loadCboeChain(symbol, { maxDays: 120 });
 
     // 403/404 = CBOE has no delayed chain for this symbol — answered, not failed.
     noteProvider('cboe', httpOk(res.status) || res.status === 403, `HTTP ${res.status}`);
-    if (!res.ok) {
+    if (!res.payload) {
       logger.warn(`[CBOE-OPT] API ${res.status} for ${symbol}`);
       return null;
     }
 
-    const data = await res.json();
+    const data = res.payload;
     // CBOE moved the underlying quote fields up one level: they used to live on
     // data.quote, and now sit directly on data. Accept BOTH shapes — reading only the
     // old path silently returned null here, which killed every chain fallback that
