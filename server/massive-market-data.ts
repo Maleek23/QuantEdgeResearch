@@ -150,6 +150,7 @@ interface GroupedBar {
 const groupedCache = new Map<string, { bars: Map<string, GroupedBar>; fetchedAt: number }>();
 const GROUPED_TTL_MS = 15 * 60 * 1000;           // today's session (still settling)
 const GROUPED_PAST_TTL_MS = 24 * 60 * 60 * 1000;  // a finished session never changes
+const GROUPED_MAX_DAYS = 4;                        // memory cap: whole-market maps are large
 /** One request per day in flight — concurrent callers share it (2026-09-30:
  *  229 whole-market downloads in 10 min from callers racing the cache). */
 const groupedInFlight = new Map<string, Promise<GroupedBar[]>>();
@@ -182,6 +183,12 @@ export async function fetchGroupedDaily(date?: Date): Promise<Map<string, Groupe
     if (results.length > 0) {
       const bars = new Map(results.map((b) => [b.T?.toUpperCase(), b] as const));
       groupedCache.set(day, { bars, fetchedAt: Date.now() });
+      // Each entry is the whole US market (~10k rows): keep only the newest few
+      // sessions or the 2 GB droplet swaps (2026-09-30).
+      while (groupedCache.size > GROUPED_MAX_DAYS) {
+        const oldest = Array.from(groupedCache.entries()).sort((a, b) => a[1].fetchedAt - b[1].fetchedAt)[0];
+        groupedCache.delete(oldest[0]);
+      }
       logger.info(`[MASSIVE] grouped daily ${day}: ${bars.size} tickers in one call`);
       return bars;
     }
