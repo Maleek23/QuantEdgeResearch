@@ -15,7 +15,7 @@ import { ChevronRight, Loader2, NotebookPen } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
 import { QEError, QEEmpty } from '@/components/ui/qe-states';
 import { useJournal } from '@/components/journal/journal-context';
-import { Card, N, Pnl, fmtDayLabel } from '@/components/journal/parts';
+import { Card, Pnl, fmtDayLabel } from '@/components/journal/parts';
 import { fmtMoney, fmtPct, type DayStats, type JTrade } from '@/lib/journal/metrics';
 import { dayEquity, dayRecap } from '@/lib/journal/metrics-extra';
 import { useTradeReviews } from '@/lib/journal/use-journal-extra';
@@ -25,6 +25,7 @@ import { AttachmentList, AttachmentsField, type NoteAttachment } from '@/compone
 import type { JournalNoteRow } from '@/lib/journal/types';
 import { fmtStamp, noteKindLabel, readApiError, useJournalNoteMutations } from '@/lib/journal/use-journal';
 import { TradeMiniList } from '@/components/journal/trade-mini-list';
+import { useJournalMarks, type LiveMark } from '@/lib/journal/use-journal-marks';
 
 const PAGE = 30;
 
@@ -78,6 +79,9 @@ export default function DailyView() {
   }, [focusDay]);
 
   const notesUnavailable = data.key === 'bot' || data.key === 'desk';
+  // Live marks for open rows (desk book: the 60 most recent open rows).
+  const openTotal = useMemo(() => trades.filter((t) => t.status === 'open').length, [trades]);
+  const marks = useJournalMarks(data.key, openTotal);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -88,7 +92,7 @@ export default function DailyView() {
         <p className="jr-note" style={{ margin: 0 }}>The {bookLabel} book is a ledger — it carries no notes, so days here show trades only.</p>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <N n={list.length} unit="days" />
+        <span className="jr-n">{list.length} {list.length === 1 ? 'day' : 'days'} in view</span>
         {canWrite && !list.includes(today) && <span className="jr-n">today is outside the date filter</span>}
       </div>
       {!list.length ? (
@@ -104,6 +108,7 @@ export default function DailyView() {
             trades={tradesByDay.get(day) ?? []}
             notes={notesByDay.get(day) ?? []}
             stats={stats.get(day) ?? null}
+            marks={marks}
           />
         ))
       )}
@@ -114,7 +119,23 @@ export default function DailyView() {
   );
 }
 
-function DayCard({ day, isToday, open, onToggle, trades, notes, stats }: {
+/** Won / lost / net on the day's closes, and live unrealized on what it opened that is still open. */
+function dayMoney(trades: JTrade[], marks: Record<string, LiveMark>) {
+  const closed = trades.filter((t) => t.status !== 'open');
+  const won = closed.filter((t) => t.netPnl > 0).reduce((a, t) => a + t.netPnl, 0);
+  const lost = closed.filter((t) => t.netPnl < 0).reduce((a, t) => a + t.netPnl, 0);
+  const open = trades.filter((t) => t.status === 'open');
+  let unreal = 0, marked = 0, up = 0, down = 0;
+  for (const t of open) {
+    const u = marks[t.id]?.unrealizedPnL ?? t.row.mark?.unrealizedPnL;
+    if (u == null || !Number.isFinite(u)) continue;
+    marked++; unreal += u; if (u > 0) up++; else if (u < 0) down++;
+  }
+  return { closed, won, lost, net: won + lost, open, unreal, marked, up, down };
+}
+
+function DayCard({ day, isToday, open, onToggle, trades, notes, stats, marks }: {
+  marks: Record<string, LiveMark>;
   day: string;
   isToday: boolean;
   open: boolean;
@@ -127,8 +148,14 @@ function DayCard({ day, isToday, open, onToggle, trades, notes, stats }: {
   const { reviews } = useTradeReviews(data.notesQ.data?.notes);
   const dayNote = notes.find((n) => n.reason === 'day_note') ?? null;
   const others = notes.filter((n) => n.reason !== 'day_note');
-  const sorted = [...trades].sort((a, b) => Date.parse(a.closedAt ?? a.openedAt) - Date.parse(b.closedAt ?? b.openedAt));
   const openCount = trades.filter((t) => t.status === 'open').length;
+  const money = dayMoney(trades, marks);
+  const unrealOf = (t: JTrade) => marks[t.id]?.unrealizedPnL ?? t.row.mark?.unrealizedPnL ?? null;
+  const winners = money.closed.filter((t) => t.netPnl > 0).sort((a, b) => b.netPnl - a.netPnl);
+  const losers = money.closed.filter((t) => t.netPnl < 0).sort((a, b) => a.netPnl - b.netPnl);
+  const flat = money.closed.filter((t) => t.netPnl === 0);
+  const opens = [...money.open].sort((a, b) => (unrealOf(b) ?? -Infinity) - (unrealOf(a) ?? -Infinity));
+  const openTrades = (ts: JTrade[]) => (id: string) => openTrade(id, ts.map((t) => t.id));
   const panelId = `jr-day-panel-${day}`;
   return (
     <section className="jr-card jr-day jr-anchor" id={`jr-day-${day}`} aria-label={fmtDayLabel(day)}>
@@ -138,20 +165,35 @@ function DayCard({ day, isToday, open, onToggle, trades, notes, stats }: {
           <b>{fmtDayLabel(day, { month: 'short', day: 'numeric', year: 'numeric' })}</b>
           <span className="jr-mute">{fmtDayLabel(day, { weekday: 'long' })}{isToday ? ' · today' : ''}</span>
         </span>
-        {stats && stats.trades > 0 ? (
-          <span className="jr-day-stats">
-            <Pnl value={stats.netPnl} />
-            <span className="jr-n">{stats.trades} closed · {fmtPct(stats.trades ? stats.wins / stats.trades : null)} win · {stats.wins}W/{stats.losses}L</span>
-          </span>
-        ) : <span className="jr-day-stats jr-mute">{openCount ? `${openCount} opened, still open` : 'no closed trades'}</span>}
+        <span className="jr-day-stats">
+          {money.closed.length > 0 ? (
+            <>
+              <Pnl value={money.net} />
+              <span className="jr-n">won <span className="jr-gain">{fmtMoney(money.won)}</span> · lost <span className="jr-loss">{fmtMoney(money.lost)}</span> · {money.closed.length} closed{stats ? ` · ${stats.wins}W/${stats.losses}L` : ''}</span>
+            </>
+          ) : <span className="jr-mute">no closed trades</span>}
+          {openCount > 0 && (
+            <span className="jr-n">· {openCount} open{money.marked ? <> · live <Pnl value={money.unreal} compact /></> : ''}</span>
+          )}
+        </span>
         {dayNote && <span className="jr-tag" title="Has a day note"><NotebookPen className="h-3 w-3" aria-hidden /> note</span>}
         {others.length > 0 && <span className="jr-n">{others.length} note{others.length === 1 ? '' : 's'}</span>}
       </button>
       {open && (
         <div id={panelId} className="jr-day-body">
-          <div>
-            <div className="jr-kpi-l" style={{ marginBottom: 6 }}>Trades</div>
-            <TradeMiniList trades={sorted} onOpen={(id) => openTrade(id, sorted.map((t) => t.id))} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }} aria-label="Day scoreboard">
+              <div><span>Closed net</span><b><Pnl value={money.closed.length ? money.net : null} /></b><small>{money.closed.length} closed · realized</small></div>
+              <div><span>Won</span><b><Pnl value={money.won || null} /></b><small>{winners.length} winners</small></div>
+              <div><span>Lost</span><b><Pnl value={money.lost || null} /></b><small>{losers.length} losers{flat.length ? ` · ${flat.length} flat` : ''}</small></div>
+              <div><span>Open, live</span><b><Pnl value={money.marked ? money.unreal : null} /></b><small>{openCount ? `${money.marked} of ${openCount} marked · ${money.up}▲ ${money.down}▼ · unrealized` : 'nothing open'}</small></div>
+              <div><span>Day if closed now</span><b><Pnl value={money.closed.length || money.marked ? money.net + money.unreal : null} /></b><small>realized + marked open</small></div>
+            </div>
+            {winners.length > 0 && <div><div className="jr-kpi-l" style={{ marginBottom: 6 }}>Winners <span className="jr-n">{winners.length} · <Pnl value={money.won} compact /></span></div><TradeMiniList trades={winners} onOpen={openTrades(winners)} /></div>}
+            {losers.length > 0 && <div><div className="jr-kpi-l" style={{ marginBottom: 6 }}>Losers <span className="jr-n">{losers.length} · <Pnl value={money.lost} compact /></span></div><TradeMiniList trades={losers} onOpen={openTrades(losers)} /></div>}
+            {flat.length > 0 && <div><div className="jr-kpi-l" style={{ marginBottom: 6 }}>Breakeven <span className="jr-n">{flat.length}</span></div><TradeMiniList trades={flat} onOpen={openTrades(flat)} /></div>}
+            {opens.length > 0 && <div><div className="jr-kpi-l" style={{ marginBottom: 6 }}>Still open <span className="jr-n">{opens.length} · best live first{money.marked < opens.length ? ` · ${opens.length - money.marked} not marked yet` : ''}</span></div><TradeMiniList trades={opens} marks={marks} onOpen={openTrades(opens)} /></div>}
+            {!trades.length && <p className="jr-note" style={{ margin: 0 }}>No trades this day.</p>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {stats && stats.trades > 0 && <DayStatsBlock day={day} trades={trades} stats={stats} />}
