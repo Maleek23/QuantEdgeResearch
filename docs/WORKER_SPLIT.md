@@ -33,6 +33,7 @@ Fixed along the way: when the lock could not be attempted (no DATABASE_URL, `SCH
 | idea-producers (0DTE index/desk, flags, tape, GEX setups, quant, swings, crypto engine + tracker, pre-market plan/triggers, reversal slate) | web.ts | worker | ideas → DB, plus the four state files below |
 | ↳ pre-market ideas | | | `shared/premarket-ideas.json` (day plan). `/api/premarket/ideas` adds `stateSource {asOf, ageSec, stale}`, and `/api/premarket/gappers` uses the same setup map |
 | ↳ 0DTE desk | | | `shared/zero-dte-eval.json` (lastEval + ideaEval memos). `/api/zero-dte/desk` adds `engineState {asOf, ageSec}` and still builds rows (chains/bars) on request, as before |
+| ↳ 0DTE sniper (only when `ZERO_DTE_SNIPER=true`) | | | `shared/zero-dte-sniper.json` (last cycle + today's rows). `/api/zero-dte/sniper` adds `engineState {asOf, ageSec}` |
 | ↳ index 0DTE | | | `shared/index-0dte-last.json`. `getLastIndexScan()` feeds the desk. Under ROLE=web, `/api/scanner/index-lotto` serves the last pass with `lastPassAt`/`lastPassAgeSec` and the GEX hub no longer fires a scan on page view |
 | ↳ crypto ideas | | | `shared/crypto-last-scan.json`; `/api/crypto…` desk adds `lastScanSource` |
 | trigger-observer | web.ts | worker | DB |

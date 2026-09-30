@@ -67,6 +67,7 @@ const META: Record<string, { short: string; label: string; tone: IdeaSourceTone 
   whale_flow: { short: "WHALE", label: "Whale Flow", tone: "flow" },
   gex_scanner: { short: "GEX", label: "GEX Scanner", tone: "flow" },
   zero_dte_desk: { short: "0DTE", label: "0DTE Desk", tone: "scanner" },
+  zero_dte_sniper: { short: "SNIPE", label: "0DTE Sniper", tone: "lotto" },
   crypto_engine: { short: "CRYPTO", label: "Crypto Engine", tone: "scanner" },
   premarket_gap: { short: "PM", label: "Pre-market", tone: "scanner" },
   news: { short: "NEWS", label: "News", tone: "news" },

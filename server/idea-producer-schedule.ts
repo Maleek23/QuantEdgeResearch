@@ -193,6 +193,31 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return runShortSwingPublish();
   }), ET);
 
+  // ── Board-wide 0DTE sniper (server/zero-dte-sniper.ts) — OFF unless
+  // ZERO_DTE_SNIPER=true. Every 2 min; the engine itself no-ops outside
+  // 09:45–15:50 ET. Stage 1 (batched price bars for the whole board) is light
+  // and runs OUTSIDE the heavy gate; stage 2 sends each option-chain fetch
+  // through runHeavy itself (≤ ZERO_DTE_SNIPER_MAX_CHAINS per cycle), so this
+  // tick must not be wrapped in guarded() — nesting runHeavy at concurrency 1
+  // would deadlock. Its own in-flight guard skips a tick while one runs. ──
+  if (process.env.ZERO_DTE_SNIPER === 'true') {
+    let sniperRunning = false;
+    const sniper = async () => {
+      if (sniperRunning) { logger.info('[IDEA-PRODUCERS] 0dte-sniper: previous pass still running — skipped'); return; }
+      sniperRunning = true;
+      try {
+        const { runZeroDteSniper } = await import('./zero-dte-sniper');
+        await runZeroDteSniper();
+      } catch (err) {
+        logger.error('[IDEA-PRODUCERS] 0dte-sniper failed:', err);
+      } finally {
+        sniperRunning = false;
+      }
+    };
+    cron.schedule('45-59/2 9 * * 1-5', sniper, ET);
+    cron.schedule('1-59/2 10-15 * * 1-5', sniper, ET);
+  }
+
   // ── Pre-market ideas (server/premarket-ideas.ts): plan the WATCH list from
   // pre-market movers 08:30–09:25 ET every 10 min, then evaluate the planned
   // setups on live 1m bars 09:30–10:30 ET every 2 min and publish triggered
@@ -258,5 +283,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads (IDEA_PRODUCERS_IN_WEB=false disables)');
+  log(`🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads${process.env.ZERO_DTE_SNIPER === 'true' ? ', 0DTE sniper 2m 09:45–15:50 (ZERO_DTE_SNIPER=true)' : ''} (IDEA_PRODUCERS_IN_WEB=false disables)`);
 }
