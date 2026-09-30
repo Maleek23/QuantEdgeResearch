@@ -59,3 +59,9 @@
   .flowdash .bot-only .log-item{grid-template-columns:44px 48px minmax(0,1fr) auto auto}
   .flowdash .bot-only .log-bot{display:none}
 }
+
+/* phone density (operator 2026-09-30): KPI numbers first */
+@media (max-width:767px){
+  .flowdash .stats-bar .stat-val{font-size:22px;line-height:1.2}
+  .flowdash .stats-bar .stat-label,.flowdash .stats-bar .stat-sub{font-size:12px}
+}

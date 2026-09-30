@@ -73,7 +73,7 @@ const fmtVal = (v: number, metric: Metric) => (metric === 'vex' ? fmtVexM(v) : f
  * ~55px column never clips a number. Hover / the drill still show the full
  * formatted value.
  */
-function fmtCompact(v: number, metric: Metric): string {
+export function fmtCompact(v: number, metric: Metric): string {
   if (!Number.isFinite(v) || v === 0) return '0';
   const usd = Math.abs(v) * (metric === 'vex' ? 1e6 : 1e9);
   const sign = v < 0 ? '−' : '+';

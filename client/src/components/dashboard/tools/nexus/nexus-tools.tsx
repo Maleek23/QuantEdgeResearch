@@ -12,6 +12,7 @@
  * ticker so chart / GEX tools follow); the detail tool shows whatever was
  * selected last.
  */
+import { usePhone } from '@/components/ui/qe-phone';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Link, useSearch } from 'wouter';
 import { NEXUS_IDEA_PARAM, NEXUS_SYM_PARAM, readNexusTarget } from '@/lib/nexus-link';
@@ -140,7 +141,7 @@ function FilterBar({ side, onSide, query, onQuery, placeholder, rank, onRank, co
   children?: ReactNode;
 }) {
   return (
-    <div className="of-controls nxd-controls">
+    <div className="of-controls nxd-controls qp-row">
       <div className="of-seg" role="group" aria-label="Side">
         {SIDES.map((s) => <button key={s} type="button" className={side === s ? 'on' : ''} onClick={() => onSide(s)}>{s.toUpperCase()}</button>)}
       </div>
@@ -183,7 +184,10 @@ export function NexusBoardTool() {
   // Nothing chosen yet → the detail tool shows the top setup, so mark it.
   const topId = useMemo(() => rankRows(all, { scope: 'setups', side: 'all', query: '', rank: 'all' })[0]?.ideaId, [all]);
   const activeId = sel?.kind === 'setup' ? sel.id : sel == null ? topId : undefined;
-  const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) select.setup(p); };
+  const phone = usePhone();
+  // Phone: the detail is a section further down the one-column page — a row tap brings it into view.
+  const toDetail = () => { if (phone) window.requestAnimationFrame(() => document.querySelector('[data-tool="nexus-detail"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
+  const pickById = (id: string) => { const p = rows.find((r) => r.ideaId === id); if (p) { select.setup(p); toDetail(); } };
   return (
     <div className="fd-fill nxd nxd-board">
       <FilterBar side={side} onSide={setSide} query={query} onQuery={setQuery} placeholder="Ticker or sector" rank={rank} onRank={setRank} count={rows.length}>
@@ -201,7 +205,7 @@ export function NexusBoardTool() {
           ? <div className="fd-scroll fd-pad"><SignalGrid picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>
           : view === 'table'
             ? <div className="fd-scroll fd-pad"><SignalTable picks={rows} selectedId={activeId ?? null} onSelect={pickById} /></div>
-            : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} selected={activeId === pick.ideaId} onSelect={() => select.setup(pick)} />)}</div>)}
+            : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} selected={activeId === pick.ideaId} onSelect={() => { select.setup(pick); toDetail(); }} />)}</div>)}
     </div>
   );
 }

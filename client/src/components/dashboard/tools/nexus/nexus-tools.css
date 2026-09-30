@@ -89,3 +89,16 @@ html[data-mode=light] .nxp-tab-panel{background:rgba(15,23,42,.03)}
 html[data-mode=light] .nxp-cockpit{color:#0b3d2e}
 html[data-mode=light] .flowdash .nxd .nxp-row small,html[data-mode=light] .nxp-row-main small,html[data-mode=light] .nxp-row-status small{color:#4b5563}
 html[data-mode=light] .nxp-risk-state.low{color:#035c43}
+
+/* ── phone density (operator 2026-09-30) ── filters in ONE sideways row, table = 4 essential columns */
+@media (max-width:767px){
+  .flowdash .nxd-controls.qp-row{padding:6px 24px 8px 0}
+  .flowdash .nxd-controls.qp-row .nxd-search{flex:none;width:132px;max-width:none;min-height:40px}
+  .flowdash .nxd-controls.qp-row .nxd-count{margin-left:4px;align-self:center}
+  .flowdash .nxd-board table tbody tr{font-size:13px}
+  .flowdash .nxd-board table thead tr{font-size:12px}
+  .flowdash .nxd-board table td .max-w-24{display:none}
+  .flowdash .nxd-board table td,.flowdash .nxd-board table th{padding-left:8px;padding-right:8px}
+  .flowdash .nxd-board table tbody tr{height:48px}
+  .flowdash .nxd .nxp-detail-head p{font-size:14px}
+}

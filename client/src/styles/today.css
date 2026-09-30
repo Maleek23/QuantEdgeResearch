@@ -370,3 +370,13 @@
 .flowdash .today-l .td-pm-chip em.against{color:var(--amber,#facc15)}
 .flowdash .today-l .td-pm-more{background:none;border:1px dashed rgba(59,140,255,.25);border-radius:4px;padding:4px 8px;color:var(--text-dim);font:600 11px var(--mono);cursor:pointer}
 .flowdash .today-l .td-pm-foot{margin:0;font-size:11.5px;color:var(--text-mute);line-height:1.4}
+
+/* ── phone density (operator 2026-09-30): numbers first, captions one tap away ── */
+@media (max-width:767px){
+  .flowdash .td-week .lterminal-head{display:none}
+  .flowdash .td-week .tl-keys small{display:none}
+  .flowdash .td-week .tl-keys b{font-size:20px}
+  .flowdash .td-week .hero-title{font-size:20px;line-height:1.25}
+  .flowdash .td-pm-chips.qp-row{padding-bottom:2px}
+  .flowdash .td-week .hero-sub.qp-clamp{margin-bottom:0}
+}

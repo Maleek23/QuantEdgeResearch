@@ -142,3 +142,11 @@
   .tk-actions > * { flex: 1 1 auto; justify-content: center; }
   .tk-rules b, .tk-events > li > b { min-width: 0; width: 100%; }
 }
+
+/* ── phone density (operator 2026-09-30): numbers first, units lines gone, one stamp ── */
+@media (max-width: 767px) {
+  .tk-stat-v { font-size: 20px; white-space: normal; overflow-wrap: anywhere; }
+  .tk-stat-s { font-size: 13px; }
+  .tk-stat-k { font-size: 12px; }
+  .tk-quote .qp-stamp, .tk-dealer-h .qp-stamp { margin-left: auto; }
+}

@@ -92,8 +92,10 @@ export interface PageSpec {
    * natural height inside the one page scroller (operator: "I literally have
    * to find where to scroll"). 'auto' = natural height, never clipped (the
    * GEX matrix, whose own scroller is a fixed 60vh frame on phones).
+   * `leadReplaces`: tools the lead already IS on phones (GEX: the lead is the
+   * phone matrix, so the gex-matrix section is not stacked a second time).
    */
-  phone?: { lead?: boolean; first?: string[]; fill?: Record<string, string> };
+  phone?: { lead?: boolean; first?: string[]; fill?: Record<string, string>; leadReplaces?: string[] };
   /**
    * PAGE mode: tools whose body is a chart that fills its box (no natural
    * height) — they get a fixed, viewport-scaled body instead of collapsing.
@@ -154,6 +156,7 @@ export const PAGES: Record<PageId, PageSpec> = {
     // snap view, strikes scroll inside), then the secondary tools.
     phone: {
       lead: true,
+      leadReplaces: ['gex-matrix'],
       first: ['gex-matrix', 'gex-levels', 'gex-regime'],
       fill: { 'gex-matrix': 'auto', 'gex-dealer-map': '60vh', 'stock-chart': 'min(56vh, 480px)', 'gex-profile': '320px', 'gex-hub': '80vh' },
     },

@@ -16,9 +16,11 @@
  *   AUDIT_OUT         JSON output path (default research/device-audit.json)
  *   AUDIT_SERVE_ONLY  1 = only run the harness server (browse it by hand)
  *   AUDIT_SIGNED_OUT  1 = /api/auth/me answers 401 (check the sign-in gate / return-to)
+ *   AUDIT_DIST        serve another built client (e.g. a before/after comparison copy)
  *
  * The built-in server serves the BUILT client (with a TEST HARNESS banner) and answers /api with
- * synthetic FIXTURES (a GEX book and a conviction list) or 404, so
+ * synthetic FIXTURES (a GEX book, a conviction list, pre-market gaps, an
+ * options-flow tape and a journal trade list) or 404, so
  * tools render real layouts, loading and error states. Nothing here is
  * market data and nothing is presented as such.
  *
@@ -37,6 +39,20 @@
  *             section/card titles ≥ 16px, no visible text < 12px
  *   scrollCue desktop workspaces: every overflowing scroller inside a tile is the
  *             tile's marked scroller (visible scrollbar, fade + "more" cue)
+ *   noDesc    phones: no tool/section description, method note or long provenance
+ *             line is visible by default — they live behind the ⓘ (qe-phone.tsx):
+ *             .fd-tool-blurb, .pg-prov, .fd-prov, .fd-age, .lx-page-purpose,
+ *             .lx-panel-sub and a collapsed PhoneNote's body must not render
+ *   textBudget (WARN, not a failure) phones: visible text characters in the FIRST
+ *             viewport ≤ PHONE_TEXT_BUDGET (550). Why 550: at 393×852 the content
+ *             area between the top bar and the dock is ~700px; at the phone prose
+ *             floor (14px, ~20px lines, ~42 chars per 361px line) a screen of
+ *             paragraphs is ~35 × 42 ≈ 1,450 chars, while a screen that is mostly
+ *             numbers, tickers and headings measures 300–500 (NEXUS board, FLOW
+ *             feed, GEX matrix after the 2026-09-30 declutter). 550 ≈ 40% of a
+ *             prose screen: above it the first screen is reading, not scanning.
+ *             Counted like the eye sees it: clipped (clamped, scrolled-away,
+ *             overflow-hidden) lines are not counted; the harness banner is not.
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -45,7 +61,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const DIST = path.join(ROOT, 'dist', 'public');
+const DIST = process.env.AUDIT_DIST ? path.resolve(process.env.AUDIT_DIST) : path.join(ROOT, 'dist', 'public');
 const PORT = Number(process.env.AUDIT_PORT || 5392);
 const BASE = `http://127.0.0.1:${PORT}`;
 
@@ -68,6 +84,8 @@ const SIZES = [
   { w: 1440, h: 900, label: 'Desktop 1440', touch: false },
 ];
 const MODES = ['dark', 'light', 'contrast'] as const;
+/** phone first-viewport text budget (chars) — see "textBudget" above */
+const PHONE_TEXT_BUDGET = 550;
 
 const pick = <T,>(env: string | undefined, all: T[], key: (t: T) => string) =>
   env ? all.filter((t) => env.split(',').map((s) => s.trim()).includes(key(t))) : all;
@@ -140,6 +158,30 @@ function mockGappers() {
     gappers: rows.map(([symbol, gapPct, isWeekly]) => ({ symbol, price: +(100 * (1 + gapPct / 100)).toFixed(2), previousClose: 100, gapPct, preMarketGapPct: gapPct, direction: gapPct > 0.5 ? 'up' : gapPct < -0.5 ? 'down' : 'flat', phase: 'pre_market', isWeekly, fetchedAt: at })),
   };
 }
+/** Synthetic options-flow tape (TEST HARNESS — not market data): FLOW's feed, ladder and alerts. */
+function mockFlowTape(symbol: string | null) {
+  const r = rng(7 + (symbol?.length ?? 0));
+  const syms = symbol ? [symbol] : ['SPY', 'NVDA', 'TSLA', 'QQQ', 'AAPL', 'AMD', 'META', 'PLTR'];
+  const kinds = ['sweep', 'block', 'unusual', 'repeater', 'other'] as const;
+  const rows = Array.from({ length: 40 }, (_, i) => {
+    const sym = syms[i % syms.length]; const call = r() < 0.6; const spot = 100 + r() * 400;
+    const at = new Date(Date.now() - (i * 47 + 30) * 1000).toISOString();
+    return { id: `fx-${i}`, source: i % 3 ? 'bullflow' : 'chain-scan', at, symbol: sym, optionType: call ? 'call' : 'put', strike: Math.round(spot * (call ? 1.03 : 0.97)), expiry: '2026-10-17', premium: Math.round(60_000 + r() * 2_400_000), price: +(1 + r() * 9).toFixed(2), size: Math.round(50 + r() * 900), spot: +spot.toFixed(2), openInterest: Math.round(200 + r() * 5000), volOI: +(r() * 4).toFixed(2), label: 'fixture', kind: kinds[i % kinds.length], alertType: 'algo' };
+  });
+  const newest = rows[0].at;
+  return { generatedAt: new Date().toISOString(), windowDays: 1, symbol, rows, truncated: false, sources: { bullflow: { enabled: true, streamState: 'fixture', rows: rows.length, newestAt: newest }, chainScan: { ok: true, rows: 0, newestAt: newest } } };
+}
+/** Synthetic journal trades (TEST HARNESS — not anyone's record). */
+function mockJournalTrades() {
+  const r = rng(99);
+  const syms = ['NVDA', 'SPY', 'TSLA', 'AAPL', 'AMD', 'QQQ', 'META', 'MSFT', 'PLTR', 'COIN', 'AMZN', 'GOOGL'];
+  const trades = Array.from({ length: 24 }, (_, i) => {
+    const entry = +(1 + r() * 6).toFixed(2); const exit = +(entry * (0.5 + r() * 1.2)).toFixed(2); const qty = 1 + Math.floor(r() * 5);
+    const t0 = Date.UTC(2026, 8, 29 - Math.floor(i / 2), 14, 30 + i) ; const pnl = +((exit - entry) * qty * 100).toFixed(2);
+    return { id: `fx-t${i}`, symbol: syms[i % syms.length], assetType: 'option', direction: 'long', optionType: i % 3 ? 'call' : 'put', strikePrice: 100 + i * 5, expiryDate: '2026-10-17', quantity: qty, entryPrice: entry, exitPrice: exit, fees: 1.3, entryTime: new Date(t0).toISOString(), exitTime: new Date(t0 + 3_600_000).toISOString(), holdingMinutes: 60, realizedPnL: pnl, realizedPnLPercent: +(((exit - entry) / entry) * 100).toFixed(1), grossPnL: pnl, status: 'closed', outcome: pnl >= 0 ? 'win' : 'loss', notes: null, emotion: null, setupType: i % 2 ? 'breakout' : 'pullback', mistakeTag: null, rating: null, screenshot: null, broker: 'fixture' };
+  });
+  return { trades, count: trades.length };
+}
 /** Every harness page says so, big: a watermark and a red strip (aria-hidden, pointer-events none). */
 const HARNESS_BANNER = '<div aria-hidden="true" data-harness style="position:fixed;inset:0;z-index:2147483646;pointer-events:none;display:grid;place-items:center;overflow:hidden"><div style="transform:rotate(-24deg);font:800 64px/1.1 system-ui,sans-serif;letter-spacing:.08em;color:rgba(255,64,64,.14);text-align:center;white-space:nowrap">TEST HARNESS<br><span style="font-size:22px;letter-spacing:.04em">synthetic fixtures · not market data</span></div></div><div aria-hidden="true" data-harness style="position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:2147483647;pointer-events:none;padding:2px 12px;border-radius:0 0 8px 8px;background:#b91c1c;color:#fff;font:700 11px/1.6 system-ui,sans-serif;letter-spacing:.06em">TEST HARNESS · SYNTHETIC FIXTURES · NOT MARKET DATA</div>';
 
@@ -156,6 +198,10 @@ function serve(): Promise<http.Server> {
       const m = p.match(/^\/api\/gex-vex\/terminal\/([^/]+)/);
       if (m) return json(200, mockTerminal(decodeURIComponent(m[1]).toUpperCase()));
       if (p === '/api/convictions') return json(200, mockConvictions());
+      if (p === '/api/flow/tape') return json(200, mockFlowTape(url.searchParams.get('symbol')));
+      if (p === '/api/journal/trades') return json(200, mockJournalTrades());
+      if (p === '/api/journal/analytics') return json(200, { timingByHour: [], timingByDay: [], timingBySession: [], insights: [], dteBreakdown: [], tradeCountOptimum: [], emotionAnalysis: [] });
+      if (p === '/api/journal/notes') return json(200, { notes: [], count: 0 });
       return json(404, { error: `test harness: no fixture for ${p}` });
     }
     let f = path.join(DIST, p);
@@ -187,7 +233,7 @@ function pageAudit(opts: { touch: boolean; phone: boolean }) {
   const smallTargets: string[] = [];
   if (opts.touch) {
     for (const el of ctrls) {
-      if (el.closest('.gx-table') && el.classList.contains('gx-cell')) continue; // matrix data cells: tap-to-drill data, not controls
+      if (el.closest('.gx-table, .gxp-table') && el.classList.contains('gx-cell')) continue; // matrix data cells: tap-to-drill data, not controls
       if (el.tagName === 'A' && el.closest('p')) continue; // inline links in prose (WCAG 2.5.8 exception)
       if (el.closest('.sr-only') || el.getBoundingClientRect().width <= 2) continue; // visually hidden until focused (skip link)
       const box = (el.matches('input[type=checkbox],input[type=radio]') ? el.closest('label') || el : el).getBoundingClientRect();
@@ -286,6 +332,7 @@ function pageAudit(opts: { touch: boolean; phone: boolean }) {
     need('.gx-strike b', 14, 'GEX strike label');
     need('.gx-table thead th', 12, 'GEX expiry header');
     need('.gx-row', 36, 'GEX matrix row height', (e) => e.getBoundingClientRect().height);
+    need('.gxp-table tbody tr', 36, 'GEX phone matrix row height', (e) => e.getBoundingClientRect().height);
     need('.pg-sec-head h2, .fd-tool-title > span:first-child', 16, 'section/card title');
     const tiny = runs.filter((el) => !el.closest('[data-harness],svg') && parseFloat(getComputedStyle(el).fontSize) < 12 - 0.01);
     if (tiny.length) readability.push(`${tiny.length}× text < 12px (e.g. ${parseFloat(getComputedStyle(tiny[0]).fontSize)}px "${(tiny[0].innerText || '').trim().slice(0, 20)}" <${tiny[0].tagName.toLowerCase()}.${(tiny[0].className?.toString?.() ?? '').split(' ')[0]}> @${where(tiny[0])})`);
@@ -305,7 +352,35 @@ function pageAudit(opts: { touch: boolean; phone: boolean }) {
       });
     });
   }
-  return { overflowX, controls: ctrls.length, smallTargets, smallBody, unlabeled, noTooltip, lowContrast, textRuns: checked, readability, hiddenScroll };
+  // phones: descriptions / method notes / long provenance lines are behind the ⓘ
+  const descVisible: string[] = [];
+  let firstViewChars = 0;
+  if (opts.phone) {
+    const DESC = '.fd-tool-blurb, .pg-prov, .fd-prov, .fd-age, .lx-page-purpose, .lx-panel-sub, [data-phone-note]:not(.open) > .qp-note-body';
+    for (const el of Array.from(document.querySelectorAll(DESC))) {
+      if (!isVis(el) || el.closest('[role=dialog]')) continue;
+      descVisible.push(`"${((el as HTMLElement).innerText || '').trim().slice(0, 40)}" <${el.className.toString().split(' ')[0]}> @${where(el)}`);
+    }
+    // first-viewport text, counted as the eye sees it (clip-aware, per rendered line)
+    const H = innerHeight;
+    const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      const t = (n.textContent || '').replace(/\s+/g, ' ').trim(); const p = n.parentElement;
+      if (!t || !p || p.closest('script,style,noscript,[aria-hidden=true],.sr-only,[data-harness]')) continue;
+      const cs = getComputedStyle(p); if (cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.05) continue;
+      const range = document.createRange(); range.selectNodeContents(n);
+      const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
+      if (!rects.length) continue;
+      const clips: DOMRect[] = [];
+      for (let a: Element | null = p; a && a !== document.body; a = a.parentElement) {
+        const acs = getComputedStyle(a);
+        if (acs.overflowX !== 'visible' || acs.overflowY !== 'visible') clips.push(a.getBoundingClientRect());
+      }
+      const seen = rects.filter((r) => r.bottom > 0 && r.top < H && r.right > 0 && r.left < W && clips.every((c) => r.bottom > c.top + 1 && r.top < c.bottom - 1 && r.right > c.left + 1 && r.left < c.right - 1));
+      firstViewChars += Math.round(t.length * seen.length / rects.length);
+    }
+  }
+  return { overflowX, controls: ctrls.length, smallTargets, smallBody, unlabeled, noTooltip, lowContrast, textRuns: checked, readability, hiddenScroll, descVisible, firstViewChars };
 }
 
 async function focusAudit(page: any) {
@@ -369,9 +444,12 @@ async function run() {
             contrast: !row.error && (row.lowContrast?.length ?? 0) === 0,
             readability: !row.error && (row.readability?.length ?? 0) === 0,
             scrollCue: !row.error && (row.hiddenScroll?.length ?? 0) === 0,
+            noDesc: !row.error && (row.descVisible?.length ?? 0) === 0,
           };
+          // WARN only (not a pass/fail check): phone first-viewport text over budget
+          row.textBudgetWarn = size.w < 600 && !row.error && (row.firstViewChars ?? 0) > PHONE_TEXT_BUDGET;
           results.push(row);
-          process.stderr.write(`${pg.name.padEnd(9)} ${row.size.padEnd(9)} ${mode.padEnd(8)} ${Object.entries(row.pass).map(([k, v]) => `${k}:${v ? 'ok' : 'FAIL'}`).join(' ')}${row.error ? ' ERR ' + row.error : ''}\n`);
+          process.stderr.write(`${pg.name.padEnd(9)} ${row.size.padEnd(9)} ${mode.padEnd(8)} ${Object.entries(row.pass).map(([k, v]) => `${k}:${v ? 'ok' : 'FAIL'}`).join(' ')}${size.w < 600 ? ` text:${row.firstViewChars ?? '?'}${row.textBudgetWarn ? ' WARN>' + PHONE_TEXT_BUDGET : ''}` : ''}${row.error ? ' ERR ' + row.error : ''}\n`);
         }
         await ctx.close();
       }
@@ -384,8 +462,8 @@ async function run() {
   fs.writeFileSync(out, JSON.stringify({ ranAt: new Date().toISOString(), seconds: Math.round((Date.now() - t0) / 1000), data: 'TEST HARNESS fixtures (research/device-audit.ts built-in server) — not market data', results }, null, 2));
 
   // table: page × size, one cell per mode = failing checks (counts)
-  const checks = ['overflow', 'targets', 'bodyText', 'focus', 'icons', 'contrast', 'readability', 'scrollCue'] as const;
-  const count = (r: any, c: string) => ({ overflow: r.overflowX, targets: r.smallTargets?.length, bodyText: r.smallBody?.length, focus: r.focusMissing?.length, icons: (r.unlabeled?.length ?? 0) + (r.noTooltip?.length ?? 0), contrast: r.lowContrast?.length, readability: r.readability?.length, scrollCue: r.hiddenScroll?.length } as any)[c];
+  const checks = ['overflow', 'targets', 'bodyText', 'focus', 'icons', 'contrast', 'readability', 'scrollCue', 'noDesc'] as const;
+  const count = (r: any, c: string) => ({ overflow: r.overflowX, targets: r.smallTargets?.length, bodyText: r.smallBody?.length, focus: r.focusMissing?.length, icons: (r.unlabeled?.length ?? 0) + (r.noTooltip?.length ?? 0), contrast: r.lowContrast?.length, readability: r.readability?.length, scrollCue: r.hiddenScroll?.length, noDesc: r.descVisible?.length } as any)[c];
   console.log(`\n| Page | Size | ${modes.join(' | ')} |\n|---|---|${modes.map(() => '---').join('|')}|`);
   for (const pg of pages) for (const s of sizes) {
     const cells = modes.map((m) => {
@@ -399,6 +477,12 @@ async function run() {
   const passed = results.filter((r) => !r.readOnly && Object.values(r.pass).every(Boolean)).length;
   const total = results.filter((r) => !r.readOnly).length;
   console.log(`\n${passed}/${total} page×size×mode combinations pass every check (Journal reported, not counted). Details: research/device-audit.json`);
+  // phone first-viewport text budget — a WARNING list, per page × phone size (dark mode = the reference read)
+  const phoneRows = results.filter((r) => r.mode === (modes.includes('dark') ? 'dark' : modes[0]) && Number(r.size.split('x')[0]) < 600 && !r.error);
+  if (phoneRows.length) {
+    console.log(`\nPhone first-viewport text (chars; budget ${PHONE_TEXT_BUDGET}, warn above):`);
+    for (const r of phoneRows) console.log(`  ${r.page.padEnd(9)} ${r.size.padEnd(8)} ${String(r.firstViewChars).padStart(5)}${r.textBudgetWarn ? '  WARN over budget' : ''}`);
+  }
 }
 
 if (process.env.AUDIT_SERVE_ONLY) {

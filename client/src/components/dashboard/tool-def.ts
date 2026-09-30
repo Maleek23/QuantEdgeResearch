@@ -33,7 +33,9 @@ export interface ToolDef {
   id: string;
   category: ToolCategory;
   title: string;
-  /** one line: what this shows */
+  /** phone title (one line, ≤ ~20 chars); default: the title before " · " (qe-phone shortTitle) */
+  phoneTitle?: string;
+  /** one line: what this shows (phones: behind the section's ⓘ) */
   what: string;
   units: string;
   /** data source as the operator should read it */

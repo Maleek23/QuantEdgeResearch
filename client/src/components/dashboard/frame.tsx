@@ -16,6 +16,7 @@ import { GripVertical, X } from 'lucide-react';
 import { useStockContext } from '@/contexts/stock-context';
 import { ageLabel } from './tools/flow/tape';
 import type { ToolDef } from './tool-def';
+import { FreshStamp, InfoSheet, shortTitle, usePhone } from '@/components/ui/qe-phone';
 
 export interface ToolReport {
   /** ISO of the newest datum shown (not the fetch time). */
@@ -116,6 +117,25 @@ export function provenanceOf(def: ToolDef, report: ToolReport, now: number) {
   return { src: report.source ?? def.source, age };
 }
 
+/** The title a phone shows: ONE line, whole words (def.phoneTitle or the title before " · "). */
+export const phoneTitleOf = (def: ToolDef) => def.phoneTitle ?? shortTitle(def.title);
+
+/**
+ * PHONE section meta (< 768px; hidden on desktop, where the full provenance
+ * line shows): ONE compact freshness stamp (● 2m, grey/amber/red by age) and
+ * an ⓘ that opens a bottom sheet with the description, units, full source and age.
+ */
+export function PhoneMeta({ def, report, now }: { def: ToolDef; report: ToolReport; now: number }) {
+  const { src, age } = provenanceOf(def, report, now);
+  const label = def.staticContent ? 'static' : def.ageInside ? 'per row' : report.asOf === undefined ? '…' : '—';
+  return (
+    <span className="qp-meta qp-phone-only">
+      <FreshStamp asOf={def.staticContent || def.ageInside ? null : report.asOf} now={now} label={label} warn={report.tone === 'warn'} />
+      <InfoSheet title={def.title} what={def.what} units={def.units} source={src} age={age} note={report.note} />
+    </span>
+  );
+}
+
 export function ToolFrame({
   def, onRemove, dragHandle, resizeHandle, children, compact, symbol, grip = true,
 }: {
@@ -133,20 +153,22 @@ export function ToolFrame({
   const [report, setReport] = useState<ToolReport>({});
   const now = useNow();
   const { src, age } = provenanceOf(def, report, now);
+  const phone = usePhone();
   return (
     <section className="fd-tool" aria-label={def.title} data-tool={def.id}>
       <header className="fd-tool-head">
         {dragHandle ?? (grip ? <span className="fd-grip-ph" aria-hidden><GripVertical size={12} /></span> : null)}
         <div className="fd-tool-titles">
           <div className="fd-tool-title">
-            <span>{def.title}</span>
+            <span>{phone ? phoneTitleOf(def) : def.title}</span>
             {symbol && <span className="fd-sym" title="Follows the focused ticker — change it in the bar above, or click a row in any tool">{symbol}</span>}
-            <span className={`fd-age${report.tone === 'warn' ? ' warn' : ''}`} title={`Data source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
+            <PhoneMeta def={def} report={report} now={now} />
+            <span className={`fd-age qp-desk-only${report.tone === 'warn' ? ' warn' : ''}`} title={`Data source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
               {src} · {age}{report.note ? ` · ${report.note}` : ''}
             </span>
           </div>
           {!compact && (
-            <div className="fd-tool-blurb" title={`${def.what}\nUnits: ${def.units}\nBacking: ${def.backing}`}>
+            <div className="fd-tool-blurb qp-desk-only" title={`${def.what}\nUnits: ${def.units}\nBacking: ${def.backing}`}>
               {def.what} <span className="fd-units">Units: {def.units}</span>
             </div>
           )}

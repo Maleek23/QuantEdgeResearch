@@ -10,6 +10,12 @@
  * Ticker tools follow the dashboard focus symbol; a row click re-points it.
  */
 import { useMemo, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { SlidersHorizontal } from 'lucide-react';
+import { FreshStamp } from '@/components/ui/qe-phone';
+import { QEDrawer } from '@/components/ui/qe-drawer';
+import { TickerSwitcher } from '@/components/ticker-switcher';
+import { GexPhoneMatrix } from '@/components/gex/gex-phone-matrix';
 import type { StrikeExpiryCell } from '@shared/gex-types';
 import { describeLegacyRegime } from '@shared/gex-regime';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
@@ -107,8 +113,6 @@ export function GexPhoneSummary() {
   const read = regimeNarrative(reg, zg);
   const color = regimeColor(reg?.regime, reg?.nearFlip);
   const asOf = terminalAsOf(g.q.data);
-  const ageS = asOf ? Math.max(0, Math.round((now - new Date(asOf).getTime()) / 1000)) : null;
-  const age = ageS == null || !Number.isFinite(ageS) ? 'age —' : ageS < 90 ? `${ageS}s ago` : ageS < 5400 ? `${Math.round(ageS / 60)}m ago` : `${Math.round(ageS / 3600)}h ago`;
   const dist = (v: number | null | undefined) => (v != null && spot ? `${v >= spot ? '+' : ''}${(((v - spot) / spot) * 100).toFixed(1)}%` : '');
   const lv: Array<[string, number | null | undefined, string, number]> = [
     ['Call', snap.callWall, LEVEL_COLORS.callWall, 0],
@@ -121,7 +125,7 @@ export function GexPhoneSummary() {
       <div className="gx-ps-top">
         <span className="gx-spot-sym">{g.symbol}</span>
         <b className="gx-ps-spot">{px(spot)}</b>
-        <span className="gx-ps-age" title="Time since the dealer map was computed">{g.q.data?.cached ? 'cached · ' : ''}{age}</span>
+        <FreshStamp className="gx-ps-age" asOf={asOf} now={now} warn={!!g.q.data?.cached} label="age —" />
       </div>
       <div className="gx-ps-regime" style={{ borderColor: `color-mix(in srgb, ${color} 40%, transparent)`, background: `color-mix(in srgb, ${color} 8%, transparent)` }}>
         <span className="gx-glyph" style={{ color }}>{reg?.glyph}</span>
@@ -143,6 +147,91 @@ export function GexPhoneSummary() {
         <span>Net GEX <b style={{ color: exposureText('gex', snap.totalGEX) }}>{fmtGexB(snap.totalGEX)}/1%</b></span>
         <span>Net VEX <b style={{ color: exposureText('vex', snap.totalVEX ?? 0) }}>{fmtVexM(snap.totalVEX)}</b></span>
       </div>
+    </section>
+  );
+}
+
+/* ════════════ PHONE: the matrix IS the GEX page ════════════
+   Operator 2026-09-30 (ITMatrix phone reference): ONE compact header —
+   ticker ▾ · big price · change $ and % · one snapshot stamp — then the grid,
+   full-bleed to the dock. Levels / regime / net live one tap away (the
+   "Levels" sheet); the rest of the workspace stacks below the grid. */
+interface PhoneQuote { price: number; change: number; changePercent: number; asOf: string | null }
+function usePhoneQuote(symbol: string) {
+  // same key + shape as the ticker page (ticker-data.ts useQuotes) → one shared cache entry
+  return useQuery<Record<string, PhoneQuote>>({
+    queryKey: ['/api/quotes/batch', symbol],
+    queryFn: async () => {
+      const r = await fetch(`/api/quotes/batch/${symbol}`, { credentials: 'include' });
+      if (!r.ok) throw new Error('quote failed');
+      const body = await r.json();
+      const out: Record<string, PhoneQuote> = {};
+      for (const [k, q] of Object.entries<any>(body?.quotes ?? {})) out[k] = { price: q.price, change: q.change, changePercent: q.changePercent, asOf: q.asOf ?? null };
+      return out;
+    },
+    staleTime: 15_000, refetchInterval: 30_000, retry: 1,
+  });
+}
+const FALLBACK_CHIPS = ['SPY', 'QQQ', 'NVDA', 'TSLA'];
+function useQuickChips(symbol: string) {
+  const wl = useQuery<any>({
+    queryKey: ['/api/watchlist'],
+    queryFn: async () => { try { const r = await fetch('/api/watchlist', { credentials: 'include' }); return r.ok ? r.json() : []; } catch { return []; } },
+    staleTime: 60_000,
+  });
+  return useMemo(() => {
+    const list = Array.isArray(wl.data) ? wl.data : (wl.data?.items || wl.data?.symbols || []);
+    const syms: string[] = list.map((w: any) => String(typeof w === 'string' ? w : (w?.symbol || w?.ticker || '')).toUpperCase()).filter(Boolean);
+    const out = [symbol, ...(syms.length ? syms : FALLBACK_CHIPS)];
+    return [...new Set(out)].slice(0, 6);
+  }, [wl.data, symbol]);
+}
+
+export function GexPhoneMatrixView() {
+  const g = useGexFocus();
+  const now = useNow(15_000);
+  const quote = usePhoneQuote(g.symbol).data?.[g.symbol];
+  const chips = useQuickChips(g.symbol);
+  const [metric, setMetric] = useState<'gex' | 'vex'>('gex');
+  const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
+  const [levels, setLevels] = useState(false);
+  const shaped = useMemo(() => shapeMatrix(g.matrix, 'all', g.spot, metric), [g.matrix, g.spot, metric]);
+  const blocked = gate(g);
+  const asOf = g.q.data ? terminalAsOf(g.q.data) : null;
+  const snapAt = asOf ? new Date(asOf).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
+  const price = quote?.price ?? (g.spot || null);
+  const up = (quote?.change ?? 0) >= 0;
+  return (
+    <section className="gxp-page" aria-label={`${g.symbol} GEX matrix`}>
+      <header className="gxp-head">
+        <div className="gxp-head-row">
+          <TickerSwitcher value={g.symbol} onChange={g.setFocus} className="gxp-ticker" />
+          <div className="of-seg gxp-metric" role="group" aria-label="Metric">
+            {(['gex', 'vex'] as const).map((m) => <button key={m} type="button" className={metric === m ? 'on' : ''} aria-pressed={metric === m} onClick={() => setMetric(m)}>{m.toUpperCase()}</button>)}
+          </div>
+          <button type="button" className="gxp-levels-btn" onClick={() => setLevels(true)} aria-haspopup="dialog" aria-label="Levels, regime and net exposure" title="Levels, regime and net exposure">
+            <SlidersHorizontal size={16} aria-hidden /><span>Levels</span>
+          </button>
+        </div>
+        <div className="gxp-quote">
+          <b className="gxp-px">{price != null ? price.toFixed(2) : '—'}</b>
+          {quote && Number.isFinite(quote.change) && (
+            <span className="gxp-chg" style={{ color: up ? 'var(--green)' : 'var(--red)' }}>{up ? '+' : '−'}{Math.abs(quote.change).toFixed(2)} {up ? '+' : '−'}{Math.abs(quote.changePercent).toFixed(2)}%</span>
+          )}
+          <span className="gxp-snap" title={quote ? 'Price: realtime quote · grid: the GEX engine\'s chain snapshot' : 'No realtime quote — price is the GEX chain spot'}>
+            <FreshStamp asOf={asOf} now={now} warn={!!g.q.data?.cached} label="—" />
+            {snapAt ? <span>{snapAt} ET snapshot</span> : null}
+          </span>
+        </div>
+      </header>
+      {blocked ?? (
+        <GexPhoneMatrix cells={g.matrix} expiries={shaped.expiryAll} spot={g.spot} metric={metric} symbol={g.symbol}
+          onCellClick={setDrill} chips={chips} onSymbol={g.setFocus} />
+      )}
+      {drill && <GexCellDrill drill={drill} matrix={g.matrix} metric={metric} spot={g.spot} symbol={g.symbol} onClose={() => setDrill(null)} />}
+      <QEDrawer open={levels} onClose={() => setLevels(false)} title={`${g.symbol} levels · regime · net`} side="bottom" className="qp-sheet gxp-levels-sheet">
+        <div className="flowdash nexus-vars gxp-levels-body"><GexPhoneSummary /></div>
+      </QEDrawer>
     </section>
   );
 }

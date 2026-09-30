@@ -101,7 +101,7 @@ export function AlertDeliveryRows({ prefs, update }: { prefs: AlertPrefs; update
         <span className="text-label font-mono uppercase tracking-wider text-muted-foreground">Send to Discord</span>
         <button
           onClick={() => update({ ...prefs, discord: !prefs.discord })}
-          role="switch" aria-checked={prefs.discord} aria-label="Send alerts to Discord"
+          role="switch" aria-checked={prefs.discord} aria-label="Send alerts to Discord" title={`Send alerts to Discord: ${prefs.discord ? 'on' : 'off'}`}
           className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
             prefs.discord ? 'bg-[var(--brand-cyan,#3b8cff)]' : 'bg-foreground/15')}
         >
@@ -120,7 +120,7 @@ export function AlertDeliveryRows({ prefs, update }: { prefs: AlertPrefs; update
           )}
           <button
             onClick={() => update({ ...prefs, quietHours: { ...prefs.quietHours, on: !prefs.quietHours.on } })}
-            role="switch" aria-checked={prefs.quietHours.on} aria-label="Toggle quiet hours"
+            role="switch" aria-checked={prefs.quietHours.on} aria-label="Toggle quiet hours" title={`Toggle quiet hours: ${prefs.quietHours.on ? 'on' : 'off'}`}
             className={cn('relative h-5 w-9 cursor-pointer rounded-full transition-colors',
               prefs.quietHours.on ? 'bg-[var(--brand-cyan,#3b8cff)]' : 'bg-foreground/15')}
           >
