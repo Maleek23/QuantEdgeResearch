@@ -225,9 +225,9 @@ export function DevelopingDetail({ hit, quote, onOpen, chartHeight = 260 }: { hi
     return money(value);
   };
   const chartLevels = [
-    Number.isFinite(decision.high) ? { price: decision.high, label: 'UPPER DECISION', color: '#42d5b1' } : null,
-    Number.isFinite(decision.low) ? { price: decision.low, label: 'LOWER DECISION', color: '#ffb84d' } : null,
-    Number.isFinite(decision.invalidation) ? { price: decision.invalidation, label: 'INVALIDATION', color: '#ff746d' } : null,
+    Number.isFinite(decision.high) ? { price: decision.high, label: 'UPPER DECISION', color: 'info' } : null,
+    Number.isFinite(decision.low) ? { price: decision.low, label: 'LOWER DECISION', color: 'caution' } : null,
+    Number.isFinite(decision.invalidation) ? { price: decision.invalidation, label: 'INVALIDATION', color: 'loss' } : null,
   ].filter(Boolean) as Array<{ price: number; label: string; color: string }>;
   return <motion.div key={`${hit.symbol}-${hit.pattern}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="nxp-detail nxp-developing-detail">
     <div className="nxp-detail-head">
@@ -285,9 +285,9 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       <div className="nxp-chart-card">
         <div className="nxp-chart-meta"><span>1 month structure</span><strong>{money(live)}</strong></div>
         <QEChart symbol={selected.symbol} initialTf="1D" height={Math.max(chartHeight, 380)} levels={[
-          { price: selected.entryPrice, label: pendingEntry ? 'TRIGGER' : 'ENTRY', color: '#3b8cff' },
-          { price: selected.stopLoss, label: 'STOP', color: '#ff746d' },
-          { price: selected.targetPrice, label: 'T1', color: '#42d5b1' },
+          { price: selected.entryPrice, label: pendingEntry ? 'TRIGGER' : 'ENTRY', color: 'accent' },
+          { price: selected.stopLoss, label: 'STOP', color: 'loss' },
+          { price: selected.targetPrice, label: 'T1', color: 'gain' },
         ]} />
       </div>
 

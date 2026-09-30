@@ -320,12 +320,21 @@ export function ChartLabChartPane() {
       </div>
 
       <div className="instrument-bar">
-        <div className="instrument-label">Instrument</div>
-        <div className="instrument-selector" onClick={() => setInstrumentOpen((o) => !o)}>
-          <span className="instrument-sym">{symbol}</span>
-          <svg className="instrument-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: instrumentOpen ? 'rotate(180deg)' : undefined }}><path d="M6 9l6 6 6-6" /></svg>
+        <div className="instrument-label" style={{ fontSize: 11 }}>Instrument</div>
+        <div className="instrument-selector" style={{ padding: 0 }}>
+          <button
+            type="button"
+            onClick={() => setInstrumentOpen((o) => !o)}
+            aria-haspopup="dialog"
+            aria-expanded={instrumentOpen}
+            aria-label={`Chart instrument: ${symbol}. Change instrument`}
+            style={{ display: 'flex', alignItems: 'center', gap: 'inherit', width: '100%', background: 'none', border: 0, padding: '5px 12px', color: 'inherit', font: 'inherit', cursor: 'pointer' }}
+          >
+            <span className="instrument-sym">{symbol}</span>
+            <svg className="instrument-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true" style={{ transform: instrumentOpen ? 'rotate(180deg)' : undefined }}><path d="M6 9l6 6 6-6" /></svg>
+          </button>
           {instrumentOpen && (
-            <div className="instrument-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="instrument-menu" role="dialog" aria-label="Choose chart instrument" onClick={(e) => e.stopPropagation()}>
               <div style={{ position: 'sticky', top: 0, zIndex: 2, padding: 6, background: 'var(--panel-solid)' }}>
                 <input
                   autoFocus
@@ -341,14 +350,14 @@ export function ChartLabChartPane() {
                   }}
                   placeholder="Search any ticker"
                   aria-label="Search chart instrument"
-                  style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border-hi)', borderRadius: 4, background: 'var(--panel-2)', color: 'var(--text)', padding: '7px 8px', fontFamily: "'JetBrains Mono',monospace", fontSize: 10, outline: 'none' }}
+                  style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border-hi)', borderRadius: 4, background: 'var(--panel-2)', color: 'var(--text)', padding: '7px 8px', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, outline: 'none' }}
                 />
               </div>
               {instruments.map((sym) => (
                 <button key={sym} onClick={() => { setCurrentStock({ symbol: sym }); setInstrumentOpen(false); setInstrumentQuery(''); }}>
                   <span>{sym}</span>
                   {quoteBySym.get(sym) && (
-                    <span style={{ color: quoteBySym.get(sym)!.changePct >= 0 ? 'var(--green)' : 'var(--red)', fontSize: 'var(--fs-10, 10px)' }}>
+                    <span style={{ color: quoteBySym.get(sym)!.changePct >= 0 ? 'var(--green)' : 'var(--red)', fontSize: 11 }}>
                       {quoteBySym.get(sym)!.changePct >= 0 ? '+' : ''}{quoteBySym.get(sym)!.changePct.toFixed(1)}%
                     </span>
                   )}
@@ -357,7 +366,7 @@ export function ChartLabChartPane() {
               {!instruments.length && instrumentQuery.trim() && (
                 <button onClick={() => { setCurrentStock({ symbol: instrumentQuery.trim().toUpperCase() }); setInstrumentOpen(false); setInstrumentQuery(''); }}>
                   <span>Open {instrumentQuery.trim().toUpperCase()}</span>
-                  <span style={{ color: 'var(--text-mute)', fontSize: 'var(--fs-9, 9px)' }}>verify from feed</span>
+                  <span style={{ color: 'var(--text-mute)', fontSize: 11 }}>verify from feed</span>
                 </button>
               )}
             </div>
@@ -513,7 +522,7 @@ export function ChartLabEsRisk({ always = false, risk, onRisk }: {
     <div className="levels-section" aria-label="ES translation and futures risk">
       <div className="levels-head">
         <div className="levels-title">ES translation</div>
-        <div style={{ fontSize: 9, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{esContext?.session ?? 'unavailable'}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-mute)', fontFamily: "'JetBrains Mono',monospace" }}>{esContext?.session ?? 'unavailable'}</div>
       </div>
       <div className="level-row"><div className="level-name">ES</div><div className="level-bar" /><div className="level-val">{esContext?.prices.es?.toFixed(2) ?? '—'}</div></div>
       <div className="level-row"><div className="level-name">SPX</div><div className="level-bar" /><div className="level-val">{esContext?.prices.spx?.toFixed(2) ?? '—'}</div></div>
@@ -524,16 +533,16 @@ export function ChartLabEsRisk({ always = false, risk, onRisk }: {
           ['riskPct', 'RISK %', 0.05],
           ['stopPoints', 'STOP PTS', 0.25],
         ] as const).map(([key, label, step]) => (
-          <label key={key} style={{ display: 'grid', gap: 3, font: "7px 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>
+          <label key={key} style={{ display: 'grid', gap: 3, font: "11px 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>
             {label}
-            <input type="number" min={step} step={step} value={futuresRisk[key]} onChange={(event) => setFuturesRisk((value) => ({ ...value, [key]: Math.max(step, Number(event.target.value) || step) }))} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border)', borderRadius: 3, background: 'var(--panel-2)', color: 'var(--text)', padding: '4px 5px', font: "9px 'JetBrains Mono',monospace" }} />
+            <input type="number" min={step} step={step} value={futuresRisk[key]} onChange={(event) => setFuturesRisk((value) => ({ ...value, [key]: Math.max(step, Number(event.target.value) || step) }))} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--nx-border)', borderRadius: 3, background: 'var(--panel-2)', color: 'var(--text)', padding: '4px 5px', font: "11px 'JetBrains Mono',monospace" }} />
           </label>
         ))}
       </div>
-      <div style={{ marginTop: 8, font: "9px/1.5 'JetBrains Mono',monospace", color: 'var(--text-dim)' }}>
+      <div style={{ marginTop: 8, font: "11px/1.5 'JetBrains Mono',monospace", color: 'var(--text-dim)' }}>
         {esContext?.risk.stopPoints ?? futuresRisk.stopPoints}pt stop · ${esContext?.risk.riskBudget.toFixed(0) ?? '—'} risk: MES {esContext?.risk.contracts.find((c) => c.symbol === 'MES')?.maxContracts ?? '—'} max · ES {esContext?.risk.contracts.find((c) => c.symbol === 'ES')?.maxContracts ?? '—'} max
       </div>
-      <div style={{ marginTop: 5, font: "9px/1.45 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>{esContext?.translation.note ?? 'Waiting for measured ES and cash-index quotes.'}</div>
+      <div style={{ marginTop: 5, font: "11px/1.45 'JetBrains Mono',monospace", color: 'var(--text-mute)' }}>{esContext?.translation.note ?? 'Waiting for measured ES and cash-index quotes.'}</div>
     </div>
   );
 }

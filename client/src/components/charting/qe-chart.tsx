@@ -38,8 +38,8 @@ import { useLocation } from 'wouter';
 import { useStockContext } from '@/contexts/stock-context';
 import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
 import {
-  useCandles, renderedCandleRange, TF_CONFIG,
-  type Candle, type ChartGeometry, type Level,
+  useCandles, renderedCandleRange, chartPalette, TF_CONFIG,
+  type Candle, type ChartGeometry, type Level, type Zone,
 } from '@/components/charting/chart-engine';
 import {
   useChartPrefs, setChartPref,
@@ -86,6 +86,7 @@ const MINI_TFS: TfKey[] = ['1m', '5m', '15m', '1h', '1D'];
 /** /api/chart/overlays accepts equity/index tickers only (no BTC-USD). */
 const overlaysSupported = (sym: string) => /^[A-Z.^]{1,10}$/.test(sym);
 const NO_LEVELS: (Level & { dashed?: boolean })[] = [];
+const NO_ZONES: Zone[] = [];
 
 /** Pause work while the chart is scrolled off-screen. */
 function useInView<T extends Element>(): [React.RefObject<T>, boolean] {
@@ -159,13 +160,15 @@ const ageOf = (iso: string | null, now: number) => (iso ? fmtAge((now - Date.par
 const fmtVol = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(1)}K` : `${v}`);
 
 interface Tokens { pos: string; neg: string; dp: string; call: string; put: string; text: string; panel: string; mute: string }
+/** Layer colours from the active visual mode's chart palette (chart-engine
+ *  chartPalette → --lx-* tokens), so Light / Contrast / Dim all work. Calls
+ *  and puts use the palette's call/put roles — green means gain only. */
 function readTokens(el: HTMLElement | null): Tokens {
-  const cs = el ? getComputedStyle(el) : null;
-  const v = (name: string, fb: string) => (cs?.getPropertyValue(name).trim() || fb);
+  const pal = chartPalette(el);
   return {
-    pos: v('--cyan', '#3b8cff'), neg: v('--red', '#ff6b3d'), dp: v('--amber', '#facc15'),
-    call: v('--green', '#6ee7b7'), put: v('--purple', '#a78bfa'), text: v('--text', '#e8ecf3'),
-    panel: v('--panel-solid', '#0b0e14'), mute: v('--text-mute', '#8b93a3'),
+    pos: pal.accent, neg: pal.loss, dp: pal.caution,
+    call: pal.call, put: pal.put, text: pal.text,
+    panel: pal.surface, mute: pal.dim,
   };
 }
 
@@ -195,8 +198,11 @@ export interface QEChartProps {
   /** Controlled timeframe. */
   tf?: TfKey;
   onTfChange?: (tf: TfKey) => void;
-  /** Price lines (entry / stop / target / strike…), drawn over the layers. */
+  /** Price lines (entry / stop / target / strike…), drawn over the layers.
+   *  Colour: a palette role ('accent' 'gain' 'loss' 'caution' 'call' 'put'…). */
   levels?: (Level & { dashed?: boolean })[];
+  /** Shaded price bands (e.g. unfilled gaps). */
+  zones?: Zone[];
   /** Compact only: pin layers/indicators for this embed instead of following
    *  the shared settings. The expanded view always shows the shared settings. */
   overlays?: ChartOverlayPrefs;
@@ -223,6 +229,7 @@ export function QEChart({
   tf: controlledTf,
   onTfChange,
   levels = NO_LEVELS,
+  zones = NO_ZONES,
   overlays,
   live = true,
   expandable = true,
@@ -292,9 +299,9 @@ export function QEChart({
   const allLevels = useMemo(() => {
     if (!prefs.walls || !snap) return levels;
     const rows: (Level & { dashed?: boolean })[] = [];
-    if (snap.callWall != null) rows.push({ price: snap.callWall, color: '#38d9a9', label: 'CALL WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
-    if (snap.putWall != null) rows.push({ price: snap.putWall, color: '#ef6461', label: 'PUT WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
-    if (zeroGamma != null) rows.push({ price: zeroGamma, color: '#f4b942', label: 'ZERO γ', kind: 'gex-anchor', strength: 0.7, meta: 'Γ flip' });
+    if (snap.callWall != null) rows.push({ price: snap.callWall, color: 'call', label: 'CALL WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
+    if (snap.putWall != null) rows.push({ price: snap.putWall, color: 'put', label: 'PUT WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
+    if (zeroGamma != null) rows.push({ price: zeroGamma, color: 'caution', label: 'ZERO γ', kind: 'gex-anchor', strength: 0.7, meta: 'Γ flip' });
     return rows.length ? [...levels, ...rows] : levels;
   }, [prefs.walls, snap, zeroGamma, levels]);
 
@@ -628,7 +635,7 @@ export function QEChart({
         const y = p.optionType === 'call' ? geo.priceToY(c.high) - r - 3 : geo.priceToY(c.low) + r + 3;
         ctx.globalAlpha = 0.9;
         ctx.fillStyle = p.optionType === 'call' ? tk.call : tk.put;
-        ctx.strokeStyle = 'rgba(6,7,10,0.85)';
+        ctx.strokeStyle = tk.panel;
         ctx.lineWidth = 1;
         ctx.beginPath();
         if (p.optionType === 'call') ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -678,7 +685,7 @@ export function QEChart({
       placed.push(y);
       ctx.fillStyle = tk.dp;
       ctx.fillRect(geo.right, y - 7, 60, 14);
-      ctx.fillStyle = '#06070a';
+      ctx.fillStyle = tk.panel;
       ctx.fillText(lvl.price.toFixed(2), geo.right + 6, y + 3);
     }
   }, [prefs.dp]);
@@ -726,6 +733,8 @@ export function QEChart({
       expandable={false}
       crosshairTip={compact}
       minimalInfo={compact}
+      touchScroll={compact}
+      zones={zones}
       chartType={prefs.type}
       levels={allLevels}
       showMA={prefs.ma}
@@ -767,7 +776,7 @@ export function QEChart({
         <div className="chart-modal-box">
           <div className="chart-modal-head">
             <span className="chart-modal-title">{title ?? symbol} · chart</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: 'var(--text-mute)' }}>settings are shared with the CHART page</span>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)' }}>settings are shared with the CHART page</span>
             <button className="chart-modal-close" onClick={closeExpanded}>ESC ✕</button>
           </div>
           <div className="chart-modal-body">
@@ -778,6 +787,7 @@ export function QEChart({
               tf={tf}
               onTfChange={setTf}
               levels={levels}
+              zones={zones}
               live={live}
               onOpenChartPage={openChartPage}
             />
@@ -807,7 +817,7 @@ export function QEChart({
           {chg != null && <span style={{ color: chg >= 0 ? 'var(--green)' : 'var(--red)' }}>{chg >= 0 ? '+' : ''}{chg.toFixed(2)}%</span>}
           {layersOk && (
             <span className="fc-mini-layers">
-              {prefs.walls && layerDot(!!snap, '#38d9a9', 'WALLS', snap ? `Call wall ${snap.callWall ?? '—'} · put wall ${snap.putWall ?? '—'} · zero-γ ${zeroGamma != null ? zeroGamma.toFixed(2) : '—'} · ${dealerSource} · ${ageOf(dealerAsOf, now)} old` : dealerQ.isError ? 'Dealer map unavailable' : 'Reading the chain…')}
+              {prefs.walls && layerDot(!!snap, tk0.call, 'WALLS', snap ? `Call wall ${snap.callWall ?? '—'} · put wall ${snap.putWall ?? '—'} · zero-γ ${zeroGamma != null ? zeroGamma.toFixed(2) : '—'} · ${dealerSource} · ${ageOf(dealerAsOf, now)} old` : dealerQ.isError ? 'Dealer map unavailable' : 'Reading the chain…')}
               {prefs.gex !== 'off' && layerDot(!!gexRead, tk0.pos, 'GEX', gexRead ? `GEX ${prefs.gex} · ${ageOf(gexRead.asOf, now)} old · ${gexRead.source}` : ovLoading ? 'GEX loading' : 'No GEX snapshot for this symbol yet')}
               {prefs.dp && layerDot(!!ov?.darkPool.levels.length, tk0.dp, 'DP', ov ? `Dark pool: ${ov.darkPool.levels.length} levels near price${ov.darkPool.asOf ? ` · ${ageOf(ov.darkPool.asOf, now)} old` : ''}` : 'Dark pool loading')}
               {prefs.flow && layerDot(!!ov?.flow.prints.length, tk0.call, 'FLOW', ov ? `Flow: ${ov.flow.prints.length} prints · stream ${ov.flow.streamState}` : 'Flow loading')}
@@ -846,7 +856,7 @@ export function QEChart({
     ? `${ov.flow.prints.length} prints · stream ${ov.flow.streamState} · side not reported`
     : prefs.flow ? (ovError ? 'feed unavailable' : 'loading…') : 'calls ● above · puts ◆ below';
   const orbSub = !layersOk ? 'no options layers for this symbol' : ov
-    ? (gexSamples ? `${gexSamples} samples since ${etClock(Date.parse(ov.gexTimeline.recordingSince!))} ET · every ${ov.gexTimeline.sampleEveryMin}m` : 'not recorded yet — starts now it is charted')
+    ? (gexSamples ? `${gexSamples} sample${gexSamples === 1 ? '' : 's'} since ${etClock(Date.parse(ov.gexTimeline.recordingSince!))} ET · every ${ov.gexTimeline.sampleEveryMin}m` : 'not recorded yet — starts now it is charted')
     : 'net gamma by strike through time';
   const wallsSub = !layersOk ? 'no options chain for this symbol' : dealerQ.data
     ? `${dealerSource} · ${ageOf(dealerAsOf, now)} old`
@@ -854,12 +864,12 @@ export function QEChart({
 
   const menu = (
     <div className="fc-menu fc-add-menu" role="menu">
-      <div className="fc-mhead">Timeframe</div>
+      <div className="fc-mhead fc-mtf-head">Timeframe</div>
       <div className="fc-mtf" role="group" aria-label="Timeframe">
         {TFS.map((k) => <button key={k} className={tf === k ? 'on' : ''} onClick={() => setTf(k)} aria-pressed={tf === k}>{k}</button>)}
       </div>
       <div className="fc-mhead">Dealer positioning</div>
-      {menuRow(prefs.walls, (v) => set('walls', v), 'Walls + zero-γ', wallsSub, '#38d9a9')}
+      {menuRow(prefs.walls, (v) => set('walls', v), 'Walls + zero-γ', wallsSub, tk0.call)}
       {menuRow(prefs.gex === 'bubbles', (v) => set('gex', v ? 'bubbles' : 'off'), 'GEX orbs through time', orbSub, tk0.pos)}
       {menuRow(prefs.gex === 'lines', (v) => set('gex', v ? 'lines' : 'off'), 'GEX top strikes (lines)', gexRead ? `snapshot ${ageOf(gexRead.asOf, now)} old` : null, tk0.neg)}
       <div className="fc-mhead">Tape</div>
@@ -913,9 +923,9 @@ export function QEChart({
         </label>
         {layersOk && (
           <div className="fc-keys" aria-label="Key levels">
-            {keyCell('CW', snap?.callWall, '#38d9a9', `Call wall — strike above spot with the largest call GEX · ${wallsSub}`, undefined, dealerPending)}
-            {keyCell('PW', snap?.putWall, '#ef6461', `Put wall — strike below spot with the largest put GEX · ${wallsSub}`, undefined, dealerPending)}
-            {keyCell('0γ', zeroGamma, '#f4b942', `Zero-gamma (gamma flip): where dealer net gamma crosses zero · ${wallsSub}`, undefined, dealerPending)}
+            {keyCell('CW', snap?.callWall, tk0.call, `Call wall — strike above spot with the largest call GEX · ${wallsSub}`, undefined, dealerPending)}
+            {keyCell('PW', snap?.putWall, tk0.put, `Put wall — strike below spot with the largest put GEX · ${wallsSub}`, undefined, dealerPending)}
+            {keyCell('0γ', zeroGamma, tk0.dp, `Zero-gamma (gamma flip): where dealer net gamma crosses zero · ${wallsSub}`, undefined, dealerPending)}
             {keyCell('EM', expectedMove?.dollars, 'var(--text-mute)', expectedMove ? `Expected move, 1σ for one session: ±$${expectedMove.dollars.toFixed(2)} (±${expectedMove.pct.toFixed(2)}%) from 20-day realized volatility of daily closes — measured, not option-implied` : 'Expected move needs 21 daily closes', (n) => `±${n.toFixed(2)}`)}
           </div>
         )}
@@ -1022,58 +1032,58 @@ const FC_CSS = `
 .fc-sym{width:170px;min-width:120px}
 .fc-px{display:flex;gap:6px;align-items:baseline;font-size:11px;padding:0 4px}
 .fc-px b{color:var(--cyan-bright)}
-.fc-btn,.fc-sel select{height:26px;padding:0 8px;border:1px solid var(--nx-border);border-radius:4px;background:var(--panel-2);color:var(--text-dim);font:600 10px 'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap}
+.fc-btn,.fc-sel select{height:26px;padding:0 8px;border:1px solid var(--nx-border);border-radius:4px;background:var(--panel-2);color:var(--text-dim);font:600 11px 'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap}
 .fc-btn:hover:not(:disabled),.fc-sel select:hover:not(:disabled){border-color:var(--nx-border-hi);color:var(--text)}
 .fc-btn.on{color:var(--cyan-bright);border-color:var(--nx-border-hi)}
 .fc-btn:disabled,.fc-sel select:disabled{opacity:.45;cursor:not-allowed}
 .fc-btn:focus-visible,.fc-sel select:focus-visible{outline:2px solid var(--cyan-bright);outline-offset:1px}
-.fc-sel{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mute)}
+.fc-sel{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-mute)}
 .fc-lab{margin-left:auto}
 .fc-slim{flex-wrap:nowrap;gap:8px;min-height:38px}
 .fc-symlabel{color:var(--cyan-bright);font-size:12px;padding:0 4px}
 .fc-last{font-size:12.5px;font-weight:700;color:var(--text)}
-.fc-stamp{font-size:9.5px;color:var(--text-mute);white-space:nowrap}
+.fc-stamp{font-size:11px;color:var(--text-mute);white-space:nowrap}
 .fc-keys{display:flex;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:none;flex:0 1 auto}
 .fc-keys::-webkit-scrollbar{display:none}
-.fc-key{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 7px;border:1px solid var(--nx-border);border-radius:4px;background:var(--panel-2);font-size:10px;color:var(--text-mute);white-space:nowrap}
+.fc-key{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 7px;border:1px solid var(--nx-border);border-radius:4px;background:var(--panel-2);font-size:11px;color:var(--text-mute);white-space:nowrap}
 .fc-key i{width:6px;height:6px;border-radius:50%}
 .fc-key b{color:var(--text);font-weight:600}
 .fc-add{margin-left:auto}
 .fc-phone{display:none}
 .fc-menu-scrim{position:fixed;inset:0;z-index:19}
-.fc-add-menu{left:auto;right:0;width:290px;max-height:min(72dvh,560px);overflow-y:auto;gap:2px;padding:8px}
-.fc-mhead{margin:6px 2px 2px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute)}
+.fc-menu.fc-add-menu{left:auto;right:0;width:290px;max-height:min(72dvh,560px);overflow-y:auto;gap:2px;padding:8px}
+.fc-mhead{margin:6px 2px 2px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute)}
 .fc-mhead:first-child{margin-top:0}
-.fc-mtf{display:none;flex-wrap:wrap;gap:3px}
-.fc-mtf button,.fc-mrange button{height:24px;padding:0 8px;border:1px solid var(--nx-border);border-radius:3px;background:var(--panel-2);color:var(--text-dim);font:600 10px 'JetBrains Mono',monospace;cursor:pointer}
+.fc-mtf,.fc-mtf-head{display:none;flex-wrap:wrap;gap:3px}
+.fc-mtf button,.fc-mrange button{height:24px;padding:0 8px;border:1px solid var(--nx-border);border-radius:3px;background:var(--panel-2);color:var(--text-dim);font:600 11px 'JetBrains Mono',monospace;cursor:pointer}
 .fc-mtf button.on,.fc-mrange button.on{color:var(--cyan-bright);border-color:var(--nx-border-hi)}
 .fc-mrange{display:flex;gap:3px;padding:2px 2px 4px 24px}
 .fc-mrange button:disabled{opacity:.4;cursor:not-allowed}
 .fc-menu label.fc-mrow{display:flex;align-items:flex-start;gap:8px;padding:5px 4px;border-radius:4px;cursor:pointer}
 .fc-mrow:hover{background:var(--panel-2)}
 .fc-mrow input{margin-top:2px;accent-color:var(--cyan)}
-.fc-mlabel{display:flex;flex-direction:column;gap:1px;font-size:10.5px;color:var(--text);min-width:0}
+.fc-mlabel{display:flex;flex-direction:column;gap:1px;font-size:11px;color:var(--text);min-width:0}
 .fc-mlabel i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
-.fc-mlabel small{font-size:9px;color:var(--text-mute);line-height:1.35}
+.fc-mlabel small{font-size:11px;color:var(--text-mute);line-height:1.35}
 .fc-mactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid var(--nx-border)}
 .fc-body{position:relative;display:flex;flex:1;min-height:0}
 .fc-body>.fc-chart{flex:1;min-width:0}
 .fc-side{width:clamp(240px,22vw,320px);flex:none;display:flex;flex-direction:column;border-left:1px solid var(--nx-border);background:var(--panel-solid);min-height:0}
-.fc-side-head{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-bottom:1px solid var(--nx-border);font-size:10.5px;color:var(--text-dim)}
+.fc-side-head{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-bottom:1px solid var(--nx-border);font-size:11px;color:var(--text-dim)}
 .fc-side-head .fc-btn{height:22px;padding:0 6px}
 .fc-side-body{flex:1;min-height:0;overflow:auto}
-.fc-side-empty{padding:12px;font-size:10px;color:var(--text-mute)}
+.fc-side-empty{padding:12px;font-size:11px;color:var(--text-mute)}
 .fc-pop{position:relative}
-.fc-menu{position:absolute;top:30px;left:0;z-index:20;display:grid;gap:6px;padding:8px 10px;min-width:150px;background:var(--panel-solid);border:1px solid var(--nx-border-hi);border-radius:6px;font-size:10.5px}
+.fc-menu{position:absolute;top:30px;left:0;z-index:20;display:grid;gap:6px;padding:8px 10px;min-width:150px;background:var(--panel-solid);border:1px solid var(--nx-border-hi);border-radius:6px;font-size:11px}
 .fc-menu label{display:flex;gap:6px;align-items:center;cursor:pointer}
-.fc-replay{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--nx-border);font-size:10px}
+.fc-replay{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--nx-border);font-size:11px}
 .fc-replay input[type=range]{flex:1;min-width:140px;accent-color:var(--cyan)}
 .fc-mono{color:var(--text-dim)}
 .fc-chart{position:relative;flex:1;min-height:320px;display:flex;flex-direction:column}
-.fc-readout{position:absolute;top:6px;left:10px;right:80px;z-index:4;pointer-events:none;font-size:10px;line-height:1.55;color:var(--text);text-shadow:0 1px 2px rgba(0,0,0,.8)}
+.fc-readout{position:absolute;top:6px;left:10px;right:80px;z-index:4;pointer-events:none;font-size:11px;line-height:1.55;color:var(--text);text-shadow:0 1px 2px rgba(0,0,0,.8)}
 .fc-readout .dim{color:var(--text-mute)}
-.fc-tip{position:absolute;display:none;z-index:6;pointer-events:none;max-width:260px;padding:6px 8px;border:1px solid var(--nx-border-hi);border-radius:5px;background:var(--panel-solid);font-size:10.5px;line-height:1.5;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.45)}
-.fc-status{display:flex;flex-wrap:wrap;gap:4px 14px;padding:5px 10px;border-top:1px solid var(--nx-border);font-size:9.5px;color:var(--text-mute)}
+.fc-tip{position:absolute;display:none;z-index:6;pointer-events:none;max-width:260px;padding:6px 8px;border:1px solid var(--nx-border-hi);border-radius:5px;background:var(--panel-solid);font-size:11px;line-height:1.5;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.fc-status{display:flex;flex-wrap:wrap;gap:4px 14px;padding:5px 10px;border-top:1px solid var(--nx-border);font-size:11px;color:var(--text-mute)}
 .fc-legend{display:inline-flex;align-items:center;gap:4px;color:var(--text-dim)}
 .fc-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:4px}
 .fc-legend i.dash{width:12px;height:0;border-radius:0;border-top:1.5px dotted}
@@ -1081,16 +1091,16 @@ const FC_CSS = `
 .fc-root.fc-fill{flex:1 1 0;height:auto;min-height:0}
 .fc-compact{min-height:0;background:transparent;border:1px solid var(--nx-border);border-radius:6px;overflow:hidden}
 .fc-compact .fc-chart{min-height:0}
-.fc-mini-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:4px 6px 4px 8px;border-bottom:1px solid var(--nx-border);font-size:10.5px;min-height:30px}
+.fc-mini-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:4px 6px 4px 8px;border-bottom:1px solid var(--nx-border);font-size:11px;min-height:30px}
 .fc-mini-head b{color:var(--cyan-bright)}
 .fc-mini-px{color:var(--text)}
 .fc-mini-layers{display:inline-flex;gap:4px;flex-wrap:wrap}
-.fc-chip{display:inline-flex;align-items:center;gap:3px;padding:1px 5px;border:1px solid var(--nx-border);border-radius:3px;font-size:9px;color:var(--text-dim);letter-spacing:.04em}
+.fc-chip{display:inline-flex;align-items:center;gap:3px;padding:1px 5px;border:1px solid var(--nx-border);border-radius:3px;font-size:11px;color:var(--text-dim);letter-spacing:.04em}
 .fc-chip i{width:6px;height:6px;border-radius:50%;display:inline-block}
 .fc-chip.off{opacity:.45}
 .fc-chip.warn{color:var(--amber)}
 .fc-mini-tf{display:inline-flex;gap:1px;margin-left:auto}
-.fc-mini-tf button{height:22px;padding:0 6px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--text-mute);font:600 10px 'JetBrains Mono',monospace;cursor:pointer}
+.fc-mini-tf button{height:22px;padding:0 6px;border:1px solid transparent;border-radius:3px;background:transparent;color:var(--text-mute);font:600 11px 'JetBrains Mono',monospace;cursor:pointer}
 .fc-mini-tf button:hover{color:var(--text)}
 .fc-mini-tf button.on{color:var(--cyan-bright);border-color:var(--nx-border-hi);background:var(--panel-2)}
 .fc-mini-tf button:focus-visible,.fc-expand:focus-visible{outline:2px solid var(--cyan-bright);outline-offset:1px}
@@ -1110,11 +1120,14 @@ const FC_CSS = `
   .fc-desk{display:none}
   .fc-phone{display:inline}
   .fc-mtf{display:flex}
-  .fc-add-menu{position:fixed;left:8px;right:8px;top:auto;bottom:calc(8px + env(safe-area-inset-bottom));width:auto;max-height:70dvh;z-index:40}
-  .fc-menu-scrim{background:rgba(0,0,0,.45);z-index:39}
+  .fc-mtf-head{display:block}
+  .fc-menu.fc-add-menu{position:fixed;left:8px;right:8px;top:auto;bottom:calc(8px + env(safe-area-inset-bottom));width:auto;max-height:72dvh;z-index:1001}
+  .fc-menu-scrim{background:rgba(0,0,0,.45);z-index:1000}
   .fc-side{position:absolute;inset:0 0 0 auto;width:min(86vw,320px);z-index:8;box-shadow:-12px 0 30px rgba(0,0,0,.5)}
   .fc-lab{margin-left:0}
-  .fc-readout{right:64px;font-size:9px}
+  .fc-readout{right:64px;font-size:11px}
+  .fc-readout>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fc-readout>div+div{display:none}
   .fc-root:not(.fc-compact) .fc-chart .chart-info-overlay{display:none}
   .fc-root.fc-fill{flex:1 1 0;height:auto;min-height:0}
   .fc-root.fc-fill .fc-chart{min-height:0}
