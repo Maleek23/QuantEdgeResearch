@@ -7,6 +7,7 @@
  *
  * This is the consolidation target for AUDIT.md / BLUEPRINT.md / TERMINAL_SPEC.md.
  */
+import { CopyLinkButton } from '@/components/shell/copy-link-button';
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { onWorkup } from '@/lib/workup-bus';
@@ -307,6 +308,7 @@ export default function TerminalShell() {
             </button>
           </div>
 
+          <CopyLinkButton />
           {/* Account menu — alerts, guide, theme, layout and settings live here
               so the bar itself stays calm. One menu implementation (LuxMenu). */}
           <LuxMenu>
