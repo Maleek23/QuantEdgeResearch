@@ -86,6 +86,10 @@ export interface ConvictionPick {
 
   /** A plan becomes live only after a trigger or recorded execution. */
   lifecycleState: 'coverage' | 'thesis' | 'pending_trigger' | 'triggered' | 'executed' | 'closed';
+  /** Exact publish time (ISO). */
+  calledAt?: string | null;
+  /** Exact time price traded through the trigger (ISO). */
+  triggeredAt?: string | null;
 
   /** 0DTE / weekly / swing / monthly / position / LEAPS — stamped by the API (shared/idea-horizon.ts). */
   horizon?: import('@shared/idea-horizon').HorizonRead;
@@ -242,4 +246,14 @@ export function layerBarPct(points: number): number {
 export const CONVICTIONS_QUERY_KEY = ['/api/convictions', 'nexus-prototype'] as const;
 export function isLiveBookPick(p: { isBotHeld?: boolean | null; lifecycleState?: string | null; convictionScore?: number | null }): boolean {
   return typeof p.convictionScore === 'number' && !p.isBotHeld && p.lifecycleState !== 'executed' && p.lifecycleState !== 'closed';
+}
+
+/** "Sep 30 · 10:42:13 AM ET" — exact, always Eastern. */
+export function fmtExactET(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const day = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
+  const time = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  return `${day} · ${time} ET`;
 }

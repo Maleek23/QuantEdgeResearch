@@ -3358,3 +3358,5 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .nxp-dir.bull{color:var(--green,#34d399);background:color-mix(in srgb,var(--green,#34d399) 14%,transparent)}
 .nxp-dir.bear{color:var(--red,#f87171);background:color-mix(in srgb,var(--red,#f87171) 14%,transparent)}
 @media (max-width:767px){.nxp-dir{font-size:12px}}
+.nxp-times{margin:6px 0 2px;font-size:12px;color:var(--text-dim,#8a93a6);font-variant-numeric:tabular-nums}
+.nxp-times strong{color:var(--text,#e8ecf3);font-weight:600}

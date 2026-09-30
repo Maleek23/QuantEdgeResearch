@@ -149,6 +149,10 @@ export interface ConvictionPick {
   currentPrice?: number | null;
   /** A published plan is not an executed position. Derived from the durable audit. */
   lifecycleState: OracleLifecycleState;
+  /** When the idea was published (exact ISO). */
+  calledAt?: string | null;
+  /** When price first traded through the trigger (exact ISO), if it has. */
+  triggeredAt?: string | null;
   /** Stamped by /api/convictions at read time (shared/idea-horizon.ts). */
   horizon?: import('../shared/idea-horizon').HorizonRead;
 }
@@ -2757,6 +2761,9 @@ export async function buildConvictions(opts: BuildConvictionsOptions = {}): Prom
       // client computed P&L as entry-vs-entry and the whole board read "+0.0% P&L".
       currentPrice: liveQuotes.get(idea.symbol)?.price ?? idea.currentPrice ?? null,
       lifecycleState: readOracleExecutionAudit(idea.convergenceSignalsJson)?.state ?? "pending_trigger",
+      // Exact call and trigger times (operator: "we need the EXACT time these are called").
+      calledAt: idea.timestamp ? new Date(idea.timestamp as any).toISOString() : (idea.generationTimestamp ?? null),
+      triggeredAt: readOracleExecutionAudit(idea.convergenceSignalsJson)?.triggerObservedAt ?? null,
     });
   }
 

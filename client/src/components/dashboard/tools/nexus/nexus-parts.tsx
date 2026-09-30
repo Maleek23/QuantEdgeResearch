@@ -21,7 +21,7 @@ import { TASummary } from '@/components/hunt/cockpit/ta-summary';
 import { SignalComponents } from '@/components/hunt/cockpit/signal-components';
 import { openWorkup } from '@/lib/workup-bus';
 import { useTickFlash } from '@/lib/use-tick-flash';
-import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
+import { convictionPercent, isLiveBookPick, CONVICTIONS_QUERY_KEY, fmtExactET, type ConvictionPick, type ConvictionsResponse } from '@/lib/convictions';
 import { TraderCallBadge, TraderCallEvidence } from './trader-calls';
 import '@/styles/nexus-prototype.css';
 
@@ -200,7 +200,7 @@ export function SetupRow({ pick, selected, onSelect }: { pick: ConvictionPick; s
     <button type="button" className={`nxp-row ${selected ? 'selected' : ''}`} onClick={onSelect}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
       <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} /></strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small></span>
-      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}</small></span>
+      <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}{(pick.calledAt ?? pick.generatedAt) ? ` · ${new Date((pick.calledAt ?? pick.generatedAt)!).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })}` : ''}</small></span>
       <ChevronRight size={14} />
     </button>
   );
@@ -302,6 +302,10 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
       <div className="nxp-detail-head">
         <div>
           <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span><span>{selected.convictionBand} evidence</span></div>
+          <p className="nxp-times">
+            <span>Called <strong>{fmtExactET(selected.calledAt ?? selected.generatedAt) ?? '—'}</strong></span>
+            {selected.triggeredAt ? <span> · Triggered <strong>{fmtExactET(selected.triggeredAt)}</strong></span> : selected.lifecycleState === 'pending_trigger' ? <span> · not triggered yet</span> : null}
+          </p>
           <p>{selected.catalyst || selected.thesis || 'No written catalyst was returned.'}</p>
         </div>
         <div className="nxp-score"><strong>{selected.isBotHeld ? `${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(selected.convictionScore)}</strong><span>{selected.isBotHeld ? 'paper P&L' : 'evidence score / 100'}</span></div>
