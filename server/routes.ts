@@ -32541,6 +32541,18 @@ Use this checklist before entering any trade:
    * journal every 30 s while visible. Small payload on purpose: the rows query
    * stays unpolled. Quotes are cached per instrument for 30 s (journal-marks.ts).
    */
+  /** Time-of-day relative volume for a setup (server/volume-read.ts). ?at= trigger ISO time. */
+  app.get("/api/volume-read/:symbol", requireBetaAccess, async (req, res) => {
+    try {
+      const sym = String(req.params.symbol || '').toUpperCase();
+      if (!/^[A-Z.^-]{1,10}$/.test(sym)) return res.status(400).json({ error: 'bad symbol' });
+      const { getVolumeRead } = await import('./volume-read');
+      res.json(await getVolumeRead(sym, typeof req.query.at === 'string' ? req.query.at : null));
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message ?? 'volume read failed' });
+    }
+  });
+
   app.get("/api/journal/marks", requireBetaAccess, async (req, res) => {
     try {
       const { journalActor, resolveJournal, JournalAccessError } = await import('./journal-sources');

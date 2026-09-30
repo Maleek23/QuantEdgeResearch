@@ -308,6 +308,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
             <span>Called <strong>{fmtExactET(selected.calledAt ?? selected.generatedAt) ?? '—'}</strong></span>
             {selected.triggeredAt ? <span> · Triggered <strong>{fmtExactET(selected.triggeredAt)}</strong></span> : selected.lifecycleState === 'pending_trigger' ? <span> · not triggered yet</span> : null}
           </p>
+          <VolumeLine symbol={selected.symbol} triggeredAt={selected.triggeredAt ?? null} />
           <p>{selected.catalyst || selected.thesis || 'No written catalyst was returned.'}</p>
         </div>
         <div className="nxp-score"><strong>{selected.isBotHeld ? `${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(selected.convictionScore)}</strong><span>{selected.isBotHeld ? 'paper P&L' : 'evidence score / 100'}</span></div>
@@ -391,4 +392,39 @@ export function ContextBody({ market, macro, pulse, bonds, extended }: { market:
     <h3>Why it matters now</h3>
     <ul>{(market?.reasons ?? []).map((reason) => <li key={reason}>{reason}</li>)}</ul>
   </>;
+}
+
+/** Real-time volume, time-of-day matched (server/volume-read.ts). Always stamped with its bar time. */
+type VolumeReadWire = {
+  asOf: string | null; sessionRvol: number | null; recentRvol: number | null; sessionVolume: number | null;
+  trigger: { at: string; barVolume: number; rvol: number | null } | null;
+  label: 'heavy' | 'above normal' | 'normal' | 'light' | 'unknown'; baselineSessions: number; note: string | null;
+};
+const fmtX = (x: number | null) => (x == null ? '—' : `${x.toFixed(1)}×`);
+const fmtVol = (v: number | null) => (v == null ? '—' : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}K` : String(v));
+function VolumeLine({ symbol, triggeredAt }: { symbol: string; triggeredAt: string | null }) {
+  const q = useQuery<VolumeReadWire>({
+    queryKey: ['/api/volume-read', symbol, triggeredAt],
+    queryFn: async () => {
+      const r = await fetch(`/api/volume-read/${encodeURIComponent(symbol)}${triggeredAt ? `?at=${encodeURIComponent(triggeredAt)}` : ''}`, { credentials: 'include' });
+      if (!r.ok) throw new Error(`volume read ${r.status}`);
+      return r.json();
+    },
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    staleTime: 55_000,
+  });
+  const v = q.data;
+  if (!v || v.label === 'unknown') return <p className="nxp-times"><span>Volume <strong>—</strong>{q.isLoading ? ' reading…' : ' unavailable'}</span></p>;
+  const tone = v.label === 'heavy' || v.label === 'above normal' ? 'bull' : v.label === 'light' ? 'bear' : undefined;
+  const age = v.asOf ? new Date(v.asOf).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) : null;
+  return (
+    <p className="nxp-times" title={`Time-of-day matched vs the prior ${v.baselineSessions} sessions · Yahoo 5-min bars${v.note ? ` · ${v.note}` : ''}`}>
+      <span>Volume <strong className={tone}>{v.label}</strong></span>
+      <span> · last 15m <strong>{fmtX(v.recentRvol)}</strong> normal</span>
+      <span> · day so far <strong>{fmtX(v.sessionRvol)}</strong> ({fmtVol(v.sessionVolume)} sh)</span>
+      {v.trigger && <span> · trigger bar <strong>{fmtX(v.trigger.rvol)}</strong></span>}
+      {age && <span> · as of {age} ET</span>}
+    </p>
+  );
 }
