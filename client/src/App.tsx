@@ -56,7 +56,6 @@ const Academy = lazyWithRetry(() => import("@/pages/academy"), "academy");
 const Blog = lazyWithRetry(() => import("@/pages/blog"), "blog");
 
 const BlogPost = lazyWithRetry(() => import("@/pages/blog-post"), "blog-post");
-const Pricing = lazyWithRetry(() => import("@/pages/pricing"), "pricing");
 // REMOVED — Paper Trading, Wallet Tracker, CT Tracker consolidated out
 const TradeAudit = lazyWithRetry(() => import("@/pages/trade-audit"), "trade-audit");
 
@@ -148,7 +147,10 @@ function SmartLanding() {
   // the landing page is unreachable to anyone with a session — which is everyone
   // who works on it — so the only way to check a change was to log out. Read-only
   // escape hatch: it changes nothing but which component renders.
-  if (user && new URLSearchParams(window.location.search).get('preview') === 'landing') {
+  // ?section=pricing is where every upgrade path lands (/pricing was folded into
+  // the landing's Pricing section, 2026-09-30) — signed-in users must see it too.
+  const qs = new URLSearchParams(window.location.search);
+  if (user && (qs.get('preview') === 'landing' || qs.get('section') === 'pricing')) {
     return <Landing />;
   }
 
@@ -230,13 +232,10 @@ function Router() {
             Three files claiming to be the dashboard is how this drifted in the
             first place; only one of them is reachable now, and it is the right one. */}
 
-        {/* Public marketing routes that had links but no <Route>. /pricing is the
-            worst of these: protected-route.tsx:201, kavout-sidebar.tsx:162 and
-            ai-chatbot-popup.tsx:300 all send users there to upgrade, and all three
-            hit NotFound — the entire paid-conversion path was a dead end. Blog had
-            the mirror problem: /admin/blog is routed, so posts could be authored
-            but never read. */}
-        <Route path="/pricing"    component={Pricing} />
+        {/* Public marketing routes that had links but no <Route>. Blog had the
+            problem that /admin/blog was routed, so posts could be authored but
+            never read. /pricing is no longer a page: it redirects (legacy table)
+            to the landing's Pricing section, /?section=pricing (2026-09-30). */}
         <Route path="/blog/:slug" component={BlogPost} />
         <Route path="/blog"       component={Blog} />
         <Route path="/academy"    component={Academy} />
@@ -319,7 +318,7 @@ function App() {
   // Show public landing pages without sidebar (admin page handles its own layout)
   // Strip query parameters for comparison since location may include ?code=XXX etc.
   const locationPath = location.split('?')[0];
-  const publicPages = ['/', '/w', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog', '/pricing'];
+  const publicPages = ['/', '/w', '/login', '/signup', '/invite', '/join-beta', '/admin', '/admin/users', '/admin/invites', '/admin/waitlist', '/admin/system', '/admin/blog', '/privacy', '/terms', '/about', '/academy', '/how-to', '/blog'];
   // Also check for dynamic invite paths like /invite/:token
   const isPublicPage = publicPages.includes(locationPath) || locationPath.startsWith('/invite/');
   if (isPublicPage) {

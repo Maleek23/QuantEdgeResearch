@@ -92,7 +92,7 @@ export function AIChatbotPopup() {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: isOutOfCredits 
-          ? `You've used all your AI credits for this month. Visit the [Pricing page](/pricing) to upgrade your plan for more credits.`
+          ? `You've used all your AI credits for this month. Visit the [Pricing page](/?section=pricing) to upgrade your plan for more credits.`
           : `Error: ${errorMessage}`,
         timestamp: new Date(),
       }]);
@@ -297,7 +297,7 @@ export function AIChatbotPopup() {
                 {creditBalance && creditBalance.tier !== 'pro' && creditBalance.tier !== 'admin' && 
                   creditBalance.creditsUsed / creditBalance.creditsAllocated >= 0.7 && (
                   <a 
-                    href="/pricing" 
+                    href="/?section=pricing" 
                     className="flex items-center gap-2 mb-2 p-2 rounded-lg bg-gradient-to-r from-sky-500/10 to-purple-500/10 border border-sky-500/20 hover:border-sky-500/40 transition-colors"
                     data-testid="link-upgrade-nudge"
                   >

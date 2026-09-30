@@ -3216,3 +3216,139 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
   .landing.lp .cta-actions .btn{justify-content:center;height:44px;padding:0 20px}
   .landing.lp .lfooter{padding:40px 0 28px}
 }
+
+/* ═══════════════════════ LANDING v3 — live product + pricing (2026-09-30) ═══════════════════════
+   live-showcase.tsx: framed panels rendered as real UI on /api/public/showcase +
+   the live price bus. One horizontal scroll-snap track = tabs on desktop, swipe
+   on phone. Phone: body ≥ 15px, numbers ≥ 18px. Flash = the app's tick flash. */
+.landing.lp .lp-lede{font-size:17px;line-height:1.6;color:var(--text-dim);margin:16px auto 0;max-width:640px}
+.landing.lp .lp-live{padding-bottom:0}
+.landing.lp .sc{margin-top:40px}
+.landing.lp .sc-tabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+.landing.lp .sc-tab{min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--nx-border-hi);background:var(--panel-solid);color:var(--text-dim);font:600 14px/1 'Inter',sans-serif;cursor:pointer;transition:all .15s}
+.landing.lp .sc-tab:hover{color:var(--text);border-color:var(--cyan-dim)}
+.landing.lp .sc-tab.on{background:rgba(59,140,255,0.14);border-color:var(--cyan);color:var(--text)}
+.landing.lp .sc-tab:focus-visible{outline:2px solid var(--cyan-bright);outline-offset:2px}
+.landing.lp .sc-frame{max-width:980px;margin:0 auto}
+.landing.lp .sc-status{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font:500 12px 'JetBrains Mono',monospace;color:var(--text-dim)}
+.landing.lp .sc-live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(110,231,183,.6);animation:sc-pulse 2s infinite}
+@keyframes sc-pulse{0%{box-shadow:0 0 0 0 rgba(110,231,183,.55)}70%{box-shadow:0 0 0 7px rgba(110,231,183,0)}100%{box-shadow:0 0 0 0 rgba(110,231,183,0)}}
+.landing.lp .sc-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
+.landing.lp .sc-track::-webkit-scrollbar{display:none}
+.landing.lp .sc-panel{flex:0 0 100%;min-width:0;scroll-snap-align:start;padding:24px 28px 20px;display:flex;flex-direction:column;gap:14px;min-height:430px}
+.landing.lp .sc-title{font:700 20px/1.25 'Space Grotesk',sans-serif;margin:0;letter-spacing:-0.01em}
+.landing.lp .sc-note{margin:0;font-size:15px;line-height:1.5;color:var(--text-dim)}
+.landing.lp .sc-fine{margin:0;font-size:13px;line-height:1.5;color:var(--text-mute)}
+.landing.lp .sc-empty{margin:0;padding:24px;border:1px dashed var(--nx-border-hi);border-radius:10px;font-size:15px;color:var(--text-dim);text-align:center}
+.landing.lp .sc-badge{display:inline-block;margin-right:6px;padding:2px 8px;border-radius:6px;background:rgba(250,204,21,0.12);border:1px solid rgba(250,204,21,0.35);color:var(--amber);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.04em;text-transform:uppercase;vertical-align:1px}
+.landing.lp .sc-age{font:500 12px 'JetBrains Mono',monospace;color:var(--text-mute)}
+.landing.lp .sc-age.old{color:var(--amber)}
+.landing.lp .sc-px{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-weight:600;font-size:18px;border-radius:4px;padding:0 2px;margin:0 -2px;transition:background-color .7s ease,color .7s ease}
+.landing.lp .sc-px.big{font-size:26px;letter-spacing:-0.02em}
+.landing.lp .sc-px.flash-up{background:rgba(110,231,183,0.22);color:var(--green);transition:none}
+.landing.lp .sc-px.flash-down{background:rgba(255,107,61,0.22);color:var(--red);transition:none}
+.landing.lp .sc-chg{font:600 15px 'JetBrains Mono',monospace;color:var(--text-dim)}
+.landing.lp .up{color:var(--green)}
+.landing.lp .down{color:var(--red)}
+.landing.lp .sc-quotes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.landing.lp .sc-quote{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border:1px solid var(--nx-border);border-radius:10px;background:var(--panel-2)}
+.landing.lp .sc-quote-top{display:flex;align-items:center;gap:8px;font-size:14px}
+.landing.lp .sc-read{padding:16px;border:1px solid var(--nx-border);border-radius:10px;background:var(--panel-2);display:flex;flex-direction:column;gap:10px}
+.landing.lp .sc-read h4{margin:0;font:600 12px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan-bright)}
+.landing.lp .sc-read-line{margin:0;font-size:15px;line-height:1.55;color:var(--text-dim)}
+.landing.lp .sc-read-line b{color:var(--text)}
+.landing.lp .sc-levels,.landing.lp .sc-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
+.landing.lp .sc-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.landing.lp .sc-levels div,.landing.lp .sc-stats div{padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--nx-border)}
+.landing.lp .sc-levels dt,.landing.lp .sc-stats dt{font-size:12px;color:var(--text-mute);margin-bottom:4px}
+.landing.lp .sc-levels dd,.landing.lp .sc-stats dd{margin:0;font:600 20px 'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.landing.lp .sc-levels dd.c{color:var(--cyan-bright)} .landing.lp .sc-levels dd.r{color:var(--red)} .landing.lp .sc-levels dd.a{color:var(--amber)}
+.landing.lp .sc-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.landing.lp .sc-idea,.landing.lp .sc-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--nx-border);border-radius:10px;background:var(--panel-2);font-size:15px}
+.landing.lp .sc-idea .sym,.landing.lp .sc-row .sym{font:700 18px 'JetBrains Mono',monospace;min-width:64px}
+.landing.lp .sc-idea .side{font:700 12px 'JetBrains Mono',monospace;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.04)}
+.landing.lp .sc-idea .band{color:var(--text-dim);font-size:14px}
+.landing.lp .sc-idea .when{color:var(--text-mute);font-size:14px}
+.landing.lp .sc-idea .out{margin-left:auto;font:600 14px 'JetBrains Mono',monospace}
+.landing.lp .sc-idea .out.open,.landing.lp .sc-idea .out.flat{color:var(--text-dim)}
+.landing.lp .sc-row .name{color:var(--text-dim);flex:1;min-width:80px}
+.landing.lp .sc-row .est{color:var(--text-dim);font:500 14px 'JetBrains Mono',monospace;margin-left:auto}
+.landing.lp .sc-date{font:600 14px 'JetBrains Mono',monospace;color:var(--cyan-bright);min-width:56px}
+.landing.lp .sc-gex-head{display:flex;gap:28px;flex-wrap:wrap}
+.landing.lp .sc-gex-head > div{display:flex;flex-direction:column;gap:2px}
+.landing.lp .sc-gex-head .lbl{font-size:12px;color:var(--text-mute)}
+.landing.lp .sc-gex{width:100%;height:auto;max-height:230px;display:block}
+.landing.lp .sc-gex-ax{font:500 11px 'JetBrains Mono',monospace;fill:var(--text-mute)}
+.landing.lp .sc-gex-ax.spot{fill:var(--text)}
+.landing.lp .sc-legend{display:flex;gap:18px;flex-wrap:wrap;font:500 14px 'JetBrains Mono',monospace;color:var(--text-dim)}
+.landing.lp .sc-legend i{display:inline-block;width:14px;height:0;border-top:2px dashed;margin-right:6px;vertical-align:middle}
+.landing.lp .sc-legend i.c{color:var(--cyan-bright)} .landing.lp .sc-legend i.r{color:var(--red)} .landing.lp .sc-legend i.a{color:var(--amber)}
+.landing.lp .sc-foot{margin-top:auto;padding-top:6px;border-top:1px solid var(--nx-border)}
+.landing.lp .sc-open{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:15px;font-weight:600;color:var(--cyan-bright);text-decoration:none}
+.landing.lp .sc-open:hover{text-decoration:underline;text-underline-offset:4px}
+.landing.lp .sc-dots{display:none;justify-content:center;gap:6px;margin-top:12px}
+.landing.lp .sc-dots i{width:6px;height:6px;border-radius:50%;background:var(--nx-border-hi)}
+.landing.lp .sc-dots i.on{background:var(--cyan-bright);width:16px;border-radius:3px}
+.landing.lp .sc-disclaimer{max-width:760px;margin:16px auto 0;text-align:center;font-size:13px;line-height:1.5;color:var(--text-mute)}
+
+/* pricing */
+.landing.lp .lp-pricing{padding:112px 0 0;scroll-margin-top:72px}
+.landing.lp .lp-bill{display:flex;justify-content:center;gap:4px;margin:28px auto 0;padding:4px;border:1px solid var(--nx-border-hi);border-radius:999px;width:max-content;background:var(--panel-solid)}
+.landing.lp .lp-bill button{min-height:40px;padding:0 18px;border:0;border-radius:999px;background:none;color:var(--text-dim);font:600 14px 'Inter',sans-serif;cursor:pointer}
+.landing.lp .lp-bill button.on{background:rgba(59,140,255,0.16);color:var(--text)}
+.landing.lp .lp-bill button span{color:var(--green);font-weight:500;margin-left:4px}
+.landing.lp .lp-plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:32px;align-items:stretch}
+.landing.lp .lp-plan{position:relative;display:flex;flex-direction:column;padding:28px 24px 24px;border:1px solid var(--nx-border-hi);border-radius:14px;background:linear-gradient(160deg,var(--panel-solid),var(--panel-2))}
+.landing.lp .lp-plan.pop{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(59,140,255,0.25),0 20px 60px rgba(59,140,255,0.12)}
+.landing.lp .lp-plan-flag{position:absolute;top:-12px;left:24px;padding:3px 10px;border-radius:999px;background:var(--cyan);color:#fff;font:600 12px 'Inter',sans-serif}
+.landing.lp .lp-plan-flag.soon{background:var(--panel-hi);color:var(--amber);border:1px solid rgba(250,204,21,0.35)}
+.landing.lp .lp-plan-name{margin:0;font:700 22px 'Space Grotesk',sans-serif}
+.landing.lp .lp-plan-desc{margin:6px 0 0;font-size:15px;color:var(--text-dim);min-height:44px}
+.landing.lp .lp-plan-price{margin:18px 0 0;display:flex;align-items:baseline;gap:4px}
+.landing.lp .lp-plan-price b{font:700 40px 'JetBrains Mono',monospace;letter-spacing:-0.03em}
+.landing.lp .lp-plan-price span{color:var(--text-dim);font:500 15px 'JetBrains Mono',monospace}
+.landing.lp .lp-plan-save{margin:2px 0 0;font:500 13px 'JetBrains Mono',monospace;color:var(--green)}
+.landing.lp .lp-plan-feats{list-style:none;padding:0;margin:18px 0 22px;display:flex;flex-direction:column;gap:10px;flex:1}
+.landing.lp .lp-plan-feats li{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.4}
+.landing.lp .lp-plan-feats li .ic{color:var(--green);flex:0 0 auto;margin-top:2px}
+.landing.lp .lp-plan-feats li.no{color:var(--text-mute)}
+.landing.lp .lp-plan-feats li.no .ic{color:var(--text-mute)}
+.landing.lp .lp-plan-feats em.soon{font-style:normal;margin-left:8px;padding:1px 6px;border-radius:4px;background:rgba(250,204,21,0.1);color:var(--amber);font-size:11px;font-weight:600}
+.landing.lp .lp-plan-cta .btn{width:100%;justify-content:center}
+.landing.lp .lp-plan-cta .btn[disabled]{opacity:.6;cursor:default}
+.landing.lp .lp-plan-err{margin:16px 0 0;text-align:center;color:var(--red);font-size:15px}
+.landing.lp .lp-plan-fine{margin:20px auto 0;max-width:680px;text-align:center;font-size:13px;color:var(--text-mute)}
+.landing.lp .faq-h{margin:0;font:inherit}
+.landing.lp .faq-a-inner a{color:var(--cyan-bright)}
+.landing.lp .lfooter-bottom a{color:var(--text-dim);text-decoration:underline;text-underline-offset:3px}
+
+@media (max-width:960px){
+  .landing.lp .lp-plans{grid-template-columns:1fr;max-width:520px;margin-left:auto;margin-right:auto}
+  .landing.lp .sc-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  .landing.lp .lp-lede{font-size:16px}
+  .landing.lp .sc{margin-top:28px}
+  .landing.lp .sc-tabs{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;margin:0 -16px 12px;padding:0 16px}
+  .landing.lp .sc-tabs::-webkit-scrollbar{display:none}
+  .landing.lp .sc-tab{flex:0 0 auto;min-height:40px;font-size:15px}
+  .landing.lp .sc-status{font-size:11px}
+  .landing.lp .sc-track{align-items:flex-start}
+  .landing.lp .sc-panel{padding:18px 16px 14px;min-height:0;gap:12px}
+  .landing.lp .sc-title{font-size:18px}
+  .landing.lp .sc-quotes{grid-template-columns:1fr;gap:8px}
+  .landing.lp .sc-quote{flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:12px 14px}
+  .landing.lp .sc-quote .sc-age{flex-basis:100%}
+  .landing.lp .sc-px.big{font-size:24px}
+  .landing.lp .sc-levels dd,.landing.lp .sc-stats dd{font-size:18px}
+  .landing.lp .sc-idea .out{margin-left:0;flex-basis:100%}
+  .landing.lp .sc-row .est{margin-left:0}
+  .landing.lp .sc-dots{display:flex}
+  .landing.lp .lp-pricing{padding:72px 0 0}
+  .landing.lp .lp-plan{padding:26px 18px 20px}
+  .landing.lp .lp-plan-price b{font-size:36px}
+}
+@media (prefers-reduced-motion:reduce){
+  .landing.lp .sc-live-dot{animation:none}
+  .landing.lp .sc-px{transition:none}
+}

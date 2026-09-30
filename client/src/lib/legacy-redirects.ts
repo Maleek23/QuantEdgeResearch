@@ -134,6 +134,10 @@ export const LEGACY_REDIRECTS: Array<[string, LegacyTarget]> = [
   ["/my-account", "/settings"],
   ["/trading-guide", "/blog/how-to-trade-like-a-pro"],
   ["/learn-more", "/"],
+  // /pricing folded into the landing's Pricing section (2026-09-30). The query
+  // form (not /#pricing) keeps the one-hop + query-preserving contract; the
+  // landing scrolls to #pricing when it sees section=pricing.
+  ["/pricing", "/?section=pricing"],
 
   // ── Admin hub (2026-09-29: 12 pages → 4 sections, docs/ADMIN_HUB.md) ─────
   ["/admin/beta-invites", "/admin/invites"],   // duplicate of Invites + Waitlist
