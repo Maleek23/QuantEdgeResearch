@@ -223,7 +223,8 @@ function ChartsToggle() {
 }
 
 /* ════════════ Ranked book ════════════ */
-const BOOK_ROWS = 9;
+/** Two rows of three on desktop; the rest of the book lives on NEXUS. */
+const BOOK_ROWS = 6;
 export function TodayRankedBookTool() {
   const book = useBook();
   const cardCharts = useCardCharts();
@@ -382,31 +383,76 @@ export function TodayRotationTool() {
   return (
     <div className={`${WRAP} td-rot`}>
       <div className="td-rot-grid">
-      <div className="feature-list">
-        <div className="feature-list-item">{CHECK}<div><b>{sectors.length} sectors mapped</b> <span>— {rotation.data?.sessionLabel ?? 'live session'}</span></div></div>
-        {flows.top[0] && <div className="feature-list-item">{CHECK}<div><b>Leading: {flows.top[0].name}</b> <span>— {(flows.top[0].relChange ?? 0) >= 0 ? '+' : ''}{(flows.top[0].relChange ?? 0).toFixed(1)}% vs SPY</span></div></div>}
-        {flows.bottom[0] && <div className="feature-list-item">{CHECK}<div><b>Lagging: {flows.bottom[0].name}</b> <span>— {(flows.bottom[0].relChange ?? 0).toFixed(1)}% vs SPY</span></div></div>}
-      </div>
-      <div className="feature-visual">
-        <div className="rot-map">
-          <RotQuad sectors={sectors} />
-          <div className="rot-label tl">Leading</div>
-          <div className="rot-label tr">Improving</div>
-          <div className="rot-label bl">Weakening</div>
-          <div className="rot-label br">Lagging</div>
-          <div className="rot-axis x">x · rel strength →</div>
-          <div className="rot-axis y">y · momentum →</div>
+        <div className="td-rot-read">
+          <div className="feature-list">
+            <div className="feature-list-item">{CHECK}<div><b>{sectors.length} sectors mapped</b> <span>— {rotation.data?.sessionLabel ?? 'live session'}</span></div></div>
+            {flows.top[0] && <div className="feature-list-item">{CHECK}<div><b>Leading: {flows.top[0].name}</b> <span>— {(flows.top[0].relChange ?? 0) >= 0 ? '+' : ''}{(flows.top[0].relChange ?? 0).toFixed(1)}% vs SPY</span></div></div>}
+            {flows.bottom[0] && <div className="feature-list-item">{CHECK}<div><b>Lagging: {flows.bottom[0].name}</b> <span>— {(flows.bottom[0].relChange ?? 0).toFixed(1)}% vs SPY</span></div></div>}
+          </div>
+          {/* the two sectors money is moving into and the two it is leaving, under the read */}
+          <div className="flow-viz">
+            {[...flows.top.map((x) => ({ x, cls: 'in' as const })), ...flows.bottom.map((x) => ({ x, cls: 'out' as const }))].map(({ x, cls }) => (
+              <div className="lflow-row" key={x.etf}>
+                <div className="lflow-sym" style={{ color: cls === 'in' ? 'var(--green)' : 'var(--red)' }}>{x.etf}</div>
+                <div className="lflow-bar"><div className={`lflow-fill ${cls}`} style={{ width: `${Math.min(95, Math.abs(x.relChange ?? 0) / flows.maxAbs * 95)}%` }} /></div>
+                <div className={`lflow-val ${cls}`}>{(x.relChange ?? 0) >= 0 ? '+' : ''}{(x.relChange ?? 0).toFixed(1)}%</div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flow-viz">
-          {[...flows.top.map((x) => ({ x, cls: 'in' as const })), ...flows.bottom.map((x) => ({ x, cls: 'out' as const }))].map(({ x, cls }) => (
-            <div className="lflow-row" key={x.etf}>
-              <div className="lflow-sym" style={{ color: cls === 'in' ? 'var(--green)' : 'var(--red)' }}>{x.etf}</div>
-              <div className="lflow-bar"><div className={`lflow-fill ${cls}`} style={{ width: `${Math.min(95, Math.abs(x.relChange ?? 0) / flows.maxAbs * 95)}%` }} /></div>
-              <div className={`lflow-val ${cls}`}>{(x.relChange ?? 0) >= 0 ? '+' : ''}{(x.relChange ?? 0).toFixed(1)}%</div>
-            </div>
-          ))}
+        <div className="feature-visual">
+          <div className="rot-map">
+            <RotQuad sectors={sectors} />
+            <div className="rot-label tl">Leading</div>
+            <div className="rot-label tr">Improving</div>
+            <div className="rot-label bl">Weakening</div>
+            <div className="rot-label br">Lagging</div>
+            <div className="rot-axis x">x · rel strength →</div>
+            <div className="rot-axis y">y · momentum →</div>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ════════════ Crypto pulse ════════════
+   The majors at a glance — the same /api/crypto/pulse read as the tape (one
+   request), numbers large, each with its 24h and 7-day change. */
+export function TodayCryptoTool() {
+  const pulse = usePulse();
+  const now = useNow();
+  const assets = (pulse.data?.assets ?? []).slice(0, 4);
+  useToolReport({
+    asOf: pulse.isError && !pulse.data ? null : pulse.data ? (pulse.data.asOf ?? (pulse.dataUpdatedAt ? new Date(pulse.dataUpdatedAt).toISOString() : null)) : undefined,
+    note: pulse.isError ? (pulse.data ? 'refresh failed · showing last read' : 'feed failed') : '24h change',
+    tone: pulse.isError ? 'warn' : 'ok',
+  });
+  if (pulse.isLoading) return <QELoading rows={2} className="fd-pad" label="reading crypto…" />;
+  if (pulse.isError && !pulse.data) return <QEError className="fd-m" title="Crypto pulse didn't load" onRetry={() => pulse.refetch()} retrying={pulse.isFetching} />;
+  if (!assets.length) return <QEEmpty className="fd-m" message="No crypto quotes returned." action={<button type="button" className="fd-btn" onClick={() => pulse.refetch()} disabled={pulse.isFetching}>Read again</button>} />;
+  return (
+    <div className={`${WRAP} td-crypto`}>
+      {pulse.isError && <QEStale what="Crypto refresh" updatedAt={pulse.dataUpdatedAt} onRetry={() => pulse.refetch()} retrying={pulse.isFetching} />}
+      <div className="td-crypto-grid">
+        {assets.map((a) => <CryptoCell key={a.symbol} a={a} />)}
+      </div>
+      <Link href="/t?tab=crypto" className="td-tool-more" title={pulse.data?.asOf ? `Crypto pulse ${ageLabel(pulse.data.asOf, now)}` : undefined}>Open the crypto desk →</Link>
+    </div>
+  );
+}
+type PulseAsset = { symbol: string; name?: string; price: number; change24h?: number | null; change7d?: number | null; high24h?: number | null; low24h?: number | null };
+function CryptoCell({ a }: { a: PulseAsset }) {
+  const pxFlash = useTickFlash(a.price, { resetKey: a.symbol });
+  const ch = a.change24h ?? null;
+  const d = a.price >= 1000 ? 0 : a.price >= 10 ? 2 : 4;
+  return (
+    <div className="td-crypto-cell">
+      <div className="td-crypto-sym"><b>{a.symbol}</b>{a.name && <span>{a.name}</span>}</div>
+      <div className={`td-crypto-px ${pxFlash}`}>${fmt(a.price, d)}</div>
+      <div className="td-crypto-chg">
+        <span className={ch == null ? '' : ch >= 0 ? 'up' : 'down'}>{ch == null ? '—' : `${ch >= 0 ? '+' : ''}${ch.toFixed(2)}%`}<small> 24h</small></span>
+        {a.change7d != null && <span className={a.change7d >= 0 ? 'up' : 'down'}>{a.change7d >= 0 ? '+' : ''}{a.change7d.toFixed(1)}%<small> 7d</small></span>}
       </div>
     </div>
   );

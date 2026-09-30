@@ -140,6 +140,34 @@ function mockGappers() {
     gappers: rows.map(([symbol, gapPct, isWeekly]) => ({ symbol, price: +(100 * (1 + gapPct / 100)).toFixed(2), previousClose: 100, gapPct, preMarketGapPct: gapPct, direction: gapPct > 0.5 ? 'up' : gapPct < -0.5 ? 'down' : 'flat', phase: 'pre_market', isWeekly, fetchedAt: at })),
   };
 }
+/** Synthetic Today context — weekly path, sectors, crypto, record, index desk, quotes, SPY bars (TEST HARNESS — not market data). */
+function mockWeeklyPath() {
+  const spot = 575.4, sig = 9.2; const at = new Date(Date.now() - 12 * 60e3).toISOString();
+  const path = [0, 1, 2, 3, 4, 5].map((d) => { const p = spot + d * 0.9; const w = sig * Math.sqrt(d / 5); return { dayOffset: d, price: +p.toFixed(2), lo: +(p - w).toFixed(2), hi: +(p + w).toFixed(2), confidence: 0.6 }; });
+  return { cached: true, cachedAt: at, symbol: 'SPY', spotPrice: spot, weekStart: '2026-09-28', weekEnd: '2026-10-02', levels: [], path, phases: [], regime: 'positive_gamma', confidence: 0.6, expectedMove: sig, annualVol: 0.128, volSource: 'realized-20d', impliedVol: 0.152 };
+}
+function mockRotation() {
+  const r = rng(7); const at = new Date(Date.now() - 4 * 60e3).toISOString();
+  const s: Array<[string, string]> = [['XLK', 'Technology'], ['XLF', 'Financials'], ['XLE', 'Energy'], ['XLV', 'Health Care'], ['XLY', 'Discretionary'], ['XLP', 'Staples'], ['XLI', 'Industrials'], ['XLU', 'Utilities'], ['XLB', 'Materials'], ['XLRE', 'Real Estate'], ['XLC', 'Communication']];
+  return { asOf: at, isStale: false, sessionLabel: 'fixture session', spyChange: 0.42, sectors: s.map(([etf, name], i) => { const c = +((r() - 0.45) * 2.4).toFixed(2); return { etf, name, change: c, relChange: +(c - 0.42).toFixed(2), rsRatio: +((r() - 0.5) * 4).toFixed(2), rsMomentum: +((r() - 0.5) * 4).toFixed(2), rank: i + 1 }; }) };
+}
+function mockPulse() {
+  return { asOf: new Date(Date.now() - 90e3).toISOString(), assets: [{ symbol: 'BTC', name: 'Bitcoin', price: 64210, change24h: 1.8, change7d: 4.2, high24h: 64900, low24h: 62800 }, { symbol: 'ETH', name: 'Ethereum', price: 2480, change24h: -0.7, change7d: 1.1, high24h: 2530, low24h: 2440 }, { symbol: 'SOL', name: 'Solana', price: 148, change24h: 3.2, change7d: -2.4, high24h: 151, low24h: 142 }] };
+}
+function mockRecord() {
+  return { since: '2026-08-26', asOf: new Date(Date.now() - 5 * 60e3).toISOString(), winRate: 42, wins: 37, losses: 51, decided: 88, unresolved: 32, total: 120, expectancyR: 0.137, rSampleSize: 88, coveragePct: 73, sampleFloor: 30 };
+}
+function mockIndexDesk() {
+  return { session: { name: 'fixture session', isOpen: true }, scalps: [{ id: 'fx-spy', symbol: 'SPY', direction: 'long', bias: 'bullish', setup: 'vwap_reclaim', confidence: 71, riskRewardRatio: 2.1, timestamp: new Date(Date.now() - 8 * 60e3).toISOString() }, { id: 'fx-iwm', symbol: 'IWM', direction: 'short', bias: 'bearish', setup: 'failed_breakout', confidence: 63, riskRewardRatio: 1.7, timestamp: new Date(Date.now() - 20 * 60e3).toISOString() }] };
+}
+function mockQuotes(syms: string[]) {
+  const at = new Date(Date.now() - 30e3).toISOString(); const r = rng(syms.length);
+  return { quotes: Object.fromEntries(syms.map((s) => [s, { price: s === 'SPY' ? 576.12 : +(50 + r() * 400).toFixed(2), changePercent: +((r() - 0.4) * 3).toFixed(2), asOf: at, session: 'regular', source: 'fixture' }])) };
+}
+function mockBars() {
+  const r = rng(11); let p = 572; const t0 = Math.floor(Date.now() / 1000) - 78 * 300;
+  return { data: Array.from({ length: 78 }, (_, i) => { const o = p; p = +(p + (r() - 0.46) * 0.8).toFixed(2); return { time: t0 + i * 300, open: o, high: Math.max(o, p) + 0.2, low: Math.min(o, p) - 0.2, close: p }; }) };
+}
 /** Every harness page says so, big: a watermark and a red strip (aria-hidden, pointer-events none). */
 const HARNESS_BANNER = '<div aria-hidden="true" data-harness style="position:fixed;inset:0;z-index:2147483646;pointer-events:none;display:grid;place-items:center;overflow:hidden"><div style="transform:rotate(-24deg);font:800 64px/1.1 system-ui,sans-serif;letter-spacing:.08em;color:rgba(255,64,64,.14);text-align:center;white-space:nowrap">TEST HARNESS<br><span style="font-size:22px;letter-spacing:.04em">synthetic fixtures · not market data</span></div></div><div aria-hidden="true" data-harness style="position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:2147483647;pointer-events:none;padding:2px 12px;border-radius:0 0 8px 8px;background:#b91c1c;color:#fff;font:700 11px/1.6 system-ui,sans-serif;letter-spacing:.06em">TEST HARNESS · SYNTHETIC FIXTURES · NOT MARKET DATA</div>';
 
@@ -156,6 +184,13 @@ function serve(): Promise<http.Server> {
       const m = p.match(/^\/api\/gex-vex\/terminal\/([^/]+)/);
       if (m) return json(200, mockTerminal(decodeURIComponent(m[1]).toUpperCase()));
       if (p === '/api/convictions') return json(200, mockConvictions());
+      if (p === '/api/weekly-path/SPY') return json(200, mockWeeklyPath());
+      if (p === '/api/sector-rotation') return json(200, mockRotation());
+      if (p === '/api/crypto/pulse') return json(200, mockPulse());
+      if (p === '/api/performance/model-record') return json(200, mockRecord());
+      if (p === '/api/index-scalps') return json(200, mockIndexDesk());
+      if (p.startsWith('/api/quotes/batch/')) return json(200, mockQuotes(decodeURIComponent(p.slice('/api/quotes/batch/'.length)).split(',').filter(Boolean)));
+      if (p === '/api/historical-prices/SPY') return json(200, mockBars());
       return json(404, { error: `test harness: no fixture for ${p}` });
     }
     let f = path.join(DIST, p);

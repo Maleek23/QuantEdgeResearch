@@ -370,3 +370,161 @@
 .flowdash .today-l .td-pm-chip em.against{color:var(--amber,#facc15)}
 .flowdash .today-l .td-pm-more{background:none;border:1px dashed rgba(59,140,255,.25);border-radius:4px;padding:4px 8px;color:var(--text-dim);font:600 11px var(--mono);cursor:pointer}
 .flowdash .today-l .td-pm-foot{margin:0;font-size:11.5px;color:var(--text-mute);line-height:1.4}
+
+/* ── TODAY as an editorial page (2026-09-30) ──────────────────────────────
+   Operator: "fix spacing and organisation of Today — everything is all
+   cramped". The landing-style page read better because it had ONE reading
+   column, full-width bands and room: big hero type, 2-up hero (words │ map),
+   the book three across, 48–64px between bands. These rules restore that on
+   the PAGE-mode dashboard (defs/today.ts rows, one band per y) without
+   boxes: a centred ≤1360px column, one spacing scale, flat sections with a
+   hairline only where a new group starts, one-line title-case headings with
+   the provenance stamp on the same line.
+   Spacing scale (desktop): 8 · 16 · 24 · 32 · 48 · 64. Phone: 16 · 24.
+   Scoped to .dash-today; phone TEXT density stays with the shared rules. */
+.flowdash.dash-page.dash-today{max-width:none;padding:8px 40px 72px}
+.flowdash.dash-page.dash-today>.fd-bar{display:none}
+.flowdash.dash-page.dash-today .pg-grid{max-width:1360px;margin:0 auto;row-gap:0;column-gap:48px;align-items:start}
+.flowdash.dash-page.dash-today:not(.framed) .pg-sec{border:0;border-radius:0;background:transparent;padding:48px 0 0}
+/* group starts: a hairline and a larger step (strip → hero → ideas → context → record) */
+.flowdash.dash-page.dash-today:not(.framed) .pg-sec:is([data-tool=today-best-idea],[data-tool=today-rotation],[data-tool=today-crypto],[data-tool=today-model-record],[data-tool=today-book-stats]){margin-top:24px;padding-top:48px;border-top:1px solid color-mix(in srgb,var(--nx-border) 80%,transparent)}
+.flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-tool=today-tape]{padding:8px 0 0;border:0}
+.flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-tool=today-premarket]{padding:16px 0 0}
+.flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-tool=today-week-map]{padding-top:40px}
+.flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-tool=today-index-desk]{padding-top:40px}
+
+/* one-line headings: title left, provenance stamp right on the same baseline */
+.flowdash.dash-today .pg-sec-head{flex-wrap:nowrap;align-items:baseline;gap:16px;margin-bottom:20px}
+.flowdash.dash-today .pg-sec-head h2{flex:none;white-space:nowrap}
+.flowdash.dash-today .pg-sec-head .pg-prov{flex:1 1 auto;min-width:0;margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* the hero carries its own eyebrow + headline: its section title is for screen readers only */
+/* …and its provenance stamp sits under the map, beside the model footnote */
+.flowdash.dash-today .pg-sec[data-tool=today-week-map] .pg-sec-head{order:2;margin:10px 0 0}
+.flowdash.dash-today .pg-sec[data-tool=today-week-map] .pg-sec-head .pg-prov{margin-left:0;text-align:left}
+.flowdash.dash-today .pg-sec[data-tool=today-week-map] .pg-sec-head h2{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* the pre-market strip reads as a line under the tape */
+.flowdash.dash-today .pg-sec[data-tool=today-premarket] .pg-sec-head{margin-bottom:8px}
+.flowdash.dash-today .pg-sec[data-tool=today-premarket] .pg-sec-head h2{color:var(--text-dim)}
+
+/* tool bodies at page scale (the .td-tool rules above fit them into tiles) */
+.flowdash.dash-today .today-l.td-tool{overflow:visible}
+.flowdash.dash-today .today-l.td-tool .btn-lg{min-height:40px;padding:0 16px;border-radius:7px}
+.flowdash.dash-today .today-l.td-tool .hero-actions{gap:12px;margin-bottom:24px}
+.flowdash.dash-today .today-l.td-tool .td-tool-sub{margin-bottom:16px}
+.flowdash.dash-today .today-l.td-tool .td-tool-more{margin-top:20px}
+
+/* hero: words │ map, generous */
+.flowdash.dash-today .today-l.td-week .hero-grid{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:48px;align-items:start}
+.flowdash.dash-today .today-l.td-week .hero-eyebrow{margin-bottom:20px}
+.flowdash.dash-today .today-l.td-week .hero-title{margin-bottom:20px}
+.flowdash.dash-today .today-l.td-week .hero-sub{margin-bottom:28px;max-width:60ch}
+.flowdash.dash-today .today-l.td-week .tl-keys{margin-top:8px}
+.flowdash.dash-today .today-l.td-week .tl-keys>div{padding:14px 18px}
+.flowdash.dash-today .today-l.td-week .lterminal-body{padding:14px;gap:12px}
+.flowdash.dash-today .today-l.td-week .tl-map-foot{margin-top:16px;max-width:110ch}
+@container (max-width:900px){
+  .flowdash.dash-today .today-l.td-week .hero-grid{grid-template-columns:minmax(0,1fr);gap:32px}
+}
+
+/* index desk: four across, one band */
+.flowdash.dash-today .today-l.td-idx .td-index-head{margin-bottom:0}
+.flowdash.dash-today .today-l.td-idx .td-index-head>div{display:none}
+.flowdash.dash-today .pg-sec[data-tool=today-index-desk] .pg-sec-body{gap:12px}
+.flowdash.dash-today .today-l.td-idx{display:flex;flex-direction:column-reverse;gap:12px}
+.flowdash.dash-today .today-l.td-idx .td-index-head{justify-content:flex-end}
+.flowdash.dash-today .today-l.td-idx .td-index-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+@container (max-width:860px){.flowdash.dash-today .today-l.td-idx .td-index-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:420px){.flowdash.dash-today .today-l.td-idx .td-index-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* best idea: words │ its cards — no panel around the cards (no nested boxes) */
+.flowdash.dash-today .today-l.td-best .feature{gap:48px}
+.flowdash.dash-today .today-l.td-best .feature-num{margin-bottom:14px}
+.flowdash.dash-today .today-l.td-best .feature-title{margin-bottom:16px}
+.flowdash.dash-today .today-l.td-best .feature-desc{margin-bottom:20px}
+.flowdash.dash-today .today-l.td-best .feature-list{gap:10px}
+.flowdash.dash-today .today-l.td-best .feature-visual{padding:0;border:0;background:none;display:grid;gap:16px}
+.flowdash.dash-today .today-l.td-best .tl-ladder{margin-top:28px}
+.flowdash.dash-today .today-l.td-best .hero-actions{margin:28px 0 0}
+
+/* ranked book: three across on desktop */
+.flowdash.dash-today .today-l.td-book .tl-book{gap:24px;grid-template-columns:repeat(3,minmax(0,1fr))}
+.flowdash.dash-today .today-l.td-book .tl-book-why{margin-top:10px}
+@container (max-width:980px){.flowdash.dash-today .today-l.td-book .tl-book{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:600px){.flowdash.dash-today .today-l.td-book .tl-book{grid-template-columns:minmax(0,1fr)}}
+
+/* rotation: no panel around the quadrant */
+.flowdash.dash-today .today-l.td-rot .td-rot-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}
+.flowdash.dash-today .today-l.td-rot .feature-visual{padding:0;border:0;background:none}
+.flowdash.dash-today .today-l.td-rot .feature-list{gap:12px}
+.flowdash.dash-today .today-l.td-rot .flow-viz{margin-top:24px}
+.flowdash.dash-today .today-l.td-rot .rot-map{height:300px}
+
+/* crypto pulse */
+.flowdash .today-l.td-crypto .td-crypto-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:24px}
+.flowdash .today-l.td-crypto .td-crypto-cell{min-width:0}
+.flowdash .today-l.td-crypto .td-crypto-sym{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.flowdash .today-l.td-crypto .td-crypto-sym b{font:700 14px 'Space Grotesk',sans-serif;color:var(--text)}
+.flowdash .today-l.td-crypto .td-crypto-sym span{font-size:12px;color:var(--text-mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flowdash .today-l.td-crypto .td-crypto-px{font:600 26px/1.15 'Space Grotesk',sans-serif;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums}
+.flowdash .today-l.td-crypto .td-crypto-chg{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font:500 13px var(--mono);font-variant-numeric:tabular-nums}
+.flowdash .today-l.td-crypto .td-crypto-chg small{font-size:11px;color:var(--text-mute)}
+.flowdash .today-l.td-crypto .td-crypto-chg .up{color:var(--green)}
+.flowdash .today-l.td-crypto .td-crypto-chg .down{color:var(--red)}
+
+/* record + book stats: compact, numbers large */
+.flowdash.dash-today .today-l.td-stats .stats-grid,.flowdash.dash-today .today-l.td-record .stats-grid{gap:32px}
+.flowdash.dash-today .today-l.td-record .cta-sub{margin:20px 0;max-width:62ch}
+.flowdash.dash-today .today-l.td-record .cta-actions{gap:12px}
+
+/* index desk: its "Open in Nexus" is a real control (≥32px target, ≥12px text) */
+.flowdash.dash-today .today-l.td-idx .td-index-head a{display:inline-flex;align-items:center;min-height:32px;padding:0 4px;font-size:13px}
+
+/* LIGHT mode: the landing graphic language is dark by design, so each Today
+   band is a dark panel on the light page (dashboard.css gives .pg-sec:has(.today-l)
+   the dark tokens); the landing's own surface tokens (--bg-2, --line) are reset
+   here too, or the index desk rows paint light-on-light. */
+html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec:has(.today-l){--bg-2:#131720;--line:rgba(127,178,255,.14);--line-hi:rgba(127,178,255,.26);margin-top:24px;padding:28px 32px 32px;border:1px solid rgba(127,178,255,.22);border-radius:12px;background:#0e1117}
+html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-tool=today-tape]:has(.today-l){margin-top:8px;padding:0;overflow:hidden}
+@media (max-width:767px){
+  html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec:has(.today-l){margin-top:16px;padding:20px 16px 24px}
+}
+
+/* page-scale type: tablet and desktop only (phone type is the shared phone rules' job) */
+@media (min-width:768px){
+  .flowdash.dash-today .pg-sec-head h2{font:600 22px/1.2 'Space Grotesk',Inter,sans-serif;letter-spacing:-.015em}
+  .flowdash.dash-today .pg-sec[data-tool=today-premarket] .pg-sec-head h2{font-size:15px;letter-spacing:.01em}
+  .flowdash.dash-today .today-l.td-tool{font-size:14px;line-height:1.55}
+  .flowdash.dash-today .today-l.td-tool .btn-lg{font-size:13px}
+  .flowdash.dash-today .today-l.td-tool .td-tool-sub{font-size:11px}
+  .flowdash.dash-today .today-l.td-tool .td-tool-more{font-size:13px}
+  .flowdash.dash-today .today-l.td-week .hero-title{font-size:clamp(30px,3.4cqi,46px);line-height:1.08}
+  .flowdash.dash-today .today-l.td-week .hero-sub{font-size:15.5px;line-height:1.65}
+  .flowdash.dash-today .today-l.td-week .tl-keys b{font-size:28px;line-height:1.15}
+  .flowdash.dash-today .today-l.td-week .tl-map-foot{font-size:12px;line-height:1.55}
+  .flowdash.dash-today .today-l.td-best .feature-title{font-size:clamp(24px,2.6cqi,34px);line-height:1.15}
+  .flowdash.dash-today .today-l.td-best .feature-desc{font-size:15px;line-height:1.6}
+  .flowdash.dash-today .today-l.td-book .tl-book-why{font-size:14px;line-height:1.5}
+  .flowdash.dash-today .today-l.td-tool .lstat-val{font-size:clamp(32px,6cqi,44px);line-height:1.05}
+  .flowdash.dash-today .today-l.td-record .cta-sub{font-size:14px}
+}
+/* tablet: full-width bands, the context/record pairs side by side */
+@media (min-width:768px) and (max-width:1199px){
+  .flowdash.dash-page.dash-today{padding:8px 28px 56px}
+  .flowdash.dash-page.dash-today .pg-grid{column-gap:32px}
+  .flowdash.dash-today .pg-sec{grid-column:1 / -1}
+  .flowdash.dash-today .pg-sec:is([data-tool=today-rotation],[data-tool=today-crypto],[data-tool=today-model-record],[data-tool=today-book-stats]){grid-column:auto / span 6}
+}
+/* phone: 16 / 24 steps, 16px gutters (type sizes stay with the shared phone rules) */
+@media (max-width:767px){
+  .flowdash.dash-page.dash-today{padding:4px 16px 32px}
+  .flowdash.dash-page.dash-today:not(.framed) .pg-sec{padding:24px 0 0}
+  .flowdash.dash-page.dash-today:not(.framed) .pg-sec:is([data-tool=today-best-idea],[data-tool=today-rotation],[data-tool=today-crypto],[data-tool=today-model-record],[data-tool=today-book-stats]){margin-top:8px;padding-top:24px}
+  .flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-tool=today-premarket]{padding-top:16px}
+  .flowdash.dash-page.dash-today:not(.framed) .pg-sec:is([data-tool=today-week-map],[data-tool=today-index-desk]){padding-top:24px}
+  .flowdash.dash-today .pg-sec-head{flex-wrap:wrap;gap:4px 12px;margin-bottom:16px}
+  .flowdash.dash-today .pg-sec-head .pg-prov{flex-basis:100%;margin-left:0;text-align:left;white-space:normal}
+  .flowdash.dash-today .today-l.td-week .hero-grid,.flowdash.dash-today .today-l.td-best .feature,.flowdash.dash-today .today-l.td-rot .td-rot-grid{gap:24px}
+  .flowdash.dash-today .today-l.td-week .hero-sub{margin-bottom:20px}
+  /* index-desk row captions were 9–10px (a pre-existing device-audit FAIL): the 12px phone floor */
+  .flowdash.dash-today .td-index-row small,.flowdash.dash-today .td-index-row>span,.flowdash.dash-today .td-index-row>b,.flowdash.dash-today .td-index-row>em{font-size:12px}
+}
