@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useSearch } from "wouter";
+import { useSearch } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle, ArrowRight, ArrowLeft, Shield, Mail, Sparkles, Lock, User } from "lucide-react";
+import "@/styles/nexus.css";
+import NextSteps from "@/components/landing/next-steps";
+import { reasonOf } from "@/lib/optimistic";
 
 const verifyCodeSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -73,7 +76,8 @@ const inputStyles: React.CSSProperties = {
   borderRadius: '8px',
   padding: '10px 12px',
   color: '#ffffff',
-  fontSize: '14px',
+  fontSize: '16px',
+  minHeight: '44px',
   width: '100%',
   outline: 'none',
 };
@@ -84,11 +88,11 @@ const inputWithIconStyles: React.CSSProperties = {
 };
 
 export default function JoinBeta() {
-  const [, navigate] = useLocation();
   const search = useSearch();
   const { toast } = useToast();
   const [step, setStep] = useState<"verify" | "onboard" | "success">("verify");
   const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [firstName, setFirstName] = useState<string | null>(null);
 
   const urlParams = new URLSearchParams(search);
   const initialCode = urlParams.get("code") || urlParams.get("invite") || "";
@@ -134,14 +138,14 @@ export default function JoinBeta() {
       setVerifiedEmail(data.email);
       setStep("onboard");
       toast({
-        title: "Code Verified",
-        description: "Complete your profile to get started.",
+        title: "Code verified",
+        description: "Complete your profile to finish.",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Verification Failed",
-        description: error.message || "Invalid or expired access code",
+        title: "Couldn’t verify the code",
+        description: reasonOf(error),
         variant: "destructive",
       });
     },
@@ -152,26 +156,23 @@ export default function JoinBeta() {
       const response = await apiRequest("POST", "/api/beta/onboard", data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_res, vars) => {
+      // Next steps instead of a 2-second jump to /t (home-page pass 2026-09-30).
+      setFirstName(vars.firstName?.trim() || null);
       setStep("success");
-      toast({
-        title: "Welcome!",
-        description: "Your account is now active.",
-      });
-      setTimeout(() => navigate("/t"), 2000);
     },
     onError: (error: any) => {
       if (error.requiresVerification) {
         setStep("verify");
         toast({
-          title: "Session Expired",
-          description: "Please verify your code again.",
+          title: "Session expired",
+          description: "Verify your code again to continue.",
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Registration Failed",
-          description: error.message || "Something went wrong",
+          title: "Couldn’t finish registration",
+          description: reasonOf(error),
           variant: "destructive",
         });
       }
@@ -180,23 +181,10 @@ export default function JoinBeta() {
 
   if (step === "success") {
     return (
-      <div className="min-h-screen bg-[var(--surface-base)] flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
-        <div className="w-full max-w-md text-center relative z-10">
-          <div className="mx-auto mb-6 w-20 h-20 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-            <CheckCircle className="w-10 h-10 text-[var(--trade-bullish)]" />
-          </div>
-          <h1 className="text-2xl font-semibold text-white mb-2" data-testid="text-welcome-title">Welcome to the Lab!</h1>
-          <p className="text-neutral-400 mb-6">Your account is active. Redirecting to dashboard...</p>
-          <Button 
-            onClick={() => navigate("/t")} 
-            className="bg-sky-500 hover:bg-sky-400 text-black font-semibold rounded-xl shadow-lg"
-            data-testid="button-go-automations"
-          >
-            Go to Dashboard
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
+      <div className="landing nexus-vars lp auth-page">
+        <main className="auth-wrap">
+          <NextSteps name={firstName} />
+        </main>
       </div>
     );
   }
@@ -208,14 +196,8 @@ export default function JoinBeta() {
       <div className="w-full max-w-lg relative z-10">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center shadow-lg">
-              <span className="text-lg font-bold text-white">Q</span>
-            </div>
-            <div>
-              <span className="text-xl font-bold text-white tracking-tight">QUANT EDGE</span>
-              <span className="text-neutral-600 mx-2">|</span>
-              <span className="text-sm font-medium text-neutral-500 tracking-widest">LABS</span>
-            </div>
+            <img src="/favicon.svg" alt="" width={40} height={40} className="w-10 h-10" />
+            <span className="text-xl font-bold text-white tracking-tight">QuantEdge</span>
           </div>
           <h1 className="text-xl font-semibold text-white mb-1" data-testid="text-join-beta-title">
             {step === "verify" ? "Verify Your Access" : "Complete Your Profile"}
@@ -256,12 +238,13 @@ export default function JoinBeta() {
                 autoComplete="off"
               >
                 <div>
-                  <label className="block text-neutral-300 text-sm font-medium mb-2">Email</label>
+                  <label htmlFor="jb-email" className="block text-neutral-300 text-sm font-medium mb-2">Email</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500 z-10" />
                     <input
                       type="email"
                       placeholder="you@example.com"
+                      id="jb-email"
                       data-testid="input-verify-email"
                       autoComplete="email"
                       style={inputWithIconStyles}
@@ -274,12 +257,14 @@ export default function JoinBeta() {
                 </div>
                 
                 <div>
-                  <label className="block text-neutral-300 text-sm font-medium mb-2">Access Code</label>
+                  <label htmlFor="jb-token" className="block text-neutral-300 text-sm font-medium mb-2">Invite code</label>
                   <div className="relative">
                     <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500 z-10" />
                     <input
                       type="text"
                       placeholder="Enter your invite code"
+                      id="jb-token"
+                      autoCapitalize="none"
                       data-testid="input-verify-token"
                       autoComplete="one-time-code"
                       style={{ ...inputWithIconStyles, fontFamily: 'monospace', color: '#3b8cff' }}
@@ -335,11 +320,12 @@ export default function JoinBeta() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-neutral-300 text-sm font-medium mb-2">First Name</label>
+                      <label htmlFor="jb-first" className="block text-neutral-300 text-sm font-medium mb-2">First name</label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
                         <input
                           type="text"
+                          id="jb-first"
                           data-testid="input-first-name"
                           autoComplete="given-name"
                           style={inputWithIconStyles}
@@ -351,9 +337,10 @@ export default function JoinBeta() {
                       )}
                     </div>
                     <div>
-                      <label className="block text-neutral-300 text-sm font-medium mb-2">Last Name</label>
+                      <label htmlFor="jb-last" className="block text-neutral-300 text-sm font-medium mb-2">Last name</label>
                       <input
                         type="text"
+                        id="jb-last"
                         data-testid="input-last-name"
                         autoComplete="family-name"
                         style={inputStyles}
@@ -366,10 +353,11 @@ export default function JoinBeta() {
                   </div>
 
                   <div>
-                    <label className="block text-neutral-300 text-sm font-medium mb-2">Occupation (Optional)</label>
+                    <label htmlFor="jb-occ" className="block text-neutral-300 text-sm font-medium mb-2">Occupation (optional)</label>
                     <input
                       type="text"
                       placeholder="e.g. Software Engineer"
+                      id="jb-occ"
                       data-testid="input-occupation"
                       autoComplete="off"
                       data-lpignore="true"
@@ -490,17 +478,20 @@ export default function JoinBeta() {
 
                   <div className="pt-2 border-t border-neutral-800">
                     <div>
-                      <label className="block text-neutral-300 text-sm font-medium mb-2">Password</label>
+                      <label htmlFor="jb-pw" className="block text-neutral-300 text-sm font-medium mb-2">Password</label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
                         <input
                           type="password"
+                          id="jb-pw"
+                          aria-describedby="jb-pw-rule"
                           data-testid="input-password"
                           autoComplete="new-password"
                           style={inputWithIconStyles}
                           {...onboardingForm.register("password")}
                         />
                       </div>
+                      <p id="jb-pw-rule" className="text-neutral-500 text-xs mt-1">At least 8 characters.</p>
                       {onboardingForm.formState.errors.password && (
                         <p className="text-[var(--trade-bearish)] text-sm mt-1">{onboardingForm.formState.errors.password.message}</p>
                       )}
@@ -508,11 +499,12 @@ export default function JoinBeta() {
                   </div>
 
                   <div>
-                    <label className="block text-neutral-300 text-sm font-medium mb-2">Confirm Password</label>
+                    <label htmlFor="jb-pw2" className="block text-neutral-300 text-sm font-medium mb-2">Confirm password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 z-10" />
                       <input
                         type="password"
+                        id="jb-pw2"
                         data-testid="input-confirm-password"
                         autoComplete="new-password"
                         style={inputWithIconStyles}
@@ -525,10 +517,11 @@ export default function JoinBeta() {
                   </div>
 
                   <div>
-                    <label className="block text-neutral-300 text-sm font-medium mb-2">How did you find us? (Optional)</label>
+                    <label htmlFor="jb-ref" className="block text-neutral-300 text-sm font-medium mb-2">How did you find us? (optional)</label>
                     <input
                       type="text"
                       placeholder="e.g. Twitter, Friend, Google"
+                      id="jb-ref"
                       data-testid="input-referral"
                       autoComplete="off"
                       style={inputStyles}
@@ -547,7 +540,7 @@ export default function JoinBeta() {
                     ) : (
                       <CheckCircle className="w-4 h-4 mr-2" />
                     )}
-                    Complete Registration
+                    Create my account
                   </Button>
                 </form>
               </Form>
@@ -556,7 +549,7 @@ export default function JoinBeta() {
         )}
 
         <p className="text-center text-neutral-600 text-xs mt-6">
-          By signing up, you agree to our Terms of Service and Privacy Policy, and acknowledge that QuantEdge is an
+          By signing up, you agree to our <a href="/terms" className="underline">Terms of Service</a> and <a href="/privacy" className="underline">Privacy Policy</a>, and acknowledge that QuantEdge is an
           educational research tool, not investment advice. Trading stocks, options and crypto involves substantial risk of loss.
         </p>
       </div>

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { reasonOf } from "@/lib/optimistic";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/qe-mark.svg";
@@ -69,7 +70,7 @@ export default function Login() {
     onError: (error: Error) => {
       toast({
         title: "Login failed",
-        description: error.message || "Invalid access code",
+        description: reasonOf(error),
         variant: "destructive",
       });
     },
@@ -95,7 +96,7 @@ export default function Login() {
     onError: (error: Error) => {
       toast({
         title: "Login failed",
-        description: error.message || "Invalid email or password",
+        description: reasonOf(error),
         variant: "destructive",
       });
     },
@@ -162,7 +163,7 @@ export default function Login() {
           </div>
 
           <div className="text-xs text-muted-foreground dark:text-muted-foreground">
-            © {new Date().getFullYear()} Quant Edge Labs
+            © {new Date().getFullYear()} QuantEdge Labs
           </div>
         </div>
       </div>
@@ -220,7 +221,8 @@ export default function Login() {
               <div>
                 <p className="text-sm text-foreground dark:text-foreground font-medium">Invite-only beta</p>
                 <p className="text-xs text-muted-foreground dark:text-muted-foreground mt-1">
-                  Sign in is only available for approved waitlist members.
+                  Sign-in is for approved beta members. Have an invite code?{" "}
+                  <Link href="/signup" className="text-sky-400 hover:underline">Create your account</Link> first.
                 </p>
               </div>
             </div>

@@ -8,7 +8,7 @@
  * for items that carry an `id` it knows about.
  */
 export interface LandingFaqItem {
-  id?: 'cost';
+  id?: 'cost' | 'invite';
   q: string;
   a: string;
 }
@@ -30,6 +30,8 @@ export const LANDING_FAQ: LandingFaqItem[] = [
     a: 'Yes. Upload a broker CSV — Webull, Robinhood, Schwab, Interactive Brokers, tastytrade, TD Ameritrade, Fidelity and E*TRADE are recognised, or it auto-detects — or connect Alpaca for a read-only fill import, or log trades by hand. Your journal is scored with the same metrics as Quantinum Bot’s book.' },
   { q: 'Does it work on a phone?',
     a: 'Yes. Every page is built for phone width — Today, NEXUS, FLOW and GEX sit in the bottom dock — and the live panels above swipe. There is no app to install; add the site to your home screen if you like.' },
+  { id: 'invite', q: 'How do I get into the beta?',
+    a: 'QuantEdge is an invite-only beta. If you have an invite code (it is in your invite email), create your account on the sign-up page. If your invite came by email, you can also continue with Google using that address. No code yet? Join the waitlist on the sign-up page.' },
   { id: 'cost', q: 'What does it cost, and how do I get access?',
     a: 'QuantEdge is in early-access beta. There is a free plan with delayed data and limits, and Advanced unlocks real-time data and full access — see Pricing. Paid plans renew automatically each month or year until you cancel, and you can cancel anytime by emailing support@quantedgelabs.net.' },
 ];
