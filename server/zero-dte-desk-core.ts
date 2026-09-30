@@ -53,11 +53,15 @@ export function parseWatch(raw: string | undefined | null): string[] {
 
 // ─── ET clock ────────────────────────────────────────────────────────────
 
+// Formatters are built once: constructing an Intl.DateTimeFormat per call was
+// measured (2026-09-30) at ~200 MB of transient memory over a 150-name bar pass.
+const ET_DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+const ET_HM_FMT = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
 export function etDateKey(ms: number): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+  return ET_DAY_FMT.format(new Date(ms));
 }
 export function etMinutes(ms: number): number {
-  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ms));
+  const p = ET_HM_FMT.formatToParts(new Date(ms));
   return (Number(p.find((x) => x.type === 'hour')?.value ?? 0) % 24) * 60 + Number(p.find((x) => x.type === 'minute')?.value ?? 0);
 }
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

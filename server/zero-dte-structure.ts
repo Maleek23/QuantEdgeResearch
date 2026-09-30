@@ -37,11 +37,13 @@ const cache = new Map<string, { at: number; s: IntradayStructure | null }>();
 const TTL_MS = 60_000;
 const BAR_MS = 5 * 60_000;
 
+const ET_DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+const ET_HM_FMT = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
 function etDateKey(ms: number): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+  return ET_DAY_FMT.format(new Date(ms));
 }
 function etMinutes(ms: number): number {
-  const p = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ms));
+  const p = ET_HM_FMT.formatToParts(new Date(ms));
   const h = Number(p.find((x) => x.type === 'hour')?.value ?? 0) % 24;
   const m = Number(p.find((x) => x.type === 'minute')?.value ?? 0);
   return h * 60 + m;
