@@ -15,6 +15,7 @@ import psychologyImg from "@assets/stock_images/business_person_thin_ec170101.jp
 import tradingPlanImg from "@assets/stock_images/business_person_thin_3d22268f.jpg";
 import cryptoImg from "@assets/stock_images/cryptocurrency_bitco_69b7fa93.jpg";
 import optionsImg from "@assets/stock_images/cryptocurrency_bitco_a0a19b3e.jpg";
+import { SEOHead } from "@/components/seo-head";
 
 const CATEGORIES = [
   { id: 'all', label: 'All Articles', icon: BookOpen },
@@ -46,7 +47,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '12 min',
     image: technicalAnalysisImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Jan 2, 2026',
     featured: true,
   },
@@ -58,7 +59,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '18 min',
     image: chartPatternsImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Jan 1, 2026',
   },
   {
@@ -69,7 +70,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '15 min',
     image: movingAveragesImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Dec 30, 2025',
   },
   {
@@ -80,7 +81,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '20 min',
     image: positionSizingImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Dec 28, 2025',
   },
   {
@@ -91,7 +92,7 @@ const articles: Article[] = [
     level: 'Intermediate',
     readTime: '22 min',
     image: stopLossesImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Dec 26, 2025',
   },
   {
@@ -102,7 +103,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '15 min',
     image: riskRewardImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Dec 24, 2025',
   },
   {
@@ -113,7 +114,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '25 min',
     image: psychologyImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Dec 22, 2025',
   },
   {
@@ -124,7 +125,7 @@ const articles: Article[] = [
     level: 'Intermediate',
     readTime: '30 min',
     image: tradingPlanImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Dec 20, 2025',
   },
   {
@@ -135,7 +136,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '20 min',
     image: optionsImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Dec 18, 2025',
   },
   {
@@ -146,7 +147,7 @@ const articles: Article[] = [
     level: 'Intermediate',
     readTime: '28 min',
     image: cryptoImg,
-    author: 'Quant Edge Labs',
+    author: 'QuantEdge Labs',
     date: 'Dec 16, 2025',
   },
 ];
@@ -163,6 +164,7 @@ export default function Academy() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead pageKey="academy" />
       {/* Hero Section */}
       <div className="relative overflow-hidden border-b border-border/50">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-emerald-500/10" />

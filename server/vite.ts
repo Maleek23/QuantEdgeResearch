@@ -1,5 +1,5 @@
 import express, { type Express } from "express";
-import { injectServerSeo } from "./seo-metadata";
+import { renderSeoPage } from "./seo-serve";
 import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
@@ -62,7 +62,8 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
       const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      const seo = await renderSeoPage(page, url);
+      res.status(seo.status).set({ "Content-Type": "text/html" }).end(seo.html);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
@@ -93,6 +94,9 @@ export function serveStatic(app: Express) {
   // This ensures new deploys are picked up immediately without chunk hash mismatches.
   app.use(
     express.static(distPath, {
+      // "/" must reach the SPA fallback below so it gets the server-injected
+      // meta and JSON-LD like every other route (static would serve raw index.html).
+      index: false,
       maxAge: 0,
       etag: true,
       lastModified: true,
@@ -117,9 +121,10 @@ export function serveStatic(app: Express) {
     }
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");
     const indexPath = path.resolve(distPath, "index.html");
-    fs.readFile(indexPath, "utf-8", (error, html) => {
+    fs.readFile(indexPath, "utf-8", async (error, html) => {
       if (error) return res.status(500).type("text").send("Unable to load application");
-      res.status(200).type("html").send(injectServerSeo(html, req.originalUrl));
+      const seo = await renderSeoPage(html, req.originalUrl);
+      res.status(seo.status).type("html").send(seo.html);
     });
   });
 }

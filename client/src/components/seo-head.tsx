@@ -77,7 +77,7 @@ export function SEOHead({
     setMetaTag("og:title", seo.ogTitle || seo.title, true);
     setMetaTag("og:description", seo.ogDescription || seo.description, true);
     setMetaTag("og:type", "website", true);
-    setMetaTag("og:site_name", "Quant Edge Labs", true);
+    setMetaTag("og:site_name", "QuantEdge Labs", true);
     setMetaTag("og:url", pageCanonical, true);
     
     if (seo.ogImage) {

@@ -1,9 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, AlertTriangle, Shield, Scale } from "lucide-react";
+import { SEOHead } from "@/components/seo-head";
 
 export default function TermsOfService() {
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-4xl">
+      <SEOHead pageKey="terms" />
       <div className="relative overflow-hidden rounded-xl mb-8">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
         <div className="relative py-8 px-6">

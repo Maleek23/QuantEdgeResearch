@@ -98,7 +98,7 @@ export default function About() {
               </Link>
               <div className="flex items-center gap-2">
                 <img src={qeMark} alt="" width={22} height={22} className="h-[22px] w-[22px]" />
-                <h1 className="text-lg font-bold">Quant Edge Labs</h1>
+                <span className="text-lg font-bold">QuantEdge Labs</span>
               </div>
             </div>
             <ThemeToggle />
@@ -373,7 +373,7 @@ export default function About() {
       {/* Footer */}
       <footer className="border-t border-border py-8 mt-12">
         <div className="container mx-auto px-4 lg:px-6 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Quant Edge Labs. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} QuantEdge Labs. All rights reserved.</p>
           <p className="mt-2 text-xs">Educational research only — not investment advice. Trading, and especially options and crypto, involves substantial risk of loss. Quantinum Bot results are paper (simulated); past performance does not guarantee future results.</p>
           <div className="flex gap-4 justify-center mt-2">
             <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>

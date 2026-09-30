@@ -1,9 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Eye, Database, Lock, Mail, Scale } from "lucide-react";
+import { SEOHead } from "@/components/seo-head";
 
 export default function PrivacyPolicy() {
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-4xl">
+      <SEOHead pageKey="privacy" />
       {/* Page Header */}
       <div className="relative overflow-visible rounded-xl mb-8">
         <div className="relative py-6">

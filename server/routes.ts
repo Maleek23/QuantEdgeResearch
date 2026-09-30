@@ -651,10 +651,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/sitemap.xml', async (_req, res) => {
     try {
       const { generateSitemap } = await import('./sitemap-generator');
-      // Fetch blog slugs for dynamic sitemap
-      const blogPosts = await storage.getBlogPosts() || [];
-      const slugs = blogPosts.map((post: any) => post.slug).filter(Boolean);
-      const sitemap = generateSitemap(slugs);
+      // Published posts only — drafts must never reach the sitemap.
+      const blogPosts = await storage.getBlogPosts('published') || [];
+      const sitemap = generateSitemap(blogPosts);
       res.setHeader('Content-Type', 'application/xml');
       res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
       res.send(sitemap);
