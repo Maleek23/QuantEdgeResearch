@@ -167,6 +167,54 @@ function mockQuotes(syms: string[]) {
 function mockBars() {
   const r = rng(11); let p = 572; const t0 = Math.floor(Date.now() / 1000) - 78 * 300;
   return { data: Array.from({ length: 78 }, (_, i) => { const o = p; p = +(p + (r() - 0.46) * 0.8).toFixed(2); return { time: t0 + i * 300, open: o, high: Math.max(o, p) + 0.2, low: Math.min(o, p) - 0.2, close: p }; }) };
+/** Synthetic OHLCV (TEST HARNESS — not market data): a seeded random walk on
+ *  weekday sessions, 04:00–20:00 ET intraday (fixed UTC−4), epoch seconds. */
+function mockHistory(symbol: string, range: string, interval: string) {
+  const r = rng(symbol.split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7));
+  const stepMin: Record<string, number> = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '1d': 1440, '1wk': 10080 };
+  const step = stepMin[interval] ?? 5;
+  const days: Record<string, number> = { '5d': 5, '1mo': 22, '6mo': 126, '2y': 504, '10y': 2520 };
+  const nDays = Math.min(days[range] ?? 22, step >= 1440 ? 2520 : 60);
+  const now = Date.now();
+  const sessions: number[] = [];
+  for (let d = 0; sessions.length < nDays && d < nDays * 2 + 10; d++) {
+    const day = new Date(now - d * 864e5); const wd = day.getUTCDay();
+    if (wd === 0 || wd === 6) continue;
+    sessions.unshift(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()));
+  }
+  const times: number[] = [];
+  if (step === 10080) { for (let i = sessions.length - 1; i >= 0; i -= 5) times.unshift(sessions[i] + 13.5 * 36e5); }
+  else if (step === 1440) sessions.forEach((s) => times.push(s + 13.5 * 36e5));
+  else sessions.forEach((s) => { for (let m = 8 * 60; m < 24 * 60; m += step) { const t = s + m * 6e4; if (t <= now) times.push(t); } });
+  let px = 540 + (r() - 0.5) * 60;
+  const data = times.map((t) => {
+    const vol = step >= 1440 ? 0.014 : 0.0012 * Math.sqrt(step);
+    const open = px; const close = open * (1 + (r() - 0.49) * vol * 2);
+    const high = Math.max(open, close) * (1 + r() * vol * 0.8); const low = Math.min(open, close) * (1 - r() * vol * 0.8);
+    px = close;
+    return { time: Math.floor(t / 1000), open: +open.toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2), close: +close.toFixed(2), volume: Math.round((0.4 + r()) * (step >= 1440 ? 8e7 : 2e5 * step)) };
+  });
+  return { symbol, range, data };
+}
+/** Synthetic /api/chart/overlays (TEST HARNESS): GEX timeline, dark pool, flow. */
+function mockOverlays(symbol: string, spot: number) {
+  const r = rng(symbol.length * 131);
+  // Anchor to the fixture's last intraday bar (sessions end 20:00 ET = 00:00 UTC).
+  const wall = Date.now(); const d0 = new Date(wall); const h = d0.getUTCHours();
+  const now = h < 8 ? Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate()) - 5 * 6e4 : wall;
+  const start = now - 6.5 * 36e5;
+  const strikes = [-10, -5, 0, 5, 10].map((d) => Math.round(spot + d));
+  const samples: { t: number; spot: number; net: number; source: string }[] = [];
+  for (let t = start; t <= now; t += 5 * 6e4) samples.push({ t, spot, net: (r() - 0.4) * 3e9, source: 'test_harness_fixture' });
+  const series = strikes.map((k, i) => ({ strike: k, points: samples.map((s) => [s.t, ((i - 2) >= 0 ? 1 : -1) * (0.3 + r()) * 8e8] as [number, number]) }));
+  const iso = new Date(now - 60e3).toISOString();
+  return {
+    symbol, range: '1D', dates: [], generatedAt: iso,
+    gexNow: { net: 2.1e9, spot, topStrikes: strikes.map((k, i) => ({ strike: k, gex: (i - 2 || 1) * 4e8 })), asOf: iso, ageSec: 60, source: 'test_harness_fixture' },
+    gexTimeline: { sampleEveryMin: 5, recordingSince: new Date(start).toISOString(), asOf: iso, ageSec: 60, sources: ['test_harness_fixture'], note: 'fixture', watched: true, samples, series },
+    darkPool: { source: 'test_harness_fixture', asOf: iso, ageSec: 60, stale: false, windowFrom: null, windowTo: null, printsScanned: 40, levels: [{ price: +(spot * 0.992).toFixed(2), notional: 4.2e8, prints: 12, date: iso, firstDate: iso }, { price: +(spot * 1.006).toFixed(2), notional: 1.9e8, prints: 5, date: iso, firstDate: iso }], note: 'fixture' },
+    flow: { source: 'test_harness_fixture', streamState: 'fixture', asOf: iso, ageSec: 60, prints: Array.from({ length: 8 }, (_, i) => ({ time: start + (i + 1) * 40 * 6e4, optionType: i % 3 ? 'call' : 'put', strike: Math.round(spot), expiry: '2026-10-02', contract: `${symbol} fixture ${i % 3 ? 'C' : 'P'}`, premium: (0.2 + r()) * 2e6, fillPrice: 3.2, contracts: 500, alertNames: ['fixture'], side: null })), note: 'fixture' },
+  };
 }
 /** Every harness page says so, big: a watermark and a red strip (aria-hidden, pointer-events none). */
 const HARNESS_BANNER = '<div aria-hidden="true" data-harness style="position:fixed;inset:0;z-index:2147483646;pointer-events:none;display:grid;place-items:center;overflow:hidden"><div style="transform:rotate(-24deg);font:800 64px/1.1 system-ui,sans-serif;letter-spacing:.08em;color:rgba(255,64,64,.14);text-align:center;white-space:nowrap">TEST HARNESS<br><span style="font-size:22px;letter-spacing:.04em">synthetic fixtures · not market data</span></div></div><div aria-hidden="true" data-harness style="position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:2147483647;pointer-events:none;padding:2px 12px;border-radius:0 0 8px 8px;background:#b91c1c;color:#fff;font:700 11px/1.6 system-ui,sans-serif;letter-spacing:.06em">TEST HARNESS · SYNTHETIC FIXTURES · NOT MARKET DATA</div>';
@@ -191,6 +239,10 @@ function serve(): Promise<http.Server> {
       if (p === '/api/index-scalps') return json(200, mockIndexDesk());
       if (p.startsWith('/api/quotes/batch/')) return json(200, mockQuotes(decodeURIComponent(p.slice('/api/quotes/batch/'.length)).split(',').filter(Boolean)));
       if (p === '/api/historical-prices/SPY') return json(200, mockBars());
+      const hp = p.match(/^\/api\/historical-prices\/([^/]+)/);
+      if (hp) return json(200, mockHistory(decodeURIComponent(hp[1]).toUpperCase(), url.searchParams.get('range') ?? '1mo', url.searchParams.get('interval') ?? '5m'));
+      const co = p.match(/^\/api\/chart\/overlays\/([^/]+)/);
+      if (co) { const sym = decodeURIComponent(co[1]).toUpperCase(); const h = mockHistory(sym, '1mo', '5m').data; return json(200, mockOverlays(sym, Number(url.searchParams.get('spot')) || h[h.length - 1]?.close || 575)); }
       return json(404, { error: `test harness: no fixture for ${p}` });
     }
     let f = path.join(DIST, p);
