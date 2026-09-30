@@ -15098,9 +15098,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startMs = Date.parse(`${sessionStart}T00:00:00.000Z`);
       const hoursBack = Math.ceil((now.getTime() - startMs) / 3_600_000) + 24;
       const rows = await storage.getRecentTradeIdeas(hoursBack, 2_000);
+      // Optional ?symbol= — the ticker page's per-name track record. Filtered
+      // before the row cap so a busy book cannot crowd one name out.
+      const symbolFilter = typeof req.query.symbol === 'string' ? req.query.symbol.trim().toUpperCase() : '';
       const ledger = rows
         .filter((i: any) => {
           if (i.status !== 'published') return false;
+          if (symbolFilter && String(i.symbol ?? '').toUpperCase() !== symbolFilter) return false;
           const at = i.generationTimestamp ?? i.timestamp;
           if (!at) return false;
           const date = new Date(at).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
