@@ -847,6 +847,17 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
   const waits: Record<string, string[]> = {};
   if (etMin < 585 || etMin > 945) {
     for (const s of symbols) waits[s] = ['outside 09:45–15:45 ET entry window'];
+    // 15:45–15:55: the A/B policies are closed, but the SPX fast-move causes (server/spx-fast-moves.ts,
+    // SPX_FAST_MOVES=true) may still fire — ONLY those, and only what their replay policy allows.
+    if (etMin > 945 && etMin <= 955) {
+      const { spxFastMovesEnabled, runSpxFastMoves } = await import('./spx-fast-moves');
+      if (spxFastMovesEnabled()) {
+        const r = await runSpxFastMoves();
+        const fired = r.fresh.map((x) => `${x.at} ${x.label} ${x.side === 'short' ? 'puts' : 'calls'} — ${x.status}`);
+        waits.SPY = ['after 15:45 only the SPX fast-move causes run (until 15:55)', ...(r.closeFlowLine ? [r.closeFlowLine] : []), ...fired];
+        return { session, scanned: 0, ideas: [], persisted: r.fresh.filter((x) => x.status === 'published').length, waits, ranAt };
+      }
+    }
     return { session, scanned: 0, ideas: [], persisted: 0, waits, ranAt };
   }
 
@@ -913,6 +924,17 @@ async function runIndexScalpScannerOnce(opts: { discord?: boolean }): Promise<In
       exitBy: timeStopIso(now),
       entryValidUntil: new Date(now + 10 * 60_000).toISOString(),
     });
+  }
+
+  // Close-flow risk context (month/quarter-end, OPEX, rebalance days, from 15:30) — SPX fast-move desk only.
+  if (etMin >= 930) {
+    const { spxFastMovesEnabled } = await import('./spx-fast-moves');
+    if (spxFastMovesEnabled()) {
+      const { calendarFlags, closeFlowRiskLine } = await import('./spx-fast-moves-core');
+      const { etClock } = await import('./zero-dte-sniper-core');
+      const line = closeFlowRiskLine(calendarFlags(etClock(now).dateKey), etMin);
+      if (line) waits.SPY = [...(waits.SPY ?? []), line];
+    }
   }
 
   const waitLine = Object.entries(waits).map(([k, w]) => `${k}: ${w[0] ?? '—'}`).join(' · ');

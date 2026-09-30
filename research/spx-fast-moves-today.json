@@ -1,0 +1,3380 @@
+{
+ "day": "2026-09-30",
+ "cal": {
+  "monthEnd": true,
+  "quarterEnd": true,
+  "opex": false,
+  "quadWitching": false,
+  "indexRebalance": false,
+  "vixExpiry": false,
+  "fomc": false,
+  "closeFlowDay": true,
+  "labels": [
+   "quarter-end"
+  ]
+ },
+ "macroRvol": 10.70821560929072,
+ "lookAheadOk": true,
+ "closeFlowLine": "Close-flow risk: quarter-end — closing-auction imbalance publishes 15:50 ET; expect volume expansion into 16:00. Context only; a direction is published only when a measured cause triggers.",
+ "settle": 762.46,
+ "spxSettle": 7651.5400390625,
+ "ratioPrior": 10.03734457395025,
+ "engineRows": [
+  {
+   "variant": "rec",
+   "at": "09:45",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 33m old"
+  },
+  {
+   "variant": "rec",
+   "at": "09:50",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 38m old"
+  },
+  {
+   "variant": "rec",
+   "at": "09:55",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 43m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:00",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 48m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:05",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 53m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:10",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 58m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:15",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 63m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:20",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 68m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:25",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 73m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:30",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 78m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:35",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 83m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:40",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 88m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:45",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 93m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:50",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 98m old"
+  },
+  {
+   "variant": "rec",
+   "at": "10:55",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 103m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:00",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 108m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:05",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 113m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:10",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 118m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:15",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 123m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:20",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 128m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:25",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 133m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:30",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 138m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:35",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 143m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:40",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 148m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:45",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 153m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:50",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 158m old"
+  },
+  {
+   "variant": "rec",
+   "at": "11:55",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 163m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:00",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 168m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:05",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 173m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:10",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 178m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:15",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 183m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:20",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 188m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:25",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 193m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:30",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 198m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:35",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 203m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:40",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 208m old"
+  },
+  {
+   "variant": "rec",
+   "at": "12:45",
+   "sign": "negative",
+   "netB": -2.02,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "12:50",
+   "sign": "negative",
+   "netB": -2.02,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "12:55",
+   "sign": "negative",
+   "netB": -2.02,
+   "wait": "GEX snapshot 10m old"
+  },
+  {
+   "variant": "rec",
+   "at": "13:00",
+   "sign": "positive",
+   "netB": 2.31,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:05",
+   "sign": "positive",
+   "netB": 2.31,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:10",
+   "sign": "positive",
+   "netB": 2.19,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:15",
+   "sign": "positive",
+   "netB": 2.67,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:20",
+   "sign": "positive",
+   "netB": 2.91,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:25",
+   "sign": "positive",
+   "netB": 3.24,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:30",
+   "sign": "positive",
+   "netB": 2.13,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:35",
+   "sign": "positive",
+   "netB": 0.75,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:40",
+   "sign": "positive",
+   "netB": 0.05,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:45",
+   "sign": "negative",
+   "netB": -0.84,
+   "wait": "A long: PDH broken but price on the wrong side of VWAP"
+  },
+  {
+   "variant": "rec",
+   "at": "13:50",
+   "sign": "positive",
+   "netB": 0.92,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "13:55",
+   "sign": "positive",
+   "netB": 0.79,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "14:00",
+   "sign": "positive",
+   "netB": 0.79,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "14:05",
+   "sign": "positive",
+   "netB": 0.79,
+   "wait": "GEX snapshot 11m old"
+  },
+  {
+   "variant": "rec",
+   "at": "14:10",
+   "sign": "positive",
+   "netB": 2.25,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "14:15",
+   "sign": "positive",
+   "netB": 1.96,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "14:20",
+   "sign": "positive",
+   "netB": 1.21,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "14:25",
+   "sign": "positive",
+   "netB": 0.43,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "14:30",
+   "sign": "positive",
+   "netB": 0.43,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "14:35",
+   "sign": "positive",
+   "netB": 1.07,
+   "wait": "B: outside 10:00–14:30 / 15:00–15:40 ET"
+  },
+  {
+   "variant": "rec",
+   "at": "14:40",
+   "sign": "positive",
+   "netB": 1.07,
+   "wait": "B: outside 10:00–14:30 / 15:00–15:40 ET"
+  },
+  {
+   "variant": "rec",
+   "at": "14:45",
+   "sign": "negative",
+   "netB": -0.32,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "14:50",
+   "sign": "negative",
+   "netB": -0.32,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "14:55",
+   "sign": "negative",
+   "netB": -0.47,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "15:00",
+   "sign": "positive",
+   "netB": 0.38,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:02",
+   "sign": "positive",
+   "netB": 0.38,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:04",
+   "sign": "positive",
+   "netB": 0.09,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:06",
+   "sign": "positive",
+   "netB": 0.09,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:08",
+   "sign": "positive",
+   "netB": 0.09,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:10",
+   "sign": "negative",
+   "netB": -1.1,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "15:12",
+   "sign": "negative",
+   "netB": -1.1,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "15:14",
+   "sign": "negative",
+   "netB": -0.76,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "15:16",
+   "sign": "negative",
+   "netB": -0.76,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "15:18",
+   "sign": "negative",
+   "netB": -0.76,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "15:20",
+   "sign": "positive",
+   "netB": 0.39,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:22",
+   "sign": "positive",
+   "netB": 0.39,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:24",
+   "sign": "positive",
+   "netB": 0.35,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:26",
+   "sign": "positive",
+   "netB": 0.35,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:28",
+   "sign": "positive",
+   "netB": 0.35,
+   "wait": "B: no wall tag + rejection"
+  },
+  {
+   "variant": "rec",
+   "at": "15:30",
+   "sign": "neutral",
+   "netB": 0.03,
+   "wait": "neutral gamma — no dealer footprint (policy C)"
+  },
+  {
+   "variant": "rec",
+   "at": "15:32",
+   "sign": "neutral",
+   "netB": 0.03,
+   "wait": "neutral gamma — no dealer footprint (policy C)"
+  },
+  {
+   "variant": "rec",
+   "at": "15:34",
+   "sign": "neutral",
+   "netB": 0.03,
+   "wait": "neutral gamma — no dealer footprint (policy C)"
+  },
+  {
+   "variant": "rec",
+   "at": "15:36",
+   "sign": "neutral",
+   "netB": 0.02,
+   "wait": "neutral gamma — no dealer footprint (policy C)"
+  },
+  {
+   "variant": "rec",
+   "at": "15:38",
+   "sign": "neutral",
+   "netB": 0.02,
+   "wait": "neutral gamma — no dealer footprint (policy C)"
+  },
+  {
+   "variant": "rec",
+   "at": "15:40",
+   "sign": "neutral",
+   "netB": 0.02,
+   "wait": "neutral gamma — no dealer footprint (policy C)"
+  },
+  {
+   "variant": "rec",
+   "at": "15:42",
+   "sign": "neutral",
+   "netB": 0.02,
+   "wait": "neutral gamma — no dealer footprint (policy C)"
+  },
+  {
+   "variant": "rec",
+   "at": "15:44",
+   "sign": "negative",
+   "netB": -0.48,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "rec",
+   "at": "15:46",
+   "sign": "negative",
+   "netB": -0.48,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "rec",
+   "at": "15:48",
+   "sign": "negative",
+   "netB": -0.48,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "rec",
+   "at": "15:50",
+   "sign": "negative",
+   "netB": -0.67,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "rec",
+   "at": "15:52",
+   "sign": "negative",
+   "netB": -0.67,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "rec",
+   "at": "15:54",
+   "sign": "negative",
+   "netB": -1.69,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "rec",
+   "at": "15:56",
+   "sign": "negative",
+   "netB": -1.69,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "rec",
+   "at": "15:58",
+   "sign": "negative",
+   "netB": -1.69,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "op",
+   "at": "09:45",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 33m old"
+  },
+  {
+   "variant": "op",
+   "at": "09:50",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 38m old"
+  },
+  {
+   "variant": "op",
+   "at": "09:55",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 43m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:00",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 48m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:05",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 53m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:10",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 58m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:15",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 63m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:20",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 68m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:25",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 73m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:30",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 78m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:35",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 83m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:40",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 88m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:45",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 93m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:50",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 98m old"
+  },
+  {
+   "variant": "op",
+   "at": "10:55",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 103m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:00",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 108m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:05",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 113m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:10",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 118m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:15",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 123m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:20",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 128m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:25",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 133m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:30",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 138m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:35",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 143m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:40",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 148m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:45",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 153m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:50",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 158m old"
+  },
+  {
+   "variant": "op",
+   "at": "11:55",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 163m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:00",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 168m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:05",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 173m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:10",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 178m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:15",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 183m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:20",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 188m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:25",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 193m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:30",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 198m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:35",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 203m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:40",
+   "sign": "negative",
+   "netB": -0.99,
+   "wait": "GEX snapshot 208m old"
+  },
+  {
+   "variant": "op",
+   "at": "12:45",
+   "sign": "negative",
+   "netB": -2.02,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "12:50",
+   "sign": "negative",
+   "netB": -2.02,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "12:55",
+   "sign": "negative",
+   "netB": -2.02,
+   "wait": "GEX snapshot 10m old"
+  },
+  {
+   "variant": "op",
+   "at": "13:00",
+   "sign": "negative",
+   "netB": 2.31,
+   "wait": null,
+   "setup": {
+    "policy": "A_neg_gamma_continuation",
+    "dir": "long",
+    "entry": 768.27,
+    "stop": 767.21,
+    "target": 785,
+    "trigger": "OR30 high"
+   },
+   "publish": {
+    "occ": "SPY260930C00769000",
+    "strike": 769,
+    "entry": 0.65,
+    "entryAt": "13:00",
+    "exit": 0.33,
+    "exitAt": "13:16",
+    "why": "underlying stop",
+    "pnl$": -32
+   }
+  },
+  {
+   "variant": "op",
+   "at": "13:05",
+   "sign": "negative",
+   "netB": 2.31,
+   "wait": null,
+   "setup": {
+    "policy": "A_neg_gamma_continuation",
+    "dir": "long",
+    "entry": 768.27,
+    "stop": 767.21,
+    "target": 785,
+    "trigger": "OR30 high"
+   }
+  },
+  {
+   "variant": "op",
+   "at": "13:10",
+   "sign": "negative",
+   "netB": 2.19,
+   "wait": null,
+   "setup": {
+    "policy": "A_neg_gamma_continuation",
+    "dir": "long",
+    "entry": 768.25,
+    "stop": 767.21,
+    "target": 785,
+    "trigger": "OR30 high"
+   }
+  },
+  {
+   "variant": "op",
+   "at": "13:15",
+   "sign": "negative",
+   "netB": 2.67,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "13:20",
+   "sign": "negative",
+   "netB": 2.91,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "13:25",
+   "sign": "negative",
+   "netB": 3.24,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "13:30",
+   "sign": "negative",
+   "netB": 2.13,
+   "wait": "A long: PDH broken but price on the wrong side of VWAP"
+  },
+  {
+   "variant": "op",
+   "at": "13:35",
+   "sign": "negative",
+   "netB": 0.75,
+   "wait": "A long: PDH broken but price on the wrong side of VWAP"
+  },
+  {
+   "variant": "op",
+   "at": "13:40",
+   "sign": "negative",
+   "netB": 0.05,
+   "wait": "A long: PDH broken but price on the wrong side of VWAP"
+  },
+  {
+   "variant": "op",
+   "at": "13:45",
+   "sign": "negative",
+   "netB": -0.84,
+   "wait": "A long: PDH broken but price on the wrong side of VWAP"
+  },
+  {
+   "variant": "op",
+   "at": "13:50",
+   "sign": "negative",
+   "netB": 0.92,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "13:55",
+   "sign": "negative",
+   "netB": 0.79,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:00",
+   "sign": "negative",
+   "netB": 0.79,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:05",
+   "sign": "negative",
+   "netB": 0.79,
+   "wait": "GEX snapshot 11m old"
+  },
+  {
+   "variant": "op",
+   "at": "14:10",
+   "sign": "negative",
+   "netB": 2.25,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:15",
+   "sign": "negative",
+   "netB": 1.96,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:20",
+   "sign": "negative",
+   "netB": 1.21,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:25",
+   "sign": "negative",
+   "netB": 0.43,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:30",
+   "sign": "negative",
+   "netB": 0.43,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:35",
+   "sign": "negative",
+   "netB": 1.07,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:40",
+   "sign": "negative",
+   "netB": 1.07,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:45",
+   "sign": "negative",
+   "netB": -0.32,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:50",
+   "sign": "negative",
+   "netB": -0.32,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "14:55",
+   "sign": "negative",
+   "netB": -0.47,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:00",
+   "sign": "negative",
+   "netB": 0.38,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:02",
+   "sign": "negative",
+   "netB": 0.38,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:04",
+   "sign": "negative",
+   "netB": 0.09,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:06",
+   "sign": "negative",
+   "netB": 0.09,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:08",
+   "sign": "negative",
+   "netB": 0.09,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:10",
+   "sign": "negative",
+   "netB": -1.1,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:12",
+   "sign": "negative",
+   "netB": -1.1,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:14",
+   "sign": "negative",
+   "netB": -0.76,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:16",
+   "sign": "negative",
+   "netB": -0.76,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:18",
+   "sign": "negative",
+   "netB": -0.76,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:20",
+   "sign": "negative",
+   "netB": 0.39,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:22",
+   "sign": "negative",
+   "netB": 0.39,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:24",
+   "sign": "negative",
+   "netB": 0.35,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:26",
+   "sign": "negative",
+   "netB": 0.35,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:28",
+   "sign": "negative",
+   "netB": 0.35,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:30",
+   "sign": "negative",
+   "netB": 0.03,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:32",
+   "sign": "negative",
+   "netB": 0.03,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:34",
+   "sign": "negative",
+   "netB": 0.03,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:36",
+   "sign": "negative",
+   "netB": 0.02,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:38",
+   "sign": "negative",
+   "netB": 0.02,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:40",
+   "sign": "negative",
+   "netB": 0.02,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:42",
+   "sign": "negative",
+   "netB": 0.02,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:44",
+   "sign": "negative",
+   "netB": -0.48,
+   "wait": "A: no fresh held break of a measured level"
+  },
+  {
+   "variant": "op",
+   "at": "15:46",
+   "sign": "negative",
+   "netB": -0.48,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "op",
+   "at": "15:48",
+   "sign": "negative",
+   "netB": -0.48,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "op",
+   "at": "15:50",
+   "sign": "negative",
+   "netB": -0.67,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "op",
+   "at": "15:52",
+   "sign": "negative",
+   "netB": -0.67,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "op",
+   "at": "15:54",
+   "sign": "negative",
+   "netB": -1.69,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "op",
+   "at": "15:56",
+   "sign": "negative",
+   "netB": -1.69,
+   "wait": "outside 09:45–15:45 ET entry window"
+  },
+  {
+   "variant": "op",
+   "at": "15:58",
+   "sign": "negative",
+   "netB": -1.69,
+   "wait": "outside 09:45–15:45 ET entry window"
+  }
+ ],
+ "newRows": [
+  {
+   "cause": "macro_open_drive",
+   "label": "08:30-release open drive",
+   "side": "long",
+   "known": "10:01",
+   "trigBar": "10:00",
+   "px": 768.09,
+   "note": "08:30 release day: closed above the 09:30–09:34 high 767.29 on 1.6× volume",
+   "rvol1": 1.6283926358222072,
+   "variant": "otm1",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0397,
+   "spy": {
+    "leg": "SPY",
+    "strike": 769,
+    "occ": "SPY260930C00769000",
+    "prints": 403,
+    "entry": 1.21,
+    "entryAt": "10:01",
+    "maxMult": 1.22,
+    "maxHigh": 1.48,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -121,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -121,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -121,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -121,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -121,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.6,
+      "at": "10:38",
+      "pnl$": -60,
+      "pnlPct": -50
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7710,
+    "occ": "SPXW260930C07710000",
+    "prints": 390,
+    "entry": 16,
+    "entryAt": "10:01",
+    "maxMult": 1.22,
+    "maxHigh": 19.5,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -1600,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -1600,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -1600,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -1600,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -1600,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 8,
+      "at": "12:30",
+      "pnl$": -800,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "macro_open_drive",
+   "label": "08:30-release open drive",
+   "side": "long",
+   "known": "10:01",
+   "trigBar": "10:00",
+   "px": 768.09,
+   "note": "08:30 release day: closed above the 09:30–09:34 high 767.29 on 1.6× volume",
+   "rvol1": 1.6283926358222072,
+   "variant": "near",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0397,
+   "spy": {
+    "leg": "SPY",
+    "strike": 770,
+    "occ": "SPY260930C00770000",
+    "prints": 403,
+    "entry": 0.79,
+    "entryAt": "10:01",
+    "maxMult": 1.24,
+    "maxHigh": 0.98,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -79,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -79,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -79,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -79,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -79,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.4,
+      "at": "10:34",
+      "pnl$": -39,
+      "pnlPct": -50
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7735,
+    "occ": "SPXW260930C07735000",
+    "prints": 390,
+    "entry": 5.3,
+    "entryAt": "10:01",
+    "maxMult": 1.28,
+    "maxHigh": 6.76,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -530,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -530,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -530,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -530,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -530,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 2.65,
+      "at": "10:28",
+      "pnl$": -265,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "macro_open_drive",
+   "label": "08:30-release open drive",
+   "side": "long",
+   "known": "10:01",
+   "trigBar": "10:00",
+   "px": 768.09,
+   "note": "08:30 release day: closed above the 09:30–09:34 high 767.29 on 1.6× volume",
+   "rvol1": 1.6283926358222072,
+   "variant": "cheap",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0397,
+   "spy": {
+    "leg": "SPY",
+    "strike": 773,
+    "occ": "SPY260930C00773000",
+    "prints": 393,
+    "entry": 0.19,
+    "entryAt": "10:01",
+    "maxMult": 1.32,
+    "maxHigh": 0.25,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -19,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -19,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -19,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -19,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -19,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.1,
+      "at": "10:28",
+      "pnl$": -9,
+      "pnlPct": -50
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7760,
+    "occ": "SPXW260930C07760000",
+    "prints": 379,
+    "entry": 1.5,
+    "entryAt": "10:01",
+    "maxMult": 1.33,
+    "maxHigh": 2,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -150,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -150,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -150,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -150,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -150,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.75,
+      "at": "10:26",
+      "pnl$": -75,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "close_flow",
+   "label": "Calendar close-flow day (month/qtr-end, OPEX, rebalance) 15:30+ break",
+   "side": "short",
+   "known": "15:33",
+   "trigBar": "15:32",
+   "px": 766.15,
+   "note": "quarter-end close flow: closed 766.15 below the 15:00–15:29 low 766.24, below VWAP 767.60",
+   "rvol1": 0.5797133413382521,
+   "variant": "otm1",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.038,
+   "spy": {
+    "leg": "SPY",
+    "strike": 766,
+    "occ": "SPY260930P00766000",
+    "prints": 405,
+    "entry": 0.73,
+    "entryAt": "15:33",
+    "maxMult": 4.85,
+    "maxHigh": 3.36,
+    "expiry": 3.54,
+    "exits": {
+     "hold": {
+      "px": 3.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 281,
+      "pnlPct": 385
+     },
+     "take2x": {
+      "px": 1.46,
+      "at": "15:50",
+      "pnl$": 73,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 1.69,
+      "at": "15:50",
+      "pnl$": 96,
+      "pnlPct": 132
+     },
+     "take3x": {
+      "px": 2.19,
+      "at": "15:54",
+      "pnl$": 146,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 2.5,
+      "at": "16:00 (expiry)",
+      "pnl$": 177,
+      "pnlPct": 242
+     },
+     "stop50": {
+      "px": 3.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 281,
+      "pnlPct": 385
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7690,
+    "occ": "SPXW260930P07690000",
+    "prints": 390,
+    "entry": 4.8,
+    "entryAt": "15:33",
+    "maxMult": 8.01,
+    "maxHigh": 36.68,
+    "expiry": 38.46,
+    "exits": {
+     "hold": {
+      "px": 38.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 3366,
+      "pnlPct": 701
+     },
+     "take2x": {
+      "px": 9.6,
+      "at": "15:50",
+      "pnl$": 480,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 15.59,
+      "at": "15:50",
+      "pnl$": 1079,
+      "pnlPct": 225
+     },
+     "take3x": {
+      "px": 14.4,
+      "at": "15:50",
+      "pnl$": 960,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 24.03,
+      "at": "16:00 (expiry)",
+      "pnl$": 1923,
+      "pnlPct": 401
+     },
+     "stop50": {
+      "px": 38.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 3366,
+      "pnlPct": 701
+     }
+    }
+   }
+  },
+  {
+   "cause": "close_flow",
+   "label": "Calendar close-flow day (month/qtr-end, OPEX, rebalance) 15:30+ break",
+   "side": "short",
+   "known": "15:33",
+   "trigBar": "15:32",
+   "px": 766.15,
+   "note": "quarter-end close flow: closed 766.15 below the 15:00–15:29 low 766.24, below VWAP 767.60",
+   "rvol1": 0.5797133413382521,
+   "variant": "near",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.038,
+   "spy": {
+    "leg": "SPY",
+    "strike": 764,
+    "occ": "SPY260930P00764000",
+    "prints": 405,
+    "entry": 0.17,
+    "entryAt": "15:33",
+    "maxMult": 9.71,
+    "maxHigh": 1.65,
+    "expiry": 1.54,
+    "exits": {
+     "hold": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 137,
+      "pnlPct": 806
+     },
+     "take2x": {
+      "px": 0.34,
+      "at": "15:50",
+      "pnl$": 17,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0.51,
+      "at": "15:50",
+      "pnl$": 34,
+      "pnlPct": 200
+     },
+     "take3x": {
+      "px": 0.51,
+      "at": "15:50",
+      "pnl$": 34,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 0.94,
+      "at": "16:00 (expiry)",
+      "pnl$": 77,
+      "pnlPct": 453
+     },
+     "stop50": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 137,
+      "pnlPct": 806
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7665,
+    "occ": "SPXW260930P07665000",
+    "prints": 390,
+    "entry": 0.35,
+    "entryAt": "15:33",
+    "maxMult": 38.46,
+    "maxHigh": 6.7,
+    "expiry": 13.46,
+    "exits": {
+     "hold": {
+      "px": 13.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 1311,
+      "pnlPct": 3746
+     },
+     "take2x": {
+      "px": 0.7,
+      "at": "15:50",
+      "pnl$": 35,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 1.35,
+      "at": "15:50",
+      "pnl$": 100,
+      "pnlPct": 286
+     },
+     "take3x": {
+      "px": 1.05,
+      "at": "15:50",
+      "pnl$": 70,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 0.75,
+      "at": "15:52",
+      "pnl$": 40,
+      "pnlPct": 114
+     },
+     "stop50": {
+      "px": 0.17,
+      "at": "15:35",
+      "pnl$": -17,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "close_flow",
+   "label": "Calendar close-flow day (month/qtr-end, OPEX, rebalance) 15:30+ break",
+   "side": "short",
+   "known": "15:33",
+   "trigBar": "15:32",
+   "px": 766.15,
+   "note": "quarter-end close flow: closed 766.15 below the 15:00–15:29 low 766.24, below VWAP 767.60",
+   "rvol1": 0.5797133413382521,
+   "variant": "cheap",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.038,
+   "spy": {
+    "leg": "SPY",
+    "strike": 761,
+    "occ": "SPY260930P00761000",
+    "prints": 380,
+    "entry": 0.03,
+    "entryAt": "15:33",
+    "maxMult": 6.33,
+    "maxHigh": 0.19,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -3,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0.06,
+      "at": "15:50",
+      "pnl$": 3,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0.07,
+      "at": "15:50",
+      "pnl$": 4,
+      "pnlPct": 133
+     },
+     "take3x": {
+      "px": 0.09,
+      "at": "15:54",
+      "pnl$": 6,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 0.03,
+      "at": "16:00 (expiry)",
+      "pnl$": 0,
+      "pnlPct": 0
+     },
+     "stop50": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -3,
+      "pnlPct": -100
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7640,
+    "occ": "SPXW260930P07640000",
+    "prints": 386,
+    "entry": 0.1,
+    "entryAt": "15:33",
+    "maxMult": 3,
+    "maxHigh": 0.3,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0.2,
+      "at": "15:55",
+      "pnl$": 10,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0.12,
+      "at": "15:56",
+      "pnl$": 2,
+      "pnlPct": 20
+     },
+     "stop50": {
+      "px": 0.05,
+      "at": "15:34",
+      "pnl$": -5,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "pm_lod_break",
+   "label": "Session low/high break after 14:00 (VWAP side)",
+   "side": "short",
+   "known": "15:38",
+   "trigBar": "15:37",
+   "px": 765.86,
+   "note": "closed 765.86 below the session low 766.00, below VWAP 767.56",
+   "rvol1": 0.8448581608876408,
+   "variant": "otm1",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0378,
+   "spy": {
+    "leg": "SPY",
+    "strike": 765,
+    "occ": "SPY260930P00765000",
+    "prints": 405,
+    "entry": 0.45,
+    "entryAt": "15:38",
+    "maxMult": 5.64,
+    "maxHigh": 2.31,
+    "expiry": 2.54,
+    "exits": {
+     "hold": {
+      "px": 2.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 209,
+      "pnlPct": 464
+     },
+     "take2x": {
+      "px": 0.9,
+      "at": "15:50",
+      "pnl$": 45,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0.98,
+      "at": "15:50",
+      "pnl$": 53,
+      "pnlPct": 118
+     },
+     "take3x": {
+      "px": 1.35,
+      "at": "15:54",
+      "pnl$": 90,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 1.72,
+      "at": "16:00 (expiry)",
+      "pnl$": 127,
+      "pnlPct": 282
+     },
+     "stop50": {
+      "px": 2.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 209,
+      "pnlPct": 464
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7685,
+    "occ": "SPXW260930P07685000",
+    "prints": 390,
+    "entry": 4.05,
+    "entryAt": "15:38",
+    "maxMult": 8.26,
+    "maxHigh": 26.1,
+    "expiry": 33.46,
+    "exits": {
+     "hold": {
+      "px": 33.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 2941,
+      "pnlPct": 726
+     },
+     "take2x": {
+      "px": 8.1,
+      "at": "15:50",
+      "pnl$": 405,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 11.3,
+      "at": "15:50",
+      "pnl$": 725,
+      "pnlPct": 179
+     },
+     "take3x": {
+      "px": 12.15,
+      "at": "15:51",
+      "pnl$": 810,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 20.78,
+      "at": "16:00 (expiry)",
+      "pnl$": 1673,
+      "pnlPct": 413
+     },
+     "stop50": {
+      "px": 33.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 2941,
+      "pnlPct": 726
+     }
+    }
+   }
+  },
+  {
+   "cause": "pm_lod_break",
+   "label": "Session low/high break after 14:00 (VWAP side)",
+   "side": "short",
+   "known": "15:38",
+   "trigBar": "15:37",
+   "px": 765.86,
+   "note": "closed 765.86 below the session low 766.00, below VWAP 767.56",
+   "rvol1": 0.8448581608876408,
+   "variant": "near",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0378,
+   "spy": {
+    "leg": "SPY",
+    "strike": 764,
+    "occ": "SPY260930P00764000",
+    "prints": 405,
+    "entry": 0.21,
+    "entryAt": "15:38",
+    "maxMult": 7.86,
+    "maxHigh": 1.65,
+    "expiry": 1.54,
+    "exits": {
+     "hold": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 133,
+      "pnlPct": 633
+     },
+     "take2x": {
+      "px": 0.42,
+      "at": "15:50",
+      "pnl$": 21,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0.51,
+      "at": "15:50",
+      "pnl$": 30,
+      "pnlPct": 143
+     },
+     "take3x": {
+      "px": 0.63,
+      "at": "15:51",
+      "pnl$": 42,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 0.98,
+      "at": "16:00 (expiry)",
+      "pnl$": 77,
+      "pnlPct": 367
+     },
+     "stop50": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 133,
+      "pnlPct": 633
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7665,
+    "occ": "SPXW260930P07665000",
+    "prints": 390,
+    "entry": 0.45,
+    "entryAt": "15:38",
+    "maxMult": 29.91,
+    "maxHigh": 6.7,
+    "expiry": 13.46,
+    "exits": {
+     "hold": {
+      "px": 13.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 1301,
+      "pnlPct": 2891
+     },
+     "take2x": {
+      "px": 0.9,
+      "at": "15:50",
+      "pnl$": 45,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 1.35,
+      "at": "15:50",
+      "pnl$": 90,
+      "pnlPct": 200
+     },
+     "take3x": {
+      "px": 1.35,
+      "at": "15:50",
+      "pnl$": 90,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 0.85,
+      "at": "15:52",
+      "pnl$": 40,
+      "pnlPct": 89
+     },
+     "stop50": {
+      "px": 0.23,
+      "at": "15:40",
+      "pnl$": -22,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "pm_lod_break",
+   "label": "Session low/high break after 14:00 (VWAP side)",
+   "side": "short",
+   "known": "15:38",
+   "trigBar": "15:37",
+   "px": 765.86,
+   "note": "closed 765.86 below the session low 766.00, below VWAP 767.56",
+   "rvol1": 0.8448581608876408,
+   "variant": "cheap",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0378,
+   "spy": {
+    "leg": "SPY",
+    "strike": 761,
+    "occ": "SPY260930P00761000",
+    "prints": 380,
+    "entry": 0.04,
+    "entryAt": "15:38",
+    "maxMult": 4.75,
+    "maxHigh": 0.19,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -4,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0.08,
+      "at": "15:51",
+      "pnl$": 4,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0.09,
+      "at": "15:54",
+      "pnl$": 5,
+      "pnlPct": 125
+     },
+     "take3x": {
+      "px": 0.12,
+      "at": "15:58",
+      "pnl$": 8,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 0.04,
+      "at": "16:00 (expiry)",
+      "pnl$": 0,
+      "pnlPct": 0
+     },
+     "stop50": {
+      "px": 0.02,
+      "at": "15:45",
+      "pnl$": -2,
+      "pnlPct": -50
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7635,
+    "occ": "SPXW260930P07635000",
+    "prints": 375,
+    "entry": 0.1,
+    "entryAt": "15:38",
+    "maxMult": 2,
+    "maxHigh": 0.2,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0.2,
+      "at": "15:55",
+      "pnl$": 10,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0.13,
+      "at": "15:56",
+      "pnl$": 3,
+      "pnlPct": 25
+     },
+     "stop50": {
+      "px": 0.05,
+      "at": "15:39",
+      "pnl$": -5,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "pm_trend_break",
+   "label": "Trend afternoon (VWAP side + lower highs) → 30-min break on volume",
+   "side": "short",
+   "known": "15:51",
+   "trigBar": "15:50",
+   "px": 764.53,
+   "note": "60/60 closes below VWAP, lower highs (766.66 < 766.88), closed below the 30-min low 765.29 on 2.6× volume",
+   "rvol1": 2.595128775747434,
+   "variant": "otm1",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0375,
+   "spy": {
+    "leg": "SPY",
+    "strike": 764,
+    "occ": "SPY260930P00764000",
+    "prints": 405,
+    "entry": 0.65,
+    "entryAt": "15:51",
+    "maxMult": 2.54,
+    "maxHigh": 1.65,
+    "expiry": 1.54,
+    "exits": {
+     "hold": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 89,
+      "pnlPct": 137
+     },
+     "take2x": {
+      "px": 1.3,
+      "at": "15:59",
+      "pnl$": 65,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 1.64,
+      "at": "15:59",
+      "pnl$": 99,
+      "pnlPct": 152
+     },
+     "take3x": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 89,
+      "pnlPct": 137
+     },
+     "half2x_trail": {
+      "px": 1.42,
+      "at": "16:00 (expiry)",
+      "pnl$": 77,
+      "pnlPct": 118
+     },
+     "stop50": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 89,
+      "pnlPct": 137
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7670,
+    "occ": "SPXW260930P07670000",
+    "prints": 390,
+    "entry": 3.9,
+    "entryAt": "15:51",
+    "maxMult": 4.73,
+    "maxHigh": 17.9,
+    "expiry": 18.46,
+    "exits": {
+     "hold": {
+      "px": 18.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 1456,
+      "pnlPct": 373
+     },
+     "take2x": {
+      "px": 7.8,
+      "at": "15:58",
+      "pnl$": 390,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 16.5,
+      "at": "15:59",
+      "pnl$": 1260,
+      "pnlPct": 323
+     },
+     "take3x": {
+      "px": 11.7,
+      "at": "15:59",
+      "pnl$": 780,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 13.13,
+      "at": "16:00 (expiry)",
+      "pnl$": 923,
+      "pnlPct": 237
+     },
+     "stop50": {
+      "px": 1.95,
+      "at": "15:52",
+      "pnl$": -195,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "pm_trend_break",
+   "label": "Trend afternoon (VWAP side + lower highs) → 30-min break on volume",
+   "side": "short",
+   "known": "15:51",
+   "trigBar": "15:50",
+   "px": 764.53,
+   "note": "60/60 closes below VWAP, lower highs (766.66 < 766.88), closed below the 30-min low 765.29 on 2.6× volume",
+   "rvol1": 2.595128775747434,
+   "variant": "near",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0375,
+   "spy": {
+    "leg": "SPY",
+    "strike": 762,
+    "occ": "SPY260930P00762000",
+    "prints": 403,
+    "entry": 0.15,
+    "entryAt": "15:51",
+    "maxMult": 2.87,
+    "maxHigh": 0.43,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -15,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0.3,
+      "at": "15:59",
+      "pnl$": 15,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0.42,
+      "at": "15:59",
+      "pnl$": 27,
+      "pnlPct": 180
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -15,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0.15,
+      "at": "16:00 (expiry)",
+      "pnl$": 0,
+      "pnlPct": 0
+     },
+     "stop50": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -15,
+      "pnlPct": -100
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7650,
+    "occ": "SPXW260930P07650000",
+    "prints": 389,
+    "entry": 0.3,
+    "entryAt": "15:51",
+    "maxMult": 2.67,
+    "maxHigh": 0.8,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -30,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0.6,
+      "at": "15:55",
+      "pnl$": 30,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -30,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -30,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0.39,
+      "at": "15:56",
+      "pnl$": 9,
+      "pnlPct": 28
+     },
+     "stop50": {
+      "px": 0.15,
+      "at": "15:52",
+      "pnl$": -15,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "pm_trend_break",
+   "label": "Trend afternoon (VWAP side + lower highs) → 30-min break on volume",
+   "side": "short",
+   "known": "15:51",
+   "trigBar": "15:50",
+   "px": 764.53,
+   "note": "60/60 closes below VWAP, lower highs (766.66 < 766.88), closed below the 30-min low 765.29 on 2.6× volume",
+   "rvol1": 2.595128775747434,
+   "variant": "cheap",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0375,
+   "spy": {
+    "leg": "SPY",
+    "strike": 760,
+    "occ": "SPY260930P00760000",
+    "prints": 388,
+    "entry": 0.05,
+    "entryAt": "15:51",
+    "maxMult": 1.4,
+    "maxHigh": 0.07,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.01,
+      "at": "15:52",
+      "pnl$": -4,
+      "pnlPct": -80
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7625,
+    "occ": "SPXW260930P07625000",
+    "prints": 362,
+    "entry": 0.1,
+    "entryAt": "15:51",
+    "maxMult": 0.7,
+    "maxHigh": 0.07,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.03,
+      "at": "15:52",
+      "pnl$": -7,
+      "pnlPct": -70
+     }
+    }
+   }
+  },
+  {
+   "cause": "imbalance_1550",
+   "label": "15:50 imbalance bar",
+   "side": "short",
+   "known": "15:51",
+   "trigBar": "15:50",
+   "px": 764.53,
+   "note": "15:50 bar 2.6× volume closed below the 15:30–15:49 low 765.29",
+   "rvol1": 2.595128775747434,
+   "variant": "otm1",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0375,
+   "spy": {
+    "leg": "SPY",
+    "strike": 764,
+    "occ": "SPY260930P00764000",
+    "prints": 405,
+    "entry": 0.65,
+    "entryAt": "15:51",
+    "maxMult": 2.54,
+    "maxHigh": 1.65,
+    "expiry": 1.54,
+    "exits": {
+     "hold": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 89,
+      "pnlPct": 137
+     },
+     "take2x": {
+      "px": 1.3,
+      "at": "15:59",
+      "pnl$": 65,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 1.64,
+      "at": "15:59",
+      "pnl$": 99,
+      "pnlPct": 152
+     },
+     "take3x": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 89,
+      "pnlPct": 137
+     },
+     "half2x_trail": {
+      "px": 1.42,
+      "at": "16:00 (expiry)",
+      "pnl$": 77,
+      "pnlPct": 118
+     },
+     "stop50": {
+      "px": 1.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 89,
+      "pnlPct": 137
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7670,
+    "occ": "SPXW260930P07670000",
+    "prints": 390,
+    "entry": 3.9,
+    "entryAt": "15:51",
+    "maxMult": 4.73,
+    "maxHigh": 17.9,
+    "expiry": 18.46,
+    "exits": {
+     "hold": {
+      "px": 18.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 1456,
+      "pnlPct": 373
+     },
+     "take2x": {
+      "px": 7.8,
+      "at": "15:58",
+      "pnl$": 390,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 16.5,
+      "at": "15:59",
+      "pnl$": 1260,
+      "pnlPct": 323
+     },
+     "take3x": {
+      "px": 11.7,
+      "at": "15:59",
+      "pnl$": 780,
+      "pnlPct": 200
+     },
+     "half2x_trail": {
+      "px": 13.13,
+      "at": "16:00 (expiry)",
+      "pnl$": 923,
+      "pnlPct": 237
+     },
+     "stop50": {
+      "px": 1.95,
+      "at": "15:52",
+      "pnl$": -195,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "imbalance_1550",
+   "label": "15:50 imbalance bar",
+   "side": "short",
+   "known": "15:51",
+   "trigBar": "15:50",
+   "px": 764.53,
+   "note": "15:50 bar 2.6× volume closed below the 15:30–15:49 low 765.29",
+   "rvol1": 2.595128775747434,
+   "variant": "near",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0375,
+   "spy": {
+    "leg": "SPY",
+    "strike": 762,
+    "occ": "SPY260930P00762000",
+    "prints": 403,
+    "entry": 0.15,
+    "entryAt": "15:51",
+    "maxMult": 2.87,
+    "maxHigh": 0.43,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -15,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0.3,
+      "at": "15:59",
+      "pnl$": 15,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0.42,
+      "at": "15:59",
+      "pnl$": 27,
+      "pnlPct": 180
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -15,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0.15,
+      "at": "16:00 (expiry)",
+      "pnl$": 0,
+      "pnlPct": 0
+     },
+     "stop50": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -15,
+      "pnlPct": -100
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7650,
+    "occ": "SPXW260930P07650000",
+    "prints": 389,
+    "entry": 0.3,
+    "entryAt": "15:51",
+    "maxMult": 2.67,
+    "maxHigh": 0.8,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -30,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0.6,
+      "at": "15:55",
+      "pnl$": 30,
+      "pnlPct": 100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -30,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -30,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0.39,
+      "at": "15:56",
+      "pnl$": 9,
+      "pnlPct": 28
+     },
+     "stop50": {
+      "px": 0.15,
+      "at": "15:52",
+      "pnl$": -15,
+      "pnlPct": -50
+     }
+    }
+   }
+  },
+  {
+   "cause": "imbalance_1550",
+   "label": "15:50 imbalance bar",
+   "side": "short",
+   "known": "15:51",
+   "trigBar": "15:50",
+   "px": 764.53,
+   "note": "15:50 bar 2.6× volume closed below the 15:30–15:49 low 765.29",
+   "rvol1": 2.595128775747434,
+   "variant": "cheap",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0375,
+   "spy": {
+    "leg": "SPY",
+    "strike": 760,
+    "occ": "SPY260930P00760000",
+    "prints": 388,
+    "entry": 0.05,
+    "entryAt": "15:51",
+    "maxMult": 1.4,
+    "maxHigh": 0.07,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -5,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.01,
+      "at": "15:52",
+      "pnl$": -4,
+      "pnlPct": -80
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7625,
+    "occ": "SPXW260930P07625000",
+    "prints": 362,
+    "entry": 0.1,
+    "entryAt": "15:51",
+    "maxMult": 0.7,
+    "maxHigh": 0.07,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -10,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.03,
+      "at": "15:52",
+      "pnl$": -7,
+      "pnlPct": -70
+     }
+    }
+   }
+  },
+  {
+   "cause": "rvol_thrust",
+   "label": "Volume expansion ≥ 3× (5-min) with the trend",
+   "side": "short",
+   "known": "15:55",
+   "trigBar": "15:54",
+   "px": 763.84,
+   "note": "5-min volume 4.1× normal, −0.19% in 5 min, below VWAP, 30-min trend down",
+   "rvol1": 4.962110632529184,
+   "variant": "otm1",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0364,
+   "spy": {
+    "leg": "SPY",
+    "strike": 763,
+    "occ": "SPY260930P00763000",
+    "prints": 405,
+    "entry": 0.5,
+    "entryAt": "15:55",
+    "maxMult": 1.86,
+    "maxHigh": 0.93,
+    "expiry": 0.54,
+    "exits": {
+     "hold": {
+      "px": 0.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 4,
+      "pnlPct": 8
+     },
+     "take2x": {
+      "px": 0.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 4,
+      "pnlPct": 8
+     },
+     "take2x_close": {
+      "px": 0.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 4,
+      "pnlPct": 8
+     },
+     "take3x": {
+      "px": 0.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 4,
+      "pnlPct": 8
+     },
+     "half2x_trail": {
+      "px": 0.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 4,
+      "pnlPct": 8
+     },
+     "stop50": {
+      "px": 0.54,
+      "at": "16:00 (expiry)",
+      "pnl$": 4,
+      "pnlPct": 8
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7665,
+    "occ": "SPXW260930P07665000",
+    "prints": 390,
+    "entry": 4.5,
+    "entryAt": "15:55",
+    "maxMult": 2.99,
+    "maxHigh": 6.7,
+    "expiry": 13.46,
+    "exits": {
+     "hold": {
+      "px": 13.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 896,
+      "pnlPct": 199
+     },
+     "take2x": {
+      "px": 13.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 896,
+      "pnlPct": 199
+     },
+     "take2x_close": {
+      "px": 13.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 896,
+      "pnlPct": 199
+     },
+     "take3x": {
+      "px": 13.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 896,
+      "pnlPct": 199
+     },
+     "half2x_trail": {
+      "px": 13.46,
+      "at": "16:00 (expiry)",
+      "pnl$": 896,
+      "pnlPct": 199
+     },
+     "stop50": {
+      "px": 2.2,
+      "at": "15:56",
+      "pnl$": -230,
+      "pnlPct": -51
+     }
+    }
+   }
+  },
+  {
+   "cause": "rvol_thrust",
+   "label": "Volume expansion ≥ 3× (5-min) with the trend",
+   "side": "short",
+   "known": "15:55",
+   "trigBar": "15:54",
+   "px": 763.84,
+   "note": "5-min volume 4.1× normal, −0.19% in 5 min, below VWAP, 30-min trend down",
+   "rvol1": 4.962110632529184,
+   "variant": "near",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0364,
+   "spy": {
+    "leg": "SPY",
+    "strike": 762,
+    "occ": "SPY260930P00762000",
+    "prints": 403,
+    "entry": 0.24,
+    "entryAt": "15:55",
+    "maxMult": 1.79,
+    "maxHigh": 0.43,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -24,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -24,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -24,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -24,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -24,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -24,
+      "pnlPct": -100
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7645,
+    "occ": "SPXW260930P07645000",
+    "prints": 381,
+    "entry": 0.45,
+    "entryAt": "15:55",
+    "maxMult": 0.67,
+    "maxHigh": 0.3,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -45,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -45,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -45,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -45,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -45,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.12,
+      "at": "15:56",
+      "pnl$": -33,
+      "pnlPct": -73
+     }
+    }
+   }
+  },
+  {
+   "cause": "rvol_thrust",
+   "label": "Volume expansion ≥ 3× (5-min) with the trend",
+   "side": "short",
+   "known": "15:55",
+   "trigBar": "15:54",
+   "px": 763.84,
+   "note": "5-min volume 4.1× normal, −0.19% in 5 min, below VWAP, 30-min trend down",
+   "rvol1": 4.962110632529184,
+   "variant": "cheap",
+   "ratioPrior": 10.0373,
+   "ratioLive": 10.0364,
+   "spy": {
+    "leg": "SPY",
+    "strike": 759,
+    "occ": "SPY260930P00759000",
+    "prints": 306,
+    "entry": 0.04,
+    "entryAt": "15:55",
+    "maxMult": 1,
+    "maxHigh": 0.04,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -4,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -4,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -4,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -4,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -4,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0.02,
+      "at": "15:56",
+      "pnl$": -2,
+      "pnlPct": -50
+     }
+    }
+   },
+   "spxw": {
+    "leg": "SPXW",
+    "strike": 7615,
+    "occ": "SPXW260930P07615000",
+    "prints": 327,
+    "entry": 0.03,
+    "entryAt": "15:55",
+    "maxMult": 1.67,
+    "maxHigh": 0.05,
+    "expiry": 0,
+    "exits": {
+     "hold": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -3,
+      "pnlPct": -100
+     },
+     "take2x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -3,
+      "pnlPct": -100
+     },
+     "take2x_close": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -3,
+      "pnlPct": -100
+     },
+     "take3x": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -3,
+      "pnlPct": -100
+     },
+     "half2x_trail": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -3,
+      "pnlPct": -100
+     },
+     "stop50": {
+      "px": 0,
+      "at": "16:00 (expiry)",
+      "pnl$": -3,
+      "pnlPct": -100
+     }
+    }
+   }
+  }
+ ],
+ "spxwProbe": [
+  "SPXW260930C07710000: 390 one-minute bars",
+  "SPXW260930C07735000: 390 one-minute bars",
+  "SPXW260930C07760000: 379 one-minute bars",
+  "SPXW260930P07690000: 390 one-minute bars",
+  "SPXW260930P07665000: 390 one-minute bars",
+  "SPXW260930P07640000: 386 one-minute bars",
+  "SPXW260930P07685000: 390 one-minute bars",
+  "SPXW260930P07665000: 390 one-minute bars",
+  "SPXW260930P07635000: 375 one-minute bars",
+  "SPXW260930P07670000: 390 one-minute bars",
+  "SPXW260930P07650000: 389 one-minute bars",
+  "SPXW260930P07625000: 362 one-minute bars",
+  "SPXW260930P07670000: 390 one-minute bars",
+  "SPXW260930P07650000: 389 one-minute bars",
+  "SPXW260930P07625000: 362 one-minute bars",
+  "SPXW260930P07665000: 390 one-minute bars",
+  "SPXW260930P07645000: 381 one-minute bars",
+  "SPXW260930P07615000: 327 one-minute bars"
+ ]
+}
