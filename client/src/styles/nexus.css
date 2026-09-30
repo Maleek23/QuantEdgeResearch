@@ -3352,3 +3352,9 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
   .landing.lp .sc-live-dot{animation:none}
   .landing.lp .sc-px{transition:none}
 }
+
+/* Ranked setups: direction tag on every row (operator 2026-09-30) */
+.nxp-dir{display:inline-flex;align-items:center;margin-left:8px;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.02em;vertical-align:middle;white-space:nowrap}
+.nxp-dir.bull{color:var(--green,#34d399);background:color-mix(in srgb,var(--green,#34d399) 14%,transparent)}
+.nxp-dir.bear{color:var(--red,#f87171);background:color-mix(in srgb,var(--red,#f87171) 14%,transparent)}
+@media (max-width:767px){.nxp-dir{font-size:12px}}

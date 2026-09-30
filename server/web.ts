@@ -303,6 +303,26 @@ app.use((req, res, next) => {
       logger.error('[WEB] idea producer scheduling failed:', err);
     }
 
+    // ── Trigger observer — like the outcome tracker, only index.ts ever started
+    // it, so on prod every published idea stayed "Waiting" (pending_trigger)
+    // even after price traded through its trigger. Every 2 min on weekdays:
+    // advance ideas whose entry has actually traded, retire stale ones.
+    // TRIGGER_OBSERVER_IN_WEB=false disables.
+    if (process.env.TRIGGER_OBSERVER_IN_WEB !== 'false') {
+      try {
+        const { observeTriggeredIdeas, expireStaleIdeas, reconcileOpenPaperExecutions } = await import('./oracle-lifecycle-reconciler');
+        const triggerCron = await import('./guarded-cron');
+        triggerCron.default.schedule('*/2 * * * 1-5', async () => {
+          try { await observeTriggeredIdeas(); await expireStaleIdeas(); }
+          catch (err) { logger.error('[ORACLE LIFECYCLE] Trigger observation failed', err); }
+        });
+        setTimeout(() => { void reconcileOpenPaperExecutions().catch((err) => logger.error('[ORACLE LIFECYCLE] reconcile failed', err)); }, 90_000);
+        log('🎯 [WEB] Trigger observer started — open setups checked against live price every 2 min');
+      } catch (err) {
+        logger.error('[WEB] trigger observer failed to start:', err);
+      }
+    }
+
     // ── Outcome tracker (stock/option ideas) — only index.ts/worker.ts ever
     // started it, and prod runs web.js alone, so outcomes were graded only
     // while a dev server happened to be connected. Delayed 2 min after boot

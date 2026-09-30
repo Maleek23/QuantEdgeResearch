@@ -199,7 +199,7 @@ export function SetupRow({ pick, selected, onSelect }: { pick: ConvictionPick; s
   return (
     <button type="button" className={`nxp-row ${selected ? 'selected' : ''}`} onClick={onSelect}>
       <TickerLogo symbol={pick.symbol} size="sm" className="nxp-logo" />
-      <span className="nxp-row-main"><strong>{pick.symbol}<TraderCallBadge symbol={pick.symbol} /></strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small></span>
+      <span className="nxp-row-main"><strong>{pick.symbol}<span className={`nxp-dir ${pick.direction === 'short' ? 'bear' : 'bull'}`} aria-label={pick.direction === 'short' ? 'Bearish' : 'Bullish'}>{pick.direction === 'short' ? '▼ Bearish' : '▲ Bullish'}</span><TraderCallBadge symbol={pick.symbol} /></strong><small>{!pick.sector || pick.sector === 'other' ? pick.tradeType ?? 'cross-sector' : pick.sector.replaceAll('_', ' ')}</small></span>
       <span className="nxp-row-status"><strong>{pick.isBotHeld ? `${(pick.unrealizedPnlPercent ?? 0) >= 0 ? '+' : ''}${(pick.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(pick.convictionScore)}</strong><small>{stateLabel(pick)}</small></span>
       <ChevronRight size={14} />
     </button>
