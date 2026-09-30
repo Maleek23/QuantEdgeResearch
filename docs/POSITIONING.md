@@ -92,8 +92,9 @@ Route URLs never change — these are labels.
 | File | What | How it was made |
 |---|---|---|
 | `client/public/og-image.png` (1200×630, ~120 KB) | Link preview: wordmark, one-line definition, module chips, GEX desktop + NEXUS phone captures, "Sample data · illustrative" in the corner | Built client served by `research/device-audit.ts` (`AUDIT_SERVE_ONLY=1`, synthetic fixtures); harness banner removed for the capture only; NEXUS fixture scores spread for the capture; composed as HTML and rendered by Playwright, quantised to 256 colours |
-| `client/public/screenshots/qe-desktop-gex.webp` (1440×900) | Landing mockup — GEX workspace, desktop | same harness capture, WebP q80 |
-| `client/public/screenshots/qe-phone-nexus.webp` (786×1704, shown at 393×852) | Landing mockup — NEXUS on a phone | same harness capture at DPR 2, WebP q80 |
+| `client/public/screenshots/qe-gex.webp` (1600×1000) | Landing hero — GEX workspace, desktop | same harness at 1600×1000 DPR 2; banner hidden, "fixture"/"test harness" labels rewritten to "sample" in the DOM for the capture only; canvas → WebP q0.82 |
+| `client/public/screenshots/qe-nexus-phone.webp` (600×1301) | Landing hero — NEXUS on a phone | 393×852 DPR 2, NEXUS scores spread (86 → 52) via a route override for the capture |
+| `client/public/screenshots/qe-gex-matrix.webp`, `qe-flow.webp` (crops), `qe-nexus.webp`, `qe-quantinum.webp` (/r/SPY), `qe-chart.webp`, `qe-journal.webp` (1600×1000) | Landing product tour, one per module | same method; FLOW and GEX are tile crops (the harness has no feed for the neighbouring tiles); the ticker page's NaN change and "read unavailable" line are hidden |
 
 Nothing in these images is market data; every placement says "Sample data". Re-shoot them
 when the UI changes materially.

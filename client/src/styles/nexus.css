@@ -3105,3 +3105,114 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
   .landing .lshot-note{position:static;margin-top:14px;text-align:center}
 }
 .landing .lfooter-def{margin:0 0 16px;max-width:640px;font-size:13px;line-height:1.55;color:var(--text-dim)}
+
+/* ═══════════════════════ LANDING v2 — product story (2026-09-30) ═══════════════════════
+   landing-nexus.tsx: hero → tour (one real capture per module) → more → FAQ → CTA.
+   Phone (≤ 640px): h1 ≤ 34px/1.15, subline 16px, h2 25px, body 16px, hero top
+   padding 88px, CTAs 44px full-width stacked, images full-width in rounded frames. */
+.landing.lp .container{max-width:1200px;padding:0 24px}
+.landing.lp .lnav-inner{max-width:1200px;padding:12px 24px}
+.landing.lp .lnav-link{text-decoration:none;display:inline-flex;align-items:center;min-height:36px}
+.landing.lp section{padding:0}
+.landing.lp .lp-eyebrow,.landing.lp .lp-kicker{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--cyan-bright);margin:0 0 16px}
+.landing.lp .lp-kicker{margin-bottom:12px}
+.landing.lp .grad{background:linear-gradient(135deg,#fff 0%,var(--cyan-bright) 55%,var(--blue) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.landing.lp .accent{background:linear-gradient(135deg,var(--cyan) 0%,var(--green) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+
+/* hero */
+.landing.lp .lp-hero{padding:128px 0 96px;position:relative;z-index:2;background:radial-gradient(ellipse 70% 45% at 50% 0%,rgba(59,140,255,0.13),transparent 70%)}
+.landing.lp .lp-hero-copy{max-width:1120px;margin:0 auto;text-align:center}
+.landing.lp .lp-h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(30px,calc(18px + 3vw),56px);font-weight:700;line-height:1.12;letter-spacing:-0.03em;margin:0 auto 20px;text-wrap:balance}
+.landing.lp .lp-h1 span{display:inline;white-space:nowrap}
+.landing.lp .lp-sub{font-size:18px;line-height:1.6;color:var(--text-dim);max-width:620px;margin:0 auto 32px}
+.landing.lp .lp-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.landing.lp .lp-hero-stage{position:relative;margin:56px auto 0;max-width:1120px;padding-right:9%}
+.landing.lp .lp-phone{position:absolute;right:0;bottom:-40px;width:21%;margin:0;border:6px solid #1c2230;border-radius:28px;overflow:hidden;background:#000;box-shadow:0 30px 70px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.06)}
+.landing.lp .lp-phone img{display:block;width:100%;height:auto}
+
+/* frames */
+.landing.lp .lp-frame{position:relative;margin:0;border:1px solid var(--nx-border-hi);border-radius:12px;overflow:hidden;background:var(--panel-solid);box-shadow:0 30px 80px rgba(0,0,0,0.5),0 0 0 1px rgba(59,140,255,0.06)}
+.landing.lp .lp-frame img{display:block;width:100%;height:auto}
+.landing.lp .lp-frame-bar{display:flex;align-items:center;gap:14px;height:32px;padding:0 14px;border-bottom:1px solid var(--nx-border);background:var(--panel-2)}
+.landing.lp .lp-dots{display:flex;gap:6px}
+.landing.lp .lp-dots i{width:9px;height:9px;border-radius:50%;background:var(--nx-border-hi)}
+.landing.lp .lp-url{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-mute);padding:2px 12px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--nx-border)}
+.landing.lp .lp-tag{position:absolute;left:10px;bottom:10px;padding:3px 8px;border-radius:6px;background:rgba(6,7,10,0.78);border:1px solid var(--nx-border-hi);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.04em;color:var(--text-dim);pointer-events:none}
+
+/* tour */
+.landing.lp .lp-tour{padding:120px 0 40px}
+.landing.lp .lp-head{text-align:center;max-width:760px;margin:0 auto}
+.landing.lp .lp-h2{font-family:'Space Grotesk',sans-serif;font-size:clamp(25px,calc(14px + 2.4vw),40px);font-weight:700;line-height:1.15;letter-spacing:-0.025em;margin:0}
+.landing.lp .lp-row{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:64px;align-items:center;margin-top:112px}
+.landing.lp .lp-row.flip .lp-row-copy{order:2}
+.landing.lp .lp-h3{font-family:'Space Grotesk',sans-serif;font-size:30px;font-weight:700;line-height:1.18;letter-spacing:-0.02em;margin:0 0 14px}
+.landing.lp .lp-body{font-size:17px;line-height:1.6;color:var(--text-dim);margin:0 0 20px;max-width:460px}
+.landing.lp .lp-link{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:15px;font-weight:600;color:var(--cyan-bright);text-decoration:none}
+.landing.lp .lp-link:hover{text-decoration:underline;text-underline-offset:4px}
+
+/* more */
+.landing.lp .lp-more{padding:96px 0 0}
+.landing.lp .lp-more-title{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;margin:0 0 16px;text-align:center}
+.landing.lp .lp-chips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:900px;margin:0 auto}
+.landing.lp .lp-chip{display:flex;flex-direction:column;gap:2px;justify-content:center;min-height:64px;padding:12px 16px;border:1px solid var(--nx-border);border-radius:10px;background:var(--panel-solid);color:var(--text);text-decoration:none;transition:border-color .2s}
+.landing.lp .lp-chip:hover{border-color:var(--cyan-dim)}
+.landing.lp .lp-chip b{font-size:15px}
+.landing.lp .lp-chip span{font-size:13px;color:var(--text-dim)}
+
+/* faq */
+.landing.lp .lp-faq{padding:112px 0 0}
+.landing.lp .lp-faq .lp-head{margin-bottom:32px}
+.landing.lp .faq-q{width:100%;background:none;border:0;color:inherit;font:inherit;font-size:16px;font-weight:600;text-align:left;gap:16px;min-height:56px}
+.landing.lp .faq-a-inner{font-size:15px}
+.landing.lp .faq-item.open .faq-a{max-height:400px}
+
+/* cta + footer */
+.landing.lp .lp-cta{padding:112px 0 96px}
+.landing.lp .cta-title{font-size:clamp(26px,calc(14px + 2.6vw),44px)}
+.landing.lp .lfooter-links{display:flex;flex-wrap:wrap;gap:4px 20px;margin-bottom:16px}
+.landing.lp .lfooter-links a{color:var(--text-dim);text-decoration:none;font-size:14px;min-height:44px;display:inline-flex;align-items:center}
+.landing.lp .lfooter-links a:hover{color:var(--text)}
+
+@media (max-width:960px){
+  .landing.lp .lp-row{grid-template-columns:1fr;gap:24px;margin-top:72px}
+  .landing.lp .lp-row.flip .lp-row-copy{order:0}
+  .landing.lp .lp-body{max-width:none}
+}
+@media (max-width:640px){
+  .landing.lp .container{padding:0 16px}
+  .landing.lp .lp-hero{padding:88px 0 40px}
+  .landing.lp .lp-eyebrow{font-size:11px;margin-bottom:12px}
+  .landing.lp .lp-h1{font-size:clamp(28px,calc(14px + 5.2vw),34px);line-height:1.15;margin-bottom:16px}
+  .landing.lp .lp-h1 span{display:block;white-space:normal}
+  .landing.lp .lp-sub{font-size:16px;margin-bottom:24px}
+  .landing.lp .lp-ctas{flex-direction:column;align-items:stretch;gap:10px}
+  .landing.lp .lp-ctas .btn{justify-content:center;min-height:44px;height:44px;padding:0 20px;font-size:15px}
+  .landing.lp .lp-hero-stage{margin-top:36px;padding-right:0;margin-bottom:28px}
+  .landing.lp .lp-phone{width:32%;right:-4px;bottom:-28px;border-width:4px;border-radius:18px}
+  .landing.lp .lp-frame{border-radius:10px}
+  .landing.lp .lp-frame-bar{height:22px;padding:0 10px}
+  .landing.lp .lp-dots i{width:7px;height:7px}
+  .landing.lp .lp-url{display:none}
+  .landing.lp .lp-tag{left:8px;bottom:8px;font-size:10px;padding:2px 6px}
+  .landing.lp .lp-tour{padding:56px 0 8px}
+  .landing.lp .lp-h2{font-size:25px}
+  .landing.lp .lp-row{margin-top:56px;gap:20px}
+  .landing.lp .lp-kicker{font-size:11px;margin-bottom:8px}
+  .landing.lp .lp-h3{font-size:22px;margin-bottom:10px}
+  .landing.lp .lp-body{font-size:16px;margin-bottom:8px}
+  .landing.lp .lp-more{padding:72px 0 0}
+  .landing.lp .lp-chips{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .landing.lp .lp-chip{min-height:60px;padding:10px 12px}
+  .landing.lp .lp-chip span{font-size:12px}
+  .landing.lp .lp-faq{padding:72px 0 0}
+  .landing.lp .lp-faq .lp-head{margin-bottom:20px}
+  .landing.lp .faq-q{font-size:15px;padding:14px 16px;min-height:52px}
+  .landing.lp .faq-a-inner{padding:0 16px 16px}
+  .landing.lp .lp-cta{padding:72px 0 64px}
+  .landing.lp .cta-box{padding:36px 20px;border-radius:14px}
+  .landing.lp .cta-title{font-size:26px}
+  .landing.lp .cta-sub{font-size:16px;margin-bottom:24px}
+  .landing.lp .cta-actions{flex-direction:column;align-items:stretch;gap:10px}
+  .landing.lp .cta-actions .btn{justify-content:center;height:44px;padding:0 20px}
+  .landing.lp .lfooter{padding:40px 0 28px}
+}
