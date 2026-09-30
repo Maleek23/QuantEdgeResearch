@@ -64,6 +64,35 @@ export function bsVanna(S: number, K: number, T: number, v: number, r = 0, q = 0
   return (-Math.exp(-q * T) * normPdf(a) * (a - v * Math.sqrt(T))) / v;
 }
 
+/** Black-Scholes call delta N(d1)·e^(−qT). Put delta = call delta − e^(−qT), so Δ DIFFERENCES are identical for calls and puts. */
+export function bsCallDelta(S: number, K: number, T: number, v: number, r = 0, q = 0): number {
+  if (!(S > 0 && K > 0 && T > 0 && v > 0)) return S > K ? 1 : 0;
+  return Math.exp(-q * T) * normCdf(d1(S, K, T, v, r, q));
+}
+
+/**
+ * Δ-ADJUSTED (finite-move) gamma for one contract line, UNSIGNED, $ per 1% move.
+ * docs/GAMMA_RAW_VS_ADJUSTED.md §2(d):
+ *   OI · 100 · S · [Δ(S·(1+h)) − Δ(S·(1−h))] / 2,   h = 0.01
+ * = the shares a delta-hedger actually trades for a ±1% move, averaged over the
+ * two directions, in dollars. Γ·S²·0.01 is its first-order Taylor term; the two
+ * agree for long-dated contracts and part ways where gamma is peaked (0DTE):
+ * linear Γ overstates an ATM 0DTE line (delta cannot move more than 0→1) and
+ * understates one just OTM (delta crosses the strike inside the move).
+ * Same for calls and puts (the Δ difference is sign-free).
+ */
+export function deltaAdjGexPer1Pct(S: number, K: number, T: number, v: number, oi: number, r = 0, q = 0, h = 0.01): number {
+  if (!(S > 0 && K > 0 && T > 0 && v > 0 && oi > 0)) return 0;
+  return (oi * 100 * S * (bsCallDelta(S * (1 + h), K, T, v, r, q) - bsCallDelta(S * (1 - h), K, T, v, r, q))) / 2;
+}
+/** One-sided hedge moves, UNSIGNED $: up = Δ(S(1+h)) − Δ(S), down = Δ(S) − Δ(S(1−h)), × OI·100·S. */
+export function deltaMoveSplit(S: number, K: number, T: number, v: number, oi: number, r = 0, q = 0, h = 0.01): { up: number; down: number } {
+  if (!(S > 0 && K > 0 && T > 0 && v > 0 && oi > 0)) return { up: 0, down: 0 };
+  const m = oi * 100 * S;
+  const d0 = bsCallDelta(S, K, T, v, r, q);
+  return { up: m * (bsCallDelta(S * (1 + h), K, T, v, r, q) - d0), down: m * (d0 - bsCallDelta(S * (1 - h), K, T, v, r, q)) };
+}
+
 /** $ per 1% move for one contract line, UNSIGNED. */
 export const gexPer1Pct = (gamma: number, oi: number, S: number) => gamma * oi * 100 * S * S * 0.01;
 /** $ per 1 IV point for one contract line, UNSIGNED dealer-long vanna (apply −sign for the liquidity sign). */
@@ -97,8 +126,20 @@ export interface GammaProfile {
   contracts: number;
 }
 
-/** Net GEX at hypothetical spot s: Σ sign·Γ_BS(s)·OI·100·s²·0.01. */
-export function netGexAt(contracts: GammaContract[], s: number, r = 0, q = 0): number {
+/**
+ * Which per-contract exposure the profile sums:
+ *   'gamma'    Σ sign·Γ_BS(s)·OI·100·s²·0.01 (raw GEX — the default everywhere)
+ *   'delta1pct' Σ sign·OI·100·s·[Δ(s·1.01) − Δ(s·0.99)]/2 (Δ-adjusted, finite ±1% move)
+ */
+export type ProfileKernel = 'gamma' | 'delta1pct';
+
+/** Net GEX at hypothetical spot s: Σ sign·Γ_BS(s)·OI·100·s²·0.01 (or the Δ-adjusted kernel). */
+export function netGexAt(contracts: GammaContract[], s: number, r = 0, q = 0, kernel: ProfileKernel = 'gamma'): number {
+  if (kernel === 'delta1pct') {
+    let g = 0;
+    for (const c of contracts) g += (c.isCall ? 1 : -1) * deltaAdjGexPer1Pct(s, c.strike, c.T, c.iv, c.oi, r, q);
+    return g;
+  }
   let g = 0;
   for (const c of contracts) {
     const gm = bsGamma(s, c.strike, c.T, c.iv, r, q);
@@ -115,15 +156,15 @@ export function netGexAt(contracts: GammaContract[], s: number, r = 0, q = 0): n
 export function gammaProfile(
   contracts: GammaContract[],
   spot: number,
-  opts: { lo?: number; hi?: number; steps?: number; r?: number; q?: number } = {},
+  opts: { lo?: number; hi?: number; steps?: number; r?: number; q?: number; kernel?: ProfileKernel } = {},
 ): GammaProfile {
   const lo = opts.lo ?? 0.8; const hi = opts.hi ?? 1.2; const steps = Math.max(10, opts.steps ?? 120);
-  const r = opts.r ?? 0; const q = opts.q ?? 0;
+  const r = opts.r ?? 0; const q = opts.q ?? 0; const kernel = opts.kernel ?? 'gamma';
   const usable = contracts.filter((c) => c.oi > 0 && c.T > 0 && c.iv > 0 && c.strike > 0);
   const points: GammaProfilePoint[] = [];
   for (let i = 0; i <= steps; i++) {
     const s = spot * (lo + ((hi - lo) * i) / steps);
-    points.push({ spot: s, netGEX: netGexAt(usable, s, r, q) });
+    points.push({ spot: s, netGEX: netGexAt(usable, s, r, q, kernel) });
   }
   const crossings: number[] = [];
   for (let i = 1; i < points.length; i++) {
@@ -132,7 +173,7 @@ export function gammaProfile(
     if (Math.sign(a.netGEX) === Math.sign(b.netGEX) || b.netGEX === 0) continue;
     for (let k = 0; k < 30; k++) {
       const mid = (a.spot + b.spot) / 2;
-      const m = { spot: mid, netGEX: netGexAt(usable, mid, r, q) };
+      const m = { spot: mid, netGEX: netGexAt(usable, mid, r, q, kernel) };
       if (Math.sign(m.netGEX) === Math.sign(a.netGEX)) a = m; else b = m;
     }
     crossings.push((a.spot + b.spot) / 2);
@@ -140,7 +181,7 @@ export function gammaProfile(
   const zeroGamma = crossings.length
     ? crossings.reduce((best, z) => (Math.abs(z - spot) < Math.abs(best - spot) ? z : best), crossings[0])
     : null;
-  return { points, zeroGamma, crossings, netAtSpot: netGexAt(usable, spot, r, q), range: { lo: spot * lo, hi: spot * hi }, contracts: usable.length };
+  return { points, zeroGamma, crossings, netAtSpot: netGexAt(usable, spot, r, q, kernel), range: { lo: spot * lo, hi: spot * hi }, contracts: usable.length };
 }
 
 /** Down-sample a profile for the wire (UI sparkline) — keeps both ends. */

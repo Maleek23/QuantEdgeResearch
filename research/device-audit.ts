@@ -59,6 +59,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { GAMMA_METRIC_DEFS, levelsFor, diffLevels, overlapCount } from '../shared/gex-adjusted';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const DIST = process.env.AUDIT_DIST ? path.resolve(process.env.AUDIT_DIST) : path.join(ROOT, 'dist', 'public');
@@ -126,13 +127,35 @@ function mockTerminal(symbol: string) {
       if (r() < 0.12) continue;
       const dist = (k - spot) / spot; const shape = Math.exp(-(dist * dist) / 0.0012);
       const v = (k >= spot - 3 ? 1 : -1) * shape * (1 / (1 + d / 4)) * (k === 585 || k === 565 ? 3 : 1) * (0.4 + r()) * 1.2;
-      cells.push({ strike: k, expiryLabel: label(d), dte: d, netGEX: +v.toFixed(4), netVEX: +((r() - 0.45) * shape * 80).toFixed(3) });
+      // Δ-adjusted (fixture shape, docs/GAMMA_RAW_VS_ADJUSTED.md): ≈ raw beyond 1 d;
+      // front expiries shrink at the money and grow just beside it.
+      const ad = Math.abs(dist);
+      const fAdj = d > 1 ? 0.99 : ad < 0.002 ? 0.45 : ad < 0.012 ? 1.35 : 1;
+      cells.push({ strike: k, expiryLabel: label(d), dte: d, netGEX: +v.toFixed(4), netVEX: +((r() - 0.45) * shape * 80).toFixed(3), netGEXAdj: +(v * fAdj).toFixed(4), netGEXFlow: +(k > spot * 1.02 && d > 0 && d <= 21 ? -v * 0.4 : v).toFixed(4) });
     }
   }
+  const book = (key: 'netGEX' | 'netGEXAdj' | 'netGEXFlow', zeroGamma: number) => {
+    const byK = new Map<number, { strike: number; call: number; put: number; net: number }>();
+    for (const c of cells) {
+      const v = c[key] as number; const row = byK.get(c.strike) ?? { strike: c.strike, call: 0, put: 0, net: 0 };
+      if (v >= 0) row.call += v; else row.put += v; row.net += v; byK.set(c.strike, row);
+    }
+    const net = cells.reduce((a, c) => a + (c[key] as number), 0); const gross = cells.reduce((a, c) => a + Math.abs(c[key] as number), 0);
+    return { net, gross, balance: gross ? net / gross : null, levels: levelsFor([...byK.values()], cells.map((c) => ({ strike: c.strike, dte: c.dte, value: c[key] as number })), spot, zeroGamma) };
+  };
+  const raw = book('netGEX', 570.8); const adj = book('netGEXAdj', 571.6); const flow = book('netGEXFlow', 572.9);
+  const gammaMetrics = {
+    version: 1, unit: '$B per 1% move', defs: GAMMA_METRIC_DEFS,
+    raw, deltaAdjusted: { ...adj, moveUp: adj.net * 0.8, moveDown: adj.net * 1.2 },
+    flowSigned: { ...flow, resignedGross: 0.6, resignedShare: raw.gross ? 0.6 / raw.gross : null },
+    differs: { deltaAdjusted: diffLevels(raw.levels, adj.levels, spot), flowSigned: diffLevels(raw.levels, flow.levels, spot) },
+    keyStrikeOverlap: overlapCount(raw.levels.keyStrikes, adj.levels.keyStrikes),
+    notes: ['test harness fixture'],
+  };
   const profile = Array.from({ length: 41 }, (_, i) => { const p = spot * (0.8 + i * 0.01); return { spot: +p.toFixed(2), netGEX: +(((p - spot * 0.99) / spot) * 40).toFixed(3) }; });
   return {
     symbol, generatedAt: new Date(Date.now() - 95_000).toISOString(), cached: false, optionsSource: 'test_harness_fixture',
-    snapshot: { symbol, spotPrice: spot, calculatedAt: Date.now() - 95_000, totalGEX: 4.21, totalNetGEX: 4.21, totalVEX: -182.4, callGEX: 7.1, putGEX: -2.9, putCallRatio: 0.41, gammaFlipPrice: 570.8, zeroGammaLevel: 570.8, maxGammaStrike: 580, callWall: 585, putWall: 565, zeroGammaProjection: 580, unitsVersion: 2, gexByScope: { all: 4.21, frontExpiry: 1.3, frontExpiryDays: 0, le7d: 2.8 }, gammaProfile: profile, levels: [], regime: 'positive_gamma' },
+    snapshot: { symbol, spotPrice: spot, calculatedAt: Date.now() - 95_000, totalGEX: 4.21, totalNetGEX: 4.21, totalVEX: -182.4, callGEX: 7.1, putGEX: -2.9, putCallRatio: 0.41, gammaFlipPrice: 570.8, zeroGammaLevel: 570.8, maxGammaStrike: 580, callWall: 585, putWall: 565, zeroGammaProjection: 580, unitsVersion: 2, gexByScope: { all: 4.21, frontExpiry: 1.3, frontExpiryDays: 0, le7d: 2.8 }, gammaProfile: profile, levels: [], regime: 'positive_gamma', gammaMetrics },
     strikeExpiryMatrix: cells, candles: [], orbs: [], heatmap: [], projection: null, peers: [],
   };
 }

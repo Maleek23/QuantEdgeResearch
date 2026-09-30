@@ -2979,6 +2979,26 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-lrow.marked{background:linear-gradient(90deg,color-mix(in srgb,var(--band) 18%,transparent),color-mix(in srgb,var(--band) 5%,transparent));box-shadow:inset 3px 0 0 var(--band),inset 0 1px 0 color-mix(in srgb,var(--band) 60%,transparent),inset 0 -1px 0 color-mix(in srgb,var(--band) 60%,transparent)}
 .gx-lrow.marked .gx-lstrike b{color:var(--band);font-size:11.5px}
 .gx-lrow.spot .gx-lstrike b{text-decoration:underline;text-underline-offset:3px}
+/* Raw | Δ-adjusted side by side (docs/GAMMA_RAW_VS_ADJUSTED.md). Δ-adjusted is
+   marked by position (right half / lower bar), a dotted underline and a "Δ" tag —
+   never by a third hue: blue/orange stay the only sign colours (CVD-safe). */
+.gx-adj-tag{text-decoration:underline dotted;text-underline-offset:2px}
+.gx-compare-key{font-size:var(--fs-9,9px);color:var(--text-dim,#aab3c5);white-space:nowrap}
+.gx-compare-key b{color:var(--text,#e8ecf3)}
+.gx-colnet-pair{display:flex;gap:6px;justify-content:center;white-space:nowrap}
+.gx-table td.gx-half-raw{padding-right:1px}
+.gx-table td.gx-half-adj{padding-left:1px;border-right:1px solid color-mix(in srgb,var(--nx-border,rgba(148,163,184,.14)) 90%,transparent)}
+.gx-table td.gx-half-adj .gx-cell{text-decoration:underline dotted;text-underline-offset:2px}
+.gx-sum2{font-size:var(--fs-9,9px);white-space:nowrap}
+.gx-laxis.pair{height:18px}
+.gx-laxis.pair i.a{top:1px;bottom:55%}
+.gx-laxis.pair i.b{top:55%;bottom:1px;opacity:.9;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text,#e8ecf3) 40%,transparent)}
+.gx-wrap.ladder.pair .gx-lrow,.gx-wrap.ladder.pair .gx-ladder-head{grid-template-columns:96px minmax(90px,1fr) 124px minmax(56px,auto)}
+.gx-lval2{margin-left:8px;font-weight:600}
+.gx-lval2[data-rank]::before{content:attr(data-rank);margin-right:3px;font-size:9px;font-weight:800;opacity:.9}
+.gx-view-note{font-size:var(--fs-10,10px);color:var(--text-dim,#aab3c5);padding:4px 10px;border-bottom:1px solid color-mix(in srgb,var(--nx-border,rgba(148,163,184,.14)) 60%,transparent);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.gx-view-note b{color:var(--text,#e8ecf3)}
+.gx-view-note .gx-diff{color:var(--amber,#f5b83d)}
 .nexus-vars.light .gx-line.spot span{color:#fff}
 
 /* Landing header on phones: sign in / get access must always be on screen. */

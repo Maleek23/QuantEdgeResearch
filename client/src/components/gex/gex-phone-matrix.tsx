@@ -30,7 +30,7 @@ export const PHONE_PER_PAGE = 4;
 /** strikes kept each side of spot — a phone reads the near book, not 600 strikes */
 const SIDE = 40;
 
-const val = (c: StrikeExpiryCell, m: Metric) => (m === 'vex' ? (c.netVEX ?? 0) : c.netGEX);
+const val = (c: StrikeExpiryCell, m: Metric) => (m === 'vex' ? (c.netVEX ?? 0) : m === 'gexAdj' ? (c.netGEXAdj ?? 0) : c.netGEX);
 const expLabel = (label: string) => label.toUpperCase().replace(/\s0(\d)$/, ' $1');
 const strikeTxt = (s: number) => (Number.isInteger(s) ? String(s) : s.toFixed(1));
 
@@ -126,7 +126,7 @@ export function GexPhoneMatrix({ cells, expiries, spot, metric, symbol, onCellCl
   return (
     <div className="gxp">
       <div ref={scRef} className="gxp-scroll" style={h ? { height: h } : undefined} tabIndex={0} role="region"
-        aria-label={`${symbol} strike by expiry ${metric.toUpperCase()}, ${unit}, expiries ${pg * PHONE_PER_PAGE + 1}–${pg * PHONE_PER_PAGE + shown.length} of ${expiries.length}. Swipe sideways for more expiries.`}
+        aria-label={`${symbol} strike by expiry ${metric === 'gexAdj' ? 'Δ-adjusted GEX' : metric.toUpperCase()}, ${unit}, expiries ${pg * PHONE_PER_PAGE + 1}–${pg * PHONE_PER_PAGE + shown.length} of ${expiries.length}. Swipe sideways for more expiries.`}
         onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <table className="gxp-table">
           <colgroup><col className="gxp-col-k" />{shown.map(([d]) => <col key={d} />)}</colgroup>

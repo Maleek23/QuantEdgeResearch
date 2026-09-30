@@ -28,8 +28,10 @@ import {
   useGexHub, useGexTerminal, useSectorRotation, useExtendedHoursNexus,
   nearTermByStrike, shapeMatrix, regimeView, zeroGammaOf, gridLevelsOf, regimeNarrative,
   nearTermDisagrees, sessionClock, sessionLabelOf, terminalAsOf, TERMINAL_TIMEOUT_MS,
+  hasAdjusted, gexMetricOf, type GammaView,
 } from '@/components/gex/gex-model';
-import { DealerStructureRail, GammaProfileChart, GexCellDrill } from '@/components/gex/gex-parts';
+import { DealerStructureRail, GammaLevelsCompare, GammaProfileChart, GammaViewSeg, GexCellDrill } from '@/components/gex/gex-parts';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useDashboard, useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
 import { oneOf, useUrlParam } from '@/lib/url-state';
 
@@ -37,6 +39,18 @@ import { oneOf, useUrlParam } from '@/lib/url-state';
 const G_METRIC = oneOf<'gex' | 'vex'>(['gex', 'vex'], 'gex');
 const G_BUCKET = oneOf<BucketId>(DTE_BUCKETS.map((b) => b.id), 'all');
 const G_SCALE = oneOf<MatrixScale>(['column', 'absolute'], 'column');
+/** Gamma definition: raw | Δ-adjusted | both (docs/GAMMA_RAW_VS_ADJUSTED.md). */
+const G_GAMMA = oneOf<GammaView>(['raw', 'adj', 'both'], 'raw');
+
+/**
+ * The gamma-definition view a tool actually renders: side by side is desktop
+ * only (a phone falls back to raw, keeping its own toggle); Δ-adjusted needs
+ * the payload to carry it.
+ */
+function effectiveView(view: GammaView, narrow: boolean, available: boolean): GammaView {
+  if (!available) return 'raw';
+  return narrow && view === 'both' ? 'raw' : view;
+}
 
 const mono = "'JetBrains Mono',monospace";
 const px = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? '—' : `$${v.toFixed(d).replace(/\.00$/, '')}`);
@@ -78,19 +92,32 @@ function gate(g: ReturnType<typeof useGexFocus>, what = 'dealer map'): ReactNode
 /* ════════════ Dealer map — near-term ladder ════════════ */
 export function GexDealerMapTool() {
   const g = useGexFocus();
+  const narrow = useIsMobile();
+  const [gview, setGview] = useToolSetting<GammaView>('gammaView', 'raw');
+  const adjOk = hasAdjusted(g.matrix);
+  const view = effectiveView(gview, narrow, adjOk);
   const near = useMemo(() => nearTermByStrike(g.matrix, g.spot), [g.matrix, g.spot]);
+  const nearAdj = useMemo(() => (adjOk ? nearTermByStrike(g.matrix, g.spot, 7, 'gexAdj') : null), [g.matrix, g.spot, adjOk]);
   const blocked = gate(g);
   if (blocked) return blocked;
+  const primary = view === 'adj' && nearAdj ? nearAdj : near;
   return (
     <div className="gx-tool gx-col">
-      <div className="gx-legend" title="Walls, max-γ and zero-γ rows come from ALL listed expiries; bars are the ≤7-day slice.">
-        ≤7d · {near.expiries.length} expiries · Σ <b style={{ color: exposureText('gex', near.total) }}>{fmtGexB(near.total)}/1%</b> · levels from all expiries
+      <div className="gx-controls">
+        <GammaViewSeg view={view} onChange={setGview} allowBoth={!narrow} available={adjOk} />
+        <span className="gx-legend" title="Walls, max-γ and zero-γ rows come from ALL listed expiries; bars are the ≤7-day slice.">
+          ≤7d · {near.expiries.length} expiries · Σ {view === 'both' ? 'raw ' : view === 'adj' ? 'Δ-adj ' : ''}<b style={{ color: exposureText('gex', primary.total) }}>{fmtGexB(primary.total)}/1%</b>
+          {view === 'both' && nearAdj ? <> · Δ-adj <b className="gx-adj-tag" style={{ color: exposureText('gex', nearAdj.total) }}>{fmtGexB(nearAdj.total)}/1%</b></> : null} · levels from all expiries
+        </span>
       </div>
+      {view !== 'raw' && <GammaLevelsCompare snap={g.snap} view={view} />}
       <div className="gx-grow">
         <GexStrikeLadder
-          levelsByStrike={near.all}
-          levels={gridLevelsOf(g.snap, g.spot)}
-          centerKey={`${g.symbol}|tool-map`}
+          levelsByStrike={primary.all}
+          compareByStrike={view === 'both' && nearAdj ? nearAdj.all : undefined}
+          valueLabel={view === 'adj' ? 'Δ-adj GEX' : 'GEX'}
+          levels={gridLevelsOf(g.snap, g.spot, view)}
+          centerKey={`${g.symbol}|tool-map|${view}`}
           scopeLabel="0–7 DTE"
           height="100%"
           emptyText="No listed strikes in the next 7 days."
@@ -199,9 +226,14 @@ export function GexPhoneMatrixView() {
   const quote = usePhoneQuote(g.symbol).data?.[g.symbol];
   const chips = useQuickChips(g.symbol);
   const [metric, setMetric] = useState<'gex' | 'vex'>('gex');
+  // Phone: Raw | Δ-adj only — no side by side on a narrow screen.
+  const [gview, setGview] = useState<GammaView>('raw');
+  const adjOk = hasAdjusted(g.matrix);
+  const view = effectiveView(gview, true, adjOk);
+  const cellMetric = gexMetricOf(metric, view, adjOk);
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
   const [levels, setLevels] = useState(false);
-  const shaped = useMemo(() => shapeMatrix(g.matrix, 'all', g.spot, metric), [g.matrix, g.spot, metric]);
+  const shaped = useMemo(() => shapeMatrix(g.matrix, 'all', g.spot, cellMetric), [g.matrix, g.spot, cellMetric]);
   const blocked = gate(g);
   const asOf = g.q.data ? terminalAsOf(g.q.data) : null;
   const snapAt = asOf ? new Date(asOf).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
@@ -219,6 +251,12 @@ export function GexPhoneMatrixView() {
             <SlidersHorizontal size={16} aria-hidden /><span>Levels</span>
           </button>
         </div>
+        {metric === 'gex' && (
+          <div className="gxp-gview-row">
+            <GammaViewSeg view={view} onChange={setGview} allowBoth={false} available={adjOk} className="of-seg gxp-gview" />
+            <span className="gxp-gview-note">{view === 'adj' ? 'Δ-adjusted: hedge for a real 1% move' : 'Raw: Γ·OI·S², per 1% move'}</span>
+          </div>
+        )}
         <div className="gxp-quote">
           <b className="gxp-px">{price != null ? price.toFixed(2) : '—'}</b>
           {quote && Number.isFinite(quote.change) && (
@@ -231,10 +269,10 @@ export function GexPhoneMatrixView() {
         </div>
       </header>
       {blocked ?? (
-        <GexPhoneMatrix cells={g.matrix} expiries={shaped.expiryAll} spot={g.spot} metric={metric} symbol={g.symbol}
+        <GexPhoneMatrix cells={g.matrix} expiries={shaped.expiryAll} spot={g.spot} metric={cellMetric} symbol={g.symbol}
           onCellClick={setDrill} chips={chips} onSymbol={g.setFocus} />
       )}
-      {drill && <GexCellDrill drill={drill} matrix={g.matrix} metric={metric} spot={g.spot} symbol={g.symbol} onClose={() => setDrill(null)} />}
+      {drill && <GexCellDrill drill={drill} matrix={g.matrix} metric={cellMetric} spot={g.spot} symbol={g.symbol} onClose={() => setDrill(null)} />}
       <QEDrawer open={levels} onClose={() => setLevels(false)} title={`${g.symbol} levels · regime · net`} side="bottom" className="qp-sheet gxp-levels-sheet">
         <div className="flowdash nexus-vars gxp-levels-body"><GexPhoneSummary /></div>
       </QEDrawer>
@@ -248,12 +286,18 @@ export function GexMatrixTool() {
   const [metric, setMetric] = useToolSetting<'gex' | 'vex'>('metric', 'gex');
   const [bucket, setBucket] = useToolSetting<BucketId>('bucket', 'all');
   const [scale, setScale] = useToolSetting<MatrixScale>('scale', 'column');
+  const [gview, setGview] = useToolSetting<GammaView>('gammaView', 'raw');
   const urlOn = useDashboard().page === 'gex';
   useUrlParam('g.metric', metric, setMetric, G_METRIC, urlOn);
   useUrlParam('g.exp', bucket, setBucket, G_BUCKET, urlOn);
   useUrlParam('g.scale', scale, setScale, G_SCALE, urlOn);
+  useUrlParam('g.gamma', gview, setGview, G_GAMMA, urlOn);
+  const narrow = useIsMobile();
+  const adjOk = hasAdjusted(g.matrix);
+  const view = effectiveView(gview, narrow, adjOk);
+  const cellMetric = gexMetricOf(metric, view, adjOk);
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
-  const shaped = useMemo(() => shapeMatrix(g.matrix, bucket, g.spot, metric), [g.matrix, bucket, g.spot, metric]);
+  const shaped = useMemo(() => shapeMatrix(g.matrix, bucket, g.spot, cellMetric), [g.matrix, bucket, g.spot, cellMetric]);
   const blocked = gate(g, 'strike × expiry surface');
   if (blocked) return blocked;
   const last = shaped.expiryAll[shaped.expiryAll.length - 1];
@@ -265,6 +309,7 @@ export function GexMatrixTool() {
             <button key={m} type="button" className={metric === m ? 'on' : ''} onClick={() => setMetric(m)} title={m === 'gex' ? 'GEX — $ dealers trade per 1% spot move' : 'VEX — $ dealers trade per 1 IV point'}>{m.toUpperCase()}</button>
           ))}
         </div>
+        {metric === 'gex' && <GammaViewSeg view={view} onChange={setGview} allowBoth={!narrow} available={adjOk} />}
         <div className="of-seg" role="group" aria-label="Days to expiry">
           {DTE_BUCKETS.map((b) => (
             <button key={b.id} type="button" className={bucket === b.id ? 'on' : ''} onClick={() => setBucket(b.id)}>{b.label}<span className="dim"> {shaped.bucketCounts[b.id]}</span></button>
@@ -272,12 +317,14 @@ export function GexMatrixTool() {
         </div>
         <span className="gx-note gx-note-detail">{shaped.expiries.length}/{shaped.expiryAll.length} expiries{last ? ` · max ${last[1]} (${last[0]}d)` : ''} · colour: <b>{scale === 'column' ? 'per expiry' : 'absolute'}</b> · click a cell to drill</span>
       </div>
+      {metric === 'gex' && view !== 'raw' && <GammaLevelsCompare snap={g.snap} view={view} />}
       <div className="gx-grow matrix-wrap">
         <GexStrikeMatrix
           cells={g.matrix}
           expiries={shaped.expiries}
-          levels={gridLevelsOf(g.snap, g.spot)}
-          metric={metric}
+          levels={gridLevelsOf(g.snap, g.spot, metric === 'gex' ? view : 'raw')}
+          metric={cellMetric}
+          compare={metric === 'gex' && view === 'both'}
           centerKey={`${g.symbol}|tool-surface|${metric}`}
           onCellClick={setDrill}
           scale={scale}
@@ -285,7 +332,7 @@ export function GexMatrixTool() {
           emptyText={`no listed cells for ${g.symbol} in this DTE bucket`}
         />
       </div>
-      {drill && <GexCellDrill drill={drill} matrix={g.matrix} metric={metric} spot={g.spot} symbol={g.symbol} onClose={() => setDrill(null)} />}
+      {drill && <GexCellDrill drill={drill} matrix={g.matrix} metric={cellMetric} spot={g.spot} symbol={g.symbol} onClose={() => setDrill(null)} />}
     </div>
   );
 }

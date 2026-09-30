@@ -5,6 +5,8 @@
  * Keep this file free of runtime imports — TYPES ONLY (plus a few pure helpers).
  */
 
+import type { GammaMetricsBlock } from './gex-adjusted';
+
 // ─────────────────────────────────────────────────────────────
 // CORE LEVEL & EXPOSURE SHAPES
 // ─────────────────────────────────────────────────────────────
@@ -115,6 +117,11 @@ export interface GEXSnapshot {
     quarter?: GEXBucketSummary;        // 30-90 DTE
     leaps?: GEXBucketSummary;          // 90+ DTE
   };
+  /**
+   * Raw vs Δ-adjusted vs flow-signed GEX with the levels under each
+   * (docs/GAMMA_RAW_VS_ADJUSTED.md). Absent on the CBOE-fallback path.
+   */
+  gammaMetrics?: GammaMetricsBlock;
 
   // Data quality (optional — populated when cross-validation layer is used)
   dataQuality?: {
@@ -385,8 +392,12 @@ export interface StrikeExpiryCell {
   strike: number;
   expiryLabel: string;  // e.g. "APR 14"
   dte: number;
-  netGEX: number;       // in billions
-  netVEX: number;       // in billions
+  netGEX: number;       // $B per 1% move (units v2)
+  netVEX: number;       // $M per 1 IV point (units v2)
+  /** Δ-adjusted GEX, $B per 1% — finite ±1% move, delta re-priced (docs/GAMMA_RAW_VS_ADJUSTED.md) */
+  netGEXAdj?: number;
+  /** Flow-signed GEX estimate, $B per 1% */
+  netGEXFlow?: number;
 }
 
 /** Projection arc — curve from spot to magnet target */

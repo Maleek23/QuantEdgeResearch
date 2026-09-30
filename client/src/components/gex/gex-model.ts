@@ -92,20 +92,40 @@ export const DTE_BUCKETS = [
 ] as const;
 export type BucketId = typeof DTE_BUCKETS[number]['id'];
 
-export const fmtCell = (v: number, metric: 'gex' | 'vex') => (metric === 'vex' ? fmtVexM(v) : fmtGexB(v));
-export const cellValue = (c: StrikeExpiryCell, metric: 'gex' | 'vex') => (metric === 'vex' ? (c.netVEX ?? 0) : c.netGEX);
+/**
+ * Cell metrics. 'gexAdj' is Δ-adjusted GEX (docs/GAMMA_RAW_VS_ADJUSTED.md):
+ * same unit as 'gex' ($B per 1% move), delta re-priced at spot ±1%.
+ */
+export type CellMetric = 'gex' | 'gexAdj' | 'vex';
+/** Raw | Δ-adjusted | both columns — the GEX gamma-definition toggle. */
+export type GammaView = 'raw' | 'adj' | 'both';
+export const GAMMA_VIEWS: Array<{ id: GammaView; label: string; title: string }> = [
+  { id: 'raw', label: 'Raw', title: 'Raw GEX — Γ·OI·100·S²·0.01: the instantaneous dealer hedge, scaled to a 1% move (industry standard)' },
+  { id: 'adj', label: 'Δ-adj', title: 'Δ-adjusted GEX — OI·100·S·[Δ(S+1%) − Δ(S−1%)]/2: the hedge a 1% move actually needs, delta re-priced at both ends. Smaller than raw at the 0DTE ATM strike, larger just beside it; ≈ raw for longer expiries.' },
+  { id: 'both', label: 'Side by side', title: 'Raw and Δ-adjusted in two columns per expiry' },
+];
+export const metricName = (m: CellMetric) => (m === 'vex' ? 'VEX' : m === 'gexAdj' ? 'Δ-adj GEX' : 'GEX');
+export const fmtCell = (v: number, metric: CellMetric) => (metric === 'vex' ? fmtVexM(v) : fmtGexB(v));
+export const cellValue = (c: StrikeExpiryCell, metric: CellMetric) =>
+  (metric === 'vex' ? (c.netVEX ?? 0) : metric === 'gexAdj' ? (c.netGEXAdj ?? 0) : c.netGEX);
+/** Does this payload carry Δ-adjusted cells? (absent on the CBOE-fallback path and on cached pre-feature payloads) */
+export const hasAdjusted = (matrix: StrikeExpiryCell[]) => matrix.some((c) => typeof c.netGEXAdj === 'number');
+/** The cell metric a GEX view reads (the primary column in 'both'). */
+export const gexMetricOf = (metric: 'gex' | 'vex', view: GammaView, adjAvailable: boolean): CellMetric =>
+  metric === 'vex' ? 'vex' : view === 'adj' && adjAvailable ? 'gexAdj' : 'gex';
 
 /**
  * Near-term map: currently listed 0–7 DTE cells aggregated by strike. A
  * January node must not dominate a September trading screen; long-dated
  * chain data stays in the strike × expiry matrix.
  */
-export function nearTermByStrike(matrix: StrikeExpiryCell[], spot: number, maxDte = 7) {
+export function nearTermByStrike(matrix: StrikeExpiryCell[], spot: number, maxDte = 7, metric: 'gex' | 'gexAdj' = 'gex') {
   const byStrike = new Map<number, number>();
   const expiries = new Set<string>();
   for (const cell of matrix) {
     if (!Number.isFinite(cell.strike) || !Number.isFinite(cell.dte) || cell.dte < 0 || cell.dte > maxDte) continue;
-    byStrike.set(cell.strike, (byStrike.get(cell.strike) ?? 0) + (Number.isFinite(cell.netGEX) ? cell.netGEX : 0));
+    const v = cellValue(cell, metric);
+    byStrike.set(cell.strike, (byStrike.get(cell.strike) ?? 0) + (Number.isFinite(v) ? v : 0));
     expiries.add(cell.expiryLabel);
   }
   const all = [...byStrike.entries()].map(([strike, gex]) => ({
@@ -132,7 +152,7 @@ export function nearTermByStrike(matrix: StrikeExpiryCell[], spot: number, maxDt
 export type NearTerm = ReturnType<typeof nearTermByStrike>;
 
 /** Matrix shaping for the surface: expiries in the bucket, strongest nodes, gravity. */
-export function shapeMatrix(matrix: StrikeExpiryCell[], bucket: BucketId, spot: number, metric: 'gex' | 'vex') {
+export function shapeMatrix(matrix: StrikeExpiryCell[], bucket: BucketId, spot: number, metric: CellMetric) {
   const valOf = (c: StrikeExpiryCell) => cellValue(c, metric);
   const cells = matrix.filter((c) => Number.isFinite(c.strike) && Number.isFinite(c.dte) && c.dte >= 0);
   const expiryAll = [...new Map(cells.map((c) => [c.dte, c.expiryLabel] as const)).entries()]
@@ -187,14 +207,22 @@ export function regimeView(snap: GEXSnapshot | undefined | null): RegimeView | n
 export const zeroGammaOf = (snap: GEXSnapshot | undefined | null): number | null =>
   snap ? (snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null) : null;
 
-/** Structural levels every strike grid marks (all listed expiries). */
-export const gridLevelsOf = (snap: GEXSnapshot | undefined | null, spot: number): GridLevels => ({
-  spot,
-  callWall: snap?.callWall ?? null,
-  putWall: snap?.putWall ?? null,
-  maxGamma: snap?.maxGammaStrike ?? null,
-  zeroGamma: zeroGammaOf(snap),
-});
+/**
+ * Structural levels every strike grid marks (all listed expiries). With
+ * view 'adj' the Δ-adjusted levels (snapshot.gammaMetrics) are marked instead;
+ * 'raw' and 'both' mark the raw levels (the compare strip lists what moves).
+ */
+export const gridLevelsOf = (snap: GEXSnapshot | undefined | null, spot: number, view: GammaView = 'raw'): GridLevels => {
+  const adj = view === 'adj' ? snap?.gammaMetrics?.deltaAdjusted.levels : undefined;
+  if (adj) return { spot, callWall: adj.callWall, putWall: adj.putWall, maxGamma: adj.maxGammaStrike, zeroGamma: adj.zeroGamma };
+  return {
+    spot,
+    callWall: snap?.callWall ?? null,
+    putWall: snap?.putWall ?? null,
+    maxGamma: snap?.maxGammaStrike ?? null,
+    zeroGamma: zeroGammaOf(snap),
+  };
+};
 
 export const REGIME_EXPECT: Record<GammaRegime, string> = {
   negative: 'Breaks can accelerate. Wait for price to clear a wall, then trade with the confirmed direction instead of fading it.',

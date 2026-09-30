@@ -5,11 +5,14 @@
  *   GammaProfileChart     net GEX re-priced across hypothetical spots (zero-γ)
  *   DealerStructureRail   put wall … zero-γ … call wall on a price axis + spot
  *   GexCellDrill          strike × expiry cell drill-down (modal)
+ *   GammaViewSeg          Raw | Δ-adj | Side by side toggle (docs/GAMMA_RAW_VS_ADJUSTED.md)
+ *   GammaLevelsCompare    the levels under raw vs Δ-adjusted (and flow-signed zero-γ), with what moves
  */
 import { useEffect, useRef } from 'react';
 import type { GEXSnapshot, StrikeExpiryCell } from '@shared/gex-types';
 import { exposureText, fmtGexB, fmtVexM } from './gex-colors';
-import { fmtCell } from './gex-model';
+import { fmtCell, cellValue, GAMMA_VIEWS, type CellMetric, type GammaView } from './gex-model';
+import { LEVEL_LABELS, type GammaMetricLevels } from '@shared/gex-adjusted';
 
 const mono = "'JetBrains Mono',monospace";
 
@@ -80,11 +83,11 @@ export function DealerStructureRail({ snap, spot, zeroGamma, negGamma }: { snap:
 
 /** Strike × expiry cell drill-down: the cell's share of its strike and its expiry. */
 export function GexCellDrill({ drill, matrix, metric, spot, symbol, onClose }: {
-  drill: StrikeExpiryCell; matrix: StrikeExpiryCell[]; metric: 'gex' | 'vex'; spot: number; symbol: string; onClose: () => void;
+  drill: StrikeExpiryCell; matrix: StrikeExpiryCell[]; metric: CellMetric; spot: number; symbol: string; onClose: () => void;
 }) {
   const strikeCells = matrix.filter((m) => m.strike === drill.strike);
   const expiryCells = matrix.filter((m) => m.dte === drill.dte);
-  const val = (c: StrikeExpiryCell) => (metric === 'vex' ? (c.netVEX ?? 0) : c.netGEX);
+  const val = (c: StrikeExpiryCell) => cellValue(c, metric);
   const strikeTotal = strikeCells.reduce((a, c) => a + val(c), 0);
   const expiryTotal = expiryCells.reduce((a, c) => a + val(c), 0);
   const v = val(drill);
@@ -109,6 +112,7 @@ export function GexCellDrill({ drill, matrix, metric, spot, symbol, onClose }: {
         </div>
         {[
           ['net GEX', `${fmtGexB(drill.netGEX)}/1%`],
+          ...(typeof drill.netGEXAdj === 'number' ? [['Δ-adj GEX', `${fmtGexB(drill.netGEXAdj)}/1%`]] : []),
           ['net VEX', `${fmtVexM(drill.netVEX ?? 0)}/IV pt`],
           ['vs spot', dist != null ? `${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%` : '—'],
           [`share of $${drill.strike} strike`, strikeTotal !== 0 ? `${((v / strikeTotal) * 100).toFixed(0)}% of ${fmtCell(strikeTotal, metric)}` : '—'],
@@ -116,11 +120,80 @@ export function GexCellDrill({ drill, matrix, metric, spot, symbol, onClose }: {
         ].map(([k, val2]) => (
           <div key={String(k)} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px dashed color-mix(in srgb, var(--cyan) 8%, transparent)', fontFamily: mono, fontSize: 11 }}>
             <span style={{ color: 'var(--text-mute)', textTransform: 'uppercase', fontSize: 'var(--fs-9, 9px)', letterSpacing: 0.5 }}>{k}</span>
-            <span style={{ fontWeight: 700, color: k === 'net GEX' ? exposureText('gex', drill.netGEX) : k === 'net VEX' ? exposureText('vex', drill.netVEX ?? 0) : undefined }}>{val2}</span>
+            <span style={{ fontWeight: 700, color: k === 'net GEX' ? exposureText('gex', drill.netGEX) : k === 'Δ-adj GEX' ? exposureText('gex', drill.netGEXAdj ?? 0) : k === 'net VEX' ? exposureText('vex', drill.netVEX ?? 0) : undefined }}>{val2}</span>
           </div>
         ))}
         <div style={{ marginTop: 10, fontSize: 'var(--fs-9, 9px)', color: 'var(--text-mute)', fontFamily: mono, fontStyle: 'italic' }}>listed-chain node · Esc, ✕ or click away to close</div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Raw | Δ-adj | Side by side. `allowBoth` is false on a phone (no room for
+ * two columns per expiry); `available` is false when the payload carries no
+ * Δ-adjusted cells (CBOE-fallback path) — the buttons then say why.
+ */
+export function GammaViewSeg({ view, onChange, allowBoth = true, available = true, className = 'of-seg' }: {
+  view: GammaView; onChange: (v: GammaView) => void; allowBoth?: boolean; available?: boolean; className?: string;
+}) {
+  const opts = GAMMA_VIEWS.filter((o) => allowBoth || o.id !== 'both');
+  return (
+    <div className={className} role="group" aria-label="Gamma definition">
+      {opts.map((o) => (
+        <button key={o.id} type="button" className={view === o.id ? 'on' : ''} aria-pressed={view === o.id}
+          disabled={!available && o.id !== 'raw'}
+          onClick={() => onChange(o.id)}
+          title={!available && o.id !== 'raw' ? 'This chain source did not carry Δ-adjusted values (CBOE fallback or a cached payload) — raw only' : o.title}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** $B dealer trade → words: + = buy, − = sell. */
+const tradeTxt = (b: number) => `${b < 0 ? 'sell' : 'buy'} ${fmtGexB(Math.abs(b)).replace(/^\+/, '')}`;
+
+const lvFmt = (k: keyof Omit<GammaMetricLevels, 'keyStrikes'>, l: GammaMetricLevels | undefined) => {
+  if (!l) return '—';
+  if (k === 'kingNode') return l.kingNode ? `$${l.kingNode.strike} ${l.kingNode.dte}d` : '—';
+  if (k === 'zeroGamma') return l.zeroGamma != null ? `$${l.zeroGamma.toFixed(2)}` : 'none ±20%';
+  const v = l[k] as number | null;
+  return v != null ? `$${v}` : '—';
+};
+
+/**
+ * Levels under each gamma definition, one line: what stays, what moves.
+ * Raw is the headline; Δ-adjusted re-prices delta at spot ±1%; flow-signed
+ * only re-signs opened near-dated OTM calls (so only its zero-γ/king can move).
+ */
+export function GammaLevelsCompare({ snap, view }: { snap: GEXSnapshot | undefined | null; view: GammaView }) {
+  const gm = snap?.gammaMetrics;
+  if (!gm) return <div className="gx-view-note">Δ-adjusted levels: not carried by this chain source — raw only.</div>;
+  const keys: Array<keyof Omit<GammaMetricLevels, 'keyStrikes'>> = ['callWall', 'putWall', 'maxGammaStrike', 'kingNode', 'zeroGamma'];
+  const moved = new Set(gm.differs.deltaAdjusted);
+  const flowZ = gm.flowSigned.levels.zeroGamma;
+  const flowMoved = gm.differs.flowSigned.includes('zeroGamma');
+  return (
+    <div className="gx-view-note" role="note" aria-label="Levels under raw and Δ-adjusted gamma">
+      <span title="Levels under raw GEX → Δ-adjusted GEX. Walls rank each leg's |gamma $| above/below spot; max-γ = largest |net| strike (all expiries); king = largest |cell|; zero-γ = re-priced crossing nearest spot.">
+        <b>{view === 'adj' ? 'Marked: Δ-adjusted levels' : 'Marked: raw levels'}</b>
+      </span>
+      {keys.map((k) => (moved.has(k) ? (
+        <span key={k} className="gx-diff" title={`${LEVEL_LABELS[k]} differs: raw ${lvFmt(k, gm.raw.levels)} vs Δ-adjusted ${lvFmt(k, gm.deltaAdjusted.levels)}`}>
+          {LEVEL_LABELS[k]} {lvFmt(k, gm.raw.levels)} → <u>{lvFmt(k, gm.deltaAdjusted.levels)}</u> (moves)
+        </span>
+      ) : (
+        <span key={k}>{LEVEL_LABELS[k]} {lvFmt(k, gm.raw.levels)} =</span>
+      )))}
+      <span title="Top-5 strikes by |net| under each definition — how many are shared">key strikes shared {gm.keyStrikeOverlap}/5</span>
+      <span title="Δ-adjusted, one-sided: the dealer hedge trade if spot moves +1% / −1% from here (delta re-priced; naive-OI dealer sign). Raw GEX assumes the two are equal and opposite.">
+        rally 1% → dealers {tradeTxt(-gm.deltaAdjusted.moveUp)} · drop 1% → dealers {tradeTxt(gm.deltaAdjusted.moveDown)}
+      </span>
+      <span title="Flow-signed estimate: raw GEX with today's opened near-dated OTM call OI re-signed dealer-short (an assumption, not observed trade sides)">
+        flow-signed zero-γ {flowZ != null ? `$${flowZ.toFixed(2)}` : 'none ±20%'}{flowMoved ? ' (moves)' : ''} · re-signed {((gm.flowSigned.resignedShare ?? 0) * 100).toFixed(1)}% of gross
+      </span>
     </div>
   );
 }

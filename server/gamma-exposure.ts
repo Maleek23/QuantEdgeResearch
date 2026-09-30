@@ -49,6 +49,9 @@ interface GammaByStrike {
   netVEX?: number;
   /** Share of this strike's gross GEX on modelled gamma (0–1). */
   modelledShare?: number;
+  /** Δ-adjusted / flow-signed GEX, $B per 1% (docs/GAMMA_RAW_VS_ADJUSTED.md). */
+  netGEXAdj?: number;
+  netGEXFlow?: number;
 }
 
 export interface GammaExposureResult {
@@ -87,6 +90,8 @@ export interface GammaExposureResult {
   gammaProfile?: Array<{ spot: number; netGEX: number }>;
   /** Per-horizon levels from the same contracts (shared/gex-buckets.ts). */
   byDte?: ExposureSnapshot['byDte'];
+  /** Raw vs Δ-adjusted vs flow-signed GEX + levels under each (shared/gex-adjusted.ts). */
+  gammaMetrics?: ExposureSnapshot['gammaMetrics'];
   callWallOI?: number | null;
   putWallOI?: number | null;
   dataSource?: 'alpaca' | 'schwab' | 'tradier' | 'yahoo' | 'cboe' | 'mixed' | 'none';
@@ -290,6 +295,8 @@ function snapshotToLegacy(
     putVEX: s.putVEX,
     netVEX: s.netVEX,
     modelledShare: s.modelledShare,
+    netGEXAdj: s.netGEXAdj,
+    netGEXFlow: s.netGEXFlow,
   }));
 
   return {
@@ -344,6 +351,7 @@ function snapshotToLegacy(
     vexRegime: snap.vexRegime,
     strikeExpiryMatrix: snap.strikeExpiryMatrix,
     byDte: snap.byDte,
+    gammaMetrics: snap.gammaMetrics,
     dataSource: source === 'none' ? undefined : source,
     dataQuality: {
       grade: cq.qualityGrade,

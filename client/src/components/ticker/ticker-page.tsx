@@ -583,6 +583,7 @@ function EvidenceSection({ qtm, loading, pickLayers }: {
             ))}
           </ul>
           {qtm.unavailable.length > 0 && <p className="tk-footnote">Not measured: {qtm.unavailable.join(' · ')}</p>}
+          {qtm.gexCompare && <GammaCompareTable c={qtm.gexCompare} />}
           {pickLayers.length > 0 && (
             <>
               <h3 className="tk-h3">Scored layers on the published idea</h3>
@@ -600,6 +601,42 @@ function EvidenceSection({ qtm, loading, pickLayers }: {
         </details>
       )}
     </Section>
+  );
+}
+
+/** Quantinum context: dealer gamma under raw / Δ-adjusted / flow-signed definitions — 0 points. */
+function GammaCompareTable({ c }: { c: NonNullable<import('./ticker-data').QuantinumDossier['gexCompare']> }) {
+  const px = (v: number | null | undefined, d = 0) => (v == null ? '—' : `$${v.toFixed(d)}`);
+  const pct = (b: number | null) => (b == null ? '—' : `${b >= 0 ? '+' : '−'}${Math.abs(b * 100).toFixed(0)}%`);
+  const raw = c.rows[0];
+  const diff = (a: number | null | undefined, b: number | null | undefined, tol = 0) => (a == null) !== (b == null) || (a != null && b != null && Math.abs(a - b) > tol);
+  return (
+    <>
+      <h3 className="tk-h3">Dealer gamma · raw vs Δ-adjusted <span className="tk-src">(context, not scored)</span></h3>
+      <div className="tk-table-wrap">
+        <table className="tk-table">
+          <thead><tr><th>Definition</th><th>Regime</th><th className="r">Balance</th><th className="r">Put wall</th><th className="r">Zero-γ</th><th className="r">Call wall</th><th className="r">King node</th></tr></thead>
+          <tbody>
+            {c.rows.map((r) => (
+              <tr key={r.metric}>
+                <td>{r.label}</td>
+                <td>{r.glyph} {r.regime}</td>
+                <td className="r mono">{pct(r.balance)}</td>
+                <td className="r mono">{px(r.putWall)}{r !== raw && diff(r.putWall, raw.putWall) ? ' •' : ''}</td>
+                <td className="r mono">{px(r.zeroGamma, 2)}{r !== raw && diff(r.zeroGamma, raw.zeroGamma, 0.005) ? ' •' : ''}</td>
+                <td className="r mono">{px(r.callWall)}{r !== raw && diff(r.callWall, raw.callWall) ? ' •' : ''}</td>
+                <td className="r mono">{r.kingNode ? `${px(r.kingNode.strike, r.kingNode.strike % 1 ? 1 : 0)} ${r.kingNode.dte}d` : '—'}{r !== raw && (r.kingNode?.strike !== raw.kingNode?.strike || r.kingNode?.dte !== raw.kingNode?.dte) ? ' •' : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="tk-footnote">
+        {c.changes.deltaAdjusted.length ? `Δ-adjusted moves: ${c.changes.deltaAdjusted.join('; ')}.` : 'Δ-adjusted levels match raw.'}
+        {' '}{c.regimeAgrees ? 'Regime agrees.' : 'Regime disagrees between raw and Δ-adjusted.'} Key strikes shared {c.keyStrikeOverlap}/5.
+        {' '}Raw = Γ·OI·S² per 1%; Δ-adjusted = the hedge for a real ±1% move (delta re-priced); flow-signed re-signs today's opened near-dated OTM calls as customer-bought (an assumption). • = differs from raw.
+      </p>
+    </>
   );
 }
 
