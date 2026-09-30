@@ -19,7 +19,8 @@
  *   POST   /api/journal/discord/preview             parse, no writes  (admin or the trader)
  *   POST   /api/journal/discord/commit              write previewed   (same person who previewed)
  *   POST   /api/journal/discord/forum/preview       forum → threads → traders, no writes (admin)
- *   POST   /api/journal/discord/forum/commit        write previewed threads with the confirmed mapping (admin)
+ *   POST   /api/journal/discord/forum/commit        start the import job for the previewed threads + confirmed mapping (admin) → 202 { jobId }
+ *   GET    /api/journal/discord/forum/jobs/:id      import job progress: screenshots read / total, trades found, per-thread results (admin)
  *   GET    /api/traders/leaderboard                 ranked traders (stated + measured-on-underlying)
  *   GET    /api/traders/:slug/analysis              one trader's stats, calls, rank
  *   GET    /api/trader-calls?symbol=                NEXUS evidence: recent open calls from ranked traders, repriced live
@@ -445,7 +446,7 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
     token: z.string().min(8).max(64),
     threads: z.array(z.object({
       threadId: z.string().trim().min(1).max(240),
-      /** null = skip this thread. */
+      /** null = skip this thread; 'mine' (or malik / leek) = the importing admin's own journal. */
       slug: z.string().trim().toLowerCase().regex(TRADER_SLUG_RE).nullable(),
       /** Required when slug is a NEW trader: the operator's confirmation, with the display name. */
       createName: z.string().trim().min(1).max(60).nullish(),
@@ -458,9 +459,20 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
       if (!actor.isAdmin || !actor.userId) return res.status(403).json({ error: 'Only an admin can import a Discord forum' });
       const parsed = forumCommitBody.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid forum commit', issues: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) });
-      const { commitForumPreview } = await import('./discord-forum-import');
-      res.json({ success: true, ...(await commitForumPreview(parsed.data.token, actor.userId, parsed.data.threads)) });
+      // Runs as a background job (screenshots are read by a vision model — minutes for ~1,000 images).
+      const { startForumImport } = await import('./discord-forum-import');
+      const { jobId, job } = startForumImport(parsed.data.token, actor.userId, parsed.data.threads);
+      res.status(202).json({ success: true, jobId, job });
     } catch (err) { fail(res, err, 'Discord forum import'); }
+  });
+
+  app.get('/api/journal/discord/forum/jobs/:id', requireBetaAccess, async (req, res) => {
+    try {
+      const actor = await journalActor(req);
+      if (!actor.isAdmin || !actor.userId) return res.status(403).json({ error: 'Only an admin can import a Discord forum' });
+      const { forumImportJob } = await import('./discord-forum-import');
+      res.json(forumImportJob(String(req.params.id), actor.userId));
+    } catch (err) { fail(res, err, 'Discord forum import status'); }
   });
 
   // ── Trader analysis, leaderboard, NEXUS trader-call evidence ──

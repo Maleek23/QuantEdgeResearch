@@ -268,3 +268,41 @@ instead of duplicating: a trade that was open and has since closed gets its exit
 tags, emotion and rating an admin added are kept. The preview labels every row
 **new / update / unchanged** before anything is written. Previews expire after 30
 minutes and can only be committed by the person who made them.
+
+## Screenshots, Mine, and the import job (feat/fvision, 2026-09-29)
+
+Most forum posts are a short line plus a screenshot, so text-only parsing found
+almost nothing (femi 742 posts → 0 trades, Leek 347 → 0, Uzo 80 → 1 open call).
+
+**Thread → book** (`shared/discord-forum.ts` `mapThreadToBook`)
+- "Leeks $300 to 5 figgy challenge" (any title/author word malik / leek / leeks)
+  → **Mine** = the importing admin's own journal. No "Leek"/"Malik" trader is ever created.
+- femi → Femi, uzo → Uzo, "ayo's trading journal" → Ayo (created on import, pre-confirmed),
+  tommi / teejay → Tommi **pre-selected but not confirmed** — tick "confirm" in the preview.
+- Every thread keeps a manual dropdown override (Mine, any trader, new trader, skip).
+
+**Screenshots** (`shared/forum-vision.ts`, `server/forum-vision.ts`)
+- The preview only counts images and shows an estimated cost; it never calls a model.
+- Import starts a background job (`POST …/forum/commit` → 202 `{jobId}`, poll
+  `GET /api/journal/discord/forum/jobs/:id`): images done / total, trades found, spend.
+- Model `claude-sonnet-5` (ANTHROPIC_API_KEY), thinking off; fallback `gemini-2.5-flash`
+  (GEMINI_API_KEY / GOOGLE_API_KEY). Strict JSON validated with zod; confidence < 0.6 →
+  review list, not booked. Text wins over the screenshot on conflicts (flagged on the post).
+- Bot-read threads are re-read at import for fresh signed CDN urls; bytes are sent as
+  base64 and never stored — only the extracted JSON + attachment id + sha256 in
+  `journal_notes.meta.vision` (the cache: re-imports never re-bill an image).
+- Concurrency 3; 429/529 retried with backoff (Retry-After honoured, max 5);
+  cap `FORUM_VISION_MAX_IMAGES` (default 1500) per import.
+- Estimate: ~2,400 input + ~450 output tokens/image at $2/$10 per M ≈ $0.0093/image
+  → ~1,170 images ≈ **$11**.
+
+**Pairing** (`shared/forum-pairing.ts`): opens/trims/closes of the same contract across
+posts → FIFO round trips; P&L only with both sides known (or a stated realized P&L with a
+known size); partial closes split into a closed part + open remainder (`<key>:open`).
+
+**Mine dedupe**: a Discord trade matching a broker row (same underlying/contract/side,
+entry ±1 trading day, stated size ≤ broker size) annotates the broker row's notes and is
+not inserted; unmatched ones are inserted as broker `discord`, flagged in their notes.
+
+No migration: everything lives in the existing `journal_notes.meta` (0003) and
+`journal_trades.raw_csv_row`.

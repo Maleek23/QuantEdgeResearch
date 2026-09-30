@@ -216,7 +216,7 @@ export interface ParsedMessage {
   kind: MsgKind;
   /** Primary instrument, when one is named. */
   symbol: string | null;
-  assetType: 'stock' | 'option' | null;
+  assetType: 'stock' | 'option' | 'future' | null;
   optionType: 'call' | 'put' | null;
   strike: number | null;
   /** YYYY-MM-DD */
@@ -268,6 +268,12 @@ const STOPWORDS = new Set([
 /** Crypto majors traders write without a $ (BTC is otherwise a "buy to close" stopword). */
 const CRYPTO = new Set(['BTC', 'ETH', 'SOL', 'XRP', 'DOGE']);
 
+/**
+ * Index/commodity futures roots (optionally written "/ES"). Their prices are
+ * often posted without decimals ("long ES 5850") — read as the price, not a size.
+ */
+export const FUTURES = new Set(['ES', 'MES', 'NQ', 'MNQ', 'YM', 'MYM', 'RTY', 'M2K', 'CL', 'MCL', 'GC', 'MGC', 'SI', 'NG', 'ZB', 'ZN', 'HG']);
+
 const SETUP_WORDS: [RegExp, string][] = [
   [/\b0\s?dte\b/i, '0DTE'],
   [/\blotto(?:s)?\b/i, 'lotto'],
@@ -314,7 +320,7 @@ const OPT_RE = new RegExp(
   'i',
 );
 const DOLLAR_TICKER_RE = /\$([A-Za-z]{1,6}(?:\.[A-Za-z])?)\b/g;
-const PRICE_RE = new RegExp(String.raw`(?:@\s*\$?|\b(?:at|filled(?:\s+at)?|avg|average|entry(?:\s+at)?|in\s+at)\s+\$?)${NUM}(?!\s?%)(?!\s?(?:c|p|calls?|puts?)\b)`, 'i');
+const PRICE_RE = new RegExp(String.raw`(?:@\s*\$?|\b(?:at|filled(?:\s+at)?|avg|average|entry(?:\s+at)?|in\s+at|for)\s+\$?)${NUM}(?![\d.])(?!\s?%)(?!\s?(?:c|p|calls?|puts?|days?|weeks?|months?|mins?|minutes?|hours?|hrs?|dte|x)\b)`, 'i');
 const PCT_RE = /([+-]?\s?\d{1,5}(?:\.\d{1,2})?)\s?%/;
 const QTY_RE = /(?:\bx\s?(\d{1,5})\b|\b(\d{1,5})\s?(?:contracts?|cons|cts|shares|shrs)\b|\bqty:?\s?(\d{1,5})\b)/i;
 
@@ -329,8 +335,16 @@ const SHORT_RE = /\b(short(?:ed|ing)?|sto|sold to open)\b/i;
 const LOSS_WORDS_RE = /\b(loss|stopped|stop(?:ped)? hit|down|red|cut)\b/i;
 /** "stop 2.5", "stop @ 1.2", "stop loss at 440", "sl 140" — never "stopped". */
 const STOP_CLAUSE_RE = new RegExp(String.raw`\b(?:stop(?!ped)(?:[\s-]?loss)?|sl)\s*(?::|@|at|=)?\s*\$?${NUM}(?!\s?%)`, 'i');
-/** "pt 3", "target 460", "tgt: 1.5", "targets 3/4" (first one), "take profit at 5". */
-const TARGET_CLAUSE_RE = new RegExp(String.raw`\b(?:targets?|tgt|pt|take[\s-]profit)\s*(?::|@|at|=)?\s*\$?${NUM}(?!\s?%)`, 'i');
+/**
+ * "pt 3", "target 460", "tgt: 1.5", "targets 3/4" (first one), "take profit at 5",
+ * and "TP 5.00" when TP is NOT the first word ("…| SL 2.00 | TP 5.00"); a
+ * message that STARTS with "tp" is an exit ("tp META 600c @ 9.4").
+ */
+const TARGET_CLAUSE_RE = new RegExp(String.raw`(?:\b(?:targets?|tgt|pt|take[\s-]profit)|(?<=[^\s].*?[\s|,;/(])tp)\s*(?::|@|at|=)?\s*\$?${NUM}(?!\s?%)`, 'i');
+/** "100 shares of F", "5 calls on T" — the ticker after a size + instrument word (case-sensitive ticker). */
+const CONTEXT_TICKER_RE = /\b\d{1,6}\s+(?:shares?|shrs|calls?|puts?|contracts?)\s+(?:of\s+|on\s+|in\s+)?\$?([A-Z]{1,5})\b/;
+/** "F calls", "T puts", "X shares" — a capital ticker right before the instrument word. */
+const CONTEXT_TICKER_AFTER_RE = /(?:^|[\s(])\/?([A-Z]{1,5})\s+(?:calls|puts|shares)\b/;
 const TRADE_WORDS_RE = /\b(calls?|puts?|entry|entered|bought|sold|long|short|stop|target|pt|trim(?:med)?|scal(?:ed|ing)|filled|contracts?|strike|exp(?:iry)?|leaps?|0\s?dte|lotto)\b/i;
 
 function numberOf(s: string | undefined): number | null {
@@ -371,7 +385,11 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
     const w = m[1];
     if (CRYPTO.has(w) || !STOPWORDS.has(w)) tickers.add(w);
   }
-  // A single capital letter is only a ticker with a $ (F, T, X…).
+  // A single capital letter is a ticker with a $ (F, T, X…), or when the words
+  // around it say it is an instrument: "100 shares of F", "F calls", "T puts".
+  const ctx = CONTEXT_TICKER_RE.exec(text) ?? CONTEXT_TICKER_AFTER_RE.exec(text);
+  const ctxTicker = ctx && !STOPWORDS.has(ctx[1]) && !VERB_WORDS.has(ctx[1].toLowerCase()) ? ctx[1] : null;
+  if (ctxTicker) tickers.add(ctxTicker);
   base.tickers = [...tickers];
 
   // Stock instrument: $TICKER, or TICKER right after a verb.
@@ -380,10 +398,10 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
     const afterVerb = /\b(?:in|long|short(?:ed)?|bought|buy|added|adding|sold|out(?: of)?|closed|trimmed|trim|exited|cut|stopped out(?: of)?)\s+(?:(?:on|some|more|half|all|of|my|the|rest|a|few|\d+)\s+)*\$?([A-Za-z]{1,6}(?:\.[A-Za-z])?)\b/i.exec(text);
     const cand = dollar?.[1] ?? (afterVerb && !VERB_WORDS.has(afterVerb[1].toLowerCase())
       && (afterVerb[1] === afterVerb[1].toUpperCase() || tickers.has(afterVerb[1].toUpperCase()))
-      ? afterVerb[1] : null);
+      ? afterVerb[1] : null) ?? ctxTicker;
     if (cand) {
-      base.symbol = cand.toUpperCase();
-      base.assetType = CRYPTO.has(base.symbol) ? null : 'stock';
+      base.symbol = cand.toUpperCase().replace(/^\//, '');
+      base.assetType = CRYPTO.has(base.symbol) ? null : FUTURES.has(base.symbol) ? 'future' : 'stock';
     }
   }
 
@@ -399,6 +417,11 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
   if (base.price == null && base.assetType === 'stock' && base.symbol) {
     // "long AMD 145.20" — a decimal right after the ticker.
     const m = new RegExp(String.raw`\$?${base.symbol.replace('.', '\\.')}\s+\$?(\d{1,6}\.\d{1,4})\b(?!\s?%)`, 'i').exec(priceText);
+    base.price = numberOf(m?.[1]);
+  }
+  if (base.price == null && base.assetType === 'future' && base.symbol) {
+    // "long ES 5850" — futures prices are posted without decimals; 3+ digits right after the root.
+    const m = new RegExp(String.raw`\/?\b${base.symbol}\s+(\d{3,6}(?:\.\d{1,2})?)\b(?!\s?%)`, 'i').exec(priceText);
     base.price = numberOf(m?.[1]);
   }
   const pctM = PCT_RE.exec(priceText);
@@ -421,6 +444,12 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
   const isShort = SHORT_RE.test(text);
   const isEntry = !isTrim && !isExit && (ENTRY_RE.test(text) || ENTRY_LEAD_RE.test(lead) || IN_BEFORE_RE.test(text) || isShort);
 
+  // "Stop hit on RIVN": an exit/trim naming exactly one ticker is about that ticker.
+  if ((isTrim || isExit) && !base.symbol && base.tickers.length === 1 && !CRYPTO.has(base.tickers[0])) {
+    base.symbol = base.tickers[0];
+    base.assetType = FUTURES.has(base.symbol) ? 'future' : 'stock';
+  }
+
   if (isTrim) base.kind = 'trim';
   else if (isExit) base.kind = 'exit';
   else if (isEntry && base.symbol) base.kind = 'entry';
@@ -431,6 +460,7 @@ export function parseDiscordMessage(msg: DiscordMsg): ParsedMessage {
     base.side = isShort ? 'short' : 'long';
     base.pct = null; // a % on an entry is commentary ("up 5% premarket"), not a result
     if (base.symbol && CRYPTO.has(base.symbol)) base.assetType = 'stock';
+    if (base.symbol && FUTURES.has(base.symbol) && base.assetType === 'stock') base.assetType = 'future';
     if (!base.assetType) base.assetType = 'stock';
   }
 
@@ -463,7 +493,7 @@ export interface DiscordTrade {
   key: string;
   authorId: string;
   symbol: string;
-  assetType: 'stock' | 'option';
+  assetType: 'stock' | 'option' | 'future';
   optionType: 'call' | 'put' | null;
   strikePrice: number | null;
   expiryDate: string | null;
@@ -714,7 +744,7 @@ export function pairDiscordMessages(input: DiscordMsg[]): PairResult {
       key: pos.key,
       authorId: pos.authorId,
       symbol: f.symbol!,
-      assetType: f.assetType === 'option' ? 'option' : 'stock',
+      assetType: f.assetType === 'option' ? 'option' : f.assetType === 'future' ? 'future' : 'stock',
       optionType: f.optionType,
       strikePrice: f.strike,
       expiryDate: f.expiry,

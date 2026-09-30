@@ -54,6 +54,8 @@ interface CallRow extends RankTrade {
   expiry: string | null;
   target: number | null;
   broker: string;
+  /** Where a Discord call's numbers came from: post text, screenshot, or both (forum import). */
+  evidence: 'text' | 'vision' | 'text+vision' | null;
 }
 
 export interface TraderAnalysis {
@@ -87,6 +89,7 @@ function toCall(r: JournalTrade): CallRow {
     link: typeof raw.link === 'string' ? raw.link : null,
     source: r.broker === 'discord' ? 'discord' : r.broker,
     broker: r.broker,
+    evidence: raw.evidence === 'vision' || raw.evidence === 'text+vision' || raw.evidence === 'text' ? raw.evidence : r.broker === 'discord' ? 'text' : null,
   };
 }
 
