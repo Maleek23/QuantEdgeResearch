@@ -16,7 +16,7 @@ export default function InviteWelcome() {
 
   const handleAcceptInvite = () => {
     if (inviteCode) {
-      navigate(`/join-beta?code=${inviteCode}`);
+      navigate(`/join-beta?code=${encodeURIComponent(inviteCode)}`);
     } else {
       navigate("/join-beta");
     }
@@ -39,14 +39,8 @@ export default function InviteWelcome() {
         {/* Logo with subtle glow */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
-              <span className="text-lg font-bold text-white">Q</span>
-            </div>
-            <div>
-              <span className="text-xl font-bold text-white tracking-tight">QUANT EDGE</span>
-              <span className="text-neutral-600 mx-2">|</span>
-              <span className="text-sm font-medium text-neutral-500 tracking-widest">LABS</span>
-            </div>
+            <img src="/favicon.svg" alt="" width={40} height={40} className="w-10 h-10" />
+            <span className="text-xl font-bold text-white tracking-tight">QuantEdge</span>
           </div>
         </div>
 
@@ -59,13 +53,13 @@ export default function InviteWelcome() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium mb-4">
               <Sparkles className="w-3 h-3" />
-              Exclusive Beta Access
+              Invite-only beta
             </div>
             <h1 className="text-2xl font-semibold text-white mb-2" data-testid="text-invite-title">
-              You're Invited
+              You’re invited to the QuantEdge beta
             </h1>
             <p className="text-neutral-400 text-sm">
-              Join the beta of our quantitative trading platform.
+              A trading research terminal for stocks, options and crypto — every number carries its evidence and its record.
             </p>
           </div>
 
@@ -87,14 +81,14 @@ export default function InviteWelcome() {
             className="w-full h-12 bg-sky-500 hover:bg-sky-400 text-black font-semibold rounded-xl shadow-lg shadow-sky-500/20 transition-all hover:shadow-sky-500/30"
             data-testid="button-accept-invite"
           >
-            Accept Invitation
+            Accept invite
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
 
         {/* Footer */}
         <p className="text-center text-neutral-600 text-xs mt-6">
-          For educational and research purposes only.
+          Educational research tool — not investment advice.
         </p>
       </div>
     </div>

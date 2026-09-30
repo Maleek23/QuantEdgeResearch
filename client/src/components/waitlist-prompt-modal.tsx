@@ -29,7 +29,7 @@ interface WaitlistPromptModalProps {
 export function WaitlistPromptModal({
   open,
   onClose,
-  title = "Join the Waitlist",
+  title = "Join the QuantEdge beta",
   description = "QuantEdge is a trading research terminal for stocks, options and crypto — every number carries its evidence and its record.",
   returnTo,
 }: WaitlistPromptModalProps) {
@@ -105,9 +105,9 @@ export function WaitlistPromptModal({
             <div className="flex items-start gap-2">
               <Check className="h-4 w-4 text-[var(--trade-bullish)] mt-0.5 flex-shrink-0" />
               <p className="text-xs text-foreground/80">
-                <span className="font-medium text-white">Free to browse!</span>{" "}
-                Create an account to open the terminal, save a watchlist and
-                keep a journal. Apply for beta to unlock everything.
+                <span className="font-medium text-white">Invite-only beta.</span>{" "}
+                Have an invite code? Create your account to open the terminal.
+                No code yet? Join the waitlist on the same page.
               </p>
             </div>
           </div>
@@ -119,7 +119,7 @@ export function WaitlistPromptModal({
               size="lg"
               onClick={handleSignup}
             >
-              Create Free Account
+              Join the beta
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
 

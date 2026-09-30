@@ -11,7 +11,7 @@
  */
 import { LANDING_FAQ } from '@shared/landing-faq';
 import { PUBLIC_PAGE_META as M } from '@shared/public-seo';
-import { PLANS } from '../client/src/lib/plans';
+import { PLANS } from '../shared/pricing';
 
 export const SITE_URL = 'https://quantedgelabs.net';
 export const BRAND = 'QuantEdge Labs';
@@ -77,8 +77,8 @@ const websiteSchema = {
   // (ticker search lives inside the signed-in terminal).
 };
 
-// Offers come from the same PLANS table the Pricing section renders; plans
-// marked comingSoon are not offered yet and are left out.
+// Offers come from the same PLANS table the Pricing section renders
+// (shared/pricing.ts); plans marked comingSoon or without a price are left out.
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -90,10 +90,10 @@ const softwareSchema = {
   image: `${SITE_URL}/og-image.png`,
   description: 'A trading research terminal for stocks, options and crypto: dealer positioning (GEX/VEX), options flow and dark pool, evidence-ranked setups, a 0DTE desk, charts, a paper-trading bot and trading journals.',
   publisher: { '@id': ORG_ID },
-  offers: PLANS.filter((p) => !p.comingSoon).map((p) => ({
+  offers: PLANS.filter((p) => !p.comingSoon && p.monthly != null).map((p) => ({
     '@type': 'Offer',
     name: p.name,
-    price: p.monthlyPrice.toFixed(2),
+    price: (p.monthly ?? 0).toFixed(2),
     priceCurrency: 'USD',
     url: `${SITE_URL}/?section=pricing`,
   })),

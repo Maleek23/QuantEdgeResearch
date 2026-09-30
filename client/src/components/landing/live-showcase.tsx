@@ -25,14 +25,14 @@ type Gex = {
 type Idea = { symbol: string; side: string; band: string | null; publishedAt: string; outcome: string | null; percentGain: number | null; assetType: string };
 type Mover = { symbol: string; name: string; price: number; change24h: number };
 type Catalyst = { symbol: string; date: string; estimate: string | null };
-type Bot = {
+export type ShowcaseBot = {
   closed: number; open: number; wins: number; winRate: number | null; minSample: number; netRealizedPnL: number;
   avgWinPct: number | null; avgLossPct: number | null; profitFactor: number | null; since: string | null;
   runLabel: string | null; startingCapital: number | null;
 };
-type Showcase = {
+export type Showcase = {
   builtAt: string; quotes: Section<Quote[]>; gex: Section<Gex>; ideas: Section<Idea[]>;
-  crypto: Section<Mover[]>; catalysts: Section<Catalyst[]>; bot: Section<Bot>;
+  crypto: Section<Mover[]>; catalysts: Section<Catalyst[]>; bot: Section<ShowcaseBot>;
 };
 
 const POLL_MS = 15_000;
@@ -59,6 +59,14 @@ function fmtAge(ms: number): string {
 const fmtDate = (iso: string) => {
   const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+/** Publish stamp: date + 24-hour New York time ("Sep 29 · 10:42 ET"). */
+const fmtStamp = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+  const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' });
+  return `${date} · ${time} ET`;
 };
 const REGIME: Record<string, [string, string]> = {
   positive_gamma: ['Positive gamma', 'Dealers are long gamma — they tend to sell rips and buy dips, damping moves.'],
@@ -96,26 +104,41 @@ function useFlash(value: number | null | undefined) {
   return dir;
 }
 
-function useShowcase(active: boolean) {
-  const [data, setData] = useState<Showcase | null>(null);
-  const [failed, setFailed] = useState(false);
+/* One shared poll for every consumer on the page (the live panels and the
+   landing's record band read the same payload — one request per 15 s, not two). */
+type Store = { data: Showcase | null; failed: boolean };
+let store: Store = { data: null, failed: false };
+const subs = new Set<(s: Store) => void>();
+let timer: ReturnType<typeof setInterval> | null = null;
+async function loadShowcase() {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+  try {
+    const r = await fetch('/api/public/showcase', { credentials: 'omit' });
+    if (!r.ok) throw new Error(String(r.status));
+    store = { data: (await r.json()) as Showcase, failed: false };
+  } catch { store = { ...store, failed: true }; }
+  subs.forEach((f) => f(store));
+}
+
+/** The showcase payload, polled every 15 s while at least one consumer is active. */
+export function useShowcase(active: boolean) {
+  const [s, setS] = useState<Store>(store);
   useEffect(() => {
     if (!active) return;
-    let alive = true;
-    const load = async () => {
-      if (document.visibilityState === 'hidden') return;
-      try {
-        const r = await fetch('/api/public/showcase', { credentials: 'omit' });
-        if (!r.ok) throw new Error(String(r.status));
-        const j = (await r.json()) as Showcase;
-        if (alive) { setData(j); setFailed(false); }
-      } catch { if (alive) setFailed(true); }
+    subs.add(setS);
+    setS(store);
+    if (!timer) { loadShowcase(); timer = setInterval(loadShowcase, POLL_MS); }
+    return () => {
+      subs.delete(setS);
+      if (!subs.size && timer) { clearInterval(timer); timer = null; }
     };
-    load();
-    const id = setInterval(load, POLL_MS);
-    return () => { alive = false; clearInterval(id); };
   }, [active]);
-  return { data, failed };
+  return s;
+}
+
+/** Ask the live panels to show one tab (e.g. from the landing's record band). */
+export function showShowcaseTab(id: string) {
+  window.dispatchEvent(new CustomEvent('qe:showcase-tab', { detail: id }));
 }
 
 function useLiveTicks(active: boolean) {
@@ -138,6 +161,14 @@ function Age({ iso, now, prefix }: { iso: string | null | undefined; now: number
 function Px({ value, sym, className = '' }: { value: number | null | undefined; sym?: string; className?: string }) {
   const flash = useFlash(value);
   return <span className={`sc-px ${className}${flash ? ` flash-${flash}` : ''}`}>{value == null ? '—' : fmtPx(value, sym)}</span>;
+}
+
+function Skel({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="sc-skel" aria-hidden="true">
+      {Array.from({ length: rows }, (_, i) => <i key={i} />)}
+    </div>
+  );
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
@@ -190,9 +221,9 @@ function GexBars({ g }: { g: Gex }) {
 }
 
 // ── panels ──────────────────────────────────────────────────────────────
-type PanelProps = { d: Showcase | null; now: number; quotes: Record<string, Quote & { live?: boolean }> };
+type PanelProps = { d: Showcase | null; now: number; quotes: Record<string, Quote & { live?: boolean }>; loading: boolean };
 
-function TodayPanel({ d, now, quotes }: PanelProps) {
+function TodayPanel({ d, now, quotes, loading }: PanelProps) {
   const g = d?.gex.data;
   const reg = g?.regime ? REGIME[g.regime] : null;
   return (
@@ -222,14 +253,14 @@ function TodayPanel({ d, now, quotes }: PanelProps) {
             </dl>
             <Age iso={d?.gex.asOf} now={now} prefix={`GEX${g.source ? ` · ${g.source}` : ''}${g.delayedFeed ? ' · delayed chain' : ''}`} />
           </>
-        ) : <Empty>SPY dealer levels are computing — they appear here once the options chain is read.</Empty>}
+        ) : loading ? <Skel /> : <Empty>SPY dealer levels are computing — they appear here once the options chain is read.</Empty>}
       </div>
       <PanelFoot href="/today" label="Today" />
     </>
   );
 }
 
-function NexusPanel({ d, now }: PanelProps) {
+function NexusPanel({ d, now, loading }: PanelProps) {
   const ideas = d?.ideas.data ?? [];
   return (
     <>
@@ -243,20 +274,20 @@ function NexusPanel({ d, now }: PanelProps) {
                 <b className="sym">{i.symbol}</b>
                 <span className={`side ${i.side === 'short' ? 'down' : 'up'}`}>{i.side === 'short' ? 'SHORT' : 'LONG'}</span>
                 <span className="band" title="Conviction band at publish">{i.band ? `Band ${i.band}` : 'Unbanded'}</span>
-                <span className="when">{fmtDate(i.publishedAt)}</span>
+                <time className="when" dateTime={i.publishedAt} title="Published">{fmtStamp(i.publishedAt)}</time>
                 <span className={`out ${o ? o[1] : 'open'}`}>{o ? `${o[0]}${i.percentGain != null ? ` ${fmtPct(i.percentGain, 1)}` : ''}` : 'Still open'}</span>
               </li>
             );
           })}
         </ul>
-      ) : <Empty>No delayed ideas to show yet.</Empty>}
+      ) : loading ? <Skel /> : <Empty>No delayed ideas to show yet.</Empty>}
       <Age iso={d?.ideas.asOf} now={now} prefix="Checked" />
       <PanelFoot href="/t" label="NEXUS" />
     </>
   );
 }
 
-function GexPanel({ d, now }: PanelProps) {
+function GexPanel({ d, now, loading }: PanelProps) {
   const g = d?.gex.data;
   return (
     <>
@@ -275,13 +306,13 @@ function GexPanel({ d, now }: PanelProps) {
           </div>
           <Age iso={d?.gex.asOf} now={now} prefix={`${g.source ?? 'chain'}${g.delayedFeed ? ' · delayed chain' : ''}`} />
         </>
-      ) : <Empty>The SPY gamma profile is computing — it appears here once the options chain is read.</Empty>}
+      ) : loading ? <Skel /> : <Empty>The SPY gamma profile is computing — it appears here once the options chain is read.</Empty>}
       <PanelFoot href="/t?tab=gex" label="GEX" />
     </>
   );
 }
 
-function CryptoPanel({ d, now, quotes }: PanelProps) {
+function CryptoPanel({ d, now, quotes, loading }: PanelProps) {
   const movers = d?.crypto.data ?? [];
   const btc = quotes.BTC;
   return (
@@ -297,14 +328,14 @@ function CryptoPanel({ d, now, quotes }: PanelProps) {
             </li>
           ))}
         </ul>
-      ) : <Empty>Crypto movers unavailable right now.</Empty>}
+      ) : loading ? <Skel /> : <Empty>Crypto movers unavailable right now.</Empty>}
       <Age iso={d?.crypto.asOf} now={now} prefix="24h change" />
       <PanelFoot href="/t?tab=crypto" label="Crypto" />
     </>
   );
 }
 
-function CatalystsPanel({ d, now }: PanelProps) {
+function CatalystsPanel({ d, now, loading }: PanelProps) {
   const cats = d?.catalysts.data ?? [];
   return (
     <>
@@ -320,14 +351,14 @@ function CatalystsPanel({ d, now }: PanelProps) {
             </li>
           ))}
         </ul>
-      ) : <Empty>No upcoming earnings in the calendar right now.</Empty>}
+      ) : loading ? <Skel /> : <Empty>No upcoming earnings in the calendar right now.</Empty>}
       <Age iso={d?.catalysts.asOf} now={now} prefix="Calendar" />
       <PanelFoot href="/t?tab=catalyst" label="Catalysts" />
     </>
   );
 }
 
-function BotPanel({ d, now }: PanelProps) {
+function BotPanel({ d, now, loading }: PanelProps) {
   const b = d?.bot.data;
   return (
     <>
@@ -343,14 +374,14 @@ function BotPanel({ d, now }: PanelProps) {
           {b.winRate == null && <p className="sc-fine">Win rate is shown once the run has {b.minSample} closed trades (n = {b.closed}) — smaller samples mislead.</p>}
           {b.runLabel && <p className="sc-fine">{b.runLabel}</p>}
         </>
-      ) : <Empty>The bot record is unavailable right now.</Empty>}
+      ) : loading ? <Skel /> : <Empty>The bot record is unavailable right now.</Empty>}
       <Age iso={d?.bot.asOf} now={now} prefix="Ledger" />
       <PanelFoot href="/t?tab=bot" label="Quantinum Bot" />
     </>
   );
 }
 
-function JournalPanel({ d, now }: PanelProps) {
+function JournalPanel({ d, now, loading }: PanelProps) {
   const b = d?.bot.data;
   return (
     <>
@@ -362,7 +393,7 @@ function JournalPanel({ d, now }: PanelProps) {
           <div><dt>Avg win · loss</dt><dd>{b.avgWinPct != null ? `${fmtPct(b.avgWinPct, 1)} · ${fmtPct(b.avgLossPct, 1)}` : '—'}</dd></div>
           <div><dt>Profit factor</dt><dd>{b.profitFactor != null ? b.profitFactor.toFixed(2) : '—'}</dd></div>
         </dl>
-      ) : <Empty>The bot book is unavailable right now.</Empty>}
+      ) : loading ? <Skel /> : <Empty>The bot book is unavailable right now.</Empty>}
       {b && b.closed < b.minSample && <p className="sc-fine">Ratios appear at n ≥ {b.minSample} closed trades (n = {b.closed}).</p>}
       <Age iso={d?.bot.asOf} now={now} prefix="Paper book" />
       <PanelFoot href="/t?tab=journal" label="Journal" />
@@ -415,8 +446,21 @@ export default function LiveShowcase() {
   const goTo = (i: number) => {
     const track = trackRef.current;
     setActive(i);
-    if (track) track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (track) track.scrollTo({ left: i * track.clientWidth, behavior: reduce ? 'auto' : 'smooth' });
   };
+  // showShowcaseTab(id) from elsewhere on the page selects a panel and brings it into view.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const i = PANELS.findIndex((p) => p.id === (e as CustomEvent<string>).detail);
+      if (i < 0) return;
+      goTo(i);
+      rootRef.current?.scrollIntoView({ block: 'start' });
+    };
+    window.addEventListener('qe:showcase-tab', on);
+    return () => window.removeEventListener('qe:showcase-tab', on);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const onScroll = () => {
     const track = trackRef.current;
     if (!track || !track.clientWidth) return;
@@ -450,7 +494,7 @@ export default function LiveShowcase() {
             <section key={id} className="sc-panel" id={`sc-panel-${id}`} role="tabpanel" aria-labelledby={`sc-tab-${id}`}
               aria-hidden={active !== i} {...(active !== i ? { inert: '' as any } : {})}>
               <h3 className="sc-title">{title}</h3>
-              <C d={data} now={now} quotes={quotes} />
+              <C d={data} now={now} quotes={quotes} loading={!data && !failed} />
             </section>
           ))}
         </div>

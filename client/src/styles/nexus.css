@@ -3290,3 +3290,191 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 @media (max-width:767px){.nxp-dir{font-size:12px}}
 .nxp-times{margin:6px 0 2px;font-size:12px;color:var(--text-dim,#8a93a6);font-variant-numeric:tabular-nums}
 .nxp-times strong{color:var(--text,#e8ecf3);font-weight:600}
+
+/* ═══════════════════════ LANDING v4 — home page pass (2026-09-30) ═══════════════════════
+   docs/HOME_AUDIT_2026-09-30.md. Order: hero (what/who + CTAs + the live panels as the
+   product visual) → what you get → how it's different → track record → pricing →
+   community → FAQ → CTA → footer. Phone (≤ 640px): 16px gutters, h1 ≤ 28px, h2 22px,
+   sections 56px apart, every control ≥ 44px, no horizontal page scroll. The auth pages
+   (/signup, join-beta success) reuse these tokens under .landing.lp.auth-page. */
+.landing.lp .lp-skip{position:absolute;left:-9999px;top:8px;z-index:200;padding:10px 16px;border-radius:8px;background:var(--panel-solid);color:var(--text);border:1px solid var(--cyan)}
+.landing.lp .lp-skip:focus{left:16px}
+.landing.lp .brand{color:inherit;text-decoration:none;min-height:44px}
+.landing.lp .lnav-link{min-height:44px}
+.landing.lp :focus-visible{outline:2px solid var(--cyan-bright);outline-offset:2px}
+.landing.lp .lp-sec{padding:96px 0 0;scroll-margin-top:72px}
+.landing.lp .lp-lede{margin-left:auto;margin-right:auto}
+
+/* hero */
+.landing.lp .lp-hero{padding:120px 0 0;scroll-margin-top:72px}
+.landing.lp .lp-hero-copy{max-width:820px}
+.landing.lp .lp-h1{font-size:clamp(28px,calc(16px + 2.6vw),52px);line-height:1.1}
+.landing.lp .lp-h1 .grad{white-space:normal}
+.landing.lp .lp-sub{max-width:640px;margin-bottom:28px}
+.landing.lp .lp-ctas .btn{min-height:48px}
+.landing.lp .lp-ctas .btn svg{flex:0 0 auto}
+.landing.lp .lp-hero-note{margin:16px 0 0;font:500 13px/1.5 'JetBrains Mono',ui-monospace,monospace;color:var(--text-mute)}
+.landing.lp .lp-hero-live{margin-top:48px;scroll-margin-top:72px}
+.landing.lp .lp-live-cap{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 14px;font-size:14px;color:var(--text-dim);text-align:center}
+.landing.lp .lp-hero-live .sc{margin-top:0}
+.landing.lp .sc-tab{min-height:44px}
+.landing.lp .lp-bill button{min-height:44px}
+.landing.lp .sc-skel{display:flex;flex-direction:column;gap:10px}
+.landing.lp .sc-skel i{display:block;height:48px;border-radius:10px;background:linear-gradient(90deg,var(--panel-2),rgba(255,255,255,0.05),var(--panel-2));background-size:200% 100%;animation:lp-shimmer 1.4s linear infinite}
+@keyframes lp-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+
+/* what you get */
+.landing.lp .lp-feats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:36px}
+.landing.lp .lp-feat{display:flex;flex-direction:column;gap:8px;padding:22px 22px 14px;border:1px solid var(--nx-border);border-radius:14px;background:linear-gradient(160deg,var(--panel-solid),var(--panel-2))}
+.landing.lp .lp-feat-tag{margin:0;font:700 12px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.08em;color:var(--cyan-bright)}
+.landing.lp .lp-feat-title{margin:0;font:700 20px/1.25 'Space Grotesk',sans-serif}
+.landing.lp .lp-feat-line{margin:0;font-size:15px;line-height:1.55;color:var(--text-dim)}
+.landing.lp .lp-feat-points{margin:2px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;flex:1}
+.landing.lp .lp-feat-points li{position:relative;padding-left:16px;font-size:14px;line-height:1.5;color:var(--text-dim)}
+.landing.lp .lp-feat-points li::before{content:'';position:absolute;left:2px;top:.62em;width:6px;height:6px;border-radius:2px;background:var(--cyan)}
+.landing.lp .lp-link{background:none;border:0;padding:0;cursor:pointer;font-family:inherit;text-align:left}
+
+/* how it's different */
+.landing.lp .lp-diff{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:36px}
+.landing.lp .lp-diff-item{padding:22px 24px;border:1px solid var(--nx-border);border-left:3px solid var(--cyan);border-radius:12px;background:var(--panel-solid)}
+.landing.lp .lp-diff-item h3{margin:0 0 8px;font:700 18px/1.3 'Space Grotesk',sans-serif}
+.landing.lp .lp-diff-item p{margin:0;font-size:15px;line-height:1.6;color:var(--text-dim)}
+
+/* track record */
+.landing.lp .lp-record-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:36px}
+.landing.lp .lp-record-card{display:flex;flex-direction:column;gap:10px;padding:22px 24px 12px;border:1px solid var(--nx-border-hi);border-radius:14px;background:linear-gradient(160deg,var(--panel-solid),var(--panel-2))}
+.landing.lp .lp-record-k{margin:0;font:600 12px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan-bright)}
+.landing.lp .lp-record-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
+.landing.lp .lp-record-stats div{padding:10px 12px;border-radius:8px;border:1px solid var(--nx-border);background:rgba(255,255,255,0.02)}
+.landing.lp .lp-record-stats dt{font-size:12px;color:var(--text-mute);margin-bottom:4px}
+.landing.lp .lp-record-stats dd{margin:0;font:600 20px 'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.landing.lp .lp-record-empty{margin:0;padding:18px;border:1px dashed var(--nx-border-hi);border-radius:10px;color:var(--text-dim);font-size:15px;text-align:center}
+.landing.lp .lp-record-fine{margin:0;font-size:13px;line-height:1.5;color:var(--text-mute)}
+.landing.lp .lp-record-age{margin:0;font:500 12px 'JetBrains Mono',ui-monospace,monospace;color:var(--text-mute)}
+.landing.lp .lp-record-more{margin:16px 0 0;text-align:center;font-size:14px;color:var(--text-dim)}
+.landing.lp .lp-record-more a{color:var(--cyan-bright)}
+
+/* community */
+.landing.lp .lp-community{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:32px 36px;border:1px solid var(--nx-border-hi);border-radius:16px;background:radial-gradient(ellipse at 10% 0%,rgba(88,101,242,0.16),transparent 60%),linear-gradient(135deg,var(--panel-solid),var(--panel-2))}
+.landing.lp .lp-community .lp-lede{margin:12px 0 0;max-width:560px}
+.landing.lp .lp-community .btn{flex:0 0 auto}
+
+/* faq / cta / footer */
+.landing.lp .faq-item.open .faq-a{max-height:none}
+.landing.lp .lp-cta{padding:96px 0 80px}
+.landing.lp .lfooter-legal{margin-top:-8px}
+.landing.lp .lfooter-bottom .disclaimer{margin:0;font-style:normal;font-size:13px;line-height:1.55}
+
+@media (max-width:960px){
+  .landing.lp .lp-feats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .landing.lp .lp-community{flex-direction:column;align-items:flex-start}
+}
+@media (max-width:760px){
+  .landing.lp .lnav-inner .btn{padding:0 12px;font-size:14px}
+}
+@media (max-width:640px){
+  .landing.lp .lp-sec{padding-top:56px}
+  .landing.lp .lp-hero{padding:80px 0 0}
+  .landing.lp .lp-eyebrow{font-size:11px;letter-spacing:.06em;margin-bottom:10px}
+  .landing.lp .lp-h1{font-size:clamp(24px,calc(12px + 4.2vw),28px);line-height:1.18;margin-bottom:12px}
+  .landing.lp .lp-sub{font-size:16px;line-height:1.5;margin-bottom:20px}
+  .landing.lp .lp-ctas{flex-direction:row;flex-wrap:wrap;gap:8px}
+  .landing.lp .lp-ctas .btn{flex:1 1 140px;height:48px;padding:0 14px;font-size:15px}
+  .landing.lp .lp-ctas .btn-primary{flex-basis:100%}
+  .landing.lp .lp-hero-note{font-size:12px;margin-top:12px}
+  .landing.lp .lp-hero-live{margin-top:28px}
+  .landing.lp .lp-live-cap{font-size:13px;justify-content:flex-start;text-align:left}
+  .landing.lp .lp-h2{font-size:22px}
+  .landing.lp .lp-lede{font-size:15px;margin-top:10px}
+  .landing.lp .lp-feats,.landing.lp .lp-diff,.landing.lp .lp-record-grid{grid-template-columns:1fr;gap:10px;margin-top:20px}
+  .landing.lp .lp-feat{padding:16px 16px 6px;gap:6px}
+  .landing.lp .lp-feat-title{font-size:18px}
+  .landing.lp .lp-diff-item{padding:16px}
+  .landing.lp .lp-diff-item h3{font-size:17px}
+  .landing.lp .lp-record-card{padding:16px 16px 6px}
+  .landing.lp .lp-record-stats dd{font-size:18px}
+  .landing.lp .lp-record-stats div{padding:8px 10px}
+  .landing.lp .lp-community{padding:22px 18px}
+  .landing.lp .lp-community .btn{width:100%;justify-content:center}
+  /* plans: one swipe row instead of three full-height cards stacked (was ~2,300px) */
+  .landing.lp .lp-plans{display:flex;grid-template-columns:none;max-width:none;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin:24px -16px 0;padding:14px 16px 8px;scrollbar-width:none}
+  .landing.lp .lp-plans::-webkit-scrollbar{display:none}
+  .landing.lp .lp-plan{flex:0 0 86%;scroll-snap-align:center}
+  .landing.lp .lp-plan-feats{gap:8px}
+  .landing.lp .lp-plan-feats li{font-size:14px}
+  .landing.lp .lp-cta{padding:56px 0 48px}
+  .landing.lp .lfooter-links{gap:0 16px}
+}
+@media (prefers-reduced-motion:reduce){
+  .landing.lp .sc-skel i{animation:none}
+  .landing.lp .btn-primary:hover{transform:none}
+}
+
+/* auth pages — /signup and the join-beta success screen, in the landing's graphic style */
+.landing.lp.auth-page .lnav{position:sticky}
+.landing.lp .auth-wrap{max-width:520px;margin:0 auto;padding:40px 24px 64px}
+.landing.lp .auth-card{padding:28px 28px 24px;border:1px solid var(--nx-border-hi);border-radius:16px;background:linear-gradient(160deg,var(--panel-solid),var(--panel-2));box-shadow:0 30px 80px rgba(0,0,0,0.45)}
+.landing.lp .auth-h1{margin:0;font:700 28px/1.2 'Space Grotesk',sans-serif;letter-spacing:-0.02em}
+.landing.lp .auth-sub{margin:10px 0 0;font-size:15px;line-height:1.55;color:var(--text-dim)}
+.landing.lp .auth-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:20px 0 0;padding:4px;border:1px solid var(--nx-border-hi);border-radius:12px;background:var(--panel-2)}
+.landing.lp .auth-seg button{min-height:44px;border:0;border-radius:9px;background:none;color:var(--text-dim);font:600 14px 'Inter',sans-serif;cursor:pointer}
+.landing.lp .auth-seg button[aria-pressed="true"]{background:rgba(59,140,255,0.16);color:var(--text)}
+.landing.lp .auth-form{display:flex;flex-direction:column;gap:16px;margin-top:20px}
+.landing.lp .auth-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.landing.lp .auth-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.landing.lp .auth-field label{font-size:14px;font-weight:600;color:var(--text)}
+.landing.lp .auth-field label .opt{font-weight:400;color:var(--text-mute)}
+.landing.lp .auth-input{width:100%;min-height:48px;padding:0 14px;border:1px solid var(--nx-border-hi);border-radius:10px;background:rgba(0,0,0,0.25);color:var(--text);font:400 16px/1.2 'Inter',sans-serif}
+.landing.lp .auth-input::placeholder{color:var(--text-mute)}
+.landing.lp .auth-input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(59,140,255,0.25)}
+.landing.lp .auth-input[aria-invalid="true"]{border-color:var(--red)}
+.landing.lp .auth-input.mono{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:.04em}
+.landing.lp .auth-pw{position:relative}
+.landing.lp .auth-pw .auth-input{padding-right:52px}
+.landing.lp .auth-eye{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:8px;background:none;color:var(--text-dim);cursor:pointer}
+.landing.lp .auth-eye:hover{color:var(--text)}
+.landing.lp .auth-help{margin:0;font-size:13px;line-height:1.5;color:var(--text-mute)}
+.landing.lp .auth-help a,.landing.lp .auth-help button{color:var(--cyan-bright)}
+.landing.lp .auth-err{margin:0;font-size:13px;line-height:1.4;color:var(--red)}
+.landing.lp .auth-rules{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--text-mute)}
+.landing.lp .auth-rules li{display:inline-flex;align-items:center;gap:6px}
+.landing.lp .auth-rules li.ok{color:var(--green)}
+.landing.lp .auth-alert{margin:0;padding:12px 14px;border:1px solid rgba(255,107,61,0.4);border-radius:10px;background:rgba(255,107,61,0.08);color:var(--text);font-size:14px;line-height:1.5}
+.landing.lp .auth-alert.ok{border-color:rgba(110,231,183,0.4);background:rgba(110,231,183,0.08)}
+.landing.lp .auth-submit{width:100%;justify-content:center;min-height:48px}
+.landing.lp .auth-submit[disabled]{opacity:.65;cursor:default;transform:none}
+.landing.lp .auth-or{display:flex;align-items:center;gap:12px;margin:20px 0 14px;font-size:12px;color:var(--text-mute);text-transform:uppercase;letter-spacing:.06em}
+.landing.lp .auth-or::before,.landing.lp .auth-or::after{content:'';flex:1;height:1px;background:var(--nx-border)}
+.landing.lp .auth-google{width:100%;justify-content:center;min-height:48px}
+.landing.lp .auth-fine{margin:16px 0 0;font-size:12px;line-height:1.55;color:var(--text-mute)}
+.landing.lp .auth-fine a,.landing.lp .auth-switch a{color:var(--cyan-bright)}
+.landing.lp .auth-switch{margin:18px 0 0;text-align:center;font-size:14px;color:var(--text-dim)}
+.landing.lp .auth-steps{list-style:none;counter-reset:step;margin:20px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.landing.lp .auth-step{counter-increment:step;display:grid;grid-template-columns:32px 1fr;gap:4px 12px;align-items:start;padding:14px 16px;border:1px solid var(--nx-border);border-radius:12px;background:rgba(255,255,255,0.02)}
+.landing.lp .auth-step::before{content:counter(step);grid-row:span 3;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:rgba(59,140,255,0.16);color:var(--cyan-bright);font:700 13px 'JetBrains Mono',monospace}
+.landing.lp .auth-step h2{margin:0;font:700 16px/1.3 'Space Grotesk',sans-serif}
+.landing.lp .auth-step p{margin:0;font-size:14px;line-height:1.5;color:var(--text-dim)}
+.landing.lp .auth-step .lp-link{min-height:44px;font-size:14px}
+@media (max-width:640px){
+  .landing.lp .auth-wrap{padding:20px 16px 48px}
+  .landing.lp .auth-card{padding:20px 16px 18px;border-radius:14px}
+  .landing.lp .auth-h1{font-size:24px}
+  .landing.lp .auth-row{grid-template-columns:1fr}
+  .landing.lp .auth-seg button{font-size:13px}
+}
+/* v4 tightening after the 375/768 screenshots */
+.landing.lp .brand{min-width:44px}
+@media (min-width:641px) and (max-width:960px){
+  .landing.lp .lp-plans{grid-template-columns:repeat(3,minmax(0,1fr));max-width:none;gap:12px}
+  .landing.lp .lp-plan{padding:26px 16px 18px}
+  .landing.lp .lp-plan-price b{font-size:32px}
+  .landing.lp .lp-plan-feats li{font-size:14px}
+}
+@media (max-width:640px){
+  .landing.lp .lp-feat{padding:14px 14px 4px;gap:4px}
+  .landing.lp .lp-feat-tag{font-size:11px}
+  .landing.lp .lp-feat-title{font-size:17px}
+  .landing.lp .lp-feat-line{font-size:14px;line-height:1.5}
+  .landing.lp .lp-feat-points li{font-size:13px;line-height:1.45}
+  .landing.lp .lp-diff-item p{font-size:14px;line-height:1.55}
+}
