@@ -7,8 +7,10 @@
  * 2026-09-29: drawn in the page template (components/lux/lux-page.tsx).
  */
 import { Link } from 'wouter';
-import { Target, Bitcoin, Home, Wallet, Zap, BookOpen, Microscope, ArrowRight } from 'lucide-react';
+import { Target, Bitcoin, Home, Wallet, Zap, BookOpen, Microscope, ArrowRight, Download } from 'lucide-react';
 import { LuxPage, LuxPageHeader, LuxPanel, LuxTag } from '@/components/lux';
+
+export const GUIDE_PDF = '/guide/QuantEdge-How-To-Use.pdf';
 
 export default function HowToPage() {
   return (
@@ -18,7 +20,13 @@ export default function HowToPage() {
         context="static · read once"
         title="How to use QuantEdge"
         purpose="One terminal, three windows of time, one workflow. Read this once."
-      />
+      >
+        {/* The full illustrated guide (docs/QuantEdge-How-To-Use.pdf, served from client/public/guide). */}
+        <a href={GUIDE_PDF} download className="lx-tag" data-tone="accent" data-testid="link-guide-pdf"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 32, padding: '4px 10px' }}>
+          <Download className="h-3.5 w-3.5" aria-hidden /> Download the full user guide (PDF)
+        </a>
+      </LuxPageHeader>
 
       {/* Daily Workflow */}
       <Section num="01" title="Your daily workflow" subtitle="3 windows of time, 3 things to check">
