@@ -398,6 +398,11 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
         if (!content?.trim()) return res.status(400).json({ error: 'Upload a DiscordChatExporter JSON or CSV file' });
         src = { kind: 'file', content };
       } else {
+        // Only an admin may point the bot at an arbitrary channel: the bot token can
+        // read channels the member cannot, and the preview returns their content.
+        if (channelId && !actor.isAdmin && channelId !== j.trader?.discordChannelId) {
+          return res.status(403).json({ error: `Only an admin can read a channel other than ${j.label}'s configured Discord channel` });
+        }
         const id = channelId || j.trader?.discordChannelId;
         if (!id) return res.status(400).json({ error: `No channel id — enter one, or set ${j.label}'s Discord channel` });
         src = { kind: 'bot', channelId: id };

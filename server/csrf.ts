@@ -65,15 +65,10 @@ export function validateCSRF(req: Request, res: Response, next: NextFunction) {
     return next();
   }
 
-  // Exempt executor and Alpaca trading routes (internal auto-trading system)
-  if (req.path.startsWith('/api/executor/') || req.path.startsWith('/api/alpaca/')) {
-    return next();
-  }
-
-  // Exempt portfolio routes (internal monitoring system)
-  if (req.path.startsWith('/api/portfolio/')) {
-    return next();
-  }
+  // (The /api/executor/, /api/alpaca/ and /api/portfolio/ exemptions were removed
+  // in the 2026-09-30 security review: those routes now require the operator
+  // (server/route-guards.ts), and a cookie-authenticated order route must carry
+  // the CSRF token like every other write.)
 
   // Exempt GEX scanner + history archive routes (internal scanner system)
   if (req.path.startsWith('/api/gex-scanner/') || req.path.startsWith('/api/gex-history/')) {

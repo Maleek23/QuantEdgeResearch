@@ -64,7 +64,7 @@ For high-volume validations, the system uses the fastest available provider:
 2. **Add them to your `.env` file**:
 ```bash
 # Free LLM Providers
-GEMINI_API_KEY=AIzaSyCK7eYuhHQ0skD-4TKQE1DLU2yAy_5D0gA  # ✅ Already configured
+GEMINI_API_KEY=your_key_here                           # Get from aistudio.google.com (a real key was committed here once — rotated? see docs/SECURITY_REVIEW_2026-09-30.md)
 GROQ_API_KEY=gsk_your_key_here                         # Get from groq.com
 TOGETHER_API_KEY=your_key_here                          # Get from together.ai
 MISTRAL_API_KEY=your_key_here                           # Get from console.mistral.ai
