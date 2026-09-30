@@ -29,7 +29,12 @@ export interface EarningsEvent {
 }
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-let _cache: { at: number; events: EarningsEvent[] } | null = null;
+// `days` is the horizon the cache covers. Before 2026-09-29 the cache ignored
+// it: whichever caller warmed it first (Quantinum's 14 days, read-throughs'
+// 30, the board's 21) fixed the horizon for everyone else for six hours, so
+// the same name could show an earnings date on one surface and "none" on
+// another. Now a wider request refetches and a narrower one is filtered.
+let _cache: { at: number; days: number; events: EarningsEvent[] } | null = null;
 
 function parseSession(t: string | null | undefined): 'pre' | 'post' | null {
   const s = String(t ?? '').toLowerCase();
@@ -86,7 +91,9 @@ async function fetchDay(date: string): Promise<EarningsEvent[]> {
  * fewer request against a source we do not want to hammer.
  */
 export async function getUpcomingEarnings(days = 21, force = false): Promise<EarningsEvent[]> {
-  if (!force && _cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.events;
+  if (!force && _cache && _cache.days >= days && Date.now() - _cache.at < CACHE_TTL_MS) {
+    return _cache.events.filter((e) => e.daysAway <= days);
+  }
 
   const out: EarningsEvent[] = [];
   for (let i = 0; i <= days; i++) {
@@ -100,7 +107,7 @@ export async function getUpcomingEarnings(days = 21, force = false): Promise<Ear
     }
   }
 
-  _cache = { at: Date.now(), events: out };
+  _cache = { at: Date.now(), days, events: out };
   logger.info(`[EARNINGS] ${out.length} upcoming reports across ${days} days`);
   return out;
 }

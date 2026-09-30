@@ -5704,7 +5704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         symbolList.map((symbol) => ({ symbol, assetType: 'stock' as RTAssetType }))
       );
 
-      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number; asOf: string }> = {};
+      const quotes: Record<string, { symbol: string; price: number; change: number; changePercent: number; volume: number; asOf: string; source: string | null; delayed: boolean }> = {};
       for (const symbol of symbolList) {
         const q = quotesMap.get(symbol);
         if (q && q.price) {
@@ -5717,6 +5717,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Source timestamp, not API-response time. The client can therefore
             // show an honest stale marker when Yahoo has not printed a new tick.
             asOf: q.lastUpdate.toISOString(),
+            // Provider that produced the mark — the ticker page prints it
+            // beside the price so "live" is attributable, not asserted.
+            source: q.source ?? null,
+            delayed: q.delayed === true,
           };
         }
       }
@@ -15075,9 +15079,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startMs = Date.parse(`${sessionStart}T00:00:00.000Z`);
       const hoursBack = Math.ceil((now.getTime() - startMs) / 3_600_000) + 24;
       const rows = await storage.getRecentTradeIdeas(hoursBack, 2_000);
+      // Optional ?symbol= — the ticker page's per-name track record. Filtered
+      // before the row cap so a busy book cannot crowd one name out.
+      const symbolFilter = typeof req.query.symbol === 'string' ? req.query.symbol.trim().toUpperCase() : '';
       const ledger = rows
         .filter((i: any) => {
           if (i.status !== 'published') return false;
+          if (symbolFilter && String(i.symbol ?? '').toUpperCase() !== symbolFilter) return false;
           const at = i.generationTimestamp ?? i.timestamp;
           if (!at) return false;
           const date = new Date(at).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });

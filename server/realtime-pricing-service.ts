@@ -64,6 +64,7 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
         volume: quote.volume,
         lastUpdate: new Date(),
         assetType: 'stock',
+        source: 'tradier',
       };
     }
   }
@@ -85,6 +86,7 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
       volume: yq.volume,
       lastUpdate: new Date(yq.at),
       assetType: 'stock',
+      source: 'yahoo',
     };
   }
 
@@ -120,6 +122,7 @@ async function fetchStockQuote(symbol: string): Promise<RealtimeQuote | null> {
       volume: marketData.volume,
       lastUpdate: new Date(),
       assetType: 'stock',
+      source: 'legacy multi-source',
     };
   }
 
@@ -153,6 +156,8 @@ async function fetchIndexQuote(symbol: string): Promise<RealtimeQuote | null> {
       volume: 0,
       lastUpdate: new Date(),
       assetType: 'stock',
+      source: 'cboe',
+      delayed: true,
     };
   } catch {
     return null;
