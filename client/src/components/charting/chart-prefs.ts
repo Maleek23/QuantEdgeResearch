@@ -24,7 +24,9 @@ import { TF_CONFIG } from '@/components/charting/chart-engine';
 
 export type GexMode = 'bubbles' | 'lines' | 'off';
 export type RangeKey = '1D' | '5D' | 'ALL';
-export type ChartType = 'candles' | 'line';
+export type ChartType = 'candles' | 'bars' | 'line' | 'area';
+/** Right price scale: linear, logarithmic, or percent from the first visible bar. */
+export type ScaleMode = 'normal' | 'log' | 'pct';
 export type TfKey = keyof typeof TF_CONFIG;
 
 export interface ChartPrefs {
@@ -41,6 +43,13 @@ export interface ChartPrefs {
   walls: boolean;
   /** Full chart: the watchlist side panel. */
   watchlist: boolean;
+  /** Full chart (TradingView-style): price scale mode. */
+  scale: ScaleMode;
+  /** Full chart: magnet — crosshair and drawing anchors snap to O/H/L/C. */
+  magnet: boolean;
+  /** Full chart: volume histogram at the foot of the price pane (TV default on;
+   *  independent of the compact embeds' `volume` pane). */
+  fullVolume: boolean;
 }
 
 /** The overlay/indicator subset a caller may pin for one embed. */
@@ -50,7 +59,7 @@ export const CHART_PREFS_KEY = 'qe-chart-v2';
 const LEGACY_KEY = 'qe-flowchart-v1';
 export const DEFAULT_CHART_PREFS: ChartPrefs = {
   tf: '5m', range: '1D', extended: true, gex: 'off', dp: false, flow: false, ma: false, volume: false, type: 'candles',
-  walls: true, watchlist: false,
+  walls: true, watchlist: false, scale: 'normal', magnet: false, fullVolume: true,
 };
 
 function read(): ChartPrefs {
@@ -67,7 +76,8 @@ function read(): ChartPrefs {
         ...DEFAULT_CHART_PREFS,
         ...raw,
         tf: TF_CONFIG[raw.tf] ? raw.tf : DEFAULT_CHART_PREFS.tf,
-        type: raw.type === 'line' ? 'line' : 'candles',
+        type: (['candles', 'bars', 'line', 'area'] as const).includes(raw.type) ? raw.type : 'candles',
+        scale: raw.scale === 'log' || raw.scale === 'pct' ? raw.scale : 'normal',
       };
     }
   } catch { /* storage unavailable — defaults */ }

@@ -25,15 +25,17 @@
  * Off-screen charts pause: no live subscription, no history or overlay refetch
  * (IntersectionObserver). Hidden tabs already stop polling in the bus.
  *
- * One engine underneath: NexusPriceChart (chart-engine drawChart) with the
- * layers passed through its underlay/overlay hooks — no second chart library,
- * no DOM node per bubble. The GEX timeline only exists from when the server
+ * Two renderers, one data layer (chart-layers.ts): the compact embed is
+ * NexusPriceChart (chart-engine drawChart) with the layers passed through its
+ * underlay/overlay hooks; the full variant is the TradingView-style chart on
+ * lightweight-charts v5 (tv/tv-chart.tsx) with the same layers as series
+ * primitives, drawing tools, log/percent scales and keyboard shortcuts. No DOM
+ * node per bubble in either. The GEX timeline only exists from when the server
  * started recording it; the chart shows that start rather than inventing the
  * missing morning.
  */
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useStockContext } from '@/contexts/stock-context';
 import { NexusPriceChart } from '@/components/charting/nexus-price-chart';
@@ -43,83 +45,23 @@ import {
 } from '@/components/charting/chart-engine';
 import {
   useChartPrefs, setChartPref,
-  type ChartPrefs, type ChartOverlayPrefs, type GexMode, type RangeKey, type TfKey,
+  type ChartPrefs, type ChartOverlayPrefs, type TfKey,
 } from '@/components/charting/chart-prefs';
-import { subscribeLivePrice, type LiveTick } from '@/lib/live-price-bus';
-import { fmtAge } from '@/components/gex/gex-colors';
-import { TerminalTickerSearch } from '@/components/terminal/terminal-ticker-search';
-import type { TerminalData } from '@/components/gex/gex-model';
+import {
+  overlaysSupported, useInView, useLiveLast, useDealerMap, useChartOverlays,
+  etInfo, etClock, shortDate, fmtUsd, ageOf,
+  type DpLevel, type FlowPrint,
+} from '@/components/charting/chart-layers';
 import '@/styles/nexus.css';
 
-/* The watchlist panel is opt-in on the full chart; embeds never load it. */
-const LazyWatchlist = lazy(() => import('@/components/charting/chart-lab-nexus').then((m) => ({ default: m.ChartLabWatchlist })));
+/* The full variant is the TradingView-style chart (tv/tv-chart.tsx) on
+   lightweight-charts; loaded on demand so compact embeds never pay for it. */
+const LazyTvChart = lazy(() => import('@/components/charting/tv/tv-chart').then((m) => ({ default: m.TvChart })));
 
-/* ─────────────────────────────── types ─────────────────────────────── */
-
-interface FlowPrint {
-  time: number; optionType: 'call' | 'put'; strike: number; expiry: string;
-  contract: string; premium: number; fillPrice: number; contracts: number | null;
-  alertNames: string[]; side: null;
-}
-interface DpLevel { price: number; notional: number; prints: number; date: string | null; firstDate: string | null }
-interface OverlayPayload {
-  symbol: string; range: string; dates: string[]; generatedAt: string;
-  gexNow: null | { net: number; spot: number | null; topStrikes: { strike: number; gex: number }[]; asOf: string; ageSec: number | null; source: string };
-  gexTimeline: {
-    sampleEveryMin: number; recordingSince: string | null; asOf: string | null; ageSec: number | null;
-    sources: string[]; note: string; watched: boolean;
-    samples: { t: number; spot: number | null; net: number; source: string }[];
-    series: { strike: number; points: [number, number][] }[];
-  };
-  darkPool: {
-    source: string; asOf: string | null; ageSec: number | null; stale: boolean;
-    windowFrom: string | null; windowTo: string | null; printsScanned: number; truncated?: boolean;
-    levels: DpLevel[]; note: string;
-  };
-  flow: { source: string; streamState: string; asOf: string | null; ageSec: number | null; prints: FlowPrint[]; note: string };
-}
-
-const TFS: (keyof typeof TF_CONFIG)[] = ['1m', '5m', '15m', '30m', '1h', '4h', '1D', '1W'];
 const INTRADAY = new Set(['1m', '5m', '15m', '30m', '1h', '4h']);
-
 const MINI_TFS: TfKey[] = ['1m', '5m', '15m', '1h', '1D'];
-/** /api/chart/overlays accepts equity/index tickers only (no BTC-USD). */
-const overlaysSupported = (sym: string) => /^[A-Z.^]{1,10}$/.test(sym);
 const NO_LEVELS: (Level & { dashed?: boolean })[] = [];
 const NO_ZONES: Zone[] = [];
-
-/** Pause work while the chart is scrolled off-screen. */
-function useInView<T extends Element>(): [React.RefObject<T>, boolean] {
-  const ref = useRef<T>(null);
-  const [inView, setInView] = useState(true);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { rootMargin: '200px 0px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  return [ref, inView];
-}
-
-/** The newest bus tick for the header price, at most once a second. Shares the
- *  bus's single per-symbol subscription with the chart's forming bar. */
-function useLiveLast(symbol: string, enabled: boolean): LiveTick | null {
-  const [tick, setTick] = useState<LiveTick | null>(null);
-  useEffect(() => {
-    setTick(null);
-    if (!enabled || !symbol) return;
-    let pending: LiveTick | null = null;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const unsub = subscribeLivePrice(symbol, (t) => {
-      pending = t;
-      if (timer) return;
-      timer = setTimeout(() => { timer = null; setTick(pending); }, 1000);
-    });
-    return () => { unsub(); if (timer) clearTimeout(timer); };
-  }, [symbol, enabled]);
-  return tick;
-}
 
 function EscClose({ onClose }: { onClose: () => void }) {
   useEffect(() => {
@@ -129,35 +71,6 @@ function EscClose({ onClose }: { onClose: () => void }) {
   }, [onClose]);
   return null;
 }
-
-/* ─────────────────────────────── helpers ─────────────────────────────── */
-
-const ET_FMT = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
-  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-});
-function etInfo(ms: number): { date: string; mins: number } {
-  const p: Record<string, string> = {};
-  for (const part of ET_FMT.formatToParts(ms)) p[part.type] = part.value;
-  return { date: `${p.year}-${p.month}-${p.day}`, mins: Number(p.hour) * 60 + Number(p.minute) };
-}
-const etClock = (ms: number) => new Date(ms).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
-const shortDate = (iso: string | null) => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: '2-digit', day: '2-digit', year: '2-digit' });
-};
-function fmtUsd(v: number, signed = false): string {
-  if (!Number.isFinite(v)) return '—';
-  const a = Math.abs(v);
-  const s = signed ? (v > 0 ? '+' : v < 0 ? '−' : '') : '';
-  if (a >= 1e9) return `${s}$${(a / 1e9).toFixed(2)}B`;
-  if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(1)}M`;
-  if (a >= 1e3) return `${s}$${(a / 1e3).toFixed(0)}K`;
-  return `${s}$${a.toFixed(0)}`;
-}
-const ageOf = (iso: string | null, now: number) => (iso ? fmtAge((now - Date.parse(iso)) / 1000) : '—');
-const fmtVol = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(1)}K` : `${v}`);
 
 interface Tokens { pos: string; neg: string; dp: string; call: string; put: string; text: string; panel: string; mute: string }
 /** Layer colours from the active visual mode's chart palette (chart-engine
@@ -220,9 +133,8 @@ export interface QEChartProps {
   onOpenChartPage?: () => void;
 }
 
-export function QEChart({
+function QEChartCompact({
   symbol: rawSymbol,
-  variant = 'compact',
   height = 340,
   fill = false,
   initialTf,
@@ -239,7 +151,8 @@ export function QEChart({
   onOpenChartPage,
 }: QEChartProps) {
   const symbol = rawSymbol.toUpperCase();
-  const compact = variant === 'compact';
+  // The full variant is TvChart (see QEChart below); this is the compact embed.
+  const compact = true;
   const shared = useChartPrefs();
   // Compact embeds may pin layers; the full board always shows the shared set.
   const prefs: ChartPrefs = useMemo(
@@ -260,7 +173,6 @@ export function QEChart({
 
   const { range, extended } = prefs;
   const intraday = INTRADAY.has(tf);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [rootRef, inView] = useInView<HTMLDivElement>();
   const [, navigate] = useLocation();
@@ -270,28 +182,7 @@ export function QEChart({
 
   /* ── dealer walls + zero-γ: the GEX page's query (same key → one request
      per symbol for the GEX tools, the CHART page and every embed) ── */
-  const dealerQ = useQuery<TerminalData>({
-    queryKey: ['/api/gex-vex/terminal', symbol, 'nexus'],
-    queryFn: async ({ signal }) => {
-      // Same 45 s ceiling as gex-model's useGexTerminal: a busy options queue
-      // gets an honest error, not an endless "reading".
-      const ctl = new AbortController();
-      const onAbort = () => ctl.abort();
-      signal?.addEventListener('abort', onAbort);
-      const timer = setTimeout(() => ctl.abort(), 45_000);
-      try {
-        const r = await fetch(`/api/gex-vex/terminal/${encodeURIComponent(symbol)}?interval=15m&lookback=5`, { credentials: 'include', signal: ctl.signal });
-        if (!r.ok) throw new Error(`${symbol} dealer map: HTTP ${r.status}`);
-        return await r.json();
-      } finally {
-        clearTimeout(timer);
-        signal?.removeEventListener('abort', onAbort);
-      }
-    },
-    // Full chart: the key-levels strip always needs it; compact: only when the walls layer is on.
-    enabled: (prefs.walls || !compact) && inView && overlaysSupported(symbol),
-    staleTime: 60_000, refetchInterval: inView ? 120_000 : false, retry: 1, retryDelay: 3_000,
-  });
+  const dealerQ = useDealerMap(symbol, prefs.walls, inView);
   const snap = dealerQ.data?.snapshot;
   const zeroGamma = snap ? (snap.zeroGammaLevel ?? snap.gammaFlipPrice ?? null) : null;
   const dealerAsOf = dealerQ.data ? (dealerQ.data.cached ? dealerQ.data.cachedAt : dealerQ.data.generatedAt) ?? null : null;
@@ -304,19 +195,6 @@ export function QEChart({
     if (zeroGamma != null) rows.push({ price: zeroGamma, color: 'caution', label: 'ZERO γ', kind: 'gex-anchor', strength: 0.7, meta: 'Γ flip' });
     return rows.length ? [...levels, ...rows] : levels;
   }, [prefs.walls, snap, zeroGamma, levels]);
-
-  /* ── expected move (full header): 1σ one-session move from 20-day realized
-     vol of daily closes — measured from the candle feed, labelled as such ── */
-  const { data: daily } = useCandles(symbol, '1D', inView && !compact);
-  const expectedMove = useMemo(() => {
-    const closes = daily?.bars.slice(-21).map((b) => b.close) ?? [];
-    if (closes.length < 21) return null;
-    const rets = closes.slice(1).map((c, i) => Math.log(c / closes[i]));
-    const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
-    const sd = Math.sqrt(rets.reduce((a, b) => a + (b - mean) ** 2, 0) / (rets.length - 1));
-    const spot = closes[closes.length - 1];
-    return { dollars: spot * sd, pct: sd * 100 };
-  }, [daily]);
 
   /* ── session range + extended-hours filter (pre-replay) ── */
   const applyRange = useCallback((bars: Candle[]) => {
@@ -373,17 +251,7 @@ export function QEChart({
   lastCloseRef.current = lastClose;
   const ovRange = range === '1D' && intraday ? '1D' : '5D';
   const wantLayers = overlaysSupported(symbol) && (prefs.gex !== 'off' || prefs.dp || prefs.flow);
-  const { data: ov, isError: ovError, isLoading: ovLoading } = useQuery<OverlayPayload>({
-    queryKey: ['/api/chart/overlays', symbol, ovRange],
-    queryFn: async () => {
-      const spot = lastCloseRef.current;
-      const r = await fetch(`/api/chart/overlays/${encodeURIComponent(symbol)}?range=${ovRange}${spot ? `&spot=${spot}` : ''}`, { credentials: 'include' });
-      if (!r.ok) throw new Error('overlays failed');
-      return r.json();
-    },
-    staleTime: 45_000, refetchInterval: inView ? 60_000 : false, retry: 1,
-    enabled: wantLayers && inView,
-  });
+  const { data: ov, isError: ovError, isLoading: ovLoading } = useChartOverlays(symbol, ovRange, wantLayers, inView, lastCloseRef);
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -408,16 +276,6 @@ export function QEChart({
       .sort((a, b) => Math.abs(b.gex) - Math.abs(a.gex)).slice(0, 5);
     return { net: sample.net, top, asOf: new Date(sample.t).toISOString(), source: sample.source };
   }, [ov, cutoff]);
-
-  /* ── OHLCV readout (deduped — the engine reports on every frame) ── */
-  const [ohlc, setOhlc] = useState<Candle | null>(null);
-  const ohlcKey = useRef('');
-  const onHoverCandle = useCallback((c: Candle | null) => {
-    const key = c ? `${c.time}:${c.close}:${c.volume}` : '';
-    if (key === ohlcKey.current) return;
-    ohlcKey.current = key;
-    setOhlc(c);
-  }, []);
 
   /* ── canvas layers ── */
   const hostRef = useRef<HTMLDivElement>(null);
@@ -691,7 +549,6 @@ export function QEChart({
   }, [prefs.dp]);
 
   /* ── readout values ── */
-  const shown = ohlc ?? (ranged.length ? ranged[ranged.length - 1] : null);
   const prevClose = useMemo(() => {
     if (!ranged.length) return null;
     const lastDate = etInfo(ranged[ranged.length - 1].time).date;
@@ -702,7 +559,6 @@ export function QEChart({
   const lastPx = liveTick?.price ?? (ranged.length ? ranged[ranged.length - 1].close : null);
   const chg = lastPx != null && prevClose ? (lastPx / prevClose - 1) * 100 : null;
   const tk0 = readTokens(hostRef.current);
-  const gexSamples = ov?.gexTimeline.samples.length ?? 0;
 
   const chartHandlers = {
     onPointerMoveCapture: (e: React.PointerEvent) => {
@@ -735,7 +591,7 @@ export function QEChart({
       minimalInfo={compact}
       touchScroll={compact}
       zones={zones}
-      chartType={prefs.type}
+      chartType={prefs.type === 'line' || prefs.type === 'area' ? 'line' : 'candles'}
       levels={allLevels}
       showMA={prefs.ma}
       showVolume={prefs.volume}
@@ -747,7 +603,6 @@ export function QEChart({
       underlay={underlay}
       overlay={overlay}
       axisOverlay={axisOverlay}
-      onHoverCandle={compact ? undefined : onHoverCandle}
     />
   );
 
@@ -799,7 +654,6 @@ export function QEChart({
     document.body,
   ) : null;
 
-  if (compact) {
     const layerDot = (on: boolean, color: string, label: string, tip: string) => (
       <span className={`fc-chip${on ? '' : ' off'}`} title={tip}><i style={{ background: color }} />{label}</span>
     );
@@ -840,190 +694,22 @@ export function QEChart({
         {modal}
       </div>
     );
-  }
-
-  const menuRow = (checked: boolean, onChange: (v: boolean) => void, label: string, sub: string | null, swatch?: string) => (
-    <label className="fc-mrow">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span className="fc-mlabel">{swatch && <i style={{ background: swatch }} />}{label}{sub && <small>{sub}</small>}</span>
-    </label>
-  );
-  const layersOk = overlaysSupported(symbol);
-  const dpSub = !layersOk ? 'no options layers for this symbol' : ov
-    ? `${ov.darkPool.levels.length ? `${ov.darkPool.levels.length} levels near price` : 'none near price'}${ov.darkPool.asOf ? ` · ${ageOf(ov.darkPool.asOf, now)} old${ov.darkPool.stale ? ' (stale)' : ''}` : ''}`
-    : prefs.dp ? (ovError ? 'feed unavailable' : 'loading…') : 'Bullflow dark-pool prints, multi-day';
-  const flowSub = !layersOk ? 'no options layers for this symbol' : ov
-    ? `${ov.flow.prints.length} prints · stream ${ov.flow.streamState} · side not reported`
-    : prefs.flow ? (ovError ? 'feed unavailable' : 'loading…') : 'calls ● above · puts ◆ below';
-  const orbSub = !layersOk ? 'no options layers for this symbol' : ov
-    ? (gexSamples ? `${gexSamples} sample${gexSamples === 1 ? '' : 's'} since ${etClock(Date.parse(ov.gexTimeline.recordingSince!))} ET · every ${ov.gexTimeline.sampleEveryMin}m` : 'not recorded yet — starts now it is charted')
-    : 'net gamma by strike through time';
-  const wallsSub = !layersOk ? 'no options chain for this symbol' : dealerQ.data
-    ? `${dealerSource} · ${ageOf(dealerAsOf, now)} old`
-    : dealerQ.isError ? 'dealer map unavailable' : prefs.walls ? 'reading the chain…' : 'call wall · put wall · zero-γ';
-
-  const menu = (
-    <div className="fc-menu fc-add-menu" role="menu">
-      <div className="fc-mhead fc-mtf-head">Timeframe</div>
-      <div className="fc-mtf" role="group" aria-label="Timeframe">
-        {TFS.map((k) => <button key={k} className={tf === k ? 'on' : ''} onClick={() => setTf(k)} aria-pressed={tf === k}>{k}</button>)}
-      </div>
-      <div className="fc-mhead">Dealer positioning</div>
-      {menuRow(prefs.walls, (v) => set('walls', v), 'Walls + zero-γ', wallsSub, tk0.call)}
-      {menuRow(prefs.gex === 'bubbles', (v) => set('gex', v ? 'bubbles' : 'off'), 'GEX orbs through time', orbSub, tk0.pos)}
-      {menuRow(prefs.gex === 'lines', (v) => set('gex', v ? 'lines' : 'off'), 'GEX top strikes (lines)', gexRead ? `snapshot ${ageOf(gexRead.asOf, now)} old` : null, tk0.neg)}
-      <div className="fc-mhead">Tape</div>
-      {menuRow(prefs.dp, (v) => set('dp', v), 'Dark-pool levels', dpSub, tk0.dp)}
-      {menuRow(prefs.flow, (v) => set('flow', v), 'Options flow prints', flowSub, tk0.call)}
-      <div className="fc-mhead">Indicators</div>
-      {menuRow(prefs.volume, (v) => set('volume', v), 'Volume', null)}
-      {menuRow(prefs.ma, (v) => set('ma', v), 'MA 20 / 50', null)}
-      {menuRow(prefs.type === 'line', (v) => set('type', v ? 'line' : 'candles'), 'Line instead of candles', null)}
-      <div className="fc-mhead">Session</div>
-      {menuRow(extended, (v) => set('extended', v), 'Extended hours', intraday ? null : 'intraday timeframes only')}
-      <div className="fc-mrange" role="group" aria-label="Session range">
-        {(['1D', '5D', 'ALL'] as RangeKey[]).map((r) => (
-          <button key={r} className={range === r ? 'on' : ''} disabled={!intraday} onClick={() => set('range', r)} aria-pressed={range === r}>{r === 'ALL' ? 'All' : r}</button>
-        ))}
-      </div>
-      <div className="fc-mhead">Panels</div>
-      {onSymbolChange && menuRow(prefs.watchlist, (v) => set('watchlist', v), 'Watchlist panel', 'click a name to chart it')}
-      <div className="fc-mactions">
-        <button className="fc-btn" disabled={ranged.length < 3} onClick={() => { setMenuOpen(false); setReplay((r) => r.on ? { ...r, on: false, playing: false } : { on: true, idx: Math.min(ranged.length - 1, Math.max(1, Math.floor(ranged.length * 0.25))), playing: false, speed: r.speed }); }}>{replay.on ? 'Exit replay' : '⟲ Replay'}</button>
-        {onOpenChartPage && <button className="fc-btn" onClick={onOpenChartPage} title="Open this symbol and timeframe on the CHART tab">Chart page ↗</button>}
-        {onOpenLab && <button className="fc-btn" onClick={onOpenLab} title="Chart Lab: published levels, watchlist, ES translation">Chart Lab ↗</button>}
-      </div>
-    </div>
-  );
-
-  const keyCell = (k: string, v: number | null | undefined, color: string, tip: string, fmt?: (n: number) => string, pending = false) => (
-    <span className="fc-key" title={tip}><i style={{ background: color }} />{k} <b>{v == null || !Number.isFinite(v) ? (pending ? '…' : '—') : fmt ? fmt(v) : v.toFixed(2)}</b></span>
-  );
-  const dealerPending = dealerQ.isFetching && !snap;
-
-  return (
-    <div ref={rootRef} className={`fc-root${fill ? ' fc-fill' : ''}`}>
-      <style>{FC_CSS}</style>
-      {/* ── slim header: symbol · live price · timeframe · key levels · Add ── */}
-      <div className="fc-toolbar fc-slim" role="toolbar" aria-label="Chart controls">
-        {onSymbolChange ? (
-          <div className="fc-sym">
-            <TerminalTickerSearch compact value={symbol} onSelect={(r) => onSymbolChange(r.symbol, r.name)} />
-          </div>
-        ) : <b className="fc-symlabel">{symbol}</b>}
-        <div className="fc-px">
-          <span className="fc-last">{lastPx != null ? `$${lastPx.toFixed(lastPx < 10 ? 4 : 2)}` : '—'}</span>
-          {chg != null && <span style={{ color: chg >= 0 ? 'var(--green)' : 'var(--red)' }}>{chg >= 0 ? '+' : ''}{chg.toFixed(2)}%</span>}
-          <LiveStamp tick={replay.on ? null : liveTick} live={live && !replay.on} />
-        </div>
-        <label className="fc-sel fc-desk" title="Timeframe">
-          <select value={tf} onChange={(e) => setTf(e.target.value as TfKey)} aria-label="Timeframe">
-            {TFS.map((k) => <option key={k} value={k}>{k}</option>)}
-          </select>
-        </label>
-        {layersOk && (
-          <div className="fc-keys" aria-label="Key levels">
-            {keyCell('CW', snap?.callWall, tk0.call, `Call wall — strike above spot with the largest call GEX · ${wallsSub}`, undefined, dealerPending)}
-            {keyCell('PW', snap?.putWall, tk0.put, `Put wall — strike below spot with the largest put GEX · ${wallsSub}`, undefined, dealerPending)}
-            {keyCell('0γ', zeroGamma, tk0.dp, `Zero-gamma (gamma flip): where dealer net gamma crosses zero · ${wallsSub}`, undefined, dealerPending)}
-            {keyCell('EM', expectedMove?.dollars, 'var(--text-mute)', expectedMove ? `Expected move, 1σ for one session: ±$${expectedMove.dollars.toFixed(2)} (±${expectedMove.pct.toFixed(2)}%) from 20-day realized volatility of daily closes — measured, not option-implied` : 'Expected move needs 21 daily closes', (n) => `±${n.toFixed(2)}`)}
-          </div>
-        )}
-        <div className="fc-pop fc-add">
-          <button className={`fc-btn${menuOpen ? ' on' : ''}`} onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} aria-haspopup="menu" title="Add layers, indicators and panels">
-            <span className="fc-desk">+ Add ▾</span><span className="fc-phone" aria-label="Chart settings">⋯</span>
-          </button>
-          {menuOpen && (
-            <>
-              <div className="fc-menu-scrim" onClick={() => setMenuOpen(false)} />
-              {menu}
-            </>
-          )}
-        </div>
-      </div>
-
-      {replay.on && ranged.length > 2 && (
-        <div className="fc-replay">
-          <button className="fc-btn" onClick={() => setReplay((r) => ({ ...r, idx: Math.max(0, r.idx - 1), playing: false }))} aria-label="Step back">◀</button>
-          <button className="fc-btn on" onClick={() => setReplay((r) => ({ ...r, playing: !r.playing, idx: r.idx >= ranged.length - 1 ? 1 : r.idx }))}>{replay.playing ? '❚❚ Pause' : '▶ Play'}</button>
-          <button className="fc-btn" onClick={() => setReplay((r) => ({ ...r, idx: Math.min(ranged.length - 1, r.idx + 1), playing: false }))} aria-label="Step forward">▶|</button>
-          <label className="fc-sel"><select value={replay.speed} onChange={(e) => setReplay((r) => ({ ...r, speed: Number(e.target.value) }))} aria-label="Replay speed">
-            {[1, 2, 5, 10].map((s) => <option key={s} value={s}>{s}×</option>)}
-          </select></label>
-          <input type="range" min={1} max={ranged.length - 1} value={Math.min(replay.idx, ranged.length - 1)} onChange={(e) => setReplay((r) => ({ ...r, idx: Number(e.target.value), playing: false }))} aria-label="Replay position" />
-          <span className="fc-mono">{cutoff != null ? `${new Date(cutoff).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ET` : ''}</span>
-          <button className="fc-btn" onClick={() => setReplay((r) => ({ ...r, on: false, playing: false }))}>✕</button>
-        </div>
-      )}
-
-      {/* ── chart (+ opt-in watchlist panel) ── */}
-      <div className="fc-body">
-        <div className="fc-chart" ref={hostRef} {...chartHandlers}>
-          {priceChart}
-          <div className="fc-readout" aria-live="off">
-            <div>
-              <span className="dim">{shown ? new Date(shown.time).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''}</span>{' '}
-              {shown && (
-                <>
-                  <span className="dim">O</span> {shown.open.toFixed(2)}{' '}
-                  <span className="dim">H</span> {shown.high.toFixed(2)}{' '}
-                  <span className="dim">L</span> {shown.low.toFixed(2)}{' '}
-                  <span className="dim">C</span> <span style={{ color: shown.close >= shown.open ? 'var(--green)' : 'var(--red)' }}>{shown.close.toFixed(2)}</span>
-                  {prefs.volume && <>{' '}<span className="dim">V</span> {fmtVol(shown.volume)}</>}
-                </>
-              )}
-            </div>
-            {prefs.gex !== 'off' && layersOk && (
-              <div>
-                <span className="dim">GEX</span>{' '}
-                {gexRead ? (
-                  <>
-                    <span className="dim">Net</span> <span style={{ color: gexRead.net >= 0 ? tk0.pos : tk0.neg }}>{fmtUsd(gexRead.net, true)}</span>
-                    {gexRead.top.slice(0, 3).map((s) => (
-                      <span key={s.strike}> · {s.strike.toFixed(2)} <span style={{ color: s.gex >= 0 ? tk0.pos : tk0.neg }}>{fmtUsd(s.gex, true)}</span></span>
-                    ))}
-                    <span className="dim"> · {cutoff != null ? 'at cursor' : `${ageOf(gexRead.asOf, now)} ago`} · {gexRead.source}</span>
-                  </>
-                ) : (
-                  <span className="dim">{ovLoading ? 'loading…' : ovError ? 'overlay feed unavailable' : 'no GEX snapshot for this symbol yet'}</span>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="fc-tip" ref={tipRef} role="tooltip" />
-        </div>
-        {onSymbolChange && prefs.watchlist && (
-          <aside className="fc-side" aria-label="Watchlist">
-            <div className="fc-side-head"><span>Watchlist</span><button className="fc-btn" onClick={() => set('watchlist', false)} aria-label="Close watchlist panel">✕</button></div>
-            <div className="fc-side-body">
-              <Suspense fallback={<div className="fc-side-empty">loading…</div>}><LazyWatchlist /></Suspense>
-            </div>
-          </aside>
-        )}
-      </div>
-    </div>
-  );
 }
 
-/** Live price stamp: source + age, its own 1 s clock (the board doesn't re-render per second). */
-function LiveStamp({ tick, live }: { tick: LiveTick | null; live: boolean }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!tick) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [tick]);
-  if (!live) return <span className="fc-stamp" title="Replay / history view — live ticks are off">HISTORY</span>;
-  if (!tick) return <span className="fc-stamp" title="No live print or quote yet — the price shown is the history feed's last close">close · history</span>;
-  const age = Math.max(0, Math.round((now - tick.ts) / 1000));
-  const fresh = tick.live && age < 15;
-  const src = tick.source === 'alpaca-iex' ? 'IEX' : tick.source === 'coinbase' ? 'Coinbase' : tick.source;
-  return (
-    <span className="fc-stamp" style={{ color: fresh ? 'var(--green)' : 'var(--amber)' }}
-      title={`Last price ${tick.price} from ${tick.source}, ${age}s old. ${tick.live ? 'Real print.' : 'Polled quote — not a trade.'}`}>
-      {fresh ? '● LIVE' : '○ DELAYED'} {src} · {age < 60 ? `${age}s` : age < 5400 ? `${Math.round(age / 60)}m` : `${Math.round(age / 3600)}h`}
-    </span>
-  );
+/**
+ * The one price chart. `variant="full"` (the CHART tab, the expanded modal) is
+ * the TradingView-style chart on lightweight-charts — tv/tv-chart.tsx;
+ * everything else is the compact embed above.
+ */
+export function QEChart(props: QEChartProps & { variant?: 'compact' | 'full' }) {
+  if (props.variant === 'full') {
+    return (
+      <Suspense fallback={<div className="fc-root fc-fill" style={{ display: 'grid', placeItems: 'center', color: 'var(--text-mute)', fontSize: 11 }}>loading chart…</div>}>
+        <LazyTvChart {...props} />
+      </Suspense>
+    );
+  }
+  return <QEChartCompact {...props} />;
 }
 
 const FC_CSS = `
