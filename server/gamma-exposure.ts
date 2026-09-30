@@ -430,7 +430,35 @@ export async function calculateGammaExposure(
 
 // ─── Multi-Expiration Aggregate ────────────────────────────
 
+// Ten modules call this (chart recorder, index scans, 0DTE, rankings, routes…)
+// and each full-chain computation costs ~150–250 MB of transient memory on the
+// 2 GB droplet — measured 2026-09-30, SPY computed twice back to back pushed
+// the worker 334 → 1,046 MB in 8 s. One result per symbol per 60 s, and
+// concurrent callers share the in-flight computation.
+const AGG_TTL_MS = 60_000;
+const _aggCache = new Map<string, { at: number; v: GammaExposureResult | null }>();
+const _aggInflight = new Map<string, Promise<GammaExposureResult | null>>();
+
 export async function calculateAggregateGammaExposure(
+  symbol: string,
+): Promise<GammaExposureResult | null> {
+  const key = symbol.toUpperCase();
+  const hit = _aggCache.get(key);
+  if (hit && Date.now() - hit.at < (hit.v ? AGG_TTL_MS : 15_000)) return hit.v;
+  const running = _aggInflight.get(key);
+  if (running) return running;
+  const p = _calculateAggregateGammaExposure(symbol)
+    .then((v) => {
+      if (_aggCache.size >= 40) _aggCache.delete(_aggCache.keys().next().value as string);
+      _aggCache.set(key, { at: Date.now(), v });
+      return v;
+    })
+    .finally(() => _aggInflight.delete(key));
+  _aggInflight.set(key, p);
+  return p;
+}
+
+async function _calculateAggregateGammaExposure(
   symbol: string,
 ): Promise<GammaExposureResult | null> {
   try {
