@@ -1,5 +1,8 @@
 import { storage } from "./storage";
-import { PerformanceValidator } from "./performance-validator";
+import { PerformanceValidator, computeRealisedPnl } from "./performance-validator";
+import { planExitTiming, appendNote, formatExitDate, type ExitTimeSource } from "@shared/exit-hit-time";
+import { barsSinceEntry, toExitTimingIdea } from "./lib/exit-time-bars";
+import { readLossRulesStamp, progressR } from "@shared/loss-rules";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { fetchCboeChain, findContractMid, type CboeChain } from "./contract-analyzer/cboe-chain";
 import { analyzeLoss } from "./loss-analyzer";
@@ -296,6 +299,18 @@ class PerformanceValidationService {
       if (result.shouldUpdate) {
         const ideaForResult = openIdeas.find(i => i.id === ideaId);
 
+        // ⏱️ EXIT TIME = HIT TIME. The validator stamps barrier hits with the
+        // run time; find the first bar that actually crossed the level (and
+        // reprice deadline exits at the deadline). See shared/exit-hit-time.ts.
+        let outcomeNotes: string | undefined;
+        if (ideaForResult && result.outcomeStatus && result.outcomeStatus !== 'open') {
+          try {
+            outcomeNotes = await this.refineExitTiming(ideaForResult, result);
+          } catch (err: any) {
+            console.warn(`  ⚠️  exit-time refinement failed for ${ideaForResult.symbol} (keeping validator stamp):`, err?.message);
+          }
+        }
+
         // 💵 REAL OPTION P&L: when an option idea resolves, capture the exit
         // premium (current contract mid) and compute the actual contract
         // return off the entry premium. This is what the trader's contract
@@ -364,6 +379,7 @@ class PerformanceValidationService {
           resolutionReason: result.resolutionReason,
           exitDate: result.exitDate,
           actualHoldingTimeMinutes: result.actualHoldingTimeMinutes,
+          ...(outcomeNotes ? { outcomeNotes } : {}),
           predictionAccurate: result.predictionAccurate,
           predictionValidatedAt: result.predictionValidatedAt,
           highestPriceReached: result.highestPriceReached,
@@ -441,6 +457,50 @@ class PerformanceValidationService {
     }
 
     return { validated, winners, losers, expired };
+  }
+
+  /**
+   * Replace the validator's run-time stamp with the time price actually did it.
+   * Mutates `result` (exitDate, holding time, and — for deadline exits — the
+   * exit price / % / P&L) and returns the outcome note to store.
+   */
+  private async refineExitTiming(idea: TradeIdea, result: any): Promise<string | undefined> {
+    const now = Date.now();
+    const tIdea = toExitTimingIdea(idea as any);
+    const needsBars = result.outcomeStatus === 'hit_target' || result.outcomeStatus === 'hit_stop'
+      || (result.exitTimeSource === 'deadline' && !String(result.resolutionReason ?? '').startsWith('missed_entry'));
+    const { bars, interval } = needsBars
+      ? await barsSinceEntry(idea.symbol, idea.assetType, tIdea.entryMs, now)
+      : { bars: [], interval: null };
+    const plan = planExitTiming(tIdea, result, bars, now, { barInterval: interval ?? undefined });
+
+    // A time stop is decided on the LIVE price. Repricing it at the deadline is
+    // only honest when the deadline price would also have triggered it.
+    if (result.resolutionReason === 'auto_time_stop') {
+      const minR = readLossRulesStamp(idea.convergenceSignalsJson)?.timeStop?.minR;
+      const px = plan.exitPrice;
+      const stillExit = px != null && minR != null && progressR(tIdea.direction, tIdea.entryPrice, tIdea.stopLoss, px) < minR;
+      if (!stillExit) {
+        result.exitTimeSource = 'live' as ExitTimeSource;
+        result.exitDate = formatExitDate(now);
+        result.actualHoldingTimeMinutes = Math.max(0, Math.floor((now - Date.parse(idea.timestamp)) / 60_000));
+        return appendNote(idea.outcomeNotes, '[exit-time:live] time stop decided on the live quote (no deadline bar, or the deadline price would not have triggered it)');
+      }
+    }
+
+    result.exitTimeSource = plan.source;
+    result.exitDate = plan.exitDate;
+    result.actualHoldingTimeMinutes = plan.holdingMinutes;
+    if (plan.exitPrice != null && plan.percentGain != null) {
+      result.exitPrice = plan.exitPrice;
+      result.percentGain = plan.percentGain;
+      if (result.resolutionReason === 'auto_time_stop' && idea.assetType !== 'future') {
+        const r = computeRealisedPnl(idea, plan.exitPrice);
+        if (r) result.realizedPnL = Math.round(r.pnl * 100) / 100;
+      }
+    }
+    if (plan.source !== 'live') console.log(`  ⏱️  ${idea.symbol}: ${plan.note}`);
+    return appendNote(idea.outcomeNotes, plan.note);
   }
 
   /**

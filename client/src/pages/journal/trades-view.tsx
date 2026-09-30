@@ -11,6 +11,8 @@ import { Card, N, OutcomeChip, Pnl, SideChip, useJournalPortalClass } from '@/co
 import { OptionsSim } from '@/components/journal/options-sim';
 import { fmtDuration, fmtPrice, type JTrade } from '@/lib/journal/metrics';
 import { readApiError, useJournalMutations } from '@/lib/journal/use-journal';
+import { useJournalMarks } from '@/lib/journal/use-journal-marks';
+import { OpenMark } from '@/components/journal/open-mark';
 
 type SortKey = 'date' | 'symbol' | 'pnl' | 'qty' | 'hold';
 
@@ -44,6 +46,9 @@ export default function TradesView() {
   const { removeWithUndo } = useJournalMutations(data.key);
   const readOnly = !(data.meta?.canWrite ?? data.key === 'mine');
   const [deleteError, setDeleteError] = useState('');
+  const openCount = useMemo(() => data.allRows.filter((r) => String(r.status).toLowerCase() === 'open').length, [data.allRows]);
+  // Live marks for open rows (Mine / trader books), polled every 30 s while visible.
+  const marks = useJournalMarks(data.key, openCount);
 
   const sorted = useMemo(() => {
     const val = (t: JTrade): number | string => {
@@ -132,10 +137,8 @@ export default function TradesView() {
                   <td className="num">{fmtPrice(t.row.entryPrice)}</td>
                   <td className="num">{t.row.exitPrice != null ? fmtPrice(t.row.exitPrice) : '—'}</td>
                   <td className="num">{t.status === 'open'
-                    ? t.row.mark
-                      // Open bot rows: the last mark's unrealized P&L, stamped with its age — not realized, not 0.
-                      ? <span className="jr-dim" title={`unrealized at last mark $${t.row.mark.price} · ${new Date(t.row.mark.asOf).toLocaleString('en-US', { timeZone: 'America/New_York' })} ET`}><Pnl value={t.row.mark.unrealizedPnL} /> <small>mark {markAge(t.row.mark.asOf)}</small></span>
-                      : <span className="jr-dim">—</span>
+                    // Open rows: live mark (Mine/trader) or the stored ledger mark (bot), always with its age — unrealized, not 0.
+                    ? (marks[t.id] || t.row.mark) ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} /> : <span className="jr-dim">—</span>
                     : <Pnl value={t.netPnl} />}</td>
                   <td><OutcomeChip status={t.status} /></td>
                   <td className="num jr-dim">{fmtDuration(t.durationMs)}</td>
@@ -162,7 +165,7 @@ export default function TradesView() {
           {shown.map((t) => (
             <button key={t.id} type="button" className="jr-row-card" onClick={() => openTrade(t.id, order)}>
               <span><span className="jr-sym">{t.symbol}</span> <SideChip direction={t.direction} /></span>
-              <span className="r">{t.status === 'open' ? <span className="jr-dim">open</span> : <Pnl value={t.netPnl} />}</span>
+              <span className="r">{t.status === 'open' ? <OpenMark rowId={t.id} live={marks[t.id]} stored={t.row.mark} compact /> : <Pnl value={t.netPnl} />}</span>
               <span className="meta">
                 <OutcomeChip status={t.status} />
                 {new Date(t.closedAt ?? t.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })}
@@ -214,8 +217,3 @@ export default function TradesView() {
   );
 }
 
-function markAge(iso: string): string {
-  const m = Math.round((Date.now() - Date.parse(iso)) / 60_000);
-  if (!Number.isFinite(m)) return 'age unknown';
-  return m < 60 ? `${m}m old` : m < 1440 ? `${Math.round(m / 60)}h old` : `${Math.round(m / 1440)}d old`;
-}

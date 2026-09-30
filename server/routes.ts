@@ -32593,6 +32593,34 @@ Use this checklist before entering any trade:
     }
   });
 
+  /**
+   * Live marks for a book's OPEN rows (Mine / trader books) — polled by the
+   * journal every 30 s while visible. Small payload on purpose: the rows query
+   * stays unpolled. Quotes are cached per instrument for 30 s (journal-marks.ts).
+   */
+  app.get("/api/journal/marks", requireBetaAccess, async (req, res) => {
+    try {
+      const { journalActor, resolveJournal, JournalAccessError } = await import('./journal-sources');
+      const { parseJournalKey } = await import('@shared/journal-sources');
+      const { liveMarksFor } = await import('./journal-marks');
+      try {
+        const j = await resolveJournal(await journalActor(req), parseJournalKey(req.query.journal as string));
+        if ((j.kind !== 'mine' && j.kind !== 'trader') || !j.ownerId) {
+          return res.json({ marks: {}, asOf: new Date().toISOString(), note: 'Live marks cover Mine and trader books; the bot and NEXUS books carry their own ledgers.' });
+        }
+        const rows = await storage.getJournalTrades(j.ownerId);
+        const marks = await liveMarksFor(rows as any);
+        res.json({ marks, asOf: new Date().toISOString() });
+      } catch (err) {
+        if (err instanceof JournalAccessError) return res.status(err.status).json({ error: err.message });
+        throw err;
+      }
+    } catch (error: any) {
+      logger.error("[JOURNAL] marks failed", { error: error?.message });
+      res.status(500).json({ error: "Failed to mark open trades", message: error?.message });
+    }
+  });
+
   /** Full analytics on a journal book's rows */
   app.get("/api/journal/analytics", requireBetaAccess, async (req, res) => {
     try {

@@ -2,6 +2,7 @@ import { TradeIdea, FuturesContract } from "@shared/schema";
 import { format } from "date-fns";
 import { resolveBarriers } from '@shared/barrier-resolution';
 import { formatInTimeZone } from "date-fns-tz";
+import { formatExitDate, type ExitTimeSource } from "@shared/exit-hit-time";
 import { CANONICAL_LOSS_THRESHOLD } from "@shared/constants";
 import { isOutcomeEligible, readOracleExecutionAudit } from "@shared/oracle-lifecycle";
 import { isOptionScaleIncoherent, optionScaleReason } from "@shared/option-unit-guard";
@@ -331,6 +332,15 @@ interface ValidationResult {
   percentGain?: number;
   resolutionReason?: TradeIdea['resolutionReason'];
   exitDate?: string;
+  /**
+   * How exitDate was found. The validator only knows 'deadline' (expiry,
+   * exit-by, time stop, missed entry) or 'live' (barrier decided from polled
+   * extremes); the service upgrades 'live' barrier hits to 'bar_hit' by
+   * locating the first bar that crossed the level (shared/exit-hit-time.ts).
+   */
+  exitTimeSource?: ExitTimeSource;
+  /** Deadline behind a 'deadline' exit, epoch ms (uncapped). */
+  deadlineMs?: number;
   actualHoldingTimeMinutes?: number;
   predictionAccurate?: boolean; // LEGACY: kept for backward compatibility
   predictionAccuracyPercent?: number; // NEW: percentage-based accuracy (0-100+)
@@ -348,7 +358,7 @@ export class PerformanceValidator {
    * Uses the trade's creation timestamp to determine the correct year
    * Returns a valid Date object or null if parsing fails
    */
-  private static parseExitByDate(exitByString: string, tradeCreatedAt: Date): Date | null {
+  static parseExitByDate(exitByString: string, tradeCreatedAt: Date): Date | null {
     try {
       // Strip surrounding quotes if present (some DB values have them)
       let cleanedString = exitByString.replace(/^["']|["']$/g, '').trim();
@@ -703,7 +713,9 @@ export class PerformanceValidator {
             percentGain: 0, // Real gain: 0 (never traded)
             realizedPnL: 0, // Real P&L: 0 (never traded)
             resolutionReason, // Describes what would have happened
-            exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            exitDate: formatExitDate(Math.min(entryValidUntilDate.getTime(), now.getTime())),
+            exitTimeSource: 'deadline',
+            deadlineMs: entryValidUntilDate.getTime(),
             actualHoldingTimeMinutes: 0, // Never held the position
             // 📊 Prediction accuracy reflects thesis correctness (even if we didn't trade)
             predictionAccurate: predictionWasAccurate,
@@ -804,7 +816,9 @@ export class PerformanceValidator {
             percentGain,
             realizedPnL,
             resolutionReason: 'auto_expired',
-            exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            exitDate: formatExitDate(Math.min(expiryDate.getTime(), now.getTime())),
+            exitTimeSource: 'deadline',
+            deadlineMs: expiryDate.getTime(),
             actualHoldingTimeMinutes: holdingTimeMinutes,
             predictionAccurate,
             predictionAccuracyPercent,
@@ -869,7 +883,9 @@ export class PerformanceValidator {
             percentGain,
             realizedPnL: 0,
             resolutionReason: 'auto_expired',
-            exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            exitDate: formatExitDate(Math.min(expiryDate.getTime(), now.getTime())),
+            exitTimeSource: 'deadline',
+            deadlineMs: expiryDate.getTime(),
             actualHoldingTimeMinutes: holdingTimeMinutes,
             predictionAccurate,
             predictionAccuracyPercent,
@@ -947,7 +963,9 @@ export class PerformanceValidator {
               percentGain,
               realizedPnL: 0,
               resolutionReason: 'auto_expired',
-              exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+              exitDate: formatExitDate(Math.min(exitByDate.getTime(), now.getTime())),
+              exitTimeSource: 'deadline',
+              deadlineMs: exitByDate.getTime(),
               actualHoldingTimeMinutes: holdingTimeMinutes,
               predictionAccurate,
               predictionAccuracyPercent,
@@ -1009,7 +1027,9 @@ export class PerformanceValidator {
         percentGain,
         realizedPnL: 0, // Don't calculate P&L for expired ideas
         resolutionReason: 'auto_expired',
-        exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        exitDate: formatExitDate(Math.min(createdAt.getTime() + 7 * 86_400_000, now.getTime())),
+        exitTimeSource: 'deadline',
+        deadlineMs: createdAt.getTime() + 7 * 86_400_000,
         actualHoldingTimeMinutes: holdingTimeMinutes,
         predictionAccurate,
         predictionAccuracyPercent,
@@ -1099,7 +1119,8 @@ export class PerformanceValidator {
         percentGain,
         realizedPnL,
         resolutionReason: 'auto_target_hit',
-        exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        exitDate: formatExitDate(now),
+        exitTimeSource: 'live',
         actualHoldingTimeMinutes: holdingTimeMinutes,
         predictionAccurate: true, // Hit target = prediction was accurate
         predictionAccuracyPercent: 100, // Hit target = 100% accuracy
@@ -1175,7 +1196,8 @@ export class PerformanceValidator {
         percentGain,
         realizedPnL,
         resolutionReason: 'auto_stop_hit',
-        exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        exitDate: formatExitDate(now),
+        exitTimeSource: 'live',
         actualHoldingTimeMinutes: holdingTimeMinutes,
         predictionAccurate,
         predictionAccuracyPercent,
@@ -1217,7 +1239,9 @@ export class PerformanceValidator {
           percentGain,
           realizedPnL,
           resolutionReason: 'auto_time_stop',
-          exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+          exitDate: formatExitDate(Math.min(Date.parse(plan.atIso), now.getTime())),
+          exitTimeSource: 'deadline',
+          deadlineMs: Date.parse(plan.atIso),
           actualHoldingTimeMinutes: holdingTimeMinutes,
           predictionAccurate: this.checkPredictionAccuracy(idea, currentPrice, highestPrice, lowestPrice),
           predictionAccuracyPercent: this.calculatePredictionAccuracyPercent(idea, currentPrice, highestPrice, lowestPrice),

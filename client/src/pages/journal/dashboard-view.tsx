@@ -28,6 +28,7 @@ import { fmtDuration, fmtMoney, fmtPct, fmtRatio, toTrade } from '@/lib/journal/
 import { edgeScore, relativeDrawdown, timeGrid, EDGE_MIN_CLOSED } from '@/lib/journal/metrics-extra';
 import { balanceAnchor, useJournalBalance } from '@/lib/journal/use-journal-extra';
 import { buildInsights, INSIGHT_DIM_LABEL, stopDoing } from '@/lib/journal/insights';
+import { useJournalMarks } from '@/lib/journal/use-journal-marks';
 
 export { TradeMiniList } from '@/components/journal/trade-mini-list';
 
@@ -35,6 +36,8 @@ export default function DashboardView() {
   const { data, openDay, openTrade, goTo } = useJournal();
   const drill = useJournalDrill();
   const m = data.metrics;
+  // Live marks for open positions (Mine / trader books) — 30 s poll while visible.
+  const marks = useJournalMarks(data.key, m.openTrades);
 
   // Balance behind the book → anchor for % drawdown (null + reason when none).
   const bal = useJournalBalance(data.key);
@@ -131,7 +134,7 @@ export default function DashboardView() {
             <button type="button" aria-pressed={tab === 'open'} onClick={() => { setTab('open'); setMore(false); }}>OPEN · {m.openTrades}</button>
           </div>
         }>
-          {activityShown.length ? <TradeMiniList trades={activityShown} onOpen={(id) => openTrade(id, activity.map((t) => t.id))} /> : <p className="jr-note">{tab === 'open' ? 'Flat — no open positions in view.' : 'No closed trades in view.'}</p>}
+          {activityShown.length ? <TradeMiniList trades={activityShown} marks={marks} onOpen={(id) => openTrade(id, activity.map((t) => t.id))} /> : <p className="jr-note">{tab === 'open' ? 'Flat — no open positions in view.' : 'No closed trades in view.'}</p>}
           <div className="jr-row-actions">
             {activity.length > 8 && <button type="button" className="jr-btn jr-btn-sm" onClick={() => setMore((v) => !v)}>{more ? 'Show fewer' : `Show more (${Math.min(30, activity.length)})`}</button>}
             <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('trades')}>All {data.trades.length} trades <ArrowRight className="h-3.5 w-3.5" /></button>
