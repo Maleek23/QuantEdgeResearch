@@ -20,6 +20,8 @@ import { Link, useLocation } from 'wouter';
 import '@/styles/nexus.css';
 import LiveShowcase from '@/components/landing/live-showcase';
 import { PLANS, yearlySavingsPct, type Plan } from '@/lib/plans';
+import { LANDING_FAQ } from '@shared/landing-faq';
+import { SEOHead } from '@/components/seo-head';
 import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -42,26 +44,12 @@ const MORE: [string, string, string][] = [
   ['Positions', '/t?tab=positions', 'What you hold, marked'],
 ];
 
-const FAQ: [string, React.ReactNode][] = [
-  ['What is QuantEdge?',
-    'A trading research terminal for stocks, options and crypto. It shows dealer positioning (GEX), options flow and dark-pool prints, ranks setups on NEXUS — the trading desk — by the evidence behind them, and keeps the record: Quantinum Bot trades those ideas on paper, and your journal measures your own trades.'],
-  ['Where does the data come from, and is it delayed?',
-    'Equity quotes and trades come from brokerage and market-data APIs (Alpaca IEX trades, Tradier and Yahoo quotes), crypto from Coinbase’s live feed, options chains from Alpaca, Tradier or CBOE’s delayed feed, and flow from a third-party flow feed. Every tile shows its source and how old it is. When a feed is delayed (CBOE chains run about 15 minutes behind) or stale, the tile says so rather than showing it as live. The free plan uses 15-minute delayed quotes.'],
-  ['Is this investment advice?',
-    'No. QuantEdge is an educational and analytical tool. A setup is a hypothesis with its evidence and its record shown — not a recommendation to buy or sell. Your trades and your risk are yours. Options — especially same-day (0DTE) options — and crypto are high-risk: a position can lose its full value quickly, and they are not suitable for every investor.'],
-  ['How are ideas measured?',
-    'Every NEXUS idea is published with an entry, a stop and a target, then graded automatically when price reaches one of them or the idea expires. Outcomes go into a public record by conviction band. A win rate is only shown with its sample size, and not at all below 30 closed trades — small samples mislead.'],
-  ['What is the 0DTE desk?',
-    'A NEXUS view for the index session: SPX/SPY levels, the dealer map and same-day flow in one place, with the data’s age shown. It is context for same-day trading, not an exchange-speed execution feed.'],
-  ['Does crypto run 24/7?',
-    'Yes. BTC, ETH and the other majors stream from Coinbase around the clock, including weekends, and the crypto tab tracks the equity proxies that follow them.'],
-  ['Can I import my trades into the journal?',
-    'Yes. Upload a broker CSV — Webull, Robinhood, Schwab, Interactive Brokers, tastytrade, TD Ameritrade, Fidelity and E*TRADE are recognised, or it auto-detects — or connect Alpaca for a read-only fill import, or log trades by hand. Your journal is scored with the same metrics as Quantinum Bot’s book.'],
-  ['Does it work on a phone?',
-    'Yes. Every page is built for phone width — Today, NEXUS, FLOW and GEX sit in the bottom dock — and the live panels above swipe. There is no app to install; add the site to your home screen if you like.'],
-  ['What does it cost, and how do I get access?',
-    <>QuantEdge is in early-access beta. There is a free plan with delayed data and limits, and Advanced unlocks real-time data and full access — see <a href="#pricing">Pricing</a>. Paid plans renew automatically each month or year until you cancel, and you can cancel anytime by emailing <a href="mailto:support@quantedgelabs.net">support@quantedgelabs.net</a>.</>],
-];
+// One copy of the FAQ text (shared/landing-faq.ts): the server emits the same
+// answers as FAQPage JSON-LD on `/`, so the visible text and the schema match.
+const FAQ: [string, React.ReactNode][] = LANDING_FAQ.map(({ id, q, a }) => [q,
+  id === 'cost'
+    ? <>QuantEdge is in early-access beta. There is a free plan with delayed data and limits, and Advanced unlocks real-time data and full access — see <a href="#pricing">Pricing</a>. Paid plans renew automatically each month or year until you cancel, and you can cancel anytime by emailing <a href="mailto:support@quantedgelabs.net">support@quantedgelabs.net</a>.</>
+    : a]);
 
 function Frame({ src, w, h, alt, url, eager }: { src: string; w: number; h: number; alt: string; url: string; eager?: boolean }) {
   return (
@@ -188,6 +176,7 @@ export default function LandingNexus() {
 
   return (
     <div className="landing nexus-vars lp">
+      <SEOHead pageKey="landing" />
       {/* NAV */}
       <nav className="lnav">
         <div className="lnav-inner">

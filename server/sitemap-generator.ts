@@ -1,107 +1,88 @@
 /**
- * Dynamic Sitemap Generator for Quant Edge Labs
- * Generates XML sitemap for SEO optimization
+ * sitemap.xml and robots.txt for QuantEdge Labs.
+ *
+ * The sitemap lists only indexable, 200-status URLs: the public pages in
+ * server/seo-metadata.ts PUBLIC_ROUTES and published blog posts. <lastmod> is
+ * a real date — the post's updatedAt, or for static pages the date their copy
+ * last changed (STATIC_LASTMOD; bump it when you edit a page's content).
  */
+import { PUBLIC_ROUTES, SITE_URL } from './seo-metadata';
 
-const BASE_URL = 'https://quantedgelabs.net';
+/** Last content change per public page (YYYY-MM-DD). */
+const STATIC_LASTMOD: Record<string, string> = {
+  '/': '2026-09-30',
+  '/about': '2026-09-30',
+  '/blog': '2026-09-30',
+  '/academy': '2026-09-26',
+  '/how-to': '2026-09-30',
+  '/privacy': '2026-09-30',
+  '/terms': '2026-09-30',
+};
 
-interface SitemapUrl {
-  loc: string;
-  lastmod?: string;
-  changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
-  priority: number;
+export interface SitemapPost {
+  slug: string;
+  updatedAt?: Date | string | null;
+  publishedAt?: Date | string | null;
 }
 
-// Static pages with SEO priority
-const STATIC_PAGES: SitemapUrl[] = [
-  { loc: '/', changefreq: 'daily', priority: 1.0 },
-  { loc: '/blog', changefreq: 'daily', priority: 0.8 },
-  { loc: '/academy', changefreq: 'weekly', priority: 0.7 },
-  { loc: '/how-to', changefreq: 'monthly', priority: 0.6 },
-  { loc: '/about', changefreq: 'monthly', priority: 0.6 },
-  { loc: '/privacy', changefreq: 'yearly', priority: 0.3 },
-  { loc: '/terms', changefreq: 'yearly', priority: 0.3 },
-];
+function isoDate(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
 
-export function generateSitemap(blogSlugs: string[] = []): string {
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-`;
+function escapeXml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
 
-  // Add static pages
-  for (const page of STATIC_PAGES) {
-    xml += `  <url>
-    <loc>${BASE_URL}${page.loc}</loc>
-    <changefreq>${page.changefreq}</changefreq>
-    <priority>${page.priority.toFixed(1)}</priority>
-  </url>
-`;
+function urlEntry(loc: string, lastmod: string | null): string {
+  return `  <url>\n    <loc>${escapeXml(loc)}</loc>\n${lastmod ? `    <lastmod>${lastmod}</lastmod>\n` : ''}  </url>\n`;
+}
+
+export function generateSitemap(posts: SitemapPost[] = []): string {
+  const postDates = posts.map((p) => isoDate(p.updatedAt) ?? isoDate(p.publishedAt)).filter((d): d is string => !!d).sort();
+  const newestPost = postDates[postDates.length - 1] ?? null;
+
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+  for (const path of Object.keys(PUBLIC_ROUTES)) {
+    // An empty blog index is thin content — list it once a post is published.
+    if (path === '/blog' && posts.length === 0) continue;
+    let lastmod = STATIC_LASTMOD[path] ?? null;
+    // The blog index changes whenever a post does.
+    if (path === '/blog' && newestPost && (!lastmod || newestPost > lastmod)) lastmod = newestPost;
+    xml += urlEntry(`${SITE_URL}${path === '/' ? '/' : path}`, lastmod);
   }
-
-  // Add blog post pages
-  for (const slug of blogSlugs) {
-    const safeSlug = encodeURIComponent(slug);
-    xml += `  <url>
-    <loc>${BASE_URL}/blog/${safeSlug}</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-`;
+  for (const post of posts) {
+    if (!post.slug) continue;
+    xml += urlEntry(`${SITE_URL}/blog/${encodeURIComponent(post.slug)}`, isoDate(post.updatedAt) ?? isoDate(post.publishedAt));
   }
-
-  xml += `</urlset>`;
-
+  xml += '</urlset>\n';
   return xml;
 }
 
-// Generate robots.txt content
+/**
+ * robots.txt. One `User-agent: *` group on purpose: a crawler obeys only the most
+ * specific group that names it, so the old `User-agent: Googlebot / Allow: /`
+ * group silently cancelled every Disallow for Google and Bing.
+ *
+ * Signed-in app pages (/t, /r/:symbol, /today, /login …) are NOT disallowed: they
+ * serve `noindex`, and a crawler has to be allowed to fetch a page to see that.
+ * Disallowing them would let linked URLs (the landing links /t and /r/SPY) be
+ * indexed as bare URLs. Only the API and account-only paths are blocked.
+ */
 export function generateRobotsTxt(): string {
-  return `# Quant Edge Labs Robots.txt
-# https://quantedgelabs.net
+  return `# QuantEdge Labs — ${SITE_URL}
 
 User-agent: *
 Allow: /
-
-# Crawl delay for polite crawling
-Crawl-delay: 1
-
-# Disallow admin and private areas
-Disallow: /admin
-Disallow: /admin-*
 Disallow: /api/
+Disallow: /admin
 Disallow: /settings
 Disallow: /reset-password
-Disallow: /invite-welcome
-Disallow: /login
-Disallow: /signup
 Disallow: /forgot-password
-Disallow: /join-beta
-Disallow: /t
-Disallow: /r
-Disallow: /r/
-Disallow: /radar
-Disallow: /today
-Disallow: /slate
-Disallow: /alerts
+Disallow: /invite
 Disallow: /trade-ideas/
 
-# Allow search engines to index API docs if present
-Allow: /api-docs
-
-# Sitemap location
-Sitemap: https://quantedgelabs.net/sitemap.xml
-
-# Google specific
-User-agent: Googlebot
-Allow: /
-Crawl-delay: 0
-
-# Bing specific
-User-agent: Bingbot
-Allow: /
-Crawl-delay: 1
+Sitemap: ${SITE_URL}/sitemap.xml
 `;
 }

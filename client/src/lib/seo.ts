@@ -1,3 +1,4 @@
+import { PUBLIC_PAGE_META } from "@shared/public-seo";
 export interface SEOMetadata {
   title: string;
   description: string;
@@ -40,9 +41,12 @@ export const DEFAULT_SEO: SEOMetadata = {
 };
 
 export const PAGE_SEO: Record<string, SEOMetadata> = {
+  howTo: { ...PUBLIC_PAGE_META["/how-to"] },
+  privacy: { ...PUBLIC_PAGE_META["/privacy"] },
+  terms: { ...PUBLIC_PAGE_META["/terms"] },
+
   landing: {
-    title: "QuantEdge Labs | Trading Research Terminal for Stocks, Options & Crypto",
-    description: DEFINITION,
+    ...PUBLIC_PAGE_META["/"],
     ogTitle: "QuantEdge Labs | Trading Research Terminal",
     ogDescription: "Dealer positioning, options flow, evidence-ranked setups, charts, a paper-trading bot and trading journals in one terminal. Every number carries its evidence and its record.",
     keywords: CORE_KEYWORDS,
@@ -59,7 +63,7 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
   pricing: {
     title: "Pricing | QuantEdge Labs Trading Research Terminal",
     description: "Start free on the QuantEdge terminal — dealer positioning, options flow, evidence-ranked setups and trading journals. Upgrade for unlimited access.",
-    ogTitle: "Quant Edge Labs Pricing - Free Trading Tools",
+    ogTitle: "QuantEdge Labs Pricing - Free Trading Tools",
     ogDescription: "Plans for the QuantEdge trading research terminal.",
     keywords: [
       "trading terminal pricing",
@@ -69,29 +73,23 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
     ],
   },
   about: {
-    title: "About QuantEdge Labs | Research Method and Founder",
-    description: "Learn how QuantEdge Labs combines systems engineering, model-risk discipline and quantitative market research. Founded by Abdulmalik Ajisegiri.",
-    ogTitle: "About QuantEdge Labs",
-    ogDescription: "The research method and systems-engineering discipline behind QuantEdge Labs.",
+    ...PUBLIC_PAGE_META["/about"],
     keywords: [
-      "about Quant Edge Labs",
+      "about QuantEdge Labs",
       "trading research terminal",
       "quantitative fintech",
       "quantitative trading company",
     ],
   },
   blog: {
-    title: "Research Library | Markets, Options and Model Risk - QuantEdge Labs",
-    description: "Learn trading strategies, quantitative market analysis, and scoring methods. Expert insights on using confluence engines for stock research and trading signals.",
-    ogTitle: "Quant Edge Labs Blog - Trading Insights",
-    ogDescription: "Expert trading education, market analysis, and quantitative strategies for traders.",
+    ...PUBLIC_PAGE_META["/blog"],
     keywords: [
       "quantitative trading strategies",
       "quantitative investing",
     ],
   },
   successStories: {
-    title: "Track Record | Published Ideas & Outcomes - Quant Edge Labs",
+    title: "Track Record | Published Ideas & Outcomes - QuantEdge Labs",
     description: "The platform's published ideas and how they did — wins and losses, each rate with its sample size.",
     ogTitle: "QuantEdge Track Record",
     ogDescription: "Every published idea and its outcome, with sample sizes.",
@@ -102,7 +100,7 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
   tradeDesk: {
     title: "NEXUS | Evidence-Ranked Setups - QuantEdge Labs",
     description: "Evidence-ranked setups with entry, stop and target, graded after the fact — model ideas for research, not recommendations.",
-    ogTitle: "Quant Edge Labs Trade Desk",
+    ogTitle: "QuantEdge Labs Trade Desk",
     ogDescription: "Evidence-ranked setups and confluence analysis for stocks, options and crypto — research, not recommendations.",
     keywords: [
       "real-time trading signals",
@@ -111,7 +109,7 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
     ],
   },
   performance: {
-    title: "Trading Performance | Analytics & Win Rates - Quant Edge Labs",
+    title: "Trading Performance | Analytics & Win Rates - QuantEdge Labs",
     description: "Transparent trading performance metrics. Track hit rates, returns, and analytics across each scanner source — with sample sizes and breakeven thresholds disclosed.",
     ogTitle: "QuantEdge Labs Performance Analytics",
     ogDescription: "Transparent performance tracking for our quantitative confluence trading signals.",
@@ -130,10 +128,7 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
     ],
   },
   academy: {
-    title: "Trading Academy | Learn Quantitative Trading - Quant Edge Labs",
-    description: "Free trading courses and tutorials. Learn how to use quantitative scoring for stock analysis, confluence strategies, and algorithmic trading.",
-    ogTitle: "Quant Edge Labs Academy - Learn Trading",
-    ogDescription: "Master trading with free courses on quantitative analysis, confluence scoring, and algorithmic strategies.",
+    ...PUBLIC_PAGE_META["/academy"],
     keywords: [
       "quantitative trading tutorial",
       "algorithmic trading course",
@@ -180,7 +175,7 @@ export function generateSEO(pageKey?: string, overrides?: Partial<SEOMetadata>):
   };
 }
 
-export function formatTitle(title: string, siteName: string = "Quant Edge Labs"): string {
+export function formatTitle(title: string, siteName: string = "QuantEdge Labs"): string {
   if (title.includes(siteName)) return title;
   return `${title} | ${siteName}`;
 }
@@ -191,7 +186,7 @@ export function generateStockSEO(symbol: string, companyName?: string): SEOMetad
   return {
     title: `${symbol} Research | Dealer Map, Flow and Setups - QuantEdge Labs`,
     description: `${name} (${symbol}) on QuantEdge: dealer positioning, options flow, chart levels and evidence-ranked setups, each with its source and age.`,
-    ogTitle: `${symbol} Stock Analysis - Quant Edge Labs`,
+    ogTitle: `${symbol} Stock Analysis - QuantEdge Labs`,
     ogDescription: `Quantitative analysis for ${name}. Confluence scoring, technical patterns, and research.`,
     keywords: [
       `${symbol} stock prediction`,

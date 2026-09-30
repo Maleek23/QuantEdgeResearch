@@ -9,12 +9,14 @@
 import { Link } from 'wouter';
 import { Target, Bitcoin, Home, Wallet, Zap, BookOpen, Microscope, ArrowRight, Download } from 'lucide-react';
 import { LuxPage, LuxPageHeader, LuxPanel, LuxTag } from '@/components/lux';
+import { SEOHead } from "@/components/seo-head";
 
 export const GUIDE_PDF = '/guide/QuantEdge-How-To-Use.pdf';
 
 export default function HowToPage() {
   return (
     <LuxPage width="narrow">
+      <SEOHead pageKey="howTo" />
       <LuxPageHeader
         section="Guide"
         context="static · read once"

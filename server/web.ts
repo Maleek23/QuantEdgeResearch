@@ -39,6 +39,7 @@ import { initializeBotNotificationService } from "./bot-notification-service";
 import { initializeWeeklyTracker } from "./weekly-tracker";
 import { securityHeaders } from "./security";
 import { csrfMiddleware, validateCSRF } from "./csrf";
+import { seoRedirects } from "./seo-serve";
 import { runHeavy } from "./lib/heavy-job-gate";
 import { startMemoryGuard } from "./lib/memory-guard";
 
@@ -55,6 +56,9 @@ app.use(compression({
     if (req.headers['x-no-compression']) return false;
     return compression.filter(req, res);
   }}));
+
+// SEO: www → apex, trailing slash, legacy URLs → 301 (server/seo-serve.ts)
+app.use(seoRedirects);
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {

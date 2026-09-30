@@ -613,18 +613,18 @@ export default function BlogPostPage() {
       },
       "publisher": {
         "@type": "Organization",
-        "name": "Quant Edge Labs",
+        "name": "QuantEdge Labs",
         "logo": {
           "@type": "ImageObject",
-          "url": `${baseUrl}/logo.png`
+          "url": `${baseUrl}/icon-512.png`
         }
       },
       "mainEntityOfPage": {
         "@type": "WebPage",
         "@id": `${baseUrl}/blog/${post.slug}`
       },
-      "datePublished": post.publishedAt ? new Date(post.publishedAt).toISOString() : new Date().toISOString(),
-      "dateModified": post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString(),
+      "datePublished": post.publishedAt ? new Date(post.publishedAt).toISOString() : undefined,
+      "dateModified": post.updatedAt ? new Date(post.updatedAt).toISOString() : undefined,
       "image": post.heroImageUrl || `${baseUrl}/og-image.png`,
       "articleSection": post.category.replace('-', ' '),
       "keywords": post.metaKeywords || post.tags?.join(', ') || '',
@@ -696,7 +696,7 @@ export default function BlogPostPage() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
-        title={`${post.title} | Quant Edge Labs Blog`}
+        title={`${post.title} | QuantEdge Labs`}
         description={post.metaDescription || post.excerpt || post.title}
         keywords={post.metaKeywords?.split(',').map(k => k.trim()) || post.tags}
         ogTitle={post.title}
