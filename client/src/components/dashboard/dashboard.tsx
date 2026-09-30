@@ -671,7 +671,7 @@ function PageView({ page }: { page: PageId }) {
             {ordered.map((t) => (
               <PageSection key={t.i} tool={t} symbol={symbolOf(t)} style={isMobile ? undefined : place.get(t.i)}
                 column={!isMobile && wide && !!spec.columns?.includes(t.type)}
-                fill={(isMobile ? spec.phone?.fill?.[t.type] : undefined) ?? (spec.fill?.includes(t.type) ? 'clamp(340px, 56vh, 640px)' : undefined)} />
+                fill={(isMobile ? spec.phone?.fill?.[t.type] : undefined) ?? (spec.fill?.includes(t.type) ? 'clamp(340px, 56vh, 640px)' : spec.natural?.includes(t.type) ? 'auto' : undefined)} />
             ))}
           </div>
         )}

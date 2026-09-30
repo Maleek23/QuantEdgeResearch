@@ -105,6 +105,11 @@ export interface PageSpec {
    * setups · setup detail · context). The rest flows below at natural height.
    */
   columns?: string[];
+  /**
+   * PAGE mode: tools that are never clipped behind "Show all" at any width
+   * (natural height — Today's hero map and best idea are the page's point).
+   */
+  natural?: string[];
   /** PAGE mode: keep bordered panels (Crypto). Every other page is flat. */
   framed?: boolean;
 }
@@ -166,7 +171,8 @@ export const PAGES: Record<PageId, PageSpec> = {
   bot: spec('bot', 'BOT', BOT_DEFAULTS, ['Bot', 'Book'], BOT_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
   positions: { ...spec('positions', 'POSITIONS', POSITIONS_DEFAULTS, ['Book', 'Bot'], POSITIONS_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'simple'), simple: { tool: 'positions-classic' } },
   journal: spec('journal', 'JOURNAL', JOURNAL_DEFAULTS, ['Journal'], ['journal-net-pnl', 'journal-equity', 'journal-calendar']),
-  today: spec('today', 'TODAY', TODAY_DEFAULTS, ['Market', 'Ideas', 'Book'], TODAY_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'),
+  // Today: an editorial page (today.css .dash-today) — the hero and the best idea are never clipped.
+  today: { ...spec('today', 'TODAY', TODAY_DEFAULTS, ['Market', 'Ideas', 'Book'], TODAY_DEFAULTS[0]?.tools.slice(0, 2).map((t) => t[0]) ?? [], 'page'), natural: ['today-week-map', 'today-best-idea'] },
 };
 
 /** Where a page's loading skeleton puts its tiles — the page's own default grid. */

@@ -53,7 +53,7 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 
 **Fit.** Desktop: the page is `100dvh − chrome`; only the grid and tool bodies scroll.
 
-## Registry (91 tools)
+## Registry (93 tools)
 
 | Category | id | Title | Defined in |
 |---|---|---|---|
@@ -136,14 +136,15 @@ hub/scan fetches (`server/alpaca-options.ts` `withAlpacaPriority`).
 | Book | `positions-mix` | Book mix · source / asset | `defs/positions.ts` |
 | Book | `positions-table` | Positions detail table | `defs/positions.ts` |
 | Book | `positions-classic` | Position heat map (all-in-one, classic) | `defs/positions.ts` |
-| Market | `today-week-map` | Week dealer map · SPY | `defs/today.ts` |
-| Ideas | `today-best-idea` | Best idea · top ranked setup | `defs/today.ts` |
-| Ideas | `today-ranked-book` | Ranked book | `defs/today.ts` |
-| Market | `today-index-desk` | Index desk · SPX SPY QQQ IWM | `defs/today.ts` |
-| Ideas | `today-book-stats` | Book stats | `defs/today.ts` |
-| Journal | `today-model-record` | Model record | `defs/today.ts` |
-| Market | `today-rotation` | Rotation · sector quadrant | `defs/today.ts` |
-| Market | `today-tape` | Sector & crypto tape | `defs/today.ts` |
+| Market | `today-week-map` | Week Dealer Map · SPY | `defs/today.ts` |
+| Ideas | `today-best-idea` | Today's Best Idea | `defs/today.ts` |
+| Ideas | `today-ranked-book` | Ranked Book | `defs/today.ts` |
+| Market | `today-index-desk` | Index Desk | `defs/today.ts` |
+| Ideas | `today-book-stats` | Book Stats | `defs/today.ts` |
+| Journal | `today-model-record` | Model Record | `defs/today.ts` |
+| Market | `today-rotation` | Sector Rotation | `defs/today.ts` |
+| Market | `today-tape` | Sector & Crypto Tape | `defs/today.ts` |
+| Market | `today-crypto` | Crypto Pulse | `defs/today.ts` |
 | Market | `stock-chart` | Stock Chart | `defs/market.ts` |
 | Market | `watchlist` | Watchlist | `defs/market.ts` |
 | Market | `market-pulse` | Market pulse | `defs/market.ts` |
@@ -165,7 +166,7 @@ Every default tiles 12 × 18 exactly (DEV assertion `tilingIssues`, pages.ts). O
 - **leaps:default** (LEAPS) — `leaps-list` (0,0 7×18), `stock-chart` (7,0 5×11), `leaps-summary` (7,11 5×7)
 - **bot:default** (BOT) — `bot-stats` (0,0 12×3), `bot-book` (0,3 5×8), `bot-ledger` (5,3 4×8), `bot-outcomes` (9,3 3×8), `bot-jobs` (0,11 6×7), `bot-history` (6,11 6×7)
 - **positions:default** (POSITIONS) — `positions-pnl` (0,0 12×3), `positions-heat` (0,3 8×9), `positions-best-worst` (8,3 4×5), `positions-mix` (8,8 4×4), `positions-table` (0,12 12×6)
-- **today:default** (Today) — `today-week-map` (0,0 8×9), `today-best-idea` (8,0 4×9), `today-tape` (0,9 12×3), `today-ranked-book` (0,12 6×6), `today-index-desk` (6,12 3×6), `today-model-record` (9,12 3×6)
+- **today:default** (Today) — an editorial PAGE (one band per row, `.dash-today` in today.css): `today-tape` (0,0 12×1), `today-premarket` (0,1 12×1), `today-week-map` (0,2 12×6), `today-index-desk` (0,8 12×2), `today-best-idea` (0,10 12×3), `today-ranked-book` (0,13 12×2), `today-rotation` (0,15 7×2), `today-crypto` (7,15 5×2), `today-model-record` (0,17 7×1), `today-book-stats` (7,17 5×1)
 
 ## FLOW domain — one owner for everything options-flow (feat/flowdom, 2026-09-29)
 

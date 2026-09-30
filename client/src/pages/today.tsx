@@ -1,11 +1,13 @@
 /**
- * TODAY — the signed-in home, now a dashboard (2026-09-29).
+ * TODAY — the signed-in home: a plain scrolling page in the landing page's
+ * editorial style (2026-09-30; operator: "everything is all cramped").
  *
- * The 2026-09-24 prototype (one job per band: the week's dealer map + model
- * path, the single best idea, the ranked book, the index desk, rotation and
- * the honest record) is split into TODAY tools — defs/today.ts,
- * components/dashboard/tools/today/. The default layout keeps the reading
- * order: the week dealer map is the hero, the best idea beside it.
+ * The page is PAGE-mode dashboard tools (defs/today.ts,
+ * components/dashboard/tools/today/) drawn as full-width bands in reading
+ * order — tape + pre-market strip, the hero (headline sentence, week dealer
+ * map, key levels), the index desk, today's best idea + ranked book, market
+ * context (rotation, crypto pulse), then the model record + book stats — in a
+ * centred ≤1360px column with one spacing scale (styles/today.css .dash-today).
  *
  * Integrity is unchanged: only MEASURED dealer levels are drawn; the weekly
  * path is a model projection labelled "not a forecast"; every tool stamps the
