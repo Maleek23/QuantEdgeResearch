@@ -32573,6 +32573,9 @@ Use this checklist before entering any trade:
     // Loss rules v1: before/after + hypothetical counterfactual (server/loss-rules-report.ts)
     const { registerLossRulesRoutes } = await import('./loss-rules-report');
     registerLossRulesRoutes(app, requireBetaAccess);
+    // NEXUS 0DTE desk + 2–4 day swings (server/zero-dte-desk.ts)
+    const { registerZeroDteDeskRoutes } = await import('./zero-dte-desk');
+    registerZeroDteDeskRoutes(app, requireBetaAccess);
   }
 
   /**

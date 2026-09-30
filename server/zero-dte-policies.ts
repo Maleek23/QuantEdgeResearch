@@ -73,6 +73,45 @@ export interface ZeroDteSetup {
 
 export interface PolicyVerdict { setup: ZeroDteSetup | null; wait: string[] }
 
+/**
+ * 0DTE-ONLY LEVELS (desk addition 2026-09-29 — NOT in the pre-registered spec).
+ * The pre-registered A/B read the all-expiry walls. Those sit 1–3% away on SPY
+ * most days, so a power-hour PIN — a same-day-expiry phenomenon — could almost
+ * never tag one: B needs a bar in the last 15 min to touch the wall. The
+ * same-day expiry's own walls (server/zero-dte-desk-core.ts expiryBucketLevels)
+ * are where the pin actually forms. When supplied they are ADDED as candidate
+ * levels / walls / destinations (never replace the measured all-expiry ones),
+ * and every idea that uses one names it in its evidence. Unvalidated like the
+ * rest; ZERO_DTE_WALLS_IN_POLICY=false removes them without a deploy.
+ */
+export interface ZeroDteBucketInput {
+  expiry: string;
+  callWall: number | null;
+  putWall: number | null;
+  maxGamma: number | null;
+  zeroGamma: number | null;
+}
+
+export interface PolicyOptions {
+  zeroDte?: ZeroDteBucketInput | null;
+  /** Per-symbol risk cap (%). Index default 0.6; single names scale with their own expected move. */
+  maxRiskPct?: number;
+}
+
+/** Entry windows (ET minutes after midnight) — one definition for the policies AND the desk clock. */
+export const POLICY_WINDOWS = {
+  entry: { start: 585, end: 945 },                    // 09:45–15:45 — nothing new outside it
+  A: [{ start: 585, end: 945 }],                      // −γ continuation
+  B: [{ start: 600, end: 870 }, { start: 900, end: 940 }], // +γ wall fade · power-hour pin
+} as const;
+export const POWER_HOUR_START = 900;
+export function policyOpen(policy: 'A' | 'B', etMin: number): boolean {
+  return POLICY_WINDOWS[policy].some((w) => etMin >= w.start && etMin <= w.end);
+}
+export function zeroDteWallsEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return !/^(0|false|off|no)$/i.test(String(env.ZERO_DTE_WALLS_IN_POLICY ?? '').trim());
+}
+
 const GEX_MAX_AGE_MS = 10 * 60_000;
 const BAR_MAX_AGE_MS = 12 * 60_000;   // last CLOSED bar's start time
 const SPOT_AGREE_PCT = 0.4;
@@ -83,9 +122,11 @@ const STOP_BUFFER = 0.001;            // 0.10% of the level
 const f2 = (x: number) => x.toFixed(2);
 const ageMin = (ms: number) => `${Math.max(0, Math.round(ms / 60_000))}m`;
 
-export function evaluateZeroDte(symbol: string, gex: GexInput, st: IntradayStructure, nowMs: number, etMin: number, eventBlock: string | null): PolicyVerdict {
+export function evaluateZeroDte(symbol: string, gex: GexInput, st: IntradayStructure, nowMs: number, etMin: number, eventBlock: string | null, opts: PolicyOptions = {}): PolicyVerdict {
   const wait: string[] = [];
-  if (etMin < 585 || etMin > 945) return { setup: null, wait: ['outside 09:45–15:45 ET entry window'] };
+  const z = opts.zeroDte ?? null;
+  const maxRiskPct = opts.maxRiskPct ?? MAX_RISK_PCT;
+  if (etMin < POLICY_WINDOWS.entry.start || etMin > POLICY_WINDOWS.entry.end) return { setup: null, wait: ['outside 09:45–15:45 ET entry window'] };
   if (eventBlock) return { setup: null, wait: [`event gate: ${eventBlock}`] };
   const gexAge = nowMs - Date.parse(gex.fetchedAt);
   if (!(gexAge <= GEX_MAX_AGE_MS)) return { setup: null, wait: [`GEX snapshot ${ageMin(gexAge)} old`] };
@@ -98,11 +139,12 @@ export function evaluateZeroDte(symbol: string, gex: GexInput, st: IntradayStruc
   if (st.vwap == null) return { setup: null, wait: ['no VWAP'] };
   if (gex.sign === 'neutral') return { setup: null, wait: ['neutral gamma — no dealer footprint (policy C)'] };
 
-  const powerHour = etMin >= 900;
+  const powerHour = etMin >= POWER_HOUR_START;
   const barTime = new Date(st.lastBarAt + 5 * 60_000).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
   const baseEvidence = [
     `GEX ${gex.sign} (net at spot) · zero-γ ${gex.zeroGamma ? '$' + f2(gex.zeroGamma) : '—'} · put/call wall ${gex.putWall ?? '—'}/${gex.callWall ?? '—'} · snapshot ${ageMin(gexAge)} old` +
       (gex.modelledGrossShare != null ? ` · ${(gex.modelledGrossShare * 100).toFixed(1)}% of gross gamma modelled` : ''),
+    ...(z ? [`0DTE-only levels (${z.expiry}): put/call wall ${z.putWall ?? '—'}/${z.callWall ?? '—'} · max-γ ${z.maxGamma ?? '—'} — desk addition, not in the pre-registered spec`] : []),
     `VWAP $${f2(st.vwap)} · OR30 ${st.or30Low != null ? '$' + f2(st.or30Low) : '—'}–${st.or30High != null ? '$' + f2(st.or30High) : '—'} · PDH/PDL ${st.pdh != null ? '$' + f2(st.pdh) : '—'}/${st.pdl != null ? '$' + f2(st.pdl) : '—'}`,
     `last closed 5-min bar $${f2(c1)} at ${barTime} ET (${ageMin(nowMs - (st.lastBarAt + 5 * 60_000))} ago)`,
   ];
@@ -111,9 +153,9 @@ export function evaluateZeroDte(symbol: string, gex: GexInput, st: IntradayStruc
   // ── Policy A — negative-gamma continuation ─────────────────────────────
   if (gex.sign === 'negative') {
     const recent = bars.slice(-6, -2); // bars 3–6 back: where price was before the break (≤30 min)
-    const up = [lv('zero-γ', gex.zeroGamma), lv('call wall', gex.callWall), lv('OR30 high', st.or30High), lv('PDH', st.pdh), powerHour ? lv('HOD', st.hodPrior) : null]
+    const up = [lv('zero-γ', gex.zeroGamma), lv('call wall', gex.callWall), lv('OR30 high', st.or30High), lv('PDH', st.pdh), powerHour ? lv('HOD', st.hodPrior) : null, lv('0DTE call wall', z?.callWall)]
       .filter((x): x is Level => !!x);
-    const dn = [lv('zero-γ', gex.zeroGamma), lv('put wall', gex.putWall), lv('OR30 low', st.or30Low), lv('PDL', st.pdl), powerHour ? lv('LOD', st.lodPrior) : null]
+    const dn = [lv('zero-γ', gex.zeroGamma), lv('put wall', gex.putWall), lv('OR30 low', st.or30Low), lv('PDL', st.pdl), powerHour ? lv('LOD', st.lodPrior) : null, lv('0DTE put wall', z?.putWall)]
       .filter((x): x is Level => !!x);
 
     const longTrig = up.filter((L) => c1 > L.price && c2 > L.price && recent.some((b) => b.c <= L.price)).sort((a, b) => b.price - a.price)[0];
@@ -123,10 +165,10 @@ export function evaluateZeroDte(symbol: string, gex: GexInput, st: IntradayStruc
       if (dir === 'long' ? c1 <= st.vwap : c1 >= st.vwap) { wait.push(`A ${dir}: ${trig.name} broken but price on the wrong side of VWAP`); continue; }
       const stop = dir === 'long' ? trig.price * (1 - STOP_BUFFER) : trig.price * (1 + STOP_BUFFER);
       const risk = Math.abs(c1 - stop);
-      if (risk / c1 * 100 > MAX_RISK_PCT) { wait.push(`A ${dir}: ${(risk / c1 * 100).toFixed(2)}% from the broken level — chasing`); continue; }
+      if (risk / c1 * 100 > maxRiskPct) { wait.push(`A ${dir}: ${(risk / c1 * 100).toFixed(2)}% from the broken level — chasing`); continue; }
       const pool = (dir === 'long'
-        ? [lv('call wall', gex.callWall), lv('PDH', st.pdh), lv('OR30 high', st.or30High), lv('zero-γ', gex.zeroGamma)]
-        : [lv('put wall', gex.putWall), lv('PDL', st.pdl), lv('OR30 low', st.or30Low), lv('zero-γ', gex.zeroGamma)])
+        ? [lv('call wall', gex.callWall), lv('PDH', st.pdh), lv('OR30 high', st.or30High), lv('zero-γ', gex.zeroGamma), lv('0DTE call wall', z?.callWall)]
+        : [lv('put wall', gex.putWall), lv('PDL', st.pdl), lv('OR30 low', st.or30Low), lv('zero-γ', gex.zeroGamma), lv('0DTE put wall', z?.putWall)])
         .filter((x): x is Level => !!x && (dir === 'long' ? x.price > c1 * 1.0005 : x.price < c1 * 0.9995));
       const tgt = pool.sort((a, b) => Math.abs(a.price - c1) - Math.abs(b.price - c1))
         .find((x) => Math.abs(x.price - c1) / risk >= MIN_RR);
@@ -149,17 +191,20 @@ export function evaluateZeroDte(symbol: string, gex: GexInput, st: IntradayStruc
   }
 
   // ── Policy B — positive-gamma wall fade ─────────────────────────────────
-  const inB = (etMin >= 600 && etMin <= 870) || (etMin >= 900 && etMin <= 940);
+  const inB = policyOpen('B', etMin);
   if (!inB) return { setup: null, wait: ['B: outside 10:00–14:30 / 15:00–15:40 ET'] };
   const last3 = bars.slice(-3);
   const hi3 = Math.max(...last3.map((b) => b.h)); const lo3 = Math.min(...last3.map((b) => b.l));
   const candidates: Array<{ dir: 'long' | 'short'; wall: Level }> = [];
-  if (gex.callWall && hi3 >= gex.callWall * 0.9995 && c1 < gex.callWall && c1 < c2 && c1 > st.vwap) candidates.push({ dir: 'short', wall: { name: 'call wall', price: gex.callWall } });
-  if (gex.putWall && lo3 <= gex.putWall * 1.0005 && c1 > gex.putWall && c1 > c2 && c1 < st.vwap) candidates.push({ dir: 'long', wall: { name: 'put wall', price: gex.putWall } });
+  const callWalls: Level[] = [lv('call wall', gex.callWall), lv('0DTE call wall', z?.callWall)].filter((x): x is Level => !!x);
+  const putWalls: Level[] = [lv('put wall', gex.putWall), lv('0DTE put wall', z?.putWall)].filter((x): x is Level => !!x);
+  for (const w of callWalls) if (hi3 >= w.price * 0.9995 && c1 < w.price && c1 < c2 && c1 > st.vwap) candidates.push({ dir: 'short', wall: w });
+  for (const w of putWalls) if (lo3 <= w.price * 1.0005 && c1 > w.price && c1 > c2 && c1 < st.vwap) candidates.push({ dir: 'long', wall: w });
   for (const { dir, wall } of candidates) {
     const stop = dir === 'short' ? Math.max(hi3, wall.price) * (1 + STOP_BUFFER) : Math.min(lo3, wall.price) * (1 - STOP_BUFFER);
     const risk = Math.abs(stop - c1);
-    const pool = [lv('VWAP', st.vwap), lv('zero-γ', gex.zeroGamma)]
+    // Power-hour pin: the same-day max-γ strike is the magnet (desk addition).
+    const pool = [lv('VWAP', st.vwap), lv('zero-γ', gex.zeroGamma), powerHour ? lv('0DTE max-γ', z?.maxGamma) : null]
       .filter((x): x is Level => !!x && (dir === 'short' ? x.price < c1 * 0.9995 : x.price > c1 * 1.0005))
       .sort((a, b) => Math.abs(a.price - c1) - Math.abs(b.price - c1));
     const tgt = pool[0];
@@ -178,7 +223,7 @@ export function evaluateZeroDte(symbol: string, gex: GexInput, st: IntradayStruc
       wait,
     };
   }
-  if (!candidates.length) wait.push('B: no wall tag + rejection');
+  if (!candidates.length) wait.push(`B: no wall tag + rejection${z ? ' (all-expiry or 0DTE walls)' : ''}`);
   return { setup: null, wait };
 }
 

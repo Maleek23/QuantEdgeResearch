@@ -8,6 +8,7 @@
 import { lazyTool, type DefaultLayout, type ToolDef } from '../tool-def';
 
 const nexus = () => import('../tools/nexus/nexus-tools');
+const zeroDte = () => import('@/components/zerodte/zero-dte-desk');
 const BOOK = 'convictions engine';
 
 export const NEXUS_TOOLS: ToolDef[] = [
@@ -52,6 +53,12 @@ export const NEXUS_TOOLS: ToolDef[] = [
     what: 'Every published idea cut by horizon — 0DTE · weekly (1–7D) · swing (8–30D) · monthly (31–60D) · position · LEAPS (>180D) — as a sortable table; click a row to open it.',
     units: 'DTE days, conviction /100, price $', source: BOOK, backing: 'HorizonBook (components/ideas) ← GET /api/convictions (horizon from shared/idea-horizon.ts)',
     defaultSize: { w: 12, h: 10 }, minSize: { w: 4, h: 6 }, Component: lazyTool(nexus, 'NexusHorizonTool'),
+  },
+  {
+    id: 'nexus-0dte', category: 'Ideas', title: '0DTE desk',
+    what: 'SPX · TSLA · MSTR · KWEB (ZERO_DTE_WATCH): session clock and what the engine looks for, same-day expected move, single-expiry GEX walls / zero-γ / max-γ, VWAP + opening range, flow tide on the expiry, engine state in plain words; 2–4 day swings (T1 ≤ 1σ); this engine\'s record with n (LOW N < 20).',
+    units: 'price $, % of spot, R multiple, premium $', source: '0DTE desk', backing: 'ZeroDteDesk (components/zerodte/zero-dte-desk.tsx) ← GET /api/zero-dte/desk (server/zero-dte-desk.ts)',
+    defaultSize: { w: 12, h: 16 }, minSize: { w: 4, h: 8 }, Component: lazyTool(zeroDte, 'ZeroDteTool'),
   },
   {
     id: 'nexus-classic', category: 'Ideas', title: 'NEXUS (all-in-one, classic)',
