@@ -271,23 +271,3 @@ export function initializeWeeklyTracker(httpServer: Server): void {
 
   logger.info("[WEEKLY-TRACKER] initialized on /ws/weekly-watchlist");
 }
-
-export function shutdownWeeklyTracker(): void {
-  if (pollTimer) {
-    clearTimeout(pollTimer);
-    pollTimer = null;
-  }
-  if (symbolRefreshTimer) {
-    clearInterval(symbolRefreshTimer);
-    symbolRefreshTimer = null;
-  }
-  if (gapAlertTimer) {
-    clearInterval(gapAlertTimer);
-    gapAlertTimer = null;
-  }
-  if (wss) {
-    wss.close();
-    wss = null;
-  }
-  logger.info("[WEEKLY-TRACKER] shut down");
-}

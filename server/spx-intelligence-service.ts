@@ -870,32 +870,6 @@ async function snapshotDailyIV(): Promise<void> {
     logger.error(`[SPX-INTEL] Daily IV snapshot failed: ${(err as Error).message}`);
   }
 }
-
-/**
- * Get real IV history from stored snapshots
- * Falls back to estimated history if not enough stored data yet
- */
-export async function getStoredIVHistory(symbol: string, days: number = 252): Promise<number[]> {
-  try {
-    const snapshots = await db.select({ atmIv: ivSnapshots.atmIv })
-      .from(ivSnapshots)
-      .where(eq(ivSnapshots.symbol, symbol))
-      .orderBy(desc(ivSnapshots.date))
-      .limit(days);
-
-    if (snapshots.length >= 30) {
-      return snapshots.map(s => s.atmIv).reverse(); // Oldest first
-    }
-
-    // Not enough real data yet — return what we have (UI can indicate "building history")
-    logger.debug(`[SPX-INTEL] Only ${snapshots.length} IV snapshots for ${symbol}, need 30+ for reliable IV Rank`);
-    return snapshots.map(s => s.atmIv).reverse();
-  } catch (err) {
-    logger.debug(`[SPX-INTEL] Failed to fetch IV history: ${(err as Error).message}`);
-    return [];
-  }
-}
-
 /**
  * H) Unified SPX Signal Score
  * Weighted combination of all signals
@@ -1244,15 +1218,4 @@ export function startSPXIntelligenceService(): void {
   }, 60_000);
 
   logger.info('[SPX-INTEL] Index Intelligence Service started, SPY every 60s');
-}
-
-/**
- * Stop the intelligence service
- */
-export function stopSPXIntelligenceService(): void {
-  if (computeInterval) {
-    clearInterval(computeInterval);
-    computeInterval = null;
-  }
-  logger.info('[SPX-INTEL] SPX Intelligence Service stopped');
 }

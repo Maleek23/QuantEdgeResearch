@@ -348,8 +348,6 @@ The weights are judgment, not fitted. **The score orders setups; it is not a pro
 - Replace naive signs with flow-inferred dealer positioning (Bullflow prints or Open-Close data) at least at the magnet strike.
   - Partial step shipped: the Squeeze Radar (`docs/GAMMA_SQUEEZE.md`) reports a turnover-weighted customer-long re-sign of near-dated OTM calls beside the naive book, and uses OCC customer-account call volume as a history-capable proxy.
 - Accumulate the live setup archive and add a base-rate comparison before any score threshold is tuned.
-- `market-pulse.ts`: its "flip" is the midpoint of the OI walls.
-- `gex-vex-projector.ts`: uses absolute $0.5B thresholds.
-- `gex-dte-buckets` per-bucket flips: still cumulative-strike estimates.
-- Move these three onto `shared/gex-math.ts` and `shared/gex-regime.ts`.
+- `gex-vex-projector.ts`: uses absolute $0.5B thresholds. Move it onto `shared/gex-regime.ts`.
+- Resolved 2026-09-30: `market-pulse.ts` no longer computes its wall-midpoint "flip" (the `gexLevels` field had no reader and was removed), and `gex-dte-buckets` no longer returns per-bucket flips (`gammaFlipPrice: null`). Remaining side implementations are ranked in `docs/SIMPLIFY_TODO.md`.
 - `gex_snapshots` has no units column, so rows need a v1/v2 boundary (2026-09-29) before any history study.

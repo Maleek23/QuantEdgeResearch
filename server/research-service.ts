@@ -269,7 +269,3 @@ function generateQuantAnalysis(symbol: string, analysisType: string): AnalysisRe
     ],
   };
 }
-
-export const researchService = {
-  runAnalysis: runResearchAnalysis,
-};

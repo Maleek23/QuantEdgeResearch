@@ -119,22 +119,3 @@ function prettify(value: string): string {
     .map((w) => (ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(" ");
 }
-
-/**
- * Resolve any raw source value to DISPLAY metadata. Does a slightly fuller
- * normalization than the storage path (also folds hyphens) so old hyphenated
- * rows and new rows render identically. Known sources use the curated table;
- * unknown ones get a clean prettified label + word-boundary short code
- * (never a mid-word truncation like "SWIN"/"OPTI").
- */
-export function ideaSourceMeta(src?: string | null): IdeaSourceMeta {
-  const folded = (src ?? "").trim().toLowerCase().replace(/-/g, "_");
-  const canonical = SYNONYMS[folded] ?? folded ?? "quant";
-  const known = META[canonical];
-  if (known) return { canonical, ...known };
-
-  const label = prettify(canonical) || "Scan";
-  const firstWord = canonical.split(/[-_\s]+/).filter(Boolean)[0] ?? "scan";
-  const short = firstWord.toUpperCase().slice(0, 6);
-  return { canonical, short, label, tone: "neutral" };
-}

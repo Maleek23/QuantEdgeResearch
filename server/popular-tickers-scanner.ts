@@ -83,15 +83,6 @@ export interface PopularCoverageRead {
 }
 
 const latestCoverage = new Map<string, PopularCoverageRead>();
-
-/** Latest broad-market reads for the coverage lane. Never trade instructions. */
-export function getPopularTickerCoverage(symbols?: string[]): PopularCoverageRead[] {
-  const requested = symbols?.map(symbol => symbol.toUpperCase());
-  return Array.from(latestCoverage.values())
-    .filter(read => !requested || requested.includes(read.symbol))
-    .sort((a, b) => b.observedAt.localeCompare(a.observedAt));
-}
-
 interface OptionSetup {
   symbol: string;
   direction: 'bullish' | 'bearish';

@@ -209,39 +209,6 @@ export async function shouldBlockSymbol(
 
   return false;
 }
-
-/**
- * Get earnings calendar status for monitoring
- */
-export function getEarningsServiceStatus() {
-  if (!earningsCache) {
-    return {
-      status: 'not_initialized',
-      cacheAge: 0,
-      eventsCount: 0,
-    };
-  }
-
-  const cacheAgeMinutes = Math.round((Date.now() - earningsCache.timestamp) / 1000 / 60);
-  const isCacheValid = (Date.now() - earningsCache.timestamp) < CACHE_TTL_MS;
-
-  return {
-    status: isCacheValid ? 'active' : 'stale',
-    cacheAge: cacheAgeMinutes,
-    eventsCount: earningsCache.data.length,
-  };
-}
-
-/**
- * Force refresh earnings cache (for testing/admin)
- */
-export async function refreshEarningsCache(): Promise<void> {
-  logger.info('🔄 Forcing earnings cache refresh...');
-  earningsCache = null;
-  await getEarningsData();
-  logger.info('✅ Earnings cache refreshed');
-}
-
 /**
  * Get upcoming earnings for the next 7 days
  * Used for displaying earnings calendar on home page

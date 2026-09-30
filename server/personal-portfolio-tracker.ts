@@ -478,12 +478,6 @@ export function getPositions(): TrackedPosition[] {
 export function getConfig(): PersonalConfig {
   return { ...config };
 }
-
-export function updateConfig(newConfig: Partial<PersonalConfig>): void {
-  config = { ...config, ...newConfig };
-  logger.info('[PORTFOLIO] Config updated:', config);
-}
-
 export function startMonitoring(intervalMs: number = 60000): void {
   if (monitorInterval) {
     clearInterval(monitorInterval);

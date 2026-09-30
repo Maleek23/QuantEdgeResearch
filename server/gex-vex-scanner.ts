@@ -648,11 +648,6 @@ async function runFullScan(options?: ScanOptions): Promise<ConfluenceScanResult>
 
   return result;
 }
-
-export function clearConfluenceCache(): void {
-  cachedResult = null;
-}
-
 // ─────────────────────────────────────────────────────────────
 // GEX HUB AGGREGATION
 // ─────────────────────────────────────────────────────────────

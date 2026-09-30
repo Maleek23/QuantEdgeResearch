@@ -111,24 +111,3 @@ export async function refreshBotWatchlist(): Promise<void> {
   
   logger.info(`[BOT-WATCHLIST] Refreshed with ${botWatchlist.length} items`);
 }
-
-export async function addToBotWatchlist(item: Omit<SentimentWatchlistItem, 'addedAt'>): Promise<void> {
-  const existing = botWatchlist.findIndex(w => w.symbol === item.symbol);
-  
-  if (existing >= 0) {
-    botWatchlist[existing] = { ...item, addedAt: botWatchlist[existing].addedAt };
-  } else {
-    botWatchlist.push({ ...item, addedAt: new Date().toISOString() });
-  }
-  
-  botWatchlist.sort((a, b) => b.sentimentScore - a.sentimentScore);
-  botWatchlist = botWatchlist.slice(0, 30);
-}
-
-export async function removeFromBotWatchlist(symbol: string): Promise<void> {
-  botWatchlist = botWatchlist.filter(w => w.symbol !== symbol);
-}
-
-export function getBotWatchlistSymbols(): string[] {
-  return botWatchlist.map(w => w.symbol);
-}

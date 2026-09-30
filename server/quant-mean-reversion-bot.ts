@@ -541,14 +541,6 @@ export function updateQuantBotSettings(settings: Partial<BotStatus['settings']>)
   botStatus.settings = { ...botStatus.settings, ...settings };
   logger.info('[QUANT-BOT] Settings updated:', botStatus.settings);
 }
-
-/**
- * Reset daily trade counter (call at market open)
- */
-export function resetDailyTrades(): void {
-  botStatus.todayTrades = 0;
-}
-
 /**
  * Calculate performance metrics from historical trades
  */

@@ -196,11 +196,6 @@ export async function computeLayerCycles(force = false): Promise<LayerCycleRespo
 
   return response;
 }
-
-export function clearLayerCycleCache(): void {
-  cached = null;
-}
-
 /**
  * Drill-in for a single layer — returns full ticker breakdown sorted by 20d return.
  * Falls back to the cached snapshot if available.

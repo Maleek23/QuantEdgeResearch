@@ -60,37 +60,6 @@ export function displayedBand(idea: ScoredIdea | null | undefined): string | nul
   if (legacy.startsWith("B")) return "B";
   return "C";
 }
-
-/**
- * True if the idea is "high conviction" — S or A band by canonical engine,
- * with legacy A+/A/A- as a fallback.
- */
-export function isHighConviction(idea: ScoredIdea | null | undefined): boolean {
-  if (!idea) return false;
-  if (typeof idea.convictionScore === "number") {
-    return isHighConvictionBand(convictionBandForScore(idea.convictionScore));
-  }
-  if (isHighConvictionBand(idea.convictionBand)) return true;
-  if (idea.convictionBand === "B" || idea.convictionBand === "C") return false;
-  const legacy = idea.probabilityBand || "";
-  return ["A+", "A", "A-"].includes(legacy);
-}
-
-/**
- * Bar-fill percentage (0–100) for the score, normalizing the two scales.
- * Conviction scores live around 0–60; confidence scores are 0–100.
- */
-export function displayedScoreBarPct(idea: ScoredIdea | null | undefined): number {
-  if (!idea) return 0;
-  if (typeof idea.convictionScore === "number") {
-    return Math.min(100, Math.max(0, idea.convictionScore * 1.8));
-  }
-  if (typeof idea.confidenceScore === "number") {
-    return Math.min(100, Math.max(0, idea.confidenceScore));
-  }
-  return 0;
-}
-
 // ─────────────────────────────────────────────────────────────
 // U2 — Letter grade display
 // ─────────────────────────────────────────────────────────────

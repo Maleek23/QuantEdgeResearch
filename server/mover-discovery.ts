@@ -296,14 +296,6 @@ export function getDiscoveryStatus() {
     }
   };
 }
-
-/**
- * Check if a symbol was dynamically discovered (not in static list)
- */
-export function isDiscoveredMover(symbol: string): boolean {
-  return discoveredMovers.has(symbol) && !getFullUniverse().includes(symbol);
-}
-
 /**
  * Ingest significant movers into Trade Desk via centralized ingestion
  * Creates trade ideas for movers meeting quality criteria

@@ -19,6 +19,7 @@ import { useJournal } from '@/components/journal/journal-context';
 import { Card, Kpi, LowSample, N, fmtDayLabel } from '@/components/journal/parts';
 import { fmtPrice } from '@/lib/journal/metrics';
 import { fmtStamp, readApiError, useBlockedLedger, useJournalNoteMutations } from '@/lib/journal/use-journal';
+import { fmtPct } from '@/lib/format';
 
 export default function MissedView() {
   const { data } = useJournal();
@@ -27,7 +28,7 @@ export default function MissedView() {
   return <LoggedMissed />;
 }
 
-const pct = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)}%`);
+const pct = (v: number | null | undefined) => fmtPct(v, { signed: true });
 
 function BotBlocked() {
   const q = useBlockedLedger(true);

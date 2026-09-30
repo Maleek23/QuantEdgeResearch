@@ -48,15 +48,6 @@ export function calculateBollingerBandSeries(
 
   return { upper, middle, lower, bandwidth };
 }
-
-/**
- * Calculate bandwidth as percentage of price
- */
-export function calculateBandwidth(upper: number, lower: number, middle: number): number {
-  if (middle <= 0) return 0;
-  return ((upper - lower) / middle) * 100;
-}
-
 /**
  * Detect Bollinger squeeze from band series
  * Compares recent bandwidth to historical average

@@ -818,14 +818,6 @@ export function removeFromWatchlist(symbol: string): void {
   scannerStatus.settings.watchlist = scannerStatus.settings.watchlist.filter(s => s !== symbol);
   logger.info(`[OPTIONS-FLOW] Removed ${symbol} from watchlist`);
 }
-
-/**
- * Reset daily flows (call at market open)
- */
-export function resetDailyFlows(): void {
-  scannerStatus.todayFlows = [];
-}
-
 /**
  * Get flow history for watchlist symbols over the past N days
  */

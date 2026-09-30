@@ -43,18 +43,6 @@ import { v4 as uuidv4 } from 'uuid';
 export function scoreToExtendedGrade(score: number): ExtendedGrade {
   return getLetterGrade(score) as ExtendedGrade;
 }
-
-export function gradeToScore(grade: ExtendedGrade): number {
-  const map: Record<ExtendedGrade, number> = {
-    'A+': 97, A: 92, 'A-': 87,
-    'B+': 82, B: 77, 'B-': 72,
-    'C+': 67, C: 62, 'C-': 57,
-    'D+': 52, D: 47, 'D-': 42,
-    F: 30,
-  };
-  return map[grade] ?? 50;
-}
-
 // ─── Signal grader inputs ──────────────────────────────────────────
 
 export interface SignalGraderContext {

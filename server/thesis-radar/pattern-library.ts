@@ -348,11 +348,6 @@ export const PATTERN_LIBRARY: Record<string, PatternSpec> = {
   catalyst_whisper: CATALYST_WHISPER,
   gamma_squeeze: GAMMA_SQUEEZE_DETECTOR,
 };
-
-export function getPattern(id: string): PatternSpec | null {
-  return PATTERN_LIBRARY[id] ?? null;
-}
-
 export function listPatterns(): PatternSpec[] {
   return Object.values(PATTERN_LIBRARY);
 }

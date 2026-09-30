@@ -24,9 +24,6 @@ import { TRADER_SLUG_RE } from './journal-sources';
 
 /** Discord channel types a thread list can hang off (text, announcement, forum, media). */
 export const THREAD_PARENT_TYPES = new Set([0, 5, 15, 16]);
-/** Thread channel types (announcement / public / private thread). */
-export const THREAD_TYPES = new Set([10, 11, 12]);
-
 export interface ForumThreadInfo {
   id: string;
   name: string;

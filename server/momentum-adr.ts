@@ -264,5 +264,3 @@ export async function scanRunners(filters: RunnersFilter = {}): Promise<RunnerCa
   logger.info(`[ADR] done in ${((Date.now() - startedAt) / 1000).toFixed(1)}s — ${limited.length} runners (top: ${limited[0]?.symbol}/${limited[0]?.score})`);
   return limited;
 }
-
-export function clearRunnersCache() { cached = null; }

@@ -462,15 +462,6 @@ export function startDetectionEngine(intervalMs: number = 60000): void {
     lastDetectionAlerts = alerts;
   }, intervalMs);
 }
-
-export function stopDetectionEngine(): void {
-  if (detectionInterval) {
-    clearInterval(detectionInterval);
-    detectionInterval = null;
-    logger.info('[DETECTION-ENGINE] Stopped');
-  }
-}
-
 export function getLastDetectionAlerts(): DetectionAlert[] {
   return lastDetectionAlerts;
 }

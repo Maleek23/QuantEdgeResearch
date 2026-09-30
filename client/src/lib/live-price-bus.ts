@@ -168,4 +168,3 @@ export function subscribeLiveStatus(fn: StatusListener): () => void {
 export function getLastLiveTick(symbol: string): LiveTick | undefined {
   return last.get(liveKey(symbol));
 }
-export const isLiveSocketConnected = () => connected;

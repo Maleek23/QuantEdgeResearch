@@ -569,25 +569,6 @@ export function updateSocialSentimentSettings(settings: Partial<ScannerStatus['s
   scannerStatus.settings = { ...scannerStatus.settings, ...settings };
   logger.info('[SOCIAL-SENTIMENT] Settings updated:', scannerStatus.settings);
 }
-
-/**
- * Add ticker to watchlist
- */
-export function addTickerToWatch(symbol: string): void {
-  if (!scannerStatus.settings.watchlist.includes(symbol)) {
-    scannerStatus.settings.watchlist.push(symbol);
-    logger.info(`[SOCIAL-SENTIMENT] Added ${symbol} to watchlist`);
-  }
-}
-
-/**
- * Remove ticker from watchlist
- */
-export function removeTickerFromWatch(symbol: string): void {
-  scannerStatus.settings.watchlist = scannerStatus.settings.watchlist.filter(s => s !== symbol);
-  logger.info(`[SOCIAL-SENTIMENT] Removed ${symbol} from watchlist`);
-}
-
 /**
  * Manually analyze text sentiment
  */

@@ -267,16 +267,3 @@ export function validateAndLog(trade: TradeValidationInput, source: string): boo
   
   return true;
 }
-
-/**
- * Get validation error summary for API responses
- */
-export function getValidationSummary(result: ValidationResult): string {
-  if (result.isValid) {
-    return result.warnings.length > 0 
-      ? `Trade valid with ${result.warnings.length} warning(s)`
-      : 'Trade validated successfully';
-  }
-  
-  return `${result.errors.length} validation error(s): ${result.errors.join('; ')}`;
-}

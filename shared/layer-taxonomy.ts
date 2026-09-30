@@ -348,34 +348,7 @@ export const LAYERS: Layer[] = [
     ],
   },
 ];
-
-// ─── Lookup helpers ────────────────────────────────────────────────
-
-export const LAYER_BY_ID: Record<string, Layer> = Object.fromEntries(
-  LAYERS.map(l => [l.id, l]),
-);
-
 /** All unique tickers across all layers */
 export const ALL_LAYER_TICKERS: string[] = Array.from(
   new Set(LAYERS.flatMap(l => l.tickers.map(t => t.symbol))),
 );
-
-/** symbol → layers it appears in (a name can be in multiple) */
-export const LAYERS_BY_SYMBOL: Record<string, string[]> = (() => {
-  const map: Record<string, string[]> = {};
-  for (const l of LAYERS) {
-    for (const t of l.tickers) {
-      (map[t.symbol] ??= []).push(l.id);
-    }
-  }
-  return map;
-})();
-
-/** Cap weight for a tier — used in spread / aggregation calculations */
-export const CAP_WEIGHT: Record<CapTier, number> = {
-  mega:  1.0,
-  large: 0.7,
-  mid:   0.4,
-  small: 0.2,
-  micro: 0.1,
-};

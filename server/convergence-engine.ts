@@ -542,66 +542,6 @@ export async function detectSectorMomentum(): Promise<ConvergenceSignal[]> {
     return [];
   }
 }
-
-// ============================================
-// INSIDER BUYING DETECTION
-// ============================================
-
-/**
- * Check for significant insider buying activity
- */
-export async function detectInsiderConviction(symbol: string, insiderData: any): Promise<ConvergenceSignal | null> {
-  if (!insiderData?.transactions || insiderData.transactions.length === 0) {
-    return null;
-  }
-
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const recentTransactions = insiderData.transactions.filter((t: any) => {
-    const txDate = new Date(t.transactionDate || t.filingDate);
-    return txDate > thirtyDaysAgo;
-  });
-
-  // Count buys vs sells
-  const buys = recentTransactions.filter((t: any) =>
-    t.transactionType?.toLowerCase().includes('purchase') ||
-    t.transactionType?.toLowerCase().includes('buy') ||
-    t.transactionCode === 'P'
-  );
-
-  const sells = recentTransactions.filter((t: any) =>
-    t.transactionType?.toLowerCase().includes('sale') ||
-    t.transactionType?.toLowerCase().includes('sell') ||
-    t.transactionCode === 'S'
-  );
-
-  // Calculate total value of buys
-  const buyValue = buys.reduce((sum: number, t: any) => {
-    const shares = t.shares || t.transactionShares || 0;
-    const price = t.pricePerShare || t.price || 0;
-    return sum + (shares * price);
-  }, 0);
-
-  // Significant insider buying: 3+ buys or $1M+ in purchases
-  if (buys.length >= 3 || buyValue > 1000000) {
-    const signal: ConvergenceSignal = {
-      symbol,
-      source: 'insider_buying',
-      direction: 'bullish',
-      confidence: Math.min(85, 55 + buys.length * 5 + Math.min(20, buyValue / 100000)),
-      details: `${buys.length} insider purchases (${sells.length} sells) in 30d. ~$${(buyValue / 1000000).toFixed(2)}M bought.`,
-      magnitude: Math.min(8, 4 + buys.length),
-      timestamp: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      metadata: { buyCount: buys.length, sellCount: sells.length, buyValue },
-    };
-
-    registerSignal(signal);
-    return signal;
-  }
-
-  return null;
-}
-
 // ============================================
 // PRE-MOVE SIGNAL INTEGRATION
 // ============================================
@@ -823,22 +763,6 @@ function scheduleOvernightScan(): void {
 
   logger.info(`[CONVERGENCE] Overnight scan scheduled in ${Math.round(msUntilTarget / 1000 / 60)} minutes`);
 }
-
-/**
- * Stop the convergence engine
- */
-export function stopConvergenceEngine(): void {
-  if (convergenceInterval) {
-    clearInterval(convergenceInterval);
-    convergenceInterval = null;
-  }
-  if (overnightTimeout) {
-    clearTimeout(overnightTimeout);
-    overnightTimeout = null;
-  }
-  logger.info('[CONVERGENCE] Convergence Engine stopped');
-}
-
 /**
  * Analyze a symbol on-demand and generate a trade idea with deep analysis
  * Called from stock search to provide instant convergence analysis

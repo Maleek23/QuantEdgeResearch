@@ -261,11 +261,6 @@ let liquidUniverse: Set<string> | null = null;
 export function setLiquidUniverse(symbols: string[]): void {
   liquidUniverse = new Set(symbols.map((s) => s.toUpperCase()));
 }
-
-export function getApprovalUniverseSize(): number {
-  return liquidUniverse ? liquidUniverse.size + APPROVED_TICKERS.size : APPROVED_TICKERS.size;
-}
-
 export function isApprovedTicker(symbol: string): boolean {
   const s = symbol.toUpperCase();
   // The skip list is a deny list and outranks everything.

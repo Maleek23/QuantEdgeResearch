@@ -377,22 +377,3 @@ export function startAttentionTrackingService(): void {
   
   logger.info('[ATTENTION] Symbol Attention Tracker started');
 }
-
-/**
- * Stop the attention tracking service
- */
-export function stopAttentionTrackingService(): void {
-  if (flushInterval) {
-    clearInterval(flushInterval);
-    flushInterval = null;
-  }
-  if (cleanupInterval) {
-    clearInterval(cleanupInterval);
-    cleanupInterval = null;
-  }
-  
-  // Final flush
-  flushEventBuffer().catch(err => logger.error('[ATTENTION] Final flush failed:', err));
-  
-  logger.info('[ATTENTION] Symbol Attention Tracker stopped');
-}

@@ -23,25 +23,6 @@ import {
   PATTERN_DISPLAY_NAMES as LEGACY_PATTERN_NAMES,
   BULLISH_PATTERNS as LEGACY_BULLISH_PATTERNS
 } from './pattern-intelligence';
-
-// ============================================
-// SHARED PATTERN DEFINITIONS
-// ============================================
-
-export const PATTERN_TYPES = {
-  bull_flag: 'bull_flag',
-  ascending_triangle: 'ascending_triangle',
-  cup_and_handle: 'cup_and_handle',
-  vcp: 'vcp',
-  parabolic_move: 'parabolic_move',
-  momentum_surge: 'momentum_surge',
-  base_breakout: 'base_breakout',
-  channel_breakout: 'channel_breakout',
-  double_bottom: 'double_bottom',
-  falling_wedge: 'falling_wedge',
-  inverse_head_shoulders: 'inverse_head_shoulders',
-} as const;
-
 export const PATTERN_DISPLAY_NAMES: Record<string, string> = {
   bull_flag: 'Bull Flag',
   ascending_triangle: 'Ascending Triangle',

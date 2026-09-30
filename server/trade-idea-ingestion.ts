@@ -461,27 +461,6 @@ export async function ingestTradeIdea(input: IngestionInput): Promise<IngestionR
     };
   }
 }
-
-/**
- * Batch ingest multiple ideas - useful for scanner results
- */
-export async function batchIngestIdeas(inputs: IngestionInput[]): Promise<IngestionResult[]> {
-  const results: IngestionResult[] = [];
-  
-  for (const input of inputs) {
-    const result = await ingestTradeIdea(input);
-    results.push(result);
-    
-    // Small delay to avoid overwhelming the system
-    await new Promise(resolve => setTimeout(resolve, 50));
-  }
-  
-  const successCount = results.filter(r => r.success).length;
-  logger.info(`[INGESTION] Batch complete: ${successCount}/${inputs.length} ideas saved`);
-  
-  return results;
-}
-
 /**
  * Helper to create signals from scanner data
  */
@@ -562,29 +541,4 @@ export function createScannerSignals(data: {
   }
   
   return signals;
-}
-
-/**
- * Get ingestion stats for monitoring
- */
-export function getIngestionStats(): { cacheSize: number; sources: Record<string, number> } {
-  const sources: Record<string, number> = {};
-  
-  const entries = Array.from(recentIngestions.entries());
-  for (const [key] of entries) {
-    const [, source] = key.split(':');
-    sources[source] = (sources[source] || 0) + 1;
-  }
-  
-  return {
-    cacheSize: recentIngestions.size,
-    sources
-  };
-}
-
-/**
- * Clear ingestion cache (for testing)
- */
-export function clearIngestionCache(): void {
-  recentIngestions.clear();
 }

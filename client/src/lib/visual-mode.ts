@@ -117,11 +117,6 @@ export function setMode(mode: VisualMode) {
 
 /** The rail's one-click ☀/☾: light ↔ the dark-ground mode the viewer came from. */
 let lastDarkGround: VisualMode = 'dark';
-export function toggleLight() {
-  if (state === 'light') setMode(lastDarkGround);
-  else { lastDarkGround = state; setMode('light'); }
-}
-
 export function useVisualMode(): [VisualMode, (m: VisualMode) => void] {
   const mode = useSyncExternalStore(
     (cb) => { listeners.add(cb); return () => { listeners.delete(cb); }; },

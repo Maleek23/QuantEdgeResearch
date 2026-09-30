@@ -104,7 +104,6 @@ export const GAMMA_VIEWS: Array<{ id: GammaView; label: string; title: string }>
   { id: 'adj', label: 'Δ-adj', title: 'Δ-adjusted GEX — OI·100·S·[Δ(S+1%) − Δ(S−1%)]/2: the hedge a 1% move actually needs, delta re-priced at both ends. Smaller than raw at the 0DTE ATM strike, larger just beside it; ≈ raw for longer expiries.' },
   { id: 'both', label: 'Side by side', title: 'Raw and Δ-adjusted in two columns per expiry' },
 ];
-export const metricName = (m: CellMetric) => (m === 'vex' ? 'VEX' : m === 'gexAdj' ? 'Δ-adj GEX' : 'GEX');
 export const fmtCell = (v: number, metric: CellMetric) => (metric === 'vex' ? fmtVexM(v) : fmtGexB(v));
 export const cellValue = (c: StrikeExpiryCell, metric: CellMetric) =>
   (metric === 'vex' ? (c.netVEX ?? 0) : metric === 'gexAdj' ? (c.netGEXAdj ?? 0) : c.netGEX);

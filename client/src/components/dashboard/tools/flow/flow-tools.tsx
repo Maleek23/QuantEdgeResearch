@@ -32,8 +32,6 @@ export function HistoricalFlowTool() {
   const [, setFocus] = useFocusSymbol();
   return <div className="fd-fill fd-legacy"><FlowBoard onSelectSymbol={setFocus} /></div>;
 }
-export function RepeatBuyersTool() { return <div className="fd-scroll"><RepeatBuyers /></div>; }
-export function ConvergenceTool() { return <div className="fd-scroll"><ConvergenceCard /></div>; }
 export function IndexPulseTool() {
   // Same key the panel uses → shared fetch; read only for the age stamp.
   const intel = useQuery<{ timestamp?: string }>({

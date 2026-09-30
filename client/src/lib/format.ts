@@ -12,9 +12,9 @@
  *   age                        → "just now" · "45s ago" · "2m ago" · "3h ago" · "2d ago"
  *   clock                      → "09:45 ET" (24h, New York time, always labelled)
  *
- * Pure (no React, no DOM) so scripts can test it. Older per-file helpers
- * (ticker-data fmtPct, gex-colors fmtSignedUsd…) follow the same output; new
- * code should import from here.
+ * Pure (no React, no DOM) so scripts can test it. New code imports from here.
+ * Older per-file helpers still differ in edge cases (e.g. ticker-data fmtPct
+ * prints "+0.00%" at zero) — see docs/SIMPLIFY_TODO.md before repointing them.
  */
 
 export const MISSING = '—';

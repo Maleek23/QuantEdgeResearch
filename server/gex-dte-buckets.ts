@@ -28,14 +28,6 @@ export interface BucketContract {
   iv?: number;
   T?: number;
 }
-
-/** Days between an ISO date string and now. */
-export function dteFromIso(iso: string, now = Date.now()): number {
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return 9999;
-  return Math.max(0, Math.round((t - now) / 86_400_000));
-}
-
 /**
  * Convert raw gamma sum → dollar dealer flow per 1% move.
  * Formula: gammaSum × spot² × 0.01 × 100 (× 100 = per-contract multiplier)

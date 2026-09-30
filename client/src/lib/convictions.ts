@@ -133,11 +133,6 @@ export function bandStrength(band: ConvictionPick['convictionBand']): string {
     default:  return 'MED';
   }
 }
-
-export function directionTone(direction: 'long' | 'short'): 'bull' | 'bear' {
-  return direction === 'long' ? 'bull' : 'bear';
-}
-
 /**
  * Confidence-index display percent (0-100) from the raw confluence score.
  *
@@ -171,20 +166,6 @@ export function clarifyOracleNarrative(text: string): string {
       '$1contract quality $2$3',
     );
 }
-
-/** e.g. "ELITE BULLISH" / "STRONG BEARISH" */
-export function tierLabel(pick: Pick<ConvictionPick, 'convictionBand' | 'direction'>): string {
-  const word = pick.direction === 'long' ? 'BULLISH' : 'BEARISH';
-  return `${bandStrength(pick.convictionBand)} ${word}`;
-}
-
-/** CSS var color for a tone — used for text/stroke. */
-export function toneColor(tone: Tone): string {
-  if (tone === 'bull') return 'var(--trade-bullish)';
-  if (tone === 'bear') return 'var(--trade-bearish)';
-  return 'var(--brand-cyan)';
-}
-
 // ─── Layer kind → short tag + icon hint (for the components/checklist) ──────
 
 export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
@@ -205,38 +186,6 @@ export const LAYER_TAG: Record<ConvictionLayerKind, string> = {
   compression:  'COIL',
   gex:          'GEX',
 };
-
-/**
- * Per-layer accent color (hex) — mirrors the old Trade Desk LAYER_STYLES palette
- * so each confluence kind keeps its identity across the app (tech=cyan,
- * convergence=violet, catalyst=amber, …). Used for the colorful confluence pills.
- */
-export const LAYER_COLOR: Record<ConvictionLayerKind, string> = {
-  technical:    '#3b8cff', // cyan
-  ta:           '#38bdf8', // blue — named chart setup
-  convergence:  '#a78bfa', // violet
-  catalyst:     '#fbbf24', // amber
-  regime:       '#34d399', // emerald
-  breadth:      '#2dd4bf', // teal
-  macro:        '#e0a458', // amber — event/time risk
-  geopolitical: '#fb923c', // orange
-  fundamental:  '#60a5fa', // blue
-  analyst:      '#818cf8', // indigo
-  sector:       '#f472b6', // pink
-  freshness:    '#fb7185', // rose
-  weekly:       '#fde047', // yellow
-  premarket:    '#c084fc', // purple
-  compression:  '#e0a458', // amber — stored energy, not yet directional
-  gex:          '#5eead4', // teal-light
-};
-
-/** Normalize a layer's points into a 0-100 bar fill (points are small ints). */
-export function layerBarPct(points: number): number {
-  // Layer points typically range 0-10. Clamp to a readable bar.
-  const pct = (Math.abs(points) / 10) * 100;
-  return Math.max(6, Math.min(100, pct));
-}
-
 /**
  * THE live book — one membership rule for Today ("The book · N live", best idea)
  * and NEXUS (ranked list). Audit 2026-09-29: Today dropped `executed` picks and NEXUS

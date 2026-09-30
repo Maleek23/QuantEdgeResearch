@@ -292,22 +292,3 @@ export function startPreMarketSurgeDetector(): void {
   
   logger.info('[PRE-MARKET] Surge detector started - scanning every 5 minutes during pre-market hours (4 AM - 9:30 AM ET)');
 }
-
-export function stopPreMarketSurgeDetector(): void {
-  if (scanInterval) {
-    clearInterval(scanInterval);
-    scanInterval = null;
-    logger.info('[PRE-MARKET] Surge detector stopped');
-  }
-}
-
-export function addToPreMarketWatchlist(symbol: string): void {
-  if (!PRE_MARKET_WATCHLIST.includes(symbol.toUpperCase())) {
-    PRE_MARKET_WATCHLIST.push(symbol.toUpperCase());
-    logger.info(`[PRE-MARKET] Added ${symbol} to watchlist`);
-  }
-}
-
-export function getPreMarketWatchlist(): string[] {
-  return [...PRE_MARKET_WATCHLIST];
-}

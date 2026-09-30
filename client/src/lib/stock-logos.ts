@@ -187,31 +187,12 @@ export function getLogoSources(symbol: string): string[] {
     `https://icons.duckduckgo.com/ip3/${domain}.ico`,
   ];
 }
-
-/**
- * Get the primary logo URL for a stock symbol (first working source).
- */
-export function getStockLogoUrl(symbol: string): string {
-  return getLogoSources(symbol)[0];
-}
-
 /**
  * Get initials for a symbol as fallback
  */
 export function getSymbolInitials(symbol: string): string {
   return symbol.substring(0, 2).toUpperCase();
 }
-
-/**
- * Check if a logo URL is valid (can be used with onError handler)
- */
-export function handleLogoError(event: React.SyntheticEvent<HTMLImageElement, Event>, symbol: string): void {
-  const img = event.target as HTMLImageElement;
-  // Hide the broken image
-  img.style.display = 'none';
-  // Could also set a placeholder SVG or use initials
-}
-
 /**
  * Component-friendly logo with fallback
  */

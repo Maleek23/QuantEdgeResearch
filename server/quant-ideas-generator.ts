@@ -210,25 +210,7 @@ async function calculateTimingWindows(
 }
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
-export const QUANT_ENGINE_VERSION = "v3.8.0"; // Updated Jan 2, 2026: BALANCED DAY + SWING MIX
-export const ENGINE_CHANGELOG = {
-  "v3.8.0": "BALANCED MIX: User requested 'day trades + swings'. Changed from confidence-only holding period to 50/50 mix for high-confidence signals (60+). Now generates equal day trades and swing trades. Swing trades hold 2-3 days, mid-tier (55-59) always swing for 3 days, position trades extended to 5 days.",
-  "v3.7.0": "REALISTIC COST MODELING: Fixed ADX to return properly Wilder-smoothed values (was returning raw DX). Added slippage/commission/spread cost modeling to performance calculations. Updated documentation with realistic 55-65% live win rate expectations (vs 75-91% backtest). Added risk management guidelines.",
-  "v3.6.0": "CHART ANALYSIS UPGRADE: Pre-validates all trade ideas with chart pattern recognition (head & shoulders, double top/bottom, flags, triangles, wedges, channels) and support/resistance levels (swing highs/lows, MAs, round numbers). Adjusts targets to pattern targets, stops to support levels. Rejects ideas that conflict with chart patterns (e.g., LONG signal during bearish H&S). Boosts confidence +5 when chart confirms setup.",
-  "v3.5.0": "TRIPLE-FILTER UPGRADE: Three critical improvements to boost win rate from 39.1% to 60%+: (1) Added 50-day MA filter - prevents false LONG signals in downtrends and SHORT signals in uptrends (price must be above 50-day MA for LONG, below for SHORT), (2) Tightened ADX threshold from ≤30 to ≤25 - reduces choppy market trades that fail, (3) Signal consensus already optimized (2+ signals required). All filters are academically-proven: 50-day MA + 200-day MA + ADX≤25 create robust multi-timeframe trend alignment.",
-  "v3.4.0": "CONFIDENCE RECALIBRATION: Diagnostic audit exposed inverted confidence system - high scores (90-100%) = 15.6% WR, low scores (<60%) = 63% WR. ROOT CAUSE: R:R bonuses were INVERSE predictors ('Excellent R:R 3:1+' = 5.1% WR worst signal). FIX: (1) Removed ALL bonuses (R:R, volume), (2) Lowered base scores from 90-95 to 50-65 matching actual 30-60% WR, (3) Simplified scoring - fewer signals = better performance.",
-  "v3.3.0": "TIME-OF-DAY FIX: Restricted generation to 9:30-11:30 AM ET ONLY. Diagnostic audit revealed morning trades: 75-80% WR, afternoon trades: 16-46% WR. v3.2.0 extended window killed performance. This single change should restore 60%+ WR based on historical data.",
-  "v3.2.0": "CRITICAL RECALIBRATION: (1) Enabled SHORT trades (RSI>90 below 200MA = 42.9% WR boost), (2) Widened stops 2%→3.5% stocks, 3%→5% crypto (match academic research), (3) Relaxed ADX filter 25→30 (less restrictive), (4) Extended window 2hr→full day, (5) Re-enabled crypto (collect training data). Target: 60%+ WR.",
-  "v3.1.0": "REGIME FILTERING: Added ADX-based market regime detection (ranging vs trending), signal confidence voting (require 2+ confirmations), ATR liquidity filter, time-of-day filter (first 2 hours only), earnings blackout (skip ±3 days). Research shows mean reversion fails in trending markets (ADX >25).",
-  "v3.0.0": "COMPLETE REBUILD: Removed failing signals (MACD 'very low success', complex scoring). Implemented research-backed strategies: (1) RSI(2)<10 + 200MA filter (targeting 55-65% live), (2) VWAP institutional flow, (3) Volume spike early entry. Simplified to rule-based entries per academic research.",
-  "v2.5.2": "SCORING FIXES - Fixed Strong Trend penalty (-10→+5), restored moderate signals (12→18), lowered threshold (90→85)",
-  "v2.4.0": "PERFORMANCE FIX: Removed reversal setups (18% WR → eliminated), crypto tier filter (top 20 only, was 16.7% WR)",
-  "v2.3.0": "ACCURACY BOOST: Tighter stops (2-3%), stricter filtering (90+ confidence)",
-  "v2.2.0": "Predictive signals (RSI divergence, early MACD), widened stops (4-5%)",
-  "v2.1.0": "Added timing intelligence, market regime detection",
-  "v2.0.0": "Initial production release with ML adaptive learning",
-};
-
+export const QUANT_ENGINE_VERSION = "v3.8.0";
 // Check if US stock market is open (Mon-Fri, 9:30 AM - 4:00 PM ET)
 function isStockMarketOpen(): boolean {
   const now = new Date();

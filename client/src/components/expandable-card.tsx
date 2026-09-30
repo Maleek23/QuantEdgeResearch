@@ -82,9 +82,3 @@ export function SideDrawer({
     </>
   );
 }
-
-// ─── Skeleton-on-empty — shows loading shimmer when undefined ──
-export function ShowIf({ has, fallback, children }: { has: any; fallback?: ReactNode; children: ReactNode }) {
-  if (!has) return fallback ? <>{fallback}</> : null;
-  return <>{children}</>;
-}

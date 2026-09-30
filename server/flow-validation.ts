@@ -210,7 +210,3 @@ export async function validateFlowData(flow: FlowData): Promise<FlowValidationRe
     expectedMaxPremium
   };
 }
-
-export function clearQuoteCache(): void {
-  quoteCache.clear();
-}

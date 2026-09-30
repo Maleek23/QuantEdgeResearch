@@ -457,10 +457,3 @@ export function canAccessFeature(tier: SubscriptionTier, feature: keyof TierLimi
   if (typeof value === 'number') return value > 0;
   return false;
 }
-
-export function getFeatureLimit(tier: SubscriptionTier, feature: keyof TierLimits): number {
-  const limits = getTierLimits(tier);
-  const value = limits[feature];
-  if (typeof value === 'number') return value;
-  return 0;
-}

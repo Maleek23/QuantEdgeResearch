@@ -571,32 +571,6 @@ Be concise, professional, and data-driven. Use plain language while maintaining 
     throw new Error("AI chat temporarily unavailable. The quant engines are still generating trade ideas automatically.");
   }
 }
-
-// Quick market analysis using Gemini (fast model)
-export async function quickMarketAnalysis(symbols: string[]): Promise<string> {
-  const prompt = `Provide a brief market analysis for these symbols: ${symbols.join(', ')}. 
-  
-Include:
-- Current market sentiment
-- Key catalysts to watch
-- Risk factors
-- 2-3 sentence summary
-
-Keep it concise and actionable.`;
-
-  try {
-    const response = await getGemini().models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-
-    return response.text || "Unable to generate analysis";
-  } catch (error) {
-    logger.error("Quick analysis failed:", error);
-    return "Market analysis currently unavailable";
-  }
-}
-
 // Generate AI-powered text analysis for a symbol (no chart image needed)
 export async function generateAIAnalysis(prompt: string, preferredProvider: 'claude' | 'gemini' | 'gpt' = 'claude'): Promise<string | null> {
   const systemPrompt = `You are a professional trading analyst. Provide concise, actionable analysis.

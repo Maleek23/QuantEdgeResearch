@@ -183,20 +183,6 @@ function metaToSnapshot(symbol: string, meta: any, phase: GapPhase): PreMarketSn
     fetchedAt: new Date().toISOString(),
   };
 }
-
-/** Fetch a single symbol's pre-market snapshot (cached). */
-export async function getPreMarketSnapshot(symbol: string): Promise<PreMarketSnapshot | null> {
-  const key = symbol.toUpperCase();
-  const cached = cache.get(key);
-  if (isFresh(cached)) return cached!.snap;
-
-  const phase = currentMarketPhase();
-  const meta = await fetchYahooMeta(key);
-  const snap = metaToSnapshot(key, meta, phase);
-  if (snap) cache.set(key, { snap, cachedAt: Date.now() });
-  return snap;
-}
-
 /**
  * Batch fetch with bounded concurrency. Returns a Map keyed by uppercase symbol.
  * Symbols not present in the map failed to fetch.
@@ -237,9 +223,4 @@ export async function getPreMarketBatch(
   });
   await Promise.all(workers);
   return out;
-}
-
-/** Clear cache (used by tests / manual refresh). */
-export function clearPreMarketCache(): void {
-  cache.clear();
 }

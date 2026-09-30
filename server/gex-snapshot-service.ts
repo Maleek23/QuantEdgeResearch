@@ -169,7 +169,3 @@ export async function getGexSnapshot(symbol: string): Promise<GexSnapshot | null
   const m = await getGexSnapshotBatch([symbol]);
   return m.get(symbol.toUpperCase()) ?? null;
 }
-
-export function clearGexSnapshotCache(): void {
-  cache.clear();
-}

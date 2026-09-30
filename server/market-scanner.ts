@@ -41,12 +41,6 @@ function releaseScanSlot(scanName: string): void {
     logger.debug(`[SCAN-LIMITER] Released ${scanName} (${activeScanCount}/${MAX_CONCURRENT_SCANS} active)`);
   }
 }
-
-// Get current scan status for monitoring
-export function getScanStatus(): { active: number; queued: number; max: number } {
-  return { active: activeScanCount, queued: scanQueue.length, max: MAX_CONCURRENT_SCANS };
-}
-
 export interface StockPerformance {
   symbol: string;
   name: string;
@@ -453,15 +447,6 @@ export async function getSectorPerformance(): Promise<Record<string, { avg: numb
 
   return results;
 }
-
-export function clearScannerCache(): void {
-  scannerCache.clear();
-  moversCache.clear();
-  surgeCache.data = [];
-  surgeCache.timestamp = 0;
-  logger.info('[SCANNER] Cache cleared');
-}
-
 // ===============================================
 // SURGE DETECTION SYSTEM - Find breakouts BEFORE they explode
 // ===============================================

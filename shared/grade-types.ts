@@ -21,14 +21,6 @@ export interface GradeWeights {
   sentiment: number; // Default: 0.15
   ai: number; // Default: 0.10
 }
-
-export const DEFAULT_GRADE_WEIGHTS: GradeWeights = {
-  technical: 0.40,
-  fundamental: 0.35,
-  sentiment: 0.15,
-  ai: 0.10,
-};
-
 export const FUNDAMENTAL_CATEGORY_WEIGHTS = {
   'Financial Health': 0.35,
   'Valuation': 0.25,
@@ -44,40 +36,4 @@ export function scoreToGrade(score: number): GradeLetter {
   if (score >= 60) return 'C';
   if (score >= 50) return 'D';
   return 'F';
-}
-
-export function gradeToColor(grade: GradeLetter): string {
-  const colorMap: Record<GradeLetter, string> = {
-    S: 'text-purple-500',
-    A: 'text-green-500',
-    B: 'text-blue-500',
-    C: 'text-yellow-500',
-    D: 'text-orange-500',
-    F: 'text-red-500',
-  };
-  return colorMap[grade];
-}
-
-export function gradeToBackgroundColor(grade: GradeLetter): string {
-  const bgMap: Record<GradeLetter, string> = {
-    S: 'bg-purple-500/10',
-    A: 'bg-green-500/10',
-    B: 'bg-blue-500/10',
-    C: 'bg-yellow-500/10',
-    D: 'bg-orange-500/10',
-    F: 'bg-red-500/10',
-  };
-  return bgMap[grade];
-}
-
-export function gradeLabel(grade: GradeLetter): string {
-  const labelMap: Record<GradeLetter, string> = {
-    S: 'Exceptional',
-    A: 'Excellent',
-    B: 'Good',
-    C: 'Fair',
-    D: 'Poor',
-    F: 'Failing',
-  };
-  return labelMap[grade];
 }

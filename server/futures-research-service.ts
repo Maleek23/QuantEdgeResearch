@@ -260,15 +260,3 @@ export async function generateFuturesResearch(symbol: string): Promise<FuturesRe
     return null;
   }
 }
-
-export async function generateAllFuturesResearch(): Promise<FuturesResearchBrief[]> {
-  const symbols = ['ES', 'NQ', 'YM', 'RTY', 'GC', 'CL'];
-  const briefs: FuturesResearchBrief[] = [];
-  
-  for (const symbol of symbols) {
-    const brief = await generateFuturesResearch(symbol);
-    if (brief) briefs.push(brief);
-  }
-  
-  return briefs;
-}

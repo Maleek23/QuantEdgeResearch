@@ -512,31 +512,4 @@ export async function getExpiryPatternSummary(portfolioId?: string): Promise<{
     upcomingSignals: [] // Can be populated with actual upcoming signals
   };
 }
-
-/**
- * Get expiry calendar view with pattern insights
- */
-export async function getExpiryCalendar(
-  startDate: Date,
-  endDate: Date,
-  portfolioId?: string
-): Promise<Map<string, ExpiryPattern[]>> {
-  const patterns = await analyzeExpiryPatterns(portfolioId, 365);
-  
-  const calendar = new Map<string, ExpiryPattern[]>();
-  
-  for (const pattern of patterns) {
-    const expDate = new Date(pattern.expiryDate);
-    if (expDate >= startDate && expDate <= endDate) {
-      const dateKey = pattern.expiryDate;
-      if (!calendar.has(dateKey)) {
-        calendar.set(dateKey, []);
-      }
-      calendar.get(dateKey)!.push(pattern);
-    }
-  }
-  
-  return calendar;
-}
-
 logger.info('[EXPIRY-PATTERN] Expiry Pattern Analysis Service initialized');

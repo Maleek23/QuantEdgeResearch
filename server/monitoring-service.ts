@@ -266,25 +266,3 @@ export function logAPISuccess(provider: string, endpoint: string, responseTime?:
     marketDataStatus.logSuccess(providerKey, endpoint);
   }
 }
-
-export function logDiscordError(message: string, error: any): void {
-  monitoringService.addAlert(
-    'warning',
-    'discord',
-    `Discord webhook failed: ${message}`,
-    error?.message || String(error)
-  );
-}
-
-export function logDatabaseError(operation: string, error: any): void {
-  monitoringService.addAlert(
-    'error',
-    'database',
-    `Database error: ${operation}`,
-    error?.message || String(error)
-  );
-}
-
-export function logCriticalError(category: SystemAlert['category'], message: string, details?: string): void {
-  monitoringService.addAlert('critical', category, message, details);
-}

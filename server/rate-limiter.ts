@@ -330,69 +330,6 @@ const coinGeckoLimiter = new InternalRateLimiter({
   maxRequestsPerSecond: 1, // CoinGecko free tier is very strict
   maxConcurrent: 1,
 });
-
-/**
- * Execute a Yahoo Finance API call with rate limiting
- */
-export async function rateLimitedYahooCall<T>(
-  fn: () => Promise<T>,
-  priority: number = 0
-): Promise<T> {
-  return yahooFinanceLimiter.execute(fn, priority);
-}
-
-/**
- * Execute a CoinGecko API call with rate limiting
- */
-export async function rateLimitedCoinGeckoCall<T>(
-  fn: () => Promise<T>,
-  priority: number = 0
-): Promise<T> {
-  return coinGeckoLimiter.execute(fn, priority);
-}
-
-/**
- * Batch execute with delays between batches
- */
-export async function batchExecute<T, R>(
-  items: T[],
-  fn: (item: T) => Promise<R>,
-  batchSize: number = 5,
-  delayBetweenBatchesMs: number = 1500
-): Promise<R[]> {
-  const results: R[] = [];
-
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const batchResults = await Promise.allSettled(batch.map(item => fn(item)));
-
-    for (const result of batchResults) {
-      if (result.status === 'fulfilled') {
-        results.push(result.value);
-      }
-    }
-
-    if (i + batchSize < items.length) {
-      await new Promise(resolve => setTimeout(resolve, delayBetweenBatchesMs));
-    }
-  }
-
-  return results;
-}
-
-/**
- * Get rate limiter statistics
- */
-export function getInternalRateLimiterStats(): {
-  yahooFinance: { queueLength: number; activeRequests: number; tokens: number };
-  coinGecko: { queueLength: number; activeRequests: number; tokens: number };
-} {
-  return {
-    yahooFinance: yahooFinanceLimiter.getStats(),
-    coinGecko: coinGeckoLimiter.getStats(),
-  };
-}
-
 /**
  * Check if we're in production environment
  */
@@ -414,13 +351,4 @@ export function isMarketHours(): boolean {
   if (day === 0 || day === 6) return false;
   return timeInMinutes >= 570 && timeInMinutes < 960;
 }
-
-/**
- * Sleep with random jitter
- */
-export function sleepWithJitter(baseMs: number, maxJitterMs: number = 500): Promise<void> {
-  const jitter = Math.random() * maxJitterMs;
-  return new Promise(resolve => setTimeout(resolve, baseMs + jitter));
-}
-
 logger.info('[RATE-LIMITER] Internal API rate limiters initialized');

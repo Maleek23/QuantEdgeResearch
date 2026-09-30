@@ -86,13 +86,3 @@ export function lazyWithRetry<T extends ComponentType<any>>(
     );
   });
 }
-
-/**
- * Preload a lazy module without rendering it.
- * Call this on hover or during idle time to warm the cache.
- */
-export function preloadModule(importFn: () => Promise<unknown>): void {
-  importFn().catch(() => {
-    // Silently ignore — the actual lazy load will handle retries
-  });
-}

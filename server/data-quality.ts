@@ -436,26 +436,6 @@ export async function getCrossValidatedQuote(symbol: string): Promise<CrossValid
 
   return result;
 }
-
-// ─── Batch ──────────────────────────────────────────────────
-
-/**
- * Cross-validate a batch of symbols. Runs in parallel batches of 5 to respect
- * upstream rate limits.
- */
-export async function getCrossValidatedQuoteBatch(
-  symbols: string[],
-  batchSize = 5,
-): Promise<Map<string, CrossValidatedQuote>> {
-  const results = new Map<string, CrossValidatedQuote>();
-  for (let i = 0; i < symbols.length; i += batchSize) {
-    const batch = symbols.slice(i, i + batchSize);
-    const batchResults = await Promise.all(batch.map((s) => getCrossValidatedQuote(s)));
-    batch.forEach((sym, idx) => results.set(sym, batchResults[idx]));
-  }
-  return results;
-}
-
 // ─── Options Staleness ──────────────────────────────────────
 
 /**

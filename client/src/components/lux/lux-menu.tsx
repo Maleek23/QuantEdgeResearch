@@ -43,25 +43,6 @@ export function LuxMenuItem({
     </Menu.Item>
   );
 }
-
-/** A single-choice group (e.g. the display mode): arrow keys move, Enter picks, the checked item is announced. */
-export const LuxMenuRadioGroup = Menu.RadioGroup;
-
-export function LuxMenuRadioItem({
-  className,
-  icon,
-  children,
-  ...props
-}: ComponentProps<typeof Menu.RadioItem> & { icon?: ReactNode }) {
-  return (
-    <Menu.RadioItem className={cn('lx-menu-item', className)} {...props}>
-      {icon}
-      <span className="min-w-0 flex-1 truncate">{children}</span>
-      <Menu.ItemIndicator className="lx-menu-item-end" aria-hidden><Check /></Menu.ItemIndicator>
-    </Menu.RadioItem>
-  );
-}
-
 /** Non-interactive header block (e.g. the signed-in account). */
 export function LuxMenuLabel({ title, sub }: { title: ReactNode; sub?: ReactNode }) {
   return (

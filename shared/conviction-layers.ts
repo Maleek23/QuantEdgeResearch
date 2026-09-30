@@ -90,23 +90,7 @@ if (_FAMILY_KINDS.length !== CONVICTION_LAYERS.length) {
     `conviction-layers: ${CONVICTION_LAYERS.length} layers but ${_FAMILY_KINDS.length} placed in families — add the new layer to a family.`,
   );
 }
-
-/** The layer objects for one family, in declaration order. */
-export function layersInFamily(familyId: string) {
-  const fam = CONVICTION_FAMILIES.find((f) => f.id === familyId);
-  if (!fam) return [];
-  return CONVICTION_LAYERS.filter((l) => (fam.kinds as readonly string[]).includes(l.kind));
-}
-
 export type ConvictionLayerKind = (typeof CONVICTION_LAYERS)[number]['kind'];
 
 /** How many layers the engine can score. Count it, never type it. */
 export const CONVICTION_LAYER_COUNT = CONVICTION_LAYERS.length;
-
-/**
- * Not every layer fires on every signal — several are conditional (weekly only
- * applies to watchlist names, pre-market only outside regular hours). Copy should
- * say a setup is scored ACROSS these, not that all of them always contribute.
- */
-export const CONVICTION_LAYER_NOTE =
-  'Not every layer fires on every signal; several are conditional. A signal shows which ones did.';

@@ -178,12 +178,6 @@ const FRED_TTL_MS = 12 * 60 * 60 * 1000;
 let fredEvents: EconomicEvent[] = [];
 let fredFetchedAt = 0;
 let fredInFlight: Promise<void> | null = null;
-
-/** True once FRED has returned at least one forward release date. */
-export function fredCalendarReady(): boolean {
-  return fredEvents.length > 0;
-}
-
 async function fetchReleaseDates(
   rel: (typeof FRED_RELEASES)[number],
   key: string,

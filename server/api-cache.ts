@@ -141,13 +141,3 @@ class APICache {
 }
 
 export const apiCache = new APICache();
-
-export function formatCacheAge(ageMs: number): string {
-  if (ageMs < 60 * 1000) {
-    return `${Math.round(ageMs / 1000)}s ago`;
-  } else if (ageMs < 60 * 60 * 1000) {
-    return `${Math.round(ageMs / 60000)}m ago`;
-  } else {
-    return `${Math.round(ageMs / 3600000)}h ago`;
-  }
-}

@@ -981,37 +981,3 @@ export default function BrokerImport() {
     </div>
   );
 }
-
-// Export a compact version for use in sidebar/header
-export function BrokerStatusBadge() {
-  const { data: portfolioData } = useQuery({
-    queryKey: ['/api/broker/portfolio'],
-    queryFn: async () => {
-      const portfolios: Portfolio[] = [];
-      for (const broker of BROKERS) {
-        try {
-          const res = await fetch(`/api/broker/portfolio/${broker.type}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data?.positions?.length > 0) {
-              portfolios.push(data);
-            }
-          }
-        } catch (e) {}
-      }
-      return portfolios;
-    },
-    staleTime: 60 * 1000,
-  });
-
-  const totalPositions = portfolioData?.reduce((sum, p) => sum + p.positions.length, 0) || 0;
-
-  if (totalPositions === 0) return null;
-
-  return (
-    <Badge variant="outline" className="text-[var(--trade-bullish)] border-emerald-500/30">
-      <Wallet className="w-3 h-3 mr-1" />
-      {totalPositions} positions
-    </Badge>
-  );
-}

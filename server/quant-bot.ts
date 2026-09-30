@@ -1002,8 +1002,6 @@ let lastCycle: BotCycleStamp | null = null;
 export function noteBotCycle(origin: string, r: BotRunResult | null, error?: string): void {
   lastCycle = { at: new Date().toISOString(), origin, opened: r?.opened.length ?? 0, closed: r?.closed.length ?? 0, openCount: r?.openCount ?? 0, error };
 }
-export function getLastBotCycle(): BotCycleStamp | null { return lastCycle; }
-
 // One re-price at a time, at most once a minute. The status endpoint used to
 // re-price the whole book on EVERY read (2–33 s each on prod) and three
 // components polled it independently — which is what tripped the rate limiter.

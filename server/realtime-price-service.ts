@@ -339,15 +339,3 @@ export function initializeRealtimePrices(httpServer?: Server): void {
   initializeCoinbaseWebSocket();
   initializeDatabentoWebSocket();
 }
-
-export function shutdownRealtimePrices(): void {
-  logger.info('[REALTIME] Shutting down real-time price feeds...');
-  
-  if (coinbaseReconnectTimer) clearTimeout(coinbaseReconnectTimer);
-  if (futuresPollingInterval) clearInterval(futuresPollingInterval);
-  
-  if (coinbaseWs) {
-    coinbaseWs.close();
-    coinbaseWs = null;
-  }
-}

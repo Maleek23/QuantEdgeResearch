@@ -21,16 +21,6 @@ export function parseMarketDate(d: string | Date | null | undefined): Date | nul
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
-
-/** "Aug 28" / "Aug 28, 2026" */
-export function formatExpiry(d: string | Date | null | undefined, opts: { year?: boolean } = {}): string {
-  const dt = parseMarketDate(d);
-  if (!dt) return '—';
-  return dt.toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', ...(opts.year ? { year: 'numeric' } : {}),
-  });
-}
-
 /** Whole days until expiry, never negative. */
 export function daysToExpiry(d: string | Date | null | undefined, from: Date = new Date()): number | null {
   const dt = parseMarketDate(d);
@@ -38,12 +28,4 @@ export function daysToExpiry(d: string | Date | null | undefined, from: Date = n
   const a = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
   const b = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
   return Math.max(0, Math.round((b - a) / 86_400_000));
-}
-
-/** Weekly options expire Friday — a Thursday expiry is a parsing bug, not a contract. */
-export function isLikelyExpiryDay(d: string | Date | null | undefined): boolean {
-  const dt = parseMarketDate(d);
-  if (!dt) return false;
-  const day = dt.getDay();
-  return day === 5 || day === 4; // Friday, or Thursday for the rare holiday-shifted week
 }

@@ -613,13 +613,4 @@ export function startCatalystPolling(intervalMinutes: number = 30): void {
     intervalMinutes * 60 * 1000
   );
 }
-
-export function stopCatalystPolling(): void {
-  if (catalystPollingInterval) {
-    clearInterval(catalystPollingInterval);
-    catalystPollingInterval = null;
-    log('[CATALYST] Catalyst polling stopped', 'intel');
-  }
-}
-
 log('[CATALYST] Catalyst Intelligence Service initialized', 'intel');

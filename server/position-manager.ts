@@ -582,15 +582,3 @@ export async function startIntelligentMonitoring(): Promise<void> {
 
   logger.info('[POSITION-MANAGER] ✅ Intelligent monitoring started');
 }
-
-export function stopIntelligentMonitoring(): void {
-  if (positionManagerInterval) {
-    clearInterval(positionManagerInterval);
-    positionManagerInterval = null;
-  }
-  if (contextAnalystInterval) {
-    clearInterval(contextAnalystInterval);
-    contextAnalystInterval = null;
-  }
-  logger.info('[POSITION-MANAGER] 🛑 Intelligent monitoring stopped');
-}

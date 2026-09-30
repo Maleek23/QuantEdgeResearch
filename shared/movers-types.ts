@@ -167,9 +167,3 @@ export interface WindowSchedule {
   endMin: number;
   daysActive: number[]; // 1=Mon ... 5=Fri
 }
-
-export const WINDOW_SCHEDULES: Record<MoversWindow, WindowSchedule> = {
-  premarket:  { startHour: 4,  startMin: 0,  endHour: 9,  endMin: 30, daysActive: [1, 2, 3, 4, 5] },
-  afterhours: { startHour: 16, startMin: 0,  endHour: 20, endMin: 0,  daysActive: [1, 2, 3, 4, 5] },
-  overnight:  { startHour: 20, startMin: 0,  endHour: 28, endMin: 0,  daysActive: [0, 1, 2, 3, 4, 5, 6] },
-};

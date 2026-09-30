@@ -417,12 +417,6 @@ export async function fullMarketScan(
     timestamp: new Date().toISOString()
   };
 }
-
-// Get scanner configuration
-export function getScannerConfig(): ScannerConfig {
-  return { ...DEFAULT_CONFIG };
-}
-
 // Get watchlists
 export function getWatchlists() {
   return {

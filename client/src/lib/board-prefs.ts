@@ -100,6 +100,3 @@ export function movePanel(rail: 'left' | 'right', id: string, dir: -1 | 1) {
     return { order: { ...p.order, [rail]: arr } };
   });
 }
-export const orderOf = (p: BoardPrefs, rail: 'left' | 'right', id: string) => {
-  const i = p.order[rail].indexOf(id); return i < 0 ? 50 : i;
-};

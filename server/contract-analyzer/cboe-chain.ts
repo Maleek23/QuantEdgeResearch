@@ -57,32 +57,6 @@ export function findContractMid(
   const mid = (Number(row.bid ?? 0) + Number(row.ask ?? 0)) / 2;
   return mid > 0 ? mid : null;
 }
-
-/**
- * Locate one contract's liquidity (open interest + day volume) in a fetched
- * chain by type/strike/expiry. Returns null if the exact contract isn't listed.
- * Used to backfill OI/volume onto ideas that were created before those columns
- * were captured at selection time.
- */
-export function findContractLiquidity(
-  chain: CboeChain,
-  optionType: 'call' | 'put',
-  strike: number,
-  expiry: string,
-): { openInterest: number; volume: number } | null {
-  const row = chain.rawChain.find(
-    (o) =>
-      o.option_type === optionType &&
-      Math.abs(o.strike - strike) < 0.01 &&
-      o.expiration_date === expiry,
-  );
-  if (!row) return null;
-  return {
-    openInterest: Math.round(Number(row.open_interest ?? 0)),
-    volume: Math.round(Number(row.volume ?? 0)),
-  };
-}
-
 // ─── TTL cache ─────────────────────────────────────────────────
 // CBOE's CDN rate-limits (HTTP 429) under bursty access — and the idea
 // pipeline + performance validator both hammer the same symbols on a tight

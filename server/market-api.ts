@@ -1270,22 +1270,6 @@ export async function fetchEarningsCalendar(horizon: '3month' | '6month' | '12mo
     return [];
   }
 }
-
-/**
- * Get earnings for specific symbols only
- */
-export async function fetchSymbolEarnings(symbols: string[]): Promise<Map<string, EarningsEvent>> {
-  const allEarnings = await fetchEarningsCalendar('3month');
-  const symbolSet = new Set(symbols.map(s => s.toUpperCase()));
-  
-  const filtered = allEarnings.filter(e => symbolSet.has(e.symbol));
-  
-  const earningsMap = new Map<string, EarningsEvent>();
-  filtered.forEach(e => earningsMap.set(e.symbol, e));
-  
-  return earningsMap;
-}
-
 // ============================================
 // FUTURES DATA - 24-hour trading
 // ============================================

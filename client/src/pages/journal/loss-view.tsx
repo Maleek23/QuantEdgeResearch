@@ -23,14 +23,15 @@ import {
   type DriverDim, type TradeAnalysis,
 } from '@/lib/journal/loss-analysis';
 import { useLossBars } from '@/lib/journal/use-loss-bars';
+import { fmtR as fmtRMultiple, fmtRatioPct } from '@/lib/format';
 
 const SMALL = 30;
 const Small = ({ n }: { n: number }) => (n > 0 && n < SMALL
   ? <span className="jr-lowsample" title={`Fewer than ${SMALL} trades — treat as anecdote, not a finding`}>SMALL n</span>
   : null);
 
-const fmtR = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toFixed(d)}R`);
-const fmtSPct = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v * 100).toFixed(d)}%`);
+const fmtR = (v: number | null | undefined, d = 2) => fmtRMultiple(v, d);
+const fmtSPct = (v: number | null | undefined, d = 1) => fmtRatioPct(v, { decimals: d, signed: true });
 const shortDate = (ms: number) => new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
 
 const DIMS: DriverDim[] = ['source', 'exit', 'dte', 'session', 'hour', 'weekday', 'hold', 'instrument', 'direction', 'conviction', 'symbol'];
