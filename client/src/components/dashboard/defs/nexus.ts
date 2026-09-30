@@ -9,6 +9,7 @@ import { lazyTool, type DefaultLayout, type ToolDef } from '../tool-def';
 
 const nexus = () => import('../tools/nexus/nexus-tools');
 const zeroDte = () => import('@/components/zerodte/zero-dte-desk');
+const ignition = () => import('@/components/sector-ignition/sector-ignition');
 const BOOK = 'convictions engine';
 
 export const NEXUS_TOOLS: ToolDef[] = [
@@ -59,6 +60,12 @@ export const NEXUS_TOOLS: ToolDef[] = [
     what: 'SPX · MSTR · META · BE · TSLA (ZERO_DTE_WATCH): 0DTE ideas first (WATCH → TRIGGERED → IN PLAY → DONE, exact contract, live premium, trigger / stop / targets / exit-by), then the session clock and what the engine looks for, same-day expected move, single-expiry GEX walls / zero-γ / max-γ, VWAP + opening range, flow tide on the expiry, engine state in plain words; 2–4 day swings (T1 ≤ 1σ); this engine\'s record with n (LOW N < 20).',
     units: 'price $, % of spot, R multiple, premium $', source: '0DTE desk', backing: 'ZeroDteDesk (components/zerodte/zero-dte-desk.tsx) ← GET /api/zero-dte/desk (server/zero-dte-desk.ts)',
     defaultSize: { w: 12, h: 16 }, minSize: { w: 4, h: 8 }, Component: lazyTool(zeroDte, 'ZeroDteTool'),
+  },
+  {
+    id: 'nexus-sector-ignition', category: 'Market', title: 'Sector Ignition',
+    what: 'Which peer groups (SMH, IGV, CIBR, XLF … from shared/sector-peers) are quiet → stirring → igniting → extended on four horizons — 0DTE/intraday (VWAP breadth, ETF vs SPY, ORB breadth, 30-min call/put flow cluster, pre-market gap), daily (gap → ORB → held into close), swing (RS-line turn, breadth thrust, flow persistence) and weeks (RRG quadrant path). Leaders and laggards (catch-up candidates) link to the ticker page. Measuring — unvalidated thresholds.',
+    units: '% move, % vs SPY, breadth %, flow members', source: 'sector ignition', backing: 'SectorIgnitionPanel (components/sector-ignition) ← GET /api/sector-ignition?horizon= (server/sector-ignition.ts)',
+    defaultSize: { w: 4, h: 10 }, minSize: { w: 3, h: 6 }, Component: lazyTool(ignition, 'SectorIgnitionTool'),
   },
   {
     id: 'nexus-classic', category: 'Ideas', title: 'NEXUS (all-in-one, classic)',

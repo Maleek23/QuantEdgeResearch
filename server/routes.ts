@@ -32642,6 +32642,9 @@ Use this checklist before entering any trade:
     // NEXUS 0DTE desk + 2–4 day swings (server/zero-dte-desk.ts)
     const { registerZeroDteDeskRoutes } = await import('./zero-dte-desk');
     registerZeroDteDeskRoutes(app, requireBetaAccess);
+    // Sector ignition — four horizons, measuring (server/sector-ignition.ts)
+    const { registerSectorIgnitionRoutes } = await import('./sector-ignition');
+    registerSectorIgnitionRoutes(app, requireBetaAccess);
   }
 
   /**

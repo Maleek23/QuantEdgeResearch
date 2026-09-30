@@ -10,7 +10,7 @@
  *   2. The tape, the pre-market gap strip (04:00–09:30 ET), the index desk
  *      and the 0DTE ideas (compact; the desk itself is NEXUS → 0DTE).
  *   3. The book in numbers, the single best idea, the ranked setups.
- *   4. Sector rotation, then the honest model record.
+ *   4. Sector rotation, sector ignition (four horizons), then the honest model record.
  *
  * Data is today's canonical wiring (tools/today/today-model.tsx — the same
  * query keys NEXUS and GEX use, so nothing is fetched twice): the live
@@ -38,6 +38,7 @@ import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, 
 import { ageLabel } from '@/components/dashboard/tools/flow/tape';
 import { recordLine, type DeskIdea } from '@/components/zerodte/zero-dte-ideas';
 import { useZeroDteDesk } from '@/components/zerodte/zero-dte-desk';
+import { SectorIgnitionBand } from '@/components/sector-ignition/sector-ignition';
 import {
   Ladder, WeekMap, explain, fmt, newest,
   useBook, useElementWidth, useIndexDesk, usePerf, usePulse, useRotation, useSpyGex, useSpyIntraday, useWeeklyPath,
@@ -569,6 +570,9 @@ export default function TodayPage() {
           </div>
         </div>
       </section>
+
+      {/* SECTOR IGNITION — four horizons, measuring (server/sector-ignition.ts) */}
+      <SectorIgnitionBand />
 
       {/* CTA — the honest record */}
       <section>
