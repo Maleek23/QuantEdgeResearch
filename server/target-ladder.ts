@@ -14,8 +14,9 @@
  * Each rung carries: what the level is, its distance in R and in the stock's
  * own expected range for the holding period (ATR-scaled), and a driftless
  * probability of trading there before the horizon ends. Levels closer than
- * 0.6R are skipped (not worth the risk); nothing beyond 3x the expected range
- * is offered (not a realistic swing target). If no structural level exists,
+ * 0.6R are skipped (not worth the risk); nothing beyond 1.5x the expected range
+ * is offered (≈13% reach — operator 2026-09-30: 3x (<1% reach) was "way too
+ * aggressive"). If no structural level exists,
  * the ladder says so and falls back to expected-range multiples, labelled.
  */
 import { fetchCandles } from './historical-candles';
@@ -102,7 +103,7 @@ export async function buildTargetLadder(input: {
 
   // In the trade's direction, meaningful distance, within a realistic reach.
   const minDist = 0.6 * risk;
-  const maxDist = 3 * expectedRange;
+  const maxDist = 1.5 * expectedRange;
   const inDir = cands
     .filter((c) => Number.isFinite(c.price) && sgn * (c.price - entry) >= minDist && sgn * (c.price - entry) <= maxDist)
     .sort((a, b) => sgn * (a.price - b.price));
@@ -133,7 +134,8 @@ export async function buildTargetLadder(input: {
 
   const rungs: LadderRung[] = merged.slice(0, 3).map((c, i) => rungOf(c.price, c.source, true, i));
   // Fill missing rungs with labelled expected-range multiples (never silently).
-  for (const m of [1, 1.5, 2.25]) {
+  // 0.5× / 1× / 1.5× ≈ 62% / 32% / 13% driftless reach (was 1 / 1.5 / 2.25× ≈ 32 / 13 / 2%).
+  for (const m of [0.5, 1, 1.5]) {
     if (rungs.length >= 3) break;
     const price = entry + sgn * m * expectedRange;
     const last = rungs[rungs.length - 1];
