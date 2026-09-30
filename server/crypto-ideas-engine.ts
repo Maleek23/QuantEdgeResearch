@@ -27,6 +27,8 @@
  * Coinbase bars since publish) — the stock tracker neither runs on weekends
  * nor prices coins from the right candles.
  */
+import { readShared, sharedStamp, writeSharedSync } from './lib/shared-state';
+import { readsSharedState, writesSharedState } from './lib/process-role';
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { logger } from './logger';
 import {
@@ -292,6 +294,7 @@ export async function runCryptoIdeasEngine(): Promise<number> {
     at: new Date(now).toISOString(), coins, published,
     skipped: skipped.map((s) => `${s.c.symbol} ${s.c.direction} ${s.c.setup}: ${s.why}`),
   };
+  if (writesSharedState()) writeSharedSync('crypto-last-scan', lastScan);
   for (const s of lastScan.skipped) logger.info(`[CRYPTO-ENGINE] not published — ${s}`);
   return published.length;
 }
@@ -394,7 +397,10 @@ export async function getCryptoIdeasDesk() {
     schedule: 'scan :07 and :37 every hour, every day (weekends included); outcome tracker every 5 min',
     maxPerDay: maxPerDay(),
     maxPerRun: MAX_PER_RUN,
-    lastScan,
+    // ROLE=web: the worker runs the scan; serve its last table, age-stamped.
+    ...(readsSharedState()
+      ? (() => { const r = readShared<typeof lastScan>('crypto-last-scan', 45 * 60_000); return { lastScan: r?.data ?? lastScan, lastScanSource: sharedStamp(r) }; })()
+      : { lastScan }),
     ideas,
     record: { ...record, since: record.firstAt },
     gradeScale: 'Crypto structure grade CS-A (≥7/10) · CS-B (5–6) · CS-C (<5, not published). Separate from the NEXUS conviction band; the board re-scores each idea on the band scale.',

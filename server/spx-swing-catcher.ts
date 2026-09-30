@@ -16,6 +16,8 @@
  */
 
 import { logger } from './logger';
+import { readShared, writeSharedSync } from './lib/shared-state';
+import { readsSharedState } from './lib/process-role';
 import { fetchStockPrice } from './market-api';
 import { storage } from './storage';
 import {
@@ -863,7 +865,30 @@ export function stopSwingCatcher(): void {
   }
 }
 
+// ── Split deployment: the worker publishes the catcher state; ROLE=web reads it. ──
+const SWING_SHARED = 'spx-swing';
+let sharedActive: boolean | null = null;
+export function publishSwingState(): void {
+  writeSharedSync(SWING_SHARED, { ...state, active: scanInterval !== null });
+}
+let swingHydratedAt = 0;
+function hydrateSwing(): void {
+  if (!readsSharedState()) return;
+  const r = readShared<SwingCatcherState & { active: boolean }>(SWING_SHARED, 10 * 60_000);
+  if (!r) return;
+  sharedActive = r.data.active && !r.stale;
+  if (r.writtenAtMs <= swingHydratedAt) return;
+  swingHydratedAt = r.writtenAtMs;
+  const { active: _a, ...st } = r.data;
+  state = {
+    ...st,
+    lastScanTime: st.lastScanTime ? new Date(st.lastScanTime as unknown as string) : null,
+    alerts: (st.alerts ?? []).map((a) => ({ ...a, timestamp: new Date(a.timestamp as unknown as string), expiresAt: new Date(a.expiresAt as unknown as string) })),
+  };
+}
+
 export function getActiveSwingAlerts(): SwingAlert[] {
+  hydrateSwing();
   const now = new Date();
   return state.alerts.filter(a => a.expiresAt > now);
 }
@@ -875,8 +900,9 @@ export function getSwingCatcherStatus(): {
   previousDay: PreviousDayLevels | null;
   previousMonth: PreviousMonthLevels | null;
 } {
+  hydrateSwing();
   return {
-    isActive: scanInterval !== null,
+    isActive: sharedActive ?? scanInterval !== null,
     lastScan: state.lastScanTime?.toISOString() || null,
     alertCount: getActiveSwingAlerts().length,
     previousDay: state.previousDay,

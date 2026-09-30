@@ -22298,8 +22298,10 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
   // withholds an idea unless an account-fit contract actually exists.
   app.get("/api/scanner/index-lotto", async (_req, res) => {
     try {
-      const { runIndexScalpScanner } = await import("./index-scalp-engine");
-      const result = await runIndexScalpScanner();
+      const { runIndexScalpScanner, getLastIndexScan } = await import("./index-scalp-engine");
+      // ROLE=web: serve the worker's last pass (stamped) instead of running a pass here.
+      const shared = (await import('./lib/process-role')).readsSharedState() ? getLastIndexScan() : null;
+      const result = shared ? { ...shared.result, lastPassAt: new Date(shared.at).toISOString(), lastPassAgeSec: Math.round((Date.now() - shared.at) / 1000) } : await runIndexScalpScanner();
       res.json({
         ...result,
         methodology: 'measured GEX structure + executable live-chain contract gate',
@@ -22440,6 +22442,11 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       const { action } = req.body;
       const { startORBScanner, stopORBScanner } = await import("./spx-orb-scanner");
 
+      if (action === 'start' && (await import('./lib/process-role')).readsSharedState()) {
+        // ROLE=web: the scanner is a worker job (server/background-jobs.ts) — a
+        // second copy here would double-publish.
+        return res.status(409).json({ error: 'This scanner runs in the worker process (ROLE=web). Restart quantedge-worker to restart it.' });
+      }
       if (action === 'start') {
         const intervalMs = req.body.intervalMs || 60000; // Default 1 minute
         startORBScanner(intervalMs);
@@ -22529,6 +22536,11 @@ Be specific with strike prices and timeframes. Educational purposes only.`;
       const { action } = req.body;
       const { startSessionScanner, stopSessionScanner } = await import("./spx-session-scanner");
 
+      if (action === 'start' && (await import('./lib/process-role')).readsSharedState()) {
+        // ROLE=web: the scanner is a worker job (server/background-jobs.ts) — a
+        // second copy here would double-publish.
+        return res.status(409).json({ error: 'This scanner runs in the worker process (ROLE=web). Restart quantedge-worker to restart it.' });
+      }
       if (action === 'start') {
         const intervalMs = req.body.intervalMs || 30000; // Default 30 seconds
         startSessionScanner(intervalMs);
@@ -32220,7 +32232,9 @@ Use this checklist before entering any trade:
       const hub = await buildGEXHub(scan);
       // Fire-and-forget: persist best plays + index scalps for Trade Desk
       persistTopPlaysAsIdeas(hub.topPlays).catch(() => {});
-      runIndexScalpScanner().catch(() => {});
+      // ROLE=web: the worker's idea producers run the index scanner every 5 min —
+      // a page view must not trigger a chain-parsing producer pass in the web process.
+      if ((await import('./lib/process-role')).runsWorkerJobs()) runIndexScalpScanner().catch(() => {});
       res.json({ hub, scan, generatedAt: new Date().toISOString() });
     } catch (error: any) {
       logger.error("GEX hub error", { error: error?.message });
@@ -32235,11 +32249,8 @@ Use this checklist before entering any trade:
    * its own fetchedAt/ageSec. Never computes on the request path.
    * Set GEX_RANKINGS_JOB=off to disable the job.
    */
-  if (process.env.GEX_RANKINGS_JOB !== 'off') {
-    void import('./gex-rankings').then((m) => m.startGexRankingJob()).catch((e) => {
-      logger.warn('[GEX-RANK] job failed to start', { error: e?.message });
-    });
-  }
+  // The ranking cycle is started by the job registry (server/background-jobs.ts,
+  // role worker; ROLE=all runs it in this process). GEX_RANKINGS_JOB=off disables.
   app.get("/api/gex-vex/rankings", requireBetaAccess, async (req, res) => {
     try {
       const { getGexRankings } = await import('./gex-rankings');

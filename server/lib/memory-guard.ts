@@ -106,3 +106,21 @@ export function startMemoryGuard(): void {
   setTimeout(report, 60_000).unref?.();
   logger.info(`[MEMORY-GUARD] started — trims caches to 50% above ${TRIM_RSS_MB} MB RSS; cache report every 10 min`);
 }
+
+let healthStarted = false;
+/**
+ * Worker only (ROLE=worker): publish this process's memorySnapshot (caches, trims,
+ * heavy-job gate queue) to .cache/shared/worker-health.json every 60s so the web
+ * admin System-health panel can show the worker it no longer shares a heap with.
+ */
+export function startHealthPublisher(): void {
+  if (healthStarted) return;
+  healthStarted = true;
+  const publish = () => {
+    void import('./shared-state').then(({ writeSharedSync }) => {
+      writeSharedSync('worker-health', { pid: process.pid, uptimeSec: Math.round(process.uptime()), ...memorySnapshot() });
+    }).catch(() => {});
+  };
+  setTimeout(publish, 5_000).unref?.();
+  setInterval(publish, CHECK_MS).unref?.();
+}

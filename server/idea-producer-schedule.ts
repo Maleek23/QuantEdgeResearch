@@ -68,7 +68,6 @@ function guarded(name: string, fn: () => Promise<unknown>, priority: HeavyPriori
 
 export function ideaProducersEnabledInWeb(): boolean {
   if (process.env.IDEA_PRODUCERS_IN_WEB === 'false') return false;
-  if (process.env.WORKER_ENABLED === 'true') return false;
   return true;
 }
 

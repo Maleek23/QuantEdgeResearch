@@ -35,6 +35,8 @@
  * Pure core (ranking, planning, triggers, caps) is exported for
  * scripts/test-premarket-ideas.ts; I/O is imported lazily.
  */
+import { readShared, sharedStamp, writeSharedSync } from './lib/shared-state';
+import { readsSharedState, writesSharedState } from './lib/process-role';
 import { logger } from './logger';
 import { etParts, etWallToMs } from '@shared/loss-rules';
 
@@ -421,7 +423,27 @@ export interface WatchPlan {
 interface DayState { dateKey: string; plans: Map<string, WatchPlan>; plannedAt: string | null; lastEvalAt: string | null; scanned: number; rejected: RankReject[]; published: number }
 
 let day: DayState = { dateKey: '', plans: new Map(), plannedAt: null, lastEvalAt: null, scanned: 0, rejected: [], published: 0 };
+// Split deployment (docs/WORKER_SPLIT.md): the worker runs the plan/trigger
+// passes and publishes the day state; the web process serves it from the file.
+const SHARED = 'premarket-ideas';
+interface SharedDay extends Omit<DayState, 'plans'> { plans: WatchPlan[] }
+function publishDay(): void {
+  if (!writesSharedState()) return;
+  writeSharedSync<SharedDay>(SHARED, { ...day, plans: Array.from(day.plans.values()) });
+}
+let hydratedAt = 0;
+let stateStamp: ReturnType<typeof sharedStamp> | null = null;
+function hydrate(): void {
+  if (!readsSharedState()) return;
+  const r = readShared<SharedDay>(SHARED, 15 * 60_000);
+  stateStamp = sharedStamp(r);
+  if (!r || r.writtenAtMs <= hydratedAt) return;
+  hydratedAt = r.writtenAtMs;
+  day = { ...r.data, plans: new Map((r.data.plans ?? []).map((p) => [p.symbol, p])) };
+}
+
 function today(nowMs = Date.now()): DayState {
+  hydrate();
   const k = etParts(nowMs).dateKey;
   if (day.dateKey !== k) day = { dateKey: k, plans: new Map(), plannedAt: null, lastEvalAt: null, scanned: 0, rejected: [], published: 0 };
   return day;
@@ -454,6 +476,8 @@ export function getPremarketIdeasState(nowMs = Date.now()) {
     published: st.published,
     caps: { maxPerDay: PM_CFG.maxPerDay, perSymbol: 1 },
     windows: { plan: '08:30–09:25 ET every 10 min', trigger: '09:30–10:30 ET every 2 min' },
+    // ROLE=web: where this state came from and how old it is (null = this process ran the passes).
+    stateSource: stateStamp,
     watch: Array.from(st.plans.values()).sort((a, b) => a.rank - b.rank).map((p) => ({
       symbol: p.symbol, rank: p.rank, status: p.status, plannedAt: p.plannedAt,
       gapPct: r2(p.mover.gapPct), pmPrice: p.mover.pmPrice, prevClose: p.mover.prevClose,
@@ -526,6 +550,9 @@ async function buildPlanContext(symbol: string, todayKey: string, prevCloseFromS
 }
 
 export async function runPremarketPlan(nowMs = Date.now()): Promise<number> {
+  try { return await runPremarketPlanInner(nowMs); } finally { publishDay(); }
+}
+async function runPremarketPlanInner(nowMs: number): Promise<number> {
   const et = etParts(nowMs);
   if (et.weekday < 1 || et.weekday > 5) return 0;
   if (et.minutes < PM_CFG.planStartEt - 5 || et.minutes >= RTH_OPEN) return 0;
@@ -658,6 +685,9 @@ async function publish(p: WatchPlan, t: TriggerResult, nowMs: number): Promise<s
 function dateParts(ms: number): [number, number, number] { const p = etParts(ms); return [p.y, p.m, p.d]; }
 
 export async function runPremarketTriggers(nowMs = Date.now()): Promise<number> {
+  try { return await runPremarketTriggersInner(nowMs); } finally { publishDay(); }
+}
+async function runPremarketTriggersInner(nowMs: number): Promise<number> {
   const et = etParts(nowMs);
   if (et.weekday < 1 || et.weekday > 5 || et.minutes < PM_CFG.evalStartEt || et.minutes > PM_CFG.evalEndEt) return 0;
   const st = today(nowMs);

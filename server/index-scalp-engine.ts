@@ -30,6 +30,8 @@
  * holdingPeriod='day', and 0DTE strike/expiry attached.
  */
 
+import { readShared, writeSharedSync } from './lib/shared-state';
+import { readsSharedState, writesSharedState } from './lib/process-role';
 import { logger } from './logger';
 import { storage } from './storage';
 import { getGexSnapshotBatch, type GexSnapshot } from './gex-snapshot-service';
@@ -789,8 +791,14 @@ async function zeroDteBucketFor(sym: string, spot: number, nowMs: number): Promi
 
 /** The last completed pass (the 0DTE desk shows its waits for SPX) + withheld reasons. */
 export function getLastIndexScan(): { at: number; result: IndexScalpResult; withheld: Record<string, { at: number; reason: string }> } | null {
+  if (readsSharedState()) {
+    // ROLE=web: the worker runs the scanner; read its last pass.
+    const r = readShared<{ at: number; result: IndexScalpResult; withheld: Record<string, { at: number; reason: string }> }>(INDEX_SHARED);
+    if (r && (!lastScan || r.data.at > lastScan.at)) return r.data;
+  }
   return lastScan ? { ...lastScan, withheld: Object.fromEntries(lastWithheld) } : null;
 }
+const INDEX_SHARED = 'index-0dte-last';
 
 let inflightScan: Promise<IndexScalpResult> | null = null;
 let lastScan: { at: number; result: IndexScalpResult } | null = null;
@@ -810,7 +818,11 @@ export async function runIndexScalpScanner(opts: { discord?: boolean } = {}): Pr
   if (inflightScan) return inflightScan;
   if (lastScan && Date.now() - lastScan.at < MIN_SCAN_INTERVAL_MS) return lastScan.result;
   inflightScan = runIndexScalpScannerOnce(opts)
-    .then((r) => { lastScan = { at: Date.now(), result: r }; return r; })
+    .then((r) => {
+      lastScan = { at: Date.now(), result: r };
+      if (writesSharedState()) writeSharedSync(INDEX_SHARED, { ...lastScan, withheld: Object.fromEntries(lastWithheld) });
+      return r;
+    })
     .finally(() => { inflightScan = null; });
   return inflightScan;
 }

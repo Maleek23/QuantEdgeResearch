@@ -14,6 +14,8 @@
  */
 
 import { logger } from './logger';
+import { readShared, writeSharedSync } from './lib/shared-state';
+import { readsSharedState } from './lib/process-role';
 import { fetchStockPrice, fetchYahooFinancePrice } from './market-api';
 import { storage } from './storage';
 import { timeStopIso } from './zero-dte-policies';
@@ -890,6 +892,21 @@ export async function runORBScan(): Promise<ORBScanResult> {
 // API HELPERS
 // ============================================
 
+// ── Split deployment (docs/WORKER_SPLIT.md): the worker runs the scanner and
+// publishes ranges/breakouts every 30s; ROLE=web getters read them. ──
+const ORB_SHARED = 'spx-orb';
+export function publishORBState(): void {
+  writeSharedSync(ORB_SHARED, { date: dailyState.date, ranges: Array.from(dailyState.ranges.entries()), breakouts: dailyState.breakouts, active: scanInterval !== null });
+}
+let orbHydratedAt = 0;
+function hydrateORB(): void {
+  if (!readsSharedState()) return;
+  const r = readShared<{ date: string; ranges: Array<[string, OpeningRange[]]>; breakouts: ORBBreakout[] }>(ORB_SHARED);
+  if (!r || r.writtenAtMs <= orbHydratedAt) return;
+  orbHydratedAt = r.writtenAtMs;
+  dailyState = { ...dailyState, date: r.data.date, ranges: new Map(r.data.ranges ?? []), breakouts: r.data.breakouts ?? [] };
+}
+
 export async function getORBStatus(): Promise<{
   isActive: boolean;
   sessionPhase: string;
@@ -897,6 +914,7 @@ export async function getORBStatus(): Promise<{
   activeBreakouts: number;
   pendingSetups: number;
 }> {
+  hydrateORB();
   const et = getETTime();
   const etHours = getETHours(et);
   const sessionPhase = getSessionPhase(etHours);
@@ -918,10 +936,12 @@ export async function getORBStatus(): Promise<{
 }
 
 export function getActiveBreakouts(): ORBBreakout[] {
+  hydrateORB();
   return dailyState.breakouts;
 }
 
 export function getRanges(): OpeningRange[] {
+  hydrateORB();
   const ranges: OpeningRange[] = [];
   dailyState.ranges.forEach(symbolRanges => {
     ranges.push(...symbolRanges);

@@ -80,6 +80,9 @@ export type { ConvictionLayerKind } from "@shared/conviction-layers";
 import type { ConvictionLayerKind } from "@shared/conviction-layers";
 import { isLeadershipName } from "@shared/leadership-universe";
 import { BoundedCache } from "./lib/bounded-cache";
+import { createHash } from "node:crypto";
+import { readShared, writeShared } from "./lib/shared-state";
+import { readsSharedState, writesSharedState } from "./lib/process-role";
 
 export interface ConvictionLayer {
   kind: ConvictionLayerKind;
@@ -1974,6 +1977,25 @@ const _convictionsInflight = new Map<string, Promise<ConvictionsResponse>>();
  * immediately. Do not leave a five-minute scoring snapshot claiming
  * PENDING TRIGGER after the audit row has advanced to triggered.
  */
+// ── Split deployment (docs/WORKER_SPLIT.md) ──────────────────────────────
+// The worker builds the boards (warm-up every 4 min) and publishes each one to
+// .cache/shared/convictions-<hash>.json; the web process adopts the newest file
+// instead of paying the ~2-minute build. A web process builds locally only when
+// the worker has published nothing usable for that key (worker down / new key).
+const SHARED_BOARD_MAX_AGE_MS = 30 * 60_000;
+const sharedBoardName = (key: string) => `convictions-${createHash('sha1').update(key).digest('hex').slice(0, 12)}`;
+function adoptSharedBoard(key: string): { data: ConvictionsResponse; expiresAt: number } | null {
+  if (!readsSharedState()) return null;
+  const r = readShared<ConvictionsResponse>(sharedBoardName(key), SHARED_BOARD_MAX_AGE_MS);
+  if (!r || r.stale) return null;
+  const hit = _convictionsCache.get(key);
+  const hitBuiltAt = hit ? hit.expiresAt - CONVICTIONS_CACHE_TTL_MS : 0;
+  if (hit && hitBuiltAt >= r.writtenAtMs) return hit;
+  const entry = { data: r.data, expiresAt: r.writtenAtMs + CONVICTIONS_CACHE_TTL_MS };
+  _convictionsCache.set(key, entry);
+  return entry;
+}
+
 export function invalidateConvictionsCache(): void {
   _convictionsCache.clear();
 }
@@ -2008,7 +2030,7 @@ export function peekConvictions(
     weeklyUserId: opts.weeklyUserId,
     weeklyOnly: opts.weeklyOnly ?? false,
   };
-  const hit = _convictionsCache.get(JSON.stringify(merged));
+  const hit = adoptSharedBoard(JSON.stringify(merged)) ?? _convictionsCache.get(JSON.stringify(merged));
   if (!hit) return null;
   return { data: hit.data, stale: hit.expiresAt <= Date.now() };
 }
@@ -2026,6 +2048,9 @@ export async function getCachedConvictions(
   };
   const key = JSON.stringify(merged);
   const now = Date.now();
+  const shared = adoptSharedBoard(key);
+  // ROLE=web with a worker board younger than 30 min: serve it, never build here.
+  if (shared) return shared.data;
   const hit = _convictionsCache.get(key);
 
   // Fresh — serve immediately.
@@ -2040,6 +2065,7 @@ export async function getCachedConvictions(
     const p = buildConvictions(merged)
       .then((data) => {
         _convictionsCache.set(key, { data, expiresAt: Date.now() + CONVICTIONS_CACHE_TTL_MS });
+        if (writesSharedState()) void writeShared(sharedBoardName(key), data);
         // Bounded by BoundedCache (8 boards / ~48 MB, LRU).
         return data;
       })

@@ -21,6 +21,8 @@
  */
 
 import { logger } from './logger';
+import { readShared, writeSharedSync } from './lib/shared-state';
+import { readsSharedState } from './lib/process-role';
 import { getTradierQuote, getTradierOptionsChain } from './tradier-api';
 import { calculateGammaExposure } from './gamma-exposure';
 import { analyzeVolatility, calculateRealizedVolatility } from './volatility-analysis-service';
@@ -1195,7 +1197,27 @@ async function computeAllSignals(symbol: string = 'SPY'): Promise<SPXIntelligenc
 /**
  * Get cached intelligence data for a specific symbol (fast — returns in <1ms)
  */
+// ── Split deployment: the worker computes SPY every 60s and publishes the cache;
+// ROLE=web adopts it (other symbols stay on-demand in whichever process asks). ──
+const INTEL_SHARED = 'spx-intel';
+export function publishSPXIntelligence(): void {
+  writeSharedSync(INTEL_SHARED, { cached: Array.from(cachedIntelligence.entries()), at: Array.from(lastComputeTimeBySymbol.entries()) });
+}
+let intelHydratedAt = 0;
+function hydrateIntel(): void {
+  if (!readsSharedState()) return;
+  const r = readShared<{ cached: Array<[string, SPXIntelligence]>; at: Array<[string, number]> }>(INTEL_SHARED);
+  if (!r || r.writtenAtMs <= intelHydratedAt) return;
+  intelHydratedAt = r.writtenAtMs;
+  const at = new Map(r.data.at ?? []);
+  for (const [sym, data] of r.data.cached ?? []) {
+    const t = at.get(sym) ?? 0;
+    if (t > (lastComputeTimeBySymbol.get(sym) ?? 0)) { cachedIntelligence.set(sym, data); lastComputeTimeBySymbol.set(sym, t); }
+  }
+}
+
 export function getSPXIntelligence(symbol: string = 'SPY'): SPXIntelligence | null {
+  hydrateIntel();
   const cached = cachedIntelligence.get(symbol);
   if (!cached) return null;
   // Check if cache is still fresh
