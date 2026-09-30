@@ -2995,30 +2995,44 @@ html.qe-calm .nexus-vars .signal,html.qe-calm .nexus-vars .stat-card,html.qe-cal
 .gx-mid .gx-sum-bar{width:26px;margin-right:5px}
 .gx-mid .gx-table td.gx-sum{padding:0 5px}
 .gx-mid .gx-sign,.gx-mid .gx-scale-now{display:none}
-/* phone-portrait: strike + lead role only, Σ value without the bar, a lean toolbar */
+/* phone-portrait (operator 2026-09-29 "readability and size"): fewer, bigger —
+   cells 13px tabular, strikes 14px, headers 12px, rows 38px, 3–4 expiries per
+   view; ONE toolbar row that scrolls sideways; spot is a row chip + a toolbar
+   button, never a label floating over cells. */
+.gx-narrow .gx-table{font-size:13px}
 .gx-narrow .gx-table td.gx-strike{padding:0 4px}
+.gx-narrow .gx-strike b,.gx-narrow .gx-row.marked td.gx-strike b{font-size:14px}
 .gx-narrow .gx-pct,.gx-narrow .gx-sum-bar{display:none}
 .gx-narrow .gx-chips{margin-left:3px}
-.gx-narrow .gx-chip{padding:0 3px;font-size:8px}
-.gx-narrow .gx-table td.gx-sum{padding:0 4px;font-size:var(--fs-9,9px)}
-.gx-narrow .gx-table th.gx-sticky-l{padding:4px}
-.gx-narrow .gx-cell{padding:0 3px}
-.gx-narrow .gx-cell.top{padding-left:10px}
-.gx-narrow .gx-toolbar{gap:4px 8px}
-.gx-narrow .gx-sign,.gx-narrow .gx-scale-now{display:none}
-.gx-narrow .gx-legend{display:none}
-.gx-narrow .gx-ramp{min-width:120px}
-.gx-narrow .gx-count{margin-left:0;flex:1 1 180px}
-.gx-narrow .gx-table thead th{letter-spacing:0;font-size:10px}
-.gx-narrow .gx-table thead th .gx-colnet{font-size:10px}
-.gx-narrow .gx-cell{font-size:11px;letter-spacing:-.02em}
-.gx-narrow .gx-strike b{font-size:12px}
-.gx-narrow .gx-line.spot span{left:calc(var(--gx-strike-w) + 4px);margin-left:calc(var(--gx-strike-w) + 4px)}
-.gx-narrow .gx-line.zg span{left:calc(var(--gx-strike-w) + 64px);margin-left:calc(var(--gx-strike-w) + 64px)}
-.gx-narrow .gx-scale-seg button{height:32px;padding:0 10px}
-.gx-narrow .gx-jump{padding:10px 12px}
+.gx-narrow .gx-chip{padding:1px 3px;font-size:11px}
+.gx-narrow .gx-chip-spot{color:var(--text,#e8ecf3);border-color:color-mix(in srgb,var(--text,#e8ecf3) 55%,transparent)}
+.gx-narrow .gx-table td.gx-sum{padding:0 4px;font-size:13px;font-variant-numeric:tabular-nums}
+.gx-narrow .gx-table thead th{padding:4px 2px;font-size:12px;letter-spacing:0;white-space:normal;line-height:1.2}
+.gx-narrow .gx-table thead th small{font-size:12px}
+.gx-narrow .gx-table thead th .gx-colnet{font-size:12px}
+.gx-narrow .gx-table.gx-fit th.gx-exp{text-overflow:clip}
+.gx-narrow .gx-cell{height:32px;padding:0 2px;font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.gx-narrow .gx-cell.top{padding-left:9px}
+.gx-narrow .gx-cell.top::before{font-size:9px}
+.gx-narrow .gx-toolbar{flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:6px;scrollbar-width:none}
+.gx-narrow .gx-toolbar>*{flex:none}
+.gx-narrow .gx-sign,.gx-narrow .gx-scale-now,.gx-narrow .gx-legend,.gx-narrow .gx-count{display:none}
+.gx-narrow .gx-ramp{min-width:64px}
+.gx-narrow .gx-ramp-ticks{display:none}
+.gx-narrow .gx-toggle{font-size:12px}
+.gx-narrow .gx-line.spot span{display:none}
+.gx-narrow .gx-line.zg span{left:calc(var(--gx-strike-w) + 4px);margin-left:calc(var(--gx-strike-w) + 4px);font-size:11px}
+.gx-narrow .gx-scale-seg b{display:none}
+.gx-narrow .gx-scale-seg button{font-size:12px;padding:0 10px}
+.gx-spot-btn{height:26px;padding:0 10px;border:1px solid var(--nx-border-hi,rgba(148,163,184,.3));border-radius:6px;background:transparent;color:var(--text,#e8ecf3);font:700 12px 'JetBrains Mono',monospace;white-space:nowrap;cursor:pointer}
+.gx-spot-btn.off{background:var(--cyan-bright,#6aa8ff);color:var(--bg,#07090d);border-color:transparent}
 
 /* ‹ › expiry pager (a page = the columns in view) */
 .gx-pager{display:inline-flex;gap:4px}
 .gx-pager button{min-width:28px;height:24px;padding:0 8px;border:1px solid var(--nx-border-hi,rgba(148,163,184,.3));border-radius:5px;background:transparent;color:var(--text,#e8ecf3);font:700 13px/1 'JetBrains Mono',monospace;cursor:pointer}
 .gx-pager button:hover,.gx-pager button:focus-visible{border-color:var(--cyan-bright,#6aa8ff)}
+.gx-narrow .gx-spot-btn{order:-2}
+.gx-narrow .gx-pager{order:-1}
+.gx-narrow .gx-table thead th.gx-exp{white-space:nowrap;padding:4px 1px}
+.gx-narrow .gx-cell.top{padding-left:2px}
+.gx-narrow .gx-cell.top::before{display:none} /* rank still shown by the ring + aria-label; no glyph crowding a 13px value */

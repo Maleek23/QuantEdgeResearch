@@ -216,9 +216,15 @@ export function GexProfileTool() {
 }
 
 /* ════════════ Key levels — walls / magnet / flip ════════════ */
+const ageText = (iso: string, now: number) => {
+  const sec = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+  return !Number.isFinite(sec) ? 'age —' : sec < 90 ? `${sec}s old` : sec < 5400 ? `${Math.round(sec / 60)}m old` : `${Math.round(sec / 3600)}h old`;
+};
+
 export function GexKeyLevelsTool() {
   const g = useGexFocus();
   const eh = useExtendedHoursNexus();
+  const now = useNow(15_000);
   const near = useMemo(() => nearTermByStrike(g.matrix, g.spot), [g.matrix, g.spot]);
   const blocked = gate(g);
   if (blocked) return blocked;
@@ -231,9 +237,15 @@ export function GexKeyLevelsTool() {
     <div className="gx-tool fd-scroll">
       <div className="gx-spot">
         <div><span className="gx-spot-sym">{g.symbol}</span> <b>{px(spot)}</b>{' '}
-          {quote ? <span style={{ color: quote.changePct >= 0 ? 'var(--green)' : 'var(--red)' }}>{quote.changePct >= 0 ? '+' : ''}{quote.changePct.toFixed(2)}%</span> : <span className="dim">chg —</span>}
+          {quote ? <span style={{ color: quote.changePct >= 0 ? 'var(--green)' : 'var(--red)' }}>{quote.changePct >= 0 ? '+' : ''}{quote.changePct.toFixed(2)}%</span> : null}
         </div>
-        <span className="dim">{sessionLabelOf(eh.data)}</span>
+        {/* Never a bare "chg —" / "Last close": say which feed and how old, or that it is missing. */}
+        <span className="dim" title="Spot is the GEX engine's chain spot; the change comes from the extended-hours quote feed">
+          {eh.isError && !eh.data ? 'change: quote feed unavailable · spot from GEX chain'
+            : eh.isLoading ? 'change: loading quote…'
+            : !quote ? `change: no ${g.symbol} quote in the extended-hours feed · spot from GEX chain`
+            : `${sessionLabelOf(eh.data)} quote${eh.data?.asOf ? ` · ${ageText(eh.data.asOf, now)}` : ''}`}
+        </span>
       </div>
       <DealerStructureRail snap={snap} spot={spot} zeroGamma={zg} negGamma={reg?.regime === 'negative'} />
       <div className="context-grid gx-pad">

@@ -434,3 +434,17 @@ html[data-mode=light] .flowdash .gx-pct{color:var(--text-dim)}
   .flowdash .pg-sec[data-tool=gex-matrix] .gx-grow,.flowdash .pg-sec[data-tool=gex-matrix] .gx-wrap{flex:none;overflow:visible}
   .flowdash .pg-sec[data-tool=gex-matrix] .gx-scroll{flex:none;height:60vh;min-height:320px;border-color:var(--nx-border-hi)}
 }
+/* ══════════════ phone type floor (operator 2026-09-29: "readability and size") ══════════════
+   card titles ≥ 16px · captions/meta ≥ 12px · key numbers (spot, walls) ≥ 18px */
+@media (max-width:767px){
+  .flowdash .pg-sec-head h2,.flowdash .fd-tool-title>span:first-child{font-size:16px}
+  .flowdash .pg-prov,.flowdash .fd-age,.flowdash .fd-save,.flowdash .fd-foot,.flowdash .gx-note,.flowdash .fd-eyebrow{font-size:12px}
+  .flowdash .gx-ps-spot{font-size:20px}
+  .flowdash .gx-ps-lv b{font-size:18px}
+  .flowdash .gx-ps-lv span,.flowdash .gx-ps-lv small,.flowdash .gx-ps-age,.flowdash .gx-ps-net{font-size:12px}
+  .flowdash .gx-ps-title{font-size:13px}
+  .flowdash .gx-ps-levels{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .flowdash .gx-spot b{font-size:18px}
+  .flowdash .gx-tool .context-v{font-size:18px}
+  .flowdash .gx-tool .context-k,.flowdash .gx-tool .context-sub{font-size:12px}
+}

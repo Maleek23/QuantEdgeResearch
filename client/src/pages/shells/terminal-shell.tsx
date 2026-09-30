@@ -361,7 +361,7 @@ export default function TerminalShell() {
       </header>
 
       {/* ── tab content (cross-fades) ── */}
-      <main ref={mainRef} id={MAIN_CONTENT_ID} tabIndex={-1} className="relative outline-none min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[var(--qe-rail-w,196px)]">
+      <main ref={mainRef} id={MAIN_CONTENT_ID} tabIndex={-1} className="relative outline-none min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[var(--qe-rail-w,196px)]">
         {unknownTab && (
           <div role="status" className="flex items-center gap-3 border-b border-[var(--brand-gold)]/30 bg-[var(--brand-gold)]/[0.06] px-4 py-2 font-mono text-[11px] text-foreground/85">
             <span>Unknown tab ‘{unknownTab}’ — showing NEXUS.</span>

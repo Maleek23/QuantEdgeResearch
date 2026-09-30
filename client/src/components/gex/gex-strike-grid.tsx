@@ -81,7 +81,8 @@ function fmtCompact(v: number, metric: Metric): string {
   const units: Array<[number, string]> = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K'], [1, '']];
   const [div, u] = units.find(([d], i) => usd >= d * 0.9995 || i === units.length - 1)!;
   const n = usd / div;
-  const txt = n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1).replace(/\.0$/, '') : n.toFixed(2).replace(/\.?0+$/, '');
+  // ≤ 5 characters with the sign: −93M, +1.1B, −470K
+  const txt = n >= 10 ? n.toFixed(0) : n.toFixed(1).replace(/\.0$/, '');
   return `${sign}${txt}${u}`;
 }
 const unitOf = (metric: Metric) => (metric === 'vex' ? '/IV pt' : '/1%');
@@ -211,6 +212,11 @@ function onGridKey(e: React.KeyboardEvent<HTMLDivElement>, rowH: number, jump: (
 
 const M_ROW = 30;
 const M_HEAD = 50;
+/** Phone rows / header: ≥ 36px rows (thumb-sized), a 3-line 12px header (date · dte · net). */
+const M_ROW_NARROW = 38;
+const M_HEAD_NARROW = 62;
+/** "OCT 02" → "Oct 2" (short, never ellipsised on a phone). */
+const shortExpiry = (label: string) => label.replace(/^([A-Z])([A-Z]+)\s+0?(\d+)$/, (_m, a: string, b: string, d: string) => `${a}${b.toLowerCase()} ${d}`);
 
 /**
  * Column geometry — FITS the matrix to its measured box (operator 2026-09-29:
@@ -222,6 +228,8 @@ const M_HEAD = 50;
  * expand: they scroll vertically inside the tile.
  */
 export const MIN_COL = 58;
+/** Phone portrait: the narrowest column that still fits a ≤ 5-char value at 13px (tabular). */
+export const MIN_COL_NARROW = 48;
 export interface MatrixGeometry {
   size: 'narrow' | 'mid' | 'wide';
   strikeW: number;
@@ -233,10 +241,11 @@ export interface MatrixGeometry {
 export function matrixGeometry(width: number, cols: number): MatrixGeometry {
   const w = Math.max(0, width);
   const size = w < 560 ? 'narrow' : w < 900 ? 'mid' : 'wide';
-  const strikeW = size === 'narrow' ? 70 : size === 'mid' ? 128 : 176;
-  const sumW = size === 'narrow' ? 58 : size === 'mid' ? 96 : 132;
+  const strikeW = size === 'narrow' ? 60 : size === 'mid' ? 128 : 176;
+  const sumW = size === 'narrow' ? 54 : size === 'mid' ? 96 : 132;
   const avail = Math.max(0, w - strikeW - sumW);
-  const perView = avail / 5 >= MIN_COL ? 5 : 4;
+  // phones: bigger, fewer — at most 4 per view, 3 when 4 would not fit a 13px value
+  const perView = size === 'narrow' ? (avail / 4 >= MIN_COL_NARROW ? 4 : 3) : avail / 5 >= MIN_COL ? 5 : 4;
   const colW = cols <= 0 ? 0 : Math.floor(avail / Math.min(perView, cols));
   return { size, strikeW, sumW, colW, perView, tableW: strikeW + sumW + colW * cols };
 }
@@ -329,14 +338,20 @@ export function GexStrikeMatrix({
     return { strikes, byKey, rowTotal, rowMax, gross, rMax, trueMax, col };
   }, [cells, expiries, val]);
 
-  const { ref, onScroll, first, last, scrollTop, viewH, viewW } = useVirtualRows(model.strikes.length, M_ROW);
+  // Row height follows the measured size class (phones get taller rows); the
+  // class is known after the first measure, so it lives in state.
+  const [narrowRows, setNarrowRows] = useState(false);
+  const ROW = narrowRows ? M_ROW_NARROW : M_ROW;
+  const HEAD = narrowRows ? M_HEAD_NARROW : M_HEAD;
+  const { ref, onScroll, first, last, scrollTop, viewH, viewW } = useVirtualRows(model.strikes.length, ROW);
   const geo = matrixGeometry(viewW, expiries.length);
+  useEffect(() => { setNarrowRows(geo.size === 'narrow'); }, [geo.size]);
   const sIdx = spotIndex(model.strikes, levels.spot);
-  const jump = useCenterOnSpot(ref, sIdx, M_ROW, M_HEAD, centerKey, model.strikes.length > 0);
-  const spotRowY = sIdx >= 0 ? M_HEAD + sIdx * M_ROW : null;
-  const spotDir = spotRowY == null ? null : spotRowY < scrollTop + M_HEAD ? 'up' : spotRowY > scrollTop + viewH - M_ROW ? 'down' : null;
-  const zgY = priceY(model.strikes, levels.zeroGamma, M_ROW, M_HEAD);
-  const spotY = priceY(model.strikes, levels.spot, M_ROW, M_HEAD);
+  const jump = useCenterOnSpot(ref, sIdx, ROW, HEAD, centerKey, model.strikes.length > 0);
+  const spotRowY = sIdx >= 0 ? HEAD + sIdx * ROW : null;
+  const spotDir = spotRowY == null ? null : spotRowY < scrollTop + HEAD ? 'up' : spotRowY > scrollTop + viewH - ROW ? 'down' : null;
+  const zgY = priceY(model.strikes, levels.zeroGamma, ROW, HEAD);
+  const spotY = priceY(model.strikes, levels.spot, ROW, HEAD);
   const scaleMaxOf = (dte: number) => (scale === 'column' ? model.col.get(dte)?.rMax ?? model.rMax : model.rMax);
   const dustCutOf = (dte: number) => (scale === 'column' ? model.col.get(dte)?.trueMax ?? model.trueMax : model.trueMax) * (dustPct / 100);
 
@@ -411,6 +426,11 @@ export function GexStrikeMatrix({
           <i className="dash" style={{ borderColor: LEVEL_COLORS.zeroGamma }} />zero-γ
           <i style={{ background: LEVEL_COLORS.spot }} />spot
         </span>
+        {geo.size === 'narrow' && levels.spot > 0 && sIdx >= 0 && (
+          <button type="button" className={`gx-spot-btn${spotDir ? ' off' : ''}`} onClick={() => jump(true)} title="Scroll spot to the centre">
+            {spotDir === 'up' ? '↑' : spotDir === 'down' ? '↓' : '◎'} Spot ${levels.spot.toFixed(2)}
+          </button>
+        )}
         {cols > geo.perView && (
           <span className="gx-pager" role="group" aria-label="Scroll expiries">
             <button type="button" onClick={() => ref.current?.scrollBy({ left: -(geo.colW || 120) * geo.perView, behavior: 'smooth' })} aria-label="Earlier expiries" title="Earlier expiries (or Shift+wheel / swipe)">‹</button>
@@ -428,10 +448,10 @@ export function GexStrikeMatrix({
         aria-label={`Strike by expiry ${metric.toUpperCase()} grid, ${model.strikes.length} strikes, ${Math.min(cols, geo.perView)} of ${cols} expiries in view. Arrow keys scroll, S jumps to spot.`}
         style={{ scrollPaddingLeft: geo.strikeW, scrollPaddingRight: geo.sumW }}
         onScroll={onScroll}
-        onKeyDown={(e) => onGridKey(e, M_ROW, () => jump(true), geo.colW || 120)}
+        onKeyDown={(e) => onGridKey(e, ROW, () => jump(true), geo.colW || 120)}
         onMouseMove={onMove}
       >
-        <div className="gx-lines" style={{ height: M_HEAD + model.strikes.length * M_ROW }} aria-hidden>
+        <div className="gx-lines" style={{ height: HEAD + model.strikes.length * ROW }} aria-hidden>
           {zgY != null && <div className="gx-line zg" style={{ top: zgY }}><span>ZERO-γ ${levels.zeroGamma!.toFixed(2)}</span></div>}
           {spotY != null && <div className="gx-line spot" style={{ top: spotY }}><span>SPOT ${levels.spot.toFixed(2)}</span></div>}
         </div>
@@ -444,13 +464,13 @@ export function GexStrikeMatrix({
             </colgroup>
           )}
           <thead>
-            <tr style={{ height: M_HEAD }}>
+            <tr style={{ height: HEAD }}>
               <th className="gx-sticky-l">STRIKE</th>
               {expiries.map(([dte, label]) => {
                 const cs = model.col.get(dte);
                 return (
                   <th key={dte} className="gx-exp" title={`${label} · ${dte} days to expiry\nNet ${metric.toUpperCase()} this expiry (all listed strikes): ${cs ? fmtVal(cs.net, metric) : '—'}${unitOf(metric)}\nGross |${metric.toUpperCase()}|: ${cs ? fmtVal(cs.gross, metric).replace(/^[+−]/, '') : '—'} · ${model.gross > 0 && cs ? ((cs.gross / model.gross) * 100).toFixed(1) : '0'}% of the book\n${scale === 'column' ? `Colour max for this column: ${cs ? fmtVal(cs.rMax, metric).replace(/^[+−]/, '') : '—'}` : 'Colour: one max for all columns'}`}>
-                    {label}<small>{dte}d</small>
+                    {geo.size === 'narrow' ? shortExpiry(label) : label}<small>{dte}d</small>
                     <em className="gx-colnet" style={{ color: cs ? signInk(cs.net) : undefined }}>{cs ? (geo.size === 'narrow' ? fmtCompact(cs.net, metric) : `Σ ${fmtVal(cs.net, metric)}`) : '—'}</em>
                   </th>
                 );
@@ -459,7 +479,7 @@ export function GexStrikeMatrix({
             </tr>
           </thead>
           <tbody>
-            {first > 0 && <tr style={{ height: first * M_ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
+            {first > 0 && <tr style={{ height: first * ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
             {visible.map((strike) => {
               const roles = rolesFor(strike, levels);
               const lead = roles[0];
@@ -472,12 +492,12 @@ export function GexStrikeMatrix({
                 <tr
                   key={strike}
                   className={`gx-row${lead ? ' marked' : ''}${isSpotRow ? ' spot' : ''}`}
-                  style={{ height: M_ROW, ...(band ? { ['--band' as string]: band } : {}) }}
+                  style={{ height: ROW, ...(band ? { ['--band' as string]: band } : {}) }}
                 >
                   <td className="gx-sticky-l gx-strike" data-k={`${strike}|sum`}>
                     <b>{fmtStrike(strike)}</b>
                     <span className="gx-pct">{dist >= 0 ? '+' : ''}{dist.toFixed(1)}%</span>
-                    <RoleChips roles={geo.size === 'narrow' ? roles.slice(0, 1) : roles} short={geo.size !== 'wide'} />
+                    {geo.size === 'narrow' && isSpotRow && !roles.length ? <span className="gx-chips"><span className="gx-chip gx-chip-spot" title={`Nearest strike to spot $${levels.spot.toFixed(2)}`}>◎</span></span> : <RoleChips roles={geo.size === 'narrow' ? roles.slice(0, 1) : roles} short={geo.size !== 'wide'} />}
                   </td>
                   {expiries.map(([dte]) => {
                     const c = model.byKey.get(`${strike}|${dte}`);
@@ -511,12 +531,12 @@ export function GexStrikeMatrix({
                 </tr>
               );
             })}
-            {last < model.strikes.length && <tr style={{ height: (model.strikes.length - last) * M_ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
+            {last < model.strikes.length && <tr style={{ height: (model.strikes.length - last) * ROW }} aria-hidden><td colSpan={cols + 2} /></tr>}
           </tbody>
         </table>
       </div>
 
-      {levels.spot > 0 && sIdx >= 0 && <JumpToSpot spot={levels.spot} direction={spotDir} onClick={() => jump(true)} />}
+      {geo.size !== 'narrow' && levels.spot > 0 && sIdx >= 0 && <JumpToSpot spot={levels.spot} direction={spotDir} onClick={() => jump(true)} />}
 
       {hover && (() => {
         const rowTotal = model.rowTotal.get(hover.strike) ?? 0;
