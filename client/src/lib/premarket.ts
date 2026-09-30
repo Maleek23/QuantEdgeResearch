@@ -58,3 +58,26 @@ export function rankGappers<T extends { symbol: string; gapPct: number; isWeekly
   const tier = (r: T) => (inBook(r.symbol) ? 0 : r.isWeekly ? 1 : 2);
   return [...rows].sort((a, b) => tier(a) - tier(b) || Math.abs(b.gapPct) - Math.abs(a.gapPct) || a.symbol.localeCompare(b.symbol));
 }
+
+// ── Pre-market setups (server/premarket-ideas.ts) ─────────────────────────
+
+/** Planned setup on a gapper, as /api/premarket/gappers attaches it. */
+export interface PmSetupMark { kinds: string[]; status: 'watch' | 'triggered'; ideaId: string | null; summary: string }
+
+/** Source record for pre-market ideas — resolved ideas only; LOW N under 20. */
+export interface PmRecord { n: number; wins: number; losses: number; other: number; open: number; winRate: number | null; lowN: boolean; label: 'measuring' }
+
+export const PM_SETUP_SHORT: Record<string, string> = { gap_and_go: 'go', gap_fill_fade: 'fade', pm_break: 'break' };
+
+/** "setup" marker text: "go·fade" for a WATCH, "go ✓" once triggered. */
+export function pmSetupMarker(m: PmSetupMark): string {
+  const k = m.kinds.map((x) => PM_SETUP_SHORT[x] ?? x).join('·');
+  return m.status === 'triggered' ? `${k} ✓` : k;
+}
+
+/** One line for the record: never a bare win rate without its n. */
+export function pmRecordLine(r: PmRecord | null | undefined): string {
+  if (!r) return 'pre-market setups · measuring';
+  if (r.n === 0) return `pre-market setups · no resolved ideas yet${r.open ? ` (${r.open} open)` : ''} · measuring`;
+  return `pre-market setups · ${r.wins}W/${r.losses}L${r.other ? `/${r.other} flat` : ''} n=${r.n}${r.winRate != null ? ` · ${r.winRate}%` : ''}${r.lowN ? ' · LOW N' : ''} · measuring`;
+}

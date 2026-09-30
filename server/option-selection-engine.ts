@@ -110,6 +110,13 @@ export interface PriceActionThesis {
   /** Explicit escape hatch for the dedicated index-0DTE engine only. */
   allowZeroDte?: boolean;
   /**
+   * Intraday hold (exit same session) that may use a 0–N DTE contract. Only
+   * honoured together with allowZeroDte; overrides the tier window with
+   * [0, N] (no fallback beyond N) and skips the conviction floor, exactly as
+   * the 0DTE tier does. Used by server/premarket-ideas.ts (0–7 DTE).
+   */
+  intradayMaxDte?: number;
+  /**
    * LOSS RULE 4 — DTE fit (shared/loss-rules.ts, flag LOSS_RULE_DTE_FIT).
    * Opt-in per caller: idea generation and the Quant Bot set it; interactive
    * contract pickers keep the user's chosen tier. When set, a multi-day hold
@@ -123,6 +130,15 @@ export interface PriceActionThesis {
  * The DTE-fit window for a thesis, or null when rule 4 does not apply to it.
  * Exported for the unit tests and for callers that pre-fetch expiries.
  */
+/** The [0, N] window for an intraday hold (see PriceActionThesis.intradayMaxDte), or null. */
+export function intradayWindowFor(thesis: Pick<PriceActionThesis, 'allowZeroDte' | 'intradayMaxDte'>):
+  { min: number; max: number; ideal: number; fallbackMaxDte: number; label: string } | null {
+  const n = thesis.intradayMaxDte;
+  if (!thesis.allowZeroDte || n == null || !Number.isFinite(n) || n < 0) return null;
+  const max = Math.floor(n);
+  return { min: 0, max, ideal: Math.min(2, max), fallbackMaxDte: max, label: `Intraday (0–${max} DTE)` };
+}
+
 export function dteFitFor(thesis: Pick<PriceActionThesis, 'applyDteFit' | 'allowZeroDte' | 'setup' | 'holdingDays' | 'expiryTier'>):
   { min: number; max: number; ideal: number; fallbackMaxDte: number; label: string } | null {
   if (!thesis.applyDteFit || thesis.allowZeroDte || thesis.expiryTier === 'LEAP') return null;
@@ -803,14 +819,15 @@ export function selectFromChain(
 ): ContractSelection {
   const optionType: 'call' | 'put' = thesis.direction === 'bullish' ? 'call' : 'put';
   const expiryTier = resolveExpiryTier(thesis);
-  const tierWin = EXPIRY_TIERS[expiryTier];
+  const intradayWin = intradayWindowFor(thesis);
+  const tierWin = intradayWin ?? EXPIRY_TIERS[expiryTier];
 
   // Short-dated is conviction-gated. Under ~a week you must be right on direction AND
   // timing with no room to be early — fine on a setup the engine is genuinely confident
   // in, bad on a marginal one, and most of the board is marginal. So the floor rises as
   // conviction falls: a weak read is pushed out to an expiry that lets it be wrong for a
   // few days and still work.
-  const dteFloor = thesis.allowZeroDte && expiryTier === '0DTE'
+  const dteFloor = thesis.allowZeroDte && (expiryTier === '0DTE' || intradayWin)
     ? 0
     : minDteForConviction(thesis.conviction);
   const gated = dteFloor > tierWin.min;
@@ -999,7 +1016,7 @@ export async function selectContracts(
   const optionType: 'call' | 'put' = thesis.direction === 'bullish' ? 'call' : 'put';
   const expiryTier = resolveExpiryTier(thesis);
   // Fetch windows follow loss rule 4 when it applies (selectFromChain re-derives it).
-  const win = dteFitFor(thesis) ?? EXPIRY_TIERS[expiryTier];
+  const win = dteFitFor(thesis) ?? intradayWindowFor(thesis) ?? EXPIRY_TIERS[expiryTier];
   const unavailable = (note: string, spot = 0): ContractSelection => ({
     symbol: thesis.symbol,
     direction: thesis.direction,

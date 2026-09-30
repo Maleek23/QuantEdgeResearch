@@ -68,6 +68,7 @@ const META: Record<string, { short: string; label: string; tone: IdeaSourceTone 
   gex_scanner: { short: "GEX", label: "GEX Scanner", tone: "flow" },
   zero_dte_desk: { short: "0DTE", label: "0DTE Desk", tone: "scanner" },
   crypto_engine: { short: "CRYPTO", label: "Crypto Engine", tone: "scanner" },
+  premarket_gap: { short: "PM", label: "Pre-market", tone: "scanner" },
   news: { short: "NEWS", label: "News", tone: "news" },
   news_catalyst: { short: "NEWS", label: "News Catalyst", tone: "news" },
   news_nlp: { short: "NEWS", label: "News NLP", tone: "news" },

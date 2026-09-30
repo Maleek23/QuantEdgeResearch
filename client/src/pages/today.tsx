@@ -34,7 +34,7 @@ import { Clamp } from '@/components/ui/qe-phone';
 import { setPrefs, usePrefs } from '@/lib/board-prefs';
 import { nexusIdeaHref } from '@/lib/nexus-link';
 import { useTickFlash } from '@/lib/use-tick-flash';
-import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, type GapPhase } from '@/lib/premarket';
+import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, pmRecordLine, pmSetupMarker, type GapPhase, type PmRecord, type PmSetupMark } from '@/lib/premarket';
 import { ageLabel } from '@/components/dashboard/tools/flow/tape';
 import { recordLine, type DeskIdea } from '@/components/zerodte/zero-dte-ideas';
 import { useZeroDteDesk } from '@/components/zerodte/zero-dte-desk';
@@ -74,7 +74,7 @@ const CARD_CHARTS_KEY = 'today:card-charts';
 function useCardCharts() { return !!usePrefs().sections[CARD_CHARTS_KEY]; }
 
 // ── pre-market gap strip ───────────────────────────────────────────────────
-interface GapRow { symbol: string; price: number; previousClose: number; gapPct: number; direction: 'up' | 'down' | 'flat'; phase: GapPhase; isWeekly: boolean; fetchedAt?: string }
+interface GapRow { symbol: string; price: number; previousClose: number; gapPct: number; direction: 'up' | 'down' | 'flat'; phase: GapPhase; isWeekly: boolean; fetchedAt?: string; setup?: PmSetupMark | null }
 interface GapPayload { phase: GapPhase; scanned: number; gappers: GapRow[]; generatedAt?: string; oldestFetchedAt?: string | null; source?: string }
 const PM_SHOW = 10;
 
@@ -87,10 +87,19 @@ function PremarketStrip({ dirOf, now }: { dirOf: Map<string, string>; now: numbe
     queryKey: ['/api/premarket/gappers', 'all'], queryFn: fetchJson('/api/premarket/gappers?minGapPct=0'),
     enabled: show, refetchInterval: show ? 60_000 : false, staleTime: 30_000, retry: 1,
   });
-  const rows = useMemo(() => rankGappers(q.data?.gappers ?? [], (s) => dirOf.has(s)), [q.data, dirOf]);
+  const rows = useMemo(() => {
+    const g = q.data?.gappers ?? [];
+    const planned = new Set(g.filter((r) => r.setup).map((r) => r.symbol));
+    return rankGappers(g, (s) => dirOf.has(s) || planned.has(s));
+  }, [q.data, dirOf]);
   const phase: GapPhase = q.data?.phase ?? (inWindow ? 'pre_market' : 'closed');
   const asOf = q.data ? (q.data.oldestFetchedAt ?? q.data.generatedAt ?? null) : null;
   const shown = all ? rows : rows.slice(0, PM_SHOW);
+  const hasSetups = rows.some((r) => r.setup);
+  const rec = useQuery<{ record: PmRecord }>({
+    queryKey: ['/api/premarket/ideas'], queryFn: fetchJson('/api/premarket/ideas'),
+    enabled: show && hasSetups, staleTime: 5 * 60_000, retry: 0,
+  });
 
   return (
     <section className="tl-pm" aria-label="Pre-market gaps">
@@ -121,16 +130,25 @@ function PremarketStrip({ dirOf, now }: { dirOf: Map<string, string>; now: numbe
                 const al = dir ? gapAlignment(gp.gapPct, dir) : 'flat';
                 const cls = Math.abs(gp.gapPct) < GAP_FLAT_PCT ? 'flat' : gp.gapPct > 0 ? 'up' : 'down';
                 return (
-                  <Link key={gp.symbol} href={`/r/${encodeURIComponent(gp.symbol)}`} className={`tl-pm-chip ${cls}`}
+                  <span key={gp.symbol} className="tl-pm-cell">
+                  <Link href={`/r/${encodeURIComponent(gp.symbol)}`} className={`tl-pm-chip ${cls}`}
                     title={`${gp.symbol} $${gp.price.toFixed(2)} vs prior close $${gp.previousClose.toFixed(2)} · ${GAP_BASIS[gp.phase]}${gp.fetchedAt ? ` · ${ageLabel(gp.fetchedAt, now)}` : ''}${dir ? ` · book: ${dir}` : ''}${gp.isWeekly ? ' · weekly watchlist' : ''}`}>
                     {gp.isWeekly && <span aria-label="weekly watchlist">★</span>}
                     <b>{gp.symbol}</b>
                     <span className="v">{gp.gapPct >= 0 ? '+' : ''}{gp.gapPct.toFixed(2)}%</span>
                     {dir && al !== 'flat' && <em className={al}>{al === 'confirms' ? `confirms ${dir}` : `against ${dir}`}</em>}
                   </Link>
+                  {gp.setup && (
+                    <Link href={nexusIdeaHref({ ideaId: gp.setup.ideaId, symbol: gp.symbol })} className={`tl-pm-setup ${gp.setup.status}`}
+                      title={`Pre-market setup${gp.setup.status === 'triggered' ? ' — triggered, open in NEXUS' : ' — WATCH for the open'}: ${gp.setup.summary} · measuring (unproven)`}>
+                      setup {pmSetupMarker(gp.setup)}
+                    </Link>
+                  )}
+                  </span>
                 );
               })}
               {rows.length > PM_SHOW && <button type="button" className="tl-pm-more" onClick={() => setAll((v) => !v)}>{all ? 'Fewer' : `+${rows.length - PM_SHOW} more`}</button>}
+              {hasSetups && <span className="tl-pm-rec" title="Resolved pre-market ideas only. Unproven setups — gap/breakout scores failed a 753-session walk-forward test.">{pmRecordLine(rec.data?.record)}</span>}
             </div>
           )
         )}

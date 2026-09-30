@@ -21,7 +21,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchJson } from '@/components/landing/live-widgets';
 import { QEStale } from '@/components/ui/qe-states';
 import { Clamp, PhoneNote } from '@/components/ui/qe-phone';
-import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, type GapPhase } from '@/lib/premarket';
+import { GAP_BASIS, GAP_FLAT_PCT, gapAlignment, isPreMarketWindow, rankGappers, pmRecordLine, pmSetupMarker, type GapPhase, type PmRecord, type PmSetupMark } from '@/lib/premarket';
 import { useDashboard, useNow, useToolReport } from '../../frame';
 import { ageLabel } from '../flow/tape';
 import {
@@ -510,7 +510,7 @@ export function TodayTapeTool() {
    confirms it, a gap against it means the setup may already have moved. Open
    04:00–09:30 ET; outside it the strip collapses to one stamped line and only
    reads the feed when asked. Source + per-name age come from the server. */
-interface GapRow { symbol: string; price: number; previousClose: number; gapPct: number; preMarketGapPct?: number | null; direction: 'up' | 'down' | 'flat'; phase: GapPhase; isWeekly: boolean; fetchedAt?: string }
+interface GapRow { symbol: string; price: number; previousClose: number; gapPct: number; preMarketGapPct?: number | null; direction: 'up' | 'down' | 'flat'; phase: GapPhase; isWeekly: boolean; fetchedAt?: string; setup?: PmSetupMark | null }
 interface GapPayload { phase: GapPhase; scanned: number; gappers: GapRow[]; generatedAt?: string; oldestFetchedAt?: string | null; source?: string }
 const PM_SHOW = 12;
 
@@ -526,9 +526,18 @@ export function TodayPremarketTool() {
   });
   const book = useBook();
   const dirOf = useMemo(() => new Map(book.ideas.map((p) => [p.symbol, p.direction ?? 'long'] as const)), [book.ideas]);
-  const rows = useMemo(() => rankGappers(q.data?.gappers ?? [], (s) => dirOf.has(s)), [q.data, dirOf]);
+  const rows = useMemo(() => {
+    const g = q.data?.gappers ?? [];
+    const planned = new Set(g.filter((r) => r.setup).map((r) => r.symbol));
+    return rankGappers(g, (s) => dirOf.has(s) || planned.has(s));
+  }, [q.data, dirOf]);
   const phase: GapPhase = q.data?.phase ?? (inWindow ? 'pre_market' : 'closed');
   const asOf = q.data ? (q.data.oldestFetchedAt ?? q.data.generatedAt ?? null) : null;
+  const hasSetups = rows.some((r) => r.setup);
+  const rec = useQuery<{ record: PmRecord }>({
+    queryKey: ['/api/premarket/ideas'], queryFn: fetchJson('/api/premarket/ideas'),
+    enabled: show && hasSetups, staleTime: 5 * 60_000, retry: 0,
+  });
   useToolReport({
     asOf: !show ? null : q.isError && !q.data ? null : q.data ? asOf : undefined,
     source: q.data?.source ?? 'Yahoo pre/post quotes · /api/premarket/gappers',
@@ -564,17 +573,26 @@ export function TodayPremarketTool() {
           const al = dir ? gapAlignment(g.gapPct, dir) : 'flat';
           const cls = Math.abs(g.gapPct) < GAP_FLAT_PCT ? 'flat' : g.gapPct > 0 ? 'up' : 'down';
           return (
-            <Link key={g.symbol} href={`/r/${encodeURIComponent(g.symbol)}`} className={`td-pm-chip ${cls}`}
+            <span key={g.symbol} className="td-pm-cell">
+            <Link href={`/r/${encodeURIComponent(g.symbol)}`} className={`td-pm-chip ${cls}`}
               title={`${g.symbol} $${g.price.toFixed(2)} vs prior close $${g.previousClose.toFixed(2)} · ${GAP_BASIS[g.phase]}${g.fetchedAt ? ` · ${ageLabel(g.fetchedAt, now)}` : ''}${dir ? ` · book: ${dir}` : ''}${g.isWeekly ? ' · weekly watchlist' : ''}`}>
               {g.isWeekly && <span aria-label="weekly watchlist">★</span>}
               <b>{g.symbol}</b>
               <span className="v">{g.gapPct >= 0 ? '+' : ''}{g.gapPct.toFixed(2)}%</span>
               {dir && al !== 'flat' && <em className={al}>{al === 'confirms' ? `confirms ${dir}` : `against ${dir}`}</em>}
             </Link>
+            {g.setup && (
+              <Link href={nexusIdeaHref({ ideaId: g.setup.ideaId, symbol: g.symbol })} className={`td-pm-setup ${g.setup.status}`}
+                title={`Pre-market setup${g.setup.status === 'triggered' ? ' — triggered, open in NEXUS' : ' — WATCH for the open'}: ${g.setup.summary} · measuring (unproven)`}>
+                setup {pmSetupMarker(g.setup)}
+              </Link>
+            )}
+            </span>
           );
         })}
         {rows.length > PM_SHOW && <button type="button" className="td-pm-more" onClick={() => setAll((v) => !v)}>{all ? 'Fewer' : `+${rows.length - PM_SHOW} more`}</button>}
       </div>
+      {hasSetups && <div className="td-pm-rec" title="Resolved pre-market ideas only. Unproven setups — gap/breakout scores failed a 753-session walk-forward test.">{pmRecordLine(rec.data?.record)}</div>}
       <PhoneNote label="How to read gaps"><p className="td-pm-foot">A gap with a book idea confirms it; against it, the setup may already have moved without you. Book names first, then your weekly watchlist (★).</p></PhoneNote>
     </div>
   );

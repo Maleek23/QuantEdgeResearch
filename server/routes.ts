@@ -7786,6 +7786,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PRE-MARKET GAPPERS — overnight movers from weekly + approved tickers
   // ═══════════════════════════════════════════════════════════════
 
+  // Pre-market ideas: today's WATCH plan, triggered ideas and the source record
+  // (server/premarket-ideas.ts). Record counts resolved ideas only; LOW N < 20.
+  app.get("/api/premarket/ideas", requireBetaAccess, async (_req: any, res) => {
+    try {
+      const pm = await import("./premarket-ideas");
+      const record = await pm.getPremarketRecord();
+      res.json({ ...pm.getPremarketIdeasState(), record, source: pm.PM_SOURCE, generatedAt: new Date().toISOString() });
+    } catch (error) {
+      logger.error("[API] premarket ideas failed", error);
+      res.status(500).json({ error: "premarket ideas unavailable" });
+    }
+  });
+
   app.get("/api/premarket/gappers", requireBetaAccess, async (req: any, res) => {
     try {
       const { getPreMarketBatch, currentMarketPhase } = await import("./pre-market-service");
@@ -7821,6 +7834,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const snaps = await getPreMarketBatch(symbolArr);
+      let setupMap = new Map<string, unknown>();
+      try {
+        const pm = await import("./premarket-ideas");
+        setupMap = pm.getPremarketSetupMap();
+        // Planned names are always shown, even when outside the scanned universe cap.
+        const missing = Array.from(setupMap.keys()).filter((sym) => !snaps.has(sym));
+        if (missing.length) (await getPreMarketBatch(missing)).forEach((v, k) => snaps.set(k, v));
+      } catch (err) {
+        logger.debug("[API] gappers: setup map unavailable", err);
+      }
       const gappers = Array.from(snaps.values())
         .filter((s) => Number.isFinite(s.gapPct) && Math.abs(s.gapPct) >= minGapPct)
         .map((s) => ({
@@ -7835,6 +7858,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // time alone would overstate freshness (live-not-carried rule).
           fetchedAt: s.fetchedAt,
           preMarketGapPct: s.preMarketGapPct != null ? Number(s.preMarketGapPct.toFixed(2)) : null,
+          // Planned pre-market setup (server/premarket-ideas.ts), when one exists.
+          setup: setupMap.get(s.symbol) ?? null,
         }))
         .sort((a, b) => Math.abs(b.gapPct) - Math.abs(a.gapPct));
       const oldest = gappers.reduce<string | null>((m, g) => (!m || g.fetchedAt < m ? g.fetchedAt : m), null);

@@ -179,6 +179,26 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return runShortSwingPublish();
   }), ET);
 
+  // ── Pre-market ideas (server/premarket-ideas.ts): plan the WATCH list from
+  // pre-market movers 08:30–09:25 ET every 10 min, then evaluate the planned
+  // setups on live 1m bars 09:30–10:30 ET every 2 min and publish triggered
+  // ones (source premarket_gap, ≤5/day, one per symbol, measuring).
+  // PREMARKET_IDEAS=false turns both off. ──
+  if (process.env.PREMARKET_IDEAS !== 'false') {
+    const pmPlan = guarded('premarket-plan', async () => {
+      const { runPremarketPlan } = await import('./premarket-ideas');
+      return runPremarketPlan();
+    });
+    cron.schedule('30-59/10 8 * * 1-5', pmPlan, ET);
+    cron.schedule('0-25/10 9 * * 1-5', pmPlan, ET);
+    const pmTrig = guarded('premarket-triggers', async () => {
+      const { runPremarketTriggers } = await import('./premarket-ideas');
+      return runPremarketTriggers();
+    });
+    cron.schedule('30-59/2 9 * * 1-5', pmTrig, ET);
+    cron.schedule('0-30/2 10 * * 1-5', pmTrig, ET);
+  }
+
   // ── Quant sweep — publish only (no paper execution, no Discord). ──
   cron.schedule('12,42 9-15 * * 1-5', guarded('quant', async () => {
     const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
@@ -201,5 +221,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m, index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly (IDEA_PRODUCERS_IN_WEB=false disables)');
+  log('🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m, index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m (IDEA_PRODUCERS_IN_WEB=false disables)');
 }
