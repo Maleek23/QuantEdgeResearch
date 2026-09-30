@@ -32,7 +32,7 @@ import {
 import { edgeScore, relativeDrawdown, timeGrid, EDGE_MIN_CLOSED } from '@/lib/journal/metrics-extra';
 import { readJournalPrefs, useJournalData } from '@/lib/journal/use-journal';
 import { balanceAnchor, useJournalBalance } from '@/lib/journal/use-journal-extra';
-import { useToolReport } from '../../frame';
+import { useToolReport, useToolSetting } from '../../frame';
 import '@/styles/journal.css';
 
 // ─── scope: journal context, or a standalone "Mine" reader ──
@@ -227,7 +227,7 @@ export const JournalEdgeTool = scoped(function Edge() {
 
 export const JournalEquityTool = scoped(function Equity() {
   const { data } = useJ();
-  const [mode, setMode] = useState<'cumulative' | 'daily'>('cumulative');
+  const [mode, setMode] = useToolSetting<'cumulative' | 'daily'>('mode', 'cumulative');
   const { anchor, why } = useAnchor();
   const rel = useMemo(() => relativeDrawdown(data.curve, anchor?.amount ?? null), [data.curve, anchor?.amount]);
   return (
@@ -271,7 +271,7 @@ export const JournalCalendarTool = scoped(function Cal() {
 
 export const JournalActivityTool = scoped(function Activity() {
   const { data, openTrade, goTo } = useJ();
-  const [tab, setTab] = useState<'recent' | 'open'>('recent');
+  const [tab, setTab] = useToolSetting<'recent' | 'open'>('tab', 'recent');
   const sorted = useMemo(() => [...data.trades].sort((a, b) => Date.parse(b.closedAt ?? b.openedAt) - Date.parse(a.closedAt ?? a.openedAt)), [data.trades]);
   const list: JTrade[] = tab === 'recent' ? sorted.filter((t) => t.status !== 'open').slice(0, 12) : sorted.filter((t) => t.status === 'open');
   return (

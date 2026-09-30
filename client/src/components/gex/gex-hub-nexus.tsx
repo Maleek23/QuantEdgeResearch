@@ -26,6 +26,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useStockContext } from '@/contexts/stock-context';
+import { useToolSetting } from '@/components/dashboard/frame';
 import { useColResize } from '@/lib/use-col-resize';
 import type { StrikeExpiryCell } from '@shared/gex-types';
 import { exposureText, regimeColor, fmtGexB, fmtVexM, fmtAge, LEVEL_COLORS } from './gex-colors';
@@ -64,15 +65,17 @@ export function GexHubNexus() {
   // global stock context — since the workup took over that contract, setting it
   // from here popped the dossier over the hub on every click. The universal
   // search (top right) owns the popup; the hub's controls own the hub.
-  const [anchor, setAnchor] = useState<string | null>(null);
+  // Anchor, view and filters are per-placement settings (useToolSetting): they
+  // survive the tile pausing off-screen and a reload instead of silently resetting.
+  const [anchor, setAnchor] = useToolSetting<string | null>('anchor', null);
   const symbol = (anchor ?? currentStock?.symbol ?? 'SPY').toUpperCase();
-  const [rankMode, setRankMode] = useState<'gex' | 'vex'>('gex');
+  const [rankMode, setRankMode] = useToolSetting<'gex' | 'vex'>('rankMode', 'gex');
   const [rankAll, setRankAll] = useState(false);
   const [drill, setDrill] = useState<StrikeExpiryCell | null>(null);
 
-  const [workspace, setWorkspace] = useState<'map' | 'surface' | 'rank'>('map');
-  const [metric, setMetric] = useState<'gex' | 'vex'>('gex');
-  const [bucket, setBucket] = useState<BucketId>('0-7');
+  const [workspace, setWorkspace] = useToolSetting<'map' | 'surface' | 'rank'>('workspace', 'map');
+  const [metric, setMetric] = useToolSetting<'gex' | 'vex'>('metric', 'gex');
+  const [bucket, setBucket] = useToolSetting<BucketId>('bucket', '0-7');
   const leftRail = useColResize('nx-gex-left', 320, { sign: 1, min: 240, max: 520 });
   const rightRail = useColResize('nx-gex-right', 320, { sign: -1, min: 240, max: 520 });
 

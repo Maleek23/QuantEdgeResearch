@@ -18,7 +18,8 @@ import { openWorkup } from '@/lib/workup-bus';
 import { cn } from '@/lib/utils';
 import { QEEmpty, QEError, QELoading, QEStale } from '@/components/ui/qe-states';
 import { CALL, CALL_FILL, PUT } from './flow-colors';
-import { useDashboard, useFocusSymbol, useNow, useToolReport } from '../../frame';
+import { useDashboard, useFocusSymbol, useNow, useToolReport, useToolSetting } from '../../frame';
+import { idSet, intIn, oneOf, sortCodec, text, useUrlParam } from '@/lib/url-state';
 import {
   useFlowTape, sigScore, contractKey, dte, money, etTime, ageLabel,
   ETF_SET, SIG_FORMULA_TEXT, type TapeRow, type SigParts,
@@ -67,6 +68,14 @@ const COLS: Col[] = [
   { key: 'source', label: 'Src', w: 46, title: 'BF = Bullflow alert · CS = our chain scan' },
 ];
 const TABLE_W = COLS.reduce((s, c) => s + c.w, 0);
+
+type SrcId = 'all' | 'bullflow' | 'chain-scan';
+const SORT_DEFAULT: { key: SortKey; dir: 1 | -1 } = { key: 'at', dir: -1 };
+const DAYS_CODEC = intIn(1, 5, 1);
+const SRC_CODEC = oneOf<SrcId>(['all', 'bullflow', 'chain-scan'], 'all');
+const Q_CODEC = text(12);
+const CHIPS_CODEC = idSet<ChipId>(CHIPS.map((c) => c.id));
+const SORT_CODEC = sortCodec<SortKey>(COLS.map((c) => c.key), SORT_DEFAULT);
 const ROW = 28;
 
 interface Scored { r: TapeRow; sig: SigParts; n: number }
@@ -74,13 +83,25 @@ interface Scored { r: TapeRow; sig: SigParts; n: number }
 const todayET = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
 export function OptionsFlowTool() {
-  const [days, setDays] = useState(1);
-  const [src, setSrc] = useState<'all' | 'bullflow' | 'chain-scan'>('all');
-  const [q, setQ] = useState('');
-  const [chips, setChips] = useState<Set<ChipId>>(new Set());
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'at', dir: -1 });
+  // Settings live in the per-placement store (frame.tsx useToolSetting), so they
+  // survive the tile unmounting off-screen and a reload; on the FLOW page they
+  // are also mirrored into the URL (f.*) so a copied link reproduces the view.
+  const [days, setDays] = useToolSetting<number>('days', 1);
+  const [src, setSrc] = useToolSetting<SrcId>('src', 'all');
+  const [q, setQ] = useToolSetting<string>('q', '');
+  const [chipList, setChipList] = useToolSetting<ChipId[]>('chips', []);
+  const chips = useMemo(() => new Set(chipList), [chipList]);
+  const setChips = (next: Set<ChipId> | ((s: Set<ChipId>) => Set<ChipId>)) =>
+    setChipList((prev) => [...(typeof next === 'function' ? next(new Set(prev)) : next)]);
+  const [sort, setSort] = useToolSetting<{ key: SortKey; dir: 1 | -1 }>('sort', SORT_DEFAULT);
   const [focus, setFocus] = useFocusSymbol();
-  const { hasTool, addTool, editable } = useDashboard();
+  const { hasTool, addTool, editable, page } = useDashboard();
+  const urlOn = page === 'flow';
+  useUrlParam('f.days', days, setDays, DAYS_CODEC, urlOn);
+  useUrlParam('f.src', src, setSrc, SRC_CODEC, urlOn);
+  useUrlParam('f.q', q, setQ, Q_CODEC, urlOn);
+  useUrlParam('f.chips', chipList, setChipList, CHIPS_CODEC, urlOn);
+  useUrlParam('f.sort', sort, setSort, SORT_CODEC, urlOn);
   const tape = useFlowTape(days);
   const now = useNow();
 
