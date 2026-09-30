@@ -23,7 +23,8 @@
  *
  * Checks per page × size × mode (what "pass" means):
  *   overflow  no horizontal page overflow (document and <main>)
- *   targets   touch sizes (≤ 1024px wide): every visible control ≥ 44×44 CSS px
+ *   targets   phones (≤ 767px): every visible control ≥ 44×44 CSS px; tablets
+ *             (768/1024, touch): ≥ 32×32 (the desktop floor)
  *             (inline links inside prose and the GEX matrix's data cells exempt)
  *   bodyText  phones (< 600px): prose (non-mono text runs ≥ 40 chars) ≥ 14px
  *   focus     the first 15 Tab stops each show a focus ring (outline or box-shadow)
@@ -179,7 +180,9 @@ function pageAudit(opts: { touch: boolean; phone: boolean }) {
       if (el.tagName === 'A' && el.closest('p')) continue; // inline links in prose (WCAG 2.5.8 exception)
       if (el.closest('.sr-only') || el.getBoundingClientRect().width <= 2) continue; // visually hidden until focused (skip link)
       const box = (el.matches('input[type=checkbox],input[type=radio]') ? el.closest('label') || el : el).getBoundingClientRect();
-      if (box.width < 44 || box.height < 44) smallTargets.push(`${name(el)} ${Math.round(box.width)}×${Math.round(box.height)} @${where(el)}`);
+      // phones (≤ 767px): 44×44 (Apple HIG / WCAG 2.5.5); tablets: the 32px desktop floor
+      const min = innerWidth <= 767 ? 44 : 32;
+      if (box.width < min || box.height < min) smallTargets.push(`${name(el)} ${Math.round(box.width)}×${Math.round(box.height)} @${where(el)}`);
     }
   }
 

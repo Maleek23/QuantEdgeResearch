@@ -2866,3 +2866,28 @@ html[data-mode=light]{--qe-focus:#1d4ed8}
 @media (min-width:768px){
   .flowdash .fd-icon-btn,.flowdash .fd-grip,.flowdash .of-chip{min-width:32px;min-height:32px}
 }
+/* tablets + desktop: no control under 32px (UI/UX audit; device-audit.ts checks 768/1024) */
+@media (min-width:768px){
+  #main-content :is(button,[role=button],[role=tab],select,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden])):not(.gx-cell){min-height:32px}
+  #main-content :is(button,[role=button],[role=tab]):not(.gx-cell){min-width:32px}
+  .brand,.lx-topbar .brand{min-height:32px;display:inline-flex;align-items:center}
+}
+@media (max-width:767px){ .brand,.lx-topbar .brand{min-height:44px;display:inline-flex;align-items:center} }
+/* phones: remaining literal sub-12px text found by the audit */
+@media (max-width:599px){
+  #main-content :is(.fd-focus b,.nxd button,.nxd .nxp-row small,.of-seg button,.fd-btn,.lx-eyebrow-ctx,.lx-eyebrow-pill,.td-tool-sub,.of-tk,.of-chip,.gx-controls .of-seg button,.nxd-search input,.nxp-detail-tabs button,.of-hint,.of-stat .of-lbl){font-size:12px}
+}
+@media (max-width:599px){
+  #main-content :is(.qe-skel-label,.fd-sym,.nxd-count,.td-charts-toggle,.of-hint button,.nxd-chip,.nxd-tag){font-size:12px!important}
+  #main-content .today-l .lsig-type .kind,#main-content .of-hint{font-size:14px!important}
+}
+@media (min-width:768px){
+  .lx-sidebar-trigger{min-width:32px!important;min-height:32px!important}
+  #main-content .today-l .td-tool-more{display:inline-flex;align-items:center;min-height:32px}
+}
+@media (max-width:599px){
+  /* NEXUS detail/context captions, GEX chips + sub-heads (device-audit readability) */
+  #main-content :is(.nxp-market-summary,.nxp-section-title,.nxp-symbol-line,.nxp-chart-meta,.nxp-context,.nxp-score,.nxp-context-score) :is(span,small,strong,b,dt,h3),
+  #main-content :is(.nxp-context h3,.nxp-market-summary dt,.nxd dt,.gx-sub-head,.chart-canvas-wrap > div){font-size:12px!important}
+  #main-content .gx-chip{font-size:12px!important;padding:0 2px!important}
+}
