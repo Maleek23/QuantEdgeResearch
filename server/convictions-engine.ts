@@ -2034,13 +2034,76 @@ export function peekConvictions(
     weeklyUserId: opts.weeklyUserId,
     weeklyOnly: opts.weeklyOnly ?? false,
   };
-  const hit = adoptSharedBoard(JSON.stringify(merged)) ?? _convictionsCache.get(JSON.stringify(merged));
+  const baseKey = JSON.stringify(baseShapeOf(merged));
+  const hit = adoptSharedBoard(baseKey) ?? _convictionsCache.get(baseKey);
   if (!hit) return null;
-  return { data: hit.data, stale: hit.expiresAt <= Date.now() };
+  return { data: deriveViewSync(hit.data, merged, null), stale: hit.expiresAt <= Date.now() };
+}
+
+// ── Base boards + derived views (2026-09-30) ─────────────────────────────
+// Every signed-in request used to carry weeklyUserId (and its own limit /
+// minScore) in the cache key, so it never matched the worker's warmed boards
+// and the WEB process rebuilt a full board per user — 20–43 s, and the memory
+// spikes behind the restarts. Now there are two base boards (watchlist-gated
+// or not; limit 500, minScore 0, no user) and each request is a cheap view:
+// weekly +3 boost, weeklyOnly filter, minScore floor, limit slice.
+function baseShapeOf(m: BuildConvictionsOptions): BuildConvictionsOptions {
+  return { lookbackHours: m.lookbackHours ?? 96, limit: 500, watchlistOnly: m.watchlistOnly ?? false, minScore: 0, weeklyUserId: undefined, weeklyOnly: false };
+}
+const _weeklyCache = new Map<string, { at: number; set: Set<string> | null }>();
+async function weeklySymbolsFor(userId: string): Promise<Set<string> | null> {
+  const hit = _weeklyCache.get(userId);
+  if (hit && Date.now() - hit.at < 5 * 60_000) return hit.set;
+  let set: Set<string> | null = null;
+  try {
+    const { getWeeklyWatchlist } = await import("./weekly-watchlist-seeder");
+    const items = await getWeeklyWatchlist(userId);
+    if (items.length > 0) set = new Set(items.map((i: any) => String(i.symbol).toUpperCase()));
+  } catch (err) {
+    logger.warn("[CONVICTIONS] weekly watchlist fetch failed:", err);
+  }
+  if (_weeklyCache.size > 500) _weeklyCache.clear();
+  _weeklyCache.set(userId, { at: Date.now(), set });
+  return set;
+}
+function deriveViewSync(base: ConvictionsResponse, m: BuildConvictionsOptions, weekly: Set<string> | null): ConvictionsResponse {
+  const limit = m.limit ?? 500;
+  const minScore = m.minScore ?? 0;
+  if (!weekly && limit >= base.picks.length && minScore <= 0) return base;
+  let picks = base.picks;
+  if (weekly) {
+    picks = picks.map((p) => {
+      if (!weekly.has(String(p.symbol).toUpperCase())) return p;
+      const convictionScore = Math.max(0, Math.min(100, p.convictionScore + 3));
+      return { ...p, convictionScore, convictionBand: bandFor(convictionScore), layers: [...p.layers, { kind: "weekly", label: "Weekly Focus", points: 3, why: "On your weekly watchlist" } as any] };
+    });
+    if (m.weeklyOnly) picks = picks.filter((p) => weekly.has(String(p.symbol).toUpperCase()));
+    picks = [...picks].sort((a, b) => b.convictionScore - a.convictionScore);
+  }
+  picks = picks.filter((p) => p.convictionScore >= minScore).slice(0, limit);
+  return { ...base, picks };
+}
+async function deriveView(base: ConvictionsResponse, m: BuildConvictionsOptions): Promise<ConvictionsResponse> {
+  const weekly = m.weeklyUserId ? await weeklySymbolsFor(m.weeklyUserId) : null;
+  return deriveViewSync(base, m, weekly);
 }
 
 export async function getCachedConvictions(
   opts: BuildConvictionsOptions = {},
+): Promise<ConvictionsResponse> {
+  const req: BuildConvictionsOptions = {
+    lookbackHours: opts.lookbackHours ?? 96,
+    limit: opts.limit ?? 500,
+    watchlistOnly: opts.watchlistOnly ?? false,
+    minScore: opts.minScore ?? 0,
+    weeklyUserId: opts.weeklyUserId,
+    weeklyOnly: opts.weeklyOnly ?? false,
+  };
+  return deriveView(await getBaseBoard(baseShapeOf(req)), req);
+}
+
+async function getBaseBoard(
+  opts: BuildConvictionsOptions,
 ): Promise<ConvictionsResponse> {
   const merged: BuildConvictionsOptions = {
     lookbackHours: opts.lookbackHours ?? 96,
@@ -2116,21 +2179,12 @@ export async function warmConvictions(reason = 'scheduled'): Promise<number> {
   // weeklyUserId is in the key too, so a logged-in user gets their own entry that
   // a generic warm can never fill. Each known user therefore gets their shape
   // warmed as well.
+  // Two base boards cover every request (see baseShapeOf / deriveView):
+  // per-user, per-limit and per-minScore views are derived, never built.
   const shapes: BuildConvictionsOptions[] = [
-    {},                                                  // bot, alerts, catalyst board
-    { limit: 40, minScore: 10, watchlistOnly: false },    // Hunt cockpit, logged out
+    {},                        // full board — bot, alerts, cockpit, ?symbol= lookups
+    { watchlistOnly: true },   // watchlist-gated board — /api/convictions default
   ];
-
-  try {
-    const { db } = await import('./db');
-    const { sql } = await import('drizzle-orm');
-    const r: any = await db.execute(sql`select id from users limit 5`);
-    for (const u of (r.rows ?? r)) {
-      shapes.push({ limit: 40, minScore: 10, watchlistOnly: false, weeklyUserId: String(u.id) });
-    }
-  } catch {
-    // No user list is survivable; the logged-out shape still gets warmed.
-  }
 
   let total = 0;
   for (const shape of shapes) {
