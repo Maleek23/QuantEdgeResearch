@@ -149,7 +149,7 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
   cron.schedule('*/2 15 * * 1-5', index0dte, ET);
 
   // ── 0DTE desk (server/zero-dte-desk.ts): the watched single names
-  // (ZERO_DTE_WATCH minus the index names, default TSLA/MSTR/KWEB) through the
+  // (every ZERO_DTE_WATCH name, default SPX/MSTR/META/BE/TSLA; SPX logged by the index engine) through the
   // same policies on their own levels, one minute after the index pass so the
   // two never contend for the chain queue; 2–4 day swings at 10:30 / 14:30. ──
   const desk0dte = guarded('0dte-desk', async () => {

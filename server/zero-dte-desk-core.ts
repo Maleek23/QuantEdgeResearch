@@ -30,8 +30,14 @@ import { dteFitWindow, expectedMove, planTimeStop, DEFAULT_LOSS_RULES_CONFIG } f
 
 // ─── config ──────────────────────────────────────────────────────────────
 
-/** Operator's list 2026-09-29 ("spcx" read as SPX/SPXW — SPCX is ALSO a listed optionable stock; add it via ZERO_DTE_WATCH if that was meant). */
-export const DEFAULT_ZERO_DTE_WATCH = ['SPX', 'TSLA', 'MSTR', 'KWEB'] as const;
+/**
+ * Operator's list 2026-09-30 ("snipe SPX, MSTR, META, BE"; TSLA kept). ZERO_DTE_WATCH overrides.
+ * Expiry schedule verified on the CBOE chains 2026-09-30: SPXW daily (Mon–Fri);
+ * META / TSLA Mon · Wed · Fri; MSTR / BE Fridays only — on other days those names
+ * use the nearest expiry when it is ≤ 2 calendar days out, else "no 0DTE today"
+ * (server/zero-dte-ideas-core.ts zeroDteEligibility).
+ */
+export const DEFAULT_ZERO_DTE_WATCH = ['SPX', 'MSTR', 'META', 'BE', 'TSLA'] as const;
 /** Only post-fix outcomes count (memory: pre-2026-08-26 rates are invalid). */
 export const RECORD_SINCE = '2026-08-26';
 export const LOW_N = 20;
@@ -174,6 +180,8 @@ export function pickDeskExpiry(expirations: string[], todayKey: string, afterClo
 
 /** The option shape every chain adapter in the repo produces (Tradier-like). */
 export interface DeskChainRow {
+  /** OCC symbol when the adapter supplies one (Alpaca, CBOE). */
+  symbol?: string;
   option_type: 'call' | 'put';
   strike: number;
   expiration_date: string;

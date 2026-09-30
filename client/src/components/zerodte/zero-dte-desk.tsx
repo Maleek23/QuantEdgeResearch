@@ -4,7 +4,9 @@
  * One read (GET /api/zero-dte/desk, server/zero-dte-desk.ts) per minute:
  *   • the session clock — open drive / midday / power hour — and what the
  *     engine looks for in the phase it is in;
- *   • per tracked name (ZERO_DTE_WATCH, default SPX · TSLA · MSTR · KWEB):
+ *   • 0DTE IDEAS first (zero-dte-ideas.tsx): WATCH → TRIGGERED → IN PLAY → DONE,
+ *     each with its exact contract, live premium, trigger, stop, targets, deadline;
+ *   • per tracked name (ZERO_DTE_WATCH, default SPX · MSTR · META · BE · TSLA):
  *     spot, today's expected move (ATM straddle of the nearest expiry, IV
  *     fallback), same-day-expiry GEX levels, VWAP / opening-range state, the
  *     flow tide on that expiry, and the engine's state in plain words;
@@ -21,6 +23,7 @@ import { nexusIdeaHref } from '@/lib/nexus-link';
 import { Clock3, Crosshair, Gauge, History, Timer, Waves } from 'lucide-react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useToolReport } from '@/components/dashboard/frame';
+import { ZeroDteIdeas, type DeskIdea, type IdeasInfo } from './zero-dte-ideas';
 import './zero-dte-desk.css';
 
 /* ── wire types (server/zero-dte-desk.ts DeskPayload) ── */
@@ -40,7 +43,7 @@ interface Row {
   todaysIdeas: IdeaRef[]; swing: Swing; swingLevels: { regime: string; zeroGamma: number | null; callWall: number | null; putWall: number | null; maxGamma: number | null; basis: string } | null; errors: string[];
 }
 interface DeskRec { since: string; n: number; total: number; open: number; unresolvedClosed: number; wins: number; losses: number; winRate: number | null; avgR: number | null; rCount: number; firstAt: string | null; lastAt: string | null; lowN: boolean; byKind: { '0dte': { n: number; wins: number; losses: number; total: number }; swing: { n: number; wins: number; losses: number; total: number } }; perName: { [k: string]: { n: number; wins: number; losses: number; total: number } } }
-export interface DeskPayload { asOf: string; watch: string[]; phase: Phase; rows: Row[]; record: DeskRec; provenance: string; notes: string[] }
+export interface DeskPayload { asOf: string; watch: string[]; phase: Phase; rows: Row[]; ideas: DeskIdea[]; ideasInfo: IdeasInfo; record: DeskRec; provenance: string; notes: string[] }
 
 export function useZeroDteDesk() {
   return useQuery<DeskPayload>({
@@ -213,6 +216,7 @@ export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
   const d = q.data;
   return (
     <div className={`zd ${dense ? 'zd-dense' : ''}`}>
+      <ZeroDteIdeas d={d} />
       <SessionClock phase={d.phase} />
       {d.rows.length === 0
         ? <QEEmpty title="No tracked names" message="ZERO_DTE_WATCH resolved to no names." />
@@ -244,7 +248,7 @@ export function ZeroDteTool() {
 export default function ZeroDteView() {
   return (
     <div className="zd-view">
-      <div className="zd-view-head"><Crosshair size={14} aria-hidden /> <strong>0DTE desk</strong><span>SPX · single names · 2–4 day swings · honest record</span></div>
+      <div className="zd-view-head"><Crosshair size={14} aria-hidden /> <strong>0DTE desk</strong><span>0DTE ideas · SPX · single names · 2–4 day swings · honest record</span></div>
       <ZeroDteDesk />
     </div>
   );

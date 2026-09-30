@@ -2,18 +2,23 @@
  * 0DTE DESK — the NEXUS "0DTE" view, its dashboard tool, the single-name 0DTE
  * producer and the 2–4 day swing producer.
  * ============================================================================
- *   GET /api/zero-dte/desk      one row per tracked name (ZERO_DTE_WATCH,
- *                               default SPX,TSLA,MSTR,KWEB) + the session clock
- *                               + short swings + this engine's honest record.
- *   runZeroDteDeskScan()        TSLA/MSTR/KWEB (every watched name except SPX)
- *                               through the same pre-registered policies A/B/C
- *                               (server/zero-dte-policies.ts) with the name's
- *                               own measured levels; publishes to trade_ideas
- *                               (source 'zero_dte_desk') so the outcome tracker
- *                               resolves them. SPX stays with the index engine
- *                               (server/index-scalp-engine.ts: SPY GEX → SPX,
- *                               SPY as the account-fit fallback) — one owner per
- *                               name, never two engines publishing the same call.
+ *   GET /api/zero-dte/desk      the 0DTE IDEAS list (actionable first) + one row
+ *                               per tracked name (ZERO_DTE_WATCH, default SPX,
+ *                               MSTR, META, BE, TSLA) + the session clock + short
+ *                               swings + this engine's honest record.
+ *   runZeroDteDeskScan()        EVERY watched name each pass: WATCH ideas (setups
+ *                               forming, server/zero-dte-ideas-core.ts) with their
+ *                               contract, and — for the single names — the same
+ *                               pre-registered policies A/B/C
+ *                               (server/zero-dte-policies.ts) on the name's own
+ *                               levels; a TRIGGERED setup with a contract inside
+ *                               the caps is logged to trade_ideas (source
+ *                               'zero_dte_desk') so the outcome tracker resolves
+ *                               it, and raises an in-app alert. SPX is logged by
+ *                               the index engine (server/index-scalp-engine.ts:
+ *                               SPY GEX → SPX, SPY as the account-fit fallback) —
+ *                               one owner per name, never two engines logging the
+ *                               same call; the desk shows its SPX ideas.
  *   runShortSwingPublish()      2–4 day plans (zero-dte-desk-core planShortSwing)
  *                               at 10:30 / 14:30 ET, contracts 30–60 DTE (loss
  *                               rule 4), T1 ≤ 1σ of the horizon (rule 3).
@@ -39,7 +44,11 @@ import {
   type BucketLevels, type DeskChainRow, type DeskIdeaRef, type DeskExpiry, type DeskRecord, type EngineState, type ExpectedMove,
   type IntradayRead, type RecordRow, type SessionPhase, type SwingPlan,
 } from './zero-dte-desk-core';
-import { evaluateZeroDte, timeStopIso, zeroDteWallsEnabled, ZERO_DTE_PROVENANCE, TIME_STOP_ET, type PolicyVerdict } from './zero-dte-policies';
+import { evaluateZeroDte, timeStopIso, zeroDteWallsEnabled, ZERO_DTE_PROVENANCE, TIME_STOP_ET, type PolicyVerdict, type ZeroDteSetup } from './zero-dte-policies';
+import {
+  capsFor, ENTRY_WINDOW_MIN, ideaStage, KIND_LABEL, kindForSetup, occSymbol, pickIdeaContract, sortIdeas, watchSetups, zeroDteEligibility,
+  type Eligibility, type IdeaContract, type IdeaStage, type SetupKind, type WatchSetup,
+} from './zero-dte-ideas-core';
 
 export const DESK_SOURCE = 'zero_dte_desk';
 export const watchList = () => parseWatch(process.env.ZERO_DTE_WATCH);
@@ -155,6 +164,7 @@ interface IdeaLite {
   exitPrice: number | null; outcomeStatus: string | null; resolutionReason: string | null; timestamp: string;
   source: string | null; dataSourceUsed: string | null; qualitySignals: string[] | null; expiryDate: string | null;
   optionType: string | null; strikePrice: number | null;
+  entryValidUntil: string | null; exitBy: string | null; entryPremium: number | null; analysis: string | null; catalyst: string | null;
 }
 let ideasCache: { at: number; rows: IdeaLite[] } | null = null;
 
@@ -168,6 +178,8 @@ async function engineIdeas(): Promise<IdeaLite[]> {
     outcomeStatus: tradeIdeas.outcomeStatus, resolutionReason: tradeIdeas.resolutionReason, timestamp: tradeIdeas.timestamp,
     source: tradeIdeas.source, dataSourceUsed: tradeIdeas.dataSourceUsed, qualitySignals: tradeIdeas.qualitySignals,
     expiryDate: tradeIdeas.expiryDate, optionType: tradeIdeas.optionType, strikePrice: tradeIdeas.strikePrice,
+    entryValidUntil: tradeIdeas.entryValidUntil, exitBy: tradeIdeas.exitBy, entryPremium: tradeIdeas.entryPremium,
+    analysis: tradeIdeas.analysis, catalyst: tradeIdeas.catalyst,
   }).from(tradeIdeas).where(and(
     gte(tradeIdeas.timestamp, OUTCOME_BASELINE_DATE),
     or(
@@ -228,6 +240,9 @@ export interface DeskPayload {
   watch: string[];
   phase: SessionPhase;
   rows: DeskRow[];
+  /** 0DTE ideas, actionable first: TRIGGERED → IN PLAY → WATCH (closest to trigger) → DONE. */
+  ideas: DeskIdea[];
+  ideasInfo: IdeasInfo;
   record: DeskRecord & { perName: Record<string, { n: number; wins: number; losses: number; total: number }> };
   provenance: string;
   notes: string[];
@@ -338,6 +353,191 @@ async function buildRow(sym: string, phase: SessionPhase, ideas: IdeaLite[], pri
   };
 }
 
+// ─── 0DTE ideas on the wire ──────────────────────────────────────────────
+
+export interface IdeaQuote { bid: number | null; ask: number | null; mid: number | null; at: string | null; source: string }
+
+export interface DeskIdea {
+  key: string;
+  symbol: string;
+  stage: IdeaStage;
+  doneReason: string | null;
+  direction: 'long' | 'short';
+  side: 'CALLS' | 'PUTS';
+  kind: SetupKind | null;
+  kindLabel: string;
+  policy: 'A' | 'B' | null;
+  trigger: { name: string; price: number } | null;
+  triggerText: string;
+  entry: number;
+  stop: number;
+  target: { name: string; price: number };
+  target2: { name: string; price: number } | null;
+  rr: number | null;
+  /** Underlying price the idea is measured against, with its stamp. */
+  price: number | null;
+  priceAt: string | null;
+  distPct: number | null;
+  expiryLabel: string;
+  contract: {
+    occ: string; root: string; optionType: 'call' | 'put'; strike: number; expiry: string; dte: number | null;
+    delta: number | null; openInterest: number | null; spreadPct: number | null;
+    qty: number | null; riskDollars: number | null; debitDollars: number | null;
+    premiumStop: number | null; premiumT1: number | null; premiumT2: number | null; basis: string | null;
+  } | null;
+  /** Repriced at desk build — never older than its own stamp. */
+  quote: IdeaQuote | null;
+  loggedPremium: number | null;
+  contractNote: string | null;
+  vehicle: string;
+  entryBy: string | null;
+  exitBy: string;
+  why: string;
+  grade: 'A' | 'B' | 'C' | null;
+  gradeWhy: string[];
+  /** First seen (WATCH) or logged (TRIGGERED onwards). */
+  at: string;
+  ideaId: string | null;
+  logged: boolean;
+  loggedNote: string | null;
+}
+
+export interface IdeasInfo {
+  evaluated: Record<string, { at: string | null; eligibility: string; notes: string[] }>;
+  noZeroDte: Array<{ symbol: string; label: string }>;
+  cadence: string;
+  caps: Record<string, string>;
+  honesty: string;
+}
+
+const qs = (r: IdeaLite, prefix: string) => (r.qualitySignals ?? []).find((s) => s.startsWith(prefix))?.slice(prefix.length) ?? null;
+const qn = (r: IdeaLite, prefix: string) => { const v = Number(qs(r, prefix)); return Number.isFinite(v) && v > 0 ? v : null; };
+const hhmmEt = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }) : null);
+
+const quoteCache = new Map<string, { at: number; q: IdeaQuote | null }>();
+/** Reprice one contract: Alpaca (chain cache first, else one snapshot) for equity roots; the desk's CBOE chain (delayed) for SPXW. */
+async function repriceContract(c: { occ: string; root: string; optionType: 'call' | 'put'; strike: number; expiry: string }, priority: boolean): Promise<IdeaQuote | null> {
+  const hit = quoteCache.get(c.occ);
+  if (hit && Date.now() - hit.at < 20_000) return hit.q;
+  let q: IdeaQuote | null = null;
+  try {
+    if (c.root === 'SPXW' || c.root === 'SPX') {
+      const ch = await getDeskChain('SPX', priority);
+      const row = ch?.rows.find((r) => r.expiration_date === c.expiry && r.option_type === c.optionType && r.strike === c.strike);
+      if (row && ch) {
+        const b = Number(row.bid); const a = Number(row.ask);
+        q = { bid: b > 0 ? b : null, ask: a > 0 ? a : null, mid: b > 0 && a >= b ? (a + b) / 2 : null, at: new Date(ch.fetchedAt).toISOString(), source: ch.source };
+      }
+    } else {
+      const ap = await import('./alpaca-options');
+      const r = await withTimeout(priority ? ap.withAlpacaPriority(() => ap.getAlpacaContractQuote(c.occ)) : ap.getAlpacaContractQuote(c.occ), 6000);
+      if (r) q = { bid: r.bid, ask: r.ask, mid: r.bid != null && r.ask != null && r.ask >= r.bid && r.bid > 0 ? (r.bid + r.ask) / 2 : null, at: r.quoteTime, source: `Alpaca indicative${r.via === 'chain_cache' ? ' (chain)' : ''}` };
+    }
+  } catch { /* shown as "no quote" */ }
+  quoteCache.set(c.occ, { at: Date.now(), q });
+  return q;
+}
+
+async function assembleIdeas(watch: string[], rows: DeskRow[], ideas: IdeaLite[], nowMs: number, priority: boolean): Promise<{ ideas: DeskIdea[]; info: IdeasInfo }> {
+  const today = etDateKey(nowMs);
+  const out: DeskIdea[] = [];
+  const info: IdeasInfo = {
+    evaluated: {}, noZeroDte: [],
+    cadence: 'every watched name is evaluated every 5 min 09:45–15:00 ET and every 2 min in power hour (to 15:45); nothing new after 15:45, everything flat by 15:55',
+    caps: Object.fromEntries(watch.map((s) => [s, capsFor(s).basis])),
+    honesty: 'Model ideas from a pre-registered, UNVALIDATED policy family (5-observation pilot). Walk-forward law: a short-window win is a regime artefact until proven. Grade = structure count, not a probability.',
+  };
+  const { getIntradayStructure } = await import('./zero-dte-structure');
+  const spy = watch.includes('SPX') ? await getIntradayStructure('SPY').catch(() => null) : null;
+
+  for (const sym of watch) {
+    const row = rows.find((r) => r.symbol === sym);
+    const elig = row ? zeroDteEligibility(row.expiry) : { ok: false, dte: null, label: 'no desk row', reason: 'desk row failed' };
+    const memo = ideaEval.get(sym);
+    const fresh = memo && memo.day === today && nowMs - memo.at < 15 * 60_000 ? memo : null;
+    info.evaluated[sym] = { at: memo && memo.day === today ? new Date(memo.at).toISOString() : null, eligibility: elig.label, notes: fresh?.notes.slice(0, 3) ?? [] };
+    if (!elig.ok) info.noZeroDte.push({ symbol: sym, label: elig.label });
+    const live = row?.intraday.lastClose ?? row?.spot ?? null;
+    const liveAt = row?.barsAgeSec != null ? new Date(nowMs - row.barsAgeSec * 1000).toISOString() : null;
+
+    // Logged ideas (TRIGGERED → IN PLAY → DONE): this desk's + the index engine's for SPX.
+    const logged = ideas.filter((r) => deskNameOf(r) === sym && kindOf(r) === '0dte' && etDateKey(Date.parse(r.timestamp)) === today);
+    const activeSides = new Set<string>();
+    for (const r of logged) {
+      const dir: 'long' | 'short' = r.direction === 'short' ? 'short' : 'long';
+      const vehicle = r.symbol;
+      const px = vehicle === sym ? live : vehicle === 'SPY' ? spy?.lastClose ?? null : null;
+      const st = ideaStage({ direction: dir, stop: r.stopLoss, target: r.targetPrice, timestamp: r.timestamp, entryValidUntil: r.entryValidUntil, exitBy: r.exitBy, outcomeStatus: r.outcomeStatus, resolutionReason: r.resolutionReason }, nowMs, px);
+      if (st.stage !== 'done') activeSides.add(dir);
+      const policy = String(r.dataSourceUsed ?? '').includes('_A_') ? 'A' : String(r.dataSourceUsed ?? '').includes('_B_') ? 'B' : null;
+      const kind = (qs(r, 'kind:') as SetupKind | null) ?? null;
+      const trig = qs(r, 'trigger:');
+      const trigger = trig ? { name: trig.split('@')[0], price: Number(trig.split('@')[1]) } : null;
+      const root = r.symbol === 'SPX' ? 'SPXW' : r.symbol;
+      const contract = r.strikePrice && r.expiryDate && r.optionType ? {
+        occ: occSymbol(root, r.expiryDate, r.optionType === 'put' ? 'put' : 'call', r.strikePrice), root, optionType: (r.optionType === 'put' ? 'put' : 'call') as 'call' | 'put',
+        strike: r.strikePrice, expiry: r.expiryDate, dte: Math.round((Date.parse(`${r.expiryDate}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 864e5),
+        delta: null, openInterest: null, spreadPct: null, qty: qn(r, 'qty:') ?? qn(r, 'package_qty:'), riskDollars: qn(r, 'risk_usd:'), debitDollars: qn(r, 'package_debit:'),
+        premiumStop: qn(r, 'prem_stop:'), premiumT1: qn(r, 'prem_t1:'), premiumT2: null, basis: null,
+      } : null;
+      out.push({
+        key: `logged|${r.id}`, symbol: sym, stage: st.stage, doneReason: st.doneReason, direction: dir, side: dir === 'long' ? 'CALLS' : 'PUTS',
+        kind, kindLabel: kind ? KIND_LABEL[kind] : policy === 'A' ? 'A · −γ continuation' : policy === 'B' ? 'B · +γ wall fade / pin' : 'index 0DTE',
+        policy, trigger, triggerText: trigger ? `fired: ${trigger.name} $${trigger.price.toFixed(2)} at ${hhmmEt(r.timestamp)} ET` : `fired at ${hhmmEt(r.timestamp)} ET`,
+        entry: r.entryPrice, stop: r.stopLoss, target: { name: qs(r, 'target_level:') ?? 'T1', price: r.targetPrice }, target2: null,
+        rr: Math.abs(r.entryPrice - r.stopLoss) > 0 ? Math.abs(r.targetPrice - r.entryPrice) / Math.abs(r.entryPrice - r.stopLoss) : null,
+        price: px, priceAt: px != null ? liveAt : null, distPct: null,
+        expiryLabel: contract ? (contract.dte != null && contract.dte <= 0 ? '0DTE' : `${contract.dte}DTE`) : elig.label,
+        contract, quote: null, loggedPremium: r.entryPremium, contractNote: vehicle !== sym ? `logged on ${vehicle} (account-fit vehicle); thesis measured on ${sym}` : null, vehicle,
+        entryBy: hhmmEt(r.entryValidUntil), exitBy: TIME_STOP_ET, why: String(r.analysis ?? r.catalyst ?? '').split(' | ')[0].slice(0, 200),
+        grade: null, gradeWhy: [], at: r.timestamp, ideaId: r.id, logged: true, loggedNote: null,
+      });
+    }
+    if (!fresh || !elig.ok) continue;
+
+    // Fired but not logged (no contract inside the caps / dedup / write gate).
+    if (fresh.withheld && !activeSides.has(fresh.withheld.setup.direction)) {
+      const s = fresh.withheld.setup;
+      activeSides.add(s.direction);
+      out.push({
+        key: `withheld|${sym}|${s.policy}|${s.direction}`, symbol: sym, stage: nowMs - fresh.withheld.at < ENTRY_WINDOW_MIN * 60_000 ? 'triggered' : 'done',
+        doneReason: nowMs - fresh.withheld.at < ENTRY_WINDOW_MIN * 60_000 ? null : 'entry window passed (never logged)',
+        direction: s.direction, side: s.direction === 'long' ? 'CALLS' : 'PUTS', kind: fresh.withheld.kind, kindLabel: KIND_LABEL[fresh.withheld.kind],
+        policy: s.policy.startsWith('A') ? 'A' : 'B', trigger: s.trigger, triggerText: `fired: ${s.trigger.name} $${s.trigger.price.toFixed(2)}`,
+        entry: s.entry, stop: s.stop, target: s.targetLevel, target2: null, rr: s.rr, price: fresh.price, priceAt: fresh.priceAt ? new Date(fresh.priceAt).toISOString() : null, distPct: null,
+        expiryLabel: elig.label, contract: null, quote: null, loggedPremium: null, contractNote: null, vehicle: sym,
+        entryBy: null, exitBy: TIME_STOP_ET, why: s.evidence[0] ?? '', grade: null, gradeWhy: [], at: new Date(fresh.withheld.at).toISOString(),
+        ideaId: null, logged: false, loggedNote: `not logged: ${fresh.withheld.reason}`,
+      });
+    }
+
+    // WATCH — forming setups, minus any side already triggered / in play.
+    for (const w of fresh.watch) {
+      if (activeSides.has(w.direction)) continue;
+      const c = w.contract;
+      out.push({
+        key: w.key, symbol: sym, stage: 'watch', doneReason: null, direction: w.direction, side: w.direction === 'long' ? 'CALLS' : 'PUTS',
+        kind: w.kind, kindLabel: KIND_LABEL[w.kind], policy: w.policy, trigger: w.trigger, triggerText: w.triggerText,
+        entry: w.entry, stop: w.stop, target: w.target, target2: w.target2, rr: w.rr,
+        price: live ?? fresh.price, priceAt: live != null ? liveAt : fresh.priceAt ? new Date(fresh.priceAt).toISOString() : null,
+        distPct: live != null && live > 0 ? Math.abs(w.trigger.price - live) / live * 100 : w.distPct,
+        expiryLabel: elig.label,
+        contract: c ? { occ: c.occ, root: c.root, optionType: c.optionType, strike: c.strike, expiry: c.expiry, dte: elig.dte, delta: c.delta, openInterest: c.openInterest, spreadPct: c.spreadPct, qty: c.qty, riskDollars: c.riskDollars, debitDollars: c.debitDollars, premiumStop: c.premiumStop, premiumT1: c.premiumT1, premiumT2: c.premiumT2, basis: c.basis } : null,
+        quote: c ? { bid: c.bid, ask: c.ask, mid: c.mid, at: w.chainFetchedAt ? new Date(w.chainFetchedAt).toISOString() : null, source: w.chainSource ?? 'chain' } : null,
+        loggedPremium: null, contractNote: w.note, vehicle: w.vehicle, entryBy: w.entryBy, exitBy: w.exitBy, why: w.why, grade: w.grade, gradeWhy: w.gradeWhy,
+        at: new Date(w.firstSeen).toISOString(), ideaId: null, logged: false, loggedNote: 'WATCH is not logged — nothing is entered until the trigger prints',
+      });
+    }
+  }
+
+  // Reprice every live contract (the quote shown is stamped with its own time).
+  await Promise.all(out.filter((x) => x.stage !== 'done' && x.contract).slice(0, 10).map(async (x) => {
+    const q = await repriceContract(x.contract!, priority);
+    if (q && (q.bid != null || q.ask != null)) x.quote = q;
+  }));
+  return { ideas: sortIdeas(out), info };
+}
+
 let deskCache: { at: number; p: DeskPayload } | null = null;
 let deskInflight: Promise<DeskPayload> | null = null;
 
@@ -364,8 +564,10 @@ export async function getZeroDteDesk(opts: { priority?: boolean } = {}): Promise
       e.total++;
       if (r.outcomeStatus === 'hit_target') { e.wins++; e.n++; } else if (r.outcomeStatus === 'hit_stop') { e.losses++; e.n++; }
     }
+    let assembled: { ideas: DeskIdea[]; info: IdeasInfo } = { ideas: [], info: { evaluated: {}, noZeroDte: [], cadence: '', caps: {}, honesty: '' } };
+    try { assembled = await assembleIdeas(watch, rows, ideas, nowMs, opts.priority !== false); } catch (e) { logger.warn(`[0DTE-DESK] ideas failed: ${(e as Error).message}`); }
     const p: DeskPayload = {
-      asOf: new Date(nowMs).toISOString(), watch, phase, rows,
+      asOf: new Date(nowMs).toISOString(), watch, phase, rows, ideas: assembled.ideas, ideasInfo: assembled.info,
       record: { ...summarizeDeskRecord(recRows, OUTCOME_BASELINE_DATE), perName },
       provenance: ZERO_DTE_PROVENANCE,
       notes: [
@@ -403,17 +605,39 @@ async function selectAccountFit(args: {
   return { pick, note: res.note, maxDebit };
 }
 
-/** Single-name 0DTE: every watched name the index engine does not own. */
-export async function runZeroDteDeskScan(): Promise<{ evaluated: number; published: number; waits: Record<string, string[]> }> {
-  const nowMs = Date.now();
-  const phase = sessionPhase(nowMs);
-  const waits: Record<string, string[]> = {};
-  if (!phase.entriesOpen) return { evaluated: 0, published: 0, waits };
-  const names = watchList().filter((s) => !INDEX_OWNED.has(s));
-  let published = 0; let evaluated = 0;
-  const { getGexSnapshot } = await import('./gex-snapshot-service');
-  const { getIntradayStructure } = await import('./zero-dte-structure');
-  let eventBlock: string | null = null;
+// ─── 0DTE ideas: evaluation memo (one per watched name, per producer pass) ──
+
+interface IdeaEvalContract { contract: IdeaContract | null; note: string | null; vehicle: string; chainSource: string | null; chainFetchedAt: number | null }
+interface IdeaEval {
+  at: number;
+  day: string;
+  eligibility: Eligibility;
+  expiry: string | null;
+  /** Price the setups were read on (the name's own units; SPX = SPY × live ratio). */
+  price: number | null;
+  priceAt: number | null;
+  watch: Array<WatchSetup & IdeaEvalContract & { firstSeen: number }>;
+  /** A policy setup that fired this pass but was NOT logged (no contract inside the caps, dedup, write gate). */
+  withheld: { setup: ZeroDteSetup; kind: SetupKind; reason: string; at: number } | null;
+  notes: string[];
+}
+const ideaEval = new Map<string, IdeaEval>();
+/** First time each WATCH key was seen today — the idea's age. */
+const firstSeen = new Map<string, number>();
+
+async function notifyTriggered(line: string, ev: { symbol: string; optionType: 'call' | 'put'; strike: number; expiry: string; price: number; qty: number; ideaId?: string }): Promise<void> {
+  // Existing in-app paths only: the shell's pulse feed + the /ws/bot event stream.
+  try { const { pulse } = await import('./system-pulse'); pulse('alert', line); } catch { /* decoration */ }
+  import('./bot-notification-service')
+    .then(({ broadcastBotEvent }) => broadcastBotEvent({ eventType: 'signal', source: 'zero_dte_desk', symbol: ev.symbol, optionType: ev.optionType, strike: ev.strike, expiry: ev.expiry, price: ev.price, quantity: ev.qty, reason: line, ideaId: ev.ideaId, portfolio: 'small_account' }))
+    .catch(() => { /* no socket server in this process */ });
+  // Operator relay (the existing QuantFloor webhook) — opt-in, the web process publishes only by default.
+  if (process.env.ZERO_DTE_DISCORD === '1') {
+    import('./discord-service').then(({ sendDiscordAlert }) => sendDiscordAlert(line, 'info')).catch(() => { /* relay optional */ });
+  }
+}
+
+async function highImpactEventNear(etMin: number): Promise<string | null> {
   try {
     const { getTodayEvents } = await import('./economic-calendar');
     for (const e of getTodayEvents()) {
@@ -421,71 +645,170 @@ export async function runZeroDteDeskScan(): Promise<{ evaluated: number; publish
       const m = /(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(e.time ?? '');
       if (!m) continue;
       const mins = ((Number(m[1]) % 12) + (m[3].toUpperCase() === 'PM' ? 12 : 0)) * 60 + Number(m[2]);
-      if (Math.abs(phase.etMin - mins) <= 30) { eventBlock = `${e.name} at ${e.time}`; break; }
+      if (Math.abs(etMin - mins) <= 30) return `${e.name} at ${e.time}`;
     }
   } catch { /* calendar unavailable — not a block */ }
+  return null;
+}
 
-  for (const sym of names) {
+/** The contract for a setup: the name's own chain on the eligible expiry; SPX falls back to SPY (account fit), like the index engine. */
+async function contractFor(sym: string, chain: DeskChain | null, expiry: string, s: { direction: 'long' | 'short'; entry: number; stop: number; target: number; target2?: number | null }, spxPerSpy: number | null): Promise<IdeaEvalContract> {
+  const caps = capsFor(sym);
+  const root = sym === 'SPX' ? 'SPXW' : sym;
+  let note: string | null = chain ? null : 'no option chain';
+  if (chain) {
+    const r = pickIdeaContract({ rows: chain.rows, root, expiry, ...s, ...caps });
+    if (r.contract) return { contract: r.contract, note: null, vehicle: sym, chainSource: chain.source, chainFetchedAt: chain.fetchedAt };
+    note = r.reason;
+  }
+  if (sym === 'SPX' && spxPerSpy && spxPerSpy > 0) {
+    const spy = await getDeskChain('SPY', false);
+    if (spy) {
+      const k = 1 / spxPerSpy;
+      const ex = pickDeskExpiry(spy.expirations, etDateKey(Date.now()));
+      if (ex.expiry === expiry) {
+        const r = pickIdeaContract({ rows: spy.rows, root: 'SPY', expiry, direction: s.direction, entry: s.entry * k, stop: s.stop * k, target: s.target * k, target2: s.target2 != null ? s.target2 * k : null, ...capsFor('SPY') });
+        if (r.contract) return { contract: r.contract, note: `SPXW: ${note ?? 'no fit'} — SPY is the account-fit vehicle (levels ÷ ${spxPerSpy.toFixed(3)})`, vehicle: 'SPY', chainSource: spy.source, chainFetchedAt: spy.fetchedAt };
+        note = `${note ?? ''}; SPY: ${r.reason}`;
+      }
+    }
+  }
+  return { contract: null, note: `${note ?? 'no contract'} (${caps.basis})`, vehicle: sym, chainSource: chain?.source ?? null, chainFetchedAt: chain?.fetchedAt ?? null };
+}
+
+/**
+ * The 0DTE producer — every watched name, every pass (5 min; 2 min in power
+ * hour, server/idea-producer-schedule.ts).
+ *   • WATCH: forming setups (zero-dte-ideas-core watchSetups) with their contract,
+ *     kept in memory for the desk — not logged, because nothing was entered.
+ *   • TRIGGERED: the pre-registered policy fired → contract inside the caps →
+ *     storage.createTradeIdea (source zero_dte_desk) so the outcome tracker
+ *     resolves it, + an in-app alert. SPX is published by the index engine
+ *     (one owner per name); the desk still evaluates SPX WATCH setups on the
+ *     same SPY GEX the index engine reads, scaled by the live SPX/SPY ratio.
+ *   • Names whose nearest expiry is > 2 days out: "no 0DTE today", no idea.
+ */
+export async function runZeroDteDeskScan(): Promise<{ evaluated: number; published: number; waits: Record<string, string[]> }> {
+  const nowMs = Date.now();
+  const phase = sessionPhase(nowMs);
+  const waits: Record<string, string[]> = {};
+  if (!phase.entriesOpen) return { evaluated: 0, published: 0, waits };
+  const today = etDateKey(nowMs);
+  for (const [k, t] of firstSeen) if (etDateKey(t) !== today) firstSeen.delete(k);
+  let published = 0; let evaluated = 0;
+  const { getGexSnapshot } = await import('./gex-snapshot-service');
+  const { getIntradayStructure } = await import('./zero-dte-structure');
+  const eventBlock = await highImpactEventNear(phase.etMin);
+
+  for (const sym of watchList()) {
+    const isIndex = INDEX_OWNED.has(sym);
+    const src = sym === 'SPX' ? 'SPY' : sym; // SPX levels = SPY GEX (the index engine's basis) × live ratio
     try {
-      const [snap, st, chain] = await Promise.all([getGexSnapshot(sym), getIntradayStructure(sym), getDeskChain(sym, false)]);
-      if (!snap) { waits[sym] = ['no GEX snapshot']; lastEval.set(sym, { at: nowMs, verdict: { setup: null, wait: waits[sym] }, withheld: null }); continue; }
-      if (!st) { waits[sym] = ['no intraday bars']; lastEval.set(sym, { at: nowMs, verdict: { setup: null, wait: waits[sym] }, withheld: null }); continue; }
-      const today = etDateKey(nowMs);
-      const ex = chain ? pickDeskExpiry(chain.expirations, today) : null;
-      const bucket = chain && ex?.expiry && ex.sameDay && zeroDteWallsEnabled() ? expiryBucketLevels(sym, chain.rows, snap.spot, ex.expiry) : null;
-      const em = chain && ex?.expiry ? expectedMoveFor(chain.rows, snap.spot, ex.expiry, todayFraction(phase.etMin), ex.sessionsAfterToday ?? 0) : null;
+      const [snap, st, chain] = await Promise.all([getGexSnapshot(src), getIntradayStructure(src), getDeskChain(sym, false)]);
+      const ex = chain ? pickDeskExpiry(chain.expirations, today) : pickDeskExpiry([], today);
+      const elig = zeroDteEligibility(ex);
+      const memo: IdeaEval = { at: nowMs, day: today, eligibility: elig, expiry: ex.expiry, price: null, priceAt: null, watch: [], withheld: null, notes: [] };
+      ideaEval.set(sym, memo);
+      if (!elig.ok) { waits[sym] = [elig.label]; memo.notes.push(elig.reason ?? elig.label); continue; }
+      if (!snap || !st || st.lastClose == null) { waits[sym] = [!snap ? 'no GEX snapshot' : 'no intraday bars']; memo.notes.push(waits[sym][0]); if (!isIndex) lastEval.set(sym, { at: nowMs, verdict: { setup: null, wait: waits[sym] }, withheld: null }); continue; }
+
+      // Units: the name's own. SPX = SPY × the live cash ratio (Yahoo ^GSPC; the CBOE SPX spot is delayed).
+      let k = 1;
+      if (sym === 'SPX') {
+        try {
+          const { fetchYahooFinancePrice } = await import('./market-api');
+          const q = await withTimeout(fetchYahooFinancePrice('%5EGSPC'), 5000);
+          k = q?.currentPrice && q.currentPrice > 1000 ? q.currentPrice / st.lastClose : (chain?.spot ?? 0) / st.lastClose;
+        } catch { k = (chain?.spot ?? 0) / st.lastClose; }
+        if (!(k > 5 && k < 15)) { waits[sym] = ['no SPX/SPY ratio']; memo.notes.push('no live SPX/SPY ratio — SPX levels not translated'); continue; }
+      }
+      const sc = (x: number | null | undefined) => (x == null ? null : x * k);
+      const bucket = chain && ex.expiry && ex.sameDay && zeroDteWallsEnabled() ? expiryBucketLevels(sym, chain.rows, chain.spot, ex.expiry) : null; // SPX: SPXW's own walls, already in SPX units
+      const em = chain && ex.expiry ? expectedMoveFor(chain.rows, chain.spot, ex.expiry, todayFraction(phase.etMin), ex.sessionsAfterToday ?? 0) : null;
       // Index cap 0.6%; a single name scales with its own day: 35% of today's expected move, never below 0.6%.
-      const maxRiskPct = Math.max(0.6, em ? 0.35 * em.todayPct : 0.6);
+      const maxRiskPct = isIndex ? 0.6 : Math.max(0.6, em ? 0.35 * em.todayPct : 0.6);
+      const price = st.lastClose * k;
+      memo.price = price; memo.priceAt = st.lastBarAt != null ? st.lastBarAt + 5 * 60_000 : nowMs;
+      const flow = await flowTide(sym, ex.expiry, false);
+
+      // ── WATCH: forming setups ──
+      const w = watchSetups({
+        symbol: sym, phase, price, sign: snap.netGexSign, vwap: sc(st.vwap),
+        levels: {
+          zeroGamma: sc(snap.flipPoint), callWall: sc(snap.callWall), putWall: sc(snap.putWall),
+          or30High: sc(st.or30High), or30Low: sc(st.or30Low), pdh: sc(st.pdh), pdl: sc(st.pdl), hod: sc(st.hodPrior), lod: sc(st.lodPrior),
+          zCallWall: bucket?.callWall ?? null, zPutWall: bucket?.putWall ?? null, zMaxGamma: bucket?.maxGamma ?? null,
+        },
+        maxRiskPct, emTodayPct: em?.todayPct ?? null, flowLean: flow.lean,
+      });
+      memo.notes.push(...w.notes);
+      for (const s of w.setups) {
+        const c = await contractFor(sym, chain, ex.expiry!, { direction: s.direction, entry: s.entry, stop: s.stop, target: s.target.price, target2: s.target2?.price ?? null }, sym === 'SPX' ? k : null);
+        if (!firstSeen.has(s.key)) firstSeen.set(s.key, nowMs);
+        memo.watch.push({ ...s, ...c, firstSeen: firstSeen.get(s.key)! });
+      }
+      evaluated++;
+
+      // ── TRIGGERED: the index engine owns SPX; the desk publishes the single names ──
+      if (isIndex) { waits[sym] = memo.watch.length ? [`${memo.watch.length} forming (index engine publishes)`] : w.notes.slice(0, 1); continue; }
       const verdict = evaluateZeroDte(sym, {
         spot: snap.spot, zeroGamma: snap.flipPoint, callWall: snap.callWall, putWall: snap.putWall,
         sign: snap.netGexSign, fetchedAt: snap.fetchedAt, modelledGrossShare: snap.modelledGrossShare ?? null,
       }, st, nowMs, phase.etMin, eventBlock, { zeroDte: bucket ? { expiry: bucket.expiry, callWall: bucket.callWall, putWall: bucket.putWall, maxGamma: bucket.maxGamma, zeroGamma: bucket.zeroGamma } : null, maxRiskPct });
-      evaluated++;
       let withheld: string | null = null;
       if (verdict.setup) {
         const s = verdict.setup;
+        const kind = kindForSetup(s);
         const key = `${sym}|${s.policy}|${s.direction}`;
         const last = recentPublishes.get(key);
-        if (last && nowMs - last < 30 * 60_000) withheld = 'same policy + side published inside 30 min';
+        if (last && nowMs - last < 30 * 60_000) withheld = 'same policy + side logged inside 30 min';
         else {
-          const sel = await selectAccountFit({
-            symbol: sym, direction: s.direction, entry: s.entry, stop: s.stop, target: s.target, spot: s.entry, setup: 'scalp',
-            expiryTier: ex?.sameDay ? '0DTE' : 'DAILY', holdingDays: 0, allowZeroDte: true, applyDteFit: false, minRoi: 50,
-          });
-          if (!sel.pick) withheld = sel.note ?? 'no account-fit contract';
+          const sel = await contractFor(sym, chain, ex.expiry!, { direction: s.direction, entry: s.entry, stop: s.stop, target: s.target }, null);
+          const c = sel.contract;
+          if (!c) withheld = sel.note ?? 'no contract inside the caps';
           else {
-            const c = sel.pick;
-            const dte = Math.round((Date.parse(`${c.expiry}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 864e5);
-            const qty = Math.max(1, Math.min(5, Math.floor(sel.maxDebit / (c.entryPremium * 100))));
             const label = s.policy.startsWith('A') ? 'A · −γ continuation' : s.powerHour ? 'B · +γ power-hour pin' : 'B · +γ wall fade';
+            const dte = elig.dte ?? 0;
             try {
               const { storage } = await import('./storage');
-              await storage.createTradeIdea({
+              const created = await storage.createTradeIdea({
                 symbol: sym, assetType: 'option', direction: s.direction,
                 entryPrice: s.entry, targetPrice: s.target, stopLoss: s.stop, riskRewardRatio: +s.rr.toFixed(2),
-                optionType: c.optionType, strikePrice: c.strike, expiryDate: c.expiry, entryPremium: Number(c.entryPremium.toFixed(2)),
-                catalyst: `${s.powerHour ? '⚡ POWER HOUR ' : ''}${sym} ${dte <= 0 ? '0DTE' : `${dte}DTE (nearest expiry, held intraday)`} ${s.direction === 'long' ? 'CALLS' : 'PUTS'} — ${label} | ${c.grade} · ${qty}x @ $${c.entryPremium.toFixed(2)}`,
-                analysis: `${s.evidence.join(' | ')}. Stop $${s.stop.toFixed(2)}, target $${s.target.toFixed(2)} (${s.rr.toFixed(2)}R on ${sym}); risk cap ${maxRiskPct.toFixed(2)}% (35% of today's expected move). Hard time stop ${TIME_STOP_ET} ET.${dte > 0 ? ` ${sym} lists no same-day expiry — the ${c.expiry} contract is flattened by ${TIME_STOP_ET} ET like a 0DTE.` : ''} Policies were pre-registered for the index; applying them to ${sym} is a desk extension. ${ZERO_DTE_PROVENANCE}`,
+                optionType: c.optionType, strikePrice: c.strike, expiryDate: c.expiry, entryPremium: Number(c.mid.toFixed(2)),
+                catalyst: `${s.powerHour ? '⚡ POWER HOUR ' : ''}${sym} ${dte <= 0 ? '0DTE' : `${dte}DTE (nearest expiry, held intraday)`} ${s.direction === 'long' ? 'CALLS' : 'PUTS'} — ${KIND_LABEL[kind]} (${label}) | ${c.qty}x @ $${c.mid.toFixed(2)} mid`,
+                analysis: `${s.evidence.join(' | ')}. Stop $${s.stop.toFixed(2)}, target $${s.target.toFixed(2)} (${s.rr.toFixed(2)}R on ${sym}); risk cap ${maxRiskPct.toFixed(2)}% of ${sym} (35% of today's expected move) and ${capsFor(sym).basis}. Premium stop ≈ $${c.premiumStop.toFixed(2)}, T1 ≈ $${c.premiumT1.toFixed(2)} (${c.basis}). Hard time stop ${TIME_STOP_ET} ET.${dte > 0 ? ` ${sym} lists no same-day expiry — the ${c.expiry} contract is flattened by ${TIME_STOP_ET} ET like a 0DTE.` : ''} Policies were pre-registered for the index; applying them to ${sym} is a desk extension. ${ZERO_DTE_PROVENANCE}`,
                 source: DESK_SOURCE, dataSourceUsed: `zero_dte_desk_${s.policy}`,
                 sessionContext: s.powerHour ? 'power_hour' : 'intraday', timestamp: new Date(nowMs).toISOString(),
                 exitBy: timeStopIso(nowMs), entryValidUntil: new Date(nowMs + 10 * 60_000).toISOString(),
                 expiryTier: dte <= 0 ? '0DTE' : 'DAILY', optionDte: Math.max(0, dte), tradeType: 'scalp', outcomeStatus: 'open',
                 confidenceScore: 60, holdingPeriod: 'day',
-                qualitySignals: [`policy:${s.policy}`, 'validated:false', 'desk:zero_dte', `contract_dte:${dte}`, `time_stop:${TIME_STOP_ET}ET`, bucket ? 'levels:0dte_walls' : '', s.powerHour ? 'power_hour' : ''].filter(Boolean),
+                qualitySignals: [
+                  `policy:${s.policy}`, `kind:${kind}`, `trigger:${s.trigger.name}@${s.trigger.price.toFixed(2)}`, `target_level:${s.targetLevel.name}`,
+                  `prem_stop:${c.premiumStop.toFixed(2)}`, `prem_t1:${c.premiumT1.toFixed(2)}`, `qty:${c.qty}`, `risk_usd:${Math.round(c.riskDollars)}`,
+                  'validated:false', 'desk:zero_dte', `contract_dte:${dte}`, `time_stop:${TIME_STOP_ET}ET`, bucket ? 'levels:0dte_walls' : '', s.powerHour ? 'power_hour' : '',
+                ].filter(Boolean),
               } as any, { dedupWindowHours: 0.5 });
               recentPublishes.set(key, nowMs); published++; ideasCache = null; deskCache = null;
-              logger.info(`[0DTE-DESK] ✅ ${sym} ${label} ${s.direction} → ${c.optionType} ${c.strike} ${c.expiry} @ $${c.entryPremium.toFixed(2)}`);
+              logger.info(`[0DTE-DESK] ✅ TRIGGERED ${sym} ${KIND_LABEL[kind]} ${s.direction} → ${c.optionType} ${c.strike} ${c.expiry} @ $${c.mid.toFixed(2)}`);
+              void notifyTriggered(
+                `0DTE TRIGGERED · ${sym} ${c.strike}${c.optionType === 'call' ? 'C' : 'P'} ${c.expiry.slice(5)} @ ~$${c.mid.toFixed(2)} · ${KIND_LABEL[kind]} · stop $${s.stop.toFixed(2)} → T1 $${s.target.toFixed(2)} · out by ${TIME_STOP_ET} ET (unvalidated)`,
+                { symbol: sym, optionType: c.optionType, strike: c.strike, expiry: c.expiry, price: c.mid, qty: c.qty, ideaId: (created as any)?.id },
+              );
             } catch (e) { withheld = `write gate: ${(e as Error).message}`; }
           }
         }
-        if (withheld) logger.info(`[0DTE-DESK] ${sym} ${s.policy} ${s.direction} withheld: ${withheld}`);
+        if (withheld) {
+          memo.withheld = { setup: s, kind, reason: withheld, at: nowMs };
+          logger.info(`[0DTE-DESK] ${sym} ${s.policy} ${s.direction} withheld: ${withheld}`);
+        }
       }
-      waits[sym] = verdict.setup ? [withheld ? `triggered, withheld: ${withheld}` : 'published'] : verdict.wait;
+      waits[sym] = verdict.setup ? [withheld ? `triggered, withheld: ${withheld}` : 'published'] : memo.watch.length ? [`${memo.watch.length} forming`, ...verdict.wait] : verdict.wait;
       lastEval.set(sym, { at: nowMs, verdict, withheld });
     } catch (e) {
       waits[sym] = [`scan failed: ${(e as Error).message}`];
     }
   }
+  deskCache = null;
   logger.info(`[0DTE-DESK] ${phase.label}: ${evaluated} evaluated, ${published} published · ${Object.entries(waits).map(([k, w]) => `${k}: ${w[0] ?? '—'}`).join(' · ')}`);
   return { evaluated, published, waits };
 }
