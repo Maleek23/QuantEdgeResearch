@@ -218,6 +218,25 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     cron.schedule('1-59/2 10-15 * * 1-5', sniper, ET);
   }
 
+  // ── SPX fast moves (server/spx-fast-moves.ts) — OFF unless SPX_FAST_MOVES=true.
+  // Every minute 09:31–10:31 (open-drive causes) and 14:30–15:58 (afternoon /
+  // close-flow causes). Light: one incremental SPY+VIXY 1-min bar request per
+  // pass, a once-a-day baseline, a chain lookup only when something publishes.
+  // Publishes only what FAST_MOVE_POLICIES allows (replay: nothing cleared the
+  // bar; two unvalidated candidates need SPX_FAST_MOVES_CANDIDATES=true). The
+  // index engine also calls it 15:45–15:55 (its own entry window ends 15:45). ──
+  if (process.env.SPX_FAST_MOVES === 'true') {
+    const fast = guarded('spx-fast-moves', async () => {
+      const { runSpxFastMoves } = await import('./spx-fast-moves');
+      const r = await runSpxFastMoves();
+      return r.fresh.filter((x) => x.status === 'published').length;
+    }, 'high');
+    cron.schedule('31-59 9 * * 1-5', fast, ET);
+    cron.schedule('0-31 10 * * 1-5', fast, ET);
+    cron.schedule('30-59 14 * * 1-5', fast, ET);
+    cron.schedule('0-58 15 * * 1-5', fast, ET);
+  }
+
   // ── Pre-market ideas (server/premarket-ideas.ts): plan the WATCH list from
   // pre-market movers 08:30–09:25 ET every 10 min, then evaluate the planned
   // setups on live 1m bars 09:30–10:30 ET every 2 min and publish triggered
@@ -283,5 +302,5 @@ export async function scheduleIdeaProducers(log: LogFn): Promise<void> {
     return saved;
   }), ET);
 
-  log(`🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads${process.env.ZERO_DTE_SNIPER === 'true' ? ', 0DTE sniper 2m 09:45–15:50 (ZERO_DTE_SNIPER=true)' : ''} (IDEA_PRODUCERS_IN_WEB=false disables)`);
+  log(`🧭 [WEB] Idea producers scheduled — index 0DTE 5m (2m power hour), 0DTE desk names 5m/2m, short swings 2×/day, flags/reclaim hourly, tape 10m, GEX setups 30m, quant 30m (staggered minutes, one heavy job at a time), index/leader swing + crypto proxy 2×/day, native crypto ideas 30m 24/7 + crypto tracker 5m, reversal slate nightly, pre-market ideas plan 08:30–09:25 10m + triggers 09:30–10:30 2m, sector ignition intraday 5m 09:34–11:29 + daily/swing/weekly reads${process.env.ZERO_DTE_SNIPER === 'true' ? ', 0DTE sniper 2m 09:45–15:50 (ZERO_DTE_SNIPER=true)' : ''}${process.env.SPX_FAST_MOVES === 'true' ? ', SPX fast moves 1m 09:31–10:31 + 14:30–15:58 (SPX_FAST_MOVES=true)' : ''} (IDEA_PRODUCERS_IN_WEB=false disables)`);
 }
