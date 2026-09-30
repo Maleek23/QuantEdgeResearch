@@ -148,7 +148,11 @@ interface GroupedBar {
 }
 
 const groupedCache = new Map<string, { bars: Map<string, GroupedBar>; fetchedAt: number }>();
-const GROUPED_TTL_MS = 15 * 60 * 1000;
+const GROUPED_TTL_MS = 15 * 60 * 1000;           // today's session (still settling)
+const GROUPED_PAST_TTL_MS = 24 * 60 * 60 * 1000;  // a finished session never changes
+/** One request per day in flight — concurrent callers share it (2026-09-30:
+ *  229 whole-market downloads in 10 min from callers racing the cache). */
+const groupedInFlight = new Map<string, Promise<GroupedBar[]>>();
 
 /**
  * Every US stock's OHLCV for one session, keyed by ticker.
@@ -163,10 +167,18 @@ export async function fetchGroupedDaily(date?: Date): Promise<Map<string, Groupe
   for (let back = 0; back < 5; back++) {
     const day = iso(new Date(start.getTime() - back * 86_400_000));
     const cached = groupedCache.get(day);
-    if (cached && Date.now() - cached.fetchedAt < GROUPED_TTL_MS) return cached.bars;
+    const ttl = day < iso(new Date()) ? GROUPED_PAST_TTL_MS : GROUPED_TTL_MS;
+    if (cached && Date.now() - cached.fetchedAt < ttl) return cached.bars;
 
-    const data = await call(`/v2/aggs/grouped/locale/us/market/stocks/${day}?adjusted=true`);
-    const results: GroupedBar[] = data?.results ?? [];
+    let pending = groupedInFlight.get(day);
+    if (!pending) {
+      pending = call(`/v2/aggs/grouped/locale/us/market/stocks/${day}?adjusted=true`)
+        .then((data: any) => (data?.results ?? []) as GroupedBar[])
+        .finally(() => groupedInFlight.delete(day));
+      groupedInFlight.set(day, pending);
+    }
+    const results: GroupedBar[] = await pending;
+    if (results.length > 0 && groupedCache.get(day) && Date.now() - groupedCache.get(day)!.fetchedAt < 5_000) return groupedCache.get(day)!.bars;
     if (results.length > 0) {
       const bars = new Map(results.map((b) => [b.T?.toUpperCase(), b] as const));
       groupedCache.set(day, { bars, fetchedAt: Date.now() });

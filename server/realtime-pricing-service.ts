@@ -275,7 +275,25 @@ async function fetchFuturesQuote(symbol: string): Promise<RealtimeQuote | null> 
   }
 }
 
+/** Concurrent callers for the same symbol share one provider request
+ *  (2026-09-30: ~985 single-quote fetches in 10 min, AVGO ×24). */
+const quoteInFlight = new Map<string, Promise<RealtimeQuote | null>>();
+
 export async function getRealtimeQuote(
+  symbol: string,
+  assetType: AssetType
+): Promise<RealtimeQuote | null> {
+  const key = getCacheKey(symbol, assetType);
+  const hit = quoteCache.get(key);
+  if (isCacheValid(hit, assetType)) return hit!.quote;
+  const pending = quoteInFlight.get(key);
+  if (pending) return pending;
+  const p = getRealtimeQuoteUncached(symbol, assetType).finally(() => quoteInFlight.delete(key));
+  quoteInFlight.set(key, p);
+  return p;
+}
+
+async function getRealtimeQuoteUncached(
   symbol: string,
   assetType: AssetType
 ): Promise<RealtimeQuote | null> {
