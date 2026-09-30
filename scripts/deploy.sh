@@ -14,5 +14,5 @@ ssh -i "$KEY" "$HOST" "set -e; cd $APP
   rm -rf dist.old; [ -d dist ] && mv dist dist.old; mv dist.new dist
   git pull -q || true
   pm2 restart quantedge-web --update-env >/dev/null
-  for i in \$(seq 1 40); do c=\$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/health); [ \"\$c\" = 200 ] && break; sleep 3; done
+  for i in \$(seq 1 40); do c=\$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/health || true); [ \"\$c\" = 200 ] && break; sleep 3; done
   echo health \$c"

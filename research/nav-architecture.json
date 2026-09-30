@@ -1,8 +1,8 @@
 {
-  "routes": 37,
-  "redirects": 79,
+  "routes": 31,
+  "redirects": 85,
   "tabs": 10,
-  "linkTargets": 59,
+  "linkTargets": 55,
   "N1_dead": {},
   "N2_viaRedirect": {},
   "N3_orphanPageFiles": [],
