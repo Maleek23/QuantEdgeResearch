@@ -299,6 +299,10 @@ app.use((req, res, next) => {
       logger.error('[WEB] idea producer scheduling failed:', err);
     }
 
+    // ── Chart GEX timeline (orbs) — record from boot, not first chart view,
+    // so a restart mid-session doesn't leave a hole in the orbs.
+    void import('./chart-overlays').then((co) => co.startChartOverlayRecorder()).catch((err) => logger.error('[WEB] chart overlay recorder failed:', err));
+
     // ── Quant bot (paper) ─────────────────────────────────────────────────
     // Same story again: runBotCycle was scheduled only in worker.ts/index.ts,
     // so production never traded, managed or settled the bot's book. See

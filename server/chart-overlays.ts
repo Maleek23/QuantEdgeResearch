@@ -25,7 +25,7 @@ import path from 'path';
 import { logger } from './logger';
 import { marketDateET } from '@shared/market-day';
 
-const DEFAULT_WATCH = ['SPY', 'QQQ', 'SPX', 'IWM'];
+const DEFAULT_WATCH = ['SPY', 'QQQ', 'SPX', 'IWM', 'TSLA', 'NVDA', 'AMD', 'MSTR'];
 const VIEW_TTL_MS = 2 * 60 * 60_000;
 const MAX_WATCH = 12;
 const SAMPLE_EVERY_MS = 5 * 60_000;
@@ -183,8 +183,11 @@ export function startChartOverlayRecorder(): void {
 
 /* ────────────────────────────── ranges ────────────────────────────── */
 
-/** ET market dates covered by a range, newest first, weekends skipped. */
-function datesFor(range: string): string[] {
+/** ET market dates covered by a range, newest first, weekends skipped.
+ *  A session only counts once it has 2+ recorded samples (orbs need two
+ *  points in time) — before 09:00 ET, or early in a session, "1D" means the
+ *  last session that actually has a timeline instead of a blank chart. */
+function datesFor(range: string, sym?: string): string[] {
   const n = range === '5D' ? 5 : range === '2D' ? 2 : 1;
   const out: string[] = [];
   const now = Date.now();
@@ -193,7 +196,9 @@ function datesFor(range: string): string[] {
     const date = marketDateET(d);
     const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
     if (dow === 0 || dow === 6) continue;
-    if (!out.includes(date)) out.push(date);
+    if (out.includes(date)) continue;
+    if (sym && back < 14 && daySamples(sym, date).length < 2 && out.length === 0 && back < 5) continue;
+    out.push(date);
   }
   return out;
 }
@@ -286,7 +291,7 @@ export async function buildChartOverlays(symbolRaw: string, range: string, spotH
   // Production runs dist/web.js (index.ts's schedulers never start there), so
   // the recorder also starts on first use.
   startChartOverlayRecorder();
-  const dates = datesFor(range);
+  const dates = datesFor(range, sym);
   const sinceDate = dates[dates.length - 1];
 
   // ── GEX now (+ an on-demand sample so a newly charted symbol starts recording)
