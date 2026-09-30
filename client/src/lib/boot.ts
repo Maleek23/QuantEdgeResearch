@@ -27,6 +27,19 @@ import { applyMode, getMode } from './visual-mode';
 const LOADER_ID = 'app-loader';
 const SETTLE_MS = 60;      // a hold swapped for the next one in the same commit must not flash
 const HARD_CAP_MS = 15_000; // never trap the user behind the boot screen
+/** The branded boot screen (gamma wave) is shown for at least this long on the
+ *  first load of a browser session, so it reads as an intro, not a flicker.
+ *  Later loads in the same session release as soon as the page can paint. */
+const MIN_SHOW_MS = 1400;
+const firstOfSession = (() => {
+  try {
+    if (typeof window === 'undefined') return false;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
+    if (sessionStorage.getItem('qe-boot-seen')) return false;
+    sessionStorage.setItem('qe-boot-seen', '1');
+    return true;
+  } catch { return false; }
+})();
 
 let holds = 0;
 let released = false;
@@ -42,7 +55,8 @@ export function isBooting(): boolean {
 function schedule() {
   if (released || holds > 0) return;
   clearTimeout(timer);
-  timer = setTimeout(() => { if (holds === 0) releaseBoot(); }, SETTLE_MS);
+  const wait = firstOfSession ? Math.max(SETTLE_MS, MIN_SHOW_MS - performance.now()) : SETTLE_MS;
+  timer = setTimeout(() => { if (holds === 0) releaseBoot(); }, wait);
 }
 
 /** Register a boot-phase fallback; returns its release (use in a layout effect). */

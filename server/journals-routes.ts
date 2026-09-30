@@ -37,7 +37,7 @@ import { logger } from './logger';
 import { journalNotes, journalTrades, paperPortfolios, traders, traderWatchlistItems } from '@shared/schema';
 import { JOURNAL_NOTE_KINDS, TRADER_SLUG_RE, journalNoteKey, parseJournalKey, type JournalSourceListItem } from '@shared/journal-sources';
 import {
-  JournalAccessError, canWriteTrader, getTraderBySlug, journalActor, listTraders, loadJournalNotes, resolveJournal, writableOwner,
+  JournalAccessError, canWriteTrader, getTraderBySlug, journalActor, listTraders, loadJournalNotes, personalBookLabel, resolveJournal, writableOwner,
 } from './journal-sources';
 
 type Mw = (req: Request, res: Response, next: NextFunction) => unknown;
@@ -102,11 +102,15 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
     try {
       const actor = await journalActor(req);
       const list = await listTraders();
+      // Order: NEXUS (the platform's official book) · Quantinum Bot · your own
+      // book (named after you) · traders. A trader linked to you IS your book,
+      // so it isn't listed twice.
+      const mineLabel = await personalBookLabel(actor.userId);
       const items: JournalSourceListItem[] = [
-        { key: 'mine', kind: 'mine', label: 'Mine', hint: 'Your trades — manual, broker CSV, Alpaca', readOnly: false, canWrite: !!actor.userId },
-        { key: 'bot', kind: 'bot', label: 'Quantinum Bot', hint: "Quantinum Bot's paper fills", readOnly: true, canWrite: false },
-        { key: 'desk', kind: 'desk', label: 'NEXUS ideas', hint: 'Every idea NEXUS published, scored as a trade', readOnly: true, canWrite: false },
-        ...list.map((t): JournalSourceListItem => {
+        { key: 'desk', kind: 'desk', label: 'NEXUS ideas', hint: 'Official · every idea NEXUS published, scored as a trade', readOnly: true, canWrite: false },
+        { key: 'bot', kind: 'bot', label: 'Quantinum Bot', hint: "Official · Quantinum Bot's paper fills", readOnly: true, canWrite: false },
+        { key: 'mine', kind: 'mine', label: mineLabel, hint: 'Your trades — manual, broker CSV, Alpaca', readOnly: false, canWrite: !!actor.userId },
+        ...list.filter((t) => !(actor.userId && t.linkedUserId === actor.userId)).map((t): JournalSourceListItem => {
           const canWrite = canWriteTrader(actor, t);
           return { key: `trader:${t.slug}`, kind: 'trader', label: t.name, hint: `${t.name}'s journal${t.source ? ` · from ${t.source}` : ''}`, readOnly: !canWrite, canWrite };
         }),

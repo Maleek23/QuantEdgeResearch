@@ -64,6 +64,17 @@ export async function journalActor(req: Request): Promise<JournalActor> {
 
 // ─── Traders ─────────────────────────────────────────────────
 
+/** The personal book is named after its owner: the trader linked to this user
+ *  (e.g. "Malik"), else the user's first name, else "My journal". */
+export async function personalBookLabel(userId: string | null): Promise<string> {
+  if (!userId) return 'My journal';
+  const linked = (await listTraders()).find((t) => t.linkedUserId === userId);
+  if (linked) return linked.name;
+  const user = await storage.getUser(userId).catch(() => undefined) as any;
+  const first = typeof user?.firstName === 'string' ? user.firstName.trim() : '';
+  return first || 'My journal';
+}
+
 export async function listTraders(): Promise<Trader[]> {
   return db.select().from(traders).orderBy(asc(traders.createdAt), asc(traders.slug));
 }
@@ -98,7 +109,7 @@ export async function resolveJournal(actor: JournalActor, key: JournalKey): Prom
   const kind = journalKindOf(key);
   if (kind === 'mine') {
     if (!actor.userId) throw new JournalAccessError(401, 'Sign in to open your journal');
-    return { key, kind, label: 'Mine', ownerId: actor.userId, trader: null, readOnly: false, canWrite: true };
+    return { key, kind, label: await personalBookLabel(actor.userId), ownerId: actor.userId, trader: null, readOnly: false, canWrite: true };
   }
   if (kind === 'bot') return { key, kind, label: 'Quantinum Bot', ownerId: null, trader: null, readOnly: true, canWrite: false };
   if (kind === 'desk') return { key, kind, label: 'NEXUS ideas', ownerId: null, trader: null, readOnly: true, canWrite: false };

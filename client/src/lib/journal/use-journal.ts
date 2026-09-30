@@ -131,7 +131,7 @@ export function useJournalKey() {
   });
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (key === 'mine') url.searchParams.delete(JOURNAL_PARAM);
+    if (key === readJournalPrefs().defaultBook) url.searchParams.delete(JOURNAL_PARAM);
     else url.searchParams.set(JOURNAL_PARAM, key);
     window.history.replaceState(window.history.state, '', url.toString());
   }, [key]);
@@ -435,7 +435,7 @@ export interface JournalPrefs {
 }
 
 const PREFS_KEY = 'qe-journal-prefs-v1';
-const DEFAULT_PREFS: JournalPrefs = { defaultBook: 'mine', sizing: 'show', timeDisplay: 'et', sidebarCollapsed: false };
+const DEFAULT_PREFS: JournalPrefs = { defaultBook: 'desk', sizing: 'show', timeDisplay: 'et', sidebarCollapsed: false };
 
 export function readJournalPrefs(): JournalPrefs {
   try {
