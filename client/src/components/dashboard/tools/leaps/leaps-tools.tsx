@@ -28,7 +28,7 @@ function useLeaps() {
 function gate(q: ReturnType<typeof useLeapTracker>): ReactNode | null {
   if (q.isLoading) return <QELoading rows={5} className="fd-pad" label="scanning leap chains…" />;
   if (q.isError && !q.data) return <QEError className="fd-m" title="LEAPS tracker didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
-  if (!q.data?.picks?.length) return <QEEmpty className="fd-m" message="The LEAPS scan returned no liquid contracts that qualified." />;
+  if (!q.data?.picks?.length) return <QEEmpty className="fd-m" message="No liquid LEAPS contracts qualified in the last scan. Try a wider budget or a lower grade." />;
   return null;
 }
 

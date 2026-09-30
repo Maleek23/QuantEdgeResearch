@@ -258,7 +258,7 @@ export const workspacePresets = {
     cols: 2,
     rows: 2,
     template: "1.5fr 1fr",
-    label: "Trade Desk",
+    label: "NEXUS",
   },
   quad: {
     cols: 2,

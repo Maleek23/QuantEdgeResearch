@@ -63,7 +63,7 @@ export function NexusFrame({ children }: { children: ReactNode }) {
           crumb={researchSym ? 'Research' : undefined}
           titleDesktopOnly
           leading={
-            <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home">
+            <Link href="/today" className="brand lg:hidden" aria-label="QuantEdge — home">
               <img className="brand-logo" src={qeMark} alt="" width={22} height={22} />
               <span className="brand-name">QUANTEDGE</span>
               <span className="brand-slash">{'//'}</span>
@@ -109,8 +109,8 @@ export function NexusFrame({ children }: { children: ReactNode }) {
               <LuxMenuLabel title={accountLabel} sub={(user as any)?.email ?? 'Guest'} />
               <LuxMenuSeparator />
               <LuxMenuItem icon={<Bell />} onSelect={() => setLocation('/alerts')}>Alerts</LuxMenuItem>
-              <LuxMenuItem icon={<BookOpen />} onSelect={() => setLocation('/how-to')}>How to use</LuxMenuItem>
-              <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display & layout</LuxMenuItem>
+              <LuxMenuItem icon={<BookOpen />} onSelect={() => setLocation('/how-to')}>Guide</LuxMenuItem>
+              <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display and layout</LuxMenuItem>
               <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Settings</LuxMenuItem>
               {user && (
                 <>

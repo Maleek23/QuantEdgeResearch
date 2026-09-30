@@ -27,6 +27,7 @@
  * pages/journal/trade-view.tsx) inside the same shell; Back returns to the page
  * it was opened from.
  */
+import { reasonOf } from '@/lib/optimistic';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Upload } from 'lucide-react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
@@ -93,7 +94,7 @@ export default function JournalShell() {
   const sourcesQ = useJournalSources();
   const data = useJournalData(filters.resolved, journalKey);
   const source = sourcesQ.data?.sources.find((x) => x.key === journalKey);
-  const bookLabel = data.meta?.label ?? source?.label ?? (journalKey === 'mine' ? 'Mine' : journalKey);
+  const bookLabel = data.meta?.label ?? source?.label ?? (journalKey === 'mine' ? 'My journal' : journalKey);
   const canWrite = data.meta?.canWrite ?? source?.canWrite ?? false;
 
   const [drawer, setDrawer] = useState<{ id: string; order: string[] } | null>(null);
@@ -179,10 +180,10 @@ export default function JournalShell() {
   } else if (tradesQ.isError && view !== 'settings') {
     body = (
       <QEError
-        title={journalKey === 'mine' ? "Couldn't load your journal" : `Couldn't load the ${bookLabel} journal`}
+        title={journalKey === 'mine' ? "Your journal didn't load" : `The ${bookLabel} journal didn't load`}
         message={journalKey === 'mine'
-          ? "The journal service didn't respond. Your trades are safe — this is a connection failure, not an empty journal."
-          : `The ${bookLabel} journal request failed (${tradesQ.error instanceof Error ? tradesQ.error.message : 'no response'}). This is a failure, not an empty book.`}
+          ? "The journal service didn't respond. Your trades are safe — this is a connection failure, not an empty journal. Retry in a minute."
+          : `${reasonOf(tradesQ.error)} This is a failure, not an empty book.`}
         onRetry={() => tradesQ.refetch()}
         retrying={tradesQ.isFetching}
       />
@@ -207,7 +208,7 @@ export default function JournalShell() {
         }
         action={canWrite ? (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button type="button" className="jr-btn jr-btn-primary" onClick={() => goTo('import')}><Upload className="h-4 w-4" /> Import</button>
+            <button type="button" className="jr-btn jr-btn-primary" onClick={() => goTo('import')}><Upload className="h-4 w-4" /> Import trades</button>
             <button type="button" className="jr-btn" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Log a trade</button>
           </div>
         ) : undefined}
@@ -268,7 +269,7 @@ export default function JournalShell() {
             </div>
             {personal && canWrite && (
               <div className="jr-head-actions">
-                {view !== 'import' && <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('import')}><Upload className="h-4 w-4" /> Import</button>}
+                {view !== 'import' && <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('import')}><Upload className="h-4 w-4" /> Import trades</button>}
                 <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => setEditor({ open: true, row: null })}><Plus className="h-4 w-4" /> Add trade</button>
               </div>
             )}

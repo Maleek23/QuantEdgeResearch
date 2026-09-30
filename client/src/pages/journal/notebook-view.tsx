@@ -278,7 +278,7 @@ function NewNote() {
     }
   };
   return (
-    <Card num="01" title="New note">
+    <Card num="01" title="New Note">
       <form style={{ display: 'flex', flexDirection: 'column', gap: 8 }} onSubmit={(e) => { e.preventDefault(); if (body.trim()) submit(); }}>
         <div className="jr-field">
           <label htmlFor="jr-nb-body">Note</label>

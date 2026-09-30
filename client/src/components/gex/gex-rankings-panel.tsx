@@ -157,7 +157,7 @@ export function GexRankingsPanel({ onPick }: { onPick: (symbol: string) => void 
         <span><i style={{ background: 'var(--red)' }} />−GEX takes liquidity</span>
         <span><i style={{ background: 'var(--green)' }} />+VEX provides liquidity</span>
         <span><i style={{ background: 'var(--red)' }} />⚠ −VEX takes liquidity (vol-up selling)</span>
-        <span><i style={{ background: 'var(--amber)' }} />regime neutral / near the flip</span>
+        <span><i style={{ background: 'var(--amber)' }} />regime neutral / near zero-γ</span>
         <span>tint strength = magnitude in this view</span>
       </div>
 
@@ -173,7 +173,7 @@ export function GexRankingsPanel({ onPick }: { onPick: (symbol: string) => void 
       {isLoading ? (
         <div className="gexrank-empty">reading the rankings…</div>
       ) : isError && !data ? (
-        <div className="gexrank-empty">rankings unavailable · <button onClick={() => refetch()}>retry</button></div>
+        <div className="gexrank-empty">rankings unavailable · <button onClick={() => refetch()}>Retry</button></div>
       ) : view === 'setups' ? (
         !setups.length ? <div className="gexrank-empty">{emptyNote}</div> : (
           <div className="gexsetups">
@@ -253,7 +253,7 @@ export function GexRankingsPanel({ onPick }: { onPick: (symbol: string) => void 
                       {r.topStrikeVolOI != null ? `${r.topStrikeVolOI.toFixed(1)}×` : '—'}
                     </td>
                     <td style={{ fontFamily: mono, fontSize: 'var(--fs-10, 10px)', color: regimeColor(r.regime, r.nearFlip) }} title={words.posture}>
-                      {words.glyph} {words.title.replace(' gamma', '')}{r.nearFlip ? ' · near flip' : ''}
+                      {words.glyph} {words.title.replace(' gamma', '')}{r.nearFlip ? ' · near zero-γ' : ''}
                     </td>
                     <td className="num" style={{ color: r.stale ? 'var(--amber)' : 'var(--text-mute)' }} title={`fetched ${new Date(r.fetchedAt).toLocaleString()}${r.quoteTime ? ` · provider stamp ${new Date(r.quoteTime).toLocaleTimeString()}` : ''}${r.openInterestDate ? ` · OI as of ${r.openInterestDate}` : ''}`}>
                       {fmtAge(r.ageSec)}{r.stale ? ' stale' : ''}

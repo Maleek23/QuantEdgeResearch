@@ -83,7 +83,7 @@ class ToolBoundary extends Component<{ title: string; children: ReactNode }, { e
   componentDidCatch(err: Error, info: ErrorInfo) { console.warn('[dashboard] tool crashed', err, info.componentStack); }
   render() {
     if (this.state.err) {
-      return <QEError className="fd-m" title={`${this.props.title} crashed while rendering`} message={this.state.err.message} onRetry={() => this.setState({ err: null })} />;
+      return <QEError className="fd-m" title={`${this.props.title} hit an error`} message={`${this.state.err.message || 'It failed while drawing.'} Retry, or remove the tool and add it back.`} onRetry={() => this.setState({ err: null })} />;
     }
     return this.props.children;
   }
@@ -174,7 +174,7 @@ function ToolBody({ tool }: { tool: PlacedTool }) {
   return (
     <div ref={ref} className={cn('fd-live', cue.up && 'more-up', cue.down && 'more-down')}>
       {cue.down && (
-        <button type="button" className="fd-cue" onClick={() => cue.scroll(1)} aria-label={`Scroll ${def.title} down`} title="More below — scroll this tool">
+        <button type="button" className="fd-cue" onClick={() => cue.scroll(1)} aria-label={`Scroll ${def.title} down`} title="More below — scroll down">
           ↓ more
         </button>
       )}
@@ -189,7 +189,7 @@ function ToolBody({ tool }: { tool: PlacedTool }) {
       ) : live === 'idle' ? (
         <ToolSkeleton label="loads when scrolled into view" />
       ) : (
-        <div className="fd-idle" role="status">Paused while off-screen — no polling. Resumes when visible.</div>
+        <div className="fd-idle" role="status">Paused while off-screen. Resumes when you scroll back.</div>
       )}
     </div>
   );
@@ -401,7 +401,7 @@ function FocusBox() {
   const pick = (s: string) => { if (s.trim()) setFocus(s.trim()); setQ(''); setOpen(false); };
   return (
     <div className="fd-menu-wrap" ref={ref}>
-      <button type="button" className="fd-btn fd-focus" onClick={() => setOpen((o) => !o)} aria-expanded={open} title="The ticker every ticker-scoped tool on this page follows. Clicking a row in any tool changes it too.">
+      <button type="button" className="fd-btn fd-focus" onClick={() => setOpen((o) => !o)} aria-expanded={open} title="Ticker that every ticker tool here follows">
         <Crosshair size={13} /> <b>{focus}</b> <ChevronDown size={12} />
       </button>
       {open && (
@@ -885,16 +885,16 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
             <AddToolMenu spec={spec} onAdd={addTool} present={present} />
             {!isMobile && <button type="button" className="fd-btn" disabled={!tools.length}
               onClick={() => api.updateActive((ts) => autoArrange(ts, (t) => TOOL_BY_ID.get(t)?.minSize.h ?? 3, (t) => TOOL_BY_ID.get(t)?.minSize.w ?? 2))}
-              title="Pack tools row by row in reading order: no gaps, equal heights per row, sized to fill the screen when the tools' minimum heights allow">
+              title="Pack tools into rows with no gaps">
               <LayoutGrid size={13} /> Auto-arrange
             </button>}
             <button type="button" className="fd-btn" disabled={!spec.defaults.length || !!api.active?.pristine}
               onClick={restore}
-              title="Put this dashboard back to the page's shipped default layout">
-              <RotateCcw size={13} /> Restore default
+              title="Reset this dashboard to the default layout">
+              <RotateCcw size={13} /> Restore default layout
             </button>
             <button type="button" className="fd-btn" disabled={!tools.length} onClick={clear}>
-              <Eraser size={13} /> Clear
+              <Eraser size={13} /> Clear all tools
             </button>
             <SaveBadge api={api} />
           </div>
@@ -907,13 +907,13 @@ function GridDashboard({ page, chrome }: { page: PageId; chrome?: number }) {
               <PageSkeleton fill bar={false} tiles={skeletonTiles(page)} label="loading your dashboards…" />
             ) : !tools.length ? (
               <div className="fd-empty">
-                <p>This dashboard has no tools.</p>
+                <p>This dashboard has no tools yet.</p>
                 <p className="dim">Add a tool from the {spec.label} catalogue{spec.defaults.length ? ', or restore the default layout' : ''}.</p>
                 <div className="fd-empty-actions">
                   {spec.starters.filter((s) => { const d = TOOL_BY_ID.get(s); return !!d && inCatalog(spec, d); }).map((s, n) => (
                     <button key={s} type="button" className={cn('fd-btn', n === 0 && 'primary')} onClick={() => addTool(s)}><Plus size={13} /> {TOOL_BY_ID.get(s)!.title}</button>
                   ))}
-                  {!!spec.defaults.length && <button type="button" className="fd-btn" onClick={() => void api.restoreDefault()}><RotateCcw size={13} /> Restore default</button>}
+                  {!!spec.defaults.length && <button type="button" className="fd-btn" onClick={() => void api.restoreDefault()}><RotateCcw size={13} /> Restore default layout</button>}
                 </div>
               </div>
             ) : isMobile ? (

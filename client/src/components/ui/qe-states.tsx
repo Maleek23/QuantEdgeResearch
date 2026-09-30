@@ -27,6 +27,7 @@ import type { ReactNode } from "react";
 import { AlertTriangle, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ToolSkeleton } from "@/components/ui/qe-loading";
+import { fmtAgo } from "@/lib/format";
 
 const T = {
   panel: "var(--panel-solid, #0e1117)",
@@ -97,7 +98,7 @@ export function QEError({
         {/* sizes via tokens so phones can raise them (index.css touch & readability floor) */}
         <div style={{ fontSize: "var(--qe-state-title, 13px)", fontWeight: 700, color: T.text }}>{title}</div>
         <div style={{ fontSize: "var(--qe-state-msg, var(--fs-10-5, 12.5px))", color: T.dim, marginTop: 4, lineHeight: 1.5 }}>
-          {message ?? "This is a connection failure, not an empty result — what's shown may be missing."}
+          {message ?? "The request failed — this isn't an empty result, so something may be missing. Retry, or check back in a minute."}
         </div>
         {onRetry && (
           <button
@@ -117,7 +118,7 @@ export function QEError({
             data-testid="qe-error-retry"
           >
             <RotateCw className={cn("w-3.5 h-3.5", retrying && "animate-spin")} aria-hidden />
-            {retrying ? "Retrying…" : "Try again"}
+            {retrying ? "Retrying…" : "Retry"}
           </button>
         )}
       </div>
@@ -158,14 +159,13 @@ export function QEEmpty({
 
 function staleAge(ms: number | undefined, now: number): string | null {
   if (!ms || !Number.isFinite(ms)) return null;
-  const s = Math.max(0, Math.round((now - ms) / 1000));
-  return s < 90 ? `${s}s old` : s < 5400 ? `${Math.round(s / 60)}m old` : `${(s / 3600).toFixed(1)}h old`;
+  return fmtAgo(ms, now);
 }
 
 /**
  * QEStale — a background refetch FAILED but the last good data is still valid
  * to look at: keep the table on screen and say so in one small chip
- * ("refresh failed · showing 45s old · Retry") instead of replacing good rows
+ * ("Couldn’t refresh · showing data from 45s ago · Retry") instead of replacing good rows
  * with QEError. Use QEError only when there is NO data (`isError && !data`).
  * `updatedAt` = the query's dataUpdatedAt (ms).
  */
@@ -176,7 +176,7 @@ export function QEStale({
   retrying = false,
   className,
 }: {
-  /** What failed, e.g. "Flow tape refresh". */
+  /** What couldn't happen, as a verb phrase: "refresh", "refresh the flow tape". */
   what?: string;
   updatedAt?: number;
   onRetry?: () => void;
@@ -200,7 +200,7 @@ export function QEStale({
     >
       <AlertTriangle className="h-3.5 w-3.5 shrink-0" style={{ color: T.amber }} aria-hidden />
       <span className="min-w-0 truncate">
-        {what} failed{age ? ` · showing ${age}` : " · showing the last good read"}
+        Couldn’t {what}{age ? ` · showing data from ${age}` : ' · showing the last good data'}
       </span>
       {onRetry && (
         <button

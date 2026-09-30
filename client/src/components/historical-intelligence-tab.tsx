@@ -256,15 +256,15 @@ export default function HistoricalIntelligenceTab() {
     },
     onSuccess: (data: any) => {
       toast({
-        title: "Intelligence Refreshed",
+        title: "Symbol history refreshed",
         description: `Updated ${data.profilesUpdated} symbol profiles`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/historical-intelligence'] });
     },
     onError: () => {
       toast({
-        title: "Refresh Failed",
-        description: "Could not refresh historical intelligence",
+        title: "Couldn’t refresh symbol history",
+        description: "Try again in a minute.",
         variant: "destructive",
       });
     },

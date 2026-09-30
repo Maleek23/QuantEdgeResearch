@@ -288,7 +288,7 @@ export function OptionsFlowTool() {
           {CHIPS.map((c) => (
             <button key={c.id} type="button" className={cn('of-chip', chips.has(c.id) && 'on')} aria-pressed={chips.has(c.id)} title={c.why} onClick={() => toggleChip(c.id)}>{c.label}</button>
           ))}
-          {chips.size > 0 && <button type="button" className="of-chip clear" onClick={() => setChips(new Set())}>Clear {chips.size}</button>}
+          {chips.size > 0 && <button type="button" className="of-chip clear" onClick={() => setChips(new Set())}>Clear filters ({chips.size})</button>}
           <span className="of-info" title={`${HIDDEN_CHIPS}\n\nChips in the same family (ETFs/Stocks, Calls/Puts) combine with OR; everything else with AND.`}><Info size={12} aria-label="Why some filters are missing" /></span>
         </div>
       </div>
@@ -296,7 +296,7 @@ export function OptionsFlowTool() {
       {!hasTool('stock-chart') && editable && (
         <div className="of-hint qp-desk-only">
           Focus: <b>{focus}</b> — row clicks re-point the terminal's ticker.
-          <button type="button" onClick={() => addTool('stock-chart')}>Add Stock Chart</button> to see it with flow markers.
+          <button type="button" onClick={() => addTool('stock-chart')}>Add stock chart</button> to see it with flow markers.
         </div>
       )}
 
@@ -304,11 +304,11 @@ export function OptionsFlowTool() {
       {tape.isLoading ? (
         <QELoading rows={6} className="fd-pad" label="reading the tape…" />
       ) : tape.isError && !tape.data ? (
-        <QEError className="fd-m" title="Flow tape API didn't respond" onRetry={() => tape.refetch()} retrying={tape.isFetching} />
+        <QEError className="fd-m" title="The flow tape didn't load" onRetry={() => tape.refetch()} retrying={tape.isFetching} />
       ) : (
         <>
           {/* A failed BACKGROUND refresh keeps the last good tape on screen, stamped with its age. */}
-          {tape.isError && <div className="of-stale"><QEStale what="Flow tape refresh" updatedAt={tape.dataUpdatedAt} onRetry={() => tape.refetch()} retrying={tape.isFetching} /></div>}
+          {tape.isError && <div className="of-stale"><QEStale what="refresh the flow tape" updatedAt={tape.dataUpdatedAt} onRetry={() => tape.refetch()} retrying={tape.isFetching} /></div>}
           {cs && !cs.ok && (
             <div className="of-warn" role="alert">Chain-scan read failed — only Bullflow alerts are shown. This is a missing source, not a quiet tape.</div>
           )}

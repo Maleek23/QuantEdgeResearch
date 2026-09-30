@@ -177,7 +177,7 @@ export function SignalAttributionDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/signal-attribution'] });
     },
     onError: () => {
-      toast({ title: "Recalculation failed", description: "Could not update signal analytics", variant: "destructive" });
+      toast({ title: "Couldn’t recalculate attribution", description: "Could not update signal analytics", variant: "destructive" });
     }
   });
 

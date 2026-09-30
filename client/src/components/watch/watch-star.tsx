@@ -33,7 +33,7 @@ export function WatchStar({ sym, size = 13, className, label }: {
       className={cn('qe-star', on && 'on', label && 'with-label', className)}
       aria-pressed={on}
       aria-label={watchLabel(sym, on)}
-      title={wl.signedIn ? watchLabel(sym, on) : `Sign in to watch ${sym.toUpperCase()}`}
+      title={wl.signedIn ? watchLabel(sym, on) : `Sign in to add ${sym.toUpperCase()} to your watchlist`}
       disabled={busy}
       onClick={act}
       onPointerDown={(e) => e.stopPropagation()}
@@ -41,7 +41,7 @@ export function WatchStar({ sym, size = 13, className, label }: {
       data-testid={`watch-star-${sym.toUpperCase()}`}
     >
       <Star size={size} aria-hidden fill={on ? 'currentColor' : 'none'} />
-      {label && <span>{on ? 'Watching' : 'Watch'}</span>}
+      {label && <span>{on ? 'On watchlist' : 'Add to watchlist'}</span>}
     </button>
   );
 }

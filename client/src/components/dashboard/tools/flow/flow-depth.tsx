@@ -594,7 +594,7 @@ export function UnusualActivityTool() {
   );
   const gate = tapeGate(q, 'flow tape');
   if (gate) return <div className="fx-root">{controls}{gate}</div>;
-  if (q.data && !q.data.sources.chainScan.ok) return <div className="fx-root">{controls}<QEError className="fd-m" title="Chain-scan read failed" message="Open interest only comes from our chain scan, so unusual activity can't be measured right now. This is a missing source, not a quiet tape." onRetry={() => q.refetch()} retrying={q.isFetching} /></div>;
+  if (q.data && !q.data.sources.chainScan.ok) return <div className="fx-root">{controls}<QEError className="fd-m" title="The chain scan didn't load" message="Open interest only comes from our chain scan, so unusual activity can't be measured right now. This is a missing source, not a quiet tape." onRetry={() => q.refetch()} retrying={q.isFetching} /></div>;
   return (
     <div className="fx-root">
       {controls}
@@ -833,12 +833,12 @@ export function TopTickersTool() {
     if (pq.isError && !pq.data) return <div className="fx-root">{controls}<QEError className="fd-m" title="Top tickers didn't load" onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>;
     if (!pq.data?.enabled) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message="Bullflow is not configured on this server, so provider net-premium leaders are not available." action={<button type="button" className="fd-btn" onClick={() => setMode('tape')}>Rank from our tape</button>} /></div>;
     const rows = pq.data.rows ?? [];
-    if (!rows.length) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message="Provider returned no leaders for today yet." action={<button type="button" className="fd-btn" onClick={() => setMode('tape')}>Rank from our tape</button>} /></div>;
+    if (!rows.length) return <div className="fx-root">{controls}<QEEmpty className="fd-m" message="No net-premium leaders yet today — they appear after the first prints." action={<button type="button" className="fd-btn" onClick={() => setMode('tape')}>Rank from our tape</button>} /></div>;
     const max = Math.max(...rows.map((r) => Math.abs(r.totalNetPremium ?? 0)), 1);
     return (
       <div className="fx-root">
         {controls}
-        {pq.isError && <div className="fd-stale"><QEStale what="Leaders refresh" updatedAt={pq.dataUpdatedAt} onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>}
+        {pq.isError && <div className="fd-stale"><QEStale what="refresh leaders" updatedAt={pq.dataUpdatedAt} onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>}
         <div className="fx-scroll">
           <table className="fd-mini">
             <thead><tr><th>Ticker</th><th className="r" title="Ask-side minus bid-side premium (provider)">Net</th><th className="r">Call $</th><th className="r">Put $</th></tr></thead>
@@ -938,7 +938,7 @@ export function DarkPoolTool() {
   return (
     <div className="fx-root">
       {controls}
-      {pq.isError && <div className="fd-stale"><QEStale what="Dark-pool refresh" updatedAt={pq.dataUpdatedAt} onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>}
+      {pq.isError && <div className="fd-stale"><QEStale what="refresh dark pool" updatedAt={pq.dataUpdatedAt} onRetry={() => pq.refetch()} retrying={pq.isFetching} /></div>}
       <div className="fx-scroll">
         <table className="fd-mini">
           <thead><tr><th>Time ET</th><th className="r">Price</th><th className="r">Notional</th><th className="r">Shares</th><th className="r" title="Share of today's volume">% day vol</th></tr></thead>
@@ -1047,8 +1047,8 @@ export function FlowGexConvergenceTool() {
   const levels = ([
     ['Call wall', snap.callWall, LEVEL_COLORS.callWall],
     ['Put wall', snap.putWall, LEVEL_COLORS.putWall],
-    ['Magnet · max γ', snap.maxGammaStrike, LEVEL_COLORS.magnet],
-    ['Flip · zero-γ', zg, LEVEL_COLORS.zeroGamma],
+    ['King node · max γ', snap.maxGammaStrike, LEVEL_COLORS.magnet],
+    ['Zero-γ', zg, LEVEL_COLORS.zeroGamma],
   ] as Array<[string, number | null | undefined, string]>).filter(([, v]) => v != null && Number.isFinite(v)) as Array<[string, number, string]>;
   const tot = t.rows.reduce((s, r) => s + r.premium, 0);
   const topStrikes = [...agg.entries()].sort((a, b) => b[1].call + b[1].put - (a[1].call + a[1].put)).slice(0, 6);
@@ -1098,7 +1098,7 @@ export function FlowGexConvergenceTool() {
           </table>
         )}
       </div>
-      <div className="fd-foot">Where traded premium sits relative to the GEX engine's walls, magnet and flip (read from the GEX page's own query, not recomputed). Co-location, not a direction call: neither flow feed measures bought vs sold. Dealer γ: + blue dampens, − vermilion amplifies.</div>
+      <div className="fd-foot">Where traded premium sits relative to the GEX engine's walls, king node and zero-γ (read from the GEX page's own query, not recomputed). Co-location, not a direction call: neither flow feed measures bought vs sold. Dealer γ: + blue dampens, − vermilion amplifies.</div>
     </div>
   );
 }

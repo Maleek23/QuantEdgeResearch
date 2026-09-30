@@ -163,9 +163,9 @@ function TradeBody({ rowId }: { rowId: string }) {
         </p>
       </Card>
 
-      <Card className="jr-span-4" num="02" title="Market around the trade" meta={mw ? <N n={mw.barsInTrade} unit={`${TF_CONFIG[tf]?.label ?? tf} bars held`} /> : undefined}>
+      <Card className="jr-span-4" num="02" title="Market Around the Trade" meta={mw ? <N n={mw.barsInTrade} unit={`${TF_CONFIG[tf]?.label ?? tf} bars held`} /> : undefined}>
         {candles.isLoading ? <p className="jr-note">Loading bars…</p> : candles.isError || !mw ? (
-          <QEError title="No price history" message={`The price feed had no ${TF_CONFIG[tf]?.label ?? tf} bars for ${row.symbol} covering this trade — market context is unavailable, not zero.`} />
+          <QEError title="No price history for this trade" message={`The price feed had no ${TF_CONFIG[tf]?.label ?? tf} bars for ${row.symbol} covering this trade — market context is unavailable, not zero.`} />
         ) : mw.barsInTrade === 0 ? (
           <p className="jr-note">The feed's bars don't cover this trade's entry time.</p>
         ) : (
@@ -259,7 +259,7 @@ function ReviewCard({ row, draft, setDraft, att, setAtt, dirty, pbRules, setup, 
 
   return (
     <>
-      <Card className="jr-span-6" num="03" title="Rating & rule checklist"
+      <Card className="jr-span-6" num="03" title="Rating & Rule Checklist"
         meta={pbRules ? <span className="jr-n">{assessed.length}/{rules.length} assessed{assessed.length ? ` · ${Math.round((followed / assessed.length) * 100)}% followed` : ''}</span> : undefined}>
         <StarRating value={row.rating ?? null} disabled={!canWrite || saveTrade.isPending}
           onChange={async (v) => {
@@ -333,12 +333,12 @@ function ReviewCard({ row, draft, setDraft, att, setAtt, dirty, pbRules, setup, 
               <option value="none">not on chart</option>
             </select>
             <input className="jr-input" style={{ maxWidth: 110 }} inputMode="decimal" aria-label="Price (optional)" placeholder="price" value={ann.price} onChange={(e) => setAnn({ ...ann, price: e.target.value })} />
-            <button type="submit" className="jr-btn jr-btn-sm" disabled={!ann.text.trim()}><Plus className="h-3.5 w-3.5" /> Add</button>
+            <button type="submit" className="jr-btn jr-btn-sm" disabled={!ann.text.trim()}><Plus className="h-3.5 w-3.5" /> Add note</button>
           </form>
         )}
       </Card>
 
-      <Card className="jr-span-12" num="05" title="Notes & attachments">
+      <Card className="jr-span-12" num="05" title="Notes & Attachments">
         {row.notes && (
           <div className="jr-field" style={{ marginBottom: 10 }}>
             <span className="l">Trade notes {row.broker !== 'manual' ? `(from ${row.broker})` : ''}</span>

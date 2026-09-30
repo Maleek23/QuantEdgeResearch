@@ -19,6 +19,7 @@
  * Deep views on the same URL: ?tab=gex (GEX surface), ?tab=analyze
  * (Contract lab). Empty states are one line — never a "No signal" card.
  */
+import { fmtUsd } from '@/lib/format';
 import { toggleWatch, useWatchlist, watchLabel } from '@/hooks/use-watchlist';
 import { failToast, undoToast } from '@/lib/undo-toast';
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -122,7 +123,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
 
   const armAlert = async () => {
     const px = Number(alertPx);
-    if (!Number.isFinite(px) || px <= 0) { setAlertState('fail'); failToast('Alert not armed', new Error('Enter a price above 0.')); return; }
+    if (!Number.isFinite(px) || px <= 0) { setAlertState('fail'); failToast(`Couldn't arm the ${sym} alert`, new Error('Enter a price above 0.')); return; }
     setAlertState('armed'); // optimistic: the chip reads "armed" at once, rolled back below on failure
     setAlertOpen(false);
     try {
@@ -130,7 +131,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
       const body = await r.json().catch(() => ({}));
       const id: string | undefined = body?.alert?.id;
       undoToast({
-        title: `Alert armed · ${sym} through $${px}`,
+        title: `Alert armed · ${sym} through ${fmtUsd(px)}`,
         onUndo: async () => {
           if (!id) return;
           setAlertState('idle');
@@ -219,7 +220,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
   const levels: Level[] = useMemo(() => {
     const rows: Level[] = [];
     if (snap?.putWall != null) rows.push({ price: snap.putWall, color: 'put', label: 'PUT WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
-    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: 'caution', label: 'ZERO Γ', kind: 'gex-anchor', strength: 0.7, meta: 'Γ flip' });
+    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: 'caution', label: 'ZERO-γ', kind: 'gex-anchor', strength: 0.7, meta: 'zero-γ' });
     if (snap?.callWall != null) rows.push({ price: snap.callWall, color: 'call', label: 'CALL WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
     if (pick && pick.levelBasis !== 'contract') {
       if (pick.targetPrice != null) rows.push({ price: pick.targetPrice, color: '#6ee7b7', label: 'T1', kind: 'execution' });
@@ -241,16 +242,16 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
         </div>
         <div className="tk-actions">
           {backTo && <LuxButton variant="ghost" onClick={backTo.onClick}><ArrowLeft aria-hidden /> {backTo.label}</LuxButton>}
-          <LuxButton onClick={() => void toggleWatch(sym)} aria-pressed={watched} aria-label={watchLabel(sym, watched)} disabled={wl.isBusy(sym)}><Star aria-hidden fill={watched ? 'currentColor' : 'none'} /> {watched ? 'Watching' : 'Watch'}</LuxButton>
+          <LuxButton onClick={() => void toggleWatch(sym)} aria-pressed={watched} aria-label={watchLabel(sym, watched)} disabled={wl.isBusy(sym)}><Star aria-hidden fill={watched ? 'currentColor' : 'none'} /> {watched ? 'On watchlist' : 'Add to watchlist'}</LuxButton>
           {alertOpen ? (
             <span className="tk-alert-edit">
               <input autoFocus inputMode="decimal" aria-label="Alert price" value={alertPx} onChange={(e) => setAlertPx(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Escape') setAlertOpen(false); if (e.key === 'Enter') void armAlert(); }} placeholder="level $" />
-              <LuxButton onClick={() => void armAlert()}>Arm</LuxButton>
+                onKeyDown={(e) => { if (e.key === 'Escape') setAlertOpen(false); if (e.key === 'Enter') void armAlert(); }} placeholder="price $" />
+              <LuxButton onClick={() => void armAlert()}>Arm alert</LuxButton>
             </span>
           ) : (
             <LuxButton onClick={() => { setAlertPx(price != null ? price.toFixed(2) : ''); setAlertOpen(true); }} title="Alert once when price crosses a level (relayed to Discord)">
-              <Bell aria-hidden /> {alertState === 'armed' ? 'Alert armed' : alertState === 'fail' ? 'Alert failed' : 'Alert'}
+              <Bell aria-hidden /> {alertState === 'armed' ? 'Alert armed' : alertState === 'fail' ? 'Alert not armed' : 'Set alert'}
             </LuxButton>
           )}
           <LuxButton variant="primary" onClick={runEngine} disabled={engine === 'running'} title="Quantinum runs the publisher's own engine — every detector, every gate — on this name now. A qualifying setup publishes to NEXUS.">
@@ -269,7 +270,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
             <FreshStamp className="qp-phone-only" asOf={q.asOf} warn={!!q.delayed} />
           </>
         ) : d.quote.isError ? (
-          <span className="tk-src">Quote unavailable — every provider in the realtime chain failed for {sym}.</span>
+          <span className="tk-src">No quote for {sym} — every price provider failed. Retry in a minute.</span>
         ) : (
           <span className="tk-src">Loading quote…</span>
         )}
@@ -286,7 +287,7 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
               : <span> — no engine carries a directional read on {sym} right now.</span>}
           </>
         ) : d.qtm.isError ? (
-          <span>Quantinum read unavailable. <button className="tk-link" onClick={() => void d.qtm.refetch()}>Retry</button></span>
+          <span>The Quantinum read didn't load. <button className="tk-link" onClick={() => void d.qtm.refetch()}>Retry</button></span>
         ) : (
           <span>Quantinum is reading every engine on {sym}…</span>
         )}
@@ -350,8 +351,8 @@ export function TickerPage({ symbol, view, onView, onSymbol, backTo, initialSect
         <div className="tk-stats tk-stats-dealer">
           <Stat k="Call wall" v={fmtPx(snap?.callWall)} tone="gain" sub={snap?.callWall && price ? fmtPct(((snap.callWall - price) / price) * 100, 1) + ' away' : undefined} />
           <Stat k="Put wall" v={fmtPx(snap?.putWall)} tone="loss" sub={snap?.putWall && price ? fmtPct(((snap.putWall - price) / price) * 100, 1) + ' away' : undefined} />
-          <Stat k="Zero γ" v={snap?.gammaFlipPrice != null ? fmtPx(snap.gammaFlipPrice) : snap ? 'none near' : '—'} tone="caution"
-            sub={snap?.gammaFlipPrice != null && price ? (price >= snap.gammaFlipPrice ? 'price above flip' : 'price below flip') : snap ? 'net γ keeps one sign ±20%' : undefined} />
+          <Stat k="Zero-γ" v={snap?.gammaFlipPrice != null ? fmtPx(snap.gammaFlipPrice) : snap ? 'none near' : '—'} tone="caution"
+            sub={snap?.gammaFlipPrice != null && price ? (price >= snap.gammaFlipPrice ? 'price above zero-γ' : 'price below zero-γ') : snap ? 'net γ keeps one sign ±20%' : undefined} />
           <Stat k="Regime" v={regimeLabel ?? '—'} sub={snap?.regime === 'positive_gamma' ? 'dealers damp moves' : snap?.regime === 'negative_gamma' ? 'dealers amplify moves' : undefined} tone={snap?.regime === 'negative_gamma' ? 'caution' : undefined} />
           <Stat k="Week move 1σ" v={em != null ? `±${fmtPx(em)}` : d.week.isLoading ? '…' : '—'}
             sub={em != null && emSpot ? `${emPct != null ? `±${emPct.toFixed(1)}% · ` : ''}${fmtPx(emSpot - em)}–${fmtPx(emSpot + em)}` : 'no vol series'}
@@ -565,7 +566,7 @@ function EvidenceSection({ qtm, loading, pickLayers }: {
 }) {
   const layers = qtm?.layers ?? [];
   return (
-    <Section id="evidence" title="Quantinum evidence">
+    <Section id="evidence" title="Quantinum Evidence">
       {!qtm ? (
         <Empty>{loading ? 'Quantinum is reading every engine…' : 'Quantinum read unavailable.'}</Empty>
       ) : (
@@ -660,7 +661,7 @@ function PeersSection({ sym, quote }: { sym: string; quote: Quote | undefined })
     : `diverging from its group (peer median ${fmtPct(median)})`;
 
   return (
-    <Section id="peers" title="Peers & sector" meta={label ? <LuxTag tone="mute">{label}</LuxTag> : undefined}>
+    <Section id="peers" title="Peers & Sector" meta={label ? <LuxTag tone="mute">{label}</LuxTag> : undefined}>
       {peers.length === 0 ? (
         <Empty>{bucket.isLoading ? 'Resolving peers…' : `${sym} is not in a mapped peer group or scan-universe bucket.`}</Empty>
       ) : (
@@ -700,7 +701,7 @@ function NewsSection({ sym, earn, readThroughs }: { sym: string; earn: import('.
   const macro = INDEX_ETFS.has(sym) ? (econ.data?.upcoming ?? []).slice(0, 4) : [];
 
   return (
-    <Section id="news" title="News & events">
+    <Section id="news" title="News & Events">
       <ul className="tk-events">
         <li>
           <b>Earnings</b>{' '}

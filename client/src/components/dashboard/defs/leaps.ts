@@ -17,13 +17,13 @@ export const LEAPS_TOOLS: ToolDef[] = [
     defaultSize: { w: 8, h: 16 }, minSize: { w: 4, h: 7 }, Component: lazyTool(leaps, 'LeapsListTool'),
   },
   {
-    id: 'leaps-summary', category: 'Ideas', title: 'LEAPS summary',
+    id: 'leaps-summary', category: 'Ideas', title: 'LEAPS Summary',
     what: 'Liquid-of-scanned count, S-grade names, average score and average DTE, with the session, staleness and SPY move the scan ran against.',
     units: 'count, score 0–100, days', source: 'LEAP tracker', backing: `LeapsNexus only="summary" ← ${FEED}`,
     defaultSize: { w: 4, h: 6 }, minSize: { w: 3, h: 4 }, Component: lazyTool(leaps, 'LeapsSummaryTool'),
   },
   {
-    id: 'leaps-grades', category: 'Ideas', title: 'LEAPS grade distribution',
+    id: 'leaps-grades', category: 'Ideas', title: 'LEAPS Grade Distribution',
     what: 'How many picks landed in each grade (S/A/B/C), how many the current min-grade filter shows, and the grading weights.',
     units: 'count, weight points', source: 'LEAP tracker', backing: `LeapsNexus only="grades" ← ${FEED}`,
     defaultSize: { w: 4, h: 10 }, minSize: { w: 3, h: 5 }, Component: lazyTool(leaps, 'LeapsGradesTool'),

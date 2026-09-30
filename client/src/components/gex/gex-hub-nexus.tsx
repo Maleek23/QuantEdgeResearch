@@ -246,7 +246,7 @@ export function GexHubNexus() {
           <div className="focus-card">
             <div className="focus-head">
               <div className="focus-label" title="Sector rotation — where money is moving out of → into this session">Money flow · {rotation?.sessionLabel ?? 'session'}</div>
-              <button className="focus-action" onClick={() => setLocation('/t?tab=flow')}>VIEW →</button>
+              <button className="focus-action" onClick={() => setLocation('/t?tab=flow')}>Open Flow →</button>
             </div>
             <div className="spot-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -346,7 +346,7 @@ export function GexHubNexus() {
               {hubError && !plays.length && (
                 <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 'var(--fs-10, 10px)', color: 'var(--text-mute)', padding: '8px 0', display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span>ranked scan unavailable</span>
-                  <button onClick={() => refetchHub()} style={{ color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--fs-10, 10px)', textDecoration: 'underline', padding: 0 }}>retry</button>
+                  <button onClick={() => refetchHub()} style={{ color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--fs-10, 10px)', textDecoration: 'underline', padding: 0 }}>Retry</button>
                 </div>
               )}
             </div>
@@ -518,7 +518,7 @@ export function GexHubNexus() {
               ) : termError && !matrix.length ? (
                 <div style={{ display: 'grid', placeItems: 'center', height: 240, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: 'var(--text-mute)', gap: 8, alignContent: 'center' }}>
                   <span>couldn't read the surface</span>
-                  <button onClick={() => refetchTerm()} style={{ color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, textDecoration: 'underline', padding: 0 }}>retry</button>
+                  <button onClick={() => refetchTerm()} style={{ color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, textDecoration: 'underline', padding: 0 }}>Retry</button>
                 </div>
               ) : (
                 <GexStrikeMatrix
@@ -560,7 +560,7 @@ export function GexHubNexus() {
                 <div className="context-sub">{snap?.putWall && spot ? `${(((snap.putWall - spot) / spot) * 100).toFixed(1)}% · largest put γ below` : 'largest put γ below spot'}{snap?.putWallOI != null && snap.putWallOI !== snap.putWall ? ` · by OI $${snap.putWallOI}` : ''}</div>
               </div>
               <div className="context-item">
-                <div className="context-k" title="Zero-gamma level: spot where net dealer gamma crosses zero when every contract's gamma is re-priced across hypothetical spots (±20%). Not a target — the regime boundary.">Zero-gamma</div>
+                <div className="context-k" title="Zero-gamma level: spot where net dealer gamma crosses zero when every contract's gamma is re-priced across hypothetical spots (±20%). Not a target — the regime boundary.">Zero-γ</div>
                 <div className="context-v amber">{zeroGamma != null ? `$${zeroGamma.toFixed(2)}` : '—'}</div>
                 <div className="context-sub">{zeroGamma != null && spot ? `spot ${Math.abs((spot / zeroGamma - 1) * 100).toFixed(1)}% ${spot >= zeroGamma ? 'above' : 'below'}` : 'no crossing within ±20%'}</div>
               </div>

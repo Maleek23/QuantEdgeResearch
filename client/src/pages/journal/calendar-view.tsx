@@ -227,7 +227,7 @@ function CalendarInsightsCard({ days }: { days: DayStats[] }) {
   if (!ci.tradingDays) return null;
   const maxAbs = Math.max(1, ...ci.weekdays.map((w) => Math.abs(w.avg ?? 0)));
   return (
-    <Card num="03" title="Calendar insights" meta={<N n={ci.tradingDays} unit="trading days" />}>
+    <Card num="03" title="Calendar Insights" meta={<N n={ci.tradingDays} unit="trading days" />}>
       <div className="jr-grid" style={{ gap: 12 }}>
         <div className="jr-span-6">
           <div className="jr-stats">

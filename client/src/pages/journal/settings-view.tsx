@@ -23,7 +23,7 @@ export default function SettingsView() {
           <div className="jr-field">
             <label htmlFor="jr-set-book">Default book</label>
             <select id="jr-set-book" className="jr-select" value={prefs.defaultBook} onChange={(e) => setPrefs({ defaultBook: parseJournalKey(e.target.value) })}>
-              {(books.length ? books : [{ key: 'mine', label: 'Mine' }, { key: 'bot', label: 'Quantinum Bot' }, { key: 'desk', label: 'NEXUS ideas' }]).map((b) => (
+              {(books.length ? books : [{ key: 'mine', label: 'My journal' }, { key: 'bot', label: 'Quantinum Bot' }, { key: 'desk', label: 'NEXUS ideas' }]).map((b) => (
                 <option key={b.key} value={b.key}>{b.label}</option>
               ))}
             </select>
@@ -62,7 +62,7 @@ export default function SettingsView() {
         </div>
       </Card>
 
-      <Card className="jr-span-12" num="03" title="Where these are kept">
+      <Card className="jr-span-12" num="03" title="Where These Are Kept">
         <p className="jr-note" style={{ margin: 0 }}>
           On this device only (browser storage) — they don't follow you to another browser, and clearing site data resets them. Progress goals are kept
           the same way, per book. Nothing on this page changes a journal's trades or notes.

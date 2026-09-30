@@ -9,6 +9,7 @@
  * walls/max-γ/zero-γ rows), colours from gex-colors.ts (CVD-safe).
  * Ticker tools follow the dashboard focus symbol; a row click re-points it.
  */
+import { reasonOf } from '@/lib/optimistic';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SlidersHorizontal } from 'lucide-react';
@@ -84,7 +85,7 @@ function gate(g: ReturnType<typeof useGexFocus>, what = 'dealer map'): ReactNode
   if (g.q.isLoading) {
     return <QELoading rows={4} className="fd-pad" label={g.waited >= 15 ? `reading ${g.symbol} chain… ${g.waited}s — the options-data queue is busy; this gives up at ${TERMINAL_TIMEOUT_MS / 1000}s and offers a retry` : `reading ${g.symbol} chain…`} />;
   }
-  if (g.q.isError && !g.q.data) return <QEError className="fd-m" title={`${g.symbol} ${what} didn't load`} message={g.q.error instanceof Error ? g.q.error.message : undefined} onRetry={() => g.q.refetch()} retrying={g.q.isFetching} />;
+  if (g.q.isError && !g.q.data) return <QEError className="fd-m" title={`${g.symbol} ${what} didn't load`} message={reasonOf(g.q.error)} onRetry={() => g.q.refetch()} retrying={g.q.isFetching} />;
   if (!g.snap) return <QEEmpty className="fd-m" message={`No dealer positioning returned for ${g.symbol}.`} />;
   return null;
 }
@@ -150,7 +151,7 @@ export function GexPhoneSummary() {
   const lv: Array<[string, number | null | undefined, string, number]> = [
     ['Call', snap.callWall, LEVEL_COLORS.callWall, 0],
     ['Put', snap.putWall, LEVEL_COLORS.putWall, 0],
-    ['Max γ', snap.maxGammaStrike, LEVEL_COLORS.magnet, 0],
+    ['King node', snap.maxGammaStrike, LEVEL_COLORS.magnet, 0],
     ['Zero-γ', zg, LEVEL_COLORS.zeroGamma, 2],
   ];
   return (
@@ -406,12 +407,12 @@ export function GexKeyLevelsTool() {
           <div className="context-sub">{dist(snap.putWall)} · largest put γ below{snap.putWallOI != null && snap.putWallOI !== snap.putWall ? ` · by OI $${snap.putWallOI}` : ''}</div>
         </div>
         <div className="context-item">
-          <div className="context-k" title="Max gamma — strike with the largest |net GEX|, all listed expiries. Price is often pulled toward it (pin).">Magnet · max γ</div>
+          <div className="context-k" title="Max gamma — strike with the largest |net GEX|, all listed expiries. Price is often pulled toward it (pin).">King node · max γ</div>
           <div className="context-v" style={{ color: LEVEL_COLORS.magnet }}>{px(snap.maxGammaStrike, 0)}</div>
           <div className="context-sub">{dist(snap.maxGammaStrike)} · largest |GEX| strike</div>
         </div>
         <div className="context-item">
-          <div className="context-k" title="Zero-gamma: spot where net dealer gamma crosses zero when the chain is re-priced across hypothetical spots (±20%). The regime boundary, not a target.">Flip · zero-γ</div>
+          <div className="context-k" title="Zero-gamma: spot where net dealer gamma crosses zero when the chain is re-priced across hypothetical spots (±20%). The regime boundary, not a target.">Zero-γ</div>
           <div className="context-v amber">{zg != null ? px(zg) : '—'}</div>
           <div className="context-sub">{zg != null ? `spot ${Math.abs((spot / zg - 1) * 100).toFixed(1)}% ${spot >= zg ? 'above' : 'below'}` : 'no crossing within ±20%'}</div>
         </div>
@@ -576,7 +577,7 @@ export function GexRankingsTool() {
   });
   if (q.isLoading) return <QELoading rows={6} className="fd-pad" label="hub scan loading…" />;
   if (q.isError && !q.data) return <QEError className="fd-m" title="GEX hub scan didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
-  if (!plays.length) return <QEEmpty className="fd-m" message="The hub scan returned no ranked tickers yet." />;
+  if (!plays.length) return <QEEmpty className="fd-m" message="No ranked tickers yet — they appear after the next hub scan." />;
   const rows = mode === 'gex' ? plays : [...plays].sort((a, b) => Math.abs(b.totalVEX ?? 0) - Math.abs(a.totalVEX ?? 0));
   return (
     <div className="gx-tool gx-col">
@@ -636,7 +637,7 @@ export function MoneyFlowTool() {
   if (q.isLoading) return <QELoading rows={3} className="fd-pad" />;
   if (q.isError && !q.data) return <QEError className="fd-m" title="Sector rotation didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
   const out = (q.data?.laggards ?? []).slice(0, 4); const into = (q.data?.leaders ?? []).slice(0, 4);
-  if (!out.length && !into.length) return <QEEmpty className="fd-m" message="No sector rotation read for this session yet." />;
+  if (!out.length && !into.length) return <QEEmpty className="fd-m" message="No sector rotation read yet this session — check back after the open." />;
   return (
     <div className="fd-scroll fd-pad">
       <div className="flow-wrap" style={{ marginTop: 0 }}>

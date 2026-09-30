@@ -21,6 +21,7 @@
  *   └──────────────────────────────────────────────────────┘
  */
 
+import { fmtPct } from '@/lib/format';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
@@ -157,7 +158,7 @@ export default function PositionsHeatmapPage() {
             <div className="text-5xl mb-3">🎯</div>
             <div className="text-xl font-bold mb-2">No open positions</div>
             <div className="text-sm text-muted-foreground mb-4">
-              Go to Trade Desk or Discovery to start tracking positions.
+              Track an idea from NEXUS to start a position.
             </div>
             <Link href="/t">
               <button className="px-4 py-2 bg-[var(--brand-cyan)]/10 border border-[var(--brand-cyan)]/30 rounded text-[var(--brand-cyan)] hover:bg-[var(--brand-cyan)]/20">
@@ -195,7 +196,7 @@ export default function PositionsHeatmapPage() {
         <div className={`${componentStyles.card.default} p-5 mb-3`}>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Net open P&L</div>
           <div className={`text-4xl font-bold font-mono tabular-nums ${data.summary.totalPnLPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
-            {data.summary.totalPnLPct >= 0 ? '+' : ''}{data.summary.totalPnLPct}%
+            {fmtPct(data.summary.totalPnLPct, { signed: true, decimals: 2 })}
           </div>
           <div className="text-xs text-muted-foreground mt-1 font-mono tabular-nums">
             {data.summary.totalPnLAbs >= 0 ? '+' : ''}${data.summary.totalPnLAbs} absolute
@@ -214,7 +215,7 @@ export default function PositionsHeatmapPage() {
         {data.summary.bestPosition && data.summary.worstPosition && (
           <ExpandableCard
             title="Best vs Worst"
-            subtitle={`🏆 ${data.summary.bestPosition.symbol} ${data.summary.bestPosition.pnlPct >= 0 ? '+' : ''}${data.summary.bestPosition.pnlPct}% · ⚠️ ${data.summary.worstPosition.symbol} ${data.summary.worstPosition.pnlPct}%`}
+            subtitle={`🏆 ${data.summary.bestPosition.symbol} ${fmtPct(data.summary.bestPosition.pnlPct, { signed: true, decimals: 2 })} · ⚠️ ${data.summary.worstPosition.symbol} ${fmtPct(data.summary.worstPosition.pnlPct, { signed: true, decimals: 2 })}`}
             defaultOpen={Math.abs(data.summary.bestPosition.pnlPct) > 30 || Math.abs(data.summary.worstPosition.pnlPct) > 20}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -378,7 +379,7 @@ export function HeatTile({ position }: { position: LivePosition }) {
           <span className="text-[9px] opacity-70">{HEAT_LABEL[position.heatRank]}</span>
         </div>
         <div className={`text-xl font-bold font-mono ${position.pnlPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
-          {position.pnlPct >= 0 ? '+' : ''}{position.pnlPct}%
+          {fmtPct(position.pnlPct, { signed: true, decimals: 2 })}
         </div>
         <div className="text-[10px] opacity-60 mt-1">
           {position.isOption ? `${position.strikePrice}${position.optionType?.[0]?.toUpperCase()}` : 'Stock'} · {position.daysActive}d
@@ -403,7 +404,7 @@ export function BestWorstCard({ position, type }: { position: LivePosition; type
         </div>
         <div className="text-right">
           <div className={`text-3xl font-bold ${position.pnlPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
-            {position.pnlPct >= 0 ? '+' : ''}{position.pnlPct}%
+            {fmtPct(position.pnlPct, { signed: true, decimals: 2 })}
           </div>
           <div className="text-xs text-muted-foreground">
             ${position.pnlAbs >= 0 ? '+' : ''}{position.pnlAbs}
@@ -441,7 +442,7 @@ export function PositionRow({ position, onSelect }: { position: LivePosition; on
       <td className="py-2 pr-3 text-right font-mono text-[var(--trade-bullish)]">${position.target.toFixed(2)}</td>
       <td className="py-2 pr-3 text-right font-mono text-[var(--trade-bearish)]">${position.stop.toFixed(2)}</td>
       <td className={`py-2 pr-3 text-right font-mono font-bold ${position.pnlPct >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
-        {position.pnlPct >= 0 ? '+' : ''}{position.pnlPct}%
+        {fmtPct(position.pnlPct, { signed: true, decimals: 2 })}
       </td>
       <td className={`py-2 pr-3 text-right font-mono ${position.pnlAbs >= 0 ? 'text-[var(--trade-bullish)]' : 'text-[var(--trade-bearish)]'}`}>
         ${position.pnlAbs >= 0 ? '+' : ''}{position.pnlAbs}

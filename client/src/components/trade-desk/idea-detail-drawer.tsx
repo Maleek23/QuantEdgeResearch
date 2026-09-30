@@ -186,7 +186,7 @@ export function IdeaDetailDrawer({ idea, open, onOpenChange }: Props) {
             active={tab === "trade"}
             onClick={() => setTab("trade")}
             icon={<ListChecks className="w-3.5 h-3.5" />}
-            label="Trade Desk"
+            label="Trade plan"
           />
           <TabButton
             active={tab === "conviction"}

@@ -136,7 +136,7 @@ export function TvChart({
     const rows: (Level & { dashed?: boolean })[] = [];
     if (snap.callWall != null) rows.push({ price: snap.callWall, color: 'call', label: 'CALL WALL', kind: 'gex-anchor' });
     if (snap.putWall != null) rows.push({ price: snap.putWall, color: 'put', label: 'PUT WALL', kind: 'gex-anchor' });
-    if (zeroGamma != null) rows.push({ price: zeroGamma, color: 'caution', label: 'ZERO γ', kind: 'gex-anchor' });
+    if (zeroGamma != null) rows.push({ price: zeroGamma, color: 'caution', label: 'ZERO-γ', kind: 'gex-anchor' });
     // A caller may already pass the walls (research page): one line per price.
     const fresh = rows.filter((r) => !levels.some((l) => Math.abs(l.price - r.price) < 1e-6));
     return fresh.length ? [...levels, ...fresh] : levels;

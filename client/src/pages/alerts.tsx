@@ -101,7 +101,7 @@ export default function AlertsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Preferences */}
-        <LuxPanel title="Alert preferences" sub="Which state changes fire, and where they reach you. Saved on this device.">
+        <LuxPanel title="Alert Preferences" sub="Which state changes fire, and where they reach you. Saved on this device.">
           <div className="space-y-1">
             <AlertTypeToggles prefs={prefs} update={update} />
             <AlertDeliveryRows prefs={prefs} update={update} />
@@ -128,7 +128,7 @@ export default function AlertsPage() {
         </LuxPanel>
 
         {/* Legend — what each alert type means */}
-        <LuxPanel title="What fires an alert" sub="Nothing fires just for existing — only state changes against the live board.">
+        <LuxPanel title="What Fires an Alert" sub="Nothing fires just for existing — only state changes against the live board.">
           <dl className="space-y-2">
             {(Object.keys(ALERT_LABELS) as AlertType[]).map((t) => (
               <div key={t} className="flex items-baseline gap-2">
@@ -147,7 +147,7 @@ export default function AlertsPage() {
       {/* Feed */}
       <LuxPanel
         flush
-        title="Alert feed"
+        title="Alert Feed"
         sub={isLoading ? 'Connecting to the live signal feed…' : 'Newest first · kept on this device'}
         meta={feed.length > 0 ? (
           <>

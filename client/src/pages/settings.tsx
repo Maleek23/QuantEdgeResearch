@@ -23,6 +23,7 @@
  * "This device" settings apply instantly (no Save); account settings have
  * their own Save beside them, so nothing is half-saved by a page-level button.
  */
+import { reasonOf } from '@/lib/optimistic';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -142,7 +143,7 @@ function ProfileSection() {
   const save = useMutation({
     mutationFn: async () => (await apiRequest('PATCH', '/api/auth/me', { firstName: first, lastName: last })).json(),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] }); toast({ title: 'Profile saved' }); },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Profile not saved', description: e.message }),
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Couldn’t save your profile', description: reasonOf(e) }),
   });
   const initial = (first || u?.email || '?').trim().slice(0, 1).toUpperCase();
   const since = u?.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -280,13 +281,13 @@ function TradingSection() {
   const dirty = !!draft && !!prefsQ.data && SIZING_KEYS.some((k) => Number(prefsQ.data![k]) !== draft[k]);
   const save = useMutation({
     mutationFn: async (d: SizingPrefs) => (await apiRequest('PATCH', '/api/preferences', d)).json(),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/preferences'] }); toast({ title: 'Sizing saved', description: 'Signals size from these numbers now.' }); },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Not saved', description: e.message }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/preferences'] }); toast({ title: 'Sizing saved', description: 'New ideas are sized from these numbers.' }); },
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Couldn’t save sizing', description: reasonOf(e) }),
   });
   const risk$ = draft ? (draft.accountSize * draft.maxRiskPerTrade) / 100 : NaN;
 
   return (
-    <LuxPanel id="st-trading" num="03" title="Trading defaults" sub="What boards open on, and the numbers every signal is sized from.">
+    <LuxPanel id="st-trading" num="03" title="Trading Defaults" sub="What boards open on, and the numbers every signal is sized from.">
       <Row label="Default horizon" help="Horizon filters (NEXUS 'Book by horizon') open on this until you pick another there." htmlFor="st-horizon" scope="device">
         <select id="st-horizon" className="st-input st-select" value={horizon}
           onChange={(e) => { const v = e.target.value as HorizonFilterValue; setHorizon(v); writeDefaultHorizon(v); }}>
@@ -297,7 +298,7 @@ function TradingSection() {
 
       {prefsQ.isLoading && <p className="st-help st-pad">Loading your sizing numbers…</p>}
       {prefsQ.isError && (
-        <p className="st-warn">Couldn't load your sizing numbers — nothing is shown rather than wrong defaults.{' '}
+        <p className="st-warn">Couldn't load your sizing numbers — showing nothing rather than wrong defaults.{' '}
           <button type="button" className="st-linkbtn" onClick={() => prefsQ.refetch()}>Retry</button></p>
       )}
       {draft && (
@@ -363,7 +364,7 @@ function ConnectionsSection() {
   const disconnect = useMutation({
     mutationFn: async () => (await apiRequest('DELETE', '/api/journal/broker/alpaca')).json(),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/journal/broker/alpaca'] }); toast({ title: 'Alpaca disconnected', description: 'The saved keys were deleted. Imported trades stay in your journal.' }); },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Not disconnected', description: e.message }),
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Couldn’t disconnect Alpaca', description: reasonOf(e) }),
   });
   const conn = alpaca.data?.connection;
   // In-app two-step confirm (was window.confirm): deleting stored keys can't be undone.
@@ -371,20 +372,20 @@ function ConnectionsSection() {
   const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never');
 
   return (
-    <LuxPanel id="st-accounts" num="05" title="Connected accounts" sub="Read-only links that feed your journal. QuantEdge never places orders.">
+    <LuxPanel id="st-accounts" num="05" title="Connected Accounts" sub="Read-only links that feed your journal. QuantEdge never places orders.">
       <Row label="Alpaca" help={conn
         ? <>Linked ({conn.paper ? 'paper' : 'live'}{conn.keyHint ? ` · key …${conn.keyHint}` : ''}). Last sync {fmt(conn.lastSyncAt)}.</>
-        : 'Imports your filled orders into the Mine journal. Keys are entered on the journal Import page and stored encrypted.'}>
+        : 'Imports your filled orders into your own journal. Keys are entered on the journal Import page and stored encrypted.'}>
         {alpaca.isLoading ? <span className="st-help">Checking…</span>
-          : alpaca.isError ? <span className="st-help">Status unavailable (journal access needed).</span>
+          : alpaca.isError ? <span className="st-help">Couldn’t check — your account needs journal access.</span>
           : conn ? (
             <span className="st-inline">
               <LuxTag tone="accent">CONNECTED</LuxTag>
               {confirmDisconnect ? (
                 <span className="st-inline" role="alertdialog" aria-label="Confirm disconnect">
-                  <span className="st-warn-inline">Delete the saved keys? Imported trades stay.</span>
-                  <LuxButton variant="ghost" disabled={disconnect.isPending} onClick={() => { setConfirmDisconnect(false); disconnect.mutate(); }}>Disconnect</LuxButton>
-                  <LuxButton variant="ghost" autoFocus onClick={() => setConfirmDisconnect(false)}>Keep</LuxButton>
+                  <span className="st-warn-inline">Delete the saved Alpaca keys? Imported trades stay.</span>
+                  <LuxButton variant="ghost" disabled={disconnect.isPending} onClick={() => { setConfirmDisconnect(false); disconnect.mutate(); }}>Disconnect Alpaca</LuxButton>
+                  <LuxButton variant="ghost" autoFocus onClick={() => setConfirmDisconnect(false)}>Keep connected</LuxButton>
                 </span>
               ) : (
                 <LuxButton variant="ghost" disabled={disconnect.isPending} onClick={() => setConfirmDisconnect(true)}>Disconnect</LuxButton>
@@ -400,7 +401,7 @@ function ConnectionsSection() {
       <Row label="Discord" help="The server-side bot that imports trader calls into their journals. Set up by the operator — nothing to connect per user.">
         {sources.isLoading ? <span className="st-help">Checking…</span>
           : sources.data ? <LuxTag tone={sources.data.capabilities.discordBot ? 'accent' : 'mute'}>{sources.data.capabilities.discordBot ? 'BOT CONFIGURED' : 'NOT CONFIGURED'}</LuxTag>
-          : <span className="st-help">Status unavailable.</span>}
+          : <span className="st-help">Couldn’t check the Discord bot. Reload to retry.</span>}
       </Row>
     </LuxPanel>
   );
@@ -410,7 +411,7 @@ function ConnectionsSection() {
 function JournalSection() {
   const [jp, setJp] = useJournalPrefs();
   const sources = useQuery<SourcesResp>({ queryKey: ['/api/journal/sources'], retry: 0, staleTime: 60_000 });
-  const books = sources.data?.sources?.length ? sources.data.sources : [{ key: 'mine', label: 'Mine' }, { key: 'bot', label: 'Quantinum Bot' }, { key: 'desk', label: 'NEXUS ideas' }];
+  const books = sources.data?.sources?.length ? sources.data.sources : [{ key: 'mine', label: 'My journal' }, { key: 'bot', label: 'Quantinum Bot' }, { key: 'desk', label: 'NEXUS ideas' }];
   return (
     <LuxPanel id="st-journal" num="06" title="Journal" sub="Defaults for the trade journal. Saved on this device."
       meta={<Link href="/t?tab=journal" className="st-link">Open journal <ArrowRight aria-hidden size={12} /></Link>}>
@@ -440,36 +441,36 @@ function DataSection() {
       const r = await fetch('/api/journal/trades?journal=mine', { credentials: 'include' });
       if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error ?? `HTTP ${r.status}`);
       const { trades } = (await r.json()) as { trades: Record<string, unknown>[] };
-      if (!trades?.length) { toast({ title: 'Nothing to export', description: 'Your journal (Mine) has no trades yet.' }); return; }
+      if (!trades?.length) { toast({ title: 'Nothing to export', description: 'Your journal has no trades yet.' }); return; }
       const cols = [...new Set(trades.flatMap((t) => Object.keys(t)))];
       const cell = (v: unknown) => (v == null ? null : typeof v === 'object' ? JSON.stringify(v) : (v as string | number));
       downloadCsv(`quantedge-journal-${new Date().toISOString().slice(0, 10)}.csv`, toCsv([cols, ...trades.map((t) => cols.map((c) => cell(t[c])))]));
-      toast({ title: 'Journal exported', description: `${trades.length} trades.` });
+      toast({ title: 'Journal exported', description: `${trades.length} ${trades.length === 1 ? 'trade' : 'trades'} saved as CSV.` });
     } catch (e) {
-      toast({ variant: 'destructive', title: 'Export failed', description: (e as Error).message });
+      toast({ variant: 'destructive', title: 'Couldn’t export your journal', description: reasonOf(e) });
     } finally { setExporting(false); }
   };
 
   const wipe = useMutation({
     mutationFn: async () => (await (await apiRequest('DELETE', '/api/journal/trades/all?journal=mine')).json()) as { deleted: number },
-    onSuccess: (r) => { setAsking(false); setConfirmText(''); queryClient.invalidateQueries(); toast({ title: 'Journal deleted', description: `${r.deleted} trades removed.` }); },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Not deleted', description: e.message }),
+    onSuccess: (r) => { setAsking(false); setConfirmText(''); queryClient.invalidateQueries(); toast({ title: 'Journal deleted', description: `${r.deleted} ${r.deleted === 1 ? 'trade' : 'trades'} removed.` }); },
+    onError: (e: Error) => toast({ variant: 'destructive', title: 'Couldn’t delete your journal', description: reasonOf(e) }),
   });
 
   return (
-    <LuxPanel id="st-data" num="07" title="Data & privacy" sub="Your journal (the Mine book) — take a copy, or remove it.">
-      <Row label="Export my journal" help="Every trade in your Mine book as CSV, all columns.">
+    <LuxPanel id="st-data" num="07" title="Data & Privacy" sub="Take a copy of your journal, or remove it.">
+      <Row label="Export my journal" help="Every trade in your own book as CSV, all columns.">
         <LuxButton onClick={exportCsv} disabled={exporting}><Download aria-hidden /> {exporting ? 'Exporting…' : 'Download CSV'}</LuxButton>
       </Row>
-      <Row label="Delete my journal" help="Permanently deletes every trade in your Mine book. Export first — this can't be undone. Quantinum Bot, NEXUS ideas and trader books are not touched.">
+      <Row label="Delete my journal" help="Permanently deletes every trade in your own book. Export first — this can't be undone. Quantinum Bot, NEXUS ideas and trader books are not touched.">
         {!asking ? (
-          <LuxButton className="st-danger" onClick={() => setAsking(true)}><Trash2 aria-hidden /> Delete…</LuxButton>
+          <LuxButton className="st-danger" onClick={() => setAsking(true)}><Trash2 aria-hidden /> Delete my journal…</LuxButton>
         ) : (
           <span className="st-confirm">
             <label htmlFor="st-del" className="st-help">Type DELETE to confirm</label>
             <input id="st-del" className="st-input" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} autoComplete="off" />
-            <LuxButton className="st-danger" disabled={confirmText !== 'DELETE' || wipe.isPending} onClick={() => wipe.mutate()}>{wipe.isPending ? 'Deleting…' : 'Delete all'}</LuxButton>
-            <LuxButton variant="ghost" onClick={() => { setAsking(false); setConfirmText(''); }}>Cancel</LuxButton>
+            <LuxButton className="st-danger" disabled={confirmText !== 'DELETE' || wipe.isPending} onClick={() => wipe.mutate()}>{wipe.isPending ? 'Deleting…' : 'Delete all my trades'}</LuxButton>
+            <LuxButton variant="ghost" onClick={() => { setAsking(false); setConfirmText(''); }}>Keep my journal</LuxButton>
           </span>
         )}
       </Row>

@@ -7,6 +7,7 @@
  *            balances, stamped with when they were last written
  *   Desk     no account: published ideas at unit size
  */
+import { reasonOf } from '@/lib/optimistic';
 import { useMemo } from 'react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import { useJournal } from '@/components/journal/journal-context';
@@ -30,8 +31,8 @@ export default function AccountsView() {
       {data.key === 'mine' && <MineAccounts />}
       {data.key === 'bot' && <BotAccounts />}
       {data.key === 'desk' && (
-        <Card num="01" title="No account behind this book">
-          <p style={{ margin: 0 }}>{data.meta?.sizing ?? 'The trade desk book scores published ideas at a stated unit size; it has no cash balance.'}</p>
+        <Card num="01" title="No Account Behind This Book">
+          <p style={{ margin: 0 }}>{data.meta?.sizing ?? 'The NEXUS ideas book scores published ideas at a stated unit size; it has no cash balance.'}</p>
         </Card>
       )}
       {data.key !== 'desk' && <SourcesCard />}
@@ -42,7 +43,7 @@ export default function AccountsView() {
 function MineAccounts() {
   const { refresh } = useJournalMutations('mine');
   return (
-    <Card num="01" title="Broker connection · Alpaca">
+    <Card num="01" title="Broker Connection · Alpaca">
       <AlpacaConnect onSynced={refresh} />
     </Card>
   );
@@ -50,12 +51,12 @@ function MineAccounts() {
 
 function BotAccounts() {
   const q = useBotBook(true);
-  if (q.isError && !q.data) return <QEError title="Quantinum Bot's paper accounts didn't load" message={`/api/journal/bot failed (${q.error instanceof Error ? q.error.message : 'no response'}).`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError title="Quantinum Bot's paper accounts didn't load" message={`${reasonOf(q.error)} Retry, or check back in a minute.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (q.isLoading || !q.data) return <QELoading rows={2} label="loading paper portfolios…" />;
   const { portfolios, activePortfolio } = q.data;
   if (!portfolios.length) return <QEEmpty message={`Quantinum Bot has no paper portfolio yet — "${activePortfolio}" is created the first time a bot cycle runs.`} />;
   return (
-    <Card num="01" title="Paper portfolios · one per bot run" meta={<N n={portfolios.length} unit="runs" />}>
+    <Card num="01" title="Paper Portfolios · one per bot run" meta={<N n={portfolios.length} unit="runs" />}>
       <div className="jr-grid">
         {portfolios.map((p) => (
           <section key={p.id} className="jr-span-6" aria-label={p.runLabel ?? p.name}>

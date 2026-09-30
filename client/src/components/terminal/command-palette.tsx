@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useReducedMotion } from 'framer-motion';
 import { PAGES, UTILITY_PAGES } from '@/components/shell/nav-model';
+import { pageShort } from '@/components/shell/nav-groups';
 
 interface SearchResult { symbol: string; name?: string; type?: string; changePct?: number | null }
 
@@ -102,7 +103,7 @@ export function CommandPalette({
       }
       for (const p of PALETTE_PAGES) {
         if (p.label.toUpperCase().startsWith(q) || p.short.startsWith(q) || p.href.slice(1).toUpperCase().startsWith(q)) {
-          out.push({ kind: 'page', href: p.href, label: `Open ${p.label}` });
+          out.push({ kind: 'page', href: p.href, label: `Go to ${pageShort(p)}` });
         }
       }
       for (const r of data.slice(0, 8)) out.push({ kind: 'ticker', symbol: r.symbol, name: r.name, changePct: r.changePct });
@@ -110,7 +111,7 @@ export function CommandPalette({
     } else {
       for (const s of readRecents()) out.push({ kind: 'ticker', symbol: s, name: 'recent' });
       if (!out.length) for (const t of tabs.slice(0, 4)) out.push({ kind: 'tab', tab: t.id, label: `Go to ${t.display ?? t.label}` });
-      for (const p of PALETTE_PAGES) out.push({ kind: 'page', href: p.href, label: `Open ${p.label}` });
+      for (const p of PALETTE_PAGES) out.push({ kind: 'page', href: p.href, label: `Go to ${pageShort(p)}` });
     }
     return out;
   }, [q, data, isFetching, tabs]);

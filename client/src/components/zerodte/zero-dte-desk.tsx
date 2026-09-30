@@ -16,6 +16,7 @@
  * Integrity: every block stamps its own age; a missing input renders "—",
  * never a placeholder number. Plans are model output, labelled unvalidated.
  */
+import { reasonOf } from '@/lib/optimistic';
 import { WatchStar } from '@/components/watch/watch-star';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
@@ -133,7 +134,7 @@ function NameCard({ r }: { r: Row }) {
         <Kv k="Call wall" v={px(L?.callWall)} cls="zd-dn" href={gexHref(r.symbol)} />
         <Kv k="Put wall" v={px(L?.putWall)} cls="zd-up" href={gexHref(r.symbol)} />
         <Kv k="Zero-γ" v={px(L?.zeroGamma)} href={gexHref(r.symbol)} />
-        <Kv k="Max-γ" v={px(L?.maxGamma)} href={gexHref(r.symbol)} />
+        <Kv k="King node" v={px(L?.maxGamma)} href={gexHref(r.symbol)} />
         <Kv k="Regime" v={L ? `${L.regimeTitle}${L.nearFlip ? ' · near flip' : ''}` : '—'} cls={L?.regime === 'negative' ? 'zd-dn' : L?.regime === 'positive' ? 'zd-up' : undefined} title={L?.basis} href={gexHref(r.symbol)} />
         <Kv k="VWAP" v={i.vwap != null ? `${px(i.vwap)} · ${i.vwapSide ?? '—'}` : '—'} title={r.intradayNote ?? undefined} />
         <Kv k="Opening range" v={i.orbState === 'n/a' ? '—' : `${i.orbState}${i.or30High != null ? ` · ${px(i.or30Low)}–${px(i.or30High)}` : ''}`} />
@@ -210,7 +211,7 @@ function RecordBlock({ rec }: { rec: DeskRec }) {
 /** The whole desk. `dense` = inside a dashboard tile. */
 export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
   const q = useZeroDteDesk();
-  if (q.isError && !q.data) return <QEError title="The 0DTE desk didn't load" message={(q.error as Error)?.message} onRetry={() => q.refetch()} retrying={q.isFetching} className="fd-m" />;
+  if (q.isError && !q.data) return <QEError title="The 0DTE desk didn't load" message={reasonOf(q.error)} onRetry={() => q.refetch()} retrying={q.isFetching} className="fd-m" />;
   // Pending (incl. a paused / not-yet-started fetch), never `q.data!` on undefined.
   if (!q.data) return <QELoading rows={6} label="reading chains, levels and the tape…" className="fd-pad" />;
   const d = q.data;
@@ -219,7 +220,7 @@ export function ZeroDteDesk({ dense = false }: { dense?: boolean }) {
       <ZeroDteIdeas d={d} />
       <SessionClock phase={d.phase} />
       {d.rows.length === 0
-        ? <QEEmpty title="No tracked names" message="ZERO_DTE_WATCH resolved to no names." />
+        ? <QEEmpty title="No tracked names" message="The 0DTE watchlist is empty, so there are no index names to read." />
         : <div className="zd-cards">{d.rows.map((r) => <NameCard key={r.symbol} r={r} />)}</div>}
       <SwingTable rows={d.rows} />
       <RecordBlock rec={d.record} />

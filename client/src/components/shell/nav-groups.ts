@@ -40,16 +40,16 @@ export const TAB_SHORT: Record<Tab, string> = {
 };
 
 export const TAB_HINT: Record<Tab, string> = {
-  oracle: 'The trading desk — ranked setups, setup detail, 0DTE desk, horizon book',
-  chart: 'Price chart, levels and projections',
-  flow: 'Options flow tape',
-  gex: 'Dealer gamma and vanna map',
-  leaps: 'Long-dated option ideas',
-  crypto: 'Crypto spot and equity proxies',
-  catalyst: 'Earnings and macro event calendar',
-  bot: 'The paper-trading bot — its rules, positions and public record',
-  positions: 'Open positions and risk',
-  journal: 'Trade journal and track record',
+  oracle: 'Trading desk — ranked setups and the 0DTE desk',
+  chart: 'Charts with walls, zero-γ and idea levels',
+  flow: 'Options flow — prints, sweeps and blocks',
+  gex: 'Dealer positioning — GEX, VEX, walls, zero-γ',
+  leaps: 'Long-dated calls, graded',
+  crypto: 'BTC/ETH and the equity proxies',
+  catalyst: 'Earnings, macro and news calendar',
+  bot: 'Paper-trading bot — rules, fills, public record',
+  positions: 'Your open positions, stops and alerts',
+  journal: 'Your trades, insights and track record',
 };
 
 /** Top-bar titles — the short label, or the product name with its role. */
@@ -57,9 +57,9 @@ export const TAB_TITLE: Record<Tab, string> = { ...TAB_SHORT, oracle: 'NEXUS · 
 
 const PAGE_SHORT: Record<string, string> = { '/how-to': 'Guide' };
 const PAGE_HINT: Record<string, string> = {
-  '/today': 'Market brief and the day’s ranked setups',
-  '/alerts': 'Your alerts',
-  '/how-to': 'How to use the platform',
+  '/today': 'Morning brief — dealer map and best ideas',
+  '/alerts': 'Price and idea alerts',
+  '/how-to': 'How to use QuantEdge',
   '/settings': 'Account and display settings',
 };
 export const pageShort = (p: PageLink) => PAGE_SHORT[p.href] ?? p.label;

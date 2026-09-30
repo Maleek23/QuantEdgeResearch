@@ -60,7 +60,7 @@ export class PageErrorBoundary extends Component<Props, State> {
             <div className="text-2xl">⚠️</div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-bold text-[var(--trade-bearish)]">
-                {this.props.label || 'Component'} crashed
+                {this.props.label || 'This section'} hit an error — reload to try again
               </div>
               <div className="text-xs text-zinc-400 mt-1 font-mono break-all">
                 {this.state.error.message}

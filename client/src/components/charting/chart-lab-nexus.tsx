@@ -185,8 +185,8 @@ export function useChartLabLevels(symbol: string) {
       return node ? Math.abs(node.gex) / strongest : 0.65;
     };
     if (snap?.putWall != null) rows.push({ price: snap.putWall, color: '#ef6461', label: 'PUT WALL', kind: 'gex-anchor', strength: strengthAt(snap.putWall), meta: 'Γ wall' });
-    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: '#f4b942', label: 'GAMMA FLIP', kind: 'gex-anchor', strength: strengthAt(snap.gammaFlipPrice), meta: 'Γ flip' });
-    if (snap?.maxGammaStrike != null) rows.push({ price: snap.maxGammaStrike, color: '#b794f4', label: 'KING NODE', kind: 'gex-anchor', strength: 1, meta: 'max Γ' });
+    if (snap?.gammaFlipPrice != null) rows.push({ price: snap.gammaFlipPrice, color: '#f4b942', label: 'ZERO-γ', kind: 'gex-anchor', strength: strengthAt(snap.gammaFlipPrice), meta: 'zero-γ' });
+    if (snap?.maxGammaStrike != null) rows.push({ price: snap.maxGammaStrike, color: '#b794f4', label: 'KING NODE', kind: 'gex-anchor', strength: 1, meta: 'max γ' });
     if (snap?.callWall != null) rows.push({ price: snap.callWall, color: '#38d9a9', label: 'CALL WALL', kind: 'gex-anchor', strength: strengthAt(snap.callWall), meta: 'Γ wall' });
 
     const occupied = new Set(rows.map((row) => row.price.toFixed(4)));
@@ -316,7 +316,7 @@ export function ChartLabChartPane() {
               : 'no published signal'}
           </div>
         </div>
-        <div className="chart-desc">One chart, every timeframe, with published QuantEdge levels anchored to the same ticker used across Oracle, Flow and GEX.</div>
+        <div className="chart-desc">One chart, every timeframe, with published QuantEdge levels anchored to the same ticker used across NEXUS, Flow and GEX.</div>
       </div>
 
       <div className="instrument-bar">
@@ -676,7 +676,7 @@ export function ChartLabBoard() {
           <div className="sec-head">
             <div className="sec-num">Chart Lab</div>
             <div className="sec-title">Price intelligence.</div>
-            <div className="sec-sub">One chart, every timeframe. QuantEdge levels anchored across Oracle, Flow and GEX.</div>
+            <div className="sec-sub">One chart, every timeframe. QuantEdge levels anchored across NEXUS, Flow and GEX.</div>
             <div className="sec-meta">
               <span className="tag cyan">CHART</span>
               <span className="tag live"><span className="dot" />engaged</span>

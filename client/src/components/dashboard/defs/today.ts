@@ -85,7 +85,7 @@ export const TODAY_TOOLS: ToolDef[] = [
     defaultSize: { w: 12, h: 3 }, minSize: { w: 4, h: 2 }, Component: lazyTool(today, 'TodayTapeTool'),
   },
   {
-    id: 'today-0dte-ideas', category: 'Ideas', title: '0DTE ideas',
+    id: 'today-0dte-ideas', category: 'Ideas', title: '0DTE Ideas',
     what: 'The live 0DTE ideas on SPX / MSTR / META / BE / TSLA — stage (WATCH → TRIGGERED → IN PLAY), side, exact contract, premium now, trigger and stop — linking to the full 0DTE desk on NEXUS. Model ideas, unvalidated; the engine record shows as "measuring · n=".',
     units: 'price $, premium $', source: 'NEXUS · 0DTE desk',
     backing: 'ZeroDteIdeas (components/zerodte/zero-dte-ideas.tsx) ← GET /api/zero-dte/desk (server/zero-dte-desk.ts)',

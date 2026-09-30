@@ -48,26 +48,26 @@ interface NavTarget {
 // The destinations of docs/IA_SYSTEM_DESIGN.md §3, in job order (Ideas/Slate retired 2026-09-29 → Today)
 // (FIND → UNDERSTAND → ACT → PROVE). ⌘1–⌘5 follow this order.
 const PRIMARY_DESTINATIONS: NavTarget[] = [
-  { href: '/today',          label: 'Today',      icon: Home,      hint: 'Weekly dealer map · best idea · ranked book', keywords: ['home','morning','brief','convictions','best','slate','radar','ideas','picks','gappers'] },
-  { href: '/t',              label: 'Markets',    icon: Zap,       hint: 'Terminal · NEXUS trading desk, chart, flow, GEX, crypto', keywords: ['terminal','dashboard','pulse','overview','nexus','desk','setups','tape'] },
-  { href: '/r',              label: 'Research',   icon: Microscope,hint: 'Ticker page · Quantinum read · chart · options · GEX', keywords: ['chart','options','ticker','dossier','quantinum','evidence'] },
-  { href: '/t?tab=positions',label: 'Book',       icon: Wallet,    hint: 'Positions · open risk · P&L heat map', keywords: ['positions','heatmap','pnl'] },
-  { href: '/t?tab=journal',  label: 'Journal',    icon: BookOpen,  hint: 'Dashboard · trades · analytics · track record', keywords: ['history','performance','backtest','calendar','pnl'] },
+  { href: '/today',          label: 'Today',      icon: Home,      hint: 'Dealer map, best idea, ranked book', keywords: ['home','morning','brief','convictions','best','slate','radar','ideas','picks','gappers'] },
+  { href: '/t',              label: 'NEXUS',      icon: Zap,       hint: 'Trading desk — ranked setups', keywords: ['terminal','dashboard','pulse','overview','nexus','desk','setups','tape'] },
+  { href: '/r',              label: 'Ticker page', icon: Microscope,hint: 'Quantinum read, chart, options, GEX', keywords: ['chart','options','ticker','dossier','quantinum','evidence'] },
+  { href: '/t?tab=positions',label: 'Positions',  icon: Wallet,    hint: 'Open positions, risk and P&L', keywords: ['positions','heatmap','pnl'] },
+  { href: '/t?tab=journal',  label: 'Journal',    icon: BookOpen,  hint: 'Trades, analytics and track record', keywords: ['history','performance','backtest','calendar','pnl'] },
 ];
 
 const NESTED_TABS: NavTarget[] = [
   // Terminal tabs
-  { href: '/t?tab=gex',      label: 'Terminal → GEX',      icon: Zap,  keywords: ['gamma','vex','dealer','walls'] },
-  { href: '/t?tab=chart',    label: 'Terminal → Chart',    icon: Home, keywords: ['price','levels','candle'] },
-  { href: '/t?tab=flow',     label: 'Terminal → Flow',     icon: Home, keywords: ['tape','premium','sweeps','whales'] },
-  { href: '/t?tab=leaps',    label: 'Terminal → LEAPS',    icon: Home, keywords: ['long','dated','thesis'] },
-  { href: '/t?tab=crypto',   label: 'Terminal → Crypto',   icon: Home, keywords: ['bitcoin','btc'] },
-  { href: '/t?tab=catalyst', label: 'Terminal → Catalyst', icon: Home, keywords: ['events','earnings','calendar'] },
-  { href: '/t?tab=bot',      label: 'Terminal → Quantinum Bot', icon: Home, keywords: ['bot','automation','paper','quantinum'] },
+  { href: '/t?tab=gex',      label: 'GEX',      icon: Zap,  keywords: ['gamma','vex','dealer','walls'] },
+  { href: '/t?tab=chart',    label: 'Chart',    icon: Home, keywords: ['price','levels','candle'] },
+  { href: '/t?tab=flow',     label: 'Flow',     icon: Home, keywords: ['tape','premium','sweeps','whales'] },
+  { href: '/t?tab=leaps',    label: 'LEAPS',    icon: Home, keywords: ['long','dated','thesis'] },
+  { href: '/t?tab=crypto',   label: 'Crypto',   icon: Home, keywords: ['bitcoin','btc'] },
+  { href: '/t?tab=catalyst', label: 'Catalysts', icon: Home, keywords: ['events','earnings','calendar'] },
+  { href: '/t?tab=bot',      label: 'Quantinum Bot', icon: Home, keywords: ['bot','automation','paper','quantinum'] },
   // Ticker page (the per-ticker home — search a ticker → lands here; docs/TICKER_PAGE.md)
   { href: '/r/SPY?tab=chart',    label: 'Ticker page → Chart',    icon: Microscope, keywords: ['price','levels','candle'] },
   { href: '/r/SPY?tab=options',  label: 'Ticker page → Options',  icon: Microscope, keywords: ['chain','greeks','iv'] },
-  { href: '/r/SPY?tab=gex',      label: 'Ticker page → GEX surface',      icon: Microscope, keywords: ['gamma','walls','flip','per-symbol'] },
+  { href: '/r/SPY?tab=gex',      label: 'Ticker page → GEX',      icon: Microscope, keywords: ['gamma','walls','flip','per-symbol'] },
   { href: '/r/SPY?tab=analyze',  label: 'Ticker page → Contract lab',  icon: Microscope, keywords: ['contract','grade','bullflow','a+'] },
   // Journal sub-tabs (nested — the journal reads ?jtab= so it never fights the shell's ?tab=)
   { href: '/t?tab=journal&jtab=trades',    label: 'Journal → Trades',       icon: BookOpen, keywords: ['history','trades','log','edit','export'] },
@@ -157,7 +157,7 @@ export function CommandPalette() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
-        placeholder="Type a ticker, page, or action…  (⌘K toggle · ⌘1-6 jump · Enter on ticker → Research)"
+        placeholder="Search a ticker, page or tool…  (⌘K open/close · ⌘1–5 jump · Enter opens the ticker page)"
         value={search}
         onValueChange={setSearch}
         onKeyDown={handleInputKeyDown}
@@ -174,7 +174,7 @@ export function CommandPalette() {
               </div>
             ) : (
               <>
-                <div className="mb-2">No matches. Try:</div>
+                <div className="mb-2">No matches. Try one of these:</div>
                 <ul className="space-y-1 text-[11px]">
                   <li>· A ticker symbol (e.g. <span className="font-mono text-[var(--brand-cyan)]">CRDO</span>)</li>
                   <li>· A page name (e.g. <span className="font-mono text-[var(--brand-cyan)]">heatmap</span>)</li>
@@ -209,7 +209,7 @@ export function CommandPalette() {
 
         <CommandSeparator />
 
-        <CommandGroup heading="Tabs & sub-pages">
+        <CommandGroup heading="Tabs and tools">
           {NESTED_TABS.map(t => {
             const Icon = t.icon;
             return (
@@ -228,7 +228,7 @@ export function CommandPalette() {
 
         <CommandSeparator />
 
-        <CommandGroup heading={tickerQuery ? "Universal tickers" : "Popular tickers (jump to Research)"}>
+        <CommandGroup heading={tickerQuery ? "Tickers" : "Popular tickers"}>
           {(tickerQuery
             ? tickerResults.map((result) => result.symbol)
             : POPULAR_TICKERS
@@ -242,7 +242,7 @@ export function CommandPalette() {
             >
               <TrendingUp className="w-3.5 h-3.5 mr-2 text-[var(--brand-gold)]" />
               <span className="font-mono text-sm font-bold">{sym}</span>
-              <span className="ml-2 min-w-0 truncate text-[10px] text-muted-foreground">{result?.name ?? 'Research'}</span>
+              <span className="ml-2 min-w-0 truncate text-[10px] text-muted-foreground">{result?.name ?? 'Open ticker page'}</span>
               {result?.changePct != null && (
                 <span className={result.changePct >= 0 ? 'ml-auto text-[10px] text-[var(--trade-bullish)]' : 'ml-auto text-[10px] text-[var(--trade-bearish)]'}>
                   {result.changePct >= 0 ? '+' : ''}{result.changePct.toFixed(2)}%
@@ -256,7 +256,7 @@ export function CommandPalette() {
 
         <CommandSeparator />
 
-        <CommandGroup heading="Quick actions">
+        <CommandGroup heading="Pages">
           <CommandItem onSelect={() => go('/alerts')}>
             <Bell className="w-3.5 h-3.5 mr-2" />
             <span className="text-xs">Alerts</span>

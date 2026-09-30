@@ -254,8 +254,8 @@ export default function TerminalShell() {
           crumb="Terminal"
           titleDesktopOnly
           leading={
-            <Link href="/today" className="brand lg:hidden" aria-label="Quant Edge Labs — home" style={{ textDecoration: 'none' }}>
-              <img className="brand-logo" src={quantEdgeLogoUrl} alt="Quant Edge Labs" />
+            <Link href="/today" className="brand lg:hidden" aria-label="QuantEdge — home" style={{ textDecoration: 'none' }}>
+              <img className="brand-logo" src={quantEdgeLogoUrl} alt="QuantEdge" />
               <span className="brand-name">QUANTEDGE</span>
               <span className="brand-slash">{'//'}</span>
               <span className="brand-sub hidden sm:inline">TERMINAL</span>
@@ -273,7 +273,7 @@ export default function TerminalShell() {
                   ? `Down now: ${(health.dataPartialProviders ?? []).join(', ') || 'a data provider'}. Reads that depend on it fall back to the next provider or show their age.`
                   : 'Data providers in use (Alpaca · CBOE delayed · Yahoo, plus Bullflow / Schwab when configured) are answering'}
           >
-            <span className="dot" />{!health ? 'Data …' : dbDown ? 'Data offline' : dataPartial ? 'Data partial' : 'Data ready'}
+            <span className="dot" />{!health ? 'Checking data…' : dbDown ? 'Data offline' : dataPartial ? 'Data partial' : 'Data ready'}
           </div>
 
           {/* Phones: inline ticker search row below the bar. */}
@@ -326,13 +326,13 @@ export default function TerminalShell() {
               )}
             </LuxMenuTrigger>
             <LuxMenuContent aria-label="Account">
-              <LuxMenuLabel title={accountLabel} sub={user?.email ?? 'Guest terminal'} />
+              <LuxMenuLabel title={accountLabel} sub={user?.email ?? 'Guest'} />
               <LuxMenuSeparator />
               <LuxMenuItem icon={<Bell />} end={alerts.unread > 0 ? alerts.unread : undefined} onSelect={() => { setAlertsOpen(true); alerts.setUnread(0); }}>Alerts</LuxMenuItem>
               <LuxMenuItem icon={<BookOpen />} onSelect={() => setGuideOpen(true)}>Guide</LuxMenuItem>
-              <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display & layout</LuxMenuItem>
-              <LuxMenuItem icon={<UserRound />} onSelect={() => setSettingsOpen(true)}>Preferences & risk</LuxMenuItem>
-              <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Full account settings</LuxMenuItem>
+              <LuxMenuItem icon={<SlidersHorizontal />} onSelect={() => setCustomizeOpen(true)}>Display and layout</LuxMenuItem>
+              <LuxMenuItem icon={<UserRound />} onSelect={() => setSettingsOpen(true)}>Preferences and risk</LuxMenuItem>
+              <LuxMenuItem icon={<Settings />} onSelect={() => setLocation('/settings')}>Account settings</LuxMenuItem>
               {user && (
                 <>
                   <LuxMenuSeparator />
@@ -367,7 +367,7 @@ export default function TerminalShell() {
       <main ref={mainRef} id={MAIN_CONTENT_ID} tabIndex={-1} className="relative outline-none min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0 lg:pl-[var(--qe-rail-w,196px)]">
         {unknownTab && (
           <div role="status" className="flex items-center gap-3 border-b border-[var(--brand-gold)]/30 bg-[var(--brand-gold)]/[0.06] px-4 py-2 font-mono text-[11px] text-foreground/85">
-            <span>Unknown tab ‘{unknownTab}’ — showing NEXUS.</span>
+            <span>No tab called ‘{unknownTab}’ — showing NEXUS instead.</span>
             <button
               type="button"
               onClick={() => setUnknownTab(null)}

@@ -10,6 +10,7 @@
  *   Trade desk     ideas whose entry never triggered — counted on the basis
  *                  line; they are not trades, so they are not scored.
  */
+import { reasonOf } from '@/lib/optimistic';
 import { useMemo, useState } from 'react';
 import { Loader2, Trash2 } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
@@ -31,7 +32,7 @@ const pct = (v: number | null | undefined) => (v == null || !Number.isFinite(v) 
 function BotBlocked() {
   const q = useBlockedLedger(true);
   const [limit, setLimit] = useState(40);
-  if (q.isError && !q.data) return <QEError title="The blocked-trade ledger didn't load" message={`/api/discipline/ledger failed (${q.error instanceof Error ? q.error.message : 'no response'}). This is a failure, not an empty ledger.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError title="The blocked-trade ledger didn't load" message={`${reasonOf(q.error)} This is a failure, not an empty ledger.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (q.isLoading || !q.data) return <QELoading rows={4} label="replaying blocked trades…" />;
   const l = q.data;
   const rows = l.entries ?? [];
@@ -49,7 +50,7 @@ function BotBlocked() {
         <Kpi label="Net would-be" value={pct(l.netWouldBePercent)} tone={l.netWouldBePercent > 0 ? 'loss' : l.netWouldBePercent < 0 ? 'gain' : null}
           sub={l.netWouldBePercent > 0 ? 'gate is blocking profitable shorts' : l.netWouldBePercent < 0 ? 'gate is saving money' : 'sum of decided %'} />
       </div>
-      <Card num="01" title="Refused ideas, and what they did" meta={<N n={rows.length} unit="blocked" />}>
+      <Card num="01" title="Refused Ideas, and What They Did" meta={<N n={rows.length} unit="blocked" />}>
         {!rows.length ? <QEEmpty message="The gate hasn't blocked anything yet — the ledger is empty, not failing." /> : (
           <>
             <div className="jr-table-wrap">
@@ -93,7 +94,7 @@ function DeskMissed() {
   const missed = (data.meta?.excluded ?? []).filter((e) => /never triggered|missed entry/i.test(e.reason));
   const n = missed.reduce((s, e) => s + e.count, 0);
   return (
-    <Card num="01" title="Ideas the desk never got into" meta={<N n={n} unit="ideas" />}>
+    <Card num="01" title="Ideas the Desk Never Got Into" meta={<N n={n} unit="ideas" />}>
       {n ? (
         <p style={{ margin: 0 }}>
           <b>{n}</b> published idea{n === 1 ? '' : 's'} since the clean-era baseline never triggered their entry ({missed.map((e) => e.reason).join('; ')}).
@@ -114,7 +115,7 @@ function LoggedMissed() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {canWrite && <LogMissed />}
-      <Card num={canWrite ? '02' : '01'} title="Missed trades" meta={<N n={missed.length} unit="logged" />}>
+      <Card num={canWrite ? '02' : '01'} title="Missed Trades" meta={<N n={missed.length} unit="logged" />}>
         {notesQ.isError && !notesQ.data ? (
           <QEError title="Missed trades didn't load" message="The journal notes request failed — this is a failure, not an empty list." onRetry={() => notesQ.refetch()} retrying={notesQ.isFetching} />
         ) : notesQ.isLoading ? <QELoading rows={2} /> : !missed.length ? (
@@ -171,7 +172,7 @@ function LogMissed() {
     </div>
   );
   return (
-    <Card num="01" title="Log a missed trade">
+    <Card num="01" title="Log a Missed Trade">
       <form style={{ display: 'flex', flexDirection: 'column', gap: 8 }} onSubmit={(e) => { e.preventDefault(); if (valid) submit(); }}>
         <div className="jr-form-grid four">
           {field('symbol', 'Symbol', 'NVDA')}

@@ -98,7 +98,7 @@ export default function LossView() {
         <Kpi label="Bars" value={loading ? `${barsState.done}/${barsState.total}` : 'ready'} sub={barsState.failed.length ? `${barsState.failed.length} symbol(s) failed to load` : 'hourly (ext. hours) ≤6 mo, else daily'} />
       </div>
 
-      <Card className="jr-span-12" num="01" title="Fix these first" meta={<><N n={summary.losses.length} unit="losses classified" />{pendingLosses ? <span className="jr-n">· {pendingLosses} waiting for bars</span> : null}</>}>
+      <Card className="jr-span-12" num="01" title="Fix These First" meta={<><N n={summary.losses.length} unit="losses classified" />{pendingLosses ? <span className="jr-n">· {pendingLosses} waiting for bars</span> : null}</>}>
         {!ranked.length ? (
           <p className="jr-note">{loading ? 'Measuring each loss against its bars…' : 'No loss could be classified — the feed had no bars for these trades.'}</p>
         ) : (
@@ -117,7 +117,7 @@ export default function LossView() {
         )}
       </Card>
 
-      <Card className="jr-span-12" num="02" title="Why the losses happened" meta={<><N n={summary.losses.length} unit="losses" /><span className="jr-n">one class per loss, first rule that fires</span></>}>
+      <Card className="jr-span-12" num="02" title="Why the Losses Happened" meta={<><N n={summary.losses.length} unit="losses" /><span className="jr-n">one class per loss, first rule that fires</span></>}>
         <div className="jr-table-wrap">
           <table className="jr-table jr-table-wrapcells jr-loss-classes">
             <thead>
@@ -164,7 +164,7 @@ export default function LossView() {
         </p>
       </Card>
 
-      <Card className="jr-span-12" num="03" title="Loss drivers" meta={<><N n={allCtx.length} unit="closed trades" /><span className="jr-n">sorted by $ lost</span></>}>
+      <Card className="jr-span-12" num="03" title="Loss Drivers" meta={<><N n={allCtx.length} unit="closed trades" /><span className="jr-n">sorted by $ lost</span></>}>
         <div className="jr-seg" role="group" aria-label="Break down by" style={{ marginBottom: 10 }}>
           {DIMS.map((d) => <button key={d} type="button" aria-pressed={dim === d} onClick={() => setDim(d)}>{DRIVER_DIM_LABEL[d]}</button>)}
         </div>
@@ -250,7 +250,7 @@ export default function LossView() {
         </p>
       </Card>
 
-      <Card className="jr-span-12" num="05" title="Every loss, measured" meta={<><N n={lossesSorted.length} unit="losses" /><span className="jr-n">worst first · a row opens the trade</span></>}>
+      <Card className="jr-span-12" num="05" title="Every Loss, Measured" meta={<><N n={lossesSorted.length} unit="losses" /><span className="jr-n">worst first · a row opens the trade</span></>}>
         <div className="jr-table-wrap">
           <table className="jr-table">
             <thead>

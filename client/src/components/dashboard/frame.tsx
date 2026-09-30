@@ -204,7 +204,7 @@ export function ToolFrame({
         <div className="fd-tool-titles">
           <div className="fd-tool-title">
             <span>{phone ? phoneTitleOf(def) : def.title}</span>
-            {symbol && <span className="fd-sym" title="Follows the focused ticker — change it in the bar above, or click a row in any tool">{symbol}</span>}
+            {symbol && <span className="fd-sym" title="Follows the focus ticker in the bar above">{symbol}</span>}
             <PhoneMeta def={def} report={report} now={now} />
             <span className={`fd-age qp-desk-only${report.tone === 'warn' ? ' warn' : ''}`} title={`Data source: ${src}\nAge = time since the newest datum shown, not since the last fetch.`}>
               {src} · {age}{report.note ? ` · ${report.note}` : ''}

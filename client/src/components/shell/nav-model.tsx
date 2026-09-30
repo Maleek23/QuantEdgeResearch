@@ -54,7 +54,7 @@ export const PAGES: PageLink[] = [
 ];
 export const UTILITY_PAGES: PageLink[] = [
   { href: '/alerts',   label: 'Alerts',   short: 'ALERTS',   icon: Bell },
-  { href: '/how-to',   label: 'How to use', short: 'GUIDE',  icon: HelpCircle },
+  { href: '/how-to',   label: 'Guide',    short: 'GUIDE',  icon: HelpCircle },
   { href: '/settings', label: 'Settings', short: 'SETTINGS', icon: SlidersHorizontal },
 ];
 

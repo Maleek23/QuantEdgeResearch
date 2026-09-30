@@ -166,9 +166,15 @@ export function inverseOf<T extends Record<string, unknown>>(prev: T, patch: Par
   return out;
 }
 
-/** "401: {"error":"…"}" → "…" — the reason a server gave, for a toast. */
+/**
+ * "401: {"error":"…"}" → "…" — the reason a server gave, for a toast.
+ * Never a raw status code or an HTML error page (docs/UX_COPY_GUIDE.md §U4):
+ * a reason the server wrote wins; otherwise a plain sentence for the status.
+ */
 export function reasonOf(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err ?? 'Unknown error');
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  if (!msg.trim()) return 'Something went wrong. Try again.';
+  if (/failed to fetch|networkerror|load failed/i.test(msg)) return 'Couldn’t reach QuantEdge — check your connection and try again.';
   const m = msg.match(/^(\d{3}): ([\s\S]*)$/);
   if (!m) return msg;
   const [, status, body] = m;
@@ -179,5 +185,11 @@ export function reasonOf(err: unknown): string {
   } catch { /* not JSON */ }
   if (status === '401') return 'Sign in first.';
   if (status === '403') return 'Not allowed for this account.';
-  return body.trim().slice(0, 160) || `Server said ${status}`;
+  if (status === '404') return 'Not found — it may have been removed.';
+  if (status === '429') return 'Too many requests — wait a moment and try again.';
+  const text = body.trim();
+  if (text && !/^\s*</.test(text)) return text.slice(0, 160);
+  return status.startsWith('5')
+    ? 'The server had a problem. Try again in a minute.'
+    : 'The request didn’t go through. Try again.';
 }

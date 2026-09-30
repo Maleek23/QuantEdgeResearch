@@ -95,7 +95,7 @@ export function TodayWeekMapTool() {
             <h1 className="hero-title">Reading the dealer map…</h1>
           ) : (
             <h1 className="hero-title">
-              SPY is <span className="grad">{shortGamma ? 'in short gamma' : balanced ? 'balanced on gamma' : 'in long gamma'}</span>{nearFlip ? ', near the flip' : ''}. {shortGamma ? 'Moves get amplified.' : balanced ? 'Neither side dominates.' : 'Moves get dampened.'}
+              SPY is <span className="grad">{shortGamma ? 'in short gamma' : balanced ? 'balanced on gamma' : 'in long gamma'}</span>{nearFlip ? ', near zero-γ' : ''}. {shortGamma ? 'Moves get amplified.' : balanced ? 'Neither side dominates.' : 'Moves get dampened.'}
               {sigma != null
                 ? <span className="accent"> {pinClose && gRegime === 'positive' ? `Price is near the ${fmt(magnet, 0)} magnet.` : `Weekly range: ±${fmt(sigma, 0)} points.`}</span>
                 : null}
@@ -118,7 +118,7 @@ export function TodayWeekMapTool() {
             <Link href="/t?tab=gex" className="btn btn-ghost btn-lg">Full GEX surface</Link>
           </div>
           <div className="tl-keys" title={g.asOf ? `Measured SPY dealer levels · ${ageLabel(g.asOf, now)}` : 'Measured SPY dealer levels'}>
-            {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'max |gamma|', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
+            {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
               <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
             ))}
           </div>
@@ -380,7 +380,7 @@ export function TodayRotationTool() {
   });
   if (rotation.isLoading) return <QELoading rows={3} className="fd-pad" label="mapping sectors…" />;
   if (rotation.isError && !rotation.data) return <QEError className="fd-m" title="Sector rotation didn't load" onRetry={() => rotation.refetch()} retrying={rotation.isFetching} />;
-  if (!sectors.length) return <QEEmpty className="fd-m" message="No sectors returned for this session." action={<button type="button" className="fd-btn" onClick={() => rotation.refetch()} disabled={rotation.isFetching}>{rotation.isFetching ? 'Reading…' : 'Read again'}</button>} />;
+  if (!sectors.length) return <QEEmpty className="fd-m" message="No sector quotes yet this session — check back after the open." action={<button type="button" className="fd-btn" onClick={() => rotation.refetch()} disabled={rotation.isFetching}>{rotation.isFetching ? 'Refreshing…' : 'Refresh'}</button>} />;
   return (
     <div className={`${WRAP} td-rot`}>
       <div className="td-rot-grid">
@@ -431,10 +431,10 @@ export function TodayCryptoTool() {
   });
   if (pulse.isLoading) return <QELoading rows={2} className="fd-pad" label="reading crypto…" />;
   if (pulse.isError && !pulse.data) return <QEError className="fd-m" title="Crypto pulse didn't load" onRetry={() => pulse.refetch()} retrying={pulse.isFetching} />;
-  if (!assets.length) return <QEEmpty className="fd-m" message="No crypto quotes returned." action={<button type="button" className="fd-btn" onClick={() => pulse.refetch()} disabled={pulse.isFetching}>Read again</button>} />;
+  if (!assets.length) return <QEEmpty className="fd-m" message="No crypto quotes came back. Retry in a minute." action={<button type="button" className="fd-btn" onClick={() => pulse.refetch()} disabled={pulse.isFetching}>Refresh</button>} />;
   return (
     <div className={`${WRAP} td-crypto`}>
-      {pulse.isError && <QEStale what="Crypto refresh" updatedAt={pulse.dataUpdatedAt} onRetry={() => pulse.refetch()} retrying={pulse.isFetching} />}
+      {pulse.isError && <QEStale what="refresh crypto" updatedAt={pulse.dataUpdatedAt} onRetry={() => pulse.refetch()} retrying={pulse.isFetching} />}
       <div className="td-crypto-grid">
         {assets.map((a) => <CryptoCell key={a.symbol} a={a} />)}
       </div>
@@ -492,7 +492,7 @@ export function TodayTapeTool() {
   });
   if (rotation.isLoading && pulse.isLoading) return <QELoading rows={1} className="fd-pad" label="loading the tape…" />;
   if (bothDown) return <QEError className="fd-m" title="The tape didn't load" onRetry={() => { void rotation.refetch(); void pulse.refetch(); }} retrying={rotation.isFetching || pulse.isFetching} />;
-  if (!tape.length) return <QEEmpty className="fd-m" message="No sector or crypto quotes returned." action={<button type="button" className="fd-btn" onClick={() => { void rotation.refetch(); void pulse.refetch(); }}>Read again</button>} />;
+  if (!tape.length) return <QEEmpty className="fd-m" message="No sector or crypto quotes yet — check back after the open." action={<button type="button" className="fd-btn" onClick={() => { void rotation.refetch(); void pulse.refetch(); }}>Refresh</button>} />;
   return (
     <div className={`${WRAP} td-tape`}>
       <div className="ltape" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
@@ -558,13 +558,13 @@ export function TodayPremarketTool() {
   }
   if (q.isLoading) return <QELoading rows={1} className="fd-pad" label="reading pre-market quotes…" />;
   if (q.isError && !q.data) return <QEError className="fd-m" title="Pre-market quotes didn't load" onRetry={() => q.refetch()} retrying={q.isFetching} />;
-  if (!rows.length) return <QEEmpty className="fd-m" message={`No quotes returned for the ${q.data?.scanned ?? 0} names scanned.`} action={<button type="button" className="fd-btn" onClick={() => q.refetch()} disabled={q.isFetching}>Read again</button>} />;
+  if (!rows.length) return <QEEmpty className="fd-m" message={`No quotes returned for the ${q.data?.scanned ?? 0} names scanned.`} action={<button type="button" className="fd-btn" onClick={() => q.refetch()} disabled={q.isFetching}>Refresh</button>} />;
   const shown = all ? rows : rows.slice(0, PM_SHOW);
   return (
     <div className={`${WRAP} td-pm`}>
       <div className="td-pm-head">
         <span className="td-tool-sub qp-desk-only" style={{ margin: 0 }}>{phase === 'pre_market' ? 'Pre-market' : 'Gaps'} · {GAP_BASIS[phase]}</span>
-        {q.isError && <QEStale what="Pre-market refresh" updatedAt={q.dataUpdatedAt} onRetry={() => q.refetch()} retrying={q.isFetching} />}
+        {q.isError && <QEStale what="refresh pre-market" updatedAt={q.dataUpdatedAt} onRetry={() => q.refetch()} retrying={q.isFetching} />}
         {!inWindow && <button type="button" className="td-pm-hide" onClick={() => setAsked(false)}>Hide</button>}
       </div>
       <div className="td-pm-chips qp-row">

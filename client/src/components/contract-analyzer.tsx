@@ -10,7 +10,7 @@
  *   - per-signal graded cards (A+ to F pills)
  *   - "tempered by X" synthesis paragraph
  *   - trade plan + ROI scenarios
- *   - "Push to Trade Desk" button
+ *   - "Send to NEXUS" button
  *
  * Visual aesthetic matches the Bullflow Agent screenshot:
  *   - monospace dark theme
@@ -86,7 +86,7 @@ interface SuggestedContract {
 interface ContractAnalyzerProps {
   /** Optional preset input (skip the input field, jump straight to analyzing) */
   initialInput?: string;
-  /** Optional callback when "Push to Trade Desk" succeeds */
+  /** Optional callback when "Send to NEXUS" succeeds */
   onPushed?: (analysis: ContractAnalysis) => void;
   /** Optional close handler — renders an X button */
   onClose?: () => void;
@@ -140,7 +140,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
       const res = await apiRequest('POST', '/api/trade-desk/ideas/from-contract-analysis', { analysis });
       const data = await res.json();
       if (data.ok) {
-        setPushResult('✓ Idea created in Trade Desk');
+        setPushResult('✓ Idea added to NEXUS');
         onPushed?.(analysis);
       } else {
         setPushResult(data.reason ?? 'Push failed (may have been deduped)');
@@ -338,7 +338,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
             </div>
           )}
 
-          {/* Push to Trade Desk */}
+          {/* Send to NEXUS */}
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/30">
             {pushResult && (
               <div className="text-[10px] font-mono text-muted-foreground flex-1">{pushResult}</div>
@@ -349,7 +349,7 @@ export function ContractAnalyzer({ initialInput = '', onPushed, onClose, compact
               className="text-[10px] font-mono px-3 py-1.5 rounded border border-emerald-500/40 text-[var(--trade-bullish)] hover:bg-emerald-500/10 disabled:opacity-50 flex items-center gap-1.5"
             >
               {pushing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-              Push to Trade Desk
+              Send to NEXUS
             </button>
           </div>
         </div>

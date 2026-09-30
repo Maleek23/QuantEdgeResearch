@@ -13,6 +13,7 @@
  * Honesty: model ideas from an unvalidated policy family — the header carries
  * the engine's own record as "measuring · n=", never a hit-rate headline.
  */
+import { reasonOf } from '@/lib/optimistic';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { Crosshair, ExternalLink, FlaskConical } from 'lucide-react';
@@ -184,8 +185,8 @@ export function ZeroDteIdeasTool() {
     note: q.isError ? (q.data ? 'refresh failed' : 'unavailable') : q.data ? `${(q.data.ideas ?? []).filter((x: DeskIdea) => x.stage !== 'done').length} live` : undefined,
     tone: q.isError ? 'warn' : 'ok',
   });
-  if (q.isError && !q.data) return <QEError title="0DTE ideas didn't load" message={(q.error as Error)?.message} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError title="0DTE ideas didn't load" message={reasonOf(q.error)} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (!q.data) return <QELoading rows={3} label="reading the 0DTE desk…" />;
-  if (!q.data.watch.length) return <QEEmpty title="No tracked names" message="ZERO_DTE_WATCH resolved to no names." />;
+  if (!q.data.watch.length) return <QEEmpty title="No tracked names" message="The 0DTE watchlist is empty, so there are no index names to read." />;
   return <div className="zd zd-dense zd-tool-body"><ZeroDteIdeas d={q.data} compact /></div>;
 }

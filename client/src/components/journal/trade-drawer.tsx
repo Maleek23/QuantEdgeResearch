@@ -106,7 +106,7 @@ export function TradeDrawer({ trade, open, onOpenChange, onEdit, onNavigate, nei
               {isOpt && onSimulate && (
                 <button type="button" className="jr-btn jr-btn-sm" onClick={() => onSimulate(trade.symbol)}><LineChart className="h-3.5 w-3.5" /> Simulate P&amp;L</button>
               )}
-              {!readOnly && <button type="button" className="jr-btn jr-btn-sm jr-btn-danger" onClick={() => { removeWithUndo(trade); onOpenChange(false); }}><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
+              {!readOnly && <button type="button" className="jr-btn jr-btn-sm jr-btn-danger" onClick={() => { removeWithUndo(trade); onOpenChange(false); }}><Trash2 className="h-3.5 w-3.5" /> Delete trade</button>}
               {readOnly && <span className="jr-tag" title="This book is computed from its source ledger">read-only · {data.meta?.label ?? 'journal'}</span>}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
                 <button type="button" className="jr-icon-btn" disabled={!neighbours.prev} onClick={() => neighbours.prev && onNavigate(neighbours.prev)} aria-label="Previous trade (←)"><ChevronLeft className="h-4 w-4" /></button>

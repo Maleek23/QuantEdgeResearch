@@ -23,19 +23,19 @@ export const MARKET_TOOLS: ToolDef[] = [
     ageInside: true, defaultSize: { w: 3, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(flowTools, 'WatchlistTool'),
   },
   {
-    id: 'market-pulse', category: 'Market', title: 'Market pulse',
+    id: 'market-pulse', category: 'Market', title: 'Market Pulse',
     what: 'Broad asset participation and where money is rotating right now, across asset classes.',
     units: '% change', source: 'sector rotation + extended-hours scan', backing: 'OracleMarketField (oracle/oracle-market-field.tsx) → /api/sector-rotation, /api/extended-hours',
     ageInside: true, defaultSize: { w: 6, h: 10 }, minSize: { w: 4, h: 6 }, Component: lazyTool(market, 'MarketPulseTool'),
   },
   {
-    id: 'market-rotation', category: 'Market', title: 'Rotation map',
+    id: 'market-rotation', category: 'Market', title: 'Rotation Map',
     what: 'Relative strength × momentum across the sector universe; click a sector for its rotation tape.',
     units: 'relative strength vs SPY, momentum', source: 'sector rotation', backing: 'RotationMap (components/rotation-map.tsx) → /api/sector-rotation, /api/rotation-tape/:etf',
     ageInside: true, defaultSize: { w: 6, h: 12 }, minSize: { w: 4, h: 8 }, Component: lazyTool(market, 'RotationMapTool'),
   },
   {
-    id: 'market-session-brief', category: 'Market', title: 'Session brief',
+    id: 'market-session-brief', category: 'Market', title: 'Session Brief',
     what: 'The groups carrying today’s tape and the names inside them, with the macro cash gate.',
     units: '% change, leadership rank', source: 'sector leadership + macro cash gate', backing: 'SessionBrief (oracle/session-brief.tsx) → /api/sector-leadership, /api/macro/cash-gate',
     ageInside: true, defaultSize: { w: 6, h: 10 }, minSize: { w: 4, h: 6 }, Component: lazyTool(market, 'SessionBriefTool'),

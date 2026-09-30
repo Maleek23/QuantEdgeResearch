@@ -499,7 +499,7 @@ export function AutoLottoDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auto-lotto-bot/status"] });
-      toast({ title: "Bot Updated", description: botStatus?.isActive ? "Bot paused" : "Bot activated" });
+      toast({ title: "Bot updated", description: botStatus?.isActive ? "Bot paused" : "Bot activated" });
     },
   });
 
@@ -510,7 +510,7 @@ export function AutoLottoDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auto-lotto-bot/status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auto-lotto-bot"] });
-      toast({ title: "Scan Complete", description: "Manual scan finished" });
+      toast({ title: "Scan complete", description: "Manual scan finished" });
     },
   });
 

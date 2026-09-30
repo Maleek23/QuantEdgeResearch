@@ -68,15 +68,15 @@ export class ErrorBoundary extends Component<Props, State> {
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
               </div>
-              <h1 className="text-xl font-bold text-white mb-2">Updating Quant Edge...</h1>
+              <h1 className="text-xl font-bold text-white mb-2">Updating QuantEdge…</h1>
               <p className="text-muted-foreground mb-6 text-sm">
-                A new version was deployed. Refreshing to load the latest build.
+                A new version is out. Reloading to get it.
               </p>
               <button
                 onClick={() => window.location.reload()}
                 className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 rounded-lg font-medium transition-colors"
               >
-                Reload Now
+                Reload now
               </button>
             </div>
           </div>
@@ -87,21 +87,22 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-screen bg-card text-white p-8">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold text-[var(--trade-bearish)] mb-4">Something went wrong</h1>
+            <h1 className="text-2xl font-bold text-[var(--trade-bearish)] mb-4">This screen hit an error</h1>
+            <p className="text-sm text-muted-foreground mb-4">Reload the page to try again. Your data is safe. If it keeps happening, send the details below to support.</p>
             <div className="bg-muted rounded-lg p-4 mb-4">
-              <h2 className="text-lg font-semibold text-[var(--trade-bearish)] mb-2">Error Message:</h2>
+              <h2 className="text-lg font-semibold text-[var(--trade-bearish)] mb-2">What failed</h2>
               <pre className="text-sm text-[var(--trade-bearish)] whitespace-pre-wrap break-all">
                 {this.state.error?.message}
               </pre>
             </div>
             <div className="bg-muted rounded-lg p-4 mb-4">
-              <h2 className="text-lg font-semibold text-yellow-400 mb-2">Stack Trace:</h2>
+              <h2 className="text-lg font-semibold text-yellow-400 mb-2">Technical details</h2>
               <pre className="text-xs text-foreground/80 whitespace-pre-wrap break-all overflow-auto max-h-64">
                 {this.state.error?.stack}
               </pre>
             </div>
             <div className="bg-muted rounded-lg p-4">
-              <h2 className="text-lg font-semibold text-sky-400 mb-2">Component Stack:</h2>
+              <h2 className="text-lg font-semibold text-sky-400 mb-2">Where it happened</h2>
               <pre className="text-xs text-foreground/80 whitespace-pre-wrap break-all overflow-auto max-h-64">
                 {this.state.errorInfo?.componentStack}
               </pre>
@@ -110,7 +111,7 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={() => window.location.reload()}
               className="mt-4 px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded"
             >
-              Reload Page
+              Reload page
             </button>
           </div>
         </div>

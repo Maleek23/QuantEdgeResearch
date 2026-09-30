@@ -10,31 +10,31 @@ const BOARD = 'GET /api/catalysts/board (conviction picks × verified events, 5-
 
 export const CATALYST_TOOLS: ToolDef[] = [
   {
-    id: 'catalyst-impact', category: 'Catalyst', title: 'Signal impact · calendar × book',
+    id: 'catalyst-impact', category: 'Catalyst', title: 'Signal Impact · calendar × book',
     what: 'Published conviction signals joined to verified events: conflict, event risk, confluence and unclaimed catalysts, with the standing response rule. Filter by bucket; click a row for the workup.',
     units: 'conviction score 0–100, days to event', source: 'catalyst board', backing: `CatalystNexus only="impact" ← ${BOARD}`,
     defaultSize: { w: 7, h: 16 }, minSize: { w: 4, h: 6 }, Component: lazyTool(cat, 'CatalystImpactTool'),
   },
   {
-    id: 'catalyst-earnings', category: 'Catalyst', title: 'Earnings calendar · 7 days',
+    id: 'catalyst-earnings', category: 'Catalyst', title: 'Earnings Calendar · 7 days',
     what: 'Every scheduled report in the next 7 days grouped by day: BMO / AMC / TBD and est. EPS (negatives in parentheses). Names in the active book are ringed.',
     units: 'EPS estimate $', source: 'earnings calendar (Nasdaq)', backing: 'CatalystNexus only="earnings" ← GET /api/earnings/calendar?days=7 (30-min refresh)',
     defaultSize: { w: 5, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(cat, 'CatalystEarningsTool'),
   },
   {
-    id: 'catalyst-econ', category: 'Catalyst', title: 'Economic calendar · macro releases',
+    id: 'catalyst-econ', category: 'Catalyst', title: 'Economic Calendar · macro releases',
     what: 'Upcoming US macro releases with date, ET time, importance and what each one moves. A stale calendar shows nothing rather than guessed dates.',
     units: 'date · ET time · importance', source: 'economic calendar (FRED)', backing: 'CatalystNexus only="econ" ← GET /api/economic-calendar (10-min refresh)',
     defaultSize: { w: 7, h: 10 }, minSize: { w: 3, h: 5 }, Component: lazyTool(cat, 'CatalystEconTool'),
   },
   {
-    id: 'catalyst-summary', category: 'Catalyst', title: 'Catalyst summary · coverage',
+    id: 'catalyst-summary', category: 'Catalyst', title: 'Catalyst Summary · coverage',
     what: 'Tracked signals, event risk, conflicts and confluence counts; how many live signals have a tracked event inside their horizon; feed status.',
     units: 'count, % of live signals', source: 'catalyst board', backing: `CatalystNexus only="summary" ← ${BOARD} + earnings + economic calendars`,
     defaultSize: { w: 5, h: 8 }, minSize: { w: 3, h: 5 }, Component: lazyTool(cat, 'CatalystSummaryTool'),
   },
   {
-    id: 'catalyst-distance', category: 'Catalyst', title: 'Distance to event',
+    id: 'catalyst-distance', category: 'Catalyst', title: 'Distance to Event',
     what: 'Every tracked signal with a dated event, nearest first; bar length scales with days away (≤2d close, ≤6d medium).',
     units: 'days to event', source: 'catalyst board', backing: `CatalystNexus only="distance" ← ${BOARD}`,
     defaultSize: { w: 5, h: 10 }, minSize: { w: 3, h: 4 }, Component: lazyTool(cat, 'CatalystDistanceTool'),

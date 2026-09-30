@@ -9,6 +9,7 @@
  * provenance (useToolReport) and the loading / error gate, so a failed paper
  * ledger reads as an error — never as "flat, the bot holds nothing".
  */
+import { reasonOf } from '@/lib/optimistic';
 import type { ReactNode } from 'react';
 import { QEError, QELoading } from '@/components/ui/qe-states';
 import { BotNexus, useBotFeeds, type BotFeeds, type BotSection } from '@/components/bot/bot-nexus';
@@ -107,7 +108,7 @@ function BotSectionTool({ only }: { only: BotSection }) {
   if (p) {
     const q = f[p.feed];
     if (q.isLoading) gate = <QELoading rows={4} className="fd-pad" label={`reading ${p.what.toLowerCase()}…`} />;
-    else if (q.isError && !q.data) gate = <QEError className="fd-m" title={`${p.what} didn't load`} message={q.error instanceof Error ? q.error.message : undefined} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+    else if (q.isError && !q.data) gate = <QEError className="fd-m" title={`${p.what} didn't load`} message={reasonOf(q.error)} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   } else if (only !== 'rules' && f.conv.isLoading) {
     gate = <QELoading rows={3} className="fd-pad" />;
   }

@@ -76,7 +76,7 @@ export default function TradesView() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <Card num="01" title="Trade log"
+      <Card num="01" title="Trade Log"
         meta={
           <>
             <N n={trades.length} unit="trades" />

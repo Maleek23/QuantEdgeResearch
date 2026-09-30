@@ -85,7 +85,7 @@ export default function ProgressView() {
       </div>
 
       <div className="jr-grid">
-        <Card className="jr-span-7" num="01" title="Rolling win rate & expectancy"
+        <Card className="jr-span-7" num="01" title="Rolling Win Rate & Expectancy"
           meta={
             <>
               <N n={m.closedTrades} />
@@ -106,7 +106,7 @@ export default function ProgressView() {
           )}
         </Card>
 
-        <Card className="jr-span-5" num="02" title="Goals vs actual" meta={<span className="jr-n">{canWrite ? 'saved on this device' : 'read-only book'}</span>}>
+        <Card className="jr-span-5" num="02" title="Goals vs Actual" meta={<span className="jr-n">{canWrite ? 'saved on this device' : 'read-only book'}</span>}>
           <GoalsTable goals={goals} week={wk} month={mo} />
           {canWrite ? <GoalsForm goals={goals} onSave={saveGoals} /> : (
             <p className="jr-note">Goals belong to the book's owner; {bookLabel} is read-only here, so none can be set. The actuals above are still measured.</p>
@@ -114,7 +114,7 @@ export default function ProgressView() {
         </Card>
       </div>
 
-      <Card num="03" title="Last 13 weeks" meta={<N n={grid.cells.filter((c) => c.d?.trades).length} unit="trading days" />}>
+      <Card num="03" title="Last 13 Weeks" meta={<N n={grid.cells.filter((c) => c.d?.trades).length} unit="trading days" />}>
         <div className="jr-heat" role="group" aria-label="Trading days, last 13 weeks">
           {Array.from({ length: 13 }, (_, w) => (
             <div key={w} className="jr-heat-col">

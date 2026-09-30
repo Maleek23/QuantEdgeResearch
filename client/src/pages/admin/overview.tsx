@@ -41,7 +41,7 @@ export default function AdminOverview() {
             </div>
           </LuxPanel>
         )}
-        {health.isError && <QEError title="Health check unreachable" message="/api/health did not answer." onRetry={() => void health.refetch()} />}
+        {health.isError && <QEError title="The health check didn't load" message="The health check didn't answer. Retry in a minute." onRetry={() => void health.refetch()} />}
 
         <LuxKpiGrid cols={4}>
           <LuxKpi label="Users" value={s?.totalUsers ?? '—'} sub={s ? `${s.premiumUsers} on a paid or admin tier` : 'loading'} />

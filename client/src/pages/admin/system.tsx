@@ -46,7 +46,7 @@ export default function AdminSystem() {
   return (
     <AdminLayout>
       <div className="flex flex-col gap-4">
-        {hub.isError && <QEError title="Status endpoint unreachable" message="/api/admin/hub/status failed — the server may be on an older build." onRetry={() => void hub.refetch()} />}
+        {hub.isError && <QEError title="System status didn't load" message="The admin status check failed — the server may be on an older build." onRetry={() => void hub.refetch()} />}
         <LuxKpiGrid cols={4}>
           <LuxKpi label="Release" value={hub.data ? `v${hub.data.release.version}` : h?.release ?? '—'} sub={hub.data ? `${hub.data.release.series} · ${hub.data.release.date}${hub.data.gitSha ? ` · ${hub.data.gitSha.slice(0, 7)}` : ''}` : 'shared/release.ts'} />
           <LuxKpi label="Uptime" value={fmtUptime(p?.uptimeSec ?? h?.uptimeSec)} sub={p ? `pid ${p.pid} · node ${p.node}` : '—'} />

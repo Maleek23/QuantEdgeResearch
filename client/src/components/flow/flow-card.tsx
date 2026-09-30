@@ -257,7 +257,7 @@ export function FlowCard({
             watched ? 'text-[#e0a458]' : 'text-muted-foreground hover:text-foreground',
           )}
         >
-          <Star className={cn('h-3 w-3', watched && 'fill-current')} /> {watched ? 'Watching' : 'Watch'}
+          <Star className={cn('h-3 w-3', watched && 'fill-current')} /> {watched ? 'On watchlist' : 'Add to watchlist'}
         </button>
       </div>
     </motion.div>

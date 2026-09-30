@@ -165,7 +165,7 @@ function DetailHint() {
   const { hasTool, addTool, editable } = useDashboard();
   // Only a workspace can add a tool; NEXUS is a fixed page that ships with the detail tool.
   if (hasTool(DETAIL_ID) || !editable) return null;
-  return <div className="of-hint nxd-hint">Rows open in the detail tool. <button type="button" onClick={() => addTool(DETAIL_ID)}>Add detail</button></div>;
+  return <div className="of-hint nxd-hint">Rows open in the detail tool. <button type="button" onClick={() => addTool(DETAIL_ID)}>Add setup detail</button></div>;
 }
 
 /* ════════════ Ranked setups board ════════════ */
@@ -236,7 +236,7 @@ export function NexusPositionsTool() {
         ? <QEEmpty className="fd-m" message={held.length === 0 ? 'Quantinum Bot holds no positions in this read.' : 'No held positions match this filter.'}
             action={held.length === 0
               ? <Link href="/t?tab=bot" className="fd-btn">Open Quantinum Bot</Link>
-              : <button type="button" className="fd-btn" onClick={() => { setSide('all'); setQuery(''); }}>Clear filter</button>} />
+              : <button type="button" className="fd-btn" onClick={() => { setSide('all'); setQuery(''); }}>Clear filters</button>} />
         : <div className="fd-scroll nxp-rows">{rows.map((pick) => <SetupRow key={pick.ideaId} pick={pick} selected={sel?.kind === 'setup' && sel.id === pick.ideaId} onSelect={() => select.setup(pick)} />)}</div>)}
       <div className="fd-foot">Sorted by unrealized P&amp;L %. Held rows carry live P&amp;L, not a conviction score.</div>
     </div>
@@ -316,9 +316,9 @@ export function NexusDevelopingTool() {
   let list: ReactNode;
   if (patterns.isLoading) list = <QELoading rows={5} className="fd-pad" label="scanning the opportunity funnel…" />;
   else if (patterns.isError && !d) list = <QEError className="fd-m" title="The pattern scan didn't load" onRetry={() => patterns.refetch()} retrying={patterns.isFetching} />;
-  else if (hits.length === 0) list = <QEEmpty className="fd-m" message="No measured developing structures match this view."
+  else if (hits.length === 0) list = <QEEmpty className="fd-m" message="No developing structures match this view. Widen the filters to see more."
     action={side !== 'all' || query
-      ? <button type="button" className="fd-btn" onClick={() => { setSide('all'); setQuery(''); }}>Clear filter</button>
+      ? <button type="button" className="fd-btn" onClick={() => { setSide('all'); setQuery(''); }}>Clear filters</button>
       : <button type="button" className="fd-btn" onClick={() => patterns.refetch()} disabled={patterns.isFetching}>{patterns.isFetching ? 'Scanning…' : 'Scan again'}</button>} />;
   else list = <div className="fd-scroll nxp-rows">{hits.map((hit) => <DevelopingRow key={`${hit.symbol}-${hit.pattern}`} hit={hit} selected={(inlineHit?.symbol ?? selSymbol) === hit.symbol} onSelect={() => select.developing(hit)} />)}</div>;
   return (
@@ -442,7 +442,7 @@ export function NexusHorizonTool() {
   const convictions = useNexusConvictions();
   const select = useSelect();
   const picks = (convictions.data?.picks ?? []).filter((p) => !p.isBotHeld);
-  if (convictions.isError && !convictions.data) return <QEError title="Convictions feed didn't respond" message="The book by horizon needs /api/convictions." onRetry={() => { void convictions.refetch(); }} />;
+  if (convictions.isError && !convictions.data) return <QEError title="The idea book didn't load" message="Book by Horizon needs the idea book, which didn't load. Retry in a minute." onRetry={() => { void convictions.refetch(); }} />;
   if (convictions.isLoading) return <QELoading rows={6} />;
   return (
     <HorizonBook

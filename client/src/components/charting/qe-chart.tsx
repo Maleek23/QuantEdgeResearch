@@ -192,7 +192,7 @@ function QEChartCompact({
     const rows: (Level & { dashed?: boolean })[] = [];
     if (snap.callWall != null) rows.push({ price: snap.callWall, color: 'call', label: 'CALL WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
     if (snap.putWall != null) rows.push({ price: snap.putWall, color: 'put', label: 'PUT WALL', kind: 'gex-anchor', strength: 0.8, meta: 'Γ wall' });
-    if (zeroGamma != null) rows.push({ price: zeroGamma, color: 'caution', label: 'ZERO γ', kind: 'gex-anchor', strength: 0.7, meta: 'Γ flip' });
+    if (zeroGamma != null) rows.push({ price: zeroGamma, color: 'caution', label: 'ZERO-γ', kind: 'gex-anchor', strength: 0.7, meta: 'zero-γ' });
     return rows.length ? [...levels, ...rows] : levels;
   }, [prefs.walls, snap, zeroGamma, levels]);
 

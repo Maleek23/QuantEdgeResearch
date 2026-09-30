@@ -101,7 +101,7 @@ function IndexZeroDtePulse({ intel, scalps, stream }: { intel?: IndexPulseData; 
           {level('VWAP', intel?.vwap?.vwap, CYAN)}
           {level('SPOT', spot, 'var(--text)')}
           {level('UPPER 1σ', intel?.vwap?.upper1, BULL)}
-          {level('GAMMA MAGNET', magnet, 'var(--amber)')}
+          {level('KING NODE', magnet, 'var(--amber)')}
         </div>
         <div style={{ minWidth: 180, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", fontSize: 9, lineHeight: 1.6 }}>
           <div style={{ color: stream?.streamState === 'live' ? BULL : 'var(--amber)' }}>TAPE {stream?.streamState?.toUpperCase() ?? 'OFF'} · {stream?.printsHeld ?? 0} PRINTS</div>

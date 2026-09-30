@@ -29,7 +29,7 @@ export default function HowToPage() {
       </LuxPageHeader>
 
       {/* Daily Workflow */}
-      <Section num="01" title="Your daily workflow" subtitle="3 windows of time, 3 things to check">
+      <Section num="01" title="Your Daily Workflow" subtitle="3 windows of time, 3 things to check">
         <div className="space-y-3">
           <Step
             time="MORNING (8:00–9:30 AM ET)"
@@ -57,23 +57,23 @@ export default function HowToPage() {
       </Section>
 
       {/* What each page is for */}
-      <Section num="02" title="What each page does" subtitle="Every destination — that's the whole product.">
+      <Section num="02" title="What Each Page Does" subtitle="Every destination — that's the whole product.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <PageCard icon={Home}       url="/t"      title="Terminal"        desc="NEXUS home — market briefing, rotation, signals, and every tab" />
+          <PageCard icon={Home}       url="/t"      title="NEXUS"           desc="The trading desk — ranked setups, setup detail, horizon book" />
           <PageCard icon={Target}     url="/today"  title="Today"           desc="Weekly dealer map, the best idea and the ranked book" />
-          <PageCard icon={Bitcoin}    url="/t?tab=crypto" title="BTC Radar" desc="Live BTC + 14 crypto-equity beta tracker, fires on level breaks" />
+          <PageCard icon={Bitcoin}    url="/t?tab=crypto" title="Crypto"    desc="BTC/ETH reads and the equity proxies that follow them" />
           <PageCard icon={Zap}        url="/t?tab=gex" title="GEX"          desc="Dealer positioning — walls, zero-γ, VEX, squeeze radar" />
           <PageCard icon={Zap}        url="/t?tab=flow" title="Flow"        desc="Options flow — sweeps, blocks, market tide, dark-pool levels" />
-          <PageCard icon={Target}     url="/t?nx=0dte" title="0DTE desk"    desc="Same-day index context — levels, dealer map, flow" />
+          <PageCard icon={Target}     url="/t?nx=0dte" title="0DTE Desk"    desc="Same-day index context — levels, dealer map, flow" />
           <PageCard icon={Target}     url="/t?tab=bot" title="Quantinum Bot" desc="The paper-trading bot — every simulated fill on a public ledger" />
-          <PageCard icon={Microscope} url="/r/SPY"  title="Research"        desc="Per-ticker dossier — chart, options, GEX surface, contract lab" />
+          <PageCard icon={Microscope} url="/r/SPY"  title="Ticker Page"     desc="One page per ticker — Quantinum read, chart, options, GEX" />
           <PageCard icon={Wallet}     url="/t?tab=positions" title="Positions" desc="Your open book — alerts, stops, exits" />
           <PageCard icon={BookOpen}   url="/t?tab=journal" title="Journal"  desc="Broker import · insights · loss analysis · track record · trader journals" />
         </div>
       </Section>
 
-      {/* What Thesis Radar does */}
-      <Section num="03" title="How Thesis Radar works" subtitle="The autonomous discovery engine">
+      {/* What the discovery scanner does (formerly "Thesis Radar") */}
+      <Section num="03" title="How Discovery Works" subtitle="The pattern scanner behind the ranked book">
         <div>
           <div className="text-[12.5px] space-y-2">
             <p>
@@ -109,7 +109,7 @@ export default function HowToPage() {
       </Section>
 
       {/* Quick decision tree */}
-      <Section num="04" title="When stuck — quick decision tree" subtitle="Question → where to go">
+      <Section num="04" title="When Stuck — Quick Decision Tree" subtitle="Question → where to go">
         <div className="space-y-1.5 text-[12.5px]">
           {/* Canonical URLs only — the old aliases (/p, /g, /pos, /j, /h, /btc)
               are redirects, and /p?tab=earnings dropped its tab on the way. */}

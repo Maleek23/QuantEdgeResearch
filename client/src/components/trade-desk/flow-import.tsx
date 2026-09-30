@@ -66,17 +66,17 @@ export function FlowImport({ bare = false }: { bare?: boolean }) {
       if (data.pushedCount > 0) {
         queryClient.invalidateQueries({ queryKey: ["/api/trade-ideas/best-setups"] });
         toast({
-          title: `${data.pushedCount} contract${data.pushedCount > 1 ? "s" : ""} pushed`,
+          title: `${data.pushedCount} contract${data.pushedCount > 1 ? "s" : ""} added as ideas`,
           description: `B- and up saved as trade ideas.`,
         });
       } else {
         toast({
-          title: "Nothing pushed",
+          title: "No contracts added",
           description: `Parsed ${data.parsedCount}, none graded B- or higher.`,
         });
       }
     } catch {
-      toast({ title: "Flow import failed", description: "Could not analyze the pasted alerts.", variant: "destructive" });
+      toast({ title: "Couldn’t import flow", description: "Could not analyze the pasted alerts.", variant: "destructive" });
     } finally {
       setBusy(false);
     }

@@ -168,7 +168,7 @@ export function AIChatbotPopup() {
                 <Bot className="h-5 w-5 text-sky-400" />
                 <Sparkles className="absolute -top-1 -right-1 h-2.5 w-2.5 text-sky-300" />
               </div>
-              <span className="font-medium text-sm">Quant Edge AI</span>
+              <span className="font-medium text-sm">QuantEdge assistant</span>
               {user && creditsRemaining !== null && (
                 <Badge 
                   variant="outline" 
