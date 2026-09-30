@@ -160,7 +160,13 @@ function AdminWaitlistContent() {
       const csrfToken = getCSRFToken();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (csrfToken) headers['x-csrf-token'] = csrfToken;
-      const res = await fetch(`/api/admin/waitlist/${waitlistId}/resend-invite`, {
+      // No /waitlist/:id/resend-invite route exists: find the entry's invite
+      // (by email) and use /api/admin/invites/:id/resend.
+      const entry = (waitlistData?.entries || []).find((e: WaitlistEntry) => e.id === waitlistId);
+      const inv = await fetch('/api/admin/invites', { credentials: 'include' }).then((r) => (r.ok ? r.json() : null));
+      const invite = (inv?.invites ?? []).find((i: { email: string; status: string }) => entry && i.email.toLowerCase() === entry.email.toLowerCase() && (i.status === 'pending' || i.status === 'sent'));
+      if (!invite) throw new Error('No open invite for this entry');
+      const res = await fetch(`/api/admin/invites/${invite.id}/resend`, {
         method: 'POST',
         headers,
         credentials: 'include',

@@ -1997,6 +1997,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ authenticated: true });
   });
 
+  // Admin hub › System health: process / pm2 / faults / Discord bot / rate limits (server/admin-hub-routes.ts)
+  { const { registerAdminHubRoutes } = await import('./admin-hub-routes'); registerAdminHubRoutes(app, requireAdminJWT); }
+
   app.get("/api/admin/stats", requireAdminJWT, async (_req, res) => {
     try {
       // Admin stats are NOT timing-critical - safe to cache for 2 minutes
