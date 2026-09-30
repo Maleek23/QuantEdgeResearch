@@ -91,7 +91,7 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
     ],
   },
   successStories: {
-    title: "Trading Results | Real Trades & Performance - Quant Edge Labs",
+    title: "Track Record | Published Ideas & Outcomes - Quant Edge Labs",
     description: "The platform's published ideas and how they did — wins and losses, each rate with its sample size.",
     ogTitle: "QuantEdge Track Record",
     ogDescription: "Every published idea and its outcome, with sample sizes.",
@@ -101,9 +101,9 @@ export const PAGE_SEO: Record<string, SEOMetadata> = {
   },
   tradeDesk: {
     title: "NEXUS | Evidence-Ranked Setups - QuantEdge Labs",
-    description: "Your trading command center. Access real-time confluence scoring signals, scanner-generated trade ideas, and quantitative analysis across all markets.",
+    description: "Evidence-ranked setups with entry, stop and target, graded after the fact — model ideas for research, not recommendations.",
     ogTitle: "Quant Edge Labs Trade Desk",
-    ogDescription: "Real-time quantitative trading signals and confluence analysis for stocks, options, and crypto.",
+    ogDescription: "Evidence-ranked setups and confluence analysis for stocks, options and crypto — research, not recommendations.",
     keywords: [
       "real-time trading signals",
       "trading terminal",

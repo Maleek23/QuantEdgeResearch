@@ -35,13 +35,13 @@ const engines = [
 
 const values = [
   {
-    title: "Accuracy Over Volume",
-    description: "We'd rather give you 3 high-conviction ideas than 30 mediocre ones. Quality signals matter.",
+    title: "Selectivity Over Volume",
+    description: "We'd rather publish 3 well-evidenced ideas than 30 thin ones — and grade every one of them afterwards.",
     icon: Target
   },
   {
     title: "Transparency First",
-    description: "Every recommendation shows exactly why it was made. No black boxes, no hidden logic.",
+    description: "Every idea shows the evidence behind it — what argued for it and what argued against. No black boxes, no hidden logic.",
     icon: Eye
   },
   {
@@ -157,12 +157,13 @@ export default function About() {
                 Financial markets generate millions of data points daily. Individual traders can't
                 possibly track technical patterns, fundamental changes, sentiment shifts, options flow
                 and dealer gamma positioning simultaneously. Institutions have entire teams for this.
-                <strong className="text-foreground"> We built QuantEdge to level the playing field.</strong>
+                <strong className="text-foreground"> We built QuantEdge to put that research in one place.</strong>
               </p>
               <p className="text-muted-foreground leading-relaxed mt-4">
-                Our convergence-based approach means you only see opportunities where multiple independent
-                layers agree. When technicals align with fundamentals, sentiment confirms the direction,
-                and smart money is positioning accordingly—that's when you get a high-conviction signal.
+                Our convergence-based approach scores each idea by how many independent layers agree. When
+                technicals align with fundamentals, sentiment confirms the direction and options positioning
+                leans the same way, the idea earns a higher conviction band — a ranking of evidence, not a
+                forecast, and every band's record is published with its sample size.
               </p>
             </CardContent>
           </Card>
@@ -373,6 +374,7 @@ export default function About() {
       <footer className="border-t border-border py-8 mt-12">
         <div className="container mx-auto px-4 lg:px-6 text-center text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Quant Edge Labs. All rights reserved.</p>
+          <p className="mt-2 text-xs">Educational research only — not investment advice. Trading, and especially options and crypto, involves substantial risk of loss. Quantinum Bot results are paper (simulated); past performance does not guarantee future results.</p>
           <div className="flex gap-4 justify-center mt-2">
             <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>

@@ -48,7 +48,7 @@ const FAQ: [string, React.ReactNode][] = [
   ['Where does the data come from, and is it delayed?',
     'Equity quotes and trades come from brokerage and market-data APIs (Alpaca IEX trades, Tradier and Yahoo quotes), crypto from Coinbase’s live feed, options chains from Alpaca, Tradier or CBOE’s delayed feed, and flow from a third-party flow feed. Every tile shows its source and how old it is. When a feed is delayed (CBOE chains run about 15 minutes behind) or stale, the tile says so rather than showing it as live. The free plan uses 15-minute delayed quotes.'],
   ['Is this investment advice?',
-    'No. QuantEdge is an educational and analytical tool. A setup is a hypothesis with its evidence and its record shown — not a recommendation to buy or sell. Your trades and your risk are yours.'],
+    'No. QuantEdge is an educational and analytical tool. A setup is a hypothesis with its evidence and its record shown — not a recommendation to buy or sell. Your trades and your risk are yours. Options — especially same-day (0DTE) options — and crypto are high-risk: a position can lose its full value quickly, and they are not suitable for every investor.'],
   ['How are ideas measured?',
     'Every NEXUS idea is published with an entry, a stop and a target, then graded automatically when price reaches one of them or the idea expires. Outcomes go into a public record by conviction band. A win rate is only shown with its sample size, and not at all below 30 closed trades — small samples mislead.'],
   ['What is the 0DTE desk?',
@@ -60,7 +60,7 @@ const FAQ: [string, React.ReactNode][] = [
   ['Does it work on a phone?',
     'Yes. Every page is built for phone width — Today, NEXUS, FLOW and GEX sit in the bottom dock — and the live panels above swipe. There is no app to install; add the site to your home screen if you like.'],
   ['What does it cost, and how do I get access?',
-    <>QuantEdge is in early-access beta. There is a free plan with delayed data and limits, and Advanced unlocks real-time data and full access — see <a href="#pricing">Pricing</a>. Monthly plans can be cancelled anytime.</>],
+    <>QuantEdge is in early-access beta. There is a free plan with delayed data and limits, and Advanced unlocks real-time data and full access — see <a href="#pricing">Pricing</a>. Paid plans renew automatically each month or year until you cancel, and you can cancel anytime by emailing <a href="mailto:support@quantedgelabs.net">support@quantedgelabs.net</a>.</>],
 ];
 
 function Frame({ src, w, h, alt, url, eager }: { src: string; w: number; h: number; alt: string; url: string; eager?: boolean }) {
@@ -168,7 +168,7 @@ function Pricing() {
           ))}
         </div>
         {err && <p className="lp-plan-err" role="alert">{err}</p>}
-        <p className="lp-plan-fine">Educational research only — not financial advice. Past performance does not guarantee future results. Upgrade or downgrade at any time.</p>
+        <p className="lp-plan-fine">Paid plans renew automatically at the listed price each month or year until cancelled; cancel anytime by emailing support@quantedgelabs.net. Upgrade or downgrade at any time. Educational research only — not financial advice. Past performance does not guarantee future results.</p>
       </div>
     </section>
   );
@@ -312,7 +312,7 @@ export default function LandingNexus() {
           <p className="lfooter-def">QuantEdge is a trading research terminal for stocks, options and crypto — every number carries its evidence and its record.</p>
           <div className="lfooter-bottom">
             <div>© QuantEdge Labs · Founded by <Link href="/about#founder">Abdulmalik Ajisegiri</Link></div>
-            <div className="disclaimer">Educational and analytical tool only. Not investment advice. Trading involves risk of loss. Hero screenshots show sample data; the live panels show real market data with its source and age. Every performance figure carries its sample size.</div>
+            <div className="disclaimer">Educational and analytical tool only. Not investment advice. Trading involves risk of loss; options (including 0DTE) and crypto carry substantial risk and can lose their full value. Quantinum Bot results are paper (simulated) trades, and past performance does not guarantee future results. Some data is delayed (e.g. CBOE option chains ~15 min; free plan quotes 15 min). Hero screenshots show sample data; the live panels show real market data with its source and age. Every performance figure carries its sample size.</div>
           </div>
         </div>
       </footer>

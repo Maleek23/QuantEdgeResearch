@@ -33,7 +33,36 @@ function messageSignature(init?: RequestInit): string | null {
   }
 }
 
-export async function postDiscordWebhook(webhookUrl: string, init?: RequestInit): Promise<Response> {
+// Compliance review 2026-09-30 (docs/COMPLIANCE_REVIEW_2026-09-30.md): every
+// public Discord post carries the research / risk disclaimer. Added here, at the
+// one boundary every publisher goes through, so no scanner can forget it.
+// JSON bodies only — multipart uploads (trade-card images) pass through as-is.
+export const DISCORD_DISCLAIMER = 'Research & education only — not investment advice. Model/paper output. Options & crypto carry substantial risk.';
+
+export function withDiscordDisclaimer(init?: RequestInit): RequestInit | undefined {
+  if (typeof init?.body !== 'string') return init;
+  try {
+    const payload = JSON.parse(init.body);
+    if (!payload || typeof payload !== 'object') return init;
+    if (/not investment advice/i.test(init.body)) return init;
+    const embeds = Array.isArray(payload.embeds) ? payload.embeds : [];
+    if (embeds.length) {
+      const last = embeds[embeds.length - 1];
+      const text = last.footer?.text ? `${last.footer.text} · ${DISCORD_DISCLAIMER}` : DISCORD_DISCLAIMER;
+      last.footer = { ...(last.footer ?? {}), text: text.slice(0, 2048) };
+    } else if (typeof payload.content === 'string' && payload.content.length + DISCORD_DISCLAIMER.length + 4 <= 2000) {
+      payload.content = `${payload.content}\n-# ${DISCORD_DISCLAIMER}`;
+    } else {
+      return init;
+    }
+    return { ...init, body: JSON.stringify(payload) };
+  } catch {
+    return init;
+  }
+}
+
+export async function postDiscordWebhook(webhookUrl: string, rawInit?: RequestInit): Promise<Response> {
+  const init = withDiscordDisclaimer(rawInit);
   const now = Date.now();
   const state = webhookTraffic.get(webhookUrl) ?? { sentAt: [], signatures: new Map<string, number>() };
   state.sentAt = state.sentAt.filter((at) => now - at < DISCORD_WINDOW_MS);
@@ -405,7 +434,7 @@ export async function sendBotTradeEntryToDiscord(trade: {
     }
 
     const message: DiscordMessage = {
-      content: `🚀 **BOT ENTRY**: ${trade.symbol} (${meta.name})`,
+      content: `🚀 **BOT ENTRY (paper)**: ${trade.symbol} (${meta.name})`,
       embeds: [embed]
     };
 
@@ -511,7 +540,7 @@ export async function sendBotTradeExitToDiscord(exit: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        content: `${isProfit ? '✅' : '❌'} **BOT EXIT**: ${exit.symbol} (${meta.name})`,
+        content: `${isProfit ? '✅' : '❌'} **BOT EXIT (paper)**: ${exit.symbol} (${meta.name})`,
         embeds: [embed]
       }),
     });
@@ -702,6 +731,8 @@ export async function sendTradeCardImageToDiscord(
     ],
     image: { url: `attachment://${safeName}` },
     timestamp: new Date().toISOString(),
+    // Multipart bodies bypass withDiscordDisclaimer, so the card carries it itself.
+    footer: { text: `QuantEdge · ${DISCORD_DISCLAIMER}` },
   };
 
   try {

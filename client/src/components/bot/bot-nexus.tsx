@@ -758,6 +758,7 @@ export function BotNexus({ only }: { only?: BotSection } = {}) {
 
       <div className="disclaimer">
         Educational only · not investment advice.<br />
+        Paper trading — simulated fills, no real money. Simulated results have limits and past performance does not guarantee future results.<br />
         Automation does not remove risk — it enforces discipline.
       </div>
     </>

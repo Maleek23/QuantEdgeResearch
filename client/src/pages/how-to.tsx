@@ -36,15 +36,15 @@ export default function HowToPage() {
             actions={[
               { url: '/t',     label: 'Terminal — NEXUS',     why: 'Market briefing — regime, rotation, signals' },
               { url: '/today', label: 'Today — ranked book', why: 'See what the engines published overnight' },
-              { url: '/t?tab=crypto', label: 'Terminal — Crypto', why: 'BTC level breaks — MARA/COIN/MSTR plays' },
-              { url: '/t?tab=positions', label: 'Positions',  why: 'Adjust stops on existing trades' },
+              { url: '/t?tab=crypto', label: 'Terminal — Crypto', why: 'BTC level breaks — and the MARA/COIN/MSTR proxies that follow' },
+              { url: '/t?tab=positions', label: 'Positions',  why: 'Review stops on your open positions' },
             ]}
           />
           <Step
             time="DURING MARKET (9:30 AM – 4:00 PM)"
             actions={[
               { url: '/r/QCOM', label: 'Research → /r/[ticker]', why: 'Per-ticker chart, options, GEX, flow — all in one' },
-              { url: '/t?tab=gex', label: 'GEX',               why: 'Dealer walls = your entry/exit levels' },
+              { url: '/t?tab=gex', label: 'GEX',               why: 'Dealer walls — levels to plan around, not guarantees' },
             ]}
           />
           <Step
@@ -90,7 +90,7 @@ export default function HowToPage() {
               <li>• <strong>Bottleneck Whisper</strong> — "constrained / shortage" mentions cluster</li>
               <li>• <strong>Institutional Accumulation</strong> — whale buys + insider purchases</li>
               <li>• <strong>Catalyst Whisper</strong> — unusual OI + scheduled event in 30 days</li>
-              <li>• <strong>Gamma Squeeze</strong> — UNH-style penny call premium juice</li>
+              <li>• <strong>Gamma Squeeze</strong> — dealers look short gamma while cheap calls see heavy buying</li>
             </ul>
             <p>
               <span className="lx-panel-num">3.</span>{' '}
@@ -113,15 +113,15 @@ export default function HowToPage() {
         <div className="space-y-1.5 text-[12.5px]">
           {/* Canonical URLs only — the old aliases (/p, /g, /pos, /j, /h, /btc)
               are redirects, and /p?tab=earnings dropped its tab on the way. */}
-          <DecisionRow q="What should I trade today?"               a={['/today', '/t']} />
+          <DecisionRow q="What setups are on the board today?"       a={['/today', '/t']} />
           <DecisionRow q="Is the market bullish or bearish?"        a={['/t']} />
-          <DecisionRow q="Where's QCOM going?"                       a={['/r/QCOM', '/t?tab=gex']} />
+          <DecisionRow q="What's the read on QCOM?"                  a={['/r/QCOM', '/t?tab=gex']} />
           <DecisionRow q="What just got published today?"           a={['/today']} />
           <DecisionRow q="What earnings are this week?"             a={['/t?tab=catalyst']} />
           <DecisionRow q="BTC moving — which equities follow?"      a={['/t?tab=crypto']} />
           <DecisionRow q="My open positions?"                        a={['/t?tab=positions']} />
           <DecisionRow q="My win rate / track record?"               a={['/t?tab=journal&jtab=record']} />
-          <DecisionRow q="A pattern setup I want to follow?"        a={['/t']} />
+          <DecisionRow q="A pattern setup I want to track?"         a={['/t']} />
         </div>
       </Section>
 
@@ -136,6 +136,9 @@ export default function HowToPage() {
           </p>
           <p>
             <strong className="text-foreground">Not best for:</strong> 0DTE scalping (you need a real-time exchange feed; ours is indicative or delayed). Pre-market options data (limited). Overnight stock alerts (closed market).
+          </p>
+          <p>
+            <strong className="text-foreground">Not advice:</strong> QuantEdge is an educational research tool, not investment advice. Setups, grades and scores rank evidence — they are not recommendations or probabilities. Options, and 0DTE options above all, can lose their full value within minutes; crypto trades 24/7 and is highly volatile. Quantinum Bot trades on paper, and past results do not guarantee future results.
           </p>
         </div>
       </Section>

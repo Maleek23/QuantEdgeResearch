@@ -556,7 +556,8 @@ export default function JoinBeta() {
         )}
 
         <p className="text-center text-neutral-600 text-xs mt-6">
-          By signing up, you agree to our Terms of Service and Privacy Policy.
+          By signing up, you agree to our Terms of Service and Privacy Policy, and acknowledge that QuantEdge is an
+          educational research tool, not investment advice. Trading stocks, options and crypto involves substantial risk of loss.
         </p>
       </div>
     </div>

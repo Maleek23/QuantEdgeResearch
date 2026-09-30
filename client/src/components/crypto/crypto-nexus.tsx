@@ -635,6 +635,7 @@ export function CryptoNexus() {
 
           <div className="disclaimer">
             Educational only · not investment advice.<br />
+            Crypto trades 24/7 and is highly volatile — you can lose your full investment.<br />
             Crypto proxies are equities — validate each separately.
           </div>
         </div>

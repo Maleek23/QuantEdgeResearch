@@ -445,7 +445,7 @@ async function assembleIdeas(watch: string[], rows: DeskRow[], ideas: IdeaLite[]
     evaluated: {}, noZeroDte: [],
     cadence: 'every watched name is evaluated every 5 min 09:45–15:00 ET and every 2 min in power hour (to 15:45); nothing new after 15:45, everything flat by 15:55',
     caps: Object.fromEntries(watch.map((s) => [s, capsFor(s).basis])),
-    honesty: 'Model ideas from a pre-registered, UNVALIDATED policy family (5-observation pilot). Walk-forward law: a short-window win is a regime artefact until proven. Grade = structure count, not a probability.',
+    honesty: 'Model ideas from a pre-registered, UNVALIDATED policy family (5-observation pilot). Walk-forward law: a short-window win is a regime artefact until proven. Grade = structure count, not a probability. Research only — not a recommendation to buy or sell; 0DTE options can lose their full value within minutes.',
   };
   const { getIntradayStructure } = await import('./zero-dte-structure');
   const spy = watch.includes('SPX') ? await getIntradayStructure('SPY').catch(() => null) : null;

@@ -6,6 +6,10 @@
  *
  * One copy change: Pro's description said "institutional-grade tools", a phrase
  * docs/POSITIONING.md bans; it now describes what Pro is.
+ *
+ * Compliance review 2026-09-30 (docs/COMPLIANCE_REVIEW_2026-09-30.md): Free no
+ * longer says "risk-free" (a loaded phrase next to trading), and Pro's futures
+ * line says research, not trading — QuantEdge never places orders.
  */
 export interface PlanFeature { name: string; included: boolean; comingSoon?: boolean }
 export interface Plan {
@@ -23,7 +27,7 @@ export const PLANS: Plan[] = [
   {
     id: 'free',
     name: 'Free',
-    description: 'Explore the research platform risk-free',
+    description: 'Explore the research platform at no cost',
     monthlyPrice: 0,
     yearlyPrice: 0,
     features: [
@@ -66,7 +70,7 @@ export const PLANS: Plan[] = [
     comingSoon: true,
     features: [
       { name: 'Everything in Advanced', included: true },
-      { name: 'Futures trading (NQ, ES, GC)', included: true, comingSoon: true },
+      { name: 'Futures research (NQ, ES, GC)', included: true, comingSoon: true },
       { name: 'REST API access', included: true, comingSoon: true },
       { name: 'White-label PDF reports', included: true, comingSoon: true },
       { name: 'Pattern Scanner module', included: true, comingSoon: true },

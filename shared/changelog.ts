@@ -137,7 +137,7 @@ export const CHANGELOG: ChangeEntry[] = [
     id: '2026-05-10-radar-ui-fetchers-complete',
     date: '2026-05-10',
     title: 'Radar UI shipped + all 6 fetchers wired + Gamma Squeeze pattern live',
-    blurb: 'New /radar destination with 4 tabs (Forming · Picks · Patterns · Track Record) + /btc dashboard for live beta watchlist. Wired remaining fetchers: IV percentile (from historical chain), News catalysts (catalyst-tracker), Analyst ratings (target-price upside), Institutional flow (block/dark-pool premium proxy). Added 6th pattern: Gamma Squeeze Detector — finds dealer short-gamma traps for UNH-style penny-call premium juice.',
+    blurb: 'New /radar destination with 4 tabs (Forming · Picks · Patterns · Track Record) + /btc dashboard for live beta watchlist. Wired remaining fetchers: IV percentile (from historical chain), News catalysts (catalyst-tracker), Analyst ratings (target-price upside), Institutional flow (block/dark-pool premium proxy). Added 6th pattern: Gamma Squeeze Detector — flags names where dealers look short gamma and cheap calls meet heavy hedging.',
     tag: 'feature',
   },
   {
@@ -157,7 +157,7 @@ export const CHANGELOG: ChangeEntry[] = [
   {
     id: '2026-05-06-thesis-radar-v1',
     date: '2026-05-06',
-    title: 'Thesis Radar v1 — find the next DGXX before it gaps',
+    title: 'Thesis Radar v1 — pattern signatures for early-stage setups',
     blurb: '5 starter pattern signatures (DGXX setup, Aschenbrenner 2nd-derivative, Bottleneck whisper, Institutional accumulation, Catalyst whisper) + Bullflow-style conviction agent with A+/A/A-/B+ letter grades + Discord webhook for FORMING/CONFIRMED alerts + track record for accountability. The platform now hunts for setups instead of waiting to be asked.',
     tag: 'feature',
   },
@@ -165,7 +165,7 @@ export const CHANGELOG: ChangeEntry[] = [
     id: '2026-05-04-earnings-trade-desk-bridge',
     date: '2026-05-04',
     title: 'Earnings → Trade Desk bridge — push lottos to your book',
-    blurb: 'Every Earnings Hub lotto now has a "+ Push" button that creates a real Trade Desk idea with full plan (entry/T1/T2/stop/catalyst). "Push All S/A" bulk button at the top — one click puts the entire weekly lotto basket on your desk. PINS just gapped +15.78% post-market — this prevents missing the next one.',
+    blurb: 'Every Earnings Hub lotto now has a "+ Push" button that creates a real Trade Desk idea with full plan (entry/T1/T2/stop/catalyst). "Push All S/A" bulk button at the top — one click puts the entire weekly lotto basket on your desk. Lottos are high-risk, low-probability options that often expire worthless.',
     link: '/t?tab=catalyst',
     linkLabel: 'Open Earnings Hub',
     tag: 'workflow',

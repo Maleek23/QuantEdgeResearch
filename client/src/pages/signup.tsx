@@ -281,6 +281,15 @@ export default function Signup() {
                 </Button>
               </form>
             </Form>
+
+            {/* Compliance review 2026-09-30: terms + risk acknowledgement at the point of signup. */}
+            <p className="mt-4 text-xs text-muted-foreground text-center leading-relaxed" data-testid="text-signup-terms">
+              By creating an account you agree to the{" "}
+              <Link href="/terms" className="text-sky-400 hover:underline">Terms of Service</Link> and{" "}
+              <Link href="/privacy" className="text-sky-400 hover:underline">Privacy Policy</Link>, and acknowledge that
+              QuantEdge is an educational research tool, not investment advice. Trading stocks, options and crypto involves
+              substantial risk of loss.
+            </p>
             
             <div className="flex flex-col gap-4 mt-6">
               <div className="text-sm text-muted-foreground text-center">

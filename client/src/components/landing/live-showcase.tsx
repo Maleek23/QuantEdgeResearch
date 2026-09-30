@@ -233,7 +233,7 @@ function NexusPanel({ d, now }: PanelProps) {
   const ideas = d?.ideas.data ?? [];
   return (
     <>
-      <p className="sc-note"><span className="sc-badge">Delayed 24h</span> Members see today’s ideas live. These were published at least a day ago.</p>
+      <p className="sc-note"><span className="sc-badge">Delayed 24h</span> Members see today’s ideas live. These were published at least a day ago. Outcomes are measured from each idea’s published entry — model results, not trades anyone placed, before fees and slippage.</p>
       {ideas.length ? (
         <ul className="sc-list">
           {ideas.map((i) => {
@@ -331,7 +331,7 @@ function BotPanel({ d, now }: PanelProps) {
   const b = d?.bot.data;
   return (
     <>
-      <p className="sc-note">Quantinum Bot trades NEXUS’s published ideas on paper. No real money.</p>
+      <p className="sc-note">Quantinum Bot trades NEXUS’s published ideas on paper. No real money. Simulated results have limits (fills are modelled) and past performance does not guarantee future results.</p>
       {b ? (
         <>
           <dl className="sc-stats">
@@ -357,7 +357,7 @@ function JournalPanel({ d, now }: PanelProps) {
       <p className="sc-note"><span className="sc-badge">Demo</span> This is the Quantinum Bot’s paper book — your journal measures your own trades the same way.</p>
       {b ? (
         <dl className="sc-stats">
-          <div><dt>Net realized P&amp;L</dt><dd className={b.netRealizedPnL >= 0 ? 'up' : 'down'}>{fmtUsd(b.netRealizedPnL)}</dd></div>
+          <div><dt>Paper net P&amp;L</dt><dd className={b.netRealizedPnL >= 0 ? 'up' : 'down'}>{fmtUsd(b.netRealizedPnL)}</dd></div>
           <div><dt>Closed / open</dt><dd>{b.closed} / {b.open}</dd></div>
           <div><dt>Avg win · loss</dt><dd>{b.avgWinPct != null ? `${fmtPct(b.avgWinPct, 1)} · ${fmtPct(b.avgLossPct, 1)}` : '—'}</dd></div>
           <div><dt>Profit factor</dt><dd>{b.profitFactor != null ? b.profitFactor.toFixed(2) : '—'}</dd></div>

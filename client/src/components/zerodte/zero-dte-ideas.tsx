@@ -6,7 +6,7 @@
  * mid, repriced on every desk build and stamped with the quote's own time) ·
  * underlying trigger · stop (underlying + estimated premium) · T1 / T2 ·
  * enter-by / exit-by · why · structure grade · age. Stage chips:
- * WATCH (forming) → TRIGGERED (enter now) → IN PLAY → DONE. Clicking an idea
+ * WATCH (forming) → TRIGGERED (trigger hit — setup active) → IN PLAY → DONE. Clicking an idea
  * opens its chart (5-min, trigger / stop / targets drawn) and the contract in
  * the Contract lab.
  *
@@ -91,8 +91,8 @@ function IdeaCard({ x, open, onToggle }: { x: DeskIdea; open: boolean; onToggle:
         <div className="zi-kv"><span>Trigger</span><strong>{x.trigger ? px(x.trigger.price) : '—'} <small>{x.triggerText}{x.stage === 'watch' && x.distPct != null ? ` · ${x.distPct.toFixed(2)}% away` : ''}</small></strong></div>
         <div className="zi-kv"><span>Stop</span><strong className="zd-dn">{px(x.stop)}{c?.premiumStop != null && <small> · premium ≈ {prem(c.premiumStop)}</small>}</strong></div>
         <div className="zi-kv"><span>Targets</span><strong className="zd-up">T1 {px(x.target.price)} <small>{x.target.name}{c?.premiumT1 != null ? ` · ≈ ${prem(c.premiumT1)}` : ''}</small>{x.target2 && <> · T2 {px(x.target2.price)} <small>{x.target2.name}{c?.premiumT2 != null ? ` · ≈ ${prem(c.premiumT2)}` : ''}</small></>}{x.rr != null && <small> · {x.rr.toFixed(1)}R</small>}</strong></div>
-        <div className="zi-kv"><span>Window</span><strong>{x.entryBy ? `enter by ${x.entryBy}` : 'entry window passed'} · exit by {x.exitBy} ET <small>time stop</small></strong></div>
-        <div className="zi-kv"><span>Size</span><strong>{c?.qty ? `${c.qty}× · risk ≈ ${px(c.riskDollars, 0)} · debit ≈ ${px(c.debitDollars, 0)}` : '—'}{c?.delta != null && <small> · Δ {c.delta.toFixed(2)} · OI {c.openInterest?.toLocaleString() ?? '—'} · spread {c.spreadPct != null ? `${Math.round(c.spreadPct * 100)}%` : '—'}</small>}</strong></div>
+        <div className="zi-kv"><span>Window</span><strong>{x.entryBy ? `entry window to ${x.entryBy}` : 'entry window passed'} · exit by {x.exitBy} ET <small>time stop</small></strong></div>
+        <div className="zi-kv"><span>Model size</span><strong>{c?.qty ? `${c.qty}× · risk ≈ ${px(c.riskDollars, 0)} · debit ≈ ${px(c.debitDollars, 0)}` : '—'}{c?.delta != null && <small> · Δ {c.delta.toFixed(2)} · OI {c.openInterest?.toLocaleString() ?? '—'} · spread {c.spreadPct != null ? `${Math.round(c.spreadPct * 100)}%` : '—'}</small>}</strong></div>
         <p className="zi-why">{x.why}</p>
         {(x.doneReason || x.contractNote || x.loggedNote) && <p className="zi-note">{[x.doneReason, x.contractNote, x.loggedNote].filter(Boolean).join(' · ')}</p>}
         <p className="zi-note">{x.symbol} {px(x.price)} · {ageOf(x.priceAt)}{c?.basis ? ` · ${c.basis}` : ''}</p>
@@ -151,7 +151,7 @@ export function ZeroDteIdeas({ d, compact = false }: { d: DeskPayload; compact?:
     <section className={`zi ${compact ? 'zi-compact' : ''}`} aria-label="0DTE ideas">
       <header className="zi-head">
         <h4><Crosshair size={13} aria-hidden /> 0DTE ideas</h4>
-        <span className="zd-chip on" title="TRIGGERED — enter now">{counts.triggered} triggered</span>
+        <span className="zd-chip on" title="TRIGGERED — trigger hit, setup active (a model idea, not a recommendation)">{counts.triggered} triggered</span>
         <span className="zd-chip">{counts.in_play} in play</span>
         <span className="zd-chip">{counts.watch} watch</span>
         <span className="zi-rec" title={info?.honesty}>{recordLine(d)}</span>
@@ -170,7 +170,7 @@ export function ZeroDteIdeas({ d, compact = false }: { d: DeskPayload; compact?:
         </ul>
       )}
       {info && info.noZeroDte.length > 0 && <p className="zi-note">{info.noZeroDte.map((n) => `${n.symbol}: ${n.label}`).join(' · ')}</p>}
-      {!compact && info && <p className="zi-note">{info.honesty} Cadence: {info.cadence}. Caps: {Object.entries(info.caps).map(([k, v]) => `${k} ${v}`).join(' · ')}. Premium stop / targets are delta-only estimates.</p>}
+      {!compact && info && <p className="zi-note">{info.honesty} Cadence: {info.cadence}. Caps: {Object.entries(info.caps).map(([k, v]) => `${k} ${v}`).join(' · ')}. Premium stop / targets are delta-only estimates. Model size uses the desk's fixed caps, not your account.</p>}
     </section>
   );
 }

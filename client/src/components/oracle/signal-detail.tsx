@@ -9,7 +9,7 @@
  *                    Risk / Reward) that shared `geometryFor` and restated the
  *                    same ratio three ways across 649px.
  *   ProfitPlan     — the scale-out rungs (40% at T1 + trail to entry, 60% at T2).
- *   ContextPanel   — the interpreting sentence + what to do now.
+ *   ContextPanel   — the interpreting sentence + the setup status.
  */
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -603,7 +603,7 @@ export function ProfitPlan({ pick, live, className }: { pick: ConvictionPick; li
   const lad = ladderQ.data;
   const hitIdx = lad ? lad.rungs.filter((r) => (pick.direction === 'long' ? live >= r.price : live <= r.price)).length : 0;
   return (
-    <Card title="Profit Taking Plan" meta={lad ? `levels from structure · ±$${lad.expectedRange.toFixed(2)} range over ${lad.horizonDays}d` : undefined} className={className}>
+    <Card title="Model exit plan" meta={lad ? `levels from structure · ±$${lad.expectedRange.toFixed(2)} range over ${lad.horizonDays}d` : undefined} className={className}>
       {lad && lad.rungs.length > 0 ? (
         <div className="divide-y divide-border/30">
           {lad.rungs.map((r, i) => (
@@ -659,7 +659,7 @@ export function ContextPanel({
 
   const todo = (() => {
     switch (g.status) {
-      case 'invalidated': return 'Stop is hit — the thesis is broken. Stand down.';
+      case 'invalidated': return 'Stop is hit — the thesis is invalidated.';
       case 'near_stop':   return `Near invalidation — only ${g.levels.find(l => l.key === 'stop')?.rAway.toFixed(1)}R from the stop.`;
       case 'pending_trigger': {
         const e = g.levels.find(l => l.key === 'entry');
@@ -681,7 +681,7 @@ export function ContextPanel({
         </p>
         {pick.thesis && <p className="text-meta leading-relaxed text-muted-foreground">{clarifyOracleNarrative(pick.thesis)}</p>}
         <div className="rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2">
-          <div className="mb-0.5 text-label font-mono uppercase tracking-widest" style={{ color: CYAN }}>What to do now</div>
+          <div className="mb-0.5 text-label font-mono uppercase tracking-widest" style={{ color: CYAN }}>Setup status</div>
           <div className="text-meta font-mono text-foreground/85">{todo}</div>
         </div>
       </div>

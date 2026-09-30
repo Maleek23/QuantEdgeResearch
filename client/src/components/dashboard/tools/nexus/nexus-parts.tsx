@@ -283,7 +283,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
           <div className="nxp-symbol-line"><TickerLogo symbol={selected.symbol} size="lg" /><h2>{selected.symbol}</h2><WatchStar sym={selected.symbol} size={15} /><span className={positive ? 'bull' : 'bear'}>{positive ? 'Bullish' : 'Bearish'}</span><span>{selected.convictionBand} evidence</span></div>
           <p>{selected.catalyst || selected.thesis || 'No written catalyst was returned.'}</p>
         </div>
-        <div className="nxp-score"><strong>{selected.isBotHeld ? `${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(selected.convictionScore)}</strong><span>{selected.isBotHeld ? 'position P&L' : 'confidence / 100'}</span></div>
+        <div className="nxp-score"><strong>{selected.isBotHeld ? `${(selected.unrealizedPnlPercent ?? 0).toFixed(1)}%` : convictionPercent(selected.convictionScore)}</strong><span>{selected.isBotHeld ? 'paper P&L' : 'evidence score / 100'}</span></div>
       </div>
 
       <div className="nxp-chart-card">
@@ -316,7 +316,7 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
             </div>
           </article>
           <aside className="nxp-execution">
-            <div className="nxp-section-title"><span>Execution</span><small>{selected.optionType ? 'Option-backed' : selected.assetType}</small></div>
+            <div className="nxp-section-title"><span>Trade structure</span><small>{selected.optionType ? 'Option-backed' : selected.assetType}</small></div>
             <div className="nxp-contract"><Target size={17} /><div><strong>{selected.optionType ? `${money(selected.strikePrice)} ${selected.optionType.toUpperCase()}` : 'Underlying plan'}</strong><span>{selected.expiryDate ?? selected.holdingPeriod}</span></div></div>
             {selected.symbol === 'SPY' && <div className={`nxp-spx-expression ${spx ? 'live' : ''}`}><span>SPX linked expression</span>{spx ? <><strong>{positive ? 'BULLISH' : 'BEARISH'} · SPX {money(spx.spot)}</strong><small>Trigger {money(spx.entry)} · Stop {money(spx.stop)} · T1 {money(spx.target)}</small>{spx.contract ? <small>Actual chain · {spx.contract.optionSymbol} · {money(spx.contract.entryPremium)}</small> : <small>{spx.chainNote || 'No account-fit SPX/SPXW contract cleared the chain gates.'}</small>}</> : <small>{spxLoading ? 'Reading the SPX/SPXW chain…' : 'SPX quote pair unavailable — no levels guessed.'}</small>}</div>}
             <button className="nxp-cockpit" type="button" onClick={() => openWorkup(selected.symbol)}>Open full workup <ChevronRight size={16} /></button>
@@ -328,6 +328,9 @@ export function SetupDetail({ selected, spxExpression, spxLoading, tab, onTab, c
         {tab === 'risk' && <RiskPanel pick={selected} live={live} />}
         {tab === 'contract' && <ContractEngine symbol={selected.symbol} direction={positive ? 'BULL' : 'BEAR'} entry={selected.entryPrice} stop={selected.stopLoss} t1={selected.targetPrice} holdPeriodLabel={selected.holdingPeriod} conviction={convictionPercent(selected.convictionScore)} />}
       </div>
+      <p className="nxp-disclaimer text-muted-foreground" style={{ margin: '10px 2px 0', fontSize: 11, lineHeight: 1.45 }}>
+        Model idea for research and education — not a recommendation to buy or sell. Scores rank evidence; they are not probabilities. Options can lose their full value.
+      </p>
     </motion.div>
   );
 }
