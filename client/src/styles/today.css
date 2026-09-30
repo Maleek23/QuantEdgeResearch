@@ -527,6 +527,8 @@ html[data-mode=light] .flowdash.dash-page.dash-today:not(.framed) .pg-sec[data-t
   .flowdash.dash-today .today-l.td-week .hero-sub{margin-bottom:20px}
   /* index-desk row captions were 9–10px (a pre-existing device-audit FAIL): the 12px phone floor */
   .flowdash.dash-today .td-index-row small,.flowdash.dash-today .td-index-row>span,.flowdash.dash-today .td-index-row>b,.flowdash.dash-today .td-index-row>em{font-size:12px}
+}
+
 /* ── phone density (operator 2026-09-30): numbers first, captions one tap away ── */
 @media (max-width:767px){
   .flowdash .td-week .lterminal-head{display:none}
