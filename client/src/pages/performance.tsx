@@ -305,10 +305,10 @@ export default function PerformancePage() {
       setValidationResults(result.results || []);
       setValidationSummary({ validated: result.validated, updated: result.updated });
       setShowValidationDialog(true);
-      toast({ title: "Validation Complete", description: `Validated ${result.validated} ideas, updated ${result.updated}` });
+      toast({ title: "Validation complete", description: `Validated ${result.validated} ideas, updated ${result.updated}` });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
     } catch (error) {
-      toast({ title: "Validation Failed", variant: "destructive" });
+      toast({ title: "Couldn’t run validation", variant: "destructive" });
     } finally {
       setIsValidating(false);
     }

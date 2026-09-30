@@ -39,7 +39,7 @@ export function TraderWatchlistTabs({ mine, mineCount, renderSymbol }: {
   });
   const traders = tradersQ.data?.traders ?? [];
   const items: QETabItem<string>[] = [
-    { id: 'mine', label: 'Mine', count: mineCount },
+    { id: 'mine', label: 'Yours', count: mineCount },
     ...traders.map((t) => ({ id: t.slug, label: t.name, count: t.watchlistCount, group: 'Traders', hint: `${t.name}'s watchlist` })),
   ];
   // Group "Mine" separately so the strip reads  Mine | TRADERS Femi Malik Uzo Bean.
@@ -51,7 +51,7 @@ export function TraderWatchlistTabs({ mine, mineCount, renderSymbol }: {
     <div>
       <QETabs items={items} active={active} onChange={setTab} size="sm" variant="subtle" ariaLabel="Whose watchlist" panelIdPrefix={prefix} className="mb-2" />
       {tradersQ.isError && active === 'mine' && (
-        <div style={{ fontSize: 10, color: 'var(--amber, #facc15)', fontFamily: mono, marginBottom: 4 }}>traders list didn't load — Mine is unaffected</div>
+        <div style={{ fontSize: 10, color: 'var(--amber, #facc15)', fontFamily: mono, marginBottom: 4 }}>Trader lists didn't load — your list is unaffected</div>
       )}
       <div role="tabpanel" id={`${prefix}-panel-${active}`} aria-labelledby={`${prefix}-tab-${active}`} tabIndex={-1}>
         {active === 'mine' ? mine : <TraderPanel trader={traders.find((t) => t.slug === active)!} renderSymbol={renderSymbol} />}

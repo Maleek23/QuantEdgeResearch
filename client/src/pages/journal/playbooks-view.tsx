@@ -16,6 +16,7 @@
  *     then reports, per rule, the share of assessed trades that followed it
  *     and the P&L when followed vs broken (metrics-extra.ts playbookAdherence).
  */
+import { reasonOf } from '@/lib/optimistic';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Loader2, Plus } from 'lucide-react';
 import { journalDayKey } from '@shared/journal-filters';
@@ -211,7 +212,7 @@ function NewPlaybook({ onDone, existing }: { onDone: () => void; existing: Set<s
   const [err, setErr] = useState('');
   const clash = existing.has(name.trim().toLowerCase());
   return (
-    <Card title="New playbook">
+    <Card title="New Playbook">
       <form style={{ display: 'flex', flexDirection: 'column', gap: 8 }} onSubmit={async (e) => {
         e.preventDefault();
         setErr('');
@@ -253,13 +254,13 @@ function BotRulebook({ trades }: { trades: JTrade[] }) {
     return [r && r !== 'reason not recorded' ? ruleOfReason(r) : 'not recorded'];
   }), [trades]);
 
-  if (q.isError && !q.data) return <QEError title="Quantinum Bot's rules didn't load" message={`/api/journal/bot failed (${q.error instanceof Error ? q.error.message : 'no response'}). The setup stats below are unaffected.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
+  if (q.isError && !q.data) return <QEError title="Quantinum Bot's rules didn't load" message={`${reasonOf(q.error)} The setup stats below are unaffected.`} onRetry={() => q.refetch()} retrying={q.isFetching} />;
   if (q.isLoading || !q.data) return <QELoading rows={3} label="loading the bot's rulebook…" />;
   const rows = botRules(q.data.config, trades);
 
   return (
     <>
-      <Card num="01" title="Quantinum Bot's rulebook" meta={<><N n={trades.length} unit="fills in view" /><span className="jr-n">config as deployed · server/quant-bot.ts</span></>}>
+      <Card num="01" title="Quantinum Bot's Rulebook" meta={<><N n={trades.length} unit="fills in view" /><span className="jr-n">config as deployed · server/quant-bot.ts</span></>}>
         <div className="jr-table-wrap">
           <table className="jr-table jr-table-wrapcells">
             <thead>
@@ -279,16 +280,16 @@ function BotRulebook({ trades }: { trades: JTrade[] }) {
         </div>
         <p className="jr-note">
           "Not measurable here" means the bot logs the refusal to the server log but never stores it, so the journal cannot count it — a gap, not a zero.
-          The short-discipline gate's refusals are stored and replayed: <button type="button" className="jr-cell-btn jr-accent-link" onClick={() => goTo('missed')}>see Missed</button>.
+          The short-discipline gate's refusals are stored and replayed: <button type="button" className="jr-cell-btn jr-accent-link" onClick={() => goTo('missed')}>See missed trades</button>.
         </p>
       </Card>
-      <Card num="02" title="Exits by the rule that closed them" meta={<N n={exits.reduce((s, b) => s + b.closed, 0)} />}>
+      <Card num="02" title="Exits by the Rule That Closed Them" meta={<N n={exits.reduce((s, b) => s + b.closed, 0)} />}>
         {exits.length ? (
           <>
             <BucketTable buckets={exits} keyLabel="Exit rule" showHold />
             <p className="jr-note">Grouped from each fill's recorded exit reason with its numbers stripped ("gap magnet at $412 — banked +38%" → "gap magnet").</p>
           </>
-        ) : <QEEmpty message="No closed bot fills in view." />}
+        ) : <QEEmpty message="No closed Quantinum Bot fills in view." />}
       </Card>
     </>
   );

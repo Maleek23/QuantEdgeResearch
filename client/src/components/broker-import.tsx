@@ -8,6 +8,7 @@
  * - View unified portfolio across all brokers
  */
 
+import { reasonOf } from '@/lib/optimistic';
 import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -259,7 +260,7 @@ function CSVImportDialog({
     onSuccess: (data) => {
       setImporting(false);
       toast({
-        title: "Import Successful",
+        title: "Positions imported",
         description: `Imported ${data.positions?.length || 0} positions from ${broker?.name}`,
       });
       onSuccess();
@@ -268,8 +269,8 @@ function CSVImportDialog({
     onError: (error: Error) => {
       setImporting(false);
       toast({
-        title: "Import Failed",
-        description: error.message,
+        title: "Couldn’t import positions",
+        description: reasonOf(error),
         variant: "destructive",
       });
     },
@@ -297,7 +298,7 @@ function CSVImportDialog({
     onSuccess: (data) => {
       setImporting(false);
       toast({
-        title: "Screenshot Imported",
+        title: "Screenshot imported",
         description: `Extracted ${data.positionCount || 0} positions from your screenshot`,
       });
       onSuccess();
@@ -306,8 +307,8 @@ function CSVImportDialog({
     onError: (error: Error) => {
       setImporting(false);
       toast({
-        title: "Screenshot Import Failed",
-        description: error.message,
+        title: "Couldn’t read the screenshot",
+        description: reasonOf(error),
         variant: "destructive",
       });
     },
@@ -316,8 +317,8 @@ function CSVImportDialog({
   const handleFileSelect = (file: File) => {
     if (!file.name.endsWith('.csv')) {
       toast({
-        title: "Invalid File",
-        description: "Please upload a CSV file",
+        title: "That file isn’t a CSV",
+        description: "Choose a .csv export from your broker.",
         variant: "destructive",
       });
       return;
@@ -328,8 +329,8 @@ function CSVImportDialog({
   const handleImageSelect = (file: File) => {
     if (!file.type.startsWith('image/')) {
       toast({
-        title: "Invalid File",
-        description: "Please upload an image (PNG, JPG, WEBP)",
+        title: "That file isn’t an image",
+        description: "Choose a PNG, JPG or WEBP screenshot.",
         variant: "destructive",
       });
       return;
@@ -570,7 +571,7 @@ function PortfolioInsights({ broker }: { broker: BrokerType }) {
       return res.json();
     },
     onError: (error: Error) => {
-      toast({ title: 'Analysis Failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Couldn’t analyze the positions', description: reasonOf(error), variant: 'destructive' });
     },
   });
 

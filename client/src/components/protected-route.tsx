@@ -117,8 +117,8 @@ export function ProtectedRoute({
     const handleRedeemInvite = async () => {
       if (!inviteCode.trim()) {
         toast({
-          title: "Enter invite code",
-          description: "Please enter your beta invite code",
+          title: "Enter your invite code",
+          description: "It’s in your beta invite email.",
           variant: "destructive",
         });
         return;
@@ -132,8 +132,8 @@ export function ProtectedRoute({
 
         if (response.ok) {
           toast({
-            title: "Welcome to the Beta!",
-            description: "Your invite code has been redeemed. Enjoy the platform!",
+            title: "Invite code accepted",
+            description: "Your beta access is active.",
           });
           queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
           queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
@@ -141,15 +141,15 @@ export function ProtectedRoute({
         } else {
           const data = await response.json();
           toast({
-            title: "Invalid Code",
+            title: "Invite code not accepted",
             description: data.error || "This invite code is invalid or expired",
             variant: "destructive",
           });
         }
       } catch {
         toast({
-          title: "Error",
-          description: "Failed to redeem invite code. Please try again.",
+          title: "Couldn’t redeem the invite code",
+          description: "Try again in a minute.",
           variant: "destructive",
         });
       } finally {

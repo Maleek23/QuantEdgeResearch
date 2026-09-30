@@ -59,7 +59,7 @@ export function CatalystEarningsTool() {
   });
   const g = gate(q, 'earnings calendar');
   if (g) return g;
-  if (!(q.data?.events?.length)) return <QEEmpty className="fd-m" message="The earnings calendar returned no reports for the next 7 days." />;
+  if (!(q.data?.events?.length)) return <QEEmpty className="fd-m" message="No earnings reports in the next 7 days." />;
   return <Section only="earnings" />;
 }
 

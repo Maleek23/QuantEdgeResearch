@@ -395,7 +395,7 @@ function JobPanel({ job }: { job: Job }) {
         <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
           {job.results.map((t) => (
             <li key={t.threadId}>
-              <b>{t.book === 'mine' ? 'Mine' : t.trader}</b>{t.created ? ' (new trader)' : ''} — {t.posts} posts in the Notebook ·{' '}
+              <b>{t.book === 'mine' ? 'My journal' : t.trader}</b>{t.created ? ' (new trader)' : ''} — {t.posts} posts in the Notebook ·{' '}
               {t.tradesNew} new / {t.tradesUpdated} updated trades{t.tradesRemoved ? ` · ${t.tradesRemoved} re-paired` : ''}
               {t.book === 'mine' ? ` · ${t.tradesLinked} matched to your broker rows (not added) · ${t.tradesFlagged} flagged from Discord` : ''}
               {t.fromScreenshots ? ` · ${t.fromScreenshots} from screenshots` : ''}{t.review ? ` · ${t.review} for review` : ''}

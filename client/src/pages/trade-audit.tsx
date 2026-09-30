@@ -727,13 +727,13 @@ export default function TradeAudit() {
     onSuccess: () => {
       toast({
         title: "Shared to Discord",
-        description: `${data?.tradeIdea?.symbol} trade sent to Discord channel`,
+        description: `${data?.tradeIdea?.symbol ?? "The"} idea was posted to the Discord channel.`,
       });
     },
     onError: () => {
       toast({
-        title: "Share Failed",
-        description: "Could not share to Discord. Please try again.",
+        title: "Couldn’t share to Discord",
+        description: "Try again in a minute.",
         variant: "destructive",
       });
     },

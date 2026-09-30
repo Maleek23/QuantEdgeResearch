@@ -8,6 +8,7 @@
  * table rows are the page's own exported components; the heat map and the
  * detail table share one sort (per-page dash state), exactly as on the page.
  */
+import { fmtUsd } from '@/lib/format';
 import type { ReactNode } from 'react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
 import PositionsHeatmapPage, {
@@ -34,9 +35,9 @@ function usePositions(): { data?: PositionsResponse; gate: ReactNode | null } {
   if (q.isLoading) return { gate: <QELoading rows={4} className="fd-pad" label="reading open positions…" /> };
   // A failed feed is NOT an empty book — say it's a data issue.
   if (q.isError || !d) {
-    return { gate: <QEError className="fd-m" title="Couldn't load positions" message="The positions feed failed — your book may be fine, this is a data issue." onRetry={() => q.refetch()} retrying={q.isFetching} /> };
+    return { gate: <QEError className="fd-m" title="Positions didn't load" message="The positions feed failed — your positions are unchanged; only this view is missing. Retry in a minute." onRetry={() => q.refetch()} retrying={q.isFetching} /> };
   }
-  if (d.summary.total === 0) return { data: d, gate: <QEEmpty className="fd-m" message="No open positions — track ideas from Trade Desk or Discovery." /> };
+  if (d.summary.total === 0) return { data: d, gate: <QEEmpty className="fd-m" message="No open positions. Track an idea from NEXUS to open one." /> };
   return { data: d, gate: null };
 }
 
@@ -63,12 +64,12 @@ export function PositionsPnlTool() {
       <div className="ph-hero">
         <span className="ph-lbl">Net open P&L</span>
         <b className={up ? 'up' : 'down'}>{signed(s.totalPnLPct, '%')}</b>
-        <span className="ph-sub">{s.totalPnLAbs >= 0 ? '+' : ''}${s.totalPnLAbs} absolute</span>
+        <span className="ph-sub">{fmtUsd(s.totalPnLAbs, { signed: true })} absolute</span>
       </div>
       <div className="ph-kpi"><span className="ph-lbl">Positions</span><b>{s.total}</b></div>
       <div className="ph-kpi" title="Share of open positions currently in profit — open marks, not decided outcomes.">
         <span className="ph-lbl">In profit</span>
-        <b className={wr >= 50 ? 'up' : 'warn'}>{wr}%</b>
+        <b className={wr >= 50 ? 'up' : 'warn'}>{s.total ? `${wr}%` : '—'}</b>
         <span className="ph-sub">{s.winners}W · {s.losers}L open</span>
       </div>
       <div className="ph-kpi"><span className="ph-lbl">Hot</span><b className="up">{s.hotCount}</b></div>
@@ -110,7 +111,7 @@ export function PositionsBestWorstTool() {
   const { data, gate } = usePositions();
   if (gate) return gate;
   const { bestPosition: best, worstPosition: worst } = data!.summary;
-  if (!best || !worst) return <QEEmpty className="fd-m" message="The feed returned no best / worst position." />;
+  if (!best || !worst) return <QEEmpty className="fd-m" message="No best or worst position yet — needs at least one open position." />;
   return (
     <div className="fd-scroll fd-pad ph-bw">
       <BestWorstCard position={best} type="best" />

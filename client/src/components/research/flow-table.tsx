@@ -12,6 +12,7 @@
  * Row actions:
  *   Click row → drawer (next sprint) with Contract Drilldown
  */
+import { reasonOf } from '@/lib/optimistic';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, RefreshCw, Filter } from 'lucide-react';
@@ -185,13 +186,13 @@ export function FlowTable({ symbol }: FlowTableProps) {
 
       {error && !isLoading && (
         <QECard variant="accent-bear" padding="md" className="text-center text-[10px] font-mono text-[var(--trade-bearish)]">
-          FLOW FETCH FAILED — {(error as Error).message}
+          Options flow didn't load — {reasonOf(error)}
         </QECard>
       )}
 
       {!isLoading && !error && trades.length === 0 && (
         <QECard variant="default" padding="lg" className="text-center text-[10px] font-mono text-muted-foreground">
-          No options flow detected for {symbol} in the last {days}d
+          No options flow for {symbol} in the last {days}d
           {flowType !== 'all' && <> · type={flowType}</>}
           {sentiment !== 'all' && <> · sent={sentiment}</>}
           {minPremium > 0 && <> · min ${minPremium.toLocaleString()}</>}

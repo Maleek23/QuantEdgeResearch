@@ -188,7 +188,9 @@ async function main() {
   assert.equal(reasonOf(new Error('400: {"error":"symbol and a positive price are required"}')), 'symbol and a positive price are required');
   assert.equal(reasonOf(new Error('401: Unauthorized')), 'Sign in first.');
   assert.equal(reasonOf(new Error('network down')), 'network down');
-  assert.equal(reasonOf(new Error('502: <html>bad gateway</html>')), '<html>bad gateway</html>');
+  assert.equal(reasonOf(new Error('502: <html>bad gateway</html>')), 'The server had a problem. Try again in a minute.', 'no raw HTML/status codes in toasts');
+  assert.equal(reasonOf(new Error('500: ')), 'The server had a problem. Try again in a minute.');
+  assert.equal(reasonOf(new TypeError('Failed to fetch')), 'Couldn’t reach QuantEdge — check your connection and try again.');
 
   // ── watchlist order (server + client share it) ──
   const items = [{ id: 'n' }, { id: 'a' }, { id: 't' }, { id: 'new' }];

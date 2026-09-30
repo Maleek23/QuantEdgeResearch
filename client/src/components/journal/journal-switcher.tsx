@@ -250,7 +250,7 @@ function TraderDialog({ open, slug, onOpenChange, onCreated }: {
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button type="button" className="jr-btn" onClick={() => onOpenChange(false)}>Cancel</button>
             <button type="button" className="jr-btn jr-btn-primary" disabled={busy || !form.name.trim() || (!editing && !form.slug.trim())} onClick={submit}>
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />} {editing ? 'Save' : 'Add trader'}
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />} {editing ? 'Save trader' : 'Add trader'}
             </button>
           </div>
         </div>

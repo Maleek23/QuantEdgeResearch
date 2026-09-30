@@ -11,6 +11,7 @@
  * pre-2026-08-26 outcome invalidation does not apply to them.
  * Traders above the threshold feed NEXUS's "Trader calls" as evidence only.
  */
+import { fmtPct } from '@/lib/format';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink } from 'lucide-react';
 import { QEEmpty, QEError, QELoading } from '@/components/ui/qe-states';
@@ -122,20 +123,20 @@ function TraderAnalysisCard({ a }: { a: Analysis }) {
       </Card>
 
       <div className="jr-grid">
-        <Card num="02" title="Best setups & tickers" className="jr-span-5">
+        <Card num="02" title="Best Setups & Tickers" className="jr-span-5">
           {!s.bestSetups.length && !s.bestTickers.length ? <QEEmpty message="Needs at least 2 closed, stated trades per setup or ticker." /> : (
             <table className="jr-table">
               <thead><tr><th scope="col">Group</th><th scope="col" className="num">n</th><th scope="col" className="num">Win %</th><th scope="col" className="num">Avg %</th></tr></thead>
               <tbody>
-                {s.bestSetups.map((g) => <tr key={`s:${g.key}`} style={{ cursor: 'default' }}><td>setup · {g.key}</td><td className="num">{g.n}</td><td className="num">{g.winRate}%</td><td className={`num ${tone(g.avgPct) ?? ''}`}>{pct(g.avgPct)}</td></tr>)}
-                {s.bestTickers.map((g) => <tr key={`t:${g.key}`} style={{ cursor: 'default' }}><td><span className="jr-sym">{g.key}</span></td><td className="num">{g.n}</td><td className="num">{g.winRate}%</td><td className={`num ${tone(g.avgPct) ?? ''}`}>{pct(g.avgPct)}</td></tr>)}
+                {s.bestSetups.map((g) => <tr key={`s:${g.key}`} style={{ cursor: 'default' }}><td>setup · {g.key}</td><td className="num">{g.n}</td><td className="num">{fmtPct(g.winRate, { decimals: 0 })}</td><td className={`num ${tone(g.avgPct) ?? ''}`}>{pct(g.avgPct)}</td></tr>)}
+                {s.bestTickers.map((g) => <tr key={`t:${g.key}`} style={{ cursor: 'default' }}><td><span className="jr-sym">{g.key}</span></td><td className="num">{g.n}</td><td className="num">{fmtPct(g.winRate, { decimals: 0 })}</td><td className={`num ${tone(g.avgPct) ?? ''}`}>{pct(g.avgPct)}</td></tr>)}
               </tbody>
             </table>
           )}
           <p className="jr-note">Stated trades only; groups with n &lt; 2 hidden. Small groups are anecdotes.</p>
         </Card>
 
-        <Card num="03" title="Calls, newest first" className="jr-span-7" meta={<N n={a.calls.length} unit="calls" />}>
+        <Card num="03" title="Calls, Newest First" className="jr-span-7" meta={<N n={a.calls.length} unit="calls" />}>
           {!recent.length ? <QEEmpty message={`${a.trader.name} has no parsed calls yet.`} /> : (
             <div className="jr-table-wrap" style={{ maxHeight: 460, overflowY: 'auto' }}>
               <table className="jr-table">

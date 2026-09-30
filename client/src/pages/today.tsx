@@ -64,7 +64,7 @@ function useNow(everyMs = 15_000) {
 function Stamp({ asOf, now, label, failed, onRetry, retrying, updatedAt }: {
   asOf?: string | null; now: number; label?: string; failed?: boolean; onRetry?: () => void; retrying?: boolean; updatedAt?: number;
 }) {
-  if (failed) return <QEStale className="tl-stale" what={label ? `${label} refresh` : 'Refresh'} updatedAt={updatedAt} onRetry={onRetry} retrying={retrying} />;
+  if (failed) return <QEStale className="tl-stale" what={label ? `refresh ${label}` : 'refresh'} updatedAt={updatedAt} onRetry={onRetry} retrying={retrying} />;
   if (!asOf) return null;
   return <span className="tl-stamp">{label ? `${label} · ` : ''}{ageLabel(asOf, now)}</span>;
 }
@@ -303,7 +303,7 @@ export default function TodayPage() {
                 <h1 className="hero-title">Reading the dealer map…</h1>
               ) : (
                 <h1 className="hero-title">
-                  SPY is <span className="grad">{shortGamma ? 'in short gamma' : balanced ? 'balanced on gamma' : 'in long gamma'}</span>{nearFlip ? ', near the flip' : ''}. {shortGamma ? 'Moves get amplified.' : balanced ? 'Neither side dominates.' : 'Moves get dampened.'}
+                  SPY is <span className="grad">{shortGamma ? 'in short gamma' : balanced ? 'balanced on gamma' : 'in long gamma'}</span>{nearFlip ? ', near zero-γ' : ''}. {shortGamma ? 'Moves get amplified.' : balanced ? 'Neither side dominates.' : 'Moves get dampened.'}
                   {sigma != null
                     ? <span className="accent"> {pinClose && gRegime === 'positive' ? `Price is near the ${fmt(magnet, 0)} magnet.` : `Weekly range: ±${fmt(sigma, 0)} points.`}</span>
                     : null}
@@ -326,7 +326,7 @@ export default function TodayPage() {
                 <Link href="/t?tab=gex" className="btn btn-ghost btn-lg">Full GEX surface</Link>
               </div>
               <div className="tl-keys" title={g.asOf ? `Measured SPY dealer levels · ${ageLabel(g.asOf, now)}` : 'Measured SPY dealer levels'}>
-                {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'max |gamma|', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
+                {([[magnetIsPut ? 'Put pivot' : 'Magnet', magnet, 'king node', 'mag'], ['Ceiling', snap?.callWall, 'call wall', 'up'], ['Floor', snap?.putWall, 'put wall', 'dn']] as const).map(([k, v, sub, cls]) => (
                   <div key={k}><span>{k}</span><b className={cls}>{fmt(v as number | undefined, 0)}</b><small>{sub}</small></div>
                 ))}
               </div>
@@ -449,8 +449,8 @@ export default function TodayPage() {
           </div>
           {(book.conv.isError && book.conv.data) || (perf.isError && perf.data) ? (
             <div className="tl-band-foot">
-              {book.conv.isError && book.conv.data && <QEStale className="tl-stale" what="Idea book refresh" updatedAt={book.conv.dataUpdatedAt} onRetry={() => book.conv.refetch()} retrying={book.conv.isFetching} />}
-              {perf.isError && perf.data && <QEStale className="tl-stale" what="Record refresh" updatedAt={perf.dataUpdatedAt} onRetry={() => perf.refetch()} retrying={perf.isFetching} />}
+              {book.conv.isError && book.conv.data && <QEStale className="tl-stale" what="refresh the idea book" updatedAt={book.conv.dataUpdatedAt} onRetry={() => book.conv.refetch()} retrying={book.conv.isFetching} />}
+              {perf.isError && perf.data && <QEStale className="tl-stale" what="refresh the record" updatedAt={perf.dataUpdatedAt} onRetry={() => perf.refetch()} retrying={perf.isFetching} />}
             </div>
           ) : null}
         </div>

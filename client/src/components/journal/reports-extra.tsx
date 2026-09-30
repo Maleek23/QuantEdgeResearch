@@ -196,7 +196,7 @@ export function TradeExplorerCard({ num }: { num: string }) {
   const grid = `repeat(${shown.length}, minmax(96px, 1fr))`;
 
   return (
-    <Card id="jr-explorer" className="jr-anchor" num={num} title="Trade explorer"
+    <Card id="jr-explorer" className="jr-anchor" num={num} title="Trade Explorer"
       meta={
         <>
           <N n={rows.length} unit="trades" />
@@ -208,13 +208,13 @@ export function TradeExplorerCard({ num }: { num: string }) {
                   <label key={c.id}><input type="checkbox" checked={cols.includes(c.id)} disabled={cols.length === 1 && cols.includes(c.id)}
                     onChange={(e) => setCols((cs) => (e.target.checked ? COLS.filter((x) => cs.includes(x.id) || x.id === c.id).map((x) => x.id) : cs.filter((x) => x !== c.id)))} /> {c.label}</label>
                 ))}
-                <button type="button" className="jr-btn jr-btn-sm" onClick={() => setCols(DEFAULT_COLS)}>Reset</button>
+                <button type="button" className="jr-btn jr-btn-sm" onClick={() => setCols(DEFAULT_COLS)}>Reset columns</button>
               </div>
             )}
           </div>
         </>
       }>
-      {!rows.length ? <QEEmpty message="No trades in view." /> : (
+      {!rows.length ? <QEEmpty message="No trades in view. Clear a filter or widen the dates." /> : (
         <div className="jr-explorer" role="table" aria-label="Trade explorer" aria-rowcount={rows.length + 1}>
           <div className="jr-explorer-scroll">
             <div className="jr-explorer-head" role="row" style={{ gridTemplateColumns: grid }}>
@@ -283,7 +283,7 @@ export function PerformanceTrendsCard({ num }: { num: string }) {
   vals.forEach((v, i) => { if (v == null) { return; } d += `${d && vals[i - 1] != null ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)} `; });
   const gaps = vals.length - known.length;
   return (
-    <Card id="jr-trends" className="jr-anchor" num={num} title="Performance trends"
+    <Card id="jr-trends" className="jr-anchor" num={num} title="Performance Trends"
       meta={
         <>
           <N n={m.closedTrades} />
@@ -364,7 +364,7 @@ export function ReviewExportCard({ num }: { num: string }) {
   ]);
 
   return (
-    <Card id="jr-export" className="jr-anchor" num={num} title="Review export" meta={<N n={data.rows.length} unit="trades in view" />}>
+    <Card id="jr-export" className="jr-anchor" num={num} title="Review Export" meta={<N n={data.rows.length} unit="trades in view" />}>
       <p className="jr-note" style={{ marginTop: 0 }}>Download what this page shows, with the filters written into the file: <b>{filterText}</b>.</p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" className="jr-btn jr-btn-sm jr-btn-primary" onClick={() => downloadCsv(`journal-review-${slug}-${stamp}.csv`, summary())}><Download className="h-3.5 w-3.5" /> Summary + breakdowns (CSV)</button>

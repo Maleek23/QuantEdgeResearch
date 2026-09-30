@@ -25,7 +25,7 @@ export const LEVEL_LABELS: Record<LevelRole, string> = {
   call_wall: 'CALL WALL',
   put_wall: 'PUT WALL',
   flip: 'FLIP',
-  max_gamma: 'MAX γ',
+  max_gamma: 'KING NODE',
   support: 'SUPPORT',
   resistance: 'RESISTANCE',
   neutral: 'STRIKE',

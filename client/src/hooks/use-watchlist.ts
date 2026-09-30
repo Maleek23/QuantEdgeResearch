@@ -90,7 +90,7 @@ export function toggleWatch(rawSym: string) {
 
 export async function addWatch(rawSym: string, opts: { quiet?: boolean } = {}) {
   const sym = up(rawSym);
-  if (!myId()) { failToast(`Sign in to watch ${sym}`); return; }
+  if (!myId()) { failToast(`Sign in to add ${sym} to your watchlist`); return; }
   const tmpId = `tmp-${sym}-${Date.now().toString(36)}`;
   busy.add(sym); bump();
   const r = await runOptimistic<WatchRow>({
@@ -104,10 +104,10 @@ export async function addWatch(rawSym: string, opts: { quiet?: boolean } = {}) {
       const rest = rows.filter((x) => x.id !== tmpId && x.id !== row.id);
       return [row, ...rest];
     }),
-    onError: (err) => failToast(`Couldn't watch ${sym}`, err, () => void addWatch(sym)),
+    onError: (err) => failToast(`Couldn't add ${sym} to your watchlist`, err, () => void addWatch(sym)),
   });
   busy.delete(sym); bump();
-  if (r.ok && !opts.quiet) undoToast({ title: `Watching ${sym}`, onUndo: () => void removeWatch(sym, { quiet: true }) });
+  if (r.ok && !opts.quiet) undoToast({ title: `Added ${sym} to watchlist`, onUndo: () => void removeWatch(sym, { quiet: true }) });
 }
 
 export function removeWatch(rawSym: string, opts: { quiet?: boolean } = {}): DeferredCommit | undefined {

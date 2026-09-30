@@ -125,7 +125,7 @@ export function WeekMap({ wp, snap, narrow }: { wp: WeeklyPath; snap?: GexSnap; 
   // Only measured dealer levels — the model's extrapolated ones stay off the map.
   const measured = [
     snap?.callWall && { price: snap.callWall, label: 'Call wall', tone: 'bull' },
-    snap?.maxGammaStrike && { price: snap.maxGammaStrike, label: 'Max gamma', tone: 'magnet' },
+    snap?.maxGammaStrike && { price: snap.maxGammaStrike, label: 'King node', tone: 'magnet' },
     snap?.putWall && { price: snap.putWall, label: 'Put wall', tone: 'bear' },
   ].filter(Boolean) as { price: number; label: string; tone: string }[];
   const pctAt = (k: number) => snap?.levels?.find((l) => Math.abs(l.strike - k) < 0.01)?.gammaPct;

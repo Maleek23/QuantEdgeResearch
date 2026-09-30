@@ -100,7 +100,7 @@ export default function ReportsView() {
         )}
       </Card>
 
-      <Card id="jr-cross" className="jr-anchor" num="02" title="Cross-analysis"
+      <Card id="jr-cross" className="jr-anchor" num="02" title="Cross-Analysis"
         meta={
           <>
             <select className="jr-select" aria-label="Rows" value={crossA} onChange={(e) => setCrossA(e.target.value as ReportDim)}>{dimOptions}</select>
@@ -121,22 +121,22 @@ export default function ReportsView() {
       </Card>
 
       <div className="jr-grid jr-anchor" id="jr-time">
-        <Card className="jr-span-4" num="03" title="By weekday" meta={<span className="jr-n">entry day, ET</span>}>
+        <Card className="jr-span-4" num="03" title="By Weekday" meta={<span className="jr-n">entry day, ET</span>}>
           <BucketBars buckets={weekday} empty="No trades in view." />
         </Card>
-        <Card className="jr-span-4" num="04" title="By entry hour" meta={<span className="jr-n">New York time</span>}>
+        <Card className="jr-span-4" num="04" title="By Entry Hour" meta={<span className="jr-n">New York time</span>}>
           <BucketBars buckets={hour} empty="No trades in view." />
         </Card>
-        <Card className="jr-span-4" num="05" title="By holding time">
+        <Card className="jr-span-4" num="05" title="By Holding Time">
           <BucketBars buckets={hold} empty="No closed trades with an exit time in view." />
         </Card>
-        <Card className="jr-span-4" num="06" title="By time of day" meta={<span className="jr-n">entry, New York</span>}>
+        <Card className="jr-span-4" num="06" title="By Time of Day" meta={<span className="jr-n">entry, New York</span>}>
           <InsightBars rows={ins.buckets.session} empty="No closed trades in view." />
         </Card>
-        <Card className="jr-span-4" num="07" title="Trades per day" meta={<span className="jr-n">closed trades on days with…</span>}>
+        <Card className="jr-span-4" num="07" title="Trades per Day" meta={<span className="jr-n">closed trades on days with…</span>}>
           <InsightBars rows={ins.buckets.dayLoad} empty="No closed trades in view." />
         </Card>
-        <Card className="jr-span-4" num="08" title="Options by days to expiry" meta={<span className="jr-n">New York entry day → expiry</span>}>
+        <Card className="jr-span-4" num="08" title="Options by Days to Expiry" meta={<span className="jr-n">New York entry day → expiry</span>}>
           <InsightBars rows={ins.buckets.dte} empty="No option trades with an expiry in view." />
         </Card>
       </div>
@@ -174,7 +174,7 @@ export default function ReportsView() {
           />
           <p className="jr-note">Last 12 weeks with closes, newest first; weeks start Monday.</p>
         </Card>
-        <Card className="jr-span-12" num="11" title="Streaks & extremes" meta={<><N n={m.closedTrades} /><LowSample n={m.closedTrades} /></>}>
+        <Card className="jr-span-12" num="11" title="Streaks & Extremes" meta={<><N n={m.closedTrades} /><LowSample n={m.closedTrades} /></>}>
           <div className="jr-stats" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
             <div><span>Longest win streak</span><b>{m.maxWinStreak}</b><small>consecutive closed wins</small></div>
             <div><span>Longest loss streak</span><b>{m.maxLossStreak}</b><small>consecutive closed losses</small></div>
@@ -186,7 +186,7 @@ export default function ReportsView() {
         </Card>
       </div>
 
-      <Card id="jr-insights" className="jr-anchor" num="12" title="Behaviour insights">
+      <Card id="jr-insights" className="jr-anchor" num="12" title="Behaviour Insights">
         <p className="jr-note" style={{ marginTop: 0 }}>What to stop doing (in $, with n), tilt, time of day, DTE, size and ticker concentration have their own page.</p>
         <button type="button" className="jr-btn jr-btn-sm" onClick={() => goTo('insights')}>Open Insights <ArrowRight className="h-3.5 w-3.5" /></button>
       </Card>

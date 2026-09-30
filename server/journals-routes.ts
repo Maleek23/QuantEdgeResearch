@@ -262,7 +262,7 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
         if (!actor.userId) return none('Sign in to read a connected account.');
         const mod = await import('./alpaca-journal-import');
         const row = await mod.getAlpacaConnection(actor.userId);
-        if (!row) return none('No account balance for Mine — connect Alpaca (Accounts) to anchor drawdown % to your equity.');
+        if (!row) return none('No account balance for your journal — connect Alpaca (Accounts) to anchor drawdown % to your equity.');
         const hit = balanceCache.get(actor.userId);
         if (hit && Date.now() - hit.at < 60_000) return res.json(hit.value);
         try {
@@ -274,7 +274,7 @@ export function registerJournalsRoutes(app: Express, requireBetaAccess: Mw) {
           return none(`Alpaca account read failed (${(e as Error).message}) — no balance this time.`);
         }
       }
-      if (key === 'desk') return none('The trade desk book sizes each idea on its own (1 contract / $1,000 notional) — there is no account balance behind it.');
+      if (key === 'desk') return none('The NEXUS ideas book sizes each idea on its own (1 contract / $1,000 notional) — there is no account balance behind it.');
       return none(`${j.label}'s journal has no account balance on record.`);
     } catch (err) { fail(res, err, 'Journal balance'); }
   });
